@@ -3,13 +3,10 @@
  * Proprietary and confidential
  */
 
-#ifndef PARSER_H
-#define PARSER_H 1
+#ifndef MATH_H
+#define MATH_H 1
 
-#include <stdlib.h>
-#include <stdbool.h>
-#include "lexer.h"
+#define MAX(a,b) ((a) > (b) ? a : b)
+#define MIN(a,b) ((a) < (b) ? a : b)
 
-bool parse_expression(NecroLexToken** pTokens, size_t num_tokens);
-
-#endif // PARSER_H
+#endif // MATH_H

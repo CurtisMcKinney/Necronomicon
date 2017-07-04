@@ -3,8 +3,11 @@
  * Proprietary and confidential
  */
 
+#ifndef ARENA_H
+#define ARENA_H 1
+
 // A very simple region based allocator. At the moment this doesn't support de-alloc within the arena
-// This arena will never invalidate pointers until it is destroyed
+// This arena won't invalidate pointers unless arena_allow_realloc is used.
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -18,4 +21,13 @@ typedef struct
 
 NecroArena create_arena(size_t size);
 void destroy_arena(NecroArena arena);
-void* arena_alloc(NecroArena* pArena, size_t size);
+
+typedef enum
+{
+    arena_fixed_size,
+    arena_allow_realloc
+} arena_alloc_policy;
+
+void* arena_alloc(NecroArena* pArena, size_t size, arena_alloc_policy alloc_policy);
+
+#endif // ARENA_H

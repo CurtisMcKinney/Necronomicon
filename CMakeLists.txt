@@ -7,11 +7,14 @@ set(project_SOURCES
     source/necro.c
     source/arena.c
     source/parser.c
+    source/lexer.c
     )
 set(project_HEADERS
     source/necro.h
     source/arena.h
     source/parser.h
+    source/lexer.h
+    source/math.h
     )
 
 ADD_EXECUTABLE(necro ${project_SOURCES})

@@ -3,6 +3,9 @@
  * Proprietary and confidential
  */
 
-#pragma once
+#ifndef NECRO_H
+#define NECRO_H 1
 
 #include <stdint.h>
+
+#endif // NECRO_H

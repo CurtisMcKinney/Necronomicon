@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <assert.h>
 #include "arena.h"
+#include "math.h"
 
  NecroArena create_arena(size_t size)
  {
@@ -21,10 +22,17 @@
      free(arena.pRegion);
  }
 
- void* arena_alloc(NecroArena* pArena, size_t size)
+ void* arena_alloc(NecroArena* pArena, size_t size, arena_alloc_policy alloc_policy)
  {
      bool canFit = pArena->size > (pArena->position + size);
-     assert(canFit);
+     if (!canFit && (alloc_policy == arena_allow_realloc))
+     {
+         size_t new_size = MAX(pArena->size * 2, size);
+         pArena->pRegion = (char*) realloc(pArena->pRegion, new_size);
+         pArena->size = new_size;
+         canFit = true;
+     }
+
      if (canFit)
      {
          void* pLocalRegion = (void*) (pArena->pRegion + pArena->position);

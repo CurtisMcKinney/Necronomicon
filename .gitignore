@@ -50,3 +50,27 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Vim Artifacts
+*.swp
+*.swo
+.ctrlp_cache/
+
+# CMake
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Makefile
+cmake_install.cmake
+install_manifest.txt
+
+# Visual Studio
+*.VC.db
+*.VC.VC.opendb
+.vs/
+ipch/
+enc_temp_folder/
+
+# Builds
+build/*
+

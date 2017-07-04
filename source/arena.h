@@ -4,6 +4,7 @@
  */
 
 // A very simple region based allocator. At the moment this doesn't support de-alloc within the arena
+// This arena will never invalidate pointers until it is destroyed
 
 #include <stdlib.h>
 #include <stdint.h>

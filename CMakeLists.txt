@@ -6,10 +6,12 @@ set(CMAKE_C_STANDARD 99)
 set(project_SOURCES
     source/necro.c
     source/arena.c
+    source/parser.c
     )
 set(project_HEADERS
     source/necro.h
     source/arena.h
+    source/parser.h
     )
 
 ADD_EXECUTABLE(necro ${project_SOURCES})

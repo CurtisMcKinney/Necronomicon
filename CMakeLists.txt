@@ -4,10 +4,12 @@ project(necro)
 set(CMAKE_C_STANDARD 99)
 
 set(project_SOURCES
-    Source/necro.c
+    source/necro.c
+    source/arena.c
     )
 set(project_HEADERS
-    Source/necro.h
+    source/necro.h
+    source/arena.h
     )
 
 ADD_EXECUTABLE(necro ${project_SOURCES})

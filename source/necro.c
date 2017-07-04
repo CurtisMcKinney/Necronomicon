@@ -107,8 +107,8 @@ void necro_push_##snake_type##_vector(type##Vector* vec, type* item)            
 	{                                                                              \
 		vec->capacity = vec->capacity * 2;                                         \
 		vec->data     = (type*) realloc(vec->data, vec->capacity * sizeof(type));  \
-		assert(vec->data != NULL);                                                 \
 	}                                                                              \
+	assert(vec->data != NULL);                                                     \
 	vec->data[vec->length] = *item;                                                \
 	vec->length++;                                                                 \
 }
@@ -151,7 +151,7 @@ typedef enum
     NECRO_LEX_NEW_LINE
 } NECRO_LEX_TOKEN_TYPE;
 
-const char* necro_lex_tokens_string(NECRO_LEX_TOKEN_TYPE token)
+const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
 {
 	switch(token)
 	{
@@ -243,7 +243,7 @@ void necro_print_lex_state(NecroLexState* lex_state)
 	printf("    tokens:\n    [\n");
 	for (int32_t i = 0; i < lex_state->tokens.length; ++i)
 	{
-		printf("        %s\n", necro_lex_tokens_string(lex_state->tokens.data[i].token));
+		printf("        %s\n", necro_lex_token_type_string(lex_state->tokens.data[i].token));
 	}
 	printf("    ]\n");
 	printf("}\n\n");
@@ -300,14 +300,39 @@ bool necro_lex_single_character(NecroLexState* lex_state)
 	return true;
 }
 
+bool necro_lex_token_with_pattern(NecroLexState* lex_state, const char* pattern, NECRO_LEX_TOKEN_TYPE token_type)
+{
+	int32_t i = 0;
+	while (pattern[i])
+	{
+		if (lex_state->str[lex_state->pos + i] != pattern[i])
+		{
+			return false;
+		}
+		i++;
+	}
+	NecroLexToken lex_token = { lex_state->character_number, lex_state->line_number, 0, token_type };
+	necro_push_lex_token_vector(&lex_state->tokens, &lex_token);
+	lex_state->character_number += i + 1;
+	lex_state->pos              += i + 1;
+	return true;
+}
+
+bool necro_lex_multi_character_token(NecroLexState* lex_state)
+{
+	return necro_lex_token_with_pattern(lex_state, "<=", NECRO_LEX_LTE) ||
+		   necro_lex_token_with_pattern(lex_state, ">=", NECRO_LEX_GTE) ||
+		   necro_lex_token_with_pattern(lex_state, "->", NECRO_LEX_RIGHT_ARROW);
+}
+
 void necro_lex(NecroLexState* lex_state)
 {
 	while (lex_state->str[lex_state->pos])
 	{
-		if (necro_lex_single_character(lex_state))
-		{
-		}
-		else
+		bool matched =
+			necro_lex_multi_character_token(lex_state) ||
+			necro_lex_single_character(lex_state);
+		if (!matched)
 		{
 			// We reached a character we don't know how to parse
 			printf("Unrecognized character: %c, found at line number: %d, character number: %d\n", lex_state->str[lex_state->pos], lex_state->line_number, lex_state->character_number + 1);
@@ -318,7 +343,7 @@ void necro_lex(NecroLexState* lex_state)
 
 void necro_test_lex()
 {
-	const char*   input_string = "+-*/\n!?";
+	const char*   input_string = "+-*/\n!?-><=>=";
 	NecroLexState lex_state    = necro_create_lex_state(input_string);
 	necro_lex(&lex_state);
 	printf("input_string:\n%s\n\n", input_string);

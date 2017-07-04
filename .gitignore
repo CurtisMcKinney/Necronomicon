@@ -70,6 +70,8 @@ install_manifest.txt
 .vs/
 ipch/
 enc_temp_folder/
+Win32/
+necro.dir/
 
 # Builds
 build/*

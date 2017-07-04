@@ -4,7 +4,7 @@ project(necro)
 set(CMAKE_C_STANDARD 99)
 
 set(project_SOURCES
-    Source/necro.cpp
+    Source/necro.c
     )
 set(project_HEADERS
     Source/necro.h

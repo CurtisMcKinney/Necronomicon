@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include <stdbool.h>
 
 //=====================================================
 // Theoretical Necro Runtime structs
@@ -67,7 +68,7 @@ NecroStringSlice necro_create_string_slice(const char* str)
 	{
 		length++;
 	}
-	return { str, length };
+	return (NecroStringSlice) { str, length };
 }
 
 //=====================================================
@@ -84,7 +85,7 @@ typedef struct                                                                  
                                                                                    \
 type##Vector necro_create_##snake_type##_vector()                                  \
 {                                                                                  \
-	return                                                                         \
+	return (type##Vector)                                                          \
 	{                                                                              \
 		(type*) malloc(NECRO_INTIAL_VECTOR_SIZE * sizeof(type)),                   \
 		0,                                                                         \
@@ -216,7 +217,7 @@ typedef struct
 
 NecroLexState necro_create_lex_state(const char* str)
 {
-	return
+	return (NecroLexState)
 	{
 		0,
 		0,

@@ -42,7 +42,7 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
 	case NECRO_LEX_INDENT:           return "INDENT";
 	case NECRO_LEX_DEDENT:           return "DEDENT";
 	case NECRO_LEX_NEW_LINE:         return "NEW_LINE";
-	default:                         return "????";
+	default:                         return "UNRECOGNIZED TOKEN";
 	}
 }
 

@@ -150,8 +150,6 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
 
 typedef struct
 {
-	int32_t character_number;
-	int32_t line_number;
 	union
 	{
 		int64_t          int_literal;
@@ -159,6 +157,8 @@ typedef struct
 		NecroStringSlice str;
 		bool             boolean_literal;
 	};
+	int32_t              character_number;
+	int32_t              line_number;
 	NECRO_LEX_TOKEN_TYPE token;
 } NecroLexToken;
 NECRO_DECLARE_VECTOR(NecroLexToken, lex_token)

@@ -160,11 +160,14 @@ bool necro_lex_multi_character_token(NecroLexState* lex_state)
 
 bool necro_lex_integer(NecroLexState* lex_state)
 {
-	char*   new_str_pos     = (char*) lex_state->str;
-	int32_t integer_literal = strtol(lex_state->str, &new_str_pos, 10);
-	if (new_str_pos == lex_state->str)
+	// TODO: Don't accept starting with Plus Symbol!
+	char*   start_str_pos   = (char*)(lex_state->str + lex_state->pos);
+	char*   new_str_pos     = start_str_pos;
+	int32_t integer_literal = strtol(start_str_pos, &new_str_pos, 10);
+	int32_t count           = (uint64_t)(new_str_pos - start_str_pos);
+	// printf("pos: %d, start: %p, end: %p, count: %d, int: %d\n", lex_state->pos, start_str_pos, new_str_pos, count, integer_literal);
+	if (count <= 0)
 		return false;
-	int32_t       count     = (uint64_t)new_str_pos - (uint64_t)lex_state->str;
 	NecroLexToken lex_token = { lex_state->character_number, lex_state->line_number, 0, NECRO_LEX_INTEGER_LITERAL };
 	lex_token.int_literal   = integer_literal;
 	necro_push_lex_token_vector(&lex_state->tokens, &lex_token);
@@ -178,7 +181,7 @@ void necro_lex(NecroLexState* lex_state)
 	while (lex_state->str[lex_state->pos])
 	{
 		bool matched =
-			// necro_lex_integer(lex_state)               ||
+			necro_lex_integer(lex_state)               ||
 			necro_lex_multi_character_token(lex_state) ||
 			necro_lex_single_character(lex_state);
 		if (!matched)

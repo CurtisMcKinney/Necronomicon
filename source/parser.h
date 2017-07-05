@@ -22,6 +22,7 @@ typedef enum
 
 typedef struct
 {
+    uint8_t _pad;
 } NecroAST_Undefined;
 
 typedef struct
@@ -45,14 +46,14 @@ typedef struct
     NecroArena arena;
 } NecroAST;
 
-static inline NecroAST_Node* ast_get_node(NecroAST ast, NecroAST_LocalPtr localPtr)
+static inline NecroAST_Node* ast_get_node(NecroAST* ast, NecroAST_LocalPtr local_ptr)
 {
-    return ((NecroAST_Node*) ast.arena.pRegion) + localPtr;
+    return ((NecroAST_Node*) ast->arena.region) + local_ptr;
 }
 
-static inline NecroAST_Node* ast_get_root_node(NecroAST ast)
+static inline NecroAST_Node* ast_get_root_node(NecroAST* ast)
 {
-    return (NecroAST_Node*) ast.arena.pRegion;
+    return (NecroAST_Node*) ast->arena.region;
 }
 
 typedef enum
@@ -61,8 +62,8 @@ typedef enum
     parse_error
 } NecroParse_Result;
 
-NecroParse_Result parse_ast(NecroLexToken** pTokens, size_t num_tokens, NecroAST* pAst);
-bool parse_expression(NecroLexToken** pTokens, size_t num_tokens);
-void print_ast(NecroAST ast);
+NecroParse_Result parse_ast(NecroLexToken** tokens, size_t num_tokens, NecroAST* ast);
+bool parse_expression(NecroLexToken** tokens, size_t num_tokens);
+void print_ast(NecroAST* ast);
 
 #endif // PARSER_H

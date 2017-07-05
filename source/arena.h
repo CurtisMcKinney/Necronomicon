@@ -14,13 +14,13 @@
 
 typedef struct
 {
-    char* pRegion;
+    char* region;
     size_t capacity;
     size_t size;
 } NecroArena;
 
-NecroArena create_arena(size_t capacity);
-void destroy_arena(NecroArena arena);
+NecroArena construct_arena(size_t capacity);
+void destruct_arena(NecroArena* arena);
 
 typedef enum
 {
@@ -28,6 +28,6 @@ typedef enum
     arena_allow_realloc
 } arena_alloc_policy;
 
-void* arena_alloc(NecroArena* pArena, size_t size, arena_alloc_policy alloc_policy);
+void* arena_alloc(NecroArena* arena, size_t size, arena_alloc_policy alloc_policy);
 
 #endif // ARENA_H

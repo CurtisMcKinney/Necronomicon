@@ -8,36 +8,39 @@
 #include "arena.h"
 #include "math.h"
 
- NecroArena create_arena(size_t capacity)
+ NecroArena construct_arena(size_t capacity)
  {
      NecroArena arena;
-     arena.pRegion = (char*) malloc(capacity);
+     arena.region = (char*) malloc(capacity);
      arena.capacity = capacity;
      arena.size = 0;
      return arena;
  }
 
- void destroy_arena(NecroArena arena)
+ void destruct_arena(NecroArena* arena)
  {
-     free(arena.pRegion);
+     free(arena->region);
+     arena->region = 0;
+     arena->size = 0;
+     arena->capacity = 0;
  }
 
- void* arena_alloc(NecroArena* pArena, size_t size, arena_alloc_policy alloc_policy)
+ void* arena_alloc(NecroArena* arena, size_t size, arena_alloc_policy alloc_policy)
  {
-     bool canFit = pArena->capacity > (pArena->size + size);
+     bool canFit = arena->capacity > (arena->size + size);
      if (!canFit && (alloc_policy == arena_allow_realloc))
      {
-         size_t new_capacity = MAX(pArena->capacity * 2, pArena->capacity + size);
-         pArena->pRegion = (char*) realloc(pArena->pRegion, new_capacity);
-         pArena->capacity = new_capacity;
+         size_t new_capacity = MAX(arena->capacity * 2, arena->capacity + size);
+         arena->region = (char*) realloc(arena->region, new_capacity);
+         arena->capacity = new_capacity;
          canFit = true;
      }
 
      if (canFit)
      {
-         void* pLocalRegion = (void*) (pArena->pRegion + pArena->size);
-         pArena->size += size;
-         return pLocalRegion;
+         void* local_region = (void*) (arena->region + arena->size);
+         arena->size += size;
+         return local_region;
      }
 
      return 0;

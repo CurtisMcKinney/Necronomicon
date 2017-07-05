@@ -10,10 +10,16 @@
 // Abstract Syntax Tree
 // =====================================================
 
-NecroAST_Node* ast_alloc_node(NecroAST ast, NecroAST_LocalPtr* pLocalPtr)
+NecroAST_Node* ast_alloc_node(NecroAST* p_ast, NecroAST_LocalPtr* p_local_ptr)
 {
-    *pLocalPtr = ast.arena.size / sizeof(NecroAST_Node);
-    return (NecroAST_Node*) arena_alloc(&ast.arena, sizeof(NecroAST_Node), arena_allow_realloc);
+    *p_local_ptr = p_ast->arena.size / sizeof(NecroAST_Node);
+    return (NecroAST_Node*) arena_alloc(&p_ast->arena, sizeof(NecroAST_Node), arena_allow_realloc);
+}
+
+void ast_pop_node(NecroAST* p_ast)
+{
+    assert(p_ast->arena.size >= sizeof(NecroAST_Node));
+    p_ast->arena.size - sizeof(NecroAST_Node);
 }
 
 void print_ast_impl(NecroAST ast, NecroAST_Node* ast_node, uint32_t depth)

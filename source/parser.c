@@ -10,32 +10,42 @@
 // Abstract Syntax Tree
 // =====================================================
 
-NecroAST_Node* ast_alloc_node(NecroAST* ast, NecroAST_LocalPtr* p_local_ptr)
+NecroAST_Node* ast_alloc_node(NecroAST* ast)
 {
-    *p_local_ptr = ast->arena.size / sizeof(NecroAST_Node);
     return (NecroAST_Node*) arena_alloc(&ast->arena, sizeof(NecroAST_Node), arena_allow_realloc);
 }
 
+NecroAST_Node* ast_alloc_node_local_ptr(NecroAST* ast, NecroAST_LocalPtr* local_ptr)
+{
+    *local_ptr = ast->arena.size / sizeof(NecroAST_Node);
+    return (NecroAST_Node*) arena_alloc(&ast->arena, sizeof(NecroAST_Node), arena_allow_realloc);
+}
+
+// used to back track AST modifications during parsing
 void ast_pop_node(NecroAST* ast)
 {
     assert(ast->arena.size >= sizeof(NecroAST_Node));
-    ast->arena.size - sizeof(NecroAST_Node);
+    ast->arena.size -= sizeof(NecroAST_Node);
 }
 
 void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, uint32_t depth)
 {
-    uint32_t i;
-    for (i = 0;  i < depth; ++i)
+    for (uint32_t i = 0;  i < depth; ++i)
     {
         printf("\t");
     }
 
     switch(ast_node->type)
     {
-    case NECRO_AST_ADD:
-        puts("(+)");
-        print_ast_impl(ast, ast_get_node(ast, ast_node->add.lhs), depth + 1);
-        print_ast_impl(ast, ast_get_node(ast, ast_node->add.rhs), depth + 1);
+    case NECRO_AST_BIN_OP:
+        switch(ast_node->bin_op.type)
+        {
+        case NECRO_BIN_OP_ADD:
+            puts("(+)");
+            break;
+        }
+        print_ast_impl(ast, ast_get_node(ast, ast_node->bin_op.lhs), depth + 1);
+        print_ast_impl(ast, ast_get_node(ast, ast_node->bin_op.rhs), depth + 1);
         break;
 
     default:
@@ -53,15 +63,15 @@ void print_ast(NecroAST* ast)
 // Recursive Descent Parser
 // =====================================================
 
-bool parse_expression(NecroLexToken** tokens, size_t num_tokens);
-bool parse_constant(NecroLexToken** tokens, size_t num_tokens);
-bool parse_unary_operation(NecroLexToken** tokens, size_t num_tokens);
-bool parse_binary_operation(NecroLexToken** tokens, size_t num_tokens);
-bool parse_function_composition(NecroLexToken** tokens, size_t num_tokens);
+bool parse_expression(NecroLexToken** tokens, size_t num_tokens, NecroAST* ast);
+bool parse_constant(NecroLexToken** tokens, size_t num_tokens, NecroAST* ast);
+bool parse_unary_operation(NecroLexToken** tokens, size_t num_tokens, NecroAST* ast);
+bool parse_binary_operation(NecroLexToken** tokens, size_t num_tokens, NecroAST* ast);
+bool parse_function_composition(NecroLexToken** tokens, size_t num_tokens, NecroAST* ast);
 
 NecroParse_Result parse_ast(NecroLexToken** tokens, size_t num_tokens, NecroAST* ast)
 {
-    return parse_error;
+    return ParseError;
 }
 
 bool match_token(NecroLexToken** tokens, NECRO_LEX_TOKEN_TYPE token_type)
@@ -75,56 +85,82 @@ bool match_token(NecroLexToken** tokens, NECRO_LEX_TOKEN_TYPE token_type)
     return false;
 }
 
-bool parse_expression(NecroLexToken** tokens, size_t num_tokens)
+bool parse_expression(NecroLexToken** tokens, size_t num_tokens, NecroAST* ast)
 {
-    NecroLexToken* originalTokens = *tokens;
-    if (parse_constant(tokens, num_tokens) ||
-        parse_unary_operation(tokens, num_tokens) ||
-        parse_binary_operation(tokens, num_tokens) ||
-        parse_function_composition(tokens, num_tokens))
+    NecroLexToken* original_tokens = *tokens;
+    size_t original_size = ast->arena.size;
+    if (parse_constant(tokens, num_tokens, ast) ||
+        parse_unary_operation(tokens, num_tokens, ast) ||
+        parse_binary_operation(tokens, num_tokens, ast) ||
+        parse_function_composition(tokens, num_tokens, ast))
 
     {
         return true;
     }
 
-    *tokens = originalTokens;
+    *tokens = original_tokens;
+    ast->arena.size = original_size; // backtrack AST modifications
     return false;
 }
 
-bool parse_constant(NecroLexToken** tokens, size_t num_tokens)
+bool parse_constant(NecroLexToken** tokens, size_t num_tokens, NecroAST* ast)
 {
-    NecroLexToken* originalTokens = *tokens;
+    NecroLexToken* original_tokens = *tokens;
+    size_t original_size = ast->arena.size;
     switch(tokens[0]->token)
     {
+    case NECRO_LEX_FLOAT_LITERAL:
+        {
+            NecroAST_Node* ast_node = ast_alloc_node(ast);
+            ast_node->type = NECRO_AST_CONSTANT;
+            NecroAST_Constant constant;
+            constant.type = NECRO_AST_CONSTANT_FLOAT;
+            constant.double_literal = tokens[0]->double_literal;
+            ast_node->constant = constant;
+            ++(*tokens);
+            return true;
+        }
     case NECRO_LEX_INTEGER_LITERAL:
-        ++(*tokens);
-        return true;
-	case NECRO_LEX_FLOAT_LITERAL:
-		++(*tokens);
-		return true;
+        {
+            NecroAST_Node* ast_node = ast_alloc_node(ast);
+            ast_node->type = NECRO_AST_CONSTANT;
+            NecroAST_Constant constant;
+            constant.type = NECRO_AST_CONSTANT_INTEGER;
+            constant.int_literal = tokens[0]->int_literal;
+            ast_node->constant = constant;
+            ++(*tokens);
+            return true;
+        }
     }
 
-    *tokens = originalTokens;
+    *tokens = original_tokens;
+    ast->arena.size = original_size; // backtrack AST modifications
     return false;
 }
 
-bool parse_unary_operation(NecroLexToken** tokens, size_t num_tokens)
+bool parse_unary_operation(NecroLexToken** tokens, size_t num_tokens, NecroAST* ast)
 {
-    NecroLexToken* originalTokens = *tokens;
-    *tokens = originalTokens;
+    NecroLexToken* original_tokens = *tokens;
+    size_t original_size = ast->arena.size;
+    *tokens = original_tokens;
+    ast->arena.size = original_size; // backtrack AST modifications
     return false;
 }
 
-bool parse_binary_operation(NecroLexToken** tokens, size_t num_tokens)
+bool parse_binary_operation(NecroLexToken** tokens, size_t num_tokens, NecroAST* ast)
 {
-    NecroLexToken* originalTokens = *tokens;
-    *tokens = originalTokens;
+    NecroLexToken* original_tokens = *tokens;
+    size_t original_size = ast->arena.size;
+    *tokens = original_tokens;
+    ast->arena.size = original_size; // backtrack AST modifications
     return false;
 }
 
-bool parse_function_composition(NecroLexToken** tokens, size_t num_tokens)
+bool parse_function_composition(NecroLexToken** tokens, size_t num_tokens, NecroAST* ast)
 {
-    NecroLexToken* originalTokens = *tokens;
-    *tokens = originalTokens;
+    NecroLexToken* original_tokens = *tokens;
+    size_t original_size = ast->arena.size;
+    *tokens = original_tokens;
+    ast->arena.size = original_size; // backtrack AST modifications
     return false;
 }

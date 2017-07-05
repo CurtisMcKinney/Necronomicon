@@ -16,9 +16,12 @@ void necro_test_lex(char* input_string)
 	necro_lex(&lex_state);
 	necro_print_lex_state(&lex_state);
 	necro_destroy_lex_state(&lex_state);
-	if (lex_state.tokens.length > 0 && parse_expression(&lex_state.tokens.data, lex_state.tokens.length))
+	NecroAST ast = { { 0, 0, 0 } };
+	ast_prealloc(&ast, lex_state.tokens.length);
+	if (lex_state.tokens.length > 0 && parse_ast(&lex_state.tokens.data, lex_state.tokens.length, &ast) == ParseSuccessful)
 	{
 		puts("Parse succeeded");
+		print_ast(&ast);
 	}
 	else
 	{

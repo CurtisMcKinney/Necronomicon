@@ -103,11 +103,11 @@ typedef struct
 	{
 		int64_t          int_literal;
 		double           double_literal;
-		NecroStringSlice str;
+		size_t           intern_symbol;
 		bool             boolean_literal;
 	};
-	int32_t              character_number;
-	int32_t              line_number;
+	size_t               character_number;
+	size_t               line_number;
 	NECRO_LEX_TOKEN_TYPE token;
 } NecroLexToken;
 NECRO_DECLARE_VECTOR(NecroLexToken, NecroLexToken, lex_token)
@@ -115,9 +115,9 @@ NECRO_DECLARE_VECTOR(NecroLexToken, NecroLexToken, lex_token)
 // TODO: Need Indent level!
 typedef struct
 {
-	int32_t             character_number;
-	int32_t             line_number;
-	int32_t             pos;
+	size_t              character_number;
+	size_t              line_number;
+	size_t              pos;
 	const char*         str;
 	NecroLexTokenVector tokens;
 } NecroLexState;

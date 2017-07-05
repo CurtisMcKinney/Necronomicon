@@ -33,9 +33,9 @@
 #define NECRO_DECLARE_VECTOR(type, camel_type, snake_type)                         \
 typedef struct                                                                     \
 {                                                                                  \
-	type*   data;                                                                  \
-	int32_t length;                                                                \
-	int32_t capacity;                                                              \
+	type*  data;                                                                   \
+	size_t length;                                                                 \
+	size_t capacity;                                                               \
 } camel_type##Vector;                                                              \
                                                                                    \
 static camel_type##Vector necro_create_##snake_type##_vector()                     \

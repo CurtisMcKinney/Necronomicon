@@ -77,7 +77,7 @@ void necro_print_lex_state(NecroLexState* lex_state)
 	printf("    line_number:      %d,\n", lex_state->line_number);
 	printf("    character_number: %d,\n", lex_state->character_number);
 	printf("    tokens:\n    [\n");
-	for (int32_t i = 0; i < lex_state->tokens.length; ++i)
+	for (size_t i = 0; i < lex_state->tokens.length; ++i)
 	{
 		printf("        %s\n", necro_lex_token_type_string(lex_state->tokens.data[i].token));
 	}
@@ -138,7 +138,7 @@ bool necro_lex_single_character(NecroLexState* lex_state)
 
 bool necro_lex_token_with_pattern(NecroLexState* lex_state, const char* pattern, NECRO_LEX_TOKEN_TYPE token_type)
 {
-	int32_t i = 0;
+	size_t i = 0;
 	while (pattern[i])
 	{
 		if (lex_state->str[lex_state->pos + i] != pattern[i])
@@ -170,7 +170,7 @@ bool necro_lex_integer(NecroLexState* lex_state)
 	char*   start_str_pos   = (char*)(lex_state->str + lex_state->pos);
 	char*   new_str_pos     = start_str_pos;
 	int64_t integer_literal = strtol(start_str_pos, &new_str_pos, 10);
-	int32_t count           = (uint64_t)(new_str_pos - start_str_pos);
+	size_t  count           = (size_t)(new_str_pos - start_str_pos);
 	// printf("pos: %d, start: %p, end: %p, count: %d, int: %d\n", lex_state->pos, start_str_pos, new_str_pos, count, integer_literal);
 	if (count <= 0)
 		return false;
@@ -184,10 +184,10 @@ bool necro_lex_integer(NecroLexState* lex_state)
 
 bool necro_lex_float(NecroLexState* lex_state)
 {
-	char*   start_str_pos   = (char*)(lex_state->str + lex_state->pos);
-	char*   new_str_pos     = start_str_pos;
-	double  float_value     = strtof(start_str_pos, &new_str_pos);
-	int32_t count           = (uint64_t)(new_str_pos - start_str_pos);
+	char*  start_str_pos   = (char*)(lex_state->str + lex_state->pos);
+	char*  new_str_pos     = start_str_pos;
+	double float_value     = strtof(start_str_pos, &new_str_pos);
+	size_t count           = (size_t)(new_str_pos - start_str_pos);
 	// printf("pos: %d, start: %p, end: %p, count: %d, int: %d\n", lex_state->pos, start_str_pos, new_str_pos, count, integer_literal);
 	if (count <= 0)
 		return false;
@@ -221,6 +221,11 @@ bool necro_lex_number(NecroLexState* lex_state)
 	else
 		return necro_lex_integer(lex_state);
 }
+
+// bool necro_lex_identifier(NecroLexState* lex_state)
+// {
+// 	size_t
+// }
 
 void necro_lex(NecroLexState* lex_state)
 {

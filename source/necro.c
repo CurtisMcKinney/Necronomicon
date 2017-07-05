@@ -129,7 +129,8 @@ typedef enum
     NECRO_LEX_LTE,
     NECRO_LEX_COLON,
     NECRO_LEX_SEMI_COLON,
-    NECRO_LEX_NUMERIC_LITERAL,
+    NECRO_LEX_INTEGER_LITERAL,
+    NECRO_LEX_FLOAT_LITERAL,
     NECRO_LEX_IDENTIFIER,
     NECRO_LEX_RIGHT_ARROW,
     NECRO_LEX_LEFT_BRACKET,
@@ -166,7 +167,8 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
 	case NECRO_LEX_LTE:              return "LTE";
 	case NECRO_LEX_COLON:            return "COLON";
 	case NECRO_LEX_SEMI_COLON:       return "SEMI_COLON";
-	case NECRO_LEX_NUMERIC_LITERAL:  return "NUMBER";
+	case NECRO_LEX_INTEGER_LITERAL:  return "INT";
+	case NECRO_LEX_FLOAT_LITERAL:    return "FLOAT";
 	case NECRO_LEX_IDENTIFIER:       return "IDENTIFIER";
 	case NECRO_LEX_RIGHT_ARROW:      return "RIGHT_ARROW";
 	case NECRO_LEX_LEFT_BRACKET:     return "LEFT_BRACKET";
@@ -325,11 +327,27 @@ bool necro_lex_multi_character_token(NecroLexState* lex_state)
 		   necro_lex_token_with_pattern(lex_state, "->", NECRO_LEX_RIGHT_ARROW);
 }
 
+bool necro_lex_integer(NecroLexState* lex_state)
+{
+	char*   new_str_pos     = (char*) lex_state->str;
+	int32_t integer_literal = strtol(lex_state->str, &new_str_pos, 10);
+	if (new_str_pos == lex_state->str)
+		return false;
+	int32_t       count     = (uint64_t)new_str_pos - (uint64_t)lex_state->str;
+	NecroLexToken lex_token = { lex_state->character_number, lex_state->line_number, 0, NECRO_LEX_INTEGER_LITERAL };
+	lex_token.int_literal   = integer_literal;
+	necro_push_lex_token_vector(&lex_state->tokens, &lex_token);
+	lex_state->character_number += count;
+	lex_state->pos              += count;
+	return true;
+}
+
 void necro_lex(NecroLexState* lex_state)
 {
 	while (lex_state->str[lex_state->pos])
 	{
 		bool matched =
+			// necro_lex_integer(lex_state)               ||
 			necro_lex_multi_character_token(lex_state) ||
 			necro_lex_single_character(lex_state);
 		if (!matched)
@@ -343,6 +361,8 @@ void necro_lex(NecroLexState* lex_state)
 
 void necro_test_lex()
 {
+	// TODO: Fix Int Lexing!
+	// const char*   input_string = "+-*/\n!?-><=>=";
 	const char*   input_string = "+-*/\n!?-><=>=";
 	NecroLexState lex_state    = necro_create_lex_state(input_string);
 	necro_lex(&lex_state);

@@ -167,6 +167,22 @@ size_t necro_intern_string_slice(NecroIntern* intern, NecroStringSlice slice)
 	return id;
 }
 
+void necro_print_intern(NecroIntern* intern)
+{
+	printf("NecroIntern\n{\n");
+	printf("    size:    %d,\n", intern->size);
+	printf("    count:   %d,\n", intern->count);
+	printf("    entries:\n    [\n");
+	for (size_t i = 0; i < intern->size; ++i)
+	{
+		if (intern->data[i].value == NULL)
+			continue;
+		printf("        key: %d, value: %s\n", intern->data[i].key, intern->data[i].value);
+	}
+	printf("    ]\n");
+	printf("}\n\n");
+}
+
 //=====================================================
 // Testing
 //=====================================================
@@ -217,6 +233,10 @@ void necro_test_intern()
 	NecroStringSlice slice = { test2, 4 };
 	size_t           id3   = necro_intern_string_slice(&intern, slice);
 	necro_test_intern_id(&intern, id3, "fuck");
+
+	puts("\n---");
+	necro_print_intern(&intern);
+	puts("");
 
 	// Destroy test
 	necro_destroy_intern(&intern);

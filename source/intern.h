@@ -43,6 +43,7 @@ bool        necro_intern_contains_id(NecroIntern* intern, size_t id);
 size_t      necro_intern_string(NecroIntern* intern, const char* str);
 size_t      necro_intern_string_slice(NecroIntern* intern, NecroStringSlice slice);
 const char* necro_intern_get_string(NecroIntern* intern, size_t id);
+void        necro_print_intern(NecroIntern* intern);
 void        necro_test_intern();
 
 #endif // INTERN_H

@@ -3,9 +3,10 @@
  * Proprietary and confidential
  */
 
-#ifndef NECRO_H
-#define NECRO_H 1
+#ifndef MATH_H
+#define MATH_H 1
 
-#include <stdint.h>
+#define MAX(a,b) ((a) > (b) ? a : b)
+#define MIN(a,b) ((a) < (b) ? a : b)
 
-#endif // NECRO_H
+#endif // MATH_H

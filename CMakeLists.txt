@@ -8,6 +8,8 @@ set(project_SOURCES
     source/arena.c
     source/parser.c
     source/lexer.c
+	source/intern.c
+	source/utility.c
     )
 set(project_HEADERS
     source/necro.h
@@ -15,6 +17,8 @@ set(project_HEADERS
     source/parser.h
     source/lexer.h
     source/math.h
+	source/intern.h
+	source/utility.h
     )
 
 ADD_EXECUTABLE(necro ${project_SOURCES})

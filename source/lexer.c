@@ -4,6 +4,7 @@
  */
 
 #include <stdio.h>
+#include <ctype.h>
 #include "lexer.h"
 
 const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
@@ -43,6 +44,9 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
 	case NECRO_LEX_INDENT:           return "INDENT";
 	case NECRO_LEX_DEDENT:           return "DEDENT";
 	case NECRO_LEX_NEW_LINE:         return "NEW_LINE";
+	case NECRO_LEX_DOUBLE_COLON:     return "DOUBLE_COLON";
+	case NECRO_LEX_LEFT_SHIFT:       return "LEFT_SHIFT";
+	case NECRO_LEX_RIGHT_SHIFT:      return "RIGHT_SHIFT";
 	default:                         return "UNRECOGNIZED TOKEN";
 	}
 }
@@ -152,18 +156,20 @@ bool necro_lex_token_with_pattern(NecroLexState* lex_state, const char* pattern,
 
 bool necro_lex_multi_character_token(NecroLexState* lex_state)
 {
-	return necro_lex_token_with_pattern(lex_state, "==", NECRO_LEX_EQUALS) ||
-		   necro_lex_token_with_pattern(lex_state, "<=", NECRO_LEX_LTE)    ||
-		   necro_lex_token_with_pattern(lex_state, ">=", NECRO_LEX_GTE)    ||
+	return necro_lex_token_with_pattern(lex_state, "==", NECRO_LEX_EQUALS)       ||
+		   necro_lex_token_with_pattern(lex_state, "<=", NECRO_LEX_LTE)          ||
+		   necro_lex_token_with_pattern(lex_state, ">=", NECRO_LEX_GTE)          ||
+		   necro_lex_token_with_pattern(lex_state, "::", NECRO_LEX_DOUBLE_COLON) ||
+		   necro_lex_token_with_pattern(lex_state, ">>", NECRO_LEX_RIGHT_SHIFT)  ||
+		   necro_lex_token_with_pattern(lex_state, "<<", NECRO_LEX_LEFT_SHIFT)   ||
 		   necro_lex_token_with_pattern(lex_state, "->", NECRO_LEX_RIGHT_ARROW);
 }
 
 bool necro_lex_integer(NecroLexState* lex_state)
 {
-	// TODO: Don't accept starting with Plus Symbol!
 	char*   start_str_pos   = (char*)(lex_state->str + lex_state->pos);
 	char*   new_str_pos     = start_str_pos;
-	int32_t integer_literal = strtol(start_str_pos, &new_str_pos, 10);
+	int64_t integer_literal = strtol(start_str_pos, &new_str_pos, 10);
 	int32_t count           = (uint64_t)(new_str_pos - start_str_pos);
 	// printf("pos: %d, start: %p, end: %p, count: %d, int: %d\n", lex_state->pos, start_str_pos, new_str_pos, count, integer_literal);
 	if (count <= 0)
@@ -176,12 +182,52 @@ bool necro_lex_integer(NecroLexState* lex_state)
 	return true;
 }
 
+bool necro_lex_float(NecroLexState* lex_state)
+{
+	char*   start_str_pos   = (char*)(lex_state->str + lex_state->pos);
+	char*   new_str_pos     = start_str_pos;
+	double  float_value     = strtof(start_str_pos, &new_str_pos);
+	int32_t count           = (uint64_t)(new_str_pos - start_str_pos);
+	// printf("pos: %d, start: %p, end: %p, count: %d, int: %d\n", lex_state->pos, start_str_pos, new_str_pos, count, integer_literal);
+	if (count <= 0)
+		return false;
+	NecroLexToken lex_token  = { lex_state->character_number, lex_state->line_number, 0, NECRO_LEX_FLOAT_LITERAL };
+	lex_token.double_literal = float_value;
+	necro_push_lex_token_vector(&lex_state->tokens, &lex_token);
+	lex_state->character_number += count;
+	lex_state->pos              += count;
+	return true;
+}
+
+bool necro_lex_number(NecroLexState* lex_state)
+{
+	// Must start with digit or with minus symbol
+	bool        contains_dot = false;
+	const char* current_char = lex_state->str + lex_state->pos;
+	if (*current_char == '-')
+		current_char++;
+	if (!isdigit(*current_char))
+		return false;
+	while (isdigit(*current_char) || *current_char == '.')
+	{
+		if (!contains_dot && *current_char == '.')
+			contains_dot = true;
+		else if (contains_dot && *current_char == '.')
+			break;
+		current_char++;
+	}
+	if (contains_dot)
+		return necro_lex_float(lex_state);
+	else
+		return necro_lex_integer(lex_state);
+}
+
 void necro_lex(NecroLexState* lex_state)
 {
 	while (lex_state->str[lex_state->pos])
 	{
 		bool matched =
-			necro_lex_integer(lex_state)               ||
+			necro_lex_number(lex_state)                ||
 			necro_lex_multi_character_token(lex_state) ||
 			necro_lex_single_character(lex_state);
 		if (!matched)

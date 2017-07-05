@@ -7,6 +7,7 @@
 #include "necro.h"
 #include "lexer.h"
 #include "parser.h"
+#include "intern.h"
 
 void necro_test_lex(char* input_string)
 {
@@ -33,9 +34,15 @@ void necro_test_lex(char* input_string)
 //=====================================================
 // Main
 //=====================================================
-int main(int argc, char** argv)
+int main(int32_t argc, char** argv)
 {
-	for (int i = 1; i < argc; ++i)
+	if (argc > 1 && strcmp(argv[1], "-test_intern") == 0)
+	{
+		necro_test_intern();
+		return 0;
+	}
+
+	for (int32_t i = 1; i < argc; ++i)
 	{
 		necro_test_lex(argv[i]);
 	}

@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <assert.h>
+#include "utility.h"
 
 //=====================================================
 // Theoretical Necro Runtime structs
@@ -54,60 +55,6 @@ struct NecroObject
 };
 
 //=====================================================
-// NecroStringSlice
-//=====================================================
-typedef struct
-{
-	const char* data;
-	int32_t     length;
-} NecroStringSlice;
-
-// Takes null-terminated const char* and converts it to a NecroStringSlice
-NecroStringSlice necro_create_string_slice(const char* str);
-
-//=====================================================
-// NecroVector
-//=====================================================
-#define NECRO_INTIAL_VECTOR_SIZE 512
-#define NECRO_DECLARE_VECTOR(type, snake_type)                                     \
-typedef struct                                                                     \
-{                                                                                  \
-	type*   data;                                                                  \
-	int32_t length;                                                                \
-	int32_t capacity;                                                              \
-} type##Vector;                                                                    \
-                                                                                   \
-static type##Vector necro_create_##snake_type##_vector()                           \
-{                                                                                  \
-	return (type##Vector)                                                          \
-	{                                                                              \
-		(type*) malloc(NECRO_INTIAL_VECTOR_SIZE * sizeof(type)),                   \
-		0,                                                                         \
-		NECRO_INTIAL_VECTOR_SIZE                                                   \
-	};                                                                             \
-}                                                                                  \
-                                                                                   \
-static void necro_destroy_##snake_type##_vector(type##Vector* vec)                 \
-{                                                                                  \
-	vec->length   = 0;                                                             \
-	vec->capacity = 0;                                                             \
-	free(vec->data);                                                               \
-	vec->data     = NULL;                                                          \
-}                                                                                  \
-                                                                                   \
-static void necro_push_##snake_type##_vector(type##Vector* vec, type* item)        \
-{                                                                                  \
-	if (vec->length >= vec->capacity)                                              \
-	{                                                                              \
-		vec->capacity = vec->capacity * 2;                                         \
-		vec->data     = (type*) realloc(vec->data, vec->capacity * sizeof(type));  \
-	}                                                                              \
-	assert(vec->data != NULL);                                                     \
-	vec->data[vec->length] = *item;                                                \
-	vec->length++;                                                                 \
-}
-
-//=====================================================
 // Lexing
 //=====================================================
 typedef enum
@@ -144,7 +91,10 @@ typedef enum
     NECRO_LEX_HASH,
     NECRO_LEX_INDENT,
     NECRO_LEX_DEDENT,
-    NECRO_LEX_NEW_LINE
+    NECRO_LEX_NEW_LINE,
+	NECRO_LEX_DOUBLE_COLON,
+	NECRO_LEX_LEFT_SHIFT,
+	NECRO_LEX_RIGHT_SHIFT
 } NECRO_LEX_TOKEN_TYPE;
 
 typedef struct
@@ -160,7 +110,7 @@ typedef struct
 	int32_t              line_number;
 	NECRO_LEX_TOKEN_TYPE token;
 } NecroLexToken;
-NECRO_DECLARE_VECTOR(NecroLexToken, lex_token)
+NECRO_DECLARE_VECTOR(NecroLexToken, NecroLexToken, lex_token)
 
 // TODO: Need Indent level!
 typedef struct

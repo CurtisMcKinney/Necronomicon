@@ -30,30 +30,11 @@ void necro_test_lex(char* input_string)
 }
 
 //=====================================================
-// Parsing
-//=====================================================
-
-typedef enum
-{
-	LAMBDA_AST_VARIABLE,
-	LAMBDA_AST_CONSTANT,
-	LAMBDA_AST_APPLY,
-	LAMBDA_AST_LAMBDA
-} LAMBDA_AST;
-
-
-//=====================================================
-// TypeChecking
-//=====================================================
-
-
-//=====================================================
 // Main
 //=====================================================
 int main(int argc, char** argv)
 {
-	int i;
-	for (i = 1; i < argc; ++i)
+	for (int i = 1; i < argc; ++i)
 	{
 		necro_test_lex(argv[i]);
 	}

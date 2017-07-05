@@ -135,6 +135,7 @@ typedef enum
     NECRO_LEX_RIGHT_BRACE,
     NECRO_LEX_COMMA,
     NECRO_LEX_UNDER_SCORE,
+	NECRO_LEX_ASSIGN,
     NECRO_LEX_EQUALS,
     NECRO_LEX_QUESTION_MARK,
     NECRO_LEX_EXCLAMATION,
@@ -145,8 +146,6 @@ typedef enum
     NECRO_LEX_DEDENT,
     NECRO_LEX_NEW_LINE
 } NECRO_LEX_TOKEN_TYPE;
-
-const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
 
 typedef struct
 {
@@ -163,7 +162,7 @@ typedef struct
 } NecroLexToken;
 NECRO_DECLARE_VECTOR(NecroLexToken, lex_token)
 
-// Need Indent level!
+// TODO: Need Indent level!
 typedef struct
 {
 	int32_t             character_number;
@@ -173,13 +172,14 @@ typedef struct
 	NecroLexTokenVector tokens;
 } NecroLexState;
 
+const char*   necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
 NecroLexState necro_create_lex_state(const char* str);
-void necro_destroy_lex_state(NecroLexState* lex_state);
-void necro_print_lex_state(NecroLexState* lex_state);
-void necro_add_single_character_token(NecroLexState* lex_state, NECRO_LEX_TOKEN_TYPE token);
-bool necro_lex_single_character(NecroLexState* lex_state);
-bool necro_lex_token_with_pattern(NecroLexState* lex_state, const char* pattern, NECRO_LEX_TOKEN_TYPE token_type);
-bool necro_lex_multi_character_token(NecroLexState* lex_state);
-void necro_lex(NecroLexState* lex_state);
+void          necro_destroy_lex_state(NecroLexState* lex_state);
+void          necro_print_lex_state(NecroLexState* lex_state);
+void          necro_add_single_character_token(NecroLexState* lex_state, NECRO_LEX_TOKEN_TYPE token);
+bool          necro_lex_single_character(NecroLexState* lex_state);
+bool          necro_lex_token_with_pattern(NecroLexState* lex_state, const char* pattern, NECRO_LEX_TOKEN_TYPE token_type);
+bool          necro_lex_multi_character_token(NecroLexState* lex_state);
+void          necro_lex(NecroLexState* lex_state);
 
 #endif // LEXER_H

@@ -34,6 +34,7 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
 	case NECRO_LEX_COMMA:            return "COMMA";
 	case NECRO_LEX_UNDER_SCORE:      return "UNDER_SCORE";
 	case NECRO_LEX_EQUALS:           return "EQUALS";
+	case NECRO_LEX_ASSIGN:           return "ASSIGN";
 	case NECRO_LEX_QUESTION_MARK:    return "QUESTION_MARK";
 	case NECRO_LEX_EXCLAMATION:      return "EXCLAMATION";
 	case NECRO_LEX_QUOTE:            return "QUOTE";
@@ -45,7 +46,6 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
 	default:                         return "UNRECOGNIZED TOKEN";
 	}
 }
-
 
 NecroLexState necro_create_lex_state(const char* str)
 {
@@ -120,7 +120,7 @@ bool necro_lex_single_character(NecroLexState* lex_state)
 	case '}':  necro_add_single_character_token(lex_state, NECRO_LEX_RIGHT_BRACE);   break;
 	case ',':  necro_add_single_character_token(lex_state, NECRO_LEX_COMMA);         break;
 	case '_':  necro_add_single_character_token(lex_state, NECRO_LEX_UNDER_SCORE);   break;
-	case '=':  necro_add_single_character_token(lex_state, NECRO_LEX_EQUALS);        break;
+	case '=':  necro_add_single_character_token(lex_state, NECRO_LEX_ASSIGN);        break;
 	case '?':  necro_add_single_character_token(lex_state, NECRO_LEX_QUESTION_MARK); break;
 	case '!':  necro_add_single_character_token(lex_state, NECRO_LEX_EXCLAMATION);   break;
 	case '#':  necro_add_single_character_token(lex_state, NECRO_LEX_HASH);          break;
@@ -145,15 +145,16 @@ bool necro_lex_token_with_pattern(NecroLexState* lex_state, const char* pattern,
 	}
 	NecroLexToken lex_token = { lex_state->character_number, lex_state->line_number, 0, token_type };
 	necro_push_lex_token_vector(&lex_state->tokens, &lex_token);
-	lex_state->character_number += i + 1;
-	lex_state->pos              += i + 1;
+	lex_state->character_number += i;
+	lex_state->pos              += i;
 	return true;
 }
 
 bool necro_lex_multi_character_token(NecroLexState* lex_state)
 {
-	return necro_lex_token_with_pattern(lex_state, "<=", NECRO_LEX_LTE) ||
-		   necro_lex_token_with_pattern(lex_state, ">=", NECRO_LEX_GTE) ||
+	return necro_lex_token_with_pattern(lex_state, "==", NECRO_LEX_EQUALS) ||
+		   necro_lex_token_with_pattern(lex_state, "<=", NECRO_LEX_LTE)    ||
+		   necro_lex_token_with_pattern(lex_state, ">=", NECRO_LEX_GTE)    ||
 		   necro_lex_token_with_pattern(lex_state, "->", NECRO_LEX_RIGHT_ARROW);
 }
 

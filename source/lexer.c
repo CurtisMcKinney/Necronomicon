@@ -51,9 +51,9 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
 	}
 }
 
-NecroLexState necro_create_lex_state(const char* str)
+NecroLexer necro_create_lexer(const char* str)
 {
-	return (NecroLexState)
+	return (NecroLexer)
 	{
 		0,
 		0,
@@ -63,147 +63,147 @@ NecroLexState necro_create_lex_state(const char* str)
 	};
 }
 
-void necro_destroy_lex_state(NecroLexState* lex_state)
+void necro_destroy_lexer(NecroLexer* lexer)
 {
-	lex_state->character_number = 0;
-	lex_state->line_number      = 0;
-	lex_state->pos              = 0;
-	necro_destroy_lex_token_vector(&lex_state->tokens);
+	lexer->character_number = 0;
+	lexer->line_number      = 0;
+	lexer->pos              = 0;
+	necro_destroy_lex_token_vector(&lexer->tokens);
 }
 
-void necro_print_lex_state(NecroLexState* lex_state)
+void necro_print_lexer(NecroLexer* lexer)
 {
-	printf("NecroLexState\n{\n");
-	printf("    line_number:      %d,\n", lex_state->line_number);
-	printf("    character_number: %d,\n", lex_state->character_number);
+	printf("NecroLexer\n{\n");
+	printf("    line_number:      %d,\n", lexer->line_number);
+	printf("    character_number: %d,\n", lexer->character_number);
 	printf("    tokens:\n    [\n");
-	for (size_t i = 0; i < lex_state->tokens.length; ++i)
+	for (size_t i = 0; i < lexer->tokens.length; ++i)
 	{
-		printf("        %s\n", necro_lex_token_type_string(lex_state->tokens.data[i].token));
+		printf("        %s\n", necro_lex_token_type_string(lexer->tokens.data[i].token));
 	}
 	printf("    ]\n");
 	printf("}\n\n");
 }
 
-void necro_add_single_character_token(NecroLexState* lex_state, NECRO_LEX_TOKEN_TYPE token)
+void necro_add_single_character_token(NecroLexer* lexer, NECRO_LEX_TOKEN_TYPE token)
 {
-	NecroLexToken lex_token = { lex_state->character_number, lex_state->line_number, 0, token };
-	necro_push_lex_token_vector(&lex_state->tokens, &lex_token);
+	NecroLexToken lex_token = { lexer->character_number, lexer->line_number, 0, token };
+	necro_push_lex_token_vector(&lexer->tokens, &lex_token);
 	if (token == NECRO_LEX_NEW_LINE)
 	{
-		lex_state->character_number = 0;
-		lex_state->line_number++;
+		lexer->character_number = 0;
+		lexer->line_number++;
 	}
 	else
 	{
-		lex_state->character_number++;
+		lexer->character_number++;
 	}
-	lex_state->pos++;
+	lexer->pos++;
 }
 
-bool necro_lex_single_character(NecroLexState* lex_state)
+bool necro_lex_single_character(NecroLexer* lexer)
 {
-	if (!lex_state->str[lex_state->pos])
+	if (!lexer->str[lexer->pos])
 		return false;
-	switch (lex_state->str[lex_state->pos])
+	switch (lexer->str[lexer->pos])
 	{
-	case '+':  necro_add_single_character_token(lex_state, NECRO_LEX_ADD);           break;
-	case '-':  necro_add_single_character_token(lex_state, NECRO_LEX_SUB);           break;
-	case '*':  necro_add_single_character_token(lex_state, NECRO_LEX_MUL);           break;
-	case '/':  necro_add_single_character_token(lex_state, NECRO_LEX_DIV);           break;
-	case '%':  necro_add_single_character_token(lex_state, NECRO_LEX_MOD);           break;
-	case '<':  necro_add_single_character_token(lex_state, NECRO_LEX_LT);            break;
-	case '>':  necro_add_single_character_token(lex_state, NECRO_LEX_GT);            break;
-	case ':':  necro_add_single_character_token(lex_state, NECRO_LEX_COLON);         break;
-	case ';':  necro_add_single_character_token(lex_state, NECRO_LEX_SEMI_COLON);    break;
-	case '[':  necro_add_single_character_token(lex_state, NECRO_LEX_LEFT_BRACKET);  break;
-	case ']':  necro_add_single_character_token(lex_state, NECRO_LEX_RIGHT_BRACKET); break;
-	case '(':  necro_add_single_character_token(lex_state, NECRO_LEX_LEFT_PAREN);    break;
-	case ')':  necro_add_single_character_token(lex_state, NECRO_LEX_RIGHT_PAREN);   break;
-	case '{':  necro_add_single_character_token(lex_state, NECRO_LEX_LEFT_BRACE);    break;
-	case '}':  necro_add_single_character_token(lex_state, NECRO_LEX_RIGHT_BRACE);   break;
-	case ',':  necro_add_single_character_token(lex_state, NECRO_LEX_COMMA);         break;
-	case '_':  necro_add_single_character_token(lex_state, NECRO_LEX_UNDER_SCORE);   break;
-	case '=':  necro_add_single_character_token(lex_state, NECRO_LEX_ASSIGN);        break;
-	case '?':  necro_add_single_character_token(lex_state, NECRO_LEX_QUESTION_MARK); break;
-	case '!':  necro_add_single_character_token(lex_state, NECRO_LEX_EXCLAMATION);   break;
-	case '#':  necro_add_single_character_token(lex_state, NECRO_LEX_HASH);          break;
-	case '\'': necro_add_single_character_token(lex_state, NECRO_LEX_QUOTE);         break;
-	case '\"': necro_add_single_character_token(lex_state, NECRO_LEX_DOUBLE_QUOTE);  break;
-	case '\n': necro_add_single_character_token(lex_state, NECRO_LEX_NEW_LINE);      break;
+	case '+':  necro_add_single_character_token(lexer, NECRO_LEX_ADD);           break;
+	case '-':  necro_add_single_character_token(lexer, NECRO_LEX_SUB);           break;
+	case '*':  necro_add_single_character_token(lexer, NECRO_LEX_MUL);           break;
+	case '/':  necro_add_single_character_token(lexer, NECRO_LEX_DIV);           break;
+	case '%':  necro_add_single_character_token(lexer, NECRO_LEX_MOD);           break;
+	case '<':  necro_add_single_character_token(lexer, NECRO_LEX_LT);            break;
+	case '>':  necro_add_single_character_token(lexer, NECRO_LEX_GT);            break;
+	case ':':  necro_add_single_character_token(lexer, NECRO_LEX_COLON);         break;
+	case ';':  necro_add_single_character_token(lexer, NECRO_LEX_SEMI_COLON);    break;
+	case '[':  necro_add_single_character_token(lexer, NECRO_LEX_LEFT_BRACKET);  break;
+	case ']':  necro_add_single_character_token(lexer, NECRO_LEX_RIGHT_BRACKET); break;
+	case '(':  necro_add_single_character_token(lexer, NECRO_LEX_LEFT_PAREN);    break;
+	case ')':  necro_add_single_character_token(lexer, NECRO_LEX_RIGHT_PAREN);   break;
+	case '{':  necro_add_single_character_token(lexer, NECRO_LEX_LEFT_BRACE);    break;
+	case '}':  necro_add_single_character_token(lexer, NECRO_LEX_RIGHT_BRACE);   break;
+	case ',':  necro_add_single_character_token(lexer, NECRO_LEX_COMMA);         break;
+	case '_':  necro_add_single_character_token(lexer, NECRO_LEX_UNDER_SCORE);   break;
+	case '=':  necro_add_single_character_token(lexer, NECRO_LEX_ASSIGN);        break;
+	case '?':  necro_add_single_character_token(lexer, NECRO_LEX_QUESTION_MARK); break;
+	case '!':  necro_add_single_character_token(lexer, NECRO_LEX_EXCLAMATION);   break;
+	case '#':  necro_add_single_character_token(lexer, NECRO_LEX_HASH);          break;
+	case '\'': necro_add_single_character_token(lexer, NECRO_LEX_QUOTE);         break;
+	case '\"': necro_add_single_character_token(lexer, NECRO_LEX_DOUBLE_QUOTE);  break;
+	case '\n': necro_add_single_character_token(lexer, NECRO_LEX_NEW_LINE);      break;
 	default:   return false;
 	}
 	return true;
 }
 
-bool necro_lex_token_with_pattern(NecroLexState* lex_state, const char* pattern, NECRO_LEX_TOKEN_TYPE token_type)
+bool necro_lex_token_with_pattern(NecroLexer* lexer, const char* pattern, NECRO_LEX_TOKEN_TYPE token_type)
 {
 	size_t i = 0;
 	while (pattern[i])
 	{
-		if (lex_state->str[lex_state->pos + i] != pattern[i])
+		if (lexer->str[lexer->pos + i] != pattern[i])
 		{
 			return false;
 		}
 		i++;
 	}
-	NecroLexToken lex_token = { lex_state->character_number, lex_state->line_number, 0, token_type };
-	necro_push_lex_token_vector(&lex_state->tokens, &lex_token);
-	lex_state->character_number += i;
-	lex_state->pos              += i;
+	NecroLexToken lex_token = { lexer->character_number, lexer->line_number, 0, token_type };
+	necro_push_lex_token_vector(&lexer->tokens, &lex_token);
+	lexer->character_number += i;
+	lexer->pos              += i;
 	return true;
 }
 
-bool necro_lex_multi_character_token(NecroLexState* lex_state)
+bool necro_lex_multi_character_token(NecroLexer* lexer)
 {
-	return necro_lex_token_with_pattern(lex_state, "==", NECRO_LEX_EQUALS)       ||
-		   necro_lex_token_with_pattern(lex_state, "<=", NECRO_LEX_LTE)          ||
-		   necro_lex_token_with_pattern(lex_state, ">=", NECRO_LEX_GTE)          ||
-		   necro_lex_token_with_pattern(lex_state, "::", NECRO_LEX_DOUBLE_COLON) ||
-		   necro_lex_token_with_pattern(lex_state, ">>", NECRO_LEX_RIGHT_SHIFT)  ||
-		   necro_lex_token_with_pattern(lex_state, "<<", NECRO_LEX_LEFT_SHIFT)   ||
-		   necro_lex_token_with_pattern(lex_state, "->", NECRO_LEX_RIGHT_ARROW);
+	return necro_lex_token_with_pattern(lexer, "==", NECRO_LEX_EQUALS)       ||
+		   necro_lex_token_with_pattern(lexer, "<=", NECRO_LEX_LTE)          ||
+		   necro_lex_token_with_pattern(lexer, ">=", NECRO_LEX_GTE)          ||
+		   necro_lex_token_with_pattern(lexer, "::", NECRO_LEX_DOUBLE_COLON) ||
+		   necro_lex_token_with_pattern(lexer, ">>", NECRO_LEX_RIGHT_SHIFT)  ||
+		   necro_lex_token_with_pattern(lexer, "<<", NECRO_LEX_LEFT_SHIFT)   ||
+		   necro_lex_token_with_pattern(lexer, "->", NECRO_LEX_RIGHT_ARROW);
 }
 
-bool necro_lex_integer(NecroLexState* lex_state)
+bool necro_lex_integer(NecroLexer* lexer)
 {
-	char*   start_str_pos   = (char*)(lex_state->str + lex_state->pos);
+	char*   start_str_pos   = (char*)(lexer->str + lexer->pos);
 	char*   new_str_pos     = start_str_pos;
 	int64_t integer_literal = strtol(start_str_pos, &new_str_pos, 10);
 	size_t  count           = (size_t)(new_str_pos - start_str_pos);
-	// printf("pos: %d, start: %p, end: %p, count: %d, int: %d\n", lex_state->pos, start_str_pos, new_str_pos, count, integer_literal);
+	// printf("pos: %d, start: %p, end: %p, count: %d, int: %d\n", lexer->pos, start_str_pos, new_str_pos, count, integer_literal);
 	if (count <= 0)
 		return false;
-	NecroLexToken lex_token = { lex_state->character_number, lex_state->line_number, 0, NECRO_LEX_INTEGER_LITERAL };
+	NecroLexToken lex_token = { lexer->character_number, lexer->line_number, 0, NECRO_LEX_INTEGER_LITERAL };
 	lex_token.int_literal   = integer_literal;
-	necro_push_lex_token_vector(&lex_state->tokens, &lex_token);
-	lex_state->character_number += count;
-	lex_state->pos              += count;
+	necro_push_lex_token_vector(&lexer->tokens, &lex_token);
+	lexer->character_number += count;
+	lexer->pos              += count;
 	return true;
 }
 
-bool necro_lex_float(NecroLexState* lex_state)
+bool necro_lex_float(NecroLexer* lexer)
 {
-	char*  start_str_pos   = (char*)(lex_state->str + lex_state->pos);
+	char*  start_str_pos   = (char*)(lexer->str + lexer->pos);
 	char*  new_str_pos     = start_str_pos;
 	double float_value     = strtof(start_str_pos, &new_str_pos);
 	size_t count           = (size_t)(new_str_pos - start_str_pos);
-	// printf("pos: %d, start: %p, end: %p, count: %d, int: %d\n", lex_state->pos, start_str_pos, new_str_pos, count, integer_literal);
+	// printf("pos: %d, start: %p, end: %p, count: %d, int: %d\n", lexer->pos, start_str_pos, new_str_pos, count, integer_literal);
 	if (count <= 0)
 		return false;
-	NecroLexToken lex_token  = { lex_state->character_number, lex_state->line_number, 0, NECRO_LEX_FLOAT_LITERAL };
+	NecroLexToken lex_token  = { lexer->character_number, lexer->line_number, 0, NECRO_LEX_FLOAT_LITERAL };
 	lex_token.double_literal = float_value;
-	necro_push_lex_token_vector(&lex_state->tokens, &lex_token);
-	lex_state->character_number += count;
-	lex_state->pos              += count;
+	necro_push_lex_token_vector(&lexer->tokens, &lex_token);
+	lexer->character_number += count;
+	lexer->pos              += count;
 	return true;
 }
 
-bool necro_lex_number(NecroLexState* lex_state)
+bool necro_lex_number(NecroLexer* lexer)
 {
 	// Must start with digit or with minus symbol
 	bool        contains_dot = false;
-	const char* current_char = lex_state->str + lex_state->pos;
+	const char* current_char = lexer->str + lexer->pos;
 	if (*current_char == '-')
 		current_char++;
 	if (!isdigit(*current_char))
@@ -217,28 +217,29 @@ bool necro_lex_number(NecroLexState* lex_state)
 		current_char++;
 	}
 	if (contains_dot)
-		return necro_lex_float(lex_state);
+		return necro_lex_float(lexer);
 	else
-		return necro_lex_integer(lex_state);
+		return necro_lex_integer(lexer);
 }
 
-// bool necro_lex_identifier(NecroLexState* lex_state)
+// bool necro_lex_identifier(NecroLexer* lexer)
 // {
-// 	size_t
+// 	if (lexer->str[lexer->pos] != )
+// 	size_t identifier_lenth = 0;
 // }
 
-void necro_lex(NecroLexState* lex_state)
+void necro_lex(NecroLexer* lexer)
 {
-	while (lex_state->str[lex_state->pos])
+	while (lexer->str[lexer->pos])
 	{
 		bool matched =
-			necro_lex_number(lex_state)                ||
-			necro_lex_multi_character_token(lex_state) ||
-			necro_lex_single_character(lex_state);
+			necro_lex_number(lexer)                ||
+			necro_lex_multi_character_token(lexer) ||
+			necro_lex_single_character(lexer);
 		if (!matched)
 		{
 			// We reached a character we don't know how to parse
-			printf("Unrecognized character: %c, found at line number: %d, character number: %d\n", lex_state->str[lex_state->pos], lex_state->line_number, lex_state->character_number + 1);
+			printf("Unrecognized character: %c, found at line number: %d, character number: %d\n", lexer->str[lexer->pos], lexer->line_number, lexer->character_number + 1);
 			break;
 		}
 	}

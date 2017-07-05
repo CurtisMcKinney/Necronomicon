@@ -11,15 +11,15 @@
 
 void necro_test_lex(char* input_string)
 {
-	//const char*   input_string = "+-*/\n!?-><=>=";
 	printf("input_string:\n%s\n\n", input_string);
-	NecroLexState lex_state = necro_create_lex_state(input_string);
-	necro_lex(&lex_state);
-	necro_print_lex_state(&lex_state);
-	necro_destroy_lex_state(&lex_state);
+
+	NecroLexer lexer = necro_create_lexer(input_string);
+	necro_lex(&lexer);
+	necro_print_lexer(&lexer);
+
 	NecroAST ast = { { 0, 0, 0 } };
-	ast_prealloc(&ast, lex_state.tokens.length);
-	if (lex_state.tokens.length > 0 && parse_ast(&lex_state.tokens.data, lex_state.tokens.length, &ast) == ParseSuccessful)
+	ast_prealloc(&ast, lexer.tokens.length);
+	if (lexer.tokens.length > 0 && parse_ast(&lexer.tokens.data, lexer.tokens.length, &ast) == ParseSuccessful)
 	{
 		puts("Parse succeeded");
 		print_ast(&ast);
@@ -28,6 +28,9 @@ void necro_test_lex(char* input_string)
 	{
 		puts("Parse failed");
 	}
+
+	// Cleanup
+	necro_destroy_lexer(&lexer);
 	destruct_arena(&ast.arena);
 }
 

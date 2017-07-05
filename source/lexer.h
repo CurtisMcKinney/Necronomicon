@@ -120,16 +120,16 @@ typedef struct
 	size_t              pos;
 	const char*         str;
 	NecroLexTokenVector tokens;
-} NecroLexState;
+} NecroLexer;
 
-const char*   necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
-NecroLexState necro_create_lex_state(const char* str);
-void          necro_destroy_lex_state(NecroLexState* lex_state);
-void          necro_print_lex_state(NecroLexState* lex_state);
-void          necro_add_single_character_token(NecroLexState* lex_state, NECRO_LEX_TOKEN_TYPE token);
-bool          necro_lex_single_character(NecroLexState* lex_state);
-bool          necro_lex_token_with_pattern(NecroLexState* lex_state, const char* pattern, NECRO_LEX_TOKEN_TYPE token_type);
-bool          necro_lex_multi_character_token(NecroLexState* lex_state);
-void          necro_lex(NecroLexState* lex_state);
+const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
+NecroLexer  necro_create_lexer(const char* str);
+void        necro_destroy_lexer(NecroLexer* lexer);
+void        necro_print_lexer(NecroLexer* lexer);
+void        necro_add_single_character_token(NecroLexer* lexer, NECRO_LEX_TOKEN_TYPE token);
+bool        necro_lex_single_character(NecroLexer* lexer);
+bool        necro_lex_token_with_pattern(NecroLexer* lexer, const char* pattern, NECRO_LEX_TOKEN_TYPE token_type);
+bool        necro_lex_multi_character_token(NecroLexer* lexer);
+void        necro_lex(NecroLexer* lexer);
 
 #endif // LEXER_H

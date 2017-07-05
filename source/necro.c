@@ -16,6 +16,14 @@ void necro_test_lex(char* input_string)
 	necro_lex(&lex_state);
 	necro_print_lex_state(&lex_state);
 	necro_destroy_lex_state(&lex_state);
+	if (lex_state.tokens.length > 0 && parse_expression(&lex_state.tokens.data, lex_state.tokens.length))
+	{
+		puts("Parse succeeded");
+	}
+	else
+	{
+		puts("Parse failed");
+	}
 }
 
 //=====================================================

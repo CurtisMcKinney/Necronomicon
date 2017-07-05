@@ -8,12 +8,12 @@
 #include "arena.h"
 #include "math.h"
 
- NecroArena create_arena(size_t size)
+ NecroArena create_arena(size_t capacity)
  {
      NecroArena arena;
-     arena.pRegion = (char*) malloc(size);
-     arena.size = size;
-     arena.position = 0;
+     arena.pRegion = (char*) malloc(capacity);
+     arena.capacity = capacity;
+     arena.size = 0;
      return arena;
  }
 
@@ -24,19 +24,19 @@
 
  void* arena_alloc(NecroArena* pArena, size_t size, arena_alloc_policy alloc_policy)
  {
-     bool canFit = pArena->size > (pArena->position + size);
+     bool canFit = pArena->capacity > (pArena->size + size);
      if (!canFit && (alloc_policy == arena_allow_realloc))
      {
-         size_t new_size = MAX(pArena->size * 2, size);
-         pArena->pRegion = (char*) realloc(pArena->pRegion, new_size);
-         pArena->size = new_size;
+         size_t new_capacity = MAX(pArena->capacity * 2, pArena->capacity + size);
+         pArena->pRegion = (char*) realloc(pArena->pRegion, new_capacity);
+         pArena->capacity = new_capacity;
          canFit = true;
      }
 
      if (canFit)
      {
-         void* pLocalRegion = (void*) (pArena->pRegion + pArena->position);
-         pArena->position += size;
+         void* pLocalRegion = (void*) (pArena->pRegion + pArena->size);
+         pArena->size += size;
          return pLocalRegion;
      }
 

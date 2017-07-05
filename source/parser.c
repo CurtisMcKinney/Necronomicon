@@ -88,7 +88,7 @@ bool match_token(NecroLexToken** tokens, NECRO_LEX_TOKEN_TYPE token_type)
 bool parse_expression(NecroLexToken** tokens, size_t num_tokens, NecroAST* ast)
 {
     NecroLexToken* original_tokens = *tokens;
-    size_t original_size = ast->arena.size;
+    size_t original_ast_size = ast->arena.size;
     if (parse_constant(tokens, num_tokens, ast) ||
         parse_unary_operation(tokens, num_tokens, ast) ||
         parse_binary_operation(tokens, num_tokens, ast) ||
@@ -99,14 +99,14 @@ bool parse_expression(NecroLexToken** tokens, size_t num_tokens, NecroAST* ast)
     }
 
     *tokens = original_tokens;
-    ast->arena.size = original_size; // backtrack AST modifications
+    ast->arena.size = original_ast_size; // backtrack AST modifications
     return false;
 }
 
 bool parse_constant(NecroLexToken** tokens, size_t num_tokens, NecroAST* ast)
 {
     NecroLexToken* original_tokens = *tokens;
-    size_t original_size = ast->arena.size;
+    size_t original_ast_size = ast->arena.size;
     switch(tokens[0]->token)
     {
     case NECRO_LEX_FLOAT_LITERAL:
@@ -134,33 +134,33 @@ bool parse_constant(NecroLexToken** tokens, size_t num_tokens, NecroAST* ast)
     }
 
     *tokens = original_tokens;
-    ast->arena.size = original_size; // backtrack AST modifications
+    ast->arena.size = original_ast_size; // backtrack AST modifications
     return false;
 }
 
 bool parse_unary_operation(NecroLexToken** tokens, size_t num_tokens, NecroAST* ast)
 {
     NecroLexToken* original_tokens = *tokens;
-    size_t original_size = ast->arena.size;
+    size_t original_ast_size = ast->arena.size;
     *tokens = original_tokens;
-    ast->arena.size = original_size; // backtrack AST modifications
+    ast->arena.size = original_ast_size; // backtrack AST modifications
     return false;
 }
 
 bool parse_binary_operation(NecroLexToken** tokens, size_t num_tokens, NecroAST* ast)
 {
     NecroLexToken* original_tokens = *tokens;
-    size_t original_size = ast->arena.size;
+    size_t original_ast_size = ast->arena.size;
     *tokens = original_tokens;
-    ast->arena.size = original_size; // backtrack AST modifications
+    ast->arena.size = original_ast_size; // backtrack AST modifications
     return false;
 }
 
 bool parse_function_composition(NecroLexToken** tokens, size_t num_tokens, NecroAST* ast)
 {
     NecroLexToken* original_tokens = *tokens;
-    size_t original_size = ast->arena.size;
+    size_t original_ast_size = ast->arena.size;
     *tokens = original_tokens;
-    ast->arena.size = original_size; // backtrack AST modifications
+    ast->arena.size = original_ast_size; // backtrack AST modifications
     return false;
 }

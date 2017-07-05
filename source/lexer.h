@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <assert.h>
 #include "utility.h"
+#include "intern.h"
 
 //=====================================================
 // Theoretical Necro Runtime structs
@@ -120,6 +121,7 @@ typedef struct
 	size_t              pos;
 	const char*         str;
 	NecroLexTokenVector tokens;
+	NecroIntern         intern;
 } NecroLexer;
 
 const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);

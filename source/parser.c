@@ -96,9 +96,12 @@ bool parse_constant(NecroLexToken** tokens, size_t num_tokens)
     NecroLexToken* originalTokens = *tokens;
     switch(tokens[0]->token)
     {
-    case NECRO_LEX_NUMERIC_LITERAL:
+    case NECRO_LEX_INTEGER_LITERAL:
         ++(*tokens);
         return true;
+	case NECRO_LEX_FLOAT_LITERAL:
+		++(*tokens);
+		return true;
     }
 
     *tokens = originalTokens;

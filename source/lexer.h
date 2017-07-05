@@ -6,11 +6,6 @@
 #ifndef LEXER_H
 #define LEXER_H 1
 
-/* Copyright (C) Chad McKinney and Curtis McKinney - All Rights Reserved
- * Unauthorized copying of this file, via any medium is strictly prohibited
- * Proprietary and confidential
- */
-
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -128,7 +123,8 @@ typedef enum
     NECRO_LEX_LTE,
     NECRO_LEX_COLON,
     NECRO_LEX_SEMI_COLON,
-    NECRO_LEX_NUMERIC_LITERAL,
+    NECRO_LEX_INTEGER_LITERAL,
+    NECRO_LEX_FLOAT_LITERAL,
     NECRO_LEX_IDENTIFIER,
     NECRO_LEX_RIGHT_ARROW,
     NECRO_LEX_LEFT_BRACKET,

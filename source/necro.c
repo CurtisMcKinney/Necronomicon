@@ -27,6 +27,7 @@ void necro_test_lex(char* input_string)
 	{
 		puts("Parse failed");
 	}
+	destruct_arena(&ast.arena);
 }
 
 //=====================================================

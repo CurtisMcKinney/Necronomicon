@@ -145,25 +145,6 @@ NecroSymbol necro_intern_string(NecroIntern* intern, const char* str)
 
 NecroSymbol necro_intern_string_slice(NecroIntern* intern, NecroStringSlice slice)
 {
-	// if (slice.data == NULL)
-	// 	return NECRO_INTERN_NULL_ID;
-	// if (intern->count >= intern->size / 2)
-	// 	necro_intern_grow(intern);
-	// size_t id    = necro_hash_string_slice(slice);
-	// size_t probe = id % intern->size;
-	// while (intern->data[probe].value != NULL)
-	// {
-	// 	if (intern->data[probe].key == id)
-	// 		return id;
-	// 	probe = (probe + 1) % intern->size;
-	// }
-	// assert(intern->data[probe].symbol.id == NECRO_INTERN_NULL_ID);
-	// assert(intern->data[probe].value == NULL);
-	// intern->data[probe].key   = id;
-	// intern->data[probe].value = necro_dup_string_slice(slice);
-	// intern->count += 1;
-	// return id;
-
 	if (slice.data == NULL)
 		return (NecroSymbol) { 0, NECRO_INTERN_NULL_ID };
 	if (intern->count >= intern->size / 2)

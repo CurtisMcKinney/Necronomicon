@@ -254,7 +254,7 @@ bool necro_lex_number(NecroLexer* lexer)
 	const char* current_char = lexer->str + lexer->pos;
 	if (*current_char == '-')
 		current_char++;
-	if (!isdigit(*current_char))
+	if (!isdigit((uint8_t) (*current_char)))
 		return false;
 	while (isdigit(*current_char) || *current_char == '.')
 	{
@@ -272,10 +272,10 @@ bool necro_lex_number(NecroLexer* lexer)
 
 bool necro_lex_identifier(NecroLexer* lexer)
 {
-	if (!isalpha(lexer->str[lexer->pos]))
+	if (!isalpha((uint8_t) lexer->str[lexer->pos]))
 		return false;
 	size_t identifier_length = 0;
-	while (isalnum(lexer->str[lexer->pos + identifier_length]))
+	while (isalnum((uint8_t)lexer->str[lexer->pos + identifier_length]))
 	{
 		identifier_length++;
 	}
@@ -318,12 +318,14 @@ bool necro_lex_identifier(NecroLexer* lexer)
 	return true;
 }
 
-NECRO_LEX_RESULT necro_lex_whitespace(NecroLexer* lexer)
+bool necro_lex_whitespace(NecroLexer* lexer)
 {
-	// Tabs are not allowed
+	// Tabs
 	if (lexer->str[lexer->pos] == '\t')
 	{
-		return NECRO_LEX_RESULT_TAB_ERROR;
+        lexer->pos++;
+        lexer->character_number += 4;
+        return true;
 	}
 	// Intermediate white space
 	else if (lexer->str[lexer->pos] == ' ')
@@ -333,7 +335,7 @@ NECRO_LEX_RESULT necro_lex_whitespace(NecroLexer* lexer)
 			lexer->pos++;
 			lexer->character_number++;
 		}
-		return NECRO_LEX_RESULT_SUCCESSFUL;
+		return true;
 	}
 	// Newline
 	else if (lexer->str[lexer->pos] == '\n')
@@ -346,7 +348,8 @@ NECRO_LEX_RESULT necro_lex_whitespace(NecroLexer* lexer)
 		{
             if (lexer->str[lexer->pos] == '\t')
             {
-                return NECRO_LEX_RESULT_TAB_ERROR;
+                lexer->pos++;
+                lexer->character_number += 4;
             }
             else
             {
@@ -360,8 +363,12 @@ NECRO_LEX_RESULT necro_lex_whitespace(NecroLexer* lexer)
 		// Indented at the same as block level, end of expression (add SemiColon)
 		if (lexer->character_number <= lexer->block_indentation_levels[lexer->current_indentation_block])
 		{
-			NecroLexToken token = { lexer->character_number, lexer->line_number, 0, NECRO_LEX_SEMI_COLON };
-			necro_push_lex_token_vector(&lexer->tokens, &token);
+            bool prev_semi_colon = lexer->tokens.length > 0 && lexer->tokens.data[lexer->tokens.length - 1].token == NECRO_LEX_SEMI_COLON;
+            if (!prev_semi_colon)
+            {
+                NecroLexToken token = { lexer->character_number, lexer->line_number, 0, NECRO_LEX_SEMI_COLON };
+                necro_push_lex_token_vector(&lexer->tokens, &token);
+            }
 		}
 
 		// Add right brace if we are further back than the current block
@@ -378,16 +385,16 @@ NECRO_LEX_RESULT necro_lex_whitespace(NecroLexer* lexer)
 		    }
 		}
 
-		return NECRO_LEX_RESULT_SUCCESSFUL;
+		return true;
 	}
-	return NECRO_LEX_RESULT_NO_MATCH;
+	return false;
 }
 
 void necro_print_lex_error(NecroLexer* lexer, const char* error_message)
 {
     // Find the length of the character sequence we were currently on.
 	size_t sequence_length = 0;
-	for (char* current_char = (char*)lexer->str + lexer->pos; !isblank(*current_char) && *current_char != '\0' && *current_char != '\n'; ++current_char)
+	for (char* current_char = (char*)lexer->str + lexer->pos; !isblank((uint8_t)(*current_char)) && *current_char != '\0' && *current_char != '\n'; ++current_char)
 		sequence_length++;
 
 	// Find the beginning and end of the line we were current on.
@@ -408,34 +415,36 @@ void necro_print_lex_error(NecroLexer* lexer, const char* error_message)
 	fprintf(stderr, "=============================================\n\n");
 }
 
+bool necro_lex_non_ascii(NecroLexer* lexer)
+{
+    // Lex control characters
+    uint8_t c = lexer->str[lexer->pos];
+    if (iscntrl(c) || c > 127)
+    {
+        printf("Found control character: %d, skipping...\n", c);
+        lexer->pos++;
+        return true;
+    }
+    return false;
+}
+
+// TODO: Comment Lexing and String Lexing!
 NECRO_LEX_RESULT necro_lex(NecroLexer* lexer)
 {
 	while (lexer->str[lexer->pos])
 	{
-		// Lex whitespace
-        NECRO_LEX_RESULT whitespace_lex_result = necro_lex_whitespace(lexer);
-        if (whitespace_lex_result == NECRO_LEX_RESULT_TAB_ERROR)
-        {
-            necro_print_lex_error(lexer, "Tabs are not allowed");
-            return NECRO_LEX_RESULT_TAB_ERROR;
-        }
-        else if (whitespace_lex_result == NECRO_LEX_RESULT_SUCCESSFUL)
-        {
-            continue;
-        }
-
-		// Lex other rules
 		bool matched =
+            necro_lex_whitespace(lexer)            ||
+            necro_lex_non_ascii(lexer)             ||
 			necro_lex_identifier(lexer)            ||
 			necro_lex_number(lexer)                ||
 			necro_lex_multi_character_token(lexer) ||
 			necro_lex_single_character(lexer);
-
 		// No Match Error
 		if (!matched)
 		{
             necro_print_lex_error(lexer, "Unrecognized character sequence");
-			return NECRO_LEX_RESULT_NO_MATCH_ERROR;
+			return NECRO_LEX_RESULT_ERROR;
 		}
 	}
 	return NECRO_LEX_RESULT_SUCCESSFUL;

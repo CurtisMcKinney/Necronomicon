@@ -1,0 +1,23 @@
+module Necro where
+
+import Necronomicon
+import qualified Data.Signal as Sig
+import qualified Data.Event  as Event
+
+main :: Signal Audio
+main = myCoolPattern |> poly
+
+myCoolSynth :: Signal Audio -> Signal Audio
+myCoolSynth freq = osc |> env |> pan 0.5 |> gain 0.1
+    where
+        osc = sinOsc (freq * 1)
+        env = perc 0.02 1.25 (-7)
+
+myCoolPattern :: Event (Signal Audio)
+myCoolPattern = pattern (now True) times notes
+    where
+        times = loop [0.25, 0.25, 0.5]
+        notes = loop [0, 1, 2, 3, 4, 6, keyboardSynth] |> d2f justDorian |> fmap (myCoolSynth . toAudio)
+
+keyboardSynth :: Signal Int
+keyboardSynth = Sig.key |> fmap fromEnum |> subtract 91 |> subdivide 1

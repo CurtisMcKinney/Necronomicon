@@ -11,7 +11,7 @@
 
 void necro_test_lex(char* input_string)
 {
-	printf("input_string:\n%s\n\n", input_string);
+	// printf("input_string:\n%s\n\n", input_string);
 
 	NecroLexer lexer = necro_create_lexer(input_string);
 
@@ -74,7 +74,7 @@ int main(int32_t argc, char** argv)
 			str[length]     = '\n';
 			str[length + 1] = '\0';
 
-            // Debug printout raw ascii codes
+            // // Debug printout raw ascii codes
             // for (char* c = str; *c; ++c)
             // {
             //     printf("%d\n", (uint8_t)*c);

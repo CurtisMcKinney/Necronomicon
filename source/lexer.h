@@ -154,9 +154,7 @@ typedef struct
 typedef enum
 {
     NECRO_LEX_RESULT_SUCCESSFUL,
-	NECRO_LEX_RESULT_NO_MATCH,
-    NECRO_LEX_RESULT_TAB_ERROR,
-    NECRO_LEX_RESULT_NO_MATCH_ERROR
+    NECRO_LEX_RESULT_ERROR
 } NECRO_LEX_RESULT;
 
 NecroLexer       necro_create_lexer(const char* str);

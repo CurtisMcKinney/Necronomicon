@@ -82,7 +82,6 @@ typedef struct
 	const char* data;
 	size_t      length;
 } NecroStringSlice;
-// NECRO_DECLARE_VECTOR(NecroStringSlice, NecroStringSlice, string_slice)
 
 char* necro_dup_string_slice(NecroStringSlice slice);
 

@@ -7,6 +7,30 @@
 #include <ctype.h>
 #include "lexer.h"
 
+NecroLexer necro_create_lexer(const char* str)
+{
+	return (NecroLexer)
+	{
+		0,
+		0,
+		0,
+		{ 0 },
+		0,
+		str,
+		necro_create_lex_token_vector(),
+		necro_create_intern()
+	};
+}
+
+void necro_destroy_lexer(NecroLexer* lexer)
+{
+	lexer->character_number = 0;
+	lexer->line_number      = 0;
+	lexer->pos              = 0;
+	necro_destroy_lex_token_vector(&lexer->tokens);
+	necro_destroy_intern(&lexer->intern);
+}
+
 const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
 {
 	switch(token)
@@ -47,31 +71,20 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
 	case NECRO_LEX_DOUBLE_COLON:     return "DOUBLE_COLON";
 	case NECRO_LEX_LEFT_SHIFT:       return "LEFT_SHIFT";
 	case NECRO_LEX_RIGHT_SHIFT:      return "RIGHT_SHIFT";
+	case NECRO_LEX_PIPE:             return "PIPE";
+	case NECRO_LEX_FORWARD_PIPE:     return "FORWARD_PIPE";
+	case NECRO_LEX_BACK_PIPE:        return "BACK_PIPE";
+	case NECRO_LEX_DOT:              return "Dot";
+	case NECRO_LEX_AMPERSAND:        return "AMPERSAND";
+	case NECRO_LEX_AT:               return "AT";
+	case NECRO_LEX_DOLLAR:           return "DOLLAR";
+	case NECRO_LEX_CARET:            return "CARET";
+	case NECRO_LEX_BACK_SLASH:       return "BACK_SLASH";
+	case NECRO_LEX_TILDE:            return "TILDE";
+	case NECRO_LEX_AND:              return "AND";
+	case NECRO_LEX_OR:               return "OR";
 	default:                         return "UNRECOGNIZED TOKEN";
 	}
-}
-
-NecroLexer necro_create_lexer(const char* str)
-{
-	return (NecroLexer)
-	{
-		0,
-		0,
-		0,
-		0,
-		str,
-		necro_create_lex_token_vector(),
-		necro_create_intern()
-	};
-}
-
-void necro_destroy_lexer(NecroLexer* lexer)
-{
-	lexer->character_number = 0;
-	lexer->line_number      = 0;
-	lexer->pos              = 0;
-	necro_destroy_lex_token_vector(&lexer->tokens);
-	necro_destroy_intern(&lexer->intern);
 }
 
 void necro_print_lex_token(NecroLexer* lexer, size_t token_id)
@@ -154,7 +167,14 @@ bool necro_lex_single_character(NecroLexer* lexer)
 	case '#':  necro_add_single_character_token(lexer, NECRO_LEX_HASH);          break;
 	case '\'': necro_add_single_character_token(lexer, NECRO_LEX_QUOTE);         break;
 	case '\"': necro_add_single_character_token(lexer, NECRO_LEX_DOUBLE_QUOTE);  break;
-	case '\n': necro_add_single_character_token(lexer, NECRO_LEX_NEW_LINE);      break;
+	case '|':  necro_add_single_character_token(lexer, NECRO_LEX_PIPE);          break;
+	case '.':  necro_add_single_character_token(lexer, NECRO_LEX_DOT);           break;
+	case '@':  necro_add_single_character_token(lexer, NECRO_LEX_AT);            break;
+	case '$':  necro_add_single_character_token(lexer, NECRO_LEX_DOLLAR);        break;
+	case '&':  necro_add_single_character_token(lexer, NECRO_LEX_AMPERSAND);     break;
+	case '^':  necro_add_single_character_token(lexer, NECRO_LEX_CARET);         break;
+	case '\\': necro_add_single_character_token(lexer, NECRO_LEX_BACK_SLASH);    break;
+	case '~':  necro_add_single_character_token(lexer, NECRO_LEX_TILDE);         break;
 	default:   return false;
 	}
 	return true;
@@ -186,6 +206,10 @@ bool necro_lex_multi_character_token(NecroLexer* lexer)
 		   necro_lex_token_with_pattern(lexer, "::", NECRO_LEX_DOUBLE_COLON) ||
 		   necro_lex_token_with_pattern(lexer, ">>", NECRO_LEX_RIGHT_SHIFT)  ||
 		   necro_lex_token_with_pattern(lexer, "<<", NECRO_LEX_LEFT_SHIFT)   ||
+		   necro_lex_token_with_pattern(lexer, "<|", NECRO_LEX_FORWARD_PIPE) ||
+		   necro_lex_token_with_pattern(lexer, "|>", NECRO_LEX_BACK_PIPE)    ||
+		   necro_lex_token_with_pattern(lexer, "&&", NECRO_LEX_AND)          ||
+		   necro_lex_token_with_pattern(lexer, "||", NECRO_LEX_OR)           ||
 		   necro_lex_token_with_pattern(lexer, "->", NECRO_LEX_RIGHT_ARROW);
 }
 
@@ -196,7 +220,7 @@ bool necro_lex_integer(NecroLexer* lexer)
 	int64_t integer_literal = strtol(start_str_pos, &new_str_pos, 10);
 	size_t  count           = (size_t)(new_str_pos - start_str_pos);
 	// printf("pos: %d, start: %p, end: %p, count: %d, int: %d\n", lexer->pos, start_str_pos, new_str_pos, count, integer_literal);
-	if (count <= 0)
+	if (count <= 0 || isalpha(*new_str_pos))
 		return false;
 	NecroLexToken lex_token = { lexer->character_number, lexer->line_number, 0, NECRO_LEX_INTEGER_LITERAL };
 	lex_token.int_literal   = integer_literal;
@@ -213,7 +237,7 @@ bool necro_lex_float(NecroLexer* lexer)
 	double float_value     = strtof(start_str_pos, &new_str_pos);
 	size_t count           = (size_t)(new_str_pos - start_str_pos);
 	// printf("pos: %d, start: %p, end: %p, count: %d, int: %d\n", lexer->pos, start_str_pos, new_str_pos, count, integer_literal);
-	if (count <= 0)
+	if (count <= 0 || isalpha(*new_str_pos))
 		return false;
 	NecroLexToken lex_token  = { lexer->character_number, lexer->line_number, 0, NECRO_LEX_FLOAT_LITERAL };
 	lex_token.double_literal = float_value;
@@ -259,33 +283,160 @@ bool necro_lex_identifier(NecroLexer* lexer)
 		return false;
 	NecroLexToken    lex_token = { lexer->character_number, lexer->line_number, 0, NECRO_LEX_IDENTIFIER };
 	NecroStringSlice slice     = { lexer->str + lexer->pos, identifier_length };
+
 	lex_token.symbol           = necro_intern_string_slice(&lexer->intern, slice);
 	necro_push_lex_token_vector(&lexer->tokens, &lex_token);
+
 	lexer->character_number += identifier_length;
 	lexer->pos              += identifier_length;
+
+	// If the identifier is a layout keyword, update indentation levels and add left brace
+	if (slice.length == 3 && strncmp(slice.data, "let",   slice.length) == 0 ||
+		slice.length == 5 && strncmp(slice.data, "where", slice.length) == 0 ||
+		slice.length == 2 && strncmp(slice.data, "of",    slice.length) == 0 ||
+		slice.length == 2 && strncmp(slice.data, "do",    slice.length) == 0)
+	{
+		while (lexer->str[lexer->pos] == ' ' || lexer->str[lexer->pos] == '\n')
+		{
+			if (lexer->str[lexer->pos] == '\n')
+			{
+				lexer->line_number++;
+				lexer->character_number = 0;
+			}
+			else
+			{
+				lexer->character_number++;
+			}
+			lexer->pos++;
+		}
+		lexer->current_indentation_block++;
+		lexer->block_indentation_levels[lexer->current_indentation_block] = lexer->character_number;
+		NecroLexToken token = { lexer->character_number, lexer->line_number, 0, NECRO_LEX_LEFT_BRACE };
+		necro_push_lex_token_vector(&lexer->tokens, &token);
+	}
+
 	return true;
 }
 
-// TODO: FINISH!
-bool necro_lex_whitespace(NecroLexer* lexer)
+NECRO_LEX_RESULT necro_lex_whitespace(NecroLexer* lexer)
 {
-	return false;
+	// Tabs are not allowed
+	if (lexer->str[lexer->pos] == '\t')
+	{
+		return NECRO_LEX_RESULT_TAB_ERROR;
+	}
+	// Intermediate white space
+	else if (lexer->str[lexer->pos] == ' ')
+	{
+		while (lexer->str[lexer->pos] == ' ')
+		{
+			lexer->pos++;
+			lexer->character_number++;
+		}
+		return NECRO_LEX_RESULT_SUCCESSFUL;
+	}
+	// Newline
+	else if (lexer->str[lexer->pos] == '\n')
+	{
+        lexer->pos++;
+        lexer->line_number++;
+        lexer->character_number = 0;
+
+		while (lexer->str[lexer->pos] == ' ' || lexer->str[lexer->pos] == '\t')
+		{
+            if (lexer->str[lexer->pos] == '\t')
+            {
+                return NECRO_LEX_RESULT_TAB_ERROR;
+            }
+            else
+            {
+                lexer->pos++;
+                lexer->character_number++;
+            }
+		}
+
+		// printf("newline, line_number: %d, character_number: %d, block_indentation_level: %d, indentation_block: %d\n", lexer->line_number, lexer->character_number, lexer->block_indentation_levels[lexer->current_indentation_block], lexer->current_indentation_block);
+
+		// Indented at the same as block level, end of expression (add SemiColon)
+		if (lexer->character_number <= lexer->block_indentation_levels[lexer->current_indentation_block])
+		{
+			NecroLexToken token = { lexer->character_number, lexer->line_number, 0, NECRO_LEX_SEMI_COLON };
+			necro_push_lex_token_vector(&lexer->tokens, &token);
+		}
+
+		// Add right brace if we are further back than the current block
+		while (lexer->character_number < lexer->block_indentation_levels[lexer->current_indentation_block] && lexer->current_indentation_block > 0)
+		{
+			NecroLexToken token = { lexer->character_number, lexer->line_number, 0, NECRO_LEX_RIGHT_BRACE };
+			necro_push_lex_token_vector(&lexer->tokens, &token);
+			lexer->current_indentation_block--;
+
+		    if (lexer->character_number <= lexer->block_indentation_levels[lexer->current_indentation_block])
+		    {
+		    	NecroLexToken token = { lexer->character_number, lexer->line_number, 0, NECRO_LEX_SEMI_COLON };
+		    	necro_push_lex_token_vector(&lexer->tokens, &token);
+		    }
+		}
+
+		return NECRO_LEX_RESULT_SUCCESSFUL;
+	}
+	return NECRO_LEX_RESULT_NO_MATCH;
 }
 
-void necro_lex(NecroLexer* lexer)
+void necro_print_lex_error(NecroLexer* lexer, const char* error_message)
+{
+    // Find the length of the character sequence we were currently on.
+	size_t sequence_length = 0;
+	for (char* current_char = (char*)lexer->str + lexer->pos; !isblank(*current_char) && *current_char != '\0' && *current_char != '\n'; ++current_char)
+		sequence_length++;
+
+	// Find the beginning and end of the line we were current on.
+	size_t line_start = lexer->pos;
+	size_t line_end   = lexer->pos;
+	for (line_start = lexer->pos; line_start > 0 && (lexer->str[line_start] != '\0' && lexer->str[line_start] != '\n'); --line_start);
+    if (lexer->str[line_start] == '\n')
+        line_start++;
+	for (line_end = lexer->pos; lexer->str[line_end] != '\0' && lexer->str[line_end] != '\n'; ++line_end);
+    if (lexer->str[line_end] == '\n')
+        line_start--;
+
+	fprintf(stderr, "=============================================\n");
+	fprintf(stderr, "= SYNTAX ERROR: %s\n=    character sequence: ", error_message);
+	fprintf(stderr, "%.*s", sequence_length, lexer->str + lexer->pos);
+	fprintf(stderr, "\n=    line number:        %d,\n=    character number:   %d\n", lexer->line_number, lexer->character_number + 1);
+	fprintf(stderr, "=    while parsing line:\n=      (line %d) %.*s\n", lexer->line_number, line_end - line_start, lexer->str + line_start);
+	fprintf(stderr, "=============================================\n\n");
+}
+
+NECRO_LEX_RESULT necro_lex(NecroLexer* lexer)
 {
 	while (lexer->str[lexer->pos])
 	{
+		// Lex whitespace
+        NECRO_LEX_RESULT whitespace_lex_result = necro_lex_whitespace(lexer);
+        if (whitespace_lex_result == NECRO_LEX_RESULT_TAB_ERROR)
+        {
+            necro_print_lex_error(lexer, "Tabs are not allowed");
+            return NECRO_LEX_RESULT_TAB_ERROR;
+        }
+        else if (whitespace_lex_result == NECRO_LEX_RESULT_SUCCESSFUL)
+        {
+            continue;
+        }
+
+		// Lex other rules
 		bool matched =
 			necro_lex_identifier(lexer)            ||
 			necro_lex_number(lexer)                ||
 			necro_lex_multi_character_token(lexer) ||
 			necro_lex_single_character(lexer);
+
+		// No Match Error
 		if (!matched)
 		{
-			// We reached a character we don't know how to parse
-			printf("Unrecognized character: %c, found at line number: %d, character number: %d\n", lexer->str[lexer->pos], lexer->line_number, lexer->character_number + 1);
-			break;
+            necro_print_lex_error(lexer, "Unrecognized character sequence");
+			return NECRO_LEX_RESULT_NO_MATCH_ERROR;
 		}
 	}
+	return NECRO_LEX_RESULT_SUCCESSFUL;
 }

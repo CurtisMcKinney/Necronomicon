@@ -102,7 +102,7 @@ void necro_intern_grow(NecroIntern* intern)
 	{
 		intern->data[i] = (NecroInternEntry) { { 0, NECRO_INTERN_NULL_ID }, NULL };
 	}
-	// re-insert all entries from old block of memory
+	// re-insert all data from old block of memory
 	for (size_t i = 0; i < old_size; ++i)
 	{
 		if (old_data[i].symbol.id != NECRO_INTERN_NULL_ID)
@@ -170,7 +170,7 @@ void necro_print_intern(NecroIntern* intern)
 	printf("NecroIntern\n{\n");
 	printf("    size:    %d,\n", intern->size);
 	printf("    count:   %d,\n", intern->count);
-	printf("    entries:\n    [\n");
+	printf("    data:\n    [\n");
 	for (size_t i = 0; i < intern->size; ++i)
 	{
 		if (intern->data[i].symbol.id == NECRO_INTERN_NULL_ID)

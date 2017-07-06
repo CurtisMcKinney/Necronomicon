@@ -1,0 +1,4 @@
+test x = y
+test x = e
+    where
+        x = 2

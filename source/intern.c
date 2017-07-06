@@ -173,7 +173,7 @@ void necro_print_intern(NecroIntern* intern)
 	printf("    entries:\n    [\n");
 	for (size_t i = 0; i < intern->size; ++i)
 	{
-		if (intern->data[i].value == NULL)
+		if (intern->data[i].symbol.id == NECRO_INTERN_NULL_ID)
 			continue;
 		printf("        hash: %d, id: %d, value: %s\n", intern->data[i].symbol.hash, intern->data[i].symbol.id, intern->data[i].value);
 	}
@@ -227,10 +227,12 @@ void necro_test_intern()
 	necro_test_intern_id(&intern, id2, "This is not a test");
 
 	// Test ID3
-	const char*      test2 = "fuck yeah";
-	NecroStringSlice slice = { test2, 4 };
-	NecroSymbol      id3   = necro_intern_string_slice(&intern, slice);
+	NecroSymbol  id3    = necro_intern_string_slice(&intern, (NecroStringSlice) { "fuck yeah", 4 });
 	necro_test_intern_id(&intern, id3, "fuck");
+
+	// Test ID4
+	NecroSymbol  id4    = necro_intern_string_slice(&intern, (NecroStringSlice) { "please work?", 6 });
+	necro_test_intern_id(&intern, id4, "please");
 
 	puts("\n---");
 	necro_print_intern(&intern);

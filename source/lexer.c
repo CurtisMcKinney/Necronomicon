@@ -58,6 +58,7 @@ NecroLexer necro_create_lexer(const char* str)
 		0,
 		0,
 		0,
+		0,
 		str,
 		necro_create_lex_token_vector(),
 		necro_create_intern()
@@ -263,6 +264,12 @@ bool necro_lex_identifier(NecroLexer* lexer)
 	lexer->character_number += identifier_length;
 	lexer->pos              += identifier_length;
 	return true;
+}
+
+// TODO: FINISH!
+bool necro_lex_whitespace(NecroLexer* lexer)
+{
+	return false;
 }
 
 void necro_lex(NecroLexer* lexer)

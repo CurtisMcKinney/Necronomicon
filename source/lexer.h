@@ -119,6 +119,7 @@ typedef struct
 	size_t              character_number;
 	size_t              line_number;
 	size_t              pos;
+	size_t              indentation_level;
 	const char*         str;
 	NecroLexTokenVector tokens;
 	NecroIntern         intern;

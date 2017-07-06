@@ -43,9 +43,9 @@ typedef struct
 // API
 NecroIntern necro_create_intern();
 void        necro_destroy_intern(NecroIntern* intern);
-bool        necro_intern_contains_symbol(NecroIntern* intern, NecroSymbol symbol);
 NecroSymbol necro_intern_string(NecroIntern* intern, const char* str);
 NecroSymbol necro_intern_string_slice(NecroIntern* intern, NecroStringSlice slice);
+bool        necro_intern_contains_symbol(NecroIntern* intern, NecroSymbol symbol);
 const char* necro_intern_get_string(NecroIntern* intern, NecroSymbol symbol);
 void        necro_print_intern(NecroIntern* intern);
 void        necro_test_intern();

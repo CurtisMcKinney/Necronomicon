@@ -87,8 +87,8 @@ int main(int32_t argc, char** argv)
 		{
 			fprintf(stderr, "Null character buffer.\n");
 		}
-
 		fclose(file);
+        free(str);
 	}
 	else
 	{

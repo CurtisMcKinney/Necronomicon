@@ -21,11 +21,16 @@
 //       strings which are passed into the api by the user.
 //     * NULL strings will not be interned and are never considered interned.
 //=====================================================
-#define NECRO_INITIAL_INTERN_SIZE 256
 typedef struct
 {
-	size_t key;
-	char*  value;
+	size_t hash;
+	size_t id;
+} NecroSymbol;
+
+typedef struct
+{
+	NecroSymbol symbol;
+	char*       value;
 } NecroInternEntry;
 
 typedef struct
@@ -38,11 +43,10 @@ typedef struct
 // API
 NecroIntern necro_create_intern();
 void        necro_destroy_intern(NecroIntern* intern);
-bool        necro_intern_contains_string(NecroIntern* intern, const char* str);
-bool        necro_intern_contains_id(NecroIntern* intern, size_t id);
-size_t      necro_intern_string(NecroIntern* intern, const char* str);
-size_t      necro_intern_string_slice(NecroIntern* intern, NecroStringSlice slice);
-const char* necro_intern_get_string(NecroIntern* intern, size_t id);
+bool        necro_intern_contains_symbol(NecroIntern* intern, NecroSymbol symbol);
+NecroSymbol necro_intern_string(NecroIntern* intern, const char* str);
+NecroSymbol necro_intern_string_slice(NecroIntern* intern, NecroStringSlice slice);
+const char* necro_intern_get_string(NecroIntern* intern, NecroSymbol symbol);
 void        necro_print_intern(NecroIntern* intern);
 void        necro_test_intern();
 

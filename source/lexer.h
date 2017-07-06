@@ -104,7 +104,7 @@ typedef struct
 	{
 		int64_t          int_literal;
 		double           double_literal;
-		size_t           intern_symbol;
+		NecroSymbol      symbol;
 		bool             boolean_literal;
 	};
 	size_t               character_number;

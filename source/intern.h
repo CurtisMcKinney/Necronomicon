@@ -26,22 +26,22 @@ NECRO_DECLARE_VECTOR(char, Char, char)
 
 typedef struct
 {
-	size_t hash;
-	size_t id;
+    size_t hash;
+    size_t id;
 } NecroSymbol;
 
 typedef struct
 {
-	NecroSymbol symbol;
+    NecroSymbol symbol;
     size_t      string_index;
 } NecroInternEntry;
 
 typedef struct
 {
     CharVector        strings;
-	NecroInternEntry* entries;
-	size_t            size;
-	size_t            count;
+    NecroInternEntry* entries;
+    size_t            size;
+    size_t            count;
 } NecroIntern;
 
 // API

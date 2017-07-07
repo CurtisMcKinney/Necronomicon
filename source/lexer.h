@@ -50,8 +50,8 @@ typedef enum
     NECRO_LEX_STRING_LITERAL,
     NECRO_LEX_CHAR_LITERAL,
 
-	// Operators
-	NECRO_LEX_ADD,
+    // Operators
+    NECRO_LEX_ADD,
     NECRO_LEX_SUB,
     NECRO_LEX_MUL,
     NECRO_LEX_DIV,
@@ -60,25 +60,25 @@ typedef enum
     NECRO_LEX_LT,
     NECRO_LEX_GTE,
     NECRO_LEX_LTE,
-	NECRO_LEX_DOUBLE_COLON,
-	NECRO_LEX_LEFT_SHIFT,
-	NECRO_LEX_RIGHT_SHIFT,
-	NECRO_LEX_PIPE,
-	NECRO_LEX_FORWARD_PIPE,
-	NECRO_LEX_BACK_PIPE,
+    NECRO_LEX_DOUBLE_COLON,
+    NECRO_LEX_LEFT_SHIFT,
+    NECRO_LEX_RIGHT_SHIFT,
+    NECRO_LEX_PIPE,
+    NECRO_LEX_FORWARD_PIPE,
+    NECRO_LEX_BACK_PIPE,
     NECRO_LEX_EQUALS,
-	NECRO_LEX_AND,
-	NECRO_LEX_OR,
+    NECRO_LEX_AND,
+    NECRO_LEX_OR,
 
-	// Punctuation
+    // Punctuation
     NECRO_LEX_ACCENT,
-	NECRO_LEX_DOT,
-	NECRO_LEX_TILDE,
-	NECRO_LEX_BACK_SLASH,
-	NECRO_LEX_CARET,
-	NECRO_LEX_DOLLAR,
-	NECRO_LEX_AT,
-	NECRO_LEX_AMPERSAND,
+    NECRO_LEX_DOT,
+    NECRO_LEX_TILDE,
+    NECRO_LEX_BACK_SLASH,
+    NECRO_LEX_CARET,
+    NECRO_LEX_DOLLAR,
+    NECRO_LEX_AT,
+    NECRO_LEX_AMPERSAND,
     NECRO_LEX_COLON,
     NECRO_LEX_SEMI_COLON,
     NECRO_LEX_RIGHT_ARROW,
@@ -90,27 +90,27 @@ typedef enum
     NECRO_LEX_RIGHT_BRACE,
     NECRO_LEX_COMMA,
     NECRO_LEX_UNDER_SCORE,
-	NECRO_LEX_ASSIGN,
+    NECRO_LEX_ASSIGN,
     NECRO_LEX_QUESTION_MARK,
     NECRO_LEX_EXCLAMATION,
     NECRO_LEX_HASH,
 
-	NECRO_LEX_END_OF_STREAM
+    NECRO_LEX_END_OF_STREAM
 } NECRO_LEX_TOKEN_TYPE;
 
 typedef struct
 {
-	union
-	{
-		int64_t          int_literal;
-		double           double_literal;
-		NecroSymbol      symbol;
-		bool             boolean_literal;
+    union
+    {
+        int64_t          int_literal;
+        double           double_literal;
+        NecroSymbol      symbol;
+        bool             boolean_literal;
         char             char_literal;
-	};
-	size_t               character_number;
-	size_t               line_number;
-	NECRO_LEX_TOKEN_TYPE token;
+    };
+    size_t               character_number;
+    size_t               line_number;
+    NECRO_LEX_TOKEN_TYPE token;
 } NecroLexToken;
 NECRO_DECLARE_VECTOR(NecroLexToken, NecroLexToken, lex_token)
 
@@ -118,14 +118,14 @@ NECRO_DECLARE_VECTOR(NecroLexToken, NecroLexToken, lex_token)
 
 typedef struct
 {
-	size_t               character_number;
-	size_t               line_number;
-	size_t               pos;
-	size_t               block_indentation_levels[NECRO_MAX_INDENTATIONS];
-	size_t               current_indentation_block;
-	const char*          str;
-	NecroLexTokenVector  tokens;
-	NecroIntern          intern;
+    size_t               character_number;
+    size_t               line_number;
+    size_t               pos;
+    size_t               block_indentation_levels[NECRO_MAX_INDENTATIONS];
+    size_t               current_indentation_block;
+    const char*          str;
+    NecroLexTokenVector  tokens;
+    NecroIntern          intern;
 } NecroLexer;
 
 typedef enum

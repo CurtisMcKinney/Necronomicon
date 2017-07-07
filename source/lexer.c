@@ -65,9 +65,6 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
 	case NECRO_LEX_QUOTE:            return "QUOTE";
 	case NECRO_LEX_DOUBLE_QUOTE:     return "DOUBLE_QUOTE";
 	case NECRO_LEX_HASH:             return "HASH";
-	case NECRO_LEX_INDENT:           return "INDENT";
-	case NECRO_LEX_DEDENT:           return "DEDENT";
-	case NECRO_LEX_NEW_LINE:         return "NEW_LINE";
 	case NECRO_LEX_DOUBLE_COLON:     return "DOUBLE_COLON";
 	case NECRO_LEX_LEFT_SHIFT:       return "LEFT_SHIFT";
 	case NECRO_LEX_RIGHT_SHIFT:      return "RIGHT_SHIFT";
@@ -126,16 +123,8 @@ void necro_add_single_character_token(NecroLexer* lexer, NECRO_LEX_TOKEN_TYPE to
 {
 	NecroLexToken lex_token = { lexer->character_number, lexer->line_number, 0, token };
 	necro_push_lex_token_vector(&lexer->tokens, &lex_token);
-	if (token == NECRO_LEX_NEW_LINE)
-	{
-		lexer->character_number = 0;
-		lexer->line_number++;
-	}
-	else
-	{
-		lexer->character_number++;
-	}
 	lexer->pos++;
+    lexer->character_number++;
 }
 
 bool necro_lex_single_character(NecroLexer* lexer)
@@ -423,6 +412,7 @@ bool necro_lex_non_ascii(NecroLexer* lexer)
     {
         printf("Found control character: %d, skipping...\n", c);
         lexer->pos++;
+        lexer->character_number++;
         return true;
     }
     return false;

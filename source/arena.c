@@ -11,7 +11,8 @@
  NecroArena construct_arena(size_t capacity)
  {
      NecroArena arena;
-     arena.region = (char*) malloc(capacity);
+     arena.region = malloc(capacity);
+     if (arena.region == NULL) exit(1);
      arena.capacity = capacity;
      arena.size = 0;
      return arena;
@@ -31,7 +32,14 @@
      if (!canFit && (alloc_policy == arena_allow_realloc))
      {
          size_t new_capacity = MAX(arena->capacity * 2, arena->capacity + size);
-         arena->region = (char*) realloc(arena->region, new_capacity);
+         char* new_region    = realloc(arena->region, new_capacity);
+         if (new_region == NULL);
+         {
+             if (arena->region != NULL)
+                free(arena->region);
+             exit(1);
+         }
+         arena->region   = new_region;
          arena->capacity = new_capacity;
          canFit = true;
      }

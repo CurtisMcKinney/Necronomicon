@@ -114,11 +114,6 @@ typedef enum
     NECRO_LEX_QUOTE,
     NECRO_LEX_DOUBLE_QUOTE,
 
-	// Whitespace
-    NECRO_LEX_INDENT,
-    NECRO_LEX_DEDENT,
-    NECRO_LEX_NEW_LINE,
-
 } NECRO_LEX_TOKEN_TYPE;
 
 typedef struct

@@ -16,6 +16,7 @@
 NecroIntern necro_create_intern()
 {
 	NecroInternEntry* data = malloc(NECRO_INITIAL_INTERN_SIZE * sizeof(NecroInternEntry));
+    if (!data) exit(1);
 	for (int32_t i = 0; i < NECRO_INITIAL_INTERN_SIZE; ++i)
 	{
 		data[i] = (NecroInternEntry) { { 0, NECRO_INTERN_NULL_ID }, NULL };
@@ -97,6 +98,7 @@ void necro_intern_grow(NecroIntern* intern)
 	NecroInternEntry* old_data = intern->data;
 	intern->size               = intern->size * 2;
 	intern->data               = malloc(intern->size * sizeof(NecroInternEntry));
+    if (!intern->data) exit(1);
 	// initialize new block of memory
 	for (size_t i = 0; i < intern->size; ++i)
 	{

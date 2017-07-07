@@ -42,7 +42,7 @@ static camel_type##Vector necro_create_##snake_type##_vector()                  
 {                                                                                  \
 	return (camel_type##Vector)                                                    \
 	{                                                                              \
-		(type*) malloc(NECRO_INTIAL_VECTOR_SIZE * sizeof(type)),                   \
+		malloc(NECRO_INTIAL_VECTOR_SIZE * sizeof(type)),                           \
 		0,                                                                         \
 		NECRO_INTIAL_VECTOR_SIZE                                                   \
 	};                                                                             \
@@ -60,8 +60,15 @@ static void necro_push_##snake_type##_vector(camel_type##Vector* vec, type* item
 {                                                                                  \
 	if (vec->length >= vec->capacity)                                              \
 	{                                                                              \
-		vec->capacity = vec->capacity * 2;                                         \
-		vec->data     = (type*) realloc(vec->data, vec->capacity * sizeof(type));  \
+		vec->capacity  = vec->capacity * 2;                                        \
+		type* new_data = realloc(vec->data, vec->capacity * sizeof(type));         \
+        if (new_data == NULL)                                                      \
+        {                                                                          \
+            if (vec->data != NULL)                                                 \
+                free(vec->data);                                                   \
+            exit(1);                                                               \
+        }                                                                          \
+        vec->data = new_data;                                                      \
 	}                                                                              \
 	assert(vec->data != NULL);                                                     \
 	vec->data[vec->length] = *item;                                                \

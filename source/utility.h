@@ -97,6 +97,4 @@ typedef struct
 	size_t      length;
 } NecroStringSlice;
 
-char* necro_dup_string_slice(NecroStringSlice slice);
-
 #endif // UTILITY_H

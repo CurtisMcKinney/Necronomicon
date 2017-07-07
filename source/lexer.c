@@ -9,7 +9,7 @@
 
 NecroLexer necro_create_lexer(const char* str)
 {
-	return (NecroLexer)
+    NecroLexer lexer  =
 	{
 		0,
 		0,
@@ -18,8 +18,32 @@ NecroLexer necro_create_lexer(const char* str)
 		0,
 		str,
 		necro_create_lex_token_vector(),
-		necro_create_intern()
-	};
+        necro_create_intern()
+    };
+
+    // Intern keywords, in the same order as their listing in the NECRO_LEX_TOKEN_TYPE enum
+    // MAKE SURE THAT NECRO_MAX_WORDS is equal to the number of keywords
+    // MAKE SURE THAT THE FIRST N ENTRIES IN NECRO_LEX_TOKEN_TYPE ARE THE KEYWORD TYPES AND THAT THEY EXACTLY MATCH THEIR SYMBOLS MINUS ONE!!!!
+    necro_intern_string(&lexer.intern, "let");
+    necro_intern_string(&lexer.intern, "where");
+    necro_intern_string(&lexer.intern, "of");
+    necro_intern_string(&lexer.intern, "do");
+    necro_intern_string(&lexer.intern, "case");
+    necro_intern_string(&lexer.intern, "class");
+    necro_intern_string(&lexer.intern, "data");
+    necro_intern_string(&lexer.intern, "deriving");
+    necro_intern_string(&lexer.intern, "forall");
+    necro_intern_string(&lexer.intern, "if");
+    necro_intern_string(&lexer.intern, "else");
+    necro_intern_string(&lexer.intern, "then");
+    necro_intern_string(&lexer.intern, "import");
+    necro_intern_string(&lexer.intern, "instance");
+    necro_intern_string(&lexer.intern, "in");
+    necro_intern_string(&lexer.intern, "module");
+    necro_intern_string(&lexer.intern, "newtype");
+    necro_intern_string(&lexer.intern, "type");
+
+    return lexer;
 }
 
 void necro_destroy_lexer(NecroLexer* lexer)
@@ -80,17 +104,40 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
 	case NECRO_LEX_TILDE:            return "TILDE";
 	case NECRO_LEX_AND:              return "AND";
 	case NECRO_LEX_OR:               return "OR";
+    case NECRO_LEX_ACCENT:           return "ACCENT";
     case NECRO_LEX_END_OF_STREAM:    return "END OF STREAM";
+    case NECRO_LEX_CASE:             return "CASE";
+    case NECRO_LEX_OF:               return "OF";
+    case NECRO_LEX_CLASS:            return "CLASS";
+    case NECRO_LEX_DATA:             return "DATA";
+    case NECRO_LEX_DERIVING:         return "DERIVING";
+    case NECRO_LEX_FORALL:           return "FORALL";
+    case NECRO_LEX_DO:               return "DO,";
+    case NECRO_LEX_IF:               return "IF";
+    case NECRO_LEX_ELSE:             return "ELSE";
+    case NECRO_LEX_THEN:             return "THEN";
+    case NECRO_LEX_IMPORT:           return "IMPORT";
+    case NECRO_LEX_INSTANCE:         return "INSTANCE";
+    case NECRO_LEX_LET:              return "LET";
+    case NECRO_LEX_IN:               return "IN";
+    case NECRO_LEX_MODULE:           return "MODULE";
+    case NECRO_LEX_NEWTYPE:          return "NEWTYPE";
+    case NECRO_LEX_TYPE:             return "TYPE";
+    case NECRO_LEX_WHERE:            return "WHERE";
 	default:                         return "UNRECOGNIZED TOKEN";
 	}
 }
 
 void necro_print_lex_token(NecroLexer* lexer, size_t token_id)
 {
-	if (lexer->tokens.data[token_id].token == NECRO_LEX_IDENTIFIER)
-	{
-		printf("IDENTIFIER: %s\n", necro_intern_get_string(&lexer->intern, lexer->tokens.data[token_id].symbol));
-	}
+    if (lexer->tokens.data[token_id].token == NECRO_LEX_IDENTIFIER)
+    {
+        printf("IDENTIFIER: %s\n", necro_intern_get_string(&lexer->intern, lexer->tokens.data[token_id].symbol));
+    }
+    else if (lexer->tokens.data[token_id].token == NECRO_LEX_TYPE_IDENTIFIER)
+    {
+        printf("TYPE:       %s\n", necro_intern_get_string(&lexer->intern, lexer->tokens.data[token_id].symbol));
+    }
 	else if (lexer->tokens.data[token_id].token == NECRO_LEX_FLOAT_LITERAL)
 	{
 		printf("FLOAT:      %f\n", lexer->tokens.data[token_id].double_literal);
@@ -165,6 +212,7 @@ bool necro_lex_single_character(NecroLexer* lexer)
 	case '^':  necro_add_single_character_token(lexer, NECRO_LEX_CARET);         break;
 	case '\\': necro_add_single_character_token(lexer, NECRO_LEX_BACK_SLASH);    break;
 	case '~':  necro_add_single_character_token(lexer, NECRO_LEX_TILDE);         break;
+    case '`':  necro_add_single_character_token(lexer, NECRO_LEX_ACCENT);        break;
 	default:   return false;
 	}
 	return true;
@@ -262,29 +310,36 @@ bool necro_lex_number(NecroLexer* lexer)
 
 bool necro_lex_identifier(NecroLexer* lexer)
 {
+    //first character must be a letter
 	if (!isalpha((uint8_t) lexer->str[lexer->pos]))
 		return false;
-	size_t identifier_length = 0;
+
+    // Get length of the identifier
+	size_t identifier_length  = 0;
+    bool   is_type_identifier = isupper((uint8_t)lexer->str[lexer->pos]);
 	while (isalnum((uint8_t)lexer->str[lexer->pos + identifier_length]))
 	{
 		identifier_length++;
 	}
 	if (identifier_length == 0)
 		return false;
+
+    // Create Lex token
 	NecroLexToken    lex_token = { lexer->character_number, lexer->line_number, 0, NECRO_LEX_IDENTIFIER };
 	NecroStringSlice slice     = { lexer->str + lexer->pos, identifier_length };
-
 	lex_token.symbol           = necro_intern_string_slice(&lexer->intern, slice);
-	necro_push_lex_token_vector(&lexer->tokens, &lex_token);
+    if (lex_token.symbol.id - 1 < NECRO_MAX_KEYWORDS)
+        lex_token.token = lex_token.symbol.id - 1;
+    else if (is_type_identifier)
+        lex_token.token = NECRO_LEX_TYPE_IDENTIFIER;
+    necro_push_lex_token_vector(&lexer->tokens, &lex_token);
 
-	lexer->character_number += identifier_length;
+    // Increment character number and string position
 	lexer->pos              += identifier_length;
+	lexer->character_number += identifier_length;
 
 	// If the identifier is a layout keyword, update indentation levels and add left brace
-	if (slice.length == 3 && strncmp(slice.data, "let",   slice.length) == 0 ||
-		slice.length == 5 && strncmp(slice.data, "where", slice.length) == 0 ||
-		slice.length == 2 && strncmp(slice.data, "of",    slice.length) == 0 ||
-		slice.length == 2 && strncmp(slice.data, "do",    slice.length) == 0)
+    if (lex_token.token <= NECRO_LEX_DO)
 	{
 		while (lexer->str[lexer->pos] == ' ' || lexer->str[lexer->pos] == '\n')
 		{
@@ -438,8 +493,40 @@ NECRO_LEX_RESULT necro_lex(NecroLexer* lexer)
 			return NECRO_LEX_RESULT_ERROR;
 		}
 	}
-
 	NecroLexToken lex_eos_token = { lexer->character_number, lexer->line_number, 0, NECRO_LEX_END_OF_STREAM };
 	necro_push_lex_token_vector(&lexer->tokens, &lex_eos_token);
 	return NECRO_LEX_RESULT_SUCCESSFUL;
+}
+
+
+//=====================================================
+// Testing
+//=====================================================
+void necro_test_lexer()
+{
+	puts("--------------------------------");
+	puts("-- Testing NecroLexer");
+	puts("--------------------------------\n");
+
+    // ASCII noise test
+    {
+        puts("-------------------");
+        puts("ASCII Noise test");
+        puts("-------------------\n");
+
+        srand(666);
+        char noise[4096];
+        for (size_t i = 0; i < 4096; ++i)
+        {
+            char c = rand();
+            if (c == NECRO_LEX_END_OF_STREAM || c == '\0')
+                c = ' ';
+            noise[i] = c;
+        }
+        noise[4095] = '\0';
+        NecroLexer lexer = necro_create_lexer(noise);
+        necro_lex(&lexer);
+        necro_print_lexer(&lexer);
+        necro_destroy_lexer(&lexer);
+    }
 }

@@ -60,11 +60,31 @@ struct NecroObject
 //=====================================================
 typedef enum
 {
+    // Keywords        // NOTE THESE KEYWORDS MUST BE THE FIRST ENTRIES IN THE NECRO_LEX_TOKEN_TYPE enum!!!! Also ensure that NECRO_MAX_KEYWORDS matches the number of keywords!
+    NECRO_LEX_LET = 0, // NOTE! let, where, of, and do are layout keywords. Their order in this list is important { 0, 1, 2, 3 }, and should not be changed!!!!
+    NECRO_LEX_WHERE,
+    NECRO_LEX_OF,
+    NECRO_LEX_DO,
+    NECRO_LEX_CASE,
+    NECRO_LEX_CLASS,
+    NECRO_LEX_DATA,
+    NECRO_LEX_DERIVING,
+    NECRO_LEX_FORALL,
+    NECRO_LEX_IF,
+    NECRO_LEX_ELSE,
+    NECRO_LEX_THEN,
+    NECRO_LEX_IMPORT,
+    NECRO_LEX_INSTANCE,
+    NECRO_LEX_IN,
+    NECRO_LEX_MODULE,
+    NECRO_LEX_NEWTYPE,
+    NECRO_LEX_TYPE,
+
 	// Literals
     NECRO_LEX_INTEGER_LITERAL,
     NECRO_LEX_FLOAT_LITERAL,
     NECRO_LEX_IDENTIFIER,
-	// NECRO_LEX_KEYWORD
+    NECRO_LEX_TYPE_IDENTIFIER,
 
 	// Operators
 	NECRO_LEX_ADD,
@@ -87,6 +107,7 @@ typedef enum
 	NECRO_LEX_OR,
 
 	// Punctuation
+    NECRO_LEX_ACCENT,
 	NECRO_LEX_DOT,
 	NECRO_LEX_TILDE,
 	NECRO_LEX_BACK_SLASH,
@@ -134,16 +155,19 @@ NECRO_DECLARE_VECTOR(NecroLexToken, NecroLexToken, lex_token)
 
 #define NECRO_MAX_INDENTATIONS 64
 
+// NOTE!!! This should be equal to the number of keywords!!!!
+#define NECRO_MAX_KEYWORDS 18
+
 typedef struct
 {
-	size_t              character_number;
-	size_t              line_number;
-	size_t              pos;
-	size_t              block_indentation_levels[NECRO_MAX_INDENTATIONS];
-	size_t              current_indentation_block;
-	const char*         str;
-	NecroLexTokenVector tokens;
-	NecroIntern         intern;
+	size_t               character_number;
+	size_t               line_number;
+	size_t               pos;
+	size_t               block_indentation_levels[NECRO_MAX_INDENTATIONS];
+	size_t               current_indentation_block;
+	const char*          str;
+	NecroLexTokenVector  tokens;
+	NecroIntern          intern;
 } NecroLexer;
 
 typedef enum
@@ -156,7 +180,7 @@ NecroLexer       necro_create_lexer(const char* str);
 void             necro_destroy_lexer(NecroLexer* lexer);
 void             necro_print_lexer(NecroLexer* lexer);
 NECRO_LEX_RESULT necro_lex(NecroLexer* lexer);
-
-const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
+const char*      necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
+void             necro_test_lexer();
 
 #endif // LEXER_H

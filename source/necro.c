@@ -52,6 +52,12 @@ void necro_test_lex(char* input_string)
 //=====================================================
 int main(int32_t argc, char** argv)
 {
+    if (argc > 1 && strcmp(argv[1], "-test_lexer") == 0)
+    {
+        necro_test_lexer();
+        return 0;
+    }
+
 	if (argc > 1 && strcmp(argv[1], "-test_intern") == 0)
 	{
 		necro_test_intern();

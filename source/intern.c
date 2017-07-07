@@ -274,7 +274,9 @@ void necro_test_intern_id(NecroIntern* intern, NecroSymbol symbol, const char* c
 
 void necro_test_intern()
 {
-	puts("Testing NecroIntern...");
+	puts("--------------------------------");
+	puts("-- Testing NecroIntern");
+	puts("--------------------------------\n");
 
 	NecroIntern intern = necro_create_intern();
 

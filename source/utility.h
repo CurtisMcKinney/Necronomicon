@@ -40,9 +40,15 @@ typedef struct                                                                  
                                                                                    \
 static camel_type##Vector necro_create_##snake_type##_vector()                     \
 {                                                                                  \
+    type* data = malloc(NECRO_INTIAL_VECTOR_SIZE * sizeof(type));                  \
+    if (data == NULL)                                                              \
+    {                                                                              \
+        fprintf(stderr, "Malloc returned null creating vector!\n");                \
+        exit(1);                                                                   \
+    }                                                                              \
 	return (camel_type##Vector)                                                    \
 	{                                                                              \
-		malloc(NECRO_INTIAL_VECTOR_SIZE * sizeof(type)),                           \
+		data,                                                                      \
 		0,                                                                         \
 		NECRO_INTIAL_VECTOR_SIZE                                                   \
 	};                                                                             \
@@ -66,6 +72,7 @@ static void necro_push_##snake_type##_vector(camel_type##Vector* vec, type* item
         {                                                                          \
             if (vec->data != NULL)                                                 \
                 free(vec->data);                                                   \
+            fprintf(stderr, "Malloc returned NULL in vector reallocation!\n");     \
             exit(1);                                                               \
         }                                                                          \
         vec->data = new_data;                                                      \

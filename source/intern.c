@@ -8,22 +8,31 @@
 #include "intern.h"
 
 // Constants
-#define NECRO_INITIAL_INTERN_SIZE    256
+#define NECRO_INITIAL_INTERN_SIZE    512
 #define NECRO_INTERN_HASH_MAGIC      5381
 #define NECRO_INTERN_HASH_MULTIPLIER 33
 #define NECRO_INTERN_NULL_ID         0
 
+static char NULL_CHAR = '\0';
+
 NecroIntern necro_create_intern()
 {
-	NecroInternEntry* data = malloc(NECRO_INITIAL_INTERN_SIZE * sizeof(NecroInternEntry));
-    if (!data) exit(1);
+	NecroInternEntry* entries = malloc(NECRO_INITIAL_INTERN_SIZE * sizeof(NecroInternEntry));
+    if (entries == NULL)
+    {
+        fprintf(stderr, "Malloc returned null while allocating entries in necro_create_intern()\n");
+        exit(1);
+    }
+
 	for (int32_t i = 0; i < NECRO_INITIAL_INTERN_SIZE; ++i)
 	{
-		data[i] = (NecroInternEntry) { { 0, NECRO_INTERN_NULL_ID }, NULL };
+		entries[i] = (NecroInternEntry) { { 0, NECRO_INTERN_NULL_ID }, 0 };
 	}
+
 	return (NecroIntern)
 	{
-		data,
+        necro_create_char_vector(),
+		entries,
 		NECRO_INITIAL_INTERN_SIZE,
 		0,
 	};
@@ -31,15 +40,11 @@ NecroIntern necro_create_intern()
 
 void necro_destroy_intern(NecroIntern* intern)
 {
-	for (size_t i = 0; i < intern->size; ++i)
-	{
-		if (intern->data[i].value != NULL)
-			free(intern->data[i].value);
-	}
 	intern->count      = 0;
 	intern->size       = 0;
-	free(intern->data);
-	intern->data       = NULL;
+	free(intern->entries);
+	intern->entries    = NULL;
+    necro_destroy_char_vector(&intern->strings);
 }
 
 size_t necro_hash_string(const char* str)
@@ -72,9 +77,9 @@ bool necro_intern_contains_symbol(NecroIntern* intern, NecroSymbol symbol)
 {
 	if (symbol.id == NECRO_INTERN_NULL_ID)
 		return false;
-	for (size_t probe = symbol.hash % intern->size; intern->data[probe].symbol.id != NECRO_INTERN_NULL_ID; probe = (probe + 1) % intern->size)
+	for (size_t probe = symbol.hash % intern->size; intern->entries[probe].symbol.id != NECRO_INTERN_NULL_ID; probe = (probe + 1) % intern->size)
 	{
-		if (intern->data[probe].symbol.id == symbol.id)
+		if (intern->entries[probe].symbol.id == symbol.id)
 			return true;
 	}
 	return false;
@@ -84,87 +89,139 @@ const char* necro_intern_get_string(NecroIntern* intern, NecroSymbol symbol)
 {
 	if (symbol.id == NECRO_INTERN_NULL_ID)
 		return NULL;
-	for (size_t probe = symbol.hash % intern->size; intern->data[probe].symbol.id != NECRO_INTERN_NULL_ID; probe = (probe + 1) % intern->size)
+	for (size_t probe = symbol.hash % intern->size; intern->entries[probe].symbol.id != NECRO_INTERN_NULL_ID; probe = (probe + 1) % intern->size)
 	{
-		if (intern->data[probe].symbol.id == symbol.id)
-			return intern->data[probe].value;
+		if (intern->entries[probe].symbol.id == symbol.id)
+			return intern->strings.data + intern->entries[probe].string_index;
 	}
 	return NULL;
 }
 
 void necro_intern_grow(NecroIntern* intern)
 {
-	size_t            old_size = intern->size;
-	NecroInternEntry* old_data = intern->data;
-	intern->size               = intern->size * 2;
-	intern->data               = malloc(intern->size * sizeof(NecroInternEntry));
-    if (!intern->data) exit(1);
+	size_t            old_size    = intern->size;
+	NecroInternEntry* old_entries = intern->entries;
+	intern->size                  = intern->size * 2;
+	intern->entries               = malloc(intern->size * sizeof(NecroInternEntry));
+    if (intern->entries == NULL)
+    {
+        fprintf(stderr, "Malloc returned NULL while allocating memory for entries in necro_intern_grow()\n");
+        exit(1);
+    }
 	// initialize new block of memory
 	for (size_t i = 0; i < intern->size; ++i)
 	{
-		intern->data[i] = (NecroInternEntry) { { 0, NECRO_INTERN_NULL_ID }, NULL };
+		intern->entries[i] = (NecroInternEntry) { { 0, NECRO_INTERN_NULL_ID }, 0 };
 	}
 	// re-insert all data from old block of memory
 	for (size_t i = 0; i < old_size; ++i)
 	{
-		if (old_data[i].symbol.id != NECRO_INTERN_NULL_ID)
+		if (old_entries[i].symbol.id != NECRO_INTERN_NULL_ID)
 		{
-			size_t hash  = old_data[i].symbol.hash;
+			size_t hash  = old_entries[i].symbol.hash;
 			size_t probe = hash % intern->size;
-			while (intern->data[probe].symbol.id != NECRO_INTERN_NULL_ID)
+			while (intern->entries[probe].symbol.id != NECRO_INTERN_NULL_ID)
 			{
 				probe = (probe + 1) % intern->size;
 			}
-			assert(intern->data[probe].symbol.id == NECRO_INTERN_NULL_ID);
-			assert(intern->data[probe].value     == NULL);
-			intern->data[probe] = old_data[i];
+			assert(intern->entries[probe].symbol.id    == NECRO_INTERN_NULL_ID);
+			assert(intern->entries[probe].string_index == 0);
+			intern->entries[probe] = old_entries[i];
 		}
 	}
-	free(old_data);
+	free(old_entries);
 }
 
 NecroSymbol necro_intern_string(NecroIntern* intern, const char* str)
 {
+    assert(intern               != NULL);
+    assert(intern->entries      != NULL);
+    assert(intern->strings.data != NULL);
+
+    // Early exit on NULL strings
 	if (str == NULL)
 		return (NecroSymbol) { 0, NECRO_INTERN_NULL_ID };
+
+    // Grow if we're over 50% load
 	if (intern->count >= intern->size / 2)
 		necro_intern_grow(intern);
+
+    // Do linear probe
 	size_t hash  = necro_hash_string(str);
 	size_t probe = hash % intern->size;
-	while (intern->data[probe].symbol.id != NECRO_INTERN_NULL_ID)
+	while (intern->entries[probe].symbol.id != NECRO_INTERN_NULL_ID)
 	{
-		if (intern->data[probe].symbol.hash == hash && strcmp(intern->data[probe].value, str) == 0)
-			return intern->data[probe].symbol;
+        if (intern->entries[probe].symbol.hash == hash)
+        {
+            char* str_at_probe = intern->strings.data + intern->entries[probe].string_index;
+            if (str_at_probe != NULL && strcmp(str_at_probe, str) == 0)
+                return intern->entries[probe].symbol;
+        }
 		probe = (probe + 1) % intern->size;
 	}
-	assert(intern->data[probe].symbol.id == NECRO_INTERN_NULL_ID);
-	assert(intern->data[probe].value     == NULL);
-	intern->data[probe].symbol = (NecroSymbol) { hash, intern->count + 1 };
-	intern->data[probe].value  = strdup(str);
+
+    // Assert that this entry is in fact empty
+	assert(intern->entries[probe].symbol.id    == NECRO_INTERN_NULL_ID);
+	assert(intern->entries[probe].string_index == 0);
+
+    // Assign Entry Data
+	intern->entries[probe].symbol       = (NecroSymbol) { hash, intern->count + 1 };
+    intern->entries[probe].string_index = intern->strings.length;
+
+    // Push string contents into Char Vector
+    for (char* current_char = (char*)str; *current_char != '\0'; ++current_char)
+        necro_push_char_vector(&intern->strings, current_char);
+    necro_push_char_vector(&intern->strings, &NULL_CHAR);
+
+    // Increase count, return symbol
 	intern->count += 1;
-	return intern->data[probe].symbol;
+	return intern->entries[probe].symbol;
 }
 
 NecroSymbol necro_intern_string_slice(NecroIntern* intern, NecroStringSlice slice)
 {
+    assert(intern               != NULL);
+    assert(intern->entries      != NULL);
+    assert(intern->strings.data != NULL);
+
+    // Early exit on NULL strings
 	if (slice.data == NULL)
 		return (NecroSymbol) { 0, NECRO_INTERN_NULL_ID };
+
+    // Grow if we're over 50% load
 	if (intern->count >= intern->size / 2)
 		necro_intern_grow(intern);
+
+    // Do Linear probe
 	size_t hash  = necro_hash_string_slice(slice);
 	size_t probe = hash % intern->size;
-	while (intern->data[probe].symbol.id != NECRO_INTERN_NULL_ID)
+	while (intern->entries[probe].symbol.id != NECRO_INTERN_NULL_ID)
 	{
-		if (intern->data[probe].symbol.hash == hash && strncmp(intern->data[probe].value, slice.data, slice.length) == 0)
-			return intern->data[probe].symbol;
+        if (intern->entries[probe].symbol.hash == hash)
+        {
+            char* str_at_probe = intern->strings.data + intern->entries[probe].string_index;
+            if (str_at_probe != NULL && strncmp(str_at_probe, slice.data, slice.length) == 0)
+                return intern->entries[probe].symbol;
+        }
 		probe = (probe + 1) % intern->size;
 	}
-	assert(intern->data[probe].symbol.id == NECRO_INTERN_NULL_ID);
-	assert(intern->data[probe].value     == NULL);
-	intern->data[probe].symbol = (NecroSymbol) { hash, intern->count + 1 };
-	intern->data[probe].value  = necro_dup_string_slice(slice);
+
+    // Assert that this is in fact en empty entry
+	assert(intern->entries[probe].symbol.id    == NECRO_INTERN_NULL_ID);
+	assert(intern->entries[probe].string_index == 0);
+
+    // Assign Entry data
+	intern->entries[probe].symbol       = (NecroSymbol) { hash, intern->count + 1 };
+    intern->entries[probe].string_index = intern->strings.length;
+
+    // Push string contents into Char Vector
+    for (size_t i = 0; i < slice.length; ++i)
+        necro_push_char_vector(&intern->strings, (char*) (slice.data + i));
+    necro_push_char_vector(&intern->strings, &NULL_CHAR);
+
+    // Increase count and return symbol
 	intern->count += 1;
-	return intern->data[probe].symbol;
+	return intern->entries[probe].symbol;
 }
 
 void necro_print_intern(NecroIntern* intern)
@@ -175,9 +232,9 @@ void necro_print_intern(NecroIntern* intern)
 	printf("    data:\n    [\n");
 	for (size_t i = 0; i < intern->size; ++i)
 	{
-		if (intern->data[i].symbol.id == NECRO_INTERN_NULL_ID)
+		if (intern->entries[i].symbol.id == NECRO_INTERN_NULL_ID)
 			continue;
-		printf("        hash: %d, id: %d, value: %s\n", intern->data[i].symbol.hash, intern->data[i].symbol.id, intern->data[i].value);
+		printf("        hash: %d, id: %d, value: %s\n", intern->entries[i].symbol.hash, intern->entries[i].symbol.id, intern->strings.data + intern->entries[i].string_index);
 	}
 	printf("    ]\n");
 	printf("}\n\n");
@@ -189,6 +246,7 @@ void necro_print_intern(NecroIntern* intern)
 void necro_test_intern_id(NecroIntern* intern, NecroSymbol symbol, const char* compare_str)
 {
 	printf("----\nstring: %s, hash: %d, symbol: %d\n", compare_str, symbol.hash, symbol.id);
+
 	// ID Test
 	if (symbol.id != NECRO_INTERN_NULL_ID)
 		puts("NecroIntern id test:         passed");
@@ -242,7 +300,7 @@ void necro_test_intern()
 
 	// Destroy test
 	necro_destroy_intern(&intern);
-	if (intern.data == NULL)
+	if (intern.entries == NULL)
 		puts("NecroIntern destroy test:    passed");
 	else
 		puts("NecroIntern destroy test:    failed");
@@ -270,7 +328,7 @@ void necro_test_intern()
 
 	// Grow Destroy test
 	necro_destroy_intern(&intern);
-	if (intern.data == NULL)
+	if (intern.entries == NULL)
 		puts("NecroIntern g destroy test:  passed");
 	else
 		puts("NecroIntern g destroy test:  failed");

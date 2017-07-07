@@ -21,6 +21,9 @@
 //       strings which are passed into the api by the user.
 //     * NULL strings will not be interned and are never considered interned.
 //=====================================================
+
+NECRO_DECLARE_VECTOR(char, Char, char)
+
 typedef struct
 {
 	size_t hash;
@@ -30,12 +33,13 @@ typedef struct
 typedef struct
 {
 	NecroSymbol symbol;
-	char*       value;
+    size_t      string_index;
 } NecroInternEntry;
 
 typedef struct
 {
-	NecroInternEntry* data;
+    CharVector        strings;
+	NecroInternEntry* entries;
 	size_t            size;
 	size_t            count;
 } NecroIntern;

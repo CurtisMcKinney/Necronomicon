@@ -12,17 +12,23 @@
 void necro_test_lex(char* input_string)
 {
 	// printf("input_string:\n%s\n\n", input_string);
+	puts("--------------------------------");
+	puts("-- Lexing");
+	puts("--------------------------------");
 
 	NecroLexer lexer = necro_create_lexer(input_string);
-
-	if (necro_lex(&lexer) != NECRO_LEX_RESULT_SUCCESSFUL)
-		exit(1);
-
+	NECRO_LEX_RESULT lex_result = necro_lex(&lexer);
 	necro_print_lexer(&lexer);
 
-	NecroAST ast = { { 0, 0, 0 } };
-	ast_prealloc(&ast, lexer.tokens.length);
-	if (lexer.tokens.length > 0 && parse_ast(&lexer.tokens.data, lexer.tokens.length, &ast) == ParseSuccessful)
+	puts("--------------------------------");
+	puts("-- Parsing");
+	puts("--------------------------------");
+
+	NecroAST ast = { construct_arena(lexer.tokens.length * sizeof(NecroAST_Node)) };
+    NecroLexToken** tokens = &lexer.tokens.data;
+	if (lex_result == NECRO_LEX_RESULT_SUCCESSFUL &&
+		lexer.tokens.length > 0 &&
+		parse_ast(tokens, &ast) == ParseSuccessful)
 	{
 		puts("Parse succeeded");
 		print_ast(&ast);
@@ -33,6 +39,10 @@ void necro_test_lex(char* input_string)
 	}
 
 	// Cleanup
+	puts("--------------------------------");
+	puts("-- Cleaning Up");
+	puts("--------------------------------");
+
 	necro_destroy_lexer(&lexer);
 	destruct_arena(&ast.arena);
 }

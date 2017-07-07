@@ -13,6 +13,7 @@
 
 // Local offset into AST arena
 typedef uint32_t NecroAST_LocalPtr;
+static const NecroAST_LocalPtr null_local_ptr = -1;
 
 //=====================================================
 // AST Undefined
@@ -54,15 +55,24 @@ typedef struct
 
 typedef enum
 {
+    NECRO_BIN_OP_ADD,
+    NECRO_BIN_OP_SUB,
+    NECRO_BIN_OP_MUL,
+    NECRO_BIN_OP_DIV,
+    NECRO_BIN_OP_MOD,
     NECRO_BIN_OP_GT,
     NECRO_BIN_OP_LT,
     NECRO_BIN_OP_GTE,
     NECRO_BIN_OP_LTE,
-    NECRO_BIN_OP_ADD,
-    NECRO_BIN_OP_SUBTRACT,
-    NECRO_BIN_OP_MUL,
-    NECRO_BIN_OP_DIV,
-    NECRO_BIN_OP_MOD,
+	NECRO_BIN_OP_DOUBLE_COLON,
+	NECRO_BIN_OP_LEFT_SHIFT,
+	NECRO_BIN_OP_RIGHT_SHIFT,
+	NECRO_BIN_OP_PIPE,
+	NECRO_BIN_OP_FORWARD_PIPE,
+	NECRO_BIN_OP_BACK_PIPE,
+    NECRO_BIN_OP_EQUALS,
+	NECRO_BIN_OP_AND,
+	NECRO_BIN_OP_OR
 } NecroAST_BinOpType;
 
 typedef struct
@@ -114,11 +124,6 @@ static inline NecroAST_Node* ast_get_root_node(NecroAST* ast)
     return (NecroAST_Node*) ast->arena.region;
 }
 
-static inline void ast_prealloc(NecroAST* ast, size_t num_nodes)
-{
-    arena_alloc(&ast->arena, sizeof(NecroAST_Node) * num_nodes, arena_allow_realloc);
-}
-
 void print_ast(NecroAST* ast);
 
 //=====================================================
@@ -131,6 +136,6 @@ typedef enum
     ParseError
 } NecroParse_Result;
 
-NecroParse_Result parse_ast(NecroLexToken** tokens, size_t num_tokens, NecroAST* ast);
+NecroParse_Result parse_ast(NecroLexToken** tokens, NecroAST* ast);
 
 #endif // PARSER_H

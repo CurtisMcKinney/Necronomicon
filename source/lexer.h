@@ -114,6 +114,7 @@ typedef enum
     NECRO_LEX_QUOTE,
     NECRO_LEX_DOUBLE_QUOTE,
 
+	NECRO_LEX_END_OF_STREAM
 } NECRO_LEX_TOKEN_TYPE;
 
 typedef struct

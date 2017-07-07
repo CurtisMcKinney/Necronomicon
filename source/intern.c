@@ -140,7 +140,7 @@ NecroSymbol necro_intern_string(NecroIntern* intern, const char* str)
 	assert(intern->data[probe].symbol.id == NECRO_INTERN_NULL_ID);
 	assert(intern->data[probe].value     == NULL);
 	intern->data[probe].symbol = (NecroSymbol) { hash, intern->count + 1 };
-	intern->data[probe].value  = _strdup(str);
+	intern->data[probe].value  = strdup(str);
 	intern->count += 1;
 	return intern->data[probe].symbol;
 }

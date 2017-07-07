@@ -13,7 +13,7 @@ char* necro_dup_string_slice(NecroStringSlice slice)
 	// If the slice contains a null terminated string, do simple strndup
 	if (slice.data[slice.length - 1] == '\0')
 	{
-		return _strdup(slice.data);
+		return strdup(slice.data);
 	}
 	// Else allocate a new string with an added character for the null byte
 	else

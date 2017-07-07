@@ -80,6 +80,7 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
 	case NECRO_LEX_TILDE:            return "TILDE";
 	case NECRO_LEX_AND:              return "AND";
 	case NECRO_LEX_OR:               return "OR";
+    case NECRO_LEX_END_OF_STREAM:    return "END OF STREAM";
 	default:                         return "UNRECOGNIZED TOKEN";
 	}
 }
@@ -437,5 +438,8 @@ NECRO_LEX_RESULT necro_lex(NecroLexer* lexer)
 			return NECRO_LEX_RESULT_ERROR;
 		}
 	}
+
+	NecroLexToken lex_eos_token = { lexer->character_number, lexer->line_number, 0, NECRO_LEX_END_OF_STREAM };
+	necro_push_lex_token_vector(&lexer->tokens, &lex_eos_token);
 	return NECRO_LEX_RESULT_SUCCESSFUL;
 }

@@ -133,7 +133,6 @@ NECRO_DECLARE_VECTOR(NecroLexToken, NecroLexToken, lex_token)
 
 #define NECRO_MAX_INDENTATIONS 64
 
-// TODO: Need Indent level!
 typedef struct
 {
 	size_t              character_number;

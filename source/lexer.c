@@ -209,7 +209,7 @@ bool necro_lex_integer(NecroLexer* lexer)
 	int64_t integer_literal = strtol(start_str_pos, &new_str_pos, 10);
 	size_t  count           = (size_t)(new_str_pos - start_str_pos);
 	// printf("pos: %d, start: %p, end: %p, count: %d, int: %d\n", lexer->pos, start_str_pos, new_str_pos, count, integer_literal);
-	if (count <= 0 || isalpha(*new_str_pos))
+	if (count <= 0 || isalpha((uint8_t) (*new_str_pos)))
 		return false;
 	NecroLexToken lex_token = { lexer->character_number, lexer->line_number, 0, NECRO_LEX_INTEGER_LITERAL };
 	lex_token.int_literal   = integer_literal;
@@ -226,7 +226,7 @@ bool necro_lex_float(NecroLexer* lexer)
 	double float_value     = strtof(start_str_pos, &new_str_pos);
 	size_t count           = (size_t)(new_str_pos - start_str_pos);
 	// printf("pos: %d, start: %p, end: %p, count: %d, int: %d\n", lexer->pos, start_str_pos, new_str_pos, count, integer_literal);
-	if (count <= 0 || isalpha(*new_str_pos))
+	if (count <= 0 || isalpha((uint8_t)(*new_str_pos)))
 		return false;
 	NecroLexToken lex_token  = { lexer->character_number, lexer->line_number, 0, NECRO_LEX_FLOAT_LITERAL };
 	lex_token.double_literal = float_value;
@@ -245,7 +245,7 @@ bool necro_lex_number(NecroLexer* lexer)
 		current_char++;
 	if (!isdigit((uint8_t) (*current_char)))
 		return false;
-	while (isdigit(*current_char) || *current_char == '.')
+	while (isdigit((uint8_t)(*current_char)) || *current_char == '.')
 	{
 		if (!contains_dot && *current_char == '.')
 			contains_dot = true;

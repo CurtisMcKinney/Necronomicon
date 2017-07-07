@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include "parser.h"
 
-#define PARSE_DEBUG_PRINT 0
+//#define PARSE_DEBUG_PRINT 1
 
 // =====================================================
 // Abstract Syntax Tree

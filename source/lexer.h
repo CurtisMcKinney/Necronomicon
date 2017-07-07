@@ -157,4 +157,6 @@ void             necro_destroy_lexer(NecroLexer* lexer);
 void             necro_print_lexer(NecroLexer* lexer);
 NECRO_LEX_RESULT necro_lex(NecroLexer* lexer);
 
+const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
+
 #endif // LEXER_H

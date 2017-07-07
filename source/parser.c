@@ -118,16 +118,16 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, uint32_t depth)
         switch(ast_node->constant.type)
         {
         case NECRO_AST_CONSTANT_FLOAT:
-            printf("%f\n", ast_node->constant.double_literal);
+            printf("(%f)\n", ast_node->constant.double_literal);
             break;
         case NECRO_AST_CONSTANT_INTEGER:
-            printf("%li\n", ast_node->constant.int_literal);
+            printf("(%li)\n", ast_node->constant.int_literal);
             break;
         case NECRO_AST_CONSTANT_STRING:
-            printf("%s\n", ast_node->constant.str.data);
+            printf("(%s)\n", ast_node->constant.str.data);
             break;
         case NECRO_AST_CONSTANT_BOOL:
-            printf("%i\n", ast_node->constant.boolean_literal);
+            printf("(%i)\n", ast_node->constant.boolean_literal);
             break;
         }
         break;
@@ -161,7 +161,16 @@ NecroAST_LocalPtr parse_end_of_stream(NecroLexToken** tokens, NecroAST* ast);
 NecroParse_Result parse_ast(NecroLexToken** tokens, NecroAST* ast)
 {
     NecroAST_LocalPtr local_ptr = parse_expression(tokens, ast);
-    if ((local_ptr != null_local_ptr) && ((*tokens)->token ==  NECRO_LEX_END_OF_STREAM))
+#ifdef PARSE_DEBUG_PRINT
+    printf(
+        " parse_ast result { tokens**: %p, tokens*: %p, token: %s , ast: %p }\n",
+        tokens,
+        *tokens,
+        necro_lex_token_type_string((*tokens)->token),
+        ast);
+#endif // PARSE_DEBUG_PRINT
+    if ((local_ptr != null_local_ptr) &&
+        ((*tokens)->token ==  NECRO_LEX_END_OF_STREAM) || (*tokens)->token ==  NECRO_LEX_SEMI_COLON)
     {
         return ParseSuccessful;
     }
@@ -172,7 +181,12 @@ NecroParse_Result parse_ast(NecroLexToken** tokens, NecroAST* ast)
 NecroAST_LocalPtr parse_expression(NecroLexToken** tokens, NecroAST* ast)
 {
 #ifdef PARSE_DEBUG_PRINT
-    printf(" parse_expression { tokens**: %p, tokens*: %p, token: %i , ast: %p }\n", tokens, *tokens, (*tokens)->token, ast);
+    printf(
+        " parse_expression { tokens**: %p, tokens*: %p, token: %s , ast: %p }\n",
+        tokens,
+        *tokens,
+        necro_lex_token_type_string((*tokens)->token),
+        ast);
 #endif // PARSE_DEBUG_PRINT
 
     if ((*tokens)->token == NECRO_LEX_END_OF_STREAM)

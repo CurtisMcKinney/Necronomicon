@@ -25,10 +25,10 @@ void necro_test_lex(char* input_string)
 	puts("--------------------------------");
 
 	NecroAST ast = { construct_arena(lexer.tokens.length * sizeof(NecroAST_Node)) };
-    NecroLexToken** tokens = &lexer.tokens.data;
+    NecroLexToken* tokens = lexer.tokens.data;
 	if (lex_result == NECRO_LEX_RESULT_SUCCESSFUL &&
 		lexer.tokens.length > 0 &&
-		parse_ast(tokens, &ast) == ParseSuccessful)
+		parse_ast(&tokens, &ast) == ParseSuccessful)
 	{
 		puts("Parse succeeded");
 		print_ast(&ast);

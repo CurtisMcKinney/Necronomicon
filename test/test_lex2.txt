@@ -26,3 +26,6 @@ keyboardSynth = Sig.key |> fmap fromEnum |> subtract 91 |> subdivide 1
 
 myCoolChar :: Char
 myCoolChar = 'x'
+
+myCoolString :: String
+myCoolString = "This is not a string"

@@ -127,7 +127,11 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
 
 void necro_print_lex_token(NecroLexer* lexer, size_t token_id)
 {
-    if (lexer->tokens.data[token_id].token == NECRO_LEX_IDENTIFIER)
+    if (lexer->tokens.data[token_id].token == NECRO_LEX_STRING_LITERAL)
+    {
+        printf("STRING:     \"%s\"\n", necro_intern_get_string(&lexer->intern, lexer->tokens.data[token_id].symbol));
+    }
+    else if (lexer->tokens.data[token_id].token == NECRO_LEX_IDENTIFIER)
     {
         printf("IDENTIFIER: %s\n", necro_intern_get_string(&lexer->intern, lexer->tokens.data[token_id].symbol));
     }
@@ -448,6 +452,31 @@ bool necro_lex_char(NecroLexer* lexer)
     return true;
 }
 
+bool necro_lex_string(NecroLexer* lexer)
+{
+    if (lexer->str[lexer->pos] != '\"')
+        return false;
+    size_t beginning = lexer->pos;
+    lexer->pos++;
+    while (lexer->str[lexer->pos] != '\"' && lexer->str[lexer->pos] != '\0' && lexer->str[lexer->pos] != '\n')
+    {
+        lexer->pos++;
+    }
+    if (lexer->str[lexer->pos] == '\0' || lexer->str[lexer->pos] == '\n')
+    {
+        lexer->pos = beginning;
+        return false;
+    }
+    lexer->pos++;
+    size_t           length  = lexer->pos - beginning;
+    NecroLexToken    token   = { lexer->character_number, lexer->line_number, 0, NECRO_LEX_STRING_LITERAL };
+    NecroStringSlice slice   = { lexer->str + beginning + 1, length - 2 };
+	token.symbol             = necro_intern_string_slice(&lexer->intern, slice);
+    lexer->character_number += length;
+	necro_push_lex_token_vector(&lexer->tokens, &token);
+    return true;
+}
+
 bool necro_lex_comments(NecroLexer* lexer)
 {
     if (lexer->str[lexer->pos] != '-' || lexer->str[lexer->pos + 1] != '-')
@@ -511,6 +540,7 @@ NECRO_LEX_RESULT necro_lex(NecroLexer* lexer)
             necro_lex_whitespace(lexer)            ||
             necro_lex_non_ascii(lexer)             ||
             necro_lex_comments(lexer)              ||
+            necro_lex_string(lexer)                ||
             necro_lex_char(lexer)                  ||
 			necro_lex_identifier(lexer)            ||
 			necro_lex_number(lexer)                ||

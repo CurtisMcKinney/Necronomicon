@@ -531,7 +531,6 @@ void necro_print_lex_error(NecroLexer* lexer, const char* error_message)
 	fprintf(stderr, "=============================================\n\n");
 }
 
-// TODO: Comment Lexing and String Lexing!
 NECRO_LEX_RESULT necro_lex(NecroLexer* lexer)
 {
 	while (lexer->str[lexer->pos])

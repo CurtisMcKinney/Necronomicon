@@ -85,8 +85,6 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
 	case NECRO_LEX_ASSIGN:           return "ASSIGN";
 	case NECRO_LEX_QUESTION_MARK:    return "QUESTION_MARK";
 	case NECRO_LEX_EXCLAMATION:      return "EXCLAMATION";
-	case NECRO_LEX_QUOTE:            return "QUOTE";
-	case NECRO_LEX_DOUBLE_QUOTE:     return "DOUBLE_QUOTE";
 	case NECRO_LEX_HASH:             return "HASH";
 	case NECRO_LEX_DOUBLE_COLON:     return "DOUBLE_COLON";
 	case NECRO_LEX_LEFT_SHIFT:       return "LEFT_SHIFT";
@@ -136,6 +134,10 @@ void necro_print_lex_token(NecroLexer* lexer, size_t token_id)
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_TYPE_IDENTIFIER)
     {
         printf("TYPE:       %s\n", necro_intern_get_string(&lexer->intern, lexer->tokens.data[token_id].symbol));
+    }
+    else if (lexer->tokens.data[token_id].token == NECRO_LEX_CHAR_LITERAL)
+    {
+        printf("CHAR:       %c\n", lexer->tokens.data[token_id].char_literal);
     }
 	else if (lexer->tokens.data[token_id].token == NECRO_LEX_FLOAT_LITERAL)
 	{
@@ -201,8 +203,6 @@ bool necro_lex_single_character(NecroLexer* lexer)
 	case '?':  necro_add_single_character_token(lexer, NECRO_LEX_QUESTION_MARK); break;
 	case '!':  necro_add_single_character_token(lexer, NECRO_LEX_EXCLAMATION);   break;
 	case '#':  necro_add_single_character_token(lexer, NECRO_LEX_HASH);          break;
-	case '\'': necro_add_single_character_token(lexer, NECRO_LEX_QUOTE);         break;
-	case '\"': necro_add_single_character_token(lexer, NECRO_LEX_DOUBLE_QUOTE);  break;
 	case '|':  necro_add_single_character_token(lexer, NECRO_LEX_PIPE);          break;
 	case '.':  necro_add_single_character_token(lexer, NECRO_LEX_DOT);           break;
 	case '@':  necro_add_single_character_token(lexer, NECRO_LEX_AT);            break;
@@ -434,6 +434,49 @@ bool necro_lex_whitespace(NecroLexer* lexer)
 	return false;
 }
 
+bool necro_lex_char(NecroLexer* lexer)
+{
+    if (lexer->str[lexer->pos]     != '\''             ||
+        !islower((uint8_t) lexer->str[lexer->pos + 1]) ||
+        lexer->str[lexer->pos + 2] != '\'')
+        return false;
+    lexer->pos              += 3;
+    lexer->character_number += 3;
+    NecroLexToken token = { lexer->character_number, lexer->line_number, 0, NECRO_LEX_CHAR_LITERAL };
+    token.char_literal = lexer->str[lexer->pos - 2];
+	necro_push_lex_token_vector(&lexer->tokens, &token);
+    return true;
+}
+
+bool necro_lex_comments(NecroLexer* lexer)
+{
+    if (lexer->str[lexer->pos] != '-' || lexer->str[lexer->pos + 1] != '-')
+        return false;
+    lexer->pos += 2;
+    while (lexer->str[lexer->pos] != '\n')
+    {
+        lexer->pos++;
+    }
+    lexer->pos++;
+    lexer->character_number = 0;
+    lexer->line_number++;
+    return true;
+}
+
+bool necro_lex_non_ascii(NecroLexer* lexer)
+{
+    // Lex control characters
+    uint8_t c = lexer->str[lexer->pos];
+    if (iscntrl(c) || c > 127)
+    {
+        printf("Found control character: %d, skipping...\n", c);
+        lexer->pos++;
+        lexer->character_number++;
+        return true;
+    }
+    return false;
+}
+
 void necro_print_lex_error(NecroLexer* lexer, const char* error_message)
 {
     // Find the length of the character sequence we were currently on.
@@ -459,43 +502,16 @@ void necro_print_lex_error(NecroLexer* lexer, const char* error_message)
 	fprintf(stderr, "=============================================\n\n");
 }
 
-bool necro_lex_non_ascii(NecroLexer* lexer)
-{
-    // Lex control characters
-    uint8_t c = lexer->str[lexer->pos];
-    if (iscntrl(c) || c > 127)
-    {
-        printf("Found control character: %d, skipping...\n", c);
-        lexer->pos++;
-        lexer->character_number++;
-        return true;
-    }
-    return false;
-}
-
-bool necro_lex_comments(NecroLexer* lexer)
-{
-    if (lexer->str[lexer->pos] != '-' || lexer->str[lexer->pos + 1] != '-')
-        return false;
-    lexer->pos += 2;
-    while (lexer->str[lexer->pos] != '\n')
-    {
-        lexer->pos++;
-    }
-    lexer->pos++;
-    lexer->line_number++;
-    return true;
-}
-
 // TODO: Comment Lexing and String Lexing!
 NECRO_LEX_RESULT necro_lex(NecroLexer* lexer)
 {
 	while (lexer->str[lexer->pos])
 	{
 		bool matched =
-            necro_lex_comments(lexer)              ||
             necro_lex_whitespace(lexer)            ||
             necro_lex_non_ascii(lexer)             ||
+            necro_lex_comments(lexer)              ||
+            necro_lex_char(lexer)                  ||
 			necro_lex_identifier(lexer)            ||
 			necro_lex_number(lexer)                ||
 			necro_lex_multi_character_token(lexer) ||

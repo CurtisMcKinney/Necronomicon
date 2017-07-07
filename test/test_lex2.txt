@@ -23,3 +23,6 @@ myCoolPattern = pattern (now True) times notes
 
 keyboardSynth :: Signal Int
 keyboardSynth = Sig.key |> fmap fromEnum |> subtract 91 |> subdivide 1
+
+myCoolChar :: Char
+myCoolChar = 'x'

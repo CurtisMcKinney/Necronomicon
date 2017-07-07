@@ -84,11 +84,13 @@ typedef enum
     // NOTE: This must come after all of the keywords in this enum!
     NECRO_LEX_END_OF_KEY_WORDS,
 
-	// Literals
+    // Literals
     NECRO_LEX_INTEGER_LITERAL,
     NECRO_LEX_FLOAT_LITERAL,
     NECRO_LEX_IDENTIFIER,
     NECRO_LEX_TYPE_IDENTIFIER,
+    NECRO_LEX_STRING_LITERAL,
+    NECRO_LEX_CHAR_LITERAL,
 
 	// Operators
 	NECRO_LEX_ADD,
@@ -135,10 +137,6 @@ typedef enum
     NECRO_LEX_EXCLAMATION,
     NECRO_LEX_HASH,
 
-	// Strings
-    NECRO_LEX_QUOTE,
-    NECRO_LEX_DOUBLE_QUOTE,
-
 	NECRO_LEX_END_OF_STREAM
 } NECRO_LEX_TOKEN_TYPE;
 
@@ -150,6 +148,7 @@ typedef struct
 		double           double_literal;
 		NecroSymbol      symbol;
 		bool             boolean_literal;
+        char             char_literal;
 	};
 	size_t               character_number;
 	size_t               line_number;

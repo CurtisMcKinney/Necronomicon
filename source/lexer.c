@@ -22,7 +22,6 @@ NecroLexer necro_create_lexer(const char* str)
     };
 
     // Intern keywords, in the same order as their listing in the NECRO_LEX_TOKEN_TYPE enum
-    // MAKE SURE THAT NECRO_MAX_WORDS is equal to the number of keywords
     // MAKE SURE THAT THE FIRST N ENTRIES IN NECRO_LEX_TOKEN_TYPE ARE THE KEYWORD TYPES AND THAT THEY EXACTLY MATCH THEIR SYMBOLS MINUS ONE!!!!
     necro_intern_string(&lexer.intern, "let");
     necro_intern_string(&lexer.intern, "where");
@@ -328,7 +327,7 @@ bool necro_lex_identifier(NecroLexer* lexer)
 	NecroLexToken    lex_token = { lexer->character_number, lexer->line_number, 0, NECRO_LEX_IDENTIFIER };
 	NecroStringSlice slice     = { lexer->str + lexer->pos, identifier_length };
 	lex_token.symbol           = necro_intern_string_slice(&lexer->intern, slice);
-    if (lex_token.symbol.id - 1 < NECRO_MAX_KEYWORDS)
+    if (lex_token.symbol.id - 1 < NECRO_LEX_END_OF_KEY_WORDS)
         lex_token.token = lex_token.symbol.id - 1;
     else if (is_type_identifier)
         lex_token.token = NECRO_LEX_TYPE_IDENTIFIER;
@@ -474,12 +473,27 @@ bool necro_lex_non_ascii(NecroLexer* lexer)
     return false;
 }
 
+bool necro_lex_comments(NecroLexer* lexer)
+{
+    if (lexer->str[lexer->pos] != '-' || lexer->str[lexer->pos + 1] != '-')
+        return false;
+    lexer->pos += 2;
+    while (lexer->str[lexer->pos] != '\n')
+    {
+        lexer->pos++;
+    }
+    lexer->pos++;
+    lexer->line_number++;
+    return true;
+}
+
 // TODO: Comment Lexing and String Lexing!
 NECRO_LEX_RESULT necro_lex(NecroLexer* lexer)
 {
 	while (lexer->str[lexer->pos])
 	{
 		bool matched =
+            necro_lex_comments(lexer)              ||
             necro_lex_whitespace(lexer)            ||
             necro_lex_non_ascii(lexer)             ||
 			necro_lex_identifier(lexer)            ||

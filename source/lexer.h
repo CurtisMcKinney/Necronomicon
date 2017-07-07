@@ -80,6 +80,10 @@ typedef enum
     NECRO_LEX_NEWTYPE,
     NECRO_LEX_TYPE,
 
+    // End of Keywords
+    // NOTE: This must come after all of the keywords in this enum!
+    NECRO_LEX_END_OF_KEY_WORDS,
+
 	// Literals
     NECRO_LEX_INTEGER_LITERAL,
     NECRO_LEX_FLOAT_LITERAL,
@@ -154,9 +158,6 @@ typedef struct
 NECRO_DECLARE_VECTOR(NecroLexToken, NecroLexToken, lex_token)
 
 #define NECRO_MAX_INDENTATIONS 64
-
-// NOTE!!! This should be equal to the number of keywords!!!!
-#define NECRO_MAX_KEYWORDS 18
 
 typedef struct
 {

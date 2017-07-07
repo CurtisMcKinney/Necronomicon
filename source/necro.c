@@ -16,7 +16,7 @@ void necro_test_lex(char* input_string)
 	puts("-- Lexing");
 	puts("--------------------------------");
 
-	NecroLexer lexer = necro_create_lexer(input_string);
+	NecroLexer       lexer      = necro_create_lexer(input_string);
 	NECRO_LEX_RESULT lex_result = necro_lex(&lexer);
 	necro_print_lexer(&lexer);
 

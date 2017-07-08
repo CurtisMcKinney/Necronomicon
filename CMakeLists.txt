@@ -10,6 +10,7 @@ set(project_SOURCES
     source/lexer.c
 	source/intern.c
 	source/utility.c
+    source/runtime.c
     )
 set(project_HEADERS
     source/necro.h
@@ -19,6 +20,7 @@ set(project_HEADERS
     source/math.h
 	source/intern.h
 	source/utility.h
+    source/runtime.h
     )
 
 ADD_EXECUTABLE(necro ${project_SOURCES})

@@ -20,6 +20,10 @@
 //       thus it does not own, nor will it free any
 //       strings which are passed into the api by the user.
 //     * NULL strings will not be interned and are never considered interned.
+//     * This uses a dynamic memory scheme and thus any string
+//       pointer returned by this could be invalidated after
+//       a new string is interned. Thus you should only use
+//       returned strings for quick ephemeral usage, such as printout
 //=====================================================
 
 NECRO_DECLARE_VECTOR(char, Char, char)

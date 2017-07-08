@@ -1,1 +1,1 @@
-1 + 2
+if 2 then 0 else (if 666 then 2 else 13)

@@ -275,7 +275,7 @@ bool necro_lex_float(NecroLexer* lexer)
 {
     char*  start_str_pos   = (char*)(lexer->str + lexer->pos);
     char*  new_str_pos     = start_str_pos;
-    double float_value     = strtof(start_str_pos, &new_str_pos);
+    double float_value     = strtod(start_str_pos, &new_str_pos);
     size_t count           = (size_t)(new_str_pos - start_str_pos);
     // printf("pos: %d, start: %p, end: %p, count: %d, int: %d\n", lexer->pos, start_str_pos, new_str_pos, count, integer_literal);
     if (count <= 0 || isalpha((uint8_t)(*new_str_pos)))

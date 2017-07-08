@@ -441,7 +441,7 @@ bool necro_lex_whitespace(NecroLexer* lexer)
 bool necro_lex_char(NecroLexer* lexer)
 {
     if (lexer->str[lexer->pos]     != '\''             ||
-        !islower((uint8_t) lexer->str[lexer->pos + 1]) ||
+        iscntrl((uint8_t) lexer->str[lexer->pos + 1])  ||
         lexer->str[lexer->pos + 2] != '\'')
         return false;
     lexer->pos              += 3;

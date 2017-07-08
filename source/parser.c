@@ -121,7 +121,7 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, uint32_t depth)
             printf("(%f)\n", ast_node->constant.double_literal);
             break;
         case NECRO_AST_CONSTANT_INTEGER:
-            printf("(%lli)\n", ast_node->constant.int_literal);
+            printf("(%li)\n", ast_node->constant.int_literal);
             break;
         case NECRO_AST_CONSTANT_STRING:
             printf("(%s)\n", ast_node->constant.str.data);
@@ -130,6 +130,12 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, uint32_t depth)
             printf("(%i)\n", ast_node->constant.boolean_literal);
             break;
         }
+        break;
+    case NECRO_AST_IF_THEN_ELSE:
+        puts("(If then else)");
+        print_ast_impl(ast, ast_get_node(ast, ast_node->if_then_else.if_expr), depth + 1);
+        print_ast_impl(ast, ast_get_node(ast, ast_node->if_then_else.then_expr), depth + 1);
+        print_ast_impl(ast, ast_get_node(ast, ast_node->if_then_else.else_expr), depth + 1);
         break;
     default:
         puts("(Undefined)");
@@ -433,19 +439,34 @@ NecroAST_LocalPtr parse_l_expression(NecroLexToken** tokens, NecroAST* ast)
     if ((*tokens)->token == NECRO_LEX_END_OF_STREAM)
         return null_local_ptr;
 
-    // if ((*tokens)->token == NECRO_LEX_LEFT_PAREN)
-    // {
-    //     ++(*tokens);
-    //     NecroAST_LocalPtr local_ptr = parse_expression(tokens, ast);
-    //     if (local_ptr != null_local_ptr && (*tokens)->token == NECRO_LEX_RIGHT_PAREN)
-    //     {
-    //         ++(*tokens);
-    //         return local_ptr;
-    //     }
-    // }
-
     NecroLexToken* original_tokens = *tokens;
     size_t original_ast_size = ast->arena.size;
+
+    if ((*tokens)->token == NECRO_LEX_IF)
+    {
+        NecroAST_LocalPtr if_then_else_local_ptr = null_local_ptr;
+        NecroAST_Node* ast_node = ast_alloc_node_local_ptr(ast, &if_then_else_local_ptr);
+        ast_node->type = NECRO_AST_IF_THEN_ELSE;
+
+        ++(*tokens); // consume IF token
+        NecroAST_LocalPtr if_local_ptr = parse_expression(tokens, ast);
+        if (if_local_ptr != null_local_ptr && (*tokens)->token == NECRO_LEX_THEN)
+        {
+            ++(*tokens); // consume THEN token
+            NecroAST_LocalPtr then_local_ptr = parse_expression(tokens, ast);
+            if (then_local_ptr != null_local_ptr && (*tokens)->token == NECRO_LEX_ELSE)
+            {
+                ++(*tokens); // consume ELSE token
+                NecroAST_LocalPtr else_local_ptr = parse_expression(tokens, ast);
+                if (else_local_ptr != null_local_ptr)
+                {
+                    ast_node->if_then_else = (NecroAST_IfThenElse) { if_local_ptr, then_local_ptr, else_local_ptr };
+                    return if_then_else_local_ptr;
+                }
+            }
+        }
+    }
+
     *tokens = original_tokens;
     ast->arena.size = original_ast_size; // backtrack AST modifications
     return null_local_ptr;

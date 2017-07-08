@@ -82,11 +82,19 @@ typedef struct
     NecroAST_BinOpType type;
 } NecroAST_BinOp;
 
+typedef struct
+{
+    NecroAST_LocalPtr if_expr;
+    NecroAST_LocalPtr then_expr;
+    NecroAST_LocalPtr else_expr;
+} NecroAST_IfThenElse;
+
 typedef enum
 {
     NECRO_AST_UNDEFINED,
     NECRO_AST_CONSTANT,
-    NECRO_AST_BIN_OP
+    NECRO_AST_BIN_OP,
+    NECRO_AST_IF_THEN_ELSE
 } NecroAST_NodeType;
 
 //=====================================================
@@ -100,6 +108,7 @@ typedef struct
         NecroAST_Undefined undefined;
         NecroAST_Constant constant;
         NecroAST_BinOp bin_op;
+        NecroAST_IfThenElse if_then_else;
     };
 
     NecroAST_NodeType type;

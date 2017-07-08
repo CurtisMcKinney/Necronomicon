@@ -121,7 +121,7 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, uint32_t depth)
             printf("(%f)\n", ast_node->constant.double_literal);
             break;
         case NECRO_AST_CONSTANT_INTEGER:
-            printf("(%li)\n", ast_node->constant.int_literal);
+            printf("(%lli)\n", ast_node->constant.int_literal);
             break;
         case NECRO_AST_CONSTANT_STRING:
             printf("(%s)\n", ast_node->constant.str.data);

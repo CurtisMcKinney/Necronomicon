@@ -7,12 +7,14 @@ import qualified Data.Event  as Event
 main :: Signal Audio
 main = myCoolPattern |> poly
 
+-- This is a comment!
 myCoolSynth :: Signal Audio -> Signal Audio
 myCoolSynth freq = osc |> env |> pan 0.5 |> gain 0.1
     where
         osc = sinOsc (freq * 1)
         env = perc 0.02 1.25 (-7)
 
+-- This is another comment!
 myCoolPattern :: Event (Signal Audio)
 myCoolPattern = pattern (now True) times notes
     where
@@ -21,3 +23,9 @@ myCoolPattern = pattern (now True) times notes
 
 keyboardSynth :: Signal Int
 keyboardSynth = Sig.key |> fmap fromEnum |> subtract 91 |> subdivide 1
+
+myCoolChar :: Char
+myCoolChar = 'x'
+
+myCoolString :: String
+myCoolString = "This is not a string"

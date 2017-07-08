@@ -33,46 +33,53 @@
 #define NECRO_DECLARE_VECTOR(type, camel_type, snake_type)                         \
 typedef struct                                                                     \
 {                                                                                  \
-	type*  data;                                                                   \
-	size_t length;                                                                 \
-	size_t capacity;                                                               \
+    type*  data;                                                                   \
+    size_t length;                                                                 \
+    size_t capacity;                                                               \
 } camel_type##Vector;                                                              \
                                                                                    \
 static camel_type##Vector necro_create_##snake_type##_vector()                     \
 {                                                                                  \
-	return (camel_type##Vector)                                                    \
-	{                                                                              \
-		malloc(NECRO_INTIAL_VECTOR_SIZE * sizeof(type)),                           \
-		0,                                                                         \
-		NECRO_INTIAL_VECTOR_SIZE                                                   \
-	};                                                                             \
+    type* data = malloc(NECRO_INTIAL_VECTOR_SIZE * sizeof(type));                  \
+    if (data == NULL)                                                              \
+    {                                                                              \
+        fprintf(stderr, "Malloc returned null creating vector!\n");                \
+        exit(1);                                                                   \
+    }                                                                              \
+    return (camel_type##Vector)                                                    \
+    {                                                                              \
+        data,                                                                      \
+        0,                                                                         \
+        NECRO_INTIAL_VECTOR_SIZE                                                   \
+    };                                                                             \
 }                                                                                  \
                                                                                    \
 static void necro_destroy_##snake_type##_vector(camel_type##Vector* vec)           \
 {                                                                                  \
-	vec->length   = 0;                                                             \
-	vec->capacity = 0;                                                             \
-	free(vec->data);                                                               \
-	vec->data     = NULL;                                                          \
+    vec->length   = 0;                                                             \
+    vec->capacity = 0;                                                             \
+    free(vec->data);                                                               \
+    vec->data     = NULL;                                                          \
 }                                                                                  \
                                                                                    \
 static void necro_push_##snake_type##_vector(camel_type##Vector* vec, type* item)  \
 {                                                                                  \
-	if (vec->length >= vec->capacity)                                              \
-	{                                                                              \
-		vec->capacity  = vec->capacity * 2;                                        \
-		type* new_data = realloc(vec->data, vec->capacity * sizeof(type));         \
+    if (vec->length >= vec->capacity)                                              \
+    {                                                                              \
+        vec->capacity  = vec->capacity * 2;                                        \
+        type* new_data = realloc(vec->data, vec->capacity * sizeof(type));         \
         if (new_data == NULL)                                                      \
         {                                                                          \
             if (vec->data != NULL)                                                 \
                 free(vec->data);                                                   \
+            fprintf(stderr, "Malloc returned NULL in vector reallocation!\n");     \
             exit(1);                                                               \
         }                                                                          \
         vec->data = new_data;                                                      \
-	}                                                                              \
-	assert(vec->data != NULL);                                                     \
-	vec->data[vec->length] = *item;                                                \
-	vec->length++;                                                                 \
+    }                                                                              \
+    assert(vec->data != NULL);                                                     \
+    vec->data[vec->length] = *item;                                                \
+    vec->length++;                                                                 \
 }
 
 //=====================================================
@@ -86,10 +93,8 @@ static void necro_push_##snake_type##_vector(camel_type##Vector* vec, type* item
 //=====================================================
 typedef struct
 {
-	const char* data;
-	size_t      length;
+    const char* data;
+    size_t      length;
 } NecroStringSlice;
-
-char* necro_dup_string_slice(NecroStringSlice slice);
 
 #endif // UTILITY_H

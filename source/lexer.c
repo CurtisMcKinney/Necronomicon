@@ -82,6 +82,7 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
     case NECRO_LEX_COMMA:              return "COMMA";
     case NECRO_LEX_UNDER_SCORE:        return "UNDER_SCORE";
     case NECRO_LEX_EQUALS:             return "EQUALS";
+    case NECRO_LEX_NOT_EQUALS:         return "NOT_EQUALS";
     case NECRO_LEX_ASSIGN:             return "ASSIGN";
     case NECRO_LEX_QUESTION_MARK:      return "QUESTION_MARK";
     case NECRO_LEX_EXCLAMATION:        return "EXCLAMATION";
@@ -249,6 +250,7 @@ bool necro_lex_multi_character_token(NecroLexer* lexer)
     return necro_lex_token_with_pattern(lexer, ">>=", NECRO_LEX_BIND_RIGHT)         ||
            necro_lex_token_with_pattern(lexer, "=<<", NECRO_LEX_BIND_LEFT)          ||
            necro_lex_token_with_pattern(lexer, "==",  NECRO_LEX_EQUALS)             ||
+           necro_lex_token_with_pattern(lexer, "/=",  NECRO_LEX_NOT_EQUALS)         ||
            necro_lex_token_with_pattern(lexer, "<=",  NECRO_LEX_LTE)                ||
            necro_lex_token_with_pattern(lexer, ">=",  NECRO_LEX_GTE)                ||
            necro_lex_token_with_pattern(lexer, "::",  NECRO_LEX_DOUBLE_COLON)       ||
@@ -259,8 +261,8 @@ bool necro_lex_multi_character_token(NecroLexer* lexer)
            necro_lex_token_with_pattern(lexer, "&&",  NECRO_LEX_AND)                ||
            necro_lex_token_with_pattern(lexer, "||",  NECRO_LEX_OR)                 ||
            necro_lex_token_with_pattern(lexer, "()",  NECRO_LEX_UNIT)               ||
-           necro_lex_token_with_pattern(lexer, "!!",  NECRO_LEX_DOUBLE_EXCLAMATION) ||
            necro_lex_token_with_pattern(lexer, "++",  NECRO_LEX_APPEND)             ||
+           necro_lex_token_with_pattern(lexer, "!!",  NECRO_LEX_DOUBLE_EXCLAMATION) ||
            necro_lex_token_with_pattern(lexer, "->",  NECRO_LEX_RIGHT_ARROW);
 }
 

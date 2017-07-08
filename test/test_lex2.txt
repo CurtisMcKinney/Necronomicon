@@ -28,7 +28,7 @@ myCoolChar :: Char
 myCoolChar = 'x'
 
 myOtherCoolChar :: Char
-myOtherCoolChar = ("This is not a char" ++ ", ok?") !! 0
+myOtherCoolChar = ("This is not a char" ++ ", ok?") !! 0 /= 'a'
 
 myCoolString :: String -> IO ()
 myCoolString = someIOAction "This is not a string" >>= putStrLn

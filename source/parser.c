@@ -4,6 +4,7 @@
  */
 
 #include <stdio.h>
+#include "intern.h"
 #include "parser.h"
 
 //#define PARSE_DEBUG_PRINT 1
@@ -40,7 +41,7 @@ void ast_pop_node(NecroAST* ast)
     ast->arena.size -= sizeof(NecroAST_Node);
 }
 
-void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, uint32_t depth)
+void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern, uint32_t depth)
 {
     for (uint32_t i = 0;  i < depth; ++i)
     {
@@ -110,8 +111,8 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, uint32_t depth)
             puts("(Undefined Binary Operator)");
             break;
         }
-        print_ast_impl(ast, ast_get_node(ast, ast_node->bin_op.lhs), depth + 1);
-        print_ast_impl(ast, ast_get_node(ast, ast_node->bin_op.rhs), depth + 1);
+        print_ast_impl(ast, ast_get_node(ast, ast_node->bin_op.lhs), intern, depth + 1);
+        print_ast_impl(ast, ast_get_node(ast, ast_node->bin_op.rhs), intern, depth + 1);
         break;
 
     case NECRO_AST_CONSTANT:
@@ -124,18 +125,25 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, uint32_t depth)
             printf("(%li)\n", ast_node->constant.int_literal);
             break;
         case NECRO_AST_CONSTANT_STRING:
-            printf("(%s)\n", ast_node->constant.str.data);
+            {
+                const char* string = necro_intern_get_string(intern, ast_node->constant.symbol);
+                if (string)
+                    printf("(%s)\n", string);
+            }
+            break;
+        case NECRO_AST_CONSTANT_CHAR:
+            printf("(%c)\n", ast_node->constant.char_literal);
             break;
         case NECRO_AST_CONSTANT_BOOL:
-            printf("(%i)\n", ast_node->constant.boolean_literal);
+            printf("(%s)\n", ast_node->constant.boolean_literal ? " True" : "False");
             break;
         }
         break;
     case NECRO_AST_IF_THEN_ELSE:
         puts("(If then else)");
-        print_ast_impl(ast, ast_get_node(ast, ast_node->if_then_else.if_expr), depth + 1);
-        print_ast_impl(ast, ast_get_node(ast, ast_node->if_then_else.then_expr), depth + 1);
-        print_ast_impl(ast, ast_get_node(ast, ast_node->if_then_else.else_expr), depth + 1);
+        print_ast_impl(ast, ast_get_node(ast, ast_node->if_then_else.if_expr), intern, depth + 1);
+        print_ast_impl(ast, ast_get_node(ast, ast_node->if_then_else.then_expr), intern, depth + 1);
+        print_ast_impl(ast, ast_get_node(ast, ast_node->if_then_else.else_expr), intern, depth + 1);
         break;
     default:
         puts("(Undefined)");
@@ -143,9 +151,9 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, uint32_t depth)
     }
 }
 
-void print_ast(NecroAST* ast)
+void print_ast(NecroAST* ast, NecroIntern* intern)
 {
-    print_ast_impl(ast, ast_get_root_node(ast), 0);
+    print_ast_impl(ast, ast_get_root_node(ast), intern, 0);
 }
 
 // =====================================================
@@ -160,6 +168,7 @@ static inline bool can_continue_parse(NecroLexToken** tokens, NecroAST_LocalPtr 
 NecroAST_LocalPtr parse_expression(NecroLexToken** tokens, NecroAST* ast);
 NecroAST_LocalPtr parse_parenthetical_expression(NecroLexToken** tokens, NecroAST* ast);
 NecroAST_LocalPtr parse_l_expression(NecroLexToken** tokens, NecroAST* ast);
+NecroAST_LocalPtr parse_if_then_else_expression(NecroLexToken** tokens, NecroAST* ast);
 NecroAST_LocalPtr parse_constant(NecroLexToken** tokens, NecroAST* ast);
 NecroAST_LocalPtr parse_unary_operation(NecroLexToken** tokens, NecroAST* ast);
 NecroAST_LocalPtr parse_binary_operation(NecroLexToken** tokens, NecroAST* ast);
@@ -280,6 +289,40 @@ NecroAST_LocalPtr parse_constant(NecroLexToken** tokens, NecroAST* ast)
 #ifdef PARSE_DEBUG_PRINT
     printf(" parse_expression NECRO_LEX_INTEGER_LITERAL { ast_node: %p, local_ptr: %u }\n", ast_node, local_ptr);
 #endif // PARSE_DEBUG_PRINT
+            return local_ptr;
+        }
+
+    case NECRO_LEX_STRING_LITERAL:
+        {
+            NecroAST_Node* ast_node = ast_alloc_node_local_ptr(ast, &local_ptr);
+            ast_node->type = NECRO_AST_CONSTANT;
+            NecroAST_Constant constant;
+            constant.type = NECRO_AST_CONSTANT_STRING;
+            constant.symbol = tokens[0]->symbol;
+            ast_node->constant = constant;
+            ++(*tokens);
+            return local_ptr;
+        }
+    case NECRO_LEX_CHAR_LITERAL:
+        {
+            NecroAST_Node* ast_node = ast_alloc_node_local_ptr(ast, &local_ptr);
+            ast_node->type = NECRO_AST_CONSTANT;
+            NecroAST_Constant constant;
+            constant.type = NECRO_AST_CONSTANT_CHAR;
+            constant.char_literal = tokens[0]->char_literal;
+            ast_node->constant = constant;
+            ++(*tokens);
+            return local_ptr;
+        }
+    case NECRO_AST_CONSTANT_BOOL:
+        {
+            NecroAST_Node* ast_node = ast_alloc_node_local_ptr(ast, &local_ptr);
+            ast_node->type = NECRO_AST_CONSTANT;
+            NecroAST_Constant constant;
+            constant.type = NECRO_AST_CONSTANT_BOOL;
+            constant.boolean_literal = tokens[0]->boolean_literal;
+            ast_node->constant = constant;
+            ++(*tokens);
             return local_ptr;
         }
     }
@@ -435,6 +478,30 @@ NecroAST_LocalPtr parse_function_composition(NecroLexToken** tokens, NecroAST* a
 }
 
 NecroAST_LocalPtr parse_l_expression(NecroLexToken** tokens, NecroAST* ast)
+{
+    if ((*tokens)->token == NECRO_LEX_END_OF_STREAM)
+        return null_local_ptr;
+
+    NecroLexToken* original_tokens = *tokens;
+    size_t original_ast_size = ast->arena.size;
+    NecroAST_LocalPtr local_ptr = null_local_ptr;
+
+    if (local_ptr == null_local_ptr)
+    {
+        local_ptr = parse_if_then_else_expression(tokens, ast);
+    }
+
+    if (local_ptr != null_local_ptr)
+    {
+        return local_ptr;
+    }
+
+    *tokens = original_tokens;
+    ast->arena.size = original_ast_size; // backtrack AST modifications
+    return null_local_ptr;
+}
+
+NecroAST_LocalPtr parse_if_then_else_expression(NecroLexToken** tokens, NecroAST* ast)
 {
     if ((*tokens)->token == NECRO_LEX_END_OF_STREAM)
         return null_local_ptr;

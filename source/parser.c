@@ -128,11 +128,11 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
             {
                 const char* string = necro_intern_get_string(intern, ast_node->constant.symbol);
                 if (string)
-                    printf("(%s)\n", string);
+                    printf("(\"%s\")\n", string);
             }
             break;
         case NECRO_AST_CONSTANT_CHAR:
-            printf("(%c)\n", ast_node->constant.char_literal);
+            printf("(\'%c\')\n", ast_node->constant.char_literal);
             break;
         case NECRO_AST_CONSTANT_BOOL:
             printf("(%s)\n", ast_node->constant.boolean_literal ? " True" : "False");

@@ -27,5 +27,8 @@ keyboardSynth = Sig.key |> fmap fromEnum |> subtract 91 |> subdivide 1
 myCoolChar :: Char
 myCoolChar = 'x'
 
-myCoolString :: String
-myCoolString = "This is not a string"
+myOtherCoolChar :: Char
+myOtherCoolChar = ("This is not a char" ++ ", ok?") !! 0
+
+myCoolString :: String -> IO ()
+myCoolString = someIOAction "This is not a string" >>= putStrLn

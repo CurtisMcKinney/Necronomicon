@@ -55,16 +55,12 @@ int main(int32_t argc, char** argv)
     if (argc > 1 && strcmp(argv[1], "-test_lexer") == 0)
     {
         necro_test_lexer();
-        return 0;
     }
-
-    if (argc > 1 && strcmp(argv[1], "-test_intern") == 0)
+    else if (argc > 1 && strcmp(argv[1], "-test_intern") == 0)
     {
         necro_test_intern();
-        return 0;
     }
-
-    if (argc == 2)
+    else if (argc == 2)
     {
         FILE* file = fopen(argv[1], "r");
         if (!file)
@@ -76,7 +72,7 @@ int main(int32_t argc, char** argv)
         char*  str    = NULL;
         size_t length = 0;
 
-        // Find length of files
+        // Find length of file
         fseek(file, 0, SEEK_END);
         length = ftell(file);
         fseek(file, 0, SEEK_SET);
@@ -103,6 +99,8 @@ int main(int32_t argc, char** argv)
         {
             fprintf(stderr, "Null character buffer.\n");
         }
+
+        // Cleanup
         fclose(file);
         free(str);
     }

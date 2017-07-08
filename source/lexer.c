@@ -441,7 +441,7 @@ bool necro_lex_whitespace(NecroLexer* lexer)
 bool necro_lex_char(NecroLexer* lexer)
 {
     if (lexer->str[lexer->pos]     != '\''             ||
-        !islower((uint8_t) lexer->str[lexer->pos + 1]) ||
+        iscntrl((uint8_t) lexer->str[lexer->pos + 1])  ||
         lexer->str[lexer->pos + 2] != '\'')
         return false;
     lexer->pos              += 3;
@@ -482,13 +482,8 @@ bool necro_lex_comments(NecroLexer* lexer)
     if (lexer->str[lexer->pos] != '-' || lexer->str[lexer->pos + 1] != '-')
         return false;
     lexer->pos += 2;
-    while (lexer->str[lexer->pos] != '\n')
-    {
+    while (lexer->str[lexer->pos] != '\n' && lexer->str[lexer->pos] != '\0')
         lexer->pos++;
-    }
-    lexer->pos++;
-    lexer->character_number = 0;
-    lexer->line_number++;
     return true;
 }
 

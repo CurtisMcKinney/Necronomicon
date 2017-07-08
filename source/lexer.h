@@ -18,7 +18,7 @@
 //=====================================================
 typedef enum
 {
-    // Keywords        // NOTE THESE KEYWORDS MUST BE THE FIRST ENTRIES IN THE NECRO_LEX_TOKEN_TYPE enum!!!! Also ensure that NECRO_MAX_KEYWORDS matches the number of keywords!
+    // Keywords        // NOTE THESE KEYWORDS MUST BE THE FIRST ENTRIES IN THE NECRO_LEX_TOKEN_TYPE enum!!!!
     NECRO_LEX_LET = 0, // NOTE! let, where, of, and do are layout keywords. Their order in this list is important { 0, 1, 2, 3 }, and should not be changed!!!!
     NECRO_LEX_WHERE,
     NECRO_LEX_OF,
@@ -134,6 +134,7 @@ typedef enum
     NECRO_LEX_RESULT_ERROR
 } NECRO_LEX_RESULT;
 
+// API
 NecroLexer       necro_create_lexer(const char* str);
 void             necro_destroy_lexer(NecroLexer* lexer);
 void             necro_print_lexer(NecroLexer* lexer);

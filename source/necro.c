@@ -31,7 +31,7 @@ void necro_test_lex(char* input_string)
         parse_ast(&tokens, &ast) == ParseSuccessful)
     {
         puts("Parse succeeded");
-        print_ast(&ast);
+        print_ast(&ast, &lexer.intern);
     }
     else
     {

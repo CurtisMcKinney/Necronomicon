@@ -34,6 +34,7 @@ typedef enum
     NECRO_AST_CONSTANT_INTEGER,
     NECRO_AST_CONSTANT_STRING,
     NECRO_AST_CONSTANT_BOOL,
+    NECRO_AST_CONSTANT_CHAR
 } NecroAST_ConstantType;
 
 typedef struct
@@ -42,8 +43,9 @@ typedef struct
     {
         double double_literal;
         int64_t int_literal;
-        NecroStringSlice str;
+        NecroSymbol symbol;
 		bool boolean_literal;
+        char char_literal;
     };
 
     NecroAST_ConstantType type;
@@ -133,7 +135,7 @@ static inline NecroAST_Node* ast_get_root_node(NecroAST* ast)
     return (NecroAST_Node*) ast->arena.region;
 }
 
-void print_ast(NecroAST* ast);
+void print_ast(NecroAST* ast, NecroIntern* intern);
 
 //=====================================================
 // Parsing

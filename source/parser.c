@@ -152,6 +152,8 @@ static inline bool can_continue_parse(NecroLexToken** tokens, NecroAST_LocalPtr 
 }
 
 NecroAST_LocalPtr parse_expression(NecroLexToken** tokens, NecroAST* ast);
+NecroAST_LocalPtr parse_parenthetical_expression(NecroLexToken** tokens, NecroAST* ast);
+NecroAST_LocalPtr parse_l_expression(NecroLexToken** tokens, NecroAST* ast);
 NecroAST_LocalPtr parse_constant(NecroLexToken** tokens, NecroAST* ast);
 NecroAST_LocalPtr parse_unary_operation(NecroLexToken** tokens, NecroAST* ast);
 NecroAST_LocalPtr parse_binary_operation(NecroLexToken** tokens, NecroAST* ast);
@@ -198,6 +200,11 @@ NecroAST_LocalPtr parse_expression(NecroLexToken** tokens, NecroAST* ast)
 
     if (local_ptr == null_local_ptr)
     {
+        local_ptr = parse_parenthetical_expression(tokens, ast);
+    }
+
+    if (local_ptr == null_local_ptr)
+    {
         local_ptr = parse_constant(tokens, ast);
     }
 
@@ -206,14 +213,19 @@ NecroAST_LocalPtr parse_expression(NecroLexToken** tokens, NecroAST* ast)
         local_ptr = parse_function_composition(tokens, ast);
     }
 
-    if (local_ptr == null_local_ptr)
-    {
-        local_ptr = parse_binary_operation(tokens, ast);
-    }
+    // if (local_ptr == null_local_ptr)
+    // {
+    //     local_ptr = parse_binary_operation(tokens, ast);
+    // }
 
     if (local_ptr == null_local_ptr)
     {
         local_ptr = parse_unary_operation(tokens, ast);
+    }
+
+    if (local_ptr == null_local_ptr)
+    {
+        local_ptr = parse_l_expression(tokens, ast);
     }
 
     if (local_ptr != null_local_ptr)
@@ -262,6 +274,30 @@ NecroAST_LocalPtr parse_constant(NecroLexToken** tokens, NecroAST* ast)
 #ifdef PARSE_DEBUG_PRINT
     printf(" parse_expression NECRO_LEX_INTEGER_LITERAL { ast_node: %p, local_ptr: %u }\n", ast_node, local_ptr);
 #endif // PARSE_DEBUG_PRINT
+            return local_ptr;
+        }
+    }
+
+    *tokens = original_tokens;
+    ast->arena.size = original_ast_size; // backtrack AST modifications
+    return null_local_ptr;
+}
+
+NecroAST_LocalPtr parse_parenthetical_expression(NecroLexToken** tokens, NecroAST* ast)
+{
+    if ((*tokens)->token == NECRO_LEX_END_OF_STREAM)
+        return null_local_ptr;
+
+    NecroLexToken* original_tokens = *tokens;
+    size_t original_ast_size = ast->arena.size;
+
+    if ((*tokens)->token == NECRO_LEX_LEFT_PAREN)
+    {
+        ++(*tokens);
+        NecroAST_LocalPtr local_ptr = parse_expression(tokens, ast);
+        if (local_ptr != null_local_ptr && (*tokens)->token == NECRO_LEX_RIGHT_PAREN)
+        {
+            ++(*tokens);
             return local_ptr;
         }
     }
@@ -384,6 +420,29 @@ NecroAST_LocalPtr parse_function_composition(NecroLexToken** tokens, NecroAST* a
 {
     if ((*tokens)->token == NECRO_LEX_END_OF_STREAM)
         return null_local_ptr;
+
+    NecroLexToken* original_tokens = *tokens;
+    size_t original_ast_size = ast->arena.size;
+    *tokens = original_tokens;
+    ast->arena.size = original_ast_size; // backtrack AST modifications
+    return null_local_ptr;
+}
+
+NecroAST_LocalPtr parse_l_expression(NecroLexToken** tokens, NecroAST* ast)
+{
+    if ((*tokens)->token == NECRO_LEX_END_OF_STREAM)
+        return null_local_ptr;
+
+    // if ((*tokens)->token == NECRO_LEX_LEFT_PAREN)
+    // {
+    //     ++(*tokens);
+    //     NecroAST_LocalPtr local_ptr = parse_expression(tokens, ast);
+    //     if (local_ptr != null_local_ptr && (*tokens)->token == NECRO_LEX_RIGHT_PAREN)
+    //     {
+    //         ++(*tokens);
+    //         return local_ptr;
+    //     }
+    // }
 
     NecroLexToken* original_tokens = *tokens;
     size_t original_ast_size = ast->arena.size;

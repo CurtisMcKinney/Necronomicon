@@ -193,5 +193,6 @@ typedef struct
 } NecroParser;
 
 NecroParse_Result parse_ast(NecroLexToken** tokens, NecroAST* ast, NecroAST_LocalPtr* out_root_node_ptr);
+void compute_ast_math(NecroAST* ast, NecroAST_LocalPtr root_node_ptr);
 
 #endif // PARSER_H

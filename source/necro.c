@@ -33,6 +33,10 @@ void necro_test_lex(char* input_string)
     {
         puts("Parse succeeded");
         print_ast(&ast, &lexer.intern, root_node_ptr);
+
+#if 0
+        compute_ast_math(&ast, root_node_ptr);
+#endif
     }
     else
     {

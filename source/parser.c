@@ -156,6 +156,54 @@ void print_ast(NecroAST* ast, NecroIntern* intern, NecroAST_LocalPtr root_node_p
     print_ast_impl(ast, ast_get_node(ast, root_node_ptr), intern, 0);
 }
 
+double compute_ast_math_impl(NecroAST* ast, NecroAST_Node* ast_node)
+{
+    switch(ast_node->type)
+    {
+    case NECRO_AST_BIN_OP:
+        {
+            const double a = compute_ast_math_impl(ast, ast_get_node(ast, ast_node->bin_op.lhs));
+            const double b = compute_ast_math_impl(ast, ast_get_node(ast, ast_node->bin_op.rhs));
+            switch(ast_node->bin_op.type)
+            {
+            case NECRO_BIN_OP_ADD:
+                return a + b;
+            case NECRO_BIN_OP_SUB:
+                return a - b;
+            case NECRO_BIN_OP_MUL:
+                return a * b;
+            case NECRO_BIN_OP_DIV:
+                return a / b;
+            default:
+                puts("(Undefined Binary Operator)");
+                break;
+            }
+        }
+        break;
+
+    case NECRO_AST_CONSTANT:
+        switch(ast_node->constant.type)
+        {
+        case NECRO_AST_CONSTANT_FLOAT:
+            return ast_node->constant.double_literal;
+        case NECRO_AST_CONSTANT_INTEGER:
+            return (double) ast_node->constant.int_literal;
+        }
+        break;
+    default:
+        puts("(compute_ast_math) Unrecognized AST node for mathematical expression.");
+        break;
+    }
+
+    return 0.0;
+}
+
+void compute_ast_math(NecroAST* ast, NecroAST_LocalPtr root_node_ptr)
+{
+    double result = compute_ast_math_impl(ast, ast_get_node(ast, root_node_ptr));
+    printf("compute_ast_math: %f", result);
+}
+
 // =====================================================
 // Recursive Descent Parser
 // =====================================================

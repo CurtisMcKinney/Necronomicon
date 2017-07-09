@@ -8,6 +8,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "intern.h"
+#include "runtime.h"
 
 void necro_test_lex(char* input_string)
 {
@@ -52,6 +53,10 @@ void necro_test_lex(char* input_string)
 //=====================================================
 int main(int32_t argc, char** argv)
 {
+    if (argc > 1 && strcmp(argv[1], "-test_runtime") == 0)
+    {
+        necro_test_runtime();
+    }
     if (argc > 1 && strcmp(argv[1], "-test_lexer") == 0)
     {
         necro_test_lexer();

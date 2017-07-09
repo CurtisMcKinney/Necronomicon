@@ -296,9 +296,9 @@ void necro_test_intern()
     NecroSymbol  id4    = necro_intern_string_slice(&intern, (NecroStringSlice) { "please work?", 6 });
     necro_test_intern_id(&intern, id4, "please");
 
-    puts("\n---");
-    necro_print_intern(&intern);
-    puts("");
+    // puts("\n---");
+    // necro_print_intern(&intern);
+    // puts("");
 
     // Destroy test
     necro_destroy_intern(&intern);

@@ -7,7 +7,7 @@
 #include "intern.h"
 #include "parser.h"
 
-#define PARSE_DEBUG_PRINT 1
+//#define PARSE_DEBUG_PRINT 1
 
 // =====================================================
 // Abstract Syntax Tree
@@ -430,16 +430,6 @@ NecroAST_LocalPtr parse_binary_expression(NecroLexToken** tokens, NecroAST* ast,
     NecroAST_BinOpType bin_op_type = token_to_bin_op_type(current_token->token);
     NecroParse_BinOpBehavior bin_op_behavior = bin_op_behaviors[bin_op_type];
 
-    bool lhs_swap = true;
-    // if (lhs_local_ptr == null_local_ptr)
-    // {
-    //     lhs_swap = false;
-    //     lhs_local_ptr = parse_expression(tokens, ast, NECRO_NO_BINARY_LOOK_AHEAD);
-    //     // Set current state as reset point as we want to keep this value even if the binary parsing fails.
-    //     original_tokens = *tokens;
-    //     original_ast_size = ast->arena.size;
-    // }
-    // else
     if (bin_op_type == NECRO_BIN_OP_UNDEFINED || bin_op_behavior.precedence < min_precedence)
     {
         return lhs_local_ptr;

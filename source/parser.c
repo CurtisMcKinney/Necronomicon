@@ -201,7 +201,7 @@ double compute_ast_math_impl(NecroAST* ast, NecroAST_Node* ast_node)
 void compute_ast_math(NecroAST* ast, NecroAST_LocalPtr root_node_ptr)
 {
     double result = compute_ast_math_impl(ast, ast_get_node(ast, root_node_ptr));
-    printf("compute_ast_math: %f", result);
+    printf("compute_ast_math: %f\n", result);
 }
 
 // =====================================================

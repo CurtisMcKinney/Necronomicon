@@ -33,7 +33,6 @@
         - Const, Live, Rest, Inhibit, End?
         - Would allow for --> semantics (i.e. actual switching)
         - Pattern type functions such as seq and cycle would be defined in terms of this.
-
 */
 
 //=====================================================
@@ -58,11 +57,11 @@ typedef enum
     NECRO_OBJECT_APP,
     NECRO_OBJECT_PAP,
     NECRO_OBJECT_LAMBDA,
-    NECRO_OBJECT_PRIM_OP,
+    NECRO_OBJECT_PRIMOP,
 
     //--------------------
     // Utility Objects
-    NECRO_OBJECT_STACK,
+    NECRO_OBJECT_ENV,
     NECRO_OBJECT_FREE
 
 } NECRO_OBJECT_TYPE;
@@ -105,7 +104,7 @@ typedef struct
 typedef struct
 {
     uint32_t current_value_id;
-    uint32_t prim_op; // Should be an enum for this, use a switch to break between different primops
+    uint32_t op; // Should be an enum for this, use a switch to break between different primops
     uint32_t env_id;
     uint16_t arity;
 } NecroPrimOp;
@@ -144,7 +143,7 @@ typedef struct
         NecroApp    app;
         NecroPap    pap;
         NecroLambda lambda;
-        NecroPrimOp prim_op;
+        NecroPrimOp primop;
 
         // Utility Objects
         NecroEnv    env;
@@ -172,6 +171,16 @@ struct NecroRuntime
 
 NecroRuntime necro_create_runtime(NecroAudioInfo audio_info);
 void         necro_destroy_runtime(NecroRuntime* runtime);
+uint32_t     necro_alloc_object(NecroRuntime* runtime);
+void         necro_free_object(NecroRuntime* runtime, uint32_t object_id);
+uint32_t     necro_alloc_audio(NecroRuntime* runtime);
+void         necro_free_audio(NecroRuntime* runtime, uint32_t audio_id);
+NecroObject* necro_get_object(NecroRuntime* runtime, uint32_t object_id);
+uint32_t     necro_create_var(NecroRuntime* runtime, NecroVar var);
+uint32_t     necro_create_app(NecroRuntime* runtime, NecroApp app);
+uint32_t     necro_create_pap(NecroRuntime* runtime, NecroPap pap);
+uint32_t     necro_create_lambda(NecroRuntime* runtime, NecroLambda lambda);
+uint32_t     necro_create_primop(NecroRuntime* runtime, NecroPrimOp primop);
 void         necro_test_runtime();
 
 #endif // RUNTIME_H

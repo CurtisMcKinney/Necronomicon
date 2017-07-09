@@ -10,7 +10,6 @@
 #include <stdint.h>
 #include <assert.h>
 #include <stdbool.h>
-#include <stdio.h>
 
 /*
     Semantic analysis: https://ruslanspivak.com/lsbasi-part13/
@@ -70,6 +69,9 @@ typedef enum
 
 //--------------------
 // Language Constructs
+
+// Current value pointers for each construct?
+// Gets updated when it's demanded?
 typedef struct
 {
     uint32_t var_symbol;
@@ -78,6 +80,7 @@ typedef struct
 
 typedef struct
 {
+    uint32_t current_value_id;
     uint32_t lambda_id;
     uint32_t argument_1_id;
     uint16_t argument_count;
@@ -85,6 +88,7 @@ typedef struct
 
 typedef struct
 {
+    uint32_t current_value_id;
     uint32_t lambda_id;
     uint32_t argument_1_id;
     uint16_t current_arg_count;
@@ -92,6 +96,7 @@ typedef struct
 
 typedef struct
 {
+    uint32_t current_value_id;
     uint32_t body_id;
     uint32_t env_id;
     uint16_t arity;
@@ -99,6 +104,7 @@ typedef struct
 
 typedef struct
 {
+    uint32_t current_value_id;
     uint32_t prim_op; // Should be an enum for this, use a switch to break between different primops
     uint32_t env_id;
     uint16_t arity;
@@ -111,10 +117,9 @@ typedef struct
 // NecroEnv, implemented as a Cactus stack / Parent Pointer tree,
 // i.e. a linked list of linked lists, with each node containing:
 //     * a pointer to the parent env (stack of envs),
-//     * a pointer to the next node in the env (env nodes),
+//     * a pointer to the next node in the env,
 //     * a var symbol which must be matched against.
 //     * a pointer to the value that this node contains
-// https://en.wikipedia.org/wiki/Parent_pointer_tree
 typedef struct
 {
     uint32_t parent_env;
@@ -132,7 +137,7 @@ typedef struct
         int64_t     int_value;
         char        char_value;
         bool        bool_value;
-        uint32_t    audio_offset;
+        uint32_t    audio_id;
 
         // Language Constructs
         NecroVar    var;
@@ -155,22 +160,14 @@ typedef struct
     uint32_t block_size;
 } NecroAudioInfo;
 
-typedef struct
-{
-    union
-    {
-        size_t next_free_node; // 0 node is always NULL
-        double audio;          // Take the address of this to get the audio buffer that this represents
-    };
-} NecroAudioBlock;
-
 struct NecroRuntime
 {
-    NecroObject*     objects;
-    uint32_t         object_free_list;
-    NecroAudioBlock* audio;
-    uint32_t         audio_free_list;
-    NecroAudioInfo   audio_info;
+    NecroObject*   objects;
+    uint32_t       object_free_list;
+    double*        audio;
+    uint32_t*      audio_free_list;
+    uint32_t       audio_free_list_head;
+    NecroAudioInfo audio_info;
 };
 
 NecroRuntime necro_create_runtime(NecroAudioInfo audio_info);

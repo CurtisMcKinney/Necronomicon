@@ -563,7 +563,7 @@ NecroAST_LocalPtr parse_binary_expression(NecroLexToken** tokens, NecroAST* ast,
 
             bin_op_ast_node->bin_op.lhs = lhs_local_ptr;
             bin_op_ast_node->bin_op.rhs = rhs_local_ptr;
-            return bin_op_local_ptr;
+            return parse_binary_operation(tokens, ast, bin_op_local_ptr); // Try to keep evaluating lower precedence tokens
         }
 #ifdef PARSE_DEBUG_PRINT
             printf(" parse_binary_expression FAILED { *tokens: %p, token: %s, ast: %p, lhs_local_ptr: %u, rhs_local_ptr: %u }\n",

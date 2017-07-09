@@ -13,7 +13,7 @@
 
 // Local offset into AST arena
 typedef uint32_t NecroAST_LocalPtr;
-static const NecroAST_LocalPtr null_local_ptr = -1;
+static const NecroAST_LocalPtr null_local_ptr = (uint32_t) -1;
 
 //=====================================================
 // AST Undefined
@@ -57,7 +57,7 @@ typedef struct
 
 typedef enum
 {
-    NECRO_BIN_OP_ADD,
+    NECRO_BIN_OP_ADD = 0,
     NECRO_BIN_OP_SUB,
     NECRO_BIN_OP_MUL,
     NECRO_BIN_OP_DIV,
@@ -74,7 +74,9 @@ typedef enum
 	NECRO_BIN_OP_BACK_PIPE,
     NECRO_BIN_OP_EQUALS,
 	NECRO_BIN_OP_AND,
-	NECRO_BIN_OP_OR
+	NECRO_BIN_OP_OR,
+    NECRO_BIN_OP_COUNT,
+    NECRO_BIN_OP_UNDEFINED = NECRO_BIN_OP_COUNT
 } NecroAST_BinOpType;
 
 typedef struct
@@ -135,11 +137,48 @@ static inline NecroAST_Node* ast_get_root_node(NecroAST* ast)
     return (NecroAST_Node*) ast->arena.region;
 }
 
-void print_ast(NecroAST* ast, NecroIntern* intern);
+void print_ast(NecroAST* ast, NecroIntern* intern, NecroAST_LocalPtr root_node_ptr);
 
 //=====================================================
 // Parsing
 //=====================================================
+
+
+typedef enum
+{
+    NECRO_BIN_OP_ASSOC_LEFT,
+    NECRO_BIN_OP_ASSOC_NONE,
+    NECRO_BIN_OP_ASSOC_RIGHT
+} NecroParse_BinOpAssociativity;
+
+typedef struct
+{
+    int precedence;
+    NecroParse_BinOpAssociativity associativity;
+} NecroParse_BinOpBehavior;
+
+static const NecroParse_BinOpBehavior bin_op_behaviors[NECRO_BIN_OP_COUNT + 1] = {
+    { 6, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_ADD
+    { 6, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_SUB
+    { 7, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_MUL
+    { 7, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_DIV
+    { 7, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_MOD
+    { 5, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_GT
+    { 5, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_LT
+    { 5, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_GTE
+    { 5, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_LTE
+	{ 9, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_DOUBLE_COLON
+	{ 1, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_LEFT_SHIFT
+	{ 1, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_RIGHT_SHIFT
+	{ 2, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_PIPE
+	{ 0, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_FORWARD_PIPE
+	{ 0, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_BACK_PIPE
+    { 0, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_EQUALS
+	{ 3, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_AND
+	{ 2, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_OR
+    { 0, NECRO_BIN_OP_ASSOC_NONE }   // NECRO_BIN_OP_UNDEFINED
+};
+
 
 typedef enum
 {
@@ -147,6 +186,12 @@ typedef enum
     ParseError
 } NecroParse_Result;
 
-NecroParse_Result parse_ast(NecroLexToken** tokens, NecroAST* ast);
+typedef struct
+{
+    NecroLexToken* tokens;
+    size_t token_position;
+} NecroParser;
+
+NecroParse_Result parse_ast(NecroLexToken** tokens, NecroAST* ast, NecroAST_LocalPtr* out_root_node_ptr);
 
 #endif // PARSER_H

@@ -7,7 +7,7 @@
 #include "intern.h"
 #include "parser.h"
 
-//#define PARSE_DEBUG_PRINT 1
+#define PARSE_DEBUG_PRINT 1
 
 // =====================================================
 // Abstract Syntax Tree
@@ -151,19 +151,14 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
     }
 }
 
-void print_ast(NecroAST* ast, NecroIntern* intern)
+void print_ast(NecroAST* ast, NecroIntern* intern, NecroAST_LocalPtr root_node_ptr)
 {
-    print_ast_impl(ast, ast_get_root_node(ast), intern, 0);
+    print_ast_impl(ast, ast_get_node(ast, root_node_ptr), intern, 0);
 }
 
 // =====================================================
 // Recursive Descent Parser
 // =====================================================
-
-static inline bool can_continue_parse(NecroLexToken** tokens, NecroAST_LocalPtr last_ast_ptr)
-{
-    return (last_ast_ptr != null_local_ptr) && ((*tokens)->token != NECRO_LEX_END_OF_STREAM);
-}
 
 NecroAST_LocalPtr parse_expression(NecroLexToken** tokens, NecroAST* ast);
 NecroAST_LocalPtr parse_parenthetical_expression(NecroLexToken** tokens, NecroAST* ast);
@@ -171,11 +166,11 @@ NecroAST_LocalPtr parse_l_expression(NecroLexToken** tokens, NecroAST* ast);
 NecroAST_LocalPtr parse_if_then_else_expression(NecroLexToken** tokens, NecroAST* ast);
 NecroAST_LocalPtr parse_constant(NecroLexToken** tokens, NecroAST* ast);
 NecroAST_LocalPtr parse_unary_operation(NecroLexToken** tokens, NecroAST* ast);
-NecroAST_LocalPtr parse_binary_operation(NecroLexToken** tokens, NecroAST* ast);
+NecroAST_LocalPtr parse_binary_operation(NecroLexToken** tokens, NecroAST* ast, NecroAST_LocalPtr lhs_local_ptr);
 NecroAST_LocalPtr parse_function_composition(NecroLexToken** tokens, NecroAST* ast);
 NecroAST_LocalPtr parse_end_of_stream(NecroLexToken** tokens, NecroAST* ast);
 
-NecroParse_Result parse_ast(NecroLexToken** tokens, NecroAST* ast)
+NecroParse_Result parse_ast(NecroLexToken** tokens, NecroAST* ast, NecroAST_LocalPtr* out_root_node_ptr)
 {
     NecroAST_LocalPtr local_ptr = parse_expression(tokens, ast);
 #ifdef PARSE_DEBUG_PRINT
@@ -189,9 +184,11 @@ NecroParse_Result parse_ast(NecroLexToken** tokens, NecroAST* ast)
     if ((local_ptr != null_local_ptr) &&
         ((*tokens)->token ==  NECRO_LEX_END_OF_STREAM) || (*tokens)->token ==  NECRO_LEX_SEMI_COLON)
     {
+        *out_root_node_ptr = local_ptr;
         return ParseSuccessful;
     }
 
+    *out_root_node_ptr = null_local_ptr;
     return ParseError;
 }
 
@@ -228,11 +225,6 @@ NecroAST_LocalPtr parse_expression(NecroLexToken** tokens, NecroAST* ast)
         local_ptr = parse_function_composition(tokens, ast);
     }
 
-    // if (local_ptr == null_local_ptr)
-    // {
-    //     local_ptr = parse_binary_operation(tokens, ast);
-    // }
-
     if (local_ptr == null_local_ptr)
     {
         local_ptr = parse_unary_operation(tokens, ast);
@@ -241,6 +233,13 @@ NecroAST_LocalPtr parse_expression(NecroLexToken** tokens, NecroAST* ast)
     if (local_ptr == null_local_ptr)
     {
         local_ptr = parse_l_expression(tokens, ast);
+    }
+
+    if (local_ptr != null_local_ptr) // Try parsing expression as a binary operation expression
+    {
+        NecroAST_LocalPtr bin_op_local_ptr = parse_binary_operation(tokens, ast, local_ptr);
+        if (bin_op_local_ptr != null_local_ptr)
+            local_ptr = bin_op_local_ptr;
     }
 
     if (local_ptr != null_local_ptr)
@@ -368,101 +367,208 @@ NecroAST_LocalPtr parse_unary_operation(NecroLexToken** tokens, NecroAST* ast)
     return null_local_ptr;
 }
 
-NecroAST_LocalPtr parse_binary_operation(NecroLexToken** tokens, NecroAST* ast)
+NecroAST_BinOpType token_to_bin_op_type(NECRO_LEX_TOKEN_TYPE token_type)
+{
+    switch(token_type)
+    {
+    case NECRO_LEX_ADD:
+        return NECRO_BIN_OP_ADD;
+    case NECRO_LEX_SUB:
+        return NECRO_BIN_OP_SUB;
+    case NECRO_LEX_MUL:
+        return NECRO_BIN_OP_MUL;
+    case NECRO_LEX_DIV:
+        return NECRO_BIN_OP_DIV;
+    case NECRO_LEX_MOD:
+        return NECRO_BIN_OP_MOD;
+    case NECRO_LEX_GT:
+        return NECRO_BIN_OP_GT;
+    case NECRO_LEX_LT:
+        return NECRO_BIN_OP_LT;
+    case NECRO_LEX_GTE:
+        return NECRO_BIN_OP_GTE;
+    case NECRO_LEX_LTE:
+        return NECRO_BIN_OP_LTE;
+    case NECRO_LEX_DOUBLE_COLON:
+        return NECRO_BIN_OP_DOUBLE_COLON;
+    case NECRO_LEX_LEFT_SHIFT:
+        return NECRO_BIN_OP_LEFT_SHIFT;
+    case NECRO_LEX_RIGHT_SHIFT:
+        return NECRO_BIN_OP_RIGHT_SHIFT;
+    case NECRO_LEX_PIPE:
+        return NECRO_BIN_OP_PIPE;
+    case NECRO_LEX_FORWARD_PIPE:
+        return NECRO_BIN_OP_FORWARD_PIPE;
+    case NECRO_LEX_BACK_PIPE:
+        return NECRO_BIN_OP_BACK_PIPE;
+    case NECRO_LEX_EQUALS:
+        return NECRO_BIN_OP_EQUALS;
+    case NECRO_LEX_AND:
+        return NECRO_BIN_OP_AND;
+    case NECRO_LEX_OR:
+        return NECRO_BIN_OP_OR;
+    default:
+        return NECRO_BIN_OP_UNDEFINED;
+    }
+}
+
+NecroAST_LocalPtr parse_binary_expression(NecroLexToken** tokens, NecroAST* ast, NecroAST_LocalPtr lhs_local_ptr, int min_precedence)
 {
     if ((*tokens)->token == NECRO_LEX_END_OF_STREAM)
         return null_local_ptr;
 
     NecroLexToken* original_tokens = *tokens;
     size_t original_ast_size = ast->arena.size;
-    NecroAST_LocalPtr bin_op_ptr = null_local_ptr;
-    NecroAST_Node* ast_node = ast_alloc_node_local_ptr(ast, &bin_op_ptr);
-    ast_node->type = NECRO_AST_BIN_OP;
-    ast_node->bin_op.lhs = parse_expression(tokens, ast);
-    bool success = can_continue_parse(tokens, ast_node->bin_op.lhs);
-    if (success)
-    {
-        NecroAST_BinOpType bin_op_type = NECRO_BIN_OP_ADD;
-        switch((*tokens)->token)
-        {
-        case NECRO_LEX_ADD:
-            bin_op_type = NECRO_BIN_OP_ADD;
-            break;
-        case NECRO_LEX_SUB:
-            bin_op_type = NECRO_BIN_OP_SUB;
-            break;
-        case NECRO_LEX_MUL:
-            bin_op_type = NECRO_BIN_OP_MUL;
-            break;
-        case NECRO_LEX_DIV:
-            bin_op_type = NECRO_BIN_OP_DIV;
-            break;
-        case NECRO_LEX_MOD:
-            bin_op_type = NECRO_BIN_OP_MOD;
-            break;
-        case NECRO_LEX_GT:
-            bin_op_type = NECRO_BIN_OP_GT;
-            break;
-        case NECRO_LEX_LT:
-            bin_op_type = NECRO_BIN_OP_LT;
-            break;
-        case NECRO_LEX_GTE:
-            bin_op_type = NECRO_BIN_OP_GTE;
-            break;
-        case NECRO_LEX_LTE:
-            bin_op_type = NECRO_BIN_OP_LTE;
-            break;
-        case NECRO_LEX_DOUBLE_COLON:
-            bin_op_type = NECRO_BIN_OP_DOUBLE_COLON;
-            break;
-        case NECRO_LEX_LEFT_SHIFT:
-            bin_op_type = NECRO_BIN_OP_LEFT_SHIFT;
-            break;
-        case NECRO_LEX_RIGHT_SHIFT:
-            bin_op_type = NECRO_BIN_OP_RIGHT_SHIFT;
-            break;
-        case NECRO_LEX_PIPE:
-            bin_op_type = NECRO_BIN_OP_PIPE;
-            break;
-        case NECRO_LEX_FORWARD_PIPE:
-            bin_op_type = NECRO_BIN_OP_FORWARD_PIPE;
-            break;
-        case NECRO_LEX_BACK_PIPE:
-            bin_op_type = NECRO_BIN_OP_BACK_PIPE;
-            break;
-        case NECRO_LEX_EQUALS:
-            bin_op_type = NECRO_BIN_OP_EQUALS;
-            break;
-        case NECRO_LEX_AND:
-            bin_op_type = NECRO_BIN_OP_AND;
-            break;
-        case NECRO_LEX_OR:
-            bin_op_type = NECRO_BIN_OP_OR;
-            break;
-        default:
-            success = false;
-            break;
-        }
 
-        if (success)
-        {
-            ast_node->bin_op.type = bin_op_type;
-            ++(*tokens);
-        }
+    NecroLexToken* current_token = (*tokens);
+    NecroAST_BinOpType bin_op_type = token_to_bin_op_type(current_token->token);
+    NecroParse_BinOpBehavior bin_op_behavior = bin_op_behaviors[bin_op_type];
+
+    bool lhs_swap = true;
+    if (lhs_local_ptr == null_local_ptr)
+    {
+        lhs_swap = false;
+        lhs_local_ptr = parse_expression(tokens, ast);
+        // Set current state as reset point as we want to keep this value even if the binary parsing fails.
+        original_tokens = *tokens;
+        original_ast_size = ast->arena.size;
+    }
+    if (bin_op_type == NECRO_BIN_OP_UNDEFINED)
+    {
+        return lhs_local_ptr;
     }
 
-    if (success)
+    if (lhs_local_ptr != null_local_ptr)
     {
-        ast_node->bin_op.rhs = parse_expression(tokens, ast);
-        if (ast_node->bin_op.rhs != null_local_ptr)
+        NecroAST_Node* lhs_ast_node = ast_get_node(ast, lhs_local_ptr);
+
+        NecroAST_LocalPtr bin_op_local_ptr = null_local_ptr;
+        NecroAST_Node* bin_op_ast_node = ast_alloc_node_local_ptr(ast, &bin_op_local_ptr);
+        bin_op_ast_node->type = NECRO_AST_BIN_OP;
+        bin_op_ast_node->bin_op.type = bin_op_type;
+
+        NecroAST_LocalPtr rhs_local_ptr = null_local_ptr;
+
+        while (true)
         {
-            return bin_op_ptr;
+            current_token = (*tokens);
+            bin_op_type = token_to_bin_op_type(current_token->token);
+
+#ifdef PARSE_DEBUG_PRINT
+            printf(
+                "parse_binary_expression while (true) { *token: %p, token: %s, ast: %p, min_precedence: %i, bin_op_type: %i, precedence: %i, associativity: %i }\n",
+                *tokens,
+                necro_lex_token_type_string((*tokens)->token),
+                ast,
+                min_precedence,
+                bin_op_type,
+                bin_op_behaviors[bin_op_type].precedence,
+                bin_op_behaviors[bin_op_type].associativity);
+#endif // PARSE_DEBUG_PRINT
+
+            if (bin_op_type == NECRO_BIN_OP_UNDEFINED)
+            {
+                break;
+            }
+
+            NecroParse_BinOpBehavior bin_op_behavior = bin_op_behaviors[bin_op_type];
+            if (bin_op_behavior.precedence < min_precedence)
+            {
+                break;
+            }
+
+            int next_min_precedence;
+            if (bin_op_behavior.associativity == NECRO_BIN_OP_ASSOC_LEFT)
+                next_min_precedence = bin_op_behavior.precedence + 1;
+            else
+                next_min_precedence = bin_op_behavior.precedence;
+
+            ++(*tokens); // consume current_token
+            rhs_local_ptr = parse_binary_expression(tokens, ast, null_local_ptr, next_min_precedence);
+#ifdef PARSE_DEBUG_PRINT
+            printf(" parse_binary_expression rhs_local_ptr { *tokens: %p, token: %s, ast: %p, lhs_local_ptr: %u, rhs_local_ptr: %u }\n",
+            *tokens,
+            necro_lex_token_type_string((*tokens)->token),
+            ast,
+            lhs_local_ptr,
+            rhs_local_ptr);
+#endif // PARSE_DEBUG_PRINT
+            if (rhs_local_ptr == null_local_ptr)
+            {
+                break;
+            }
         }
+
+        if ((lhs_local_ptr != null_local_ptr) && (rhs_local_ptr != null_local_ptr))
+        {
+#ifdef PARSE_DEBUG_PRINT
+            printf(
+                " parse_binary_expression SUCCESS { *tokens: %p, token: %s, ast: %p, min_precedence: %i }\n",
+                *tokens,
+                necro_lex_token_type_string((*tokens)->token),
+                ast,
+                min_precedence);
+#endif // PARSE_DEBUG_PRINT
+            // // swap lhs node and bin op node so that the bin op expression is before the lhs
+            // if (lhs_swap)
+            // {
+            //     // Swap node objects
+            //     NecroAST_Node lhs_ast_tmp = *lhs_ast_node;
+            //     *lhs_ast_node = *bin_op_ast_node;
+            //     *bin_op_ast_node = lhs_ast_tmp;
+            //
+            //     // Swap node pointers
+            //     NecroAST_Node* lhs_ast_node_ptr_tmp = lhs_ast_node;
+            //     lhs_ast_node = bin_op_ast_node;
+            //     bin_op_ast_node = lhs_ast_node_ptr_tmp;
+            //
+            //     // Swap node local_ptrs
+            //     NecroAST_LocalPtr lhs_local_ptr_tmp = lhs_local_ptr;
+            //     lhs_local_ptr = bin_op_local_ptr;
+            //     bin_op_local_ptr = lhs_local_ptr_tmp;
+            // }
+
+            bin_op_ast_node->bin_op.lhs = lhs_local_ptr;
+            bin_op_ast_node->bin_op.rhs = rhs_local_ptr;
+            return bin_op_local_ptr;
+        }
+#ifdef PARSE_DEBUG_PRINT
+            printf(" parse_binary_expression FAILED { *tokens: %p, token: %s, ast: %p, lhs_local_ptr: %u, rhs_local_ptr: %u }\n",
+            *tokens,
+            necro_lex_token_type_string((*tokens)->token),
+            ast,
+            lhs_local_ptr,
+            rhs_local_ptr);
+#endif // PARSE_DEBUG_PRINT
     }
 
     *tokens = original_tokens;
     ast->arena.size = original_ast_size; // backtrack AST modifications
-    return null_local_ptr;
+    return lhs_local_ptr;
+}
+
+NecroAST_LocalPtr parse_binary_operation(NecroLexToken** tokens, NecroAST* ast, NecroAST_LocalPtr lhs_local_ptr)
+{
+    NecroLexToken* current_token = (*tokens);
+    NecroAST_BinOpType bin_op_type = token_to_bin_op_type(current_token->token);
+
+#ifdef PARSE_DEBUG_PRINT
+            printf(
+                "parse_binary_operation { *tokens: %p, token: %s, ast: %p, bin_op_type: %i, precedence: %i, associativity: %i }\n",
+                *tokens,
+                necro_lex_token_type_string((*tokens)->token),
+                ast,
+                bin_op_type,
+                bin_op_behaviors[bin_op_type].precedence,
+                bin_op_behaviors[bin_op_type].associativity);
+#endif // PARSE_DEBUG_PRINT
+
+    if (bin_op_type == NECRO_BIN_OP_UNDEFINED)
+    {
+        return lhs_local_ptr;
+    }
+
+    return parse_binary_expression(tokens, ast, lhs_local_ptr, bin_op_behaviors[bin_op_type].precedence);
 }
 
 NecroAST_LocalPtr parse_function_composition(NecroLexToken** tokens, NecroAST* ast)

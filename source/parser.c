@@ -7,7 +7,7 @@
 #include "intern.h"
 #include "parser.h"
 
-//#define PARSE_DEBUG_PRINT 1
+// #define PARSE_DEBUG_PRINT 1
 
 // =====================================================
 // Abstract Syntax Tree
@@ -521,8 +521,7 @@ NecroAST_LocalPtr parse_binary_expression(NecroLexToken** tokens, NecroAST* ast,
             }
 
             {
-                NecroAST_Node* bin_op_ast_node = NULL;
-                bin_op_ast_node = ast_alloc_node_local_ptr(ast, &bin_op_local_ptr);
+                NecroAST_Node* bin_op_ast_node = ast_alloc_node_local_ptr(ast, &bin_op_local_ptr);
                 bin_op_ast_node->type = NECRO_AST_BIN_OP;
                 bin_op_ast_node->bin_op.type = bin_op_type;
             }
@@ -536,6 +535,7 @@ NecroAST_LocalPtr parse_binary_expression(NecroLexToken** tokens, NecroAST* ast,
                 next_min_precedence = bin_op_behavior.precedence;
 
             rhs_local_ptr = parse_expression(tokens, ast, NECRO_NO_BINARY_LOOK_AHEAD);
+            NecroLexToken* look_ahead_token = (*tokens);
             NecroAST_BinOpType look_ahead_bin_op_type = token_to_bin_op_type((*tokens)->token);
             NecroParse_BinOpBehavior look_ahead_bin_op_behavior = bin_op_behaviors[look_ahead_bin_op_type];
 
@@ -560,8 +560,16 @@ NecroAST_LocalPtr parse_binary_expression(NecroLexToken** tokens, NecroAST* ast,
 #endif // PARSE_DEBUG_PRINT
 
                 rhs_local_ptr = parse_binary_expression(tokens, ast, rhs_local_ptr, next_min_precedence);
-                look_ahead_bin_op_type = token_to_bin_op_type((*tokens)->token);
-                look_ahead_bin_op_behavior = bin_op_behaviors[look_ahead_bin_op_type];
+                if (look_ahead_token != (*tokens))
+                {
+                    look_ahead_token = *tokens;
+                    look_ahead_bin_op_type = token_to_bin_op_type((*tokens)->token);
+                    look_ahead_bin_op_behavior = bin_op_behaviors[look_ahead_bin_op_type];
+                }
+                else // stop parsing if we haven't consumed any tokens
+                {
+                    break;
+                }
             }
 
             if (rhs_local_ptr == null_local_ptr)
@@ -576,7 +584,7 @@ NecroAST_LocalPtr parse_binary_expression(NecroLexToken** tokens, NecroAST* ast,
             }
         }
 
-        if ((lhs_local_ptr != null_local_ptr) && (rhs_local_ptr != null_local_ptr))
+        if ((bin_op_local_ptr != null_local_ptr) && (lhs_local_ptr != null_local_ptr) && (rhs_local_ptr != null_local_ptr))
         {
 #ifdef PARSE_DEBUG_PRINT
             printf(

@@ -157,12 +157,55 @@ uint32_t necro_create_lambda(NecroRuntime* runtime, NecroLambda lambda)
 
 uint32_t necro_create_primop(NecroRuntime* runtime, NecroPrimOp primop)
 {
-    uint32_t id                    = necro_alloc_object(runtime);
-    runtime->objects[id].type      = NECRO_OBJECT_PRIMOP;
-    runtime->objects[id].primop    = primop;
+    uint32_t id                 = necro_alloc_object(runtime);
+    runtime->objects[id].type   = NECRO_OBJECT_PRIMOP;
+    runtime->objects[id].primop = primop;
     return id;
 }
 
+uint32_t necro_create_env(NecroRuntime* runtime, NecroEnv env)
+{
+    uint32_t id               = necro_alloc_object(runtime);
+    runtime->objects[id].type = NECRO_OBJECT_ENV;
+    runtime->objects[id].env  = env;
+    return id;
+}
+
+uint32_t necro_create_float(NecroRuntime* runtime, double value)
+{
+    uint32_t id                      = necro_alloc_object(runtime);
+    runtime->objects[id].type        = NECRO_OBJECT_FLOAT;
+    runtime->objects[id].float_value = value;
+    return id;
+}
+
+uint32_t necro_create_int(NecroRuntime* runtime, int64_t value)
+{
+    uint32_t id                    = necro_alloc_object(runtime);
+    runtime->objects[id].type      = NECRO_OBJECT_INT;
+    runtime->objects[id].int_value = value;
+    return id;
+}
+
+uint32_t necro_create_char(NecroRuntime* runtime, char value)
+{
+    uint32_t id                     = necro_alloc_object(runtime);
+    runtime->objects[id].type       = NECRO_OBJECT_CHAR;
+    runtime->objects[id].char_value = value;
+    return id;
+}
+
+uint32_t necro_create_bool(NecroRuntime* runtime, bool value)
+{
+    uint32_t id                     = necro_alloc_object(runtime);
+    runtime->objects[id].type       = NECRO_OBJECT_BOOL;
+    runtime->objects[id].bool_value = value;
+    return id;
+}
+
+//=====================================================
+// Testing
+//=====================================================
 void necro_run_test(bool condition, const char* print_string)
 {
     if (condition)
@@ -171,16 +214,13 @@ void necro_run_test(bool condition, const char* print_string)
         printf("%s failed\n", print_string);
 }
 
-//=====================================================
-// Testing
-//=====================================================
 void necro_test_runtime()
 {
     puts("--------------------------------");
     puts("-- Testing NecroRuntime");
     puts("--------------------------------\n");
 
-    // Initialize
+    // Initialize Runtime
     NecroRuntime runtime = necro_create_runtime((NecroAudioInfo) { 44100, 512 });
     necro_run_test(runtime.audio != NULL && runtime.objects != NULL, "NecroRuntime alloc test:        ");
 
@@ -225,7 +265,32 @@ void necro_test_runtime()
     NecroObject* pri_object = necro_get_object(&runtime, pri);
     necro_run_test(pri_object != NULL && pri_object->type == NECRO_OBJECT_PRIMOP && pri_object->primop.current_value_id == 4 && pri_object->primop.op == 5 && pri_object->primop.env_id == 6 && pri_object->primop.arity == 7, "NecroRuntime create primop test:");
 
-    // Destroy
+    // Create Env
+    uint32_t     env        = necro_create_env(&runtime, (NecroEnv) { 5, 6, 7, 8 });
+    NecroObject* env_object = necro_get_object(&runtime, env);
+    necro_run_test(env_object != NULL && env_object->type == NECRO_OBJECT_ENV && env_object->env.parent_env == 5 && env_object->env.next_env_node == 6 && env_object->env.var_symbol == 7 && env_object->env.value_id == 8, "NecroRuntime create env test:   ");
+
+    // Create Float
+    uint32_t     f            = necro_create_float(&runtime, 100.5);
+    NecroObject* float_object = necro_get_object(&runtime, f);
+    necro_run_test(float_object != NULL && float_object->type == NECRO_OBJECT_FLOAT && float_object->float_value == 100.5, "NecroRuntime create float test: ");
+
+    // Create Int
+    uint32_t     i          = necro_create_int(&runtime, 666);
+    NecroObject* int_object = necro_get_object(&runtime, i);
+    necro_run_test(int_object != NULL && int_object->type == NECRO_OBJECT_INT && int_object->int_value == 666, "NecroRuntime create int test:   ");
+
+    // Create Char
+    uint32_t     c           = necro_create_char(&runtime, 'N');
+    NecroObject* char_object = necro_get_object(&runtime, c);
+    necro_run_test(char_object != NULL && char_object->type == NECRO_OBJECT_CHAR && char_object->char_value == 'N', "NecroRuntime create char test:  ");
+
+    // Create Bool
+    uint32_t     b           = necro_create_bool(&runtime, true);
+    NecroObject* bool_object = necro_get_object(&runtime, b);
+    necro_run_test(bool_object != NULL && bool_object->type == NECRO_OBJECT_BOOL && bool_object->bool_value == true, "NecroRuntime create bool test:  ");
+
+    // Destroy Runtime
     necro_destroy_runtime(&runtime);
     necro_run_test(runtime.audio == NULL && runtime.objects == NULL && runtime.audio_free_list == NULL, "NecroRuntime destroy test:      ");
 }

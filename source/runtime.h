@@ -13,15 +13,15 @@
 
 /*
     Semantic analysis: https://ruslanspivak.com/lsbasi-part13/
-    Necronomicon is strict, static, and ref counted, with these exceptions:
+    Necronomicon is strict and ref counted, with these exceptions:
         - delay :: const a -> a -> a
           keyword, lazy, uses a weak ptr to second argument
           Induces 1 block sample delay.
           Only takes a constant expression in the first argument, preventing nested delays (and further memory than exactly 1 block).
           This means the language can only ever look back exactly 1 sample in time.
         - poly functions allow dynamic streams.
-          These newly created can be destroyed, and thus this necessitates ref counting all nodes.
-          GC isn't necessary however.
+          These newly created can be destroyed, and thus this requires ref counting all nodes.
+          GC isn't necessary because we are strict and only allow recursion through delay, which uses a weak ptr scheme.
 
     Necronomicon uses lexically scoped time
         - Streams scoped further in can differ in time from streams outer in scope.
@@ -181,6 +181,11 @@ uint32_t     necro_create_app(NecroRuntime* runtime, NecroApp app);
 uint32_t     necro_create_pap(NecroRuntime* runtime, NecroPap pap);
 uint32_t     necro_create_lambda(NecroRuntime* runtime, NecroLambda lambda);
 uint32_t     necro_create_primop(NecroRuntime* runtime, NecroPrimOp primop);
+uint32_t     necro_create_env(NecroRuntime* runtime, NecroEnv env);
+uint32_t     necro_create_float(NecroRuntime* runtime, double value);
+uint32_t     necro_create_int(NecroRuntime* runtime, int64_t value);
+uint32_t     necro_create_char(NecroRuntime* runtime, char value);
+uint32_t     necro_create_bool(NecroRuntime* runtime, bool value);
 void         necro_test_runtime();
 
 #endif // RUNTIME_H

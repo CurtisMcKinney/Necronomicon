@@ -516,6 +516,7 @@ NecroAST_LocalPtr parse_if_then_else_expression(NecroLexToken** tokens, NecroAST
         ast_node->type = NECRO_AST_IF_THEN_ELSE;
 
         ++(*tokens); // consume IF token
+        // NOTE / COMMENT from Curtis: Couldn't parsing another expression reallocate the arena, thus causing the above ast_node to be invalidated???
         NecroAST_LocalPtr if_local_ptr = parse_expression(tokens, ast);
         if (if_local_ptr != null_local_ptr && (*tokens)->token == NECRO_LEX_THEN)
         {

@@ -11,6 +11,8 @@
 #include <assert.h>
 #include <stdbool.h>
 
+// Current value pointers for each construct?
+// Gets updated when it's demanded?
 /*
     Semantic analysis: https://ruslanspivak.com/lsbasi-part13/
     Necronomicon is strict and ref counted, with these exceptions:
@@ -40,6 +42,9 @@
 //=====================================================
 typedef struct NecroRuntime NecroRuntime;
 
+typedef struct { uint32_t id; } NecroObjectID;
+typedef struct { uint32_t id; } NecroAudioID;
+
 typedef enum
 {
     //--------------------
@@ -50,6 +55,7 @@ typedef enum
     NECRO_OBJECT_CHAR,
     NECRO_OBJECT_BOOL,
     NECRO_OBJECT_AUDIO,
+    NECRO_OBJECT_LIST_NODE,
 
     //--------------------
     // Language Constructs
@@ -66,11 +72,27 @@ typedef enum
 
 } NECRO_OBJECT_TYPE;
 
+typedef enum
+{
+    ADD_I,
+    ADD_F,
+    ADD_A,
+
+    SUB_I,
+    SUB_F,
+    SUB_A
+} NECRO_PRIM_OP_CODE;
+
+//--------------------
+// Value Objects
+typedef struct
+{
+    NecroObjectID value_id;
+    NecroObjectID next_id;
+} NecroListNode;
+
 //--------------------
 // Language Constructs
-
-// Current value pointers for each construct?
-// Gets updated when it's demanded?
 typedef struct
 {
     uint32_t var_symbol;
@@ -79,34 +101,34 @@ typedef struct
 
 typedef struct
 {
-    uint32_t current_value_id;
-    uint32_t lambda_id;
-    uint32_t argument_1_id;
-    uint16_t argument_count;
+    NecroObjectID current_value_id;
+    NecroObjectID lambda_id;
+    NecroObjectID argument_list_id;
+    uint16_t      argument_count;
 } NecroApp;
 
 typedef struct
 {
-    uint32_t current_value_id;
-    uint32_t lambda_id;
-    uint32_t argument_1_id;
-    uint16_t current_arg_count;
+    NecroObjectID current_value_id;
+    NecroObjectID lambda_id;
+    NecroObjectID argument_list_id;
+    uint16_t      current_arg_count;
 } NecroPap;
 
 typedef struct
 {
-    uint32_t current_value_id;
-    uint32_t body_id;
-    uint32_t env_id;
-    uint16_t arity;
+    NecroObjectID current_value_id;
+    NecroObjectID body_id;
+    NecroObjectID env_id;
+    uint16_t      arity;
 } NecroLambda;
 
 typedef struct
 {
-    uint32_t current_value_id;
-    uint32_t op; // Should be an enum for this, use a switch to break between different primops
-    uint32_t env_id;
-    uint16_t arity;
+    NecroObjectID current_value_id;
+    uint32_t      op; // Should be an enum for this, use a switch to break between different primops
+    NecroObjectID env_id;
+    uint16_t      arity;
 } NecroPrimOp;
 
 //--------------------
@@ -121,10 +143,10 @@ typedef struct
 //     * a pointer to the value that this node contains
 typedef struct
 {
-    uint32_t parent_env;
-    uint32_t next_env_node;
-    uint32_t var_symbol;
-    uint32_t value_id;
+    NecroObjectID parent_env;
+    NecroObjectID next_env_node;
+    uint32_t      var_symbol;
+    NecroObjectID value_id;
 } NecroEnv;
 
 typedef struct
@@ -132,11 +154,12 @@ typedef struct
     union
     {
         // Value Objects
-        double      float_value;
-        int64_t     int_value;
-        char        char_value;
-        bool        bool_value;
-        uint32_t    audio_id;
+        double        float_value;
+        int64_t       int_value;
+        char          char_value;
+        bool          bool_value;
+        NecroAudioID  audio_id;
+        NecroListNode list_node;
 
         // Language Constructs
         NecroVar    var;
@@ -169,23 +192,24 @@ struct NecroRuntime
     NecroAudioInfo audio_info;
 };
 
-NecroRuntime necro_create_runtime(NecroAudioInfo audio_info);
-void         necro_destroy_runtime(NecroRuntime* runtime);
-uint32_t     necro_alloc_object(NecroRuntime* runtime);
-void         necro_free_object(NecroRuntime* runtime, uint32_t object_id);
-uint32_t     necro_alloc_audio(NecroRuntime* runtime);
-void         necro_free_audio(NecroRuntime* runtime, uint32_t audio_id);
-NecroObject* necro_get_object(NecroRuntime* runtime, uint32_t object_id);
-uint32_t     necro_create_var(NecroRuntime* runtime, NecroVar var);
-uint32_t     necro_create_app(NecroRuntime* runtime, NecroApp app);
-uint32_t     necro_create_pap(NecroRuntime* runtime, NecroPap pap);
-uint32_t     necro_create_lambda(NecroRuntime* runtime, NecroLambda lambda);
-uint32_t     necro_create_primop(NecroRuntime* runtime, NecroPrimOp primop);
-uint32_t     necro_create_env(NecroRuntime* runtime, NecroEnv env);
-uint32_t     necro_create_float(NecroRuntime* runtime, double value);
-uint32_t     necro_create_int(NecroRuntime* runtime, int64_t value);
-uint32_t     necro_create_char(NecroRuntime* runtime, char value);
-uint32_t     necro_create_bool(NecroRuntime* runtime, bool value);
-void         necro_test_runtime();
+NecroRuntime  necro_create_runtime(NecroAudioInfo audio_info);
+void          necro_destroy_runtime(NecroRuntime* runtime);
+NecroObjectID necro_alloc_object(NecroRuntime* runtime);
+void          necro_free_object(NecroRuntime* runtime, NecroObjectID object_id);
+NecroAudioID  necro_alloc_audio(NecroRuntime* runtime);
+void          necro_free_audio(NecroRuntime* runtime, NecroAudioID audio_id);
+NecroObjectID necro_create_var(NecroRuntime* runtime, NecroVar var);
+NecroObjectID necro_create_app(NecroRuntime* runtime, NecroApp app);
+NecroObjectID necro_create_pap(NecroRuntime* runtime, NecroPap pap);
+NecroObjectID necro_create_lambda(NecroRuntime* runtime, NecroLambda lambda);
+NecroObjectID necro_create_primop(NecroRuntime* runtime, NecroPrimOp primop);
+NecroObjectID necro_create_env(NecroRuntime* runtime, NecroEnv env);
+NecroObjectID necro_create_float(NecroRuntime* runtime, double value);
+NecroObjectID necro_create_int(NecroRuntime* runtime, int64_t value);
+NecroObjectID necro_create_char(NecroRuntime* runtime, char value);
+NecroObjectID necro_create_bool(NecroRuntime* runtime, bool value);
+NecroObjectID necro_create_list_node(NecroRuntime* runtime, NecroListNode list_node);
+
+void          necro_test_runtime();
 
 #endif // RUNTIME_H

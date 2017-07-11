@@ -35,7 +35,7 @@ NecroRuntime necro_create_runtime(NecroAudioInfo audio_info)
     for (uint32_t i = 1; i < NECRO_INITIAL_NUM_OBJECT_SLABS; ++i)
     {
         objects[i].next_free_index = i - 1;
-        objects[i].ref_count       = 0;
+        objects[i].time_stream_env = (NecroObjectID) { 0 };
         objects[i].type            = NECRO_OBJECT_FREE;
     }
 
@@ -101,10 +101,10 @@ NecroObjectID necro_alloc_object(NecroRuntime* runtime)
         fprintf(stderr, "Runtime error: Runtime memory exhausted while allocating NecroObject!\n");
         exit(1);
     }
-    uint32_t next_free                       = runtime->objects[current_free].next_free_index;
-    runtime->object_free_list                = next_free;
-    runtime->objects[current_free].type      = NECRO_OBJECT_NULL;
-    runtime->objects[current_free].ref_count = 0;
+    uint32_t next_free                           = runtime->objects[current_free].next_free_index;
+    runtime->object_free_list                    = next_free;
+    runtime->objects[current_free].type          = NECRO_OBJECT_NULL;
+    runtime->objects[current_free].time_stream_env = (NecroObjectID) { 0 };
     return (NecroObjectID) { current_free };
 }
 
@@ -212,26 +212,31 @@ NecroObjectID necro_create_list_node(NecroRuntime* runtime, NecroListNode list_n
 }
 
 //=====================================================
+// TimeStream
+//=====================================================
+
+
+//=====================================================
 // PrimOps
 //=====================================================
-inline void necro_run_prim_op_code(NecroRuntime* runtime, NecroApp app, NecroPrimOp primop)
+inline void necro_run_prim_op_code(NecroRuntime* runtime, NecroObjectID app_id, NecroObjectID prim_op, NecroObjectID time_stream_id)
 {
-    switch (primop.op)
+    switch (runtime->objects[prim_op.id].primop.op)
     {
     case ADD_I:
         {
-            NecroObject* arg_list_node_1 = necro_get_object(runtime, app.argument_list_id);
-            NecroObject* arg_list_node_2 = necro_get_object(runtime, arg_list_node_1->list_node.next_id);
-            NecroObject* arg_1           = necro_get_object(runtime, arg_list_node_1->list_node.value_id);
-            NecroObject* arg_2           = necro_get_object(runtime, arg_list_node_2->list_node.value_id);
-            NecroObject* current_value   = necro_get_object(runtime, app.current_value_id);
-            assert(arg_list_node_1 != NULL);
-            assert(arg_list_node_2 != NULL);
-            assert(arg_1 != NULL);
-            assert(arg_2 != NULL);
-            // TODO: evaluate arg_1 and arg_2 here
-            int64_t result = 0;
-            current_value->int_value = result;
+            NecroObjectID arg_list_node_1_id = runtime->objects[app_id.id].app.argument_list_id;
+            NecroObjectID arg_list_node_2_id = runtime->objects[arg_list_node_1_id.id].list_node.next_id;
+            NecroObjectID arg_1              = runtime->objects[arg_list_node_1_id.id].list_node.value_id;
+            NecroObjectID arg_2              = runtime->objects[arg_list_node_2_id.id].list_node.value_id;
+            // NecroObject* current_value   = necro_get_object(runtime, app.current_value_id);
+            // assert(arg_list_node_1 != NULL);
+            // assert(arg_list_node_2 != NULL);
+            // assert(arg_1 != NULL);
+            // assert(arg_2 != NULL);
+            // // TODO: evaluate arg_1 and arg_2 here
+            // int64_t result = 0;
+            // current_value->int_value = result;
         }
         break;
     }
@@ -260,7 +265,7 @@ void necro_test_runtime()
 
     // Alloc Object
     NecroObjectID object_id = necro_alloc_object(&runtime);
-    necro_run_test(runtime.objects[object_id.id].type == NECRO_OBJECT_NULL && runtime.object_free_list != object_id.id && runtime.objects[object_id.id].ref_count == 0, "NecroRuntime alloc object test: ");
+    necro_run_test(runtime.objects[object_id.id].type == NECRO_OBJECT_NULL && runtime.object_free_list != object_id.id && runtime.objects[object_id.id].time_stream_env.id == 0, "NecroRuntime alloc object test: ");
 
     // Free Object
     necro_free_object(&runtime, object_id);
@@ -300,9 +305,9 @@ void necro_test_runtime()
     necro_run_test(pri_object != NULL && pri_object->type == NECRO_OBJECT_PRIMOP && pri_object->primop.current_value_id.id == 4 && pri_object->primop.op == 5 && pri_object->primop.env_id.id == 6 && pri_object->primop.arity == 7, "NecroRuntime create primop test:");
 
     // Create Env
-    NecroObjectID env        = necro_create_env(&runtime, (NecroEnv) { 5, 6, 7, 8 });
+    NecroObjectID env        = necro_create_env(&runtime, (NecroEnv) { 5, 6, 7 });
     NecroObject*  env_object = necro_get_object(&runtime, env);
-    necro_run_test(env_object != NULL && env_object->type == NECRO_OBJECT_ENV && env_object->env.parent_env.id == 5 && env_object->env.next_env_node.id == 6 && env_object->env.var_symbol == 7 && env_object->env.value_id.id == 8, "NecroRuntime create env test:   ");
+    necro_run_test(env_object != NULL && env_object->type == NECRO_OBJECT_ENV && env_object->env.next_env_id.id == 5 && env_object->env.key == 6 && env_object->env.value_id.id == 7, "NecroRuntime create env test:   ");
 
     // Create Float
     NecroObjectID f            = necro_create_float(&runtime, 100.5);

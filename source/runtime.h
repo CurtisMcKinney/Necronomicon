@@ -14,6 +14,7 @@
 // Current value pointers for each construct?
 // Gets updated when it's demanded?
 /*
+    Idea #1
     Semantic analysis: https://ruslanspivak.com/lsbasi-part13/
     Necronomicon is strict and ref counted, with these exceptions:
         - delay :: const a -> a -> a
@@ -25,16 +26,53 @@
           These newly created can be destroyed, and thus this requires ref counting all nodes.
           GC isn't necessary because we are strict and only allow recursion through delay, which uses a weak ptr scheme.
 
-    Necronomicon uses lexically scoped time
-        - Streams scoped further in can differ in time from streams outer in scope.
-        - The callee's time scope (as opposed to the the caller's time scope) determines the callee's time.
-        - This differs from arrowized FRP which uses a more dynamically time scoped semantics where the caller determines the time.
-        - This allows time streams to be run faster or slower than their parent nodes, and things will just work.
+    // Multiple fby's breaks this!?
+    Idea #2
+    Lucid style evaluation model :
+        * An immutable Network where each node can process from any time N to time N + 1
+        * Evaluation is fully lazy and allows full recursion, as long as a delay is introduced.
+        * Each value has a place (variable) and time (time slice)).
+        * This means you need envs for variable lookups, but you also need envs for time lookups!
+        * However instead of their "Retirement Age" scheme, we use "Time Streams".
+
+        * Each node caches a different value for each separate "Time stream" (i.e. Pattern slot, or synth),
+          as well as caching the nodes value at time 0
+
+        * This means that there is at most on cached value for each time stream (constant space)
+        * Separate time streams can no longer share work, however they also always calculate one time slice value each tick (constant time)
+        * This also supports LexicalTime scoping, since you simply look up the node's value for the non-local time stream up in the next scope in your env
+
+        * This all works because we only provide the programmer with combinators that can at most reach one time slice into the past,
+          such as fby (delays one sample), and [] sequences (each stream is stepped forward one time slice at a time)
+        * Rewinding and other nonsense is strictly prohibited
+
+        * This scheme works better for Necronomicon because we'd rather pay a little bit more overhead
+          overall to maintain a clean constant time/space system rather than rely on complex
+          GC system that could at any point pause the system for a long period of time.
+        * The other upshot is the language gets to have correct lazy semantics
+
+    Lexical time scoping
+        - By default Necronomicon uses local time semantics
+        - i.e. when you introduce a new time stream via fby or pattern sequences [],
+          the values proceed, such that: x fby y == { x0, y0, y1, y2, ... };
+        - Necronomicon optionally allows the user to use switch to "Lexical Time scoping" via the unary ~ operator
+        - Thus, x fby ~y == { x0, y1, y2, y3, y4, ... }
+        - More precisely it means reference the time stream y that already exists in this scope instead of
+          creating a fresh time stream of y.
+        - If there is no higher scoped version of that sequence (i.e. the sequence is defined at the same scope),
+          then this simply translates into a noop.
 
     Different Stream states:
         - Const, Live, Rest, Inhibit, End?
         - Would allow for --> semantics (i.e. actual switching)
         - Pattern type functions such as seq and cycle would be defined in terms of this.
+
+    Lists are simply chained "pattern" sequences (similar to fbys)?
+    - Semantics are a little different than fbys:
+    - Each sequence continues until it "yields"
+    - Then sequence moves on to next stream
+    myCoolLoop = 0 fby 100 fby 1 + myCoolLoop  == { 0, 100, 1 ... }
+    myCoolLoop = 0 fby 100 fby 1 + ~myCoolLoop ==
 */
 
 //=====================================================
@@ -64,6 +102,7 @@ typedef enum
     NECRO_OBJECT_PAP,
     NECRO_OBJECT_LAMBDA,
     NECRO_OBJECT_PRIMOP,
+    NECRO_OBJECT_TIME_STREAM,
 
     //--------------------
     // Utility Objects
@@ -126,26 +165,30 @@ typedef struct
 typedef struct
 {
     NecroObjectID current_value_id;
-    uint32_t      op; // Should be an enum for this, use a switch to break between different primops
+    uint32_t      op;
     NecroObjectID env_id;
     uint16_t      arity;
 } NecroPrimOp;
+
+typedef struct
+{
+    NecroObjectID network_id;
+    NecroObjectID this_time_stream_id; // Self Referential, since THIS time stream's ID is used as a key into the node's time_stream_cache
+} NecroTimeStream;
 
 //--------------------
 // Utility Objects
 
 //--------
 // NecroEnv, implemented as a Cactus stack / Parent Pointer tree,
-// i.e. a linked list of linked lists, with each node containing:
-//     * a pointer to the parent env (stack of envs),
-//     * a pointer to the next node in the env,
-//     * a var symbol which must be matched against.
+// i.e. a linked list of nodes, with keys and values, with shadowing
+//     * a pointer to the next env node,
+//     * a key which must be matched against.
 //     * a pointer to the value that this node contains
 typedef struct
 {
-    NecroObjectID parent_env;
-    NecroObjectID next_env_node;
-    uint32_t      var_symbol;
+    NecroObjectID next_env_id;
+    uint32_t      key;
     NecroObjectID value_id;
 } NecroEnv;
 
@@ -172,7 +215,7 @@ typedef struct
         NecroEnv    env;
         uint32_t    next_free_index;
     };
-    uint32_t          ref_count;
+    NecroObjectID     time_stream_env; // Reuses env nodes, uses time slices for keys
     NECRO_OBJECT_TYPE type;
 } NecroObject;
 

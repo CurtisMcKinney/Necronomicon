@@ -51,6 +51,15 @@
           GC system that could at any point pause the system for a long period of time.
         * The other upshot is the language gets to have correct lazy semantics
 
+    // Idea #3
+    All in on Lexical time scoping and pattern sequences:
+        - No more "fby"
+        - In lieu we have pattern sequences: they keep going until the sequence "yields" (as opposed to fby, which immediately switches from seq1 to seq2)
+        - This simplifies the language and the semantics, since there's only 1 mechanism to introduce time asynchronicity
+        - Each node cache's it's last value only
+        - Only need ref counting for when streams get torn down
+        - Streams get replicated when part of a pattern sequence or when spawned by poly
+
     Lexical time scoping
         - By default Necronomicon uses local time semantics
         - i.e. when you introduce a new time stream via fby or pattern sequences [],
@@ -78,11 +87,15 @@
 //=====================================================
 // Runtime structs
 //=====================================================
+
+// Runtime representation is something akin to lambda calculus meets lisp, with graph update (instead of graph reduction) semantics
+
 typedef struct NecroRuntime NecroRuntime;
 
 typedef struct { uint32_t id; } NecroObjectID;
 typedef struct { uint32_t id; } NecroAudioID;
 
+// TODO: Tuple type?
 typedef enum
 {
     //--------------------
@@ -93,7 +106,6 @@ typedef enum
     NECRO_OBJECT_CHAR,
     NECRO_OBJECT_BOOL,
     NECRO_OBJECT_AUDIO,
-    NECRO_OBJECT_LIST_NODE,
 
     //--------------------
     // Language Constructs
@@ -102,40 +114,33 @@ typedef enum
     NECRO_OBJECT_PAP,
     NECRO_OBJECT_LAMBDA,
     NECRO_OBJECT_PRIMOP,
-    NECRO_OBJECT_TIME_STREAM,
 
     //--------------------
     // Utility Objects
     NECRO_OBJECT_ENV,
+    NECRO_OBJECT_LIST_NODE,
     NECRO_OBJECT_FREE
 
 } NECRO_OBJECT_TYPE;
 
 typedef enum
 {
-    ADD_I,
-    ADD_F,
-    ADD_A,
-
-    SUB_I,
-    SUB_F,
-    SUB_A
+    NECRO_PRIM_ADD_I,
+    NECRO_PRIM_ADD_F,
+    NECRO_PRIM_ADD_A,
+    NECRO_PRIM_SUB_I,
+    NECRO_PRIM_SUB_F,
+    NECRO_PRIM_SUB_A
 } NECRO_PRIM_OP_CODE;
 
 //--------------------
 // Value Objects
-typedef struct
-{
-    NecroObjectID value_id;
-    NecroObjectID next_id;
-} NecroListNode;
-
 //--------------------
 // Language Constructs
 typedef struct
 {
-    uint32_t var_symbol;
-    uint32_t value_id;
+    uint32_t      var_symbol;
+    NecroObjectID cached_env_node_id;
 } NecroVar;
 
 typedef struct
@@ -143,38 +148,27 @@ typedef struct
     NecroObjectID current_value_id;
     NecroObjectID lambda_id;
     NecroObjectID argument_list_id;
-    uint16_t      argument_count;
+    uint32_t      argument_count;
 } NecroApp;
 
 typedef struct
 {
-    NecroObjectID current_value_id;
     NecroObjectID lambda_id;
     NecroObjectID argument_list_id;
-    uint16_t      current_arg_count;
+    uint32_t      current_arg_count;
 } NecroPap;
 
 typedef struct
 {
-    NecroObjectID current_value_id;
     NecroObjectID body_id;
     NecroObjectID env_id;
-    uint16_t      arity;
+    uint32_t      arity;
 } NecroLambda;
 
 typedef struct
 {
-    NecroObjectID current_value_id;
     uint32_t      op;
-    NecroObjectID env_id;
-    uint16_t      arity;
 } NecroPrimOp;
-
-typedef struct
-{
-    NecroObjectID network_id;
-    NecroObjectID this_time_stream_id; // Self Referential, since THIS time stream's ID is used as a key into the node's time_stream_cache
-} NecroTimeStream;
 
 //--------------------
 // Utility Objects
@@ -191,6 +185,15 @@ typedef struct
     uint32_t      key;
     NecroObjectID value_id;
 } NecroEnv;
+
+// Lists as such don't exist in the langauge
+// So this is only for internal usage
+typedef struct
+{
+    NecroObjectID value_id;
+    NecroObjectID next_id;
+} NecroListNode;
+
 
 typedef struct
 {
@@ -215,7 +218,7 @@ typedef struct
         NecroEnv    env;
         uint32_t    next_free_index;
     };
-    NecroObjectID     time_stream_env; // Reuses env nodes, uses time slices for keys
+    uint32_t          ref_count;
     NECRO_OBJECT_TYPE type;
 } NecroObject;
 
@@ -252,7 +255,10 @@ NecroObjectID necro_create_int(NecroRuntime* runtime, int64_t value);
 NecroObjectID necro_create_char(NecroRuntime* runtime, char value);
 NecroObjectID necro_create_bool(NecroRuntime* runtime, bool value);
 NecroObjectID necro_create_list_node(NecroRuntime* runtime, NecroListNode list_node);
+NecroObjectID necro_eval(NecroRuntime* runtime, NecroObjectID env, NecroObjectID object);
+void          necro_print_object(NecroRuntime* runtime, NecroObjectID object);
 
 void          necro_test_runtime();
+void          necro_test_eval();
 
 #endif // RUNTIME_H

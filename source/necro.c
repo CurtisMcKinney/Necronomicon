@@ -28,16 +28,19 @@ void necro_test_lex(char* input_string)
     NecroAST ast = { construct_arena(lexer.tokens.length * sizeof(NecroAST_Node)) };
     NecroLexToken* tokens = lexer.tokens.data;
     NecroAST_LocalPtr root_node_ptr = null_local_ptr;
-    if (lex_result == NECRO_LEX_RESULT_SUCCESSFUL &&
-        lexer.tokens.length > 0 &&
-        parse_ast(&tokens, &ast, &root_node_ptr) == ParseSuccessful)
+    if (lex_result == NECRO_LEX_RESULT_SUCCESSFUL && lexer.tokens.length > 0)
     {
-        puts("Parse succeeded");
-        print_ast(&ast, &lexer.intern, root_node_ptr);
-
+        char* null_error_message = NULL;
+        const size_t current_token = 0;
+        NecroParser parser = { null_error_message, &ast, tokens, current_token };
+        if (parse_ast(&parser, &root_node_ptr) == ParseSuccessful)
+        {
+            puts("Parse succeeded");
+            print_ast(&ast, &lexer.intern, root_node_ptr);
 #if 0
-        compute_ast_math(&ast, root_node_ptr);
+            compute_ast_math(&ast, root_node_ptr);
 #endif
+        }
     }
     else
     {

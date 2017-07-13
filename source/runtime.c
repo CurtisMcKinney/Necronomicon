@@ -117,7 +117,7 @@ void necro_free_object(NecroRuntime* runtime, NecroObjectID object_id)
     runtime->object_free_list                      = object_id.id;
 }
 
-inline NecroObject* necro_get_object(NecroRuntime* runtime, NecroObjectID object_id)
+static inline NecroObject* necro_get_object(NecroRuntime* runtime, NecroObjectID object_id)
 {
     // Higher bounds check?
     if (object_id.id == 0)
@@ -239,7 +239,7 @@ NecroObjectID necro_env_lookup(NecroRuntime* runtime, NecroObjectID env, uint32_
 // necro_eval_app_lambda:
 //  * Calling convention assumes that the first N entires in the env correspond to the N arguments supplied to the function!
 //  * Assumes Env, App, and Lambda are already evaluated
-inline NecroObjectID necro_eval_app_lambda(NecroRuntime* runtime, NecroObjectID env, NecroObjectID app, NecroObjectID lambda)
+static inline NecroObjectID necro_eval_app_lambda(NecroRuntime* runtime, NecroObjectID env, NecroObjectID app, NecroObjectID lambda)
 {
     // Assert Preconditions
     assert(env.id     != 0);
@@ -280,7 +280,7 @@ inline NecroObjectID necro_eval_app_lambda(NecroRuntime* runtime, NecroObjectID 
 // necro_eval_app_prim_op:
 //  * Calling convention assumes that the first N entires in the env correspond to the N arguments supplied to the function!
 //  * Assumes Env, App, and PrimOp are already evaluated
-inline NecroObjectID necro_eval_app_prim_op(NecroRuntime* runtime, NecroObjectID env, NecroObjectID app, NecroObjectID prim_op)
+static inline NecroObjectID necro_eval_app_prim_op(NecroRuntime* runtime, NecroObjectID env, NecroObjectID app, NecroObjectID prim_op)
 {
     // Assert Preconditions
     assert(env.id     != 0);
@@ -365,7 +365,7 @@ NecroObjectID necro_eval(NecroRuntime* runtime, NecroObjectID env, NecroObjectID
     }
 }
 
-inline necro_print_spaces(uint64_t depth)
+static inline void necro_print_spaces(uint64_t depth)
 {
     for (size_t i = 0; i < depth; ++i)
         printf(" ");

@@ -122,7 +122,11 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
             printf("(%f)\n", ast_node->constant.double_literal);
             break;
         case NECRO_AST_CONSTANT_INTEGER:
+#if WIN32
+            printf("(%lli)\n", ast_node->constant.int_literal);
+#else
             printf("(%li)\n", ast_node->constant.int_literal);
+#endif
             break;
         case NECRO_AST_CONSTANT_STRING:
             {

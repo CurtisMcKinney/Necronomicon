@@ -223,6 +223,21 @@ typedef struct
     size_t current_token;
 } NecroParser;
 
+static inline void construct_parser(NecroParser* parser, NecroAST* ast, NecroLexToken* tokens)
+{
+    parser->error_message = malloc(512 * sizeof(char));
+    parser->error_message[0] = '\0';
+    parser->current_token = 0;
+    parser->ast = ast;
+    parser->tokens = tokens;
+}
+
+static inline void destruct_parser(NecroParser* parser)
+{
+    free(parser->error_message);
+    *parser = (NecroParser) { 0, NULL, NULL, 0 };
+}
+
 NecroParse_Result parse_ast(NecroParser* parser, NecroAST_LocalPtr* out_root_node_ptr);
 void compute_ast_math(NecroAST* ast, NecroAST_LocalPtr root_node_ptr);
 

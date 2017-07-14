@@ -11,7 +11,15 @@
 // Trying out a 4 : 1 ratio of language objects per audio block for now
 #define NECRO_INITIAL_NUM_OBJECT_SLABS  16384
 #define NECRO_INITIAL_NUM_AUDIO_BUFFERS 4096
-#define NULL_NECRO_OBJECT_ID (NecroObjectID) { 0 }
+
+// ObjectIDs
+#define NULL_NECRO_OBJECT_ID    (NecroObjectID) { 0 }
+#define INHIBIT_NECRO_OBJECT_ID (NecroObjectID) { 1 }
+
+// Raw IDs
+#define NULL_ID       0
+#define INHIBIT_ID    1
+#define MAX_NECRO_ID -1
 
 //=====================================================
 // Initialization And Cleanup
@@ -34,7 +42,8 @@ NecroRuntime necro_create_runtime(NecroAudioInfo audio_info)
     // Initialize NecroObject slabs
     NecroObject* objects = (NecroObject*)runtime_memory;
     objects[0].type      = NECRO_OBJECT_NULL;
-    for (uint32_t i = 1; i < NECRO_INITIAL_NUM_OBJECT_SLABS; ++i)
+    objects[1].type      = NECRO_OBJECT_INHIBIT;
+    for (uint32_t i = 2; i < NECRO_INITIAL_NUM_OBJECT_SLABS; ++i)
     {
         objects[i].next_free_index = i - 1;
         objects[i].ref_count       = 0;
@@ -213,6 +222,14 @@ NecroObjectID necro_create_list_node(NecroRuntime* runtime, NecroListNode list_n
     return id;
 }
 
+NecroObjectID necro_create_sequence(NecroRuntime* runtime, NecroSequence sequence)
+{
+    NecroObjectID id                 = necro_alloc_object(runtime);
+    runtime->objects[id.id].type     = NECRO_OBJECT_SEQUENCE;
+    runtime->objects[id.id].sequence = sequence;
+    return id;
+}
+
 //=====================================================
 // Env
 //=====================================================
@@ -237,7 +254,7 @@ NecroObjectID necro_env_lookup(NecroRuntime* runtime, NecroObjectID env, uint32_
 //=====================================================
 // TODO: Need to figure out where and when to update reference counts!
 // necro_eval_app_lambda:
-//  * Calling convention assumes that the first N entires in the env correspond to the N arguments supplied to the function!
+//  * Calling convention assumes that the first N entires in the env correspond to the N arguments supplied to the function, and the next X entries correspond to the W definitions in the lambda's where statement
 //  * Assumes Env, App, and Lambda are already evaluated
 inline NecroObjectID necro_eval_app_lambda(NecroRuntime* runtime, NecroObjectID env, NecroObjectID app, NecroObjectID lambda)
 {
@@ -261,6 +278,16 @@ inline NecroObjectID necro_eval_app_lambda(NecroRuntime* runtime, NecroObjectID 
             runtime->objects[current_env_node.id].env.value_id = necro_eval(runtime, env, runtime->objects[current_arg_node.id].list_node.value_id);
             current_arg_node = runtime->objects[current_arg_node.id].list_node.next_id;
             current_env_node = runtime->objects[current_env_node.id].env.next_env_id;
+        }
+        // Iterate through arg list and next N entries of the lambda's env
+        // Strictly evaluate each where node and store the latest value in the matching env node
+        NecroObjectID lambda_env_id      = runtime->objects[lambda.id].lambda.env_id;
+        NecroObjectID current_where_node = runtime->objects[lambda.id].lambda.where_list_id;
+        while (current_where_node.id != 0)
+        {
+            runtime->objects[current_env_node.id].env.value_id = necro_eval(runtime, lambda_env_id, runtime->objects[current_where_node.id].list_node.value_id);
+            current_where_node = runtime->objects[current_where_node.id].list_node.next_id;
+            current_env_node   = runtime->objects[current_env_node.id].env.next_env_id;
         }
         // Evaluate body of lambda and assign it to the application's current_value, then return the current value's id
         runtime->objects[app.id].app.current_value_id = necro_eval(runtime, runtime->objects[lambda.id].lambda.env_id, runtime->objects[lambda.id].lambda.body_id);
@@ -349,6 +376,16 @@ NecroObjectID necro_eval(NecroRuntime* runtime, NecroObjectID env, NecroObjectID
         if (runtime->objects[object.id].var.cached_env_node_id.id == 0)
             runtime->objects[object.id].var.cached_env_node_id = necro_env_lookup(runtime, env, runtime->objects[object.id].var.var_symbol);
         return runtime->objects[runtime->objects[object.id].var.cached_env_node_id.id].env.value_id;
+    case NECRO_OBJECT_SEQUENCE:
+        if (runtime->objects[object.id].sequence.current.id == -1)
+        {
+            runtime->objects[object.id].sequence.current = runtime->objects[object.id].sequence.head;
+        }
+        else if (runtime->objects[object.id].sequence.current.id != 0)
+        {
+            runtime->objects[object.id].sequence.current = runtime->objects[runtime->objects[object.id].sequence.current.id].list_node.next_id;
+        }
+        return runtime->objects[object.id].sequence.current;
     case NECRO_OBJECT_FLOAT:
     case NECRO_OBJECT_INT:
     case NECRO_OBJECT_CHAR:
@@ -453,9 +490,9 @@ void necro_test_runtime()
     necro_run_test(pap_object != NULL && pap_object->type == NECRO_OBJECT_PAP && pap_object->pap.lambda_id.id == 3 && pap_object->pap.argument_list_id.id == 4 && pap_object->pap.current_arg_count == 5, "NecroRuntime create pap test:   ");
 
     // Create Lambda
-    NecroObjectID lam        = necro_create_lambda(&runtime, (NecroLambda) { 4, 5, 6 });
+    NecroObjectID lam        = necro_create_lambda(&runtime, (NecroLambda) { 4, 5, 6, 7 });
     NecroObject*  lam_object = necro_get_object(&runtime, lam);
-    necro_run_test(lam_object != NULL && lam_object->type == NECRO_OBJECT_LAMBDA && lam_object->lambda.body_id.id == 4 && lam_object->lambda.env_id.id == 5 && lam_object->lambda.arity == 6, "NecroRuntime create lam test:   ");
+    necro_run_test(lam_object != NULL && lam_object->type == NECRO_OBJECT_LAMBDA && lam_object->lambda.body_id.id == 4 && lam_object->lambda.env_id.id == 5 && lam_object->lambda.where_list_id.id == 6 && lam_object->lambda.arity == 7, "NecroRuntime create lam test:   ");
 
     // Create PrimOp
     NecroObjectID pri        = necro_create_primop(&runtime, (NecroPrimOp) { 5 });
@@ -491,6 +528,11 @@ void necro_test_runtime()
     NecroObjectID l           = necro_create_list_node(&runtime, (NecroListNode) { 7, 8 });
     NecroObject*  list_object = necro_get_object(&runtime, l);
     necro_run_test(list_object != NULL && list_object->type == NECRO_OBJECT_LIST_NODE && list_object->list_node.value_id.id == 7 && list_object->list_node.next_id.id == 8, "NecroRuntime create list test:  ");
+
+    // Create Sequence
+    NecroObjectID s   = necro_create_sequence(&runtime, (NecroSequence) { .head = l, .current = NULL_NECRO_OBJECT_ID, .count = 0});
+    NecroObject*  seq = necro_get_object(&runtime, s);
+    necro_run_test(seq != NULL && seq->type == NECRO_OBJECT_SEQUENCE && seq->sequence.head.id == l.id && seq->sequence.current.id == 0 && seq->sequence.count == 0, "NecroRuntime create seq test:   ");
 
     // Destroy Runtime
     necro_destroy_runtime(&runtime);
@@ -576,18 +618,17 @@ void necro_test_eval()
         printf("eval 1 C benchmark:\n    iterations:  %lld\n    run_time:    %f\n    ns/iter:     %lld\n    result:      %lld\n", iterations, run_time, ns_per_iter, accumulator);
 
         necro_destroy_runtime(&runtime);
-
-        puts("\n------\neval2:\n");
-
-        // Initialize Runtime
-        runtime = necro_create_runtime((NecroAudioInfo) { 44100, 512 });
     }
 
-    // Eval 1:
+    // Eval 2:
     // (\x y -> x + y) 6 7
     // translates to:
     // (App 0 (lambda (App 0 (+) ((Var x) (Var y) ()) 2) Env 2) (6 7 ()) 2)
     {
+        puts("\n------\neval2:\n");
+        // Initialize Runtime
+        runtime = necro_create_runtime((NecroAudioInfo) { 44100, 512 });
+
         // Lambda
         NecroObjectID var_x        = necro_create_var(&runtime, (NecroVar) { 0, NULL_NECRO_OBJECT_ID });
         NecroObjectID var_y        = necro_create_var(&runtime, (NecroVar) { 1, NULL_NECRO_OBJECT_ID });
@@ -598,7 +639,7 @@ void necro_test_eval()
         NecroObjectID lam_app      = necro_create_app(&runtime, (NecroApp) { inner_curr, add, l_arg_list_1, 2 });
         NecroObjectID lam_env_2    = necro_create_env(&runtime, (NecroEnv) { NULL_NECRO_OBJECT_ID, 1, NULL_NECRO_OBJECT_ID });
         NecroObjectID lam_env_1    = necro_create_env(&runtime, (NecroEnv) { lam_env_2, 0, NULL_NECRO_OBJECT_ID });
-        NecroObjectID lambda       = necro_create_lambda(&runtime, (NecroLambda) { lam_app, lam_env_1, 2 });
+        NecroObjectID lambda       = necro_create_lambda(&runtime, (NecroLambda) { lam_app, lam_env_1, NULL_NECRO_OBJECT_ID, 2 });
 
         // App
         NecroObjectID constant_6   = necro_create_int(&runtime, 6);
@@ -628,5 +669,57 @@ void necro_test_eval()
         int64_t ns_per_iter = (int64_t) ((run_time / (double)iterations) * 1000000000);
         puts("");
         printf("eval 2 Necronomicon benchmark:\n    iterations:  %lld\n    run_time:    %f\n    ns/iter:     %lld\n    result:      %lld\n", iterations, run_time, ns_per_iter, accumulator);
+
+        necro_destroy_runtime(&runtime);
+    }
+
+    // Eval 3:
+    // (\x -> x2 + y where x2 = x + x; y = x) 10
+    {
+        puts("\n------\neval3:\n");
+        // Initialize Runtime
+        runtime = necro_create_runtime((NecroAudioInfo) { 44100, 512 });
+
+        // X
+        NecroObjectID var_x        = necro_create_var(&runtime, (NecroVar) { 0, NULL_NECRO_OBJECT_ID });
+
+        // y
+        NecroObjectID var_y        = necro_create_var(&runtime, (NecroVar) { 2, NULL_NECRO_OBJECT_ID });
+
+        // x2
+        NecroObjectID var_x2       = necro_create_var(&runtime, (NecroVar) { 1, NULL_NECRO_OBJECT_ID });
+        NecroObjectID add_x2       = necro_create_primop(&runtime, (NecroPrimOp) { NECRO_PRIM_ADD_I });
+        NecroObjectID x_arg_list_2 = necro_create_list_node(&runtime, (NecroListNode) { var_x, NULL_NECRO_OBJECT_ID });
+        NecroObjectID x_arg_list_1 = necro_create_list_node(&runtime, (NecroListNode) { var_x, x_arg_list_2 });
+        NecroObjectID x_curr       = necro_create_int(&runtime, 0);
+        NecroObjectID x_app        = necro_create_app(&runtime, (NecroApp) { x_curr, add_x2, x_arg_list_1, 2 });
+
+        // where
+        NecroObjectID where_list_2 = necro_create_list_node(&runtime, (NecroListNode) { var_x, NULL_NECRO_OBJECT_ID });
+        NecroObjectID where_list_1 = necro_create_list_node(&runtime, (NecroListNode) { x_app, where_list_2 });
+
+        // Lambda Body
+        NecroObjectID add          = necro_create_primop(&runtime, (NecroPrimOp) { NECRO_PRIM_ADD_I });
+        NecroObjectID l_arg_list_2 = necro_create_list_node(&runtime, (NecroListNode) { var_y,  NULL_NECRO_OBJECT_ID });
+        NecroObjectID l_arg_list_1 = necro_create_list_node(&runtime, (NecroListNode) { var_x2, l_arg_list_2 });
+        NecroObjectID lam_curr     = necro_create_int(&runtime, 0);
+        NecroObjectID lam_app      = necro_create_app(&runtime, (NecroApp) { lam_curr, add, l_arg_list_1, 2 });
+
+        // Lambda
+        NecroObjectID lam_env_3    = necro_create_env(&runtime, (NecroEnv) { NULL_NECRO_OBJECT_ID, 2, NULL_NECRO_OBJECT_ID });
+        NecroObjectID lam_env_2    = necro_create_env(&runtime, (NecroEnv) { lam_env_3, 1, NULL_NECRO_OBJECT_ID });
+        NecroObjectID lam_env_1    = necro_create_env(&runtime, (NecroEnv) { lam_env_2, 0, NULL_NECRO_OBJECT_ID });
+        NecroObjectID lambda       = necro_create_lambda(&runtime, (NecroLambda) { lam_app, lam_env_1, where_list_1, 1 });
+
+        // App
+        NecroObjectID constant_10    = necro_create_int(&runtime, 10);
+        NecroObjectID app_arg_list_1 = necro_create_list_node(&runtime, (NecroListNode) { constant_10, NULL_NECRO_OBJECT_ID });
+        NecroObjectID app_curr       = necro_create_int(&runtime, 0);
+        NecroObjectID app_env        = necro_create_env(&runtime, (NecroEnv) { NULL_NECRO_OBJECT_ID, -1, NULL_NECRO_OBJECT_ID });
+        NecroObjectID app_app        = necro_create_app(&runtime, (NecroApp) { app_curr, lambda, app_arg_list_1, 1 });
+
+        NecroObjectID result         = necro_eval(&runtime, app_env, app_app);
+
+        necro_test_expr_eval(&runtime, "eval 3", result, NECRO_OBJECT_INT, 30);
     }
 }

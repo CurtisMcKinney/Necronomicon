@@ -721,5 +721,6 @@ void necro_test_eval()
         NecroObjectID result         = necro_eval(&runtime, app_env, app_app);
 
         necro_test_expr_eval(&runtime, "eval 3", result, NECRO_OBJECT_INT, 30);
+        necro_destroy_runtime(&runtime);
     }
 }

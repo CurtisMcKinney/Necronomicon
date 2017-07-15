@@ -99,7 +99,7 @@ typedef enum
 {
     NECRO_CONSTANT,
     NECRO_LIVE,
-    NECRO_INHIBIT,
+    NECRO_YIELD,
     NECRO_END
 } NECRO_SIGNAL_STATE;
 
@@ -109,7 +109,7 @@ typedef enum
     //--------------------
     // Value Objects
     NECRO_OBJECT_NULL,
-    NECRO_OBJECT_INHIBIT,
+    NECRO_OBJECT_YIELD,
     NECRO_OBJECT_FLOAT,
     NECRO_OBJECT_INT,
     NECRO_OBJECT_CHAR,
@@ -277,5 +277,6 @@ void          necro_print_object(NecroRuntime* runtime, NecroObjectID object);
 
 void          necro_test_runtime();
 void          necro_test_eval();
+void          test_necro_vm();
 
 #endif // RUNTIME_H

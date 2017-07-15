@@ -95,12 +95,21 @@ typedef struct NecroRuntime NecroRuntime;
 typedef struct { uint32_t id; } NecroObjectID;
 typedef struct { uint32_t id; } NecroAudioID;
 
+typedef enum
+{
+    NECRO_CONSTANT,
+    NECRO_LIVE,
+    NECRO_INHIBIT,
+    NECRO_END
+} NECRO_SIGNAL_STATE;
+
 // TODO: Tuple type?
 typedef enum
 {
     //--------------------
     // Value Objects
     NECRO_OBJECT_NULL,
+    NECRO_OBJECT_INHIBIT,
     NECRO_OBJECT_FLOAT,
     NECRO_OBJECT_INT,
     NECRO_OBJECT_CHAR,
@@ -114,6 +123,7 @@ typedef enum
     NECRO_OBJECT_PAP,
     NECRO_OBJECT_LAMBDA,
     NECRO_OBJECT_PRIMOP,
+    NECRO_OBJECT_SEQUENCE,
 
     //--------------------
     // Utility Objects
@@ -133,8 +143,8 @@ typedef enum
     NECRO_PRIM_SUB_A
 } NECRO_PRIM_OP_CODE;
 
-//--------------------
-// Value Objects
+// In Necronomicon, Lists are temporal constructs
+// However, they can also be used internall for list structures
 //--------------------
 // Language Constructs
 typedef struct
@@ -162,6 +172,7 @@ typedef struct
 {
     NecroObjectID body_id;
     NecroObjectID env_id;
+    NecroObjectID where_list_id;
     uint32_t      arity;
 } NecroLambda;
 
@@ -169,6 +180,13 @@ typedef struct
 {
     uint32_t      op;
 } NecroPrimOp;
+
+typedef struct
+{
+    NecroObjectID head;
+    NecroObjectID current;
+    uint32_t      count;
+} NecroSequence;
 
 //--------------------
 // Utility Objects
@@ -186,14 +204,11 @@ typedef struct
     NecroObjectID value_id;
 } NecroEnv;
 
-// Lists as such don't exist in the langauge
-// So this is only for internal usage
 typedef struct
 {
     NecroObjectID value_id;
     NecroObjectID next_id;
 } NecroListNode;
-
 
 typedef struct
 {
@@ -205,7 +220,7 @@ typedef struct
         char          char_value;
         bool          bool_value;
         NecroAudioID  audio_id;
-        NecroListNode list_node;
+        NecroSequence sequence;
 
         // Language Constructs
         NecroVar    var;
@@ -215,11 +230,13 @@ typedef struct
         NecroPrimOp primop;
 
         // Utility Objects
-        NecroEnv    env;
-        uint32_t    next_free_index;
+        NecroEnv      env;
+        NecroListNode list_node;
+        uint32_t      next_free_index;
     };
-    uint32_t          ref_count;
-    NECRO_OBJECT_TYPE type;
+    uint32_t           ref_count;
+    NECRO_OBJECT_TYPE  type;
+    NECRO_SIGNAL_STATE signal_state;
 } NecroObject;
 
 typedef struct

@@ -215,27 +215,38 @@ typedef enum
     ParseError
 } NecroParse_Result;
 
+typedef enum
+{
+    NECRO_DESCENT_PARSING,
+    NECRO_DESCENT_PARSE_ERROR,
+    NECRO_DESCENT_PARSE_DONE
+} NecroParse_DescentState;
+
 typedef struct
 {
     char* error_message;
     NecroAST* ast;
     NecroLexToken* tokens;
     size_t current_token;
+    NecroParse_DescentState descent_state;
 } NecroParser;
+
+static const size_t MAX_ERROR_MESSAGE_SIZE = 512;
 
 static inline void construct_parser(NecroParser* parser, NecroAST* ast, NecroLexToken* tokens)
 {
-    parser->error_message = malloc(512 * sizeof(char));
+    parser->error_message = malloc(MAX_ERROR_MESSAGE_SIZE * sizeof(char));
     parser->error_message[0] = '\0';
     parser->current_token = 0;
     parser->ast = ast;
     parser->tokens = tokens;
+    parser->descent_state = NECRO_DESCENT_PARSING;
 }
 
 static inline void destruct_parser(NecroParser* parser)
 {
     free(parser->error_message);
-    *parser = (NecroParser) { 0, NULL, NULL, 0 };
+    *parser = (NecroParser) { 0, NULL, NULL, 0, NECRO_DESCENT_PARSE_DONE };
 }
 
 NecroParse_Result parse_ast(NecroParser* parser, NecroAST_LocalPtr* out_root_node_ptr);

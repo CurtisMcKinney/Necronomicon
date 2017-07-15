@@ -26,22 +26,37 @@ void necro_test_lex(char* input_string)
     puts("--------------------------------");
 
     NecroAST ast = { construct_arena(lexer.tokens.length * sizeof(NecroAST_Node)) };
-    NecroLexToken* tokens = lexer.tokens.data;
-    NecroAST_LocalPtr root_node_ptr = null_local_ptr;
-    if (lex_result == NECRO_LEX_RESULT_SUCCESSFUL &&
-        lexer.tokens.length > 0 &&
-        parse_ast(&tokens, &ast, &root_node_ptr) == ParseSuccessful)
+    if (lex_result == NECRO_LEX_RESULT_SUCCESSFUL && lexer.tokens.length > 0)
     {
-        puts("Parse succeeded");
-        print_ast(&ast, &lexer.intern, root_node_ptr);
-
+        NecroParser parser;
+        construct_parser(&parser, &ast, lexer.tokens.data);
+        NecroAST_LocalPtr root_node_ptr = null_local_ptr;
+        if (parse_ast(&parser, &root_node_ptr) == ParseSuccessful)
+        {
+            puts("Parse succeeded");
+            print_ast(&ast, &lexer.intern, root_node_ptr);
 #if 0
-        compute_ast_math(&ast, root_node_ptr);
+            compute_ast_math(&ast, root_node_ptr);
 #endif
+        }
+        else
+        {
+            if (parser.error_message && parser.error_message[0])
+            {
+                puts(parser.error_message);
+            }
+            else
+            {
+                puts("Parsing failed for unknown reason.");
+            }
+            puts("");
+        }
+
+        destruct_parser(&parser);
     }
     else
     {
-        puts("Parse failed");
+        puts("Lexing failed");
     }
 
     // Cleanup

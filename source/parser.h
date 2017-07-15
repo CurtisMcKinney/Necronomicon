@@ -16,6 +16,12 @@ typedef uint32_t NecroAST_LocalPtr;
 static const NecroAST_LocalPtr null_local_ptr = (uint32_t) -1;
 
 //=====================================================
+// AST Module
+//=====================================================
+
+
+
+//=====================================================
 // AST Undefined
 //=====================================================
 
@@ -52,6 +58,23 @@ typedef struct
 } NecroAST_Constant;
 
 //=====================================================
+// AST Unary Operation
+//=====================================================
+
+// typedef enum
+// {
+//     NECRO_UN_OP_NEG = 0,
+//     NECRO_UN_OP_COUNT,
+//     NECRO_UN_OP_UNDEFINED = NECRO_UN_OP_COUNT
+// } NecroAST_UnaryOpType;
+//
+// typedef struct
+// {
+//     NecroAST_LocalPtr rhs;
+//     NecroAST_UnaryOpType type;
+// } NecroAST_UnaryOp;
+
+//=====================================================
 // AST Binary Operation
 //=====================================================
 
@@ -86,6 +109,10 @@ typedef struct
     NecroAST_BinOpType type;
 } NecroAST_BinOp;
 
+//=====================================================
+// AST if then else
+//=====================================================
+
 typedef struct
 {
     NecroAST_LocalPtr if_expr;
@@ -93,17 +120,18 @@ typedef struct
     NecroAST_LocalPtr else_expr;
 } NecroAST_IfThenElse;
 
+//=====================================================
+// AST Node
+//=====================================================
+
 typedef enum
 {
     NECRO_AST_UNDEFINED,
     NECRO_AST_CONSTANT,
+    NECRO_AST_UN_OP,
     NECRO_AST_BIN_OP,
     NECRO_AST_IF_THEN_ELSE
 } NecroAST_NodeType;
-
-//=====================================================
-// AST Node
-//=====================================================
 
 typedef struct
 {
@@ -111,6 +139,7 @@ typedef struct
     {
         NecroAST_Undefined undefined;
         NecroAST_Constant constant;
+        // NecroAST_UnaryOp unary_op; // Do we need this?
         NecroAST_BinOp bin_op;
         NecroAST_IfThenElse if_then_else;
     };
@@ -186,13 +215,41 @@ typedef enum
     ParseError
 } NecroParse_Result;
 
+typedef enum
+{
+    NECRO_DESCENT_PARSING,
+    NECRO_DESCENT_PARSE_ERROR,
+    NECRO_DESCENT_PARSE_DONE
+} NecroParse_DescentState;
+
 typedef struct
 {
+    char* error_message;
+    NecroAST* ast;
     NecroLexToken* tokens;
-    size_t token_position;
+    size_t current_token;
+    NecroParse_DescentState descent_state;
 } NecroParser;
 
-NecroParse_Result parse_ast(NecroLexToken** tokens, NecroAST* ast, NecroAST_LocalPtr* out_root_node_ptr);
+static const size_t MAX_ERROR_MESSAGE_SIZE = 512;
+
+static inline void construct_parser(NecroParser* parser, NecroAST* ast, NecroLexToken* tokens)
+{
+    parser->error_message = malloc(MAX_ERROR_MESSAGE_SIZE * sizeof(char));
+    parser->error_message[0] = '\0';
+    parser->current_token = 0;
+    parser->ast = ast;
+    parser->tokens = tokens;
+    parser->descent_state = NECRO_DESCENT_PARSING;
+}
+
+static inline void destruct_parser(NecroParser* parser)
+{
+    free(parser->error_message);
+    *parser = (NecroParser) { 0, NULL, NULL, 0, NECRO_DESCENT_PARSE_DONE };
+}
+
+NecroParse_Result parse_ast(NecroParser* parser, NecroAST_LocalPtr* out_root_node_ptr);
 void compute_ast_math(NecroAST* ast, NecroAST_LocalPtr root_node_ptr);
 
 #endif // PARSER_H

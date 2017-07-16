@@ -777,6 +777,51 @@ uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
             DEBUG_PRINT("N_MOD_I");
             acc = acc % *sp++;
             break;
+        case N_EQ_I:
+            DEBUG_PRINT("N_EQ_I");
+            acc = acc == *sp++;
+            break;
+        case N_NEQ_I:
+            DEBUG_PRINT("N_NEQ_I");
+            acc = acc != *sp++;
+            break;
+        case N_LT_I:
+            DEBUG_PRINT("N_LT_I");
+            acc = acc < *sp++;
+            break;
+        case N_LTE_I:
+            DEBUG_PRINT("N_LTE_I");
+            acc = acc <= *sp++;
+            break;
+        case N_GT_I:
+            DEBUG_PRINT("N_GT_I");
+            acc = acc > *sp++;
+            break;
+        case N_GTE_I:
+            DEBUG_PRINT("N_GTE_I");
+            acc = acc >= *sp++;
+            break;
+        case N_BIT_AND_I:
+            DEBUG_PRINT("N_BIT_AND_I");
+            acc = acc & *sp++;
+            break;
+        case N_BIT_OR_I:
+            DEBUG_PRINT("N_BIT_OR_I");
+            acc = acc | *sp++;
+            break;
+        case N_BIT_XOR_I:
+            DEBUG_PRINT("N_BIT_XOR_I");
+            acc = acc ^ *sp++;
+            break;
+        case N_BIT_LS_I:
+            DEBUG_PRINT("N_BIT_LS_I");
+            acc = acc << *sp++;
+            break;
+        case N_BIT_RS_I:
+            DEBUG_PRINT("N_BIT_RS_I");
+            acc = acc >> *sp++;
+            break;
+
 
         // Function Applications
         case N_APPLY_1:
@@ -843,6 +888,7 @@ void necro_test_vm()
     puts("\n------");
     puts("Test VM\n");
 
+    // Integer tests
     {
         int64_t instr[6] =
         {
@@ -908,6 +954,128 @@ void necro_test_vm()
         necro_test_vm_eval(instr, 1, "ModI:   ");
     }
 
+    {
+        int64_t instr[6] =
+        {
+            N_PUSH_I, 666,
+            N_PUSH_I, 555,
+            N_EQ_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 0, "EqI:    ");
+    }
+
+    {
+        int64_t instr[6] =
+        {
+            N_PUSH_I, 666,
+            N_PUSH_I, 555,
+            N_NEQ_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 1, "NEqI:   ");
+    }
+
+    {
+        int64_t instr[6] =
+        {
+            N_PUSH_I, 1,
+            N_PUSH_I, 2,
+            N_LT_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 0, "LTI:    ");
+    }
+
+    {
+        int64_t instr[6] =
+        {
+            N_PUSH_I, 3,
+            N_PUSH_I, 3,
+            N_LTE_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 1, "LTEI:   ");
+    }
+
+    {
+        int64_t instr[6] =
+        {
+            N_PUSH_I, 100,
+            N_PUSH_I, 200,
+            N_GT_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 1, "GTI:    ");
+    }
+
+    {
+        int64_t instr[6] =
+        {
+            N_PUSH_I, 100,
+            N_PUSH_I, 99,
+            N_GTE_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 0, "GTEI:   ");
+    }
+
+    {
+        int64_t instr[6] =
+        {
+            N_PUSH_I, 7,
+            N_PUSH_I, 6,
+            N_BIT_AND_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 6 & 7, "BAND:   ");
+    }
+
+    {
+        int64_t instr[6] =
+        {
+            N_PUSH_I, 13,
+            N_PUSH_I, 4,
+            N_BIT_OR_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 4 | 13, "BOR:    ");
+    }
+
+    {
+        int64_t instr[6] =
+        {
+            N_PUSH_I, 22,
+            N_PUSH_I, 11,
+            N_BIT_XOR_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 11 ^ 22, "BXOR:   ");
+    }
+
+    {
+        int64_t instr[6] =
+        {
+            N_PUSH_I, 2,
+            N_PUSH_I, 4,
+            N_BIT_LS_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 4 << 2, "BLS:    ");
+    }
+
+    {
+        int64_t instr[6] =
+        {
+            N_PUSH_I, 1,
+            N_PUSH_I, 5,
+            N_BIT_RS_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 5 >> 1, "BRS:    ");
+    }
+
+    // Jump tests
     {
         int64_t instr[10] =
         {

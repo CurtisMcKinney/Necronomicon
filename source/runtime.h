@@ -291,6 +291,17 @@ typedef enum
     N_NEG_I,
     N_DIV_I,
     N_MOD_I,
+    N_EQ_I,
+    N_NEQ_I,
+    N_LT_I,
+    N_LTE_I,
+    N_GT_I,
+    N_GTE_I,
+    N_BIT_AND_I,
+    N_BIT_OR_I,
+    N_BIT_XOR_I,
+    N_BIT_LS_I,
+    N_BIT_RS_I,
 
     // Function Application
     N_APPLY_1,

@@ -724,7 +724,7 @@ void necro_test_eval()
         necro_test_expr_eval(&runtime, "eval 3", result, NECRO_OBJECT_INT, 30);
         necro_destroy_runtime(&runtime);
     }
-    test_necro_vm();
+    necro_test_vm();
 }
 
 /*
@@ -732,18 +732,18 @@ void necro_test_eval()
 */
 
 #define NECRO_STACK_SIZE 1024
-#define PUSH(VM, X)      VM.sp++; VM.stack[vm.sp] = X;
-#define POP(VM)          vm.stack[vm.sp--]
-#define NEXT_OP_CODE(VM) VM.instructions[vm.pc++]
 
 typedef enum
 {
+    // Constants
+    N_PUSH_I = 0,
+    N_CONST_I,
+
     // BinOp
     N_ADD_I,
-    N_MUL_I,
 
-    // Constants
-    N_CONST_I,
+    // Function Application
+    N_APPLY_1,
 
     // Commands
     N_POP,
@@ -751,199 +751,77 @@ typedef enum
     N_HALT
 } NECRO_BYTE_CODE;
 
-typedef struct
+// This is now more like 5.5 slower than C
+// Stack machine with accumulator
+uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
 {
-    int64_t*  instructions;
-    int64_t*  stack;
-    int64_t   pc;
-    int64_t   sp;
-    int64_t   fp;
-} NecroVM;
-
-NecroVM necro_create_vm(int64_t* instructions, size_t heap_size)
-{
-    return (NecroVM)
-    {
-        .instructions = instructions,
-        .stack        = malloc(NECRO_STACK_SIZE * sizeof(int64_t)),
-        .pc           = 0,
-        .sp           = -1,
-        .fp           = 0
-    };
-}
-
-void necro_run_vm(NecroVM vm)
-{
+    // Stack grows down
+    register uint64_t* sp  = malloc(NECRO_STACK_SIZE * sizeof(int64_t));
+    register uint64_t* pc  = instructions;
+    register uint64_t* fp  = 0;
+    register uint64_t  acc = 0;
+    register uint64_t  env = 0;
+    sp = sp + (NECRO_STACK_SIZE - 1);
+    pc--;
     while (true)
     {
-        int64_t opcode = NEXT_OP_CODE(vm);
+        int64_t opcode = *++pc;
         switch (opcode)
         {
-        case N_ADD_I:
-            {
-                int64_t y = POP(vm);
-                int64_t x = POP(vm);
-                PUSH(vm, x + y);
-            }
-            break;
+        case N_PUSH_I:
+            *--sp = acc;
+            // Fall through
         case N_CONST_I:
-            {
-                int64_t i = NEXT_OP_CODE(vm);
-                PUSH(vm, i);
-            }
+            acc = *++pc;
             break;
+        case N_ADD_I:
+            acc = ((int64_t)acc) + *((int64_t*)sp)++;
+            break;
+        case N_APPLY_1:
+        {
+            // value?
+            int64_t arg_1 = sp[0];
+            sp -= 3;
+            sp[0] = arg_1;        // Argument 1
+            sp[1] = (uint64_t) pc; // Return address
+            sp[2] = env;          // Environemtn
+            break;
+        }
         case N_POP:
-            POP(vm);
+            sp++;
             break;
         case N_PRINT:
-            {
-                int64_t x = POP(vm);
-                printf("vm: %lld\n", x);
-            }
+            // printf("PRINT: %lld\n", *sp++);
+            printf("PRINT: %lld\n", acc);
             break;
         case N_HALT:
-            printf("Halting\n");
-            return;
+            // printf("HALT: %lld\n", acc);
+            return acc;
         }
     }
 }
 
-void test_necro_vm()
+void necro_test_vm_eval(uint64_t* instr, uint64_t result, const char* print_string)
 {
-    puts("Test VM");
-    size_t   iters = 1000000 * 6;
-    int64_t* instr = malloc((iters + 1) * sizeof(int64_t));
-    for (size_t i = 0; i < iters; i += 6)
-    {
-        instr[i]     = N_CONST_I;
-        instr[i + 1] = 6;
-        instr[i + 2] = N_CONST_I;
-        instr[i + 3] = 7;
-        instr[i + 4] = N_ADD_I;
-        instr[i + 5] = N_POP;
-    }
-    instr[iters] = N_HALT;
-    NecroVM vm = necro_create_vm(instr, 0);
-    int64_t iterations  = iters / 6;
-    double  start_time  = (double) clock() / (double) CLOCKS_PER_SEC;
-    necro_run_vm(vm);
-    double  end_time    = (double) clock() / (double) CLOCKS_PER_SEC;
-    double  run_time    = end_time - start_time;
-    int64_t ns_per_iter = (int64_t) ((run_time / (double)iterations) * 1000000000);
-    puts("");
-    printf("eval VM Necronomicon benchmark:\n    iterations:  %lld\n    run_time:    %f\n    ns/iter:     %lld\n    result:      %d\n", iterations, run_time, ns_per_iter, 0);
+    uint64_t vm_result = necro_run_vm(instr, 0);
+    if (vm_result == result)
+        printf("%s test: passed\n    expected result: %lld\n    vm result:       %lld", print_string, result, vm_result);
+    else
+        printf("%s test: failed\n    expected result: %lld\n    vm result:       %lld", print_string, result, vm_result);
 }
 
-
-/*
-    Thoughts on compiling to C:
-    Would require designing a runtime, or perhaps more elaborately a virtual machine
-    ML compiles to C by doing: ML -> Lambda Calculus -> CPS -> VM in C
-    We could do Necronomicon -> Node based Dataflow Language -> Node based dataflow VM
-
-    Node VM:
-        - A heap of Node, all uniform in size
-        - Each Node has X inputs, 1 output, and a function pointer
-        - When an actor is , then sends evaluate message to all inputs,
-          when all inputs are evaluated the function pointer is called with the current value of each input node as its arguments
-          The value returned by this function is set to be the current value of the node
-*/
-
-// // Node based VM idea
-// typedef struct
-// {
-//     size_t ref_count;
-//     size_t arg_1, arg_2, arg_3;
-//     void   (*eval)(size_t id);
-//     union
-//     {
-//         double  float_value;
-//         int64_t int_value;
-//         char    char_value;
-//         void    (*lambda_value)(size_t id);
-//         size_t  audio_id;
-//         size_t  sequence_head;
-//     };
-// } Node3;
-
-// size_t make_node_1(void(*eval)(size_t id)) { return 0; }
-// void   clone_node_1(size_t id) {}
-
-// typedef Node3* VM;
-// VM vm;
-
-// // Compile each function down to a different node?
-// // (\x -> x2 + y where x2 = x + x; y = x) 10
-// void eval_3(size_t id)
-// {
-//     size_t  arg1 = vm[id].arg_1;
-//     size_t  nx2  = vm[id].arg_2;
-//     size_t  ny   = vm[id].arg_3;
-//     vm[arg1].eval(arg1);
-//     vm[nx2].eval(nx2);
-//     vm[ny].eval(ny);
-//     int64_t x  = vm[arg1].int_value;
-//     int64_t x2 = vm[nx2].int_value;
-//     int64_t y  = vm[ny].int_value;
-//     vm[id].int_value = x2 + y;
-// }
-
-// Instruction Pointer / Program counter?
-
-// // (\x -> x2 + y where x2 = x + x; y = x) 10
-// // Translate to CPS:
-// // fx  x    c = fx2 x c
-// // fx2 x    c = fy x (x + x) c
-// // fx3 x x2 c = c (x2 + x)
-// // Translate to C node VM:
-
-// // CPS style VM idea
-// typedef union
-// {
-//     double  float_value;
-//     int64_t int_value;
-//     char    char_value;
-//     int     (*lambda_value)();
-//     size_t  audio_id;
-//     size_t  sequence_head;
-//     size_t  node_id;
-// } NecroValue;
-
-// typedef struct
-// {
-//     size_t     ref_count;
-//     NecroValue value;
-//     size_t     input_id;
-//     int        (*func)(NecroNode* this);
-// } NecroNode;
-
-// NecroNode* heap;
-// NecroValue r1, r2, r3, r4, r5, r6, r7, r8;
-
-// // convention, r1 stores return value, r2 stores continuation, r3 stores node_id
-
-// void apply(int (*continuation)())
-// {
-//     while (true)
-//     {
-//         continuation = (int (*)()) (continuation());
-//     }
-// }
-
-// void fx3()
-// {
-// }
-
-// void fx2()
-// {
-//     int64_t x       = r1.int_value;
-//     size_t  node_id = r3.node_id;
-//     r1.int_value    = x + x;
-//     return fx3;
-//     // size_t  arg1 = vm[id].arg_1;
-//     // vm[arg1].eval(arg1);
-//     // int64_t x  = vm[arg1].int_value;
-//     // int64_t x2 = x + x;
-//     // int64_t y  = x;
-//     // vm[id].int_value = x2 + y;
-// }
+void necro_test_vm()
+{
+    puts("\n------");
+    puts("Test VM\n");
+    uint64_t instr[6] =
+    {
+        N_CONST_I,
+        7,
+        N_PUSH_I,
+        6,
+        N_ADD_I,
+        N_HALT
+    };
+    necro_test_vm_eval(instr, 13, "Add");
+}

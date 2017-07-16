@@ -277,6 +277,6 @@ void          necro_print_object(NecroRuntime* runtime, NecroObjectID object);
 
 void          necro_test_runtime();
 void          necro_test_eval();
-void          test_necro_vm();
+void          necro_test_vm();
 
 #endif // RUNTIME_H

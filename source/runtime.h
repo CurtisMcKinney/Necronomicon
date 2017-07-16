@@ -306,6 +306,9 @@ typedef enum
     // Function Application
     N_APPLY_1,
 
+    // Memory
+    N_LOAD,
+
     // Jumping
     N_JMP,
     N_JMP_IF,
@@ -314,18 +317,20 @@ typedef enum
     // Commands
     N_POP,
     N_PRINT,
+    N_PRINT_STACK,
     N_HALT
 } NECRO_BYTE_CODE;
 
-#define NECRO_STACK_SIZE 1024
-#define DEBUG_VM 0
-
-#ifdef DEBUG_VM
-#define DEBUG_PRINT(args)
-#else
-#define DEBUG_PRINT(args) puts(args)
-#endif
-
 void necro_test_vm();
+void necro_trace_stack(int64_t opcode);
+
+#define NECRO_STACK_SIZE 1024
+// #define DEBUG_VM 1
+
+#ifndef DEBUG_VM
+#define TRACE_STACK(opcode)
+#else
+#define TRACE_STACK(opcode) necro_trace_stack(opcode)
+#endif
 
 #endif // RUNTIME_H

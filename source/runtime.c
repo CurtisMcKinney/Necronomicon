@@ -730,6 +730,47 @@ void necro_test_eval()
 // VM
 //=====================================================
 
+void necro_trace_stack(int64_t opcode)
+{
+    switch (opcode)
+    {
+    case N_PUSH_I:      puts("N_PUSH_I");      return;
+    case N_ADD_I:       puts("N_ADD_I");       return;
+    case N_SUB_I:       puts("N_SUB_I");       return;
+    case N_MUL_I:       puts("N_MUL_I");       return;
+    case N_NEG_I:       puts("N_NEG_I");       return;
+    case N_DIV_I:       puts("N_DIV_I");       return;
+    case N_MOD_I:       puts("N_MOD_I");       return;
+    case N_EQ_I:        puts("N_EQ_I");        return;
+    case N_NEQ_I:       puts("N_NEQ_I");       return;
+    case N_LT_I:        puts("N_LT_I");        return;
+    case N_LTE_I:       puts("N_LTE_I");       return;
+    case N_GT_I:        puts("N_GT_I");        return;
+    case N_GTE_I:       puts("N_GTE_I");       return;
+    case N_BIT_AND_I:   puts("N_BIT_AND_I");   return;
+    case N_BIT_OR_I:    puts("N_BIT_OR_I");    return;
+    case N_BIT_XOR_I:   puts("N_BIT_XOR_I");   return;
+    case N_BIT_LS_I:    puts("N_BIT_LS_I");    return;
+    case N_BIT_RS_I:    puts("N_BIT_RS_I");    return;
+    case N_APPLY_1:     puts("N_APPLY_1");     return;
+    case N_LOAD:        puts("N_LOAD");        return;
+    case N_JMP:         puts("N_JMP");         return;
+    case N_JMP_IF:      puts("N_JMP_IF");      return;
+    case N_JMP_IF_NOT:  puts("N_JMP_IF_NOT");  return;
+    case N_POP:         puts("N_POP");         return;
+    case N_PRINT:       puts("N_PRINT");       return;
+    case N_PRINT_STACK: puts("N_PRINT_STACK"); return;
+    case N_HALT:        puts("N_HALT");        return;
+    default:            puts("UKNOWN");        return;
+    }
+}
+
+// Stack Frame:
+//  - args / locals
+//  - return address
+//  - saved registers (fp, acc, env, etc)
+//  - operand stack
+
 // This is now more like 5.5 slower than C
 // Stack machine with accumulator
 uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
@@ -741,84 +782,68 @@ uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
     register int64_t  acc = 0;
     register int64_t  env = 0;
     sp = sp + (NECRO_STACK_SIZE - 1);
+    fp = sp - 1;
     pc--;
     while (true)
     {
-        switch (*++pc)
+        int64_t opcode = *++pc;
+        TRACE_STACK(opcode);
+        switch (opcode)
         {
-
         // Integer operations
         case N_PUSH_I:
-            DEBUG_PRINT("N_PUSH_I");
             *--sp = acc;
             acc = *++pc;
             break;
         case N_ADD_I:
-            DEBUG_PRINT("N_ADD_I");
             acc = acc + *sp++;
             break;
         case N_SUB_I:
-            DEBUG_PRINT("N_SUB_I");
             acc = acc - *sp++;
             break;
         case N_MUL_I:
-            DEBUG_PRINT("N_MUL_I");
             acc = acc * *sp++;
             break;
         case N_NEG_I:
-            DEBUG_PRINT("N_NEG_I");
             acc = -acc;
             break;
         case N_DIV_I:
-            DEBUG_PRINT("N_DIV_I");
             acc = acc / *sp++;
             break;
         case N_MOD_I:
-            DEBUG_PRINT("N_MOD_I");
             acc = acc % *sp++;
             break;
         case N_EQ_I:
-            DEBUG_PRINT("N_EQ_I");
             acc = acc == *sp++;
             break;
         case N_NEQ_I:
-            DEBUG_PRINT("N_NEQ_I");
             acc = acc != *sp++;
             break;
         case N_LT_I:
-            DEBUG_PRINT("N_LT_I");
             acc = acc < *sp++;
             break;
         case N_LTE_I:
-            DEBUG_PRINT("N_LTE_I");
             acc = acc <= *sp++;
             break;
         case N_GT_I:
-            DEBUG_PRINT("N_GT_I");
             acc = acc > *sp++;
             break;
         case N_GTE_I:
-            DEBUG_PRINT("N_GTE_I");
             acc = acc >= *sp++;
             break;
         case N_BIT_AND_I:
-            DEBUG_PRINT("N_BIT_AND_I");
             acc = acc & *sp++;
             break;
         case N_BIT_OR_I:
-            DEBUG_PRINT("N_BIT_OR_I");
             acc = acc | *sp++;
             break;
         case N_BIT_XOR_I:
-            DEBUG_PRINT("N_BIT_XOR_I");
             acc = acc ^ *sp++;
             break;
         case N_BIT_LS_I:
-            DEBUG_PRINT("N_BIT_LS_I");
             acc = acc << *sp++;
             break;
         case N_BIT_RS_I:
-            DEBUG_PRINT("N_BIT_RS_I");
             acc = acc >> *sp++;
             break;
 
@@ -826,7 +851,6 @@ uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
         // Function Applications
         case N_APPLY_1:
         {
-            DEBUG_PRINT("N_APPLY_1");
             int64_t arg_1 = sp[0];
             sp -= 3;
             sp[0] = arg_1;        // Argument 1
@@ -835,21 +859,24 @@ uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
             break;
         }
 
+        // Memory
+        case N_LOAD: // Loads a local variable relative to current frame pointer
+            *--sp = acc;
+            acc   = *(fp + -*++pc);
+            break;
+
         // Jumping
         case N_JMP:
-            DEBUG_PRINT("N_JMP");
             pc++;
             pc += *pc; // Using relative jumps
             break;
         case N_JMP_IF:
-            DEBUG_PRINT("N_JMP_IF");
             pc++;
             if (acc)
                 pc += *pc;
             acc = *sp--;
             break;
         case N_JMP_IF_NOT:
-            DEBUG_PRINT("N_JMP_IF_NOT");
             pc++;
             if (!acc)
                 pc += *pc;
@@ -858,14 +885,23 @@ uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
 
         // Commands
         case N_POP:
-            DEBUG_PRINT("N_POP");
             sp++;
             break;
         case N_PRINT:
             printf("PRINT: %lld\n", acc);
             break;
+        case N_PRINT_STACK:
+            printf("PRINT_STACK:\n    ACC: %lld\n", acc);
+            {
+                size_t i = 0;
+                for (int64_t* sp2 = sp; sp2 != fp; ++sp2)
+                {
+                    printf("    [%d]: %lld\n", i, *sp2);
+                    ++i;
+                }
+            }
+            break;
         case N_HALT:
-            DEBUG_PRINT("N_HALT");
             return acc;
         default:
             printf("Unrecognized command: %lld\n", *pc);
@@ -1148,6 +1184,38 @@ void necro_test_vm()
             N_HALT
         };
         necro_test_vm_eval(instr, 40, "JmpIfN2:");
+    }
+
+    // Memory
+    {
+        int64_t instr[17] =
+        {
+            N_PUSH_I, 10,
+            N_PUSH_I, 5,
+            N_MUL_I,
+            N_LOAD,   1,
+            N_LOAD,   1,
+            N_ADD_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 100, "Load1:  ");
+    }
+
+    {
+        int64_t instr[17] =
+        {
+            N_PUSH_I, 10,
+            N_PUSH_I, 5,
+            N_MUL_I,
+            N_PUSH_I, 20,
+            N_PUSH_I, 20,
+            N_ADD_I,
+            N_LOAD,   1,
+            N_LOAD,   2,
+            N_SUB_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, -10, "Load1:  ");
     }
 
 }

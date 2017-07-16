@@ -308,6 +308,7 @@ typedef enum
 
     // Memory
     N_LOAD,
+    N_STORE,
 
     // Jumping
     N_JMP,

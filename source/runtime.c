@@ -771,6 +771,9 @@ void necro_trace_stack(int64_t opcode)
 //  - saved registers (fp, acc, env, etc)
 //  - operand stack
 
+// Therefore, must calculate the number of local args and make room for that when calling functions
+// Then you use Stores to store into the local variables from the operand stack
+
 // This is now more like 5.5 slower than C
 // Stack machine with accumulator
 uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
@@ -863,6 +866,10 @@ uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
         case N_LOAD: // Loads a local variable relative to current frame pointer
             *--sp = acc;
             acc   = *(fp + -*++pc);
+            break;
+        case N_STORE: // Stores a local variables relative to current frame pointer
+            *(fp + -*++pc) = acc;
+            acc = *sp++;
             break;
 
         // Jumping
@@ -1215,7 +1222,26 @@ void necro_test_vm()
             N_SUB_I,
             N_HALT
         };
-        necro_test_vm_eval(instr, -10, "Load1:  ");
+        necro_test_vm_eval(instr, -10, "Load2:  ");
+    }
+
+    {
+        int64_t instr[21] =
+        {
+            N_PUSH_I, 0,
+            N_PUSH_I, 0,
+            N_PUSH_I, 60,
+            N_STORE,  1,
+            N_PUSH_I, 5,
+            N_PUSH_I, 8,
+            N_MUL_I,
+            N_STORE,  2,
+            N_LOAD,   1,
+            N_LOAD,   2,
+            N_SUB_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, -20, "Store1: ");
     }
 
 }

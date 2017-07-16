@@ -592,7 +592,7 @@ void necro_test_eval()
         // For comparison python is around 30x slower than C
         // Necronomicon benchmark
         double start_time = (double) clock() / (double) CLOCKS_PER_SEC;
-        int64_t iterations  = 1000000;
+        int64_t iterations  = 10000;
         int64_t accumulator = 0;
         for (size_t i = 0; i < iterations; ++i)
         {
@@ -658,7 +658,7 @@ void necro_test_eval()
         // For comparison python is around 30x slower than C
         // Necronomicon benchmark
         double start_time = (double) clock() / (double) CLOCKS_PER_SEC;
-        int64_t iterations  = 100000;
+        int64_t iterations  = 10000;
         int64_t accumulator = 0;
         for (size_t i = 0; i < iterations; ++i)
         {
@@ -724,26 +724,31 @@ void necro_test_eval()
         necro_test_expr_eval(&runtime, "eval 3", result, NECRO_OBJECT_INT, 30);
         necro_destroy_runtime(&runtime);
     }
-    necro_test_vm();
 }
 
-/*
-    Thoughts on compiling to bytecode VM
-*/
-
+//=====================================================
+// VM
+//=====================================================
 #define NECRO_STACK_SIZE 1024
 
 typedef enum
 {
-    // Constants
-    N_PUSH_I = 0,
-    N_CONST_I,
-
-    // BinOp
+    // Integer operations
+    N_PUSH_I = 1000,
     N_ADD_I,
+    N_SUB_I,
+    N_MUL_I,
+    N_NEG_I,
+    N_DIV_I,
+    N_MOD_I,
 
     // Function Application
     N_APPLY_1,
+
+    // Jumping
+    N_JMP,
+    N_JMP_IF,
+    N_JMP_IF_NOT,
 
     // Commands
     N_POP,
@@ -751,77 +756,265 @@ typedef enum
     N_HALT
 } NECRO_BYTE_CODE;
 
+#define DEBUG_VM 0
+
+#ifdef DEBUG_VM
+#define DEBUG_PRINT(args)
+#else
+#define DEBUG_PRINT(args) puts(args)
+#endif
+
+
 // This is now more like 5.5 slower than C
 // Stack machine with accumulator
 uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
 {
     // Stack grows down
-    register uint64_t* sp  = malloc(NECRO_STACK_SIZE * sizeof(int64_t));
-    register uint64_t* pc  = instructions;
-    register uint64_t* fp  = 0;
-    register uint64_t  acc = 0;
-    register uint64_t  env = 0;
+    register int64_t* sp  = malloc(NECRO_STACK_SIZE * sizeof(int64_t));
+    register int64_t* pc  = instructions;
+    register int64_t* fp  = 0;
+    register int64_t  acc = 0;
+    register int64_t  env = 0;
     sp = sp + (NECRO_STACK_SIZE - 1);
     pc--;
     while (true)
     {
-        int64_t opcode = *++pc;
-        switch (opcode)
+        switch (*++pc)
         {
+
+        // Integer operations
         case N_PUSH_I:
+            DEBUG_PRINT("N_PUSH_I");
             *--sp = acc;
-            // Fall through
-        case N_CONST_I:
             acc = *++pc;
             break;
         case N_ADD_I:
-            acc = ((int64_t)acc) + *((int64_t*)sp)++;
+            DEBUG_PRINT("N_ADD_I");
+            acc = acc + *sp++;
             break;
+        case N_SUB_I:
+            DEBUG_PRINT("N_SUB_I");
+            acc = acc - *sp++;
+            break;
+        case N_MUL_I:
+            DEBUG_PRINT("N_MUL_I");
+            acc = acc * *sp++;
+            break;
+        case N_NEG_I:
+            DEBUG_PRINT("N_NEG_I");
+            acc = -acc;
+            break;
+        case N_DIV_I:
+            DEBUG_PRINT("N_DIV_I");
+            acc = acc / *sp++;
+            break;
+        case N_MOD_I:
+            DEBUG_PRINT("N_MOD_I");
+            acc = acc % *sp++;
+            break;
+
+        // Function Applications
         case N_APPLY_1:
         {
-            // value?
+            DEBUG_PRINT("N_APPLY_1");
             int64_t arg_1 = sp[0];
             sp -= 3;
             sp[0] = arg_1;        // Argument 1
-            sp[1] = (uint64_t) pc; // Return address
+            sp[1] = (int64_t) pc; // Return address...Continuation?
             sp[2] = env;          // Environemtn
             break;
         }
+
+        // Jumping
+        case N_JMP:
+            DEBUG_PRINT("N_JMP");
+            pc++;
+            pc += *pc; // Using relative jumps
+            break;
+        case N_JMP_IF:
+            DEBUG_PRINT("N_JMP_IF");
+            pc++;
+            if (acc)
+                pc += *pc;
+            acc = *sp--;
+            break;
+        case N_JMP_IF_NOT:
+            DEBUG_PRINT("N_JMP_IF_NOT");
+            pc++;
+            if (!acc)
+                pc += *pc;
+            acc = *sp--;
+            break;
+
+        // Commands
         case N_POP:
+            DEBUG_PRINT("N_POP");
             sp++;
             break;
         case N_PRINT:
-            // printf("PRINT: %lld\n", *sp++);
             printf("PRINT: %lld\n", acc);
             break;
         case N_HALT:
-            // printf("HALT: %lld\n", acc);
+            DEBUG_PRINT("N_HALT");
             return acc;
+        default:
+            printf("Unrecognized command: %lld\n", *pc);
+            return 0;
         }
     }
 }
 
-void necro_test_vm_eval(uint64_t* instr, uint64_t result, const char* print_string)
+void necro_test_vm_eval(int64_t* instr, int64_t result, const char* print_string)
 {
-    uint64_t vm_result = necro_run_vm(instr, 0);
+    int64_t vm_result = necro_run_vm(instr, 0);
     if (vm_result == result)
-        printf("%s test: passed\n    expected result: %lld\n    vm result:       %lld", print_string, result, vm_result);
+        printf("%s passed\n", print_string);
     else
-        printf("%s test: failed\n    expected result: %lld\n    vm result:       %lld", print_string, result, vm_result);
+        printf("%s FAILED\n    expected result: %lld\n    vm result:       %lld\n\n", print_string, result, vm_result);
 }
 
 void necro_test_vm()
 {
     puts("\n------");
     puts("Test VM\n");
-    uint64_t instr[6] =
+
     {
-        N_CONST_I,
-        7,
-        N_PUSH_I,
-        6,
-        N_ADD_I,
-        N_HALT
-    };
-    necro_test_vm_eval(instr, 13, "Add");
+        int64_t instr[6] =
+        {
+            N_PUSH_I, 7,
+            N_PUSH_I, 6,
+            N_ADD_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 13, "AddI:   ");
+    }
+
+    {
+        int64_t instr[6] =
+        {
+            N_PUSH_I, 4,
+            N_PUSH_I, 9,
+            N_SUB_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 5, "SubI:   ");
+    }
+
+    {
+        int64_t instr[6] =
+        {
+            N_PUSH_I, 10,
+            N_PUSH_I, 3,
+            N_MUL_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 30, "MulI:   ");
+    }
+
+    {
+        int64_t instr[4] =
+        {
+            N_PUSH_I,     10,
+            N_NEG_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, -10, "NegI:   ");
+    }
+
+    {
+        int64_t instr[6] =
+        {
+            N_PUSH_I, 10,
+            N_PUSH_I, 1000,
+            N_DIV_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 100, "DivI:   ");
+    }
+
+    {
+        int64_t instr[6] =
+        {
+            N_PUSH_I, 4,
+            N_PUSH_I, 5,
+            N_MOD_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 1, "ModI:   ");
+    }
+
+    {
+        int64_t instr[10] =
+        {
+            N_PUSH_I, 6,
+            N_JMP, 2,
+            N_PUSH_I, 7,
+            N_PUSH_I, 8,
+            N_ADD_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 14, "Jmp:    ");
+    }
+
+
+    {
+        int64_t instr[14] =
+        {
+            N_PUSH_I, 3,
+            N_PUSH_I, 1,
+            N_JMP_IF, 4,
+            N_PUSH_I, 4,
+            N_JMP,    2,
+            N_PUSH_I, 5,
+            N_ADD_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 8, "JmpIf 1:");
+    }
+
+    {
+        int64_t instr[14] =
+        {
+            N_PUSH_I, 3,
+            N_PUSH_I, 0,
+            N_JMP_IF, 4,
+            N_PUSH_I, 4,
+            N_JMP,    2,
+            N_PUSH_I, 5,
+            N_ADD_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 7, "JmpIf 2:");
+    }
+
+    {
+        int64_t instr[14] =
+        {
+            N_PUSH_I,     10,
+            N_PUSH_I,     1,
+            N_JMP_IF_NOT, 4,
+            N_PUSH_I,     20,
+            N_JMP,        2,
+            N_PUSH_I,     50,
+            N_SUB_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 10, "JmpIfN1:");
+    }
+
+    {
+        int64_t instr[14] =
+        {
+            N_PUSH_I,     10,
+            N_PUSH_I,     0,
+            N_JMP_IF_NOT, 4,
+            N_PUSH_I,     40,
+            N_JMP,        2,
+            N_PUSH_I,     50,
+            N_SUB_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 40, "JmpIfN2:");
+    }
+
 }

@@ -73,7 +73,11 @@ void necro_test_lex(char* input_string)
 //=====================================================
 int main(int32_t argc, char** argv)
 {
-    if (argc > 1 && strcmp(argv[1], "-test_runtime") == 0)
+    if (argc > 1 && strcmp(argv[1], "-test_vm") == 0)
+    {
+        necro_test_vm();
+    }
+    else if (argc > 1 && strcmp(argv[1], "-test_runtime") == 0)
     {
         necro_test_runtime();
     }

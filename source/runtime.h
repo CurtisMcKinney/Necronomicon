@@ -277,6 +277,44 @@ void          necro_print_object(NecroRuntime* runtime, NecroObjectID object);
 
 void          necro_test_runtime();
 void          necro_test_eval();
-void          necro_test_vm();
+
+//=====================================================
+// VM
+//=====================================================
+typedef enum
+{
+    // Integer operations
+    N_PUSH_I,
+    N_ADD_I,
+    N_SUB_I,
+    N_MUL_I,
+    N_NEG_I,
+    N_DIV_I,
+    N_MOD_I,
+
+    // Function Application
+    N_APPLY_1,
+
+    // Jumping
+    N_JMP,
+    N_JMP_IF,
+    N_JMP_IF_NOT,
+
+    // Commands
+    N_POP,
+    N_PRINT,
+    N_HALT
+} NECRO_BYTE_CODE;
+
+#define NECRO_STACK_SIZE 1024
+#define DEBUG_VM 0
+
+#ifdef DEBUG_VM
+#define DEBUG_PRINT(args)
+#else
+#define DEBUG_PRINT(args) puts(args)
+#endif
+
+void necro_test_vm();
 
 #endif // RUNTIME_H

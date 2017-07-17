@@ -303,12 +303,13 @@ typedef enum
     N_BIT_LS_I,
     N_BIT_RS_I,
 
-    // Function Application
-    N_APPLY_1,
+    // Functions
+    N_CALL,
+    N_RETURN,
 
     // Memory
-    N_LOAD,
-    N_STORE,
+    N_LOAD_L,
+    N_STORE_L,
 
     // Jumping
     N_JMP,
@@ -326,12 +327,12 @@ void necro_test_vm();
 void necro_trace_stack(int64_t opcode);
 
 #define NECRO_STACK_SIZE 1024
-// #define DEBUG_VM 1
+#define DEBUG_VM 1
 
-#ifndef DEBUG_VM
-#define TRACE_STACK(opcode)
-#else
+#if DEBUG_VM
 #define TRACE_STACK(opcode) necro_trace_stack(opcode)
+#else
+#define TRACE_STACK(opcode)
 #endif
 
 #endif // RUNTIME_H

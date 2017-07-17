@@ -752,8 +752,10 @@ void necro_trace_stack(int64_t opcode)
     case N_BIT_XOR_I:   puts("N_BIT_XOR_I");   return;
     case N_BIT_LS_I:    puts("N_BIT_LS_I");    return;
     case N_BIT_RS_I:    puts("N_BIT_RS_I");    return;
-    case N_APPLY_1:     puts("N_APPLY_1");     return;
-    case N_LOAD:        puts("N_LOAD");        return;
+    case N_CALL:        puts("N_CALL");        return;
+    case N_RETURN:      puts("N_RETURN");      return;
+    case N_LOAD_L:      puts("N_LOAD_L");      return;
+    case N_STORE_L:     puts("N_STORE_L");     return;
     case N_JMP:         puts("N_JMP");         return;
     case N_JMP_IF:      puts("N_JMP_IF");      return;
     case N_JMP_IF_NOT:  puts("N_JMP_IF_NOT");  return;
@@ -764,12 +766,6 @@ void necro_trace_stack(int64_t opcode)
     default:            puts("UKNOWN");        return;
     }
 }
-
-// Stack Frame:
-//  - args / locals
-//  - return address
-//  - saved registers (fp, acc, env, etc)
-//  - operand stack
 
 // Therefore, must calculate the number of local args and make room for that when calling functions
 // Then you use Stores to store into the local variables from the operand stack
@@ -785,7 +781,7 @@ uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
     register int64_t  acc = 0;
     register int64_t  env = 0;
     sp = sp + (NECRO_STACK_SIZE - 1);
-    fp = sp - 1;
+    fp = sp - 2;
     pc--;
     while (true)
     {
@@ -850,25 +846,45 @@ uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
             acc = acc >> *sp++;
             break;
 
+        // Functions
+        // Stack Frame:
+        //  - args
+        //  - saved registers (pc, fp, acc, env)
+        //  - Locals
+        //  - operand stack
+        //  When calling into a subroutine, the operand
+        //  stack of the current frame becomes the args of the next
+        case N_CALL: // one operand: number of args to reserve in current operand stack
+            sp   -= 4;
+            sp[0] = (int64_t) pc + 2;
+            sp[1] = (int64_t) fp;
+            sp[2] = acc;
+            sp[3] = env;
+            fp    = sp + 3 + *++pc;
+            pc    = (int64_t*) acc - 1; // pc gets incremented at top, so set pc to one less than call site
+            env   = acc;
+            printf("Call, pc: %p, new pc: %p, diff: %lld\n", (int64_t*)sp[0], pc, ((int64_t)(pc - ((int64_t*)sp[0]))));
+            break;
 
-        // Function Applications
-        case N_APPLY_1:
+        case N_RETURN: // one operand: number of args to roll back
         {
-            int64_t arg_1 = sp[0];
-            sp -= 3;
-            sp[0] = arg_1;        // Argument 1
-            sp[1] = (int64_t) pc; // Return address...Continuation?
-            sp[2] = env;          // Environemtn
+            int64_t args = *++pc;
+            sp   = fp - (3 + args);
+            pc   = (int64_t*)sp[0] - 1; // pc gets incremented at top, so set pc to one less than call site
+            fp   = (int64_t*)sp[1];
+            acc  = sp[2]; // Result should go in acc?
+            env  = sp[3];
+            sp  += 4 + args;
             break;
         }
 
         // Memory
-        case N_LOAD: // Loads a local variable relative to current frame pointer
+        case N_LOAD_L: // Loads a local variable relative to current frame pointer
             *--sp = acc;
-            acc   = *(fp + -*++pc);
+            acc   = *(fp - *++pc);
             break;
-        case N_STORE: // Stores a local variables relative to current frame pointer
-            *(fp + -*++pc) = acc;
+        case N_STORE_L: // Stores a local variables relative to current frame pointer
+            *(fp - *++pc) = acc;
             acc = *sp++;
             break;
 
@@ -924,6 +940,9 @@ void necro_test_vm_eval(int64_t* instr, int64_t result, const char* print_string
         printf("%s passed\n", print_string);
     else
         printf("%s FAILED\n    expected result: %lld\n    vm result:       %lld\n\n", print_string, result, vm_result);
+#if DEBUG_VM
+    puts("");
+#endif
 }
 
 void necro_test_vm()
@@ -1200,8 +1219,8 @@ void necro_test_vm()
             N_PUSH_I, 10,
             N_PUSH_I, 5,
             N_MUL_I,
-            N_LOAD,   1,
-            N_LOAD,   1,
+            N_LOAD_L, 0,
+            N_LOAD_L, 0,
             N_ADD_I,
             N_HALT
         };
@@ -1217,8 +1236,8 @@ void necro_test_vm()
             N_PUSH_I, 20,
             N_PUSH_I, 20,
             N_ADD_I,
-            N_LOAD,   1,
-            N_LOAD,   2,
+            N_LOAD_L, 0,
+            N_LOAD_L, 1,
             N_SUB_I,
             N_HALT
         };
@@ -1228,20 +1247,53 @@ void necro_test_vm()
     {
         int64_t instr[21] =
         {
-            N_PUSH_I, 0,
-            N_PUSH_I, 0,
-            N_PUSH_I, 60,
-            N_STORE,  1,
-            N_PUSH_I, 5,
-            N_PUSH_I, 8,
+            N_PUSH_I,  0,
+            N_PUSH_I,  0,
+            N_PUSH_I,  60,
+            N_STORE_L, 0,
+            N_PUSH_I,  5,
+            N_PUSH_I,  8,
             N_MUL_I,
-            N_STORE,  2,
-            N_LOAD,   1,
-            N_LOAD,   2,
+            N_STORE_L, 1,
+            N_LOAD_L,  0,
+            N_LOAD_L,  1,
             N_SUB_I,
             N_HALT
         };
         necro_test_vm_eval(instr, -20, "Store1: ");
     }
 
+    {
+        int64_t instr[15] =
+        {
+            N_PUSH_I, 10,
+            N_PUSH_I, 20,
+            N_PUSH_I, (int64_t)(instr + 8),
+            N_CALL,   2,
+            N_LOAD_L, 0,
+            N_LOAD_L, 1,
+            N_ADD_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 30, "CALL1: ");
+    }
+
+
+    {
+        int64_t instr[21] =
+        {
+            N_PUSH_I, 10,
+            N_PUSH_I, 20,
+            N_PUSH_I, (int64_t)(instr + 14),
+            N_CALL,   2,
+            N_PUSH_I, 5,
+            N_CALL,   (int64_t)(instr + 14),
+            N_HALT,
+            N_LOAD_L, 0,
+            N_LOAD_L, 1,
+            N_SUB_I,
+            N_RETURN, 2
+        };
+        necro_test_vm_eval(instr, -5, "CALL2: ");
+    }
 }

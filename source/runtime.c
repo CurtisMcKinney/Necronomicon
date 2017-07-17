@@ -849,32 +849,29 @@ uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
         // Functions
         // Stack Frame:
         //  - args
-        //  - saved registers (pc, fp, acc, env)
+        //  - saved registers (pc, fp, env)
         //  - Locals
         //  - operand stack
         //  When calling into a subroutine, the operand
         //  stack of the current frame becomes the args of the next
         case N_CALL: // one operand: number of args to reserve in current operand stack
-            sp   -= 4;
-            sp[0] = (int64_t) pc + 2;
+            sp   -= 3;
+            sp[0] = (int64_t) (pc + 1); // pc gets incremented at top, so set pc to one less than call site
             sp[1] = (int64_t) fp;
-            sp[2] = acc;
-            sp[3] = env;
-            fp    = sp + 3 + *++pc;
+            sp[2] = env;
+            fp    = sp + 2 + *++pc;
             pc    = (int64_t*) acc - 1; // pc gets incremented at top, so set pc to one less than call site
             env   = acc;
-            printf("Call, pc: %p, new pc: %p, diff: %lld\n", (int64_t*)sp[0], pc, ((int64_t)(pc - ((int64_t*)sp[0]))));
             break;
 
         case N_RETURN: // one operand: number of args to roll back
         {
             int64_t args = *++pc;
-            sp   = fp - (3 + args);
-            pc   = (int64_t*)sp[0] - 1; // pc gets incremented at top, so set pc to one less than call site
+            sp   = fp - (2 + args);
+            pc   = (int64_t*)sp[0];
             fp   = (int64_t*)sp[1];
-            acc  = sp[2]; // Result should go in acc?
-            env  = sp[3];
-            sp  += 4 + args;
+            env  = sp[2];
+            sp  += 1 + args;
             break;
         }
 
@@ -1275,25 +1272,63 @@ void necro_test_vm()
             N_ADD_I,
             N_HALT
         };
-        necro_test_vm_eval(instr, 30, "CALL1: ");
+        necro_test_vm_eval(instr, 30, "CALL1:  ");
     }
 
-
     {
-        int64_t instr[21] =
+        int64_t instr[25] =
         {
+            // Push 10, then 20, then call function
             N_PUSH_I, 10,
             N_PUSH_I, 20,
-            N_PUSH_I, (int64_t)(instr + 14),
+            N_PUSH_I, (int64_t)(instr + 18),
             N_CALL,   2,
+
+            // With the result of the function on the stack, push 5, then call function again
             N_PUSH_I, 5,
-            N_CALL,   (int64_t)(instr + 14),
+            N_PUSH_I, (int64_t)(instr + 18),
+            N_CALL,   2,
+
+            // With the result of the function on the stack, push 10 then add the results, then halt
+            N_PUSH_I, 10,
+            N_ADD_I,
             N_HALT,
+
+            // Function that will be called multiple times
             N_LOAD_L, 0,
             N_LOAD_L, 1,
             N_SUB_I,
             N_RETURN, 2
         };
-        necro_test_vm_eval(instr, -5, "CALL2: ");
+        necro_test_vm_eval(instr, 5, "CALL2:  ");
     }
+
+    {
+        int64_t instr[27] =
+        {
+            // Push 5 and 6 to stack, then call function 1
+            N_PUSH_I, 5,
+            N_PUSH_I, 6,
+            N_PUSH_I, (int64_t)(instr + 9), // function 1 addr
+            N_CALL,   2, // call function1 with 2 arguments
+
+            N_HALT,
+
+            // Function 1
+            N_LOAD_L, 0,
+            N_LOAD_L, 1,
+            N_ADD_I,
+            N_PUSH_I, (int64_t)(instr + 20), // function 2 addr
+            N_CALL,   1, // Call function2 with 1 argument
+            N_RETURN, 2,
+
+            // Function 2
+            N_LOAD_L, 0,
+            N_LOAD_L, 0,
+            N_MUL_I,
+            N_RETURN, 1
+        };
+        necro_test_vm_eval(instr, 121, "CALL3:  ");
+    }
+
 }

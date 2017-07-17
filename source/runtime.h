@@ -327,7 +327,7 @@ void necro_test_vm();
 void necro_trace_stack(int64_t opcode);
 
 #define NECRO_STACK_SIZE 1024
-#define DEBUG_VM 1
+#define DEBUG_VM 0
 
 #if DEBUG_VM
 #define TRACE_STACK(opcode) necro_trace_stack(opcode)

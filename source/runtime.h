@@ -281,6 +281,10 @@ void          necro_test_eval();
 //=====================================================
 // VM
 //=====================================================
+// TODO:
+//    * structs
+//    * c calls
+//    * Audio
 typedef enum
 {
     // Integer operations
@@ -306,6 +310,14 @@ typedef enum
     // Functions
     N_CALL,
     N_RETURN,
+    N_C_CALL_1,
+    N_C_CALL_2,
+    N_C_CALL_3,
+    N_C_CALL_4,
+    N_C_CALL_5,
+
+    // structs
+    N_MAKE_STRUCT,
 
     // Memory
     N_LOAD_L,
@@ -322,6 +334,30 @@ typedef enum
     N_PRINT_STACK,
     N_HALT
 } NECRO_BYTE_CODE;
+
+typedef union
+{
+    int64_t int_value;
+    double  float_value;
+} NecroVal;
+
+typedef NecroVal (*necro_c_call_1)(NecroVal);
+typedef NecroVal (*necro_c_call_2)(NecroVal, NecroVal);
+typedef NecroVal (*necro_c_call_3)(NecroVal, NecroVal, NecroVal);
+typedef NecroVal (*necro_c_call_4)(NecroVal, NecroVal, NecroVal, NecroVal);
+typedef NecroVal (*necro_c_call_5)(NecroVal, NecroVal, NecroVal, NecroVal, NecroVal);
+
+/*
+    Structure of NecroStructs:
+    - tag:       8 bytes
+    - ref_count: 8 bytes
+    - N args:    8 bytes * N
+    // all structs heap allocated and ref_counted
+*/
+
+// Buddy allocator for structs, closures, etc
+char* necro_alloc(char** hp, size_t pow_of_2);
+int64_t necro_alloc_struct_1(NecroVal field1);
 
 void necro_test_vm();
 void necro_trace_stack(int64_t opcode);

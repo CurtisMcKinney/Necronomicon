@@ -774,8 +774,9 @@ void necro_trace_stack(int64_t opcode)
 // Stack machine with accumulator
 uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
 {
-    // Stack grows down
-    register int64_t* sp  = malloc(NECRO_STACK_SIZE * sizeof(int64_t));
+
+    register char*    hp  = malloc(heap_size);                          // Heap  grows up
+    register int64_t* sp  = malloc(NECRO_STACK_SIZE * sizeof(int64_t)); // Stack grows down
     register int64_t* pc  = instructions;
     register int64_t* fp  = 0;
     register int64_t  acc = 0;
@@ -849,39 +850,64 @@ uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
         // Functions
         // Stack Frame:
         //  - args
-        //  - saved registers (pc, fp, env)
+        //  <---------- fp points at last arguments,
+        //              LOAD 0 loads the final argument, positive values go into lower arguments.
+        //              Negative values count into stack frame, after 3 this starts loading local variables
+        //  - saved registers (pc, fp, env, argc)
         //  - Locals
         //  - operand stack
         //  When calling into a subroutine, the operand
         //  stack of the current frame becomes the args of the next
         case N_CALL: // one operand: number of args to reserve in current operand stack
-            sp   -= 3;
+            sp   -= 4;
             sp[0] = (int64_t) (pc + 1); // pc gets incremented at top, so set pc to one less than call site
             sp[1] = (int64_t) fp;
             sp[2] = env;
-            fp    = sp + 2 + *++pc;
+            sp[3] = *++pc;
+            fp    = sp + 4;
             pc    = (int64_t*) acc - 1; // pc gets incremented at top, so set pc to one less than call site
-            env   = acc;
+            env   = acc + 1;
             break;
 
-        case N_RETURN: // one operand: number of args to roll back
-        {
-            int64_t args = *++pc;
-            sp   = fp - (2 + args);
+        case N_RETURN:
+            sp   = fp - 4;
             pc   = (int64_t*)sp[0];
             fp   = (int64_t*)sp[1];
             env  = sp[2];
-            sp  += 1 + args;
+            sp  += sp[3] + 4;
             break;
-        }
+
+        case N_C_CALL_1:
+            acc = ((necro_c_call_1)(*++pc))((NecroVal) { acc }).int_value;
+            break;
+        case N_C_CALL_2:
+            acc = ((necro_c_call_2)(*++pc))((NecroVal) { acc }, (NecroVal) { sp[0] }).int_value;
+            sp++;
+            break;
+        case N_C_CALL_3:
+            acc = ((necro_c_call_3)(*++pc))((NecroVal) { acc }, (NecroVal) { sp[0] }, (NecroVal) { sp[1] }).int_value;
+            sp += 2;
+            break;
+        case N_C_CALL_4:
+            acc = ((necro_c_call_4)(*++pc))((NecroVal) { acc }, (NecroVal) { sp[0] }, (NecroVal) { sp[1] }, (NecroVal) { sp[2] }).int_value;
+            sp += 3;
+            break;
+        case N_C_CALL_5:
+            acc = ((necro_c_call_5)(*++pc))((NecroVal) { acc }, (NecroVal) { sp[0] }, (NecroVal) { sp[1] }, (NecroVal) { sp[2] }, (NecroVal) { sp[3] }).int_value;
+            sp += 4;
+            break;
+
+        // structs
+        case N_MAKE_STRUCT:
+            break;
 
         // Memory
         case N_LOAD_L: // Loads a local variable relative to current frame pointer
             *--sp = acc;
-            acc   = *(fp - *++pc);
+            acc   = *(fp + *++pc);
             break;
         case N_STORE_L: // Stores a local variables relative to current frame pointer
-            *(fp - *++pc) = acc;
+            *(fp + *++pc) = acc;
             acc = *sp++;
             break;
 
@@ -949,7 +975,7 @@ void necro_test_vm()
 
     // Integer tests
     {
-        int64_t instr[6] =
+        int64_t instr[] =
         {
             N_PUSH_I, 7,
             N_PUSH_I, 6,
@@ -960,7 +986,7 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[6] =
+        int64_t instr[] =
         {
             N_PUSH_I, 4,
             N_PUSH_I, 9,
@@ -971,7 +997,7 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[6] =
+        int64_t instr[] =
         {
             N_PUSH_I, 10,
             N_PUSH_I, 3,
@@ -982,7 +1008,7 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[4] =
+        int64_t instr[] =
         {
             N_PUSH_I,     10,
             N_NEG_I,
@@ -992,7 +1018,7 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[6] =
+        int64_t instr[] =
         {
             N_PUSH_I, 10,
             N_PUSH_I, 1000,
@@ -1003,7 +1029,7 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[6] =
+        int64_t instr[] =
         {
             N_PUSH_I, 4,
             N_PUSH_I, 5,
@@ -1014,7 +1040,7 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[6] =
+        int64_t instr[] =
         {
             N_PUSH_I, 666,
             N_PUSH_I, 555,
@@ -1025,7 +1051,7 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[6] =
+        int64_t instr[] =
         {
             N_PUSH_I, 666,
             N_PUSH_I, 555,
@@ -1036,7 +1062,7 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[6] =
+        int64_t instr[] =
         {
             N_PUSH_I, 1,
             N_PUSH_I, 2,
@@ -1047,7 +1073,7 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[6] =
+        int64_t instr[] =
         {
             N_PUSH_I, 3,
             N_PUSH_I, 3,
@@ -1058,7 +1084,7 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[6] =
+        int64_t instr[] =
         {
             N_PUSH_I, 100,
             N_PUSH_I, 200,
@@ -1069,7 +1095,7 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[6] =
+        int64_t instr[] =
         {
             N_PUSH_I, 100,
             N_PUSH_I, 99,
@@ -1080,7 +1106,7 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[6] =
+        int64_t instr[] =
         {
             N_PUSH_I, 7,
             N_PUSH_I, 6,
@@ -1091,7 +1117,7 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[6] =
+        int64_t instr[] =
         {
             N_PUSH_I, 13,
             N_PUSH_I, 4,
@@ -1102,7 +1128,7 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[6] =
+        int64_t instr[] =
         {
             N_PUSH_I, 22,
             N_PUSH_I, 11,
@@ -1113,7 +1139,7 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[6] =
+        int64_t instr[] =
         {
             N_PUSH_I, 2,
             N_PUSH_I, 4,
@@ -1124,7 +1150,7 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[6] =
+        int64_t instr[] =
         {
             N_PUSH_I, 1,
             N_PUSH_I, 5,
@@ -1136,7 +1162,7 @@ void necro_test_vm()
 
     // Jump tests
     {
-        int64_t instr[10] =
+        int64_t instr[] =
         {
             N_PUSH_I, 6,
             N_JMP, 2,
@@ -1150,7 +1176,7 @@ void necro_test_vm()
 
 
     {
-        int64_t instr[14] =
+        int64_t instr[] =
         {
             N_PUSH_I, 3,
             N_PUSH_I, 1,
@@ -1165,7 +1191,7 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[14] =
+        int64_t instr[] =
         {
             N_PUSH_I, 3,
             N_PUSH_I, 0,
@@ -1180,7 +1206,7 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[14] =
+        int64_t instr[] =
         {
             N_PUSH_I,     10,
             N_PUSH_I,     1,
@@ -1195,7 +1221,7 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[14] =
+        int64_t instr[] =
         {
             N_PUSH_I,     10,
             N_PUSH_I,     0,
@@ -1211,7 +1237,7 @@ void necro_test_vm()
 
     // Memory
     {
-        int64_t instr[17] =
+        int64_t instr[] =
         {
             N_PUSH_I, 10,
             N_PUSH_I, 5,
@@ -1225,7 +1251,7 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[17] =
+        int64_t instr[] =
         {
             N_PUSH_I, 10,
             N_PUSH_I, 5,
@@ -1234,7 +1260,7 @@ void necro_test_vm()
             N_PUSH_I, 20,
             N_ADD_I,
             N_LOAD_L, 0,
-            N_LOAD_L, 1,
+            N_LOAD_L, -1,
             N_SUB_I,
             N_HALT
         };
@@ -1242,7 +1268,7 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[21] =
+        int64_t instr[] =
         {
             N_PUSH_I,  0,
             N_PUSH_I,  0,
@@ -1251,9 +1277,9 @@ void necro_test_vm()
             N_PUSH_I,  5,
             N_PUSH_I,  8,
             N_MUL_I,
-            N_STORE_L, 1,
+            N_STORE_L, -1,
             N_LOAD_L,  0,
-            N_LOAD_L,  1,
+            N_LOAD_L,  -1,
             N_SUB_I,
             N_HALT
         };
@@ -1261,14 +1287,14 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[15] =
+        int64_t instr[] =
         {
             N_PUSH_I, 10,
             N_PUSH_I, 20,
             N_PUSH_I, (int64_t)(instr + 8),
             N_CALL,   2,
-            N_LOAD_L, 0,
             N_LOAD_L, 1,
+            N_LOAD_L, 0,
             N_ADD_I,
             N_HALT
         };
@@ -1276,7 +1302,7 @@ void necro_test_vm()
     }
 
     {
-        int64_t instr[25] =
+        int64_t instr[] =
         {
             // Push 10, then 20, then call function
             N_PUSH_I, 10,
@@ -1295,16 +1321,16 @@ void necro_test_vm()
             N_HALT,
 
             // Function that will be called multiple times
-            N_LOAD_L, 0,
             N_LOAD_L, 1,
+            N_LOAD_L, 0,
             N_SUB_I,
-            N_RETURN, 2
+            N_RETURN
         };
         necro_test_vm_eval(instr, 5, "CALL2:  ");
     }
 
     {
-        int64_t instr[27] =
+        int64_t instr[] =
         {
             // Push 5 and 6 to stack, then call function 1
             N_PUSH_I, 5,
@@ -1312,23 +1338,42 @@ void necro_test_vm()
             N_PUSH_I, (int64_t)(instr + 9), // function 1 addr
             N_CALL,   2, // call function1 with 2 arguments
 
+            // End
             N_HALT,
 
             // Function 1
-            N_LOAD_L, 0,
             N_LOAD_L, 1,
+            N_LOAD_L, 0,
             N_ADD_I,
-            N_PUSH_I, (int64_t)(instr + 20), // function 2 addr
+            N_PUSH_I, (int64_t)(instr + 19), // function 2 addr
             N_CALL,   1, // Call function2 with 1 argument
-            N_RETURN, 2,
+            N_RETURN,
 
             // Function 2
             N_LOAD_L, 0,
             N_LOAD_L, 0,
             N_MUL_I,
-            N_RETURN, 1
+            N_RETURN
         };
         necro_test_vm_eval(instr, 121, "CALL3:  ");
+    }
+
+    {
+        // (\x -> x2 + y where x2 = x + x; y = x) 10
+        int64_t instr[] =
+        {
+            N_PUSH_I, 10,
+            N_PUSH_I, (int64_t)(instr + 7), // addr of function
+            N_CALL,   1,
+            N_HALT,
+            N_LOAD_L, 0,
+            N_LOAD_L, 0,
+            N_ADD_I,
+            N_LOAD_L, 0,
+            N_ADD_I,
+            N_RETURN
+        };
+        necro_test_vm_eval(instr, 30, "CALL4:  ");
     }
 
 }

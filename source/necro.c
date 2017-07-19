@@ -77,10 +77,10 @@ int main(int32_t argc, char** argv)
     {
         necro_test_vm();
     }
-    else if (argc > 1 && strcmp(argv[1], "-test_runtime") == 0)
-    {
-        necro_test_runtime();
-    }
+    // else if (argc > 1 && strcmp(argv[1], "-test_runtime") == 0)
+    // {
+    //     necro_test_runtime();
+    // }
     else if (argc > 1 && strcmp(argv[1], "-test_lexer") == 0)
     {
         necro_test_lexer();

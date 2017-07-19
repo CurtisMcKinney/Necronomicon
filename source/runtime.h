@@ -82,201 +82,19 @@
     - Then sequence moves on to next stream
     myCoolLoop = 0 fby 100 fby 1 + myCoolLoop  == { 0, 100, 1 ... }
     myCoolLoop = 0 fby 100 fby 1 + ~myCoolLoop ==
+
+    region based memory management, based on graphs
+        * Each graph gets its own Region
+        * Each Region is comprised of a current RegionPage list and the previous RegionPage list
+        * Nodes can access data from either the current RegionPage list or the previous RegionPage list
+        * At the beginning of each evaluation we free the previous RegionPage list,
+          move the current RegionPage list to the previous RegionPage list,
+          then allocate a new RegionPage and set the current RegionPage list to that.
+        * Thus, we only ever have around twice the memory required
+        * In return we get deterministic memory allocation and freeing
+
+    // TODO: Will need nodemap
 */
-
-//=====================================================
-// Runtime structs
-//=====================================================
-
-// Runtime representation is something akin to lambda calculus meets lisp, with graph update (instead of graph reduction) semantics
-
-typedef struct NecroRuntime NecroRuntime;
-
-typedef struct { uint32_t id; } NecroObjectID;
-typedef struct { uint32_t id; } NecroAudioID;
-
-typedef enum
-{
-    NECRO_CONSTANT,
-    NECRO_LIVE,
-    NECRO_YIELD,
-    NECRO_END
-} NECRO_SIGNAL_STATE;
-
-// TODO: Tuple type?
-typedef enum
-{
-    //--------------------
-    // Value Objects
-    NECRO_OBJECT_NULL,
-    NECRO_OBJECT_YIELD,
-    NECRO_OBJECT_FLOAT,
-    NECRO_OBJECT_INT,
-    NECRO_OBJECT_CHAR,
-    NECRO_OBJECT_BOOL,
-    NECRO_OBJECT_AUDIO,
-
-    //--------------------
-    // Language Constructs
-    NECRO_OBJECT_VAR,
-    NECRO_OBJECT_APP,
-    NECRO_OBJECT_PAP,
-    NECRO_OBJECT_LAMBDA,
-    NECRO_OBJECT_PRIMOP,
-    NECRO_OBJECT_SEQUENCE,
-
-    //--------------------
-    // Utility Objects
-    NECRO_OBJECT_ENV,
-    NECRO_OBJECT_LIST_NODE,
-    NECRO_OBJECT_FREE
-
-} NECRO_OBJECT_TYPE;
-
-typedef enum
-{
-    NECRO_PRIM_ADD_I,
-    NECRO_PRIM_ADD_F,
-    NECRO_PRIM_ADD_A,
-    NECRO_PRIM_SUB_I,
-    NECRO_PRIM_SUB_F,
-    NECRO_PRIM_SUB_A
-} NECRO_PRIM_OP_CODE;
-
-// In Necronomicon, Lists are temporal constructs
-// However, they can also be used internall for list structures
-//--------------------
-// Language Constructs
-typedef struct
-{
-    uint32_t      var_symbol;
-    NecroObjectID cached_env_node_id;
-} NecroVar;
-
-typedef struct
-{
-    NecroObjectID current_value_id;
-    NecroObjectID lambda_id;
-    NecroObjectID argument_list_id;
-    uint32_t      argument_count;
-} NecroApp;
-
-typedef struct
-{
-    NecroObjectID lambda_id;
-    NecroObjectID argument_list_id;
-    uint32_t      current_arg_count;
-} NecroPap;
-
-typedef struct
-{
-    NecroObjectID body_id;
-    NecroObjectID env_id;
-    NecroObjectID where_list_id;
-    uint32_t      arity;
-} NecroLambda;
-
-typedef struct
-{
-    uint32_t      op;
-} NecroPrimOp;
-
-typedef struct
-{
-    NecroObjectID head;
-    NecroObjectID current;
-    uint32_t      count;
-} NecroSequence;
-
-//--------------------
-// Utility Objects
-
-//--------
-// NecroEnv, implemented as a Cactus stack / Parent Pointer tree,
-// i.e. a linked list of nodes, with keys and values, with shadowing
-//     * a pointer to the next env node,
-//     * a key which must be matched against.
-//     * a pointer to the value that this node contains
-typedef struct
-{
-    NecroObjectID next_env_id;
-    uint32_t      key;
-    NecroObjectID value_id;
-} NecroEnv;
-
-typedef struct
-{
-    NecroObjectID value_id;
-    NecroObjectID next_id;
-} NecroListNode;
-
-typedef struct
-{
-    union
-    {
-        // Value Objects
-        double        float_value;
-        int64_t       int_value;
-        char          char_value;
-        bool          bool_value;
-        NecroAudioID  audio_id;
-        NecroSequence sequence;
-
-        // Language Constructs
-        NecroVar    var;
-        NecroApp    app;
-        NecroPap    pap;
-        NecroLambda lambda;
-        NecroPrimOp primop;
-
-        // Utility Objects
-        NecroEnv      env;
-        NecroListNode list_node;
-        uint32_t      next_free_index;
-    };
-    uint32_t           ref_count;
-    NECRO_OBJECT_TYPE  type;
-    NECRO_SIGNAL_STATE signal_state;
-} NecroObject;
-
-typedef struct
-{
-    uint32_t sample_rate;
-    uint32_t block_size;
-} NecroAudioInfo;
-
-struct NecroRuntime
-{
-    NecroObject*   objects;
-    uint32_t       object_free_list;
-    double*        audio;
-    uint32_t*      audio_free_list;
-    uint32_t       audio_free_list_head;
-    NecroAudioInfo audio_info;
-};
-
-NecroRuntime  necro_create_runtime(NecroAudioInfo audio_info);
-void          necro_destroy_runtime(NecroRuntime* runtime);
-NecroObjectID necro_alloc_object(NecroRuntime* runtime);
-void          necro_free_object(NecroRuntime* runtime, NecroObjectID object_id);
-NecroAudioID  necro_alloc_audio(NecroRuntime* runtime);
-void          necro_free_audio(NecroRuntime* runtime, NecroAudioID audio_id);
-NecroObjectID necro_create_var(NecroRuntime* runtime, NecroVar var);
-NecroObjectID necro_create_app(NecroRuntime* runtime, NecroApp app);
-NecroObjectID necro_create_pap(NecroRuntime* runtime, NecroPap pap);
-NecroObjectID necro_create_lambda(NecroRuntime* runtime, NecroLambda lambda);
-NecroObjectID necro_create_primop(NecroRuntime* runtime, NecroPrimOp primop);
-NecroObjectID necro_create_env(NecroRuntime* runtime, NecroEnv env);
-NecroObjectID necro_create_float(NecroRuntime* runtime, double value);
-NecroObjectID necro_create_int(NecroRuntime* runtime, int64_t value);
-NecroObjectID necro_create_char(NecroRuntime* runtime, char value);
-NecroObjectID necro_create_bool(NecroRuntime* runtime, bool value);
-NecroObjectID necro_create_list_node(NecroRuntime* runtime, NecroListNode list_node);
-NecroObjectID necro_eval(NecroRuntime* runtime, NecroObjectID env, NecroObjectID object);
-void          necro_print_object(NecroRuntime* runtime, NecroObjectID object);
-
-void          necro_test_runtime();
-void          necro_test_eval();
 
 //=====================================================
 // VM
@@ -350,15 +168,53 @@ typedef NecroVal (*necro_c_call_5)(NecroVal, NecroVal, NecroVal, NecroVal, Necro
 /*
     Structure of NecroStructs:
     - tag:       8 bytes
-    - ref_count: 8 bytes
+    // - ref_count: 8 bytes
     - N args:    8 bytes * N
     // all structs heap allocated and ref_counted
 */
+// int64_t necro_alloc_struct_1(NecroVal field1);
 
-// Buddy allocator for structs, closures, etc
-char* necro_alloc(char** hp, size_t pow_of_2);
-int64_t necro_alloc_struct_1(NecroVal field1);
+#define NECRO_INIITAL_NUM_PAGES 1024
+#define NECRO_REGION_PAGE_SIZE  (8192 - sizeof(void*)) // Each page is 8192 bytes in size, but the last word size of bytes are reserved as the next pointer
 
+//=====================================================
+// Region based memory management
+//=====================================================
+typedef struct NecroRegionPage
+{
+    char data[NECRO_REGION_PAGE_SIZE];
+    struct NecroRegionPage* next_page;
+} NecroRegionPage;
+
+typedef struct
+{
+    NecroRegionPage* previous_head;
+    NecroRegionPage* current_head;
+    NecroRegionPage* current_last;
+    size_t           cursor;
+} NecroRegion;
+
+typedef struct NecroRegionBlock
+{
+    struct NecroRegionBlock* next_block;
+} NecroRegionBlock;
+
+typedef struct
+{
+    NecroRegionBlock* page_blocks;
+    NecroRegionPage*  free_list;
+    size_t            current_block_size;
+} NecroRegionPageAllocator;
+NecroRegionPageAllocator necro_create_region_page_allocator();
+void                     necro_destroy_region_page_allocator(NecroRegionPageAllocator* page_allocator);
+NecroRegionPage*         necro_alloc_region_page(NecroRegionPageAllocator* page_allocator);
+void                     necro_free_region_page(NecroRegionPageAllocator* page_allocator, NecroRegionPage* region);
+NecroRegion              necro_create_region(NecroRegionPageAllocator* page_allocator);
+char*                    necro_alloc_into_region(NecroRegionPageAllocator* page_allocator, NecroRegion* region, size_t size);
+
+//=====================================================
+// Testing
+//=====================================================
 void necro_test_vm();
 void necro_trace_stack(int64_t opcode);
 
@@ -371,4 +227,223 @@ void necro_trace_stack(int64_t opcode);
 #define TRACE_STACK(opcode)
 #endif
 
+// Buddy allocator for structs, closures, etc
+// #define BUDDY_HEAP_MAX_SIZE_POW_2 16
+// #define BUDDY_HEAP_LEAF_SIZE_POW_2 4
+// static const size_t BUDDY_HEAP_NUM_BINS        = BUDDY_HEAP_MAX_SIZE_POW_2 - BUDDY_HEAP_LEAF_SIZE_POW_2;
+// static const size_t BUDDY_HEAP_MAX_SIZE        = 2 << (BUDDY_HEAP_MAX_SIZE_POW_2 - BUDDY_HEAP_LEAF_SIZE_POW_2);
+// static const size_t BUDDY_HEAP_FREE_FLAGS_SIZE = 2 << (BUDDY_HEAP_MAX_SIZE_POW_2 - (BUDDY_HEAP_LEAF_SIZE_POW_2 + 3)); // Need 1 bit per leaf for metadata, 8 bits (2 ^ 3) in each char, leaf size of 16 (2 ^ 4)
+
+// typedef struct
+// {
+//     uint64_t next_free;
+//     uint64_t _dummy;
+// } NecroBuddyLeaf;
+
+
+// typedef struct
+// {
+//     NecroBuddyLeaf* heap;
+//     char*           free_flags;
+//     NecroBuddyLeaf* free_lists[BUDDY_HEAP_MAX_SIZE_POW_2];
+// } NecroBuddy;
+
+// NecroBuddy necro_create_buddy();
+// char* necro_buddy_alloc(NecroBuddy* buddy, size_t size);
+
+// //=====================================================
+// // Runtime structs
+// //=====================================================
+
+// // Runtime representation is something akin to lambda calculus meets lisp, with graph update (instead of graph reduction) semantics
+
+// typedef struct NecroRuntime NecroRuntime;
+
+// typedef struct { uint32_t id; } NecroObjectID;
+// typedef struct { uint32_t id; } NecroAudioID;
+
+// typedef enum
+// {
+//     NECRO_CONSTANT,
+//     NECRO_LIVE,
+//     NECRO_YIELD,
+//     NECRO_END
+// } NECRO_SIGNAL_STATE;
+
+// // TODO: Tuple type?
+// typedef enum
+// {
+//     //--------------------
+//     // Value Objects
+//     NECRO_OBJECT_NULL,
+//     NECRO_OBJECT_YIELD,
+//     NECRO_OBJECT_FLOAT,
+//     NECRO_OBJECT_INT,
+//     NECRO_OBJECT_CHAR,
+//     NECRO_OBJECT_BOOL,
+//     NECRO_OBJECT_AUDIO,
+
+//     //--------------------
+//     // Language Constructs
+//     NECRO_OBJECT_VAR,
+//     NECRO_OBJECT_APP,
+//     NECRO_OBJECT_PAP,
+//     NECRO_OBJECT_LAMBDA,
+//     NECRO_OBJECT_PRIMOP,
+//     NECRO_OBJECT_SEQUENCE,
+
+//     //--------------------
+//     // Utility Objects
+//     NECRO_OBJECT_ENV,
+//     NECRO_OBJECT_LIST_NODE,
+//     NECRO_OBJECT_FREE
+
+// } NECRO_OBJECT_TYPE;
+
+// typedef enum
+// {
+//     NECRO_PRIM_ADD_I,
+//     NECRO_PRIM_ADD_F,
+//     NECRO_PRIM_ADD_A,
+//     NECRO_PRIM_SUB_I,
+//     NECRO_PRIM_SUB_F,
+//     NECRO_PRIM_SUB_A
+// } NECRO_PRIM_OP_CODE;
+
+// // In Necronomicon, Lists are temporal constructs
+// // However, they can also be used internall for list structures
+// //--------------------
+// // Language Constructs
+// typedef struct
+// {
+//     uint32_t      var_symbol;
+//     NecroObjectID cached_env_node_id;
+// } NecroVar;
+
+// typedef struct
+// {
+//     NecroObjectID current_value_id;
+//     NecroObjectID lambda_id;
+//     NecroObjectID argument_list_id;
+//     uint32_t      argument_count;
+// } NecroApp;
+
+// typedef struct
+// {
+//     NecroObjectID lambda_id;
+//     NecroObjectID argument_list_id;
+//     uint32_t      current_arg_count;
+// } NecroPap;
+
+// typedef struct
+// {
+//     NecroObjectID body_id;
+//     NecroObjectID env_id;
+//     NecroObjectID where_list_id;
+//     uint32_t      arity;
+// } NecroLambda;
+
+// typedef struct
+// {
+//     uint32_t      op;
+// } NecroPrimOp;
+
+// typedef struct
+// {
+//     NecroObjectID head;
+//     NecroObjectID current;
+//     uint32_t      count;
+// } NecroSequence;
+
+// //--------------------
+// // Utility Objects
+
+// //--------
+// // NecroEnv, implemented as a Cactus stack / Parent Pointer tree,
+// // i.e. a linked list of nodes, with keys and values, with shadowing
+// //     * a pointer to the next env node,
+// //     * a key which must be matched against.
+// //     * a pointer to the value that this node contains
+// typedef struct
+// {
+//     NecroObjectID next_env_id;
+//     uint32_t      key;
+//     NecroObjectID value_id;
+// } NecroEnv;
+
+// typedef struct
+// {
+//     NecroObjectID value_id;
+//     NecroObjectID next_id;
+// } NecroListNode;
+
+// typedef struct
+// {
+//     union
+//     {
+//         // Value Objects
+//         double        float_value;
+//         int64_t       int_value;
+//         char          char_value;
+//         bool          bool_value;
+//         NecroAudioID  audio_id;
+//         NecroSequence sequence;
+
+//         // Language Constructs
+//         NecroVar    var;
+//         NecroApp    app;
+//         NecroPap    pap;
+//         NecroLambda lambda;
+//         NecroPrimOp primop;
+
+//         // Utility Objects
+//         NecroEnv      env;
+//         NecroListNode list_node;
+//         uint32_t      next_free_index;
+//     };
+//     uint32_t           ref_count;
+//     NECRO_OBJECT_TYPE  type;
+//     NECRO_SIGNAL_STATE signal_state;
+// } NecroObject;
+
+// typedef struct
+// {
+//     uint32_t sample_rate;
+//     uint32_t block_size;
+// } NecroAudioInfo;
+
+// struct NecroRuntime
+// {
+//     NecroObject*   objects;
+//     uint32_t       object_free_list;
+//     double*        audio;
+//     uint32_t*      audio_free_list;
+//     uint32_t       audio_free_list_head;
+//     NecroAudioInfo audio_info;
+// };
+
+// NecroRuntime  necro_create_runtime(NecroAudioInfo audio_info);
+// void          necro_destroy_runtime(NecroRuntime* runtime);
+// NecroObjectID necro_alloc_object(NecroRuntime* runtime);
+// void          necro_free_object(NecroRuntime* runtime, NecroObjectID object_id);
+// NecroAudioID  necro_alloc_audio(NecroRuntime* runtime);
+// void          necro_free_audio(NecroRuntime* runtime, NecroAudioID audio_id);
+// NecroObjectID necro_create_var(NecroRuntime* runtime, NecroVar var);
+// NecroObjectID necro_create_app(NecroRuntime* runtime, NecroApp app);
+// NecroObjectID necro_create_pap(NecroRuntime* runtime, NecroPap pap);
+// NecroObjectID necro_create_lambda(NecroRuntime* runtime, NecroLambda lambda);
+// NecroObjectID necro_create_primop(NecroRuntime* runtime, NecroPrimOp primop);
+// NecroObjectID necro_create_env(NecroRuntime* runtime, NecroEnv env);
+// NecroObjectID necro_create_float(NecroRuntime* runtime, double value);
+// NecroObjectID necro_create_int(NecroRuntime* runtime, int64_t value);
+// NecroObjectID necro_create_char(NecroRuntime* runtime, char value);
+// NecroObjectID necro_create_bool(NecroRuntime* runtime, bool value);
+// NecroObjectID necro_create_list_node(NecroRuntime* runtime, NecroListNode list_node);
+// NecroObjectID necro_eval(NecroRuntime* runtime, NecroObjectID env, NecroObjectID object);
+// void          necro_print_object(NecroRuntime* runtime, NecroObjectID object);
+
+// void          necro_test_runtime();
+// void          necro_test_eval();
+
 #endif // RUNTIME_H
+

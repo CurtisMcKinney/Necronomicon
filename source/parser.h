@@ -15,6 +15,20 @@
 typedef uint32_t NecroAST_LocalPtr;
 static const NecroAST_LocalPtr null_local_ptr = (uint32_t) -1;
 
+typedef enum
+{
+    NECRO_AST_UNDEFINED,
+    NECRO_AST_CONSTANT,
+    NECRO_AST_UN_OP,
+    NECRO_AST_BIN_OP,
+    NECRO_AST_IF_THEN_ELSE,
+    NECRO_AST_TOP_DECL,
+    NECRO_AST_DECL,
+    NECRO_AST_SIMPLE_ASIGNMENT,
+    NECRO_AST_RIGHT_HAND_SIDE,
+    // NECRO_AST_MODULE,
+} NecroAST_NodeType;
+
 //=====================================================
 // AST Module
 //=====================================================
@@ -121,17 +135,71 @@ typedef struct
 } NecroAST_IfThenElse;
 
 //=====================================================
-// AST Node
+// AST Right Hand Side
 //=====================================================
 
-typedef enum
+typedef struct
 {
-    NECRO_AST_UNDEFINED,
-    NECRO_AST_CONSTANT,
-    NECRO_AST_UN_OP,
-    NECRO_AST_BIN_OP,
-    NECRO_AST_IF_THEN_ELSE
-} NecroAST_NodeType;
+    NecroAST_LocalPtr expression;
+    NecroAST_LocalPtr declarations;
+} NecroAST_RightHandSide;
+
+//=====================================================
+// AST Simple Assignment
+//=====================================================
+
+typedef struct
+{
+    NecroSymbol variable_name;
+    NecroAST_LocalPtr rhs;
+} NecroAST_SimpleAssignment;
+
+//=====================================================
+// AST Declarations
+//=====================================================
+
+typedef struct
+{
+    NecroAST_LocalPtr declaration_impl;
+    NecroAST_LocalPtr next_declaration; // Points to the next in the list, null_local_ptr if the end
+} NecroAST_Declaration;
+
+//=====================================================
+// AST Top Declarations
+//=====================================================
+
+typedef struct
+{
+    NecroAST_LocalPtr declaration;
+    NecroAST_LocalPtr next_top_decl; // Points to the next in the list, null_local_ptr if the end
+} NecroAST_TopDeclaration;
+
+
+//=====================================================
+// AST Module
+//=====================================================
+
+// To Do: Define these!
+// typedef struct
+// {
+//     NecroAST_LocalPtr body;
+// } NecroAST_SimpleModule;
+//
+// typedef struct
+// {
+//     NecroAST_LocalPtr body;
+// } NecroAST_ModuleWithExports;
+//
+// typedef union
+// {
+//     NecroAST_Body body;
+//     NecroAST_SimpleModule simple_module;
+//     NecroAST_ModuleWithExports module_with_exports;
+// } NecroAST_Module;
+
+//=====================================================
+// AST Node
+//=====================================================
 
 typedef struct
 {
@@ -142,6 +210,10 @@ typedef struct
         // NecroAST_UnaryOp unary_op; // Do we need this?
         NecroAST_BinOp bin_op;
         NecroAST_IfThenElse if_then_else;
+        NecroAST_TopDeclaration top_declaration;
+        NecroAST_Declaration declaration;
+        NecroAST_SimpleAssignment simple_assignment;
+        NecroAST_RightHandSide right_hand_side;
     };
 
     NecroAST_NodeType type;
@@ -158,11 +230,14 @@ typedef struct
 
 static inline NecroAST_Node* ast_get_node(NecroAST* ast, NecroAST_LocalPtr local_ptr)
 {
+    assert(ast != NULL);
+    assert(local_ptr != null_local_ptr);
     return ((NecroAST_Node*) ast->arena.region) + local_ptr;
 }
 
 static inline NecroAST_Node* ast_get_root_node(NecroAST* ast)
 {
+    assert(ast != NULL);
     return (NecroAST_Node*) ast->arena.region;
 }
 

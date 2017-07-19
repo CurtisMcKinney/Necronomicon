@@ -338,7 +338,7 @@ NecroParse_Result parse_ast(NecroParser* parser, NecroAST_LocalPtr* out_root_nod
                 parser->error_message,
                 MAX_ERROR_MESSAGE_SIZE,
                 "Parsing ended without error, but not all tokens were consumed. This is likely a parser bug.\n"
-                "Parsing ended at line %" PRIu64 ", character %" PRIu64 ". Parsing stopped at the token %s, which is token number %" PRIu64 ".",
+                "Parsing ended at line %zu, character %zu. Parsing stopped at the token %s, which is token number %zu.",
                 look_ahead_token->line_number,
                 look_ahead_token->character_number,
                 necro_lex_token_type_string(look_ahead_token->token),
@@ -422,7 +422,7 @@ NecroAST_LocalPtr parse_declarations(NecroParser* parser)
                     snprintf(
                         parser->error_message,
                         MAX_ERROR_MESSAGE_SIZE,
-                        "Failed to parse declaration, at line %" PRIu64", character %" PRIu64 ". Expected a \'}\' token but instead found %s",
+                        "Failed to parse declaration, at line %zu, character %zu. Expected a \'}\' token but instead found %s",
                         look_ahead_token->line_number,
                         look_ahead_token->character_number,
                         necro_lex_token_type_string(look_ahead_token->token));
@@ -478,7 +478,7 @@ NecroAST_LocalPtr parse_simple_assignment(NecroParser* parser)
             snprintf(
                 parser->error_message,
                 MAX_ERROR_MESSAGE_SIZE,
-                "Right hand side of assignment failed to parse at line %" PRIu64 ", character %" PRIu64 ".",
+                "Right hand side of assignment failed to parse at line %zu, character %zu.",
                 look_ahead_token->line_number,
                 look_ahead_token->character_number);
 
@@ -512,8 +512,8 @@ NecroAST_LocalPtr parse_right_hand_side(NecroParser* parser)
                 snprintf(
                     parser->error_message,
                     MAX_ERROR_MESSAGE_SIZE,
-                    "\'where\' clause failed to parse. Expected declarations after \'where\' token on line %" PRIu64 ", character %" PRIu64 ". "
-                    "Failed to parse declaration starting at line %" PRIu64 ", character %" PRIu64 "",
+                    "\'where\' clause failed to parse. Expected declarations after \'where\' token on line %zu, character %zu. "
+                    "Failed to parse declaration starting at line %zu, character %zu",
                     where_token->line_number,
                     where_token->character_number,
                     look_ahead_token->line_number,
@@ -538,7 +538,7 @@ NecroAST_LocalPtr parse_right_hand_side(NecroParser* parser)
         snprintf(
             parser->error_message,
             MAX_ERROR_MESSAGE_SIZE,
-            "Right hand side expression failed to parse at line %" PRIu64 ", character %" PRIu64 ".",
+            "Right hand side expression failed to parse at line %zu, character %zu.",
             look_ahead_token->line_number,
             look_ahead_token->character_number);
 
@@ -697,7 +697,7 @@ NecroAST_LocalPtr parse_parenthetical_expression(NecroParser* parser)
         snprintf(
             parser->error_message,
             MAX_ERROR_MESSAGE_SIZE,
-            "Failed to parse parenthetical expression. Found a closing bracket at line %" PRIu64 ", character %" PRIu64 ", but there was no matching opening bracket.",
+            "Failed to parse parenthetical expression. Found a closing bracket at line %zu, character %zu, but there was no matching opening bracket: %s",
             look_ahead_token->line_number,
             look_ahead_token->character_number,
             necro_lex_token_type_string(look_ahead_token->token));
@@ -721,7 +721,7 @@ NecroAST_LocalPtr parse_parenthetical_expression(NecroParser* parser)
             snprintf(
                 parser->error_message,
                 MAX_ERROR_MESSAGE_SIZE,
-                "Failed to parse expression after \'(\' token at line %" PRIu64 ", character %" PRIu64 ". Failed beginning with token %s",
+                "Failed to parse expression after \'(\' token at line %zu, character %zu. Failed beginning with token %s",
                 look_ahead_token->line_number,
                 look_ahead_token->character_number,
                 necro_lex_token_type_string(look_ahead_token->token));
@@ -739,7 +739,7 @@ NecroAST_LocalPtr parse_parenthetical_expression(NecroParser* parser)
         snprintf(
             parser->error_message,
             MAX_ERROR_MESSAGE_SIZE,
-            "Failed to parse parenthetical expression because there was no closing bracket at line %" PRIu64 ", character %" PRIu64 ". Failed beginning with token %s",
+            "Failed to parse parenthetical expression because there was no closing bracket at line %zu, character %zu. Failed beginning with token %s",
             look_ahead_token->line_number,
             look_ahead_token->character_number,
             necro_lex_token_type_string(look_ahead_token->token));
@@ -1065,7 +1065,7 @@ NecroAST_LocalPtr parse_if_then_else_expression(NecroParser* parser)
             snprintf(
                 parser->error_message,
                 MAX_ERROR_MESSAGE_SIZE,
-                "Failed to parse expression after \'if\' token at line %" PRIu64 ", character %" PRIu64 ". Failed beginning with token %s",
+                "Failed to parse expression after \'if\' token at line %zu, character %zu. Failed beginning with token %s",
                 look_ahead_token->line_number,
                 look_ahead_token->character_number,
                 necro_lex_token_type_string(look_ahead_token->token));
@@ -1083,7 +1083,7 @@ NecroAST_LocalPtr parse_if_then_else_expression(NecroParser* parser)
         snprintf(
             parser->error_message,
             MAX_ERROR_MESSAGE_SIZE,
-            "Failed to parse \'if-then-else\' expression at line %" PRIu64 ", character %" PRIu64 ". Expected a \'then\' token, but found %s",
+            "Failed to parse \'if-then-else\' expression at line %zu, character %zu. Expected a \'then\' token, but found %s",
             look_ahead_token->line_number,
             look_ahead_token->character_number,
             necro_lex_token_type_string(look_ahead_token->token));
@@ -1103,7 +1103,7 @@ NecroAST_LocalPtr parse_if_then_else_expression(NecroParser* parser)
             snprintf(
                 parser->error_message,
                 MAX_ERROR_MESSAGE_SIZE,
-                "Failed to parse expression after \'then\' token in \'if-then-else\' expression, at line %" PRIu64 ", character %" PRIu64 ". Failed beginning with token %s",
+                "Failed to parse expression after \'then\' token in \'if-then-else\' expression, at line %zu, character %zu. Failed beginning with token %s",
                 look_ahead_token->line_number,
                 look_ahead_token->character_number,
                 necro_lex_token_type_string(look_ahead_token->token));
@@ -1122,7 +1122,7 @@ NecroAST_LocalPtr parse_if_then_else_expression(NecroParser* parser)
         snprintf(
             parser->error_message,
             MAX_ERROR_MESSAGE_SIZE,
-            "Failed to parse \'if-then-else\' expression at line %" PRIu64 ", character %" PRIu64 ". Expected an \'else\' token, but found %s",
+            "Failed to parse \'if-then-else\' expression at line %zu, character %zu. Expected an \'else\' token, but found %s",
             look_ahead_token->line_number,
             look_ahead_token->character_number,
             necro_lex_token_type_string(look_ahead_token->token));
@@ -1142,7 +1142,7 @@ NecroAST_LocalPtr parse_if_then_else_expression(NecroParser* parser)
             snprintf(
                 parser->error_message,
                 MAX_ERROR_MESSAGE_SIZE,
-                "Failed to parse expression after \'else\' token in \'if-then-else\' expression, at line %" PRIu64 ", character %" PRIu64 ". Failed beginning with token %s",
+                "Failed to parse expression after \'else\' token in \'if-then-else\' expression, at line %zu, character %zu. Failed beginning with token %s",
                 look_ahead_token->line_number,
                 look_ahead_token->character_number,
                 necro_lex_token_type_string(look_ahead_token->token));

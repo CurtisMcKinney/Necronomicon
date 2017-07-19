@@ -1,3 +1,4 @@
 a = 1
 b = 2
-c = if '?' then (if (if "Necronomicon" then 55.555 else 65.4321) then 77 else 99) else (if (666 + 111 * 333) then "Doom!" else (13.1313 / 0.1 - 2))
+c = 1 + 2 * 3
+d = if '?' then (if (if "Necronomicon" then 55.555 else 65.4321) then 77 else 99) else (if (666 + 111 * 333) then "Doom!" else (13.1313 / 0.1 - 2))

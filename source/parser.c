@@ -71,6 +71,8 @@ NecroAST_LocalPtr ast_last_node_ptr(NecroParser* parser)
     return local_ptr;
 }
 
+#define AST_TAB "  "
+
 void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern, uint32_t depth)
 {
     assert(ast != NULL);
@@ -78,7 +80,7 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
     assert(intern != NULL);
     for (uint32_t i = 0;  i < depth; ++i)
     {
-        printf("\t");
+        printf(AST_TAB);
     }
 
     switch(ast_node->type)
@@ -209,9 +211,9 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         {
             for (uint32_t i = 0;  i < depth; ++i)
             {
-                printf("\t");
+                printf(AST_TAB);
             }
-            puts("\t\twhere\n");
+            puts(AST_TAB AST_TAB "where\n");
             print_ast_impl(ast, ast_get_node(ast, ast_node->right_hand_side.declarations), intern, depth + 3);
         }
         break;
@@ -321,12 +323,26 @@ NecroParse_Result parse_ast(NecroParser* parser, NecroAST_LocalPtr* out_root_nod
         necro_lex_token_type_string(peek_token_type(parser)),
         parser->ast);
 #endif // PARSE_DEBUG_PRINT
-    if ((local_ptr != null_local_ptr) &&
-        (parser->descent_state != NECRO_DESCENT_PARSE_ERROR) &&
-        (peek_token_type(parser) ==  NECRO_LEX_END_OF_STREAM) || (peek_token_type(parser) ==  NECRO_LEX_SEMI_COLON))
+    if ((local_ptr != null_local_ptr) && (parser->descent_state != NECRO_DESCENT_PARSE_ERROR))
     {
-        *out_root_node_ptr = local_ptr;
-        return ParseSuccessful;
+        if ((peek_token_type(parser) ==  NECRO_LEX_END_OF_STREAM) || (peek_token_type(parser) ==  NECRO_LEX_SEMI_COLON))
+        {
+            *out_root_node_ptr = local_ptr;
+            return ParseSuccessful;
+        }
+        else
+        {
+            NecroLexToken* look_ahead_token = peek_token(parser);
+            snprintf(
+                parser->error_message,
+                MAX_ERROR_MESSAGE_SIZE,
+                "Parsing ended without error, but not all tokens were consumed. This is likely a parser bug.\n"
+                "Parsing ended at line %i, character %i. Parsing stopped at the token %s, which is token number %u.",
+                look_ahead_token->line_number,
+                look_ahead_token->character_number,
+                necro_lex_token_type_string(look_ahead_token->token),
+                (uint32_t) parser->current_token);
+        }
     }
 
     *out_root_node_ptr = null_local_ptr;
@@ -395,9 +411,9 @@ NecroAST_LocalPtr parse_declarations(NecroParser* parser)
         NecroAST_LocalPtr next_decl = null_local_ptr;
         if (peek_token_type(parser) == NECRO_LEX_SEMI_COLON)
         {
-            consume_token(parser); // consume SemiColon token
             if (is_list)
             {
+                consume_token(parser); // consume SemiColon token
                 next_decl = parse_declarations(parser);
                 if ((parser->descent_state != NECRO_DESCENT_PARSE_ERROR) && (peek_token_type(parser) != NECRO_LEX_RIGHT_BRACE))
                 {

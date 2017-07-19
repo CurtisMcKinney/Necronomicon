@@ -99,7 +99,7 @@ typedef enum
 {
     NECRO_CONSTANT,
     NECRO_LIVE,
-    NECRO_INHIBIT,
+    NECRO_YIELD,
     NECRO_END
 } NECRO_SIGNAL_STATE;
 
@@ -109,7 +109,7 @@ typedef enum
     //--------------------
     // Value Objects
     NECRO_OBJECT_NULL,
-    NECRO_OBJECT_INHIBIT,
+    NECRO_OBJECT_YIELD,
     NECRO_OBJECT_FLOAT,
     NECRO_OBJECT_INT,
     NECRO_OBJECT_CHAR,
@@ -277,5 +277,98 @@ void          necro_print_object(NecroRuntime* runtime, NecroObjectID object);
 
 void          necro_test_runtime();
 void          necro_test_eval();
+
+//=====================================================
+// VM
+//=====================================================
+// TODO:
+//    * structs
+//    * c calls
+//    * Audio
+typedef enum
+{
+    // Integer operations
+    N_PUSH_I,
+    N_ADD_I,
+    N_SUB_I,
+    N_MUL_I,
+    N_NEG_I,
+    N_DIV_I,
+    N_MOD_I,
+    N_EQ_I,
+    N_NEQ_I,
+    N_LT_I,
+    N_LTE_I,
+    N_GT_I,
+    N_GTE_I,
+    N_BIT_AND_I,
+    N_BIT_OR_I,
+    N_BIT_XOR_I,
+    N_BIT_LS_I,
+    N_BIT_RS_I,
+
+    // Functions
+    N_CALL,
+    N_RETURN,
+    N_C_CALL_1,
+    N_C_CALL_2,
+    N_C_CALL_3,
+    N_C_CALL_4,
+    N_C_CALL_5,
+
+    // structs
+    N_MAKE_STRUCT,
+
+    // Memory
+    N_LOAD_L,
+    N_STORE_L,
+
+    // Jumping
+    N_JMP,
+    N_JMP_IF,
+    N_JMP_IF_NOT,
+
+    // Commands
+    N_POP,
+    N_PRINT,
+    N_PRINT_STACK,
+    N_HALT
+} NECRO_BYTE_CODE;
+
+typedef union
+{
+    int64_t int_value;
+    double  float_value;
+} NecroVal;
+
+typedef NecroVal (*necro_c_call_1)(NecroVal);
+typedef NecroVal (*necro_c_call_2)(NecroVal, NecroVal);
+typedef NecroVal (*necro_c_call_3)(NecroVal, NecroVal, NecroVal);
+typedef NecroVal (*necro_c_call_4)(NecroVal, NecroVal, NecroVal, NecroVal);
+typedef NecroVal (*necro_c_call_5)(NecroVal, NecroVal, NecroVal, NecroVal, NecroVal);
+
+/*
+    Structure of NecroStructs:
+    - tag:       8 bytes
+    - ref_count: 8 bytes
+    - N args:    8 bytes * N
+    // all structs heap allocated and ref_counted
+*/
+
+// Buddy allocator for structs, closures, etc
+char* necro_alloc(char** hp, size_t pow_of_2);
+int64_t necro_alloc_struct_1(NecroVal field1);
+
+void necro_test_vm();
+void necro_trace_stack(int64_t opcode);
+
+#define NECRO_STACK_SIZE 1024
+#define DEBUG_VM 0
+
+#if DEBUG_VM
+#define TRACE_STACK(opcode) necro_trace_stack(opcode)
+#else
+#define TRACE_STACK(opcode)
+#endif
 
 #endif // RUNTIME_H

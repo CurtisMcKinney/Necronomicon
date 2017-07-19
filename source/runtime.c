@@ -14,11 +14,11 @@
 
 // ObjectIDs
 #define NULL_NECRO_OBJECT_ID    (NecroObjectID) { 0 }
-#define INHIBIT_NECRO_OBJECT_ID (NecroObjectID) { 1 }
+#define YIELD_NECRO_OBJECT_ID (NecroObjectID) { 1 }
 
 // Raw IDs
 #define NULL_ID       0
-#define INHIBIT_ID    1
+#define YIELD_ID      1
 #define MAX_NECRO_ID -1
 
 //=====================================================
@@ -42,7 +42,7 @@ NecroRuntime necro_create_runtime(NecroAudioInfo audio_info)
     // Initialize NecroObject slabs
     NecroObject* objects = (NecroObject*)runtime_memory;
     objects[0].type      = NECRO_OBJECT_NULL;
-    objects[1].type      = NECRO_OBJECT_INHIBIT;
+    objects[1].type      = NECRO_OBJECT_YIELD;
     for (uint32_t i = 2; i < NECRO_INITIAL_NUM_OBJECT_SLABS; ++i)
     {
         objects[i].next_free_index = i - 1;
@@ -255,6 +255,7 @@ NecroObjectID necro_env_lookup(NecroRuntime* runtime, NecroObjectID env, uint32_
 // TODO: Need to figure out where and when to update reference counts!
 // necro_eval_app_lambda:
 //  * Calling convention assumes that the first N entires in the env correspond to the N arguments supplied to the function, and the next X entries correspond to the W definitions in the lambda's where statement
+//  * Or to put it more succinctly, the first N + X nodes of the env form the local stack frame of a cactus stack.
 //  * Assumes Env, App, and Lambda are already evaluated
 static inline NecroObjectID necro_eval_app_lambda(NecroRuntime* runtime, NecroObjectID env, NecroObjectID app, NecroObjectID lambda)
 {
@@ -348,11 +349,12 @@ static inline NecroObjectID necro_eval_app_prim_op(NecroRuntime* runtime, NecroO
 
 // TODO: Semantics for checking for cached values and returning that if it's already been computed!
 // necro_eval:
-//     * All evaluation starts, uses AST Walking
+//     * All evaluation starts here, uses AST Walking
 //     * Will evaluate the provided object at the given id and return the resultant value's id
 //     * If this is a constant (Int, Bool, Lambda, etc) that essentially means simply returning the same ID
 //     * Function application will evaluate the result of the application, cache the result's id in the app's current value, and return the result's id.
 //     * Variables will return the value id which they point. If the value id is not cached it will perform an env_lookup in the provided envelope, then cache the result.
+//     * Caching is useful in Necronomicon because AST nodes are long living entities that will be evaluated many times over.
 NecroObjectID necro_eval(NecroRuntime* runtime, NecroObjectID env, NecroObjectID object)
 {
     // printf("necro_eval");
@@ -366,7 +368,6 @@ NecroObjectID necro_eval(NecroRuntime* runtime, NecroObjectID env, NecroObjectID
         else if (runtime->objects[lambda_id.id].type == NECRO_OBJECT_LAMBDA)
             return necro_eval_app_lambda(runtime, env, object, lambda_id);
         // TODO: FINISH!
-        // else if (runtime->objects[lambda_id].type == NECRO_OBJECT_LAMBDA)
         // else if (runtime->objects[lambda_id].type == NECRO_OBJECT_PAP)
         fprintf(stderr, "Object cannot be applied as a function: %d\n", runtime->objects[lambda_id.id].type);
         assert(false);
@@ -396,7 +397,7 @@ NecroObjectID necro_eval(NecroRuntime* runtime, NecroObjectID env, NecroObjectID
     case NECRO_OBJECT_PRIMOP:
         return object;
     default:
-        fprintf(stderr, "Unsupported type in necro_eval: %d\n", runtime->objects[object.id].type);
+        fprintf(stderr, "Unsupported type in necro_eval: %d, found at id: %d\n", runtime->objects[object.id].type, object.id);
         assert(false);
         return NULL_NECRO_OBJECT_ID;
     }
@@ -591,7 +592,7 @@ void necro_test_eval()
         // For comparison python is around 30x slower than C
         // Necronomicon benchmark
         double start_time = (double) clock() / (double) CLOCKS_PER_SEC;
-        int64_t iterations  = 100000;
+        int64_t iterations  = 10000;
         int64_t accumulator = 0;
         for (size_t i = 0; i < iterations; ++i)
         {
@@ -657,7 +658,7 @@ void necro_test_eval()
         // For comparison python is around 30x slower than C
         // Necronomicon benchmark
         double start_time = (double) clock() / (double) CLOCKS_PER_SEC;
-        int64_t iterations  = 100000;
+        int64_t iterations  = 10000;
         int64_t accumulator = 0;
         for (size_t i = 0; i < iterations; ++i)
         {
@@ -723,4 +724,656 @@ void necro_test_eval()
         necro_test_expr_eval(&runtime, "eval 3", result, NECRO_OBJECT_INT, 30);
         necro_destroy_runtime(&runtime);
     }
+}
+
+//=====================================================
+// VM
+//=====================================================
+
+void necro_trace_stack(int64_t opcode)
+{
+    switch (opcode)
+    {
+    case N_PUSH_I:      puts("N_PUSH_I");      return;
+    case N_ADD_I:       puts("N_ADD_I");       return;
+    case N_SUB_I:       puts("N_SUB_I");       return;
+    case N_MUL_I:       puts("N_MUL_I");       return;
+    case N_NEG_I:       puts("N_NEG_I");       return;
+    case N_DIV_I:       puts("N_DIV_I");       return;
+    case N_MOD_I:       puts("N_MOD_I");       return;
+    case N_EQ_I:        puts("N_EQ_I");        return;
+    case N_NEQ_I:       puts("N_NEQ_I");       return;
+    case N_LT_I:        puts("N_LT_I");        return;
+    case N_LTE_I:       puts("N_LTE_I");       return;
+    case N_GT_I:        puts("N_GT_I");        return;
+    case N_GTE_I:       puts("N_GTE_I");       return;
+    case N_BIT_AND_I:   puts("N_BIT_AND_I");   return;
+    case N_BIT_OR_I:    puts("N_BIT_OR_I");    return;
+    case N_BIT_XOR_I:   puts("N_BIT_XOR_I");   return;
+    case N_BIT_LS_I:    puts("N_BIT_LS_I");    return;
+    case N_BIT_RS_I:    puts("N_BIT_RS_I");    return;
+    case N_CALL:        puts("N_CALL");        return;
+    case N_RETURN:      puts("N_RETURN");      return;
+    case N_LOAD_L:      puts("N_LOAD_L");      return;
+    case N_STORE_L:     puts("N_STORE_L");     return;
+    case N_JMP:         puts("N_JMP");         return;
+    case N_JMP_IF:      puts("N_JMP_IF");      return;
+    case N_JMP_IF_NOT:  puts("N_JMP_IF_NOT");  return;
+    case N_POP:         puts("N_POP");         return;
+    case N_PRINT:       puts("N_PRINT");       return;
+    case N_PRINT_STACK: puts("N_PRINT_STACK"); return;
+    case N_HALT:        puts("N_HALT");        return;
+    default:            puts("UKNOWN");        return;
+    }
+}
+
+// Therefore, must calculate the number of local args and make room for that when calling functions
+// Then you use Stores to store into the local variables from the operand stack
+
+// This is now more like 5.5 slower than C
+// Stack machine with accumulator
+uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
+{
+
+    register char*    hp  = malloc(heap_size);                          // Heap  grows up
+    register int64_t* sp  = malloc(NECRO_STACK_SIZE * sizeof(int64_t)); // Stack grows down
+    register int64_t* pc  = instructions;
+    register int64_t* fp  = 0;
+    register int64_t  acc = 0;
+    register int64_t  env = 0;
+    sp = sp + (NECRO_STACK_SIZE - 1);
+    fp = sp - 2;
+    pc--;
+    while (true)
+    {
+        int64_t opcode = *++pc;
+        TRACE_STACK(opcode);
+        switch (opcode)
+        {
+        // Integer operations
+        case N_PUSH_I:
+            *--sp = acc;
+            acc = *++pc;
+            break;
+        case N_ADD_I:
+            acc = acc + *sp++;
+            break;
+        case N_SUB_I:
+            acc = acc - *sp++;
+            break;
+        case N_MUL_I:
+            acc = acc * *sp++;
+            break;
+        case N_NEG_I:
+            acc = -acc;
+            break;
+        case N_DIV_I:
+            acc = acc / *sp++;
+            break;
+        case N_MOD_I:
+            acc = acc % *sp++;
+            break;
+        case N_EQ_I:
+            acc = acc == *sp++;
+            break;
+        case N_NEQ_I:
+            acc = acc != *sp++;
+            break;
+        case N_LT_I:
+            acc = acc < *sp++;
+            break;
+        case N_LTE_I:
+            acc = acc <= *sp++;
+            break;
+        case N_GT_I:
+            acc = acc > *sp++;
+            break;
+        case N_GTE_I:
+            acc = acc >= *sp++;
+            break;
+        case N_BIT_AND_I:
+            acc = acc & *sp++;
+            break;
+        case N_BIT_OR_I:
+            acc = acc | *sp++;
+            break;
+        case N_BIT_XOR_I:
+            acc = acc ^ *sp++;
+            break;
+        case N_BIT_LS_I:
+            acc = acc << *sp++;
+            break;
+        case N_BIT_RS_I:
+            acc = acc >> *sp++;
+            break;
+
+        // Functions
+        // Stack Frame:
+        //  - args
+        //  <---------- fp points at last arguments,
+        //              LOAD 0 loads the final argument, positive values go into lower arguments.
+        //              Negative values count into stack frame, after 3 this starts loading local variables
+        //  - saved registers (pc, fp, env, argc)
+        //  - Locals
+        //  - operand stack
+        //  When calling into a subroutine, the operand
+        //  stack of the current frame becomes the args of the next
+        case N_CALL: // one operand: number of args to reserve in current operand stack
+            sp   -= 4;
+            sp[0] = (int64_t) (pc + 1); // pc gets incremented at top, so set pc to one less than call site
+            sp[1] = (int64_t) fp;
+            sp[2] = env;
+            sp[3] = *++pc;
+            fp    = sp + 4;
+            pc    = (int64_t*) acc - 1; // pc gets incremented at top, so set pc to one less than call site
+            env   = acc + 1;
+            break;
+
+        case N_RETURN:
+            sp   = fp - 4;
+            pc   = (int64_t*)sp[0];
+            fp   = (int64_t*)sp[1];
+            env  = sp[2];
+            sp  += sp[3] + 4;
+            break;
+
+        case N_C_CALL_1:
+            acc = ((necro_c_call_1)(*++pc))((NecroVal) { acc }).int_value;
+            break;
+        case N_C_CALL_2:
+            acc = ((necro_c_call_2)(*++pc))((NecroVal) { acc }, (NecroVal) { sp[0] }).int_value;
+            sp++;
+            break;
+        case N_C_CALL_3:
+            acc = ((necro_c_call_3)(*++pc))((NecroVal) { acc }, (NecroVal) { sp[0] }, (NecroVal) { sp[1] }).int_value;
+            sp += 2;
+            break;
+        case N_C_CALL_4:
+            acc = ((necro_c_call_4)(*++pc))((NecroVal) { acc }, (NecroVal) { sp[0] }, (NecroVal) { sp[1] }, (NecroVal) { sp[2] }).int_value;
+            sp += 3;
+            break;
+        case N_C_CALL_5:
+            acc = ((necro_c_call_5)(*++pc))((NecroVal) { acc }, (NecroVal) { sp[0] }, (NecroVal) { sp[1] }, (NecroVal) { sp[2] }, (NecroVal) { sp[3] }).int_value;
+            sp += 4;
+            break;
+
+        // structs
+        case N_MAKE_STRUCT:
+            break;
+
+        // Memory
+        case N_LOAD_L: // Loads a local variable relative to current frame pointer
+            *--sp = acc;
+            acc   = *(fp + *++pc);
+            break;
+        case N_STORE_L: // Stores a local variables relative to current frame pointer
+            *(fp + *++pc) = acc;
+            acc = *sp++;
+            break;
+
+        // Jumping
+        case N_JMP:
+            pc++;
+            pc += *pc; // Using relative jumps
+            break;
+        case N_JMP_IF:
+            pc++;
+            if (acc)
+                pc += *pc;
+            acc = *sp--;
+            break;
+        case N_JMP_IF_NOT:
+            pc++;
+            if (!acc)
+                pc += *pc;
+            acc = *sp--;
+            break;
+
+        // Commands
+        case N_POP:
+            sp++;
+            break;
+        case N_PRINT:
+            printf("PRINT: %lld\n", acc);
+            break;
+        case N_PRINT_STACK:
+            printf("PRINT_STACK:\n    ACC: %lld\n", acc);
+            {
+                size_t i = 0;
+                for (int64_t* sp2 = sp; sp2 != fp; ++sp2)
+                {
+                    printf("    [%d]: %lld\n", i, *sp2);
+                    ++i;
+                }
+            }
+            break;
+        case N_HALT:
+            return acc;
+        default:
+            printf("Unrecognized command: %lld\n", *pc);
+            return acc;
+        }
+    }
+}
+
+void necro_test_vm_eval(int64_t* instr, int64_t result, const char* print_string)
+{
+    int64_t vm_result = necro_run_vm(instr, 0);
+    if (vm_result == result)
+        printf("%s passed\n", print_string);
+    else
+        printf("%s FAILED\n    expected result: %lld\n    vm result:       %lld\n\n", print_string, result, vm_result);
+#if DEBUG_VM
+    puts("");
+#endif
+}
+
+void necro_test_vm()
+{
+    puts("\n------");
+    puts("Test VM\n");
+
+    // Integer tests
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I, 7,
+            N_PUSH_I, 6,
+            N_ADD_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 13, "AddI:   ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I, 4,
+            N_PUSH_I, 9,
+            N_SUB_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 5, "SubI:   ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I, 10,
+            N_PUSH_I, 3,
+            N_MUL_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 30, "MulI:   ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I,     10,
+            N_NEG_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, -10, "NegI:   ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I, 10,
+            N_PUSH_I, 1000,
+            N_DIV_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 100, "DivI:   ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I, 4,
+            N_PUSH_I, 5,
+            N_MOD_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 1, "ModI:   ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I, 666,
+            N_PUSH_I, 555,
+            N_EQ_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 0, "EqI:    ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I, 666,
+            N_PUSH_I, 555,
+            N_NEQ_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 1, "NEqI:   ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I, 1,
+            N_PUSH_I, 2,
+            N_LT_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 0, "LTI:    ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I, 3,
+            N_PUSH_I, 3,
+            N_LTE_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 1, "LTEI:   ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I, 100,
+            N_PUSH_I, 200,
+            N_GT_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 1, "GTI:    ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I, 100,
+            N_PUSH_I, 99,
+            N_GTE_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 0, "GTEI:   ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I, 7,
+            N_PUSH_I, 6,
+            N_BIT_AND_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 6 & 7, "BAND:   ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I, 13,
+            N_PUSH_I, 4,
+            N_BIT_OR_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 4 | 13, "BOR:    ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I, 22,
+            N_PUSH_I, 11,
+            N_BIT_XOR_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 11 ^ 22, "BXOR:   ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I, 2,
+            N_PUSH_I, 4,
+            N_BIT_LS_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 4 << 2, "BLS:    ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I, 1,
+            N_PUSH_I, 5,
+            N_BIT_RS_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 5 >> 1, "BRS:    ");
+    }
+
+    // Jump tests
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I, 6,
+            N_JMP, 2,
+            N_PUSH_I, 7,
+            N_PUSH_I, 8,
+            N_ADD_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 14, "Jmp:    ");
+    }
+
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I, 3,
+            N_PUSH_I, 1,
+            N_JMP_IF, 4,
+            N_PUSH_I, 4,
+            N_JMP,    2,
+            N_PUSH_I, 5,
+            N_ADD_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 8, "JmpIf 1:");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I, 3,
+            N_PUSH_I, 0,
+            N_JMP_IF, 4,
+            N_PUSH_I, 4,
+            N_JMP,    2,
+            N_PUSH_I, 5,
+            N_ADD_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 7, "JmpIf 2:");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I,     10,
+            N_PUSH_I,     1,
+            N_JMP_IF_NOT, 4,
+            N_PUSH_I,     20,
+            N_JMP,        2,
+            N_PUSH_I,     50,
+            N_SUB_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 10, "JmpIfN1:");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I,     10,
+            N_PUSH_I,     0,
+            N_JMP_IF_NOT, 4,
+            N_PUSH_I,     40,
+            N_JMP,        2,
+            N_PUSH_I,     50,
+            N_SUB_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 40, "JmpIfN2:");
+    }
+
+    // Memory
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I, 10,
+            N_PUSH_I, 5,
+            N_MUL_I,
+            N_LOAD_L, 0,
+            N_LOAD_L, 0,
+            N_ADD_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 100, "Load1:  ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I, 10,
+            N_PUSH_I, 5,
+            N_MUL_I,
+            N_PUSH_I, 20,
+            N_PUSH_I, 20,
+            N_ADD_I,
+            N_LOAD_L, 0,
+            N_LOAD_L, -1,
+            N_SUB_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, -10, "Load2:  ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I,  0,
+            N_PUSH_I,  0,
+            N_PUSH_I,  60,
+            N_STORE_L, 0,
+            N_PUSH_I,  5,
+            N_PUSH_I,  8,
+            N_MUL_I,
+            N_STORE_L, -1,
+            N_LOAD_L,  0,
+            N_LOAD_L,  -1,
+            N_SUB_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, -20, "Store1: ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I, 10,
+            N_PUSH_I, 20,
+            N_PUSH_I, (int64_t)(instr + 8),
+            N_CALL,   2,
+            N_LOAD_L, 1,
+            N_LOAD_L, 0,
+            N_ADD_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 30, "CALL1:  ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            // Push 10, then 20, then call function
+            N_PUSH_I, 10,
+            N_PUSH_I, 20,
+            N_PUSH_I, (int64_t)(instr + 18),
+            N_CALL,   2,
+
+            // With the result of the function on the stack, push 5, then call function again
+            N_PUSH_I, 5,
+            N_PUSH_I, (int64_t)(instr + 18),
+            N_CALL,   2,
+
+            // With the result of the function on the stack, push 10 then add the results, then halt
+            N_PUSH_I, 10,
+            N_ADD_I,
+            N_HALT,
+
+            // Function that will be called multiple times
+            N_LOAD_L, 1,
+            N_LOAD_L, 0,
+            N_SUB_I,
+            N_RETURN
+        };
+        necro_test_vm_eval(instr, 5, "CALL2:  ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            // Push 5 and 6 to stack, then call function 1
+            N_PUSH_I, 5,
+            N_PUSH_I, 6,
+            N_PUSH_I, (int64_t)(instr + 9), // function 1 addr
+            N_CALL,   2, // call function1 with 2 arguments
+
+            // End
+            N_HALT,
+
+            // Function 1
+            N_LOAD_L, 1,
+            N_LOAD_L, 0,
+            N_ADD_I,
+            N_PUSH_I, (int64_t)(instr + 19), // function 2 addr
+            N_CALL,   1, // Call function2 with 1 argument
+            N_RETURN,
+
+            // Function 2
+            N_LOAD_L, 0,
+            N_LOAD_L, 0,
+            N_MUL_I,
+            N_RETURN
+        };
+        necro_test_vm_eval(instr, 121, "CALL3:  ");
+    }
+
+    {
+        // (\x -> x2 + y where x2 = x + x; y = x) 10
+        int64_t instr[] =
+        {
+            N_PUSH_I, 10,
+            N_PUSH_I, (int64_t)(instr + 7), // addr of function
+            N_CALL,   1,
+            N_HALT,
+            N_LOAD_L, 0,
+            N_LOAD_L, 0,
+            N_ADD_I,
+            N_LOAD_L, 0,
+            N_ADD_I,
+            N_RETURN
+        };
+        necro_test_vm_eval(instr, 30, "CALL4:  ");
+    }
+
 }

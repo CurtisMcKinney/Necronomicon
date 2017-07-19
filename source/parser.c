@@ -73,6 +73,9 @@ NecroAST_LocalPtr ast_last_node_ptr(NecroParser* parser)
 
 void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern, uint32_t depth)
 {
+    assert(ast != NULL);
+    assert(ast_node != NULL);
+    assert(intern != NULL);
     for (uint32_t i = 0;  i < depth; ++i)
     {
         printf("\t");
@@ -182,15 +185,21 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
     case NECRO_AST_TOP_DECL:
         puts("(Top Declaration)");
         print_ast_impl(ast, ast_get_node(ast, ast_node->top_declaration.declaration), intern, depth + 1);
-        print_ast_impl(ast, ast_get_node(ast, ast_node->top_declaration.next_top_decl), intern, depth);
+        if (ast_node->top_declaration.next_top_decl != null_local_ptr)
+        {
+            print_ast_impl(ast, ast_get_node(ast, ast_node->top_declaration.next_top_decl), intern, depth);
+        }
         break;
     case NECRO_AST_DECL:
         puts("(Declaration)");
         print_ast_impl(ast, ast_get_node(ast, ast_node->declaration.declaration_impl), intern, depth + 1);
-        print_ast_impl(ast, ast_get_node(ast, ast_node->declaration.next_declaration), intern, depth);
+        if (ast_node->declaration.next_declaration != null_local_ptr)
+        {
+            print_ast_impl(ast, ast_get_node(ast, ast_node->declaration.next_declaration), intern, depth);
+        }
         break;
     case NECRO_AST_SIMPLE_ASIGNMENT:
-        printf("(Assignment: %s)\n", ast_node->simple_assignment.variable_name);
+        printf("(Assignment: %s)\n", necro_intern_get_string(intern, ast_node->simple_assignment.variable_name));
         print_ast_impl(ast, ast_get_node(ast, ast_node->simple_assignment.rhs), intern, depth + 1);
         break;
     case NECRO_AST_RIGHT_HAND_SIDE:
@@ -214,7 +223,14 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
 
 void print_ast(NecroAST* ast, NecroIntern* intern, NecroAST_LocalPtr root_node_ptr)
 {
-    print_ast_impl(ast, ast_get_node(ast, root_node_ptr), intern, 0);
+    if (root_node_ptr == null_local_ptr)
+    {
+        puts("(Empty AST)");
+    }
+    else
+    {
+        print_ast_impl(ast, ast_get_node(ast, root_node_ptr), intern, 0);
+    }
 }
 
 double compute_ast_math_impl(NecroAST* ast, NecroAST_Node* ast_node)
@@ -323,14 +339,6 @@ NecroAST_LocalPtr parse_top_declarations(NecroParser* parser)
         return null_local_ptr;
 
     NecroParser_Snapshot snapshot = snapshot_parser(parser);
-
-    NecroAST_LocalPtr top_decl_local_ptr = null_local_ptr;
-    {
-        NecroAST_Node* top_decl_node = ast_alloc_node_local_ptr(parser, &top_decl_local_ptr);
-        top_decl_node->top_declaration.declaration = null_local_ptr;
-        top_decl_node->top_declaration.next_top_decl = null_local_ptr;
-    }
-
     NecroAST_LocalPtr declarations_local_ptr = parse_declarations(parser);
     if ((declarations_local_ptr != null_local_ptr) && (parser->descent_state != NECRO_DESCENT_PARSE_ERROR))
     {
@@ -341,10 +349,22 @@ NecroAST_LocalPtr parse_top_declarations(NecroParser* parser)
             next_top_decl = parse_top_declarations(parser);
         }
 
-        NecroAST_Node* top_decl_node = ast_get_node(parser->ast, top_decl_local_ptr);
+        NecroAST_LocalPtr top_decl_local_ptr = null_local_ptr;
+        NecroAST_Node* top_decl_node = ast_alloc_node_local_ptr(parser, &top_decl_local_ptr);
         top_decl_node->top_declaration.declaration = declarations_local_ptr;
         top_decl_node->top_declaration.next_top_decl = next_top_decl;
+        top_decl_node->type = NECRO_AST_TOP_DECL;
         return top_decl_local_ptr;
+    }
+
+    if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+    {
+        snprintf(
+            parser->error_message,
+            MAX_ERROR_MESSAGE_SIZE,
+            "Failed to parse any top level declarations.");
+
+        parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
     }
 
     restore_parser(parser, snapshot);
@@ -363,14 +383,6 @@ NecroAST_LocalPtr parse_declarations(NecroParser* parser)
     NecroParser_Snapshot snapshot = snapshot_parser(parser);
 
     bool is_list = peek_token_type(parser) == NECRO_LEX_LEFT_BRACE;
-
-    NecroAST_LocalPtr decl_local_ptr = null_local_ptr;
-    {
-        NecroAST_Node* decl_node = ast_alloc_node_local_ptr(parser, &decl_local_ptr);
-        decl_node->declaration.declaration_impl = null_local_ptr;
-        decl_node->declaration.next_declaration = null_local_ptr;
-    }
-
     NecroAST_LocalPtr declaration_local_ptr = null_local_ptr;
 
     if ((declaration_local_ptr == null_local_ptr) && (parser->descent_state != NECRO_DESCENT_PARSE_ERROR))
@@ -383,9 +395,9 @@ NecroAST_LocalPtr parse_declarations(NecroParser* parser)
         NecroAST_LocalPtr next_decl = null_local_ptr;
         if (peek_token_type(parser) == NECRO_LEX_SEMI_COLON)
         {
+            consume_token(parser); // consume SemiColon token
             if (is_list)
             {
-                consume_token(parser);
                 next_decl = parse_declarations(parser);
                 if ((parser->descent_state != NECRO_DESCENT_PARSE_ERROR) && (peek_token_type(parser) != NECRO_LEX_RIGHT_BRACE))
                 {
@@ -401,26 +413,15 @@ NecroAST_LocalPtr parse_declarations(NecroParser* parser)
                     parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
                 }
             }
-            else
-            {
-                NecroLexToken* look_ahead_token = peek_token(parser);
-                snprintf(
-                    parser->error_message,
-                    MAX_ERROR_MESSAGE_SIZE,
-                    "Failed to parse declaration, at line %i, character %i. Expected a \';\' token but instead found %s",
-                    look_ahead_token->line_number,
-                    look_ahead_token->character_number,
-                    necro_lex_token_type_string(look_ahead_token->token));
-
-                parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
-            }
         }
 
         if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
         {
-            NecroAST_Node* decl_node = ast_get_node(parser->ast, decl_local_ptr);
+            NecroAST_LocalPtr decl_local_ptr = null_local_ptr;
+            NecroAST_Node* decl_node = ast_alloc_node_local_ptr(parser, &decl_local_ptr);
             decl_node->declaration.declaration_impl = declaration_local_ptr;
             decl_node->declaration.next_declaration = next_decl;
+            decl_node->type = NECRO_AST_DECL;
             return decl_local_ptr;
         }
     }
@@ -439,6 +440,7 @@ NecroAST_LocalPtr parse_simple_assignment(NecroParser* parser)
         return null_local_ptr;
 
     NecroParser_Snapshot snapshot = snapshot_parser(parser);
+    consume_token(parser); // consume identifier token
 
     if (peek_token_type(parser) == NECRO_LEX_ASSIGN)
     {
@@ -451,6 +453,7 @@ NecroAST_LocalPtr parse_simple_assignment(NecroParser* parser)
             NecroAST_Node* assignment_node = ast_alloc_node_local_ptr(parser, &assignment_local_ptr);
             assignment_node->simple_assignment.variable_name = variable_name_token->symbol;
             assignment_node->simple_assignment.rhs = rhs_local_ptr;
+            assignment_node->type = NECRO_AST_SIMPLE_ASIGNMENT;
             return assignment_local_ptr;
         }
         else if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
@@ -508,6 +511,7 @@ NecroAST_LocalPtr parse_right_hand_side(NecroParser* parser)
             NecroAST_Node* rhs_node = ast_alloc_node_local_ptr(parser, &rhs_local_ptr);
             rhs_node->right_hand_side.expression = expression_local_ptr;
             rhs_node->right_hand_side.declarations = declarations_local_ptr;
+            rhs_node->type = NECRO_AST_RIGHT_HAND_SIDE;
             return rhs_local_ptr;
         }
     }
@@ -840,12 +844,6 @@ NecroAST_LocalPtr parse_binary_expression(NecroParser* parser, NecroAST_LocalPtr
                 lhs_local_ptr = bin_op_local_ptr;
             }
 
-            {
-                NecroAST_Node* bin_op_ast_node = ast_alloc_node_local_ptr(parser, &bin_op_local_ptr);
-                bin_op_ast_node->type = NECRO_AST_BIN_OP;
-                bin_op_ast_node->bin_op.type = bin_op_type;
-            }
-
             consume_token(parser); // consume current_token
 
             int next_min_precedence;
@@ -906,7 +904,9 @@ NecroAST_LocalPtr parse_binary_expression(NecroParser* parser, NecroAST_LocalPtr
             }
 
             {
-                NecroAST_Node* bin_op_ast_node = ast_get_node(parser->ast, bin_op_local_ptr);
+                NecroAST_Node* bin_op_ast_node = ast_alloc_node_local_ptr(parser, &bin_op_local_ptr);
+                bin_op_ast_node->type = NECRO_AST_BIN_OP;
+                bin_op_ast_node->bin_op.type = bin_op_type;
                 bin_op_ast_node->bin_op.lhs = lhs_local_ptr;
                 bin_op_ast_node->bin_op.rhs = rhs_local_ptr;
             }

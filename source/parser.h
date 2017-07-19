@@ -230,11 +230,14 @@ typedef struct
 
 static inline NecroAST_Node* ast_get_node(NecroAST* ast, NecroAST_LocalPtr local_ptr)
 {
+    assert(ast != NULL);
+    assert(local_ptr != null_local_ptr);
     return ((NecroAST_Node*) ast->arena.region) + local_ptr;
 }
 
 static inline NecroAST_Node* ast_get_root_node(NecroAST* ast)
 {
+    assert(ast != NULL);
     return (NecroAST_Node*) ast->arena.region;
 }
 

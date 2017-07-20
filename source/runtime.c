@@ -49,6 +49,9 @@ void necro_trace_stack(int64_t opcode)
     case N_PRINT:       puts("N_PRINT");       return;
     case N_PRINT_STACK: puts("N_PRINT_STACK"); return;
     case N_HALT:        puts("N_HALT");        return;
+    case N_MAKE_STRUCT: puts("N_MAKE_STRUCT"); return;
+    case N_GET_FIELD:   puts("N_GET_FIELD");   return;
+    case N_SET_FIELD:   puts("N_SET_FIELD");   return;
     default:            puts("UKNOWN");        return;
     }
 }
@@ -60,13 +63,12 @@ void necro_trace_stack(int64_t opcode)
 // Stack machine with accumulator
 uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
 {
-
-    register char*    hp  = malloc(heap_size);                          // Heap  grows up
-    register int64_t* sp  = malloc(NECRO_STACK_SIZE * sizeof(int64_t)); // Stack grows down
-    register int64_t* pc  = instructions;
-    register int64_t* fp  = 0;
-    register int64_t  acc = 0;
-    register int64_t  env = 0;
+    NecroSlabAllocator sa  = necro_create_slab_allocator(32);
+    register int64_t*  sp  = malloc(NECRO_STACK_SIZE * sizeof(int64_t)); // Stack grows down
+    register int64_t*  pc  = instructions;
+    register int64_t*  fp  = 0;
+    register int64_t   acc = 0;
+    register int64_t   env = 0;
     sp = sp + (NECRO_STACK_SIZE - 1);
     fp = sp - 2;
     pc--;
@@ -186,6 +188,25 @@ uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
 
         // structs
         case N_MAKE_STRUCT:
+        {
+            *--sp = acc;
+            int64_t  num_fields = *++pc;
+            size_t   size       = (1 + (size_t)num_fields) * sizeof(int64_t); // Will need 1 extra for refcount field
+            int64_t* struct_ptr = necro_alloc_slab(&sa, size);
+            struct_ptr[0]       = 0; // Set ref count to 0
+            memcpy(struct_ptr + 1, sp, size);
+            acc = (int64_t) struct_ptr;
+            sp += num_fields;
+            break;
+        }
+
+        case N_GET_FIELD: // acc = struct_ptr, next pc = field number, replaces acc with result
+            acc = ((int64_t*)acc)[*++pc + 1];
+            break;
+
+        case N_SET_FIELD: // acc = struct_ptr, next pc = field number, sp[0] = value to set to, pops struct from acc
+            ((int64_t*)acc)[*++pc + 1] = *sp++;
+            acc = *sp++;
             break;
 
         // Memory
@@ -227,7 +248,7 @@ uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
             printf("PRINT_STACK:\n    ACC: %lld\n", acc);
             {
                 size_t i = 0;
-                for (int64_t* sp2 = sp; sp2 != fp; ++sp2)
+                for (int64_t* sp2 = sp; sp2 <= fp; ++sp2)
                 {
                     printf("    [%d]: %lld\n", i, *sp2);
                     ++i;
@@ -241,16 +262,250 @@ uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
             return acc;
         }
     }
+
+    // cleanup
+    free(sp);
+    necro_destroy_slab_allocator(&sa);
 }
 
+NecroSlabAllocator necro_create_slab_allocator(size_t initial_page_size)
+{
+    NecroSlabAllocator slab_allocator;
+    slab_allocator.page_list = NULL;
+    for (size_t i = 0; i < NECRO_NUM_SLAB_STEPS; ++i)
+    {
+        slab_allocator.free_lists[i] = NULL;
+        slab_allocator.page_sizes[i] = initial_page_size / 2;
+        necro_alloc_slab_page(&slab_allocator, i);
+    }
+    return slab_allocator;
+}
+
+void necro_alloc_slab_page(NecroSlabAllocator* slab_allocator, size_t slab_bin)
+{
+    slab_allocator->page_sizes[slab_bin] *= 2;
+    size_t          size                  = (slab_bin + 1) * NECRO_SLAB_STEP_SIZE;
+    NecroSlabPage*  page                  = malloc(sizeof(NecroSlabPage) + size * slab_allocator->page_sizes[slab_bin]);
+    TRACE_SLAB_ALLOCATOR("allocating page: %p\n", page);
+    if (page == NULL)
+    {
+        fprintf(stderr, "Allocation error: could not allocate %zu of memory for NecroSlabAllocator", sizeof(NecroSlabPage) + size * slab_allocator->page_sizes[slab_bin]);
+        exit(1);
+    }
+    char* data                            = (char*)(page + 1);
+    page->next_page                       = slab_allocator->page_list;
+    slab_allocator->page_list             = page;
+    for (size_t i = 0; i < slab_allocator->page_sizes[slab_bin]; ++i)
+    {
+        *((char**)(data + size * i))         = slab_allocator->free_lists[slab_bin];
+        slab_allocator->free_lists[slab_bin] = data + size * i;
+    }
+}
+
+void* necro_alloc_slab(NecroSlabAllocator* slab_allocator, size_t size)
+{
+    assert(size <= NECRO_NUM_SLAB_STEPS * NECRO_SLAB_STEP_SIZE);
+    size_t slab_bin = (size >> NECRO_SLAB_STEP_SIZE_POW_2) - 1;
+    if (slab_allocator->free_lists[slab_bin] == NULL)
+    {
+        TRACE_SLAB_ALLOCATOR("necro_alloc_slab_page, bin: %zu\n", slab_bin);
+        necro_alloc_slab_page(slab_allocator, slab_bin);
+    }
+    assert(slab_allocator->free_lists[slab_bin] != NULL);
+    char* slab = slab_allocator->free_lists[slab_bin];
+    slab_allocator->free_lists[slab_bin] = *((char**)slab);
+    TRACE_SLAB_ALLOCATOR("allocating slab: %p, size: %zu, bin: %zu\n", slab, size, slab_bin);
+    return slab;
+}
+
+void necro_free_slab(NecroSlabAllocator* slab_allocator, void* data, size_t size)
+{
+    assert(size <= NECRO_NUM_SLAB_STEPS * NECRO_SLAB_STEP_SIZE);
+    size_t slab_bin = (size >> NECRO_SLAB_STEP_SIZE_POW_2) - 1;
+    TRACE_SLAB_ALLOCATOR("freeing slab:    %p, size: %zu, bin: %zu\n", data, size, slab_bin);
+    *((char**)data) = slab_allocator->free_lists[slab_bin];
+    slab_allocator->free_lists[slab_bin] = data;
+}
+
+void necro_destroy_slab_allocator(NecroSlabAllocator* slab_allocator)
+{
+    NecroSlabPage* current_page = slab_allocator->page_list;
+    while (current_page != NULL)
+    {
+        TRACE_SLAB_ALLOCATOR("freeing page:    %p\n", current_page);
+        NecroSlabPage* next_page = current_page->next_page;
+        free(current_page);
+        current_page = next_page;
+    }
+    slab_allocator->page_list = NULL;
+    for (size_t i = 0; i < NECRO_NUM_SLAB_STEPS; ++i)
+    {
+        slab_allocator->free_lists[i] = NULL;
+        slab_allocator->page_sizes[i] = 0;
+    }
+}
+
+void print_slab_allocator_test_result(const char* print_string, bool result)
+{
+    if (result)
+        printf("%s passed\n", print_string);
+    else
+        printf("%s FAILED\n", print_string);
+}
+
+void necro_test_slab()
+{
+    puts("\n------");
+    puts("Test Slab Allocator\n");
+    NecroSlabAllocator slab_allocator = necro_create_slab_allocator(16384);
+    assert(slab_allocator.page_list != NULL);
+    for (size_t i = 0; i < NECRO_NUM_SLAB_STEPS; ++i)
+    {
+        assert(slab_allocator.page_sizes[i] == 16384);
+        assert(slab_allocator.free_lists[i] != NULL);
+    }
+
+    int64_t* vec3_1 = necro_alloc_slab(&slab_allocator, sizeof(int64_t) * 3);
+    vec3_1[0] = 4;
+    vec3_1[1] = 5;
+    vec3_1[2] = 6;
+
+    int64_t* vec3_2 = necro_alloc_slab(&slab_allocator, sizeof(int64_t) * 3);
+    vec3_2[0] = 6;
+    vec3_2[1] = 5;
+    vec3_2[2] = 4;
+
+    print_slab_allocator_test_result("vec 1 + 2 alloc:", vec3_1[0] == vec3_2[2] && vec3_1[1] == vec3_2[1] && vec3_1[2] == vec3_2[0]);
+    necro_free_slab(&slab_allocator, vec3_1, sizeof(int64_t) * 3);
+    print_slab_allocator_test_result("vec 2 + 3 alloc:", vec3_2[0] == 6 && vec3_2[1] == 5 && vec3_2[2] == 4);
+
+    int64_t* vec3_3 = necro_alloc_slab(&slab_allocator, sizeof(int64_t) * 3);
+    vec3_3[0] = 5;
+    vec3_3[1] = 4;
+    vec3_3[2] = 6;
+    print_slab_allocator_test_result("vec 2 + 3 alloc:", vec3_3[1] == vec3_2[2] && vec3_3[0] == vec3_2[1] && vec3_3[2] == vec3_2[0]);
+
+    necro_free_slab(&slab_allocator, vec3_2, sizeof(int64_t) * 3);
+    necro_free_slab(&slab_allocator, vec3_3, sizeof(int64_t) * 3);
+
+    necro_destroy_slab_allocator(&slab_allocator);
+    assert(slab_allocator.page_list == NULL);
+    for (size_t i = 0; i < NECRO_NUM_SLAB_STEPS; ++i)
+    {
+        assert(slab_allocator.page_sizes[i] == 0);
+        assert(slab_allocator.free_lists[i] == NULL);
+    }
+
+    necro_bench_slab();
+}
+
+void necro_bench_slab()
+{
+    int64_t iterations = 65536;
+    {
+        // Slab bench
+        NecroSlabAllocator slab_allocator = necro_create_slab_allocator(16384);
+        double start_time = (double)clock() / (double)CLOCKS_PER_SEC;
+        int64_t* mem;
+        for (size_t i = 0; i < iterations; ++i)
+        {
+            mem = necro_alloc_slab(&slab_allocator, sizeof(int64_t) * 4);
+            // necro_free_slab(&slab_allocator, mem, sizeof(int64_t) * 4);
+        }
+        double  end_time    = (double) clock() / (double) CLOCKS_PER_SEC;
+        double  run_time    = end_time - start_time;
+        int64_t ns_per_iter = (int64_t) ((run_time / (double)iterations) * 1000000000);
+        puts("");
+        printf("salloc Necronomicon benchmark:\n    iterations:  %lld\n    run_time:    %f\n    ns/iter:     %lld\n", iterations, run_time, ns_per_iter);
+        necro_destroy_slab_allocator(&slab_allocator);
+    }
+
+    {
+        // C bench
+        double start_time = (double)clock() / (double)CLOCKS_PER_SEC;
+        size_t* mem;
+        for (size_t i = 0; i < iterations; ++i)
+        {
+            mem = malloc(sizeof(size_t) * 4);
+            // free(mem);
+        }
+        double  end_time    = (double) clock() / (double) CLOCKS_PER_SEC;
+        double  run_time    = end_time - start_time;
+        int64_t ns_per_iter = (int64_t) ((run_time / (double)iterations) * 1000000000);
+        puts("");
+        printf("malloc Necronomicon benchmark:\n    iterations:  %lld\n    run_time:    %f\n    ns/iter:     %lld\n", iterations, run_time, ns_per_iter);
+    }
+
+}
+
+//=====================================================
+// Buddy Allocator
+//=====================================================
+// NecroBuddyAllocator necro_create_buddy_allocator()
+// {
+//     // Allocate and initialize memory
+//     size_t total_size = BUDDY_HEAP_MAX_SIZE * sizeof(NecroBuddyLeaf) + BUDDY_HEAP_FREE_FLAGS_SIZE;
+//     char*  heap       = malloc(total_size);
+//     char*  free_flags = heap + BUDDY_HEAP_MAX_SIZE;
+//     memset(heap, (int) NULL, BUDDY_HEAP_MAX_SIZE * sizeof(NecroBuddyLeaf));
+//     memset(free_flags, 0, BUDDY_HEAP_FREE_FLAGS_SIZE);
+//     // Set up free lists
+//     NecroBuddyAllocator necro_buddy;
+//     necro_buddy.heap = (NecroBuddyLeaf*) heap;
+//     for (size_t i = 0; i < BUDDY_HEAP_NUM_BINS; ++i)
+//         necro_buddy.free_lists[i] = NULL;
+//     necro_buddy.free_lists[BUDDY_HEAP_NUM_BINS - 1] = (NecroBuddyLeaf*)heap;
+//     return necro_buddy;
+// }
+
+// char* necro_buddy_alloc(NecroBuddyAllocator* buddy, size_t size)
+// {
+//     size_t size_pow_of_2    = (size /* converto pow of 2*/) - BUDDY_HEAP_LEAF_SIZE_POW_2;
+
+//     // Find next free block in closest size
+//     size_t          current_pow_of_2 = size_pow_of_2;
+//     NecroBuddyLeaf* current_slot     = buddy->free_lists[size_pow_of_2];
+
+//     // Find next bin with free block
+//     while (current_slot == NULL && current_pow_of_2 < BUDDY_HEAP_NUM_BINS)
+//     {
+//         current_pow_of_2++;
+//         current_slot = buddy->free_lists[current_pow_of_2];
+//     }
+
+//     // even = i
+//     // odd  = i - 1?
+
+//     // iteratively break down blocks into buddies
+//     for (size_t s = current_pow_of_2; current_slot != NULL && s > size_pow_of_2; --s)
+//     {
+//         NecroBuddyLeaf* buddy_1 = current_slot;
+//         NecroBuddyLeaf* buddy_2 = current_slot + (2 << (current_pow_of_2 - 2));
+
+//         // buddy->free_lists[size_pow_of_2] = *((int64_t*)starting_slot);
+//     }
+
+//     return (char*) current_slot;
+// }
+
+//=====================================================
+// Region Allocator
+//=====================================================
 NecroRegionPageAllocator necro_create_region_page_allocator()
 {
     NecroRegionBlock* page_block = malloc(sizeof(NecroRegionBlock) + NECRO_INIITAL_NUM_PAGES * sizeof(NecroRegionPage));
+    if (page_block == NULL)
+    {
+        fprintf(stderr, "Allocation error, could not allocate memory for page allocator. Requested memory size: %d\n", sizeof(NecroRegionBlock) + NECRO_INIITAL_NUM_PAGES * sizeof(NecroRegionPage));
+        exit(1);
+    }
     NecroRegionPage*  free_list  = (NecroRegionPage*) (((char*) page_block) + sizeof(NecroRegionBlock));
     for (size_t i = 0; i < NECRO_INIITAL_NUM_PAGES - 1; ++i)
         free_list[i].next_page = &free_list[i + 1];
     free_list[NECRO_INIITAL_NUM_PAGES - 1].next_page = NULL;
     page_block->next_block = NULL;
+    assert(page_block);
+    assert(free_list);
     return (NecroRegionPageAllocator) { page_block, free_list, NECRO_INIITAL_NUM_PAGES };
 }
 
@@ -267,11 +522,17 @@ void necro_destroy_region_page_allocator(NecroRegionPageAllocator* page_allocato
 
 NecroRegionPage* necro_alloc_region_page(NecroRegionPageAllocator* page_allocator)
 {
-    if (page_allocator->free_list = NULL)
+    if (page_allocator->free_list == NULL)
     {
         // dynamically allocate more memory from OS
         page_allocator->current_block_size *= 2;
+        fprintf(stderr, "Not enough memory in region page allocator, allocating %uz memory from the OS\n", page_allocator->current_block_size * sizeof(NecroRegionPage));
         NecroRegionBlock* page_block    = malloc(sizeof(NecroRegionBlock) + page_allocator->current_block_size * sizeof(NecroRegionPage));
+        if (page_block == NULL)
+        {
+            fprintf(stderr, "Allocation error, could not allocate memory for page allocator. Requested memory size: %d\n", sizeof(NecroRegionBlock) + page_allocator->current_block_size * sizeof(NecroRegionPage));
+            exit(1);
+        }
         NecroRegionPage*  new_free_list = (NecroRegionPage*) (((char*) page_block) + sizeof(NecroRegionBlock));
         for (size_t i = 0; i < page_allocator->current_block_size - 1; ++i)
             new_free_list[i].next_page = &new_free_list[i + 1];
@@ -280,25 +541,18 @@ NecroRegionPage* necro_alloc_region_page(NecroRegionPageAllocator* page_allocato
         page_block->next_block      = page_allocator->page_blocks;
         page_allocator->page_blocks = page_block;
     }
+    assert(page_allocator->free_list);
     NecroRegionPage* page = page_allocator->free_list;
     page_allocator->free_list = page->next_page;
     page->next_page = NULL;
     return page;
 }
 
-void necro_free_region_page(NecroRegionPageAllocator* page_allocator, NecroRegionPage* page)
-{
-    NecroRegionPage* last_page = page;                // Find last page in region page list
-    while (last_page->next_page != NULL)
-        last_page = last_page->next_page;
-    last_page->next_page = page_allocator->free_list; // Point next pointer in final page to the free list
-    page_allocator->free_list = page;                 // Set the free list to the initial page
-}
-
 NecroRegion necro_create_region(NecroRegionPageAllocator* page_allocator)
 {
-    NecroRegionPage* page = necro_alloc_region_page(page_allocator);
-    return (NecroRegion) { NULL, page, page, 0 };
+    NecroRegionPage* page      = necro_alloc_region_page(page_allocator);
+    NecroRegionPage* last_page = necro_alloc_region_page(page_allocator);
+    return (NecroRegion) { last_page, last_page, page, page, 0 };
 }
 
 char* necro_alloc_into_region(NecroRegionPageAllocator* page_allocator, NecroRegion* region, size_t size)
@@ -306,59 +560,129 @@ char* necro_alloc_into_region(NecroRegionPageAllocator* page_allocator, NecroReg
     size_t new_cursor = region->cursor + size;
     if (new_cursor >= NECRO_REGION_PAGE_SIZE)
     {
-        new_cursor           = size;
-        region->current_last = necro_alloc_region_page(page_allocator);
+        new_cursor                      = size;
+        region->current_last->next_page = necro_alloc_region_page(page_allocator);
+        region->current_last            = region->current_last->next_page;
     }
     char* data = ((char*)region->current_last->data) + region->cursor;
     region->cursor = new_cursor;
     return data;
 }
 
-// NecroBuddy necro_create_buddy()
-// {
-//     // Allocate and initialize memory
-//     size_t total_size = BUDDY_HEAP_MAX_SIZE * sizeof(NecroBuddyLeaf) + BUDDY_HEAP_FREE_FLAGS_SIZE;
-//     char*  heap       = malloc(total_size);
-//     char*  free_flags = heap + BUDDY_HEAP_MAX_SIZE;
-//     memset(heap, (int) NULL, BUDDY_HEAP_MAX_SIZE * sizeof(NecroBuddyLeaf));
-//     memset(free_flags, 0, BUDDY_HEAP_FREE_FLAGS_SIZE);
-//     // Set up free lists
-//     NecroBuddy necro_buddy;
-//     necro_buddy.heap = (NecroBuddyLeaf*) heap;
-//     for (size_t i = 0; i < BUDDY_HEAP_NUM_BINS; ++i)
-//         necro_buddy.free_lists[i] = NULL;
-//     necro_buddy.free_lists[BUDDY_HEAP_NUM_BINS - 1] = (NecroBuddyLeaf*)heap;
-//     return necro_buddy;
-// }
+void necro_cycle_region(NecroRegionPageAllocator* page_allocator, NecroRegion* region)
+{
+    region->previous_last->next_page = page_allocator->free_list;
+    page_allocator->free_list        = region->previous_head;
+    NecroRegionPage* new_current     = necro_alloc_region_page(page_allocator);
+    region->previous_head            = region->current_head;
+    region->previous_last            = region->current_last;
+    region->current_head             = new_current;
+    region->current_last             = new_current;
+}
 
-// char* necro_buddy_alloc(NecroBuddy* buddy, size_t size)
-// {
-//     size_t size_pow_of_2    = (size /* converto pow of 2*/) - BUDDY_HEAP_LEAF_SIZE_POW_2;
+void necro_test_region()
+{
+    puts("\n------");
+    puts("Test Regions\n");
 
-//     // Find next free block in closest size
-//     size_t          current_pow_of_2 = size_pow_of_2;
-//     NecroBuddyLeaf* current_slot     = buddy->free_lists[size_pow_of_2];
-//     while (current_slot == NULL && current_pow_of_2 < BUDDY_HEAP_NUM_BINS)
-//     {
-//         current_pow_of_2++;
-//         current_slot = buddy->free_lists[current_pow_of_2];
+    NecroRegionPageAllocator page_allocator = necro_create_region_page_allocator();
+    assert(page_allocator.current_block_size == NECRO_INIITAL_NUM_PAGES);
+    assert(page_allocator.free_list          != NULL);
+    assert(page_allocator.page_blocks        != NULL);
 
-//     }
+    NecroRegion region = necro_create_region(&page_allocator);
+    assert(region.previous_head != NULL);
+    assert(region.current_head  != NULL);
+    assert(region.current_last  != NULL);
+    assert(region.previous_last != NULL);
+    assert(region.current_head  == region.current_last);
+    assert(region.previous_head == region.previous_last);
+    assert(region.cursor        == 0);
 
-//     // even = i
-//     // odd  = i - 1?
+    // String 1 test
+    char* hello = necro_alloc_into_region(&page_allocator, &region, 6);
+    assert(hello);
+    hello[0] = 'h';
+    hello[1] = 'e';
+    hello[2] = 'l';
+    hello[3] = 'l';
+    hello[4] = 'o';
+    hello[5] = 0;
+    if (strncmp(hello, "hello", 7) == 0)
+        printf("Region string allocation 1 test: passed\n");
+    else
+        printf("Region string allocation 1 test: FAILED, result: %s\n", hello);
 
-//     // iteratively break down blocks into buddies
-//     for (size_t s = current_pow_of_2; current_slot != NULL && s > size_pow_of_2; --s)
-//     {
-//         // NecroBuddyLeaf* buddy_1 = current_slot;
-//         NecroBuddyLeaf* buddy_2 = current_slot + (2 << (current_pow_of_2 - 2));
+    // String 2 test
+    char* world = necro_alloc_into_region(&page_allocator, &region, 6);
+    world[0] = 'w';
+    world[1] = 'o';
+    world[2] = 'r';
+    world[3] = 'l';
+    world[4] = 'd';
+    world[5] = 0;
+    if (strncmp(world, "world", 7) == 0)
+        printf("Region string allocation 2 test: passed\n");
+    else
+        printf("Region string allocation 2 test: FAILED, result: %s\n", world);
+    assert(hello != world);
 
-//         // buddy->free_lists[size_pow_of_2] = *((int64_t*)starting_slot);
-//     }
+    // Cursor test
+    if (region.cursor == 12)
+        printf("Region cursor test:              passed\n");
+    else
+        printf("Region cursor test:              FAILED, result: %zu\n", region.cursor);
 
-//     return (char*) current_slot;
-// }
+    // Cycle tests
+    NecroRegionPage* current_head = region.current_head;
+    NecroRegionPage* current_last = region.current_last;
+    necro_cycle_region(&page_allocator, &region);
+    if (region.current_head != current_head)
+        printf("Region cycle head1 test:         passed\n");
+    else
+        printf("Region cycle head1 test:         FAILED\n");
+    if (region.current_last != current_last)
+        printf("Region cycle last1 test:         passed\n");
+    else
+        printf("Region cycle last1 test:         FAILED\n");
+    if (region.previous_head == current_head)
+        printf("Region cycle head2 test:         passed\n");
+    else
+        printf("Region cycle head2 test:         FAILED\n");
+    if (region.previous_last == current_last)
+        printf("Region cycle head2 test:         passed\n");
+    else
+        printf("Region cycle head2 test:         FAILED\n");
+
+    // Alloc after cycle tests
+    char* welt = necro_alloc_into_region(&page_allocator, &region, 5);
+    welt[0] = 'w';
+    welt[1] = 'e';
+    welt[2] = 'l';
+    welt[3] = 't';
+    welt[4] = 0;
+    if (strncmp(hello, "hello", 7) == 0)
+        printf("Region string allocation 3 test: passed\n");
+    else
+        printf("Region string allocation 3 test: FAILED, result: %s\n", hello);
+    if (strncmp(welt, "welt", 6) == 0)
+        printf("Region string allocation 4 test: passed\n");
+    else
+        printf("Region string allocation 4 test: FAILED, result: %s\n", welt);
+    // Cycling numbers test
+    necro_cycle_region(&page_allocator, &region);
+    size_t* num1 = (size_t*) necro_alloc_into_region(&page_allocator, &region, sizeof(size_t));
+    *num1 = 10;
+    necro_cycle_region(&page_allocator, &region);
+    size_t* num2 = (size_t*) necro_alloc_into_region(&page_allocator, &region, sizeof(size_t));
+    *num2 = 20;
+    if (((size_t*)region.current_head->data)[0] == 20 && ((size_t*)region.previous_head->data)[0] == 10)
+        printf("Region num cycling test:         passed\n");
+    else
+        printf("Region num cycling test:         FAILED, result: %zu, %zu, %zu, %zu\n", *num1, *num2, *((size_t*)region.current_head->data),  *((size_t*)region.previous_head->data));
+    for (size_t i = 0; i < 16; ++i)
+        printf("%zu\n", ((size_t*)region.current_head->data)[i]);
+}
 
 void necro_test_vm_eval(int64_t* instr, int64_t result, const char* print_string)
 {
@@ -809,6 +1133,59 @@ void necro_test_vm()
             N_RETURN
         };
         necro_test_vm_eval(instr, -25, "CALL5:  ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I,      18,
+            N_PUSH_I,      12,
+            N_PUSH_I,      6,
+            N_MAKE_STRUCT, 3,
+            N_GET_FIELD,   2,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 18, "struct1:");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I,      18,
+            N_PUSH_I,      12,
+            N_PUSH_I,      6,
+            N_MAKE_STRUCT, 3,
+            N_LOAD_L,      0,
+            N_GET_FIELD,   0,
+            N_LOAD_L,      0,
+            N_GET_FIELD,   1,
+            N_LOAD_L,      0,
+            N_GET_FIELD,   2,
+            N_LOAD_L,      -1,
+            N_LOAD_L,      -2,
+            N_ADD_I,
+            N_LOAD_L,      -3,
+            N_SUB_I,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 0, "struct2:");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            N_PUSH_I,      6,
+            N_PUSH_I,      12,
+            N_PUSH_I,      18,
+            N_MAKE_STRUCT, 3,
+            N_PUSH_I,      666,
+            N_LOAD_L,      0,
+            N_SET_FIELD,   2,
+            N_LOAD_L,      0,
+            N_GET_FIELD,   2,
+            N_HALT
+        };
+        necro_test_vm_eval(instr, 666, "struct3:");
     }
 
 }

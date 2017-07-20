@@ -96,11 +96,19 @@
     // TODO: Will need nodemap
 */
 
+/*
+    Structure of NecroStructs:
+    - ref_count: 8 bytes
+    - N args:    8 bytes * N
+    // all structs heap allocated and ref_counted
+*/
+
 //=====================================================
 // VM
 //=====================================================
 // TODO:
-//    * structs
+//    * Memory Management
+//    * Switch statements for pattern matching
 //    * c calls
 //    * Audio
 typedef enum
@@ -136,6 +144,8 @@ typedef enum
 
     // structs
     N_MAKE_STRUCT,
+    N_GET_FIELD,
+    N_SET_FIELD,
 
     // Memory
     N_LOAD_L,
@@ -165,17 +175,8 @@ typedef NecroVal (*necro_c_call_3)(NecroVal, NecroVal, NecroVal);
 typedef NecroVal (*necro_c_call_4)(NecroVal, NecroVal, NecroVal, NecroVal);
 typedef NecroVal (*necro_c_call_5)(NecroVal, NecroVal, NecroVal, NecroVal, NecroVal);
 
-/*
-    Structure of NecroStructs:
-    - tag:       8 bytes
-    // - ref_count: 8 bytes
-    - N args:    8 bytes * N
-    // all structs heap allocated and ref_counted
-*/
-// int64_t necro_alloc_struct_1(NecroVal field1);
-
-#define NECRO_INIITAL_NUM_PAGES 1024
-#define NECRO_REGION_PAGE_SIZE  (8192 - sizeof(void*)) // Each page is 8192 bytes in size, but the last word size of bytes are reserved as the next pointer
+#define NECRO_INIITAL_NUM_PAGES 64
+#define NECRO_REGION_PAGE_SIZE  (65536 - sizeof(void*)) // The last word size of bytes are reserved for the next pointer
 
 //=====================================================
 // Region based memory management
@@ -189,10 +190,16 @@ typedef struct NecroRegionPage
 typedef struct
 {
     NecroRegionPage* previous_head;
+    NecroRegionPage* previous_last;
     NecroRegionPage* current_head;
     NecroRegionPage* current_last;
     size_t           cursor;
 } NecroRegion;
+
+typedef struct
+{
+    char* node_map;
+} NecroSubRegion;
 
 typedef struct NecroRegionBlock
 {
@@ -208,15 +215,50 @@ typedef struct
 NecroRegionPageAllocator necro_create_region_page_allocator();
 void                     necro_destroy_region_page_allocator(NecroRegionPageAllocator* page_allocator);
 NecroRegionPage*         necro_alloc_region_page(NecroRegionPageAllocator* page_allocator);
-void                     necro_free_region_page(NecroRegionPageAllocator* page_allocator, NecroRegionPage* region);
 NecroRegion              necro_create_region(NecroRegionPageAllocator* page_allocator);
 char*                    necro_alloc_into_region(NecroRegionPageAllocator* page_allocator, NecroRegion* region, size_t size);
+void                     necro_cycle_region(NecroRegionPageAllocator* page_allocator, NecroRegion* region);
+
+//=====================================================
+// Slab Allocator
+//=====================================================
+#define NECRO_SLAB_STEP_SIZE         8
+#define NECRO_SLAB_STEP_SIZE_POW_2   3
+#define NECRO_NUM_SLAB_STEPS         16
+#define DEBUG_SLAB_ALLOCATOR         0
+
+#if DEBUG_SLAB_ALLOCATOR
+#define TRACE_SLAB_ALLOCATOR(...) printf(__VA_ARGS__)
+#else
+#define TRACE_SLAB_ALLOCATOR(...)
+#endif
+
+typedef struct NecroSlabPage
+{
+    struct NecroSlabPage* next_page;
+} NecroSlabPage;
+
+typedef struct
+{
+    NecroSlabPage* page_list;
+    char*          free_lists[NECRO_NUM_SLAB_STEPS];
+    size_t         page_sizes[NECRO_NUM_SLAB_STEPS];
+} NecroSlabAllocator;
+
+NecroSlabAllocator necro_create_slab_allocator(size_t initial_page_size);
+void               necro_alloc_slab_page(NecroSlabAllocator* slab_allocator, size_t slab_bin);
+void*              necro_alloc_slab(NecroSlabAllocator* slab_allocator, size_t size);
+void               necro_free_slab(NecroSlabAllocator* slab_allocator, void* data, size_t size);
+void               necro_destroy_slab_allocator(NecroSlabAllocator* slab_allocator);
+void               necro_bench_slab();
 
 //=====================================================
 // Testing
 //=====================================================
 void necro_test_vm();
 void necro_trace_stack(int64_t opcode);
+void necro_test_region();
+void necro_test_slab();
 
 #define NECRO_STACK_SIZE 1024
 #define DEBUG_VM 0
@@ -227,7 +269,7 @@ void necro_trace_stack(int64_t opcode);
 #define TRACE_STACK(opcode)
 #endif
 
-// Buddy allocator for structs, closures, etc
+// Buddy Allocator
 // #define BUDDY_HEAP_MAX_SIZE_POW_2 16
 // #define BUDDY_HEAP_LEAF_SIZE_POW_2 4
 // static const size_t BUDDY_HEAP_NUM_BINS        = BUDDY_HEAP_MAX_SIZE_POW_2 - BUDDY_HEAP_LEAF_SIZE_POW_2;
@@ -240,16 +282,15 @@ void necro_trace_stack(int64_t opcode);
 //     uint64_t _dummy;
 // } NecroBuddyLeaf;
 
-
 // typedef struct
 // {
 //     NecroBuddyLeaf* heap;
 //     char*           free_flags;
 //     NecroBuddyLeaf* free_lists[BUDDY_HEAP_MAX_SIZE_POW_2];
-// } NecroBuddy;
+// } NecroBuddyAllocator;
 
-// NecroBuddy necro_create_buddy();
-// char* necro_buddy_alloc(NecroBuddy* buddy, size_t size);
+// NecroBuddyAllocator necro_create_buddy_allocator();
+// char* necro_buddy_alloc(NecroBuddyAllocator* buddy, size_t size);
 
 // //=====================================================
 // // Runtime structs

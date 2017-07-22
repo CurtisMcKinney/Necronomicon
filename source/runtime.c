@@ -383,10 +383,12 @@ inline void necro_relink(NecroTMTag* tag, NecroTMTag* new_prev, NecroTMTag* new_
 // API functions
 
 // Segments go in powers of 2: 2, 4, 8, 16, 32, 64, etc
-NecroTreadmill necro_create_treadmill(size_t num_initial_pages)
+NecroTreadmill necro_create_treadmill(size_t num_initial_pages, NecroTypeInfo* type_info_table)
 {
     NecroTreadmill treadmill;
-    treadmill.pages = NULL;
+    treadmill.pages      = NULL;
+    treadmill.complete   = true;
+    treadmill.type_infos = type_info_table;
     for (size_t segment = 0; segment < NECRO_NUM_TM_SEGMENTS; ++segment)
     {
         size_t size      = 2 << segment;
@@ -408,10 +410,10 @@ NecroTreadmill necro_create_treadmill(size_t num_initial_pages)
                     next_page_header->tags :
                     page_header->tags + (block + 1);
                 // Set ecru flags to false
-                memset(page_header->ecru_flags, 0, NECRO_TM_PAGE_SIZE / 64);
+                memset(page_header->ecru_flags, 0, (NECRO_TM_PAGE_SIZE / 64) * sizeof(uint64_t));
                 // Set up page list
                 page_header->next_page = treadmill.pages;
-                treadmill.pages = page_header;
+                treadmill.pages        = page_header;
             }
         }
         treadmill.free[segment]   = ((NecroTMPageHeader*)(data))->tags;
@@ -422,19 +424,14 @@ NecroTreadmill necro_create_treadmill(size_t num_initial_pages)
     return treadmill;
 }
 
-NecroVal necro_treadmill_alloc(NecroTreadmill* treadmill, uint32_t size_in_bytes)
+NecroVal necro_treadmill_alloc(NecroTreadmill* treadmill, uint32_t type_index)
 {
-    uint64_t num_slots = next_highest_pow_of_2(size_in_bytes) >> 3;
-    assert(num_slots <= 64); // Right now this only supports up to 64 slots = 8 * 64 = 512 bytes
-    uint64_t segment =
-        (num_slots & 63) * 5 +
-        (num_slots & 31) * 4 +
-        (num_slots & 15) * 3 +
-        (num_slots & 7)  * 2 +
-        (num_slots & 3)  * 1;
+    uint32_t segment = treadmill->type_infos[type_index].gc_segment;
+    assert(segment <= 6); // Right now this only supports up to 64 slots = 8 * 64 = 512 bytes
     if (treadmill->free[segment] == treadmill->bottom[segment])
     {
         // Flip, if out of memory, alloc more!
+        assert(false); // TODO: Finish
     }
     NecroTMTag* allocated_tag = treadmill->free[segment];
     NecroVal*   data          = necro_get_data_from_tag(allocated_tag);
@@ -466,7 +463,7 @@ inline bool necro_treadmill_scan(NecroTreadmill* treadmill, uint64_t segment)
             continue;
         NecroVal*     slot_value_ptr = data[i + 1].necro_pointer;
         NecroTypeInfo slot_type_info = treadmill->type_infos[slot_value_ptr->struct_info.type_index];
-        NecroTMTag*   slot_tag       = necro_get_tag_from_val(slot_value_ptr, slot_type_info.size_in_bytes);
+        NecroTMTag*   slot_tag       = necro_get_tag_from_val(slot_value_ptr, slot_type_info.segment_size_in_bytes);
         if (!necro_is_ecru_from_tag(slot_tag))
             continue;
         necro_relink(slot_tag, treadmill->scan[slot_type_info.gc_segment]->prev, treadmill->scan[slot_type_info.gc_segment]); // Relink node behind the scan pointer for that type's segment
@@ -476,28 +473,55 @@ inline bool necro_treadmill_scan(NecroTreadmill* treadmill, uint64_t segment)
     return false;
 }
 
-// Need to handle stopping and picking up mid scan
 void necro_treadmill_collect(NecroTreadmill* treadmill, NecroVal root_ptr)
 {
-    // Only link root in at BEGINNING of collection cycle, not every re-entrance into it!
-    NecroVal*       root_val  = root_ptr.necro_pointer;
-    NecroTypeInfo   type_info = treadmill->type_infos[root_val->struct_info.type_index];
-    NecroTMTag*     tag       = necro_get_tag_from_val(root_val, type_info.size_in_bytes);
-    necro_relink(tag, treadmill->top[type_info.gc_segment], treadmill->scan[type_info.gc_segment]); // Move Root to grey list between top and scan pointers
-    treadmill->scan[type_info.gc_segment] = tag;
-    // Continue scanning until all scan node of all segments points to same node as top pointer
-    bool is_done = false;
-    while (!is_done)
+    if (treadmill->complete)
     {
-        is_done = true;
+        // Only link root in at beginning of a new collection cycle, not every re-entrance into it!
+        NecroVal*       root_val  = root_ptr.necro_pointer;
+        NecroTypeInfo   type_info = treadmill->type_infos[root_val->struct_info.type_index];
+        NecroTMTag*     tag       = necro_get_tag_from_val(root_val, type_info.segment_size_in_bytes);
+        necro_relink(tag, treadmill->top[type_info.gc_segment], treadmill->scan[type_info.gc_segment]); // Move Root to grey list between top and scan pointers
+        treadmill->scan[type_info.gc_segment] = tag;
+        treadmill->complete = false;
+    }
+    // Continue scanning until all scan node of all segments points to same node as top pointer
+    size_t count = 0; // doing simple count bounding for now
+    while (!treadmill->complete && count < 256)
+    {
+        bool is_done = true;
         for (size_t i = 0; i < NECRO_NUM_TM_SEGMENTS; ++i)
         {
             // scan segment
             bool segment_done = necro_treadmill_scan(treadmill, i);
             is_done = is_done && segment_done;
         }
+        treadmill->complete = is_done;
+        count++;
     }
-    // Scan is done, do cleanup
+    if (treadmill->complete)
+    {
+        // If scan is done, do cleanup
+    }
+}
+
+void necro_destroy_treadmill(NecroTreadmill* treadmill)
+{
+    NecroTMPageHeader* current_page = treadmill->pages;
+    while (current_page != NULL)
+    {
+        NecroTMPageHeader* next_page = current_page->next_page;
+        free(current_page);
+        current_page = next_page;
+    }
+    treadmill->pages = NULL;
+    for (size_t i = 0; i < NECRO_NUM_TM_SEGMENTS; ++i)
+    {
+        treadmill->top[i]    = NULL;
+        treadmill->bottom[i] = NULL;
+        treadmill->free[i]   = NULL;
+        treadmill->scan[i]   = NULL;
+    }
 }
 
 //=====================================================

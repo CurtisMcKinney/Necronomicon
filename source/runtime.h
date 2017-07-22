@@ -172,10 +172,11 @@ typedef enum
 } NECRO_BYTE_CODE;
 
 // Type information, needed for GC
+// Types should be completely monomorphized!
 typedef struct
 {
     uint64_t boxed_slot_bit_field;
-    uint32_t size_in_bytes;
+    uint32_t segment_size_in_bytes;
     uint32_t gc_segment;
     uint32_t num_slots;
 } NecroTypeInfo;
@@ -186,15 +187,8 @@ typedef struct
 typedef struct
 {
     uint32_t pattern_tag;
-    uint32_t type_index;
+    uint32_t type_index; // Types should be completely monomorphized!
 } NecroStructInfo;
-
-// Out of band 16 byte Tag
-typedef struct NecroTMTag
-{
-    struct NecroTMTag* prev;
-    struct NecroTMTag* next;
-} NecroTMTag;
 
 typedef union NecroVal
 {
@@ -295,7 +289,7 @@ void               necro_bench_slab();
 //     * Incremental
 //     * Precise
 //     * Non-copying (Never invalidates pointers, never reallocates, never copies)
-//     * Segmented
+//     * Segmented Block sizes, up to 64 slots in size (512 bytes, will need a different allocator for differently sized objects)
 //     * Fixed Page length
 //     * Bounded collection time
 //     * Collection called every tick
@@ -313,6 +307,14 @@ void               necro_bench_slab();
 #define TRACE_TRACE_TM(...)
 #endif
 
+// Out of band 16 byte Tag
+typedef struct NecroTMTag
+{
+    struct NecroTMTag* prev;
+    struct NecroTMTag* next;
+} NecroTMTag;
+
+// Page header where out of band GC tags and ecru flags are stored
 typedef struct NecroTMPageHeader
 {
     NecroTMTag                tags[NECRO_TM_PAGE_SIZE];
@@ -320,8 +322,10 @@ typedef struct NecroTMPageHeader
     struct NecroTMPageHeader* next_page;
 } NecroTMPageHeader;
 
+// Main GC struct
 typedef struct
 {
+    bool               complete;
     NecroTypeInfo*     type_infos; // TODO: Have to get TypeInfo into here!
     NecroTMPageHeader* pages;
     NecroTMTag*        top[NECRO_NUM_TM_SEGMENTS];
@@ -330,8 +334,9 @@ typedef struct
     NecroTMTag*        scan[NECRO_NUM_TM_SEGMENTS];
 } NecroTreadmill;
 
-NecroTreadmill necro_create_treadmill(size_t num_initial_pages);
-NecroVal       necro_treadmill_alloc(NecroTreadmill* treadmill, uint32_t size);
+NecroTreadmill necro_create_treadmill(size_t num_initial_pages, NecroTypeInfo* type_info_table);
+void           necro_destroy_treadmill(NecroTreadmill* treadmill);
+NecroVal       necro_treadmill_alloc(NecroTreadmill* treadmill, uint32_t type_index);
 
 //=====================================================
 // Testing

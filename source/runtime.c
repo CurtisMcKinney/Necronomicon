@@ -427,11 +427,11 @@ NecroVal necro_treadmill_alloc(NecroTreadmill* treadmill, uint32_t size_in_bytes
     uint64_t num_slots = next_highest_pow_of_2(size_in_bytes) >> 3;
     assert(num_slots <= 64); // Right now this only supports up to 64 slots = 8 * 64 = 512 bytes
     uint64_t segment =
-        (num_slots & 63)  * 5 +
-        (num_slots & 31)  * 4 +
-        (num_slots & 15)  * 3 +
-        (num_slots & 7)   * 2 +
-        (num_slots & 3)   * 1;
+        (num_slots & 63) * 5 +
+        (num_slots & 31) * 4 +
+        (num_slots & 15) * 3 +
+        (num_slots & 7)  * 2 +
+        (num_slots & 3)  * 1;
     if (treadmill->free[segment] == treadmill->bottom[segment])
     {
         // Flip, if out of memory, alloc more!
@@ -456,21 +456,20 @@ inline bool necro_treadmill_scan(NecroTreadmill* treadmill, uint64_t segment)
         treadmill->scan[segment] = treadmill->scan[segment]->prev;
         return false;
     }
-    NecroVal*       data        = necro_get_data_from_tag(tag);
-    NecroStructInfo struct_info = data->struct_info;
-    NecroTypeInfo   type_info   = treadmill->type_infos[struct_info.type_index];
+    NecroVal*     data      = necro_get_data_from_tag(tag);
+    NecroTypeInfo type_info = treadmill->type_infos[data->struct_info.type_index];
     necro_set_ecru_from_tag(tag, 0);
-
     for (uint64_t i = 0; i < type_info.num_slots; ++i)
     {
         // if not a Boxed member, skip
-        if ((type_info.boxed_slot_bit_field | ((uint64_t)1 << i)) != ((uint64_t)1 << i))
+        if ((type_info.boxed_slot_bit_field & ((uint64_t)1 << i)) != ((uint64_t)1 << i))
             continue;
-        NecroVal*   slot_value_ptr = data[i + 1].necro_pointer;
-        NecroTMTag* slot_tag       = necro_get_tag_from_val(slot_value_ptr, type_info.size_in_bytes);
+        NecroVal*     slot_value_ptr = data[i + 1].necro_pointer;
+        NecroTypeInfo slot_type_info = treadmill->type_infos[slot_value_ptr->struct_info.type_index];
+        NecroTMTag*   slot_tag       = necro_get_tag_from_val(slot_value_ptr, slot_type_info.size_in_bytes);
         if (!necro_is_ecru_from_tag(slot_tag))
             continue;
-        necro_relink(slot_tag, treadmill->scan[segment]->prev, treadmill->scan[segment]); // Relink node behind the scan pointer
+        necro_relink(slot_tag, treadmill->scan[slot_type_info.gc_segment]->prev, treadmill->scan[slot_type_info.gc_segment]); // Relink node behind the scan pointer for that type's segment
     }
     // Move scan pointer backwards
     treadmill->scan[segment] = treadmill->scan[segment]->prev;
@@ -481,10 +480,9 @@ inline bool necro_treadmill_scan(NecroTreadmill* treadmill, uint64_t segment)
 void necro_treadmill_collect(NecroTreadmill* treadmill, NecroVal root_ptr)
 {
     // Only link root in at BEGINNING of collection cycle, not every re-entrance into it!
-    NecroVal*       root_val    = root_ptr.necro_pointer;
-    NecroStructInfo struct_info = root_val->struct_info;
-    NecroTypeInfo   type_info   = treadmill->type_infos[struct_info.type_index];
-    NecroTMTag*     tag         = necro_get_tag_from_val(root_val, type_info.size_in_bytes);
+    NecroVal*       root_val  = root_ptr.necro_pointer;
+    NecroTypeInfo   type_info = treadmill->type_infos[root_val->struct_info.type_index];
+    NecroTMTag*     tag       = necro_get_tag_from_val(root_val, type_info.size_in_bytes);
     necro_relink(tag, treadmill->top[type_info.gc_segment], treadmill->scan[type_info.gc_segment]); // Move Root to grey list between top and scan pointers
     treadmill->scan[type_info.gc_segment] = tag;
     // Continue scanning until all scan node of all segments points to same node as top pointer

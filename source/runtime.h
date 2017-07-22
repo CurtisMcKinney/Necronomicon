@@ -171,29 +171,37 @@ typedef enum
     N_HALT
 } NECRO_BYTE_CODE;
 
+// Type information, needed for GC
+typedef struct
+{
+    uint64_t boxed_slot_bit_field;
+    uint32_t size_in_bytes;
+    uint32_t gc_segment;
+    uint32_t num_slots;
+} NecroTypeInfo;
+
 // In-band 8 byte struct information.
 // Every struct has this appended
-// Used for pattern matching and to make the GC precise
+// Used for pattern matching and for GC
 typedef struct
 {
     uint32_t pattern_tag;
-    uint32_t boxed_member_bit_field;
+    uint32_t type_index;
 } NecroStructInfo;
 
-// In-band 8 byte Tag
-typedef struct
+// Out of band 16 byte Tag
+typedef struct NecroTMTag
 {
-    uint32_t prev_and_color;
-    uint32_t next_and_size;
-} NecroGCTag;
+    struct NecroTMTag* prev;
+    struct NecroTMTag* next;
+} NecroTMTag;
 
-typedef union
+typedef union NecroVal
 {
     int64_t         int_value;
     double          float_value;
-    uint64_t        pointer_id;
+    union NecroVal* necro_pointer;
     NecroStructInfo struct_info;
-    NecroGCTag      treadmill_tag;
 } NecroVal;
 
 typedef NecroVal (*necro_c_call_1)(NecroVal);
@@ -284,42 +292,46 @@ void               necro_bench_slab();
 
 //=====================================================
 // Treadmill Memory management:
-//     Treadmill style precise incremental garbage collection,
-//     bounded by collection time,
-//     called at the end of every tick
+//     * Incremental
+//     * Precise
+//     * Non-copying (Never invalidates pointers, never reallocates, never copies)
+//     * Segmented
+//     * Fixed Page length
+//     * Bounded collection time
+//     * Collection called every tick
+//     * Adds up to trading overall efficiency
+//       in space and time for lower latency.
 //=====================================================
-#define NECRO_NUM_TM_SEGMENTS 5
-#define DEBUG_SLAB_ALLOCATOR  0
 
-#if DEBUG_TREADMILL
-#define TRACE_TREADMILL(...) printf(__VA_ARGS__)
+#define NECRO_NUM_TM_SEGMENTS 6
+#define NECRO_TM_PAGE_SIZE    1024
+#define DEBUG_TM              0
+
+#if DEBUG_TM
+#define TRACE_TM(...) printf(__VA_ARGS__)
 #else
-#define TRACE_TREADMILL(...)
+#define TRACE_TRACE_TM(...)
 #endif
 
-typedef enum
+typedef struct NecroTMPageHeader
 {
-    NECRO_TREADMILL_ECRU = 0x8000000, // starts at 27th bit
-    NECRO_TREADMILL_NON_ECRU
-} NECRO_TREADMILL_COLORS;
+    NecroTMTag                tags[NECRO_TM_PAGE_SIZE];
+    uint64_t                  ecru_flags[NECRO_TM_PAGE_SIZE / 64];
+    struct NecroTMPageHeader* next_page;
+} NecroTMPageHeader;
 
 typedef struct
 {
-    NecroVal*   data_arena[NECRO_NUM_TM_SEGMENTS];
-    NecroGCTag* tag_arena[NECRO_NUM_TM_SEGMENTS];
-    size_t      arena_sizes[NECRO_NUM_TM_SEGMENTS];
-    NecroGCTag* top[NECRO_NUM_TM_SEGMENTS];
-    NecroGCTag* bottom[NECRO_NUM_TM_SEGMENTS];
-    NecroGCTag* free[NECRO_NUM_TM_SEGMENTS];
-    NecroGCTag* scan[NECRO_NUM_TM_SEGMENTS];
+    NecroTypeInfo*     type_infos; // TODO: Have to get TypeInfo into here!
+    NecroTMPageHeader* pages;
+    NecroTMTag*        top[NECRO_NUM_TM_SEGMENTS];
+    NecroTMTag*        bottom[NECRO_NUM_TM_SEGMENTS];
+    NecroTMTag*        free[NECRO_NUM_TM_SEGMENTS];
+    NecroTMTag*        scan[NECRO_NUM_TM_SEGMENTS];
 } NecroTreadmill;
 
-NecroTreadmill necro_create_treadmill(size_t initial_segment_size);
-NecroVal       necro_treadmill_alloc(NecroTreadmill* treadmill, size_t size);
-void           necro_treadmill_collect(NecroTreadmill* treadmill, NecroVal root_id);
-// void*          necro_treadmill_deref(NecroTreadmill* treadmill, )
-// void           necro_destroy_treadmill(NecroTreadmill* slab_allocator);
-// void           necro_bench_treadmill();
+NecroTreadmill necro_create_treadmill(size_t num_initial_pages);
+NecroVal       necro_treadmill_alloc(NecroTreadmill* treadmill, uint32_t size);
 
 //=====================================================
 // Testing

@@ -97,4 +97,16 @@ typedef struct
     size_t      length;
 } NecroStringSlice;
 
+inline uint32_t next_highest_pow_of_2(uint32_t x)
+{
+    x--;
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    x |= x >> 8;
+    x |= x >> 16;
+    x++;
+    return x;
+}
+
 #endif // UTILITY_H

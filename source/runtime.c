@@ -7,6 +7,7 @@
 #include <string.h>
 #include <time.h>
 #include "runtime.h"
+#include "utility.h"
 
 // Prev Page, current page solves the problem
 // We only ever have twice the memory
@@ -274,162 +275,228 @@ uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
 // Note: This assumes the arena size will never exceed 2 ^ 27 = 134,217,728 nodes in each bin
 //=====================================================
 
-// Various helper functions
-inline uint32_t necro_get_tag_prev(NecroGCTag* tag)
+//---------------------
+// Helper functions:
+// Bit twiddle madness
+//---------------------
+inline NecroVal* necro_get_start_of_page_data_from_val(NecroVal* val, uint64_t data_size_in_bytes)
 {
-    return tag->prev_and_color & 0x7FFFFFF;
+    return (NecroVal*) (((uint64_t)val) & ~(data_size_in_bytes - 1));
 }
 
-inline void necro_set_tag_prev(NecroGCTag* tag, uint32_t prev)
+inline NecroTMPageHeader* necro_get_page_header_from_val(NecroVal* val, uint64_t data_size_in_bytes)
 {
-    tag->prev_and_color = prev | (tag->prev_and_color & 0xF8000000);
+    return (NecroTMPageHeader*)(necro_get_start_of_page_data_from_val(val, data_size_in_bytes)) - 1;
 }
 
-inline uint32_t necro_get_tag_next(NecroGCTag* tag)
+inline NecroTMTag* necro_get_tag_from_val(NecroVal* val, uint64_t data_size_in_bytes)
 {
-    return tag->next_and_size & 0x7FFFFFF;
+    NecroTMPageHeader* page_header = necro_get_page_header_from_val(val, data_size_in_bytes);
+    uint64_t           index       = val - ((NecroVal*)(page_header + 1));
+    return page_header->tags + index;
 }
 
-inline void necro_set_tag_next(NecroGCTag* tag, uint32_t next)
+inline NecroTMTag* necro_get_next_from_val(NecroVal* val, NecroTMPageHeader* page_header)
 {
-    tag->next_and_size = next | (tag->next_and_size & 0xF8000000);
+    uint64_t index = val - ((NecroVal*)(page_header + 1));
+    return page_header->tags[index].next;
 }
 
-inline NECRO_TREADMILL_COLORS necro_get_tag_color(NecroGCTag* tag)
+inline NecroTMTag* necro_get_prev_from_val(NecroVal* val, NecroTMPageHeader* page_header)
 {
-    return tag->prev_and_color & 0xF8000000;
+    uint64_t index = val - ((NecroVal*)(page_header + 1));
+    return page_header->tags[index].prev;
 }
 
-inline void necro_set_tag_color(NecroGCTag* tag, NECRO_TREADMILL_COLORS color)
+inline bool necro_is_ecru_from_val(NecroVal* val, NecroTMPageHeader* page_header)
 {
-    tag->prev_and_color |= color;
+    uint64_t index      = (val - ((NecroVal*)(page_header + 1)));
+    uint64_t ecru_index = index >> 6;
+    uint64_t bit_index  = (uint64_t) 1 << (index & 63);
+    return page_header->ecru_flags[ecru_index] & bit_index;
 }
 
-inline uint32_t necro_get_tag_size(NecroGCTag* tag)
+inline void necro_set_ecru_from_val(NecroVal* val, NecroTMPageHeader* page_header, bool is_ecru)
 {
-    return tag->next_and_size >> 28;
+    uint64_t index      = (val - ((NecroVal*)(page_header + 1)));
+    uint64_t ecru_index = index >> 6;
+    uint64_t bit_index  = (uint64_t) 1 << (index & 63);
+    if (is_ecru)
+        page_header->ecru_flags[ecru_index] |= bit_index;
+    else
+        page_header->ecru_flags[ecru_index] &= ~bit_index;
 }
 
-inline void necro_unsnap(NecroTreadmill* treadmill, NecroGCTag* tag, uint64_t bin)
+inline NecroVal* necro_get_data_from_tag(NecroTMTag* tag)
 {
-    uint32_t           pid  = necro_get_tag_prev(tag);
-    uint32_t           nid  = necro_get_tag_next(tag);
-    NecroGCTag* prev = treadmill->tag_arena[bin] + pid;
-    NecroGCTag* next = treadmill->tag_arena[bin] + nid;
-    necro_set_tag_next(prev, nid);
-    necro_set_tag_prev(next, pid);
+    NecroTMPageHeader* page_header = (NecroTMPageHeader*)(((uint64_t)tag) & ~(sizeof(NecroTMTag*) - 1));
+    uint64_t           index       = tag - page_header->tags;
+    return (NecroVal*)(page_header + 1) + index;
 }
 
-inline void necro_snap_in(NecroTreadmill* treadmill, NecroGCTag* tag, NecroGCTag* new_prev, NecroGCTag* new_next, uint64_t bin)
+inline bool necro_is_ecru_from_tag(NecroTMTag* tag)
 {
-    uint32_t tid  = (uint32_t) (tag      - treadmill->tag_arena[bin]);
-    uint32_t pid  = (uint32_t) (new_prev - treadmill->tag_arena[bin]);
-    uint32_t nid  = (uint32_t) (new_next - treadmill->tag_arena[bin]);
-    necro_set_tag_next(new_prev, tid); // set new_prev's next to tag
-    necro_set_tag_prev(tag, pid);      // set tag's prev to new_prev
-    necro_set_tag_next(tag, nid);      // set tag's next to new_next
-    necro_set_tag_prev(new_next, tid); // set new_next's prev to tag
+    NecroTMPageHeader* page_header = (NecroTMPageHeader*)(((uint64_t)tag) & ~(sizeof(NecroTMTag*) - 1));
+    uint64_t           index       = tag - page_header->tags;
+    uint64_t           ecru_index  = index >> 6;
+    uint64_t           bit_index   = (uint64_t) 1 << (index & 63);
+    return page_header->ecru_flags[ecru_index] & bit_index;
 }
 
-inline void necro_relink(NecroTreadmill* treadmill, NecroGCTag* tag, NecroGCTag* new_prev, NecroGCTag* new_next, uint64_t bin)
+inline void necro_set_ecru_from_tag(NecroTMTag* tag, bool is_ecru)
 {
-    necro_unsnap(treadmill, tag, bin);
-    necro_snap_in(treadmill, tag, new_prev, new_next, bin);
+    NecroTMPageHeader* page_header = (NecroTMPageHeader*)(((uint64_t)tag) & ~(sizeof(NecroTMTag*) - 1));
+    uint64_t           index       = tag - page_header->tags;
+    uint64_t           ecru_index  = index >> 6;
+    uint64_t           bit_index   = (uint64_t) 1 << (index & 63);
+    if (is_ecru)
+        page_header->ecru_flags[ecru_index] |= bit_index;
+    else
+        page_header->ecru_flags[ecru_index] &= ~bit_index;
 }
 
-NecroTreadmill necro_create_treadmill(size_t initial_arena_size)
+inline void necro_unsnap(NecroTMTag* tag)
+{
+    NecroTMTag* prev = tag->prev;
+    NecroTMTag* next = tag->next;
+    prev->next       = next;
+    next->prev       = prev;
+    tag->prev        = NULL;
+    tag->next        = NULL;
+}
+
+inline void necro_snap_in(NecroTMTag* tag, NecroTMTag* new_prev, NecroTMTag* new_next)
+{
+    new_prev->next = tag;
+    tag->prev      = new_prev;
+    tag->next      = new_next;
+    new_next->prev = tag;
+}
+
+inline void necro_relink(NecroTMTag* tag, NecroTMTag* new_prev, NecroTMTag* new_next)
+{
+    necro_unsnap(tag);
+    necro_snap_in(tag, new_prev, new_next);
+}
+
+//---------------
+// API functions
+
+// Segments go in powers of 2: 2, 4, 8, 16, 32, 64, etc
+NecroTreadmill necro_create_treadmill(size_t num_initial_pages)
 {
     NecroTreadmill treadmill;
-    for (size_t i = 0; i < NECRO_NUM_TM_SEGMENTS; ++i)
+    treadmill.pages = NULL;
+    for (size_t segment = 0; segment < NECRO_NUM_TM_SEGMENTS; ++segment)
     {
-        size_t size = 2 << i;
-        treadmill.data_arena[i]  = malloc(initial_arena_size * size * sizeof(int64_t));
-        treadmill.tag_arena[i]   = malloc(initial_arena_size * sizeof(NecroGCTag));
-        treadmill.arena_sizes[i] = initial_arena_size;
-        for (size_t t = 0; t < initial_arena_size; ++t)
+        size_t size      = 2 << segment;
+        size_t page_size = sizeof(NecroTMPageHeader) + size * sizeof(int64_t) * NECRO_TM_PAGE_SIZE;
+        char*  data      = malloc(num_initial_pages * page_size);
+        for (size_t page = 0; page < num_initial_pages; ++page)
         {
-            uint32_t prev  = t == 0 ? initial_arena_size - 1 : t - 1;
-            uint32_t next  = (t + 1) % initial_arena_size;
-            uint32_t color = NECRO_TREADMILL_NON_ECRU;
-            uint32_t size  = i;
-            treadmill.tag_arena[i][t].prev_and_color = prev | color;
-            treadmill.tag_arena[i][t].next_and_size  = next | (size << 28);
+            NecroTMPageHeader* prev_page_header = (NecroTMPageHeader*)(data + page_size * (page == 0 ? num_initial_pages - 1 : page - 1));
+            NecroTMPageHeader* page_header      = (NecroTMPageHeader*)(data + page_size * page);
+            NecroTMPageHeader* next_page_header = (NecroTMPageHeader*)(data + page_size * ((page + 1) % num_initial_pages));
+            for (size_t block = 0; block < NECRO_TM_PAGE_SIZE; ++block)
+            {
+                // Set prev pointer
+                page_header->tags[block].prev = (block == 0) ?
+                    prev_page_header->tags + (NECRO_TM_PAGE_SIZE - 1) :
+                    page_header->tags + (block - 1);
+                // Set next pointer
+                page_header->tags[block].next = (block + 1 >= NECRO_TM_PAGE_SIZE) ?
+                    next_page_header->tags :
+                    page_header->tags + (block + 1);
+                // Set ecru flags to false
+                memset(page_header->ecru_flags, 0, NECRO_TM_PAGE_SIZE / 64);
+                // Set up page list
+                page_header->next_page = treadmill.pages;
+                treadmill.pages = page_header;
+            }
         }
-        treadmill.free[i]   = treadmill.tag_arena[i];
-        treadmill.top[i]    = treadmill.tag_arena[i];
-        treadmill.bottom[i] = treadmill.tag_arena[i];
-        treadmill.scan[i]   = treadmill.tag_arena[i];
+        treadmill.free[segment]   = ((NecroTMPageHeader*)(data))->tags;
+        treadmill.top[segment]    = ((NecroTMPageHeader*)(data))->tags;
+        treadmill.bottom[segment] = ((NecroTMPageHeader*)(data))->tags;
+        treadmill.scan[segment]   = ((NecroTMPageHeader*)(data))->tags;
     }
     return treadmill;
 }
 
-NecroVal necro_treadmill_alloc(NecroTreadmill* treadmill, size_t size)
+NecroVal necro_treadmill_alloc(NecroTreadmill* treadmill, uint32_t size_in_bytes)
 {
-    uint64_t bin = size; // TODO: Conver to pow of 2
-    assert(bin <= NECRO_NUM_TM_SEGMENTS);
-    // The original algorithm runs the collector when you run out of memory
-    // We instead allocate more memory, and defer running the algorithm
-    // Until the end of the tick
-    if (treadmill->free[bin] == treadmill->bottom[bin])
+    uint64_t num_slots = next_highest_pow_of_2(size_in_bytes) >> 3;
+    assert(num_slots <= 64); // Right now this only supports up to 64 slots = 8 * 64 = 512 bytes
+    uint64_t segment =
+        (num_slots & 63)  * 5 +
+        (num_slots & 31)  * 4 +
+        (num_slots & 15)  * 3 +
+        (num_slots & 7)   * 2 +
+        (num_slots & 3)   * 1;
+    if (treadmill->free[segment] == treadmill->bottom[segment])
     {
-        // we've run out of memory, allocate more
+        // Flip, if out of memory, alloc more!
     }
-    NecroGCTag* allocated_tag = treadmill->free[bin];
-    // char*              allocated_data = treadmill->data_arena[bin] + ((uint32_t) (allocated_tag - treadmill->tag_arena[bin]));
-    treadmill->free[bin]      = treadmill->tag_arena[bin] + necro_get_tag_next(treadmill->free[bin]);
-    necro_set_tag_color(allocated_tag, NECRO_TREADMILL_NON_ECRU);
+    NecroTMTag* allocated_tag = treadmill->free[segment];
+    NecroVal*   data          = necro_get_data_from_tag(allocated_tag);
+    treadmill->free[segment]  = allocated_tag->next;
+    necro_set_ecru_from_tag(allocated_tag, 1);
     NecroVal value;
-    value.pointer_id = (uint64_t)(allocated_tag - treadmill->tag_arena[bin]) | (bin << 28);
+    value.necro_pointer = data;
     return value;
 }
 
-// TODO: Finish
-inline void necro_treadmill_scan(NecroTreadmill* treadmill, uint64_t bin)
+inline bool necro_treadmill_scan(NecroTreadmill* treadmill, uint64_t segment)
 {
-    NecroGCTag* tag = treadmill->scan[bin];
-    uint64_t    id  = tag - treadmill->tag_arena[bin];
-    if (necro_get_tag_color(tag) == NECRO_TREADMILL_NON_ECRU)
+    if (treadmill->scan[segment] == treadmill->top[segment])
+        return true;
+    NecroTMTag* tag = treadmill->scan[segment];
+    if (!necro_is_ecru_from_tag(tag))
     {
         // Move scan pointer backwards
-        treadmill->scan[bin] = treadmill->tag_arena[bin] + necro_get_tag_prev(treadmill->scan[bin]);
-        return;
+        treadmill->scan[segment] = treadmill->scan[segment]->prev;
+        return false;
     }
-    NecroVal*       data = (NecroVal*)treadmill->data_arena[bin] + id;
-    NecroStructInfo info = data->struct_info;
-    necro_set_tag_color(tag, NECRO_TREADMILL_NON_ECRU);
-    for (uint64_t i = 0; i < (2 << bin); ++i)
+    NecroVal*       data        = necro_get_data_from_tag(tag);
+    NecroStructInfo struct_info = data->struct_info;
+    NecroTypeInfo   type_info   = treadmill->type_infos[struct_info.type_index];
+    necro_set_ecru_from_tag(tag, 0);
+
+    for (uint64_t i = 0; i < type_info.num_slots; ++i)
     {
         // if not a Boxed member, skip
-        if ((info.boxed_member_bit_field | (1 << i)) != (1 << i))
+        if ((type_info.boxed_slot_bit_field | ((uint64_t)1 << i)) != ((uint64_t)1 << i))
             continue;
-        uint64_t    arg_bin_and_id = data[i + 1].pointer_id;
-        uint64_t    arg_id         = arg_bin_and_id | 0x7FFFFFF;
-        uint64_t    arg_bin        = arg_bin_and_id >> 28;
-        NecroGCTag* arg_tag        = treadmill->tag_arena[arg_bin] + arg_id;
-        if (necro_get_tag_color(arg_tag) == NECRO_TREADMILL_NON_ECRU)
+        NecroVal*   slot_value_ptr = data[i + 1].necro_pointer;
+        NecroTMTag* slot_tag       = necro_get_tag_from_val(slot_value_ptr, type_info.size_in_bytes);
+        if (!necro_is_ecru_from_tag(slot_tag))
             continue;
-        necro_relink(treadmill, arg_tag, treadmill->tag_arena[arg_bin] + necro_get_tag_prev(treadmill->scan[arg_bin]), treadmill->scan[arg_bin], arg_bin); // Relink node behind the scan pointer
+        necro_relink(slot_tag, treadmill->scan[segment]->prev, treadmill->scan[segment]); // Relink node behind the scan pointer
     }
-    treadmill->scan[bin] = treadmill->tag_arena[bin] + necro_get_tag_prev(treadmill->scan[bin]);
+    // Move scan pointer backwards
+    treadmill->scan[segment] = treadmill->scan[segment]->prev;
+    return false;
 }
 
 // Need to handle stopping and picking up mid scan
-void necro_treadmill_collect(NecroTreadmill* treadmill, NecroVal root_id)
+void necro_treadmill_collect(NecroTreadmill* treadmill, NecroVal root_ptr)
 {
-    uint64_t    id  = root_id.pointer_id | 0x7FFFFFF;
-    uint64_t    bin = root_id.pointer_id >> 28;
-    NecroGCTag* tag = treadmill->tag_arena[bin] + id;
-    necro_relink(treadmill, tag, treadmill->top[bin], treadmill->scan[bin], bin); // Move Root to grey list between top and scan pointers
-    treadmill->scan[bin] = tag;
-    // Continue scanning until all scan node of all bins points to same node as top pointer
+    // Only link root in at BEGINNING of collection cycle, not every re-entrance into it!
+    NecroVal*       root_val    = root_ptr.necro_pointer;
+    NecroStructInfo struct_info = root_val->struct_info;
+    NecroTypeInfo   type_info   = treadmill->type_infos[struct_info.type_index];
+    NecroTMTag*     tag         = necro_get_tag_from_val(root_val, type_info.size_in_bytes);
+    necro_relink(tag, treadmill->top[type_info.gc_segment], treadmill->scan[type_info.gc_segment]); // Move Root to grey list between top and scan pointers
+    treadmill->scan[type_info.gc_segment] = tag;
+    // Continue scanning until all scan node of all segments points to same node as top pointer
     bool is_done = false;
     while (!is_done)
     {
         is_done = true;
         for (size_t i = 0; i < NECRO_NUM_TM_SEGMENTS; ++i)
         {
-            necro_treadmill_scan(treadmill, i); // scan bin
-            is_done = is_done && treadmill->scan[i] == treadmill->top[i]; // Check if this segment is done
+            // scan segment
+            bool segment_done = necro_treadmill_scan(treadmill, i);
+            is_done = is_done && segment_done;
         }
     }
     // Scan is done, do cleanup

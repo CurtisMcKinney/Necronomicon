@@ -177,9 +177,15 @@ typedef enum
 typedef struct
 {
     uint32_t pattern_tag;
-    uint16_t boxed_member_bit_field;
-    uint16_t num_members;
+    uint32_t boxed_member_bit_field;
 } NecroStructInfo;
+
+// In-band 8 byte Tag
+typedef struct
+{
+    uint32_t prev_and_color;
+    uint32_t next_and_size;
+} NecroGCTag;
 
 typedef union
 {
@@ -187,6 +193,7 @@ typedef union
     double          float_value;
     uint64_t        pointer_id;
     NecroStructInfo struct_info;
+    NecroGCTag      treadmill_tag;
 } NecroVal;
 
 typedef NecroVal (*necro_c_call_1)(NecroVal);
@@ -281,6 +288,9 @@ void               necro_bench_slab();
 //     bounded by collection time,
 //     called at the end of every tick
 //=====================================================
+#define NECRO_NUM_TM_SEGMENTS 5
+#define DEBUG_SLAB_ALLOCATOR  0
+
 #if DEBUG_TREADMILL
 #define TRACE_TREADMILL(...) printf(__VA_ARGS__)
 #else
@@ -293,25 +303,18 @@ typedef enum
     NECRO_TREADMILL_NON_ECRU
 } NECRO_TREADMILL_COLORS;
 
-// Out-of-band 8 byte Tag
 typedef struct
 {
-    uint32_t prev_and_color;
-    uint32_t next_and_size;
-} NecroTreadmillTag;
-
-typedef struct
-{
-    char*              data_arena[NECRO_NUM_SLAB_STEPS];
-    NecroTreadmillTag* tag_arena[NECRO_NUM_SLAB_STEPS];
-    size_t             arena_sizes[NECRO_NUM_SLAB_STEPS];
-    NecroTreadmillTag* top[NECRO_NUM_SLAB_STEPS];
-    NecroTreadmillTag* bottom[NECRO_NUM_SLAB_STEPS];
-    NecroTreadmillTag* free[NECRO_NUM_SLAB_STEPS];
-    NecroTreadmillTag* scan[NECRO_NUM_SLAB_STEPS];
+    NecroVal*   data_arena[NECRO_NUM_TM_SEGMENTS];
+    NecroGCTag* tag_arena[NECRO_NUM_TM_SEGMENTS];
+    size_t      arena_sizes[NECRO_NUM_TM_SEGMENTS];
+    NecroGCTag* top[NECRO_NUM_TM_SEGMENTS];
+    NecroGCTag* bottom[NECRO_NUM_TM_SEGMENTS];
+    NecroGCTag* free[NECRO_NUM_TM_SEGMENTS];
+    NecroGCTag* scan[NECRO_NUM_TM_SEGMENTS];
 } NecroTreadmill;
 
-NecroTreadmill necro_create_treadmill(size_t initial_arena_size);
+NecroTreadmill necro_create_treadmill(size_t initial_segment_size);
 NecroVal       necro_treadmill_alloc(NecroTreadmill* treadmill, size_t size);
 void           necro_treadmill_collect(NecroTreadmill* treadmill, NecroVal root_id);
 // void*          necro_treadmill_deref(NecroTreadmill* treadmill, )

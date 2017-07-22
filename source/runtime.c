@@ -275,52 +275,52 @@ uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
 //=====================================================
 
 // Various helper functions
-inline uint32_t necro_get_tag_prev(NecroTreadmillTag* tag)
+inline uint32_t necro_get_tag_prev(NecroGCTag* tag)
 {
     return tag->prev_and_color & 0x7FFFFFF;
 }
 
-inline void necro_set_tag_prev(NecroTreadmillTag* tag, uint32_t prev)
+inline void necro_set_tag_prev(NecroGCTag* tag, uint32_t prev)
 {
     tag->prev_and_color = prev | (tag->prev_and_color & 0xF8000000);
 }
 
-inline uint32_t necro_get_tag_next(NecroTreadmillTag* tag)
+inline uint32_t necro_get_tag_next(NecroGCTag* tag)
 {
     return tag->next_and_size & 0x7FFFFFF;
 }
 
-inline void necro_set_tag_next(NecroTreadmillTag* tag, uint32_t next)
+inline void necro_set_tag_next(NecroGCTag* tag, uint32_t next)
 {
     tag->next_and_size = next | (tag->next_and_size & 0xF8000000);
 }
 
-inline NECRO_TREADMILL_COLORS necro_get_tag_color(NecroTreadmillTag* tag)
+inline NECRO_TREADMILL_COLORS necro_get_tag_color(NecroGCTag* tag)
 {
     return tag->prev_and_color & 0xF8000000;
 }
 
-inline void necro_set_tag_color(NecroTreadmillTag* tag, NECRO_TREADMILL_COLORS color)
+inline void necro_set_tag_color(NecroGCTag* tag, NECRO_TREADMILL_COLORS color)
 {
     tag->prev_and_color |= color;
 }
 
-inline uint32_t necro_get_tag_size(NecroTreadmillTag* tag)
+inline uint32_t necro_get_tag_size(NecroGCTag* tag)
 {
     return tag->next_and_size >> 28;
 }
 
-inline void necro_unsnap(NecroTreadmill* treadmill, NecroTreadmillTag* tag, uint64_t bin)
+inline void necro_unsnap(NecroTreadmill* treadmill, NecroGCTag* tag, uint64_t bin)
 {
     uint32_t           pid  = necro_get_tag_prev(tag);
     uint32_t           nid  = necro_get_tag_next(tag);
-    NecroTreadmillTag* prev = treadmill->tag_arena[bin] + pid;
-    NecroTreadmillTag* next = treadmill->tag_arena[bin] + nid;
+    NecroGCTag* prev = treadmill->tag_arena[bin] + pid;
+    NecroGCTag* next = treadmill->tag_arena[bin] + nid;
     necro_set_tag_next(prev, nid);
     necro_set_tag_prev(next, pid);
 }
 
-inline void necro_snap_in(NecroTreadmill* treadmill, NecroTreadmillTag* tag, NecroTreadmillTag* new_prev, NecroTreadmillTag* new_next, uint64_t bin)
+inline void necro_snap_in(NecroTreadmill* treadmill, NecroGCTag* tag, NecroGCTag* new_prev, NecroGCTag* new_next, uint64_t bin)
 {
     uint32_t tid  = (uint32_t) (tag      - treadmill->tag_arena[bin]);
     uint32_t pid  = (uint32_t) (new_prev - treadmill->tag_arena[bin]);
@@ -331,7 +331,7 @@ inline void necro_snap_in(NecroTreadmill* treadmill, NecroTreadmillTag* tag, Nec
     necro_set_tag_prev(new_next, tid); // set new_next's prev to tag
 }
 
-inline void necro_relink(NecroTreadmill* treadmill, NecroTreadmillTag* tag, NecroTreadmillTag* new_prev, NecroTreadmillTag* new_next, uint64_t bin)
+inline void necro_relink(NecroTreadmill* treadmill, NecroGCTag* tag, NecroGCTag* new_prev, NecroGCTag* new_next, uint64_t bin)
 {
     necro_unsnap(treadmill, tag, bin);
     necro_snap_in(treadmill, tag, new_prev, new_next, bin);
@@ -340,10 +340,11 @@ inline void necro_relink(NecroTreadmill* treadmill, NecroTreadmillTag* tag, Necr
 NecroTreadmill necro_create_treadmill(size_t initial_arena_size)
 {
     NecroTreadmill treadmill;
-    for (size_t i = 0; i < NECRO_NUM_SLAB_STEPS; ++i)
+    for (size_t i = 0; i < NECRO_NUM_TM_SEGMENTS; ++i)
     {
-        treadmill.data_arena[i]  = malloc((i + 1) * NECRO_SLAB_STEP_SIZE * initial_arena_size);
-        treadmill.tag_arena[i]   = malloc(initial_arena_size * sizeof(NecroTreadmillTag));
+        size_t size = 2 << i;
+        treadmill.data_arena[i]  = malloc(initial_arena_size * size * sizeof(int64_t));
+        treadmill.tag_arena[i]   = malloc(initial_arena_size * sizeof(NecroGCTag));
         treadmill.arena_sizes[i] = initial_arena_size;
         for (size_t t = 0; t < initial_arena_size; ++t)
         {
@@ -364,8 +365,8 @@ NecroTreadmill necro_create_treadmill(size_t initial_arena_size)
 
 NecroVal necro_treadmill_alloc(NecroTreadmill* treadmill, size_t size)
 {
-    assert(size <= NECRO_NUM_SLAB_STEPS * NECRO_SLAB_STEP_SIZE);
-    uint64_t bin = (size >> NECRO_SLAB_STEP_SIZE_POW_2) - 1;
+    uint64_t bin = size; // TODO: Conver to pow of 2
+    assert(bin <= NECRO_NUM_TM_SEGMENTS);
     // The original algorithm runs the collector when you run out of memory
     // We instead allocate more memory, and defer running the algorithm
     // Until the end of the tick
@@ -373,19 +374,20 @@ NecroVal necro_treadmill_alloc(NecroTreadmill* treadmill, size_t size)
     {
         // we've run out of memory, allocate more
     }
-    NecroTreadmillTag* allocated_tag  = treadmill->free[bin];
+    NecroGCTag* allocated_tag = treadmill->free[bin];
     // char*              allocated_data = treadmill->data_arena[bin] + ((uint32_t) (allocated_tag - treadmill->tag_arena[bin]));
-    treadmill->free[bin]              = treadmill->tag_arena[bin] + necro_get_tag_next(treadmill->free[bin]);
+    treadmill->free[bin]      = treadmill->tag_arena[bin] + necro_get_tag_next(treadmill->free[bin]);
     necro_set_tag_color(allocated_tag, NECRO_TREADMILL_NON_ECRU);
     NecroVal value;
     value.pointer_id = (uint64_t)(allocated_tag - treadmill->tag_arena[bin]) | (bin << 28);
     return value;
 }
 
+// TODO: Finish
 inline void necro_treadmill_scan(NecroTreadmill* treadmill, uint64_t bin)
 {
-    NecroTreadmillTag* tag = treadmill->scan[bin];
-    uint64_t           id  = tag - treadmill->tag_arena[bin];
+    NecroGCTag* tag = treadmill->scan[bin];
+    uint64_t    id  = tag - treadmill->tag_arena[bin];
     if (necro_get_tag_color(tag) == NECRO_TREADMILL_NON_ECRU)
     {
         // Move scan pointer backwards
@@ -395,15 +397,15 @@ inline void necro_treadmill_scan(NecroTreadmill* treadmill, uint64_t bin)
     NecroVal*       data = (NecroVal*)treadmill->data_arena[bin] + id;
     NecroStructInfo info = data->struct_info;
     necro_set_tag_color(tag, NECRO_TREADMILL_NON_ECRU);
-    for (size_t i = 0; i < bin; ++i)
+    for (uint64_t i = 0; i < (2 << bin); ++i)
     {
         // if not a Boxed member, skip
         if ((info.boxed_member_bit_field | (1 << i)) != (1 << i))
             continue;
-        uint64_t           arg_bin_and_id = data[i + 1].pointer_id;
-        uint64_t           arg_id         = arg_bin_and_id | 0x7FFFFFF;
-        uint64_t           arg_bin        = arg_bin_and_id >> 28;
-        NecroTreadmillTag* arg_tag        = treadmill->tag_arena[arg_bin] + arg_id;
+        uint64_t    arg_bin_and_id = data[i + 1].pointer_id;
+        uint64_t    arg_id         = arg_bin_and_id | 0x7FFFFFF;
+        uint64_t    arg_bin        = arg_bin_and_id >> 28;
+        NecroGCTag* arg_tag        = treadmill->tag_arena[arg_bin] + arg_id;
         if (necro_get_tag_color(arg_tag) == NECRO_TREADMILL_NON_ECRU)
             continue;
         necro_relink(treadmill, arg_tag, treadmill->tag_arena[arg_bin] + necro_get_tag_prev(treadmill->scan[arg_bin]), treadmill->scan[arg_bin], arg_bin); // Relink node behind the scan pointer
@@ -414,9 +416,9 @@ inline void necro_treadmill_scan(NecroTreadmill* treadmill, uint64_t bin)
 // Need to handle stopping and picking up mid scan
 void necro_treadmill_collect(NecroTreadmill* treadmill, NecroVal root_id)
 {
-    uint64_t           id  = root_id.pointer_id | 0x7FFFFFF;
-    uint64_t           bin = root_id.pointer_id >> 28;
-    NecroTreadmillTag* tag = treadmill->tag_arena[bin] + id;
+    uint64_t    id  = root_id.pointer_id | 0x7FFFFFF;
+    uint64_t    bin = root_id.pointer_id >> 28;
+    NecroGCTag* tag = treadmill->tag_arena[bin] + id;
     necro_relink(treadmill, tag, treadmill->top[bin], treadmill->scan[bin], bin); // Move Root to grey list between top and scan pointers
     treadmill->scan[bin] = tag;
     // Continue scanning until all scan node of all bins points to same node as top pointer
@@ -424,10 +426,10 @@ void necro_treadmill_collect(NecroTreadmill* treadmill, NecroVal root_id)
     while (!is_done)
     {
         is_done = true;
-        for (size_t i = 0; i < NECRO_NUM_SLAB_STEPS; ++i)
+        for (size_t i = 0; i < NECRO_NUM_TM_SEGMENTS; ++i)
         {
             necro_treadmill_scan(treadmill, i); // scan bin
-            is_done = is_done && treadmill->scan[i] == treadmill->top[i];
+            is_done = is_done && treadmill->scan[i] == treadmill->top[i]; // Check if this segment is done
         }
     }
     // Scan is done, do cleanup

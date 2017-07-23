@@ -85,6 +85,10 @@ int main(int32_t argc, char** argv)
     {
         necro_test_slab();
     }
+    else if (argc > 1 && strcmp(argv[1], "-test_treadmill") == 0)
+    {
+        necro_test_treadmill();
+    }
     // else if (argc > 1 && strcmp(argv[1], "-test_runtime") == 0)
     // {
     //     necro_test_runtime();

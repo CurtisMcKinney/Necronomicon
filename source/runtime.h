@@ -337,6 +337,8 @@ typedef struct
 NecroTreadmill necro_create_treadmill(size_t num_initial_pages, NecroTypeInfo* type_info_table);
 void           necro_destroy_treadmill(NecroTreadmill* treadmill);
 NecroVal       necro_treadmill_alloc(NecroTreadmill* treadmill, uint32_t type_index);
+void           necro_print_treadmill(NecroTreadmill* treadmill);
+void           necro_test_treadmill();
 
 //=====================================================
 // Testing

@@ -298,7 +298,7 @@ void               necro_bench_slab();
 //=====================================================
 
 #define NECRO_NUM_TM_SEGMENTS 6
-#define NECRO_TM_PAGE_SIZE    1024
+#define NECRO_TM_PAGE_SIZE    2048
 #define DEBUG_TM              0
 
 #if DEBUG_TM

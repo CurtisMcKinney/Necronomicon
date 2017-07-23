@@ -417,9 +417,9 @@ NecroTreadmill necro_create_treadmill(size_t num_initial_pages, NecroTypeInfo* t
             }
         }
         treadmill.free[segment]   = ((NecroTMPageHeader*)(data))->tags;
-        treadmill.top[segment]    = ((NecroTMPageHeader*)(data))->tags;
-        treadmill.bottom[segment] = ((NecroTMPageHeader*)(data))->tags;
-        treadmill.scan[segment]   = ((NecroTMPageHeader*)(data))->tags;
+        treadmill.scan[segment]   = treadmill.free[segment]->prev;
+        treadmill.top[segment]    = treadmill.scan[segment]->prev;
+        treadmill.bottom[segment] = treadmill.top[segment]->prev;
     }
     return treadmill;
 }
@@ -430,13 +430,14 @@ NecroVal necro_treadmill_alloc(NecroTreadmill* treadmill, uint32_t type_index)
     assert(segment <= 6); // Right now this only supports up to 64 slots = 8 * 64 = 512 bytes
     if (treadmill->free[segment] == treadmill->bottom[segment])
     {
+        // Simply alloc more here?
         // Flip, if out of memory, alloc more!
         assert(false); // TODO: Finish
     }
     NecroTMTag* allocated_tag = treadmill->free[segment];
     NecroVal*   data          = necro_get_data_from_tag(allocated_tag);
     treadmill->free[segment]  = allocated_tag->next;
-    necro_set_ecru_from_tag(allocated_tag, 1);
+    necro_set_ecru_from_tag(allocated_tag, 0);
     NecroVal value;
     value.necro_pointer = data;
     return value;
@@ -501,7 +502,35 @@ void necro_treadmill_collect(NecroTreadmill* treadmill, NecroVal root_ptr)
     }
     if (treadmill->complete)
     {
-        // If scan is done, do cleanup
+        for (size_t segment = 0; segment < NECRO_NUM_TM_SEGMENTS; ++segment)
+        {
+            // Move scan pointer to right before free pointer
+            treadmill->scan[segment] = treadmill->free[segment]->prev;
+
+            // Set black list to ecru
+            NecroTMTag* current_tag = treadmill->scan[segment]->prev;
+            while (current_tag != treadmill->top[segment]->prev)
+            {
+                necro_set_ecru_from_tag(current_tag, 1);
+                current_tag = current_tag->prev;
+            }
+
+            // Set ecru list to white
+            current_tag = treadmill->top[segment];
+            while (current_tag != treadmill->bottom[segment]->prev)
+            {
+                necro_set_ecru_from_tag(current_tag, 0);
+                current_tag = current_tag->prev;
+            }
+
+            // Move bottom pointer to top pointer
+            treadmill->bottom[segment] = treadmill->top[segment];
+            necro_set_ecru_from_tag(treadmill->bottom[segment], 0);
+
+            // Move top pointer to right before scan pointer
+            treadmill->top[segment] = treadmill->scan[segment]->prev;
+            necro_set_ecru_from_tag(treadmill->top[segment], 0);
+        }
     }
 }
 

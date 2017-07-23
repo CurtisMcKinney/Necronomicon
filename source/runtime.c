@@ -427,12 +427,27 @@ NecroTreadmill necro_create_treadmill(size_t num_initial_pages, NecroTypeInfo* t
 NecroVal necro_treadmill_alloc(NecroTreadmill* treadmill, uint32_t type_index)
 {
     uint32_t segment = treadmill->type_infos[type_index].gc_segment;
-    assert(segment <= 6); // Right now this only supports up to 64 slots = 8 * 64 = 512 bytes
-    if (treadmill->free[segment] == treadmill->bottom[segment])
+    assert(segment <= 6); // Right now this only supports up to 64 slots
+    if (treadmill->free[segment]->next == treadmill->bottom[segment])
     {
-        // Simply alloc more here?
-        // Flip, if out of memory, alloc more!
-        assert(false); // TODO: Finish
+        // Free list hit rock bottom, alloc another page, link it in, then set it to white
+        NecroTMPageHeader* page_header = malloc(sizeof(NecroTMPageHeader) + (2 << segment) * sizeof(int64_t) * NECRO_TM_PAGE_SIZE);
+        for (size_t block = 0; block < NECRO_TM_PAGE_SIZE; ++block)
+        {
+            // Set prev pointer
+            page_header->tags[block].prev = (block == 0) ?
+                treadmill->free[segment] :
+                page_header->tags + (block - 1);
+            // Set next pointer
+            page_header->tags[block].next = (block + 1 >= NECRO_TM_PAGE_SIZE) ?
+                treadmill->bottom[segment] :
+                page_header->tags + (block + 1);
+            // Set ecru flags to false
+            memset(page_header->ecru_flags, 0, (NECRO_TM_PAGE_SIZE / 64) * sizeof(uint64_t));
+            // Add page to page list
+            page_header->next_page = treadmill->pages;
+            treadmill->pages       = page_header;
+        }
     }
     NecroTMTag* allocated_tag = treadmill->free[segment];
     NecroVal*   data          = necro_get_data_from_tag(allocated_tag);

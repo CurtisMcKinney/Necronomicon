@@ -284,6 +284,7 @@ void               necro_destroy_slab_allocator(NecroSlabAllocator* slab_allocat
 void               necro_bench_slab();
 
 
+// Tick based
 //=====================================================
 // Treadmill Memory management:
 //     * Incremental
@@ -291,20 +292,20 @@ void               necro_bench_slab();
 //     * Non-copying (Never invalidates pointers, never reallocates, never copies)
 //     * Segmented Block sizes, up to 64 slots in size (512 bytes, will need a different allocator for differently sized objects)
 //     * Fixed Page length
-//     * Bounded collection time
 //     * Collection called every tick
+//     * Bounded collection time
 //     * Adds up to trading overall efficiency
 //       in space and time for lower latency.
 //=====================================================
 
 #define NECRO_NUM_TM_SEGMENTS 6
 #define NECRO_TM_PAGE_SIZE    2048
-#define DEBUG_TM              0
+#define DEBUG_TM              1
 
 #if DEBUG_TM
 #define TRACE_TM(...) printf(__VA_ARGS__)
 #else
-#define TRACE_TRACE_TM(...)
+#define TRACE_TM(...)
 #endif
 
 // Out of band 16 byte Tag
@@ -328,6 +329,7 @@ typedef struct
     bool               complete;
     NecroTypeInfo*     type_infos; // TODO: Have to get TypeInfo into here!
     NecroTMPageHeader* pages;
+    size_t             allocated_blocks[NECRO_NUM_TM_SEGMENTS];
     NecroTMTag*        top[NECRO_NUM_TM_SEGMENTS];
     NecroTMTag*        bottom[NECRO_NUM_TM_SEGMENTS];
     NecroTMTag*        free[NECRO_NUM_TM_SEGMENTS];
@@ -343,6 +345,7 @@ void           necro_test_treadmill();
 //=====================================================
 // Testing
 //=====================================================
+void print_test_result(const char* print_string, bool result);
 void necro_test_vm();
 void necro_trace_stack(int64_t opcode);
 void necro_test_region();

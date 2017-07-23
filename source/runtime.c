@@ -272,7 +272,6 @@ uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
 //=====================================================
 // Treadmill
 // Top >---(grey)---> Scan >---(black)---> Free >---(white)---> Bottom >---(ecru)---> Top {loop around}
-// Note: This assumes the arena size will never exceed 2 ^ 27 = 134,217,728 nodes in each bin
 //=====================================================
 
 //---------------------
@@ -423,8 +422,9 @@ NecroTreadmill necro_create_treadmill(size_t num_initial_pages, NecroTypeInfo* t
         treadmill.pages                       = ((NecroTMPageHeader*)data);
         treadmill.free[segment]               = ((NecroTMPageHeader*)(data))->tags;
         treadmill.scan[segment]               = treadmill.free[segment]->prev;
-        treadmill.top[segment]                = treadmill.scan[segment]->prev;
+        treadmill.top[segment]                = treadmill.scan[segment];
         treadmill.bottom[segment]             = treadmill.top[segment]->prev;
+        treadmill.allocated_blocks[segment]   = 0;
     }
     return treadmill;
 }
@@ -459,6 +459,7 @@ NecroVal necro_treadmill_alloc(NecroTreadmill* treadmill, uint32_t type_index)
             treadmill->pages       = page_header;
         }
     }
+    treadmill->allocated_blocks[segment]++;
     NecroTMTag* allocated_tag = treadmill->free[segment];
     NecroVal*   data          = necro_get_data_from_tag(allocated_tag);
     treadmill->free[segment]  = allocated_tag->next;
@@ -501,15 +502,21 @@ static inline bool necro_treadmill_scan(NecroTreadmill* treadmill, uint64_t segm
 
 void necro_treadmill_collect(NecroTreadmill* treadmill, NecroVal root_ptr)
 {
+    TRACE_TM("\n");
     if (treadmill->complete)
     {
+        TRACE_TM("    ____Starting scan____\n");
         // Only link root in at beginning of a new collection cycle, not every re-entrance into it!
         NecroVal*       root_val  = root_ptr.necro_pointer;
         NecroTypeInfo   type_info = treadmill->type_infos[root_val->struct_info.type_index];
         NecroTMTag*     tag       = necro_get_tag_from_val(root_val, type_info.segment_size_in_bytes);
-        necro_relink(tag, treadmill->top[type_info.gc_segment], treadmill->scan[type_info.gc_segment]); // Move Root to grey list between top and scan pointers
+        necro_relink(tag, treadmill->scan[type_info.gc_segment], treadmill->scan[type_info.gc_segment]->next); // Move Root to grey list between top and scan pointers
         treadmill->scan[type_info.gc_segment] = tag;
         treadmill->complete = false;
+    }
+    else
+    {
+        TRACE_TM("    ____Continuing scan____\n");
     }
     // Continue scanning until all scan node of all segments points to same node as top pointer
     size_t count = 0; // doing simple count bounding for now
@@ -527,6 +534,7 @@ void necro_treadmill_collect(NecroTreadmill* treadmill, NecroVal root_ptr)
     }
     if (treadmill->complete)
     {
+        TRACE_TM("    ____Scan complete, sweeping____\n");
         for (size_t segment = 0; segment < NECRO_NUM_TM_SEGMENTS; ++segment)
         {
             // Move scan pointer to right before free pointer
@@ -546,6 +554,7 @@ void necro_treadmill_collect(NecroTreadmill* treadmill, NecroVal root_ptr)
             {
                 necro_set_ecru_from_tag(current_tag, 0);
                 current_tag = current_tag->prev;
+                treadmill->allocated_blocks[segment]--;
             }
 
             // Move bottom pointer to top pointer
@@ -557,6 +566,11 @@ void necro_treadmill_collect(NecroTreadmill* treadmill, NecroVal root_ptr)
             necro_set_ecru_from_tag(treadmill->top[segment], 0);
         }
     }
+    else
+    {
+        TRACE_TM("    ____Pausing scan____\n");
+    }
+    TRACE_TM("\n");
 }
 
 void necro_destroy_treadmill(NecroTreadmill* treadmill)
@@ -571,10 +585,11 @@ void necro_destroy_treadmill(NecroTreadmill* treadmill)
     treadmill->pages = NULL;
     for (size_t i = 0; i < NECRO_NUM_TM_SEGMENTS; ++i)
     {
-        treadmill->top[i]    = NULL;
-        treadmill->bottom[i] = NULL;
-        treadmill->free[i]   = NULL;
-        treadmill->scan[i]   = NULL;
+        treadmill->top[i]              = NULL;
+        treadmill->bottom[i]           = NULL;
+        treadmill->free[i]             = NULL;
+        treadmill->scan[i]             = NULL;
+        treadmill->allocated_blocks[i] = 0;
     }
 }
 
@@ -587,6 +602,10 @@ void necro_print_treadmill(NecroTreadmill* treadmill)
     printf("    bottom:   %p,\n", treadmill->bottom);
     printf("    free:     %p,\n", treadmill->free);
     printf("    scan:     %p,\n", treadmill->scan);
+    printf("    allocated:[\n");
+    for (size_t segment = 0 ; segment < NECRO_NUM_TM_SEGMENTS; ++segment)
+        printf("        { segment: %zu, blocks: %zu },\n", segment, treadmill->allocated_blocks[segment]);
+    printf("    ]\n");
     printf("}\n");
 }
 
@@ -594,9 +613,48 @@ void necro_test_treadmill()
 {
     puts("\n------");
     puts("Test Treadmill\n");
+
+    // Setup type info table
     NecroTypeInfo* type_info = malloc(1 * sizeof(NecroTypeInfo));
+    type_info[0] = (NecroTypeInfo) { 0xF, 16, 0, 2 }; // Type 1, 2 fields
+
+    // Setup treadmill
     NecroTreadmill treadmill = necro_create_treadmill(1, type_info);
+    // necro_print_treadmill(&treadmill);
+    // puts("");
+
+    // Alloc1 test
+    NecroVal val = necro_treadmill_alloc(&treadmill, 0);
+    val.necro_pointer->int_value = 100;
+    print_test_result("Alloc1 test:  ", val.necro_pointer->int_value == 100);
+
+    // Alloc2 test
+    NecroVal val_2 = necro_treadmill_alloc(&treadmill, 0);
+    val_2.necro_pointer->int_value = 200;
+    print_test_result("Alloc2 test:  ", val_2.necro_pointer->int_value == val.necro_pointer->int_value * 2);
+    print_test_result("Count1 test:  ", treadmill.allocated_blocks[0] == 2);
+
+    // Collect1 test
+    val.necro_pointer[1].struct_info   = (NecroStructInfo) {0, 0}; // val struct info
+    val.necro_pointer[1].necro_pointer = val_2.necro_pointer; // val points at val_2
+    necro_treadmill_collect(&treadmill, val);
+    print_test_result("Collect1 test:", treadmill.allocated_blocks[0] == 2);
+
+    // Count2 test
+    necro_treadmill_alloc(&treadmill, 0);
+    necro_treadmill_alloc(&treadmill, 0);
+    necro_treadmill_alloc(&treadmill, 0);
+    necro_treadmill_alloc(&treadmill, 0);
+    print_test_result("Count2 test:  ", treadmill.allocated_blocks[0] == 6);
+
+    // Collect2 test
+    necro_treadmill_collect(&treadmill, val);
+    print_test_result("Collect2 test:", treadmill.allocated_blocks[0] == 2);
+
     necro_print_treadmill(&treadmill);
+    puts("");
+
+    // Cleanup
     necro_destroy_treadmill(&treadmill);
     free(type_info);
 }
@@ -681,7 +739,7 @@ void necro_destroy_slab_allocator(NecroSlabAllocator* slab_allocator)
     }
 }
 
-void print_slab_allocator_test_result(const char* print_string, bool result)
+void print_test_result(const char* print_string, bool result)
 {
     if (result)
         printf("%s passed\n", print_string);
@@ -711,15 +769,15 @@ void necro_test_slab()
     vec3_2[1] = 5;
     vec3_2[2] = 4;
 
-    print_slab_allocator_test_result("vec 1 + 2 alloc:", vec3_1[0] == vec3_2[2] && vec3_1[1] == vec3_2[1] && vec3_1[2] == vec3_2[0]);
+    print_test_result("vec 1 + 2 alloc:", vec3_1[0] == vec3_2[2] && vec3_1[1] == vec3_2[1] && vec3_1[2] == vec3_2[0]);
     necro_free_slab(&slab_allocator, vec3_1, sizeof(int64_t) * 3);
-    print_slab_allocator_test_result("vec 2 + 3 alloc:", vec3_2[0] == 6 && vec3_2[1] == 5 && vec3_2[2] == 4);
+    print_test_result("vec 2 + 3 alloc:", vec3_2[0] == 6 && vec3_2[1] == 5 && vec3_2[2] == 4);
 
     int64_t* vec3_3 = necro_alloc_slab(&slab_allocator, sizeof(int64_t) * 3);
     vec3_3[0] = 5;
     vec3_3[1] = 4;
     vec3_3[2] = 6;
-    print_slab_allocator_test_result("vec 2 + 3 alloc:", vec3_3[1] == vec3_2[2] && vec3_3[0] == vec3_2[1] && vec3_3[2] == vec3_2[0]);
+    print_test_result("vec 2 + 3 alloc:", vec3_3[1] == vec3_2[2] && vec3_3[0] == vec3_2[1] && vec3_3[2] == vec3_2[0]);
 
     necro_free_slab(&slab_allocator, vec3_2, sizeof(int64_t) * 3);
     necro_free_slab(&slab_allocator, vec3_3, sizeof(int64_t) * 3);

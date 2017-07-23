@@ -394,6 +394,11 @@ NecroTreadmill necro_create_treadmill(size_t num_initial_pages, NecroTypeInfo* t
         size_t size      = 2 << segment;
         size_t page_size = sizeof(NecroTMPageHeader) + size * sizeof(int64_t) * NECRO_TM_PAGE_SIZE;
         char*  data      = malloc(num_initial_pages * page_size);
+        if (data == NULL)
+        {
+            fprintf(stderr, "Allocation error: could not allocate memory in necro_create_treadmill\n");
+            exit(1);
+        }
         for (size_t page = 0; page < num_initial_pages; ++page)
         {
             NecroTMPageHeader* prev_page_header = (NecroTMPageHeader*)(data + page_size * (page == 0 ? num_initial_pages - 1 : page - 1));
@@ -432,6 +437,11 @@ NecroVal necro_treadmill_alloc(NecroTreadmill* treadmill, uint32_t type_index)
     {
         // Free list hit rock bottom, alloc another page, link it in, then set it to white
         NecroTMPageHeader* page_header = malloc(sizeof(NecroTMPageHeader) + (2 << segment) * sizeof(int64_t) * NECRO_TM_PAGE_SIZE);
+        if (page_header == NULL)
+        {
+            fprintf(stderr, "Allocation error: could not allocate memory in necro_treadmill_alloc\n");
+            exit(1);
+        }
         for (size_t block = 0; block < NECRO_TM_PAGE_SIZE; ++block)
         {
             // Set prev pointer

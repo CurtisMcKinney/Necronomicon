@@ -279,36 +279,36 @@ uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
 // Helper functions:
 // Bit twiddle madness
 //---------------------
-inline NecroVal* necro_get_start_of_page_data_from_val(NecroVal* val, uint64_t data_size_in_bytes)
+static inline NecroVal* necro_get_start_of_page_data_from_val(NecroVal* val, uint64_t data_size_in_bytes)
 {
     return (NecroVal*) (((uint64_t)val) & ~(data_size_in_bytes - 1));
 }
 
-inline NecroTMPageHeader* necro_get_page_header_from_val(NecroVal* val, uint64_t data_size_in_bytes)
+static inline NecroTMPageHeader* necro_get_page_header_from_val(NecroVal* val, uint64_t data_size_in_bytes)
 {
     return (NecroTMPageHeader*)(necro_get_start_of_page_data_from_val(val, data_size_in_bytes)) - 1;
 }
 
-inline NecroTMTag* necro_get_tag_from_val(NecroVal* val, uint64_t data_size_in_bytes)
+static inline NecroTMTag* necro_get_tag_from_val(NecroVal* val, uint64_t data_size_in_bytes)
 {
     NecroTMPageHeader* page_header = necro_get_page_header_from_val(val, data_size_in_bytes);
     uint64_t           index       = val - ((NecroVal*)(page_header + 1));
     return page_header->tags + index;
 }
 
-inline NecroTMTag* necro_get_next_from_val(NecroVal* val, NecroTMPageHeader* page_header)
+static inline NecroTMTag* necro_get_next_from_val(NecroVal* val, NecroTMPageHeader* page_header)
 {
     uint64_t index = val - ((NecroVal*)(page_header + 1));
     return page_header->tags[index].next;
 }
 
-inline NecroTMTag* necro_get_prev_from_val(NecroVal* val, NecroTMPageHeader* page_header)
+static inline NecroTMTag* necro_get_prev_from_val(NecroVal* val, NecroTMPageHeader* page_header)
 {
     uint64_t index = val - ((NecroVal*)(page_header + 1));
     return page_header->tags[index].prev;
 }
 
-inline bool necro_is_ecru_from_val(NecroVal* val, NecroTMPageHeader* page_header)
+static inline bool necro_is_ecru_from_val(NecroVal* val, NecroTMPageHeader* page_header)
 {
     uint64_t index      = (val - ((NecroVal*)(page_header + 1)));
     uint64_t ecru_index = index >> 6;
@@ -316,7 +316,7 @@ inline bool necro_is_ecru_from_val(NecroVal* val, NecroTMPageHeader* page_header
     return page_header->ecru_flags[ecru_index] & bit_index;
 }
 
-inline void necro_set_ecru_from_val(NecroVal* val, NecroTMPageHeader* page_header, bool is_ecru)
+static inline void necro_set_ecru_from_val(NecroVal* val, NecroTMPageHeader* page_header, bool is_ecru)
 {
     uint64_t index      = (val - ((NecroVal*)(page_header + 1)));
     uint64_t ecru_index = index >> 6;
@@ -327,14 +327,14 @@ inline void necro_set_ecru_from_val(NecroVal* val, NecroTMPageHeader* page_heade
         page_header->ecru_flags[ecru_index] &= ~bit_index;
 }
 
-inline NecroVal* necro_get_data_from_tag(NecroTMTag* tag)
+static inline NecroVal* necro_get_data_from_tag(NecroTMTag* tag)
 {
     NecroTMPageHeader* page_header = (NecroTMPageHeader*)(((uint64_t)tag) & ~(sizeof(NecroTMTag*) - 1));
     uint64_t           index       = tag - page_header->tags;
     return (NecroVal*)(page_header + 1) + index;
 }
 
-inline bool necro_is_ecru_from_tag(NecroTMTag* tag)
+static inline bool necro_is_ecru_from_tag(NecroTMTag* tag)
 {
     NecroTMPageHeader* page_header = (NecroTMPageHeader*)(((uint64_t)tag) & ~(sizeof(NecroTMTag*) - 1));
     uint64_t           index       = tag - page_header->tags;
@@ -343,7 +343,7 @@ inline bool necro_is_ecru_from_tag(NecroTMTag* tag)
     return page_header->ecru_flags[ecru_index] & bit_index;
 }
 
-inline void necro_set_ecru_from_tag(NecroTMTag* tag, bool is_ecru)
+static inline void necro_set_ecru_from_tag(NecroTMTag* tag, bool is_ecru)
 {
     NecroTMPageHeader* page_header = (NecroTMPageHeader*)(((uint64_t)tag) & ~(sizeof(NecroTMTag*) - 1));
     uint64_t           index       = tag - page_header->tags;
@@ -355,7 +355,7 @@ inline void necro_set_ecru_from_tag(NecroTMTag* tag, bool is_ecru)
         page_header->ecru_flags[ecru_index] &= ~bit_index;
 }
 
-inline void necro_unsnap(NecroTMTag* tag)
+static inline void necro_unsnap(NecroTMTag* tag)
 {
     NecroTMTag* prev = tag->prev;
     NecroTMTag* next = tag->next;
@@ -365,7 +365,7 @@ inline void necro_unsnap(NecroTMTag* tag)
     tag->next        = NULL;
 }
 
-inline void necro_snap_in(NecroTMTag* tag, NecroTMTag* new_prev, NecroTMTag* new_next)
+static inline void necro_snap_in(NecroTMTag* tag, NecroTMTag* new_prev, NecroTMTag* new_next)
 {
     new_prev->next = tag;
     tag->prev      = new_prev;
@@ -373,7 +373,7 @@ inline void necro_snap_in(NecroTMTag* tag, NecroTMTag* new_prev, NecroTMTag* new
     new_next->prev = tag;
 }
 
-inline void necro_relink(NecroTMTag* tag, NecroTMTag* new_prev, NecroTMTag* new_next)
+static inline void necro_relink(NecroTMTag* tag, NecroTMTag* new_prev, NecroTMTag* new_next)
 {
     necro_unsnap(tag);
     necro_snap_in(tag, new_prev, new_next);
@@ -458,7 +458,7 @@ NecroVal necro_treadmill_alloc(NecroTreadmill* treadmill, uint32_t type_index)
     return value;
 }
 
-inline bool necro_treadmill_scan(NecroTreadmill* treadmill, uint64_t segment)
+static inline bool necro_treadmill_scan(NecroTreadmill* treadmill, uint64_t segment)
 {
     if (treadmill->scan[segment] == treadmill->top[segment])
         return true;

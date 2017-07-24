@@ -278,9 +278,10 @@ uint64_t necro_run_vm(uint64_t* instructions, size_t heap_size)
 // Helper functions:
 // Bit twiddle madness
 //---------------------
+
 static inline NecroVal* necro_get_start_of_page_data_from_val(NecroVal* val, uint64_t data_size_in_bytes)
 {
-    return (NecroVal*) (((uint64_t)val) & ~(data_size_in_bytes - 1));
+    return (NecroVal*) (((uint64_t)val) & ~(data_size_in_bytes * NECRO_TM_PAGE_SIZE - 1));
 }
 
 static inline NecroTMPageHeader* necro_get_page_header_from_val(NecroVal* val, uint64_t data_size_in_bytes)
@@ -291,51 +292,21 @@ static inline NecroTMPageHeader* necro_get_page_header_from_val(NecroVal* val, u
 static inline NecroTMTag* necro_get_tag_from_val(NecroVal* val, uint64_t data_size_in_bytes)
 {
     NecroTMPageHeader* page_header = necro_get_page_header_from_val(val, data_size_in_bytes);
-    uint64_t           index       = val - ((NecroVal*)(page_header + 1));
+    uint64_t           index       = (val - ((NecroVal*)(page_header + 1))) / data_size_in_bytes;
     return page_header->tags + index;
 }
 
-static inline NecroTMTag* necro_get_next_from_val(NecroVal* val, NecroTMPageHeader* page_header)
+static inline NecroVal* necro_get_data_from_tag(NecroTMTag* tag, uint64_t segment)
 {
-    uint64_t index = val - ((NecroVal*)(page_header + 1));
-    return page_header->tags[index].next;
-}
-
-static inline NecroTMTag* necro_get_prev_from_val(NecroVal* val, NecroTMPageHeader* page_header)
-{
-    uint64_t index = val - ((NecroVal*)(page_header + 1));
-    return page_header->tags[index].prev;
-}
-
-static inline bool necro_is_ecru_from_val(NecroVal* val, NecroTMPageHeader* page_header)
-{
-    uint64_t index      = (val - ((NecroVal*)(page_header + 1)));
-    uint64_t ecru_index = index >> 6;
-    uint64_t bit_index  = (uint64_t) 1 << (index & 63);
-    return page_header->ecru_flags[ecru_index] & bit_index;
-}
-
-static inline void necro_set_ecru_from_val(NecroVal* val, NecroTMPageHeader* page_header, bool is_ecru)
-{
-    uint64_t index      = (val - ((NecroVal*)(page_header + 1)));
-    uint64_t ecru_index = index >> 6;
-    uint64_t bit_index  = (uint64_t) 1 << (index & 63);
-    if (is_ecru)
-        page_header->ecru_flags[ecru_index] |= bit_index;
-    else
-        page_header->ecru_flags[ecru_index] &= ~bit_index;
-}
-
-static inline NecroVal* necro_get_data_from_tag(NecroTMTag* tag)
-{
-    NecroTMPageHeader* page_header = (NecroTMPageHeader*)(((uint64_t)tag) & ~(sizeof(NecroTMTag*) - 1));
+    NecroTMPageHeader* page_header = (NecroTMPageHeader*)(((uint64_t)tag) & ~(sizeof(NecroTMTag*) * NECRO_TM_PAGE_SIZE - 1));
     uint64_t           index       = tag - page_header->tags;
-    return (NecroVal*)(page_header + 1) + index;
+    uint64_t           num_slots   = 2 << segment;
+    return (NecroVal*)(page_header + 1) + index * num_slots;
 }
 
 static inline bool necro_is_ecru_from_tag(NecroTMTag* tag)
 {
-    NecroTMPageHeader* page_header = (NecroTMPageHeader*)(((uint64_t)tag) & ~(sizeof(NecroTMTag*) - 1));
+    NecroTMPageHeader* page_header = (NecroTMPageHeader*)(((uint64_t)tag) & ~(sizeof(NecroTMTag*) * NECRO_TM_PAGE_SIZE - 1));
     uint64_t           index       = tag - page_header->tags;
     uint64_t           ecru_index  = index >> 6;
     uint64_t           bit_index   = (uint64_t) 1 << (index & 63);
@@ -344,7 +315,7 @@ static inline bool necro_is_ecru_from_tag(NecroTMTag* tag)
 
 static inline void necro_set_ecru_from_tag(NecroTMTag* tag, bool is_ecru)
 {
-    NecroTMPageHeader* page_header = (NecroTMPageHeader*)(((uint64_t)tag) & ~(sizeof(NecroTMTag*) - 1));
+    NecroTMPageHeader* page_header = (NecroTMPageHeader*)(((uint64_t)tag) & ~(sizeof(NecroTMTag*) * NECRO_TM_PAGE_SIZE - 1));
     uint64_t           index       = tag - page_header->tags;
     uint64_t           ecru_index  = index >> 6;
     uint64_t           bit_index   = (uint64_t) 1 << (index & 63);
@@ -421,7 +392,7 @@ NecroTreadmill necro_create_treadmill(size_t num_initial_pages, NecroTypeInfo* t
         ((NecroTMPageHeader*)data)->next_page = treadmill.pages;
         treadmill.pages                       = ((NecroTMPageHeader*)data);
         treadmill.free[segment]               = ((NecroTMPageHeader*)(data))->tags;
-        treadmill.scan[segment]               = treadmill.free[segment]->prev;
+        treadmill.scan[segment]               = treadmill.free[segment]->prev->prev;
         treadmill.top[segment]                = treadmill.scan[segment];
         treadmill.bottom[segment]             = treadmill.top[segment]->prev;
         treadmill.allocated_blocks[segment]   = 0;
@@ -444,6 +415,7 @@ NecroVal necro_treadmill_alloc(NecroTreadmill* treadmill, uint32_t type_index)
         }
         for (size_t block = 0; block < NECRO_TM_PAGE_SIZE; ++block)
         {
+            TRACE_TM("    ____Allocating page for segment: %zu____\n", segment);
             // Set prev pointer
             page_header->tags[block].prev = (block == 0) ?
                 treadmill->free[segment] :
@@ -461,7 +433,7 @@ NecroVal necro_treadmill_alloc(NecroTreadmill* treadmill, uint32_t type_index)
     }
     treadmill->allocated_blocks[segment]++;
     NecroTMTag* allocated_tag = treadmill->free[segment];
-    NecroVal*   data          = necro_get_data_from_tag(allocated_tag);
+    NecroVal*   data          = necro_get_data_from_tag(allocated_tag, segment);
     treadmill->free[segment]  = allocated_tag->next;
     necro_set_ecru_from_tag(allocated_tag, 0);
     NecroVal value;
@@ -476,11 +448,13 @@ static inline bool necro_treadmill_scan(NecroTreadmill* treadmill, uint64_t segm
     NecroTMTag* tag = treadmill->scan[segment];
     if (!necro_is_ecru_from_tag(tag))
     {
+        TRACE_TM("    ____Scanned Grey: %p____\n", tag);
         // Move scan pointer backwards
         treadmill->scan[segment] = treadmill->scan[segment]->prev;
         return false;
     }
-    NecroVal*     data      = necro_get_data_from_tag(tag);
+    TRACE_TM("    ____Scanned Ecru: %p____\n", tag);
+    NecroVal*     data      = necro_get_data_from_tag(tag, segment);
     NecroTypeInfo type_info = treadmill->type_infos[data->struct_info.type_index];
     necro_set_ecru_from_tag(tag, 0);
     for (uint64_t i = 0; i < type_info.num_slots; ++i)
@@ -505,14 +479,14 @@ void necro_treadmill_collect(NecroTreadmill* treadmill, NecroVal root_ptr)
     TRACE_TM("\n");
     if (treadmill->complete)
     {
-        TRACE_TM("    ____Starting scan____\n");
         // Only link root in at beginning of a new collection cycle, not every re-entrance into it!
         NecroVal*       root_val  = root_ptr.necro_pointer;
         NecroTypeInfo   type_info = treadmill->type_infos[root_val->struct_info.type_index];
         NecroTMTag*     tag       = necro_get_tag_from_val(root_val, type_info.segment_size_in_bytes);
         necro_relink(tag, treadmill->scan[type_info.gc_segment], treadmill->scan[type_info.gc_segment]->next); // Move Root to grey list between top and scan pointers
         treadmill->scan[type_info.gc_segment] = tag;
-        treadmill->complete = false;
+        treadmill->complete                   = false;
+        TRACE_TM("    ____Starting scan:%p____\n", tag);
     }
     else
     {
@@ -615,8 +589,9 @@ void necro_test_treadmill()
     puts("Test Treadmill\n");
 
     // Setup type info table
-    NecroTypeInfo* type_info = malloc(1 * sizeof(NecroTypeInfo));
-    type_info[0] = (NecroTypeInfo) { 0xF, 16, 0, 2 }; // Type 1, 2 fields
+    NecroTypeInfo* type_info = malloc(2 * sizeof(NecroTypeInfo));
+    type_info[0] = (NecroTypeInfo) { 0xF, 16, 0, 2 }; // Type 1, 2 slots, 1st is struct_info, 2nd boxed
+    type_info[1] = (NecroTypeInfo) { 0,   16, 0, 2 }; // Type 2, 2 slots, 1st is struct_info, 2nd unboxed
 
     // Setup treadmill
     NecroTreadmill treadmill = necro_create_treadmill(1, type_info);
@@ -624,19 +599,23 @@ void necro_test_treadmill()
     // puts("");
 
     // Alloc1 test
-    NecroVal val = necro_treadmill_alloc(&treadmill, 0);
-    val.necro_pointer->int_value = 100;
-    print_test_result("Alloc1 test:  ", val.necro_pointer->int_value == 100);
+    NecroVal val = necro_treadmill_alloc(&treadmill, 1);
+    val.necro_pointer[0].struct_info     = (NecroStructInfo) {0, 1}; // val struct info
+    val.necro_pointer[1].int_value = 100;
+    print_test_result("Alloc1 test:  ", val.necro_pointer[1].int_value == 100);
 
     // Alloc2 test
-    NecroVal val_2 = necro_treadmill_alloc(&treadmill, 0);
-    val_2.necro_pointer->int_value = 200;
-    print_test_result("Alloc2 test:  ", val_2.necro_pointer->int_value == val.necro_pointer->int_value * 2);
+    NecroVal val_2 = necro_treadmill_alloc(&treadmill, 1);
+    val_2.necro_pointer[0].struct_info = (NecroStructInfo) {0, 1}; // val struct info
+    val_2.necro_pointer[1].int_value   = 200;
+    print_test_result("Alloc2 test:  ", val_2.necro_pointer[1].int_value == val.necro_pointer[1].int_value * 2);
     print_test_result("Count1 test:  ", treadmill.allocated_blocks[0] == 2);
 
     // Collect1 test
-    val.necro_pointer[1].struct_info   = (NecroStructInfo) {0, 0}; // val struct info
-    val.necro_pointer[1].necro_pointer = val_2.necro_pointer; // val points at val_2
+    val.necro_pointer[0].struct_info   = (NecroStructInfo) {0, 0}; // val struct info
+    val.necro_pointer[1].necro_pointer = val_2.necro_pointer;      // val points at val_2
+    val_2.necro_pointer[0].struct_info = (NecroStructInfo) {0, 1}; // val struct info
+    val_2.necro_pointer[1].int_value   = 666;      // val points at val_2
     necro_treadmill_collect(&treadmill, val);
     print_test_result("Collect1 test:", treadmill.allocated_blocks[0] == 2);
 

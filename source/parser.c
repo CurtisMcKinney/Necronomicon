@@ -214,7 +214,7 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
             {
                 printf(AST_TAB);
             }
-            puts(AST_TAB AST_TAB "where\n");
+            puts(AST_TAB AST_TAB "where");
             print_ast_impl(ast, ast_get_node(ast, ast_node->right_hand_side.declarations), intern, depth + 3);
         }
         break;
@@ -388,7 +388,7 @@ NecroAST_LocalPtr parse_top_declarations(NecroParser* parser)
     return null_local_ptr;
 }
 
-NecroAST_LocalPtr parse_declarations(NecroParser* parser)
+NecroAST_LocalPtr parse_declarations_list(NecroParser* parser)
 {
     const NECRO_LEX_TOKEN_TYPE token_type = peek_token_type(parser);
     if (token_type == NECRO_LEX_END_OF_STREAM ||
@@ -399,7 +399,6 @@ NecroAST_LocalPtr parse_declarations(NecroParser* parser)
 
     NecroParser_Snapshot snapshot = snapshot_parser(parser);
 
-    bool is_list = peek_token_type(parser) == NECRO_LEX_LEFT_BRACE;
     NecroAST_LocalPtr declaration_local_ptr = null_local_ptr;
 
     if ((declaration_local_ptr == null_local_ptr) && (parser->descent_state != NECRO_DESCENT_PARSE_ERROR))
@@ -412,24 +411,8 @@ NecroAST_LocalPtr parse_declarations(NecroParser* parser)
         NecroAST_LocalPtr next_decl = null_local_ptr;
         if (peek_token_type(parser) == NECRO_LEX_SEMI_COLON)
         {
-            if (is_list)
-            {
-                consume_token(parser); // consume SemiColon token
-                next_decl = parse_declarations(parser);
-                if ((parser->descent_state != NECRO_DESCENT_PARSE_ERROR) && (peek_token_type(parser) != NECRO_LEX_RIGHT_BRACE))
-                {
-                    NecroLexToken* look_ahead_token = peek_token(parser);
-                    snprintf(
-                        parser->error_message,
-                        MAX_ERROR_MESSAGE_SIZE,
-                        "Failed to parse declaration, at line %zu, character %zu. Expected a \'}\' token but instead found %s",
-                        look_ahead_token->line_number,
-                        look_ahead_token->character_number,
-                        necro_lex_token_type_string(look_ahead_token->token));
-
-                    parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
-                }
-            }
+            consume_token(parser); // consume SemiColon token
+            next_decl = parse_declarations_list(parser);
         }
 
         if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
@@ -440,6 +423,50 @@ NecroAST_LocalPtr parse_declarations(NecroParser* parser)
             decl_node->declaration.next_declaration = next_decl;
             decl_node->type = NECRO_AST_DECL;
             return decl_local_ptr;
+        }
+    }
+
+    restore_parser(parser, snapshot);
+    return null_local_ptr;
+}
+
+NecroAST_LocalPtr parse_declarations(NecroParser* parser)
+{
+    if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return null_local_ptr;
+
+    NecroParser_Snapshot snapshot = snapshot_parser(parser);
+
+    bool is_list = peek_token_type(parser) == NECRO_LEX_LEFT_BRACE;
+    if (is_list)
+    {
+        consume_token(parser); // consume left brace token
+    }
+
+    NecroAST_LocalPtr declarations_list_local_ptr = parse_declarations_list(parser);
+    if (declarations_list_local_ptr != null_local_ptr)
+    {
+        if (is_list)
+        {
+            if ((parser->descent_state != NECRO_DESCENT_PARSE_ERROR) && (peek_token_type(parser) != NECRO_LEX_RIGHT_BRACE))
+            {
+                NecroLexToken* look_ahead_token = peek_token(parser);
+                snprintf(
+                    parser->error_message,
+                    MAX_ERROR_MESSAGE_SIZE,
+                    "Failed to parse declaration, at line %zu, character %zu. Expected a \'}\' token but instead found %s",
+                    look_ahead_token->line_number,
+                    look_ahead_token->character_number,
+                    necro_lex_token_type_string(look_ahead_token->token));
+
+                parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+            }
+            consume_token(parser); // consume right brace token
+        }
+
+        if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+        {
+            return declarations_list_local_ptr;
         }
     }
 
@@ -504,7 +531,7 @@ NecroAST_LocalPtr parse_right_hand_side(NecroParser* parser)
         if (peek_token_type(parser) == NECRO_LEX_WHERE)
         {
             NecroLexToken* where_token = peek_token(parser);
-            consume_token(parser);
+            consume_token(parser); // consume where token
             declarations_local_ptr = parse_declarations(parser);
             if (declarations_local_ptr == null_local_ptr)
             {

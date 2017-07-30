@@ -26,6 +26,8 @@ typedef enum
     NECRO_AST_DECL,
     NECRO_AST_SIMPLE_ASIGNMENT,
     NECRO_AST_RIGHT_HAND_SIDE,
+    NECRO_AST_FUNCTION_EXPRESSION,
+    NECRO_AST_VARIABLE,
     // NECRO_AST_MODULE,
 } NecroAST_NodeType;
 
@@ -155,6 +157,37 @@ typedef struct
 } NecroAST_SimpleAssignment;
 
 //=====================================================
+// AST Variable
+//=====================================================
+
+typedef enum
+{
+    NECRO_AST_VARIABLE_ID,
+    NECRO_AST_VARIABLE_SYMBOL
+} NecroAST_VariableType;
+
+typedef struct
+{
+    union
+    {
+        NecroSymbol variable_id;
+        NECRO_LEX_TOKEN_TYPE variable_symbol;
+    };
+
+    NecroAST_VariableType variable_type;
+} NecroAST_Variable;
+
+//=====================================================
+// AST Function Expression
+//=====================================================
+
+typedef struct
+{
+    NecroAST_LocalPtr aexp;
+    NecroAST_LocalPtr next_fexpression; // Points to the next in the list, null_local_ptr if the end
+} NecroAST_FunctionExpression;
+
+//=====================================================
 // AST Declarations
 //=====================================================
 
@@ -214,6 +247,8 @@ typedef struct
         NecroAST_Declaration declaration;
         NecroAST_SimpleAssignment simple_assignment;
         NecroAST_RightHandSide right_hand_side;
+        NecroAST_FunctionExpression fexpression;
+        NecroAST_Variable variable;
     };
 
     NecroAST_NodeType type;

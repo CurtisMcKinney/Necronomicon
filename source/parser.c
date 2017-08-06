@@ -205,7 +205,7 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         }
         break;
 
-    case NECRO_AST_SIMPLE_ASIGNMENT:
+    case NECRO_AST_SIMPLE_ASSIGNMENT:
         printf("(Assignment: %s)\n", necro_intern_get_string(intern, ast_node->simple_assignment.variable_name));
         print_ast_impl(ast, ast_get_node(ast, ast_node->simple_assignment.rhs), intern, depth + 1);
         break;
@@ -264,6 +264,10 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
             };
             break;
         }
+        break;
+
+    case NECRO_AST_APATS:
+        puts("(Apats (FINISH THIS!))");
         break;
 
     default:
@@ -545,7 +549,7 @@ NecroAST_LocalPtr parse_simple_assignment(NecroParser* parser)
             NecroAST_Node* assignment_node = ast_alloc_node_local_ptr(parser, &assignment_local_ptr);
             assignment_node->simple_assignment.variable_name = variable_name_token->symbol;
             assignment_node->simple_assignment.rhs = rhs_local_ptr;
-            assignment_node->type = NECRO_AST_SIMPLE_ASIGNMENT;
+            assignment_node->type = NECRO_AST_SIMPLE_ASSIGNMENT;
             return assignment_local_ptr;
         }
         else if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
@@ -822,6 +826,81 @@ NecroAST_LocalPtr parse_function_expression(NecroParser* parser)
             fexpression_node->fexpression.next_fexpression = next_fexpression;
             return fexpression_local_ptr;
         }
+    }
+
+    restore_parser(parser, snapshot);
+    return null_local_ptr;
+}
+
+NecroAST_LocalPtr parse_wildcard(NecroParser* parser)
+{
+    if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return null_local_ptr;
+
+    if (peek_token_type(parser) != NECRO_LEX_UNDER_SCORE)
+        return null_local_ptr;
+
+    consume_token(parser);
+    NecroAST_LocalPtr wildcard_local_ptr = null_local_ptr;
+    NecroAST_Node* wildcard_node = ast_alloc_node_local_ptr(parser, &wildcard_local_ptr);
+    wildcard_node->type = NECRO_AST_WILDCARD;
+    wildcard_node->undefined._pad = 0;
+    return wildcard_local_ptr;
+}
+
+NecroAST_LocalPtr parse_apat(NecroParser* parser)
+{
+    if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return null_local_ptr;
+
+    NecroParser_Snapshot snapshot = snapshot_parser(parser);
+
+    NecroAST_LocalPtr local_ptr = null_local_ptr;
+
+    if (local_ptr == null_local_ptr && parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+    {
+        local_ptr = parse_variable(parser);
+    }
+
+    if (local_ptr == null_local_ptr && parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+    {
+        local_ptr = parse_wildcard(parser);
+    }
+
+    if (local_ptr != null_local_ptr)
+    {
+        return local_ptr;
+    }
+
+    restore_parser(parser, snapshot);
+    return null_local_ptr;
+}
+
+NecroAST_LocalPtr parse_apats(NecroParser* parser)
+{
+    if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return null_local_ptr;
+
+    NecroParser_Snapshot snapshot = snapshot_parser(parser);
+
+    NecroAST_LocalPtr apat_local_ptr = parse_apat(parser);
+    if (apat_local_ptr != null_local_ptr)
+    {
+        NecroAST_LocalPtr next_apat_local_ptr = parse_apats(parser);
+        if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+        {
+            NecroAST_LocalPtr apats_local_ptr = null_local_ptr;
+            NecroAST_Node* apats_node = ast_alloc_node_local_ptr(parser, &apats_local_ptr);
+            apats_node->type = NECRO_AST_APATS;
+            apats_node->apats.apat = apat_local_ptr;
+            apats_node->apats.next_apat = next_apat_local_ptr;
+            return apats_local_ptr;
+        }
+    }
+
+    if (apat_local_ptr != null_local_ptr)
+    {
+        return apat_local_ptr;
     }
 
     restore_parser(parser, snapshot);

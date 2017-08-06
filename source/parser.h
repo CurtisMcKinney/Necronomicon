@@ -24,10 +24,13 @@ typedef enum
     NECRO_AST_IF_THEN_ELSE,
     NECRO_AST_TOP_DECL,
     NECRO_AST_DECL,
-    NECRO_AST_SIMPLE_ASIGNMENT,
+    NECRO_AST_SIMPLE_ASSIGNMENT,
+    NECRO_AST_APATS_ASSIGNMENT,
     NECRO_AST_RIGHT_HAND_SIDE,
     NECRO_AST_FUNCTION_EXPRESSION,
     NECRO_AST_VARIABLE,
+    NECRO_AST_APATS,
+    NECRO_AST_WILDCARD,
     // NECRO_AST_MODULE,
 } NecroAST_NodeType;
 
@@ -157,6 +160,27 @@ typedef struct
 } NecroAST_SimpleAssignment;
 
 //=====================================================
+// AST apats
+//=====================================================
+
+typedef struct
+{
+    NecroAST_LocalPtr apat;
+    NecroAST_LocalPtr next_apat;
+} NecroAST_Apats;
+
+//=====================================================
+// AST Apats Assignment
+//=====================================================
+
+typedef struct
+{
+    NecroAST_LocalPtr variable;
+    NecroAST_LocalPtr apats;
+    NecroAST_LocalPtr rhs;
+} NecroAST_ApatsAssignment;
+
+//=====================================================
 // AST Variable
 //=====================================================
 
@@ -246,6 +270,8 @@ typedef struct
         NecroAST_TopDeclaration top_declaration;
         NecroAST_Declaration declaration;
         NecroAST_SimpleAssignment simple_assignment;
+        NecroAST_Apats apats;
+        NecroAST_ApatsAssignment apats_assignment;
         NecroAST_RightHandSide right_hand_side;
         NecroAST_FunctionExpression fexpression;
         NecroAST_Variable variable;

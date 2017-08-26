@@ -285,6 +285,17 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         print_ast_impl(ast, ast_get_node(ast, ast_node->apats_assignment.rhs), intern, depth + 1);
         break;
 
+    case NECRO_AST_LAMBDA:
+        puts("\\(lambda)");
+        print_ast_impl(ast, ast_get_node(ast, ast_node->lambda.apats), intern, depth + 1);
+        for (uint32_t i = 0;  i < (depth + 1); ++i)
+        {
+            printf(AST_TAB);
+        }
+        puts("->");
+        print_ast_impl(ast, ast_get_node(ast, ast_node->lambda.expression), intern, depth + 2);
+        break;
+
     default:
         puts("(Undefined)");
         break;
@@ -381,6 +392,7 @@ NecroAST_LocalPtr parse_declarations(NecroParser* parser);
 NecroAST_LocalPtr parse_simple_assignment(NecroParser* parser);
 NecroAST_LocalPtr parse_apats_assignment(NecroParser* parser);
 NecroAST_LocalPtr parse_apats(NecroParser* parser);
+NecroAST_LocalPtr parse_lambda(NecroParser* parser);
 NecroAST_LocalPtr parse_right_hand_side(NecroParser* parser);
 
 NecroParse_Result parse_ast(NecroParser* parser, NecroAST_LocalPtr* out_root_node_ptr)
@@ -1361,7 +1373,7 @@ NecroAST_LocalPtr parse_function_composition(NecroParser* parser)
 
     NecroParser_Snapshot snapshot = snapshot_parser(parser);
 
-    /* parse function composition... */
+    /* parse function composition... !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 
     restore_parser(parser, snapshot);
     return null_local_ptr;
@@ -1384,6 +1396,11 @@ NecroAST_LocalPtr parse_l_expression(NecroParser* parser)
     if (local_ptr == null_local_ptr && parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
     {
         local_ptr = parse_function_expression(parser);
+    }
+
+    if (local_ptr == null_local_ptr && parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+    {
+        local_ptr = parse_lambda(parser);
     }
 
     if (local_ptr != null_local_ptr)
@@ -1515,4 +1532,79 @@ NecroAST_LocalPtr parse_if_then_else_expression(NecroParser* parser)
     NecroAST_Node* ast_node = ast_get_node(parser->ast, if_then_else_local_ptr);
     ast_node->if_then_else = (NecroAST_IfThenElse) { if_local_ptr, then_local_ptr, else_local_ptr };
     return if_then_else_local_ptr;
+}
+
+NecroAST_LocalPtr parse_lambda(NecroParser* parser)
+{
+    const NecroLexToken* backslash_token = peek_token(parser);
+    const NECRO_LEX_TOKEN_TYPE token_type = backslash_token->token;
+    if (token_type == NECRO_LEX_END_OF_STREAM ||
+        token_type != NECRO_LEX_BACK_SLASH ||
+        parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return null_local_ptr;
+
+    NecroParser_Snapshot snapshot = snapshot_parser(parser);
+    consume_token(parser); // consume backslash token
+
+    NecroAST_LocalPtr apats_local_ptr = parse_apats(parser);
+
+    if (apats_local_ptr != null_local_ptr)
+    {
+        const NECRO_LEX_TOKEN_TYPE next_token = peek_token_type(parser);
+        if (next_token == NECRO_LEX_RIGHT_ARROW)
+        {
+            consume_token(parser); // consume '->' token
+            NecroLexToken* look_ahead_token = peek_token(parser);
+            NecroAST_LocalPtr expression_local_ptr = parse_expression(parser);
+            if (expression_local_ptr != null_local_ptr)
+            {
+                NecroAST_LocalPtr lambda_local_ptr = null_local_ptr;
+                NecroAST_Node* lambda_node = ast_alloc_node_local_ptr(parser, &lambda_local_ptr);
+                lambda_node->lambda.apats = apats_local_ptr;
+                lambda_node->lambda.expression = expression_local_ptr;
+                lambda_node->type = NECRO_AST_LAMBDA;
+                return lambda_local_ptr;
+            }
+            else if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+            {
+                NecroLexToken* look_ahead_token = peek_token(parser);
+                snprintf(
+                    parser->error_message,
+                    MAX_ERROR_MESSAGE_SIZE,
+                    "Lambda expression failed to parse at line %zu, character %zu.",
+                    look_ahead_token->line_number,
+                    look_ahead_token->character_number);
+
+                parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+            }
+        }
+        else if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+        {
+            NecroLexToken* look_ahead_token = peek_token(parser);
+            snprintf(
+                parser->error_message,
+                MAX_ERROR_MESSAGE_SIZE,
+                "Lambda expression failed to parse at line %zu, character %zu. Expected \'->\' token, but found %s",
+                look_ahead_token->line_number,
+                look_ahead_token->character_number,
+                necro_lex_token_type_string(next_token));
+
+            parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+        }
+    }
+    else if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+    {
+        NecroLexToken* look_ahead_token = peek_token(parser);
+        snprintf(
+            parser->error_message,
+            MAX_ERROR_MESSAGE_SIZE,
+            "Lambda patterns failed to parse at line %zu, character %zu.",
+            look_ahead_token->line_number,
+            look_ahead_token->character_number);
+
+        parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+    }
+
+    restore_parser(parser, snapshot);
+    return null_local_ptr;
 }

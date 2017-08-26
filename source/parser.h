@@ -31,6 +31,7 @@ typedef enum
     NECRO_AST_VARIABLE,
     NECRO_AST_APATS,
     NECRO_AST_WILDCARD,
+    NECRO_AST_LAMBDA,
     // NECRO_AST_MODULE,
 } NecroAST_NodeType;
 
@@ -181,6 +182,16 @@ typedef struct
 } NecroAST_ApatsAssignment;
 
 //=====================================================
+// AST Lambda
+//=====================================================
+
+typedef struct
+{
+    NecroAST_LocalPtr apats;
+    NecroAST_LocalPtr expression;
+} NecroAST_Lambda;
+
+//=====================================================
 // AST Variable
 //=====================================================
 
@@ -275,6 +286,7 @@ typedef struct
         NecroAST_RightHandSide right_hand_side;
         NecroAST_FunctionExpression fexpression;
         NecroAST_Variable variable;
+        NecroAST_Lambda lambda;
     };
 
     NecroAST_NodeType type;

@@ -60,3 +60,7 @@ a _ c _ _ _ d f = x y z w
         z _ _ _ z2 = f
             where
                 z2 = z * 2
+
+a = \b -> c
+
+a = \b c _ d -> e

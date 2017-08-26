@@ -61,6 +61,11 @@ a _ c _ _ _ d f = x y z w
             where
                 z2 = z * 2
 
-a = \b -> c
+a = \ b -> c
 
-a = \b c _ d -> e
+a = \b c _ d -> e + 2
+
+a = \b c _ d -> e + f g
+    where
+        f _ = 10
+        g = \h -> i + b * c

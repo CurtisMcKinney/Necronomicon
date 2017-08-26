@@ -267,7 +267,22 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         break;
 
     case NECRO_AST_APATS:
-        puts("(Apats (FINISH THIS!))");
+        puts("(Apat)");
+        print_ast_impl(ast, ast_get_node(ast, ast_node->apats.apat), intern, depth + 1);
+        if (ast_node->apats.next_apat != null_local_ptr)
+        {
+            print_ast_impl(ast, ast_get_node(ast, ast_node->apats.next_apat), intern, depth);
+        }
+        break;
+
+    case NECRO_AST_WILDCARD:
+        puts("(_)");
+        break;
+
+    case NECRO_AST_APATS_ASSIGNMENT:
+        printf("(Apats Assignment: %s)\n", necro_intern_get_string(intern, ast_node->apats_assignment.variable_name));
+        print_ast_impl(ast, ast_get_node(ast, ast_node->apats_assignment.apats), intern, depth + 1);
+        print_ast_impl(ast, ast_get_node(ast, ast_node->apats_assignment.rhs), intern, depth + 1);
         break;
 
     default:
@@ -364,6 +379,8 @@ NecroAST_LocalPtr parse_end_of_stream(NecroParser* parser);
 NecroAST_LocalPtr parse_top_declarations(NecroParser* parser);
 NecroAST_LocalPtr parse_declarations(NecroParser* parser);
 NecroAST_LocalPtr parse_simple_assignment(NecroParser* parser);
+NecroAST_LocalPtr parse_apats_assignment(NecroParser* parser);
+NecroAST_LocalPtr parse_apats(NecroParser* parser);
 NecroAST_LocalPtr parse_right_hand_side(NecroParser* parser);
 
 NecroParse_Result parse_ast(NecroParser* parser, NecroAST_LocalPtr* out_root_node_ptr)
@@ -458,6 +475,11 @@ NecroAST_LocalPtr parse_declarations_list(NecroParser* parser)
         declaration_local_ptr = parse_simple_assignment(parser);
     }
 
+    if ((declaration_local_ptr == null_local_ptr) && (parser->descent_state != NECRO_DESCENT_PARSE_ERROR))
+    {
+        declaration_local_ptr = parse_apats_assignment(parser);
+    }
+
     if ((declaration_local_ptr != null_local_ptr) && (parser->descent_state != NECRO_DESCENT_PARSE_ERROR))
     {
         NecroAST_LocalPtr next_decl = null_local_ptr;
@@ -550,6 +572,52 @@ NecroAST_LocalPtr parse_simple_assignment(NecroParser* parser)
             assignment_node->simple_assignment.variable_name = variable_name_token->symbol;
             assignment_node->simple_assignment.rhs = rhs_local_ptr;
             assignment_node->type = NECRO_AST_SIMPLE_ASSIGNMENT;
+            return assignment_local_ptr;
+        }
+        else if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+        {
+            snprintf(
+                parser->error_message,
+                MAX_ERROR_MESSAGE_SIZE,
+                "Right hand side of assignment failed to parse at line %zu, character %zu.",
+                look_ahead_token->line_number,
+                look_ahead_token->character_number);
+
+            parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+        }
+    }
+
+    restore_parser(parser, snapshot);
+    return null_local_ptr;
+}
+
+NecroAST_LocalPtr parse_apats_assignment(NecroParser* parser)
+{
+    const NecroLexToken* variable_name_token = peek_token(parser);
+    const NECRO_LEX_TOKEN_TYPE token_type = variable_name_token->token;
+    if (token_type == NECRO_LEX_END_OF_STREAM ||
+        token_type != NECRO_LEX_IDENTIFIER ||
+        parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return null_local_ptr;
+
+    NecroParser_Snapshot snapshot = snapshot_parser(parser);
+    consume_token(parser); // consume identifier token
+
+    NecroAST_LocalPtr apats_local_ptr = parse_apats(parser);
+
+    if (apats_local_ptr != null_local_ptr && peek_token_type(parser) == NECRO_LEX_ASSIGN)
+    {
+        consume_token(parser); // consume '=' operator
+        NecroLexToken* look_ahead_token = peek_token(parser);
+        NecroAST_LocalPtr rhs_local_ptr = parse_right_hand_side(parser);
+        if (rhs_local_ptr != null_local_ptr)
+        {
+            NecroAST_LocalPtr assignment_local_ptr = null_local_ptr;
+            NecroAST_Node* assignment_node = ast_alloc_node_local_ptr(parser, &assignment_local_ptr);
+            assignment_node->apats_assignment.variable_name = variable_name_token->symbol;
+            assignment_node->apats_assignment.apats = apats_local_ptr;
+            assignment_node->apats_assignment.rhs = rhs_local_ptr;
+            assignment_node->type = NECRO_AST_APATS_ASSIGNMENT;
             return assignment_local_ptr;
         }
         else if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)

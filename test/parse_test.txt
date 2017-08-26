@@ -48,3 +48,9 @@ a = add2
         add2 = (+) 2
 
 b = (>=) (-) 20 (10 + 13 * 2.0) 13
+
+a b = a
+
+a b _ = a
+
+a _ c _ _ _ d f = undefined

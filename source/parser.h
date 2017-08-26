@@ -175,7 +175,7 @@ typedef struct
 
 typedef struct
 {
-    NecroAST_LocalPtr variable;
+    NecroSymbol variable_name;
     NecroAST_LocalPtr apats;
     NecroAST_LocalPtr rhs;
 } NecroAST_ApatsAssignment;

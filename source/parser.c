@@ -116,6 +116,9 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         case NECRO_BIN_OP_LTE:
             puts("(<=)");
             break;
+        case NECRO_BIN_OP_COLON:
+            puts("(:)");
+            break;
         case NECRO_BIN_OP_DOUBLE_COLON:
             puts("(::)");
             break;
@@ -137,11 +140,32 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         case NECRO_BIN_OP_EQUALS:
             puts("(=)");
             break;
+        case NECRO_BIN_OP_NOT_EQUALS:
+            puts("(/=)");
+            break;
         case NECRO_BIN_OP_AND:
             puts("(&&)");
             break;
         case NECRO_BIN_OP_OR:
             puts("(||)");
+            break;
+        case NECRO_BIN_OP_DOT:
+            puts("(.)");
+            break;
+        case NECRO_BIN_OP_DOLLAR:
+            puts("($)");
+            break;
+        case NECRO_BIN_OP_BIND_RIGHT:
+            puts("(>>=)");
+            break;
+        case NECRO_BIN_OP_BIND_LEFT:
+            puts("(=<<)");
+            break;
+        case NECRO_BIN_OP_DOUBLE_EXCLAMATION:
+            puts("(!!)");
+            break;
+        case NECRO_BIN_OP_APPEND:
+            puts("(++)");
             break;
         default:
             puts("(Undefined Binary Operator)");
@@ -1150,6 +1174,8 @@ NecroAST_BinOpType token_to_bin_op_type(NECRO_LEX_TOKEN_TYPE token_type)
         return NECRO_BIN_OP_GTE;
     case NECRO_LEX_LTE:
         return NECRO_BIN_OP_LTE;
+    case NECRO_LEX_COLON:
+        return NECRO_BIN_OP_COLON;
     case NECRO_LEX_DOUBLE_COLON:
         return NECRO_BIN_OP_DOUBLE_COLON;
     case NECRO_LEX_LEFT_SHIFT:
@@ -1164,10 +1190,24 @@ NecroAST_BinOpType token_to_bin_op_type(NECRO_LEX_TOKEN_TYPE token_type)
         return NECRO_BIN_OP_BACK_PIPE;
     case NECRO_LEX_EQUALS:
         return NECRO_BIN_OP_EQUALS;
+    case NECRO_LEX_NOT_EQUALS:
+        return NECRO_BIN_OP_NOT_EQUALS;
     case NECRO_LEX_AND:
         return NECRO_BIN_OP_AND;
     case NECRO_LEX_OR:
         return NECRO_BIN_OP_OR;
+    case NECRO_LEX_DOT:
+        return NECRO_BIN_OP_DOT;
+    case NECRO_LEX_DOLLAR:
+        return NECRO_BIN_OP_DOLLAR;
+    case NECRO_LEX_BIND_RIGHT:
+        return NECRO_BIN_OP_BIND_RIGHT;
+    case NECRO_LEX_BIND_LEFT:
+        return NECRO_BIN_OP_BIND_LEFT;
+    case NECRO_LEX_DOUBLE_EXCLAMATION:
+        return NECRO_BIN_OP_DOUBLE_EXCLAMATION;
+    case NECRO_LEX_APPEND:
+        return NECRO_BIN_OP_APPEND;
     default:
         return NECRO_BIN_OP_UNDEFINED;
     }

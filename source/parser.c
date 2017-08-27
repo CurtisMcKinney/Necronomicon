@@ -409,7 +409,6 @@ NecroAST_LocalPtr parse_if_then_else_expression(NecroParser* parser);
 NecroAST_LocalPtr parse_constant(NecroParser* parser);
 NecroAST_LocalPtr parse_unary_operation(NecroParser* parser);
 NecroAST_LocalPtr parse_binary_operation(NecroParser* parser, NecroAST_LocalPtr lhs_local_ptr);
-NecroAST_LocalPtr parse_function_composition(NecroParser* parser);
 NecroAST_LocalPtr parse_end_of_stream(NecroParser* parser);
 NecroAST_LocalPtr parse_top_declarations(NecroParser* parser);
 NecroAST_LocalPtr parse_declarations(NecroParser* parser);
@@ -751,11 +750,6 @@ NecroAST_LocalPtr parse_expression_impl(NecroParser* parser, NecroParser_LookAhe
 
     // if (local_ptr == null_local_ptr && parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
     // {
-    //     local_ptr = parse_function_composition(parser);
-    // }
-    //
-    // if (local_ptr == null_local_ptr && parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
-    // {
     //     local_ptr = parse_unary_operation(parser);
     // }
 
@@ -833,7 +827,6 @@ NecroAST_LocalPtr parse_variable(NecroParser* parser)
         case NECRO_LEX_ACCENT:
         case NECRO_LEX_DOT:
         case NECRO_LEX_TILDE:
-        case NECRO_LEX_BACK_SLASH:
         case NECRO_LEX_CARET:
         case NECRO_LEX_DOLLAR:
         case NECRO_LEX_AT:
@@ -1404,19 +1397,6 @@ NecroAST_LocalPtr parse_binary_operation(NecroParser* parser, NecroAST_LocalPtr 
     }
 
     return parse_binary_expression(parser, lhs_local_ptr, bin_op_behaviors[bin_op_type].precedence);
-}
-
-NecroAST_LocalPtr parse_function_composition(NecroParser* parser)
-{
-    if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
-        return null_local_ptr;
-
-    NecroParser_Snapshot snapshot = snapshot_parser(parser);
-
-    /* parse function composition... !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
-
-    restore_parser(parser, snapshot);
-    return null_local_ptr;
 }
 
 NecroAST_LocalPtr parse_l_expression(NecroParser* parser)

@@ -32,6 +32,9 @@ typedef enum
     NECRO_AST_APATS,
     NECRO_AST_WILDCARD,
     NECRO_AST_LAMBDA,
+    NECRO_AST_DO,
+    NECRO_AST_LIST_NODE,
+    NECRO_BIND_ASSIGNMENT,
     // NECRO_AST_MODULE,
 } NecroAST_NodeType;
 
@@ -169,6 +172,16 @@ typedef struct
 } NecroAST_SimpleAssignment;
 
 //=====================================================
+// AST Bind Assignment
+//=====================================================
+
+typedef struct
+{
+    NecroSymbol variable_name;
+    NecroAST_LocalPtr expression;
+} NecroAST_BindAssignment;
+
+//=====================================================
 // AST apats
 //=====================================================
 
@@ -198,6 +211,25 @@ typedef struct
     NecroAST_LocalPtr apats;
     NecroAST_LocalPtr expression;
 } NecroAST_Lambda;
+
+//=====================================================
+// AST List Node
+//=====================================================
+
+typedef struct
+{
+    NecroAST_LocalPtr item;
+    NecroAST_LocalPtr next_item;
+} NecroAST_ListNode;
+
+//=====================================================
+// AST Do
+//=====================================================
+
+typedef struct
+{
+    NecroAST_LocalPtr statement_list; // NecroAST_ListNode of do statementitems
+} NecroAST_Do;
 
 //=====================================================
 // AST Variable
@@ -295,6 +327,9 @@ typedef struct
         NecroAST_FunctionExpression fexpression;
         NecroAST_Variable variable;
         NecroAST_Lambda lambda;
+        NecroAST_Do do_statement;
+        NecroAST_ListNode list;
+        NecroAST_BindAssignment bind_assignment;
     };
 
     NecroAST_NodeType type;

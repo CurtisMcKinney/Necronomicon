@@ -320,16 +320,23 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         print_ast_impl(ast, ast_get_node(ast, ast_node->lambda.expression), intern, depth + 2);
         break;
 
-    // ADD PRETTY PRINTING!!!!!!!!!!!!!!!!
     case NECRO_AST_DO:
+        puts("(do)");
+        print_ast_impl(ast, ast_get_node(ast, ast_node->do_statement.statement_list), intern, depth + 1);
         break;
 
-    // ADD PRETTY PRINTING!!!!!!!!!!!!!!!!
     case NECRO_AST_LIST_NODE:
+        printf("\r"); // clear current line
+        print_ast_impl(ast, ast_get_node(ast, ast_node->list.item), intern, depth);
+        if (ast_node->list.next_item != null_local_ptr)
+        {
+            print_ast_impl(ast, ast_get_node(ast, ast_node->list.next_item), intern, depth);
+        }
         break;
 
-    // ADD PRETTY PRINTING!!!!!!!!!!!!!!!!
     case NECRO_BIND_ASSIGNMENT:
+        printf("(Bind: %s)\n", necro_intern_get_string(intern, ast_node->bind_assignment.variable_name));
+        print_ast_impl(ast, ast_get_node(ast, ast_node->bind_assignment.expression), intern, depth + 1);
         break;
 
     default:
@@ -429,6 +436,7 @@ NecroAST_LocalPtr parse_apats_assignment(NecroParser* parser);
 NecroAST_LocalPtr parse_apats(NecroParser* parser);
 NecroAST_LocalPtr parse_lambda(NecroParser* parser);
 NecroAST_LocalPtr parse_right_hand_side(NecroParser* parser);
+NecroAST_LocalPtr parse_do(NecroParser* parser);
 
 NecroParse_Result parse_ast(NecroParser* parser, NecroAST_LocalPtr* out_root_node_ptr)
 {
@@ -1422,6 +1430,11 @@ NecroAST_LocalPtr parse_l_expression(NecroParser* parser)
 
     if (local_ptr == null_local_ptr && parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
     {
+        local_ptr = parse_do(parser);
+    }
+
+    if (local_ptr == null_local_ptr && parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+    {
         local_ptr = parse_if_then_else_expression(parser);
     }
 
@@ -1677,43 +1690,38 @@ typedef NecroAST_LocalPtr (*ParseFunc)(NecroParser* parser);
 
 NecroAST_LocalPtr parse_do_item(NecroParser* parser)
 {
-    NecroAST_LocalPtr result_local_ptr = parse_expression(parser);
-    if (result_local_ptr == null_local_ptr)
+    NecroParser_Snapshot snapshot = snapshot_parser(parser);
+    const NecroLexToken* variable_token = peek_token(parser);
+    consume_token(parser); // Consume variable token
+    if (variable_token->token == NECRO_LEX_IDENTIFIER && peek_token_type(parser) == NECRO_LEX_LEFT_ARROW)
     {
-        NecroParser_Snapshot snapshot = snapshot_parser(parser);
-        const NecroLexToken* variable_token = peek_token(parser);
-        consume_token(parser); // Consume variable token
-        if (variable_token->token == NECRO_LEX_IDENTIFIER && peek_token_type(parser) == NECRO_LEX_LEFT_ARROW)
+        consume_token(parser); // consume left arrow
+        NecroAST_LocalPtr expression_local_ptr = parse_expression(parser);
+        if (expression_local_ptr != null_local_ptr)
         {
-            consume_token(parser); // consume left arrow
-            NecroAST_LocalPtr expression_local_ptr = parse_expression(parser);
-            if (expression_local_ptr != null_local_ptr)
-            {
-                NecroAST_LocalPtr bind_assignment_local_ptr = null_local_ptr;
-                NecroAST_Node* bind_assignment_node = ast_alloc_node_local_ptr(parser, &bind_assignment_local_ptr);
-                bind_assignment_node->type = NECRO_BIND_ASSIGNMENT;
-                bind_assignment_node->bind_assignment.variable_name = variable_token->symbol;
-                bind_assignment_node->bind_assignment.expression = expression_local_ptr;
-                return bind_assignment_local_ptr;
-            }
-            else if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
-            {
-                const NecroLexToken* look_ahead_token = peek_token(parser);
-                snprintf(
-                    parser->error_message,
-                    MAX_ERROR_MESSAGE_SIZE,
-                    "Bind failed in to parse at line %zu, character %zu",
-                    look_ahead_token->line_number,
-                    look_ahead_token->character_number);
-
-                parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
-            }
+            NecroAST_LocalPtr bind_assignment_local_ptr = null_local_ptr;
+            NecroAST_Node* bind_assignment_node = ast_alloc_node_local_ptr(parser, &bind_assignment_local_ptr);
+            bind_assignment_node->type = NECRO_BIND_ASSIGNMENT;
+            bind_assignment_node->bind_assignment.variable_name = variable_token->symbol;
+            bind_assignment_node->bind_assignment.expression = expression_local_ptr;
+            return bind_assignment_local_ptr;
         }
+        else if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+        {
+            const NecroLexToken* look_ahead_token = peek_token(parser);
+            snprintf(
+                parser->error_message,
+                MAX_ERROR_MESSAGE_SIZE,
+                "Bind failed in to parse at line %zu, character %zu",
+                look_ahead_token->line_number,
+                look_ahead_token->character_number);
 
-        restore_parser(parser, snapshot);
+            parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+        }
     }
 
-    return result_local_ptr;
+    restore_parser(parser, snapshot);
+    return parse_expression(parser);
 }
 
 NecroAST_LocalPtr parse_do(NecroParser* parser)
@@ -1731,38 +1739,37 @@ NecroAST_LocalPtr parse_do(NecroParser* parser)
     if (l_curly_token_type == NECRO_LEX_LEFT_BRACE)
     {
         consume_token(parser); // consume left curly brace
-        NecroAST_LocalPtr statement = parse_expression(parser);
-    }
-
-    NecroAST_LocalPtr statement_list_local_ptr = parse_list(parser, NECRO_LEX_SEMI_COLON, parse_do_item);
-    if (statement_list_local_ptr != null_local_ptr)
-    {
-        NecroLexToken* look_ahead_token = peek_token(parser);
-        if (look_ahead_token->token == NECRO_LEX_SEMI_COLON)
+        NecroAST_LocalPtr statement_list_local_ptr = parse_list(parser, NECRO_LEX_SEMI_COLON, parse_do_item);
+        if (statement_list_local_ptr != null_local_ptr)
         {
-            consume_token(parser); // consume semicolon token
-        }
+            NecroLexToken* look_ahead_token = peek_token(parser);
+            if (look_ahead_token->token == NECRO_LEX_SEMI_COLON)
+            {
+                consume_token(parser); // consume semicolon token
+            }
 
-        look_ahead_token = peek_token(parser);
-        if (look_ahead_token->token == NECRO_LEX_RIGHT_BRACE)
-        {
-            NecroAST_LocalPtr do_local_ptr = null_local_ptr;
-            NecroAST_Node* do_node = ast_alloc_node_local_ptr(parser, &do_local_ptr);
-            do_node->type = NECRO_AST_DO;
-            do_node->do_statement.statement_list = statement_list_local_ptr;
-            return do_local_ptr;
-        }
-        else if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
-        {
-            snprintf(
-                parser->error_message,
-                MAX_ERROR_MESSAGE_SIZE,
-                "Do statement failed to parse at line %zu, character %zu. Expected closing curly brace but found %s",
-                look_ahead_token->line_number,
-                look_ahead_token->character_number,
-                necro_lex_token_type_string(look_ahead_token->token));
+            look_ahead_token = peek_token(parser);
+            if (look_ahead_token->token == NECRO_LEX_RIGHT_BRACE)
+            {
+                consume_token(parser); // consume right curly brace
+                NecroAST_LocalPtr do_local_ptr = null_local_ptr;
+                NecroAST_Node* do_node = ast_alloc_node_local_ptr(parser, &do_local_ptr);
+                do_node->type = NECRO_AST_DO;
+                do_node->do_statement.statement_list = statement_list_local_ptr;
+                return do_local_ptr;
+            }
+            else if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+            {
+                snprintf(
+                    parser->error_message,
+                    MAX_ERROR_MESSAGE_SIZE,
+                    "Do statement failed to parse at line %zu, character %zu. Expected closing curly brace but found %s",
+                    look_ahead_token->line_number,
+                    look_ahead_token->character_number,
+                    necro_lex_token_type_string(look_ahead_token->token));
 
-            parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+                parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+            }
         }
     }
 

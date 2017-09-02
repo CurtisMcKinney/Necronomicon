@@ -330,6 +330,12 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         if (ast_node->expression_list.expressions != null_local_ptr)
             print_ast_impl(ast, ast_get_node(ast, ast_node->expression_list.expressions), intern, depth + 1);
         break;
+    
+    case NECRO_AST_TUPLE:
+        puts("(tuple)");
+        print_ast_impl(ast, ast_get_node(ast, ast_node->expression_list.expressions), intern, depth + 1);
+        break;
+
 
 
     case NECRO_AST_LIST_NODE:
@@ -430,6 +436,7 @@ static inline NecroAST_LocalPtr parse_expression(NecroParser* parser)
 }
 
 NecroAST_LocalPtr parse_parenthetical_expression(NecroParser* parser);
+NecroAST_LocalPtr parse_tuple(NecroParser* parser);
 NecroAST_LocalPtr parse_l_expression(NecroParser* parser);
 NecroAST_LocalPtr parse_if_then_else_expression(NecroParser* parser);
 NecroAST_LocalPtr parse_constant(NecroParser* parser);
@@ -924,6 +931,11 @@ NecroAST_LocalPtr parse_application_expression(NecroParser* parser)
 
     if (local_ptr == null_local_ptr && parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
     {
+        local_ptr = parse_tuple(parser);
+    }
+
+    if (local_ptr == null_local_ptr && parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+    {
         local_ptr = parse_expression_list(parser);
     }
 
@@ -1150,6 +1162,14 @@ NecroAST_LocalPtr parse_parenthetical_expression(NecroParser* parser)
     look_ahead_token = peek_token(parser);
     if (look_ahead_token->token != NECRO_LEX_RIGHT_PAREN)
     {
+        if (look_ahead_token->token == NECRO_LEX_COMMA)
+        {
+            // if a comma is next then this may be a tuple, keep trying to parse
+            restore_parser(parser, snapshot);
+            return null_local_ptr;
+        }
+
+        // otherwise we expect a closing parentheses. This is a fatal parse error.
         snprintf(
             parser->error_message,
             MAX_ERROR_MESSAGE_SIZE,
@@ -1811,6 +1831,48 @@ NecroAST_LocalPtr parse_expression_list(NecroParser* parser)
             NecroAST_LocalPtr list_local_ptr = null_local_ptr;
             NecroAST_Node* list_node = ast_alloc_node_local_ptr(parser, &list_local_ptr);
             list_node->type = NECRO_AST_EXPRESSION_LIST;
+            list_node->expression_list.expressions = statement_list_local_ptr;
+            return list_local_ptr;
+        }
+        else if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+        {
+            snprintf(
+                parser->error_message,
+                MAX_ERROR_MESSAGE_SIZE,
+                "List expression failed to parse at line %zu, character %zu. Expected closing bracket but found %s",
+                look_ahead_token->line_number,
+                look_ahead_token->character_number,
+                necro_lex_token_type_string(look_ahead_token->token));
+
+            parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+        }
+    }
+
+    restore_parser(parser, snapshot);
+    return null_local_ptr;
+}
+
+NecroAST_LocalPtr parse_tuple(NecroParser* parser)
+{
+    const NECRO_LEX_TOKEN_TYPE token_type = peek_token_type(parser);
+    if (token_type != NECRO_LEX_LEFT_PAREN ||
+        token_type == NECRO_LEX_END_OF_STREAM ||
+        parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return null_local_ptr;
+
+    NecroParser_Snapshot snapshot = snapshot_parser(parser);
+    consume_token(parser); // consume '(' token
+
+    NecroAST_LocalPtr statement_list_local_ptr = parse_list(parser, NECRO_LEX_COMMA, parse_expression);
+    if (statement_list_local_ptr != null_local_ptr)
+    {
+        NecroLexToken* look_ahead_token = peek_token(parser);
+        if (look_ahead_token->token == NECRO_LEX_RIGHT_PAREN)
+        {
+            consume_token(parser); // consume ')' token
+            NecroAST_LocalPtr list_local_ptr = null_local_ptr;
+            NecroAST_Node* list_node = ast_alloc_node_local_ptr(parser, &list_local_ptr);
+            list_node->type = NECRO_AST_TUPLE;
             list_node->expression_list.expressions = statement_list_local_ptr;
             return list_local_ptr;
         }

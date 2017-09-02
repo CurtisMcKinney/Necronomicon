@@ -35,6 +35,7 @@ typedef enum
     NECRO_AST_DO,
     NECRO_AST_LIST_NODE,
     NECRO_AST_EXPRESSION_LIST,
+    NECRO_AST_TUPLE,
     NECRO_BIND_ASSIGNMENT,
     // NECRO_AST_MODULE,
 } NecroAST_NodeType;
@@ -232,6 +233,14 @@ typedef struct
     NecroAST_LocalPtr expressions; // NecroAST_ListNode of expressions
 } NecroAST_ExpressionList;
 
+//=====================================================
+// AST Tuple
+//=====================================================
+
+typedef struct
+{
+    NecroAST_LocalPtr expressions; // NecroAST_ListNode of expressions
+} NecroAST_Tuple;
 
 //=====================================================
 // AST Do
@@ -341,6 +350,7 @@ typedef struct
         NecroAST_Do do_statement;
         NecroAST_ListNode list;
         NecroAST_ExpressionList expression_list;
+        NecroAST_Tuple tuple;
         NecroAST_BindAssignment bind_assignment;
     };
 

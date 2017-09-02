@@ -104,3 +104,11 @@ list3 = [1 + 2, 3 * 4, 5 - 6]
 list4 = [1]
 
 list5 = []
+
+tuple = (1, 2)
+
+tuple = ('a', 'b', 'c')
+
+mixedTuple = ([], 'a', 666 - 666 * 777)
+
+notTuple = (1)

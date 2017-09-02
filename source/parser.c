@@ -327,7 +327,8 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
     
     case NECRO_AST_EXPRESSION_LIST:
         puts("([])");
-        print_ast_impl(ast, ast_get_node(ast, ast_node->expression_list.expressions), intern, depth + 1);
+        if (ast_node->expression_list.expressions != null_local_ptr)
+            print_ast_impl(ast, ast_get_node(ast, ast_node->expression_list.expressions), intern, depth + 1);
         break;
 
 
@@ -1801,7 +1802,7 @@ NecroAST_LocalPtr parse_expression_list(NecroParser* parser)
     consume_token(parser); // consume '[' token
 
     NecroAST_LocalPtr statement_list_local_ptr = parse_list(parser, NECRO_LEX_COMMA, parse_expression);
-    if (statement_list_local_ptr != null_local_ptr)
+    if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
     {
         NecroLexToken* look_ahead_token = peek_token(parser);
         if (look_ahead_token->token == NECRO_LEX_RIGHT_BRACKET)

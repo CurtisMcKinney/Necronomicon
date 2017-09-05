@@ -24,8 +24,19 @@ typedef enum
     NECRO_AST_IF_THEN_ELSE,
     NECRO_AST_TOP_DECL,
     NECRO_AST_DECL,
-    NECRO_AST_SIMPLE_ASIGNMENT,
+    NECRO_AST_SIMPLE_ASSIGNMENT,
+    NECRO_AST_APATS_ASSIGNMENT,
     NECRO_AST_RIGHT_HAND_SIDE,
+    NECRO_AST_FUNCTION_EXPRESSION,
+    NECRO_AST_VARIABLE,
+    NECRO_AST_APATS,
+    NECRO_AST_WILDCARD,
+    NECRO_AST_LAMBDA,
+    NECRO_AST_DO,
+    NECRO_AST_LIST_NODE,
+    NECRO_AST_EXPRESSION_LIST,
+    NECRO_AST_TUPLE,
+    NECRO_BIND_ASSIGNMENT,
     // NECRO_AST_MODULE,
 } NecroAST_NodeType;
 
@@ -103,6 +114,7 @@ typedef enum
     NECRO_BIN_OP_LT,
     NECRO_BIN_OP_GTE,
     NECRO_BIN_OP_LTE,
+    NECRO_BIN_OP_COLON,
 	NECRO_BIN_OP_DOUBLE_COLON,
 	NECRO_BIN_OP_LEFT_SHIFT,
 	NECRO_BIN_OP_RIGHT_SHIFT,
@@ -110,8 +122,15 @@ typedef enum
 	NECRO_BIN_OP_FORWARD_PIPE,
 	NECRO_BIN_OP_BACK_PIPE,
     NECRO_BIN_OP_EQUALS,
+    NECRO_BIN_OP_NOT_EQUALS,
 	NECRO_BIN_OP_AND,
 	NECRO_BIN_OP_OR,
+    NECRO_BIN_OP_DOT,
+    NECRO_BIN_OP_DOLLAR,
+    NECRO_BIN_OP_BIND_RIGHT,
+    NECRO_BIN_OP_BIND_LEFT,
+    NECRO_BIN_OP_DOUBLE_EXCLAMATION,
+    NECRO_BIN_OP_APPEND,
     NECRO_BIN_OP_COUNT,
     NECRO_BIN_OP_UNDEFINED = NECRO_BIN_OP_COUNT
 } NecroAST_BinOpType;
@@ -153,6 +172,115 @@ typedef struct
     NecroSymbol variable_name;
     NecroAST_LocalPtr rhs;
 } NecroAST_SimpleAssignment;
+
+//=====================================================
+// AST Bind Assignment
+//=====================================================
+
+typedef struct
+{
+    NecroSymbol variable_name;
+    NecroAST_LocalPtr expression;
+} NecroAST_BindAssignment;
+
+//=====================================================
+// AST apats
+//=====================================================
+
+typedef struct
+{
+    NecroAST_LocalPtr apat;
+    NecroAST_LocalPtr next_apat;
+} NecroAST_Apats;
+
+//=====================================================
+// AST Apats Assignment
+//=====================================================
+
+typedef struct
+{
+    NecroSymbol variable_name;
+    NecroAST_LocalPtr apats;
+    NecroAST_LocalPtr rhs;
+} NecroAST_ApatsAssignment;
+
+//=====================================================
+// AST Lambda
+//=====================================================
+
+typedef struct
+{
+    NecroAST_LocalPtr apats;
+    NecroAST_LocalPtr expression;
+} NecroAST_Lambda;
+
+//=====================================================
+// AST List Node
+//=====================================================
+
+typedef struct
+{
+    NecroAST_LocalPtr item;
+    NecroAST_LocalPtr next_item;
+} NecroAST_ListNode;
+
+//=====================================================
+// AST Expression List
+//=====================================================
+
+typedef struct
+{
+    NecroAST_LocalPtr expressions; // NecroAST_ListNode of expressions
+} NecroAST_ExpressionList;
+
+//=====================================================
+// AST Tuple
+//=====================================================
+
+typedef struct
+{
+    NecroAST_LocalPtr expressions; // NecroAST_ListNode of expressions
+} NecroAST_Tuple;
+
+//=====================================================
+// AST Do
+//=====================================================
+
+typedef struct
+{
+    NecroAST_LocalPtr statement_list; // NecroAST_ListNode of do statement items
+} NecroAST_Do;
+
+//=====================================================
+// AST Variable
+//=====================================================
+
+typedef enum
+{
+    NECRO_AST_VARIABLE_ID,
+    NECRO_AST_VARIABLE_SYMBOL
+} NecroAST_VariableType;
+
+typedef struct
+{
+    union
+    {
+        NecroSymbol variable_id;
+        NECRO_LEX_TOKEN_TYPE variable_symbol;
+    };
+
+    NecroAST_VariableType variable_type;
+} NecroAST_Variable;
+
+//=====================================================
+// AST Function Expression
+//=====================================================
+
+typedef struct
+{
+    NecroAST_LocalPtr aexp;
+    NecroAST_LocalPtr next_fexpression; // Points to the next in the list, null_local_ptr if the end
+} NecroAST_FunctionExpression;
 
 //=====================================================
 // AST Declarations
@@ -213,7 +341,17 @@ typedef struct
         NecroAST_TopDeclaration top_declaration;
         NecroAST_Declaration declaration;
         NecroAST_SimpleAssignment simple_assignment;
+        NecroAST_Apats apats;
+        NecroAST_ApatsAssignment apats_assignment;
         NecroAST_RightHandSide right_hand_side;
+        NecroAST_FunctionExpression fexpression;
+        NecroAST_Variable variable;
+        NecroAST_Lambda lambda;
+        NecroAST_Do do_statement;
+        NecroAST_ListNode list;
+        NecroAST_ExpressionList expression_list;
+        NecroAST_Tuple tuple;
+        NecroAST_BindAssignment bind_assignment;
     };
 
     NecroAST_NodeType type;
@@ -267,19 +405,27 @@ static const NecroParse_BinOpBehavior bin_op_behaviors[NECRO_BIN_OP_COUNT + 1] =
     { 7, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_MUL
     { 7, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_DIV
     { 7, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_MOD
-    { 5, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_GT
-    { 5, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_LT
-    { 5, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_GTE
-    { 5, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_LTE
+    { 4, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_GT
+    { 4, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_LT
+    { 4, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_GTE
+    { 4, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_LTE
+    { 5, NECRO_BIN_OP_ASSOC_RIGHT },  // NECRO_BIN_OP_COLON
 	{ 9, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_DOUBLE_COLON
-	{ 1, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_LEFT_SHIFT
+	{ 1, NECRO_BIN_OP_ASSOC_RIGHT },  // NECRO_BIN_OP_LEFT_SHIFT
 	{ 1, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_RIGHT_SHIFT
 	{ 2, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_PIPE
 	{ 0, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_FORWARD_PIPE
-	{ 0, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_BACK_PIPE
-    { 0, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_EQUALS
+	{ 0, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_BACK_PIPE
+    { 4, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_EQUALS
+    { 4, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_NOT_EQUALS
 	{ 3, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_AND
 	{ 2, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_OR
+    { 9, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_DOT
+    { 0, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_DOLLAR
+    { 1, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_BIND_RIGHT
+    { 1, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_BIND_LEFT
+    { 9, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_DOUBLE_EXCLAMATION
+    { 5, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_APPEND
     { 0, NECRO_BIN_OP_ASSOC_NONE }   // NECRO_BIN_OP_UNDEFINED
 };
 

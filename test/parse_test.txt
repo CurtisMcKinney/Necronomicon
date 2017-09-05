@@ -1,4 +1,114 @@
 a = 1
+
 b = 2
+
 c = 1 + 2 * 3
+
 d = if '?' then (if (if "Necronomicon" then 55.555 else 65.4321) then 77 else 99) else (if (666 + 111 * 333) then "Doom!" else (13.1313 / 0.1 - 2))
+
+e = 1
+    where
+        x = 2
+
+f = 1
+    where
+        x = 2
+        y = 3
+
+g = 1
+    where
+        x = 2
+            where
+                q = 10
+        y = 3
+            where
+                z = if 11 then (10 + 1) else (10 - 2 * 66.6)
+
+a = b c d e f g h i j
+
+a = (b c) d
+    where
+        b = 2
+        c = 10
+        d = 11
+
+a = b c
+    where
+        c = d (11 - 2 * 3)
+        d = negate
+
+a = (<)
+
+bindleft = (=<<)
+
+bindright = (>>=)
+
+a = add2
+    where
+        add2 = (+) 2
+
+b = (>=) (-) 20 (10 + 13 * 2.0) 13
+
+a = b /= c
+
+a b = a
+
+a b _ = a
+
+a _ c _ _ _ d f = x y z w
+    where
+        x _ = c
+        y _ q = z
+        z _ _ _ z2 = f
+            where
+                z2 = z * 2
+
+a = \ b -> c
+
+a = \b c _ d -> e + 2
+
+a = \b c _ d -> e + f g
+    where
+        f _ = 10
+        g = \h -> i + b * c
+
+a = \b c _ d -> e + f . g
+    where
+        f _ = 10
+        g = \h -> i $ b . c . d e
+
+a _ b = c $ \d _ e -> f
+
+a _ b = c (\d _ e -> f)
+
+a = 1 + 2 - 3 * 4 / 5 % 6 > 7 < 8 >= 9 <= 10 : 11 :: 12 << 13 >> 14 | 15 |> 16 <| 17 == 18 /= 19 && 20 || 21 . 22 $ 23 >>= 24 =<< 25 !! 26 ++ 27
+
+unsugared x = x >>= \y -> y * 2
+
+sugared x = do
+    y <- x
+    return y
+
+sugared2 x = do
+    y <- x
+    z >>= q >> w
+    y >>= \x -> x * 2
+    return y
+
+list = [1, 2, 3, 4, 5, 6, 7]
+
+list2 = ["1", "2", "3"]
+
+list3 = [1 + 2, 3 * 4, 5 - 6]
+
+list4 = [1]
+
+list5 = []
+
+tuple = (1, 2)
+
+tuple = ('a', 'b', 'c')
+
+mixedTuple = ([], 'a', 666 - 666 * 777)
+
+notTuple = (1)

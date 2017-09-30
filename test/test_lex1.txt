@@ -1,4 +1,4 @@
-test x = y
-test x = e
+test cool_name'' = y
+test cool_name'' = e
     where
-        x = [2.25..3.141]
+        x = 2

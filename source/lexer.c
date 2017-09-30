@@ -366,7 +366,7 @@ bool necro_lex_identifier(NecroLexer* lexer)
     // Get length of the identifier
     size_t identifier_length  = 0;
     bool   is_type_identifier = isupper((uint8_t)lexer->str[lexer->pos]);
-    while (isalnum((uint8_t)lexer->str[lexer->pos + identifier_length]))
+    while (isalnum((uint8_t)lexer->str[lexer->pos + identifier_length]) || lexer->str[lexer->pos + identifier_length] == '_' || lexer->str[lexer->pos + identifier_length] == '\'')
     {
         identifier_length++;
     }

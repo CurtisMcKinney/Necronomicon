@@ -130,6 +130,8 @@ letIn = let a = 2
             b = 3
         in a + b
 
---letArithmetic = [1..]
---letArithmetic = [1..3]
---letArithmetic = [1,5..11]
+letArithmetic = [1..]
+letArithmetic = [1..3]
+letArithmetic = [1,5..11]
+letArithmetic = [1,(5+1)..11]
+letArithmetic = [[1,2,4] ,(5+1)..[11..13]]

@@ -38,6 +38,7 @@ typedef enum
     NECRO_AST_EXPRESSION_LIST,
     NECRO_AST_TUPLE,
     NECRO_BIND_ASSIGNMENT,
+    NECRO_AST_ARITHMETIC_SEQUENCE
     // NECRO_AST_MODULE,
 } NecroAST_NodeType;
 
@@ -338,6 +339,26 @@ typedef struct
 // } NecroAST_Module;
 
 //=====================================================
+// AST Arithmetic Sequence
+//=====================================================
+
+typedef enum
+{
+    NECRO_ARITHMETIC_ENUM_FROM,
+    NECRO_ARITHMETIC_ENUM_FROM_TO,
+    NECRO_ARITHMETIC_ENUM_FROM_THEN_TO,
+} NecroAST_ArithmeticSeqType;
+
+typedef struct
+{
+    NecroAST_LocalPtr from;
+    NecroAST_LocalPtr then; 
+    NecroAST_LocalPtr to; 
+    NecroAST_ArithmeticSeqType type;
+} NecroAST_ArithmeticSequence;
+
+
+//=====================================================
 // AST Node
 //=====================================================
 
@@ -365,6 +386,7 @@ typedef struct
         NecroAST_ExpressionList expression_list;
         NecroAST_Tuple tuple;
         NecroAST_BindAssignment bind_assignment;
+        NecroAST_ArithmeticSequence arithmetic_sequence;
     };
 
     NecroAST_NodeType type;

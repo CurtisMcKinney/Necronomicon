@@ -367,6 +367,32 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         print_ast_impl(ast, ast_get_node(ast, ast_node->bind_assignment.expression), intern, depth + 1);
         break;
 
+    case NECRO_AST_ARITHMETIC_SEQUENCE:
+        {
+            switch(ast_node->arithmetic_sequence.type)
+            {
+            case NECRO_ARITHMETIC_ENUM_FROM:
+                puts("(EnumFrom)");
+                print_ast_impl(ast, ast_get_node(ast, ast_node->arithmetic_sequence.from), intern, depth + 1);
+                break;
+            case NECRO_ARITHMETIC_ENUM_FROM_TO:
+                puts("(EnumFromTo)");
+                print_ast_impl(ast, ast_get_node(ast, ast_node->arithmetic_sequence.from), intern, depth + 1);
+                print_ast_impl(ast, ast_get_node(ast, ast_node->arithmetic_sequence.to), intern, depth + 1);
+                break;  
+            case NECRO_ARITHMETIC_ENUM_FROM_THEN_TO:
+                puts("(EnumFromThenTo)");
+                print_ast_impl(ast, ast_get_node(ast, ast_node->arithmetic_sequence.from), intern, depth + 1);
+                print_ast_impl(ast, ast_get_node(ast, ast_node->arithmetic_sequence.then), intern, depth + 1);
+                print_ast_impl(ast, ast_get_node(ast, ast_node->arithmetic_sequence.to), intern, depth + 1);
+                break;
+            default:
+                assert(false);
+                break;
+            }
+        }
+        break;
+    
     default:
         puts("(Undefined)");
         break;
@@ -467,6 +493,7 @@ NecroAST_LocalPtr parse_lambda(NecroParser* parser);
 NecroAST_LocalPtr parse_right_hand_side(NecroParser* parser);
 NecroAST_LocalPtr parse_do(NecroParser* parser);
 NecroAST_LocalPtr parse_expression_list(NecroParser* parser);
+NecroAST_LocalPtr parse_arithmetic_sequence(NecroParser* parser);
 
 NecroParse_Result parse_ast(NecroParser* parser, NecroAST_LocalPtr* out_root_node_ptr)
 {
@@ -1093,6 +1120,11 @@ NecroAST_LocalPtr parse_application_expression(NecroParser* parser)
     if (local_ptr == null_local_ptr && parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
     {
         local_ptr = parse_expression_list(parser);
+    }
+
+    if (local_ptr == null_local_ptr && parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+    {
+        local_ptr = parse_arithmetic_sequence(parser);
     }
 
     if (local_ptr != null_local_ptr)
@@ -2007,6 +2039,176 @@ NecroAST_LocalPtr parse_expression_list(NecroParser* parser)
 
             parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
         }
+    }
+
+    restore_parser(parser, snapshot);
+    return null_local_ptr;
+}
+
+NecroAST_LocalPtr parse_arithmetic_sequence(NecroParser* parser)
+{
+    const NECRO_LEX_TOKEN_TYPE brace_token_type = peek_token_type(parser);
+    if (brace_token_type != NECRO_LEX_LEFT_BRACKET ||
+        brace_token_type == NECRO_LEX_END_OF_STREAM ||
+        parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return null_local_ptr;
+
+    NecroParser_Snapshot snapshot = snapshot_parser(parser);
+    consume_token(parser); // consume '[' token
+    
+    NecroAST_LocalPtr from = parse_expression(parser);
+    NecroAST_LocalPtr then = null_local_ptr;
+    NecroAST_LocalPtr to = null_local_ptr;
+
+    if (from == null_local_ptr)
+    {
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
+    }
+
+    if (peek_token_type(parser) == NECRO_LEX_COMMA)
+    {
+        consume_token(parser); // consume ','
+        then = parse_expression(parser);
+
+        if (then == null_local_ptr)
+        {
+            if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+            {
+                NecroLexToken* look_ahead_token = peek_token(parser);
+                snprintf(
+                    parser->error_message,
+                    MAX_ERROR_MESSAGE_SIZE,
+                    "Arithmetic expression failed to parse at line %zu, character %zu. \'then\' expression failed to parse.",
+                    look_ahead_token->line_number,
+                    look_ahead_token->character_number);
+
+                parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+            }
+            
+            restore_parser(parser, snapshot);
+            return null_local_ptr;
+        }
+    }
+    
+    if (peek_token_type(parser) == NECRO_LEX_DOT)
+    {
+        consume_token(parser); // consume '.'
+        
+        if (peek_token_type(parser) == NECRO_LEX_DOT)
+        {
+            consume_token(parser); // consume '.'
+        }
+        else
+        {
+            if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+            {
+                NecroLexToken* look_ahead_token = peek_token(parser);
+                snprintf(
+                    parser->error_message,
+                    MAX_ERROR_MESSAGE_SIZE,
+                    "Arithmetic expression failed to parse at line %zu, character %zu. Expected second period but found %s",
+                    look_ahead_token->line_number,
+                    look_ahead_token->character_number,
+                    necro_lex_token_type_string(look_ahead_token->token));
+                
+                parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+            }
+            
+            restore_parser(parser, snapshot);
+            return null_local_ptr;
+        }
+    }
+    else
+    {
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
+    }
+    
+    if (peek_token_type(parser) != NECRO_LEX_RIGHT_BRACKET)
+    {
+        to = parse_expression(parser);
+        if (to == null_local_ptr)
+        {
+            if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+            {
+                NecroLexToken* look_ahead_token = peek_token(parser);
+                snprintf(
+                    parser->error_message,
+                    MAX_ERROR_MESSAGE_SIZE,
+                    "Arithmetic expression failed to parse at line %zu, character %zu. \'to\' expression failed to parse.",
+                    look_ahead_token->line_number,
+                    look_ahead_token->character_number);
+
+                parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+            }
+            
+            restore_parser(parser, snapshot);
+            return null_local_ptr;
+        }
+    }
+    
+    if (then != null_local_ptr && to == null_local_ptr)
+    {
+        // this means we're probably just a normal list expression
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
+    }
+
+    if (peek_token_type(parser) != NECRO_LEX_RIGHT_BRACKET)
+    {
+        if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+        {
+            NecroLexToken* look_ahead_token = peek_token(parser);
+            snprintf(
+                parser->error_message,
+                MAX_ERROR_MESSAGE_SIZE,
+                "Arithmetic expression failed to parse at line %zu, character %zu. Expected \']\' but found %s",
+                look_ahead_token->line_number,
+                look_ahead_token->character_number,
+                necro_lex_token_type_string(look_ahead_token->token));
+            
+            parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+        }
+            
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
+    }
+    
+    consume_token(parser); // consume ']' token
+    
+    if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+    {
+        assert(from != null_local_ptr);
+
+        NecroAST_LocalPtr arithmetic_local_ptr = null_local_ptr;
+        NecroAST_Node* arithmetic_node = ast_alloc_node_local_ptr(parser, &arithmetic_local_ptr);
+        arithmetic_node->type = NECRO_AST_ARITHMETIC_SEQUENCE;
+        arithmetic_node->arithmetic_sequence.from = from;
+        arithmetic_node->arithmetic_sequence.then = then;
+        arithmetic_node->arithmetic_sequence.to = to;
+
+        if (to == null_local_ptr)
+        {
+            if (then == null_local_ptr)
+            {
+                arithmetic_node->arithmetic_sequence.type = NECRO_ARITHMETIC_ENUM_FROM_TO;
+            }
+            else
+            {
+                arithmetic_node->arithmetic_sequence.type = NECRO_ARITHMETIC_ENUM_FROM;
+            }
+        }
+        else if (then == null_local_ptr)
+        {
+            assert(false); // should never reach here.
+        }
+        else
+        {
+            arithmetic_node->arithmetic_sequence.type = NECRO_ARITHMETIC_ENUM_FROM_THEN_TO;
+        }
+        
+        return arithmetic_local_ptr;
     }
 
     restore_parser(parser, snapshot);

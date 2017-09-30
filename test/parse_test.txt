@@ -112,3 +112,20 @@ tuple = ('a', 'b', 'c')
 mixedTuple = ([], 'a', 666 - 666 * 777)
 
 notTuple = (1)
+
+letIn = let a = 1 in a * 2
+
+letIn = let a = 1
+        in a * 2
+
+letIn = let a = 1
+        in a * 2
+
+letIn = let a = 1
+            b = 2
+        in a * 2
+
+
+letIn = let a = 2
+            b = 3
+        in a + b

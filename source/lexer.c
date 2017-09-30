@@ -94,7 +94,8 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
     case NECRO_LEX_PIPE:               return "PIPE";
     case NECRO_LEX_FORWARD_PIPE:       return "FORWARD_PIPE";
     case NECRO_LEX_BACK_PIPE:          return "BACK_PIPE";
-    case NECRO_LEX_DOT:                return "Dot";
+    case NECRO_LEX_DOT:                return "DOT";
+    case NECRO_LEX_DOUBLE_DOT:         return "DOUBLE_DOT";
     case NECRO_LEX_AMPERSAND:          return "AMPERSAND";
     case NECRO_LEX_AT:                 return "AT";
     case NECRO_LEX_DOLLAR:             return "DOLLAR";
@@ -265,7 +266,8 @@ bool necro_lex_multi_character_token(NecroLexer* lexer)
            necro_lex_token_with_pattern(lexer, "++",  NECRO_LEX_APPEND)             ||
            necro_lex_token_with_pattern(lexer, "!!",  NECRO_LEX_DOUBLE_EXCLAMATION) ||
            necro_lex_token_with_pattern(lexer, "<-",  NECRO_LEX_LEFT_ARROW)         ||
-           necro_lex_token_with_pattern(lexer, "->",  NECRO_LEX_RIGHT_ARROW);
+           necro_lex_token_with_pattern(lexer, "->",  NECRO_LEX_RIGHT_ARROW)        ||
+           necro_lex_token_with_pattern(lexer, "..",  NECRO_LEX_DOUBLE_DOT);
 }
 
 bool necro_lex_integer(NecroLexer* lexer)
@@ -305,7 +307,8 @@ bool necro_lex_float(NecroLexer* lexer)
 bool necro_lex_number(NecroLexer* lexer)
 {
     // Must start with digit or with minus symbol
-    bool        contains_dot = false;
+    //bool        contains_dot = false;
+    NECRO_LEX_NUM_STATE lex_num_state = NECRO_LEX_NUM_STATE_INT;
     const char* current_char = lexer->str + lexer->pos;
     if (*current_char == '-')
         current_char++;
@@ -313,16 +316,45 @@ bool necro_lex_number(NecroLexer* lexer)
         return false;
     while (isdigit((uint8_t)(*current_char)) || *current_char == '.')
     {
-        if (!contains_dot && *current_char == '.')
-            contains_dot = true;
-        else if (contains_dot && *current_char == '.')
-            break;
+        if (*current_char == '.')
+        {
+            if (lex_num_state == NECRO_LEX_NUM_STATE_INT)
+            {
+                lex_num_state = NECRO_LEX_NUM_STATE_FLOAT_AT_DOT;
+            }
+            else if (lex_num_state == NECRO_LEX_NUM_STATE_FLOAT_AT_DOT)
+            {
+                // Back-track to lexing int and cough up the double dots for later lexing
+                current_char--;
+                lex_num_state = NECRO_LEX_NUM_STATE_INT;
+                break;
+            }
+            else if (lex_num_state == NECRO_LEX_NUM_STATE_FLOAT_POST_DOT)
+            {
+                break;
+            }
+        }
+        else if (lex_num_state == NECRO_LEX_NUM_STATE_FLOAT_AT_DOT)
+        {
+            lex_num_state = NECRO_LEX_NUM_STATE_FLOAT_POST_DOT;
+        }
+        // if (!contains_dot && *current_char == '.')
+        //     contains_dot = true;
+        // else if (contains_dot && *current_char == '.')
+        //     break;
         current_char++;
     }
-    if (contains_dot)
-        return necro_lex_float(lexer);
-    else
-        return necro_lex_integer(lexer);
+    switch (lex_num_state)
+    {
+    case NECRO_LEX_NUM_STATE_INT:            return necro_lex_integer(lexer);
+    case NECRO_LEX_NUM_STATE_FLOAT_POST_DOT: return necro_lex_float(lexer);
+    case NECRO_LEX_NUM_STATE_FLOAT_AT_DOT:   return false;
+    }
+    return false;
+    // if (contains_dot)
+    //     return necro_lex_float(lexer);
+    // else
+    //     return necro_lex_integer(lexer);
 }
 
 bool necro_lex_identifier(NecroLexer* lexer)

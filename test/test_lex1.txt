@@ -1,4 +1,4 @@
 test x = y
 test x = e
     where
-        x = 2
+        x = [2.25..3.141]

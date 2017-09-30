@@ -78,6 +78,7 @@ typedef enum
     // Punctuation
     NECRO_LEX_ACCENT,
     NECRO_LEX_DOT,
+    NECRO_LEX_DOUBLE_DOT,
     NECRO_LEX_TILDE,
     NECRO_LEX_BACK_SLASH,
     NECRO_LEX_CARET,
@@ -140,6 +141,13 @@ typedef enum
     NECRO_LEX_RESULT_SUCCESSFUL,
     NECRO_LEX_RESULT_ERROR
 } NECRO_LEX_RESULT;
+
+typedef enum
+{
+    NECRO_LEX_NUM_STATE_INT,
+    NECRO_LEX_NUM_STATE_FLOAT_AT_DOT,
+    NECRO_LEX_NUM_STATE_FLOAT_POST_DOT,
+} NECRO_LEX_NUM_STATE;
 
 // API
 NecroLexer       necro_create_lexer(const char* str);

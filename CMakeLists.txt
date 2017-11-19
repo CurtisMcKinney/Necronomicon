@@ -11,6 +11,8 @@ set(project_SOURCES
 	source/intern.c
 	source/utility.c
     source/runtime.c
+    source/slab.c
+    source/vault.c
     )
 set(project_HEADERS
     source/necro.h
@@ -21,6 +23,8 @@ set(project_HEADERS
 	source/intern.h
 	source/utility.h
     source/runtime.h
+    source/slab.h
+    source/vault.h
     )
 
 ADD_EXECUTABLE(necro ${project_SOURCES})

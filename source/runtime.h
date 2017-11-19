@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <stdbool.h>
+#include "slab.h"
 
 // TODO:
 //    * Memory Management
@@ -17,95 +18,57 @@
 //    * c calls
 //    * Audio
 
-// Current value pointers for each construct?
-// Gets updated when it's demanded?
 /*
-    Idea #1
-    Semantic analysis: https://ruslanspivak.com/lsbasi-part13/
-    Necronomicon is strict and ref counted, with these exceptions:
-        - delay :: const a -> a -> a
-          keyword, lazy, uses a weak ptr to second argument
-          Induces 1 block sample delay.
-          Only takes a constant expression in the first argument, preventing nested delays (and further memory than exactly 1 block).
-          This means the language can only ever look back exactly 1 sample in time.
-        - poly functions allow dynamic streams.
-          These newly created can be destroyed, and thus this requires ref counting all nodes.
-          GC isn't necessary because we are strict and only allow recursion through delay, which uses a weak ptr scheme.
+    Necronomicon is demand-rate, much like Lucid.
+    There is no fby, sequences  are the main data flow primitive instead.
+    Sequences are denoted by [].
+    [x, y, z] is a sequence always proceeds as {x0..xYield, y0..yYield, z0..zYield}, after which the sequence yields
+    loop is a combinator which takes a sequence and loop it forever without yielding
+    seq is a combinator which takes a sequences, remembers each sub-stream's last yield point and keeps iterating past it, with yields at every loop point.
+    seq [x, y, z] => {x0..xYield, y0..yYield, z0..zYield, YIELD, xYield+1..xYield', yYield+1..yYield', zYield+1..zYield'}
+    ....GC / Memory management....How?!?!!??!!?
+    current combinator calculates stream to the current streams time slice
 
-    // Multiple fby's breaks this!?
-    Idea #2
-    Lucid style evaluation model :
-        * An immutable Network where each node can process from any time N to time N + 1
-        * Evaluation is fully lazy and allows full recursion, as long as a delay is introduced.
-        * Each value has a place (variable) and time (time slice)).
-        * This means you need envs for variable lookups, but you also need envs for time lookups!
-        * However instead of their "Retirement Age" scheme, we use "Time Streams".
+    myCoolPattern = seq [mx, [300, 400], mx, [500, 600]]
+        where
+            mx = mouseX |> current |> yieldEvery 1
 
-        * Each node caches a different value for each separate "Time stream" (i.e. Pattern slot, or synth),
-          as well as caching the nodes value at time 0
+    myCoolSynth = synth |> gain 0.1
+        where
+            synth = 440 + [0, synth * 440] |> sin
 
-        * This means that there is at most on cached value for each time stream (constant space)
-        * Separate time streams can no longer share work, however they also always calculate one time slice value each tick (constant time)
-        * This also supports LexicalTime scoping, since you simply look up the node's value for the non-local time stream up in the next scope in your env
+    myCoolSynth = do
+        r1 <- rand 0.1 1
+        mx <- mouseX
+        let synth = 440 + mx + r1 + [0, synth * 440] |> sin
+        synth |> gain 0.1 |> return
 
-        * This all works because we only provide the programmer with combinators that can at most reach one time slice into the past,
-          such as fby (delays one sample), and [] sequences (each stream is stepped forward one time slice at a time)
-        * Rewinding and other nonsense is strictly prohibited
+    myCoolSynth = synth |> gain 0.1
+        where
+            synth = 440 + current mouseX * [0, synth * 440] |> sin
 
-        * This scheme works better for Necronomicon because we'd rather pay a little bit more overhead
-          overall to maintain a clean constant time/space system rather than rely on complex
-          GC system that could at any point pause the system for a long period of time.
-        * The other upshot is the language gets to have correct lazy semantics
+    // Env "yields"
+    myCoolSynths = loop [s1, s2]
+        where
+            s1 = sin 440 |> perc 0.1 |> gain 0.1
+            s2 = sin 440 |> perc 0.2 |> gain 0.2
 
-    // Idea #3
-    All in on Lexical time scoping and pattern sequences:
-        - No more "fby"
-        - In lieu we have pattern sequences: they keep going until the sequence "yields" (as opposed to fby, which immediately switches from seq1 to seq2)
-        - This simplifies the language and the semantics, since there's only 1 mechanism to introduce time asynchronicity
-        - Each node cache's it's last value only
-        - Only need ref counting for when streams get torn down
-        - Streams get replicated when part of a pattern sequence or when spawned by poly
+    If we use Lucid style immutable purity and demand-driven evaluation (every value has a "time" and a "place"), then you HAVE
+    to store the entire history of IO. What is the way out of that??? Or do we just say fuck it?
+    If we do it like Lucid, plus keep the entire IO Log, then we can have dynamic signals from things like poly
+    simply create another way to locate something in the vault: (relative) time, place, dimension.
+    Then we don't need "true" dynamic signals, and we don't need traditional GC, and can use a variation of the Lucid retirement plan GC
 
-    Lexical time scoping
-        - By default Necronomicon uses local time semantics
-        - i.e. when you introduce a new time stream via fby or pattern sequences [],
-          the values proceed, such that: x fby y == { x0, y0, y1, y2, ... };
-        - Necronomicon optionally allows the user to use switch to "Lexical Time scoping" via the unary ~ operator
-        - Thus, x fby ~y == { x0, y1, y2, y3, y4, ... }
-        - More precisely it means reference the time stream y that already exists in this scope instead of
-          creating a fresh time stream of y.
-        - If there is no higher scoped version of that sequence (i.e. the sequence is defined at the same scope),
-          then this simply translates into a noop.
+    Evaluation then simply turns into:
+        - Request a value at a specific (relative) time, place, and dimension from the vault.
+        - If it exists:   Retrieve the value and increase its retirement value
+        - If it does not: Allocate the necessary memory, evaluate that bit of code store that in the vault at that time, place, and dimension, then set its retirement age. (Vault = Multiple Slab allocators with some kind of easy look up method)
+        - Each Tick store all possible IO in the vault.
 
-    Different Stream states:
-        - Const, Live, Rest, Inhibit, End?
-        - Would allow for --> semantics (i.e. actual switching)
-        - Pattern type functions such as seq and cycle would be defined in terms of this.
+    Memory reclamation then turns into:
+        - Each tick decrease the retirement age of each value (besides IO which is immortal) in the vault
+        - For each item in the vault that reaches a 0 retirement age, reclaim its memory
 
-    Lists are simply chained "pattern" sequences (similar to fbys)?
-    - Semantics are a little different than fbys:
-    - Each sequence continues until it "yields"
-    - Then sequence moves on to next stream
-    myCoolLoop = 0 fby 100 fby 1 + myCoolLoop  == { 0, 100, 1 ... }
-    myCoolLoop = 0 fby 100 fby 1 + ~myCoolLoop ==
-
-    Memory Management Idea #1
-    region based memory management, based on graphs
-        * Each graph gets its own Region
-        * Each Region is comprised of a current RegionPage list and the previous RegionPage list
-        * Nodes can access data from either the current RegionPage list or the previous RegionPage list
-        * At the beginning of each evaluation we free the previous RegionPage list,
-          move the current RegionPage list to the previous RegionPage list,
-          then allocate a new RegionPage and set the current RegionPage list to that.
-        * Thus, we only ever have around twice the memory required
-        * In return we get deterministic memory allocation and freeing
-
-    Memory Management Idea #2
-    Treadmill style incremental garbage collection,
-    bounded by collection time,
-    called at the end of every tick
-
-    // TODO: Will need nodemap
 */
 
 /*
@@ -248,42 +211,6 @@ NecroRegion              necro_create_region(NecroRegionPageAllocator* page_allo
 char*                    necro_alloc_into_region(NecroRegionPageAllocator* page_allocator, NecroRegion* region, size_t size);
 void                     necro_cycle_region(NecroRegionPageAllocator* page_allocator, NecroRegion* region);
 
-//=====================================================
-// Slab Allocator
-//=====================================================
-
-#define NECRO_SLAB_STEP_SIZE         8
-#define NECRO_SLAB_STEP_SIZE_POW_2   3
-#define NECRO_NUM_SLAB_STEPS         16
-#define DEBUG_SLAB_ALLOCATOR         0
-
-#if DEBUG_SLAB_ALLOCATOR
-#define TRACE_SLAB_ALLOCATOR(...) printf(__VA_ARGS__)
-#else
-#define TRACE_SLAB_ALLOCATOR(...)
-#endif
-
-typedef struct NecroSlabPage
-{
-    struct NecroSlabPage* next_page;
-} NecroSlabPage;
-
-typedef struct
-{
-    NecroSlabPage* page_list;
-    char*          free_lists[NECRO_NUM_SLAB_STEPS];
-    size_t         page_sizes[NECRO_NUM_SLAB_STEPS];
-} NecroSlabAllocator;
-
-
-NecroSlabAllocator necro_create_slab_allocator(size_t initial_page_size);
-void               necro_alloc_slab_page(NecroSlabAllocator* slab_allocator, size_t slab_bin);
-void*              necro_alloc_slab(NecroSlabAllocator* slab_allocator, size_t size);
-void               necro_free_slab(NecroSlabAllocator* slab_allocator, void* data, size_t size);
-void               necro_destroy_slab_allocator(NecroSlabAllocator* slab_allocator);
-void               necro_bench_slab();
-
-
 // Tick based
 //=====================================================
 // Treadmill Memory management:
@@ -360,5 +287,78 @@ void necro_test_slab();
 #define TRACE_STACK(opcode)
 #endif
 
-#endif // RUNTIME_H
+//=====================================================
+// Demand VM
+//=====================================================
+/*
+    I = Int
+    F = Float
+    A = Audio
+    S = Struct
+*/
 
+typedef enum
+{
+    // Demand / Heap Memory
+    DVM_DEMAND_I,
+    DVM_DEMAND_F,
+    DVM_DEMAND_A,
+    DVM_DEMAND_S,
+
+    DVM_STORE_I,
+    DVM_STORE_F,
+    DVM_STORE_A,
+    DVM_STORE_S,
+
+    // Integer operations
+    DVM_PUSH_I,
+    DVM_ADD_I,
+    DVM_SUB_I,
+    DVM_MUL_I,
+    DVM_NEG_I,
+    DVM_DIV_I,
+    DVM_MOD_I,
+    DVM_EQ_I,
+    DVM_NEQ_I,
+    DVM_LT_I,
+    DVM_LTE_I,
+    DVM_GT_I,
+    DVM_GTE_I,
+    DVM_BIT_AND_I,
+    DVM_BIT_OR_I,
+    DVM_BIT_XOR_I,
+    DVM_BIT_LS_I,
+    DVM_BIT_RS_I,
+
+    // Functions
+    DVM_CALL,
+    DVM_RETURN,
+    DVM_C_CALL_1,
+    DVM_C_CALL_2,
+    DVM_C_CALL_3,
+    DVM_C_CALL_4,
+    DVM_C_CALL_5,
+
+    // structs
+    DVM_MAKE_STRUCT,
+    DVM_GET_FIELD,
+    DVM_SET_FIELD,
+
+    // Local Memory (VM Used only?)
+    DVM_LOAD_L,
+    DVM_STORE_L,
+
+    // Jumping
+    DVM_JMP,
+    DVM_JMP_IF,
+    DVM_JMP_IF_NOT,
+
+    // Commands
+    DVM_POP,
+    DVM_PRINT,
+    DVM_PRINT_STACK,
+    DVM_HALT
+} DVM_NECRO_BYTE_CODE;
+
+
+#endif // RUNTIME_H

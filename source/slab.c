@@ -8,6 +8,14 @@
 #include <time.h>
 #include "slab.h"
 
+#define DEBUG_SLAB_ALLOCATOR         0
+
+#if DEBUG_SLAB_ALLOCATOR
+#define TRACE_SLAB_ALLOCATOR(...) printf(__VA_ARGS__)
+#else
+#define TRACE_SLAB_ALLOCATOR(...)
+#endif
+
 //=====================================================
 // Slab Allocator
 //=====================================================

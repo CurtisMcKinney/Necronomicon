@@ -14,30 +14,33 @@
 #include "slab.h"
 
 //=====================================================
-// NecroVault: Lazy HashTable with Entry Iteration
+// NecroVault: Linear Probing Hashtable with Lazy Incremental GC and Resizing
 // Key derived from:
-//     * Place, Epoch, Time
+//     * Place, Universe, Time
 // Values can either be:
-//     * Int, Float, Pointer
+//     * Int, Float, Pointer (Each 64-bits long
+// Place 0 is considered NULL
 //=====================================================
 
-// TODO:
-//    * Nix modulus operations! Use the power of powers of 2!
+typedef struct
+{
+    uint32_t place;
+    uint32_t universe;
+    uint32_t time;
+} NecroVaultKey;
 
 typedef struct NecroVaultEntry
 {
     union
     {
-        void*   pointer_data;
-        double  float_data;
+        // void*   pointer_data;
         int64_t int_data;
+        double  float_data;
     };
-    size_t  key;
-    size_t  next;
-    size_t  prev;
-    int16_t slab_size;
-    int16_t retirement_age;
-    bool    is_dead;
+    size_t        hash;
+    NecroVaultKey key;
+    int32_t       last_epoch;
+    int32_t       retirement_age;
 } NecroVaultEntry;
 
 typedef struct
@@ -45,23 +48,75 @@ typedef struct
     NecroVaultEntry* prev_entries;
     size_t           prev_size;
     size_t           prev_count;
-    size_t           prev_iteration_head;
     NecroVaultEntry* curr_entries;
     size_t           curr_size;
     size_t           curr_count;
-    size_t           curr_iteration_head;
+    size_t           lazy_move_index;
+    size_t           incremental_gc_index;
 } NecroVault;
 
+// TODO: Don't return pointers???
+
 // API
-NecroVault necro_create_vault();
-void       necro_destroy_vault(NecroVault* vault);
-int64_t*   necro_vault_find_int(NecroVault* vault, size_t place, size_t epoch, size_t time);
-void       necro_vault_delete(NecroVault* vault, size_t place, size_t epoch, size_t time);
-// void       necro_insert_int(int32_t place, int32_t epoch, int32_t time, int64_t int_data);
-// NecroSymbol necro_intern_string(NecroIntern* intern, const char* str);
-// NecroSymbol necro_intern_string_slice(NecroIntern* intern, NecroStringSlice slice);
-// bool        necro_intern_contains_symbol(NecroIntern* intern, NecroSymbol symbol);
-// void        necro_print_intern(NecroIntern* intern);
-// void        necro_test_intern();
+NecroVault       necro_create_vault();
+void             necro_destroy_vault(NecroVault* vault);
+int64_t*         necro_vault_find_int(NecroVault* vault, const NecroVaultKey key, const int32_t curr_epoch);
+NecroVaultEntry* necro_vault_find_entry(NecroVault* vault, const NecroVaultKey key, const int32_t curr_epoch);
+void             necro_vault_insert_int(NecroVault* vault, const NecroVaultKey key, const int64_t value, const int32_t curr_epoch);
+void             necro_vault_print(const NecroVault* vault);
+void             necro_vault_print_entry(NecroVaultEntry* entry);
+void             necro_vault_test();
+size_t           necro_vault_count(NecroVault* vault);
+
+
+//=====================================================
+// NecroChain: Separate Chaining Hashtable with Lazy Incremental GC and Resizing
+// Key derived from:
+//     * Place, Universe, Time
+//=====================================================
+// 32-bit size: 32 bytes
+// 64-bit size: 40 bytes
+typedef struct NecroChainNode
+{
+    struct NecroChainNode* next;       // 4 / 8
+    size_t                 hash;       // 4 / 8
+    NecroVaultKey          key;        // 12
+    int32_t                last_epoch; // 4
+    uint32_t               data_size;  // 4
+    uint32_t               __padding;  // 4
+    // data payload is directly after the NecroChainNode in memory
+} NecroChainNode;
+
+typedef struct NecroBucket
+{
+    NecroChainNode* head;
+    size_t          has_nodes;
+} NecroChainBucket;
+
+typedef struct
+{
+    NecroChainBucket*   prev_buckets;
+    size_t              prev_size;
+    size_t              prev_count;
+    NecroChainBucket*   curr_buckets;
+    size_t              curr_size;
+    size_t              curr_count;
+    size_t              lazy_move_index;
+    size_t              incremental_gc_index;
+    NecroSlabAllocator* slab_allocator;
+} NecroChain;
+
+// TODO: find or alloc
+
+// API
+NecroChain      necro_create_chain(NecroSlabAllocator* slab_allocator);
+void            necro_destroy_chain(NecroChain* chain);
+void*           necro_chain_find(NecroChain* chain, const NecroVaultKey key, const int32_t curr_epoch);
+NecroChainNode* necro_chain_find_node(NecroChain* chain, const NecroVaultKey key, const int32_t curr_epoch);
+void            necro_chain_incremental_gc(NecroChain* chain, const int32_t curr_epoch);
+void*           necro_chain_alloc(NecroChain* chain, const NecroVaultKey key, const int32_t curr_epoch, const uint32_t data_size);
+void            necro_chain_print(NecroChain* chain);
+void            necro_chain_print_node(NecroChainNode* node);
+void            necro_chain_test();
 
 #endif // VAULT_H

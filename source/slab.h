@@ -18,13 +18,6 @@
 #define NECRO_SLAB_STEP_SIZE         8
 #define NECRO_SLAB_STEP_SIZE_POW_2   3
 #define NECRO_NUM_SLAB_STEPS         16
-#define DEBUG_SLAB_ALLOCATOR         0
-
-#if DEBUG_SLAB_ALLOCATOR
-#define TRACE_SLAB_ALLOCATOR(...) printf(__VA_ARGS__)
-#else
-#define TRACE_SLAB_ALLOCATOR(...)
-#endif
 
 typedef struct NecroSlabPage
 {

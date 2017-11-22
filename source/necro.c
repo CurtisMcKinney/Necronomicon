@@ -9,6 +9,7 @@
 #include "parser.h"
 #include "intern.h"
 #include "runtime.h"
+#include "vault.h"
 
 void necro_test_lex(char* input_string)
 {
@@ -100,6 +101,14 @@ int main(int32_t argc, char** argv)
     else if (argc > 1 && strcmp(argv[1], "-test_intern") == 0)
     {
         necro_test_intern();
+    }
+    else if (argc > 1 && strcmp(argv[1], "-test_vault") == 0)
+    {
+        necro_vault_test();
+    }
+    else if (argc > 1 && strcmp(argv[1], "-test_chain") == 0)
+    {
+        necro_chain_test();
     }
     else if (argc == 2)
     {

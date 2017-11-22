@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include "slab.h"
+#include "vault.h"
 
 // TODO:
 //    * Memory Management

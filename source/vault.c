@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <assert.h>
+#include <time.h>
 #include "vault.h"
 
 // Constants
@@ -1036,6 +1037,24 @@ void* necro_chain_alloc(NecroChain* chain, const NecroVaultKey key, const int32_
     return necro_chain_alloc_with_key(chain, key, curr_epoch, data_size);
 }
 
+// naive implementation for now
+NecroFindOrAllocResult necro_chain_find_or_alloc(NecroChain* chain, const NecroVaultKey key, const int32_t curr_epoch, const uint32_t data_size)
+{
+    NecroFindOrAllocResult result;
+    result.data = necro_chain_find(chain, key, curr_epoch);
+    if (result.data != NULL)
+    {
+        assert((((NecroChainNode*)result.data) - 1)->data_size == data_size);
+        result.find_or_alloc_type = NECRO_FOUND;
+    }
+    else
+    {
+        result.data = necro_chain_alloc(chain, key, curr_epoch, data_size);
+        result.find_or_alloc_type = NECRO_ALLOC;
+    }
+    return result;
+}
+
 void necro_chain_incremental_gc(NecroChain* chain, const int32_t curr_epoch)
 {
     assert(chain != NULL);
@@ -1266,7 +1285,7 @@ void necro_chain_test()
     puts("-- Testing NecroChain");
     puts("--------------------------------\n");
 
-    NecroSlabAllocator slab_allocator = necro_create_slab_allocator(1024);
+    NecroSlabAllocator slab_allocator = necro_create_slab_allocator(4096);
     NecroChain         chain          = necro_create_chain(&slab_allocator);
     int32_t            curr_epoch     = 1;
 
@@ -1311,6 +1330,24 @@ void necro_chain_test()
     int64_t* alloc3_again = necro_chain_find(&chain, key3, curr_epoch);
     *alloc3_again         = 66;
     necro_chain_test_int(&chain, key3, curr_epoch, 66, true, true);
+
+    // FindOrAlloc Test
+    {
+        int64_t                value  = 333;
+        NecroVaultKey          key    = { .place = 66,.universe = 100,.time = 200 };
+        NecroFindOrAllocResult result = necro_chain_find_or_alloc(&chain, key, curr_epoch, 8);
+        if (result.find_or_alloc_type == NECRO_ALLOC)
+            puts("NecroChain found/alloc alloc:  passed");
+        else
+            puts("NecroChain found/alloc alloc:  failed");
+        *((int64_t*)result.data)      = value;
+        result = necro_chain_find_or_alloc(&chain, key, curr_epoch, 8);
+        if (result.find_or_alloc_type == NECRO_FOUND)
+            puts("NecroChain found/alloc found:  passed");
+        else
+            puts("NecroChain found/alloc found:  failed");
+        necro_chain_test_int(&chain, key, curr_epoch, value, true, true);
+    }
 
     // puts("\n---");
     // necro_chain_print(&chain);
@@ -1424,4 +1461,54 @@ void necro_chain_test()
     // puts("\n---");
     // necro_chain_print(&chain);
     // puts("");
+
+    necro_destroy_chain(&chain);
+    necro_destroy_slab_allocator(&slab_allocator);
+    necro_chain_bench();
+}
+
+void necro_chain_bench()
+{
+    int64_t iterations = 65536 * 4;
+    {
+        // Slab bench
+        NecroSlabAllocator slab_allocator = necro_create_slab_allocator(16384);
+        NecroChain         chain          = necro_create_chain(&slab_allocator);
+
+        {
+            double start_time = (double)clock() / (double)CLOCKS_PER_SEC;
+            for (size_t i = 0; i < iterations; ++i)
+            {
+                const NecroVaultKey key       = { .place = i * 1000,.universe = i * 222,.time = i };
+                const int32_t       epoch     = 1;
+                const uint32_t      data_size = 8;
+                necro_chain_find_or_alloc(&chain, key, epoch, data_size);
+            }
+            double  end_time    = (double) clock() / (double) CLOCKS_PER_SEC;
+            double  run_time    = end_time - start_time;
+            int64_t ns_per_iter = (int64_t) ((run_time / (double)iterations) * 1000000000);
+            puts("");
+            printf("Chain find_or_alloc alloc benchmark:\n    iterations:  %lld\n    run_time:    %f\n    ns/iter:     %lld\n", iterations, run_time, ns_per_iter);
+        }
+
+        {
+            double start_time = (double)clock() / (double)CLOCKS_PER_SEC;
+            for (size_t i = 0; i < iterations; ++i)
+            {
+                const NecroVaultKey key       = { .place = i * 1000,.universe = i * 222,.time = i };
+                const int32_t       epoch     = 1;
+                const uint32_t      data_size = 8;
+                necro_chain_find_or_alloc(&chain, key, epoch, data_size);
+            }
+            double  end_time    = (double) clock() / (double) CLOCKS_PER_SEC;
+            double  run_time    = end_time - start_time;
+            int64_t ns_per_iter = (int64_t) ((run_time / (double)iterations) * 1000000000);
+            puts("");
+            printf("Chain find_or_alloc find benchmark:\n    iterations:  %lld\n    run_time:    %f\n    ns/iter:     %lld\n", iterations, run_time, ns_per_iter);
+        }
+
+        printf("\nchain prev_count: %d, curr_count: %d, total_count: %d, curr_size: %d, largest_bucket: %d", chain.prev_count, chain.curr_count, necro_chain_count(&chain), chain.curr_size, necro_chain_largest_bucket(&chain));
+        necro_destroy_chain(&chain);
+        necro_destroy_slab_allocator(&slab_allocator);
+    }
 }

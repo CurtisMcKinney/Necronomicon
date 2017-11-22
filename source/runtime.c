@@ -1389,3 +1389,35 @@ void necro_test_vm()
     }
 
 }
+
+//=====================================================
+// Demand Vitural Machine (DVM)
+//=====================================================
+
+void necro_test_dvm()
+{
+
+    {
+        int64_t instr[] =
+        {
+            // Main
+            DVM_PUSH_I,   4,                     // Operand A
+            DVM_PUSH_I,   1,                     // Key - Place
+            DVM_PUSH_I,   0,                     // Key - Universe
+            DVM_PUSH_I,   0,                     // Key - Time
+            DVM_PUSH_I,   (int64_t)(instr + 13), // Demand code addr
+            DVM_DEMAND_I,                        // Demand Int value at Key {1, 0, 0}, if not there evaluate code at
+            DVM_ADD_I,                           // Add Operands A and B together
+
+            // End
+            DVM_HALT,
+
+            // Demand code
+            DVM_PUSH_I,   5,                     // Push 5
+            DVM_STORE_I,                         // Store it at the supplied address
+            DVM_RETURN                           // Return (With 5 still on the stack, serving as Operand B)
+        };
+        // necro_test_vm_eval(instr, 666, "struct3:");
+    }
+
+}

@@ -106,17 +106,29 @@ typedef struct
     NecroSlabAllocator* slab_allocator;
 } NecroChain;
 
-// TODO: find or alloc
+typedef enum
+{
+    NECRO_FOUND,
+    NECRO_ALLOC
+} NECRO_FIND_OR_ALLOC_TYPE;
+
+typedef struct
+{
+    NECRO_FIND_OR_ALLOC_TYPE find_or_alloc_type;
+    void*                    data;
+} NecroFindOrAllocResult;
 
 // API
-NecroChain      necro_create_chain(NecroSlabAllocator* slab_allocator);
-void            necro_destroy_chain(NecroChain* chain);
-void*           necro_chain_find(NecroChain* chain, const NecroVaultKey key, const int32_t curr_epoch);
-NecroChainNode* necro_chain_find_node(NecroChain* chain, const NecroVaultKey key, const int32_t curr_epoch);
-void            necro_chain_incremental_gc(NecroChain* chain, const int32_t curr_epoch);
-void*           necro_chain_alloc(NecroChain* chain, const NecroVaultKey key, const int32_t curr_epoch, const uint32_t data_size);
-void            necro_chain_print(NecroChain* chain);
-void            necro_chain_print_node(NecroChainNode* node);
-void            necro_chain_test();
+NecroChain             necro_create_chain(NecroSlabAllocator* slab_allocator);
+void                   necro_destroy_chain(NecroChain* chain);
+void*                  necro_chain_find(NecroChain* chain, const NecroVaultKey key, const int32_t curr_epoch);
+NecroChainNode*        necro_chain_find_node(NecroChain* chain, const NecroVaultKey key, const int32_t curr_epoch);
+void                   necro_chain_incremental_gc(NecroChain* chain, const int32_t curr_epoch);
+void*                  necro_chain_alloc(NecroChain* chain, const NecroVaultKey key, const int32_t curr_epoch, const uint32_t data_size);
+NecroFindOrAllocResult necro_chain_find_or_alloc(NecroChain* chain, const NecroVaultKey key, const int32_t curr_epoch, const uint32_t data_size);
+void                   necro_chain_print(NecroChain* chain);
+void                   necro_chain_print_node(NecroChainNode* node);
+void                   necro_chain_test();
+void                   necro_chain_bench();
 
 #endif // VAULT_H

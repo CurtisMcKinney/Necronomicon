@@ -152,7 +152,7 @@ void necro_test_slab()
 
 void necro_bench_slab()
 {
-    int64_t iterations = 65536;
+    int64_t iterations = 65536 * 4;
     {
         // Slab bench
         NecroSlabAllocator slab_allocator = necro_create_slab_allocator(16384);

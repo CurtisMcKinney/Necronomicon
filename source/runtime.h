@@ -168,50 +168,6 @@ typedef NecroVal (*necro_c_call_3)(NecroVal, NecroVal, NecroVal);
 typedef NecroVal (*necro_c_call_4)(NecroVal, NecroVal, NecroVal, NecroVal);
 typedef NecroVal (*necro_c_call_5)(NecroVal, NecroVal, NecroVal, NecroVal, NecroVal);
 
-#define NECRO_INIITAL_NUM_PAGES 64
-#define NECRO_REGION_PAGE_SIZE  (65536 - sizeof(void*)) // The last word size of bytes are reserved for the next pointer
-
-//=====================================================
-// Region based memory management
-//=====================================================
-typedef struct NecroRegionPage
-{
-    char data[NECRO_REGION_PAGE_SIZE];
-    struct NecroRegionPage* next_page;
-} NecroRegionPage;
-
-typedef struct
-{
-    NecroRegionPage* previous_head;
-    NecroRegionPage* previous_last;
-    NecroRegionPage* current_head;
-    NecroRegionPage* current_last;
-    size_t           cursor;
-} NecroRegion;
-
-typedef struct
-{
-    char* node_map;
-} NecroSubRegion;
-
-typedef struct NecroRegionBlock
-{
-    struct NecroRegionBlock* next_block;
-} NecroRegionBlock;
-
-typedef struct
-{
-    NecroRegionBlock* page_blocks;
-    NecroRegionPage*  free_list;
-    size_t            current_block_size;
-} NecroRegionPageAllocator;
-NecroRegionPageAllocator necro_create_region_page_allocator();
-void                     necro_destroy_region_page_allocator(NecroRegionPageAllocator* page_allocator);
-NecroRegionPage*         necro_alloc_region_page(NecroRegionPageAllocator* page_allocator);
-NecroRegion              necro_create_region(NecroRegionPageAllocator* page_allocator);
-char*                    necro_alloc_into_region(NecroRegionPageAllocator* page_allocator, NecroRegion* region, size_t size);
-void                     necro_cycle_region(NecroRegionPageAllocator* page_allocator, NecroRegion* region);
-
 // Tick based
 //=====================================================
 // Treadmill Memory management:
@@ -228,7 +184,7 @@ void                     necro_cycle_region(NecroRegionPageAllocator* page_alloc
 
 #define NECRO_NUM_TM_SEGMENTS 6
 #define NECRO_TM_PAGE_SIZE    2048
-#define DEBUG_TM              1
+#define DEBUG_TM              0
 
 #if DEBUG_TM
 #define TRACE_TM(...) printf(__VA_ARGS__)
@@ -276,7 +232,7 @@ void           necro_test_treadmill();
 void print_test_result(const char* print_string, bool result);
 void necro_test_vm();
 void necro_trace_stack(int64_t opcode);
-void necro_test_region();
+// void necro_test_region();
 void necro_test_slab();
 
 #define NECRO_STACK_SIZE 1024
@@ -285,12 +241,13 @@ void necro_test_slab();
 #if DEBUG_VM
 #define TRACE_STACK(opcode) necro_trace_stack(opcode)
 #else
-#define TRACE_STACK(opcode)
+// #define TRACE_STACK(opcode)
 #endif
 
 //=====================================================
 // Demand VM
 //=====================================================
+
 /*
     I = Int
     F = Float
@@ -305,7 +262,6 @@ typedef enum
     DVM_DEMAND_F,
     DVM_DEMAND_A,
     DVM_DEMAND_S,
-
     DVM_STORE_I,
     DVM_STORE_F,
     DVM_STORE_A,
@@ -361,5 +317,15 @@ typedef enum
     DVM_HALT
 } DVM_NECRO_BYTE_CODE;
 
+void necro_trace_stack_dvm(int64_t opcode);
+void necro_test_dvm();
+
+#define DEBUG_DVM 0
+
+#if DEBUG_DVM
+#define TRACE_STACK(opcode) necro_trace_stack_dvm(opcode)
+#else
+#define TRACE_STACK(opcode)
+#endif
 
 #endif // RUNTIME_H

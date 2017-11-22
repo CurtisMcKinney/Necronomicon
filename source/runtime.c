@@ -9,10 +9,6 @@
 #include "runtime.h"
 #include "utility.h"
 
-// Prev Page, current page solves the problem
-// We only ever have twice the memory
-// Use regions and region pages instead?
-
 //=====================================================
 // VM
 //=====================================================
@@ -638,252 +634,6 @@ void necro_test_treadmill()
     free(type_info);
 }
 
-//=====================================================
-// Buddy Allocator
-//=====================================================
-// NecroBuddyAllocator necro_create_buddy_allocator()
-// {
-//     // Allocate and initialize memory
-//     size_t total_size = BUDDY_HEAP_MAX_SIZE * sizeof(NecroBuddyLeaf) + BUDDY_HEAP_FREE_FLAGS_SIZE;
-//     char*  heap       = malloc(total_size);
-//     char*  free_flags = heap + BUDDY_HEAP_MAX_SIZE;
-//     memset(heap, (int) NULL, BUDDY_HEAP_MAX_SIZE * sizeof(NecroBuddyLeaf));
-//     memset(free_flags, 0, BUDDY_HEAP_FREE_FLAGS_SIZE);
-//     // Set up free lists
-//     NecroBuddyAllocator necro_buddy;
-//     necro_buddy.heap = (NecroBuddyLeaf*) heap;
-//     for (size_t i = 0; i < BUDDY_HEAP_NUM_BINS; ++i)
-//         necro_buddy.free_lists[i] = NULL;
-//     necro_buddy.free_lists[BUDDY_HEAP_NUM_BINS - 1] = (NecroBuddyLeaf*)heap;
-//     return necro_buddy;
-// }
-
-// char* necro_buddy_alloc(NecroBuddyAllocator* buddy, size_t size)
-// {
-//     size_t size_pow_of_2    = (size /* converto pow of 2*/) - BUDDY_HEAP_LEAF_SIZE_POW_2;
-
-//     // Find next free block in closest size
-//     size_t          current_pow_of_2 = size_pow_of_2;
-//     NecroBuddyLeaf* current_slot     = buddy->free_lists[size_pow_of_2];
-
-//     // Find next bin with free block
-//     while (current_slot == NULL && current_pow_of_2 < BUDDY_HEAP_NUM_BINS)
-//     {
-//         current_pow_of_2++;
-//         current_slot = buddy->free_lists[current_pow_of_2];
-//     }
-
-//     // even = i
-//     // odd  = i - 1?
-
-//     // iteratively break down blocks into buddies
-//     for (size_t s = current_pow_of_2; current_slot != NULL && s > size_pow_of_2; --s)
-//     {
-//         NecroBuddyLeaf* buddy_1 = current_slot;
-//         NecroBuddyLeaf* buddy_2 = current_slot + (2 << (current_pow_of_2 - 2));
-
-//         // buddy->free_lists[size_pow_of_2] = *((int64_t*)starting_slot);
-//     }
-
-//     return (char*) current_slot;
-// }
-
-//=====================================================
-// Region Allocator
-//=====================================================
-NecroRegionPageAllocator necro_create_region_page_allocator()
-{
-    NecroRegionBlock* page_block = malloc(sizeof(NecroRegionBlock) + NECRO_INIITAL_NUM_PAGES * sizeof(NecroRegionPage));
-    if (page_block == NULL)
-    {
-        fprintf(stderr, "Allocation error, could not allocate memory for page allocator. Requested memory size: %d\n", sizeof(NecroRegionBlock) + NECRO_INIITAL_NUM_PAGES * sizeof(NecroRegionPage));
-        exit(1);
-    }
-    NecroRegionPage*  free_list  = (NecroRegionPage*) (((char*) page_block) + sizeof(NecroRegionBlock));
-    for (size_t i = 0; i < NECRO_INIITAL_NUM_PAGES - 1; ++i)
-        free_list[i].next_page = &free_list[i + 1];
-    free_list[NECRO_INIITAL_NUM_PAGES - 1].next_page = NULL;
-    page_block->next_block = NULL;
-    assert(page_block);
-    assert(free_list);
-    return (NecroRegionPageAllocator) { page_block, free_list, NECRO_INIITAL_NUM_PAGES };
-}
-
-void necro_destroy_region_page_allocator(NecroRegionPageAllocator* page_allocator)
-{
-    NecroRegionBlock* current_block = page_allocator->page_blocks;
-    while (current_block != NULL)
-    {
-        NecroRegionBlock* next_block = current_block->next_block;
-        free(current_block);
-        current_block = next_block;
-    }
-}
-
-NecroRegionPage* necro_alloc_region_page(NecroRegionPageAllocator* page_allocator)
-{
-    if (page_allocator->free_list == NULL)
-    {
-        // dynamically allocate more memory from OS
-        page_allocator->current_block_size *= 2;
-        fprintf(stderr, "Not enough memory in region page allocator, allocating %uz memory from the OS\n", page_allocator->current_block_size * sizeof(NecroRegionPage));
-        NecroRegionBlock* page_block    = malloc(sizeof(NecroRegionBlock) + page_allocator->current_block_size * sizeof(NecroRegionPage));
-        if (page_block == NULL)
-        {
-            fprintf(stderr, "Allocation error, could not allocate memory for page allocator. Requested memory size: %d\n", sizeof(NecroRegionBlock) + page_allocator->current_block_size * sizeof(NecroRegionPage));
-            exit(1);
-        }
-        NecroRegionPage*  new_free_list = (NecroRegionPage*) (((char*) page_block) + sizeof(NecroRegionBlock));
-        for (size_t i = 0; i < page_allocator->current_block_size - 1; ++i)
-            new_free_list[i].next_page = &new_free_list[i + 1];
-        new_free_list[page_allocator->current_block_size - 1].next_page = NULL;
-        page_allocator->free_list   = new_free_list;
-        page_block->next_block      = page_allocator->page_blocks;
-        page_allocator->page_blocks = page_block;
-    }
-    assert(page_allocator->free_list);
-    NecroRegionPage* page = page_allocator->free_list;
-    page_allocator->free_list = page->next_page;
-    page->next_page = NULL;
-    return page;
-}
-
-NecroRegion necro_create_region(NecroRegionPageAllocator* page_allocator)
-{
-    NecroRegionPage* page      = necro_alloc_region_page(page_allocator);
-    NecroRegionPage* last_page = necro_alloc_region_page(page_allocator);
-    return (NecroRegion) { last_page, last_page, page, page, 0 };
-}
-
-char* necro_alloc_into_region(NecroRegionPageAllocator* page_allocator, NecroRegion* region, size_t size)
-{
-    size_t new_cursor = region->cursor + size;
-    if (new_cursor >= NECRO_REGION_PAGE_SIZE)
-    {
-        new_cursor                      = size;
-        region->current_last->next_page = necro_alloc_region_page(page_allocator);
-        region->current_last            = region->current_last->next_page;
-    }
-    char* data = ((char*)region->current_last->data) + region->cursor;
-    region->cursor = new_cursor;
-    return data;
-}
-
-void necro_cycle_region(NecroRegionPageAllocator* page_allocator, NecroRegion* region)
-{
-    region->previous_last->next_page = page_allocator->free_list;
-    page_allocator->free_list        = region->previous_head;
-    NecroRegionPage* new_current     = necro_alloc_region_page(page_allocator);
-    region->previous_head            = region->current_head;
-    region->previous_last            = region->current_last;
-    region->current_head             = new_current;
-    region->current_last             = new_current;
-}
-
-void necro_test_region()
-{
-    puts("\n------");
-    puts("Test Regions\n");
-
-    NecroRegionPageAllocator page_allocator = necro_create_region_page_allocator();
-    assert(page_allocator.current_block_size == NECRO_INIITAL_NUM_PAGES);
-    assert(page_allocator.free_list          != NULL);
-    assert(page_allocator.page_blocks        != NULL);
-
-    NecroRegion region = necro_create_region(&page_allocator);
-    assert(region.previous_head != NULL);
-    assert(region.current_head  != NULL);
-    assert(region.current_last  != NULL);
-    assert(region.previous_last != NULL);
-    assert(region.current_head  == region.current_last);
-    assert(region.previous_head == region.previous_last);
-    assert(region.cursor        == 0);
-
-    // String 1 test
-    char* hello = necro_alloc_into_region(&page_allocator, &region, 6);
-    assert(hello);
-    hello[0] = 'h';
-    hello[1] = 'e';
-    hello[2] = 'l';
-    hello[3] = 'l';
-    hello[4] = 'o';
-    hello[5] = 0;
-    if (strncmp(hello, "hello", 7) == 0)
-        printf("Region string allocation 1 test: passed\n");
-    else
-        printf("Region string allocation 1 test: FAILED, result: %s\n", hello);
-
-    // String 2 test
-    char* world = necro_alloc_into_region(&page_allocator, &region, 6);
-    world[0] = 'w';
-    world[1] = 'o';
-    world[2] = 'r';
-    world[3] = 'l';
-    world[4] = 'd';
-    world[5] = 0;
-    if (strncmp(world, "world", 7) == 0)
-        printf("Region string allocation 2 test: passed\n");
-    else
-        printf("Region string allocation 2 test: FAILED, result: %s\n", world);
-    assert(hello != world);
-
-    // Cursor test
-    if (region.cursor == 12)
-        printf("Region cursor test:              passed\n");
-    else
-        printf("Region cursor test:              FAILED, result: %zu\n", region.cursor);
-
-    // Cycle tests
-    NecroRegionPage* current_head = region.current_head;
-    NecroRegionPage* current_last = region.current_last;
-    necro_cycle_region(&page_allocator, &region);
-    if (region.current_head != current_head)
-        printf("Region cycle head1 test:         passed\n");
-    else
-        printf("Region cycle head1 test:         FAILED\n");
-    if (region.current_last != current_last)
-        printf("Region cycle last1 test:         passed\n");
-    else
-        printf("Region cycle last1 test:         FAILED\n");
-    if (region.previous_head == current_head)
-        printf("Region cycle head2 test:         passed\n");
-    else
-        printf("Region cycle head2 test:         FAILED\n");
-    if (region.previous_last == current_last)
-        printf("Region cycle head2 test:         passed\n");
-    else
-        printf("Region cycle head2 test:         FAILED\n");
-
-    // Alloc after cycle tests
-    char* welt = necro_alloc_into_region(&page_allocator, &region, 5);
-    welt[0] = 'w';
-    welt[1] = 'e';
-    welt[2] = 'l';
-    welt[3] = 't';
-    welt[4] = 0;
-    if (strncmp(hello, "hello", 7) == 0)
-        printf("Region string allocation 3 test: passed\n");
-    else
-        printf("Region string allocation 3 test: FAILED, result: %s\n", hello);
-    if (strncmp(welt, "welt", 6) == 0)
-        printf("Region string allocation 4 test: passed\n");
-    else
-        printf("Region string allocation 4 test: FAILED, result: %s\n", welt);
-    // Cycling numbers test
-    necro_cycle_region(&page_allocator, &region);
-    size_t* num1 = (size_t*) necro_alloc_into_region(&page_allocator, &region, sizeof(size_t));
-    *num1 = 10;
-    necro_cycle_region(&page_allocator, &region);
-    size_t* num2 = (size_t*) necro_alloc_into_region(&page_allocator, &region, sizeof(size_t));
-    *num2 = 20;
-    if (((size_t*)region.current_head->data)[0] == 20 && ((size_t*)region.previous_head->data)[0] == 10)
-        printf("Region num cycling test:         passed\n");
-    else
-        printf("Region num cycling test:         FAILED, result: %zu, %zu, %zu, %zu\n", *num1, *num2, *((size_t*)region.current_head->data),  *((size_t*)region.previous_head->data));
-    for (size_t i = 0; i < 16; ++i)
-        printf("%zu\n", ((size_t*)region.current_head->data)[i]);
-}
-
 void necro_test_vm_eval(int64_t* instr, int64_t result, const char* print_string)
 {
     int64_t vm_result = necro_run_vm(instr, 0);
@@ -1393,31 +1143,939 @@ void necro_test_vm()
 //=====================================================
 // Demand Vitural Machine (DVM)
 //=====================================================
+void necro_trace_stack_dvm(int64_t opcode)
+{
+    switch (opcode)
+    {
+    case DVM_DEMAND_I:    puts("DEMAND_I");    return;
+    case DVM_DEMAND_F:    puts("DEMAND_F");    return;
+    case DVM_DEMAND_A:    puts("DEMAND_A");    return;
+    case DVM_DEMAND_S:    puts("DEMAND_S");    return;
+    case DVM_STORE_I:     puts("STORE_I");     return;
+    case DVM_STORE_F:     puts("STORE_F");     return;
+    case DVM_STORE_A:     puts("STORE_A");     return;
+    case DVM_STORE_S:     puts("STORE_S");     return;
+    case DVM_PUSH_I:      puts("PUSH_I");      return;
+    case DVM_ADD_I:       puts("ADD_I");       return;
+    case DVM_SUB_I:       puts("SUB_I");       return;
+    case DVM_MUL_I:       puts("MUL_I");       return;
+    case DVM_NEG_I:       puts("NEG_I");       return;
+    case DVM_DIV_I:       puts("DIV_I");       return;
+    case DVM_MOD_I:       puts("MOD_I");       return;
+    case DVM_EQ_I:        puts("EQ_I");        return;
+    case DVM_NEQ_I:       puts("NEQ_I");       return;
+    case DVM_LT_I:        puts("LT_I");        return;
+    case DVM_LTE_I:       puts("LTE_I");       return;
+    case DVM_GT_I:        puts("GT_I");        return;
+    case DVM_GTE_I:       puts("GTE_I");       return;
+    case DVM_BIT_AND_I:   puts("BIT_AND_I");   return;
+    case DVM_BIT_OR_I:    puts("BIT_OR_I");    return;
+    case DVM_BIT_XOR_I:   puts("BIT_XOR_I");   return;
+    case DVM_BIT_LS_I:    puts("BIT_LS_I");    return;
+    case DVM_BIT_RS_I:    puts("BIT_RS_I");    return;
+    case DVM_CALL:        puts("CALL");        return;
+    case DVM_RETURN:      puts("RETURN");      return;
+    case DVM_LOAD_L:      puts("LOAD_L");      return;
+    case DVM_STORE_L:     puts("STORE_L");     return;
+    case DVM_JMP:         puts("JMP");         return;
+    case DVM_JMP_IF:      puts("JMP_IF");      return;
+    case DVM_JMP_IF_NOT:  puts("JMP_IF_NOT");  return;
+    case DVM_POP:         puts("POP");         return;
+    case DVM_PRINT:       puts("PRINT");       return;
+    case DVM_PRINT_STACK: puts("PRINT_STACK"); return;
+    case DVM_HALT:        puts("HALT");        return;
+    case DVM_MAKE_STRUCT: puts("MAKE_STRUCT"); return;
+    case DVM_GET_FIELD:   puts("GET_FIELD");   return;
+    case DVM_SET_FIELD:   puts("SET_FIELD");   return;
+    default:              puts("UKNOWN");      return;
+    }
+}
+
+uint64_t necro_run_dvm(uint64_t* instructions)
+{
+    NecroSlabAllocator sa    = necro_create_slab_allocator(32);
+    NecroChain         heap  = necro_create_chain(&sa);
+    int32_t            epoch = 0;
+    register int64_t*  sp    = malloc(NECRO_STACK_SIZE * sizeof(int64_t)); // Stack grows down
+    register int64_t*  pc    = instructions;
+    register int64_t*  fp    = 0;
+    register int64_t   acc   = 0;
+    register int64_t   env   = 0;
+    sp = sp + (NECRO_STACK_SIZE - 1);
+    fp = sp - 2;
+    pc--;
+    while (true)
+    {
+        int64_t opcode = *++pc;
+        TRACE_STACK(opcode);
+        switch (opcode)
+        {
+
+        //====================================
+        // Int Ops
+        //====================================
+        case DVM_PUSH_I:
+            *--sp = acc;
+            acc = *++pc;
+            break;
+        case DVM_NEG_I:
+            acc = -acc;
+            break;
+
+        //====================================
+        // Int BinOps
+        //------------------------------------
+        // INPUT
+        // ACC:   Int Operand A
+        // sp[0]: Int Operand B
+        //------------------------------------
+        // OUTPUT
+        // ACC:   Int Result
+        //====================================
+        case DVM_ADD_I:
+            acc = acc + *sp++;
+            break;
+        case DVM_SUB_I:
+            acc = acc - *sp++;
+            break;
+        case DVM_MUL_I:
+            acc = acc * *sp++;
+            break;
+        case DVM_DIV_I:
+            acc = acc / *sp++;
+            break;
+        case DVM_MOD_I:
+            acc = acc % *sp++;
+            break;
+        case DVM_EQ_I:
+            acc = acc == *sp++;
+            break;
+        case DVM_NEQ_I:
+            acc = acc != *sp++;
+            break;
+        case DVM_LT_I:
+            acc = acc < *sp++;
+            break;
+        case DVM_LTE_I:
+            acc = acc <= *sp++;
+            break;
+        case DVM_GT_I:
+            acc = acc > *sp++;
+            break;
+        case DVM_GTE_I:
+            acc = acc >= *sp++;
+            break;
+        case DVM_BIT_AND_I:
+            acc = acc & *sp++;
+            break;
+        case DVM_BIT_OR_I:
+            acc = acc | *sp++;
+            break;
+        case DVM_BIT_XOR_I:
+            acc = acc ^ *sp++;
+            break;
+        case DVM_BIT_LS_I:
+            acc = acc << *sp++;
+            break;
+        case DVM_BIT_RS_I:
+            acc = acc >> *sp++;
+            break;
+
+        // Functions
+        // Stack Frame:
+        //  - args
+        //  <---------- fp points at last arguments
+        //              LOAD_L loads in relation to fp
+        //               0... N (incrementing) loads from the final argument down towards the first argument
+        //              -6...-N (decrementing) loads from the first local variable up towarods final local variable
+        //  - saved registers (pc, fp, env, argc)
+        //  - Locals
+        //  - operand stack
+        //  When calling into a subroutine, the operand
+        //  stack of the current frame becomes the args of the next
+        case DVM_CALL: // one operand: number of args to reserve in current operand stack
+            sp   -= 4;
+            sp[0] = (int64_t) (pc + 1); // pc gets incremented at top, so set pc to one less than call site
+            sp[1] = (int64_t) fp;
+            sp[2] = env;
+            sp[3] = *++pc;
+            fp    = sp + 4;
+            pc    = (int64_t*) acc - 1; // pc gets incremented at top, so set pc to one less than call site
+            env   = acc + 1;
+            break;
+
+        case DVM_RETURN:
+            sp   = fp - 4;
+            pc   = (int64_t*)sp[0];
+            fp   = (int64_t*)sp[1];
+            env  = sp[2];
+            sp  += sp[3] + 4;
+            break;
+
+        //====================================
+        // DEMAND_I
+        // Retrieve Int value from the heap at the given key
+        // and push to stack if present.
+        // If not present jump to addr, compute it,
+        // store it in the heap. then push to stack
+        //------------------------------------
+        // INPUT
+        // ACC:   Demand Code addr
+        // sp[0]: Time
+        // sp[1]: Universe
+        // sp[2]: Place
+        //-------------------------------------
+        // OUTPUT 1 (Not Found)
+        // ACC:   Heap addr to store value into
+        // sp[0]: Return address to return to once value has been computed and stored
+        //-------------------------------------
+        // OUTPUT 2 (Found, Or Computed/Returned)
+        // ACC:   Int value retrieved from heap or computed and returned
+        //====================================
+        case DVM_DEMAND_I:
+        {
+            NecroFindOrAllocResult result = necro_chain_find_or_alloc(&heap, (NecroVaultKey) { ((uint32_t*)sp)[2], ((uint32_t*)sp)[1], ((uint32_t*)sp)[0] }, epoch, 8);
+            if (result.find_or_alloc_type == NECRO_FOUND)
+            {
+                sp += 3;                        // Pop Args
+                acc = *((int64_t*)result.data); // Retrieve value from memory put into acc
+            }
+            else
+            {
+                sp += 2;                            // Pop Args
+                *sp = (int64_t)(pc - instructions); // Top of stack is return address, pc gets incremented at top, so set pc to one less than call site
+                pc  = instructions + (acc - 1);     // pc gets incremented at top, so set pc to one less than call site
+                acc = (int64_t)result.data;         // set acc to address to store value into
+            }
+            break;
+        }
+
+        //====================================
+        // STORE_I
+        // Store an int value that has been demanded,
+        // then return to point where it was demanded
+        // with the value on the stack
+        //------------------------------------
+        // INPUT
+        // acc:   Int Value which was demanded
+        // sp[0]: Heap addr to store value into
+        // sp[1]: Return addr
+        //------------------------------------
+        // OUTPUT
+        // acc:   Int Value which was demanded
+        //====================================
+        case DVM_STORE_I:
+            *((int64_t*)(sp[0])) = acc;                  // Retrieve heap address from top of stack then store the int value (in acc) into it.
+            pc                   = instructions + sp[1]; // Set PC to return address
+            sp                  += 2;                    // Pop Args
+            break;
+
+
+        //     // structs
+        //     case N_MAKE_STRUCT:
+        //     {
+        //         *--sp = acc;
+        //         int64_t  num_fields = *++pc;
+        //         size_t   size       = (1 + (size_t)num_fields) * sizeof(int64_t); // Will need 1 extra for refcount field
+        //         int64_t* struct_ptr = necro_alloc_slab(&sa, size);
+        //         struct_ptr[0]       = 0; // Set ref count to 0
+        //         memcpy(struct_ptr + 1, sp, size);
+        //         acc = (int64_t) struct_ptr;
+        //         sp += num_fields;
+        //         break;
+        //     }
+
+        case DVM_GET_FIELD: // acc = struct_ptr, next pc = field number, replaces acc with result
+            acc = ((int64_t*)acc)[*++pc + 1];
+            break;
+
+        case DVM_SET_FIELD: // acc = struct_ptr, next pc = field number, sp[0] = value to set to, pops struct from acc
+            ((int64_t*)acc)[*++pc + 1] = *sp++;
+            acc = *sp++;
+            break;
+
+        // Memory
+        case DVM_LOAD_L: // Loads a local variable relative to current frame pointer
+            *--sp = acc;
+            acc   = *(fp + *++pc);
+            break;
+        case DVM_STORE_L: // Stores a local variables relative to current frame pointer
+            *(fp + *++pc) = acc;
+            acc = *sp++;
+            break;
+
+        //====================================
+        // JMP
+        // Unconditional relative jump to a
+        // different point in instructions
+        //------------------------------------
+        // INPUT
+        // PC+1:  Relative offset
+        //------------------------------------
+        // OUTPUT
+        // PC -> Moved by Relative Offset
+        //====================================
+        case DVM_JMP:
+            pc++;
+            pc += *pc; // Using relative jumps
+            break;
+        //====================================
+        // JMP_IF
+        // Conditional relative jump to a
+        // different point in instructions
+        // Tests for ACC
+        //------------------------------------
+        // INPUT
+        // PC+1:  Relative offset
+        // ACC:   Boolean to test
+        //------------------------------------
+        // OUTPUT (True)
+        // PC -> Moved by Relative offset
+        //====================================
+        case DVM_JMP_IF:
+            pc++;
+            if (acc)
+                pc += *pc;
+            acc = *sp--;
+            break;
+        //====================================
+        // JMP_IF_NOT
+        // Conditional relative jump to a
+        // different point in instructions
+        // Tests for !ACC
+        //------------------------------------
+        // INPUT
+        // PC+1:  Relative offset
+        // ACC:   Boolean to test
+        //------------------------------------
+        // OUTPUT (False)
+        // PC -> Moved by Relative offset
+        //====================================
+        case DVM_JMP_IF_NOT:
+            pc++;
+            if (!acc)
+                pc += *pc;
+            acc = *sp--;
+            break;
+
+        //====================================
+        // C calls
+        // Calls to foreign C functions
+        //------------------------------------
+        // INPUT
+        // ACC:   Arg0
+        // SP[N]: Arg(1+(0..N))
+        //------------------------------------
+        // OUTPUT
+        // ACC:   Result of C call
+        //====================================
+        case DVM_C_CALL_1:
+            acc = ((necro_c_call_1)(*++pc))((NecroVal) { acc }).int_value;
+            break;
+        case DVM_C_CALL_2:
+            acc = ((necro_c_call_2)(*++pc))((NecroVal) { acc }, (NecroVal) { sp[0] }).int_value;
+            sp++;
+            break;
+        case DVM_C_CALL_3:
+            acc = ((necro_c_call_3)(*++pc))((NecroVal) { acc }, (NecroVal) { sp[0] }, (NecroVal) { sp[1] }).int_value;
+            sp += 2;
+            break;
+        case DVM_C_CALL_4:
+            acc = ((necro_c_call_4)(*++pc))((NecroVal) { acc }, (NecroVal) { sp[0] }, (NecroVal) { sp[1] }, (NecroVal) { sp[2] }).int_value;
+            sp += 3;
+            break;
+        case DVM_C_CALL_5:
+            acc = ((necro_c_call_5)(*++pc))((NecroVal) { acc }, (NecroVal) { sp[0] }, (NecroVal) { sp[1] }, (NecroVal) { sp[2] }, (NecroVal) { sp[3] }).int_value;
+            sp += 4;
+            break;
+
+        // Commands
+        case DVM_POP:
+            sp++;
+            break;
+        case DVM_PRINT:
+            printf("PRINT: %lld\n", acc);
+            break;
+        case DVM_PRINT_STACK:
+            printf("PRINT_STACK:\n    ACC: %lld\n", acc);
+            {
+                size_t i = 0;
+                for (int64_t* sp2 = sp; sp2 <= fp; ++sp2)
+                {
+                    printf("    [%d]: %lld\n", i, *sp2);
+                    ++i;
+                }
+            }
+            break;
+        case DVM_HALT:
+            return acc;
+        default:
+            printf("Unrecognized command: %lld\n", *pc);
+            return acc;
+        }
+    }
+
+    // cleanup
+    free(sp);
+    necro_destroy_slab_allocator(&sa);
+    necro_destroy_chain(&heap);
+}
+
+void necro_test_dvm_eval(int64_t* instr, int64_t result, const char* print_string)
+{
+    int64_t vm_result = necro_run_dvm(instr);
+    if (vm_result == result)
+        printf("%s passed\n", print_string);
+    else
+        printf("%s FAILED\n    expected result: %lld\n    vm result:       %lld\n\n", print_string, result, vm_result);
+#if DEBUG_VM
+    puts("");
+#endif
+}
 
 void necro_test_dvm()
 {
+    puts("\n------");
+    puts("Test DVM\n");
+
+    // Integer tests
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 7,
+            DVM_PUSH_I, 6,
+            DVM_ADD_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 13, "AddI:   ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 4,
+            DVM_PUSH_I, 9,
+            DVM_SUB_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 5, "SubI:   ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 10,
+            DVM_PUSH_I, 3,
+            DVM_MUL_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 30, "MulI:   ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I,     10,
+            DVM_NEG_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, -10, "NegI:   ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 10,
+            DVM_PUSH_I, 1000,
+            DVM_DIV_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 100, "DivI:   ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 4,
+            DVM_PUSH_I, 5,
+            DVM_MOD_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 1, "ModI:   ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 666,
+            DVM_PUSH_I, 555,
+            DVM_EQ_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 0, "EqI:    ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 666,
+            DVM_PUSH_I, 555,
+            DVM_NEQ_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 1, "NEqI:   ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 1,
+            DVM_PUSH_I, 2,
+            DVM_LT_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 0, "LTI:    ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 3,
+            DVM_PUSH_I, 3,
+            DVM_LTE_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 1, "LTEI:   ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 100,
+            DVM_PUSH_I, 200,
+            DVM_GT_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 1, "GTI:    ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 100,
+            DVM_PUSH_I, 99,
+            DVM_GTE_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 0, "GTEI:   ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 7,
+            DVM_PUSH_I, 6,
+            DVM_BIT_AND_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 6 & 7, "BAND:   ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 13,
+            DVM_PUSH_I, 4,
+            DVM_BIT_OR_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 4 | 13, "BOR:    ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 22,
+            DVM_PUSH_I, 11,
+            DVM_BIT_XOR_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 11 ^ 22, "BXOR:   ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 2,
+            DVM_PUSH_I, 4,
+            DVM_BIT_LS_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 4 << 2, "BLS:    ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 1,
+            DVM_PUSH_I, 5,
+            DVM_BIT_RS_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 5 >> 1, "BRS:    ");
+    }
+
+    // Jump tests
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 6,
+            DVM_JMP, 2,
+            DVM_PUSH_I, 7,
+            DVM_PUSH_I, 8,
+            DVM_ADD_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 14, "Jmp:    ");
+    }
+
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 3,
+            DVM_PUSH_I, 1,
+            DVM_JMP_IF, 4,
+            DVM_PUSH_I, 4,
+            DVM_JMP,    2,
+            DVM_PUSH_I, 5,
+            DVM_ADD_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 8, "JmpIf 1:");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 3,
+            DVM_PUSH_I, 0,
+            DVM_JMP_IF, 4,
+            DVM_PUSH_I, 4,
+            DVM_JMP,    2,
+            DVM_PUSH_I, 5,
+            DVM_ADD_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 7, "JmpIf 2:");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I,     10,
+            DVM_PUSH_I,     1,
+            DVM_JMP_IF_NOT, 4,
+            DVM_PUSH_I,     20,
+            DVM_JMP,        2,
+            DVM_PUSH_I,     50,
+            DVM_SUB_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 10, "JmpIfN1:");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I,     10,
+            DVM_PUSH_I,     0,
+            DVM_JMP_IF_NOT, 4,
+            DVM_PUSH_I,     40,
+            DVM_JMP,        2,
+            DVM_PUSH_I,     50,
+            DVM_SUB_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 40, "JmpIfN2:");
+    }
+
+    // Memory
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 10,
+            DVM_PUSH_I, 5,
+            DVM_MUL_I,
+            DVM_LOAD_L, 0,
+            DVM_LOAD_L, 0,
+            DVM_ADD_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 100, "Load1:  ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 10,
+            DVM_PUSH_I, 5,
+            DVM_MUL_I,
+            DVM_PUSH_I, 20,
+            DVM_PUSH_I, 20,
+            DVM_ADD_I,
+            DVM_LOAD_L, 0,
+            DVM_LOAD_L, -1,
+            DVM_SUB_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, -10, "Load2:  ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I,  0,
+            DVM_PUSH_I,  0,
+            DVM_PUSH_I,  60,
+            DVM_STORE_L, 0,
+            DVM_PUSH_I,  5,
+            DVM_PUSH_I,  8,
+            DVM_MUL_I,
+            DVM_STORE_L, -1,
+            DVM_LOAD_L,  0,
+            DVM_LOAD_L,  -1,
+            DVM_SUB_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, -20, "Store1: ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 10,
+            DVM_PUSH_I, 20,
+            DVM_PUSH_I, (int64_t)(instr + 8),
+            DVM_CALL,   2,
+            DVM_LOAD_L, 1,
+            DVM_LOAD_L, 0,
+            DVM_ADD_I,
+            DVM_HALT
+        };
+        necro_test_dvm_eval(instr, 30, "CALL1:  ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            // Push 10, then 20, then call function
+            DVM_PUSH_I, 10,
+            DVM_PUSH_I, 20,
+            DVM_PUSH_I, (int64_t)(instr + 18),
+            DVM_CALL,   2,
+
+            // With the result of the function on the stack, push 5, then call function again
+            DVM_PUSH_I, 5,
+            DVM_PUSH_I, (int64_t)(instr + 18),
+            DVM_CALL,   2,
+
+            // With the result of the function on the stack, push 10 then add the results, then halt
+            DVM_PUSH_I, 10,
+            DVM_ADD_I,
+            DVM_HALT,
+
+            // Function that will be called multiple times
+            DVM_LOAD_L, 1,
+            DVM_LOAD_L, 0,
+            DVM_SUB_I,
+            DVM_RETURN
+        };
+        necro_test_dvm_eval(instr, 5, "CALL2:  ");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            // Push 5 and 6 to stack, then call function 1
+            DVM_PUSH_I, 5,
+            DVM_PUSH_I, 6,
+            DVM_PUSH_I, (int64_t)(instr + 9), // function 1 addr
+            DVM_CALL,   2, // call function1 with 2 arguments
+
+            // End
+            DVM_HALT,
+
+            // Function 1
+            DVM_LOAD_L, 1,
+            DVM_LOAD_L, 0,
+            DVM_ADD_I,
+            DVM_PUSH_I, (int64_t)(instr + 19), // function 2 addr
+            DVM_CALL,   1, // Call function2 with 1 argument
+            DVM_RETURN,
+
+            // Function 2
+            DVM_LOAD_L, 0,
+            DVM_LOAD_L, 0,
+            DVM_MUL_I,
+            DVM_RETURN
+        };
+        necro_test_dvm_eval(instr, 121, "CALL3:  ");
+    }
+
+    {
+        // (\x -> x2 + y where x2 = x + x; y = x) 10
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 10,
+            DVM_PUSH_I, (int64_t)(instr + 7), // addr of function
+            DVM_CALL,   1,
+            DVM_HALT,
+            DVM_LOAD_L, 0,
+            DVM_LOAD_L, 0,
+            DVM_ADD_I,
+            DVM_LOAD_L, 0,
+            DVM_ADD_I,
+            DVM_RETURN
+        };
+        necro_test_dvm_eval(instr, 30, "CALL4:  ");
+    }
+
+    // Look into fuzzing technique?
+    {
+        // (\x -> x / y where x2 = x * x, y = 4 - x) 5
+        int64_t instr[] =
+        {
+            DVM_PUSH_I, 5,
+            DVM_PUSH_I, (int64_t)(instr + 7), // addr of function
+            DVM_CALL,   1,
+
+            DVM_HALT,
+
+            // func-------
+            // x2
+            DVM_LOAD_L, 0,
+            DVM_LOAD_L, 0,
+            DVM_MUL_I,
+
+            // y
+            DVM_LOAD_L, 0,
+            DVM_PUSH_I, 4,
+            DVM_SUB_I,
+
+            // x / y
+            DVM_LOAD_L,  -7,
+            DVM_LOAD_L,  -6,
+            DVM_DIV_I,
+            DVM_RETURN
+        };
+        necro_test_dvm_eval(instr, -25, "CALL5:  ");
+    }
+
+    // {
+    //     int64_t instr[] =
+    //     {
+    //         DVM_PUSH_I,      18,
+    //         DVM_PUSH_I,      12,
+    //         DVM_PUSH_I,      6,
+    //         DVM_MAKE_STRUCT, 3,
+    //         DVM_GET_FIELD,   2,
+    //         DVM_HALT
+    //     };
+    //     necro_test_dvm_eval(instr, 18, "struct1:");
+    // }
+
+    // {
+    //     int64_t instr[] =
+    //     {
+    //         DVM_PUSH_I,      18,
+    //         DVM_PUSH_I,      12,
+    //         DVM_PUSH_I,      6,
+    //         DVM_MAKE_STRUCT, 3,
+    //         DVM_LOAD_L,      0,
+    //         DVM_GET_FIELD,   0,
+    //         DVM_LOAD_L,      0,
+    //         DVM_GET_FIELD,   1,
+    //         DVM_LOAD_L,      0,
+    //         DVM_GET_FIELD,   2,
+    //         DVM_LOAD_L,      -1,
+    //         DVM_LOAD_L,      -2,
+    //         DVM_ADD_I,
+    //         DVM_LOAD_L,      -3,
+    //         DVM_SUB_I,
+    //         DVM_HALT
+    //     };
+    //     necro_test_dvm_eval(instr, 0, "struct2:");
+    // }
+
+    // {
+    //     int64_t instr[] =
+    //     {
+    //         DVM_PUSH_I,      6,
+    //         DVM_PUSH_I,      12,
+    //         DVM_PUSH_I,      18,
+    //         DVM_MAKE_STRUCT, 3,
+    //         DVM_PUSH_I,      666,
+    //         DVM_LOAD_L,      0,
+    //         DVM_SET_FIELD,   2,
+    //         DVM_LOAD_L,      0,
+    //         DVM_GET_FIELD,   2,
+    //         DVM_HALT
+    //     };
+    //     necro_test_dvm_eval(instr, 666, "struct3:");
+    // }
 
     {
         int64_t instr[] =
         {
             // Main
-            DVM_PUSH_I,   4,                     // Operand A
-            DVM_PUSH_I,   1,                     // Key - Place
-            DVM_PUSH_I,   0,                     // Key - Universe
-            DVM_PUSH_I,   0,                     // Key - Time
-            DVM_PUSH_I,   (int64_t)(instr + 13), // Demand code addr
-            DVM_DEMAND_I,                        // Demand Int value at Key {1, 0, 0}, if not there evaluate code at
-            DVM_ADD_I,                           // Add Operands A and B together
+            DVM_PUSH_I,   4,  // Operand A
+            DVM_PUSH_I,   1,  // Key - Place
+            DVM_PUSH_I,   0,  // Key - Universe
+            DVM_PUSH_I,   0,  // Key - Time
+            DVM_PUSH_I,   13, // Demand code addr
+            DVM_DEMAND_I,     // Demand Int value at Key {1, 0, 0}, if not there evaluate code at
+            DVM_ADD_I,        // Add Operands A and B together
 
             // End
             DVM_HALT,
 
             // Demand code
-            DVM_PUSH_I,   5,                     // Push 5
-            DVM_STORE_I,                         // Store it at the supplied address
-            DVM_RETURN                           // Return (With 5 still on the stack, serving as Operand B)
+            DVM_PUSH_I,   5,  // Push 5
+            DVM_STORE_I,      // Store it at the supplied address then return with 5 still on the stack, serving as Operand B
         };
-        // necro_test_vm_eval(instr, 666, "struct3:");
+        necro_test_dvm_eval(instr, 9, "Demand1:");
+    }
+
+    {
+        int64_t instr[] =
+        {
+            // Main
+            DVM_PUSH_I,   1,  // Key - Place
+            DVM_PUSH_I,   0,  // Key - Universe
+            DVM_PUSH_I,   0,  // Key - Time
+            DVM_PUSH_I,   20, // Demand code addr
+            DVM_DEMAND_I,     // Demand Int value at Key {1, 0, 0}, if not there evaluate code at
+
+            DVM_PUSH_I,   1,  // Key - Place
+            DVM_PUSH_I,   0,  // Key - Universe
+            DVM_PUSH_I,   0,  // Key - Time
+            DVM_PUSH_I,   20, // Demand code addr
+            DVM_DEMAND_I,     // Demand Int value at Key {1, 0, 0}, if not there evaluate code at
+
+            // Work Code
+            DVM_ADD_I,        // Add Operands A and B together
+
+            // End
+            DVM_HALT,
+
+            // Demand code
+            DVM_PUSH_I,   5,  // Push 5
+            DVM_PUSH_I,   3,  // Push 3
+            DVM_ADD_I,
+            DVM_STORE_I,      // Store it at the supplied address then return with 5 still on the stack
+        };
+        necro_test_dvm_eval(instr, 16, "Demand2:");
     }
 
 }

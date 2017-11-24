@@ -110,9 +110,9 @@ int main(int32_t argc, char** argv)
     {
         necro_vault_test();
     }
-    else if (argc > 1 && strcmp(argv[1], "-test_chain") == 0)
+    else if (argc > 1 && strcmp(argv[1], "-test_region") == 0)
     {
-        necro_chain_test();
+        necro_region_test();
     }
     else if (argc == 2)
     {

@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include "slab.h"
 #include "vault.h"
+#include "region.h"
 
 // TODO:
 //    * Memory Management
@@ -61,7 +62,7 @@
     Then we don't need "true" dynamic signals, and we don't need traditional GC, and can use a variation of the Lucid retirement plan GC
 
     Evaluation then simply turns into:
-        - Request a value at a specific (relative) time, place, and dimension from the vault.
+        - Request a value at a specific (relative) time, place, from the vault.
         - If it exists:   Retrieve the value and increase its retirement value
         - If it does not: Allocate the necessary memory, evaluate that bit of code store that in the vault at that time, place, and dimension, then set its retirement age. (Vault = Multiple Slab allocators with some kind of easy look up method)
         - Each Tick store all possible IO in the vault.
@@ -70,13 +71,30 @@
         - Each tick decrease the retirement age of each value (besides IO which is immortal) in the vault
         - For each item in the vault that reaches a 0 retirement age, reclaim its memory
 
-*/
+    Where does Place come from?:
+        - Places are thunks, which both serve as a unique identifier
+          as well as a container for goodies that need to be pushed onto the stack
+        - Demand then turns into a force, but with a time element.
+        - Calculations for when to make thunks, how to enter thunks,
+          and what to push to the stack are done during code generation
 
-/*
-    Structure of NecroStructs:
-    - ref_count: 8 bytes
-    - N args:    8 bytes * N
-    // all structs heap allocated and ref_counted
+    Where are thunks stored?:
+        - Into regions using a NON-GC region allocator
+        - Region Allocator is O(1) to allocate and O(1) to collect
+        - This essentially translates into 0 pause times.
+        - Time variance might mean that multiple regions will be created
+          to represent the same synth / new region at different points in time
+          but since we're immutable this is actually ok, and everything will get sorted out....right?
+
+    - Ideas #2:
+        * Thunks are lazy bits of code just like Haskell
+        * Unlike Haskell thunks can memoize values at different points in time
+        * Each thunk has a fixed buffer (NecroVault) which is an HashTable from time -> value
+        * Thunks and their associated NecroVault buffers are allocated using a region allocation scheme
+        * When the region is freed all memory associated with the Thunks and their value buffers are also freed
+        * This scheme doesn't handle large values or variable-sized values (like linked lists) well at all.
+          (To be fair the previous scheme doesn't handle variable-sized values well either [Not true, linked lists can operate like a separate time stream?])
+        * Switch Thunk value buffers to being backed by something like a red black tree (something which handles small values of N and growing / shrinking better?)
 */
 
 //=====================================================
@@ -184,7 +202,7 @@ typedef NecroVal (*necro_c_call_5)(NecroVal, NecroVal, NecroVal, NecroVal, Necro
 
 #define NECRO_NUM_TM_SEGMENTS 6
 #define NECRO_TM_PAGE_SIZE    2048
-#define DEBUG_TM              0
+#define DEBUG_TM              1
 
 #if DEBUG_TM
 #define TRACE_TM(...) printf(__VA_ARGS__)
@@ -253,10 +271,18 @@ void necro_test_slab();
     F = Float
     A = Audio
     S = Struct
+    R = Region
+    T = Thunk
 */
 
 typedef enum
 {
+    // Region Memory
+    DVM_MAKE_R,
+    DVM_PUSH_R,
+    DVM_POP_R,
+    DVM_MAKE_T,
+
     // Demand / Heap Memory
     DVM_DEMAND_I,
     DVM_DEMAND_F,

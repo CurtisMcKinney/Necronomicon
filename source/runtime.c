@@ -282,7 +282,7 @@ static inline NecroVal* necro_get_start_of_page_data_from_val(NecroVal* val, uin
 
 static inline NecroTMPageHeader* necro_get_page_header_from_val(NecroVal* val, uint64_t data_size_in_bytes)
 {
-    return (NecroTMPageHeader*)(necro_get_start_of_page_data_from_val(val, data_size_in_bytes)) - 1;
+    return ((NecroTMPageHeader*)(necro_get_start_of_page_data_from_val(val, data_size_in_bytes))) - 1;
 }
 
 static inline NecroTMTag* necro_get_tag_from_val(NecroVal* val, uint64_t data_size_in_bytes)
@@ -323,8 +323,11 @@ static inline void necro_set_ecru_from_tag(NecroTMTag* tag, bool is_ecru)
 
 static inline void necro_unsnap(NecroTMTag* tag)
 {
+    assert(tag != NULL);
     NecroTMTag* prev = tag->prev;
     NecroTMTag* next = tag->next;
+    assert(prev != NULL);
+    assert(next != NULL);
     prev->next       = next;
     next->prev       = prev;
     tag->prev        = NULL;
@@ -367,9 +370,9 @@ NecroTreadmill necro_create_treadmill(size_t num_initial_pages, NecroTypeInfo* t
         }
         for (size_t page = 0; page < num_initial_pages; ++page)
         {
-            NecroTMPageHeader* prev_page_header = (NecroTMPageHeader*)(data + page_size * (page == 0 ? num_initial_pages - 1 : page - 1));
-            NecroTMPageHeader* page_header      = (NecroTMPageHeader*)(data + page_size * page);
-            NecroTMPageHeader* next_page_header = (NecroTMPageHeader*)(data + page_size * ((page + 1) % num_initial_pages));
+            NecroTMPageHeader* prev_page_header = ((NecroTMPageHeader*)(data)) + (page == 0 ? num_initial_pages - 1 : page - 1);
+            NecroTMPageHeader* page_header      = ((NecroTMPageHeader*)(data)) + page;
+            NecroTMPageHeader* next_page_header = ((NecroTMPageHeader*)(data)) + ((page + 1) % num_initial_pages);
             for (size_t block = 0; block < NECRO_TM_PAGE_SIZE; ++block)
             {
                 // Set prev pointer
@@ -473,13 +476,16 @@ static inline bool necro_treadmill_scan(NecroTreadmill* treadmill, uint64_t segm
 void necro_treadmill_collect(NecroTreadmill* treadmill, NecroVal root_ptr)
 {
     TRACE_TM("\n");
+
     if (treadmill->complete)
     {
         // Only link root in at beginning of a new collection cycle, not every re-entrance into it!
         NecroVal*       root_val  = root_ptr.necro_pointer;
         NecroTypeInfo   type_info = treadmill->type_infos[root_val->struct_info.type_index];
         NecroTMTag*     tag       = necro_get_tag_from_val(root_val, type_info.segment_size_in_bytes);
+        // printf("gc_segment: %d, scan: %p, next: %p\n", type_info.gc_segment, treadmill->scan[type_info.gc_segment], treadmill->scan[type_info.gc_segment]->next);
         necro_relink(tag, treadmill->scan[type_info.gc_segment], treadmill->scan[type_info.gc_segment]->next); // Move Root to grey list between top and scan pointers
+        return;
         treadmill->scan[type_info.gc_segment] = tag;
         treadmill->complete                   = false;
         TRACE_TM("    ____Starting scan:%p____\n", tag);
@@ -488,6 +494,7 @@ void necro_treadmill_collect(NecroTreadmill* treadmill, NecroVal root_ptr)
     {
         TRACE_TM("    ____Continuing scan____\n");
     }
+
     // Continue scanning until all scan node of all segments points to same node as top pointer
     size_t count = 0; // doing simple count bounding for now
     while (!treadmill->complete && count < 256)
@@ -1194,7 +1201,7 @@ void necro_trace_stack_dvm(int64_t opcode)
 uint64_t necro_run_dvm(uint64_t* instructions)
 {
     NecroSlabAllocator sa    = necro_create_slab_allocator(32);
-    NecroChain         heap  = necro_create_chain(&sa);
+    NecroVault         vault = necro_create_vault(&sa);
     int32_t            epoch = 0;
     register int64_t*  sp    = malloc(NECRO_STACK_SIZE * sizeof(int64_t)); // Stack grows down
     register int64_t*  pc    = instructions;
@@ -1314,35 +1321,35 @@ uint64_t necro_run_dvm(uint64_t* instructions)
 
         //====================================
         // DEMAND_I
-        // Retrieve Int value from the heap at the given key
+        // Retrieve Int value from the vault at the given key
         // and push to stack if present.
         // If not present jump to addr, compute it,
-        // store it in the heap. then push to stack
+        // store it in the vault. then push to stack
         //------------------------------------
         // INPUT
         // ACC:   Demand Code addr
         // sp[0]: Time
-        // sp[1]: Universe
-        // sp[2]: Place
+        // sp[1]: Place
         //-------------------------------------
         // OUTPUT 1 (Not Found)
         // ACC:   Heap addr to store value into
         // sp[0]: Return address to return to once value has been computed and stored
+        // PC:    Demand Code addr
         //-------------------------------------
         // OUTPUT 2 (Found, Or Computed/Returned)
-        // ACC:   Int value retrieved from heap or computed and returned
+        // ACC:   Int value retrieved from vault or computed and returned
         //====================================
         case DVM_DEMAND_I:
         {
-            NecroFindOrAllocResult result = necro_chain_find_or_alloc(&heap, (NecroVaultKey) { ((uint32_t*)sp)[2], ((uint32_t*)sp)[1], ((uint32_t*)sp)[0] }, epoch, 8);
+            NecroFindOrAllocResult result = necro_vault_find_or_alloc(&vault, (NecroVaultKey) { ((uint32_t*)sp)[1], ((uint32_t*)sp)[0] }, epoch, 8);
             if (result.find_or_alloc_type == NECRO_FOUND)
             {
-                sp += 3;                        // Pop Args
+                sp += 2;                        // Pop Args
                 acc = *((int64_t*)result.data); // Retrieve value from memory put into acc
             }
             else
             {
-                sp += 2;                            // Pop Args
+                sp += 1;                            // Pop Args
                 *sp = (int64_t)(pc - instructions); // Top of stack is return address, pc gets incremented at top, so set pc to one less than call site
                 pc  = instructions + (acc - 1);     // pc gets incremented at top, so set pc to one less than call site
                 acc = (int64_t)result.data;         // set acc to address to store value into
@@ -1365,7 +1372,7 @@ uint64_t necro_run_dvm(uint64_t* instructions)
         // acc:   Int Value which was demanded
         //====================================
         case DVM_STORE_I:
-            *((int64_t*)(sp[0])) = acc;                  // Retrieve heap address from top of stack then store the int value (in acc) into it.
+            *((int64_t*)(sp[0])) = acc;                  // Retrieve vault address from top of stack then store the int value (in acc) into it.
             pc                   = instructions + sp[1]; // Set PC to return address
             sp                  += 2;                    // Pop Args
             break;
@@ -1518,7 +1525,7 @@ uint64_t necro_run_dvm(uint64_t* instructions)
     // cleanup
     free(sp);
     necro_destroy_slab_allocator(&sa);
-    necro_destroy_chain(&heap);
+    necro_destroy_vault(&vault);
 }
 
 void necro_test_dvm_eval(int64_t* instr, int64_t result, const char* print_string)
@@ -2025,15 +2032,15 @@ void necro_test_dvm()
     //     necro_test_dvm_eval(instr, 666, "struct3:");
     // }
 
+    // TODO: Place == instruction code addr? Shouldn't that be unique and kill two birds with one stone? Multiple instantiations?!?!?! How?!?!?!
     {
         int64_t instr[] =
         {
             // Main
             DVM_PUSH_I,   4,  // Operand A
             DVM_PUSH_I,   1,  // Key - Place
-            DVM_PUSH_I,   0,  // Key - Universe
             DVM_PUSH_I,   0,  // Key - Time
-            DVM_PUSH_I,   13, // Demand code addr
+            DVM_PUSH_I,   11, // Demand code addr
             DVM_DEMAND_I,     // Demand Int value at Key {1, 0, 0}, if not there evaluate code at
             DVM_ADD_I,        // Add Operands A and B together
 
@@ -2052,15 +2059,13 @@ void necro_test_dvm()
         {
             // Main
             DVM_PUSH_I,   1,  // Key - Place
-            DVM_PUSH_I,   0,  // Key - Universe
             DVM_PUSH_I,   0,  // Key - Time
-            DVM_PUSH_I,   20, // Demand code addr
+            DVM_PUSH_I,   16, // Demand code addr
             DVM_DEMAND_I,     // Demand Int value at Key {1, 0, 0}, if not there evaluate code at
 
             DVM_PUSH_I,   1,  // Key - Place
-            DVM_PUSH_I,   0,  // Key - Universe
             DVM_PUSH_I,   0,  // Key - Time
-            DVM_PUSH_I,   20, // Demand code addr
+            DVM_PUSH_I,   16, // Demand code addr
             DVM_DEMAND_I,     // Demand Int value at Key {1, 0, 0}, if not there evaluate code at
 
             // Work Code

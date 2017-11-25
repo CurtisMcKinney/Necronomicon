@@ -30,10 +30,8 @@
 //     - The regions in this new memory are lazily added to the free_list each allocation
 //=====================================================
 #define NECRO_REGION_INITIAL_PAGE_SIZE 16
-#define NECRO_REGION_DATA_SIZE         2048
-#define NECRO_REGION_STACK_SIZE        512
-
-// TODO: Make Different slabs!
+#define NECRO_REGION_NUM_BINS          8
+#define NECRO_REGION_STACK_SIZE        64
 
 typedef struct NecroRegionPage
 {
@@ -44,29 +42,35 @@ typedef struct NecroRegionNode
 {
     struct NecroRegionNode* prev;
     struct NecroRegionNode* next;
-    size_t                  data_size;
+    uint32_t                bin;
     // Data is directly after node in memory
 } NecroRegionNode;
 
 typedef struct NecroRegion
 {
-    NecroRegionNode*    head;
-    NecroRegionNode*    tail;
+    NecroRegionNode* head[NECRO_REGION_NUM_BINS];
+    NecroRegionNode* tail[NECRO_REGION_NUM_BINS];
 } NecroRegion;
 
-typedef struct
+typedef struct NecroRegionBin
 {
     NecroRegionPage* page_list;
     NecroRegionNode* free_nodes;
     NecroRegionNode* new_nodes;
     size_t           new_nodes_size;
     size_t           new_nodes_index;
+    size_t           data_size;
+} NecroRegionBin;
+
+typedef struct
+{
+    NecroRegionBin   bins[NECRO_REGION_NUM_BINS];
     NecroRegion      stack[NECRO_REGION_STACK_SIZE];
     size_t           stack_pointer;
 } NecroRegionAllocator;
 
 NecroRegionAllocator necro_create_region_allocator();
-NecroRegion          necro_region_new(NecroRegionAllocator* allocator);
+NecroRegion          necro_region_new_region(NecroRegionAllocator* allocator);
 void                 necro_region_push_region(NecroRegionAllocator* allocator, NecroRegion region);
 void                 necro_region_pop_region(NecroRegionAllocator* allocator);
 void                 necro_region_free_region(NecroRegionAllocator* allocator);

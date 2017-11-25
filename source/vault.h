@@ -12,6 +12,7 @@
 #include <string.h>
 #include "utility.h"
 #include "slab.h"
+#include "region.h"
 
 //=====================================================
 // NecroVault: Linear Probing Hashtable with Lazy Incremental GC and Resizing
@@ -130,5 +131,30 @@ void                   necro_vault_print(NecroVault* vault);
 void                   necro_vault_print_node(NecroVaultNode* node);
 void                   necro_vault_test();
 void                   necro_vault_bench();
+
+//=====================================================
+// NecroArchive
+//=====================================================
+
+typedef struct NecroArchiveNode
+{
+    struct NecroArchiveNode* next; // 4 / 8
+    int32_t                  time; // 4
+    int32_t                  age;  // 4
+    // data payload is directly after the NecroVaultNode in memory
+} NecroArchiveNode;
+
+typedef struct
+{
+    NecroArchiveNode*     prev_buckets;
+    size_t                prev_size;
+    size_t                prev_count;
+    NecroArchiveNode*     curr_buckets;
+    size_t                curr_size;
+    size_t                curr_count;
+    size_t                lazy_move_index;
+    size_t                incremental_gc_index;
+    NecroRegionAllocator* region_allocator;
+} NecroArchive;
 
 #endif // VAULT_H

@@ -134,27 +134,38 @@ void                   necro_vault_bench();
 
 //=====================================================
 // NecroArchive
+// Per-thunk hashtable which contains values over time
 //=====================================================
+#define NECRO_ARCHIVE_INITIAL_TABLE_SIZE 4
 
 typedef struct NecroArchiveNode
 {
-    struct NecroArchiveNode* next; // 4 / 8
-    int32_t                  time; // 4
-    int32_t                  age;  // 4
+    struct NecroArchiveNode* next;        // 4 / 8
+    int32_t                  time;        // 4
+    int32_t                  last_epoch;  // 4
     // data payload is directly after the NecroVaultNode in memory
 } NecroArchiveNode;
 
 typedef struct
 {
-    NecroArchiveNode*     prev_buckets;
-    size_t                prev_size;
-    size_t                prev_count;
-    NecroArchiveNode*     curr_buckets;
-    size_t                curr_size;
-    size_t                curr_count;
-    size_t                lazy_move_index;
-    size_t                incremental_gc_index;
+    NecroArchiveNode*     buckets;
+    size_t                size;
+    size_t                count;
+    size_t                index;
     NecroRegionAllocator* region_allocator;
+    size_t                data_size;
+} NecroArchiveHashTable;
+
+typedef struct
+{
+    NecroArchiveHashTable prev_table;
+    NecroArchiveHashTable curr_table;
 } NecroArchive;
+
+NecroArchive          necro_create_archive(NecroRegionAllocator* region_allocator, size_t data_size);
+NecroArchiveHashTable necro_create_archive_hash_table(NecroRegionAllocator* region_allocator, size_t size, size_t data_size);
+void                  necro_destroy_archive(NecroArchive* archive);
+void                  necro_destroy_archive_hash_table(NecroArchiveHashTable* hash_table);
+void*                 necro_archive_find(NecroArchive* archive, const int32_t time, const int32_t curr_epoch);
 
 #endif // VAULT_H

@@ -1513,3 +1513,138 @@ void necro_vault_bench()
         necro_destroy_slab_allocator(&slab_allocator);
     }
 }
+
+//=====================================================
+// NecroArchive
+//=====================================================
+NecroArchive necro_create_archive(NecroRegionAllocator* region_allocator, size_t data_size)
+{
+    TRACE_VAULT("create archive\n");
+    return (NecroArchive)
+    {
+        .prev_table = (NecroArchiveHashTable) { .buckets = NULL, .size = 0, .count = 0, .index = 0, .region_allocator = NULL, .data_size = 0 },
+        .curr_table = necro_create_archive_hash_table(region_allocator, NECRO_ARCHIVE_INITIAL_TABLE_SIZE, data_size),
+    };
+}
+
+NecroArchiveHashTable necro_create_archive_hash_table(NecroRegionAllocator* region_allocator, size_t table_size, size_t data_size)
+{
+    NecroArchiveNode* buckets = necro_region_alloc(region_allocator, table_size * (sizeof(NecroArchiveNode) + data_size));
+    for (size_t bucket = 0; bucket < table_size; ++bucket)
+        buckets[bucket] = (NecroArchiveNode) { .next = NULL, .time = 0, .last_epoch = 0 };
+    return (NecroArchiveHashTable)
+    {
+        .buckets          = buckets,
+        .size             = table_size,
+        .count            = 0,
+        .index            = 0,
+        .region_allocator = region_allocator,
+        .data_size        = data_size,
+    };
+}
+
+void necro_destroy_archive(NecroArchive* archive)
+{
+    necro_destroy_archive_hash_table(&archive->prev_table);
+    necro_destroy_archive_hash_table(&archive->curr_table);
+}
+
+void necro_destroy_archive_hash_table(NecroArchiveHashTable* hash_table)
+{
+    assert(hash_table != NULL);
+    assert(hash_table->buckets != NULL);
+    assert(hash_table->region_allocator != NULL);
+    necro_region_free(hash_table->region_allocator, hash_table->buckets);
+    *hash_table = (NecroArchiveHashTable)
+    {
+        .buckets          = NULL,
+        .size             = 0,
+        .count            = 0,
+        .index            = 0,
+        .region_allocator = NULL,
+        .data_size        = 0
+    };
+}
+
+inline size_t necro_hash_time(const int32_t time)
+{
+    return time * NECRO_VAULT_HASH_MULTIPLIER;
+}
+
+inline bool necro_archive_lazy_gc(NecroArchiveNode* node, const int32_t curr_epoch)
+{
+    if (node->last_epoch >= curr_epoch)
+        return false;
+    int32_t epoch_difference = curr_epoch - node->last_epoch;
+    node->last_epoch         = curr_epoch;
+    TRACE_VAULT("Lazy gc, curr_epoch: %d, difference: %d\n", curr_epoch, epoch_difference);
+    if (epoch_difference >= NECRO_VAULT_RETIREMENT_AGE)
+    {
+        TRACE_VAULT("Lazy gc, retire!\n");
+        return true;
+    }
+    return false;
+}
+
+inline NecroArchiveNode* necro_archive_hash_table_find(NecroArchiveHashTable* hash_table, const int32_t time, const int32_t curr_epoch, const int32_t hash)
+{
+    assert(hash_table != NULL);
+    TRACE_VAULT("find node in hash_table\n");
+    if (hash_table->buckets == NULL)
+        return NULL;
+    const size_t      index = hash & (hash_table->size - 1);
+    NecroArchiveNode* prev  = hash_table->buckets + index;
+    NecroArchiveNode* node  = prev->next;
+    NecroArchiveNode* next  = NULL;
+    while (node != NULL)
+    {
+        next = node->next;
+        if (node->time == time)
+        {
+            if (node->last_epoch < curr_epoch)
+            {
+                node->last_epoch = curr_epoch;
+                TRACE_VAULT("Bumped retirement age\n");
+            }
+            TRACE_VAULT("found node in buckets\n");
+            return node;
+        }
+        else if (necro_archive_lazy_gc(node, curr_epoch))
+        {
+            necro_region_free(hash_table->region_allocator, node);
+            hash_table->count--;
+            prev->next = next;
+            node       = next;
+
+        }
+        else
+        {
+            prev = node;
+            node = next;
+        }
+    }
+    return NULL;
+}
+
+void* necro_archive_find(NecroArchive* archive, const int32_t time, const int32_t curr_epoch)
+{
+    assert(archive != NULL);
+    TRACE_VAULT("find\n");
+
+    const size_t hash  = necro_hash_time(time);
+    // necro_vault_incremental_gc(vault, curr_epoch);
+
+    if ((hash & (archive->prev_table.size - 1)) >= archive->prev_table.index)
+    {
+        NecroArchiveNode* prev_node = necro_archive_hash_table_find(&archive->prev_table, time, curr_epoch, hash);
+        if (prev_node != NULL)
+            return (prev_node + 1);
+    }
+
+    NecroArchiveNode* curr_node = necro_archive_hash_table_find(&archive->curr_table, time, curr_epoch, hash);
+    if (curr_node != NULL)
+        return (curr_node + 1);
+
+    TRACE_VAULT("key not found in table\n");
+    return NULL;
+}

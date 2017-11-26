@@ -33,6 +33,9 @@
 #define NECRO_REGION_NUM_BINS          8
 #define NECRO_REGION_STACK_SIZE        64
 
+// TODO: Switch head and tail to use bottom bin nodes
+// TODO: NecroArchive
+
 typedef struct NecroRegionPage
 {
     struct NecroRegionPage* next_page;

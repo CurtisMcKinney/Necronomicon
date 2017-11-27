@@ -27,7 +27,7 @@ inline uint32_t data_size_to_bin(uint32_t data_size)
         8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31
     };
     const uint32_t one_less_pow_2 = next_highest_pow_of_2(data_size) - 1;
-    return deBruijnBitPosition[(uint32_t)(one_less_pow_2 * 0x07C4ACDDU) >> 27] >> 1;
+    return deBruijnBitPosition[(uint32_t)(one_less_pow_2 * 0x07C4ACDDU) >> 27] - 2;
 }
 
 // Uses lazy doubling scheme
@@ -37,16 +37,18 @@ inline void necro_alloc_node_page(NecroRegionBin* bin)
     bin->new_nodes_size       *= 2;
     size_t           page_size = sizeof(NecroRegionPage) + (sizeof(NecroRegionNode) + bin->data_size) * bin->new_nodes_size;
     NecroRegionPage* page      = malloc(page_size);
-    TRACE_REGION_ALLOCATOR("allocating node page: %p\n", page);
+    TRACE_REGION_ALLOCATOR("allocating node page %p, of size: %d\n", page, page_size);
     if (page == NULL)
     {
         fprintf(stderr, "Allocation error: could not allocate %zu of memory for NecroRegionAllocator", page_size);
         exit(1);
     }
-    page->next_page      = bin->page_list;
-    bin->page_list       = page;
-    bin->new_nodes       = (NecroRegionNode*)(page + 1);
-    bin->new_nodes_index = 0;
+    page->next_page       = bin->page_list;
+    bin->page_list        = page;
+    bin->free_nodes       = (NecroRegionNode*)(page + 1);
+    bin->free_nodes->next = NULL;
+    bin->new_nodes_index  = 1;
+    bin->new_nodes        = (NecroRegionNode*)(((char*)bin->free_nodes) + (sizeof(NecroRegionNode) + bin->data_size));
 }
 
 inline NecroRegionNode* necro_alloc_node(NecroRegionBin* bin)
@@ -54,14 +56,14 @@ inline NecroRegionNode* necro_alloc_node(NecroRegionBin* bin)
     if (bin->new_nodes_index < bin->new_nodes_size)
     {
         NecroRegionNode* new_node  = bin->new_nodes;
-        bin->new_nodes            += 1;
+        bin->new_nodes             = (NecroRegionNode*)(((char*)new_node) + sizeof(NecroRegionNode) + bin->data_size);
         bin->new_nodes_index      += 1;
         assert(new_node != NULL);
         return new_node;
     }
     else
     {
-        if (bin->new_nodes == NULL)
+        if (bin->free_nodes == NULL)
             necro_alloc_node_page(bin);
         assert(bin->free_nodes != NULL);
         NecroRegionNode* new_node = bin->free_nodes;
@@ -180,7 +182,7 @@ void necro_region_pop_region(NecroRegionAllocator* allocator)
     assert(allocator->stack_pointer >= 0);
 }
 
-void necro_region_free_region(NecroRegionAllocator* allocator)
+void necro_region_destroy_region(NecroRegionAllocator* allocator)
 {
     assert(allocator != NULL);
     assert(allocator->stack_pointer > 0);
@@ -205,6 +207,12 @@ void* necro_region_alloc(NecroRegionAllocator* allocator, size_t data_size)
     size_t bin = data_size_to_bin(data_size);
     TRACE_REGION_ALLOCATOR("alloc, data_size: %d, bin: %d\n", data_size, bin);
     assert(allocator != NULL);
+    if (bin >= NECRO_REGION_NUM_BINS)
+    {
+        printf("alloc, data_size: %d, bin: %d\n", data_size, bin);
+        exit(666);
+    }
+    assert(bin < NECRO_REGION_NUM_BINS);
     // assert(data_size <= NECRO_REGION_DATA_SIZE); // TODO: Update
     assert(allocator->stack != NULL);
     NecroRegionNode* node = necro_alloc_node(allocator->bins + bin);
@@ -251,6 +259,18 @@ inline size_t necro_region_count_free_list_in_bin(NecroRegionAllocator* allocato
         curr_node = curr_node->next;
     }
     return free_node_count;
+}
+
+inline size_t necro_region_bin_size(NecroRegion* region, size_t bin)
+{
+    size_t count = 0;
+    NecroRegionNode* curr_node = region->head[bin]->next;
+    while (curr_node != region->tail[bin])
+    {
+        count++;
+        curr_node = curr_node->next;
+    }
+    return count;
 }
 
 inline void print_white_space(size_t white_count)
@@ -303,6 +323,13 @@ void necro_region_print_region(NecroRegion* region, size_t white_count)
     print_white_space(white_count + 4);
     printf("}\n");
     print_white_space(white_count);
+    printf("    size: {");
+    for (size_t bin = 0; bin < NECRO_REGION_NUM_BINS; ++bin)
+    {
+        printf("%d, ", necro_region_bin_size(region, bin));
+    }
+    printf("}\n");
+    print_white_space(white_count);
     printf("}\n");
 }
 
@@ -349,22 +376,23 @@ void necro_region_test()
 
     printf("Test Region Allocator: ");
     NecroRegionAllocator region_allocator = necro_create_region_allocator();
-    if (region_allocator.bins[4].new_nodes_index == 2 && necro_region_count_free_list_in_bin(&region_allocator, 4) == 0)
+    if (region_allocator.bins[4].new_nodes_index == 3 && necro_region_count_free_list_in_bin(&region_allocator, 4) == 1)
         printf("passed\n");
     else
         printf("FAILED\n");
 
+
     printf("Test New Region:       ");
     NecroRegion region = necro_region_new_region(&region_allocator);
     necro_region_push_region(&region_allocator, region);
-    if (region_allocator.bins[3].new_nodes_index == 4 && necro_region_count_free_list_in_bin(&region_allocator, 3) == 0)
+    if (region_allocator.bins[3].new_nodes_index == 5 && necro_region_count_free_list_in_bin(&region_allocator, 3) == 1 && necro_region_bin_size(&region, 3) == 0)
         printf("passed\n");
     else
         printf("FAILED\n");
 
     printf("Test Free Region 1:    ");
-    necro_region_free_region(&region_allocator);
-    if (region_allocator.bins[0].new_nodes_index == 4 && necro_region_count_free_list_in_bin(&region_allocator, 0) == 2)
+    necro_region_destroy_region(&region_allocator);
+    if (region_allocator.bins[0].new_nodes_index == 5 && necro_region_count_free_list_in_bin(&region_allocator, 0) == 3 && necro_region_bin_size(region_allocator.stack, 4) == 0)
         printf("passed\n");
     else
         printf("FAILED\n");
@@ -373,26 +401,40 @@ void necro_region_test()
     region = necro_region_new_region(&region_allocator);
     necro_region_push_region(&region_allocator, region);
     char* data = necro_region_alloc(&region_allocator, 16);
-    if (region_allocator.bins[1].new_nodes_index == 7)
+    if (region_allocator.bins[1].new_nodes_index == 8 && necro_region_bin_size(&region, 0) == 0 && necro_region_bin_size(&region, 1) == 1)
+        printf("passed\n");
+    else
+        printf("FAILED\n");
+
+    printf("Test Free Region 2:    ");
+    int64_t* i_data = necro_region_alloc(&region_allocator, 8);
+    *i_data         = 666;
+    if (region_allocator.bins[1].new_nodes_index == 8 && necro_region_bin_size(&region, 0) == 1 && necro_region_bin_size(&region, 1) == 1)
         printf("passed\n");
     else
         printf("FAILED\n");
 
     printf("Test free 1:           ");
     necro_region_free(&region_allocator, data);
-    if (region_allocator.bins[1].new_nodes_index == 7 && necro_region_count_free_list_in_bin(&region_allocator, 1) == 3)
+    if (region_allocator.bins[1].new_nodes_index == 8 && necro_region_count_free_list_in_bin(&region_allocator, 1) == 4 && region_allocator.bins[0].new_nodes_index == 8 && necro_region_count_free_list_in_bin(&region_allocator, 0) == 3 &&
+        necro_region_bin_size(&region, 0) == 1 && necro_region_bin_size(&region, 1) == 0)
         printf("passed\n");
     else
         printf("FAILED\n");
 
     printf("Test Free Region 2:    ");
-    necro_region_free_region(&region_allocator);
-    if (region_allocator.bins[2].new_nodes_index == 6 && necro_region_count_free_list_in_bin(&region_allocator, 2) == 4)
+    necro_region_destroy_region(&region_allocator);
+    if (region_allocator.bins[1].new_nodes_index == 8 && necro_region_count_free_list_in_bin(&region_allocator, 1) == 6 && region_allocator.bins[0].new_nodes_index == 8 && necro_region_count_free_list_in_bin(&region_allocator, 0) == 6 &&
+        necro_region_bin_size(region_allocator.stack, 0) == 0 && necro_region_bin_size(region_allocator.stack, 1) == 0)
         printf("passed\n");
     else
         printf("FAILED\n");
 
+    necro_region_print(&region_allocator);
+
     necro_destroy_region_allocator(&region_allocator);
+
+    // TODO: Nodes in circulation test
 
     // puts("\n------");
     // puts("Test allocation 2\n");
@@ -404,7 +446,7 @@ void necro_region_test()
 
     // puts("\n------");
     // puts("Test allocation 2\n");
-    // necro_region_free_region(&region_allocator);
+    // necro_region_destroy_region(&region_allocator);
     // necro_region_print(&region_allocator);
 
     // necro_region_print(&region_allocator);

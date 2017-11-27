@@ -136,7 +136,8 @@ void                   necro_vault_bench();
 // NecroArchive
 // Per-thunk hashtable which contains values over time
 //=====================================================
-#define NECRO_ARCHIVE_INITIAL_TABLE_SIZE 8
+#define NECRO_ARCHIVE_INITIAL_TABLE_SIZE 16
+#define NECRO_ARCHIVE_MAXIMUM_TABLE_SIZE 64
 
 typedef struct NecroArchiveNode
 {
@@ -166,5 +167,10 @@ NecroArchive           necro_create_archive(NecroRegionAllocator* region_allocat
 void                   necro_destroy_archive(NecroArchive* archive);
 NecroFindOrAllocResult necro_archive_find_or_alloc(NecroArchive* archive, const int32_t time, const int32_t curr_epoch);
 void                   necro_archive_incremental_gc(NecroArchive* archive, const int32_t curr_epoch);
+void                   necro_archive_test();
+
+void                   necro_archive_print(NecroArchive* archive);
+void                   necro_archive_print_node(NecroArchiveNode* node);
+void                   necro_archive_bench();
 
 #endif // VAULT_H

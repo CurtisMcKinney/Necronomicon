@@ -110,6 +110,10 @@ int main(int32_t argc, char** argv)
     {
         necro_vault_test();
     }
+    else if (argc > 1 && strcmp(argv[1], "-test_archive") == 0)
+    {
+        necro_archive_test();
+    }
     else if (argc > 1 && strcmp(argv[1], "-test_region") == 0)
     {
         necro_region_test();

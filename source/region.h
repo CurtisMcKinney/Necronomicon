@@ -76,10 +76,11 @@ NecroRegionAllocator necro_create_region_allocator();
 NecroRegion          necro_region_new_region(NecroRegionAllocator* allocator);
 void                 necro_region_push_region(NecroRegionAllocator* allocator, NecroRegion region);
 void                 necro_region_pop_region(NecroRegionAllocator* allocator);
-void                 necro_region_free_region(NecroRegionAllocator* allocator);
+void                 necro_region_destroy_region(NecroRegionAllocator* allocator);
 void*                necro_region_alloc(NecroRegionAllocator* allocator, size_t data_size);
 void                 necro_region_free(NecroRegionAllocator* allocator, void* data);
 void                 necro_destroy_region_allocator();
 void                 necro_region_test();
+void                 necro_region_print(NecroRegionAllocator* allocator);
 
 #endif // REGION_H

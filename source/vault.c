@@ -1470,7 +1470,7 @@ void necro_vault_test()
 
 void necro_vault_bench()
 {
-    int64_t iterations = 65536 * 4;
+    int64_t iterations = 1000000;
     {
         // Slab bench
         NecroSlabAllocator slab_allocator = necro_create_slab_allocator(16384);
@@ -1481,7 +1481,7 @@ void necro_vault_bench()
             for (size_t i = 0; i < iterations; ++i)
             {
                 const NecroVaultKey key       = { .place = i * 1000,.time = i };
-                const int32_t       epoch     = 1;
+                const int32_t       epoch     = i / 32;
                 const uint32_t      data_size = 8;
                 necro_vault_find_or_alloc(&vault, key, epoch, data_size);
             }
@@ -1497,7 +1497,7 @@ void necro_vault_bench()
             for (size_t i = 0; i < iterations; ++i)
             {
                 const NecroVaultKey key       = { .place = i * 1000,.time = i };
-                const int32_t       epoch     = 1;
+                const int32_t       epoch     = i / 32;
                 const uint32_t      data_size = 8;
                 necro_vault_find_or_alloc(&vault, key, epoch, data_size);
             }
@@ -1548,6 +1548,16 @@ inline void necro_destroy_archive_hash_table(NecroArchiveHashTable* hash_table)
     assert(hash_table != NULL);
     assert(hash_table->buckets != NULL);
     assert(hash_table->region_allocator != NULL);
+    for (size_t bucket = 0; bucket < hash_table->size && hash_table->count > 0; ++bucket)
+    {
+        NecroArchiveNode* node = (hash_table->buckets + bucket)->next;
+        while (node != NULL)
+        {
+            necro_region_free(hash_table->region_allocator, node);
+            hash_table->count--;
+            node = node->next;
+        }
+    }
     necro_region_free(hash_table->region_allocator, hash_table->buckets);
     *hash_table = (NecroArchiveHashTable)
     {
@@ -1562,13 +1572,16 @@ inline void necro_destroy_archive_hash_table(NecroArchiveHashTable* hash_table)
 
 void necro_destroy_archive(NecroArchive* archive)
 {
-    necro_destroy_archive_hash_table(&archive->prev_table);
+    if (archive->prev_table.buckets != NULL)
+        necro_destroy_archive_hash_table(&archive->prev_table);
     necro_destroy_archive_hash_table(&archive->curr_table);
 }
 
 inline void necro_archive_grow(NecroArchive* archive)
 {
-    TRACE_VAULT("grow\n");
+    if (archive->curr_table.size >= NECRO_ARCHIVE_MAXIMUM_TABLE_SIZE)
+        return;
+    TRACE_VAULT("grow to size: %d\n", archive->curr_table.size * 2);
     assert(archive->prev_table.count == 0);
     if (archive->prev_table.buckets != NULL)
         necro_destroy_archive_hash_table(&archive->prev_table);
@@ -1585,11 +1598,24 @@ inline void necro_archive_grow(NecroArchive* archive)
     archive->curr_table.count            = 0;
     archive->curr_table.index            = 0;
     archive->curr_table.buckets          = necro_region_alloc(archive->curr_table.region_allocator, archive->curr_table.size * sizeof(NecroArchiveNode));
+    for (size_t bucket = 0; bucket < archive->curr_table.size; ++bucket)
+        archive->curr_table.buckets[bucket] = (NecroArchiveNode) { .next = NULL, .time = 0, .last_epoch = 0 };
+// #ifdef NECRO_VAULT_DEBUG
+//     puts("\n---");
+//     necro_archive_print(archive);
+//     necro_region_print(archive->curr_table.region_allocator);
+//     puts("");
+// #endif
+    assert(archive->prev_table.buckets != NULL);
+    assert(archive->curr_table.buckets != NULL);
+    // necro_region_print(archive->curr_table.region_allocator);
+    // exit(666);
 }
 
 inline size_t necro_hash_time(const int32_t time)
 {
     return time * NECRO_VAULT_HASH_MULTIPLIER;
+    // return time;
 }
 
 inline bool necro_archive_lazy_gc(NecroArchiveNode* node, const int32_t curr_epoch)
@@ -1597,7 +1623,7 @@ inline bool necro_archive_lazy_gc(NecroArchiveNode* node, const int32_t curr_epo
     if (node->last_epoch >= curr_epoch)
         return false;
     int32_t epoch_difference = curr_epoch - node->last_epoch;
-    node->last_epoch         = curr_epoch;
+    // node->last_epoch         = curr_epoch;
     TRACE_VAULT("Lazy gc, curr_epoch: %d, difference: %d\n", curr_epoch, epoch_difference);
     if (epoch_difference >= NECRO_VAULT_RETIREMENT_AGE)
     {
@@ -1613,28 +1639,32 @@ inline void necro_archive_hash_table_incremental_gc(NecroArchiveHashTable* hash_
     assert(hash_table->region_allocator != NULL);
     assert(hash_table->buckets != NULL);
     // GC a bucket at a time
-    TRACE_VAULT("Incremental GC, incremental_gc_index: %d, curr_size: %d, curr_count: %d\n", hash_table->index, hash_table->index, hash_table->count);
-    NecroArchiveNode* prev = hash_table->buckets + hash_table->index;
-    NecroArchiveNode* node = prev->next;
-    NecroArchiveNode* next = NULL;
-    while (node != NULL)
+    for (size_t i = 0; i < 2; ++i)
     {
-        assert(node->last_epoch >= 0);
-        next = node->next;
-        if (necro_archive_lazy_gc(node, curr_epoch))
+        TRACE_VAULT("Incremental GC, incremental_gc_index: %d, curr_size: %d, curr_count: %d\n", hash_table->index, hash_table->size, hash_table->count);
+        NecroArchiveNode* prev = hash_table->buckets + hash_table->index;
+        NecroArchiveNode* node = prev->next;
+        NecroArchiveNode* next = NULL;
+        while (node != NULL)
         {
-            TRACE_VAULT("incremental gc free node\n");
-#if NECRO_VAULT_DEBUG
-            // necro_vault_print_node(node);
-#endif
-            hash_table->count--;
-            necro_region_free(hash_table->region_allocator, node);
-
+            assert(node->last_epoch >= 0);
+            next = node->next;
+            if (necro_archive_lazy_gc(node, curr_epoch))
+            {
+                TRACE_VAULT("incremental gc free node\n");
+                hash_table->count--;
+                necro_region_free(hash_table->region_allocator, node);
+                prev->next = next;
+                node       = next;
+            }
+            else
+            {
+                prev = node;
+                node = next;
+            }
         }
-        prev = node;
-        node = next;
+        hash_table->index = (hash_table->index + 1) & (hash_table->size - 1);
     }
-    hash_table->index = (hash_table->index + 1) & (hash_table->size - 1);
 }
 
 void necro_archive_incremental_gc(NecroArchive* archive, const int32_t curr_epoch)
@@ -1644,10 +1674,13 @@ void necro_archive_incremental_gc(NecroArchive* archive, const int32_t curr_epoc
 
 inline NecroArchiveNode* necro_archive_hash_table_find(NecroArchiveHashTable* hash_table, const int32_t time, const int32_t curr_epoch, const int32_t hash)
 {
+    TRACE_VAULT("necro_archive_hash_table_find\n");
     assert(hash_table != NULL);
-    TRACE_VAULT("find node in hash_table\n");
     if (hash_table->buckets == NULL)
+    {
+        TRACE_VAULT("necro_archive_hash_table_find: NULL buckets\n");
         return NULL;
+    }
     const size_t      index = hash & (hash_table->size - 1);
     NecroArchiveNode* prev  = hash_table->buckets + index;
     NecroArchiveNode* node  = prev->next;
@@ -1663,6 +1696,7 @@ inline NecroArchiveNode* necro_archive_hash_table_find(NecroArchiveHashTable* ha
         }
         else if (necro_archive_lazy_gc(node, curr_epoch))
         {
+            TRACE_VAULT("Lazy gc'd node during find\n");
             necro_region_free(hash_table->region_allocator, node);
             hash_table->count--;
             prev->next = next;
@@ -1697,11 +1731,11 @@ inline NecroFindOrAllocResult necro_archive_hash_table_find_or_alloc(NecroArchiv
         }
         else if (necro_archive_lazy_gc(node, curr_epoch))
         {
-            // Alloc into existing!
-            node->time       = time;
-            node->last_epoch = curr_epoch;
-            TRACE_VAULT("Alloc into gc'd node\n");
-            return (NecroFindOrAllocResult) { .find_or_alloc_type = NECRO_ALLOC,.data = node + 1 };
+            TRACE_VAULT("Lazy gc'd node during find_or_alloc\n");
+            necro_region_free(hash_table->region_allocator, node);
+            hash_table->count--;
+            prev->next = next;
+            node       = next;
         }
         else
         {
@@ -1714,8 +1748,9 @@ inline NecroFindOrAllocResult necro_archive_hash_table_find_or_alloc(NecroArchiv
     node->last_epoch = curr_epoch;
     node->next       = NULL;
     prev->next       = node;
-    TRACE_VAULT("Alloc new at end\n");
-    return (NecroFindOrAllocResult) { .find_or_alloc_type = NECRO_ALLOC, .data = node + 1 };
+    hash_table->count++;
+    TRACE_VAULT("Alloc new at end: %p\n", node);
+    return (NecroFindOrAllocResult) { .find_or_alloc_type = NECRO_ALLOC, .data = (node + 1) };
 
 }
 
@@ -1724,10 +1759,8 @@ inline void necro_archive_insert_prev_node_into_curr_table(NecroArchiveHashTable
     TRACE_VAULT("Insert prev into curr_table\n");
     assert(hash_table != NULL);
     assert(hash_table->buckets != NULL);
-
     // Should always be done moving nodes from previous table to curr table before we need to grow again
-    assert(hash_table->count < hash_table->size >> 1);
-
+    assert(hash_table->count <= hash_table->size / 2);
     const size_t      hash  = necro_hash_time(prev_node->time);
     const size_t      index = hash & (hash_table->size - 1);
     NecroArchiveNode* prev  = hash_table->buckets + index;
@@ -1739,11 +1772,11 @@ inline void necro_archive_insert_prev_node_into_curr_table(NecroArchiveHashTable
         assert(node->time != prev_node->time); // There should be no duplicate values at a specific time!
         if (necro_archive_lazy_gc(node, curr_epoch))
         {
-            TRACE_VAULT("Swapped prev_node for gc'd node\n");
-            prev_node->last_epoch = curr_epoch;
-            prev_node->next       = next;
-            prev->next            = prev_node;
+            TRACE_VAULT("Lazy gc'd node during insert prev_node into curr_table\n");
             necro_region_free(hash_table->region_allocator, node);
+            hash_table->count--;
+            prev->next = next;
+            node       = next;
             return;
         }
         else
@@ -1753,9 +1786,10 @@ inline void necro_archive_insert_prev_node_into_curr_table(NecroArchiveHashTable
         }
     }
     TRACE_VAULT("Insert prev_node at end of chain.\n");
-    prev_node->last_epoch = curr_epoch;
+    // prev_node->last_epoch = curr_epoch;
     prev_node->next       = NULL;
     prev->next            = prev_node;
+    hash_table->count++;
 }
 
 inline void necro_archive_lazy_move(NecroArchive* archive, const int32_t curr_epoch)
@@ -1795,45 +1829,422 @@ inline void necro_archive_lazy_move(NecroArchive* archive, const int32_t curr_ep
     }
 }
 
-// void* necro_archive_find(NecroArchive* archive, const int32_t time, const int32_t curr_epoch)
-// {
-//     assert(archive != NULL);
-//     TRACE_VAULT("find\n");
-
-//     const size_t hash  = necro_hash_time(time);
-//     // necro_vault_incremental_gc(vault, curr_epoch);
-
-//     if ((hash & (archive->prev_table.size - 1)) >= archive->prev_table.index)
-//     {
-//         NecroArchiveNode* prev_node = necro_archive_hash_table_find(&archive->prev_table, time, curr_epoch, hash);
-//         if (prev_node != NULL)
-//             return prev_node + 1;
-//     }
-
-//     NecroArchiveNode* curr_node = necro_archive_hash_table_find(&archive->curr_table, time, curr_epoch, hash);
-//     if (curr_node != NULL)
-//         return curr_node + 1;
-
-//     TRACE_VAULT("key not found in table\n");
-//     return NULL;
-// }
-
 NecroFindOrAllocResult necro_archive_find_or_alloc(NecroArchive* archive, const int32_t time, const int32_t curr_epoch)
 {
     assert(archive != NULL);
-    TRACE_VAULT("find\n");
+    necro_archive_incremental_gc(archive, curr_epoch);
+    if (archive->curr_table.count > archive->curr_table.size / 2)
+        necro_archive_grow(archive);
     const size_t hash  = necro_hash_time(time);
-    // necro_vault_incremental_gc(vault, curr_epoch);
+    TRACE_VAULT("find value at time %d, with hash %d\n", time, hash);
     if ((hash & (archive->prev_table.size - 1)) >= archive->prev_table.index)
     {
         NecroArchiveNode* prev_node = necro_archive_hash_table_find(&archive->prev_table, time, curr_epoch, hash);
         if (prev_node != NULL)
             return (NecroFindOrAllocResult) { .find_or_alloc_type = NECRO_FOUND, prev_node + 1 };
     }
-    necro_archive_incremental_gc(archive, curr_epoch);
-    if (archive->curr_table.count > archive->curr_table.size / 2)
-        necro_archive_grow(archive);
     necro_archive_lazy_move(archive, curr_epoch);
     necro_archive_lazy_move(archive, curr_epoch);
     return necro_archive_hash_table_find_or_alloc(&archive->curr_table, time, curr_epoch, hash);
+}
+
+void necro_archive_print_node(NecroArchiveNode* node)
+{
+    if (node == NULL)
+    {
+        printf("NULL node\n");
+        return;
+    }
+    NecroRegionNode* region_node = ((NecroRegionNode*)node) - 1;
+    int64_t*         data        = (int64_t*)(node + 1);
+    if (region_node->bin == 2)
+    {
+        printf("NecroArchiveNode { time: %d, last_epoch: %d, value: %lld }\n", node->time, node->last_epoch, data[0]);
+    }
+    else if (region_node->bin == 3)
+    {
+        printf("NecroArchiveNode { time: %d, last_epoch: %d, value: %lld, value2: %lld }\n", node->time, node->last_epoch, data[0], data[1]);
+    }
+    else
+    {
+        printf("NecroArchiveNode { ??? }, bin size wrong, bin: %d\n", region_node->bin);
+    }
+}
+
+void necro_archive_hash_table_print(NecroArchiveHashTable* hash_table)
+{
+    printf("    NecroArchiveHashTable\n    {\n");
+    printf("        size:      %d,\n", hash_table->size);
+    printf("        count:     %d,\n", hash_table->count);
+    printf("        index:     %d,\n", hash_table->index);
+    printf("        data_size: %d,\n", hash_table->data_size);
+    printf("        data:\n        [\n");
+    for (size_t i = 0; i < hash_table->size; ++i)
+    {
+        NecroArchiveNode* node = hash_table->buckets[i].next;
+        while (node != NULL)
+        {
+            if (node == (hash_table->buckets + i)->next)
+                printf("            [%d] = ", i);
+            else
+                printf("                    ");
+            necro_archive_print_node(node);
+            node = node->next;
+        }
+    }
+    printf("        ]\n");
+    printf("    }\n");
+}
+
+void necro_archive_print(NecroArchive* archive)
+{
+    printf("NecroArchive\n{\n");
+    printf("    prev:\n");
+    necro_archive_hash_table_print(&archive->prev_table);
+    printf("    curr:\n");
+    necro_archive_hash_table_print(&archive->curr_table);
+    printf("}\n\n");
+}
+
+//=====================================================
+// Testing
+//=====================================================
+bool necro_archive_test_int(NecroArchive* archive, const int32_t time, const int32_t epoch, int64_t value, bool print_on_success, bool print_on_failure)
+{
+    NecroFindOrAllocResult result   = necro_archive_find_or_alloc(archive, time, epoch);
+    NecroArchiveNode*      expected = necro_region_alloc(archive->curr_table.region_allocator, sizeof(NecroArchiveNode) + 8);
+    expected->next                  = NULL;
+    expected->last_epoch            = epoch;
+    expected->time                  = time;
+    *((int64_t*)(expected + 1))     = value;
+
+
+    NecroArchiveNode* node        = ((NecroArchiveNode*)result.data) - 1;
+    NecroRegionNode*  region_node = ((NecroRegionNode*)node) - 1;
+    int64_t*          data        = result.data;
+
+    // Contains Test
+    if (result.find_or_alloc_type == NECRO_FOUND)
+    {
+        if (print_on_success)
+            puts("NecroArchive contains test:   passed");
+    }
+    else
+    {
+        if (print_on_failure)
+        {
+            puts("NecroArchive found test:      failed");
+            printf("                     found:   NULL\n");
+            printf("                  expected:   ");
+            necro_archive_print_node(expected);
+        }
+        necro_region_free(archive->curr_table.region_allocator, expected);
+        return false;
+    }
+
+    // Pointer test
+    if (node != expected)
+    {
+        if (print_on_success)
+            puts("NecroArchive pointer test:    passed");
+    }
+    else
+    {
+        if (print_on_failure)
+        {
+            puts("NecroArchive pointer test:    failed");
+            printf("                     found:   %p\n", node);
+            printf("                  expected:   %p\n", expected);
+        }
+        necro_region_free(archive->curr_table.region_allocator, expected);
+        return false;
+    }
+
+    // Node Test
+    if (region_node->bin == 2 && node->time == time && node->last_epoch == epoch)
+    {
+        if (print_on_success)
+            puts("NecroArchive node test:       passed");
+    }
+    else
+    {
+        if (print_on_failure)
+        {
+            puts("NecroArchive node test:       failed");
+            printf("                      found:  ");
+            necro_archive_print_node(node);
+            printf("                   expected:  ");
+            necro_archive_print_node(expected);
+        }
+        necro_region_free(archive->curr_table.region_allocator, expected);
+        return false;
+    }
+
+    // Value test
+    if (data[0] == value)
+    {
+        if (print_on_success)
+            puts("NecroArchive data test:       passed");
+    }
+    else
+    {
+        if (print_on_failure)
+        {
+            puts("NecroArchive data test:       failed");
+            printf("                      found:  ");
+            necro_archive_print_node(node);
+            printf("                   expected:  ");
+            necro_archive_print_node(expected);
+        }
+        necro_region_free(archive->curr_table.region_allocator, expected);
+        return false;
+    }
+    necro_region_free(archive->curr_table.region_allocator, expected);
+    return true;
+}
+
+
+void necro_archive_test()
+{
+    NecroRegionAllocator region_allocator = necro_create_region_allocator();
+    NecroArchive         archive          = necro_create_archive(&region_allocator, 8);
+    necro_archive_print(&archive);
+
+    int32_t  curr_epoch = 0;
+
+    // Test Entry1
+    int32_t  time1      = 1;
+    int64_t* alloc1     = necro_archive_find_or_alloc(&archive, time1, curr_epoch).data;
+    *alloc1             = 7;
+    necro_archive_test_int(&archive, time1, curr_epoch, 7, true, true);
+
+    // Test Entry2
+    int32_t  time2      = 2;
+    int64_t* alloc2     = necro_archive_find_or_alloc(&archive, time2, curr_epoch).data;
+    *alloc2             = 222;
+    necro_archive_test_int(&archive, time2, curr_epoch, 222, true, true);
+
+    // Test Entry3
+    int32_t  time3      = 3;
+    int64_t* alloc3     = necro_archive_find_or_alloc(&archive, time3, curr_epoch).data;
+    *alloc3             = 300;
+    necro_archive_test_int(&archive, time3, curr_epoch, 300, true, true);
+
+    // Double Insert Test
+    int64_t* alloc2_2   = necro_archive_find_or_alloc(&archive, time2, curr_epoch).data;
+    *alloc2             = 2000;
+    necro_archive_test_int(&archive, time2, curr_epoch, 2000, true, true);
+
+    // FindOrAlloc Test
+    {
+        int32_t time  = 200;
+        int64_t value = 333;
+        int32_t epoch = curr_epoch;
+        NecroFindOrAllocResult result = necro_archive_find_or_alloc(&archive, time, epoch);
+        if (result.find_or_alloc_type == NECRO_ALLOC)
+            puts("NecroVault found/alloc alloc: passed");
+        else
+            puts("NecroVault found/alloc alloc: failed");
+        *((int64_t*)result.data) = value;
+        result = necro_archive_find_or_alloc(&archive, time, epoch);
+        if (result.find_or_alloc_type == NECRO_FOUND)
+            puts("NecroVault found/alloc found: passed");
+        else
+            puts("NecroVault found/alloc found: failed");
+        necro_archive_test_int(&archive, time, epoch, value, true, true);
+    }
+
+    necro_destroy_archive(&archive);
+    archive = necro_create_archive(&region_allocator, 8);
+
+    // Many inserts test
+    bool test_passed = true;
+    for (size_t i = 0; i < NECRO_ARCHIVE_INITIAL_TABLE_SIZE / 2; ++i)
+    {
+        int64_t  value = i;
+        int32_t  time  = i;
+        int32_t  epoch = 1;
+        int64_t* alloc = necro_archive_find_or_alloc(&archive, time, epoch).data;
+        *alloc              = value;
+        if (!necro_archive_test_int(&archive, time, epoch, value, false, true))
+        {
+            test_passed = false;
+            necro_archive_print(&archive);
+            return;
+        }
+    }
+    if (test_passed)
+    {
+        puts("NecroArchive insert test:     passed");
+    }
+
+    // Many inserts2 test
+    test_passed = true;
+    for (size_t i = 0; i < NECRO_ARCHIVE_INITIAL_TABLE_SIZE / 2; ++i)
+    {
+        int64_t  value = i + 10;
+        int32_t  time  = i + 10;
+        int32_t  epoch = 10;
+        int64_t* alloc = necro_archive_find_or_alloc(&archive, time, epoch).data;
+        *alloc         = value;
+        if (!necro_archive_test_int(&archive, time, epoch, value, false, true))
+        {
+            test_passed = false;
+            necro_archive_print(&archive);
+            return;
+        }
+    }
+    if (test_passed)
+    {
+        puts("NecroArchive insert2 test:    passed");
+    }
+
+    // Lookups test
+    for (size_t i = 0; i < NECRO_ARCHIVE_INITIAL_TABLE_SIZE / 2; ++i)
+    {
+        int64_t value = i + 10;
+        int32_t time  = i + 10;
+        int32_t epoch = 10;
+        if (!necro_archive_test_int(&archive, time, epoch, value, false, true))
+        {
+            test_passed = false;
+            necro_archive_print(&archive);
+            return;
+        }
+    }
+    if (test_passed)
+    {
+        puts("NecroArchive lookups test:    passed");
+    }
+
+    // MonotonicEpoch test
+    test_passed = true;
+    for (size_t i = 0; i < NECRO_ARCHIVE_INITIAL_TABLE_SIZE * 4; ++i)
+    {
+        int64_t  value = i + 20;
+        int32_t  time  = i;
+        int32_t  epoch = 100 + i;
+        int64_t* alloc = necro_archive_find_or_alloc(&archive, time, epoch).data;
+        *alloc         = value;
+        if (!necro_archive_test_int(&archive, time, epoch, value, false, true))
+        {
+            test_passed = false;
+            necro_archive_print(&archive);
+            return;
+        }
+    }
+    if (test_passed)
+    {
+        puts("NecroArchive epoch test:      passed");
+    }
+
+    necro_destroy_archive(&archive);
+    archive = necro_create_archive(&region_allocator, 8);
+
+    // grow test
+    test_passed = true;
+    for (size_t i = 0; i < NECRO_ARCHIVE_INITIAL_TABLE_SIZE * 2; ++i)
+    {
+        int64_t  value = i + 10;
+        int32_t  time  = i + 10;
+        int32_t  epoch = 200;
+        int64_t* alloc = necro_archive_find_or_alloc(&archive, time, epoch).data;
+        *alloc         = value;
+        if (!necro_archive_test_int(&archive, time, epoch, value, false, true))
+        {
+            test_passed = false;
+            necro_archive_print(&archive);
+            necro_region_print(&region_allocator);
+            return;
+        }
+    }
+    if (test_passed)
+    {
+        puts("NecroArchive insert2 test:    passed");
+    }
+
+    necro_destroy_archive(&archive);
+    archive = necro_create_archive(&region_allocator, 8);
+
+    // Many inserts3 test
+    test_passed = true;
+    for (size_t i = 0; i < NECRO_ARCHIVE_INITIAL_TABLE_SIZE * 32; ++i)
+    {
+        int64_t   value = i - 1000;
+        int32_t   time  = i % 1111;
+        int32_t   epoch = 300 + (i / 4);
+        int64_t*  alloc = necro_archive_find_or_alloc(&archive, time, epoch).data;
+        *alloc          = value;
+        if (!necro_archive_test_int(&archive, time, epoch, value, false, true))
+        {
+            test_passed = false;
+            necro_archive_print(&archive);
+            necro_region_print(&region_allocator);
+            return;
+        }
+    }
+    if (test_passed)
+    {
+        puts("NecroArchive insert3 test:    passed");
+    }
+
+    // puts("\n---");
+    // necro_archive_print(&archive);
+    // necro_region_print(&region_allocator);
+    // puts("");
+
+    necro_archive_bench();
+}
+
+void necro_archive_bench()
+{
+    int64_t iterations = 100000;
+    {
+        // Slab bench
+        NecroRegionAllocator region_allocator = necro_create_region_allocator();
+        NecroArchive         archive          = necro_create_archive(&region_allocator, 8);
+
+        {
+            const double start_time = (double)clock() / (double)CLOCKS_PER_SEC;
+            for (size_t i = 0; i < iterations; ++i)
+            {
+                const int32_t  value     = i;
+                const int32_t  time      = i;
+                const int32_t  epoch     = i / 32;
+                const uint32_t data_size = 8;
+                necro_archive_find_or_alloc(&archive, time, epoch);
+            }
+            const double  end_time    = (double) clock() / (double) CLOCKS_PER_SEC;
+            const double  run_time    = end_time - start_time;
+            const int64_t ns_per_iter = (int64_t) ((run_time / (double)iterations) * 1000000000);
+            puts("");
+            printf("Archive find_or_alloc 1 benchmark:\n    iterations:  %lld\n    run_time:    %f\n    ns/iter:     %lld\n", iterations, run_time, ns_per_iter);
+        }
+
+        {
+            const double start_time = (double)clock() / (double)CLOCKS_PER_SEC;
+            for (size_t i = 0; i < iterations; ++i)
+            {
+                const int32_t  value     = i;
+                const int32_t  time      = i;
+                const int32_t  epoch     = i / 32;
+                const uint32_t data_size = 8;
+                necro_archive_find_or_alloc(&archive, time, epoch);
+            }
+            const double  end_time    = (double) clock() / (double) CLOCKS_PER_SEC;
+            const double  run_time    = end_time - start_time;
+            const int64_t ns_per_iter = (int64_t) ((run_time / (double)iterations) * 1000000000);
+            puts("");
+            printf("Archive find_or_alloc 2 benchmark:\n    iterations:  %lld\n    run_time:    %f\n    ns/iter:     %lld\n", iterations, run_time, ns_per_iter);
+        }
+
+        // puts("\n---");
+        // necro_archive_print(&archive);
+        // necro_region_print(&region_allocator);
+        // puts("");
+
+        // printf("\nvault prev_count: %d, curr_count: %d, total_count: %d, curr_size: %d, largest_bucket: %d", vault.prev_count, vault.curr_count, necro_vault_count(&vault), vault.curr_size, necro_vault_largest_bucket(&vault));
+        necro_destroy_archive(&archive);
+        necro_destroy_region_allocator(&region_allocator);
+    }
 }

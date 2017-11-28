@@ -14,11 +14,19 @@
 #include "vault.h"
 #include "region.h"
 
-// TODO:
-//    * Memory Management
-//    * Switch statements for pattern matching
-//    * c calls
-//    * Audio
+/*
+    TODO:
+    (DONE) Lex -> (50% - Chad) Parse -> Rename -> Typecheck -> Desugar -> Core -> ByteCode -> (50% Curtis) VM
+
+    Lexer:                     Text                       -> Lex Tokens
+    Parser:                    Lex Tokens                 -> AST (Name String)
+    Regnaming: Alpha renaming; AST (Name String)          -> AST (UniqueName String ID)
+    Type Checking:             AST (UniqueName String ID) -> AST (Type (UniqueName String ID))
+    Desugar:                   AST Type                   -> CoreAST
+    CodeGenerator:             CoreAST                    -> ByteCode
+    VM:                        ByteCode                   -> Execution
+*/
+
 
 /*
     Necronomicon is demand-rate, much like Lucid.
@@ -278,12 +286,14 @@ void necro_test_slab();
 typedef enum
 {
     // Region Memory
-    DVM_MAKE_R,
+    DVM_New_R,
+    DVM_Free_R,
     DVM_PUSH_R,
     DVM_POP_R,
+
     DVM_MAKE_T,
 
-    // Demand / Heap Memory
+    // Demand
     DVM_DEMAND_I,
     DVM_DEMAND_F,
     DVM_DEMAND_A,

@@ -136,7 +136,7 @@ void                   necro_vault_bench();
 // NecroArchive
 // Per-thunk hashtable which contains values over time
 //=====================================================
-#define NECRO_ARCHIVE_INITIAL_TABLE_SIZE 16
+#define NECRO_ARCHIVE_INITIAL_TABLE_SIZE 64
 #define NECRO_ARCHIVE_MAXIMUM_TABLE_SIZE 64
 
 typedef struct NecroArchiveNode

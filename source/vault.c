@@ -13,8 +13,8 @@
 #define NECRO_VAULT_HASH_MAGIC      5381
 #define NECRO_VAULT_HASH_MULTIPLIER 37
 #define NECRO_VAULT_NULL_PLACE      0
-#define NECRO_VAULT_GC_COUNT        4
-#define NECRO_VAULT_INITIAL_AGE     2
+#define NECRO_VAULT_GC_COUNT        2
+#define NECRO_VAULT_INITIAL_AGE     1
 #define NECRO_VAULT_RETIREMENT_AGE  2
 
 #define NECRO_VAULT_DEBUG           0
@@ -1639,7 +1639,7 @@ inline void necro_archive_hash_table_incremental_gc(NecroArchiveHashTable* hash_
     assert(hash_table->region_allocator != NULL);
     assert(hash_table->buckets != NULL);
     // GC a bucket at a time
-    for (size_t i = 0; i < 2; ++i)
+    for (size_t i = 0; i <= NECRO_VAULT_GC_COUNT; ++i)
     {
         TRACE_VAULT("Incremental GC, incremental_gc_index: %d, curr_size: %d, curr_count: %d\n", hash_table->index, hash_table->size, hash_table->count);
         NecroArchiveNode* prev = hash_table->buckets + hash_table->index;
@@ -1786,7 +1786,6 @@ inline void necro_archive_insert_prev_node_into_curr_table(NecroArchiveHashTable
         }
     }
     TRACE_VAULT("Insert prev_node at end of chain.\n");
-    // prev_node->last_epoch = curr_epoch;
     prev_node->next       = NULL;
     prev->next            = prev_node;
     hash_table->count++;

@@ -3,12 +3,12 @@
  * Proprietary and confidential
  */
 
-#include <string.h>
 #include <stdio.h>
-#include "utility.h"
+#include <inttypes.h>
+#include "intern.h"
+#include "renamer.h"
 
-void print_white_space(size_t white_count)
+NECRO_RENAME_RESULT rename_ast(NecroRenamer* renamer, NecroAST_LocalPtr* out_root_node_ptr)
 {
-    for (size_t i = 0; i < white_count; ++i)
-        printf(" ");
+    return NECRO_RENAME_SUCCESSFUL;
 }

@@ -109,4 +109,6 @@ inline uint32_t next_highest_pow_of_2(uint32_t x)
     return x;
 }
 
+void print_white_space(size_t white_count);
+
 #endif // UTILITY_H

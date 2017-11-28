@@ -207,13 +207,7 @@ void* necro_region_alloc(NecroRegionAllocator* allocator, size_t data_size)
     size_t bin = data_size_to_bin(data_size);
     TRACE_REGION_ALLOCATOR("alloc, data_size: %d, bin: %d\n", data_size, bin);
     assert(allocator != NULL);
-    if (bin >= NECRO_REGION_NUM_BINS)
-    {
-        printf("alloc, data_size: %d, bin: %d\n", data_size, bin);
-        exit(666);
-    }
     assert(bin < NECRO_REGION_NUM_BINS);
-    // assert(data_size <= NECRO_REGION_DATA_SIZE); // TODO: Update
     assert(allocator->stack != NULL);
     NecroRegionNode* node = necro_alloc_node(allocator->bins + bin);
     NecroRegion*     top  = allocator->stack + allocator->stack_pointer;
@@ -271,12 +265,6 @@ inline size_t necro_region_bin_size(NecroRegion* region, size_t bin)
         curr_node = curr_node->next;
     }
     return count;
-}
-
-inline void print_white_space(size_t white_count)
-{
-    for (size_t i = 0; i < white_count; ++i)
-        printf(" ");
 }
 
 void necro_region_print_node(NecroRegionNode* node)

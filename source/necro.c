@@ -10,6 +10,7 @@
 #include "intern.h"
 #include "runtime.h"
 #include "vault.h"
+#include "symtable.h"
 
 void necro_test_lex(char* input_string)
 {
@@ -82,10 +83,10 @@ int main(int32_t argc, char** argv)
     {
         necro_test_dvm();
     }
-    // else if (argc > 1 && strcmp(argv[1], "-test_region") == 0)
-    // {
-    //     necro_test_region();
-    // }
+    else if (argc > 1 && strcmp(argv[1], "-test_symtable") == 0)
+    {
+        necro_symtable_test();
+    }
     else if (argc > 1 && strcmp(argv[1], "-test_slab") == 0)
     {
         necro_test_slab();

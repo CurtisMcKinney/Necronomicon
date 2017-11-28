@@ -14,7 +14,7 @@
 
 typedef struct
 {
-    char* region;
+    char*  region;
     size_t capacity;
     size_t size;
 } NecroArena;

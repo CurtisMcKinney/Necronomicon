@@ -1,0 +1,539 @@
+/* Copyright (C) Chad McKinney and Curtis McKinney - All Rights Reserved
+ * Unauthorized copying of this file, via any medium is strictly prohibited
+ * Proprietary and confidential
+ */
+
+#include <stdio.h>
+#include <inttypes.h>
+#include "ast.h"
+
+#define AST_TAB "  "
+
+void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern, uint32_t depth)
+{
+    assert(ast_node != NULL);
+    assert(intern != NULL);
+    for (uint32_t i = 0;  i < depth; ++i)
+    {
+        printf(AST_TAB);
+    }
+
+    switch(ast_node->type)
+    {
+    case NECRO_AST_BIN_OP:
+        switch(ast_node->bin_op.type)
+        {
+        case NECRO_BIN_OP_ADD:
+            puts("(+)");
+            break;
+        case NECRO_BIN_OP_SUB:
+            puts("(-)");
+            break;
+        case NECRO_BIN_OP_MUL:
+            puts("(*)");
+            break;
+        case NECRO_BIN_OP_DIV:
+            puts("(/)");
+            break;
+        case NECRO_BIN_OP_MOD:
+            puts("(%)");
+            break;
+        case NECRO_BIN_OP_GT:
+            puts("(>)");
+            break;
+        case NECRO_BIN_OP_LT:
+            puts("(<)");
+            break;
+        case NECRO_BIN_OP_GTE:
+            puts("(>=)");
+            break;
+        case NECRO_BIN_OP_LTE:
+            puts("(<=)");
+            break;
+        case NECRO_BIN_OP_COLON:
+            puts("(:)");
+            break;
+        case NECRO_BIN_OP_DOUBLE_COLON:
+            puts("(::)");
+            break;
+        case NECRO_BIN_OP_LEFT_SHIFT:
+            puts("(<<)");
+            break;
+        case NECRO_BIN_OP_RIGHT_SHIFT:
+            puts("(>>)");
+            break;
+        case NECRO_BIN_OP_PIPE:
+            puts("(|)");
+            break;
+        case NECRO_BIN_OP_FORWARD_PIPE:
+            puts("(|>)");
+            break;
+        case NECRO_BIN_OP_BACK_PIPE:
+            puts("(<|)");
+            break;
+        case NECRO_BIN_OP_EQUALS:
+            puts("(=)");
+            break;
+        case NECRO_BIN_OP_NOT_EQUALS:
+            puts("(/=)");
+            break;
+        case NECRO_BIN_OP_AND:
+            puts("(&&)");
+            break;
+        case NECRO_BIN_OP_OR:
+            puts("(||)");
+            break;
+        case NECRO_BIN_OP_DOT:
+            puts("(.)");
+            break;
+        case NECRO_BIN_OP_DOLLAR:
+            puts("($)");
+            break;
+        case NECRO_BIN_OP_BIND_RIGHT:
+            puts("(>>=)");
+            break;
+        case NECRO_BIN_OP_BIND_LEFT:
+            puts("(=<<)");
+            break;
+        case NECRO_BIN_OP_DOUBLE_EXCLAMATION:
+            puts("(!!)");
+            break;
+        case NECRO_BIN_OP_APPEND:
+            puts("(++)");
+            break;
+        default:
+            puts("(Undefined Binary Operator)");
+            break;
+        }
+        print_reified_ast_impl(ast_node->bin_op.lhs, intern, depth + 1);
+        print_reified_ast_impl(ast_node->bin_op.rhs, intern, depth + 1);
+        break;
+
+    case NECRO_AST_CONSTANT:
+        switch(ast_node->constant.type)
+        {
+        case NECRO_AST_CONSTANT_FLOAT:
+            printf("(%f)\n", ast_node->constant.double_literal);
+            break;
+        case NECRO_AST_CONSTANT_INTEGER:
+#if WIN32
+            printf("(%lli)\n", ast_node->constant.int_literal);
+#else
+            printf("(%li)\n", ast_node->constant.int_literal);
+#endif
+            break;
+        case NECRO_AST_CONSTANT_STRING:
+            {
+                const char* string = necro_intern_get_string(intern, ast_node->constant.symbol);
+                if (string)
+                    printf("(\"%s\")\n", string);
+            }
+            break;
+        case NECRO_AST_CONSTANT_CHAR:
+            printf("(\'%c\')\n", ast_node->constant.char_literal);
+            break;
+        case NECRO_AST_CONSTANT_BOOL:
+            printf("(%s)\n", ast_node->constant.boolean_literal ? " True" : "False");
+            break;
+        }
+        break;
+
+    case NECRO_AST_IF_THEN_ELSE:
+        puts("(If then else)");
+        print_reified_ast_impl(ast_node->if_then_else.if_expr, intern, depth + 1);
+        print_reified_ast_impl(ast_node->if_then_else.then_expr, intern, depth + 1);
+        print_reified_ast_impl(ast_node->if_then_else.else_expr, intern, depth + 1);
+        break;
+
+    case NECRO_AST_TOP_DECL:
+        puts("(Top Declaration)");
+        print_reified_ast_impl(ast_node->top_declaration.declaration, intern, depth + 1);
+        if (ast_node->top_declaration.next_top_decl != NULL)
+        {
+            print_reified_ast_impl(ast_node->top_declaration.next_top_decl, intern, depth);
+        }
+        break;
+
+    case NECRO_AST_DECL:
+        puts("(Declaration)");
+        print_reified_ast_impl(ast_node->declaration.declaration_impl, intern, depth + 1);
+        if (ast_node->declaration.next_declaration != NULL)
+        {
+            print_reified_ast_impl(ast_node->declaration.next_declaration, intern, depth);
+        }
+        break;
+
+    case NECRO_AST_SIMPLE_ASSIGNMENT:
+        printf("(Assignment: %s, id: %d)\n", necro_intern_get_string(intern, ast_node->simple_assignment.variable_name), ast_node->simple_assignment.id.id);
+        print_reified_ast_impl(ast_node->simple_assignment.rhs, intern, depth + 1);
+        break;
+
+    case NECRO_AST_RIGHT_HAND_SIDE:
+        puts("(Right Hand Side)");
+        print_reified_ast_impl(ast_node->right_hand_side.expression, intern, depth + 1);
+        if (ast_node->right_hand_side.declarations != NULL)
+        {
+            for (uint32_t i = 0;  i < depth; ++i)
+            {
+                printf(AST_TAB);
+            }
+            puts(AST_TAB AST_TAB "where");
+            print_reified_ast_impl(ast_node->right_hand_side.declarations, intern, depth + 3);
+        }
+        break;
+
+    case NECRO_AST_LET_EXPRESSION:
+        puts("(Let)");
+        print_reified_ast_impl(ast_node->let_expression.declarations, intern, depth + 1);
+        if (ast_node->right_hand_side.declarations != NULL)
+        {
+            for (uint32_t i = 0;  i < depth; ++i)
+            {
+                printf(AST_TAB);
+            }
+            puts(AST_TAB AST_TAB "in");
+            print_reified_ast_impl(ast_node->let_expression.expression, intern, depth + 3);
+        }
+        break;
+
+
+    case NECRO_AST_FUNCTION_EXPRESSION:
+        puts("(fexp)");
+        print_reified_ast_impl(ast_node->fexpression.aexp, intern, depth + 1);
+        if (ast_node->fexpression.next_fexpression != NULL)
+        {
+            print_reified_ast_impl(ast_node->fexpression.next_fexpression, intern, depth + 1);
+        }
+        break;
+
+    case NECRO_AST_VARIABLE:
+        switch(ast_node->variable.variable_type)
+        {
+        case NECRO_AST_VARIABLE_ID:
+            {
+                const char* variable_string = necro_intern_get_string(intern, ast_node->variable.variable_id);
+                if (variable_string)
+                {
+                    printf("(varid: %s, id: %d)\n", variable_string, ast_node->variable.id.id);
+                }
+                else
+                {
+                    puts("(varid: \"\")");
+                }
+            }
+            break;
+
+        case NECRO_AST_VARIABLE_SYMBOL:
+            {
+                const char* variable_string = necro_lex_token_type_string(ast_node->variable.variable_symbol);
+                if (variable_string)
+                {
+                    printf("(varsym: %s)\n", variable_string);
+                }
+                else
+                {
+                    puts("(varsym: \"\")");
+                }
+            };
+            break;
+        }
+        break;
+
+    case NECRO_AST_APATS:
+        puts("(Apat)");
+        print_reified_ast_impl(ast_node->apats.apat, intern, depth + 1);
+        if (ast_node->apats.next_apat != NULL)
+        {
+            print_reified_ast_impl(ast_node->apats.next_apat, intern, depth);
+        }
+        break;
+
+    case NECRO_AST_WILDCARD:
+        puts("(_)");
+        break;
+
+    case NECRO_AST_APATS_ASSIGNMENT:
+        printf("(Apats Assignment: %s, id: %d)\n", necro_intern_get_string(intern, ast_node->apats_assignment.variable_name), ast_node->apats_assignment.id.id);
+        print_reified_ast_impl(ast_node->apats_assignment.apats, intern, depth + 1);
+        print_reified_ast_impl(ast_node->apats_assignment.rhs, intern, depth + 1);
+        break;
+
+    case NECRO_AST_LAMBDA:
+        puts("\\(lambda)");
+        print_reified_ast_impl(ast_node->lambda.apats, intern, depth + 1);
+        for (uint32_t i = 0;  i < (depth + 1); ++i)
+        {
+            printf(AST_TAB);
+        }
+        puts("->");
+        print_reified_ast_impl(ast_node->lambda.expression, intern, depth + 2);
+        break;
+
+    case NECRO_AST_DO:
+        puts("(do)");
+        print_reified_ast_impl(ast_node->do_statement.statement_list, intern, depth + 1);
+        break;
+
+    case NECRO_AST_EXPRESSION_LIST:
+        puts("([])");
+        if (ast_node->expression_list.expressions != NULL)
+            print_reified_ast_impl(ast_node->expression_list.expressions, intern, depth + 1);
+        break;
+
+    case NECRO_AST_TUPLE:
+        puts("(tuple)");
+        print_reified_ast_impl(ast_node->expression_list.expressions, intern, depth + 1);
+        break;
+
+
+
+    case NECRO_AST_LIST_NODE:
+        printf("\r"); // clear current line
+        print_reified_ast_impl(ast_node->list.item, intern, depth);
+        if (ast_node->list.next_item != NULL)
+        {
+            print_reified_ast_impl(ast_node->list.next_item, intern, depth);
+        }
+        break;
+
+    case NECRO_BIND_ASSIGNMENT:
+        printf("(Bind: %s, id: %d)\n", necro_intern_get_string(intern, ast_node->bind_assignment.variable_name), ast_node->bind_assignment.id.id);
+        print_reified_ast_impl(ast_node->bind_assignment.expression, intern, depth + 1);
+        break;
+
+    case NECRO_AST_ARITHMETIC_SEQUENCE:
+        {
+            switch(ast_node->arithmetic_sequence.type)
+            {
+            case NECRO_ARITHMETIC_ENUM_FROM:
+                puts("(EnumFrom)");
+                print_reified_ast_impl(ast_node->arithmetic_sequence.from, intern, depth + 1);
+                break;
+            case NECRO_ARITHMETIC_ENUM_FROM_TO:
+                puts("(EnumFromTo)");
+                print_reified_ast_impl(ast_node->arithmetic_sequence.from, intern, depth + 1);
+                print_reified_ast_impl(ast_node->arithmetic_sequence.to, intern, depth + 1);
+                break;
+            case NECRO_ARITHMETIC_ENUM_FROM_THEN_TO:
+                puts("(EnumFromThenTo)");
+                print_reified_ast_impl(ast_node->arithmetic_sequence.from, intern, depth + 1);
+                print_reified_ast_impl(ast_node->arithmetic_sequence.then, intern, depth + 1);
+                print_reified_ast_impl(ast_node->arithmetic_sequence.to, intern, depth + 1);
+                break;
+            default:
+                assert(false);
+                break;
+            }
+        }
+        break;
+
+    default:
+        puts("(Undefined)");
+        break;
+    }
+}
+
+void necro_print_reified_ast(NecroAST_Reified* ast, NecroIntern* intern)
+{
+    if (ast->root == NULL)
+    {
+        puts("(Empty AST)");
+    }
+    else
+    {
+        print_reified_ast_impl(ast->root, intern, 0);
+    }
+}
+
+
+NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, NecroPagedArena* arena)
+{
+    if (a_ptr == null_local_ptr)
+        return NULL;
+    NecroAST_Node* node = ast_get_node(a_ast, a_ptr);
+    if (node == NULL)
+        return NULL;
+    NecroAST_Node_Reified* reified_node = necro_paged_arena_alloc(arena, sizeof(NecroAST_Node_Reified));
+    reified_node->type = node->type;
+    switch (node->type)
+    {
+    case NECRO_AST_UNDEFINED:
+        reified_node->undefined._pad = node->undefined._pad;
+        break;
+    case NECRO_AST_CONSTANT:
+        reified_node->constant.symbol = node->constant.symbol;
+        reified_node->constant.type   = node->constant.type;
+        break;
+    case NECRO_AST_UN_OP:
+        break;
+    case NECRO_AST_BIN_OP:
+        reified_node->bin_op.lhs  = necro_reify(a_ast, node->bin_op.lhs, arena);
+        reified_node->bin_op.rhs  = necro_reify(a_ast, node->bin_op.rhs, arena);
+        reified_node->bin_op.type = node->bin_op.type;
+        break;
+    case NECRO_AST_IF_THEN_ELSE:
+        reified_node->if_then_else.if_expr   = necro_reify(a_ast, node->if_then_else.if_expr, arena);
+        reified_node->if_then_else.then_expr = necro_reify(a_ast, node->if_then_else.then_expr, arena);
+        reified_node->if_then_else.else_expr = necro_reify(a_ast, node->if_then_else.else_expr, arena);
+        break;
+    case NECRO_AST_TOP_DECL:
+        reified_node->top_declaration.declaration   = necro_reify(a_ast, node->top_declaration.declaration, arena);
+        reified_node->top_declaration.next_top_decl = necro_reify(a_ast, node->top_declaration.next_top_decl, arena);
+        break;
+    case NECRO_AST_DECL:
+        reified_node->declaration.declaration_impl = necro_reify(a_ast, node->declaration.declaration_impl, arena);
+        reified_node->declaration.next_declaration = necro_reify(a_ast, node->declaration.next_declaration, arena);
+        break;
+    case NECRO_AST_SIMPLE_ASSIGNMENT:
+        reified_node->simple_assignment.rhs           = necro_reify(a_ast, node->simple_assignment.rhs, arena);
+        reified_node->simple_assignment.variable_name = node->simple_assignment.variable_name;
+        break;
+    case NECRO_AST_APATS_ASSIGNMENT:
+        reified_node->apats_assignment.variable_name = node->apats_assignment.variable_name;
+        reified_node->apats_assignment.apats         = necro_reify(a_ast, node->apats_assignment.apats, arena);
+        reified_node->apats_assignment.rhs           = necro_reify(a_ast, node->apats_assignment.rhs, arena);
+        break;
+    case NECRO_AST_RIGHT_HAND_SIDE:
+        reified_node->right_hand_side.expression   = necro_reify(a_ast, node->right_hand_side.expression, arena);
+        reified_node->right_hand_side.declarations = necro_reify(a_ast, node->right_hand_side.declarations, arena);
+        break;
+    case NECRO_AST_LET_EXPRESSION:
+        reified_node->let_expression.expression   = necro_reify(a_ast, node->let_expression.expression, arena);
+        reified_node->let_expression.declarations = necro_reify(a_ast, node->let_expression.declarations, arena);
+        break;
+    case NECRO_AST_FUNCTION_EXPRESSION:
+        reified_node->fexpression.aexp             = necro_reify(a_ast, node->fexpression.aexp, arena);
+        reified_node->fexpression.next_fexpression = necro_reify(a_ast, node->fexpression.next_fexpression, arena);
+        break;
+    case NECRO_AST_VARIABLE:
+        reified_node->variable.variable_id   = node->variable.variable_id;
+        reified_node->variable.variable_type = node->variable.variable_type;
+        break;
+    case NECRO_AST_APATS:
+        reified_node->apats.apat      = necro_reify(a_ast, node->apats.apat, arena);
+        reified_node->apats.next_apat = necro_reify(a_ast, node->apats.next_apat, arena);
+        break;
+    case NECRO_AST_WILDCARD:
+        reified_node->undefined._pad = node->undefined._pad;
+        break;
+    case NECRO_AST_LAMBDA:
+        reified_node->lambda.apats      = necro_reify(a_ast, node->lambda.apats, arena);
+        reified_node->lambda.expression = necro_reify(a_ast, node->lambda.expression, arena);
+        break;
+    case NECRO_AST_DO:
+        reified_node->do_statement.statement_list = necro_reify(a_ast, node->do_statement.statement_list, arena);
+        break;
+    case NECRO_AST_LIST_NODE:
+        reified_node->list.item      = necro_reify(a_ast, node->list.item, arena);
+        reified_node->list.next_item = necro_reify(a_ast, node->list.next_item, arena);
+        break;
+    case NECRO_AST_EXPRESSION_LIST:
+        reified_node->expression_list.expressions = necro_reify(a_ast, node->expression_list.expressions, arena);
+        break;
+    case NECRO_AST_TUPLE:
+        reified_node->tuple.expressions = necro_reify(a_ast, node->tuple.expressions, arena);
+        break;
+    case NECRO_BIND_ASSIGNMENT:
+        reified_node->bind_assignment.variable_name = node->bind_assignment.variable_name;
+        reified_node->bind_assignment.expression    = necro_reify(a_ast, node->bind_assignment.expression, arena);
+        break;
+    case NECRO_AST_ARITHMETIC_SEQUENCE:
+        reified_node->arithmetic_sequence.from = necro_reify(a_ast, node->arithmetic_sequence.from, arena);
+        reified_node->arithmetic_sequence.then = necro_reify(a_ast, node->arithmetic_sequence.then, arena);
+        reified_node->arithmetic_sequence.to   = necro_reify(a_ast, node->arithmetic_sequence.to, arena);
+        reified_node->arithmetic_sequence.type = node->arithmetic_sequence.type;
+        break;
+    default:
+        fprintf(stderr, "Unrecognized type during reification: %d", node->type);
+        exit(1);
+        break;
+    }
+    return reified_node;
+}
+
+NecroAST_Reified necro_create_reified_ast()
+{
+    NecroPagedArena        arena = necro_create_paged_arena();
+    NecroAST_Node_Reified* root  = NULL;
+    return (NecroAST_Reified)
+    {
+        .arena = arena,
+        .root = root,
+    };
+}
+
+NecroAST_Reified necro_reify_ast(NecroAST* a_ast, NecroAST_LocalPtr a_root)
+{
+    NecroPagedArena        arena = necro_create_paged_arena();
+    NecroAST_Node_Reified* root  = necro_reify(a_ast, a_root, &arena);
+    return (NecroAST_Reified)
+    {
+        .arena = arena,
+        .root = root,
+    };
+}
+
+void necro_destroy_reified_ast(NecroAST_Reified* ast)
+{
+    necro_destroy_paged_arena(&ast->arena);
+}
+
+void necro_test_reify(const char* input_string)
+{
+    // printf("input_string:\n%s\n\n", input_string);
+    puts("");
+    puts("--------------------------------");
+    puts("-- Lexing");
+    puts("--------------------------------");
+
+    NecroLexer       lexer      = necro_create_lexer(input_string);
+    NECRO_LEX_RESULT lex_result = necro_lex(&lexer);
+    necro_print_lexer(&lexer);
+
+    NecroAST ast = { construct_arena(lexer.tokens.length * sizeof(NecroAST_Node)) };
+    if (lex_result != NECRO_LEX_RESULT_SUCCESSFUL || lexer.tokens.length <= 0)
+        return;
+
+    puts("");
+    puts("--------------------------------");
+    puts("-- Parsing");
+    puts("--------------------------------");
+
+    NecroParser parser;
+    construct_parser(&parser, &ast, lexer.tokens.data);
+    NecroAST_LocalPtr root_node_ptr = null_local_ptr;
+
+    NecroParse_Result parse_result = parse_ast(&parser, &root_node_ptr);
+    if (parse_result != ParseSuccessful)
+    {
+        if (parser.error_message && parser.error_message[0])
+        {
+            puts(parser.error_message);
+        }
+        else
+        {
+            puts("Parsing failed for unknown reason.");
+        }
+        return;
+    }
+
+    puts("");
+    puts("Parse succeeded");
+    print_ast(&ast, &lexer.intern, root_node_ptr);
+
+    puts("");
+    puts("--------------------------------");
+    puts("-- Reifying");
+    puts("--------------------------------");
+    NecroAST_Reified ast_r = necro_reify_ast(&ast, root_node_ptr);
+    necro_print_reified_ast(&ast_r, &lexer.intern);
+
+    puts("");
+    puts("--------------------------------");
+    puts("-- Cleaning Up");
+    puts("--------------------------------");
+
+    destruct_parser(&parser);
+    necro_destroy_lexer(&lexer);
+    destruct_arena(&ast.arena);
+}

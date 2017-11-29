@@ -11,6 +11,8 @@
 #include "runtime.h"
 #include "vault.h"
 #include "symtable.h"
+#include "ast.h"
+#include "renamer.h"
 
 void necro_test_lex(char* input_string)
 {
@@ -95,10 +97,6 @@ int main(int32_t argc, char** argv)
     {
         necro_test_treadmill();
     }
-    // else if (argc > 1 && strcmp(argv[1], "-test_runtime") == 0)
-    // {
-    //     necro_test_runtime();
-    // }
     else if (argc > 1 && strcmp(argv[1], "-test_lexer") == 0)
     {
         necro_test_lexer();
@@ -119,7 +117,7 @@ int main(int32_t argc, char** argv)
     {
         necro_region_test();
     }
-    else if (argc == 2)
+    else if (argc == 2 || argc == 3)
     {
 #ifdef WIN32
         FILE* file;
@@ -156,8 +154,19 @@ int main(int32_t argc, char** argv)
             //     printf("%d\n", (uint8_t)*c);
             // }
 
-            // Lex buffer
-            necro_test_lex(str);
+            if (argc > 2 && strcmp(argv[2], "-test_reify") == 0)
+            {
+                necro_test_reify(str);
+            }
+            else if (argc > 2 && strcmp(argv[2], "-test_rename") == 0)
+            {
+                necro_test_rename(str);
+            }
+            else
+            {
+                // Test Lexing
+                necro_test_lex(str);
+            }
         }
         else
         {

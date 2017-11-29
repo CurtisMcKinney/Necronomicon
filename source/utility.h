@@ -13,6 +13,12 @@
 //=====================================================
 // A collection of general purpose structs and functions
 //=====================================================
+typedef struct
+{
+    char*  error_message;
+    size_t line;
+    size_t character;
+} NecroError;
 
 //=====================================================
 // NecroVector:

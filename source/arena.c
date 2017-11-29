@@ -10,6 +10,15 @@
 #include "math.h"
 
 // #define ARENA_DEBUG_PRINT 1
+#define DEBUG_ARENA 0
+
+#if DEBUG_ARENA
+#define TRACE_ARENA(...) printf(__VA_ARGS__)
+#else
+#define TRACE_ARENA(...)
+#endif
+
+
 
 NecroArena construct_arena(size_t capacity)
 {
@@ -81,4 +90,83 @@ void* arena_alloc(NecroArena* arena, size_t size, arena_alloc_policy alloc_polic
     }
 
     return 0;
+}
+
+NecroArenaPtr arena_alloc_local(NecroArena* arena, size_t size, arena_alloc_policy alloc_policy)
+{
+    char* data = arena_alloc(arena, size, alloc_policy);
+    return (NecroArenaPtr)(data - arena->region);
+}
+
+void* arena_deref_local(NecroArena* arena, NecroArenaPtr ptr)
+{
+    return NULL;
+}
+
+//=====================================================
+// NecroPagedArena
+//=====================================================
+#define NECRO_PAGED_ARENA_INITIAL_SIZE 512
+NecroPagedArena necro_create_paged_arena()
+{
+    NecroArenaPage* page = malloc(sizeof(NecroArenaPage) + NECRO_PAGED_ARENA_INITIAL_SIZE);
+    if (page == NULL)
+    {
+        fprintf(stderr, "Allocation error: could not allocate %zu of memory for NecroRegionAllocator", sizeof(NecroArenaPage) + NECRO_PAGED_ARENA_INITIAL_SIZE);
+        exit(1);
+    }
+    page->next = NULL;
+    return (NecroPagedArena)
+    {
+        .pages = page,
+        .data  = (char*)(page + 1),
+        .size  = NECRO_PAGED_ARENA_INITIAL_SIZE,
+        .count = 0,
+    };
+}
+
+void* necro_paged_arena_alloc(NecroPagedArena* arena, size_t size)
+{
+    assert(arena != NULL);
+    assert(arena->pages != NULL);
+    assert(arena->data != NULL);
+    assert(arena->count < arena->size);
+    if (arena->count + size >= arena->size)
+    {
+        arena->size *= 2;
+        TRACE_ARENA("allocating new page of size: %d\n", arena->size);
+        NecroArenaPage* page = malloc(sizeof(NecroArenaPage) + arena->size);
+        if (page == NULL)
+        {
+            fprintf(stderr, "Allocation error: could not allocate %zu of memory for NecroPagedArena", sizeof(NecroArenaPage) + arena->size);
+            exit(1);
+        }
+        page->next   = arena->pages;
+        arena->pages = page;
+        arena->data  = (char*)(page + 1);
+        arena->count = 0;
+    }
+    char* data = arena->data + arena->count;
+    assert(data != NULL);
+    arena->count += size;
+    assert(arena->count < arena->size);
+    return data;
+}
+
+void necro_destroy_paged_arena(NecroPagedArena* arena)
+{
+    if (arena == NULL || arena->pages == NULL)
+        return;
+    NecroArenaPage* current_page = arena->pages;
+    NecroArenaPage* next_page    = NULL;
+    while (current_page != NULL)
+    {
+        next_page = current_page->next;
+        free(current_page);
+        current_page = next_page;
+    }
+    arena->pages = NULL;
+    arena->data  = NULL;
+    arena->size  = 0;
+    arena->count = 0;
 }

@@ -17,6 +17,7 @@ set(project_SOURCES
     source/region.c
     source/renamer.c
     source/symtable.c
+    source/ast.c
     )
 set(project_HEADERS
     source/necro.h
@@ -32,6 +33,7 @@ set(project_HEADERS
     source/region.h
     source/renamer.h
     source/symtable.h
+    source/ast.h
     )
 
 ADD_EXECUTABLE(necro ${project_SOURCES})

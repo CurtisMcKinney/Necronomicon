@@ -8,25 +8,28 @@
 
 #include <stdlib.h>
 #include <stdbool.h>
+#include "utility.h"
 #include "parser.h"
+#include "symtable.h"
+#include "ast.h"
 
 typedef enum
 {
     NECRO_RENAME_SUCCESSFUL,
     NECRO_RENAME_ERROR
-} NECRO_RENAME_RESULT;
+} NECRO_RENAME_RESULT_TYPE;
 
 typedef struct
 {
-    NecroSymbol* symbols;
-} NecroSymbolTable;
+    union
+    {
+        NecroError       error;
+        NecroAST_Reified ast;
+    };
+    NECRO_RENAME_RESULT_TYPE type;
+} NecroRenameResult;
 
-typedef struct
-{
-    char*     error_message;
-    NecroAST* ast;
-} NecroRenamer;
-
-NECRO_RENAME_RESULT rename_ast(NecroRenamer* renamer, NecroAST_LocalPtr* out_root_node_ptr);
+NecroRenameResult necro_rename_ast(NecroAST_Reified* input_ast, NecroSymTable* symtable);
+void necro_test_rename(const char* input_string);
 
 #endif // RENAMER_H

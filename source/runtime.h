@@ -15,16 +15,14 @@
 #include "region.h"
 
 /*
-    TODO:
-    (DONE) Lex -> (50% - Chad) Parse -> Rename -> Typecheck -> Desugar -> Core -> ByteCode -> (50% Curtis) VM
-
-    Lexer:                     Text                       -> Lex Tokens
-    Parser:                    Lex Tokens                 -> AST (Name String)
-    Regnaming: Alpha renaming; AST (Name String)          -> AST (UniqueName String ID)
-    Type Checking:             AST (UniqueName String ID) -> AST (Type (UniqueName String ID))
-    Desugar:                   AST Type                   -> CoreAST
-    CodeGenerator:             CoreAST                    -> ByteCode
-    VM:                        ByteCode                   -> Execution
+    Lexer:            Text         -> Lex Tokens
+    Parser:           Lex Tokens   -> AST Symbol
+    Desugar:          AST Symbol   -> AST Symbol
+    Regnaming:        AST Symbol   -> AST ID
+    Type Checking:    AST ID       -> TypedAST ID
+    Core translation: TypedAST ID  -> CoreAST
+    CodeGenerator:    CoreAST      -> ByteCode
+    VM:               ByteCode     -> Execution
 */
 
 

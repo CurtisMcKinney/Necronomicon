@@ -1,7 +1,21 @@
-b = 4 + 5
+slime slimeCount = 4 + damage
+    where
+        damage amount = slimeCount * amount
+        amount        = 5
 
-a = y + z * b
+a = y + z * b / a
     where
         y = 3
         z = 4
         b = 5
+        a = 2
+c = do
+    z <- a 4
+    z + c
+
+caseTest = dontSuck
+    where
+        dontSuck = 0
+        dontSuck = case slime 4 of
+            a  -> 666 + a
+            ok -> ok / c

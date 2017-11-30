@@ -358,9 +358,7 @@ void necro_region_print(NecroRegionAllocator* allocator)
 
 void necro_region_test()
 {
-    puts("---------------------------");
-    puts("-- NECRO REGION");
-    puts("---------------------------\n");
+    necro_announce_phase("NecroRegion");
 
     printf("Test Region Allocator: ");
     NecroRegionAllocator region_allocator = necro_create_region_allocator();
@@ -418,7 +416,7 @@ void necro_region_test()
     else
         printf("FAILED\n");
 
-    necro_region_print(&region_allocator);
+    // necro_region_print(&region_allocator);
 
     necro_destroy_region_allocator(&region_allocator);
 

@@ -285,7 +285,23 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
         print_reified_ast_impl(ast_node->expression_list.expressions, intern, depth + 1);
         break;
 
+    case NECRO_AST_CASE:
+        puts("case");
+        print_reified_ast_impl(ast_node->case_expression.expression, intern, depth + 1);
+        printf("\r"); // clear current line
+        for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
+        puts("of");
+        print_reified_ast_impl(ast_node->case_expression.alternatives, intern, depth + 1);
+        break;
 
+    case NECRO_AST_CASE_ALTERNATIVE:
+        printf("\r"); // clear current line
+        print_reified_ast_impl(ast_node->case_alternative.pat, intern, depth + 0);
+        printf("\r"); // clear current line
+        for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
+        puts("->");
+        print_reified_ast_impl(ast_node->case_alternative.body, intern, depth + 1);
+        break;
 
     case NECRO_AST_LIST_NODE:
         printf("\r"); // clear current line
@@ -354,7 +370,8 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
     if (node == NULL)
         return NULL;
     NecroAST_Node_Reified* reified_node = necro_paged_arena_alloc(arena, sizeof(NecroAST_Node_Reified));
-    reified_node->type = node->type;
+    reified_node->type       = node->type;
+    reified_node->source_loc = node->source_loc;
     switch (node->type)
     {
     case NECRO_AST_UNDEFINED:
@@ -443,6 +460,14 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
         reified_node->arithmetic_sequence.to   = necro_reify(a_ast, node->arithmetic_sequence.to, arena);
         reified_node->arithmetic_sequence.type = node->arithmetic_sequence.type;
         break;
+    case NECRO_AST_CASE:
+        reified_node->case_expression.expression   = necro_reify(a_ast, node->case_expression.expression, arena);
+        reified_node->case_expression.alternatives = necro_reify(a_ast, node->case_expression.alternatives, arena);
+        break;
+    case NECRO_AST_CASE_ALTERNATIVE:
+        reified_node->case_alternative.body= necro_reify(a_ast, node->case_alternative.body, arena);
+        reified_node->case_alternative.pat = necro_reify(a_ast, node->case_alternative.pat, arena);
+        break;
     default:
         fprintf(stderr, "Unrecognized type during reification: %d", node->type);
         exit(1);
@@ -476,64 +501,4 @@ NecroAST_Reified necro_reify_ast(NecroAST* a_ast, NecroAST_LocalPtr a_root)
 void necro_destroy_reified_ast(NecroAST_Reified* ast)
 {
     necro_destroy_paged_arena(&ast->arena);
-}
-
-void necro_test_reify(const char* input_string)
-{
-    // printf("input_string:\n%s\n\n", input_string);
-    puts("");
-    puts("--------------------------------");
-    puts("-- Lexing");
-    puts("--------------------------------");
-
-    NecroLexer       lexer      = necro_create_lexer(input_string);
-    NECRO_LEX_RESULT lex_result = necro_lex(&lexer);
-    necro_print_lexer(&lexer);
-
-    NecroAST ast = { construct_arena(lexer.tokens.length * sizeof(NecroAST_Node)) };
-    if (lex_result != NECRO_LEX_RESULT_SUCCESSFUL || lexer.tokens.length <= 0)
-        return;
-
-    puts("");
-    puts("--------------------------------");
-    puts("-- Parsing");
-    puts("--------------------------------");
-
-    NecroParser parser;
-    construct_parser(&parser, &ast, lexer.tokens.data);
-    NecroAST_LocalPtr root_node_ptr = null_local_ptr;
-
-    NecroParse_Result parse_result = parse_ast(&parser, &root_node_ptr);
-    if (parse_result != ParseSuccessful)
-    {
-        if (parser.error_message && parser.error_message[0])
-        {
-            puts(parser.error_message);
-        }
-        else
-        {
-            puts("Parsing failed for unknown reason.");
-        }
-        return;
-    }
-
-    puts("");
-    puts("Parse succeeded");
-    print_ast(&ast, &lexer.intern, root_node_ptr);
-
-    puts("");
-    puts("--------------------------------");
-    puts("-- Reifying");
-    puts("--------------------------------");
-    NecroAST_Reified ast_r = necro_reify_ast(&ast, root_node_ptr);
-    necro_print_reified_ast(&ast_r, &lexer.intern);
-
-    puts("");
-    puts("--------------------------------");
-    puts("-- Cleaning Up");
-    puts("--------------------------------");
-
-    destruct_parser(&parser);
-    necro_destroy_lexer(&lexer);
-    destruct_arena(&ast.arena);
 }

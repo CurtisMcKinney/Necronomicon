@@ -6,29 +6,19 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include "intern.h"
+#include "parser.h"
 #include "renamer.h"
 
-typedef struct
+//=====================================================
+// Logic
+//=====================================================
+NecroAST_Node_Reified* rename_ast_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
 {
-    union
-    {
-        NecroError             error;
-        NecroAST_Node_Reified* node;
-    };
-    NECRO_RENAME_RESULT_TYPE type;
-} NecroRenameNodeResult;
-
-// TODO: Name already exists in scope error!!!!!!
-NecroRenameNodeResult rename_ast_go(NecroAST_Node_Reified* input_node, NecroPagedArena* arena, NecroScopedSymTable* scoped_symtable)
-{
-    // if (input_node == NULL)
-        // return (NecroRenameNodeResult) { .error = (NecroError) { .error_message = "Found NULL node during renaming phase.", .line = 0, .character = 0 }, .type = NECRO_RENAME_ERROR };
-    NecroRenameNodeResult result = { .node = NULL, .type = NECRO_RENAME_SUCCESSFUL};
-    if (input_node == NULL)
-        return result;
-    result.node = necro_paged_arena_alloc(arena, sizeof(NecroAST_Node_Reified));
-    *result.node = *input_node;
-    switch (result.node->type)
+    if (input_node == NULL || renamer->error.return_code != NECRO_SUCCESS)
+        return NULL;
+    NecroAST_Node_Reified* result = necro_paged_arena_alloc(&renamer->ast.arena, sizeof(NecroAST_Node_Reified));
+    *result = *input_node;
+    switch (result->type)
     {
 
     case NECRO_AST_UNDEFINED:
@@ -40,150 +30,115 @@ NecroRenameNodeResult rename_ast_go(NecroAST_Node_Reified* input_node, NecroPage
 
     case NECRO_AST_BIN_OP:
     {
-        NecroRenameNodeResult left_result = rename_ast_go(input_node->bin_op.lhs, arena, scoped_symtable);
-        if (left_result.type == NECRO_RENAME_ERROR)
-            return left_result;
-        NecroRenameNodeResult right_result = rename_ast_go(input_node->bin_op.rhs, arena, scoped_symtable);
-        if (right_result.type == NECRO_RENAME_ERROR)
-            return right_result;
-        result.node->bin_op.lhs = left_result.node;
-        result.node->bin_op.rhs = right_result.node;
+        result->bin_op.lhs = rename_ast_go(input_node->bin_op.lhs, renamer);
+        result->bin_op.rhs = rename_ast_go(input_node->bin_op.rhs, renamer);
         break;
     }
 
     case NECRO_AST_IF_THEN_ELSE:
     {
-        NecroRenameNodeResult if_result = rename_ast_go(input_node->if_then_else.if_expr, arena, scoped_symtable);
-        if (if_result.type == NECRO_RENAME_ERROR)
-            return if_result;
-        NecroRenameNodeResult then_result = rename_ast_go(input_node->if_then_else.then_expr, arena, scoped_symtable);
-        if (then_result.type == NECRO_RENAME_ERROR)
-            return then_result;
-        NecroRenameNodeResult else_result = rename_ast_go(input_node->if_then_else.else_expr, arena, scoped_symtable);
-        if (else_result.type == NECRO_RENAME_ERROR)
-            return else_result;
-        result.node->if_then_else.if_expr   = if_result.node;
-        result.node->if_then_else.then_expr = then_result.node;
-        result.node->if_then_else.else_expr = else_result.node;
+        result->if_then_else.if_expr   = rename_ast_go(input_node->if_then_else.if_expr, renamer);
+        result->if_then_else.then_expr = rename_ast_go(input_node->if_then_else.then_expr, renamer);
+        result->if_then_else.else_expr = rename_ast_go(input_node->if_then_else.else_expr, renamer);
         break;
     }
 
     case NECRO_AST_TOP_DECL:
     {
-        NecroRenameNodeResult declaration_result = rename_ast_go(input_node->top_declaration.declaration, arena, scoped_symtable);
-        if (declaration_result.type == NECRO_RENAME_ERROR)
-            return declaration_result;
-        NecroRenameNodeResult next_result = rename_ast_go(input_node->top_declaration.next_top_decl, arena, scoped_symtable);
-        if (next_result.type == NECRO_RENAME_ERROR)
-            return next_result;
-        result.node->top_declaration.declaration   = declaration_result.node;
-        result.node->top_declaration.next_top_decl = next_result.node;
+        result->top_declaration.declaration   = rename_ast_go(input_node->top_declaration.declaration, renamer);
+        result->top_declaration.next_top_decl = rename_ast_go(input_node->top_declaration.next_top_decl, renamer);
         break;
     }
 
     case NECRO_AST_DECL:
     {
-        NecroRenameNodeResult declaration_result = rename_ast_go(input_node->declaration.declaration_impl, arena, scoped_symtable);
-        if (declaration_result.type == NECRO_RENAME_ERROR)
-            return declaration_result;
-        NecroRenameNodeResult next_result = rename_ast_go(input_node->declaration.next_declaration, arena, scoped_symtable);
-        if (next_result.type == NECRO_RENAME_ERROR)
-            return next_result;
-        result.node->declaration.declaration_impl = declaration_result.node;
-        result.node->declaration.next_declaration = next_result.node;
+        result->declaration.declaration_impl = rename_ast_go(input_node->declaration.declaration_impl, renamer);
+        result->declaration.next_declaration = rename_ast_go(input_node->declaration.next_declaration, renamer);
         break;
     }
 
     case NECRO_AST_SIMPLE_ASSIGNMENT:
     {
-        result.node->simple_assignment.variable_name = input_node->simple_assignment.variable_name;
-        result.node->simple_assignment.id            = necro_scoped_symtable_new_symbol_info(scoped_symtable, necro_create_initial_symbol_info(result.node->simple_assignment.variable_name));
-        necro_scoped_symtable_new_scope(scoped_symtable);
-        NecroRenameNodeResult rhs_result = rename_ast_go(input_node->simple_assignment.rhs, arena, scoped_symtable);
-        if (rhs_result.type == NECRO_RENAME_ERROR)
-            return rhs_result;
-        result.node->simple_assignment.rhs = rhs_result.node;
-        necro_scoped_symtable_pop_scope(scoped_symtable);
+        if (necro_scoped_symtable_current_scope_find(&renamer->scoped_symtable, input_node->simple_assignment.variable_name).id != 0)
+        {
+            necro_error(&renamer->error, input_node->source_loc, "Conflicting definitions for \'%s\' in simple assignment", necro_intern_get_string(renamer->scoped_symtable.global_table->intern, input_node->simple_assignment.variable_name));
+            return result;
+        }
+        result->simple_assignment.variable_name = input_node->simple_assignment.variable_name;
+        result->simple_assignment.id            = necro_scoped_symtable_new_symbol_info(&renamer->scoped_symtable, necro_create_initial_symbol_info(result->simple_assignment.variable_name, result->source_loc));
+        necro_scoped_symtable_new_scope(&renamer->scoped_symtable);
+        result->simple_assignment.rhs = rename_ast_go(input_node->simple_assignment.rhs, renamer);
+        necro_scoped_symtable_pop_scope(&renamer->scoped_symtable);
         break;
     }
 
     case NECRO_AST_APATS_ASSIGNMENT:
     {
-        result.node->apats_assignment.variable_name = input_node->apats_assignment.variable_name;
-        result.node->apats_assignment.id            = necro_scoped_symtable_new_symbol_info(scoped_symtable, necro_create_initial_symbol_info(result.node->apats_assignment.variable_name));
-        necro_scoped_symtable_new_scope(scoped_symtable);
-        NecroRenameNodeResult apats_result = rename_ast_go(input_node->apats_assignment.apats, arena, scoped_symtable);
-        if (apats_result.type == NECRO_RENAME_ERROR)
-            return apats_result;
-        result.node->apats_assignment.apats = apats_result.node;
-        NecroRenameNodeResult rhs_result = rename_ast_go(input_node->apats_assignment.rhs, arena, scoped_symtable);
-        if (rhs_result.type == NECRO_RENAME_ERROR)
-            return rhs_result;
-        result.node->apats_assignment.rhs = rhs_result.node;
-        necro_scoped_symtable_pop_scope(scoped_symtable);
+        if (necro_scoped_symtable_current_scope_find(&renamer->scoped_symtable, input_node->apats_assignment.variable_name).id != 0)
+        {
+            necro_error(&renamer->error, input_node->source_loc, "Conflicting definitions for \'%s\' in apats assignment", necro_intern_get_string(renamer->scoped_symtable.global_table->intern, input_node->apats_assignment.variable_name));
+            return result;
+        }
+        result->apats_assignment.variable_name = input_node->apats_assignment.variable_name;
+        result->apats_assignment.id            = necro_scoped_symtable_new_symbol_info(&renamer->scoped_symtable, necro_create_initial_symbol_info(result->apats_assignment.variable_name, result->source_loc));
+        necro_scoped_symtable_new_scope(&renamer->scoped_symtable);
+        renamer->mode                          = NECRO_RENAME_PATTERN;
+        result->apats_assignment.apats         = rename_ast_go(input_node->apats_assignment.apats, renamer);
+        renamer->mode                          = NECRO_RENAME_NORMAL;
+        result->apats_assignment.rhs           = rename_ast_go(input_node->apats_assignment.rhs, renamer);
+        necro_scoped_symtable_pop_scope(&renamer->scoped_symtable);
         break;
     }
 
     case NECRO_AST_RIGHT_HAND_SIDE:
     {
-        NecroRenameNodeResult exp_result = rename_ast_go(input_node->right_hand_side.expression, arena, scoped_symtable);
-        if (exp_result.type == NECRO_RENAME_ERROR)
-            return exp_result;
-        result.node->right_hand_side.expression = exp_result.node;
-        NecroRenameNodeResult decl_result = rename_ast_go(input_node->right_hand_side.declarations, arena, scoped_symtable);
-        if (decl_result.type == NECRO_RENAME_ERROR)
-            return decl_result;
-        result.node->right_hand_side.declarations = decl_result.node;
+        result->right_hand_side.declarations = rename_ast_go(input_node->right_hand_side.declarations, renamer);
+        result->right_hand_side.expression   = rename_ast_go(input_node->right_hand_side.expression, renamer);
         break;
     }
 
     case NECRO_AST_LET_EXPRESSION:
     {
-        necro_scoped_symtable_new_scope(scoped_symtable);
-        NecroRenameNodeResult exp_result = rename_ast_go(input_node->let_expression.expression, arena, scoped_symtable);
-        if (exp_result.type == NECRO_RENAME_ERROR)
-            return exp_result;
-        result.node->let_expression.expression = exp_result.node;
-        NecroRenameNodeResult rhs_result = rename_ast_go(input_node->let_expression.declarations, arena, scoped_symtable);
-        if (rhs_result.type == NECRO_RENAME_ERROR)
-            return rhs_result;
-        result.node->let_expression.declarations = rhs_result.node;
-        necro_scoped_symtable_pop_scope(scoped_symtable);
+        necro_scoped_symtable_new_scope(&renamer->scoped_symtable);
+        result->let_expression.declarations = rename_ast_go(input_node->let_expression.declarations, renamer);
+        result->let_expression.expression   = rename_ast_go(input_node->let_expression.expression, renamer);
+        necro_scoped_symtable_pop_scope(&renamer->scoped_symtable);
         break;
     }
 
     case NECRO_AST_FUNCTION_EXPRESSION:
     {
-        NecroRenameNodeResult exp_result = rename_ast_go(input_node->fexpression.aexp, arena, scoped_symtable);
-        if (exp_result.type == NECRO_RENAME_ERROR)
-            return exp_result;
-        result.node->fexpression.aexp = exp_result.node;
-        NecroRenameNodeResult next_result = rename_ast_go(input_node->fexpression.next_fexpression, arena, scoped_symtable);
-        if (next_result.type == NECRO_RENAME_ERROR)
-            return next_result;
-        result.node->fexpression.next_fexpression = next_result.node;
+        result->fexpression.aexp             = rename_ast_go(input_node->fexpression.aexp, renamer);
+        result->fexpression.next_fexpression = rename_ast_go(input_node->fexpression.next_fexpression, renamer);
         break;
     }
 
     case NECRO_AST_VARIABLE:
     {
-        result.node->variable.variable_id   = input_node->variable.variable_id;
-        result.node->variable.variable_type = input_node->variable.variable_type;
-        if (result.node->variable.variable_type == NECRO_AST_VARIABLE_ID)
-            result.node->variable.id = necro_scoped_symtable_find(scoped_symtable, result.node->variable.variable_id);
+        result->variable.variable_id   = input_node->variable.variable_id;
+        result->variable.variable_type = input_node->variable.variable_type;
+        if (result->variable.variable_type == NECRO_AST_VARIABLE_ID)
+        {
+            if (renamer->mode == NECRO_RENAME_NORMAL)
+            {
+                result->variable.id = necro_scoped_symtable_find(&renamer->scoped_symtable, result->variable.variable_id);
+                if (result->variable.id.id == 0)
+                {
+                    necro_error(&renamer->error, result->source_loc, "Variable not in scope: %s", necro_intern_get_string(renamer->scoped_symtable.global_table->intern, result->variable.variable_id));
+                }
+            }
+            else if (renamer->mode == NECRO_RENAME_PATTERN)
+            {
+                result->variable.id = necro_scoped_symtable_new_symbol_info(&renamer->scoped_symtable, necro_create_initial_symbol_info(result->variable.variable_id, result->source_loc));
+            }
+        }
         break;
     }
 
     case NECRO_AST_APATS:
     {
-        NecroRenameNodeResult apat_result = rename_ast_go(input_node->apats.apat, arena, scoped_symtable);
-        if (apat_result.type == NECRO_RENAME_ERROR)
-            return apat_result;
-        result.node->apats.apat = apat_result.node;
-        NecroRenameNodeResult next_result = rename_ast_go(input_node->apats.next_apat, arena, scoped_symtable);
-        if (next_result.type == NECRO_RENAME_ERROR)
-            return next_result;
-        result.node->apats.next_apat = next_result.node;
+        result->apats.apat      = rename_ast_go(input_node->apats.apat, renamer);
+        result->apats.next_apat = rename_ast_go(input_node->apats.next_apat, renamer);
         break;
     }
 
@@ -192,193 +147,103 @@ NecroRenameNodeResult rename_ast_go(NecroAST_Node_Reified* input_node, NecroPage
 
     case NECRO_AST_LAMBDA:
     {
-        necro_scoped_symtable_new_scope(scoped_symtable);
-        NecroRenameNodeResult apats_result = rename_ast_go(input_node->lambda.apats, arena, scoped_symtable);
-        if (apats_result.type == NECRO_RENAME_ERROR)
-            return apats_result;
-        result.node->lambda.apats = apats_result.node;
-        NecroRenameNodeResult expr_result = rename_ast_go(input_node->lambda.expression, arena, scoped_symtable);
-        if (expr_result.type == NECRO_RENAME_ERROR)
-            return expr_result;
-        result.node->lambda.expression = expr_result.node;
-        necro_scoped_symtable_pop_scope(scoped_symtable);
+        necro_scoped_symtable_new_scope(&renamer->scoped_symtable);
+        result->lambda.apats      = rename_ast_go(input_node->lambda.apats, renamer);
+        result->lambda.expression = rename_ast_go(input_node->lambda.expression, renamer);
+        necro_scoped_symtable_pop_scope(&renamer->scoped_symtable);
         break;
     }
 
     case NECRO_AST_DO:
     {
-        necro_scoped_symtable_new_scope(scoped_symtable);
-        NecroRenameNodeResult do_result = rename_ast_go(input_node->do_statement.statement_list, arena, scoped_symtable);
-        if (do_result.type == NECRO_RENAME_ERROR)
-            return do_result;
-        result.node->do_statement.statement_list = do_result.node;
-        necro_scoped_symtable_pop_scope(scoped_symtable);
+        necro_scoped_symtable_new_scope(&renamer->scoped_symtable);
+        result->do_statement.statement_list = rename_ast_go(input_node->do_statement.statement_list, renamer);
+        necro_scoped_symtable_pop_scope(&renamer->scoped_symtable);
         break;
     }
 
     case NECRO_AST_LIST_NODE:
     {
-        NecroRenameNodeResult item_result = rename_ast_go(input_node->list.item, arena, scoped_symtable);
-        if (item_result.type == NECRO_RENAME_ERROR)
-            return item_result;
-        result.node->list.item = item_result.node;
-        NecroRenameNodeResult next_result = rename_ast_go(input_node->list.next_item, arena, scoped_symtable);
-        if (next_result.type == NECRO_RENAME_ERROR)
-            return next_result;
-        result.node->list.next_item = next_result.node;
+        result->list.item      = rename_ast_go(input_node->list.item, renamer);
+        result->list.next_item = rename_ast_go(input_node->list.next_item, renamer);
         break;
     }
 
     case NECRO_AST_EXPRESSION_LIST:
     {
-        NecroRenameNodeResult list_result = rename_ast_go(input_node->expression_list.expressions, arena, scoped_symtable);
-        if (list_result.type == NECRO_RENAME_ERROR)
-            return list_result;
-        result.node->expression_list.expressions = list_result.node;
+        result->expression_list.expressions = rename_ast_go(input_node->expression_list.expressions, renamer);
         break;
     }
 
     case NECRO_AST_TUPLE:
     {
-        NecroRenameNodeResult tuple_result = rename_ast_go(input_node->tuple.expressions, arena, scoped_symtable);
-        if (tuple_result.type == NECRO_RENAME_ERROR)
-            return tuple_result;
-        result.node->tuple.expressions = tuple_result.node;
+        result->tuple.expressions = rename_ast_go(input_node->tuple.expressions, renamer);
         break;
     }
 
     case NECRO_BIND_ASSIGNMENT:
     {
-        result.node->bind_assignment.variable_name = input_node->bind_assignment.variable_name;
-        result.node->bind_assignment.id            = necro_scoped_symtable_new_symbol_info(scoped_symtable, necro_create_initial_symbol_info(result.node->bind_assignment.variable_name));
-        NecroRenameNodeResult expr_result = rename_ast_go(input_node->bind_assignment.expression, arena, scoped_symtable);
-        if (expr_result.type == NECRO_RENAME_ERROR)
-            return expr_result;
-        result.node->bind_assignment.expression = expr_result.node;
+        if (necro_scoped_symtable_current_scope_find(&renamer->scoped_symtable, input_node->bind_assignment.variable_name).id != 0)
+        {
+            necro_error(&renamer->error, input_node->source_loc, "Conflicting definitions for \'%s\' in bind assignment", necro_intern_get_string(renamer->scoped_symtable.global_table->intern, input_node->bind_assignment.variable_name));
+            return result;
+        }
+        result->bind_assignment.variable_name = input_node->bind_assignment.variable_name;
+        result->bind_assignment.id            = necro_scoped_symtable_new_symbol_info(&renamer->scoped_symtable, necro_create_initial_symbol_info(result->bind_assignment.variable_name, result->source_loc));
+        result->bind_assignment.expression    = rename_ast_go(input_node->bind_assignment.expression, renamer);
         break;
     }
 
     case NECRO_AST_ARITHMETIC_SEQUENCE:
     {
-        NecroRenameNodeResult from_result = rename_ast_go(input_node->arithmetic_sequence.from, arena, scoped_symtable);
-        if (from_result.type == NECRO_RENAME_ERROR)
-            return from_result;
-        result.node->arithmetic_sequence.from = from_result.node;
-        NecroRenameNodeResult then_result = rename_ast_go(input_node->arithmetic_sequence.then, arena, scoped_symtable);
-        if (then_result.type == NECRO_RENAME_ERROR)
-            return then_result;
-        result.node->arithmetic_sequence.then = then_result.node;
-        NecroRenameNodeResult to_result = rename_ast_go(input_node->arithmetic_sequence.to, arena, scoped_symtable);
-        if (to_result.type == NECRO_RENAME_ERROR)
-            return to_result;
-        result.node->arithmetic_sequence.to   = to_result.node;
-        result.node->arithmetic_sequence.type = input_node->arithmetic_sequence.type;
+        result->arithmetic_sequence.from = rename_ast_go(input_node->arithmetic_sequence.from, renamer);
+        result->arithmetic_sequence.then = rename_ast_go(input_node->arithmetic_sequence.then, renamer);
+        result->arithmetic_sequence.to   = rename_ast_go(input_node->arithmetic_sequence.to, renamer);
+        result->arithmetic_sequence.type = input_node->arithmetic_sequence.type;
         break;
     }
 
+    case NECRO_AST_CASE:
+        result->case_expression.expression   = rename_ast_go(input_node->case_expression.expression, renamer);
+        result->case_expression.alternatives = rename_ast_go(input_node->case_expression.alternatives, renamer);
+        break;
+
+    case NECRO_AST_CASE_ALTERNATIVE:
+        necro_scoped_symtable_new_scope(&renamer->scoped_symtable);
+        renamer->mode                 = NECRO_RENAME_PATTERN;
+        result->case_alternative.pat  = rename_ast_go(input_node->case_alternative.pat, renamer);
+        renamer->mode                 = NECRO_RENAME_NORMAL;
+        result->case_alternative.body = rename_ast_go(input_node->case_alternative.body, renamer);
+        necro_scoped_symtable_pop_scope(&renamer->scoped_symtable);
+        break;
+
     default:
-        return (NecroRenameNodeResult) { .error = (NecroError) { .error_message = "Unrecognized type found during renaming.", .line = 0, .character = 0 }, .type = NECRO_RENAME_ERROR };
+        necro_error(&renamer->error, input_node->source_loc, "Unrecognized AST Node type found: %d", input_node->type);
+        break;
     }
     return result;
 }
 
-NecroRenameResult necro_rename_ast(NecroAST_Reified* input_ast, NecroSymTable* symtable)
+NecroRenamer necro_create_renamer(NecroSymTable* symtable)
 {
     NecroScopedSymTable   scoped_symtable = necro_create_scoped_symtable(symtable);
     NecroAST_Reified      ast             = necro_create_reified_ast();
-    NecroRenameNodeResult result          = rename_ast_go(input_ast->root, &ast.arena, &scoped_symtable);
-    necro_destroy_scoped_symtable(&scoped_symtable);
-    if (result.type == NECRO_RENAME_SUCCESSFUL)
+    return (NecroRenamer)
     {
-        ast.root = result.node;
-        return (NecroRenameResult) { .type = NECRO_RENAME_SUCCESSFUL, .ast = ast };
-    }
-    else
-    {
-        return (NecroRenameResult) { .type = NECRO_RENAME_ERROR, .error = result.error };
-    }
+        .ast             = ast,
+        .scoped_symtable = scoped_symtable,
+        .mode            = NECRO_RENAME_NORMAL,
+    };
 }
 
-void necro_test_rename(const char* input_string)
+void necro_destroy_renamer(NecroRenamer* renamer)
 {
-    // printf("input_string:\n%s\n\n", input_string);
-    puts("");
-    puts("--------------------------------");
-    puts("-- Lexing");
-    puts("--------------------------------");
+    necro_destroy_reified_ast(&renamer->ast);
+    necro_destroy_scoped_symtable(&renamer->scoped_symtable);
+}
 
-    NecroLexer       lexer      = necro_create_lexer(input_string);
-    NECRO_LEX_RESULT lex_result = necro_lex(&lexer);
-    necro_print_lexer(&lexer);
-
-    NecroAST ast = { construct_arena(lexer.tokens.length * sizeof(NecroAST_Node)) };
-    if (lex_result != NECRO_LEX_RESULT_SUCCESSFUL || lexer.tokens.length <= 0)
-        return;
-
-    puts("");
-    puts("--------------------------------");
-    puts("-- Parsing");
-    puts("--------------------------------");
-
-    NecroParser parser;
-    construct_parser(&parser, &ast, lexer.tokens.data);
-    NecroAST_LocalPtr root_node_ptr = null_local_ptr;
-
-    NecroParse_Result parse_result = parse_ast(&parser, &root_node_ptr);
-    if (parse_result != ParseSuccessful)
-    {
-        if (parser.error_message && parser.error_message[0])
-        {
-            puts(parser.error_message);
-        }
-        else
-        {
-            puts("Parsing failed for unknown reason.");
-        }
-        return;
-    }
-
-    puts("");
-    puts("Parse succeeded");
-    print_ast(&ast, &lexer.intern, root_node_ptr);
-
-    puts("");
-    puts("--------------------------------");
-    puts("-- Reifying");
-    puts("--------------------------------");
-    NecroAST_Reified ast_r = necro_reify_ast(&ast, root_node_ptr);
-    // necro_print_reified_ast(&ast_r, &lexer.intern);
-
-    puts("");
-    puts("--------------------------------");
-    puts("-- Rename");
-    puts("--------------------------------");
-    NecroSymTable     symtable      = necro_create_symtable(&lexer.intern);
-    NecroRenameResult rename_result = necro_rename_ast(&ast_r, &symtable);
-    if (rename_result.type == NECRO_RENAME_ERROR)
-    {
-        if (rename_result.error.error_message && rename_result.error.error_message[0])
-        {
-            puts(rename_result.error.error_message);
-        }
-        else
-        {
-            puts("Parsing failed for unknown reason.");
-        }
-        return;
-    }
-    NecroAST_Reified renamed_ast = rename_result.ast;
-    necro_print_reified_ast(&renamed_ast, &lexer.intern);
-
-    puts("");
-    necro_symtable_print(&symtable);
-
-    puts("");
-    puts("--------------------------------");
-    puts("-- Cleaning Up");
-    puts("--------------------------------");
-
-    destruct_parser(&parser);
-    necro_destroy_lexer(&lexer);
-    destruct_arena(&ast.arena);
+NECRO_RETURN_CODE necro_rename_ast(NecroRenamer* renamer, NecroAST_Reified* input_ast)
+{
+    renamer->ast.root = rename_ast_go(input_ast->root, renamer);
+    return renamer->error.return_code;
 }

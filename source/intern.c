@@ -245,7 +245,7 @@ void necro_print_intern(NecroIntern* intern)
 //=====================================================
 void necro_test_intern_id(NecroIntern* intern, NecroSymbol symbol, const char* compare_str)
 {
-    printf("----\nstring: %s, hash: %d, symbol: %d\n", compare_str, symbol.hash, symbol.id);
+    // printf("----\nstring: %s, hash: %d, symbol: %d\n", compare_str, symbol.hash, symbol.id);
 
     // ID Test
     if (symbol.id != NECRO_INTERN_NULL_ID)
@@ -274,9 +274,7 @@ void necro_test_intern_id(NecroIntern* intern, NecroSymbol symbol, const char* c
 
 void necro_test_intern()
 {
-    puts("--------------------------------");
-    puts("-- Testing NecroIntern");
-    puts("--------------------------------\n");
+    necro_announce_phase("NecroIntern");
 
     NecroIntern intern = necro_create_intern();
 
@@ -308,7 +306,7 @@ void necro_test_intern()
         puts("NecroIntern destroy test:    failed");
 
     // Grow test
-    puts("---\nGrow test");
+    // puts("---\nGrow test");
     intern = necro_create_intern();
     NecroSymbol symbols[NECRO_INITIAL_INTERN_SIZE];
     for (size_t i = 0; i < NECRO_INITIAL_INTERN_SIZE; ++i)

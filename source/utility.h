@@ -13,12 +13,35 @@
 //=====================================================
 // A collection of general purpose structs and functions
 //=====================================================
+
+//=====================================================
+// Error Messaging
+//=====================================================
+#define NECRO_MAX_ERROR_MESSAGE_LENGTH 512
+
+typedef enum
+{
+    NECRO_SUCCESS,
+    NECRO_ERROR,
+    NECRO_WARNING
+} NECRO_RETURN_CODE;
+
 typedef struct
 {
-    char*  error_message;
     size_t line;
     size_t character;
+    size_t pos;
+} NecroSourceLoc;
+
+typedef struct
+{
+    char              error_message[NECRO_MAX_ERROR_MESSAGE_LENGTH];
+    NecroSourceLoc    source_loc;
+    NECRO_RETURN_CODE return_code;
 } NecroError;
+
+void necro_error(NecroError* error, NecroSourceLoc source_loc, char* error_message, ...);
+void necro_print_error(NecroError* error, const char* input_string, const char* error_type);
 
 //=====================================================
 // NecroVector:
@@ -116,5 +139,13 @@ inline uint32_t next_highest_pow_of_2(uint32_t x)
 }
 
 void print_white_space(size_t white_count);
+
+static void necro_announce_phase(const char* phase_name)
+{
+    puts("");
+    puts("--------------------------------");
+    printf("-- %s\n", phase_name);
+    puts("--------------------------------");
+}
 
 #endif // UTILITY_H

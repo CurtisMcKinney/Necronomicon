@@ -117,13 +117,14 @@ typedef struct
         bool             boolean_literal;
         char             char_literal;
     };
-    size_t               character_number;
-    size_t               line_number;
+    // size_t               character_number;
+    // size_t               line_number;
+    NecroSourceLoc       source_loc;
     NECRO_LEX_TOKEN_TYPE token;
 } NecroLexToken;
 NECRO_DECLARE_VECTOR(NecroLexToken, NecroLexToken, lex_token)
 
-#define NECRO_MAX_INDENTATIONS 64
+#define NECRO_MAX_INDENTATIONS 128
 
 typedef struct
 {
@@ -135,6 +136,7 @@ typedef struct
     const char*          str;
     NecroLexTokenVector  tokens;
     NecroIntern          intern;
+    NecroError           error;
 } NecroLexer;
 
 typedef enum
@@ -151,11 +153,11 @@ typedef enum
 } NECRO_LEX_NUM_STATE;
 
 // API
-NecroLexer       necro_create_lexer(const char* str);
-void             necro_destroy_lexer(NecroLexer* lexer);
-void             necro_print_lexer(NecroLexer* lexer);
-NECRO_LEX_RESULT necro_lex(NecroLexer* lexer);
-const char*      necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
-void             necro_test_lexer();
+NecroLexer        necro_create_lexer(const char* str);
+void              necro_destroy_lexer(NecroLexer* lexer);
+void              necro_print_lexer(NecroLexer* lexer);
+NECRO_RETURN_CODE necro_lex(NecroLexer* lexer);
+const char*       necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
+void              necro_test_lexer();
 
 #endif // LEXER_H

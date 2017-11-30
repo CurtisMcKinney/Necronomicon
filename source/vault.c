@@ -2005,9 +2005,10 @@ bool necro_archive_test_int(NecroArchive* archive, const int32_t time, const int
 
 void necro_archive_test()
 {
+    necro_announce_phase("NecroArchive");
     NecroRegionAllocator region_allocator = necro_create_region_allocator();
     NecroArchive         archive          = necro_create_archive(&region_allocator, 8);
-    necro_archive_print(&archive);
+    // necro_archive_print(&archive);
 
     int32_t  curr_epoch = 0;
 
@@ -2192,7 +2193,8 @@ void necro_archive_test()
     // necro_region_print(&region_allocator);
     // puts("");
 
-    necro_archive_bench();
+    // TODO: Benchmarking in driver
+    // necro_archive_bench();
 }
 
 void necro_archive_bench()

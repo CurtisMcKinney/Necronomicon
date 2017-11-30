@@ -38,15 +38,33 @@ typedef enum
     NECRO_AST_EXPRESSION_LIST,
     NECRO_AST_TUPLE,
     NECRO_BIND_ASSIGNMENT,
-    NECRO_AST_ARITHMETIC_SEQUENCE
+    NECRO_AST_ARITHMETIC_SEQUENCE,
+    NECRO_AST_CASE,
+    NECRO_AST_CASE_ALTERNATIVE,
     // NECRO_AST_MODULE,
 } NecroAST_NodeType;
 
 //=====================================================
+// AST Case
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr expression;
+    NecroAST_LocalPtr alternatives;
+} NecroAST_Case;
+
+//=====================================================
+// AST CaseAlternative
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr pat;
+    NecroAST_LocalPtr body;
+} NecroAST_CaseAlternative;
+
+//=====================================================
 // AST Module
 //=====================================================
-
-
 
 //=====================================================
 // AST Undefined
@@ -166,7 +184,7 @@ typedef struct
 } NecroAST_RightHandSide;
 
 //=====================================================
-// AST Let Expression 
+// AST Let Expression
 //=====================================================
 
 typedef struct
@@ -352,8 +370,8 @@ typedef enum
 typedef struct
 {
     NecroAST_LocalPtr from;
-    NecroAST_LocalPtr then; 
-    NecroAST_LocalPtr to; 
+    NecroAST_LocalPtr then;
+    NecroAST_LocalPtr to;
     NecroAST_ArithmeticSeqType type;
 } NecroAST_ArithmeticSequence;
 
@@ -387,9 +405,12 @@ typedef struct
         NecroAST_Tuple tuple;
         NecroAST_BindAssignment bind_assignment;
         NecroAST_ArithmeticSequence arithmetic_sequence;
+        NecroAST_Case case_expression;
+        NecroAST_CaseAlternative case_alternative;
     };
 
     NecroAST_NodeType type;
+    NecroSourceLoc    source_loc;
 } NecroAST_Node;
 
 //=====================================================
@@ -485,6 +506,7 @@ typedef struct
     NecroLexToken* tokens;
     size_t current_token;
     NecroParse_DescentState descent_state;
+    NecroError error;
 } NecroParser;
 
 static const size_t MAX_ERROR_MESSAGE_SIZE = 512;
@@ -505,7 +527,7 @@ static inline void destruct_parser(NecroParser* parser)
     *parser = (NecroParser) { 0, NULL, NULL, 0, NECRO_DESCENT_PARSE_DONE };
 }
 
-NecroParse_Result parse_ast(NecroParser* parser, NecroAST_LocalPtr* out_root_node_ptr);
+NECRO_RETURN_CODE parse_ast(NecroParser* parser, NecroAST_LocalPtr* out_root_node_ptr);
 void compute_ast_math(NecroAST* ast, NecroAST_LocalPtr root_node_ptr);
 
 #endif // PARSER_H

@@ -17,88 +17,22 @@
 struct NecroAST_Node_Reified;
 
 //=====================================================
-// Types Enums
+// AST Case
 //=====================================================
-// typedef enum
-// {
-//     NECRO_AST_UNDEFINED,
-//     NECRO_AST_CONSTANT,
-//     NECRO_AST_UN_OP,
-//     NECRO_AST_BIN_OP,
-//     NECRO_AST_IF_THEN_ELSE,
-//     NECRO_AST_TOP_DECL,
-//     NECRO_AST_DECL,
-//     NECRO_AST_SIMPLE_ASSIGNMENT,
-//     NECRO_AST_APATS_ASSIGNMENT,
-//     NECRO_AST_RIGHT_HAND_SIDE,
-//     NECRO_AST_LET_EXPRESSION,
-//     NECRO_AST_FUNCTION_EXPRESSION,
-//     NECRO_AST_VARIABLE,
-//     NECRO_AST_APATS,
-//     NECRO_AST_WILDCARD,
-//     NECRO_AST_LAMBDA,
-//     NECRO_AST_DO,
-//     NECRO_AST_LIST_NODE,
-//     NECRO_AST_EXPRESSION_LIST,
-//     NECRO_AST_TUPLE,
-//     NECRO_BIND_ASSIGNMENT,
-//     NECRO_AST_ARITHMETIC_SEQUENCE
-//     // NECRO_AST_MODULE,
-// } NecroAST_NodeType;
+typedef struct
+{
+    struct NecroAST_Node_Reified* expression;
+    struct NecroAST_Node_Reified* alternatives;
+} NecroAST_Case_Reified;
 
-// typedef enum
-// {
-//     NECRO_AST_CONSTANT_FLOAT,
-//     NECRO_AST_CONSTANT_INTEGER,
-//     NECRO_AST_CONSTANT_STRING,
-//     NECRO_AST_CONSTANT_BOOL,
-//     NECRO_AST_CONSTANT_CHAR
-// } NecroAST_ConstantType;
-
-// typedef enum
-// {
-//     NECRO_BIN_OP_ADD = 0,
-//     NECRO_BIN_OP_SUB,
-//     NECRO_BIN_OP_MUL,
-//     NECRO_BIN_OP_DIV,
-//     NECRO_BIN_OP_MOD,
-//     NECRO_BIN_OP_GT,
-//     NECRO_BIN_OP_LT,
-//     NECRO_BIN_OP_GTE,
-//     NECRO_BIN_OP_LTE,
-//     NECRO_BIN_OP_COLON,
-// 	NECRO_BIN_OP_DOUBLE_COLON,
-// 	NECRO_BIN_OP_LEFT_SHIFT,
-// 	NECRO_BIN_OP_RIGHT_SHIFT,
-// 	NECRO_BIN_OP_PIPE,
-// 	NECRO_BIN_OP_FORWARD_PIPE,
-// 	NECRO_BIN_OP_BACK_PIPE,
-//     NECRO_BIN_OP_EQUALS,
-//     NECRO_BIN_OP_NOT_EQUALS,
-// 	NECRO_BIN_OP_AND,
-// 	NECRO_BIN_OP_OR,
-//     NECRO_BIN_OP_DOT,
-//     NECRO_BIN_OP_DOLLAR,
-//     NECRO_BIN_OP_BIND_RIGHT,
-//     NECRO_BIN_OP_BIND_LEFT,
-//     NECRO_BIN_OP_DOUBLE_EXCLAMATION,
-//     NECRO_BIN_OP_APPEND,
-//     NECRO_BIN_OP_COUNT,
-//     NECRO_BIN_OP_UNDEFINED = NECRO_BIN_OP_COUNT
-// } NecroAST_BinOpType;
-
-// typedef enum
-// {
-//     NECRO_AST_VARIABLE_ID,
-//     NECRO_AST_VARIABLE_SYMBOL
-// } NecroAST_VariableType;
-
-// typedef enum
-// {
-//     NECRO_ARITHMETIC_ENUM_FROM,
-//     NECRO_ARITHMETIC_ENUM_FROM_TO,
-//     NECRO_ARITHMETIC_ENUM_FROM_THEN_TO,
-// } NecroAST_ArithmeticSeqType;
+//=====================================================
+// AST CaseAlternative
+//=====================================================
+typedef struct
+{
+    struct NecroAST_Node_Reified* pat;
+    struct NecroAST_Node_Reified* body;
+} NecroAST_CaseAlternative_Reified;
 
 //=====================================================
 // AST Module
@@ -116,16 +50,15 @@ typedef struct
 //=====================================================
 // AST Constant
 //=====================================================
-
 typedef struct
 {
     union
     {
-        double double_literal;
-        int64_t int_literal;
+        double      double_literal;
+        int64_t     int_literal;
         NecroSymbol symbol;
-		bool boolean_literal;
-        char char_literal;
+		bool        boolean_literal;
+        char        char_literal;
     };
     NecroAST_ConstantType type;
 } NecroAST_Constant_Reified;
@@ -150,7 +83,6 @@ typedef struct
 //=====================================================
 // AST Binary Operation
 //=====================================================
-
 typedef struct
 {
     struct NecroAST_Node_Reified* lhs;
@@ -161,7 +93,6 @@ typedef struct
 //=====================================================
 // AST if then else
 //=====================================================
-
 typedef struct
 {
     struct NecroAST_Node_Reified* if_expr;
@@ -172,7 +103,6 @@ typedef struct
 //=====================================================
 // AST Right Hand Side
 //=====================================================
-
 typedef struct
 {
     struct NecroAST_Node_Reified* expression;
@@ -182,7 +112,6 @@ typedef struct
 //=====================================================
 // AST Let Expression
 //=====================================================
-
 typedef struct
 {
     struct NecroAST_Node_Reified* expression;
@@ -192,7 +121,6 @@ typedef struct
 //=====================================================
 // AST Simple Assignment
 //=====================================================
-
 typedef struct
 {
     NecroSymbol                   variable_name;
@@ -203,7 +131,6 @@ typedef struct
 //=====================================================
 // AST Bind Assignment
 //=====================================================
-
 typedef struct
 {
     NecroSymbol                   variable_name;
@@ -214,7 +141,6 @@ typedef struct
 //=====================================================
 // AST apats
 //=====================================================
-
 typedef struct
 {
     struct NecroAST_Node_Reified* apat;
@@ -224,7 +150,6 @@ typedef struct
 //=====================================================
 // AST Apats Assignment
 //=====================================================
-
 typedef struct
 {
     NecroSymbol                   variable_name;
@@ -236,7 +161,6 @@ typedef struct
 //=====================================================
 // AST Lambda
 //=====================================================
-
 typedef struct
 {
     struct NecroAST_Node_Reified* apats;
@@ -246,7 +170,6 @@ typedef struct
 //=====================================================
 // AST List Node
 //=====================================================
-
 typedef struct
 {
     struct NecroAST_Node_Reified* item;
@@ -256,7 +179,6 @@ typedef struct
 //=====================================================
 // AST Expression List
 //=====================================================
-
 typedef struct
 {
     struct NecroAST_Node_Reified* expressions; // NecroAST_ListNode of expressions
@@ -265,7 +187,6 @@ typedef struct
 //=====================================================
 // AST Tuple
 //=====================================================
-
 typedef struct
 {
     struct NecroAST_Node_Reified* expressions; // NecroAST_ListNode of expressions
@@ -274,7 +195,6 @@ typedef struct
 //=====================================================
 // AST Do
 //=====================================================
-
 typedef struct
 {
     struct NecroAST_Node_Reified* statement_list; // NecroAST_ListNode of do statement items
@@ -283,7 +203,6 @@ typedef struct
 //=====================================================
 // AST Variable
 //=====================================================
-
 typedef struct
 {
     union
@@ -298,7 +217,6 @@ typedef struct
 //=====================================================
 // AST Function Expression
 //=====================================================
-
 typedef struct
 {
     struct NecroAST_Node_Reified* aexp;
@@ -308,7 +226,6 @@ typedef struct
 //=====================================================
 // AST Declarations
 //=====================================================
-
 typedef struct
 {
     struct NecroAST_Node_Reified* declaration_impl;
@@ -318,7 +235,6 @@ typedef struct
 //=====================================================
 // AST Top Declarations
 //=====================================================
-
 typedef struct
 {
     struct NecroAST_Node_Reified* declaration;
@@ -329,7 +245,6 @@ typedef struct
 //=====================================================
 // AST Module
 //=====================================================
-
 // To Do: Define these!
 // typedef struct
 // {
@@ -351,7 +266,6 @@ typedef struct
 //=====================================================
 // AST Arithmetic Sequence
 //=====================================================
-
 typedef struct
 {
     struct NecroAST_Node_Reified* from;
@@ -363,7 +277,6 @@ typedef struct
 //=====================================================
 // AST Node
 //=====================================================
-
 typedef struct NecroAST_Node_Reified
 {
     union
@@ -389,8 +302,11 @@ typedef struct NecroAST_Node_Reified
         NecroAST_Tuple_Reified              tuple;
         NecroAST_BindAssignment_Reified     bind_assignment;
         NecroAST_ArithmeticSequence_Reified arithmetic_sequence;
+        NecroAST_Case_Reified               case_expression;
+        NecroAST_CaseAlternative_Reified    case_alternative;
     };
     NecroAST_NodeType type;
+    NecroSourceLoc    source_loc;
 } NecroAST_Node_Reified;
 
 typedef struct
@@ -402,7 +318,6 @@ typedef struct
 NecroAST_Reified necro_create_reified_ast();
 NecroAST_Reified necro_reify_ast(NecroAST* a_ast, NecroAST_LocalPtr a_root);
 void             necro_destroy_reified_ast(NecroAST_Reified* ast);
-void             necro_test_reify(const char* input_string);
 void             necro_print_reified_ast(NecroAST_Reified* ast, NecroIntern* intern);
 
 #endif // AST_H

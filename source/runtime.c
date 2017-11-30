@@ -1542,8 +1542,7 @@ void necro_test_dvm_eval(int64_t* instr, int64_t result, const char* print_strin
 
 void necro_test_dvm()
 {
-    puts("\n------");
-    puts("Test DVM\n");
+    necro_announce_phase("DVM");
 
     // Integer tests
     {
@@ -2082,5 +2081,5 @@ void necro_test_dvm()
         };
         necro_test_dvm_eval(instr, 16, "Demand2:");
     }
-
+    puts("");
 }

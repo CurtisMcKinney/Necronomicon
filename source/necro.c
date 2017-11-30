@@ -4,118 +4,59 @@
  */
 
 #include <stdio.h>
+#include <inttypes.h>
+#include <string.h>
+#include "driver.h"
 #include "necro.h"
-#include "lexer.h"
-#include "parser.h"
-#include "intern.h"
-#include "runtime.h"
-#include "vault.h"
-#include "symtable.h"
-#include "ast.h"
-#include "renamer.h"
-
-void necro_test_lex(char* input_string)
-{
-    // printf("input_string:\n%s\n\n", input_string);
-    puts("--------------------------------");
-    puts("-- Lexing");
-    puts("--------------------------------");
-
-    NecroLexer       lexer      = necro_create_lexer(input_string);
-    NECRO_LEX_RESULT lex_result = necro_lex(&lexer);
-    necro_print_lexer(&lexer);
-
-    puts("--------------------------------");
-    puts("-- Parsing");
-    puts("--------------------------------");
-
-    NecroAST ast = { construct_arena(lexer.tokens.length * sizeof(NecroAST_Node)) };
-    if (lex_result == NECRO_LEX_RESULT_SUCCESSFUL && lexer.tokens.length > 0)
-    {
-        NecroParser parser;
-        construct_parser(&parser, &ast, lexer.tokens.data);
-        NecroAST_LocalPtr root_node_ptr = null_local_ptr;
-        if (parse_ast(&parser, &root_node_ptr) == ParseSuccessful)
-        {
-            puts("Parse succeeded");
-            print_ast(&ast, &lexer.intern, root_node_ptr);
-#if 0
-            compute_ast_math(&ast, root_node_ptr);
-#endif
-        }
-        else
-        {
-            if (parser.error_message && parser.error_message[0])
-            {
-                puts(parser.error_message);
-            }
-            else
-            {
-                puts("Parsing failed for unknown reason.");
-            }
-            puts("");
-        }
-
-        destruct_parser(&parser);
-    }
-    else
-    {
-        puts("Lexing failed");
-    }
-
-    // Cleanup
-    puts("--------------------------------");
-    puts("-- Cleaning Up");
-    puts("--------------------------------");
-
-    necro_destroy_lexer(&lexer);
-    destruct_arena(&ast.arena);
-}
 
 //=====================================================
 // Main
 //=====================================================
 int main(int32_t argc, char** argv)
 {
-    if (argc > 1 && strcmp(argv[1], "-test_vm") == 0)
+    if (argc == 2 && strcmp(argv[1], "-test_all") == 0)
     {
-        necro_test_vm();
+        necro_test(NECRO_TEST_ALL);
     }
-    else if (argc > 1 && strcmp(argv[1], "-test_dvm") == 0)
+    else if (argc == 2 && strcmp(argv[1], "-test_vm") == 0)
     {
-        necro_test_dvm();
+        necro_test(NECRO_TEST_VM);
     }
-    else if (argc > 1 && strcmp(argv[1], "-test_symtable") == 0)
+    else if (argc == 2 && strcmp(argv[1], "-test_dvm") == 0)
     {
-        necro_symtable_test();
+        necro_test(NECRO_TEST_DVM);
     }
-    else if (argc > 1 && strcmp(argv[1], "-test_slab") == 0)
+    else if (argc == 2 && strcmp(argv[1], "-test_symtable") == 0)
     {
-        necro_test_slab();
+        necro_test(NECRO_TEST_DVM);
     }
-    else if (argc > 1 && strcmp(argv[1], "-test_treadmill") == 0)
+    else if (argc == 2 && strcmp(argv[1], "-test_slab") == 0)
     {
-        necro_test_treadmill();
+        necro_test(NECRO_TEST_SLAB);
     }
-    else if (argc > 1 && strcmp(argv[1], "-test_lexer") == 0)
+    else if (argc == 2 && strcmp(argv[1], "-test_treadmill") == 0)
     {
-        necro_test_lexer();
+        necro_test(NECRO_TEST_TREADMILL);
     }
-    else if (argc > 1 && strcmp(argv[1], "-test_intern") == 0)
+    else if (argc == 2 && strcmp(argv[1], "-test_lexer") == 0)
     {
-        necro_test_intern();
+        necro_test(NECRO_TEST_LEXER);
     }
-    else if (argc > 1 && strcmp(argv[1], "-test_vault") == 0)
+    else if (argc == 2 && strcmp(argv[1], "-test_intern") == 0)
     {
-        necro_vault_test();
+        necro_test(NECRO_TEST_INTERN);
     }
-    else if (argc > 1 && strcmp(argv[1], "-test_archive") == 0)
+    else if (argc == 2 && strcmp(argv[1], "-test_vault") == 0)
     {
-        necro_archive_test();
+        necro_test(NECRO_TEST_VAULT);
     }
-    else if (argc > 1 && strcmp(argv[1], "-test_region") == 0)
+    else if (argc == 2 && strcmp(argv[1], "-test_archive") == 0)
     {
-        necro_region_test();
+        necro_test(NECRO_TEST_ARCHIVE);
+    }
+    else if (argc == 2 && strcmp(argv[1], "-test_region") == 0)
+    {
+        necro_test(NECRO_TEST_REGION);
     }
     else if (argc == 2 || argc == 3)
     {
@@ -154,19 +95,27 @@ int main(int32_t argc, char** argv)
             //     printf("%d\n", (uint8_t)*c);
             // }
 
-            if (argc > 2 && strcmp(argv[2], "-test_reify") == 0)
+            if (argc > 2 && strcmp(argv[2], "-lex") == 0)
             {
-                necro_test_reify(str);
+                necro_compile(str, NECRO_PHASE_LEX);
             }
-            else if (argc > 2 && strcmp(argv[2], "-test_rename") == 0)
+            else if (argc > 2 && strcmp(argv[2], "-parse") == 0)
             {
-                necro_test_rename(str);
+                necro_compile(str, NECRO_PHASE_PARSE);
+            }
+            else if (argc > 2 && strcmp(argv[2], "-reify") == 0)
+            {
+                necro_compile(str, NECRO_PHASE_REIFY);
+            }
+            else if (argc > 2 && strcmp(argv[2], "-rename") == 0)
+            {
+                necro_compile(str, NECRO_PHASE_RENAME);
             }
             else
             {
-                // Test Lexing
-                necro_test_lex(str);
+                necro_compile(str, NECRO_PHASE_ALL);
             }
+
         }
         else
         {

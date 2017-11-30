@@ -35,13 +35,6 @@ typedef struct
 
 typedef struct
 {
-    size_t line;
-    size_t character;
-    size_t raw_index;
-} NecroSourceLoc;
-
-typedef struct
-{
     NecroSymbol    name;
     NecroID        id;
     size_t         data_size;
@@ -65,7 +58,7 @@ NecroID          necro_symtable_insert(NecroSymTable* table, NecroSymbolInfo inf
 NecroSymbolInfo* necro_symtable_get(NecroSymTable* table, NecroID id);
 void             necro_symtable_print(NecroSymTable* table);
 void             necro_symtable_test();
-NecroSymbolInfo  necro_create_initial_symbol_info(NecroSymbol symbol);
+NecroSymbolInfo  necro_create_initial_symbol_info(NecroSymbol symbol, NecroSourceLoc source_loc);
 
 //=====================================================
 // NecroScopedSymTable
@@ -96,6 +89,7 @@ void                necro_destroy_scoped_symtable(NecroScopedSymTable* table);
 void                necro_scoped_symtable_new_scope(NecroScopedSymTable* table);
 void                necro_scoped_symtable_pop_scope(NecroScopedSymTable* table);
 NecroID             necro_scoped_symtable_find(NecroScopedSymTable* table, NecroSymbol symbol);
+NecroID             necro_scoped_symtable_current_scope_find(NecroScopedSymTable* table, NecroSymbol symbol);
 NecroID             necro_scoped_symtable_new_symbol_info(NecroScopedSymTable* table, NecroSymbolInfo info);
 void                necro_scoped_symtable_print(NecroScopedSymTable* table);
 void                necro_scoped_symtable_test();

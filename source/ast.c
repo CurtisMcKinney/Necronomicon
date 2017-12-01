@@ -292,6 +292,12 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
         for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
         puts("of");
         print_reified_ast_impl(ast_node->case_expression.alternatives, intern, depth + 1);
+        if (ast_node->case_expression.declarations != NULL)
+        {
+            for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
+            puts(AST_TAB "where");
+            print_reified_ast_impl(ast_node->case_expression.declarations, intern, depth + 2);
+        }
         break;
 
     case NECRO_AST_CASE_ALTERNATIVE:
@@ -463,6 +469,7 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
     case NECRO_AST_CASE:
         reified_node->case_expression.expression   = necro_reify(a_ast, node->case_expression.expression, arena);
         reified_node->case_expression.alternatives = necro_reify(a_ast, node->case_expression.alternatives, arena);
+        reified_node->case_expression.declarations = necro_reify(a_ast, node->case_expression.declarations, arena);
         break;
     case NECRO_AST_CASE_ALTERNATIVE:
         reified_node->case_alternative.body= necro_reify(a_ast, node->case_alternative.body, arena);

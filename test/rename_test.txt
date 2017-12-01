@@ -13,9 +13,13 @@ c = do
     z <- a 4
     z + c
 
-caseTest = dontSuck
+caseTest = dontSuck * b
     where
-        dontSuck = 0
-        dontSuck = case slime 4 of
-            a  -> 666 + a
-            ok -> ok / c
+        b = 3
+        dontSuck = case slime (4 + ministry) of
+            a  -> 666 + a / skinnyPuppy
+            ok -> ok / c + ministry
+            where
+                skinnyPuppy = 555
+                ministry    = 333
+        c = 1000 + c

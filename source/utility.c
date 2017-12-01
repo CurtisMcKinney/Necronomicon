@@ -15,7 +15,15 @@ void print_white_space(size_t white_count)
         printf(" ");
 }
 
-void necro_error(NecroError* error, NecroSourceLoc source_loc, char* error_message, ...)
+
+void necro_verror(NecroError* error, NecroSourceLoc source_loc, const char* error_message, va_list args)
+{
+	error->return_code = NECRO_ERROR;
+    error->source_loc  = source_loc;
+    vsnprintf(error->error_message, NECRO_MAX_ERROR_MESSAGE_LENGTH, error_message, args);
+}
+
+void necro_error(NecroError* error, NecroSourceLoc source_loc, const char* error_message, ...)
 {
 	va_list args;
 	va_start(args, error_message);

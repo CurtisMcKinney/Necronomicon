@@ -3,6 +3,7 @@
  * Proprietary and confidential
  */
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <inttypes.h>
 #include "intern.h"
@@ -360,6 +361,12 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
         puts("of");
         print_ast_impl(ast, ast_get_node(ast, ast_node->case_expression.alternatives), intern, depth + 1);
+        if (ast_node->case_expression.declarations != null_local_ptr)
+        {
+            for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
+            puts(AST_TAB "where");
+            print_ast_impl(ast, ast_get_node(ast, ast_node->case_expression.declarations), intern, depth + 2);
+        }
         break;
 
     case NECRO_AST_CASE_ALTERNATIVE:
@@ -785,7 +792,7 @@ NecroAST_LocalPtr parse_right_hand_side(NecroParser* parser)
             NecroLexToken* where_token = peek_token(parser);
             consume_token(parser); // consume where token
             declarations_local_ptr = parse_declarations(parser);
-            if (declarations_local_ptr == null_local_ptr)
+            if (declarations_local_ptr == null_local_ptr && parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
             {
                 NecroLexToken* look_ahead_token = peek_token(parser);
                 // snprintf(
@@ -2261,13 +2268,12 @@ NecroAST_LocalPtr parse_tuple(NecroParser* parser)
 
 NecroAST_LocalPtr parse_case_alternative(NecroParser* parser)
 {
-    if (peek_token_type(parser) == NECRO_LEX_RIGHT_BRACE)
+    if (peek_token_type(parser) == NECRO_LEX_RIGHT_BRACE || peek_token_type(parser) == NECRO_LEX_WHERE)
     {
         return null_local_ptr;
     }
 
     NecroParser_Snapshot snapshot  = snapshot_parser(parser);
-
 
     NecroAST_LocalPtr pat_local_ptr = parse_apat(parser);
     if (pat_local_ptr != null_local_ptr)
@@ -2310,68 +2316,167 @@ NecroAST_LocalPtr parse_case_alternative(NecroParser* parser)
     return null_local_ptr;
 }
 
-NecroAST_LocalPtr parse_case(NecroParser* parser)
+// NecroAST_LocalPtr parse_case_2(NecroParser* parser)
+// {
+//     const NECRO_LEX_TOKEN_TYPE token_type = peek_token_type(parser);
+//     if (token_type != NECRO_LEX_CASE ||
+//         token_type == NECRO_LEX_END_OF_STREAM ||
+//         parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+//         return null_local_ptr;
+
+//     NecroParser_Snapshot snapshot = snapshot_parser(parser);
+//     consume_token(parser); // consume 'CASE' token
+
+//     NecroAST_LocalPtr case_expr_local_ptr = parse_expression(parser);
+//     if (case_expr_local_ptr != null_local_ptr)
+//     {
+//         NecroLexToken* look_ahead_token = peek_token(parser);
+//         if (look_ahead_token->token == NECRO_LEX_OF)
+//         {
+//             consume_token(parser); // consume 'OF' token
+//             look_ahead_token = peek_token(parser);
+//             if (look_ahead_token->token == NECRO_LEX_LEFT_BRACE)
+//             {
+//                 consume_token(parser); // consume '{' token
+//                 // Parse alternatives
+//                 NecroAST_LocalPtr alternative_list_local_ptr = parse_list(parser, NECRO_LEX_SEMI_COLON, parse_case_alternative);
+//                 if (case_expr_local_ptr != null_local_ptr)
+//                 {
+//                     look_ahead_token = peek_token(parser);
+//                     // Parse optional WHERE
+//                     NecroAST_LocalPtr declarations_local_ptr = null_local_ptr;
+//                     if (look_ahead_token->token == NECRO_LEX_WHERE)
+//                     {
+//                         consume_token(parser); // consume 'WHERE' token
+//                         declarations_local_ptr = parse_declarations(parser);
+//                         look_ahead_token = peek_token(parser);
+//                         if (look_ahead_token->token != NECRO_LEX_SEMI_COLON && parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+//                         {
+//                             necro_error(&parser->error, look_ahead_token->source_loc, "where expression failed to parse. Expected \';\', found %s", necro_lex_token_type_string(look_ahead_token->token));
+//                             parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+//                             restore_parser(parser, snapshot);
+//                             return null_local_ptr;
+//                         }
+//                         consume_token(parser); // consume ';' token
+//                     }
+//                     look_ahead_token = peek_token(parser);
+//                     if (look_ahead_token->token == NECRO_LEX_RIGHT_BRACE)
+//                     {
+//                         consume_token(parser); // consume '}' token
+
+//                         NecroAST_LocalPtr case_local_ptr        = null_local_ptr;
+//                         NecroAST_Node*    case_node             = ast_alloc_node_local_ptr(parser, &case_local_ptr);
+//                         case_node->type                         = NECRO_AST_CASE;
+//                         case_node->case_expression.expression   = case_expr_local_ptr;
+//                         case_node->case_expression.alternatives = alternative_list_local_ptr;
+//                         case_node->case_expression.declarations = declarations_local_ptr;
+//                         return case_local_ptr;
+//                     }
+//                     else if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+//                     {
+//                         necro_error(&parser->error, look_ahead_token->source_loc, "Case expression failed to parse. Expected \'}\' but found %s", necro_lex_token_type_string(look_ahead_token->token));
+//                         parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+//                     }
+//                 }
+//                 else if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+//                 {
+//                     necro_error(&parser->error, look_ahead_token->source_loc, "Case expression failed to parse.");
+//                     parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+//                 }
+//             }
+//             else if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+//             {
+//                 necro_error(&parser->error, look_ahead_token->source_loc, "Case expression failed to parse. Expected \'{\' but found %s", necro_lex_token_type_string(look_ahead_token->token));
+//                 parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+//             }
+//         }
+//         else if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+//         {
+//             necro_error(&parser->error, look_ahead_token->source_loc, "Case expression failed to parse. Expected \'of\' but found %s", necro_lex_token_type_string(look_ahead_token->token));
+//             parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+//         }
+//     }
+
+//     restore_parser(parser, snapshot);
+//     return null_local_ptr;
+// }
+
+NecroAST_LocalPtr write_error_and_restore(NecroParser* parser, NecroParser_Snapshot snapshot, const char* error_message, ...)
 {
-    const NECRO_LEX_TOKEN_TYPE token_type = peek_token_type(parser);
-    if (token_type != NECRO_LEX_CASE ||
-        token_type == NECRO_LEX_END_OF_STREAM ||
-        parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    restore_parser(parser, snapshot);
+    if (parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
         return null_local_ptr;
 
+    va_list args;
+	va_start(args, error_message);
+
+    necro_verror(&parser->error, peek_token(parser)->source_loc, error_message, args);
+    parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+
+    va_end(args);
+
+    return null_local_ptr;
+}
+
+NecroAST_LocalPtr parse_case(NecroParser* parser)
+{
+    // case
+    const NECRO_LEX_TOKEN_TYPE token_type = peek_token_type(parser);
+    if (token_type != NECRO_LEX_CASE || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return null_local_ptr;
     NecroParser_Snapshot snapshot = snapshot_parser(parser);
     consume_token(parser); // consume 'CASE' token
 
+    // expr
     NecroAST_LocalPtr case_expr_local_ptr = parse_expression(parser);
-    if (case_expr_local_ptr != null_local_ptr)
+    if (case_expr_local_ptr == null_local_ptr)
     {
-        NecroLexToken* look_ahead_token = peek_token(parser);
-        if (look_ahead_token->token == NECRO_LEX_OF)
-        {
-            consume_token(parser); // consume 'OF' token
-            look_ahead_token = peek_token(parser);
-            if (look_ahead_token->token == NECRO_LEX_LEFT_BRACE)
-            {
-                consume_token(parser); // consume '{' token
-                // Parse alternatives
-                NecroAST_LocalPtr alternative_list_local_ptr = parse_list(parser, NECRO_LEX_SEMI_COLON, parse_case_alternative);
-                if (case_expr_local_ptr != null_local_ptr)
-                {
-                    look_ahead_token = peek_token(parser);
-                    if (look_ahead_token->token == NECRO_LEX_RIGHT_BRACE)
-                    {
-                        consume_token(parser); // consume '}' token
-                        NecroAST_LocalPtr case_local_ptr        = null_local_ptr;
-                        NecroAST_Node*    case_node             = ast_alloc_node_local_ptr(parser, &case_local_ptr);
-                        case_node->type                         = NECRO_AST_CASE;
-                        case_node->case_expression.expression   = case_expr_local_ptr;
-                        case_node->case_expression.alternatives = alternative_list_local_ptr;
-                        return case_local_ptr;
-                    }
-                    else if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
-                    {
-                        necro_error(&parser->error, look_ahead_token->source_loc, "Case expression failed to parse. Expected \'}\' but found %s", necro_lex_token_type_string(look_ahead_token->token));
-                        parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
-                    }
-                }
-                else if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
-                {
-                    necro_error(&parser->error, look_ahead_token->source_loc, "Case expression failed to parse.");
-                    parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
-                }
-            }
-            else if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
-            {
-                necro_error(&parser->error, look_ahead_token->source_loc, "Case expression failed to parse. Expected \'{\' but found %s", necro_lex_token_type_string(look_ahead_token->token));
-                parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
-            }
-        }
-        else if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
-        {
-            necro_error(&parser->error, look_ahead_token->source_loc, "Case expression failed to parse. Expected \'of\' but found %s", necro_lex_token_type_string(look_ahead_token->token));
-            parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
-        }
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
     }
 
-    restore_parser(parser, snapshot);
-    return null_local_ptr;
+    // 'of'
+    NecroLexToken* look_ahead_token = peek_token(parser);
+    if (look_ahead_token->token != NECRO_LEX_OF)
+        return write_error_and_restore(parser, snapshot, "Case expression failed to parse. Expected \'of\' but found %s", necro_lex_token_type_string(look_ahead_token->token));
+    consume_token(parser); // consume 'OF' token
+
+    // '{'
+    look_ahead_token = peek_token(parser);
+    if (look_ahead_token->token != NECRO_LEX_LEFT_BRACE)
+        return write_error_and_restore(parser, snapshot, "Case expression failed to parse. Expected \'{\' but found %s", necro_lex_token_type_string(look_ahead_token->token));
+    consume_token(parser); // consume '{' token
+
+    // alternatives
+    NecroAST_LocalPtr alternative_list_local_ptr = parse_list(parser, NECRO_LEX_SEMI_COLON, parse_case_alternative);
+    if (case_expr_local_ptr == null_local_ptr)
+        return write_error_and_restore(parser, snapshot, "Case expression with no alternatives, instead found %s", necro_lex_token_type_string(look_ahead_token->token));
+
+    // optional 'where'
+    NecroAST_LocalPtr declarations_local_ptr = null_local_ptr;
+    look_ahead_token = peek_token(parser);
+    if (look_ahead_token->token == NECRO_LEX_WHERE)
+    {
+        consume_token(parser); // consume 'WHERE' token
+        declarations_local_ptr = parse_declarations(parser);
+        look_ahead_token = peek_token(parser);
+        if (look_ahead_token->token != NECRO_LEX_SEMI_COLON)
+            return write_error_and_restore(parser, snapshot, "where expression failed to parse. Expected \';\', but found %s", necro_lex_token_type_string(look_ahead_token->token));
+        consume_token(parser); // consume ';' token
+    }
+
+    // '}'
+    look_ahead_token = peek_token(parser);
+    if (look_ahead_token->token != NECRO_LEX_RIGHT_BRACE)
+        return write_error_and_restore(parser, snapshot, "Case expression failed to parse. Expected \'}\' but found %s", necro_lex_token_type_string(look_ahead_token->token));
+    consume_token(parser); // consume '}' token
+
+    // SUCCESS!
+    NecroAST_LocalPtr case_local_ptr        = null_local_ptr;
+    NecroAST_Node*    case_node             = ast_alloc_node_local_ptr(parser, &case_local_ptr);
+    case_node->type                         = NECRO_AST_CASE;
+    case_node->case_expression.expression   = case_expr_local_ptr;
+    case_node->case_expression.alternatives = alternative_list_local_ptr;
+    case_node->case_expression.declarations = declarations_local_ptr;
+    return case_local_ptr;
 }

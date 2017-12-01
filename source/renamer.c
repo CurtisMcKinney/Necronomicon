@@ -204,8 +204,15 @@ NecroAST_Node_Reified* rename_ast_go(NecroAST_Node_Reified* input_node, NecroRen
     }
 
     case NECRO_AST_CASE:
+        if (input_node->case_expression.declarations != NULL)
+        {
+            necro_scoped_symtable_new_scope(&renamer->scoped_symtable);
+            result->case_expression.declarations = rename_ast_go(input_node->case_expression.declarations, renamer);
+        }
         result->case_expression.expression   = rename_ast_go(input_node->case_expression.expression, renamer);
         result->case_expression.alternatives = rename_ast_go(input_node->case_expression.alternatives, renamer);
+        if (result->case_expression.declarations != NULL)
+            necro_scoped_symtable_pop_scope(&renamer->scoped_symtable);
         break;
 
     case NECRO_AST_CASE_ALTERNATIVE:

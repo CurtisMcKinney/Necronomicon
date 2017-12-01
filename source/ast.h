@@ -23,6 +23,7 @@ typedef struct
 {
     struct NecroAST_Node_Reified* expression;
     struct NecroAST_Node_Reified* alternatives;
+    struct NecroAST_Node_Reified* declarations;
 } NecroAST_Case_Reified;
 
 //=====================================================

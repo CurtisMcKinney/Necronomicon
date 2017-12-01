@@ -49,6 +49,7 @@ typedef enum
 //=====================================================
 typedef struct
 {
+    NecroAST_LocalPtr declarations;
     NecroAST_LocalPtr expression;
     NecroAST_LocalPtr alternatives;
 } NecroAST_Case;

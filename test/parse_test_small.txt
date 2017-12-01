@@ -44,3 +44,22 @@ x = do
 z = let y = 2
         x = 3
     in x + y
+
+c False yep (Hey die 0 (No please dont) that (-1)) = do
+    z <- a 4
+    z + c
+
+caseTest = dontSuck * b
+    where
+        b = 3
+        dontSuck = case slime (4 + ministry) of
+            Killa x + Yep y -> 4
+            True            -> b
+            Hey fuck off    -> 666 + a / skinnyPuppy
+            ok              -> ok / c + ministry
+            where
+                skinnyPuppy = 555
+                ministry    = 333
+        c = 1000 + c
+
+myCoolSynth (Left _ x == Right y _ 0) = False 0 3 hello

@@ -41,8 +41,107 @@ typedef enum
     NECRO_AST_ARITHMETIC_SEQUENCE,
     NECRO_AST_CASE,
     NECRO_AST_CASE_ALTERNATIVE,
+    NECRO_AST_CONID,
+    NECRO_AST_CON_PAT,
+    NECRO_AST_OP_PAT,
+    NECRO_AST_TYPE_CONID,
+    NECRO_AST_TYPE_VAR,
+    NECRO_AST_TYPE_APP,
+    NECRO_AST_TYPE_CONSTRUCTOR,
+    NECRO_AST_FUNCTION_TYPE,
+    NECRO_AST_SIMPLE_TYPE,
+    NECRO_AST_DATA_DECLARATION
     // NECRO_AST_MODULE,
 } NecroAST_NodeType;
+
+//=====================================================
+// AST DataDeclaration
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr simpletype;
+    NecroAST_LocalPtr constructor;
+} NecroAST_DataDeclaration;
+
+//=====================================================
+// AST TypeConstructor
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr type_con;
+    NecroAST_LocalPtr atype_list;            // Points to the next in the list, null_local_ptr if the end
+    NecroAST_LocalPtr next_type_constructor; // Points to the next in the list, null_local_ptr if the end
+} NecroAST_TypeConstructor;
+
+//=====================================================
+// AST SimpleType
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr type_con;
+    NecroAST_LocalPtr type_var_list; // Points to the next in the list, null_local_ptr if the end
+} NecroAST_SimpleType;
+
+//=====================================================
+// AST Type
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr ty;
+    NecroAST_LocalPtr next_after_arrow; // Points to the next in the list, null_local_ptr if the end
+} NecroAST_FunctionType;
+
+//=====================================================
+// AST Type App
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr ty;
+    NecroAST_LocalPtr next_ty; // Points to the next in the list, null_local_ptr if the end
+} NecroAST_TypeApp;
+
+//=====================================================
+// AST Type Var
+//=====================================================
+typedef struct
+{
+    NecroSymbol symbol;
+} NecroAST_TypeVar;
+
+//=====================================================
+// AST Type Con ID
+//=====================================================
+typedef struct
+{
+    NecroSymbol symbol;
+} NecroAST_TypeConID;
+
+//=====================================================
+// AST Op Pat
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr left;
+    NecroAST_LocalPtr op;
+    NecroAST_LocalPtr right;
+} NecroAST_OpPat;
+
+//=====================================================
+// AST ConPat
+//=====================================================
+typedef struct
+{
+    NecroSymbol       symbol;
+    NecroAST_LocalPtr apats;
+} NecroAST_ConPat;
+
+//=====================================================
+// AST ConID
+//=====================================================
+typedef struct
+{
+    NecroSymbol symbol;
+} NecroAST_ConID;
 
 //=====================================================
 // AST Case
@@ -408,6 +507,16 @@ typedef struct
         NecroAST_ArithmeticSequence arithmetic_sequence;
         NecroAST_Case case_expression;
         NecroAST_CaseAlternative case_alternative;
+        NecroAST_ConID conid;
+        NecroAST_ConPat conpat;
+        NecroAST_OpPat oppat;
+        NecroAST_TypeConID type_conid;
+        NecroAST_TypeVar type_var;
+        NecroAST_TypeApp type_app;
+        NecroAST_FunctionType function_type;
+        NecroAST_SimpleType simple_type;
+        NecroAST_TypeConstructor type_constructor;
+        NecroAST_DataDeclaration data_declaration;
     };
 
     NecroAST_NodeType type;
@@ -508,11 +617,12 @@ typedef struct
     size_t current_token;
     NecroParse_DescentState descent_state;
     NecroError error;
+    NecroIntern* intern;
 } NecroParser;
 
 static const size_t MAX_ERROR_MESSAGE_SIZE = 512;
 
-static inline void construct_parser(NecroParser* parser, NecroAST* ast, NecroLexToken* tokens)
+static inline void construct_parser(NecroParser* parser, NecroAST* ast, NecroLexToken* tokens, NecroIntern* intern)
 {
     parser->error_message = malloc(MAX_ERROR_MESSAGE_SIZE * sizeof(char));
     parser->error_message[0] = '\0';
@@ -520,6 +630,7 @@ static inline void construct_parser(NecroParser* parser, NecroAST* ast, NecroLex
     parser->ast = ast;
     parser->tokens = tokens;
     parser->descent_state = NECRO_DESCENT_PARSING;
+    parser->intern = intern;
 }
 
 static inline void destruct_parser(NecroParser* parser)
@@ -529,6 +640,6 @@ static inline void destruct_parser(NecroParser* parser)
 }
 
 NECRO_RETURN_CODE parse_ast(NecroParser* parser, NecroAST_LocalPtr* out_root_node_ptr);
-void compute_ast_math(NecroAST* ast, NecroAST_LocalPtr root_node_ptr);
+void              compute_ast_math(NecroAST* ast, NecroAST_LocalPtr root_node_ptr);
 
 #endif // PARSER_H

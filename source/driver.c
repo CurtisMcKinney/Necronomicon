@@ -41,7 +41,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     necro_announce_phase("Parsing");
     NecroAST    ast = { construct_arena(lexer.tokens.length * sizeof(NecroAST_Node)) };
     NecroParser parser;
-    construct_parser(&parser, &ast, lexer.tokens.data);
+    construct_parser(&parser, &ast, lexer.tokens.data, &lexer.intern);
     NecroAST_LocalPtr root_node_ptr = null_local_ptr;
     if (parse_ast(&parser, &root_node_ptr) != NECRO_SUCCESS)
     {

@@ -9,6 +9,9 @@
 #include "parser.h"
 #include "renamer.h"
 
+// TODO: Don't do error in checking, be more naive and kick the can to type checking?
+// Or 1 pass to insert names, 1 pass to lookup names?
+
 //=====================================================
 // Logic
 //=====================================================

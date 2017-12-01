@@ -135,3 +135,33 @@ letArithmetic = [1..3]
 letArithmetic = [1,5..11]
 letArithmetic = [1,(5+1)..11]
 letArithmetic = [[1,2,4] ,(5+1)..[11..13]]
+
+c False yep (Hey die 0 (No please dont) that (-1)) = do
+    z <- a 4
+    z + c
+
+caseTest = dontSuck * b
+    where
+        b = 3
+        dontSuck = case slime (4 + ministry) of
+            -4              -> 5
+            Killa x + Yep y -> 4
+            True            -> b
+            Hey fuck off    -> 666 + a / skinnyPuppy
+            ok              -> ok / c + ministry
+            where
+                skinnyPuppy = 555
+                ministry    = 333
+        c = 1000 + c
+
+myCoolSynth (Left _ (Middle + 2) == Right y _ 0) = False 0 3 hello
+
+myCoolOpCon ((++) x (z !! d)) = x ++ y
+
+myInfixCon1 (x `MyCoolFunc` y) = 10
+
+listPattern (Hello [_, 0, y]) = 3
+
+tuplePattern (0, Cool stuff, y) = 333
+
+data MyCoolType = MyCoolType

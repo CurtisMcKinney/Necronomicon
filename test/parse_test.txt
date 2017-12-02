@@ -164,4 +164,6 @@ listPattern (Hello [_, 0, y]) = 3
 
 tuplePattern (0, Cool stuff, y) = 333
 
-data MyCoolType = MyCoolType
+data MyCoolType a = MyCoolType a | False b c | Death
+
+end _ is = Near

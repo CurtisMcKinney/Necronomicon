@@ -465,15 +465,29 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         break;
 
     case NECRO_AST_TYPE_BIN_OP:
-        // puts("(type app)");
-        printf("\r"); // clear current line
-        print_ast_impl(ast, ast_get_node(ast, ast_node->type_binop.op), intern, depth + 1);
+        printf("(%s)\n", necro_intern_get_string(intern, ast_get_node(ast, ast_node->type_binop.op)->conid.symbol));
+        print_ast_impl(ast, ast_get_node(ast, ast_node->type_binop.left), intern, depth + 1);
+        print_ast_impl(ast, ast_get_node(ast, ast_node->type_binop.right), intern, depth + 1);
+        break;
 
-        printf("\r"); // clear current line
-        print_ast_impl(ast, ast_get_node(ast, ast_node->type_binop.left), intern, depth + 2);
+    case NECRO_AST_TYPE_SIGNATURE:
+        printf("\r");
+        print_ast_impl(ast, ast_get_node(ast, ast_node->type_signature.var), intern, depth + 0);
+        for (uint32_t i = 0;  i < depth + 1; ++i) printf(AST_TAB);
+        puts("::");
+        if (ast_node->type_signature.context != null_local_ptr)
+        {
+            print_ast_impl(ast, ast_get_node(ast, ast_node->type_signature.context), intern, depth + 1);
+            for (uint32_t i = 0;  i < depth + 2; ++i) printf(AST_TAB);
+            puts("=>");
+        }
+        print_ast_impl(ast, ast_get_node(ast, ast_node->type_signature.type), intern, depth + 1);
+        break;
 
-        printf("\r"); // clear current line
-        print_ast_impl(ast, ast_get_node(ast, ast_node->type_binop.right), intern, depth + 2);
+    case NECRO_AST_TYPE_CLASS:
+        printf("\r");
+        print_ast_impl(ast, ast_get_node(ast, ast_node->type_class.conid), intern, depth + 0);
+        print_ast_impl(ast, ast_get_node(ast, ast_node->type_class.varid), intern, depth + 0);
         break;
 
     default:
@@ -589,6 +603,7 @@ NecroAST_LocalPtr parse_list_pat(NecroParser* parser);
 NecroAST_LocalPtr parse_tuple_pattern(NecroParser* parser);
 NecroAST_LocalPtr parse_top_level_data_declaration(NecroParser* parser);
 NecroAST_LocalPtr parse_declaration(NecroParser* parser);
+NecroAST_LocalPtr parse_type_signature(NecroParser* parser);
 
 NecroParse_Result parse_ast(NecroParser* parser, NecroAST_LocalPtr* out_root_node_ptr)
 {
@@ -688,9 +703,13 @@ NecroAST_LocalPtr parse_declaration(NecroParser* parser)
         parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
         return null_local_ptr;
 
-    // NecroParser_Snapshot snapshot = snapshot_parser(parser);
-
     NecroAST_LocalPtr declaration_local_ptr = null_local_ptr;
+
+    if ((declaration_local_ptr == null_local_ptr) && (parser->descent_state != NECRO_DESCENT_PARSE_ERROR))
+    {
+        declaration_local_ptr = parse_type_signature(parser);
+    }
+
     if ((declaration_local_ptr == null_local_ptr) && (parser->descent_state != NECRO_DESCENT_PARSE_ERROR))
     {
         declaration_local_ptr = parse_simple_assignment(parser);
@@ -3215,6 +3234,19 @@ NecroAST_LocalPtr parse_tycon(NecroParser* parser)
     if (parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
         return null_local_ptr;
 
+    // ()
+    if (peek_token_type(parser) == NECRO_LEX_UNIT)
+    {
+        NecroSymbol symbol = peek_token(parser)->symbol;
+        consume_token(parser);
+        NecroAST_LocalPtr local;
+        NecroAST_Node* type_con_node = ast_alloc_node_local_ptr(parser, &local);
+        type_con_node->type          = NECRO_AST_CONID;
+        type_con_node->conid.symbol  = symbol;
+        return local;
+    }
+
+    // IDENTIFIER
     NecroParser_Snapshot snapshot           = snapshot_parser(parser);
     NecroAST_LocalPtr    type_con_local_ptr = null_local_ptr;
     NecroLexToken*       look_ahead_token   = peek_token(parser);
@@ -3354,5 +3386,131 @@ NecroAST_LocalPtr parse_tuple_type(NecroParser* parser)
     NecroAST_Node*    node            = ast_alloc_node_local_ptr(parser, &local_ptr);
     node->type                        = NECRO_AST_TUPLE;
     node->expression_list.expressions = list_local_ptr;
+    return local_ptr;
+}
+
+//=====================================================
+// Type Declarations
+//=====================================================
+NecroAST_LocalPtr parse_qtycls(NecroParser* parser)
+{
+    return parse_qtycon(parser);
+}
+
+NecroAST_LocalPtr parse_simple_class(NecroParser* parser)
+{
+    if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return null_local_ptr;
+
+    NecroParser_Snapshot snapshot = snapshot_parser(parser);
+
+    NecroAST_LocalPtr conid = parse_qtycls(parser);
+    if (conid == null_local_ptr || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    {
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
+    }
+
+    NecroAST_LocalPtr varid = parse_tyvar(parser);
+    if (conid == null_local_ptr || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    {
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
+    }
+
+    // SUCCESS!
+    NecroAST_LocalPtr local_ptr = null_local_ptr;
+    NecroAST_Node*    node      = ast_alloc_node_local_ptr(parser, &local_ptr);
+    node->type                  = NECRO_AST_TYPE_CLASS;
+    node->type_class.conid      = conid;
+    node->type_class.varid      = varid;
+    return local_ptr;
+}
+
+NecroAST_LocalPtr parse_context(NecroParser* parser)
+{
+    if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return null_local_ptr;
+    NecroParser_Snapshot snapshot = snapshot_parser(parser);
+    if (peek_token_type(parser) == NECRO_LEX_LEFT_PAREN)
+    {
+        consume_token(parser);
+        NecroAST_LocalPtr class_list = parse_list(parser, NECRO_LEX_COMMA, parse_simple_class);
+        if (class_list == null_local_ptr)
+        {
+            restore_parser(parser, snapshot);
+            return null_local_ptr;
+        }
+        if (peek_token_type(parser) != NECRO_LEX_RIGHT_PAREN)
+            return write_error_and_restore(parser, snapshot, "Expected ')' at end of context, but found %s", necro_lex_token_type_string(peek_token_type(parser)));
+        consume_token(parser);
+        return class_list;
+    }
+    else
+    {
+        return parse_simple_class(parser);
+    }
+}
+
+NecroAST_LocalPtr parse_type_signature(NecroParser* parser)
+{
+    if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return null_local_ptr;
+    NecroParser_Snapshot snapshot = snapshot_parser(parser);
+
+    // var
+    NecroAST_LocalPtr var = parse_variable(parser);
+    if (var == null_local_ptr || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    {
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
+    }
+
+    // ::
+    if (peek_token_type(parser) != NECRO_LEX_DOUBLE_COLON)
+    {
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
+    }
+    consume_token(parser);
+
+    // context
+    NecroParser_Snapshot context_snapshot = snapshot_parser(parser);
+    NecroAST_LocalPtr    context          = parse_context(parser);
+    if (parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    {
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
+    }
+
+    if (context != null_local_ptr)
+    {
+        // =>
+        if (peek_token_type(parser) != NECRO_LEX_FAT_RIGHT_ARROW)
+        {
+            restore_parser(parser, context_snapshot);
+            context = null_local_ptr;
+        }
+        else
+        {
+            consume_token(parser);
+        }
+    }
+
+    // type
+    NecroAST_LocalPtr type = parse_type(parser);
+    if (type == null_local_ptr || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    {
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
+    }
+
+    // SUCCESS!
+    NecroAST_LocalPtr local_ptr  = null_local_ptr;
+    NecroAST_Node*    node       = ast_alloc_node_local_ptr(parser, &local_ptr);
+    node->type                   = NECRO_AST_TYPE_SIGNATURE;
+    node->type_signature.var     = var;
+    node->type_signature.context = context;
+    node->type_signature.type    = type;
     return local_ptr;
 }

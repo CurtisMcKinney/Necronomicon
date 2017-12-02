@@ -164,8 +164,22 @@ listPattern (Hello [_, 0, y]) = 3
 
 tuplePattern (0, Cool stuff, y) = 333
 
-data MyCoolType a = MyCoolType a | Yeah b c | Death (IO Bool Float) Int
+data MyCoolType a = MyCoolType a | Yeah b c | Death (IO Bool Float) Int (Char -> Char)
 data X = X ((A (B C)), IO Death, Double) [Kill]
 
 data ArrowsKill = ArrowsKill (Float -> (Double -> Null))
 arrowsKill = f + d
+
+f :: Float -> Double -> IO Bool
+f f d = f + (d + io bool)
+
+x :: Bool -> Bool -> IO (Maybe Death -> Death)
+x a b = z
+    where
+        z :: Death
+        z = a + b
+
+data Unit = Unit ()
+
+myShow :: (Show a, Eq a) => a -> IO ()
+myShow x = print x

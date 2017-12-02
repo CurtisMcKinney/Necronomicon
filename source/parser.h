@@ -47,9 +47,30 @@ typedef enum
     NECRO_AST_TYPE_BIN_OP,
     NECRO_AST_CONSTRUCTOR,
     NECRO_AST_SIMPLE_TYPE,
-    NECRO_AST_DATA_DECLARATION
+    NECRO_AST_DATA_DECLARATION,
+    NECRO_AST_TYPE_CLASS,
+    NECRO_AST_TYPE_SIGNATURE
     // NECRO_AST_MODULE,
 } NecroAST_NodeType;
+
+//=====================================================
+// AST TypeSignature
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr var;
+    NecroAST_LocalPtr context;
+    NecroAST_LocalPtr type;
+} NecroAST_TypeSignature;
+
+//=====================================================
+// AST TypeClass
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr conid;
+    NecroAST_LocalPtr varid;
+} NecroAST_TypeClass;
 
 //=====================================================
 // AST DataDeclaration
@@ -486,6 +507,8 @@ typedef struct
         NecroAST_SimpleType simple_type;
         NecroAST_Constructor constructor;
         NecroAST_DataDeclaration data_declaration;
+        NecroAST_TypeClass type_class;
+        NecroAST_TypeSignature type_signature;
     };
 
     NecroAST_NodeType type;

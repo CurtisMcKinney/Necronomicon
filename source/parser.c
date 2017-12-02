@@ -464,6 +464,18 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
             print_ast_impl(ast, ast_get_node(ast, ast_node->type_app.next_ty), intern, depth + 1);
         break;
 
+    case NECRO_AST_TYPE_BIN_OP:
+        // puts("(type app)");
+        printf("\r"); // clear current line
+        print_ast_impl(ast, ast_get_node(ast, ast_node->type_binop.op), intern, depth + 1);
+
+        printf("\r"); // clear current line
+        print_ast_impl(ast, ast_get_node(ast, ast_node->type_binop.left), intern, depth + 2);
+
+        printf("\r"); // clear current line
+        print_ast_impl(ast, ast_get_node(ast, ast_node->type_binop.right), intern, depth + 2);
+        break;
+
     default:
         puts("(Undefined)");
         break;
@@ -3065,9 +3077,10 @@ NecroAST_LocalPtr parse_type(NecroParser* parser)
 
         NecroAST_LocalPtr ptr  = null_local_ptr;
         NecroAST_Node*    node = ast_alloc_node_local_ptr(parser, &ptr);
-        node->type             = NECRO_AST_TYPE_APP;
-        node->type_app.ty      = arrow_ptr;
-        node->type_app.next_ty = ty_ptr;
+        node->type             = NECRO_AST_TYPE_BIN_OP;
+        node->type_binop.left  = ty_ptr;
+        node->type_binop.op    = arrow_ptr;
+        node->type_binop.right = next_after_arrow_ptr;
         return ptr;
     }
     else

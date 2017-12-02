@@ -44,6 +44,7 @@ typedef enum
     NECRO_AST_CONID,
     NECRO_AST_OP_PAT,
     NECRO_AST_TYPE_APP,
+    NECRO_AST_TYPE_BIN_OP,
     NECRO_AST_CONSTRUCTOR,
     NECRO_AST_SIMPLE_TYPE,
     NECRO_AST_DATA_DECLARATION
@@ -76,6 +77,16 @@ typedef struct
     NecroAST_LocalPtr type_con;
     NecroAST_LocalPtr type_var_list; // Points to the next in the list, null_local_ptr if the end
 } NecroAST_SimpleType;
+
+//=====================================================
+// AST TypeBinOp
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr left;
+    NecroAST_LocalPtr op;
+    NecroAST_LocalPtr right;
+} NecroAST_TypeBinOp;
 
 //=====================================================
 // AST Type App
@@ -470,9 +481,8 @@ typedef struct
         NecroAST_CaseAlternative case_alternative;
         NecroAST_ConID conid;
         NecroAST_OpPat oppat;
-        // NecroAST_TypeConID type_conid;
-        // NecroAST_TypeVar type_var;
         NecroAST_TypeApp type_app;
+        NecroAST_TypeBinOp type_binop;
         NecroAST_SimpleType simple_type;
         NecroAST_Constructor constructor;
         NecroAST_DataDeclaration data_declaration;

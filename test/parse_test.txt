@@ -165,6 +165,7 @@ listPattern (Hello [_, 0, y]) = 3
 tuplePattern (0, Cool stuff, y) = 333
 
 data MyCoolType a = MyCoolType a | Yeah b c | Death (IO Bool Float) Int
-
 data X = X ((A (B C)), IO Death, Double) [Kill]
-x = a (b c)
+
+data ArrowsKill = ArrowsKill (Float -> (Double -> Null))
+arrowsKill = f + d

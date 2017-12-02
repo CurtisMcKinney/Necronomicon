@@ -181,13 +181,14 @@ void necro_print_lexer(NecroLexer* lexer)
     printf("}\n\n");
 }
 
-void necro_add_single_character_token(NecroLexer* lexer, NECRO_LEX_TOKEN_TYPE token)
+void necro_add_single_character_token(NecroLexer* lexer, NECRO_LEX_TOKEN_TYPE token, const char* string)
 {
     // NecroLexToken lex_token = { lexer->character_number, lexer->line_number, 0, token };
     NecroLexToken lex_token = (NecroLexToken)
     {
         .source_loc = { .line = lexer->line_number,.character = lexer->character_number,.pos = lexer->pos },
-        .token      = token
+        .token      = token,
+        .symbol     = necro_intern_string(&lexer->intern, string)
     };
     necro_push_lex_token_vector(&lexer->tokens, &lex_token);
     lexer->pos++;
@@ -200,36 +201,36 @@ bool necro_lex_single_character(NecroLexer* lexer)
         return false;
     switch (lexer->str[lexer->pos])
     {
-    case '+':  necro_add_single_character_token(lexer, NECRO_LEX_ADD);           break;
-    case '-':  necro_add_single_character_token(lexer, NECRO_LEX_SUB);           break;
-    case '*':  necro_add_single_character_token(lexer, NECRO_LEX_MUL);           break;
-    case '/':  necro_add_single_character_token(lexer, NECRO_LEX_DIV);           break;
-    case '%':  necro_add_single_character_token(lexer, NECRO_LEX_MOD);           break;
-    case '<':  necro_add_single_character_token(lexer, NECRO_LEX_LT);            break;
-    case '>':  necro_add_single_character_token(lexer, NECRO_LEX_GT);            break;
-    case ':':  necro_add_single_character_token(lexer, NECRO_LEX_COLON);         break;
-    case ';':  necro_add_single_character_token(lexer, NECRO_LEX_SEMI_COLON);    break;
-    case '[':  necro_add_single_character_token(lexer, NECRO_LEX_LEFT_BRACKET);  break;
-    case ']':  necro_add_single_character_token(lexer, NECRO_LEX_RIGHT_BRACKET); break;
-    case '(':  necro_add_single_character_token(lexer, NECRO_LEX_LEFT_PAREN);    break;
-    case ')':  necro_add_single_character_token(lexer, NECRO_LEX_RIGHT_PAREN);   break;
-    case '{':  necro_add_single_character_token(lexer, NECRO_LEX_LEFT_BRACE);    break;
-    case '}':  necro_add_single_character_token(lexer, NECRO_LEX_RIGHT_BRACE);   break;
-    case ',':  necro_add_single_character_token(lexer, NECRO_LEX_COMMA);         break;
-    case '_':  necro_add_single_character_token(lexer, NECRO_LEX_UNDER_SCORE);   break;
-    case '=':  necro_add_single_character_token(lexer, NECRO_LEX_ASSIGN);        break;
-    case '?':  necro_add_single_character_token(lexer, NECRO_LEX_QUESTION_MARK); break;
-    case '!':  necro_add_single_character_token(lexer, NECRO_LEX_EXCLAMATION);   break;
-    case '#':  necro_add_single_character_token(lexer, NECRO_LEX_HASH);          break;
-    case '|':  necro_add_single_character_token(lexer, NECRO_LEX_PIPE);          break;
-    case '.':  necro_add_single_character_token(lexer, NECRO_LEX_DOT);           break;
-    case '@':  necro_add_single_character_token(lexer, NECRO_LEX_AT);            break;
-    case '$':  necro_add_single_character_token(lexer, NECRO_LEX_DOLLAR);        break;
-    case '&':  necro_add_single_character_token(lexer, NECRO_LEX_AMPERSAND);     break;
-    case '^':  necro_add_single_character_token(lexer, NECRO_LEX_CARET);         break;
-    case '\\': necro_add_single_character_token(lexer, NECRO_LEX_BACK_SLASH);    break;
-    case '~':  necro_add_single_character_token(lexer, NECRO_LEX_TILDE);         break;
-    case '`':  necro_add_single_character_token(lexer, NECRO_LEX_ACCENT);        break;
+    case '+':  necro_add_single_character_token(lexer, NECRO_LEX_ADD, "+");           break;
+    case '-':  necro_add_single_character_token(lexer, NECRO_LEX_SUB, "-");           break;
+    case '*':  necro_add_single_character_token(lexer, NECRO_LEX_MUL, "*");           break;
+    case '/':  necro_add_single_character_token(lexer, NECRO_LEX_DIV, "/");           break;
+    case '%':  necro_add_single_character_token(lexer, NECRO_LEX_MOD, "%");           break;
+    case '<':  necro_add_single_character_token(lexer, NECRO_LEX_LT, "<");            break;
+    case '>':  necro_add_single_character_token(lexer, NECRO_LEX_GT, ">");            break;
+    case ':':  necro_add_single_character_token(lexer, NECRO_LEX_COLON, ":");         break;
+    case ';':  necro_add_single_character_token(lexer, NECRO_LEX_SEMI_COLON, ";");    break;
+    case '[':  necro_add_single_character_token(lexer, NECRO_LEX_LEFT_BRACKET, "[");  break;
+    case ']':  necro_add_single_character_token(lexer, NECRO_LEX_RIGHT_BRACKET, "]"); break;
+    case '(':  necro_add_single_character_token(lexer, NECRO_LEX_LEFT_PAREN, "(");    break;
+    case ')':  necro_add_single_character_token(lexer, NECRO_LEX_RIGHT_PAREN, ")");   break;
+    case '{':  necro_add_single_character_token(lexer, NECRO_LEX_LEFT_BRACE, "{");    break;
+    case '}':  necro_add_single_character_token(lexer, NECRO_LEX_RIGHT_BRACE, "}");   break;
+    case ',':  necro_add_single_character_token(lexer, NECRO_LEX_COMMA, ",");         break;
+    case '_':  necro_add_single_character_token(lexer, NECRO_LEX_UNDER_SCORE, "_");   break;
+    case '=':  necro_add_single_character_token(lexer, NECRO_LEX_ASSIGN, "=");        break;
+    case '?':  necro_add_single_character_token(lexer, NECRO_LEX_QUESTION_MARK, "?"); break;
+    case '!':  necro_add_single_character_token(lexer, NECRO_LEX_EXCLAMATION, "!");   break;
+    case '#':  necro_add_single_character_token(lexer, NECRO_LEX_HASH, "#");          break;
+    case '|':  necro_add_single_character_token(lexer, NECRO_LEX_PIPE, "|");          break;
+    case '.':  necro_add_single_character_token(lexer, NECRO_LEX_DOT, ".");           break;
+    case '@':  necro_add_single_character_token(lexer, NECRO_LEX_AT, "@");            break;
+    case '$':  necro_add_single_character_token(lexer, NECRO_LEX_DOLLAR, "$");        break;
+    case '&':  necro_add_single_character_token(lexer, NECRO_LEX_AMPERSAND, "&");     break;
+    case '^':  necro_add_single_character_token(lexer, NECRO_LEX_CARET, "^");         break;
+    case '\\': necro_add_single_character_token(lexer, NECRO_LEX_BACK_SLASH, "\\");   break;
+    case '~':  necro_add_single_character_token(lexer, NECRO_LEX_TILDE, "~");         break;
+    case '`':  necro_add_single_character_token(lexer, NECRO_LEX_ACCENT, "`");        break;
     default:   return false;
     }
     return true;
@@ -250,7 +251,8 @@ bool necro_lex_token_with_pattern(NecroLexer* lexer, const char* pattern, NECRO_
     NecroLexToken lex_token = (NecroLexToken)
     {
         .source_loc = { .line = lexer->line_number,.character = lexer->character_number,.pos = lexer->pos },
-        .token      = token_type
+        .token      = token_type,
+        .symbol     = necro_intern_string(&lexer->intern, pattern)
     };
     necro_push_lex_token_vector(&lexer->tokens, &lex_token);
     lexer->character_number += i;

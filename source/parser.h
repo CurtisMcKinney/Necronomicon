@@ -48,10 +48,43 @@ typedef enum
     NECRO_AST_CONSTRUCTOR,
     NECRO_AST_SIMPLE_TYPE,
     NECRO_AST_DATA_DECLARATION,
-    NECRO_AST_TYPE_CLASS,
+    NECRO_AST_TYPE_CLASS_CONTEXT,
+    NECRO_AST_TYPE_CLASS_DECLARATION,
+    NECRO_AST_TYPE_CLASS_INSTANCE,
     NECRO_AST_TYPE_SIGNATURE
     // NECRO_AST_MODULE,
 } NecroAST_NodeType;
+
+//=====================================================
+// AST TypeClassInstance
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr context;
+    NecroAST_LocalPtr qtycls;
+    NecroAST_LocalPtr inst;
+    NecroAST_LocalPtr declarations;
+} NecroAST_TypeClassInstance;
+
+//=====================================================
+// AST TypeClassDeclaration
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr context;
+    NecroAST_LocalPtr tycls;
+    NecroAST_LocalPtr tyvar;
+    NecroAST_LocalPtr declarations;
+} NecroAST_TypeClassDeclaration;
+
+//=====================================================
+// AST TypeClassContext
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr conid;
+    NecroAST_LocalPtr varid;
+} NecroAST_TypeClassContext;
 
 //=====================================================
 // AST TypeSignature
@@ -62,15 +95,6 @@ typedef struct
     NecroAST_LocalPtr context;
     NecroAST_LocalPtr type;
 } NecroAST_TypeSignature;
-
-//=====================================================
-// AST TypeClass
-//=====================================================
-typedef struct
-{
-    NecroAST_LocalPtr conid;
-    NecroAST_LocalPtr varid;
-} NecroAST_TypeClass;
 
 //=====================================================
 // AST DataDeclaration
@@ -507,7 +531,9 @@ typedef struct
         NecroAST_SimpleType simple_type;
         NecroAST_Constructor constructor;
         NecroAST_DataDeclaration data_declaration;
-        NecroAST_TypeClass type_class;
+        NecroAST_TypeClassContext type_class_context;
+        NecroAST_TypeClassDeclaration type_class_declaration;
+        NecroAST_TypeClassInstance type_class_instance;
         NecroAST_TypeSignature type_signature;
     };
 

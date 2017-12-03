@@ -183,3 +183,10 @@ data Unit = Unit ()
 
 myShow :: (Show a, Eq a) => a -> IO ()
 myShow x = print x
+
+class (Show a, Eq b) => MyTypeClass a where
+    deathByKilling :: a -> Bool
+    deathByKilling a = False
+
+instance (Show a, Eq b) => MyTypeClass Death where
+    deathByKilling _ = True

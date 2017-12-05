@@ -42,9 +42,8 @@ typedef enum
     NECRO_AST_CASE,
     NECRO_AST_CASE_ALTERNATIVE,
     NECRO_AST_CONID,
-    NECRO_AST_OP_PAT,
     NECRO_AST_TYPE_APP,
-    NECRO_AST_TYPE_BIN_OP,
+    NECRO_AST_BIN_OP_SYM,
     NECRO_AST_CONSTRUCTOR,
     NECRO_AST_SIMPLE_TYPE,
     NECRO_AST_DATA_DECLARATION,
@@ -60,10 +59,10 @@ typedef enum
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr context;
+    NecroAST_LocalPtr context;// optional, null_local_ptr if not present
     NecroAST_LocalPtr qtycls;
     NecroAST_LocalPtr inst;
-    NecroAST_LocalPtr declarations;
+    NecroAST_LocalPtr declarations; // Points to the next in the list, null_local_ptr if the end
 } NecroAST_TypeClassInstance;
 
 //=====================================================
@@ -71,10 +70,10 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr context;
+    NecroAST_LocalPtr context; // optional, null_local_ptr if not present
     NecroAST_LocalPtr tycls;
     NecroAST_LocalPtr tyvar;
-    NecroAST_LocalPtr declarations;
+    NecroAST_LocalPtr declarations; // Points to the next in the list, null_local_ptr if the end
 } NecroAST_TypeClassDeclaration;
 
 //=====================================================
@@ -92,7 +91,7 @@ typedef struct
 typedef struct
 {
     NecroAST_LocalPtr var;
-    NecroAST_LocalPtr context;
+    NecroAST_LocalPtr context; // optional, null_local_ptr if not present
     NecroAST_LocalPtr type;
 } NecroAST_TypeSignature;
 
@@ -124,14 +123,14 @@ typedef struct
 } NecroAST_SimpleType;
 
 //=====================================================
-// AST TypeBinOp
+// AST BinOpSym
 //=====================================================
 typedef struct
 {
     NecroAST_LocalPtr left;
     NecroAST_LocalPtr op;
     NecroAST_LocalPtr right;
-} NecroAST_TypeBinOp;
+} NecroAST_BinOpSym;
 
 //=====================================================
 // AST Type App
@@ -143,21 +142,11 @@ typedef struct
 } NecroAST_TypeApp;
 
 //=====================================================
-// AST Op Pat
-//=====================================================
-typedef struct
-{
-    NecroAST_LocalPtr left;
-    NecroAST_LocalPtr op;
-    NecroAST_LocalPtr right;
-} NecroAST_OpPat;
-
-//=====================================================
 // AST ConID
 //=====================================================
 typedef struct
 {
-    NecroSymbol symbol;
+    NecroSymbol       symbol;
 } NecroAST_ConID;
 
 //=====================================================
@@ -165,7 +154,6 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr declarations;
     NecroAST_LocalPtr expression;
     NecroAST_LocalPtr alternatives;
 } NecroAST_Case;
@@ -416,7 +404,6 @@ typedef struct
         NecroSymbol variable_id;
         NECRO_LEX_TOKEN_TYPE variable_symbol;
     };
-
     NecroAST_VariableType variable_type;
 } NecroAST_Variable;
 
@@ -525,9 +512,8 @@ typedef struct
         NecroAST_Case case_expression;
         NecroAST_CaseAlternative case_alternative;
         NecroAST_ConID conid;
-        NecroAST_OpPat oppat;
+        NecroAST_BinOpSym bin_op_sym;
         NecroAST_TypeApp type_app;
-        NecroAST_TypeBinOp type_binop;
         NecroAST_SimpleType simple_type;
         NecroAST_Constructor constructor;
         NecroAST_DataDeclaration data_declaration;

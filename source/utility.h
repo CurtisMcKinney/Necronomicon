@@ -14,6 +14,11 @@
 // A collection of general purpose structs and functions
 //=====================================================
 
+typedef struct
+{
+    uint32_t id;
+} NecroID;
+
 //=====================================================
 // Error Messaging
 //=====================================================

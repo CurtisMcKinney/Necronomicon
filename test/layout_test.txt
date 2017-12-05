@@ -1,0 +1,38 @@
+test2 = let x = 0 in x + x
+
+test = let x = y
+           y = y
+       in  x + x
+
+test4 = x
+    where
+        x = 2
+
+        u = 3
+        y = 3 where { z = 4; d = 555 }
+
+test = let { z = 4; y = 5 } in z + y
+test = z + y where { z = 4; y = 5 }
+
+text x = x + y where x = x
+                     y = 2
+
+test =
+    case 4 of
+        4 -> x
+        0 -> y
+    where
+        x = case 2 of
+                True  -> True
+                False -> False
+            where
+                z = 0
+        y = 3
+
+test3 = do
+    y <- x
+    let x = 5
+        y = 2
+    z <- myCoolIO
+    let w = 0
+    return x

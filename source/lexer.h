@@ -104,6 +104,13 @@ typedef enum
     NECRO_LEX_RIGHT_ARROW,
     NECRO_LEX_FAT_RIGHT_ARROW,
 
+    // Control Tokens, should never make it into the parser!
+    NECRO_LEX_CONTROL_BRACE_MARKER_LET,
+    NECRO_LEX_CONTROL_BRACE_MARKER_WHERE,
+    NECRO_LEX_CONTROL_BRACE_MARKER_OF,
+    NECRO_LEX_CONTROL_BRACE_MARKER_DO,
+    NECRO_LEX_CONTROL_WHITE_MARKER,
+
     NECRO_LEX_END_OF_STREAM
 } NECRO_LEX_TOKEN_TYPE;
 
@@ -116,34 +123,27 @@ typedef struct
         NecroSymbol      symbol;
         bool             boolean_literal;
         char             char_literal;
+        size_t           brace_marker_n;
+        size_t           white_marker_n;
     };
-    // size_t               character_number;
-    // size_t               line_number;
     NecroSourceLoc       source_loc;
     NECRO_LEX_TOKEN_TYPE token;
 } NecroLexToken;
 NECRO_DECLARE_VECTOR(NecroLexToken, NecroLexToken, lex_token)
 
-#define NECRO_MAX_INDENTATIONS 128
-
 typedef struct
 {
-    size_t               character_number;
-    size_t               line_number;
-    size_t               pos;
-    size_t               block_indentation_levels[NECRO_MAX_INDENTATIONS];
-    size_t               current_indentation_block;
-    const char*          str;
-    NecroLexTokenVector  tokens;
-    NecroIntern          intern;
-    NecroError           error;
+    size_t                 character_number;
+    size_t                 line_number;
+    size_t                 pos;
+    // size_t                 block_indentation_levels[NECRO_MAX_INDENTATIONS];
+    // size_t                 current_indentation_block;
+    const char*            str;
+    NecroLexTokenVector    tokens;
+    NecroLexTokenVector    layout_fixed_tokens;
+    NecroIntern            intern;
+    NecroError             error;
 } NecroLexer;
-
-typedef enum
-{
-    NECRO_LEX_RESULT_SUCCESSFUL,
-    NECRO_LEX_RESULT_ERROR
-} NECRO_LEX_RESULT;
 
 typedef enum
 {
@@ -157,6 +157,7 @@ NecroLexer        necro_create_lexer(const char* str);
 void              necro_destroy_lexer(NecroLexer* lexer);
 void              necro_print_lexer(NecroLexer* lexer);
 NECRO_RETURN_CODE necro_lex(NecroLexer* lexer);
+NECRO_RETURN_CODE necro_lex_fixup_layout(NecroLexer* lexer);
 const char*       necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
 void              necro_test_lexer();
 

@@ -22,11 +22,22 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
         return;
 
     //=====================================================
-    // Lexing
+    // Lexing, PRE - Layout
     //=====================================================
     necro_announce_phase("Lexing");
     NecroLexer lexer = necro_create_lexer(input_string);
     if (necro_lex(&lexer) != NECRO_SUCCESS)
+    {
+        necro_print_error(&lexer.error, input_string, "Syntax");
+        return;
+    }
+    necro_print_lexer(&lexer);
+    if (compilation_phase == NECRO_PHASE_LEX_PRE_LAYOUT)
+        return;
+    //=====================================================
+    // Lexing, Layout
+    //=====================================================
+    if (necro_lex_fixup_layout(&lexer) != NECRO_SUCCESS)
     {
         necro_print_error(&lexer.error, input_string, "Syntax");
         return;
@@ -57,21 +68,46 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     //=====================================================
     necro_announce_phase("Reifying");
     NecroAST_Reified ast_r = necro_reify_ast(&ast, root_node_ptr);
+    necro_print_reified_ast(&ast_r, &lexer.intern);
     if (compilation_phase == NECRO_PHASE_REIFY)
+        return;
+
+    //=====================================================
+    // Build Scopes
+    //=====================================================
+    necro_announce_phase("Building Scopes");
+    NecroSymTable       symtable        = necro_create_symtable(&lexer.intern);
+    NecroScopedSymTable scoped_symtable = necro_create_scoped_symtable(&symtable);
+    if (necro_build_scopes(&scoped_symtable, &ast_r) != NECRO_SUCCESS)
+    {
+        necro_print_error(&scoped_symtable.error, input_string, "Building Scopes");
+        return;
+    }
+    necro_symtable_print(&symtable);
+    necro_scoped_symtable_print(&scoped_symtable);
+    if (compilation_phase == NECRO_PHASE_BUILD_SCOPES)
         return;
 
     //=====================================================
     // Renaming
     //=====================================================
     necro_announce_phase("Renaming");
-    NecroSymTable symtable = necro_create_symtable(&lexer.intern);
-    NecroRenamer  renamer  = necro_create_renamer(&symtable);
-    if (necro_rename_ast(&renamer, &ast_r) != NECRO_SUCCESS)
+    NecroRenamer renamer = necro_create_renamer(&scoped_symtable);
+    if (necro_rename_declare_pass(&renamer, &ast_r) != NECRO_SUCCESS)
     {
-        necro_print_error(&renamer.error, input_string, "Renaming");
+        necro_print_reified_ast(&ast_r, &lexer.intern);
+        necro_symtable_print(&symtable);
+        necro_print_error(&renamer.error, input_string, "Renaming (Declare Pass)");
         return;
     }
-    necro_print_reified_ast(&renamer.ast, &lexer.intern);
+    if (necro_rename_var_pass(&renamer, &ast_r) != NECRO_SUCCESS)
+    {
+        necro_print_reified_ast(&ast_r, &lexer.intern);
+        necro_symtable_print(&symtable);
+        necro_print_error(&renamer.error, input_string, "Renaming (Var Pass)");
+        return;
+    }
+    necro_print_reified_ast(&ast_r, &lexer.intern);
     puts("");
     necro_symtable_print(&symtable);
     if (compilation_phase == NECRO_PHASE_RENAME)

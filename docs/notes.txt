@@ -1,0 +1,46 @@
+-- Pure synth
+sinSynth :: Audio -> Audio -> Audio
+sinSynth freq amp = s1 + s2 |> f |> g |> gain amp
+    where
+        s1  = sinOsc (freq * 4)
+        s2  = sinOsc (freq * 10)
+        f x = x * x
+        g y = y / y
+
+-- Pure synth, let
+sinSynth :: Audio -> Audio -> Audio
+sinSynth freq amp =
+    let s1  = sinOsc (freq * 4)
+        s2  = sinOsc (freq * 10)
+        f x = x * x
+        g y = y / y
+    in  s1 + s2 |> f |> g |> gain amp
+
+-- Monadic synth
+noiseSynth :: Audio -> Audio -> IO Audio
+noiseSynth freq amp = do
+    n1 <- noise (freq * 4)
+    n2 <- noise (freq * 1)
+    let f x = x * x
+        g y = y / y
+    n1 + n2 |> f |> gain amp |> return
+
+-- Uniqueness synth
+noiseSynth :: !IO -> Audio -> Audio -> Audio
+noiseSynth !io freq amp = n1 + n2 |> f |> g |> gain amp
+    where
+        n1  = noise !io (freq * 4)
+        n2  = noise !io (freq * 1)
+        f x = x * x
+        g y = y / y
+
+-- desugars to (Uniqueness types with input / output modes....)
+-- Doesn't seem like this would play well with laziness....
+noiseSynth :: unique input IO -> unique output IO -> input Audio -> input Audio -> output Audio
+noiseSynth io0 (out io2) freq amp = n1 + n2 |> f |> g |> gain amp
+    where
+        n1  = noise io0 (out io1) (freq * 4)
+        n2  = noise io1 (out io2) (freq * 1)
+        f x = x * x
+        g y = y / y
+

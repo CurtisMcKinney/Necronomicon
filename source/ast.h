@@ -12,9 +12,104 @@
 #include "intern.h"
 #include "arena.h"
 #include "parser.h"
-#include "symtable.h"
 
 struct NecroAST_Node_Reified;
+
+//=====================================================
+// AST TypeClassInstance
+//=====================================================
+typedef struct
+{
+    struct NecroAST_Node_Reified* context;// optional, null_local_ptr if not present
+    struct NecroAST_Node_Reified* qtycls;
+    struct NecroAST_Node_Reified* inst;
+    struct NecroAST_Node_Reified* declarations; // Points to the next in the list, null_local_ptr if the end
+} NecroAST_TypeClassInstance_Reified;
+
+//=====================================================
+// AST TypeClassDeclaration
+//=====================================================
+typedef struct
+{
+    struct NecroAST_Node_Reified* context; // optional, null_local_ptr if not present
+    struct NecroAST_Node_Reified* tycls;
+    struct NecroAST_Node_Reified* tyvar;
+    struct NecroAST_Node_Reified* declarations; // Points to the next in the list, null_local_ptr if the end
+} NecroAST_TypeClassDeclaration_Reified;
+
+//=====================================================
+// AST TypeClassContext
+//=====================================================
+typedef struct
+{
+    struct NecroAST_Node_Reified* conid;
+    struct NecroAST_Node_Reified* varid;
+} NecroAST_TypeClassContext_Reified;
+
+//=====================================================
+// AST TypeSignature
+//=====================================================
+typedef struct
+{
+    struct NecroAST_Node_Reified* var;
+    struct NecroAST_Node_Reified* context; // optional, null_local_ptr if not present
+    struct NecroAST_Node_Reified* type;
+} NecroAST_TypeSignature_Reified;
+
+//=====================================================
+// AST DataDeclaration
+//=====================================================
+typedef struct
+{
+    struct NecroAST_Node_Reified* simpletype;
+    struct NecroAST_Node_Reified* constructor_list; // Points to the next in the list, null_local_ptr if the end
+} NecroAST_DataDeclaration_Reified;
+
+//=====================================================
+// AST Constructor
+//=====================================================
+typedef struct
+{
+    struct NecroAST_Node_Reified* conid;
+    struct NecroAST_Node_Reified* arg_list; // Points to the next in the list, null_local_ptr if the end
+} NecroAST_Constructor_Reified;
+
+//=====================================================
+// AST SimpleType
+//=====================================================
+typedef struct
+{
+    struct NecroAST_Node_Reified* type_con;
+    struct NecroAST_Node_Reified* type_var_list; // Points to the next in the list, null_local_ptr if the end
+} NecroAST_SimpleType_Reified;
+
+//=====================================================
+// AST BinOpSym
+//=====================================================
+typedef struct
+{
+    struct NecroAST_Node_Reified* left;
+    struct NecroAST_Node_Reified* op;
+    struct NecroAST_Node_Reified* right;
+} NecroAST_BinOpSym_Reified;
+
+//=====================================================
+// AST Type App
+//=====================================================
+typedef struct
+{
+    struct NecroAST_Node_Reified* ty;
+    struct NecroAST_Node_Reified* next_ty; // Points to the next in the list, null_local_ptr if the end
+} NecroAST_TypeApp_Reified;
+
+//=====================================================
+// AST ConID
+//=====================================================
+typedef struct
+{
+    NecroSymbol symbol;
+    NecroID     id;
+} NecroAST_ConID_Reified;
 
 //=====================================================
 // AST Case
@@ -23,7 +118,6 @@ typedef struct
 {
     struct NecroAST_Node_Reified* expression;
     struct NecroAST_Node_Reified* alternatives;
-    struct NecroAST_Node_Reified* declarations;
 } NecroAST_Case_Reified;
 
 //=====================================================
@@ -278,36 +372,48 @@ typedef struct
 //=====================================================
 // AST Node
 //=====================================================
+struct NecroScope;
 typedef struct NecroAST_Node_Reified
 {
     union
     {
-        NecroAST_Undefined_Reified          undefined;
-        NecroAST_Constant_Reified           constant;
         // NecroAST_UnaryOp unary_op; // Do we need this?
-        NecroAST_BinOp_Reified              bin_op;
-        NecroAST_IfThenElse_Reified         if_then_else;
-        NecroAST_TopDeclaration_Reified     top_declaration;
-        NecroAST_Declaration_Reified        declaration;
-        NecroAST_SimpleAssignment_Reified   simple_assignment;
-        NecroAST_Apats_Reified              apats;
-        NecroAST_ApatsAssignment_Reified    apats_assignment;
-        NecroAST_RightHandSide_Reified      right_hand_side;
-        NecroAST_LetExpression_Reified      let_expression;
-        NecroAST_FunctionExpression_Reified fexpression;
-        NecroAST_Variable_Reified           variable;
-        NecroAST_Lambda_Reified             lambda;
-        NecroAST_Do_Reified                 do_statement;
-        NecroAST_ListNode_Reified           list;
-        NecroAST_ExpressionList_Reified     expression_list;
-        NecroAST_Tuple_Reified              tuple;
-        NecroAST_BindAssignment_Reified     bind_assignment;
-        NecroAST_ArithmeticSequence_Reified arithmetic_sequence;
-        NecroAST_Case_Reified               case_expression;
-        NecroAST_CaseAlternative_Reified    case_alternative;
+        NecroAST_Undefined_Reified            undefined;
+        NecroAST_Constant_Reified             constant;
+        NecroAST_BinOp_Reified                bin_op;
+        NecroAST_IfThenElse_Reified           if_then_else;
+        NecroAST_TopDeclaration_Reified       top_declaration;
+        NecroAST_Declaration_Reified          declaration;
+        NecroAST_SimpleAssignment_Reified     simple_assignment;
+        NecroAST_Apats_Reified                apats;
+        NecroAST_ApatsAssignment_Reified      apats_assignment;
+        NecroAST_RightHandSide_Reified        right_hand_side;
+        NecroAST_LetExpression_Reified        let_expression;
+        NecroAST_FunctionExpression_Reified   fexpression;
+        NecroAST_Variable_Reified             variable;
+        NecroAST_Lambda_Reified               lambda;
+        NecroAST_Do_Reified                   do_statement;
+        NecroAST_ListNode_Reified             list;
+        NecroAST_ExpressionList_Reified       expression_list;
+        NecroAST_Tuple_Reified                tuple;
+        NecroAST_BindAssignment_Reified       bind_assignment;
+        NecroAST_ArithmeticSequence_Reified   arithmetic_sequence;
+        NecroAST_Case_Reified                 case_expression;
+        NecroAST_CaseAlternative_Reified      case_alternative;
+        NecroAST_ConID_Reified                conid;
+        NecroAST_BinOpSym_Reified             bin_op_sym;
+        NecroAST_TypeApp_Reified              type_app;
+        NecroAST_SimpleType_Reified           simple_type;
+        NecroAST_Constructor_Reified          constructor;
+        NecroAST_DataDeclaration_Reified      data_declaration;
+        NecroAST_TypeClassContext_Reified     type_class_context;
+        NecroAST_TypeClassDeclaration_Reified type_class_declaration;
+        NecroAST_TypeClassInstance_Reified    type_class_instance;
+        NecroAST_TypeSignature_Reified        type_signature;
     };
-    NecroAST_NodeType type;
-    NecroSourceLoc    source_loc;
+    NecroAST_NodeType  type;
+    NecroSourceLoc     source_loc;
+    struct NecroScope* scope;
 } NecroAST_Node_Reified;
 
 typedef struct

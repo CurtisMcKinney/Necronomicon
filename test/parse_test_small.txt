@@ -52,11 +52,12 @@ c False yep (Hey die 0 (No please dont) that (-1)) = do
 caseTest = dontSuck * b
     where
         b = 3
-        dontSuck = case slime (4 + ministry) of
-            Killa x + Yep y -> 4
-            True            -> b
-            Hey fuck off    -> 666 + a / skinnyPuppy
-            ok              -> ok / c + ministry
+        dontSuck = 
+            case slime (4 + ministry) of
+                Killa x + Yep y -> 4
+                True            -> b
+                Hey fuck off    -> 666 + a / skinnyPuppy
+                ok              -> ok / c + ministry
             where
                 skinnyPuppy = 555
                 ministry    = 333

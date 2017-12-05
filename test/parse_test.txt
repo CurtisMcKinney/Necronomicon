@@ -140,15 +140,24 @@ c False yep (Hey die 0 (No please dont) that (-1)) = do
     z <- a 4
     z + c
 
+test3 = do
+    y <- x
+    let x = 5
+        y = 2
+    z <- myCoolIO
+    let w = 0
+    return x
+
 caseTest = dontSuck * b
     where
         b = 3
-        dontSuck = case slime (4 + ministry) of
-            -4              -> 5
-            Killa x + Yep y -> 4
-            True            -> b
-            Hey fuck off    -> 666 + a / skinnyPuppy
-            ok              -> ok / c + ministry
+        dontSuck =
+            case slime (4 + ministry) of
+                -4              -> 5
+                Killa x + Yep y -> 4
+                True            -> b
+                Hey fuck off    -> 666 + a / skinnyPuppy
+                ok              -> ok / c + ministry
             where
                 skinnyPuppy = 555
                 ministry    = 333
@@ -167,7 +176,7 @@ tuplePattern (0, Cool stuff, y) = 333
 data MyCoolType a = MyCoolType a | Yeah b c | Death (IO Bool Float) Int (Char -> Char)
 data X = X ((A (B C)), IO Death, Double) [Kill]
 
-data ArrowsKill = ArrowsKill (Float -> (Double -> Null))
+data ArrowsKill = ArrowsKill (Float -> (Double -> Null) -> Death)
 arrowsKill = f + d
 
 f :: Float -> Double -> IO Bool
@@ -178,6 +187,7 @@ x a b = z
     where
         z :: Death
         z = a + b
+        x = 2
 
 data Unit = Unit ()
 
@@ -187,6 +197,7 @@ myShow x = print x
 class (Show a, Eq b) => MyTypeClass a where
     deathByKilling :: a -> Bool
     deathByKilling a = False
+    deathByLiving :: Bool -> a
 
 instance (Show a, Eq b) => MyTypeClass Death where
     deathByKilling _ = True

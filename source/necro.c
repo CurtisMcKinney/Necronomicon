@@ -14,49 +14,52 @@
 //=====================================================
 int main(int32_t argc, char** argv)
 {
-    if (argc == 2 && strcmp(argv[1], "-test_all") == 0)
+    if (argc == 3 && strcmp(argv[1], "-test") == 0)
     {
-        necro_test(NECRO_TEST_ALL);
-    }
-    else if (argc == 2 && strcmp(argv[1], "-test_vm") == 0)
-    {
-        necro_test(NECRO_TEST_VM);
-    }
-    else if (argc == 2 && strcmp(argv[1], "-test_dvm") == 0)
-    {
-        necro_test(NECRO_TEST_DVM);
-    }
-    else if (argc == 2 && strcmp(argv[1], "-test_symtable") == 0)
-    {
-        necro_test(NECRO_TEST_DVM);
-    }
-    else if (argc == 2 && strcmp(argv[1], "-test_slab") == 0)
-    {
-        necro_test(NECRO_TEST_SLAB);
-    }
-    else if (argc == 2 && strcmp(argv[1], "-test_treadmill") == 0)
-    {
-        necro_test(NECRO_TEST_TREADMILL);
-    }
-    else if (argc == 2 && strcmp(argv[1], "-test_lexer") == 0)
-    {
-        necro_test(NECRO_TEST_LEXER);
-    }
-    else if (argc == 2 && strcmp(argv[1], "-test_intern") == 0)
-    {
-        necro_test(NECRO_TEST_INTERN);
-    }
-    else if (argc == 2 && strcmp(argv[1], "-test_vault") == 0)
-    {
-        necro_test(NECRO_TEST_VAULT);
-    }
-    else if (argc == 2 && strcmp(argv[1], "-test_archive") == 0)
-    {
-        necro_test(NECRO_TEST_ARCHIVE);
-    }
-    else if (argc == 2 && strcmp(argv[1], "-test_region") == 0)
-    {
-        necro_test(NECRO_TEST_REGION);
+        if (strcmp(argv[2], "all") == 0)
+        {
+            necro_test(NECRO_TEST_ALL);
+        }
+        else if (strcmp(argv[2], "vm") == 0)
+        {
+            necro_test(NECRO_TEST_VM);
+        }
+        else if (strcmp(argv[2], "dvm") == 0)
+        {
+            necro_test(NECRO_TEST_DVM);
+        }
+        else if (strcmp(argv[2], "symtable") == 0)
+        {
+            necro_test(NECRO_TEST_DVM);
+        }
+        else if (strcmp(argv[2], "slab") == 0)
+        {
+            necro_test(NECRO_TEST_SLAB);
+        }
+        else if (strcmp(argv[2], "treadmill") == 0)
+        {
+            necro_test(NECRO_TEST_TREADMILL);
+        }
+        else if (strcmp(argv[2], "lexer") == 0)
+        {
+            necro_test(NECRO_TEST_LEXER);
+        }
+        else if (strcmp(argv[2], "intern") == 0)
+        {
+            necro_test(NECRO_TEST_INTERN);
+        }
+        else if (strcmp(argv[2], "vault") == 0)
+        {
+            necro_test(NECRO_TEST_VAULT);
+        }
+        else if (strcmp(argv[2], "archive") == 0)
+        {
+            necro_test(NECRO_TEST_ARCHIVE);
+        }
+        else if (strcmp(argv[2], "region") == 0)
+        {
+            necro_test(NECRO_TEST_REGION);
+        }
     }
     else if (argc == 2 || argc == 3)
     {
@@ -94,8 +97,11 @@ int main(int32_t argc, char** argv)
             // {
             //     printf("%d\n", (uint8_t)*c);
             // }
-
-            if (argc > 2 && strcmp(argv[2], "-lex") == 0)
+            if (argc > 2 && strcmp(argv[2], "-lex_pre_layout") == 0)
+            {
+                necro_compile(str, NECRO_PHASE_LEX_PRE_LAYOUT);
+            }
+            else if (argc > 2 && strcmp(argv[2], "-lex") == 0)
             {
                 necro_compile(str, NECRO_PHASE_LEX);
             }
@@ -106,6 +112,10 @@ int main(int32_t argc, char** argv)
             else if (argc > 2 && strcmp(argv[2], "-reify") == 0)
             {
                 necro_compile(str, NECRO_PHASE_REIFY);
+            }
+            else if (argc > 2 && strcmp(argv[2], "-scope") == 0)
+            {
+                necro_compile(str, NECRO_PHASE_BUILD_SCOPES);
             }
             else if (argc > 2 && strcmp(argv[2], "-rename") == 0)
             {

@@ -12,6 +12,7 @@
 #include <string.h>
 #include "utility.h"
 #include "intern.h"
+#include "ast.h"
 #include "arena.h"
 
 //=====================================================
@@ -22,25 +23,22 @@
 //         * Type
 //         * Misc Attributes
 //=====================================================
-
-typedef struct
-{
-    uint32_t id;
-} NecroID;
-
 typedef struct
 {
     size_t dummy;
 } NecroType;
 
+struct NecroScope;
+
 typedef struct
 {
-    NecroSymbol    name;
-    NecroID        id;
-    size_t         data_size;
-    NecroType      type;
-    size_t         local_var_num;
-    NecroSourceLoc source_loc;
+    NecroSymbol        name;
+    NecroID            id;
+    size_t             data_size;
+    NecroType          type;
+    size_t             local_var_num;
+    NecroSourceLoc     source_loc;
+    struct NecroScope* scope;
 } NecroSymbolInfo;
 
 typedef struct
@@ -58,7 +56,7 @@ NecroID          necro_symtable_insert(NecroSymTable* table, NecroSymbolInfo inf
 NecroSymbolInfo* necro_symtable_get(NecroSymTable* table, NecroID id);
 void             necro_symtable_print(NecroSymTable* table);
 void             necro_symtable_test();
-NecroSymbolInfo  necro_create_initial_symbol_info(NecroSymbol symbol, NecroSourceLoc source_loc);
+NecroSymbolInfo  necro_create_initial_symbol_info(NecroSymbol symbol, NecroSourceLoc source_loc, struct NecroScope* scope);
 
 //=====================================================
 // NecroScopedSymTable
@@ -67,31 +65,43 @@ typedef struct NecroScopedHashtableNode
 {
     NecroSymbol symbol;
     NecroID     id;
-} NecroScopedHashtableNode;
+} NecroScopeNode;
 
-typedef struct NecroScopedHashtable
+typedef struct NecroScope
 {
-    struct NecroScopedHashtable* parent;
-    NecroScopedHashtableNode*    buckets;
-    size_t                       size;
-    size_t                       count;
-} NecroScopedHashtable;
+    struct NecroScope* parent;
+    NecroScopeNode*    buckets;
+    size_t             size;
+    size_t             count;
+    NecroID            last_introduced_id;
+} NecroScope;
 
 typedef struct
 {
-    NecroPagedArena       arena;
-    NecroSymTable*        global_table;
-    NecroScopedHashtable* current_scope;
+    NecroPagedArena arena;
+    NecroSymTable*  global_table;
+    NecroScope*     current_scope;
+    NecroScope*     top_scope;
+    NecroScope*     type_scope;
+    NecroError      error;
 } NecroScopedSymTable;
 
 NecroScopedSymTable necro_create_scoped_symtable(NecroSymTable* global_table);
 void                necro_destroy_scoped_symtable(NecroScopedSymTable* table);
+
+// Build API
 void                necro_scoped_symtable_new_scope(NecroScopedSymTable* table);
+void                necro_scoped_symtable_new_type_scope(NecroScopedSymTable* table);
 void                necro_scoped_symtable_pop_scope(NecroScopedSymTable* table);
-NecroID             necro_scoped_symtable_find(NecroScopedSymTable* table, NecroSymbol symbol);
-NecroID             necro_scoped_symtable_current_scope_find(NecroScopedSymTable* table, NecroSymbol symbol);
-NecroID             necro_scoped_symtable_new_symbol_info(NecroScopedSymTable* table, NecroSymbolInfo info);
+
+// Names API
+NECRO_RETURN_CODE   necro_build_scopes(NecroScopedSymTable* table, NecroAST_Reified* ast);
+NecroID             necro_this_scope_find(NecroScope* scope, NecroSymbol symbol);
+NecroID             necro_scope_find(NecroScope* scope, NecroSymbol symbol);
+NecroID             necro_scoped_symtable_new_symbol_info(NecroScopedSymTable* table, NecroScope* scope, NecroSymbolInfo info);
+void                necro_scope_set_last_introduced_id(NecroScope* scope, NecroID id);
+
+// Test
 void                necro_scoped_symtable_print(NecroScopedSymTable* table);
 void                necro_scoped_symtable_test();
-
 #endif // SYMTABLE_H

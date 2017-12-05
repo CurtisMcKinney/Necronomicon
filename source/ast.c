@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <inttypes.h>
+#include "symtable.h"
 #include "ast.h"
 
 #define AST_TAB "  "
@@ -285,30 +286,6 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
         print_reified_ast_impl(ast_node->expression_list.expressions, intern, depth + 1);
         break;
 
-    case NECRO_AST_CASE:
-        puts("case");
-        print_reified_ast_impl(ast_node->case_expression.expression, intern, depth + 1);
-        printf("\r"); // clear current line
-        for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
-        puts("of");
-        print_reified_ast_impl(ast_node->case_expression.alternatives, intern, depth + 1);
-        if (ast_node->case_expression.declarations != NULL)
-        {
-            for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
-            puts(AST_TAB "where");
-            print_reified_ast_impl(ast_node->case_expression.declarations, intern, depth + 2);
-        }
-        break;
-
-    case NECRO_AST_CASE_ALTERNATIVE:
-        printf("\r"); // clear current line
-        print_reified_ast_impl(ast_node->case_alternative.pat, intern, depth + 0);
-        printf("\r"); // clear current line
-        for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
-        puts("->");
-        print_reified_ast_impl(ast_node->case_alternative.body, intern, depth + 1);
-        break;
-
     case NECRO_AST_LIST_NODE:
         printf("\r"); // clear current line
         print_reified_ast_impl(ast_node->list.item, intern, depth);
@@ -349,6 +326,126 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
         }
         break;
 
+    case NECRO_AST_CASE:
+        puts("case");
+        print_reified_ast_impl(ast_node->case_expression.expression, intern, depth + 1);
+        printf("\r"); // clear current line
+        for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
+        puts("of");
+        print_reified_ast_impl(ast_node->case_expression.alternatives, intern, depth + 1);
+        break;
+
+    case NECRO_AST_CASE_ALTERNATIVE:
+        printf("\r"); // clear current line
+        print_reified_ast_impl(ast_node->case_alternative.pat, intern, depth + 0);
+        printf("\r"); // clear current line
+        for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
+        puts("->");
+        print_reified_ast_impl(ast_node->case_alternative.body, intern, depth + 1);
+        break;
+
+    case NECRO_AST_CONID:
+    {
+        const char* con_string = necro_intern_get_string(intern, ast_node->conid.symbol);
+        if (con_string)
+            printf("(conid: %s, id: %d)\n", con_string, ast_node->conid.id.id);
+        else
+            puts("(conid: \"\")");
+        break;
+    }
+
+    case NECRO_AST_DATA_DECLARATION:
+        puts("(data)");
+        print_reified_ast_impl(ast_node->data_declaration.simpletype, intern, depth + 1);
+        for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
+        puts(" = ");
+        print_reified_ast_impl(ast_node->data_declaration.constructor_list, intern, depth + 1);
+        break;
+
+    case NECRO_AST_SIMPLE_TYPE:
+        puts("(simple type)");
+        print_reified_ast_impl(ast_node->simple_type.type_con, intern, depth + 1);
+        if (ast_node->simple_type.type_var_list != NULL)
+            print_reified_ast_impl(ast_node->simple_type.type_var_list, intern, depth + 2);
+        break;
+
+    case NECRO_AST_CONSTRUCTOR:
+        puts("(constructor)");
+        print_reified_ast_impl(ast_node->constructor.conid, intern, depth + 1);
+        if (ast_node->constructor.arg_list != NULL)
+            print_reified_ast_impl(ast_node->constructor.arg_list, intern, depth + 1);
+        break;
+
+    case NECRO_AST_TYPE_APP:
+        puts("(type app)");
+        print_reified_ast_impl(ast_node->type_app.ty, intern, depth + 1);
+        if (ast_node->type_app.next_ty != NULL)
+            print_reified_ast_impl(ast_node->type_app.next_ty, intern, depth + 1);
+        break;
+
+    case NECRO_AST_BIN_OP_SYM:
+        printf("(%s)\n", necro_intern_get_string(intern, ast_node->bin_op_sym.op->conid.symbol));
+        print_reified_ast_impl(ast_node->bin_op_sym.left, intern, depth + 1);
+        print_reified_ast_impl(ast_node->bin_op_sym.right, intern, depth + 1);
+        break;
+
+    case NECRO_AST_TYPE_SIGNATURE:
+        printf("\r");
+        print_reified_ast_impl(ast_node->type_signature.var, intern, depth + 0);
+        for (uint32_t i = 0;  i < depth + 1; ++i) printf(AST_TAB);
+        puts("::");
+        if (ast_node->type_signature.context != NULL)
+        {
+            print_reified_ast_impl(ast_node->type_signature.context, intern, depth + 1);
+            for (uint32_t i = 0;  i < depth + 2; ++i) printf(AST_TAB);
+            puts("=>");
+        }
+        print_reified_ast_impl(ast_node->type_signature.type, intern, depth + 1);
+        break;
+
+    case NECRO_AST_TYPE_CLASS_CONTEXT:
+        printf("\r");
+        print_reified_ast_impl(ast_node->type_class_context.conid, intern, depth + 0);
+        print_reified_ast_impl(ast_node->type_class_context.varid, intern, depth + 0);
+        break;
+
+    case NECRO_AST_TYPE_CLASS_DECLARATION:
+        puts("(class)");
+        if (ast_node->type_class_declaration.context != NULL)
+        {
+            print_reified_ast_impl(ast_node->type_class_declaration.context, intern, depth + 1);
+            for (uint32_t i = 0;  i < depth + 2; ++i) printf(AST_TAB);
+            puts("=>");
+        }
+        print_reified_ast_impl(ast_node->type_class_declaration.tycls, intern, depth + 1);
+        print_reified_ast_impl(ast_node->type_class_declaration.tyvar, intern, depth + 1);
+        if (ast_node->type_class_declaration.declarations != NULL)
+        {
+            for (uint32_t i = 0; i < depth; ++i) printf(AST_TAB);
+            puts("where");
+            print_reified_ast_impl(ast_node->type_class_declaration.declarations, intern, depth + 2);
+        }
+        break;
+
+    case NECRO_AST_TYPE_CLASS_INSTANCE:
+        puts("(instance)");
+        if (ast_node->type_class_instance.context != NULL)
+        {
+            print_reified_ast_impl(ast_node->type_class_instance.context, intern, depth + 1);
+            for (uint32_t i = 0;  i < depth + 2; ++i) printf(AST_TAB);
+            puts("=>");
+        }
+        print_reified_ast_impl(ast_node->type_class_instance.qtycls, intern, depth + 1);
+        print_reified_ast_impl(ast_node->type_class_instance.inst, intern, depth + 1);
+        if (ast_node->type_class_declaration.declarations != NULL)
+        {
+            for (uint32_t i = 0; i < depth; ++i) printf(AST_TAB);
+            puts("where");
+            print_reified_ast_impl(ast_node->type_class_declaration.declarations, intern, depth + 2);
+        }
+        break;
+
+
     default:
         puts("(Undefined)");
         break;
@@ -378,6 +475,7 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
     NecroAST_Node_Reified* reified_node = necro_paged_arena_alloc(arena, sizeof(NecroAST_Node_Reified));
     reified_node->type       = node->type;
     reified_node->source_loc = node->source_loc;
+    reified_node->scope      = NULL;
     switch (node->type)
     {
     case NECRO_AST_UNDEFINED:
@@ -469,11 +567,55 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
     case NECRO_AST_CASE:
         reified_node->case_expression.expression   = necro_reify(a_ast, node->case_expression.expression, arena);
         reified_node->case_expression.alternatives = necro_reify(a_ast, node->case_expression.alternatives, arena);
-        reified_node->case_expression.declarations = necro_reify(a_ast, node->case_expression.declarations, arena);
         break;
     case NECRO_AST_CASE_ALTERNATIVE:
-        reified_node->case_alternative.body= necro_reify(a_ast, node->case_alternative.body, arena);
-        reified_node->case_alternative.pat = necro_reify(a_ast, node->case_alternative.pat, arena);
+        reified_node->case_alternative.body = necro_reify(a_ast, node->case_alternative.body, arena);
+        reified_node->case_alternative.pat  = necro_reify(a_ast, node->case_alternative.pat, arena);
+        break;
+    case NECRO_AST_CONID:
+        reified_node->conid.symbol = node->conid.symbol;
+        break;
+    case NECRO_AST_TYPE_APP:
+        reified_node->type_app.ty      = necro_reify(a_ast, node->type_app.ty, arena);
+        reified_node->type_app.next_ty = necro_reify(a_ast, node->type_app.next_ty, arena);
+        break;
+    case NECRO_AST_BIN_OP_SYM:
+        reified_node->bin_op_sym.left  = necro_reify(a_ast, node->bin_op_sym.left, arena);
+        reified_node->bin_op_sym.op    = necro_reify(a_ast, node->bin_op_sym.op, arena);
+        reified_node->bin_op_sym.right = necro_reify(a_ast, node->bin_op_sym.right, arena);
+        break;
+    case NECRO_AST_CONSTRUCTOR:
+        reified_node->constructor.conid    = necro_reify(a_ast, node->constructor.conid, arena);
+        reified_node->constructor.arg_list = necro_reify(a_ast, node->constructor.arg_list, arena);
+        break;
+    case NECRO_AST_SIMPLE_TYPE:
+        reified_node->simple_type.type_con      = necro_reify(a_ast, node->simple_type.type_con, arena);
+        reified_node->simple_type.type_var_list = necro_reify(a_ast, node->simple_type.type_var_list, arena);
+        break;
+    case NECRO_AST_DATA_DECLARATION:
+        reified_node->data_declaration.simpletype       = necro_reify(a_ast, node->data_declaration.simpletype, arena);
+        reified_node->data_declaration.constructor_list = necro_reify(a_ast, node->data_declaration.constructor_list, arena);
+        break;
+    case NECRO_AST_TYPE_CLASS_CONTEXT:
+        reified_node->type_class_context.conid = necro_reify(a_ast, node->type_class_context.conid, arena);
+        reified_node->type_class_context.varid = necro_reify(a_ast, node->type_class_context.varid, arena);
+        break;
+    case NECRO_AST_TYPE_CLASS_DECLARATION:
+        reified_node->type_class_declaration.context      = necro_reify(a_ast, node->type_class_declaration.context, arena);
+        reified_node->type_class_declaration.tycls        = necro_reify(a_ast, node->type_class_declaration.tycls, arena);
+        reified_node->type_class_declaration.tyvar        = necro_reify(a_ast, node->type_class_declaration.tyvar, arena);
+        reified_node->type_class_declaration.declarations = necro_reify(a_ast, node->type_class_declaration.declarations, arena);
+        break;
+    case NECRO_AST_TYPE_CLASS_INSTANCE:
+        reified_node->type_class_instance.context      = necro_reify(a_ast, node->type_class_instance.context, arena);
+        reified_node->type_class_instance.qtycls       = necro_reify(a_ast, node->type_class_instance.qtycls, arena);
+        reified_node->type_class_instance.inst         = necro_reify(a_ast, node->type_class_instance.inst, arena);
+        reified_node->type_class_instance.declarations = necro_reify(a_ast, node->type_class_instance.declarations, arena);
+        break;
+    case NECRO_AST_TYPE_SIGNATURE:
+        reified_node->type_signature.var     = necro_reify(a_ast, node->type_signature.var, arena);
+        reified_node->type_signature.context = necro_reify(a_ast, node->type_signature.context, arena);
+        reified_node->type_signature.type    = necro_reify(a_ast, node->type_signature.type, arena);
         break;
     default:
         fprintf(stderr, "Unrecognized type during reification: %d", node->type);

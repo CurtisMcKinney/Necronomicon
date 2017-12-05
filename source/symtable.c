@@ -389,12 +389,11 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_R
     case NECRO_AST_VARIABLE:
         switch (input_node->variable.var_type)
         {
-        case NECRO_VAR_VAR:                         break;
-        case NECRO_VAR_DECLARATION:                 break;
-        case NECRO_VAR_TYPE_FREE_VAR:               input_node->scope = scoped_symtable->current_type_scope; break;
-        case NECRO_VAR_SIG:                         break;
-        case NECRO_VAR_CLASS_SIG:                   break;
-        case NECRO_VAR_TYPE_CLASS_FUNC_INSTANCE:    break;
+        case NECRO_VAR_VAR:           break;
+        case NECRO_VAR_DECLARATION:   break;
+        case NECRO_VAR_TYPE_FREE_VAR: input_node->scope = scoped_symtable->current_type_scope; break;
+        case NECRO_VAR_SIG:           break;
+        case NECRO_VAR_CLASS_SIG:     break;
         }
         break;
 

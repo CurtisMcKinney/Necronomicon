@@ -43,13 +43,24 @@ instance MyTypeClass Int where
 data MyApData = MyApData (DeathType Int -> Bool)
 
 class ClassWithFunctions a where
-    coolFunc :: a -> Int
+    coolFunc  :: a -> Int
+    otherFunc :: Int -> Bool -> Int
 
 instance ClassWithFunctions Int where
-    coolFunc x = 0
+    coolFunc  x   = 0
+    otherFunc x y = x + y
 
 instance ClassWithFunctions Bool where
-    coolFunc x = 1
+    coolFunc  x   = 1
+    otherFunc _ _ = 66
+
+instance ClassWithFunctions MyData where
+    coolFunc x = 2 / w
+        where
+            z = 4
+            w = z + x
+
+    otherFunc _ _ = 100
 
 coolTest :: Int -> Int
-coolTest x = coolFunc x
+coolTest x = coolFunc x + CoolData

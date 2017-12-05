@@ -437,7 +437,6 @@ typedef enum
     NECRO_VAR_DECLARATION,
     NECRO_VAR_SIG,
     NECRO_VAR_CLASS_SIG,
-    NECRO_VAR_TYPE_CLASS_FUNC_INSTANCE
 } NECRO_VAR_TYPE;
 const char* var_type_string(NECRO_VAR_TYPE symbol_type);
 

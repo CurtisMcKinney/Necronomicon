@@ -9,12 +9,17 @@
 #include "parser.h"
 #include "renamer.h"
 
-// TODO: Don't do error in checking, be more naive and kick the can to type checking?
-// Or 1 pass to insert names, 1 pass to lookup names?
-
 //=====================================================
 // Logic
 //=====================================================
+void swap_renamer_class_symbol(NecroRenamer* renamer)
+{
+    NecroSymbol class_symbol = renamer->prev_class_instance_symbol;
+    renamer->prev_class_instance_symbol    = renamer->current_class_instance_symbol;
+    renamer->current_class_instance_symbol = class_symbol;
+
+}
+
 bool try_create_name(NecroRenamer* renamer, NecroAST_Node_Reified* node, NecroScope* scope, NecroID* id_to_set, NecroSymbol symbol)
 {
     NecroID id = necro_this_scope_find(scope, symbol);
@@ -75,7 +80,9 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
             input_node->simple_assignment.variable_name = necro_intern_create_type_class_instance_symbol(renamer->scoped_symtable->global_table->intern, input_node->simple_assignment.variable_name, renamer->current_class_instance_symbol);
         if (!try_create_name(renamer, input_node, input_node->scope, &input_node->simple_assignment.id, input_node->simple_assignment.variable_name))
             return;
+        swap_renamer_class_symbol(renamer);
         rename_declare_go(input_node->simple_assignment.rhs, renamer);
+        swap_renamer_class_symbol(renamer);
         break;
 
     case NECRO_AST_APATS_ASSIGNMENT:
@@ -97,8 +104,10 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
             input_node->apats_assignment.id       = necro_scoped_symtable_new_symbol_info(renamer->scoped_symtable, input_node->scope, necro_create_initial_symbol_info(input_node->apats_assignment.variable_name, input_node->source_loc, input_node->scope));
             input_node->scope->last_introduced_id = input_node->apats_assignment.id;
         }
+        swap_renamer_class_symbol(renamer);
         rename_declare_go(input_node->apats_assignment.apats, renamer);
         rename_declare_go(input_node->apats_assignment.rhs, renamer);
+        swap_renamer_class_symbol(renamer);
         break;
     }
 
@@ -146,8 +155,6 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
                 input_node->variable.id = necro_scoped_symtable_new_symbol_info(renamer->scoped_symtable, input_node->scope, necro_create_initial_symbol_info(input_node->variable.symbol, input_node->source_loc, input_node->scope));
             break;
         }
-        // TODO: Not Implemented
-        case NECRO_VAR_TYPE_CLASS_FUNC_INSTANCE: break;
         }
         break;
 
@@ -352,7 +359,6 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         case NECRO_VAR_TYPE_FREE_VAR:            break;
         // TODO: Not Implemented
         case NECRO_VAR_CLASS_SIG:                break;
-        case NECRO_VAR_TYPE_CLASS_FUNC_INSTANCE: break;
         }
         break;
 
@@ -476,6 +482,7 @@ NECRO_RETURN_CODE necro_rename_declare_pass(NecroRenamer* renamer, NecroAST_Reif
 {
     renamer->error.return_code             = NECRO_SUCCESS;
     renamer->current_class_instance_symbol = (NecroSymbol) { 0 };
+    renamer->prev_class_instance_symbol    = (NecroSymbol) { 0 };
     rename_declare_go(input_ast->root, renamer);
     return renamer->error.return_code;
 }
@@ -484,6 +491,7 @@ NECRO_RETURN_CODE necro_rename_var_pass(NecroRenamer* renamer, NecroAST_Reified*
 {
     renamer->error.return_code             = NECRO_SUCCESS;
     renamer->current_class_instance_symbol = (NecroSymbol) { 0 };
+    renamer->prev_class_instance_symbol    = (NecroSymbol) { 0 };
     rename_var_go(input_ast->root, renamer);
     return renamer->error.return_code;
 }

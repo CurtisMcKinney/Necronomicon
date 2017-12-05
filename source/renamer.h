@@ -17,6 +17,7 @@ typedef struct
     NecroScopedSymTable* scoped_symtable;
     NecroError           error;
     NecroSymbol          current_class_instance_symbol;
+    NecroSymbol          prev_class_instance_symbol;
 } NecroRenamer;
 
 NecroRenamer      necro_create_renamer(NecroScopedSymTable* scoped_symtable);

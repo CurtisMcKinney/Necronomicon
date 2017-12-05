@@ -55,6 +55,8 @@ NecroSymbol necro_intern_string(NecroIntern* intern, const char* str);
 NecroSymbol necro_intern_string_slice(NecroIntern* intern, NecroStringSlice slice);
 bool        necro_intern_contains_symbol(NecroIntern* intern, NecroSymbol symbol);
 const char* necro_intern_get_string(NecroIntern* intern, NecroSymbol symbol);
+NecroSymbol necro_intern_concat_symbols(NecroIntern* intern, NecroSymbol symbol1, NecroSymbol symbol2);
+NecroSymbol necro_intern_create_type_class_instance_symbol(NecroIntern* intern, NecroSymbol symbol, NecroSymbol type_class_name);
 void        necro_print_intern(NecroIntern* intern);
 void        necro_test_intern();
 

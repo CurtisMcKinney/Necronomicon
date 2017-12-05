@@ -16,6 +16,15 @@
 struct NecroAST_Node_Reified;
 
 //=====================================================
+// AST FunctionType
+//=====================================================
+typedef struct
+{
+    struct NecroAST_Node_Reified* type;
+    struct NecroAST_Node_Reified* next_on_arrow;
+} NecroAST_FunctionType_Reified;
+
+//=====================================================
 // AST TypeClassInstance
 //=====================================================
 typedef struct
@@ -54,6 +63,7 @@ typedef struct
     struct NecroAST_Node_Reified* var;
     struct NecroAST_Node_Reified* context; // optional, null_local_ptr if not present
     struct NecroAST_Node_Reified* type;
+    NECRO_SIG_TYPE                sig_type;
 } NecroAST_TypeSignature_Reified;
 
 //=====================================================
@@ -107,8 +117,9 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    NecroSymbol symbol;
-    NecroID     id;
+    NecroSymbol    symbol;
+    NecroID        id;
+    NECRO_CON_TYPE con_type;
 } NecroAST_ConID_Reified;
 
 //=====================================================
@@ -300,13 +311,9 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    union
-    {
-        NecroSymbol          variable_id;
-        NECRO_LEX_TOKEN_TYPE variable_symbol;
-    };
-    NecroAST_VariableType variable_type;
-    NecroID               id;
+    NecroSymbol    symbol;
+    NecroID        id;
+    NECRO_VAR_TYPE var_type;
 } NecroAST_Variable_Reified;
 
 //=====================================================
@@ -410,6 +417,7 @@ typedef struct NecroAST_Node_Reified
         NecroAST_TypeClassDeclaration_Reified type_class_declaration;
         NecroAST_TypeClassInstance_Reified    type_class_instance;
         NecroAST_TypeSignature_Reified        type_signature;
+        NecroAST_FunctionType_Reified         function_type;
     };
     NecroAST_NodeType  type;
     NecroSourceLoc     source_loc;

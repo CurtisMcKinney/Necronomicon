@@ -1,21 +1,55 @@
 slime slimeCount = 4 + damage / amount
     where
+        damage :: Int -> Int
         damage 0      = 0
-        damage amount = slimeCount * amount
+        damage amount = slimeCount * amount * size
         amount        = 5
+        size          = 10
 
 doTest x y = do
     z <- x
-    return y
+    let w = let y = 33
+            in  666 + y
+    z + y / w
+
+data Int         = Int
+data Bool        = True | False
+data DeathType a = DeathType | LifeType a
+
+data MyData a b = CoolData | MyData a b
 
 patternTest (MyData is cool) = is cool x
     where
         x = 2
 
- -- TODO: Clean up type variable scoping!
--- class (Show a) => MyTypeClass a where
---     deathByKilling :: a -> Bool
+sigTest :: Int -> Int
+sigTest x = x + 33
+sigTest x = x + 33
 
-data DeathType a = DeathType | LifeType a
+sigTest2 :: Int -> Int
+sigTest2 x = x + 33
+sigTest2 _ = 33
 
-sigTest :: Eq a => a -> Float
+freeVar :: a -> b -> MyData a b
+freeVar x y = MyData x y + coolTest x
+
+class MyTypeClass a where
+
+contextTest :: MyTypeClass a => a -> Int
+contextTest x = 0
+
+instance MyTypeClass Int where
+
+data MyApData = MyApData (DeathType Int -> Bool)
+
+class ClassWithFunctions a where
+    coolFunc :: a -> Int
+
+instance ClassWithFunctions Int where
+    coolFunc x = 0
+
+instance ClassWithFunctions Bool where
+    coolFunc x = 1
+
+coolTest :: Int -> Int
+coolTest x = coolFunc x

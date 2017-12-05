@@ -12,19 +12,11 @@
 #include "symtable.h"
 #include "ast.h"
 
-typedef enum
-{
-    NECRO_NO_DECLARE,
-    NECRO_DECLARE_PATTERN,
-    NECRO_DECLARE_TYPE,
-    NECRO_DECLARE_DATA
-} NECRO_DECLARE_MODE;
-
 typedef struct
 {
     NecroScopedSymTable* scoped_symtable;
-    NECRO_DECLARE_MODE   declare_mode;
     NecroError           error;
+    NecroSymbol          current_class_instance_symbol;
 } NecroRenamer;
 
 NecroRenamer      necro_create_renamer(NecroScopedSymTable* scoped_symtable);

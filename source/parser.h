@@ -50,9 +50,32 @@ typedef enum
     NECRO_AST_TYPE_CLASS_CONTEXT,
     NECRO_AST_TYPE_CLASS_DECLARATION,
     NECRO_AST_TYPE_CLASS_INSTANCE,
-    NECRO_AST_TYPE_SIGNATURE
+    NECRO_AST_TYPE_SIGNATURE,
+    NECRO_AST_FUNCTION_TYPE,
     // NECRO_AST_MODULE,
 } NecroAST_NodeType;
+
+// typedef enum
+// {
+//     NECRO_SYM_VAR,
+//     NECRO_SYM_CONSTRUCTOR_DECLARATION,
+//     NECRO_SYM_PATTERN,
+//     NECRO_SYM_TYPE_DECLARATION,
+//     NECRO_SYM_TYPE,
+//     NECRO_SYM_TYPE_FREE_VAR,
+//     NECRO_SYM_TYPE_CLASS_FUNC_DECLARATION,
+//     NECRO_SYM_TYPE_CLASS_FUNC_INSTANCE,
+// } NECRO_SYMBOL_TYPE;
+// const char* symbol_type_string(NECRO_SYMBOL_TYPE symbol_type);
+
+//=====================================================
+// AST FunctionType
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr type;
+    NecroAST_LocalPtr next_on_arrow;
+} NecroAST_FunctionType;
 
 //=====================================================
 // AST TypeClassInstance
@@ -88,11 +111,18 @@ typedef struct
 //=====================================================
 // AST TypeSignature
 //=====================================================
+typedef enum
+{
+    NECRO_SIG_DECLARATION,
+    NECRO_SIG_TYPE_CLASS
+} NECRO_SIG_TYPE;
+
 typedef struct
 {
     NecroAST_LocalPtr var;
     NecroAST_LocalPtr context; // optional, null_local_ptr if not present
     NecroAST_LocalPtr type;
+    NECRO_SIG_TYPE    sig_type;
 } NecroAST_TypeSignature;
 
 //=====================================================
@@ -144,9 +174,19 @@ typedef struct
 //=====================================================
 // AST ConID
 //=====================================================
+typedef enum
+{
+    NECRO_CON_VAR,
+    NECRO_CON_TYPE_VAR,
+    NECRO_CON_DATA_DECLARATION,
+    NECRO_CON_TYPE_DECLARATION,
+} NECRO_CON_TYPE;
+const char* con_type_string(NECRO_CON_TYPE symbol_type);
+
 typedef struct
 {
-    NecroSymbol       symbol;
+    NecroSymbol    symbol;
+    NECRO_CON_TYPE con_type;
 } NecroAST_ConID;
 
 //=====================================================
@@ -390,21 +430,21 @@ typedef struct
 //=====================================================
 // AST Variable
 //=====================================================
-
 typedef enum
 {
-    NECRO_AST_VARIABLE_ID,
-    NECRO_AST_VARIABLE_SYMBOL
-} NecroAST_VariableType;
+    NECRO_VAR_VAR,
+    NECRO_VAR_TYPE_FREE_VAR,
+    NECRO_VAR_DECLARATION,
+    NECRO_VAR_SIG,
+    NECRO_VAR_CLASS_SIG,
+    NECRO_VAR_TYPE_CLASS_FUNC_INSTANCE
+} NECRO_VAR_TYPE;
+const char* var_type_string(NECRO_VAR_TYPE symbol_type);
 
 typedef struct
 {
-    union
-    {
-        NecroSymbol variable_id;
-        NECRO_LEX_TOKEN_TYPE variable_symbol;
-    };
-    NecroAST_VariableType variable_type;
+    NecroSymbol    symbol;
+    NECRO_VAR_TYPE var_type;
 } NecroAST_Variable;
 
 //=====================================================
@@ -521,6 +561,7 @@ typedef struct
         NecroAST_TypeClassDeclaration type_class_declaration;
         NecroAST_TypeClassInstance type_class_instance;
         NecroAST_TypeSignature type_signature;
+        NecroAST_FunctionType function_type;
     };
 
     NecroAST_NodeType type;

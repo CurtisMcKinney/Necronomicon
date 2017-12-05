@@ -132,6 +132,57 @@ void necro_intern_grow(NecroIntern* intern)
     free(old_entries);
 }
 
+NecroSymbol necro_intern_create_type_class_instance_symbol(NecroIntern* intern, NecroSymbol symbol, NecroSymbol type_class_name)
+{
+    const char* string1 = necro_intern_get_string(intern, symbol);
+    const char* div     = "@";
+    const char* string2 = necro_intern_get_string(intern, type_class_name);
+    size_t      len1    = strlen(string1);
+    size_t      lend    = strlen(div);
+    size_t      len2    = strlen(string2);
+    char*       str     = malloc((len1 + lend + len2 + 1) * sizeof(char));
+    if (str == NULL)
+    {
+        fprintf(stderr, "Could not allocate memory in necro_intern_concat_symbol\n");
+        exit(1);
+    }
+    // Copy str1
+    for (size_t i = 0; i < len1; ++i)
+        str[i] = string1[i];
+    // Copy div
+    for (size_t i = 0; i < lend; ++i)
+        str[len1 + i] = div[i];
+    // Copy str2
+    for (size_t i = 0; i < len2; ++i)
+        str[len1 + lend + i] = string2[i];
+    str[len1 + lend + len2]   = '\0';
+    NecroSymbol new_symbol = necro_intern_string(intern, str);
+    free(str);
+    return new_symbol;
+}
+
+NecroSymbol necro_intern_concat_symbols(NecroIntern* intern, NecroSymbol symbol1, NecroSymbol symbol2)
+{
+    const char* string1 = necro_intern_get_string(intern, symbol1);
+    const char* string2 = necro_intern_get_string(intern, symbol2);
+    size_t      len1    = strlen(string1);
+    size_t      len2    = strlen(string2);
+    char*       str     = malloc((len1 + len2 + 1) * sizeof(char));
+    if (str == NULL)
+    {
+        fprintf(stderr, "Could not allocate memory in necro_intern_concat_symbol\n");
+        exit(1);
+    }
+    for (size_t i = 0; i < len1; ++i)
+        str[i] = string1[i];
+    for (size_t i = 0; i < len2; ++i)
+        str[len1 + i] = string2[i];
+    str[len1 + len2]   = '\0';
+    NecroSymbol symbol = necro_intern_string(intern, str);
+    free(str);
+    return symbol;
+}
+
 NecroSymbol necro_intern_string(NecroIntern* intern, const char* str)
 {
     assert(intern               != NULL);

@@ -110,6 +110,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     necro_print_reified_ast(&ast_r, &lexer.intern);
     puts("");
     necro_symtable_print(&symtable);
+    // necro_scoped_symtable_print_type_scope(&scoped_symtable);
     if (compilation_phase == NECRO_PHASE_RENAME)
         return;
 

@@ -32,13 +32,14 @@ struct NecroScope;
 
 typedef struct
 {
-    NecroSymbol        name;
-    NecroID            id;
-    size_t             data_size;
-    NecroType          type;
-    size_t             local_var_num;
-    NecroSourceLoc     source_loc;
-    struct NecroScope* scope;
+    NecroSymbol            name;
+    NecroID                id;
+    size_t                 data_size;
+    NecroType              type;
+    size_t                 local_var_num;
+    NecroSourceLoc         source_loc;
+    struct NecroScope*     scope;
+    NecroAST_Node_Reified* optional_type_signature;
 } NecroSymbolInfo;
 
 typedef struct
@@ -80,9 +81,10 @@ typedef struct
 {
     NecroPagedArena arena;
     NecroSymTable*  global_table;
-    NecroScope*     current_scope;
     NecroScope*     top_scope;
-    NecroScope*     type_scope;
+    NecroScope*     current_scope;
+    NecroScope*     top_type_scope;
+    NecroScope*     current_type_scope;
     NecroError      error;
 } NecroScopedSymTable;
 
@@ -91,8 +93,9 @@ void                necro_destroy_scoped_symtable(NecroScopedSymTable* table);
 
 // Build API
 void                necro_scoped_symtable_new_scope(NecroScopedSymTable* table);
-void                necro_scoped_symtable_new_type_scope(NecroScopedSymTable* table);
 void                necro_scoped_symtable_pop_scope(NecroScopedSymTable* table);
+void                necro_scoped_symtable_new_type_scope(NecroScopedSymTable* table);
+void                necro_scoped_symtable_pop_type_scope(NecroScopedSymTable* table);
 
 // Names API
 NECRO_RETURN_CODE   necro_build_scopes(NecroScopedSymTable* table, NecroAST_Reified* ast);
@@ -102,6 +105,7 @@ NecroID             necro_scoped_symtable_new_symbol_info(NecroScopedSymTable* t
 void                necro_scope_set_last_introduced_id(NecroScope* scope, NecroID id);
 
 // Test
+void                necro_scoped_symtable_print_type_scope(NecroScopedSymTable* table);
 void                necro_scoped_symtable_print(NecroScopedSymTable* table);
 void                necro_scoped_symtable_test();
 #endif // SYMTABLE_H

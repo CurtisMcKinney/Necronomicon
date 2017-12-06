@@ -1,6 +1,6 @@
+slime :: Float -> Float
 slime slimeCount = 4 + damage / amount
     where
-        damage :: Int -> Int
         damage 0      = 0
         damage amount = slimeCount * amount * size
         amount        = 5
@@ -12,6 +12,7 @@ doTest x y = do
             in  666 + y
     z + y / w
 
+data Float       = Float
 data Int         = Int
 data Bool        = True | False
 data DeathType a = DeathType | LifeType a
@@ -44,7 +45,7 @@ data MyApData = MyApData (DeathType Int -> Bool)
 
 class ClassWithFunctions a where
     coolFunc  :: a -> Int
-    otherFunc :: Int -> Bool -> Int
+    otherFunc :: Int -> (Bool -> Bool) -> Int
 
 instance ClassWithFunctions Int where
     coolFunc  x   = 0

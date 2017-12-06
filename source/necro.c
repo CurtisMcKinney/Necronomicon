@@ -20,6 +20,10 @@ int main(int32_t argc, char** argv)
         {
             necro_test(NECRO_TEST_ALL);
         }
+        else if (strcmp(argv[2], "infer") == 0)
+        {
+            necro_test(NECRO_TEST_INFER);
+        }
         else if (strcmp(argv[2], "vm") == 0)
         {
             necro_test(NECRO_TEST_VM);

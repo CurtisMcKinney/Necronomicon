@@ -19,6 +19,7 @@ set(project_SOURCES
     source/symtable.c
     source/ast.c
     source/driver.c
+    source/type.c
     )
 set(project_HEADERS
     source/necro.h
@@ -36,6 +37,7 @@ set(project_HEADERS
     source/symtable.h
     source/ast.h
     source/driver.h
+    source/type.h
     )
 
 ADD_EXECUTABLE(necro ${project_SOURCES})

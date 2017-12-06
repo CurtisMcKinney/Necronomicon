@@ -14,6 +14,7 @@
 #include "intern.h"
 #include "ast.h"
 #include "arena.h"
+#include "type.h"
 
 //=====================================================
 // NecroSymTable, Contains info for a particular ID:
@@ -23,11 +24,6 @@
 //         * Type
 //         * Misc Attributes
 //=====================================================
-typedef struct
-{
-    size_t dummy;
-} NecroType;
-
 struct NecroScope;
 
 typedef struct

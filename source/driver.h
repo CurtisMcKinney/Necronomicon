@@ -22,6 +22,7 @@ typedef enum
     NECRO_TEST_VAULT,
     NECRO_TEST_ARCHIVE,
     NECRO_TEST_REGION,
+    NECRO_TEST_INFER
 } NECRO_TEST;
 
 typedef enum
@@ -39,7 +40,7 @@ typedef enum
     NECRO_PHASE_PARSE,
     NECRO_PHASE_REIFY,
     NECRO_PHASE_BUILD_SCOPES,
-    NECRO_PHASE_RENAME,
+    NECRO_PHASE_RENAME
 } NECRO_PHASE;
 
 void necro_test(NECRO_TEST test);

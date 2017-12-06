@@ -45,9 +45,10 @@ typedef struct
     NECRO_RETURN_CODE return_code;
 } NecroError;
 
-void necro_verror(NecroError* error, NecroSourceLoc source_loc, const char* error_message, va_list args);
-void necro_error(NecroError* error, NecroSourceLoc source_loc, const char* error_message, ...);
-void necro_print_error(NecroError* error, const char* input_string, const char* error_type);
+NecroError necro_create_error();
+void       necro_verror(NecroError* error, NecroSourceLoc source_loc, const char* error_message, va_list args);
+void       necro_error(NecroError* error, NecroSourceLoc source_loc, const char* error_message, ...);
+void       necro_print_error(NecroError* error, const char* input_string, const char* error_type);
 
 //=====================================================
 // NecroVector:

@@ -14,6 +14,7 @@
 #include "symtable.h"
 #include "ast.h"
 #include "renamer.h"
+#include "type.h"
 #include "driver.h"
 
 void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
@@ -137,6 +138,7 @@ void necro_test(NECRO_TEST test)
     case NECRO_TEST_VAULT:     necro_vault_test();     break;
     case NECRO_TEST_ARCHIVE:   necro_archive_test();   break;
     case NECRO_TEST_REGION:    necro_region_test();    break;
+    case NECRO_TEST_INFER:     necro_test_infer();     break;
     case NECRO_TEST_ALL:
         necro_test_dvm();
         necro_symtable_test();
@@ -144,6 +146,7 @@ void necro_test(NECRO_TEST test)
         necro_test_intern();
         necro_archive_test();
         necro_region_test();
+        necro_test_infer();
         break;
     default:                                           break;
     }

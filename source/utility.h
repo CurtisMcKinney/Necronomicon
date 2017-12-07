@@ -22,7 +22,7 @@ typedef struct
 //=====================================================
 // Error Messaging
 //=====================================================
-#define NECRO_MAX_ERROR_MESSAGE_LENGTH 512
+#define NECRO_MAX_ERROR_MESSAGE_LENGTH 2048
 
 typedef enum
 {
@@ -46,8 +46,8 @@ typedef struct
 } NecroError;
 
 NecroError necro_create_error();
-void       necro_verror(NecroError* error, NecroSourceLoc source_loc, const char* error_message, va_list args);
-void       necro_error(NecroError* error, NecroSourceLoc source_loc, const char* error_message, ...);
+size_t     necro_verror(NecroError* error, NecroSourceLoc source_loc, const char* error_message, va_list args);
+size_t     necro_error(NecroError* error, NecroSourceLoc source_loc, const char* error_message, ...);
 void       necro_print_error(NecroError* error, const char* input_string, const char* error_type);
 
 //=====================================================

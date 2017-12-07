@@ -12,12 +12,12 @@
 #include "intern.h"
 #include "ast.h"
 
-// TODO: Predicates?
-
-// Var / Con
+//=====================================================
+//  Var / Con
+//=====================================================
 typedef struct
 {
-    NecroSymbol symbol;
+    // NecroSymbol symbol;
     NecroID     id;
 } NecroVar;
 
@@ -27,7 +27,10 @@ typedef struct
     NecroID     id;
 } NecroCon;
 
-// NecroType
+
+//=====================================================
+// NecorType
+//=====================================================
 struct NecroType;
 typedef enum
 {
@@ -37,9 +40,6 @@ typedef enum
     NECRO_TYPE_FUN,
     NECRO_TYPE_LIST,
     NECRO_TYPE_LIT,
-    NECRO_TYPE_FOR,
-    // End
-    NECRO_TYPE_END,
 } NECRO_TYPE;
 
 typedef struct
@@ -57,6 +57,7 @@ typedef struct
 {
     NecroCon          con;
     struct NecroType* args;
+    size_t            arity;
 } NecroTypeCon;
 
 typedef struct
@@ -64,18 +65,6 @@ typedef struct
     struct NecroType* type1;
     struct NecroType* type2;
 } NecroTypeFun;
-
-typedef struct
-{
-    NecroVar          var;
-    struct NecroType* type;
-} NecroTypeFor;
-
-typedef struct
-{
-    NecroSymbol symbol;
-    NecroID     id;
-} NecroTypeLit;
 
 typedef struct
 {
@@ -91,21 +80,63 @@ typedef struct NecroType
         NecroTypeApp  app;
         NecroTypeCon  con;
         NecroTypeFun  fun;
-        NecroTypeFor  for_all;
-        NecroTypeLit  lit;
         NecroTypeList list;
     };
     NECRO_TYPE     type;
     NecroSourceLoc source_loc;
 } NecroType;
 
+//=====================================================
+// NecroTypeScheme - i.e. forall
+//=====================================================
+struct NecroTypeScheme;
+typedef struct
+{
+    NecroVar                var;
+    struct NecroTypeScheme* scheme;
+} NecroForAll;
+
+typedef enum
+{
+    NECRO_TYPE_SCHEME_FOR_ALL,
+    NECRO_TYPE_SCHEME_TERM,
+} NECRO_TYPE_SCHEME_TYPE;
+
+typedef struct NecroTypeScheme
+{
+    union
+    {
+        NecroForAll for_all;
+        NecroType   term;
+    };
+    NECRO_TYPE_SCHEME_TYPE type;
+} NecroTypeScheme;
+
+//=====================================================
+// Gamma - i.e. Assumptions...Trying this the slow way first, for correctness sake
+// TODO: Make faster
+//=====================================================
+typedef struct NecroGamma
+{
+    struct NecroGamma* next;
+    NecroVar           key;
+    NecroTypeScheme*   scheme;
+} NecroGamma;
+
+//=====================================================
+// Infer
+//=====================================================
 typedef struct
 {
     NecroPagedArena arena;
     NecroIntern*    intern;
     NecroError      error;
+    size_t          highest_id;
 } NecroInfer;
 
+//=====================================================
+// API
+//=====================================================
 NecroInfer necro_create_infer(NecroIntern* intern);
 void       necro_destroy_infer(NecroInfer* infer);
 

@@ -25,27 +25,26 @@ NecroError necro_create_error()
     };
 }
 
-void necro_verror(NecroError* error, NecroSourceLoc source_loc, const char* error_message, va_list args)
+size_t necro_verror(NecroError* error, NecroSourceLoc source_loc, const char* error_message, va_list args)
 {
 	error->return_code = NECRO_ERROR;
     error->source_loc  = source_loc;
-    vsnprintf(error->error_message, NECRO_MAX_ERROR_MESSAGE_LENGTH, error_message, args);
+    return vsnprintf(error->error_message, NECRO_MAX_ERROR_MESSAGE_LENGTH, error_message, args);
 }
 
-void necro_error(NecroError* error, NecroSourceLoc source_loc, const char* error_message, ...)
+size_t necro_error(NecroError* error, NecroSourceLoc source_loc, const char* error_message, ...)
 {
 	va_list args;
 	va_start(args, error_message);
 
 	error->return_code = NECRO_ERROR;
     error->source_loc  = source_loc;
-    vsnprintf(error->error_message, NECRO_MAX_ERROR_MESSAGE_LENGTH, error_message, args);
+    size_t count = vsnprintf(error->error_message, NECRO_MAX_ERROR_MESSAGE_LENGTH, error_message, args);
 
 	va_end(args);
+    return count;
 }
 
-// Port LexTokens to using NecroSourceLoc and make sure they are all initiated correctly!
-// Then put NecroSourceLoc in NecroAST_Node and NecroAST_Node_Reified nodes!
 void necro_print_error(NecroError* error, const char* input_string, const char* error_type)
 {
     size_t line_start = error->source_loc.pos - error->source_loc.character;

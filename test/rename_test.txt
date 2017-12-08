@@ -16,6 +16,7 @@ data Float       = Float
 data Int         = Int
 data Bool        = True | False
 data DeathType a = DeathType | LifeType a
+data Maybe a     = Maybe a | Nothing
 
 data MyData a b = CoolData | MyData a b
 
@@ -63,5 +64,8 @@ instance ClassWithFunctions MyData where
 
     otherFunc _ _ = 100
 
-coolTest :: Int -> Int
+data ApTest a b = ApTest Int (MyData a (Maybe a) b) Int
+
+coolTest :: Int -> (a -> b) -> Int
+-- coolTest :: Int -> a -> b -> Int
 coolTest x = coolFunc x + CoolData

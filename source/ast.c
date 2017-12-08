@@ -427,12 +427,20 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
         break;
 
     case NECRO_AST_FUNCTION_TYPE:
-        puts("\r");
-        print_reified_ast_impl(ast_node->function_type.type, intern, depth + 0);
+        puts("(");
+        print_reified_ast_impl(ast_node->function_type.type, intern, depth + 1);
         for (uint32_t i = 0;  i < depth + 0; ++i) printf(AST_TAB);
         puts("->");
-        puts("\r");
-        print_reified_ast_impl(ast_node->function_type.next_on_arrow, intern, depth + 0);
+        print_reified_ast_impl(ast_node->function_type.next_on_arrow, intern, depth + 1);
+        for (uint32_t i = 0;  i < depth + 0; ++i) printf(AST_TAB);
+        puts(")");
+
+        // print_ast_impl(ast, ast_get_node(ast, ast_node->function_type.type), intern, depth + 1);
+        // for (uint32_t i = 0;  i < depth + 0; ++i) printf(AST_TAB);
+        // puts("->");
+        // print_ast_impl(ast, ast_get_node(ast, ast_node->function_type.next_on_arrow), intern, depth + 1);
+        // for (uint32_t i = 0;  i < depth + 0; ++i) printf(AST_TAB);
+        // puts(")");
         break;
 
     default:

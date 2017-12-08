@@ -31,11 +31,11 @@ typedef struct
     NecroSymbol            name;
     NecroID                id;
     size_t                 data_size;
-    NecroType              type;
     size_t                 local_var_num;
     NecroSourceLoc         source_loc;
     struct NecroScope*     scope;
     NecroAST_Node_Reified* optional_type_signature;
+    NecroType*             type;
 } NecroSymbolInfo;
 
 typedef struct

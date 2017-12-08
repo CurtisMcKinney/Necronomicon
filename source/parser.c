@@ -520,12 +520,13 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         break;
 
     case NECRO_AST_FUNCTION_TYPE:
-        puts("\r");
-        print_ast_impl(ast, ast_get_node(ast, ast_node->function_type.type), intern, depth + 0);
+        puts("(");
+        print_ast_impl(ast, ast_get_node(ast, ast_node->function_type.type), intern, depth + 1);
         for (uint32_t i = 0;  i < depth + 0; ++i) printf(AST_TAB);
         puts("->");
-        puts("\r");
-        print_ast_impl(ast, ast_get_node(ast, ast_node->function_type.next_on_arrow), intern, depth + 0);
+        print_ast_impl(ast, ast_get_node(ast, ast_node->function_type.next_on_arrow), intern, depth + 1);
+        for (uint32_t i = 0;  i < depth + 0; ++i) printf(AST_TAB);
+        puts(")");
         break;
 
     default:
@@ -1341,36 +1342,67 @@ NecroAST_LocalPtr parse_application_expression(NecroParser* parser)
     return null_local_ptr;
 }
 
+NecroAST_LocalPtr parse_function_expression_go(NecroParser* parser, NecroAST_LocalPtr left)
+{
+    if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return null_local_ptr;
+    if (left == null_local_ptr)
+        return null_local_ptr;
+
+    NecroParser_Snapshot snapshot    = snapshot_parser(parser);
+    NecroAST_LocalPtr    aexpression = parse_application_expression(parser);
+    if (aexpression == null_local_ptr)
+    {
+        restore_parser(parser, snapshot);
+        return left;
+    }
+
+    NecroAST_LocalPtr ptr  = null_local_ptr;
+    NecroAST_Node*    node = ast_alloc_node_local_ptr(parser, &ptr);
+    node->type             = NECRO_AST_FUNCTION_EXPRESSION;
+    node->type_app.ty      = left;
+    node->type_app.next_ty = aexpression;
+    return parse_function_expression_go(parser, ptr);
+}
+
 NecroAST_LocalPtr parse_function_expression(NecroParser* parser)
 {
     if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
         return null_local_ptr;
 
-    NecroParser_Snapshot snapshot = snapshot_parser(parser);
-
-    NecroAST_LocalPtr aexpression = parse_application_expression(parser);
-    if (aexpression != null_local_ptr)
+    NecroParser_Snapshot snapshot    = snapshot_parser(parser);
+    NecroAST_LocalPtr    aexpression = parse_function_expression_go(parser, parse_application_expression(parser));
+    if (aexpression == null_local_ptr || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
     {
-        NecroAST_LocalPtr next_fexpression = parse_function_expression(parser);
-        if (parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
-            return null_local_ptr;
-        // if (next_fexpression != null_local_ptr)
-        // {
-            NecroAST_LocalPtr fexpression_local_ptr = null_local_ptr;
-            NecroAST_Node* fexpression_node = ast_alloc_node_local_ptr(parser, &fexpression_local_ptr);
-            fexpression_node->type = NECRO_AST_FUNCTION_EXPRESSION;
-            fexpression_node->fexpression.aexp = aexpression;
-            fexpression_node->fexpression.next_fexpression = next_fexpression;
-            return fexpression_local_ptr;
-        // }
-        // else
-        // {
-        //     return aexpression;
-        // }
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
     }
+    return aexpression;
 
-    restore_parser(parser, snapshot);
-    return null_local_ptr;
+    // old version, wrong associativity
+    // NecroAST_LocalPtr aexpression = parse_application_expression(parser);
+    // if (aexpression != null_local_ptr)
+    // {
+    //     NecroAST_LocalPtr next_fexpression = parse_function_expression(parser);
+    //     if (parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    //         return null_local_ptr;
+    //     // if (next_fexpression != null_local_ptr)
+    //     // {
+    //         NecroAST_LocalPtr fexpression_local_ptr = null_local_ptr;
+    //         NecroAST_Node* fexpression_node = ast_alloc_node_local_ptr(parser, &fexpression_local_ptr);
+    //         fexpression_node->type = NECRO_AST_FUNCTION_EXPRESSION;
+    //         fexpression_node->fexpression.aexp = aexpression;
+    //         fexpression_node->fexpression.next_fexpression = next_fexpression;
+    //         return fexpression_local_ptr;
+    //     // }
+    //     // else
+    //     // {
+    //     //     return aexpression;
+    //     // }
+    // }
+
+    // restore_parser(parser, snapshot);
+    // return null_local_ptr;
 }
 
 NecroAST_LocalPtr parse_wildcard(NecroParser* parser)
@@ -3124,17 +3156,16 @@ NecroAST_LocalPtr parse_type(NecroParser* parser)
         return null_local_ptr;
 
     NecroParser_Snapshot snapshot = snapshot_parser(parser);
-
-    // Type
-    NecroAST_LocalPtr ty_ptr = parse_btype(parser);
+    NecroAST_LocalPtr   ty_ptr    = parse_btype(parser);
     if (ty_ptr == null_local_ptr || peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    {
+        restore_parser(parser, snapshot);
         return null_local_ptr;
-
+    }
     // Next Type after arrow
     NecroAST_LocalPtr next_after_arrow_ptr = null_local_ptr;
     if (peek_token_type(parser) == NECRO_LEX_RIGHT_ARROW)
     {
-        // NecroSymbol arrow_symbol = peek_token(parser)->symbol;
         consume_token(parser);
         NecroAST_LocalPtr next_after_arrow_ptr = parse_type(parser);
         if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
@@ -3155,36 +3186,42 @@ NecroAST_LocalPtr parse_type(NecroParser* parser)
     }
 }
 
-NecroAST_LocalPtr parse_btype(NecroParser* parser)
+NecroAST_LocalPtr parse_btype_go(NecroParser* parser, NecroAST_LocalPtr left)
 {
     if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return null_local_ptr;
+    if (left == null_local_ptr)
         return null_local_ptr;
 
     NecroParser_Snapshot snapshot = snapshot_parser(parser);
 
     NecroAST_LocalPtr atype = parse_atype(parser, NECRO_VAR_TYPE_FREE_VAR);
-    if (atype != null_local_ptr)
+    if (atype == null_local_ptr)
     {
-        NecroAST_LocalPtr next_ty = parse_btype(parser);
-        if (parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
-            return null_local_ptr;
-        // if (next_ty != null_local_ptr)
-        // {
-            NecroAST_LocalPtr ptr  = null_local_ptr;
-            NecroAST_Node*    node = ast_alloc_node_local_ptr(parser, &ptr);
-            node->type             = NECRO_AST_TYPE_APP;
-            node->type_app.ty      = atype;
-            node->type_app.next_ty = next_ty;
-            return ptr;
-        // }
-        // else
-        // {
-        //     return atype;
-        // }
+        restore_parser(parser, snapshot);
+        return left;
     }
 
-    restore_parser(parser, snapshot);
-    return null_local_ptr;
+    NecroAST_LocalPtr ptr  = null_local_ptr;
+    NecroAST_Node*    node = ast_alloc_node_local_ptr(parser, &ptr);
+    node->type             = NECRO_AST_TYPE_APP;
+    node->type_app.ty      = left;
+    node->type_app.next_ty = atype;
+    return parse_btype_go(parser, ptr);
+}
+
+NecroAST_LocalPtr parse_btype(NecroParser* parser)
+{
+    if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return null_local_ptr;
+    NecroParser_Snapshot snapshot = snapshot_parser(parser);
+    NecroAST_LocalPtr    atype    = parse_btype_go(parser, parse_atype(parser, NECRO_VAR_TYPE_FREE_VAR));
+    if (atype == null_local_ptr || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    {
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
+    }
+    return atype;
 }
 
 NecroAST_LocalPtr parse_atype(NecroParser* parser, NECRO_VAR_TYPE tyvar_var_type)

@@ -27,7 +27,6 @@ typedef struct
     NecroID     id;
 } NecroCon;
 
-
 //=====================================================
 // NecorType
 //=====================================================
@@ -40,6 +39,7 @@ typedef enum
     NECRO_TYPE_FUN,
     NECRO_TYPE_LIST,
     NECRO_TYPE_LIT,
+    NECRO_TYPE_FOR,
 } NECRO_TYPE;
 
 typedef struct
@@ -72,62 +72,89 @@ typedef struct
     struct NecroType* next;
 } NecroTypeList;
 
+typedef struct
+{
+    NecroVar          var;
+    struct NecroType* type;
+} NecroTypeForAll;
+
 typedef struct NecroType
 {
     union
     {
-        NecroTypeVar  var;
-        NecroTypeApp  app;
-        NecroTypeCon  con;
-        NecroTypeFun  fun;
-        NecroTypeList list;
+        NecroTypeVar    var;
+        NecroTypeApp    app;
+        NecroTypeCon    con;
+        NecroTypeFun    fun;
+        NecroTypeList   list;
+        NecroTypeForAll for_all;
     };
     NECRO_TYPE     type;
     NecroSourceLoc source_loc;
 } NecroType;
 
+// //=====================================================
+// // NecroTypeScheme - i.e. forall
+// //=====================================================
+// struct NecroTypeScheme;
+// typedef struct
+// {
+//     NecroVar                var;
+//     struct NecroTypeScheme* scheme;
+// } NecroForAll;
+
+// typedef enum
+// {
+//     NECRO_TYPE_SCHEME_FOR_ALL,
+//     NECRO_TYPE_SCHEME_TERM,
+// } NECRO_TYPE_SCHEME_TYPE;
+
+// typedef struct NecroTypeScheme
+// {
+//     union
+//     {
+//         NecroForAll for_all;
+//         NecroType   term;
+//     };
+//     NECRO_TYPE_SCHEME_TYPE type;
+// } NecroTypeScheme;
+
+// //=====================================================
+// // NecroSub
+// //=====================================================
+// typedef struct NecroSub
+// {
+//     NecroType*        type;
+//     NecroID           name;
+//     struct NecroSub*  next;
+// } NecroSub;
+
+// //=====================================================
+// // Gamma - Assumptions
+// //=====================================================
+// typedef struct NecroGamma
+// {
+//     struct NecroGamma* next;
+//     NecroVar           var;
+//     NecroTypeScheme*   scheme;
+// } NecroGamma;
+
 //=====================================================
-// NecroTypeScheme - i.e. forall
+// NecroTypeEnv
 //=====================================================
-struct NecroTypeScheme;
 typedef struct
 {
-    NecroVar                var;
-    struct NecroTypeScheme* scheme;
-} NecroForAll;
-
-typedef enum
-{
-    NECRO_TYPE_SCHEME_FOR_ALL,
-    NECRO_TYPE_SCHEME_TERM,
-} NECRO_TYPE_SCHEME_TYPE;
-
-typedef struct NecroTypeScheme
-{
-    union
-    {
-        NecroForAll for_all;
-        NecroType   term;
-    };
-    NECRO_TYPE_SCHEME_TYPE type;
-} NecroTypeScheme;
-
-//=====================================================
-// Gamma - i.e. Assumptions...Trying this the slow way first, for correctness sake
-// TODO: Make faster
-//=====================================================
-typedef struct NecroGamma
-{
-    struct NecroGamma* next;
-    NecroVar           key;
-    NecroTypeScheme*   scheme;
-} NecroGamma;
+    NecroType** data;
+    size_t      capacity;
+    size_t      count;
+} NecroTypeEnv;
 
 //=====================================================
 // Infer
 //=====================================================
 typedef struct
 {
+    NecroTypeEnv    env;
     NecroPagedArena arena;
     NecroIntern*    intern;
     NecroError      error;
@@ -137,10 +164,19 @@ typedef struct
 //=====================================================
 // API
 //=====================================================
-NecroInfer necro_create_infer(NecroIntern* intern);
-void       necro_destroy_infer(NecroInfer* infer);
+NecroInfer       necro_create_infer(NecroIntern* intern);
+void             necro_destroy_infer(NecroInfer* infer);
 
-// API
-void       necro_test_infer();
+void             necro_unify(NecroInfer* infer, NecroType* type1, NecroType* type2);
+NecroType*       necro_inst(NecroInfer* infer, NecroType* poly_type);
+NecroType*       necro_gen(NecroInfer* infer, NecroType* type);
+
+NecroType*       necro_env_get(NecroInfer* infer, NecroVar var);
+void             necro_env_set(NecroInfer* infer, NecroVar var, NecroType* type);
+
+char*            necro_snprintf_type_sig(NecroType* type, NecroIntern* intern, char* buffer, const size_t buffer_length);
+const char*      necro_id_as_character_string(NecroInfer* infer, NecroID id);
+bool             necro_check_and_print_type_error(NecroInfer* infer);
+void             necro_test_type();
 
 #endif // TYPE_H

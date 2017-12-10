@@ -190,6 +190,7 @@ NecroType*       necro_new_name(NecroInfer* infer);
 
 NecroType*       necro_create_type_con(NecroInfer* infer, NecroCon con, NecroType* args, size_t arity);
 NecroType*       necro_create_type_fun(NecroInfer* infer, NecroType* type1, NecroType* type2);
+NecroType*       necro_create_type_var(NecroInfer* infer, NecroVar var);
 NecroType*       necro_make_bin_op_type(NecroInfer* infer, NecroAST_BinOpType bin_op_type);
 NecroType*       necro_make_float_type(NecroInfer* infer);
 NecroType*       necro_make_bool_type(NecroInfer* infer);
@@ -201,6 +202,8 @@ NecroType*       necro_make_float_type(NecroInfer* infer);
 NecroType*       necro_env_get(NecroInfer* infer, NecroVar var);
 void             necro_env_set(NecroInfer* infer, NecroVar var, NecroType* type);
 
+NecroType*       necro_rename_var_for_testing_only(NecroInfer* infer, NecroVar var_to_replace, NecroType* replace_var_with, NecroType* type);
+void             necro_print_type_sig(NecroType* type, NecroIntern* intern);
 char*            necro_snprintf_type_sig(NecroType* type, NecroIntern* intern, char* buffer, const size_t buffer_length);
 const char*      necro_id_as_character_string(NecroInfer* infer, NecroID id);
 bool             necro_check_and_print_type_error(NecroInfer* infer);

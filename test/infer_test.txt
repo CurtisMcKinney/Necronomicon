@@ -1,1 +1,3 @@
-x = 2 + 2
+inferTest  = inferDeath + 2 + 2
+inferDeath = 2 + inferTest
+

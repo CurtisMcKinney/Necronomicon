@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <assert.h>
+#include "type.h"
 #include "symtable.h"
 
 // Constants
@@ -588,6 +589,20 @@ void necro_scoped_symtable_print(NecroScopedSymTable* table)
         current_scope = current_scope->parent;
     }
     printf("}\n");
+}
+
+void necro_print_env_with_symtable(NecroSymTable* table, NecroInfer* infer)
+{
+    printf("Env:\n[\n");
+    for (size_t i = 0; i < infer->env.capacity; ++i)
+    {
+        if (infer->env.data[i] == NULL)
+            continue;
+        printf("    %s", necro_intern_get_string(infer->intern, table->data[i].name));
+        printf(" ==> ");
+        necro_print_type_sig(infer->env.data[i], infer->intern);
+    }
+    printf("]\n");
 }
 
 //=====================================================

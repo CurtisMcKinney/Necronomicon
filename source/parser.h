@@ -320,7 +320,6 @@ typedef struct
 //=====================================================
 // AST Right Hand Side
 //=====================================================
-
 typedef struct
 {
     NecroAST_LocalPtr expression;
@@ -336,7 +335,6 @@ typedef struct
     NecroAST_LocalPtr expression;
     NecroAST_LocalPtr declarations;
 } NecroAST_LetExpression;
-
 
 //=====================================================
 // AST Simple Assignment
@@ -371,7 +369,7 @@ typedef struct
 //=====================================================
 // AST Apats Assignment
 //=====================================================
-
+// TODO: Assign unique IDs to apats as well during renaming
 typedef struct
 {
     NecroSymbol variable_name;

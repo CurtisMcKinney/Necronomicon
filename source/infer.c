@@ -59,7 +59,7 @@ NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast);
 //=====================================================
 // Constant
 //=====================================================
-inline NecroType* necro_infer_constant(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_constant(NecroInfer* infer, NecroNode* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -80,7 +80,7 @@ inline NecroType* necro_infer_constant(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Variable
 //=====================================================
-inline NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -96,7 +96,7 @@ inline NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Function Expression
 //=====================================================
-inline NecroType* necro_infer_fexpr(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_fexpr(NecroInfer* infer, NecroNode* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -110,13 +110,13 @@ inline NecroType* necro_infer_fexpr(NecroInfer* infer, NecroNode* ast)
     NecroType* result_type = necro_new_name(infer);
     NecroType* f_type      = necro_create_type_fun(infer, e1_type, result_type);
     necro_unify(infer, e0_type, f_type);
-    return f_type;
+    return result_type;
 }
 
 //=====================================================
 // BinOp
 //=====================================================
-inline NecroType* necro_infer_bin_op(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_bin_op(NecroInfer* infer, NecroNode* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -130,16 +130,162 @@ inline NecroType* necro_infer_bin_op(NecroInfer* infer, NecroNode* ast)
     NecroType* bin_op_type = necro_create_type_fun(infer, x_type, necro_create_type_fun(infer, y_type, result_type));
     necro_unify(infer, op_type, bin_op_type);
     if (infer->error.return_code != NECRO_SUCCESS) return NULL;
-    return bin_op_type;
+    return result_type;
 }
 
-// //=====================================================
-// // Let
-// //=====================================================
+//=====================================================
+// Simple Assignment
+//=====================================================
+NecroType* necro_infer_simple_assignment(NecroInfer* infer, NecroNode* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_SIMPLE_ASSIGNMENT);
+    if (infer->error.return_code != NECRO_SUCCESS) return NULL;
+    NecroID    varid        = ast->simple_assignment.id;
+    NecroType* rhs_type     = necro_infer_go(infer, ast->simple_assignment.rhs);
+    if (infer->error.return_code != NECRO_SUCCESS) return NULL;
+    NecroType* gen_rhs_type = necro_gen(infer, rhs_type);
+    if (infer->error.return_code != NECRO_SUCCESS) return NULL;
+    necro_env_set(infer, (NecroVar) { varid.id }, gen_rhs_type);
+    // Assignments return type of rhs
+    return gen_rhs_type;
+}
+
+//=====================================================
+// RightHandSide
+//=====================================================
+NecroType* necro_infer_right_hand_side(NecroInfer* infer, NecroNode* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_RIGHT_HAND_SIDE);
+    if (infer->error.return_code != NECRO_SUCCESS) return NULL;
+    necro_infer_go(infer, ast->right_hand_side.declarations);
+    if (infer->error.return_code != NECRO_SUCCESS) return NULL;
+    return necro_infer_go(infer, ast->right_hand_side.expression);
+}
+
+//=====================================================
+// Declaration
+//=====================================================
+NecroType* necro_infer_declaration(NecroInfer* infer, NecroNode* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_DECL);
+    if (infer->error.return_code != NECRO_SUCCESS) return NULL;
+    NecroNode* current_decl = ast;
+    // Pass 1, create new names to serve as proxy types (This is the easy solution to recursive let, but produces less general types)
+    while (current_decl != NULL)
+    {
+        assert(current_decl->type == NECRO_AST_DECL);
+        switch (current_decl->declaration.declaration_impl->type)
+        {
+        case NECRO_AST_SIMPLE_ASSIGNMENT:
+        {
+            NecroType* new_name = necro_new_name(infer);
+            necro_env_set(infer, (NecroVar) { current_decl->declaration.declaration_impl->simple_assignment.id }, new_name);
+            break;
+        }
+        // TODO: Assign unique IDs to apats as well during renaming
+        // case NECRO_AST_APATS_ASSIGNMENT:
+        default: return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Unknown or unimplemented declaration type: %d", current_decl->declaration.declaration_impl->type);
+        }
+        current_decl = current_decl->declaration.next_declaration;
+    }
+    if (infer->error.return_code != NECRO_SUCCESS) return NULL;
+    current_decl = ast;
+    // Pass 2, Infer types for declarations, then unify assignments with their proxy types
+    while (current_decl != NULL)
+    {
+        assert(current_decl->type == NECRO_AST_DECL);
+        switch (current_decl->declaration.declaration_impl->type)
+        {
+        case NECRO_AST_SIMPLE_ASSIGNMENT:
+        {
+            NecroType* proxy_type = necro_env_get(infer, (NecroVar){current_decl->declaration.declaration_impl->simple_assignment.id});
+            NecroType* rhs_type   = necro_infer_go(infer, current_decl->declaration.declaration_impl->simple_assignment.rhs);
+            if (infer->error.return_code != NECRO_SUCCESS) return NULL;
+            necro_unify(infer, proxy_type, rhs_type);
+            *proxy_type = *necro_gen(infer, proxy_type);
+            break;
+        }
+        // TODO: Assign unique IDs to apats as well during renaming
+        // case NECRO_AST_APATS_ASSIGNMENT:
+        default: return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Unknown or unimplemented declaration type: %d", current_decl->declaration.declaration_impl->type);
+        }
+        current_decl = current_decl->declaration.next_declaration;
+    }
+    // Declarations themselves have no types
+    return NULL;
+}
+
+//=====================================================
+// Top Declaration
+//=====================================================
+NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroNode* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_TOP_DECL);
+    if (infer->error.return_code != NECRO_SUCCESS) return NULL;
+    NecroNode* current_decl = ast;
+    // Pass 1, create new names to serve as proxy types (This is the easy solution to recursive let, but produces less general types)
+    while (current_decl != NULL)
+    {
+        assert(current_decl->type == NECRO_AST_TOP_DECL);
+        switch (current_decl->top_declaration.declaration->type)
+        {
+        case NECRO_AST_SIMPLE_ASSIGNMENT:
+        {
+            NecroType* new_name = necro_new_name(infer);
+            necro_env_set(infer, (NecroVar) { current_decl->top_declaration.declaration->simple_assignment.id }, new_name);
+            break;
+        }
+        // TODO: Assign unique IDs to apats as well during renaming
+        // case NECRO_AST_APATS_ASSIGNMENT:
+        default: return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Unknown or unimplemented declaration type: %d", current_decl->top_declaration.declaration->type);
+        }
+        current_decl = current_decl->top_declaration.next_top_decl;
+    }
+    if (infer->error.return_code != NECRO_SUCCESS) return NULL;
+    current_decl = ast;
+    // Pass 2, Infer types for declarations, then unify assignments with their proxy types
+    while (current_decl != NULL)
+    {
+        assert(current_decl->type == NECRO_AST_TOP_DECL);
+        switch (current_decl->top_declaration.declaration->type)
+        {
+        case NECRO_AST_SIMPLE_ASSIGNMENT:
+        {
+            NecroType* proxy_type = necro_env_get(infer, (NecroVar){current_decl->top_declaration.declaration->simple_assignment.id});
+            NecroType* rhs_type   = necro_infer_go(infer, current_decl->declaration.declaration_impl->simple_assignment.rhs);
+            if (infer->error.return_code != NECRO_SUCCESS) return NULL;
+            necro_unify(infer, proxy_type, rhs_type);
+            // *proxy_type = *necro_gen(infer, proxy_type);
+            break;
+        }
+        // TODO: Assign unique IDs to apats as well during renaming
+        // case NECRO_AST_APATS_ASSIGNMENT:
+        default: return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Unknown or unimplemented declaration type: %d", current_decl->top_declaration.declaration->type);
+        }
+        current_decl = current_decl->top_declaration.next_top_decl;
+    }
+    // Declarations themselves have no types
+    return NULL;
+}
+
+//=====================================================
+// Let
+//=====================================================
 // // TODO: Recursive Let bindings
-// inline NecroInferResult necro_infer_let(NecroInfer* infer, NecroGamma* gamma, NecroNode* ast)
+// inline NecroType* necro_infer_let(NecroInfer* infer, NecroNode* ast)
 // {
-//     return null_infer_result;
+//     assert(infer != NULL);
+//     assert(ast != NULL);
+//     assert(ast->type == NECRO_AST_BIN_OP);
+//     if (infer->error.return_code != NECRO_SUCCESS) return NULL;
 // }
 
 //=====================================================
@@ -158,10 +304,11 @@ NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_VARIABLE:            return necro_infer_var(infer, ast);
     case NECRO_AST_FUNCTION_EXPRESSION: return necro_infer_fexpr(infer, ast);
     case NECRO_AST_BIN_OP:              return necro_infer_bin_op(infer, ast);
+    case NECRO_AST_SIMPLE_ASSIGNMENT:   return necro_infer_simple_assignment(infer, ast);
+    case NECRO_AST_RIGHT_HAND_SIDE:     return necro_infer_right_hand_side(infer, ast);
+    case NECRO_AST_DECL:                return necro_infer_declaration(infer, ast);
+    case NECRO_AST_TOP_DECL:            return necro_infer_top_declaration(infer, ast);
     // case NECRO_AST_LET_EXPRESSION: return necro_infer_let(infer, gamma, ast);
-
-    // TODO: ALL declarations, probably in while loop
-    case NECRO_AST_TOP_DECL:            return necro_infer_go(infer, ast->top_declaration.declaration);
 
     default:                            return necro_infer_ast_error(infer, NULL, ast, "AST type %d has not been implemented for type inference", ast->type);
     }
@@ -259,7 +406,7 @@ void necro_test_infer()
         f_node->fexpression.next_fexpression = b_var_node;
 
         NecroType* result = necro_infer(&infer, f_node);
-        NecroType* expect = necro_create_type_fun(&infer, icon, bcon);
+        NecroType* expect = bcon;
 
         necro_print_type_test_result("expectFexp1", expect, "resultFexp1", result, &intern);
         puts("");
@@ -292,7 +439,7 @@ void necro_test_infer()
         bin_op_node->bin_op.rhs  = b_var_node;
 
         NecroType* result = necro_infer(&infer, bin_op_node);
-        NecroType* expect = necro_make_bin_op_type(&infer, NECRO_BIN_OP_ADD);
+        NecroType* expect = icon;
 
         necro_print_type_test_result("expectBinOp1", expect, "resultBinOp1", result, &intern);
         puts("");
@@ -319,9 +466,41 @@ void necro_test_infer()
         bin_op_node->bin_op.rhs  = y_node;
 
         NecroType* result = necro_infer(&infer, bin_op_node);
-        NecroType* expect = necro_make_bin_op_type(&infer, NECRO_BIN_OP_ADD);
+        NecroType* expect = icon;
 
         necro_print_type_test_result("expectBinOp2", expect, "resultBinOp2", result, &intern);
         // necro_print_env(&infer);
     }
+
+    // Test SimpleAssignment
+    {
+        necro_reset_infer(&infer);
+        NecroType* avar = necro_new_name(&infer);
+        NecroType* bvar = necro_new_name(&infer);
+        NecroType* cvar = necro_new_name(&infer);
+        NecroType* bcon = necro_make_bool_type(&infer);
+        NecroType* bfun = necro_create_type_fun(&infer, cvar, bcon);
+        necro_env_set(&infer, bvar->var.var, bfun);
+
+        NecroNode* b_var_node       = necro_paged_arena_alloc(&infer.arena, sizeof(NecroNode));
+        b_var_node->type            = NECRO_AST_VARIABLE;
+        b_var_node->variable.symbol = necro_intern_string(&intern, "b");
+        b_var_node->variable.id.id  = bvar->var.var.id.id;
+
+        NecroNode* assign_node                       = necro_paged_arena_alloc(&infer.arena, sizeof(NecroNode));
+        assign_node->type                            = NECRO_AST_SIMPLE_ASSIGNMENT;
+        assign_node->simple_assignment.id            = avar->var.var.id;
+        assign_node->simple_assignment.variable_name = necro_intern_string(&intern, "a");
+        assign_node->simple_assignment.rhs           = b_var_node;
+
+        NecroType* result = necro_infer(&infer, assign_node);
+        // result            = necro_env_get(&infer, avar->var.var);
+        NecroType* expect = necro_gen(&infer, necro_create_type_fun(&infer, cvar, bcon));
+        expect            = necro_rename_var_for_testing_only(&infer, (NecroVar) { 5 }, necro_create_type_var(&infer, (NecroVar) { 4 }), expect);
+
+        necro_print_type_test_result("expectSimpleAssignment1", expect, "resultSimpleAssignment2", result, &intern);
+        puts("");
+        necro_print_env(&infer);
+    }
+
 }

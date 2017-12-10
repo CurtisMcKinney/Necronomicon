@@ -204,6 +204,30 @@ NecroType* necro_create_for_all(NecroInfer* infer, NecroVar var, NecroType* type
     return for_all;
 }
 
+NecroType* necro_rename_var_for_testing_only(NecroInfer* infer, NecroVar var_to_replace, NecroType* replace_var_with, NecroType* type)
+{
+    if (type == NULL)
+        return NULL;
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR:
+        if (type->var.var.id.id == var_to_replace.id.id)
+            return replace_var_with;
+        else
+            return type;
+    case NECRO_TYPE_FOR:
+        if (type->var.var.id.id == var_to_replace.id.id)
+            return necro_create_for_all(infer, replace_var_with->var.var, necro_rename_var_for_testing_only(infer, var_to_replace, replace_var_with, type->for_all.type));
+        else
+            return necro_create_for_all(infer, type->for_all.var, necro_rename_var_for_testing_only(infer, var_to_replace, replace_var_with, type->for_all.type));
+    case NECRO_TYPE_APP:  return necro_create_type_app(infer, necro_rename_var_for_testing_only(infer, var_to_replace, replace_var_with, type->app.type1), necro_rename_var_for_testing_only(infer, var_to_replace, replace_var_with, type->app.type2));
+    case NECRO_TYPE_FUN:  return necro_create_type_fun(infer, necro_rename_var_for_testing_only(infer, var_to_replace, replace_var_with, type->fun.type1), necro_rename_var_for_testing_only(infer, var_to_replace, replace_var_with, type->fun.type2));
+    case NECRO_TYPE_LIST: return necro_create_type_list(infer, necro_rename_var_for_testing_only(infer, var_to_replace, replace_var_with, type->list.item), necro_rename_var_for_testing_only(infer, var_to_replace, replace_var_with, type->list.next));
+    case NECRO_TYPE_CON:  return necro_create_type_con(infer, type->con.con, necro_rename_var_for_testing_only(infer, var_to_replace, replace_var_with, type->con.args), type->con.arity);
+    default:              return necro_infer_error(infer, type, "Compiler bug: Unrecognized type: %d.", type->type);
+    }
+}
+
 size_t necro_type_list_count(NecroType* list)
 {
     size_t     count   = 0;
@@ -425,6 +449,7 @@ inline void  necro_unify_var(NecroInfer* infer, NecroType* type1, NecroType* typ
     case NECRO_TYPE_FUN:
         if (necro_occurs(infer, type1->var.var.id, type2))
             necro_infer_error(infer, type1, "Occurs check error, name1: %s", necro_id_as_character_string(infer, type1->var.var.id));
+        // if (necro_env_set(infer, type1->var.var, type2))
         *type1 = *type2;
         return;
     case NECRO_TYPE_FOR:  necro_infer_error(infer, type1, "Compiler bug: Attempted to unify polytype."); return;
@@ -633,7 +658,9 @@ NecroType* necro_inst_go(NecroInfer* infer, NecroType* type, NecroInstSub* subs)
                 return subs->new_name;
             subs = subs->next;
         }
-        return necro_create_type_var(infer, type->var.var);
+        // TODO: WTF should I be doing with this?!?!?!?!
+        return type;
+        // return necro_create_type_var(infer, type->var.var);
     case NECRO_TYPE_APP:  return necro_create_type_app(infer, necro_inst_go(infer, type->app.type1, subs), necro_inst_go(infer, type->app.type2, subs));
     case NECRO_TYPE_FUN:  return necro_create_type_fun(infer, necro_inst_go(infer, type->fun.type1, subs), necro_inst_go(infer, type->fun.type2, subs));
     case NECRO_TYPE_CON:  return necro_create_type_con(infer, type->con.con, necro_inst_go(infer, type->con.args, subs), type->con.arity);
@@ -835,7 +862,6 @@ NecroType* necro_gen(NecroInfer* infer, NecroType* type)
     }
     else
     {
-        TRACE_TYPE("NO Subs!!!\n");
         return result.type;
     }
 }
@@ -1251,7 +1277,6 @@ void necro_print_env(NecroInfer* infer)
     }
     printf("]\n");
 }
-
 
 //=====================================================
 // Testing

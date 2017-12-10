@@ -12,13 +12,7 @@
 #include "type.h"
 #include "ast.h"
 
-// typedef struct
-// {
-//     NecroSub*        sub;
-//     NecroTypeScheme* type;
-// } NecroInferResult;
-
-// NecroTypeScheme* necro_infer(NecroInfer* infer, NecroGamma* gamma, NecroAST_Node_Reified* ast);
+NecroType* necro_infer(NecroInfer* infer, NecroAST_Node_Reified* ast);
 
 void necro_test_infer();
 

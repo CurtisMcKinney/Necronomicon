@@ -14,23 +14,76 @@
 //  https://www.slideshare.net/tomaspfb/talk-38641264
 //  eval_type_to_normal_form
 
+#define NECRO_TYPE_DEBUG           1
+#if NECRO_TYPE_DEBUG
+#define TRACE_TYPE(...) printf(__VA_ARGS__)
+#else
+#define TRACE_TYPE(...)
+#endif
+
+NecroPrimSymbols necro_create_prim_symbols(NecroIntern* intern);
+NecroTypeEnv necro_create_type_env(size_t initial_size)
+{
+    initial_size     = next_highest_pow_of_2(initial_size);
+    NecroType** data = malloc(initial_size * sizeof(NecroType*));
+    if (data == NULL)
+    {
+        fprintf(stderr, "Malloc returned null creating NecroTypeEnv!\n");
+        exit(1);
+    }
+    for (size_t i = 0; i < initial_size; ++i)
+        data[i] = NULL;
+    return (NecroTypeEnv)
+    {
+        .data     = data,
+        .capacity = initial_size,
+        // .count    = 0,
+    };
+}
+
 NecroInfer necro_create_infer(NecroIntern* intern)
 {
+
     return (NecroInfer)
     {
-        .intern     = intern,
-        .arena      = necro_create_paged_arena(),
-        .error      = necro_create_error(),
-        .highest_id = 0,
+        .intern       = intern,
+        .arena        = necro_create_paged_arena(),
+        .env          = necro_create_type_env(1024),
+        .error        = necro_create_error(),
+        .highest_id   = 0,
+        .prim_symbols = necro_create_prim_symbols(intern),
     };
+}
+
+void necro_destroy_type_env(NecroTypeEnv* env)
+{
+    if (env == NULL)
+        return;
+    if (env->data == NULL)
+        return;
+    free(env->data);
+    env->data     = NULL;
+    env->capacity = 0;
+    // env->count    = 0;
 }
 
 void necro_destroy_infer(NecroInfer* infer)
 {
     if (infer == NULL)
         return;
+    necro_destroy_type_env(&infer->env);
     necro_destroy_paged_arena(&infer->arena);
     infer->intern = NULL;
+}
+
+void necro_reset_infer(NecroInfer* infer)
+{
+    for (size_t i = 0; i < infer->env.capacity; ++i)
+        infer->env.data[i] = NULL;
+    // infer->env.count         = 0;
+    infer->arena.count       = 0;
+    infer->highest_id        = 0;
+    infer->error.return_code = NECRO_SUCCESS;
 }
 
 //=====================================================
@@ -205,21 +258,24 @@ NecroType* necro_new_name(NecroInfer* infer)
 //=====================================================
 NecroType* necro_env_get(NecroInfer* infer, NecroVar var)
 {
-    if (infer->env.count > var.id.id)
+    if (infer->env.capacity > var.id.id)
     {
         return infer->env.data[var.id.id];
     }
     else
     {
+        // If you're going to print, don't pass in a null type...
+        // necro_infer_error(infer, NULL, "Cannot find type for variable %s", necro_id_as_character_string(infer, var.id));
         return NULL;
     }
 }
 
 void necro_env_set(NecroInfer* infer, NecroVar var, NecroType* type)
 {
-    if (infer->env.count <= var.id.id)
+    if (infer->env.capacity <= var.id.id)
     {
-        size_t      new_size = next_highest_pow_of_2(var.id.id) * 2;
+        size_t      new_size = next_highest_pow_of_2(var.id.id);
+        printf("Realloc env, size: %d, new_size: %d", infer->env.capacity, new_size);
         NecroType** new_data = realloc(infer->env.data, new_size * sizeof(NecroType*));
         if (new_data == NULL)
         {
@@ -228,9 +284,13 @@ void necro_env_set(NecroInfer* infer, NecroVar var, NecroType* type)
             fprintf(stderr, "Malloc returned NULL in infer env reallocation!\n");
             exit(1);
         }
-        infer->env.data = new_data;
+        for (size_t i = infer->env.capacity; i < new_size; ++i)
+            new_data[i] = NULL;
+        infer->env.capacity = new_size;
+        infer->env.data     = new_data;
     }
     assert(infer->env.data != NULL);
+    // infer->env.count
     infer->env.data[var.id.id] = type;
 }
 
@@ -507,8 +567,8 @@ inline void necro_unify_con(NecroInfer* infer, NecroType* type1, NecroType* type
         }
         return;
     }
-    case NECRO_TYPE_FUN:  necro_infer_error(infer, type1, "Attempting to unify TypeCon (%s) with (->).", necro_intern_get_string(infer->intern, type2->con.con.symbol)); return;
-    case NECRO_TYPE_LIST: necro_infer_error(infer, type1, "Compiler bug: Attempted to unify TypeCon (%s) with type args list.", necro_intern_get_string(infer->intern, type2->con.con.symbol)); return;
+    case NECRO_TYPE_FUN:  necro_infer_error(infer, type1, "Attempting to unify TypeCon (%s) with (->).", necro_intern_get_string(infer->intern, type1->con.con.symbol)); return;
+    case NECRO_TYPE_LIST: necro_infer_error(infer, type1, "Compiler bug: Attempted to unify TypeCon (%s) with type args list.", necro_intern_get_string(infer->intern, type1->con.con.symbol)); return;
     case NECRO_TYPE_FOR:  necro_infer_error(infer, type1, "Compiler bug: Attempted to unify polytype."); return;
     default:              necro_infer_error(infer, type1, "Compiler bug: Non-existent type (type1: %d, type2: %s) type found in necro_unify.", type1->type, type2->type); return;
     }
@@ -531,7 +591,7 @@ void necro_unify(NecroInfer* infer, NecroType* type1, NecroType* type2)
     case NECRO_TYPE_FUN:  necro_unify_fun(infer, type1, type2); return;
     case NECRO_TYPE_CON:  necro_unify_con(infer, type1, type2); return;
     case NECRO_TYPE_LIST: necro_infer_error(infer, type1, "Compiler bug: Found Type args list in necro_unify"); return;
-    case NECRO_TYPE_FOR:  necro_infer_error(infer, type1, "Compiler bug: Found Polytype unify"); return;
+    case NECRO_TYPE_FOR:  necro_infer_error(infer, type1, "Compiler bug: Found Polytype in necro_unify"); return;
     default:              necro_infer_error(infer, type1, "Compiler bug: Non-existent type (type1: %d, type2: %s) type found in necro_unify.", type1->type, type2->type); return;
     }
 }
@@ -561,7 +621,8 @@ NecroInstSub* necro_create_inst_sub(NecroInfer* infer, NecroVar var_to_replace, 
 NecroType* necro_inst_go(NecroInfer* infer, NecroType* type, NecroInstSub* subs)
 {
     assert(infer != NULL);
-    if (type == NULL || subs == NULL)
+    // if (type == NULL || subs == NULL)
+    if (type == NULL)
         return NULL;
     switch (type->type)
     {
@@ -570,6 +631,7 @@ NecroType* necro_inst_go(NecroInfer* infer, NecroType* type, NecroInstSub* subs)
         {
             if (type->var.var.id.id == subs->var_to_replace.id.id)
                 return subs->new_name;
+            subs = subs->next;
         }
         return necro_create_type_var(infer, type->var.var);
     case NECRO_TYPE_APP:  return necro_create_type_app(infer, necro_inst_go(infer, type->app.type1, subs), necro_inst_go(infer, type->app.type2, subs));
@@ -586,7 +648,7 @@ NecroType* necro_inst(NecroInfer* infer, NecroType* type)
 {
     assert(infer != NULL);
     assert(type != NULL);
-    assert(type->type == NECRO_TYPE_FOR);
+    // assert(type->type == NECRO_TYPE_FOR);
     NecroType*    current_type = type;
     NecroInstSub* subs         = NULL;
     while (current_type->type == NECRO_TYPE_FOR)
@@ -600,90 +662,190 @@ NecroType* necro_inst(NecroInfer* infer, NecroType* type)
 //=====================================================
 // Gen
 //=====================================================
+typedef struct NecroGenSub
+{
+    struct NecroGenSub* next;
+    NecroVar            var_to_replace;
+    NecroType*          type_var;
+    NecroType*          for_all;
+} NecroGenSub;
+
 typedef struct
 {
-    NecroType* type;
-    NecroType* maybe_for_all;
+    NecroType*   type;
+    NecroGenSub* subs;
+    NecroType*   old_for_all;
 } NecroGenResult;
 
-NecroType* merge_for_all(NecroType* for_all1, NecroType* for_all2)
+NecroType* necro_append_for_all(NecroType* for_all, NecroType* type)
 {
-    if (for_all2 == NULL)
-        return for_all1;
-    else if (for_all1 == NULL)
-        return for_all2;
-    else
-        return for_all1->for_all.type = for_all2;
+    if (for_all == NULL)
+        return type;
+    if (type == NULL)
+        return for_all;
+    NecroType* head = for_all;
+    NecroType* prev = head;
+    NecroType* curr = head;
+    while (curr != NULL)
+    {
+        assert(curr->type == NECRO_TYPE_FOR);
+        prev = curr;
+        curr = curr->for_all.type;
+    }
+    prev->for_all.type = type;
+    return head;
 }
 
-NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type)
+NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type, NecroGenResult prev_result)
 {
     assert(infer != NULL);
+    if (necro_is_infer_error(infer))
+    {
+        prev_result.type = NULL;
+        return prev_result;
+    }
     if (type == NULL)
-        return (NecroGenResult) { NULL, NULL };
+    {
+        prev_result.type = NULL;
+        return prev_result;
+    }
     switch (type->type)
     {
     case NECRO_TYPE_VAR:
-        if (necro_env_get(infer, type->var.var) != NULL)
+    {
+        NecroType* bound_type = necro_env_get(infer, type->var.var);
+        // NecroType* bound_type = NULL;
+        if (bound_type != NULL && !necro_is_infer_error(infer))
         {
-            return (NecroGenResult) { necro_create_type_var(infer, type->var.var), NULL };
+            // Should this be the bound type or the variable?!?!?!
+            // return (NecroGenResult) { necro_create_type_var(infer, type->var.var), NULL };
+            // TRACE_TYPE("gen1\n");
+            assert(bound_type->type != NECRO_TYPE_FOR);
+            prev_result.type = bound_type;
+            return prev_result;
         }
         else
         {
-            NecroType* new_name = necro_new_name(infer);
-            return (NecroGenResult) { necro_create_type_var(infer, type->var.var), necro_create_for_all(infer, new_name->var.var, new_name) };
+            // TRACE_TYPE("gen2_1\n");
+            NecroType* old_for_all = prev_result.old_for_all;
+            while (old_for_all != NULL && old_for_all->type == NECRO_TYPE_FOR)
+            {
+                if (old_for_all->for_all.var.id.id == type->var.var.id.id)
+                {
+                    prev_result.type = type;
+                    return prev_result;
+                }
+                old_for_all = old_for_all->for_all.type;
+            }
+            // TRACE_TYPE("gen2_2\n");
+            NecroGenSub* subs = prev_result.subs;
+            while (subs != NULL)
+            {
+                if (subs->var_to_replace.id.id == type->var.var.id.id)
+                {
+                    prev_result.type = subs->type_var;
+                    return prev_result;
+                }
+                subs = subs->next;
+            }
+            // TRACE_TYPE("gen2_3\n");
+            NecroGenSub* sub      = necro_paged_arena_alloc(&infer->arena, sizeof(NecroGenSub));
+            NecroType*   type_var = necro_new_name(infer);
+            NecroType*   for_all  = necro_create_for_all(infer, type_var->var.var, NULL);
+            *sub                  = (NecroGenSub)
+            {
+                .next           = prev_result.subs,
+                .var_to_replace = type->var.var,
+                .type_var       = type_var,
+                .for_all        = for_all,
+            };
+            prev_result.type = type_var;
+            prev_result.subs = sub;
+            // TRACE_TYPE("gen2_4\n");
+            return prev_result;
         }
+    }
     case NECRO_TYPE_APP:
     {
-        NecroGenResult result1 = necro_gen_go(infer, type->app.type1);
-        NecroGenResult result2 = necro_gen_go(infer, type->app.type2);
-        return (NecroGenResult) { necro_create_type_app(infer, result1.type, result2.type), merge_for_all(result1.maybe_for_all, result2.maybe_for_all) };
+        NecroGenResult result1 = necro_gen_go(infer, type->app.type1, prev_result);
+        NecroGenResult result2 = necro_gen_go(infer, type->app.type2, result1);
+        result2.type           = necro_create_type_app(infer, result1.type, result2.type);
+        return result2;
     }
     case NECRO_TYPE_FUN:
     {
-        NecroGenResult result1 = necro_gen_go(infer, type->fun.type1);
-        NecroGenResult result2 = necro_gen_go(infer, type->fun.type2);
-        return (NecroGenResult) { necro_create_type_fun(infer, result1.type, result2.type), merge_for_all(result1.maybe_for_all, result2.maybe_for_all) };
+        NecroGenResult result1 = necro_gen_go(infer, type->fun.type1, prev_result);
+        NecroGenResult result2 = necro_gen_go(infer, type->fun.type2, result1);
+        result2.type           = necro_create_type_fun(infer, result1.type, result2.type);
+        return result2;
     }
     case NECRO_TYPE_LIST:
     {
-        NecroGenResult result1 = necro_gen_go(infer, type->list.item);
-        NecroGenResult result2 = necro_gen_go(infer, type->list.next);
-        return (NecroGenResult) { necro_create_type_list(infer, result1.type, result2.type), merge_for_all(result1.maybe_for_all, result2.maybe_for_all) };
+        NecroGenResult result1 = necro_gen_go(infer, type->list.item, prev_result);
+        NecroGenResult result2 = necro_gen_go(infer, type->list.next, result1);
+        result2.type           = necro_create_type_list(infer, result1.type, result2.type);
+        return result2;
     }
     case NECRO_TYPE_CON:
     {
-        NecroGenResult result = necro_gen_go(infer, type->con.args);
-        return (NecroGenResult) { necro_create_type_con(infer, type->con.con, result.type, type->con.arity), result.maybe_for_all };
+        NecroGenResult result = necro_gen_go(infer, type->con.args, prev_result);
+        result.type           = necro_create_type_con(infer, type->con.con, result.type, type->con.arity);
+        return result;
     }
-    case NECRO_TYPE_FOR: necro_infer_error(infer, type, "Compiler bug: Found Polytype in necro_inst_go"); return (NecroGenResult) { NULL, NULL };
-    default:             necro_infer_error(infer, type, "Compiler bug: Non-existent type %d found in necro_inst.", type->type); return (NecroGenResult) { NULL, NULL };
+    case NECRO_TYPE_FOR: necro_infer_error(infer, type, "Compiler bug: Found Polytype in necro_gen"); return (NecroGenResult) { NULL, NULL };
+    default:             necro_infer_error(infer, type, "Compiler bug: Non-existent type %d found in necro_gen.", type->type); return (NecroGenResult) { NULL, NULL };
     }
 }
 
+// TODO: Finish, Need to take into account existing forall!.... Should we?!!?!?
 NecroType* necro_gen(NecroInfer* infer, NecroType* type)
 {
     assert(infer != NULL);
     assert(type != NULL);
-    NecroGenResult result = necro_gen_go(infer, type);
-    if (result.maybe_for_all != NULL)
+    assert(type->type != NECRO_TYPE_FOR);
+    NecroGenResult result = necro_gen_go(infer, type, (NecroGenResult) { NULL, NULL, NULL });
+    if (necro_is_infer_error(infer))
+        return NULL;
+    if (result.subs != NULL)
     {
-        NecroType* head = result.maybe_for_all;
-        NecroType* prev = head;
-        NecroType* curr = head;
-        while (curr != NULL)
+        NecroGenSub* current_sub = result.subs;
+        NecroType*   head        = result.subs->for_all;
+        NecroType*   tail        = head;
+        assert(head != NULL);
+        assert(tail != NULL);
+        assert(result.type != NULL);
+        while (true)
         {
-            prev = curr;
-            curr = curr->for_all.type;
+            assert(current_sub->for_all != NULL);
+            assert(current_sub->for_all->type == NECRO_TYPE_FOR);
+            current_sub = current_sub->next;
+            if (current_sub != NULL)
+            {
+                assert(tail->for_all.type == NULL);
+                tail->for_all.type = current_sub->for_all;
+                tail               = tail->for_all.type;
+            }
+            else
+            {
+                assert(tail->for_all.type == NULL);
+                tail->for_all.type = result.type;
+                return head;
+            }
         }
-        prev->for_all.type = result.type;
-        return head;
     }
     else
     {
+        TRACE_TYPE("NO Subs!!!\n");
         return result.type;
     }
 }
+
+//=====================================================
+// Abs
+//=====================================================
+// NecroType* necro_abs(NecroInfer* infer, NecroType* arg_type, NecroType* result_type)
+// {
+// }
 
 //=====================================================
 // Type Sanity
@@ -945,6 +1107,12 @@ void necro_print_type_sig_go(NecroType* type, NecroIntern* intern)
 
     case NECRO_TYPE_FOR:
         printf("forall ");
+        while (type->for_all.type->type == NECRO_TYPE_FOR)
+        {
+            necro_print_id_as_characters(type->for_all.var.id);
+            printf(" ");
+            type = type->for_all.type;
+        }
         necro_print_id_as_characters(type->for_all.var.id);
         printf(". ");
         necro_print_type_sig_go(type->for_all.type, intern);
@@ -972,60 +1140,65 @@ char* necro_snprintf_type_sig(NecroType* type, NecroIntern* intern, char* buffer
 {
     if (type == NULL)
         return buffer;
-    size_t count = 0;
-    char*  new_buffer;
+    // size_t count = 0;
+    // char*  new_buffer;
     switch (type->type)
     {
     case NECRO_TYPE_VAR:
         return necro_snprintf_id_as_characters(type->var.var.id, buffer, buffer_length);
 
     case NECRO_TYPE_APP:
-        new_buffer = necro_snprintf_type_sig_go_maybe_with_parens(type->app.type1, intern, buffer, buffer_length);
-        count      = snprintf(new_buffer, buffer_length, " ");
-        return necro_snprintf_type_sig_go_maybe_with_parens(type->app.type2, intern, new_buffer + count, buffer_length);
+        buffer  = necro_snprintf_type_sig_go_maybe_with_parens(type->app.type1, intern, buffer, buffer_length);
+        buffer += snprintf(buffer, buffer_length, " ");
+        return necro_snprintf_type_sig_go_maybe_with_parens(type->app.type2, intern, buffer, buffer_length);
 
     case NECRO_TYPE_FUN:
         if (type->fun.type1->type == NECRO_TYPE_FUN)
-            count = snprintf(buffer, buffer_length, "(");
-        new_buffer = necro_snprintf_type_sig(type->fun.type1, intern, buffer + count, buffer_length);
-        count = 0;
+            buffer += snprintf(buffer, buffer_length, "(");
+        buffer = necro_snprintf_type_sig(type->fun.type1, intern, buffer, buffer_length);
         if (type->fun.type1->type == NECRO_TYPE_FUN)
-            count = snprintf(new_buffer, buffer_length, ")");
-        count += snprintf(new_buffer + count, buffer_length, " -> ");
-        return necro_snprintf_type_sig(type->fun.type2, intern, buffer + count, buffer_length);
+            buffer += snprintf(buffer, buffer_length, ")");
+        buffer += snprintf(buffer, buffer_length, " -> ");
+        return necro_snprintf_type_sig(type->fun.type2, intern, buffer, buffer_length);
 
     case NECRO_TYPE_CON:
     {
         bool has_args = necro_type_list_count(type->con.args) > 0;
-        count = snprintf(buffer, buffer_length, "%s", necro_intern_get_string(intern, type->con.con.symbol));
+        buffer += snprintf(buffer, buffer_length, "%s", necro_intern_get_string(intern, type->con.con.symbol));
         if (has_args)
         {
-            count += snprintf(buffer + count, buffer_length, " ");
-            return necro_snprintf_type_sig(type->con.args, intern, buffer + count, buffer_length);
+            buffer += snprintf(buffer, buffer_length, " ");
+            return necro_snprintf_type_sig(type->con.args, intern, buffer, buffer_length);
         }
         else
         {
-            return buffer + count;
+            return buffer;
         }
     }
 
     case NECRO_TYPE_LIST:
-        new_buffer = necro_snprintf_type_sig_go_maybe_with_parens(type->list.item, intern, buffer, buffer_length);
+        buffer = necro_snprintf_type_sig_go_maybe_with_parens(type->list.item, intern, buffer, buffer_length);
         if (type->list.next != NULL)
         {
-            count = snprintf(new_buffer, buffer_length, " ");
-            return necro_snprintf_type_sig(type->list.next, intern, new_buffer + count, buffer_length);
+            buffer += snprintf(buffer, buffer_length, " ");
+            return necro_snprintf_type_sig(type->list.next, intern, buffer, buffer_length);
         }
         else
         {
-            return new_buffer;
+            return buffer;
         }
 
     case NECRO_TYPE_FOR:
-        count      = snprintf(buffer, buffer_length, "forall ");
-        new_buffer = necro_snprintf_id_as_characters(type->for_all.var.id, buffer + count, buffer_length);
-        count     += snprintf(new_buffer + count, buffer_length, ". ");
-        return necro_snprintf_type_sig(type->for_all.type, intern, new_buffer + count, buffer_length);
+        buffer += snprintf(buffer, buffer_length, "forall ");
+        while (type->for_all.type->type == NECRO_TYPE_FOR)
+        {
+            buffer  = necro_snprintf_id_as_characters(type->for_all.var.id, buffer, buffer_length);
+            buffer += snprintf(buffer, buffer_length, " ");
+            type    = type->for_all.type;
+        }
+        buffer      = necro_snprintf_id_as_characters(type->for_all.var.id, buffer, buffer_length);
+        buffer     += snprintf(buffer, buffer_length, ". ");
+        return necro_snprintf_type_sig(type->for_all.type, intern, buffer, buffer_length);
 
     default:
         return buffer + snprintf(buffer, buffer_length, "Compiler bug: Unrecognized type: %d", type->type);
@@ -1064,6 +1237,22 @@ void necro_print_type_test_result(const char* test_name, NecroType* type, const 
         printf(" (FAILED)\n");
 }
 
+void necro_print_env(NecroInfer* infer)
+{
+    printf("Env:\n[\n");
+    for (size_t i = 0; i < infer->env.capacity; ++i)
+    {
+        if (infer->env.data[i] == NULL)
+            continue;
+        printf("    ");
+        necro_print_id_as_characters((NecroID) { i });
+        printf(" ==> ");
+        necro_print_type_sig(infer->env.data[i], infer->intern);
+    }
+    printf("]\n");
+}
+
+
 //=====================================================
 // Testing
 //=====================================================
@@ -1074,7 +1263,6 @@ void necro_test_type()
     NecroIntern intern = necro_create_intern();
     NecroInfer  infer  = necro_create_infer(&intern);
 
-    // TODO: Dont make vars by hand, use make_new_name
     // Print test
     {
         NecroType* bcon = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Bool"), { 0 } }, NULL, 0);
@@ -1100,16 +1288,55 @@ void necro_test_type()
         NecroType* fun3 = necro_create_type_fun(&infer, fun1, fun2);
         NecroType* fun4 = necro_create_type_fun(&infer, vapp, fun3);
 
-        // gen needed
-        // NecroType* for2 = necro_create_for_all(&infer, (NecroVar) { { 2 } }, fun4);
-        // NecroType* for1 = necro_create_for_all(&infer, (NecroVar) { { 1 } }, for2);
-
         if (necro_check_and_print_type_error(&infer)) return;
         necro_print_type_sig(fun4, &intern);
+        printf("\n");
+    }
+
+    // Gen Print test
+    {
+        necro_reset_infer(&infer);
+        NecroType* bcon = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Bool"), { 0 } }, NULL, 0);
+        NecroType* icon = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Int"), { 0 } }, NULL, 0);
+
+        NecroType* lst1 = necro_create_type_list(&infer, bcon, NULL);
+        NecroType* mcon = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Maybe"), { 0 } }, lst1, 1);
+
+        NecroType* iols = necro_create_type_list(&infer, mcon, NULL);
+        NecroType* iocn = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "IO"), { 0 } }, iols, 1);
+
+        NecroType* lst3 = necro_create_type_list(&infer, bcon, NULL);
+        NecroType* lst2 = necro_create_type_list(&infer, icon, lst3);
+        NecroType* econ = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Either"), { 0 } }, lst2, 2);
+
+        NecroType* avar = necro_new_name(&infer);
+        NecroType* bvar = necro_new_name(&infer);
+        NecroType* cvar = necro_new_name(&infer);
+        NecroType* vapp = necro_create_type_app(&infer, avar, bvar);
+
+        NecroType* fun1 = necro_create_type_fun(&infer, bvar, cvar);
+        NecroType* fun2 = necro_create_type_fun(&infer, econ, iocn);
+        NecroType* fun3 = necro_create_type_fun(&infer, fun1, fun2);
+        NecroType* fun4 = necro_create_type_fun(&infer, vapp, fun3);
+
+        // gen test
+        NecroType* for1 = necro_gen(&infer, fun4);
+
+        if (necro_check_and_print_type_error(&infer)) return;
+        necro_print_type_sig(for1, &intern);
+        puts("");
+
+        // inst test
+        NecroType* inst = necro_inst(&infer, for1);
+
+        if (necro_check_and_print_type_error(&infer)) return;
+        necro_print_type_sig(inst, &intern);
+        puts("");
     }
 
     // Unify test
     {
+        necro_reset_infer(&infer);
         NecroType* avar = necro_new_name(&infer);
         NecroType* bvar = necro_new_name(&infer);
         NecroType* lst1 = necro_create_type_list(&infer, bvar, NULL);
@@ -1122,6 +1349,7 @@ void necro_test_type()
 
     // Unify test 2
     {
+        necro_reset_infer(&infer);
         NecroType* avar = necro_new_name(&infer);
         NecroType* bvar = necro_new_name(&infer);
         NecroType* icon = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Int"), { 0 } }, NULL, 0);
@@ -1140,6 +1368,7 @@ void necro_test_type()
 
     // Unify test 2
     {
+        necro_reset_infer(&infer);
         NecroType* avar  = necro_new_name(&infer);
         NecroType* bvar  = necro_new_name(&infer);
         NecroType* icon  = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Int"), { 0 } }, NULL, 0);
@@ -1159,8 +1388,124 @@ void necro_test_type()
         necro_print_type_test_result("expectUnify3", econ1, "resultUnify3", econ2, &intern);
     }
 
+    // Env set test
+    {
+        necro_reset_infer(&infer);
+        NecroType* avar  = necro_new_name(&infer);
+        NecroType* bvar  = necro_new_name(&infer);
+        NecroType* cvar  = necro_new_name(&infer);
+        NecroType* icon  = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Int"), { 0 } }, NULL, 0);
+        NecroType* bcon  = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Bool"), { 0 } }, NULL, 0);
+
+        if (necro_check_and_print_type_error(&infer)) return;
+
+        necro_env_set(&infer, avar->var.var, icon);
+        necro_env_set(&infer, bvar->var.var, bcon);
+
+        puts("");
+        necro_print_env(&infer);
+
+        NecroType* icon2 = necro_env_get(&infer, avar->var.var);
+        NecroType* bcon2 = necro_env_get(&infer, bvar->var.var);
+        NecroType* nullt = necro_env_get(&infer, cvar->var.var);
+
+        if (necro_check_and_print_type_error(&infer)) return;
+        necro_print_type_test_result("expectEnv1", icon, "resultEnv1", icon2, &intern);
+        necro_print_type_test_result("expectEnv2", bcon, "resultEnv2", bcon2, &intern);
+        necro_print_type_test_result("expectEnv3", NULL, "resultEnv3", nullt, &intern);
+    }
+
     necro_destroy_infer(&infer);
     necro_destroy_intern(&intern);
+}
+
+//=====================================================
+// PrimTypes
+//=====================================================
+NecroPrimSymbols necro_create_prim_symbols(NecroIntern* intern)
+{
+    return (NecroPrimSymbols)
+    {
+        .float_symbol   = necro_intern_string(intern, "Float"),
+        .audio_symbol   = necro_intern_string(intern, "Audio"),
+
+        // Int
+        .int_symbol     = necro_intern_string(intern, "Int"),
+        .add_int_symbol = necro_intern_string(intern, "*"),
+        .sub_int_symbol = necro_intern_string(intern, "-"),
+        .mul_int_symbol = necro_intern_string(intern, "mul"),
+        .div_int_symbol = necro_intern_string(intern, "/"),
+
+        // String
+        // .string_symbol  = necro_intern_string(intern, "String"),
+
+        // Char
+        .char_symbol    = necro_intern_string(intern, "Char"),
+
+        // Bool
+        .bool_symbol    = necro_intern_string(intern, "Bool"),
+    };
+}
+
+NecroType* necro_make_int_type(NecroInfer* infer)
+{
+    return necro_create_type_con(infer, (NecroCon) { infer->prim_symbols.int_symbol, 0 }, NULL, 0);
+}
+
+NecroType* necro_make_float_type(NecroInfer* infer)
+{
+    return necro_create_type_con(infer, (NecroCon) { infer->prim_symbols.float_symbol, 0 }, NULL, 0);
+}
+
+NecroType* necro_make_bool_type(NecroInfer* infer)
+{
+    return necro_create_type_con(infer, (NecroCon) { infer->prim_symbols.bool_symbol, 0 }, NULL, 0);
+}
+
+NecroType* necro_make_char_type(NecroInfer* infer)
+{
+    return necro_create_type_con(infer, (NecroCon) { infer->prim_symbols.char_symbol, 0 }, NULL, 0);
+}
+
+NecroType* necro_make_bin_op_type(NecroInfer* infer, NecroAST_BinOpType bin_op_type)
+{
+    switch (bin_op_type)
+    {
+    case NECRO_BIN_OP_ADD:
+    case NECRO_BIN_OP_SUB:
+    case NECRO_BIN_OP_MUL:
+    case NECRO_BIN_OP_DIV:
+    {
+        NecroType* int_type = necro_make_int_type(infer);
+        NecroType* f1_type  = necro_create_type_fun(infer, int_type, int_type);
+        return necro_create_type_fun(infer, int_type, f1_type);
+    }
+    default: return necro_infer_error(infer, NULL, "bin op not implemented: %d", bin_op_type);
+    // case NECRO_BIN_OP_MOD,
+    // case NECRO_BIN_OP_GT,
+    // case NECRO_BIN_OP_LT,
+    // case NECRO_BIN_OP_GTE,
+    // case NECRO_BIN_OP_LTE,
+    // case NECRO_BIN_OP_COLON,
+	// case NECRO_BIN_OP_DOUBLE_COLON,
+	// case NECRO_BIN_OP_LEFT_SHIFT,
+	// case NECRO_BIN_OP_RIGHT_SHIFT,
+	// case NECRO_BIN_OP_PIPE,
+	// case NECRO_BIN_OP_FORWARD_PIPE,
+	// case NECRO_BIN_OP_BACK_PIPE,
+    // case NECRO_BIN_OP_EQUALS,
+    // case NECRO_BIN_OP_NOT_EQUALS,
+	// case NECRO_BIN_OP_AND,
+	// case NECRO_BIN_OP_OR,
+    // case NECRO_BIN_OP_DOT,
+    // case NECRO_BIN_OP_DOLLAR,
+    // case NECRO_BIN_OP_BIND_RIGHT,
+    // case NECRO_BIN_OP_BIND_LEFT,
+    // case NECRO_BIN_OP_DOUBLE_EXCLAMATION,
+    // case NECRO_BIN_OP_APPEND,
+    // case NECRO_BIN_OP_COUNT,
+    // case NECRO_BIN_OP_UNDEFINED = NECRO_BIN_OP_COUNT
+    }
 }
 
 // //=====================================================

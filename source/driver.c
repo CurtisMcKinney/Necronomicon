@@ -117,6 +117,16 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
         return;
 
     //=====================================================
+    // Infer
+    //=====================================================
+    if (compilation_phase == NECRO_PHASE_INFER)
+    {
+        NecroInfer infer = necro_create_infer(&lexer.intern);
+        if (necro_infer(&infer, ast_r.root) == NULL)
+            return;
+    }
+
+    //=====================================================
     // Cleaning up
     //=====================================================
     necro_announce_phase("Cleaning Up");

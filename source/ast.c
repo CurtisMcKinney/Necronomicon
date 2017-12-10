@@ -449,6 +449,18 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
     }
 }
 
+void necro_print_reified_ast_node(NecroAST_Node_Reified* ast_node, NecroIntern* intern)
+{
+    if (ast_node == NULL)
+    {
+        puts("(Empty AST)");
+    }
+    else
+    {
+        print_reified_ast_impl(ast_node, intern, 0);
+    }
+}
+
 void necro_print_reified_ast(NecroAST_Reified* ast, NecroIntern* intern)
 {
     if (ast->root == NULL)

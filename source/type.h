@@ -139,6 +139,20 @@ typedef struct NecroType
 //     NecroTypeScheme*   scheme;
 // } NecroGamma;
 
+typedef struct
+{
+    NecroSymbol int_symbol;
+    NecroSymbol add_int_symbol;
+    NecroSymbol sub_int_symbol;
+    NecroSymbol mul_int_symbol;
+    NecroSymbol div_int_symbol;
+    NecroSymbol float_symbol;
+    NecroSymbol audio_symbol;
+    // NecroSymbol string_symbol;
+    NecroSymbol char_symbol;
+    NecroSymbol bool_symbol;
+} NecroPrimSymbols;
+
 //=====================================================
 // NecroTypeEnv
 //=====================================================
@@ -146,7 +160,6 @@ typedef struct
 {
     NecroType** data;
     size_t      capacity;
-    size_t      count;
 } NecroTypeEnv;
 
 //=====================================================
@@ -154,11 +167,12 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    NecroTypeEnv    env;
-    NecroPagedArena arena;
-    NecroIntern*    intern;
-    NecroError      error;
-    size_t          highest_id;
+    NecroPrimSymbols prim_symbols;
+    NecroTypeEnv     env;
+    NecroPagedArena  arena;
+    NecroIntern*     intern;
+    NecroError       error;
+    size_t           highest_id;
 } NecroInfer;
 
 //=====================================================
@@ -166,10 +180,23 @@ typedef struct
 //=====================================================
 NecroInfer       necro_create_infer(NecroIntern* intern);
 void             necro_destroy_infer(NecroInfer* infer);
+void             necro_reset_infer(NecroInfer* infer);
 
 void             necro_unify(NecroInfer* infer, NecroType* type1, NecroType* type2);
 NecroType*       necro_inst(NecroInfer* infer, NecroType* poly_type);
 NecroType*       necro_gen(NecroInfer* infer, NecroType* type);
+NecroType*       necro_new_name(NecroInfer* infer);
+// NecroType*       necro_abs(NecroInfer* infer, NecroType* arg_type, NecroType* result_type);
+
+NecroType*       necro_create_type_con(NecroInfer* infer, NecroCon con, NecroType* args, size_t arity);
+NecroType*       necro_create_type_fun(NecroInfer* infer, NecroType* type1, NecroType* type2);
+NecroType*       necro_make_bin_op_type(NecroInfer* infer, NecroAST_BinOpType bin_op_type);
+NecroType*       necro_make_float_type(NecroInfer* infer);
+NecroType*       necro_make_bool_type(NecroInfer* infer);
+NecroType*       necro_make_char_type(NecroInfer* infer);
+
+NecroType*       necro_make_int_type(NecroInfer* infer);
+NecroType*       necro_make_float_type(NecroInfer* infer);
 
 NecroType*       necro_env_get(NecroInfer* infer, NecroVar var);
 void             necro_env_set(NecroInfer* infer, NecroVar var, NecroType* type);
@@ -177,6 +204,9 @@ void             necro_env_set(NecroInfer* infer, NecroVar var, NecroType* type)
 char*            necro_snprintf_type_sig(NecroType* type, NecroIntern* intern, char* buffer, const size_t buffer_length);
 const char*      necro_id_as_character_string(NecroInfer* infer, NecroID id);
 bool             necro_check_and_print_type_error(NecroInfer* infer);
+void             necro_check_type_sanity(NecroInfer* infer, NecroType* type);
+void             necro_print_type_test_result(const char* test_name, NecroType* type, const char* test_name2, NecroType* type2, NecroIntern* intern);
+void             necro_print_env(NecroInfer* infer);
 void             necro_test_type();
 
 #endif // TYPE_H

@@ -1,3 +1,47 @@
 inferTest  = inferDeath + 2 + 2
-inferDeath = 2 + inferTest
 
+inferDeath =
+    let y = 2 + 666
+        z = inferDeath + 100
+    in  y + inferTest - z
+
+boolTest = inferTest > (inferDeath + 2) && boolTest && ifTest
+    where
+        x      = 2
+        ifTest = if boolTest
+            then 2 > 3
+            else 3 < 2
+
+tupleTest = (boolTest, inferTest)
+
+-- tupleAllTheWayDown = (tuplesPlease, tupleTest, 666.0)
+--     where
+--         tuplesPlease = (3.0, inferDeath, if boolTest then 5 else 7, tuplesAreTurles, 0)
+--             where
+--                 tuplesAreTurles = (3 == 3, 5 + 6 * 7, tupleAllTheWayDown)
+
+-- occursError = let bottom = (1, occursError) in (0, bottom)
+-- occursError = let bottom = (100, 200, occursError) in (1, 2, bottom)
+
+a         = a
+listTest1 = []
+listTest2 = [a]
+
+-- listsAllTheWayDown = listsPlease
+--     where
+--         listsPlease = [listsAllTheWayDown]
+
+-- f = let g = f 0 in g
+
+compareTest = (3 == 4, 5 + 7)
+boolTest2   = 3 == 4
+boolTest3   = 4 == 4 && boolTest2
+
+-- f x _ 0 (DeathTest (Maybe _) _) = 0
+
+foo x = foo (bar 0)
+bar x = x
+
+add 0 x _ = x + 0
+
+zero = add 2 3 4

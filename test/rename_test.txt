@@ -69,3 +69,12 @@ data ApTest a b = ApTest Int (MyData a (Maybe a) b) Int
 coolTest :: Int -> (a -> b) -> Int
 -- coolTest :: Int -> a -> b -> Int
 coolTest x = coolFunc x + CoolData
+
+    -- notCoolTest
+
+x = do
+    let notCoolTest = notCoolTest + cool2
+        cool2       = notCoolTest
+    notCoolTest
+    y <- 1 + cool2
+    y + 1

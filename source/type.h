@@ -93,65 +93,40 @@ typedef struct NecroType
     NecroSourceLoc source_loc;
 } NecroType;
 
-// //=====================================================
-// // NecroTypeScheme - i.e. forall
-// //=====================================================
-// struct NecroTypeScheme;
-// typedef struct
-// {
-//     NecroVar                var;
-//     struct NecroTypeScheme* scheme;
-// } NecroForAll;
-
-// typedef enum
-// {
-//     NECRO_TYPE_SCHEME_FOR_ALL,
-//     NECRO_TYPE_SCHEME_TERM,
-// } NECRO_TYPE_SCHEME_TYPE;
-
-// typedef struct NecroTypeScheme
-// {
-//     union
-//     {
-//         NecroForAll for_all;
-//         NecroType   term;
-//     };
-//     NECRO_TYPE_SCHEME_TYPE type;
-// } NecroTypeScheme;
-
-// //=====================================================
-// // NecroSub
-// //=====================================================
-// typedef struct NecroSub
-// {
-//     NecroType*        type;
-//     NecroID           name;
-//     struct NecroSub*  next;
-// } NecroSub;
-
-// //=====================================================
-// // Gamma - Assumptions
-// //=====================================================
-// typedef struct NecroGamma
-// {
-//     struct NecroGamma* next;
-//     NecroVar           var;
-//     NecroTypeScheme*   scheme;
-// } NecroGamma;
+typedef struct
+{
+    NecroSymbol two;
+    NecroSymbol three;
+    NecroSymbol four;
+    NecroSymbol five;
+    NecroSymbol six;
+    NecroSymbol seven;
+    NecroSymbol eight;
+    NecroSymbol nine;
+    NecroSymbol ten;
+} NecroTupleSymbols;
 
 typedef struct
 {
-    NecroSymbol int_symbol;
-    NecroSymbol add_int_symbol;
-    NecroSymbol sub_int_symbol;
-    NecroSymbol mul_int_symbol;
-    NecroSymbol div_int_symbol;
-    NecroSymbol float_symbol;
-    NecroSymbol audio_symbol;
-    // NecroSymbol string_symbol;
-    NecroSymbol char_symbol;
-    NecroSymbol bool_symbol;
-} NecroPrimSymbols;
+    NecroType*        int_type;
+    NecroType*        int_bin_op_type;
+    NecroType*        int_compare_type;
+    NecroType*        float_type;
+    NecroType*        float_bin_op_type;
+    NecroType*        float_compare_type;
+    NecroType*        audio_type;
+    NecroType*        audio_bin_op_type;
+    NecroType*        audio_compare_type;
+    NecroType*        char_type;
+    NecroType*        char_compare_type;
+    NecroType*        bool_type;
+    NecroType*        bool_compare_type;
+    // NecroType* string_type;
+    //-----------------------------------
+    // Symbols for constructing types
+    NecroSymbol       list_symbol;
+    NecroTupleSymbols tuple_symbols;
+} NecroPrimTypes;
 
 //=====================================================
 // NecroTypeEnv
@@ -167,7 +142,8 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    NecroPrimSymbols prim_symbols;
+    // NecroPrimSymbols prim_symbols;
+    NecroPrimTypes   prim_types;
     NecroTypeEnv     env;
     NecroPagedArena  arena;
     NecroIntern*     intern;
@@ -178,26 +154,34 @@ typedef struct
 //=====================================================
 // API
 //=====================================================
-NecroInfer       necro_create_infer(NecroIntern* intern);
+NecroInfer       necro_create_infer(NecroIntern* intern, size_t highest_id);
 void             necro_destroy_infer(NecroInfer* infer);
 void             necro_reset_infer(NecroInfer* infer);
+bool             necro_is_infer_error(NecroInfer* infer);
 
 void             necro_unify(NecroInfer* infer, NecroType* type1, NecroType* type2);
 NecroType*       necro_inst(NecroInfer* infer, NecroType* poly_type);
 NecroType*       necro_gen(NecroInfer* infer, NecroType* type);
 NecroType*       necro_new_name(NecroInfer* infer);
 // NecroType*       necro_abs(NecroInfer* infer, NecroType* arg_type, NecroType* result_type);
+NecroType*       necro_most_specialized(NecroInfer* infer, NecroType* type);
 
 NecroType*       necro_create_type_con(NecroInfer* infer, NecroCon con, NecroType* args, size_t arity);
 NecroType*       necro_create_type_fun(NecroInfer* infer, NecroType* type1, NecroType* type2);
 NecroType*       necro_create_type_var(NecroInfer* infer, NecroVar var);
-NecroType*       necro_make_bin_op_type(NecroInfer* infer, NecroAST_BinOpType bin_op_type);
-NecroType*       necro_make_float_type(NecroInfer* infer);
-NecroType*       necro_make_bool_type(NecroInfer* infer);
-NecroType*       necro_make_char_type(NecroInfer* infer);
+NecroType*       necro_create_type_app(NecroInfer* infer, NecroType* type1, NecroType* type2);
 
-NecroType*       necro_make_int_type(NecroInfer* infer);
-NecroType*       necro_make_float_type(NecroInfer* infer);
+NecroType*       necro_get_bin_op_type(NecroInfer* infer, NecroAST_BinOpType bin_op_type);
+NecroType*       necro_make_con_1(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1);
+NecroType*       necro_make_con_2(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2);
+NecroType*       necro_make_con_3(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3);
+NecroType*       necro_make_con_4(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4);
+NecroType*       necro_make_con_5(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5);
+NecroType*       necro_make_con_6(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6);
+NecroType*       necro_make_con_7(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7);
+NecroType*       necro_make_con_8(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8);
+NecroType*       necro_make_con_9(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8, NecroType* arg9);
+NecroType*       necro_make_con_10(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8, NecroType* arg9, NecroType* arg10);
 
 NecroType*       necro_env_get(NecroInfer* infer, NecroVar var);
 void             necro_env_set(NecroInfer* infer, NecroVar var, NecroType* type);

@@ -2772,22 +2772,25 @@ NecroAST_LocalPtr parse_gcon(NecroParser* parser, NECRO_CON_TYPE con_type)
         node->conid.symbol   = symbol;
         node->conid.con_type = con_type;
     }
-    // []
-    else if (peek_token_type(parser) == NECRO_LEX_LEFT_BRACKET)
-    {
-        NecroSymbol symbol = peek_token(parser)->symbol;
-        consume_token(parser);
-        if (peek_token_type(parser) != NECRO_LEX_RIGHT_BRACKET)
-        {
-            restore_parser(parser, snapshot);
-            return null_local_ptr;
-        }
-        consume_token(parser);
-        NecroAST_Node* node  = ast_alloc_node_local_ptr(parser, &con_local_ptr);
-        node->type           = NECRO_AST_CONID;
-        node->conid.symbol   = symbol;
-        node->conid.con_type = con_type;
-    }
+
+    // Don't need this?!?!?
+    // // []
+    // else if (peek_token_type(parser) == NECRO_LEX_LEFT_BRACKET)
+    // {
+    //     // NecroSymbol symbol = peek_token(parser)->symbol;
+    //     consume_token(parser);
+    //     if (peek_token_type(parser) != NECRO_LEX_RIGHT_BRACKET)
+    //     {
+    //         restore_parser(parser, snapshot);
+    //         return null_local_ptr;
+    //     }
+    //     consume_token(parser);
+    //     NecroAST_Node* node  = ast_alloc_node_local_ptr(parser, &con_local_ptr);
+    //     node->type           = NECRO_AST_CONID;
+    //     node->conid.symbol   = necro_intern_string(parser->intern, "[]");
+    //     node->conid.con_type = con_type;
+    // }
+
     // Constructor
     else
     {

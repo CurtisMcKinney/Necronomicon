@@ -411,9 +411,25 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_R
         necro_scoped_symtable_pop_scope(scoped_symtable);
         break;
     case NECRO_AST_DO:
-        necro_build_scopes_go(scoped_symtable, input_node->do_statement.statement_list);
-        necro_build_scopes_go(scoped_symtable, input_node->do_statement.statement_list);
+    {
+        // necro_build_scopes_go(scoped_symtable, input_node->do_statement.statement_list);
+        NecroAST_Node_Reified* current_statement = input_node->do_statement.statement_list;
+        size_t                 pop_count = 0;
+        while (current_statement != NULL)
+        {
+            assert(current_statement->type == NECRO_AST_LIST_NODE);
+            if (current_statement->list.item->type == NECRO_BIND_ASSIGNMENT || current_statement->list.item->type == NECRO_AST_DECL)
+            {
+                necro_scoped_symtable_new_scope(scoped_symtable);
+                pop_count++;
+            }
+            necro_build_scopes_go(scoped_symtable, current_statement->list.item);
+            current_statement = current_statement->list.next_item;
+        }
+        for (size_t i = 0; i < pop_count; ++i)
+            necro_scoped_symtable_pop_scope(scoped_symtable);
         break;
+    }
     case NECRO_AST_LIST_NODE:
         necro_build_scopes_go(scoped_symtable, input_node->list.item);
         necro_build_scopes_go(scoped_symtable, input_node->list.next_item);
@@ -594,13 +610,14 @@ void necro_scoped_symtable_print(NecroScopedSymTable* table)
 void necro_print_env_with_symtable(NecroSymTable* table, NecroInfer* infer)
 {
     printf("Env:\n[\n");
-    for (size_t i = 0; i < infer->env.capacity; ++i)
+    for (size_t i = 0; i < table->count; ++i)
     {
         if (infer->env.data[i] == NULL)
             continue;
         printf("    %s", necro_intern_get_string(infer->intern, table->data[i].name));
         printf(" ==> ");
-        necro_print_type_sig(infer->env.data[i], infer->intern);
+        // necro_print_type_sig(infer->env.data[i], infer->intern);
+        necro_print_type_sig(necro_most_specialized(infer, infer->env.data[i]), infer->intern); // printing most specialized for now!
     }
     printf("]\n");
 }

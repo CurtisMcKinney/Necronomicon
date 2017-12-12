@@ -124,7 +124,10 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
         NecroInfer infer = necro_create_infer(&lexer.intern, symtable.count + 1);
         necro_infer(&infer, ast_r.root);
         if (infer.error.return_code != NECRO_SUCCESS)
+        {
+            necro_print_error(&infer.error, input_string, "Type");
             return;
+        }
         necro_print_env_with_symtable(&symtable, &infer);
     }
 

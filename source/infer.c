@@ -95,15 +95,17 @@ NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast)
     if (necro_is_infer_error(infer)) return NULL;
     if (ast->variable.var_type == NECRO_VAR_DECLARATION)
     {
-        NecroType* new_name = necro_new_name(infer);
-        necro_env_set(infer, (NecroVar) { ast->variable.id }, new_name);
-        return new_name;
+        // NecroType* new_name = necro_new_name(infer);
+        // necro_env_set(infer, (NecroVar) { ast->variable.id }, new_name);
+        // return new_name;
+        return necro_create_type_var(infer, (NecroVar) { ast->variable.id });
     }
     else if (ast->variable.var_type == NECRO_VAR_VAR)
     {
         NecroType* type = necro_env_get(infer, (NecroVar) { ast->variable.id });
         if (type == NULL)
-            return necro_infer_ast_error(infer, NULL, ast, "Type not found for variable: %s", necro_intern_get_string(infer->intern, ast->variable.symbol));
+            return necro_create_type_var(infer, (NecroVar) { ast->variable.id });
+            // return necro_infer_ast_error(infer, NULL, ast, "Type not found for variable: %s", necro_intern_get_string(infer->intern, ast->variable.symbol));
         return necro_inst(infer, type);
     }
     else
@@ -203,7 +205,6 @@ NecroType* necro_infer_apats_assignment(NecroInfer* infer, NecroNode* ast)
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_APATS_ASSIGNMENT);
     if (necro_is_infer_error(infer)) return NULL;
-
     NecroType* proxy_type = necro_env_get(infer, (NecroVar){ast->apats_assignment.id});
     NecroNode* apats      = ast->apats_assignment.apats;
     NecroType* f_type     = NULL;
@@ -609,13 +610,13 @@ NecroType* necro_infer(NecroInfer* infer, NecroNode* ast)
     necro_check_type_sanity(infer, result);
     if (infer->error.return_code != NECRO_SUCCESS)
     {
-        printf("\n");
-        printf("====================================================\n");
-        printf("Type error:\n    %s\n", infer->error.error_message);
-        // printf("during inference for ast:\n");
-        // necro_print_reified_ast_node(ast, infer->intern);
-        printf("====================================================\n");
-        printf("\n");
+        // printf("\n");
+        // printf("====================================================\n");
+        // printf("Type error:\n    %s\n", infer->error.error_message);
+        // // printf("during inference for ast:\n");
+        // // necro_print_reified_ast_node(ast, infer->intern);
+        // printf("====================================================\n");
+        // printf("\n");
         return NULL;
     }
     return result;

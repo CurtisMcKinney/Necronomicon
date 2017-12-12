@@ -796,8 +796,17 @@ NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type, NecroGenResult p
         prev_result.type = NULL;
         return prev_result;
     }
+
+    // if (type->type == NECRO_TYPE_VAR)
+    // {
+    //     NecroType* bound_type = necro_env_get(infer, type->var.var);
+    //     if (necro_occurs(infer, type, bound_type))
+    //     // if (necro_occurs_with_name(infer, type->var.var.id, bound_type))
+    //         return (NecroGenResult) { necro_infer_error(infer, type, "Occurs check error"), NULL, NULL };
+    // }
+
     // Is not finding correct?!?!?
-    type = necro_find(infer, type);
+    // type = necro_find(infer, type);
     switch (type->type)
     {
     case NECRO_TYPE_VAR:

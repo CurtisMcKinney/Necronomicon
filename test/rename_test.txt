@@ -72,9 +72,8 @@ coolTest x = coolFunc x + CoolData
 
     -- notCoolTest
 
-x = do
-    let notCoolTest = notCoolTest + cool2
-        cool2       = notCoolTest
-    notCoolTest
-    y <- 1 + cool2
-    y + 1
+x  :: a -> b -> Maybe a
+x = case 2 of
+    (x, y) -> 333
+    [x, y] -> [0, 1]
+    _      -> 12

@@ -14,8 +14,9 @@
 #include "symtable.h"
 #include "ast.h"
 #include "renamer.h"
-#include "type.h"
-#include "infer.h"
+#include "type/type.h"
+#include "type/infer.h"
+#include "type/prim.h"
 #include "driver.h"
 
 void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
@@ -78,8 +79,10 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     // Build Scopes
     //=====================================================
     necro_announce_phase("Building Scopes");
+    NecroPrimTypes      prim_types      = necro_create_prim_types(&lexer.intern);
     NecroSymTable       symtable        = necro_create_symtable(&lexer.intern);
     NecroScopedSymTable scoped_symtable = necro_create_scoped_symtable(&symtable);
+    necro_add_prim_type_symbol_info(&prim_types, &scoped_symtable);
     if (necro_build_scopes(&scoped_symtable, &ast_r) != NECRO_SUCCESS)
     {
         necro_print_error(&scoped_symtable.error, input_string, "Building Scopes");
@@ -121,7 +124,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     //=====================================================
     if (compilation_phase == NECRO_PHASE_INFER)
     {
-        NecroInfer infer = necro_create_infer(&lexer.intern, &symtable);
+        NecroInfer infer = necro_create_infer(&lexer.intern, &symtable, prim_types);
         necro_infer(&infer, ast_r.root);
         if (infer.error.return_code != NECRO_SUCCESS)
         {

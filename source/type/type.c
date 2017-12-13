@@ -7,6 +7,7 @@
 #include <inttypes.h>
 #include <stdarg.h>
 #include "symtable.h"
+#include "prim.h"
 #include "type.h"
 
 // TODO / NOTE:
@@ -22,8 +23,6 @@
 #define TRACE_TYPE(...)
 #endif
 
-// NecroPrimSymbols necro_create_prim_symbols(NecroIntern* intern);
-NecroPrimTypes necro_create_prim_types(NecroInfer* infer);
 NecroTypeEnv necro_create_type_env(size_t initial_size)
 {
     initial_size     = next_highest_pow_of_2(initial_size);
@@ -39,11 +38,10 @@ NecroTypeEnv necro_create_type_env(size_t initial_size)
     {
         .data     = data,
         .capacity = initial_size,
-        // .count    = 0,
     };
 }
 
-NecroInfer necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtable)
+NecroInfer necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtable, NecroPrimTypes prim_types)
 {
 
     NecroInfer infer = (NecroInfer)
@@ -54,9 +52,9 @@ NecroInfer necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtabl
         .error        = necro_create_error(),
         .highest_id   = symtable->count,
         .symtable     = symtable,
-        // .prim_symbols = necro_create_prim_symbols(intern),
+        .prim_types   = prim_types,
     };
-    infer.prim_types = necro_create_prim_types(&infer);
+    necro_add_prim_type_sigs(prim_types, &infer);
     return infer;
 }
 
@@ -132,7 +130,10 @@ bool necro_check_and_print_type_error(NecroInfer* infer)
 
 inline NecroType* necro_alloc_type(NecroInfer* infer)
 {
-    return necro_paged_arena_alloc(&infer->arena, sizeof(NecroType));
+    NecroType* type    = necro_paged_arena_alloc(&infer->arena, sizeof(NecroType));
+    type->pre_supplied = false;
+    type->source_loc   = (NecroSourceLoc) { 0, 0, 0 };
+    return type;
 }
 
 NecroType* necro_create_type_var(NecroInfer* infer, NecroVar var)
@@ -143,7 +144,7 @@ NecroType* necro_create_type_var(NecroInfer* infer, NecroVar var)
     type->type      = NECRO_TYPE_VAR;
     type->var       = (NecroTypeVar)
     {
-        .var = var
+        .var         = var,
     };
     return type;
 }
@@ -303,10 +304,12 @@ NecroType* necro_env_get(NecroInfer* infer, NecroVar var)
 
 void necro_env_set(NecroInfer* infer, NecroVar var, NecroType* type)
 {
-    if (infer->env.capacity <= var.id.id)
+    if (var.id.id >= infer->env.capacity)
     {
-        size_t      new_size = next_highest_pow_of_2(var.id.id);
-        printf("Realloc env, size: %d, new_size: %d", infer->env.capacity, new_size);
+        size_t new_size = next_highest_pow_of_2(var.id.id) * 2;
+        if (new_size < infer->env.capacity)
+            new_size = infer->env.capacity * 2;
+        printf("Realloc env, size: %d, new_size: %d, id: %d\n", infer->env.capacity, new_size, var.id.id);
         NecroType** new_data = realloc(infer->env.data, new_size * sizeof(NecroType*));
         if (new_data == NULL)
         {
@@ -814,14 +817,11 @@ NecroInstSub* necro_create_inst_sub(NecroInfer* infer, NecroVar var_to_replace, 
     return sub;
 }
 
-// Only copy if need be?
 NecroType* necro_inst_go(NecroInfer* infer, NecroType* type, NecroInstSub* subs, NecroScope* scope)
 {
     assert(infer != NULL);
     if (type == NULL)
         return NULL;
-    // type = necro_find(infer, type);
-    // type = necro_find_with_scope(infer, type, scope);
     type = necro_find(infer, type);
     switch (type->type)
     {
@@ -835,9 +835,6 @@ NecroType* necro_inst_go(NecroInfer* infer, NecroType* type, NecroInstSub* subs,
             }
             subs = subs->next;
         }
-        // NecroType* new_name = necro_new_name(infer);
-        // necro_env_set(infer, new_name->var.var, necro_find(infer, type));
-        // return new_name;
         return type;
     }
     case NECRO_TYPE_APP:  return necro_create_type_app(infer, necro_inst_go(infer, type->app.type1, subs, scope), necro_inst_go(infer, type->app.type2, subs, scope));
@@ -845,20 +842,15 @@ NecroType* necro_inst_go(NecroInfer* infer, NecroType* type, NecroInstSub* subs,
     case NECRO_TYPE_CON:  return necro_create_type_con(infer, type->con.con, necro_inst_go(infer, type->con.args, subs, scope), type->con.arity);
     case NECRO_TYPE_LIST: return necro_create_type_list(infer, necro_inst_go(infer, type->list.item, subs, scope), necro_inst_go(infer, type->list.next, subs, scope));
     case NECRO_TYPE_FOR:  return necro_infer_error(infer, type, "Compiler bug: Found Polytype in necro_inst_go");
-    // case NECRO_TYPE_FOR:  return necro_inst(infer, type, scope);
     default:              return necro_infer_error(infer, type, "Compiler bug: Non-existent type %d found in necro_inst.", type->type);
     }
 }
 
-// This is still fuuuuuuucked.....
 NecroType* necro_inst(NecroInfer* infer, NecroType* type, NecroScope* scope)
 {
     assert(infer != NULL);
     assert(type != NULL);
-    // if (type == NULL)
-    //     return necro_new_name(infer); // is this correct?!?!!
     type = necro_find(infer, type);
-    // type = necro_find_with_scope(infer, type, scope->parent);
     NecroType*    current_type = type;
     NecroInstSub* subs         = NULL;
     while (current_type->type == NECRO_TYPE_FOR)
@@ -867,7 +859,6 @@ NecroType* necro_inst(NecroInfer* infer, NecroType* type, NecroScope* scope)
         current_type = current_type->for_all.type;
     }
     NecroType* result = necro_inst_go(infer, current_type, subs, scope);
-    necro_print_type_sig(result, infer->intern);
     return result;
 }
 
@@ -886,7 +877,7 @@ typedef struct
 {
     NecroType*   type;
     NecroGenSub* subs;
-    NecroType*   old_for_all;
+    NecroGenSub* sub_tail;
 } NecroGenResult;
 
 NecroType* necro_append_for_all(NecroType* for_all, NecroType* type)
@@ -922,37 +913,34 @@ NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type, NecroGenResult p
         return prev_result;
     }
 
-    if (type->type == NECRO_TYPE_VAR)
-    {
-        NecroType* bound_type = necro_env_get(infer, type->var.var);
-        if (necro_occurs(infer, type, bound_type))
-        // if (necro_occurs_with_name(infer, type->var.var.id, bound_type))
-            return (NecroGenResult) { necro_infer_error(infer, type, "Occurs check error"), NULL, NULL };
-    }
+    // if (type->type == NECRO_TYPE_VAR)
+    // {
+    //     NecroType* bound_type = necro_env_get(infer, type->var.var);
+    //     if (necro_occurs(infer, type, bound_type))
+    //     // if (necro_occurs_with_name(infer, type->var.var.id, bound_type))
+    //         return (NecroGenResult) { necro_infer_error(infer, type, "Occurs check error"), NULL, NULL };
+    // }
 
     if (necro_is_bound_in_scope(infer, type, scope))
     {
-        printf("BOUND!!!: \n");
-        necro_print_type_sig(type, infer->intern);
+        // printf("BOUND!!!: \n");
+        // necro_print_type_sig(type, infer->intern);
         prev_result.type = type;
         return prev_result;
     }
 
-    // Is not finding correct?!?!?
-    // type = necro_find(infer, type);
-    // type = necro_find_with_scope(infer, type, scope);
     switch (type->type)
     {
     case NECRO_TYPE_VAR:
     {
-        // if (necro_is_bound_in_scope(infer, type->var.var, scope))
-        if (type->var.var.id.id < infer->symtable->count && infer->symtable->data[type->var.var.id.id].type != NULL)
-        {
-            TRACE_TYPE("gen, symbol: %s\n", necro_intern_get_string(infer->intern, infer->symtable->data[type->var.var.id.id].name));
-            // prev_result.type = type;
-            prev_result.type = infer->symtable->data[type->var.var.id.id].type;
-            return prev_result;
-        }
+        // // if (necro_is_bound_in_scope(infer, type->var.var, scope))
+        // if (type->var.var.id.id < infer->symtable->count && infer->symtable->data[type->var.var.id.id].type != NULL)
+        // {
+        //     TRACE_TYPE("gen, symbol: %s\n", necro_intern_get_string(infer->intern, infer->symtable->data[type->var.var.id.id].name));
+        //     // prev_result.type = type;
+        //     prev_result.type = infer->symtable->data[type->var.var.id.id].type;
+        //     return prev_result;
+        // }
 
         NecroType* bound_type = necro_env_get(infer, type->var.var);
         if (bound_type != NULL)
@@ -965,18 +953,6 @@ NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type, NecroGenResult p
         }
         else
         {
-            // TRACE_TYPE("gen2_1\n");
-            NecroType* old_for_all = prev_result.old_for_all;
-            while (old_for_all != NULL && old_for_all->type == NECRO_TYPE_FOR)
-            {
-                if (old_for_all->for_all.var.id.id == type->var.var.id.id)
-                {
-                    prev_result.type = type;
-                    return prev_result;
-                }
-                old_for_all = old_for_all->for_all.type;
-            }
-            // TRACE_TYPE("gen2_2\n");
             NecroGenSub* subs = prev_result.subs;
             while (subs != NULL)
             {
@@ -987,20 +963,27 @@ NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type, NecroGenResult p
                 }
                 subs = subs->next;
             }
-            // TRACE_TYPE("gen2_3\n");
             NecroGenSub* sub      = necro_paged_arena_alloc(&infer->arena, sizeof(NecroGenSub));
             NecroType*   type_var = necro_new_name(infer);
             NecroType*   for_all  = necro_create_for_all(infer, type_var->var.var, NULL);
             *sub                  = (NecroGenSub)
             {
-                .next           = prev_result.subs,
+                .next           = NULL,
                 .var_to_replace = type->var.var,
                 .type_var       = type_var,
                 .for_all        = for_all,
             };
             prev_result.type = type_var;
-            prev_result.subs = sub;
-            // TRACE_TYPE("gen2_4\n");
+            if (prev_result.sub_tail == NULL)
+            {
+                prev_result.subs     = sub;
+                prev_result.sub_tail = sub;
+            }
+            else
+            {
+                prev_result.sub_tail->next = sub;
+                prev_result.sub_tail       = sub;
+            }
             return prev_result;
         }
     }
@@ -1031,8 +1014,8 @@ NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type, NecroGenResult p
         result.type           = necro_create_type_con(infer, type->con.con, result.type, type->con.arity);
         return result;
     }
-    case NECRO_TYPE_FOR: necro_infer_error(infer, type, "Compiler bug: Found Polytype in necro_gen"); return (NecroGenResult) { NULL, NULL };
-    default:             necro_infer_error(infer, type, "Compiler bug: Non-existent type %d found in necro_gen.", type->type); return (NecroGenResult) { NULL, NULL };
+    case NECRO_TYPE_FOR: necro_infer_error(infer, type, "Compiler bug: Found Polytype in necro_gen"); return (NecroGenResult) { NULL, NULL, NULL };
+    default:             necro_infer_error(infer, type, "Compiler bug: Non-existent type %d found in necro_gen.", type->type); return (NecroGenResult) { NULL, NULL, NULL };
     }
 }
 
@@ -1076,72 +1059,6 @@ NecroType* necro_gen(NecroInfer* infer, NecroType* type, NecroScope* scope)
         return result.type;
     }
 }
-
-//=====================================================
-// Most Specialized
-//=====================================================
-NecroType* necro_most_specialized(NecroInfer* infer, NecroType* type)
-{
-    assert(infer != NULL);
-    if (type == NULL)
-        return NULL;
-    type = necro_find(infer, type);
-    switch (type->type)
-    {
-    case NECRO_TYPE_VAR:  return type;
-    case NECRO_TYPE_APP:
-    {
-        NecroType* type1 = necro_most_specialized(infer, type->app.type1);
-        NecroType* type2 = necro_most_specialized(infer, type->app.type2);
-        if (type1 != type->app.type1 || type2 != type->app.type2)
-            return necro_create_type_app(infer, type1, type2);
-        else
-            return type;
-    }
-    case NECRO_TYPE_FUN:
-    {
-        NecroType* type1 = necro_most_specialized(infer, type->fun.type1);
-        NecroType* type2 = necro_most_specialized(infer, type->fun.type2);
-        if (type1 != type->fun.type1 || type2 != type->fun.type2)
-            return necro_create_type_fun(infer, type1, type2);
-        else
-            return type;
-    }
-    case NECRO_TYPE_LIST:
-    {
-        NecroType* type1 = necro_most_specialized(infer, type->list.item);
-        NecroType* type2 = necro_most_specialized(infer, type->list.next);
-        if (type1 != type->list.item || type2 != type->list.next)
-            return necro_create_type_list(infer, type1, type2);
-        else
-            return type;
-    }
-    case NECRO_TYPE_CON:
-    {
-        NecroType* args = necro_most_specialized(infer, type->con.args);
-        if (args != type->con.args)
-            return necro_create_type_con(infer, type->con.con, args, type->con.arity);
-        else
-            return type;
-    }
-    case NECRO_TYPE_FOR:
-    {
-        NecroType* for_all_type = necro_most_specialized(infer, type->for_all.type);
-        if (for_all_type != type->for_all.type)
-            return necro_create_for_all(infer, type->for_all.var, for_all_type);
-        else
-            return type;
-    }
-    default: return necro_infer_error(infer, type, "Compiler bug: Non-existent type %d found in necro_inst.", type->type);
-    }
-}
-
-//=====================================================
-// Abs
-//=====================================================
-// NecroType* necro_abs(NecroInfer* infer, NecroType* arg_type, NecroType* result_type)
-// {
-// }
 
 //=====================================================
 // Type Sanity
@@ -1189,6 +1106,17 @@ void necro_check_type_sanity(NecroInfer* infer, NecroType* type)
         necro_check_type_sanity(infer, type->list.next);
         break;
     case NECRO_TYPE_CON:
+        // Check Con against type sig in symtable
+        if (type->con.con.id.id != 0 && necro_symtable_get(infer->symtable, type->con.con.id)->type != NULL)
+        {
+            assert(necro_symtable_get(infer->symtable, type->con.con.id)->type->type == NECRO_TYPE_CON);
+            assert(type->con.con.symbol.id == necro_symtable_get(infer->symtable, type->con.con.id)->type->con.con.symbol.id);
+            if ( type->con.arity != necro_symtable_get(infer->symtable, type->con.con.id)->type->con.arity)
+            {
+                necro_infer_error(infer, type, "Mismatched arity for type %s. Expected arity: %d, found arity %d", necro_intern_get_string(infer->intern, type->con.con.symbol), necro_symtable_get(infer->symtable, type->con.con.id)->type->con.arity, type->con.arity);
+                break;
+            }
+        }
         if (necro_type_list_count(type->con.args) != type->con.arity)
         {
             necro_infer_error(infer, type, "Mismatched arity for type %s. Expected arity: %d, found arity %d", necro_intern_get_string(infer->intern, type->con.con.symbol), type->con.arity, necro_type_list_count(type->con.args));
@@ -1721,6 +1649,177 @@ void necro_print_env(NecroInfer* infer)
 }
 
 //=====================================================
+// Prim Types
+//=====================================================
+NecroType* necro_make_tuple_con(NecroInfer* infer, NecroType* types_list)
+{
+    size_t     tuple_count  = 0;
+    NecroType* current_type = types_list;
+    while (current_type != NULL)
+    {
+        assert(current_type->type == NECRO_TYPE_LIST);
+        tuple_count++;
+        current_type = current_type->list.next;
+    }
+    NecroSymbol symbol;
+    switch (tuple_count)
+    {
+    case 2:  symbol = infer->prim_types.tuple_types.two.symbol;   break;
+    case 3:  symbol = infer->prim_types.tuple_types.three.symbol; break;
+    case 4:  symbol = infer->prim_types.tuple_types.four.symbol;  break;
+    case 5:  symbol = infer->prim_types.tuple_types.five.symbol;  break;
+    case 6:  symbol = infer->prim_types.tuple_types.six.symbol;   break;
+    case 7:  symbol = infer->prim_types.tuple_types.seven.symbol; break;
+    case 8:  symbol = infer->prim_types.tuple_types.eight.symbol; break;
+    case 9:  symbol = infer->prim_types.tuple_types.nine.symbol;  break;
+    case 10: symbol = infer->prim_types.tuple_types.ten.symbol;   break;
+    default: return necro_infer_error(infer, NULL, "Tuple size too large: %d", tuple_count);
+    }
+    return necro_create_type_con(infer, (NecroCon) { .symbol = symbol }, types_list, tuple_count);
+}
+
+NecroType* necro_get_bin_op_type(NecroInfer* infer, NecroAST_BinOpType bin_op_type)
+{
+    switch (bin_op_type)
+    {
+    case NECRO_BIN_OP_ADD:        return necro_symtable_get(infer->symtable, infer->prim_types.bin_op_types.add_type.id)->type;
+    case NECRO_BIN_OP_SUB:        return necro_symtable_get(infer->symtable, infer->prim_types.bin_op_types.sub_type.id)->type;
+    case NECRO_BIN_OP_MUL:        return necro_symtable_get(infer->symtable, infer->prim_types.bin_op_types.mul_type.id)->type;
+    case NECRO_BIN_OP_DIV:        return necro_symtable_get(infer->symtable, infer->prim_types.bin_op_types.div_type.id)->type;
+    case NECRO_BIN_OP_MOD:        return necro_symtable_get(infer->symtable, infer->prim_types.bin_op_types.mod_type.id)->type;
+    case NECRO_BIN_OP_EQUALS:     return necro_symtable_get(infer->symtable, infer->prim_types.bin_op_types.eq_type.id)->type;
+    case NECRO_BIN_OP_NOT_EQUALS: return necro_symtable_get(infer->symtable, infer->prim_types.bin_op_types.not_eq_type.id)->type;
+    case NECRO_BIN_OP_GT:         return necro_symtable_get(infer->symtable, infer->prim_types.bin_op_types.gt_type.id)->type;
+    case NECRO_BIN_OP_LT:         return necro_symtable_get(infer->symtable, infer->prim_types.bin_op_types.lt_type.id)->type;
+    case NECRO_BIN_OP_GTE:        return necro_symtable_get(infer->symtable, infer->prim_types.bin_op_types.gte_type.id)->type;
+    case NECRO_BIN_OP_LTE:        return necro_symtable_get(infer->symtable, infer->prim_types.bin_op_types.lte_type.id)->type;
+    case NECRO_BIN_OP_AND:        return necro_symtable_get(infer->symtable, infer->prim_types.bin_op_types.and_type.id)->type;
+    case NECRO_BIN_OP_OR:         return necro_symtable_get(infer->symtable, infer->prim_types.bin_op_types.or_type.id)->type;
+    default: return necro_infer_error(infer, NULL, "bin op not implemented in type checker!: %d", bin_op_type);
+    // case NECRO_BIN_OP_COLON,
+	// case NECRO_BIN_OP_DOUBLE_COLON,
+	// case NECRO_BIN_OP_LEFT_SHIFT,
+	// case NECRO_BIN_OP_RIGHT_SHIFT,
+	// case NECRO_BIN_OP_PIPE,
+	// case NECRO_BIN_OP_FORWARD_PIPE,
+	// case NECRO_BIN_OP_BACK_PIPE,
+    // case NECRO_BIN_OP_DOT,
+    // case NECRO_BIN_OP_DOLLAR,
+    // case NECRO_BIN_OP_BIND_RIGHT,
+    // case NECRO_BIN_OP_BIND_LEFT,
+    // case NECRO_BIN_OP_DOUBLE_EXCLAMATION,
+    // case NECRO_BIN_OP_APPEND,
+    // case NECRO_BIN_OP_COUNT,
+    // case NECRO_BIN_OP_UNDEFINED = NECRO_BIN_OP_COUNT
+    }
+}
+
+NecroType* necro_make_con_1(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1)
+{
+    NecroType* lst1 = necro_create_type_list(infer, arg1, NULL);
+    return necro_create_type_con(infer, (NecroCon) { con_symbol, 0 }, lst1 , 1);
+}
+
+NecroType* necro_make_con_2(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2)
+{
+    NecroType* lst2 = necro_create_type_list(infer, arg2, NULL);
+    NecroType* lst1 = necro_create_type_list(infer, arg1, lst2);
+    return necro_create_type_con(infer, (NecroCon) { con_symbol, 0 }, lst1, 2);
+}
+
+NecroType* necro_make_con_3(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3)
+{
+    NecroType* lst3 = necro_create_type_list(infer, arg3, NULL);
+    NecroType* lst2 = necro_create_type_list(infer, arg2, lst3);
+    NecroType* lst1 = necro_create_type_list(infer, arg1, lst2);
+    return necro_create_type_con(infer, (NecroCon) { con_symbol, 0 }, lst1, 3);
+}
+
+NecroType* necro_make_con_4(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4)
+{
+    NecroType* lst4 = necro_create_type_list(infer, arg4, NULL);
+    NecroType* lst3 = necro_create_type_list(infer, arg3, lst4);
+    NecroType* lst2 = necro_create_type_list(infer, arg2, lst3);
+    NecroType* lst1 = necro_create_type_list(infer, arg1, lst2);
+    return necro_create_type_con(infer, (NecroCon) { con_symbol, 0 }, lst1, 4);
+}
+
+NecroType* necro_make_con_5(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5)
+{
+    NecroType* lst5 = necro_create_type_list(infer, arg5, NULL);
+    NecroType* lst4 = necro_create_type_list(infer, arg4, lst5);
+    NecroType* lst3 = necro_create_type_list(infer, arg3, lst4);
+    NecroType* lst2 = necro_create_type_list(infer, arg2, lst3);
+    NecroType* lst1 = necro_create_type_list(infer, arg1, lst2);
+    return necro_create_type_con(infer, (NecroCon) { con_symbol, 0 }, lst1, 5);
+}
+
+NecroType* necro_make_con_6(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6)
+{
+    NecroType* lst6 = necro_create_type_list(infer, arg6, NULL);
+    NecroType* lst5 = necro_create_type_list(infer, arg5, lst6);
+    NecroType* lst4 = necro_create_type_list(infer, arg4, lst5);
+    NecroType* lst3 = necro_create_type_list(infer, arg3, lst4);
+    NecroType* lst2 = necro_create_type_list(infer, arg2, lst3);
+    NecroType* lst1 = necro_create_type_list(infer, arg1, lst2);
+    return necro_create_type_con(infer, (NecroCon) { con_symbol, 0 }, lst1, 6);
+}
+
+NecroType* necro_make_con_7(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7)
+{
+    NecroType* lst7 = necro_create_type_list(infer, arg7, NULL);
+    NecroType* lst6 = necro_create_type_list(infer, arg6, lst7);
+    NecroType* lst5 = necro_create_type_list(infer, arg5, lst6);
+    NecroType* lst4 = necro_create_type_list(infer, arg4, lst5);
+    NecroType* lst3 = necro_create_type_list(infer, arg3, lst4);
+    NecroType* lst2 = necro_create_type_list(infer, arg2, lst3);
+    NecroType* lst1 = necro_create_type_list(infer, arg1, lst2);
+    return necro_create_type_con(infer, (NecroCon) { con_symbol, 0 }, lst1, 7);
+}
+
+NecroType* necro_make_con_8(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8)
+{
+    NecroType* lst8 = necro_create_type_list(infer, arg8, NULL);
+    NecroType* lst7 = necro_create_type_list(infer, arg7, lst8);
+    NecroType* lst6 = necro_create_type_list(infer, arg6, lst7);
+    NecroType* lst5 = necro_create_type_list(infer, arg5, lst6);
+    NecroType* lst4 = necro_create_type_list(infer, arg4, lst5);
+    NecroType* lst3 = necro_create_type_list(infer, arg3, lst4);
+    NecroType* lst2 = necro_create_type_list(infer, arg2, lst3);
+    NecroType* lst1 = necro_create_type_list(infer, arg1, lst2);
+    return necro_create_type_con(infer, (NecroCon) { con_symbol, 0 }, lst1, 8);
+}
+
+NecroType* necro_make_con_9(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8, NecroType* arg9)
+{
+    NecroType* lst9 = necro_create_type_list(infer, arg9, NULL);
+    NecroType* lst8 = necro_create_type_list(infer, arg8, lst9);
+    NecroType* lst7 = necro_create_type_list(infer, arg7, lst8);
+    NecroType* lst6 = necro_create_type_list(infer, arg6, lst7);
+    NecroType* lst5 = necro_create_type_list(infer, arg5, lst6);
+    NecroType* lst4 = necro_create_type_list(infer, arg4, lst5);
+    NecroType* lst3 = necro_create_type_list(infer, arg3, lst4);
+    NecroType* lst2 = necro_create_type_list(infer, arg2, lst3);
+    NecroType* lst1 = necro_create_type_list(infer, arg1, lst2);
+    return necro_create_type_con(infer, (NecroCon) { con_symbol, 0 }, lst1, 9);
+}
+
+NecroType* necro_make_con_10(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8, NecroType* arg9, NecroType* arg10)
+{
+    NecroType* lst10 = necro_create_type_list(infer, arg10, NULL);
+    NecroType* lst9  = necro_create_type_list(infer, arg9, lst10);
+    NecroType* lst8  = necro_create_type_list(infer, arg8, lst9);
+    NecroType* lst7  = necro_create_type_list(infer, arg7, lst8);
+    NecroType* lst6  = necro_create_type_list(infer, arg6, lst7);
+    NecroType* lst5  = necro_create_type_list(infer, arg5, lst6);
+    NecroType* lst4  = necro_create_type_list(infer, arg4, lst5);
+    NecroType* lst3  = necro_create_type_list(infer, arg3, lst4);
+    NecroType* lst2  = necro_create_type_list(infer, arg2, lst3);
+    NecroType* lst1  = necro_create_type_list(infer, arg1, lst2);
+    return necro_create_type_con(infer, (NecroCon) { con_symbol, 0 }, lst1, 10);
+}
+
+//=====================================================
 // Testing
 //=====================================================
 void necro_test_type()
@@ -1941,224 +2040,3 @@ void necro_test_type()
 //    necro_destroy_intern(&intern);
 }
 
-//=====================================================
-// PrimTypes
-//=====================================================
-NecroPrimTypes necro_create_prim_types(NecroInfer* infer)
-{
-    // Bool
-    NecroType* bool_type          = necro_create_type_con(infer, (NecroCon) { necro_intern_string(infer->intern, "Bool"), 0 }, NULL, 0);
-    NecroType* bool_compare_type  = necro_create_type_fun(infer, bool_type, necro_create_type_fun(infer, bool_type, bool_type));
-
-    // Int
-    NecroType* int_type           = necro_create_type_con(infer, (NecroCon) { necro_intern_string(infer->intern, "Int"), 0 }, NULL, 0);
-    NecroType* int_bin_op_type    = necro_create_type_fun(infer, int_type, necro_create_type_fun(infer, int_type, int_type));
-    NecroType* int_compare_type   = necro_create_type_fun(infer, int_type, necro_create_type_fun(infer, int_type, bool_type));
-
-    // Float
-    NecroType* float_type         = necro_create_type_con(infer, (NecroCon) { necro_intern_string(infer->intern, "Float"), 0 }, NULL, 0);
-    NecroType* float_bin_op_type  = necro_create_type_fun(infer, float_type, necro_create_type_fun(infer, float_type, float_type));
-    NecroType* float_compare_type = necro_create_type_fun(infer, float_type, necro_create_type_fun(infer, float_type, bool_type));
-
-    // Audio
-    NecroType* audio_type         = necro_create_type_con(infer, (NecroCon) { necro_intern_string(infer->intern, "Audio"), 0 }, NULL, 0);
-    NecroType* audio_bin_op_type  = necro_create_type_fun(infer, audio_type, necro_create_type_fun(infer, audio_type, audio_type));
-    NecroType* audio_compare_type = necro_create_type_fun(infer, audio_type, necro_create_type_fun(infer, audio_type, bool_type));
-
-    // Char
-    NecroType* char_type          = necro_create_type_con(infer, (NecroCon) { necro_intern_string(infer->intern, "Char"), 0 }, NULL, 0);
-    NecroType* char_compare_type  = necro_create_type_fun(infer, char_type, necro_create_type_fun(infer, char_type, bool_type));
-
-    // String
-    // .string_symbol  = necro_intern_string(intern, "String"),
-
-    // List
-    NecroSymbol list_symbol       = necro_intern_string(infer->intern, "[]");
-
-    // Tuple
-    NecroSymbol       tuple2_symbol  = necro_intern_string(infer->intern, "(,)");
-    NecroSymbol       tuple3_symbol  = necro_intern_string(infer->intern, "(,,)");
-    NecroSymbol       tuple4_symbol  = necro_intern_string(infer->intern, "(,,,)");
-    NecroSymbol       tuple5_symbol  = necro_intern_string(infer->intern, "(,,,,)");
-    NecroSymbol       tuple6_symbol  = necro_intern_string(infer->intern, "(,,,,,)");
-    NecroSymbol       tuple7_symbol  = necro_intern_string(infer->intern, "(,,,,,,)");
-    NecroSymbol       tuple8_symbol  = necro_intern_string(infer->intern, "(,,,,,,,)");
-    NecroSymbol       tuple9_symbol  = necro_intern_string(infer->intern, "(,,,,,,,,)");
-    NecroSymbol       tuple10_symbol = necro_intern_string(infer->intern, "(,,,,,,,,,)");
-    NecroTupleSymbols tuple_symbols  = (NecroTupleSymbols)
-    {
-        .two   = tuple2_symbol,
-        .three = tuple3_symbol,
-        .four  = tuple4_symbol,
-        .five  = tuple5_symbol,
-        .six   = tuple6_symbol,
-        .seven = tuple7_symbol,
-        .eight = tuple8_symbol,
-        .nine  = tuple9_symbol,
-        .ten   = tuple10_symbol,
-    };
-
-    return (NecroPrimTypes)
-    {
-        .int_type           = int_type,
-        .int_bin_op_type    = int_bin_op_type,
-        .int_compare_type   = int_compare_type,
-        .float_type         = float_type,
-        .float_bin_op_type  = float_bin_op_type,
-        .float_compare_type = float_compare_type,
-        .audio_type         = audio_type,
-        .audio_bin_op_type  = audio_bin_op_type,
-        .audio_compare_type = audio_compare_type,
-        .char_type          = char_type,
-        .char_compare_type  = char_compare_type,
-        .bool_type          = bool_type,
-        .bool_compare_type  = bool_compare_type,
-        .tuple_symbols      = tuple_symbols,
-        .list_symbol        = list_symbol,
-    };
-}
-
-NecroType* necro_get_bin_op_type(NecroInfer* infer, NecroAST_BinOpType bin_op_type)
-{
-    switch (bin_op_type)
-    {
-    case NECRO_BIN_OP_ADD:
-    case NECRO_BIN_OP_SUB:
-    case NECRO_BIN_OP_MUL:
-    case NECRO_BIN_OP_DIV:
-    case NECRO_BIN_OP_MOD:
-        return infer->prim_types.int_bin_op_type;
-    case NECRO_BIN_OP_EQUALS:
-    case NECRO_BIN_OP_NOT_EQUALS:
-    case NECRO_BIN_OP_GT:
-    case NECRO_BIN_OP_LT:
-    case NECRO_BIN_OP_GTE:
-    case NECRO_BIN_OP_LTE:
-        // This isn't working correctly?!?!?!
-        return infer->prim_types.int_compare_type;
-    case NECRO_BIN_OP_AND:
-    case NECRO_BIN_OP_OR:
-        return infer->prim_types.bool_compare_type;
-    default: return necro_infer_error(infer, NULL, "bin op not implemented in type checker!: %d", bin_op_type);
-    // case NECRO_BIN_OP_COLON,
-	// case NECRO_BIN_OP_DOUBLE_COLON,
-	// case NECRO_BIN_OP_LEFT_SHIFT,
-	// case NECRO_BIN_OP_RIGHT_SHIFT,
-	// case NECRO_BIN_OP_PIPE,
-	// case NECRO_BIN_OP_FORWARD_PIPE,
-	// case NECRO_BIN_OP_BACK_PIPE,
-    // case NECRO_BIN_OP_DOT,
-    // case NECRO_BIN_OP_DOLLAR,
-    // case NECRO_BIN_OP_BIND_RIGHT,
-    // case NECRO_BIN_OP_BIND_LEFT,
-    // case NECRO_BIN_OP_DOUBLE_EXCLAMATION,
-    // case NECRO_BIN_OP_APPEND,
-    // case NECRO_BIN_OP_COUNT,
-    // case NECRO_BIN_OP_UNDEFINED = NECRO_BIN_OP_COUNT
-    }
-}
-
-NecroType* necro_make_con_1(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1)
-{
-    NecroType* lst1 = necro_create_type_list(infer, arg1, NULL);
-    return necro_create_type_con(infer, (NecroCon) { con_symbol, 0 }, lst1 , 1);
-}
-
-NecroType* necro_make_con_2(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2)
-{
-    NecroType* lst2 = necro_create_type_list(infer, arg2, NULL);
-    NecroType* lst1 = necro_create_type_list(infer, arg1, lst2);
-    return necro_create_type_con(infer, (NecroCon) { con_symbol, 0 }, lst1, 2);
-}
-
-NecroType* necro_make_con_3(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3)
-{
-    NecroType* lst3 = necro_create_type_list(infer, arg3, NULL);
-    NecroType* lst2 = necro_create_type_list(infer, arg2, lst3);
-    NecroType* lst1 = necro_create_type_list(infer, arg1, lst2);
-    return necro_create_type_con(infer, (NecroCon) { con_symbol, 0 }, lst1, 3);
-}
-
-NecroType* necro_make_con_4(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4)
-{
-    NecroType* lst4 = necro_create_type_list(infer, arg4, NULL);
-    NecroType* lst3 = necro_create_type_list(infer, arg3, lst4);
-    NecroType* lst2 = necro_create_type_list(infer, arg2, lst3);
-    NecroType* lst1 = necro_create_type_list(infer, arg1, lst2);
-    return necro_create_type_con(infer, (NecroCon) { con_symbol, 0 }, lst1, 4);
-}
-
-NecroType* necro_make_con_5(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5)
-{
-    NecroType* lst5 = necro_create_type_list(infer, arg5, NULL);
-    NecroType* lst4 = necro_create_type_list(infer, arg4, lst5);
-    NecroType* lst3 = necro_create_type_list(infer, arg3, lst4);
-    NecroType* lst2 = necro_create_type_list(infer, arg2, lst3);
-    NecroType* lst1 = necro_create_type_list(infer, arg1, lst2);
-    return necro_create_type_con(infer, (NecroCon) { con_symbol, 0 }, lst1, 5);
-}
-
-NecroType* necro_make_con_6(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6)
-{
-    NecroType* lst6 = necro_create_type_list(infer, arg6, NULL);
-    NecroType* lst5 = necro_create_type_list(infer, arg5, lst6);
-    NecroType* lst4 = necro_create_type_list(infer, arg4, lst5);
-    NecroType* lst3 = necro_create_type_list(infer, arg3, lst4);
-    NecroType* lst2 = necro_create_type_list(infer, arg2, lst3);
-    NecroType* lst1 = necro_create_type_list(infer, arg1, lst2);
-    return necro_create_type_con(infer, (NecroCon) { con_symbol, 0 }, lst1, 6);
-}
-
-NecroType* necro_make_con_7(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7)
-{
-    NecroType* lst7 = necro_create_type_list(infer, arg7, NULL);
-    NecroType* lst6 = necro_create_type_list(infer, arg6, lst7);
-    NecroType* lst5 = necro_create_type_list(infer, arg5, lst6);
-    NecroType* lst4 = necro_create_type_list(infer, arg4, lst5);
-    NecroType* lst3 = necro_create_type_list(infer, arg3, lst4);
-    NecroType* lst2 = necro_create_type_list(infer, arg2, lst3);
-    NecroType* lst1 = necro_create_type_list(infer, arg1, lst2);
-    return necro_create_type_con(infer, (NecroCon) { con_symbol, 0 }, lst1, 7);
-}
-
-NecroType* necro_make_con_8(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8)
-{
-    NecroType* lst8 = necro_create_type_list(infer, arg8, NULL);
-    NecroType* lst7 = necro_create_type_list(infer, arg7, lst8);
-    NecroType* lst6 = necro_create_type_list(infer, arg6, lst7);
-    NecroType* lst5 = necro_create_type_list(infer, arg5, lst6);
-    NecroType* lst4 = necro_create_type_list(infer, arg4, lst5);
-    NecroType* lst3 = necro_create_type_list(infer, arg3, lst4);
-    NecroType* lst2 = necro_create_type_list(infer, arg2, lst3);
-    NecroType* lst1 = necro_create_type_list(infer, arg1, lst2);
-    return necro_create_type_con(infer, (NecroCon) { con_symbol, 0 }, lst1, 8);
-}
-
-NecroType* necro_make_con_9(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8, NecroType* arg9)
-{
-    NecroType* lst9 = necro_create_type_list(infer, arg9, NULL);
-    NecroType* lst8 = necro_create_type_list(infer, arg8, lst9);
-    NecroType* lst7 = necro_create_type_list(infer, arg7, lst8);
-    NecroType* lst6 = necro_create_type_list(infer, arg6, lst7);
-    NecroType* lst5 = necro_create_type_list(infer, arg5, lst6);
-    NecroType* lst4 = necro_create_type_list(infer, arg4, lst5);
-    NecroType* lst3 = necro_create_type_list(infer, arg3, lst4);
-    NecroType* lst2 = necro_create_type_list(infer, arg2, lst3);
-    NecroType* lst1 = necro_create_type_list(infer, arg1, lst2);
-    return necro_create_type_con(infer, (NecroCon) { con_symbol, 0 }, lst1, 9);
-}
-
-NecroType* necro_make_con_10(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8, NecroType* arg9, NecroType* arg10)
-{
-    NecroType* lst10 = necro_create_type_list(infer, arg10, NULL);
-    NecroType* lst9  = necro_create_type_list(infer, arg9, lst10);
-    NecroType* lst8  = necro_create_type_list(infer, arg8, lst9);
-    NecroType* lst7  = necro_create_type_list(infer, arg7, lst8);
-    NecroType* lst6  = necro_create_type_list(infer, arg6, lst7);
-    NecroType* lst5  = necro_create_type_list(infer, arg5, lst6);
-    NecroType* lst4  = necro_create_type_list(infer, arg4, lst5);
-    NecroType* lst3  = necro_create_type_list(infer, arg3, lst4);
-    NecroType* lst2  = necro_create_type_list(infer, arg2, lst3);
-    NecroType* lst1  = necro_create_type_list(infer, arg1, lst2);
-    return necro_create_type_con(infer, (NecroCon) { con_symbol, 0 }, lst1, 10);
-}

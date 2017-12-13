@@ -2400,12 +2400,6 @@ NecroAST_LocalPtr parse_arithmetic_sequence(NecroParser* parser)
             if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
             {
                 NecroLexToken* look_ahead_token = peek_token(parser);
-                // snprintf(
-                //     parser->error_message,
-                //     MAX_ERROR_MESSAGE_SIZE,
-                //     "Arithmetic expression failed to parse at line %zu, character %zu. \'then\' expression failed to parse.",
-                //     look_ahead_token->line_number,
-                //     look_ahead_token->character_number);
                 necro_error(&parser->error, look_ahead_token->source_loc, "Arithmetic expression failed to parse. \'then\' expression failed to parse.", necro_lex_token_type_string(look_ahead_token->token));
                 parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
             }
@@ -2431,12 +2425,6 @@ NecroAST_LocalPtr parse_arithmetic_sequence(NecroParser* parser)
             if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
             {
                 NecroLexToken* look_ahead_token = peek_token(parser);
-                // snprintf(
-                //     parser->error_message,
-                //     MAX_ERROR_MESSAGE_SIZE,
-                //     "Arithmetic expression failed to parse at line %zu, character %zu. \'to\' expression failed to parse.",
-                //     look_ahead_token->line_number,
-                //     look_ahead_token->character_number);
                 necro_error(&parser->error, look_ahead_token->source_loc, "Arithmetic expression failed to parse at line. \'to\' expression failed to parse.");
                 parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
             }
@@ -2458,13 +2446,6 @@ NecroAST_LocalPtr parse_arithmetic_sequence(NecroParser* parser)
         if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
         {
             NecroLexToken* look_ahead_token = peek_token(parser);
-            // snprintf(
-            //     parser->error_message,
-            //     MAX_ERROR_MESSAGE_SIZE,
-            //     "Arithmetic expression failed to parse at line %zu, character %zu. Expected \']\' but found %s",
-            //     look_ahead_token->line_number,
-            //     look_ahead_token->character_number,
-            //     necro_lex_token_type_string(look_ahead_token->token));
             necro_error(&parser->error, look_ahead_token->source_loc, "Arithmetic expression failed to parse. Expected \']\' but found %s", necro_lex_token_type_string(look_ahead_token->token));
             parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
         }
@@ -3541,7 +3522,11 @@ NecroAST_LocalPtr parse_context(NecroParser* parser)
             return null_local_ptr;
         }
         if (peek_token_type(parser) != NECRO_LEX_RIGHT_PAREN)
-            return write_error_and_restore(parser, snapshot, "Expected ')' at end of context, but found %s", necro_lex_token_type_string(peek_token_type(parser)));
+        {
+            restore_parser(parser, snapshot);
+            return null_local_ptr;
+        }
+            // return write_error_and_restore(parser, snapshot, "Expected ')' at end of context, but found %s", necro_lex_token_type_string(peek_token_type(parser)));
         consume_token(parser);
         return class_list;
     }

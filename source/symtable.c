@@ -120,6 +120,14 @@ void necro_symtable_info_print(NecroSymbolInfo info, NecroIntern* intern, size_t
     print_white_space(whitespace + 4);
     printf("sig:        %p\n", info.optional_type_signature);
 
+    if (info.type != NULL)
+    {
+        print_white_space(whitespace + 4);
+        printf("type:       ");
+        necro_print_type_sig(info.type, intern);
+        printf("\n");
+    }
+
     print_white_space(whitespace);
     printf("}\n");
 }
@@ -198,7 +206,8 @@ inline NecroScope* necro_create_scope(NecroPagedArena* arena, NecroScope* parent
     scope->buckets       = necro_paged_arena_alloc(arena, NECRO_SCOPE_INITIAL_SIZE * sizeof(NecroScopeNode));
     scope->size          = NECRO_SCOPE_INITIAL_SIZE;
     scope->count         = 0;
-    memset(scope->buckets, 0, NECRO_SCOPE_INITIAL_SIZE * sizeof(NecroScopeNode));
+    for (size_t bucket = 0; bucket < scope->size; ++bucket)
+        scope->buckets[bucket] = (NecroScopeNode) { .id = NECRO_SYMTABLE_NULL_ID };
     return scope;
 }
 
@@ -250,13 +259,16 @@ inline void necro_scope_grow(NecroScope* scope, NecroPagedArena* arena)
     assert(scope != NULL);
     assert(scope->buckets != NULL);
     assert(scope->count < scope->size);
+    // printf("GROW\n");
     NecroScopeNode* prev_buckets = scope->buckets;
     size_t          prev_size    = scope->size;
     size_t          prev_count   = scope->count;
     scope->size                 *= 2;
     scope->buckets               = necro_paged_arena_alloc(arena, scope->size * sizeof(NecroScopeNode));
     scope->count                 = 0;
-    memset(scope->buckets, 0, scope->size * sizeof(NecroScopeNode));
+    // memset(scope->buckets, 0, scope->size * sizeof(NecroScopeNode));
+    for (size_t bucket = 0; bucket < scope->size; ++bucket)
+        scope->buckets[bucket] = (NecroScopeNode) { .id = NECRO_SYMTABLE_NULL_ID };
     for (size_t bucket = 0; bucket < prev_size; ++bucket)
     {
         NecroID     id     = prev_buckets[bucket].id;
@@ -274,13 +286,19 @@ void necro_scope_insert(NecroScope* scope, NecroSymbol symbol, NecroID id, Necro
     assert(scope != NULL);
     assert(scope->buckets != NULL);
     assert(scope->count < scope->size);
+    assert(id.id != 0);
     if (scope->count >= scope->size / 2)
         necro_scope_grow(scope, arena);
+    // printf("necro_scope_insert id: %d\n", id.id);
     size_t bucket = symbol.hash & (scope->size - 1);
     while (scope->buckets[bucket].id.id != NECRO_SYMTABLE_NULL_ID.id)
     {
         if (scope->buckets[bucket].symbol.id == symbol.id)
-            break;
+        {
+            // printf("CONTAINS: %d\n", scope->buckets[bucket].symbol.id);
+            return;
+            // break;
+        }
         bucket = (bucket + 1) & (scope->size - 1);
     }
     scope->buckets[bucket].symbol = symbol;
@@ -612,27 +630,18 @@ void necro_print_env_with_symtable(NecroSymTable* table, NecroInfer* infer)
     printf("\nEnv:\n[\n");
     for (size_t i = 1; i < table->count; ++i)
     {
-        // if (infer->env.data[i] == NULL)
-        //     continue;
         printf("    %s", necro_intern_get_string(infer->intern, table->data[i].name));
         printf(" ==> ");
-        // necro_print_type_sig(infer->env.data[i], infer->intern);
         necro_print_type_sig(infer->symtable->data[i].type, infer->intern);
-        // necro_print_type_sig(necro_most_specialized(infer, infer->env.data[i]), infer->intern); // printing most specialized for now!
     }
     printf("]\n\n");
     printf("TyVars, all\n[\n");
     for (size_t i = 1; i <= infer->highest_id && i < 31; ++i)
     {
         if (i <= table->count) continue;
-        // if (infer->env.data[i] == NULL)
-        // if (i < table->count)
-        //     printf("    name: %s, id: %s", necro_intern_get_string(infer->intern, table->data[i].name), necro_id_as_character_string(infer, (NecroID) { i }));
-        // else
             printf("    %s", necro_id_as_character_string(infer, (NecroID) { i }));
         printf(" ==> ");
         necro_print_type_sig(infer->env.data[i], infer->intern);
-        // necro_print_type_sig(necro_most_specialized(infer, infer->env.data[i]), infer->intern); // printing most specialized for now!
     }
     printf("]\n");
     printf("Total mem usage: %f mb", ((float) (sizeof(NecroSymbolInfo) * table->count + sizeof(NecroType) * infer->env.capacity) * 8) / 1000000.0);

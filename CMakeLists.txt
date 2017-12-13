@@ -4,44 +4,61 @@ project(necro)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_BUILD_TYPE Debug)
 
+set(INCLUDE_DIR
+    source
+    source/type
+    source/runtime
+    source/utility
+    )
+
+include_directories(${INCLUDE_DIR})
+
 set(project_SOURCES
     source/necro.c
-    source/arena.c
     source/parser.c
     source/lexer.c
-	source/intern.c
-	source/utility.c
-    source/runtime.c
-    source/slab.c
-    source/vault.c
-    source/region.c
     source/renamer.c
     source/symtable.c
     source/ast.c
     source/driver.c
-    source/type.c
-    source/infer.c
+
+    source/utility/arena.c
+	source/utility/intern.c
+	source/utility/utility.c
+
+    source/runtime/runtime.c
+    source/runtime/slab.c
+    source/runtime/vault.c
+    source/runtime/region.c
+
+    source/type/type.c
+    source/type/infer.c
+    source/type/prim.c
     )
 set(project_HEADERS
     source/necro.h
-    source/arena.h
     source/parser.h
     source/lexer.h
-    source/math.h
-	source/intern.h
-	source/utility.h
-    source/runtime.h
-    source/slab.h
-    source/vault.h
-    source/region.h
     source/renamer.h
     source/symtable.h
     source/ast.h
     source/driver.h
-    source/type.h
-    source/infer.h
+
+    source/utility/arena.h
+	source/utility/utility.h
+	source/utility/intern.h
+    source/utility/math.h
+
+    source/runtime/runtime.h
+    source/runtime/slab.h
+    source/runtime/vault.h
+    source/runtime/region.h
+
+    source/type/type.h
+    source/type/infer.h
+    source/type/prim.h
     )
 
-ADD_EXECUTABLE(necro ${project_SOURCES})
+ADD_EXECUTABLE(necro ${project_HEADERS} ${project_SOURCES})
 
 TARGET_LINK_LIBRARIES(necro)

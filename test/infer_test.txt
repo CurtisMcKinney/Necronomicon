@@ -1,4 +1,17 @@
-x = x
+one = 1
+two = 2
+tupleTest = (one, two)
+
+-- x = x x
+
+a = a
+
+f x = let g y z = ([x, y], z)
+      in (g 3, g 3)
+
+foo x = foo (bar 0)
+bar x = x
+
 inferTest  = inferDeath + 2 + 2
 
 inferDeath =
@@ -13,7 +26,10 @@ boolTest = inferTest > (inferDeath + 2) && boolTest && ifTest
             then 2 > 3
             else 3 < 2
 
-tupleTest = (boolTest, inferTest)
+left  = (-1)
+right = 1
+tup   = (left, right)
+add   = [left, right]
 
 tupleAllTheWayDown = (tuplesPlease, tupleTest, 666.0)
     where
@@ -21,32 +37,44 @@ tupleAllTheWayDown = (tuplesPlease, tupleTest, 666.0)
             where
                 tuplesAreTurles = (3 == 3, 5 + 6 * 7, 0.0)
 
--- occursError = let bottom = (1, occursError) in (0, bottom)
--- -- -- -- occursError = let bottom = (100, 200, occursError) in (1, 2, bottom)
-
 id x = x
-a = a
-listTest1  = []
-listTest2  = [id 0]
-listTest3 x = [x]
+listTest1     = []
+listTest2     = [id 0]
+listTest3 x   = [x]
+tuplesXY  x y = (x, y)
 
--- test x y = x + y
-
--- listsAllTheWayDown = listsPlease
---     where
---         listsPlease = [listsAllTheWayDown]
-
--- -- -- -- f = let g = f 0 in g
+-- -- f = let g = f 0 in g
 
 compareTest = (3 == 4, 5 + 7)
 boolTest2   = 3 == 4
 boolTest3   = 4 == 4 && boolTest2
 
--- -- -- -- f x _ 0 (DeathTest (Maybe _) _) = 0
+-- -- -- f x _ 0 (DeathTest (Maybe _) _) = 0
 
-foo x = foo (bar 0)
-bar x = x
+add2 0 x _ = x + 0
 
--- -- -- add 0 x _ = x + 0
+-- -- zero = add2 2 3 4
 
--- -- -- zero = add 2 3 4
+-- one   = 1
+-- two   = 2
+three = 3
+four  = 4
+five  = 5
+six   = 6
+seven = 7
+eight = 8
+nine  = 9
+ten   = 10
+tupleDoom = (one, two, three, four, five, six, seven, eight, nine, ten)
+
+-- occursError = let bottom = (1, occursError) in (0, bottom)
+-- occursError = let bottom = (100, 200, occursError) in (1, 2, bottom)
+
+-- listsAllTheWayDown = listsPlease
+--     where
+--         listsPlease = [listsAllTheWayDown]
+
+lambda  = \x _ 0 -> x
+lambda2 z _ = \x -> \y -> (x + y - z) > 3 && (4 == 5)
+    where
+        f = \hey there -> hey || there

@@ -46,7 +46,7 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
         .name          = symbol,
         .id            = 0,
         .data_size     = 0,
-        .type          = {0},
+        .type          = NULL,
         .local_var_num = 0,
         .source_loc    = source_loc,
         .scope         = scope,
@@ -609,17 +609,33 @@ void necro_scoped_symtable_print(NecroScopedSymTable* table)
 
 void necro_print_env_with_symtable(NecroSymTable* table, NecroInfer* infer)
 {
-    printf("Env:\n[\n");
-    for (size_t i = 0; i < table->count; ++i)
+    printf("\nEnv:\n[\n");
+    for (size_t i = 1; i < table->count; ++i)
     {
-        if (infer->env.data[i] == NULL)
-            continue;
+        // if (infer->env.data[i] == NULL)
+        //     continue;
         printf("    %s", necro_intern_get_string(infer->intern, table->data[i].name));
         printf(" ==> ");
         // necro_print_type_sig(infer->env.data[i], infer->intern);
-        necro_print_type_sig(necro_most_specialized(infer, infer->env.data[i]), infer->intern); // printing most specialized for now!
+        necro_print_type_sig(infer->symtable->data[i].type, infer->intern);
+        // necro_print_type_sig(necro_most_specialized(infer, infer->env.data[i]), infer->intern); // printing most specialized for now!
+    }
+    printf("]\n\n");
+    printf("TyVars, all\n[\n");
+    for (size_t i = 1; i <= infer->highest_id && i < 31; ++i)
+    {
+        if (i <= table->count) continue;
+        // if (infer->env.data[i] == NULL)
+        // if (i < table->count)
+        //     printf("    name: %s, id: %s", necro_intern_get_string(infer->intern, table->data[i].name), necro_id_as_character_string(infer, (NecroID) { i }));
+        // else
+            printf("    %s", necro_id_as_character_string(infer, (NecroID) { i }));
+        printf(" ==> ");
+        necro_print_type_sig(infer->env.data[i], infer->intern);
+        // necro_print_type_sig(necro_most_specialized(infer, infer->env.data[i]), infer->intern); // printing most specialized for now!
     }
     printf("]\n");
+    printf("Total mem usage: %f mb", ((float) (sizeof(NecroSymbolInfo) * table->count + sizeof(NecroType) * infer->env.capacity) * 8) / 1000000.0);
 }
 
 //=====================================================

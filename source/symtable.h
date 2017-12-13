@@ -38,7 +38,7 @@ typedef struct
     NecroType*             type;
 } NecroSymbolInfo;
 
-typedef struct
+typedef struct NecroSymTable
 {
     NecroSymbolInfo* data;
     size_t           size;
@@ -69,6 +69,7 @@ typedef struct NecroScope
 {
     struct NecroScope* parent;
     NecroScopeNode*    buckets;
+    NecroScopeNode*    id_buckets;
     size_t             size;
     size_t             count;
     NecroID            last_introduced_id;

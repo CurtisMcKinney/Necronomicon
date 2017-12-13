@@ -17,8 +17,9 @@
 //=====================================================
 typedef struct
 {
+    NecroID            id;
+    struct NecroScope* scope;
     // NecroSymbol symbol;
-    NecroID     id;
 } NecroVar;
 
 typedef struct
@@ -140,31 +141,37 @@ typedef struct
 //=====================================================
 // Infer
 //=====================================================
+struct NecroSymTable;
 typedef struct
 {
     // NecroPrimSymbols prim_symbols;
-    NecroPrimTypes   prim_types;
-    NecroTypeEnv     env;
-    NecroPagedArena  arena;
-    NecroIntern*     intern;
-    NecroError       error;
-    size_t           highest_id;
+    struct NecroSymTable* symtable;
+    NecroPrimTypes        prim_types;
+    NecroTypeEnv          env;
+    NecroPagedArena       arena;
+    NecroIntern*          intern;
+    NecroError            error;
+    size_t                highest_id;
 } NecroInfer;
 
 //=====================================================
 // API
 //=====================================================
-NecroInfer       necro_create_infer(NecroIntern* intern, size_t highest_id);
+NecroInfer       necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtable);
 void             necro_destroy_infer(NecroInfer* infer);
 void             necro_reset_infer(NecroInfer* infer);
 bool             necro_is_infer_error(NecroInfer* infer);
 
-void             necro_unify(NecroInfer* infer, NecroType* type1, NecroType* type2);
-NecroType*       necro_inst(NecroInfer* infer, NecroType* poly_type);
-NecroType*       necro_gen(NecroInfer* infer, NecroType* type);
+struct NecroScope;
+// void             necro_unify(NecroInfer* infer, NecroType* type1, NecroType* type2);
+void             necro_unify(NecroInfer* infer, NecroType* type1, NecroType* type2, struct NecroScope* scope);
+NecroType*       necro_inst(NecroInfer* infer, NecroType* poly_type, struct NecroScope* scope);
+// NecroType*       necro_gen(NecroInfer* infer, NecroType* type);
+NecroType*       necro_gen(NecroInfer* infer, NecroType* type, struct NecroScope* scope);
 NecroType*       necro_new_name(NecroInfer* infer);
 // NecroType*       necro_abs(NecroInfer* infer, NecroType* arg_type, NecroType* result_type);
 NecroType*       necro_most_specialized(NecroInfer* infer, NecroType* type);
+NecroType*       necro_find(NecroInfer* infer, NecroType* type);
 
 NecroType*       necro_create_type_con(NecroInfer* infer, NecroCon con, NecroType* args, size_t arity);
 NecroType*       necro_create_type_fun(NecroInfer* infer, NecroType* type1, NecroType* type2);

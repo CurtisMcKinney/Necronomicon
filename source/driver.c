@@ -121,7 +121,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     //=====================================================
     if (compilation_phase == NECRO_PHASE_INFER)
     {
-        NecroInfer infer = necro_create_infer(&lexer.intern, symtable.count + 1);
+        NecroInfer infer = necro_create_infer(&lexer.intern, &symtable);
         necro_infer(&infer, ast_r.root);
         if (infer.error.return_code != NECRO_SUCCESS)
         {

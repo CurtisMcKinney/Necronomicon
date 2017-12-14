@@ -19,7 +19,6 @@ typedef struct
 {
     NecroID            id;
     struct NecroScope* scope;
-    // NecroSymbol symbol;
 } NecroVar;
 
 typedef struct
@@ -46,6 +45,7 @@ typedef enum
 typedef struct
 {
     NecroVar var;
+    bool     is_rigid;
 } NecroTypeVar;
 
 typedef struct
@@ -215,7 +215,6 @@ NecroType*       necro_make_tuple_con(NecroInfer* infer, NecroType* types_list);
 NecroType*       necro_env_get(NecroInfer* infer, NecroVar var);
 void             necro_env_set(NecroInfer* infer, NecroVar var, NecroType* type);
 
-NecroType*       necro_rename_var_for_testing_only(NecroInfer* infer, NecroVar var_to_replace, NecroType* replace_var_with, NecroType* type);
 void             necro_print_type_sig(NecroType* type, NecroIntern* intern);
 char*            necro_snprintf_type_sig(NecroType* type, NecroIntern* intern, char* buffer, const size_t buffer_length);
 const char*      necro_id_as_character_string(NecroInfer* infer, NecroID id);

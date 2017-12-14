@@ -144,7 +144,8 @@ NecroType* necro_create_type_var(NecroInfer* infer, NecroVar var)
     type->type      = NECRO_TYPE_VAR;
     type->var       = (NecroTypeVar)
     {
-        .var         = var,
+        .var        = var,
+        .is_rigid   = false
     };
     return type;
 }
@@ -210,30 +211,6 @@ NecroType* necro_create_for_all(NecroInfer* infer, NecroVar var, NecroType* type
         .type = type,
     };
     return for_all;
-}
-
-NecroType* necro_rename_var_for_testing_only(NecroInfer* infer, NecroVar var_to_replace, NecroType* replace_var_with, NecroType* type)
-{
-    if (type == NULL)
-        return NULL;
-    switch (type->type)
-    {
-    case NECRO_TYPE_VAR:
-        if (type->var.var.id.id == var_to_replace.id.id)
-            return replace_var_with;
-        else
-            return type;
-    case NECRO_TYPE_FOR:
-        if (type->var.var.id.id == var_to_replace.id.id)
-            return necro_create_for_all(infer, replace_var_with->var.var, necro_rename_var_for_testing_only(infer, var_to_replace, replace_var_with, type->for_all.type));
-        else
-            return necro_create_for_all(infer, type->for_all.var, necro_rename_var_for_testing_only(infer, var_to_replace, replace_var_with, type->for_all.type));
-    case NECRO_TYPE_APP:  return necro_create_type_app(infer, necro_rename_var_for_testing_only(infer, var_to_replace, replace_var_with, type->app.type1), necro_rename_var_for_testing_only(infer, var_to_replace, replace_var_with, type->app.type2));
-    case NECRO_TYPE_FUN:  return necro_create_type_fun(infer, necro_rename_var_for_testing_only(infer, var_to_replace, replace_var_with, type->fun.type1), necro_rename_var_for_testing_only(infer, var_to_replace, replace_var_with, type->fun.type2));
-    case NECRO_TYPE_LIST: return necro_create_type_list(infer, necro_rename_var_for_testing_only(infer, var_to_replace, replace_var_with, type->list.item), necro_rename_var_for_testing_only(infer, var_to_replace, replace_var_with, type->list.next));
-    case NECRO_TYPE_CON:  return necro_create_type_con(infer, type->con.con, necro_rename_var_for_testing_only(infer, var_to_replace, replace_var_with, type->con.args), type->con.arity);
-    default:              return necro_infer_error(infer, type, "Compiler bug: Unrecognized type: %d.", type->type);
-    }
 }
 
 size_t necro_type_list_count(NecroType* list)
@@ -435,81 +412,22 @@ NecroType* necro_find(NecroInfer* infer, NecroType* type)
         return type;
 }
 
-// inline bool necro_is_bound_in_scope(NecroInfer* infer, NecroVar var, NecroScope* scope)
-// {
-//     return var.id.id < infer->symtable->count && necro_scope_find(scope, infer->symtable->data[var.id.id].name).id != 0;
-// }
-
-// NecroType* necro_find_with_scope(NecroInfer* infer, NecroType* type, NecroScope* scope)
-// {
-//     NecroType* prev = type;
-//     while (type != NULL && type->type == NECRO_TYPE_VAR)
-//     {
-//         // TRACE_TYPE("necro_find var: %d\n", type->var.var.id.id);
-//         if (necro_is_bound_in_scope(infer, type->var.var, scope))
-//             return type;
-//         prev = type;
-//         type = necro_env_get(infer, type->var.var);
-//     }
-//     if (type == NULL)
-//         return prev;
-//     else
-//         return type;
-// }
-
 bool necro_is_bound_in_scope(NecroInfer* infer, NecroType* type, NecroScope* scope)
 {
     if (type->type != NECRO_TYPE_VAR)
         return false;
     if (type->var.var.scope == NULL)
         return false;
-    // NecroScope* current_scope = type->var.var.scope;
     NecroScope* current_scope = scope;
     while (current_scope != NULL)
     {
         if (current_scope == type->var.var.scope)
-        // if (current_scope == scope)
             return true;
         else
             current_scope = current_scope->parent;
     }
     return false;
 }
-
-void necro_env_append(NecroInfer* infer, NecroVar var, NecroType* appended_type)
-{
-    assert(infer != NULL);
-    assert(var.id.id != 0);
-    assert(appended_type != NULL);
-    NecroType* highest = necro_find(infer, necro_env_get(infer, var));
-    assert(highest != NULL);
-}
-
-// NecroType* necro_find(NecroInfer* infer, NecroType* type)
-// {
-//     if (type->type != NECRO_TYPE_VAR)
-//         return type;
-
-//     NecroType* found = necro_env_get(infer, type->var.var);
-//     if (found == type)
-//     {
-//         necro_env_set(infer, type->var.var, NULL);
-//         return type;
-//     }
-//     if (found == NULL)
-//         return type;
-
-//     NecroType* found2 = necro_find(infer, found);
-//     if (found2 != NULL)
-//     {
-//         necro_env_set(infer, type->var.var, found2);
-//         return found2;
-//     }
-//     else
-//     {
-//         return found;
-//     }
-// }
 
 //=====================================================
 // Unify
@@ -585,6 +503,26 @@ bool necro_occurs(NecroInfer* infer, NecroType* type_var, NecroType* type)
     }
 }
 
+// TODO: Type to string function
+void necro_rigid_type_variable_error(NecroInfer* infer, NecroVar type_var, NecroType* type)
+{
+    if (necro_is_infer_error(infer))
+        return;
+    const char* type_name = NULL;
+    if (type->type == NECRO_TYPE_CON)
+        type_name = necro_intern_get_string(infer->intern, type->con.con.symbol);
+    else if (type->type == NECRO_TYPE_APP)
+        type_name = "TypeApp";
+    else if (type->type == NECRO_TYPE_FUN)
+        type_name = "(->)";
+    else if (type->type == NECRO_TYPE_VAR)
+        type_name = necro_id_as_character_string(infer, type->var.var.id);
+    else
+        assert(false);
+    const char* var_name = necro_id_as_character_string(infer, type_var.id);
+    necro_infer_error(infer, type, "Couldn't match type \'%s\' with type \'%s\'.\n\'%s\' is a rigid type variable bound by a type signature.", var_name, type_name, var_name);
+}
+
 inline void necro_unify_var(NecroInfer* infer, NecroType* type1, NecroType* type2, NecroScope* scope)
 {
     if (necro_is_infer_error(infer))
@@ -601,23 +539,33 @@ inline void necro_unify_var(NecroInfer* infer, NecroType* type1, NecroType* type
     case NECRO_TYPE_VAR:
     {
         NecroType* current_type2 = type2;
-        if (necro_occurs(infer, type1, type2))
+        if (type1->var.var.id.id == type2->var.var.id.id)
+            return;
+        else if (type1->var.is_rigid && type2->var.is_rigid)
+            necro_rigid_type_variable_error(infer, type1->var.var, type2);
+        else if (necro_occurs(infer, type1, type2))
             necro_infer_error(infer, type1, "Occurs check error, name1: %s", necro_id_as_character_string(infer, type1->var.var.id));
-        // if (type1->var.var.id.id < type2->var.var.id.id)
-        // if (type1->var.var.id.id > type2->var.var.id.id)
-        // if (necro_is_bound_in_scope(infer, type1->var.var, scope))
-        if (necro_is_bound_in_scope(infer, type1, scope))
+        else if (type1->var.is_rigid)
+            necro_env_set(infer, type2->var.var, type1);
+        else if (necro_is_bound_in_scope(infer, type1, scope))
             necro_env_set(infer, type2->var.var, type1);
         else
             necro_env_set(infer, type1->var.var, type2);
-        // necro_env_set(infer, type2->var.var, type1);
         return;
     }
     case NECRO_TYPE_CON:
     case NECRO_TYPE_APP:
     case NECRO_TYPE_FUN:
+        if (type1->var.is_rigid)
+        {
+            necro_rigid_type_variable_error(infer, type1->var.var, type2);
+            return;
+        }
         if (necro_occurs(infer, type1, type2))
+        {
             necro_infer_error(infer, type1, "Occurs check error, name1: %s", necro_id_as_character_string(infer, type1->var.var.id));
+            return;
+        }
         necro_env_set(infer, type1->var.var, type2);
         return;
     case NECRO_TYPE_FOR:  necro_infer_error(infer, type1, "Compiler bug: Attempted to unify polytype."); return;
@@ -640,15 +588,12 @@ inline void necro_unify_app(NecroInfer* infer, NecroType* type1, NecroType* type
     switch (type2->type)
     {
     case NECRO_TYPE_VAR:
-        if (necro_occurs(infer, type2, type1))
-        {
+        if (type2->var.is_rigid)
+            necro_rigid_type_variable_error(infer, type2->var.var, type1);
+        else if (necro_occurs(infer, type2, type1))
             necro_infer_error(infer, type1, "Occurs check error, name2: %s", necro_id_as_character_string(infer, type2->var.var.id));
-        }
         else
-        {
-            // *type2 = *type1;
             necro_env_set(infer, type2->var.var, type1);
-        }
         return;
     case NECRO_TYPE_APP:
         necro_unify(infer, type1->app.type1, type2->app.type1, scope);
@@ -684,15 +629,12 @@ inline void necro_unify_fun(NecroInfer* infer, NecroType* type1, NecroType* type
     switch (type2->type)
     {
     case NECRO_TYPE_VAR:
-        if (necro_occurs(infer, type2, type1))
-        {
+        if (type2->var.is_rigid)
+            necro_rigid_type_variable_error(infer, type2->var.var, type1);
+        else if (necro_occurs(infer, type2, type1))
             necro_infer_error(infer, type1, "Occurs check error, name2: %s", necro_id_as_character_string(infer, type2->var.var.id));
-        }
         else
-        {
-            // *type2 = *type1;
             necro_env_set(infer, type2->var.var, type1);
-        }
         return;
     case NECRO_TYPE_FUN:  necro_unify(infer, type1->fun.type1, type2->fun.type1, scope); necro_unify(infer, type1->fun.type2, type2->fun.type2, scope); return;
     case NECRO_TYPE_APP:  necro_infer_error(infer, type1, "Attempting to unify (->) with TypeApp."); return;
@@ -712,15 +654,12 @@ inline void necro_unify_con(NecroInfer* infer, NecroType* type1, NecroType* type
     switch (type2->type)
     {
     case NECRO_TYPE_VAR:
-        if (necro_occurs(infer, type2, type1))
-        {
+        if (type2->var.is_rigid)
+            necro_rigid_type_variable_error(infer, type2->var.var, type1);
+        else if (necro_occurs(infer, type2, type1))
             necro_infer_error(infer, type1, "Occurs check error, name2: %s", necro_id_as_character_string(infer, type2->var.var.id));
-        }
         else
-        {
-            // *type2 = *type1;
             necro_env_set(infer, type2->var.var, type1);
-        }
         return;
     case NECRO_TYPE_CON:
         if (type1->con.con.symbol.id != type2->con.con.symbol.id)
@@ -770,6 +709,7 @@ inline void necro_unify_con(NecroInfer* infer, NecroType* type1, NecroType* type
     }
 }
 
+// Can only unify a polymorphic type in first position
 void necro_unify(NecroInfer* infer, NecroType* type1, NecroType* type2, NecroScope* scope)
 {
     if (necro_is_infer_error(infer))
@@ -779,8 +719,6 @@ void necro_unify(NecroInfer* infer, NecroType* type1, NecroType* type2, NecroSco
     assert(type2 != NULL);
     type1 = necro_find(infer, type1);
     type2 = necro_find(infer, type2);
-    // type1 = necro_find_with_scope(infer, type1, scope);
-    // type2 = necro_find_with_scope(infer, type2, scope);
     if (type1 == type2)
         return;
     switch (type1->type)
@@ -790,7 +728,14 @@ void necro_unify(NecroInfer* infer, NecroType* type1, NecroType* type2, NecroSco
     case NECRO_TYPE_FUN:  necro_unify_fun(infer, type1, type2, scope); return;
     case NECRO_TYPE_CON:  necro_unify_con(infer, type1, type2, scope); return;
     case NECRO_TYPE_LIST: necro_infer_error(infer, type1, "Compiler bug: Found Type args list in necro_unify"); return;
-    case NECRO_TYPE_FOR:  necro_infer_error(infer, type1, "Compiler bug: Found Polytype in necro_unify"); return;
+    // case NECRO_TYPE_FOR:  necro_infer_error(infer, type1, "Compiler bug: Found Polytype in necro_unify"); return;
+    case NECRO_TYPE_FOR:
+    {
+        while (type1->type == NECRO_TYPE_FOR)
+            type1 = type1->for_all.type;
+        necro_unify(infer, type1, type2, scope);
+        return;
+    }
     default:              necro_infer_error(infer, type1, "Compiler bug: Non-existent type (type1: %d, type2: %s) type found in necro_unify.", type1->type, type2->type); return;
     }
 }
@@ -835,6 +780,7 @@ NecroType* necro_inst_go(NecroInfer* infer, NecroType* type, NecroInstSub* subs,
             }
             subs = subs->next;
         }
+        // assert(!type->var.is_rigid);
         return type;
     }
     case NECRO_TYPE_APP:  return necro_create_type_app(infer, necro_inst_go(infer, type->app.type1, subs, scope), necro_inst_go(infer, type->app.type2, subs, scope));
@@ -880,25 +826,6 @@ typedef struct
     NecroGenSub* sub_tail;
 } NecroGenResult;
 
-NecroType* necro_append_for_all(NecroType* for_all, NecroType* type)
-{
-    if (for_all == NULL)
-        return type;
-    if (type == NULL)
-        return for_all;
-    NecroType* head = for_all;
-    NecroType* prev = head;
-    NecroType* curr = head;
-    while (curr != NULL)
-    {
-        assert(curr->type == NECRO_TYPE_FOR);
-        prev = curr;
-        curr = curr->for_all.type;
-    }
-    prev->for_all.type = type;
-    return head;
-}
-
 NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type, NecroGenResult prev_result, NecroScope* scope)
 {
     assert(infer != NULL);
@@ -913,18 +840,17 @@ NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type, NecroGenResult p
         return prev_result;
     }
 
-    // if (type->type == NECRO_TYPE_VAR)
-    // {
-    //     NecroType* bound_type = necro_env_get(infer, type->var.var);
-    //     if (necro_occurs(infer, type, bound_type))
-    //     // if (necro_occurs_with_name(infer, type->var.var.id, bound_type))
-    //         return (NecroGenResult) { necro_infer_error(infer, type, "Occurs check error"), NULL, NULL };
-    // }
+    NecroType* top = necro_find(infer, type);
+    if (top->type == NECRO_TYPE_VAR && top->var.is_rigid)
+    {
+        // necro_infer_error(infer, type, "Compiler bug: Attempting to generalize a rigid type variable!");
+        // return (NecroGenResult) { NULL, NULL, NULL };
+        prev_result.type = top;
+        return prev_result;
+    }
 
     if (necro_is_bound_in_scope(infer, type, scope))
     {
-        // printf("BOUND!!!: \n");
-        // necro_print_type_sig(type, infer->intern);
         prev_result.type = type;
         return prev_result;
     }
@@ -933,22 +859,16 @@ NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type, NecroGenResult p
     {
     case NECRO_TYPE_VAR:
     {
-        // // if (necro_is_bound_in_scope(infer, type->var.var, scope))
-        // if (type->var.var.id.id < infer->symtable->count && infer->symtable->data[type->var.var.id.id].type != NULL)
-        // {
-        //     TRACE_TYPE("gen, symbol: %s\n", necro_intern_get_string(infer->intern, infer->symtable->data[type->var.var.id.id].name));
-        //     // prev_result.type = type;
-        //     prev_result.type = infer->symtable->data[type->var.var.id.id].type;
-        //     return prev_result;
-        // }
-
+        if (type->var.is_rigid)
+        {
+            // necro_infer_error(infer, type, "Compiler bug: Attempting to generalize a rigid type variable!");
+            // return (NecroGenResult) { NULL, NULL, NULL };
+            prev_result.type = type;
+            return prev_result;
+        }
         NecroType* bound_type = necro_env_get(infer, type->var.var);
         if (bound_type != NULL)
         {
-            // prev_result.type = type;
-            // // prev_result.type = bound_type;
-            // // prev_result.type = necro_find(infer, type);
-            // return prev_result;
             return necro_gen_go(infer, bound_type, prev_result, scope);
         }
         else
@@ -963,10 +883,11 @@ NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type, NecroGenResult p
                 }
                 subs = subs->next;
             }
-            NecroGenSub* sub      = necro_paged_arena_alloc(&infer->arena, sizeof(NecroGenSub));
-            NecroType*   type_var = necro_new_name(infer);
-            NecroType*   for_all  = necro_create_for_all(infer, type_var->var.var, NULL);
-            *sub                  = (NecroGenSub)
+            NecroGenSub* sub       = necro_paged_arena_alloc(&infer->arena, sizeof(NecroGenSub));
+            NecroType*   type_var  = necro_new_name(infer);
+            type_var->var.is_rigid = true;
+            NecroType*   for_all   = necro_create_for_all(infer, type_var->var.var, NULL);
+            *sub                   = (NecroGenSub)
             {
                 .next           = NULL,
                 .var_to_replace = type->var.var,
@@ -1370,12 +1291,10 @@ void necro_print_type_sig_go(NecroType* type, NecroIntern* intern)
     {
     case NECRO_TYPE_VAR:
         necro_print_id_as_characters(type->var.var.id);
-        // TODO: REDO with new system
-        // if (type->var.var.symbol.id != 0)
-        // {
-        //     printf(" [bound to symbol: %s]", necro_intern_get_string(intern, type->var.var.symbol));
-        // }
-        // printf("%s", necro_intern_get_string(intern, type->var.var.id));
+        if (type->var.is_rigid)
+        {
+            printf(" [rigid]");
+        }
         break;
 
     case NECRO_TYPE_APP:

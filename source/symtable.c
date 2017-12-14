@@ -636,7 +636,8 @@ void necro_print_env_with_symtable(NecroSymTable* table, NecroInfer* infer)
     }
     printf("]\n\n");
     printf("TyVars, all\n[\n");
-    for (size_t i = 1; i <= infer->highest_id && i < 31; ++i)
+    // for (size_t i = 1; i <= infer->highest_id && i < 31; ++i)
+    for (size_t i = 1; i <= infer->highest_id; ++i)
     {
         if (i <= table->count) continue;
             printf("    %s", necro_id_as_character_string(infer, (NecroID) { i }));

@@ -1,46 +1,126 @@
--- Pure synth
-sinSynth :: Audio -> Audio -> Audio
-sinSynth freq amp = s1 + s2 |> f |> g |> gain amp
+coolPattern :: Event Audio
+coolPattern = pattern times values
     where
-        s1  = sinOsc (freq * 4)
-        s2  = sinOsc (freq * 10)
-        f x = x * x
-        g y = y / y
+        times  = {0.25, 0.5, 0.25}
+        values = {countUp, mouseX |> yieldEvery 1, countDown}
 
--- Pure synth, let
-sinSynth :: Audio -> Audio -> Audio
-sinSynth freq amp =
-    let s1  = sinOsc (freq * 4)
-        s2  = sinOsc (freq * 10)
-        f x = x * x
-        g y = y / y
-    in  s1 + s2 |> f |> g |> gain amp
+mouseX    = {0, 100, 200..N*100}
+countUp   = {1,2}
+countDown = { -1, -2 }
 
--- Monadic synth
-noiseSynth :: Audio -> Audio -> IO Audio
-noiseSynth freq amp = do
-    n1 <- noise (freq * 4)
-    n2 <- noise (freq * 1)
-    let f x = x * x
-        g y = y / y
-    n1 + n2 |> f |> gain amp |> return
+-- Embed coeffects DIRECTLY into language, akin to two ways of approaching monads,
+-- as presented by Moggi and coeffects thesis
 
--- Uniqueness synth
-noiseSynth :: !IO -> Audio -> Audio -> Audio
-noiseSynth !io freq amp = n1 + n2 |> f |> g |> gain amp
+-- coolPattern used in context 1:
+local time = { 0, 1, 2,    3,  4, 5, 6,   7,  8,  9 }
+globaltime = { 0, 1, 2,    3,  4, 5, 6,   7,  8,  9 }
+values     = { 1, 2, 200, -1, -2, 1, 2, 700, -1, -2 }
+
+-- coolPattern used in context 2:
+local  time = { 0, 1, 2,    3,  4,  5,  6,    7,  8,  9 }
+global time = { 5, 6, 7,    8,  9, 10, 11,   12, 13, 14 }
+values      = { 1, 2, 700, -1, -2,  1,  2, 1200, -1, -2 }
+
+-- Cool, semantically that works, but how does this affect
+-- reuse and variable binding?
+-- Values are now associated with a context comprised of TWO time streams: static time and dynamic time
+-- Static time is the time of the scope where the was value declared.
+-- Dynamic time is the time of the scope where the value is being used.
+-- Thus when a value is constructed it is can be stored as such:
+-- coolPattern 1: [(0, 0), (1, 1), (2, 2)]
+-- coolPattern 2: [(0, 5), (1, 6), (2, 7)]
+-- The semantics are still pure as multiple accesses to the same stream within the same context
+-- always provide the same result
+
+-- implicit language semantics akin to how the coeffect stuff works?
+-- Constant time semantics!!!!
+x :: con a -- x has constant    time semantics (Never changes)
+x :: dmd a -- x has dynamic     time semantics (Demand rate, caches history)
+x :: cur a -- x has lexical     time semantics (Always latest value, No history)
+x ::     a -- x has polymorphic time semantics
+-- defaulting rules: If the time attribute is ambiguous, default to dynamic
+x :: a => x :: dyn a
+
+current :: dmd a -> cur a -- Statically calculates a value. There is no corresponding "dynamic" function
+                          -- which would go from dynamic time semantics back to static
+buffer :: cur a -> dmd a
+
+-- Never buffers extra values, strictly calculated at the scope its in
+mouse   :: cur (Int, Int)
+mouseX  :: cur Int
+load    :: con String -> cur IO (Maybe AudioBuffer)
+audioIn :: Int -> cur Audio
+
+-- This means that you can enforce a semantics where things like mouse dont have to be buffered indefinitely
+
+-- Also gives the programmer more control over semantics
+myCoolSynth :: Audio -> Audio -> cur Audio -- A static  time synth (always gives the "current" value, no history)
+myCoolSynth :: Audio -> Audio -> dyn Audio -- A dynamic time synth (will play based on local time when called, has history)
+
+feedbackSynth :: Audio -> Audio
+feedbackSynth freq = osc |> lpf 3000 0.1 |> gain 0.1
     where
-        n1  = noise !io (freq * 4)
-        n2  = noise !io (freq * 1)
-        f x = x * x
-        g y = y / y
+        osc = osc (freq + {0, osc} + mouse * 10)
+        -- osc = osc (freq + osc + mouse * 10)              -- This would also cause the stream to blow up as it would demand a value it doesn't have
+        -- osc = osc (freq + {0, current osc} + mouse * 10) -- This would also cause the stream to blow up as it would demand a value it doesn't have
 
--- desugars to (Uniqueness types with input / output modes....)
--- Doesn't seem like this would play well with laziness....
-noiseSynth :: unique input IO -> unique output IO -> input Audio -> input Audio -> output Audio
-noiseSynth io0 (out io2) freq amp = n1 + n2 |> f |> g |> gain amp
-    where
-        n1  = noise io0 (out io1) (freq * 4)
-        n2  = noise io1 (out io2) (freq * 1)
-        f x = x * x
-        g y = y / y
+        -- Can we statically determine these scenarios and make these type errors?
 
+-- Defaulting rules state that if a value has ambiguous time semantics
+-- then the value is defauled to dynamic time semantics
+
+-- Time stream follow "seq" style pattern rules
+-- This means semantics for yielding, and for continuing
+-- to the next value in a stream after yield,
+-- Then attempting to return to the next value in the stream in the next
+-- go round.
+-- Requiring monads for IO should make all of this much simpler as effects are separated out
+
+-- Semantics using a comonadic view:
+counit x = case x of
+    Dynamic xt xs -> xs !! xt
+    Static     xs -> head xs
+    Const x       -> x
+
+cobind f g = case g of
+    Dynamic gs -> Dynamic (f(g1,..,gn),f(g2,..,gn),f(gn))
+    Static  gs -> Static  (f(g1,..,gn),f(g2,..,gn),f(gn))
+    Const   g' -> Const (f [g])
+
+prev x = case x of
+    Dynamic xt xs -> Dynamic (xt + 1) xs
+    _             -> x
+
+current x = case x of
+    Dynamic _ xs -> Static xs
+    _            -> x
+
+-- Note that for performance reasons, this is NOT how it would actually be implemented
+
+-- Lambda calculus semantic view:
+[x:t  |- x:t]          = counit               -- Variable access is interpreted as counit
+[x:t1 |- f e:t3]       = f . (cobind e)       -- Function application interpreted as f composed with cobind applied to e
+[x:t1 |- prev e:t2]    = prev . (cobind e)    -- prev applied to an expression interepreted as prev composed with cobind applied to e
+[x:t1 |- current e:t1] = current . (cobind e) -- current applied to an expression interepreted as current composed with cobind applied to e
+-- t represents an expression that expects context with variable x an returns a stream of values before the previous one
+
+-- Kind language:
+*      ::= Int, Bool
+* -> * ::= Maybe, Bool
+attr   ::= dyn, cur, con, _ (blank, polymorphic)
+kind   ::= attr *       (attributes can only be applied to fully applied kinds!)
+         | * `Con` *    (type constructor)
+         | kind -> kind (function application)
+
+-- Attributes applies to Types of kind *
+-- Type constructors can only be applied to types of kind *
+-- This means you can't have nested type attributes, this is illegal: dyn IO dyn a
+-- Function application can be applied to types of any kind
+
+main :: IO ()
+main = do
+    sample1 <- load "pulseDemon"
+    sample2 <- load "doomBlad"
+    let synth1 = poly1 mouseClick (synth sample1) mouseX
+        synth2 = poly1 tick       (synth sample2) mouseY
+    synth1 + synth2 |> out mainOuts

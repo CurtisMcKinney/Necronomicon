@@ -1,98 +1,108 @@
-one = 1
-two = 2
-tupleTest = (one, two)
-
--- x = x x
-
-a = a
-
-f x = let g y z = ([x, y], z)
-      in (g 3, g 3)
-
-foo x = foo (bar 0)
-bar x = x
-
-inferTest  = inferDeath + 2 + 2
-
-inferDeath =
-    let y = 2 + 666
-        z = inferDeath + 100
-    in  y + inferTest - z
-
-boolTest = inferTest > (inferDeath + 2) && boolTest && ifTest
-    where
-        x      = 2
-        ifTest = if boolTest
-            then 2 > 3
-            else 3 < 2
-
-left  = (-1)
-right = 1
-tup   = (left, right)
-add   = [left, right]
-
-tupleAllTheWayDown = (tuplesPlease, tupleTest, 666.0)
-    where
-        tuplesPlease = (3.0, inferDeath, if boolTest then 5 else 7, tuplesAreTurles, 0)
-            where
-                tuplesAreTurles = (3 == 3, 5 + 6 * 7, 0.0)
-
-id :: a -> a
-id x = x
-
-idTest = id (3 == 4)
-
-listTest1     = []
-listTest2     = [id 0]
-listTest3 x   = [x]
-tuplesXY  x y = (x, y)
-
--- -- f = let g = f 0 in g
-
-compareTest = (3 == 4, 5 + 7)
-boolTest2   = 3 == 4
-boolTest3   = 4 == 4 && boolTest2
-
--- -- -- f x _ 0 (DeathTest (Maybe _) _) = 0
-
-add2 0 x _ = x + 0
-
--- -- zero = add2 2 3 4
-
--- one   = 1
--- two   = 2
-three = 3
-four  = 4
-five  = 5
-six   = 6
-seven = 7
-eight = 8
-nine  = 9
-ten   = 10
-tupleDoom = (one, two, three, four, five, six, seven, eight, nine, ten)
-
--- occursError = let bottom = (1, occursError) in (0, bottom)
--- occursError = let bottom = (100, 200, occursError) in (1, 2, bottom)
-
--- listsAllTheWayDown = listsPlease
+-- one = 1
+-- two = 2
+-- tupleTest = (one, two)
+--
+-- -- x = x x
+--
+-- a = a
+--
+-- f x = let g y z = ([x, y], z)
+--       in (g 3, g 3)
+--
+-- foo x = foo (bar 0)
+-- bar x = x
+--
+-- inferTest  = inferDeath + 2 + 2
+--
+-- inferDeath =
+--     let y = 2 + 666
+--         z = inferDeath + 100
+--     in  y + inferTest - z
+--
+-- boolTest = inferTest > (inferDeath + 2) && boolTest && ifTest
 --     where
---         listsPlease = [listsAllTheWayDown]
+--         x      = 2
+--         ifTest = if boolTest
+--             then 2 > 3
+--             else 3 < 2
+--
+-- left  = (-1)
+-- right = 1
+-- tup   = (left, right)
+-- add   = [left, right]
+--
+-- tupleAllTheWayDown = (tuplesPlease, tupleTest, 666.0)
+--     where
+--         tuplesPlease = (3.0, inferDeath, if boolTest then 5 else 7, tuplesAreTurles, 0)
+--             where
+--                 tuplesAreTurles = (3 == 3, 5 + 6 * 7, 0.0)
+--
+-- id :: a -> a
+-- id x = x
+--
+-- idTest = id (3 == 4)
+--
+-- listTest1     = []
+-- listTest2     = [id 0]
+-- listTest3 x   = [x]
+-- tuplesXY  x y = (x, y)
+--
+-- -- -- f = let g = f 0 in g
+--
+-- compareTest = (3 == 4, 5 + 7)
+-- boolTest2   = 3 == 4
+-- boolTest3   = 4 == 4 && boolTest2
+--
+-- -- -- -- f x _ 0 (DeathTest (Maybe _) _) = 0
+--
+-- add2 0 x _ = x + 0
+--
+-- -- -- zero = add2 2 3 4
+--
+-- -- one   = 1
+-- -- two   = 2
+-- three = 3
+-- four  = 4
+-- five  = 5
+-- six   = 6
+-- seven = 7
+-- eight = 8
+-- nine  = 9
+-- ten   = 10
+-- tupleDoom = (one, two, three, four, five, six, seven, eight, nine, ten)
+--
+-- -- occursError = let bottom = (1, occursError) in (0, bottom)
+-- -- occursError = let bottom = (100, 200, occursError) in (1, 2, bottom)
+--
+-- -- listsAllTheWayDown = listsPlease
+-- --     where
+-- --         listsPlease = [listsAllTheWayDown]
+--
+-- lambda  = \x _ 0 -> x
+-- lambda2 z _ = \x -> \y -> (x + y - z) > 3 && (4 == 5)
+--     where
+--         f = \hey there -> hey || there && f hey there
+--
+-- letArithmetic = [1,5..11]
+--
+-- patTest x 0 _ [y, z] (w, 2, 3.3) = 0 + w / y
+--
+-- caseTest :: (Float, (a, b, c)) -> Float
+-- caseTest x = case x of
+--     (y, (_, _, _)) -> y
+--     (_, z)         -> 123.4
+--
+--
 
-lambda  = \x _ 0 -> x
-lambda2 z _ = \x -> \y -> (x + y - z) > 3 && (4 == 5)
-    where
-        f = \hey there -> hey || there && f hey there
-
-letArithmetic = [1,5..11]
-
-patTest x 0 _ [y, z] (w, 2, 3.3) = 0 + w / y
-
--- TODO: Fix this.....
+-- TODO: Fix this.....Yeah... THAT's broken....
+-- Idea: If pre-supplied, gen rhs then attempt to match.
 coolList :: a -> b -> [a]
 coolList x y = [y]
-
-caseTest :: (Float, (a, b, c)) -> Float
-caseTest x = case x of
-    (y, (_, _, _)) -> y
-    (_, z)         -> 123.4
+    where
+        -- z :: [a]
+        z = y
+        -- l = b
+        -- l = [y]
+        -- l = (y, y)
+        -- l = y
 

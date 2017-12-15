@@ -56,6 +56,10 @@ IN PROGRESS:
     Pattern
     Apat
 
+    NECRO_AST_CONSTRUCTOR,
+    NECRO_AST_SIMPLE_TYPE,
+    NECRO_AST_DATA_DECLARATION,
+
     User supplied type sigs aren't unify-ing correctly against types
     The order of quantified ty_vars is getting clobbered or isn't mattering.
     NECRO_AST_TYPE_SIGNATURE,
@@ -70,10 +74,6 @@ TODO:
     NECRO_BIND_ASSIGNMENT,
 
     NECRO_AST_BIN_OP_SYM,
-    NECRO_AST_CONSTRUCTOR,
-    NECRO_AST_SIMPLE_TYPE,
-    NECRO_AST_DATA_DECLARATION,
-
     NECRO_AST_TYPE_CLASS_CONTEXT,
     NECRO_AST_TYPE_CLASS_DECLARATION,
     NECRO_AST_TYPE_CLASS_INSTANCE,
@@ -147,6 +147,70 @@ NecroType* necro_infer_type_sig(NecroInfer* infer, NecroNode* ast)
     type->pre_supplied = true;
     necro_symtable_get(infer->symtable, ast->type_signature.var->variable.id)->type = type;
     return NULL;
+}
+
+//=====================================================
+// Data Declaration
+//=====================================================
+size_t necro_count_ty_vars(NecroNode* ty_vars)
+{
+    size_t count = 0;
+    while (ty_vars != NULL)
+    {
+        count++;
+        ty_vars = ty_vars->list.next_item;
+    }
+    return count;
+}
+
+NecroType* necro_ty_vars_to_args(NecroInfer* infer, NecroNode* ty_vars)
+{
+    NecroType* type = NULL;
+    NecroType* head = NULL;
+    while (ty_vars != NULL)
+    {
+        assert(ty_vars->type == NECRO_AST_LIST_NODE);
+        if (type == NULL)
+        {
+            head = necro_create_type_list(infer, necro_create_type_var(infer, (NecroVar) { .id = ty_vars->list.item->variable.id.id }), NULL);
+            type = head;
+        }
+        else
+        {
+            type->list.next = necro_create_type_list(infer, necro_create_type_var(infer, (NecroVar) { .id = ty_vars->list.item->variable.id.id }), NULL);
+            type = type->list.next;
+        }
+        ty_vars = ty_vars->list.next_item;
+    }
+    return head;
+}
+
+NecroType* necro_infer_simple_type(NecroInfer* infer, NecroNode* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_DATA_DECLARATION);
+    if (necro_is_infer_error(infer)) return NULL;
+    NecroType* type = necro_create_type_con(infer, (NecroCon) { .symbol = ast->simple_type.type_con->conid.symbol, .id = ast->simple_type.type_con->conid.id.id }, necro_ty_vars_to_args(infer, ast->simple_type.type_var_list), necro_count_ty_vars(ast->simple_type.type_var_list));
+    if (necro_is_infer_error(infer)) return NULL;
+    type = necro_gen(infer, type, NULL);
+    if (necro_is_infer_error(infer)) return NULL;
+    necro_check_type_sanity(infer, type);
+    if (necro_is_infer_error(infer)) return NULL;
+    type->pre_supplied = true;
+    necro_symtable_get(infer->symtable, ast->simple_type.type_con->conid.id)->type = type;
+    printf("necro_infer_simple_type: ");
+    necro_print_type_sig(type, infer->intern);
+    return type;
+}
+
+NecroType* necro_infer_data_declaration(NecroInfer* infer, NecroNode* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_DATA_DECLARATION);
+    if (necro_is_infer_error(infer)) return NULL;
+    return necro_infer_simple_type(infer, ast);
 }
 
 //=====================================================
@@ -657,6 +721,21 @@ NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroNode* ast)
     NecroNode* current_decl = ast;
 
     //----------------------------------------------------
+    // Pass -1, add type signatures
+    while (current_decl != NULL)
+    {
+        assert(current_decl->type == NECRO_AST_TOP_DECL);
+        switch (current_decl->top_declaration.declaration->type)
+        {
+        case NECRO_AST_DATA_DECLARATION: necro_infer_data_declaration(infer, current_decl->top_declaration.declaration); break;
+        default: break;
+        };
+        if (necro_is_infer_error(infer)) return NULL;
+        current_decl = current_decl->top_declaration.next_top_decl;
+    }
+    if (necro_is_infer_error(infer)) return NULL;
+
+    //----------------------------------------------------
     // Pass 0, add type signatures
     while (current_decl != NULL)
     {
@@ -812,7 +891,6 @@ NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_CASE:                return necro_infer_case(infer, ast);
     case NECRO_AST_WILDCARD:            return necro_infer_wildcard(infer, ast);
     case NECRO_AST_ARITHMETIC_SEQUENCE: return necro_infer_arithmetic_sequence(infer, ast);
-    // case NECRO_AST_TYPE_SIGNATURE:      return necro_infer_type_sig(infer, ast);
     case NECRO_AST_TYPE_SIGNATURE:      return NULL;
     default:                            return necro_infer_ast_error(infer, NULL, ast, "AST type %d has not been implemented for type inference", ast->type);
     }
@@ -854,148 +932,4 @@ NecroType* necro_infer_ast_error(NecroInfer* infer, NecroType* type, NecroNode* 
 void necro_test_infer()
 {
     necro_announce_phase("NecroInfer");
-
-    // NecroIntern    intern     = necro_create_intern();
-    // NecroPrimTypes prim_types = necro_create_prim_types(&intern);
-    // NecroInfer     infer      = necro_create_infer(&intern, 0, prim_types);
-
-    // // Test Var 1
-    // {
-    //     NecroType* avar           = necro_new_name(&infer);
-    //     NecroType* icon           = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Int"), { 0 } }, NULL, 0);
-    //     necro_env_set(&infer, avar->var.var, icon);
-
-    //     NecroNode* var_node       = necro_paged_arena_alloc(&infer.arena, sizeof(NecroNode));
-    //     var_node->type            = NECRO_AST_VARIABLE;
-    //     var_node->variable.symbol = necro_intern_string(&intern, "a");
-    //     var_node->variable.id.id  = avar->var.var.id.id;
-
-    //     NecroType* result         = necro_infer(&infer, var_node);
-    //     necro_print_type_test_result("expectEnv1", icon, "resultEnv1", result, &intern);
-    // }
-
-    // // Test Fexpr1
-    // {
-    //     necro_reset_infer(&infer);
-    //     NecroType* avar = necro_new_name(&infer);
-    //     NecroType* bvar = necro_new_name(&infer);
-    //     NecroType* icon = infer.prim_types.int_type;
-    //     NecroType* bcon = infer.prim_types.bool_type;
-    //     NecroType* afun = necro_create_type_fun(&infer, icon, bcon);
-    //     necro_env_set(&infer, avar->var.var, afun);
-    //     necro_env_set(&infer, bvar->var.var, icon);
-
-    //     NecroNode* a_var_node       = necro_paged_arena_alloc(&infer.arena, sizeof(NecroNode));
-    //     a_var_node->type            = NECRO_AST_VARIABLE;
-    //     a_var_node->variable.symbol = necro_intern_string(&intern, "a");
-    //     a_var_node->variable.id.id  = avar->var.var.id.id;
-
-    //     NecroNode* b_var_node       = necro_paged_arena_alloc(&infer.arena, sizeof(NecroNode));
-    //     b_var_node->type            = NECRO_AST_VARIABLE;
-    //     b_var_node->variable.symbol = necro_intern_string(&intern, "b");
-    //     b_var_node->variable.id.id  = bvar->var.var.id.id;
-
-    //     NecroNode* f_node                    = necro_paged_arena_alloc(&infer.arena, sizeof(NecroNode));
-    //     f_node->type                         = NECRO_AST_FUNCTION_EXPRESSION;
-    //     f_node->fexpression.aexp             = a_var_node;
-    //     f_node->fexpression.next_fexpression = b_var_node;
-
-    //     NecroType* result = necro_infer(&infer, f_node);
-    //     NecroType* expect = bcon;
-
-    //     necro_print_type_test_result("expectFexp1", expect, "resultFexp1", result, &intern);
-    //     puts("");
-    //     necro_print_env(&infer);
-    // }
-
-    // // Test BinOp1
-    // {
-    //     necro_reset_infer(&infer);
-    //     NecroType* avar = necro_new_name(&infer);
-    //     NecroType* bvar = necro_new_name(&infer);
-    //     NecroType* icon = infer.prim_types.int_type;
-    //     necro_env_set(&infer, avar->var.var, icon);
-    //     necro_env_set(&infer, bvar->var.var, icon);
-
-    //     NecroNode* a_var_node       = necro_paged_arena_alloc(&infer.arena, sizeof(NecroNode));
-    //     a_var_node->type            = NECRO_AST_VARIABLE;
-    //     a_var_node->variable.symbol = necro_intern_string(&intern, "a");
-    //     a_var_node->variable.id.id  = avar->var.var.id.id;
-
-    //     NecroNode* b_var_node       = necro_paged_arena_alloc(&infer.arena, sizeof(NecroNode));
-    //     b_var_node->type            = NECRO_AST_VARIABLE;
-    //     b_var_node->variable.symbol = necro_intern_string(&intern, "b");
-    //     b_var_node->variable.id.id  = bvar->var.var.id.id;
-
-    //     NecroNode* bin_op_node   = necro_paged_arena_alloc(&infer.arena, sizeof(NecroNode));
-    //     bin_op_node->type        = NECRO_AST_BIN_OP;
-    //     bin_op_node->bin_op.lhs  = a_var_node;
-    //     bin_op_node->bin_op.type = NECRO_BIN_OP_ADD;
-    //     bin_op_node->bin_op.rhs  = b_var_node;
-
-    //     NecroType* result = necro_infer(&infer, bin_op_node);
-    //     NecroType* expect = icon;
-
-    //     necro_print_type_test_result("expectBinOp1", expect, "resultBinOp1", result, &intern);
-    //     puts("");
-    //     necro_print_env(&infer);
-    // }
-
-    // // Test BinOp2
-    // {
-    //     necro_reset_infer(&infer);
-    //     NecroType* icon = infer.prim_types.int_type;
-
-    //     NecroNode* x_node     = necro_paged_arena_alloc(&infer.arena, sizeof(NecroNode));
-    //     x_node->type          = NECRO_AST_CONSTANT;
-    //     x_node->constant.type = NECRO_AST_CONSTANT_INTEGER;
-
-    //     NecroNode* y_node     = necro_paged_arena_alloc(&infer.arena, sizeof(NecroNode));
-    //     y_node->type          = NECRO_AST_CONSTANT;
-    //     y_node->constant.type = NECRO_AST_CONSTANT_INTEGER;
-
-    //     NecroNode* bin_op_node   = necro_paged_arena_alloc(&infer.arena, sizeof(NecroNode));
-    //     bin_op_node->type        = NECRO_AST_BIN_OP;
-    //     bin_op_node->bin_op.lhs  = x_node;
-    //     bin_op_node->bin_op.type = NECRO_BIN_OP_ADD;
-    //     bin_op_node->bin_op.rhs  = y_node;
-
-    //     NecroType* result = necro_infer(&infer, bin_op_node);
-    //     NecroType* expect = icon;
-
-    //     necro_print_type_test_result("expectBinOp2", expect, "resultBinOp2", result, &intern);
-    //     // necro_print_env(&infer);
-    // }
-
-    // // Test SimpleAssignment
-    // {
-    //     necro_reset_infer(&infer);
-    //     NecroType* avar = necro_new_name(&infer);
-    //     NecroType* bvar = necro_new_name(&infer);
-    //     NecroType* cvar = necro_new_name(&infer);
-    //     NecroType* bcon = infer.prim_types.bool_type;
-    //     NecroType* bfun = necro_create_type_fun(&infer, cvar, bcon);
-    //     necro_env_set(&infer, bvar->var.var, bfun);
-
-    //     NecroNode* b_var_node       = necro_paged_arena_alloc(&infer.arena, sizeof(NecroNode));
-    //     b_var_node->type            = NECRO_AST_VARIABLE;
-    //     b_var_node->variable.symbol = necro_intern_string(&intern, "b");
-    //     b_var_node->variable.id.id  = bvar->var.var.id.id;
-
-    //     NecroNode* assign_node                       = necro_paged_arena_alloc(&infer.arena, sizeof(NecroNode));
-    //     assign_node->type                            = NECRO_AST_SIMPLE_ASSIGNMENT;
-    //     assign_node->simple_assignment.id            = avar->var.var.id;
-    //     assign_node->simple_assignment.variable_name = necro_intern_string(&intern, "a");
-    //     assign_node->simple_assignment.rhs           = b_var_node;
-
-    //     NecroType* result = necro_infer(&infer, assign_node);
-    //     // result            = necro_env_get(&infer, avar->var.var);
-    //     NecroType* expect = necro_gen(&infer, necro_create_type_fun(&infer, cvar, bcon));
-    //     expect            = necro_rename_var_for_testing_only(&infer, (NecroVar) { 5 }, necro_create_type_var(&infer, (NecroVar) { 4 }), expect);
-
-    //     necro_print_type_test_result("expectSimpleAssignment1", expect, "resultSimpleAssignment2", result, &intern);
-    //     puts("");
-    //     necro_print_env(&infer);
-    // }
-
 }

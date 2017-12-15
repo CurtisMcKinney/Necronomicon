@@ -547,6 +547,8 @@ inline void necro_unify_var(NecroInfer* infer, NecroType* type1, NecroType* type
             necro_infer_error(infer, type1, "Occurs check error, name1: %s", necro_id_as_character_string(infer, type1->var.var.id));
         else if (type1->var.is_rigid)
             necro_env_set(infer, type2->var.var, type1);
+        else if (type2->var.is_rigid)
+            necro_env_set(infer, type1->var.var, type2);
         else if (necro_is_bound_in_scope(infer, type1, scope))
             necro_env_set(infer, type2->var.var, type1);
         else
@@ -1291,10 +1293,10 @@ void necro_print_type_sig_go(NecroType* type, NecroIntern* intern)
     {
     case NECRO_TYPE_VAR:
         necro_print_id_as_characters(type->var.var.id);
-        if (type->var.is_rigid)
-        {
-            printf(" [rigid]");
-        }
+        // if (type->var.is_rigid)
+        // {
+        //     printf(" [rigid]");
+        // }
         break;
 
     case NECRO_TYPE_APP:
@@ -1744,218 +1746,5 @@ NecroType* necro_make_con_10(NecroInfer* infer, NecroSymbol con_symbol, NecroTyp
 void necro_test_type()
 {
     necro_announce_phase("NecroType");
-
-//     NecroIntern intern = necro_create_intern();
-//     NecroInfer  infer  = necro_create_infer(&intern, 0);
-
-//    // Print test
-//    {
-//        NecroType* bcon = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Bool"), { 0 } }, NULL, 0);
-//        NecroType* icon = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Int"), { 0 } }, NULL, 0);
-
-//        NecroType* lst1 = necro_create_type_list(&infer, bcon, NULL);
-//        NecroType* mcon = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Maybe"), { 0 } }, lst1, 1);
-
-//        NecroType* iols = necro_create_type_list(&infer, mcon, NULL);
-//        NecroType* iocn = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "IO"), { 0 } }, iols, 1);
-
-//        NecroType* econ = necro_make_con_2(&infer, necro_intern_string(&intern, "Either"), infer.prim_types.int_type, infer.prim_types.bool_type);
-
-//        NecroType* avar = necro_new_name(&infer);
-//        NecroType* bvar = necro_new_name(&infer);
-//        NecroType* cvar = necro_new_name(&infer);
-//        NecroType* vapp = necro_create_type_app(&infer, avar, bvar);
-
-//        NecroType* fun1 = necro_create_type_fun(&infer, bvar, cvar);
-//        NecroType* fun2 = necro_create_type_fun(&infer, econ, iocn);
-//        NecroType* fun3 = necro_create_type_fun(&infer, fun1, fun2);
-//        NecroType* fun4 = necro_create_type_fun(&infer, vapp, fun3);
-
-//        if (necro_check_and_print_type_error(&infer)) return;
-//        necro_print_type_sig(fun4, &intern);
-//        printf("\n");
-//    }
-
-//    // Gen Print test
-//    {
-//        necro_reset_infer(&infer);
-//        NecroType* bcon = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Bool"), { 0 } }, NULL, 0);
-//        NecroType* icon = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Int"), { 0 } }, NULL, 0);
-
-//        NecroType* lst1 = necro_create_type_list(&infer, bcon, NULL);
-//        NecroType* mcon = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Maybe"), { 0 } }, lst1, 1);
-
-//        NecroType* iols = necro_create_type_list(&infer, mcon, NULL);
-//        NecroType* iocn = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "IO"), { 0 } }, iols, 1);
-
-//        NecroType* lst3 = necro_create_type_list(&infer, bcon, NULL);
-//        NecroType* lst2 = necro_create_type_list(&infer, icon, lst3);
-//        NecroType* econ = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Either"), { 0 } }, lst2, 2);
-
-//        NecroType* avar = necro_new_name(&infer);
-//        NecroType* bvar = necro_new_name(&infer);
-//        NecroType* cvar = necro_new_name(&infer);
-//        NecroType* vapp = necro_create_type_app(&infer, avar, bvar);
-
-//        NecroType* fun1 = necro_create_type_fun(&infer, bvar, cvar);
-//        NecroType* fun2 = necro_create_type_fun(&infer, econ, iocn);
-//        NecroType* fun3 = necro_create_type_fun(&infer, fun1, fun2);
-//        NecroType* fun4 = necro_create_type_fun(&infer, vapp, fun3);
-
-//        // gen test
-//        NecroType* for1 = necro_gen(&infer, fun4);
-
-//        if (necro_check_and_print_type_error(&infer)) return;
-//        necro_print_type_sig(for1, &intern);
-//        puts("");
-
-//        // inst test
-//        NecroType* inst = necro_inst(&infer, for1);
-
-//        if (necro_check_and_print_type_error(&infer)) return;
-//        necro_print_type_sig(inst, &intern);
-//        puts("");
-//    }
-
-//    // Unify test
-//    {
-//        necro_reset_infer(&infer);
-//        NecroType* avar = necro_new_name(&infer);
-//        NecroType* bvar = necro_new_name(&infer);
-//        NecroType* lst1 = necro_create_type_list(&infer, bvar, NULL);
-//        NecroType* mcon = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Maybe"), { 0 } }, lst1, 1);
-//        if (necro_check_and_print_type_error(&infer)) return;
-//        necro_unify(&infer, avar, mcon);
-//        if (necro_check_and_print_type_error(&infer)) return;
-//        necro_print_type_test_result("expectUnify1", necro_gen(&infer, avar), "resultUnify1", necro_gen(&infer, mcon), &intern);
-//    }
-
-//    // Unify test 2
-//    {
-//        necro_reset_infer(&infer);
-//        NecroType* avar = necro_new_name(&infer);
-//        NecroType* bvar = necro_new_name(&infer);
-//        NecroType* icon = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Int"), { 0 } }, NULL, 0);
-
-//        NecroType* m1   = necro_create_type_list(&infer, avar, NULL);
-//        NecroType* mcon = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Maybe"), { 0 } }, m1, 1);
-
-//        NecroType* m2    = necro_create_type_list(&infer, icon, NULL);
-//        NecroType* mcon2 = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Maybe"), { 0 } }, m2, 1);
-
-//        if (necro_check_and_print_type_error(&infer)) return;
-//        necro_unify(&infer, mcon, mcon2);
-//        if (necro_check_and_print_type_error(&infer)) return;
-//        necro_print_type_test_result("expectUnify2", necro_gen(&infer, mcon), "resultUnify2", necro_gen(&infer, mcon2), &intern);
-//    }
-
-//    // Unify test 2
-//    {
-//        necro_reset_infer(&infer);
-//        NecroType* avar  = necro_new_name(&infer);
-//        NecroType* bvar  = necro_new_name(&infer);
-//        NecroType* icon  = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Int"), { 0 } }, NULL, 0);
-//        NecroType* bcon  = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Bool"), { 0 } }, NULL, 0);
-
-//        NecroType* e11   = necro_create_type_list(&infer, bcon, NULL);
-//        NecroType* e1    = necro_create_type_list(&infer, avar, e11);
-//        NecroType* econ1 = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Either"), { 0 } }, e1, 2);
-
-//        NecroType* e22   = necro_create_type_list(&infer, bvar, NULL);
-//        NecroType* e2    = necro_create_type_list(&infer, icon, e22);
-//        NecroType* econ2 = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Either"), { 0 } }, e2, 2);
-
-//        if (necro_check_and_print_type_error(&infer)) return;
-//        necro_unify(&infer, econ1, econ2);
-//        if (necro_check_and_print_type_error(&infer)) return;
-//        necro_print_type_test_result("expectUnify3", necro_gen(&infer, econ1), "resultUnify3", necro_gen(&infer, econ2), &intern);
-//    }
-
-//    // Env set test
-//    {
-//        necro_reset_infer(&infer);
-//        NecroType* avar  = necro_new_name(&infer);
-//        NecroType* bvar  = necro_new_name(&infer);
-//        NecroType* cvar  = necro_new_name(&infer);
-//        NecroType* icon  = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Int"), { 0 } }, NULL, 0);
-//        NecroType* bcon  = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "Bool"), { 0 } }, NULL, 0);
-
-//        if (necro_check_and_print_type_error(&infer)) return;
-
-//        necro_env_set(&infer, avar->var.var, icon);
-//        necro_env_set(&infer, bvar->var.var, bcon);
-
-//        puts("");
-//        necro_print_env(&infer);
-
-//        NecroType* icon2 = necro_env_get(&infer, avar->var.var);
-//        NecroType* bcon2 = necro_env_get(&infer, bvar->var.var);
-//        NecroType* nullt = necro_env_get(&infer, cvar->var.var);
-
-//        if (necro_check_and_print_type_error(&infer)) return;
-//        necro_print_type_test_result("expectEnv1", icon, "resultEnv1", icon2, &intern);
-//        necro_print_type_test_result("expectEnv2", bcon, "resultEnv2", bcon2, &intern);
-//        necro_print_type_test_result("expectEnv3", NULL, "resultEnv3", nullt, &intern);
-//    }
-
-
-//    // Unify 666
-//    {
-//        necro_reset_infer(&infer);
-//        NecroType* xvar = necro_new_name(&infer);
-//        NecroType* yvar = necro_new_name(&infer);
-//        NecroType* zvar = necro_new_name(&infer);
-
-//        NecroType* acon = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "A"), { 0 } }, NULL, 0);
-
-//        NecroType* t1l3 = necro_create_type_list(&infer, zvar, NULL);
-//        NecroType* t1l2 = necro_create_type_list(&infer, yvar, t1l3);
-//        NecroType* t1l1 = necro_create_type_list(&infer, xvar, t1l2);
-//        NecroType* ty1  = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "J"), { 0 } }, t1l1, 3);
-
-//        NecroType* f3l2 = necro_create_type_list(&infer, acon, NULL);
-//        NecroType* f3l1 = necro_create_type_list(&infer, acon, f3l2);
-//        NecroType* f3   = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "F"), { 0 } }, f3l1, 2);
-
-//        NecroType* f2l2 = necro_create_type_list(&infer, zvar, NULL);
-//        NecroType* f2l1 = necro_create_type_list(&infer, zvar, f2l2);
-//        NecroType* f2   = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "F"), { 0 } }, f2l1, 2);
-
-//        NecroType* f1l2 = necro_create_type_list(&infer, yvar, NULL);
-//        NecroType* f1l1 = necro_create_type_list(&infer, yvar, f1l2);
-//        NecroType* f1   = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "F"), { 0 } }, f1l1, 2);
-
-//        NecroType* t2l3 = necro_create_type_list(&infer, f3, NULL);
-//        NecroType* t2l2 = necro_create_type_list(&infer, f2, t2l3);
-//        NecroType* t2l1 = necro_create_type_list(&infer, f1, t2l2);
-//        NecroType* ty2  = necro_create_type_con(&infer, (NecroCon) { necro_intern_string(&intern, "J"), { 0 } }, t2l1, 3);
-
-//        // printf("\n");
-//        // necro_print_type_sig(ty1, &intern);
-//        // printf("\n");
-//        // necro_print_type_sig(ty2, &intern);
-//        necro_unify(&infer, ty1, ty2);
-
-//        // (sub: x ==> F (F (F A A) (F A A)) (F (F A A) (F A A))
-//        //  (sub: y ==> F (F A A) (F A A)
-//        //   (sub: z ==> F A A
-//        //    (sub: NULL))))
-
-//        necro_check_type_sanity(&infer, ty1);
-//        necro_check_type_sanity(&infer, ty2);
-//        if (infer.error.return_code != NECRO_SUCCESS)
-//        {
-//            printf("Type error:\n    %s", infer.error.error_message);
-//            return;
-//        }
-
-//        NecroType* expect = necro_gen(&infer, ty1);
-//        NecroType* result = necro_gen(&infer, ty2);
-//        necro_print_test_result(necro_types_match(expect, result), "expectUnify666", expect, "resultUnify666", result, &intern);
-//    }
-
-
-//    necro_destroy_infer(&infer);
-//    necro_destroy_intern(&intern);
 }
 

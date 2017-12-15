@@ -229,7 +229,7 @@ typedef enum
     NECRO_AST_CONSTANT_INTEGER,
     NECRO_AST_CONSTANT_STRING,
     NECRO_AST_CONSTANT_BOOL,
-    NECRO_AST_CONSTANT_CHAR
+    NECRO_AST_CONSTANT_CHAR,
 } NecroAST_ConstantType;
 
 typedef struct
@@ -242,7 +242,6 @@ typedef struct
 		bool boolean_literal;
         char char_literal;
     };
-
     NecroAST_ConstantType type;
 } NecroAST_Constant;
 

@@ -62,6 +62,7 @@ NecroPrimTypes necro_create_prim_types(NecroIntern* intern)
     {
         .bin_op_types = bin_op_types,
         .tuple_types  = tuple_types,
+        .io_type      = (NecroCon) { .symbol = necro_intern_string(intern, "IO"),    .id = { 0 } },
         .list_type    = (NecroCon) { .symbol = necro_intern_string(intern, "[]"),    .id = { 0 } },
         .unit_type    = (NecroCon) { .symbol = necro_intern_string(intern, "()"),    .id = { 0 } },
         .int_type     = (NecroCon) { .symbol = necro_intern_string(intern, "Int"),   .id = { 0 } },
@@ -151,6 +152,7 @@ void necro_add_prim_type_symbol_info(NecroPrimTypes* prim_types, NecroScopedSymT
     necro_add_tuple_symbol_info(scoped_symtable, &prim_types->tuple_types.ten,   10);
 
     // Types
+    necro_add_type_symbol_info(scoped_symtable, &prim_types->io_type,    1);
     necro_add_type_symbol_info(scoped_symtable, &prim_types->list_type,  1);
     necro_add_type_symbol_info(scoped_symtable, &prim_types->unit_type,  0);
     necro_add_type_symbol_info(scoped_symtable, &prim_types->int_type,   1);
@@ -166,7 +168,8 @@ void necro_add_prim_type_symbol_info(NecroPrimTypes* prim_types, NecroScopedSymT
 void necro_add_bin_op_prim_type_sig(NecroInfer* infer, NecroCon conid, NecroType* left_type, NecroType* right_type, NecroType* result_type)
 {
     assert(conid.id.id < infer->symtable->count);
-    necro_symtable_get(infer->symtable, conid.id)->type = necro_create_type_fun(infer, left_type, necro_create_type_fun(infer, right_type, result_type));
+    necro_symtable_get(infer->symtable, conid.id)->type               = necro_create_type_fun(infer, left_type, necro_create_type_fun(infer, right_type, result_type));
+    necro_symtable_get(infer->symtable, conid.id)->type->pre_supplied = true;
 }
 
 void necro_add_prim_type_sigs(NecroPrimTypes prim_types, NecroInfer* infer)
@@ -174,13 +177,22 @@ void necro_add_prim_type_sigs(NecroPrimTypes prim_types, NecroInfer* infer)
     NecroType* int_type   = necro_create_type_con(infer, prim_types.int_type, NULL, 0);
     NecroType* bool_type  = necro_create_type_con(infer, prim_types.bool_type, NULL, 0);
 
-    necro_symtable_get(infer->symtable, prim_types.int_type.id)->type   = int_type;
-    necro_symtable_get(infer->symtable, prim_types.bool_type.id)->type  = bool_type;
-    necro_symtable_get(infer->symtable, prim_types.float_type.id)->type = necro_create_type_con(infer, prim_types.float_type, NULL, 0);
-    necro_symtable_get(infer->symtable, prim_types.unit_type.id)->type  = necro_create_type_con(infer, prim_types.unit_type, NULL, 0);
-    necro_symtable_get(infer->symtable, prim_types.char_type.id)->type  = necro_create_type_con(infer, prim_types.char_type, NULL, 0);
-    necro_symtable_get(infer->symtable, prim_types.audio_type.id)->type = necro_create_type_con(infer, prim_types.audio_type, NULL, 0);
-    necro_symtable_get(infer->symtable, prim_types.list_type.id)->type  = necro_create_type_con(infer, prim_types.list_type, NULL, 1);
+    necro_symtable_get(infer->symtable, prim_types.int_type.id)->type                 = int_type;
+    necro_symtable_get(infer->symtable, prim_types.int_type.id)->type->pre_supplied   = true;
+    necro_symtable_get(infer->symtable, prim_types.bool_type.id)->type                = bool_type;
+    necro_symtable_get(infer->symtable, prim_types.bool_type.id)->type->pre_supplied  = true;
+    necro_symtable_get(infer->symtable, prim_types.float_type.id)->type               = necro_create_type_con(infer, prim_types.float_type, NULL, 0);
+    necro_symtable_get(infer->symtable, prim_types.float_type.id)->type->pre_supplied = true;
+    necro_symtable_get(infer->symtable, prim_types.unit_type.id)->type                = necro_create_type_con(infer, prim_types.unit_type, NULL, 0);
+    necro_symtable_get(infer->symtable, prim_types.unit_type.id)->type->pre_supplied  = true;
+    necro_symtable_get(infer->symtable, prim_types.char_type.id)->type                = necro_create_type_con(infer, prim_types.char_type, NULL, 0);
+    necro_symtable_get(infer->symtable, prim_types.char_type.id)->type->pre_supplied  = true;
+    necro_symtable_get(infer->symtable, prim_types.audio_type.id)->type               = necro_create_type_con(infer, prim_types.audio_type, NULL, 0);
+    necro_symtable_get(infer->symtable, prim_types.audio_type.id)->type->pre_supplied = true;
+    necro_symtable_get(infer->symtable, prim_types.list_type.id)->type                = necro_create_type_con(infer, prim_types.list_type, NULL, 1);
+    necro_symtable_get(infer->symtable, prim_types.list_type.id)->type->pre_supplied  = true;
+    necro_symtable_get(infer->symtable, prim_types.io_type.id)->type                  = necro_create_type_con(infer, prim_types.io_type, NULL, 1);
+    necro_symtable_get(infer->symtable, prim_types.io_type.id)->type->pre_supplied    = true;
 
     necro_add_bin_op_prim_type_sig(infer, prim_types.bin_op_types.add_type, int_type, int_type, int_type);
     necro_add_bin_op_prim_type_sig(infer, prim_types.bin_op_types.sub_type, int_type, int_type, int_type);

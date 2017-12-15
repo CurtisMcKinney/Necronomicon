@@ -25,6 +25,7 @@ set(project_SOURCES
     source/utility/arena.c
 	source/utility/intern.c
 	source/utility/utility.c
+    source/utility/hash_table.c
 
     source/runtime/runtime.c
     source/runtime/slab.c
@@ -34,6 +35,7 @@ set(project_SOURCES
     source/type/type.c
     source/type/infer.c
     source/type/prim.c
+    source/type/type_class.c
     )
 set(project_HEADERS
     source/necro.h
@@ -48,6 +50,7 @@ set(project_HEADERS
 	source/utility/utility.h
 	source/utility/intern.h
     source/utility/math.h
+    source/utility/hash_table.h
 
     source/runtime/runtime.h
     source/runtime/slab.h
@@ -57,6 +60,7 @@ set(project_HEADERS
     source/type/type.h
     source/type/infer.h
     source/type/prim.h
+    source/type/type_class.h
     )
 
 ADD_EXECUTABLE(necro ${project_HEADERS} ${project_SOURCES})

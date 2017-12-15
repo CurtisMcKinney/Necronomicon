@@ -112,6 +112,18 @@ inline void necro_add_type_symbol_info(NecroScopedSymTable* scoped_symtable, Nec
     conid->id = necro_scoped_symtable_new_symbol_info(scoped_symtable, scoped_symtable->top_type_scope, symbol_info);
 }
 
+inline void necro_add_constructor_symbol_info(NecroScopedSymTable* scoped_symtable, NecroCon* conid, size_t data_size)
+{
+    NecroSymbolInfo symbol_info = (NecroSymbolInfo)
+    {
+        .name       = conid->symbol,
+        .data_size  = data_size,
+        .source_loc = (NecroSourceLoc) {0, 0, 0},
+        .scope      = scoped_symtable->top_scope,
+    };
+    conid->id = necro_scoped_symtable_new_symbol_info(scoped_symtable, scoped_symtable->top_scope, symbol_info);
+}
+
 void necro_add_prim_type_symbol_info(NecroPrimTypes* prim_types, NecroScopedSymTable* scoped_symtable)
 {
     // Bin Ops
@@ -160,6 +172,9 @@ void necro_add_prim_type_symbol_info(NecroPrimTypes* prim_types, NecroScopedSymT
     necro_add_type_symbol_info(scoped_symtable, &prim_types->audio_type, 0);
     necro_add_type_symbol_info(scoped_symtable, &prim_types->char_type,  1);
     necro_add_type_symbol_info(scoped_symtable, &prim_types->bool_type,  1);
+
+    // Constructors
+    necro_add_constructor_symbol_info(scoped_symtable, &prim_types->unit_type, 0);
 }
 
 //=====================================================

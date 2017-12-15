@@ -3036,7 +3036,8 @@ NecroAST_LocalPtr parse_atype_list(NecroParser* parser)
         return null_local_ptr;
 
     // tyvar
-    NecroAST_LocalPtr atype = parse_atype(parser, NECRO_VAR_VAR);
+    // NecroAST_LocalPtr atype = parse_atype(parser, NECRO_VAR_VAR);
+    NecroAST_LocalPtr atype = parse_atype(parser, NECRO_VAR_TYPE_FREE_VAR);
     if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
         return null_local_ptr;
     if (atype == null_local_ptr)
@@ -3088,7 +3089,8 @@ NecroAST_LocalPtr parse_tyvar_list(NecroParser* parser)
         return null_local_ptr;
 
     // tyvar
-    NecroAST_LocalPtr tyvar = parse_tyvar(parser, NECRO_VAR_DECLARATION);
+    // NecroAST_LocalPtr tyvar = parse_tyvar(parser, NECRO_VAR_DECLARATION);
+    NecroAST_LocalPtr tyvar = parse_tyvar(parser, NECRO_VAR_TYPE_FREE_VAR);
     if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
         return null_local_ptr;
     if (tyvar == null_local_ptr)

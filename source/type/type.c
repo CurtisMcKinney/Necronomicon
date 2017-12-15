@@ -16,7 +16,7 @@
 //  https://www.slideshare.net/tomaspfb/talk-38641264
 //  eval_type_to_normal_form
 
-#define NECRO_TYPE_DEBUG           1
+#define NECRO_TYPE_DEBUG           0
 #if NECRO_TYPE_DEBUG
 #define TRACE_TYPE(...) printf(__VA_ARGS__)
 #else
@@ -103,8 +103,7 @@ void* necro_infer_error(NecroInfer* infer, NecroType* type, const char* error_me
         return type;
     va_list args;
 	va_start(args, error_message);
-    NecroSourceLoc source_loc = (type != NULL) ? type->source_loc : ((NecroSourceLoc){0, 0, 0});
-
+    NecroSourceLoc source_loc = (type != NULL) ? type->source_loc : infer->error.source_loc;
     size_t count1 = necro_verror(&infer->error, source_loc, error_message, args);
     size_t count2 = snprintf(infer->error.error_message + count1, NECRO_MAX_ERROR_MESSAGE_LENGTH, "\n    Found in type:\n        ");
     if (type != NULL)

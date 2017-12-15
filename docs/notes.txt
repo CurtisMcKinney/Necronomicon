@@ -33,6 +33,7 @@ values      = { 1, 2, 700, -1, -2,  1,  2, 1200, -1, -2 }
 -- always provide the same result
 
 -- implicit language semantics akin to how the coeffect stuff works?
+-- No need for separate kinds me thinks?
 -- Constant time semantics!!!!
 x :: con a -- x has constant    time semantics (Never changes)
 x :: dmd a -- x has dynamic     time semantics (Demand rate, caches history)

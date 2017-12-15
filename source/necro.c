@@ -20,6 +20,10 @@ int main(int32_t argc, char** argv)
         {
             necro_test(NECRO_TEST_ALL);
         }
+        else if (strcmp(argv[2], "arena_chain_table") == 0)
+        {
+            necro_test(NECRO_TEST_ARENA_CHAIN_TABLE);
+        }
         else if (strcmp(argv[2], "type") == 0)
         {
             necro_test(NECRO_TEST_TYPE);

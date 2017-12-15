@@ -1,3 +1,9 @@
+id :: a -> a
+id x = x
+
+idTest1 = id (3 == 4)
+idTest2 = id (4 + 5)
+
 one = 1
 two = 2
 tupleTest = (one, two)
@@ -37,30 +43,17 @@ tupleAllTheWayDown = (tuplesPlease, tupleTest, 666.0)
             where
                 tuplesAreTurles = (3 == 3, 5 + 6 * 7, 0.0)
 
-id :: a -> a
-id x = x
-
-idTest = id (3 == 4)
-
 listTest1     = []
 listTest2     = [id 0]
 listTest3 x   = [x]
 tuplesXY  x y = (x, y)
 
--- -- f = let g = f 0 in g
-
-compareTest = (3 == 4, 5 + 7)
+compareTest = (3 == 4, 5 == 7)
 boolTest2   = 3 == 4
 boolTest3   = 4 == 4 && boolTest2
 
--- -- -- f x _ 0 (DeathTest (Maybe _) _) = 0
-
 add2 0 x _ = x + 0
 
--- -- zero = add2 2 3 4
-
--- one   = 1
--- two   = 2
 three = 3
 four  = 4
 five  = 5
@@ -92,9 +85,48 @@ caseTest x = case x of
     (y, (_, _, _)) -> y
     (_, z)         -> 123.4
 
-data Maybe a = Maybe a
-
 coolList :: a -> b -> [a]
 coolList x y = xs
     where
         xs = [x]
+
+coolMaybe :: a -> Maybe a
+coolMaybe x = if 3 > 4
+    then Just x
+    else Nothing
+
+data Maybe  a   = Just a | Nothing
+data Either a b = Left a | Right b
+data Both a b   = Both a b | Neither
+
+maybeTest :: Maybe Int -> Int
+maybeTest m = case m of
+    Just x  -> x
+    Nothing -> 0
+
+eitherTest :: Either a b -> Maybe a
+eitherTest e = case e of
+    Left  x -> Just x
+    Right _ -> Nothing
+
+patternTest :: Either (Maybe Float) a -> Either Float ()
+patternTest (Left (Just _)) = Right ()
+
+infixPatternTestBecauseIHateMyself :: Both a b -> (a, b)
+infixPatternTestBecauseIHateMyself (x `Both` y) = (x, y)
+
+caseInfixTest :: Both a b -> Both Int Float
+caseInfixTest b = case b of
+    x `Both` y -> Neither
+    Neither    -> Both 0 0.0
+
+twoTimes :: Maybe a -> Int
+twoTimes (Just _) = 1
+twoTimes Nothing  = 0
+
+data Nested a = Epsilon | Cons a (Nested [a])
+
+size :: Nested a -> Int
+size Epsilon     = 0
+size (Cons _ xs) = 1 + size xs
+

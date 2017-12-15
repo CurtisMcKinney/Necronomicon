@@ -24,6 +24,7 @@ typedef enum
     NECRO_TEST_REGION,
     NECRO_TEST_INFER,
     NECRO_TEST_TYPE,
+    NECRO_TEST_ARENA_CHAIN_TABLE,
 } NECRO_TEST;
 
 typedef enum

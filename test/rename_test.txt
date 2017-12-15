@@ -12,9 +12,6 @@ doTest x y = do
             in  666 + y
     z + y / w
 
-data Float       = Float
-data Int         = Int
-data Bool        = True | False
 data DeathType a = DeathType | LifeType a
 data Maybe a     = Maybe a | Nothing
 

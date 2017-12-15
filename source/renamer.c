@@ -151,8 +151,10 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
             NecroID id = necro_scope_find(input_node->scope, input_node->variable.symbol);
             if (id.id != 0)
                 input_node->variable.id = id;
-            else
+            else if (renamer->should_free_type_declare)
                 input_node->variable.id = necro_scoped_symtable_new_symbol_info(renamer->scoped_symtable, input_node->scope, necro_create_initial_symbol_info(input_node->variable.symbol, input_node->source_loc, input_node->scope));
+            else
+                necro_error(&renamer->error, input_node->source_loc, "Not in scope: \'%s\'", necro_intern_get_string(renamer->scoped_symtable->global_table->intern, input_node->variable.symbol));
             break;
         }
         }
@@ -228,7 +230,9 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         break;
     case NECRO_AST_DATA_DECLARATION:
         rename_declare_go(input_node->data_declaration.simpletype, renamer);
+        renamer->should_free_type_declare = false;
         rename_declare_go(input_node->data_declaration.constructor_list, renamer);
+        renamer->should_free_type_declare = true;
         break;
     case NECRO_AST_TYPE_CLASS_DECLARATION:
         rename_declare_go(input_node->type_class_declaration.context, renamer);
@@ -406,7 +410,7 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         {
         case NECRO_CON_VAR:              try_find_name(renamer, input_node, input_node->scope, &input_node->conid.id, input_node->conid.symbol); break;
         case NECRO_CON_TYPE_VAR:         try_find_name(renamer, input_node, renamer->scoped_symtable->top_type_scope, &input_node->conid.id, input_node->conid.symbol); break;
-        case NECRO_CON_TYPE_DECLARATION: break;
+        case NECRO_CON_TYPE_DECLARATION: break; //try_find_name(renamer, input_node, renamer->scoped_symtable->top_type_scope, &input_node->conid.id, input_node->conid.symbol); break;
         case NECRO_CON_DATA_DECLARATION: break;
         }
         break;
@@ -469,7 +473,8 @@ NecroRenamer necro_create_renamer(NecroScopedSymTable* scoped_symtable)
 {
     return (NecroRenamer)
     {
-        .scoped_symtable = scoped_symtable,
+        .scoped_symtable          = scoped_symtable,
+        .should_free_type_declare = true,
     };
 }
 

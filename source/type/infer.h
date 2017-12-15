@@ -12,7 +12,10 @@
 #include "type.h"
 #include "ast.h"
 
+typedef NecroAST_Node_Reified NecroNode;
+NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast);
 NecroType* necro_infer(NecroInfer* infer, NecroAST_Node_Reified* ast);
+NecroType* necro_infer_ast_error(NecroInfer* infer, NecroType* type, NecroNode* ast, const char* error_message, ...);
 
 void necro_test_infer();
 

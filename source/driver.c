@@ -17,6 +17,7 @@
 #include "type/type.h"
 #include "type/infer.h"
 #include "type/prim.h"
+#include "utility/hash_table.h"
 #include "driver.h"
 
 void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
@@ -126,12 +127,12 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     {
         NecroInfer infer = necro_create_infer(&lexer.intern, &symtable, prim_types);
         necro_infer(&infer, ast_r.root);
+        necro_print_env_with_symtable(&symtable, &infer);
         if (infer.error.return_code != NECRO_SUCCESS)
         {
             necro_print_error(&infer.error, input_string, "Type");
             return;
         }
-        necro_print_env_with_symtable(&symtable, &infer);
     }
 
     //=====================================================
@@ -147,18 +148,19 @@ void necro_test(NECRO_TEST test)
 {
     switch (test)
     {
-    case NECRO_TEST_VM:        necro_test_vm();        break;
-    case NECRO_TEST_DVM:       necro_test_dvm();       break;
-    case NECRO_TEST_SYMTABLE:  necro_symtable_test();  break;
-    case NECRO_TEST_SLAB:      necro_test_slab();      break;
-    case NECRO_TEST_TREADMILL: necro_test_treadmill(); break;
-    case NECRO_TEST_LEXER:     necro_test_lexer();     break;
-    case NECRO_TEST_INTERN:    necro_test_intern();    break;
-    case NECRO_TEST_VAULT:     necro_vault_test();     break;
-    case NECRO_TEST_ARCHIVE:   necro_archive_test();   break;
-    case NECRO_TEST_REGION:    necro_region_test();    break;
-    case NECRO_TEST_INFER:     necro_test_infer();     break;
-    case NECRO_TEST_TYPE:      necro_test_type();      break;
+    case NECRO_TEST_VM:                necro_test_vm();                break;
+    case NECRO_TEST_DVM:               necro_test_dvm();               break;
+    case NECRO_TEST_SYMTABLE:          necro_symtable_test();          break;
+    case NECRO_TEST_SLAB:              necro_test_slab();              break;
+    case NECRO_TEST_TREADMILL:         necro_test_treadmill();         break;
+    case NECRO_TEST_LEXER:             necro_test_lexer();             break;
+    case NECRO_TEST_INTERN:            necro_test_intern();            break;
+    case NECRO_TEST_VAULT:             necro_vault_test();             break;
+    case NECRO_TEST_ARCHIVE:           necro_archive_test();           break;
+    case NECRO_TEST_REGION:            necro_region_test();            break;
+    case NECRO_TEST_INFER:             necro_test_infer();             break;
+    case NECRO_TEST_TYPE:              necro_test_type();              break;
+    case NECRO_TEST_ARENA_CHAIN_TABLE: necro_arena_chain_table_test(); break;
     case NECRO_TEST_ALL:
         necro_test_dvm();
         necro_symtable_test();
@@ -168,7 +170,8 @@ void necro_test(NECRO_TEST test)
         necro_region_test();
         necro_test_infer();
         necro_test_type();
+        necro_arena_chain_table_test();
         break;
-    default:                                           break;
+    default: break;
     }
 }

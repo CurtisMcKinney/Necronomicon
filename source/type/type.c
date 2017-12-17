@@ -41,18 +41,19 @@ NecroTypeEnv necro_create_type_env(size_t initial_size)
     };
 }
 
-NecroInfer necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtable, NecroPrimTypes prim_types)
+NecroInfer necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtable, NecroPrimTypes prim_types, struct NecroTypeClassEnv* type_class_env)
 {
 
     NecroInfer infer = (NecroInfer)
     {
-        .intern       = intern,
-        .arena        = necro_create_paged_arena(),
-        .env          = necro_create_type_env(1024),
-        .error        = necro_create_error(),
-        .highest_id   = symtable->count,
-        .symtable     = symtable,
-        .prim_types   = prim_types,
+        .intern         = intern,
+        .arena          = necro_create_paged_arena(),
+        .env            = necro_create_type_env(1024),
+        .error          = necro_create_error(),
+        .highest_id     = symtable->count,
+        .symtable       = symtable,
+        .prim_types     = prim_types,
+        .type_class_env = type_class_env,
     };
     necro_add_prim_type_sigs(prim_types, &infer);
     return infer;

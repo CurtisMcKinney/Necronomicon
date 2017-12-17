@@ -1,0 +1,17 @@
+class Show a where
+    show :: b -> [Char]
+
+class SemiGroup a where
+    append :: a -> a -> a
+
+class SemiGroup a => Monoid a where
+    mempty :: a
+
+data Maybe a = Just a | Nothing
+
+data IntList = IntList [Int]
+
+instance Monoid (Maybe a) where
+    append (Just x) _        = Just x
+    append _        (Just y) = Just y
+    append _        _        = Nothing

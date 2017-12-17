@@ -3815,6 +3815,54 @@ NecroAST_LocalPtr parse_instance_declaration_list(NecroParser* parser)
     return null_local_ptr;
 }
 
+NecroAST_LocalPtr parse_inst_constr(NecroParser* parser)
+{
+    if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return null_local_ptr;
+
+    NecroParser_Snapshot snapshot = snapshot_parser(parser);
+
+    // (
+    if (peek_token_type(parser) != NECRO_LEX_LEFT_PAREN)
+    {
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
+    }
+    consume_token(parser);
+
+    // tycon
+    NecroAST_LocalPtr tycon = parse_gtycon(parser, NECRO_CON_TYPE_VAR);
+    if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR || tycon == null_local_ptr)
+    {
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
+    }
+
+    // tyvar list
+    NecroAST_LocalPtr ty_var_list = parse_tyvar_list(parser);
+    if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    {
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
+    }
+
+    // )
+    if (peek_token_type(parser) != NECRO_LEX_RIGHT_PAREN)
+    {
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
+    }
+    consume_token(parser);
+
+    // Success!
+    NecroAST_LocalPtr ptr      = null_local_ptr;
+    NecroAST_Node*    node     = ast_alloc_node_local_ptr(parser, &ptr);
+    node->type                 = NECRO_AST_CONSTRUCTOR;
+    node->constructor.conid    = tycon;
+    node->constructor.arg_list = ty_var_list;
+    return ptr;
+}
+
 NecroAST_LocalPtr parse_inst(NecroParser* parser)
 {
     if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
@@ -3824,6 +3872,10 @@ NecroAST_LocalPtr parse_inst(NecroParser* parser)
 
     // gtycon
     NecroAST_LocalPtr ptr = parse_gtycon(parser, NECRO_CON_TYPE_VAR);
+    if (ptr != null_local_ptr || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return ptr;
+
+    ptr = parse_inst_constr(parser);
     if (ptr != null_local_ptr || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
         return ptr;
 

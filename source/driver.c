@@ -17,6 +17,7 @@
 #include "type/type.h"
 #include "type/infer.h"
 #include "type/prim.h"
+#include "type/type_class.h"
 #include "utility/hash_table.h"
 #include "driver.h"
 
@@ -123,22 +124,24 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     //=====================================================
     // Infer
     //=====================================================
-    if (compilation_phase == NECRO_PHASE_INFER)
+    NecroTypeClassEnv type_class_env = necro_create_type_class_env();
+    NecroInfer        infer          = necro_create_infer(&lexer.intern, &symtable, prim_types, &type_class_env);
+    necro_infer(&infer, ast_r.root);
+    necro_print_env_with_symtable(&symtable, &infer);
+    if (infer.error.return_code != NECRO_SUCCESS)
     {
-        NecroInfer infer = necro_create_infer(&lexer.intern, &symtable, prim_types);
-        necro_infer(&infer, ast_r.root);
-        necro_print_env_with_symtable(&symtable, &infer);
-        if (infer.error.return_code != NECRO_SUCCESS)
-        {
-            necro_print_error(&infer.error, input_string, "Type");
-            return;
-        }
+        necro_print_error(&infer.error, input_string, "Type");
+        return;
     }
+    if (compilation_phase == NECRO_PHASE_INFER)
+        return;
 
     //=====================================================
     // Cleaning up
     //=====================================================
     necro_announce_phase("Cleaning Up");
+    necro_destroy_infer(&infer);
+    necro_destroy_type_class_env(&type_class_env);
     destruct_parser(&parser);
     necro_destroy_lexer(&lexer);
     destruct_arena(&ast.arena);

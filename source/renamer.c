@@ -235,16 +235,23 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         renamer->should_free_type_declare = true;
         break;
     case NECRO_AST_TYPE_CLASS_DECLARATION:
-        rename_declare_go(input_node->type_class_declaration.context, renamer);
         rename_declare_go(input_node->type_class_declaration.tycls, renamer);
         rename_declare_go(input_node->type_class_declaration.tyvar, renamer);
+        renamer->should_free_type_declare = false;
+        rename_declare_go(input_node->type_class_declaration.context, renamer);
+        renamer->should_free_type_declare = true;
         rename_declare_go(input_node->type_class_declaration.declarations, renamer);
         break;
     case NECRO_AST_TYPE_CLASS_INSTANCE:
         rename_declare_go(input_node->type_class_instance.context, renamer);
         rename_declare_go(input_node->type_class_instance.qtycls, renamer);
         rename_declare_go(input_node->type_class_instance.inst, renamer);
-        renamer->current_class_instance_symbol = input_node->type_class_instance.inst->conid.symbol;
+        if (input_node->type_class_instance.inst->type == NECRO_AST_CONID)
+            renamer->current_class_instance_symbol = input_node->type_class_instance.inst->conid.symbol;
+        else if (input_node->type_class_instance.inst->type == NECRO_AST_CONSTRUCTOR)
+            renamer->current_class_instance_symbol = input_node->type_class_instance.inst->constructor.conid->conid.symbol;
+        else
+            assert(false);
         rename_declare_go(input_node->type_class_instance.declarations, renamer);
         renamer->current_class_instance_symbol = (NecroSymbol) { 0 };
         break;

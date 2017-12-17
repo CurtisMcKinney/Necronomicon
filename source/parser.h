@@ -55,19 +55,6 @@ typedef enum
     // NECRO_AST_MODULE,
 } NecroAST_NodeType;
 
-// typedef enum
-// {
-//     NECRO_SYM_VAR,
-//     NECRO_SYM_CONSTRUCTOR_DECLARATION,
-//     NECRO_SYM_PATTERN,
-//     NECRO_SYM_TYPE_DECLARATION,
-//     NECRO_SYM_TYPE,
-//     NECRO_SYM_TYPE_FREE_VAR,
-//     NECRO_SYM_TYPE_CLASS_FUNC_DECLARATION,
-//     NECRO_SYM_TYPE_CLASS_FUNC_INSTANCE,
-// } NECRO_SYMBOL_TYPE;
-// const char* symbol_type_string(NECRO_SYMBOL_TYPE symbol_type);
-
 //=====================================================
 // AST FunctionType
 //=====================================================

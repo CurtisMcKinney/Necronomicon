@@ -166,22 +166,24 @@ typedef struct
 //=====================================================
 // Infer
 //=====================================================
+struct NecroTypeClassEnv;
 struct NecroSymTable;
 typedef struct
 {
-    struct NecroSymTable* symtable;
-    NecroPrimTypes        prim_types;
-    NecroTypeEnv          env;
-    NecroPagedArena       arena;
-    NecroIntern*          intern;
-    NecroError            error;
-    size_t                highest_id;
+    struct NecroSymTable*     symtable;
+    NecroPrimTypes            prim_types;
+    struct NecroTypeClassEnv* type_class_env;
+    NecroTypeEnv              env;
+    NecroPagedArena           arena;
+    NecroIntern*              intern;
+    NecroError                error;
+    size_t                    highest_id;
 } NecroInfer;
 
 //=====================================================
 // API
 //=====================================================
-NecroInfer  necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtable, NecroPrimTypes prim_types);
+NecroInfer  necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtable, NecroPrimTypes prim_types, struct NecroTypeClassEnv* type_class_env);
 void        necro_destroy_infer(NecroInfer* infer);
 void        necro_reset_infer(NecroInfer* infer);
 bool        necro_is_infer_error(NecroInfer* infer);

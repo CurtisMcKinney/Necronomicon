@@ -13,9 +13,9 @@
 
 #define NECRO_CHAIN_TABLE_INITIAL_SIZE 512
 
-size_t hash(size_t input)
+size_t hash(uint64_t input)
 {
-    return input * 37;
+    return (size_t)(input * 37);
 }
 
 NecroArenaChainTable necro_create_arena_chain_table(size_t data_size)
@@ -93,7 +93,7 @@ void necro_arena_chain_table_grow(NecroArenaChainTable* table)
     free(prev_buckets);
 }
 
-void* necro_arena_chain_table_insert(NecroArenaChainTable* table, size_t key, void* data_to_be_copied_in)
+void* necro_arena_chain_table_insert(NecroArenaChainTable* table, uint64_t key, void* data_to_be_copied_in)
 {
     assert(table != NULL);
     if (table->count > table->size / 2)
@@ -122,7 +122,7 @@ void* necro_arena_chain_table_insert(NecroArenaChainTable* table, size_t key, vo
     return ((void*)(node + 1));
 }
 
-void* necro_arena_chain_table_get(NecroArenaChainTable* table, size_t key)
+void* necro_arena_chain_table_get(NecroArenaChainTable* table, uint64_t key)
 {
     assert(table != NULL);
     size_t               bucket = hash(key) & (table->size - 1);

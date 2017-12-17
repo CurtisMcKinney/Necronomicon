@@ -8,6 +8,7 @@
 #include <stdarg.h>
 #include "symtable.h"
 #include "prim.h"
+#include "type_class.h"
 #include "infer.h"
 
 #define NECRO_INFER_DEBUG           0
@@ -746,6 +747,40 @@ NecroType* necro_infer_right_hand_side(NecroInfer* infer, NecroNode* ast)
 }
 
 //=====================================================
+// Let
+//=====================================================
+NecroType* necro_infer_let_expression(NecroInfer* infer, NecroNode* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_LET_EXPRESSION);
+    if (necro_is_infer_error(infer)) return NULL;
+    necro_infer_go(infer, ast->let_expression.declarations);
+    return necro_infer_go(infer, ast->let_expression.expression);
+}
+
+//=====================================================
+// Arithmetic Sequence
+//=====================================================
+NecroType* necro_infer_arithmetic_sequence(NecroInfer* infer, NecroNode* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_ARITHMETIC_SEQUENCE);
+    if (necro_is_infer_error(infer)) return NULL;
+    NecroType* type = necro_symtable_get(infer->symtable, infer->prim_types.int_type.id)->type;
+    if (ast->arithmetic_sequence.from != NULL)
+        necro_unify(infer, type, necro_infer_go(infer, ast->arithmetic_sequence.from), ast->scope);
+    if (ast->arithmetic_sequence.then != NULL)
+        necro_unify(infer, type, necro_infer_go(infer, ast->arithmetic_sequence.then), ast->scope);
+    if (ast->arithmetic_sequence.to != NULL)
+        necro_unify(infer, type, necro_infer_go(infer, ast->arithmetic_sequence.to), ast->scope);
+    NecroType* aseq = necro_make_con_1(infer, infer->prim_types.list_type.symbol, type);
+    aseq->source_loc = ast->source_loc;
+    return aseq;
+}
+
+//=====================================================
 // Declaration
 //=====================================================
 NecroType* necro_infer_declaration(NecroInfer* infer, NecroNode* ast)
@@ -863,15 +898,30 @@ NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroNode* ast)
     NecroNode* current_decl = ast;
 
     //----------------------------------------------------
-    // Pass -1, add type signatures
+    // Pass -2, Data Declarations
+    current_decl = ast;
     while (current_decl != NULL)
     {
         assert(current_decl->type == NECRO_AST_TOP_DECL);
-        switch (current_decl->top_declaration.declaration->type)
+        if (current_decl->top_declaration.declaration->type == NECRO_AST_DATA_DECLARATION)
         {
-        case NECRO_AST_DATA_DECLARATION: necro_infer_data_declaration(infer, current_decl->top_declaration.declaration); break;
-        default: break;
-        };
+            necro_infer_data_declaration(infer, current_decl->top_declaration.declaration);
+        }
+        if (necro_is_infer_error(infer)) return NULL;
+        current_decl = current_decl->top_declaration.next_top_decl;
+    }
+    if (necro_is_infer_error(infer)) return NULL;
+
+    //----------------------------------------------------
+    // Pass -1, Type Class Declarations
+    current_decl = ast;
+    while (current_decl != NULL)
+    {
+        assert(current_decl->type == NECRO_AST_TOP_DECL);
+        if (current_decl->top_declaration.declaration->type == NECRO_AST_TYPE_CLASS_DECLARATION)
+        {
+            necro_create_type_class_declaration(infer, (NecroTypeClassEnv*)infer->type_class_env, current_decl->top_declaration.declaration);
+        }
         if (necro_is_infer_error(infer)) return NULL;
         current_decl = current_decl->top_declaration.next_top_decl;
     }
@@ -921,6 +971,7 @@ NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroNode* ast)
             break;
         case NECRO_AST_TYPE_SIGNATURE: break; // Do Nothing
         case NECRO_AST_DATA_DECLARATION: break; // Do Nothing
+        case NECRO_AST_TYPE_CLASS_DECLARATION: break; // Do Nothing
         default: return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Unknown or unimplemented declaration type: %d", current_decl->top_declaration.declaration->type);
         }
         if (necro_is_infer_error(infer)) return NULL;
@@ -966,48 +1017,16 @@ NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroNode* ast)
             break;
         case NECRO_AST_TYPE_SIGNATURE: break; // Do Nothing
         case NECRO_AST_DATA_DECLARATION: break; // Do Nothing
+        case NECRO_AST_TYPE_CLASS_DECLARATION: break; // Do Nothing
         default: return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Unknown or unimplemented declaration type: %d", current_decl->top_declaration.declaration->type);
         }
         if (necro_is_infer_error(infer)) return NULL;
         current_decl = current_decl->top_declaration.next_top_decl;
     }
     if (necro_is_infer_error(infer)) return NULL;
+
     // Declarations themselves have no types
     return NULL;
-}
-
-//=====================================================
-// Let
-//=====================================================
-NecroType* necro_infer_let_expression(NecroInfer* infer, NecroNode* ast)
-{
-    assert(infer != NULL);
-    assert(ast != NULL);
-    assert(ast->type == NECRO_AST_LET_EXPRESSION);
-    if (necro_is_infer_error(infer)) return NULL;
-    necro_infer_go(infer, ast->let_expression.declarations);
-    return necro_infer_go(infer, ast->let_expression.expression);
-}
-
-//=====================================================
-// Arithmetic Sequence
-//=====================================================
-NecroType* necro_infer_arithmetic_sequence(NecroInfer* infer, NecroNode* ast)
-{
-    assert(infer != NULL);
-    assert(ast != NULL);
-    assert(ast->type == NECRO_AST_ARITHMETIC_SEQUENCE);
-    if (necro_is_infer_error(infer)) return NULL;
-    NecroType* type = necro_symtable_get(infer->symtable, infer->prim_types.int_type.id)->type;
-    if (ast->arithmetic_sequence.from != NULL)
-        necro_unify(infer, type, necro_infer_go(infer, ast->arithmetic_sequence.from), ast->scope);
-    if (ast->arithmetic_sequence.then != NULL)
-        necro_unify(infer, type, necro_infer_go(infer, ast->arithmetic_sequence.then), ast->scope);
-    if (ast->arithmetic_sequence.to != NULL)
-        necro_unify(infer, type, necro_infer_go(infer, ast->arithmetic_sequence.to), ast->scope);
-    NecroType* aseq = necro_make_con_1(infer, infer->prim_types.list_type.symbol, type);
-    aseq->source_loc = ast->source_loc;
-    return aseq;
 }
 
 //=====================================================
@@ -1025,34 +1044,34 @@ NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast)
         infer->error.source_loc = ast->source_loc;
     switch (ast->type)
     {
-    case NECRO_AST_CONSTANT:            return necro_infer_constant(infer, ast);
-    case NECRO_AST_VARIABLE:            return necro_infer_var(infer, ast);
-    case NECRO_AST_CONID:               return necro_infer_conid(infer, ast);
-    case NECRO_AST_FUNCTION_EXPRESSION: return necro_infer_fexpr(infer, ast);
-    case NECRO_AST_BIN_OP:              return necro_infer_bin_op(infer, ast);
-    case NECRO_AST_IF_THEN_ELSE:        return necro_infer_if_then_else(infer, ast);
-    case NECRO_AST_SIMPLE_ASSIGNMENT:   return necro_infer_simple_assignment(infer, ast);
-    case NECRO_AST_APATS_ASSIGNMENT:    return necro_infer_apats_assignment(infer, ast);
-    case NECRO_AST_RIGHT_HAND_SIDE:     return necro_infer_right_hand_side(infer, ast);
-    case NECRO_AST_LAMBDA:              return necro_infer_lambda(infer, ast);
-    case NECRO_AST_LET_EXPRESSION:      return necro_infer_let_expression(infer, ast);
-    case NECRO_AST_DECL:                return necro_infer_declaration(infer, ast);
-    case NECRO_AST_TOP_DECL:            return necro_infer_top_declaration(infer, ast);
-    case NECRO_AST_TUPLE:               return necro_infer_tuple(infer, ast);
-    case NECRO_AST_EXPRESSION_LIST:     return necro_infer_expression_list(infer, ast);
-    case NECRO_AST_CASE:                return necro_infer_case(infer, ast);
-    case NECRO_AST_WILDCARD:            return necro_infer_wildcard(infer, ast);
-    case NECRO_AST_ARITHMETIC_SEQUENCE: return necro_infer_arithmetic_sequence(infer, ast);
-    case NECRO_AST_TYPE_SIGNATURE:      return NULL;
-    case NECRO_AST_DATA_DECLARATION:    return NULL;
-    default:                            return necro_infer_ast_error(infer, NULL, ast, "AST type %d has not been implemented for type inference", ast->type);
+    case NECRO_AST_CONSTANT:               return necro_infer_constant(infer, ast);
+    case NECRO_AST_VARIABLE:               return necro_infer_var(infer, ast);
+    case NECRO_AST_CONID:                  return necro_infer_conid(infer, ast);
+    case NECRO_AST_FUNCTION_EXPRESSION:    return necro_infer_fexpr(infer, ast);
+    case NECRO_AST_BIN_OP:                 return necro_infer_bin_op(infer, ast);
+    case NECRO_AST_IF_THEN_ELSE:           return necro_infer_if_then_else(infer, ast);
+    case NECRO_AST_SIMPLE_ASSIGNMENT:      return necro_infer_simple_assignment(infer, ast);
+    case NECRO_AST_APATS_ASSIGNMENT:       return necro_infer_apats_assignment(infer, ast);
+    case NECRO_AST_RIGHT_HAND_SIDE:        return necro_infer_right_hand_side(infer, ast);
+    case NECRO_AST_LAMBDA:                 return necro_infer_lambda(infer, ast);
+    case NECRO_AST_LET_EXPRESSION:         return necro_infer_let_expression(infer, ast);
+    case NECRO_AST_DECL:                   return necro_infer_declaration(infer, ast);
+    case NECRO_AST_TOP_DECL:               return necro_infer_top_declaration(infer, ast);
+    case NECRO_AST_TUPLE:                  return necro_infer_tuple(infer, ast);
+    case NECRO_AST_EXPRESSION_LIST:        return necro_infer_expression_list(infer, ast);
+    case NECRO_AST_CASE:                   return necro_infer_case(infer, ast);
+    case NECRO_AST_WILDCARD:               return necro_infer_wildcard(infer, ast);
+    case NECRO_AST_ARITHMETIC_SEQUENCE:    return necro_infer_arithmetic_sequence(infer, ast);
+    case NECRO_AST_TYPE_SIGNATURE:         return NULL;
+    case NECRO_AST_DATA_DECLARATION:       return NULL;
+    case NECRO_AST_TYPE_CLASS_DECLARATION: return NULL;
+    default:                               return necro_infer_ast_error(infer, NULL, ast, "AST type %d has not been implemented for type inference", ast->type);
     }
     return NULL;
 }
 
 NecroType* necro_infer(NecroInfer* infer, NecroNode* ast)
 {
-    TRACE_INFER("necro_infer\n");
     NecroType* result = necro_infer_go(infer, ast);
     necro_check_type_sanity(infer, result);
     if (infer->error.return_code != NECRO_SUCCESS)

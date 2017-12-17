@@ -10,12 +10,14 @@
 #include <stdbool.h>
 #include "utility.h"
 #include "type.h"
+#include "type_class.h"
 #include "ast.h"
 
 typedef NecroAST_Node_Reified NecroNode;
 NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast);
-NecroType* necro_infer(NecroInfer* infer, NecroAST_Node_Reified* ast);
+NecroType* necro_infer(NecroInfer* infer, NecroNode* ast);
 NecroType* necro_infer_ast_error(NecroInfer* infer, NecroType* type, NecroNode* ast, const char* error_message, ...);
+NecroType* necro_infer_type_sig(NecroInfer* infer, NecroNode* ast);
 
 void necro_test_infer();
 

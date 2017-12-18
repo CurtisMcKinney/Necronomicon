@@ -12,6 +12,12 @@
 #include "intern.h"
 #include "ast.h"
 
+// Forward Declarations
+struct NecroType;
+struct NecroTypeClassEnv;
+struct NecroSymTable;
+struct NecroTypeClassContext;
+
 //=====================================================
 //  Var / Con
 //=====================================================
@@ -30,7 +36,6 @@ typedef struct
 //=====================================================
 // NecorType
 //=====================================================
-struct NecroType;
 typedef enum
 {
     NECRO_TYPE_VAR,
@@ -44,8 +49,9 @@ typedef enum
 
 typedef struct
 {
-    NecroVar var;
-    bool     is_rigid;
+    NecroVar                      var;
+    bool                          is_rigid;
+    struct NecroTypeClassContext* context;
 } NecroTypeVar;
 
 typedef struct
@@ -59,6 +65,7 @@ typedef struct
     NecroCon          con;
     struct NecroType* args;
     size_t            arity;
+    bool              is_class;
 } NecroTypeCon;
 
 typedef struct
@@ -162,12 +169,9 @@ typedef struct
     NecroCon        bool_type;
 } NecroPrimTypes;
 
-
 //=====================================================
 // Infer
 //=====================================================
-struct NecroTypeClassEnv;
-struct NecroSymTable;
 typedef struct
 {
     struct NecroSymTable*     symtable;

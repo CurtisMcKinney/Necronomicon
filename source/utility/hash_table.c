@@ -122,6 +122,19 @@ void* necro_arena_chain_table_insert(NecroArenaChainTable* table, uint64_t key, 
     return ((void*)(node + 1));
 }
 
+void necro_arena_chain_table_iterate(NecroArenaChainTable* table, void (f)(void*, void*), void* extras)
+{
+    for (size_t i = 0; i < table->size; ++i)
+    {
+        NecroChainTableNode* curr = table->buckets[i].next;
+        while (curr != NULL)
+        {
+            f(((void*)(curr + 1)), extras);
+            curr = curr->next;
+        }
+    }
+}
+
 void* necro_arena_chain_table_get(NecroArenaChainTable* table, uint64_t key)
 {
     assert(table != NULL);

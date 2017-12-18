@@ -127,9 +127,10 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
     case NECRO_AST_VARIABLE:
         switch (input_node->variable.var_type)
         {
-        case NECRO_VAR_VAR:         break;
-        case NECRO_VAR_SIG:         input_node->scope->last_introduced_id = (NecroID) { 0 }; break;
-        case NECRO_VAR_DECLARATION: try_create_name(renamer, input_node, input_node->scope, &input_node->variable.id, input_node->variable.symbol); break;
+        case NECRO_VAR_VAR:                  break;
+        case NECRO_VAR_SIG:                  input_node->scope->last_introduced_id = (NecroID) { 0 }; break;
+        case NECRO_VAR_DECLARATION:          try_create_name(renamer, input_node, input_node->scope, &input_node->variable.id, input_node->variable.symbol); break;
+        case NECRO_VAR_TYPE_VAR_DECLARATION: try_create_name(renamer, input_node, input_node->scope, &input_node->variable.id, input_node->variable.symbol); break;
         case NECRO_VAR_CLASS_SIG:
             if (try_create_name(renamer, input_node, input_node->scope, &input_node->variable.id, input_node->variable.symbol))
             {
@@ -146,6 +147,7 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
                 }
             }
             break;
+        // FIIIIIXXXXXXXX
         case NECRO_VAR_TYPE_FREE_VAR:
         {
             NecroID id = necro_scope_find(input_node->scope, input_node->variable.symbol);
@@ -157,6 +159,7 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
                 necro_error(&renamer->error, input_node->source_loc, "Not in scope: \'%s\'", necro_intern_get_string(renamer->scoped_symtable->global_table->intern, input_node->variable.symbol));
             break;
         }
+        default: assert(false);
         }
         break;
 
@@ -243,9 +246,11 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         rename_declare_go(input_node->type_class_declaration.declarations, renamer);
         break;
     case NECRO_AST_TYPE_CLASS_INSTANCE:
-        rename_declare_go(input_node->type_class_instance.context, renamer);
         rename_declare_go(input_node->type_class_instance.qtycls, renamer);
         rename_declare_go(input_node->type_class_instance.inst, renamer);
+        renamer->should_free_type_declare = false;
+        rename_declare_go(input_node->type_class_instance.context, renamer);
+        renamer->should_free_type_declare = true;
         if (input_node->type_class_instance.inst->type == NECRO_AST_CONID)
             renamer->current_class_instance_symbol = input_node->type_class_instance.inst->conid.symbol;
         else if (input_node->type_class_instance.inst->type == NECRO_AST_CONSTRUCTOR)
@@ -363,10 +368,11 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
                 }
             }
             break;
-        case NECRO_VAR_DECLARATION:              break;
-        case NECRO_VAR_TYPE_FREE_VAR:            break;
-        // TODO: Not Implemented
-        case NECRO_VAR_CLASS_SIG:                break;
+        case NECRO_VAR_DECLARATION:          break;
+        case NECRO_VAR_TYPE_VAR_DECLARATION: break;
+        case NECRO_VAR_TYPE_FREE_VAR:        break;
+        case NECRO_VAR_CLASS_SIG:            break;
+        default: assert(false);
         }
         break;
 

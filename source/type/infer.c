@@ -898,7 +898,7 @@ NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroNode* ast)
     NecroNode* current_decl = ast;
 
     //----------------------------------------------------
-    // Pass -2, Data Declarations
+    // Pass -4, Data Declarations
     current_decl = ast;
     while (current_decl != NULL)
     {
@@ -913,14 +913,44 @@ NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroNode* ast)
     if (necro_is_infer_error(infer)) return NULL;
 
     //----------------------------------------------------
-    // Pass -1, Type Class Declarations
+    // Pass -3, Type Class Declarations Pass 1
     current_decl = ast;
     while (current_decl != NULL)
     {
         assert(current_decl->type == NECRO_AST_TOP_DECL);
         if (current_decl->top_declaration.declaration->type == NECRO_AST_TYPE_CLASS_DECLARATION)
         {
-            necro_create_type_class_declaration(infer, (NecroTypeClassEnv*)infer->type_class_env, current_decl->top_declaration.declaration);
+            necro_create_type_class_declaration_pass1(infer, infer->type_class_env, current_decl->top_declaration.declaration);
+        }
+        if (necro_is_infer_error(infer)) return NULL;
+        current_decl = current_decl->top_declaration.next_top_decl;
+    }
+    if (necro_is_infer_error(infer)) return NULL;
+
+    //----------------------------------------------------
+    // Pass -2, Type Class Declarations Pass 2
+    current_decl = ast;
+    while (current_decl != NULL)
+    {
+        assert(current_decl->type == NECRO_AST_TOP_DECL);
+        if (current_decl->top_declaration.declaration->type == NECRO_AST_TYPE_CLASS_DECLARATION)
+        {
+            necro_create_type_class_declaration_pass2(infer, infer->type_class_env, current_decl->top_declaration.declaration);
+        }
+        if (necro_is_infer_error(infer)) return NULL;
+        current_decl = current_decl->top_declaration.next_top_decl;
+    }
+    if (necro_is_infer_error(infer)) return NULL;
+
+    //----------------------------------------------------
+    // Pass -1, Type Class Instance
+    current_decl = ast;
+    while (current_decl != NULL)
+    {
+        assert(current_decl->type == NECRO_AST_TOP_DECL);
+        if (current_decl->top_declaration.declaration->type == NECRO_AST_TYPE_CLASS_INSTANCE)
+        {
+            necro_create_type_class_instance(infer, (NecroTypeClassEnv*)infer->type_class_env, current_decl->top_declaration.declaration);
         }
         if (necro_is_infer_error(infer)) return NULL;
         current_decl = current_decl->top_declaration.next_top_decl;
@@ -972,6 +1002,7 @@ NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroNode* ast)
         case NECRO_AST_TYPE_SIGNATURE: break; // Do Nothing
         case NECRO_AST_DATA_DECLARATION: break; // Do Nothing
         case NECRO_AST_TYPE_CLASS_DECLARATION: break; // Do Nothing
+        case NECRO_AST_TYPE_CLASS_INSTANCE: break; // Do Nothing
         default: return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Unknown or unimplemented declaration type: %d", current_decl->top_declaration.declaration->type);
         }
         if (necro_is_infer_error(infer)) return NULL;
@@ -1018,6 +1049,7 @@ NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroNode* ast)
         case NECRO_AST_TYPE_SIGNATURE: break; // Do Nothing
         case NECRO_AST_DATA_DECLARATION: break; // Do Nothing
         case NECRO_AST_TYPE_CLASS_DECLARATION: break; // Do Nothing
+        case NECRO_AST_TYPE_CLASS_INSTANCE: break; // Do Nothing
         default: return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Unknown or unimplemented declaration type: %d", current_decl->top_declaration.declaration->type);
         }
         if (necro_is_infer_error(infer)) return NULL;
@@ -1065,6 +1097,7 @@ NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_TYPE_SIGNATURE:         return NULL;
     case NECRO_AST_DATA_DECLARATION:       return NULL;
     case NECRO_AST_TYPE_CLASS_DECLARATION: return NULL;
+    case NECRO_AST_TYPE_CLASS_INSTANCE:    return NULL;
     default:                               return necro_infer_ast_error(infer, NULL, ast, "AST type %d has not been implemented for type inference", ast->type);
     }
     return NULL;

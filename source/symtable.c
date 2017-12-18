@@ -50,6 +50,7 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
         .local_var_num = 0,
         .source_loc    = source_loc,
         .scope         = scope,
+        .is_method     = false,
     };
 }
 
@@ -127,6 +128,12 @@ void necro_symtable_info_print(NecroSymbolInfo info, NecroIntern* intern, size_t
         necro_print_type_sig(info.type, intern);
         printf("\n");
     }
+
+    print_white_space(whitespace + 4);
+    if (info.is_method)
+        printf("is_method:  true\n");
+    else
+        printf("is_method:  false\n");
 
     print_white_space(whitespace);
     printf("}\n");
@@ -408,11 +415,12 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_R
     case NECRO_AST_VARIABLE:
         switch (input_node->variable.var_type)
         {
-        case NECRO_VAR_VAR:           break;
-        case NECRO_VAR_DECLARATION:   break;
-        case NECRO_VAR_TYPE_FREE_VAR: input_node->scope = scoped_symtable->current_type_scope; break;
-        case NECRO_VAR_SIG:           break;
-        case NECRO_VAR_CLASS_SIG:     break;
+        case NECRO_VAR_VAR:                  break;
+        case NECRO_VAR_DECLARATION:          break;
+        case NECRO_VAR_TYPE_FREE_VAR:        input_node->scope = scoped_symtable->current_type_scope; break;
+        case NECRO_VAR_TYPE_VAR_DECLARATION: input_node->scope = scoped_symtable->current_type_scope; break;
+        case NECRO_VAR_SIG:                  break;
+        case NECRO_VAR_CLASS_SIG:            break;
         }
         break;
 
@@ -645,7 +653,7 @@ void necro_print_env_with_symtable(NecroSymTable* table, NecroInfer* infer)
         necro_print_type_sig(infer->env.data[i], infer->intern);
     }
     printf("]\n");
-    printf("Total mem usage: %f mb", ((float) (sizeof(NecroSymbolInfo) * table->count + sizeof(NecroType) * infer->env.capacity) * 8) / 1000000.0);
+    printf("Total mem usage: %f mb\n", ((float) (sizeof(NecroSymbolInfo) * table->count + sizeof(NecroType) * infer->env.capacity) * 8) / 1000000.0);
 }
 
 //=====================================================

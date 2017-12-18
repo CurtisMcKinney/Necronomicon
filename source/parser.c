@@ -3090,7 +3090,7 @@ NecroAST_LocalPtr parse_tyvar_list(NecroParser* parser)
 
     // tyvar
     // NecroAST_LocalPtr tyvar = parse_tyvar(parser, NECRO_VAR_DECLARATION);
-    NecroAST_LocalPtr tyvar = parse_tyvar(parser, NECRO_VAR_TYPE_FREE_VAR);
+    NecroAST_LocalPtr tyvar = parse_tyvar(parser, NECRO_VAR_TYPE_VAR_DECLARATION);
     if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
         return null_local_ptr;
     if (tyvar == null_local_ptr)
@@ -3278,7 +3278,7 @@ NecroAST_LocalPtr parse_gtycon(NecroParser* parser, NECRO_CON_TYPE con_type)
     // []
     else if (peek_token_type(parser) == NECRO_LEX_LEFT_BRACKET)
     {
-        NecroSymbol symbol = peek_token(parser)->symbol;
+        // NecroSymbol symbol = peek_token(parser)->symbol;
         consume_token(parser);
         if (peek_token_type(parser) != NECRO_LEX_RIGHT_BRACKET)
         {
@@ -3288,7 +3288,7 @@ NecroAST_LocalPtr parse_gtycon(NecroParser* parser, NECRO_CON_TYPE con_type)
         consume_token(parser);
         NecroAST_Node* type_con_node  = ast_alloc_node_local_ptr(parser, &type_con_local_ptr);
         type_con_node->type           = NECRO_AST_CONID;
-        type_con_node->conid.symbol   = symbol;
+        type_con_node->conid.symbol   = necro_intern_string(parser->intern, "[]");
         type_con_node->conid.con_type = con_type;
     }
     // Constructor
@@ -3889,12 +3889,81 @@ NecroAST_LocalPtr parse_inst(NecroParser* parser)
             if (peek_token_type(parser) == NECRO_LEX_RIGHT_BRACKET)
             {
                 consume_token(parser);
-                return ptr;
+                NecroAST_LocalPtr con_ptr  = null_local_ptr;
+                NecroAST_Node*    con_node = ast_alloc_node_local_ptr(parser, &con_ptr);
+                con_node->type             = NECRO_AST_CONID;
+                con_node->conid.symbol     = necro_intern_string(parser->intern, "[]");
+                con_node->conid.con_type   = NECRO_CON_TYPE_VAR;
+
+                NecroAST_LocalPtr list_ptr = null_local_ptr;
+                NecroAST_Node*    node     = ast_alloc_node_local_ptr(parser, &list_ptr);
+                node->type                 = NECRO_AST_CONSTRUCTOR;
+                node->constructor.conid    = con_ptr;
+                node->constructor.arg_list = ptr;
+                return list_ptr;
             }
         }
         restore_parser(parser, snapshot);
         ptr = null_local_ptr;
     }
+    if (ptr != null_local_ptr || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return ptr;
+
+    // TODO: Finish
+    // // (a -> b)
+    // if (peek_token_type(parser) == NECRO_LEX_LEFT_PAREN)
+    // {
+    //     consume_token(parser);
+    //     NecroAST_LocalPtr ty_var_1_ptr = parse_tyvar(parser, NECRO_VAR_TYPE_VAR_DECLARATION);
+    //     if (ty_var_1_ptr == null_local_ptr)
+    //     {
+    //         restore_parser(parser, snapshot);
+    //         return null_local_ptr;
+    //     }
+    //     if (peek_token_type(parser) != NECRO_LEX_RIGHT_ARROW)
+    //     {
+    //         restore_parser(parser, snapshot);
+    //         return null_local_ptr;
+    //     }
+    //     consume_token(parser);
+    //     NecroAST_LocalPtr ty_var_2_ptr = parse_tyvar(parser, NECRO_VAR_TYPE_VAR_DECLARATION);
+    //     if (ty_var_2_ptr == null_local_ptr)
+    //     {
+    //         restore_parser(parser, snapshot);
+    //         return null_local_ptr;
+    //     }
+    //     if (peek_token_type(parser) != NECRO_LEX_RIGHT_PAREN)
+    //     {
+    //         restore_parser(parser, snapshot);
+    //         return null_local_ptr;
+    //     }
+    //     consume_token(parser);
+
+    //     NecroAST_LocalPtr con_ptr  = null_local_ptr;
+    //     NecroAST_Node*    con_node = ast_alloc_node_local_ptr(parser, &con_ptr);
+    //     con_node->type             = NECRO_AST_CONID;
+    //     con_node->conid.symbol     = necro_intern_string(parser->intern, "(->)");
+    //     con_node->conid.con_type   = NECRO_CON_TYPE_DECLARATION;
+
+    //     NecroAST_LocalPtr list2_ptr  = null_local_ptr;
+    //     NecroAST_Node*    list2_node = ast_alloc_node_local_ptr(parser, &list2_ptr);
+    //     list2_node->type             = NECRO_AST_LIST_NODE;
+    //     list2_node->list.item        = ty_var_2_ptr;
+    //     list2_node->list.next_item   = null_local_ptr;
+
+    //     NecroAST_LocalPtr list1_ptr  = null_local_ptr;
+    //     NecroAST_Node*    list1_node = ast_alloc_node_local_ptr(parser, &list1_ptr);
+    //     list1_node->type             = NECRO_AST_LIST_NODE;
+    //     list1_node->list.item        = ty_var_1_ptr;
+    //     list2_node->list.next_item   = list2_ptr;
+
+    //     NecroAST_LocalPtr arr_ptr  = null_local_ptr;
+    //     NecroAST_Node*    node     = ast_alloc_node_local_ptr(parser, &arr_ptr);
+    //     node->type                 = NECRO_AST_CONSTRUCTOR;
+    //     node->constructor.conid    = con_ptr;
+    //     node->constructor.arg_list = list1_ptr;
+    //     return arr_ptr;
+    // }
 
     return ptr;
 }

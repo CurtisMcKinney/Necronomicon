@@ -36,6 +36,7 @@ typedef struct
     struct NecroScope*     scope;
     NecroAST_Node_Reified* optional_type_signature;
     NecroType*             type;
+    bool                   is_method;
 } NecroSymbolInfo;
 
 typedef struct NecroSymTable

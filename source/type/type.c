@@ -8,6 +8,7 @@
 #include <stdarg.h>
 #include "symtable.h"
 #include "prim.h"
+#include "type_class.h"
 #include "type.h"
 
 // TODO / NOTE:
@@ -145,7 +146,8 @@ NecroType* necro_create_type_var(NecroInfer* infer, NecroVar var)
     type->var       = (NecroTypeVar)
     {
         .var        = var,
-        .is_rigid   = false
+        .is_rigid   = false,
+        .context    = NULL
     };
     return type;
 }
@@ -180,9 +182,10 @@ NecroType* necro_create_type_con(NecroInfer* infer, NecroCon con, NecroType* arg
     type->type      = NECRO_TYPE_CON;
     type->con       = (NecroTypeCon)
     {
-        .con   = con,
-        .args  = args,
-        .arity = arity
+        .con      = con,
+        .args     = args,
+        .arity    = arity,
+        .is_class = false,
     };
     return type;
 }
@@ -432,78 +435,6 @@ bool necro_is_bound_in_scope(NecroInfer* infer, NecroType* type, NecroScope* sco
 //=====================================================
 // Unify
 //=====================================================
-// bool necro_occurs_with_name(NecroInfer* infer, NecroID name, NecroType* type)
-// {
-//     if (type == NULL)
-//         return false;
-//     switch (type->type)
-//     {
-//     case NECRO_TYPE_VAR:
-//     {
-//         NecroType* prev = type;
-//         while (type != NULL && type->type == NECRO_TYPE_VAR)
-//         {
-//             if (type->var.var.id.id == name.id)
-//                 return true;
-//             prev = type;
-//             type = necro_env_get(infer, type->var.var);
-//         }
-//         if (type == NULL)
-//             type = prev;
-//         if (type->type == NECRO_TYPE_VAR)
-//             return false;
-//         else
-//             return necro_occurs_with_name(infer, name, type);
-//     }
-//     case NECRO_TYPE_APP:  return necro_occurs_with_name(infer, name, type->app.type1) || necro_occurs_with_name(infer, name, type->app.type2);
-//     case NECRO_TYPE_FUN:  return necro_occurs_with_name(infer, name, type->fun.type1) || necro_occurs_with_name(infer, name, type->fun.type2);
-//     // case NECRO_TYPE_CON:  return type->con.con.symbol.id == name.id         || necro_occurs(infer, name, type->con.args);
-//     // No occurs checks on constructors?!?!?!
-//     case NECRO_TYPE_CON:  return necro_occurs_with_name(infer, name, type->con.args);
-//     case NECRO_TYPE_LIST: return necro_occurs_with_name(infer, name, type->list.item) || necro_occurs_with_name(infer, name, type->list.next);
-//     case NECRO_TYPE_FOR:  return necro_infer_error(infer, type, "Found polytype in occurs check!");
-//     default:              return necro_infer_error(infer, type, "Compiler bug: Unrecognized type: %d.", type->type);
-//     }
-// }
-
-// bool necro_occurs(NecroInfer* infer, NecroType* var, NecroType* type)
-// {
-//     assert(infer != NULL);
-//     assert(var != NULL);
-//     assert(var->type == NECRO_TYPE_VAR);
-//     if (type == NULL)
-//         return false;
-//     NecroType* current_var = var;
-//     while (current_var != NULL && current_var->type == NECRO_TYPE_VAR)
-//     {
-//         if (necro_occurs_with_name(infer, current_var->var.var.id, type))
-//             return true;
-//         current_var = necro_env_get(infer, current_var->var.var);
-//     }
-//     return false;
-// }
-
-bool necro_occurs(NecroInfer* infer, NecroType* type_var, NecroType* type)
-{
-    if (type == NULL)
-        return false;
-    NecroVar name = type_var->var.var;
-    type          = necro_find(infer, type);
-    switch (type->type)
-    {
-    case NECRO_TYPE_VAR:  return name.id.id == type->var.var.id.id;
-    case NECRO_TYPE_APP:  return necro_occurs(infer, type_var, type->app.type1) || necro_occurs(infer, type_var, type->app.type2);
-    case NECRO_TYPE_FUN:  return necro_occurs(infer, type_var, type->fun.type1) || necro_occurs(infer, type_var, type->fun.type2);
-    // case NECRO_TYPE_CON:  return type->con.con.symbol.id == name.id         || necro_occurs(infer, name, type->con.args);
-    // No occurs checks on constructors?!?!?!
-    case NECRO_TYPE_CON:  return necro_occurs(infer, type_var, type->con.args);
-    case NECRO_TYPE_LIST: return necro_occurs(infer, type_var, type->list.item) || necro_occurs(infer, type_var, type->list.next);
-    case NECRO_TYPE_FOR:  return necro_infer_error(infer, type, "Found polytype in occurs check!");
-    default:              return necro_infer_error(infer, type, "Compiler bug: Unrecognized type: %d.", type->type);
-    }
-}
-
-// TODO: Type to string function
 void necro_rigid_type_variable_error(NecroInfer* infer, NecroVar type_var, NecroType* type)
 {
     if (necro_is_infer_error(infer))
@@ -521,6 +452,114 @@ void necro_rigid_type_variable_error(NecroInfer* infer, NecroVar type_var, Necro
         assert(false);
     const char* var_name = necro_id_as_character_string(infer, type_var.id);
     necro_infer_error(infer, type, "Couldn't match type \'%s\' with type \'%s\'.\n\'%s\' is a rigid type variable bound by a type signature.", var_name, type_name, var_name);
+}
+
+void necro_type_is_not_instance_error(NecroInfer* infer, NecroType* type, NecroTypeClassContext* type_class)
+{
+    if (necro_is_infer_error(infer))
+        return;
+    necro_infer_error(infer, type, "\'%s\' is not an instance of class \'%s\'", necro_intern_get_string(infer->intern, type->con.con.symbol), necro_intern_get_string(infer->intern, type_class->type_class_name.symbol));
+}
+
+void necro_occurs_error(NecroInfer* infer, NecroVar type_var, NecroType* type)
+{
+    if (necro_is_infer_error(infer))
+        return;
+    necro_infer_error(infer, type, "Occurs check error, cannot construct infinite type: %s ~ ", necro_id_as_character_string(infer, type_var.id));
+    necro_snprintf_type_sig(type, infer->intern, infer->error.error_message, NECRO_MAX_ERROR_MESSAGE_LENGTH);
+}
+
+bool necro_occurs(NecroInfer* infer, NecroType* type_var, NecroType* type)
+{
+    if (type == NULL)
+        return false;
+    NecroVar name = type_var->var.var;
+    type          = necro_find(infer, type);
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR:
+        if (name.id.id == type->var.var.id.id)
+        {
+            necro_occurs_error(infer, type_var->var.var, type);
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    case NECRO_TYPE_APP:  return necro_occurs(infer, type_var, type->app.type1) || necro_occurs(infer, type_var, type->app.type2);
+    case NECRO_TYPE_FUN:  return necro_occurs(infer, type_var, type->fun.type1) || necro_occurs(infer, type_var, type->fun.type2);
+    // case NECRO_TYPE_CON:  return type->con.con.symbol.id == name.id         || necro_occurs(infer, name, type->con.args);
+    // No occurs checks on constructors?!?!?!
+    case NECRO_TYPE_CON:  return necro_occurs(infer, type_var, type->con.args);
+    case NECRO_TYPE_LIST: return necro_occurs(infer, type_var, type->list.item) || necro_occurs(infer, type_var, type->list.next);
+    case NECRO_TYPE_FOR:  return necro_infer_error(infer, type, "Found polytype in occurs check!");
+    default:              return necro_infer_error(infer, type, "Compiler bug: Unrecognized type: %d.", type->type);
+    }
+}
+
+void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* classes, NecroType* type)
+{
+    if (necro_is_infer_error(infer))
+        return;
+    if (classes == NULL)
+        return;
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR:
+    {
+        if (type->var.is_rigid)
+        {
+            // If it's a rigid variable, make sure it has all of the necessary classes in its context already
+            while (classes != NULL)
+            {
+                if (necro_context_contains_class(type->var.context, classes))
+                {
+                    necro_infer_error(infer, type, "No instance for \'%s %s\'", necro_intern_get_string(infer->intern, classes->type_class_name.symbol), necro_intern_get_string(infer->intern, classes->type_var.symbol));
+                    return;
+                }
+                classes = classes->next;
+            }
+        }
+        else
+        {
+            type->var.context = necro_union_contexts(infer, type->var.context, classes);
+        }
+        return;
+    }
+    case NECRO_TYPE_CON:
+    {
+        while (classes != NULL)
+        {
+            NecroTypeClassInstance* instance = necro_get_instance(infer, type->con.con, classes->type_class_name);
+            if (instance == NULL)
+            {
+                necro_type_is_not_instance_error(infer, type, classes);
+                return;
+            }
+            NecroType* current_arg = type->con.args;
+            while (current_arg != NULL)
+            {
+                necro_propogate_type_classes(infer, instance->context, current_arg->list.item);
+                current_arg->list.next;
+            }
+        }
+        return;
+    }
+    case NECRO_TYPE_APP:  necro_infer_error(infer, type, "Compiler bug: TypeApp not implemented in necro_propogate_type_classes!"); return;
+    case NECRO_TYPE_LIST: necro_infer_error(infer, type, "Compiler bug: Found ConTypeList in necro_propogate_type_classes!"); return;
+    case NECRO_TYPE_FOR:  necro_infer_error(infer, type, "Compiler bug: Found polytype in necro_propogate_type_classes!"); return;
+    case NECRO_TYPE_FUN:  necro_infer_error(infer, type, "(->) Not implemented for type classes!", type->type); return;
+    default:              necro_infer_error(infer, type, "Compiler bug: Unrecognized type: %d.", type->type); return;
+    }
+}
+
+inline void necro_instantiate_type_var(NecroInfer* infer, NecroTypeVar* type_var, NecroType* type)
+{
+    if (necro_is_infer_error(infer))
+        return;
+    necro_propogate_type_classes(infer, type_var->context, type);
+    necro_env_set(infer, type_var->var, type);
 }
 
 inline void necro_unify_var(NecroInfer* infer, NecroType* type1, NecroType* type2, NecroScope* scope)
@@ -544,15 +583,19 @@ inline void necro_unify_var(NecroInfer* infer, NecroType* type1, NecroType* type
         else if (type1->var.is_rigid && type2->var.is_rigid)
             necro_rigid_type_variable_error(infer, type1->var.var, type2);
         else if (necro_occurs(infer, type1, type2))
-            necro_infer_error(infer, type1, "Occurs check error, name1: %s", necro_id_as_character_string(infer, type1->var.var.id));
+            return;
         else if (type1->var.is_rigid)
-            necro_env_set(infer, type2->var.var, type1);
+            necro_instantiate_type_var(infer, &type2->var, type1);
+            // necro_env_set(infer, type2->var.var, type1);
         else if (type2->var.is_rigid)
-            necro_env_set(infer, type1->var.var, type2);
+            necro_instantiate_type_var(infer, &type1->var, type2);
+            // necro_env_set(infer, type1->var.var, type2);
         else if (necro_is_bound_in_scope(infer, type1, scope))
-            necro_env_set(infer, type2->var.var, type1);
+            necro_instantiate_type_var(infer, &type2->var, type1);
+            // necro_env_set(infer, type2->var.var, type1);
         else
-            necro_env_set(infer, type1->var.var, type2);
+            necro_instantiate_type_var(infer, &type1->var, type2);
+            // necro_env_set(infer, type1->var.var, type2);
         return;
     }
     case NECRO_TYPE_CON:
@@ -565,10 +608,10 @@ inline void necro_unify_var(NecroInfer* infer, NecroType* type1, NecroType* type
         }
         if (necro_occurs(infer, type1, type2))
         {
-            necro_infer_error(infer, type1, "Occurs check error, name1: %s", necro_id_as_character_string(infer, type1->var.var.id));
             return;
         }
-        necro_env_set(infer, type1->var.var, type2);
+        necro_instantiate_type_var(infer, &type1->var, type2);
+        // necro_env_set(infer, type1->var.var, type2);
         return;
     case NECRO_TYPE_FOR:  necro_infer_error(infer, type1, "Compiler bug: Attempted to unify polytype."); return;
     case NECRO_TYPE_LIST: necro_infer_error(infer, type1, "Compiler bug: Attempted to unify TypeVar with type args list."); return;
@@ -593,9 +636,10 @@ inline void necro_unify_app(NecroInfer* infer, NecroType* type1, NecroType* type
         if (type2->var.is_rigid)
             necro_rigid_type_variable_error(infer, type2->var.var, type1);
         else if (necro_occurs(infer, type2, type1))
-            necro_infer_error(infer, type1, "Occurs check error, name2: %s", necro_id_as_character_string(infer, type2->var.var.id));
+            return;
         else
-            necro_env_set(infer, type2->var.var, type1);
+            necro_instantiate_type_var(infer, &type2->var, type1);
+            // necro_env_set(infer, type2->var.var, type1);
         return;
     case NECRO_TYPE_APP:
         necro_unify(infer, type1->app.type1, type2->app.type1, scope);
@@ -634,9 +678,10 @@ inline void necro_unify_fun(NecroInfer* infer, NecroType* type1, NecroType* type
         if (type2->var.is_rigid)
             necro_rigid_type_variable_error(infer, type2->var.var, type1);
         else if (necro_occurs(infer, type2, type1))
-            necro_infer_error(infer, type1, "Occurs check error, name2: %s", necro_id_as_character_string(infer, type2->var.var.id));
+            return;
         else
-            necro_env_set(infer, type2->var.var, type1);
+            necro_instantiate_type_var(infer, &type2->var, type1);
+            // necro_env_set(infer, type2->var.var, type1);
         return;
     case NECRO_TYPE_FUN:  necro_unify(infer, type1->fun.type1, type2->fun.type1, scope); necro_unify(infer, type1->fun.type2, type2->fun.type2, scope); return;
     case NECRO_TYPE_APP:  necro_infer_error(infer, type1, "Attempting to unify (->) with TypeApp."); return;
@@ -659,9 +704,10 @@ inline void necro_unify_con(NecroInfer* infer, NecroType* type1, NecroType* type
         if (type2->var.is_rigid)
             necro_rigid_type_variable_error(infer, type2->var.var, type1);
         else if (necro_occurs(infer, type2, type1))
-            necro_infer_error(infer, type1, "Occurs check error, name2: %s", necro_id_as_character_string(infer, type2->var.var.id));
+            return;
         else
-            necro_env_set(infer, type2->var.var, type1);
+            necro_instantiate_type_var(infer, &type2->var, type1);
+            // necro_env_set(infer, type2->var.var, type1);
         return;
     case NECRO_TYPE_CON:
         if (type1->con.con.symbol.id != type2->con.con.symbol.id)
@@ -1190,6 +1236,7 @@ void necro_print_type(NecroType* type, uint32_t whitespace, NecroIntern* intern)
 
 bool necro_is_simple_type(NecroType* type)
 {
+    assert(type != NULL);
     return type->type == NECRO_TYPE_VAR || (type->type == NECRO_TYPE_CON && necro_type_list_count(type->con.args) == 0);
 }
 

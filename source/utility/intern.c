@@ -161,6 +161,27 @@ NecroSymbol necro_intern_create_type_class_instance_symbol(NecroIntern* intern, 
     return new_symbol;
 }
 
+NecroSymbol necro_intern_get_type_class_member_symbol_from_instance_symbol(NecroIntern* intern, NecroSymbol symbol)
+{
+    const char* string1 = necro_intern_get_string(intern, symbol);
+    size_t      len1    = 0;
+    for (size_t i = 0; string1[i] != '@'; ++i)
+        len1++;
+    char* str = malloc((len1 + 1) * sizeof(char));
+    if (str == NULL)
+    {
+        fprintf(stderr, "Could not allocate memory in necro_intern_get_type_class_member_symbol_from_instance_symbol\n");
+        exit(1);
+    }
+    // Copy str1
+    for (size_t i = 0; i < len1; ++i)
+        str[i] = string1[i];
+    str[len1] = '\0';
+    NecroSymbol new_symbol = necro_intern_string(intern, str);
+    free(str);
+    return new_symbol;
+}
+
 NecroSymbol necro_intern_concat_symbols(NecroIntern* intern, NecroSymbol symbol1, NecroSymbol symbol2)
 {
     const char* string1 = necro_intern_get_string(intern, symbol1);

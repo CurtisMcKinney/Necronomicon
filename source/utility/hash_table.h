@@ -38,31 +38,36 @@ NecroArenaChainTable necro_create_arena_chain_table(size_t data_size);
 void                 necro_destroy_arena_chain_table(NecroArenaChainTable* table);
 void*                necro_arena_chain_table_insert(NecroArenaChainTable* table, uint64_t key, void* data_to_be_copied_in);
 void*                necro_arena_chain_table_get(NecroArenaChainTable* table, uint64_t key);
+void                 necro_arena_chain_table_iterate(NecroArenaChainTable* table, void (f)(void*, void*), void* extras);
 void                 necro_arena_chain_table_test();
 
-#define NECRO_DECLARE_ARENA_CHAIN_TABLE(TABLE_DATA_TYPE, TABLE_CAMEL_NAME,TABLE_SNAKE_NAME)                                                              \
-typedef struct                                                                                                                                           \
-{                                                                                                                                                        \
-    NecroArenaChainTable chain_table;                                                                                                                    \
-} Necro##TABLE_CAMEL_NAME##Table;                                                                                                                        \
-static Necro##TABLE_CAMEL_NAME##Table necro_create_##TABLE_SNAKE_NAME##_table()                                                                          \
-{                                                                                                                                                        \
-    return (Necro##TABLE_CAMEL_NAME##Table)                                                                                                              \
-    {                                                                                                                                                    \
-        .chain_table = necro_create_arena_chain_table(sizeof(TABLE_DATA_TYPE))                                                                           \
-    };                                                                                                                                                   \
-}                                                                                                                                                        \
-static void necro_destroy_##TABLE_SNAKE_NAME##_table(Necro##TABLE_CAMEL_NAME##Table* table)                                                              \
-{                                                                                                                                                        \
-    necro_destroy_arena_chain_table(&table->chain_table);                                                                                                \
-}                                                                                                                                                        \
-static TABLE_DATA_TYPE* necro_##TABLE_SNAKE_NAME##_table_insert(Necro##TABLE_CAMEL_NAME##Table* table, uint64_t key, TABLE_DATA_TYPE* data_to_be_copied) \
-{                                                                                                                                                        \
-    return necro_arena_chain_table_insert(&table->chain_table, key, data_to_be_copied);                                                                  \
-}                                                                                                                                                        \
-static TABLE_DATA_TYPE* necro_##TABLE_SNAKE_NAME##_table_get(Necro##TABLE_CAMEL_NAME##Table* table, uint64_t key)                                        \
-{                                                                                                                                                        \
-    return necro_arena_chain_table_get(&table->chain_table, key);                                                                                        \
+#define NECRO_DECLARE_ARENA_CHAIN_TABLE(TABLE_DATA_TYPE, TABLE_CAMEL_NAME,TABLE_SNAKE_NAME)                                                                 \
+typedef struct                                                                                                                                              \
+{                                                                                                                                                           \
+    NecroArenaChainTable chain_table;                                                                                                                       \
+} Necro##TABLE_CAMEL_NAME##Table;                                                                                                                           \
+static Necro##TABLE_CAMEL_NAME##Table necro_create_##TABLE_SNAKE_NAME##_table()                                                                             \
+{                                                                                                                                                           \
+    return (Necro##TABLE_CAMEL_NAME##Table)                                                                                                                 \
+    {                                                                                                                                                       \
+        .chain_table = necro_create_arena_chain_table(sizeof(TABLE_DATA_TYPE))                                                                              \
+    };                                                                                                                                                      \
+}                                                                                                                                                           \
+static void necro_destroy_##TABLE_SNAKE_NAME##_table(Necro##TABLE_CAMEL_NAME##Table* table)                                                                 \
+{                                                                                                                                                           \
+    necro_destroy_arena_chain_table(&table->chain_table);                                                                                                   \
+}                                                                                                                                                           \
+static TABLE_DATA_TYPE* necro_##TABLE_SNAKE_NAME##_table_insert(Necro##TABLE_CAMEL_NAME##Table* table, uint64_t key, TABLE_DATA_TYPE* data_to_be_copied)    \
+{                                                                                                                                                           \
+    return necro_arena_chain_table_insert(&table->chain_table, key, data_to_be_copied);                                                                     \
+}                                                                                                                                                           \
+static TABLE_DATA_TYPE* necro_##TABLE_SNAKE_NAME##_table_get(Necro##TABLE_CAMEL_NAME##Table* table, uint64_t key)                                           \
+{                                                                                                                                                           \
+    return necro_arena_chain_table_get(&table->chain_table, key);                                                                                           \
+}                                                                                                                                                           \
+static void necro_##TABLE_SNAKE_NAME##_table_iterate(Necro##TABLE_CAMEL_NAME##Table* table, void (f)(TABLE_DATA_TYPE*, void*), void* extras)                \
+{                                                                                                                                                           \
+    necro_arena_chain_table_iterate(&table->chain_table, f, extras);                                                                                        \
 }
 
 #endif // HASH_TABLE_H

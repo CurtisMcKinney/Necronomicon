@@ -116,7 +116,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     }
     necro_print_reified_ast(&ast_r, &lexer.intern);
     puts("");
-    necro_symtable_print(&symtable);
+    // necro_symtable_print(&symtable);
     // necro_scoped_symtable_print_type_scope(&scoped_symtable);
     if (compilation_phase == NECRO_PHASE_RENAME)
         return;
@@ -127,7 +127,9 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     NecroTypeClassEnv type_class_env = necro_create_type_class_env();
     NecroInfer        infer          = necro_create_infer(&lexer.intern, &symtable, prim_types, &type_class_env);
     necro_infer(&infer, ast_r.root);
+    necro_symtable_print(&symtable);
     necro_print_env_with_symtable(&symtable, &infer);
+    necro_print_type_class_env(&type_class_env, &infer, &lexer.intern);
     if (infer.error.return_code != NECRO_SUCCESS)
     {
         necro_print_error(&infer.error, input_string, "Type");

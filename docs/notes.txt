@@ -1,8 +1,8 @@
 coolPattern :: Event Audio
 coolPattern = pattern times values
     where
-        times  = {0.25, 0.5, 0.25}
-        values = {countUp, mouseX |> yieldEvery 1, countDown}
+        times  = seq [0.25, 0.5, 0.25]
+        values = seq [countUp, mouseX |> take 1, countDown]
 
 mouseX    = {0, 100, 200..N*100}
 countUp   = {1,2}
@@ -12,14 +12,16 @@ countDown = { -1, -2 }
 -- as presented by Moggi and coeffects thesis
 
 -- coolPattern used in context 1:
-local time = { 0, 1, 2,    3,  4, 5, 6,   7,  8,  9 }
-globaltime = { 0, 1, 2,    3,  4, 5, 6,   7,  8,  9 }
-values     = { 1, 2, 200, -1, -2, 1, 2, 700, -1, -2 }
+stream time = { 0, 1, 2,    3,  4, 5, 6,   7,  8,  9 }
+item  time  = { 0, 1, 0,    0,  1, 0, 1,   0,  0,  1 }
+globaltime  = { 0, 1, 2,    3,  4, 5, 6,   7,  8,  9 }
+values      = { 1, 2, 200, -1, -2, 1, 2, 700, -1, -2 }
 
 -- coolPattern used in context 2:
-local  time = { 0, 1, 2,    3,  4,  5,  6,    7,  8,  9 }
-global time = { 5, 6, 7,    8,  9, 10, 11,   12, 13, 14 }
-values      = { 1, 2, 700, -1, -2,  1,  2, 1200, -1, -2 }
+stream  time = { 0, 1, 2,    3,  4,  5,  6,    7,  8,  9 }
+item  time   = { 0, 1, 0,    0,  1,  0,  1,    0,  0,  1 }
+global time  = { 5, 6, 7,    8,  9, 10, 11,   12, 13, 14 }
+values       = { 1, 2, 700, -1, -2,  1,  2, 1200, -1, -2 }
 
 -- Cool, semantically that works, but how does this affect
 -- reuse and variable binding?
@@ -32,91 +34,103 @@ values      = { 1, 2, 700, -1, -2,  1,  2, 1200, -1, -2 }
 -- The semantics are still pure as multiple accesses to the same stream within the same context
 -- always provide the same result
 
--- implicit language semantics akin to how the coeffect stuff works?
--- No need for separate kinds me thinks?
--- Constant time semantics!!!!
-x :: con a -- x has constant    time semantics (Never changes)
-x :: dmd a -- x has dynamic     time semantics (Demand rate, caches history)
-x :: cur a -- x has lexical     time semantics (Always latest value, No history)
-x ::     a -- x has polymorphic time semantics
--- defaulting rules: If the time attribute is ambiguous, default to dynamic
-x :: a => x :: dyn a
+-- Ok, but does that work with feedback:
+countUp    = {1,2}
+countDown  = {9,8}
+mouseX     = {0, 100, 200..N*100}
 
-current :: dmd a -> cur a -- Statically calculates a value. There is no corresponding "dynamic" function
-                          -- which would go from dynamic time semantics back to static
-buffer :: cur a -> dmd a
+feedBack    = seq [countUp, countDown, feedBack]
+stream time = {0, 1, 2, 3, 4, 5}
+item time   = {0, 1, 0, 1, 0, 1}
+global time = {0, 1, 2, 3, 4, 5}
+values      = {1, 2, 9, 8, 1, 2}
 
--- Never buffers extra values, strictly calculated at the scope its in
-mouse   :: cur (Int, Int)
-mouseX  :: cur Int
-load    :: con String -> cur IO (Maybe AudioBuffer)
-audioIn :: Int -> cur Audio
+feedBack2   = seq [countUp, countDown, feedBack]
+stream time = {0, 1, 2, 3, 4, 5}
+item time   = {0, 1, 0, 1, 0, 1}
+global time = {5, 6, 7, 8, 9, 10}
+values      = {1, 2, 9, 8, 1, 2}
 
--- This means that you can enforce a semantics where things like mouse dont have to be buffered indefinitely
+feedBack3   = seq [countUp, mouseX |> take 1, countDown, feedBack]
+stream time = {0, 1,   2, 3, 4, 5, 6,   7, 8, 9}
+item time   = {0, 1,   0, 0, 1, 0, 1,   2, 3, 4}
+global time = {0, 1,   2, 3, 4, 5, 6,   7, 8, 9}
+values      = {1, 2, 200, 9, 8, 1, 2, 200, 9, 8}
 
--- Also gives the programmer more control over semantics
-myCoolSynth :: Audio -> Audio -> cur Audio -- A static  time synth (always gives the "current" value, no history)
-myCoolSynth :: Audio -> Audio -> dyn Audio -- A dynamic time synth (will play based on local time when called, has history)
+noFeedback  = seq [countUp, mouseX |> take 1, countDown]
+stream time = {0, 1,   2, 3, 4, 5, 6,   7, 8, 9}
+item time   = {0, 1,   0, 0, 1, 0, 1,   2, 3, 4}
+global time = {0, 1,   2, 3, 4, 5, 6,   7, 8, 9}
+values      = {1, 2, 200, 9, 8, 1, 2, 200, 9, 8}
 
-feedbackSynth :: Audio -> Audio
-feedbackSynth freq = osc |> lpf 3000 0.1 |> gain 0.1
+-- New idea:
+-- Use Monad to enforce current value, everything else is a pure lazy stream.
+-- No need for keeping track of "Contexts" or clocks
+-- Needs garbage collection, but naturally handles feed back, cycles, and "current" values
+-- Prevents top level "current" computations
+-- Resolves ambiguity of "current" value times (value is from the time at which it was bound)
+-- Enforces purity (the current value is bound to a single value which can be shared).
+-- Don't need to record entire history of inputs
+-- Feeback can still cause large thunk chains, but I think this is fine and akin to needing to understand that foldr can blow up on infinite lists
+-- Need to check against global time of cached value in thunk?!?!?!!?
+
+current :: CurrentMonad m => a -> m a
+
+semantics then become:
+data Stream a = Stream  (Maybe a) (Stream a) --value, next
+              | End
+              | Constant a
+
+
+-- | Current IORef a
+
+feedBack3   = seq [countUp, mouseX |> take 1, countDown, feedBack]
+noFeedback  = seq [countUp, mouseX |> take 1, countDown]
+
+countDownBase = Stream 9 (Stream 8 End)
+
+next :: Stream a -> (a, Stream a)
+next = undefined
+
+mkSequence :: Array (Stream a) -> Stream a
+mkSequence streams = sequence 0 streams (Array.empty (Array.size streams))
     where
-        osc = osc (freq + {0, osc} + mouse * 10)
-        -- osc = osc (freq + osc + mouse * 10)              -- This would also cause the stream to blow up as it would demand a value it doesn't have
-        -- osc = osc (freq + {0, current osc} + mouse * 10) -- This would also cause the stream to blow up as it would demand a value it doesn't have
+        sequence index streams newStreams =
 
-        -- Can we statically determine these scenarios and make these type errors?
+take :: Stream a -> Stream Int -> Stream a
+take stream numStream = go stream ystream 0
+    where
+         go (Stream streamVal streamCont) (Stream numVal numCont) count = if count >= numVal
+            then Stream Nothing          (go streamCont numCont 0)
+            else Stream (Just streamVal) (go streamCont numCont (count + 1))
 
--- Defaulting rules state that if a value has ambiguous time semantics
--- then the value is defauled to dynamic time semantics
+countUp   = Stream (Just 1) (Stream (Just 2) End))
+countDown = Stream (Just 9) (Stream (Just 8) End))
+feedBack3 =
 
--- Time stream follow "seq" style pattern rules
--- This means semantics for yielding, and for continuing
--- to the next value in a stream after yield,
--- Then attempting to return to the next value in the stream in the next
--- go round.
--- Requiring monads for IO should make all of this much simpler as effects are separated out
+data StreamIO a = StreamIO (World -> (a, StreamIO (), World))
 
--- Semantics using a comonadic view:
-counit x = case x of
-    Dynamic xt xs -> xs !! xt
-    Static     xs -> head xs
-    Const x       -> x
+instance Monad StreamIO where
+    x >>= f = StreamIO $ \world -> case demand x of
+        (xVal, xCont) -> case f xVal of
+            StreamIO ff -> case ff world of
+                (gVal, gCont, world2) -> (gVal, xCont >> gCont, world2)
 
-cobind f g = case g of
-    Dynamic gs -> Dynamic (f(g1,..,gn),f(g2,..,gn),f(gn))
-    Static  gs -> Static  (f(g1,..,gn),f(g2,..,gn),f(gn))
-    Const   g' -> Const (f [g])
+current :: Stream a -> StreamIO (Stream a)
+current (Stream val cont) = StreamIO $ \world ->
+    case mkCurrentRef val world of
+        (ref, world2) -> let refStream     = Stream (Just (unsafeRead ref)) stream
+                             refCont cont' = StreamIO (\world3 -> let (contVal, contCont) = demand cont' in let world4 = writeCurrentRef contVal in ((), refCont' contCont, world4))
+                         in  StreamIO (refStream, refCont, world2)
 
-prev x = case x of
-    Dynamic xt xs -> Dynamic (xt + 1) xs
-    _             -> x
+-- Non-Strict, No Circular References, is it possible:
+feedback = seq [0, 1 + feedback]
 
-current x = case x of
-    Dynamic _ xs -> Static xs
-    _            -> x
+values   = {0, 1, 2, 3}
+refs     = {[ref 0, ref 1 + ref feedback[0]]}
 
--- Note that for performance reasons, this is NOT how it would actually be implemented
+feedback[0] = Sequence ()
 
--- Lambda calculus semantic view:
-[x:t  |- x:t]          = counit               -- Variable access is interpreted as counit
-[x:t1 |- f e:t3]       = f . (cobind e)       -- Function application interpreted as f composed with cobind applied to e
-[x:t1 |- prev e:t2]    = prev . (cobind e)    -- prev applied to an expression interepreted as prev composed with cobind applied to e
-[x:t1 |- current e:t1] = current . (cobind e) -- current applied to an expression interepreted as current composed with cobind applied to e
--- t represents an expression that expects context with variable x an returns a stream of values before the previous one
-
--- Kind language:
-*      ::= Int, Bool
-* -> * ::= Maybe, Bool
-attr   ::= dyn, cur, con, _ (blank, polymorphic)
-kind   ::= attr *       (attributes can only be applied to fully applied kinds!)
-         | * `Con` *    (type constructor)
-         | kind -> kind (function application)
-
--- Attributes applies to Types of kind *
--- Type constructors can only be applied to types of kind *
--- This means you can't have nested type attributes, this is illegal: dyn IO dyn a
--- Function application can be applied to types of any kind
 
 main :: IO ()
 main = do
@@ -124,4 +138,5 @@ main = do
     sample2 <- load "doomBlad"
     let synth1 = poly1 mouseClick (synth sample1) mouseX
         synth2 = poly1 tick       (synth sample2) mouseY
-    synth1 + synth2 |> out mainOuts
+        synths = synth 1 + synth2
+    audioOut 0 synths

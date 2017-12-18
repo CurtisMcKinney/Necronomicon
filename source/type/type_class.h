@@ -12,31 +12,44 @@
 #include "hash_table.h"
 #include "type.h"
 
-struct NecroTypeClassContext;
 typedef NecroAST_Node_Reified NecroNode;
-
-typedef struct
-{
-    NecroCon                      type_class_name;
-    NecroCon                      type_var;
-    NecroType*                    member_type_sig_list;
-    struct NecroTypeClassContext* context;
-} NecroTypeClass;
-
-typedef struct
-{
-    NecroCon                      data_type_name;
-    NecroCon                      type_class_name;
-    NecroType*                    dictionary_type_sig_list;
-    struct NecroTypeClassContext* context;
-} NecroTypeClassInstance;
 
 typedef struct NecroTypeClassContext
 {
     NecroCon                      type_class_name;
     NecroCon                      type_var;
-    struct NecroTypeClassContext* next_context;
+    struct NecroTypeClassContext* next;
 } NecroTypeClassContext;
+
+typedef struct NecroTypeClassMember
+{
+    NecroCon                     member_varid;
+    struct NecroTypeClassMember* next;
+} NecroTypeClassMember;
+
+typedef struct
+{
+    NecroType*             type;
+    NecroCon               type_class_name;
+    NecroCon               type_var;
+    NecroTypeClassMember*  members;
+    NecroTypeClassContext* context;
+} NecroTypeClass;
+
+typedef struct NecroDictionaryPrototype
+{
+    NecroCon                         type_class_member_varid;
+    NecroCon                         prototype_varid;
+    struct NecroDictionaryPrototype* next;
+} NecroDictionaryPrototype;
+
+typedef struct
+{
+    NecroCon                  data_type_name;
+    NecroCon                  type_class_name;
+    NecroTypeClassContext*    context;
+    NecroDictionaryPrototype* dictionary_prototype;
+} NecroTypeClassInstance;
 
 NECRO_DECLARE_ARENA_CHAIN_TABLE(NecroTypeClassInstance, TypeClassInstance, type_class_instance)
 NECRO_DECLARE_ARENA_CHAIN_TABLE(NecroTypeClass, TypeClass, type_class)
@@ -48,9 +61,16 @@ typedef struct NecroTypeClassEnv
     NecroPagedArena             arena;
 } NecroTypeClassEnv;
 
-NecroTypeClassEnv necro_create_type_class_env();
-void              necro_destroy_type_class_env(NecroTypeClassEnv* env);
-void              necro_create_type_class_declaration(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
-void              necro_create_type_class_instance(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
+NecroTypeClassEnv       necro_create_type_class_env();
+void                    necro_destroy_type_class_env(NecroTypeClassEnv* env);
+void                    necro_create_type_class_declaration_pass1(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
+void                    necro_create_type_class_declaration_pass2(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
+void                    necro_create_type_class_instance(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
+void                    necro_print_type_class_env(NecroTypeClassEnv* env, NecroInfer* infer, NecroIntern* intern);
+bool                    necro_is_data_type_instance_of_class(NecroInfer* infer, NecroCon data_type_name, NecroCon type_class_name);
+NecroTypeClassInstance* necro_get_instance(NecroInfer* infer, NecroCon data_type_name, NecroCon type_class_name);
+uint64_t                necro_create_instance_key(NecroCon data_type_name, NecroCon type_class_name);
+bool                    necro_context_contains_class(NecroTypeClassContext* context, NecroTypeClassContext* type_class);
+NecroTypeClassContext*  necro_union_contexts(NecroInfer* infer, NecroTypeClassContext* context1, NecroTypeClassContext* context2);
 
 #endif // TYPE_CLASS_H

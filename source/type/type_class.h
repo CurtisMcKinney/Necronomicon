@@ -21,6 +21,13 @@ typedef struct NecroTypeClassContext
     struct NecroTypeClassContext* next;
 } NecroTypeClassContext;
 
+typedef struct NecroTyVarContextList
+{
+    struct NecroTyVarContextList* next;
+    NecroCon                      type_var;
+    NecroTypeClassContext*        context;
+} NecroTyVarContextList;
+
 typedef struct NecroTypeClassMember
 {
     NecroCon                     member_varid;
@@ -72,5 +79,9 @@ NecroTypeClassInstance* necro_get_instance(NecroInfer* infer, NecroCon data_type
 uint64_t                necro_create_instance_key(NecroCon data_type_name, NecroCon type_class_name);
 bool                    necro_context_contains_class(NecroTypeClassContext* context, NecroTypeClassContext* type_class);
 NecroTypeClassContext*  necro_union_contexts(NecroInfer* infer, NecroTypeClassContext* context1, NecroTypeClassContext* context2);
+bool                    necro_is_context_ambiguous(NecroInfer* infer, NecroSymbol type_sig_name, NecroTypeClassContext* context, NecroType* type);
+NecroTypeClassContext*  necro_ast_to_context(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* context_ast);
+void                    necro_add_constraints_to_ty_vars(NecroInfer* infer, NecroType* type, NecroTyVarContextList* context_list);
+NecroTyVarContextList*  necro_create_ty_var_context_list(NecroInfer* infer, NecroTypeClassContext* context);
 
 #endif // TYPE_CLASS_H

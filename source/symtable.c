@@ -126,7 +126,7 @@ void necro_symtable_info_print(NecroSymbolInfo info, NecroIntern* intern, size_t
         print_white_space(whitespace + 4);
         printf("type:       ");
         necro_print_type_sig(info.type, intern);
-        printf("\n");
+        // printf("\n");
     }
 
     print_white_space(whitespace + 4);

@@ -11,13 +11,7 @@
 #include "type_class.h"
 #include "type.h"
 
-// TODO / NOTE:
-//  http://tomasp.net/coeffects/
-//  http://tomasp.net/academic/papers/structural/
-//  https://www.slideshare.net/tomaspfb/talk-38641264
-//  eval_type_to_normal_form
-
-#define NECRO_TYPE_DEBUG           0
+#define NECRO_TYPE_DEBUG 0
 #if NECRO_TYPE_DEBUG
 #define TRACE_TYPE(...) printf(__VA_ARGS__)
 #else
@@ -202,7 +196,7 @@ NecroType* necro_create_type_list(NecroInfer* infer, NecroType* item, NecroType*
     return type;
 }
 
-NecroType* necro_create_for_all(NecroInfer* infer, NecroVar var, NecroType* type)
+NecroType* necro_create_for_all(NecroInfer* infer, NecroVar var, NecroTypeClassContext* context, NecroType* type)
 {
     if (var.id.id > infer->highest_id)
         infer->highest_id = var.id.id + 1;
@@ -210,8 +204,9 @@ NecroType* necro_create_for_all(NecroInfer* infer, NecroVar var, NecroType* type
     for_all->type      = NECRO_TYPE_FOR;
     for_all->for_all   = (NecroTypeForAll)
     {
-        .var  = var,
-        .type = type,
+        .var     = var,
+        .context = context,
+        .type    = type,
     };
     return for_all;
 }
@@ -389,7 +384,7 @@ NecroType* necro_uncurry(NecroInfer* infer, NecroType* type)
         if (new_type == type->for_all.type)
             return type;
         else
-            return necro_create_for_all(infer, type->for_all.var, new_type);
+            return necro_create_for_all(infer, type->for_all.var, type->for_all.context, new_type);
     }
 
     default:
@@ -504,6 +499,8 @@ void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* clas
         return;
     if (classes == NULL)
         return;
+    if (type == NULL)
+        return;
     switch (type->type)
     {
     case NECRO_TYPE_VAR:
@@ -513,9 +510,9 @@ void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* clas
             // If it's a rigid variable, make sure it has all of the necessary classes in its context already
             while (classes != NULL)
             {
-                if (necro_context_contains_class(type->var.context, classes))
+                if (!necro_context_contains_class(type->var.context, classes))
                 {
-                    necro_infer_error(infer, type, "No instance for \'%s %s\'", necro_intern_get_string(infer->intern, classes->type_class_name.symbol), necro_intern_get_string(infer->intern, classes->type_var.symbol));
+                    necro_infer_error(infer, type, "No instance for \'%s %s\'", necro_intern_get_string(infer->intern, classes->type_class_name.symbol), necro_id_as_character_string(infer, type->var.var.id));
                     return;
                 }
                 classes = classes->next;
@@ -541,8 +538,11 @@ void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* clas
             while (current_arg != NULL)
             {
                 necro_propogate_type_classes(infer, instance->context, current_arg->list.item);
-                current_arg->list.next;
+                if (necro_is_infer_error(infer)) return;
+                current_arg = current_arg->list.next;
             }
+            if (necro_is_infer_error(infer)) return;
+            classes = classes->next;
         }
         return;
     }
@@ -559,6 +559,7 @@ inline void necro_instantiate_type_var(NecroInfer* infer, NecroTypeVar* type_var
     if (necro_is_infer_error(infer))
         return;
     necro_propogate_type_classes(infer, type_var->context, type);
+    if (necro_is_infer_error(infer)) return;
     necro_env_set(infer, type_var->var, type);
 }
 
@@ -784,7 +785,7 @@ void necro_unify(NecroInfer* infer, NecroType* type1, NecroType* type2, NecroSco
         necro_unify(infer, type1, type2, scope);
         return;
     }
-    default:              necro_infer_error(infer, type1, "Compiler bug: Non-existent type (type1: %d, type2: %s) type found in necro_unify.", type1->type, type2->type); return;
+    default: necro_infer_error(infer, type1, "Compiler bug: Non-existent type (type1: %d, type2: %s) type found in necro_unify.", type1->type, type2->type); return;
     }
 }
 
@@ -798,7 +799,7 @@ typedef struct NecroInstSub
     struct NecroInstSub* next;
 } NecroInstSub;
 
-NecroInstSub* necro_create_inst_sub(NecroInfer* infer, NecroVar var_to_replace, NecroInstSub* next)
+NecroInstSub* necro_create_inst_sub(NecroInfer* infer, NecroVar var_to_replace, NecroTypeClassContext* context, NecroInstSub* next)
 {
     NecroInstSub* sub = necro_paged_arena_alloc(&infer->arena, sizeof(NecroInstSub));
     *sub              = (NecroInstSub)
@@ -807,6 +808,7 @@ NecroInstSub* necro_create_inst_sub(NecroInfer* infer, NecroVar var_to_replace, 
         .new_name       = necro_new_name(infer),
         .next           = next,
     };
+    sub->new_name->var.context = context;
     return sub;
 }
 
@@ -849,7 +851,7 @@ NecroType* necro_inst(NecroInfer* infer, NecroType* type, NecroScope* scope)
     NecroInstSub* subs         = NULL;
     while (current_type->type == NECRO_TYPE_FOR)
     {
-        subs         = necro_create_inst_sub(infer, current_type->for_all.var, subs);
+        subs         = necro_create_inst_sub(infer, current_type->for_all.var, current_type->for_all.context, subs);
         current_type = current_type->for_all.type;
     }
     NecroType* result = necro_inst_go(infer, current_type, subs, scope);
@@ -934,7 +936,8 @@ NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type, NecroGenResult p
             NecroGenSub* sub       = necro_paged_arena_alloc(&infer->arena, sizeof(NecroGenSub));
             NecroType*   type_var  = necro_new_name(infer);
             type_var->var.is_rigid = true;
-            NecroType*   for_all   = necro_create_for_all(infer, type_var->var.var, NULL);
+            type_var->var.context  = type->var.context;
+            NecroType*   for_all   = necro_create_for_all(infer, type_var->var.var, type->var.context, NULL);
             *sub                   = (NecroGenSub)
             {
                 .next           = NULL,
@@ -1130,109 +1133,125 @@ bool necro_types_match(NecroType* type1, NecroType* type2)
 //=====================================================
 const char* necro_id_as_character_string(NecroInfer* infer, NecroID id)
 {
-    size_t length = 0;
-    size_t n      = id.id;
-    while (n > 0)
-    {
-        n /= 26;
-    }
-    char* buffer = necro_paged_arena_alloc(&infer->arena, (length + 1) * sizeof(char));
-    n = id.id;
-    size_t i = 0;
-    while (n > 0)
-    {
-        buffer[i] = (n % 26) + 97;
-        n /= 26;
-        ++i;
-    }
-    buffer[i] = '\0';
+    size_t length = (id.id / 26) + 1;
+    char*  buffer = necro_paged_arena_alloc(&infer->arena, (length + 1) * sizeof(char));
+    if (id.id <= 26)
+        snprintf(buffer, length, "%c", (char)((id.id % 26) + 97));
+    else
+        snprintf(buffer, length, "%c%d", (char)((id.id % 26) + 97), (id.id - 26) / 26);
+    // size_t length = 0;
+    // size_t n      = id.id;
+    // while (n > 0)
+    // {
+    //     n /= 26;
+    // }
+    // char* buffer = necro_paged_arena_alloc(&infer->arena, (length + 1) * sizeof(char));
+    // n = id.id;
+    // size_t i = 0;
+    // while (n > 0)
+    // {
+    //     buffer[i] = (n % 26) + 97;
+    //     n /= 26;
+    //     ++i;
+    // }
+
+    buffer[length+1] = '\0';
     return buffer;
 }
 
 void necro_print_id_as_characters(NecroID id)
 {
-    size_t n = id.id;
-    while (n > 0)
-    {
-        char c = n % 26;
-        printf("%c", c + 97);
-        n /= 26;
-    }
+    if (id.id <= 26)
+        printf("%c", (char)((id.id % 26) + 97));
+    else
+        printf("%c%d", (char)((id.id % 26) + 97), (id.id - 26) / 26);
+    // size_t n = id.id;
+    // while (n > 0)
+    // {
+    //     char c = n % 26;
+    //     printf("%c", c + 97);
+    //     n /= 26;
+    // }
+
 }
 
 char* necro_snprintf_id_as_characters(NecroID id, char* buffer, size_t buffer_size)
 {
-    size_t n = id.id;
-    while (n > 0)
-    {
-        *buffer = (n % 26) + 97;
-        n /= 26;
-        buffer++;
-    }
-    return buffer;
+    if (id.id <= 26)
+        return buffer + snprintf(buffer, buffer_size, "%c", (char)((id.id % 26) + 97));
+    else
+        return buffer + snprintf(buffer, buffer_size, "%c%d", (char)((id.id % 26) + 97), (id.id - 26) / 26);
+    // size_t n = id.id;
+    // while (n > 0)
+    // {
+    //     *buffer = (n % 26) + 97;
+    //     n /= 26;
+    //     buffer++;
+    // }
+    // return buffer;
 }
 
-void necro_print_type(NecroType* type, uint32_t whitespace, NecroIntern* intern)
-{
-    if (type == NULL)
-        return;
-    switch (type->type)
-    {
-    case NECRO_TYPE_VAR:
-        print_white_space(whitespace);
-        printf("TypeVar, name: ");
-        necro_print_id_as_characters(type->var.var.id);
-        printf(", id: %d\n", type->var.var.id.id);
-        break;
+// void necro_print_type(NecroType* type, uint32_t whitespace, NecroIntern* intern)
+// {
+//     if (type == NULL)
+//         return;
+//     switch (type->type)
+//     {
+//     case NECRO_TYPE_VAR:
+//         print_white_space(whitespace);
+//         printf("TypeVar, name: ");
+//         necro_print_id_as_characters(type->var.var.id);
+//         printf(", id: %d\n", type->var.var.id.id);
+//         break;
 
-    case NECRO_TYPE_APP:
-        print_white_space(whitespace);
-        printf("App\n");
-        print_white_space(whitespace);
-        printf("(\n");
-        necro_print_type(type->app.type1, whitespace + 4, intern);
-        necro_print_type(type->app.type2, whitespace + 4, intern);
-        print_white_space(whitespace);
-        printf(")\n");
-        break;
+//     case NECRO_TYPE_APP:
+//         print_white_space(whitespace);
+//         printf("App\n");
+//         print_white_space(whitespace);
+//         printf("(\n");
+//         necro_print_type(type->app.type1, whitespace + 4, intern);
+//         necro_print_type(type->app.type2, whitespace + 4, intern);
+//         print_white_space(whitespace);
+//         printf(")\n");
+//         break;
 
-    case NECRO_TYPE_FUN:
-        necro_print_type(type->fun.type1, whitespace + 4, intern);
-        print_white_space(whitespace);
-        printf("->\n");
-        necro_print_type(type->fun.type2, whitespace + 4, intern);
-        break;
+//     case NECRO_TYPE_FUN:
+//         necro_print_type(type->fun.type1, whitespace + 4, intern);
+//         print_white_space(whitespace);
+//         printf("->\n");
+//         necro_print_type(type->fun.type2, whitespace + 4, intern);
+//         break;
 
-    case NECRO_TYPE_CON:
-        print_white_space(whitespace);
-        printf("Con, name: %s, id: %d\n", necro_intern_get_string(intern, type->con.con.symbol), type->con.con.id.id);
-        if (necro_type_list_count(type->con.args) > 0)
-        {
-            print_white_space(whitespace);
-            printf("(\n");
-            necro_print_type(type->con.args, whitespace + 4, intern);
-            print_white_space(whitespace);
-            printf(")\n");
-        }
-        break;
+//     case NECRO_TYPE_CON:
+//         print_white_space(whitespace);
+//         printf("Con, name: %s, id: %d\n", necro_intern_get_string(intern, type->con.con.symbol), type->con.con.id.id);
+//         if (necro_type_list_count(type->con.args) > 0)
+//         {
+//             print_white_space(whitespace);
+//             printf("(\n");
+//             necro_print_type(type->con.args, whitespace + 4, intern);
+//             print_white_space(whitespace);
+//             printf(")\n");
+//         }
+//         break;
 
-    case NECRO_TYPE_LIST:
-        necro_print_type(type->list.item, whitespace, intern);
-        necro_print_type(type->list.next, whitespace, intern);
-        break;
+//     case NECRO_TYPE_LIST:
+//         necro_print_type(type->list.item, whitespace, intern);
+//         necro_print_type(type->list.next, whitespace, intern);
+//         break;
 
-    case NECRO_TYPE_FOR:
-        printf("forall ");
-        necro_print_id_as_characters(type->for_all.var.id);
-        printf(".");
-        necro_print_type(type->for_all.type, whitespace, intern);
-        break;
+//     case NECRO_TYPE_FOR:
+//         printf("forall ");
+//         necro_print_id_as_characters(type->for_all.var.id);
+//         printf(".");
+//         necro_print_type(type->for_all.type, whitespace, intern);
+//         break;
 
-    default:
-        printf("Compiler bug: Unrecognized type: %d", type->type);
-        assert(false);
-    }
-}
+//     default:
+//         printf("Compiler bug: Unrecognized type: %d", type->type);
+//         assert(false);
+//     }
+// }
 
 bool necro_is_simple_type(NecroType* type)
 {
@@ -1340,10 +1359,6 @@ void necro_print_type_sig_go(NecroType* type, NecroIntern* intern)
     {
     case NECRO_TYPE_VAR:
         necro_print_id_as_characters(type->var.var.id);
-        // if (type->var.is_rigid)
-        // {
-        //     printf(" [rigid]");
-        // }
         break;
 
     case NECRO_TYPE_APP:
@@ -1387,6 +1402,9 @@ void necro_print_type_sig_go(NecroType* type, NecroIntern* intern)
 
     case NECRO_TYPE_FOR:
         printf("forall ");
+
+        // Print quantified type vars
+        NecroType* for_all_head = type;
         while (type->for_all.type->type == NECRO_TYPE_FOR)
         {
             necro_print_id_as_characters(type->for_all.var.id);
@@ -1395,7 +1413,45 @@ void necro_print_type_sig_go(NecroType* type, NecroIntern* intern)
         }
         necro_print_id_as_characters(type->for_all.var.id);
         printf(". ");
-        necro_print_type_sig_go(type->for_all.type, intern);
+        type = type->for_all.type;
+
+        // Print context
+        type             = for_all_head;
+        bool has_context = false;
+        while (type->type == NECRO_TYPE_FOR)
+        {
+            if (type->for_all.context != NULL)
+            {
+                has_context = true;
+                break;
+            }
+            type = type->for_all.type;
+        }
+        if (has_context)
+        {
+            printf("(");
+            size_t count = 0;
+            type = for_all_head;
+            while (type->type == NECRO_TYPE_FOR)
+            {
+                NecroVar               current_context_var = type->for_all.var;
+                NecroTypeClassContext* context             = type->for_all.context;
+                while (context != NULL)
+                {
+                    if (count > 0)
+                        printf(",");
+                    printf("%s ", necro_intern_get_string(intern, context->type_class_name.symbol));
+                    necro_print_id_as_characters(current_context_var.id);
+                    context = context->next;
+                    count++;
+                }
+                type = type->for_all.type;
+            }
+            printf(") => ");
+        }
+
+        // Print rest of type
+        necro_print_type_sig_go(type, intern);
         break;
 
     default:
@@ -1501,8 +1557,6 @@ char* necro_snprintf_type_sig(NecroType* type, NecroIntern* intern, char* buffer
 {
     if (type == NULL)
         return buffer;
-    // size_t count = 0;
-    // char*  new_buffer;
     switch (type->type)
     {
     case NECRO_TYPE_VAR:
@@ -1553,6 +1607,7 @@ char* necro_snprintf_type_sig(NecroType* type, NecroIntern* intern, char* buffer
         }
 
     case NECRO_TYPE_FOR:
+        // TODO: Add context printing!
         buffer += snprintf(buffer, buffer_length, "forall ");
         while (type->for_all.type->type == NECRO_TYPE_FOR)
         {

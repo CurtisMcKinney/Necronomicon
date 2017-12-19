@@ -1,25 +1,25 @@
-class Show a where
-    show :: b -> [Char]
+-- data Either a b = Either a b
+
+data Maybe a = Just a | Nothing
 
 class Semigroup a where
     append :: a -> a -> a
 
-class Semigroup a => Monoid a where
-    mempty :: a
-
-data Maybe a = Just a | Nothing
-
-data IntList = IntList [Int]
-
-instance Semigroup a => Semigroup (Maybe a) where
-    append _        _        = Nothing
-
-instance Semigroup a => Semigroup ([] a) where
-    append xs = xs
-
 instance Semigroup Int where
     append x y = x + y
 
-data Either a b = Either a b
+instance Semigroup a => Semigroup (Maybe a) where
+    append (Just x) (Just y) = Just (append x y)
 
-instance (Semigroup a, Semigroup b) => Semigroup (Either a b) where
+appendTest :: Semigroup a => a -> a -> a
+appendTest x y = append x y
+
+appendInt :: Int -> Int
+appendInt x = appendTest x x
+
+appendMaybe1 :: Maybe Int -> Maybe Int
+appendMaybe1 x = appendTest x x
+
+appendMaybe2 :: Semigroup a => Maybe a -> Maybe a
+appendMaybe2 x = appendTest x x
+

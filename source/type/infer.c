@@ -123,27 +123,29 @@ NecroType* necro_ast_to_type_sig_go(NecroInfer* infer, NecroNode* ast)
     }
 }
 
-NecroType* necro_ast_to_type_sig(NecroInfer* infer, NecroNode* ast)
-{
-    NecroType* type_sig = necro_gen(infer, necro_ast_to_type_sig_go(infer, ast), ast->scope);
-    if (necro_is_infer_error(infer)) return NULL;
-    necro_check_type_sanity(infer, type_sig);
-    if (necro_is_infer_error(infer)) return NULL;
-    type_sig->pre_supplied = true;
-    type_sig->source_loc   = ast->source_loc;
-    // printf("ast to type_sig: ");
-    // necro_print_type_sig(type_sig, infer->intern);
-    return type_sig;
-}
-
 NecroType* necro_infer_type_sig(NecroInfer* infer, NecroNode* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_TYPE_SIGNATURE);
-    NecroType* type = necro_ast_to_type_sig(infer, ast->type_signature.type);
-    if (type == NULL || necro_is_infer_error(infer)) return NULL;
-    necro_symtable_get(infer->symtable, ast->type_signature.var->variable.id)->type = type;
+
+    NecroType* type_sig = necro_ast_to_type_sig_go(infer, ast->type_signature.type);
+    if (necro_is_infer_error(infer)) return NULL;
+
+    NecroTypeClassContext* context = necro_ast_to_context(infer, infer->type_class_env, ast->type_signature.context);
+    if (necro_is_context_ambiguous(infer, ast->type_signature.var->variable.symbol, context, type_sig)) return NULL;
+    necro_add_constraints_to_ty_vars(infer, type_sig, necro_create_ty_var_context_list(infer, context));
+
+    type_sig = necro_gen(infer, type_sig, ast->type_signature.type->scope);
+    if (necro_is_infer_error(infer)) return NULL;
+
+    necro_check_type_sanity(infer, type_sig);
+    if (necro_is_infer_error(infer)) return NULL;
+
+    type_sig->pre_supplied = true;
+    type_sig->source_loc   = ast->source_loc;
+
+    necro_symtable_get(infer->symtable, ast->type_signature.var->variable.id)->type = type_sig;
     return NULL;
 }
 

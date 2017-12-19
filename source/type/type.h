@@ -82,8 +82,9 @@ typedef struct
 
 typedef struct
 {
-    NecroVar          var;
-    struct NecroType* type;
+    NecroVar                      var;
+    struct NecroTypeClassContext* context;
+    struct NecroType*             type;
 } NecroTypeForAll;
 
 typedef struct NecroType
@@ -203,7 +204,8 @@ NecroType*  necro_create_type_fun(NecroInfer* infer, NecroType* type1, NecroType
 NecroType*  necro_create_type_var(NecroInfer* infer, NecroVar var);
 NecroType*  necro_create_type_app(NecroInfer* infer, NecroType* type1, NecroType* type2);
 NecroType*  necro_create_type_list(NecroInfer* infer, NecroType* item, NecroType* next);
-NecroType*  necro_create_for_all(NecroInfer* infer, NecroVar var, NecroType* type);
+// NecroType*  necro_create_for_all(NecroInfer* infer, NecroVar var, NecroType* type);
+NecroType*  necro_create_for_all(NecroInfer* infer, NecroVar var, struct NecroTypeClassContext* context, NecroType* type);
 
 NecroType*  necro_get_bin_op_type(NecroInfer* infer, NecroAST_BinOpType bin_op_type);
 NecroType*  necro_make_con_1(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1);

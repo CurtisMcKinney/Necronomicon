@@ -139,9 +139,10 @@ NecroType* necro_create_type_var(NecroInfer* infer, NecroVar var)
     type->type      = NECRO_TYPE_VAR;
     type->var       = (NecroTypeVar)
     {
-        .var        = var,
-        .is_rigid   = false,
-        .context    = NULL
+        .var               = var,
+        .is_rigid          = false,
+        .is_type_class_var = false,
+        .context           = NULL
     };
     return type;
 }
@@ -510,7 +511,7 @@ void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* clas
             // If it's a rigid variable, make sure it has all of the necessary classes in its context already
             while (classes != NULL)
             {
-                if (!necro_context_contains_class(type->var.context, classes))
+                if (!necro_context_contains_class(infer->type_class_env, type->var.context, classes))
                 {
                     necro_infer_error(infer, type, "No instance for \'%s %s\'", necro_intern_get_string(infer->intern, classes->type_class_name.symbol), necro_id_as_character_string(infer, type->var.var.id));
                     return;
@@ -891,15 +892,13 @@ NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type, NecroGenResult p
     }
 
     NecroType* top = necro_find(infer, type);
-    if (top->type == NECRO_TYPE_VAR && top->var.is_rigid)
+    if (top->type == NECRO_TYPE_VAR && top->var.is_rigid && !top->var.is_type_class_var)
     {
-        // necro_infer_error(infer, type, "Compiler bug: Attempting to generalize a rigid type variable!");
-        // return (NecroGenResult) { NULL, NULL, NULL };
         prev_result.type = top;
         return prev_result;
     }
 
-    if (necro_is_bound_in_scope(infer, type, scope))
+    if (necro_is_bound_in_scope(infer, type, scope) && !type->var.is_type_class_var)
     {
         prev_result.type = type;
         return prev_result;
@@ -909,15 +908,13 @@ NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type, NecroGenResult p
     {
     case NECRO_TYPE_VAR:
     {
-        if (type->var.is_rigid)
+        if (type->var.is_rigid && !type->var.is_type_class_var)
         {
-            // necro_infer_error(infer, type, "Compiler bug: Attempting to generalize a rigid type variable!");
-            // return (NecroGenResult) { NULL, NULL, NULL };
             prev_result.type = type;
             return prev_result;
         }
         NecroType* bound_type = necro_env_get(infer, type->var.var);
-        if (bound_type != NULL)
+        if (bound_type != NULL && !type->var.is_type_class_var)
         {
             return necro_gen_go(infer, bound_type, prev_result, scope);
         }
@@ -934,11 +931,19 @@ NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type, NecroGenResult p
                 subs = subs->next;
             }
             NecroGenSub* sub       = necro_paged_arena_alloc(&infer->arena, sizeof(NecroGenSub));
-            NecroType*   type_var  = necro_new_name(infer);
-            type_var->var.is_rigid = true;
-            type_var->var.context  = type->var.context;
-            NecroType*   for_all   = necro_create_for_all(infer, type_var->var.var, type->var.context, NULL);
-            *sub                   = (NecroGenSub)
+            NecroType*   type_var;
+            if (!type->var.is_type_class_var)
+            {
+                type_var = necro_new_name(infer);
+                type_var->var.is_rigid = true;
+                type_var->var.context  = type->var.context;
+            }
+            else
+            {
+                type_var = type;
+            }
+            NecroType* for_all   = necro_create_for_all(infer, type_var->var.var, type->var.context, NULL);
+            *sub                 = (NecroGenSub)
             {
                 .next           = NULL,
                 .var_to_replace = type->var.var,
@@ -1439,7 +1444,7 @@ void necro_print_type_sig_go(NecroType* type, NecroIntern* intern)
                 while (context != NULL)
                 {
                     if (count > 0)
-                        printf(",");
+                        printf(", ");
                     printf("%s ", necro_intern_get_string(intern, context->type_class_name.symbol));
                     necro_print_id_as_characters(current_context_var.id);
                     context = context->next;

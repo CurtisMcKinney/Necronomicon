@@ -3494,8 +3494,9 @@ NecroAST_LocalPtr parse_simple_class(NecroParser* parser)
 
     // varid
     NecroAST_LocalPtr varid = parse_tyvar(parser, NECRO_VAR_TYPE_FREE_VAR);
-    if (conid == null_local_ptr || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    if (varid == null_local_ptr || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
     {
+        // return write_error_and_restore(parser, snapshot, "Missing type variable in constraint declaration: %s", necro_intern_get_string(parser->intern, ast_get_node(parser->ast, conid)->conid.symbol));
         restore_parser(parser, snapshot);
         return null_local_ptr;
     }
@@ -3509,6 +3510,15 @@ NecroAST_LocalPtr parse_simple_class(NecroParser* parser)
     return local_ptr;
 }
 
+bool necro_is_empty_list_node(NecroParser* parser, NecroAST_LocalPtr list_ptr)
+{
+    if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return null_local_ptr;
+    if (list_ptr == null_local_ptr) return true;
+    NecroAST_Node* list_node = ast_get_node(parser->ast, list_ptr);
+    return list_node == NULL || list_node->list.item == null_local_ptr;
+}
+
 NecroAST_LocalPtr parse_context(NecroParser* parser)
 {
     if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
@@ -3518,12 +3528,12 @@ NecroAST_LocalPtr parse_context(NecroParser* parser)
     {
         consume_token(parser);
         NecroAST_LocalPtr class_list = parse_list(parser, NECRO_LEX_COMMA, parse_simple_class);
-        if (class_list == null_local_ptr)
+        if (class_list == null_local_ptr || parser->descent_state == NECRO_DESCENT_PARSE_ERROR || necro_is_empty_list_node(parser, class_list))
         {
             restore_parser(parser, snapshot);
             return null_local_ptr;
         }
-        if (peek_token_type(parser) != NECRO_LEX_RIGHT_PAREN)
+        if (peek_token_type(parser) != NECRO_LEX_RIGHT_PAREN || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
         {
             restore_parser(parser, snapshot);
             return null_local_ptr;

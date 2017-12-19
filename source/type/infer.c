@@ -91,6 +91,21 @@ NecroType* necro_ast_to_type_sig_go(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_CONID:         return necro_create_type_con(infer, (NecroCon) { .symbol = ast->conid.symbol, .id = ast->conid.id }, NULL, 0);
     case NECRO_AST_TUPLE:         return necro_infer_tuple_type(infer, ast);
     case NECRO_AST_FUNCTION_TYPE: return necro_create_type_fun(infer, necro_ast_to_type_sig_go(infer, ast->function_type.type), necro_ast_to_type_sig_go(infer, ast->function_type.next_on_arrow));
+    case NECRO_AST_CONSTRUCTOR:
+    {
+        NecroType* con_type = necro_create_type_con(infer, (NecroCon) { .symbol = ast->constructor.conid->conid.symbol, .id = ast->constructor.conid->conid.id }, NULL, 0);
+        NecroNode* arg_list = ast->constructor.arg_list;
+        while (arg_list != NULL)
+        {
+            con_type->con.arity += 1;
+            if (con_type->con.args == NULL)
+                con_type->con.args = necro_create_type_list(infer, necro_ast_to_type_sig_go(infer, arg_list->list.item), NULL);
+            else
+                con_type->con.args->list.next = necro_create_type_list(infer, necro_ast_to_type_sig_go(infer, arg_list->list.item), NULL);
+            arg_list = arg_list->list.next_item;
+        }
+        return con_type;
+    }
     case NECRO_AST_TYPE_APP:
     {
         NecroType* left   = necro_ast_to_type_sig_go(infer, ast->type_app.ty);
@@ -132,9 +147,9 @@ NecroType* necro_infer_type_sig(NecroInfer* infer, NecroNode* ast)
     NecroType* type_sig = necro_ast_to_type_sig_go(infer, ast->type_signature.type);
     if (necro_is_infer_error(infer)) return NULL;
 
-    NecroTypeClassContext* context = necro_ast_to_context(infer, infer->type_class_env, ast->type_signature.context);
-    if (necro_is_context_ambiguous(infer, ast->type_signature.var->variable.symbol, context, type_sig)) return NULL;
-    necro_add_constraints_to_ty_vars(infer, type_sig, necro_create_ty_var_context_list(infer, context));
+    NecroTypeClassContext* context = necro_union_contexts(infer, necro_ast_to_context(infer, infer->type_class_env, ast->type_signature.context), NULL);
+    if (necro_ambiguous_type_class_check(infer, ast->type_signature.var->variable.symbol, context, type_sig)) return NULL;
+    necro_add_constraints_to_ty_vars(infer, type_sig, necro_create_ty_var_context_list(infer, NULL, context));
 
     type_sig = necro_gen(infer, type_sig, ast->type_signature.type->scope);
     if (necro_is_infer_error(infer)) return NULL;

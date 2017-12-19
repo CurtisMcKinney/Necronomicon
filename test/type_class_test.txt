@@ -1,18 +1,26 @@
--- data Either a b = Either a b
-
 data Maybe a = Just a | Nothing
 
 class Semigroup a where
     append :: a -> a -> a
+    other :: a -> a
+
+class Semigroup a => Monoid a where
+    mempty :: a
+
+class NullClass a where
+    null :: a -> ()
 
 instance Semigroup Int where
     append x y = x + y
 
 instance Semigroup a => Semigroup (Maybe a) where
     append (Just x) (Just y) = Just (append x y)
+    append Nothing  (Just y) = Just y
 
-appendTest :: Semigroup a => a -> a -> a
-appendTest x y = append x y
+appendTest :: (Semigroup a, Semigroup b) => a -> b -> a
+appendTest x y = append x x
+    where
+        notUsed = append y y
 
 appendInt :: Int -> Int
 appendInt x = appendTest x x
@@ -20,6 +28,5 @@ appendInt x = appendTest x x
 appendMaybe1 :: Maybe Int -> Maybe Int
 appendMaybe1 x = appendTest x x
 
-appendMaybe2 :: Semigroup a => Maybe a -> Maybe a
+appendMaybe2 :: Monoid a => Maybe a -> Maybe a
 appendMaybe2 x = appendTest x x
-

@@ -51,6 +51,7 @@ typedef struct
 {
     NecroVar                      var;
     bool                          is_rigid;
+    bool                          is_type_class_var;
     struct NecroTypeClassContext* context;
 } NecroTypeVar;
 

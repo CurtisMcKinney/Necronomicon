@@ -11,11 +11,13 @@
 #include "type_class.h"
 
 // TODO:
+//    * Kinds, redo TypeCon to use Kinds, redo TypeVar to use kinds....What do we do with TypeApp??? Redo to be more like TypeCon???....
 //    * Insert checks to make sure that instances conform to the type class and implement the super class, and implement ALL methods!
 //    * Insert similiar class checks into instances
 //    * missing members check
 //    * Equipped with type classes we can make primitive functions: addInt, addFloat, addAudio, etc
 //    * AST transformation creating and passing dictionaries around for type classes
+//    * Strongly Connected Component analysis for declarations
 
 #define NECRO_TYPE_CLASS_DEBUG 0
 #if NECRO_TYPE_CLASS_DEBUG
@@ -67,15 +69,18 @@ void necro_create_type_class_declaration_pass1(NecroInfer* infer, NecroTypeClass
     type_class->type_var             = (NecroCon) { .symbol = ast->type_class_declaration.tyvar->variable.symbol, .id = ast->type_class_declaration.tyvar->variable.id };
     type_class->context              = NULL;
 
+
     // Create type_var for type_class
-    NecroType* ty_var              = necro_create_type_var(infer, (NecroVar) { .id = type_class->type_var.id, .scope = NULL });
-    ty_var->var.is_rigid           = true;
+    // NecroType* ty_var              = necro_create_type_var(infer, (NecroVar) { .id = type_class->type_var.id, .scope = NULL });
+    NecroType* ty_var              = necro_new_name(infer);
+    // ty_var->var.is_rigid           = true;
     ty_var->var.is_type_class_var  = true;
     NecroType* arg_list            = necro_create_type_list(infer, ty_var, NULL);
     type_class->type               = necro_make_con_1(infer, ast->type_class_declaration.tycls->conid.symbol, arg_list);
     type_class->type->con.is_class = true;
-
     type_class->context            = necro_ast_to_context(infer, env, ast->type_class_declaration.context);
+
+    necro_symtable_get(infer->symtable, type_class->type_var.id)->type = ty_var;
 }
 
 void necro_create_type_class_declaration_pass2(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast)
@@ -301,6 +306,7 @@ NecroType* necro_instantiate_method_sig_go(NecroInfer* infer, NecroCon type_clas
 
 NecroType* necro_instantiate_method_sig(NecroInfer* infer, NecroCon type_class_var, NecroType* method_type, NecroType* data_type)
 {
+    if (necro_is_infer_error(infer)) return NULL;
     assert(data_type != NULL);
     NecroType* data_type_for_all      = NULL;
     NecroType* data_type_for_all_curr = NULL;
@@ -335,6 +341,7 @@ NecroType* necro_instantiate_method_sig(NecroInfer* infer, NecroCon type_class_v
 NecroType* necro_create_data_type_sig(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast_data_type, NecroTypeClassContext* instance_context)
 {
     NecroType* data_type = necro_ast_to_type_sig_go(infer, ast_data_type);
+    if (necro_is_infer_error(infer)) return NULL;
     assert(data_type != NULL);
     if (necro_is_infer_error(infer)) return NULL;
     necro_check_type_sanity(infer, data_type);
@@ -345,7 +352,9 @@ NecroType* necro_create_data_type_sig(NecroInfer* infer, NecroTypeClassEnv* env,
     NecroTyVarContextList* context_list  = necro_create_ty_var_context_list(infer, NULL, instance_context);
     // if (necro_ambiguous_type_class_check(infer, declarations->declaration.declaration_impl->type_signature.var->variable.symbol, context, type_sig)) return;
     necro_add_constraints_to_ty_vars(infer, data_type, context_list);
-    return necro_gen(infer, data_type, NULL);
+    NecroType* gen_type = necro_gen(infer, data_type, NULL);
+    assert(gen_type != NULL);
+    return gen_type;
 }
 
 uint64_t necro_create_instance_key(NecroCon data_type_name, NecroCon type_class_name)

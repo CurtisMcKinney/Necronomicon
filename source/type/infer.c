@@ -80,6 +80,14 @@ TODO:
 //=====================================================
 // TypeSig
 //=====================================================
+NecroType* necro_copy_constructor(NecroInfer* infer, NecroType* con_type)
+{
+    assert(infer != NULL);
+    assert(con_type != NULL);
+    assert(con_type->type == NECRO_TYPE_CON);
+    return necro_create_type_con(infer, con_type->con.con, NULL, con_type->con.arity);
+}
+
 NecroType* necro_ast_to_type_sig_go(NecroInfer* infer, NecroNode* ast)
 {
     assert(infer != NULL);
@@ -88,22 +96,35 @@ NecroType* necro_ast_to_type_sig_go(NecroInfer* infer, NecroNode* ast)
     switch (ast->type)
     {
     case NECRO_AST_VARIABLE:      return necro_create_type_var(infer, (NecroVar) { ast->variable.id });
-    case NECRO_AST_CONID:         return necro_create_type_con(infer, (NecroCon) { .symbol = ast->conid.symbol, .id = ast->conid.id }, NULL, 0);
+    // case NECRO_AST_CONID:         return necro_create_type_con(infer, (NecroCon) { .symbol = ast->conid.symbol, .id = ast->conid.id }, NULL, 0);
+    case NECRO_AST_CONID:
+        if (necro_symtable_get(infer->symtable, ast->conid.id) == NULL)
+            return necro_infer_ast_error(infer, NULL, ast, "Can't find data type: %s", necro_intern_get_string(infer->intern, ast->conid.symbol));
+        else
+            return necro_copy_constructor(infer, necro_symtable_get(infer->symtable, ast->conid.id)->type);
+        // return necro_create_type_con(infer, (NecroCon) { .symbol = ast->conid.symbol, .id = ast->conid.id }, NULL, 0);
     case NECRO_AST_TUPLE:         return necro_infer_tuple_type(infer, ast);
     case NECRO_AST_FUNCTION_TYPE: return necro_create_type_fun(infer, necro_ast_to_type_sig_go(infer, ast->function_type.type), necro_ast_to_type_sig_go(infer, ast->function_type.next_on_arrow));
     case NECRO_AST_CONSTRUCTOR:
     {
-        NecroType* con_type = necro_create_type_con(infer, (NecroCon) { .symbol = ast->constructor.conid->conid.symbol, .id = ast->constructor.conid->conid.id }, NULL, 0);
+        // NecroType* con_type = necro_create_type_con(infer, (NecroCon) { .symbol = ast->constructor.conid->conid.symbol, .id = ast->constructor.conid->conid.id }, NULL, 0);
+        if (necro_symtable_get(infer->symtable, ast->conid.id) == NULL)
+            return necro_infer_ast_error(infer, NULL, ast, "Can't find data type: %s", necro_intern_get_string(infer->intern, ast->conid.symbol));
+        NecroType* con_type = necro_copy_constructor(infer, necro_symtable_get(infer->symtable, ast->conid.id)->type);
         NecroNode* arg_list = ast->constructor.arg_list;
+        size_t arity = 0;
         while (arg_list != NULL)
         {
-            con_type->con.arity += 1;
+            // con_type->con.arity += 1;
             if (con_type->con.args == NULL)
                 con_type->con.args = necro_create_type_list(infer, necro_ast_to_type_sig_go(infer, arg_list->list.item), NULL);
             else
                 con_type->con.args->list.next = necro_create_type_list(infer, necro_ast_to_type_sig_go(infer, arg_list->list.item), NULL);
             arg_list = arg_list->list.next_item;
+            arity++;
         }
+        // if (arity != con_type->con.arity)
+        //     return necro_infer_ast_error(infer, con_type, ast, "Mismatched arity for type %s. Expected arity: %d, found arity %d", necro_intern_get_string(infer->intern, con_type->con.con.symbol), con_type->con.arity, arity);
         return con_type;
     }
     case NECRO_AST_TYPE_APP:
@@ -117,7 +138,7 @@ NecroType* necro_ast_to_type_sig_go(NecroInfer* infer, NecroNode* ast)
             if (left->con.args == NULL)
             {
                 left->con.args   = necro_create_type_list(infer, right, NULL);
-                left->con.arity += 1;
+                // left->con.arity += 1;
             }
             else if (left->con.args != NULL)
             {
@@ -125,10 +146,17 @@ NecroType* necro_ast_to_type_sig_go(NecroInfer* infer, NecroNode* ast)
                 while (current_arg->list.next != NULL)
                     current_arg = current_arg->list.next;
                 current_arg->list.next = necro_create_type_list(infer, right, NULL);
-                left->con.arity += 1;
+                // left->con.arity += 1;
             }
             return left;
         }
+        // else if (left->type == NECRO_TYPE_VAR)
+        // {
+        //     NecroType* type = necro_create_type_app(infer, left, right);
+        //     necro_unify(infer, type, left, ast->scope);
+        //     if (necro_is_infer_error(infer)) return NULL;
+        //     return type;
+        // }
         else
         {
             return necro_create_type_app(infer, left, right);
@@ -590,6 +618,7 @@ NecroType* necro_infer_apat(NecroInfer* infer, NecroNode* ast)
         NecroType* pattern_type_head = NULL;
         NecroType* pattern_type      = NULL;
         NecroNode* ast_args          = ast->constructor.arg_list;
+        size_t arg_count = 0;
         while (ast_args != NULL)
         {
             if (pattern_type_head == NULL)
@@ -603,8 +632,10 @@ NecroType* necro_infer_apat(NecroInfer* infer, NecroNode* ast)
                 pattern_type            = pattern_type->fun.type2;
             }
             if (necro_is_infer_error(infer)) return NULL;
+            arg_count++;
             ast_args = ast_args->list.next_item;
         }
+
         NecroType* data_type = necro_new_name(infer);
         data_type->source_loc = ast->source_loc;
         if (pattern_type_head == NULL)
@@ -615,8 +646,23 @@ NecroType* necro_infer_apat(NecroInfer* infer, NecroNode* ast)
         {
             pattern_type->fun.type2 = data_type;
         }
+
+        necro_check_type_sanity(infer, pattern_type_head);
+        if (necro_is_infer_error(infer)) return NULL;
+
+        size_t constructor_args = 0;
+        NecroType* con_iter = constructor_type;
+        while (con_iter->type == NECRO_TYPE_FUN)
+        {
+            constructor_args++;
+            con_iter = con_iter->fun.type2;
+        }
+        if (arg_count != constructor_args)
+            necro_infer_ast_error(infer, pattern_type_head, ast, "Wrong number of arguments for constructor %s. Expected arity: %d, found arity %d", necro_intern_get_string(infer->intern, ast->constructor.conid->conid.symbol), constructor_args, arg_count);
+
         necro_unify(infer, constructor_type, pattern_type_head, ast->scope);
         necro_check_type_sanity(infer, data_type);
+        if (necro_is_infer_error(infer)) return NULL;
         return data_type;
     }
 

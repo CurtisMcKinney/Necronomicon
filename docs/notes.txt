@@ -77,7 +77,7 @@ values      = {1, 2, 200, 9, 8, 1, 2, 200, 9, 8}
 current :: CurrentMonad m => a -> m a
 
 semantics then become:
-data Stream a = Stream  (Maybe a) (Stream a) --value, next
+data Stream a = Stream  (Maybe a) (StreamState -> Stream a) --value, next, StreamState
               | End
               | Constant a
 
@@ -123,6 +123,16 @@ current (Stream val cont) = StreamIO $ \world ->
                              refCont cont' = StreamIO (\world3 -> let (contVal, contCont) = demand cont' in let world4 = writeCurrentRef contVal in ((), refCont' contCont, world4))
                          in  StreamIO (refStream, refCont, world2)
 
+data StreamIO x a = StreamIO (StreamState -> (a, x -> StreamIO a, StreamState))
+data Stream   a   = Stream a (StreamIO () a)
+
+instance Monad StreamIO where
+    x >>= f = StreamIO $ \state ->
+        let (xVal, xCont)         = demand x
+            StreamIO sf           = f xVal
+            (gVal, gCont, state') = sf state
+        in (gVal, (xCont ()) >>= gCont, state')
+
 -- Non-Strict, No Circular References, is it possible:
 feedback = seq [0, 1 + feedback]
 
@@ -131,8 +141,7 @@ refs     = {[ref 0, ref 1 + ref feedback[0]]}
 
 feedback[0] = Sequence ()
 
-
-main :: IO ()
+main :: IO () ()
 main = do
     sample1 <- load "pulseDemon"
     sample2 <- load "doomBlad"
@@ -152,12 +161,11 @@ current :: a -> {a}
 rand :: Num a => a -> a -> {a}
 
 (=>>) :: a -> (a -> {b}) -> b
-mapC :: (a -> {b}) -> [a] -> {[b]}
 
 sin 440 =>> current
 sin 440 =>> simpleRand
 
-main :: {()}
+main :: ()
 main = do
     sample1 <- load "pulseDemon"
     sample2 <- load "doomBlad"
@@ -175,12 +183,15 @@ randSynth low high = do
 -equivalant to-
 
 randSynth :: Audio -> Audio -> {Audio}
-randSynth low' high' = current
+randSynth low' high' =
     (low'         =>> \low  ->
     high'         =>> \high ->
     rand low high =>> \r1   ->
-    rand low high =>> \r2   ->
-    current (r1 + r2))
+    (rand low high |> \r2   ->
+     current (r1 + r2)))
+
+    current (coolSynth =>> \coolSynth' -> current coolSynth')
+    current (rand l h  =>> \rand' -> current rand')
 
 current :: Stream a -> a
 current (Stream aVal aCont) = aVal
@@ -193,3 +204,220 @@ instance Comonad Stream where
     stream =>> f = Stream (f stream) (cont stream =>> f)
 
 -- Need State parameter for things like rand to get threaded through...how?
+Store Comonad for State
+
+()            \_     ->
+rand 0 1  =>> \rand1 ->
+rand 0 2  =>> \rand2 ->
+coolSynth =>> \coolSynth' ->
+
+randSynth :: Audio -> Audio -> {Audio}
+randSynth low high = do
+    r1 <- rand low high
+    r2 <- rand low high
+    current (r1 + r2)
+
+randSynth :: Audio -> Audio -> {Audio}
+randSynth low high =
+    rand low high =>> (\r1 ->
+    rand low high |>  (\r2 ->
+    current (r1 + r2))
+
+-- Like this things can actually be strict because the cont is hidden in a function
+data Stream a = Stream a (\Int -> Stream) (Int -> Int) Int
+
+instance Comonad Stream where
+    current (Stream aVal _ _ _ _) = aVal
+    (Stream val cont getter state) =>> f =
+
+---------------------------------------------------------------------
+-- Comonads approach 2: Comonadic effects on top of main language
+type IO a = StreamIO StreamState a
+
+main :: IO State -> ()
+main = do (u)
+    sample1 <- load "pulseDemon"
+    sample2 <- load "doomBlad"
+    let synth1 = poly1 mouseClick (synth (current sample1)) mouseX
+        synth2 = poly1 tick       (synth (current sample2)) mouseY
+        synths = synth 1 + synth2
+    current audioOut 0 synths
+
+loadSample :: String -> IO () -> AudioBuffer
+
+audioOut :: Audio -> IO () -> ()
+rand :: IO (Audio, Audio) -> Audio
+
+-- rand :: Audio -> Audio -> IO Audio
+-- rand low high = store (\state -> genRand low high state) initState
+
+data IO s a = IO (s -> a) s
+instance Function (IO s) where
+    fmap f (IO g s) = IO (f . g) s
+
+instance Comonad (IO s) where
+    current   (IO g s) = g s
+    duplicate (IO g s) = IO (IO g) (bumpSeed s)
+
+---------------------------------------------------------------------
+-- Monadic approach 3: Use Comonad Store under the hood
+
+data Stream a = Stream a (Stream a)
+data IO s a   = IO (s -> a -> a) (Stream s) (Stream a)
+
+audioOut :: Stream Audio -> IO (Stream ())
+load :: Stream String -> IO (Stream AudioBuffer)
+rand :: Stream Audio -> Stream Audio -> IO (Stream Audio)
+
+current :: Stream a -> IO (Stream a)
+current (Stream aVal aCont) = IO (Constant aVal) aCont
+
+rand :: Stream Audio -> Stream Audio -> IO (Stream Audio)
+
+-- Split and merge state for random numbers
+instance Monad IO where
+    pure x = go
+        where
+            go = IO (\_ -> (x, go)) x
+    IO xf xs xa >>= f = IO (fsa fs
+        where
+            xVal         = xf (current xs) (current xa)
+            IO fsa fs fa = f xVal
+            fsa xs fa = fsa' (IO xsa xCont)
+
+---------------------------------------------------------------------
+-- Comonads approach 3: Comonadic effects on top of main language with alternate do and api
+type IO a = StreamIO StreamState a
+
+main :: IO () -> ()
+main = do ()
+    sample1 <- load "pulseDemon"
+    sample2 <- load "doomBlad"
+    let synth1 = poly1 mouseClick (synth (current sample1)) mouseX
+        synth2 = poly1 tick       (synth (current sample2)) mouseY
+        synths = synth 1 + synth2
+    current audioOut 0 synths
+
+loadSample :: String -> IO () -> AudioBuffer
+audioOut :: IO Audio -> ()
+rand :: IO (Audio, Audio) -> Audio
+
+data IO s a = IO (s -> a) s
+instance Function (IO s) where
+    fmap f (IO g s) = IO (f . g) s
+
+instance Comonad (IO s) where
+    current   (IO g s) = g s
+    duplicate (IO g s) = IO (IO g) (bumpSeed s)
+
+---------------------------------------------------------------------
+-- Arrow approach to effects: Works but seems like overkill
+
+audioOut :: IO (Stream Audio) ()
+load :: IO (Stream String) (Stream AudioBuffer)
+rand :: IO (Stream Audio, Stream Audio) (Stream Audio)
+current :: IO (Stream a) (Stream a)
+
+main :: IO () ()
+main = do
+    sample1 <- load -< "pulseDemon"
+    sample2 <- load -< "doomBlad"
+    r1      <- rand -< (low, high)
+    r2      <- rand -< (low, high)
+    let synth1 = poly1 mouseClick (synth sample1) mouseX
+        synth2 = poly1 tick       (synth sample2) mouseY
+        synths = synth 1 + synth2
+    audioOut 0 -< synthsfs
+
+---------------------------------------------------------------------
+-- Stream Monad approach: World Parameter fuxorz this idea, causes time and space leak
+
+data World = World
+data IO a  = IO (World -> (a, IO a, World))
+
+instance Functor IO where
+    pure x         = IO (\w -> (x, pure x, w))
+    map  f (IO xw) = IO (\w -> let (x, xs, w') = xw w in (f x, map f xs, w'))
+
+instance Monad IO where
+    xs >>= f = IO diagonal (map f xs)
+        where
+            ioHead   (IO xw) w = let (xh, _, w') = xw w in (xh, w')
+            ioTail   (IO xw)   = IO (\w -> let (_, IO xw', w') = xw w in xw' w')
+            diagonal (IO xw) w = (h, IO diagonal (map ioTail ioss), w')
+                where
+                    (ios, ioss, w') = xw w
+                    (h, w'')        = ioHead ios w'
+
+instance Monad IO where
+    xs >>= f = diagonal (map f xs)
+        where
+            ioHead (IO x _)        = x
+            ioTail (IO _ xs)       = xs
+            diagonal (IO ios ioss) = IO (ioHead ios) (diagonal (map ioTail ioss))
+
+current :: Stream a -> IO (Stream a)
+current (Stream aVal aCont) = IO (\w -> (Constant aVal, current aCont, w))
+
+rand :: (Rand a) => Stream a -> Stream a -> IO (Stream a)
+rand low high = IO go
+    where
+        g w = (nStream n, pure nStream, w')
+            where
+                (n, w') = genRand (streamHead low) (streamHead high) w
+                nStream = Constant n
+
+---------------------------------------------------------------------
+-- Stream Monad approach: World Parameter fuxorz this idea, causes time and space leak
+data World    = World
+data Stream a = Stream a (Stream a)
+data IO a     = IO (World -> (Stream a, World))
+
+current :: Stream a -> IO (Stream a)
+current stream = IO (\w -> (go stream, w))
+    where
+        go
+
+---------------------------------------------------------------------
+-- Streamed IO idea
+
+data World    = World
+data Stream a = Stream a (Stream a)
+data IO a     = IO (World -> (a, World))
+
+current :: Stream a -> Stream (IO (Stream a))
+current (Stream aVal aCont) = Stream (IO (\w -> (Constant aVal, w))) (current aCont)
+
+rand :: (Rand a) => Stream a -> Stream a -> Stream (IO (Stream a))
+rand (Stream lowVal lowCont) (Stream highVal highCont) = Stream (IO (\w -> ))
+
+load :: Stream String -> Stream (IO (Stream AudioBuffer))
+load
+
+---------------------------------------------------------------------
+-- Indexed Comonads idea?
+
+class Effect a
+data Rand   = Rand
+data Load   = Load
+data Demand = Demand
+data Out    = Out
+instance Effect Rand
+instance Effect Load
+
+
+load :: String -Load-> AudioBuffer
+
+current :: a -Demand-> a
+
+rand :: (Rand a) => a -> a -Rand-> a
+
+audioOut :: Audio -Out-> ()
+
+main :: ()
+main = do
+    sample1 <- load "hey"
+    sample2 <- load "you"
+    r1      <- rand 0 1
+    r2      <- rand 0 1
+

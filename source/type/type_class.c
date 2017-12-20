@@ -15,6 +15,7 @@
 //    * Insert similiar class checks into instances
 //    * missing members check
 //    * Equipped with type classes we can make primitive functions: addInt, addFloat, addAudio, etc
+//    * AST transformation creating and passing dictionaries around for type classes
 
 #define NECRO_TYPE_CLASS_DEBUG 0
 #if NECRO_TYPE_CLASS_DEBUG
@@ -405,8 +406,6 @@ NecroTypeClassContext* necro_union_contexts(NecroInfer* infer, NecroTypeClassCon
 {
     if (context1 == NULL)
         return context2;
-    // if (context2 == NULL)
-    //     return context1;
 
     NecroTypeClassContext* head = NULL;
     NecroTypeClassContext* curr = NULL;

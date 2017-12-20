@@ -2,7 +2,6 @@ data Maybe a = Just a | Nothing
 
 class Semigroup a where
     append :: a -> a -> a
-    other :: a -> a
 
 class Semigroup a => Monoid a where
     mempty :: a

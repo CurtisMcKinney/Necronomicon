@@ -140,3 +140,56 @@ main = do
         synth2 = poly1 tick       (synth sample2) mouseY
         synths = synth 1 + synth2
     audioOut 0 synths
+
+-- Comonadic semantics for effects idea:
+-- Comonadic do idea
+-- Extraction is a safe opeartion in the main Necro Language
+current :: a -> {a}
+
+-- Injection is an unsafe operation in the main Necro language
+-- constant :: {a} -> a -- UNSAFE!!!
+
+rand :: Num a => a -> a -> {a}
+
+(=>>) :: a -> (a -> {b}) -> b
+mapC :: (a -> {b}) -> [a] -> {[b]}
+
+sin 440 =>> current
+sin 440 =>> simpleRand
+
+main :: {()}
+main = do
+    sample1 <- load "pulseDemon"
+    sample2 <- load "doomBlad"
+    let synth1 = poly1 mouseClick (synth sample1) mouseX
+        synth2 = poly1 tick       (synth sample2) mouseY
+        synths = synth 1 + synth2
+    audioOut 0 synths
+
+randSynth :: Audio -> Audio -> {Audio}
+randSynth low high = do
+    r1 <- rand low high
+    r2 <- rand low high
+    r1 + r2 |> current
+
+-equivalant to-
+
+randSynth :: Audio -> Audio -> {Audio}
+randSynth low' high' = current
+    (low'         =>> \low  ->
+    high'         =>> \high ->
+    rand low high =>> \r1   ->
+    rand low high =>> \r2   ->
+    current (r1 + r2))
+
+current :: Stream a -> a
+current (Stream aVal aCont) = aVal
+
+rand :: Stream Audio -> Stream Audio -> Audio
+rand (Stream lowVal _ lowState) (Stream highVal _ highState) = genRandWithSeed (mergeRand lowState highState + 1)
+
+instance Comonad Stream where
+    current (Stream aVal _ _) = aVal
+    stream =>> f = Stream (f stream) (cont stream =>> f)
+
+-- Need State parameter for things like rand to get threaded through...how?

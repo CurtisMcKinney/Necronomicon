@@ -11,7 +11,10 @@
 #include "type_class.h"
 
 // TODO:
-//    * Kinds, redo TypeCon to use Kinds, redo TypeVar to use kinds....What do we do with TypeApp??? Redo to be more like TypeCon???....
+//    * Redo TypeApp to be more like TypeCon? How to handle this with TypeVariables in Type Signatures?!?!?!
+//    * Is this the only place where you can honestly use higher kinded types???
+//    * Simply manually figure out how the typeclass variable is being used and manually enforce that at each point along the way???
+//    * TypeClass gets very weird with kinds...
 //    * Insert checks to make sure that instances conform to the type class and implement the super class, and implement ALL methods!
 //    * Insert similiar class checks into instances
 //    * missing members check
@@ -69,10 +72,9 @@ void necro_create_type_class_declaration_pass1(NecroInfer* infer, NecroTypeClass
     type_class->type_var             = (NecroCon) { .symbol = ast->type_class_declaration.tyvar->variable.symbol, .id = ast->type_class_declaration.tyvar->variable.id };
     type_class->context              = NULL;
 
-
     // Create type_var for type_class
-    // NecroType* ty_var              = necro_create_type_var(infer, (NecroVar) { .id = type_class->type_var.id, .scope = NULL });
-    NecroType* ty_var              = necro_new_name(infer);
+    NecroType* ty_var              = necro_create_type_var(infer, (NecroVar) { .id = type_class->type_var.id, .scope = NULL });
+    // NecroType* ty_var              = necro_new_name(infer);
     // ty_var->var.is_rigid           = true;
     ty_var->var.is_type_class_var  = true;
     NecroType* arg_list            = necro_create_type_list(infer, ty_var, NULL);
@@ -81,6 +83,7 @@ void necro_create_type_class_declaration_pass1(NecroInfer* infer, NecroTypeClass
     type_class->context            = necro_ast_to_context(infer, env, ast->type_class_declaration.context);
 
     necro_symtable_get(infer->symtable, type_class->type_var.id)->type = ty_var;
+
 }
 
 void necro_create_type_class_declaration_pass2(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast)

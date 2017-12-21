@@ -1,20 +1,19 @@
 data Maybe a = Just a | Nothing
 data Either a b = Either a b
 
--- class Semigroup a where
---     append :: a -> a -> a
---     -- test2 :: a b -> a b
+class Semigroup a where
+    append :: a -> a -> a
+    -- test2 :: a b -> a b
 
--- sigTest :: a -> b -> a Int Int
-
--- maybeTest :: Maybe a -> Maybe a
--- maybeTest (Just x) = Just x
+maybeTest :: Maybe a -> Maybe a
+maybeTest (Just x) = Just x
 
 -- class Monad m where
 --     pure :: a -> m a
+
 --     bind :: (a -> m a) -> (a -> m b) -> m b
 
--- instance Monad (Maybe a b) where
+-- instance Monad (Maybe a) where
 --     pure x = Just x
 
 -- class Semigroup a => Monoid a where
@@ -48,9 +47,9 @@ data Either a b = Either a b
 -- appendMaybe2 :: Monoid a => Maybe a -> Maybe a
 -- appendMaybe2 x = appendTest x x
 
--- maybeTest :: Maybe Int -> Int
--- maybeTest (Just x) = x
--- maybeTest Nothing  = 0
---
+maybeTest2 :: Maybe Int -> Int
+maybeTest2 (Just x) = x
+maybeTest2 Nothing  = 0
+
 -- conTest :: Monad m => a -> m a
 -- conTest a = pure a

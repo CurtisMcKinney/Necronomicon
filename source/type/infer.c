@@ -95,10 +95,10 @@ NecroType* necro_ast_to_type_sig_go(NecroInfer* infer, NecroNode* ast)
     if (necro_is_infer_error(infer)) return NULL;
     switch (ast->type)
     {
-    case NECRO_AST_VARIABLE:      return necro_create_type_var(infer, (NecroVar) { ast->variable.id });
+    case NECRO_AST_VARIABLE: return necro_create_type_var(infer, (NecroVar) { ast->variable.id });
     // case NECRO_AST_CONID:         return necro_create_type_con(infer, (NecroCon) { .symbol = ast->conid.symbol, .id = ast->conid.id }, NULL, 0);
     case NECRO_AST_CONID:
-        if (necro_symtable_get(infer->symtable, ast->conid.id) == NULL)
+        if (necro_symtable_get(infer->symtable, ast->conid.id)->type == NULL)
             return necro_infer_ast_error(infer, NULL, ast, "Can't find data type: %s", necro_intern_get_string(infer->intern, ast->conid.symbol));
         else
             return necro_copy_constructor(infer, necro_symtable_get(infer->symtable, ast->conid.id)->type);
@@ -108,7 +108,7 @@ NecroType* necro_ast_to_type_sig_go(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_CONSTRUCTOR:
     {
         // NecroType* con_type = necro_create_type_con(infer, (NecroCon) { .symbol = ast->constructor.conid->conid.symbol, .id = ast->constructor.conid->conid.id }, NULL, 0);
-        if (necro_symtable_get(infer->symtable, ast->conid.id) == NULL)
+        if (necro_symtable_get(infer->symtable, ast->conid.id)->type == NULL)
             return necro_infer_ast_error(infer, NULL, ast, "Can't find data type: %s", necro_intern_get_string(infer->intern, ast->conid.symbol));
         NecroType* con_type = necro_copy_constructor(infer, necro_symtable_get(infer->symtable, ast->conid.id)->type);
         NecroNode* arg_list = ast->constructor.arg_list;
@@ -127,6 +127,7 @@ NecroType* necro_ast_to_type_sig_go(NecroInfer* infer, NecroNode* ast)
         //     return necro_infer_ast_error(infer, con_type, ast, "Mismatched arity for type %s. Expected arity: %d, found arity %d", necro_intern_get_string(infer->intern, con_type->con.con.symbol), con_type->con.arity, arity);
         return con_type;
     }
+
     case NECRO_AST_TYPE_APP:
     {
         NecroType* left   = necro_ast_to_type_sig_go(infer, ast->type_app.ty);
@@ -161,7 +162,9 @@ NecroType* necro_ast_to_type_sig_go(NecroInfer* infer, NecroNode* ast)
         {
             return necro_create_type_app(infer, left, right);
         }
+
     }
+
     default: return necro_infer_ast_error(infer, NULL, ast, "Unimplemented type signature case: %d", ast->type);
     }
 }
@@ -173,6 +176,8 @@ NecroType* necro_infer_type_sig(NecroInfer* infer, NecroNode* ast)
     assert(ast->type == NECRO_AST_TYPE_SIGNATURE);
 
     NecroType* type_sig = necro_ast_to_type_sig_go(infer, ast->type_signature.type);
+    if (necro_is_infer_error(infer)) return NULL;
+    necro_check_type_sanity(infer, type_sig);
     if (necro_is_infer_error(infer)) return NULL;
 
     NecroTypeClassContext* context = necro_union_contexts(infer, necro_ast_to_context(infer, infer->type_class_env, ast->type_signature.context), NULL);

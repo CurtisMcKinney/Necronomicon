@@ -135,15 +135,43 @@ NecroType* necro_create_type_var(NecroInfer* infer, NecroVar var)
 {
     if (var.id.id > infer->highest_id)
         infer->highest_id = var.id.id + 1;
+
+    if (infer->env.data[var.id.id] != NULL)
+        return infer->env.data[var.id.id];
+
     NecroType* type = necro_alloc_type(infer);
     type->type      = NECRO_TYPE_VAR;
     type->var       = (NecroTypeVar)
     {
         .var               = var,
+        .arity             = 0,
         .is_rigid          = false,
         .is_type_class_var = false,
-        .context           = NULL
+        .context           = NULL,
+        .bound             = NULL
     };
+
+    if (var.id.id >= infer->env.capacity)
+    {
+        size_t new_size = next_highest_pow_of_2(var.id.id) * 2;
+        if (new_size < infer->env.capacity)
+            new_size = infer->env.capacity * 2;
+        printf("Realloc env, size: %d, new_size: %d, id: %d\n", infer->env.capacity, new_size, var.id.id);
+        NecroType** new_data = realloc(infer->env.data, new_size * sizeof(NecroType*));
+        if (new_data == NULL)
+        {
+            if (infer->env.data != NULL)
+                free(infer->env.data);
+            fprintf(stderr, "Malloc returned NULL in infer env reallocation!\n");
+            exit(1);
+        }
+        for (size_t i = infer->env.capacity; i < new_size; ++i)
+            new_data[i] = NULL;
+        infer->env.capacity = new_size;
+        infer->env.data     = new_data;
+    }
+
+    infer->env.data[type->var.var.id.id] = type;
     return type;
 }
 
@@ -264,44 +292,46 @@ NecroType* necro_new_name(NecroInfer* infer)
 //=====================================================
 // NecroTypeEnv
 //=====================================================
-NecroType* necro_env_get(NecroInfer* infer, NecroVar var)
-{
-    if (infer->env.capacity > var.id.id)
-    {
-        return infer->env.data[var.id.id];
-    }
-    else
-    {
-        // If you're going to print, don't pass in a null type...
-        // necro_infer_error(infer, NULL, "Cannot find type for variable %s", necro_id_as_character_string(infer, var.id));
-        return NULL;
-    }
-}
+// NecroType* necro_env_get(NecroInfer* infer, NecroVar var)
+// {
+//     if (infer->env.capacity > var.id.id)
+//     {
+//         return infer->env.data[var.id.id]->var.bound;
+//     }
+//     else
+//     {
+//         // If you're going to print, don't pass in a null type...
+//         necro_infer_error(infer, NULL, "Cannot find variable %s", necro_id_as_character_string(infer, var.id));
+//         return NULL;
+//     }
+// }
 
-void necro_env_set(NecroInfer* infer, NecroVar var, NecroType* type)
+void necr_bind_type_var(NecroInfer* infer, NecroVar var, NecroType* type)
 {
     if (var.id.id >= infer->env.capacity)
     {
-        size_t new_size = next_highest_pow_of_2(var.id.id) * 2;
-        if (new_size < infer->env.capacity)
-            new_size = infer->env.capacity * 2;
-        printf("Realloc env, size: %d, new_size: %d, id: %d\n", infer->env.capacity, new_size, var.id.id);
-        NecroType** new_data = realloc(infer->env.data, new_size * sizeof(NecroType*));
-        if (new_data == NULL)
-        {
-            if (infer->env.data != NULL)
-                free(infer->env.data);
-            fprintf(stderr, "Malloc returned NULL in infer env reallocation!\n");
-            exit(1);
-        }
-        for (size_t i = infer->env.capacity; i < new_size; ++i)
-            new_data[i] = NULL;
-        infer->env.capacity = new_size;
-        infer->env.data     = new_data;
+        necro_infer_error(infer, NULL, "Cannot find variable %s", necro_id_as_character_string(infer, var.id));
     }
+    //     size_t new_size = next_highest_pow_of_2(var.id.id) * 2;
+    //     if (new_size < infer->env.capacity)
+    //         new_size = infer->env.capacity * 2;
+    //     printf("Realloc env, size: %d, new_size: %d, id: %d\n", infer->env.capacity, new_size, var.id.id);
+    //     NecroType** new_data = realloc(infer->env.data, new_size * sizeof(NecroType*));
+    //     if (new_data == NULL)
+    //     {
+    //         if (infer->env.data != NULL)
+    //             free(infer->env.data);
+    //         fprintf(stderr, "Malloc returned NULL in infer env reallocation!\n");
+    //         exit(1);
+    //     }
+    //     for (size_t i = infer->env.capacity; i < new_size; ++i)
+    //         new_data[i] = NULL;
+    //     infer->env.capacity = new_size;
+    //     infer->env.data     = new_data;
+    // }
     assert(infer->env.data != NULL);
     // infer->env.count
-    infer->env.data[var.id.id] = type;
+    infer->env.data[var.id.id]->var.bound = type;
 }
 
 //=====================================================
@@ -403,7 +433,8 @@ NecroType* necro_find(NecroInfer* infer, NecroType* type)
     {
         // TRACE_TYPE("necro_find var: %d\n", type->var.var.id.id);
         prev = type;
-        type = necro_env_get(infer, type->var.var);
+        // type = necro_env_get(infer, type->var.var);
+        type = type->var.bound;
     }
     if (type == NULL)
         return prev;
@@ -561,7 +592,7 @@ inline void necro_instantiate_type_var(NecroInfer* infer, NecroTypeVar* type_var
         return;
     necro_propogate_type_classes(infer, type_var->context, type);
     if (necro_is_infer_error(infer)) return;
-    necro_env_set(infer, type_var->var, type);
+    necr_bind_type_var(infer, type_var->var, type);
 }
 
 inline void necro_unify_var(NecroInfer* infer, NecroType* type1, NecroType* type2, NecroScope* scope)
@@ -588,16 +619,12 @@ inline void necro_unify_var(NecroInfer* infer, NecroType* type1, NecroType* type
             return;
         else if (type1->var.is_rigid)
             necro_instantiate_type_var(infer, &type2->var, type1);
-            // necro_env_set(infer, type2->var.var, type1);
         else if (type2->var.is_rigid)
             necro_instantiate_type_var(infer, &type1->var, type2);
-            // necro_env_set(infer, type1->var.var, type2);
         else if (necro_is_bound_in_scope(infer, type1, scope))
             necro_instantiate_type_var(infer, &type2->var, type1);
-            // necro_env_set(infer, type2->var.var, type1);
         else
             necro_instantiate_type_var(infer, &type1->var, type2);
-            // necro_env_set(infer, type1->var.var, type2);
         return;
     }
     case NECRO_TYPE_CON:
@@ -613,7 +640,6 @@ inline void necro_unify_var(NecroInfer* infer, NecroType* type1, NecroType* type
             return;
         }
         necro_instantiate_type_var(infer, &type1->var, type2);
-        // necro_env_set(infer, type1->var.var, type2);
         return;
     case NECRO_TYPE_FOR:  necro_infer_error(infer, type1, "Compiler bug: Attempted to unify polytype."); return;
     case NECRO_TYPE_LIST: necro_infer_error(infer, type1, "Compiler bug: Attempted to unify TypeVar with type args list."); return;
@@ -641,7 +667,6 @@ inline void necro_unify_app(NecroInfer* infer, NecroType* type1, NecroType* type
             return;
         else
             necro_instantiate_type_var(infer, &type2->var, type1);
-            // necro_env_set(infer, type2->var.var, type1);
         return;
     case NECRO_TYPE_APP:
         necro_unify(infer, type1->app.type1, type2->app.type1, scope);
@@ -683,7 +708,6 @@ inline void necro_unify_fun(NecroInfer* infer, NecroType* type1, NecroType* type
             return;
         else
             necro_instantiate_type_var(infer, &type2->var, type1);
-            // necro_env_set(infer, type2->var.var, type1);
         return;
     case NECRO_TYPE_FUN:  necro_unify(infer, type1->fun.type1, type2->fun.type1, scope); necro_unify(infer, type1->fun.type2, type2->fun.type2, scope); return;
     case NECRO_TYPE_APP:  necro_infer_error(infer, type1, "Attempting to unify (->) with TypeApp."); return;
@@ -709,7 +733,6 @@ inline void necro_unify_con(NecroInfer* infer, NecroType* type1, NecroType* type
             return;
         else
             necro_instantiate_type_var(infer, &type2->var, type1);
-            // necro_env_set(infer, type2->var.var, type1);
         return;
     case NECRO_TYPE_CON:
         if (type1->con.con.symbol.id != type2->con.con.symbol.id)
@@ -913,7 +936,8 @@ NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type, NecroGenResult p
             prev_result.type = type;
             return prev_result;
         }
-        NecroType* bound_type = necro_env_get(infer, type->var.var);
+        // NecroType* bound_type = necro_env_get(infer, type->var.var);
+        NecroType* bound_type = type->var.bound;
         if (bound_type != NULL && !type->var.is_type_class_var)
         {
             return necro_gen_go(infer, bound_type, prev_result, scope);

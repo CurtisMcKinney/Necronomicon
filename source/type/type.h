@@ -54,9 +54,11 @@ typedef enum
 typedef struct
 {
     NecroVar                      var;
+    size_t                        arity;
     bool                          is_rigid;
     bool                          is_type_class_var;
     struct NecroTypeClassContext* context;
+    struct NecroType*             bound;
 } NecroTypeVar;
 
 typedef struct
@@ -64,6 +66,16 @@ typedef struct
     struct NecroType* type1;
     struct NecroType* type2;
 } NecroTypeApp;
+
+// typedef struct
+// {
+//     NecroVar                      var;
+//     struct NecroType*             args;
+//     size_t                        arity;
+//     bool                          is_rigid;
+//     bool                          is_type_class_var;
+//     struct NecroTypeClassContext* context;
+// } NecroTypeApp;
 
 typedef struct
 {
@@ -209,7 +221,6 @@ NecroType*  necro_create_type_fun(NecroInfer* infer, NecroType* type1, NecroType
 NecroType*  necro_create_type_var(NecroInfer* infer, NecroVar var);
 NecroType*  necro_create_type_app(NecroInfer* infer, NecroType* type1, NecroType* type2);
 NecroType*  necro_create_type_list(NecroInfer* infer, NecroType* item, NecroType* next);
-// NecroType*  necro_create_for_all(NecroInfer* infer, NecroVar var, NecroType* type);
 NecroType*  necro_create_for_all(NecroInfer* infer, NecroVar var, struct NecroTypeClassContext* context, NecroType* type);
 
 NecroType*  necro_get_bin_op_type(NecroInfer* infer, NecroAST_BinOpType bin_op_type);
@@ -225,8 +236,8 @@ NecroType*  necro_make_con_9(NecroInfer* infer, NecroSymbol con_symbol, NecroTyp
 NecroType*  necro_make_con_10(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8, NecroType* arg9, NecroType* arg10);
 NecroType*  necro_make_tuple_con(NecroInfer* infer, NecroType* types_list);
 
-NecroType*  necro_env_get(NecroInfer* infer, NecroVar var);
-void        necro_env_set(NecroInfer* infer, NecroVar var, NecroType* type);
+// NecroType*  necro_env_get(NecroInfer* infer, NecroVar var);
+void        necr_bind_type_var(NecroInfer* infer, NecroVar var, NecroType* type);
 
 void        necro_print_type_sig(NecroType* type, NecroIntern* intern);
 char*       necro_snprintf_type_sig(NecroType* type, NecroIntern* intern, char* buffer, const size_t buffer_length);

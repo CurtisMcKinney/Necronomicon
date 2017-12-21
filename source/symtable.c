@@ -650,7 +650,7 @@ void necro_print_env_with_symtable(NecroSymTable* table, NecroInfer* infer)
         if (i <= table->count) continue;
             printf("    %s", necro_id_as_character_string(infer, (NecroID) { i }));
         printf(" ==> ");
-        necro_print_type_sig(infer->env.data[i], infer->intern);
+        necro_print_type_sig(infer->env.data[i]->var.bound, infer->intern);
     }
     printf("]\n");
     printf("Total mem usage: %f mb\n", ((float) (sizeof(NecroSymbolInfo) * table->count + sizeof(NecroType) * infer->env.capacity) * 8) / 1000000.0);

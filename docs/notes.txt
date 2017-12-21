@@ -385,39 +385,11 @@ data World    = World
 data Stream a = Stream a (Stream a)
 data IO a     = IO (World -> (a, World))
 
-current :: Stream a -> Stream (IO (Stream a))
-current (Stream aVal aCont) = Stream (IO (\w -> (Constant aVal, w))) (current aCont)
+current :: Stream a -> Stream (IO a)
+current (Stream aVal aCont) = Stream (IO (\w -> (aVal, w))) (current aCont)
 
-rand :: (Rand a) => Stream a -> Stream a -> Stream (IO (Stream a))
+rand :: (Rand a) => Stream a -> Stream a -> Stream (IO a)
 rand (Stream lowVal lowCont) (Stream highVal highCont) = Stream (IO (\w -> ))
 
 load :: Stream String -> Stream (IO (Stream AudioBuffer))
 load
-
----------------------------------------------------------------------
--- Indexed Comonads idea?
-
-class Effect a
-data Rand   = Rand
-data Load   = Load
-data Demand = Demand
-data Out    = Out
-instance Effect Rand
-instance Effect Load
-
-
-load :: String -Load-> AudioBuffer
-
-current :: a -Demand-> a
-
-rand :: (Rand a) => a -> a -Rand-> a
-
-audioOut :: Audio -Out-> ()
-
-main :: ()
-main = do
-    sample1 <- load "hey"
-    sample2 <- load "you"
-    r1      <- rand 0 1
-    r2      <- rand 0 1
-

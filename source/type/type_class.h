@@ -57,6 +57,7 @@ typedef struct
     NecroCon                  type_class_name;
     NecroTypeClassContext*    context;
     NecroDictionaryPrototype* dictionary_prototype;
+    NecroType*                data_type;
 } NecroTypeClassInstance;
 
 NECRO_DECLARE_ARENA_CHAIN_TABLE(NecroTypeClassInstance, TypeClassInstance, type_class_instance)
@@ -73,7 +74,8 @@ NecroTypeClassEnv       necro_create_type_class_env();
 void                    necro_destroy_type_class_env(NecroTypeClassEnv* env);
 void                    necro_create_type_class_declaration_pass1(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
 void                    necro_create_type_class_declaration_pass2(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
-void                    necro_create_type_class_instance(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
+void                    necro_create_type_class_instance_pass1(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
+void                    necro_create_type_class_instance_pass2(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
 void                    necro_print_type_class_env(NecroTypeClassEnv* env, NecroInfer* infer, NecroIntern* intern);
 bool                    necro_is_data_type_instance_of_class(NecroInfer* infer, NecroCon data_type_name, NecroCon type_class_name);
 NecroTypeClassInstance* necro_get_instance(NecroInfer* infer, NecroCon data_type_name, NecroCon type_class_name);

@@ -23,8 +23,8 @@ struct NecroTypeClassContext;
 //=====================================================
 typedef struct
 {
-    NecroID            id;
-    struct NecroScope* scope;
+    NecroSymbol symbol;
+    NecroID     id;
 } NecroVar;
 
 typedef struct
@@ -36,6 +36,28 @@ typedef struct
 //=====================================================
 // Kind
 //=====================================================
+struct NecroKind;
+typedef enum
+{
+    NECRO_KIND_STAR,
+    NECRO_KIND_APP,
+    NECRO_KIND_INIT,
+} NECRO_KIND;
+
+typedef struct
+{
+    struct NecroKind* kind1;
+    struct NecroKind* kind2;
+} NecroKindApp;
+
+typedef struct NecroKind
+{
+    union
+    {
+        NecroKindApp app;
+    };
+    NECRO_KIND kind;
+} NecroKind;
 
 //=====================================================
 // NecorType
@@ -51,14 +73,23 @@ typedef enum
     NECRO_TYPE_FOR,
 } NECRO_TYPE;
 
+typedef enum
+{
+    NECRO_WEIGHT_W,
+    NECRO_WEIGHT_1,
+    NECRO_WEIGHT_PI
+} NECRO_WEIGHT;
+
 typedef struct
 {
     NecroVar                      var;
-    size_t                        arity;
+    int32_t                       arity;
     bool                          is_rigid;
     bool                          is_type_class_var;
     struct NecroTypeClassContext* context;
     struct NecroType*             bound;
+    struct NecroScope*            scope;
+    NECRO_WEIGHT                  weight; // Future linear types usage???
 } NecroTypeVar;
 
 typedef struct
@@ -66,16 +97,6 @@ typedef struct
     struct NecroType* type1;
     struct NecroType* type2;
 } NecroTypeApp;
-
-// typedef struct
-// {
-//     NecroVar                      var;
-//     struct NecroType*             args;
-//     size_t                        arity;
-//     bool                          is_rigid;
-//     bool                          is_type_class_var;
-//     struct NecroTypeClassContext* context;
-// } NecroTypeApp;
 
 typedef struct
 {
@@ -89,6 +110,7 @@ typedef struct
 {
     struct NecroType* type1;
     struct NecroType* type2;
+    bool              is_linear; // Future linear types usage?
 } NecroTypeFun;
 
 typedef struct
@@ -118,6 +140,7 @@ typedef struct NecroType
     NECRO_TYPE     type;
     NecroSourceLoc source_loc;
     bool           pre_supplied;
+    NecroKind*     kind;
 } NecroType;
 
 //=====================================================
@@ -210,11 +233,13 @@ void        necro_destroy_infer(NecroInfer* infer);
 void        necro_reset_infer(NecroInfer* infer);
 bool        necro_is_infer_error(NecroInfer* infer);
 
-void        necro_unify(NecroInfer* infer, NecroType* type1, NecroType* type2, struct NecroScope* scope);
+void        necro_unify(NecroInfer* infer, NecroType* type1, NecroType* type2, struct NecroScope* scope, NecroType* macro_type, const char* error_preamble);
+
 NecroType*  necro_inst(NecroInfer* infer, NecroType* poly_type, struct NecroScope* scope);
 NecroType*  necro_gen(NecroInfer* infer, NecroType* type, struct NecroScope* scope);
-NecroType*  necro_new_name(NecroInfer* infer);
+NecroType*  necro_new_name(NecroInfer* infer, NecroSourceLoc source_loc);
 NecroType*  necro_find(NecroInfer* infer, NecroType* type);
+void        necr_bind_type_var(NecroInfer* infer, NecroVar var, NecroType* type);
 
 NecroType*  necro_create_type_con(NecroInfer* infer, NecroCon con, NecroType* args, size_t arity);
 NecroType*  necro_create_type_fun(NecroInfer* infer, NecroType* type1, NecroType* type2);
@@ -236,14 +261,23 @@ NecroType*  necro_make_con_9(NecroInfer* infer, NecroSymbol con_symbol, NecroTyp
 NecroType*  necro_make_con_10(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8, NecroType* arg9, NecroType* arg10);
 NecroType*  necro_make_tuple_con(NecroInfer* infer, NecroType* types_list);
 
-// NecroType*  necro_env_get(NecroInfer* infer, NecroVar var);
-void        necr_bind_type_var(NecroInfer* infer, NecroVar var, NecroType* type);
+size_t      necro_type_list_count(NecroType* list);
 
+NecroKind*  necro_infer_kind(NecroInfer* infer, NecroType* type, NecroKind* kind_to_match, NecroType* macro_type, const char* error_preamble);
+void        necro_unify_kinds(NecroInfer* infer, NecroType* type1, NecroKind** kind1, NecroKind** kind2, NecroType* macro_type, const char* error_preamble);
+void        necro_print_kind(NecroKind* kind);
+char*       necro_kind_string(NecroInfer* infer, NecroKind* kind);
+// NecroKind*  necro_apply_kinds(NecroInfer* infer, NecroType* type1, NecroType* type2, NecroType* macro_type, const char* error_preamble);
+NecroKind*  necro_create_kind_init(NecroInfer* infer);
+// NecroKind*  necro_create_kind_app_arity(NecroInfer* infer, size_t arity);
+// size_t      necro_kind_arity(NecroKind* kind);
+
+char*       necro_kind_string(NecroInfer* infer, NecroKind* kind);
 void        necro_print_type_sig(NecroType* type, NecroIntern* intern);
 char*       necro_snprintf_type_sig(NecroType* type, NecroIntern* intern, char* buffer, const size_t buffer_length);
-const char* necro_id_as_character_string(NecroInfer* infer, NecroID id);
+const char* necro_id_as_character_string(NecroInfer* infer, NecroVar var);
 bool        necro_check_and_print_type_error(NecroInfer* infer);
-void        necro_check_type_sanity(NecroInfer* infer, NecroType* type);
+void        necro_check_type_sanity(NecroInfer* infer, NecroType* type, NecroType* macro_type, const char* error_preamble);
 void        necro_print_type_test_result(const char* test_name, NecroType* type, const char* test_name2, NecroType* type2, NecroIntern* intern);
 void        necro_print_env(NecroInfer* infer);
 void        necro_test_type();

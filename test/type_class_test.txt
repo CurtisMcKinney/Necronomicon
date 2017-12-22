@@ -1,55 +1,69 @@
 data Maybe a = Just a | Nothing
 data Either a b = Either a b
 
-class Semigroup a where
-    append :: a -> a -> a
-    -- test2 :: a b -> a b
-
-maybeTest :: Maybe a -> Maybe a
-maybeTest (Just x) = Just x
-
--- class Monad m where
---     pure :: a -> m a
-
---     bind :: (a -> m a) -> (a -> m b) -> m b
-
--- instance Monad (Maybe a) where
---     pure x = Just x
-
--- class Semigroup a => Monoid a where
---     mempty :: a
+-- class Semigroup a where
+--     append :: a -> a -> a
 --
--- class NullClass a where
---     null :: a -> ()
-
--- instance Semigroup Int where
---     append x y = x + y
-
--- TODO: Fix Type constructors and kind arity handling
--- instance Semigroup a => Semigroup (Maybe a) where
---     append (Just x) (Just y) = Just (append x y)
---     append Nothing  (Just y) = Just y
-
+-- maybeTest :: Maybe a -> Maybe a
+-- maybeTest (Just x) = Just x
+--
+-- kindTest :: a b -> a b
+-- kindTest x = x
+--
+-- class Functor f where
+--     map :: (a -> b) -> f a -> f b
+--
+-- class Applicative f where
+--     pure :: a -> f a
+--     ap   :: f (a -> b) -> f a -> f b
+--
+-- class Applicative m => Monad m where
+--     bind :: m a -> (a -> m b) -> m b
+--
+-- class Eq a => Num a where
+--     add :: a -> a -> a
+--
+-- class Eq a where
+--     eq :: a -> a -> Bool
+--
+-- class Eq a => Ord a where
+--     gt :: a -> a -> Bool
+--
+-- instance Num Int where
+--     add x y = x + y
+--
+-- instance Ord Int where
+--     gt x y = eq x y
+--
+-- instance Eq Int where
+--     eq x y = x == y
+--
+-- instance Functor Maybe where
+--     map f (Just x) = Just (f x)
+--
+-- instance Applicative Maybe where
+--     pure x               = Just x
+--     ap (Just f) (Just x) = Just (f x)
+--     ap _        _        = Nothing
+--
 -- instance Monad Maybe where
---     pure x = Just x
-
--- appendTest :: (Semigroup a, Semigroup b) => a -> b -> a
--- appendTest x y = append x x
---     where
---         notUsed = append y y
+--     bind (Just x) f = f x
+--     bind Nothing  _ = Nothing
 --
--- appendInt :: Int -> Int
--- appendInt x = appendTest x x
+-- class Foo a
+-- class Foo a => Bar a
 --
--- appendMaybe1 :: Maybe Int -> Maybe Int
--- appendMaybe1 x = appendTest x x
+-- instance Eq a  => Foo (Maybe a)
+-- instance Num a => Bar (Maybe a)
 --
--- appendMaybe2 :: Monoid a => Maybe a -> Maybe a
--- appendMaybe2 x = appendTest x x
-
-maybeTest2 :: Maybe Int -> Int
-maybeTest2 (Just x) = x
-maybeTest2 Nothing  = 0
-
 -- conTest :: Monad m => a -> m a
--- conTest a = pure a
+-- conTest = pure
+--
+-- kindsPlease :: Maybe a
+-- kindsPlease = kindTest Nothing
+--
+-- class HigherKinded a where
+--     highGround :: a b c d -> (a b c d -> e) -> e
+
+kindsTest :: k -> k
+kindsTest x = x

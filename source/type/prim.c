@@ -8,6 +8,9 @@
 #include <stdarg.h>
 #include "prim.h"
 
+// TODO:
+//    * A more systemic and open-ended method for adding primitives
+
 //=====================================================
 // Symbols
 //=====================================================

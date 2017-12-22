@@ -61,4 +61,6 @@ NecroSymbol necro_intern_get_type_class_member_symbol_from_instance_symbol(Necro
 void        necro_print_intern(NecroIntern* intern);
 void        necro_test_intern();
 
+#define NULL_SYMBOL ((NecroSymbol){.id = 0, .hash = 0})
+
 #endif // INTERN_H

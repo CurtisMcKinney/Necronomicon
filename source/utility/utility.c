@@ -50,9 +50,9 @@ void necro_print_error(NecroError* error, const char* input_string, const char* 
     size_t line_start = error->source_loc.pos - error->source_loc.character;
     size_t line_end   = line_start;
     for (line_end = line_start; input_string[line_end] != '\0' && input_string[line_end] != '\n'; ++line_end);
-    printf("\n==================================================================\n");
+    printf("\n----------------------------------------------------------------------------\n");
     printf(" %s error at line %d, character %d:\n\n", error_type, error->source_loc.line + 1, error->source_loc.character + 1);
     printf("%.*s", (line_end - line_start), (input_string + line_start));
     printf("\n\n %s\n", error->error_message);
-    printf("==================================================================\n");
+    printf("----------------------------------------------------------------------------\n");
 }

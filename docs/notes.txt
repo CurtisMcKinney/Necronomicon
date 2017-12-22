@@ -379,17 +379,176 @@ current stream = IO (\w -> (go stream, w))
         go
 
 ---------------------------------------------------------------------
--- Streamed IO idea
+-- Streamed IO idea .... doesn't work, state gets wonky and if the value isn't used (such as with >>) the effect doesn't manifest
+
+-- Monadic approaches also don't solve the problem of having lazy streams but still having access to "input" benign effects like mouse input as a pure stream
 
 data World    = World
 data Stream a = Stream a (Stream a)
-data IO a     = IO (World -> (a, World))
+data IO a     = IO (World -> a) World
 
 current :: Stream a -> Stream (IO a)
-current (Stream aVal aCont) = Stream (IO (\w -> (aVal, w))) (current aCont)
+current (Stream aVal aCont) = Stream (IO (\_ -> aVal)) (current aCont)
 
 rand :: (Rand a) => Stream a -> Stream a -> Stream (IO a)
-rand (Stream lowVal lowCont) (Stream highVal highCont) = Stream (IO (\w -> ))
+rand (Stream lowVal lowCont) (Stream highVal highCont) = Stream (IO (\w -> w))
 
 load :: Stream String -> Stream (IO (Stream AudioBuffer))
 load
+
+
+-- Haskell-fied
+type World    = Int
+data Stream a = Stream a (Stream a)
+data SIO a    = SIO (World -> a) World
+
+mergeWorlds :: World -> World -> World
+mergeWorlds w1 w2 = w1 + w2
+
+initWorld :: World
+initWorld = 0
+
+runSIO :: SIO a -> a
+runSIO (SIO sa s) = sa s
+
+instance Functor SIO where
+    fmap f (SIO sa s) = SIO (\s' -> let x = sa s' in f x) s
+
+instance Applicative SIO where
+    pure x = SIO (\_ -> x) initWorld
+    (<*>)  = undefined
+
+instance Monad SIO where
+    return = pure;
+    SIO sa s >>= f = SIO fsa initWorld
+        where
+            fsa s' = let SIO fsa' s'' = f (sa (mergeWorlds s s')) in fsa' s''
+
+countSeed :: SIO Int
+countSeed = SIO (\s -> s + 1) 1 -- initWorld of 1 will bump seed count by 1 when it merges with another world
+
+---------------------------------------------------------------------
+-- Comonadic IO on top Streams.....????
+
+audioOut :: IO Audio -> ()
+load :: IO String -> AudioBUffer
+rand :: Num a => IO a -> IO a -> a
+current :: IO a -> a
+
+main :: IO () -> ()
+main = do () =>
+    -- how the fuck does this work???
+    let sample1 = load "pulseDemon"
+        sample2 = load "doomBlade"
+        synth1  =  poly1 mouseClick (synth (current sample1)) mouseX
+        synth2  =  poly1 tick       (synth (current sample2)) mouseY
+    audioOut 0 synth
+
+randSynth :: IO Audio -> IO Audio -> Audio
+randSynth = do (low, high) =>
+    r1 <- rand low high
+    r2 <- rand low high
+    current r1 + current r2
+
+---------------------------------------------------------------------
+-- Comonadic IO on top Streams 2???
+
+audioOut   :: Int -> IO Audio -> ()
+playBuffer :: IO AudioBuffer -> Audio
+loadBuffer :: String -> IO () -> AudioBuffer
+current    :: IO a -> a
+rand       :: Num a => a -> a -> IO () -> a
+
+-- bang notation: !x === extract x
+
+main :: IO () -> ()
+main = do(io)
+    sample1 <- loadBuffer "pulseDemon" io
+    sample2 <- loadBuffer "doomBlade" io
+    synth1  <- poly1 mouseClick (synth sample1) mouseX
+    synth2  <- poly1 tick       (synth sample2) mouseY
+    synths  <- !synth1 + !synth2
+    audioOut 0 synth
+
+---------------------------------------------------------------------
+-- Coeffects, using Indexed Comonads
+(models both per-variable and whole context)
+
+-- Linear Types vs Coeffects?!?!?!
+-- Since we're already doing a comonadic translation, making them "Indexed" comonads might be simpler?!?! or is it?!?!
+
+-- Bounded reuse
+audioOut   :: Int -> Audio -> IO -o IO
+playBuffer :: AudioBuffer -> Audio
+loadBuffer :: String -o IO -o (AudioBuffer, IO)
+
+-- Non-determinism
+rand       :: Num a => a -> a -> IO -o (a, IO)
+noise      :: Num a => a -> a -> IO -o (a, IO)
+blur       :: Num a => a -> a -> Int -> (a -> a) -> IO -o (a, IO)
+
+-- Bang notation a la' alms
+"The pattern !cap bound by let marks cap
+ as an “imperative variable,” which means
+ that within its scope, functions applied to
+ cap are expected to return a pair of their
+ real result and the new version of cap.
+ Alms transforms this code into the explicitly-threaded
+ version above. Currently this transformation
+ happens before type checking, which means that it
+ cannot compromise soundness but also cannot exploit type in-
+ formation."
+
+-- Semantically this works well
+-- Syntactically
+-- Wait, how do demand rate semantics play into this!!?!?!?!
+-- Linearity should prevent shenanigans?
+-- current combinator / concept still needs to be banged out, but this seems like the most promising idea
+-- Perhaps still Lucids idea, but use bind operator:
+    currSynth <- sinOsc 440 * sinOsc 0.1
+
+main :: IO -o IO
+main !io = audioOut 0 synths io
+    where
+        sample1 = loadBuffer "pulseDemon" io
+        sample2 = loadBuffer "doomBlade"  io
+        synth1  = poly1 mouseClick (synth sample1) mouseX
+        synth2  = poly1 tick       (synth sample2) mouseY
+        synths  = synth1 + synth2
+
+randSynth :: Audio -> Audio -> IO -o (Audio, IO)
+randSynth low high !io = (b, io)
+    where
+        r1  = rand  low high io
+        n   = noise low high io
+        f x = x * r1 + n |> sinOsc
+        b   = blur  low high 64 f io
+
+currSynth :: Event Audio
+currSynth = pattern ts vs
+    where
+        c <- sinOsc 440 * sinOsc 0.1
+        ts = [0.5, 0.25, 0.25]
+        vs = seq [0, 1, take 2 c]
+
+=== Stream translation
+
+-- Works perfectly since the impure actions can now manifest and share values in the regular stream scope
+rand :: Stream a -> Stream a -> Stream IO -> Stream (a, IO)
+rand (Stream lowVal _) (Stream highVal _) (Stream ioVal ioCont) = Stream (rVal, ioVal2) (rCont ioCont)
+    where
+        (rVal, ioVal2)                = genRand lowVal highVal ioVal
+        rCont (Stream ioVal3 ioCont2) = Stream (rVal, ioVal3) (rCont ioCont2)
+
+mainDriver :: (Stream IO -> Stream IO) -> IO -> (Stream IO -> StreamIO, IO)
+mainDriver (Stream mainVal mainCont) io = (mainCont, streamHead (mainVal (Constant io)))
+
+-- ???? Still needs to be worked out
+currSynth :: Stream (Event Audio)
+currSynth =
+    where
+        Stream cVal cCont = ...
+        c                 = Stream (cVal `until` ???)
+        currSynthBody c   = ...
+
+

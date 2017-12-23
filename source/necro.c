@@ -104,11 +104,6 @@ int main(int32_t argc, char** argv)
             str[length]     = '\n';
             str[length + 1] = '\0';
 
-            // // Debug printout raw ascii codes
-            // for (char* c = str; *c; ++c)
-            // {
-            //     printf("%d\n", (uint8_t)*c);
-            // }
             if (argc > 2 && strcmp(argv[2], "-lex_pre_layout") == 0)
             {
                 necro_compile(str, NECRO_PHASE_LEX_PRE_LAYOUT);

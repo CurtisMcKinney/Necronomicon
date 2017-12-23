@@ -641,14 +641,15 @@ void necro_print_env_with_symtable(NecroSymTable* table, NecroInfer* infer)
         printf("    %s", necro_intern_get_string(infer->intern, table->data[i].name));
         if (infer->symtable->data[i].type != NULL)
         {
+            printf(" => ");
+            // if (infer->symtable->data[i].type->type == NECRO_TYPE_CON)
+            // {
+            //     printf(" (kind: %d) ", infer->symtable->data[i].type->con.arity);
+            // }
+            necro_print_type_sig_go(infer->symtable->data[i].type, infer->intern);
             printf(" :: ");
             necro_print_kind(table->data[i].type->kind);
-            printf(" => ");
-            if (infer->symtable->data[i].type->type == NECRO_TYPE_CON)
-            {
-                printf(" (kind: %d) ", infer->symtable->data[i].type->con.arity);
-            }
-            necro_print_type_sig(infer->symtable->data[i].type, infer->intern);
+            printf("\n");
         }
         else
         {
@@ -661,20 +662,23 @@ void necro_print_env_with_symtable(NecroSymTable* table, NecroInfer* infer)
     {
         if (i <= table->count) continue;
         printf("    %s", necro_id_as_character_string(infer, (NecroVar) { .id = (NecroID) { i }, .symbol = (NecroSymbol) {.id = 0, .hash = 0} }));
-        printf(" :: ");
-        necro_print_kind(infer->env.data[i]->kind);
         if (infer->env.data[i]->var.bound != NULL)
         {
 
             printf(" => ");
-            necro_print_type_sig(infer->env.data[i]->var.bound, infer->intern);
+            necro_print_type_sig_go(infer->env.data[i]->var.bound, infer->intern);
+            printf(" :: ");
+            necro_print_kind(infer->env.data[i]->kind);
+            printf("\n");
         }
-        else if (infer->env.data[i]->var.arity != -1 && infer->env.data[i]->var.arity != 0)
-        {
-            printf(" (kind: %d)\n", infer->env.data[i]->var.arity);
-        }
+        // else if (infer->env.data[i]->var.arity != -1 && infer->env.data[i]->var.arity != 0)
+        // {
+        //     printf(" (kind: %d)\n", infer->env.data[i]->var.arity);
+        // }
         else
         {
+            printf(" :: ");
+            necro_print_kind(infer->env.data[i]->kind);
             printf("\n");
         }
     }

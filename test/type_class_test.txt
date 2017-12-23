@@ -59,11 +59,16 @@ data Either a b = Either a b
 -- conTest :: Monad m => a -> m a
 -- conTest = pure
 --
--- kindsPlease :: Maybe a
--- kindsPlease = kindTest Nothing
 --
 -- class HigherKinded a where
 --     highGround :: a b c d -> (a b c d -> e) -> e
 
-kindsTest :: k -> k
+kindsTest :: k a -> k a
 kindsTest x = x
+
+kindsPlease :: Maybe a
+kindsPlease = kindsTest Nothing
+
+-- TODO: Fix this!
+patternTest :: (a -> Maybe a) -> a -> Maybe a
+patternTest f x = f x

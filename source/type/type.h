@@ -223,6 +223,7 @@ typedef struct
     NecroIntern*              intern;
     NecroError                error;
     size_t                    highest_id;
+    NecroKind*                star_kind;
 } NecroInfer;
 
 //=====================================================
@@ -241,6 +242,8 @@ NecroType*  necro_new_name(NecroInfer* infer, NecroSourceLoc source_loc);
 NecroType*  necro_find(NecroInfer* infer, NecroType* type);
 void        necr_bind_type_var(NecroInfer* infer, NecroVar var, NecroType* type);
 
+NecroType*  necro_declare_type(NecroInfer* infer, NecroCon con, size_t arity);
+// NecroType*  necro_declare_type(NecroInfer* infer, NecroCon con, NecroType* args, bool should_generalize);
 NecroType*  necro_create_type_con(NecroInfer* infer, NecroCon con, NecroType* args, size_t arity);
 NecroType*  necro_create_type_fun(NecroInfer* infer, NecroType* type1, NecroType* type2);
 NecroType*  necro_create_type_var(NecroInfer* infer, NecroVar var);
@@ -249,35 +252,33 @@ NecroType*  necro_create_type_list(NecroInfer* infer, NecroType* item, NecroType
 NecroType*  necro_create_for_all(NecroInfer* infer, NecroVar var, struct NecroTypeClassContext* context, NecroType* type);
 
 NecroType*  necro_get_bin_op_type(NecroInfer* infer, NecroAST_BinOpType bin_op_type);
-NecroType*  necro_make_con_1(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1);
-NecroType*  necro_make_con_2(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2);
-NecroType*  necro_make_con_3(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3);
-NecroType*  necro_make_con_4(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4);
-NecroType*  necro_make_con_5(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5);
-NecroType*  necro_make_con_6(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6);
-NecroType*  necro_make_con_7(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7);
-NecroType*  necro_make_con_8(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8);
-NecroType*  necro_make_con_9(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8, NecroType* arg9);
-NecroType*  necro_make_con_10(NecroInfer* infer, NecroSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8, NecroType* arg9, NecroType* arg10);
+NecroType*  necro_make_con_1(NecroInfer* infer,  NecroCon con, NecroType* arg1);
+NecroType*  necro_make_con_2(NecroInfer* infer,  NecroCon con, NecroType* arg1, NecroType* arg2);
+NecroType*  necro_make_con_3(NecroInfer* infer,  NecroCon con, NecroType* arg1, NecroType* arg2, NecroType* arg3);
+NecroType*  necro_make_con_4(NecroInfer* infer,  NecroCon con, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4);
+NecroType*  necro_make_con_5(NecroInfer* infer,  NecroCon con, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5);
+NecroType*  necro_make_con_6(NecroInfer* infer,  NecroCon con, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6);
+NecroType*  necro_make_con_7(NecroInfer* infer,  NecroCon con, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7);
+NecroType*  necro_make_con_8(NecroInfer* infer,  NecroCon con, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8);
+NecroType*  necro_make_con_9(NecroInfer* infer,  NecroCon con, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8, NecroType* arg9);
+NecroType*  necro_make_con_10(NecroInfer* infer, NecroCon con, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8, NecroType* arg9, NecroType* arg10);
 NecroType*  necro_make_tuple_con(NecroInfer* infer, NecroType* types_list);
 
 size_t      necro_type_list_count(NecroType* list);
 
+NecroKind*  necro_create_kind_app(NecroInfer* infer, NecroKind* kind1, NecroKind* kind2);
 NecroKind*  necro_infer_kind(NecroInfer* infer, NecroType* type, NecroKind* kind_to_match, NecroType* macro_type, const char* error_preamble);
 void        necro_unify_kinds(NecroInfer* infer, NecroType* type1, NecroKind** kind1, NecroKind** kind2, NecroType* macro_type, const char* error_preamble);
 void        necro_print_kind(NecroKind* kind);
 char*       necro_kind_string(NecroInfer* infer, NecroKind* kind);
-// NecroKind*  necro_apply_kinds(NecroInfer* infer, NecroType* type1, NecroType* type2, NecroType* macro_type, const char* error_preamble);
 NecroKind*  necro_create_kind_init(NecroInfer* infer);
-// NecroKind*  necro_create_kind_app_arity(NecroInfer* infer, size_t arity);
-// size_t      necro_kind_arity(NecroKind* kind);
 
 char*       necro_kind_string(NecroInfer* infer, NecroKind* kind);
 void        necro_print_type_sig(NecroType* type, NecroIntern* intern);
+void        necro_print_type_sig_go(NecroType* type, NecroIntern* intern);
 char*       necro_snprintf_type_sig(NecroType* type, NecroIntern* intern, char* buffer, const size_t buffer_length);
 const char* necro_id_as_character_string(NecroInfer* infer, NecroVar var);
 bool        necro_check_and_print_type_error(NecroInfer* infer);
-void        necro_check_type_sanity(NecroInfer* infer, NecroType* type, NecroType* macro_type, const char* error_preamble);
 void        necro_print_type_test_result(const char* test_name, NecroType* type, const char* test_name2, NecroType* type2, NecroIntern* intern);
 void        necro_print_env(NecroInfer* infer);
 void        necro_test_type();

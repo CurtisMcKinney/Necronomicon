@@ -16,7 +16,6 @@
 //=====================================================
 NecroPrimTypes necro_create_prim_types(NecroIntern* intern)
 {
-
     // BinOp
     NecroBinOpTypes bin_op_types = (NecroBinOpTypes)
     {
@@ -113,6 +112,7 @@ inline void necro_add_type_symbol_info(NecroScopedSymTable* scoped_symtable, Nec
         .scope      = scoped_symtable->top_type_scope,
     };
     conid->id = necro_scoped_symtable_new_symbol_info(scoped_symtable, scoped_symtable->top_type_scope, symbol_info);
+    assert(conid->id.id != 0);
 }
 
 inline void necro_add_constructor_symbol_info(NecroScopedSymTable* scoped_symtable, NecroCon* conid, size_t data_size)
@@ -155,16 +155,27 @@ void necro_add_prim_type_symbol_info(NecroPrimTypes* prim_types, NecroScopedSymT
     necro_add_bin_op_prim_symbol_info(scoped_symtable, &prim_types->bin_op_types.double_exclamation_type);
     necro_add_bin_op_prim_symbol_info(scoped_symtable, &prim_types->bin_op_types.append_type);
 
-    // Tuples
-    necro_add_tuple_symbol_info(scoped_symtable, &prim_types->tuple_types.two,   2);
-    necro_add_tuple_symbol_info(scoped_symtable, &prim_types->tuple_types.three, 3);
-    necro_add_tuple_symbol_info(scoped_symtable, &prim_types->tuple_types.four,  4);
-    necro_add_tuple_symbol_info(scoped_symtable, &prim_types->tuple_types.five,  5);
-    necro_add_tuple_symbol_info(scoped_symtable, &prim_types->tuple_types.six,   6);
-    necro_add_tuple_symbol_info(scoped_symtable, &prim_types->tuple_types.seven, 7);
-    necro_add_tuple_symbol_info(scoped_symtable, &prim_types->tuple_types.eight, 8);
-    necro_add_tuple_symbol_info(scoped_symtable, &prim_types->tuple_types.nine,  9);
-    necro_add_tuple_symbol_info(scoped_symtable, &prim_types->tuple_types.ten,   10);
+    // Tuples Constructors
+    // necro_add_tuple_symbol_info(scoped_symtable, &prim_types->tuple_types.two,   2);
+    // necro_add_tuple_symbol_info(scoped_symtable, &prim_types->tuple_types.three, 3);
+    // necro_add_tuple_symbol_info(scoped_symtable, &prim_types->tuple_types.four,  4);
+    // necro_add_tuple_symbol_info(scoped_symtable, &prim_types->tuple_types.five,  5);
+    // necro_add_tuple_symbol_info(scoped_symtable, &prim_types->tuple_types.six,   6);
+    // necro_add_tuple_symbol_info(scoped_symtable, &prim_types->tuple_types.seven, 7);
+    // necro_add_tuple_symbol_info(scoped_symtable, &prim_types->tuple_types.eight, 8);
+    // necro_add_tuple_symbol_info(scoped_symtable, &prim_types->tuple_types.nine,  9);
+    // necro_add_tuple_symbol_info(scoped_symtable, &prim_types->tuple_types.ten,   10);
+
+    // Tuples Types
+    necro_add_type_symbol_info(scoped_symtable, &prim_types->tuple_types.two,   2);
+    necro_add_type_symbol_info(scoped_symtable, &prim_types->tuple_types.three, 3);
+    necro_add_type_symbol_info(scoped_symtable, &prim_types->tuple_types.four,  4);
+    necro_add_type_symbol_info(scoped_symtable, &prim_types->tuple_types.five,  5);
+    necro_add_type_symbol_info(scoped_symtable, &prim_types->tuple_types.six,   6);
+    necro_add_type_symbol_info(scoped_symtable, &prim_types->tuple_types.seven, 7);
+    necro_add_type_symbol_info(scoped_symtable, &prim_types->tuple_types.eight, 8);
+    necro_add_type_symbol_info(scoped_symtable, &prim_types->tuple_types.nine,  9);
+    necro_add_type_symbol_info(scoped_symtable, &prim_types->tuple_types.ten,   10);
 
     // Types
     necro_add_type_symbol_info(scoped_symtable, &prim_types->io_type,    1);
@@ -192,25 +203,29 @@ void necro_add_bin_op_prim_type_sig(NecroInfer* infer, NecroCon conid, NecroType
 
 void necro_add_prim_type_sigs(NecroPrimTypes prim_types, NecroInfer* infer)
 {
-    NecroType* int_type   = necro_create_type_con(infer, prim_types.int_type, NULL, 0);
-    NecroType* bool_type  = necro_create_type_con(infer, prim_types.bool_type, NULL, 0);
+    // declare types
+    NecroType* int_type  = necro_declare_type(infer, prim_types.int_type,  0);
+    NecroType* bool_type = necro_declare_type(infer, prim_types.bool_type, 0);
 
-    necro_symtable_get(infer->symtable, prim_types.int_type.id)->type                 = int_type;
-    necro_symtable_get(infer->symtable, prim_types.int_type.id)->type->pre_supplied   = true;
-    necro_symtable_get(infer->symtable, prim_types.bool_type.id)->type                = bool_type;
-    necro_symtable_get(infer->symtable, prim_types.bool_type.id)->type->pre_supplied  = true;
-    necro_symtable_get(infer->symtable, prim_types.float_type.id)->type               = necro_create_type_con(infer, prim_types.float_type, NULL, 0);
-    necro_symtable_get(infer->symtable, prim_types.float_type.id)->type->pre_supplied = true;
-    necro_symtable_get(infer->symtable, prim_types.unit_type.id)->type                = necro_create_type_con(infer, prim_types.unit_type, NULL, 0);
-    necro_symtable_get(infer->symtable, prim_types.unit_type.id)->type->pre_supplied  = true;
-    necro_symtable_get(infer->symtable, prim_types.char_type.id)->type                = necro_create_type_con(infer, prim_types.char_type, NULL, 0);
-    necro_symtable_get(infer->symtable, prim_types.char_type.id)->type->pre_supplied  = true;
-    necro_symtable_get(infer->symtable, prim_types.audio_type.id)->type               = necro_create_type_con(infer, prim_types.audio_type, NULL, 0);
-    necro_symtable_get(infer->symtable, prim_types.audio_type.id)->type->pre_supplied = true;
-    necro_symtable_get(infer->symtable, prim_types.list_type.id)->type                = necro_create_type_con(infer, prim_types.list_type, NULL, 1);
-    necro_symtable_get(infer->symtable, prim_types.list_type.id)->type->pre_supplied  = true;
-    necro_symtable_get(infer->symtable, prim_types.io_type.id)->type                  = necro_create_type_con(infer, prim_types.io_type, NULL, 1);
-    necro_symtable_get(infer->symtable, prim_types.io_type.id)->type->pre_supplied    = true;
+    necro_declare_type(infer, prim_types.float_type, 0);
+    necro_declare_type(infer, prim_types.char_type,  0);
+    necro_declare_type(infer, prim_types.audio_type, 0);
+    necro_declare_type(infer, prim_types.list_type,  1);
+    necro_declare_type(infer, prim_types.io_type,    1);
+    necro_declare_type(infer, prim_types.unit_type,  0);
+
+    necro_declare_type(infer, prim_types.tuple_types.two,   2);
+    necro_declare_type(infer, prim_types.tuple_types.three, 3);
+    necro_declare_type(infer, prim_types.tuple_types.four,  4);
+    necro_declare_type(infer, prim_types.tuple_types.five,  5);
+    necro_declare_type(infer, prim_types.tuple_types.six,   6);
+    necro_declare_type(infer, prim_types.tuple_types.seven, 7);
+    necro_declare_type(infer, prim_types.tuple_types.eight, 8);
+    necro_declare_type(infer, prim_types.tuple_types.nine,  9);
+    necro_declare_type(infer, prim_types.tuple_types.ten,   10);
+
+    // declare constructor
+    // put constructors here!
 
     necro_add_bin_op_prim_type_sig(infer, prim_types.bin_op_types.add_type, int_type, int_type, int_type);
     necro_add_bin_op_prim_type_sig(infer, prim_types.bin_op_types.sub_type, int_type, int_type, int_type);
@@ -226,8 +241,6 @@ void necro_add_prim_type_sigs(NecroPrimTypes prim_types, NecroInfer* infer)
     necro_add_bin_op_prim_type_sig(infer, prim_types.bin_op_types.lte_type, int_type, int_type, bool_type);
     necro_add_bin_op_prim_type_sig(infer, prim_types.bin_op_types.and_type, bool_type, bool_type, bool_type);
     necro_add_bin_op_prim_type_sig(infer, prim_types.bin_op_types.or_type, bool_type, bool_type, bool_type);
-
-    // TODO: Finish Tuple types
 
     // TODO: Finish other operators
     // necro_add_bin_op_prim_type_sig(infer, prim_types.bin_op_types.bind_right_type);

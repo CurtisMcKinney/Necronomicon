@@ -75,7 +75,7 @@ void necro_create_type_class_declaration_pass1(NecroInfer* infer, NecroTypeClass
     ty_var->var.is_rigid           = true;
     ty_var->var.is_type_class_var  = true;
     NecroType* arg_list            = necro_create_type_list(infer, ty_var, NULL);
-    type_class->type               = necro_make_con_1(infer, ast->type_class_declaration.tycls->conid.symbol, arg_list);
+    type_class->type               = necro_make_con_1(infer, type_class->type_class_name, arg_list);
     type_class->type->con.is_class = true;
     type_class->context            = necro_ast_to_context(infer, env, ast->type_class_declaration.context);
 
@@ -101,8 +101,11 @@ void necro_create_type_class_declaration_pass2(NecroInfer* infer, NecroTypeClass
         type_sig->source_loc   = declarations->declaration.declaration_impl->source_loc;
         necro_symtable_get(infer->symtable, declarations->declaration.declaration_impl->type_signature.var->variable.id)->type = type_sig;
         if (necro_is_infer_error(infer)) return;
-        necro_check_type_sanity(infer, type_sig, type_sig, "While declaring a type class: ");
-        if (necro_is_infer_error(infer)) return;
+
+        // TODO: removed sanity check, use kind inference instead
+        // necro_check_type_sanity(infer, type_sig, type_sig, "While declaring a type class: ");
+        // if (necro_is_infer_error(infer)) return;
+
         declarations = declarations->declaration.next_declaration;
     }
 

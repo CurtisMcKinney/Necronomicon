@@ -633,11 +633,13 @@ playBuffer :: AudioBuffer -> Audio
 -- Non-determinism
 rand       :: Num a => a -> a -> World* -> (a, World*)
 noise      :: Num a => a -> a -> World* -> (a, World*)
-blur       :: Num a => a -> a -> Int -> (a -> a) -> World* -> (a, World*)
+blur       :: Num a => a -> a -> [(a -> a)] -> World* -> (a, World*)
 
 -- Semantically this works well
 -- Syntactically....?
 -- Uniquness types prevent demand rate shenanigans on I/O
+-- Another win is performance, Monads introduce more bloat on top of the language,
+   whereas Uniqueness are much lighter weight (a word-sized object is tossed around) and even allows for things like in-place updates
 -- current combinator / concept still needs to be banged out, but this seems like the most promising idea
 
 -- No Sugar
@@ -678,5 +680,4 @@ randSynth low high !w = (b, w)
         r1  = rand  low high w
         n   = noise low high w
         f x = x * r1 + n |> sinOsc
-        b   = blur  low high 64 f io
-
+        b   = blur low high (repeat 64 f) w

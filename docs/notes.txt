@@ -675,9 +675,9 @@ main !w = audioOut 0 synths w
         synths  = synth1 + synth2
 
 randSynth :: Audio -> Audio -> World* -> (Audio, World*)
-randSynth low high !w = (b, w)
+randSynth low high !w = b w
     where
         r1  = rand  low high w
         n   = noise low high w
         f x = x * r1 + n |> sinOsc
-        b   = blur low high (repeat 64 f) w
+        b   = blur low high (repeat 64 f)

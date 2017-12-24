@@ -56,6 +56,14 @@ void necro_destroy_type_class_env(NecroTypeClassEnv* env)
     necro_destroy_paged_arena(&env->arena);
 }
 
+
+//=====================================================
+// Dependency Analysis
+//=====================================================
+void necro_dependency_analyze_type_class_asts(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations)
+{
+}
+
 //=====================================================
 // Type Class Declaration member
 //=====================================================

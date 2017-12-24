@@ -68,6 +68,8 @@ typedef struct NecroTypeClassEnv
     NecroTypeClassTable         class_table;
     NecroTypeClassInstanceTable instance_table;
     NecroPagedArena             arena;
+    NecroNode*                  type_class_declaration_asts;
+    NecroNode*                  type_class_instance_asts;
 } NecroTypeClassEnv;
 
 NecroTypeClassEnv       necro_create_type_class_env();
@@ -90,5 +92,6 @@ NecroTyVarContextList*  necro_create_ty_var_context_list(NecroInfer* infer, Necr
 void                    necro_create_type_class_declaration_pass1(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
 void                    necro_create_type_class_declaration_pass2(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
 void                    necro_create_type_class_declaration_pass3(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
+void                    necro_dependency_analyze_type_class_asts(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations);
 
 #endif // TYPE_CLASS_H

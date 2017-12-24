@@ -156,3 +156,12 @@ data Nested a = Epsilon | Cons a (Nested [a])
 size :: Nested a -> Int
 size Epsilon     = 0
 size (Cons _ xs) = 1 + size xs
+
+kindsTest666 :: k a -> k a
+kindsTest666 x = x
+
+kindsPlease666 :: Maybe a
+kindsPlease666 = kindsTest666 Nothing
+
+patternTest666 :: (a -> Maybe a) -> a -> Maybe a
+patternTest666 f x = f x

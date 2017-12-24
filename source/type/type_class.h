@@ -72,8 +72,7 @@ typedef struct NecroTypeClassEnv
 
 NecroTypeClassEnv       necro_create_type_class_env();
 void                    necro_destroy_type_class_env(NecroTypeClassEnv* env);
-void                    necro_create_type_class_declaration_pass1(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
-void                    necro_create_type_class_declaration_pass2(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
+
 void                    necro_create_type_class_instance_pass1(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
 void                    necro_create_type_class_instance_pass2(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
 void                    necro_print_type_class_env(NecroTypeClassEnv* env, NecroInfer* infer, NecroIntern* intern);
@@ -86,5 +85,10 @@ bool                    necro_ambiguous_type_class_check(NecroInfer* infer, Necr
 NecroTypeClassContext*  necro_ast_to_context(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* context_ast);
 void                    necro_add_constraints_to_ty_vars(NecroInfer* infer, NecroType* type, NecroTyVarContextList* context_list);
 NecroTyVarContextList*  necro_create_ty_var_context_list(NecroInfer* infer, NecroCon* type_class_var, NecroTypeClassContext* context);
+
+//after refactor
+void                    necro_create_type_class_declaration_pass1(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
+void                    necro_create_type_class_declaration_pass2(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
+void                    necro_create_type_class_declaration_pass3(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
 
 #endif // TYPE_CLASS_H

@@ -551,4 +551,33 @@ currSynth =
         c                 = Stream (cVal `until` ???)
         currSynthBody c   = ...
 
+//=====================================================
+// Stream Bind
+//=====================================================
+data Stream a = Stream a (Stream a)
+data World    = World
+data IO a     = IO (World -> (a, World))
+
+data IOC a    = IO (a -> World -> (a, World)) a
+
+(>>=) :: Monad m => Stream (m a) -> Stream (a -> m b) -> Stream (m b)
+
+instance Monad IO where
+    return x                                = Constant (\w -> (x, w))
+    Stream xVal xCont >>= Stream fVal fCont = Stream g (xCont >>= fCont)
+        where
+
+
+//=====================================================
+// Continuation IO
+//=====================================================
+data Stream a = Stream a (Stream a)
+data World    = World
+data IO a     = IO ((a -> World) -> World)
+
+instance Monad IO where
+    return x    = IO (\k -> k a)
+    IO xk >>= f = IO <| \k ->
+        let
+
 

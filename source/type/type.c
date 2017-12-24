@@ -566,7 +566,12 @@ NecroKind* necro_infer_kind(NecroInfer* infer, NecroType* type, NecroKind* kind_
     assert(infer != NULL);
     assert(type != NULL);
     if (necro_is_infer_error(infer)) return NULL;
-    if (type->kind != NULL) return type->kind;
+    if (type->kind != NULL)
+    {
+        if (kind_to_match != NULL)
+            necro_unify_kinds(infer, type, &type->kind, &kind_to_match, macro_type, error_preamble);
+        return type->kind;
+    }
     // NecroKind  star_kind = (NecroKind) { .kind = NECRO_KIND_STAR };
     // NecroKind* star_kptr = &star_kind;
     switch (type->type)
@@ -591,6 +596,9 @@ NecroKind* necro_infer_kind(NecroInfer* infer, NecroType* type, NecroKind* kind_
         NecroKind* type1_kind   = necro_infer_kind(infer, type->app.type1, type1_expect, macro_type, error_preamble);
         if (necro_is_infer_error(infer)) return NULL;
         type->kind              = type1_kind->app.kind1;
+        if (kind_to_match != NULL)
+            necro_unify_kinds(infer, type, &type->kind, &kind_to_match, macro_type, error_preamble);
+        if (necro_is_infer_error(infer)) return NULL;
         return type->kind;
     }
     case NECRO_TYPE_FUN:
@@ -600,6 +608,9 @@ NecroKind* necro_infer_kind(NecroInfer* infer, NecroType* type, NecroKind* kind_
         necro_infer_kind(infer, type->fun.type2, infer->star_kind, macro_type, error_preamble);
         if (necro_is_infer_error(infer)) return NULL;
         type->kind = infer->star_kind;
+        if (kind_to_match != NULL)
+            necro_unify_kinds(infer, type, &type->kind, &kind_to_match, macro_type, error_preamble);
+        if (necro_is_infer_error(infer)) return NULL;
         return type->kind;
     }
     case NECRO_TYPE_LIST: assert(false); return NULL;
@@ -638,6 +649,9 @@ NecroKind* necro_infer_kind(NecroInfer* infer, NecroType* type, NecroKind* kind_
         if (necro_is_infer_error(infer)) return NULL;
         // type->kind = infer->star_kind;
         type->kind = for_all_type_kind;
+        if (kind_to_match != NULL)
+            necro_unify_kinds(infer, type, &type->kind, &kind_to_match, macro_type, error_preamble);
+        if (necro_is_infer_error(infer)) return NULL;
         return type->kind;
     }
     default: return necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Unimplemented Type in necro_infer_kind: %d", type->type);

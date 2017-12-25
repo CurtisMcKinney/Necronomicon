@@ -37,11 +37,13 @@ typedef struct NecroTypeClassMember
 
 typedef struct
 {
+    NecroNode*             ast;
     NecroType*             type;
     NecroCon               type_class_name;
     NecroCon               type_var;
     NecroTypeClassMember*  members;
     NecroTypeClassContext* context;
+    size_t                 dependency_flag;
 } NecroTypeClass;
 
 typedef struct NecroDictionaryPrototype
@@ -68,8 +70,6 @@ typedef struct NecroTypeClassEnv
     NecroTypeClassTable         class_table;
     NecroTypeClassInstanceTable instance_table;
     NecroPagedArena             arena;
-    NecroNode*                  type_class_declaration_asts;
-    NecroNode*                  type_class_instance_asts;
 } NecroTypeClassEnv;
 
 NecroTypeClassEnv       necro_create_type_class_env();
@@ -88,10 +88,11 @@ NecroTypeClassContext*  necro_ast_to_context(NecroInfer* infer, NecroTypeClassEn
 void                    necro_add_constraints_to_ty_vars(NecroInfer* infer, NecroType* type, NecroTyVarContextList* context_list);
 NecroTyVarContextList*  necro_create_ty_var_context_list(NecroInfer* infer, NecroCon* type_class_var, NecroTypeClassContext* context);
 
-//after refactor
 void                    necro_create_type_class_declaration_pass1(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
 void                    necro_create_type_class_declaration_pass2(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
 void                    necro_create_type_class_declaration_pass3(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
-void                    necro_dependency_analyze_type_class_asts(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations);
+
+//after refactor
+void                    necro_declare_type_classes(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations);
 
 #endif // TYPE_CLASS_H

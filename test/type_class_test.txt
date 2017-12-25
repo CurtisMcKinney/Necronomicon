@@ -1,19 +1,15 @@
 -- data Either a b = Either a b
 data Maybe a = Just a | Nothing
 
-class Functor f where
-    map :: (a -> b) -> f a -> f b
-
--- map :: (a -> b) -> f a -> f a b
--- map f fa = f fa
-
 class Functor f => Applicative f where
     pure :: a -> f a
     ap   :: f (a -> b) -> f a -> f b
 
--- class Applicative m => Monad m where
---     bind :: m a -> (a -> m b) -> m b
---
+class Applicative m => Monad m where
+    bind :: m a -> (a -> m b) -> m b
+
+class Functor f where
+    map :: (a -> b) -> f a -> f b
 
 -- instance Functor Maybe where
 --     map f (Just x) = Just (f x)

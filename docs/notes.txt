@@ -459,15 +459,13 @@ loadBuffer :: String -> IO () -> AudioBuffer
 current    :: IO a -> a
 rand       :: Num a => a -> a -> IO () -> a
 
--- bang notation: !x === extract x
-
 main :: IO () -> ()
 main = do(io)
     sample1 <- loadBuffer "pulseDemon" io
     sample2 <- loadBuffer "doomBlade" io
     synth1  <- poly1 mouseClick (synth sample1) mouseX
     synth2  <- poly1 tick       (synth sample2) mouseY
-    synths  <- !synth1 + !synth2
+    synths  <- extract synth1 + extract synth2
     audioOut 0 synth
 
 ---------------------------------------------------------------------
@@ -581,14 +579,11 @@ instance Monad IO where
         let
 
 //=====================================================
-// Ticked IO
+// Ticked IO -- Now with ticked World Stream
 //=====================================================
 latch :: Event a -> a
 
-forever :: (Applicative f) => f a -> f b
-forever a = let a' = a *> a' in a'
-
-data CoolState { x :: Int, y :: Int }
+data CoolState { x :: Int, y :: Int, nextState :: CoolState}
 
 setX, setY :: Int -> CoolStateMonad ()
 getX, getY :: CoolStateMonad Int
@@ -603,24 +598,32 @@ instance Monad CoolStateMonad where
             CoolStateMonad ga = f x
 
 getX :: CoolStateMonad Int
-getX = CoolStateMonad <| \s -> (x coolState, x)
+getX = CoolStateMonad <| \s -> (x s, getX)
 
 setX :: Int -> CoolStateMonad ()
 setX val = CoolStateMonad <| \s -> ((), s{x = val})
 
+tickState :: CoolStateMonad ()
+tickState = CoolStateMonad <| \s -> {(), nextState s}
+
 coolMain :: CoolStateMonad ()
-coolMain = forever <| do
+coolMain = do
     x <- getX
-    let doubleTime = pattern twoTimes [0, x + 1] |> latch
-        countUp    = [0, countUp + 1]
-    setX <| doubleTime + countUp
+    let doubleTime = pattern twoToOne x |> latch
+    doubleTime + 1 |> setX
 
--- With Stream semantics the state monad does not work how one might hope
--- Each time through the loop of this action doubleTime is re-made, thus doubleTime and countUp start anew with no state saved in their networks
--- You could make writing type actions like setX keep going until their input networks stop, but this essentially takes over control of the entire program
--- This tension with history (a comonadic concept) and monads seems to be fundamental
+runCoolStateMonad :: CoolStateMonad a -> CoolState -> a
+runCoolStateMonad (CoolStateMonad f) state = f state
 
-loadBuffer :: String -> (AudioBuffer, World*)
+initState :: CoolState -> CoolState
+initState ns = CoolState 0 0 ns
+
+runCoolMain :: CoolStateMonad ()
+runCoolMain = state
+    where
+        state = runCoolStateMonad (coolMain >> tickState) (initState state)
+
+-- Does this work!?!?!?!?
 
 ---------------------------------------------------------------------
 -- Uniqueness Types (a la the paper Uniqueness Typing Simplified)
@@ -631,9 +634,9 @@ loadBuffer :: String -> World* -> (AudioBuffer, World*)
 playBuffer :: AudioBuffer -> Audio
 
 -- Non-determinism
-rand       :: Num a => a -> a -> World* -> (a, World*)
-noise      :: Num a => a -> a -> World* -> (a, World*)
-blur       :: Num a => a -> a -> [(a -> a)] -> World* -> (a, World*)
+rand       :: Rand a => a -> a -> World* -> (a, World*)
+noise      :: Rand a => a -> a -> World* -> (a, World*)
+blur       :: Rand a => a -> a -> [(a -> a)] -> World* -> (a, World*)
 
 -- Semantically this works well
 -- Syntactically....?
@@ -681,3 +684,21 @@ randSynth low high !w = b w
         n   = noise low high w
         f x = x * r1 + n |> sinOsc
         b   = blur low high (repeat 64 f)
+
+//=====================================================
+// Applicative Comprehension IO
+//=====================================================
+audioOut   :: Audio -> IO ()
+loadBuffer :: String -> IO AudioBuffer
+rand       :: Rand a => a -> a -> IO a
+current    :: a -> IO a
+
+main :: IO ()
+main = do
+    sample1 <- loadBuffer "pulseDemon"
+    sample2 <- loadBuffer "doomBlade"
+    let synth1 = poly1 mouseClick (synth sample1) mouseX
+        synth2 = poly1 tick       (synth sample2) mouseY
+        synths = synth1 + synth2
+    rand 0 synths
+    pure ()

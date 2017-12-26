@@ -246,7 +246,6 @@ NecroType* necro_create_type_con(NecroInfer* infer, NecroCon con, NecroType* arg
         .arity    = arity,
         .is_class = false,
     };
-    // type->kind = necro_create_kind_app_arity(infer, arity - necro_type_list_count(args));
     return type;
 }
 
@@ -267,10 +266,8 @@ NecroType* necro_create_for_all(NecroInfer* infer, NecroVar var, NecroTypeClassC
 {
     if (var.id.id > infer->highest_id)
         infer->highest_id = var.id.id + 1;
-    // NecroType* for_all = necro_paged_arena_alloc(&infer->arena, sizeof(NecroType));
     NecroType* for_all  = necro_alloc_type(infer);
     for_all->type       = NECRO_TYPE_FOR;
-    // for_all->kind->kind = NECRO_KIND_STAR;
     for_all->for_all    = (NecroTypeForAll)
     {
         .var     = var,
@@ -350,13 +347,6 @@ NecroKind* necro_create_kind_init(NecroInfer* infer)
     return necro_alloc_kind(infer);
 }
 
-// NecroKind* necro_create_kind_star(NecroInfer* infer)
-// {
-//     NecroKind* kind = necro_alloc_kind(infer);
-//     kind->kind      = NECRO_KIND_STAR;
-//     return kind;
-// }
-
 NecroKind* necro_create_kind_app(NecroInfer* infer, NecroKind* kind1, NecroKind* kind2)
 {
     NecroKind* kind = necro_alloc_kind(infer);
@@ -365,17 +355,6 @@ NecroKind* necro_create_kind_app(NecroInfer* infer, NecroKind* kind1, NecroKind*
     kind->app.kind2 = kind2;
     return kind;
 }
-
-// NecroKind* necro_create_kind_app_arity(NecroInfer* infer, size_t arity)
-// {
-//     NecroKind* curr_kind = necro_create_kind_star(infer);
-//     while (arity > 0)
-//     {
-//         curr_kind = necro_create_kind_app(infer, curr_kind, necro_create_kind_star(infer));
-//         arity--;
-//     }
-//     return curr_kind;
-// }
 
 NecroKind* necro_not_enough_args_kind_error(NecroInfer* infer, NecroType* type1, NecroType* macro_type, const char* error_preamble)
 {
@@ -410,44 +389,6 @@ NecroKind* necro_too_many_args_kind_error(NecroInfer* infer, NecroType* type1, N
     }
     return NULL;
 }
-
-// NecroKind* necro_apply_kinds(NecroInfer* infer, NecroType* type1, NecroType* type2, NecroType* macro_type, const char* error_preamble)
-// {
-//     assert(infer != NULL);
-//     assert(type1 != NULL);
-//     assert(type2 != NULL);
-//     assert(type1->kind != NULL);
-//     assert(type2->kind != NULL);
-
-//     // Default type2's kind to *
-//     if (type2->kind->kind == NECRO_KIND_INIT)
-//     {
-//         type2->kind->kind = NECRO_KIND_STAR;
-//     }
-//     // Type 2 is not applied to ENOUGH arguments
-//     else if (type2->kind->kind == NECRO_KIND_APP)
-//     {
-//         return necro_not_enough_args_kind_error(infer, type2, macro_type, error_preamble);
-//     }
-
-//     // Infer that type1 has kind * -> ?
-//     if (type1->kind->kind == NECRO_KIND_INIT)
-//     {
-//         type1->kind->kind      = NECRO_KIND_APP;
-//         type1->kind->app.kind1 = necro_create_kind_star(infer);
-//         type1->kind->app.kind2 = necro_create_kind_init(infer);
-//         return type1->kind->app.kind2;
-//     }
-//     // Type 1 is applied to too many arguments
-//     else if (type1->kind->kind != NECRO_KIND_APP)
-//     {
-//         return necro_too_many_args_kind_error(infer, type1, macro_type, error_preamble);
-//     }
-//     else
-//     {
-//         return type1->kind->app.kind2;
-//     }
-// }
 
 inline bool necro_is_simple_kind(NecroKind* kind)
 {
@@ -520,17 +461,6 @@ void necro_unify_kinds(NecroInfer* infer, NecroType* type1, NecroKind** kind1, N
     default: assert(false);
     }
 }
-
-// size_t necro_kind_arity(NecroKind* kind)
-// {
-//     assert(kind != NULL);
-//     size_t count = 1;
-//     while (kind->kind == NECRO_KIND_APP)
-//     {
-//         kind = kind->app.kind1;
-//     }
-//     return count;
-// }
 
 char* necro_kind_string_go(NecroInfer* infer, NecroKind* kind, char* buffer, size_t max_buffer_length)
 {
@@ -768,9 +698,7 @@ NecroType* necro_find(NecroInfer* infer, NecroType* type)
     NecroType* prev = type;
     while (type != NULL && type->type == NECRO_TYPE_VAR)
     {
-        // TRACE_TYPE("necro_find var: %d\n", type->var.var.id.id);
         prev = type;
-        // type = necro_env_get(infer, type->var.var);
         type = type->var.bound;
     }
     if (type == NULL)
@@ -830,7 +758,6 @@ void necro_occurs_error(NecroInfer* infer, NecroVar type_var, NecroType* type, N
     if (necro_is_infer_error(infer))
         return;
     necro_infer_error(infer, error_preamble, macro_type, "Occurs check error, cannot construct infinite type: %s ~ ", necro_id_as_character_string(infer, type_var));
-    // necro_snprintf_type_sig(type, infer->intern, infer->error.error_message, NECRO_MAX_ERROR_MESSAGE_LENGTH);
 }
 
 bool necro_occurs(NecroInfer* infer, NecroType* type_var, NecroType* type, NecroType* macro_type, const char* error_preamble)

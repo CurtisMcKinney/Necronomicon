@@ -583,7 +583,7 @@ instance Monad IO where
 //=====================================================
 latch :: Event a -> a
 
-data CoolState { x :: Int, y :: Int, nextState :: CoolState}
+data CoolState { x :: Int, y :: Int}
 
 setX, setY :: Int -> CoolStateMonad ()
 getX, getY :: CoolStateMonad Int
@@ -598,13 +598,35 @@ instance Monad CoolStateMonad where
             CoolStateMonad ga = f x
 
 getX :: CoolStateMonad Int
-getX = CoolStateMonad <| \s -> (x s, getX)
+getX = CoolStateMonad <| \s -> (global (x s), s)
 
 setX :: Int -> CoolStateMonad ()
 setX val = CoolStateMonad <| \s -> ((), s{x = val})
 
-tickState :: CoolStateMonad ()
-tickState = CoolStateMonad <| \s -> {(), nextState s}
+fby :: a -> a -> a
+fby x y = <x0, y0, y1,...,xn> (primop)
+
+next :: a -> a
+next x  = <x1, x2, x3,...,xn> (primop)
+
+first :: a -> a
+first x = y
+    where
+        y = [x, y]
+
+whenever :: a -> Bool -> a
+whenever a b = if first b
+    then [first a, whenever (next a) (next b)]
+    else whenever (next a) (next b)
+
+globalTime :: Int
+globalTime = ... (primOp)
+
+-- Lucid to the rescue?
+global :: a -> a
+global x = x `whenever` (count == globalTime)
+    where
+        count = [0, count + 1]
 
 coolMain :: CoolStateMonad ()
 coolMain = do
@@ -615,13 +637,13 @@ coolMain = do
 runCoolStateMonad :: CoolStateMonad a -> CoolState -> a
 runCoolStateMonad (CoolStateMonad f) state = f state
 
-initState :: CoolState -> CoolState
-initState ns = CoolState 0 0 ns
+initState :: CoolState
+initState = CoolState 0 0
 
 runCoolMain :: CoolStateMonad ()
 runCoolMain = state
     where
-        state = runCoolStateMonad (coolMain >> tickState) (initState state)
+        state = runCoolStateMonad coolMain [initState, state]
 
 -- Does this work!?!?!?!?
 

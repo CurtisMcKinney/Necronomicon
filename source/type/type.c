@@ -1533,6 +1533,8 @@ void necro_print_type_sig_go(NecroType* type, NecroIntern* intern)
         if (necro_print_tuple_sig(type, intern))
             break;
         bool has_args = necro_type_list_count(type->con.args) > 0;
+        if (type->con.con.symbol.id == 1 || type->con.con.symbol.id == 2)
+            printf("WHAT THE FUCK ");
         printf("%s", necro_intern_get_string(intern, type->con.con.symbol));
         if (has_args)
         {

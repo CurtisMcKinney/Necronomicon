@@ -2,10 +2,20 @@ class Eq a where
     eq  :: a -> a -> Bool
     neq :: a -> a -> Bool
 
-class Eq a => Num a where
-    add     :: a -> a -> a
-    sub     :: a -> a -> a
-    mul     :: a -> a -> a
-    abs     :: a -> a
-    signum  :: a -> a
-    fromInt :: Int -> a
+-- class Num a where
+--     add     :: a -> a -> a
+--     sub     :: a -> a -> a
+--     mul     :: a -> a -> a
+--     abs     :: a -> a
+--     signum  :: a -> a
+--     fromInt :: Int -> a
+
+data Maybe a = Just a | Nothing
+
+x :: Maybe ()
+x = Just ()
+
+maybeEq :: Eq a => Maybe a -> Maybe a -> Bool
+maybeEq Nothing  Nothing  = True
+maybeEq (Just x) (Just y) = eq x y
+maybeEq _        _        = False

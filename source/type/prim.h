@@ -24,6 +24,7 @@ typedef enum
     NECRO_PRIM_DEF_TYPE,
     NECRO_PRIM_DEF_CON,
     NECRO_PRIM_DEF_VAL,
+    NECRO_PRIM_DEF_FUN,
     NECRO_PRIM_DEF_CLASS,
     NECRO_PRIM_DEF_INSTANCE,
 } NECRO_PRIM_DEF;
@@ -31,6 +32,7 @@ typedef enum
 typedef struct
 {
     NecroType*       type;
+    NecroType*       fully_applied_type;
     NecroASTNode*    ast;
     NecroSymbolInfo  symbol_info;
 } NecroPrimDefType;
@@ -52,6 +54,13 @@ typedef struct
 
 typedef struct
 {
+    NecroType*      type;
+    NecroASTNode*   ast;
+    NecroSymbolInfo symbol_info;
+} NecroPrimDefFun;
+
+typedef struct
+{
     NecroTypeClass* type_class;
 } NecroPrimDefClass;
 
@@ -69,9 +78,11 @@ typedef struct NecroPrimDef
         NecroPrimDefVal      val_def;
         NecroPrimDefClass    class_def;
         NecroPrimDefInstance instance_def;
+        NecroPrimDefFun      fun_def;
     };
-    NecroCon       name;
-    NECRO_PRIM_DEF type;
+    NecroCon              name;
+    struct NecroPrimDef*  next;
+    NECRO_PRIM_DEF        type;
 } NecroPrimDef;
 
 NECRO_DECLARE_ARENA_CHAIN_TABLE(NecroPrimDef, PrimDef, prim_def);
@@ -120,21 +131,21 @@ typedef struct
     NecroCon append_type;
 } NecroBinOpTypes;
 
-// Separate Arena for PrimTypes?
 typedef struct NecroPrimTypes
 {
     NecroTupleTypes   tuple_types;
     NecroBinOpTypes   bin_op_types;
     NecroCon          io_type;
     NecroCon          list_type;
-    NecroCon          unit_type;
     NecroCon          int_type;
     NecroCon          float_type;
     NecroCon          audio_type;
     NecroCon          char_type;
     NecroCon          bool_type;
-    NecroPrimDefTable type_def_table;
-    NecroPrimDefTable val_def_table;
+    // NecroPrimDefTable type_def_table;
+    // NecroPrimDefTable val_def_table;
+    NecroPrimDef*     defs;
+    NecroPrimDef*     def_head;
     NecroPagedArena   arena;
 } NecroPrimTypes;
 

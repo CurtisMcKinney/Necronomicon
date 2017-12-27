@@ -582,84 +582,6 @@ instance Monad IO where
     IO xk >>= f = IO <| \k ->
         let
 
-//=====================================================
-// Ticked IO -- Now with ticked World Stream
-//=====================================================
-latch :: Event a -> a
-
-data CoolState { x :: Int, y :: Int}
-
-setX, setY :: Int -> CoolStateMonad ()
-getX, getY :: CoolStateMonad Int
-
-data CoolStateMonad a = CoolStateMonad (CoolState -> (a, CoolState))
-
-instance Monad CoolStateMonad where
-    return x                = CoolStateMonad (\s -> (a, s))
-    CoolStateMonad xa >>= f = CoolStateMonad g where g s = ga s'
-        where
-            (x, s')           = xa s
-            CoolStateMonad ga = f x
-
-getX :: CoolStateMonad Int
-getX = CoolStateMonad <| \s -> (global (x s), s)
-
-setX :: Int -> CoolStateMonad ()
-setX val = CoolStateMonad <| \s -> ((), s{x = val})
-
-fby :: a -> a -> a
-fby x y = <x0, y0, y1,...,xn> (primop)
-
-next :: a -> a
-next x  = <x1, x2, x3,...,xn> (primop)
-
-first :: a -> a
-first x = y
-    where
-        y = [x, y]
-
-whenever :: a -> Bool -> a
-whenever a b = if first b
-    then [first a, whenever (next a) (next b)]
-    else whenever (next a) (next b)
-
-upon :: a -> Bool -> a
-upon a b = [first a, a']
-    where
-        a' = if first b
-            then upon (next a) (next b)
-            else upon a        (next b)
-
--- Flowing a global time through everything breaks sharing, a no go
-globalTime :: Int
-globalTime = ... (primOp)
-
--- Lucid to the rescue?
--- This might need to be slightly more involved
-global :: a -> a
-global x = x `upon` (count == globalTime)
-    where
-        count = [0, count + 1]
-
-coolMain :: CoolStateMonad ()
-coolMain = do
-    x <- getX
-    let doubleTime = pattern twoToOne x |> latch
-    doubleTime + 1 |> setX
-
-runCoolStateMonad :: CoolStateMonad a -> CoolState -> a
-runCoolStateMonad (CoolStateMonad f) state = f state
-
-initState :: CoolState
-initState = CoolState 0 0
-
-runCoolMain :: CoolStateMonad ()
-runCoolMain = state
-    where
-        state = runCoolStateMonad coolMain [initState, state]
-
--- Does this work!?!?!?!?
-
 ---------------------------------------------------------------------
 -- Uniqueness Types (a la the paper Uniqueness Typing Simplified)
 
@@ -780,3 +702,103 @@ main input = audioOut 0 synths initOut
         synth1  = poly1 mouseClick (synth sample1) mouseX
         synth2  = poly1 tick       (synth sample2) mouseY
         synths  = synth1 + synth2
+
+//=====================================================
+// Env Streams
+//=====================================================
+data Env      = Env
+data Stream a = Stream (a, Time) (Env -> Stream a)
+
+--?!?!?!
+-- tickStream :: Env -> Stream a -> Stream a
+-- tickStream
+
+nextAndTick :: Stream a -> Stream a
+nextAndTick (Stream (_, t) cont) = cont (t + 1)
+
+next :: Stream a -> Stream a
+next (Stream (_, _) cont) = cont t
+
+//=====================================================
+// Ticked IO -- Now with ticked World Stream
+//=====================================================
+latch :: Event a -> a
+
+data Env = Env { mouseX:: Int }
+
+data CoolState { x :: Int, y :: Int}
+
+setX, setY :: Int -> CoolStateMonad ()
+getX, getY :: CoolStateMonad Int
+
+data CoolStateMonad a = CoolStateMonad (Env -> CoolState -> (a, CoolState))
+
+instance Monad CoolStateMonad where
+    return x                = CoolStateMonad (\e s -> (a, s))
+    CoolStateMonad xa >>= f = CoolStateMonad g where g e s = ga e s'
+        where
+            (x, s')           = xa e s
+            CoolStateMonad ga = f x
+
+getX :: CoolStateMonad Int
+getX = CoolStateMonad <| \_ s -> (global (x s), s)
+
+setX :: Int -> CoolStateMonad ()
+setX val = CoolStateMonad <| \_ s -> ((), s{x = val})
+
+mx :: CoolStateMonad Int
+mx = CoolStateMonad <| \e s -> (mouseX e, s)
+
+fby :: a -> a -> a
+fby x y = <x0, y0, y1,...,xn> (primop)
+
+next :: a -> a
+next x  = <x1, x2, x3,...,xn> (primop)
+
+first :: a -> a
+first x = y
+    where
+        y = [x, y]
+
+whenever :: a -> Bool -> a
+whenever a b = if first b
+    then [first a, whenever (next a) (next b)]
+    else whenever (next a) (next b)
+
+upon :: a -> Bool -> a
+upon a b = [first a, a']
+    where
+        a' = if first b
+            then upon (next a) (next b)
+            else upon a        (next b)
+
+-- Flowing a global time through everything breaks sharing, a no go
+globalTime :: Int
+globalTime = ... (primOp)
+
+-- Lucid to the rescue?
+-- This might need to be slightly more involved
+global :: a -> a
+global x = x `upon` (count == globalTime)
+    where
+        count = [0, count + 1]
+
+coolMain :: CoolStateMonad ()
+coolMain = do
+    x <- getX
+    let doubleTime = pattern twoToOne x |> latch
+    doubleTime + 1 |> setX
+
+runCoolStateMonad :: CoolStateMonad a -> CoolState -> a
+runCoolStateMonad (CoolStateMonad f) state = f state
+
+initState :: CoolState
+initState = CoolState 0 0
+
+runCoolMain :: CoolStateMonad ()
+runCoolMain = state
+    where
+        env   = initEnv
+        state = runCoolStateMonad (coolMain env) [initState, state]
+
+-- Does this work!?!?!?!?

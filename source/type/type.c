@@ -18,7 +18,8 @@
 #define TRACE_TYPE(...)
 #endif
 
- // TODO: make necro_type_string
+// TODO: make necro_type_string
+// TODO: "Normalize" type variables in printing so that you never print the same variable name twice with two different meanings!
 
 NecroTypeEnv necro_create_type_env(size_t initial_size)
 {
@@ -425,8 +426,7 @@ void necro_print_kind(NecroKind* kind)
 
 void necro_unify_kinds(NecroInfer* infer, NecroType* type1, NecroKind** kind1, NecroKind** kind2, NecroType* macro_type, const char* error_preamble)
 {
-    if (necro_is_infer_error(infer))
-        return;
+    if (necro_is_infer_error(infer)) return;
     assert(infer != NULL);
     assert(type1 != NULL);
     assert(kind1 != NULL);
@@ -452,7 +452,7 @@ void necro_unify_kinds(NecroInfer* infer, NecroType* type1, NecroKind** kind1, N
         case NECRO_KIND_INIT: (*kind2) = (*kind1); break;
         case NECRO_KIND_STAR: necro_not_enough_args_kind_error(infer, type1, macro_type, error_preamble); break;
         case NECRO_KIND_APP:
-            necro_unify_kinds(infer, type1, &(*kind1)->app.kind1, &(*kind1)->app.kind1, macro_type, error_preamble);
+            necro_unify_kinds(infer, type1, &(*kind1)->app.kind1, &(*kind2)->app.kind1, macro_type, error_preamble);
             necro_unify_kinds(infer, type1, &(*kind1)->app.kind2, &(*kind2)->app.kind2, macro_type, error_preamble);
             break;
         default: assert(false);
@@ -475,7 +475,7 @@ char* necro_kind_string_go(NecroInfer* infer, NecroKind* kind, char* buffer, siz
     case NECRO_KIND_APP:
         buffer  = necro_kind_string_go(infer, kind->app.kind1, buffer, max_buffer_length);
         buffer += snprintf(buffer, max_buffer_length, " -> ");
-        buffer  = necro_kind_string_go(infer, kind->app.kind1, buffer, max_buffer_length);
+        buffer  = necro_kind_string_go(infer, kind->app.kind2, buffer, max_buffer_length);
         return buffer;
     default: assert(false);
     }
@@ -502,8 +502,6 @@ NecroKind* necro_infer_kind(NecroInfer* infer, NecroType* type, NecroKind* kind_
             necro_unify_kinds(infer, type, &type->kind, &kind_to_match, macro_type, error_preamble);
         return type->kind;
     }
-    // NecroKind  star_kind = (NecroKind) { .kind = NECRO_KIND_STAR };
-    // NecroKind* star_kptr = &star_kind;
     switch (type->type)
     {
     case NECRO_TYPE_VAR:
@@ -910,10 +908,11 @@ inline void necro_unify_var(NecroInfer* infer, NecroType* type1, NecroType* type
 
 inline void necro_unify_app(NecroInfer* infer, NecroType* type1, NecroType* type2, NecroScope* scope, NecroType* macro_type, const char* error_preamble)
 {
-    if (necro_is_infer_error(infer))
-        return;
+    if (necro_is_infer_error(infer)) return;
     assert(type1 != NULL);
     assert(type1->type == NECRO_TYPE_APP);
+    necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
+    if (necro_is_infer_error(infer)) return;
     if (type2 == NULL)
     {
         necro_infer_error(infer, error_preamble, macro_type, "Arity mismatch during unification for type: %s", necro_intern_get_string(infer->intern, type1->con.con.symbol));
@@ -922,33 +921,31 @@ inline void necro_unify_app(NecroInfer* infer, NecroType* type1, NecroType* type
     switch (type2->type)
     {
     case NECRO_TYPE_VAR:
+        necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
         if (type2->var.is_rigid)
             necro_rigid_type_variable_error(infer, type2->var.var, type1, macro_type, error_preamble);
         else if (necro_occurs(infer, type2, type1, macro_type, error_preamble))
             return;
         else
             necro_instantiate_type_var(infer, &type2->var, type1, macro_type, error_preamble);
-        necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
         return;
     case NECRO_TYPE_APP:
+        necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
         necro_unify(infer, type1->app.type1, type2->app.type1, scope, macro_type, error_preamble);
         necro_unify(infer, type1->app.type2, type2->app.type2, scope, macro_type, error_preamble);
-        necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
         return;
     case NECRO_TYPE_CON:
     {
+        necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
         NecroType* uncurried_con = necro_curry_con(infer, type2);
-        // necro_infer_kind(infer, uncurried_con, NULL, macro_type, error_preamble);
         if (uncurried_con == NULL)
         {
             necro_infer_error(infer, error_preamble, macro_type, "Arity mismatch during unification for type: %s", necro_intern_get_string(infer->intern, type2->con.con.symbol));
         }
         else
         {
-            // necro_unify_app(infer, type1, uncurried_con, scope, macro_type, error_preamble);
             necro_unify(infer, type1, uncurried_con, scope, macro_type, error_preamble);
         }
-        necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
         return;
     }
     case NECRO_TYPE_FUN:  necro_infer_error(infer, error_preamble, macro_type, "Attempting to unify TypeApp with (->)."); return;
@@ -968,14 +965,13 @@ inline void necro_unify_fun(NecroInfer* infer, NecroType* type1, NecroType* type
     switch (type2->type)
     {
     case NECRO_TYPE_VAR:
+        necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
         if (type2->var.is_rigid)
             necro_rigid_type_variable_error(infer, type2->var.var, type1, macro_type, error_preamble);
         else if (necro_occurs(infer, type2, type1, macro_type, error_preamble))
             return;
         else
             necro_instantiate_type_var(infer, &type2->var, type1, macro_type, error_preamble);
-        // necro_unify_kinds(infer, type1, &type1->kind, &type2->kind, macro_type, error_preamble);
-        necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
         return;
     case NECRO_TYPE_FUN:  necro_unify(infer, type1->fun.type1, type2->fun.type1, scope, macro_type, error_preamble); necro_unify(infer, type1->fun.type2, type2->fun.type2, scope, macro_type, error_preamble); return;
     case NECRO_TYPE_APP:  necro_infer_error(infer, error_preamble, macro_type, "Attempting to unify (->) with TypeApp."); return;
@@ -995,13 +991,13 @@ inline void necro_unify_con(NecroInfer* infer, NecroType* type1, NecroType* type
     switch (type2->type)
     {
     case NECRO_TYPE_VAR:
+        necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
         if (type2->var.is_rigid)
             necro_rigid_type_variable_error(infer, type2->var.var, type1, macro_type, error_preamble);
         else if (necro_occurs(infer, type2, type1, macro_type, error_preamble))
             return;
         else
             necro_instantiate_type_var(infer, &type2->var, type1, macro_type, error_preamble);
-        necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
         return;
     case NECRO_TYPE_CON:
         if (type1->con.con.symbol.id != type2->con.con.symbol.id)

@@ -1,4 +1,4 @@
-data Either a b = Either a b
+data Either l r = Either l r
 data Maybe a = Just a | Nothing
 
 class Functor f => Applicative f where
@@ -41,34 +41,41 @@ instance Semigroup a => Semigroup (Maybe a) where
 instance Monoid a => Monoid (Maybe a) where
     mempty = Nothing
 
--- class Eq a => Num a where
---     add :: a -> a -> a
---
--- class Eq a where
---     eq :: a -> a -> Bool
---
--- class Eq a => Ord a where
---     gt :: a -> a -> Bool
---
--- instance Num Int where
---     add x y = x + y
---
--- instance Ord Int where
---     gt x y = eq x y
---
--- instance Eq Int where
---     eq x y = x == y
---
---
--- class Foo a
--- class Foo a => Bar a
---
--- instance Eq a  => Foo (Maybe a)
--- instance Num a => Bar (Maybe a)
---
--- conTest :: Monad m => a -> m a
--- conTest = pure
---
---
--- class HigherKinded a where
---     highGround :: a b c d -> (a b c d -> e) -> e
+class Eq a => Num a where
+    add :: a -> a -> a
+
+class Eq a where
+    eq :: a -> a -> Bool
+
+class Eq a => Ord a where
+    gt :: a -> a -> Bool
+
+instance Num Int where
+    add x y = x + y
+
+instance Ord Int where
+    gt x y = eq x y
+
+instance Eq Int where
+    eq x y = x == y
+
+class Foo a
+class Foo a => Bar a
+
+instance Eq a  => Foo (Maybe a)
+instance Ord a => Bar (Maybe a)
+
+conTest :: Monad m => a -> m a
+conTest = pure
+
+class HigherKinded a where
+    highGround   :: a b c d -> (a b c d -> e) -> e
+    higherGround :: a b c d -> b
+
+data KindSlaver a b c d = Kind a b c d | NotKind
+
+instance Num a => HigherKinded (KindSlaver a) where
+    highGround k f = f k
+    higherGround (Kind _ x _ _) = x
+
+apTest fa (Just 0) = ap fa Nothing

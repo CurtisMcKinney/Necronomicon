@@ -160,7 +160,6 @@ NecroType* necro_infer_type_sig(NecroInfer* infer, NecroNode* ast)
     NecroTypeClassContext* context = necro_union_contexts(infer, necro_ast_to_context(infer, infer->type_class_env, ast->type_signature.context), NULL);
     if (necro_ambiguous_type_class_check(infer, ast->type_signature.var->variable.symbol, context, type_sig)) return NULL;
     necro_apply_constraints(infer, type_sig, context);
-    // necro_add_constraints_to_ty_vars(infer, type_sig, necro_create_ty_var_context_list(infer, NULL, context));
 
     type_sig = necro_gen(infer, type_sig, ast->type_signature.type->scope);
     if (necro_is_infer_error(infer)) return NULL;

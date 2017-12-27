@@ -55,11 +55,13 @@ typedef struct NecroDictionaryPrototype
 
 typedef struct
 {
+    NecroNode*                ast;
     NecroCon                  data_type_name;
     NecroCon                  type_class_name;
     NecroTypeClassContext*    context;
     NecroDictionaryPrototype* dictionary_prototype;
     NecroType*                data_type;
+    size_t                    dependency_flag;
 } NecroTypeClassInstance;
 
 NECRO_DECLARE_ARENA_CHAIN_TABLE(NecroTypeClassInstance, TypeClassInstance, type_class_instance)
@@ -88,11 +90,8 @@ NecroTypeClassContext*  necro_ast_to_context(NecroInfer* infer, NecroTypeClassEn
 void                    necro_add_constraints_to_ty_vars(NecroInfer* infer, NecroType* type, NecroTyVarContextList* context_list);
 NecroTyVarContextList*  necro_create_ty_var_context_list(NecroInfer* infer, NecroCon* type_class_var, NecroTypeClassContext* context);
 
-// void                    necro_create_type_class_declaration_pass1(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
-// void                    necro_create_type_class_declaration_pass2(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
-// void                    necro_create_type_class_declaration_pass3(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
-
 //after refactor
 void                    necro_declare_type_classes(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations);
+void                    necro_type_class_instances(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations);
 
 #endif // TYPE_CLASS_H

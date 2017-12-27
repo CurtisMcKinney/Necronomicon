@@ -961,7 +961,7 @@ NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroNode* ast)
     NecroNode* current_decl = ast;
 
     //----------------------------------------------------
-    // Pass -5, Data Declarations
+    // Pass -3, Data Declarations
     current_decl = ast;
     while (current_decl != NULL)
     {
@@ -975,68 +975,15 @@ NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroNode* ast)
     }
     if (necro_is_infer_error(infer)) return NULL;
 
+    //----------------------------------------------------
+    // Pass -2, Type Class Declaration
     necro_declare_type_classes(infer, infer->type_class_env, ast);
     if (necro_is_infer_error(infer)) return NULL;
 
-    // //----------------------------------------------------
-    // // Pass -4, Type Class Declarations Pass 1
-    // current_decl = ast;
-    // while (current_decl != NULL)
-    // {
-    //     assert(current_decl->type == NECRO_AST_TOP_DECL);
-    //     if (current_decl->top_declaration.declaration->type == NECRO_AST_TYPE_CLASS_DECLARATION)
-    //     {
-    //         necro_create_type_class_declaration_pass1(infer, infer->type_class_env, current_decl->top_declaration.declaration);
-    //     }
-    //     if (necro_is_infer_error(infer)) return NULL;
-    //     current_decl = current_decl->top_declaration.next_top_decl;
-    // }
-    // if (necro_is_infer_error(infer)) return NULL;
-
-    // //----------------------------------------------------
-    // // Pass -3, Type Class Declarations Pass 2
-    // current_decl = ast;
-    // while (current_decl != NULL)
-    // {
-    //     assert(current_decl->type == NECRO_AST_TOP_DECL);
-    //     if (current_decl->top_declaration.declaration->type == NECRO_AST_TYPE_CLASS_DECLARATION)
-    //     {
-    //         necro_create_type_class_declaration_pass2(infer, infer->type_class_env, current_decl->top_declaration.declaration);
-    //     }
-    //     if (necro_is_infer_error(infer)) return NULL;
-    //     current_decl = current_decl->top_declaration.next_top_decl;
-    // }
-    // if (necro_is_infer_error(infer)) return NULL;
-
-    // //----------------------------------------------------
-    // // Pass -2, Type Class Instance
-    // current_decl = ast;
-    // while (current_decl != NULL)
-    // {
-    //     assert(current_decl->type == NECRO_AST_TOP_DECL);
-    //     if (current_decl->top_declaration.declaration->type == NECRO_AST_TYPE_CLASS_INSTANCE)
-    //     {
-    //         necro_create_type_class_instance_pass1(infer, (NecroTypeClassEnv*)infer->type_class_env, current_decl->top_declaration.declaration);
-    //     }
-    //     if (necro_is_infer_error(infer)) return NULL;
-    //     current_decl = current_decl->top_declaration.next_top_decl;
-    // }
-    // if (necro_is_infer_error(infer)) return NULL;
-
-    // //----------------------------------------------------
-    // // Pass -1, Type Class Instance
-    // current_decl = ast;
-    // while (current_decl != NULL)
-    // {
-    //     assert(current_decl->type == NECRO_AST_TOP_DECL);
-    //     if (current_decl->top_declaration.declaration->type == NECRO_AST_TYPE_CLASS_INSTANCE)
-    //     {
-    //         necro_create_type_class_instance_pass2(infer, (NecroTypeClassEnv*)infer->type_class_env, current_decl->top_declaration.declaration);
-    //     }
-    //     if (necro_is_infer_error(infer)) return NULL;
-    //     current_decl = current_decl->top_declaration.next_top_decl;
-    // }
-    // if (necro_is_infer_error(infer)) return NULL;
+    //----------------------------------------------------
+    // Pass -1, Type Class Instances
+    necro_type_class_instances(infer, infer->type_class_env, ast);
+    if (necro_is_infer_error(infer)) return NULL;
 
     //----------------------------------------------------
     // Pass 0, add type signatures

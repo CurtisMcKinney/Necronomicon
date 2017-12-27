@@ -871,8 +871,7 @@ inline void necro_unify_var(NecroInfer* infer, NecroType* type1, NecroType* type
     switch (type2->type)
     {
     case NECRO_TYPE_VAR:
-    {
-        NecroType* current_type2 = type2;
+        necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
         if (type1->var.var.id.id == type2->var.var.id.id)
             return;
         else if (type1->var.is_rigid && type2->var.is_rigid)
@@ -887,9 +886,7 @@ inline void necro_unify_var(NecroInfer* infer, NecroType* type1, NecroType* type
             necro_instantiate_type_var(infer, &type2->var, type1, macro_type, error_preamble);
         else
             necro_instantiate_type_var(infer, &type1->var, type2, macro_type, error_preamble);
-        necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
         return;
-    }
     case NECRO_TYPE_CON:
     case NECRO_TYPE_APP:
     case NECRO_TYPE_FUN:
@@ -1171,7 +1168,8 @@ NecroType* necro_inst(NecroInfer* infer, NecroType* type, NecroScope* scope)
         current_type = current_type->for_all.type;
     }
     NecroType* result = necro_inst_go(infer, current_type, subs, scope);
-    necro_infer_kind(infer, result, infer->star_kind, result, NULL);
+    // necro_infer_kind(infer, result, infer->star_kind, result, NULL);
+    necro_infer_kind(infer, result, NULL, result, NULL);
     return result;
 }
 

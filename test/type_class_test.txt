@@ -1,15 +1,15 @@
--- data Either a b = Either a b
+data Either a b = Either a b
 data Maybe a = Just a | Nothing
 
 class Functor f => Applicative f where
     pure :: a -> f a
     ap   :: f (a -> b) -> f a -> f b
 
-class Applicative m => Monad m where
-    bind :: m a -> (a -> m b) -> m b
-
 class Functor f where
     map :: (a -> b) -> f a -> f b
+
+class Applicative m => Monad m where
+    bind :: m a -> (a -> m b) -> m b
 
 -- instance Functor Maybe where
 --     map f (Just x) = Just (f x)
@@ -23,9 +23,23 @@ class Functor f where
 --     bind (Just x) f = f x
 --     bind Nothing  _ = Nothing
 
--- class Semigroup a where
---     append :: a -> a -> a
---
+class Semigroup a where
+    append :: a -> a -> a
+    test :: b -> b
+
+class Semigroup a => Monoid a where
+    mempty :: a
+
+instance Semigroup a => Semigroup (Maybe a) where
+    append (Just x) (Just y) = Just (append x y)
+    append (Just x) _        = Just x
+    append _        (Just y) = Just y
+    append _        _        = Nothing
+
+-- Then it should throw a constraint error till the correct one is added
+instance Semigroup a => Monoid (Maybe a) where
+    mempty = Nothing
+
 -- class Eq a => Num a where
 --     add :: a -> a -> a
 --

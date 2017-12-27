@@ -80,38 +80,7 @@ NecroTypeClass* necro_get_super_class(NecroInfer* infer, NecroTypeClassEnv* env,
     return super_class;
 }
 
-void necro_dependency_analyze(NecroInfer* infer, NecroTypeClassEnv* env, NecroTypeClass* type_class)
-{
-    assert(infer != NULL);
-    assert(env != NULL);
-    assert(type_class != NULL);
-    if (necro_is_infer_error(infer)) return;
-    if (type_class->dependency_flag == 2) return;
-    assert(type_class->dependency_flag != 1);
-
-    // Set Flag to (adding super classes)
-    type_class->dependency_flag = 1;
-
-    // Iterate through super classes
-    NecroTypeClassContext* context = type_class->context;
-    while (context != NULL)
-    {
-        NecroTypeClass* super_class = necro_get_super_class(infer, env, context->type_class_name, type_class->type_class_name);
-        if (necro_is_infer_error(infer)) return;
-        if (super_class->dependency_flag == 2)
-        {
-            context = context->next;
-            continue;
-        }
-        if (necro_is_infer_error(infer)) return;
-        necro_dependency_analyze(infer, env, super_class);
-        if (necro_is_infer_error(infer)) return;
-        context = context->next;
-    }
-
-    necro_finish_declaring_type_class(infer, env, type_class);
-    type_class->dependency_flag = 2;
-}
+void necro_dependency_analyze_type_class_declarations(NecroInfer* infer, NecroTypeClassEnv* env, NecroTypeClass* type_class);
 
 void necro_declare_type_classes(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations)
 {
@@ -163,12 +132,45 @@ void necro_declare_type_classes(NecroInfer* infer, NecroTypeClassEnv* env, Necro
             // Retrieve type class
             NecroNode*      type_class_ast = current_decl->top_declaration.declaration;
             NecroTypeClass* type_class     = necro_type_class_table_get(&env->class_table, type_class_ast->type_class_declaration.tycls->conid.id.id);
-            necro_dependency_analyze(infer, env, type_class);
+            necro_dependency_analyze_type_class_declarations(infer, env, type_class);
         }
         if (necro_is_infer_error(infer)) return;
         current_decl = current_decl->top_declaration.next_top_decl;
     }
     if (necro_is_infer_error(infer)) return;
+}
+
+void necro_dependency_analyze_type_class_declarations(NecroInfer* infer, NecroTypeClassEnv* env, NecroTypeClass* type_class)
+{
+    assert(infer != NULL);
+    assert(env != NULL);
+    assert(type_class != NULL);
+    if (necro_is_infer_error(infer)) return;
+    if (type_class->dependency_flag == 2) return;
+    assert(type_class->dependency_flag != 1);
+
+    // Set Flag to (adding super classes)
+    type_class->dependency_flag = 1;
+
+    // Iterate through super classes
+    NecroTypeClassContext* context = type_class->context;
+    while (context != NULL)
+    {
+        NecroTypeClass* super_class = necro_get_super_class(infer, env, context->type_class_name, type_class->type_class_name);
+        if (necro_is_infer_error(infer)) return;
+        if (super_class->dependency_flag == 2)
+        {
+            context = context->next;
+            continue;
+        }
+        if (necro_is_infer_error(infer)) return;
+        necro_dependency_analyze_type_class_declarations(infer, env, super_class);
+        if (necro_is_infer_error(infer)) return;
+        context = context->next;
+    }
+
+    necro_finish_declaring_type_class(infer, env, type_class);
+    type_class->dependency_flag = 2;
 }
 
 void necro_finish_declaring_type_class(NecroInfer* infer, NecroTypeClassEnv* env, NecroTypeClass* type_class)
@@ -178,33 +180,27 @@ void necro_finish_declaring_type_class(NecroInfer* infer, NecroTypeClassEnv* env
     assert(type_class != NULL);
     if (necro_is_infer_error(infer)) return;
 
-    NecroType* type_class_var = necro_symtable_get(infer->symtable, type_class->type_var.id)->type;
-
-    // IN PROGRESS: Moving to full context list, Redo constraint unification, redo constraint printing!
+    NecroType* type_class_var   = necro_symtable_get(infer->symtable, type_class->type_var.id)->type;
+    type_class_var->var.context = necro_create_type_class_context(&infer->arena, type_class->type_class_name, type_class->type_var, type_class->context);
+    necro_infer_kind(infer, type_class_var, NULL, type_class_var, "While declaring a type class: ");
 
     //--------------------------------
     // Constrain type class variable via super classes
-    NecroTypeClassContext* context     = type_class->context;
-    NecroTypeClassContext* var_context = NULL;
+    NecroTypeClassContext* context = type_class->context;
     while (context != NULL)
     {
-        NecroTypeClass* super_class     = necro_get_super_class(infer, env, context->type_class_name, type_class->type_class_name);
-        NecroType*      super_class_var = necro_symtable_get(infer->symtable, super_class->type_var.id)->type;
+        NecroTypeClass* super_class = necro_get_super_class(infer, env, context->type_class_name, type_class->type_class_name);
         if (necro_is_infer_error(infer)) return;
-        NecroType*      inst_super_var  = necro_new_name(infer, super_class_var->source_loc);
-        var_context = necro_union_contexts(infer, var_context, super_class->context);
-        necro_unify(infer, super_class_var, inst_super_var, NULL, super_class_var, "While declaring a type class");
+        NecroType*      super_class_var = necro_gen(infer, necro_symtable_get(infer->symtable, super_class->type_var.id)->type, NULL);
+        NecroType*      inst_super_var  = necro_inst(infer, super_class_var, NULL);
+        type_class_var->var.context = necro_union_contexts(infer, super_class->context, type_class_var->var.context);
+        necro_unify(infer, type_class_var, inst_super_var, NULL, type_class_var, "While declaring a type class: ");
         if (necro_is_infer_error(infer)) return;
-        necro_unify(infer, type_class_var, inst_super_var, NULL, type_class_var, "While declaring a type class");
         context = context->next;
     }
-    var_context                 = necro_union_contexts(infer, var_context, type_class->context);
-    type_class_var->var.context = var_context;
-    type_class->context         = var_context;
 
     //--------------------------------
     // Build Member Type Signatures
-    // Need members in here somehow....
     NecroNode* declarations = type_class->ast->type_class_declaration.declarations;
     while (declarations != NULL)
     {
@@ -214,6 +210,9 @@ void necro_finish_declaring_type_class(NecroInfer* infer, NecroTypeClassEnv* env
         type_sig->pre_supplied = true;
         type_sig->source_loc   = declarations->declaration.declaration_impl->source_loc;
         type_sig               = necro_gen(infer, type_sig, NULL);
+        // TODO: Type signature contexts and ambiguity checks
+        // NecroTypeClassContext* method_context = type_sig
+        // if (necro_ambiguous_type_class_check(infer, declarations->declaration.declaration_impl->type_signature.var->variable.symbol, method_context, type_sig)) return;
         necro_symtable_get(infer->symtable, declarations->declaration.declaration_impl->type_signature.var->variable.id)->type = type_sig;
         if (necro_is_infer_error(infer)) return;
         NecroTypeClassMember* prev_member = type_class->members;
@@ -225,57 +224,321 @@ void necro_finish_declaring_type_class(NecroInfer* infer, NecroTypeClassEnv* env
     printf("Finishing type_class: %s\n", necro_intern_get_string(infer->intern, type_class->type_class_name.symbol));
 }
 
-// //=====================================================
-// // Type Class Declaration member
-// //=====================================================
-// void necro_create_type_class_declaration_pass1(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast)
+//=====================================================
+// Type Class Instances - Refactor
+//=====================================================
+void necro_dependency_analyze_type_class_instances(NecroInfer* infer, NecroTypeClassEnv* env, NecroTypeClassInstance* instance);
+void necro_finish_declaring_type_class_instance(NecroInfer* infer, NecroTypeClassEnv* env, NecroTypeClass* type_class, NecroTypeClassInstance* instance);
+void necro_apply_constraints(NecroInfer* infer, NecroType* type, NecroTypeClassContext* context);
+bool necro_check_constraints(NecroInfer* infer, NecroTypeClassInstance* instance, NecroType* type, NecroTypeClassContext* context);
+
+NecroTypeClassInstance* necro_get_type_class_instance(NecroInfer* infer, NecroTypeClassEnv* env, NecroCon type_class_name, NecroCon data_type_name)
+{
+    assert(infer != NULL);
+    assert(env != NULL);
+    if (necro_is_infer_error(infer)) return false;
+    assert(necro_symtable_get(infer->symtable, data_type_name.id)->type != NULL);
+    uint64_t                key      = necro_create_instance_key(data_type_name, type_class_name);
+    NecroTypeClassInstance* instance = necro_type_class_instance_table_get(&env->instance_table, key);
+    if (instance == NULL)
+    {
+        necro_infer_ast_error(infer, NULL, NULL, "%s is not an instance of %s", necro_intern_get_string(infer->intern, data_type_name.symbol), necro_intern_get_string(infer->intern, type_class_name.symbol));
+        return NULL;
+    }
+    return instance;
+}
+
+void necro_type_class_instances(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations)
+{
+    assert(infer != NULL);
+    assert(top_level_declarations != NULL);
+    assert(top_level_declarations->type == NECRO_AST_TOP_DECL);
+    if (necro_is_infer_error(infer)) return;
+
+    //---------------------------------------------------------------
+    // Pass 1, creating initial struct and insert into tables
+    NecroNode* current_decl = top_level_declarations;
+    while (current_decl != NULL)
+    {
+        assert(current_decl->type == NECRO_AST_TOP_DECL);
+        if (current_decl->top_declaration.declaration->type == NECRO_AST_TYPE_CLASS_INSTANCE)
+        {
+            NecroNode* ast             = current_decl->top_declaration.declaration;
+            NecroCon   type_class_name = (NecroCon) { .symbol = ast->type_class_instance.qtycls->conid.symbol, .id = ast->type_class_instance.qtycls->conid.id };
+            NecroCon   data_type_name;
+            if (ast->type_class_instance.inst->type == NECRO_AST_CONID)
+                data_type_name = (NecroCon) { .symbol = ast->type_class_instance.inst->conid.symbol, .id = ast->type_class_instance.inst->conid.id };
+            else if (ast->type_class_instance.inst->type == NECRO_AST_CONSTRUCTOR)
+                data_type_name = (NecroCon) { .symbol = ast->type_class_instance.inst->constructor.conid->conid.symbol, .id = ast->type_class_instance.inst->constructor.conid->conid.id };
+            else
+                assert(false);
+
+            if (necro_symtable_get(infer->symtable, data_type_name.id)->type == NULL)
+            {
+                necro_infer_ast_error(infer, NULL, ast, "No type named \'%s\', in instance declaration for class \'%s\'", necro_intern_get_string(infer->intern, data_type_name.symbol), necro_intern_get_string(infer->intern, type_class_name.symbol));
+                return;
+            }
+
+            uint64_t key = necro_create_instance_key(data_type_name, type_class_name);
+            if (necro_type_class_instance_table_get(&env->instance_table, key) != NULL)
+            {
+                necro_infer_ast_error(infer, NULL, ast, "Duplicate Type Class Instance\n     class: %s\n     type: %s", necro_intern_get_string(infer->intern, type_class_name.symbol), necro_intern_get_string(infer->intern, data_type_name.symbol));
+                return;
+            }
+
+            NecroTypeClassInstance* instance = necro_type_class_instance_table_insert(&env->instance_table, key, NULL);
+            instance->type_class_name        = type_class_name;
+            instance->data_type_name         = data_type_name;
+            instance->context                = necro_ast_to_context(infer, env, ast->type_class_instance.context);
+            instance->dictionary_prototype   = NULL;
+            instance->ast                    = ast;
+            instance->dependency_flag        = 0;
+            instance->data_type              = NULL;
+        }
+        if (necro_is_infer_error(infer)) return;
+        current_decl = current_decl->top_declaration.next_top_decl;
+    }
+    if (necro_is_infer_error(infer)) return;
+
+    //---------------------------------------------------------------
+    // Pass 2, Dependency Analyze and Finish
+    current_decl = top_level_declarations;
+    while (current_decl != NULL)
+    {
+        assert(current_decl->type == NECRO_AST_TOP_DECL);
+        if (current_decl->top_declaration.declaration->type == NECRO_AST_TYPE_CLASS_INSTANCE)
+        {
+            // Retrieve type class instance
+            NecroNode* ast             = current_decl->top_declaration.declaration;
+            NecroCon   type_class_name = (NecroCon) { .symbol = ast->type_class_instance.qtycls->conid.symbol, .id = ast->type_class_instance.qtycls->conid.id };
+            NecroCon   data_type_name;
+            if (ast->type_class_instance.inst->type == NECRO_AST_CONID)
+                data_type_name = (NecroCon) { .symbol = ast->type_class_instance.inst->conid.symbol, .id = ast->type_class_instance.inst->conid.id };
+            else if (ast->type_class_instance.inst->type == NECRO_AST_CONSTRUCTOR)
+                data_type_name = (NecroCon) { .symbol = ast->type_class_instance.inst->constructor.conid->conid.symbol, .id = ast->type_class_instance.inst->constructor.conid->conid.id };
+            else
+                assert(false);
+            NecroTypeClassInstance* instance = necro_get_type_class_instance(infer, env, type_class_name, data_type_name);
+            if (necro_is_infer_error(infer)) return;
+            necro_dependency_analyze_type_class_instances(infer, env, instance);
+        }
+        if (necro_is_infer_error(infer)) return;
+        current_decl = current_decl->top_declaration.next_top_decl;
+    }
+    if (necro_is_infer_error(infer)) return;
+}
+
+void necro_dependency_analyze_type_class_instances(NecroInfer* infer, NecroTypeClassEnv* env, NecroTypeClassInstance* instance)
+{
+    assert(infer != NULL);
+    assert(env != NULL);
+    assert(instance != NULL);
+    if (necro_is_infer_error(infer)) return;
+    if (instance->dependency_flag == 2) return;
+    assert(instance->dependency_flag != 1);
+
+    // Set Flag to (adding super classes)
+    instance->dependency_flag = 1;
+
+    NecroTypeClass* type_class = necro_type_class_table_get(&env->class_table, instance->type_class_name.id.id);
+    if (type_class == NULL)
+    {
+        necro_infer_ast_error(infer, NULL, instance->ast, "%s cannot be an instance of %s, because %s is not a type class",
+            necro_intern_get_string(infer->intern, instance->data_type_name.symbol),
+            necro_intern_get_string(infer->intern, instance->type_class_name.symbol),
+            necro_intern_get_string(infer->intern, instance->type_class_name.symbol));
+        return;
+    }
+
+    // Iterate through super classes
+    NecroTypeClassContext* context = type_class->context;
+    while (context != NULL)
+    {
+        NecroTypeClass*          super_class    = necro_get_super_class(infer, env, context->type_class_name, type_class->type_class_name);
+        if (necro_is_infer_error(infer)) return;
+        NecroTypeClassInstance*  super_instance = necro_get_type_class_instance(infer, env, super_class->type_class_name, instance->data_type_name);
+        if (necro_is_infer_error(infer)) return;
+        if (super_instance->dependency_flag == 2)
+        {
+            context = context->next;
+            continue;
+        }
+        if (necro_is_infer_error(infer)) return;
+        necro_dependency_analyze_type_class_instances(infer, env, super_instance);
+        if (necro_is_infer_error(infer)) return;
+        context = context->next;
+    }
+
+    necro_finish_declaring_type_class_instance(infer, env, type_class, instance);
+    instance->dependency_flag = 2;
+}
+
+void necro_finish_declaring_type_class_instance(NecroInfer* infer, NecroTypeClassEnv* env, NecroTypeClass* type_class, NecroTypeClassInstance* instance)
+{
+    assert(infer != NULL);
+    assert(env != NULL);
+    assert(instance != NULL);
+    if (necro_is_infer_error(infer)) return;
+    printf("INSTANCE: %s %s\n", necro_intern_get_string(infer->intern, instance->type_class_name.symbol), necro_intern_get_string(infer->intern, instance->data_type_name.symbol));
+
+    instance->data_type   = necro_ast_to_type_sig_go(infer, instance->ast->type_class_instance.inst);
+
+    // Is unifying the data_type with the type_class->var adding erroneous extra constraints that fuck shit up?!?!?!
+    if (necro_is_infer_error(infer)) return;
+    // NecroType* proxy_type = necro_new_name(infer, instance->ast->source_loc);
+    NecroType* class_var  = necro_symtable_get(infer->symtable, type_class->type_var.id)->type;
+    assert(class_var != NULL);
+    // necro_unify(infer, class_var, proxy_type, NULL, proxy_type, "While creating an instance of a type class: ");
+    // if (necro_is_infer_error(infer)) return;
+    // necro_unify(infer, instance->data_type, proxy_type, NULL, instance->data_type, "While creating an instance of a type class: ");
+    necro_infer_kind(infer, instance->data_type, class_var->kind, instance->data_type, "While creating an instance of a type class: ");
+    // necro_unify_kinds(infer, instance->data_type, &instance->data_type->kind, &proxy_type->kind, instance->data_type, "While creating an instance of a type class: ");
+    if (necro_is_infer_error(infer)) return;
+
+    // Apply constraints
+    necro_apply_constraints(infer, instance->data_type, instance->context);
+    NecroType* gen_type = necro_gen(infer, instance->data_type, NULL);
+
+    // TODO: How to handle constraint checking?!?!?
+    // Iterate through super classes
+    NecroType*             type_var = necro_symtable_get(infer->symtable, type_class->type_var.id)->type;
+    // NecroTypeClassContext* context  = type_class->context;
+    NecroTypeClassContext* context  = type_var->var.context;
+    while (context != NULL)
+    {
+        NecroTypeClass*          super_class    = necro_get_super_class(infer, env, context->type_class_name, type_class->type_class_name);
+        if (necro_is_infer_error(infer)) return;
+        NecroTypeClassInstance*  super_instance = necro_get_type_class_instance(infer, env, super_class->type_class_name, instance->data_type_name);
+        if (necro_is_infer_error(infer)) return;
+
+        // // Retrieve super instance
+        // NecroType* proxy_type = necro_new_name(infer, instance->ast->source_loc);
+        // NecroType* super_type = super_instance->data_type;
+        // assert(super_type != NULL);
+
+        // // Unify with super_instance
+        // necro_unify(infer, super_type, proxy_type, NULL, proxy_type, "While creating an instance of a type class: ");
+        // if (necro_is_infer_error(infer)) return;
+
+        NecroType* super_type = necro_inst(infer, necro_gen(infer, super_instance->data_type, NULL), NULL);
+        // // necro_unify(infer, super_type, instance->data_type, NULL, instance->data_type, "While creating an instance of a type class: ");
+        necro_unify(infer, gen_type, super_type, NULL, instance->data_type, "While creating an instance of a type class: ");
+
+        // if (!necro_check_constraints(infer, instance, instance->data_type, super_instance->context))
+        // {
+        //     if (necro_is_infer_error(infer)) return;
+        //     instance->data_type = NULL;
+        //     return;
+        // }
+
+        if (necro_is_infer_error(infer)) return;
+        context = context->next;
+    }
+}
+
+void necro_apply_super_class_constraints(NecroInfer* infer, NecroType* type, NecroTypeClassContext* context)
+{
+    assert(infer != NULL);
+    assert(type->type == NECRO_TYPE_VAR);
+    if (necro_is_infer_error(infer)) return;
+    if (type == NULL) return;
+    if (context == NULL) return;
+    NecroTypeClass*        type_class    = necro_type_class_table_get(&infer->type_class_env->class_table, context->type_class_name.id.id);
+    assert(type_class != NULL);
+    NecroTypeClassContext* super_classes = type_class->context;
+    while (super_classes != NULL)
+    {
+        NecroTypeClassContext* super_class = necro_create_type_class_context(&infer->arena, super_classes->type_class_name, (NecroCon) { .id = type->var.var.id, .symbol = type->var.var.symbol }, NULL);
+        type->var.context = necro_union_contexts(infer, type->var.context, super_class);
+        necro_apply_super_class_constraints(infer, type, super_classes);
+        super_classes = super_classes->next;
+    }
+}
+
+void necro_apply_constraints(NecroInfer* infer, NecroType* type, NecroTypeClassContext* context)
+{
+    assert(infer != NULL);
+    if (necro_is_infer_error(infer)) return;
+    if (type == NULL) return;
+    if (context == NULL) return;
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR:
+    {
+        while (context != NULL)
+        {
+            if (type->var.var.id.id == context->type_var.id.id)
+            {
+                NecroTypeClassContext* class_context = necro_create_type_class_context(&infer->arena, context->type_class_name, context->type_var, NULL);
+                type->var.context = necro_union_contexts(infer, type->var.context, class_context);
+                necro_apply_super_class_constraints(infer, type, context);
+                if (necro_is_infer_error(infer)) return;
+                // type->var.is_rigid          = true;
+                // type->var.is_type_class_var = context_list->is_type_class_var;
+                // return;
+            }
+            context = context->next;
+        }
+        break;
+    }
+    case NECRO_TYPE_APP:  necro_apply_constraints(infer, type->app.type1, context); necro_apply_constraints(infer, type->app.type2, context); break;
+    case NECRO_TYPE_FUN:  necro_apply_constraints(infer, type->fun.type1, context); necro_apply_constraints(infer, type->fun.type2, context); break;
+    case NECRO_TYPE_CON:  necro_apply_constraints(infer, type->con.args,  context); break;
+    case NECRO_TYPE_LIST: necro_apply_constraints(infer, type->list.item, context); necro_apply_constraints(infer, type->list.next, context); break;
+    case NECRO_TYPE_FOR:  necro_infer_ast_error(infer, type, NULL, "Compiler bug: ForAll Type in necro_apply_constraints: %d", type->type); break;
+    default:              necro_infer_ast_error(infer, type, NULL, "Compiler bug: Unimplemented Type in necro_apply_constraints: %d", type->type); break;
+    }
+}
+
+bool necro_context_contains_class_and_type_var(NecroTypeClassContext* context, NecroTypeClassContext* type_class, NecroCon type_var)
+{
+    while (context != NULL)
+    {
+        if (context->type_class_name.id.id == type_class->type_class_name.id.id && context->type_var.id.id == type_var.id.id)
+            return true;
+        context = context->next;
+    }
+    return false;
+}
+
+// bool necro_check_constraints(NecroInfer* infer, NecroTypeClassInstance* instance, NecroType* type, NecroTypeClassContext* context)
 // {
-//     assert(ast->type == NECRO_AST_TYPE_CLASS_DECLARATION);
-//     TRACE_TYPE_CLASS("necro_create_type_class\n");
-
-//     NecroTypeClass* type_class       = necro_type_class_table_insert(&env->class_table, ast->type_class_declaration.tycls->conid.id.id, NULL);
-//     type_class->type_class_name      = (NecroCon) { .symbol = ast->type_class_declaration.tycls->conid.symbol, .id = ast->type_class_declaration.tycls->conid.id };
-//     type_class->members              = NULL;
-//     type_class->type_var             = (NecroCon) { .symbol = ast->type_class_declaration.tyvar->variable.symbol, .id = ast->type_class_declaration.tyvar->variable.id };
-//     type_class->context              = NULL;
-
-//     // Create type_var for type_class
-//     NecroType* ty_var              = necro_create_type_var(infer, (NecroVar) { .id = type_class->type_var.id, .symbol = ast->type_class_declaration.tyvar->variable.symbol});
-//     ty_var->var.is_rigid           = false;
-//     ty_var->var.is_type_class_var  = true;
-//     NecroType* arg_list            = necro_create_type_list(infer, ty_var, NULL);
-//     type_class->type               = necro_make_con_1(infer, type_class->type_class_name, arg_list);
-//     type_class->type->con.is_class = true;
-//     type_class->context            = necro_ast_to_context(infer, env, ast->type_class_declaration.context);
-
-//     necro_symtable_get(infer->symtable, type_class->type_var.id)->type = ty_var;
-
-// }
-
-// void necro_create_type_class_declaration_pass2(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast)
-// {
-//     assert(ast->type == NECRO_AST_TYPE_CLASS_DECLARATION);
-//     NecroTypeClass* type_class = necro_type_class_table_get(&env->class_table, ast->type_class_declaration.tycls->conid.id.id);
-//     assert(type_class != NULL);
-
-//     //--------------------------------
-//     // Constraint type class context
-
-//     //--------------------------------
-//     // Build Member Type Signatures and infer kind of the type class var
-//     NecroNode* declarations = ast->type_class_declaration.declarations;
-//     while (declarations != NULL)
+//     assert(infer != NULL);
+//     if (necro_is_infer_error(infer)) return false;
+//     if (type == NULL) return false;
+//     if (context == NULL) return true;
+//     switch (type->type)
 //     {
-//         if (declarations->declaration.declaration_impl->type != NECRO_AST_TYPE_SIGNATURE)
-//             continue;
-//         NecroType* type_sig    = necro_ast_to_type_sig_go(infer, declarations->declaration.declaration_impl->type_signature.type);
-//         type_sig->pre_supplied = true;
-//         type_sig->source_loc   = declarations->declaration.declaration_impl->source_loc;
-//         necro_symtable_get(infer->symtable, declarations->declaration.declaration_impl->type_signature.var->variable.id)->type = type_sig;
-//         if (necro_is_infer_error(infer)) return;
-//         necro_infer_kind(infer, type_sig, infer->star_kind, type_sig, "While declarring a class member");
-//         if (necro_is_infer_error(infer)) return;
-//         declarations = declarations->declaration.next_declaration;
+//     case NECRO_TYPE_VAR:
+//     {
+//         while (context != NULL)
+//         {
+//             if (type->var.var.id.id == context->type_var.id.id)
+//             {
+//                 if (!necro_context_contains_class_and_type_var(type->var.context, context, context->type_var))
+//                 {
+//                     necro_infer_ast_error(infer, instance->data_type, NULL, "Instance declarations \'%s %s\' does not satisfy constraint: \'%s %s\'",
+//                         necro_intern_get_string(infer->intern, instance->type_class_name.symbol),
+//                         necro_intern_get_string(infer->intern, instance->data_type_name.symbol),
+//                         necro_intern_get_string(infer->intern, context->type_class_name.symbol),
+//                         necro_intern_get_string(infer->intern, context->type_var.symbol));
+//                     return false;
+//                 }
+//                 else
+//                 {
+//                     return true;
+//                 }
+//             }
+//             context = context->next;
+//         }
+//         return false;
+//     }
+//     case NECRO_TYPE_APP:  return necro_check_constraints(infer, instance, type->app.type1, context) || necro_check_constraints(infer, instance, type->app.type2, context);
+//     case NECRO_TYPE_FUN:  return necro_check_constraints(infer, instance, type->fun.type1, context) || necro_check_constraints(infer, instance, type->fun.type2, context);
+//     case NECRO_TYPE_CON:  return necro_check_constraints(infer, instance, type->con.args,  context);
+//     case NECRO_TYPE_LIST: return necro_check_constraints(infer, instance, type->list.item, context) || necro_check_constraints(infer, instance, type->list.next, context);
+//     case NECRO_TYPE_FOR:  necro_infer_ast_error(infer, type, NULL, "Compiler bug: ForAll Type in necro_apply_constraints: %d", type->type); return false;
+//     default:              necro_infer_ast_error(infer, type, NULL, "Compiler bug: Unimplemented Type in necro_apply_constraints: %d", type->type); return false;
 //     }
 // }
 
@@ -722,17 +985,6 @@ bool necro_context_contains_class(NecroTypeClassEnv* env, NecroTypeClassContext*
     return false;
 }
 
-bool necro_context_contains_class_and_type_var(NecroTypeClassContext* context, NecroTypeClassContext* type_class, NecroCon type_var)
-{
-    while (context != NULL)
-    {
-        if (context->type_class_name.id.id == type_class->type_class_name.id.id && context->type_var.id.id == type_var.id.id)
-            return true;
-        context = context->next;
-    }
-    return false;
-}
-
 NecroTypeClassContext* necro_union_contexts(NecroInfer* infer, NecroTypeClassContext* context1, NecroTypeClassContext* context2)
 {
     if (context1 == NULL)
@@ -1045,7 +1297,6 @@ void necro_print_dictionary_prototype(NecroDictionaryPrototype* prototype, Necro
     necro_print_dictionary_prototype(prototype->next, infer, intern, white_count);
 }
 
-
 void necro_print_instance(NecroTypeClassInstance* instance, NecroInfer* infer, NecroIntern* intern, size_t white_count)
 {
     if (instance == NULL)
@@ -1058,6 +1309,13 @@ void necro_print_instance(NecroTypeClassInstance* instance, NecroInfer* infer, N
     printf("context: (");
     necro_print_type_class_context(instance->context, infer, intern, white_count + 4);
     printf(") =>\n");
+    print_white_space(white_count + 4);
+    printf("data_type: ");
+    if (instance->data_type != NULL)
+        necro_print_type_sig(necro_gen(infer, instance->data_type, NULL), intern);
+    else
+        printf(" null_type");
+    printf("\n");
     print_white_space(white_count + 4);
     printf("dictionary prototype:\n");
     print_white_space(white_count + 4);

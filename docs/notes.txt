@@ -313,21 +313,25 @@ instance Comonad (IO s) where
 ---------------------------------------------------------------------
 -- Arrow approach to effects: Works but seems like overkill
 
-audioOut :: IO (Stream Audio) ()
-load :: IO (Stream String) (Stream AudioBuffer)
-rand :: IO (Stream Audio, Stream Audio) (Stream Audio)
-current :: IO (Stream a) (Stream a)
+audioOut :: IO Audio ()
+load     :: IO String AudioBuffer
+rand     :: IO (Audio, Audio) (Audio)
+current  :: IO a a
 
 main :: IO () ()
-main = do
+main = proc () -> do
     sample1 <- load -< "pulseDemon"
     sample2 <- load -< "doomBlad"
-    r1      <- rand -< (low, high)
-    r2      <- rand -< (low, high)
     let synth1 = poly1 mouseClick (synth sample1) mouseX
         synth2 = poly1 tick       (synth sample2) mouseY
         synths = synth 1 + synth2
-    audioOut 0 -< synthsfs
+    audioOut 0 -< synths
+
+randSynth :: Audio Audio -> IO () Audio
+randSynth low high = proc () -> do
+    r1 <- rand -< (low, high)
+    r2 <- rand -< (low, high)
+    returnA -< r1 + r2
 
 ---------------------------------------------------------------------
 -- Stream Monad approach: World Parameter fuxorz this idea, causes time and space leak
@@ -619,12 +623,21 @@ whenever a b = if first b
     then [first a, whenever (next a) (next b)]
     else whenever (next a) (next b)
 
+upon :: a -> Bool -> a
+upon a b = [first a, a']
+    where
+        a' = if first b
+            then upon (next a) (next b)
+            else upon a        (next b)
+
+-- Flowing a global time through everything breaks sharing, a no go
 globalTime :: Int
 globalTime = ... (primOp)
 
 -- Lucid to the rescue?
+-- This might need to be slightly more involved
 global :: a -> a
-global x = x `whenever` (count == globalTime)
+global x = x `upon` (count == globalTime)
     where
         count = [0, count + 1]
 
@@ -708,7 +721,7 @@ randSynth low high !w = b w
         b   = blur low high (repeat 64 f)
 
 //=====================================================
-// Applicative Comprehension IO
+//
 //=====================================================
 audioOut   :: Audio -> IO ()
 loadBuffer :: String -> IO AudioBuffer
@@ -722,5 +735,48 @@ main = do
     let synth1 = poly1 mouseClick (synth sample1) mouseX
         synth2 = poly1 tick       (synth sample2) mouseY
         synths = synth1 + synth2
-    rand 0 synths
-    pure ()
+    audioOut 0 synths
+
+//=====================================================
+// Coeffects
+//=====================================================
+data Input  = LoadAudioBuffer String
+            | Mouse Int Int
+data Output = AudioOut Int Audio
+
+-- Coeffects put requirements on the environment
+-- "Indexed Comonads", are essentially type level monoids
+   that you can perform type level operatios on and which contain information
+   about the requirements on the context of your program.
+
+audioOut   :: Audio {1|aout}-> ()
+loadBuffer :: String {aload}-> AudioBuffer
+
+-- Rand just seems effectful
+rand       :: Rand a => a -> a -> IO a
+
+-- Current? Carries around time offset? Or something!?
+current    :: a -> IO a
+
+main :: () -{_}-> ()
+main _ = audioOut 0 synths
+    where
+        sample1 = loadBuffer "pulseDemon"
+        sample2 = loadBuffer "doomBlade"
+        synth1  = poly1 mouseClick (synth sample1) mouseX
+        synth2  = poly1 tick       (synth sample2) mouseY
+        synths  = synth1 + synth2
+
+audioOut   :: Int -> Audio -> Output -> Output
+loadBuffer :: String -> Input -> AudioBuffer
+
+-- bido?
+
+main :: Input -> Output
+main input = audioOut 0 synths initOut
+    where
+        sample1 = loadBuffer "pulseDemon" input
+        sample2 = loadBuffer "doomBlade"  input
+        synth1  = poly1 mouseClick (synth sample1) mouseX
+        synth2  = poly1 tick       (synth sample2) mouseY
+        synths  = synth1 + synth2

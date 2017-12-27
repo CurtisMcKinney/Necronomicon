@@ -77,21 +77,16 @@ typedef struct NecroTypeClassEnv
 NecroTypeClassEnv       necro_create_type_class_env();
 void                    necro_destroy_type_class_env(NecroTypeClassEnv* env);
 
-void                    necro_create_type_class_instance_pass1(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
-void                    necro_create_type_class_instance_pass2(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
+void                    necro_declare_type_classes(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations);
+void                    necro_type_class_instances(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations);
+
 void                    necro_print_type_class_env(NecroTypeClassEnv* env, NecroInfer* infer, NecroIntern* intern);
-bool                    necro_is_data_type_instance_of_class(NecroInfer* infer, NecroCon data_type_name, NecroCon type_class_name);
 NecroTypeClassInstance* necro_get_instance(NecroInfer* infer, NecroCon data_type_name, NecroCon type_class_name);
 uint64_t                necro_create_instance_key(NecroCon data_type_name, NecroCon type_class_name);
 bool                    necro_context_contains_class(NecroTypeClassEnv* env, NecroTypeClassContext* context, NecroTypeClassContext* type_class);
 NecroTypeClassContext*  necro_union_contexts(NecroInfer* infer, NecroTypeClassContext* context1, NecroTypeClassContext* context2);
 bool                    necro_ambiguous_type_class_check(NecroInfer* infer, NecroSymbol type_sig_name, NecroTypeClassContext* context, NecroType* type);
 NecroTypeClassContext*  necro_ast_to_context(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* context_ast);
-void                    necro_add_constraints_to_ty_vars(NecroInfer* infer, NecroType* type, NecroTyVarContextList* context_list);
-NecroTyVarContextList*  necro_create_ty_var_context_list(NecroInfer* infer, NecroCon* type_class_var, NecroTypeClassContext* context);
-
-//after refactor
-void                    necro_declare_type_classes(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations);
-void                    necro_type_class_instances(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations);
+void                    necro_apply_constraints(NecroInfer* infer, NecroType* type, NecroTypeClassContext* context);
 
 #endif // TYPE_CLASS_H

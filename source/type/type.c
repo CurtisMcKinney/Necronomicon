@@ -1112,7 +1112,8 @@ NecroInstSub* necro_create_inst_sub(NecroInfer* infer, NecroVar var_to_replace, 
     }
     else
     {
-        assert(false);
+        // Is this bad?
+        // assert(false);
     }
     NecroInstSub* sub = necro_paged_arena_alloc(&infer->arena, sizeof(NecroInstSub));
     *sub              = (NecroInstSub)

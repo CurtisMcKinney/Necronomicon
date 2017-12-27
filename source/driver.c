@@ -125,7 +125,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     // Infer
     //=====================================================
     NecroTypeClassEnv type_class_env = necro_create_type_class_env();
-    NecroInfer        infer          = necro_create_infer(&lexer.intern, &symtable, prim_types, &type_class_env);
+    NecroInfer        infer          = necro_create_infer(&lexer.intern, &symtable, &prim_types, &type_class_env);
     necro_infer(&infer, ast_r.root);
     necro_symtable_print(&symtable);
     necro_print_env_with_symtable(&symtable, &infer);

@@ -153,70 +153,12 @@ typedef struct
 } NecroTypeEnv;
 
 //=====================================================
-// PrimTypes
-//=====================================================
-typedef struct
-{
-    NecroCon two;
-    NecroCon three;
-    NecroCon four;
-    NecroCon five;
-    NecroCon six;
-    NecroCon seven;
-    NecroCon eight;
-    NecroCon nine;
-    NecroCon ten;
-} NecroTupleTypes;
-
-typedef struct
-{
-    NecroCon add_type;
-    NecroCon sub_type;
-    NecroCon mul_type;
-    NecroCon div_type;
-    NecroCon mod_type;
-    NecroCon eq_type;
-    NecroCon not_eq_type;
-    NecroCon gt_type;
-    NecroCon lt_type;
-    NecroCon gte_type;
-    NecroCon lte_type;
-    NecroCon and_type;
-    NecroCon or_type;
-    NecroCon double_colon_type;
-    NecroCon left_shift_type;
-    NecroCon right_shift_type;
-    NecroCon pipe_type;
-    NecroCon forward_pipe_type;
-    NecroCon back_pipe_type;
-    NecroCon dot_type;
-    NecroCon bind_right_type;
-    NecroCon bind_left_type;
-    NecroCon double_exclamation_type;
-    NecroCon append_type;
-} NecroBinOpTypes;
-
-typedef struct
-{
-    NecroTupleTypes tuple_types;
-    NecroBinOpTypes bin_op_types;
-    NecroCon        io_type;
-    NecroCon        list_type;
-    NecroCon        unit_type;
-    NecroCon        int_type;
-    NecroCon        float_type;
-    NecroCon        audio_type;
-    NecroCon        char_type;
-    NecroCon        bool_type;
-} NecroPrimTypes;
-
-//=====================================================
 // Infer
 //=====================================================
 typedef struct
 {
     struct NecroSymTable*     symtable;
-    NecroPrimTypes            prim_types;
+    struct NecroPrimTypes*    prim_types;
     struct NecroTypeClassEnv* type_class_env;
     NecroTypeEnv              env;
     NecroPagedArena           arena;
@@ -229,7 +171,7 @@ typedef struct
 //=====================================================
 // API
 //=====================================================
-NecroInfer  necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtable, NecroPrimTypes prim_types, struct NecroTypeClassEnv* type_class_env);
+NecroInfer  necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtable, struct NecroPrimTypes* prim_types, struct NecroTypeClassEnv* type_class_env);
 void        necro_destroy_infer(NecroInfer* infer);
 void        necro_reset_infer(NecroInfer* infer);
 bool        necro_is_infer_error(NecroInfer* infer);
@@ -243,7 +185,6 @@ NecroType*  necro_find(NecroInfer* infer, NecroType* type);
 void        necr_bind_type_var(NecroInfer* infer, NecroVar var, NecroType* type);
 
 NecroType*  necro_declare_type(NecroInfer* infer, NecroCon con, size_t arity);
-// NecroType*  necro_declare_type(NecroInfer* infer, NecroCon con, NecroType* args, bool should_generalize);
 NecroType*  necro_create_type_con(NecroInfer* infer, NecroCon con, NecroType* args, size_t arity);
 NecroType*  necro_create_type_fun(NecroInfer* infer, NecroType* type1, NecroType* type2);
 NecroType*  necro_create_type_var(NecroInfer* infer, NecroVar var);

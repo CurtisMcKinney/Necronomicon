@@ -295,10 +295,10 @@ NecroType* necro_infer_constant(NecroInfer* infer, NecroNode* ast)
     if (necro_is_infer_error(infer)) return NULL;
     switch (ast->constant.type)
     {
-    case NECRO_AST_CONSTANT_FLOAT:   return necro_symtable_get(infer->symtable, infer->prim_types.float_type.id)->type;
-    case NECRO_AST_CONSTANT_INTEGER: return necro_symtable_get(infer->symtable, infer->prim_types.int_type.id)->type;
-    case NECRO_AST_CONSTANT_BOOL:    return necro_symtable_get(infer->symtable, infer->prim_types.bool_type.id)->type;
-    case NECRO_AST_CONSTANT_CHAR:    return necro_symtable_get(infer->symtable, infer->prim_types.char_type.id)->type;
+    case NECRO_AST_CONSTANT_FLOAT:   return necro_symtable_get(infer->symtable, infer->prim_types->float_type.id)->type;
+    case NECRO_AST_CONSTANT_INTEGER: return necro_symtable_get(infer->symtable, infer->prim_types->int_type.id)->type;
+    case NECRO_AST_CONSTANT_BOOL:    return necro_symtable_get(infer->symtable, infer->prim_types->bool_type.id)->type;
+    case NECRO_AST_CONSTANT_CHAR:    return necro_symtable_get(infer->symtable, infer->prim_types->char_type.id)->type;
     case NECRO_AST_CONSTANT_STRING:  return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: String not implemented....");
     default:                         return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Unrecognized constant type: %d", ast->constant.type);
     }
@@ -468,7 +468,7 @@ NecroType* necro_infer_expression_list(NecroInfer* infer, NecroNode* ast)
         if (necro_is_infer_error(infer)) return NULL;
         current_cell = current_cell->list.next_item;
     }
-    NecroType* list = necro_make_con_1(infer, infer->prim_types.list_type, list_type);
+    NecroType* list = necro_make_con_1(infer, infer->prim_types->list_type, list_type);
     list->source_loc = ast->source_loc;
     return list;
 }
@@ -487,7 +487,7 @@ NecroType* necro_infer_expression_list_pattern(NecroInfer* infer, NecroNode* ast
         if (necro_is_infer_error(infer)) return NULL;
         current_cell = current_cell->list.next_item;
     }
-    NecroType* list = necro_make_con_1(infer, infer->prim_types.list_type, list_type);
+    NecroType* list = necro_make_con_1(infer, infer->prim_types->list_type, list_type);
     list->source_loc = ast->source_loc;
     return list;
 }
@@ -526,7 +526,7 @@ NecroType* necro_infer_if_then_else(NecroInfer* infer, NecroNode* ast)
     NecroType* then_type = necro_infer_go(infer, ast->if_then_else.then_expr);
     NecroType* else_type = necro_infer_go(infer, ast->if_then_else.else_expr);
     if (necro_is_infer_error(infer)) return NULL;
-    necro_unify(infer, if_type, necro_symtable_get(infer->symtable, infer->prim_types.bool_type.id)->type, ast->scope, if_type, "While inferring the type of an if/then/else expression: ");
+    necro_unify(infer, if_type, necro_symtable_get(infer->symtable, infer->prim_types->bool_type.id)->type, ast->scope, if_type, "While inferring the type of an if/then/else expression: ");
     necro_unify(infer, then_type, else_type, ast->scope, then_type, "While inferring the type of an if/then/else expression: ");
     if (necro_is_infer_error(infer)) return NULL;
     return then_type;
@@ -831,14 +831,14 @@ NecroType* necro_infer_arithmetic_sequence(NecroInfer* infer, NecroNode* ast)
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_ARITHMETIC_SEQUENCE);
     if (necro_is_infer_error(infer)) return NULL;
-    NecroType* type = necro_symtable_get(infer->symtable, infer->prim_types.int_type.id)->type;
+    NecroType* type = necro_symtable_get(infer->symtable, infer->prim_types->int_type.id)->type;
     if (ast->arithmetic_sequence.from != NULL)
         necro_unify(infer, type, necro_infer_go(infer, ast->arithmetic_sequence.from), ast->scope, type, "While inferring the type of an arithmetic sequence: ");
     if (ast->arithmetic_sequence.then != NULL)
         necro_unify(infer, type, necro_infer_go(infer, ast->arithmetic_sequence.then), ast->scope, type, "While inferring the type of an arithmetic sequence: ");
     if (ast->arithmetic_sequence.to != NULL)
         necro_unify(infer, type, necro_infer_go(infer, ast->arithmetic_sequence.to), ast->scope, type, "While inferring the type of an arithemetic sequence: ");
-    NecroType* aseq = necro_make_con_1(infer, infer->prim_types.list_type, type);
+    NecroType* aseq = necro_make_con_1(infer, infer->prim_types->list_type, type);
     aseq->source_loc = ast->source_loc;
     return aseq;
 }
@@ -1133,6 +1133,7 @@ NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast)
 
 NecroType* necro_infer(NecroInfer* infer, NecroNode* ast)
 {
+    infer->highest_id = infer->symtable->count;
     NecroType* result = necro_infer_go(infer, ast);
     if (infer->error.return_code != NECRO_SUCCESS)
         return NULL;

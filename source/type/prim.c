@@ -483,6 +483,7 @@ void necro_add_prim_types(NecroPrimTypes* prim_types, NecroInfer* infer)
 
 void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
 {
+    // Primitive Rational type?
     // // Primitive Types
     // necro_prim_def_type(prim_types, intern, necro_create_conid_ast(&prim_types->arena, intern, "Int"));
     // necro_prim_def_type(prim_types, intern, necro_create_conid_ast(&prim_types->arena, intern, "Float"));

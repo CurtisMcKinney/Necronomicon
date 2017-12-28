@@ -801,4 +801,30 @@ runCoolMain = state
         env   = initEnv
         state = runCoolStateMonad (coolMain env) [initState, state]
 
--- Does this work!?!?!?!?
+-- NOPE it does not
+x = (\env -> (0, \env' -> (1, x)))
+
+sharedX :: Stream Int
+sharedX = Stream goX
+    where goX env = x
+        where x = (0, Stream go y)
+            where go env = y
+                where y = (0, Stream (\_ -> x))
+
+//=====================================================
+// Lucid with tracing GC and extended env
+//=====================================================
+-- With Coeffects and Type level literals
+-- Requires both more advanced type system and runtime support
+
+pulseDemon :: AudioBuffer @ Load "pulseDemon.aiff"
+pulseDemon = load
+
+kick1 :: AudioBuffer @ Load "kick.wav"
+kick1 = load
+
+chadSux :: Float @ Osc (192.168.0.1, 21, "chadIn")
+chadSux = osc
+
+main :: Audio
+main = playSample pulseDemon + playSample kick1

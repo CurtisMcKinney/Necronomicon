@@ -1,0 +1,9 @@
+-- Try pathological expression!
+-- Right now throwing an occurs check error when it should not, investigate
+pair a b f = f a b
+x1 y       = pair y y
+-- x2 z       = x1 (x1 z)
+-- x3 y       = x2 (x2 y)
+-- x4 y       = x3 (x3 y)
+-- x5 y       = x4 (x4 y)
+-- death      = x5 (\z -> z)

@@ -39,6 +39,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     necro_print_lexer(&lexer);
     if (compilation_phase == NECRO_PHASE_LEX_PRE_LAYOUT)
         return;
+
     //=====================================================
     // Lexing, Layout
     //=====================================================
@@ -84,7 +85,13 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     NecroPrimTypes      prim_types      = necro_create_prim_types(&lexer.intern);
     NecroSymTable       symtable        = necro_create_symtable(&lexer.intern);
     NecroScopedSymTable scoped_symtable = necro_create_scoped_symtable(&symtable);
-    necro_add_prim_type_symbol_info(&prim_types, &scoped_symtable);
+    necro_init_prim_defs(&prim_types, &lexer.intern);
+    // necro_add_prim_type_symbol_info(&prim_types, &scoped_symtable);
+    if (necro_prim_build_scope(&prim_types, &scoped_symtable))
+    {
+        necro_print_error(&scoped_symtable.error, input_string, "Building Prim Scopes");
+        return;
+    }
     if (necro_build_scopes(&scoped_symtable, &ast_r) != NECRO_SUCCESS)
     {
         necro_print_error(&scoped_symtable.error, input_string, "Building Scopes");
@@ -100,17 +107,22 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     //=====================================================
     necro_announce_phase("Renaming");
     NecroRenamer renamer = necro_create_renamer(&scoped_symtable);
-    if (necro_rename_declare_pass(&renamer, &ast_r) != NECRO_SUCCESS)
+    if (necro_prim_rename(&prim_types, &renamer))
     {
-        necro_print_reified_ast(&ast_r, &lexer.intern);
-        necro_symtable_print(&symtable);
+        necro_print_error(&renamer.error, input_string, "Renaming (Prim Pass)");
+        return;
+    }
+    if (necro_rename_declare_pass(&renamer, ast_r.root) != NECRO_SUCCESS)
+    {
+        // necro_print_reified_ast(&ast_r, &lexer.intern);
+        // necro_symtable_print(&symtable);
         necro_print_error(&renamer.error, input_string, "Renaming (Declare Pass)");
         return;
     }
-    if (necro_rename_var_pass(&renamer, &ast_r) != NECRO_SUCCESS)
+    if (necro_rename_var_pass(&renamer, ast_r.root) != NECRO_SUCCESS)
     {
-        necro_print_reified_ast(&ast_r, &lexer.intern);
-        necro_symtable_print(&symtable);
+        // necro_print_reified_ast(&ast_r, &lexer.intern);
+        // necro_symtable_print(&symtable);
         necro_print_error(&renamer.error, input_string, "Renaming (Var Pass)");
         return;
     }
@@ -126,10 +138,18 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     //=====================================================
     NecroTypeClassEnv type_class_env = necro_create_type_class_env();
     NecroInfer        infer          = necro_create_infer(&lexer.intern, &symtable, &prim_types, &type_class_env);
+
+    if (necro_prim_infer(&prim_types, &infer) != NECRO_SUCCESS)
+    {
+        necro_print_error(&infer.error, input_string, "Prim Type");
+        return;
+    }
+
     necro_infer(&infer, ast_r.root);
     necro_symtable_print(&symtable);
     necro_print_env_with_symtable(&symtable, &infer);
     necro_print_type_class_env(&type_class_env, &infer, &lexer.intern);
+
     if (infer.error.return_code != NECRO_SUCCESS)
     {
         necro_print_error(&infer.error, input_string, "Type");

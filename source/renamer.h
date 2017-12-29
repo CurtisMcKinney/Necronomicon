@@ -23,7 +23,7 @@ typedef struct
 
 NecroRenamer      necro_create_renamer(NecroScopedSymTable* scoped_symtable);
 void              necro_destroy_renamer(NecroRenamer* renamer);
-NECRO_RETURN_CODE necro_rename_declare_pass(NecroRenamer* renamer, NecroAST_Reified* input_ast);
-NECRO_RETURN_CODE necro_rename_var_pass(NecroRenamer* renamer, NecroAST_Reified* input_ast);
+NECRO_RETURN_CODE necro_rename_declare_pass(NecroRenamer* renamer, NecroAST_Node_Reified* input_ast);
+NECRO_RETURN_CODE necro_rename_var_pass(NecroRenamer* renamer, NecroAST_Node_Reified* input_ast);
 
 #endif // RENAMER_H

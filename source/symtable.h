@@ -98,6 +98,7 @@ void                necro_scoped_symtable_pop_type_scope(NecroScopedSymTable* ta
 
 // Names API
 NECRO_RETURN_CODE   necro_build_scopes(NecroScopedSymTable* table, NecroAST_Reified* ast);
+void                necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_Reified* input_node);
 NecroID             necro_this_scope_find(NecroScope* scope, NecroSymbol symbol);
 NecroID             necro_scope_find(NecroScope* scope, NecroSymbol symbol);
 NecroID             necro_scoped_symtable_new_symbol_info(NecroScopedSymTable* table, NecroScope* scope, NecroSymbolInfo info);

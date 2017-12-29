@@ -88,5 +88,6 @@ NecroTypeClassContext*  necro_union_contexts(NecroInfer* infer, NecroTypeClassCo
 bool                    necro_ambiguous_type_class_check(NecroInfer* infer, NecroSymbol type_sig_name, NecroTypeClassContext* context, NecroType* type);
 NecroTypeClassContext*  necro_ast_to_context(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* context_ast);
 void                    necro_apply_constraints(NecroInfer* infer, NecroType* type, NecroTypeClassContext* context);
+NecroTypeClassContext*  necro_create_type_class_context(NecroPagedArena* arena, NecroCon type_class_name, NecroCon type_var, NecroTypeClassContext* next);
 
 #endif // TYPE_CLASS_H

@@ -436,4 +436,23 @@ void             necro_destroy_reified_ast(NecroAST_Reified* ast);
 void             necro_print_reified_ast(NecroAST_Reified* ast, NecroIntern* intern);
 void             necro_print_reified_ast_node(NecroAST_Node_Reified* ast_node, NecroIntern* intern);
 
+// Manual AST Creation
+typedef NecroAST_Node_Reified NecroASTNode;
+NecroASTNode* necro_create_conid_ast(NecroPagedArena* arena, NecroIntern* intern, const char* con_name, NECRO_CON_TYPE con_type);
+NecroASTNode* necro_create_variable_ast(NecroPagedArena* arena, NecroIntern* intern, const char* variable_name, NECRO_VAR_TYPE var_type);
+NecroASTNode* necro_create_ast_list(NecroPagedArena* arena, NecroASTNode* item, NecroASTNode* next);
+NecroASTNode* necro_create_var_list_ast(NecroPagedArena* arena, NecroIntern* intern, size_t num_vars, NECRO_VAR_TYPE var_type);
+NecroASTNode* necro_create_data_constructor_ast(NecroPagedArena* arena, NecroIntern* intern, const char* con_name, NecroASTNode* arg_list);
+NecroASTNode* necro_create_simple_type_ast(NecroPagedArena* arena, NecroIntern* intern, const char* simple_type_name, NecroASTNode* ty_var_list);
+NecroASTNode* necro_create_data_declaration_ast(NecroPagedArena* arena, NecroIntern* intern, NecroASTNode* simple_type, NecroASTNode* constructor_list);
+NecroASTNode* necro_create_type_app_ast(NecroPagedArena* arena, NecroASTNode* type1, NecroASTNode* type2);
+NecroASTNode* necro_create_fun_ast(NecroPagedArena* arena, NecroASTNode* type1, NecroASTNode* type2);
+NecroASTNode* necro_create_fun_type_sig_ast(NecroPagedArena* arena, NecroIntern* intern, const char* var_name, NecroASTNode* context_ast, NecroASTNode* type_ast, NECRO_VAR_TYPE var_type, NECRO_SIG_TYPE sig_type);
+NecroASTNode* necro_create_type_class_ast(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, const char* class_var, NecroASTNode* context_ast, NecroASTNode* declarations_ast);
+NecroASTNode* necro_create_instance_ast(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, NecroASTNode* inst_ast, NecroASTNode* context_ast, NecroASTNode* declarations_ast);
+NecroASTNode* necro_create_top_level_declaration_list(NecroPagedArena* arena, NecroASTNode* top_level_declaration, NecroASTNode* next);
+NecroASTNode* necro_create_declaration_list(NecroPagedArena* arena, NecroASTNode* declaration, NecroASTNode* next);
+NecroASTNode* necro_create_simple_assignment(NecroPagedArena* arena, NecroIntern* intern, const char* var_name, NecroASTNode* rhs_ast);
+NecroASTNode* necro_create_context(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, const char* var_name, NecroASTNode* next);
+
 #endif // AST_H

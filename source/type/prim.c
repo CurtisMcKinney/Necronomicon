@@ -24,17 +24,17 @@ NecroPrimTypes necro_create_prim_types(NecroIntern* intern)
     // BinOp
     NecroBinOpTypes bin_op_types = (NecroBinOpTypes)
     {
-        .add_type                = (NecroCon) { .symbol = necro_intern_string(intern, "+"),   .id = { 0 } },
-        .sub_type                = (NecroCon) { .symbol = necro_intern_string(intern, "-"),   .id = { 0 } },
-        .mul_type                = (NecroCon) { .symbol = necro_intern_string(intern, "*"),   .id = { 0 } },
-        .div_type                = (NecroCon) { .symbol = necro_intern_string(intern, "/"),   .id = { 0 } },
+        // .add_type                = (NecroCon) { .symbol = necro_intern_string(intern, "+"),   .id = { 0 } },
+        // .sub_type                = (NecroCon) { .symbol = necro_intern_string(intern, "-"),   .id = { 0 } },
+        // .mul_type                = (NecroCon) { .symbol = necro_intern_string(intern, "*"),   .id = { 0 } },
+        // .div_type                = (NecroCon) { .symbol = necro_intern_string(intern, "/"),   .id = { 0 } },
+        // .eq_type                 = (NecroCon) { .symbol = necro_intern_string(intern, "=="),  .id = { 0 } },
+        // .not_eq_type             = (NecroCon) { .symbol = necro_intern_string(intern, "/="),  .id = { 0 } },
+        // .gt_type                 = (NecroCon) { .symbol = necro_intern_string(intern, ">"),   .id = { 0 } },
+        // .lt_type                 = (NecroCon) { .symbol = necro_intern_string(intern, "<"),   .id = { 0 } },
+        // .gte_type                = (NecroCon) { .symbol = necro_intern_string(intern, "=>"),  .id = { 0 } },
+        // .lte_type                = (NecroCon) { .symbol = necro_intern_string(intern, "<="),  .id = { 0 } },
         .mod_type                = (NecroCon) { .symbol = necro_intern_string(intern, "%"),   .id = { 0 } },
-        .eq_type                 = (NecroCon) { .symbol = necro_intern_string(intern, "=="),  .id = { 0 } },
-        .not_eq_type             = (NecroCon) { .symbol = necro_intern_string(intern, "/="),  .id = { 0 } },
-        .gt_type                 = (NecroCon) { .symbol = necro_intern_string(intern, ">"),   .id = { 0 } },
-        .lt_type                 = (NecroCon) { .symbol = necro_intern_string(intern, "<"),   .id = { 0 } },
-        .gte_type                = (NecroCon) { .symbol = necro_intern_string(intern, "=>"),  .id = { 0 } },
-        .lte_type                = (NecroCon) { .symbol = necro_intern_string(intern, "<="),  .id = { 0 } },
         .and_type                = (NecroCon) { .symbol = necro_intern_string(intern, "&&"),  .id = { 0 } },
         .or_type                 = (NecroCon) { .symbol = necro_intern_string(intern, "||"),  .id = { 0 } },
         .double_colon_type       = (NecroCon) { .symbol = necro_intern_string(intern, "::"),  .id = { 0 } },
@@ -542,6 +542,40 @@ NECRO_RETURN_CODE necro_prim_infer(NecroPrimTypes* prim_types, NecroInfer* infer
     }
     // Run type checking on the whole top level declarations
     necro_infer_go(infer, head);
+
+    // Num Bin Op types
+    NecroType* num_new_name           = necro_new_name(infer, (NecroSourceLoc) { 0, 0, 0 });
+    num_new_name->var.context         = necro_create_type_class_context(&infer->arena, infer->prim_types->num_type_class, (NecroCon) { .id = num_new_name->var.var.id, .symbol = num_new_name->var.var.symbol }, NULL);
+    NecroType* num_bin_op_type        = necro_create_type_fun(infer, num_new_name, necro_create_type_fun(infer, num_new_name, num_new_name));
+    num_bin_op_type                   = necro_gen(infer, num_bin_op_type, NULL);
+    prim_types->bin_op_types.add_type = num_bin_op_type;
+    prim_types->bin_op_types.sub_type = num_bin_op_type;
+    prim_types->bin_op_types.mul_type = num_bin_op_type;
+
+    // Fractional Bin Op types
+    NecroType* frac_new_name          = necro_new_name(infer, (NecroSourceLoc) { 0, 0, 0 });
+    frac_new_name->var.context        = necro_create_type_class_context(&infer->arena, infer->prim_types->fractional_type_class, (NecroCon) { .id = frac_new_name->var.var.id, .symbol = frac_new_name->var.var.symbol }, NULL);
+    NecroType* frac_bin_op_type       = necro_create_type_fun(infer, frac_new_name, necro_create_type_fun(infer, frac_new_name, frac_new_name));
+    frac_bin_op_type                  = necro_gen(infer, frac_bin_op_type, NULL);
+    prim_types->bin_op_types.div_type = frac_bin_op_type;
+
+    // Eq Bin Op types
+    NecroType* eq_new_name               = necro_new_name(infer, (NecroSourceLoc) { 0, 0, 0 });
+    eq_new_name->var.context             = necro_create_type_class_context(&infer->arena, infer->prim_types->eq_type_class, (NecroCon) { .id = eq_new_name->var.var.id, .symbol = eq_new_name->var.var.symbol }, NULL);
+    NecroType* eq_bin_op_type            = necro_create_type_fun(infer, eq_new_name, necro_create_type_fun(infer, eq_new_name, necro_symtable_get(infer->symtable, prim_types->bool_type.id)->type));
+    eq_bin_op_type                       = necro_gen(infer, eq_bin_op_type, NULL);
+    prim_types->bin_op_types.eq_type     = eq_bin_op_type;
+    prim_types->bin_op_types.not_eq_type = eq_bin_op_type;
+
+    // Ord Bin Op types
+    NecroType* ord_new_name              = necro_new_name(infer, (NecroSourceLoc) { 0, 0, 0 });
+    ord_new_name->var.context            = necro_create_type_class_context(&infer->arena, infer->prim_types->ord_type_class, (NecroCon) { .id = ord_new_name->var.var.id, .symbol = ord_new_name->var.var.symbol }, NULL);
+    NecroType* ord_bin_op_type           = necro_create_type_fun(infer, ord_new_name, necro_create_type_fun(infer, ord_new_name, necro_symtable_get(infer->symtable, prim_types->bool_type.id)->type));
+    ord_bin_op_type                      = necro_gen(infer, ord_bin_op_type, NULL);
+    prim_types->bin_op_types.lte_type    = ord_bin_op_type;
+    prim_types->bin_op_types.lt_type     = ord_bin_op_type;
+    prim_types->bin_op_types.gte_type    = ord_bin_op_type;
+    prim_types->bin_op_types.gt_type     = ord_bin_op_type;
     return infer->error.return_code;
 }
 
@@ -559,8 +593,6 @@ void necro_create_prim_num(NecroPrimTypes* prim_types, NecroIntern* intern, Necr
 
 void necro_create_prim_num_instances(NecroPrimTypes* prim_types, NecroIntern* intern, const char* data_type_name, bool is_fractional)
 {
-    // NecroASTNode* s_type     = necro_create_simple_type_ast(&prim_types->arena, intern, data_type_name, NULL);
-    // NecroPrimDef* data_def   = necro_prim_def_data(prim_types, intern, &prim_types->int_type, necro_create_data_declaration_ast(&prim_types->arena, intern, s_type, NULL));
     NecroASTNode* type_conid = necro_create_conid_ast(&prim_types->arena, intern, data_type_name, NECRO_CON_TYPE_VAR);
     NecroASTNode* bool_conid = necro_create_conid_ast(&prim_types->arena, intern, "Bool", NECRO_CON_TYPE_VAR);
 
@@ -629,6 +661,14 @@ void necro_create_prim_num_instances(NecroPrimTypes* prim_types, NecroIntern* in
     const char*   neq_symbol   = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primNEq@"), type_conid->conid.symbol));
     NecroPrimDef* neq_type_def = necro_prim_def_fun(prim_types, intern, NULL, necro_create_fun_type_sig_ast(&prim_types->arena, intern, neq_symbol, NULL, bin_comp_ast, NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION));
 
+    NecroASTNode* eq_method_list =
+        necro_create_declaration_list(&prim_types->arena, necro_create_simple_assignment(&prim_types->arena, intern, "eq", necro_create_variable_ast(&prim_types->arena, intern, eq_symbol, NECRO_VAR_VAR)),
+            necro_create_declaration_list(&prim_types->arena, necro_create_simple_assignment(&prim_types->arena, intern, "neq", necro_create_variable_ast(&prim_types->arena, intern, neq_symbol, NECRO_VAR_VAR)), NULL));
+    NecroASTNode* eq_instance_ast = necro_create_instance_ast(&prim_types->arena, intern, "Eq", type_conid, NULL, eq_method_list);
+    NecroPrimDef* eq_instance_def = necro_prim_def_instance(prim_types, intern, eq_instance_ast);
+
+    //--------------
+    // Ord
     const char*   gt_symbol    = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primGT@"), type_conid->conid.symbol));
     NecroPrimDef* gt_type_def  = necro_prim_def_fun(prim_types, intern, NULL, necro_create_fun_type_sig_ast(&prim_types->arena, intern, gt_symbol, NULL, bin_comp_ast, NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION));
 
@@ -641,13 +681,13 @@ void necro_create_prim_num_instances(NecroPrimTypes* prim_types, NecroIntern* in
     const char*   lte_symbol   = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primLTE@"), type_conid->conid.symbol));
     NecroPrimDef* lte_type_def = necro_prim_def_fun(prim_types, intern, NULL, necro_create_fun_type_sig_ast(&prim_types->arena, intern, lte_symbol, NULL, bin_comp_ast, NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION));
 
-    NecroASTNode* eq_method_list  =
-        necro_create_declaration_list(&prim_types->arena, necro_create_simple_assignment(&prim_types->arena, intern, "eq", necro_create_variable_ast(&prim_types->arena, intern, eq_symbol, NECRO_VAR_VAR)),
-            necro_create_declaration_list(&prim_types->arena, necro_create_simple_assignment(&prim_types->arena, intern, "neq", necro_create_variable_ast(&prim_types->arena, intern, neq_symbol, NECRO_VAR_VAR)), NULL));
-    NecroASTNode* eq_instance_ast = necro_create_instance_ast(&prim_types->arena, intern, "Eq", type_conid, NULL, eq_method_list);
-    NecroPrimDef* eq_instance_def = necro_prim_def_instance(prim_types, intern, eq_instance_ast);
-
-    // Ord
+    NecroASTNode* ord_method_list =
+        necro_create_declaration_list(&prim_types->arena, necro_create_simple_assignment(&prim_types->arena, intern, "lt", necro_create_variable_ast(&prim_types->arena, intern, lt_symbol, NECRO_VAR_VAR)),
+            necro_create_declaration_list(&prim_types->arena, necro_create_simple_assignment(&prim_types->arena, intern, "gt", necro_create_variable_ast(&prim_types->arena, intern, gt_symbol, NECRO_VAR_VAR)),
+                necro_create_declaration_list(&prim_types->arena, necro_create_simple_assignment(&prim_types->arena, intern, "lte", necro_create_variable_ast(&prim_types->arena, intern, lte_symbol, NECRO_VAR_VAR)),
+                    necro_create_declaration_list(&prim_types->arena, necro_create_simple_assignment(&prim_types->arena, intern, "gte", necro_create_variable_ast(&prim_types->arena, intern, gte_symbol, NECRO_VAR_VAR)), NULL))));
+    NecroASTNode* ord_instance_ast = necro_create_instance_ast(&prim_types->arena, intern, "Ord", type_conid, NULL, ord_method_list);
+    NecroPrimDef* ord_instance_def = necro_prim_def_instance(prim_types, intern, ord_instance_ast);
 }
 
 NecroASTNode* necro_create_class_comp_sig(NecroPagedArena* arena, NecroIntern* intern, const char* sig_name)
@@ -718,7 +758,20 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     NecroASTNode* neq_method_sig = necro_create_class_comp_sig(&prim_types->arena, intern, "neq");
     NecroASTNode* eq_method_list = necro_create_declaration_list(&prim_types->arena, eq_method_sig, necro_create_declaration_list(&prim_types->arena, neq_method_sig, NULL));
     NecroASTNode* eq_class_ast   = necro_create_type_class_ast(&prim_types->arena, intern, "Eq", "a", NULL, eq_method_list);
-    NecroPrimDef* eq_class_def   = necro_prim_def_class(prim_types, intern, NULL, eq_class_ast);
+    NecroPrimDef* eq_class_def   = necro_prim_def_class(prim_types, intern, &prim_types->eq_type_class, eq_class_ast);
+
+    // Ord
+    NecroASTNode* gt_method_sig   = necro_create_class_comp_sig(&prim_types->arena, intern, "gt");
+    NecroASTNode* lt_method_sig   = necro_create_class_comp_sig(&prim_types->arena, intern, "lt");
+    NecroASTNode* gte_method_sig  = necro_create_class_comp_sig(&prim_types->arena, intern, "gte");
+    NecroASTNode* lte_method_sig  = necro_create_class_comp_sig(&prim_types->arena, intern, "lte");
+    NecroASTNode* ord_method_list =
+        necro_create_declaration_list(&prim_types->arena, gt_method_sig,
+            necro_create_declaration_list(&prim_types->arena, lt_method_sig,
+                necro_create_declaration_list(&prim_types->arena, gte_method_sig,
+                    necro_create_declaration_list(&prim_types->arena, lte_method_sig, NULL))));
+    NecroASTNode* ord_class_ast   = necro_create_type_class_ast(&prim_types->arena, intern, "Ord", "a", necro_create_context(&prim_types->arena, intern, "Eq", "a", NULL), ord_method_list);
+    NecroPrimDef* ord_class_def   = necro_prim_def_class(prim_types, intern, &prim_types->ord_type_class, ord_class_ast);
 
     // Prim Numbers
     necro_create_prim_num(prim_types, intern, &prim_types->int_type, "Int");
@@ -750,8 +803,7 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     NecroASTNode* num_class_ast = necro_create_type_class_ast(&prim_types->arena, intern, "Num", "a", NULL, num_method_list);
     NecroPrimDef* num_class_def = necro_prim_def_class(prim_types, intern, &prim_types->num_type_class, num_class_ast);
 
-    // TODO: Num superclass
-    // Fractional
+    // Frac
     NecroASTNode* div_method_sig    = necro_create_class_bin_op_sig(&prim_types->arena, intern, "div");
     NecroASTNode* recip_method_sig  = necro_create_class_unary_op_sig(&prim_types->arena, intern, "recip");
     NecroASTNode* from_rational_sig =

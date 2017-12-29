@@ -87,17 +87,17 @@ typedef struct
 
 typedef struct
 {
-    NecroCon add_type;
-    NecroCon sub_type;
-    NecroCon mul_type;
-    NecroCon div_type;
+    NecroType* add_type;
+    NecroType* sub_type;
+    NecroType* mul_type;
+    NecroType* div_type;
+    NecroType* eq_type;
+    NecroType* not_eq_type;
+    NecroType* gt_type;
+    NecroType* lt_type;
+    NecroType* gte_type;
+    NecroType* lte_type;
     NecroCon mod_type;
-    NecroCon eq_type;
-    NecroCon not_eq_type;
-    NecroCon gt_type;
-    NecroCon lt_type;
-    NecroCon gte_type;
-    NecroCon lte_type;
     NecroCon and_type;
     NecroCon or_type;
     NecroCon double_colon_type;
@@ -129,6 +129,8 @@ typedef struct NecroPrimTypes
     NecroCon          bool_type;
     NecroCon          num_type_class;
     NecroCon          fractional_type_class;
+    NecroCon          eq_type_class;
+    NecroCon          ord_type_class;
     NecroPrimDef*     defs;
     NecroPrimDef*     def_head;
     NecroPagedArena   arena;

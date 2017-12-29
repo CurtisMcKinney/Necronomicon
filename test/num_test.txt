@@ -1,15 +1,3 @@
--- class Eq a where
---     eq  :: a -> a -> Bool
---     neq :: a -> a -> Bool
-
--- class Num a where
---     add     :: a -> a -> a
---     sub     :: a -> a -> a
---     mul     :: a -> a -> a
---     abs     :: a -> a
---     signum  :: a -> a
---     fromInt :: Int -> a
-
 data Maybe a   = Just a | Nothing
 data Both  a b = Both a b
 
@@ -102,17 +90,41 @@ floatFrac = 0.1
 audioFrac :: Audio
 audioFrac = add 0.2 400
 
-sinOsc :: Audio -> Audio
-sinOsc f = sub f 0.1
+sinOsc :: Fractional a => a -> a
+sinOsc f = f + 0.1 - f / 660
 
 synths :: Audio
-synths = add (sinOsc 440) (sinOsc 32.3)
+synths = sinOsc 440 + sinOsc 32.3 - 32 * sinOsc 33
 
 rationalFrac :: Rational
 rationalFrac = 0.3
 
 maybeNum :: Num a => Maybe a
 maybeNum = Just 2
+
+boolTestInt :: Int -> Bool
+boolTestInt x = x == x
+
+ordInt :: Int -> Bool
+ordInt x = x > 5
+
+ordFloat :: Float -> Bool
+ordFloat x = x < 3.3
+
+ordAudio :: Audio -> Bool
+ordAudio x = x >= 66
+
+ordPoly :: (Ord a, Fractional a) => a -> Bool
+ordPoly x = x <= 2.0
+
+-- 1. Need to get an ambiguity check to catch this sort of thing
+-- 2. Once that's in place need a system to default to Double,
+--    etc when an ambiguous Fractional / Num constraint is found
+boolTestAmbig :: Bool
+boolTestAmbig = 3.0 == 3.0
+
+boolTestAudio :: Audio -> Bool
+boolTestAudio x = x /= 3.5
 
 t2 :: a -> b -> (a, b)
 t2 a b = (a, b)

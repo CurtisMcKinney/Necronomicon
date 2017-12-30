@@ -397,6 +397,12 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_R
         necro_build_scopes_go(scoped_symtable, input_node->apats_assignment.rhs);
         necro_scoped_symtable_pop_scope(scoped_symtable);
         break;
+    case NECRO_AST_PAT_ASSIGNMENT:
+        necro_scoped_symtable_new_scope(scoped_symtable);
+        necro_build_scopes_go(scoped_symtable, input_node->pat_assignment.pat);
+        necro_build_scopes_go(scoped_symtable, input_node->pat_assignment.rhs);
+        necro_scoped_symtable_pop_scope(scoped_symtable);
+        break;
     case NECRO_AST_RIGHT_HAND_SIDE:
         necro_build_scopes_go(scoped_symtable, input_node->right_hand_side.declarations);
         necro_build_scopes_go(scoped_symtable, input_node->right_hand_side.expression);

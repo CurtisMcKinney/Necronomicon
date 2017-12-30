@@ -240,6 +240,12 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
         print_reified_ast_impl(ast_node->apats_assignment.rhs, intern, depth + 1);
         break;
 
+    case NECRO_AST_PAT_ASSIGNMENT:
+        printf("(Pat Assignment: %s, id: %d)\n", necro_intern_get_string(intern, ast_node->pat_assignment.variable_name), ast_node->pat_assignment.id.id);
+        print_reified_ast_impl(ast_node->pat_assignment.pat, intern, depth + 1);
+        print_reified_ast_impl(ast_node->pat_assignment.rhs, intern, depth + 1);
+        break;
+
     case NECRO_AST_LAMBDA:
         puts("\\(lambda)");
         print_reified_ast_impl(ast_node->lambda.apats, intern, depth + 1);
@@ -522,6 +528,10 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
         reified_node->apats_assignment.variable_name = node->apats_assignment.variable_name;
         reified_node->apats_assignment.apats         = necro_reify(a_ast, node->apats_assignment.apats, arena);
         reified_node->apats_assignment.rhs           = necro_reify(a_ast, node->apats_assignment.rhs, arena);
+        break;
+    case NECRO_AST_PAT_ASSIGNMENT:
+        reified_node->pat_assignment.pat = necro_reify(a_ast, node->pat_assignment.pat, arena);
+        reified_node->pat_assignment.rhs = necro_reify(a_ast, node->pat_assignment.rhs, arena);
         break;
     case NECRO_AST_RIGHT_HAND_SIDE:
         reified_node->right_hand_side.expression   = necro_reify(a_ast, node->right_hand_side.expression, arena);

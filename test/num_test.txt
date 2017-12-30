@@ -160,3 +160,6 @@ Just (_, tx) = Just (False, 10 - tx)
 coolTest x = x + y
     where
         Just y = Just (x / 2)
+
+head (x : xs) = x
+doubleHeaded (x : x2 : xs) = (x, x2)

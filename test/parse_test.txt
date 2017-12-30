@@ -208,3 +208,12 @@ class (Show a, Eq b) => MyTypeClass a where
 
 instance (Show a, Eq b) => MyTypeClass Death where
     deathByKilling _ = True
+
+head (x : xs) = x
+twoHeaded (x : x2 : xs) = (x, x2)
+twoHeaded2 (x : _ : xs) = (x, x)
+twoHeadedDragon (a : b : c : d : e : f : g : h : i) = i
+
+(y : ys) = [1..]
+(_ : a : b : c : _ : d : es) = [1..]
+

@@ -241,7 +241,8 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
         break;
 
     case NECRO_AST_PAT_ASSIGNMENT:
-        printf("(Pat Assignment: %s, id: %d)\n", necro_intern_get_string(intern, ast_node->pat_assignment.variable_name), ast_node->pat_assignment.id.id);
+        // printf("(Pat Assignment: %s, id: %d)\n", necro_intern_get_string(intern, ast_node->pat_assignment.variable_name), ast_node->pat_assignment.id.id);
+        printf("(Pat Assignment)\n");
         print_reified_ast_impl(ast_node->pat_assignment.pat, intern, depth + 1);
         print_reified_ast_impl(ast_node->pat_assignment.rhs, intern, depth + 1);
         break;

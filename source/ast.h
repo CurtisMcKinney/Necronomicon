@@ -269,10 +269,10 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    NecroSymbol                   variable_name;
+    // NecroSymbol                   variable_name;
     struct NecroAST_Node_Reified* pat;
     struct NecroAST_Node_Reified* rhs;
-    NecroID                       id;
+    // NecroID                       id;
 } NecroAST_PatAssignment_Reified;
 
 

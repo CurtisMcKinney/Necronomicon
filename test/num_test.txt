@@ -152,3 +152,11 @@ t9 a b c d e f g h i = (a, b, c, d, e, f, g, h, i)
 
 t10 :: a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> (a, b, c, d, e, f, g, h, i, j)
 t10 a b c d e f g h i j = (a, b, c, d, e, f, g, h, i, j)
+
+(tz, tw)     = (12 + tx, True)
+Just (_, tx) = Just (False, 10 - tx)
+[ty, 0]      = [ty, 1]
+
+coolTest x = x + y
+    where
+        Just y = Just (x / 2)

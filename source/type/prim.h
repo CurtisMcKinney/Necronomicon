@@ -13,6 +13,7 @@
 #include "type.h"
 #include "type_class.h"
 #include "symtable.h"
+#include "renamer.h"
 
 typedef NecroAST_Node_Reified NecroASTNode;
 //=====================================================
@@ -21,9 +22,7 @@ typedef NecroAST_Node_Reified NecroASTNode;
 struct NecroPrimDef;
 typedef enum
 {
-    NECRO_PRIM_DEF_TYPE,
-    NECRO_PRIM_DEF_CON,
-    NECRO_PRIM_DEF_VAL,
+    NECRO_PRIM_DEF_DATA,
     NECRO_PRIM_DEF_FUN,
     NECRO_PRIM_DEF_CLASS,
     NECRO_PRIM_DEF_INSTANCE,
@@ -31,61 +30,44 @@ typedef enum
 
 typedef struct
 {
-    NecroType*       type;
-    NecroType*       fully_applied_type;
-    NecroASTNode*    ast;
-    NecroSymbolInfo  symbol_info;
-} NecroPrimDefType;
-
-typedef struct
-{
-    struct NecroPrimDef* type_def;
-    NecroType*           type;
-    NecroASTNode*        ast;
-    NecroSymbolInfo      symbol_info;
-} NecroPrimDefCon;
+    NecroType*      type_type;
+    NecroType*      type_fully_applied_type;
+    NecroASTNode*   data_declaration_ast;
+} NecroPrimDefData;
 
 typedef struct
 {
     NecroType*      type;
-    NecroASTNode*   ast;
-    NecroSymbolInfo symbol_info;
-} NecroPrimDefVal;
-
-typedef struct
-{
-    NecroType*      type;
-    NecroASTNode*   ast;
+    NecroASTNode*   type_sig_ast;
     NecroSymbolInfo symbol_info;
 } NecroPrimDefFun;
 
 typedef struct
 {
     NecroTypeClass* type_class;
+    NecroASTNode*   type_class_ast;
 } NecroPrimDefClass;
 
 typedef struct
 {
     NecroTypeClassInstance* instance;
+    NecroASTNode*           instance_ast;
 } NecroPrimDefInstance;
 
 typedef struct NecroPrimDef
 {
     union
     {
-        NecroPrimDefType     type_def;
-        NecroPrimDefCon      con_def;
-        NecroPrimDefVal      val_def;
         NecroPrimDefClass    class_def;
         NecroPrimDefInstance instance_def;
         NecroPrimDefFun      fun_def;
+        NecroPrimDefData     data_def;
     };
     NecroCon              name;
+    NecroCon*             global_name;
     struct NecroPrimDef*  next;
     NECRO_PRIM_DEF        type;
 } NecroPrimDef;
-
-NECRO_DECLARE_ARENA_CHAIN_TABLE(NecroPrimDef, PrimDef, prim_def);
 
 //=====================================================
 // PrimTypes
@@ -105,17 +87,17 @@ typedef struct
 
 typedef struct
 {
-    NecroCon add_type;
-    NecroCon sub_type;
-    NecroCon mul_type;
-    NecroCon div_type;
+    NecroType* add_type;
+    NecroType* sub_type;
+    NecroType* mul_type;
+    NecroType* div_type;
+    NecroType* eq_type;
+    NecroType* not_eq_type;
+    NecroType* gt_type;
+    NecroType* lt_type;
+    NecroType* gte_type;
+    NecroType* lte_type;
     NecroCon mod_type;
-    NecroCon eq_type;
-    NecroCon not_eq_type;
-    NecroCon gt_type;
-    NecroCon lt_type;
-    NecroCon gte_type;
-    NecroCon lte_type;
     NecroCon and_type;
     NecroCon or_type;
     NecroCon double_colon_type;
@@ -136,14 +118,19 @@ typedef struct NecroPrimTypes
     NecroTupleTypes   tuple_types;
     NecroBinOpTypes   bin_op_types;
     NecroCon          io_type;
+    NecroCon          unit_type;
+    NecroCon          unit_con;
     NecroCon          list_type;
     NecroCon          int_type;
     NecroCon          float_type;
     NecroCon          audio_type;
+    NecroCon          rational_type;
     NecroCon          char_type;
     NecroCon          bool_type;
-    // NecroPrimDefTable type_def_table;
-    // NecroPrimDefTable val_def_table;
+    NecroCon          num_type_class;
+    NecroCon          fractional_type_class;
+    NecroCon          eq_type_class;
+    NecroCon          ord_type_class;
     NecroPrimDef*     defs;
     NecroPrimDef*     def_head;
     NecroPagedArena   arena;
@@ -153,7 +140,10 @@ typedef struct NecroPrimTypes
 // API
 //=====================================================
 NecroPrimTypes necro_create_prim_types(NecroIntern* intern);
-void           necro_add_prim_type_symbol_info(NecroPrimTypes* prim_types, NecroScopedSymTable* scoped_symtable);
-void           necro_add_prim_type_sigs(NecroPrimTypes* prim_types, NecroInfer* infer);
+
+NECRO_RETURN_CODE necro_prim_build_scope(NecroPrimTypes* prim_types, NecroScopedSymTable* scoped_symtable);
+NECRO_RETURN_CODE necro_prim_rename(NecroPrimTypes* prim_types, NecroRenamer* renamer);
+NECRO_RETURN_CODE necro_prim_infer(NecroPrimTypes* prim_types, NecroInfer* infer);
+void              necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern);
 
 #endif // TYPE_PRIM_H

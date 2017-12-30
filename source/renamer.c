@@ -534,20 +534,20 @@ void necro_destroy_renamer(NecroRenamer* renamer)
 {
 }
 
-NECRO_RETURN_CODE necro_rename_declare_pass(NecroRenamer* renamer, NecroAST_Reified* input_ast)
+NECRO_RETURN_CODE necro_rename_declare_pass(NecroRenamer* renamer, NecroAST_Node_Reified* input_ast)
 {
     renamer->error.return_code             = NECRO_SUCCESS;
     renamer->current_class_instance_symbol = (NecroSymbol) { 0 };
     renamer->prev_class_instance_symbol    = (NecroSymbol) { 0 };
-    rename_declare_go(input_ast->root, renamer);
+    rename_declare_go(input_ast, renamer);
     return renamer->error.return_code;
 }
 
-NECRO_RETURN_CODE necro_rename_var_pass(NecroRenamer* renamer, NecroAST_Reified* input_ast)
+NECRO_RETURN_CODE necro_rename_var_pass(NecroRenamer* renamer, NecroAST_Node_Reified* input_ast)
 {
     renamer->error.return_code             = NECRO_SUCCESS;
     renamer->current_class_instance_symbol = (NecroSymbol) { 0 };
     renamer->prev_class_instance_symbol    = (NecroSymbol) { 0 };
-    rename_var_go(input_ast->root, renamer);
+    rename_var_go(input_ast, renamer);
     return renamer->error.return_code;
 }

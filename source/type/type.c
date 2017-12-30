@@ -56,7 +56,6 @@ NecroInfer necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtabl
     NecroKind* star_kind = necro_paged_arena_alloc(&infer.arena, sizeof(NecroKind));
     star_kind->kind      = NECRO_KIND_STAR;
     infer.star_kind      = star_kind;
-    necro_add_prim_type_sigs(prim_types, &infer);
     return infer;
 }
 
@@ -755,7 +754,8 @@ void necro_occurs_error(NecroInfer* infer, NecroVar type_var, NecroType* type, N
 {
     if (necro_is_infer_error(infer))
         return;
-    necro_infer_error(infer, error_preamble, macro_type, "Occurs check error, cannot construct infinite type: %s ~ ", necro_id_as_character_string(infer, type_var));
+    necro_infer_error(infer, error_preamble, macro_type, "Occurs check error, cannot construct the infinite type: \n %s ~ ", necro_id_as_character_string(infer, type_var));
+    necro_snprintf_type_sig(macro_type, infer->intern, infer->error.error_message + 64, NECRO_MAX_ERROR_MESSAGE_LENGTH);
 }
 
 bool necro_occurs(NecroInfer* infer, NecroType* type_var, NecroType* type, NecroType* macro_type, const char* error_preamble)
@@ -866,6 +866,8 @@ inline void necro_unify_var(NecroInfer* infer, NecroType* type1, NecroType* type
         necro_infer_error(infer, error_preamble, macro_type, "Mismatched arities");
         return;
     }
+    if (type1 == type2)
+        return;
     switch (type2->type)
     {
     case NECRO_TYPE_VAR:
@@ -1427,6 +1429,14 @@ bool necro_print_tuple_sig(NecroType* type, NecroIntern* intern)
         return false;
     NecroType* current_element = type->con.args;
 
+    // Unit
+    NecroSymbol unit_symbol = necro_intern_string(intern, "()");
+    if (con_symbol.id == unit_symbol.id)
+    {
+        printf("()");
+        return true;
+    }
+
     if (type->con.args == NULL) return true;
 
     // 2
@@ -1506,6 +1516,8 @@ void necro_print_type_sig_go(NecroType* type, NecroIntern* intern)
 {
     if (type == NULL)
         return;
+    while (type->type == NECRO_TYPE_VAR && type->var.bound != NULL)
+        type = type->var.bound;
     switch (type->type)
     {
     case NECRO_TYPE_VAR:
@@ -1710,6 +1722,8 @@ char* necro_snprintf_type_sig(NecroType* type, NecroIntern* intern, char* buffer
 {
     if (type == NULL)
         return buffer;
+    while (type->type == NECRO_TYPE_VAR && type->var.bound != NULL)
+        type = type->var.bound;
     switch (type->type)
     {
     case NECRO_TYPE_VAR:
@@ -1898,20 +1912,20 @@ NecroType* necro_get_bin_op_type(NecroInfer* infer, NecroAST_BinOpType bin_op_ty
 {
     switch (bin_op_type)
     {
-    case NECRO_BIN_OP_ADD:        return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.add_type.id)->type;
-    case NECRO_BIN_OP_SUB:        return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.sub_type.id)->type;
-    case NECRO_BIN_OP_MUL:        return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.mul_type.id)->type;
-    case NECRO_BIN_OP_DIV:        return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.div_type.id)->type;
-    case NECRO_BIN_OP_MOD:        return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.mod_type.id)->type;
-    case NECRO_BIN_OP_EQUALS:     return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.eq_type.id)->type;
-    case NECRO_BIN_OP_NOT_EQUALS: return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.not_eq_type.id)->type;
-    case NECRO_BIN_OP_GT:         return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.gt_type.id)->type;
-    case NECRO_BIN_OP_LT:         return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.lt_type.id)->type;
-    case NECRO_BIN_OP_GTE:        return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.gte_type.id)->type;
-    case NECRO_BIN_OP_LTE:        return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.lte_type.id)->type;
-    case NECRO_BIN_OP_AND:        return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.and_type.id)->type;
-    case NECRO_BIN_OP_OR:         return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.or_type.id)->type;
+    case NECRO_BIN_OP_ADD:        return necro_inst(infer, infer->prim_types->bin_op_types.add_type, NULL);
+    case NECRO_BIN_OP_SUB:        return necro_inst(infer, infer->prim_types->bin_op_types.sub_type, NULL);
+    case NECRO_BIN_OP_MUL:        return necro_inst(infer, infer->prim_types->bin_op_types.mul_type, NULL);
+    case NECRO_BIN_OP_DIV:        return necro_inst(infer, infer->prim_types->bin_op_types.div_type, NULL);
+    case NECRO_BIN_OP_EQUALS:     return necro_inst(infer, infer->prim_types->bin_op_types.eq_type, NULL);
+    case NECRO_BIN_OP_NOT_EQUALS: return necro_inst(infer, infer->prim_types->bin_op_types.not_eq_type, NULL);
+    case NECRO_BIN_OP_GT:         return necro_inst(infer, infer->prim_types->bin_op_types.gt_type, NULL);
+    case NECRO_BIN_OP_LT:         return necro_inst(infer, infer->prim_types->bin_op_types.lt_type, NULL);
+    case NECRO_BIN_OP_GTE:        return necro_inst(infer, infer->prim_types->bin_op_types.gte_type, NULL);
+    case NECRO_BIN_OP_LTE:        return necro_inst(infer, infer->prim_types->bin_op_types.lte_type, NULL);
+    // case NECRO_BIN_OP_AND:        return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.and_type.id)->type;
+    // case NECRO_BIN_OP_OR:         return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.or_type.id)->type;
     default: return necro_infer_error(infer, NULL, NULL, "bin op not implemented in type checker!: %d", bin_op_type);
+    // case NECRO_BIN_OP_MOD:        return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.mod_type.id)->type;
     // case NECRO_BIN_OP_COLON,
 	// case NECRO_BIN_OP_DOUBLE_COLON,
 	// case NECRO_BIN_OP_LEFT_SHIFT,

@@ -295,8 +295,20 @@ NecroType* necro_infer_constant(NecroInfer* infer, NecroNode* ast)
     if (necro_is_infer_error(infer)) return NULL;
     switch (ast->constant.type)
     {
-    case NECRO_AST_CONSTANT_FLOAT:   return necro_symtable_get(infer->symtable, infer->prim_types->float_type.id)->type;
-    case NECRO_AST_CONSTANT_INTEGER: return necro_symtable_get(infer->symtable, infer->prim_types->int_type.id)->type;
+    case NECRO_AST_CONSTANT_FLOAT:
+    {
+        NecroType* new_name   = necro_new_name(infer, ast->source_loc);
+        new_name->var.context = necro_create_type_class_context(&infer->arena, infer->prim_types->fractional_type_class, (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, NULL);
+        new_name->kind = infer->star_kind;
+        return new_name;
+    }
+    case NECRO_AST_CONSTANT_INTEGER:
+    {
+        NecroType* new_name   = necro_new_name(infer, ast->source_loc);
+        new_name->var.context = necro_create_type_class_context(&infer->arena, infer->prim_types->num_type_class, (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, NULL);
+        new_name->kind = infer->star_kind;
+        return new_name;
+    }
     case NECRO_AST_CONSTANT_BOOL:    return necro_symtable_get(infer->symtable, infer->prim_types->bool_type.id)->type;
     case NECRO_AST_CONSTANT_CHAR:    return necro_symtable_get(infer->symtable, infer->prim_types->char_type.id)->type;
     case NECRO_AST_CONSTANT_STRING:  return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: String not implemented....");
@@ -446,6 +458,7 @@ NecroType* necro_infer_tuple_type(NecroInfer* infer, NecroNode* ast)
         current_expression = current_expression->list.next_item;
     }
     NecroType* tuple = necro_make_tuple_con(infer, types_head);
+    if (necro_is_infer_error(infer)) return NULL;
     tuple->source_loc = ast->source_loc;
     return tuple;
 }
@@ -509,7 +522,7 @@ NecroType* necro_infer_fexpr(NecroInfer* infer, NecroNode* ast)
     NecroType* f_type       = necro_create_type_fun(infer, e1_type, result_type);
     f_type->source_loc      = ast->source_loc;
     necro_infer_kind(infer, f_type, infer->star_kind, f_type, "While inferring the type for a function application: ");
-    necro_unify(infer, e0_type, f_type, ast->scope, e0_type, "While inferring the type for a function application: ");
+    necro_unify(infer, e0_type, f_type, ast->scope, f_type, "While inferring the type for a function application: ");
     return result_type;
 }
 
@@ -1195,7 +1208,6 @@ NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast)
 
 NecroType* necro_infer(NecroInfer* infer, NecroNode* ast)
 {
-    infer->highest_id = infer->symtable->count;
     NecroType* result = necro_infer_go(infer, ast);
     if (infer->error.return_code != NECRO_SUCCESS)
         return NULL;

@@ -57,6 +57,7 @@ const char* var_type_string(NECRO_VAR_TYPE var_type)
     case NECRO_VAR_DECLARATION:              return "Var Declaration";
     case NECRO_VAR_SIG:                      return "Sig";
     case NECRO_VAR_CLASS_SIG:                return "TypeClass Sig";
+    case NECRO_VAR_TYPE_VAR_DECLARATION:     return "TypeVar Declaration";
     default:                                 return "Undefined";
     }
 }

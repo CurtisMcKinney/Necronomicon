@@ -1,21 +1,154 @@
-class Eq a where
-    eq  :: a -> a -> Bool
-    neq :: a -> a -> Bool
+data Maybe a   = Just a | Nothing
+data Both  a b = Both a b
 
--- class Num a where
---     add     :: a -> a -> a
---     sub     :: a -> a -> a
---     mul     :: a -> a -> a
---     abs     :: a -> a
---     signum  :: a -> a
---     fromInt :: Int -> a
-
-data Maybe a = Just a | Nothing
+instance Eq a => Eq (Maybe a) where
+    eq (Just x) (Just y) = eq x y
+    eq Nothing  Nothing  = True
+    eq _        _        = False
+    neq                  = eq
 
 x :: Maybe ()
 x = Just ()
 
-maybeEq :: Eq a => Maybe a -> Maybe a -> Bool
-maybeEq Nothing  Nothing  = True
-maybeEq (Just x) (Just y) = eq x y
-maybeEq _        _        = False
+bools :: Bool
+bools = if True
+    then False
+    else True
+
+list :: a -> [a]
+list x = [x, y]
+    where
+        y = x
+
+consList :: a -> a -> [a] -> [a]
+consList x y z = Cons x (Cons y [])
+
+intEq :: Int -> Bool
+intEq x = eq x x
+
+floatEq :: Float -> Bool
+floatEq x = eq x x
+
+audioEq :: Audio -> Bool
+audioEq x = eq x x
+
+polyEq :: Eq a => a -> Bool
+polyEq x = eq x x
+
+mathInt :: Int -> Int -> Int
+mathInt x y = add x (sub x (mul x (abs (signum y))))
+
+mathFloat :: Float -> Float -> Float
+mathFloat x y = add x (sub x (mul x (abs (signum y))))
+
+mathAudio :: Audio -> Audio -> Audio
+mathAudio x y = add x (sub x (mul x (abs (signum y))))
+
+mathPoly :: Num a => a -> a -> a
+mathPoly x y = add x (sub x (mul x (abs (signum y))))
+
+fromIntInt :: Int -> Int
+fromIntInt x = fromInt x
+
+fromIntFloat :: Int -> Float
+fromIntFloat x = fromInt x
+
+fromIntAudio :: Int -> Audio
+fromIntAudio x = fromInt x
+
+fromIntPoly :: Num a => Int -> a
+fromIntPoly x = fromInt x
+
+litTestNoSig = 0
+
+litTestSig :: Num a => a
+litTestSig = 32
+
+litFracNoSig = 6.66
+
+litFracSig :: Fractional a => a
+litFracSig = 23.3
+
+numAsFracSig :: Fractional a => a
+numAsFracSig = 42
+
+intNum :: Int
+intNum = 555
+
+floatNum :: Float
+floatNum = 11
+
+audioNum :: Audio
+audioNum = 722
+
+rationalNum :: Rational
+rationalNum = 1000
+
+floatFrac :: Float
+floatFrac = 0.1
+
+audioFrac :: Audio
+audioFrac = add 0.2 400
+
+sinOsc :: Fractional a => a -> a
+sinOsc f = f + 0.1 - f / 660
+
+synths :: Audio
+synths = sinOsc 440 + sinOsc 32.3 - 32 * sinOsc 33
+
+rationalFrac :: Rational
+rationalFrac = 0.3
+
+maybeNum :: Num a => Maybe a
+maybeNum = Just 2
+
+boolTestInt :: Int -> Bool
+boolTestInt x = x == x
+
+ordInt :: Int -> Bool
+ordInt x = x > 5
+
+ordFloat :: Float -> Bool
+ordFloat x = x < 3.3
+
+ordAudio :: Audio -> Bool
+ordAudio x = x >= 66
+
+ordPoly :: (Ord a, Fractional a) => a -> Bool
+ordPoly x = x <= 2.0
+
+-- 1. Need to get an ambiguity check to catch this sort of thing
+-- 2. Once that's in place need a system to default to Double,
+--    etc when an ambiguous Fractional / Num constraint is found
+boolTestAmbig :: Bool
+boolTestAmbig = 3.0 == 3.0
+
+boolTestAudio :: Audio -> Bool
+boolTestAudio x = x /= 3.5
+
+t2 :: a -> b -> (a, b)
+t2 a b = (a, b)
+
+t3 :: a -> b -> c -> (a, b, c)
+t3 a b c = (a, b, c)
+
+t4 :: a -> b -> c -> d -> (a, b, c, d)
+t4 a b c d = (a, b, c, d)
+
+t5 :: a -> b -> c -> d -> e -> (a, b, c, d, e)
+t5 a b c d e = (a, b, c, d, e)
+
+t6 :: a -> b -> c -> d -> e -> f -> (a, b, c, d, e, f)
+t6 a b c d e f = (a, b, c, d, e, f)
+
+t7 :: a -> b -> c -> d -> e -> f -> g -> (a, b, c, d, e, f, g)
+t7 a b c d e f g = (a, b, c, d, e, f, g)
+
+t8 :: a -> b -> c -> d -> e -> f -> g -> h -> (a, b, c, d, e, f, g, h)
+t8 a b c d e f g h = (a, b, c, d, e, f, g, h)
+
+t9 :: a -> b -> c -> d -> e -> f -> g -> h -> i -> (a, b, c, d, e, f, g, h, i)
+t9 a b c d e f g h i = (a, b, c, d, e, f, g, h, i)
+
+t10 :: a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> (a, b, c, d, e, f, g, h, i, j)
+t10 a b c d e f g h i j = (a, b, c, d, e, f, g, h, i, j)

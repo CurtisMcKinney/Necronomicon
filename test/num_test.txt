@@ -21,7 +21,7 @@ list x = [x, y]
         y = x
 
 consList :: a -> a -> [a] -> [a]
-consList x y z = Cons x (Cons y [])
+consList x y z = x : y : []
 
 intEq :: Int -> Bool
 intEq x = eq x x

@@ -41,7 +41,6 @@ boolTest = inferTest > (inferDeath + 2) && boolTest && ifTest
 left  = (-1)
 right = 1
 tup   = (left, right)
-add   = [left, right]
 
 tupleAllTheWayDown = (tuplesPlease, tupleTest, 666.0)
     where

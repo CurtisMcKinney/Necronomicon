@@ -577,9 +577,10 @@ NECRO_RETURN_CODE necro_prim_infer(NecroPrimTypes* prim_types, NecroInfer* infer
     prim_types->bin_op_types.gte_type    = ord_bin_op_type;
     prim_types->bin_op_types.gt_type     = ord_bin_op_type;
 
-    // NecroType* bool_type = necro_symtable_get(infer->symtable, prim_types->bool_type.id)->type;
-    // prim_types->bin_op_types.and_type = necro_create_type_fun(infer, bool_type, necro_create_type_fun(infer, bool_type, bool_type));
-    // prim_types->bin_op_types.or_type  = necro_create_type_fun(infer, bool_type, necro_create_type_fun(infer, bool_type, bool_type));
+    // Cons Operator
+    NecroType* name      = necro_new_name(infer, (NecroSourceLoc) { 0, 0, 0 });
+    NecroType* list_type = necro_make_con_1(infer, prim_types->list_type, name);
+    prim_types->bin_op_types.cons_type = necro_gen(infer, necro_create_type_fun(infer, name, necro_create_type_fun(infer, list_type, list_type)), NULL);
 
     return infer->error.return_code;
 }
@@ -742,7 +743,7 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     NecroASTNode* list_s_type           = necro_create_simple_type_ast(&prim_types->arena, intern, "[]", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
     NecroASTNode* list_app              = necro_create_type_app_ast(&prim_types->arena, necro_create_conid_ast(&prim_types->arena, intern, "[]", NECRO_CON_TYPE_VAR), necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
     NecroASTNode* cons_args             = necro_create_ast_list(&prim_types->arena, necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), necro_create_ast_list(&prim_types->arena, list_app, NULL));
-    NecroASTNode* cons_constructor      = necro_create_data_constructor_ast(&prim_types->arena, intern, "Cons", cons_args);
+    NecroASTNode* cons_constructor      = necro_create_data_constructor_ast(&prim_types->arena, intern, ":", cons_args);
     NecroASTNode* nil_constructor       = necro_create_data_constructor_ast(&prim_types->arena, intern, "[]", NULL);
     NecroASTNode* list_constructor_list = necro_create_ast_list(&prim_types->arena, cons_constructor, necro_create_ast_list(&prim_types->arena, nil_constructor, NULL));
     NecroPrimDef* list_data_def         = necro_prim_def_data(prim_types, intern, &prim_types->list_type, necro_create_data_declaration_ast(&prim_types->arena, intern, list_s_type, list_constructor_list));

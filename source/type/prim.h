@@ -97,6 +97,7 @@ typedef struct
     NecroType* lt_type;
     NecroType* gte_type;
     NecroType* lte_type;
+    NecroType* cons_type;
     NecroCon mod_type;
     NecroCon and_type;
     NecroCon or_type;

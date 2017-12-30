@@ -41,24 +41,6 @@ instance Semigroup a => Semigroup (Maybe a) where
 instance Monoid a => Monoid (Maybe a) where
     mempty = Nothing
 
-class Eq a => Num a where
-    add :: a -> a -> a
-
-class Eq a where
-    eq :: a -> a -> Bool
-
-class Eq a => Ord a where
-    gt :: a -> a -> Bool
-
-instance Num Int where
-    add x y = x + y
-
-instance Ord Int where
-    gt x y = eq x y
-
-instance Eq Int where
-    eq x y = x == y
-
 class Foo a
 class Foo a => Bar a
 
@@ -79,6 +61,3 @@ instance Num a => HigherKinded (KindSlaver a) where
     higherGround (Kind _ x _ _) = x
 
 apTest fa (Just 0) = ap fa Nothing
-
-(Just x) = x
-x = 11

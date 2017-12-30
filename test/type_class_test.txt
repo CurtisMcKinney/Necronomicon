@@ -79,3 +79,6 @@ instance Num a => HigherKinded (KindSlaver a) where
     higherGround (Kind _ x _ _) = x
 
 apTest fa (Just 0) = ap fa Nothing
+
+(Just x) = x
+x = 11

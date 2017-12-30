@@ -265,6 +265,18 @@ typedef struct
 } NecroAST_ApatsAssignment_Reified;
 
 //=====================================================
+// AST Pat Assignment
+//=====================================================
+typedef struct
+{
+    NecroSymbol                   variable_name;
+    struct NecroAST_Node_Reified* pat;
+    struct NecroAST_Node_Reified* rhs;
+    NecroID                       id;
+} NecroAST_PatAssignment_Reified;
+
+
+//=====================================================
 // AST Lambda
 //=====================================================
 typedef struct
@@ -394,6 +406,7 @@ typedef struct NecroAST_Node_Reified
         NecroAST_SimpleAssignment_Reified     simple_assignment;
         NecroAST_Apats_Reified                apats;
         NecroAST_ApatsAssignment_Reified      apats_assignment;
+        NecroAST_PatAssignment_Reified        pat_assignment;
         NecroAST_RightHandSide_Reified        right_hand_side;
         NecroAST_LetExpression_Reified        let_expression;
         NecroAST_FunctionExpression_Reified   fexpression;

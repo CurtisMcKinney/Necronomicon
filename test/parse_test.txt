@@ -1,3 +1,6 @@
+(Just nn) = 10
+nn = 11
+
 b = 2
 
 a = 1
@@ -172,6 +175,10 @@ myInfixCon1 (x `MyCoolFunc` y) = 10
 listPattern (Hello [_, 0, y]) = 3
 
 tuplePattern (0, Cool stuff, y) = 333
+
+(Just x) = 10
+
+x = 11
 
 data MyCoolType a = MyCoolType a | Yeah b c | Death (IO Bool Float) Int (Char -> Char)
 data X = X ((A (B C)), IO Death, Double) [Kill]

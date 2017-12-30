@@ -26,6 +26,7 @@ typedef enum
     NECRO_AST_DECL,
     NECRO_AST_SIMPLE_ASSIGNMENT,
     NECRO_AST_APATS_ASSIGNMENT,
+    NECRO_AST_PAT_ASSIGNMENT,
     NECRO_AST_RIGHT_HAND_SIDE,
     NECRO_AST_LET_EXPRESSION,
     NECRO_AST_FUNCTION_EXPRESSION,
@@ -363,6 +364,15 @@ typedef struct
 } NecroAST_ApatsAssignment;
 
 //=====================================================
+// AST Pat Assignment
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr pat;
+    NecroAST_LocalPtr rhs;
+} NecroAST_PatAssignment;
+
+//=====================================================
 // AST Lambda
 //=====================================================
 typedef struct
@@ -519,6 +529,7 @@ typedef struct
         NecroAST_SimpleAssignment simple_assignment;
         NecroAST_Apats apats;
         NecroAST_ApatsAssignment apats_assignment;
+        NecroAST_PatAssignment pat_assignment;
         NecroAST_RightHandSide right_hand_side;
         NecroAST_LetExpression let_expression;
         NecroAST_FunctionExpression fexpression;

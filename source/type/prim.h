@@ -131,6 +131,9 @@ typedef struct NecroPrimTypes
     NecroCon          fractional_type_class;
     NecroCon          eq_type_class;
     NecroCon          ord_type_class;
+    NecroCon          functor_type_class;
+    NecroCon          applicative_type_class;
+    NecroCon          monad_type_class;
     NecroPrimDef*     defs;
     NecroPrimDef*     def_head;
     NecroPagedArena   arena;

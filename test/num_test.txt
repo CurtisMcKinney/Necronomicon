@@ -103,7 +103,7 @@ maybeNum :: Num a => Maybe a
 maybeNum = Just 2
 
 boolTestInt :: Int -> Bool
-boolTestInt x = x == x
+boolTestInt x = x == x && False || True
 
 ordInt :: Int -> Bool
 ordInt x = x > 5

@@ -60,17 +60,17 @@ DONE:
     NECRO_AST_BIN_OP_SYM,
     NECRO_AST_TOP_DECL,
     NECRO_AST_DECL,
-
-IN PROGRESS:
     NECRO_AST_TYPE_CLASS_CONTEXT,
     NECRO_AST_TYPE_CLASS_DECLARATION,
     NECRO_AST_TYPE_CLASS_INSTANCE,
     Correct kind inference
 
-TODO:
+IN PROGRESS:
     Declaration dependency analysis (This is how Haskell infers more general types for recursive declarations)
     NECRO_AST_DO,          (Need type classes)
     NECRO_BIND_ASSIGNMENT, (Need type classes)
+
+TODO:
     // NECRO_AST_MODULE,
 */
 

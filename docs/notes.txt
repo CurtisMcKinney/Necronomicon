@@ -834,10 +834,35 @@ unsafeWithCurrent = black magic
 
 -- IORefs back unsafeWithCurrent?
 
-
 x = [0..]
 printAndGo :: [Int] -> [Int] -> IO ()
 printAndGo (x1 : xs1) (x2 : _ : xs2) = do
     putStrLn $ "x1: " ++ show x1 ++ ", x2: " ++ show x2
     printAndGo xs1 xs2
 printAndGo x x
+
+-------------------------------------------------------
+-- Coeffects strike back
+-- Use coeffects to track "Transient" values
+-- Transient values must have a statically known lifetime (over time itself)
+-- Transient values need to have a statically known buffer size
+-------------------------------------------------------
+
+
+myCoolFunc :: Int@
+myCoolFunc = mouse + 1
+
+mouse  :: (Int, Int)@
+
+mouseX :: Int@
+mouseX = ...
+
+mouseSynth :: Audio -> Audio@
+mouseSynth freq = x
+    where
+        x = sinOsc (freq + mouseX * (0 fby x))
+        -- Actually this is ok
+        -- Just say all transient values are "current"
+
+main :: Audio@
+main = mouseSynth 440

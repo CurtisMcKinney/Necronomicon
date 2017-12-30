@@ -1922,8 +1922,8 @@ NecroType* necro_get_bin_op_type(NecroInfer* infer, NecroAST_BinOpType bin_op_ty
     case NECRO_BIN_OP_LT:         return necro_inst(infer, infer->prim_types->bin_op_types.lt_type, NULL);
     case NECRO_BIN_OP_GTE:        return necro_inst(infer, infer->prim_types->bin_op_types.gte_type, NULL);
     case NECRO_BIN_OP_LTE:        return necro_inst(infer, infer->prim_types->bin_op_types.lte_type, NULL);
-    // case NECRO_BIN_OP_AND:        return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.and_type.id)->type;
-    // case NECRO_BIN_OP_OR:         return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.or_type.id)->type;
+    case NECRO_BIN_OP_AND:        return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.and_type.id)->type;
+    case NECRO_BIN_OP_OR:         return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.or_type.id)->type;
     default: return necro_infer_error(infer, NULL, NULL, "bin op not implemented in type checker!: %d", bin_op_type);
     // case NECRO_BIN_OP_MOD:        return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.mod_type.id)->type;
     // case NECRO_BIN_OP_COLON,

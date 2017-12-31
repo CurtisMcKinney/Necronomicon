@@ -1908,42 +1908,6 @@ NecroType* necro_make_tuple_con(NecroInfer* infer, NecroType* types_list)
     return necro_create_type_con(infer, con, types_list, tuple_count);
 }
 
-NecroType* necro_get_bin_op_type(NecroInfer* infer, NecroAST_BinOpType bin_op_type)
-{
-    switch (bin_op_type)
-    {
-    case NECRO_BIN_OP_ADD:        return necro_inst(infer, infer->prim_types->bin_op_types.add_type, NULL);
-    case NECRO_BIN_OP_SUB:        return necro_inst(infer, infer->prim_types->bin_op_types.sub_type, NULL);
-    case NECRO_BIN_OP_MUL:        return necro_inst(infer, infer->prim_types->bin_op_types.mul_type, NULL);
-    case NECRO_BIN_OP_DIV:        return necro_inst(infer, infer->prim_types->bin_op_types.div_type, NULL);
-    case NECRO_BIN_OP_EQUALS:     return necro_inst(infer, infer->prim_types->bin_op_types.eq_type, NULL);
-    case NECRO_BIN_OP_NOT_EQUALS: return necro_inst(infer, infer->prim_types->bin_op_types.not_eq_type, NULL);
-    case NECRO_BIN_OP_GT:         return necro_inst(infer, infer->prim_types->bin_op_types.gt_type, NULL);
-    case NECRO_BIN_OP_LT:         return necro_inst(infer, infer->prim_types->bin_op_types.lt_type, NULL);
-    case NECRO_BIN_OP_GTE:        return necro_inst(infer, infer->prim_types->bin_op_types.gte_type, NULL);
-    case NECRO_BIN_OP_LTE:        return necro_inst(infer, infer->prim_types->bin_op_types.lte_type, NULL);
-    case NECRO_BIN_OP_AND:        return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.and_type.id)->type;
-    case NECRO_BIN_OP_OR:         return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.or_type.id)->type;
-    case NECRO_BIN_OP_COLON:      return necro_inst(infer, infer->prim_types->bin_op_types.cons_type, NULL);
-    default: return necro_infer_error(infer, NULL, NULL, "bin op not implemented in type checker!: %d", bin_op_type);
-    // case NECRO_BIN_OP_MOD:        return necro_symtable_get(infer->symtable, infer->prim_types->bin_op_types.mod_type.id)->type;
-	// case NECRO_BIN_OP_DOUBLE_COLON,
-	// case NECRO_BIN_OP_LEFT_SHIFT,
-	// case NECRO_BIN_OP_RIGHT_SHIFT,
-	// case NECRO_BIN_OP_PIPE,
-	// case NECRO_BIN_OP_FORWARD_PIPE,
-	// case NECRO_BIN_OP_BACK_PIPE,
-    // case NECRO_BIN_OP_DOT,
-    // case NECRO_BIN_OP_DOLLAR,
-    // case NECRO_BIN_OP_BIND_RIGHT,
-    // case NECRO_BIN_OP_BIND_LEFT,
-    // case NECRO_BIN_OP_DOUBLE_EXCLAMATION,
-    // case NECRO_BIN_OP_APPEND,
-    // case NECRO_BIN_OP_COUNT,
-    // case NECRO_BIN_OP_UNDEFINED = NECRO_BIN_OP_COUNT
-    }
-}
-
 NecroType* necro_make_con_1(NecroInfer* infer, NecroCon con, NecroType* arg1)
 {
     NecroType* lst1 = necro_create_type_list(infer, arg1, NULL);

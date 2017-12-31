@@ -31,12 +31,12 @@ inferDeath =
         z = inferDeath + 100
     in  y + inferTest - z
 
-boolTest = inferTest > (inferDeath + 2) && boolTest && ifTest
-    where
-        x      = 2
-        ifTest = if boolTest
-            then 2 > 3
-            else 3 < 2
+-- boolTest = inferTest > (inferDeath + 2) && boolTest && ifTest
+--     where
+--         x      = 2
+--         ifTest = if boolTest
+--             then 2 > 3
+--             else 3 < 2
 
 left  = (-1)
 right = 1
@@ -44,7 +44,7 @@ tup   = (left, right)
 
 tupleAllTheWayDown = (tuplesPlease, tupleTest, 666.0)
     where
-        tuplesPlease = (3.0, inferDeath, if boolTest then 5 else 7, tuplesAreTurles, 0)
+        tuplesPlease = (3.0, inferDeath, if True then 5 else 7, tuplesAreTurles, 0)
             where
                 tuplesAreTurles = (3 == 3, 5 + 6 * 7, 0.0)
 
@@ -74,7 +74,7 @@ tuplesXY  x y = (x, y)
 
 compareTest = (3 == 4, 5 == 7)
 boolTest2   = 3 == 4
-boolTest3   = 4 == 4 && boolTest2
+boolTest3   = 4 == 4
 
 add2 0 x _ = x + 0
 
@@ -96,9 +96,9 @@ tupleDoom = (one, two, three, four, five, six, seven, eight, nine, ten)
 -- --         listsPlease = [listsAllTheWayDown]
 
 lambda      = \x _ 0 -> x
-lambda2 z _ = \x -> \y -> (x + y - z) > 3 && (4 == 5)
-    where
-        f = \hey there -> hey || there && f hey there
+-- lambda2 z _ = \x -> \y -> (x + y - z) > 3 && (4 == 5)
+--     where
+--         f = \hey there -> hey || there && f hey there
 
 letArithmetic = [1,5..11]
 

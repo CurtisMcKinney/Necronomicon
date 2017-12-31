@@ -504,9 +504,10 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
     case NECRO_AST_UN_OP:
         break;
     case NECRO_AST_BIN_OP:
-        reified_node->bin_op.lhs  = necro_reify(a_ast, node->bin_op.lhs, arena);
-        reified_node->bin_op.rhs  = necro_reify(a_ast, node->bin_op.rhs, arena);
-        reified_node->bin_op.type = node->bin_op.type;
+        reified_node->bin_op.lhs    = necro_reify(a_ast, node->bin_op.lhs, arena);
+        reified_node->bin_op.rhs    = necro_reify(a_ast, node->bin_op.rhs, arena);
+        reified_node->bin_op.symbol = node->bin_op.symbol;
+        reified_node->bin_op.type   = node->bin_op.type;
         break;
     case NECRO_AST_IF_THEN_ELSE:
         reified_node->if_then_else.if_expr   = necro_reify(a_ast, node->if_then_else.if_expr, arena);

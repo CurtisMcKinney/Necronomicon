@@ -288,9 +288,10 @@ typedef enum
 
 typedef struct
 {
-    NecroAST_LocalPtr lhs;
-    NecroAST_LocalPtr rhs;
+    NecroAST_LocalPtr  lhs;
+    NecroAST_LocalPtr  rhs;
     NecroAST_BinOpType type;
+    NecroSymbol        symbol;
 } NecroAST_BinOp;
 
 //=====================================================
@@ -631,7 +632,6 @@ static const NecroParse_BinOpBehavior bin_op_behaviors[NECRO_BIN_OP_COUNT + 1] =
     { 5, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_APPEND
     { 0, NECRO_BIN_OP_ASSOC_NONE }   // NECRO_BIN_OP_UNDEFINED
 };
-
 
 typedef enum
 {

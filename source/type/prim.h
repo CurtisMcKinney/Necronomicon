@@ -24,6 +24,7 @@ typedef enum
 {
     NECRO_PRIM_DEF_DATA,
     NECRO_PRIM_DEF_FUN,
+    NECRO_PRIM_DEF_BIN_OP,
     NECRO_PRIM_DEF_CLASS,
     NECRO_PRIM_DEF_INSTANCE,
 } NECRO_PRIM_DEF;
@@ -39,8 +40,14 @@ typedef struct
 {
     NecroType*      type;
     NecroASTNode*   type_sig_ast;
-    NecroSymbolInfo symbol_info;
 } NecroPrimDefFun;
+
+typedef struct
+{
+    NecroType*      type;
+    NecroASTNode*   type_sig_ast;
+    NecroASTNode*   definition_ast;
+} NecroPrimDefBinOp;
 
 typedef struct
 {
@@ -62,6 +69,7 @@ typedef struct NecroPrimDef
         NecroPrimDefInstance instance_def;
         NecroPrimDefFun      fun_def;
         NecroPrimDefData     data_def;
+        NecroPrimDefBinOp    bin_op_def;
     };
     NecroCon              name;
     NecroCon*             global_name;
@@ -85,39 +93,39 @@ typedef struct
     NecroCon ten;
 } NecroTupleTypes;
 
-typedef struct
-{
-    NecroType* add_type;
-    NecroType* sub_type;
-    NecroType* mul_type;
-    NecroType* div_type;
-    NecroType* eq_type;
-    NecroType* not_eq_type;
-    NecroType* gt_type;
-    NecroType* lt_type;
-    NecroType* gte_type;
-    NecroType* lte_type;
-    NecroType* cons_type;
-    NecroCon mod_type;
-    NecroCon and_type;
-    NecroCon or_type;
-    NecroCon double_colon_type;
-    NecroCon left_shift_type;
-    NecroCon right_shift_type;
-    NecroCon pipe_type;
-    NecroCon forward_pipe_type;
-    NecroCon back_pipe_type;
-    NecroCon dot_type;
-    NecroCon bind_right_type;
-    NecroCon bind_left_type;
-    NecroCon double_exclamation_type;
-    NecroCon append_type;
-} NecroBinOpTypes;
+// typedef struct
+// {
+//     NecroType* add_type;
+//     NecroType* sub_type;
+//     NecroType* mul_type;
+//     NecroType* div_type;
+//     NecroType* eq_type;
+//     NecroType* not_eq_type;
+//     NecroType* gt_type;
+//     NecroType* lt_type;
+//     NecroType* gte_type;
+//     NecroType* lte_type;
+//     NecroType* cons_type;
+//     NecroCon mod_type;
+//     NecroCon and_type;
+//     NecroCon or_type;
+//     NecroCon double_colon_type;
+//     NecroCon left_shift_type;
+//     NecroCon right_shift_type;
+//     NecroCon pipe_type;
+//     NecroCon forward_pipe_type;
+//     NecroCon back_pipe_type;
+//     NecroCon dot_type;
+//     NecroCon bind_right_type;
+//     NecroCon bind_left_type;
+//     NecroCon double_exclamation_type;
+//     NecroCon append_type;
+// } NecroBinOpTypes;
 
 typedef struct NecroPrimTypes
 {
     NecroTupleTypes   tuple_types;
-    NecroBinOpTypes   bin_op_types;
+    // NecroBinOpTypes   bin_op_types;
     NecroCon          io_type;
     NecroCon          unit_type;
     NecroCon          unit_con;

@@ -345,6 +345,8 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
     case NECRO_AST_UN_OP:
         break;
     case NECRO_AST_BIN_OP:
+        if (!try_find_name(renamer, input_node, input_node->scope, &input_node->bin_op.id, input_node->bin_op.symbol))
+            return;
         rename_var_go(input_node->bin_op.lhs, renamer);
         rename_var_go(input_node->bin_op.rhs, renamer);
         break;

@@ -193,7 +193,9 @@ typedef struct
 {
     struct NecroAST_Node_Reified* lhs;
     struct NecroAST_Node_Reified* rhs;
-    NecroAST_BinOpType type;
+    NecroAST_BinOpType            type;
+    NecroSymbol                   symbol;
+    NecroID                       id;
 } NecroAST_BinOp_Reified;
 
 //=====================================================

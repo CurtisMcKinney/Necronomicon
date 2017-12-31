@@ -64,11 +64,13 @@ DONE:
     NECRO_AST_TYPE_CLASS_DECLARATION,
     NECRO_AST_TYPE_CLASS_INSTANCE,
     Correct kind inference
+    NECRO_AST_PAT_ASSIGNMENT
 
 IN PROGRESS:
+    NECRO_AST_DO,
+    NECRO_BIND_ASSIGNMENT,
+    >>=, Other ops
     Declaration dependency analysis (This is how Haskell infers more general types for recursive declarations)
-    NECRO_AST_DO,          (Need type classes)
-    NECRO_BIND_ASSIGNMENT, (Need type classes)
 
 TODO:
     // NECRO_AST_MODULE,
@@ -555,7 +557,9 @@ NecroType* necro_infer_bin_op(NecroInfer* infer, NecroNode* ast)
     assert(ast->type == NECRO_AST_BIN_OP);
     if (necro_is_infer_error(infer)) return NULL;
     NecroType* x_type       = necro_infer_go(infer, ast->bin_op.lhs);
-    NecroType* op_type      = necro_get_bin_op_type(infer, ast->bin_op.type);
+    // NecroType* op_type      = necro_get_bin_op_type(infer, ast->bin_op.type);
+    NecroType* op_type      = necro_inst(infer, infer->symtable->data[ast->bin_op.id.id].type, NULL);
+    assert(op_type != NULL);
     NecroType* y_type       = necro_infer_go(infer, ast->bin_op.rhs);
     if (necro_is_infer_error(infer)) return NULL;
     NecroType* result_type  = necro_new_name(infer, ast->source_loc);
@@ -993,6 +997,65 @@ NecroType* necro_infer_arithmetic_sequence(NecroInfer* infer, NecroNode* ast)
 }
 
 //=====================================================
+// Do
+//=====================================================
+// Need pattern assignment to work in do blocks as well!
+// i.e. NECRO_BIND_PAT_ASSIGNMENT
+NecroType* necro_infer_do_statement(NecroInfer* infer, NecroNode* ast, NecroType* monad_var)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    if (necro_is_infer_error(infer)) return NULL;
+    // don't generalize bind assignment variables
+    NecroType* statement_type = NULL;
+    switch(ast->type)
+    {
+    case NECRO_AST_VARIABLE:            statement_type = necro_infer_var(infer, ast);             break;
+    case NECRO_AST_CONID:               statement_type = necro_infer_conid(infer, ast);           break;
+    case NECRO_AST_EXPRESSION_LIST:     statement_type = necro_infer_expression_list(infer, ast); break;
+    case NECRO_AST_FUNCTION_EXPRESSION: statement_type = necro_infer_fexpr(infer, ast);           break;
+    case NECRO_AST_LET_EXPRESSION:      necro_infer_let_expression(infer, ast); return NULL;
+    case NECRO_BIND_ASSIGNMENT:
+    {
+        NecroType* var_name                                    = necro_new_name(infer, ast->source_loc);
+        infer->symtable->data[ast->bind_assignment.id.id].type = var_name;
+        NecroType* rhs_type                                    = necro_infer_go(infer, ast->bind_assignment.expression);
+        if (infer->error.return_code != NECRO_SUCCESS) return NULL;
+        NecroType* result_type = necro_create_type_app(infer, monad_var, var_name);
+        necro_unify(infer, rhs_type, result_type, ast->scope, rhs_type, "While inferring the type of a bind assignment: ");
+        return NULL;
+    }
+    default: return necro_infer_ast_error(infer, NULL, ast, "Unimplemented ast type in infer_do_statement : %d", ast->type);
+    }
+    if (necro_is_infer_error(infer)) return NULL;
+    NecroType* result_type = necro_create_type_app(infer, monad_var, necro_new_name(infer, ast->source_loc));
+    necro_unify(infer, statement_type, result_type, ast->scope, statement_type, "While inferring the type of a do statement: ");
+    return result_type;
+}
+
+NecroType* necro_infer_do(NecroInfer* infer, NecroNode* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_DO);
+    if (necro_is_infer_error(infer)) return NULL;
+    NecroType* monad_var      = necro_new_name(infer, ast->source_loc);
+    NecroNode* statements     = ast->do_statement.statement_list;
+    NecroType* statement_type = NULL;
+    necro_apply_constraints(infer, monad_var, necro_create_type_class_context(&infer->arena, infer->prim_types->monad_type_class, (NecroCon) { .id = monad_var->var.var.id, .symbol = monad_var->var.var.symbol }, NULL));
+    while (statements != NULL)
+    {
+        statement_type = necro_infer_do_statement(infer, statements->list.item, monad_var);
+        if (necro_is_infer_error(infer)) return NULL;
+        statements = statements->list.next_item;
+    }
+    if (statement_type == NULL)
+        return necro_infer_ast_error(infer, NULL, ast, "The final statement in a do block must be an expression");
+    else
+        return statement_type;
+}
+
+//=====================================================
 // Declaration
 //=====================================================
 NecroType* necro_infer_declaration(NecroInfer* infer, NecroNode* ast)
@@ -1288,6 +1351,7 @@ NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_CASE:                   return necro_infer_case(infer, ast);
     case NECRO_AST_WILDCARD:               return necro_infer_wildcard(infer, ast);
     case NECRO_AST_ARITHMETIC_SEQUENCE:    return necro_infer_arithmetic_sequence(infer, ast);
+    case NECRO_AST_DO:                     return necro_infer_do(infer, ast);
     case NECRO_AST_TYPE_SIGNATURE:         return NULL;
     case NECRO_AST_DATA_DECLARATION:       return NULL;
     case NECRO_AST_TYPE_CLASS_DECLARATION: return NULL;

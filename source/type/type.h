@@ -192,7 +192,6 @@ NecroType*  necro_create_type_app(NecroInfer* infer, NecroType* type1, NecroType
 NecroType*  necro_create_type_list(NecroInfer* infer, NecroType* item, NecroType* next);
 NecroType*  necro_create_for_all(NecroInfer* infer, NecroVar var, struct NecroTypeClassContext* context, NecroType* type);
 
-NecroType*  necro_get_bin_op_type(NecroInfer* infer, NecroAST_BinOpType bin_op_type);
 NecroType*  necro_make_con_1(NecroInfer* infer,  NecroCon con, NecroType* arg1);
 NecroType*  necro_make_con_2(NecroInfer* infer,  NecroCon con, NecroType* arg1, NecroType* arg2);
 NecroType*  necro_make_con_3(NecroInfer* infer,  NecroCon con, NecroType* arg1, NecroType* arg2, NecroType* arg3);

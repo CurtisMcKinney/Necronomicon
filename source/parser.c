@@ -1800,6 +1800,7 @@ NecroAST_LocalPtr parse_binary_expression(NecroParser* parser, NecroAST_LocalPtr
 
     NecroLexToken* current_token = peek_token(parser);
     NecroAST_BinOpType bin_op_type = token_to_bin_op_type(current_token->token);
+    NecroSymbol bin_op_symbol = current_token->symbol;
     NecroParse_BinOpBehavior bin_op_behavior = bin_op_behaviors[bin_op_type];
 
     if (bin_op_type == NECRO_BIN_OP_UNDEFINED || bin_op_behavior.precedence < min_precedence)
@@ -1905,10 +1906,11 @@ NecroAST_LocalPtr parse_binary_expression(NecroParser* parser, NecroAST_LocalPtr
 
             {
                 NecroAST_Node* bin_op_ast_node = ast_alloc_node_local_ptr(parser, &bin_op_local_ptr);
-                bin_op_ast_node->type = NECRO_AST_BIN_OP;
-                bin_op_ast_node->bin_op.type = bin_op_type;
-                bin_op_ast_node->bin_op.lhs = lhs_local_ptr;
-                bin_op_ast_node->bin_op.rhs = rhs_local_ptr;
+                bin_op_ast_node->type          = NECRO_AST_BIN_OP;
+                bin_op_ast_node->bin_op.type   = bin_op_type;
+                bin_op_ast_node->bin_op.lhs    = lhs_local_ptr;
+                bin_op_ast_node->bin_op.rhs    = rhs_local_ptr;
+                bin_op_ast_node->bin_op.symbol = bin_op_symbol;
             }
         }
 
@@ -2793,7 +2795,7 @@ NecroAST_LocalPtr parse_lpat(NecroParser* parser)
     {
         ptr = parse_apat(parser);
     }
-    
+
     if (ptr == null_local_ptr && parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
     {
         // Literal
@@ -2966,7 +2968,7 @@ NecroAST_LocalPtr parse_qconop(NecroParser* parser, NECRO_CON_TYPE con_type)
 
     consume_token(parser);
     con_local_ptr = parse_qcon(parser, con_type);
-    
+
     if (parser->descent_state == NECRO_DESCENT_PARSE_ERROR || con_local_ptr == null_local_ptr)
     {
         restore_parser(parser, snapshot);
@@ -2974,7 +2976,7 @@ NecroAST_LocalPtr parse_qconop(NecroParser* parser, NECRO_CON_TYPE con_type)
     }
     if (peek_token_type(parser) != NECRO_LEX_ACCENT)
         write_error_and_restore(parser, snapshot, "Expected \'`\' in function operator expression, but found %s", necro_lex_token_type_string(peek_token_type(parser)));
-    
+
     consume_token(parser);
     return con_local_ptr;
 }

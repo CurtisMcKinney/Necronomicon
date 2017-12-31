@@ -163,3 +163,4 @@ coolTest x = x + y
 
 head (x : xs) = x
 doubleHeaded (x : x2 : xs) = (x, x2)
+

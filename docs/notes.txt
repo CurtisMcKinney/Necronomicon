@@ -866,3 +866,65 @@ mouseSynth freq = x
 
 main :: Audio@
 main = mouseSynth 440
+
+-------------------------------------------------------
+-- Lucid Synchrone Semantics
+-------------------------------------------------------
+mouseX     :: Float : BlockRate
+mouseClick :: () : OnClick
+pClock     :: Time -> Clock:Clock -- ???
+poly       :: Num b => (a -> b):c1 -> a:c1 -> b:c2
+getClock   :: a:c1 -> Clock:c1 -- ???
+
+merge      :: a:c1 -> a:c2 -> a:c3 -- ?!?!?!
+sample     :: a:c1 -> a:c2 -- ?!?! MAGIC
+when       :: a:c1 -> Clock:c2 -> a:c2 -- !?!?!?
+
+audioOut   :: Int:Sys -> Audio:Sys -> IO () :Sys
+
+synth :: Audio -> Audio -> Audio
+synth freq = osc where
+    osc = sinOsc (440 + freq * (0 fby osc))
+
+main :: IO ()
+main = audioOut 0 synths where
+    freq1  = mouseX `when` clockOf mouseClick
+    freq2  = d2f Minor {0, 1, 2, sample mouseX, freq2} `when` pattern {0.25, 0.5, 0.25, 0.5}
+    synths = poly synth (merge freq1 freq2)
+
+-------------------------------------------------------
+-- Moment Monad
+-------------------------------------------------------
+-- Require the MomentMonad whenever you want dynamic streams (i.e. streams that start after the very beginning of time)
+-- That means for things like poly which spawn new streams,
+   things like pattern which jump between multiple streams,
+   and feedback which starts with a delay
+-- Should memo behavior be default, opt-in, or opt-out?
+-- How does this work with long running-feedback problem?
+-- Require RandMonad for randomness
+-- Require IO Monad for loading buffers and writing to output
+
+class MomentMonad a
+instance MomentMonad IO
+
+mouseX     :: Float
+mouseClick :: Event ()
+on         :: a -> Event b -> Event a
+merge      :: Event a -> Event a -> Event a
+pattern    :: MomentMonad m => [Time] -> [a] -> m (Event a)
+poly       :: (MomentMonad m, Num b) => (a -> b) -> Event a -> m b
+audioOut   :: Int -> Audio -> IO ()
+take       :: Int -> a -> a
+
+-- MomentMonad required because we want feedback
+synth :: MomentMonad m => Audio -> Audio -> m Audio
+synth freq = do rec
+    osc <- delay 0 <| sinOsc <| 440 + freq * osc
+    return osc
+
+main :: IO ()
+main = do
+    let freq1 = mouseX `on` mouseClick
+    freq2    <- pattern [0.25, 0.5, 0.25, 0.5] <| map (d2f Minor) [0, 1, 2, take 1 mouseX]
+    synths   <- poly synth (merge freq1 freq2)
+    audioOut 0 synths

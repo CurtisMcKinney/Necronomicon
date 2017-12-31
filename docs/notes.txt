@@ -920,7 +920,7 @@ take       :: Int -> a -> a
 synth :: MomentMonad m => Audio -> Audio -> m Audio
 synth freq = do rec
     osc <- delay 0 <| sinOsc <| 440 + freq * osc
-    return osc
+    pure osc
 
 main :: IO ()
 main = do

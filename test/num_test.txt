@@ -164,3 +164,6 @@ coolTest x = x + y
 head (x : xs) = x
 doubleHeaded (x : x2 : xs) = (x, x2)
 
+instance Functor Maybe where
+    map f (Just x) = Just (f x)
+    map _ Nothing  = Nothing

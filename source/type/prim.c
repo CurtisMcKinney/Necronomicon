@@ -543,6 +543,7 @@ NECRO_RETURN_CODE necro_prim_infer(NecroPrimTypes* prim_types, NecroInfer* infer
     // Run type checking on the whole top level declarations
     necro_infer_go(infer, head);
 
+    // Is there a better solution for bin ops than this?
     // Num Bin Op types
     NecroType* num_new_name           = necro_new_name(infer, (NecroSourceLoc) { 0, 0, 0 });
     num_new_name->var.context         = necro_create_type_class_context(&infer->arena, infer->prim_types->num_type_class, (NecroCon) { .id = num_new_name->var.var.id, .symbol = num_new_name->var.var.symbol }, NULL);
@@ -878,9 +879,36 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     NecroASTNode* tuple_10_constructor = necro_create_data_constructor_ast(&prim_types->arena, intern, "(,,,,,,,,,)", necro_create_var_list_ast(&prim_types->arena, intern, 10, NECRO_VAR_TYPE_FREE_VAR));
     NecroPrimDef* tuple_10_data_def    = necro_prim_def_data(prim_types, intern, &prim_types->tuple_types.ten, necro_create_data_declaration_ast(&prim_types->arena, intern, tuple_10_s_type, necro_create_ast_list(&prim_types->arena, tuple_10_constructor, NULL)));
 
-    // // Functor
-    // NecroASTNode* map_method_sig      = necro_create_class_comp_sig(&prim_types->arena, intern, "map");
-    // NecroASTNode* functor_method_list = necro_create_declaration_list(&prim_types->arena, map_method_sig, NULL);
-    // NecroASTNode* functor_class_ast   = necro_create_type_class_ast(&prim_types->arena, intern, "Functor", "f", NULL, functor_method_list);
-    // NecroPrimDef* functor_class_def   = necro_prim_def_class(prim_types, intern, &prim_types->functor_type_class, functor_class_ast);
+    // Functor
+    NecroASTNode* a_var          = necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
+    NecroASTNode* b_var          = necro_create_variable_ast(&prim_types->arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR);
+    NecroASTNode* f_var          = necro_create_variable_ast(&prim_types->arena, intern, "f", NECRO_VAR_TYPE_FREE_VAR);
+    NecroASTNode* map_method_sig =
+        necro_create_fun_type_sig_ast(&prim_types->arena, intern, "map", NULL,
+            necro_create_fun_ast(&prim_types->arena,
+                necro_create_fun_ast(&prim_types->arena, a_var, b_var),
+                necro_create_fun_ast(&prim_types->arena,
+                    necro_create_type_app_ast(&prim_types->arena, f_var, a_var),
+                    necro_create_type_app_ast(&prim_types->arena, f_var, b_var))),
+                NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
+    NecroASTNode* functor_method_list = necro_create_declaration_list(&prim_types->arena, map_method_sig, NULL);
+    NecroASTNode* functor_class_ast   = necro_create_type_class_ast(&prim_types->arena, intern, "Functor", "f", NULL, functor_method_list);
+    NecroPrimDef* functor_class_def   = necro_prim_def_class(prim_types, intern, &prim_types->functor_type_class, functor_class_ast);
+
+    // TODO: Finish / Fix
+    // // Applicative
+    // NecroASTNode* pure_method_sig =
+    //     necro_create_fun_type_sig_ast(&prim_types->arena, intern, "pure", NULL, necro_create_fun_ast(&prim_types->arena, a_var, necro_create_type_app_ast(&prim_types->arena, f_var, a_var)), NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
+    // NecroASTNode* ap_method_sig  =
+    //     necro_create_fun_type_sig_ast(&prim_types->arena, intern, "ap", NULL,
+    //         necro_create_fun_ast(&prim_types->arena,
+    //             necro_create_type_app_ast(&prim_types->arena, f_var, necro_create_fun_ast(&prim_types->arena, a_var, b_var)),
+    //             necro_create_fun_ast(&prim_types->arena,
+    //                 necro_create_type_app_ast(&prim_types->arena, f_var, a_var),
+    //                 necro_create_type_app_ast(&prim_types->arena, f_var, b_var))),
+    //             NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
+    // NecroASTNode* applicative_method_list = necro_create_declaration_list(&prim_types->arena, pure_method_sig, necro_create_declaration_list(&prim_types->arena, ap_method_sig, NULL));
+    // NecroASTNode* applicative_class_ast   = necro_create_type_class_ast(&prim_types->arena, intern, "Applicative", "f", necro_create_context(&prim_types->arena, intern, "Functor", "f", NULL), applicative_method_list);
+    // NecroPrimDef* applicative_class_def   = necro_prim_def_class(prim_types, intern, &prim_types->applicative_type_class, applicative_class_ast);
+
 }

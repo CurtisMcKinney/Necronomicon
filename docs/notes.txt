@@ -903,6 +903,8 @@ main = audioOut 0 synths where
 -- How does this work with long running-feedback problem?
 -- Require RandMonad for randomness
 -- Require IO Monad for loading buffers and writing to output
+-- Buffer combinator which has different semantics than delay (doesn't actually delay starting the second stream, provides a buffer value)
+   buffer wouldn't need MomentMonad?
 
 class MomentMonad a
 instance MomentMonad IO
@@ -921,6 +923,11 @@ synth :: MomentMonad m => Audio -> Audio -> m Audio
 synth freq = do rec
     osc <- delay 0 <| sinOsc <| 440 + freq * osc
     pure osc
+
+-- MomentMonad not required because its using buffer instead of delay
+synth' :: Audio -> Audio -> Audio
+synth' freq = osc
+    where osc = 440 + freq * osc |> sinOsc |> buffer 0
 
 main :: IO ()
 main = do

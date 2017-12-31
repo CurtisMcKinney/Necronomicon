@@ -1,16 +1,6 @@
 data Either l r = Either l r
 data Maybe a = Just a | Nothing
 
--- class Functor f => Applicative f where
---     pure :: a -> f a
---     ap   :: f (a -> b) -> f a -> f b
-
--- class Functor f where
---     map :: (a -> b) -> f a -> f b
-
-class Applicative m => Monad m where
-    bind :: m a -> (a -> m b) -> m b
-
 instance Functor Maybe where
     map f (Just x) = Just (f x)
 

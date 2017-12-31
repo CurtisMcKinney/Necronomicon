@@ -167,3 +167,19 @@ doubleHeaded (x : x2 : xs) = (x, x2)
 instance Functor Maybe where
     map f (Just x) = Just (f x)
     map _ Nothing  = Nothing
+
+instance Applicative Maybe where
+    pure                 = Just
+    ap (Just f) (Just x) = Just (f x)
+    ap _        _        = Nothing
+
+instance Monad Maybe where
+    bind (Just x) f = f x
+    bind Nothing  _ = Nothing
+
+data Either a b = Left a | Right b
+instance Functor (Either a) where
+    map f (Right b) = Right (f b)
+    map _ (Left  a) = Left  a
+
+

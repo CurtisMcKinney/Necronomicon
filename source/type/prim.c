@@ -772,6 +772,7 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     //=====================================================
     // BinOps
     //=====================================================
+
     // +
     NecroASTNode* add_sig_ast  = necro_create_num_bin_op_sig(&prim_types->arena, intern, "+");
     NecroASTNode* add_def_ast  = necro_create_simple_assignment(&prim_types->arena, intern, "+", necro_create_variable_ast(&prim_types->arena, intern, "add", NECRO_VAR_VAR));

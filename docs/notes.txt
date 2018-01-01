@@ -935,3 +935,186 @@ main = do
     freq2    <- pattern [0.25, 0.5, 0.25, 0.5] <| map (d2f Minor) [0, 1, 2, take 1 mouseX]
     synths   <- poly synth (merge freq1 freq2)
     audioOut 0 synths
+
+-------------------------------------------------------
+-- Lucid Synchrone Semantics, Take 2
+-------------------------------------------------------
+-- Don't think this works, doesn't have a correct enforcement mechanism
+-- Look into either phantom types or
+-- Look into first class clocks with dependent kinding
+
+poly       :: Num b => (a -> b) -> Event a -> b
+poly       :           c1       -> c2      -> c2
+
+pattern    :: Seq Time -> Seq a -> Event a
+pattern    :  c1       -> c1    -> c2
+
+seq        :: Seq a -> a
+seq        :  c1    -> c2
+
+sample     :: a  -> a
+sample     :  c1 -> c2
+
+latch      :: Event a -> a
+latch      :  c1      -> c2
+
+mouseX     :: Float    : Sys
+mouseClick :: Event () : Sys
+
+audioOut   :: Int -> Audio -> IO ()
+audioOut   :  Sys -> Sys   -> Sys
+
+fby        :: a -> a -> a --Do we care about distinction between pointwise and stateful streams?!
+merge      :: Event a -> Event a -> Event a
+on         :: a -> Event b -> Event a
+take       :: Int -> a -> a
+
+synth :: Audio -> Audio -> Audio
+synth freq = osc where
+    osc = sinOsc (440 + freq * 0 fby osc)
+
+main :: IO ()
+main = audioOut 0 synths where
+    freq1  = mouseX `on` mouseClick
+    freq2  = pattern {0.25, 0.5, 0.25, 0.5} (d2f Minor {0, 1, 2, sample mouseX |> take 1, latch freq2})
+    synths = poly synth (merge freq1 freq2)
+
+-------------------------------------------------------
+-- Phantom Sequences?
+-------------------------------------------------------
+
+-------------------------------------------------------
+-- Lucid Synchrone Semantics take 3
+-------------------------------------------------------
+http://www.di.ens.fr/~pouzet/bib/chap_lucid_synchrone_english_iste08.pdf
+https://www.di.ens.fr/~pouzet/lucid-synchrone/lucid-synchrone-3.0-manual.pdf
+
+mouseX     :: Float
+mouseX     :  Sys
+
+mouseClick :: Tick
+mouseClick :  Sys
+
+poly       :: Num b => (a -> b) -> a -> b
+poly       :           t        -> t -> t
+
+pattern    :: Time -> Tick -- The thing that's different is our sample times can be hella different!
+pattern    :  t    -> t
+
+when       :: a -> b        -> a
+when       :  t -> (c0 : t) -> t on c0
+
+sample     :: a:c1 -> a:c2 -- ?!?! MAGIC
+merge      :: a:c1 -> a:c2 -> a:c3 -- ?!?!?!
+
+audioOut   :: Int -> Audio -> IO ()
+audioOut   :  Sys -> Sys   -> Sys
+
+synth :: Audio -> Audio -> Audio
+synth freq = osc where
+    osc = sinOsc (440 + freq * (0 fby osc))
+
+main :: IO ()
+main = audioOut 0 synths where
+    freq1  = mouseX `when` clockOf mouseClick
+    freq2  = d2f Minor {0, 1, 2, sample mouseX, freq2} `when` pattern {0.25, 0.5, 0.25, 0.5}
+    synths = poly synth (merge freq1 freq2)
+
+-------------------------------------------------------
+-- Thoughts about FRP stuff
+-------------------------------------------------------
+-- Problem is worse than you first realize:
+   "Leaks" are inherent to several things, but one in particular is "switching" between streams
+   Switching includes anything with branching, such if/else/then, guards, case statements, pattern matching, etc
+-- This would mean that following Elerea monadic StreamGen interface all branching would have to return a StreamGen
+-- Following the Phanton Types solution, everything in the arms of the branching expressions (then/else, or the case alternatives) would need to carry Rank-2 phantom types.
+-- FrpNow! paper offers interesting ideas but only sets up a semantics that aren't INHERENTLY leaky, but can still allow leaks in user code (and it's not that hard to do from what I've read).
+   Not good enough
+-- In general I feel like FRP is trying to solve problems in the MOST general way (First class streams, Dynamic Higher-Order streams, etc),
+   when I would actually prefer less complicated solutions that are either less general or require light amounts of black magic.
+
+-------------------------------------------------------
+-- Sequence + Event + Lucid Synchrone Semantics, Take 4
+-------------------------------------------------------
+-- Basically Lucid Synchrone semantics are a good starting place
+-- But it's actually too flexible/powerful in some ways and too weak an inflexible in other ways
+-- The concepted of kinded clocks is useful.
+-- Control structures as special cases of when/c_merge is useful
+-- First class clocks and dependent kinding are less useful for us perhaps (is this true?)
+-- We also need dynamic networks, but I believe we can achieve that with runtime black magic and not needing to distinguish pointwise functions from stateful functions
+-- Given that setup it seems that perhaps patterns are what cause most issues in the language?
+-- Most everything else is at the same rate
+
+-- Possible Space leaks:
+--     1. Single Producer, Double Consumers with different rates
+--     2. The Long Feedback (This is a form of leak 1 actually)
+--     3. Starting after time 0
+-- Idea:
+--     * We use clock types (or perhaps kinds) which tag all values in the language with a clock.
+--     * Most of the language will "step" or "tick" with the same clock
+--     * There are a few things in the language that do not follow the main clock: Sequences, The arguments to pattern, dynamic synths/networks spawned by poly
+--     * This is because the arguments to pattern do not necessarily flow with this clock, Sequences have dynamic temporal behavior, synths have an unknown mapping to global time.
+--     * Idea: Anything with an idiosyncratic clock behavior uses Rank-2 phantom types for their clock types.
+--     * Type system enforces that clock types match
+--     * This prevents values with phantom clocks from naively using things with concrete clocks which do not match.
+--     * sample combinator allows communication between values running on different clocks, also translates the phantom clock type.
+-- How this fixes the leaks:
+--     1. The type system rules this out entire. Two consumers MUST share the same rate.
+--        The sample combinator allows consumers of different rates to "sample" the current value of something asynchronously, which still maintains no leaks.
+--     2. A specialized version of above, with the same solution: Pattern has different clocks for its arguments and result, thus feedback will require the sample combinator.
+--     3. The constant tick
+
+-- This also enforces that
+
+-- Sequences are tree-like data structures that represent chained together streams
+-- Can't be used directly, must be forced via combinators like pattern or seq.
+-- Use phantom types, thus require usage of the sample combinator to use things outside of the sequence
+
+-- fby differs from Sequences in that the value on the right has its global clock delayed by 1 sample
+-- The reason this is OK for fby and not Sequences is because fby creates a deterministic and fixed 1 sample buffer size, wheras sequences are more dynamic.
+
+-- Everything has two signatures: A regular type signature, and a temporal clock signature
+-- If no clock signature is given it is assumed everything in the type signature shares one common polymorphic clock variable
+-- Do we care about distinction between pointwise and stateful streams?!
+
+poly       :: Num b => (a -> b)        -> Event a -> b
+poly       :.          (forall c1. c1) -> c2      -> c2
+
+pattern    :: Time            -> a               -> Event a
+pattern    :. (forall c1. c1) -> (forall c2. c2) -> c3
+
+seq        :: [a]             -> a -- reifies a Sequence into a Stream
+seq        :. (forall c1. c1) -> c2
+
+sample     :: a               -> a
+sample     :. (forall c1. c1) -> c2
+
+latch      :: Event a -> a
+latch      :. c1      -> c2
+
+mouseX     :: Float
+mouseX     :. Sys
+
+mouseClick :: Event ()
+mouseClick :. Sys
+
+audioOut   :: Int -> Audio -> IO ()
+audioOut   :. Sys -> Sys   -> Sys
+
+fby        :: a -> a -> a                   -- Deterministic 1 sample delay which maintains the same clock
+c_merge    :: Bool -> a -> a -> a           -- This turns out to just be fancy if/then/else
+merge      :: Event a -> Event a -> Event a -- This is <> monoidal append for Events
+on         :: a -> Event () -> Event a
+take       :: Int -> a -> a
+
+synth :: Audio -> Audio -> Audio
+synth freq = osc where
+    osc = 440 * sample mouseX + freq * (0 `fby` osc) |> sinOsc
+
+main :: IO ()
+main = audioOut 0 synths where
+    freq1  = mouseX `on` mouseClick
+    freq2  = pattern (seq [0.25, 0.5, 0.25, 0.5]) (d2f minor <| seq [0, 1, 2, sample mouseX |> take 1, latch freq2])
+    synths = poly synth (merge freq1 freq2)
+
+-- Compare vanilla, if/then/else, fby, seq, pattern, poly temporal characteristics

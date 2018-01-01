@@ -13,7 +13,6 @@ instance Monad Maybe where
     bind (Just x) f = f x
     bind Nothing  _ = Nothing
 
--- Need >>=, <$>, <*>, and <>
 maybeTest :: Audio -> Maybe Audio
 maybeTest z = do
     x <- Just 1
@@ -26,6 +25,7 @@ maybeTest z = do
 eitherTest z = do
     pure z
 
+-- Need >>=, <>, &&, ||, |>, <|, etc
 numBinOps x y = x + y - x / 4 * 3
 eqBinOps1 x y = x == y
 eqBinOps2 x y = x /= y

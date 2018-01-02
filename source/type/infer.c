@@ -1005,7 +1005,6 @@ NecroType* necro_infer_do_statement(NecroInfer* infer, NecroNode* ast, NecroType
     assert(infer != NULL);
     assert(ast != NULL);
     if (necro_is_infer_error(infer)) return NULL;
-    // don't generalize bind assignment variables
     NecroType* statement_type = NULL;
     switch(ast->type)
     {
@@ -1022,11 +1021,11 @@ NecroType* necro_infer_do_statement(NecroInfer* infer, NecroNode* ast, NecroType
         if (infer->error.return_code != NECRO_SUCCESS) return NULL;
         NecroType* result_type = necro_create_type_app(infer, monad_var, var_name);
         necro_unify(infer, rhs_type, result_type, ast->scope, rhs_type, "While inferring the type of a bind assignment: ");
+        // don't generalize bind assignment variables
         return NULL;
     }
     case NECRO_PAT_BIND_ASSIGNMENT:
     {
-        // TODO: Fix
         NecroType* pat_type = necro_infer_pattern(infer, ast->pat_bind_assignment.pat);
         if (infer->error.return_code != NECRO_SUCCESS) return NULL;
         NecroType* rhs_type = necro_infer_go(infer, ast->pat_bind_assignment.expression);

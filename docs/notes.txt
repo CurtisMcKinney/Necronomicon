@@ -1112,8 +1112,8 @@ take       :: Int -> a -> a
 
 input keyword? -- i.e. One shot IO at the global scale run once on program start, useful for setting up executable environment
 
-pulseDemon :: AudioBuffer
-pulseDemon <- input loadBuffer "pulseDemon.aiff"
+input pulseDemon <- loadBuffer "pulseDemon.aiff"
+input mouseX     <- mouseXIn
 
 synth :: Audio -> Audio -> Audio
 synth freq = osc where

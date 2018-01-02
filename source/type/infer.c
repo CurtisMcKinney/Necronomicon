@@ -558,7 +558,6 @@ NecroType* necro_infer_bin_op(NecroInfer* infer, NecroNode* ast)
     assert(ast->type == NECRO_AST_BIN_OP);
     if (necro_is_infer_error(infer)) return NULL;
     NecroType* x_type       = necro_infer_go(infer, ast->bin_op.lhs);
-    // NecroType* op_type      = necro_get_bin_op_type(infer, ast->bin_op.type);
     NecroType* op_type      = necro_inst(infer, infer->symtable->data[ast->bin_op.id.id].type, NULL);
     assert(op_type != NULL);
     NecroType* y_type       = necro_infer_go(infer, ast->bin_op.rhs);
@@ -574,7 +573,6 @@ NecroType* necro_infer_bin_op(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Operator Left Section
 //=====================================================
-
 NecroType* necro_infer_op_left_section(NecroInfer* infer, NecroNode* ast)
 {
     assert(infer != NULL);
@@ -582,13 +580,12 @@ NecroType* necro_infer_op_left_section(NecroInfer* infer, NecroNode* ast)
     assert(ast->type == NECRO_AST_OP_LEFT_SECTION);
     if (necro_is_infer_error(infer)) return NULL;
     NecroType* x_type = necro_infer_go(infer, ast->op_left_section.left);
-    // NecroType* op_type      = necro_get_bin_op_type(infer, ast->bin_op.type);
     NecroType* op_type = necro_inst(infer, infer->symtable->data[ast->op_left_section.id.id].type, NULL);
     assert(op_type != NULL);
-    NecroType* result_type = necro_new_name(infer, ast->source_loc);
+    NecroType* result_type  = necro_new_name(infer, ast->source_loc);
     result_type->source_loc = ast->source_loc;
-    NecroType* bin_op_type = necro_create_type_fun(infer, x_type, result_type);
-    necro_unify(infer, op_type, bin_op_type, ast->scope, op_type, "While inferring the type of a bin-op left section: ");
+    NecroType* section_type = necro_create_type_fun(infer, x_type, result_type);
+    necro_unify(infer, op_type, section_type, ast->scope, op_type, "While inferring the type of a bin-op left section: ");
     if (necro_is_infer_error(infer)) return NULL;
     return result_type;
 }
@@ -596,23 +593,22 @@ NecroType* necro_infer_op_left_section(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Operator Right Section
 //=====================================================
-
 NecroType* necro_infer_op_right_section(NecroInfer* infer, NecroNode* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_OP_RIGHT_SECTION);
     if (necro_is_infer_error(infer)) return NULL;
-    NecroType* x_type = necro_infer_go(infer, ast->op_right_section.right);
-    // NecroType* op_type      = necro_get_bin_op_type(infer, ast->bin_op.type);
     NecroType* op_type = necro_inst(infer, infer->symtable->data[ast->op_right_section.id.id].type, NULL);
+    NecroType* y_type  = necro_infer_go(infer, ast->op_right_section.right);
     assert(op_type != NULL);
-    NecroType* result_type = necro_new_name(infer, ast->source_loc);
-    result_type->source_loc = ast->source_loc;
-    NecroType* bin_op_type = necro_create_type_fun(infer, x_type, result_type);
-    necro_unify(infer, op_type, bin_op_type, ast->scope, op_type, "While inferring the type of a bin-op left section: ");
+    NecroType* x_type       = necro_new_name(infer, ast->source_loc);
+    NecroType* result_type  = necro_new_name(infer, ast->source_loc);
+    NecroType* bin_op_type  = necro_create_type_fun(infer, x_type, necro_create_type_fun(infer, y_type, result_type));
+    necro_unify(infer, op_type, bin_op_type, ast->scope, op_type, "While inferring the type of a bin-op: ");
+    NecroType* section_type = necro_create_type_fun(infer, x_type, result_type);
     if (necro_is_infer_error(infer)) return NULL;
-    return result_type;
+    return section_type;
 }
 
 //=====================================================
@@ -1052,10 +1048,6 @@ NecroType* necro_infer_do_statement(NecroInfer* infer, NecroNode* ast, NecroType
     NecroType* statement_type = NULL;
     switch(ast->type)
     {
-    case NECRO_AST_VARIABLE:            statement_type = necro_infer_var(infer, ast);             break;
-    case NECRO_AST_CONID:               statement_type = necro_infer_conid(infer, ast);           break;
-    case NECRO_AST_EXPRESSION_LIST:     statement_type = necro_infer_expression_list(infer, ast); break;
-    case NECRO_AST_FUNCTION_EXPRESSION: statement_type = necro_infer_fexpr(infer, ast);           break;
     case NECRO_AST_LET_EXPRESSION:      necro_infer_let_expression(infer, ast); return NULL;
     case NECRO_BIND_ASSIGNMENT:
     {
@@ -1078,7 +1070,15 @@ NecroType* necro_infer_do_statement(NecroInfer* infer, NecroNode* ast, NecroType
         necro_unify(infer, rhs_type, result_type, ast->scope, rhs_type, "While inferring the type of a pattern bind assignment: ");
         return NULL;
     }
-    default: return necro_infer_ast_error(infer, NULL, ast, "Unimplemented ast type in infer_do_statement : %d", ast->type);
+    // default: return necro_infer_ast_error(infer, NULL, ast, "Unimplemented ast type in infer_do_statement : %d", ast->type);
+    // case NECRO_AST_VARIABLE:            statement_type = necro_infer_var(infer, ast);             break;
+    // case NECRO_AST_CONID:               statement_type = necro_infer_conid(infer, ast);           break;
+    // case NECRO_AST_EXPRESSION_LIST:     statement_type = necro_infer_expression_list(infer, ast); break;
+    // case NECRO_AST_FUNCTION_EXPRESSION: statement_type = necro_infer_fexpr(infer, ast);           break;
+    // This should be ok actually?
+    default:
+        statement_type = necro_infer_go(infer, ast);
+        break;
     }
     if (necro_is_infer_error(infer)) return NULL;
     NecroType* result_type = necro_create_type_app(infer, monad_var, necro_new_name(infer, ast->source_loc));

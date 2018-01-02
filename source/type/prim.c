@@ -767,6 +767,32 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
         NecroASTNode* monad_method_list = necro_create_declaration_list(&prim_types->arena, bind_method_sig, NULL);
         NecroASTNode* monad_class_ast   = necro_create_type_class_ast(&prim_types->arena, intern, "Monad", "m", necro_create_context(&prim_types->arena, intern, "Applicative", "m", NULL), monad_method_list);
         NecroPrimDef* monad_class_def   = necro_prim_def_class(prim_types, intern, &prim_types->monad_type_class, monad_class_ast);
+
+
+    }
+
+    // Semigroup
+    {
+        NecroASTNode* a_var             = necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
+        NecroASTNode* append_method_sig =
+            necro_create_fun_type_sig_ast(&prim_types->arena, intern, "append", NULL,
+                necro_create_fun_ast(&prim_types->arena, a_var, necro_create_fun_ast(&prim_types->arena, a_var, a_var)),
+                    NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
+        NecroASTNode* semigroup_method_list = necro_create_declaration_list(&prim_types->arena, append_method_sig, NULL);
+        NecroASTNode* semigroup_class_ast   = necro_create_type_class_ast(&prim_types->arena, intern, "Semigroup", "a", NULL, semigroup_method_list);
+        NecroPrimDef* semigroup_class_def   = necro_prim_def_class(prim_types, intern, NULL, semigroup_class_ast);
+    }
+
+    // Monoid
+    {
+        NecroASTNode* a_var             = necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
+        NecroASTNode* mempty_method_sig =
+            necro_create_fun_type_sig_ast(&prim_types->arena, intern, "mempty", NULL,
+                a_var,
+                    NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
+        NecroASTNode* monoid_method_list = necro_create_declaration_list(&prim_types->arena, mempty_method_sig, NULL);
+        NecroASTNode* monoid_class_ast   = necro_create_type_class_ast(&prim_types->arena, intern, "Monoid", "a", necro_create_context(&prim_types->arena, intern, "Semigroup", "a", NULL), monoid_method_list);
+        NecroPrimDef* monoid_class_def   = necro_prim_def_class(prim_types, intern, NULL, monoid_class_ast);
     }
 
     //=====================================================
@@ -822,6 +848,116 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     NecroASTNode* gte_sig_ast  = necro_create_ord_comp_sig(&prim_types->arena, intern, ">=");
     NecroASTNode* gte_def_ast  = necro_create_simple_assignment(&prim_types->arena, intern, ">=", necro_create_variable_ast(&prim_types->arena, intern, "gte", NECRO_VAR_VAR));
     NecroPrimDef* gte_prim_def = necro_prim_def_bin_op(prim_types, intern, NULL, gte_sig_ast, gte_def_ast);
+
+    // >>=
+    {
+        NecroASTNode* a_var       = necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
+        NecroASTNode* b_var       = necro_create_variable_ast(&prim_types->arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR);
+        NecroASTNode* m_var       = necro_create_variable_ast(&prim_types->arena, intern, "m", NECRO_VAR_TYPE_FREE_VAR);
+        NecroASTNode* bind_op_sig =
+            necro_create_fun_type_sig_ast(&prim_types->arena, intern, ">>=", necro_create_context(&prim_types->arena, intern, "Monad", "m", NULL),
+                necro_create_fun_ast(&prim_types->arena,
+                    necro_create_type_app_ast(&prim_types->arena, m_var, a_var),
+                    necro_create_fun_ast(&prim_types->arena,
+                        necro_create_fun_ast(&prim_types->arena, a_var, necro_create_type_app_ast(&prim_types->arena, m_var, b_var)),
+                        necro_create_type_app_ast(&prim_types->arena, m_var, b_var))),
+                NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
+        NecroASTNode* bind_def_ast = necro_create_simple_assignment(&prim_types->arena, intern, ">>=", necro_create_variable_ast(&prim_types->arena, intern, "bind", NECRO_VAR_VAR));
+        NecroPrimDef* bind_prim_def = necro_prim_def_bin_op(prim_types, intern, NULL, bind_op_sig, bind_def_ast);
+    }
+
+    // >>
+    {
+        NecroASTNode* a_var       = necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
+        NecroASTNode* b_var       = necro_create_variable_ast(&prim_types->arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR);
+        NecroASTNode* m_var       = necro_create_variable_ast(&prim_types->arena, intern, "m", NECRO_VAR_TYPE_FREE_VAR);
+        NecroASTNode* op_sig =
+            necro_create_fun_type_sig_ast(&prim_types->arena, intern, ">>", necro_create_context(&prim_types->arena, intern, "Monad", "m", NULL),
+                necro_create_fun_ast(&prim_types->arena,
+                    necro_create_type_app_ast(&prim_types->arena, m_var, a_var),
+                    necro_create_fun_ast(&prim_types->arena,
+                        necro_create_type_app_ast(&prim_types->arena, m_var, b_var),
+                        necro_create_type_app_ast(&prim_types->arena, m_var, b_var))),
+                NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
+        NecroASTNode* mm_var      = necro_create_variable_ast(&prim_types->arena, intern, "m", NECRO_VAR_DECLARATION);
+        NecroASTNode* mk_var      = necro_create_variable_ast(&prim_types->arena, intern, "k", NECRO_VAR_DECLARATION);
+        NecroASTNode* op_args     = necro_create_apat_list_ast(&prim_types->arena, mm_var, necro_create_apat_list_ast(&prim_types->arena, mk_var, NULL));
+        NecroASTNode* op_lambda   = necro_create_bin_op_ast(&prim_types->arena, intern, ">>=",
+            necro_create_variable_ast(&prim_types->arena, intern, "m", NECRO_VAR_VAR),
+            necro_create_lambda_ast(&prim_types->arena, necro_create_apat_list_ast(&prim_types->arena, necro_create_wild_card_ast(&prim_types->arena), NULL), necro_create_variable_ast(&prim_types->arena, intern, "k", NECRO_VAR_VAR)));
+        NecroASTNode* op_rhs      = necro_create_rhs_ast(&prim_types->arena, op_lambda, NULL);
+        NecroASTNode* op_def_ast  = necro_create_apats_assignment_ast(&prim_types->arena, intern, ">>", op_args, op_rhs);
+        NecroPrimDef* op_prim_def = necro_prim_def_bin_op(prim_types, intern, NULL, op_sig, op_def_ast);
+    }
+
+    // <>
+    {
+        NecroASTNode* a_var         = necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
+        NecroASTNode* append_op_sig =
+            necro_create_fun_type_sig_ast(&prim_types->arena, intern, "<>", necro_create_context(&prim_types->arena, intern, "Semigroup", "a", NULL),
+                necro_create_fun_ast(&prim_types->arena, a_var, necro_create_fun_ast(&prim_types->arena, a_var, a_var)),
+                NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
+        NecroASTNode* append_def_ast  = necro_create_simple_assignment(&prim_types->arena, intern, "<>", necro_create_variable_ast(&prim_types->arena, intern, "append", NECRO_VAR_VAR));
+        NecroPrimDef* append_prim_def = necro_prim_def_bin_op(prim_types, intern, NULL, append_op_sig, append_def_ast);
+    }
+
+    // |>
+    {
+        NecroASTNode* a_var       = necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
+        NecroASTNode* b_var       = necro_create_variable_ast(&prim_types->arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR);
+        NecroASTNode* op_sig      =
+            necro_create_fun_type_sig_ast(&prim_types->arena, intern, "|>", NULL,
+                necro_create_fun_ast(&prim_types->arena, necro_create_fun_ast(&prim_types->arena, a_var, b_var),
+                    necro_create_fun_ast(&prim_types->arena, a_var, b_var)),
+                NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
+        NecroASTNode* f_var       = necro_create_variable_ast(&prim_types->arena, intern, "f", NECRO_VAR_DECLARATION);
+        NecroASTNode* x_var       = necro_create_variable_ast(&prim_types->arena, intern, "x", NECRO_VAR_DECLARATION);
+        NecroASTNode* op_args     = necro_create_apat_list_ast(&prim_types->arena, f_var, necro_create_apat_list_ast(&prim_types->arena, x_var, NULL));
+        NecroASTNode* op_rhs_ast  = necro_create_rhs_ast(&prim_types->arena, necro_create_fexpr_ast(&prim_types->arena, necro_create_variable_ast(&prim_types->arena, intern, "f", NECRO_VAR_VAR), necro_create_variable_ast(&prim_types->arena, intern, "x", NECRO_VAR_VAR)), NULL);
+        NecroASTNode* op_def_ast  = necro_create_apats_assignment_ast(&prim_types->arena, intern, "|>", op_args, op_rhs_ast);
+        NecroPrimDef* op_prim_def = necro_prim_def_bin_op(prim_types, intern, NULL, op_sig, op_def_ast);
+    }
+
+    // <|
+    {
+        NecroASTNode* a_var       = necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
+        NecroASTNode* b_var       = necro_create_variable_ast(&prim_types->arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR);
+        NecroASTNode* op_sig      =
+            necro_create_fun_type_sig_ast(&prim_types->arena, intern, "<|", NULL,
+                necro_create_fun_ast(&prim_types->arena, a_var,
+                    necro_create_fun_ast(&prim_types->arena, necro_create_fun_ast(&prim_types->arena, a_var, b_var), b_var)),
+                NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
+        NecroASTNode* x_var       = necro_create_variable_ast(&prim_types->arena, intern, "x", NECRO_VAR_DECLARATION);
+        NecroASTNode* f_var       = necro_create_variable_ast(&prim_types->arena, intern, "f", NECRO_VAR_DECLARATION);
+        NecroASTNode* op_args     = necro_create_apat_list_ast(&prim_types->arena, x_var, necro_create_apat_list_ast(&prim_types->arena, f_var, NULL));
+        NecroASTNode* op_rhs_ast  = necro_create_rhs_ast(&prim_types->arena, necro_create_fexpr_ast(&prim_types->arena, necro_create_variable_ast(&prim_types->arena, intern, "f", NECRO_VAR_VAR), necro_create_variable_ast(&prim_types->arena, intern, "x", NECRO_VAR_VAR)), NULL);
+        NecroASTNode* op_def_ast  = necro_create_apats_assignment_ast(&prim_types->arena, intern, "<|", op_args, op_rhs_ast);
+        NecroPrimDef* op_prim_def = necro_prim_def_bin_op(prim_types, intern, NULL, op_sig, op_def_ast);
+    }
+
+    // .
+    {
+        NecroASTNode* a_var       = necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
+        NecroASTNode* b_var       = necro_create_variable_ast(&prim_types->arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR);
+        NecroASTNode* c_var       = necro_create_variable_ast(&prim_types->arena, intern, "c", NECRO_VAR_TYPE_FREE_VAR);
+        NecroASTNode* op_sig      =
+            necro_create_fun_type_sig_ast(&prim_types->arena, intern, ".", NULL,
+                necro_create_fun_ast(&prim_types->arena, necro_create_fun_ast(&prim_types->arena, b_var, c_var),
+                    necro_create_fun_ast(&prim_types->arena, necro_create_fun_ast(&prim_types->arena, a_var, b_var),
+                        necro_create_fun_ast(&prim_types->arena, a_var, c_var))),
+                NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
+        NecroASTNode* f_var       = necro_create_variable_ast(&prim_types->arena, intern, "f", NECRO_VAR_DECLARATION);
+        NecroASTNode* g_var       = necro_create_variable_ast(&prim_types->arena, intern, "g", NECRO_VAR_DECLARATION);
+        NecroASTNode* x_var       = necro_create_variable_ast(&prim_types->arena, intern, "x", NECRO_VAR_DECLARATION);
+        NecroASTNode* op_args     = necro_create_apat_list_ast(&prim_types->arena, f_var, necro_create_apat_list_ast(&prim_types->arena, g_var, NULL));
+        NecroASTNode* op_lambda   = necro_create_lambda_ast(&prim_types->arena, necro_create_apat_list_ast(&prim_types->arena, x_var, NULL),
+            necro_create_fexpr_ast(&prim_types->arena, necro_create_variable_ast(&prim_types->arena, intern, "f", NECRO_VAR_VAR),
+                necro_create_fexpr_ast(&prim_types->arena, necro_create_variable_ast(&prim_types->arena, intern, "g", NECRO_VAR_VAR),
+                    necro_create_variable_ast(&prim_types->arena, intern, "x", NECRO_VAR_VAR))));
+        NecroASTNode* op_rhs_ast  = necro_create_rhs_ast(&prim_types->arena, op_lambda, NULL);
+        NecroASTNode* op_def_ast  = necro_create_apats_assignment_ast(&prim_types->arena, intern, ".", op_args, op_rhs_ast);
+        NecroPrimDef* op_prim_def = necro_prim_def_bin_op(prim_types, intern, NULL, op_sig, op_def_ast);
+    }
 
     // TODO: Finish Bool Eq/Ord instances and && / ||!!!
     // &&

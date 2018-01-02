@@ -293,7 +293,7 @@ bool necro_lex_multi_character_token(NecroLexer* lexer)
            necro_lex_token_with_pattern(lexer, "&&",  NECRO_LEX_AND)                ||
            necro_lex_token_with_pattern(lexer, "||",  NECRO_LEX_OR)                 ||
            necro_lex_token_with_pattern(lexer, "()",  NECRO_LEX_UNIT)               ||
-           necro_lex_token_with_pattern(lexer, "++",  NECRO_LEX_APPEND)             ||
+           necro_lex_token_with_pattern(lexer, "<>",  NECRO_LEX_APPEND)             ||
            necro_lex_token_with_pattern(lexer, "!!",  NECRO_LEX_DOUBLE_EXCLAMATION) ||
            necro_lex_token_with_pattern(lexer, "<-",  NECRO_LEX_LEFT_ARROW)         ||
            necro_lex_token_with_pattern(lexer, "->",  NECRO_LEX_RIGHT_ARROW)        ||

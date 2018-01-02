@@ -450,7 +450,7 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_R
         while (current_statement != NULL)
         {
             assert(current_statement->type == NECRO_AST_LIST_NODE);
-            if (current_statement->list.item->type == NECRO_BIND_ASSIGNMENT || 
+            if (current_statement->list.item->type == NECRO_BIND_ASSIGNMENT ||
                 current_statement->list.item->type == NECRO_PAT_BIND_ASSIGNMENT ||
                 current_statement->list.item->type == NECRO_AST_DECL)
             {
@@ -677,32 +677,33 @@ void necro_print_env_with_symtable(NecroSymTable* table, NecroInfer* infer)
         }
     }
     printf("]\n\n");
-    printf("TyVars, all\n[\n");
-    for (size_t i = 1; i <= infer->highest_id; ++i)
-    {
-        if (i <= table->count) continue;
-        printf("    %s", necro_id_as_character_string(infer, (NecroVar) { .id = (NecroID) { i }, .symbol = (NecroSymbol) {.id = 0, .hash = 0} }));
-        if (infer->env.data[i]->var.bound != NULL)
-        {
+    // for now turning this off, turn back on for extra debugging
+    // printf("TyVars, all\n[\n");
+    // for (size_t i = 1; i <= infer->highest_id; ++i)
+    // {
+    //     if (i <= table->count) continue;
+    //     printf("    %s", necro_id_as_character_string(infer, (NecroVar) { .id = (NecroID) { i }, .symbol = (NecroSymbol) {.id = 0, .hash = 0} }));
+    //     if (infer->env.data[i]->var.bound != NULL)
+    //     {
 
-            printf(" => ");
-            necro_print_type_sig_go(infer->env.data[i]->var.bound, infer->intern);
-            printf(" :: ");
-            necro_print_kind(infer->env.data[i]->kind);
-            printf("\n");
-        }
-        // else if (infer->env.data[i]->var.arity != -1 && infer->env.data[i]->var.arity != 0)
-        // {
-        //     printf(" (kind: %d)\n", infer->env.data[i]->var.arity);
-        // }
-        else
-        {
-            printf(" :: ");
-            necro_print_kind(infer->env.data[i]->kind);
-            printf("\n");
-        }
-    }
-    printf("]\n");
+    //         printf(" => ");
+    //         necro_print_type_sig_go(infer->env.data[i]->var.bound, infer->intern);
+    //         printf(" :: ");
+    //         necro_print_kind(infer->env.data[i]->kind);
+    //         printf("\n");
+    //     }
+    //     // else if (infer->env.data[i]->var.arity != -1 && infer->env.data[i]->var.arity != 0)
+    //     // {
+    //     //     printf(" (kind: %d)\n", infer->env.data[i]->var.arity);
+    //     // }
+    //     else
+    //     {
+    //         printf(" :: ");
+    //         necro_print_kind(infer->env.data[i]->kind);
+    //         printf("\n");
+    //     }
+    // }
+    // printf("]\n");
     printf("Total mem usage: %f mb\n", ((float) (sizeof(NecroSymbolInfo) * table->count + sizeof(NecroType) * infer->env.capacity) * 8) / 1000000.0);
 }
 

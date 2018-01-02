@@ -16,14 +16,8 @@ instance Monad Maybe where
 instance Monoid a => Functor (Either a) where
     map f (Either a b) = Either a (f b)
 
-class Semigroup a where
-    append :: a -> a -> a
-
-class Semigroup a => Monoid a where
-    mempty :: a
-
 instance Semigroup a => Semigroup (Maybe a) where
-    append (Just x) (Just y) = Just (append x y)
+    append (Just x) (Just y) = Just (x <> y)
     append (Just x) _        = Just x
     append _        (Just y) = Just y
     append _        _        = Nothing

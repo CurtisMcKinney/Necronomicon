@@ -17,9 +17,10 @@ maybeTest :: Audio -> Maybe Audio
 maybeTest z = do
     x <- Just 1
     y <- Just (x + z)
+    (Just o) <- Just 666
     Nothing
     Just 2
-    ap (map add Nothing) Nothing
+    --ap (map add Nothing) Nothing
     pure y
 
 eitherTest z = do

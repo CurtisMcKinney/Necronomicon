@@ -247,6 +247,15 @@ typedef struct
 } NecroAST_BindAssignment_Reified;
 
 //=====================================================
+// AST Bind Assignment
+//=====================================================
+typedef struct
+{
+    struct NecroAST_Node_Reified* pat;
+    struct NecroAST_Node_Reified* expression;
+} NecroAST_PatBindAssignment_Reified;
+
+//=====================================================
 // AST apats
 //=====================================================
 typedef struct
@@ -419,6 +428,7 @@ typedef struct NecroAST_Node_Reified
         NecroAST_ExpressionList_Reified       expression_list;
         NecroAST_Tuple_Reified                tuple;
         NecroAST_BindAssignment_Reified       bind_assignment;
+        NecroAST_PatBindAssignment_Reified    pat_bind_assignment;
         NecroAST_ArithmeticSequence_Reified   arithmetic_sequence;
         NecroAST_Case_Reified                 case_expression;
         NecroAST_CaseAlternative_Reified      case_alternative;

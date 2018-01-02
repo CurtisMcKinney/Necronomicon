@@ -224,6 +224,9 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
     case NECRO_BIND_ASSIGNMENT:
         rename_declare_go(input_node->bind_assignment.expression, renamer);
         break;
+    case NECRO_PAT_BIND_ASSIGNMENT:
+        rename_declare_go(input_node->pat_bind_assignment.expression, renamer);
+        break;
     case NECRO_AST_ARITHMETIC_SEQUENCE:
         rename_declare_go(input_node->arithmetic_sequence.from, renamer);
         rename_declare_go(input_node->arithmetic_sequence.then, renamer);
@@ -444,6 +447,10 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         rename_var_go(input_node->bind_assignment.expression, renamer);
         if (!try_create_name(renamer, input_node, input_node->scope, &input_node->bind_assignment.id, input_node->bind_assignment.variable_name))
             return;
+        break;
+    case NECRO_PAT_BIND_ASSIGNMENT:
+        rename_var_go(input_node->pat_bind_assignment.pat, renamer);
+        rename_var_go(input_node->pat_bind_assignment.expression, renamer);
         break;
     case NECRO_AST_ARITHMETIC_SEQUENCE:
         rename_var_go(input_node->arithmetic_sequence.from, renamer);

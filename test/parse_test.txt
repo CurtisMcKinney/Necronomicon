@@ -216,4 +216,4 @@ twoHeadedDragon (a : b : c : d : e : f : g : h : i) = i
 
 (y : ys) = [1..]
 (_ : a : b : c : _ : d : es) = [1..]
-
+lambdaBind = \(Just octopus) -> True

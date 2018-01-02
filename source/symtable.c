@@ -450,7 +450,9 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_R
         while (current_statement != NULL)
         {
             assert(current_statement->type == NECRO_AST_LIST_NODE);
-            if (current_statement->list.item->type == NECRO_BIND_ASSIGNMENT || current_statement->list.item->type == NECRO_AST_DECL)
+            if (current_statement->list.item->type == NECRO_BIND_ASSIGNMENT || 
+                current_statement->list.item->type == NECRO_PAT_BIND_ASSIGNMENT ||
+                current_statement->list.item->type == NECRO_AST_DECL)
             {
                 necro_scoped_symtable_new_scope(scoped_symtable);
                 pop_count++;
@@ -474,6 +476,12 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_R
         break;
     case NECRO_BIND_ASSIGNMENT:
         necro_build_scopes_go(scoped_symtable, input_node->bind_assignment.expression);
+        break;
+    case NECRO_PAT_BIND_ASSIGNMENT:
+        necro_build_scopes_go(scoped_symtable, input_node->pat_bind_assignment.pat);
+        necro_scoped_symtable_new_scope(scoped_symtable);
+        necro_build_scopes_go(scoped_symtable, input_node->pat_bind_assignment.expression);
+        necro_scoped_symtable_pop_scope(scoped_symtable);
         break;
     case NECRO_AST_ARITHMETIC_SEQUENCE:
         necro_build_scopes_go(scoped_symtable, input_node->arithmetic_sequence.from);

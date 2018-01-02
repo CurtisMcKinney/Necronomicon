@@ -1025,6 +1025,11 @@ NecroType* necro_infer_do_statement(NecroInfer* infer, NecroNode* ast, NecroType
         necro_unify(infer, rhs_type, result_type, ast->scope, rhs_type, "While inferring the type of a bind assignment: ");
         return NULL;
     }
+    case NECRO_PAT_BIND_ASSIGNMENT:
+    {
+        necro_pat_new_name_go(infer, ast->declaration.declaration_impl->pat_bind_assignment.pat);
+        return NULL;
+    }
     default: return necro_infer_ast_error(infer, NULL, ast, "Unimplemented ast type in infer_do_statement : %d", ast->type);
     }
     if (necro_is_infer_error(infer)) return NULL;

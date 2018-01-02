@@ -288,6 +288,12 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
         print_reified_ast_impl(ast_node->bind_assignment.expression, intern, depth + 1);
         break;
 
+    case NECRO_PAT_BIND_ASSIGNMENT:
+        printf("(Pat Bind)\n");
+        print_reified_ast_impl(ast_node->pat_bind_assignment.pat, intern, depth + 1);
+        print_reified_ast_impl(ast_node->pat_bind_assignment.expression, intern, depth + 1);
+        break;
+
     case NECRO_AST_ARITHMETIC_SEQUENCE:
         {
             switch(ast_node->arithmetic_sequence.type)
@@ -578,6 +584,10 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
     case NECRO_BIND_ASSIGNMENT:
         reified_node->bind_assignment.variable_name = node->bind_assignment.variable_name;
         reified_node->bind_assignment.expression    = necro_reify(a_ast, node->bind_assignment.expression, arena);
+        break;
+    case NECRO_PAT_BIND_ASSIGNMENT:
+        reified_node->pat_bind_assignment.pat        = necro_reify(a_ast, node->pat_bind_assignment.pat, arena);
+        reified_node->pat_bind_assignment.expression = necro_reify(a_ast, node->pat_bind_assignment.expression, arena);
         break;
     case NECRO_AST_ARITHMETIC_SEQUENCE:
         reified_node->arithmetic_sequence.from = necro_reify(a_ast, node->arithmetic_sequence.from, arena);

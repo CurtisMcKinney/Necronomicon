@@ -39,6 +39,7 @@ typedef enum
     NECRO_AST_EXPRESSION_LIST,
     NECRO_AST_TUPLE,
     NECRO_BIND_ASSIGNMENT,
+    NECRO_PAT_BIND_ASSIGNMENT,
     NECRO_AST_ARITHMETIC_SEQUENCE,
     NECRO_AST_CASE,
     NECRO_AST_CASE_ALTERNATIVE,
@@ -345,6 +346,15 @@ typedef struct
 } NecroAST_BindAssignment;
 
 //=====================================================
+// AST Pat Bind Assignment
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr pat;
+    NecroAST_LocalPtr expression;
+} NecroAST_PatBindAssignment;
+
+//=====================================================
 // AST apats
 //=====================================================
 
@@ -541,6 +551,7 @@ typedef struct
         NecroAST_ExpressionList expression_list;
         NecroAST_Tuple tuple;
         NecroAST_BindAssignment bind_assignment;
+        NecroAST_PatBindAssignment pat_bind_assignment;
         NecroAST_ArithmeticSequence arithmetic_sequence;
         NecroAST_Case case_expression;
         NecroAST_CaseAlternative case_alternative;

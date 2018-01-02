@@ -381,6 +381,12 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         print_ast_impl(ast, ast_get_node(ast, ast_node->bind_assignment.expression), intern, depth + 1);
         break;
 
+    case NECRO_PAT_BIND_ASSIGNMENT:
+        printf("(Pat Bind)\n");
+        print_ast_impl(ast, ast_get_node(ast, ast_node->pat_bind_assignment.pat), intern, depth + 1);
+        print_ast_impl(ast, ast_get_node(ast, ast_node->pat_bind_assignment.expression), intern, depth + 1);
+        break;
+
     case NECRO_AST_ARITHMETIC_SEQUENCE:
         {
             switch(ast_node->arithmetic_sequence.type)
@@ -2269,7 +2275,10 @@ typedef NecroAST_LocalPtr (*ParseFunc)(NecroParser* parser);
 NecroAST_LocalPtr parse_do_item(NecroParser* parser)
 {
     NecroParser_Snapshot snapshot = snapshot_parser(parser);
-    if (peek_token_type(parser) == NECRO_LEX_IDENTIFIER)
+    NECRO_LEX_TOKEN_TYPE top_token_type = peek_token_type(parser);
+    switch (top_token_type)
+    {
+    case NECRO_LEX_IDENTIFIER:
     {
         const NecroLexToken* variable_token = peek_token(parser);
         consume_token(parser); // Consume variable token
@@ -2299,8 +2308,9 @@ NecroAST_LocalPtr parse_do_item(NecroParser* parser)
                 parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
             }
         }
-    }
-    else if (peek_token_type(parser) == NECRO_LEX_LET)
+    } break;
+
+    case NECRO_LEX_LET:
     {
         consume_token(parser); // Consume 'LET'
         if (peek_token_type(parser) != NECRO_LEX_LEFT_BRACE)
@@ -2311,6 +2321,43 @@ NecroAST_LocalPtr parse_do_item(NecroParser* parser)
             return write_error_and_restore(parser, snapshot, "Expected \'}\', but found %s", necro_lex_token_type_string(peek_token_type(parser)));
         consume_token(parser); // Consume '}'
         return declarations;
+    } break;
+
+    } // switch (top_token_type)
+
+    // Pattern bind
+    {
+        NecroAST_LocalPtr pat_local_ptr = parse_pat(parser);
+        if (pat_local_ptr != null_local_ptr)
+        {
+            if (peek_token_type(parser) == NECRO_LEX_LEFT_ARROW)
+            {
+                consume_token(parser); // consume '<-'
+                NecroAST_LocalPtr expression_local_ptr = parse_expression(parser);
+                if (expression_local_ptr != null_local_ptr)
+                {
+                    NecroAST_LocalPtr bind_assignment_local_ptr = null_local_ptr;
+                    NecroAST_Node* bind_assignment_node = ast_alloc_node_local_ptr(parser, &bind_assignment_local_ptr);
+                    bind_assignment_node->type = NECRO_PAT_BIND_ASSIGNMENT;
+                    bind_assignment_node->pat_bind_assignment.pat = pat_local_ptr;
+                    bind_assignment_node->pat_bind_assignment.expression = expression_local_ptr;
+                    return bind_assignment_local_ptr;
+                }
+                else if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+                {
+                    return write_error_and_restore(parser, snapshot, "Pattern bind failed to parse.");
+                }
+            }
+        }
+    }
+
+    // Expression
+    {
+        NecroAST_LocalPtr expression_local_ptr = parse_expression(parser);
+        if (expression_local_ptr != null_local_ptr)
+        {
+            return expression_local_ptr;
+        }
     }
 
     restore_parser(parser, snapshot);

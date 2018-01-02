@@ -30,6 +30,7 @@ typedef enum
     NECRO_AST_RIGHT_HAND_SIDE,
     NECRO_AST_LET_EXPRESSION,
     NECRO_AST_FUNCTION_EXPRESSION,
+    NECRO_AST_INFIX_EXPRESSION,
     NECRO_AST_VARIABLE,
     NECRO_AST_APATS,
     NECRO_AST_WILDCARD,
@@ -46,6 +47,8 @@ typedef enum
     NECRO_AST_CONID,
     NECRO_AST_TYPE_APP,
     NECRO_AST_BIN_OP_SYM,
+    NECRO_AST_OP_LEFT_SECTION,
+    NECRO_AST_OP_RIGHT_SECTION,
     NECRO_AST_CONSTRUCTOR,
     NECRO_AST_SIMPLE_TYPE,
     NECRO_AST_DATA_DECLARATION,
@@ -150,6 +153,24 @@ typedef struct
     NecroAST_LocalPtr op;
     NecroAST_LocalPtr right;
 } NecroAST_BinOpSym;
+
+//=====================================================
+// AST Op Left Section
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr left;
+    NecroAST_LocalPtr op;
+} NecroAST_OpLeftSection;
+
+//=====================================================
+// AST Op Right Section
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr op;
+    NecroAST_LocalPtr right;
+} NecroAST_OpRightSection;
 
 //=====================================================
 // AST Type App
@@ -557,6 +578,8 @@ typedef struct
         NecroAST_CaseAlternative case_alternative;
         NecroAST_ConID conid;
         NecroAST_BinOpSym bin_op_sym;
+        NecroAST_OpLeftSection op_left_section;
+        NecroAST_OpRightSection op_right_section;
         NecroAST_TypeApp type_app;
         NecroAST_SimpleType simple_type;
         NecroAST_Constructor constructor;

@@ -15,13 +15,14 @@ instance Monad Maybe where
 
 maybeTest :: Audio -> Maybe Audio
 maybeTest z = do
-    x <- Just 1
-    y <- Just (x + z)
-    (Just o) <- Just 666
+    x      <- Just 1
+    y      <- Just (x + z)
+    (u, v) <- Just (0, 1)
     Nothing
-    Just 2
-    --ap (map add Nothing) Nothing
-    pure y
+    Just (2 + u)
+    -- TODO: Fix!!!
+    -- ap (map add Nothing) Nothing
+    pure (y - v)
 
 eitherTest z = do
     pure z

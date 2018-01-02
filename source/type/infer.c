@@ -327,6 +327,7 @@ NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast)
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_VARIABLE);
     if (necro_is_infer_error(infer)) return NULL;
+    assert(ast->variable.id.id <= infer->symtable->count);
     NecroType* var_type = infer->symtable->data[ast->variable.id.id].type;
     if (var_type == NULL)
     {
@@ -1043,14 +1044,11 @@ NecroType* necro_infer_arithmetic_sequence(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Do
 //=====================================================
-// Need pattern assignment to work in do blocks as well!
-// i.e. NECRO_BIND_PAT_ASSIGNMENT
 NecroType* necro_infer_do_statement(NecroInfer* infer, NecroNode* ast, NecroType* monad_var)
 {
     assert(infer != NULL);
     assert(ast != NULL);
     if (necro_is_infer_error(infer)) return NULL;
-    // don't generalize bind assignment variables
     NecroType* statement_type = NULL;
     switch(ast->type)
     {
@@ -1067,11 +1065,17 @@ NecroType* necro_infer_do_statement(NecroInfer* infer, NecroNode* ast, NecroType
         if (infer->error.return_code != NECRO_SUCCESS) return NULL;
         NecroType* result_type = necro_create_type_app(infer, monad_var, var_name);
         necro_unify(infer, rhs_type, result_type, ast->scope, rhs_type, "While inferring the type of a bind assignment: ");
+        // don't generalize bind assignment variables
         return NULL;
     }
     case NECRO_PAT_BIND_ASSIGNMENT:
     {
-        necro_pat_new_name_go(infer, ast->declaration.declaration_impl->pat_bind_assignment.pat);
+        NecroType* pat_type = necro_infer_pattern(infer, ast->pat_bind_assignment.pat);
+        if (infer->error.return_code != NECRO_SUCCESS) return NULL;
+        NecroType* rhs_type = necro_infer_go(infer, ast->pat_bind_assignment.expression);
+        if (infer->error.return_code != NECRO_SUCCESS) return NULL;
+        NecroType* result_type = necro_create_type_app(infer, monad_var, pat_type);
+        necro_unify(infer, rhs_type, result_type, ast->scope, rhs_type, "While inferring the type of a pattern bind assignment: ");
         return NULL;
     }
     default: return necro_infer_ast_error(infer, NULL, ast, "Unimplemented ast type in infer_do_statement : %d", ast->type);

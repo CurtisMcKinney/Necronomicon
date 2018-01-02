@@ -84,19 +84,19 @@ f x =
         g2 p q = g1 q p
     in  g2 x x
 
-data ListFunctor f a = Nil | Cons a (f a) -- this should typecheck!
+data ListFunctor f a = Nil | Cons a (f a)
 data Phantom f a = Phantom a
 
 maybeList2 :: ListFunctor Int Int -- This should NOT type check!
 maybeList2 = Nil
 
-maybeList1 :: ListFunctor (ListFunctor (ListFunctor Maybe)) Int
+maybeList1 :: ListFunctor (ListFunctor (ListFunctor Maybe)) Int -- this should typecheck!
 maybeList1 = Cons 1 (Cons 0 Nil)
 
-phantom1 :: Phantom Int Int
+phantom1 :: Phantom Int Int --Kind should be flexible
 phantom1 = Phantom 10
 
-phantom2 :: Phantom Maybe Int
+phantom2 :: Phantom Maybe Int --Kind should be flexible
 phantom2 = Phantom 10
 
 -- TODO: To get something like this to work we need constructor constraints!

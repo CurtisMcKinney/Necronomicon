@@ -1110,6 +1110,11 @@ merge      :: Event a -> Event a -> Event a -- This is <> monoidal append for Ev
 on         :: a -> Event () -> Event a
 take       :: Int -> a -> a
 
+input keyword? -- i.e. One shot IO at the global scale run once on program start, useful for setting up executable environment
+
+pulseDemon :: AudioBuffer
+pulseDemon <- input loadBuffer "pulseDemon.aiff"
+
 synth :: Audio -> Audio -> Audio
 synth freq = osc where
     osc = 440 * sample mouseX + freq * (0 `fby` osc) |> sinOsc
@@ -1128,5 +1133,4 @@ main = audioOut 0 synths where
 -- x fby y                 == {x0, y0, y1, y2, y3}
 -- seq [x, y]              == {x0, x1, x2, x3, x4, y0, y1, y2, y3, y4, x0,...}
 -- pattern 0.5 x           == {x0, _,  x1, _,  x2}
--- poly id (pattern 0.5 x) =  {x0, x1, x0 + x2, x1 + x3, x0 + x2 + x4}
-
+-- poly id (pattern 0.5 x) =  {x0, x1, x0 + x2, x1 + x3, x0 + x2 + x4,...}

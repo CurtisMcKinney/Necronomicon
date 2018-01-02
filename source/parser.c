@@ -2328,6 +2328,8 @@ NecroAST_LocalPtr parse_do_item(NecroParser* parser)
     // Pattern bind
     {
         NecroAST_LocalPtr pat_local_ptr = parse_pat(parser);
+        if (parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+            return write_error_and_restore(parser, snapshot, "Pattern bind failed to parse.");
         if (pat_local_ptr != null_local_ptr)
         {
             if (peek_token_type(parser) == NECRO_LEX_LEFT_ARROW)

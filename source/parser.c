@@ -116,90 +116,7 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
     switch(ast_node->type)
     {
     case NECRO_AST_BIN_OP:
-        switch(ast_node->bin_op.type)
-        {
-        case NECRO_BIN_OP_ADD:
-            puts("(+)");
-            break;
-        case NECRO_BIN_OP_SUB:
-            puts("(-)");
-            break;
-        case NECRO_BIN_OP_MUL:
-            puts("(*)");
-            break;
-        case NECRO_BIN_OP_DIV:
-            puts("(/)");
-            break;
-        case NECRO_BIN_OP_MOD:
-            puts("(%)");
-            break;
-        case NECRO_BIN_OP_GT:
-            puts("(>)");
-            break;
-        case NECRO_BIN_OP_LT:
-            puts("(<)");
-            break;
-        case NECRO_BIN_OP_GTE:
-            puts("(>=)");
-            break;
-        case NECRO_BIN_OP_LTE:
-            puts("(<=)");
-            break;
-        case NECRO_BIN_OP_COLON:
-            puts("(:)");
-            break;
-        case NECRO_BIN_OP_DOUBLE_COLON:
-            puts("(::)");
-            break;
-        case NECRO_BIN_OP_LEFT_SHIFT:
-            puts("(<<)");
-            break;
-        case NECRO_BIN_OP_RIGHT_SHIFT:
-            puts("(>>)");
-            break;
-        case NECRO_BIN_OP_PIPE:
-            puts("(|)");
-            break;
-        case NECRO_BIN_OP_FORWARD_PIPE:
-            puts("(|>)");
-            break;
-        case NECRO_BIN_OP_BACK_PIPE:
-            puts("(<|)");
-            break;
-        case NECRO_BIN_OP_EQUALS:
-            puts("(=)");
-            break;
-        case NECRO_BIN_OP_NOT_EQUALS:
-            puts("(/=)");
-            break;
-        case NECRO_BIN_OP_AND:
-            puts("(&&)");
-            break;
-        case NECRO_BIN_OP_OR:
-            puts("(||)");
-            break;
-        case NECRO_BIN_OP_DOT:
-            puts("(.)");
-            break;
-        case NECRO_BIN_OP_DOLLAR:
-            puts("($)");
-            break;
-        case NECRO_BIN_OP_BIND_RIGHT:
-            puts("(>>=)");
-            break;
-        case NECRO_BIN_OP_BIND_LEFT:
-            puts("(=<<)");
-            break;
-        case NECRO_BIN_OP_DOUBLE_EXCLAMATION:
-            puts("(!!)");
-            break;
-        case NECRO_BIN_OP_APPEND:
-            puts("(++)");
-            break;
-        default:
-            puts("(Undefined Binary Operator)");
-            break;
-        }
+        puts(bin_op_name(ast_node->bin_op.type));
         print_ast_impl(ast, ast_get_node(ast, ast_node->bin_op.lhs), intern, depth + 1);
         print_ast_impl(ast, ast_get_node(ast, ast_node->bin_op.rhs), intern, depth + 1);
         break;
@@ -477,14 +394,12 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         break;
 
     case NECRO_AST_OP_LEFT_SECTION:
-        printf("(Left Section)\n");
+        printf("(LeftSection %s)\n", bin_op_name(ast_node->op_left_section.type));
         print_ast_impl(ast, ast_get_node(ast, ast_node->op_left_section.left), intern, depth + 1);
-        print_ast_impl(ast, ast_get_node(ast, ast_node->op_left_section.op), intern, depth + 1);
         break;
 
     case NECRO_AST_OP_RIGHT_SECTION:
-        printf("(Right Section)\n");
-        print_ast_impl(ast, ast_get_node(ast, ast_node->op_right_section.op), intern, depth + 1);
+        printf("(%s RightSection)\n", bin_op_name(ast_node->op_right_section.type));
         print_ast_impl(ast, ast_get_node(ast, ast_node->op_right_section.right), intern, depth + 1);
         break;
 
@@ -2026,12 +1941,17 @@ NecroAST_LocalPtr parse_op_left_section(NecroParser* parser)
     }
 
     // Op
-    NecroAST_LocalPtr op = parse_qconop(parser, NECRO_VAR_VAR);
-    if (op == null_local_ptr || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    const NecroLexToken* bin_op_token = peek_token(parser);
+    const NecroAST_BinOpType bin_op_type = token_to_bin_op_type(bin_op_token->token);
+    const NecroSymbol bin_op_symbol = bin_op_token->symbol;
+
+    if (bin_op_type == NECRO_BIN_OP_UNDEFINED)
     {
         restore_parser(parser, snapshot);
         return null_local_ptr;
     }
+
+    consume_token(parser); // consume operator token
 
     // )
     if (peek_token_type(parser) != NECRO_LEX_RIGHT_PAREN)
@@ -2047,7 +1967,8 @@ NecroAST_LocalPtr parse_op_left_section(NecroParser* parser)
     NecroAST_Node*    node = ast_alloc_node_local_ptr(parser, &local_ptr);
     node->type = NECRO_AST_OP_LEFT_SECTION;
     node->op_left_section.left = left;
-    node->op_left_section.op = op;
+    node->op_left_section.symbol = bin_op_symbol;
+    node->op_left_section.type = bin_op_type;
     return local_ptr;
 }
 
@@ -2066,15 +1987,20 @@ NecroAST_LocalPtr parse_op_right_section(NecroParser* parser)
     consume_token(parser); // consume '('
 
     // Op
-    NecroAST_LocalPtr op = parse_qconop(parser, NECRO_VAR_VAR);
-    if (op == null_local_ptr || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    const NecroLexToken* bin_op_token = peek_token(parser);
+    const NecroAST_BinOpType bin_op_type = token_to_bin_op_type(bin_op_token->token);
+    const NecroSymbol bin_op_symbol = bin_op_token->symbol;
+    
+    if (bin_op_type == NECRO_BIN_OP_UNDEFINED)
     {
         restore_parser(parser, snapshot);
         return null_local_ptr;
     }
 
+    consume_token(parser); // consume operator token
+
     // Right expression
-    NecroAST_LocalPtr right = parse_expression_impl(parser, NECRO_NO_BINARY_LOOK_AHEAD);
+    const NecroAST_LocalPtr right = parse_expression_impl(parser, NECRO_NO_BINARY_LOOK_AHEAD);
     if (right == null_local_ptr || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
     {
         restore_parser(parser, snapshot);
@@ -2094,7 +2020,8 @@ NecroAST_LocalPtr parse_op_right_section(NecroParser* parser)
     NecroAST_LocalPtr local_ptr = null_local_ptr;
     NecroAST_Node*    node = ast_alloc_node_local_ptr(parser, &local_ptr);
     node->type = NECRO_AST_OP_RIGHT_SECTION;
-    node->op_right_section.op = op;
+    node->op_right_section.symbol = bin_op_symbol;
+    node->op_right_section.type = bin_op_type;
     node->op_right_section.right = right;
     return local_ptr;
 }

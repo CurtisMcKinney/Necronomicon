@@ -514,6 +514,12 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_R
         necro_build_scopes_go(scoped_symtable, input_node->bin_op_sym.op);
         necro_build_scopes_go(scoped_symtable, input_node->bin_op_sym.right);
         break;
+    case NECRO_AST_OP_LEFT_SECTION:
+        necro_build_scopes_go(scoped_symtable, input_node->op_left_section.left);
+        break;
+    case NECRO_AST_OP_RIGHT_SECTION:
+        necro_build_scopes_go(scoped_symtable, input_node->op_right_section.right);
+        break;
     case NECRO_AST_TYPE_APP:
         input_node->scope = scoped_symtable->current_type_scope;
         necro_build_scopes_go(scoped_symtable, input_node->type_app.ty);

@@ -155,24 +155,6 @@ typedef struct
 } NecroAST_BinOpSym;
 
 //=====================================================
-// AST Op Left Section
-//=====================================================
-typedef struct
-{
-    NecroAST_LocalPtr left;
-    NecroAST_LocalPtr op;
-} NecroAST_OpLeftSection;
-
-//=====================================================
-// AST Op Right Section
-//=====================================================
-typedef struct
-{
-    NecroAST_LocalPtr op;
-    NecroAST_LocalPtr right;
-} NecroAST_OpRightSection;
-
-//=====================================================
 // AST Type App
 //=====================================================
 typedef struct
@@ -308,6 +290,70 @@ typedef enum
     NECRO_BIN_OP_UNDEFINED = NECRO_BIN_OP_COUNT
 } NecroAST_BinOpType;
 
+static inline const char* bin_op_name(NecroAST_BinOpType type)
+{
+    switch (type)
+    {
+    case NECRO_BIN_OP_ADD:
+        return "(+)";
+    case NECRO_BIN_OP_SUB:
+        return "(-)";
+    case NECRO_BIN_OP_MUL:
+        return "(*)";
+    case NECRO_BIN_OP_DIV:
+        return "(/)";
+    case NECRO_BIN_OP_MOD:
+        return "(%)";
+    case NECRO_BIN_OP_GT:
+        return "(>)";
+    case NECRO_BIN_OP_LT:
+        return "(<)";
+    case NECRO_BIN_OP_GTE:
+        return "(>=)";
+    case NECRO_BIN_OP_LTE:
+        return "(<=)";
+    case NECRO_BIN_OP_COLON:
+        return "(:)";
+    case NECRO_BIN_OP_DOUBLE_COLON:
+        return "(::)";
+    case NECRO_BIN_OP_LEFT_SHIFT:
+        return "(<<)";
+    case NECRO_BIN_OP_RIGHT_SHIFT:
+        return "(>>)";
+    case NECRO_BIN_OP_PIPE:
+        return "(|)";
+    case NECRO_BIN_OP_FORWARD_PIPE:
+        return "(|>)";
+    case NECRO_BIN_OP_BACK_PIPE:
+        return "(<|)";
+    case NECRO_BIN_OP_EQUALS:
+        return "(=)";
+    case NECRO_BIN_OP_NOT_EQUALS:
+        return "(/=)";
+    case NECRO_BIN_OP_AND:
+        return "(&&)";
+    case NECRO_BIN_OP_OR:
+        return "(||)";
+    case NECRO_BIN_OP_DOT:
+        return "(.)";
+    case NECRO_BIN_OP_DOLLAR:
+        return "($)";
+    case NECRO_BIN_OP_BIND_RIGHT:
+        return "(>>=)";
+    case NECRO_BIN_OP_BIND_LEFT:
+        return "(=<<)";
+    case NECRO_BIN_OP_DOUBLE_EXCLAMATION:
+        return "(!!)";
+    case NECRO_BIN_OP_APPEND:
+        return "(++)";
+    default:
+        return "(Undefined Binary Operator)";
+    }
+
+    assert(false);
+    return NULL;
+}
+
 typedef struct
 {
     NecroAST_LocalPtr  lhs;
@@ -315,6 +361,26 @@ typedef struct
     NecroAST_BinOpType type;
     NecroSymbol        symbol;
 } NecroAST_BinOp;
+
+//=====================================================
+// AST Op Left Section
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr left;
+    NecroAST_BinOpType type;
+    NecroSymbol        symbol;
+} NecroAST_OpLeftSection;
+
+//=====================================================
+// AST Op Right Section
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr right;
+    NecroAST_BinOpType type;
+    NecroSymbol        symbol;
+} NecroAST_OpRightSection;
 
 //=====================================================
 // AST if then else

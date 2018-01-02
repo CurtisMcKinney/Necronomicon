@@ -104,6 +104,28 @@ typedef struct
 } NecroAST_BinOpSym_Reified;
 
 //=====================================================
+// AST Operator Left Section
+//=====================================================
+typedef struct
+{
+    struct NecroAST_Node_Reified* left;
+    NecroAST_BinOpType            type;
+    NecroSymbol                   symbol;
+    NecroID                       id;
+} NecroAST_OpLeftSection_Reified;
+
+//=====================================================
+// AST Operator Right Section
+//=====================================================
+typedef struct
+{
+    struct NecroAST_Node_Reified* right;
+    NecroAST_BinOpType            type;
+    NecroSymbol                   symbol;
+    NecroID                       id;
+} NecroAST_OpRightSection_Reified;
+
+//=====================================================
 // AST Type App
 //=====================================================
 typedef struct
@@ -434,6 +456,8 @@ typedef struct NecroAST_Node_Reified
         NecroAST_CaseAlternative_Reified      case_alternative;
         NecroAST_ConID_Reified                conid;
         NecroAST_BinOpSym_Reified             bin_op_sym;
+        NecroAST_OpLeftSection_Reified        op_left_section;
+        NecroAST_OpRightSection_Reified       op_right_section;
         NecroAST_TypeApp_Reified              type_app;
         NecroAST_SimpleType_Reified           simple_type;
         NecroAST_Constructor_Reified          constructor;

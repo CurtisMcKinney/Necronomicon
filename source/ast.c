@@ -22,90 +22,7 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
     switch(ast_node->type)
     {
     case NECRO_AST_BIN_OP:
-        switch(ast_node->bin_op.type)
-        {
-        case NECRO_BIN_OP_ADD:
-            puts("(+)");
-            break;
-        case NECRO_BIN_OP_SUB:
-            puts("(-)");
-            break;
-        case NECRO_BIN_OP_MUL:
-            puts("(*)");
-            break;
-        case NECRO_BIN_OP_DIV:
-            puts("(/)");
-            break;
-        case NECRO_BIN_OP_MOD:
-            puts("(%)");
-            break;
-        case NECRO_BIN_OP_GT:
-            puts("(>)");
-            break;
-        case NECRO_BIN_OP_LT:
-            puts("(<)");
-            break;
-        case NECRO_BIN_OP_GTE:
-            puts("(>=)");
-            break;
-        case NECRO_BIN_OP_LTE:
-            puts("(<=)");
-            break;
-        case NECRO_BIN_OP_COLON:
-            puts("(:)");
-            break;
-        case NECRO_BIN_OP_DOUBLE_COLON:
-            puts("(::)");
-            break;
-        case NECRO_BIN_OP_LEFT_SHIFT:
-            puts("(<<)");
-            break;
-        case NECRO_BIN_OP_RIGHT_SHIFT:
-            puts("(>>)");
-            break;
-        case NECRO_BIN_OP_PIPE:
-            puts("(|)");
-            break;
-        case NECRO_BIN_OP_FORWARD_PIPE:
-            puts("(|>)");
-            break;
-        case NECRO_BIN_OP_BACK_PIPE:
-            puts("(<|)");
-            break;
-        case NECRO_BIN_OP_EQUALS:
-            puts("(=)");
-            break;
-        case NECRO_BIN_OP_NOT_EQUALS:
-            puts("(/=)");
-            break;
-        case NECRO_BIN_OP_AND:
-            puts("(&&)");
-            break;
-        case NECRO_BIN_OP_OR:
-            puts("(||)");
-            break;
-        case NECRO_BIN_OP_DOT:
-            puts("(.)");
-            break;
-        case NECRO_BIN_OP_DOLLAR:
-            puts("($)");
-            break;
-        case NECRO_BIN_OP_BIND_RIGHT:
-            puts("(>>=)");
-            break;
-        case NECRO_BIN_OP_BIND_LEFT:
-            puts("(=<<)");
-            break;
-        case NECRO_BIN_OP_DOUBLE_EXCLAMATION:
-            puts("(!!)");
-            break;
-        case NECRO_BIN_OP_APPEND:
-            puts("(++)");
-            break;
-        default:
-            puts("(Undefined Binary Operator)");
-            break;
-        }
+        puts(bin_op_name(ast_node->bin_op.type));
         print_reified_ast_impl(ast_node->bin_op.lhs, intern, depth + 1);
         print_reified_ast_impl(ast_node->bin_op.rhs, intern, depth + 1);
         break;
@@ -383,6 +300,16 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
         print_reified_ast_impl(ast_node->bin_op_sym.right, intern, depth + 1);
         break;
 
+    case NECRO_AST_OP_LEFT_SECTION:
+        printf("(LeftSection %s)\n", bin_op_name(ast_node->op_left_section.type));
+        print_reified_ast_impl(ast_node->op_left_section.left, intern, depth + 1);
+        break;
+
+    case NECRO_AST_OP_RIGHT_SECTION:
+        printf("(%s RightSection)\n", bin_op_name(ast_node->op_right_section.type));
+        print_reified_ast_impl(ast_node->op_right_section.right, intern, depth + 1);
+        break;
+
     case NECRO_AST_TYPE_SIGNATURE:
         printf("\r");
         print_reified_ast_impl(ast_node->type_signature.var, intern, depth + 0);
@@ -615,6 +542,16 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
         reified_node->bin_op_sym.left  = necro_reify(a_ast, node->bin_op_sym.left, arena);
         reified_node->bin_op_sym.op    = necro_reify(a_ast, node->bin_op_sym.op, arena);
         reified_node->bin_op_sym.right = necro_reify(a_ast, node->bin_op_sym.right, arena);
+        break;
+    case NECRO_AST_OP_LEFT_SECTION:
+        reified_node->op_left_section.left = necro_reify(a_ast, node->op_left_section.left, arena);
+        reified_node->op_left_section.symbol = node->op_left_section.symbol;
+        reified_node->op_left_section.type = node->op_left_section.type;
+        break;
+    case NECRO_AST_OP_RIGHT_SECTION:
+        reified_node->op_right_section.symbol = node->op_right_section.symbol;
+        reified_node->op_right_section.type = node->op_right_section.type;
+        reified_node->op_right_section.right = necro_reify(a_ast, node->op_right_section.right, arena);
         break;
     case NECRO_AST_CONSTRUCTOR:
         reified_node->constructor.conid    = necro_reify(a_ast, node->constructor.conid, arena);

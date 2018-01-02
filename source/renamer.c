@@ -260,7 +260,12 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         rename_declare_go(input_node->bin_op_sym.op, renamer);
         rename_declare_go(input_node->bin_op_sym.right, renamer);
         break;
-
+    case NECRO_AST_OP_LEFT_SECTION:
+        rename_declare_go(input_node->op_left_section.left, renamer);
+        break;
+    case NECRO_AST_OP_RIGHT_SECTION:
+        rename_declare_go(input_node->op_right_section.right, renamer);
+        break;
     case NECRO_AST_CONSTRUCTOR:
         rename_declare_go(input_node->constructor.conid, renamer);
         rename_declare_go(input_node->constructor.arg_list, renamer);
@@ -484,6 +489,16 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         rename_var_go(input_node->bin_op_sym.left, renamer);
         rename_var_go(input_node->bin_op_sym.op, renamer);
         rename_var_go(input_node->bin_op_sym.right, renamer);
+        break;
+    case NECRO_AST_OP_LEFT_SECTION:
+        rename_var_go(input_node->op_left_section.left, renamer);
+        if (!try_find_name(renamer, input_node, input_node->scope, &input_node->op_left_section.id, input_node->op_left_section.symbol))
+            return;
+        break;
+    case NECRO_AST_OP_RIGHT_SECTION:
+        if (!try_find_name(renamer, input_node, input_node->scope, &input_node->op_right_section.id, input_node->op_right_section.symbol))
+            return;
+        rename_var_go(input_node->op_right_section.right, renamer);
         break;
     case NECRO_AST_CONSTRUCTOR:
         rename_var_go(input_node->constructor.conid, renamer);

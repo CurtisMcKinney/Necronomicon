@@ -182,6 +182,6 @@ instance Functor (Either a) where
     map f (Right b) = Right (f b)
     map _ (Left  a) = Left  a
 
-add = (+)
-add2 = (+2)
-addTo2 = (2+)
+curryAdd = (+)
+curryAdd2 = (+2)
+curryAddTo2 = (2+)

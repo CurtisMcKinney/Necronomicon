@@ -571,6 +571,50 @@ NecroType* necro_infer_bin_op(NecroInfer* infer, NecroNode* ast)
 }
 
 //=====================================================
+// Operator Left Section
+//=====================================================
+
+NecroType* necro_infer_op_left_section(NecroInfer* infer, NecroNode* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_OP_LEFT_SECTION);
+    if (necro_is_infer_error(infer)) return NULL;
+    NecroType* x_type = necro_infer_go(infer, ast->op_left_section.left);
+    // NecroType* op_type      = necro_get_bin_op_type(infer, ast->bin_op.type);
+    NecroType* op_type = necro_inst(infer, infer->symtable->data[ast->op_left_section.id.id].type, NULL);
+    assert(op_type != NULL);
+    NecroType* result_type = necro_new_name(infer, ast->source_loc);
+    result_type->source_loc = ast->source_loc;
+    NecroType* bin_op_type = necro_create_type_fun(infer, x_type, result_type);
+    necro_unify(infer, op_type, bin_op_type, ast->scope, op_type, "While inferring the type of a bin-op left section: ");
+    if (necro_is_infer_error(infer)) return NULL;
+    return result_type;
+}
+
+//=====================================================
+// Operator Right Section
+//=====================================================
+
+NecroType* necro_infer_op_right_section(NecroInfer* infer, NecroNode* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_OP_RIGHT_SECTION);
+    if (necro_is_infer_error(infer)) return NULL;
+    NecroType* x_type = necro_infer_go(infer, ast->op_right_section.right);
+    // NecroType* op_type      = necro_get_bin_op_type(infer, ast->bin_op.type);
+    NecroType* op_type = necro_inst(infer, infer->symtable->data[ast->op_right_section.id.id].type, NULL);
+    assert(op_type != NULL);
+    NecroType* result_type = necro_new_name(infer, ast->source_loc);
+    result_type->source_loc = ast->source_loc;
+    NecroType* bin_op_type = necro_create_type_fun(infer, x_type, result_type);
+    necro_unify(infer, op_type, bin_op_type, ast->scope, op_type, "While inferring the type of a bin-op left section: ");
+    if (necro_is_infer_error(infer)) return NULL;
+    return result_type;
+}
+
+//=====================================================
 // Apat
 //=====================================================
 NecroType* necro_infer_apat(NecroInfer* infer, NecroNode* ast)
@@ -1342,6 +1386,8 @@ NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_CONID:                  return necro_infer_conid(infer, ast);
     case NECRO_AST_FUNCTION_EXPRESSION:    return necro_infer_fexpr(infer, ast);
     case NECRO_AST_BIN_OP:                 return necro_infer_bin_op(infer, ast);
+    case NECRO_AST_OP_LEFT_SECTION:        return necro_infer_op_left_section(infer, ast);
+    case NECRO_AST_OP_RIGHT_SECTION:       return necro_infer_op_right_section(infer, ast);
     case NECRO_AST_IF_THEN_ELSE:           return necro_infer_if_then_else(infer, ast);
     case NECRO_AST_SIMPLE_ASSIGNMENT:      return necro_infer_simple_assignment(infer, ast);
     case NECRO_AST_APATS_ASSIGNMENT:       return necro_infer_apats_assignment(infer, ast);

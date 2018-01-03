@@ -1,28 +1,24 @@
-id :: a -> a
-id x = x
-
 idTest1 = id (3 == 4)
 idTest2 = id (4 + 5)
 
+-- With or without the type signature this will still be inferred with the most general type
+-- id :: a -> a
+id x = x
+
+tupleTest = (one, two)
 one = 1
 two = 2
-tupleTest = (one, two)
-
 
 listTest :: a -> [a]
 listTest x = [x]
 
--- This will correctly say that there is an occurs check error
+-- -- This will correctly say that there is an occurs check error
 -- x = x x
 
 a = a
 
 f x = let g y z = ([x, y], z)
       in (g 3, g 3)
-
--- Need to create dependency analysis if we want to infer the most general types for things like this
-foo x = foo (bar 0)
-bar x = x
 
 inferTest  = inferDeath + 2 + 2
 
@@ -91,11 +87,12 @@ tupleDoom = (one, two, three, four, five, six, seven, eight, nine, ten)
 -- All of these correctly cause occurs check errors
 -- occursError = let bottom = (1, occursError) in (0, bottom)
 -- occursError = let bottom = (100, 200, occursError) in (1, 2, bottom)
--- -- listsAllTheWayDown = listsPlease
--- --     where
--- --         listsPlease = [listsAllTheWayDown]
+-- listsAllTheWayDown = listsPlease
+--     where
+--         listsPlease = [listsAllTheWayDown]
 
 lambda      = \x _ 0 -> x
+-- TODO: Need && and || working for this
 -- lambda2 z _ = \x -> \y -> (x + y - z) > 3 && (4 == 5)
 --     where
 --         f = \hey there -> hey || there && f hey there
@@ -148,14 +145,6 @@ twoTimes :: Maybe a -> Int
 twoTimes (Just _) = 1
 twoTimes Nothing  = 0
 
-data Nested a = Epsilon | Cons a (Nested [a])
-
--- Without the type signature this will correctly throw an occurs error
--- With type signature it will correctly type check
-size :: Nested a -> Int
-size Epsilon     = 0
-size (Cons _ xs) = 1 + size xs
-
 kindsTest666 :: k a -> k a
 kindsTest666 x = x
 
@@ -164,3 +153,15 @@ kindsPlease666 = kindsTest666 Nothing
 
 patternTest666 :: (a -> Maybe a) -> a -> Maybe a
 patternTest666 f x = f x
+
+data Nested a = Epsilon | Cons a (Nested [a])
+
+-- Without the type signature this will correctly throw an occurs error
+-- With type signature it will correctly type check
+size :: Nested a -> Int
+size Epsilon     = 0
+size (Cons _ xs) = 1 + size xs
+
+-- Even without type signatures this produces the most general types
+foo x = foo (bar 0)
+bar x = x

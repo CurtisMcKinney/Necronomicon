@@ -190,6 +190,7 @@ NecroType*  necro_gen(NecroInfer* infer, NecroType* type, struct NecroScope* sco
 NecroType*  necro_new_name(NecroInfer* infer, NecroSourceLoc source_loc);
 NecroType*  necro_find(NecroInfer* infer, NecroType* type);
 void        necr_bind_type_var(NecroInfer* infer, NecroVar var, NecroType* type);
+bool        necro_is_bound_in_scope(NecroInfer* infer, NecroType* type, struct NecroScope* scope);
 
 NecroType*  necro_declare_type(NecroInfer* infer, NecroCon con, size_t arity);
 NecroType*  necro_create_type_con(NecroInfer* infer, NecroCon con, NecroType* args, size_t arity);

@@ -14,6 +14,7 @@
 #include "parser.h"
 
 struct NecroAST_Node_Reified;
+struct NecroDeclarationGroup;
 
 //=====================================================
 // AST FunctionType
@@ -302,12 +303,10 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    // NecroSymbol                   variable_name;
     struct NecroAST_Node_Reified* pat;
     struct NecroAST_Node_Reified* rhs;
-    // NecroID                       id;
+    struct NecroDeclarationGroup* declaration_group;
 } NecroAST_PatAssignment_Reified;
-
 
 //=====================================================
 // AST Lambda
@@ -510,5 +509,13 @@ NecroASTNode* necro_create_wild_card_ast(NecroPagedArena* arena);
 NecroASTNode* necro_create_context(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, const char* var_name, NecroASTNode* next);
 NecroASTNode* necro_create_rhs_ast(NecroPagedArena* arena, NecroASTNode* expression, NecroASTNode* declarations);
 NecroASTNode* necro_create_bin_op_ast(NecroPagedArena* arena, NecroIntern* intern, const char* op_name, NecroASTNode* lhs, NecroASTNode* rhs);
+
+// Declaration group
+typedef struct NecroDeclarationGroup
+{
+    NecroASTNode*                 declaration_ast;
+    struct NecroDeclarationGroup* next;
+} NecroDeclarationGroup;
+NecroDeclarationGroup* necro_create_declaration_group(NecroPagedArena* arena, NecroASTNode* declaration_ast, NecroDeclarationGroup* prev);
 
 #endif // AST_H

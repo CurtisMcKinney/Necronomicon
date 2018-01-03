@@ -884,3 +884,19 @@ NecroASTNode* necro_create_bin_op_ast(NecroPagedArena* arena, NecroIntern* inter
     ast->bin_op.rhs    = rhs;
     return ast;
 }
+
+NecroDeclarationGroup* necro_create_declaration_group(NecroPagedArena* arena, NecroASTNode* declaration_ast, NecroDeclarationGroup* prev)
+{
+    NecroDeclarationGroup* declaration_group = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    declaration_group->declaration_ast       = declaration_ast;
+    declaration_group->next                  = NULL;
+    if (prev == NULL)
+    {
+        return declaration_group;
+    }
+    else
+    {
+        prev->next = declaration_group;
+        return prev;
+    }
+}

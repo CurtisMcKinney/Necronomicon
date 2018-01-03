@@ -112,12 +112,12 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
         necro_print_error(&renamer.error, input_string, "Renaming (Prim Pass)");
         return;
     }
-    if (necro_rename_declare_pass(&renamer, ast_r.root) != NECRO_SUCCESS)
+    if (necro_rename_declare_pass(&renamer, &ast_r.arena, ast_r.root) != NECRO_SUCCESS)
     {
         necro_print_error(&renamer.error, input_string, "Renaming (Declare Pass)");
         return;
     }
-    if (necro_rename_var_pass(&renamer, ast_r.root) != NECRO_SUCCESS)
+    if (necro_rename_var_pass(&renamer, &ast_r.arena, ast_r.root) != NECRO_SUCCESS)
     {
         necro_print_error(&renamer.error, input_string, "Renaming (Var Pass)");
         return;
@@ -130,6 +130,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     //=====================================================
     // Infer
     //=====================================================
+    necro_announce_phase("Typing");
     NecroTypeClassEnv type_class_env = necro_create_type_class_env();
     NecroInfer        infer          = necro_create_infer(&lexer.intern, &symtable, &prim_types, &type_class_env);
     if (necro_prim_infer(&prim_types, &infer) != NECRO_SUCCESS)
@@ -138,8 +139,9 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
         return;
     }
     necro_infer(&infer, ast_r.root);
-    necro_symtable_print(&symtable);
-    necro_print_type_class_env(&type_class_env, &infer, &lexer.intern);
+    // TODO: put back
+    // necro_symtable_print(&symtable);
+    // necro_print_type_class_env(&type_class_env, &infer, &lexer.intern);
     necro_print_env_with_symtable(&symtable, &infer);
     if (infer.error.return_code != NECRO_SUCCESS)
     {

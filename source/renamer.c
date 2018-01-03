@@ -343,18 +343,27 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         break;
     case NECRO_AST_SIMPLE_ASSIGNMENT:
         rename_var_go(input_node->simple_assignment.rhs, renamer);
-        renamer->scoped_symtable->global_table->data[input_node->simple_assignment.variable_name.id].var_declaration_ast = input_node;
+        renamer->scoped_symtable->global_table->data[input_node->simple_assignment.id.id].declaration_group =
+            necro_create_declaration_group(renamer->arena, input_node, renamer->scoped_symtable->global_table->data[input_node->simple_assignment.id.id].declaration_group);
+        if (input_node->simple_assignment.id.id > 296)
+            printf("rename_var_go, simple assignment, id: %d\n", input_node->simple_assignment.id.id);
         break;
     case NECRO_AST_APATS_ASSIGNMENT:
         rename_var_go(input_node->apats_assignment.apats, renamer);
         rename_var_go(input_node->apats_assignment.rhs, renamer);
-        renamer->scoped_symtable->global_table->data[input_node->apats_assignment.variable_name.id].var_declaration_ast = input_node;
+        // renamer->scoped_symtable->global_table->data[input_node->apats_assignment.id.id].var_declaration_ast = input_node;
+        renamer->scoped_symtable->global_table->data[input_node->apats_assignment.id.id].declaration_group =
+            necro_create_declaration_group(renamer->arena, input_node, renamer->scoped_symtable->global_table->data[input_node->apats_assignment.id.id].declaration_group);
+        if (input_node->apats_assignment.id.id > 296)
+            printf("rename_var_go, apats assignment, id: %d\n", input_node->apats_assignment.id.id);
         break;
     case NECRO_AST_PAT_ASSIGNMENT:
-        renamer->current_declaration = input_node;
+        // renamer->scoped_symtable->global_table->data[input_node->apats_assignment.id.id].declaration_group =
+        renamer->current_declaration_group           = necro_create_declaration_group(renamer->arena, input_node, NULL);
+        input_node->pat_assignment.declaration_group = renamer->current_declaration_group;
         rename_var_go(input_node->pat_assignment.pat, renamer);
+        renamer->current_declaration_group = NULL;
         rename_var_go(input_node->pat_assignment.rhs, renamer);
-        renamer->current_declaration = NULL;
         break;
     case NECRO_AST_RIGHT_HAND_SIDE:
         rename_var_go(input_node->right_hand_side.declarations, renamer);
@@ -393,8 +402,8 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
             break;
         case NECRO_VAR_DECLARATION:
             // if we are in a pat_assignment, set our declaration_ast
-            if (renamer->current_declaration != NULL)
-                renamer->scoped_symtable->global_table->data[input_node->variable.id.id].var_declaration_ast = input_node;
+            if (renamer->current_declaration_group != NULL)
+                renamer->scoped_symtable->global_table->data[input_node->variable.id.id].declaration_group = renamer->current_declaration_group;
             break;
         case NECRO_VAR_TYPE_VAR_DECLARATION: break;
         case NECRO_VAR_TYPE_FREE_VAR:        break;
@@ -527,9 +536,9 @@ NecroRenamer necro_create_renamer(NecroScopedSymTable* scoped_symtable)
 {
     return (NecroRenamer)
     {
-        .scoped_symtable          = scoped_symtable,
-        .should_free_type_declare = true,
-        .current_declaration      = NULL,
+        .scoped_symtable           = scoped_symtable,
+        .should_free_type_declare  = true,
+        .current_declaration_group = NULL,
     };
 }
 
@@ -537,22 +546,26 @@ void necro_destroy_renamer(NecroRenamer* renamer)
 {
 }
 
-NECRO_RETURN_CODE necro_rename_declare_pass(NecroRenamer* renamer, NecroAST_Node_Reified* input_ast)
+NECRO_RETURN_CODE necro_rename_declare_pass(NecroRenamer* renamer, NecroPagedArena* ast_arena, NecroAST_Node_Reified* input_ast)
 {
+    renamer->arena                         = ast_arena;
     renamer->error.return_code             = NECRO_SUCCESS;
     renamer->current_class_instance_symbol = (NecroSymbol) { 0 };
     renamer->prev_class_instance_symbol    = (NecroSymbol) { 0 };
-    renamer->current_declaration           = NULL;
+    renamer->current_declaration_group     = NULL;
     rename_declare_go(input_ast, renamer);
+    renamer->arena                         = NULL;
     return renamer->error.return_code;
 }
 
-NECRO_RETURN_CODE necro_rename_var_pass(NecroRenamer* renamer, NecroAST_Node_Reified* input_ast)
+NECRO_RETURN_CODE necro_rename_var_pass(NecroRenamer* renamer, NecroPagedArena* ast_arena, NecroAST_Node_Reified* input_ast)
 {
+    renamer->arena                         = ast_arena;
     renamer->error.return_code             = NECRO_SUCCESS;
     renamer->current_class_instance_symbol = (NecroSymbol) { 0 };
     renamer->prev_class_instance_symbol    = (NecroSymbol) { 0 };
-    renamer->current_declaration           = NULL;
+    renamer->current_declaration_group     = NULL;
     rename_var_go(input_ast, renamer);
+    renamer->arena                         = NULL;
     return renamer->error.return_code;
 }

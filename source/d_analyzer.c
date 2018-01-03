@@ -26,6 +26,12 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         d_analyze_go(d_analyzer, ast->declaration.declaration_impl);
         d_analyze_go(d_analyzer, ast->declaration.next_declaration);
         break;
+    case NECRO_AST_TYPE_CLASS_INSTANCE:
+        d_analyze_go(d_analyzer, ast->type_class_instance.context);
+        d_analyze_go(d_analyzer, ast->type_class_instance.qtycls);
+        d_analyze_go(d_analyzer, ast->type_class_instance.inst);
+        d_analyze_go(d_analyzer, ast->type_class_instance.declarations);
+        break;
 
     //=====================================================
     // Assignment type things
@@ -118,8 +124,6 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         break;
     case NECRO_BIND_ASSIGNMENT:
         d_analyze_go(d_analyzer, ast->bind_assignment.expression);
-        // if (!try_create_name(renamer, ast, ast->scope, &ast->bind_assignment.id, ast->bind_assignment.variable_name))
-        //     return;
         break;
     case NECRO_PAT_BIND_ASSIGNMENT:
         d_analyze_go(d_analyzer, ast->pat_bind_assignment.pat);
@@ -166,12 +170,6 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         d_analyze_go(d_analyzer, ast->type_class_declaration.tycls);
         d_analyze_go(d_analyzer, ast->type_class_declaration.tyvar);
         d_analyze_go(d_analyzer, ast->type_class_declaration.declarations);
-        break;
-    case NECRO_AST_TYPE_CLASS_INSTANCE:
-        d_analyze_go(d_analyzer, ast->type_class_instance.context);
-        d_analyze_go(d_analyzer, ast->type_class_instance.qtycls);
-        d_analyze_go(d_analyzer, ast->type_class_instance.inst);
-        d_analyze_go(d_analyzer, ast->type_class_instance.declarations);
         break;
     case NECRO_AST_TYPE_SIGNATURE:
         d_analyze_go(d_analyzer, ast->type_signature.var);

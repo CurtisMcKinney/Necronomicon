@@ -515,7 +515,17 @@ typedef struct NecroDeclarationGroup
 {
     NecroASTNode*                 declaration_ast;
     struct NecroDeclarationGroup* next;
+    bool                          type_checked;
 } NecroDeclarationGroup;
-NecroDeclarationGroup* necro_create_declaration_group(NecroPagedArena* arena, NecroASTNode* declaration_ast, NecroDeclarationGroup* prev);
+
+typedef struct NecroDeclarationGroupList
+{
+    NecroDeclarationGroup*            declaration_group;
+    struct NecroDeclarationGroupList* next;
+} NecroDeclarationGroupList;
+
+NecroDeclarationGroup*     necro_create_declaration_group(NecroPagedArena* arena, NecroASTNode* declaration_ast, NecroDeclarationGroup* prev);
+NecroDeclarationGroup*     necro_append_declaration_group(NecroPagedArena* arena, NecroASTNode* declaration_ast, NecroDeclarationGroup* head);
+NecroDeclarationGroupList* necro_create_declaration_group_list(NecroPagedArena* arena, NecroDeclarationGroup* declaration_group, NecroDeclarationGroupList* prev);
 
 #endif // AST_H

@@ -887,9 +887,10 @@ NecroASTNode* necro_create_bin_op_ast(NecroPagedArena* arena, NecroIntern* inter
 
 NecroDeclarationGroup* necro_create_declaration_group(NecroPagedArena* arena, NecroASTNode* declaration_ast, NecroDeclarationGroup* prev)
 {
-    NecroDeclarationGroup* declaration_group = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroDeclarationGroup* declaration_group = necro_paged_arena_alloc(arena, sizeof(NecroDeclarationGroup));
     declaration_group->declaration_ast       = declaration_ast;
     declaration_group->next                  = NULL;
+    declaration_group->type_checked          = false;
     if (prev == NULL)
     {
         return declaration_group;
@@ -897,6 +898,41 @@ NecroDeclarationGroup* necro_create_declaration_group(NecroPagedArena* arena, Ne
     else
     {
         prev->next = declaration_group;
+        return prev;
+    }
+}
+
+NecroDeclarationGroup* necro_append_declaration_group(NecroPagedArena* arena, NecroASTNode* declaration_ast, NecroDeclarationGroup* head)
+{
+    NecroDeclarationGroup* declaration_group = necro_paged_arena_alloc(arena, sizeof(NecroDeclarationGroup));
+    declaration_group->declaration_ast       = declaration_ast;
+    declaration_group->next                  = NULL;
+    declaration_group->type_checked          = false;
+    if (head == NULL)
+    {
+        return declaration_group;
+    }
+    else
+    {
+        while (head->next != NULL)
+            head = head->next;
+        head->next = declaration_group;
+        return head;
+    }
+}
+
+NecroDeclarationGroupList* necro_create_declaration_group_list(NecroPagedArena* arena, NecroDeclarationGroup* declaration_group, NecroDeclarationGroupList* prev)
+{
+    NecroDeclarationGroupList* declaration_group_list = necro_paged_arena_alloc(arena, sizeof(NecroDeclarationGroupList));
+    declaration_group_list->declaration_group         = declaration_group;
+    declaration_group_list->next                      = NULL;
+    if (prev == NULL)
+    {
+        return declaration_group_list;
+    }
+    else
+    {
+        prev->next = declaration_group_list;
         return prev;
     }
 }

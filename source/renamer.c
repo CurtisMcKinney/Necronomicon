@@ -151,7 +151,6 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
                 }
             }
             break;
-        // FIIIIIXXXXXXXX
         case NECRO_VAR_TYPE_FREE_VAR:
         {
             NecroID id = necro_scope_find(input_node->scope, input_node->variable.symbol);
@@ -351,14 +350,12 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
     case NECRO_AST_APATS_ASSIGNMENT:
         rename_var_go(input_node->apats_assignment.apats, renamer);
         rename_var_go(input_node->apats_assignment.rhs, renamer);
-        // renamer->scoped_symtable->global_table->data[input_node->apats_assignment.id.id].var_declaration_ast = input_node;
         renamer->scoped_symtable->global_table->data[input_node->apats_assignment.id.id].declaration_group =
             necro_create_declaration_group(renamer->arena, input_node, renamer->scoped_symtable->global_table->data[input_node->apats_assignment.id.id].declaration_group);
         if (input_node->apats_assignment.id.id > 296)
             printf("rename_var_go, apats assignment, id: %d\n", input_node->apats_assignment.id.id);
         break;
     case NECRO_AST_PAT_ASSIGNMENT:
-        // renamer->scoped_symtable->global_table->data[input_node->apats_assignment.id.id].declaration_group =
         renamer->current_declaration_group           = necro_create_declaration_group(renamer->arena, input_node, NULL);
         input_node->pat_assignment.declaration_group = renamer->current_declaration_group;
         rename_var_go(input_node->pat_assignment.pat, renamer);

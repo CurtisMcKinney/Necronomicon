@@ -21,6 +21,7 @@ set(project_SOURCES
     source/symtable.c
     source/ast.c
     source/driver.c
+    source/d_analyzer.c
 
     source/utility/arena.c
 	source/utility/intern.c
@@ -45,6 +46,7 @@ set(project_HEADERS
     source/symtable.h
     source/ast.h
     source/driver.h
+    source/d_analyzer.h
 
     source/utility/arena.h
 	source/utility/utility.h

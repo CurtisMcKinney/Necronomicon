@@ -2,14 +2,14 @@ data Maybe  a   = Just a | Nothing
 data Either a b = Left a | Right b
 
 -- TODO:
--- * Higher-kinded type constructor arguments
 -- * Proper dependency analysis for declarations
+-- * Higher-kinded type constructor arguments
 -- * Monomorphism restriction
 -- * Defaulting occurs after the entire thing has been type checked
 -- * Followed by type class translation
 -- * Ambiguous Type classes check
 -- * Fix strange do statement bug in maybeTest
--- *
+-- * Attach types to every single AST node
 
 -- I believe things like this are failing because of the ordering of type checking
 -- The proper fix is a correct dependency analysis....
@@ -18,10 +18,8 @@ instance Eq a => Eq (Maybe a) where
     eq  (Just x) (Just y) = x == y
     eq  Nothing  Nothing  = True
     eq  _        _        = False
-    neq = not . eq -- This should fail type checking but isn't for some reason!?!?!
+    neq x y = not (eq x y) -- Fixed this! ordering of type signatures was wrong!
 
--- TODO:
--- The presence of type signatures is somehow fucking up type class method inference!
 not :: Bool -> Bool
 not True  = False
 not False = True
@@ -84,8 +82,8 @@ f x =
         g2 p q = g1 q p
     in  g2 x x
 
-data ListFunctor f a = Nil | Cons a (f a)
-data Phantom f a = Phantom a
+data ListFunctor f a = Nil | Cons a (f a) -- List SHOULD have the kind (* -> *) -> * -> *, but right now has the kind * -> * -> *
+data Phantom f a = Phantom a              -- Phantom SHOULD have the kind ? -> * -> *, but right now has kind * -> * -> *
 
 maybeList2 :: ListFunctor Int Int -- This should NOT type check!
 maybeList2 = Nil

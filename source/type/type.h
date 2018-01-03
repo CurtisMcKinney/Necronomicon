@@ -18,6 +18,13 @@ struct NecroTypeClassEnv;
 struct NecroSymTable;
 struct NecroTypeClassContext;
 
+typedef enum
+{
+    NECRO_TYPE_UNCHECKED,
+    NECRO_TYPE_CHECKING,
+    NECRO_TYPE_DONE
+} NECRO_TYPE_STATUS;
+
 //=====================================================
 //  Var / Con
 //=====================================================

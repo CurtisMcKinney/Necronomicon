@@ -1111,7 +1111,7 @@ NecroInstSub* necro_create_inst_sub(NecroInfer* infer, NecroVar var_to_replace, 
     }
     else
     {
-        // Need to fix this
+        // TODO: Need to fix this
         // Is this bad?
         // assert(false);
     }

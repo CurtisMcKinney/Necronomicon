@@ -43,14 +43,16 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
 {
     return (NecroSymbolInfo)
     {
-        .name          = symbol,
-        .id            = 0,
-        .data_size     = 0,
-        .type          = NULL,
-        .local_var_num = 0,
-        .source_loc    = source_loc,
-        .scope         = scope,
-        .is_method     = false,
+        .name                  = symbol,
+        .id                    = 0,
+        .data_size             = 0,
+        .type                  = NULL,
+        .local_var_num         = 0,
+        .source_loc            = source_loc,
+        .scope                 = scope,
+        .is_method             = false,
+        .var_declaration_ast   = NULL,
+        .type_status           = NECRO_TYPE_UNCHECKED,
     };
 }
 

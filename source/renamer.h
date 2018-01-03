@@ -14,11 +14,12 @@
 
 typedef struct
 {
-    NecroScopedSymTable* scoped_symtable;
-    NecroError           error;
-    NecroSymbol          current_class_instance_symbol;
-    NecroSymbol          prev_class_instance_symbol;
-    bool                 should_free_type_declare;
+    NecroScopedSymTable*   scoped_symtable;
+    NecroError             error;
+    NecroSymbol            current_class_instance_symbol;
+    NecroSymbol            prev_class_instance_symbol;
+    bool                   should_free_type_declare;
+    NecroAST_Node_Reified* current_declaration;
 } NecroRenamer;
 
 NecroRenamer      necro_create_renamer(NecroScopedSymTable* scoped_symtable);

@@ -25,6 +25,7 @@ NecroType* necro_infer_pattern(NecroInfer* infer, NecroNode* ast);
 NecroType* necro_infer_constant(NecroInfer* infer, NecroNode* ast);
 NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast);
 NecroType* necro_infer_tuple_type(NecroInfer* infer, NecroNode* ast);
+NecroType* necro_infer_simple_assignment(NecroInfer* infer, NecroNode* ast);
 
 /*
 DONE:
@@ -285,6 +286,59 @@ NecroType* necro_infer_data_declaration(NecroInfer* infer, NecroNode* ast)
     }
     return NULL;
 }
+
+//=====================================================
+// Assignment
+//=====================================================
+NecroType* necro_infer_assignment(NecroInfer* infer, NecroNode* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    if (necro_is_infer_error(infer)) return NULL;
+
+    if (ast->type == NECRO_AST_APATS_ASSIGNMENT || NECRO_AST_SIMPLE_ASSIGNMENT)
+    {
+        NecroSymbolInfo* symbol_info;
+        if (ast->type == NECRO_AST_SIMPLE_ASSIGNMENT)
+        {
+            assert(ast->simple_assignment.id.id < infer->symtable->count);
+            symbol_info = necro_symtable_get(infer->symtable, ast->simple_assignment.id);
+        }
+        else if (ast->type == NECRO_AST_SIMPLE_ASSIGNMENT)
+        {
+            assert(ast->apats_assignment.id.id < infer->symtable->count);
+            symbol_info = necro_symtable_get(infer->symtable, ast->apats_assignment.id);
+        }
+        if (symbol_info->type_status != NECRO_TYPE_UNCHECKED)
+            return symbol_info->type;
+        symbol_info->type_status = NECRO_TYPE_CHECKING;
+        if (symbol_info->type == NULL)
+        {
+            NecroType* new_name = necro_new_name(infer, ast->source_loc);
+            new_name->var.scope = symbol_info->scope;
+            symbol_info->type   = new_name;
+        }
+        necro_infer_simple_assignment(infer, ast);
+        if (necro_is_infer_error(infer)) return NULL;
+        if (!symbol_info->type->pre_supplied)
+        {
+            symbol_info->type = necro_gen(infer, symbol_info->type, symbol_info->scope->parent);
+            necro_infer_kind(infer, symbol_info->type, infer->star_kind, symbol_info->type, "While declaraing a variable: ");
+        }
+        symbol_info->type_status = NECRO_TYPE_DONE;
+        return symbol_info->type;
+    }
+    else if(ast->type == NECRO_AST_PAT_ASSIGNMENT)
+    {
+        return NULL;
+    }
+    else
+    {
+        return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Unrecognized assignment type: %d", ast->type);
+    }
+    return NULL;
+}
+
 
 //=====================================================
 // Constant
@@ -1253,11 +1307,7 @@ NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroNode* ast)
     necro_declare_type_classes(infer, infer->type_class_env, ast);
     if (necro_is_infer_error(infer)) return NULL;
 
-    //----------------------------------------------------
-    // Pass -1, Type Class Instances
-    necro_type_class_instances(infer, infer->type_class_env, ast);
-    if (necro_is_infer_error(infer)) return NULL;
-
+    // Figure out the ordering between type signatures at type classes!
     //----------------------------------------------------
     // Pass 0, add type signatures
     current_decl = ast;
@@ -1272,6 +1322,11 @@ NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroNode* ast)
         if (necro_is_infer_error(infer)) return NULL;
         current_decl = current_decl->top_declaration.next_top_decl;
     }
+    if (necro_is_infer_error(infer)) return NULL;
+
+    //----------------------------------------------------
+    // Pass -1, Type Class Instances
+    necro_type_class_instances(infer, infer->type_class_env, ast);
     if (necro_is_infer_error(infer)) return NULL;
 
     //----------------------------------------------------

@@ -149,6 +149,9 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     if (compilation_phase == NECRO_PHASE_INFER)
         return;
 
+    // !!!!!!!!!! struct { sym_table and intern and AST_reified } !!!!!!!!!!
+    // !!!!!!!!!! necro_translate_core(); !!!!!!!!!!
+
     //=====================================================
     // Cleaning up
     //=====================================================

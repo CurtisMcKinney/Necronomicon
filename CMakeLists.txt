@@ -36,6 +36,8 @@ set(project_SOURCES
     source/type/infer.c
     source/type/prim.c
     source/type/type_class.c
+
+    source/core/core.c
     )
 set(project_HEADERS
     source/necro.h
@@ -61,6 +63,8 @@ set(project_HEADERS
     source/type/infer.h
     source/type/prim.h
     source/type/type_class.h
+    
+    source/core/core.h
     )
 
 ADD_EXECUTABLE(necro ${project_HEADERS} ${project_SOURCES})

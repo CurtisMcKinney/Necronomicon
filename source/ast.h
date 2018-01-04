@@ -15,6 +15,8 @@
 
 struct NecroAST_Node_Reified;
 struct NecroDeclarationGroup;
+struct NecroDeclarationGroupList;
+struct NecroDeclarationsInfo;
 
 //=====================================================
 // AST FunctionType
@@ -257,6 +259,8 @@ typedef struct
     NecroSymbol                   variable_name;
     struct NecroAST_Node_Reified* rhs;
     NecroID                       id;
+    struct NecroDeclarationGroup* declaration_group;
+    // struct NecroDeclarationsInfo* declarations_info;
 } NecroAST_SimpleAssignment_Reified;
 
 //=====================================================
@@ -296,6 +300,8 @@ typedef struct
     struct NecroAST_Node_Reified* apats;
     struct NecroAST_Node_Reified* rhs;
     NecroID                       id;
+    struct NecroDeclarationGroup* declaration_group;
+    // struct NecroDeclarationsInfo* declarations_info;
 } NecroAST_ApatsAssignment_Reified;
 
 //=====================================================
@@ -306,6 +312,7 @@ typedef struct
     struct NecroAST_Node_Reified* pat;
     struct NecroAST_Node_Reified* rhs;
     struct NecroDeclarationGroup* declaration_group;
+    // struct NecroDeclarationsInfo* declarations_info;
 } NecroAST_PatAssignment_Reified;
 
 //=====================================================
@@ -374,8 +381,9 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    struct NecroAST_Node_Reified* declaration_impl;
-    struct NecroAST_Node_Reified* next_declaration; // Points to the next in the list, null_local_ptr if the end
+    struct NecroAST_Node_Reified*     declaration_impl;
+    struct NecroAST_Node_Reified*     next_declaration; // Points to the next in the list, null_local_ptr if the end
+    struct NecroDeclarationGroupList* group_list;
 } NecroAST_Declaration_Reified;
 
 //=====================================================
@@ -383,8 +391,9 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    struct NecroAST_Node_Reified* declaration;
-    struct NecroAST_Node_Reified* next_top_decl; // Points to the next in the list, null_local_ptr if the end
+    struct NecroAST_Node_Reified*     declaration;
+    struct NecroAST_Node_Reified*     next_top_decl; // Points to the next in the list, null_local_ptr if the end
+    struct NecroDeclarationGroupList* group_list;
 } NecroAST_TopDeclaration_Reified;
 
 
@@ -510,11 +519,20 @@ NecroASTNode* necro_create_context(NecroPagedArena* arena, NecroIntern* intern, 
 NecroASTNode* necro_create_rhs_ast(NecroPagedArena* arena, NecroASTNode* expression, NecroASTNode* declarations);
 NecroASTNode* necro_create_bin_op_ast(NecroPagedArena* arena, NecroIntern* intern, const char* op_name, NecroASTNode* lhs, NecroASTNode* rhs);
 
-// Declaration group
+// Dependency analysis
+typedef struct NecroDependencyList
+{
+    // NecroID                     dependency_id;
+    struct NecroDeclarationGroup* dependency_group;
+    struct NecroDependencyList*   next;
+} NecroDependencyList;
+
 typedef struct NecroDeclarationGroup
 {
     NecroASTNode*                 declaration_ast;
     struct NecroDeclarationGroup* next;
+    NecroDependencyList*          dependency_list;
+    struct NecroDeclarationsInfo* info;
     bool                          type_checked;
 } NecroDeclarationGroup;
 
@@ -524,8 +542,19 @@ typedef struct NecroDeclarationGroupList
     struct NecroDeclarationGroupList* next;
 } NecroDeclarationGroupList;
 
+typedef struct NecroDeclarationsInfo
+{
+    NecroDeclarationGroupList* group_lists;
+    NecroDeclarationGroup*     current_group;
+} NecroDeclarationsInfo;
+
+NecroDependencyList*       necro_create_dependency_list(NecroPagedArena* arena, NecroDeclarationGroup* dependency_group, NecroDependencyList* head);
+NecroDeclarationsInfo*     necro_create_declarations_info(NecroPagedArena* arena);
 NecroDeclarationGroup*     necro_create_declaration_group(NecroPagedArena* arena, NecroASTNode* declaration_ast, NecroDeclarationGroup* prev);
 NecroDeclarationGroup*     necro_append_declaration_group(NecroPagedArena* arena, NecroASTNode* declaration_ast, NecroDeclarationGroup* head);
+void                       necro_append_declaration_group_to_group_in_group_list(NecroPagedArena* arena, NecroDeclarationGroupList* group_list, NecroDeclarationGroup* group_to_append);
 NecroDeclarationGroupList* necro_create_declaration_group_list(NecroPagedArena* arena, NecroDeclarationGroup* declaration_group, NecroDeclarationGroupList* prev);
+NecroDeclarationGroupList* necro_append_declaration_group_list(NecroPagedArena* arena, NecroDeclarationGroup* declaration_group, NecroDeclarationGroupList* head);
+NecroDeclarationGroupList* necro_get_curr_group_list(NecroDeclarationGroupList* group_list);
 
 #endif // AST_H

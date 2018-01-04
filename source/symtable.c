@@ -51,6 +51,7 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
         .source_loc        = source_loc,
         .scope             = scope,
         .is_method         = false,
+        .ast               = NULL,
         .declaration_group = NULL,
         .type_status       = NECRO_TYPE_UNCHECKED,
     };

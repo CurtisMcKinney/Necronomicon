@@ -34,6 +34,7 @@ typedef struct
     size_t                 local_var_num;
     NecroSourceLoc         source_loc;
     struct NecroScope*     scope;
+    NecroASTNode*          ast;
     NecroDeclarationGroup* declaration_group;
     NecroAST_Node_Reified* optional_type_signature;
     NecroType*             type;

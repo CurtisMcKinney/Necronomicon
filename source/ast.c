@@ -903,6 +903,9 @@ NecroDeclarationGroup* necro_create_declaration_group(NecroPagedArena* arena, Ne
     declaration_group->dependency_list       = NULL;
     declaration_group->info                  = NULL;
     declaration_group->type_checked          = false;
+    declaration_group->index                 = -1;
+    declaration_group->low_link              = 0;
+    declaration_group->on_stack              = false;
     if (prev == NULL)
     {
         return declaration_group;
@@ -922,6 +925,9 @@ NecroDeclarationGroup* necro_append_declaration_group(NecroPagedArena* arena, Ne
     declaration_group->dependency_list       = NULL;
     declaration_group->info                  = NULL;
     declaration_group->type_checked          = false;
+    declaration_group->index                 = -1;
+    declaration_group->low_link              = 0;
+    declaration_group->on_stack              = false;
     if (head == NULL)
         return declaration_group;
     NecroDeclarationGroup* curr = head;
@@ -961,6 +967,14 @@ NecroDeclarationGroupList* necro_create_declaration_group_list(NecroPagedArena* 
     }
 }
 
+NecroDeclarationGroupList* necro_prepend_declaration_group_list(NecroPagedArena* arena, NecroDeclarationGroup* declaration_group, NecroDeclarationGroupList* next)
+{
+    NecroDeclarationGroupList* declaration_group_list = necro_paged_arena_alloc(arena, sizeof(NecroDeclarationGroupList));
+    declaration_group_list->declaration_group         = declaration_group;
+    declaration_group_list->next                      = next;
+    return declaration_group_list;
+}
+
 NecroDeclarationGroupList* necro_append_declaration_group_list(NecroPagedArena* arena, NecroDeclarationGroup* declaration_group, NecroDeclarationGroupList* head)
 {
     NecroDeclarationGroupList* declaration_group_list = necro_paged_arena_alloc(arena, sizeof(NecroDeclarationGroupList));
@@ -988,6 +1002,8 @@ NecroDeclarationsInfo* necro_create_declarations_info(NecroPagedArena* arena)
     NecroDeclarationsInfo* info = necro_paged_arena_alloc(arena, sizeof(NecroDeclarationsInfo));
     info->group_lists           = necro_create_declaration_group_list(arena, NULL, NULL);
     info->current_group         = NULL;
+    info->stack                 = necro_create_declaration_group_vector();
+    info->index                 = 0;
     return info;
 }
 

@@ -3,10 +3,10 @@
 --
 -- -- DONE:
 -- -- * Proper dependency analysis for declarations
---
+-- -- * We're simply punting and not supporting this right now: Higher-kinded type constructor arguments
+
 -- -- TODO:
 -- -- * Accumulated constraints broken...
--- -- * Higher-kinded type constructor arguments
 -- -- * Monomorphism restriction
 -- -- * Defaulting occurs after the entire thing has been type checked
 -- -- * Followed by type class translation

@@ -554,8 +554,8 @@ NecroKind* necro_infer_kind(NecroInfer* infer, NecroType* type, NecroKind* kind_
                 {
                     necro_too_many_args_kind_error(infer, type, macro_type, error_preamble);
                 }
-                // necro_infer_kind(infer, args->list.item, infer->star_kind, macro_type, error_preamble);
-                necro_infer_kind(infer, args->list.item, NULL, macro_type, error_preamble);
+                necro_infer_kind(infer, args->list.item, infer->star_kind, macro_type, error_preamble);
+                // necro_infer_kind(infer, args->list.item, NULL, macro_type, error_preamble);
                 if (necro_is_infer_error(infer)) return NULL;
                 type->kind = type->kind->app.kind1;
                 args = args->list.next;

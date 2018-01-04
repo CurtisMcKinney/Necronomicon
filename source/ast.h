@@ -522,7 +522,6 @@ NecroASTNode* necro_create_bin_op_ast(NecroPagedArena* arena, NecroIntern* inter
 // Dependency analysis
 typedef struct NecroDependencyList
 {
-    // NecroID                     dependency_id;
     struct NecroDeclarationGroup* dependency_group;
     struct NecroDependencyList*   next;
 } NecroDependencyList;
@@ -534,6 +533,9 @@ typedef struct NecroDeclarationGroup
     NecroDependencyList*          dependency_list;
     struct NecroDeclarationsInfo* info;
     bool                          type_checked;
+    int32_t                       index;
+    int32_t                       low_link;
+    bool                          on_stack;
 } NecroDeclarationGroup;
 
 typedef struct NecroDeclarationGroupList
@@ -542,10 +544,14 @@ typedef struct NecroDeclarationGroupList
     struct NecroDeclarationGroupList* next;
 } NecroDeclarationGroupList;
 
+NECRO_DECLARE_VECTOR(NecroDeclarationGroup*, NecroDeclarationGroup, declaration_group)
+
 typedef struct NecroDeclarationsInfo
 {
-    NecroDeclarationGroupList* group_lists;
-    NecroDeclarationGroup*     current_group;
+    int32_t                     index;
+    NecroDeclarationGroupVector stack;
+    NecroDeclarationGroupList*  group_lists;
+    NecroDeclarationGroup*      current_group;
 } NecroDeclarationsInfo;
 
 NecroDependencyList*       necro_create_dependency_list(NecroPagedArena* arena, NecroDeclarationGroup* dependency_group, NecroDependencyList* head);
@@ -553,6 +559,7 @@ NecroDeclarationsInfo*     necro_create_declarations_info(NecroPagedArena* arena
 NecroDeclarationGroup*     necro_create_declaration_group(NecroPagedArena* arena, NecroASTNode* declaration_ast, NecroDeclarationGroup* prev);
 NecroDeclarationGroup*     necro_append_declaration_group(NecroPagedArena* arena, NecroASTNode* declaration_ast, NecroDeclarationGroup* head);
 void                       necro_append_declaration_group_to_group_in_group_list(NecroPagedArena* arena, NecroDeclarationGroupList* group_list, NecroDeclarationGroup* group_to_append);
+NecroDeclarationGroupList* necro_prepend_declaration_group_list(NecroPagedArena* arena, NecroDeclarationGroup* declaration_group, NecroDeclarationGroupList* next);
 NecroDeclarationGroupList* necro_create_declaration_group_list(NecroPagedArena* arena, NecroDeclarationGroup* declaration_group, NecroDeclarationGroupList* prev);
 NecroDeclarationGroupList* necro_append_declaration_group_list(NecroPagedArena* arena, NecroDeclarationGroup* declaration_group, NecroDeclarationGroupList* head);
 NecroDeclarationGroupList* necro_get_curr_group_list(NecroDeclarationGroupList* group_list);

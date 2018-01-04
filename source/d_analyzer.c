@@ -8,123 +8,131 @@
 #include "intern.h"
 #include "d_analyzer.h"
 
+// bool necro_is_repeat_declaration(NecroASTNode* ast, NecroID* prev_id)
+// {
+//     if (ast->type == NECRO_AST_SIMPLE_ASSIGNMENT)
+//     {
+//         if (ast->simple_assignment.id.id == prev_id->id)
+//         {
+//             return true;
+//         }
+//         else
+//         {
+//             prev_id->id = ast->simple_assignment.id.id;
+//             return false;
+//         }
+//     }
+//     else if (ast->type == NECRO_AST_APATS_ASSIGNMENT)
+//     {
+//         if (ast->apats_assignment.id.id == prev_id->id)
+//         {
+//             return true;
+//         }
+//         else
+//         {
+//             prev_id->id = ast->apats_assignment.id.id;
+//             return false;
+//         }
+//     }
+//     else
+//     {
+//         prev_id->id = 0;
+//         return false;
+//     }
+// }
 
-void necro_maybe_insert_dependency(NecroPagedArena* arena, NecroDeclarationGroup* group, NecroDeclarationGroup* dependency_group)
+// typedef enum
+// {
+//     NECRO_DEPENDENCY_NONE,
+//     NECRO_DEPENDENCY_LEFT_ON_RIGHT,
+//     NECRO_DEPENDENCY_RIGHT_ON_LEFT,
+//     NECRO_DEPENDENCY_MUTUAL
+// } NECRO_DEPENDENCY_RESULT;
+
+// // intermediate bindings in dependency_list.....
+// // Can't do it here, lists won't be complete!
+// bool necro_does_group_depend_on_other(NecroDeclarationGroup* group, NecroDeclarationGroup* other)
+// {
+//     assert(group != NULL);
+//     assert(other != NULL);
+//     NecroID prev_id = (NecroID) { .id = 0 };
+//     while (group != NULL)
+//     {
+//         NecroDependencyList* list = group->dependency_list;
+//         while (list != NULL)
+//         {
+//             while (other != NULL)
+//             {
+//                 if (necro_is_repeat_declaration(other->declaration_ast, &prev_id)) continue;
+//                 // take into account type signature?
+//                 if (list->dependency_group == other) return true;
+//                 other = other->next;
+//             }
+//             // This would simply go infinite for cyclical references yes? how to handle....
+//             if (necro_does_group_depend_on_other(list->dependency_group, other)) return true;
+//             list = list->next;
+//         }
+//         group = group->next;
+//     }
+//     return false;
+// }
+
+// NECRO_DEPENDENCY_RESULT necro_determine_dependency(NecroDeclarationGroup* group1, NecroDeclarationGroup* group2)
+// {
+//     bool left_depends_on_right = necro_does_group_depend_on_other(group1, group2);
+//     bool right_depends_on_left = necro_does_group_depend_on_other(group2, group1);
+//     if (left_depends_on_right && right_depends_on_left)       return NECRO_DEPENDENCY_MUTUAL;
+//     else if (left_depends_on_right && !right_depends_on_left) return NECRO_DEPENDENCY_LEFT_ON_RIGHT;
+//     else if (!left_depends_on_right && right_depends_on_left) return NECRO_DEPENDENCY_RIGHT_ON_LEFT;
+//     else                                                      return NECRO_DEPENDENCY_NONE;
+// }
+
+// void necro_insert_declaration_group_into_group_list(NecroPagedArena* arena, NecroDeclarationGroup* group, NecroDeclarationGroupList* group_list)
+// {
+//     NecroDeclarationGroupList* curr_group_list = group_list;
+//     NecroDeclarationGroupList* prev_group_list = group_list;
+//     while (curr_group_list != NULL)
+//     {
+//         switch (necro_determine_dependency(group, curr_group_list->declaration_group))
+//         {
+//         case NECRO_DEPENDENCY_NONE:          break;
+//         case NECRO_DEPENDENCY_LEFT_ON_RIGHT: return;
+//         case NECRO_DEPENDENCY_RIGHT_ON_LEFT: return;
+//         case NECRO_DEPENDENCY_MUTUAL:        return;
+//         }
+//         prev_group_list = curr_group_list;
+//         curr_group_list = curr_group_list->next;
+//     }
+//     // Handle no groups depend on this group
+// }
+
+void necro_strong_connect1(NecroDeclarationGroup* group)
 {
-    if (dependency_group == NULL) return;
-    if (group->dependency_list == NULL)
-    {
-        group->dependency_list = necro_create_dependency_list(arena, dependency_group, NULL);
-        return;
-    }
-    NecroDependencyList* prev = NULL;
-    NecroDependencyList* curr = group->dependency_list;
-    while (curr != NULL)
-    {
-        if (curr->dependency_group == dependency_group)
-            return;
-        prev = curr;
-        curr = curr->next;
-    }
-    prev->next = necro_create_dependency_list(arena, dependency_group, NULL);
+    group->index    = group->info->index;
+    group->low_link = group->info->index;
+    group->info->index++;
+    necro_push_declaration_group_vector(&group->info->stack, &group);
+    group->on_stack            = true;
+    group->info->current_group = group;
 }
 
-bool necro_is_repeat_declaration(NecroASTNode* ast, NecroID* prev_id)
+void necro_strong_connect2(NecroPagedArena* arena, NecroDeclarationGroup* group)
 {
-    if (ast->type == NECRO_AST_SIMPLE_ASSIGNMENT)
+    // This might actually just construct things how we require them in dependency order?
+    // If we're a root node
+    if (group->low_link == group->index)
     {
-        if (ast->simple_assignment.id.id == prev_id->id)
+        // group->info->group_lists                                = necro_prepend_declaration_group_list(arena, group, group->info->group_lists);
+        group->info->group_lists                                = necro_prepend_declaration_group_list(arena, NULL, group->info->group_lists);
+        NecroDeclarationGroupList* strongly_connected_component = group->info->group_lists;
+        NecroDeclarationGroup*     w                            = NULL;
+        do
         {
-            return true;
-        }
-        else
-        {
-            prev_id->id = ast->simple_assignment.id.id;
-            return false;
-        }
+            w           = necro_pop_declaration_group_vector(&group->info->stack);
+            w->on_stack = false;
+            necro_append_declaration_group_to_group_in_group_list(arena, strongly_connected_component, w);
+        } while (w != group);
     }
-    else if (ast->type == NECRO_AST_APATS_ASSIGNMENT)
-    {
-        if (ast->apats_assignment.id.id == prev_id->id)
-        {
-            return true;
-        }
-        else
-        {
-            prev_id->id = ast->apats_assignment.id.id;
-            return false;
-        }
-    }
-    else
-    {
-        prev_id->id = 0;
-        return false;
-    }
-}
-
-typedef enum
-{
-    NECRO_DEPENDENCY_NONE,
-    NECRO_DEPENDENCY_LEFT_ON_RIGHT,
-    NECRO_DEPENDENCY_RIGHT_ON_LEFT,
-    NECRO_DEPENDENCY_MUTUAL
-} NECRO_DEPENDENCY_RESULT;
-
-// intermediate bindings in dependency_list.....
-// Can't do it here, lists won't be complete!
-bool necro_does_group_depend_on_other(NecroDeclarationGroup* group, NecroDeclarationGroup* other)
-{
-    assert(group != NULL);
-    assert(other != NULL);
-    NecroID prev_id = (NecroID) { .id = 0 };
-    while (group != NULL)
-    {
-        NecroDependencyList* list = group->dependency_list;
-        while (list != NULL)
-        {
-            while (other != NULL)
-            {
-                if (necro_is_repeat_declaration(other->declaration_ast, &prev_id)) continue;
-                // take into account type signature?
-                if (list->dependency_group == other) return true;
-                other = other->next;
-            }
-            // This would simply go infinite for cyclical references yes? how to handle....
-            if (necro_does_group_depend_on_other(list->dependency_group, other)) return true;
-            list = list->next;
-        }
-        group = group->next;
-    }
-    return false;
-}
-
-NECRO_DEPENDENCY_RESULT necro_determine_dependency(NecroDeclarationGroup* group1, NecroDeclarationGroup* group2)
-{
-    bool left_depends_on_right = necro_does_group_depend_on_other(group1, group2);
-    bool right_depends_on_left = necro_does_group_depend_on_other(group2, group1);
-    if (left_depends_on_right && right_depends_on_left)       return NECRO_DEPENDENCY_MUTUAL;
-    else if (left_depends_on_right && !right_depends_on_left) return NECRO_DEPENDENCY_LEFT_ON_RIGHT;
-    else if (!left_depends_on_right && right_depends_on_left) return NECRO_DEPENDENCY_RIGHT_ON_LEFT;
-    else                                                      return NECRO_DEPENDENCY_NONE;
-}
-
-void necro_insert_declaration_group_into_group_list(NecroPagedArena* arena, NecroDeclarationGroup* group, NecroDeclarationGroupList* group_list)
-{
-    NecroDeclarationGroupList* curr_group_list = group_list;
-    NecroDeclarationGroupList* prev_group_list = group_list;
-    while (curr_group_list != NULL)
-    {
-        switch (necro_determine_dependency(group, curr_group_list->declaration_group))
-        {
-        case NECRO_DEPENDENCY_NONE:          break;
-        case NECRO_DEPENDENCY_LEFT_ON_RIGHT: return;
-        case NECRO_DEPENDENCY_RIGHT_ON_LEFT: return;
-        case NECRO_DEPENDENCY_MUTUAL:        return;
-        }
-        prev_group_list = curr_group_list;
-        curr_group_list = curr_group_list->next;
-    }
-    // Handle no groups depend on this group
 }
 
 void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
@@ -174,24 +182,32 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
             case NECRO_AST_PAT_ASSIGNMENT:    info->current_group = ast->top_declaration.declaration->pat_assignment.declaration_group;    break;
             default: break;
             }
-            d_analyze_go(d_analyzer, ast->top_declaration.declaration);
-            current_decl = current_decl->top_declaration.next_top_decl;
-        }
-        //-----------------------------------------
-        // Pass 3, Insert groups into group list
-        NecroDeclarationGroupList* group_list = necro_create_declaration_group_list(d_analyzer->arena, NULL, NULL);
-        current_decl = ast;
-        while (current_decl != NULL)
-        {
-            switch (ast->top_declaration.declaration->type)
+            // Analyze each declaration in the declaration group
+            NecroDeclarationGroup* v = info->current_group;
+            while (v != NULL)
             {
-            case NECRO_AST_SIMPLE_ASSIGNMENT: necro_insert_declaration_group_into_group_list(d_analyzer->arena, ast->top_declaration.declaration->simple_assignment.declaration_group, group_list); break;
-            case NECRO_AST_APATS_ASSIGNMENT:  necro_insert_declaration_group_into_group_list(d_analyzer->arena, ast->top_declaration.declaration->apats_assignment.declaration_group, group_list);  break;
-            case NECRO_AST_PAT_ASSIGNMENT:    necro_insert_declaration_group_into_group_list(d_analyzer->arena, ast->top_declaration.declaration->pat_assignment.declaration_group, group_list);    break;
-            default: break;
+                if (v->index == -1)
+                    d_analyze_go(d_analyzer, v->declaration_ast);
+                v = v->next;
             }
             current_decl = current_decl->top_declaration.next_top_decl;
         }
+        // //-----------------------------------------
+        // // Pass 3, Insert groups into group list
+        // NecroDeclarationGroupList* group_list = necro_create_declaration_group_list(d_analyzer->arena, NULL, NULL);
+        // current_decl = ast;
+        // while (current_decl != NULL)
+        // {
+        //     switch (ast->top_declaration.declaration->type)
+        //     {
+        //     case NECRO_AST_SIMPLE_ASSIGNMENT: necro_insert_declaration_group_into_group_list(d_analyzer->arena, ast->top_declaration.declaration->simple_assignment.declaration_group, group_list); break;
+        //     case NECRO_AST_APATS_ASSIGNMENT:  necro_insert_declaration_group_into_group_list(d_analyzer->arena, ast->top_declaration.declaration->apats_assignment.declaration_group, group_list);  break;
+        //     case NECRO_AST_PAT_ASSIGNMENT:    necro_insert_declaration_group_into_group_list(d_analyzer->arena, ast->top_declaration.declaration->pat_assignment.declaration_group, group_list);    break;
+        //     default: break;
+        //     }
+        //     current_decl = current_decl->top_declaration.next_top_decl;
+        // }
+        necro_destroy_declaration_group_vector(&info->stack);
         break;
     }
 
@@ -215,14 +231,26 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
     // Assignment type things
     //=====================================================
     case NECRO_AST_SIMPLE_ASSIGNMENT:
+        // Don't check revisit here
+        // if (ast->simple_assignment.declaration_group->index != -1) return;
+        necro_strong_connect1(ast->simple_assignment.declaration_group);
         d_analyze_go(d_analyzer, ast->simple_assignment.rhs);
+        necro_strong_connect2(d_analyzer->arena, ast->simple_assignment.declaration_group);
         break;
     case NECRO_AST_APATS_ASSIGNMENT:
+        // Don't check revisit here
+        // if (ast->apats_assignment.declaration_group->index != -1) return;
+        necro_strong_connect1(ast->apats_assignment.declaration_group);
         d_analyze_go(d_analyzer, ast->apats_assignment.apats);
         d_analyze_go(d_analyzer, ast->apats_assignment.rhs);
+        necro_strong_connect2(d_analyzer->arena, ast->apats_assignment.declaration_group);
         break;
     case NECRO_AST_PAT_ASSIGNMENT:
+        // Don't check revisit here
+        // if (ast->pat_assignment.declaration_group->index != -1) return;
+        necro_strong_connect1(ast->pat_assignment.declaration_group);
         d_analyze_go(d_analyzer, ast->pat_assignment.rhs);
+        necro_strong_connect2(d_analyzer->arena, ast->pat_assignment.declaration_group);
         break;
 
     //=====================================================
@@ -235,7 +263,28 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         {
             NecroSymbolInfo* symbol_info = necro_symtable_get(d_analyzer->symtable, ast->variable.id);
             if (symbol_info->declaration_group == NULL) return;
-            necro_maybe_insert_dependency(d_analyzer->arena, symbol_info->declaration_group->info->current_group, symbol_info->declaration_group);
+            // necro_create_dependency_list(d_analyzer->arena, symbol_info->declaration_group, symbol_info->declaration_group->info->current_group->dependency_list);
+            NecroDeclarationGroup* w = necro_symtable_get(d_analyzer->symtable, ast->variable.id)->declaration_group;
+            NecroDeclarationGroup* v = w->info->current_group;
+            // Fuuuuuuuuuuuuck......Need to visit each node in a declaration_group, not just the head one
+            // This is important for multi-line declarations!!!!!!
+            NecroDeclarationGroup* curr_w = w;
+            while (curr_w != NULL)
+            {
+                // Don't revisit
+                if (curr_w->index == -1)
+                {
+                    symbol_info->declaration_group->info->current_group = curr_w;
+                    d_analyze_go(d_analyzer, curr_w->declaration_ast);
+                    v->low_link = min(curr_w->low_link, v->low_link);
+                }
+                else if (curr_w->on_stack)
+                {
+                    v->low_link = min(curr_w->low_link, v->low_link);
+                }
+                curr_w = curr_w->next;
+            }
+            symbol_info->declaration_group->info->current_group = v;
             break;
         }
         case NECRO_VAR_DECLARATION:          break;

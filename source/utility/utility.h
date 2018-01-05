@@ -65,7 +65,7 @@ void       necro_print_error(NecroError* error, const char* input_string, const 
 //     if this is necessary it is up to the user to free the values
 //     contained within before freeing the vector.
 //=====================================================
-#define NECRO_INTIAL_VECTOR_SIZE 512
+#define NECRO_INTIAL_VECTOR_SIZE 16
 #define NECRO_DECLARE_VECTOR(type, camel_type, snake_type)                         \
 typedef struct                                                                     \
 {                                                                                  \
@@ -116,6 +116,15 @@ static void necro_push_##snake_type##_vector(camel_type##Vector* vec, type* item
     assert(vec->data != NULL);                                                     \
     vec->data[vec->length] = *item;                                                \
     vec->length++;                                                                 \
+}                                                                                  \
+                                                                                   \
+static type necro_pop_##snake_type##_vector(camel_type##Vector* vec)               \
+{                                                                                  \
+    assert(vec->data != NULL);                                                     \
+    assert(vec->length > 0);                                                       \
+    vec->length--;                                                                 \
+    type e = vec->data[vec->length];                                               \
+    return e;                                                                      \
 }
 
 //=====================================================

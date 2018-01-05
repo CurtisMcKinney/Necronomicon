@@ -78,7 +78,8 @@ NecroTypeClassEnv       necro_create_type_class_env();
 void                    necro_destroy_type_class_env(NecroTypeClassEnv* env);
 
 void                    necro_declare_type_classes(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations);
-void                    necro_type_class_instances(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations);
+void                    necro_type_class_instances_pass1(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations);
+void                    necro_type_class_instances_pass2(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations);
 
 void                    necro_print_type_class_env(NecroTypeClassEnv* env, NecroInfer* infer, NecroIntern* intern);
 NecroTypeClassInstance* necro_get_instance(NecroInfer* infer, NecroCon data_type_name, NecroCon type_class_name);

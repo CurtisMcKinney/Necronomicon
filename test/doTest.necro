@@ -1,27 +1,27 @@
 data Maybe  a   = Just a | Nothing
 data Either a b = Left a | Right b
 
--- TODO:
--- * Higher-kinded type constructor arguments
--- * Proper dependency analysis for declarations
--- * Monomorphism restriction
--- * Defaulting occurs after the entire thing has been type checked
--- * Followed by type class translation
--- * Ambiguous Type classes check
--- * Fix strange do statement bug in maybeTest
--- *
+-- -- DONE:
+-- -- * Proper dependency analysis for declarations
+-- -- * We're simply punting and not supporting this right now: Higher-kinded type constructor arguments
+-- -- * Accumulated constraints FIXED
+-- -- * Fixed strange do statement bug in maybeTest
 
--- I believe things like this are failing because of the ordering of type checking
--- The proper fix is a correct dependency analysis....
+-- -- TODO:
+-- -- * Monomorphism restriction
+-- -- * Defaulting occurs after the entire thing has been type checked
+-- -- * Followed by type class translation
+-- -- * Ambiguous Type classes check
+-- -- * Attach types to every single AST node???
+-- -- * Constructor constraints...
+-- -- * Type class constraints on functions...
 
 instance Eq a => Eq (Maybe a) where
     eq  (Just x) (Just y) = x == y
     eq  Nothing  Nothing  = True
     eq  _        _        = False
-    neq = not . eq -- This should fail type checking but isn't for some reason!?!?!
+    neq x        y        = not (eq x y)
 
--- TODO:
--- The presence of type signatures is somehow fucking up type class method inference!
 not :: Bool -> Bool
 not True  = False
 not False = True
@@ -38,6 +38,7 @@ instance Monad Maybe where
     bind (Just x) f = f x
     bind Nothing  _ = Nothing
 
+-- Test let in here!
 maybeTest :: Audio -> Maybe Audio
 maybeTest z = do
     x      <- Just 1
@@ -47,11 +48,17 @@ maybeTest z = do
     Just 2 >>= Just >>= pure >>= \x -> pure (x + 1)
     Just (2 + u)
     -- TODO: Fix!!!
-    -- ap (map add Nothing) Nothing
+    map (\x -> x) (Just True)
+    x <- map (+1) (Just 0)
+    map (+1) (Just 0)
+    ap (map add (Just 3)) (Just 5)
     pure (y - v)
 
 eitherTest z = do
     pure z
+
+maybeInt n = ap (map add Nothing) n
+maybeAdd = map (+1) (Just 4)
 
 -- Need: &&, ||, <<, =<<, !!
 numBinOps  x y = x + y - x / 4 * 3
@@ -73,8 +80,10 @@ sectionTest1 = (Just 10 >>=)
 sectionTest2 = (>>= pure)
 sectionTest3 = (Just 10 >>=) pure
 sectionTest4 = (>>= pure) (Just 10)
-sectionTest5 = (>>=) (Just 10) pure
+sectionTest5 = (|>) (10) (\x -> x)
+sectionTest6 = (>>=) (Just 10) pure
 
+-- Dependency analysis testing
 class Show a where
     show :: a -> [Char]
 
@@ -84,20 +93,34 @@ f x =
         g2 p q = g1 q p
     in  g2 x x
 
-data ListFunctor f a = Nil | Cons a (f a)
-data Phantom f a = Phantom a
+-- Even without type signatures this produces the most general types
+foo x = foo (bar 0)
+bar x = x
 
-maybeList2 :: ListFunctor Int Int -- This should NOT type check!
-maybeList2 = Nil
+-- These can both be used with id without needing type signatures to get the most principal type
+idTest1 = id (3 == 4)
+idTest2 = id (4 + 5)
 
-maybeList1 :: ListFunctor (ListFunctor (ListFunctor Maybe)) Int -- this should typecheck!
-maybeList1 = Cons 1 (Cons 0 Nil)
+-- With or without the type signature this will still be inferred with the most general type
+-- id :: a -> a
+id x = x
 
-phantom1 :: Phantom Int Int --Kind should be flexible
-phantom1 = Phantom 10
-
-phantom2 :: Phantom Maybe Int --Kind should be flexible
-phantom2 = Phantom 10
+---------------------------------------------------------------------
+-- Higher-kinded Constructor arguments not currently supported!
+-- data ListFunctor f a = Nil | Cons a (f a) -- List SHOULD have the kind (* -> *) -> * -> *, but right now has the kind * -> * -> *
+-- data Phantom f a = Phantom a              -- Phantom SHOULD have the kind ? -> * -> *, but right now has kind * -> * -> *
+--
+-- maybeList2 :: ListFunctor Int Int -- This should NOT type check!
+-- maybeList2 = Nil
+--
+-- maybeList1 :: ListFunctor (ListFunctor (ListFunctor Maybe)) Int -- this should typecheck!
+-- maybeList1 = Cons 1 (Cons 0 Nil)
+--
+-- phantom1 :: Phantom Int Int --Kind should be flexible
+-- phantom1 = Phantom 10
+--
+-- phantom2 :: Phantom Maybe Int --Kind should be flexible
+-- phantom2 = Phantom 10
 
 -- TODO: To get something like this to work we need constructor constraints!
 -- type should be: (Monad m, Num (m a)) => (a -> m b) -> m b

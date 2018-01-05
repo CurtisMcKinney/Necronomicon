@@ -13,8 +13,8 @@
 // Forward Declarations
 //=====================================================
 void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern);
-void necro_add_prim_symbol_info(NecroPrimTypes* prim_types, NecroScopedSymTable* scoped_symtable);
-void necro_add_prim_types(NecroPrimTypes* prim_types, NecroInfer* infer);
+// void necro_add_prim_symbol_info(NecroPrimTypes* prim_types, NecroScopedSymTable* scoped_symtable);
+// void necro_add_prim_types(NecroPrimTypes* prim_types, NecroInfer* infer);
 
 //=====================================================
 // Symbols
@@ -191,6 +191,8 @@ NECRO_RETURN_CODE necro_prim_build_scope(NecroPrimTypes* prim_types, NecroScoped
 
 NECRO_RETURN_CODE necro_prim_rename(NecroPrimTypes* prim_types, NecroRenamer* renamer)
 {
+    renamer->arena = &prim_types->arena;
+    renamer->arena = NULL;
     NecroPrimDef* def = prim_types->def_head;
     while (def != NULL)
     {
@@ -198,8 +200,8 @@ NECRO_RETURN_CODE necro_prim_rename(NecroPrimTypes* prim_types, NecroRenamer* re
         {
         case NECRO_PRIM_DEF_DATA:
         {
-            necro_rename_declare_pass(renamer, def->data_def.data_declaration_ast);
-            necro_rename_var_pass(renamer, def->data_def.data_declaration_ast);
+            necro_rename_declare_pass(renamer, &prim_types->arena, def->data_def.data_declaration_ast);
+            necro_rename_var_pass(renamer, &prim_types->arena, def->data_def.data_declaration_ast);
             if (def->global_name != NULL)
             {
                 def->global_name->symbol = def->data_def.data_declaration_ast->data_declaration.simpletype->simple_type.type_con->conid.symbol;
@@ -209,8 +211,8 @@ NECRO_RETURN_CODE necro_prim_rename(NecroPrimTypes* prim_types, NecroRenamer* re
         }
         case NECRO_PRIM_DEF_CLASS:
         {
-            necro_rename_declare_pass(renamer, def->class_def.type_class_ast);
-            necro_rename_var_pass(renamer, def->class_def.type_class_ast);
+            necro_rename_declare_pass(renamer, &prim_types->arena, def->class_def.type_class_ast);
+            necro_rename_var_pass(renamer, &prim_types->arena, def->class_def.type_class_ast);
             if (def->global_name != NULL)
             {
                 def->global_name->symbol = def->class_def.type_class_ast->type_class_declaration.tycls->conid.symbol;
@@ -220,8 +222,8 @@ NECRO_RETURN_CODE necro_prim_rename(NecroPrimTypes* prim_types, NecroRenamer* re
         }
         case NECRO_PRIM_DEF_FUN:
         {
-            necro_rename_declare_pass(renamer, def->fun_def.type_sig_ast);
-            necro_rename_var_pass(renamer, def->fun_def.type_sig_ast);
+            necro_rename_declare_pass(renamer, &prim_types->arena, def->fun_def.type_sig_ast);
+            necro_rename_var_pass(renamer, &prim_types->arena, def->fun_def.type_sig_ast);
             if (def->global_name != NULL)
             {
                 def->global_name->symbol = def->fun_def.type_sig_ast->type_signature.var->variable.symbol;
@@ -231,10 +233,10 @@ NECRO_RETURN_CODE necro_prim_rename(NecroPrimTypes* prim_types, NecroRenamer* re
         }
         case NECRO_PRIM_DEF_BIN_OP:
         {
-            necro_rename_declare_pass(renamer, def->bin_op_def.type_sig_ast);
-            necro_rename_declare_pass(renamer, def->bin_op_def.definition_ast);
-            necro_rename_var_pass(renamer, def->bin_op_def.type_sig_ast);
-            necro_rename_var_pass(renamer, def->bin_op_def.definition_ast);
+            necro_rename_declare_pass(renamer, &prim_types->arena, def->bin_op_def.type_sig_ast);
+            necro_rename_declare_pass(renamer, &prim_types->arena, def->bin_op_def.definition_ast);
+            necro_rename_var_pass(renamer, &prim_types->arena, def->bin_op_def.type_sig_ast);
+            necro_rename_var_pass(renamer, &prim_types->arena, def->bin_op_def.definition_ast);
             if (def->global_name != NULL)
             {
                 def->global_name->symbol = def->bin_op_def.type_sig_ast->type_signature.var->variable.symbol;
@@ -244,8 +246,8 @@ NECRO_RETURN_CODE necro_prim_rename(NecroPrimTypes* prim_types, NecroRenamer* re
         }
         case NECRO_PRIM_DEF_INSTANCE:
         {
-            necro_rename_declare_pass(renamer, def->instance_def.instance_ast);
-            necro_rename_var_pass(renamer, def->instance_def.instance_ast);
+            necro_rename_declare_pass(renamer, &prim_types->arena, def->instance_def.instance_ast);
+            necro_rename_var_pass(renamer, &prim_types->arena, def->instance_def.instance_ast);
             break;
         }
         default: assert(false); break;
@@ -258,7 +260,7 @@ NECRO_RETURN_CODE necro_prim_rename(NecroPrimTypes* prim_types, NecroRenamer* re
     return renamer->error.return_code;
 }
 
-NECRO_RETURN_CODE necro_prim_infer(NecroPrimTypes* prim_types, NecroInfer* infer)
+NECRO_RETURN_CODE necro_prim_infer(NecroPrimTypes* prim_types, NecroDependencyAnalyzer* d_analyzer, NecroInfer* infer)
 {
     NecroPrimDef* def  = prim_types->def_head;
     NecroASTNode* top  = NULL;
@@ -325,13 +327,15 @@ NECRO_RETURN_CODE necro_prim_infer(NecroPrimTypes* prim_types, NecroInfer* infer
             else
             {
                 top->top_declaration.next_top_decl = necro_create_top_level_declaration_list(&prim_types->arena, def->bin_op_def.type_sig_ast, necro_create_top_level_declaration_list(&prim_types->arena, def->bin_op_def.definition_ast, NULL));
-                top                                = top->top_declaration.next_top_decl;
+                top                                = top->top_declaration.next_top_decl->top_declaration.next_top_decl;
             }
             break;
         default: assert(false); break;
         }
         def = def->next;
     }
+    // Run dependency analyser
+    necro_dependency_analyze_ast(d_analyzer, &prim_types->arena, head);
     // Run type checking on the whole top level declarations
     necro_infer_go(infer, head);
 

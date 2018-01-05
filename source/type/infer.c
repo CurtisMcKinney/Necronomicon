@@ -11,7 +11,7 @@
 #include "type_class.h"
 #include "infer.h"
 
-#define NECRO_INFER_DEBUG           0
+#define NECRO_INFER_DEBUG           1
 #if NECRO_INFER_DEBUG
 #define TRACE_INFER(...) printf(__VA_ARGS__)
 #else
@@ -25,6 +25,11 @@ NecroType* necro_infer_pattern(NecroInfer* infer, NecroNode* ast);
 NecroType* necro_infer_constant(NecroInfer* infer, NecroNode* ast);
 NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast);
 NecroType* necro_infer_tuple_type(NecroInfer* infer, NecroNode* ast);
+NecroType* necro_infer_simple_assignment(NecroInfer* infer, NecroNode* ast);
+void       necro_pat_new_name_go(NecroInfer* infer, NecroNode* ast);
+void       necro_gen_pat_go(NecroInfer* infer, NecroNode* ast);
+NecroType* necro_infer_pat_assignment(NecroInfer* infer, NecroNode* ast);
+NecroType* necro_infer_apats_assignment(NecroInfer* infer, NecroNode* ast);
 
 /*
 DONE:
@@ -287,6 +292,394 @@ NecroType* necro_infer_data_declaration(NecroInfer* infer, NecroNode* ast)
 }
 
 //=====================================================
+// Assignment
+//=====================================================
+NecroType* necro_infer_assignment(NecroInfer* infer, NecroDeclarationGroup* declaration_group)
+{
+    assert(infer != NULL);
+    assert(declaration_group != NULL);
+    NecroNode*       ast         = NULL;
+    NecroSymbolInfo* symbol_info = NULL;
+
+    //-----------------------------
+    // Pass 1, new names
+    NecroDeclarationGroup* curr = declaration_group;
+    while (curr != NULL)
+    {
+        if (curr->type_checked) { curr = curr->next; continue; }
+        ast = curr->declaration_ast;
+        if (necro_is_infer_error(infer)) return NULL;
+        if (ast->type == NECRO_AST_SIMPLE_ASSIGNMENT)
+        {
+            assert(ast->simple_assignment.id.id < infer->symtable->count);
+            symbol_info = necro_symtable_get(infer->symtable, ast->simple_assignment.id);
+            if (symbol_info->type == NULL)
+            {
+                NecroType* new_name = necro_new_name(infer, ast->source_loc);
+                new_name->var.scope = symbol_info->scope;
+                symbol_info->type   = new_name;
+            }
+            else
+            {
+                // Hack: For built-ins
+                symbol_info->type->pre_supplied = true;
+            }
+        }
+        else if (ast->type == NECRO_AST_APATS_ASSIGNMENT)
+        {
+            assert(ast->apats_assignment.id.id < infer->symtable->count);
+            symbol_info = necro_symtable_get(infer->symtable, ast->apats_assignment.id);
+            if (symbol_info->type == NULL)
+            {
+                NecroType* new_name = necro_new_name(infer, ast->source_loc);
+                new_name->var.scope = symbol_info->scope;
+                symbol_info->type   = new_name;
+            }
+            else
+            {
+                // Hack: For built-ins
+                // symbol_info->type->pre_supplied = true;
+            }
+        }
+        else if (ast->type == NECRO_AST_PAT_ASSIGNMENT)
+        {
+            necro_pat_new_name_go(infer, ast->pat_assignment.pat);
+        }
+        else
+        {
+            return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Unrecognized assignment type: %d", ast->type);
+        }
+        curr = curr->next;
+    }
+
+    //-----------------------------
+    // Pass 2, infer types
+    curr = declaration_group;
+    while (curr != NULL)
+    {
+        if (curr->type_checked) { curr = curr->next; continue; }
+        ast = curr->declaration_ast;
+        if (ast->type == NECRO_AST_SIMPLE_ASSIGNMENT)
+            necro_infer_simple_assignment(infer, ast);
+        else if (ast->type == NECRO_AST_APATS_ASSIGNMENT)
+            necro_infer_apats_assignment(infer, ast);
+        else if (ast->type == NECRO_AST_PAT_ASSIGNMENT)
+            necro_infer_pat_assignment(infer, ast);
+        else
+            return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Unrecognized assignment type: %d", ast->type);
+        if (necro_is_infer_error(infer)) return NULL;
+        curr = curr->next;
+    }
+
+    // declaration_group->type_checked = true;
+
+    //-----------------------------
+    // Pass 3, generalize
+    curr = declaration_group;
+    while (curr != NULL)
+    {
+        ast = curr->declaration_ast;
+        if (curr->type_checked) { curr = curr->next;  continue; }
+        if (ast->type == NECRO_AST_SIMPLE_ASSIGNMENT)
+        {
+            symbol_info = necro_symtable_get(infer->symtable, ast->simple_assignment.id);
+            if (symbol_info->type->pre_supplied || symbol_info->type_status == NECRO_TYPE_DONE) { curr->type_checked = true; curr = curr->next;  continue; }
+            symbol_info->type = necro_gen(infer, symbol_info->type, symbol_info->scope->parent);
+            necro_infer_kind(infer, symbol_info->type, infer->star_kind, symbol_info->type, "While declaraing a variable: ");
+            symbol_info->type_status = NECRO_TYPE_DONE;
+        }
+        else if (ast->type == NECRO_AST_APATS_ASSIGNMENT)
+        {
+            symbol_info = necro_symtable_get(infer->symtable, ast->apats_assignment.id);
+            if (symbol_info->id.id > 300)
+                printf("id: %d, typechecked: %d", symbol_info->id.id, curr->type_checked);
+            if (symbol_info->type->pre_supplied || symbol_info->type_status == NECRO_TYPE_DONE) { curr->type_checked = true; curr = curr->next;  continue; }
+            symbol_info->type = necro_gen(infer, symbol_info->type, symbol_info->scope->parent);
+            necro_infer_kind(infer, symbol_info->type, infer->star_kind, symbol_info->type, "While declaraing a variable: ");
+            symbol_info->type_status = NECRO_TYPE_DONE;
+        }
+        else if (ast->type == NECRO_AST_PAT_ASSIGNMENT)
+        {
+            necro_gen_pat_go(infer, ast->pat_assignment.pat);
+        }
+        else
+        {
+            return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Unrecognized assignment type: %d", ast->type);
+        }
+        if (necro_is_infer_error(infer)) return NULL;
+        curr->type_checked = true;
+        curr               = curr->next;
+    }
+
+    return NULL;
+}
+
+NecroType* necro_infer_apats_assignment(NecroInfer* infer, NecroNode* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_APATS_ASSIGNMENT);
+    if (necro_is_infer_error(infer)) return NULL;
+    NecroNode* apats      = ast->apats_assignment.apats;
+    NecroType* f_type     = NULL;
+    NecroType* f_head     = NULL;
+    if (necro_is_infer_error(infer)) return NULL;
+    while (apats != NULL)
+    {
+        assert(apats->type == NECRO_AST_APATS);
+        if (necro_is_infer_error(infer)) return NULL;
+        if (f_type == NULL)
+        {
+            f_type = necro_create_type_fun(infer, necro_infer_apat(infer, apats->apats.apat), NULL);
+            f_head = f_type;
+        }
+        else
+        {
+            f_type->fun.type2 = necro_create_type_fun(infer, necro_infer_apat(infer, apats->apats.apat), NULL);
+            f_type = f_type->fun.type2;
+        }
+        apats = apats->apats.next_apat;
+    }
+    if (necro_is_infer_error(infer)) return NULL;
+    NecroType* proxy_type = infer->symtable->data[ast->apats_assignment.id.id].type;
+    NecroType* rhs = necro_infer_go(infer, ast->apats_assignment.rhs);
+    f_type->fun.type2 = rhs;
+    necro_infer_kind(infer, f_head, infer->star_kind, f_head, "While inferring the type of a function declaration: ");
+    necro_unify(infer, proxy_type, f_head, ast->scope, proxy_type, "While inferring the type of a function declaration: ");
+    return NULL;
+}
+
+NecroType* necro_infer_simple_assignment(NecroInfer* infer, NecroNode* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_SIMPLE_ASSIGNMENT);
+    if (necro_is_infer_error(infer)) return NULL;
+    NecroType* proxy_type = infer->symtable->data[ast->simple_assignment.id.id].type;
+    NecroType* rhs_type   = necro_infer_go(infer, ast->simple_assignment.rhs);
+    if (infer->error.return_code != NECRO_SUCCESS) return NULL;
+    necro_unify(infer, proxy_type, rhs_type, ast->scope, proxy_type, "While inferring the type of an assignment: ");
+    return NULL;
+}
+
+NecroType* necro_infer_pat_assignment(NecroInfer* infer, NecroNode* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_PAT_ASSIGNMENT);
+    assert(ast->pat_assignment.pat != NULL);
+    if (necro_is_infer_error(infer)) return NULL;
+    NecroType* pat_type = necro_infer_apat(infer, ast->pat_assignment.pat);
+    if (necro_is_infer_error(infer)) return NULL;
+    NecroType* rhs_type = necro_infer_go(infer, ast->pat_assignment.rhs);
+    if (necro_is_infer_error(infer)) return NULL;
+    necro_infer_kind(infer, pat_type, infer->star_kind, pat_type, "While inferring the type of a function declaration: ");
+    if (necro_is_infer_error(infer)) return NULL;
+    necro_infer_kind(infer, rhs_type, infer->star_kind, rhs_type, "While inferring the type of a function declaration: ");
+    if (necro_is_infer_error(infer)) return NULL;
+    necro_unify(infer, pat_type, rhs_type, ast->scope, rhs_type, "While inferring the type of a function declaration: ");
+    if (necro_is_infer_error(infer)) return NULL;
+    return NULL;
+}
+
+void necro_pat_new_name_go(NecroInfer* infer, NecroNode* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    if (necro_is_infer_error(infer)) return;
+    switch (ast->type)
+    {
+    case NECRO_AST_VARIABLE:
+    {
+        if (necro_symtable_get(infer->symtable, ast->variable.id)->type == NULL)
+        {
+            NecroType* new_name = necro_new_name(infer, ast->source_loc);
+            new_name->source_loc = ast->source_loc;
+            new_name->var.scope  = infer->symtable->data[ast->variable.id.id].scope;
+            infer->symtable->data[ast->variable.id.id].type        = new_name;
+            infer->symtable->data[ast->variable.id.id].type_status = NECRO_TYPE_CHECKING;
+        }
+        return;
+    }
+    case NECRO_AST_CONSTANT: return;
+    case NECRO_AST_TUPLE:
+    {
+        NecroNode* args = ast->tuple.expressions;
+        while (args != NULL)
+        {
+            necro_pat_new_name_go(infer, args->list.item);
+            args = args->list.next_item;
+        }
+        return;
+    }
+    case NECRO_AST_EXPRESSION_LIST:
+    {
+        NecroNode* args = ast->expression_list.expressions;
+        while (args != NULL)
+        {
+            necro_pat_new_name_go(infer, args->list.item);
+            args = args->list.next_item;
+        }
+        return;
+    }
+    case NECRO_AST_WILDCARD: return;
+    case NECRO_AST_BIN_OP_SYM:
+    {
+        necro_pat_new_name_go(infer, ast->bin_op_sym.left);
+        necro_pat_new_name_go(infer, ast->bin_op_sym.right);
+        return;
+    }
+    case NECRO_AST_CONID: return;
+    case NECRO_AST_CONSTRUCTOR:
+    {
+        NecroNode* args = ast->constructor.arg_list;
+        while (args != NULL)
+        {
+            necro_pat_new_name_go(infer, args->list.item);
+            args = args->list.next_item;
+        }
+        return;
+    }
+    default: necro_infer_ast_error(infer, NULL, ast, "Unimplemented pattern in type inference during necro_pat_new_name_go: %d", ast->type); return;
+    }
+}
+
+void necro_gen_pat_go(NecroInfer* infer, NecroNode* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    if (necro_is_infer_error(infer)) return;
+    switch (ast->type)
+    {
+    case NECRO_AST_VARIABLE:
+    {
+        if (!necro_symtable_get(infer->symtable, ast->variable.id)->type->pre_supplied)
+        {
+            NecroID    id                                          = ast->variable.id;
+            NecroType* proxy_type                                  = infer->symtable->data[id.id].type;
+            infer->symtable->data[id.id].type                      = necro_gen(infer, proxy_type, infer->symtable->data[id.id].scope->parent);
+            infer->symtable->data[ast->variable.id.id].type_status = NECRO_TYPE_DONE;
+            necro_infer_kind(infer, infer->symtable->data[id.id].type, infer->star_kind, infer->symtable->data[id.id].type, "While declaraing a pattern variable: ");
+        }
+        return;
+    }
+    case NECRO_AST_CONSTANT: return;
+    case NECRO_AST_TUPLE:
+    {
+        NecroNode* args = ast->tuple.expressions;
+        while (args != NULL)
+        {
+            necro_gen_pat_go(infer, args->list.item);
+            args = args->list.next_item;
+        }
+        return;
+    }
+    case NECRO_AST_EXPRESSION_LIST:
+    {
+        NecroNode* args = ast->expression_list.expressions;
+        while (args != NULL)
+        {
+            necro_gen_pat_go(infer, args->list.item);
+            args = args->list.next_item;
+        }
+        return;
+    }
+    case NECRO_AST_WILDCARD: return;
+    case NECRO_AST_BIN_OP_SYM:
+    {
+        necro_gen_pat_go(infer, ast->bin_op_sym.left);
+        necro_gen_pat_go(infer, ast->bin_op_sym.right);
+        return;
+    }
+    case NECRO_AST_CONID: return;
+    case NECRO_AST_CONSTRUCTOR:
+    {
+        NecroNode* args = ast->constructor.arg_list;
+        while (args != NULL)
+        {
+            necro_gen_pat_go(infer, args->list.item);
+            args = args->list.next_item;
+        }
+        return;
+    }
+    default: necro_infer_ast_error(infer, NULL, ast, "Unimplemented pattern in type inference during pattern generalization: %d", ast->type); return;
+    }
+}
+
+//=====================================================
+// Variable
+//=====================================================
+NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_VARIABLE);
+    if (necro_is_infer_error(infer)) return NULL;
+    assert(ast->variable.id.id <= infer->symtable->count);
+    NecroSymbolInfo* symbol_info = necro_symtable_get(infer->symtable, ast->variable.id);
+    assert(symbol_info != NULL);
+    // if (ast->variable.id.id > 296)
+    //     TRACE_INFER("infer_var, id: %d\n", ast->variable.id.id);
+    // Not an assignment
+
+    if (symbol_info->declaration_group != NULL)
+        assert(symbol_info->type != NULL);
+    // if (symbol_info->declaration_group == NULL)
+    // {
+        if (symbol_info->type == NULL)
+        {
+            // if (ast->variable.id.id > 296)
+            //     TRACE_INFER("infer_var, not assignment, new, id: %d\n", ast->variable.id.id);
+            symbol_info->type = necro_new_name(infer, ast->source_loc);
+            symbol_info->type->var.scope = symbol_info->scope;
+            return symbol_info->type;
+        }
+        else if (necro_is_bound_in_scope(infer, symbol_info->type, ast->scope))
+        {
+            // if (ast->variable.id.id > 296)
+            //     TRACE_INFER("infer_var, not assignment, bound, id: %d\n", ast->variable.id.id);
+            return symbol_info->type;
+        }
+        else
+        {
+            // if (ast->variable.id.id > 296)
+            //     TRACE_INFER("infer_var, not assignment, inst, id: %d\n", ast->variable.id.id);
+            // TODO: Is this wrong?
+            return necro_inst(infer, symbol_info->type, ast->scope);
+        }
+        assert(false);
+    // }
+    // // Some kind of assignment
+    // else if (symbol_info->type_status == NECRO_TYPE_UNCHECKED)
+    // {
+    //     if (ast->variable.id.id > 296)
+    //         TRACE_INFER("infer_var, assignment, NECRO_TYPE_UNCHECKED, id: %d\n", ast->variable.id.id);
+    //     // assert(symbol_info->type == NULL);
+    //     necro_infer_assignment(infer, symbol_info->declaration_group);
+    //     if (necro_is_infer_error(infer)) return NULL;
+    //     assert(symbol_info->type_status == NECRO_TYPE_DONE);
+    //     assert(symbol_info->type != NULL);
+    //     return necro_inst(infer, symbol_info->type, ast->scope);
+    // }
+    // else if (symbol_info->type_status == NECRO_TYPE_CHECKING && !symbol_info->type->pre_supplied)
+    // {
+    //     if (ast->variable.id.id > 296)
+    //         TRACE_INFER("infer_var, assignment, NECRO_TYPE_CHECKING, id: %d\n", ast->variable.id.id);
+    //     assert(symbol_info->type != NULL);
+    //     return symbol_info->type;
+    // }
+    // else
+    // {
+    //     if (ast->variable.id.id > 296)
+    //         TRACE_INFER("infer_var, assignment, NECRO_TYPE_DONE or pre_supplied, id: %d\n", ast->variable.id.id);
+    //     assert(symbol_info->type != NULL);
+    //     return necro_inst(infer, symbol_info->type, ast->scope);
+    // }
+    // assert(false);
+    return NULL;
+}
+
+//=====================================================
 // Constant
 //=====================================================
 NecroType* necro_infer_constant(NecroInfer* infer, NecroNode* ast)
@@ -315,31 +708,6 @@ NecroType* necro_infer_constant(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_CONSTANT_CHAR:    return necro_symtable_get(infer->symtable, infer->prim_types->char_type.id)->type;
     case NECRO_AST_CONSTANT_STRING:  return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: String not implemented....");
     default:                         return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Unrecognized constant type: %d", ast->constant.type);
-    }
-}
-
-//=====================================================
-// Variable
-//=====================================================
-NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast)
-{
-    assert(infer != NULL);
-    assert(ast != NULL);
-    assert(ast->type == NECRO_AST_VARIABLE);
-    if (necro_is_infer_error(infer)) return NULL;
-    assert(ast->variable.id.id <= infer->symtable->count);
-    NecroType* var_type = infer->symtable->data[ast->variable.id.id].type;
-    if (var_type == NULL)
-    {
-        var_type                = necro_new_name(infer, ast->source_loc);
-        var_type->source_loc    = ast->source_loc;
-        var_type->var.scope     = infer->symtable->data[ast->variable.id.id].scope;
-        infer->symtable->data[ast->variable.id.id].type = var_type;
-        return var_type;
-    }
-    else
-    {
-        return necro_inst(infer, var_type, ast->scope);
     }
 }
 
@@ -759,189 +1127,6 @@ NecroType* necro_infer_case(NecroInfer* infer, NecroNode* ast)
 }
 
 //=====================================================
-// Apats Assignment
-//=====================================================
-NecroType* necro_infer_apats_assignment(NecroInfer* infer, NecroNode* ast)
-{
-    assert(infer != NULL);
-    assert(ast != NULL);
-    assert(ast->type == NECRO_AST_APATS_ASSIGNMENT);
-    if (necro_is_infer_error(infer)) return NULL;
-    NecroNode* apats      = ast->apats_assignment.apats;
-    NecroType* f_type     = NULL;
-    NecroType* f_head     = NULL;
-    if (necro_is_infer_error(infer)) return NULL;
-    while (apats != NULL)
-    {
-        assert(apats->type == NECRO_AST_APATS);
-        if (necro_is_infer_error(infer)) return NULL;
-        if (f_type == NULL)
-        {
-            f_type = necro_create_type_fun(infer, necro_infer_apat(infer, apats->apats.apat), NULL);
-            f_head = f_type;
-        }
-        else
-        {
-            f_type->fun.type2 = necro_create_type_fun(infer, necro_infer_apat(infer, apats->apats.apat), NULL);
-            f_type = f_type->fun.type2;
-        }
-        apats = apats->apats.next_apat;
-    }
-    if (necro_is_infer_error(infer)) return NULL;
-    NecroType* proxy_type = infer->symtable->data[ast->apats_assignment.id.id].type;
-    NecroType* rhs = necro_infer_go(infer, ast->apats_assignment.rhs);
-    f_type->fun.type2 = rhs;
-    necro_infer_kind(infer, f_head, infer->star_kind, f_head, "While inferring the type of a function declaration: ");
-    necro_unify(infer, proxy_type, f_head, ast->scope, proxy_type, "While inferring the type of a function declaration: ");
-    return NULL;
-}
-
-//=====================================================
-// Pat Assignment
-//=====================================================
-NecroType* necro_infer_pat_assignment(NecroInfer* infer, NecroNode* ast)
-{
-    assert(infer != NULL);
-    assert(ast != NULL);
-    assert(ast->type == NECRO_AST_PAT_ASSIGNMENT);
-    assert(ast->pat_assignment.pat != NULL);
-    if (necro_is_infer_error(infer)) return NULL;
-    NecroType* pat_type = necro_infer_apat(infer, ast->pat_assignment.pat);
-    if (necro_is_infer_error(infer)) return NULL;
-    NecroType* rhs_type = necro_infer_go(infer, ast->pat_assignment.rhs);
-    if (necro_is_infer_error(infer)) return NULL;
-    necro_infer_kind(infer, pat_type, infer->star_kind, pat_type, "While inferring the type of a function declaration: ");
-    if (necro_is_infer_error(infer)) return NULL;
-    necro_infer_kind(infer, rhs_type, infer->star_kind, rhs_type, "While inferring the type of a function declaration: ");
-    if (necro_is_infer_error(infer)) return NULL;
-    necro_unify(infer, pat_type, rhs_type, ast->scope, rhs_type, "While inferring the type of a function declaration: ");
-    if (necro_is_infer_error(infer)) return NULL;
-    return NULL;
-}
-
-void necro_pat_new_name_go(NecroInfer* infer, NecroNode* ast)
-{
-    assert(infer != NULL);
-    assert(ast != NULL);
-    if (necro_is_infer_error(infer)) return;
-    switch (ast->type)
-    {
-    case NECRO_AST_VARIABLE:
-    {
-        if (necro_symtable_get(infer->symtable, ast->variable.id)->type == NULL)
-        {
-            NecroType* new_name = necro_new_name(infer, ast->source_loc);
-            new_name->source_loc = ast->source_loc;
-            new_name->var.scope  = infer->symtable->data[ast->variable.id.id].scope;
-            infer->symtable->data[ast->variable.id.id].type = new_name;
-        }
-        return;
-    }
-    case NECRO_AST_CONSTANT: return;
-    case NECRO_AST_TUPLE:
-    {
-        NecroNode* args = ast->tuple.expressions;
-        while (args != NULL)
-        {
-            necro_pat_new_name_go(infer, args->list.item);
-            args = args->list.next_item;
-        }
-        return;
-    }
-    case NECRO_AST_EXPRESSION_LIST:
-    {
-        NecroNode* args = ast->expression_list.expressions;
-        while (args != NULL)
-        {
-            necro_pat_new_name_go(infer, args->list.item);
-            args = args->list.next_item;
-        }
-        return;
-    }
-    case NECRO_AST_WILDCARD: return;
-    case NECRO_AST_BIN_OP_SYM:
-    {
-        necro_pat_new_name_go(infer, ast->bin_op_sym.left);
-        necro_pat_new_name_go(infer, ast->bin_op_sym.right);
-        return;
-    }
-    case NECRO_AST_CONID: return;
-    case NECRO_AST_CONSTRUCTOR:
-    {
-        NecroNode* args = ast->constructor.arg_list;
-        while (args != NULL)
-        {
-            necro_pat_new_name_go(infer, args->list.item);
-            args = args->list.next_item;
-        }
-        return;
-    }
-    default: necro_infer_ast_error(infer, NULL, ast, "Unimplemented pattern in type inference during necro_pat_new_name_go: %d", ast->type); return;
-    }
-}
-
-void necro_gen_pat_go(NecroInfer* infer, NecroNode* ast)
-{
-    assert(infer != NULL);
-    assert(ast != NULL);
-    if (necro_is_infer_error(infer)) return;
-    switch (ast->type)
-    {
-    case NECRO_AST_VARIABLE:
-    {
-        if (!necro_symtable_get(infer->symtable, ast->variable.id)->type->pre_supplied)
-        {
-            NecroID    id                     = ast->variable.id;
-            NecroType* proxy_type             = infer->symtable->data[id.id].type;
-            infer->symtable->data[id.id].type = necro_gen(infer, proxy_type, infer->symtable->data[id.id].scope->parent);
-            necro_infer_kind(infer, infer->symtable->data[id.id].type, infer->star_kind, infer->symtable->data[id.id].type, "While declaraing a pattern variable: ");
-        }
-        return;
-    }
-    case NECRO_AST_CONSTANT: return;
-    case NECRO_AST_TUPLE:
-    {
-        NecroNode* args = ast->tuple.expressions;
-        while (args != NULL)
-        {
-            necro_gen_pat_go(infer, args->list.item);
-            args = args->list.next_item;
-        }
-        return;
-    }
-    case NECRO_AST_EXPRESSION_LIST:
-    {
-        NecroNode* args = ast->expression_list.expressions;
-        while (args != NULL)
-        {
-            necro_gen_pat_go(infer, args->list.item);
-            args = args->list.next_item;
-        }
-        return;
-    }
-    case NECRO_AST_WILDCARD: return;
-    case NECRO_AST_BIN_OP_SYM:
-    {
-        necro_gen_pat_go(infer, ast->bin_op_sym.left);
-        necro_gen_pat_go(infer, ast->bin_op_sym.right);
-        return;
-    }
-    case NECRO_AST_CONID: return;
-    case NECRO_AST_CONSTRUCTOR:
-    {
-        NecroNode* args = ast->constructor.arg_list;
-        while (args != NULL)
-        {
-            necro_gen_pat_go(infer, args->list.item);
-            args = args->list.next_item;
-        }
-        return;
-    }
-    default: necro_infer_ast_error(infer, NULL, ast, "Unimplemented pattern in type inference during pattern generalization: %d", ast->type); return;
-    }
-}
-
-//=====================================================
 // Lambda
 //=====================================================
 NecroType* necro_infer_lambda(NecroInfer* infer, NecroNode* ast)
@@ -972,22 +1157,6 @@ NecroType* necro_infer_lambda(NecroInfer* infer, NecroNode* ast)
     if (necro_is_infer_error(infer)) return NULL;
     f_type->fun.type2 = necro_infer_go(infer, ast->lambda.expression);
     return f_head;
-}
-
-//=====================================================
-// Simple Assignment
-//=====================================================
-NecroType* necro_infer_simple_assignment(NecroInfer* infer, NecroNode* ast)
-{
-    assert(infer != NULL);
-    assert(ast != NULL);
-    assert(ast->type == NECRO_AST_SIMPLE_ASSIGNMENT);
-    if (necro_is_infer_error(infer)) return NULL;
-    NecroType* proxy_type = infer->symtable->data[ast->simple_assignment.id.id].type;
-    NecroType* rhs_type   = necro_infer_go(infer, ast->simple_assignment.rhs);
-    if (infer->error.return_code != NECRO_SUCCESS) return NULL;
-    necro_unify(infer, proxy_type, rhs_type, ast->scope, proxy_type, "While inferring the type of an assignment: ");
-    return NULL;
 }
 
 //=====================================================
@@ -1045,31 +1214,34 @@ NecroType* necro_infer_do_statement(NecroInfer* infer, NecroNode* ast, NecroType
     assert(infer != NULL);
     assert(ast != NULL);
     if (necro_is_infer_error(infer)) return NULL;
-    NecroType* statement_type = NULL;
     switch(ast->type)
     {
-    case NECRO_AST_LET_EXPRESSION:      necro_infer_let_expression(infer, ast); return NULL;
+
+    case NECRO_AST_LET_EXPRESSION: necro_infer_let_expression(infer, ast); return NULL;
+
     case NECRO_BIND_ASSIGNMENT:
     {
         NecroType* var_name                                    = necro_new_name(infer, ast->source_loc);
         infer->symtable->data[ast->bind_assignment.id.id].type = var_name;
         NecroType* rhs_type                                    = necro_infer_go(infer, ast->bind_assignment.expression);
-        if (infer->error.return_code != NECRO_SUCCESS) return NULL;
+        if (necro_is_infer_error(infer)) return NULL;
         NecroType* result_type = necro_create_type_app(infer, monad_var, var_name);
         necro_unify(infer, rhs_type, result_type, ast->scope, rhs_type, "While inferring the type of a bind assignment: ");
         // don't generalize bind assignment variables
         return NULL;
     }
+
     case NECRO_PAT_BIND_ASSIGNMENT:
     {
         NecroType* pat_type = necro_infer_pattern(infer, ast->pat_bind_assignment.pat);
-        if (infer->error.return_code != NECRO_SUCCESS) return NULL;
+        if (necro_is_infer_error(infer)) return NULL;
         NecroType* rhs_type = necro_infer_go(infer, ast->pat_bind_assignment.expression);
-        if (infer->error.return_code != NECRO_SUCCESS) return NULL;
+        if (necro_is_infer_error(infer)) return NULL;
         NecroType* result_type = necro_create_type_app(infer, monad_var, pat_type);
         necro_unify(infer, rhs_type, result_type, ast->scope, rhs_type, "While inferring the type of a pattern bind assignment: ");
         return NULL;
     }
+
     // default: return necro_infer_ast_error(infer, NULL, ast, "Unimplemented ast type in infer_do_statement : %d", ast->type);
     // case NECRO_AST_VARIABLE:            statement_type = necro_infer_var(infer, ast);             break;
     // case NECRO_AST_CONID:               statement_type = necro_infer_conid(infer, ast);           break;
@@ -1077,13 +1249,16 @@ NecroType* necro_infer_do_statement(NecroInfer* infer, NecroNode* ast, NecroType
     // case NECRO_AST_FUNCTION_EXPRESSION: statement_type = necro_infer_fexpr(infer, ast);           break;
     // This should be ok actually?
     default:
-        statement_type = necro_infer_go(infer, ast);
-        break;
+    {
+        // Something seems to be slightly off here...
+        NecroType* statement_type = necro_infer_go(infer, ast);
+        NecroType* result_type    = necro_create_type_app(infer, monad_var, necro_new_name(infer, ast->source_loc));
+        if (necro_is_infer_error(infer)) return NULL;
+        necro_unify(infer, statement_type, result_type, ast->scope, statement_type, "While inferring the type of a do statement: ");
+        return result_type;
     }
-    if (necro_is_infer_error(infer)) return NULL;
-    NecroType* result_type = necro_create_type_app(infer, monad_var, necro_new_name(infer, ast->source_loc));
-    necro_unify(infer, statement_type, result_type, ast->scope, statement_type, "While inferring the type of a do statement: ");
-    return result_type;
+
+    }
 }
 
 NecroType* necro_infer_do(NecroInfer* infer, NecroNode* ast)
@@ -1120,7 +1295,7 @@ NecroType* necro_infer_declaration(NecroInfer* infer, NecroNode* ast)
     NecroNode* current_decl = ast;
 
     //----------------------------------------------------
-    // Pass 0, add type signatures
+    // Type Signatures
     while (current_decl != NULL)
     {
         assert(current_decl->type == NECRO_AST_DECL);
@@ -1134,87 +1309,13 @@ NecroType* necro_infer_declaration(NecroInfer* infer, NecroNode* ast)
     if (necro_is_infer_error(infer)) return NULL;
 
     //----------------------------------------------------
-    // Pass 1, create new names to serve as proxy types (This is the easy solution to recursive let, but produces less general types)
-    current_decl = ast;
-    while (current_decl != NULL)
+    // Infer types for declaration groups
+    NecroDeclarationGroupList* groups = ast->top_declaration.group_list;
+    while (groups != NULL)
     {
-        assert(current_decl->type == NECRO_AST_DECL);
-        switch (current_decl->declaration.declaration_impl->type)
-        {
-        case NECRO_AST_SIMPLE_ASSIGNMENT:
-            if (necro_symtable_get(infer->symtable, current_decl->declaration.declaration_impl->simple_assignment.id)->type == NULL)
-            {
-                NecroType* new_name = necro_new_name(infer, ast->source_loc);
-                new_name->source_loc = current_decl->declaration.declaration_impl->source_loc;
-                new_name->var.scope  = infer->symtable->data[current_decl->declaration.declaration_impl->simple_assignment.id.id].scope;
-                infer->symtable->data[current_decl->declaration.declaration_impl->simple_assignment.id.id].type = new_name;
-            }
-            break;
-        case NECRO_AST_APATS_ASSIGNMENT:
-            if (necro_symtable_get(infer->symtable, current_decl->declaration.declaration_impl->apats_assignment.id)->type == NULL)
-            {
-                NecroType* new_name  = necro_new_name(infer, ast->source_loc);
-                new_name->source_loc = current_decl->declaration.declaration_impl->source_loc;
-                new_name->var.scope  = infer->symtable->data[current_decl->declaration.declaration_impl->apats_assignment.id.id].scope;
-                infer->symtable->data[current_decl->declaration.declaration_impl->apats_assignment.id.id].type = new_name;
-            }
-            break;
-        case NECRO_AST_PAT_ASSIGNMENT:
-            necro_pat_new_name_go(infer, current_decl->declaration.declaration_impl->pat_assignment.pat);
-            break;
-        case NECRO_AST_TYPE_SIGNATURE: break; // Do Nothing
-        default: return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Unknown or unimplemented declaration type: %d", current_decl->declaration.declaration_impl->type);
-        }
+        necro_infer_assignment(infer, groups->declaration_group);
         if (necro_is_infer_error(infer)) return NULL;
-        current_decl = current_decl->declaration.next_declaration;
-    }
-    if (necro_is_infer_error(infer)) return NULL;
-
-    //----------------------------------------------------
-    // Pass 2, Infer types for declarations, then unify assignments with their proxy types
-    current_decl = ast;
-    while (current_decl != NULL)
-    {
-        assert(current_decl->type == NECRO_AST_DECL);
-        necro_infer_go(infer, current_decl->declaration.declaration_impl);
-        if (necro_is_infer_error(infer)) return NULL;
-        current_decl = current_decl->declaration.next_declaration;
-    }
-
-    //----------------------------------------------------
-    // Pass 3, Generalize declared types
-    current_decl = ast;
-    while (current_decl != NULL)
-    {
-        assert(current_decl->type == NECRO_AST_DECL);
-        switch (current_decl->declaration.declaration_impl->type)
-        {
-        case NECRO_AST_SIMPLE_ASSIGNMENT:
-            if (!necro_symtable_get(infer->symtable, current_decl->declaration.declaration_impl->simple_assignment.id)->type->pre_supplied)
-            {
-                NecroVar   var        = (NecroVar) { .id = current_decl->declaration.declaration_impl->simple_assignment.id, .symbol = NULL_SYMBOL};
-                NecroType* proxy_type = infer->symtable->data[var.id.id].type;
-                infer->symtable->data[var.id.id].type = necro_gen(infer, proxy_type, infer->symtable->data[var.id.id].scope->parent);
-                necro_infer_kind(infer, infer->symtable->data[var.id.id].type, infer->star_kind, infer->symtable->data[var.id.id].type, "While declaraing a variable: ");
-            }
-            break;
-        case NECRO_AST_APATS_ASSIGNMENT:
-            if (!necro_symtable_get(infer->symtable, current_decl->declaration.declaration_impl->apats_assignment.id)->type->pre_supplied)
-            {
-                NecroVar   var        = (NecroVar) { .id = current_decl->declaration.declaration_impl->apats_assignment.id, .symbol = NULL_SYMBOL};
-                NecroType* proxy_type = infer->symtable->data[var.id.id].type;
-                infer->symtable->data[var.id.id].type = necro_gen(infer, proxy_type, infer->symtable->data[var.id.id].scope->parent);
-                necro_infer_kind(infer, infer->symtable->data[var.id.id].type, infer->star_kind, infer->symtable->data[var.id.id].type, "While declaraing a function: ");
-            }
-            break;
-        case NECRO_AST_PAT_ASSIGNMENT:
-            necro_gen_pat_go(infer, current_decl->declaration.declaration_impl->pat_assignment.pat);
-            break;
-        case NECRO_AST_TYPE_SIGNATURE: break; // Do Nothing
-        default: return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Unknown or unimplemented declaration type: %d", current_decl->declaration.declaration_impl->type);
-        }
-        if (necro_is_infer_error(infer)) return NULL;
-        current_decl = current_decl->declaration.next_declaration;
+        groups = groups->next;
     }
     if (necro_is_infer_error(infer)) return NULL;
 
@@ -1234,7 +1335,7 @@ NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroNode* ast)
     NecroNode* current_decl = ast;
 
     //----------------------------------------------------
-    // Pass -3, Data Declarations
+    // Data Declarations
     current_decl = ast;
     while (current_decl != NULL)
     {
@@ -1249,17 +1350,12 @@ NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroNode* ast)
     if (necro_is_infer_error(infer)) return NULL;
 
     //----------------------------------------------------
-    // Pass -2, Type Class Declaration
+    // Type Class Declarations
     necro_declare_type_classes(infer, infer->type_class_env, ast);
     if (necro_is_infer_error(infer)) return NULL;
 
     //----------------------------------------------------
-    // Pass -1, Type Class Instances
-    necro_type_class_instances(infer, infer->type_class_env, ast);
-    if (necro_is_infer_error(infer)) return NULL;
-
-    //----------------------------------------------------
-    // Pass 0, add type signatures
+    // Type Signatures
     current_decl = ast;
     while (current_decl != NULL)
     {
@@ -1275,95 +1371,24 @@ NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroNode* ast)
     if (necro_is_infer_error(infer)) return NULL;
 
     //----------------------------------------------------
-    // Pass 1, create new names to serve as proxy types (This is the easy solution to recursive let, but produces less general types)
-    current_decl = ast;
-    while (current_decl != NULL)
+    // Type Class Instances, Pass 1
+    necro_type_class_instances_pass1(infer, infer->type_class_env, ast);
+    if (necro_is_infer_error(infer)) return NULL;
+
+    //----------------------------------------------------
+    // Infer types for declaration groups
+    NecroDeclarationGroupList* groups = ast->top_declaration.group_list;
+    while (groups != NULL)
     {
-        assert(current_decl->type == NECRO_AST_TOP_DECL);
-        switch (current_decl->top_declaration.declaration->type)
-        {
-        case NECRO_AST_SIMPLE_ASSIGNMENT:
-            if (necro_symtable_get(infer->symtable, current_decl->top_declaration.declaration->simple_assignment.id)->type == NULL)
-            {
-                NecroType* new_name  = necro_new_name(infer, ast->source_loc);
-                new_name->source_loc = current_decl->top_declaration.declaration->source_loc;
-                new_name->var.scope  = infer->symtable->data[current_decl->top_declaration.declaration->simple_assignment.id.id].scope;
-                infer->symtable->data[current_decl->top_declaration.declaration->simple_assignment.id.id].type = new_name;
-            }
-            break;
-        case NECRO_AST_APATS_ASSIGNMENT:
-            if (necro_symtable_get(infer->symtable, current_decl->top_declaration.declaration->apats_assignment.id)->type == NULL)
-            {
-                NecroType* new_name  = necro_new_name(infer, ast->source_loc);
-                new_name->source_loc = current_decl->top_declaration.declaration->source_loc;
-                new_name->var.scope  = infer->symtable->data[current_decl->declaration.declaration_impl->apats_assignment.id.id].scope;
-                infer->symtable->data[current_decl->declaration.declaration_impl->apats_assignment.id.id].type = new_name;
-            }
-            break;
-        case NECRO_AST_PAT_ASSIGNMENT:
-            necro_pat_new_name_go(infer, current_decl->top_declaration.declaration->pat_assignment.pat);
-            break;
-        case NECRO_AST_TYPE_SIGNATURE: break; // Do Nothing
-        case NECRO_AST_DATA_DECLARATION: break; // Do Nothing
-        case NECRO_AST_TYPE_CLASS_DECLARATION: break; // Do Nothing
-        case NECRO_AST_TYPE_CLASS_INSTANCE: break; // Do Nothing
-        default: return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Unknown or unimplemented declaration type: %d", current_decl->top_declaration.declaration->type);
-        }
+        necro_infer_assignment(infer, groups->declaration_group);
         if (necro_is_infer_error(infer)) return NULL;
-        current_decl = current_decl->top_declaration.next_top_decl;
+        groups = groups->next;
     }
     if (necro_is_infer_error(infer)) return NULL;
 
     //----------------------------------------------------
-    // Pass 2, Infer types for rhs of declarations
-    current_decl = ast;
-    while (current_decl != NULL)
-    {
-        assert(current_decl->type == NECRO_AST_TOP_DECL);
-        necro_infer_go(infer, current_decl->top_declaration.declaration);
-        if (necro_is_infer_error(infer)) return NULL;
-        current_decl = current_decl->top_declaration.next_top_decl;
-    }
-    if (necro_is_infer_error(infer)) return NULL;
-
-    //----------------------------------------------------
-    // Pass 3, Infer types for rhs of declarations
-    current_decl = ast;
-    while (current_decl != NULL)
-    {
-        assert(current_decl->type == NECRO_AST_TOP_DECL);
-        switch (current_decl->top_declaration.declaration->type)
-        {
-        case NECRO_AST_SIMPLE_ASSIGNMENT:
-            if (!necro_symtable_get(infer->symtable, current_decl->top_declaration.declaration->simple_assignment.id)->type->pre_supplied)
-            {
-                NecroVar   var        = (NecroVar) { .id = current_decl->top_declaration.declaration->simple_assignment.id, .symbol = NULL_SYMBOL };
-                NecroType* proxy_type = infer->symtable->data[var.id.id].type;
-                infer->symtable->data[var.id.id].type = necro_gen(infer, proxy_type, infer->symtable->data[var.id.id].scope->parent);
-                necro_infer_kind(infer, infer->symtable->data[var.id.id].type, infer->star_kind, infer->symtable->data[var.id.id].type, "While declaraing a variable: ");
-            }
-            break;
-        case NECRO_AST_APATS_ASSIGNMENT:
-            if (!necro_symtable_get(infer->symtable, current_decl->top_declaration.declaration->apats_assignment.id)->type->pre_supplied)
-            {
-                NecroVar   var        = (NecroVar) { .id = current_decl->top_declaration.declaration->apats_assignment.id, .symbol = NULL_SYMBOL };
-                NecroType* proxy_type = infer->symtable->data[var.id.id].type;
-                infer->symtable->data[var.id.id].type = necro_gen(infer, proxy_type, infer->symtable->data[var.id.id].scope->parent);
-                necro_infer_kind(infer, infer->symtable->data[var.id.id].type, infer->star_kind, infer->symtable->data[var.id.id].type, "While declaraing a function: ");
-            }
-            break;
-        case NECRO_AST_PAT_ASSIGNMENT:
-            necro_gen_pat_go(infer, current_decl->top_declaration.declaration->pat_assignment.pat);
-            break;
-        case NECRO_AST_TYPE_SIGNATURE: break; // Do Nothing
-        case NECRO_AST_DATA_DECLARATION: break; // Do Nothing
-        case NECRO_AST_TYPE_CLASS_DECLARATION: break; // Do Nothing
-        case NECRO_AST_TYPE_CLASS_INSTANCE: break; // Do Nothing
-        default: return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Unknown or unimplemented declaration type: %d", current_decl->top_declaration.declaration->type);
-        }
-        if (necro_is_infer_error(infer)) return NULL;
-        current_decl = current_decl->top_declaration.next_top_decl;
-    }
+    // Type Class Instances, Pass 2
+    necro_type_class_instances_pass2(infer, infer->type_class_env, ast);
     if (necro_is_infer_error(infer)) return NULL;
 
     // Declarations themselves have no types
@@ -1393,9 +1418,15 @@ NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_OP_LEFT_SECTION:        return necro_infer_op_left_section(infer, ast);
     case NECRO_AST_OP_RIGHT_SECTION:       return necro_infer_op_right_section(infer, ast);
     case NECRO_AST_IF_THEN_ELSE:           return necro_infer_if_then_else(infer, ast);
-    case NECRO_AST_SIMPLE_ASSIGNMENT:      return necro_infer_simple_assignment(infer, ast);
-    case NECRO_AST_APATS_ASSIGNMENT:       return necro_infer_apats_assignment(infer, ast);
-    case NECRO_AST_PAT_ASSIGNMENT:         return necro_infer_pat_assignment(infer, ast);
+
+    // case NECRO_AST_SIMPLE_ASSIGNMENT:      return necro_infer_simple_assignment(infer, ast);
+    // case NECRO_AST_APATS_ASSIGNMENT:       return necro_infer_apats_assignment(infer, ast);
+    // case NECRO_AST_PAT_ASSIGNMENT:         return necro_infer_pat_assignment(infer, ast);
+
+    case NECRO_AST_SIMPLE_ASSIGNMENT:      return necro_infer_assignment(infer, necro_symtable_get(infer->symtable, ast->simple_assignment.id)->declaration_group);
+    case NECRO_AST_APATS_ASSIGNMENT:       return necro_infer_assignment(infer, necro_symtable_get(infer->symtable, ast->apats_assignment.id)->declaration_group);
+    case NECRO_AST_PAT_ASSIGNMENT:         return necro_infer_assignment(infer, ast->pat_assignment.declaration_group);
+
     case NECRO_AST_RIGHT_HAND_SIDE:        return necro_infer_right_hand_side(infer, ast);
     case NECRO_AST_LAMBDA:                 return necro_infer_lambda(infer, ast);
     case NECRO_AST_LET_EXPRESSION:         return necro_infer_let_expression(infer, ast);

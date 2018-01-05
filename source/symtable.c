@@ -39,18 +39,22 @@ void necro_destroy_symtable(NecroSymTable* table)
     table->count = 0;
 }
 
-NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSourceLoc source_loc, NecroScope* scope)
+NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSourceLoc source_loc, NecroScope* scope, NecroIntern* intern)
 {
     return (NecroSymbolInfo)
     {
-        .name          = symbol,
-        .id            = 0,
-        .data_size     = 0,
-        .type          = NULL,
-        .local_var_num = 0,
-        .source_loc    = source_loc,
-        .scope         = scope,
-        .is_method     = false,
+        .name              = symbol,
+        .string_name       = necro_intern_get_string(intern, symbol),
+        .id                = 0,
+        .data_size         = 0,
+        .type              = NULL,
+        .local_var_num     = 0,
+        .source_loc        = source_loc,
+        .scope             = scope,
+        .is_method         = false,
+        .ast               = NULL,
+        .declaration_group = NULL,
+        .type_status       = NECRO_TYPE_UNCHECKED,
     };
 }
 
@@ -802,7 +806,7 @@ void necro_scoped_symtable_test()
             char buffer[20];
             snprintf(buffer, 20, "grow%d", i);
             NecroSymbol     symbol = necro_intern_string(&intern, buffer);
-            NecroSymbolInfo info   = necro_create_initial_symbol_info(symbol, (NecroSourceLoc){ 0, 0, 0 }, NULL);
+            NecroSymbolInfo info   = necro_create_initial_symbol_info(symbol, (NecroSourceLoc){ 0, 0, 0 }, NULL, &intern);
             NecroID         id     = necro_scoped_symtable_new_symbol_info(&scoped_symtable, scoped_symtable.current_scope, info);
             if (id.id == 0)
             {

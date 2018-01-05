@@ -554,8 +554,8 @@ NecroKind* necro_infer_kind(NecroInfer* infer, NecroType* type, NecroKind* kind_
                 {
                     necro_too_many_args_kind_error(infer, type, macro_type, error_preamble);
                 }
-                // necro_infer_kind(infer, args->list.item, infer->star_kind, macro_type, error_preamble);
-                necro_infer_kind(infer, args->list.item, NULL, macro_type, error_preamble);
+                necro_infer_kind(infer, args->list.item, infer->star_kind, macro_type, error_preamble);
+                // necro_infer_kind(infer, args->list.item, NULL, macro_type, error_preamble);
                 if (necro_is_infer_error(infer)) return NULL;
                 type->kind = type->kind->app.kind1;
                 args = args->list.next;
@@ -839,10 +839,15 @@ void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* clas
         }
         return;
     }
+    case NECRO_TYPE_FUN:
+        // TODO: Type classes for functions!!!
+        necro_propogate_type_classes(infer, classes, type->fun.type1, macro_type, error_preamble);
+        necro_propogate_type_classes(infer, classes, type->fun.type2, macro_type, error_preamble);
+        // necro_infer_error(infer, error_preamble, macro_type, "(->) Not implemented for type classes!", type->type);
+        return;
     case NECRO_TYPE_APP:  necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: TypeApp not implemented in necro_propogate_type_classes!"); return;
     case NECRO_TYPE_LIST: necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Found ConTypeList in necro_propogate_type_classes!"); return;
     case NECRO_TYPE_FOR:  necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Found polytype in necro_propogate_type_classes!"); return;
-    case NECRO_TYPE_FUN:  necro_infer_error(infer, error_preamble, macro_type, "(->) Not implemented for type classes!", type->type); return;
     default:              necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Unrecognized type: %d.", type->type); return;
     }
 }
@@ -1111,7 +1116,7 @@ NecroInstSub* necro_create_inst_sub(NecroInfer* infer, NecroVar var_to_replace, 
     }
     else
     {
-        // Need to fix this
+        // TODO: Need to fix this
         // Is this bad?
         // assert(false);
     }

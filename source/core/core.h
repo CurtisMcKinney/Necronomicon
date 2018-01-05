@@ -9,6 +9,55 @@
 #include "parser.h"
 #include "infer.h"
 
+//////////////////////
+// Types
+//////////////////////
+
+typedef struct
+{
+    struct NecroCoreAST_Type* typeA;
+    struct NecroCoreAST_Type* typeB;
+} NecroCoreAST_AppType;
+
+typedef struct  
+{
+    NecroVar id;
+} NecroCoreAST_TypeCon;
+
+typedef struct
+{
+    NecroCoreAST_TypeCon* typeCon;
+    struct NecroCoreAST_TypeList* types;
+} NecroCoreAST_TyConApp;
+
+typedef struct  
+{
+    union
+    {
+        NecroVar tyvarTy;
+        NecroAST_ConstantType liftTy;
+        NecroCoreAST_AppType* appTy;
+        NecroCoreAST_TyConApp* tyConApp;
+    };
+
+    enum
+    {
+        NECRO_CORE_AST_TYPE_VAR,
+        NECRO_CORE_AST_TYPE_LIT,
+        NECRO_CORE_AST_TYPE_APP,
+        NECRO_CORE_AST_TYPE_TYCON_APP,
+    } type;
+} NecroCoreAST_Type;
+
+typedef struct
+{
+    NecroCoreAST_Type* type;
+    NecroCoreAST_Type* next;
+} NecroCoreAST_TypeList;
+
+//////////////////////
+// Expressions
+//////////////////////
 
 typedef struct 
 {
@@ -28,9 +77,27 @@ typedef struct
     struct NecroCoreAST_Expression* expr;
 } NecroCoreAST_Let;
 
+typedef struct 
+{
+    union
+    {
+        struct NecroCoreAST_DataCon* dataCon;
+        struct NecroCoreAST_Expression* expr;
+    };
+
+    enum
+    {
+        NECRO_CORE_DATAEXPR_DATACON,
+        NECRO_CORE_DATAEXPR_EXPR
+    } type;
+
+    struct NecroCoreAST_DataExpr* next;
+} NecroCoreAST_DataExpr;
+
 typedef struct
 {
-    NecroVar id;
+    NecroVar condid;
+    NecroCoreAST_DataExpr arg_list;
 } NecroCoreAST_DataCon;
 
 typedef struct

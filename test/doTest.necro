@@ -1,17 +1,17 @@
 data Maybe  a   = Just a | Nothing
 data Either a b = Left a | Right b
---
+
 -- -- DONE:
 -- -- * Proper dependency analysis for declarations
 -- -- * We're simply punting and not supporting this right now: Higher-kinded type constructor arguments
 -- -- * Accumulated constraints FIXED
+-- -- * Fixed strange do statement bug in maybeTest
 
 -- -- TODO:
 -- -- * Monomorphism restriction
 -- -- * Defaulting occurs after the entire thing has been type checked
 -- -- * Followed by type class translation
 -- -- * Ambiguous Type classes check
--- -- * Fix strange do statement bug in maybeTest
 -- -- * Attach types to every single AST node???
 -- -- * Constructor constraints...
 -- -- * Type class constraints on functions...
@@ -20,7 +20,7 @@ instance Eq a => Eq (Maybe a) where
     eq  (Just x) (Just y) = x == y
     eq  Nothing  Nothing  = True
     eq  _        _        = False
-    neq x        y        = not (eq x y) -- Fixed this!
+    neq x        y        = not (eq x y)
 
 not :: Bool -> Bool
 not True  = False
@@ -57,7 +57,6 @@ maybeTest z = do
 eitherTest z = do
     pure z
 
--- This type checks here, so what's up?
 maybeInt n = ap (map add Nothing) n
 maybeAdd = map (+1) (Just 4)
 

@@ -478,6 +478,7 @@ void necro_finish_declaring_type_class_instance(NecroInfer* infer, NecroTypeClas
         NecroType* inst_method_type = necro_instantiate_method_sig(infer, type_class->type_var, method_type, inst_data_type);
         necro_symtable_get(infer->symtable, instance->dictionary_prototype->prototype_varid.id)->type = necro_inst(infer, inst_method_type, NULL);
         necro_symtable_get(infer->symtable, instance->dictionary_prototype->prototype_varid.id)->type = necro_gen(infer, necro_symtable_get(infer->symtable, instance->dictionary_prototype->prototype_varid.id)->type, NULL);
+        necro_symtable_get(infer->symtable, instance->dictionary_prototype->prototype_varid.id)->type->pre_supplied = true;
         // necro_infer_go(infer, declarations->declaration.declaration_impl);
 
         //--------------------------------
@@ -486,7 +487,9 @@ void necro_finish_declaring_type_class_instance(NecroInfer* infer, NecroTypeClas
         declarations = declarations->declaration.next_declaration;
     }
 
+    // TODO: Look into this!
     // Infer declarations with types in symtable
+    declarations = instance->ast->type_class_instance.declarations;
     necro_infer_go(infer, declarations);
 
     //--------------------------------

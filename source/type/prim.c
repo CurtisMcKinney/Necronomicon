@@ -13,8 +13,8 @@
 // Forward Declarations
 //=====================================================
 void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern);
-void necro_add_prim_symbol_info(NecroPrimTypes* prim_types, NecroScopedSymTable* scoped_symtable);
-void necro_add_prim_types(NecroPrimTypes* prim_types, NecroInfer* infer);
+// void necro_add_prim_symbol_info(NecroPrimTypes* prim_types, NecroScopedSymTable* scoped_symtable);
+// void necro_add_prim_types(NecroPrimTypes* prim_types, NecroInfer* infer);
 
 //=====================================================
 // Symbols
@@ -260,7 +260,7 @@ NECRO_RETURN_CODE necro_prim_rename(NecroPrimTypes* prim_types, NecroRenamer* re
     return renamer->error.return_code;
 }
 
-NECRO_RETURN_CODE necro_prim_infer(NecroPrimTypes* prim_types, NecroInfer* infer)
+NECRO_RETURN_CODE necro_prim_infer(NecroPrimTypes* prim_types, NecroDependencyAnalyzer* d_analyzer, NecroInfer* infer)
 {
     NecroPrimDef* def  = prim_types->def_head;
     NecroASTNode* top  = NULL;
@@ -327,13 +327,15 @@ NECRO_RETURN_CODE necro_prim_infer(NecroPrimTypes* prim_types, NecroInfer* infer
             else
             {
                 top->top_declaration.next_top_decl = necro_create_top_level_declaration_list(&prim_types->arena, def->bin_op_def.type_sig_ast, necro_create_top_level_declaration_list(&prim_types->arena, def->bin_op_def.definition_ast, NULL));
-                top                                = top->top_declaration.next_top_decl;
+                top                                = top->top_declaration.next_top_decl->top_declaration.next_top_decl;
             }
             break;
         default: assert(false); break;
         }
         def = def->next;
     }
+    // Run dependency analyser
+    necro_dependency_analyze_ast(d_analyzer, &prim_types->arena, head);
     // Run type checking on the whole top level declarations
     necro_infer_go(infer, head);
 

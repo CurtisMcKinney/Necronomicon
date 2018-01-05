@@ -256,7 +256,7 @@ NecroTypeClassInstance* necro_get_type_class_instance(NecroInfer* infer, NecroTy
     return instance;
 }
 
-void necro_type_class_instances(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations)
+void necro_type_class_instances_pass1(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations)
 {
     assert(infer != NULL);
     assert(top_level_declarations != NULL);
@@ -306,11 +306,14 @@ void necro_type_class_instances(NecroInfer* infer, NecroTypeClassEnv* env, Necro
         if (necro_is_infer_error(infer)) return;
         current_decl = current_decl->top_declaration.next_top_decl;
     }
-    if (necro_is_infer_error(infer)) return;
+}
 
+void necro_type_class_instances_pass2(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations)
+{
+    if (necro_is_infer_error(infer)) return;
     //---------------------------------------------------------------
     // Pass 2, Dependency Analyze and Finish
-    current_decl = top_level_declarations;
+    NecroNode* current_decl = top_level_declarations;
     while (current_decl != NULL)
     {
         assert(current_decl->type == NECRO_AST_TOP_DECL);
@@ -468,20 +471,23 @@ void necro_finish_declaring_type_class_instance(NecroInfer* infer, NecroTypeClas
         }
 
         //--------------------------------
-        // Assemble and type check instance method
+        // Assemble types for overloaded methods
         assert(members != NULL);
         assert(necro_symtable_get(infer->symtable, members->member_varid.id) != NULL);
         NecroType* method_type      = necro_symtable_get(infer->symtable, members->member_varid.id)->type;
         NecroType* inst_method_type = necro_instantiate_method_sig(infer, type_class->type_var, method_type, inst_data_type);
         necro_symtable_get(infer->symtable, instance->dictionary_prototype->prototype_varid.id)->type = necro_inst(infer, inst_method_type, NULL);
         necro_symtable_get(infer->symtable, instance->dictionary_prototype->prototype_varid.id)->type = necro_gen(infer, necro_symtable_get(infer->symtable, instance->dictionary_prototype->prototype_varid.id)->type, NULL);
-        necro_infer_go(infer, declarations->declaration.declaration_impl);
+        // necro_infer_go(infer, declarations->declaration.declaration_impl);
 
         //--------------------------------
         // next
         instance->dictionary_prototype->next = prev_dictionary;
         declarations = declarations->declaration.next_declaration;
     }
+
+    // Infer declarations with types in symtable
+    necro_infer_go(infer, declarations);
 
     //--------------------------------
     // Missing members check

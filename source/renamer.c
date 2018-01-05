@@ -32,7 +32,7 @@ bool try_create_name(NecroRenamer* renamer, NecroAST_Node_Reified* node, NecroSc
     else
     {
         node->scope->last_introduced_id = id;
-        *id_to_set = necro_scoped_symtable_new_symbol_info(renamer->scoped_symtable, scope, necro_create_initial_symbol_info(symbol, node->source_loc, scope));
+        *id_to_set = necro_scoped_symtable_new_symbol_info(renamer->scoped_symtable, scope, necro_create_initial_symbol_info(symbol, node->source_loc, scope, renamer->intern));
         return true;
     }
 }
@@ -101,7 +101,7 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         }
         else
         {
-            input_node->apats_assignment.id       = necro_scoped_symtable_new_symbol_info(renamer->scoped_symtable, input_node->scope, necro_create_initial_symbol_info(input_node->apats_assignment.variable_name, input_node->source_loc, input_node->scope));
+            input_node->apats_assignment.id       = necro_scoped_symtable_new_symbol_info(renamer->scoped_symtable, input_node->scope, necro_create_initial_symbol_info(input_node->apats_assignment.variable_name, input_node->source_loc, input_node->scope, renamer->intern));
             input_node->scope->last_introduced_id = input_node->apats_assignment.id;
         }
         swap_renamer_class_symbol(renamer);
@@ -157,7 +157,7 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
             if (id.id != 0)
                 input_node->variable.id = id;
             else if (renamer->should_free_type_declare)
-                input_node->variable.id = necro_scoped_symtable_new_symbol_info(renamer->scoped_symtable, input_node->scope, necro_create_initial_symbol_info(input_node->variable.symbol, input_node->source_loc, input_node->scope));
+                input_node->variable.id = necro_scoped_symtable_new_symbol_info(renamer->scoped_symtable, input_node->scope, necro_create_initial_symbol_info(input_node->variable.symbol, input_node->source_loc, input_node->scope, renamer->intern));
             else
                 necro_error(&renamer->error, input_node->source_loc, "Not in scope: \'%s\'", necro_intern_get_string(renamer->scoped_symtable->global_table->intern, input_node->variable.symbol));
             break;
@@ -344,16 +344,12 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         rename_var_go(input_node->simple_assignment.rhs, renamer);
         renamer->scoped_symtable->global_table->data[input_node->simple_assignment.id.id].declaration_group =
             necro_append_declaration_group(renamer->arena, input_node, renamer->scoped_symtable->global_table->data[input_node->simple_assignment.id.id].declaration_group);
-        if (input_node->simple_assignment.id.id > 296)
-            printf("rename_var_go, simple assignment, id: %d\n", input_node->simple_assignment.id.id);
         break;
     case NECRO_AST_APATS_ASSIGNMENT:
         rename_var_go(input_node->apats_assignment.apats, renamer);
         rename_var_go(input_node->apats_assignment.rhs, renamer);
         renamer->scoped_symtable->global_table->data[input_node->apats_assignment.id.id].declaration_group =
             necro_append_declaration_group(renamer->arena, input_node, renamer->scoped_symtable->global_table->data[input_node->apats_assignment.id.id].declaration_group);
-        if (input_node->apats_assignment.id.id > 296)
-            printf("rename_var_go, apats assignment, id: %d\n", input_node->apats_assignment.id.id);
         break;
     case NECRO_AST_PAT_ASSIGNMENT:
         renamer->current_declaration_group           = necro_append_declaration_group(renamer->arena, input_node, NULL);
@@ -529,10 +525,11 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
     }
 }
 
-NecroRenamer necro_create_renamer(NecroScopedSymTable* scoped_symtable)
+NecroRenamer necro_create_renamer(NecroScopedSymTable* scoped_symtable, NecroIntern* intern)
 {
     return (NecroRenamer)
     {
+        .intern                    = intern,
         .scoped_symtable           = scoped_symtable,
         .should_free_type_declare  = true,
         .current_declaration_group = NULL,

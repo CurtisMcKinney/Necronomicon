@@ -559,6 +559,7 @@ NecroDeclarationsInfo*     necro_create_declarations_info(NecroPagedArena* arena
 NecroDeclarationGroup*     necro_create_declaration_group(NecroPagedArena* arena, NecroASTNode* declaration_ast, NecroDeclarationGroup* prev);
 NecroDeclarationGroup*     necro_append_declaration_group(NecroPagedArena* arena, NecroASTNode* declaration_ast, NecroDeclarationGroup* head);
 void                       necro_append_declaration_group_to_group_in_group_list(NecroPagedArena* arena, NecroDeclarationGroupList* group_list, NecroDeclarationGroup* group_to_append);
+void                       necro_prepend_declaration_group_to_group_in_group_list(NecroPagedArena* arena, NecroDeclarationGroupList* group_list, NecroDeclarationGroup* group_to_prepend);
 NecroDeclarationGroupList* necro_prepend_declaration_group_list(NecroPagedArena* arena, NecroDeclarationGroup* declaration_group, NecroDeclarationGroupList* next);
 NecroDeclarationGroupList* necro_create_declaration_group_list(NecroPagedArena* arena, NecroDeclarationGroup* declaration_group, NecroDeclarationGroupList* prev);
 NecroDeclarationGroupList* necro_append_declaration_group_list(NecroPagedArena* arena, NecroDeclarationGroup* declaration_group, NecroDeclarationGroupList* head);

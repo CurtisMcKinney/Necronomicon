@@ -44,9 +44,8 @@ tupleAllTheWayDown = (tuplesPlease, tupleTest, 666.0)
             where
                 tuplesAreTurles = (3 == 3, 5 + 6 * 7, 0.0)
 
-data Maybe a = Just a | Nothing
+maybeTest      = kindsTest1 Just (4 /= 5)
 kindsTest1 k a = k a
-maybeTest = kindsTest1 Just (4 /= 5)
 
 kindsTest2 :: (a -> b -> k a b) -> a -> b -> k a b
 kindsTest2 k x y = k x y
@@ -61,7 +60,6 @@ kindsTest3 k x y z = k x y z
 
 data Triple a b c = Triple a b c
 tripleTest = kindsTest3 Triple 0 2.2 3
-
 
 listTest1     = []
 listTest2     = [id 0]
@@ -141,10 +139,6 @@ caseInfixTest b = case b of
     x `Both` y -> Nope
     Nope       -> Both 0 0.0
 
-twoTimes :: Maybe a -> Int
-twoTimes (Just _) = 1
-twoTimes Nothing  = 0
-
 kindsTest666 :: k a -> k a
 kindsTest666 x = x
 
@@ -165,3 +159,10 @@ size (Cons _ xs) = 1 + size xs
 -- Even without type signatures this produces the most general types
 foo x = foo (bar 0)
 bar x = x
+
+data Maybe a = Just a | Nothing
+
+-- TODO / Bug: Multiline definitions without a type signature aren't generalizing correctly
+-- twoTimes :: Maybe a -> Int
+twoTimes (Just _) = 1
+twoTimes Nothing  = 0

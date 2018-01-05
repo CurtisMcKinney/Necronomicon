@@ -951,6 +951,28 @@ void necro_append_declaration_group_to_group_in_group_list(NecroPagedArena* aren
     curr->next = group_to_append;
 }
 
+void necro_prepend_declaration_group_to_group_in_group_list(NecroPagedArena* arena, NecroDeclarationGroupList* group_list, NecroDeclarationGroup* group_to_prepend)
+{
+    assert(group_to_prepend != NULL);
+    NecroDeclarationGroup* curr = group_to_prepend;
+    while (curr->next != NULL)
+        curr = curr->next;
+    curr->next = group_list->declaration_group;
+    group_list->declaration_group = curr;
+    // NecroDeclarationGroup* existing_group = group_list->declaration_group;
+    // group_to_prepend
+    // if (existing_group == NULL)
+    // {
+    //     group_list->declaration_group = group_to_prepend;
+    //     return;
+    // }
+    // els
+    // NecroDeclarationGroup* curr = existing_group;
+    // while (curr->next != NULL)
+    //     curr = curr->next;
+    // curr->next = group_to_append;
+}
+
 NecroDeclarationGroupList* necro_create_declaration_group_list(NecroPagedArena* arena, NecroDeclarationGroup* declaration_group, NecroDeclarationGroupList* prev)
 {
     NecroDeclarationGroupList* declaration_group_list = necro_paged_arena_alloc(arena, sizeof(NecroDeclarationGroupList));

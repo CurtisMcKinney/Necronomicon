@@ -122,8 +122,8 @@ static type necro_pop_##snake_type##_vector(camel_type##Vector* vec)            
 {                                                                                  \
     assert(vec->data != NULL);                                                     \
     assert(vec->length > 0);                                                       \
-    type e = vec->data[vec->length];                                               \
     vec->length--;                                                                 \
+    type e = vec->data[vec->length];                                               \
     return e;                                                                      \
 }
 

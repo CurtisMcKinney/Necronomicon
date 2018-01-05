@@ -107,7 +107,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     // Renaming
     //=====================================================
     necro_announce_phase("Renaming");
-    NecroRenamer renamer = necro_create_renamer(&scoped_symtable);
+    NecroRenamer renamer = necro_create_renamer(&scoped_symtable, &lexer.intern);
     if (necro_prim_rename(&prim_types, &renamer) != NECRO_SUCCESS)
     {
         necro_print_error(&renamer.error, input_string, "Renaming (Prim Pass)");
@@ -133,6 +133,14 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     //=====================================================
     necro_announce_phase("Dependency Analysis");
     NecroDependencyAnalyzer d_analyzer = necro_create_dependency_analyzer(&symtable, &lexer.intern);
+    NecroTypeClassEnv type_class_env = necro_create_type_class_env();
+    NecroInfer        infer          = necro_create_infer(&lexer.intern, &symtable, &prim_types, &type_class_env);
+    if (necro_prim_infer(&prim_types, &d_analyzer, &infer) != NECRO_SUCCESS)
+    {
+        necro_print_error(&infer.error, input_string, "Prim Type");
+        return;
+    }
+
     if (necro_dependency_analyze_ast(&d_analyzer, &ast_r.arena, ast_r.root))
     {
         necro_print_error(&renamer.error, input_string, "Dependency Analysis");
@@ -146,13 +154,6 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     // Infer
     //=====================================================
     necro_announce_phase("Typing");
-    NecroTypeClassEnv type_class_env = necro_create_type_class_env();
-    NecroInfer        infer          = necro_create_infer(&lexer.intern, &symtable, &prim_types, &type_class_env);
-    if (necro_prim_infer(&prim_types, &infer) != NECRO_SUCCESS)
-    {
-        necro_print_error(&infer.error, input_string, "Prim Type");
-        return;
-    }
     necro_infer(&infer, ast_r.root);
     // TODO: put back
     // necro_symtable_print(&symtable);

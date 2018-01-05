@@ -1982,7 +1982,7 @@ NecroAST_LocalPtr parse_op_right_section(NecroParser* parser)
     {
         return null_local_ptr;
     }
-    
+
     NecroParser_Snapshot snapshot = snapshot_parser(parser);
     consume_token(parser); // consume '('
 
@@ -1990,7 +1990,7 @@ NecroAST_LocalPtr parse_op_right_section(NecroParser* parser)
     const NecroLexToken* bin_op_token = peek_token(parser);
     const NecroAST_BinOpType bin_op_type = token_to_bin_op_type(bin_op_token->token);
     const NecroSymbol bin_op_symbol = bin_op_token->symbol;
-    
+
     if (bin_op_type == NECRO_BIN_OP_UNDEFINED)
     {
         restore_parser(parser, snapshot);
@@ -2342,6 +2342,7 @@ NecroAST_LocalPtr parse_do_item(NecroParser* parser)
                 parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
             }
         }
+        restore_parser(parser, snapshot);
     } break;
 
     case NECRO_LEX_LET:
@@ -2385,6 +2386,7 @@ NecroAST_LocalPtr parse_do_item(NecroParser* parser)
                 }
             }
         }
+        restore_parser(parser, snapshot);
     }
 
     // Expression

@@ -38,6 +38,7 @@ instance Monad Maybe where
     bind (Just x) f = f x
     bind Nothing  _ = Nothing
 
+-- Test let in here!
 maybeTest :: Audio -> Maybe Audio
 maybeTest z = do
     x      <- Just 1
@@ -47,14 +48,18 @@ maybeTest z = do
     Just 2 >>= Just >>= pure >>= \x -> pure (x + 1)
     Just (2 + u)
     -- TODO: Fix!!!
-    -- ap (map add Nothing) Nothing
+    map (\x -> x) (Just True)
+    x <- map (+1) (Just 0)
+    map (+1) (Just 0)
+    ap (map add (Just 3)) (Just 5)
     pure (y - v)
 
 eitherTest z = do
     pure z
 
 -- This type checks here, so what's up?
-maybeInt = ap (map add Nothing) Nothing
+maybeInt n = ap (map add Nothing) n
+maybeAdd = map (+1) (Just 4)
 
 -- Need: &&, ||, <<, =<<, !!
 numBinOps  x y = x + y - x / 4 * 3

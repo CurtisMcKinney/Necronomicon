@@ -1,20 +1,21 @@
 data Maybe  a   = Just a | Nothing
 data Either a b = Left a | Right b
 
--- -- DONE:
--- -- * Proper dependency analysis for declarations
--- -- * We're simply punting and not supporting this right now: Higher-kinded type constructor arguments
--- -- * Accumulated constraints FIXED
--- -- * Fixed strange do statement bug in maybeTest
+-- DONE:
+-- * Proper dependency analysis for declarations
+-- * Accumulated constraints FIXED
+-- * Fixed strange do statement bug in maybeTest
+-- * Fixed type class instance bugs
 
--- -- TODO:
--- -- * Monomorphism restriction
--- -- * Defaulting occurs after the entire thing has been type checked
--- -- * Followed by type class translation
--- -- * Ambiguous Type classes check
--- -- * Attach types to every single AST node???
--- -- * Constructor constraints...
--- -- * Type class constraints on functions...
+-- TODO:
+-- * Monomorphism restriction
+-- * Defaulting occurs after the entire thing has been type checked
+-- * Followed by type class translation
+-- * Ambiguous Type classes check
+-- * Attach types to every single AST node???
+-- * Constructor constraints...
+-- * Type class constraints on functions...
+-- * Proper kind inference system...likely requires dependency analysis for data types
 
 instance Eq a => Eq (Maybe a) where
     eq  (Just x) (Just y) = x == y
@@ -47,7 +48,6 @@ maybeTest z = do
     Nothing
     Just 2 >>= Just >>= pure >>= \x -> pure (x + 1)
     Just (2 + u)
-    -- TODO: Fix!!!
     map (\x -> x) (Just True)
     x <- map (+1) (Just 0)
     map (+1) (Just 0)
@@ -82,6 +82,8 @@ sectionTest3 = (Just 10 >>=) pure
 sectionTest4 = (>>= pure) (Just 10)
 sectionTest5 = (|>) (10) (\x -> x)
 sectionTest6 = (>>=) (Just 10) pure
+
+constraintTest = 10 >>= pure
 
 -- Dependency analysis testing
 class Show a where

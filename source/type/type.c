@@ -845,7 +845,13 @@ void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* clas
         necro_propogate_type_classes(infer, classes, type->fun.type2, macro_type, error_preamble);
         // necro_infer_error(infer, error_preamble, macro_type, "(->) Not implemented for type classes!", type->type);
         return;
-    case NECRO_TYPE_APP:  necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: TypeApp not implemented in necro_propogate_type_classes!"); return;
+    // case NECRO_TYPE_APP:  necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: TypeApp not implemented in necro_propogate_type_classes!"); return;
+    case NECRO_TYPE_APP:
+        // TODO: Is this working correctly?
+        necro_propogate_type_classes(infer, classes, type->app.type1, macro_type, error_preamble);
+        necro_propogate_type_classes(infer, classes, type->app.type2, macro_type, error_preamble);
+        // necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: TypeApp not implemented in necro_propogate_type_classes!"); return;
+        return;
     case NECRO_TYPE_LIST: necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Found ConTypeList in necro_propogate_type_classes!"); return;
     case NECRO_TYPE_FOR:  necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Found polytype in necro_propogate_type_classes!"); return;
     default:              necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Unrecognized type: %d.", type->type); return;

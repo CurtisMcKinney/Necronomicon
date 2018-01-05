@@ -19,6 +19,7 @@
 #include "type/prim.h"
 #include "type/type_class.h"
 #include "utility/hash_table.h"
+#include "d_analyzer.h"
 #include "driver.h"
 
 void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
@@ -125,6 +126,20 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     necro_print_reified_ast(&ast_r, &lexer.intern);
     puts("");
     if (compilation_phase == NECRO_PHASE_RENAME)
+        return;
+
+    //=====================================================
+    // Dependency Analyzing
+    //=====================================================
+    necro_announce_phase("Dependency Analysis");
+    NecroDependencyAnalyzer d_analyzer = necro_create_dependency_analyzer(&symtable, &lexer.intern);
+    if (necro_dependency_analyze_ast(&d_analyzer, &ast_r.arena, ast_r.root))
+    {
+        necro_print_error(&renamer.error, input_string, "Dependency Analysis");
+        return;
+    }
+    puts("");
+    if (compilation_phase == NECRO_PHASE_DEPENDENCY_ANALYSIS)
         return;
 
     //=====================================================

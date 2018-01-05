@@ -128,6 +128,10 @@ int main(int32_t argc, char** argv)
             {
                 necro_compile(str, NECRO_PHASE_RENAME);
             }
+            else if (argc > 2 && strcmp(argv[2], "-dependency") == 0)
+            {
+                necro_compile(str, NECRO_PHASE_DEPENDENCY_ANALYSIS);
+            }
             else if (argc > 2 && strcmp(argv[2], "-infer") == 0)
             {
                 necro_compile(str, NECRO_PHASE_INFER);

@@ -18,9 +18,10 @@ typedef struct
     NecroError             error;
     NecroDeclarationGroup* current_declaration_group;
     NecroPagedArena*       arena;
+    NecroIntern*           intern;
 } NecroDependencyAnalyzer;
 
-NecroDependencyAnalyzer necro_create_dependency_analyzer(NecroSymTable* symtable);
+NecroDependencyAnalyzer necro_create_dependency_analyzer(NecroSymTable* symtable, NecroIntern* intern);
 void                    necro_destroy_dependency_analyzer(NecroDependencyAnalyzer* d_analyzer);
 NECRO_RETURN_CODE       necro_dependency_analyze_ast(NecroDependencyAnalyzer* d_analyzer, NecroPagedArena* ast_arena, NecroASTNode* ast);
 

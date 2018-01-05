@@ -83,7 +83,7 @@ sectionTest4 = (>>= pure) (Just 10)
 sectionTest5 = (|>) (10) (\x -> x)
 sectionTest6 = (>>=) (Just 10) pure
 
-constraintTest = 10 >>= pure
+-- constraintTest = 10 >>= pure
 
 -- Dependency analysis testing
 class Show a where

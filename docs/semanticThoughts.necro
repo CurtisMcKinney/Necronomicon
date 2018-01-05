@@ -13,3 +13,5 @@
 when :: a -> Event b -> a
 when :  t -> (e : t) -> e
 
+pattern :: Time -> Event ()
+pattern :  t    -> (e : t)

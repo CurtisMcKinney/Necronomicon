@@ -18,6 +18,12 @@ typedef struct
 
 typedef struct
 {
+    NecroVar var;
+    struct NecroCoreAST_Expression* expr;
+} NecroCoreAST_Lambda;
+
+typedef struct
+{
     NecroVar bind;
     struct NecroCoreAST_Expression* expr;
 } NecroCoreAST_Let;
@@ -65,6 +71,7 @@ typedef struct
         NecroVar var;
         NecroAST_Constant_Reified lit;
         NecroCoreAST_Application app;
+        NecroCoreAST_Lambda lambda;
         NecroCoreAST_Let let;
         NecroCoreAST_Case caseExpr;
     };
@@ -74,6 +81,8 @@ typedef struct
         NECRO_CORE_EXPR_VAR,
         NECRO_CORE_EXPR_LIT,
         NECRO_CORE_EXPR_APP,
-        NECRO_CORE_EXPR_LET
+        NECRO_CORE_EXPR_LAM,
+        NECRO_CORE_EXPR_LET,
+        NECRO_CORE_EXPR_CASE
     } type;
 } NecroCoreAST_Expression;

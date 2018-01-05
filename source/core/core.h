@@ -9,6 +9,7 @@
 #include "parser.h"
 #include "infer.h"
 
+#if 0
 //////////////////////
 // Types
 //////////////////////
@@ -54,6 +55,7 @@ typedef struct
     NecroCoreAST_Type* type;
     NecroCoreAST_Type* next;
 } NecroCoreAST_TypeList;
+#endif
 
 //////////////////////
 // Expressions
@@ -89,7 +91,7 @@ typedef struct
     {
         NECRO_CORE_DATAEXPR_DATACON,
         NECRO_CORE_DATAEXPR_EXPR
-    } type;
+    } dataExpr_type;
 
     struct NecroCoreAST_DataExpr* next;
 } NecroCoreAST_DataExpr;
@@ -114,7 +116,7 @@ typedef struct
         NECRO_CORE_CASE_ALT_DATA,
         NECRO_CORE_CASE_ALT_LITERAL,
         NECRO_CORE_CASE_ALT_DEFAULT,
-    } type;
+    } altCon_type;
 } NecroCoreAST_CaseAltCon;
 
 typedef struct
@@ -128,8 +130,14 @@ typedef struct
 {
     struct NecroCoreAST_Expression* expr;
     NecroVar var;
+    struct NecroCoreAST_Type* type;
     NecroCoreAST_CaseAlt alts;
 } NecroCoreAST_Case;
+
+typedef struct
+{
+    NecroType type;
+} NecroCoreAST_Type;
 
 typedef struct
 {
@@ -141,6 +149,7 @@ typedef struct
         NecroCoreAST_Lambda lambda;
         NecroCoreAST_Let let;
         NecroCoreAST_Case caseExpr;
+        NecroCoreAST_Type type;
     };
 
     enum
@@ -150,6 +159,7 @@ typedef struct
         NECRO_CORE_EXPR_APP,
         NECRO_CORE_EXPR_LAM,
         NECRO_CORE_EXPR_LET,
-        NECRO_CORE_EXPR_CASE
-    } type;
+        NECRO_CORE_EXPR_CASE,
+        NECRO_CORE_EXPR_TYPE
+    } expr_type;
 } NecroCoreAST_Expression;

@@ -1,0 +1,15 @@
+---------------------
+-- Lucid Synchrone meets FRP
+---------------------
+-- Lucid synchron Clocks  are simply Event()
+-- Lucid synchron Signals are simply Event a
+-- Clock calculus becomes Event Calculus
+-- Like Lucid Synchrone establish parent / child relationship of clocks
+-- Unlike Lucid Synchrone the top level clock isn't necessarily fixed,
+-- instead a theoretically infinite resolution clock
+-- Probably changes some things...
+-- Keep type signature + clock signature concept
+
+when :: a -> Event b -> a
+when :  t -> (e : t) -> e
+

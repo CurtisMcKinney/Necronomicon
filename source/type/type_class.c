@@ -219,9 +219,9 @@ void necro_finish_declaring_type_class(NecroInfer* infer, NecroTypeClassEnv* env
         type_sig->source_loc   = declarations->declaration.declaration_impl->source_loc;
         type_sig               = necro_gen(infer, type_sig, NULL);
         necro_infer_kind(infer, type_sig, infer->star_kind, type_sig, "While declaring a method of a type class: ");
-
-        necro_symtable_get(infer->symtable, declarations->declaration.declaration_impl->type_signature.var->variable.id)->type = type_sig;
         if (necro_is_infer_error(infer)) return;
+        necro_symtable_get(infer->symtable, declarations->declaration.declaration_impl->type_signature.var->variable.id)->type      = type_sig;
+        necro_symtable_get(infer->symtable, declarations->declaration.declaration_impl->type_signature.var->variable.id)->is_method = true;
         NecroTypeClassMember* prev_member = type_class->members;
         type_class->members               = necro_paged_arena_alloc(&env->arena, sizeof(NecroTypeClassMember));
         type_class->members->member_varid = (NecroCon) { .symbol = declarations->declaration.declaration_impl->type_signature.var->variable.symbol, .id = declarations->declaration.declaration_impl->type_signature.var->variable.id };

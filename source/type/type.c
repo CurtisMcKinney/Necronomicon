@@ -813,6 +813,13 @@ void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* clas
         }
         else
         {
+            // TODO: Optimally would want to unify kinds here, but we need a better kinds story to make sure we don't break things
+            // NecroTypeClassContext* curr = classes;
+            // while (curr != NULL)
+            // {
+            //     necro_unify_kinds(infer, type, &type->kind, necro_symtable_get(infer->symtable, curr->type_class_name.id)->type->kind, macro_type, error_preamble);
+            //     curr = curr->next;
+            // }
             type->var.context = necro_union_contexts(infer, type->var.context, classes);
         }
         return;
@@ -849,9 +856,9 @@ void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* clas
     case NECRO_TYPE_APP:
         // TODO: Is this working correctly?
         // Need proper constructor constraints!!!!
-        // necro_propogate_type_classes(infer, classes, type->app.type1, macro_type, error_preamble);
+        necro_propogate_type_classes(infer, classes, type->app.type1, macro_type, error_preamble);
         // necro_propogate_type_classes(infer, classes, type->app.type2, macro_type, error_preamble);
-        necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: TypeApp not implemented in necro_propogate_type_classes!"); return;
+        // necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: TypeApp not implemented in necro_propogate_type_classes!"); return;
         return;
     case NECRO_TYPE_LIST: necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Found ConTypeList in necro_propogate_type_classes!"); return;
     case NECRO_TYPE_FOR:  necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Found polytype in necro_propogate_type_classes!"); return;

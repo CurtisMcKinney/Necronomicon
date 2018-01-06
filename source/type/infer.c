@@ -391,8 +391,6 @@ NecroType* necro_infer_assignment(NecroInfer* infer, NecroDeclarationGroup* decl
         else if (ast->type == NECRO_AST_APATS_ASSIGNMENT)
         {
             symbol_info = necro_symtable_get(infer->symtable, ast->apats_assignment.id);
-            if (symbol_info->id.id > 300)
-                printf("id: %d, typechecked: %d", symbol_info->id.id, curr->type_checked);
             if (symbol_info->type->pre_supplied || symbol_info->type_status == NECRO_TYPE_DONE) { curr->type_checked = true; curr = curr->next;  continue; }
             symbol_info->type = necro_gen(infer, symbol_info->type, symbol_info->scope->parent);
             necro_infer_kind(infer, symbol_info->type, infer->star_kind, symbol_info->type, "While declaraing a variable: ");

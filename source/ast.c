@@ -64,20 +64,60 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
         break;
 
     case NECRO_AST_TOP_DECL:
-        puts("(Top Declaration)");
-        print_reified_ast_impl(ast_node->top_declaration.declaration, intern, depth + 1);
-        if (ast_node->top_declaration.next_top_decl != NULL)
+        if (ast_node->top_declaration.group_list != NULL)
         {
-            print_reified_ast_impl(ast_node->top_declaration.next_top_decl, intern, depth);
+            puts("");
+            NecroDeclarationGroupList* groups = ast_node->top_declaration.group_list;
+            while (groups != NULL)
+            {
+                for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
+                puts("(Top Declaration Group)");
+                NecroDeclarationGroup* declarations = groups->declaration_group;
+                while (declarations != NULL)
+                {
+                    print_reified_ast_impl(declarations->declaration_ast, intern, depth + 1);
+                    declarations = declarations->next;
+                }
+                groups = groups->next;
+            }
+        }
+        else
+        {
+            puts("(Top Declaration)");
+            print_reified_ast_impl(ast_node->top_declaration.declaration, intern, depth + 1);
+            if (ast_node->top_declaration.next_top_decl != NULL)
+            {
+                print_reified_ast_impl(ast_node->top_declaration.next_top_decl, intern, depth);
+            }
         }
         break;
 
     case NECRO_AST_DECL:
-        puts("(Declaration)");
-        print_reified_ast_impl(ast_node->declaration.declaration_impl, intern, depth + 1);
-        if (ast_node->declaration.next_declaration != NULL)
+        if (ast_node->declaration.group_list != NULL)
         {
-            print_reified_ast_impl(ast_node->declaration.next_declaration, intern, depth);
+            puts("");
+            NecroDeclarationGroupList* groups = ast_node->declaration.group_list;
+            while (groups != NULL)
+            {
+                for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
+                puts("(Declaration Group)");
+                NecroDeclarationGroup* declarations = groups->declaration_group;
+                while (declarations != NULL)
+                {
+                    print_reified_ast_impl(declarations->declaration_ast, intern, depth + 1);
+                    declarations = declarations->next;
+                }
+                groups = groups->next;
+            }
+        }
+        else
+        {
+            puts("(Declaration)");
+            print_reified_ast_impl(ast_node->declaration.declaration_impl, intern, depth + 1);
+            if (ast_node->declaration.next_declaration != NULL)
+            {
+                print_reified_ast_impl(ast_node->declaration.next_declaration, intern, depth);
+            }
         }
         break;
 
@@ -450,10 +490,12 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
     case NECRO_AST_TOP_DECL:
         reified_node->top_declaration.declaration   = necro_reify(a_ast, node->top_declaration.declaration, arena);
         reified_node->top_declaration.next_top_decl = necro_reify(a_ast, node->top_declaration.next_top_decl, arena);
+        reified_node->top_declaration.group_list    = NULL;
         break;
     case NECRO_AST_DECL:
         reified_node->declaration.declaration_impl = necro_reify(a_ast, node->declaration.declaration_impl, arena);
         reified_node->declaration.next_declaration = necro_reify(a_ast, node->declaration.next_declaration, arena);
+        reified_node->declaration.group_list       = NULL;
         break;
     case NECRO_AST_SIMPLE_ASSIGNMENT:
         reified_node->simple_assignment.rhs               = necro_reify(a_ast, node->simple_assignment.rhs, arena);

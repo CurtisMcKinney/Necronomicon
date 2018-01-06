@@ -17,6 +17,8 @@ data Either a b = Left a | Right b
 -- * Type class constraints on functions...
 -- * Proper kind inference system...likely requires dependency analysis for data types
 
+class NoMethods a
+
 instance Eq a => Eq (Maybe a) where
     eq  (Just x) (Just y) = x == y
     eq  Nothing  Nothing  = True
@@ -76,14 +78,13 @@ dotTest    x y = x . y
 thenTest   x y = x >> y
 consTest (x : y) = x : x : y
 
-sectionTest1 = (Just 10 >>=)
-sectionTest2 = (>>= pure)
-sectionTest3 = (Just 10 >>=) pure
-sectionTest4 = (>>= pure) (Just 10)
-sectionTest5 = (|>) (10) (\x -> x)
-sectionTest6 = (>>=) (Just 10) pure
-
--- constraintTest = 10 >>= pure
+sectionTest1   = (Just 10 >>=)
+sectionTest2   = (>>= pure)
+sectionTest3   = (Just 10 >>=) pure
+sectionTest4   = (>>= pure) (Just 10)
+sectionTest5   = (|>) (10) (\x -> x)
+sectionTest6   = (>>=) (Just 10) pure
+constraintTest = 10 >>= pure
 
 -- Dependency analysis testing
 class Show a where

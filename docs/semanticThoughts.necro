@@ -67,7 +67,7 @@ synth freq = osc where
     osc = 440 * observe mouseX + freq * (0 `fby` osc) |> sinOsc
 
 main :: Audio
-main = synths hello where
+main = synths where
     freq1  = mouseX `on` mouseClick
     freq2  = d2f minor (seq [0, 1, 2, observe mouseX |> take 1, latch freq2]) `when` pattern (seq [0.25, 0.5, 0.25, 0.5])
     synths = poly synth (merge freq1 freq2)
@@ -122,7 +122,7 @@ synth freq = osc where
     osc = 440 * observe mouseX + freq * (0 `fby` osc) |> sinOsc
 
 main :: Audio
-main = synths hello where
+main = synths where
     freq1  = mouseX `on` mouseClick
     freq2  = pattern (seq [0.25, 0.5, 0.25, 0.5]) d2f minor (seq [0, 1, 2, observe mouseX |> take 1, latch freq2])
     synths = poly synth (merge freq1 freq2)

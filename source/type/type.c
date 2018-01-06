@@ -128,7 +128,7 @@ bool necro_check_and_print_type_error(NecroInfer* infer)
     }
 }
 
-inline NecroType* necro_alloc_type(NecroInfer* infer)
+NecroType* necro_alloc_type(NecroInfer* infer)
 {
     NecroType* type    = necro_paged_arena_alloc(&infer->arena, sizeof(NecroType));
     type->pre_supplied = false;
@@ -178,7 +178,6 @@ NecroType* necro_create_type_var(NecroInfer* infer, NecroVar var)
         .context           = NULL,
         .bound             = NULL,
         .scope             = NULL,
-        .weight            = NECRO_WEIGHT_PI,
     };
 
     infer->env.data[type->var.var.id.id] = type;

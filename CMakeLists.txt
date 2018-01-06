@@ -34,6 +34,7 @@ set(project_SOURCES
     source/runtime/region.c
 
     source/type/type.c
+    source/type/kind.c
     source/type/infer.c
     source/type/prim.c
     source/type/type_class.c
@@ -60,6 +61,7 @@ set(project_HEADERS
     source/runtime/region.h
 
     source/type/type.h
+    source/type/kind.h
     source/type/infer.h
     source/type/prim.h
     source/type/type_class.h

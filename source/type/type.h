@@ -80,13 +80,6 @@ typedef enum
     NECRO_TYPE_FOR,
 } NECRO_TYPE;
 
-typedef enum
-{
-    NECRO_WEIGHT_W,
-    NECRO_WEIGHT_1,
-    NECRO_WEIGHT_PI
-} NECRO_WEIGHT;
-
 typedef struct
 {
     NecroVar                      var;
@@ -96,7 +89,6 @@ typedef struct
     struct NecroTypeClassContext* context;
     struct NecroType*             bound;
     struct NecroScope*            scope;
-    NECRO_WEIGHT                  weight; // Future linear types usage???
 } NecroTypeVar;
 
 typedef struct
@@ -182,6 +174,7 @@ NecroInfer  necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtab
 void        necro_destroy_infer(NecroInfer* infer);
 void        necro_reset_infer(NecroInfer* infer);
 bool        necro_is_infer_error(NecroInfer* infer);
+NecroType*  necro_alloc_type(NecroInfer* infer);
 
 void        necro_unify(NecroInfer* infer, NecroType* type1, NecroType* type2, struct NecroScope* scope, NecroType* macro_type, const char* error_preamble);
 

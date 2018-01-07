@@ -255,12 +255,6 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         d_analyze_go(d_analyzer, ast->type_class_instance.qtycls);
         d_analyze_go(d_analyzer, ast->type_class_instance.inst);
         d_analyze_go(d_analyzer, ast->type_class_instance.declarations);
-        // NecroASTNode* curr = ast->type_class_instance.declarations;
-        // while (curr != NULL)
-        // {
-        //     d_analyze_go(d_analyzer, curr->declaration.declaration_impl);
-        //     curr = curr->declaration.next_declaration;
-        // }
         break;
     }
 
@@ -363,8 +357,6 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
             if (w->index == -1)
             {
                 symbol_info->declaration_group->info->current_group = w;
-                // Fuuuuuuuuuuuuck......Need to visit each node in a declaration_group, not just the head one
-                // This is important for multi-line declarations!!!!!!
                 d_analyze_go(d_analyzer, w->declaration_ast);
                 v->low_link = min(w->low_link, v->low_link);
             }

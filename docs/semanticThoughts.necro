@@ -10,8 +10,125 @@
 -- Probably changes some things...
 -- Keep type signature + clock signature concept
 
-when :: a -> Event b -> a
-when :  t -> (e : t) -> e
+-- Clock extension paper
+-- http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.164.159&rep=rep1&type=pdf
 
-pattern :: Time -> Event ()
-pattern :  t    -> (e : t)
+-- Adaptor Combinators
+when :: a -> Event b -> a
+when :  t -> (c : t) -> t on c
+
+on :: a  -> Event b  -> Event a
+on :  t1 -> (c : t2) -> (c : t2)
+
+observe :: a  -> b
+observe :  t1 -> t2
+
+latch :: Event a  -> b
+latch :  (c : t1) -> t2
+
+-- ???
+share :: a        -> a
+share :  (t1 : t) -> t when t1 or t2
+
+-- Musical combinators
+pattern :: Time   -> Event ()
+pattern :  t on c -> (c : t).t
+
+poly :: Num b => (a -> b)               -> Event a  -> b -- Black magic in here???
+poly :           ((t2 -> t2) : t1 on c) -> (c : t1) -> t2
+
+fby :: a -> a -> a
+fby :  t -> t -> t
+
+either :: Event () -> a      -> a           -> a
+either :  (c : t)  -> t on c -> t on not c  -> t
+
+merge :: Event a  -> Event a  -> Event a
+merge :  (c1 : t) -> (c2 : t) -> t on (c1 or c2)
+
+match :: Int     -> [a] -> a
+match :  (c : t) -> ?   -> t
+
+-- sequences of streams !?!?!?! How do they work?!?!?!
+seq :: [a]         -> a
+seq :  ([t'] : t)  -> t
+
+mouseClick :: Event ()
+mouseClick : (c : Sys)
+
+mouseXIn :: Input Float
+mouseXIn :  Sys
+
+input pulseDemon <- loadBuffer "pulseDemon.aiff"
+input mouseX     <- mouseXIn
+
+synth :: Audio -> Audio -> Audio
+synth freq = osc where
+    osc = 440 * observe mouseX + freq * (0 `fby` osc) |> sinOsc
+
+main :: Audio
+main = synths where
+    freq1  = mouseX `on` mouseClick
+    freq2  = d2f minor (seq [0, 1, 2, observe mouseX |> take 1, latch freq2]) `when` pattern (seq [0.25, 0.5, 0.25, 0.5])
+    synths = poly synth (merge freq1 freq2)
+
+---------------------
+-- Parallel Worlds
+--------------------
+-- Streams are head strict, tail lazy
+-- if/then/else is strict in both arms (both sides compute each tick), but only returns result from one side
+-- case / pattern matching computes in all arms, supplying variables which have the underlying YIELD value, only the matching pattern's result is returned
+-- This forces if/then/else and case/pattern matching to use the same clock as their conditionals, i.e. a lot less clock shenanigans
+-- Use a "switch" combinator for truly switching between streams which are "frozen" then revived.
+-- Use phantom clocks for anything else which has clock strangeness (patterns, poly, switch, sequences, etc)
+-- Simple notation for phantom clocks?
+-- A different notion to enforce this?
+-- Don't use full monadic IO, instead use input streams, and output data via main
+
+pattern :: Time            -> a               -> Event a
+pattern :  (forall t1. t1) -> (forall t2. t2) -> t3
+
+seq     :: [a]             -> a
+seq     :  (forall t1. t1) -> t2
+
+switch  :: Event Int -> [a]             -> a
+switch  :  t1        -> (forall t2. t2) -> t1
+
+poly    :: Num b => (a -> b)        -> Event a -> b
+poly    :  (forall t1. t1 -> t1):t2 -> t2      -> t2
+
+-- Observe a value at evolving at a different clock rate...
+observe :: a  -> a
+observe :  t1 -> t2
+
+latch  :: Event a -> a
+latch  :  t1      -> t2
+
+-- fby unaffected? Ok, with 1 sample memory overhead?
+fby :: a -> a -> a
+
+merge :: Event a -> Event a -> Event a
+on    :: a       -> Event b -> Event a
+
+mouseClickIn :: Input (Event ())
+mouseXIn     :: Input Float
+
+input pulseDemon <- loadBuffer "pulseDemon.aiff"
+input mouseX     <- mouseXIn
+input mouseClick <- mouseClickIn
+
+synth :: Audio -> Audio -> Audio
+synth freq = osc where
+    osc = 440 * observe mouseX + freq * (0 `fby` osc) |> sinOsc
+
+pat :: Event Audio
+pat = pattern times values where
+    times  = seq [0.25, 0.5, 0.25, 0.5]
+    values = seq [0, 1, 2, observe mouseX |> take 1, latch freq2 |> take 2] |> d2f minor
+
+main :: Audio
+main = synths where
+    freq1  = mouseX `on` mouseClick
+    freq2  = pat
+    synths = poly synth (merge freq1 freq2)
+

@@ -160,9 +160,24 @@ typedef struct
         NECRO_CORE_EXPR_LAM,
         NECRO_CORE_EXPR_LET,
         NECRO_CORE_EXPR_CASE,
-        NECRO_CORE_EXPR_TYPE
+        NECRO_CORE_EXPR_TYPE,
+        NECRO_CORE_EXPR_COUNT, 
+        NECRO_CORE_EXPR_UNIMPLEMENTED,
     } expr_type;
 } NecroCoreAST_Expression;
+
+static const char* core_ast_names[] = 
+{
+    "NECRO_CORE_EXPR_VAR",
+    "NECRO_CORE_EXPR_LIT",
+    "NECRO_CORE_EXPR_APP",
+    "NECRO_CORE_EXPR_LAM",
+    "NECRO_CORE_EXPR_LET",
+    "NECRO_CORE_EXPR_CASE",
+    "NECRO_CORE_EXPR_TYPE",
+    "NECRO_CORE_EXPR_COUNT",
+    "NECRO_CORE_EXPR_UNIMPLEMENTED"
+};
 
 NECRO_RETURN_CODE necro_transform_to_core(NecroAST_Constant_Reified* astNode, NecroCoreAST_Expression* output);
 void necro_print_core(NecroCoreAST_Expression* ast, NecroIntern* intern);

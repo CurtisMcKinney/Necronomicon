@@ -18,8 +18,8 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
     switch (ast_node->expr_type)
     {
     default:
-        printf("necro_print_core_node printing expression type unimplemented!: %d", ast_node->expr_type);
-        assert(false);
+        printf("necro_print_core_node printing expression type unimplemented!: %s\n", core_ast_names[ast_node->expr_type]);
+        //assert(false);
         break;
     }
 }

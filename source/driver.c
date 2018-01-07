@@ -175,6 +175,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     necro_announce_phase("Transforming to Core!");
     
     NecroCoreAST_Expression ast_core;
+    ast_core.expr_type = NECRO_CORE_EXPR_UNIMPLEMENTED;
     if (necro_transform_to_core(&ast_r, &ast_core) != NECRO_SUCCESS)
     {
         printf("Failed to transform to core.");

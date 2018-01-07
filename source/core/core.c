@@ -30,7 +30,12 @@ void necro_print_core(NecroCoreAST_Expression* ast, NecroIntern* intern)
     necro_print_core_node(ast, intern);
 }
 
-NECRO_RETURN_CODE necro_transform_to_core(NecroAST_Constant_Reified* astNode, NecroCoreAST_Expression* output)
+void necro_transform_to_core_impl(NecroTransformToCore* core_transform)
 {
-    return NECRO_SUCCESS;
+
+}
+
+void necro_transform_to_core(NecroTransformToCore* core_transform)
+{
+    core_transform->transform_state = NECRO_SUCCESS;
 }

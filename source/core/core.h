@@ -179,5 +179,46 @@ static const char* core_ast_names[] =
     "NECRO_CORE_EXPR_UNIMPLEMENTED"
 };
 
-NECRO_RETURN_CODE necro_transform_to_core(NecroAST_Constant_Reified* astNode, NecroCoreAST_Expression* output);
+typedef enum
+{
+    NECRO_CORE_TRANSFORMING,
+    NECRO_CORE_TRANSFORM_ERROR,
+    NECRO_CORE_TRANSFORM_DONE
+} NecroParse_CoreTransformState;
+
+typedef struct
+{
+    char* error_message;
+    NecroCoreAST_Expression* core_ast;
+    NecroAST_Constant_Reified* necro_ast;
+    NecroError error;
+    NecroIntern* intern;
+    NecroParse_CoreTransformState transform_state;
+} NecroTransformToCore;
+
+void necro_transform_to_core(NecroTransformToCore* core_transform);
 void necro_print_core(NecroCoreAST_Expression* ast, NecroIntern* intern);
+
+static inline void necro_construct_core_transform(
+    NecroTransformToCore* core_transform,
+    NecroCoreAST_Expression* core_ast,
+    NecroAST_Constant_Reified* necro_ast,
+    NecroIntern* intern)
+{
+    core_transform->error_message = malloc(MAX_ERROR_MESSAGE_SIZE * sizeof(char));
+    core_transform->error_message[0] = "\0";
+    core_transform->core_ast = core_ast;
+    core_transform->necro_ast = necro_ast;
+    core_transform->intern = intern;
+    core_transform->transform_state = NECRO_CORE_TRANSFORMING;
+}
+
+static inline void necro_destruct_core_transform(NecroTransformToCore* core_transform)
+{
+    free(core_transform->error_message);
+    core_transform->error_message = NULL;
+    core_transform->core_ast = NULL;
+    core_transform->necro_ast = NULL;
+    core_transform->intern = NULL;
+    core_transform->transform_state = NECRO_CORE_TRANSFORM_DONE;
+}

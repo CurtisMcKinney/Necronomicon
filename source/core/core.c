@@ -23,3 +23,14 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
         break;
     }
 }
+
+void necro_print_core(NecroCoreAST_Expression* ast, NecroIntern* intern)
+{
+    assert(ast != NULL);
+    necro_print_core_node(ast, intern);
+}
+
+NECRO_RETURN_CODE necro_transform_to_core(NecroAST_Constant_Reified* astNode, NecroCoreAST_Expression* output)
+{
+    return NECRO_SUCCESS;
+}

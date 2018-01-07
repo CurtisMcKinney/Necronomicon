@@ -21,6 +21,7 @@
 #include "utility/hash_table.h"
 #include "d_analyzer.h"
 #include "driver.h"
+#include "core/core.h"
 
 void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
 {
@@ -168,8 +169,23 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     if (compilation_phase == NECRO_PHASE_INFER)
         return;
 
-    // !!!!!!!!!! struct { sym_table and intern and AST_reified } !!!!!!!!!!
-    // !!!!!!!!!! necro_translate_core(); !!!!!!!!!!
+    //=====================================================
+    // Transform to Core
+    //=====================================================
+    necro_announce_phase("Transforming to Core!");
+    
+    NecroCoreAST_Expression ast_core;
+    if (necro_transform_to_core(&ast_r, &ast_core) != NECRO_SUCCESS)
+    {
+        printf("Failed to transform to core.");
+        //necro_print_error(&parser.error, input_string, "Transforming to Core");
+        return;
+    }
+
+    necro_print_core(&ast_core, &lexer.intern);
+
+    if (compilation_phase == NECRO_PHASE_TRANSFORM_TO_CORE)
+        return;
 
     //=====================================================
     // Cleaning up

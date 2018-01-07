@@ -12,3 +12,14 @@
 #define TRACE_CORE(...)
 #endif
 
+void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* intern)
+{
+    assert(ast_node != NULL);
+    switch (ast_node->expr_type)
+    {
+    default:
+        printf("necro_print_core_node printing expression type unimplemented!: %d", ast_node->expr_type);
+        assert(false);
+        break;
+    }
+}

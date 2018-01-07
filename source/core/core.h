@@ -163,3 +163,6 @@ typedef struct
         NECRO_CORE_EXPR_TYPE
     } expr_type;
 } NecroCoreAST_Expression;
+
+NECRO_RETURN_CODE necro_transform_to_core(NecroAST_Constant_Reified* astNode, NecroCoreAST_Expression* output);
+void necro_print_core(NecroCoreAST_Expression* ast, NecroIntern* intern);

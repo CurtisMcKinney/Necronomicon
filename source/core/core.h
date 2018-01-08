@@ -203,7 +203,7 @@ typedef struct
 } NecroTransformToCore;
 
 void necro_transform_to_core(NecroTransformToCore* core_transform);
-void necro_print_core(NecroCoreAST_Expression* ast, NecroIntern* intern);
+void necro_print_core(NecroCoreAST* ast, NecroIntern* intern);
 
 static inline void necro_construct_core_transform(
     NecroTransformToCore* core_transform,
@@ -212,7 +212,7 @@ static inline void necro_construct_core_transform(
     NecroIntern* intern)
 {
     core_transform->error_message = malloc(MAX_ERROR_MESSAGE_SIZE * sizeof(char));
-    core_transform->error_message[0] = "\0";
+    core_transform->error_message[0] = '\0';
     core_transform->core_ast = core_ast;
     core_transform->core_ast->arena = necro_create_paged_arena();
     core_transform->necro_ast = necro_ast;

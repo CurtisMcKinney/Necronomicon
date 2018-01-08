@@ -30,16 +30,48 @@ void necro_print_core(NecroCoreAST* ast, NecroIntern* intern)
     necro_print_core_node(ast->root, intern);
 }
 
+NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node);
+
 NecroCoreAST_Expression* necro_transform_top_decl(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
 {
-    return NULL;
+    assert(core_transform);
+    assert(necro_ast_node);
+    assert(necro_ast_node->type == NECRO_AST_TOP_DECL);
+    if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
+        return NULL;
+
+    NecroDeclarationGroupList* top_decl_group_list = necro_ast_node->top_declaration.group_list;
+    assert(top_decl_group_list);
+    NecroDeclarationGroup* group = top_decl_group_list->declaration_group;
+    NecroCoreAST_Expression* expression = NULL;
+    NecroCoreAST_Expression* top_expression = NULL;
+    while (group)
+    {
+        NecroCoreAST_Expression* last_expression = expression;
+        NecroCoreAST_Expression* expression = necro_transform_to_core_impl(core_transform, (NecroAST_Node_Reified*) group->declaration_ast);
+        if (top_expression == NULL)
+        {
+            top_expression = expression;
+        }
+        else
+        {
+            assert(last_expression);
+            assert(last_expression->expr_type == NECRO_CORE_EXPR_LET);
+            last_expression->let.expr = expression;
+        }
+
+        group = group->next;
+    }
+
+    assert(top_expression);
+    return top_expression;
 }
 
 NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
 {
     assert(necro_ast_node);
     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
-        return;
+        return NULL;
 
     switch (necro_ast_node->type)
     {
@@ -61,5 +93,5 @@ void necro_transform_to_core(NecroTransformToCore* core_transform)
     assert(core_transform->necro_ast);
     assert(core_transform->necro_ast->root);
     core_transform->transform_state = NECRO_SUCCESS;
-    core_transform->core_ast = necro_transform_to_core_impl(core_transform, core_transform->necro_ast->root);
+    core_transform->core_ast->root = necro_transform_to_core_impl(core_transform, core_transform->necro_ast->root);
 }

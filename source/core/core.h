@@ -107,7 +107,7 @@ typedef struct
     union
     {
         NecroCoreAST_DataCon* dataCon;
-        NecroAST_Constant_Reified* lit;
+        NecroAST_Constant_Reified lit;
         struct NecroCoreAST_CaseAltCon* _defaultPadding;
     };
 
@@ -129,9 +129,9 @@ typedef struct
 typedef struct 
 {
     struct NecroCoreAST_Expression* expr;
-    NecroVar var;
-    struct NecroCoreAST_Type* type;
-    NecroCoreAST_CaseAlt alts;
+    //NecroVar var; // Don't know what to do with var and type atm
+    //struct NecroCoreAST_Type* type;
+    NecroCoreAST_CaseAlt* alts;
 } NecroCoreAST_Case;
 
 typedef struct
@@ -154,7 +154,7 @@ typedef struct
         NecroCoreAST_Application app;
         NecroCoreAST_Lambda lambda;
         NecroCoreAST_Let let;
-        NecroCoreAST_Case caseExpr;
+        NecroCoreAST_Case case_expr;
         NecroCoreAST_Type type;
         NecroCoreAST_List list;
     };

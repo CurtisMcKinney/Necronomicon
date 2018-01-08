@@ -6,4 +6,11 @@ something = somethingElse where
     somethingElse = 1234
 
 onePlusTwo = 1 + 2
+
+simpleCase = case 1 of
+                  1 -> 111
+                  2 -> 222
+                  _ -> satan
+
 --octopus = "Octopus"
+

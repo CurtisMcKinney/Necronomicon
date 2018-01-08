@@ -56,6 +56,12 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
         }
         break;
     
+    case NECRO_CORE_EXPR_APP:
+        puts("(App)");
+        necro_print_core_node(ast_node->app.exprA, intern, depth + 1);
+        necro_print_core_node(ast_node->app.exprB, intern, depth + 1);
+        break;
+
     case NECRO_CORE_EXPR_LET:
         puts("(Let)");
         NecroCoreAST_Expression bind_expr;
@@ -91,6 +97,37 @@ void necro_print_core(NecroCoreAST* ast, NecroIntern* intern)
 }
 
 NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node);
+
+NecroCoreAST_Expression* necro_transform_bin_op(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
+{
+    assert(core_transform);
+    assert(necro_ast_node);
+    assert(necro_ast_node->type == NECRO_AST_BIN_OP);
+    if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
+        return NULL;
+
+    // 1 + 2 --> (+) 1 2 --> ((+) 1) 2 --> App (App (+) 1) 2 
+    NecroAST_BinOp_Reified* bin_op = &necro_ast_node->bin_op;
+
+    NecroCoreAST_Expression* inner_core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+    inner_core_expr->expr_type = NECRO_CORE_EXPR_APP;
+    NecroCoreAST_Application* inner_core_app = &inner_core_expr->app;
+
+    NecroCoreAST_Expression* var_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+    var_expr->expr_type = NECRO_CORE_EXPR_VAR;
+    var_expr->var.symbol = bin_op->symbol;
+    var_expr->var.id = bin_op->id;
+
+    inner_core_app->exprA = var_expr;
+    inner_core_app->exprB = necro_transform_to_core_impl(core_transform, bin_op->lhs);
+    
+    NecroCoreAST_Expression* outer_core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+    outer_core_expr->expr_type = NECRO_CORE_EXPR_APP;
+    NecroCoreAST_Application* outer_core_app = &outer_core_expr->app;
+    outer_core_app->exprA = inner_core_expr;
+    outer_core_app->exprB = necro_transform_to_core_impl(core_transform, bin_op->rhs);
+    return outer_core_expr;
+}
 
 NecroCoreAST_Expression* necro_transform_simple_assignment(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
 {
@@ -213,6 +250,9 @@ NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core
 
     switch (necro_ast_node->type)
     {
+    case NECRO_AST_BIN_OP:
+        return necro_transform_bin_op(core_transform, necro_ast_node);
+
     case NECRO_AST_TOP_DECL:
         return necro_transform_top_decl(core_transform, necro_ast_node);
 

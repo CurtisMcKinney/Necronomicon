@@ -73,6 +73,25 @@ main = synths where
     synths = poly synth (merge freq1 freq2)
 
 ---------------------
+-- Lucid Synchrone semantics, tweaked
+---------------------
+pattern :: Time   -> Clock
+pattern :  t on c -> (c : t)
+
+data Frozen a = Frozen a -- ... theoretical higher order stream type
+
+poly :: Num a => Frozen a -> a -- Black magic in here???
+poly :           t        -> t
+
+mouseX :: Event Float
+mouseX :  Sys
+
+-- example
+frozenStream :: Frozen Audio
+frozenStream :  t
+frozenStream =  lift1 synth (realToFrac mouseX)
+
+---------------------
 -- Parallel Worlds
 --------------------
 -- Streams are head strict, tail lazy
@@ -84,6 +103,8 @@ main = synths where
 -- Simple notation for phantom clocks?
 -- A different notion to enforce this?
 -- Don't use full monadic IO, instead use input streams, and output data via main
+
+data Sequence a = Sequence a -- A sequence is a higher order streaming construct
 
 pattern :: Time            -> a               -> Event a
 pattern :  (forall t1. t1) -> (forall t2. t2) -> t3
@@ -132,3 +153,55 @@ main = synths where
     freq2  = pat
     synths = poly synth (merge freq1 freq2)
 
+---------------------
+-- Higher-Order Stream Sequences
+--------------------
+-- In these semantics first order streams are completely unaffected by higher-order stream semantics
+-- Higher order streams are represented by Sequence data types which carry a phantom type
+-- This obviates the need for something more complex like clock kinding and plays better with frp style semantics
+
+data Sequence t a = Sequence a -- A sequence is a higher order streaming construct
+-- Do we need the phantom type, or is the forced change from a to Sequence a enough to enforce trimming
+
+-- Create Sequences
+constSeq1 :: (a -> b) -> a -> Sequence t b
+constSeq2 :: (a -> b -> c) -> a -> b -> Sequence t c
+-- etc
+
+-- Sequence literals:
+coolSequence :: Sequence t Audio
+coolSequence = {0, seq {3, 2}, 4}
+
+-- Renders a sequence....
+switch  :: a -> Event (forall t. Sequence t a) -> a
+poly    :: Num a => Event (forall t. Sequence t a) -> a
+seq     :: (forall t. Sequence t a) -> a
+
+-- Events
+pattern :: (forall t. Sequence t Time) -> (forall t. Sequence t a) -> Event a
+on      :: a -> Event b -> Event a
+merge   :: Event a -> Event a -> Event a
+latch   :: Event a -> a
+
+fby     :: a -> a -> a
+
+mouseClickIn :: Input (Event ())
+mouseXIn     :: Input Float
+
+input pulseDemon <- loadBuffer "pulseDemon.aiff"
+input mouseX     <- mouseXIn
+input mouseClick <- mouseClickIn
+
+synth :: Audio -> Audio -> Audio
+synth freq = osc where
+    osc = 440 * observe mouseX + freq * (0 `fby` osc) |> sinOsc
+
+pat :: Event Audio
+pat = pattern times values where
+    times  = {0.25, 0.5, 0.25, 0.5}
+    values = {0, 1, 2, take 1 mouseX, seq values |> take 2, latch pat |> take 1} |> map (d2f minor) -- Forced seq usage due to Sequence requiring first order values. i.e, forces an adaptor combinator by the type system, trims, prevents space leaks
+
+main :: Audio
+main = synths where
+    mouseFreq = mouseX `on` mouseClick
+    synths    = merge pat mouseFreq |> map (mkSeq1 synth) |> poly

@@ -12,17 +12,74 @@
 #define TRACE_CORE(...)
 #endif
 
-void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* intern)
+void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* intern, uint32_t depth)
 {
-    assert(ast_node != NULL);
+    assert(ast_node);
+    assert(intern);
+    for (uint32_t i = 0; i < depth; ++i)
+    {
+        printf(STRING_TAB);
+    }
+
     switch (ast_node->expr_type)
     {
+    case NECRO_CORE_EXPR_VAR:
+        printf("(Var: %s, %d)\n", necro_intern_get_string(intern, ast_node->var.symbol), ast_node->var.id);
+        break;
+    
+    case NECRO_CORE_EXPR_LIT:
+        switch (ast_node->lit.type)
+        {
+        case NECRO_AST_CONSTANT_FLOAT:
+            printf("(%f)\n", ast_node->lit.double_literal);
+            break;
+        case NECRO_AST_CONSTANT_INTEGER:
+#if WIN32
+            printf("(%lli)\n", ast_node->lit.int_literal);
+#else
+            printf("(%li)\n", ast_node->constant.int_literal);
+#endif
+            break;
+        case NECRO_AST_CONSTANT_STRING:
+        {
+            const char* string = necro_intern_get_string(intern, ast_node->lit.symbol);
+            if (string)
+                printf("(\"%s\")\n", string);
+        }
+        break;
+        case NECRO_AST_CONSTANT_CHAR:
+            printf("(\'%c\')\n", ast_node->lit.char_literal);
+            break;
+        case NECRO_AST_CONSTANT_BOOL:
+            printf("(%s)\n", ast_node->lit.boolean_literal ? " True" : "False");
+            break;
+        }
+        break;
+    
+    case NECRO_CORE_EXPR_LET:
+        puts("(Let)");
+        NecroCoreAST_Expression bind_expr;
+        bind_expr.expr_type = NECRO_CORE_EXPR_VAR;
+        bind_expr.var = ast_node->var;
+        necro_print_core_node(&bind_expr, intern, depth + 1);
+        necro_print_core_node(ast_node->let.expr, intern, depth + 1);
+        break;
+    
     case NECRO_CORE_EXPR_LIST:
+        {
+            puts("(CORE_EXPR_LIST)");
+            NecroCoreAST_List* list_expr = &ast_node->list;
+            while (list_expr)
+            {
+                necro_print_core_node(list_expr->expr, intern, depth + 1);
+                list_expr = list_expr->next;
+            }
+        }    
         break;
 
     default:
         printf("necro_print_core_node printing expression type unimplemented!: %s\n", core_ast_names[ast_node->expr_type]);
-        //assert(false);
+        assert(false);
         break;
     }
 }
@@ -30,7 +87,7 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
 void necro_print_core(NecroCoreAST* ast, NecroIntern* intern)
 {
     assert(ast != NULL);
-    necro_print_core_node(ast->root, intern);
+    necro_print_core_node(ast->root, intern, 0);
 }
 
 NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node);

@@ -166,4 +166,6 @@ static void necro_announce_phase(const char* phase_name)
 
 #define BIT(x) (1 << x)
 
+#define STRING_TAB "  "
+
 #endif // UTILITY_H

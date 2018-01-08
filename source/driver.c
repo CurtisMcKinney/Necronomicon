@@ -189,11 +189,12 @@ void necro_compile_impl(
     //=====================================================
     necro_announce_phase("Transforming to Core!");
 
-    NecroCoreAST_Expression ast_core;
-    ast_core.expr_type = NECRO_CORE_EXPR_UNIMPLEMENTED;
+    NecroCoreAST ast_core;
+    ast_core.root = NULL;
     necro_construct_core_transform(core_transform, &ast_core, &ast_r, &lexer->intern);
     *destruct_flags |= BIT(NECRO_PHASE_TRANSFORM_TO_CORE);
-    if (core_transform->transform_state != NECRO_SUCCESS)
+    necro_transform_to_core(core_transform);
+    if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
     {
         printf("Failed to transform to core.");
         //necro_print_error(&parser.error, input_string, "Transforming to Core");

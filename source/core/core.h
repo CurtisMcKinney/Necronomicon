@@ -188,9 +188,15 @@ typedef enum
 
 typedef struct
 {
+    NecroPagedArena arena;
+    NecroCoreAST_Expression* root;
+} NecroCoreAST;
+
+typedef struct
+{
     char* error_message;
-    NecroCoreAST_Expression* core_ast;
-    NecroAST_Constant_Reified* necro_ast;
+    NecroCoreAST* core_ast;
+    NecroAST_Reified* necro_ast;
     NecroError error;
     NecroIntern* intern;
     NecroParse_CoreTransformState transform_state;
@@ -201,13 +207,14 @@ void necro_print_core(NecroCoreAST_Expression* ast, NecroIntern* intern);
 
 static inline void necro_construct_core_transform(
     NecroTransformToCore* core_transform,
-    NecroCoreAST_Expression* core_ast,
-    NecroAST_Constant_Reified* necro_ast,
+    NecroCoreAST* core_ast,
+    NecroAST_Reified* necro_ast,
     NecroIntern* intern)
 {
     core_transform->error_message = malloc(MAX_ERROR_MESSAGE_SIZE * sizeof(char));
     core_transform->error_message[0] = "\0";
     core_transform->core_ast = core_ast;
+    core_transform->core_ast->arena = necro_create_paged_arena();
     core_transform->necro_ast = necro_ast;
     core_transform->intern = intern;
     core_transform->transform_state = NECRO_CORE_TRANSFORMING;
@@ -217,6 +224,7 @@ static inline void necro_destruct_core_transform(NecroTransformToCore* core_tran
 {
     free(core_transform->error_message);
     core_transform->error_message = NULL;
+    necro_destroy_paged_arena(&core_transform->core_ast->arena);
     core_transform->core_ast = NULL;
     core_transform->necro_ast = NULL;
     core_transform->intern = NULL;

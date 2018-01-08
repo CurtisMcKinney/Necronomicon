@@ -119,14 +119,17 @@ NecroCoreAST_Expression* necro_transform_right_hand_side(NecroTransformToCore* c
         return NULL;
 
     NecroAST_RightHandSide_Reified* right_hand_side = &necro_ast_node->right_hand_side;
-    NecroAST_Declaration_Reified* decl = right_hand_side->declarations ? &right_hand_side->declarations->declaration : NULL;
-    if (decl)
+    if (right_hand_side->declarations)
     {
         assert(right_hand_side->declarations->type == NECRO_AST_DECL);
+        NecroDeclarationGroupList* group_list = right_hand_side->declarations->declaration.group_list;
         NecroCoreAST_Expression* core_let_expr = NULL;
         NecroCoreAST_Let* core_let = NULL;
-        while (decl)
+        while (group_list)
         {
+            NecroDeclarationGroup* group = group_list->declaration_group;
+            assert(group);
+            NecroAST_Declaration_Reified* decl = group->declaration_ast;
             NecroCoreAST_Expression* let_expr = necro_transform_to_core_impl(core_transform, decl->declaration_impl);
             assert(let_expr->expr_type == NECRO_CORE_EXPR_LET);
             if (core_let)
@@ -139,10 +142,9 @@ NecroCoreAST_Expression* necro_transform_right_hand_side(NecroTransformToCore* c
             }
 
             core_let = &let_expr->let;
-            if (decl->next_declaration)
+            if (group_list->next)
             {
-                assert(decl->next_declaration->type == NECRO_AST_DECL);
-                decl = &decl->next_declaration->declaration;
+                group_list = group_list->next;
             }
         }
 

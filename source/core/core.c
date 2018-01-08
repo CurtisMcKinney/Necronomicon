@@ -176,13 +176,15 @@ NecroCoreAST_Expression* necro_transform_top_decl(NecroTransformToCore* core_tra
     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
         return NULL;
 
-    NecroDeclarationGroupList* top_decl_group_list = necro_ast_node->top_declaration.group_list;
-    assert(top_decl_group_list);
-    NecroDeclarationGroup* group = top_decl_group_list->declaration_group;
+    NecroAST_TopDeclaration_Reified* top_decl = &necro_ast_node->top_declaration.declaration;
+    NecroDeclarationGroupList* group_list = necro_ast_node->top_declaration.group_list;
+    assert(group_list);
     NecroCoreAST_Expression* top_expression = NULL;
     NecroCoreAST_Expression* next_node = NULL;
-    while (group)
+    while (group_list)
     {
+        NecroDeclarationGroup* group = group_list->declaration_group;
+        assert(group);
         NecroCoreAST_Expression* last_node = next_node;
         NecroCoreAST_Expression* expression = necro_transform_to_core_impl(core_transform, (NecroAST_Node_Reified*) group->declaration_ast);
         next_node = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
@@ -197,7 +199,8 @@ NecroCoreAST_Expression* necro_transform_top_decl(NecroTransformToCore* core_tra
         {
             last_node->list.next = next_node;
         }
-        group = group->next;
+
+        group_list = group_list->next;
     }
 
     assert(top_expression);

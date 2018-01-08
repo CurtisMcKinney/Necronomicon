@@ -129,8 +129,7 @@ NecroCoreAST_Expression* necro_transform_right_hand_side(NecroTransformToCore* c
         {
             NecroDeclarationGroup* group = group_list->declaration_group;
             assert(group);
-            NecroAST_Declaration_Reified* decl = group->declaration_ast;
-            NecroCoreAST_Expression* let_expr = necro_transform_to_core_impl(core_transform, decl->declaration_impl);
+            NecroCoreAST_Expression* let_expr = necro_transform_to_core_impl(core_transform, group->declaration_ast);
             assert(let_expr->expr_type == NECRO_CORE_EXPR_LET);
             if (core_let)
             {
@@ -142,10 +141,7 @@ NecroCoreAST_Expression* necro_transform_right_hand_side(NecroTransformToCore* c
             }
 
             core_let = &let_expr->let;
-            if (group_list->next)
-            {
-                group_list = group_list->next;
-            }
+            group_list = group_list->next;
         }
 
         return core_let_expr; // finish this!

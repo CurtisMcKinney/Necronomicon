@@ -1,3 +1,6 @@
 pi = 3.141592654
 satan = 666
+something = somethingElse where
+    somethingElse = 1234
+
 --octopus = "Octopus"

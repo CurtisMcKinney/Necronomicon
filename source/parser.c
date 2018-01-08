@@ -101,8 +101,6 @@ NecroAST_LocalPtr ast_last_node_ptr(NecroParser* parser)
     return local_ptr;
 }
 
-#define AST_TAB "  "
-
 void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern, uint32_t depth)
 {
     assert(ast != NULL);
@@ -110,7 +108,7 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
     assert(intern != NULL);
     for (uint32_t i = 0;  i < depth; ++i)
     {
-        printf(AST_TAB);
+        printf(STRING_TAB);
     }
 
     switch(ast_node->type)
@@ -122,7 +120,7 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         break;
 
     case NECRO_AST_CONSTANT:
-        switch(ast_node->constant.type)
+        switch (ast_node->constant.type)
         {
         case NECRO_AST_CONSTANT_FLOAT:
             printf("(%f)\n", ast_node->constant.double_literal);
@@ -135,12 +133,12 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
 #endif
             break;
         case NECRO_AST_CONSTANT_STRING:
-            {
-                const char* string = necro_intern_get_string(intern, ast_node->constant.symbol);
-                if (string)
-                    printf("(\"%s\")\n", string);
-            }
-            break;
+        {
+            const char* string = necro_intern_get_string(intern, ast_node->constant.symbol);
+            if (string)
+                printf("(\"%s\")\n", string);
+        }
+        break;
         case NECRO_AST_CONSTANT_CHAR:
             printf("(\'%c\')\n", ast_node->constant.char_literal);
             break;
@@ -187,9 +185,9 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         {
             for (uint32_t i = 0;  i < depth; ++i)
             {
-                printf(AST_TAB);
+                printf(STRING_TAB);
             }
-            puts(AST_TAB AST_TAB "where");
+            puts(STRING_TAB STRING_TAB "where");
             print_ast_impl(ast, ast_get_node(ast, ast_node->right_hand_side.declarations), intern, depth + 3);
         }
         break;
@@ -201,9 +199,9 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         {
             for (uint32_t i = 0;  i < depth; ++i)
             {
-                printf(AST_TAB);
+                printf(STRING_TAB);
             }
-            puts(AST_TAB AST_TAB "in");
+            puts(STRING_TAB STRING_TAB "in");
             print_ast_impl(ast, ast_get_node(ast, ast_node->let_expression.expression), intern, depth + 3);
         }
         break;
@@ -262,7 +260,7 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         print_ast_impl(ast, ast_get_node(ast, ast_node->lambda.apats), intern, depth + 1);
         for (uint32_t i = 0;  i < (depth + 1); ++i)
         {
-            printf(AST_TAB);
+            printf(STRING_TAB);
         }
         puts("->");
         print_ast_impl(ast, ast_get_node(ast, ast_node->lambda.expression), intern, depth + 2);
@@ -334,7 +332,7 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         puts("case");
         print_ast_impl(ast, ast_get_node(ast, ast_node->case_expression.expression), intern, depth + 1);
         printf("\r"); // clear current line
-        for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
+        for (uint32_t i = 0;  i < depth; ++i) printf(STRING_TAB);
         puts("of");
         print_ast_impl(ast, ast_get_node(ast, ast_node->case_expression.alternatives), intern, depth + 1);
         break;
@@ -343,7 +341,7 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         printf("\r"); // clear current line
         print_ast_impl(ast, ast_get_node(ast, ast_node->case_alternative.pat), intern, depth + 0);
         printf("\r"); // clear current line
-        for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
+        for (uint32_t i = 0;  i < depth; ++i) printf(STRING_TAB);
         puts("->");
         print_ast_impl(ast, ast_get_node(ast, ast_node->case_alternative.body), intern, depth + 1);
         break;
@@ -361,7 +359,7 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
     case NECRO_AST_DATA_DECLARATION:
         puts("(data)");
         print_ast_impl(ast, ast_get_node(ast, ast_node->data_declaration.simpletype), intern, depth + 1);
-        for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
+        for (uint32_t i = 0;  i < depth; ++i) printf(STRING_TAB);
         puts(" = ");
         print_ast_impl(ast, ast_get_node(ast, ast_node->data_declaration.constructor_list), intern, depth + 1);
         break;
@@ -406,12 +404,12 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
     case NECRO_AST_TYPE_SIGNATURE:
         printf("\r");
         print_ast_impl(ast, ast_get_node(ast, ast_node->type_signature.var), intern, depth + 0);
-        for (uint32_t i = 0;  i < depth + 1; ++i) printf(AST_TAB);
+        for (uint32_t i = 0;  i < depth + 1; ++i) printf(STRING_TAB);
         puts("::");
         if (ast_node->type_signature.context != null_local_ptr)
         {
             print_ast_impl(ast, ast_get_node(ast, ast_node->type_signature.context), intern, depth + 1);
-            for (uint32_t i = 0;  i < depth + 2; ++i) printf(AST_TAB);
+            for (uint32_t i = 0;  i < depth + 2; ++i) printf(STRING_TAB);
             puts("=>");
         }
         print_ast_impl(ast, ast_get_node(ast, ast_node->type_signature.type), intern, depth + 1);
@@ -428,14 +426,14 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         if (ast_node->type_class_declaration.context != null_local_ptr)
         {
             print_ast_impl(ast, ast_get_node(ast, ast_node->type_class_declaration.context), intern, depth + 1);
-            for (uint32_t i = 0;  i < depth + 2; ++i) printf(AST_TAB);
+            for (uint32_t i = 0;  i < depth + 2; ++i) printf(STRING_TAB);
             puts("=>");
         }
         print_ast_impl(ast, ast_get_node(ast, ast_node->type_class_declaration.tycls), intern, depth + 1);
         print_ast_impl(ast, ast_get_node(ast, ast_node->type_class_declaration.tyvar), intern, depth + 1);
         if (ast_node->type_class_declaration.declarations != null_local_ptr)
         {
-            for (uint32_t i = 0; i < depth; ++i) printf(AST_TAB);
+            for (uint32_t i = 0; i < depth; ++i) printf(STRING_TAB);
             puts("where");
             print_ast_impl(ast, ast_get_node(ast, ast_node->type_class_declaration.declarations), intern, depth + 2);
         }
@@ -446,14 +444,14 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         if (ast_node->type_class_instance.context != null_local_ptr)
         {
             print_ast_impl(ast, ast_get_node(ast, ast_node->type_class_instance.context), intern, depth + 1);
-            for (uint32_t i = 0;  i < depth + 2; ++i) printf(AST_TAB);
+            for (uint32_t i = 0;  i < depth + 2; ++i) printf(STRING_TAB);
             puts("=>");
         }
         print_ast_impl(ast, ast_get_node(ast, ast_node->type_class_instance.qtycls), intern, depth + 1);
         print_ast_impl(ast, ast_get_node(ast, ast_node->type_class_instance.inst), intern, depth + 1);
         if (ast_node->type_class_declaration.declarations != null_local_ptr)
         {
-            for (uint32_t i = 0; i < depth; ++i) printf(AST_TAB);
+            for (uint32_t i = 0; i < depth; ++i) printf(STRING_TAB);
             puts("where");
             print_ast_impl(ast, ast_get_node(ast, ast_node->type_class_declaration.declarations), intern, depth + 2);
         }
@@ -462,10 +460,10 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
     case NECRO_AST_FUNCTION_TYPE:
         puts("(");
         print_ast_impl(ast, ast_get_node(ast, ast_node->function_type.type), intern, depth + 1);
-        for (uint32_t i = 0;  i < depth + 0; ++i) printf(AST_TAB);
+        for (uint32_t i = 0;  i < depth + 0; ++i) printf(STRING_TAB);
         puts("->");
         print_ast_impl(ast, ast_get_node(ast, ast_node->function_type.next_on_arrow), intern, depth + 1);
-        for (uint32_t i = 0;  i < depth + 0; ++i) printf(AST_TAB);
+        for (uint32_t i = 0;  i < depth + 0; ++i) printf(STRING_TAB);
         puts(")");
         break;
 

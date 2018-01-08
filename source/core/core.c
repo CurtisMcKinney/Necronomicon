@@ -17,6 +17,9 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
     assert(ast_node != NULL);
     switch (ast_node->expr_type)
     {
+    case NECRO_CORE_EXPR_LIST:
+        break;
+
     default:
         printf("necro_print_core_node printing expression type unimplemented!: %s\n", core_ast_names[ast_node->expr_type]);
         //assert(false);
@@ -59,7 +62,7 @@ NecroCoreAST_Expression* necro_transform_right_hand_side(NecroTransformToCore* c
         return NULL;
 
     NecroAST_RightHandSide_Reified* right_hand_side = &necro_ast_node->right_hand_side;
-    NecroAST_Declaration_Reified* decl = &right_hand_side->declarations->declaration;
+    NecroAST_Declaration_Reified* decl = right_hand_side->declarations ? &right_hand_side->declarations->declaration : NULL;
     if (decl)
     {
         assert(right_hand_side->declarations->type == NECRO_AST_DECL);
@@ -92,6 +95,20 @@ NecroCoreAST_Expression* necro_transform_right_hand_side(NecroTransformToCore* c
     {
         return necro_transform_to_core_impl(core_transform, right_hand_side->expression);
     }
+}
+
+NecroCoreAST_Expression* necro_transform_constant(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
+{
+    assert(core_transform);
+    assert(necro_ast_node);
+    assert(necro_ast_node->type == NECRO_AST_CONSTANT);
+    if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
+        return NULL;
+
+    NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+    core_expr->expr_type = NECRO_CORE_EXPR_LIT;
+    core_expr->lit = necro_ast_node->constant;
+    return core_expr;
 }
 
 NecroCoreAST_Expression* necro_transform_top_decl(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
@@ -146,6 +163,9 @@ NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core
 
     case NECRO_AST_RIGHT_HAND_SIDE:
         return necro_transform_right_hand_side(core_transform, necro_ast_node);
+
+    case NECRO_AST_CONSTANT:
+        return necro_transform_constant(core_transform, necro_ast_node);
 
     default:
         printf("necro_transform_to_core transforming AST type unimplemented!: %d\n", necro_ast_node->type);

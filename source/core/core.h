@@ -20,7 +20,7 @@ typedef struct
     struct NecroCoreAST_Type* typeB;
 } NecroCoreAST_AppType;
 
-typedef struct  
+typedef struct
 {
     NecroVar id;
 } NecroCoreAST_TypeCon;
@@ -31,7 +31,7 @@ typedef struct
     struct NecroCoreAST_TypeList* types;
 } NecroCoreAST_TyConApp;
 
-typedef struct  
+typedef struct
 {
     union
     {
@@ -60,8 +60,9 @@ typedef struct
 //////////////////////
 // Expressions
 //////////////////////
+struct NecroCoreAST_Expression;
 
-typedef struct 
+typedef struct
 {
     struct NecroCoreAST_Expression* exprA;
     struct NecroCoreAST_Expression* exprB;
@@ -79,7 +80,7 @@ typedef struct
     struct NecroCoreAST_Expression* expr;
 } NecroCoreAST_Let;
 
-typedef struct 
+typedef struct
 {
     union
     {
@@ -119,14 +120,14 @@ typedef struct
     } altCon_type;
 } NecroCoreAST_CaseAltCon;
 
-typedef struct
+typedef struct NecroCoreAST_CaseAlt
 {
     NecroCoreAST_CaseAltCon altCon;
     struct NecroCoreAST_Expression* expr;
     struct NecroCoreAST_CaseAlt* next;
 } NecroCoreAST_CaseAlt;
 
-typedef struct 
+typedef struct
 {
     struct NecroCoreAST_Expression* expr;
     //NecroVar var; // Don't know what to do with var and type atm
@@ -139,13 +140,13 @@ typedef struct
     NecroType type;
 } NecroCoreAST_Type;
 
-typedef struct  
+typedef struct
 {
     struct NecroCoreAST_Expression* expr;
     struct NecroCoreAST_Expression* next;
 } NecroCoreAST_List;
 
-typedef struct
+typedef struct NecroCoreAST_Expression
 {
     union
     {
@@ -169,12 +170,12 @@ typedef struct
         NECRO_CORE_EXPR_CASE,
         NECRO_CORE_EXPR_TYPE,
         NECRO_CORE_EXPR_LIST, // used for top decls not language lists
-        NECRO_CORE_EXPR_COUNT, 
+        NECRO_CORE_EXPR_COUNT,
         NECRO_CORE_EXPR_UNIMPLEMENTED,
     } expr_type;
 } NecroCoreAST_Expression;
 
-static const char* core_ast_names[] = 
+static const char* core_ast_names[] =
 {
     "NECRO_CORE_EXPR_VAR",
     "NECRO_CORE_EXPR_LIT",

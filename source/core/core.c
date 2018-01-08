@@ -26,7 +26,7 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
     case NECRO_CORE_EXPR_VAR:
         printf("(Var: %s, %d)\n", necro_intern_get_string(intern, ast_node->var.symbol), ast_node->var.id);
         break;
-    
+
     case NECRO_CORE_EXPR_LIT:
         {
             switch (ast_node->lit.type)
@@ -57,7 +57,7 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
             }
         }
         break;
-    
+
     case NECRO_CORE_EXPR_APP:
         puts("(App)");
         necro_print_core_node(ast_node->app.exprA, intern, depth + 1);
@@ -72,7 +72,7 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
             bind_expr.var = ast_node->var;
             necro_print_core_node(&bind_expr, intern, depth + 1);
             necro_print_core_node(ast_node->let.expr, intern, depth + 1);
-        }   
+        }
         break;
 
     case NECRO_CORE_EXPR_CASE:
@@ -94,7 +94,7 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
                     printf(STRING_TAB);
                 }
 
-                const char s_alt_con[512];
+                char s_alt_con[512];
                 switch (alt->altCon.altCon_type)
                 {
                 case NECRO_CORE_CASE_ALT_DATA:
@@ -150,7 +150,7 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
             }
         }
         break;
-    
+
     case NECRO_CORE_EXPR_LIST:
         {
             puts("(CORE_EXPR_LIST)");
@@ -160,7 +160,7 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
                 necro_print_core_node(list_expr->expr, intern, depth + 1);
                 list_expr = list_expr->next;
             }
-        }    
+        }
         break;
 
     default:
@@ -186,7 +186,7 @@ NecroCoreAST_Expression* necro_transform_bin_op(NecroTransformToCore* core_trans
     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
         return NULL;
 
-    // 1 + 2 --> (+) 1 2 --> ((+) 1) 2 --> App (App (+) 1) 2 
+    // 1 + 2 --> (+) 1 2 --> ((+) 1) 2 --> App (App (+) 1) 2
     NecroAST_BinOp_Reified* bin_op = &necro_ast_node->bin_op;
 
     NecroCoreAST_Expression* inner_core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
@@ -200,7 +200,7 @@ NecroCoreAST_Expression* necro_transform_bin_op(NecroTransformToCore* core_trans
 
     inner_core_app->exprA = var_expr;
     inner_core_app->exprB = necro_transform_to_core_impl(core_transform, bin_op->lhs);
-    
+
     NecroCoreAST_Expression* outer_core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
     outer_core_expr->expr_type = NECRO_CORE_EXPR_APP;
     NecroCoreAST_Application* outer_core_app = &outer_core_expr->app;
@@ -291,7 +291,7 @@ NecroCoreAST_Expression* necro_transform_top_decl(NecroTransformToCore* core_tra
     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
         return NULL;
 
-    NecroAST_TopDeclaration_Reified* top_decl = &necro_ast_node->top_declaration.declaration;
+    // NecroAST_TopDeclaration_Reified* top_decl = &necro_ast_node->top_declaration.declaration;
     NecroDeclarationGroupList* group_list = necro_ast_node->top_declaration.group_list;
     assert(group_list);
     NecroCoreAST_Expression* top_expression = NULL;

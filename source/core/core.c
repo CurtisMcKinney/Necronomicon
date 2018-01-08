@@ -50,6 +50,50 @@ NecroCoreAST_Expression* necro_transform_simple_assignment(NecroTransformToCore*
     return core_expr;
 }
 
+NecroCoreAST_Expression* necro_transform_right_hand_side(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
+{
+    assert(core_transform);
+    assert(necro_ast_node);
+    assert(necro_ast_node->type == NECRO_AST_RIGHT_HAND_SIDE);
+    if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
+        return NULL;
+
+    NecroAST_RightHandSide_Reified* right_hand_side = &necro_ast_node->right_hand_side;
+    NecroAST_Declaration_Reified* decl = &right_hand_side->declarations->declaration;
+    if (decl)
+    {
+        assert(right_hand_side->declarations->type == NECRO_AST_DECL);
+        NecroCoreAST_Expression* core_let_expr = NULL;
+        NecroCoreAST_Let* core_let = NULL;
+        while (decl)
+        {
+            NecroCoreAST_Expression* let_expr = necro_transform_to_core_impl(core_transform, decl->declaration_impl);
+            assert(let_expr->expr_type == NECRO_CORE_EXPR_LET);
+            if (core_let)
+            {
+                core_let->expr = let_expr;
+            }
+            else
+            {
+                core_let_expr = let_expr;
+            }
+
+            core_let = &let_expr->let;
+            if (decl->next_declaration)
+            {
+                assert(decl->next_declaration->type == NECRO_AST_DECL);
+                decl = &decl->next_declaration->declaration;
+            }
+        }
+
+        return core_let_expr; // finish this!
+    }
+    else
+    {
+        return necro_transform_to_core_impl(core_transform, right_hand_side->expression);
+    }
+}
+
 NecroCoreAST_Expression* necro_transform_top_decl(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
 {
     assert(core_transform);
@@ -99,6 +143,10 @@ NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core
 
     case NECRO_AST_SIMPLE_ASSIGNMENT:
         return necro_transform_simple_assignment(core_transform, necro_ast_node);
+
+    case NECRO_AST_RIGHT_HAND_SIDE:
+        return necro_transform_right_hand_side(core_transform, necro_ast_node);
+
     default:
         printf("necro_transform_to_core transforming AST type unimplemented!: %d\n", necro_ast_node->type);
         assert(false);

@@ -5,12 +5,21 @@ satan = 666
 something = somethingElse where
     somethingElse = 1234
 
+whereas = one where
+    one = two
+    two = three
+    three = four
+    four = five
+    five = six
+    six = 6
+
+
 one = let two = three
           three = four
           four = five
           five = six
           six = 6
-        in two
+      in two
 
 
 onePlusTwo = 1 + 2

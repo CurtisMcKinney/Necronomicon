@@ -5,6 +5,14 @@ satan = 666
 something = somethingElse where
     somethingElse = 1234
 
+one = let two = three
+          three = four
+          four = five
+          five = six
+          six = 6
+        in two
+
+
 onePlusTwo = 1 + 2
 
 simpleCase = case 1 of

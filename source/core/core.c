@@ -281,6 +281,58 @@ NecroCoreAST_Expression* necro_transform_right_hand_side(NecroTransformToCore* c
     }
 }
 
+NecroCoreAST_Expression* necro_transform_let(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
+{
+    assert(core_transform);
+    assert(necro_ast_node);
+    assert(necro_ast_node->type == NECRO_AST_LET_EXPRESSION);
+    if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
+        return NULL;
+
+    NecroAST_LetExpression_Reified* reified_ast_let = &necro_ast_node->let_expression;
+    if (reified_ast_let->declarations)
+    {
+        assert(reified_ast_let->declarations->type == NECRO_AST_DECL);
+        NecroDeclarationGroupList* group_list = reified_ast_let->declarations->declaration.group_list;
+        NecroCoreAST_Expression* core_let_expr = NULL;
+        NecroCoreAST_Let* core_let = NULL;
+        NecroCoreAST_Expression* rhs_expression = necro_transform_to_core_impl(core_transform, reified_ast_let->expression);
+        while (group_list)
+        {
+            NecroDeclarationGroup* group = group_list->declaration_group;
+            assert(group);
+            assert(group->declaration_ast->type == NECRO_AST_SIMPLE_ASSIGNMENT);
+            NecroAST_SimpleAssignment_Reified* simple_assignment = &group->declaration_ast->simple_assignment;
+            NecroCoreAST_Expression* let_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+            let_expr->expr_type = NECRO_CORE_EXPR_LET;
+            NecroCoreAST_Let* let = &let_expr->let;
+            let->bind = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+            let->bind->expr_type = NECRO_CORE_EXPR_BIND;
+            let->bind->bind.var.id = simple_assignment->id;
+            let->bind->bind.var.symbol = simple_assignment->variable_name;
+            let->bind->bind.expr = necro_transform_to_core_impl(core_transform, simple_assignment->rhs);
+            if (core_let)
+            {
+                core_let->expr = let_expr;
+            }
+            else
+            {
+                core_let_expr = let_expr;
+            }
+
+            core_let = let;
+            core_let->expr = rhs_expression;
+            group_list = group_list->next;
+        }
+
+        return core_let_expr; // finish this!
+    }
+    else
+    {
+        assert(false && "Let requires a binding!");
+    }
+}
+
 NecroCoreAST_Expression* necro_transform_constant(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
 {
     assert(core_transform);
@@ -444,6 +496,9 @@ NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core
 
     case NECRO_AST_RIGHT_HAND_SIDE:
         return necro_transform_right_hand_side(core_transform, necro_ast_node);
+
+    case NECRO_AST_LET_EXPRESSION:
+        return necro_transform_let(core_transform, necro_ast_node);
 
     case NECRO_AST_CONSTANT:
         return necro_transform_constant(core_transform, necro_ast_node);

@@ -62,6 +62,12 @@ typedef struct
 //////////////////////
 struct NecroCoreAST_Expression;
 
+typedef struct  
+{
+    NecroVar var;
+    struct NecroCoreAST_Expression* expr;
+} NecroCoreAST_Bind;
+
 typedef struct
 {
     struct NecroCoreAST_Expression* exprA;
@@ -76,7 +82,7 @@ typedef struct
 
 typedef struct
 {
-    NecroVar bind;
+    struct NecroCoreAST_Expression* bind;
     struct NecroCoreAST_Expression* expr;
 } NecroCoreAST_Let;
 
@@ -151,6 +157,7 @@ typedef struct NecroCoreAST_Expression
     union
     {
         NecroVar var;
+        NecroCoreAST_Bind bind;
         NecroAST_Constant_Reified lit;
         NecroCoreAST_Application app;
         NecroCoreAST_Lambda lambda;
@@ -163,6 +170,7 @@ typedef struct NecroCoreAST_Expression
     enum
     {
         NECRO_CORE_EXPR_VAR,
+        NECRO_CORE_EXPR_BIND,
         NECRO_CORE_EXPR_LIT,
         NECRO_CORE_EXPR_APP,
         NECRO_CORE_EXPR_LAM,
@@ -178,6 +186,7 @@ typedef struct NecroCoreAST_Expression
 static const char* core_ast_names[] =
 {
     "NECRO_CORE_EXPR_VAR",
+    "NECRO_CORE_EXPR_BIND",
     "NECRO_CORE_EXPR_LIT",
     "NECRO_CORE_EXPR_APP",
     "NECRO_CORE_EXPR_LAM",

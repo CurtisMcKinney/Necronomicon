@@ -166,6 +166,7 @@ typedef struct
     NecroError                error;
     size_t                    highest_id;
     NecroKind*                star_kind;
+    NecroType*                star_type_kind;
 } NecroInfer;
 
 //=====================================================

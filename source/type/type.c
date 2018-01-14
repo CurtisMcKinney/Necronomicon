@@ -9,6 +9,7 @@
 #include "symtable.h"
 #include "prim.h"
 #include "type_class.h"
+#include "kind.h"
 #include "type.h"
 
 #define NECRO_TYPE_DEBUG 0
@@ -56,6 +57,7 @@ NecroInfer necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtabl
     NecroKind* star_kind = necro_paged_arena_alloc(&infer.arena, sizeof(NecroKind));
     star_kind->kind      = NECRO_KIND_STAR;
     infer.star_kind      = star_kind;
+    infer.star_type_kind = necro_create_star_kind(&infer);
     return infer;
 }
 

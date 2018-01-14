@@ -104,16 +104,17 @@ frozenStream =  lift1 synth (realToFrac mouseX)
 -- A different notion to enforce this?
 -- Don't use full monadic IO, instead use input streams, and output data via main
 
-data Sequence a = Sequence a -- A sequence is a higher order streaming construct
-
 pattern :: Time            -> a               -> Event a
 pattern :  (forall t1. t1) -> (forall t2. t2) -> t3
 
 seq     :: [a]             -> a
 seq     :  (forall t1. t1) -> t2
 
-switch  :: Event Int -> [a]             -> a
-switch  :  t1        -> (forall t2. t2) -> t1
+select  :: Event Int -> [a]             -> a
+select  :  t1        -> (forall t2. t2) -> t1
+
+switch  :: Event Int -> [a]               -> a
+switch  :  t1        -> (forall t2. [t2]) -> t1
 
 poly    :: Num b => (a -> b)        -> Event a -> b
 poly    :  (forall t1. t1 -> t1):t2 -> t2      -> t2

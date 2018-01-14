@@ -136,10 +136,11 @@ typedef struct NecroType
         NecroTypeList   list;
         NecroTypeForAll for_all;
     };
-    NECRO_TYPE     type;
-    NecroSourceLoc source_loc;
-    bool           pre_supplied;
-    NecroKind*     kind;
+    NECRO_TYPE        type;
+    NecroSourceLoc    source_loc;
+    bool              pre_supplied;
+    NecroKind*        kind;
+    struct NecroType* type_kind;
 } NecroType;
 
 //=====================================================
@@ -175,6 +176,7 @@ void        necro_destroy_infer(NecroInfer* infer);
 void        necro_reset_infer(NecroInfer* infer);
 bool        necro_is_infer_error(NecroInfer* infer);
 NecroType*  necro_alloc_type(NecroInfer* infer);
+void*       necro_infer_error(NecroInfer* infer, const char* error_preamble, NecroType* type, const char* error_message, ...);
 
 void        necro_unify(NecroInfer* infer, NecroType* type1, NecroType* type2, struct NecroScope* scope, NecroType* macro_type, const char* error_preamble);
 
@@ -184,6 +186,7 @@ NecroType*  necro_new_name(NecroInfer* infer, NecroSourceLoc source_loc);
 NecroType*  necro_find(NecroInfer* infer, NecroType* type);
 void        necr_bind_type_var(NecroInfer* infer, NecroVar var, NecroType* type);
 bool        necro_is_bound_in_scope(NecroInfer* infer, NecroType* type, struct NecroScope* scope);
+bool        necro_occurs(NecroInfer* infer, NecroType* type_var, NecroType* type, NecroType* macro_type, const char* error_preamble);
 
 NecroType*  necro_declare_type(NecroInfer* infer, NecroCon con, size_t arity);
 NecroType*  necro_create_type_con(NecroInfer* infer, NecroCon con, NecroType* args, size_t arity);

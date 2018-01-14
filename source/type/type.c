@@ -134,6 +134,7 @@ NecroType* necro_alloc_type(NecroInfer* infer)
     type->pre_supplied = false;
     type->source_loc   = (NecroSourceLoc) { 0, 0, 0 };
     type->kind         = NULL;
+    type->type_kind    = NULL;
     // type->kind         = necro_create_kind_init(infer);
     return type;
 }

@@ -318,17 +318,31 @@ NecroTypeKind* necro_kind_infer(NecroInfer* infer, NecroType* type, NecroType* m
         assert(symbol_info->type->type_kind != NULL);
         type->type_kind           = symbol_info->type->type_kind;
         NecroType*     args       = type->con.args;
-        NecroTypeKind* f_arg_kind = infer->star_type_kind;
+        NecroTypeKind* args_kinds = NULL;
+        NecroTypeKind* args_head  = NULL;
         while (args != NULL)
         {
             NecroTypeKind* arg_kind = necro_kind_infer(infer, args, macro_type, error_preamble);
-            f_arg_kind = necro_create_type_fun(infer, arg_kind, f_arg_kind);
             if (necro_is_infer_error(infer)) return NULL;
+            if (args_head == NULL)
+            {
+                args_kinds = necro_create_type_fun(infer, arg_kind, NULL);
+                args_head  = args_kinds;
+            }
+            else
+            {
+                args_kinds->fun.type2 = necro_create_type_fun(infer, args_kinds, NULL);
+                args_kinds = args_kinds->fun.type2;
+            }
             args = args->list.next;
         }
-        necro_kind_unify(infer, type->type_kind, f_arg_kind, NULL, macro_type, error_preamble);
+        if (args_kinds != NULL)
+            args_kinds->fun.type2 = infer->star_type_kind;
+        else
+            args_head = infer->star_type_kind;
+        necro_kind_unify(infer, type->type_kind, args_head, NULL, macro_type, error_preamble);
         if (necro_is_infer_error(infer)) return NULL;
-        return type->type_kind;
+        return args_head;
     }
 
     case NECRO_TYPE_FOR:
@@ -378,23 +392,30 @@ NecroTypeKind* necro_kind_gen(NecroInfer* infer, NecroTypeKind* kind)
 
     case NECRO_TYPE_CON:
     {
-        // NecroSymbolInfo* symbol_info = necro_symtable_get(infer->symtable, type->con.con.id);
-        // assert(symbol_info != NULL);
-        // assert(symbol_info->type != NULL);
-        // assert(symbol_info->type->type_kind != NULL);
-        // type->type_kind           = symbol_info->type->type_kind;
         NecroType*     args       = kind->con.args;
-        NecroTypeKind* f_arg_kind = infer->star_type_kind;
+        NecroTypeKind* args_kinds = NULL;
+        NecroTypeKind* args_head  = NULL;
         while (args != NULL)
         {
             NecroTypeKind* arg_kind = necro_kind_gen(infer, args);
-            f_arg_kind = necro_create_type_fun(infer, arg_kind, f_arg_kind);
             if (necro_is_infer_error(infer)) return NULL;
+            if (args_head == NULL)
+            {
+                args_kinds = necro_create_type_fun(infer, arg_kind, NULL);
+                args_head  = args_kinds;
+            }
+            else
+            {
+                args_kinds->fun.type2 = necro_create_type_fun(infer, args_kinds, NULL);
+                args_kinds = args_kinds->fun.type2;
+            }
             args = args->list.next;
         }
-        // necro_kind_unify(infer, type->type_kind, f_arg_kind, NULL, macro_type, error_preamble);
-        // if (necro_is_infer_error(infer)) return NULL;
-        return f_arg_kind;
+        if (args_kinds != NULL)
+            args_kinds->fun.type2 = infer->star_type_kind;
+        else
+            args_head = infer->star_type_kind;
+        return args_head;
     }
 
     case NECRO_TYPE_FOR:

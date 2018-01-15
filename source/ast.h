@@ -76,6 +76,7 @@ typedef struct
 {
     struct NecroAST_Node_Reified* simpletype;
     struct NecroAST_Node_Reified* constructor_list; // Points to the next in the list, null_local_ptr if the end
+    struct NecroDeclarationGroup* declaration_group;
 } NecroAST_DataDeclaration_Reified;
 
 //=====================================================
@@ -260,7 +261,6 @@ typedef struct
     struct NecroAST_Node_Reified* rhs;
     NecroID                       id;
     struct NecroDeclarationGroup* declaration_group;
-    // struct NecroDeclarationsInfo* declarations_info;
 } NecroAST_SimpleAssignment_Reified;
 
 //=====================================================
@@ -301,7 +301,6 @@ typedef struct
     struct NecroAST_Node_Reified* rhs;
     NecroID                       id;
     struct NecroDeclarationGroup* declaration_group;
-    // struct NecroDeclarationsInfo* declarations_info;
 } NecroAST_ApatsAssignment_Reified;
 
 //=====================================================
@@ -312,7 +311,6 @@ typedef struct
     struct NecroAST_Node_Reified* pat;
     struct NecroAST_Node_Reified* rhs;
     struct NecroDeclarationGroup* declaration_group;
-    // struct NecroDeclarationsInfo* declarations_info;
 } NecroAST_PatAssignment_Reified;
 
 //=====================================================

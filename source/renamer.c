@@ -243,12 +243,14 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         rename_declare_go(input_node->simple_type.type_con, renamer);
         rename_declare_go(input_node->simple_type.type_var_list, renamer);
         break;
+
     case NECRO_AST_DATA_DECLARATION:
         rename_declare_go(input_node->data_declaration.simpletype, renamer);
         renamer->should_free_type_declare = false;
         rename_declare_go(input_node->data_declaration.constructor_list, renamer);
         renamer->should_free_type_declare = true;
         break;
+
     case NECRO_AST_TYPE_CLASS_DECLARATION:
         rename_declare_go(input_node->type_class_declaration.tycls, renamer);
         rename_declare_go(input_node->type_class_declaration.tyvar, renamer);
@@ -491,6 +493,8 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
     case NECRO_AST_DATA_DECLARATION:
         rename_var_go(input_node->data_declaration.simpletype, renamer);
         rename_var_go(input_node->data_declaration.constructor_list, renamer);
+        renamer->scoped_symtable->global_table->data[input_node->data_declaration.simpletype->simple_type.type_con->conid.id.id].declaration_group = necro_append_declaration_group(renamer->arena, input_node, NULL);
+        input_node->data_declaration.declaration_group = renamer->scoped_symtable->global_table->data[input_node->data_declaration.simpletype->simple_type.type_con->conid.id.id].declaration_group;
         break;
     case NECRO_AST_TYPE_CLASS_DECLARATION:
         rename_var_go(input_node->type_class_declaration.context, renamer);

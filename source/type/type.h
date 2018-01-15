@@ -40,31 +40,31 @@ typedef struct
     NecroID     id;
 } NecroCon;
 
-//=====================================================
-// Kind
-//=====================================================
-struct NecroKind;
-typedef enum
-{
-    NECRO_KIND_STAR,
-    NECRO_KIND_APP,
-    NECRO_KIND_INIT,
-} NECRO_KIND;
+// //=====================================================
+// // Kind
+// //=====================================================
+// struct NecroKind;
+// typedef enum
+// {
+//     NECRO_KIND_STAR,
+//     NECRO_KIND_APP,
+//     NECRO_KIND_INIT,
+// } NECRO_KIND;
 
-typedef struct
-{
-    struct NecroKind* kind1;
-    struct NecroKind* kind2;
-} NecroKindApp;
+// typedef struct
+// {
+//     struct NecroKind* kind1;
+//     struct NecroKind* kind2;
+// } NecroKindApp;
 
-typedef struct NecroKind
-{
-    union
-    {
-        NecroKindApp app;
-    };
-    NECRO_KIND kind;
-} NecroKind;
+// typedef struct NecroKind
+// {
+//     union
+//     {
+//         NecroKindApp app;
+//     };
+//     NECRO_KIND kind;
+// } NecroKind;
 
 //=====================================================
 // NecorType
@@ -139,7 +139,7 @@ typedef struct NecroType
     NECRO_TYPE        type;
     NecroSourceLoc    source_loc;
     bool              pre_supplied;
-    NecroKind*        kind;
+    // NecroKind*        kind;
     struct NecroType* type_kind;
 } NecroType;
 
@@ -165,7 +165,7 @@ typedef struct
     NecroIntern*              intern;
     NecroError                error;
     size_t                    highest_id;
-    NecroKind*                star_kind;
+    // NecroKind*                star_kind;
     NecroType*                star_type_kind;
 } NecroInfer;
 
@@ -211,14 +211,16 @@ NecroType*  necro_make_tuple_con(NecroInfer* infer, NecroType* types_list);
 
 size_t      necro_type_list_count(NecroType* list);
 
-NecroKind*  necro_create_kind_app(NecroInfer* infer, NecroKind* kind1, NecroKind* kind2);
-NecroKind*  necro_infer_kind(NecroInfer* infer, NecroType* type, NecroKind* kind_to_match, NecroType* macro_type, const char* error_preamble);
-void        necro_unify_kinds(NecroInfer* infer, NecroType* type1, NecroKind** kind1, NecroKind** kind2, NecroType* macro_type, const char* error_preamble);
-void        necro_print_kind(NecroKind* kind);
-char*       necro_kind_string(NecroInfer* infer, NecroKind* kind);
-NecroKind*  necro_create_kind_init(NecroInfer* infer);
+// NecroKind*  necro_create_kind_app(NecroInfer* infer, NecroKind* kind1, NecroKind* kind2);
+// NecroKind*  necro_infer_kind(NecroInfer* infer, NecroType* type, NecroKind* kind_to_match, NecroType* macro_type, const char* error_preamble);
+// void        necro_unify_kinds(NecroInfer* infer, NecroType* type1, NecroKind** kind1, NecroKind** kind2, NecroType* macro_type, const char* error_preamble);
+// void        necro_print_kind(NecroKind* kind);
+// char*       necro_kind_string(NecroInfer* infer, NecroKind* kind);
+// NecroKind*  necro_create_kind_init(NecroInfer* infer);
 
-char*       necro_kind_string(NecroInfer* infer, NecroKind* kind);
+// TODO: type string
+// char*       necro_kind_string(NecroInfer* infer, NecroKind* kind);
+char*       necro_type_string(NecroInfer* infer, NecroType* type);
 void        necro_print_type_sig(NecroType* type, NecroIntern* intern);
 void        necro_print_type_sig_go(NecroType* type, NecroIntern* intern);
 char*       necro_snprintf_type_sig(NecroType* type, NecroIntern* intern, char* buffer, const size_t buffer_length);

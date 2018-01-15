@@ -55,7 +55,7 @@ NecroTypeKind* necro_create_star_kind(NecroInfer* infer)
         .arity    = 0,
         .is_class = false,
     };
-    star_type->kind         = NULL;
+    // star_type->kind         = NULL;
     star_type->type_kind    = NULL;
     star_type->pre_supplied = true;
     assert(necro_symtable_get(infer->symtable, star_con.id)->type == NULL);
@@ -78,7 +78,7 @@ NecroTypeKind* necro_create_question_kind(NecroInfer* infer)
         .arity    = 0,
         .is_class = false,
     };
-    question_type->kind         = NULL;
+    // question_type->kind         = NULL;
     question_type->type_kind    = NULL;
     question_type->pre_supplied = true;
     assert(necro_symtable_get(infer->symtable, question_con.id)->type == NULL);
@@ -108,7 +108,6 @@ inline void necro_kind_unify_var(NecroInfer* infer, NecroTypeKind* kind1, NecroT
     switch (kind2->type)
     {
     case NECRO_TYPE_VAR:
-        // necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
         if (kind1->var.var.id.id == kind2->var.var.id.id)
             return;
         else if (kind1->var.is_rigid && kind2->var.is_rigid)
@@ -137,7 +136,6 @@ inline void necro_kind_unify_var(NecroInfer* infer, NecroTypeKind* kind1, NecroT
             return;
         }
         necro_instantiate_kind_var(infer, &kind1->var, kind2, macro_type, error_preamble);
-        // necro_unify_kinds(infer, kind2, &kind2->kind, &kind1->kind, macro_type, error_preamble);
         return;
     case NECRO_TYPE_FOR:  necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Attempted to kind unify polytype."); return;
     case NECRO_TYPE_LIST: necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Attempted to kind unify KindVar with kind args list."); return;
@@ -160,7 +158,6 @@ inline void necro_kind_unify_fun(NecroInfer* infer, NecroTypeKind* kind1, NecroT
     switch (kind2->type)
     {
     case NECRO_TYPE_VAR:
-        // necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
         if (kind2->var.is_rigid)
             necro_rigid_kind_variable_error(infer, kind2->var.var, kind1, macro_type, error_preamble);
         else if (necro_occurs(infer, kind2, kind1, macro_type, error_preamble))
@@ -169,8 +166,16 @@ inline void necro_kind_unify_fun(NecroInfer* infer, NecroTypeKind* kind1, NecroT
             necro_instantiate_kind_var(infer, &kind2->var, kind1, macro_type, error_preamble);
         return;
     case NECRO_TYPE_FUN:  necro_kind_unify(infer, kind1->fun.type1, kind2->fun.type1, scope, macro_type, error_preamble); necro_kind_unify(infer, kind1->fun.type2, kind2->fun.type2, scope, macro_type, error_preamble); return;
-    case NECRO_TYPE_APP:  necro_infer_error(infer, error_preamble, macro_type, "Kind error: Attempting to kind unify (->) with TypeApp."); return;
-    case NECRO_TYPE_CON:  necro_infer_error(infer, error_preamble, macro_type, "Kind error: Attempting to kind unify (->) with TypeCon (%s)", necro_intern_get_string(infer->intern, kind2->con.con.symbol)); return;
+    case NECRO_TYPE_CON:
+    {
+        necro_infer_error(infer, error_preamble, macro_type, "Kind error: Attempting to kind unify (->) with KindCon (%s).\n  Kind1: %s\n  Kind2: %s",
+            necro_intern_get_string(infer->intern, kind2->con.con.symbol),
+            necro_type_string(infer, kind1),
+            necro_type_string(infer, kind2)
+            );
+        return;
+    }
+    case NECRO_TYPE_APP:  necro_infer_error(infer, error_preamble, macro_type, "Kind error: Attempting to kind unify (->) with KindApp."); return;
     case NECRO_TYPE_LIST: necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Attempted to kind unify (->) with type args list."); return;
     default:              necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Non-existent type (type1: %d, type2: %s) type found in necro_unify.", kind1->type, kind2->type); return;
     }
@@ -186,7 +191,6 @@ inline void necro_kind_unify_con(NecroInfer* infer, NecroTypeKind* kind1, NecroT
     switch (kind2->type)
     {
     case NECRO_TYPE_VAR:
-        // necro_unify_kinds(infer, kind2, &type2->kind, &type1->kind, macro_type, error_preamble);
         if (kind2->var.is_rigid)
             necro_rigid_kind_variable_error(infer, kind2->var.var, kind1, macro_type, error_preamble);
         else if (necro_occurs(infer, kind2, kind1, macro_type, error_preamble))
@@ -202,7 +206,6 @@ inline void necro_kind_unify_con(NecroInfer* infer, NecroTypeKind* kind1, NecroT
         }
         else
         {
-            // necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
             NecroTypeKind* original_kind1 = kind1;
             NecroTypeKind* original_kind2 = kind2;
             kind1 = kind1->con.args;
@@ -217,7 +220,6 @@ inline void necro_kind_unify_con(NecroInfer* infer, NecroTypeKind* kind1, NecroT
                 assert(kind1->type == NECRO_TYPE_LIST);
                 assert(kind2->type == NECRO_TYPE_LIST);
                 necro_kind_unify(infer, kind1->list.item, kind2->list.item, scope, macro_type, error_preamble);
-                // necro_kind_unify_kinds(infer, type2, &type2->list.item->kind, &type1->list.item->kind, macro_type, error_preamble);
                 kind1 = kind1->list.next;
                 kind2 = kind2->list.next;
             }
@@ -276,24 +278,36 @@ NecroTypeKind* necro_kind_infer(NecroInfer* infer, NecroType* type, NecroType* m
     assert(infer != NULL);
     assert(type != NULL);
     if (necro_is_infer_error(infer)) return NULL;
+    if (type->type_kind != NULL) return type->type_kind;
     switch (type->type)
     {
 
     case NECRO_TYPE_VAR:
     {
         NecroSymbolInfo* symbol_info = necro_symtable_get(infer->symtable, type->var.var.id);
-        assert(symbol_info != NULL);
-        // assert(symbol_info->type != NULL);
-        if (symbol_info->type == NULL)
+        if (symbol_info != NULL)
         {
-            symbol_info->type = necro_new_name(infer, type->source_loc);
+            // assert(symbol_info != NULL);
+            // assert(symbol_info->type != NULL);
+            if (symbol_info->type == NULL)
+            {
+                symbol_info->type = necro_new_name(infer, type->source_loc);
+            }
+            // assert(symbol_info->type->type_kind != NULL);
+            if (symbol_info->type->type_kind == NULL)
+            {
+                symbol_info->type->type_kind = necro_new_name(infer, type->source_loc);
+            }
+            type->type_kind = symbol_info->type->type_kind;
         }
-        // assert(symbol_info->type->type_kind != NULL);
-        if (symbol_info->type->type_kind == NULL)
+        else
         {
-            symbol_info->type->type_kind = necro_new_name(infer, type->source_loc);
+            // NecroType* var_type = necro_find(infer, type);
+            if (type->type_kind == NULL)
+            {
+                type->type_kind = necro_new_name(infer, type->source_loc);
+            }
         }
-        type->type_kind = symbol_info->type->type_kind;
         return type->type_kind;
     }
 
@@ -357,7 +371,7 @@ NecroTypeKind* necro_kind_infer(NecroInfer* infer, NecroType* type, NecroType* m
             args_head = infer->star_type_kind;
         necro_kind_unify(infer, type->type_kind, args_head, NULL, macro_type, error_preamble);
         if (necro_is_infer_error(infer)) return NULL;
-        return args_head;
+        return infer->star_type_kind;
     }
 
     case NECRO_TYPE_FOR:

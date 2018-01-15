@@ -8,6 +8,7 @@
 #include <stdarg.h>
 #include "infer.h"
 #include "symtable.h"
+#include "kind.h"
 #include "type_class.h"
 
 // TODO:
@@ -179,7 +180,8 @@ void necro_finish_declaring_type_class(NecroInfer* infer, NecroTypeClassEnv* env
 
     NecroType* type_class_var   = necro_symtable_get(infer->symtable, type_class->type_var.id)->type;
     type_class_var->var.context = necro_create_type_class_context(&infer->arena, type_class->type_class_name, type_class->type_var, type_class->context);
-    necro_infer_kind(infer, type_class_var, NULL, type_class_var, "While declaring a type class: ");
+    // necro_infer_kind(infer, type_class_var, NULL, type_class_var, "While declaring a type class: ");
+    necro_kind_infer(infer, type_class_var, type_class_var, "While declaring a type class: ");
 
     //--------------------------------
     // Constrain type class variable via super classes
@@ -218,7 +220,9 @@ void necro_finish_declaring_type_class(NecroInfer* infer, NecroTypeClassEnv* env
         type_sig->pre_supplied = true;
         type_sig->source_loc   = declarations->declaration.declaration_impl->source_loc;
         type_sig               = necro_gen(infer, type_sig, NULL);
-        necro_infer_kind(infer, type_sig, infer->star_kind, type_sig, "While declaring a method of a type class: ");
+        // necro_infer_kind(infer, type_sig, infer->star_kind, type_sig, "While declaring a method of a type class: ");
+        necro_kind_infer(infer, type_sig, type_sig, "While declaring a method of a type class: ");
+        necro_kind_unify(infer, type_sig->type_kind, infer->star_type_kind, NULL, type_sig, "While declaring a method of a type class");
         if (necro_is_infer_error(infer)) return;
         necro_symtable_get(infer->symtable, declarations->declaration.declaration_impl->type_signature.var->variable.id)->type      = type_sig;
         necro_symtable_get(infer->symtable, declarations->declaration.declaration_impl->type_signature.var->variable.id)->is_method = true;
@@ -230,6 +234,8 @@ void necro_finish_declaring_type_class(NecroInfer* infer, NecroTypeClassEnv* env
     }
     TRACE_TYPE_CLASS("Finishing type_class: %s\n", necro_intern_get_string(infer->intern, type_class->type_class_name.symbol));
 
+    // Generalize type class kind
+    type_class_var->type_kind = necro_kind_gen(infer, type_class_var->type_kind);
 }
 
 //=====================================================
@@ -397,7 +403,9 @@ void necro_finish_declaring_type_class_instance(NecroInfer* infer, NecroTypeClas
     if (necro_is_infer_error(infer)) return;
     NecroType* class_var  = necro_symtable_get(infer->symtable, type_class->type_var.id)->type;
     assert(class_var != NULL);
-    necro_infer_kind(infer, instance->data_type, class_var->kind, instance->data_type, "While creating an instance of a type class: ");
+    // necro_infer_kind(infer, instance->data_type, class_var->kind, instance->data_type, "While creating an instance of a type class: ");
+    necro_kind_infer(infer, instance->data_type, instance->data_type, "While creating an instance of a type class");
+    necro_kind_unify(infer, instance->data_type->type_kind, class_var->type_kind, NULL, instance->data_type, "While creating an instance of a type class");
     if (necro_is_infer_error(infer)) return;
 
     // Apply constraints
@@ -421,7 +429,8 @@ void necro_finish_declaring_type_class_instance(NecroInfer* infer, NecroTypeClas
     }
 
     NecroType* inst_data_type = necro_inst(infer, instance->data_type, NULL);
-    necro_infer_kind(infer, inst_data_type, NULL, inst_data_type, "While creating an instance method: ");
+    // necro_infer_kind(infer, inst_data_type, NULL, inst_data_type, "While creating an instance method: ");
+    necro_kind_infer(infer, inst_data_type, inst_data_type, "While creating an instance method: ");
 
     //--------------------------------
     // Dictionary Prototype

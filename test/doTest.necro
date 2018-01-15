@@ -1,6 +1,22 @@
+data MutA a    = MutA (MutB a)
+data MutB b    = MutB (MutA b)
+
+data Yep    a   = Yep (Maybe a) (Yep a) (Either a ())
 data Maybe  a   = Just a | Nothing
 data Either a b = Left a | Right b
--- data Nope   a   = Nope (Maybe a a)
+data FU     a b = FU (a -> b)
+data Higher f a = Higher (f a)
+data MaybeH a   = MaybeH (Higher Maybe a)
+-- data Nope   f a = Nope (f a)
+
+class MyCoolClass a where
+    coolMethod :: a -> [a]
+
+class MyCoolClass a => SubCoolClass a
+
+aCoolTest :: MyCoolClass a => a -> [a]
+-- aCoolTest x = coolMethod x
+aCoolTest x = [x]
 
 -- -- DONE:
 -- -- * Proper dependency analysis for declarations

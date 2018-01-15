@@ -672,7 +672,8 @@ void necro_print_env_with_symtable(NecroSymTable* table, NecroInfer* infer)
             // }
             necro_print_type_sig_go(infer->symtable->data[i].type, infer->intern);
             printf(" :: ");
-            necro_print_kind(table->data[i].type->kind);
+            // necro_print_kind(table->data[i].type->kind);
+            necro_print_type_sig_go(infer->symtable->data[i].type->type_kind, infer->intern);
             printf("\n");
         }
         else

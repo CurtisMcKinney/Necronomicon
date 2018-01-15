@@ -278,7 +278,7 @@ NecroTypeKind* necro_kind_infer(NecroInfer* infer, NecroType* type, NecroType* m
     assert(infer != NULL);
     assert(type != NULL);
     if (necro_is_infer_error(infer)) return NULL;
-    if (type->type_kind != NULL) return type->type_kind;
+    // if (type->type_kind != NULL) return type->type_kind;
     switch (type->type)
     {
 
@@ -344,7 +344,9 @@ NecroTypeKind* necro_kind_infer(NecroInfer* infer, NecroType* type, NecroType* m
         NecroSymbolInfo* symbol_info = necro_symtable_get(infer->symtable, type->con.con.id);
         assert(symbol_info != NULL);
         assert(symbol_info->type != NULL);
-        assert(symbol_info->type->type_kind != NULL);
+        // assert(symbol_info->type->type_kind != NULL);
+        if (symbol_info->type->type_kind == NULL)
+            symbol_info->type->type_kind = necro_new_name(infer, type->source_loc);
         type->type_kind           = symbol_info->type->type_kind;
         NecroType*     args       = type->con.args;
         NecroTypeKind* args_kinds = NULL;
@@ -365,13 +367,14 @@ NecroTypeKind* necro_kind_infer(NecroInfer* infer, NecroType* type, NecroType* m
             }
             args = args->list.next;
         }
+        NecroTypeKind* result_type = necro_new_name(infer, type->source_loc);
         if (args_kinds != NULL)
-            args_kinds->fun.type2 = infer->star_type_kind;
+            args_kinds->fun.type2 = result_type;
         else
-            args_head = infer->star_type_kind;
-        necro_kind_unify(infer, type->type_kind, args_head, NULL, macro_type, error_preamble);
+            args_head = result_type;
+        necro_kind_unify(infer, symbol_info->type->type_kind, args_head, NULL, macro_type, error_preamble);
         if (necro_is_infer_error(infer)) return NULL;
-        return infer->star_type_kind;
+        return result_type;
     }
 
     case NECRO_TYPE_FOR:

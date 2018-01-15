@@ -161,6 +161,7 @@ NecroType* necro_infer_type_sig(NecroInfer* infer, NecroNode* ast)
     assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_TYPE_SIGNATURE);
+    if (necro_is_infer_error(infer)) return NULL;
 
     NecroType* type_sig = necro_ast_to_type_sig_go(infer, ast->type_signature.type);
     if (necro_is_infer_error(infer)) return NULL;
@@ -170,6 +171,9 @@ NecroType* necro_infer_type_sig(NecroInfer* infer, NecroNode* ast)
     necro_apply_constraints(infer, type_sig, context);
 
     type_sig = necro_gen(infer, type_sig, ast->type_signature.type->scope);
+    if (necro_is_infer_error(infer)) return NULL;
+    type_sig->type_kind = necro_kind_gen(infer, type_sig->type_kind);
+    necro_kind_unify(infer, type_sig->type_kind, infer->star_type_kind, ast->scope, type_sig->type_kind, "While inferring the type of a type signature");
     if (necro_is_infer_error(infer)) return NULL;
 
     type_sig->pre_supplied = true;
@@ -261,7 +265,7 @@ NecroType* necro_create_data_constructor(NecroInfer* infer, NecroNode* ast, Necr
     con_type->pre_supplied = true;
     necro_symtable_get(infer->symtable, ast->constructor.conid->conid.id)->type = con_type;
     // necro_kind_infer(infer, con_type, con_type, "While declaring a data constructor");
-    // necro_kind_unify(infer, con_type->type_kind, infer->star_type_kind, NULL, con_type, "During a data declaration: ");
+    necro_kind_unify(infer, con_type->type_kind, infer->star_type_kind, NULL, con_type, "During a data declaration: ");
     return con_type;
 }
 
@@ -282,8 +286,10 @@ NecroType* necro_infer_simple_type(NecroInfer* infer, NecroNode* ast)
     // if (necro_is_infer_error(infer)) return NULL;
     // necro_infer_kind(infer, type, infer->star_kind, type, "During data declaration");
     if (necro_is_infer_error(infer)) return NULL;
-    necro_symtable_get(infer->symtable, ast->simple_type.type_con->conid.id)->type->type_kind = necro_new_name(infer, ast->source_loc);
+    // necro_symtable_get(infer->symtable, ast->simple_type.type_con->conid.id)->type->type_kind = necro_new_name(infer, ast->source_loc);
+    // necro_symtable_get(infer->symtable, ast->simple_type.type_con->conid.id)->type->type_kind = necro_new_name(infer, ast->source_loc);
     necro_kind_infer(infer, type, type, "During data declaration");
+    assert(type->type_kind != NULL);
     // necro_kind_unify(infer, type->type_kind, infer->star_type_kind, NULL, type, "During a data declaration: ");
     // necro_print_type_sig(necro_symtable_get(infer->symtable, ast->simple_type.type_con->conid.id)->type->type_kind, infer->intern);
     // TODO: data declarations in declaration groups, infer kinds everywhere, clean up what will be broken, add missing shit, etc...
@@ -423,8 +429,12 @@ NecroType* necro_infer_assignment(NecroInfer* infer, NecroDeclarationGroup* decl
             if (symbol_info->type->pre_supplied || symbol_info->type_status == NECRO_TYPE_DONE) { curr->type_checked = true; curr = curr->next;  continue; }
             symbol_info->type = necro_gen(infer, symbol_info->type, symbol_info->scope->parent);
             // necro_infer_kind(infer, symbol_info->type, infer->star_kind, symbol_info->type, "While declaraing a variable: ");
-            necro_kind_infer(infer, symbol_info->type, symbol_info->type, "While declaring a variable: ");
-            necro_kind_unify(infer, symbol_info->type->type_kind, infer->star_type_kind, NULL, symbol_info->type, "While declaring a variable: ");
+            // necro_kind_infer(infer, symbol_info->type, symbol_info->type, "While declaring a variable: ");
+            // if (necro_is_infer_error(infer)) return NULL;
+            // symbol_info->type->type_kind = necro_kind_gen(infer, symbol_info->type->type_kind);
+            // if (necro_is_infer_error(infer)) return NULL;
+            // necro_kind_unify(infer, symbol_info->type->type_kind, infer->star_type_kind, NULL, symbol_info->type, "While declaring a variable: ");
+            // if (necro_is_infer_error(infer)) return NULL;
             symbol_info->type_status = NECRO_TYPE_DONE;
         }
         else if (ast->type == NECRO_AST_APATS_ASSIGNMENT)
@@ -433,8 +443,12 @@ NecroType* necro_infer_assignment(NecroInfer* infer, NecroDeclarationGroup* decl
             if (symbol_info->type->pre_supplied || symbol_info->type_status == NECRO_TYPE_DONE) { curr->type_checked = true; curr = curr->next;  continue; }
             symbol_info->type = necro_gen(infer, symbol_info->type, symbol_info->scope->parent);
             // necro_infer_kind(infer, symbol_info->type, infer->star_kind, symbol_info->type, "While declaraing a variable: ");
-            necro_kind_infer(infer, symbol_info->type, symbol_info->type, "While declaring a variable: ");
-            necro_kind_unify(infer, symbol_info->type->type_kind, infer->star_type_kind, NULL, symbol_info->type, "While declaring a variable: ");
+            // necro_kind_infer(infer, symbol_info->type, symbol_info->type, "While declaring a variable: ");
+            // if (necro_is_infer_error(infer)) return NULL;
+            // symbol_info->type->type_kind = necro_kind_gen(infer, symbol_info->type->type_kind);
+            // if (necro_is_infer_error(infer)) return NULL;
+            // necro_kind_unify(infer, symbol_info->type->type_kind, infer->star_type_kind, NULL, symbol_info->type, "While declaring a variable: ");
+            // if (necro_is_infer_error(infer)) return NULL;
             symbol_info->type_status = NECRO_TYPE_DONE;
         }
         else if (ast->type == NECRO_AST_PAT_ASSIGNMENT)
@@ -490,8 +504,8 @@ NecroType* necro_infer_apats_assignment(NecroInfer* infer, NecroNode* ast)
     NecroType* rhs = necro_infer_go(infer, ast->apats_assignment.rhs);
     f_type->fun.type2 = rhs;
     // necro_infer_kind(infer, f_head, infer->star_kind, f_head, "While inferring the type of a function declaration: ");
-    necro_kind_infer(infer, f_head, f_head, "While inferring the type of a function declaration: ");
-    necro_kind_unify(infer, f_head->type_kind, infer->star_type_kind, NULL, f_head, "While inferring the type of a function declaration: ");
+    // necro_kind_infer(infer, f_head, f_head, "While inferring the type of a function declaration: ");
+    // necro_kind_unify(infer, f_head->type_kind, infer->star_type_kind, NULL, f_head, "While inferring the type of a function declaration: ");
     necro_unify(infer, proxy_type, f_head, ast->scope, proxy_type, "While inferring the type of a function declaration: ");
     return NULL;
 }
@@ -524,12 +538,12 @@ NecroType* necro_infer_pat_assignment(NecroInfer* infer, NecroNode* ast)
     // if (necro_is_infer_error(infer)) return NULL;
     // necro_infer_kind(infer, rhs_type, infer->star_kind, rhs_type, "While inferring the type of a function declaration: ");
     // if (necro_is_infer_error(infer)) return NULL;
-    necro_kind_infer(infer, pat_type, pat_type, "While inferring the type of a declaration: ");
-    necro_kind_unify(infer, pat_type->type_kind, infer->star_type_kind, NULL, pat_type, "While inferring the type of a pattern declaration: ");
-    if (necro_is_infer_error(infer)) return NULL;
-    necro_kind_infer(infer, rhs_type, rhs_type, "While inferring the type of a declaration: ");
-    necro_kind_unify(infer, rhs_type->type_kind, infer->star_type_kind, NULL, rhs_type, "While inferring the type of a pattern declaration: ");
-    if (necro_is_infer_error(infer)) return NULL;
+    // necro_kind_infer(infer, pat_type, pat_type, "While inferring the type of a declaration: ");
+    // necro_kind_unify(infer, pat_type->type_kind, infer->star_type_kind, NULL, pat_type, "While inferring the type of a pattern declaration: ");
+    // if (necro_is_infer_error(infer)) return NULL;
+    // necro_kind_infer(infer, rhs_type, rhs_type, "While inferring the type of a declaration: ");
+    // necro_kind_unify(infer, rhs_type->type_kind, infer->star_type_kind, NULL, rhs_type, "While inferring the type of a pattern declaration: ");
+    // if (necro_is_infer_error(infer)) return NULL;
     necro_unify(infer, pat_type, rhs_type, ast->scope, rhs_type, "While inferring the type of a pattern declaration: ");
     if (necro_is_infer_error(infer)) return NULL;
     return NULL;
@@ -613,6 +627,7 @@ void necro_gen_pat_go(NecroInfer* infer, NecroNode* ast)
             infer->symtable->data[id.id].type                      = necro_gen(infer, proxy_type, infer->symtable->data[id.id].scope->parent);
             infer->symtable->data[ast->variable.id.id].type_status = NECRO_TYPE_DONE;
             // necro_infer_kind(infer, infer->symtable->data[id.id].type, infer->star_kind, infer->symtable->data[id.id].type, "While declaraing a pattern variable: ");
+            infer->symtable->data[id.id].type->type_kind = necro_kind_gen(infer, infer->symtable->data[id.id].type->type_kind);
             necro_kind_unify(infer, infer->symtable->data[id.id].type->type_kind, infer->star_type_kind, NULL, infer->symtable->data[id.id].type, "While declaring a pattern variable: ");
         }
         return;
@@ -951,8 +966,8 @@ NecroType* necro_infer_fexpr(NecroInfer* infer, NecroNode* ast)
     // necro_infer_kind(infer, f_type, infer->star_kind, f_type, "While inferring the type for a function application: ");
     if (necro_is_infer_error(infer)) return NULL;
     necro_unify(infer, e0_type, f_type, ast->scope, f_type, "While inferring the type for a function application: ");
-    necro_kind_infer(infer, f_type, f_type, "While inferring the type for a function application: ");
-    necro_kind_unify(infer, f_type->type_kind, infer->star_type_kind, NULL, f_type, "While inferring the type for a function application: ");
+    // necro_kind_infer(infer, f_type, f_type, "While inferring the type for a function application: ");
+    // necro_kind_unify(infer, f_type->type_kind, infer->star_type_kind, NULL, f_type, "While inferring the type for a function application: ");
     return result_type;
 }
 

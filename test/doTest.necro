@@ -1,6 +1,6 @@
-data Nope       = Nope
 data Maybe  a   = Just a | Nothing
 data Either a b = Left a | Right b
+-- data Nope   a   = Nope (Maybe a a)
 
 -- -- DONE:
 -- -- * Proper dependency analysis for declarations

@@ -9,6 +9,7 @@
 #include "symtable.h"
 #include "prim.h"
 #include "type_class.h"
+#include "kind.h"
 #include "infer.h"
 
 #define NECRO_INFER_DEBUG           1
@@ -270,6 +271,10 @@ NecroType* necro_infer_simple_type(NecroInfer* infer, NecroNode* ast)
     type->pre_supplied = true;
     if (necro_is_infer_error(infer)) return NULL;
     necro_infer_kind(infer, type, infer->star_kind, type, "During data declaration");
+    if (necro_is_infer_error(infer)) return NULL;
+    necro_symtable_get(infer->symtable, ast->simple_type.type_con->conid.id)->type->type_kind = necro_new_name(infer, ast->source_loc);
+    necro_kind_infer(infer, type, type, "During data declaration");
+    necro_print_type_sig(necro_symtable_get(infer->symtable, ast->simple_type.type_con->conid.id)->type->type_kind, infer->intern);
     return type;
 }
 
@@ -288,6 +293,9 @@ NecroType* necro_infer_data_declaration(NecroInfer* infer, NecroNode* ast)
         if (necro_is_infer_error(infer)) return NULL;
         constructor_list = constructor_list->list.next_item;
     }
+    NecroSymbolInfo* simple_type_symbol_info = necro_symtable_get(infer->symtable, ast->data_declaration.simpletype->simple_type.type_con->conid.id);
+    simple_type_symbol_info->type->type_kind = necro_kind_gen(infer, simple_type_symbol_info->type->type_kind);
+    necro_print_type_sig(simple_type_symbol_info->type->type_kind, infer->intern);
     return NULL;
 }
 
@@ -1378,7 +1386,8 @@ NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroNode* ast)
     NecroDeclarationGroupList* groups = ast->top_declaration.group_list;
     while (groups != NULL)
     {
-        necro_infer_assignment(infer, groups->declaration_group);
+        if (groups->declaration_group != NULL)
+            necro_infer_assignment(infer, groups->declaration_group);
         if (necro_is_infer_error(infer)) return NULL;
         groups = groups->next;
     }

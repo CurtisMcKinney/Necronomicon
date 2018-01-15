@@ -1,131 +1,132 @@
+data Nope       = Nope
 data Maybe  a   = Just a | Nothing
 data Either a b = Left a | Right b
 
--- DONE:
--- * Proper dependency analysis for declarations
--- * Accumulated constraints FIXED
--- * Fixed strange do statement bug in maybeTest
--- * Fixed type class instance bugs
-
--- TODO:
--- * Monomorphism restriction
--- * Defaulting occurs after the entire thing has been type checked
--- * Followed by type class translation
--- * Ambiguous Type classes check
--- * Attach types to every single AST node???
--- * Constructor constraints...
--- * Type class constraints on functions...
--- * Proper kind inference system...likely requires dependency analysis for data types
-
-class NoMethods a
-
-instance Eq a => Eq (Maybe a) where
-    eq  (Just x) (Just y) = x == y
-    eq  Nothing  Nothing  = True
-    eq  _        _        = False
-    neq x        y        = not (eq x y)
-
-not :: Bool -> Bool
-not True  = False
-not False = True
-
-instance Functor Maybe where
-    map f (Just x) = Just (f x)
-
-instance Applicative Maybe where
-    pure x               = Just x
-    ap (Just f) (Just x) = Just (f x)
-    ap _        _        = Nothing
-
-instance Monad Maybe where
-    bind (Just x) f = f x
-    bind Nothing  _ = Nothing
-
--- Test let in here!
-maybeTest :: Audio -> Maybe Audio
-maybeTest z = do
-    x      <- Just 1
-    y      <- Just (x + z)
-    (u, v) <- Just (0, 1)
-    Nothing
-    Just 2 >>= Just >>= pure >>= \x -> pure (x + 1)
-    Just (2 + u)
-    map (\x -> x) (Just True)
-    x <- map (+1) (Just 0)
-    map (+1) (Just 0)
-    ap (map add (Just 3)) (Just 5)
-    pure (y - v)
-
-eitherTest z = do
-    pure z
-
-maybeInt n = ap (map add Nothing) n
-maybeAdd = map (+1) (Just 4)
-
--- Need: &&, ||, <<, =<<, !!
-numBinOps  x y = x + y - x / 4 * 3
-eqBinOps1  x y = x == y
-eqBinOps2  x y = x /= y
-ltTest     x y = x < y
-gtTest     x y = x > y
-lteTest    x y = x <= y
-gteTest    x y = x >= y
-bindTest   x y = x >>= y
-appendTest x y = x <> y
-fpipeTest  x y = x |> y
-bpipeTest  x y = x <| y
-dotTest    x y = x . y
-thenTest   x y = x >> y
-consTest (x : y) = x : x : y
-
-sectionTest1   = (Just 10 >>=)
-sectionTest2   = (>>= pure)
-sectionTest3   = (Just 10 >>=) pure
-sectionTest4   = (>>= pure) (Just 10)
-sectionTest5   = (|>) (10) (\x -> x)
-sectionTest6   = (>>=) (Just 10) pure
-constraintTest = 10 >>= pure
-
--- Dependency analysis testing
-class Show a where
-    show :: a -> [Char]
-
--- Both g1 and g2 properly infer types of forall a. (Ord a, Eq a, Show a) => a -> a -> [Char]
-f x =
-    let g1 x y = if x > y then show x else g2 y x
-        g2 p q = g1 q p
-    in  g2 x x
-
--- Even without type signatures this produces the most general types
-foo x = foo (bar 0)
-bar x = x
-
--- These can both be used with id without needing type signatures to get the most principal type
-idTest1 = id (3 == 4)
-idTest2 = id (4 + 5)
-
--- With or without the type signature this will still be inferred with the most general type
--- id :: a -> a
-id x = x
-
----------------------------------------------------------------------
--- Higher-kinded Constructor arguments not currently supported!
--- data ListFunctor f a = Nil | Cons a (f a) -- List SHOULD have the kind (* -> *) -> * -> *, but right now has the kind * -> * -> *
--- data Phantom f a = Phantom a              -- Phantom SHOULD have the kind ? -> * -> *, but right now has kind * -> * -> *
+-- -- DONE:
+-- -- * Proper dependency analysis for declarations
+-- -- * Accumulated constraints FIXED
+-- -- * Fixed strange do statement bug in maybeTest
+-- -- * Fixed type class instance bugs
 --
--- maybeList2 :: ListFunctor Int Int -- This should NOT type check!
--- maybeList2 = Nil
+-- -- TODO:
+-- -- * Monomorphism restriction
+-- -- * Defaulting occurs after the entire thing has been type checked
+-- -- * Followed by type class translation
+-- -- * Ambiguous Type classes check
+-- -- * Attach types to every single AST node???
+-- -- * Constructor constraints...
+-- -- * Type class constraints on functions...
+-- -- * Proper kind inference system...likely requires dependency analysis for data types
 --
--- maybeList1 :: ListFunctor (ListFunctor (ListFunctor Maybe)) Int -- this should typecheck!
--- maybeList1 = Cons 1 (Cons 0 Nil)
+-- class NoMethods a
 --
--- phantom1 :: Phantom Int Int --Kind should be flexible
--- phantom1 = Phantom 10
+-- instance Eq a => Eq (Maybe a) where
+--     eq  (Just x) (Just y) = x == y
+--     eq  Nothing  Nothing  = True
+--     eq  _        _        = False
+--     neq x        y        = not (eq x y)
 --
--- phantom2 :: Phantom Maybe Int --Kind should be flexible
--- phantom2 = Phantom 10
-
--- TODO: To get something like this to work we need constructor constraints!
--- type should be: (Monad m, Num (m a)) => (a -> m b) -> m b
--- But we don't support constraints of the form Num (m a) currently
--- sectionTest0 = (10 >>=)
+-- not :: Bool -> Bool
+-- not True  = False
+-- not False = True
+--
+-- instance Functor Maybe where
+--     map f (Just x) = Just (f x)
+--
+-- instance Applicative Maybe where
+--     pure x               = Just x
+--     ap (Just f) (Just x) = Just (f x)
+--     ap _        _        = Nothing
+--
+-- instance Monad Maybe where
+--     bind (Just x) f = f x
+--     bind Nothing  _ = Nothing
+--
+-- -- Test let in here!
+-- maybeTest :: Audio -> Maybe Audio
+-- maybeTest z = do
+--     x      <- Just 1
+--     y      <- Just (x + z)
+--     (u, v) <- Just (0, 1)
+--     Nothing
+--     Just 2 >>= Just >>= pure >>= \x -> pure (x + 1)
+--     Just (2 + u)
+--     map (\x -> x) (Just True)
+--     x <- map (+1) (Just 0)
+--     map (+1) (Just 0)
+--     ap (map add (Just 3)) (Just 5)
+--     pure (y - v)
+--
+-- eitherTest z = do
+--     pure z
+--
+-- maybeInt n = ap (map add Nothing) n
+-- maybeAdd = map (+1) (Just 4)
+--
+-- -- Need: &&, ||, <<, =<<, !!
+-- numBinOps  x y = x + y - x / 4 * 3
+-- eqBinOps1  x y = x == y
+-- eqBinOps2  x y = x /= y
+-- ltTest     x y = x < y
+-- gtTest     x y = x > y
+-- lteTest    x y = x <= y
+-- gteTest    x y = x >= y
+-- bindTest   x y = x >>= y
+-- appendTest x y = x <> y
+-- fpipeTest  x y = x |> y
+-- bpipeTest  x y = x <| y
+-- dotTest    x y = x . y
+-- thenTest   x y = x >> y
+-- consTest (x : y) = x : x : y
+--
+-- sectionTest1   = (Just 10 >>=)
+-- sectionTest2   = (>>= pure)
+-- sectionTest3   = (Just 10 >>=) pure
+-- sectionTest4   = (>>= pure) (Just 10)
+-- sectionTest5   = (|>) (10) (\x -> x)
+-- sectionTest6   = (>>=) (Just 10) pure
+-- constraintTest = 10 >>= pure
+--
+-- -- Dependency analysis testing
+-- class Show a where
+--     show :: a -> [Char]
+--
+-- -- Both g1 and g2 properly infer types of forall a. (Ord a, Eq a, Show a) => a -> a -> [Char]
+-- f x =
+--     let g1 x y = if x > y then show x else g2 y x
+--         g2 p q = g1 q p
+--     in  g2 x x
+--
+-- -- Even without type signatures this produces the most general types
+-- foo x = foo (bar 0)
+-- bar x = x
+--
+-- -- These can both be used with id without needing type signatures to get the most principal type
+-- idTest1 = id (3 == 4)
+-- idTest2 = id (4 + 5)
+--
+-- -- With or without the type signature this will still be inferred with the most general type
+-- -- id :: a -> a
+-- id x = x
+--
+-- ---------------------------------------------------------------------
+-- -- Higher-kinded Constructor arguments not currently supported!
+-- -- data ListFunctor f a = Nil | Cons a (f a) -- List SHOULD have the kind (* -> *) -> * -> *, but right now has the kind * -> * -> *
+-- -- data Phantom f a = Phantom a              -- Phantom SHOULD have the kind ? -> * -> *, but right now has kind * -> * -> *
+-- --
+-- -- maybeList2 :: ListFunctor Int Int -- This should NOT type check!
+-- -- maybeList2 = Nil
+-- --
+-- -- maybeList1 :: ListFunctor (ListFunctor (ListFunctor Maybe)) Int -- this should typecheck!
+-- -- maybeList1 = Cons 1 (Cons 0 Nil)
+-- --
+-- -- phantom1 :: Phantom Int Int --Kind should be flexible
+-- -- phantom1 = Phantom 10
+-- --
+-- -- phantom2 :: Phantom Maybe Int --Kind should be flexible
+-- -- phantom2 = Phantom 10
+--
+-- -- TODO: To get something like this to work we need constructor constraints!
+-- -- type should be: (Monad m, Num (m a)) => (a -> m b) -> m b
+-- -- But we don't support constraints of the form Num (m a) currently
+-- -- sectionTest0 = (10 >>=)

@@ -222,6 +222,7 @@ void necro_finish_declaring_type_class(NecroInfer* infer, NecroTypeClassEnv* env
         type_sig               = necro_gen(infer, type_sig, NULL);
         // necro_infer_kind(infer, type_sig, infer->star_kind, type_sig, "While declaring a method of a type class: ");
         necro_kind_infer(infer, type_sig, type_sig, "While declaring a method of a type class: ");
+        necro_kind_gen(infer, type_sig->type_kind);
         necro_kind_unify(infer, type_sig->type_kind, infer->star_type_kind, NULL, type_sig, "While declaring a method of a type class");
         if (necro_is_infer_error(infer)) return;
         necro_symtable_get(infer->symtable, declarations->declaration.declaration_impl->type_signature.var->variable.id)->type      = type_sig;
@@ -430,7 +431,7 @@ void necro_finish_declaring_type_class_instance(NecroInfer* infer, NecroTypeClas
 
     NecroType* inst_data_type = necro_inst(infer, instance->data_type, NULL);
     // necro_infer_kind(infer, inst_data_type, NULL, inst_data_type, "While creating an instance method: ");
-    necro_kind_infer(infer, inst_data_type, inst_data_type, "While creating an instance method: ");
+    // necro_kind_infer(infer, inst_data_type, inst_data_type, "While creating an instance method: ");
 
     //--------------------------------
     // Dictionary Prototype

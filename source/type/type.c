@@ -1141,16 +1141,22 @@ NecroInstSub* necro_create_inst_sub(NecroInfer* infer, NecroVar var_to_replace, 
     NecroType* type_var      = necro_new_name(infer, source_loc);
     type_var->var.var.symbol = var_to_replace.symbol;
     // if (necro_symtable_get(infer->symtable, var_to_replace.id) != NULL && necro_symtable_get(infer->symtable, var_to_replace.id)->type != NULL && necro_symtable_get(infer->symtable, var_to_replace.id)->type->kind != NULL)
-    if (necro_symtable_get(infer->symtable, var_to_replace.id) != NULL && necro_symtable_get(infer->symtable, var_to_replace.id)->type != NULL && necro_symtable_get(infer->symtable, var_to_replace.id)->type->type_kind != NULL)
+    if (necro_symtable_get(infer->symtable, var_to_replace.id) != NULL && necro_symtable_get(infer->symtable, var_to_replace.id)->type != NULL)// && necro_symtable_get(infer->symtable, var_to_replace.id)->type->type_kind != NULL)
     {
+        NecroType* find_type = necro_find(infer, necro_symtable_get(infer->symtable, var_to_replace.id)->type);
+        if (find_type != NULL && find_type->type_kind != NULL)
+            type_var->type_kind = find_type->type_kind;
         // type_var->kind = necro_symtable_get(infer->symtable, var_to_replace.id)->type->kind;
-        type_var->type_kind = necro_symtable_get(infer->symtable, var_to_replace.id)->type->type_kind;
+        // type_var->type_kind = necro_symtable_get(infer->symtable, var_to_replace.id)->type->type_kind;
     }
     // else if (infer->env.capacity > var_to_replace.id.id && infer->env.data[var_to_replace.id.id] != NULL && infer->env.data[var_to_replace.id.id]->kind != NULL)
-    else if (infer->env.capacity > var_to_replace.id.id && infer->env.data[var_to_replace.id.id] != NULL && infer->env.data[var_to_replace.id.id]->type_kind != NULL)
+    else if (infer->env.capacity > var_to_replace.id.id && infer->env.data[var_to_replace.id.id] != NULL)// && infer->env.data[var_to_replace.id.id]->type_kind != NULL)
     {
         // type_var->kind = infer->env.data[var_to_replace.id.id]->kind;
-        type_var->type_kind = infer->env.data[var_to_replace.id.id]->type_kind;
+        // type_var->type_kind = infer->env.data[var_to_replace.id.id]->type_kind;
+        NecroType* find_type = necro_find(infer, infer->env.data[var_to_replace.id.id]);
+        if (find_type != NULL && find_type->type_kind != NULL)
+            type_var->type_kind = find_type->type_kind;
     }
     else
     {

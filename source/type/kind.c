@@ -230,7 +230,15 @@ inline void necro_kind_unify_con(NecroInfer* infer, NecroTypeKind* kind1, NecroT
         assert(false);
         return;
     }
-    case NECRO_TYPE_FUN:  necro_infer_error(infer, error_preamble, macro_type, "Kind error: Attempting to unify KindCon (%s) with (->).", necro_intern_get_string(infer->intern, kind1->con.con.symbol)); return;
+    case NECRO_TYPE_FUN:
+    {
+        necro_infer_error(infer, error_preamble, macro_type, "Kind error: Attempting to kind unify KindCon (%s) with (->).\n  Kind1: %s\n  Kind2: %s",
+            necro_intern_get_string(infer->intern, kind1->con.con.symbol),
+            necro_type_string(infer, kind1),
+            necro_type_string(infer, kind2)
+            );
+        return;
+    }
     case NECRO_TYPE_LIST: necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Attempted to kind unify KindCon (%s) with type args list.", necro_intern_get_string(infer->intern, kind1->con.con.symbol)); return;
     case NECRO_TYPE_FOR:  necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Attempted to kind unify polytype."); return;
     default:              necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Non-existent kind (kind1: %d, kind2: %s) found in necro_unify.", kind1->type, kind2->type); return;
@@ -346,8 +354,10 @@ NecroTypeKind* necro_kind_infer(NecroInfer* infer, NecroType* type, NecroType* m
         assert(symbol_info->type != NULL);
         // assert(symbol_info->type->type_kind != NULL);
         if (symbol_info->type->type_kind == NULL)
+        {
             symbol_info->type->type_kind = necro_new_name(infer, type->source_loc);
-        type->type_kind           = symbol_info->type->type_kind;
+            type->type_kind              = symbol_info->type->type_kind;
+        }
         NecroType*     args       = type->con.args;
         NecroTypeKind* args_kinds = NULL;
         NecroTypeKind* args_head  = NULL;
@@ -374,6 +384,8 @@ NecroTypeKind* necro_kind_infer(NecroInfer* infer, NecroType* type, NecroType* m
             args_head = result_type;
         necro_kind_unify(infer, symbol_info->type->type_kind, args_head, NULL, macro_type, error_preamble);
         if (necro_is_infer_error(infer)) return NULL;
+        if (type->type_kind == NULL)
+            type->type_kind = result_type;
         return result_type;
     }
 
@@ -446,7 +458,8 @@ NecroTypeKind* necro_kind_gen(NecroInfer* infer, NecroTypeKind* kind)
         if (args_kinds != NULL)
             args_kinds->fun.type2 = infer->star_type_kind;
         else
-            args_head = infer->star_type_kind;
+            args_head = kind;
+            // args_head = infer->star_type_kind;
         return args_head;
     }
 

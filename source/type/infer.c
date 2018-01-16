@@ -172,8 +172,11 @@ NecroType* necro_infer_type_sig(NecroInfer* infer, NecroNode* ast)
 
     type_sig = necro_gen(infer, type_sig, ast->type_signature.type->scope);
     if (necro_is_infer_error(infer)) return NULL;
-    type_sig->type_kind = necro_kind_gen(infer, type_sig->type_kind);
-    necro_kind_unify(infer, type_sig->type_kind, infer->star_type_kind, ast->scope, type_sig->type_kind, "While inferring the type of a type signature");
+    // type_sig->type_kind = necro_kind_gen(infer, type_sig->type_kind);
+    necro_kind_gen(infer, type_sig->type_kind);
+    necro_print_type_sig(type_sig, infer->intern);
+    necro_print_type_sig(type_sig->type_kind, infer->intern);
+    necro_kind_unify(infer, type_sig->type_kind, infer->star_type_kind, ast->scope, type_sig, "While inferring the type of a type signature");
     if (necro_is_infer_error(infer)) return NULL;
 
     type_sig->pre_supplied = true;
@@ -627,7 +630,7 @@ void necro_gen_pat_go(NecroInfer* infer, NecroNode* ast)
             infer->symtable->data[id.id].type                      = necro_gen(infer, proxy_type, infer->symtable->data[id.id].scope->parent);
             infer->symtable->data[ast->variable.id.id].type_status = NECRO_TYPE_DONE;
             // necro_infer_kind(infer, infer->symtable->data[id.id].type, infer->star_kind, infer->symtable->data[id.id].type, "While declaraing a pattern variable: ");
-            infer->symtable->data[id.id].type->type_kind = necro_kind_gen(infer, infer->symtable->data[id.id].type->type_kind);
+            // infer->symtable->data[id.id].type->type_kind = necro_kind_gen(infer, infer->symtable->data[id.id].type->type_kind);
             necro_kind_unify(infer, infer->symtable->data[id.id].type->type_kind, infer->star_type_kind, NULL, infer->symtable->data[id.id].type, "While declaring a pattern variable: ");
         }
         return;

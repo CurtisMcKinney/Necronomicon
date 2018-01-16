@@ -172,8 +172,12 @@ NecroType* necro_infer_type_sig(NecroInfer* infer, NecroNode* ast)
 
     type_sig = necro_gen(infer, type_sig, ast->type_signature.type->scope);
     if (necro_is_infer_error(infer)) return NULL;
-    // type_sig->type_kind = necro_kind_gen(infer, type_sig->type_kind);
-    necro_kind_gen(infer, type_sig->type_kind);
+
+    // Kind inference
+    necro_kind_infer(infer, type_sig, type_sig, "While inferring the type of a type signature");
+    if (necro_is_infer_error(infer)) return NULL;
+    type_sig->type_kind = necro_kind_gen(infer, type_sig->type_kind);
+    if (necro_is_infer_error(infer)) return NULL;
     necro_print_type_sig(type_sig, infer->intern);
     necro_print_type_sig(type_sig->type_kind, infer->intern);
     necro_kind_unify(infer, type_sig->type_kind, infer->star_type_kind, ast->scope, type_sig, "While inferring the type of a type signature");
@@ -267,7 +271,7 @@ NecroType* necro_create_data_constructor(NecroInfer* infer, NecroNode* ast, Necr
     con_type->source_loc   = ast->source_loc;
     con_type->pre_supplied = true;
     necro_symtable_get(infer->symtable, ast->constructor.conid->conid.id)->type = con_type;
-    // necro_kind_infer(infer, con_type, con_type, "While declaring a data constructor");
+    necro_kind_infer(infer, con_type, con_type, "While declaring a data constructor");
     necro_kind_unify(infer, con_type->type_kind, infer->star_type_kind, NULL, con_type, "During a data declaration: ");
     return con_type;
 }

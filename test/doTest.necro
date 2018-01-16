@@ -1,14 +1,16 @@
 data Maybe  a   = Just a | Nothing
 
--- maybeTest0 :: Maybe
--- maybeTest0 = Nothing
-
 maybeTest1 :: Maybe Int
 maybeTest1 = Nothing
 
 data Either a b = Left a | Right b
 data Higher f a = Higher (f a)
 data HigherM a  = HigherM (Higher Maybe a)
+data SuperH f g x = SuperH (f g (g x))
+
+-- Type checks with or without type signature
+-- super :: (Maybe Int -> f Maybe (Maybe Int)) -> SuperH f Maybe Int
+super f = SuperH (f (Just 10))
 
 higher :: Maybe Int -> Higher Maybe (Maybe Int)
 higher x = Higher (Just x)
@@ -170,4 +172,4 @@ id x = x
 -- TODO: To get something like this to work we need constructor constraints!
 -- type should be: (Monad m, Num (m a)) => (a -> m b) -> m b
 -- But we don't support constraints of the form Num (m a) currently
--- sectionTest0 = (10 >>=)
+sectionTest0 = (10 >>=)

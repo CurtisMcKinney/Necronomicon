@@ -859,11 +859,12 @@ void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* clas
         return;
     // case NECRO_TYPE_APP:  necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: TypeApp not implemented in necro_propogate_type_classes!"); return;
     case NECRO_TYPE_APP:
-        // TODO: Is this working correctly?
+        // TODO: This is wrong!!!
         // Need proper constructor constraints!!!!
         necro_propogate_type_classes(infer, classes, type->app.type1, macro_type, error_preamble);
-        // necro_propogate_type_classes(infer, classes, type->app.type2, macro_type, error_preamble);
-        // necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: TypeApp not implemented in necro_propogate_type_classes!"); return;
+        necro_propogate_type_classes(infer, classes, type->app.type2, macro_type, error_preamble);
+        return;
+        necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: TypeApp not implemented in necro_propogate_type_classes!"); return;
         return;
     case NECRO_TYPE_LIST: necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Found ConTypeList in necro_propogate_type_classes!"); return;
     case NECRO_TYPE_FOR:  necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Found polytype in necro_propogate_type_classes!"); return;
@@ -1219,8 +1220,7 @@ NecroType* necro_inst(NecroInfer* infer, NecroType* type, NecroScope* scope)
     }
     NecroType* result = necro_inst_go(infer, current_type, subs, scope);
     // necro_infer_kind(infer, result, infer->star_kind, result, NULL);
-    // necro_infer_kind(infer, result, NULL, result, NULL);
-    necro_kind_infer(infer, result, result, "While instantiating a type variable");
+    // necro_kind_infer(infer, result, result, "While instantiating a type variable");
     return result;
 }
 
@@ -1372,7 +1372,7 @@ NecroType* necro_gen(NecroInfer* infer, NecroType* type, NecroScope* scope)
     NecroGenResult result = necro_gen_go(infer, type, (NecroGenResult) { NULL, NULL, NULL }, scope);
     if (necro_is_infer_error(infer))
         return NULL;
-    necro_kind_infer(infer, type, type, "While generalizing a type:");
+    // necro_kind_infer(infer, type, type, "While generalizing a type:");
     if (necro_is_infer_error(infer))
         return NULL;
     if (result.subs != NULL)
@@ -1400,7 +1400,7 @@ NecroType* necro_gen(NecroInfer* infer, NecroType* type, NecroScope* scope)
                 tail->for_all.type = result.type;
                 // necro_infer_kind(infer, head, infer->star_kind, head, NULL);
                 // necro_infer_kind(infer, head, NULL, head, NULL);
-                necro_kind_infer(infer, head, head, "While generalizing a type:");
+                // necro_kind_infer(infer, head, head, "While generalizing a type:");
                 return head;
             }
         }
@@ -1409,7 +1409,7 @@ NecroType* necro_gen(NecroInfer* infer, NecroType* type, NecroScope* scope)
     {
         // necro_infer_kind(infer, result.type, infer->star_kind, result.type, NULL);
         // necro_infer_kind(infer, result.type, NULL, result.type, NULL);
-        necro_kind_infer(infer, result.type, result.type, "While generalizing a type:");
+        // necro_kind_infer(infer, result.type, result.type, "While generalizing a type:");
         return result.type;
     }
 }

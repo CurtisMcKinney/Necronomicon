@@ -1,8 +1,5 @@
 data Maybe  a   = Just a | Nothing
 
-maybeTest1 :: Maybe Int
-maybeTest1 = Nothing
-
 data Either a b = Left a | Right b
 data Higher f a = Higher (f a)
 data HigherM a  = HigherM (Higher Maybe a)
@@ -145,7 +142,6 @@ sectionTest3   = (Just 10 >>=) pure
 sectionTest4   = (>>= pure) (Just 10)
 sectionTest5   = (|>) (10) (\x -> x)
 sectionTest6   = (>>=) (Just 10) pure
-constraintTest = 10 >>= pure
 
 -- Dependency analysis testing
 class Show a where
@@ -168,8 +164,3 @@ idTest2 = id (4 + 5)
 -- With or without the type signature this will still be inferred with the most general type
 -- id :: a -> a
 id x = x
-
--- TODO: To get something like this to work we need constructor constraints!
--- type should be: (Monad m, Num (m a)) => (a -> m b) -> m b
--- But we don't support constraints of the form Num (m a) currently
-sectionTest0 = (10 >>=)

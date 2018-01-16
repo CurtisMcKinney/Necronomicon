@@ -1520,9 +1520,9 @@ NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast)
     // case NECRO_AST_APATS_ASSIGNMENT:       return necro_infer_apats_assignment(infer, ast);
     // case NECRO_AST_PAT_ASSIGNMENT:         return necro_infer_pat_assignment(infer, ast);
 
-    case NECRO_AST_SIMPLE_ASSIGNMENT:      return necro_infer_assignment(infer, necro_symtable_get(infer->symtable, ast->simple_assignment.id)->declaration_group);
-    case NECRO_AST_APATS_ASSIGNMENT:       return necro_infer_assignment(infer, necro_symtable_get(infer->symtable, ast->apats_assignment.id)->declaration_group);
-    case NECRO_AST_PAT_ASSIGNMENT:         return necro_infer_assignment(infer, ast->pat_assignment.declaration_group);
+    // case NECRO_AST_SIMPLE_ASSIGNMENT:      return necro_infer_assignment(infer, necro_symtable_get(infer->symtable, ast->simple_assignment.id)->declaration_group);
+    // case NECRO_AST_APATS_ASSIGNMENT:       return necro_infer_assignment(infer, necro_symtable_get(infer->symtable, ast->apats_assignment.id)->declaration_group);
+    // case NECRO_AST_PAT_ASSIGNMENT:         return necro_infer_assignment(infer, ast->pat_assignment.declaration_group);
 
     case NECRO_AST_RIGHT_HAND_SIDE:        return necro_infer_right_hand_side(infer, ast);
     case NECRO_AST_LAMBDA:                 return necro_infer_lambda(infer, ast);

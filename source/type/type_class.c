@@ -497,10 +497,17 @@ void necro_finish_declaring_type_class_instance(NecroInfer* infer, NecroTypeClas
         declarations = declarations->declaration.next_declaration;
     }
 
-    // TODO: Look into this!
+    // TODO: Don't believe this is EVEN WORKING AT ALL!!!
     // Infer declarations with types in symtable
+    NecroDeclarationGroup* declaration_group = NULL;
     declarations = instance->ast->type_class_instance.declarations;
-    necro_infer_go(infer, declarations);
+    while (declarations != NULL)
+    {
+        declaration_group = necro_append_declaration_group(&infer->arena, declarations->declaration.declaration_impl, declaration_group);
+        declarations = declarations->declaration.next_declaration;
+    }
+    // necro_infer_go(infer, declarations);
+    necro_infer_assignment(infer, declaration_group);
 
     //--------------------------------
     // Missing members check

@@ -11,8 +11,6 @@
 #include "type_class.h"
 #include "kind.h"
 
-// TODO: necro_infer_kind on data declaration asts
-
 void necro_rigid_kind_variable_error(NecroInfer* infer, NecroVar type_var, NecroTypeKind* type, NecroType* macro_type, const char* error_preamble)
 {
     if (necro_is_infer_error(infer))
@@ -36,7 +34,6 @@ inline void necro_instantiate_kind_var(NecroInfer* infer, NecroTypeVar* kind_var
 {
     if (necro_is_infer_error(infer))
         return;
-    // necro_propogate_type_classes(infer, type_var->context, type, macro_type, error_preamble);
     necr_bind_type_var(infer, kind_var->var, kind);
 }
 
@@ -267,7 +264,7 @@ void necro_kind_unify(NecroInfer* infer, NecroTypeKind* kind1, NecroTypeKind* ki
     {
         while (kind1->type == NECRO_TYPE_FOR)
             kind1 = kind1->for_all.type;
-        necro_unify(infer, kind1, kind2, scope, macro_type, error_preamble);
+        necro_kind_unify(infer, kind1, kind2, scope, macro_type, error_preamble);
         return;
     }
     default: necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Non-existent kind (kind1: %d, kind2: %s) found in necro_unify.", kind1->type, kind2->type); return;

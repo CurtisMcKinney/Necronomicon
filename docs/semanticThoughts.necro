@@ -155,7 +155,7 @@ main = synths where
     synths = poly synth (merge freq1 freq2)
 
 ---------------------
--- Phantom SubTyping
+-- Phantom SubTyping Lifetimes
 --------------------
 -- Streams are head strict, tail lazy
 -- Influenced by Rust lifetimes
@@ -169,3 +169,50 @@ main = synths where
 -- Otherwise it is considered to be a new lifetime
 -- pattern, seq, select, switch, poly, and fby would all introduce new lifetimes
 -- No more "lifetime signatures?"
+-- Star notation indicates a new lifetime scope
+
+pattern :: Time:* -> a:* -> Event a
+
+seq     :: [a:*]:'static -> a
+
+switch  :: a -> Event (a:*) -> a
+
+-- poly    :: Num b => (a -> b)        -> Event a -> b
+-- poly    :  (forall t1. t1 -> t1):t2 -> t2      -> t2
+
+poly    :: Num a => Event (a:*) -> a
+
+-- Makes a "new" instance of a stream in a different lifetime
+new :: a:? -> a
+
+latch  :: Event a -> a
+latch  :  t1      -> t2
+
+-- fby unaffected? Ok, with 1 sample memory overhead?
+fby :: a -> a -> a
+
+merge :: Event a -> Event a -> Event a
+on    :: a       -> Event b -> Event a
+
+mouseClickIn :: Input (Event ())
+mouseXIn     :: Input Float
+
+input pulseDemon <- loadBuffer "pulseDemon.aiff"
+input mouseX     <- mouseXIn
+input mouseClick <- mouseClickIn
+
+synth :: Audio -> Audio
+synth freq = osc where
+    osc = 440 * mouseX + freq * (0 `fby` osc) |> sinOsc
+
+pat :: Event Audio
+pat = pattern times values where
+    times  = seq [0.25, 0.5, 0.25, 0.5] * new mul
+    values = seq [0, 1, 2, take 1 mouseX, take 2 values] * new mul
+    mul    = seq [0.5, 1, 2]
+
+main :: Audio
+main = synths where
+    freq1  = mouseX `on` mouseClick |> realToFrac
+    freq2  = pat
+    synths = map synth (merge freq1 freq2) |> poly

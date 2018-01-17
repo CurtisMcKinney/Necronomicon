@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include "utility.h"
-#include "kind.h"
+#include "type.h"
 
 typedef NecroType NecroTypeKind;
 

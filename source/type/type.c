@@ -1049,18 +1049,21 @@ inline void necro_unify_con(NecroInfer* infer, NecroType* type1, NecroType* type
         {
             // necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
             // necro_kind_unify(infer, type1->type_kind, type2->type_kind, scope, macro_type, error_preamble);
+            NecroType* original_type1 = type1;
+            NecroType* original_type2 = type2;
             type1 = type1->con.args;
             type2 = type2->con.args;
             while (type1 != NULL && type2 != NULL)
             {
                 if (type1 == NULL || type2 == NULL)
                 {
-                    necro_infer_error(infer, error_preamble, type1, "Mismatched arities, Type1: %s Type2: %s", necro_intern_get_string(infer->intern, type1->con.con.symbol), necro_intern_get_string(infer->intern, type2->con.con.symbol));
+                    necro_infer_error(infer, error_preamble, type1, "Mismatched arities, Type1: %s Type2: %s", necro_intern_get_string(infer->intern, original_type1->con.con.symbol), necro_intern_get_string(infer->intern, original_type2->con.con.symbol));
                     return;
                 }
                 assert(type1->type == NECRO_TYPE_LIST);
                 assert(type2->type == NECRO_TYPE_LIST);
                 necro_unify(infer, type1->list.item, type2->list.item, scope, macro_type, error_preamble);
+                if (necro_is_infer_error(infer)) return;
                 // necro_unify_kinds(infer, type2, &type2->list.item->kind, &type1->list.item->kind, macro_type, error_preamble);
                 // necro_kind_unify(infer, type1->list.item->type_kind, type2->list.item->type_kind, scope, macro_type, error_preamble);
                 type1 = type1->list.next;

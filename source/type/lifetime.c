@@ -75,6 +75,28 @@ NecroLifetime* necro_create_never_lifetime(NecroInfer* infer)
     return never_type;
 }
 
+NecroLifetime* necro_create_delay_lifetime(NecroInfer* infer)
+{
+    NecroSymbol     delay_symbol = necro_intern_string(infer->intern, "\'delay");
+    NecroSymbolInfo delay_info   = necro_create_initial_symbol_info(delay_symbol, (NecroSourceLoc) { 0 }, NULL, infer->intern);
+    NecroID         delay_id     = necro_symtable_insert(infer->symtable, delay_info);
+    NecroCon        delay_con    = (NecroCon) { .id = delay_id, .symbol = delay_symbol };
+    NecroType*      delay_type   = necro_alloc_type(infer);
+    delay_type->type             = NECRO_TYPE_CON;
+    delay_type->con              = (NecroTypeCon)
+    {
+        .con      = delay_con,
+        .args     = NULL,
+        .arity    = 0,
+        .is_class = false,
+    };
+    delay_type->type_kind    = NULL;
+    delay_type->pre_supplied = true;
+    assert(necro_symtable_get(infer->symtable, delay_con.id)->type == NULL);
+    necro_symtable_get(infer->symtable, delay_con.id)->type = delay_type;
+    return delay_type;
+}
+
 void necro_infer_lifetime(NecroInfer* infer, NecroASTNode* ast)
 {
 }
@@ -162,69 +184,113 @@ void necro_unify_var_lifetimes(NecroInfer* infer, NecroLifetime* lifetime1, Necr
 
 void necro_unify_con_lifetimes(NecroInfer* infer, NecroLifetime* lifetime1, NecroLifetime* lifetime2, NecroScope* scope, NecroType* macro_type, const char* error_preamble)
 {
-    // if (necro_is_infer_error(infer))
-    //     return;
-    // assert(type1 != NULL);
-    // assert(type1->type == NECRO_TYPE_CON);
-    // assert(type2 != NULL);
-    // switch (type2->type)
-    // {
-    // case NECRO_TYPE_VAR:
-    //     if (type2->var.is_rigid)
-    //         necro_rigid_type_variable_error(infer, type2->var.var, type1, macro_type, error_preamble);
-    //     else if (necro_occurs(infer, type2, type1, macro_type, error_preamble))
-    //         return;
-    //     else
-    //         necro_instantiate_type_var(infer, &type2->var, type1, macro_type, error_preamble);
-    //     return;
-    // case NECRO_TYPE_CON:
-    //     if (type1->con.con.symbol.id != type2->con.con.symbol.id)
-    //     {
-    //         necro_infer_error(infer, error_preamble, type1, "Attempting to unify two different types, Type1: %s Type2: %s", necro_intern_get_string(infer->intern, type1->con.con.symbol), necro_intern_get_string(infer->intern, type2->con.con.symbol));
-    //     }
-    //     else
-    //     {
-    //         type1 = type1->con.args;
-    //         type2 = type2->con.args;
-    //         while (type1 != NULL && type2 != NULL)
-    //         {
-    //             if (type1 == NULL || type2 == NULL)
-    //             {
-    //                 necro_infer_error(infer, error_preamble, type1, "Mismatched arities, Type1: %s Type2: %s", necro_intern_get_string(infer->intern, type1->con.con.symbol), necro_intern_get_string(infer->intern, type2->con.con.symbol));
-    //                 return;
-    //             }
-    //             assert(type1->type == NECRO_TYPE_LIST);
-    //             assert(type2->type == NECRO_TYPE_LIST);
-    //             necro_unify(infer, type1->list.item, type2->list.item, scope, macro_type, error_preamble);
-    //             type1 = type1->list.next;
-    //             type2 = type2->list.next;
-    //         }
-    //     }
-    //     return;
-    // case NECRO_TYPE_APP:
-    // {
-    //     NecroType* uncurried_con = necro_curry_con(infer, type1);
-    //     if (uncurried_con == NULL)
-    //     {
-    //         necro_infer_error(infer, error_preamble, type1, "Arity mismatch during unification for type: %s", necro_intern_get_string(infer->intern, type1->con.con.symbol));
-    //     }
-    //     else
-    //     {
-    //         necro_unify(infer, uncurried_con, type2, scope, macro_type, error_preamble);
-    //     }
-    //     // necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
-    //     // necro_kind_unify(infer, type1->type_kind, type2->type_kind, scope, macro_type, error_preamble);
-    //     return;
-    // }
-    // case NECRO_TYPE_FUN:  necro_infer_error(infer, error_preamble, macro_type, "Attempting to unify TypeCon (%s) with (->).", necro_intern_get_string(infer->intern, type1->con.con.symbol)); return;
-    // case NECRO_TYPE_LIST: necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Attempted to unify TypeCon (%s) with type args list.", necro_intern_get_string(infer->intern, type1->con.con.symbol)); return;
-    // case NECRO_TYPE_FOR:  necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Attempted to unify polytype."); return;
-    // default:              necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Non-existent type (type1: %d, type2: %s) type found in necro_unify.", type1->type, type2->type); return;
-    // }
+    if (necro_is_infer_error(infer))
+        return;
+    assert(lifetime1 != NULL);
+    assert(lifetime1->type == NECRO_TYPE_CON);
+    assert(lifetime2 != NULL);
+    switch (lifetime2->type)
+    {
+    case NECRO_TYPE_VAR:
+        if (lifetime2->var.is_rigid)
+            necro_rigid_lifetime_variable_error(infer, lifetime2->var.var, lifetime1, macro_type, error_preamble);
+        else if (necro_occurs(infer, lifetime2, lifetime1, macro_type, error_preamble))
+            return;
+        else
+            necro_instantiate_lifetime_var(infer, &lifetime2->var, lifetime1, macro_type, error_preamble);
+        return;
+    case NECRO_TYPE_CON:
+        if (lifetime1->con.con.symbol.id != lifetime2->con.con.symbol.id)
+        {
+            necro_infer_error(infer, error_preamble, lifetime1, "Attempting to unify two different lifetime types, lifetime1: %s lifetime2: %s", necro_intern_get_string(infer->intern, lifetime1->con.con.symbol), necro_intern_get_string(infer->intern, lifetime2->con.con.symbol));
+        }
+        else
+        {
+            NecroLifetime* original_lifetime1 = lifetime1;
+            NecroLifetime* original_lifetime2 = lifetime2;
+            lifetime1 = lifetime1->con.args;
+            lifetime2 = lifetime2->con.args;
+            while (lifetime1 != NULL && lifetime2 != NULL)
+            {
+                if (lifetime1 == NULL || lifetime2 == NULL)
+                {
+                    necro_infer_error(infer, error_preamble, lifetime1, "Mismatched arities, lifetime1: %s, lifetime2: %s", necro_intern_get_string(infer->intern, original_lifetime1->con.con.symbol), necro_intern_get_string(infer->intern, original_lifetime2->con.con.symbol));
+                    return;
+                }
+                assert(lifetime1->type == NECRO_TYPE_LIST);
+                assert(lifetime2->type == NECRO_TYPE_LIST);
+                necro_unify_lifetimes(infer, lifetime1->list.item, lifetime2->list.item, scope, macro_type, error_preamble);
+                if (necro_is_infer_error(infer)) return;
+                lifetime1 = lifetime1->list.next;
+                lifetime2 = lifetime2->list.next;
+            }
+        }
+        return;
+    case NECRO_TYPE_APP:
+    {
+        NecroType* uncurried_con = necro_curry_con(infer, lifetime1);
+        if (uncurried_con == NULL)
+        {
+            necro_infer_error(infer, error_preamble, lifetime1, "Arity mismatch during unification for type: %s", necro_intern_get_string(infer->intern, lifetime1->con.con.symbol));
+        }
+        else
+        {
+            necro_unify_lifetimes(infer, uncurried_con, lifetime2, scope, macro_type, error_preamble);
+        }
+        return;
+    }
+    case NECRO_TYPE_FUN:  necro_infer_error(infer, error_preamble, macro_type, "Attempting to unify lifetime TypeCon (%s) with (->).", necro_intern_get_string(infer->intern, lifetime1->con.con.symbol)); return;
+    case NECRO_TYPE_LIST: necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Attempted to unify lifetime TypeCon (%s) with type args list.", necro_intern_get_string(infer->intern, lifetime1->con.con.symbol)); return;
+    case NECRO_TYPE_FOR:  necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Attempted to unify lifetime polytype."); return;
+    default:              necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Non-existent type (type1: %d, type2: %s) type found in necro_unify.", lifetime1->type, lifetime2->type); return;
+    }
 }
 
-// Unifies towards longer lifetime
-// Will need a second version that unifies towards minimum lifetime for scope introducing combinators (or a special rule enforced somehow...)
+void necro_unify_app_lifetimes(NecroInfer* infer, NecroLifetime* lifetime1, NecroLifetime* lifetime2, NecroScope* scope, NecroType* macro_type, const char* error_preamble)
+{
+    if (necro_is_infer_error(infer)) return;
+    assert(lifetime1 != NULL);
+    assert(lifetime1->type == NECRO_TYPE_APP);
+    if (necro_is_infer_error(infer)) return;
+    if (lifetime1 == NULL)
+    {
+        necro_infer_error(infer, error_preamble, macro_type, "Arity mismatch during lifetime unification for type: %s", necro_intern_get_string(infer->intern, lifetime1->con.con.symbol));
+        return;
+    }
+    switch (lifetime2->type)
+    {
+    case NECRO_TYPE_VAR:
+        if (lifetime2->var.is_rigid)
+            necro_rigid_lifetime_variable_error(infer, lifetime2->var.var, lifetime1, macro_type, error_preamble);
+        else if (necro_occurs(infer, lifetime2, lifetime1, macro_type, error_preamble))
+            return;
+        else
+            necro_instantiate_lifetime_var(infer, &lifetime2->var, lifetime1, macro_type, error_preamble);
+        return;
+    case NECRO_TYPE_APP:
+        necro_unify_lifetimes(infer, lifetime1->app.type1, lifetime2->app.type1, scope, macro_type, error_preamble);
+        necro_unify_lifetimes(infer, lifetime1->app.type2, lifetime2->app.type2, scope, macro_type, error_preamble);
+        return;
+    case NECRO_TYPE_CON:
+    {
+        NecroType* uncurried_con = necro_curry_con(infer, lifetime2);
+        if (uncurried_con == NULL)
+        {
+            necro_infer_error(infer, error_preamble, macro_type, "Arity mismatch during lifetime unification for type: %s", necro_intern_get_string(infer->intern, lifetime2->con.con.symbol));
+        }
+        else
+        {
+            necro_unify_lifetimes(infer, lifetime1, uncurried_con, scope, macro_type, error_preamble);
+        }
+        return;
+    }
+    case NECRO_TYPE_FUN:  necro_infer_error(infer, error_preamble, macro_type, "Attempting to unify lifetime app  with lifetime (->)."); return;
+    case NECRO_TYPE_FOR:  necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Attempted to unify lifetime polytype."); return;
+    case NECRO_TYPE_LIST: necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Attempted to unify lifetime app with lifetime args list."); return;
+    default:              necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Non-existent lifetime type (lifetime type 1: %d, lifetime type 2: %s) type found in necro_unify_app_lifetimes.", lifetime1->type, lifetime2->type); return;
+    }
+}
+
 void necro_unify_lifetimes(NecroInfer* infer, NecroLifetime* lifetime1, NecroLifetime* lifetime2, NecroScope* scope, NecroType* macro_type, const char* error_preamble)
 {
     if (necro_is_infer_error(infer))
@@ -240,6 +306,7 @@ void necro_unify_lifetimes(NecroInfer* infer, NecroLifetime* lifetime1, NecroLif
     {
     case NECRO_TYPE_VAR:  necro_unify_var_lifetimes(infer, lifetime1, lifetime2, scope, macro_type, error_preamble); return;
     case NECRO_TYPE_CON:  necro_unify_con_lifetimes(infer, lifetime1, lifetime2, scope, macro_type, error_preamble); return;
+    case NECRO_TYPE_APP:  necro_unify_app_lifetimes(infer, lifetime1, lifetime2, scope, macro_type, error_preamble); return;
 
     case NECRO_TYPE_FOR:
     {
@@ -249,10 +316,279 @@ void necro_unify_lifetimes(NecroInfer* infer, NecroLifetime* lifetime1, NecroLif
         return;
     }
 
-    // Do we need this?
-    case NECRO_TYPE_APP:  necro_infer_error(infer, error_preamble, lifetime1, "Compiler bug: Found lifetime app in necro_unify_lifetimes"); return;
     case NECRO_TYPE_FUN:  necro_infer_error(infer, error_preamble, lifetime1, "Compiler bug: Found lifetime function in necro_unify_lifetimes"); return;
     case NECRO_TYPE_LIST: necro_infer_error(infer, error_preamble, lifetime1, "Compiler bug: Found lifetime args list in necro_unify_lifetimes"); return;
     default: necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Non-existent lifetime node type (lifetime1: %d, lifetime2: %s) found in necro_unify_lifetimes.", lifetime1->type, lifetime2->type); return;
+    }
+}
+
+typedef struct NecroTypeScope
+{
+    struct NecroTypeScope* parent;
+} NecroTimeScope;
+
+typedef struct
+{
+    NecroError       error;
+    NecroPagedArena* arena;
+    NecroSymTable*   symtable;
+    NecroTimeScope*  top_time_scope;
+} NecroCircularAnalyzer;
+
+// TODO: Finish
+// Store time scope in AST?
+void c_analyze_go(NecroCircularAnalyzer* c_analyzer, NecroASTNode* ast)
+{
+    if (ast == NULL || c_analyzer->error.return_code != NECRO_SUCCESS)
+        return;
+    switch (ast->type)
+    {
+
+    //=====================================================
+    // Declaration type things
+    //=====================================================
+    case NECRO_AST_TOP_DECL:
+    {
+        NecroASTNode* curr = ast;
+        while (curr != NULL)
+        {
+            if (curr->top_declaration.declaration->type == NECRO_AST_SIMPLE_ASSIGNMENT || curr->top_declaration.declaration->type == NECRO_AST_APATS_ASSIGNMENT || curr->top_declaration.declaration->type == NECRO_AST_PAT_ASSIGNMENT)
+                c_analyze_go(c_analyzer, curr->top_declaration.declaration);
+            curr = curr->top_declaration.next_top_decl;
+        }
+        break;
+    }
+
+    case NECRO_AST_DECL:
+    {
+        NecroASTNode* curr = ast;
+        while (curr != NULL)
+        {
+            if (curr->top_declaration.declaration->type == NECRO_AST_SIMPLE_ASSIGNMENT || curr->top_declaration.declaration->type == NECRO_AST_APATS_ASSIGNMENT || curr->top_declaration.declaration->type == NECRO_AST_PAT_ASSIGNMENT)
+                c_analyze_go(c_analyzer, curr->top_declaration.declaration);
+            curr = curr->declaration.next_declaration;
+        }
+        break;
+    }
+
+    case NECRO_AST_TYPE_CLASS_INSTANCE:
+    {
+        c_analyze_go(c_analyzer, ast->type_class_instance.context);
+        c_analyze_go(c_analyzer, ast->type_class_instance.qtycls);
+        c_analyze_go(c_analyzer, ast->type_class_instance.inst);
+        c_analyze_go(c_analyzer, ast->type_class_instance.declarations);
+        break;
+    }
+
+    //=====================================================
+    // Assignment type things
+    //=====================================================
+    case NECRO_AST_SIMPLE_ASSIGNMENT:
+    {
+        c_analyze_go(c_analyzer, ast->simple_assignment.rhs);
+        break;
+    }
+
+    case NECRO_AST_APATS_ASSIGNMENT:
+    {
+        c_analyze_go(c_analyzer, ast->apats_assignment.apats);
+        c_analyze_go(c_analyzer, ast->apats_assignment.rhs);
+        break;
+    }
+
+    case NECRO_AST_PAT_ASSIGNMENT:
+        c_analyze_go(c_analyzer, ast->pat_assignment.rhs);
+        break;
+
+    case NECRO_AST_DATA_DECLARATION:
+        c_analyze_go(c_analyzer, ast->data_declaration.simpletype);
+        c_analyze_go(c_analyzer, ast->data_declaration.constructor_list);
+        break;
+
+    //=====================================================
+    // Variable type things
+    //=====================================================
+    case NECRO_AST_VARIABLE:
+        switch (ast->variable.var_type)
+        {
+        case NECRO_VAR_VAR:
+        {
+            // NecroSymbolInfo* symbol_info = necro_symtable_get(c_analyzer->symtable, ast->variable.id);
+            // if (symbol_info->declaration_group == NULL) return;
+            // NecroDeclarationGroup* w = necro_symtable_get(c_analyzer->symtable, ast->variable.id)->declaration_group;
+            // assert(w->info != NULL);
+            // if (w->info->current_group == NULL)
+            //     w->info->current_group = w;
+            // NecroDeclarationGroup* v = w->info->current_group;
+            // assert(v != NULL);
+            // if (w->index == -1)
+            // {
+            //     symbol_info->declaration_group->info->current_group = w;
+            //     c_analyze_go(c_analyzer, w->declaration_ast);
+            //     v->low_link = min(w->low_link, v->low_link);
+            // }
+            // else if (w->on_stack)
+            // {
+            //     v->low_link = min(w->low_link, v->low_link);
+            // }
+            // symbol_info->declaration_group->info->current_group = v;
+            break;
+        }
+        case NECRO_VAR_DECLARATION:          break;
+        case NECRO_VAR_SIG:                  break;
+        case NECRO_VAR_TYPE_VAR_DECLARATION: break;
+        case NECRO_VAR_TYPE_FREE_VAR:        break;
+        case NECRO_VAR_CLASS_SIG:            break;
+        default: assert(false);
+        }
+        break;
+
+    case NECRO_AST_CONID:
+        if (ast->conid.con_type == NECRO_CON_TYPE_VAR)
+        {
+            // NecroSymbolInfo* symbol_info = necro_symtable_get(c_analyzer->symtable, ast->conid.id);
+            // if (symbol_info->declaration_group == NULL) return;
+            // NecroDeclarationGroup* w = necro_symtable_get(c_analyzer->symtable, ast->conid.id)->declaration_group;
+            // assert(w->info != NULL);
+            // if (w->info->current_group == NULL)
+            //     w->info->current_group = w;
+            // NecroDeclarationGroup* v = w->info->current_group;
+            // assert(v != NULL);
+            // if (w->index == -1)
+            // {
+            //     symbol_info->declaration_group->info->current_group = w;
+            //     c_analyze_go(c_analyzer, w->declaration_ast);
+            //     v->low_link = min(w->low_link, v->low_link);
+            // }
+            // else if (w->on_stack)
+            // {
+            //     v->low_link = min(w->low_link, v->low_link);
+            // }
+            // symbol_info->declaration_group->info->current_group = v;
+            break;
+        }
+        break;
+
+    //=====================================================
+    // Other Stuff
+    //=====================================================
+    case NECRO_AST_UNDEFINED:
+        break;
+    case NECRO_AST_CONSTANT:
+        break;
+    case NECRO_AST_UN_OP:
+        break;
+    case NECRO_AST_BIN_OP:
+        c_analyze_go(c_analyzer, ast->bin_op.lhs);
+        c_analyze_go(c_analyzer, ast->bin_op.rhs);
+        break;
+    case NECRO_AST_IF_THEN_ELSE:
+        c_analyze_go(c_analyzer, ast->if_then_else.if_expr);
+        c_analyze_go(c_analyzer, ast->if_then_else.then_expr);
+        c_analyze_go(c_analyzer, ast->if_then_else.else_expr);
+        break;
+    case NECRO_AST_OP_LEFT_SECTION:
+        c_analyze_go(c_analyzer, ast->op_left_section.left);
+        break;
+    case NECRO_AST_OP_RIGHT_SECTION:
+        c_analyze_go(c_analyzer, ast->op_right_section.right);
+        break;
+    case NECRO_AST_RIGHT_HAND_SIDE:
+        c_analyze_go(c_analyzer, ast->right_hand_side.declarations);
+        c_analyze_go(c_analyzer, ast->right_hand_side.expression);
+        break;
+    case NECRO_AST_LET_EXPRESSION:
+        c_analyze_go(c_analyzer, ast->let_expression.declarations);
+        c_analyze_go(c_analyzer, ast->let_expression.expression);
+        break;
+    case NECRO_AST_FUNCTION_EXPRESSION:
+        c_analyze_go(c_analyzer, ast->fexpression.aexp);
+        c_analyze_go(c_analyzer, ast->fexpression.next_fexpression);
+        break;
+    case NECRO_AST_APATS:
+        c_analyze_go(c_analyzer, ast->apats.apat);
+        c_analyze_go(c_analyzer, ast->apats.next_apat);
+        break;
+    case NECRO_AST_WILDCARD:
+        break;
+    case NECRO_AST_LAMBDA:
+        c_analyze_go(c_analyzer, ast->lambda.apats);
+        c_analyze_go(c_analyzer, ast->lambda.expression);
+        break;
+    case NECRO_AST_DO:
+        c_analyze_go(c_analyzer, ast->do_statement.statement_list);
+        break;
+    case NECRO_AST_LIST_NODE:
+        c_analyze_go(c_analyzer, ast->list.item);
+        c_analyze_go(c_analyzer, ast->list.next_item);
+        break;
+    case NECRO_AST_EXPRESSION_LIST:
+        c_analyze_go(c_analyzer, ast->expression_list.expressions);
+        break;
+    case NECRO_AST_TUPLE:
+        c_analyze_go(c_analyzer, ast->tuple.expressions);
+        break;
+    case NECRO_BIND_ASSIGNMENT:
+        c_analyze_go(c_analyzer, ast->bind_assignment.expression);
+        break;
+    case NECRO_PAT_BIND_ASSIGNMENT:
+        c_analyze_go(c_analyzer, ast->pat_bind_assignment.pat);
+        c_analyze_go(c_analyzer, ast->pat_bind_assignment.expression);
+        break;
+    case NECRO_AST_ARITHMETIC_SEQUENCE:
+        c_analyze_go(c_analyzer, ast->arithmetic_sequence.from);
+        c_analyze_go(c_analyzer, ast->arithmetic_sequence.then);
+        c_analyze_go(c_analyzer, ast->arithmetic_sequence.to);
+        break;
+    case NECRO_AST_CASE:
+        c_analyze_go(c_analyzer, ast->case_expression.expression);
+        c_analyze_go(c_analyzer, ast->case_expression.alternatives);
+        break;
+    case NECRO_AST_CASE_ALTERNATIVE:
+        c_analyze_go(c_analyzer, ast->case_alternative.pat);
+        c_analyze_go(c_analyzer, ast->case_alternative.body);
+        break;
+
+    // Other stuff
+    case NECRO_AST_TYPE_APP:
+        c_analyze_go(c_analyzer, ast->type_app.ty);
+        c_analyze_go(c_analyzer, ast->type_app.next_ty);
+        break;
+    case NECRO_AST_BIN_OP_SYM:
+        c_analyze_go(c_analyzer, ast->bin_op_sym.left);
+        c_analyze_go(c_analyzer, ast->bin_op_sym.op);
+        c_analyze_go(c_analyzer, ast->bin_op_sym.right);
+        break;
+    case NECRO_AST_CONSTRUCTOR:
+        c_analyze_go(c_analyzer, ast->constructor.conid);
+        c_analyze_go(c_analyzer, ast->constructor.arg_list);
+        break;
+    case NECRO_AST_SIMPLE_TYPE:
+        c_analyze_go(c_analyzer, ast->simple_type.type_con);
+        c_analyze_go(c_analyzer, ast->simple_type.type_var_list);
+        break;
+    case NECRO_AST_TYPE_CLASS_DECLARATION:
+        c_analyze_go(c_analyzer, ast->type_class_declaration.context);
+        c_analyze_go(c_analyzer, ast->type_class_declaration.tycls);
+        c_analyze_go(c_analyzer, ast->type_class_declaration.tyvar);
+        c_analyze_go(c_analyzer, ast->type_class_declaration.declarations);
+        break;
+    case NECRO_AST_TYPE_SIGNATURE:
+        c_analyze_go(c_analyzer, ast->type_signature.var);
+        c_analyze_go(c_analyzer, ast->type_signature.context);
+        c_analyze_go(c_analyzer, ast->type_signature.type);
+        break;
+    case NECRO_AST_TYPE_CLASS_CONTEXT:
+        c_analyze_go(c_analyzer, ast->type_class_context.conid);
+        c_analyze_go(c_analyzer, ast->type_class_context.varid);
+        break;
+    case NECRO_AST_FUNCTION_TYPE:
+        c_analyze_go(c_analyzer, ast->function_type.type);
+        c_analyze_go(c_analyzer, ast->function_type.next_on_arrow);
+        break;
+
+    default:
+        necro_error(&c_analyzer->error, ast->source_loc, "Unrecognized AST Node type found in dependency analysis: %d", ast->type);
+        break;
     }
 }

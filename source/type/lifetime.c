@@ -322,273 +322,273 @@ void necro_unify_lifetimes(NecroInfer* infer, NecroLifetime* lifetime1, NecroLif
     }
 }
 
-typedef struct NecroTypeScope
-{
-    struct NecroTypeScope* parent;
-} NecroTimeScope;
+// typedef struct NecroTimeScope
+// {
+//     struct NecroTypeScope* parent;
+// } NecroTimeScope;
 
-typedef struct
-{
-    NecroError       error;
-    NecroPagedArena* arena;
-    NecroSymTable*   symtable;
-    NecroTimeScope*  top_time_scope;
-} NecroCircularAnalyzer;
+// typedef struct
+// {
+//     NecroError       error;
+//     NecroPagedArena* arena;
+//     NecroSymTable*   symtable;
+//     NecroTimeScope*  top_time_scope;
+// } NecroCircularAnalyzer;
 
-// TODO: Finish
-// Store time scope in AST?
-void c_analyze_go(NecroCircularAnalyzer* c_analyzer, NecroASTNode* ast)
-{
-    if (ast == NULL || c_analyzer->error.return_code != NECRO_SUCCESS)
-        return;
-    switch (ast->type)
-    {
+// // TODO: Finish
+// // Store time scope in AST?
+// void c_analyze_go(NecroCircularAnalyzer* c_analyzer, NecroASTNode* ast)
+// {
+//     if (ast == NULL || c_analyzer->error.return_code != NECRO_SUCCESS)
+//         return;
+//     switch (ast->type)
+//     {
 
-    //=====================================================
-    // Declaration type things
-    //=====================================================
-    case NECRO_AST_TOP_DECL:
-    {
-        NecroASTNode* curr = ast;
-        while (curr != NULL)
-        {
-            if (curr->top_declaration.declaration->type == NECRO_AST_SIMPLE_ASSIGNMENT || curr->top_declaration.declaration->type == NECRO_AST_APATS_ASSIGNMENT || curr->top_declaration.declaration->type == NECRO_AST_PAT_ASSIGNMENT)
-                c_analyze_go(c_analyzer, curr->top_declaration.declaration);
-            curr = curr->top_declaration.next_top_decl;
-        }
-        break;
-    }
+//     //=====================================================
+//     // Declaration type things
+//     //=====================================================
+//     case NECRO_AST_TOP_DECL:
+//     {
+//         NecroASTNode* curr = ast;
+//         while (curr != NULL)
+//         {
+//             if (curr->top_declaration.declaration->type == NECRO_AST_SIMPLE_ASSIGNMENT || curr->top_declaration.declaration->type == NECRO_AST_APATS_ASSIGNMENT || curr->top_declaration.declaration->type == NECRO_AST_PAT_ASSIGNMENT)
+//                 c_analyze_go(c_analyzer, curr->top_declaration.declaration);
+//             curr = curr->top_declaration.next_top_decl;
+//         }
+//         break;
+//     }
 
-    case NECRO_AST_DECL:
-    {
-        NecroASTNode* curr = ast;
-        while (curr != NULL)
-        {
-            if (curr->top_declaration.declaration->type == NECRO_AST_SIMPLE_ASSIGNMENT || curr->top_declaration.declaration->type == NECRO_AST_APATS_ASSIGNMENT || curr->top_declaration.declaration->type == NECRO_AST_PAT_ASSIGNMENT)
-                c_analyze_go(c_analyzer, curr->top_declaration.declaration);
-            curr = curr->declaration.next_declaration;
-        }
-        break;
-    }
+//     case NECRO_AST_DECL:
+//     {
+//         NecroASTNode* curr = ast;
+//         while (curr != NULL)
+//         {
+//             if (curr->top_declaration.declaration->type == NECRO_AST_SIMPLE_ASSIGNMENT || curr->top_declaration.declaration->type == NECRO_AST_APATS_ASSIGNMENT || curr->top_declaration.declaration->type == NECRO_AST_PAT_ASSIGNMENT)
+//                 c_analyze_go(c_analyzer, curr->top_declaration.declaration);
+//             curr = curr->declaration.next_declaration;
+//         }
+//         break;
+//     }
 
-    case NECRO_AST_TYPE_CLASS_INSTANCE:
-    {
-        c_analyze_go(c_analyzer, ast->type_class_instance.context);
-        c_analyze_go(c_analyzer, ast->type_class_instance.qtycls);
-        c_analyze_go(c_analyzer, ast->type_class_instance.inst);
-        c_analyze_go(c_analyzer, ast->type_class_instance.declarations);
-        break;
-    }
+//     case NECRO_AST_TYPE_CLASS_INSTANCE:
+//     {
+//         c_analyze_go(c_analyzer, ast->type_class_instance.context);
+//         c_analyze_go(c_analyzer, ast->type_class_instance.qtycls);
+//         c_analyze_go(c_analyzer, ast->type_class_instance.inst);
+//         c_analyze_go(c_analyzer, ast->type_class_instance.declarations);
+//         break;
+//     }
 
-    //=====================================================
-    // Assignment type things
-    //=====================================================
-    case NECRO_AST_SIMPLE_ASSIGNMENT:
-    {
-        c_analyze_go(c_analyzer, ast->simple_assignment.rhs);
-        break;
-    }
+//     //=====================================================
+//     // Assignment type things
+//     //=====================================================
+//     case NECRO_AST_SIMPLE_ASSIGNMENT:
+//     {
+//         c_analyze_go(c_analyzer, ast->simple_assignment.rhs);
+//         break;
+//     }
 
-    case NECRO_AST_APATS_ASSIGNMENT:
-    {
-        c_analyze_go(c_analyzer, ast->apats_assignment.apats);
-        c_analyze_go(c_analyzer, ast->apats_assignment.rhs);
-        break;
-    }
+//     case NECRO_AST_APATS_ASSIGNMENT:
+//     {
+//         c_analyze_go(c_analyzer, ast->apats_assignment.apats);
+//         c_analyze_go(c_analyzer, ast->apats_assignment.rhs);
+//         break;
+//     }
 
-    case NECRO_AST_PAT_ASSIGNMENT:
-        c_analyze_go(c_analyzer, ast->pat_assignment.rhs);
-        break;
+//     case NECRO_AST_PAT_ASSIGNMENT:
+//         c_analyze_go(c_analyzer, ast->pat_assignment.rhs);
+//         break;
 
-    case NECRO_AST_DATA_DECLARATION:
-        c_analyze_go(c_analyzer, ast->data_declaration.simpletype);
-        c_analyze_go(c_analyzer, ast->data_declaration.constructor_list);
-        break;
+//     case NECRO_AST_DATA_DECLARATION:
+//         c_analyze_go(c_analyzer, ast->data_declaration.simpletype);
+//         c_analyze_go(c_analyzer, ast->data_declaration.constructor_list);
+//         break;
 
-    //=====================================================
-    // Variable type things
-    //=====================================================
-    case NECRO_AST_VARIABLE:
-        switch (ast->variable.var_type)
-        {
-        case NECRO_VAR_VAR:
-        {
-            // NecroSymbolInfo* symbol_info = necro_symtable_get(c_analyzer->symtable, ast->variable.id);
-            // if (symbol_info->declaration_group == NULL) return;
-            // NecroDeclarationGroup* w = necro_symtable_get(c_analyzer->symtable, ast->variable.id)->declaration_group;
-            // assert(w->info != NULL);
-            // if (w->info->current_group == NULL)
-            //     w->info->current_group = w;
-            // NecroDeclarationGroup* v = w->info->current_group;
-            // assert(v != NULL);
-            // if (w->index == -1)
-            // {
-            //     symbol_info->declaration_group->info->current_group = w;
-            //     c_analyze_go(c_analyzer, w->declaration_ast);
-            //     v->low_link = min(w->low_link, v->low_link);
-            // }
-            // else if (w->on_stack)
-            // {
-            //     v->low_link = min(w->low_link, v->low_link);
-            // }
-            // symbol_info->declaration_group->info->current_group = v;
-            break;
-        }
-        case NECRO_VAR_DECLARATION:          break;
-        case NECRO_VAR_SIG:                  break;
-        case NECRO_VAR_TYPE_VAR_DECLARATION: break;
-        case NECRO_VAR_TYPE_FREE_VAR:        break;
-        case NECRO_VAR_CLASS_SIG:            break;
-        default: assert(false);
-        }
-        break;
+//     //=====================================================
+//     // Variable type things
+//     //=====================================================
+//     case NECRO_AST_VARIABLE:
+//         switch (ast->variable.var_type)
+//         {
+//         case NECRO_VAR_VAR:
+//         {
+//             // NecroSymbolInfo* symbol_info = necro_symtable_get(c_analyzer->symtable, ast->variable.id);
+//             // if (symbol_info->declaration_group == NULL) return;
+//             // NecroDeclarationGroup* w = necro_symtable_get(c_analyzer->symtable, ast->variable.id)->declaration_group;
+//             // assert(w->info != NULL);
+//             // if (w->info->current_group == NULL)
+//             //     w->info->current_group = w;
+//             // NecroDeclarationGroup* v = w->info->current_group;
+//             // assert(v != NULL);
+//             // if (w->index == -1)
+//             // {
+//             //     symbol_info->declaration_group->info->current_group = w;
+//             //     c_analyze_go(c_analyzer, w->declaration_ast);
+//             //     v->low_link = min(w->low_link, v->low_link);
+//             // }
+//             // else if (w->on_stack)
+//             // {
+//             //     v->low_link = min(w->low_link, v->low_link);
+//             // }
+//             // symbol_info->declaration_group->info->current_group = v;
+//             break;
+//         }
+//         case NECRO_VAR_DECLARATION:          break;
+//         case NECRO_VAR_SIG:                  break;
+//         case NECRO_VAR_TYPE_VAR_DECLARATION: break;
+//         case NECRO_VAR_TYPE_FREE_VAR:        break;
+//         case NECRO_VAR_CLASS_SIG:            break;
+//         default: assert(false);
+//         }
+//         break;
 
-    case NECRO_AST_CONID:
-        if (ast->conid.con_type == NECRO_CON_TYPE_VAR)
-        {
-            // NecroSymbolInfo* symbol_info = necro_symtable_get(c_analyzer->symtable, ast->conid.id);
-            // if (symbol_info->declaration_group == NULL) return;
-            // NecroDeclarationGroup* w = necro_symtable_get(c_analyzer->symtable, ast->conid.id)->declaration_group;
-            // assert(w->info != NULL);
-            // if (w->info->current_group == NULL)
-            //     w->info->current_group = w;
-            // NecroDeclarationGroup* v = w->info->current_group;
-            // assert(v != NULL);
-            // if (w->index == -1)
-            // {
-            //     symbol_info->declaration_group->info->current_group = w;
-            //     c_analyze_go(c_analyzer, w->declaration_ast);
-            //     v->low_link = min(w->low_link, v->low_link);
-            // }
-            // else if (w->on_stack)
-            // {
-            //     v->low_link = min(w->low_link, v->low_link);
-            // }
-            // symbol_info->declaration_group->info->current_group = v;
-            break;
-        }
-        break;
+//     case NECRO_AST_CONID:
+//         if (ast->conid.con_type == NECRO_CON_TYPE_VAR)
+//         {
+//             // NecroSymbolInfo* symbol_info = necro_symtable_get(c_analyzer->symtable, ast->conid.id);
+//             // if (symbol_info->declaration_group == NULL) return;
+//             // NecroDeclarationGroup* w = necro_symtable_get(c_analyzer->symtable, ast->conid.id)->declaration_group;
+//             // assert(w->info != NULL);
+//             // if (w->info->current_group == NULL)
+//             //     w->info->current_group = w;
+//             // NecroDeclarationGroup* v = w->info->current_group;
+//             // assert(v != NULL);
+//             // if (w->index == -1)
+//             // {
+//             //     symbol_info->declaration_group->info->current_group = w;
+//             //     c_analyze_go(c_analyzer, w->declaration_ast);
+//             //     v->low_link = min(w->low_link, v->low_link);
+//             // }
+//             // else if (w->on_stack)
+//             // {
+//             //     v->low_link = min(w->low_link, v->low_link);
+//             // }
+//             // symbol_info->declaration_group->info->current_group = v;
+//             break;
+//         }
+//         break;
 
-    //=====================================================
-    // Other Stuff
-    //=====================================================
-    case NECRO_AST_UNDEFINED:
-        break;
-    case NECRO_AST_CONSTANT:
-        break;
-    case NECRO_AST_UN_OP:
-        break;
-    case NECRO_AST_BIN_OP:
-        c_analyze_go(c_analyzer, ast->bin_op.lhs);
-        c_analyze_go(c_analyzer, ast->bin_op.rhs);
-        break;
-    case NECRO_AST_IF_THEN_ELSE:
-        c_analyze_go(c_analyzer, ast->if_then_else.if_expr);
-        c_analyze_go(c_analyzer, ast->if_then_else.then_expr);
-        c_analyze_go(c_analyzer, ast->if_then_else.else_expr);
-        break;
-    case NECRO_AST_OP_LEFT_SECTION:
-        c_analyze_go(c_analyzer, ast->op_left_section.left);
-        break;
-    case NECRO_AST_OP_RIGHT_SECTION:
-        c_analyze_go(c_analyzer, ast->op_right_section.right);
-        break;
-    case NECRO_AST_RIGHT_HAND_SIDE:
-        c_analyze_go(c_analyzer, ast->right_hand_side.declarations);
-        c_analyze_go(c_analyzer, ast->right_hand_side.expression);
-        break;
-    case NECRO_AST_LET_EXPRESSION:
-        c_analyze_go(c_analyzer, ast->let_expression.declarations);
-        c_analyze_go(c_analyzer, ast->let_expression.expression);
-        break;
-    case NECRO_AST_FUNCTION_EXPRESSION:
-        c_analyze_go(c_analyzer, ast->fexpression.aexp);
-        c_analyze_go(c_analyzer, ast->fexpression.next_fexpression);
-        break;
-    case NECRO_AST_APATS:
-        c_analyze_go(c_analyzer, ast->apats.apat);
-        c_analyze_go(c_analyzer, ast->apats.next_apat);
-        break;
-    case NECRO_AST_WILDCARD:
-        break;
-    case NECRO_AST_LAMBDA:
-        c_analyze_go(c_analyzer, ast->lambda.apats);
-        c_analyze_go(c_analyzer, ast->lambda.expression);
-        break;
-    case NECRO_AST_DO:
-        c_analyze_go(c_analyzer, ast->do_statement.statement_list);
-        break;
-    case NECRO_AST_LIST_NODE:
-        c_analyze_go(c_analyzer, ast->list.item);
-        c_analyze_go(c_analyzer, ast->list.next_item);
-        break;
-    case NECRO_AST_EXPRESSION_LIST:
-        c_analyze_go(c_analyzer, ast->expression_list.expressions);
-        break;
-    case NECRO_AST_TUPLE:
-        c_analyze_go(c_analyzer, ast->tuple.expressions);
-        break;
-    case NECRO_BIND_ASSIGNMENT:
-        c_analyze_go(c_analyzer, ast->bind_assignment.expression);
-        break;
-    case NECRO_PAT_BIND_ASSIGNMENT:
-        c_analyze_go(c_analyzer, ast->pat_bind_assignment.pat);
-        c_analyze_go(c_analyzer, ast->pat_bind_assignment.expression);
-        break;
-    case NECRO_AST_ARITHMETIC_SEQUENCE:
-        c_analyze_go(c_analyzer, ast->arithmetic_sequence.from);
-        c_analyze_go(c_analyzer, ast->arithmetic_sequence.then);
-        c_analyze_go(c_analyzer, ast->arithmetic_sequence.to);
-        break;
-    case NECRO_AST_CASE:
-        c_analyze_go(c_analyzer, ast->case_expression.expression);
-        c_analyze_go(c_analyzer, ast->case_expression.alternatives);
-        break;
-    case NECRO_AST_CASE_ALTERNATIVE:
-        c_analyze_go(c_analyzer, ast->case_alternative.pat);
-        c_analyze_go(c_analyzer, ast->case_alternative.body);
-        break;
+//     //=====================================================
+//     // Other Stuff
+//     //=====================================================
+//     case NECRO_AST_UNDEFINED:
+//         break;
+//     case NECRO_AST_CONSTANT:
+//         break;
+//     case NECRO_AST_UN_OP:
+//         break;
+//     case NECRO_AST_BIN_OP:
+//         c_analyze_go(c_analyzer, ast->bin_op.lhs);
+//         c_analyze_go(c_analyzer, ast->bin_op.rhs);
+//         break;
+//     case NECRO_AST_IF_THEN_ELSE:
+//         c_analyze_go(c_analyzer, ast->if_then_else.if_expr);
+//         c_analyze_go(c_analyzer, ast->if_then_else.then_expr);
+//         c_analyze_go(c_analyzer, ast->if_then_else.else_expr);
+//         break;
+//     case NECRO_AST_OP_LEFT_SECTION:
+//         c_analyze_go(c_analyzer, ast->op_left_section.left);
+//         break;
+//     case NECRO_AST_OP_RIGHT_SECTION:
+//         c_analyze_go(c_analyzer, ast->op_right_section.right);
+//         break;
+//     case NECRO_AST_RIGHT_HAND_SIDE:
+//         c_analyze_go(c_analyzer, ast->right_hand_side.declarations);
+//         c_analyze_go(c_analyzer, ast->right_hand_side.expression);
+//         break;
+//     case NECRO_AST_LET_EXPRESSION:
+//         c_analyze_go(c_analyzer, ast->let_expression.declarations);
+//         c_analyze_go(c_analyzer, ast->let_expression.expression);
+//         break;
+//     case NECRO_AST_FUNCTION_EXPRESSION:
+//         c_analyze_go(c_analyzer, ast->fexpression.aexp);
+//         c_analyze_go(c_analyzer, ast->fexpression.next_fexpression);
+//         break;
+//     case NECRO_AST_APATS:
+//         c_analyze_go(c_analyzer, ast->apats.apat);
+//         c_analyze_go(c_analyzer, ast->apats.next_apat);
+//         break;
+//     case NECRO_AST_WILDCARD:
+//         break;
+//     case NECRO_AST_LAMBDA:
+//         c_analyze_go(c_analyzer, ast->lambda.apats);
+//         c_analyze_go(c_analyzer, ast->lambda.expression);
+//         break;
+//     case NECRO_AST_DO:
+//         c_analyze_go(c_analyzer, ast->do_statement.statement_list);
+//         break;
+//     case NECRO_AST_LIST_NODE:
+//         c_analyze_go(c_analyzer, ast->list.item);
+//         c_analyze_go(c_analyzer, ast->list.next_item);
+//         break;
+//     case NECRO_AST_EXPRESSION_LIST:
+//         c_analyze_go(c_analyzer, ast->expression_list.expressions);
+//         break;
+//     case NECRO_AST_TUPLE:
+//         c_analyze_go(c_analyzer, ast->tuple.expressions);
+//         break;
+//     case NECRO_BIND_ASSIGNMENT:
+//         c_analyze_go(c_analyzer, ast->bind_assignment.expression);
+//         break;
+//     case NECRO_PAT_BIND_ASSIGNMENT:
+//         c_analyze_go(c_analyzer, ast->pat_bind_assignment.pat);
+//         c_analyze_go(c_analyzer, ast->pat_bind_assignment.expression);
+//         break;
+//     case NECRO_AST_ARITHMETIC_SEQUENCE:
+//         c_analyze_go(c_analyzer, ast->arithmetic_sequence.from);
+//         c_analyze_go(c_analyzer, ast->arithmetic_sequence.then);
+//         c_analyze_go(c_analyzer, ast->arithmetic_sequence.to);
+//         break;
+//     case NECRO_AST_CASE:
+//         c_analyze_go(c_analyzer, ast->case_expression.expression);
+//         c_analyze_go(c_analyzer, ast->case_expression.alternatives);
+//         break;
+//     case NECRO_AST_CASE_ALTERNATIVE:
+//         c_analyze_go(c_analyzer, ast->case_alternative.pat);
+//         c_analyze_go(c_analyzer, ast->case_alternative.body);
+//         break;
 
-    // Other stuff
-    case NECRO_AST_TYPE_APP:
-        c_analyze_go(c_analyzer, ast->type_app.ty);
-        c_analyze_go(c_analyzer, ast->type_app.next_ty);
-        break;
-    case NECRO_AST_BIN_OP_SYM:
-        c_analyze_go(c_analyzer, ast->bin_op_sym.left);
-        c_analyze_go(c_analyzer, ast->bin_op_sym.op);
-        c_analyze_go(c_analyzer, ast->bin_op_sym.right);
-        break;
-    case NECRO_AST_CONSTRUCTOR:
-        c_analyze_go(c_analyzer, ast->constructor.conid);
-        c_analyze_go(c_analyzer, ast->constructor.arg_list);
-        break;
-    case NECRO_AST_SIMPLE_TYPE:
-        c_analyze_go(c_analyzer, ast->simple_type.type_con);
-        c_analyze_go(c_analyzer, ast->simple_type.type_var_list);
-        break;
-    case NECRO_AST_TYPE_CLASS_DECLARATION:
-        c_analyze_go(c_analyzer, ast->type_class_declaration.context);
-        c_analyze_go(c_analyzer, ast->type_class_declaration.tycls);
-        c_analyze_go(c_analyzer, ast->type_class_declaration.tyvar);
-        c_analyze_go(c_analyzer, ast->type_class_declaration.declarations);
-        break;
-    case NECRO_AST_TYPE_SIGNATURE:
-        c_analyze_go(c_analyzer, ast->type_signature.var);
-        c_analyze_go(c_analyzer, ast->type_signature.context);
-        c_analyze_go(c_analyzer, ast->type_signature.type);
-        break;
-    case NECRO_AST_TYPE_CLASS_CONTEXT:
-        c_analyze_go(c_analyzer, ast->type_class_context.conid);
-        c_analyze_go(c_analyzer, ast->type_class_context.varid);
-        break;
-    case NECRO_AST_FUNCTION_TYPE:
-        c_analyze_go(c_analyzer, ast->function_type.type);
-        c_analyze_go(c_analyzer, ast->function_type.next_on_arrow);
-        break;
+//     // Other stuff
+//     case NECRO_AST_TYPE_APP:
+//         // c_analyze_go(c_analyzer, ast->type_app.ty);
+//         // c_analyze_go(c_analyzer, ast->type_app.next_ty);
+//         break;
+//     case NECRO_AST_BIN_OP_SYM:
+//         c_analyze_go(c_analyzer, ast->bin_op_sym.left);
+//         c_analyze_go(c_analyzer, ast->bin_op_sym.op);
+//         c_analyze_go(c_analyzer, ast->bin_op_sym.right);
+//         break;
+//     case NECRO_AST_CONSTRUCTOR:
+//         c_analyze_go(c_analyzer, ast->constructor.conid);
+//         c_analyze_go(c_analyzer, ast->constructor.arg_list);
+//         break;
+//     case NECRO_AST_SIMPLE_TYPE:
+//         // c_analyze_go(c_analyzer, ast->simple_type.type_con);
+//         // c_analyze_go(c_analyzer, ast->simple_type.type_var_list);
+//         break;
+//     case NECRO_AST_TYPE_CLASS_DECLARATION:
+//         // c_analyze_go(c_analyzer, ast->type_class_declaration.context);
+//         // c_analyze_go(c_analyzer, ast->type_class_declaration.tycls);
+//         // c_analyze_go(c_analyzer, ast->type_class_declaration.tyvar);
+//         // c_analyze_go(c_analyzer, ast->type_class_declaration.declarations);
+//         break;
+//     case NECRO_AST_TYPE_SIGNATURE:
+//         // c_analyze_go(c_analyzer, ast->type_signature.var);
+//         // c_analyze_go(c_analyzer, ast->type_signature.context);
+//         // c_analyze_go(c_analyzer, ast->type_signature.type);
+//         break;
+//     case NECRO_AST_TYPE_CLASS_CONTEXT:
+//         // c_analyze_go(c_analyzer, ast->type_class_context.conid);
+//         // c_analyze_go(c_analyzer, ast->type_class_context.varid);
+//         break;
+//     case NECRO_AST_FUNCTION_TYPE:
+//         // c_analyze_go(c_analyzer, ast->function_type.type);
+//         // c_analyze_go(c_analyzer, ast->function_type.next_on_arrow);
+//         break;
 
-    default:
-        necro_error(&c_analyzer->error, ast->source_loc, "Unrecognized AST Node type found in dependency analysis: %d", ast->type);
-        break;
-    }
-}
+//     default:
+//         necro_error(&c_analyzer->error, ast->source_loc, "Unrecognized AST Node type found in dependency analysis: %d", ast->type);
+//         break;
+//     }
+// }

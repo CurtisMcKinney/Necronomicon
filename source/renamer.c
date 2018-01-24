@@ -186,6 +186,9 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
     case NECRO_AST_EXPRESSION_LIST:
         rename_declare_go(input_node->expression_list.expressions, renamer);
         break;
+    case NECRO_AST_EXPRESSION_SEQUENCE:
+        rename_declare_go(input_node->expression_sequence.expressions, renamer);
+        break;
     case NECRO_AST_TUPLE:
         rename_declare_go(input_node->tuple.expressions, renamer);
         break;
@@ -426,6 +429,9 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         break;
     case NECRO_AST_EXPRESSION_LIST:
         rename_var_go(input_node->expression_list.expressions, renamer);
+        break;
+    case NECRO_AST_EXPRESSION_SEQUENCE:
+        rename_var_go(input_node->expression_sequence.expressions, renamer);
         break;
     case NECRO_AST_TUPLE:
         rename_var_go(input_node->tuple.expressions, renamer);

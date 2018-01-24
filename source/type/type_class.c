@@ -507,7 +507,8 @@ void necro_finish_declaring_type_class_instance(NecroInfer* infer, NecroTypeClas
         declarations = declarations->declaration.next_declaration;
     }
     // necro_infer_go(infer, declarations);
-    necro_infer_assignment(infer, declaration_group);
+    if (declaration_group != NULL)
+        necro_infer_assignment(infer, declaration_group);
 
     //--------------------------------
     // Missing members check

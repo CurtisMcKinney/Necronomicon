@@ -51,10 +51,12 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
         .local_var_num     = 0,
         .source_loc        = source_loc,
         .scope             = scope,
+        .delay_scope       = NULL,
         .is_method         = false,
         .ast               = NULL,
         .declaration_group = NULL,
         .type_status       = NECRO_TYPE_UNCHECKED,
+        .is_constructor    = false,
     };
 }
 
@@ -206,6 +208,26 @@ void necro_symtable_test()
 }
 
 //=====================================================
+// NecroDelayScope
+//=====================================================
+inline NecroDelayScope* necro_create_delay_scope(NecroPagedArena* arena, NecroDelayScope* parent)
+{
+    NecroDelayScope* scope = necro_paged_arena_alloc(arena, sizeof(NecroDelayScope));
+    scope->parent          = parent;
+    return scope;
+}
+
+void necro_scoped_symtable_new_delay_scope(NecroScopedSymTable* table)
+{
+    table->current_delay_scope = necro_create_delay_scope(&table->arena, table->current_delay_scope);
+}
+
+void necro_scoped_symtable_pop_delay_scope(NecroScopedSymTable* table)
+{
+    table->current_delay_scope = table->current_delay_scope->parent;
+}
+
+//=====================================================
 // NecroScopedSymTable
 //=====================================================
 #define NECRO_SCOPE_INITIAL_SIZE 8
@@ -224,17 +246,20 @@ inline NecroScope* necro_create_scope(NecroPagedArena* arena, NecroScope* parent
 
 NecroScopedSymTable necro_create_scoped_symtable(NecroSymTable* global_table)
 {
-    NecroPagedArena arena      = necro_create_paged_arena();
-    NecroScope*     top_scope  = necro_create_scope(&arena, NULL);
-    NecroScope*     type_scope = necro_create_scope(&arena, NULL);
+    NecroPagedArena  arena       = necro_create_paged_arena();
+    NecroScope*      top_scope   = necro_create_scope(&arena, NULL);
+    NecroScope*      type_scope  = necro_create_scope(&arena, NULL);
+    NecroDelayScope* delay_scope = necro_create_delay_scope(&arena, NULL);
     return (NecroScopedSymTable)
     {
-        .arena              = arena,
-        .global_table       = global_table,
-        .top_scope          = top_scope,
-        .current_scope      = top_scope,
-        .top_type_scope     = type_scope,
-        .current_type_scope = type_scope,
+        .arena               = arena,
+        .global_table        = global_table,
+        .top_scope           = top_scope,
+        .current_scope       = top_scope,
+        .top_type_scope      = type_scope,
+        .current_type_scope  = type_scope,
+        .top_delay_scope     = delay_scope,
+        .current_delay_scope = delay_scope,
     };
 }
 
@@ -360,11 +385,15 @@ void necro_scope_set_last_introduced_id(NecroScope* scope, NecroID last_introduc
     scope->last_introduced_id = last_introduced_id;
 }
 
+//=====================================================
+// Build Scopes
+//=====================================================
 void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_Reified* input_node)
 {
     if (input_node == NULL || scoped_symtable->error.return_code == NECRO_ERROR)
         return;
-    input_node->scope = scoped_symtable->current_scope;
+    input_node->scope       = scoped_symtable->current_scope;
+    input_node->delay_scope = scoped_symtable->current_delay_scope;
     switch (input_node->type)
     {
     case NECRO_AST_UNDEFINED:
@@ -475,6 +504,34 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_R
     case NECRO_AST_EXPRESSION_LIST:
         necro_build_scopes_go(scoped_symtable, input_node->expression_list.expressions);
         break;
+
+    case NECRO_AST_EXPRESSION_SEQUENCE:
+    {
+        // Push
+        NecroAST_Node_Reified* expressions = input_node->expression_sequence.expressions;
+        assert(expressions != NULL); // Shouldn't be possible to have an empty sequence
+        expressions->delay_scope = scoped_symtable->current_delay_scope;
+        necro_build_scopes_go(scoped_symtable, expressions->list.item);
+        expressions = expressions->list.next_item;
+        while (expressions != NULL)
+        {
+            necro_scoped_symtable_new_delay_scope(scoped_symtable);
+            expressions->delay_scope = scoped_symtable->current_delay_scope;
+            necro_build_scopes_go(scoped_symtable, expressions->list.item);
+            expressions = expressions->list.next_item;
+        }
+        // Pop
+        expressions = input_node->expression_sequence.expressions;
+        expressions = expressions->list.next_item;
+        while (expressions != NULL)
+        {
+            necro_scoped_symtable_pop_delay_scope(scoped_symtable);
+            expressions = expressions->list.next_item;
+        }
+        printf("seq\n");
+        break;
+    }
+
     case NECRO_AST_TUPLE:
         necro_build_scopes_go(scoped_symtable, input_node->tuple.expressions);
         break;

@@ -164,3 +164,28 @@ idTest2 = id (4 + 5)
 -- With or without the type signature this will still be inferred with the most general type
 -- id :: a -> a
 id x = x
+
+seqTest x = seq {0, 1, seq {4, 5, 6}, 3 + x}
+
+caseSeqTest x = case x of
+    0 -> seq {2, 3}
+    _ -> seq {x, 5}
+
+instantTest = x where
+    x = seq {0, x + 1}
+
+patSeq = (x, y) where
+    (x, y) = seq {(0, 1), (y, x)}
+
+listTake :: Int -> [a] -> [a]
+listTake n xs = go n xs where
+    go 0  _        = []
+    go n (x : xs') = x : go (n - 1) xs'
+
+-- Creates a sliding window which moves over time
+-- i.e. potentially infinite data structures ARE useful
+slidingWindow x = xs where
+    xs = x : seq {[], xs} |> listTake 4
+
+fix :: (a -> a) -> a
+fix f = f (fix f)

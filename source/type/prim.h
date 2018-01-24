@@ -94,43 +94,14 @@ typedef struct
     NecroCon ten;
 } NecroTupleTypes;
 
-// typedef struct
-// {
-//     NecroType* add_type;
-//     NecroType* sub_type;
-//     NecroType* mul_type;
-//     NecroType* div_type;
-//     NecroType* eq_type;
-//     NecroType* not_eq_type;
-//     NecroType* gt_type;
-//     NecroType* lt_type;
-//     NecroType* gte_type;
-//     NecroType* lte_type;
-//     NecroType* cons_type;
-//     NecroCon mod_type;
-//     NecroCon and_type;
-//     NecroCon or_type;
-//     NecroCon double_colon_type;
-//     NecroCon left_shift_type;
-//     NecroCon right_shift_type;
-//     NecroCon pipe_type;
-//     NecroCon forward_pipe_type;
-//     NecroCon back_pipe_type;
-//     NecroCon dot_type;
-//     NecroCon bind_right_type;
-//     NecroCon bind_left_type;
-//     NecroCon double_exclamation_type;
-//     NecroCon append_type;
-// } NecroBinOpTypes;
-
 typedef struct NecroPrimTypes
 {
     NecroTupleTypes   tuple_types;
-    // NecroBinOpTypes   bin_op_types;
     NecroCon          io_type;
     NecroCon          unit_type;
     NecroCon          unit_con;
     NecroCon          list_type;
+    NecroCon          sequence_type;
     NecroCon          int_type;
     NecroCon          float_type;
     NecroCon          audio_type;
@@ -156,7 +127,6 @@ NecroPrimTypes necro_create_prim_types(NecroIntern* intern);
 
 NECRO_RETURN_CODE necro_prim_build_scope(NecroPrimTypes* prim_types, NecroScopedSymTable* scoped_symtable);
 NECRO_RETURN_CODE necro_prim_rename(NecroPrimTypes* prim_types, NecroRenamer* renamer);
-// NECRO_RETURN_CODE necro_prim_d_analyze(NecroPrimTypes* prim_types, NecroDependencyAnalyzer* d_analyzer);
 NECRO_RETURN_CODE necro_prim_infer(NecroPrimTypes* prim_types, NecroDependencyAnalyzer* d_analyzer, NecroInfer* infer);
 void              necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern);
 

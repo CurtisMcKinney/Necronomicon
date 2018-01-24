@@ -15,17 +15,20 @@ listTest x = [x]
 -- -- This will correctly say that there is an occurs check error
 -- x = x x
 
-a = a
+-- -- This will correctly say that this value instantaneously depends on itself
+-- a = a
+
+a = seq {True, a}
 
 f x = let g y z = ([x, y], z)
       in (g 3, g 3)
 
-inferTest  = inferDeath + 2 + 2
+inferTest  = seq {0, inferDeath + 2 + 2}
 
 inferDeath =
     let y = 2 + 666
-        z = inferDeath + 100
-    in  y + inferTest - z
+        z = seq {0, inferDeath + 100}
+    in  y + seq {0, inferTest - z}
 
 -- boolTest = inferTest > (inferDeath + 2) && boolTest && ifTest
 --     where

@@ -103,6 +103,7 @@ typedef enum
     NECRO_LEX_LEFT_ARROW,
     NECRO_LEX_RIGHT_ARROW,
     NECRO_LEX_FAT_RIGHT_ARROW,
+    // NECRO_LEX_FBY,
 
     // Control Tokens, should never make it into the parser!
     NECRO_LEX_CONTROL_BRACE_MARKER_LET,

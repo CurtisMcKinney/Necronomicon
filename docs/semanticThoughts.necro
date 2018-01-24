@@ -233,9 +233,9 @@ main = synths where
 -- Values cannot be defined by themselves in the same time scope
 -- Higher-order functions and recursive functions will require some kind of "apply" combinator to be inserted by the compiler
 
-pattern :: {Time} -> {a} -> Event a
+pattern :: Sequence Time -> Sequence a -> Event a
 
-seq     :: {a} -> a
+seq     :: Sequence a -> a
 
 poly    :: Num b => (a -> b) -> Event a -> b
 
@@ -271,10 +271,21 @@ main = synths where
 
 ifTest :: Bool -> Int
 ifTest up = if up then countUp else countDown where
-    countUp   = 0 `fby` countUp   + 1
-    countDown = 0 `fby` countDown - 1
+    countUp   = seq {0, countUp   + 1}
+    countDown = seq {0, countDown - 1}
 
 ifTest2 :: Bool -> Int
-ifTest2 up = if up then countUp () else countDown () where
-    countUp   _ = 0 `fby` countUp   + 1
-    countDown _ = 0 `fby` countDown - 1
+ifTest2 up = if up
+    then let countUp   = seq {0, countUp   + 1} in countUp
+    else let countDown = seq {0, countDown - 1} in countDown
+
+legalCons :: a -> [a]
+legalCons x = x : []
+
+illegalCons :: a -> [a]
+illegalCons x = xs where
+    xs = x : if True then [] else xs
+
+illegalCons2 :: a -> [a]
+illegalCons2 x = xs where
+    xs = x : seq {[], xs}

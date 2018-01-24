@@ -340,6 +340,14 @@ typedef struct
 } NecroAST_ExpressionList_Reified;
 
 //=====================================================
+// AST Expression Sequence
+//=====================================================
+typedef struct
+{
+    struct NecroAST_Node_Reified* expressions; // NecroAST_ListNode of expressions
+} NecroAST_ExpressionSequence_Reified;
+
+//=====================================================
 // AST Tuple
 //=====================================================
 typedef struct
@@ -454,6 +462,7 @@ typedef struct NecroAST_Node_Reified
         NecroAST_Do_Reified                   do_statement;
         NecroAST_ListNode_Reified             list;
         NecroAST_ExpressionList_Reified       expression_list;
+        NecroAST_ExpressionSequence_Reified   expression_sequence;
         NecroAST_Tuple_Reified                tuple;
         NecroAST_BindAssignment_Reified       bind_assignment;
         NecroAST_PatBindAssignment_Reified    pat_bind_assignment;
@@ -474,9 +483,10 @@ typedef struct NecroAST_Node_Reified
         NecroAST_TypeSignature_Reified        type_signature;
         NecroAST_FunctionType_Reified         function_type;
     };
-    NecroAST_NodeType  type;
-    NecroSourceLoc     source_loc;
-    struct NecroScope* scope;
+    NecroAST_NodeType       type;
+    NecroSourceLoc          source_loc;
+    struct NecroScope*      scope;
+    struct NecroDelayScope* delay_scope;
 } NecroAST_Node_Reified;
 
 typedef struct

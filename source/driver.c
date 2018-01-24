@@ -24,7 +24,7 @@
 #include "core/core.h"
 
 void necro_compile_impl(
-    const char* input_string, 
+    const char* input_string,
     NECRO_PHASE compilation_phase,
     NecroInfer* infer,
     NecroTypeClassEnv* type_class_env,
@@ -95,12 +95,11 @@ void necro_compile_impl(
     // Build Scopes
     //=====================================================
     necro_announce_phase("Building Scopes");
-    NecroPrimTypes      prim_types = necro_create_prim_types(&lexer->intern);
-    NecroSymTable       symtable = necro_create_symtable(&lexer->intern);
+    NecroPrimTypes      prim_types      = necro_create_prim_types(&lexer->intern);
+    NecroSymTable       symtable        = necro_create_symtable(&lexer->intern);
     NecroScopedSymTable scoped_symtable = necro_create_scoped_symtable(&symtable);
     necro_init_prim_defs(&prim_types, &lexer->intern);
     *destruct_flags |= BIT(NECRO_PHASE_BUILD_SCOPES);
-    // necro_add_prim_type_symbol_info(&prim_types, &scoped_symtable);
     if (necro_prim_build_scope(&prim_types, &scoped_symtable) != NECRO_SUCCESS)
     {
         necro_print_error(&scoped_symtable.error, input_string, "Building Prim Scopes");
@@ -223,7 +222,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     NecroAST ast;
 
     necro_compile_impl(
-        input_string, 
+        input_string,
         compilation_phase,
         &infer,
         &type_class_env,
@@ -244,22 +243,22 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
         necro_destroy_infer(&infer);
         necro_destroy_type_class_env(&type_class_env);
     }
-    
+
     if (validate_destruct_phase(NECRO_PHASE_PARSE, destruct_flags))
     {
         destruct_parser(&parser);
     }
-    
+
     if (validate_destruct_phase(NECRO_PHASE_TRANSFORM_TO_CORE, destruct_flags))
     {
         necro_destruct_core_transform(&core_transform);
     }
-    
+
     if (validate_destruct_phase(NECRO_PHASE_LEX, destruct_flags))
     {
         necro_destroy_lexer(&lexer);
     }
-    
+
     if (validate_destruct_phase(NECRO_PHASE_PARSE, destruct_flags))
     {
         destruct_arena(&ast.arena);

@@ -46,6 +46,7 @@ DONE:
     NECRO_AST_LET_EXPRESSION,
     NECRO_AST_TUPLE,
     NECRO_AST_EXPRESSION_LIST,
+    NECRO_AST_EXPRESSION_SEQUENCE,
     NECRO_AST_APATS_ASSIGNMENT,
     NECRO_AST_WILDCARD,
     NECRO_AST_LIST_NODE,
@@ -72,11 +73,12 @@ DONE:
     Correct kind inference
     NECRO_AST_PAT_ASSIGNMENT
 
-IN PROGRESS:
     NECRO_AST_DO,
     NECRO_BIND_ASSIGNMENT,
-    >>=, Other ops
     Declaration dependency analysis (This is how Haskell infers more general types for recursive declarations)
+
+IN PROGRESS:
+    Other ops
 
 TODO:
     // NECRO_AST_MODULE,
@@ -270,7 +272,8 @@ NecroType* necro_create_data_constructor(NecroInfer* infer, NecroNode* ast, Necr
     if (necro_is_infer_error(infer)) return NULL;
     con_type->source_loc   = ast->source_loc;
     con_type->pre_supplied = true;
-    necro_symtable_get(infer->symtable, ast->constructor.conid->conid.id)->type = con_type;
+    necro_symtable_get(infer->symtable, ast->constructor.conid->conid.id)->type           = con_type;
+    necro_symtable_get(infer->symtable, ast->constructor.conid->conid.id)->is_constructor = true;
     necro_kind_infer(infer, con_type, con_type, "While declaring a data constructor");
     necro_kind_unify(infer, con_type->type_kind, infer->star_type_kind, NULL, con_type, "During a data declaration: ");
     return con_type;
@@ -349,6 +352,7 @@ NecroType* necro_infer_assignment(NecroInfer* infer, NecroDeclarationGroup* decl
         {
             assert(ast->simple_assignment.id.id < infer->symtable->count);
             symbol_info = necro_symtable_get(infer->symtable, ast->simple_assignment.id);
+            symbol_info->delay_scope = ast->delay_scope;
             if (symbol_info->type == NULL)
             {
                 NecroType* new_name = necro_new_name(infer, ast->source_loc);
@@ -433,7 +437,7 @@ NecroType* necro_infer_assignment(NecroInfer* infer, NecroDeclarationGroup* decl
         if (ast->type == NECRO_AST_SIMPLE_ASSIGNMENT)
         {
             symbol_info = necro_symtable_get(infer->symtable, ast->simple_assignment.id);
-            if (symbol_info->type->pre_supplied || symbol_info->type_status == NECRO_TYPE_DONE) { curr->type_checked = true; curr = curr->next;  continue; }
+            if (symbol_info->type->pre_supplied || symbol_info->type_status == NECRO_TYPE_DONE) { symbol_info->type_status = NECRO_TYPE_DONE; curr->type_checked = true; curr = curr->next;  continue; }
             symbol_info->type = necro_gen(infer, symbol_info->type, symbol_info->scope->parent);
             // necro_infer_kind(infer, symbol_info->type, infer->star_kind, symbol_info->type, "While declaraing a variable: ");
             // necro_kind_infer(infer, symbol_info->type, symbol_info->type, "While declaring a variable: ");
@@ -447,7 +451,7 @@ NecroType* necro_infer_assignment(NecroInfer* infer, NecroDeclarationGroup* decl
         else if (ast->type == NECRO_AST_APATS_ASSIGNMENT)
         {
             symbol_info = necro_symtable_get(infer->symtable, ast->apats_assignment.id);
-            if (symbol_info->type->pre_supplied || symbol_info->type_status == NECRO_TYPE_DONE) { curr->type_checked = true; curr = curr->next;  continue; }
+            if (symbol_info->type->pre_supplied || symbol_info->type_status == NECRO_TYPE_DONE) { symbol_info->type_status = NECRO_TYPE_DONE; curr->type_checked = true; curr = curr->next;  continue; }
             symbol_info->type = necro_gen(infer, symbol_info->type, symbol_info->scope->parent);
             // necro_infer_kind(infer, symbol_info->type, infer->star_kind, symbol_info->type, "While declaraing a variable: ");
             // necro_kind_infer(infer, symbol_info->type, symbol_info->type, "While declaring a variable: ");
@@ -572,6 +576,7 @@ void necro_pat_new_name_go(NecroInfer* infer, NecroNode* ast)
             new_name->var.scope  = infer->symtable->data[ast->variable.id.id].scope;
             infer->symtable->data[ast->variable.id.id].type        = new_name;
             infer->symtable->data[ast->variable.id.id].type_status = NECRO_TYPE_CHECKING;
+            infer->symtable->data[ast->variable.id.id].delay_scope = ast->delay_scope;
         }
         return;
     }
@@ -694,64 +699,36 @@ NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast)
     assert(ast->variable.id.id <= infer->symtable->count);
     NecroSymbolInfo* symbol_info = necro_symtable_get(infer->symtable, ast->variable.id);
     assert(symbol_info != NULL);
-    // if (ast->variable.id.id > 296)
-    //     TRACE_INFER("infer_var, id: %d\n", ast->variable.id.id);
-    // Not an assignment
 
     if (symbol_info->declaration_group != NULL)
         assert(symbol_info->type != NULL);
-    // if (symbol_info->declaration_group == NULL)
-    // {
-        if (symbol_info->type == NULL)
-        {
-            // if (ast->variable.id.id > 296)
-            //     TRACE_INFER("infer_var, not assignment, new, id: %d\n", ast->variable.id.id);
-            symbol_info->type = necro_new_name(infer, ast->source_loc);
-            symbol_info->type->var.scope = symbol_info->scope;
-            return symbol_info->type;
-        }
-        else if (necro_is_bound_in_scope(infer, symbol_info->type, ast->scope))
-        {
-            // if (ast->variable.id.id > 296)
-            //     TRACE_INFER("infer_var, not assignment, bound, id: %d\n", ast->variable.id.id);
-            return symbol_info->type;
-        }
-        else
-        {
-            // if (ast->variable.id.id > 296)
-            //     TRACE_INFER("infer_var, not assignment, inst, id: %d\n", ast->variable.id.id);
-            // TODO: Is this wrong?
-            return necro_inst(infer, symbol_info->type, ast->scope);
-        }
-        assert(false);
-    // }
-    // // Some kind of assignment
-    // else if (symbol_info->type_status == NECRO_TYPE_UNCHECKED)
-    // {
-    //     if (ast->variable.id.id > 296)
-    //         TRACE_INFER("infer_var, assignment, NECRO_TYPE_UNCHECKED, id: %d\n", ast->variable.id.id);
-    //     // assert(symbol_info->type == NULL);
-    //     necro_infer_assignment(infer, symbol_info->declaration_group);
-    //     if (necro_is_infer_error(infer)) return NULL;
-    //     assert(symbol_info->type_status == NECRO_TYPE_DONE);
-    //     assert(symbol_info->type != NULL);
-    //     return necro_inst(infer, symbol_info->type, ast->scope);
-    // }
-    // else if (symbol_info->type_status == NECRO_TYPE_CHECKING && !symbol_info->type->pre_supplied)
-    // {
-    //     if (ast->variable.id.id > 296)
-    //         TRACE_INFER("infer_var, assignment, NECRO_TYPE_CHECKING, id: %d\n", ast->variable.id.id);
-    //     assert(symbol_info->type != NULL);
-    //     return symbol_info->type;
-    // }
-    // else
-    // {
-    //     if (ast->variable.id.id > 296)
-    //         TRACE_INFER("infer_var, assignment, NECRO_TYPE_DONE or pre_supplied, id: %d\n", ast->variable.id.id);
-    //     assert(symbol_info->type != NULL);
-    //     return necro_inst(infer, symbol_info->type, ast->scope);
-    // }
-    // assert(false);
+
+    // Delay check
+    if (symbol_info->delay_scope != NULL && symbol_info->type_status != NECRO_TYPE_DONE && ast->variable.var_type == NECRO_VAR_VAR)
+    {
+        NecroDelayScope* current_delay_scope = ast->delay_scope;
+        NecroDelayScope* symbol_delay_scope  = symbol_info->delay_scope;
+        if (current_delay_scope == symbol_delay_scope)
+            return necro_infer_ast_error(infer, NULL, ast, "%s cannot instantaneously depend on itself.\n Consider adding a delay of some kind, such as: seq {init, %s}",
+                necro_intern_get_string(infer->intern, ast->variable.symbol),
+                necro_intern_get_string(infer->intern, ast->variable.symbol));
+    }
+
+    if (symbol_info->type == NULL)
+    {
+        symbol_info->type = necro_new_name(infer, ast->source_loc);
+        symbol_info->type->var.scope = symbol_info->scope;
+        return symbol_info->type;
+    }
+    else if (necro_is_bound_in_scope(infer, symbol_info->type, ast->scope))
+    {
+        return symbol_info->type;
+    }
+    else
+    {
+        return necro_inst(infer, symbol_info->type, ast->scope);
+    }
+    assert(false);
     return NULL;
 }
 
@@ -952,6 +929,29 @@ NecroType* necro_infer_expression_list_pattern(NecroInfer* infer, NecroNode* ast
     NecroType* list = necro_make_con_1(infer, infer->prim_types->list_type, list_type);
     list->source_loc = ast->source_loc;
     return list;
+}
+
+//=====================================================
+// Expression Sequence
+//=====================================================
+NecroType* necro_infer_expression_sequence(NecroInfer* infer, NecroNode* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_EXPRESSION_SEQUENCE);
+    if (necro_is_infer_error(infer)) return NULL;
+    NecroNode* current_cell = ast->expression_sequence.expressions;
+    NecroType* seq_type     = necro_new_name(infer, ast->source_loc);
+    seq_type->source_loc    = ast->source_loc;
+    while (current_cell != NULL)
+    {
+        necro_unify(infer, seq_type, necro_infer_go(infer, current_cell->list.item), ast->scope, seq_type, "While inferring the type for a sequence: ");
+        if (necro_is_infer_error(infer)) return NULL;
+        current_cell = current_cell->list.next_item;
+    }
+    NecroType* sequence = necro_make_con_1(infer, infer->prim_types->sequence_type, seq_type);
+    sequence->source_loc = ast->source_loc;
+    return sequence;
 }
 
 //=====================================================
@@ -1531,6 +1531,7 @@ NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_TOP_DECL:               return necro_infer_top_declaration(infer, ast);
     case NECRO_AST_TUPLE:                  return necro_infer_tuple(infer, ast);
     case NECRO_AST_EXPRESSION_LIST:        return necro_infer_expression_list(infer, ast);
+    case NECRO_AST_EXPRESSION_SEQUENCE:    return necro_infer_expression_sequence(infer, ast);
     case NECRO_AST_CASE:                   return necro_infer_case(infer, ast);
     case NECRO_AST_WILDCARD:               return necro_infer_wildcard(infer, ast);
     case NECRO_AST_ARITHMETIC_SEQUENCE:    return necro_infer_arithmetic_sequence(infer, ast);

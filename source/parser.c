@@ -277,6 +277,12 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
             print_ast_impl(ast, ast_get_node(ast, ast_node->expression_list.expressions), intern, depth + 1);
         break;
 
+    case NECRO_AST_EXPRESSION_SEQUENCE:
+        puts("(Sequence)");
+        if (ast_node->expression_sequence.expressions != null_local_ptr)
+            print_ast_impl(ast, ast_get_node(ast, ast_node->expression_sequence.expressions), intern, depth + 1);
+        break;
+
     case NECRO_AST_TUPLE:
         puts("(tuple)");
         print_ast_impl(ast, ast_get_node(ast, ast_node->expression_list.expressions), intern, depth + 1);
@@ -573,6 +579,7 @@ NecroAST_LocalPtr parse_lambda(NecroParser* parser);
 NecroAST_LocalPtr parse_right_hand_side(NecroParser* parser);
 NecroAST_LocalPtr parse_do(NecroParser* parser);
 NecroAST_LocalPtr parse_expression_list(NecroParser* parser);
+NecroAST_LocalPtr parse_expression_sequence(NecroParser* parser);
 NecroAST_LocalPtr parse_arithmetic_sequence(NecroParser* parser);
 NecroAST_LocalPtr parse_case(NecroParser* parser);
 NecroAST_LocalPtr parse_pat(NecroParser* parser);
@@ -1302,6 +1309,11 @@ NecroAST_LocalPtr parse_application_expression(NecroParser* parser)
 
     if (local_ptr == null_local_ptr && parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
     {
+        local_ptr = parse_expression_sequence(parser);
+    }
+
+    if (local_ptr == null_local_ptr && parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+    {
         local_ptr = parse_arithmetic_sequence(parser);
     }
 
@@ -1716,6 +1728,8 @@ NecroAST_BinOpType token_to_bin_op_type(NECRO_LEX_TOKEN_TYPE token_type)
         return NECRO_BIN_OP_DOUBLE_EXCLAMATION;
     case NECRO_LEX_APPEND:
         return NECRO_BIN_OP_APPEND;
+    // case NECRO_LEX_FBY:
+    //     return NECRO_BIN_OP_FBY;
     default:
         return NECRO_BIN_OP_UNDEFINED;
     }
@@ -2480,13 +2494,6 @@ NecroAST_LocalPtr parse_expression_list(NecroParser* parser)
         else if (look_ahead_token->token != NECRO_LEX_DOUBLE_DOT &&
                 parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
         {
-            // snprintf(
-            //     parser->error_message,
-            //     MAX_ERROR_MESSAGE_SIZE,
-            //     "List expression failed to parse at line %zu, character %zu. Expected closing bracket but found %s",
-            //     look_ahead_token->line_number,
-            //     look_ahead_token->character_number,
-            //     necro_lex_token_type_string(look_ahead_token->token));
             necro_error(&parser->error, look_ahead_token->source_loc, "List expression failed to parse. Expected closing bracket but found %s", necro_lex_token_type_string(look_ahead_token->token));
             parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
         }
@@ -2494,6 +2501,64 @@ NecroAST_LocalPtr parse_expression_list(NecroParser* parser)
 
     restore_parser(parser, snapshot);
     return null_local_ptr;
+}
+
+NecroAST_LocalPtr parse_expression_sequence(NecroParser* parser)
+{
+    const NECRO_LEX_TOKEN_TYPE brace_token_type = peek_token_type(parser);
+    if (brace_token_type == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return null_local_ptr;
+
+    NecroParser_Snapshot snapshot = snapshot_parser(parser);
+
+    if (peek_token(parser)->token != NECRO_LEX_LEFT_BRACE || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    {
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
+    }
+    consume_token(parser); // consume '{' token
+
+    // if (peek_token(parser)->token != NECRO_LEX_PIPE || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    // {
+    //     restore_parser(parser, snapshot);
+    //     return null_local_ptr;
+    // }
+    // consume_token(parser); // consume '|' token
+
+    NecroAST_LocalPtr statement_list_local_ptr = parse_list(parser, NECRO_LEX_COMMA, parse_expression);
+    if (parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    {
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
+    }
+
+    // if (peek_token(parser)->token != NECRO_LEX_PIPE || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    // {
+    //     restore_parser(parser, snapshot);
+    //     return null_local_ptr;
+    // }
+    // consume_token(parser); // consume '|' token
+
+    if (peek_token(parser)->token != NECRO_LEX_RIGHT_BRACE || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    {
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
+    }
+    consume_token(parser); // consume '}' token
+
+    if (statement_list_local_ptr == null_local_ptr)
+    {
+        necro_error(&parser->error, peek_token(parser)->source_loc, "Sequence failed to parse. Cannot have an empty sequence.");
+        parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+        return null_local_ptr;
+    }
+
+    // Success!
+    NecroAST_LocalPtr list_local_ptr = null_local_ptr;
+    NecroAST_Node* list_node = ast_alloc_node_local_ptr(parser, &list_local_ptr);
+    list_node->type = NECRO_AST_EXPRESSION_SEQUENCE;
+    list_node->expression_list.expressions = statement_list_local_ptr;
+    return list_local_ptr;
 }
 
 NecroAST_LocalPtr parse_arithmetic_sequence(NecroParser* parser)

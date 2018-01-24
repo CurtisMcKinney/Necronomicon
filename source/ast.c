@@ -226,6 +226,12 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
             print_reified_ast_impl(ast_node->expression_list.expressions, intern, depth + 1);
         break;
 
+    case NECRO_AST_EXPRESSION_SEQUENCE:
+        puts("Sequence");
+        if (ast_node->expression_sequence.expressions != NULL)
+            print_reified_ast_impl(ast_node->expression_sequence.expressions, intern, depth + 1);
+        break;
+
     case NECRO_AST_TUPLE:
         puts("(tuple)");
         print_reified_ast_impl(ast_node->expression_list.expressions, intern, depth + 1);
@@ -549,6 +555,9 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
         break;
     case NECRO_AST_EXPRESSION_LIST:
         reified_node->expression_list.expressions = necro_reify(a_ast, node->expression_list.expressions, arena);
+        break;
+    case NECRO_AST_EXPRESSION_SEQUENCE:
+        reified_node->expression_sequence.expressions = necro_reify(a_ast, node->expression_sequence.expressions, arena);
         break;
     case NECRO_AST_TUPLE:
         reified_node->tuple.expressions = necro_reify(a_ast, node->tuple.expressions, arena);

@@ -20,7 +20,6 @@
 #define TRACE_TYPE(...)
 #endif
 
-// TODO: make necro_type_string
 // TODO: "Normalize" type variables in printing so that you never print the same variable name twice with two different meanings!
 
 NecroTypeEnv necro_create_type_env(size_t initial_size)

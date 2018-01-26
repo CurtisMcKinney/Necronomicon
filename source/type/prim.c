@@ -60,8 +60,6 @@ NecroPrimDef* necro_prim_def_data(NecroPrimTypes* prim_types, NecroIntern* inter
     assert(data_declaration_ast->data_declaration.simpletype->type == NECRO_AST_SIMPLE_TYPE);
     assert(data_declaration_ast->data_declaration.simpletype->simple_type.type_con != NULL);
     assert(data_declaration_ast->data_declaration.simpletype->simple_type.type_con->type == NECRO_AST_CONID);
-    // assert(data_declaration_ast->data_declaration.constructor_list != NULL);
-    // assert(data_declaration_ast->data_declaration.constructor_list->type == NECRO_AST_LIST_NODE);
     NecroSymbol type_symbol = data_declaration_ast->data_declaration.simpletype->simple_type.type_con->conid.symbol;
     NecroPrimDef*   data_def  = necro_create_prim_def(prim_types, NECRO_PRIM_DEF_DATA, global_name);
     NecroCon        type_name = (NecroCon) { .id = { 0 }, .symbol = type_symbol };
@@ -571,6 +569,10 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     // Primitive Rational type?
 
     // TODO: () isn't printing in type sigs for some reason?!?!?!
+
+    // Any
+    NecroASTNode* any_s_type           = necro_create_simple_type_ast(&prim_types->arena, intern, "Prim@Any", NULL);
+    NecroPrimDef* any_data_def         = necro_prim_def_data(prim_types, intern, NULL, necro_create_data_declaration_ast(&prim_types->arena, intern, any_s_type, NULL));
 
     // ()
     NecroASTNode* unit_s_type           = necro_create_simple_type_ast(&prim_types->arena, intern, "()", NULL);

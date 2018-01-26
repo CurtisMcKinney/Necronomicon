@@ -91,4 +91,13 @@ NecroTypeClassContext*  necro_ast_to_context(NecroInfer* infer, NecroTypeClassEn
 void                    necro_apply_constraints(NecroInfer* infer, NecroType* type, NecroTypeClassContext* context);
 NecroTypeClassContext*  necro_create_type_class_context(NecroPagedArena* arena, NecroCon type_class_name, NecroCon type_var, NecroTypeClassContext* next);
 
+typedef struct
+{
+    NecroPagedArena* arena;
+} NecroTypeClassTranslator;
+void                    necro_type_class_translate_go(NecroTypeClassTranslator* class_translator, NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
+void                    necro_create_dictionary_data_declaration(NecroPagedArena* arena, NecroIntern* intern, NecroASTNode* type_class_ast);
+void                    necro_create_dictionary_instance(NecroPagedArena* arena, NecroIntern* intern, NecroASTNode* type_class_instance_ast);
+void                    necro_create_dictionary_instance2(NecroInfer* infer, NecroTypeClassEnv* class_env, NecroTypeClassInstance* instance, NecroTypeClass* type_class);
+
 #endif // TYPE_CLASS_H

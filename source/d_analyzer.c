@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include "intern.h"
+#include "type_class.h"
 #include "d_analyzer.h"
 
 void necro_strong_connect1(NecroDeclarationGroup* group)
@@ -101,6 +102,18 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
                 d_analyze_go(d_analyzer, curr->top_declaration.declaration);
             curr = curr->top_declaration.next_top_decl;
         }
+
+        // //-----------------------------------------
+        // // Pass 2.5, Add type class dictionary Data Declarations
+        // curr = ast;
+        // while (curr != NULL)
+        // {
+        //     if (curr->top_declaration.declaration->type == NECRO_AST_TYPE_CLASS_DECLARATION)
+        //     {
+        //         // curr->top_declaration.declaration->type_class_declaration.tycls
+        //     }
+        //     curr = curr->top_declaration.next_top_decl;
+        // }
 
         //-----------------------------------------
         // Pass 3, analyze Terms

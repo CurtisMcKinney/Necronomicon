@@ -36,6 +36,7 @@ typedef struct
     struct NecroAST_Node_Reified* qtycls;
     struct NecroAST_Node_Reified* inst;
     struct NecroAST_Node_Reified* declarations; // Points to the next in the list, null_local_ptr if the end
+    struct NecroAST_Node_Reified* dictionary_instance; // Dictionary instance which is generated at compile time by the compiler
 } NecroAST_TypeClassInstance_Reified;
 
 //=====================================================
@@ -47,6 +48,7 @@ typedef struct
     struct NecroAST_Node_Reified* tycls;
     struct NecroAST_Node_Reified* tyvar;
     struct NecroAST_Node_Reified* declarations; // Points to the next in the list, null_local_ptr if the end
+    struct NecroAST_Node_Reified* dictionary_data_declaration; // Dictionary data declaration which is generated at compile time by the compiler
 } NecroAST_TypeClassDeclaration_Reified;
 
 //=====================================================

@@ -123,16 +123,19 @@ void necro_compile_impl(
     *destruct_flags |= BIT(NECRO_PHASE_RENAME);
     if (necro_prim_rename(&prim_types, &renamer) != NECRO_SUCCESS)
     {
+        necro_print_reified_ast(&ast_r, &lexer->intern);
         necro_print_error(&renamer.error, input_string, "Renaming (Prim Pass)");
         return;
     }
     if (necro_rename_declare_pass(&renamer, &ast_r.arena, ast_r.root) != NECRO_SUCCESS)
     {
+        necro_print_reified_ast(&ast_r, &lexer->intern);
         necro_print_error(&renamer.error, input_string, "Renaming (Declare Pass)");
         return;
     }
     if (necro_rename_var_pass(&renamer, &ast_r.arena, ast_r.root) != NECRO_SUCCESS)
     {
+        necro_print_reified_ast(&ast_r, &lexer->intern);
         necro_print_error(&renamer.error, input_string, "Renaming (Var Pass)");
         return;
     }

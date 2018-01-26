@@ -1432,7 +1432,7 @@ NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroNode* ast)
     NecroDeclarationGroupList* groups = ast->top_declaration.group_list;
     while (groups != NULL)
     {
-        if (groups->declaration_group->declaration_ast->type == NECRO_AST_DATA_DECLARATION)
+        if (groups->declaration_group != NULL && groups->declaration_group->declaration_ast->type == NECRO_AST_DATA_DECLARATION)
         {
             if (groups->declaration_group != NULL)
                 necro_infer_assignment(infer, groups->declaration_group);
@@ -1473,10 +1473,9 @@ NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroNode* ast)
     groups = ast->top_declaration.group_list;
     while (groups != NULL)
     {
-        if (groups->declaration_group->declaration_ast->type != NECRO_AST_DATA_DECLARATION)
+        if (groups->declaration_group != NULL && groups->declaration_group->declaration_ast->type != NECRO_AST_DATA_DECLARATION)
         {
-            if (groups->declaration_group != NULL)
-                necro_infer_assignment(infer, groups->declaration_group);
+            necro_infer_assignment(infer, groups->declaration_group);
             if (necro_is_infer_error(infer)) return NULL;
         }
         groups = groups->next;

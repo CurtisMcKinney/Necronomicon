@@ -7,6 +7,7 @@
 #include <inttypes.h>
 #include "intern.h"
 #include "parser.h"
+#include "type_class.h"
 #include "renamer.h"
 
 //=====================================================
@@ -261,6 +262,7 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         rename_declare_go(input_node->type_class_declaration.context, renamer);
         renamer->should_free_type_declare = true;
         rename_declare_go(input_node->type_class_declaration.declarations, renamer);
+        rename_declare_go(input_node->type_class_declaration.dictionary_data_declaration, renamer);
         break;
     case NECRO_AST_TYPE_CLASS_INSTANCE:
         rename_declare_go(input_node->type_class_instance.qtycls, renamer);
@@ -276,6 +278,7 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
             assert(false);
         rename_declare_go(input_node->type_class_instance.declarations, renamer);
         renamer->current_class_instance_symbol = (NecroSymbol) { 0 };
+        rename_declare_go(input_node->type_class_instance.dictionary_instance, renamer);
         break;
 
     case NECRO_AST_TYPE_SIGNATURE:
@@ -507,12 +510,14 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         rename_var_go(input_node->type_class_declaration.tycls, renamer);
         rename_var_go(input_node->type_class_declaration.tyvar, renamer);
         rename_var_go(input_node->type_class_declaration.declarations, renamer);
+        rename_var_go(input_node->type_class_declaration.dictionary_data_declaration, renamer);
         break;
     case NECRO_AST_TYPE_CLASS_INSTANCE:
         rename_var_go(input_node->type_class_instance.context, renamer);
         rename_var_go(input_node->type_class_instance.qtycls, renamer);
         rename_var_go(input_node->type_class_instance.inst, renamer);
         rename_var_go(input_node->type_class_instance.declarations, renamer);
+        rename_var_go(input_node->type_class_instance.dictionary_instance, renamer);
         break;
 
     case NECRO_AST_TYPE_SIGNATURE:

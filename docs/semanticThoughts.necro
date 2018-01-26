@@ -228,8 +228,7 @@ main = synths where
 --   * if/then/else
 --   * case
 --   * sequences, i.e. {}
---   * fby
---   x fby y == seq {x, y} ???
+-- For simplicity there is no fby, use sequences instead.
 -- Values cannot be defined by themselves in the same time scope
 -- Higher-order functions and recursive functions will require some kind of "apply" combinator to be inserted by the compiler
 
@@ -240,8 +239,6 @@ seq     :: Sequence a -> a
 poly    :: Num b => (a -> b) -> Event a -> b
 
 latch  :: Event a -> a
-
-fby :: a -> a -> a
 
 merge :: Event a -> Event a -> Event a
 on    :: a       -> Event b -> Event a
@@ -265,7 +262,7 @@ pat = pattern times values where
 
 main :: Audio
 main = synths where
-    freq1  = mouseX `on` mouseClick |> realToFrac
+    freq1  = on mouseX mouseClick |> realToFrac
     freq2  = pat
     synths = poly synth (merge freq1 freq2)
 

@@ -193,11 +193,34 @@
 
 data Maybe a = Just a | Nothing
 
-class TestClass a where
-    go :: Num b => a -> b -> a
+-- class TestClass a where
+--     go :: Num b => a -> b -> a
+--     no :: a -> Int -> Int
+--
+-- instance (Num a, Eq a) => TestClass (Maybe a) where
+--     go (Just i) _ = Just (i + 1)
+--     go Nothing  _ = Just 0
+--     no _ i = i
+--
+-- testGo  = go Nothing
+--
+-- data Always a = Always a
+--
+-- instance TestClass a => TestClass (Always a) where
+--     go (Always x) b = Always (go x b)
+--     no _ i = i
+--
+-- alwaysTest = Always (Just 0)
+-- goTest = go alwaysTest 1
 
-instance (Num a, Eq a) => TestClass (Maybe a) where
-    go (Just i) _ = Just (i + 1)
-    go Nothing  _ = Just 0
+class SuperClass a where
+    superMethod :: a -> Int
 
-testGo  = go Nothing
+class SuperClass a => SubClass a where
+    subMethod :: Int -> a
+
+instance Num a => SuperClass (Maybe a) where
+    superMethod (Just _) = 0
+
+instance Fractional a => SubClass (Maybe a) where
+    subMethod i = subMethod (superMethod (Just (fromInt i)))

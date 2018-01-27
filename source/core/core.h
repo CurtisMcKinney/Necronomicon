@@ -107,7 +107,14 @@ typedef struct
 {
     NecroVar condid;
     NecroCoreAST_DataExpr arg_list;
+    struct NecroCoreAST_DataCon* next;
 } NecroCoreAST_DataCon;
+
+typedef struct  
+{
+    NecroVar data_id;
+    struct NecroCoreAST_DataCon* con_list;
+} NecroCoreAST_DataDecl;
 
 typedef struct
 {
@@ -165,6 +172,7 @@ typedef struct NecroCoreAST_Expression
         NecroCoreAST_Case case_expr;
         NecroCoreAST_Type type;
         NecroCoreAST_List list;
+        NecroCoreAST_DataDecl data_decl;
     };
 
     enum
@@ -178,6 +186,7 @@ typedef struct NecroCoreAST_Expression
         NECRO_CORE_EXPR_CASE,
         NECRO_CORE_EXPR_TYPE,
         NECRO_CORE_EXPR_LIST, // used for top decls not language lists
+        NECRO_CORE_EXPR_DATA,
         NECRO_CORE_EXPR_COUNT,
         NECRO_CORE_EXPR_UNIMPLEMENTED,
     } expr_type;
@@ -194,6 +203,7 @@ static const char* core_ast_names[] =
     "NECRO_CORE_EXPR_CASE",
     "NECRO_CORE_EXPR_TYPE",
     "NECRO_CORE_EXPR_LIST",
+    "NECRO_CORE_EXPR_DATA",
     "NECRO_CORE_EXPR_COUNT",
     "NECRO_CORE_EXPR_UNIMPLEMENTED"
 };

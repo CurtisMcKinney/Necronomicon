@@ -438,14 +438,16 @@ NecroType* necro_infer_assignment(NecroInfer* infer, NecroDeclarationGroup* decl
         {
             symbol_info = necro_symtable_get(infer->symtable, ast->simple_assignment.id);
             if (symbol_info->type->pre_supplied || symbol_info->type_status == NECRO_TYPE_DONE) { symbol_info->type_status = NECRO_TYPE_DONE; curr->type_checked = true; curr = curr->next;  continue; }
-            symbol_info->type = necro_gen(infer, symbol_info->type, symbol_info->scope->parent);
+            // Attempting to try enforcing the monomorphism restriction
+            // symbol_info->type = necro_gen(infer, symbol_info->type, symbol_info->scope->parent);
+
             // necro_infer_kind(infer, symbol_info->type, infer->star_kind, symbol_info->type, "While declaraing a variable: ");
-            // necro_kind_infer(infer, symbol_info->type, symbol_info->type, "While declaring a variable: ");
-            // if (necro_is_infer_error(infer)) return NULL;
-            // symbol_info->type->type_kind = necro_kind_gen(infer, symbol_info->type->type_kind);
-            // if (necro_is_infer_error(infer)) return NULL;
-            // necro_kind_unify(infer, symbol_info->type->type_kind, infer->star_type_kind, NULL, symbol_info->type, "While declaring a variable: ");
-            // if (necro_is_infer_error(infer)) return NULL;
+            necro_kind_infer(infer, symbol_info->type, symbol_info->type, "While declaring a variable: ");
+            if (necro_is_infer_error(infer)) return NULL;
+            symbol_info->type->type_kind = necro_kind_gen(infer, symbol_info->type->type_kind);
+            if (necro_is_infer_error(infer)) return NULL;
+            necro_kind_unify(infer, symbol_info->type->type_kind, infer->star_type_kind, NULL, symbol_info->type, "While declaring a variable: ");
+            if (necro_is_infer_error(infer)) return NULL;
             symbol_info->type_status = NECRO_TYPE_DONE;
         }
         else if (ast->type == NECRO_AST_APATS_ASSIGNMENT)
@@ -454,12 +456,12 @@ NecroType* necro_infer_assignment(NecroInfer* infer, NecroDeclarationGroup* decl
             if (symbol_info->type->pre_supplied || symbol_info->type_status == NECRO_TYPE_DONE) { symbol_info->type_status = NECRO_TYPE_DONE; curr->type_checked = true; curr = curr->next;  continue; }
             symbol_info->type = necro_gen(infer, symbol_info->type, symbol_info->scope->parent);
             // necro_infer_kind(infer, symbol_info->type, infer->star_kind, symbol_info->type, "While declaraing a variable: ");
-            // necro_kind_infer(infer, symbol_info->type, symbol_info->type, "While declaring a variable: ");
-            // if (necro_is_infer_error(infer)) return NULL;
-            // symbol_info->type->type_kind = necro_kind_gen(infer, symbol_info->type->type_kind);
-            // if (necro_is_infer_error(infer)) return NULL;
-            // necro_kind_unify(infer, symbol_info->type->type_kind, infer->star_type_kind, NULL, symbol_info->type, "While declaring a variable: ");
-            // if (necro_is_infer_error(infer)) return NULL;
+            necro_kind_infer(infer, symbol_info->type, symbol_info->type, "While declaring a variable: ");
+            if (necro_is_infer_error(infer)) return NULL;
+            symbol_info->type->type_kind = necro_kind_gen(infer, symbol_info->type->type_kind);
+            if (necro_is_infer_error(infer)) return NULL;
+            necro_kind_unify(infer, symbol_info->type->type_kind, infer->star_type_kind, NULL, symbol_info->type, "While declaring a variable: ");
+            if (necro_is_infer_error(infer)) return NULL;
             symbol_info->type_status = NECRO_TYPE_DONE;
         }
         else if (ast->type == NECRO_AST_PAT_ASSIGNMENT)
@@ -636,7 +638,7 @@ void necro_gen_pat_go(NecroInfer* infer, NecroNode* ast)
         {
             NecroID    id                                          = ast->variable.id;
             NecroType* proxy_type                                  = infer->symtable->data[id.id].type;
-            infer->symtable->data[id.id].type                      = necro_gen(infer, proxy_type, infer->symtable->data[id.id].scope->parent);
+            // infer->symtable->data[id.id].type                      = necro_gen(infer, proxy_type, infer->symtable->data[id.id].scope->parent);
             infer->symtable->data[ast->variable.id.id].type_status = NECRO_TYPE_DONE;
             // necro_infer_kind(infer, infer->symtable->data[id.id].type, infer->star_kind, infer->symtable->data[id.id].type, "While declaraing a pattern variable: ");
             // infer->symtable->data[id.id].type->type_kind = necro_kind_gen(infer, infer->symtable->data[id.id].type->type_kind);

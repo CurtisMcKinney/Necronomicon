@@ -550,7 +550,8 @@ void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* clas
             // If it's a rigid variable, make sure it has all of the necessary classes in its context already
             while (classes != NULL)
             {
-                if (!necro_context_contains_class(infer->type_class_env, type->var.context, classes))
+                // if (!necro_context_contains_class(infer->type_class_env, type->var.context, classes))
+                if (!necro_context_and_super_classes_contain_class(infer->type_class_env, type->var.context, classes))
                 {
                     necro_infer_error(infer, error_preamble, macro_type, "No instance for \'%s %s\'", necro_intern_get_string(infer->intern, classes->type_class_name.symbol), necro_id_as_character_string(infer, type->var.var));
                     return;
@@ -1862,4 +1863,3 @@ void necro_test_type()
 {
     necro_announce_phase("NecroType");
 }
-

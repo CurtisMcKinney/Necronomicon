@@ -224,3 +224,7 @@ instance Num a => SuperClass (Maybe a) where
 
 instance Fractional a => SubClass (Maybe a) where
     subMethod i = subMethod (superMethod (Just (fromInt i)))
+
+-- data Nope a = Nope a
+-- instance Applicative Nope where
+--     ap (Nope f) (Nope x) = Nope (f x)

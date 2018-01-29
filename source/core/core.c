@@ -418,15 +418,13 @@ NecroCoreAST_DataCon* necro_transform_data_constructor(NecroTransformToCore* cor
         
         {
             NecroCoreAST_Expression* next_core_arg = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-            next_core_arg->expr_type = NECRO_CORE_EXPR_LIST;
-            next_core_arg->list.expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-            next_core_arg->list.expr->expr_type = NECRO_CORE_EXPR_VAR;
-            next_core_arg->list.expr->var.id = ast_variable->variable.id;
-            next_core_arg->list.expr->var.symbol = ast_variable->variable.symbol;
-            next_core_arg->list.next = NULL;
+            next_core_arg->expr_type = NECRO_CORE_EXPR_VAR;
+            next_core_arg->var.id = ast_variable->variable.id;
+            next_core_arg->var.symbol = ast_variable->variable.symbol;
 
             next_core_arg_data_expr->dataExpr_type = NECRO_CORE_DATAEXPR_EXPR;
             next_core_arg_data_expr->expr = next_core_arg;
+            next_core_arg_data_expr->next = NULL;
         }
 
         if (current_core_arg)

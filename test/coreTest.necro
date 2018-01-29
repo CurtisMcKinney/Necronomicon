@@ -31,5 +31,7 @@ simpleCase = case 1 of
 
 data Octopus = OctoHead | OctoTentacles
 
+data Tome a = Page a | Spell a
+
 --octopus = "Octopus"
 

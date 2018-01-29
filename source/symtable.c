@@ -619,8 +619,8 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_R
         necro_build_scopes_go(scoped_symtable, input_node->type_class_declaration.tyvar);
         necro_build_scopes_go(scoped_symtable, input_node->type_class_declaration.declarations);
         // TODO: Get AST arena into here and use that instead of the scope arena!
-        necro_create_dictionary_data_declaration(&scoped_symtable->arena, scoped_symtable->global_table->intern, input_node);
-        necro_build_scopes_go(scoped_symtable, input_node->type_class_declaration.dictionary_data_declaration);
+        // necro_create_dictionary_data_declaration(&scoped_symtable->arena, scoped_symtable->global_table->intern, input_node);
+        // necro_build_scopes_go(scoped_symtable, input_node->type_class_declaration.dictionary_data_declaration);
         necro_scoped_symtable_pop_type_scope(scoped_symtable);
         break;
     case NECRO_AST_TYPE_CLASS_INSTANCE:
@@ -631,8 +631,8 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_R
         necro_build_scopes_go(scoped_symtable, input_node->type_class_instance.inst);
         necro_build_scopes_go(scoped_symtable, input_node->type_class_instance.declarations);
         // TODO: Get AST arena into here and use that instead of the scope arena!
-        necro_create_dictionary_instance(&scoped_symtable->arena, scoped_symtable->global_table->intern, input_node);
-        necro_build_scopes_go(scoped_symtable, input_node->type_class_instance.dictionary_instance);
+        // necro_create_dictionary_instance(&scoped_symtable->arena, scoped_symtable->global_table->intern, input_node);
+        // necro_build_scopes_go(scoped_symtable, input_node->type_class_instance.dictionary_instance);
         necro_scoped_symtable_pop_type_scope(scoped_symtable);
         break;
     case NECRO_AST_TYPE_SIGNATURE:

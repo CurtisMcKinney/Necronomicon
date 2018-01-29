@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include "utility.h"
 #include "hash_table.h"
+#include "renamer.h"
 #include "type.h"
 
 typedef NecroAST_Node_Reified NecroNode;
@@ -72,9 +73,11 @@ typedef struct NecroTypeClassEnv
     NecroTypeClassTable         class_table;
     NecroTypeClassInstanceTable instance_table;
     NecroPagedArena             arena;
+    NecroScopedSymTable*        scoped_symtable;
+    NecroRenamer*               renamer;
 } NecroTypeClassEnv;
 
-NecroTypeClassEnv       necro_create_type_class_env();
+NecroTypeClassEnv       necro_create_type_class_env(NecroScopedSymTable* scoped_symtable, NecroRenamer* renamer);
 void                    necro_destroy_type_class_env(NecroTypeClassEnv* env);
 
 void                    necro_declare_type_classes(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations);
@@ -99,7 +102,7 @@ typedef struct
 } NecroTypeClassTranslator;
 void                    necro_type_class_translate_go(NecroTypeClassTranslator* class_translator, NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
 void                    necro_create_dictionary_data_declaration(NecroPagedArena* arena, NecroIntern* intern, NecroASTNode* type_class_ast);
-void                    necro_create_dictionary_instance(NecroPagedArena* arena, NecroIntern* intern, NecroASTNode* type_class_instance_ast);
+// void                    necro_create_dictionary_instance(NecroPagedArena* arena, NecroIntern* intern, NecroASTNode* type_class_instance_ast);
 void                    necro_create_dictionary_instance2(NecroInfer* infer, NecroTypeClassEnv* class_env, NecroTypeClassInstance* instance, NecroTypeClass* type_class);
 
 #endif // TYPE_CLASS_H

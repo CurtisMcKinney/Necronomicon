@@ -149,7 +149,7 @@ void necro_compile_impl(
     //=====================================================
     necro_announce_phase("Dependency Analysis");
     NecroDependencyAnalyzer d_analyzer = necro_create_dependency_analyzer(&symtable, &lexer->intern);
-    *type_class_env = necro_create_type_class_env();
+    *type_class_env = necro_create_type_class_env(&scoped_symtable, &renamer);
     *infer = necro_create_infer(&lexer->intern, &symtable, &prim_types, type_class_env);
     *destruct_flags |= BIT(NECRO_PHASE_DEPENDENCY_ANALYSIS);
     if (necro_prim_infer(&prim_types, &d_analyzer, infer) != NECRO_SUCCESS)

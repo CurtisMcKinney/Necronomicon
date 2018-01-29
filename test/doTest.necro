@@ -212,19 +212,33 @@ data Maybe a = Just a | Nothing
 --
 -- alwaysTest = Always (Just 0)
 -- goTest = go alwaysTest 1
+--
+class SupremeClass a where
+    supremeMethod :: a -> ()
 
 class SuperClass a where
     superMethod :: a -> Int
 
-class SuperClass a => SubClass a where
+class (SuperClass a, SupremeClass a) => SubClass a where
     subMethod :: Int -> a
 
 instance Num a => SuperClass (Maybe a) where
     superMethod (Just _) = 0
 
-instance Fractional a => SubClass (Maybe a) where
+instance (Fractional a, Eq a) => SupremeClass (Maybe a) where
+    supremeMethod _ = ()
+
+instance (Fractional a, Ord a) => SubClass (Maybe a) where
     subMethod i = subMethod (superMethod (Just (fromInt i)))
 
+instance Functor Maybe where
+    map f (Just x) = Just (f x)
+    map _ Nothing  = Nothing
+
+instance Applicative Maybe where
+    pure                 = Just
+    ap (Just f) (Just x) = Just (f x)
+    ap _        _        = Nothing
 -- data Nope a = Nope a
 -- instance Applicative Nope where
 --     ap (Nope f) (Nope x) = Nope (f x)

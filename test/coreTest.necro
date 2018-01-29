@@ -33,5 +33,7 @@ data Octopus = OctoHead | OctoTentacles
 
 data Tome a = Page a | Spell a
 
+data Tree a = Tip | Node (Tree a) a (Tree a)
+
 --octopus = "Octopus"
 

@@ -29,5 +29,30 @@ simpleCase = case 1 of
                   2 -> 222
                   _ -> satan
 
+data Octopus = OctoHead | OctoTentacles
+
+data Tome a = Page a | Spell a
+
+page = Page 666
+
+readBook = case page of
+                 Page p -> p
+                 Spell s -> s
+
+data Tree a = Tip | Node (Tree a) a (Tree a)
+
+
+ifThenElse = if onePlusTwo == 3 then 4 else 5
+
+oneArgLambda = \a -> 1.23 
+
+twoArgLambda = \a b -> a + b
+
+threeArgLambda = \a b c -> a + b / c
+
+--teaLeaves t = case t of
+--                   Tip -> []
+--                   Node (Tree a) b (Tree c) -> [a, b, c]
+
 --octopus = "Octopus"
 

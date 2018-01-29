@@ -41,6 +41,9 @@ readBook = case page of
 
 data Tree a = Tip | Node (Tree a) a (Tree a)
 
+
+ifThenElse = if onePlusTwo == 3 then 4 else 5
+
 --teaLeaves t = case t of
 --                   Tip -> []
 --                   Node (Tree a) b (Tree c) -> [a, b, c]

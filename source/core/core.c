@@ -167,7 +167,7 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
                         printf("(\'%c\')\n", alt->altCon.lit.char_literal);
                         break;
                     case NECRO_AST_CONSTANT_BOOL:
-                        printf("(%s)\n", alt->altCon.lit.boolean_literal ? " True" : "False");
+                        printf("(%s)\n", alt->altCon.lit.boolean_literal ? "True" : "False");
                         break;
                     default:
                         assert(false);
@@ -258,6 +258,40 @@ NecroCoreAST_Expression* necro_transform_bin_op(NecroTransformToCore* core_trans
     outer_core_app->exprA = inner_core_expr;
     outer_core_app->exprB = necro_transform_to_core_impl(core_transform, bin_op->rhs);
     return outer_core_expr;
+}
+
+NecroCoreAST_Expression* necro_transform_if_then_else(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
+{
+    assert(core_transform);
+    assert(necro_ast_node);
+    assert(necro_ast_node->type == NECRO_AST_IF_THEN_ELSE);
+    if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
+        return NULL;
+
+    NecroAST_IfThenElse_Reified* ast_if_then_else = &necro_ast_node->if_then_else;
+    NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+    core_expr->expr_type = NECRO_CORE_EXPR_CASE;
+    
+    NecroCoreAST_Case* core_case = &core_expr->case_expr;
+    core_case->expr = necro_transform_to_core_impl(core_transform, ast_if_then_else->if_expr);
+    
+    NecroCoreAST_CaseAlt* true_alt = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_CaseAlt));
+    true_alt->expr = necro_transform_to_core_impl(core_transform, ast_if_then_else->then_expr);
+    true_alt->altCon.lit.boolean_literal = true;
+    true_alt->altCon.lit.type = NECRO_AST_CONSTANT_BOOL;
+    true_alt->altCon.altCon_type = NECRO_CORE_CASE_ALT_LITERAL;
+    true_alt->next = NULL;
+
+    NecroCoreAST_CaseAlt* false_alt = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_CaseAlt));
+    false_alt->expr = necro_transform_to_core_impl(core_transform, ast_if_then_else->else_expr);
+    false_alt->altCon.lit.boolean_literal = false;
+    false_alt->altCon.lit.type = NECRO_AST_CONSTANT_BOOL;
+    false_alt->altCon.altCon_type = NECRO_CORE_CASE_ALT_LITERAL;
+    false_alt->next = NULL;
+    true_alt->next = false_alt;
+
+    core_case->alts = true_alt;
+    return core_expr;
 }
 
 NecroCoreAST_Expression* necro_transform_simple_assignment(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
@@ -699,6 +733,9 @@ NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core
     {
     case NECRO_AST_BIN_OP:
         return necro_transform_bin_op(core_transform, necro_ast_node);
+
+    case NECRO_AST_IF_THEN_ELSE:
+        return necro_transform_if_then_else(core_transform, necro_ast_node);
 
     case NECRO_AST_TOP_DECL:
         return necro_transform_top_decl(core_transform, necro_ast_node);

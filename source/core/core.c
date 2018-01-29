@@ -29,11 +29,11 @@ void necro_print_data_con_arg(NecroCoreAST_DataExpr* data_con_arg, NecroIntern* 
     switch (data_con_arg->dataExpr_type)
     {
     case NECRO_CORE_DATAEXPR_DATACON:
-        necro_print_data_con(data_con_arg->dataCon, intern, depth + 1);
+        necro_print_data_con(data_con_arg->dataCon, intern, depth);
         break;
 
     case NECRO_CORE_DATAEXPR_EXPR:
-        necro_print_core_node(data_con_arg->expr, intern, depth + 1);
+        necro_print_core_node(data_con_arg->expr, intern, depth);
         break;
 
     default:

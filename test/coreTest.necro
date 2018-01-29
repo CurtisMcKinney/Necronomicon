@@ -33,7 +33,17 @@ data Octopus = OctoHead | OctoTentacles
 
 data Tome a = Page a | Spell a
 
+page = Page 666
+
+readBook = case page of
+                 Page p -> p
+                 Spell s -> s
+
 data Tree a = Tip | Node (Tree a) a (Tree a)
+
+--teaLeaves t = case t of
+--                   Tip -> []
+--                   Node (Tree a) b (Tree c) -> [a, b, c]
 
 --octopus = "Octopus"
 

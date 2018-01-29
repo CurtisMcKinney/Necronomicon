@@ -128,41 +128,46 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
             while (alt)
             {
                 print_tabs(depth + 2);
+                printf("(AltCon)\n");
 
                 char s_alt_con[512];
+
+                if (alt->altCon.altCon_type != NECRO_CORE_CASE_ALT_DATA)
+                    print_tabs(depth + 3);
+
                 switch (alt->altCon.altCon_type)
                 {
                 case NECRO_CORE_CASE_ALT_DATA:
-                    sprintf_s(s_alt_con, 512, "Data (Unimplemented!!!)");
+                    necro_print_data_con(alt->altCon.dataCon, intern, depth + 3);
                     break;
 
                 case NECRO_CORE_CASE_ALT_LITERAL:
                     switch (alt->altCon.lit.type)
                     {
                     case NECRO_AST_CONSTANT_FLOAT:
-                        sprintf_s(s_alt_con, 512, "(%f)", alt->altCon.lit.double_literal);
+                        printf("(%f)\n", alt->altCon.lit.double_literal);
                         break;
                     case NECRO_AST_CONSTANT_INTEGER:
 #if WIN32
-                        sprintf_s(s_alt_con, 512, "(%lli)", alt->altCon.lit.int_literal);
+                        printf("(%lli)\n", alt->altCon.lit.int_literal);
 #else
-                        sprintf_s(s_alt_con, 512, "(%li)", alt->altCon.lit.int_literal);
+                        printf("(%li)\n", alt->altCon.lit.int_literal);
 #endif
                         break;
                     case NECRO_AST_CONSTANT_STRING:
                     {
                         const char* string = necro_intern_get_string(intern, alt->altCon.lit.symbol);
                         if (string)
-                            sprintf_s(s_alt_con, 512, "(\"%s\")", string);
+                            printf("(\"%s\")\n", string);
                         else
                             assert(false);
                     }
                     break;
                     case NECRO_AST_CONSTANT_CHAR:
-                        sprintf_s(s_alt_con, 512, "(\'%c\')", alt->altCon.lit.char_literal);
+                        printf("(\'%c\')\n", alt->altCon.lit.char_literal);
                         break;
                     case NECRO_AST_CONSTANT_BOOL:
-                        sprintf_s(s_alt_con, 512, "(%s)", alt->altCon.lit.boolean_literal ? " True" : "False");
+                        printf("(%s)\n", alt->altCon.lit.boolean_literal ? " True" : "False");
                         break;
                     default:
                         assert(false);
@@ -171,7 +176,7 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
                     break;
 
                 case NECRO_CORE_CASE_ALT_DEFAULT:
-                    sprintf_s(s_alt_con, 512, "_");
+                    printf("_\n");
                     break;
 
                 default:
@@ -179,7 +184,6 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
                     break;
                 }
 
-                printf("(AltCon: %s)\n", s_alt_con);
                 necro_print_core_node(alt->expr, intern, depth + 3);
                 alt = alt->next;
             }
@@ -376,6 +380,21 @@ NecroCoreAST_Expression* necro_transform_let(NecroTransformToCore* core_transfor
     {
         assert(false && "Let requires a binding!");
     }
+}
+
+NecroCoreAST_Expression* necro_transform_function_expression(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
+{
+    assert(core_transform);
+    assert(necro_ast_node);
+    assert(necro_ast_node->type == NECRO_AST_FUNCTION_EXPRESSION);
+    if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
+        return NULL;
+
+    NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+    core_expr->expr_type = NECRO_CORE_EXPR_APP;
+    core_expr->app.exprA = necro_transform_to_core_impl(core_transform, necro_ast_node->fexpression.aexp);
+    core_expr->app.exprB = necro_transform_to_core_impl(core_transform, necro_ast_node->fexpression.next_fexpression);
+    return core_expr;
 }
 
 NecroCoreAST_Expression* necro_transform_constant(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
@@ -629,6 +648,11 @@ NecroCoreAST_Expression* necro_transform_case(NecroTransformToCore* core_transfo
             case_alt->altCon._defaultPadding = 0;
             break;
 
+        case NECRO_AST_CONSTRUCTOR:
+            case_alt->altCon.altCon_type = NECRO_CORE_CASE_ALT_DATA;
+            case_alt->altCon.dataCon = necro_transform_data_constructor(core_transform, alt->pat);
+            break;
+
         default:
             printf("necro_transform_case pattern type not implemented!: %d\n", alt->pat->type);
             assert(false);
@@ -687,6 +711,9 @@ NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core
 
     case NECRO_AST_LET_EXPRESSION:
         return necro_transform_let(core_transform, necro_ast_node);
+
+    case NECRO_AST_FUNCTION_EXPRESSION:
+        return necro_transform_function_expression(core_transform, necro_ast_node);
 
     case NECRO_AST_CONSTANT:
         return necro_transform_constant(core_transform, necro_ast_node);

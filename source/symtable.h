@@ -25,22 +25,25 @@
 //         * Misc Attributes
 //=====================================================
 struct NecroScope;
+struct NecroDelayScope;
 
 typedef struct
 {
-    NecroSymbol            name;
-    const char*            string_name;
-    NecroID                id;
-    size_t                 data_size;
-    size_t                 local_var_num;
-    NecroSourceLoc         source_loc;
-    struct NecroScope*     scope;
-    NecroASTNode*          ast;
-    NecroDeclarationGroup* declaration_group;
-    NecroAST_Node_Reified* optional_type_signature;
-    NecroType*             type;
-    NECRO_TYPE_STATUS      type_status;
-    bool                   is_method;
+    NecroSymbol             name;
+    const char*             string_name;
+    NecroID                 id;
+    size_t                  data_size;
+    size_t                  local_var_num;
+    NecroSourceLoc          source_loc;
+    struct NecroScope*      scope;
+    struct NecroDelayScope* delay_scope;
+    NecroASTNode*           ast;
+    NecroDeclarationGroup*  declaration_group;
+    NecroAST_Node_Reified*  optional_type_signature;
+    NecroType*              type;
+    NECRO_TYPE_STATUS       type_status;
+    bool                    is_method;
+    bool                    is_constructor;
 } NecroSymbolInfo;
 
 typedef struct NecroSymTable
@@ -58,7 +61,6 @@ NecroID          necro_symtable_insert(NecroSymTable* table, NecroSymbolInfo inf
 NecroSymbolInfo* necro_symtable_get(NecroSymTable* table, NecroID id);
 void             necro_symtable_print(NecroSymTable* table);
 void             necro_symtable_test();
-// NecroSymbolInfo  necro_create_initial_symbol_info(NecroSymbol symbol, NecroSourceLoc source_loc, struct NecroScope* scope);
 NecroSymbolInfo  necro_create_initial_symbol_info(NecroSymbol symbol, NecroSourceLoc source_loc, struct NecroScope* scope, NecroIntern* intern);
 void             necro_print_env_with_symtable(NecroSymTable* table, NecroInfer* infer);
 
@@ -81,15 +83,22 @@ typedef struct NecroScope
     NecroID            last_introduced_id;
 } NecroScope;
 
+typedef struct NecroDelayScope
+{
+    struct NecroDelayScope* parent;
+} NecroDelayScope;
+
 typedef struct
 {
-    NecroPagedArena arena;
-    NecroSymTable*  global_table;
-    NecroScope*     top_scope;
-    NecroScope*     current_scope;
-    NecroScope*     top_type_scope;
-    NecroScope*     current_type_scope;
-    NecroError      error;
+    NecroPagedArena  arena;
+    NecroSymTable*   global_table;
+    NecroScope*      top_scope;
+    NecroScope*      current_scope;
+    NecroScope*      top_type_scope;
+    NecroScope*      current_type_scope;
+    NecroDelayScope* top_delay_scope;
+    NecroDelayScope* current_delay_scope;
+    NecroError       error;
 } NecroScopedSymTable;
 
 NecroScopedSymTable necro_create_scoped_symtable(NecroSymTable* global_table);
@@ -100,6 +109,8 @@ void                necro_scoped_symtable_new_scope(NecroScopedSymTable* table);
 void                necro_scoped_symtable_pop_scope(NecroScopedSymTable* table);
 void                necro_scoped_symtable_new_type_scope(NecroScopedSymTable* table);
 void                necro_scoped_symtable_pop_type_scope(NecroScopedSymTable* table);
+void                necro_scoped_symtable_new_delay_scope(NecroScopedSymTable* table);
+void                necro_scoped_symtable_pop_delay_scope(NecroScopedSymTable* table);
 
 // Names API
 NECRO_RETURN_CODE   necro_build_scopes(NecroScopedSymTable* table, NecroAST_Reified* ast);

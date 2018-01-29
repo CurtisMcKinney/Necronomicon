@@ -7,6 +7,7 @@
 #include <inttypes.h>
 #include "intern.h"
 #include "parser.h"
+#include "type_class.h"
 #include "renamer.h"
 
 //=====================================================
@@ -186,6 +187,9 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
     case NECRO_AST_EXPRESSION_LIST:
         rename_declare_go(input_node->expression_list.expressions, renamer);
         break;
+    case NECRO_AST_EXPRESSION_SEQUENCE:
+        rename_declare_go(input_node->expression_sequence.expressions, renamer);
+        break;
     case NECRO_AST_TUPLE:
         rename_declare_go(input_node->tuple.expressions, renamer);
         break;
@@ -243,12 +247,14 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         rename_declare_go(input_node->simple_type.type_con, renamer);
         rename_declare_go(input_node->simple_type.type_var_list, renamer);
         break;
+
     case NECRO_AST_DATA_DECLARATION:
         rename_declare_go(input_node->data_declaration.simpletype, renamer);
         renamer->should_free_type_declare = false;
         rename_declare_go(input_node->data_declaration.constructor_list, renamer);
         renamer->should_free_type_declare = true;
         break;
+
     case NECRO_AST_TYPE_CLASS_DECLARATION:
         rename_declare_go(input_node->type_class_declaration.tycls, renamer);
         rename_declare_go(input_node->type_class_declaration.tyvar, renamer);
@@ -256,6 +262,7 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         rename_declare_go(input_node->type_class_declaration.context, renamer);
         renamer->should_free_type_declare = true;
         rename_declare_go(input_node->type_class_declaration.declarations, renamer);
+        rename_declare_go(input_node->type_class_declaration.dictionary_data_declaration, renamer);
         break;
     case NECRO_AST_TYPE_CLASS_INSTANCE:
         rename_declare_go(input_node->type_class_instance.qtycls, renamer);
@@ -271,6 +278,7 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
             assert(false);
         rename_declare_go(input_node->type_class_instance.declarations, renamer);
         renamer->current_class_instance_symbol = (NecroSymbol) { 0 };
+        rename_declare_go(input_node->type_class_instance.dictionary_instance, renamer);
         break;
 
     case NECRO_AST_TYPE_SIGNATURE:
@@ -425,6 +433,9 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
     case NECRO_AST_EXPRESSION_LIST:
         rename_var_go(input_node->expression_list.expressions, renamer);
         break;
+    case NECRO_AST_EXPRESSION_SEQUENCE:
+        rename_var_go(input_node->expression_sequence.expressions, renamer);
+        break;
     case NECRO_AST_TUPLE:
         rename_var_go(input_node->tuple.expressions, renamer);
         break;
@@ -491,18 +502,22 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
     case NECRO_AST_DATA_DECLARATION:
         rename_var_go(input_node->data_declaration.simpletype, renamer);
         rename_var_go(input_node->data_declaration.constructor_list, renamer);
+        renamer->scoped_symtable->global_table->data[input_node->data_declaration.simpletype->simple_type.type_con->conid.id.id].declaration_group = necro_append_declaration_group(renamer->arena, input_node, NULL);
+        input_node->data_declaration.declaration_group = renamer->scoped_symtable->global_table->data[input_node->data_declaration.simpletype->simple_type.type_con->conid.id.id].declaration_group;
         break;
     case NECRO_AST_TYPE_CLASS_DECLARATION:
         rename_var_go(input_node->type_class_declaration.context, renamer);
         rename_var_go(input_node->type_class_declaration.tycls, renamer);
         rename_var_go(input_node->type_class_declaration.tyvar, renamer);
         rename_var_go(input_node->type_class_declaration.declarations, renamer);
+        rename_var_go(input_node->type_class_declaration.dictionary_data_declaration, renamer);
         break;
     case NECRO_AST_TYPE_CLASS_INSTANCE:
         rename_var_go(input_node->type_class_instance.context, renamer);
         rename_var_go(input_node->type_class_instance.qtycls, renamer);
         rename_var_go(input_node->type_class_instance.inst, renamer);
         rename_var_go(input_node->type_class_instance.declarations, renamer);
+        rename_var_go(input_node->type_class_instance.dictionary_instance, renamer);
         break;
 
     case NECRO_AST_TYPE_SIGNATURE:

@@ -38,6 +38,7 @@ typedef enum
     NECRO_AST_DO,
     NECRO_AST_LIST_NODE,
     NECRO_AST_EXPRESSION_LIST,
+    NECRO_AST_EXPRESSION_SEQUENCE,
     NECRO_AST_TUPLE,
     NECRO_BIND_ASSIGNMENT,
     NECRO_PAT_BIND_ASSIGNMENT,
@@ -286,6 +287,7 @@ typedef enum
     NECRO_BIN_OP_BIND_LEFT,
     NECRO_BIN_OP_DOUBLE_EXCLAMATION,
     NECRO_BIN_OP_APPEND,
+    NECRO_BIN_OP_FBY,
     NECRO_BIN_OP_COUNT,
     NECRO_BIN_OP_UNDEFINED = NECRO_BIN_OP_COUNT
 } NecroAST_BinOpType;
@@ -346,6 +348,8 @@ static inline const char* bin_op_name(NecroAST_BinOpType type)
         return "(!!)";
     case NECRO_BIN_OP_APPEND:
         return "(++)";
+    case NECRO_BIN_OP_FBY:
+        return "(-->)";
     default:
         return "(Undefined Binary Operator)";
     }
@@ -499,6 +503,15 @@ typedef struct
 } NecroAST_ExpressionList;
 
 //=====================================================
+// AST Expression Sequence
+//=====================================================
+
+typedef struct
+{
+    NecroAST_LocalPtr expressions; // NecroAST_ListNode of expressions
+} NecroAST_ExpressionSequence;
+
+//=====================================================
 // AST Tuple
 //=====================================================
 
@@ -635,7 +648,8 @@ typedef struct
         NecroAST_Lambda lambda;
         NecroAST_Do do_statement;
         NecroAST_ListNode list;
-        NecroAST_ExpressionList expression_list;
+        NecroAST_ExpressionList     expression_list;
+        NecroAST_ExpressionSequence expression_sequence;
         NecroAST_Tuple tuple;
         NecroAST_BindAssignment bind_assignment;
         NecroAST_PatBindAssignment pat_bind_assignment;
@@ -730,6 +744,7 @@ static const NecroParse_BinOpBehavior bin_op_behaviors[NECRO_BIN_OP_COUNT + 1] =
     { 1, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_BIND_LEFT
     { 9, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_DOUBLE_EXCLAMATION
     { 5, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_APPEND
+	// { 1, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_FBY
     { 0, NECRO_BIN_OP_ASSOC_NONE }   // NECRO_BIN_OP_UNDEFINED
 };
 

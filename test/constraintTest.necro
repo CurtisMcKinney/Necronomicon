@@ -1,0 +1,40 @@
+data Maybe  a   = Just a | Nothing
+data Either a b = Left a | Right b
+data Higher f a = Higher (f a)
+data SuperH f g x = SuperH (f g (g x))
+
+-- numTest :: Num a => Maybe a
+-- numTest = Just 10
+
+-- monadTest = pure (pure ())
+
+-- Type checks with or without type signature
+-- super :: (Maybe Int -> f Maybe (Maybe Int)) -> SuperH f Maybe Int
+super f = SuperH (f (Just 10))
+
+-- TODO: To get something like this to work we need constructor constraints!
+-- type should be: (Monad m, Num (m a)) => (a -> m b) -> m b
+-- But we don't support constraints of the form Num (m a) currently
+-- sectionTest0 = (10 >>=)
+-- constraintTest = 10 >>= pure
+
+class Id a where
+    classId :: a -> Int
+
+instance Id a => Id (Maybe a) where
+    classId Nothing  = 0
+    classId (Just x) = classId x
+
+-- idTest :: a -> Int
+idTest x = classId (Just x)
+
+data Set a = Set a
+class CoolClass a where
+    coolMethod :: a -> a
+
+-- -- This correctly fails
+-- instance Functor Set where
+--     map f (Set x) = Set (f (coolMethod x))
+
+-- This correctly works
+test f (Set x) = Set (f (coolMethod x))

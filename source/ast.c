@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include "symtable.h"
+#include "type_class.h"
 #include "ast.h"
 
 #define AST_TAB "  "
@@ -224,6 +225,12 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
         puts("([])");
         if (ast_node->expression_list.expressions != NULL)
             print_reified_ast_impl(ast_node->expression_list.expressions, intern, depth + 1);
+        break;
+
+    case NECRO_AST_EXPRESSION_SEQUENCE:
+        puts("Sequence");
+        if (ast_node->expression_sequence.expressions != NULL)
+            print_reified_ast_impl(ast_node->expression_sequence.expressions, intern, depth + 1);
         break;
 
     case NECRO_AST_TUPLE:
@@ -550,6 +557,9 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
     case NECRO_AST_EXPRESSION_LIST:
         reified_node->expression_list.expressions = necro_reify(a_ast, node->expression_list.expressions, arena);
         break;
+    case NECRO_AST_EXPRESSION_SEQUENCE:
+        reified_node->expression_sequence.expressions = necro_reify(a_ast, node->expression_sequence.expressions, arena);
+        break;
     case NECRO_AST_TUPLE:
         reified_node->tuple.expressions = necro_reify(a_ast, node->tuple.expressions, arena);
         break;
@@ -615,16 +625,18 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
         reified_node->type_class_context.varid = necro_reify(a_ast, node->type_class_context.varid, arena);
         break;
     case NECRO_AST_TYPE_CLASS_DECLARATION:
-        reified_node->type_class_declaration.context      = necro_reify(a_ast, node->type_class_declaration.context, arena);
-        reified_node->type_class_declaration.tycls        = necro_reify(a_ast, node->type_class_declaration.tycls, arena);
-        reified_node->type_class_declaration.tyvar        = necro_reify(a_ast, node->type_class_declaration.tyvar, arena);
-        reified_node->type_class_declaration.declarations = necro_reify(a_ast, node->type_class_declaration.declarations, arena);
+        reified_node->type_class_declaration.context                     = necro_reify(a_ast, node->type_class_declaration.context, arena);
+        reified_node->type_class_declaration.tycls                       = necro_reify(a_ast, node->type_class_declaration.tycls, arena);
+        reified_node->type_class_declaration.tyvar                       = necro_reify(a_ast, node->type_class_declaration.tyvar, arena);
+        reified_node->type_class_declaration.declarations                = necro_reify(a_ast, node->type_class_declaration.declarations, arena);
+        reified_node->type_class_declaration.dictionary_data_declaration = NULL;
         break;
     case NECRO_AST_TYPE_CLASS_INSTANCE:
-        reified_node->type_class_instance.context      = necro_reify(a_ast, node->type_class_instance.context, arena);
-        reified_node->type_class_instance.qtycls       = necro_reify(a_ast, node->type_class_instance.qtycls, arena);
-        reified_node->type_class_instance.inst         = necro_reify(a_ast, node->type_class_instance.inst, arena);
-        reified_node->type_class_instance.declarations = necro_reify(a_ast, node->type_class_instance.declarations, arena);
+        reified_node->type_class_instance.context             = necro_reify(a_ast, node->type_class_instance.context, arena);
+        reified_node->type_class_instance.qtycls              = necro_reify(a_ast, node->type_class_instance.qtycls, arena);
+        reified_node->type_class_instance.inst                = necro_reify(a_ast, node->type_class_instance.inst, arena);
+        reified_node->type_class_instance.declarations        = necro_reify(a_ast, node->type_class_instance.declarations, arena);
+        reified_node->type_class_instance.dictionary_instance = NULL;
         break;
     case NECRO_AST_TYPE_SIGNATURE:
         reified_node->type_signature.var      = necro_reify(a_ast, node->type_signature.var, arena);

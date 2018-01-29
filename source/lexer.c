@@ -73,6 +73,7 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
     case NECRO_LEX_IDENTIFIER:         return "IDENTIFIER";
     case NECRO_LEX_LEFT_ARROW:         return "LEFT_ARROW";
     case NECRO_LEX_RIGHT_ARROW:        return "RIGHT_ARROW";
+    // case NECRO_LEX_FBY:                return "FBY";
     case NECRO_LEX_FAT_RIGHT_ARROW:    return "FAT_RIGHT_ARROW";
     case NECRO_LEX_LEFT_BRACKET:       return "LEFT_BRACKET";
     case NECRO_LEX_RIGHT_BRACKET:      return "RIGHT_BRACKET";
@@ -298,6 +299,7 @@ bool necro_lex_multi_character_token(NecroLexer* lexer)
            necro_lex_token_with_pattern(lexer, "<-",  NECRO_LEX_LEFT_ARROW)         ||
            necro_lex_token_with_pattern(lexer, "->",  NECRO_LEX_RIGHT_ARROW)        ||
            necro_lex_token_with_pattern(lexer, "=>",  NECRO_LEX_FAT_RIGHT_ARROW)    ||
+           // necro_lex_token_with_pattern(lexer, ">->", NECRO_LEX_FBY)                ||
            necro_lex_token_with_pattern(lexer, "..",  NECRO_LEX_DOUBLE_DOT);
 }
 

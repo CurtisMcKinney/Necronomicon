@@ -36,6 +36,7 @@ typedef struct
     struct NecroAST_Node_Reified* qtycls;
     struct NecroAST_Node_Reified* inst;
     struct NecroAST_Node_Reified* declarations; // Points to the next in the list, null_local_ptr if the end
+    struct NecroAST_Node_Reified* dictionary_instance; // Dictionary instance which is generated at compile time by the compiler
 } NecroAST_TypeClassInstance_Reified;
 
 //=====================================================
@@ -47,6 +48,7 @@ typedef struct
     struct NecroAST_Node_Reified* tycls;
     struct NecroAST_Node_Reified* tyvar;
     struct NecroAST_Node_Reified* declarations; // Points to the next in the list, null_local_ptr if the end
+    struct NecroAST_Node_Reified* dictionary_data_declaration; // Dictionary data declaration which is generated at compile time by the compiler
 } NecroAST_TypeClassDeclaration_Reified;
 
 //=====================================================
@@ -76,6 +78,7 @@ typedef struct
 {
     struct NecroAST_Node_Reified* simpletype;
     struct NecroAST_Node_Reified* constructor_list; // Points to the next in the list, null_local_ptr if the end
+    struct NecroDeclarationGroup* declaration_group;
 } NecroAST_DataDeclaration_Reified;
 
 //=====================================================
@@ -260,7 +263,6 @@ typedef struct
     struct NecroAST_Node_Reified* rhs;
     NecroID                       id;
     struct NecroDeclarationGroup* declaration_group;
-    // struct NecroDeclarationsInfo* declarations_info;
 } NecroAST_SimpleAssignment_Reified;
 
 //=====================================================
@@ -301,7 +303,6 @@ typedef struct
     struct NecroAST_Node_Reified* rhs;
     NecroID                       id;
     struct NecroDeclarationGroup* declaration_group;
-    // struct NecroDeclarationsInfo* declarations_info;
 } NecroAST_ApatsAssignment_Reified;
 
 //=====================================================
@@ -312,7 +313,6 @@ typedef struct
     struct NecroAST_Node_Reified* pat;
     struct NecroAST_Node_Reified* rhs;
     struct NecroDeclarationGroup* declaration_group;
-    // struct NecroDeclarationsInfo* declarations_info;
 } NecroAST_PatAssignment_Reified;
 
 //=====================================================
@@ -340,6 +340,14 @@ typedef struct
 {
     struct NecroAST_Node_Reified* expressions; // NecroAST_ListNode of expressions
 } NecroAST_ExpressionList_Reified;
+
+//=====================================================
+// AST Expression Sequence
+//=====================================================
+typedef struct
+{
+    struct NecroAST_Node_Reified* expressions; // NecroAST_ListNode of expressions
+} NecroAST_ExpressionSequence_Reified;
 
 //=====================================================
 // AST Tuple
@@ -456,6 +464,7 @@ typedef struct NecroAST_Node_Reified
         NecroAST_Do_Reified                   do_statement;
         NecroAST_ListNode_Reified             list;
         NecroAST_ExpressionList_Reified       expression_list;
+        NecroAST_ExpressionSequence_Reified   expression_sequence;
         NecroAST_Tuple_Reified                tuple;
         NecroAST_BindAssignment_Reified       bind_assignment;
         NecroAST_PatBindAssignment_Reified    pat_bind_assignment;
@@ -476,9 +485,10 @@ typedef struct NecroAST_Node_Reified
         NecroAST_TypeSignature_Reified        type_signature;
         NecroAST_FunctionType_Reified         function_type;
     };
-    NecroAST_NodeType  type;
-    NecroSourceLoc     source_loc;
-    struct NecroScope* scope;
+    NecroAST_NodeType       type;
+    NecroSourceLoc          source_loc;
+    struct NecroScope*      scope;
+    struct NecroDelayScope* delay_scope;
 } NecroAST_Node_Reified;
 
 typedef struct

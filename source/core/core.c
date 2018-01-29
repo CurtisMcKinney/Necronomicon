@@ -107,6 +107,12 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
         necro_print_core_node(ast_node->app.exprB, intern, depth + 1);
         break;
 
+    case NECRO_CORE_EXPR_LAM:
+        puts("(\\ ->)");
+        necro_print_core_node(ast_node->lambda.arg, intern, depth + 1);
+        necro_print_core_node(ast_node->lambda.expr, intern, depth + 1);
+        break;
+
     case NECRO_CORE_EXPR_LET:
         {
             puts("(Let)");
@@ -311,6 +317,28 @@ NecroCoreAST_Expression* necro_transform_simple_assignment(NecroTransformToCore*
     core_bind->expr = necro_transform_to_core_impl(core_transform, simple_assignment->rhs);
     return core_expr;
 }
+
+NecroCoreAST_Expression* necro_transform_apats_assignment(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
+{
+    assert(core_transform);
+    assert(necro_ast_node);
+    assert(necro_ast_node->type == NECRO_AST_APATS_ASSIGNMENT);
+    if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
+        return NULL;
+
+    NecroAST_ApatsAssignment_Reified* apats_assignment = &necro_ast_node->apats_assignment;
+    NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+    core_expr->expr_type = NECRO_CORE_EXPR_BIND;
+    NecroCoreAST_Bind* core_bind = &core_expr->bind;
+    core_bind->var.symbol = apats_assignment->variable_name;
+    core_bind->var.id = apats_assignment->id;
+
+    // How to handle apats...rhs...?
+
+    core_bind->expr = necro_transform_to_core_impl(core_transform, apats_assignment->rhs);
+    return core_expr;
+}
+
 
 NecroCoreAST_Expression* necro_transform_right_hand_side(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
 {
@@ -631,12 +659,43 @@ NecroCoreAST_Expression* necro_transform_lambda(NecroTransformToCore* core_trans
 {
     assert(core_transform);
     assert(necro_ast_node);
-    assert(necro_ast_node->type == NECRO_AST_CASE);
+    assert(necro_ast_node->type == NECRO_AST_LAMBDA);
     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
         return NULL;
 
-    // IMPLEMENT THIS!
-    assert(false);
+    NecroAST_Lambda_Reified* lambda = &necro_ast_node->lambda;
+    NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+    core_expr->expr_type = NECRO_CORE_EXPR_LAM;
+
+    NecroCoreAST_Expression* last_lambda = NULL;
+    NecroCoreAST_Expression* current_lambda = core_expr;
+    
+    NecroAST_Apats_Reified* apats = &lambda->apats->apats;
+    while (apats)
+    {
+        NecroAST_Node_Reified* apat = apats->apat;
+        current_lambda->lambda.arg = necro_transform_to_core_impl(core_transform, apats->apat);
+        current_lambda->lambda.expr = NULL;
+        
+        if (apats->next_apat)
+        {
+            last_lambda = current_lambda;
+            current_lambda = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+            current_lambda->expr_type = NECRO_CORE_EXPR_LAM;
+            current_lambda->lambda.arg = NULL;
+            current_lambda->lambda.expr = NULL;
+        }
+        
+        if (last_lambda)
+        {
+            last_lambda->lambda.expr = current_lambda;
+        }
+
+        apats = apats->next_apat ? &apats->next_apat->apats : NULL;
+    }
+    
+    current_lambda->lambda.expr = necro_transform_to_core_impl(core_transform, lambda->expression);
+    return core_expr;
 }
 
 NecroCoreAST_Expression* necro_transform_case(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
@@ -742,6 +801,9 @@ NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core
 
     case NECRO_AST_SIMPLE_ASSIGNMENT:
         return necro_transform_simple_assignment(core_transform, necro_ast_node);
+
+    case NECRO_AST_APATS_ASSIGNMENT:
+        return necro_transform_apats_assignment(core_transform, necro_ast_node);
 
     case NECRO_AST_RIGHT_HAND_SIDE:
         return necro_transform_right_hand_side(core_transform, necro_ast_node);

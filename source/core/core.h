@@ -76,7 +76,7 @@ typedef struct
 
 typedef struct
 {
-    NecroVar var;
+    struct NecroCoreAST_Expression* arg;
     struct NecroCoreAST_Expression* expr;
 } NecroCoreAST_Lambda;
 

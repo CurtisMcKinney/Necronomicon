@@ -541,37 +541,6 @@ NecroCoreAST_Expression* necro_transform_top_decl(NecroTransformToCore* core_tra
 
     NecroCoreAST_Expression* top_expression = NULL;
     NecroCoreAST_Expression* next_node = NULL;
-
-    // Data declarations
-    {
-        NecroAST_Node_Reified* current_decl_node = &necro_ast_node->top_declaration.declaration;
-        while (current_decl_node != NULL)
-        {
-            assert(current_decl_node->type == NECRO_AST_TOP_DECL);
-            NecroAST_TopDeclaration_Reified* top_decl = &current_decl_node->top_declaration.declaration;
-            if (top_decl->declaration->type == NECRO_AST_DATA_DECLARATION)
-            {
-                NecroCoreAST_Expression* last_node = next_node;
-                NecroCoreAST_Expression* expression = necro_transform_data_decl(core_transform, top_decl->declaration);
-                next_node = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-                next_node->expr_type = NECRO_CORE_EXPR_LIST;
-                next_node->list.expr = expression;
-                next_node->list.next = NULL;
-
-                if (top_expression == NULL)
-                {
-                    top_expression = next_node;
-                }
-                else
-                {
-                    last_node->list.next = next_node;
-                }
-            }
-            current_decl_node = top_decl->next_top_decl;
-        }
-    }
-
-    // Expression AST
     NecroDeclarationGroupList* group_list = necro_ast_node->top_declaration.group_list;
     assert(group_list);
     while (group_list)
@@ -725,6 +694,9 @@ NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core
 
     case NECRO_AST_VARIABLE:
         return necro_transform_variable(core_transform, necro_ast_node);
+
+    case NECRO_AST_DATA_DECLARATION:
+        return necro_transform_data_decl(core_transform, necro_ast_node);
 
     default:
         printf("necro_transform_to_core transforming AST type unimplemented!: %d\n", necro_ast_node->type);

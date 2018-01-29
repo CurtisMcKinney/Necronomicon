@@ -106,7 +106,7 @@ typedef struct
 typedef struct
 {
     NecroVar condid;
-    NecroCoreAST_DataExpr arg_list;
+    NecroCoreAST_DataExpr* arg_list;
     struct NecroCoreAST_DataCon* next;
 } NecroCoreAST_DataCon;
 

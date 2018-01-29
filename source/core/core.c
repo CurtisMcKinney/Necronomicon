@@ -46,7 +46,7 @@ void necro_print_data_con(NecroCoreAST_DataCon* data_con, NecroIntern* intern, u
 {
     print_tabs(depth);
     printf("(DataCon: %s)", necro_intern_get_string(intern, data_con->condid.symbol));
-    NecroCoreAST_DataExpr* data_con_arg = &data_con->arg_list;
+    NecroCoreAST_DataExpr* data_con_arg = data_con->arg_list;
     while (data_con_arg)
     {
         necro_print_data_con_arg(data_con_arg, intern, depth + 1);
@@ -393,7 +393,7 @@ NecroCoreAST_Expression* necro_transform_constant(NecroTransformToCore* core_tra
     return core_expr;
 }
 
-NecroCoreAST_Expression* necro_transform_data_constructor(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
+NecroCoreAST_DataCon* necro_transform_data_constructor(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
 {
     assert(core_transform);
     assert(necro_ast_node);
@@ -402,15 +402,47 @@ NecroCoreAST_Expression* necro_transform_data_constructor(NecroTransformToCore* 
         return NULL;
 
     NecroAST_Constructor_Reified* ast_constructor = &necro_ast_node->constructor;
+    NecroCoreAST_DataCon* core_datacon = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_DataCon));
+    core_datacon->condid.id = ast_constructor->conid->conid.id;
+    core_datacon->condid.symbol = ast_constructor->conid->conid.symbol;
+    core_datacon->next = NULL;
+    core_datacon->arg_list = NULL;
 
+    NecroCoreAST_DataExpr* current_core_arg = NULL;
     NecroAST_Node_Reified* arg_list = ast_constructor->arg_list;
+
     while (arg_list)
     {
+        NecroAST_Node_Reified* ast_variable = arg_list->list.item;
+        NecroCoreAST_DataExpr* next_core_arg_data_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_DataExpr));
+        
+        {
+            NecroCoreAST_Expression* next_core_arg = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+            next_core_arg->expr_type = NECRO_CORE_EXPR_LIST;
+            next_core_arg->list.expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+            next_core_arg->list.expr->expr_type = NECRO_CORE_EXPR_VAR;
+            next_core_arg->list.expr->var.id = ast_variable->variable.id;
+            next_core_arg->list.expr->var.symbol = ast_variable->variable.symbol;
+            next_core_arg->list.next = NULL;
 
+            next_core_arg_data_expr->dataExpr_type = NECRO_CORE_DATAEXPR_EXPR;
+            next_core_arg_data_expr->expr = next_core_arg;
+        }
+
+        if (current_core_arg)
+        {
+            current_core_arg->next = next_core_arg_data_expr;
+        }
+        else
+        {
+            core_datacon->arg_list = next_core_arg_data_expr;
+        }
+
+        current_core_arg = next_core_arg_data_expr;
         arg_list = arg_list->list.next_item;
     }
 
-    return NULL;
+    return core_datacon;
 }
 
 NecroCoreAST_Expression* necro_transform_data_decl(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
@@ -431,8 +463,8 @@ NecroCoreAST_Expression* necro_transform_data_decl(NecroTransformToCore* core_tr
     core_expr->expr_type = NECRO_CORE_EXPR_DATA;
     core_expr->data_decl.data_id.id = conid->id;
     core_expr->data_decl.data_id.symbol = conid->symbol;
+    core_expr->data_decl.con_list = NULL;
     
-    NecroCoreAST_DataCon* core_data_con = NULL;
     NecroCoreAST_DataCon* current_core_data_con = NULL;
 
     assert(data_decl->constructor_list->type == NECRO_AST_LIST_NODE);
@@ -443,11 +475,20 @@ NecroCoreAST_Expression* necro_transform_data_decl(NecroTransformToCore* core_tr
         assert(list_node->item->type == NECRO_AST_CONSTRUCTOR);
         NecroAST_Constructor_Reified* con = &list_node->item->constructor;
 
-        NecroCoreAST_DataCon* next_core_data_con = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_DataCon));
-
-        if (core_data_con == NULL)
+        NecroCoreAST_DataCon* next_core_data_con = NULL;
+        switch (list_node->item->type)
         {
-            core_data_con = current_core_data_con = next_core_data_con;
+        case NECRO_AST_CONSTRUCTOR:
+            next_core_data_con = necro_transform_data_constructor(core_transform, list_node->item);
+            break;
+        default:
+            assert(false && "Unexpected type during data declaration core transformation!");
+            break;
+        }
+
+        if (core_expr->data_decl.con_list == NULL)
+        {
+            core_expr->data_decl.con_list = current_core_data_con = next_core_data_con;
         }
         else
         {
@@ -455,16 +496,6 @@ NecroCoreAST_Expression* necro_transform_data_decl(NecroTransformToCore* core_tr
             current_core_data_con = next_core_data_con;
         }
 
-        switch (list_node->item->type)
-        {
-        case NECRO_AST_CONSTRUCTOR:
-            current_core_data_con->arg_list.expr = necro_transform_data_constructor(core_transform, list_node->item);
-        default:
-            assert(false && "Unexpected type during data declaration core transformation!");
-            break;
-        }
-
-        current_core_data_con->arg_list.next = NULL;
         list_node = list_node->next_item;
     }
 

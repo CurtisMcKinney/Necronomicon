@@ -205,7 +205,7 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
             NecroCoreAST_DataCon* con = ast_node->data_decl.con_list;
             while (con)
             {
-                necro_print_data_con(ast_node->data_decl.con_list, intern, depth + 1);
+                necro_print_data_con(con, intern, depth + 1);
                 con = con->next;
             }
         }
@@ -488,14 +488,14 @@ NecroCoreAST_Expression* necro_transform_data_decl(NecroTransformToCore* core_tr
 
         if (core_expr->data_decl.con_list == NULL)
         {
-            core_expr->data_decl.con_list = current_core_data_con = next_core_data_con;
+            core_expr->data_decl.con_list = next_core_data_con;
         }
         else
         {
             current_core_data_con->next = next_core_data_con;
-            current_core_data_con = next_core_data_con;
         }
 
+        current_core_data_con = next_core_data_con;
         list_node = list_node->next_item;
     }
 

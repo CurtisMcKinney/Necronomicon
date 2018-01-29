@@ -45,7 +45,7 @@ void necro_print_data_con_arg(NecroCoreAST_DataExpr* data_con_arg, NecroIntern* 
 void necro_print_data_con(NecroCoreAST_DataCon* data_con, NecroIntern* intern, uint32_t depth)
 {
     print_tabs(depth);
-    printf("(DataCon: %s)", necro_intern_get_string(intern, data_con->condid.symbol));
+    printf("(DataCon: %s)\n", necro_intern_get_string(intern, data_con->condid.symbol));
     NecroCoreAST_DataExpr* data_con_arg = data_con->arg_list;
     while (data_con_arg)
     {
@@ -201,7 +201,7 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
 
     case NECRO_CORE_EXPR_DATA:
         {
-            printf("(Data %s)", necro_intern_get_string(intern, ast_node->data_decl.data_id.symbol));
+            printf("(Data %s)\n", necro_intern_get_string(intern, ast_node->data_decl.data_id.symbol));
             NecroCoreAST_DataCon* con = ast_node->data_decl.con_list;
             while (con)
             {

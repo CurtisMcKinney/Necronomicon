@@ -186,21 +186,6 @@ void necro_finish_declaring_type_class(NecroInfer* infer, NecroTypeClassEnv* env
     type_class_var->var.context = necro_create_type_class_context(&infer->arena, type_class->type_class_name, type_class->type_var, type_class->context);
     necro_kind_infer(infer, type_class_var, type_class_var, "While declaring a type class: ");
 
-    // //--------------------------------
-    // // Constrain type class variable via super classes
-    // NecroTypeClassContext* context = type_class->context;
-    // while (context != NULL)
-    // {
-    //     NecroTypeClass* super_class = necro_get_super_class(infer, env, context->type_class_name, type_class->type_class_name);
-    //     if (necro_is_infer_error(infer)) return;
-    //     NecroType*      super_class_var = necro_gen(infer, necro_symtable_get(infer->symtable, super_class->type_var.id)->type, NULL);
-    //     NecroType*      inst_super_var  = necro_inst(infer, super_class_var, NULL);
-    //     type_class_var->var.context = necro_union_contexts(infer, super_class->context, type_class_var->var.context);
-    //     necro_unify(infer, type_class_var, inst_super_var, NULL, type_class_var, "While declaring a type class: ");
-    //     if (necro_is_infer_error(infer)) return;
-    //     context = context->next;
-    // }
-
     NecroTypeClassContext* class_context = necro_create_type_class_context(&infer->arena, type_class->type_class_name, type_class->type_var, NULL);
 
     //--------------------------------
@@ -222,7 +207,6 @@ void necro_finish_declaring_type_class(NecroInfer* infer, NecroTypeClassEnv* env
         type_sig->pre_supplied = true;
         type_sig->source_loc   = declarations->declaration.declaration_impl->source_loc;
         type_sig               = necro_gen(infer, type_sig, NULL);
-        // necro_infer_kind(infer, type_sig, infer->star_kind, type_sig, "While declaring a method of a type class: ");
         necro_kind_infer(infer, type_sig, type_sig, "While declaring a method of a type class: ");
         necro_kind_gen(infer, type_sig->type_kind);
         necro_kind_unify(infer, type_sig->type_kind, infer->star_type_kind, NULL, type_sig, "While declaring a method of a type class");
@@ -794,7 +778,10 @@ NecroTypeClassContext* necro_remove_super_classes(NecroInfer* infer, NecroTypeCl
                 prev->next = curr->next;
             }
         }
-        prev = curr;
+        else
+        {
+            prev = curr;
+        }
         curr = curr->next;
     }
     return head;
@@ -1504,17 +1491,13 @@ NecroASTNode* necro_resolve_dictionaries(NecroInfer* infer, NecroTypeClassEnv* e
     return d_var;
 }
 
-NecroASTNode* necro_resolve_context_to_dictionary(NecroInfer* infer, NecroTypeClassEnv* env, NecroTypeClassContext* context)
+NecroASTNode* necro_resolve_context_to_dictionary(NecroInfer* infer, NecroTypeClassEnv* env, NecroTypeClassContext* context, NecroTypeClassDictionaryContext* dictionary_context)
 {
     NecroType* var_type = NULL;
     if (infer->env.capacity > context->type_var.id.id && infer->env.data[context->type_var.id.id] != NULL)
-    {
         var_type = necro_find(infer, infer->env.data[context->type_var.id.id]);
-    }
     else
-    {
         var_type = necro_find(infer, necro_symtable_get(infer->symtable, context->type_var.id)->type);
-    }
     assert(var_type != NULL);
     switch (var_type->type)
     {
@@ -1535,9 +1518,71 @@ NecroASTNode* necro_resolve_context_to_dictionary(NecroInfer* infer, NecroTypeCl
     return NULL;
 }
 
-void necro_type_class_translate_go(NecroTypeClassTranslator* class_translator, NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast)
+NecroASTNode* necro_resolve_method(NecroInfer* infer, NecroTypeClassEnv* env, NecroTypeClassContext* context, NecroASTNode* ast, NecroTypeClassDictionaryContext* dictionary_context)
 {
-    assert(class_translator != NULL);
+    assert(ast->type == NECRO_AST_VARIABLE);
+    NecroType* var_type = NULL;
+    assert(infer->env.capacity > context->type_var.id.id && infer->env.data[context->type_var.id.id] != NULL);
+    // if (infer->env.capacity > context->type_var.id.id && infer->env.data[context->type_var.id.id] != NULL)
+        var_type = necro_find(infer, infer->env.data[context->type_var.id.id]);
+    // else
+    //     var_type = necro_find(infer, necro_symtable_get(infer->symtable, context->type_var.id)->type);
+    assert(var_type != NULL);
+    switch (var_type->type)
+    {
+    case NECRO_TYPE_VAR:
+    {
+        return NULL;
+    }
+    case NECRO_TYPE_CON:
+    {
+        // Resolve directly to method instance
+        uint64_t                  key       = necro_create_instance_key(var_type->con.con, context->type_class_name);
+        NecroTypeClassInstance*   instance  = necro_type_class_instance_table_get(&env->instance_table, key);
+        NecroDictionaryPrototype* prototype = instance->dictionary_prototype;
+        while (prototype != NULL)
+        {
+            if (prototype->type_class_member_varid.id.id == ast->variable.id.id)
+            {
+                NecroTypeClassContext* method_inst_context = NULL;
+                NecroType*             method_inst_type    = necro_symtable_get(infer->symtable, prototype->prototype_varid.id)->type;
+                method_inst_type = necro_inst_with_context(infer, method_inst_type, ast->scope, &method_inst_context);
+                if (necro_is_infer_error(infer)) return NULL;
+                necro_unify(infer, method_inst_type, ast->necro_type, ast->scope, ast->necro_type, "Compiler bug: Error while resolving a method");
+                NecroASTNode* m_var = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, prototype->prototype_varid.symbol), NECRO_VAR_VAR);
+                m_var->variable.id = prototype->prototype_varid.id;
+                while (method_inst_context != NULL)
+                {
+                    NecroASTNode* d_var = necro_resolve_context_to_dictionary(infer, env, method_inst_context, dictionary_context);
+                    m_var               = necro_create_fexpr_ast(&infer->arena, m_var, d_var);
+                    method_inst_context = method_inst_context->next;
+                }
+                return m_var;
+            }
+            prototype = prototype->next;
+        }
+        assert(false);
+        return NULL;
+    }
+    default:
+        assert(false);
+        return NULL;
+    }
+    return NULL;
+}
+
+NecroTypeClassDictionaryContext* necro_create_type_class_dictionary_context(NecroPagedArena* arena, NecroCon type_class_name, NecroCon type_var_name, NecroASTNode* dictionary_arg_ast, NecroTypeClassDictionaryContext* next)
+{
+    NecroTypeClassDictionaryContext* dictionary_context = necro_paged_arena_alloc(arena, sizeof(NecroTypeClassDictionaryContext));
+    dictionary_context->type_class_name = type_class_name;
+    dictionary_context->type_var_name   = type_var_name;
+    dictionary_context->next            = next;
+    return dictionary_context;
+}
+
+void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_context, NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast)
+{
+    // assert(dictionary_context != NULL);
     assert(infer != NULL);
     assert(env != NULL);
     if (necro_is_infer_error(infer)) return;
@@ -1555,7 +1600,7 @@ void necro_type_class_translate_go(NecroTypeClassTranslator* class_translator, N
         while (curr != NULL)
         {
             if (curr->top_declaration.declaration->type == NECRO_AST_SIMPLE_ASSIGNMENT || curr->top_declaration.declaration->type == NECRO_AST_APATS_ASSIGNMENT || curr->top_declaration.declaration->type == NECRO_AST_PAT_ASSIGNMENT)
-                necro_type_class_translate_go(class_translator, infer, env, curr->top_declaration.declaration);
+                necro_type_class_translate_go(dictionary_context, infer, env, curr->top_declaration.declaration);
             curr = curr->top_declaration.next_top_decl;
         }
         break;
@@ -1567,7 +1612,7 @@ void necro_type_class_translate_go(NecroTypeClassTranslator* class_translator, N
         while (curr != NULL)
         {
             if (curr->top_declaration.declaration->type == NECRO_AST_SIMPLE_ASSIGNMENT || curr->top_declaration.declaration->type == NECRO_AST_APATS_ASSIGNMENT || curr->top_declaration.declaration->type == NECRO_AST_PAT_ASSIGNMENT)
-                necro_type_class_translate_go(class_translator, infer, env, curr->top_declaration.declaration);
+                necro_type_class_translate_go(dictionary_context, infer, env, curr->top_declaration.declaration);
             curr = curr->declaration.next_declaration;
         }
         break;
@@ -1575,36 +1620,80 @@ void necro_type_class_translate_go(NecroTypeClassTranslator* class_translator, N
 
     case NECRO_AST_TYPE_CLASS_INSTANCE:
     {
-        necro_type_class_translate_go(class_translator, infer, env, ast->type_class_instance.context);
-        necro_type_class_translate_go(class_translator, infer, env, ast->type_class_instance.qtycls);
-        necro_type_class_translate_go(class_translator, infer, env, ast->type_class_instance.inst);
-        necro_type_class_translate_go(class_translator, infer, env, ast->type_class_instance.declarations);
+        // TODO!
+        break;
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->type_class_instance.context);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->type_class_instance.qtycls);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->type_class_instance.inst);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->type_class_instance.declarations);
         break;
     }
 
     //=====================================================
     // Assignment type things
     //=====================================================
+    // TODO: SIMPLE ASSIGNMENTS CAN EITHER BE MONOMORPHIC OR GENERALIZED!!!!!!
     case NECRO_AST_SIMPLE_ASSIGNMENT:
     {
-        necro_type_class_translate_go(class_translator, infer, env, ast->simple_assignment.rhs);
+        // TODO: START!
+        // TODO: DEFAULTING!
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->simple_assignment.rhs);
         break;
     }
 
     case NECRO_AST_APATS_ASSIGNMENT:
     {
-        necro_type_class_translate_go(class_translator, infer, env, ast->apats_assignment.apats);
-        necro_type_class_translate_go(class_translator, infer, env, ast->apats_assignment.rhs);
+        // TODO: FINISH!
+        // New local context
+        NecroType*                       type                   = necro_symtable_get(infer->symtable, ast->apats_assignment.id)->type;
+        NecroTypeClassDictionaryContext* new_dictionary_context = dictionary_context;
+        NecroASTNode*                    dictionary_args        = NULL;
+        NecroASTNode*                    dictionary_args_head   = NULL;
+        while (type->type == NECRO_TYPE_FOR)
+        {
+            NecroTypeClassContext* for_all_context = type->for_all.context;
+            while (for_all_context != NULL)
+            {
+                NecroSymbol   dictionary_arg_name = necro_create_dictionary_arg_name(infer->intern, for_all_context->type_class_name.symbol, for_all_context->type_var.symbol);
+                NecroASTNode* dictionary_arg_var  = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, dictionary_arg_name), NECRO_VAR_DECLARATION);
+                // Put in proper scope and assign new ids
+                dictionary_arg_var->scope         = ast->apats_assignment.rhs->scope;
+                necro_rename_declare_pass(env->renamer, &infer->arena, dictionary_arg_var);
+                if (necro_is_infer_error(infer)) return;
+                new_dictionary_context            = necro_create_type_class_dictionary_context(&infer->arena, for_all_context->type_class_name, for_all_context->type_var, dictionary_arg_var, new_dictionary_context);
+                // ID?!!?
+                if (dictionary_args_head == NULL)
+                {
+                    dictionary_args      = necro_create_apat_list_ast(&infer->arena, dictionary_arg_var, NULL);
+                    dictionary_args_head = dictionary_args;
+                }
+                else
+                {
+                    dictionary_args->apats.next_apat = necro_create_apat_list_ast(&infer->arena, dictionary_arg_var, NULL);
+                    dictionary_args                  = dictionary_args->apats.next_apat;
+                }
+                for_all_context = for_all_context->next;
+            }
+            type = type->for_all.type;
+        }
+        if (dictionary_args_head != NULL)
+        {
+            dictionary_args->apats.next_apat = ast->apats_assignment.apats;
+            ast->apats_assignment.apats      = dictionary_args_head;
+        }
+        // necro_type_class_translate_go(new_dictionary_context, infer, env, ast->apats_assignment.apats);
+        necro_type_class_translate_go(new_dictionary_context, infer, env, ast->apats_assignment.rhs);
         break;
     }
 
     case NECRO_AST_PAT_ASSIGNMENT:
-        necro_type_class_translate_go(class_translator, infer, env, ast->pat_assignment.rhs);
+        // TODO: DEFAULTING!
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->pat_assignment.rhs);
         break;
 
     case NECRO_AST_DATA_DECLARATION:
-        necro_type_class_translate_go(class_translator, infer, env, ast->data_declaration.simpletype);
-        necro_type_class_translate_go(class_translator, infer, env, ast->data_declaration.constructor_list);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->data_declaration.simpletype);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->data_declaration.constructor_list);
         break;
 
     case NECRO_AST_VARIABLE:
@@ -1613,71 +1702,18 @@ void necro_type_class_translate_go(NecroTypeClassTranslator* class_translator, N
         case NECRO_VAR_VAR:
         {
             // TODO: FINISH!
-            // TODO: I NEED THE INSTANTIATED TYPE OF THE METHOD!!!!!!!!!
             NecroSymbolInfo* var_info  = necro_symtable_get(infer->symtable, ast->variable.id);
-            NecroType*       var_type  = necro_find(infer, var_info->type);
             NecroType*       inst_type = necro_find(infer, ast->necro_type);
             if (var_info->method_type_class != NULL)
             {
                 NecroASTNode*   var_ast    = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, ast->variable.symbol), NECRO_VAR_VAR);
                 *var_ast                   = *ast;
-                NecroTypeClass* type_class = var_info->method_type_class;
                 NecroTypeClassContext* inst_context = var_ast->variable.inst_context;
                 // TODO: Add selector!!!!
                 // TODO: Put full NecroVar of Instance dictionary into NecroTypeClassInstance, NOT JUST THE SYMBOL!
-                while (inst_context != NULL)
-                {
-                    NecroASTNode* d_var = necro_resolve_context_to_dictionary(infer, env, inst_context);
-                    var_ast             = necro_create_fexpr_ast(&infer->arena, var_ast, d_var);
-                    inst_context = inst_context->next;
-                }
-                *ast = *var_ast;
-                // if (inst_type->type == NECRO_TYPE_VAR)
-                // {
-                // }
-                // else if (inst_type->type == NECRO_TYPE_CON)
-                // {
-                //     // uint64_t                key      = necro_create_instance_key(inst_type->con.con, type_class->type_class_name);
-                //     // NecroTypeClassInstance* instance = necro_type_class_instance_table_get(&env->instance_table, key);
-                //     // // NecroASTNode*           d_var    = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, instance->dictionary_instance_name), NECRO_VAR_VAR);
-                //     // NecroASTNode*           d_var    = necro_resolve_dictionaries(infer, env, instance, ast);
-                //     // *ast                             = *necro_create_fexpr_ast(&infer->arena, var_ast, d_var);
-                //     // YOU ACTUALLY REPLACE the call with the selected method from the instance dictionary!
-                // }
-                // else if (inst_type->type == NECRO_TYPE_FOR)
-                // {
-                //     // NecroTypeClassContext* context = var_type->for_all.context;
-                //     // while (context != NULL)
-                //     // {
-                //     //     uint64_t                key      = necro_create_instance_key(var_type->con.con, type_class->type_class_name);
-                //     //     NecroTypeClassInstance* instance = necro_type_class_instance_table_get(&env->instance_table, key);
-                //     //     // // NecroASTNode*           d_var    = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, instance->dictionary_instance_name), NECRO_VAR_VAR);
-                //     //     // // Resolve overloaded dictionaries!
-                //     //     // NecroASTNode*           d_var    = necro_resolve_dictionaries(infer, env, instance, ast);
-                //     //     // *ast                             = *necro_create_fexpr_ast(&infer->arena, var_ast, d_var);
-                //     // }
-                // }
-                // else if (inst_type->type == NECRO_TYPE_FUN)
-                // {
-                //     // Type classes on functions not currently supported!
-                //     puts("");
-                // }
-                // else
-                // {
-                //     assert(false);
-                // }
+                assert(inst_context != NULL);
+                *ast = *necro_resolve_method(infer, env, inst_context, var_ast, dictionary_context);
             }
-            // NecroASTNode* var      = ast;
-            // while (var_type->type == NECRO_TYPE_FOR)
-            // {
-            //     NecroTypeClassContext* context = var_type->for_all.context;
-            //     while (context != NULL)
-            //     {
-            //         // retrieveDictionaryFromContext(&infer->arena, infer->intern, env, var_type->for_all.context,
-            //         context = context->next;
-            //     }
-            //     var_type = var_type->for_all.type;
-            // }
             break;
         }
         case NECRO_VAR_DECLARATION:          break;
@@ -1699,113 +1735,114 @@ void necro_type_class_translate_go(NecroTypeClassTranslator* class_translator, N
     case NECRO_AST_UN_OP:
         break;
     case NECRO_AST_BIN_OP:
-        necro_type_class_translate_go(class_translator, infer, env, ast->bin_op.lhs);
-        necro_type_class_translate_go(class_translator, infer, env, ast->bin_op.rhs);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->bin_op.lhs);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->bin_op.rhs);
         break;
     case NECRO_AST_IF_THEN_ELSE:
-        necro_type_class_translate_go(class_translator, infer, env, ast->if_then_else.if_expr);
-        necro_type_class_translate_go(class_translator, infer, env, ast->if_then_else.then_expr);
-        necro_type_class_translate_go(class_translator, infer, env, ast->if_then_else.else_expr);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->if_then_else.if_expr);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->if_then_else.then_expr);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->if_then_else.else_expr);
         break;
     case NECRO_AST_OP_LEFT_SECTION:
-        necro_type_class_translate_go(class_translator, infer, env, ast->op_left_section.left);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->op_left_section.left);
         break;
     case NECRO_AST_OP_RIGHT_SECTION:
-        necro_type_class_translate_go(class_translator, infer, env, ast->op_right_section.right);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->op_right_section.right);
         break;
     case NECRO_AST_RIGHT_HAND_SIDE:
-        necro_type_class_translate_go(class_translator, infer, env, ast->right_hand_side.declarations);
-        necro_type_class_translate_go(class_translator, infer, env, ast->right_hand_side.expression);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->right_hand_side.declarations);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->right_hand_side.expression);
         break;
     case NECRO_AST_LET_EXPRESSION:
-        necro_type_class_translate_go(class_translator, infer, env, ast->let_expression.declarations);
-        necro_type_class_translate_go(class_translator, infer, env, ast->let_expression.expression);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->let_expression.declarations);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->let_expression.expression);
         break;
     case NECRO_AST_FUNCTION_EXPRESSION:
-        necro_type_class_translate_go(class_translator, infer, env, ast->fexpression.aexp);
-        necro_type_class_translate_go(class_translator, infer, env, ast->fexpression.next_fexpression);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->fexpression.aexp);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->fexpression.next_fexpression);
         break;
     case NECRO_AST_APATS:
-        necro_type_class_translate_go(class_translator, infer, env, ast->apats.apat);
-        necro_type_class_translate_go(class_translator, infer, env, ast->apats.next_apat);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->apats.apat);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->apats.next_apat);
         break;
     case NECRO_AST_WILDCARD:
         break;
     case NECRO_AST_LAMBDA:
-        necro_type_class_translate_go(class_translator, infer, env, ast->lambda.apats);
-        necro_type_class_translate_go(class_translator, infer, env, ast->lambda.expression);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->lambda.apats);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->lambda.expression);
         break;
     case NECRO_AST_DO:
-        necro_type_class_translate_go(class_translator, infer, env, ast->do_statement.statement_list);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->do_statement.statement_list);
         break;
     case NECRO_AST_LIST_NODE:
-        necro_type_class_translate_go(class_translator, infer, env, ast->list.item);
-        necro_type_class_translate_go(class_translator, infer, env, ast->list.next_item);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->list.item);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->list.next_item);
         break;
     case NECRO_AST_EXPRESSION_LIST:
-        necro_type_class_translate_go(class_translator, infer, env, ast->expression_list.expressions);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->expression_list.expressions);
         break;
     case NECRO_AST_EXPRESSION_SEQUENCE:
-        necro_type_class_translate_go(class_translator, infer, env, ast->expression_sequence.expressions);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->expression_sequence.expressions);
         break;
     case NECRO_AST_TUPLE:
-        necro_type_class_translate_go(class_translator, infer, env, ast->tuple.expressions);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->tuple.expressions);
         break;
     case NECRO_BIND_ASSIGNMENT:
-        necro_type_class_translate_go(class_translator, infer, env, ast->bind_assignment.expression);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->bind_assignment.expression);
         break;
     case NECRO_PAT_BIND_ASSIGNMENT:
-        necro_type_class_translate_go(class_translator, infer, env, ast->pat_bind_assignment.pat);
-        necro_type_class_translate_go(class_translator, infer, env, ast->pat_bind_assignment.expression);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->pat_bind_assignment.pat);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->pat_bind_assignment.expression);
         break;
     case NECRO_AST_ARITHMETIC_SEQUENCE:
-        necro_type_class_translate_go(class_translator, infer, env, ast->arithmetic_sequence.from);
-        necro_type_class_translate_go(class_translator, infer, env, ast->arithmetic_sequence.then);
-        necro_type_class_translate_go(class_translator, infer, env, ast->arithmetic_sequence.to);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->arithmetic_sequence.from);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->arithmetic_sequence.then);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->arithmetic_sequence.to);
         break;
     case NECRO_AST_CASE:
-        necro_type_class_translate_go(class_translator, infer, env, ast->case_expression.expression);
-        necro_type_class_translate_go(class_translator, infer, env, ast->case_expression.alternatives);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->case_expression.expression);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->case_expression.alternatives);
         break;
     case NECRO_AST_CASE_ALTERNATIVE:
-        necro_type_class_translate_go(class_translator, infer, env, ast->case_alternative.pat);
-        necro_type_class_translate_go(class_translator, infer, env, ast->case_alternative.body);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->case_alternative.pat);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->case_alternative.body);
         break;
     case NECRO_AST_TYPE_APP:
-        necro_type_class_translate_go(class_translator, infer, env, ast->type_app.ty);
-        necro_type_class_translate_go(class_translator, infer, env, ast->type_app.next_ty);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->type_app.ty);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->type_app.next_ty);
         break;
     case NECRO_AST_BIN_OP_SYM:
-        necro_type_class_translate_go(class_translator, infer, env, ast->bin_op_sym.left);
-        necro_type_class_translate_go(class_translator, infer, env, ast->bin_op_sym.op);
-        necro_type_class_translate_go(class_translator, infer, env, ast->bin_op_sym.right);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->bin_op_sym.left);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->bin_op_sym.op);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->bin_op_sym.right);
         break;
     case NECRO_AST_CONSTRUCTOR:
-        necro_type_class_translate_go(class_translator, infer, env, ast->constructor.conid);
-        necro_type_class_translate_go(class_translator, infer, env, ast->constructor.arg_list);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->constructor.conid);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->constructor.arg_list);
         break;
     case NECRO_AST_SIMPLE_TYPE:
-        necro_type_class_translate_go(class_translator, infer, env, ast->simple_type.type_con);
-        necro_type_class_translate_go(class_translator, infer, env, ast->simple_type.type_var_list);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->simple_type.type_con);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->simple_type.type_var_list);
         break;
     case NECRO_AST_TYPE_CLASS_DECLARATION:
-        necro_type_class_translate_go(class_translator, infer, env, ast->type_class_declaration.context);
-        necro_type_class_translate_go(class_translator, infer, env, ast->type_class_declaration.tycls);
-        necro_type_class_translate_go(class_translator, infer, env, ast->type_class_declaration.tyvar);
-        necro_type_class_translate_go(class_translator, infer, env, ast->type_class_declaration.declarations);
+        break;
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->type_class_declaration.context);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->type_class_declaration.tycls);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->type_class_declaration.tyvar);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->type_class_declaration.declarations);
         break;
     case NECRO_AST_TYPE_SIGNATURE:
-        necro_type_class_translate_go(class_translator, infer, env, ast->type_signature.var);
-        necro_type_class_translate_go(class_translator, infer, env, ast->type_signature.context);
-        necro_type_class_translate_go(class_translator, infer, env, ast->type_signature.type);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->type_signature.var);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->type_signature.context);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->type_signature.type);
         break;
     case NECRO_AST_TYPE_CLASS_CONTEXT:
-        necro_type_class_translate_go(class_translator, infer, env, ast->type_class_context.conid);
-        necro_type_class_translate_go(class_translator, infer, env, ast->type_class_context.varid);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->type_class_context.conid);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->type_class_context.varid);
         break;
     case NECRO_AST_FUNCTION_TYPE:
-        necro_type_class_translate_go(class_translator, infer, env, ast->function_type.type);
-        necro_type_class_translate_go(class_translator, infer, env, ast->function_type.next_on_arrow);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->function_type.type);
+        necro_type_class_translate_go(dictionary_context, infer, env, ast->function_type.next_on_arrow);
         break;
 
     default:
@@ -1816,8 +1853,9 @@ void necro_type_class_translate_go(NecroTypeClassTranslator* class_translator, N
 
 NECRO_RETURN_CODE necro_type_class_translate(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast)
 {
-    NecroTypeClassTranslator class_translator;
-    necro_type_class_translate_go(&class_translator, infer, env, ast);
+    // NecroTypeClassContext class_translator;
+    // necro_type_class_translate_go(&class_translator, infer, env, ast);
+    necro_type_class_translate_go(NULL, infer, env, ast);
     return infer->error.return_code;
 }
 

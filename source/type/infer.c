@@ -1425,17 +1425,6 @@ NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroNode* ast)
     //----------------------------------------------------
     // Data Declarations
     current_decl = ast;
-    // while (current_decl != NULL)
-    // {
-    //     assert(current_decl->type == NECRO_AST_TOP_DECL);
-    //     if (current_decl->top_declaration.declaration->type == NECRO_AST_DATA_DECLARATION)
-    //     {
-    //         necro_infer_data_declaration(infer, current_decl->top_declaration.declaration);
-    //     }
-    //     if (necro_is_infer_error(infer)) return NULL;
-    //     current_decl = current_decl->top_declaration.next_top_decl;
-    // }
-    // if (necro_is_infer_error(infer)) return NULL;
     NecroDeclarationGroupList* groups = ast->top_declaration.group_list;
     while (groups != NULL)
     {

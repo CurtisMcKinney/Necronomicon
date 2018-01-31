@@ -98,15 +98,23 @@ void                    necro_apply_constraints(NecroInfer* infer, NecroType* ty
 NecroTypeClassContext*  necro_create_type_class_context(NecroPagedArena* arena, NecroCon type_class_name, NecroCon type_var, NecroTypeClassContext* next);
 NecroTypeClassContext*  necro_scrub_super_classes(NecroInfer* infer, NecroTypeClassContext* context);
 
-typedef struct
+// typedef struct
+// {
+//     // NecroPagedArena* arena;
+//     size_t __dummy;
+//     NecroTypeClassContext* current_context;
+// } NecroTypeClassTranslator;
+typedef struct NecroTypeClassDictionaryContext
 {
-    // NecroPagedArena* arena;
-    size_t __dummy;
-    NecroTypeClassContext* current_context;
-} NecroTypeClassTranslator;
-NECRO_RETURN_CODE       necro_type_class_translate(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
-void                    necro_type_class_translate_go(NecroTypeClassTranslator* class_translator, NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
-void                    necro_create_dictionary_data_declaration(NecroPagedArena* arena, NecroIntern* intern, NecroASTNode* type_class_ast);
-void                    necro_create_dictionary_instance2(NecroInfer* infer, NecroTypeClassEnv* class_env, NecroTypeClassInstance* instance, NecroTypeClass* type_class);
+    NecroCon      type_class_name;
+    NecroCon      type_var_name;
+    NecroASTNode* dictionary_arg_ast;
+    struct NecroTypeClassDictionaryContext* next;
+} NecroTypeClassDictionaryContext;
+NecroTypeClassDictionaryContext* necro_create_type_class_dictionary_context(NecroPagedArena* arena, NecroCon type_class_name, NecroCon type_var_name, NecroASTNode* dictionary_arg_ast, NecroTypeClassDictionaryContext* next);
+NECRO_RETURN_CODE                necro_type_class_translate(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
+void                             necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_context, NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
+void                             necro_create_dictionary_data_declaration(NecroPagedArena* arena, NecroIntern* intern, NecroASTNode* type_class_ast);
+void                             necro_create_dictionary_instance2(NecroInfer* infer, NecroTypeClassEnv* class_env, NecroTypeClassInstance* instance, NecroTypeClass* type_class);
 
 #endif // TYPE_CLASS_H

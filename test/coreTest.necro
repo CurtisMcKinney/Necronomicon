@@ -46,11 +46,19 @@ ifThenElse = if onePlusTwo == 3 then 4 else 5
 
 oneArgLambda = \a -> 1.23
 
+oneArgFunc a = 1.23
+
 twoArgLambda = \a b -> a + b
+
+twoArgFunc a b = a + b
 
 threeArgLambda = \a b c -> a + b / c
 
+threeArgFunc a b c = a + b / c
+
 patternLambda = \(Page p) -> p
+
+patternFunc (Page p) = p
 
 teaLeaves t = case t of
                   Tip -> 0 

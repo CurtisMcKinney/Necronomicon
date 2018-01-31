@@ -279,9 +279,19 @@ NecroCoreAST_Expression* necro_transform_apats_assignment(NecroTransformToCore* 
     core_bind->var.symbol = apats_assignment->variable_name;
     core_bind->var.id = apats_assignment->id;
 
-    // How to handle apats...rhs...?
+    if (apats_assignment->apats)
+    {
+        NecroAST_Node_Reified lambda_node;
+        lambda_node.type = NECRO_AST_LAMBDA;
+        lambda_node.lambda.apats = apats_assignment->apats;
+        lambda_node.lambda.expression = apats_assignment->rhs;
+        core_bind->expr = necro_transform_to_core_impl(core_transform, &lambda_node);
+    }
+    else
+    {
+        core_bind->expr = necro_transform_to_core_impl(core_transform, apats_assignment->rhs);
+    }
 
-    core_bind->expr = necro_transform_to_core_impl(core_transform, apats_assignment->rhs);
     return core_expr;
 }
 

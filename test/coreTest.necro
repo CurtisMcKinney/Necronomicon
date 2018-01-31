@@ -50,6 +50,8 @@ twoArgLambda = \a b -> a + b
 
 threeArgLambda = \a b c -> a + b / c
 
+patternLambda = \(Page p) -> p
+
 --teaLeaves t = case t of
 --                   Tip -> []
 --                   Node (Tree a) b (Tree c) -> [a, b, c]

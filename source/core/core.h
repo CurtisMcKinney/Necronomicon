@@ -86,27 +86,10 @@ typedef struct NecroCoreAST_Let
     struct NecroCoreAST_Expression* expr;
 } NecroCoreAST_Let;
 
-typedef struct NecroCoreAST_DataExpr
-{
-    union
-    {
-        struct NecroCoreAST_DataCon* dataCon;
-        struct NecroCoreAST_Expression* expr;
-    };
-
-    enum
-    {
-        NECRO_CORE_DATAEXPR_DATACON,
-        NECRO_CORE_DATAEXPR_EXPR
-    } dataExpr_type;
-
-    struct NecroCoreAST_DataExpr* next;
-} NecroCoreAST_DataExpr;
-
 typedef struct NecroCoreAST_DataCon
 {
     NecroVar condid;
-    NecroCoreAST_DataExpr* arg_list;
+    struct NecroCoreAST_Expression* arg_list;
     struct NecroCoreAST_DataCon* next;
 } NecroCoreAST_DataCon;
 
@@ -116,26 +99,9 @@ typedef struct NecroCoreAST_DataDecl
     struct NecroCoreAST_DataCon* con_list;
 } NecroCoreAST_DataDecl;
 
-typedef struct NecroCoreAST_CaseAltCon
-{
-    union
-    {
-        NecroCoreAST_DataCon* dataCon;
-        NecroAST_Constant_Reified lit;
-        struct NecroCoreAST_CaseAltCon* _defaultPadding;
-    };
-
-    enum
-    {
-        NECRO_CORE_CASE_ALT_DATA,
-        NECRO_CORE_CASE_ALT_LITERAL,
-        NECRO_CORE_CASE_ALT_DEFAULT,
-    } altCon_type;
-} NecroCoreAST_CaseAltCon;
-
 typedef struct NecroCoreAST_CaseAlt
 {
-    NecroCoreAST_CaseAltCon altCon;
+    struct NecroCoreAST_Expression* altCon; // NULL altCon is a wild card
     struct NecroCoreAST_Expression* expr;
     struct NecroCoreAST_CaseAlt* next;
 } NecroCoreAST_CaseAlt;
@@ -173,6 +139,7 @@ typedef struct NecroCoreAST_Expression
         NecroCoreAST_Type type;
         NecroCoreAST_List list;
         NecroCoreAST_DataDecl data_decl;
+        NecroCoreAST_DataCon data_con;
     };
 
     enum
@@ -186,7 +153,8 @@ typedef struct NecroCoreAST_Expression
         NECRO_CORE_EXPR_CASE,
         NECRO_CORE_EXPR_TYPE,
         NECRO_CORE_EXPR_LIST, // used for top decls not language lists
-        NECRO_CORE_EXPR_DATA,
+        NECRO_CORE_EXPR_DATA_DECL,
+        NECRO_CORE_EXPR_DATA_CON,
         NECRO_CORE_EXPR_COUNT,
         NECRO_CORE_EXPR_UNIMPLEMENTED,
     } expr_type;
@@ -203,7 +171,8 @@ static const char* core_ast_names[] =
     "NECRO_CORE_EXPR_CASE",
     "NECRO_CORE_EXPR_TYPE",
     "NECRO_CORE_EXPR_LIST",
-    "NECRO_CORE_EXPR_DATA",
+    "NECRO_CORE_EXPR_DATA_DECL",
+    "NECRO_CORE_EXPR_DATA_CON",
     "NECRO_CORE_EXPR_COUNT",
     "NECRO_CORE_EXPR_UNIMPLEMENTED"
 };

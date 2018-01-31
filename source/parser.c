@@ -114,7 +114,8 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
     switch(ast_node->type)
     {
     case NECRO_AST_BIN_OP:
-        puts(bin_op_name(ast_node->bin_op.type));
+        // puts(bin_op_name(ast_node->bin_op.type));
+        printf("(%s)\n", necro_intern_get_string(intern, ast_node->bin_op.symbol));
         print_ast_impl(ast, ast_get_node(ast, ast_node->bin_op.lhs), intern, depth + 1);
         print_ast_impl(ast, ast_get_node(ast, ast_node->bin_op.rhs), intern, depth + 1);
         break;
@@ -1743,8 +1744,8 @@ NecroAST_LocalPtr parse_binary_expression(NecroParser* parser, NecroAST_LocalPtr
     NecroParser_Snapshot snapshot = snapshot_parser(parser);
 
     NecroLexToken* current_token = peek_token(parser);
-    NecroAST_BinOpType bin_op_type = token_to_bin_op_type(current_token->token);
     NecroSymbol bin_op_symbol = current_token->symbol;
+    NecroAST_BinOpType bin_op_type = token_to_bin_op_type(current_token->token);
     NecroParse_BinOpBehavior bin_op_behavior = bin_op_behaviors[bin_op_type];
 
     if (bin_op_type == NECRO_BIN_OP_UNDEFINED || bin_op_behavior.precedence < min_precedence)
@@ -1759,7 +1760,8 @@ NecroAST_LocalPtr parse_binary_expression(NecroParser* parser, NecroAST_LocalPtr
         while (true)
         {
             current_token = peek_token(parser);
-            bin_op_type = token_to_bin_op_type(current_token->token);
+            bin_op_symbol = current_token->symbol;
+            bin_op_type   = token_to_bin_op_type(current_token->token);
 
 #ifdef PARSE_DEBUG_PRINT
             printf(
@@ -1954,8 +1956,8 @@ NecroAST_LocalPtr parse_op_left_section(NecroParser* parser)
 
     // Op
     const NecroLexToken* bin_op_token = peek_token(parser);
-    const NecroAST_BinOpType bin_op_type = token_to_bin_op_type(bin_op_token->token);
     const NecroSymbol bin_op_symbol = bin_op_token->symbol;
+    const NecroAST_BinOpType bin_op_type = token_to_bin_op_type(bin_op_token->token);
 
     if (bin_op_type == NECRO_BIN_OP_UNDEFINED)
     {
@@ -2000,8 +2002,8 @@ NecroAST_LocalPtr parse_op_right_section(NecroParser* parser)
 
     // Op
     const NecroLexToken* bin_op_token = peek_token(parser);
-    const NecroAST_BinOpType bin_op_type = token_to_bin_op_type(bin_op_token->token);
     const NecroSymbol bin_op_symbol = bin_op_token->symbol;
+    const NecroAST_BinOpType bin_op_type = token_to_bin_op_type(bin_op_token->token);
 
     if (bin_op_type == NECRO_BIN_OP_UNDEFINED)
     {

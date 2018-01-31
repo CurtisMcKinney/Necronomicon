@@ -1730,100 +1730,127 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
 
     case NECRO_AST_UNDEFINED:
         break;
+
     case NECRO_AST_CONSTANT:
         break;
+
     case NECRO_AST_UN_OP:
         break;
+
     case NECRO_AST_BIN_OP:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->bin_op.lhs);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->bin_op.rhs);
         break;
+
     case NECRO_AST_IF_THEN_ELSE:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->if_then_else.if_expr);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->if_then_else.then_expr);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->if_then_else.else_expr);
         break;
+
     case NECRO_AST_OP_LEFT_SECTION:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->op_left_section.left);
         break;
+
     case NECRO_AST_OP_RIGHT_SECTION:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->op_right_section.right);
         break;
+
     case NECRO_AST_RIGHT_HAND_SIDE:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->right_hand_side.declarations);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->right_hand_side.expression);
         break;
+
     case NECRO_AST_LET_EXPRESSION:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->let_expression.declarations);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->let_expression.expression);
         break;
+
     case NECRO_AST_FUNCTION_EXPRESSION:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->fexpression.aexp);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->fexpression.next_fexpression);
         break;
+
     case NECRO_AST_APATS:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->apats.apat);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->apats.next_apat);
         break;
+
     case NECRO_AST_WILDCARD:
         break;
+
     case NECRO_AST_LAMBDA:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->lambda.apats);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->lambda.expression);
         break;
+
     case NECRO_AST_DO:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->do_statement.statement_list);
         break;
+
     case NECRO_AST_LIST_NODE:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->list.item);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->list.next_item);
         break;
+
     case NECRO_AST_EXPRESSION_LIST:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->expression_list.expressions);
         break;
+
     case NECRO_AST_EXPRESSION_SEQUENCE:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->expression_sequence.expressions);
         break;
+
     case NECRO_AST_TUPLE:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->tuple.expressions);
         break;
+
     case NECRO_BIND_ASSIGNMENT:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->bind_assignment.expression);
         break;
+
     case NECRO_PAT_BIND_ASSIGNMENT:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->pat_bind_assignment.pat);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->pat_bind_assignment.expression);
         break;
+
     case NECRO_AST_ARITHMETIC_SEQUENCE:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->arithmetic_sequence.from);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->arithmetic_sequence.then);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->arithmetic_sequence.to);
         break;
+
     case NECRO_AST_CASE:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->case_expression.expression);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->case_expression.alternatives);
         break;
+
     case NECRO_AST_CASE_ALTERNATIVE:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->case_alternative.pat);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->case_alternative.body);
         break;
+
     case NECRO_AST_TYPE_APP:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->type_app.ty);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->type_app.next_ty);
         break;
+
     case NECRO_AST_BIN_OP_SYM:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->bin_op_sym.left);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->bin_op_sym.op);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->bin_op_sym.right);
         break;
+
     case NECRO_AST_CONSTRUCTOR:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->constructor.conid);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->constructor.arg_list);
         break;
+
     case NECRO_AST_SIMPLE_TYPE:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->simple_type.type_con);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->simple_type.type_var_list);
         break;
+
     case NECRO_AST_TYPE_CLASS_DECLARATION:
         break;
         necro_type_class_translate_go(dictionary_context, infer, env, ast->type_class_declaration.context);
@@ -1831,15 +1858,18 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
         necro_type_class_translate_go(dictionary_context, infer, env, ast->type_class_declaration.tyvar);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->type_class_declaration.declarations);
         break;
+
     case NECRO_AST_TYPE_SIGNATURE:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->type_signature.var);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->type_signature.context);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->type_signature.type);
         break;
+
     case NECRO_AST_TYPE_CLASS_CONTEXT:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->type_class_context.conid);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->type_class_context.varid);
         break;
+
     case NECRO_AST_FUNCTION_TYPE:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->function_type.type);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->function_type.next_on_arrow);

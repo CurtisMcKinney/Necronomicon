@@ -23,7 +23,8 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
     switch(ast_node->type)
     {
     case NECRO_AST_BIN_OP:
-        puts(bin_op_name(ast_node->bin_op.type));
+        // puts(bin_op_name(ast_node->bin_op.type));
+        printf("(%s, id: %d)\n", necro_intern_get_string(intern, ast_node->bin_op.symbol), ast_node->bin_op.id.id);
         print_reified_ast_impl(ast_node->bin_op.lhs, intern, depth + 1);
         print_reified_ast_impl(ast_node->bin_op.rhs, intern, depth + 1);
         break;

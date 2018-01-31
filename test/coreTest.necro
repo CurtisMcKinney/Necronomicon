@@ -44,7 +44,7 @@ data Tree a = Tip | Node (Tree a) a (Tree a)
 
 ifThenElse = if onePlusTwo == 3 then 4 else 5
 
-oneArgLambda = \a -> 1.23 
+oneArgLambda = \a -> 1.23
 
 twoArgLambda = \a b -> a + b
 
@@ -52,9 +52,9 @@ threeArgLambda = \a b c -> a + b / c
 
 patternLambda = \(Page p) -> p
 
---teaLeaves t = case t of
+-- teaLeaves t = case t of
 --                   Tip -> []
---                   Node (Tree a) b (Tree c) -> [a, b, c]
-
+--                   Node (Node _ a _) b (Node _ c _) -> [a, b, c]
+--
 --octopus = "Octopus"
 

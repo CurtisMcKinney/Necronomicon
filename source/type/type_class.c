@@ -1316,6 +1316,17 @@ inline NecroSymbol necro_create_dictionary_arg_name(NecroIntern* intern, NecroSy
     return necro_intern_concat_symbols(intern, necro_intern_string(intern, "dictionaryArg@"), type_class_name);
 }
 
+inline NecroSymbol necro_create_selector_name(NecroIntern* intern, NecroSymbol member_name, NecroSymbol dictionary_name)
+{
+    // NecroSymbol   member_name   = member_ast->declaration.declaration_impl->type_signature.var->variable.symbol;
+    NecroSymbol   select_symbol = necro_intern_string(intern, "select@");
+    NecroSymbol   at_symbol     = necro_intern_string(intern, "@");
+    NecroSymbol   selector_name = necro_intern_concat_symbols(intern, select_symbol, member_name);
+    selector_name = necro_intern_concat_symbols(intern, selector_name, at_symbol);
+    selector_name = necro_intern_concat_symbols(intern, selector_name, dictionary_name);
+    return selector_name;
+}
+
 inline NecroSymbol necro_create_dictionary_instance_name(NecroIntern* intern, NecroSymbol type_class_name, NecroASTNode* type_class_instance_ast)
 {
     NecroSymbol dictionary_name          = necro_type_class_name_to_dictionary_name(intern, type_class_name);
@@ -1337,17 +1348,20 @@ inline NecroSymbol necro_create_dictionary_instance_name(NecroIntern* intern, Ne
     return dictionary_instance_name;
 }
 
+// inline NecroSymbol necro_create_(NecroIntern* intern, NecroSymbol type_class_name, NecroASTNode* type_class_instance_ast)
+
 // generalize this to also look up super class dictionaries!
-NecroASTNode* necro_create_selector(NecroPagedArena* arena, NecroIntern* intern, NecroASTNode* type_class_ast, NecroSymbol dictionary_name, NecroASTNode* member_ast)
+// NecroASTNode* necro_create_selector(NecroPagedArena* arena, NecroIntern* intern, NecroASTNode* type_class_ast, NecroSymbol dictionary_name, NecroASTNode* member_ast)
+NecroASTNode* necro_create_selector(NecroPagedArena* arena, NecroIntern* intern, NecroASTNode* type_class_ast, NecroSymbol dictionary_name, void* member_to_select, NecroSymbol selector_name)
 {
-    NecroASTNode* pat_var  = necro_create_variable_ast(arena, intern, "member@", NECRO_VAR_DECLARATION);
-    NecroASTNode* rhs_var  = necro_create_variable_ast(arena, intern, "member@", NECRO_VAR_VAR);
+    NecroASTNode* pat_var  = necro_create_variable_ast(arena, intern, "var@", NECRO_VAR_DECLARATION);
+    NecroASTNode* rhs_var  = necro_create_variable_ast(arena, intern, "var@", NECRO_VAR_VAR);
     NecroASTNode* con_args = NULL;
     NecroASTNode* con_head = NULL;
     NecroASTNode* members  = type_class_ast->type_class_declaration.declarations;
     while (members != NULL)
     {
-        if (members == member_ast)
+        if ((void*)members == member_to_select)
         {
             if (con_head == NULL)
             {
@@ -1380,27 +1394,42 @@ NecroASTNode* necro_create_selector(NecroPagedArena* arena, NecroIntern* intern,
         context = necro_create_ast_list(arena, context, NULL);
     while (context != NULL)
     {
-        if (con_head == NULL)
+        if ((void*)(context->list.item) == member_to_select)
         {
-            con_args = necro_create_apat_list_ast(arena, necro_create_wild_card_ast(arena), NULL);
-            con_head = con_args;
+            if (con_head == NULL)
+            {
+                con_args = necro_create_apat_list_ast(arena, pat_var, NULL);
+                con_head = con_args;
+            }
+            else
+            {
+                con_args->apats.next_apat = necro_create_apat_list_ast(arena, pat_var, NULL);
+                con_args                  = con_args->apats.next_apat;
+            }
         }
         else
         {
-            con_args->apats.next_apat = necro_create_apat_list_ast(arena, necro_create_wild_card_ast(arena), NULL);
-            con_args                  = con_args->list.next_item;
+            if (con_head == NULL)
+            {
+                con_args = necro_create_apat_list_ast(arena, necro_create_wild_card_ast(arena), NULL);
+                con_head = con_args;
+            }
+            else
+            {
+                con_args->apats.next_apat = necro_create_apat_list_ast(arena, necro_create_wild_card_ast(arena), NULL);
+                con_args                  = con_args->list.next_item;
+            }
         }
         context = context->list.next_item;
     }
     NecroASTNode* constructor   = necro_create_data_constructor_ast(arena, intern, necro_intern_get_string(intern, dictionary_name), con_head);
     constructor->constructor.conid->conid.con_type = NECRO_CON_VAR;
     NecroASTNode* selector_args = necro_create_apat_list_ast(arena, constructor, NULL);
-    NecroSymbol   member_name   = member_ast->declaration.declaration_impl->type_signature.var->variable.symbol;
-    NecroSymbol   selector_name = necro_intern_concat_symbols(intern, member_name, dictionary_name);
+    // NecroSymbol   selector_name = necro_create_selector_name(intern, member_ast->declaration.declaration_impl->type_signature.var->variable.symbol, dictionary_name);
     NecroASTNode* selector_rhs  = necro_create_rhs_ast(arena, rhs_var, NULL);
     NecroASTNode* selector_ast  = necro_create_apats_assignment_ast(arena, intern, necro_intern_get_string(intern, selector_name), selector_args, selector_rhs);
-    // puts("--");
-    // necro_print_reified_ast_node(selector_ast, intern);
+    puts("--");
+    necro_print_reified_ast_node(selector_ast, intern);
     return selector_ast;
 }
 
@@ -1448,12 +1477,31 @@ void necro_create_dictionary_data_declaration(NecroPagedArena* arena, NecroInter
     NecroASTNode* dictionary_constructor_list = necro_create_ast_list(arena, dictionary_constructor, NULL);
     NecroASTNode* dictionary_data_declaration = necro_create_data_declaration_ast(arena, intern, dictionary_simple_type, dictionary_constructor_list);
     NecroASTNode* dictionary_declaration_list = NULL;
+
+    // Member selectors
     members = type_class_ast->type_class_declaration.declarations;
     while (members != NULL)
     {
-        dictionary_declaration_list = necro_create_top_level_declaration_list(arena, necro_create_selector(arena, intern, type_class_ast, dictionary_name, members), dictionary_declaration_list);
+        dictionary_declaration_list = necro_create_top_level_declaration_list(arena,
+            necro_create_selector(arena, intern, type_class_ast, dictionary_name, (void*)members, necro_create_selector_name(intern, members->declaration.declaration_impl->type_signature.var->variable.symbol, dictionary_name)),
+                dictionary_declaration_list);
         members = members->declaration.next_declaration;
     }
+
+    // Super class selectors
+    // Messy and inefficient, but oh well...
+    // TODO: Make context ALWAYS a list, even if it's just one item...
+    context = type_class_ast->type_class_declaration.context;
+    if (context != NULL && context->type == NECRO_AST_TYPE_CLASS_CONTEXT)
+        context = necro_create_ast_list(arena, context, NULL);
+    while (context != NULL)
+    {
+        dictionary_declaration_list = necro_create_top_level_declaration_list(arena,
+            necro_create_selector(arena, intern, type_class_ast, dictionary_name, (void*)(context->list.item), necro_create_selector_name(intern, context->list.item->type_class_context.conid->conid.symbol, dictionary_name)),
+                dictionary_declaration_list);
+        context = context->list.next_item;
+    }
+
     type_class_ast->type_class_declaration.dictionary_data_declaration = necro_create_top_level_declaration_list(arena, dictionary_data_declaration, dictionary_declaration_list);
 }
 
@@ -1495,11 +1543,42 @@ void necro_create_dictionary_instance(NecroPagedArena* arena, NecroIntern* inter
     type_class_instance_ast->type_class_instance.dictionary_instance = dictionary_instance;
 }
 
+NecroASTNode* retrieveDictionaryFromContext(NecroPagedArena* arena, NecroIntern* intern, NecroTypeClassEnv* env, NecroTypeClassContext* context, NecroTypeClassContext* dictionary_to_retrieve)
+{
+    // NecroASTNode* dictionaryAST = NULL;
+    while (context != NULL)
+    {
+        // if (necro_context_and_super_classes_contain_class(env, context, dictionary_to_retrieve))
+        // {
+            if (context->type_class_name.id.id == dictionary_to_retrieve->type_class_name.id.id)
+            {
+                return necro_create_variable_ast(arena, intern, necro_intern_get_string(intern, necro_type_class_name_to_dictionary_name(intern, dictionary_to_retrieve->type_class_name.symbol)), NECRO_VAR_VAR);
+            }
+            else
+            {
+                NecroTypeClassContext* super_classes = necro_type_class_table_get(&env->class_table, context->type_class_name.id.id)->context;
+                while (super_classes != NULL)
+                {
+                    NecroASTNode* super_ast = retrieveDictionaryFromContext(arena, intern, env, super_classes, dictionary_to_retrieve);
+                    if (super_ast != NULL)
+                    {
+                        // NecroTypeClassContext*
+                    }
+                    super_classes = super_classes->next;
+                }
+            }
+        // }
+        context = context->next;
+    }
+    return NULL;
+}
+
 // TODO: Make sure to monomorphize!!!!
 // TODO: How the fuck do super classes play into this?
 // TODO: Actual variable ID (Put var in dictionary prototype?)
-// TODO: Include super classes of dictionary context args!
 // TODO: Finish super classes in dictionaries!
+// TODO: Super class dictionary selectors!
+// TODO: Take into account different type vars!
 void necro_create_dictionary_instance2(NecroInfer* infer, NecroTypeClassEnv* class_env, NecroTypeClassInstance* instance, NecroTypeClass* type_class)
 {
     // Second pass, make sure all names have resolved ids generated by the renamer

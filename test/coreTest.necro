@@ -52,9 +52,9 @@ threeArgLambda = \a b c -> a + b / c
 
 patternLambda = \(Page p) -> p
 
--- teaLeaves t = case t of
---                   Tip -> []
---                   Node (Node _ a _) b (Node _ c _) -> [a, b, c]
---
+teaLeaves t = case t of
+                  Tip -> 0 
+                  Node (Node _ a _) b (Node _ c _) -> a + b - c
+
 --octopus = "Octopus"
 

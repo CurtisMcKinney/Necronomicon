@@ -98,12 +98,6 @@ void                    necro_apply_constraints(NecroInfer* infer, NecroType* ty
 NecroTypeClassContext*  necro_create_type_class_context(NecroPagedArena* arena, NecroCon type_class_name, NecroCon type_var, NecroTypeClassContext* next);
 NecroTypeClassContext*  necro_scrub_super_classes(NecroInfer* infer, NecroTypeClassContext* context);
 
-// typedef struct
-// {
-//     // NecroPagedArena* arena;
-//     size_t __dummy;
-//     NecroTypeClassContext* current_context;
-// } NecroTypeClassTranslator;
 typedef struct NecroTypeClassDictionaryContext
 {
     NecroCon      type_class_name;

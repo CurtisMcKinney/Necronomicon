@@ -247,9 +247,3 @@ subTest = subMethod 0
 -- TODO:
 subTest2 :: (Fractional a, Ord a) => Int -> Maybe a
 subTest2 x = subMethod x
-
-plusMinus = 1 - 2 + 3 / 4 * 5
-
--- data Nope a = Nope a
--- instance Applicative Nope where
---     ap (Nope f) (Nope x) = Nope (f x)

@@ -17,6 +17,7 @@ struct NecroAST_Node_Reified;
 struct NecroDeclarationGroup;
 struct NecroDeclarationGroupList;
 struct NecroDeclarationsInfo;
+struct NecroTypeClassContext;
 
 //=====================================================
 // AST FunctionType
@@ -363,6 +364,7 @@ typedef struct
 typedef struct
 {
     struct NecroAST_Node_Reified* statement_list; // NecroAST_ListNode of do statement items
+    struct NecroAST_Node_Reified* monad_dictionary;
 } NecroAST_Do_Reified;
 
 //=====================================================
@@ -370,9 +372,10 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    NecroSymbol    symbol;
-    NecroID        id;
-    NECRO_VAR_TYPE var_type;
+    NecroSymbol                   symbol;
+    NecroID                       id;
+    NECRO_VAR_TYPE                var_type;
+    struct NecroTypeClassContext* inst_context;
 } NecroAST_Variable_Reified;
 
 //=====================================================
@@ -489,6 +492,7 @@ typedef struct NecroAST_Node_Reified
     NecroSourceLoc          source_loc;
     struct NecroScope*      scope;
     struct NecroDelayScope* delay_scope;
+    struct NecroType*       necro_type;
 } NecroAST_Node_Reified;
 
 typedef struct

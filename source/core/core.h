@@ -62,31 +62,31 @@ typedef struct
 //////////////////////
 struct NecroCoreAST_Expression;
 
-typedef struct  
+typedef struct NecroCoreAST_Bind
 {
     NecroVar var;
     struct NecroCoreAST_Expression* expr;
 } NecroCoreAST_Bind;
 
-typedef struct
+typedef struct NecroCoreAST_Application
 {
     struct NecroCoreAST_Expression* exprA;
     struct NecroCoreAST_Expression* exprB;
 } NecroCoreAST_Application;
 
-typedef struct
+typedef struct NecroCoreAST_Lambda
 {
     struct NecroCoreAST_Expression* arg;
     struct NecroCoreAST_Expression* expr;
 } NecroCoreAST_Lambda;
 
-typedef struct
+typedef struct NecroCoreAST_Let
 {
     struct NecroCoreAST_Expression* bind;
     struct NecroCoreAST_Expression* expr;
 } NecroCoreAST_Let;
 
-typedef struct
+typedef struct NecroCoreAST_DataExpr
 {
     union
     {
@@ -103,20 +103,20 @@ typedef struct
     struct NecroCoreAST_DataExpr* next;
 } NecroCoreAST_DataExpr;
 
-typedef struct
+typedef struct NecroCoreAST_DataCon
 {
     NecroVar condid;
     NecroCoreAST_DataExpr* arg_list;
     struct NecroCoreAST_DataCon* next;
 } NecroCoreAST_DataCon;
 
-typedef struct  
+typedef struct NecroCoreAST_DataDecl
 {
     NecroVar data_id;
     struct NecroCoreAST_DataCon* con_list;
 } NecroCoreAST_DataDecl;
 
-typedef struct
+typedef struct NecroCoreAST_CaseAltCon
 {
     union
     {

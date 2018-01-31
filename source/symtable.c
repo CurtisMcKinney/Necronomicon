@@ -53,7 +53,7 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
         .source_loc        = source_loc,
         .scope             = scope,
         .delay_scope       = NULL,
-        .is_method         = false,
+        .method_type_class = NULL,
         .ast               = NULL,
         .declaration_group = NULL,
         .type_status       = NECRO_TYPE_UNCHECKED,
@@ -137,7 +137,7 @@ void necro_symtable_info_print(NecroSymbolInfo info, NecroIntern* intern, size_t
     }
 
     print_white_space(whitespace + 4);
-    if (info.is_method)
+    if (info.method_type_class != NULL)
         printf("is_method:  true\n");
     else
         printf("is_method:  false\n");

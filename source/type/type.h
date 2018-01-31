@@ -41,6 +41,11 @@ typedef struct
     NecroID     id;
 } NecroCon;
 
+inline NecroCon necro_var_to_con(NecroVar var)
+{
+    return (NecroCon) { .symbol = var.symbol, .id = var.id };
+}
+
 //=====================================================
 // NecorType
 //=====================================================
@@ -155,6 +160,7 @@ void*       necro_infer_error(NecroInfer* infer, const char* error_preamble, Nec
 void        necro_unify(NecroInfer* infer, NecroType* type1, NecroType* type2, struct NecroScope* scope, NecroType* macro_type, const char* error_preamble);
 
 NecroType*  necro_inst(NecroInfer* infer, NecroType* poly_type, struct NecroScope* scope);
+NecroType*  necro_inst_with_context(NecroInfer* infer, NecroType* type, struct NecroScope* scope, struct NecroTypeClassContext** inst_context);
 NecroType*  necro_gen(NecroInfer* infer, NecroType* type, struct NecroScope* scope);
 NecroType*  necro_new_name(NecroInfer* infer, NecroSourceLoc source_loc);
 NecroType*  necro_find(NecroInfer* infer, NecroType* type);

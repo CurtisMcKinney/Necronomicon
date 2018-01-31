@@ -239,6 +239,10 @@ instance Applicative Maybe where
     pure                 = Just
     ap (Just f) (Just x) = Just (f x)
     ap _        _        = Nothing
+
+subTest :: Maybe Float
+subTest = subMethod 0
+
 -- data Nope a = Nope a
 -- instance Applicative Nope where
 --     ap (Nope f) (Nope x) = Nope (f x)

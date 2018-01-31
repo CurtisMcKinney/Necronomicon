@@ -36,7 +36,7 @@ typedef struct NecroTypeClassMember
     struct NecroTypeClassMember* next;
 } NecroTypeClassMember;
 
-typedef struct
+typedef struct NecroTypeClass
 {
     NecroNode*             ast;
     NecroType*             type;
@@ -45,6 +45,7 @@ typedef struct
     NecroTypeClassMember*  members;
     NecroTypeClassContext* context;
     size_t                 dependency_flag;
+    NecroSymbol            dictionary_name;
 } NecroTypeClass;
 
 typedef struct NecroDictionaryPrototype
@@ -63,6 +64,7 @@ typedef struct
     NecroDictionaryPrototype* dictionary_prototype;
     NecroType*                data_type;
     size_t                    dependency_flag;
+    NecroSymbol               dictionary_instance_name;
 } NecroTypeClassInstance;
 
 NECRO_DECLARE_ARENA_CHAIN_TABLE(NecroTypeClassInstance, TypeClassInstance, type_class_instance)
@@ -98,11 +100,13 @@ NecroTypeClassContext*  necro_scrub_super_classes(NecroInfer* infer, NecroTypeCl
 
 typedef struct
 {
-    NecroPagedArena* arena;
+    // NecroPagedArena* arena;
+    size_t __dummy;
+    NecroTypeClassContext* current_context;
 } NecroTypeClassTranslator;
+NECRO_RETURN_CODE       necro_type_class_translate(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
 void                    necro_type_class_translate_go(NecroTypeClassTranslator* class_translator, NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
 void                    necro_create_dictionary_data_declaration(NecroPagedArena* arena, NecroIntern* intern, NecroASTNode* type_class_ast);
-// void                    necro_create_dictionary_instance(NecroPagedArena* arena, NecroIntern* intern, NecroASTNode* type_class_instance_ast);
 void                    necro_create_dictionary_instance2(NecroInfer* infer, NecroTypeClassEnv* class_env, NecroTypeClassInstance* instance, NecroTypeClass* type_class);
 
 #endif // TYPE_CLASS_H

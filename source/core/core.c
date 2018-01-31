@@ -62,11 +62,11 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
     switch (ast_node->expr_type)
     {
     case NECRO_CORE_EXPR_VAR:
-        printf("(Var: %s, %d)\n", necro_intern_get_string(intern, ast_node->var.symbol), ast_node->var.id);
+        printf("(Var: %s, %d)\n", necro_intern_get_string(intern, ast_node->var.symbol), ast_node->var.id.id);
         break;
 
     case NECRO_CORE_EXPR_BIND:
-        printf("(Bind: %s, %d)\n", necro_intern_get_string(intern, ast_node->bind.var.symbol), ast_node->bind.var.id);
+        printf("(Bind: %s, %d)\n", necro_intern_get_string(intern, ast_node->bind.var.symbol), ast_node->bind.var.id.id);
         necro_print_core_node(ast_node->bind.expr, intern, depth + 1);
         break;
 
@@ -130,7 +130,7 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
             printf("\r");
             print_tabs(depth + 1);
             puts("(Of)");
-            
+
             while (alt)
             {
                 print_tabs(depth + 2);
@@ -277,10 +277,10 @@ NecroCoreAST_Expression* necro_transform_if_then_else(NecroTransformToCore* core
     NecroAST_IfThenElse_Reified* ast_if_then_else = &necro_ast_node->if_then_else;
     NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
     core_expr->expr_type = NECRO_CORE_EXPR_CASE;
-    
+
     NecroCoreAST_Case* core_case = &core_expr->case_expr;
     core_case->expr = necro_transform_to_core_impl(core_transform, ast_if_then_else->if_expr);
-    
+
     NecroCoreAST_CaseAlt* true_alt = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_CaseAlt));
     true_alt->expr = necro_transform_to_core_impl(core_transform, ast_if_then_else->then_expr);
     true_alt->altCon.lit.boolean_literal = true;
@@ -378,7 +378,7 @@ NecroCoreAST_Expression* necro_transform_right_hand_side(NecroTransformToCore* c
             {
                 core_let_expr = let_expr;
             }
-            
+
             core_let = let;
             core_let->expr = rhs_expression;
             group_list = group_list->next;
@@ -495,7 +495,7 @@ NecroCoreAST_DataCon* necro_transform_data_constructor(NecroTransformToCore* cor
     {
         NecroAST_Node_Reified* ast_item = arg_list->list.item;
         NecroCoreAST_DataExpr* next_core_arg_data_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_DataExpr));
-        
+
         switch (ast_item->type)
         {
         case NECRO_AST_VARIABLE:
@@ -564,7 +564,7 @@ NecroCoreAST_Expression* necro_transform_data_decl(NecroTransformToCore* core_tr
     core_expr->data_decl.data_id.id = conid->id;
     core_expr->data_decl.data_id.symbol = conid->symbol;
     core_expr->data_decl.con_list = NULL;
-    
+
     NecroCoreAST_DataCon* current_core_data_con = NULL;
 
     assert(data_decl->constructor_list->type == NECRO_AST_LIST_NODE);
@@ -598,7 +598,7 @@ NecroCoreAST_Expression* necro_transform_data_decl(NecroTransformToCore* core_tr
         current_core_data_con = next_core_data_con;
         list_node = list_node->next_item;
     }
-    
+
     return core_expr;
 }
 
@@ -669,14 +669,14 @@ NecroCoreAST_Expression* necro_transform_lambda(NecroTransformToCore* core_trans
 
     NecroCoreAST_Expression* last_lambda = NULL;
     NecroCoreAST_Expression* current_lambda = core_expr;
-    
+
     NecroAST_Apats_Reified* apats = &lambda->apats->apats;
     while (apats)
     {
         NecroAST_Node_Reified* apat = apats->apat;
         current_lambda->lambda.arg = necro_transform_to_core_impl(core_transform, apats->apat);
         current_lambda->lambda.expr = NULL;
-        
+
         if (apats->next_apat)
         {
             last_lambda = current_lambda;
@@ -685,7 +685,7 @@ NecroCoreAST_Expression* necro_transform_lambda(NecroTransformToCore* core_trans
             current_lambda->lambda.arg = NULL;
             current_lambda->lambda.expr = NULL;
         }
-        
+
         if (last_lambda)
         {
             last_lambda->lambda.expr = current_lambda;
@@ -693,7 +693,7 @@ NecroCoreAST_Expression* necro_transform_lambda(NecroTransformToCore* core_trans
 
         apats = apats->next_apat ? &apats->next_apat->apats : NULL;
     }
-    
+
     current_lambda->lambda.expr = necro_transform_to_core_impl(core_transform, lambda->expression);
     return core_expr;
 }

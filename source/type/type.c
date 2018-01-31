@@ -887,20 +887,14 @@ NecroInstSub* necro_create_inst_sub(NecroInfer* infer, NecroVar var_to_replace, 
 {
     NecroType* type_var      = necro_new_name(infer, source_loc);
     type_var->var.var.symbol = var_to_replace.symbol;
-    // if (necro_symtable_get(infer->symtable, var_to_replace.id) != NULL && necro_symtable_get(infer->symtable, var_to_replace.id)->type != NULL && necro_symtable_get(infer->symtable, var_to_replace.id)->type->kind != NULL)
     if (necro_symtable_get(infer->symtable, var_to_replace.id) != NULL && necro_symtable_get(infer->symtable, var_to_replace.id)->type != NULL)// && necro_symtable_get(infer->symtable, var_to_replace.id)->type->type_kind != NULL)
     {
         NecroType* find_type = necro_find(infer, necro_symtable_get(infer->symtable, var_to_replace.id)->type);
         if (find_type != NULL && find_type->type_kind != NULL)
             type_var->type_kind = find_type->type_kind;
-        // type_var->kind = necro_symtable_get(infer->symtable, var_to_replace.id)->type->kind;
-        // type_var->type_kind = necro_symtable_get(infer->symtable, var_to_replace.id)->type->type_kind;
     }
-    // else if (infer->env.capacity > var_to_replace.id.id && infer->env.data[var_to_replace.id.id] != NULL && infer->env.data[var_to_replace.id.id]->kind != NULL)
     else if (infer->env.capacity > var_to_replace.id.id && infer->env.data[var_to_replace.id.id] != NULL)// && infer->env.data[var_to_replace.id.id]->type_kind != NULL)
     {
-        // type_var->kind = infer->env.data[var_to_replace.id.id]->kind;
-        // type_var->type_kind = infer->env.data[var_to_replace.id.id]->type_kind;
         NecroType* find_type = necro_find(infer, infer->env.data[var_to_replace.id.id]);
         if (find_type != NULL && find_type->type_kind != NULL)
             type_var->type_kind = find_type->type_kind;
@@ -965,8 +959,41 @@ NecroType* necro_inst(NecroInfer* infer, NecroType* type, NecroScope* scope)
         current_type = current_type->for_all.type;
     }
     NecroType* result = necro_inst_go(infer, current_type, subs, scope);
-    // necro_infer_kind(infer, result, infer->star_kind, result, NULL);
-    // necro_kind_infer(infer, result, result, "While instantiating a type variable");
+    necro_kind_infer(infer, result, result, "While instantiating a type variable");
+    return result;
+}
+
+NecroType* necro_inst_with_context(NecroInfer* infer, NecroType* type, NecroScope* scope, NecroTypeClassContext** context)
+{
+    assert(infer != NULL);
+    assert(type != NULL);
+    type = necro_find(infer, type);
+    NecroType*    current_type = type;
+    NecroInstSub* subs         = NULL;
+    *context                   = NULL;
+    NecroTypeClassContext* curr_context = NULL;
+    while (current_type->type == NECRO_TYPE_FOR)
+    {
+        subs         = necro_create_inst_sub(infer, current_type->for_all.var, type->source_loc, current_type->for_all.context, subs);
+        NecroTypeClassContext* for_all_context = current_type->for_all.context;
+        while (for_all_context != NULL)
+        {
+            if (*context == NULL)
+            {
+                curr_context = necro_create_type_class_context(&infer->arena, for_all_context->type_class_name, necro_var_to_con(subs->new_name->var.var), NULL);
+                *context     = curr_context;
+            }
+            else
+            {
+                curr_context->next = necro_create_type_class_context(&infer->arena, for_all_context->type_class_name, necro_var_to_con(subs->new_name->var.var), NULL);
+                curr_context       = curr_context->next;
+            }
+            for_all_context = for_all_context->next;
+        }
+        current_type = current_type->for_all.type;
+    }
+    NecroType* result = necro_inst_go(infer, current_type, subs, scope);
+    necro_kind_infer(infer, result, result, "While instantiating a type variable");
     return result;
 }
 
@@ -1050,6 +1077,7 @@ NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type, NecroGenResult p
                 type_var->var.is_rigid   = true;
                 type_var->var.context    = type->var.context;
                 type_var->type_kind      = type->type_kind;
+                // necr_bind_type_var(infer, type->var.var, type_var);
             }
             else
             {
@@ -1144,8 +1172,6 @@ NecroType* necro_gen(NecroInfer* infer, NecroType* type, NecroScope* scope)
             {
                 assert(tail->for_all.type == NULL);
                 tail->for_all.type = result.type;
-                // necro_infer_kind(infer, head, infer->star_kind, head, NULL);
-                // necro_infer_kind(infer, head, NULL, head, NULL);
                 necro_kind_infer(infer, head, head, "While generalizing a type:");
                 return head;
             }
@@ -1153,8 +1179,6 @@ NecroType* necro_gen(NecroInfer* infer, NecroType* type, NecroScope* scope)
     }
     else
     {
-        // necro_infer_kind(infer, result.type, infer->star_kind, result.type, NULL);
-        // necro_infer_kind(infer, result.type, NULL, result.type, NULL);
         necro_kind_infer(infer, result.type, result.type, "While generalizing a type:");
         return result.type;
     }

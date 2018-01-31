@@ -705,7 +705,7 @@ NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast)
     if (symbol_info->declaration_group != NULL)
         assert(symbol_info->type != NULL);
 
-    // Delay check
+    // Recursive value Delay check
     if (symbol_info->delay_scope != NULL && symbol_info->type_status != NECRO_TYPE_DONE && ast->variable.var_type == NECRO_VAR_VAR)
     {
         NecroDelayScope* current_delay_scope = ast->delay_scope;
@@ -720,15 +720,20 @@ NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast)
     {
         symbol_info->type = necro_new_name(infer, ast->source_loc);
         symbol_info->type->var.scope = symbol_info->scope;
+        ast->necro_type = symbol_info->type;
         return symbol_info->type;
     }
     else if (necro_is_bound_in_scope(infer, symbol_info->type, ast->scope))
     {
+        ast->necro_type = symbol_info->type;
         return symbol_info->type;
     }
     else
     {
-        return necro_inst(infer, symbol_info->type, ast->scope);
+        ast->variable.inst_context = NULL;
+        NecroType* inst_type       = necro_inst_with_context(infer, symbol_info->type, ast->scope, &ast->variable.inst_context);
+        ast->necro_type            = inst_type;
+        return inst_type;
     }
     assert(false);
     return NULL;

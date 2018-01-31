@@ -472,6 +472,7 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
     reified_node->type       = node->type;
     reified_node->source_loc = node->source_loc;
     reified_node->scope      = NULL;
+    reified_node->necro_type = NULL;
     switch (node->type)
     {
     case NECRO_AST_UNDEFINED:
@@ -548,7 +549,8 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
         reified_node->lambda.expression = necro_reify(a_ast, node->lambda.expression, arena);
         break;
     case NECRO_AST_DO:
-        reified_node->do_statement.statement_list = necro_reify(a_ast, node->do_statement.statement_list, arena);
+        reified_node->do_statement.statement_list   = necro_reify(a_ast, node->do_statement.statement_list, arena);
+        reified_node->do_statement.monad_dictionary = NULL;
         break;
     case NECRO_AST_LIST_NODE:
         reified_node->list.item      = necro_reify(a_ast, node->list.item, arena);
@@ -700,10 +702,11 @@ NecroASTNode* necro_create_conid_ast(NecroPagedArena* arena, NecroIntern* intern
 NecroASTNode* necro_create_variable_ast(NecroPagedArena* arena, NecroIntern* intern, const char* variable_name, NECRO_VAR_TYPE var_type)
 {
     NecroASTNode* ast = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
-    ast->type              = NECRO_AST_VARIABLE;
-    ast->variable.symbol   = necro_intern_string(intern, variable_name);
-    ast->variable.var_type = var_type;
-    ast->variable.id       = (NecroID) { 0 };
+    ast->type                  = NECRO_AST_VARIABLE;
+    ast->variable.symbol       = necro_intern_string(intern, variable_name);
+    ast->variable.var_type     = var_type;
+    ast->variable.id           = (NecroID) { 0 };
+    ast->variable.inst_context = NULL;
     return ast;
 }
 

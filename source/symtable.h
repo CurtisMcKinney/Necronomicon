@@ -26,6 +26,7 @@
 //=====================================================
 struct NecroScope;
 struct NecroDelayScope;
+struct NecroTypeClass;
 
 typedef struct
 {
@@ -42,7 +43,8 @@ typedef struct
     NecroAST_Node_Reified*  optional_type_signature;
     NecroType*              type;
     NECRO_TYPE_STATUS       type_status;
-    bool                    is_method;
+    struct NecroTypeClass*  method_type_class;
+    // bool                    is_method;
     bool                    is_constructor;
 } NecroSymbolInfo;
 

@@ -251,3 +251,8 @@ subTest2 x = subMethod x
 -- subTest3 :: Int -> Maybe Audio
 subTest3 :: (Fractional a, Ord a) => Int -> Maybe a
 subTest3 x = subTest2 x
+
+firstTuple = a where
+    (a, b) = (1, 2)
+
+(a, b) = (1, 2)

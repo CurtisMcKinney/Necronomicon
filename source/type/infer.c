@@ -641,7 +641,8 @@ void necro_gen_pat_go(NecroInfer* infer, NecroNode* ast)
             // infer->symtable->data[id.id].type                      = necro_gen(infer, proxy_type, infer->symtable->data[id.id].scope->parent);
             infer->symtable->data[ast->variable.id.id].type_status = NECRO_TYPE_DONE;
             // necro_infer_kind(infer, infer->symtable->data[id.id].type, infer->star_kind, infer->symtable->data[id.id].type, "While declaraing a pattern variable: ");
-            // infer->symtable->data[id.id].type->type_kind = necro_kind_gen(infer, infer->symtable->data[id.id].type->type_kind);
+            necro_kind_infer(infer, infer->symtable->data[ast->variable.id.id].type, infer->symtable->data[ast->variable.id.id].type, "While declaring a pattern variable: ");
+            infer->symtable->data[id.id].type->type_kind = necro_kind_gen(infer, infer->symtable->data[id.id].type->type_kind);
             necro_kind_unify(infer, infer->symtable->data[id.id].type->type_kind, infer->star_type_kind, NULL, infer->symtable->data[id.id].type, "While declaring a pattern variable: ");
         }
         return;

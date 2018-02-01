@@ -245,14 +245,20 @@ subTest = subMethod 0
 
 -- TODO: DEFAULTING!
 -- TODO:
--- subTest2 :: (Fractional a, Ord a) => Int -> Maybe a
+subTest2 :: (Fractional a, Ord a) => Int -> Maybe a
 subTest2 x = subMethod x
 
 -- subTest3 :: Int -> Maybe Audio
-subTest3 :: (Fractional a, Ord a) => Int -> Maybe a
+-- subTest3 :: (Fractional a, Ord a) => Int -> Maybe a
 subTest3 x = subTest2 x
 
-firstTuple = a where
-    (a, b) = (1, 2)
+x = subMethod 9
 
-(a, b) = (1, 2)
+-- -- This shouldn't type check!!! Wtf!?!?!
+-- coolSynth :: Audio -> Audio
+-- coolSynth freq = osc (freq * 2) + 1 where
+--     osc _ = 220
+
+-- -- simpleTest :: Int
+-- simpleTest = notF 0 where
+--     notF _ = 1

@@ -245,5 +245,9 @@ subTest = subMethod 0
 
 -- TODO: DEFAULTING!
 -- TODO:
-subTest2 :: (Fractional a, Ord a) => Int -> Maybe a
+-- subTest2 :: (Fractional a, Ord a) => Int -> Maybe a
 subTest2 x = subMethod x
+
+-- subTest3 :: Int -> Maybe Audio
+subTest3 :: (Fractional a, Ord a) => Int -> Maybe a
+subTest3 x = subTest2 x

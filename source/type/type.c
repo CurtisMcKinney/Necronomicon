@@ -1078,6 +1078,7 @@ NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type, NecroGenResult p
                 type_var->var.context    = type->var.context;
                 type_var->type_kind      = type->type_kind;
                 // necr_bind_type_var(infer, type->var.var, type_var);
+                type->var.gen_bound      = type_var;
             }
             else
             {

@@ -1510,7 +1510,20 @@ NecroASTNode* necro_resolve_context_to_dictionary(NecroInfer* infer, NecroTypeCl
     {
     case NECRO_TYPE_VAR:
     {
-        return NULL;
+        assert(var_type->var.context != NULL);
+        return retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, context, necro_con_to_var(var_type->var.context->type_var));
+        // if (var_type->var.is_rigid)
+        // {
+        //     return retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, var_type->var.var);
+        // }
+        // else
+        // {
+        //     assert(var_type->var.gen_bound != NULL);
+        //     assert(var_type->var.gen_bound->type == NECRO_TYPE_VAR);
+        //     assert(var_type->var.gen_bound->var.is_rigid = true);
+        //     return retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, var_type->var.gen_bound->var.var);
+        // }
+
     }
     case NECRO_TYPE_CON:
     {
@@ -1539,7 +1552,13 @@ NecroASTNode* necro_resolve_method(NecroInfer* infer, NecroTypeClassEnv* env, Ne
     {
     case NECRO_TYPE_VAR:
     {
-        return NULL;
+        assert(var_type->var.context != NULL);
+        NecroASTNode* d_var           = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, context, necro_con_to_var(var_type->var.context->type_var));
+        NecroSymbol   dictionary_name = necro_create_dictionary_name(infer->intern, context->type_class_name.symbol);
+        NecroSymbol   selector_name   = necro_create_selector_name(infer->intern, ast->variable.symbol, dictionary_name);
+        NecroASTNode* selector_var    = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, selector_name), NECRO_VAR_VAR);
+        // Resolve method_inst_context!!!!
+        return necro_create_fexpr_ast(&infer->arena, selector_var, d_var);
     }
     case NECRO_TYPE_CON:
     {
@@ -1726,8 +1745,11 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
                 NecroTypeClassContext* inst_context = ast->variable.inst_context;
                 while (inst_context != NULL)
                 {
+                    // TODO: resolve to correct ids in necro_resolve_context_to_dictionary!!!
+                    // TODO: Not working!
                     NecroASTNode* d_var = necro_resolve_context_to_dictionary(infer, env, inst_context, dictionary_context);
-                    var_ast = necro_create_fexpr_ast(&infer->arena, var_ast, d_var);
+                    var_ast             = necro_create_fexpr_ast(&infer->arena, var_ast, d_var);
+                    inst_context        = inst_context->next;
                 }
                 *ast = *var_ast;
             }

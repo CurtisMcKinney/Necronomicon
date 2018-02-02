@@ -243,8 +243,6 @@ instance Applicative Maybe where
 subTest :: Maybe Float
 subTest = subMethod 0
 
--- TODO: DEFAULTING!
--- TODO:
 subTest2 :: (Fractional a, Ord a) => Int -> Maybe a
 subTest2 x = subMethod x
 
@@ -252,9 +250,14 @@ subTest2 x = subMethod x
 -- subTest3 :: (Fractional a, Ord a) => Int -> Maybe a
 subTest3 x = subTest2 x
 
-x = subMethod 9
+-- x :: Maybe Audio
+x :: (Fractional a, Ord a, Fractional b, Ord b) => (Maybe a, Maybe b)
+x = (subMethod 9, subMethod 0)
+
+y = Nothing
 
 -- -- This shouldn't type check!!! Wtf!?!?!
+-- Probably related to numeric overloading, need to implement type class translation
 -- coolSynth :: Audio -> Audio
 -- coolSynth freq = osc (freq * 2) + 1 where
 --     osc _ = 220

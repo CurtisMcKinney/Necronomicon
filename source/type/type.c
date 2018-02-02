@@ -568,7 +568,8 @@ void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* clas
             //     necro_unify_kinds(infer, type, &type->kind, necro_symtable_get(infer->symtable, curr->type_class_name.id)->type->kind, macro_type, error_preamble);
             //     curr = curr->next;
             // }
-            type->var.context = necro_union_contexts(infer, type->var.context, classes);
+            // type->var.context = necro_union_contexts(infer, type->var.context, classes);
+            type->var.context = necro_union_contexts_to_same_var(infer, type->var.context, classes, necro_var_to_con(type->var.var));
         }
         return;
     }

@@ -92,6 +92,7 @@ uint64_t                necro_create_instance_key(NecroCon data_type_name, Necro
 bool                    necro_context_contains_class(NecroTypeClassEnv* env, NecroTypeClassContext* context, NecroTypeClassContext* type_class);
 bool                    necro_context_and_super_classes_contain_class(NecroTypeClassEnv* env, NecroTypeClassContext* context, NecroTypeClassContext* type_class);
 NecroTypeClassContext*  necro_union_contexts(NecroInfer* infer, NecroTypeClassContext* context1, NecroTypeClassContext* context2);
+NecroTypeClassContext*  necro_union_contexts_to_same_var(NecroInfer* infer, NecroTypeClassContext* context1, NecroTypeClassContext* context2, NecroCon type_var);
 bool                    necro_ambiguous_type_class_check(NecroInfer* infer, NecroSymbol type_sig_name, NecroTypeClassContext* context, NecroType* type);
 NecroTypeClassContext*  necro_ast_to_context(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* context_ast);
 void                    necro_apply_constraints(NecroInfer* infer, NecroType* type, NecroTypeClassContext* context);

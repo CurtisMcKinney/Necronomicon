@@ -438,7 +438,8 @@ NecroType* necro_infer_assignment(NecroInfer* infer, NecroDeclarationGroup* decl
         {
             symbol_info = necro_symtable_get(infer->symtable, ast->simple_assignment.id);
             if (symbol_info->type->pre_supplied || symbol_info->type_status == NECRO_TYPE_DONE) { symbol_info->type_status = NECRO_TYPE_DONE; curr->type_checked = true; curr = curr->next;  continue; }
-            // Attempting to try enforcing the monomorphism restriction
+
+            // Monomorphism restriction
             // symbol_info->type = necro_gen(infer, symbol_info->type, symbol_info->scope->parent);
 
             // necro_infer_kind(infer, symbol_info->type, infer->star_kind, symbol_info->type, "While declaraing a variable: ");
@@ -638,10 +639,11 @@ void necro_gen_pat_go(NecroInfer* infer, NecroNode* ast)
         {
             NecroID    id                                          = ast->variable.id;
             NecroType* proxy_type                                  = infer->symtable->data[id.id].type;
+            // Monomorphism restriction
             // infer->symtable->data[id.id].type                      = necro_gen(infer, proxy_type, infer->symtable->data[id.id].scope->parent);
             infer->symtable->data[ast->variable.id.id].type_status = NECRO_TYPE_DONE;
-            // necro_infer_kind(infer, infer->symtable->data[id.id].type, infer->star_kind, infer->symtable->data[id.id].type, "While declaraing a pattern variable: ");
-            // infer->symtable->data[id.id].type->type_kind = necro_kind_gen(infer, infer->symtable->data[id.id].type->type_kind);
+            necro_kind_infer(infer, infer->symtable->data[ast->variable.id.id].type, infer->symtable->data[ast->variable.id.id].type, "While declaring a pattern variable: ");
+            infer->symtable->data[id.id].type->type_kind = necro_kind_gen(infer, infer->symtable->data[id.id].type->type_kind);
             necro_kind_unify(infer, infer->symtable->data[id.id].type->type_kind, infer->star_type_kind, NULL, infer->symtable->data[id.id].type, "While declaring a pattern variable: ");
         }
         return;

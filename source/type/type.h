@@ -46,6 +46,11 @@ inline NecroCon necro_var_to_con(NecroVar var)
     return (NecroCon) { .symbol = var.symbol, .id = var.id };
 }
 
+inline NecroVar necro_con_to_var(NecroCon con)
+{
+    return (NecroVar) { .symbol = con.symbol, .id = con.id };
+}
+
 //=====================================================
 // NecorType
 //=====================================================
@@ -69,6 +74,7 @@ typedef struct
     struct NecroTypeClassContext* context;
     struct NecroType*             bound;
     struct NecroScope*            scope;
+    struct NecroType*             gen_bound;
 } NecroTypeVar;
 
 typedef struct

@@ -568,7 +568,8 @@ void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* clas
             //     necro_unify_kinds(infer, type, &type->kind, necro_symtable_get(infer->symtable, curr->type_class_name.id)->type->kind, macro_type, error_preamble);
             //     curr = curr->next;
             // }
-            type->var.context = necro_union_contexts(infer, type->var.context, classes);
+            // type->var.context = necro_union_contexts(infer, type->var.context, classes);
+            type->var.context = necro_union_contexts_to_same_var(infer, type->var.context, classes, necro_var_to_con(type->var.var));
         }
         return;
     }
@@ -1063,7 +1064,8 @@ NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type, NecroGenResult p
             {
                 if (subs->var_to_replace.id.id == type->var.var.id.id)
                 {
-                    prev_result.type = subs->type_var;
+                    prev_result.type    = subs->type_var;
+                    type->var.gen_bound = subs->type_var;
                     return prev_result;
                 }
                 subs = subs->next;
@@ -1076,8 +1078,20 @@ NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type, NecroGenResult p
                 type_var->var.var.symbol = type->var.var.symbol;
                 type_var->var.is_rigid   = true;
                 type_var->var.context    = type->var.context;
+                // Set context vars to new rigid var?
+                NecroTypeClassContext* context = type_var->var.context;
+                while (context != NULL)
+                {
+                    if (type_var->var.var.symbol.id == 0)
+                    {
+                        type_var->var.var.symbol = necro_intern_string(infer->intern, necro_id_as_character_string(infer, type_var->var.var));
+                    }
+                    context->type_var = necro_var_to_con(type_var->var.var);
+                    context           = context->next;
+                }
                 type_var->type_kind      = type->type_kind;
                 // necr_bind_type_var(infer, type->var.var, type_var);
+                type->var.gen_bound      = type_var;
             }
             else
             {

@@ -535,8 +535,9 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
         reified_node->fexpression.next_fexpression = necro_reify(a_ast, node->fexpression.next_fexpression, arena);
         break;
     case NECRO_AST_VARIABLE:
-        reified_node->variable.symbol   = node->variable.symbol;
-        reified_node->variable.var_type = node->variable.var_type;
+        reified_node->variable.symbol       = node->variable.symbol;
+        reified_node->variable.var_type     = node->variable.var_type;
+        reified_node->variable.inst_context = NULL;
         break;
     case NECRO_AST_APATS:
         reified_node->apats.apat      = necro_reify(a_ast, node->apats.apat, arena);

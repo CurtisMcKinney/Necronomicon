@@ -1719,11 +1719,6 @@ NecroASTNode* necro_resolve_method(NecroInfer* infer, NecroTypeClassEnv* env, Ne
         {
             if (prototype->type_class_member_varid.id.id == ast->variable.id.id)
             {
-                // NecroTypeClassContext* method_inst_context = NULL;
-                // NecroType* method_inst_type = necro_symtable_get(infer->symtable, prototype->prototype_varid.id)->type;
-                // method_inst_type = necro_inst_with_context(infer, method_inst_type, ast->scope, &method_inst_context);
-                // if (necro_is_infer_error(infer)) return NULL;
-                // necro_unify(infer, method_inst_type, ast->necro_type, ast->scope, ast->necro_type, "Compiler bug: Error while resolving a method");
                 NecroASTNode* m_var = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, prototype->prototype_varid.symbol), NECRO_VAR_VAR);
                 m_var->variable.id = prototype->prototype_varid.id;
                 NecroTypeClassContext*  inst_context = NULL;
@@ -1754,6 +1749,11 @@ NecroASTNode* necro_resolve_method(NecroInfer* infer, NecroTypeClassEnv* env, Ne
         }
         assert(false);
         return NULL;
+    }
+
+    case NECRO_TYPE_FUN:
+    {
+        return necro_infer_error(infer, "", var_type, "Type classes on functions are not currently supported");
     }
 
     default:
@@ -1973,6 +1973,26 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
         break;
 
     case NECRO_AST_CONSTANT:
+        // switch (ast->constant.type)
+        // {
+        // case NECRO_AST_CONSTANT_BOOL:
+        //     break;
+        // case NECRO_AST_CONSTANT_CHAR:
+        //     break;
+        // case NECRO_AST_CONSTANT_STRING:
+        //     break;
+        // case NECRO_AST_CONSTANT_INTEGER:
+        // {
+        //     // NecroASTNode* from_int_node = necro_create_
+        //     break;
+        // }
+
+        // case NECRO_AST_CONSTANT_FLOAT:
+        // {
+        //     break;
+        // }
+
+        // }
         break;
 
     case NECRO_AST_UN_OP:

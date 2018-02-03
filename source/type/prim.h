@@ -115,6 +115,8 @@ typedef struct NecroPrimTypes
     NecroCon          functor_type_class;
     NecroCon          applicative_type_class;
     NecroCon          monad_type_class;
+    // NecroCon          from_int_type;
+    // NecroCon          from_rational_type;
     NecroPrimDef*     defs;
     NecroPrimDef*     def_head;
     NecroPagedArena   arena;

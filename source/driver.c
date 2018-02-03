@@ -85,7 +85,7 @@ void necro_compile_impl(
     // Reifying
     //=====================================================
     necro_announce_phase("Reifying");
-    NecroAST_Reified ast_r = necro_reify_ast(ast, root_node_ptr);
+    NecroAST_Reified ast_r = necro_reify_ast(ast, root_node_ptr, &lexer->intern);
     necro_print_reified_ast(&ast_r, &lexer->intern);
     *destruct_flags |= BIT(NECRO_PHASE_REIFY);
     if (compilation_phase == NECRO_PHASE_REIFY)

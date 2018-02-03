@@ -757,19 +757,21 @@ NecroType* necro_infer_constant(NecroInfer* infer, NecroNode* ast)
     {
     case NECRO_AST_CONSTANT_FLOAT:
     {
-        NecroType* new_name   = necro_new_name(infer, ast->source_loc);
-        new_name->var.context = necro_create_type_class_context(&infer->arena, infer->prim_types->fractional_type_class, (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, NULL);
-        new_name->type_kind   = infer->star_type_kind;
-        // new_name->kind = infer->star_kind;
-        return new_name;
+        return necro_symtable_get(infer->symtable, infer->prim_types->float_type.id)->type;
+        // NecroType* new_name   = necro_new_name(infer, ast->source_loc);
+        // new_name->var.context = necro_create_type_class_context(&infer->arena, infer->prim_types->fractional_type_class, (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, NULL);
+        // new_name->type_kind   = infer->star_type_kind;
+        // // new_name->kind = infer->star_kind;
+        // return new_name;
     }
     case NECRO_AST_CONSTANT_INTEGER:
     {
-        NecroType* new_name   = necro_new_name(infer, ast->source_loc);
-        new_name->var.context = necro_create_type_class_context(&infer->arena, infer->prim_types->num_type_class, (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, NULL);
-        new_name->type_kind   = infer->star_type_kind;
-        // new_name->kind = infer->star_kind;
-        return new_name;
+        return necro_symtable_get(infer->symtable, infer->prim_types->int_type.id)->type;
+        // NecroType* new_name   = necro_new_name(infer, ast->source_loc);
+        // new_name->var.context = necro_create_type_class_context(&infer->arena, infer->prim_types->num_type_class, (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, NULL);
+        // new_name->type_kind   = infer->star_type_kind;
+        // // new_name->kind = infer->star_kind;
+        // return new_name;
     }
     case NECRO_AST_CONSTANT_BOOL:    return necro_symtable_get(infer->symtable, infer->prim_types->bool_type.id)->type;
     case NECRO_AST_CONSTANT_CHAR:    return necro_symtable_get(infer->symtable, infer->prim_types->char_type.id)->type;

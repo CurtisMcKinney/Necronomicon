@@ -255,7 +255,7 @@ instance (Fractional a, Ord a) => SubClass (Maybe a) where
 -- x = (subMethod 9, subMethod 0)
 
 -- z t t2 = (supremeMethod t, supremeMethod t2, supremeMethod (Just t))
-z t = (supremeMethod t, supremeMethod (Just t))
+-- z t = (supremeMethod t, supremeMethod (Just t))
 
 -- -- This shouldn't type check!!! Wtf!?!?!
 -- Probably related to numeric overloading, need to implement type class translation

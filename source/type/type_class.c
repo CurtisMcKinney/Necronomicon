@@ -30,7 +30,7 @@ NecroTypeClassContext* necro_create_type_class_context(NecroPagedArena* arena, N
 bool                   necro_constrain_class_variable_check(NecroInfer* infer, NecroCon type_class_name, NecroCon type_var, NecroSymbol type_sig_symbol, NecroTypeClassEnv* env, NecroTypeClassContext* context);
 NecroType*             necro_instantiate_method_sig(NecroInfer* infer, NecroCon type_class_var, NecroType* method_type, NecroType* data_type);
 void                   necro_finish_declaring_type_class(NecroInfer* infer, NecroTypeClassEnv* env, NecroTypeClass* type_class);
-void                   necro_create_dictionary_instance(NecroPagedArena* arena, NecroIntern* intern, NecroASTNode* type_class_instance_ast);
+void                   necro_create_dictionary_instance(NecroInfer* infer, NecroTypeClassEnv* class_env, NecroTypeClassInstance* instance, NecroTypeClass* type_class);
 NecroSymbol            necro_create_dictionary_name(NecroIntern* intern, NecroSymbol type_class_name);
 NecroSymbol            necro_create_dictionary_arg_name(NecroIntern* intern, NecroSymbol type_class_name, NecroSymbol type_var_name);
 NecroSymbol            necro_create_selector_name(NecroIntern* intern, NecroSymbol member_name, NecroSymbol dictionary_name);
@@ -559,8 +559,7 @@ void necro_finish_declaring_type_class_instance(NecroInfer* infer, NecroTypeClas
 
     //--------------------------------
     // Create Dictionary Instance
-    necro_create_dictionary_instance(&infer->arena, infer->intern, instance->ast);
-    necro_create_dictionary_instance2(infer, env, instance, type_class);
+    necro_create_dictionary_instance(infer, env, instance, type_class);
 }
 
 void necro_apply_constraints(NecroInfer* infer, NecroType* type, NecroTypeClassContext* context)
@@ -1361,43 +1360,6 @@ void necro_create_dictionary_data_declaration(NecroPagedArena* arena, NecroInter
     type_class_ast->type_class_declaration.dictionary_data_declaration = necro_create_top_level_declaration_list(arena, dictionary_data_declaration, dictionary_declaration_list);
 }
 
-void necro_create_dictionary_instance(NecroPagedArena* arena, NecroIntern* intern, NecroASTNode* type_class_instance_ast)
-{
-    NecroSymbol dictionary_instance_name = necro_create_dictionary_instance_name(intern, type_class_instance_ast->type_class_instance.qtycls->conid.symbol, type_class_instance_ast);
-    NecroASTNode* dictionary_instance_rhs  = necro_create_rhs_ast(arena, necro_create_conid_ast(arena, intern, "()", NECRO_CON_VAR), NULL);
-    NecroASTNode* dictionary_instance      = NULL;
-    if (type_class_instance_ast->type_class_instance.context == NULL)
-    {
-        dictionary_instance = necro_create_simple_assignment(arena, intern, necro_intern_get_string(intern, dictionary_instance_name), dictionary_instance_rhs);
-    }
-    else
-    {
-        NecroASTNode* dictionary_instance_args_head = NULL;
-        NecroASTNode* dictionary_instance_args      = NULL;
-        NecroASTNode* context                       = type_class_instance_ast->type_class_instance.context;
-        if (context->type == NECRO_AST_TYPE_CLASS_CONTEXT)
-            context = necro_create_ast_list(arena, context, NULL);
-        while (context != NULL)
-        {
-            NecroSymbol   arg_name = necro_create_dictionary_arg_name(intern, context->list.item->type_class_context.conid->conid.symbol, necro_intern_string(intern, "a"));
-            NecroASTNode* arg_var  = necro_create_variable_ast(arena, intern, necro_intern_get_string(intern, arg_name), NECRO_VAR_DECLARATION);
-            if (dictionary_instance_args_head == NULL)
-            {
-                dictionary_instance_args_head = necro_create_apat_list_ast(arena, arg_var, NULL);
-                dictionary_instance_args      = dictionary_instance_args_head;
-            }
-            else
-            {
-                dictionary_instance_args->apats.next_apat = necro_create_apat_list_ast(arena, arg_var, NULL);
-                dictionary_instance_args                  = dictionary_instance_args->apats.next_apat;
-            }
-            context = context->list.next_item;
-        }
-        dictionary_instance = necro_create_apats_assignment_ast(arena, intern, necro_intern_get_string(intern, dictionary_instance_name), dictionary_instance_args_head, dictionary_instance_rhs);
-    }
-    type_class_instance_ast->type_class_instance.dictionary_instance = dictionary_instance;
-}
-
 NecroASTNode* retrieveNestedDictionaryFromContext(NecroPagedArena* arena, NecroIntern* intern, NecroTypeClassEnv* env, NecroTypeClassContext* context, NecroTypeClassContext* dictionary_to_retrieve, NecroASTNode* ast_so_far)
 {
     if (context->type_class_name.id.id == dictionary_to_retrieve->type_class_name.id.id)
@@ -1468,42 +1430,59 @@ NecroASTNode* retrieveDictionaryFromContext(NecroPagedArena* arena, NecroIntern*
 // TODO: Take into account different type vars!
 // TODO: AST Translations!
 // TODO: Method translations!
-void necro_create_dictionary_instance2(NecroInfer* infer, NecroTypeClassEnv* class_env, NecroTypeClassInstance* instance, NecroTypeClass* type_class)
+void necro_create_dictionary_instance(NecroInfer* infer, NecroTypeClassEnv* class_env, NecroTypeClassInstance* instance, NecroTypeClass* type_class)
 {
-    // Second pass, make sure all names have resolved ids generated by the renamer
-    NecroASTNode* dictionary_instance = instance->ast->type_class_instance.dictionary_instance;
-    NecroSymbol   dictionary_name     = type_class->ast->type_class_declaration.dictionary_data_declaration->top_declaration.declaration->data_declaration.simpletype->simple_type.type_con->conid.symbol;
-    NecroASTNode* dictionary_conid    = necro_create_conid_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, dictionary_name), NECRO_CON_VAR);
-    dictionary_conid->conid.id        = type_class->ast->type_class_declaration.dictionary_data_declaration->top_declaration.declaration->data_declaration.simpletype->simple_type.type_con->conid.id;
-    NecroASTNode* dictionary_fexpr    = dictionary_conid;
-    NecroTypeClassMember* members     = type_class->members;
-
-    // TODO: Finish all this shit...
-    // Build instance dictionary_context
-    NecroTypeClassDictionaryContext* dictionary_context      = NULL;
-    NecroTypeClassDictionaryContext* dictionary_context_curr = NULL;
-    NecroTypeClassContext*           inst_context            = instance->context;
-    while (inst_context != NULL)
-    {
-        NecroASTNode* d_var = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, necro_create_dictionary_arg_name(infer->intern, inst_context->type_class_name.symbol, inst_context->type_var.symbol)), NECRO_VAR_VAR);
-        if (dictionary_context == NULL)
-        {
-            dictionary_context      = necro_create_type_class_dictionary_context(&infer->arena, inst_context->type_class_name, inst_context->type_var, d_var, NULL);
-            dictionary_context_curr = dictionary_context;
-        }
-        else
-        {
-            dictionary_context_curr->next = necro_create_type_class_dictionary_context(&infer->arena, inst_context->type_class_name, inst_context->type_var, d_var, NULL);
-            dictionary_context_curr       = dictionary_context_curr->next;
-        }
-        dictionary_fexpr = necro_create_fexpr_ast(&infer->arena, dictionary_fexpr, d_var);
-        inst_context = inst_context->next;
-    }
-
-    // NecroVar type_var = (NecroVar) { .symbol = necro_intern_string(infer->intern, "a"), .id = ) }
+    NecroSymbol   dictionary_name          = type_class->dictionary_name;
+    NecroSymbol   dictionary_instance_name = necro_create_dictionary_instance_name(infer->intern, type_class->type_class_name.symbol, instance->ast);
+    NecroASTNode* dictionary_conid         = necro_create_conid_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, dictionary_name), NECRO_CON_VAR);
+    dictionary_conid->conid.id             = type_class->ast->type_class_declaration.dictionary_data_declaration->top_declaration.declaration->data_declaration.simpletype->simple_type.type_con->conid.id;
+    NecroASTNode* dictionary_fexpr         = dictionary_conid;
+    NecroTypeClassMember* members          = type_class->members;
     NecroVar type_var = necro_con_to_var(type_class->type_var);
 
-    // TODO: This is fucked!
+    //---------------------------------
+    // Dictionary context and args
+    NecroASTNode*                    dictionary_instance           = NULL;
+    NecroTypeClassDictionaryContext* dictionary_context            = NULL;
+    NecroTypeClassDictionaryContext* dictionary_context_curr       = NULL;
+    NecroTypeClassContext*           inst_context                  = instance->context;
+    NecroASTNode*                    dictionary_instance_args_head = NULL;
+    NecroASTNode*                    dictionary_instance_args      = NULL;
+    if (instance->context != NULL)
+    {
+        inst_context = instance->context;
+        while (inst_context != NULL)
+        {
+            // d_var
+            NecroSymbol   arg_name = necro_create_dictionary_arg_name(infer->intern, inst_context->type_class_name.symbol, type_var.symbol);
+            NecroASTNode* d_var    = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, arg_name), NECRO_VAR_DECLARATION);
+            if (dictionary_instance_args_head == NULL)
+            {
+                dictionary_instance_args_head = necro_create_apat_list_ast(&infer->arena, d_var, NULL);
+                dictionary_instance_args      = dictionary_instance_args_head;
+            }
+            else
+            {
+                dictionary_instance_args->apats.next_apat = necro_create_apat_list_ast(&infer->arena, d_var, NULL);
+                dictionary_instance_args                  = dictionary_instance_args->apats.next_apat;
+            }
+            // dictionary_context
+            if (dictionary_context == NULL)
+            {
+                dictionary_context      = necro_create_type_class_dictionary_context(&infer->arena, inst_context->type_class_name, inst_context->type_var, d_var, NULL);
+                dictionary_context_curr = dictionary_context;
+            }
+            else
+            {
+                dictionary_context_curr->next = necro_create_type_class_dictionary_context(&infer->arena, inst_context->type_class_name, inst_context->type_var, d_var, NULL);
+                dictionary_context_curr       = dictionary_context_curr->next;
+            }
+            inst_context = inst_context->next;
+        }
+    }
+
+    //---------------------------------
+    // Dictionary member app
     while (members != NULL)
     {
         NecroDictionaryPrototype* dictionary_prototype = instance->dictionary_prototype;
@@ -1516,18 +1495,13 @@ void necro_create_dictionary_instance2(NecroInfer* infer, NecroTypeClassEnv* cla
                 NecroType* prototype_member_type = necro_symtable_get(infer->symtable, dictionary_prototype->prototype_varid.id)->type;
                 while (prototype_member_type->type == NECRO_TYPE_FOR)
                 {
-                    // inst method type?
-                    // Create dictionary_context from inst_context?
-                    NecroTypeClassContext* for_all_context = prototype_member_type->for_all.context;
-                    while (for_all_context != NULL)
+                    inst_context = instance->context;
+                    while (inst_context != NULL)
                     {
-                        if (necro_context_contains_class_and_type_var(instance->context, for_all_context, for_all_context->type_var))
-                        {
-                            NecroASTNode* dvar = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, necro_create_dictionary_arg_name(infer->intern, for_all_context->type_class_name.symbol, necro_intern_string(infer->intern, "a"))), NECRO_VAR_VAR);
-                            dictionary_context = necro_create_type_class_dictionary_context(&infer->arena, for_all_context->type_class_name, necro_var_to_con(type_var), dvar, dictionary_context);
-                            mvar = necro_create_fexpr_ast(&infer->arena, mvar, dvar);
-                        }
-                        for_all_context = for_all_context->next;
+                        NecroASTNode* dvar = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, necro_create_dictionary_arg_name(infer->intern, inst_context->type_class_name.symbol, type_var.symbol)), NECRO_VAR_VAR);
+                        dictionary_context = necro_create_type_class_dictionary_context(&infer->arena, inst_context->type_class_name, necro_var_to_con(type_var), dvar, dictionary_context);
+                        mvar               = necro_create_fexpr_ast(&infer->arena, mvar, dvar);
+                        inst_context       = inst_context->next;
                     }
                     prototype_member_type = prototype_member_type->for_all.type;
                 }
@@ -1538,6 +1512,9 @@ void necro_create_dictionary_instance2(NecroInfer* infer, NecroTypeClassEnv* cla
         }
         members = members->next;
     }
+
+    //---------------------------------
+    // Dictionary super class dictionary app
     NecroTypeClassContext* super_classes = type_class->context;
     while (super_classes != NULL)
     {
@@ -1547,10 +1524,10 @@ void necro_create_dictionary_instance2(NecroInfer* infer, NecroTypeClassEnv* cla
         NecroSymbol             super_class_dictionary_name = necro_create_dictionary_instance_name(infer->intern, super_classes->type_class_name.symbol, super_instance->ast);
         NecroASTNode*           dvar                        = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, super_class_dictionary_name), NECRO_VAR_VAR);
         NecroTypeClassContext*  super_context               = super_instance->context;
-        // Super dictionary arguments
+        // Super class dictionary arguments
         while (super_context != NULL)
         {
-            NecroASTNode* argument_dictionary = retrieveDictionaryFromContext(&infer->arena, infer->intern, class_env, dictionary_context, super_context, necro_con_to_var(super_context->type_var));
+            NecroASTNode* argument_dictionary = retrieveDictionaryFromContext(&infer->arena, infer->intern, class_env, dictionary_context, super_context, type_var);
             assert(argument_dictionary != NULL);
             dvar          = necro_create_fexpr_ast(&infer->arena, dvar, argument_dictionary);
             super_context = super_context->next;
@@ -1559,9 +1536,10 @@ void necro_create_dictionary_instance2(NecroInfer* infer, NecroTypeClassEnv* cla
         super_classes = super_classes->next;
     }
     if (instance->context == NULL)
-        dictionary_instance->simple_assignment.rhs->right_hand_side.expression = dictionary_fexpr;
+        dictionary_instance = necro_create_simple_assignment(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, dictionary_instance_name), necro_create_rhs_ast(&infer->arena, dictionary_fexpr, NULL));
     else
-        dictionary_instance->apats_assignment.rhs->right_hand_side.expression = dictionary_fexpr;
+        dictionary_instance = necro_create_apats_assignment_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, dictionary_instance_name), dictionary_instance_args_head, necro_create_rhs_ast(&infer->arena, dictionary_fexpr, NULL));
+    instance->ast->type_class_instance.dictionary_instance = dictionary_instance;
     if (necro_is_infer_error(infer)) return;
 
     //---------------------------

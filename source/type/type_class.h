@@ -110,6 +110,5 @@ NecroTypeClassDictionaryContext* necro_create_type_class_dictionary_context(Necr
 NECRO_RETURN_CODE                necro_type_class_translate(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
 void                             necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_context, NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* ast);
 void                             necro_create_dictionary_data_declaration(NecroPagedArena* arena, NecroIntern* intern, NecroASTNode* type_class_ast);
-void                             necro_create_dictionary_instance2(NecroInfer* infer, NecroTypeClassEnv* class_env, NecroTypeClassInstance* instance, NecroTypeClass* type_class);
 
 #endif // TYPE_CLASS_H

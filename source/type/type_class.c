@@ -116,6 +116,7 @@ void necro_declare_type_classes(NecroInfer* infer, NecroTypeClassEnv* env, Necro
             type_class->type               = necro_make_con_1(infer, type_class->type_class_name, necro_create_type_list(infer, ty_var, NULL));
             type_class->type->con.is_class = true;
             type_class->context            = necro_ast_to_context(infer, env, type_class_ast->type_class_declaration.context);
+            if (necro_is_infer_error(infer)) return;
             necro_symtable_get(infer->symtable, type_class->type_var.id)->type = ty_var;
         }
         if (necro_is_infer_error(infer)) return;
@@ -200,6 +201,7 @@ void necro_finish_declaring_type_class(NecroInfer* infer, NecroTypeClassEnv* env
 
         if (necro_is_infer_error(infer)) return;
         NecroTypeClassContext* method_context = necro_ast_to_context(infer, env, declarations->declaration.declaration_impl->type_signature.context);
+        if (necro_is_infer_error(infer)) return;
         if (necro_constrain_class_variable_check(infer, type_class->type_class_name, type_class->type_var, declarations->declaration.declaration_impl->type_signature.var->variable.symbol, env, method_context)) return;
         NecroTypeClassContext* context        = necro_union_contexts(infer, method_context, class_context);
         if (necro_ambiguous_type_class_check(infer, declarations->declaration.declaration_impl->type_signature.var->variable.symbol, context, type_sig)) return;
@@ -342,6 +344,7 @@ void necro_type_class_instances_pass1(NecroInfer* infer, NecroTypeClassEnv* env,
             instance->type_class_name          = type_class_name;
             instance->data_type_name           = data_type_name;
             instance->context                  = necro_ast_to_context(infer, env, ast->type_class_instance.context);
+            if (necro_is_infer_error(infer)) return;
             instance->dictionary_prototype     = NULL;
             instance->ast                      = ast;
             instance->dependency_flag          = 0;
@@ -948,6 +951,11 @@ NecroTypeClassContext* necro_ast_to_context(NecroInfer* infer, NecroTypeClassEnv
                 context->next = new_context;
                 context       = context->next;
             }
+            if (necro_type_class_table_get(&env->class_table, context->type_class_name.id.id) == NULL)
+            {
+                necro_infer_ast_error(infer, NULL, NULL, "\'%s\' is not a type class", necro_intern_get_string(infer->intern, context->type_class_name.symbol));
+                return NULL;
+            }
             context_ast = context_ast->list.next_item;
         }
         else if (context_ast->type == NECRO_AST_TYPE_CLASS_CONTEXT)
@@ -958,6 +966,11 @@ NecroTypeClassContext* necro_ast_to_context(NecroInfer* infer, NecroTypeClassEnv
                 (NecroCon) { .symbol = context_ast->type_class_context.varid->variable.symbol, .id = context_ast->type_class_context.varid->variable.id },
                 NULL
             );
+            if (necro_type_class_table_get(&env->class_table, context->type_class_name.id.id) == NULL)
+            {
+                necro_infer_ast_error(infer, NULL, NULL, "\'%s\' is not a type class", necro_intern_get_string(infer->intern, context->type_class_name.symbol));
+                return NULL;
+            }
             return context;
         }
         else
@@ -1575,7 +1588,8 @@ NecroASTNode* necro_resolve_context_to_dictionary(NecroInfer* infer, NecroTypeCl
         if (var_type->var.is_rigid)
         {
             // NecroASTNode* d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, var_type->var.var);
-            NecroASTNode* d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, necro_con_to_var(var_type->var.context->type_var));
+            // NecroASTNode* d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, necro_con_to_var(var_type->var.context->type_var));
+            NecroASTNode* d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, context, necro_con_to_var(var_type->var.context->type_var));
             assert(d_var != NULL);
             return d_var;
         }
@@ -1641,16 +1655,17 @@ NecroASTNode* necro_resolve_method(NecroInfer* infer, NecroTypeClassEnv* env, Ne
     assert(var_type != NULL);
     switch (var_type->type)
     {
+
     case NECRO_TYPE_VAR:
     {
         assert(var_type->var.context != NULL);
-
         // NecroASTNode* d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, context, necro_con_to_var(var_type->var.context->type_var));
         NecroASTNode* d_var           = NULL;
         if (var_type->var.is_rigid)
         {
             // d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, var_type->var.var);
             d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, necro_con_to_var(var_type->var.context->type_var));
+            if (necro_is_infer_error(infer)) return NULL;
             assert(d_var != NULL);
         }
         else
@@ -1673,6 +1688,7 @@ NecroASTNode* necro_resolve_method(NecroInfer* infer, NecroTypeClassEnv* env, Ne
                 // d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, var_type->var.gen_bound->var.var);
                 // d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, necro_find(infer, var_type->var.gen_bound)->var.var);
                 d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, context, necro_find(infer, var_type->var.gen_bound)->var.var);
+                if (necro_is_infer_error(infer)) return NULL;
                 assert(d_var != NULL);
             }
         }
@@ -1680,8 +1696,19 @@ NecroASTNode* necro_resolve_method(NecroInfer* infer, NecroTypeClassEnv* env, Ne
         NecroSymbol   selector_name   = necro_create_selector_name(infer->intern, ast->variable.symbol, dictionary_name);
         NecroASTNode* selector_var    = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, selector_name), NECRO_VAR_VAR);
         // Resolve method_inst_context!!!!
-        return necro_create_fexpr_ast(&infer->arena, selector_var, d_var);
+        NecroASTNode* m_var           = necro_create_fexpr_ast(&infer->arena, selector_var, d_var);
+        context = context->next;
+        while (context != NULL)
+        {
+            d_var = necro_resolve_context_to_dictionary(infer, env, context, dictionary_context);
+            if (necro_is_infer_error(infer)) return NULL;
+            assert(d_var != NULL);
+            m_var = necro_create_fexpr_ast(&infer->arena, m_var, d_var);
+            context = context->next;
+        }
+        return m_var;
     }
+
     case NECRO_TYPE_CON:
     {
         // Resolve directly to method instance
@@ -1692,19 +1719,33 @@ NecroASTNode* necro_resolve_method(NecroInfer* infer, NecroTypeClassEnv* env, Ne
         {
             if (prototype->type_class_member_varid.id.id == ast->variable.id.id)
             {
-                NecroTypeClassContext* method_inst_context = NULL;
-                NecroType*             method_inst_type    = necro_symtable_get(infer->symtable, prototype->prototype_varid.id)->type;
-                method_inst_type = necro_inst_with_context(infer, method_inst_type, ast->scope, &method_inst_context);
-                if (necro_is_infer_error(infer)) return NULL;
-                necro_unify(infer, method_inst_type, ast->necro_type, ast->scope, ast->necro_type, "Compiler bug: Error while resolving a method");
+                // NecroTypeClassContext* method_inst_context = NULL;
+                // NecroType* method_inst_type = necro_symtable_get(infer->symtable, prototype->prototype_varid.id)->type;
+                // method_inst_type = necro_inst_with_context(infer, method_inst_type, ast->scope, &method_inst_context);
+                // if (necro_is_infer_error(infer)) return NULL;
+                // necro_unify(infer, method_inst_type, ast->necro_type, ast->scope, ast->necro_type, "Compiler bug: Error while resolving a method");
                 NecroASTNode* m_var = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, prototype->prototype_varid.symbol), NECRO_VAR_VAR);
                 m_var->variable.id = prototype->prototype_varid.id;
-                while (method_inst_context != NULL)
+                NecroTypeClassContext*  inst_context = NULL;
+                NecroType*              inst_type    = necro_inst_with_context(infer, instance->data_type, NULL, &inst_context);
+                necro_unify(infer, var_type, inst_type, NULL, inst_type, "Compiler bug during necro_resolve_context_to_dictionary");
+                if (necro_is_infer_error(infer)) return NULL;
+                while (inst_context != NULL)
                 {
-                    NecroASTNode* d_var = necro_resolve_context_to_dictionary(infer, env, method_inst_context, dictionary_context);
+                    NecroASTNode* d_var = necro_resolve_context_to_dictionary(infer, env, inst_context, dictionary_context);
+                    if (necro_is_infer_error(infer)) return NULL;
                     assert(d_var != NULL);
                     m_var               = necro_create_fexpr_ast(&infer->arena, m_var, d_var);
-                    method_inst_context = method_inst_context->next;
+                    inst_context = inst_context->next;
+                }
+                context = context->next;
+                while (context != NULL)
+                {
+                    NecroASTNode* d_var = necro_resolve_context_to_dictionary(infer, env, context, dictionary_context);
+                    if (necro_is_infer_error(infer)) return NULL;
+                    assert(d_var != NULL);
+                    m_var               = necro_create_fexpr_ast(&infer->arena, m_var, d_var);
+                    context = context->next;
                 }
                 assert(m_var != NULL);
                 return m_var;
@@ -1714,6 +1755,7 @@ NecroASTNode* necro_resolve_method(NecroInfer* infer, NecroTypeClassEnv* env, Ne
         assert(false);
         return NULL;
     }
+
     default:
         assert(false);
         return NULL;
@@ -1869,7 +1911,7 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
     }
 
     case NECRO_AST_PAT_ASSIGNMENT:
-        // TODO: DEFAULTING!
+        // TODO: START!
         necro_type_class_translate_go(dictionary_context, infer, env, ast->pat_assignment.rhs);
         break;
 
@@ -1883,7 +1925,6 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
         {
         case NECRO_VAR_VAR:
         {
-            // TODO: FINISH!
             NecroSymbolInfo* var_info  = necro_symtable_get(infer->symtable, ast->variable.id);
             if (var_info->method_type_class != NULL)
             {
@@ -1891,11 +1932,10 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
                 *var_ast                   = *ast;
                 NecroTypeClassContext* inst_context = var_ast->variable.inst_context;
                 assert(inst_context != NULL);
-                // TODO: Check this!
-                NecroASTNode* d_var = necro_resolve_method(infer, env, inst_context, var_ast, dictionary_context);
+                NecroASTNode* m_var = necro_resolve_method(infer, env, inst_context, var_ast, dictionary_context);
                 if (necro_is_infer_error(infer)) return;
-                assert(d_var != NULL);
-                *ast = *d_var;
+                assert(m_var != NULL);
+                *ast = *m_var;
             }
             else if (ast->variable.inst_context != NULL)
             {

@@ -168,7 +168,10 @@ NecroType* necro_infer_type_sig(NecroInfer* infer, NecroNode* ast)
     NecroType* type_sig = necro_ast_to_type_sig_go(infer, ast->type_signature.type);
     if (necro_is_infer_error(infer)) return NULL;
 
-    NecroTypeClassContext* context = necro_union_contexts(infer, necro_ast_to_context(infer, infer->type_class_env, ast->type_signature.context), NULL);
+    NecroTypeClassContext* context = necro_ast_to_context(infer, infer->type_class_env, ast->type_signature.context);
+    if (necro_is_infer_error(infer)) return NULL;
+    context = necro_union_contexts(infer, context, NULL);
+    if (necro_is_infer_error(infer)) return NULL;
     if (necro_ambiguous_type_class_check(infer, ast->type_signature.var->variable.symbol, context, type_sig)) return NULL;
     necro_apply_constraints(infer, type_sig, context);
 
@@ -180,8 +183,8 @@ NecroType* necro_infer_type_sig(NecroInfer* infer, NecroNode* ast)
     if (necro_is_infer_error(infer)) return NULL;
     type_sig->type_kind = necro_kind_gen(infer, type_sig->type_kind);
     if (necro_is_infer_error(infer)) return NULL;
-    necro_print_type_sig(type_sig, infer->intern);
-    necro_print_type_sig(type_sig->type_kind, infer->intern);
+    // necro_print_type_sig(type_sig, infer->intern);
+    // necro_print_type_sig(type_sig->type_kind, infer->intern);
     necro_kind_unify(infer, type_sig->type_kind, infer->star_type_kind, ast->scope, type_sig, "While inferring the type of a type signature");
     if (necro_is_infer_error(infer)) return NULL;
 

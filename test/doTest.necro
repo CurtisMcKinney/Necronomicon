@@ -193,26 +193,6 @@
 
 data Maybe a = Just a | Nothing
 
--- class TestClass a where
---     go :: Num b => a -> b -> a
---     no :: a -> Int -> Int
---
--- instance (Num a, Eq a) => TestClass (Maybe a) where
---     go (Just i) _ = Just (i + 1)
---     go Nothing  _ = Just 0
---     no _ i = i
---
--- testGo  = go Nothing
---
--- data Always a = Always a
---
--- instance TestClass a => TestClass (Always a) where
---     go (Always x) b = Always (go x b)
---     no _ i = i
---
--- alwaysTest = Always (Just 0)
--- goTest = go alwaysTest 1
---
 class SupremeClass a where
     supremeMethod :: a -> ()
 
@@ -240,26 +220,40 @@ instance (Fractional a, Ord a) => SubClass (Maybe a) where
 --     ap (Just f) (Just x) = Just (f x)
 --     ap _        _        = Nothing
 
-subTest :: Maybe Float
-subTest = subMethod 0
+-- subTest :: Maybe Float
+-- subTest = subMethod 0
 
 subTest2 :: (Fractional a, Ord a) => Int -> Maybe a
 subTest2 x = subMethod x
 
-subTest3 x = subTest2 x
-
+-- subTest3 x = subTest2 x
+--
 x :: (Fractional a, Ord a, Fractional b, Ord b) => (Maybe a, Maybe b)
 x = (subMethod 9, subMethod 0)
 
+z1 :: (SupremeClass a, Fractional a, Eq a) => a -> ((), ())
 z1 t    = (supremeMethod t, supremeMethod (Just t))
-z2 t t2 = (supremeMethod t, supremeMethod t2, supremeMethod (Just t))
+-- z2 t t2 = (supremeMethod t, supremeMethod t2, supremeMethod (Just t))
 z3 x    = subMethod x
+
+class ConstClass a where
+    constMethod :: Num b => a -> b -> b
+
+instance ConstClass Int where
+    constMethod _ x = x
+
+instance Eq a => ConstClass (Maybe a) where
+    constMethod _ x = x
+
+-- -- constTest :: Int -> Int -> Int
+constTest :: (Ord a, Fractional b) => Maybe a -> b -> b
+constTest x y = constMethod x y
 
 -- -- This shouldn't type check!!! Wtf!?!?!
 -- Probably related to numeric overloading, need to implement type class translation
 -- coolSynth :: Audio -> Audio
 -- coolSynth freq = osc (freq * 2) + 1 where
---     osc _ = 220
+    -- osc = 220
 
 -- -- simpleTest :: Int
 -- simpleTest = notF 0 where

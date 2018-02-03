@@ -240,22 +240,20 @@ instance (Fractional a, Ord a) => SubClass (Maybe a) where
 --     ap (Just f) (Just x) = Just (f x)
 --     ap _        _        = Nothing
 
--- subTest :: Maybe Float
--- subTest = subMethod 0
+subTest :: Maybe Float
+subTest = subMethod 0
 
--- subTest2 :: (Fractional a, Ord a) => Int -> Maybe a
--- subTest2 x = subMethod x
+subTest2 :: (Fractional a, Ord a) => Int -> Maybe a
+subTest2 x = subMethod x
 
--- -- subTest3 :: Int -> Maybe Audio
--- -- subTest3 :: (Fractional a, Ord a) => Int -> Maybe a
--- subTest3 x = subTest2 x
+subTest3 x = subTest2 x
 
--- -- x :: Maybe Audio
--- x :: (Fractional a, Ord a, Fractional b, Ord b) => (Maybe a, Maybe b)
--- x = (subMethod 9, subMethod 0)
+x :: (Fractional a, Ord a, Fractional b, Ord b) => (Maybe a, Maybe b)
+x = (subMethod 9, subMethod 0)
 
--- z t t2 = (supremeMethod t, supremeMethod t2, supremeMethod (Just t))
--- z t = (supremeMethod t, supremeMethod (Just t))
+z1 t    = (supremeMethod t, supremeMethod (Just t))
+z2 t t2 = (supremeMethod t, supremeMethod t2, supremeMethod (Just t))
+z3 x    = subMethod x
 
 -- -- This shouldn't type check!!! Wtf!?!?!
 -- Probably related to numeric overloading, need to implement type class translation

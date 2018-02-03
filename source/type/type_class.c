@@ -1594,7 +1594,9 @@ NecroASTNode* necro_resolve_context_to_dictionary(NecroInfer* infer, NecroTypeCl
             {
                 assert(var_type->var.gen_bound->type == NECRO_TYPE_VAR);
                 assert(var_type->var.gen_bound->var.is_rigid == true);
-                NecroASTNode* d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, var_type->var.gen_bound->var.var);
+                // NecroASTNode* d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, var_type->var.gen_bound->var.var);
+                // NecroASTNode* d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, necro_find(infer, var_type->var.gen_bound)->var.var);
+                NecroASTNode* d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, context, necro_find(infer, var_type->var.gen_bound)->var.var);
                 assert(d_var != NULL);
                 return d_var;
             }
@@ -1668,7 +1670,9 @@ NecroASTNode* necro_resolve_method(NecroInfer* infer, NecroTypeClassEnv* env, Ne
                 assert(var_type->var.gen_bound != NULL);
                 assert(var_type->var.gen_bound->type == NECRO_TYPE_VAR);
                 assert(var_type->var.gen_bound->var.is_rigid == true);
-                d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, var_type->var.gen_bound->var.var);
+                // d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, var_type->var.gen_bound->var.var);
+                // d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, necro_find(infer, var_type->var.gen_bound)->var.var);
+                d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, context, necro_find(infer, var_type->var.gen_bound)->var.var);
                 assert(d_var != NULL);
             }
         }

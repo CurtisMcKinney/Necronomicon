@@ -14,7 +14,6 @@
 // TODO:
 //    * Printing variable names gets wonky when retaining printed names across methods and instances of type class, look at Either instance of Functor for example
 //    * Better unification error messaging! This is especially true when it occurs during SuperClass constraint checking. Make necro_unify return struct with either Success or Error data
-//    * AST transformation creating and passing dictionaries around for type classes
 
 #define NECRO_TYPE_CLASS_DEBUG 0
 #if NECRO_TYPE_CLASS_DEBUG
@@ -745,7 +744,6 @@ bool necro_context_and_super_classes_contain_class(NecroTypeClassEnv* env, Necro
     return false;
 }
 
-// TODO: We're classes with different type variables!!!
 bool necro_is_subclass(NecroTypeClassEnv* env, NecroTypeClassContext* maybe_subclass_context, NecroTypeClassContext* maybe_super_class_context)
 {
     if (maybe_subclass_context->type_var.id.id != maybe_super_class_context->type_var.id.id)
@@ -1440,9 +1438,6 @@ NecroASTNode* retrieveDictionaryFromContext(NecroPagedArena* arena, NecroIntern*
 }
 
 // TODO: Defaulting!
-// TODO: Take into account different type vars!
-// TODO: AST Translations!
-// TODO: Method translations!
 void necro_create_dictionary_instance(NecroInfer* infer, NecroTypeClassEnv* class_env, NecroTypeClassInstance* instance, NecroTypeClass* type_class)
 {
     NecroSymbol   dictionary_name          = type_class->dictionary_name;
@@ -1569,7 +1564,6 @@ void necro_create_dictionary_instance(NecroInfer* infer, NecroTypeClassEnv* clas
 
 }
 
-// TODO: Insert fromInt fromRational during type class translation
 NecroASTNode* necro_resolve_context_to_dictionary(NecroInfer* infer, NecroTypeClassEnv* env, NecroTypeClassContext* context, NecroTypeClassDictionaryContext* dictionary_context)
 {
     NecroType* starting_type = NULL;

@@ -1021,8 +1021,11 @@ NecroType* necro_infer_bin_op(NecroInfer* infer, NecroNode* ast)
     assert(ast->type == NECRO_AST_BIN_OP);
     if (necro_is_infer_error(infer)) return NULL;
     NecroType* x_type       = necro_infer_go(infer, ast->bin_op.lhs);
-    NecroType* op_type      = necro_inst(infer, infer->symtable->data[ast->bin_op.id.id].type, NULL);
+
+    ast->bin_op.inst_context = NULL;
+    NecroType* op_type       = necro_inst_with_context(infer, infer->symtable->data[ast->bin_op.id.id].type, ast->scope, &ast->bin_op.inst_context);
     assert(op_type != NULL);
+
     NecroType* y_type       = necro_infer_go(infer, ast->bin_op.rhs);
     if (necro_is_infer_error(infer)) return NULL;
     NecroType* result_type  = necro_new_name(infer, ast->source_loc);
@@ -1043,8 +1046,11 @@ NecroType* necro_infer_op_left_section(NecroInfer* infer, NecroNode* ast)
     assert(ast->type == NECRO_AST_OP_LEFT_SECTION);
     if (necro_is_infer_error(infer)) return NULL;
     NecroType* x_type = necro_infer_go(infer, ast->op_left_section.left);
-    NecroType* op_type = necro_inst(infer, infer->symtable->data[ast->op_left_section.id.id].type, NULL);
+
+    ast->op_left_section.inst_context = NULL;
+    NecroType* op_type                = necro_inst_with_context(infer, infer->symtable->data[ast->op_left_section.id.id].type, ast->scope, &ast->op_left_section.inst_context);
     assert(op_type != NULL);
+
     NecroType* result_type  = necro_new_name(infer, ast->source_loc);
     result_type->source_loc = ast->source_loc;
     NecroType* section_type = necro_create_type_fun(infer, x_type, result_type);
@@ -1062,9 +1068,13 @@ NecroType* necro_infer_op_right_section(NecroInfer* infer, NecroNode* ast)
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_OP_RIGHT_SECTION);
     if (necro_is_infer_error(infer)) return NULL;
-    NecroType* op_type = necro_inst(infer, infer->symtable->data[ast->op_right_section.id.id].type, NULL);
-    NecroType* y_type  = necro_infer_go(infer, ast->op_right_section.right);
+
+    ast->op_right_section.inst_context = NULL;
+    NecroType* op_type                = necro_inst_with_context(infer, infer->symtable->data[ast->op_right_section.id.id].type, ast->scope, &ast->op_right_section.inst_context);
     assert(op_type != NULL);
+
+    NecroType* y_type  = necro_infer_go(infer, ast->op_right_section.right);
+
     NecroType* x_type       = necro_new_name(infer, ast->source_loc);
     NecroType* result_type  = necro_new_name(infer, ast->source_loc);
     NecroType* bin_op_type  = necro_create_type_fun(infer, x_type, necro_create_type_fun(infer, y_type, result_type));

@@ -119,6 +119,7 @@ typedef struct
     NecroAST_BinOpType            type;
     NecroSymbol                   symbol;
     NecroID                       id;
+    struct NecroTypeClassContext* inst_context;
 } NecroAST_OpLeftSection_Reified;
 
 //=====================================================
@@ -130,6 +131,7 @@ typedef struct
     NecroAST_BinOpType            type;
     NecroSymbol                   symbol;
     NecroID                       id;
+    struct NecroTypeClassContext* inst_context;
 } NecroAST_OpRightSection_Reified;
 
 //=====================================================
@@ -225,6 +227,7 @@ typedef struct
     NecroAST_BinOpType            type;
     NecroSymbol                   symbol;
     NecroID                       id;
+    struct NecroTypeClassContext* inst_context;
 } NecroAST_BinOp_Reified;
 
 //=====================================================

@@ -1997,7 +1997,6 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
         }
         else
         {
-            // HANDLE!
             necro_type_class_translate_go(dictionary_context, infer, env, ast->bin_op.lhs);
             necro_type_class_translate_go(dictionary_context, infer, env, ast->bin_op.rhs);
         }
@@ -2096,6 +2095,7 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
         break;
 
     case NECRO_AST_DO:
+        // TODO:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->do_statement.statement_list);
         break;
 

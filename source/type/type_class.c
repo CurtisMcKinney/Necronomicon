@@ -214,6 +214,19 @@ void necro_finish_declaring_type_class(NecroInfer* infer, NecroTypeClassEnv* env
         if (necro_is_infer_error(infer)) return;
         necro_symtable_get(infer->symtable, declarations->declaration.declaration_impl->type_signature.var->variable.id)->type              = type_sig;
         necro_symtable_get(infer->symtable, declarations->declaration.declaration_impl->type_signature.var->variable.id)->method_type_class = type_class;
+
+        // kind check for type context!
+        NecroTypeClassContext* curr_context = context;
+        while (curr_context != NULL)
+        {
+            NecroTypeClass* type_class     = necro_type_class_table_get(&infer->type_class_env->class_table, curr_context->type_class_name.id.id);
+            NecroType*      type_class_var = necro_symtable_get(infer->symtable, type_class->type_var.id)->type;
+            NecroType*      var_type       = necro_symtable_get(infer->symtable, curr_context->type_var.id)->type;
+            necro_kind_unify(infer, var_type->type_kind, type_class_var->type_kind, declarations->declaration.declaration_impl->scope, type_sig, "While inferring the type of a method type signature");
+            if (necro_is_infer_error(infer)) return;
+            curr_context = curr_context->next;
+        }
+
         NecroTypeClassMember* new_member  = necro_paged_arena_alloc(&env->arena, sizeof(NecroTypeClassMember));
         // type_class->members               = necro_paged_arena_alloc(&env->arena, sizeof(NecroTypeClassMember));
         new_member->member_varid = (NecroCon) { .symbol = declarations->declaration.declaration_impl->type_signature.var->variable.symbol, .id = declarations->declaration.declaration_impl->type_signature.var->variable.id };
@@ -1657,8 +1670,11 @@ NecroASTNode* necro_resolve_method(NecroInfer* infer, NecroTypeClassEnv* env, Ne
         NecroASTNode* d_var           = NULL;
         if (var_type->var.is_rigid)
         {
+            // TODO: select ids are 0!!!
+            // TODO: Fix multiple dictionaries using only first entry bug HERE (doTest.necro line 294)
             // d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, var_type->var.var);
-            d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, necro_con_to_var(var_type->var.context->type_var));
+            // d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, necro_con_to_var(var_type->var.context->type_var));
+            d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, context, necro_con_to_var(var_type->var.context->type_var));
             if (necro_is_infer_error(infer)) return NULL;
             assert(d_var != NULL);
         }
@@ -2095,9 +2111,22 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
         break;
 
     case NECRO_AST_DO:
-        // TODO:
+    {
+        NecroAST_Node_Reified* bind_node = necro_create_variable_ast(&infer->arena, infer->intern, "bind", NECRO_VAR_VAR);
+        NecroScope* scope = ast->scope;
+        while (scope->parent != NULL)
+            scope = scope->parent;
+        bind_node->scope = bind_node->scope = scope;
+        necro_rename_var_pass(env->renamer, &infer->arena, bind_node);
+        NecroTypeClassContext* bind_context     = necro_symtable_get(infer->symtable, bind_node->variable.id)->type->for_all.context;
+        NecroTypeClassContext* monad_context    = ast->do_statement.monad_var->var.context;
+        while (monad_context->type_class_name.id.id != bind_context->type_class_name.id.id)
+            monad_context = monad_context->next;
+        NecroASTNode*          bind_method_inst = necro_resolve_method(infer, env, monad_context, bind_node, dictionary_context);
+        necro_print_reified_ast_node(bind_method_inst, infer->intern);
         necro_type_class_translate_go(dictionary_context, infer, env, ast->do_statement.statement_list);
         break;
+    }
 
     case NECRO_AST_LIST_NODE:
         necro_type_class_translate_go(dictionary_context, infer, env, ast->list.item);

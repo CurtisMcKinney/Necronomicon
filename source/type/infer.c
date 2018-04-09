@@ -188,6 +188,18 @@ NecroType* necro_infer_type_sig(NecroInfer* infer, NecroNode* ast)
     necro_kind_unify(infer, type_sig->type_kind, infer->star_type_kind, ast->scope, type_sig, "While inferring the type of a type signature");
     if (necro_is_infer_error(infer)) return NULL;
 
+    // kind check for type context!
+    NecroTypeClassContext* curr_context = context;
+    while (curr_context != NULL)
+    {
+        NecroTypeClass* type_class     = necro_type_class_table_get(&infer->type_class_env->class_table, curr_context->type_class_name.id.id);
+        NecroType*      type_class_var = necro_symtable_get(infer->symtable, type_class->type_var.id)->type;
+        NecroType*      var_type       = necro_symtable_get(infer->symtable, curr_context->type_var.id)->type;
+        necro_kind_unify(infer, var_type->type_kind, type_class_var->type_kind, ast->scope, type_sig, "While inferring the type of a type signature");
+        if (necro_is_infer_error(infer)) return NULL;
+        curr_context = curr_context->next;
+    }
+
     type_sig->pre_supplied = true;
     type_sig->source_loc   = ast->source_loc;
 
@@ -1322,7 +1334,7 @@ NecroType* necro_infer_do_statement(NecroInfer* infer, NecroNode* ast, NecroType
     switch(ast->type)
     {
 
-    case NECRO_AST_LET_EXPRESSION: necro_infer_let_expression(infer, ast); return NULL;
+    case NECRO_AST_LET_EXPRESSION: ast->necro_type = necro_infer_let_expression(infer, ast); return NULL;
 
     case NECRO_BIND_ASSIGNMENT:
     {
@@ -1333,6 +1345,7 @@ NecroType* necro_infer_do_statement(NecroInfer* infer, NecroNode* ast, NecroType
         NecroType* result_type = necro_create_type_app(infer, monad_var, var_name);
         necro_unify(infer, rhs_type, result_type, ast->scope, rhs_type, "While inferring the type of a bind assignment: ");
         // don't generalize bind assignment variables
+        ast->necro_type = result_type;
         return NULL;
     }
 
@@ -1344,6 +1357,7 @@ NecroType* necro_infer_do_statement(NecroInfer* infer, NecroNode* ast, NecroType
         if (necro_is_infer_error(infer)) return NULL;
         NecroType* result_type = necro_create_type_app(infer, monad_var, pat_type);
         necro_unify(infer, rhs_type, result_type, ast->scope, rhs_type, "While inferring the type of a pattern bind assignment: ");
+        ast->necro_type = result_type;
         return NULL;
     }
 
@@ -1355,11 +1369,11 @@ NecroType* necro_infer_do_statement(NecroInfer* infer, NecroNode* ast, NecroType
     // This should be ok actually?
     default:
     {
-        // Something seems to be slightly off here...
         NecroType* statement_type = necro_infer_go(infer, ast);
         NecroType* result_type    = necro_create_type_app(infer, monad_var, necro_new_name(infer, ast->source_loc));
         if (necro_is_infer_error(infer)) return NULL;
         necro_unify(infer, statement_type, result_type, ast->scope, statement_type, "While inferring the type of a do statement: ");
+        ast->necro_type = result_type;
         return result_type;
     }
 
@@ -1382,6 +1396,8 @@ NecroType* necro_infer_do(NecroInfer* infer, NecroNode* ast)
         if (necro_is_infer_error(infer)) return NULL;
         statements = statements->list.next_item;
     }
+    ast->necro_type             = statement_type;
+    ast->do_statement.monad_var = monad_var;
     if (statement_type == NULL)
         return necro_infer_ast_error(infer, NULL, ast, "The final statement in a do block must be an expression");
     else

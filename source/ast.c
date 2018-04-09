@@ -461,7 +461,6 @@ void necro_print_reified_ast(NecroAST_Reified* ast, NecroIntern* intern)
     }
 }
 
-
 NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, NecroPagedArena* arena, NecroIntern* intern)
 {
     if (a_ptr == null_local_ptr)
@@ -582,8 +581,8 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
         reified_node->lambda.expression = necro_reify(a_ast, node->lambda.expression, arena, intern);
         break;
     case NECRO_AST_DO:
-        reified_node->do_statement.statement_list   = necro_reify(a_ast, node->do_statement.statement_list, arena, intern);
-        reified_node->do_statement.monad_dictionary = NULL;
+        reified_node->do_statement.statement_list = necro_reify(a_ast, node->do_statement.statement_list, arena, intern);
+        reified_node->do_statement.monad_var      = NULL;
         break;
     case NECRO_AST_LIST_NODE:
         reified_node->list.item      = necro_reify(a_ast, node->list.item, arena, intern);

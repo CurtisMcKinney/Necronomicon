@@ -367,7 +367,7 @@ typedef struct
 typedef struct
 {
     struct NecroAST_Node_Reified* statement_list; // NecroAST_ListNode of do statement items
-    struct NecroAST_Node_Reified* monad_dictionary;
+    struct NecroType*             monad_var;
 } NecroAST_Do_Reified;
 
 //=====================================================

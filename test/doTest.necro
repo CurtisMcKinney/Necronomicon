@@ -283,7 +283,6 @@ doTest1 x y = do
     z <- y
     pure (x + z)
 
--- This correctly throws a kind error
 doTest2 :: (Num a, Monad m) => a -> m a -> m a
 doTest2 x y = do
     z <- y

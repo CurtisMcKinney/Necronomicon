@@ -44,20 +44,23 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
 {
     return (NecroSymbolInfo)
     {
-        .name              = symbol,
-        .string_name       = necro_intern_get_string(intern, symbol),
-        .id                = 0,
-        .data_size         = 0,
-        .type              = NULL,
-        .local_var_num     = 0,
-        .source_loc        = source_loc,
-        .scope             = scope,
-        .delay_scope       = NULL,
-        .method_type_class = NULL,
-        .ast               = NULL,
-        .declaration_group = NULL,
-        .type_status       = NECRO_TYPE_UNCHECKED,
-        .is_constructor    = false,
+        .name                    = symbol,
+        .string_name             = necro_intern_get_string(intern, symbol),
+        .id                      = 0,
+        .data_size               = 0,
+        .local_var_num           = 0,
+        .source_loc              = source_loc,
+        .scope                   = scope,
+        .delay_scope             = NULL,
+        .ast                     = NULL,
+        .declaration_group       = NULL,
+        .optional_type_signature = NULL,
+        .type                    = NULL,
+        .type_status             = NECRO_TYPE_UNCHECKED,
+        .is_constructor          = false,
+        .method_type_class       = NULL,
+        .type_class              = NULL,
+        .type_class_instance     = NULL
     };
 }
 
@@ -95,6 +98,7 @@ NecroSymbolInfo* necro_symtable_get(NecroSymTable* table, NecroID id)
     }
     else
     {
+        assert(false);
         return NULL;
     }
 }

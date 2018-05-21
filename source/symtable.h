@@ -30,22 +30,24 @@ struct NecroTypeClass;
 
 typedef struct
 {
-    NecroSymbol             name;
-    const char*             string_name;
-    NecroID                 id;
-    size_t                  data_size;
-    size_t                  local_var_num;
-    NecroSourceLoc          source_loc;
-    struct NecroScope*      scope;
-    struct NecroDelayScope* delay_scope;
-    NecroASTNode*           ast;
-    NecroDeclarationGroup*  declaration_group;
-    NecroAST_Node_Reified*  optional_type_signature;
-    NecroType*              type;
-    NECRO_TYPE_STATUS       type_status;
-    struct NecroTypeClass*  method_type_class;
-    // bool                    is_method;
-    bool                    is_constructor;
+    NecroSymbol                    name;
+    const char*                    string_name;
+    NecroID                        id;
+    size_t                         data_size;
+    size_t                         local_var_num;
+    NecroSourceLoc                 source_loc;
+    struct NecroScope*             scope;
+    struct NecroDelayScope*        delay_scope;
+    NecroASTNode*                  ast;
+    NecroDeclarationGroup*         declaration_group;
+    NecroAST_Node_Reified*         optional_type_signature;
+    NecroType*                     type;
+    NECRO_TYPE_STATUS              type_status;
+    struct NecroTypeClass*         method_type_class;
+    bool                           is_constructor;
+    // bool                           is_method;
+    struct NecroTypeClass*         type_class;
+    struct NecroTypeClassInstance* type_class_instance;
 } NecroSymbolInfo;
 
 typedef struct NecroSymTable

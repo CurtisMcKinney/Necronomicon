@@ -22,6 +22,7 @@ typedef struct
     bool                   should_free_type_declare;
     NecroDeclarationGroup* current_declaration_group;
     NecroPagedArena*       arena;
+    NecroAST_Node_Reified* current_type_sig_ast;
 } NecroRenamer;
 
 NecroRenamer      necro_create_renamer(NecroScopedSymTable* scoped_symtable, NecroIntern*);

@@ -401,7 +401,9 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
                 }
                 else
                 {
-                    (*type_signature) = input_node;
+                    // TODO / HACK: hack with global state. Primitives seem to be abusing NECRO_VAR_SIG and this is a temp solution to skirt around that fact. Find a better solution.
+                    assert(renamer->current_type_sig_ast != NULL);
+                    (*type_signature) = renamer->current_type_sig_ast;
                 }
             }
             break;
@@ -529,6 +531,9 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         break;
 
     case NECRO_AST_TYPE_SIGNATURE:
+        // TODO / HACK: Hack with global state. Type signatures are precarious and are being abused by primitives.
+        // This should get around some of the hackery. Clean up with proper solution later.
+        renamer->current_type_sig_ast = input_node;
         rename_var_go(input_node->type_signature.var, renamer);
         rename_var_go(input_node->type_signature.context, renamer);
         rename_var_go(input_node->type_signature.type, renamer);

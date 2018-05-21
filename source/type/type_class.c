@@ -2283,7 +2283,6 @@ NECRO_RETURN_CODE necro_type_class_translate(NecroInfer* infer, NecroTypeClassEn
 //=====================================================
 // Refactor
 //=====================================================
-
 NecroSymbol necro_create_type_class_instance_name(NecroIntern* intern, NecroNode* ast)
 {
     NecroCon type_class_name = (NecroCon) { .symbol = ast->type_class_instance.qtycls->conid.symbol, .id = ast->type_class_instance.qtycls->conid.id };
@@ -2295,4 +2294,41 @@ NecroSymbol necro_create_type_class_instance_name(NecroIntern* intern, NecroNode
     else
         assert(false);
     return necro_intern_create_type_class_instance_symbol(intern, data_type_name.symbol, type_class_name.symbol);
+}
+
+// TODO: FINISH
+void necro_create_type_class(NecroInfer* infer, NecroNode* type_class_ast)
+{
+    assert(type_class_ast->type == NECRO_AST_TYPE_CLASS_DECLARATION);
+    if (necro_is_infer_error(infer)) return;
+
+    // Create type class
+    NecroSymbolInfo* info       = necro_symtable_get(infer->symtable, type_class_ast->type_class_declaration.tycls->conid.id);
+    NecroTypeClass*  type_class = necro_paged_arena_alloc(&infer->arena, sizeof(NecroTypeClass));
+    type_class->type_class_name = (NecroCon) { .symbol = type_class_ast->type_class_declaration.tycls->conid.symbol, .id = type_class_ast->type_class_declaration.tycls->conid.id };
+    type_class->members         = NULL;
+    type_class->type_var        = (NecroCon) { .symbol = type_class_ast->type_class_declaration.tyvar->variable.symbol, .id = type_class_ast->type_class_declaration.tyvar->variable.id };
+    type_class->context         = NULL;
+    type_class->dependency_flag = 0;
+    type_class->ast             = type_class_ast;
+    type_class->dictionary_name = necro_create_dictionary_name(infer->intern, type_class->type_class_name.symbol);
+    info->type_class            = type_class;
+
+    // Create type_var for type_class
+    NecroType* ty_var              = necro_create_type_var(infer, (NecroVar) { .id = type_class->type_var.id, .symbol = type_class_ast->type_class_declaration.tyvar->variable.symbol});
+    // ty_var->var.is_rigid           = false;
+    ty_var->var.is_rigid           = true;
+    ty_var->var.is_type_class_var  = true;
+    type_class->type               = necro_make_con_1(infer, type_class->type_class_name, necro_create_type_list(infer, ty_var, NULL));
+    type_class->type->con.is_class = true;
+    // TODO: Finish!!!
+    // type_class->context            = necro_ast_to_context(infer, env, type_class_ast->type_class_declaration.context);
+    if (necro_is_infer_error(infer)) return;
+    necro_symtable_get(infer->symtable, type_class->type_var.id)->type = ty_var;
+}
+
+// TODO: FINISH
+void necro_create_type_class_instance(NecroInfer* infer, NecroNode* ast)
+{
+    assert(ast->type == NECRO_AST_TYPE_CLASS_INSTANCE);
 }

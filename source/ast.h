@@ -38,6 +38,9 @@ typedef struct
     struct NecroAST_Node_Reified* inst;
     struct NecroAST_Node_Reified* declarations; // Points to the next in the list, null_local_ptr if the end
     struct NecroAST_Node_Reified* dictionary_instance; // Dictionary instance which is generated at compile time by the compiler
+    struct NecroDeclarationGroup* declaration_group;
+    NecroSymbol                   instance_name;
+    NecroID                       instance_id;
 } NecroAST_TypeClassInstance_Reified;
 
 //=====================================================
@@ -50,6 +53,7 @@ typedef struct
     struct NecroAST_Node_Reified* tyvar;
     struct NecroAST_Node_Reified* declarations; // Points to the next in the list, null_local_ptr if the end
     struct NecroAST_Node_Reified* dictionary_data_declaration; // Dictionary data declaration which is generated at compile time by the compiler
+    struct NecroDeclarationGroup* declaration_group;
 } NecroAST_TypeClassDeclaration_Reified;
 
 //=====================================================
@@ -70,6 +74,7 @@ typedef struct
     struct NecroAST_Node_Reified* context; // optional, null_local_ptr if not present
     struct NecroAST_Node_Reified* type;
     NECRO_SIG_TYPE                sig_type;
+    struct NecroDeclarationGroup* declaration_group;
 } NecroAST_TypeSignature_Reified;
 
 //=====================================================

@@ -888,3 +888,21 @@ void necro_scoped_symtable_test()
     necro_destroy_symtable(&symtable);
     necro_destroy_intern(&intern);
 }
+
+NecroSymbolInfo* necro_symtable_get_type_class_declaration_info(NecroSymTable* symtable, NecroAST_Node_Reified* ast)
+{
+    assert(ast->type == NECRO_AST_TYPE_CLASS_DECLARATION);
+    uint32_t index = ast->type_class_declaration.tycls->conid.id.id;
+    assert(index > 0);
+    assert(index <= symtable->count);
+    return symtable->data + index;
+}
+
+NecroSymbolInfo* necro_symtable_get_type_class_instance_info(NecroSymTable* symtable, NecroAST_Node_Reified* ast)
+{
+    assert(ast->type == NECRO_AST_TYPE_CLASS_INSTANCE);
+    uint32_t index = ast->type_class_instance.instance_id.id;
+    assert(index > 0);
+    assert(index <= symtable->count);
+    return symtable->data + index;
+}

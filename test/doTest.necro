@@ -193,37 +193,6 @@
 
 data Maybe a = Just a | Nothing
 
-class SupremeClass a where
-    supremeMethod :: a -> ()
-
-class SuperClass a where
-    superMethod :: a -> Int
-
-class (SuperClass a, SupremeClass a) => SubClass a where
-    subMethod :: Int -> a
-
-instance Num a => SuperClass (Maybe a) where
-    superMethod (Just _) = 0
-
-instance (Fractional a, Eq a) => SupremeClass (Maybe a) where
-    supremeMethod _ = ()
-
-instance (Fractional a, Ord a) => SubClass (Maybe a) where
-    subMethod i = subMethod (superMethod (Just (fromInt i)))
-
-instance Functor Maybe where
-    map f (Just x) = Just (f x)
-    map _ Nothing  = Nothing
-
-instance Applicative Maybe where
-    pure                 = Just
-    ap (Just f) (Just x) = Just (f x)
-    ap _        _        = Nothing
-
-instance Monad Maybe where
-    bind (Just f) g = g f
-    bind Nothing  _ = Nothing
-
 -- subTest :: Maybe Float
 -- subTest = subMethod 0
 
@@ -266,7 +235,7 @@ opTest :: Num a => a -> a
 opTest x = x + x
 
 leftSectionTest :: Fractional a => a -> a -> a
-leftSectionTest x = (x +)
+leftSectionTest x = (x+)
 
 rightSectionTest :: Fractional a => a -> a -> a
 rightSectionTest x = (+x)
@@ -302,3 +271,59 @@ multiConstraintTest x = (x + x) > x
 -- leftSide  :: Num a => a
 -- rightSide :: Float
 -- (leftSide, rightSide) = (0, 1)
+--
+
+class SupremeClass a where
+    supremeMethod :: a -> ()
+
+class SuperClass a where
+    superMethod :: a -> Int
+
+class (SuperClass a, SupremeClass a) => SubClass a where
+    subMethod :: Int -> a
+
+instance Num a => SuperClass (Maybe a) where
+    superMethod (Just _) = 0
+
+instance (Fractional a, Eq a) => SupremeClass (Maybe a) where
+    supremeMethod _ = ()
+
+instance (Fractional a, Ord a) => SubClass (Maybe a) where
+    subMethod i = Just (fromInt i)
+    -- subMethod i = subMethod (superMethod (Just (fromInt i)))
+
+instance Functor Maybe where
+    map f (Just x) = Just (f x)
+    map _ Nothing  = Nothing
+
+instance Applicative Maybe where
+    pure                 = Just
+    ap (Just f) (Just x) = pure (f x)
+    ap _        _        = Nothing
+
+instance Monad Maybe where
+    bind (Just f) g = g f
+    bind Nothing  _ = Nothing
+
+class InstanceTest a where
+    instanceMethod1 :: Num b => b -> a
+    instanceMethod2 :: a -> a
+
+-- TODO: Looks like this is creating duplicate dictionaries....
+-- Also looks like this is creating incorrect dictionaries for instanceMethod1 during instanceMethod2
+-- Should either figure and use correct method automatically, or it should be using a supplied dictionary for
+-- InstanceTest (Maybe b)
+-- Seems like instance method contexts are just wrong.
+-- Figure out exactly what instance method contexts SHOULD be!
+instance Num a => InstanceTest (Maybe a) where
+    instanceMethod1 _        = Nothing
+    instanceMethod2 (Just a) = instanceMethod1 a
+    instanceMethod2 _        = Nothing
+
+-- TODO: Looks like where statements are broken for instance methods now?
+--  Consider redoing type class system to use dependency group system to clean up some of this mess?
+-- instance InstanceTest () where
+--     instanceMethod1 _ = ()
+--     instanceMethod2 _ = result where
+--         result :: ()
+--         result = instanceMethod1 0

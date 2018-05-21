@@ -152,20 +152,22 @@ void necro_compile_impl(
     *type_class_env = necro_create_type_class_env(&scoped_symtable, &renamer);
     *infer = necro_create_infer(&lexer->intern, &symtable, &prim_types, type_class_env);
     *destruct_flags |= BIT(NECRO_PHASE_DEPENDENCY_ANALYSIS);
-    if (necro_prim_infer(&prim_types, &d_analyzer, infer) != NECRO_SUCCESS)
+    if (necro_prim_infer(&prim_types, &d_analyzer, infer, compilation_phase) != NECRO_SUCCESS)
     {
         necro_print_error(&infer->error, input_string, "Prim Type");
         return;
     }
-
     if (necro_dependency_analyze_ast(&d_analyzer, &ast_r.arena, ast_r.root))
     {
         necro_print_error(&renamer.error, input_string, "Dependency Analysis");
         return;
     }
-    puts("");
     if (compilation_phase == NECRO_PHASE_DEPENDENCY_ANALYSIS)
+    {
+        necro_print_reified_ast(&ast_r, &lexer->intern);
         return;
+    }
+    puts("");
 
     //=====================================================
     // Infer
@@ -182,12 +184,13 @@ void necro_compile_impl(
         return;
     }
 
-    necro_type_class_translate(infer, type_class_env, ast_r.root);
-    if (infer->error.return_code != NECRO_SUCCESS)
-    {
-        necro_print_error(&infer->error, input_string, "Type");
-        return;
-    }
+    // TODO: Redo this once TypeClass refactor is done
+    // necro_type_class_translate(infer, type_class_env, ast_r.root);
+    // if (infer->error.return_code != NECRO_SUCCESS)
+    // {
+    //     necro_print_error(&infer->error, input_string, "Type");
+    //     return;
+    // }
 
     necro_print_reified_ast(&ast_r, &lexer->intern);
     if (compilation_phase == NECRO_PHASE_INFER)

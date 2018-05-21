@@ -86,6 +86,7 @@ void                    necro_declare_type_classes(NecroInfer* infer, NecroTypeC
 void                    necro_type_class_instances_pass1(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations);
 void                    necro_type_class_instances_pass2(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations);
 
+NecroSymbol             necro_create_type_class_instance_name(NecroIntern* intern, NecroNode* ast);
 void                    necro_print_type_class_env(NecroTypeClassEnv* env, NecroInfer* infer, NecroIntern* intern);
 NecroTypeClassInstance* necro_get_instance(NecroInfer* infer, NecroCon data_type_name, NecroCon type_class_name);
 uint64_t                necro_create_instance_key(NecroCon data_type_name, NecroCon type_class_name);

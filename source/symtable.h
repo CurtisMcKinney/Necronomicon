@@ -122,6 +122,9 @@ NecroID             necro_scope_find(NecroScope* scope, NecroSymbol symbol);
 NecroID             necro_scoped_symtable_new_symbol_info(NecroScopedSymTable* table, NecroScope* scope, NecroSymbolInfo info);
 void                necro_scope_set_last_introduced_id(NecroScope* scope, NecroID id);
 
+NecroSymbolInfo*    necro_symtable_get_type_class_declaration_info(NecroSymTable* symtable, NecroAST_Node_Reified* ast);
+NecroSymbolInfo*    necro_symtable_get_type_class_instance_info(NecroSymTable* symtable, NecroAST_Node_Reified* ast);
+
 // Test
 void                necro_scoped_symtable_print_type_scope(NecroScopedSymTable* table);
 void                necro_scoped_symtable_print(NecroScopedSymTable* table);

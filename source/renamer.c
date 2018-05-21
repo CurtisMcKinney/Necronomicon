@@ -278,6 +278,10 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
             assert(false);
         rename_declare_go(input_node->type_class_instance.declarations, renamer);
         renamer->current_class_instance_symbol = (NecroSymbol) { 0 };
+        input_node->type_class_instance.instance_id = necro_scoped_symtable_new_symbol_info(
+            renamer->scoped_symtable,
+            renamer->scoped_symtable->top_type_scope,
+            necro_create_initial_symbol_info(input_node->type_class_instance.instance_name, input_node->source_loc, input_node->scope, renamer->intern));
         // rename_declare_go(input_node->type_class_instance.dictionary_instance, renamer);
         break;
 
@@ -510,6 +514,8 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         rename_var_go(input_node->type_class_declaration.tycls, renamer);
         rename_var_go(input_node->type_class_declaration.tyvar, renamer);
         rename_var_go(input_node->type_class_declaration.declarations, renamer);
+        necro_symtable_get_type_class_declaration_info(renamer->scoped_symtable->global_table, input_node)->declaration_group = necro_append_declaration_group(renamer->arena, input_node, NULL);
+        input_node->type_class_declaration.declaration_group = necro_symtable_get_type_class_declaration_info(renamer->scoped_symtable->global_table, input_node)->declaration_group;
         // rename_var_go(input_node->type_class_declaration.dictionary_data_declaration, renamer);
         break;
     case NECRO_AST_TYPE_CLASS_INSTANCE:
@@ -517,6 +523,8 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         rename_var_go(input_node->type_class_instance.qtycls, renamer);
         rename_var_go(input_node->type_class_instance.inst, renamer);
         rename_var_go(input_node->type_class_instance.declarations, renamer);
+        necro_symtable_get_type_class_instance_info(renamer->scoped_symtable->global_table, input_node)->declaration_group = necro_append_declaration_group(renamer->arena, input_node, NULL);
+        input_node->type_class_declaration.declaration_group = necro_symtable_get_type_class_instance_info(renamer->scoped_symtable->global_table, input_node)->declaration_group;
         // rename_var_go(input_node->type_class_instance.dictionary_instance, renamer);
         break;
 
@@ -524,6 +532,7 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         rename_var_go(input_node->type_signature.var, renamer);
         rename_var_go(input_node->type_signature.context, renamer);
         rename_var_go(input_node->type_signature.type, renamer);
+        input_node->type_signature.declaration_group = necro_append_declaration_group(renamer->arena, input_node, NULL);
         break;
 
     case NECRO_AST_TYPE_CLASS_CONTEXT:

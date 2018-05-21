@@ -88,7 +88,18 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
                 break;
             case NECRO_AST_DATA_DECLARATION:
                 curr->top_declaration.declaration->data_declaration.declaration_group->info = info;
-            default: break;
+                break;
+            case NECRO_AST_TYPE_CLASS_DECLARATION:
+                curr->top_declaration.declaration->type_class_declaration.declaration_group->info = info;
+                break;
+            case NECRO_AST_TYPE_CLASS_INSTANCE:
+                curr->top_declaration.declaration->type_class_instance.declaration_group->info = info;
+                break;
+            case NECRO_AST_TYPE_SIGNATURE:
+                curr->top_declaration.declaration->type_signature.declaration_group->info = info;
+                break;
+            // Note: Should never reach here
+            default: assert(false);  break;
             }
             curr = curr->top_declaration.next_top_decl;
         }
@@ -98,29 +109,44 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         curr = ast;
         while (curr != NULL)
         {
-            if (curr->top_declaration.declaration->type == NECRO_AST_DATA_DECLARATION)
+            NecroAST_NodeType type = curr->top_declaration.declaration->type;
+            if (type == NECRO_AST_DATA_DECLARATION)
                 d_analyze_go(d_analyzer, curr->top_declaration.declaration);
             curr = curr->top_declaration.next_top_decl;
         }
 
-        // //-----------------------------------------
-        // // Pass 2.5, Add type class dictionary Data Declarations
-        // curr = ast;
-        // while (curr != NULL)
-        // {
-        //     if (curr->top_declaration.declaration->type == NECRO_AST_TYPE_CLASS_DECLARATION)
-        //     {
-        //         // curr->top_declaration.declaration->type_class_declaration.tycls
-        //     }
-        //     curr = curr->top_declaration.next_top_decl;
-        // }
-
         //-----------------------------------------
-        // Pass 3, analyze Terms
+        // Pass 3, TypeClass Declarations, TypeClass Instances
         curr = ast;
         while (curr != NULL)
         {
-            if (curr->top_declaration.declaration->type == NECRO_AST_SIMPLE_ASSIGNMENT || curr->top_declaration.declaration->type == NECRO_AST_APATS_ASSIGNMENT || curr->top_declaration.declaration->type == NECRO_AST_PAT_ASSIGNMENT)
+            NecroAST_NodeType type = curr->top_declaration.declaration->type;
+            if (type == NECRO_AST_TYPE_CLASS_DECLARATION ||
+                type == NECRO_AST_TYPE_CLASS_INSTANCE)
+                d_analyze_go(d_analyzer, curr->top_declaration.declaration);
+            curr = curr->top_declaration.next_top_decl;
+        }
+
+        //-----------------------------------------
+        // Pass 4, analyze Type Signatures
+        curr = ast;
+        while (curr != NULL)
+        {
+            NecroAST_NodeType type = curr->top_declaration.declaration->type;
+            if (type == NECRO_AST_TYPE_SIGNATURE)
+                d_analyze_go(d_analyzer, curr->top_declaration.declaration);
+            curr = curr->top_declaration.next_top_decl;
+        }
+
+        //-----------------------------------------
+        // Pass 5, analyze Terms
+        curr = ast;
+        while (curr != NULL)
+        {
+            NecroAST_NodeType type = curr->top_declaration.declaration->type;
+            if (type == NECRO_AST_SIMPLE_ASSIGNMENT ||
+                type == NECRO_AST_APATS_ASSIGNMENT  ||
+                type == NECRO_AST_PAT_ASSIGNMENT)
                 d_analyze_go(d_analyzer, curr->top_declaration.declaration);
             curr = curr->top_declaration.next_top_decl;
         }
@@ -162,31 +188,38 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
             case NECRO_AST_PAT_ASSIGNMENT:
                 curr->declaration.declaration_impl->pat_assignment.declaration_group->info = info;
                 break;
-            case NECRO_AST_DATA_DECLARATION:
-                curr->declaration.declaration_impl->data_declaration.declaration_group->info = info;
-            default: break;
+            case NECRO_AST_TYPE_SIGNATURE:
+                curr->top_declaration.declaration->type_signature.declaration_group->info = info;
+                break;
+            // NOTE: Should never reach
+            default: assert(false); break;
             }
             curr = curr->declaration.next_declaration;
         }
         //-----------------------------------------
-        // Pass 2, analyze
+        // Pass 2, analyze TypeSignatures
         curr = ast;
         while (curr != NULL)
         {
-            d_analyze_go(d_analyzer, curr->declaration.declaration_impl);
+            NecroAST_NodeType type = curr->declaration.declaration_impl->type;
+            if (type == NECRO_AST_TYPE_SIGNATURE)
+                d_analyze_go(d_analyzer, curr->declaration.declaration_impl);
+            curr = curr->declaration.next_declaration;
+        }
+        //-----------------------------------------
+        // Pass 3, analyze everything else
+        curr = ast;
+        while (curr != NULL)
+        {
+            NecroAST_NodeType type = curr->declaration.declaration_impl->type;
+            if (type == NECRO_AST_SIMPLE_ASSIGNMENT ||
+                type == NECRO_AST_APATS_ASSIGNMENT  ||
+                type == NECRO_AST_PAT_ASSIGNMENT)
+                d_analyze_go(d_analyzer, curr->declaration.declaration_impl);
             curr = curr->declaration.next_declaration;
         }
         ast->declaration.group_list = info->group_lists;
         necro_destroy_declaration_group_vector(&info->stack);
-        break;
-    }
-
-    case NECRO_AST_TYPE_CLASS_INSTANCE:
-    {
-        d_analyze_go(d_analyzer, ast->type_class_instance.context);
-        d_analyze_go(d_analyzer, ast->type_class_instance.qtycls);
-        d_analyze_go(d_analyzer, ast->type_class_instance.inst);
-        d_analyze_go(d_analyzer, ast->type_class_instance.declarations);
         break;
     }
 
@@ -279,6 +312,46 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         necro_strong_connect2(d_analyzer->arena, ast->data_declaration.declaration_group);
         break;
 
+    case NECRO_AST_TYPE_CLASS_DECLARATION:
+    {
+        // TODO: Finish
+        if (ast->type_class_declaration.declaration_group->index != -1) return;
+        assert(ast->type_class_declaration.declaration_group != NULL);
+        assert(ast->type_class_declaration.declaration_group->next == NULL);
+        necro_strong_connect1(ast->type_class_declaration.declaration_group);
+        d_analyze_go(d_analyzer, ast->type_class_declaration.context);
+        // d_analyze_go(d_analyzer, ast->type_class_declaration.tycls);
+        // d_analyze_go(d_analyzer, ast->type_class_declaration.tyvar);
+        d_analyze_go(d_analyzer, ast->type_class_declaration.declarations);
+        necro_strong_connect2(d_analyzer->arena, ast->type_class_declaration.declaration_group);
+        break;
+    }
+
+    case NECRO_AST_TYPE_CLASS_INSTANCE:
+        // TODO: Finish
+        if (ast->type_class_instance.declaration_group->index != -1) return;
+        assert(ast->type_class_instance.declaration_group != NULL);
+        assert(ast->type_class_instance.declaration_group->next == NULL);
+        necro_strong_connect1(ast->type_class_instance.declaration_group);
+        d_analyze_go(d_analyzer, ast->type_class_instance.context);
+        // d_analyze_go(d_analyzer, ast->type_class_instance.qtycls);
+        // d_analyze_go(d_analyzer, ast->type_class_instance.inst);
+        d_analyze_go(d_analyzer, ast->type_class_instance.declarations);
+        necro_strong_connect2(d_analyzer->arena, ast->type_class_instance.declaration_group);
+        break;
+
+    case NECRO_AST_TYPE_SIGNATURE:
+        // TODO: Finish
+        if (ast->type_signature.declaration_group->index != -1) return;
+        assert(ast->type_signature.declaration_group != NULL);
+        assert(ast->type_signature.declaration_group->next == NULL);
+        necro_strong_connect1(ast->type_signature.declaration_group);
+        // d_analyze_go(d_analyzer, ast->type_signature.var);
+        d_analyze_go(d_analyzer, ast->type_signature.context);
+        d_analyze_go(d_analyzer, ast->type_signature.type);
+        necro_strong_connect2(d_analyzer->arena, ast->type_signature.declaration_group);
+        break;
+
     //=====================================================
     // Variable type things
     //=====================================================
@@ -341,6 +414,11 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
             symbol_info->declaration_group->info->current_group = v;
             break;
         }
+        break;
+
+    case NECRO_AST_TYPE_CLASS_CONTEXT:
+        d_analyze_go(d_analyzer, ast->type_class_context.conid);
+        // d_analyze_go(d_analyzer, ast->type_class_context.varid);
         break;
 
     //=====================================================
@@ -425,8 +503,6 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         d_analyze_go(d_analyzer, ast->case_alternative.pat);
         d_analyze_go(d_analyzer, ast->case_alternative.body);
         break;
-
-    // Other stuff
     case NECRO_AST_TYPE_APP:
         d_analyze_go(d_analyzer, ast->type_app.ty);
         d_analyze_go(d_analyzer, ast->type_app.next_ty);
@@ -443,21 +519,6 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
     case NECRO_AST_SIMPLE_TYPE:
         d_analyze_go(d_analyzer, ast->simple_type.type_con);
         d_analyze_go(d_analyzer, ast->simple_type.type_var_list);
-        break;
-    case NECRO_AST_TYPE_CLASS_DECLARATION:
-        d_analyze_go(d_analyzer, ast->type_class_declaration.context);
-        d_analyze_go(d_analyzer, ast->type_class_declaration.tycls);
-        d_analyze_go(d_analyzer, ast->type_class_declaration.tyvar);
-        d_analyze_go(d_analyzer, ast->type_class_declaration.declarations);
-        break;
-    case NECRO_AST_TYPE_SIGNATURE:
-        d_analyze_go(d_analyzer, ast->type_signature.var);
-        d_analyze_go(d_analyzer, ast->type_signature.context);
-        d_analyze_go(d_analyzer, ast->type_signature.type);
-        break;
-    case NECRO_AST_TYPE_CLASS_CONTEXT:
-        d_analyze_go(d_analyzer, ast->type_class_context.conid);
-        d_analyze_go(d_analyzer, ast->type_class_context.varid);
         break;
     case NECRO_AST_FUNCTION_TYPE:
         d_analyze_go(d_analyzer, ast->function_type.type);

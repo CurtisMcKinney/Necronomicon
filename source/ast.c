@@ -666,6 +666,7 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
         reified_node->type_class_declaration.tyvar                       = necro_reify(a_ast, node->type_class_declaration.tyvar, arena, intern);
         reified_node->type_class_declaration.declarations                = necro_reify(a_ast, node->type_class_declaration.declarations, arena, intern);
         reified_node->type_class_declaration.dictionary_data_declaration = NULL;
+        reified_node->type_class_declaration.declaration_group           = NULL;
         break;
     case NECRO_AST_TYPE_CLASS_INSTANCE:
         reified_node->type_class_instance.context             = necro_reify(a_ast, node->type_class_instance.context, arena, intern);
@@ -673,12 +674,15 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
         reified_node->type_class_instance.inst                = necro_reify(a_ast, node->type_class_instance.inst, arena, intern);
         reified_node->type_class_instance.declarations        = necro_reify(a_ast, node->type_class_instance.declarations, arena, intern);
         reified_node->type_class_instance.dictionary_instance = NULL;
+        reified_node->type_class_instance.declaration_group   = NULL;
+        reified_node->type_class_instance.instance_name       = necro_create_type_class_instance_name(intern, reified_node);
         break;
     case NECRO_AST_TYPE_SIGNATURE:
-        reified_node->type_signature.var      = necro_reify(a_ast, node->type_signature.var, arena, intern);
-        reified_node->type_signature.context  = necro_reify(a_ast, node->type_signature.context, arena, intern);
-        reified_node->type_signature.type     = necro_reify(a_ast, node->type_signature.type, arena, intern);
-        reified_node->type_signature.sig_type = node->type_signature.sig_type;
+        reified_node->type_signature.var               = necro_reify(a_ast, node->type_signature.var, arena, intern);
+        reified_node->type_signature.context           = necro_reify(a_ast, node->type_signature.context, arena, intern);
+        reified_node->type_signature.type              = necro_reify(a_ast, node->type_signature.type, arena, intern);
+        reified_node->type_signature.sig_type          = node->type_signature.sig_type;
+        reified_node->type_signature.declaration_group = NULL;
         break;
     case NECRO_AST_FUNCTION_TYPE:
         reified_node->function_type.type          = necro_reify(a_ast, node->function_type.type, arena, intern);
@@ -834,34 +838,38 @@ NecroASTNode* necro_create_fexpr_ast(NecroPagedArena* arena, NecroASTNode* f_ast
 
 NecroASTNode* necro_create_fun_type_sig_ast(NecroPagedArena* arena, NecroIntern* intern, const char* var_name, NecroASTNode* context_ast, NecroASTNode* type_ast, NECRO_VAR_TYPE var_type, NECRO_SIG_TYPE sig_type)
 {
-    NecroASTNode* ast            = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
-    ast->type                    = NECRO_AST_TYPE_SIGNATURE;
-    ast->type_signature.var      = necro_create_variable_ast(arena, intern, var_name, var_type);
-    ast->type_signature.context  = context_ast;
-    ast->type_signature.type     = type_ast;
-    ast->type_signature.sig_type = sig_type;
+    NecroASTNode* ast                     = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    ast->type                             = NECRO_AST_TYPE_SIGNATURE;
+    ast->type_signature.var               = necro_create_variable_ast(arena, intern, var_name, var_type);
+    ast->type_signature.context           = context_ast;
+    ast->type_signature.type              = type_ast;
+    ast->type_signature.sig_type          = sig_type;
+    ast->type_signature.declaration_group = NULL;
     return ast;
 }
 
 NecroASTNode* necro_create_type_class_ast(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, const char* class_var, NecroASTNode* context_ast, NecroASTNode* declarations_ast)
 {
-    NecroASTNode* ast                        = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
-    ast->type                                = NECRO_AST_TYPE_CLASS_DECLARATION;
-    ast->type_class_declaration.tycls        = necro_create_conid_ast(arena, intern, class_name, NECRO_CON_TYPE_DECLARATION);
-    ast->type_class_declaration.tyvar        = necro_create_variable_ast(arena, intern, class_var, NECRO_VAR_TYPE_FREE_VAR);
-    ast->type_class_declaration.context      = context_ast;
-    ast->type_class_declaration.declarations = declarations_ast;
+    NecroASTNode* ast                             = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    ast->type                                     = NECRO_AST_TYPE_CLASS_DECLARATION;
+    ast->type_class_declaration.tycls             = necro_create_conid_ast(arena, intern, class_name, NECRO_CON_TYPE_DECLARATION);
+    ast->type_class_declaration.tyvar             = necro_create_variable_ast(arena, intern, class_var, NECRO_VAR_TYPE_FREE_VAR);
+    ast->type_class_declaration.context           = context_ast;
+    ast->type_class_declaration.declarations      = declarations_ast;
+    ast->type_class_declaration.declaration_group = NULL;
     return ast;
 }
 
 NecroASTNode* necro_create_instance_ast(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, NecroASTNode* inst_ast, NecroASTNode* context_ast, NecroASTNode* declarations_ast)
 {
-    NecroASTNode* ast                     = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
-    ast->type                             = NECRO_AST_TYPE_CLASS_INSTANCE;
-    ast->type_class_instance.qtycls       = necro_create_conid_ast(arena, intern, class_name, NECRO_CON_TYPE_VAR);
-    ast->type_class_instance.inst         = inst_ast;
-    ast->type_class_instance.context      = context_ast;
-    ast->type_class_instance.declarations = declarations_ast;
+    NecroASTNode* ast                             = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    ast->type                                     = NECRO_AST_TYPE_CLASS_INSTANCE;
+    ast->type_class_instance.qtycls               = necro_create_conid_ast(arena, intern, class_name, NECRO_CON_TYPE_VAR);
+    ast->type_class_instance.inst                 = inst_ast;
+    ast->type_class_instance.context              = context_ast;
+    ast->type_class_instance.declarations         = declarations_ast;
+    ast->type_class_declaration.declaration_group = NULL;
+    ast->type_class_instance.instance_name        = necro_create_type_class_instance_name(intern, ast);
     return ast;
 }
 

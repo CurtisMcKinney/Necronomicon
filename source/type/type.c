@@ -12,6 +12,7 @@
 #include "kind.h"
 #include "lifetime.h"
 #include "type.h"
+#include "renamer.h"
 
 #define NECRO_TYPE_DEBUG 0
 #if NECRO_TYPE_DEBUG
@@ -40,19 +41,21 @@ NecroTypeEnv necro_create_type_env(size_t initial_size)
     };
 }
 
-NecroInfer necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtable, struct NecroPrimTypes* prim_types, struct NecroTypeClassEnv* type_class_env)
+NecroInfer necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtable, struct NecroScopedSymTable* scoped_symtable, struct NecroRenamer* renamer, struct NecroPrimTypes* prim_types)
 {
 
     NecroInfer infer = (NecroInfer)
     {
-        .intern         = intern,
-        .arena          = necro_create_paged_arena(),
-        .env            = necro_create_type_env(512),
-        .error          = necro_create_error(),
-        .highest_id     = symtable->count,
-        .symtable       = symtable,
-        .prim_types     = prim_types,
-        .type_class_env = type_class_env,
+        .intern          = intern,
+        .arena           = necro_create_paged_arena(),
+        .env             = necro_create_type_env(512),
+        .error           = necro_create_error(),
+        .highest_id      = symtable->count,
+        .symtable        = symtable,
+        .scoped_symtable = scoped_symtable,
+        .renamer         = renamer,
+        .prim_types      = prim_types,
+        // .type_class_env  = type_class_env,
     };
     // NecroKind* star_kind = necro_paged_arena_alloc(&infer.arena, sizeof(NecroKind));
     // star_kind->kind      = NECRO_KIND_STAR;
@@ -551,7 +554,7 @@ void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* clas
             while (classes != NULL)
             {
                 // if (!necro_context_contains_class(infer->type_class_env, type->var.context, classes))
-                if (!necro_context_and_super_classes_contain_class(infer->type_class_env, type->var.context, classes))
+                if (!necro_context_and_super_classes_contain_class(type->var.context, classes))
                 {
                     necro_infer_error(infer, error_preamble, macro_type, "No instance for \'%s %s\'", necro_intern_get_string(infer->intern, classes->type_class_name.symbol), necro_id_as_character_string(infer, type->var.var));
                     return;
@@ -577,7 +580,7 @@ void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* clas
     {
         while (classes != NULL)
         {
-            NecroTypeClassInstance* instance = necro_get_instance(infer, type->con.con, classes->type_class_name);
+            NecroTypeClassInstance* instance = necro_get_type_class_instance(infer, type->con.con.symbol, classes->type_class_name.symbol);
             if (instance == NULL)
             {
                 necro_type_is_not_instance_error(infer, type, classes, macro_type, error_preamble);
@@ -981,12 +984,12 @@ NecroType* necro_inst_with_context(NecroInfer* infer, NecroType* type, NecroScop
         {
             if (*context == NULL)
             {
-                curr_context = necro_create_type_class_context(&infer->arena, for_all_context->type_class_name, necro_var_to_con(subs->new_name->var.var), NULL);
+                curr_context = necro_create_type_class_context(&infer->arena, for_all_context->type_class, for_all_context->type_class_name, necro_var_to_con(subs->new_name->var.var), NULL);
                 *context     = curr_context;
             }
             else
             {
-                curr_context->next = necro_create_type_class_context(&infer->arena, for_all_context->type_class_name, necro_var_to_con(subs->new_name->var.var), NULL);
+                curr_context->next = necro_create_type_class_context(&infer->arena, for_all_context->type_class, for_all_context->type_class_name, necro_var_to_con(subs->new_name->var.var), NULL);
                 curr_context       = curr_context->next;
             }
             for_all_context = for_all_context->next;

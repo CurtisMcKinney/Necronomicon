@@ -14,10 +14,12 @@
 
 // Forward Declarations
 struct NecroType;
-struct NecroTypeClassEnv;
+// struct NecroTypeClassEnv;
 struct NecroSymTable;
 struct NecroTypeClassContext;
 struct NecroLifetime;
+struct NecroScopedSymTable;
+struct NecroRenamer;
 
 typedef enum
 {
@@ -142,21 +144,23 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    struct NecroSymTable*     symtable;
-    struct NecroPrimTypes*    prim_types;
-    struct NecroTypeClassEnv* type_class_env;
-    NecroTypeEnv              env;
-    NecroPagedArena           arena;
-    NecroIntern*              intern;
-    NecroError                error;
-    size_t                    highest_id;
-    NecroType*                star_type_kind;
+    struct NecroSymTable*       symtable;
+    struct NecroScopedSymTable* scoped_symtable;
+    struct NecroRenamer*        renamer;
+    struct NecroPrimTypes*      prim_types;
+    // struct NecroTypeClassEnv*   type_class_env;
+    NecroTypeEnv                env;
+    NecroPagedArena             arena;
+    NecroIntern*                intern;
+    NecroError                  error;
+    size_t                      highest_id;
+    NecroType*                  star_type_kind;
 } NecroInfer;
 
 //=====================================================
 // API
 //=====================================================
-NecroInfer  necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtable, struct NecroPrimTypes* prim_types, struct NecroTypeClassEnv* type_class_env);
+NecroInfer  necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtable, struct NecroScopedSymTable* scoped_symtable, struct NecroRenamer* renamer, struct NecroPrimTypes* prim_types);
 void        necro_destroy_infer(NecroInfer* infer);
 void        necro_reset_infer(NecroInfer* infer);
 bool        necro_is_infer_error(NecroInfer* infer);

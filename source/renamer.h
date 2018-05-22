@@ -12,7 +12,7 @@
 #include "symtable.h"
 #include "ast.h"
 
-typedef struct
+typedef struct NecroRenamer
 {
     NecroIntern*           intern;
     NecroScopedSymTable*   scoped_symtable;

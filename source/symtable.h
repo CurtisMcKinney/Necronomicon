@@ -93,7 +93,7 @@ typedef struct NecroDelayScope
     struct NecroDelayScope* parent;
 } NecroDelayScope;
 
-typedef struct
+typedef struct NecroScopedSymTable
 {
     NecroPagedArena  arena;
     NecroSymTable*   global_table;

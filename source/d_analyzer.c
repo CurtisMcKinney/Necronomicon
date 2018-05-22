@@ -251,7 +251,6 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
     //=====================================================
     // Assignment type things
     //=====================================================
-    // TODO: Force type signatures first!
     case NECRO_AST_SIMPLE_ASSIGNMENT:
     {
         if (ast->simple_assignment.declaration_group->index != -1) return;
@@ -323,6 +322,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         break;
     }
 
+    // TODO: Force type signatures first! How?
     case NECRO_AST_PAT_ASSIGNMENT:
         if (ast->pat_assignment.declaration_group->index != -1) return;
         assert(ast->pat_assignment.declaration_group != NULL);

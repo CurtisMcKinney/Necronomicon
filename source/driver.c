@@ -27,7 +27,7 @@ void necro_compile_impl(
     const char* input_string,
     NECRO_PHASE compilation_phase,
     NecroInfer* infer,
-    NecroTypeClassEnv* type_class_env,
+    // NecroTypeClassEnv* type_class_env,
     NecroParser* parser,
     NecroTransformToCore* core_transform,
     NecroLexer* lexer,
@@ -149,8 +149,8 @@ void necro_compile_impl(
     //=====================================================
     necro_announce_phase("Dependency Analysis");
     NecroDependencyAnalyzer d_analyzer = necro_create_dependency_analyzer(&symtable, &lexer->intern);
-    *type_class_env = necro_create_type_class_env(&scoped_symtable, &renamer);
-    *infer = necro_create_infer(&lexer->intern, &symtable, &prim_types, type_class_env);
+    // *type_class_env = necro_create_type_class_env(&scoped_symtable, &renamer);
+    *infer = necro_create_infer(&lexer->intern, &symtable, &scoped_symtable, &renamer, &prim_types);
     *destruct_flags |= BIT(NECRO_PHASE_DEPENDENCY_ANALYSIS);
     if (necro_prim_infer(&prim_types, &d_analyzer, infer, compilation_phase) != NECRO_SUCCESS)
     {
@@ -175,7 +175,7 @@ void necro_compile_impl(
     necro_announce_phase("Typing");
     necro_infer(infer, ast_r.root);
     necro_symtable_print(&symtable);
-    necro_print_type_class_env(type_class_env, infer, &lexer->intern);
+    necro_print_type_classes(infer);
     necro_print_env_with_symtable(&symtable, infer);
     *destruct_flags |= BIT(NECRO_PHASE_INFER);
     if (infer->error.return_code != NECRO_SUCCESS)
@@ -185,7 +185,7 @@ void necro_compile_impl(
     }
 
     // TODO: Redo this once TypeClass refactor is done
-    // necro_type_class_translate(infer, type_class_env, ast_r.root);
+    // necro_type_class_translate(infer, ast_r.root);
     // if (infer->error.return_code != NECRO_SUCCESS)
     // {
     //     necro_print_error(&infer->error, input_string, "Type");
@@ -228,7 +228,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
 {
     uint32_t destruct_flags = 0;
     NecroInfer infer;
-    NecroTypeClassEnv type_class_env;
+    // NecroTypeClassEnv type_class_env;
     NecroParser parser;
     NecroTransformToCore core_transform;
     NecroLexer lexer;
@@ -238,7 +238,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
         input_string,
         compilation_phase,
         &infer,
-        &type_class_env,
+        // &type_class_env,
         &parser,
         &core_transform,
         &lexer,
@@ -254,7 +254,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     if (validate_destruct_phase(NECRO_PHASE_DEPENDENCY_ANALYSIS, destruct_flags))
     {
         necro_destroy_infer(&infer);
-        necro_destroy_type_class_env(&type_class_env);
+        // necro_destroy_type_class_env(&type_class_env);
     }
 
     if (validate_destruct_phase(NECRO_PHASE_PARSE, destruct_flags))

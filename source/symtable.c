@@ -98,7 +98,7 @@ NecroSymbolInfo* necro_symtable_get(NecroSymTable* table, NecroID id)
     }
     else
     {
-        assert(false);
+        // assert(false);
         return NULL;
     }
 }

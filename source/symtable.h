@@ -27,6 +27,7 @@
 struct NecroScope;
 struct NecroDelayScope;
 struct NecroTypeClass;
+struct NecroTypeClassInstance;
 
 typedef struct
 {

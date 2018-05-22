@@ -55,9 +55,10 @@ typedef struct NecroDictionaryPrototype
     struct NecroDictionaryPrototype* next;
 } NecroDictionaryPrototype;
 
-typedef struct
+typedef struct NecroTypeClassInstance
 {
     NecroNode*                ast;
+    NecroCon                  instance_name;
     NecroCon                  data_type_name;
     NecroCon                  type_class_name;
     NecroTypeClassContext*    context;
@@ -115,7 +116,7 @@ void                             necro_create_dictionary_data_declaration(NecroP
 //=====================================================
 // Refactor
 //=====================================================
-void necro_create_type_class(NecroInfer* infer, NecroNode* ast);
+void necro_create_type_class(NecroInfer* infer, NecroNode* type_class_ast, NecroScopedSymTable* scoped_symtable, NecroRenamer* renamer);
 void necro_create_type_class_instance(NecroInfer* infer, NecroNode* ast);
 
 #endif // TYPE_CLASS_H

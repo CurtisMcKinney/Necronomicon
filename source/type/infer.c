@@ -1535,6 +1535,7 @@ NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast)
         infer->error.source_loc = ast->source_loc;
     switch (ast->type)
     {
+
     case NECRO_AST_CONSTANT:               return necro_infer_constant(infer, ast);
     case NECRO_AST_VARIABLE:               return necro_infer_var(infer, ast);
     case NECRO_AST_CONID:                  return necro_infer_conid(infer, ast);
@@ -1543,14 +1544,6 @@ NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_OP_LEFT_SECTION:        return necro_infer_op_left_section(infer, ast);
     case NECRO_AST_OP_RIGHT_SECTION:       return necro_infer_op_right_section(infer, ast);
     case NECRO_AST_IF_THEN_ELSE:           return necro_infer_if_then_else(infer, ast);
-
-    // case NECRO_AST_SIMPLE_ASSIGNMENT:      return necro_infer_simple_assignment(infer, ast);
-    // case NECRO_AST_APATS_ASSIGNMENT:       return necro_infer_apats_assignment(infer, ast);
-    // case NECRO_AST_PAT_ASSIGNMENT:         return necro_infer_pat_assignment(infer, ast);
-
-    // case NECRO_AST_SIMPLE_ASSIGNMENT:      return necro_infer_assignment(infer, necro_symtable_get(infer->symtable, ast->simple_assignment.id)->declaration_group);
-    // case NECRO_AST_APATS_ASSIGNMENT:       return necro_infer_assignment(infer, necro_symtable_get(infer->symtable, ast->apats_assignment.id)->declaration_group);
-    // case NECRO_AST_PAT_ASSIGNMENT:         return necro_infer_assignment(infer, ast->pat_assignment.declaration_group);
 
     case NECRO_AST_RIGHT_HAND_SIDE:        return necro_infer_right_hand_side(infer, ast);
     case NECRO_AST_LAMBDA:                 return necro_infer_lambda(infer, ast);
@@ -1564,10 +1557,15 @@ NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_WILDCARD:               return necro_infer_wildcard(infer, ast);
     case NECRO_AST_ARITHMETIC_SEQUENCE:    return necro_infer_arithmetic_sequence(infer, ast);
     case NECRO_AST_DO:                     return necro_infer_do(infer, ast);
-    case NECRO_AST_TYPE_SIGNATURE:         return NULL;
-    case NECRO_AST_DATA_DECLARATION:       return NULL;
-    case NECRO_AST_TYPE_CLASS_DECLARATION: return NULL;
-    case NECRO_AST_TYPE_CLASS_INSTANCE:    return NULL;
+
+    // case NECRO_AST_SIMPLE_ASSIGNMENT:      return NULL;
+    // case NECRO_AST_APATS_ASSIGNMENT:       return NULL;
+    // case NECRO_AST_PAT_ASSIGNMENT:         return NULL;
+    // case NECRO_AST_TYPE_CLASS_DECLARATION: return NULL;
+    // case NECRO_AST_TYPE_CLASS_INSTANCE:    return NULL;
+    // case NECRO_AST_TYPE_SIGNATURE:         return NULL;
+    // case NECRO_AST_DATA_DECLARATION:       return NULL;
+
     default:                               return necro_infer_ast_error(infer, NULL, ast, "AST type %d has not been implemented for type inference", ast->type);
     }
     return NULL;

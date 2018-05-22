@@ -11,6 +11,7 @@
 #include "utility.h"
 #include "hash_table.h"
 #include "renamer.h"
+#include "utility/list.h"
 #include "type.h"
 
 typedef NecroAST_Node_Reified NecroNode;
@@ -55,6 +56,8 @@ typedef struct NecroDictionaryPrototype
     struct NecroDictionaryPrototype* next;
 } NecroDictionaryPrototype;
 
+struct NecroTypeClassInstance;
+NECRO_DECLARE_ARENA_LIST(struct NecroTypeClassInstance*, Instance, instance);
 typedef struct NecroTypeClassInstance
 {
     NecroNode*                ast;
@@ -66,6 +69,7 @@ typedef struct NecroTypeClassInstance
     NecroType*                data_type;
     size_t                    dependency_flag;
     NecroSymbol               dictionary_instance_name;
+    NecroInstanceList*        super_instances;
 } NecroTypeClassInstance;
 
 NECRO_DECLARE_ARENA_CHAIN_TABLE(NecroTypeClassInstance, TypeClassInstance, type_class_instance)

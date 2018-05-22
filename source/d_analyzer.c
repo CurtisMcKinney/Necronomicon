@@ -343,7 +343,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         break;
 
     case NECRO_AST_TYPE_CLASS_DECLARATION:
-    {
+        // TODO: Circular reference detection
         if (ast->type_class_declaration.declaration_group->index != -1) return;
         assert(ast->type_class_declaration.declaration_group != NULL);
         assert(ast->type_class_declaration.declaration_group->next == NULL);
@@ -354,9 +354,9 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         d_analyze_go(d_analyzer, ast->type_class_declaration.declarations);
         necro_strong_connect2(d_analyzer->arena, ast->type_class_declaration.declaration_group);
         break;
-    }
 
     case NECRO_AST_TYPE_CLASS_INSTANCE:
+        // TODO: Circular reference detection
         if (ast->type_class_instance.declaration_group->index != -1) return;
         assert(ast->type_class_instance.declaration_group != NULL);
         assert(ast->type_class_instance.declaration_group->next == NULL);

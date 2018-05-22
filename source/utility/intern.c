@@ -132,6 +132,7 @@ void necro_intern_grow(NecroIntern* intern)
     free(old_entries);
 }
 
+// TODO: Optimize memory allocation
 NecroSymbol necro_intern_create_type_class_instance_symbol(NecroIntern* intern, NecroSymbol symbol, NecroSymbol type_class_name)
 {
     const char* string1 = necro_intern_get_string(intern, symbol);
@@ -161,6 +162,7 @@ NecroSymbol necro_intern_create_type_class_instance_symbol(NecroIntern* intern, 
     return new_symbol;
 }
 
+// TODO: Optimize memory allocation
 NecroSymbol necro_intern_get_type_class_member_symbol_from_instance_symbol(NecroIntern* intern, NecroSymbol symbol)
 {
     const char* string1 = necro_intern_get_string(intern, symbol);
@@ -182,6 +184,7 @@ NecroSymbol necro_intern_get_type_class_member_symbol_from_instance_symbol(Necro
     return new_symbol;
 }
 
+// TODO: Optimize memory allocation
 NecroSymbol necro_intern_concat_symbols(NecroIntern* intern, NecroSymbol symbol1, NecroSymbol symbol2)
 {
     const char* string1 = necro_intern_get_string(intern, symbol1);

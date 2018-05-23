@@ -1,0 +1,3 @@
+class HigherClass h where
+    higherMethod :: Num a => h a -> a -> h a
+

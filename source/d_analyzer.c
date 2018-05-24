@@ -347,8 +347,8 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         if (ast->type_class_declaration.declaration_group->index != -1) return;
         assert(ast->type_class_declaration.declaration_group != NULL);
         assert(ast->type_class_declaration.declaration_group->next == NULL);
-        necro_strong_connect1(ast->type_class_declaration.declaration_group);
         d_analyze_go(d_analyzer, ast->type_class_declaration.context);
+        necro_strong_connect1(ast->type_class_declaration.declaration_group);
         // d_analyze_go(d_analyzer, ast->type_class_declaration.tycls);
         // d_analyze_go(d_analyzer, ast->type_class_declaration.tyvar);
         d_analyze_go(d_analyzer, ast->type_class_declaration.declarations);
@@ -360,9 +360,9 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         if (ast->type_class_instance.declaration_group->index != -1) return;
         assert(ast->type_class_instance.declaration_group != NULL);
         assert(ast->type_class_instance.declaration_group->next == NULL);
+        d_analyze_go(d_analyzer, ast->type_class_instance.qtycls);
         necro_strong_connect1(ast->type_class_instance.declaration_group);
         d_analyze_go(d_analyzer, ast->type_class_instance.context);
-        // d_analyze_go(d_analyzer, ast->type_class_instance.qtycls);
         // d_analyze_go(d_analyzer, ast->type_class_instance.inst);
         d_analyze_go(d_analyzer, ast->type_class_instance.declarations);
         necro_strong_connect2(d_analyzer->arena, ast->type_class_instance.declaration_group);

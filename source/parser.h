@@ -448,7 +448,6 @@ typedef struct
 //=====================================================
 // AST apats
 //=====================================================
-
 typedef struct
 {
     NecroAST_LocalPtr apat;
@@ -496,7 +495,6 @@ typedef struct
 //=====================================================
 // AST Expression List
 //=====================================================
-
 typedef struct
 {
     NecroAST_LocalPtr expressions; // NecroAST_ListNode of expressions
@@ -505,7 +503,6 @@ typedef struct
 //=====================================================
 // AST Expression Sequence
 //=====================================================
-
 typedef struct
 {
     NecroAST_LocalPtr expressions; // NecroAST_ListNode of expressions

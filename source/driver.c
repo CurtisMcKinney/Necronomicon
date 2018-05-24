@@ -185,12 +185,12 @@ void necro_compile_impl(
     }
 
     // TODO: Redo this once TypeClass refactor is done
-    // necro_type_class_translate(infer, ast_r.root);
-    // if (infer->error.return_code != NECRO_SUCCESS)
-    // {
-    //     necro_print_error(&infer->error, input_string, "Type");
-    //     return;
-    // }
+    necro_type_class_translate(infer, ast_r.root);
+    if (infer->error.return_code != NECRO_SUCCESS)
+    {
+        necro_print_error(&infer->error, input_string, "Type");
+        return;
+    }
 
     necro_print_reified_ast(&ast_r, &lexer->intern);
     if (compilation_phase == NECRO_PHASE_INFER)

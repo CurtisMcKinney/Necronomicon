@@ -192,7 +192,8 @@ NecroType* necro_infer_type_sig(NecroInfer* infer, NecroNode* ast)
     NecroTypeClassContext* curr_context = context;
     while (curr_context != NULL)
     {
-        NecroType*      type_class_var = necro_symtable_get(infer->symtable, context->type_class->type_var.id)->type;
+        NecroTypeClass* type_class     = curr_context->type_class;
+        NecroType*      type_class_var = necro_symtable_get(infer->symtable, type_class->type_var.id)->type;
         NecroType*      var_type       = necro_symtable_get(infer->symtable, curr_context->type_var.id)->type;
         necro_kind_unify(infer, var_type->type_kind, type_class_var->type_kind, ast->scope, type_sig, "While inferring the type of a type signature");
         if (necro_is_infer_error(infer)) return NULL;

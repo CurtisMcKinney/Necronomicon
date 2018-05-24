@@ -1,0 +1,50 @@
+-- TODO: Right now making sure the order of dictionaries and arguments lines up correctly!!!!
+-- TODO: Make sure selector argument ordering / forwarding IS CORRECT!!!!
+-- TODO: Where are the dictionary and selector ast's going?!!?!?!?
+-- TODO: Makre sure dictionaries get renamed correctly to get passed correct ID!!!!
+
+instance (Eq a, Num a) => ClassTest (Maybe a) where
+    method1 _ _ _ _  = ()
+    method2 _ _ _ _  = Nothing
+    -- method3 (Just a) = method1 a a a
+    -- method3 _        = Nothing
+
+-- TODO: Should detect duplicates earlier than this!
+-- instance Num a => ClassTest (Maybe a) where
+
+class ClassTest a where
+    method1 :: (Num d, Num c, Num b) => a -> d -> c -> b -> ()
+    method2 :: (Num d, Num c, Num b) => d -> c -> b -> () -> a
+    -- method3 :: a -> a
+
+data Maybe a = Just a | Nothing
+
+methodTypeConTest1 :: Rational -> Audio -> Int -> Maybe Float -> ()
+methodTypeConTest1 d c b a = method1 a d c b
+
+methodTypeConTest2 :: Rational -> Audio -> Int -> () -> Maybe Float
+methodTypeConTest2 d c b u = method2 d c b u
+
+methodTypeVarTest1 :: ClassTest a => Rational -> Audio -> Int -> a -> ()
+methodTypeVarTest1 d c b a = method1 a d c b
+
+methodTypeVarTest2 :: ClassTest a => Rational -> Audio -> Int -> () -> a
+methodTypeVarTest2 d c b u = method2 d c b u
+
+nonMethodTypeConTest1 :: Maybe Float -> ()
+nonMethodTypeConTest1 x = methodTypeVarTest1 0 0 0 x
+
+nonMethodTypeConTest2 :: Maybe Float
+nonMethodTypeConTest2 = methodTypeVarTest2 0 0 0 ()
+
+nonMethodTypeVarTest1 :: ClassTest a => a -> ()
+nonMethodTypeVarTest1 x = methodTypeVarTest1 0 0 0 x
+
+nonMethodTypeVarTest2 :: ClassTest a => a
+nonMethodTypeVarTest2 = methodTypeVarTest2 0 0 0 ()
+
+-- TODO: Numeric patterns seem messed up!?
+
+-- whereTest :: ClassTest a => Int -> a
+-- whereTest x = subF x where
+--     subF y = method1 y

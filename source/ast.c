@@ -394,6 +394,8 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
             puts("where");
             print_reified_ast_impl(ast_node->type_class_declaration.declarations, intern, depth + 2);
         }
+        if (ast_node->type_class_declaration.dictionary_data_declaration != NULL)
+            print_reified_ast_impl(ast_node->type_class_declaration.dictionary_data_declaration, intern, depth);
         break;
 
     case NECRO_AST_TYPE_CLASS_INSTANCE:
@@ -412,6 +414,8 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
             puts("where");
             print_reified_ast_impl(ast_node->type_class_declaration.declarations, intern, depth + 2);
         }
+        if (ast_node->type_class_instance.dictionary_instance != NULL)
+            print_reified_ast_impl(ast_node->type_class_instance.dictionary_instance, intern, depth);
         break;
 
     case NECRO_AST_FUNCTION_TYPE:

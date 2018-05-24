@@ -320,10 +320,24 @@ instance Num a => InstanceTest (Maybe a) where
     instanceMethod2 (Just a) = instanceMethod1 a
     instanceMethod2 _        = Nothing
 
--- TODO: Looks like where statements are broken for instance methods now?
---  Consider redoing type class system to use dependency group system to clean up some of this mess?
+-- -- TODO: Looks like where statements are broken for instance methods now?
+-- --  Consider redoing type class system to use dependency group system to clean up some of this mess?
+-- -- TODO: This is throwing an exception!!!
 -- instance InstanceTest () where
---     instanceMethod1 _ = ()
 --     instanceMethod2 _ = result where
 --         result :: ()
---         result = instanceMethod1 0
+--         x :: Int
+--         x = 0
+--         result = instanceMethod1 x
+--     instanceMethod1 _ = ()
+
+-- whereTest :: InstanceTest a => Int -> a
+-- whereTest x = subF x where
+--     subF y = instanceMethod1 y
+
+-- notWhereTest :: InstanceTest a => Int -> a
+-- notWhereTest x = instanceMethod1 x
+--
+-- maybeTest :: a -> Maybe a
+-- maybeTest x = subX x where
+--     subX y = pure y

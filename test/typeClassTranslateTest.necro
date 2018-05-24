@@ -2,6 +2,7 @@
 -- TODO: Make sure selector argument ordering / forwarding IS CORRECT!!!!
 -- TODO: Where are the dictionary and selector ast's going?!!?!?!?
 -- TODO: Makre sure dictionaries get renamed correctly to get passed correct ID!!!!
+-- TODO: Make sure nested super dictionaries are added and applied in correct order!!!
 
 instance (Eq a, Num a) => ClassTest (Maybe a) where
     method1 _ _ _ _  = ()
@@ -45,6 +46,14 @@ nonMethodTypeVarTest2 = methodTypeVarTest2 0 0 0 ()
 
 -- TODO: Numeric patterns seem messed up!?
 
+-- TODO: Test instance with multiple instance class variables!
+-- TODO: type_var weirdness??
+data Either a b = Left a | Right b
+instance (Eq x, Num y) => ClassTest (Either x y) where
+    method1 _ _ _ _  = ()
+    method2 _ _ _ _  = Right 0
+
 -- whereTest :: ClassTest a => Int -> a
 -- whereTest x = subF x where
 --     subF y = method1 y
+

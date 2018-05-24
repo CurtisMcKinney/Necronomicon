@@ -188,6 +188,7 @@ void necro_compile_impl(
     necro_type_class_translate(infer, ast_r.root);
     if (infer->error.return_code != NECRO_SUCCESS)
     {
+        necro_print_reified_ast(&ast_r, &lexer->intern);
         necro_print_error(&infer->error, input_string, "Type");
         return;
     }

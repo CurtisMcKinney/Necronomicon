@@ -62,29 +62,15 @@ typedef struct NecroTypeClassInstance
     NecroTypeClassContext*    context;
     NecroDictionaryPrototype* dictionary_prototype;
     NecroType*                data_type;
-    size_t                    dependency_flag;
     NecroSymbol               dictionary_instance_name;
     NecroInstanceList*        super_instances;
 } NecroTypeClassInstance;
 
-// NECRO_DECLARE_ARENA_CHAIN_TABLE(NecroTypeClassInstance, TypeClassInstance, type_class_instance)
-// NECRO_DECLARE_ARENA_CHAIN_TABLE(NecroTypeClass, TypeClass, type_class)
-
-// typedef struct NecroTypeClassEnv
-// {
-//     NecroTypeClassTable         class_table;
-//     NecroTypeClassInstanceTable instance_table;
-//     NecroPagedArena             arena;
-//     NecroScopedSymTable*        scoped_symtable;
-//     NecroRenamer*               renamer;
-// } NecroTypeClassEnv;
-
-// NecroTypeClassEnv       necro_create_type_class_env(NecroScopedSymTable* scoped_symtable, NecroRenamer* renamer);
-// void                    necro_destroy_type_class_env(NecroTypeClassEnv* env);
-
-// void                    necro_declare_type_classes(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations);
-// void                    necro_type_class_instances_pass1(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations);
-// void                    necro_type_class_instances_pass2(NecroInfer* infer, NecroTypeClassEnv* env, NecroNode* top_level_declarations);
+typedef struct NecroMethodSub
+{
+    NecroVar   old_type_var;
+    NecroType* new_type_var;
+} NecroMethodSub;
 
 NecroSymbol             necro_create_type_class_instance_name(NecroIntern* intern, NecroNode* ast);
 void                    necro_print_type_classes(NecroInfer* infer);

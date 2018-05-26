@@ -14,23 +14,23 @@ instance (Eq a, Num a) => ClassTest (Maybe a) where
 -- instance Num a => ClassTest (Maybe a) where
 
 class ClassTest a where
-    method1 :: (Num d, Num c, Num b) => a -> d -> c -> b -> ()
-    method2 :: (Num d, Num c, Num b) => d -> c -> b -> () -> a
+    method1 :: (Num b, Num c, Num d) => a -> b -> c -> d -> ()
+    method2 :: (Num b, Num c, Num d) => b -> c -> d -> () -> a
     -- method3 :: a -> a
 
 data Maybe a = Just a | Nothing
 
 methodTypeConTest1 :: Rational -> Audio -> Int -> Maybe Float -> ()
-methodTypeConTest1 d c b a = method1 a d c b
+methodTypeConTest1 b c d a = method1 a b c d
 
 methodTypeConTest2 :: Rational -> Audio -> Int -> () -> Maybe Float
-methodTypeConTest2 d c b u = method2 d c b u
+methodTypeConTest2 b c d u = method2 b c d u
 
 methodTypeVarTest1 :: ClassTest a => Rational -> Audio -> Int -> a -> ()
-methodTypeVarTest1 d c b a = method1 a d c b
+methodTypeVarTest1 b c d a = method1 a b c d
 
 methodTypeVarTest2 :: ClassTest a => Rational -> Audio -> Int -> () -> a
-methodTypeVarTest2 d c b u = method2 d c b u
+methodTypeVarTest2 b c d u = method2 b c d u
 
 nonMethodTypeConTest1 :: Maybe Float -> ()
 nonMethodTypeConTest1 x = methodTypeVarTest1 0 0 0 x

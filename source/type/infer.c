@@ -87,6 +87,7 @@ TODO:
 //=====================================================
 // TypeSig
 //=====================================================
+// TODO: Look at what the fuck is going on here
 NecroType* necro_ast_to_type_sig_go(NecroInfer* infer, NecroNode* ast)
 {
     assert(infer != NULL);
@@ -127,6 +128,7 @@ NecroType* necro_ast_to_type_sig_go(NecroInfer* infer, NecroNode* ast)
         assert(con_type != NULL);
         return con_type;
     }
+    // Perhaps this is fucked!?
     case NECRO_AST_TYPE_APP:
     {
         NecroType* left   = necro_ast_to_type_sig_go(infer, ast->type_app.ty);
@@ -1626,8 +1628,9 @@ NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast)
     // case NECRO_AST_PAT_ASSIGNMENT:         return NULL;
     // case NECRO_AST_TYPE_CLASS_DECLARATION: return NULL;
     // case NECRO_AST_TYPE_CLASS_INSTANCE:    return NULL;
-    // case NECRO_AST_TYPE_SIGNATURE:         return NULL;
     // case NECRO_AST_DATA_DECLARATION:       return NULL;
+
+    case NECRO_AST_TYPE_SIGNATURE:         return necro_infer_type_sig(infer, ast);
 
     default:                               return necro_infer_ast_error(infer, NULL, ast, "AST type %d has not been implemented for type inference", ast->type);
     }

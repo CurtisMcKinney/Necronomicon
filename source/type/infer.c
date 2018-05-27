@@ -323,30 +323,6 @@ NecroType* necro_infer_simple_type(NecroInfer* infer, NecroNode* ast)
     return type;
 }
 
-NecroType* necro_infer_data_declaration(NecroInfer* infer, NecroNode* ast)
-{
-    return NULL;
-    // assert(infer != NULL);
-    // assert(ast != NULL);
-    // assert(ast->type == NECRO_AST_DATA_DECLARATION);
-    // if (necro_is_infer_error(infer)) return NULL;
-    // // NecroType* data_type = necro_infer_simple_type(infer, ast->data_declaration.simpletype);
-    // necro_infer_simple_type(infer, ast->data_declaration.simpletype);
-    // if (necro_is_infer_error(infer)) return NULL;
-    // NecroNode* constructor_list = ast->data_declaration.constructor_list;
-    // while (constructor_list != NULL)
-    // {
-    //     // necro_create_data_constructor(infer, constructor_list->list.item, data_type);
-    //     necro_create_data_constructor(infer, constructor_list->list.item);
-    //     if (necro_is_infer_error(infer)) return NULL;
-    //     constructor_list = constructor_list->list.next_item;
-    // }
-    // NecroSymbolInfo* simple_type_symbol_info = necro_symtable_get(infer->symtable, ast->data_declaration.simpletype->simple_type.type_con->conid.id);
-    // simple_type_symbol_info->type->type_kind = necro_kind_gen(infer, simple_type_symbol_info->type->type_kind);
-    // necro_print_type_sig(simple_type_symbol_info->type->type_kind, infer->intern);
-    // return NULL;
-}
-
 NecroType* necro_infer_apats_assignment(NecroInfer* infer, NecroNode* ast)
 {
     assert(infer != NULL);

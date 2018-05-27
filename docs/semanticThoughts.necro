@@ -250,6 +250,7 @@ input pulseDemon <- loadBuffer "pulseDemon.aiff"
 input mouseX     <- mouseXIn
 input mouseClick <- mouseClickIn
 
+-- TODO: Look at Tidal
 synth :: Audio -> Audio
 synth freq = osc where
     osc = 440 * mouseX + freq * seq {0, osc} |> sinOsc
@@ -259,12 +260,6 @@ pat = pattern times values where
     times  = {0.25, 0.5, 0.25, 0.5} * mul
     values = {0, 1, 2, take 1 mouseX, latch pat |> take 2} * mul -- {} is an instance of num?
     mul    = {0.5, 1, 2}
-
-main :: Audio
-main = synths where
-    freq1  = on mouseX mouseClick |> realToFrac
-    freq2  = pat
-    synths = poly synth (merge freq1 freq2)
 
 ifTest :: Bool -> Int
 ifTest up = if up then countUp else countDown where
@@ -276,13 +271,9 @@ ifTest2 up = if up
     then let countUp   = seq {0, countUp   + 1} in countUp
     else let countDown = seq {0, countDown - 1} in countDown
 
-legalCons :: a -> [a]
-legalCons x = x : []
+main :: Audio
+main = synths where
+    freq1  = on mouseX mouseClick |> realToFrac
+    freq2  = pat
+    synths = poly synth (merge freq1 freq2)
 
-illegalCons :: a -> [a]
-illegalCons x = xs where
-    xs = x : if True then [] else xs
-
-illegalCons2 :: a -> [a]
-illegalCons2 x = xs where
-    xs = x : seq {[], xs}

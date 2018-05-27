@@ -3,22 +3,29 @@
 -- TODO: Where are the dictionary and selector ast's going?!!?!?!?
 -- TODO: Makre sure dictionaries get renamed correctly to get passed correct ID!!!!
 -- TODO: Make sure nested super dictionaries are added and applied in correct order!!!
+-- TODO: Numeric patterns seem messed up!?
 
-instance (Eq a, Num a) => ClassTest (Maybe a) where
-    method1 _ _ _ _  = ()
-    method2 _ _ _ _  = Nothing
-    -- method3 (Just a) = method1 a a a
-    -- method3 _        = Nothing
-
--- TODO: Should detect duplicates earlier than this!
--- instance Num a => ClassTest (Maybe a) where
 
 class ClassTest a where
     method1 :: (Num b, Num c, Num d) => a -> b -> c -> d -> ()
     method2 :: (Num b, Num c, Num d) => b -> c -> d -> () -> a
-    -- method3 :: a -> a
+    method3 :: a -> a
+
+-- data Either a b = Left a | Right b
+-- instance (Eq a, Num b) => ClassTest (Either a b) where
+--     method1 _ _ _ _   = ()
+--     method2 _ _ _ _   = Right 0
+--     method3 (Right x) = method2 x x x ()
+--     -- TODO: ^^^ This is causing a type error for some reason!? Perhaps related to multi-type-var constructors!?
 
 data Maybe a = Just a | Nothing
+instance (Eq a, Num a) => ClassTest (Maybe a) where
+    method1 _ _ _ _  = ()
+    method2 _ _ _ _  = Nothing
+    method3 (Just x) = method2 x x x ()
+
+-- TODO: Should detect duplicates earlier than this!
+-- instance Num a => ClassTest (Maybe a) where
 
 methodTypeConTest1 :: Rational -> Audio -> Int -> Maybe Float -> ()
 methodTypeConTest1 b c d a = method1 a b c d
@@ -44,16 +51,7 @@ nonMethodTypeVarTest1 x = methodTypeVarTest1 0 0 0 x
 nonMethodTypeVarTest2 :: ClassTest a => a
 nonMethodTypeVarTest2 = methodTypeVarTest2 0 0 0 ()
 
--- TODO: Numeric patterns seem messed up!?
-
--- TODO: Test instance with multiple instance class variables!
--- TODO: type_var weirdness??
-data Either a b = Left a | Right b
-instance (Eq x, Num y) => ClassTest (Either x y) where
-    method1 _ _ _ _  = ()
-    method2 _ _ _ _  = Right 0
-
--- whereTest :: ClassTest a => Int -> a
--- whereTest x = subF x where
---     subF y = method1 y
+whereTest :: ClassTest a => Int -> a
+whereTest x = subF where
+    subF = method2 x x x ()
 

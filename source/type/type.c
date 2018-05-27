@@ -10,7 +10,6 @@
 #include "prim.h"
 #include "type_class.h"
 #include "kind.h"
-#include "lifetime.h"
 #include "type.h"
 #include "renamer.h"
 

@@ -13,6 +13,7 @@
 
 /*
 TODO:
+    - Correct operators with type classes handling
     - After translation some ids for added AST nodes are coming back as 0
     - Make sure we iterate over declaration groups lists!!!
     - wtf is this "selected_member@" naming stuff about!?!?
@@ -2204,6 +2205,6 @@ NecroTypeClassInstance* necro_get_type_class_instance(NecroInfer* infer, NecroSy
     NecroID                 super_id       = necro_scope_find(infer->scoped_symtable->top_type_scope, super_symbol);
     NecroSymbolInfo*        super_info     = necro_symtable_get(infer->symtable, super_id);
     NecroTypeClassInstance* super_instance = super_info->type_class_instance;
-    assert(super_instance != NULL);
+    // assert(super_instance != NULL);
     return super_instance;
 }

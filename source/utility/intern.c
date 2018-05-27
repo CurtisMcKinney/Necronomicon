@@ -103,6 +103,7 @@ void necro_intern_grow(NecroIntern* intern)
     NecroInternEntry* old_entries = intern->entries;
     intern->size                  = intern->size * 2;
     intern->entries               = malloc(intern->size * sizeof(NecroInternEntry));
+    printf("intern grow, old: %d, new: %d", old_size, intern->size);
     if (intern->entries == NULL)
     {
         fprintf(stderr, "Malloc returned NULL while allocating memory for entries in necro_intern_grow()\n");
@@ -218,7 +219,7 @@ NecroSymbol necro_intern_string(NecroIntern* intern, const char* str)
         return (NecroSymbol) { 0, NECRO_INTERN_NULL_ID };
 
     // Grow if we're over 50% load
-    if (intern->count >= intern->size / 2)
+    if (intern->count >= (intern->size / 2))
         necro_intern_grow(intern);
 
     // Do linear probe
@@ -264,7 +265,7 @@ NecroSymbol necro_intern_string_slice(NecroIntern* intern, NecroStringSlice slic
         return (NecroSymbol) { 0, NECRO_INTERN_NULL_ID };
 
     // Grow if we're over 50% load
-    if (intern->count >= intern->size / 2)
+    if (intern->count >= (intern->size / 2))
         necro_intern_grow(intern);
 
     // Do Linear probe

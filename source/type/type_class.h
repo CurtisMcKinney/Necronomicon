@@ -74,10 +74,7 @@ typedef struct NecroMethodSub
 
 NecroSymbol             necro_create_type_class_instance_name(NecroIntern* intern, NecroNode* ast);
 void                    necro_print_type_classes(NecroInfer* infer);
-// void                    necro_print_type_class_env(NecroInfer* infer);
 
-// NecroTypeClassInstance* necro_get_instance(NecroInfer* infer, NecroCon data_type_name, NecroCon type_class_name);
-uint64_t                necro_create_instance_key(NecroCon data_type_name, NecroCon type_class_name);
 bool                    necro_context_contains_class(NecroTypeClassContext* context, NecroTypeClassContext* type_class);
 bool                    necro_context_and_super_classes_contain_class(NecroTypeClassContext* context, NecroTypeClassContext* type_class);
 NecroTypeClassContext*  necro_union_contexts(NecroInfer* infer, NecroTypeClassContext* context1, NecroTypeClassContext* context2);

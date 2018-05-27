@@ -342,7 +342,7 @@ void necr_bind_type_var(NecroInfer* infer, NecroVar var, NecroType* type)
 {
     if (var.id.id >= infer->env.capacity)
     {
-        necro_infer_error(infer, NULL, NULL, "Cannot find variable %s", necro_id_as_character_string(infer, var));
+        necro_infer_error(infer, NULL, NULL, "Cannot find variable %s", necro_id_as_character_string(infer->intern, var));
     }
     assert(infer->env.data != NULL);
     infer->env.data[var.id.id]->var.bound = type;
@@ -486,10 +486,10 @@ void necro_rigid_type_variable_error(NecroInfer* infer, NecroVar type_var, Necro
     else if (type->type == NECRO_TYPE_FUN)
         type_name = "(->)";
     else if (type->type == NECRO_TYPE_VAR)
-        type_name = necro_id_as_character_string(infer, type->var.var);
+        type_name = necro_id_as_character_string(infer->intern, type->var.var);
     else
         assert(false);
-    const char* var_name = necro_id_as_character_string(infer, type_var);
+    const char* var_name = necro_id_as_character_string(infer->intern, type_var);
     necro_infer_error(infer, error_preamble, macro_type, "Couldn't match type \'%s\' with type \'%s\'.\n\'%s\' is a rigid type variable bound by a type signature.", var_name, type_name, var_name);
 }
 
@@ -504,7 +504,7 @@ void necro_occurs_error(NecroInfer* infer, NecroVar type_var, NecroType* type, N
 {
     if (necro_is_infer_error(infer))
         return;
-    necro_infer_error(infer, error_preamble, macro_type, "Occurs check error, cannot construct the infinite type: \n %s ~ ", necro_id_as_character_string(infer, type_var));
+    necro_infer_error(infer, error_preamble, macro_type, "Occurs check error, cannot construct the infinite type: \n %s ~ ", necro_id_as_character_string(infer->intern, type_var));
     necro_snprintf_type_sig(macro_type, infer->intern, infer->error.error_message + 64, NECRO_MAX_ERROR_MESSAGE_LENGTH);
 }
 
@@ -556,7 +556,7 @@ void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* clas
                 // if (!necro_context_contains_class(infer->type_class_env, type->var.context, classes))
                 if (!necro_context_and_super_classes_contain_class(type->var.context, classes))
                 {
-                    necro_infer_error(infer, error_preamble, macro_type, "No instance for \'%s %s\'", necro_intern_get_string(infer->intern, classes->type_class_name.symbol), necro_id_as_character_string(infer, type->var.var));
+                    necro_infer_error(infer, error_preamble, macro_type, "No instance for \'%s %s\'", necro_intern_get_string(infer->intern, classes->type_class_name.symbol), necro_id_as_character_string(infer->intern, type->var.var));
                     return;
                 }
                 classes = classes->next;
@@ -1087,7 +1087,7 @@ NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type, NecroGenResult p
                 {
                     if (type_var->var.var.symbol.id == 0)
                     {
-                        type_var->var.var.symbol = necro_intern_string(infer->intern, necro_id_as_character_string(infer, type_var->var.var));
+                        type_var->var.var.symbol = necro_intern_string(infer->intern, necro_id_as_character_string(infer->intern, type_var->var.var));
                     }
                     context->type_var = necro_var_to_con(type_var->var.var);
                     context           = context->next;
@@ -1213,21 +1213,39 @@ char* necro_type_string(NecroInfer* infer, NecroType* type)
     return buffer;
 }
 
-const char* necro_id_as_character_string(NecroInfer* infer, NecroVar var)
+const char* necro_id_as_character_string(NecroIntern* intern, NecroVar var)
 {
     if (var.symbol.id != 0)
     {
-        return necro_intern_get_string(infer->intern, var.symbol);
+        return necro_intern_get_string(intern, var.symbol);
     }
-    NecroID id = var.id;
-    size_t length = (id.id / 26) + 1;
-    char*  buffer = necro_paged_arena_alloc(&infer->arena, (length + 1) * sizeof(char));
+    NecroID id     = var.id;
+    size_t  length = 2;
+    // Compute length
+    if (id.id > 26)
+    {
+        size_t n = (id.id - 26);
+        length--;
+        while (n > 0)
+        {
+            n /= 26;
+            length++;
+        }
+    }
+    char* buffer = NULL;
+    char  small_buffer[5];
+    if (length < 6)
+        buffer = small_buffer;
+    else
+        buffer = malloc(sizeof(char) * length);
     if (id.id <= 26)
         snprintf(buffer, length, "%c", (char)((id.id % 26) + 97));
     else
         snprintf(buffer, length, "%c%d", (char)((id.id % 26) + 97), (id.id - 26) / 26);
-    buffer[length+1] = '\0';
-    return buffer;
+    NecroSymbol buf_symbol = necro_intern_string(intern, buffer);
+    if (length >= 6)
+        free(buffer);
+    return necro_intern_get_string(intern, buf_symbol);
 }
 
 void necro_print_id_as_characters(NecroVar var, NecroIntern* intern)

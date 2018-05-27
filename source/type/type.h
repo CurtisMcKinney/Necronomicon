@@ -205,7 +205,7 @@ char*       necro_type_string(NecroInfer* infer, NecroType* type);
 void        necro_print_type_sig(NecroType* type, NecroIntern* intern);
 void        necro_print_type_sig_go(NecroType* type, NecroIntern* intern);
 char*       necro_snprintf_type_sig(NecroType* type, NecroIntern* intern, char* buffer, const size_t buffer_length);
-const char* necro_id_as_character_string(NecroInfer* infer, NecroVar var);
+const char* necro_id_as_character_string(NecroIntern* infer, NecroVar var);
 bool        necro_check_and_print_type_error(NecroInfer* infer);
 void        necro_print_type_test_result(const char* test_name, NecroType* type, const char* test_name2, NecroType* type2, NecroIntern* intern);
 void        necro_print_env(NecroInfer* infer);

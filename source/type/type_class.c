@@ -13,11 +13,9 @@
 
 /*
 TODO:
-    - Correct operators with type classes handling
+    - Pat assignment
+    - Defaulting
     - After translation some ids for added AST nodes are coming back as 0
-    - Make sure we iterate over declaration groups lists!!!
-    - wtf is this "selected_member@" naming stuff about!?!?
-    - Printing variable names gets wonky when retaining printed names across methods and instances of type class, look at Either instance of Functor for example
     - Better unification error messaging! This is especially true when it occurs during SuperClass constraint checking. Make necro_unify return struct with either Success or Error data
     - Can we collapse env into symtable!?!?!
     - Can we collide symtable and env IDs like this!

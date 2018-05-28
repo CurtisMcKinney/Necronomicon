@@ -72,3 +72,12 @@ rightSectionTest1 x = (+x)
 
 rightSectionTest2 :: Fractional a => a -> a -> a
 rightSectionTest2 x = (+x)
+
+-- TODO Finish
+-- patL :: Num a => a
+-- patR :: Num a => a
+-- (patL, patR) = (0, 1)
+-- (patL', patR') = mkTuple
+-- (patL,  patR)  = (\dic -> patLF dic, \dic -> patRF dic)
+
+

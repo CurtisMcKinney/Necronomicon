@@ -22,6 +22,7 @@ TODO:
     - Can we collapse env into symtable!?!?!
     - Can we collide symtable and env IDs like this!
     - Make sure we aren't duplicating names / scopes
+    - Follow Haskell's lead: Make top declaration's default to Haskell style monomorphism restriction, and where bindings default to not generalizing (unless type signature is given!!!)
 */
 
 #define NECRO_TYPE_CLASS_DEBUG 0
@@ -1377,108 +1378,68 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
 
     case NECRO_AST_BIN_OP:
     {
+        assert(ast->necro_type != NULL);
+        NecroASTNode* op_ast          = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, ast->bin_op.symbol), NECRO_VAR_VAR);
+        op_ast->variable.inst_context = ast->bin_op.inst_context;
+        op_ast->variable.id           = ast->bin_op.id;
+        op_ast->variable.symbol       = ast->bin_op.symbol;
+        op_ast->scope                 = ast->scope;
+        op_ast->necro_type            = ast->necro_type;
+        op_ast                        = necro_create_fexpr_ast(&infer->arena, op_ast, ast->bin_op.lhs);
+        op_ast->scope                 = ast->scope;
+        op_ast->necro_type            = ast->necro_type;
+        op_ast                        = necro_create_fexpr_ast(&infer->arena, op_ast, ast->bin_op.rhs);
+        op_ast->scope                 = ast->scope;
+        op_ast->necro_type            = ast->necro_type;
+        *ast = *op_ast;
         if (ast->bin_op.inst_context != NULL)
-        {
-            NecroASTNode* op_ast          = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, ast->bin_op.symbol), NECRO_VAR_VAR);
-            op_ast->variable.inst_context = ast->bin_op.inst_context;
-            op_ast->variable.id           = ast->bin_op.id;
-            op_ast->variable.symbol       = ast->bin_op.symbol;
-            op_ast->scope                 = ast->scope;
-            // necro_build_scopes_go(env->scoped_symtable, lambda_ast);
-            // necro_rename_declare_pass(env->renamer, &infer->arena, lambda_ast);
-            NecroTypeClassContext* inst_context = ast->bin_op.inst_context;
-            while (inst_context != NULL)
-            {
-                NecroASTNode* d_var = necro_resolve_context_to_dictionary(infer, inst_context, dictionary_context);
-                if (necro_is_infer_error(infer)) return;
-                assert(d_var != NULL);
-                op_ast        = necro_create_fexpr_ast(&infer->arena, op_ast, d_var);
-                op_ast->scope = ast->scope;
-                d_var->scope  = ast->scope;
-                inst_context  = inst_context->next;
-            }
-            op_ast->scope                 = ast->scope;
-            necro_rename_var_pass(infer->renamer, &infer->arena, op_ast);
-            op_ast = necro_create_fexpr_ast(&infer->arena, op_ast, ast->bin_op.lhs);
-            op_ast = necro_create_fexpr_ast(&infer->arena, op_ast, ast->bin_op.rhs);
-            necro_type_class_translate_go(dictionary_context, infer, ast->bin_op.lhs);
-            necro_type_class_translate_go(dictionary_context, infer, ast->bin_op.rhs);
-            *ast = *op_ast;
-        }
-        else
-        {
-            necro_type_class_translate_go(dictionary_context, infer, ast->bin_op.lhs);
-            necro_type_class_translate_go(dictionary_context, infer, ast->bin_op.rhs);
-        }
+            necro_type_class_translate_go(dictionary_context, infer, ast);
         break;
     }
 
     case NECRO_AST_OP_LEFT_SECTION:
+    {
+        assert(ast->necro_type != NULL);
+        NecroASTNode* op_ast          = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, ast->op_left_section.symbol), NECRO_VAR_VAR);
+        op_ast->variable.inst_context = ast->op_left_section.inst_context;
+        op_ast->variable.id           = ast->op_left_section.id;
+        op_ast->variable.symbol       = ast->op_left_section.symbol;
+        op_ast->scope                 = ast->scope;
+        op_ast->necro_type            = ast->op_left_section.op_necro_type;
+        op_ast                        = necro_create_fexpr_ast(&infer->arena, op_ast, ast->op_left_section.left);
+        op_ast->scope                 = ast->scope;
+        op_ast->necro_type            = ast->necro_type;
+        *ast = *op_ast;
         if (ast->op_left_section.inst_context != NULL)
-        {
-            NecroASTNode* op_ast          = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, ast->op_left_section.symbol), NECRO_VAR_VAR);
-            op_ast->variable.inst_context = ast->op_left_section.inst_context;
-            op_ast->variable.id           = ast->op_left_section.id;
-            op_ast->variable.symbol       = ast->op_left_section.symbol;
-            op_ast->scope                 = ast->scope;
-            NecroTypeClassContext* inst_context = ast->op_left_section.inst_context;
-            while (inst_context != NULL)
-            {
-                NecroASTNode* d_var = necro_resolve_context_to_dictionary(infer, inst_context, dictionary_context);
-                if (necro_is_infer_error(infer)) return;
-                assert(d_var != NULL);
-                op_ast        = necro_create_fexpr_ast(&infer->arena, op_ast, d_var);
-                op_ast->scope = ast->scope;
-                d_var->scope  = ast->scope;
-                inst_context  = inst_context->next;
-            }
-            op_ast->scope = ast->scope;
-            necro_rename_var_pass(infer->renamer, &infer->arena, op_ast);
-            op_ast = necro_create_fexpr_ast(&infer->arena, op_ast, ast->op_left_section.left);
-            necro_type_class_translate_go(dictionary_context, infer, ast->op_left_section.left);
-            *ast = *op_ast;
-        }
-        else
-        {
-            necro_type_class_translate_go(dictionary_context, infer, ast->op_left_section.left);
-        }
+            necro_type_class_translate_go(dictionary_context, infer, ast);
         break;
+    }
 
-    // TODO: Make sure we aren't duplicating names / scopes
     case NECRO_AST_OP_RIGHT_SECTION:
+    {
+        assert(ast->necro_type != NULL);
+        NecroASTNode* x_var_arg       = necro_create_variable_ast(&infer->arena, infer->intern, "left@rightSection", NECRO_VAR_DECLARATION);
+        NecroASTNode* x_var_var       = necro_create_variable_ast(&infer->arena, infer->intern, "left@rightSection", NECRO_VAR_VAR);
+        NecroASTNode* op_ast          = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, ast->op_right_section.symbol), NECRO_VAR_VAR);
+        op_ast->variable.inst_context = ast->op_right_section.inst_context;
+        op_ast->variable.id           = ast->op_right_section.id;
+        op_ast->variable.symbol       = ast->op_right_section.symbol;
+        op_ast->scope                 = NULL;
+        op_ast->necro_type            = ast->op_right_section.op_necro_type;
+        op_ast                        = necro_create_fexpr_ast(&infer->arena, op_ast, x_var_var);
+        op_ast                        = necro_create_fexpr_ast(&infer->arena, op_ast, ast->op_right_section.right);
+        NecroASTNode* lambda_ast      = necro_create_lambda_ast(&infer->arena, necro_create_apat_list_ast(&infer->arena, x_var_arg, NULL), op_ast);
+        infer->scoped_symtable->current_scope       = ast->scope;
+        infer->scoped_symtable->current_delay_scope = ast->delay_scope;
+        lambda_ast->necro_type                      = ast->necro_type;
+        necro_build_scopes_go(infer->scoped_symtable, lambda_ast);
+        necro_rename_declare_pass(infer->renamer, &infer->arena, lambda_ast);
+        necro_rename_var_pass(infer->renamer, &infer->arena, lambda_ast);
+        *ast = *lambda_ast;
         if (ast->op_right_section.inst_context != NULL)
-        {
-            NecroASTNode* x_var_arg       = necro_create_variable_ast(&infer->arena, infer->intern, "x@rightSection", NECRO_VAR_DECLARATION);
-            NecroASTNode* x_var_var       = necro_create_variable_ast(&infer->arena, infer->intern, "x@rightSection", NECRO_VAR_VAR);
-            NecroASTNode* op_ast          = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, ast->op_right_section.symbol), NECRO_VAR_VAR);
-            op_ast->variable.inst_context = ast->op_right_section.inst_context;
-            op_ast->variable.id           = ast->op_right_section.id;
-            op_ast->variable.symbol       = ast->op_right_section.symbol;
-            NecroTypeClassContext* inst_context = ast->op_right_section.inst_context;
-            while (inst_context != NULL)
-            {
-                NecroASTNode* d_var = necro_resolve_context_to_dictionary(infer, inst_context, dictionary_context);
-                if (necro_is_infer_error(infer)) return;
-                assert(d_var != NULL);
-                op_ast       = necro_create_fexpr_ast(&infer->arena, op_ast, d_var);
-                inst_context = inst_context->next;
-            }
-            op_ast                   = necro_create_fexpr_ast(&infer->arena, op_ast, x_var_var);
-            op_ast                   = necro_create_fexpr_ast(&infer->arena, op_ast, ast->op_right_section.right);
-            NecroASTNode* lambda_ast = necro_create_lambda_ast(&infer->arena, necro_create_apat_list_ast(&infer->arena, x_var_arg, NULL), op_ast);
-            infer->scoped_symtable->current_scope       = ast->scope;
-            infer->scoped_symtable->current_delay_scope = ast->delay_scope;
-            necro_build_scopes_go(infer->scoped_symtable, lambda_ast);
-            necro_rename_declare_pass(infer->renamer, &infer->arena, lambda_ast);
-            necro_rename_var_pass(infer->renamer, &infer->arena, lambda_ast);
-            necro_type_class_translate_go(dictionary_context, infer, ast->op_right_section.right);
-            *ast = *lambda_ast;
-        }
-        else
-        {
-            necro_type_class_translate_go(dictionary_context, infer, ast->op_right_section.right);
-        }
+            necro_type_class_translate_go(dictionary_context, infer, ast);
         break;
+    }
 
     case NECRO_AST_IF_THEN_ELSE:
         necro_type_class_translate_go(dictionary_context, infer, ast->if_then_else.if_expr);

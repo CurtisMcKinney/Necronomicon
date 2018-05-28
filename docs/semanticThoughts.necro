@@ -232,46 +232,46 @@ main = synths where
 -- Values cannot be defined by themselves in the same time scope
 -- Higher-order functions and recursive functions will require some kind of "apply" combinator to be inserted by the compiler
 
-pattern :: Sequence Time -> Sequence a -> Event a
+pattern : Seq Time -> Seq a -> Event a
 
-seq     :: Sequence a -> a
+seq     : Sequence a -> a
 
-poly    :: Num b => (a -> b) -> Event a -> b
+poly    : Num b => (a -> b) -> Event a -> b
 
-latch  :: Event a -> a
+latch  : Event a -> a
 
-merge :: Event a -> Event a -> Event a
-on    :: a       -> Event b -> Event a
+merge : Event a -> Event a -> Event a
+on    : a       -> Event b -> Event a
 
-mouseClickIn :: Input (Event ())
-mouseXIn     :: Input Float
+mouseClickIn : Input (Event ())
+mouseXIn     : Input Float
 
 input pulseDemon <- loadBuffer "pulseDemon.aiff"
 input mouseX     <- mouseXIn
 input mouseClick <- mouseClickIn
 
 -- TODO: Look at Tidal
-synth :: Audio -> Audio
+synth : Audio -> Audio
 synth freq = osc where
     osc = 440 * mouseX + freq * seq {0, osc} |> sinOsc
 
-pat :: Event Audio
+pat : Event Audio
 pat = pattern times values where
     times  = {0.25, 0.5, 0.25, 0.5} * mul
     values = {0, 1, 2, take 1 mouseX, latch pat |> take 2} * mul -- {} is an instance of num?
     mul    = {0.5, 1, 2}
 
-ifTest :: Bool -> Int
+ifTest : Bool -> Int
 ifTest up = if up then countUp else countDown where
     countUp   = seq {0, countUp   + 1}
     countDown = seq {0, countDown - 1}
 
-ifTest2 :: Bool -> Int
+ifTest2 : Bool -> Int
 ifTest2 up = if up
     then let countUp   = seq {0, countUp   + 1} in countUp
     else let countDown = seq {0, countDown - 1} in countDown
 
-main :: Audio
+main : Audio
 main = synths where
     freq1  = on mouseX mouseClick |> realToFrac
     freq2  = pat

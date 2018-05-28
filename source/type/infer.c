@@ -865,6 +865,7 @@ NecroType* necro_infer_bin_op(NecroInfer* infer, NecroNode* ast)
     result_type->source_loc = ast->source_loc;
     NecroType* bin_op_type  = necro_create_type_fun(infer, x_type, necro_create_type_fun(infer, y_type, result_type));
     necro_unify(infer, op_type, bin_op_type, ast->scope, op_type, "While inferring the type of a bin-op: ");
+    ast->necro_type         = bin_op_type;
     if (necro_is_infer_error(infer)) return NULL;
     return result_type;
 }
@@ -883,12 +884,14 @@ NecroType* necro_infer_op_left_section(NecroInfer* infer, NecroNode* ast)
     ast->op_left_section.inst_context = NULL;
     NecroType* op_type                = necro_inst_with_context(infer, infer->symtable->data[ast->op_left_section.id.id].type, ast->scope, &ast->op_left_section.inst_context);
     assert(op_type != NULL);
+    ast->op_left_section.op_necro_type = op_type;
 
     NecroType* result_type  = necro_new_name(infer, ast->source_loc);
     result_type->source_loc = ast->source_loc;
     NecroType* section_type = necro_create_type_fun(infer, x_type, result_type);
     necro_unify(infer, op_type, section_type, ast->scope, op_type, "While inferring the type of a bin-op left section: ");
     if (necro_is_infer_error(infer)) return NULL;
+    ast->necro_type = section_type;
     return result_type;
 }
 
@@ -905,6 +908,7 @@ NecroType* necro_infer_op_right_section(NecroInfer* infer, NecroNode* ast)
     ast->op_right_section.inst_context = NULL;
     NecroType* op_type                = necro_inst_with_context(infer, infer->symtable->data[ast->op_right_section.id.id].type, ast->scope, &ast->op_right_section.inst_context);
     assert(op_type != NULL);
+    ast->op_right_section.op_necro_type = op_type;
 
     NecroType* y_type  = necro_infer_go(infer, ast->op_right_section.right);
 
@@ -914,6 +918,7 @@ NecroType* necro_infer_op_right_section(NecroInfer* infer, NecroNode* ast)
     necro_unify(infer, op_type, bin_op_type, ast->scope, op_type, "While inferring the type of a bin-op: ");
     NecroType* section_type = necro_create_type_fun(infer, x_type, result_type);
     if (necro_is_infer_error(infer)) return NULL;
+    ast->necro_type = section_type;
     return section_type;
 }
 

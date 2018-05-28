@@ -465,6 +465,27 @@ void necro_print_reified_ast(NecroAST_Reified* ast, NecroIntern* intern)
     }
 }
 
+inline void necro_op_symbol_to_method_symbol(NecroIntern* intern, NecroAST_BinOpType op_type, NecroSymbol* symbol)
+{
+    // change op name to method names
+    switch (op_type)
+    {
+    case NECRO_BIN_OP_ADD:        *symbol = necro_intern_string(intern, "add");     break;
+    case NECRO_BIN_OP_SUB:        *symbol = necro_intern_string(intern, "sub");     break;
+    case NECRO_BIN_OP_MUL:        *symbol = necro_intern_string(intern, "mul");     break;
+    case NECRO_BIN_OP_DIV:        *symbol = necro_intern_string(intern, "div");     break;
+    case NECRO_BIN_OP_EQUALS:     *symbol = necro_intern_string(intern, "eq");      break;
+    case NECRO_BIN_OP_NOT_EQUALS: *symbol = necro_intern_string(intern, "neq");     break;
+    case NECRO_BIN_OP_GT:         *symbol = necro_intern_string(intern, "gt");      break;
+    case NECRO_BIN_OP_LT:         *symbol = necro_intern_string(intern, "lt");      break;
+    case NECRO_BIN_OP_GTE:        *symbol = necro_intern_string(intern, "gte");     break;
+    case NECRO_BIN_OP_LTE:        *symbol = necro_intern_string(intern, "lte");     break;
+    case NECRO_BIN_OP_BIND_RIGHT: *symbol = necro_intern_string(intern, "bind");    break;
+    case NECRO_BIN_OP_APPEND:     *symbol = necro_intern_string(intern, "mappend"); break;
+    default: break;
+    }
+}
+
 NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, NecroPagedArena* arena, NecroIntern* intern)
 {
     if (a_ptr == null_local_ptr)
@@ -519,6 +540,7 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
     case NECRO_AST_UN_OP:
         break;
     case NECRO_AST_BIN_OP:
+        necro_op_symbol_to_method_symbol(intern, node->bin_op.type, &node->bin_op.symbol);
         reified_node->bin_op.lhs          = necro_reify(a_ast, node->bin_op.lhs, arena, intern);
         reified_node->bin_op.rhs          = necro_reify(a_ast, node->bin_op.rhs, arena, intern);
         reified_node->bin_op.symbol       = node->bin_op.symbol;
@@ -637,12 +659,14 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
         reified_node->bin_op_sym.right = necro_reify(a_ast, node->bin_op_sym.right, arena, intern);
         break;
     case NECRO_AST_OP_LEFT_SECTION:
+        necro_op_symbol_to_method_symbol(intern, node->op_left_section.type, &node->op_left_section.symbol);
         reified_node->op_left_section.left         = necro_reify(a_ast, node->op_left_section.left, arena, intern);
         reified_node->op_left_section.symbol       = node->op_left_section.symbol;
         reified_node->op_left_section.type         = node->op_left_section.type;
         reified_node->op_left_section.inst_context = NULL;
         break;
     case NECRO_AST_OP_RIGHT_SECTION:
+        necro_op_symbol_to_method_symbol(intern, node->op_right_section.type, &node->op_right_section.symbol);
         reified_node->op_right_section.symbol       = node->op_right_section.symbol;
         reified_node->op_right_section.type         = node->op_right_section.type;
         reified_node->op_right_section.right        = necro_reify(a_ast, node->op_right_section.right, arena, intern);

@@ -125,6 +125,7 @@ typedef struct
     NecroSymbol                   symbol;
     NecroID                       id;
     struct NecroTypeClassContext* inst_context;
+    struct NecroType*             op_necro_type;
 } NecroAST_OpLeftSection_Reified;
 
 //=====================================================
@@ -137,6 +138,7 @@ typedef struct
     NecroSymbol                   symbol;
     NecroID                       id;
     struct NecroTypeClassContext* inst_context;
+    struct NecroType*             op_necro_type;
 } NecroAST_OpRightSection_Reified;
 
 //=====================================================

@@ -55,3 +55,20 @@ whereTest :: ClassTest a => Int -> a
 whereTest x = subF where
     subF = method2 x x x ()
 
+opTest1 :: Audio -> Audio
+opTest1 x = 100 + x
+
+opTest2 :: Num a => a -> a
+opTest2 x = 100 + x
+
+leftSectionTest1 :: Audio -> Audio -> Audio
+leftSectionTest1 x = (x+)
+
+leftSectionTest2 :: Fractional a => a -> a -> a
+leftSectionTest2 x = (x+)
+
+rightSectionTest1 :: Audio -> Audio -> Audio
+rightSectionTest1 x = (+x)
+
+rightSectionTest2 :: Fractional a => a -> a -> a
+rightSectionTest2 x = (+x)

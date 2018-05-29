@@ -21,6 +21,7 @@ TODO:
     - Can we collide symtable and env IDs like this!
     - Make sure we aren't duplicating names / scopes
     - Follow Haskell's lead: Make top declaration's default to Haskell style monomorphism restriction, and where bindings default to not generalizing (unless type signature is given!!!)
+    - Ixilang / Tidal sequence sublanguage
 */
 
 #define NECRO_TYPE_CLASS_DEBUG 0

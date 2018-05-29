@@ -23,10 +23,10 @@ void necro_rigid_kind_variable_error(NecroInfer* infer, NecroVar type_var, Necro
     else if (type->type == NECRO_TYPE_FUN)
         type_name = "(->)";
     else if (type->type == NECRO_TYPE_VAR)
-        type_name = necro_id_as_character_string(infer, type->var.var);
+        type_name = necro_id_as_character_string(infer->intern, type->var.var);
     else
         assert(false);
-    const char* var_name = necro_id_as_character_string(infer, type_var);
+    const char* var_name = necro_id_as_character_string(infer->intern, type_var);
     necro_infer_error(infer, error_preamble, macro_type, "Couldn't match kind \'%s\' with kind \'%s\'.\n\'%s\' is a rigid kind variable bound by a type signature.", var_name, type_name, var_name);
 }
 

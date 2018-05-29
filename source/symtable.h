@@ -27,25 +27,28 @@
 struct NecroScope;
 struct NecroDelayScope;
 struct NecroTypeClass;
+struct NecroTypeClassInstance;
 
 typedef struct
 {
-    NecroSymbol             name;
-    const char*             string_name;
-    NecroID                 id;
-    size_t                  data_size;
-    size_t                  local_var_num;
-    NecroSourceLoc          source_loc;
-    struct NecroScope*      scope;
-    struct NecroDelayScope* delay_scope;
-    NecroASTNode*           ast;
-    NecroDeclarationGroup*  declaration_group;
-    NecroAST_Node_Reified*  optional_type_signature;
-    NecroType*              type;
-    NECRO_TYPE_STATUS       type_status;
-    struct NecroTypeClass*  method_type_class;
-    // bool                    is_method;
-    bool                    is_constructor;
+    NecroSymbol                    name;
+    const char*                    string_name;
+    NecroID                        id;
+    size_t                         data_size;
+    size_t                         local_var_num;
+    NecroSourceLoc                 source_loc;
+    struct NecroScope*             scope;
+    struct NecroDelayScope*        delay_scope;
+    NecroASTNode*                  ast;
+    NecroDeclarationGroup*         declaration_group;
+    NecroAST_Node_Reified*         optional_type_signature;
+    NecroType*                     type;
+    NECRO_TYPE_STATUS              type_status;
+    struct NecroTypeClass*         method_type_class;
+    bool                           is_constructor;
+    // bool                           is_method;
+    struct NecroTypeClass*         type_class;
+    struct NecroTypeClassInstance* type_class_instance;
 } NecroSymbolInfo;
 
 typedef struct NecroSymTable
@@ -90,7 +93,7 @@ typedef struct NecroDelayScope
     struct NecroDelayScope* parent;
 } NecroDelayScope;
 
-typedef struct
+typedef struct NecroScopedSymTable
 {
     NecroPagedArena  arena;
     NecroSymTable*   global_table;
@@ -121,6 +124,9 @@ NecroID             necro_this_scope_find(NecroScope* scope, NecroSymbol symbol)
 NecroID             necro_scope_find(NecroScope* scope, NecroSymbol symbol);
 NecroID             necro_scoped_symtable_new_symbol_info(NecroScopedSymTable* table, NecroScope* scope, NecroSymbolInfo info);
 void                necro_scope_set_last_introduced_id(NecroScope* scope, NecroID id);
+
+NecroSymbolInfo*    necro_symtable_get_type_class_declaration_info(NecroSymTable* symtable, NecroAST_Node_Reified* ast);
+NecroSymbolInfo*    necro_symtable_get_type_class_instance_info(NecroSymTable* symtable, NecroAST_Node_Reified* ast);
 
 // Test
 void                necro_scoped_symtable_print_type_scope(NecroScopedSymTable* table);

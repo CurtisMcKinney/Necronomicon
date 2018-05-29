@@ -15,6 +15,7 @@
 #include "symtable.h"
 #include "renamer.h"
 #include "d_analyzer.h"
+#include "driver.h"
 
 typedef NecroAST_Node_Reified NecroASTNode;
 //=====================================================
@@ -115,6 +116,8 @@ typedef struct NecroPrimTypes
     NecroCon          functor_type_class;
     NecroCon          applicative_type_class;
     NecroCon          monad_type_class;
+    // NecroCon          from_int;
+    // NecroCon          from_rational;
     NecroPrimDef*     defs;
     NecroPrimDef*     def_head;
     NecroPagedArena   arena;
@@ -127,7 +130,7 @@ NecroPrimTypes necro_create_prim_types(NecroIntern* intern);
 
 NECRO_RETURN_CODE necro_prim_build_scope(NecroPrimTypes* prim_types, NecroScopedSymTable* scoped_symtable);
 NECRO_RETURN_CODE necro_prim_rename(NecroPrimTypes* prim_types, NecroRenamer* renamer);
-NECRO_RETURN_CODE necro_prim_infer(NecroPrimTypes* prim_types, NecroDependencyAnalyzer* d_analyzer, NecroInfer* infer);
+NECRO_RETURN_CODE necro_prim_infer(NecroPrimTypes* prim_types, NecroDependencyAnalyzer* d_analyzer, NecroInfer* infer, NECRO_PHASE phase);
 void              necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern);
 
 #endif // TYPE_PRIM_H

@@ -38,6 +38,9 @@ typedef struct
     struct NecroAST_Node_Reified* inst;
     struct NecroAST_Node_Reified* declarations; // Points to the next in the list, null_local_ptr if the end
     struct NecroAST_Node_Reified* dictionary_instance; // Dictionary instance which is generated at compile time by the compiler
+    struct NecroDeclarationGroup* declaration_group;
+    NecroSymbol                   instance_name;
+    NecroID                       instance_id;
 } NecroAST_TypeClassInstance_Reified;
 
 //=====================================================
@@ -50,6 +53,7 @@ typedef struct
     struct NecroAST_Node_Reified* tyvar;
     struct NecroAST_Node_Reified* declarations; // Points to the next in the list, null_local_ptr if the end
     struct NecroAST_Node_Reified* dictionary_data_declaration; // Dictionary data declaration which is generated at compile time by the compiler
+    struct NecroDeclarationGroup* declaration_group;
 } NecroAST_TypeClassDeclaration_Reified;
 
 //=====================================================
@@ -70,6 +74,7 @@ typedef struct
     struct NecroAST_Node_Reified* context; // optional, null_local_ptr if not present
     struct NecroAST_Node_Reified* type;
     NECRO_SIG_TYPE                sig_type;
+    struct NecroDeclarationGroup* declaration_group;
 } NecroAST_TypeSignature_Reified;
 
 //=====================================================
@@ -119,6 +124,8 @@ typedef struct
     NecroAST_BinOpType            type;
     NecroSymbol                   symbol;
     NecroID                       id;
+    struct NecroTypeClassContext* inst_context;
+    struct NecroType*             op_necro_type;
 } NecroAST_OpLeftSection_Reified;
 
 //=====================================================
@@ -130,6 +137,8 @@ typedef struct
     NecroAST_BinOpType            type;
     NecroSymbol                   symbol;
     NecroID                       id;
+    struct NecroTypeClassContext* inst_context;
+    struct NecroType*             op_necro_type;
 } NecroAST_OpRightSection_Reified;
 
 //=====================================================
@@ -225,6 +234,7 @@ typedef struct
     NecroAST_BinOpType            type;
     NecroSymbol                   symbol;
     NecroID                       id;
+    struct NecroTypeClassContext* inst_context;
 } NecroAST_BinOp_Reified;
 
 //=====================================================
@@ -364,7 +374,7 @@ typedef struct
 typedef struct
 {
     struct NecroAST_Node_Reified* statement_list; // NecroAST_ListNode of do statement items
-    struct NecroAST_Node_Reified* monad_dictionary;
+    struct NecroType*             monad_var;
 } NecroAST_Do_Reified;
 
 //=====================================================
@@ -502,7 +512,7 @@ typedef struct
 } NecroAST_Reified;
 
 NecroAST_Reified necro_create_reified_ast();
-NecroAST_Reified necro_reify_ast(NecroAST* a_ast, NecroAST_LocalPtr a_root);
+NecroAST_Reified necro_reify_ast(NecroAST* a_ast, NecroAST_LocalPtr a_root, NecroIntern* intern);
 void             necro_destroy_reified_ast(NecroAST_Reified* ast);
 void             necro_print_reified_ast(NecroAST_Reified* ast, NecroIntern* intern);
 void             necro_print_reified_ast_node(NecroAST_Node_Reified* ast_node, NecroIntern* intern);

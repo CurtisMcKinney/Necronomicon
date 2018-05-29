@@ -21,8 +21,7 @@ NecroType* necro_infer_type_sig(NecroInfer* infer, NecroNode* ast);
 NecroType* necro_ast_to_type_sig_go(NecroInfer* infer, NecroNode* ast);
 NecroType* necro_create_data_constructor(NecroInfer* infer, NecroNode* ast, NecroType* data_type);
 NecroType* necro_ty_vars_to_args(NecroInfer* infer, NecroNode* ty_vars);
-NecroType* necro_infer_data_declaration(NecroInfer* infer, NecroNode* ast);
-NecroType* necro_infer_assignment(NecroInfer* infer, NecroDeclarationGroup* declaration_group);
+NecroType* necro_infer_declaration_group(NecroInfer* infer, NecroDeclarationGroup* declaration_group);
 
 void necro_test_infer();
 

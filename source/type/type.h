@@ -14,10 +14,12 @@
 
 // Forward Declarations
 struct NecroType;
-struct NecroTypeClassEnv;
+// struct NecroTypeClassEnv;
 struct NecroSymTable;
 struct NecroTypeClassContext;
 struct NecroLifetime;
+struct NecroScopedSymTable;
+struct NecroRenamer;
 
 typedef enum
 {
@@ -142,21 +144,23 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    struct NecroSymTable*     symtable;
-    struct NecroPrimTypes*    prim_types;
-    struct NecroTypeClassEnv* type_class_env;
-    NecroTypeEnv              env;
-    NecroPagedArena           arena;
-    NecroIntern*              intern;
-    NecroError                error;
-    size_t                    highest_id;
-    NecroType*                star_type_kind;
+    struct NecroSymTable*       symtable;
+    struct NecroScopedSymTable* scoped_symtable;
+    struct NecroRenamer*        renamer;
+    struct NecroPrimTypes*      prim_types;
+    // struct NecroTypeClassEnv*   type_class_env;
+    NecroTypeEnv                env;
+    NecroPagedArena             arena;
+    NecroIntern*                intern;
+    NecroError                  error;
+    size_t                      highest_id;
+    NecroType*                  star_type_kind;
 } NecroInfer;
 
 //=====================================================
 // API
 //=====================================================
-NecroInfer  necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtable, struct NecroPrimTypes* prim_types, struct NecroTypeClassEnv* type_class_env);
+NecroInfer  necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtable, struct NecroScopedSymTable* scoped_symtable, struct NecroRenamer* renamer, struct NecroPrimTypes* prim_types);
 void        necro_destroy_infer(NecroInfer* infer);
 void        necro_reset_infer(NecroInfer* infer);
 bool        necro_is_infer_error(NecroInfer* infer);
@@ -201,7 +205,7 @@ char*       necro_type_string(NecroInfer* infer, NecroType* type);
 void        necro_print_type_sig(NecroType* type, NecroIntern* intern);
 void        necro_print_type_sig_go(NecroType* type, NecroIntern* intern);
 char*       necro_snprintf_type_sig(NecroType* type, NecroIntern* intern, char* buffer, const size_t buffer_length);
-const char* necro_id_as_character_string(NecroInfer* infer, NecroVar var);
+const char* necro_id_as_character_string(NecroIntern* infer, NecroVar var);
 bool        necro_check_and_print_type_error(NecroInfer* infer);
 void        necro_print_type_test_result(const char* test_name, NecroType* type, const char* test_name2, NecroType* type2, NecroIntern* intern);
 void        necro_print_env(NecroInfer* infer);

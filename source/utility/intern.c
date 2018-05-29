@@ -103,6 +103,7 @@ void necro_intern_grow(NecroIntern* intern)
     NecroInternEntry* old_entries = intern->entries;
     intern->size                  = intern->size * 2;
     intern->entries               = malloc(intern->size * sizeof(NecroInternEntry));
+    printf("intern grow, old: %d, new: %d", old_size, intern->size);
     if (intern->entries == NULL)
     {
         fprintf(stderr, "Malloc returned NULL while allocating memory for entries in necro_intern_grow()\n");
@@ -132,6 +133,7 @@ void necro_intern_grow(NecroIntern* intern)
     free(old_entries);
 }
 
+// TODO: Optimize memory allocation
 NecroSymbol necro_intern_create_type_class_instance_symbol(NecroIntern* intern, NecroSymbol symbol, NecroSymbol type_class_name)
 {
     const char* string1 = necro_intern_get_string(intern, symbol);
@@ -161,6 +163,7 @@ NecroSymbol necro_intern_create_type_class_instance_symbol(NecroIntern* intern, 
     return new_symbol;
 }
 
+// TODO: Optimize memory allocation
 NecroSymbol necro_intern_get_type_class_member_symbol_from_instance_symbol(NecroIntern* intern, NecroSymbol symbol)
 {
     const char* string1 = necro_intern_get_string(intern, symbol);
@@ -182,6 +185,7 @@ NecroSymbol necro_intern_get_type_class_member_symbol_from_instance_symbol(Necro
     return new_symbol;
 }
 
+// TODO: Optimize memory allocation
 NecroSymbol necro_intern_concat_symbols(NecroIntern* intern, NecroSymbol symbol1, NecroSymbol symbol2)
 {
     const char* string1 = necro_intern_get_string(intern, symbol1);
@@ -215,7 +219,7 @@ NecroSymbol necro_intern_string(NecroIntern* intern, const char* str)
         return (NecroSymbol) { 0, NECRO_INTERN_NULL_ID };
 
     // Grow if we're over 50% load
-    if (intern->count >= intern->size / 2)
+    if (intern->count >= (intern->size / 2))
         necro_intern_grow(intern);
 
     // Do linear probe
@@ -261,7 +265,7 @@ NecroSymbol necro_intern_string_slice(NecroIntern* intern, NecroStringSlice slic
         return (NecroSymbol) { 0, NECRO_INTERN_NULL_ID };
 
     // Grow if we're over 50% load
-    if (intern->count >= intern->size / 2)
+    if (intern->count >= (intern->size / 2))
         necro_intern_grow(intern);
 
     // Do Linear probe

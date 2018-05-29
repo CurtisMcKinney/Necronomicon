@@ -27,7 +27,7 @@ void necro_compile_impl(
     const char* input_string,
     NECRO_PHASE compilation_phase,
     NecroInfer* infer,
-    NecroTypeClassEnv* type_class_env,
+    // NecroTypeClassEnv* type_class_env,
     NecroParser* parser,
     NecroTransformToCore* core_transform,
     NecroLexer* lexer,
@@ -85,7 +85,7 @@ void necro_compile_impl(
     // Reifying
     //=====================================================
     necro_announce_phase("Reifying");
-    NecroAST_Reified ast_r = necro_reify_ast(ast, root_node_ptr);
+    NecroAST_Reified ast_r = necro_reify_ast(ast, root_node_ptr, &lexer->intern);
     necro_print_reified_ast(&ast_r, &lexer->intern);
     *destruct_flags |= BIT(NECRO_PHASE_REIFY);
     if (compilation_phase == NECRO_PHASE_REIFY)
@@ -149,23 +149,25 @@ void necro_compile_impl(
     //=====================================================
     necro_announce_phase("Dependency Analysis");
     NecroDependencyAnalyzer d_analyzer = necro_create_dependency_analyzer(&symtable, &lexer->intern);
-    *type_class_env = necro_create_type_class_env(&scoped_symtable, &renamer);
-    *infer = necro_create_infer(&lexer->intern, &symtable, &prim_types, type_class_env);
+    // *type_class_env = necro_create_type_class_env(&scoped_symtable, &renamer);
+    *infer = necro_create_infer(&lexer->intern, &symtable, &scoped_symtable, &renamer, &prim_types);
     *destruct_flags |= BIT(NECRO_PHASE_DEPENDENCY_ANALYSIS);
-    if (necro_prim_infer(&prim_types, &d_analyzer, infer) != NECRO_SUCCESS)
+    if (necro_prim_infer(&prim_types, &d_analyzer, infer, compilation_phase) != NECRO_SUCCESS)
     {
         necro_print_error(&infer->error, input_string, "Prim Type");
         return;
     }
-
     if (necro_dependency_analyze_ast(&d_analyzer, &ast_r.arena, ast_r.root))
     {
         necro_print_error(&renamer.error, input_string, "Dependency Analysis");
         return;
     }
-    puts("");
     if (compilation_phase == NECRO_PHASE_DEPENDENCY_ANALYSIS)
+    {
+        necro_print_reified_ast(&ast_r, &lexer->intern);
         return;
+    }
+    puts("");
 
     //=====================================================
     // Infer
@@ -173,7 +175,7 @@ void necro_compile_impl(
     necro_announce_phase("Typing");
     necro_infer(infer, ast_r.root);
     necro_symtable_print(&symtable);
-    necro_print_type_class_env(type_class_env, infer, &lexer->intern);
+    necro_print_type_classes(infer);
     necro_print_env_with_symtable(&symtable, infer);
     *destruct_flags |= BIT(NECRO_PHASE_INFER);
     if (infer->error.return_code != NECRO_SUCCESS)
@@ -182,12 +184,14 @@ void necro_compile_impl(
         return;
     }
 
-    // necro_type_class_translate(infer, type_class_env, ast_r.root);
-    // if (infer->error.return_code != NECRO_SUCCESS)
-    // {
-    //     necro_print_error(&infer->error, input_string, "Type");
-    //     return;
-    // }
+    // TODO: Redo this once TypeClass refactor is done
+    necro_type_class_translate(infer, ast_r.root);
+    if (infer->error.return_code != NECRO_SUCCESS)
+    {
+        necro_print_reified_ast(&ast_r, &lexer->intern);
+        necro_print_error(&infer->error, input_string, "Type");
+        return;
+    }
 
     necro_print_reified_ast(&ast_r, &lexer->intern);
     if (compilation_phase == NECRO_PHASE_INFER)
@@ -225,7 +229,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
 {
     uint32_t destruct_flags = 0;
     NecroInfer infer;
-    NecroTypeClassEnv type_class_env;
+    // NecroTypeClassEnv type_class_env;
     NecroParser parser;
     NecroTransformToCore core_transform;
     NecroLexer lexer;
@@ -235,7 +239,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
         input_string,
         compilation_phase,
         &infer,
-        &type_class_env,
+        // &type_class_env,
         &parser,
         &core_transform,
         &lexer,
@@ -251,7 +255,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     if (validate_destruct_phase(NECRO_PHASE_DEPENDENCY_ANALYSIS, destruct_flags))
     {
         necro_destroy_infer(&infer);
-        necro_destroy_type_class_env(&type_class_env);
+        // necro_destroy_type_class_env(&type_class_env);
     }
 
     if (validate_destruct_phase(NECRO_PHASE_PARSE, destruct_flags))

@@ -256,7 +256,7 @@ NECRO_RETURN_CODE necro_prim_rename(NecroPrimTypes* prim_types, NecroRenamer* re
     return renamer->error.return_code;
 }
 
-NECRO_RETURN_CODE necro_prim_infer(NecroPrimTypes* prim_types, NecroDependencyAnalyzer* d_analyzer, NecroInfer* infer)
+NECRO_RETURN_CODE necro_prim_infer(NecroPrimTypes* prim_types, NecroDependencyAnalyzer* d_analyzer, NecroInfer* infer, NECRO_PHASE phase)
 {
     NecroPrimDef* def  = prim_types->def_head;
     NecroASTNode* top  = NULL;
@@ -333,7 +333,8 @@ NECRO_RETURN_CODE necro_prim_infer(NecroPrimTypes* prim_types, NecroDependencyAn
     // Run dependency analyser
     necro_dependency_analyze_ast(d_analyzer, &prim_types->arena, head);
     // Run type checking on the whole top level declarations
-    necro_infer_go(infer, head);
+    if (phase != NECRO_PHASE_DEPENDENCY_ANALYSIS)
+        necro_infer_go(infer, head);
 
     return infer->error.return_code;
 }

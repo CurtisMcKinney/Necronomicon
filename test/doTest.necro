@@ -193,26 +193,86 @@
 
 data Maybe a = Just a | Nothing
 
--- class TestClass a where
---     go :: Num b => a -> b -> a
---     no :: a -> Int -> Int
+-- subTest :: Maybe Float
+-- subTest = subMethod 0
+
+subTest2 :: (Fractional a, Ord a) => Int -> Maybe a
+subTest2 x = subMethod x
+
+-- subTest3 x = subTest2 x
 --
--- instance (Num a, Eq a) => TestClass (Maybe a) where
---     go (Just i) _ = Just (i + 1)
---     go Nothing  _ = Just 0
---     no _ i = i
+x :: (Fractional a, Ord a, Fractional b, Ord b) => (Maybe a, Maybe b)
+x = (subMethod 0, subMethod 0)
+
+z1 :: (SupremeClass a, Fractional a, Eq a) => a -> ((), ())
+z1 t    = (supremeMethod t, supremeMethod (Just t))
+-- z2 t t2 = (supremeMethod t, supremeMethod t2, supremeMethod (Just t))
+z3 x    = subMethod x
+
+class ConstClass a where
+    constMethod :: Num b => a -> b -> b
+
+instance ConstClass Int where
+    constMethod _ x = x
+
+instance Eq a => ConstClass (Maybe a) where
+    constMethod _ x = x
+
+-- -- constTest :: Int -> Int -> Int
+constTest :: (Ord a, Fractional b) => Maybe a -> b -> b
+constTest x y = constMethod x y
+
+coolSynth :: Audio -> Audio
+coolSynth freq = osc (freq * 2) + 1 where
+    osc _ = 220
+
+-- -- TODO: Defaulting
+-- defaultingTest :: Int
+-- defaultingTest = notF 0 where
+--     notF _ = 1
+
+opTest :: Num a => a -> a
+opTest x = x + x
+
+leftSectionTest :: Fractional a => a -> a -> a
+leftSectionTest x = (x+)
+
+rightSectionTest :: Fractional a => a -> a -> a
+rightSectionTest x = (+x)
+
+fullSection :: Fractional a => a -> a -> a
+fullSection = (+)
+
+-- TODO: Fix this, shadowing error!
+shadowTest = 0 where
+    fromInt _ = ()
+
+doTest1 :: Int -> Maybe Int -> Maybe Int
+doTest1 x y = do
+    z <- y
+    pure (x + z)
+
+doTest2 :: (Num a, Monad m) => a -> m a -> m a
+doTest2 x y = do
+    z <- y
+    pure (x + z) -- TODO: translate type class bin ops to method names (i.e. + --> add)
+
+class HigherClass h where
+    higherMethod :: Num a => h a -> a -> h a
+
+-- -- This correctly throws a kind error!
+-- higherTest :: (HigherClass h, ConstClass h) => h a -> h a
+-- higherTest x = constMethod x 0
+
+multiConstraintTest :: (Ord a, Fractional a) => a -> Bool
+multiConstraintTest x = (x + x) > x
+
+-- -- TODO: Implement this
+-- leftSide  :: Num a => a
+-- rightSide :: Float
+-- (leftSide, rightSide) = (0, 1)
 --
--- testGo  = go Nothing
---
--- data Always a = Always a
---
--- instance TestClass a => TestClass (Always a) where
---     go (Always x) b = Always (go x b)
---     no _ i = i
---
--- alwaysTest = Always (Just 0)
--- goTest = go alwaysTest 1
---
+
 class SupremeClass a where
     supremeMethod :: a -> ()
 
@@ -229,40 +289,55 @@ instance (Fractional a, Eq a) => SupremeClass (Maybe a) where
     supremeMethod _ = ()
 
 instance (Fractional a, Ord a) => SubClass (Maybe a) where
-    subMethod i = subMethod (superMethod (Just (fromInt i)))
+    subMethod i = Just (fromInt i)
+    -- subMethod i = subMethod (superMethod (Just (fromInt i)))
 
--- instance Functor Maybe where
---     map f (Just x) = Just (f x)
---     map _ Nothing  = Nothing
+instance Functor Maybe where
+    map f (Just x) = Just (f x)
+    map _ Nothing  = Nothing
 
--- instance Applicative Maybe where
---     pure                 = Just
---     ap (Just f) (Just x) = Just (f x)
---     ap _        _        = Nothing
+instance Applicative Maybe where
+    pure                 = Just
+    ap (Just f) (Just x) = pure (f x)
+    ap _        _        = Nothing
 
--- subTest :: Maybe Float
--- subTest = subMethod 0
+instance Monad Maybe where
+    bind (Just f) g = g f
+    bind Nothing  _ = Nothing
 
--- subTest2 :: (Fractional a, Ord a) => Int -> Maybe a
--- subTest2 x = subMethod x
+class InstanceTest a where
+    instanceMethod1 :: Num b => b -> a
+    instanceMethod2 :: a -> a
 
--- -- subTest3 :: Int -> Maybe Audio
--- -- subTest3 :: (Fractional a, Ord a) => Int -> Maybe a
--- subTest3 x = subTest2 x
+-- TODO: Looks like this is creating duplicate dictionaries....
+-- Also looks like this is creating incorrect dictionaries for instanceMethod1 during instanceMethod2
+-- Should either figure and use correct method automatically, or it should be using a supplied dictionary for
+-- InstanceTest (Maybe b)
+-- Seems like instance method contexts are just wrong.
+-- Figure out exactly what instance method contexts SHOULD be!
+instance Num a => InstanceTest (Maybe a) where
+    instanceMethod1 _        = Nothing
+    instanceMethod2 (Just a) = instanceMethod1 a
+    instanceMethod2 _        = Nothing
 
--- -- x :: Maybe Audio
--- x :: (Fractional a, Ord a, Fractional b, Ord b) => (Maybe a, Maybe b)
--- x = (subMethod 9, subMethod 0)
+-- -- TODO: Looks like where statements are broken for instance methods now?
+-- --  Consider redoing type class system to use dependency group system to clean up some of this mess?
+-- -- TODO: This is throwing an exception!!!
+-- instance InstanceTest () where
+--     instanceMethod2 _ = result where
+--         result :: ()
+--         x :: Int
+--         x = 0
+--         result = instanceMethod1 x
+--     instanceMethod1 _ = ()
 
--- z t t2 = (supremeMethod t, supremeMethod t2, supremeMethod (Just t))
--- z t = (supremeMethod t, supremeMethod (Just t))
+-- whereTest :: InstanceTest a => Int -> a
+-- whereTest x = subF x where
+--     subF y = instanceMethod1 y
 
--- -- This shouldn't type check!!! Wtf!?!?!
--- Probably related to numeric overloading, need to implement type class translation
--- coolSynth :: Audio -> Audio
--- coolSynth freq = osc (freq * 2) + 1 where
---     osc _ = 220
-
--- -- simpleTest :: Int
--- simpleTest = notF 0 where
---     notF _ = 1
+-- notWhereTest :: InstanceTest a => Int -> a
+-- notWhereTest x = instanceMethod1 x
+--
+-- maybeTest :: a -> Maybe a
+-- maybeTest x = subX x where
+--     subX y = pure y

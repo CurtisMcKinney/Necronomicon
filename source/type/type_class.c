@@ -9,11 +9,12 @@
 #include "infer.h"
 #include "symtable.h"
 #include "kind.h"
+#include "type\prim.h"
 #include "type_class.h"
 
 /*
 TODO:
-    - Pat assignment
+    - Do statements
     - Defaulting
     - After translation some ids for added AST nodes are coming back as 0
     - Better unification error messaging! This is especially true when it occurs during SuperClass constraint checking. Make necro_unify return struct with either Success or Error data
@@ -22,6 +23,7 @@ TODO:
     - Make sure we aren't duplicating names / scopes
     - Follow Haskell's lead: Make top declaration's default to Haskell style monomorphism restriction, and where bindings default to not generalizing (unless type signature is given!!!)
     - Ixilang / Tidal sequence sublanguage
+    - Perhaps drop Monads!?!?! Is that crazy? feels like a heavy handed solution to some specific use cases...
 */
 
 #define NECRO_TYPE_CLASS_DEBUG 0
@@ -1537,11 +1539,12 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
             scope = scope->parent;
         bind_node->scope = bind_node->scope = scope;
         necro_rename_var_pass(infer->renamer, &infer->arena, bind_node);
+        bind_node->necro_type = necro_symtable_get(infer->symtable, bind_node->variable.id)->type;
         NecroTypeClassContext* bind_context     = necro_symtable_get(infer->symtable, bind_node->variable.id)->type->for_all.context;
         NecroTypeClassContext* monad_context    = ast->do_statement.monad_var->var.context;
         while (monad_context->type_class_name.id.id != bind_context->type_class_name.id.id)
             monad_context = monad_context->next;
-        assert(monad_context->type_class_name.id.id != bind_context->type_class_name.id.id);
+        // assert(monad_context->type_class_name.id.id != bind_context->type_class_name.id.id);
         NecroASTNode*          bind_method_inst = necro_resolve_method(infer, monad_context->type_class, monad_context, bind_node, dictionary_context);
         necro_print_reified_ast_node(bind_method_inst, infer->intern);
         // bind_node->do_statement.

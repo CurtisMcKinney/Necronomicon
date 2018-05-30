@@ -1267,14 +1267,15 @@ NecroType* necro_infer_do_statement(NecroInfer* infer, NecroNode* ast, NecroType
     }
 }
 
+// TODO / NOTE: Perhaps drop Monads!?!?! Is that crazy? feels like a heavy handed solution to some specific use cases...
 NecroType* necro_infer_do(NecroInfer* infer, NecroNode* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_DO);
     if (necro_is_infer_error(infer)) return NULL;
-    NecroType* monad_var = necro_new_name(infer, ast->source_loc);
-    NecroNode* statements = ast->do_statement.statement_list;
+    NecroType* monad_var      = necro_new_name(infer, ast->source_loc);
+    NecroNode* statements     = ast->do_statement.statement_list;
     NecroType* statement_type = NULL;
     necro_apply_constraints(infer, monad_var, necro_create_type_class_context(&infer->arena, necro_symtable_get(infer->symtable, infer->prim_types->monad_type_class.id)->type_class, infer->prim_types->monad_type_class, (NecroCon) { .id = monad_var->var.var.id, .symbol = monad_var->var.var.symbol }, NULL));
     while (statements != NULL)

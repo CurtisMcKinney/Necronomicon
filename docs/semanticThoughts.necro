@@ -37,6 +37,8 @@ pattern :  t on c -> (c : t).t
 poly :: Num b => (a -> b)               -> Event a  -> b -- Black magic in here???
 poly :           ((t2 -> t2) : t1 on c) -> (c : t1) -> t2
 
+delay :: a -> a -> a
+
 fby :: a -> a -> a
 fby :  t -> t -> t
 
@@ -232,7 +234,7 @@ main = synths where
 -- Values cannot be defined by themselves in the same time scope
 -- Higher-order functions and recursive functions will require some kind of "apply" combinator to be inserted by the compiler
 
-pattern :: Sequence Time -> Sequence a -> Event a
+pattern :: Sequence (Time, a) -> Event a
 
 seq     :: Sequence a -> a
 
@@ -246,6 +248,9 @@ on    :: a       -> Event b -> Event a
 mouseClickIn :: Input (Event ())
 mouseXIn     :: Input Float
 
+rand :: Rand a => a
+srand :: Rand a => Int -> a
+
 input pulseDemon <- loadBuffer "pulseDemon.aiff"
 input mouseX     <- mouseXIn
 input mouseClick <- mouseClickIn
@@ -255,7 +260,7 @@ synth freq = osc where
     osc = 440 * mouseX + freq * seq {0, osc} |> sinOsc
 
 pat :: Event Audio
-pat = pattern times values where
+pat = pattern <| zip times values where
     times  = {0.25, 0.5, 0.25, 0.5} * mul
     values = {0, 1, 2, take 1 mouseX, latch pat |> take 2} * mul -- {} is an instance of num?
     mul    = {0.5, 1, 2}
@@ -265,14 +270,26 @@ ifTest up = if up then countUp else countDown where
     countUp   = seq {0, countUp   + 1}
     countDown = seq {0, countDown - 1}
 
--- Sequence sublanguage
-coolBeat :: Sequence Float
+-- Sequence sublanguage, influenced by list comprehensions (can be used as an expression)
+coolBeat :: Sequence (Time, Float)
 coolBeat = [
     x y y     z
-    _ x [5 z] x |
+    _ x [5 z] x
+    _ 0 [1 2] y |
     x <- osc  * 4,
     y <- osc2 + 3,
     z <- osc3 / 4]
+
+-- Can we get rid of sequences, and what would that look like!?
+-- Sequence sublanguage, influenced by let/in (still an expression, but less alien)
+coolBeat :: Float
+coolBeat =
+    let x = srand 1 - osc  * 4 - seq {0, x}
+        y = srand 2 - osc2 + 3 + seq {0, y}
+        z = srand 3 - osc3 / 4 * seq {0, z}
+    in~ x y y     z
+        _ x [5 z] x
+        _ 0 [1 2] y
 
 ifTest2 :: Bool -> Int
 ifTest2 up = if up
@@ -286,3 +303,94 @@ main = synths where
     synths = poly synth (merge freq1 freq2)
 
 -- TODO: Ixilang / Tidal sequence sublanguage
+
+-----------------------
+-- Time Streams
+--------------------
+-- All values are functions of t -> a
+-- Can manipulate t as a part of the language
+-- No Sequence type, instead combinators to manipulate time
+-- Event types for when things happen at punctuated points in time
+-- {x, y, ...} forms a normal value (implicit seq), is still lazy, but you can modify with time manipulation
+-- Still have lexical time scopes
+-- Values have an implicit timestamp!?
+-- Some special combinators have access to that time stamp and can continue to consume the stream based on it?
+-- Obviates the need for event type
+-- All values in the language are a function of: (tio, ta) -> a, i.e. Actual real world time and the value's time
+-- ta accrues over time and doesn't need to be "pure", works just like the accumulator in an oscillator
+-- Does this allow for doing time manipulation (which affects ta, but leaves tio alone) while still being referentially transparent?
+-- Each value also tracks the time (in (tio, ta)) of the last newly computed value
+-- Use fby for feedback, i.e. osc = 1 + delay 0 osc, since seq doesn't exhibit fby style semantics
+-- seq and fby differ in the fby reaches back in both tio and ta, whereas seq only affects ta, and takes tio as is!
+-- Use delay instead of fby?
+-- With seq semantics, no longer a need for take/strobe/End style semantics in streams. It simply jumps from slot to slot! Simpler!
+-- IO keeps 1 buffer delay
+
+-- Time manipulation
+reverse :: a -> a -- Runs time (ta, not tio) backwards. Time is modulo, so it should play sequences backwards
+speed :: Float -> a -> a
+
+poly :: Num b => (a -> b) -> a -> b
+
+merge :: a -> a -> a
+on    :: a -> b -> a
+
+mouseClickIn :: Input ()
+mouseXIn     :: Input Float
+
+delay :: a -> a -> a
+
+rand :: Rand a => a
+srand :: Rand a => Int -> a
+
+input pulseDemon <- loadBuffer "pulseDemon.aiff"
+input mouseX     <- mouseXIn
+input mouseClick <- mouseClickIn
+
+synth :: Audio -> Audio
+synth freq = osc where
+    osc = 440 * mouseX + freq * (delay 0 osc) |> sinOsc
+
+-- Layout version
+-- More elegant but doesn't easily allow for things like polyrhythms
+pat :: Audio
+pat = speed m <| s * m where
+    s = seq 0   1 _ 2 mouseX pat _ (delay 0 s)
+    m = seq 0.5 1 2
+
+-- Sequence sublanguage, influenced by let/in, dmd/seq.
+-- dmd demands the value when the sequence gets to it
+-- seq is a series of white space seperated expressions
+-- "plays" the expressions in a sequence
+-- Values in the dmd form are updated each time they are encountered by the seq form
+coolBeat :: Float
+coolBeat = seq
+    x y (y+y) z
+    _ x [5 z] x
+    _ 0 [1 2] y
+    where
+        x = rand - mouseX * 4 - (delay 0 x)
+        y = rand - osc2   + 3 + (delay 0 y)
+        z = rand - osc3   / 4 * (delay 0 z)
+
+ifTest :: Bool -> Int
+ifTest up = if up then countUp else countDown where
+    countUp   = delay 0 (countUp + 1)
+    countDown = delay 0 (countUp - 1)
+
+main :: Audio
+main = synths where
+    freq1  = on mouseX mouseClick |> realToFrac
+    freq   = merge pat freq1
+    synths = poly (on synth freq) freq
+
+osc = mouseX + delay 0 osc
+
+-- No longer have pinned values?!?!?
+-- -- now equivalant?
+-- -- How to have/use/reference long running values (like a global ambient noise or some such you pipe in?)
+-- -- <- pins a value to being strictly computed at that scope. Only works for monomorphic values!!!
+-- ifTest :: Bool -> Int
+-- ifTest up = if up then countUp else countDown where
+--     countUp   <- seq 0 (countUp + 1)
+--     countDown <- seq 0 (countUp - 1)

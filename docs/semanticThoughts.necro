@@ -266,11 +266,13 @@ ifTest up = if up then countUp else countDown where
     countDown = seq {0, countDown - 1}
 
 -- Sequence sublanguage
-coolBeat :: Sequence Audio
-coolBeat => xyyz_d[5z]x where
-    x = osc  * 4
-    y = osc2 + 3
-    z = osc3 / 4
+coolBeat :: Sequence Float
+coolBeat = [
+    x y y     z
+    _ x [5 z] x |
+    x <- osc  * 4,
+    y <- osc2 + 3,
+    z <- osc3 / 4]
 
 ifTest2 :: Bool -> Int
 ifTest2 up = if up

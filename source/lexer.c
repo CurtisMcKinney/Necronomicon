@@ -719,7 +719,7 @@ NECRO_RETURN_CODE necro_lex_fixup_layout(NecroLexer* lexer)
         }
         else if (type == NECRO_LEX_LEFT_BRACE)
         {
-            NecroLexToken token = { .token = NECRO_LEX_LEFT_BRACE,.source_loc = loc };
+            NecroLexToken token = (NecroLexToken) { .token = NECRO_LEX_LEFT_BRACE,.source_loc = loc };
             necro_push_lex_token_vector(&lexer->layout_fixed_tokens, &token);
             pos++;
             stack_pos++;

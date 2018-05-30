@@ -1136,12 +1136,65 @@ NecroASTNode* necro_resolve_method(NecroInfer* infer, NecroTypeClass* method_typ
 NecroTypeClassDictionaryContext* necro_create_type_class_dictionary_context(NecroPagedArena* arena, NecroCon type_class_name, NecroCon type_var_name, NecroASTNode* dictionary_arg_ast, NecroTypeClassDictionaryContext* next)
 {
     NecroTypeClassDictionaryContext* dictionary_context = necro_paged_arena_alloc(arena, sizeof(NecroTypeClassDictionaryContext));
-    dictionary_context->type_class_name    = type_class_name;
-    dictionary_context->type_var_name      = type_var_name;
-    dictionary_context->dictionary_arg_ast = dictionary_arg_ast;
-    dictionary_context->next               = next;
+    dictionary_context->type_class_name                 = type_class_name;
+    dictionary_context->type_var_name                   = type_var_name;
+    dictionary_context->dictionary_arg_ast              = dictionary_arg_ast;
+    dictionary_context->intentially_not_included        = false;
+    dictionary_context->next                            = next;
     return dictionary_context;
 }
+
+// void necro_add_pat_dictionary_context(NecroInfer* infer, NecroType* type, NecroTypeClassDictionaryContext** dictionary_context_head, NecroTypeClassDictionaryContext** dictionary_context_curr)
+// {
+//     if (necro_is_infer_error(infer)) return;
+//     assert(infer != NULL);
+//     assert(type != NULL);
+//     while (type->type == NECRO_TYPE_FOR)
+//     {
+//         NecroTypeClassContext* for_all_context = type->for_all.context;
+//         // while (for_all_context != NULL)
+//         // {
+//         //     NecroSymbol   dictionary_arg_name = necro_create_dictionary_arg_name(infer->intern, for_all_context->type_class_name.symbol, for_all_context->type_var.id);
+//         //     NecroASTNode* dictionary_arg_var = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, dictionary_arg_name), NECRO_VAR_DECLARATION);
+//         //     dictionary_arg_var->scope = ast->apats_assignment.rhs->scope;
+//         //     necro_rename_declare_pass(infer->renamer, &infer->arena, dictionary_arg_var);
+//         //     if (necro_is_infer_error(infer)) return;
+//         //     new_dictionary_context = necro_create_type_class_dictionary_context(&infer->arena, for_all_context->type_class_name, for_all_context->type_var, dictionary_arg_var, new_dictionary_context);
+//         //     if (dictionary_args_head == NULL)
+//         //     {
+//         //         dictionary_args = necro_create_apat_list_ast(&infer->arena, dictionary_arg_var, NULL);
+//         //         dictionary_args_head = dictionary_args;
+//         //     }
+//         //     else
+//         //     {
+//         //         dictionary_args->apats.next_apat = necro_create_apat_list_ast(&infer->arena, dictionary_arg_var, NULL);
+//         //         dictionary_args = dictionary_args->apats.next_apat;
+//         //     }
+//         //     for_all_context = for_all_context->next;
+//         // }
+//         type = type->for_all.type;
+//     }
+// }
+
+// void necro_retrieve_pat_dictionary_contexts(NecroInfer* infer, NecroNode* ast, NecroTypeClassDictionaryContext** dictionary_context_head, NecroTypeClassDictionaryContext** dictionary_context_curr)
+// {
+//     if (necro_is_infer_error(infer)) return;
+//     assert(infer != NULL);
+//     assert(ast != NULL);
+//     switch (ast->type)
+//     {
+//     case NECRO_AST_CONSTANT:        necro_add_pat_dictionary_context(infer, ast->necro_type, dictionary_context_head, dictionary_context_curr); return;
+//     case NECRO_AST_VARIABLE:        necro_add_pat_dictionary_context(infer, ast->necro_type, dictionary_context_head, dictionary_context_curr); return;
+//     case NECRO_AST_WILDCARD:        return;
+//     case NECRO_AST_BIN_OP_SYM:      return;
+//     case NECRO_AST_TUPLE:           return;
+//     case NECRO_AST_CONID:           return;
+//     case NECRO_AST_EXPRESSION_LIST: return;
+//     case NECRO_AST_CONSTRUCTOR:
+//         return;
+//     default: necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Unimplemented pattern in necro_retrieve_pat_dictionary_contexts: %d", ast->type); return;
+//     }
+// }
 
 void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_context, NecroInfer* infer, NecroNode* ast)
 {
@@ -1299,8 +1352,10 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
         break;
     }
 
+    // TODO / NOTE: We are making pattern bindings fully monomorphic now (even if a type signature is given. Haskell was at least like this at one point)
+    // If we REALLY want this (for some reason!?!?) we can look into putting more effort into getting polymorphic pattern bindings in.
+    // For now they have a poor weight to power ration.
     case NECRO_AST_PAT_ASSIGNMENT:
-        // TODO: START!
         necro_type_class_translate_go(dictionary_context, infer, ast->pat_assignment.rhs);
         break;
 

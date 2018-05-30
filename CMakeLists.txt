@@ -1,8 +1,15 @@
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 project(necro)
 
-set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD 11)
 set(CMAKE_BUILD_TYPE Debug)
+
+# if (CMAKE_COMPILER_IS_GNUCC)
+#     set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wall")
+# endif()
+# if (MSVC)
+#     set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} /W4")
+# endif()
 
 set(INCLUDE_DIR
     source

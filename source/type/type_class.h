@@ -91,6 +91,7 @@ typedef struct NecroTypeClassDictionaryContext
     NecroCon      type_class_name;
     NecroCon      type_var_name;
     NecroASTNode* dictionary_arg_ast;
+    bool          intentially_not_included;
     struct NecroTypeClassDictionaryContext* next;
 } NecroTypeClassDictionaryContext;
 NecroTypeClassDictionaryContext* necro_create_type_class_dictionary_context(NecroPagedArena* arena, NecroCon type_class_name, NecroCon type_var_name, NecroASTNode* dictionary_arg_ast, NecroTypeClassDictionaryContext* next);

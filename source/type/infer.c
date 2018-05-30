@@ -651,7 +651,8 @@ NecroType* necro_infer_constant(NecroInfer* infer, NecroNode* ast)
     {
     case NECRO_AST_CONSTANT_FLOAT:
     {
-        return necro_symtable_get(infer->symtable, infer->prim_types->float_type.id)->type;
+        // return necro_symtable_get(infer->symtable, infer->prim_types->float_type.id)->type;
+        return necro_symtable_get(infer->symtable, infer->prim_types->rational_type.id)->type;
         // NecroType* new_name   = necro_new_name(infer, ast->source_loc);
         // new_name->var.context = necro_create_type_class_context(&infer->arena, infer->prim_types->fractional_type_class, (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, NULL);
         // new_name->type_kind   = infer->star_type_kind;
@@ -822,10 +823,10 @@ NecroType* necro_infer_expression_list(NecroInfer* infer, NecroNode* ast)
 
 NecroType* necro_infer_expression_list_pattern(NecroInfer* infer, NecroNode* ast)
 {
+    if (necro_is_infer_error(infer)) return NULL;
     assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_EXPRESSION_LIST);
-    if (necro_is_infer_error(infer)) return NULL;
     NecroNode* current_cell = ast->expression_list.expressions;
     NecroType* list_type    = necro_new_name(infer, ast->source_loc);
     while (current_cell != NULL)
@@ -835,6 +836,30 @@ NecroType* necro_infer_expression_list_pattern(NecroInfer* infer, NecroNode* ast
         current_cell = current_cell->list.next_item;
     }
     NecroType* list = necro_make_con_1(infer, infer->prim_types->list_type, list_type);
+    list->source_loc = ast->source_loc;
+    return list;
+}
+
+//=====================================================
+// Pat Expression
+//=====================================================
+NecroType* necro_infer_pat_expression(NecroInfer* infer, NecroNode* ast)
+{
+    if (necro_is_infer_error(infer)) return NULL;
+    assert(infer != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_PAT_EXPRESSION);
+
+    NecroNode* current_cell = ast->pattern_expression.expressions;
+    NecroType* list_type    = necro_new_name(infer, ast->source_loc);
+    list_type->source_loc   = ast->source_loc;
+    while (current_cell != NULL)
+    {
+        necro_unify(infer, list_type, necro_infer_go(infer, current_cell->list.item), ast->scope, list_type, "While inferring the type for a \'pat\' expression: ");
+        if (necro_is_infer_error(infer)) return NULL;
+        current_cell = current_cell->list.next_item;
+    }
+    NecroType* list = necro_make_con_1(infer, infer->prim_types->event_type, list_type);
     list->source_loc = ast->source_loc;
     return list;
 }
@@ -1577,6 +1602,7 @@ NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_TUPLE:                  return necro_infer_tuple(infer, ast);
     case NECRO_AST_EXPRESSION_LIST:        return necro_infer_expression_list(infer, ast);
     case NECRO_AST_EXPRESSION_SEQUENCE:    return necro_infer_expression_sequence(infer, ast);
+    case NECRO_AST_PAT_EXPRESSION:         return necro_infer_pat_expression(infer, ast);
     case NECRO_AST_CASE:                   return necro_infer_case(infer, ast);
     case NECRO_AST_WILDCARD:               return necro_infer_wildcard(infer, ast);
     case NECRO_AST_ARITHMETIC_SEQUENCE:    return necro_infer_arithmetic_sequence(infer, ast);

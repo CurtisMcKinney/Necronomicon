@@ -509,7 +509,9 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_R
     case NECRO_AST_EXPRESSION_LIST:
         necro_build_scopes_go(scoped_symtable, input_node->expression_list.expressions);
         break;
-
+    case NECRO_AST_PAT_EXPRESSION:
+        necro_build_scopes_go(scoped_symtable, input_node->pattern_expression.expressions);
+        break;
     case NECRO_AST_EXPRESSION_SEQUENCE:
     {
         // Push

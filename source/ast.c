@@ -222,6 +222,11 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
         print_reified_ast_impl(ast_node->do_statement.statement_list, intern, depth + 1);
         break;
 
+    case NECRO_AST_PAT_EXPRESSION:
+        puts("(pat)");
+        print_reified_ast_impl(ast_node->pattern_expression.expressions, intern, depth + 1);
+        break;
+
     case NECRO_AST_EXPRESSION_LIST:
         puts("([])");
         if (ast_node->expression_list.expressions != NULL)
@@ -505,7 +510,7 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
         break;
 
     case NECRO_AST_CONSTANT:
-        switch (node->type)
+        switch (node->constant.type)
         {
 
         case NECRO_AST_CONSTANT_FLOAT:
@@ -609,6 +614,9 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
     case NECRO_AST_DO:
         reified_node->do_statement.statement_list = necro_reify(a_ast, node->do_statement.statement_list, arena, intern);
         reified_node->do_statement.monad_var      = NULL;
+        break;
+    case NECRO_AST_PAT_EXPRESSION:
+        reified_node->pattern_expression.expressions = necro_reify(a_ast, node->pattern_expression.expressions, arena, intern);
         break;
     case NECRO_AST_LIST_NODE:
         reified_node->list.item      = necro_reify(a_ast, node->list.item, arena, intern);

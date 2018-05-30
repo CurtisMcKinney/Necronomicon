@@ -40,6 +40,7 @@ NecroLexer necro_create_lexer(const char* str)
     necro_intern_string(&lexer.intern, "module");
     necro_intern_string(&lexer.intern, "newtype");
     necro_intern_string(&lexer.intern, "type");
+    necro_intern_string(&lexer.intern, "pat");
 
     return lexer;
 }
@@ -129,6 +130,7 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
     case NECRO_LEX_MODULE:             return "MODULE";
     case NECRO_LEX_NEWTYPE:            return "NEWTYPE";
     case NECRO_LEX_TYPE:               return "TYPE";
+    case NECRO_LEX_PAT:                return "PAT";
     case NECRO_LEX_WHERE:              return "WHERE";
     default:                           return "UNRECOGNIZED TOKEN";
     }
@@ -175,6 +177,10 @@ void necro_print_lex_token(NecroLexer* lexer, size_t token_id)
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CONTROL_BRACE_MARKER_DO)
     {
         printf("do {n}:     %d\n", lexer->tokens.data[token_id].brace_marker_n);
+    }
+    else if (lexer->tokens.data[token_id].token == NECRO_LEX_CONTROL_BRACE_MARKER_DO)
+    {
+        printf("pat\n");
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CONTROL_WHITE_MARKER)
     {

@@ -330,17 +330,19 @@ main = synths where
 reverse :: a -> a -- Runs time (ta, not tio) backwards. Time is modulo, so it should play sequences backwards
 speed :: Float -> a -> a
 
-poly :: Num b => (a -> b) -> a -> b
+poly :: Num b => (a -> b) -> Event a -> b
 
-merge :: a -> a -> a
-on    :: a -> b -> a
+merge :: Eventa -> Event a -> a
+on    :: a -> Event b -> a
 
-mouseClickIn :: Input ()
+mouseClickIn :: Input (Event ())
 mouseXIn     :: Input Float
 
 delay :: a -> a -> a
 
-rand :: Rand a => a
+pat :: a..a -> Event a
+
+rand  :: Rand a => a
 srand :: Rand a => Int -> a
 
 input pulseDemon <- loadBuffer "pulseDemon.aiff"
@@ -353,18 +355,18 @@ synth freq = osc where
 
 -- Layout version
 -- More elegant but doesn't easily allow for things like polyrhythms
-pat :: Audio
-pat = speed m <| s * m where
-    s = seq 0   1 _ 2 mouseX pat _ (delay 0 s)
-    m = seq 0.5 1 2
+fpat :: Event Audio
+fpat = speed m <| s * m where
+    s = pat 0   1 _ 2 mouseX fpat _ (delay 0 s)
+    m = pat 0.5 1 2
 
 -- Sequence sublanguage, influenced by let/in, dmd/seq.
 -- dmd demands the value when the sequence gets to it
 -- seq is a series of white space seperated expressions
 -- "plays" the expressions in a sequence
 -- Values in the dmd form are updated each time they are encountered by the seq form
-coolBeat :: Float
-coolBeat = seq
+coolBeat :: Event Float
+coolBeat = pat
     x y (y+y) z
     _ x [5 z] x
     _ 0 [1 2] y
@@ -381,10 +383,7 @@ ifTest up = if up then countUp else countDown where
 main :: Audio
 main = synths where
     freq1  = on mouseX mouseClick |> realToFrac
-    freq   = merge pat freq1
-    synths = poly (on synth freq) freq
-
-osc = mouseX + delay 0 osc
+    synths = poly synth <| merge fpat freq1
 
 -- No longer have pinned values?!?!?
 -- -- now equivalant?

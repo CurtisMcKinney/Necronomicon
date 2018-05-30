@@ -378,6 +378,14 @@ typedef struct
 } NecroAST_Do_Reified;
 
 //=====================================================
+// AST Pat
+//=====================================================
+typedef struct
+{
+    struct NecroAST_Node_Reified* expressions; // NecroAST_ListNode of expressions
+} NecroAST_PatternExpression_Reified;
+
+//=====================================================
 // AST Variable
 //=====================================================
 typedef struct
@@ -497,6 +505,7 @@ typedef struct NecroAST_Node_Reified
         NecroAST_TypeClassInstance_Reified    type_class_instance;
         NecroAST_TypeSignature_Reified        type_signature;
         NecroAST_FunctionType_Reified         function_type;
+        NecroAST_PatternExpression_Reified    pattern_expression;
     };
     NecroAST_NodeType       type;
     NecroSourceLoc          source_loc;

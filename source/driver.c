@@ -180,6 +180,7 @@ void necro_compile_impl(
     *destruct_flags |= BIT(NECRO_PHASE_INFER);
     if (infer->error.return_code != NECRO_SUCCESS)
     {
+        necro_print_reified_ast(&ast_r, &lexer->intern);
         necro_print_error(&infer->error, input_string, "Type");
         return;
     }

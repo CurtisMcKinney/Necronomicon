@@ -1566,6 +1566,10 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
         necro_type_class_translate_go(dictionary_context, infer, ast->expression_sequence.expressions);
         break;
 
+    case NECRO_AST_PAT_EXPRESSION:
+        necro_type_class_translate_go(dictionary_context, infer, ast->pattern_expression.expressions);
+        break;
+
     case NECRO_AST_TUPLE:
         necro_type_class_translate_go(dictionary_context, infer, ast->tuple.expressions);
         break;

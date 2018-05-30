@@ -37,6 +37,7 @@ typedef enum
     NECRO_LEX_MODULE,
     NECRO_LEX_NEWTYPE,
     NECRO_LEX_TYPE,
+    NECRO_LEX_PAT,
 
     // End of Keywords
     // NOTE: This must come after all of the keywords in this enum!

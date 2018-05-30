@@ -36,6 +36,7 @@ typedef enum
     NECRO_AST_WILDCARD,
     NECRO_AST_LAMBDA,
     NECRO_AST_DO,
+    NECRO_AST_PAT_EXPRESSION,
     NECRO_AST_LIST_NODE,
     NECRO_AST_EXPRESSION_LIST,
     NECRO_AST_EXPRESSION_SEQUENCE,
@@ -511,7 +512,6 @@ typedef struct
 //=====================================================
 // AST Tuple
 //=====================================================
-
 typedef struct
 {
     NecroAST_LocalPtr expressions; // NecroAST_ListNode of expressions
@@ -520,11 +520,18 @@ typedef struct
 //=====================================================
 // AST Do
 //=====================================================
-
 typedef struct
 {
     NecroAST_LocalPtr statement_list; // NecroAST_ListNode of do statement items
 } NecroAST_Do;
+
+//=====================================================
+// AST Pattern Expression
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr expressions; // NecroAST_ListNode of expressions
+} NecroAST_PatternExpression;
 
 //=====================================================
 // AST Variable
@@ -667,6 +674,7 @@ typedef struct
         NecroAST_TypeClassInstance type_class_instance;
         NecroAST_TypeSignature type_signature;
         NecroAST_FunctionType function_type;
+        NecroAST_PatternExpression pattern_expression;
     };
 
     NecroAST_NodeType type;

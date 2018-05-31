@@ -481,18 +481,18 @@ inline void necro_op_symbol_to_method_symbol(NecroIntern* intern, NecroAST_BinOp
     // change op name to method names
     switch (op_type)
     {
-    case NECRO_BIN_OP_ADD:        *symbol = necro_intern_string(intern, "add");     break;
-    case NECRO_BIN_OP_SUB:        *symbol = necro_intern_string(intern, "sub");     break;
-    case NECRO_BIN_OP_MUL:        *symbol = necro_intern_string(intern, "mul");     break;
-    case NECRO_BIN_OP_DIV:        *symbol = necro_intern_string(intern, "div");     break;
-    case NECRO_BIN_OP_EQUALS:     *symbol = necro_intern_string(intern, "eq");      break;
-    case NECRO_BIN_OP_NOT_EQUALS: *symbol = necro_intern_string(intern, "neq");     break;
-    case NECRO_BIN_OP_GT:         *symbol = necro_intern_string(intern, "gt");      break;
-    case NECRO_BIN_OP_LT:         *symbol = necro_intern_string(intern, "lt");      break;
-    case NECRO_BIN_OP_GTE:        *symbol = necro_intern_string(intern, "gte");     break;
-    case NECRO_BIN_OP_LTE:        *symbol = necro_intern_string(intern, "lte");     break;
-    case NECRO_BIN_OP_BIND_RIGHT: *symbol = necro_intern_string(intern, "bind");    break;
-    case NECRO_BIN_OP_APPEND:     *symbol = necro_intern_string(intern, "mappend"); break;
+    case NECRO_BIN_OP_ADD:        *symbol = necro_intern_string(intern, "add");    break;
+    case NECRO_BIN_OP_SUB:        *symbol = necro_intern_string(intern, "sub");    break;
+    case NECRO_BIN_OP_MUL:        *symbol = necro_intern_string(intern, "mul");    break;
+    case NECRO_BIN_OP_DIV:        *symbol = necro_intern_string(intern, "div");    break;
+    case NECRO_BIN_OP_EQUALS:     *symbol = necro_intern_string(intern, "eq");     break;
+    case NECRO_BIN_OP_NOT_EQUALS: *symbol = necro_intern_string(intern, "neq");    break;
+    case NECRO_BIN_OP_GT:         *symbol = necro_intern_string(intern, "gt");     break;
+    case NECRO_BIN_OP_LT:         *symbol = necro_intern_string(intern, "lt");     break;
+    case NECRO_BIN_OP_GTE:        *symbol = necro_intern_string(intern, "gte");    break;
+    case NECRO_BIN_OP_LTE:        *symbol = necro_intern_string(intern, "lte");    break;
+    case NECRO_BIN_OP_BIND_RIGHT: *symbol = necro_intern_string(intern, "bind");   break;
+    case NECRO_BIN_OP_APPEND:     *symbol = necro_intern_string(intern, "append"); break;
     default: break;
     }
 }

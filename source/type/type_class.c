@@ -2186,6 +2186,16 @@ void necro_create_type_class_instance(NecroInfer* infer, NecroNode* ast)
         while (super_classes != NULL)
         {
             NecroTypeClassInstance* super_instance = necro_get_type_class_instance(infer, instance->data_type_name.symbol, super_classes->type_class_name.symbol);
+            // Super class not implemented Error?
+            if (super_instance == NULL)
+            {
+                necro_infer_ast_error(infer, instance->data_type, instance->ast, "Data type \'%s\' does not implement the super class \'%s\', required by instance for class \'%s\'",
+                    necro_intern_get_string(infer->intern, instance->data_type_name.symbol),
+                    necro_intern_get_string(infer->intern, super_classes->type_class_name.symbol),
+                    necro_intern_get_string(infer->intern, type_class->type_class_name.symbol)
+                    );
+                return;
+            }
             assert(super_instance != NULL);
             instance->super_instances              = necro_cons_instance_list(&infer->arena, super_instance, instance->super_instances);
             super_classes = super_classes->next;

@@ -1,12 +1,12 @@
--- latch :: a -> Event a -> a
--- latch x _ = x
---
--- poly :: Num a => (a -> a) -> Event a -> a
--- poly _ _ = 0
---
--- id :: a -> a
--- id x = x
---
+latch :: a -> Event a -> a
+latch x _ = x
+
+poly :: Num a => (a -> a) -> Event a -> a
+poly _ _ = 0
+
+id :: a -> a
+id x = x
+
 speed :: Rational -> Pattern a -> Pattern a
 speed _ x = x
 
@@ -16,7 +16,7 @@ speed _ x = x
 -- play _
 
 -- coolSynth :: Audio
--- coolSynth = poly id patTest
+-- coolSynth = poly id <| play patTest
 
 -- TODO: Pattern list/Tuples
 

@@ -942,6 +942,7 @@ NecroType* necro_infer_bin_op(NecroInfer* infer, NecroNode* ast)
     NecroType* x_type       = necro_infer_go(infer, ast->bin_op.lhs);
 
     ast->bin_op.inst_context = NULL;
+    NecroSymbolInfo* info    = infer->symtable->data + ast->bin_op.id.id;
     NecroType* op_type       = necro_inst_with_context(infer, infer->symtable->data[ast->bin_op.id.id].type, ast->scope, &ast->bin_op.inst_context);
     assert(op_type != NULL);
 

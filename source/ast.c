@@ -13,11 +13,17 @@
 
 void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern, uint32_t depth)
 {
-    assert(ast_node != NULL);
+    // assert(ast_node != NULL);
     assert(intern != NULL);
     for (uint32_t i = 0;  i < depth; ++i)
     {
         printf(AST_TAB);
+    }
+
+    if (ast_node == NULL)
+    {
+        printf("NULL\n");
+        return;
     }
 
     switch(ast_node->type)

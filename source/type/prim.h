@@ -117,6 +117,7 @@ typedef struct NecroPrimTypes
     NecroCon          applicative_type_class;
     NecroCon          monad_type_class;
     NecroCon          event_type;
+    NecroCon          pattern_type;
     NecroPrimDef*     defs;
     NecroPrimDef*     def_head;
     NecroPagedArena   arena;

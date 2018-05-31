@@ -851,17 +851,17 @@ NecroType* necro_infer_pat_expression(NecroInfer* infer, NecroNode* ast)
     assert(ast->type == NECRO_AST_PAT_EXPRESSION);
 
     NecroNode* current_cell = ast->pattern_expression.expressions;
-    NecroType* list_type    = necro_new_name(infer, ast->source_loc);
-    list_type->source_loc   = ast->source_loc;
+    NecroType* pat_type     = necro_new_name(infer, ast->source_loc);
+    pat_type                = necro_make_con_1(infer, infer->prim_types->pattern_type, pat_type);
+    pat_type->source_loc    = ast->source_loc;
     while (current_cell != NULL)
     {
-        necro_unify(infer, list_type, necro_infer_go(infer, current_cell->list.item), ast->scope, list_type, "While inferring the type for a \'pat\' expression: ");
+        necro_unify(infer, pat_type, necro_infer_go(infer, current_cell->list.item), ast->scope, pat_type, "While inferring the type for a \'pat\' expression: ");
         if (necro_is_infer_error(infer)) return NULL;
         current_cell = current_cell->list.next_item;
     }
-    NecroType* list = necro_make_con_1(infer, infer->prim_types->event_type, list_type);
-    list->source_loc = ast->source_loc;
-    return list;
+    ast->necro_type = pat_type;
+    return pat_type;
 }
 
 //=====================================================

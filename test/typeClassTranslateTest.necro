@@ -1,11 +1,3 @@
--- TODO: Right now making sure the order of dictionaries and arguments lines up correctly!!!!
--- TODO: Make sure selector argument ordering / forwarding IS CORRECT!!!!
--- TODO: Makre sure dictionaries get renamed correctly to get passed correct ID!!!!
--- TODO: Make sure nested super dictionaries are added and applied in correct order!!!
--- TODO: Numeric patterns seem messed up!?
--- TODO: Check that Sequences work
--- TODO: Require type signature for all top level bindings?!?!?
-
 data Maybe a = Just a | Nothing
 
 instance (Eq a, Num a) => ClassTest (Maybe a) where

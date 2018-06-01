@@ -1025,6 +1025,24 @@ NecroType* necro_infer_apat(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_EXPRESSION_LIST: return necro_infer_expression_list_pattern(infer, ast);
     case NECRO_AST_WILDCARD:        return necro_new_name(infer, ast->source_loc);
 
+    case NECRO_AST_FUNCTION_EXPRESSION:
+    {
+        if (ast->fexpression.aexp->type != NECRO_AST_VARIABLE)
+            return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Malformed pattern found in necro_infer_apat");
+        // TODO: Optimize
+        NecroSymbol fromInt      = necro_intern_string(infer->intern, "fromInt");
+        NecroSymbol fromRational = necro_intern_string(infer->intern, "fromRational");
+        if (ast->fexpression.aexp->variable.symbol.id != fromInt.id && ast->fexpression.aexp->variable.symbol.id != fromRational.id)
+            return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Malformed pattern found in necro_infer_apat");
+        NecroType* type_var   = necro_new_name(infer, ast->source_loc);
+        type_var->var.context = necro_create_type_class_context(&infer->arena, necro_symtable_get(infer->symtable, infer->prim_types->eq_type_class.id)->type_class, infer->prim_types->eq_type_class, necro_var_to_con(type_var->var.var), NULL);
+        NecroType* fexpr_type = necro_infer_fexpr(infer, ast);
+        necro_unify(infer, fexpr_type, type_var, ast->scope, fexpr_type, "While inferring the type of a pattern literal");
+        if (necro_is_infer_error(infer)) return NULL;
+        return fexpr_type;
+    }
+
+
     case NECRO_AST_BIN_OP_SYM:
     {
         assert(ast->bin_op_sym.op->type == NECRO_AST_CONID);
@@ -1118,7 +1136,7 @@ NecroType* necro_infer_apat(NecroInfer* infer, NecroNode* ast)
         return data_type;
     }
 
-    default: return necro_infer_ast_error(infer, NULL, ast, "Unimplemented pattern in type inference: %d", ast->type);
+    default: return necro_infer_ast_error(infer, NULL, ast, "Unimplemented pattern in apat type inference: %d", ast->type);
     }
 }
 

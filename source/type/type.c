@@ -648,8 +648,6 @@ inline void necro_unify_var(NecroInfer* infer, NecroType* type1, NecroType* type
     switch (type2->type)
     {
     case NECRO_TYPE_VAR:
-        // necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
-        // necro_kind_unify(infer, type1->type_kind, type2->type_kind, scope, macro_type, error_preamble);
         if (type1->var.var.id.id == type2->var.var.id.id)
             return;
         else if (type1->var.is_rigid && type2->var.is_rigid)
@@ -678,8 +676,6 @@ inline void necro_unify_var(NecroInfer* infer, NecroType* type1, NecroType* type
             return;
         }
         necro_instantiate_type_var(infer, &type1->var, type2, macro_type, error_preamble, scope);
-        // necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
-        // necro_kind_unify(infer, type1->type_kind, type2->type_kind, scope, macro_type, error_preamble);
         return;
     case NECRO_TYPE_FOR:  necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Attempted to unify polytype."); return;
     case NECRO_TYPE_LIST: necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Attempted to unify TypeVar with type args list."); return;
@@ -742,8 +738,6 @@ inline void necro_unify_fun(NecroInfer* infer, NecroType* type1, NecroType* type
     switch (type2->type)
     {
     case NECRO_TYPE_VAR:
-        // necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
-        // necro_kind_unify(infer, type1->type_kind, type2->type_kind, scope, macro_type, error_preamble);
         if (type2->var.is_rigid)
             necro_rigid_type_variable_error(infer, type2->var.var, type1, macro_type, error_preamble);
         else if (necro_occurs(infer, type2, type1, macro_type, error_preamble))

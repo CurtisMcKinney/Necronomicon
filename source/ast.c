@@ -39,19 +39,21 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
         switch(ast_node->constant.type)
         {
         case NECRO_AST_CONSTANT_FLOAT_PATTERN:   // FALL THROUGH
-            if(ast_node->constant.pat_from_ast != NULL)
-                print_reified_ast_impl(ast_node->constant.pat_from_ast, intern, depth + 1);
-            if(ast_node->constant.pat_eq_ast != NULL)
-                print_reified_ast_impl(ast_node->constant.pat_eq_ast, intern, depth + 1);
+            // For testing type class translation
+            // if(ast_node->constant.pat_from_ast != NULL)
+            //     print_reified_ast_impl(ast_node->constant.pat_from_ast, intern, depth + 1);
+            // if(ast_node->constant.pat_eq_ast != NULL)
+            //     print_reified_ast_impl(ast_node->constant.pat_eq_ast, intern, depth + 1);
             printf("pat_float: ");
         case NECRO_AST_CONSTANT_FLOAT:
             printf("(%f)\n", ast_node->constant.double_literal);
             break;
         case NECRO_AST_CONSTANT_INTEGER_PATTERN: // FALL THROUGH
-            if(ast_node->constant.pat_from_ast != NULL)
-                print_reified_ast_impl(ast_node->constant.pat_from_ast, intern, depth + 1);
-            if(ast_node->constant.pat_eq_ast != NULL)
-                print_reified_ast_impl(ast_node->constant.pat_eq_ast, intern, depth + 1);
+            // For testing type class translation
+            // if(ast_node->constant.pat_from_ast != NULL)
+            //     print_reified_ast_impl(ast_node->constant.pat_from_ast, intern, depth + 1);
+            // if(ast_node->constant.pat_eq_ast != NULL)
+            //     print_reified_ast_impl(ast_node->constant.pat_eq_ast, intern, depth + 1);
             printf("pat_int: ");
         case NECRO_AST_CONSTANT_INTEGER:
 #if WIN32

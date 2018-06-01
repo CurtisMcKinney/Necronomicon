@@ -1,10 +1,14 @@
+pi :: Rational
 pi = 3.141592654
 
+satan :: Int
 satan = 666
 
+something :: Int
 something = somethingElse where
     somethingElse = 1234
 
+whereas :: Int
 whereas = one where
     one = two
     two = three
@@ -13,7 +17,7 @@ whereas = one where
     five = six
     six = 6
 
-
+one :: Int
 one = let two = three
           three = four
           four = five
@@ -21,10 +25,11 @@ one = let two = three
           six = 6
       in two
 
-
+onePlusTwo :: Int
 onePlusTwo = 1 + 2
 
-simpleCase = case 1 of
+simpleCase :: Int
+simpleCase = case onePlusTwo of
                   1 -> 111
                   2 -> 222
                   _ -> satan
@@ -33,6 +38,7 @@ data Octopus = OctoHead | OctoTentacles
 
 data Tome a = Page a | Spell a
 
+page :: Tome Float
 page = Page 666
 
 readBook = case page of
@@ -41,31 +47,42 @@ readBook = case page of
 
 data Tree a = Tip | Node (Tree a) a (Tree a)
 
-
+ifThenElse :: Int
 ifThenElse = if onePlusTwo == 3 then 4 else 5
 
+oneArgLambda :: Float -> Float
 oneArgLambda = \a -> 1.23
 
+oneArgFunc :: Float -> Float
 oneArgFunc a = 1.23
 
+twoArgLambda :: Float -> Float -> Float
 twoArgLambda = \a b -> a + b
 
+twoArgFunc :: Float -> Float -> Float
 twoArgFunc a b = a + b
 
+threeArgLambda :: Float -> Float -> Float -> Float
 threeArgLambda = \a b c -> a + b / c
 
+threeArgFunc :: Float -> Float -> Float -> Float
 threeArgFunc a b c = a + b / c
 
+patternLambda :: Tome a -> a
 patternLambda = \(Page p) -> p
 
+patternFunc :: Tome a -> a
 patternFunc (Page p) = p
 
+teaFunc :: Tree Int -> Int
 teaFunc (Node (Node _ a _) b (Node _ c _)) = a + b - c
 
+teaLeaves :: Tree Int -> Int
 teaLeaves t = case t of
                   Tip -> 0
                   Node (Node _ a _) b (Node _ c _) -> a + b - c
 
+plusMinus :: Float
 plusMinus = 1 + 2 - 3
 
 --octopus = "Octopus"

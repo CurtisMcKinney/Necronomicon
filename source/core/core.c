@@ -843,6 +843,10 @@ NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core
     case NECRO_AST_CONID:
         return necro_transform_conid(core_transform, necro_ast_node);
 
+    case NECRO_AST_TYPE_SIGNATURE:
+        // NOTE: Nothing to do here
+        return NULL;
+
     default:
         printf("necro_transform_to_core transforming AST type unimplemented!: %d\n", necro_ast_node->type);
         assert(false);

@@ -205,6 +205,8 @@ typedef struct
         char        char_literal;
     };
     NecroAST_ConstantType type;
+    struct NecroAST_Node_Reified* pat_from_ast;
+    struct NecroAST_Node_Reified* pat_eq_ast;
 } NecroAST_Constant_Reified;
 
 //=====================================================

@@ -38,9 +38,21 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
     case NECRO_AST_CONSTANT:
         switch(ast_node->constant.type)
         {
+        case NECRO_AST_CONSTANT_FLOAT_PATTERN:   // FALL THROUGH
+            if(ast_node->constant.pat_from_ast != NULL)
+                print_reified_ast_impl(ast_node->constant.pat_from_ast, intern, depth + 1);
+            if(ast_node->constant.pat_eq_ast != NULL)
+                print_reified_ast_impl(ast_node->constant.pat_eq_ast, intern, depth + 1);
+            printf("pat_float: ");
         case NECRO_AST_CONSTANT_FLOAT:
             printf("(%f)\n", ast_node->constant.double_literal);
             break;
+        case NECRO_AST_CONSTANT_INTEGER_PATTERN: // FALL THROUGH
+            if(ast_node->constant.pat_from_ast != NULL)
+                print_reified_ast_impl(ast_node->constant.pat_from_ast, intern, depth + 1);
+            if(ast_node->constant.pat_eq_ast != NULL)
+                print_reified_ast_impl(ast_node->constant.pat_eq_ast, intern, depth + 1);
+            printf("pat_int: ");
         case NECRO_AST_CONSTANT_INTEGER:
 #if WIN32
             printf("(%lli)\n", ast_node->constant.int_literal);
@@ -524,8 +536,10 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
             NecroAST_Node_Reified* from_node = necro_create_variable_ast(arena, intern, "fromRational", NECRO_VAR_VAR);
             NecroAST_Node_Reified* new_node  = necro_paged_arena_alloc(arena, sizeof(NecroAST_Node_Reified));
             *new_node = *reified_node;
-            new_node->constant.symbol = node->constant.symbol;
-            new_node->constant.type   = node->constant.type;
+            new_node->constant.symbol        = node->constant.symbol;
+            new_node->constant.type          = node->constant.type;
+            new_node->constant.pat_from_ast  = NULL;
+            new_node->constant.pat_eq_ast    = NULL;
             reified_node = necro_create_fexpr_ast(arena, from_node, new_node);
             break;
         }
@@ -535,15 +549,19 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
             NecroAST_Node_Reified* from_node = necro_create_variable_ast(arena, intern, "fromInt", NECRO_VAR_VAR);
             NecroAST_Node_Reified* new_node  = necro_paged_arena_alloc(arena, sizeof(NecroAST_Node_Reified));
             *new_node = *reified_node;
-            new_node->constant.symbol = node->constant.symbol;
-            new_node->constant.type   = node->constant.type;
+            new_node->constant.symbol        = node->constant.symbol;
+            new_node->constant.type          = node->constant.type;
+            new_node->constant.pat_from_ast  = NULL;
+            new_node->constant.pat_eq_ast    = NULL;
             reified_node = necro_create_fexpr_ast(arena, from_node, new_node);
             break;
         }
 
         default:
-            reified_node->constant.symbol = node->constant.symbol;
-            reified_node->constant.type   = node->constant.type;
+            reified_node->constant.symbol       = node->constant.symbol;
+            reified_node->constant.type         = node->constant.type;
+            reified_node->constant.pat_from_ast = NULL;
+            reified_node->constant.pat_eq_ast   = NULL;
             break;
         }
         break;

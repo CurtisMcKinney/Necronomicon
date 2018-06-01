@@ -649,25 +649,38 @@ NecroType* necro_infer_constant(NecroInfer* infer, NecroNode* ast)
     if (necro_is_infer_error(infer)) return NULL;
     switch (ast->constant.type)
     {
-    case NECRO_AST_CONSTANT_FLOAT:
+    case NECRO_AST_CONSTANT_FLOAT_PATTERN:
     {
-        // return necro_symtable_get(infer->symtable, infer->prim_types->float_type.id)->type;
-        return necro_symtable_get(infer->symtable, infer->prim_types->rational_type.id)->type;
-        // NecroType* new_name   = necro_new_name(infer, ast->source_loc);
-        // new_name->var.context = necro_create_type_class_context(&infer->arena, infer->prim_types->fractional_type_class, (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, NULL);
-        // new_name->type_kind   = infer->star_type_kind;
-        // // new_name->kind = infer->star_kind;
-        // return new_name;
+        NecroType* new_name   = necro_new_name(infer, ast->source_loc);
+        new_name->var.context = necro_create_type_class_context(&infer->arena,
+            necro_symtable_get(infer->symtable, infer->prim_types->fractional_type_class.id)->type_class,
+            infer->prim_types->fractional_type_class,
+            (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, NULL);
+        new_name->var.context = necro_create_type_class_context(&infer->arena,
+            necro_symtable_get(infer->symtable, infer->prim_types->eq_type_class.id)->type_class,
+            infer->prim_types->eq_type_class,
+            (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, new_name->var.context);
+        new_name->type_kind   = infer->star_type_kind;
+        ast->necro_type = new_name;
+        return new_name;
     }
-    case NECRO_AST_CONSTANT_INTEGER:
+    case NECRO_AST_CONSTANT_INTEGER_PATTERN:
     {
-        return necro_symtable_get(infer->symtable, infer->prim_types->int_type.id)->type;
-        // NecroType* new_name   = necro_new_name(infer, ast->source_loc);
-        // new_name->var.context = necro_create_type_class_context(&infer->arena, infer->prim_types->num_type_class, (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, NULL);
-        // new_name->type_kind   = infer->star_type_kind;
-        // // new_name->kind = infer->star_kind;
-        // return new_name;
+        NecroType* new_name   = necro_new_name(infer, ast->source_loc);
+        new_name->var.context = necro_create_type_class_context(&infer->arena,
+            necro_symtable_get(infer->symtable, infer->prim_types->num_type_class.id)->type_class,
+            infer->prim_types->num_type_class,
+            (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, NULL);
+        new_name->var.context = necro_create_type_class_context(&infer->arena,
+            necro_symtable_get(infer->symtable, infer->prim_types->eq_type_class.id)->type_class,
+            infer->prim_types->eq_type_class,
+            (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, new_name->var.context);
+        new_name->type_kind   = infer->star_type_kind;
+        ast->necro_type = new_name;
+        return new_name;
     }
+    case NECRO_AST_CONSTANT_FLOAT:   return necro_symtable_get(infer->symtable, infer->prim_types->rational_type.id)->type;
+    case NECRO_AST_CONSTANT_INTEGER: return necro_symtable_get(infer->symtable, infer->prim_types->int_type.id)->type;
     case NECRO_AST_CONSTANT_BOOL:    return necro_symtable_get(infer->symtable, infer->prim_types->bool_type.id)->type;
     case NECRO_AST_CONSTANT_CHAR:    return necro_symtable_get(infer->symtable, infer->prim_types->char_type.id)->type;
     case NECRO_AST_CONSTANT_STRING:  return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: String not implemented....");
@@ -1019,29 +1032,11 @@ NecroType* necro_infer_apat(NecroInfer* infer, NecroNode* ast)
     if (necro_is_infer_error(infer)) return NULL;
     switch (ast->type)
     {
-    case NECRO_AST_CONSTANT:        return necro_infer_constant(infer, ast);
     case NECRO_AST_VARIABLE:        return necro_infer_var(infer, ast);
     case NECRO_AST_TUPLE:           return necro_infer_tuple_pattern(infer, ast);
     case NECRO_AST_EXPRESSION_LIST: return necro_infer_expression_list_pattern(infer, ast);
     case NECRO_AST_WILDCARD:        return necro_new_name(infer, ast->source_loc);
-
-    case NECRO_AST_FUNCTION_EXPRESSION:
-    {
-        if (ast->fexpression.aexp->type != NECRO_AST_VARIABLE)
-            return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Malformed pattern found in necro_infer_apat");
-        // TODO: Optimize
-        NecroSymbol fromInt      = necro_intern_string(infer->intern, "fromInt");
-        NecroSymbol fromRational = necro_intern_string(infer->intern, "fromRational");
-        if (ast->fexpression.aexp->variable.symbol.id != fromInt.id && ast->fexpression.aexp->variable.symbol.id != fromRational.id)
-            return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Malformed pattern found in necro_infer_apat");
-        NecroType* type_var   = necro_new_name(infer, ast->source_loc);
-        type_var->var.context = necro_create_type_class_context(&infer->arena, necro_symtable_get(infer->symtable, infer->prim_types->eq_type_class.id)->type_class, infer->prim_types->eq_type_class, necro_var_to_con(type_var->var.var), NULL);
-        NecroType* fexpr_type = necro_infer_fexpr(infer, ast);
-        necro_unify(infer, fexpr_type, type_var, ast->scope, fexpr_type, "While inferring the type of a pattern literal");
-        if (necro_is_infer_error(infer)) return NULL;
-        return fexpr_type;
-    }
-
+    case NECRO_AST_CONSTANT:        return necro_infer_constant(infer, ast);
 
     case NECRO_AST_BIN_OP_SYM:
     {

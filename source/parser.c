@@ -565,6 +565,9 @@ static inline NecroAST_LocalPtr parse_expression(NecroParser* parser)
     return parse_expression_impl(parser, NECRO_BINARY_LOOK_AHEAD);
 }
 
+//=====================================================
+// Forward declarations
+//=====================================================
 NecroAST_LocalPtr parse_parenthetical_expression(NecroParser* parser);
 NecroAST_LocalPtr parse_tuple(NecroParser* parser);
 NecroAST_LocalPtr parse_l_expression(NecroParser* parser);
@@ -574,7 +577,7 @@ NecroAST_LocalPtr parse_unary_operation(NecroParser* parser);
 NecroAST_LocalPtr parse_binary_operation(NecroParser* parser, NecroAST_LocalPtr lhs_local_ptr);
 NecroAST_LocalPtr parse_op_left_section(NecroParser* parser);
 NecroAST_LocalPtr parse_op_right_section(NecroParser* parser);
-NecroAST_LocalPtr parse_end_of_stream(NecroParser* parser);
+// NecroAST_LocalPtr parse_end_of_stream(NecroParser* parser);
 NecroAST_LocalPtr parse_top_declarations(NecroParser* parser);
 NecroAST_LocalPtr parse_declarations(NecroParser* parser);
 NecroAST_LocalPtr parse_simple_assignment(NecroParser* parser);
@@ -601,6 +604,9 @@ NecroAST_LocalPtr parse_declaration(NecroParser* parser);
 NecroAST_LocalPtr parse_type_signature(NecroParser* parser, NECRO_SIG_TYPE sig_type);
 NecroAST_LocalPtr parse_type_class_declaration(NecroParser* parser);
 NecroAST_LocalPtr parse_type_class_instance(NecroParser* parser);
+
+NecroParse_DescentState enter_parse_pattern_state(NecroParser* parser);
+void                    restore_parse_state(NecroParser* parser, NecroParse_DescentState prev_state);
 
 NecroParse_Result parse_ast(NecroParser* parser, NecroAST_LocalPtr* out_root_node_ptr)
 {
@@ -1417,7 +1423,8 @@ NecroAST_LocalPtr parse_apat(NecroParser* parser)
     if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
         return null_local_ptr;
 
-    NecroParser_Snapshot snapshot = snapshot_parser(parser);
+    NecroParse_DescentState prev_state = enter_parse_pattern_state(parser);
+    NecroParser_Snapshot    snapshot   = snapshot_parser(parser);
 
     NecroAST_LocalPtr local_ptr = null_local_ptr;
 
@@ -1495,6 +1502,7 @@ NecroAST_LocalPtr parse_apat(NecroParser* parser)
         return local_ptr;
     }
 
+    restore_parse_state(parser, prev_state);
     restore_parser(parser, snapshot);
     return null_local_ptr;
 }
@@ -1504,7 +1512,8 @@ NecroAST_LocalPtr parse_apats(NecroParser* parser)
     if (peek_token_type(parser) == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
         return null_local_ptr;
 
-    NecroParser_Snapshot snapshot = snapshot_parser(parser);
+    NecroParse_DescentState prev_state = enter_parse_pattern_state(parser);
+    NecroParser_Snapshot    snapshot   = snapshot_parser(parser);
 
     NecroAST_LocalPtr apat_local_ptr = parse_apat(parser);
     if (apat_local_ptr != null_local_ptr)
@@ -1517,15 +1526,18 @@ NecroAST_LocalPtr parse_apats(NecroParser* parser)
             apats_node->type = NECRO_AST_APATS;
             apats_node->apats.apat = apat_local_ptr;
             apats_node->apats.next_apat = next_apat_local_ptr;
+            restore_parse_state(parser, prev_state);
             return apats_local_ptr;
         }
     }
 
     if (apat_local_ptr != null_local_ptr)
     {
+        restore_parse_state(parser, prev_state);
         return apat_local_ptr;
     }
 
+    restore_parse_state(parser, prev_state);
     restore_parser(parser, snapshot);
     return null_local_ptr;
 }
@@ -1544,7 +1556,7 @@ NecroAST_LocalPtr parse_constant(NecroParser* parser)
             NecroAST_Node* ast_node = ast_alloc_node_local_ptr(parser, &local_ptr);
             ast_node->type = NECRO_AST_CONSTANT;
             NecroAST_Constant constant;
-            constant.type = NECRO_AST_CONSTANT_FLOAT;
+            constant.type = (parser->descent_state == NECRO_DESCENT_PARSING_PATTERN) ? NECRO_AST_CONSTANT_FLOAT_PATTERN : NECRO_AST_CONSTANT_FLOAT;
             constant.double_literal = peek_token(parser)->double_literal;
             ast_node->constant = constant;
             consume_token(parser);
@@ -1558,7 +1570,7 @@ NecroAST_LocalPtr parse_constant(NecroParser* parser)
             NecroAST_Node* ast_node = ast_alloc_node_local_ptr(parser, &local_ptr);
             ast_node->type = NECRO_AST_CONSTANT;
             NecroAST_Constant constant;
-            constant.type = NECRO_AST_CONSTANT_INTEGER;
+            constant.type = (parser->descent_state == NECRO_DESCENT_PARSING_PATTERN) ? NECRO_AST_CONSTANT_INTEGER_PATTERN : NECRO_AST_CONSTANT_INTEGER;
             constant.int_literal = peek_token(parser)->int_literal;
             ast_node->constant = constant;
             consume_token(parser);
@@ -1584,7 +1596,7 @@ NecroAST_LocalPtr parse_constant(NecroParser* parser)
             NecroAST_Node* ast_node = ast_alloc_node_local_ptr(parser, &local_ptr);
             ast_node->type = NECRO_AST_CONSTANT;
             NecroAST_Constant constant;
-            constant.type = NECRO_AST_CONSTANT_CHAR;
+            constant.type = (parser->descent_state == NECRO_DESCENT_PARSING_PATTERN) ? NECRO_AST_CONSTANT_CHAR_PATTERN : NECRO_AST_CONSTANT_CHAR;
             constant.char_literal = peek_token(parser)->char_literal;
             ast_node->constant = constant;
             consume_token(parser);
@@ -2940,12 +2952,14 @@ NecroAST_LocalPtr parse_oppat(NecroParser* parser)
     if (parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
         return null_local_ptr;
 
+    NecroParse_DescentState prev_state = enter_parse_pattern_state(parser);
     NecroParser_Snapshot snapshot = snapshot_parser(parser);
 
     // Left pat
     NecroAST_LocalPtr left = parse_lpat(parser);
     if (left == null_local_ptr || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
     {
+        restore_parse_state(parser, prev_state);
         restore_parser(parser, snapshot);
         return null_local_ptr;
     }
@@ -2954,6 +2968,7 @@ NecroAST_LocalPtr parse_oppat(NecroParser* parser)
     NecroAST_LocalPtr op = parse_qconop(parser, NECRO_VAR_VAR);
     if (op == null_local_ptr || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
     {
+        restore_parse_state(parser, prev_state);
         restore_parser(parser, snapshot);
         return null_local_ptr;
     }
@@ -2962,6 +2977,7 @@ NecroAST_LocalPtr parse_oppat(NecroParser* parser)
     NecroAST_LocalPtr right = parse_pat(parser);
     if (right == null_local_ptr || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
     {
+        restore_parse_state(parser, prev_state);
         restore_parser(parser, snapshot);
         return null_local_ptr;
     }
@@ -2973,6 +2989,7 @@ NecroAST_LocalPtr parse_oppat(NecroParser* parser)
     node->bin_op_sym.left       = left;
     node->bin_op_sym.op         = op;
     node->bin_op_sym.right      = right;
+    restore_parse_state(parser, prev_state);
     return local_ptr;
 }
 
@@ -2981,6 +2998,8 @@ NecroAST_LocalPtr parse_pat(NecroParser* parser)
     const NECRO_LEX_TOKEN_TYPE token_type = peek_token_type(parser);
     if (token_type == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
         return null_local_ptr;
+
+    NecroParse_DescentState prev_state = enter_parse_pattern_state(parser);
 
     NecroParser_Snapshot snapshot = snapshot_parser(parser);
     NecroAST_LocalPtr ptr = parse_oppat(parser);
@@ -2994,7 +3013,25 @@ NecroAST_LocalPtr parse_pat(NecroParser* parser)
         restore_parser(parser, snapshot);
     }
 
+    restore_parse_state(parser, prev_state);
+
     return ptr;
+}
+
+NecroParse_DescentState enter_parse_pattern_state(NecroParser* parser)
+{
+    if (parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return parser->descent_state;
+    NecroParse_DescentState prev_state = parser->descent_state;
+    parser->descent_state = NECRO_DESCENT_PARSING_PATTERN;
+    return prev_state;
+}
+
+void restore_parse_state(NecroParser* parser, NecroParse_DescentState prev_state)
+{
+    if (parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return;
+    parser->descent_state = prev_state;
 }
 
 // Pat
@@ -3004,7 +3041,8 @@ NecroAST_LocalPtr parse_lpat(NecroParser* parser)
     if (token_type == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
         return null_local_ptr;
 
-    NecroParser_Snapshot snapshot = snapshot_parser(parser);
+    NecroParse_DescentState prev_state = enter_parse_pattern_state(parser);
+    NecroParser_Snapshot    snapshot   = snapshot_parser(parser);
     NecroAST_LocalPtr ptr = null_local_ptr;
 
     if (ptr == null_local_ptr && parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
@@ -3056,6 +3094,7 @@ NecroAST_LocalPtr parse_lpat(NecroParser* parser)
         restore_parser(parser, snapshot);
     }
 
+    restore_parse_state(parser, prev_state);
     return ptr;
 }
 

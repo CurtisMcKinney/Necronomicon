@@ -1158,57 +1158,73 @@ NecroTypeClassDictionaryContext* necro_create_type_class_dictionary_context(Necr
     return dictionary_context;
 }
 
-// void necro_add_pat_dictionary_context(NecroInfer* infer, NecroType* type, NecroTypeClassDictionaryContext** dictionary_context_head, NecroTypeClassDictionaryContext** dictionary_context_curr)
-// {
-//     if (necro_is_infer_error(infer)) return;
-//     assert(infer != NULL);
-//     assert(type != NULL);
-//     while (type->type == NECRO_TYPE_FOR)
-//     {
-//         NecroTypeClassContext* for_all_context = type->for_all.context;
-//         // while (for_all_context != NULL)
-//         // {
-//         //     NecroSymbol   dictionary_arg_name = necro_create_dictionary_arg_name(infer->intern, for_all_context->type_class_name.symbol, for_all_context->type_var.id);
-//         //     NecroASTNode* dictionary_arg_var = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, dictionary_arg_name), NECRO_VAR_DECLARATION);
-//         //     dictionary_arg_var->scope = ast->apats_assignment.rhs->scope;
-//         //     necro_rename_declare_pass(infer->renamer, &infer->arena, dictionary_arg_var);
-//         //     if (necro_is_infer_error(infer)) return;
-//         //     new_dictionary_context = necro_create_type_class_dictionary_context(&infer->arena, for_all_context->type_class_name, for_all_context->type_var, dictionary_arg_var, new_dictionary_context);
-//         //     if (dictionary_args_head == NULL)
-//         //     {
-//         //         dictionary_args = necro_create_apat_list_ast(&infer->arena, dictionary_arg_var, NULL);
-//         //         dictionary_args_head = dictionary_args;
-//         //     }
-//         //     else
-//         //     {
-//         //         dictionary_args->apats.next_apat = necro_create_apat_list_ast(&infer->arena, dictionary_arg_var, NULL);
-//         //         dictionary_args = dictionary_args->apats.next_apat;
-//         //     }
-//         //     for_all_context = for_all_context->next;
-//         // }
-//         type = type->for_all.type;
-//     }
-// }
+// TODO: Knock this around a bit!
+void necro_type_class_translate_constant(NecroInfer* infer, NecroNode* ast, NecroTypeClassDictionaryContext* dictionary_context)
+{
+    if (necro_is_infer_error(infer)) return;
+    assert(infer != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_CONSTANT);
+    if (ast->constant.type != NECRO_AST_CONSTANT_FLOAT_PATTERN && ast->constant.type != NECRO_AST_CONSTANT_INTEGER_PATTERN) return;
 
-// void necro_retrieve_pat_dictionary_contexts(NecroInfer* infer, NecroNode* ast, NecroTypeClassDictionaryContext** dictionary_context_head, NecroTypeClassDictionaryContext** dictionary_context_curr)
-// {
-//     if (necro_is_infer_error(infer)) return;
-//     assert(infer != NULL);
-//     assert(ast != NULL);
-//     switch (ast->type)
-//     {
-//     case NECRO_AST_CONSTANT:        necro_add_pat_dictionary_context(infer, ast->necro_type, dictionary_context_head, dictionary_context_curr); return;
-//     case NECRO_AST_VARIABLE:        necro_add_pat_dictionary_context(infer, ast->necro_type, dictionary_context_head, dictionary_context_curr); return;
-//     case NECRO_AST_WILDCARD:        return;
-//     case NECRO_AST_BIN_OP_SYM:      return;
-//     case NECRO_AST_TUPLE:           return;
-//     case NECRO_AST_CONID:           return;
-//     case NECRO_AST_EXPRESSION_LIST: return;
-//     case NECRO_AST_CONSTRUCTOR:
-//         return;
-//     default: necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Unimplemented pattern in necro_retrieve_pat_dictionary_contexts: %d", ast->type); return;
-//     }
-// }
+    const char*     from_name  = NULL;
+    NecroTypeClass* type_class = NULL;
+    NecroType*      num_type   = NULL;
+    switch (ast->constant.type)
+    {
+    case NECRO_AST_CONSTANT_INTEGER_PATTERN:
+        from_name  = "fromInt";
+        type_class = necro_symtable_get(infer->symtable, infer->prim_types->num_type_class.id)->type_class;
+        num_type   = necro_symtable_get(infer->symtable, infer->prim_types->int_type.id)->type;
+        break;
+    case NECRO_AST_CONSTANT_FLOAT_PATTERN:
+        from_name  = "fromRational";
+        type_class = necro_symtable_get(infer->symtable, infer->prim_types->fractional_type_class.id)->type_class;
+        num_type   = necro_symtable_get(infer->symtable, infer->prim_types->rational_type.id)->type;
+        break;
+    default: assert(false);
+    }
+
+    //-----------------
+    // from method
+    {
+        NecroASTNode* from_ast  = necro_create_variable_ast(&infer->arena, infer->intern, from_name, NECRO_VAR_VAR);
+        from_ast->scope         = ast->scope;
+        NecroType* from_type    = necro_create_type_fun(infer, num_type, ast->necro_type);
+        from_type->type_kind    = infer->star_type_kind;
+        from_ast->necro_type    = from_type;
+        necro_rename_var_pass(infer->renamer, &infer->arena, from_ast);
+        NecroTypeClassContext* inst_context = necro_create_type_class_context(&infer->arena, type_class, type_class->type_class_name, necro_var_to_con(ast->necro_type->var.var), NULL);
+        NecroASTNode* m_var = necro_resolve_method(infer, type_class, inst_context, from_ast, dictionary_context);
+        if (necro_is_infer_error(infer)) return;
+        assert(m_var != NULL);
+        m_var->scope   = ast->scope;
+        necro_rename_var_pass(infer->renamer, &infer->arena, m_var);
+        if (necro_is_infer_error(infer)) return;
+        ast->constant.pat_from_ast = m_var;
+    }
+
+    //-----------------
+    // eq method
+    {
+        type_class           = necro_symtable_get(infer->symtable, infer->prim_types->eq_type_class.id)->type_class;
+        NecroASTNode* eq_ast = necro_create_variable_ast(&infer->arena, infer->intern, "eq", NECRO_VAR_VAR);
+        eq_ast->scope        = ast->scope;
+        NecroType* eq_type   = necro_create_type_fun(infer, ast->necro_type, necro_create_type_fun(infer, ast->necro_type, necro_symtable_get(infer->symtable, infer->prim_types->bool_type.id)->type));
+        eq_type->type_kind   = infer->star_type_kind;
+        eq_ast->necro_type   = eq_type;
+        necro_rename_var_pass(infer->renamer, &infer->arena, eq_ast);
+        NecroTypeClassContext* inst_context = necro_create_type_class_context(&infer->arena, type_class, type_class->type_class_name, necro_var_to_con(ast->necro_type->var.var), NULL);
+        NecroASTNode* m_var = necro_resolve_method(infer, type_class, inst_context, eq_ast, dictionary_context);
+        if (necro_is_infer_error(infer)) return;
+        assert(m_var != NULL);
+        m_var->scope   = ast->scope;
+        necro_rename_var_pass(infer->renamer, &infer->arena, m_var);
+        if (necro_is_infer_error(infer)) return;
+        ast->constant.pat_from_ast = m_var;
+    }
+
+}
 
 void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_context, NecroInfer* infer, NecroNode* ast)
 {
@@ -1437,6 +1453,7 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
         break;
 
     case NECRO_AST_CONSTANT:
+        necro_type_class_translate_constant(infer, ast, dictionary_context);
         break;
 
     case NECRO_AST_UN_OP:
@@ -1529,6 +1546,7 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
         break;
 
     case NECRO_AST_APATS:
+        // necro_type_class_translate_go(infer, ast->apats.apat, dictionary_context);
         necro_type_class_translate_go(dictionary_context, infer, ast->apats.apat);
         necro_type_class_translate_go(dictionary_context, infer, ast->apats.next_apat);
         break;

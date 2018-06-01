@@ -37,10 +37,16 @@ instance Eq a => Eq (Either a b) where
     eq  _ _ = True
     neq _ _ = True
 
--- This will correctly fail
--- numPat :: (Num a, Num b) => a -> b -> a -> a
-
--- This will pass correctly
+-- Patterns correctly require Num and Eq type classes
 numPat :: (Eq a, Num a) => Either a Float -> a -> Float -> Either a Float
 numPat 0 x y = Left x + Right y + 666
 numPat _ _ _ = Left 0
+
+patTest :: (Eq a, Num a) => a -> a
+patTest 0 = 0
+
+fracTest :: (Eq a, Fractional a) => a -> a
+fracTest 2.0 = 2.0
+
+floatTest :: Float -> Float
+floatTest 2.0 = 2.0

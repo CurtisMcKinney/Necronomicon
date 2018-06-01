@@ -453,7 +453,7 @@ void necro_create_prim_num_instances(NecroPrimTypes* prim_types, NecroIntern* in
             necro_create_declaration_list(&prim_types->arena, necro_create_simple_assignment(&prim_types->arena, intern, "div", necro_create_variable_ast(&prim_types->arena, intern, div_symbol, NECRO_VAR_VAR)),
                 necro_create_declaration_list(&prim_types->arena, necro_create_simple_assignment(&prim_types->arena, intern, "recip", necro_create_variable_ast(&prim_types->arena, intern, recip_symbol, NECRO_VAR_VAR)),
                     necro_create_declaration_list(&prim_types->arena, necro_create_simple_assignment(&prim_types->arena, intern, "fromRational", necro_create_variable_ast(&prim_types->arena, intern, from_rational_symbol, NECRO_VAR_VAR)), NULL)));
-        NecroASTNode* fractional_instance_ast = necro_create_instance_ast(&prim_types->arena, intern, "Fractional", necro_make_num_con(&prim_types->arena, intern, data_type_name, is_poly), necro_make_num_context(&prim_types->arena, intern, "Num", is_poly), fractional_method_list);
+        NecroASTNode* fractional_instance_ast = necro_create_instance_ast(&prim_types->arena, intern, "Fractional", necro_make_num_con(&prim_types->arena, intern, data_type_name, is_poly), necro_make_num_context(&prim_types->arena, intern, "Fractional", is_poly), fractional_method_list);
         NecroPrimDef* fractional_instance_def = necro_prim_def_instance(prim_types, intern, fractional_instance_ast);
     }
 
@@ -470,7 +470,7 @@ void necro_create_prim_num_instances(NecroPrimTypes* prim_types, NecroIntern* in
         necro_create_declaration_list(&prim_types->arena, necro_create_simple_assignment(&prim_types->arena, intern, "eq", necro_create_variable_ast(&prim_types->arena, intern, eq_symbol, NECRO_VAR_VAR)),
             necro_create_declaration_list(&prim_types->arena, necro_create_simple_assignment(&prim_types->arena, intern, "neq", necro_create_variable_ast(&prim_types->arena, intern, neq_symbol, NECRO_VAR_VAR)), NULL));
 
-    NecroASTNode* eq_instance_ast = necro_create_instance_ast(&prim_types->arena, intern, "Eq", necro_make_num_con(&prim_types->arena, intern, data_type_name, is_poly), necro_make_num_context(&prim_types->arena, intern, "Num", is_poly), eq_method_list);
+    NecroASTNode* eq_instance_ast = necro_create_instance_ast(&prim_types->arena, intern, "Eq", necro_make_num_con(&prim_types->arena, intern, data_type_name, is_poly), necro_make_num_context(&prim_types->arena, intern, "Eq", is_poly), eq_method_list);
     NecroPrimDef* eq_instance_def = necro_prim_def_instance(prim_types, intern, eq_instance_ast);
 
     //--------------
@@ -492,7 +492,7 @@ void necro_create_prim_num_instances(NecroPrimTypes* prim_types, NecroIntern* in
             necro_create_declaration_list(&prim_types->arena, necro_create_simple_assignment(&prim_types->arena, intern, "gt", necro_create_variable_ast(&prim_types->arena, intern, gt_symbol, NECRO_VAR_VAR)),
                 necro_create_declaration_list(&prim_types->arena, necro_create_simple_assignment(&prim_types->arena, intern, "lte", necro_create_variable_ast(&prim_types->arena, intern, lte_symbol, NECRO_VAR_VAR)),
                     necro_create_declaration_list(&prim_types->arena, necro_create_simple_assignment(&prim_types->arena, intern, "gte", necro_create_variable_ast(&prim_types->arena, intern, gte_symbol, NECRO_VAR_VAR)), NULL))));
-    NecroASTNode* ord_instance_ast = necro_create_instance_ast(&prim_types->arena, intern, "Ord", necro_make_num_con(&prim_types->arena, intern, data_type_name, is_poly), necro_make_num_context(&prim_types->arena, intern, "Num", is_poly), ord_method_list);
+    NecroASTNode* ord_instance_ast = necro_create_instance_ast(&prim_types->arena, intern, "Ord", necro_make_num_con(&prim_types->arena, intern, data_type_name, is_poly), necro_make_num_context(&prim_types->arena, intern, "Ord", is_poly), ord_method_list);
     NecroPrimDef* ord_instance_def = necro_prim_def_instance(prim_types, intern, ord_instance_ast);
 }
 

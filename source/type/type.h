@@ -14,7 +14,6 @@
 
 // Forward Declarations
 struct NecroType;
-// struct NecroTypeClassEnv;
 struct NecroSymTable;
 struct NecroTypeClassContext;
 struct NecroLifetime;
@@ -142,7 +141,7 @@ typedef struct
 //=====================================================
 // Infer
 //=====================================================
-typedef struct
+typedef struct NecroInfer
 {
     struct NecroSymTable*       symtable;
     struct NecroScopedSymTable* scoped_symtable;

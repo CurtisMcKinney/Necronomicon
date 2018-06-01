@@ -46,12 +46,12 @@ static Necro##CAMEL_NAME##List* necro_snoc_##SNAKE_NAME##_list(NecroPagedArena* 
     return cell;                                                                                                                            \
 }
 
-// testing
-NECRO_DECLARE_ARENA_LIST(uint64_t, TestInt, testint);
-static void test_int_list()
-{
-    NecroTestIntList* list = necro_cons_testint_list(NULL, 666, NULL);
-    list = necro_snoc_testint_list(NULL, 333, list);
-}
+// // testing
+// NECRO_DECLARE_ARENA_LIST(uint64_t, TestInt, testint);
+// static void test_int_list()
+// {
+//     NecroTestIntList* list = necro_cons_testint_list(NULL, 666, NULL);
+//     list = necro_snoc_testint_list(NULL, 333, list);
+// }
 
 #endif // NECRO_LIST_H

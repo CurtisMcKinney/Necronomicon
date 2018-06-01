@@ -184,7 +184,7 @@ typedef enum
     NECRO_CORE_TRANSFORM_DONE
 } NecroParse_CoreTransformState;
 
-typedef struct
+typedef struct NecroCoreAST
 {
     NecroPagedArena arena;
     NecroCoreAST_Expression* root;

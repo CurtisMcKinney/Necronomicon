@@ -60,7 +60,8 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
         .is_constructor          = false,
         .method_type_class       = NULL,
         .type_class              = NULL,
-        .type_class_instance     = NULL
+        .type_class_instance     = NULL,
+        .llvm_value              = NULL
     };
 }
 

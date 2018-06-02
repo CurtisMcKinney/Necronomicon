@@ -238,7 +238,8 @@ void necro_compile_impl(
     necro_announce_phase("CodeGen");
     *codegen = necro_create_codegen(infer, &lexer->intern, &symtable, "necro");
     // TESTING ONLY!
-    necro_test_codegen(codegen);
+    // necro_test_codegen(codegen);
+    necro_codegen(codegen, &ast_core);
     *destruct_flags |= BIT(NECRO_PHASE_CODEGEN);
     if (compilation_phase == NECRO_PHASE_CODEGEN)
         return;

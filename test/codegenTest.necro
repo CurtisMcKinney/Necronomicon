@@ -1,0 +1,9 @@
+
+genX :: Int
+genX = 666
+
+genY :: Float
+genY = 4.321
+
+genZ :: Int
+genZ = 987654321

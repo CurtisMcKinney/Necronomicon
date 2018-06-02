@@ -42,9 +42,11 @@ typedef struct NecroCodeGen
     struct NecroIntern*   intern;
     struct NecroSymTable* symtable;
     LLVMModuleRef         mod;
+    LLVMBuilderRef        builder;
     NecroError            error;
     NecroBlockIndex       current_block;
     void*                 blocks;
+    bool                  is_top_level;
 } NecroCodeGen;
 
 NecroCodeGen      necro_create_codegen(struct NecroInfer* infer, struct NecroIntern* intern, struct NecroSymTable* symtable, const char* module_name);

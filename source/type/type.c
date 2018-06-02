@@ -1187,11 +1187,11 @@ char* necro_type_string(NecroInfer* infer, NecroType* type)
     return buffer;
 }
 
-const char* necro_id_as_character_string(NecroIntern* intern, NecroVar var)
+NecroSymbol necro_id_as_symbol(NecroIntern* intern, NecroVar var)
 {
     if (var.symbol.id != 0)
     {
-        return necro_intern_get_string(intern, var.symbol);
+        return var.symbol;
     }
     NecroID id     = var.id;
     size_t  length = 2;
@@ -1219,7 +1219,12 @@ const char* necro_id_as_character_string(NecroIntern* intern, NecroVar var)
     NecroSymbol buf_symbol = necro_intern_string(intern, buffer);
     if (length >= 6)
         free(buffer);
-    return necro_intern_get_string(intern, buf_symbol);
+    return buf_symbol;
+}
+
+const char* necro_id_as_character_string(NecroIntern* intern, NecroVar var)
+{
+    return necro_intern_get_string(intern, necro_id_as_symbol(intern, var));
 }
 
 void necro_print_id_as_characters(NecroVar var, NecroIntern* intern)

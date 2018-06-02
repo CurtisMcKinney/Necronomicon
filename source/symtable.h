@@ -50,6 +50,7 @@ typedef struct
     struct NecroTypeClass*         type_class;
     struct NecroTypeClassInstance* type_class_instance;
     LLVMValueRef                   llvm_value;
+    LLVMTypeRef                    llvm_type;
 } NecroSymbolInfo;
 
 typedef struct NecroSymTable

@@ -1,9 +1,28 @@
 
-genX :: Int
-genX = 666
+intTest :: Int
+intTest = 666
 
-genY :: Float
-genY = 4.321
+floatTest :: Float
+floatTest = 4.321
 
-genZ :: Int
-genZ = 987654321
+rationalTest :: Rational
+rationalTest = 987654321
+
+audioTest :: Audio
+audioTest = 987654321
+
+unitTest :: ()
+unitTest = ()
+
+data OnlyOne = OnlyOne
+
+onlyOneTest :: OnlyOne
+onlyOneTest = OnlyOne
+
+-- data CakeOrDeath = Cake Int | Death ()
+--
+-- cake :: CakeOrDeath
+-- cake = Cake 0
+--
+-- death :: CakeOrDeath
+-- death = Death ()

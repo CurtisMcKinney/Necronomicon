@@ -59,7 +59,6 @@ set(project_SOURCES
 	source/utility/intern.c
 	source/utility/utility.c
     source/utility/hash_table.c
-    source/utility/list.c
 
     source/runtime/runtime.c
     source/runtime/slab.c
@@ -92,7 +91,8 @@ set(project_HEADERS
 	source/utility/intern.h
     source/utility/math.h
     source/utility/hash_table.h
-    source/utility/list.c
+    source/utility/list.h
+    source/utility/small_array.h
 
     source/runtime/runtime.h
     source/runtime/slab.h

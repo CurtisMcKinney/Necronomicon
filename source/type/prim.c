@@ -6,8 +6,11 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <stdarg.h>
-#include "infer.h"
 #include "prim.h"
+#include "infer.h"
+#include <llvm-c/Core.h>
+#include "llvm-c/Analysis.h"
+#include "codegen/codegen.h"
 
 //=====================================================
 // Forward Declarations
@@ -22,9 +25,10 @@ NecroPrimTypes necro_create_prim_types(NecroIntern* intern)
     // PrimSymbols
     return (NecroPrimTypes)
     {
-        .arena          = necro_create_paged_arena(),
-        .defs           = NULL,
-        .def_head       = NULL
+        .arena    = necro_create_paged_arena(),
+        .defs     = NULL,
+        .def_head = NULL,
+        .llvm_mod = NULL
     };
 }
 
@@ -400,7 +404,7 @@ NecroASTNode* necro_make_unary_math_ast(NecroPrimTypes* prim_types, NecroIntern*
 // TODO: Deriving mechanism
 void necro_create_prim_num_instances(NecroPrimTypes* prim_types, NecroIntern* intern, const char* data_type_name, bool is_poly, bool is_fractional)
 {
-    NecroSymbol   data_name   = necro_intern_string(intern, data_type_name);
+    NecroSymbol   data_name  = necro_intern_string(intern, data_type_name);
     NecroASTNode* bool_conid = necro_create_conid_ast(&prim_types->arena, intern, "Bool", NECRO_CON_TYPE_VAR);
 
     //--------------
@@ -617,9 +621,21 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
 
     // TODO: () isn't printing in type sigs for some reason?!?!?!
 
+    // NecroData
+    NecroASTNode* necro_data_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "NecroData#", NULL);
+    NecroPrimDef* necro_data_data_def = necro_prim_def_data(prim_types, intern, &prim_types->necro_data_type, necro_create_data_declaration_ast(&prim_types->arena, intern, necro_data_s_type, NULL));
+
     // Any
-    NecroASTNode* any_s_type           = necro_create_simple_type_ast(&prim_types->arena, intern, "Prim@Any", NULL);
-    NecroPrimDef* any_data_def         = necro_prim_def_data(prim_types, intern, NULL, necro_create_data_declaration_ast(&prim_types->arena, intern, any_s_type, NULL));
+    NecroASTNode* any_s_type           = necro_create_simple_type_ast(&prim_types->arena, intern, "Any#", NULL);
+    NecroPrimDef* any_data_def         = necro_prim_def_data(prim_types, intern, &prim_types->any_type, necro_create_data_declaration_ast(&prim_types->arena, intern, any_s_type, NULL));
+
+    // Int#
+    NecroASTNode* unboxed_int_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "Int#", NULL);
+    NecroPrimDef* unboxed_int_data_def = necro_prim_def_data(prim_types, intern, &prim_types->unboxed_int_type, necro_create_data_declaration_ast(&prim_types->arena, intern, unboxed_int_s_type, NULL));
+
+    // Float#
+    NecroASTNode* unboxed_float_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "Float#", NULL);
+    NecroPrimDef* unboxed_float_data_def = necro_prim_def_data(prim_types, intern, &prim_types->unboxed_float_type, necro_create_data_declaration_ast(&prim_types->arena, intern, unboxed_float_s_type, NULL));
 
     // ()
     NecroASTNode* unit_s_type           = necro_create_simple_type_ast(&prim_types->arena, intern, "()", NULL);
@@ -694,10 +710,6 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     necro_create_prim_num(prim_types, intern, &prim_types->float_type, "Float");
     necro_create_prim_num(prim_types, intern, &prim_types->audio_type, "Audio");
     necro_create_prim_num(prim_types, intern, &prim_types->rational_type, "Rational");
-
-    // Char
-    NecroASTNode* char_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "Char", NULL);
-    NecroPrimDef* char_data_def = necro_prim_def_data(prim_types, intern, &prim_types->char_type, necro_create_data_declaration_ast(&prim_types->arena, intern, char_s_type, NULL));
 
     // Num
     NecroASTNode* add_method_sig    = necro_create_class_bin_op_sig(&prim_types->arena, intern, "add");
@@ -1031,21 +1043,6 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
         NecroPrimDef* op_prim_def = necro_prim_def_bin_op(prim_types, intern, NULL, op_sig, op_def_ast);
     }
 
-    // // >->
-    // {
-    //     NecroASTNode* a_var         = necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
-    //     NecroASTNode* fby_op_sig =
-    //         necro_create_fun_type_sig_ast(&prim_types->arena, intern, ">->", NULL,
-    //             necro_create_fun_ast(&prim_types->arena, a_var, necro_create_fun_ast(&prim_types->arena, a_var, a_var)),
-    //             NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
-    //     NecroASTNode* x_var       = necro_create_variable_ast(&prim_types->arena, intern, "x", NECRO_VAR_DECLARATION);
-    //     NecroASTNode* y_var       = necro_create_variable_ast(&prim_types->arena, intern, "y", NECRO_VAR_DECLARATION);
-    //     NecroASTNode* op_args     = necro_create_apat_list_ast(&prim_types->arena, x_var, necro_create_apat_list_ast(&prim_types->arena, y_var, NULL));
-    //     NecroASTNode* op_rhs_ast  = necro_create_rhs_ast(&prim_types->arena, necro_create_variable_ast(&prim_types->arena, intern, "x", NECRO_VAR_VAR), NULL);
-    //     NecroASTNode* op_def_ast  = necro_create_apats_assignment_ast(&prim_types->arena, intern, ">->", op_args, op_rhs_ast);
-    //     NecroPrimDef* op_prim_def = necro_prim_def_bin_op(prim_types, intern, NULL, fby_op_sig, op_def_ast);
-    // }
-
     // TODO: Finish Bool Eq/Ord instances and && / ||!!!
     // &&
     // NecroASTNode* bool_conid   = necro_create_conid_ast(&prim_types->arena, intern, "Bool", NECRO_CON_TYPE_VAR);
@@ -1061,4 +1058,94 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     // NecroPrimDef* and_fun_def           = necro_prim_def_fun(prim_types, intern, &prim_types->bin_op_types.and_type, bool_comp_sig_ast);
     // NecroPrimDef* ord_fun_def           = necro_prim_def_fun(prim_types, intern, &prim_types->bin_op_types.or_type, bool_comp_sig_ast);
 
+}
+
+NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
+{
+    if (necro_is_codegen_error(codegen)) return codegen->error.return_code;
+    assert(codegen != NULL);
+    NecroPrimTypes* prim_types = codegen->infer->prim_types;
+    assert(prim_types != NULL);
+    if (prim_types->llvm_mod != NULL)
+        return NECRO_SUCCESS;
+
+    LLVMModuleRef  codegen_mod     = codegen->mod;
+    LLVMBuilderRef codegen_builder = codegen->builder;
+
+    codegen->mod     = LLVMModuleCreateWithNameInContext("NecroPrim", codegen->context);
+    codegen->builder = LLVMCreateBuilderInContext(codegen->context);
+
+    // NecroData#
+    LLVMTypeRef necro_type_ref = LLVMStructCreateNamed(codegen->context, "NecroData#");
+    LLVMTypeRef necro_elems[2] = { LLVMInt32Type(), LLVMInt32Type() };
+    LLVMStructSetBody(necro_type_ref, necro_elems, 2, false);
+    necro_symtable_get(codegen->symtable, prim_types->necro_data_type.id)->llvm_type = necro_type_ref;
+
+    // Any#
+    LLVMTypeRef any_type_ref = LLVMStructCreateNamed(codegen->context, "Any#");
+    LLVMTypeRef any_elems[1] = { LLVMPointerType(LLVMInt8Type(), 0) };
+    LLVMStructSetBody(any_type_ref, any_elems, 1, false);
+    necro_symtable_get(codegen->symtable, prim_types->any_type.id)->llvm_type = any_type_ref;
+
+    // Int#
+    necro_symtable_get(codegen->symtable, prim_types->unboxed_int_type.id)->llvm_type = LLVMInt64Type();
+
+    // Float#
+    necro_symtable_get(codegen->symtable, prim_types->unboxed_float_type.id)->llvm_type = LLVMDoubleType();
+
+    // Int
+    LLVMTypeRef int_type_ref = LLVMStructCreateNamed(codegen->context, "Int");
+    LLVMTypeRef int_elems[2] = { necro_type_ref, LLVMInt64Type() };
+    LLVMStructSetBody(int_type_ref, int_elems, 2, false);
+    necro_symtable_get(codegen->symtable, prim_types->int_type.id)->llvm_type = int_type_ref;
+
+    // Float
+    LLVMTypeRef float_type_ref = LLVMStructCreateNamed(codegen->context, "Float");
+    LLVMTypeRef float_elems[2] = { necro_type_ref, LLVMDoubleType() };
+    LLVMStructSetBody(float_type_ref, float_elems, 2, false);
+    necro_symtable_get(codegen->symtable, prim_types->float_type.id)->llvm_type = float_type_ref;
+
+    // Rational
+    LLVMTypeRef rational_type_ref = LLVMStructCreateNamed(codegen->context, "Rational");
+    LLVMTypeRef rational_elems[3] = { necro_type_ref, LLVMInt64Type(), LLVMInt64Type() };
+    LLVMStructSetBody(rational_type_ref, rational_elems, 3, false);
+    necro_symtable_get(codegen->symtable, prim_types->rational_type.id)->llvm_type = rational_type_ref;
+
+    // Audio
+    LLVMTypeRef audio_type_ref = LLVMStructCreateNamed(codegen->context, "Audio");
+    LLVMTypeRef audio_elems[2] = { necro_type_ref, LLVMPointerType(LLVMDoubleType(),0) };
+    LLVMStructSetBody(audio_type_ref, audio_elems, 2, false);
+    necro_symtable_get(codegen->symtable, prim_types->audio_type.id)->llvm_type = audio_type_ref;
+
+    // ()
+    LLVMTypeRef unit_type_ref = LLVMStructCreateNamed(codegen->context, "Unit");
+    LLVMTypeRef unit_elems[1] = { LLVMInt64Type() };
+    LLVMStructSetBody(unit_type_ref, unit_elems, 1, false);
+    necro_symtable_get(codegen->symtable, prim_types->unit_type.id)->llvm_type = unit_type_ref;
+
+    // []
+    // NecroASTNode* list_s_type           = necro_create_simple_type_ast(&prim_types->arena, intern, "[]", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
+
+    // Sequence
+    // NecroASTNode* sequence_s_type       = necro_create_simple_type_ast(&prim_types->arena, intern, "Sequence", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
+
+    // IO
+    // NecroASTNode* io_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "IO", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
+
+    // Event
+    // NecroASTNode* event_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "Event", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
+
+    // Pattern
+    // NecroASTNode* pattern_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "Pattern", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
+
+    // Bool
+    // NecroASTNode* bool_s_type           = necro_create_simple_type_ast(&prim_types->arena, intern, "Bool", NULL);
+
+    if (necro_verify_and_dump_codegen(codegen) == NECRO_ERROR)
+        return NECRO_ERROR;
+
+    // Clean up and return
+    codegen->mod     = codegen_mod;
+    codegen->builder = codegen_builder;
+    return NECRO_SUCCESS;
 }

@@ -43,6 +43,7 @@ typedef struct NecroCodeGen
     struct NecroSymTable* symtable;
     LLVMModuleRef         mod;
     LLVMBuilderRef        builder;
+    LLVMContextRef        context;
     NecroError            error;
     NecroBlockIndex       current_block;
     void*                 blocks;
@@ -54,5 +55,17 @@ void              necro_destroy_codegen(NecroCodeGen* codegen);
 void              necro_test_codegen(NecroCodeGen* codegen);
 NecroSymbol       necro_new_block_name(NecroCodeGen* codegen);
 NECRO_RETURN_CODE necro_codegen(NecroCodeGen* codegen, struct NecroCoreAST* core_ast);
+NECRO_RETURN_CODE necro_verify_and_dump_codegen(NecroCodeGen* codegen);
+
+inline bool necro_is_codegen_error(NecroCodeGen* codegen)
+{
+    return codegen->error.return_code == NECRO_ERROR;
+}
+
+inline void necro_throw_codegen_error(NecroCodeGen* codegen, struct NecroCoreAST_Expression* ast, const char* error_message)
+{
+    necro_error(&codegen->error, (NecroSourceLoc) {0}, error_message);
+}
+
 
 #endif // TYPE_CODEGEN_H

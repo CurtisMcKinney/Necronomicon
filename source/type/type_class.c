@@ -810,12 +810,12 @@ void necro_create_dictionary_data_declaration(NecroPagedArena* arena, NecroInter
     {
         if (dictionary_args_head == NULL)
         {
-            dictionary_args_head = necro_create_ast_list(arena, necro_create_conid_ast(arena, intern, "Prim@Any", NECRO_CON_TYPE_VAR), NULL);
+            dictionary_args_head = necro_create_ast_list(arena, necro_create_conid_ast(arena, intern, "Any#", NECRO_CON_TYPE_VAR), NULL);
             dictionary_args      = dictionary_args_head;
         }
         else
         {
-            dictionary_args->list.next_item = necro_create_ast_list(arena, necro_create_conid_ast(arena, intern, "Prim@Any", NECRO_CON_TYPE_VAR), NULL);
+            dictionary_args->list.next_item = necro_create_ast_list(arena, necro_create_conid_ast(arena, intern, "Any#", NECRO_CON_TYPE_VAR), NULL);
             dictionary_args                 = dictionary_args->list.next_item;
         }
         members = members->declaration.next_declaration;

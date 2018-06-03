@@ -617,9 +617,9 @@ void necro_bool_instances(NecroPagedArena* arena, NecroIntern* intern)
 
 void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
 {
-    // Primitive Rational type?
-
-    // TODO: () isn't printing in type sigs for some reason?!?!?!
+    // NecroVal
+    NecroASTNode* necro_val_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "_NecroVal", NULL);
+    NecroPrimDef* necro_val_data_def = necro_prim_def_data(prim_types, intern, &prim_types->necro_val_type, necro_create_data_declaration_ast(&prim_types->arena, intern, necro_val_s_type, NULL));
 
     // NecroData
     NecroASTNode* necro_data_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "NecroData#", NULL);
@@ -1076,15 +1076,21 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
     codegen->builder = LLVMCreateBuilderInContext(codegen->context);
 
     // NecroData#
-    LLVMTypeRef necro_type_ref = LLVMStructCreateNamed(codegen->context, "NecroData#");
+    LLVMTypeRef necro_type_ref = LLVMStructCreateNamed(codegen->context, "_NecroData");
     LLVMTypeRef necro_elems[2] = { LLVMInt32Type(), LLVMInt32Type() };
     LLVMStructSetBody(necro_type_ref, necro_elems, 2, false);
     necro_symtable_get(codegen->symtable, prim_types->necro_data_type.id)->llvm_type = necro_type_ref;
 
+    // NecroVal
+    LLVMTypeRef necro_val_type_ref = LLVMStructCreateNamed(codegen->context, "_NecroVal");
+    LLVMTypeRef necro_val_elems[1] = { necro_type_ref };
+    LLVMStructSetBody(necro_val_type_ref, necro_val_elems, 1, false);
+    necro_symtable_get(codegen->symtable, prim_types->necro_val_type.id)->llvm_type = necro_val_type_ref;
+
     // Any#
-    LLVMTypeRef any_type_ref = LLVMStructCreateNamed(codegen->context, "Any#");
-    LLVMTypeRef any_elems[1] = { LLVMPointerType(LLVMInt8Type(), 0) };
-    LLVMStructSetBody(any_type_ref, any_elems, 1, false);
+    LLVMTypeRef any_type_ref = LLVMStructCreateNamed(codegen->context, "_Any");
+    LLVMTypeRef any_elems[2] = { necro_type_ref, LLVMPointerType(necro_val_type_ref, 0) };
+    LLVMStructSetBody(any_type_ref, any_elems, 2, false);
     necro_symtable_get(codegen->symtable, prim_types->any_type.id)->llvm_type = any_type_ref;
 
     // Int#
@@ -1118,13 +1124,16 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
     necro_symtable_get(codegen->symtable, prim_types->audio_type.id)->llvm_type = audio_type_ref;
 
     // ()
-    LLVMTypeRef unit_type_ref = LLVMStructCreateNamed(codegen->context, "Unit");
-    LLVMTypeRef unit_elems[1] = { LLVMInt64Type() };
+    LLVMTypeRef unit_type_ref = LLVMStructCreateNamed(codegen->context, "_Unit");
+    LLVMTypeRef unit_elems[1] = { necro_type_ref };
     LLVMStructSetBody(unit_type_ref, unit_elems, 1, false);
     necro_symtable_get(codegen->symtable, prim_types->unit_type.id)->llvm_type = unit_type_ref;
 
     // []
-    // NecroASTNode* list_s_type           = necro_create_simple_type_ast(&prim_types->arena, intern, "[]", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
+    LLVMTypeRef list_type_ref = LLVMStructCreateNamed(codegen->context, "_List");
+    LLVMTypeRef list_elems[3] = { necro_type_ref, LLVMPointerType(necro_val_type_ref, 0), LLVMPointerType(necro_val_type_ref, 0) };
+    LLVMStructSetBody(list_type_ref, list_elems, 3, false);
+    necro_symtable_get(codegen->symtable, prim_types->list_type.id)->llvm_type = list_type_ref;
 
     // Sequence
     // NecroASTNode* sequence_s_type       = necro_create_simple_type_ast(&prim_types->arena, intern, "Sequence", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
@@ -1140,6 +1149,8 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
 
     // Bool
     // NecroASTNode* bool_s_type           = necro_create_simple_type_ast(&prim_types->arena, intern, "Bool", NULL);
+
+    // CodeGen for type classes!!!!
 
     if (necro_verify_and_dump_codegen(codegen) == NECRO_ERROR)
         return NECRO_ERROR;

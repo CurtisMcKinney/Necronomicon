@@ -14,15 +14,31 @@ audioTest = 987654321
 unitTest :: ()
 unitTest = ()
 
-data OnlyOne = OnlyOne
+data Nullary = Nullary
 
-onlyOneTest :: OnlyOne
-onlyOneTest = OnlyOne
+nullaryTest :: Nullary
+nullaryTest = Nullary
 
--- data CakeOrDeath = Cake Int | Death ()
---
--- cake :: CakeOrDeath
--- cake = Cake 0
---
--- death :: CakeOrDeath
--- death = Death ()
+data ThereCanBeOnlyOne = ThereCanBeOnlyOne Int
+
+thereCanBeOnlyOneTest :: ThereCanBeOnlyOne
+thereCanBeOnlyOneTest = ThereCanBeOnlyOne 0
+
+data CakeOrDeath = Cake Int | Death () Float
+
+cake :: CakeOrDeath
+cake = Cake 0
+
+death :: CakeOrDeath
+death = Death () 3.3
+
+data Polymorph a = Polymorph a a | Newt
+
+polymorph :: Polymorph Int
+polymorph = Polymorph 0 0
+
+newt :: Polymorph Int
+newt = Newt
+
+testUntilYouDie :: Polymorph ()
+testUntilYouDie = Newt

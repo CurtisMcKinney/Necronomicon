@@ -1,8 +1,40 @@
+# =============================================================================
+# NOTE from Curtis:
+# Please read ALL instructions before attempting to build Necronomicon
+# Step 1: Install Python
+#     - NOTE: LLVM seems to want Python 2, not 3!
+# Step 2: Build LLVM
+#     - Use cmake
+#     - To build using cmake on Windows consult this: https://llvm.org/docs/GettingStartedVS.html
+# Step 3: Install LLVM
+#     - Once LLVM is built you should install it somewhere (In VS build using the INSTALL solution).
+#     - Make note of where.
+# Step 4:
+#     - Generate project files for Necronomicon using cmake-gui
+#     - When configuring/generating project files for Necronomicon with cmake-gui set LLVM_DIR to point to where you installed LLVM: <LLVM_Install_Folder>\lib\cmake\llvm
+# Necronomicon should now be a functional project you can build
+# This cmake file was cobbled together by consulting this: https://llvm.org/docs/CMake.html
+# =============================================================================
+
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 project(necro)
 
-set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD 11)
 set(CMAKE_BUILD_TYPE Debug)
+
+find_package(LLVM REQUIRED CONFIG)
+message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+
+include_directories(${LLVM_INCLUDE_DIRS})
+add_definitions(${LLVM_DEFINITIONS})
+
+# if (CMAKE_COMPILER_IS_GNUCC)
+#     set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wall")
+# endif()
+# if (MSVC)
+#     set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} /W4")
+# endif()
 
 set(INCLUDE_DIR
     source
@@ -27,7 +59,6 @@ set(project_SOURCES
 	source/utility/intern.c
 	source/utility/utility.c
     source/utility/hash_table.c
-    source/utility/list.c
 
     source/runtime/runtime.c
     source/runtime/slab.c
@@ -41,7 +72,10 @@ set(project_SOURCES
     source/type/type_class.c
 
     source/core/core.c
+
+    source/codegen/codegen.c
     )
+
 set(project_HEADERS
     source/necro.h
     source/parser.h
@@ -57,7 +91,8 @@ set(project_HEADERS
 	source/utility/intern.h
     source/utility/math.h
     source/utility/hash_table.h
-    source/utility/list.c
+    source/utility/list.h
+    source/utility/small_array.h
 
     source/runtime/runtime.h
     source/runtime/slab.h
@@ -71,8 +106,14 @@ set(project_HEADERS
     source/type/type_class.h
 
     source/core/core.h
+
+    source/codegen/codegen.c
     )
 
 ADD_EXECUTABLE(necro ${project_HEADERS} ${project_SOURCES})
 
-TARGET_LINK_LIBRARIES(necro)
+# Find the libraries that correspond to the LLVM components
+# that we wish to use
+llvm_map_components_to_libnames(llvm_libs support core irreader analysis target)
+
+TARGET_LINK_LIBRARIES(necro ${llvm_libs})

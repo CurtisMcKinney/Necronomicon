@@ -13,11 +13,17 @@
 
 void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern, uint32_t depth)
 {
-    assert(ast_node != NULL);
+    // assert(ast_node != NULL);
     assert(intern != NULL);
     for (uint32_t i = 0;  i < depth; ++i)
     {
         printf(AST_TAB);
+    }
+
+    if (ast_node == NULL)
+    {
+        printf("NULL\n");
+        return;
     }
 
     switch(ast_node->type)
@@ -32,9 +38,23 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
     case NECRO_AST_CONSTANT:
         switch(ast_node->constant.type)
         {
+        case NECRO_AST_CONSTANT_FLOAT_PATTERN:   // FALL THROUGH
+            // For testing type class translation
+            // if(ast_node->constant.pat_from_ast != NULL)
+            //     print_reified_ast_impl(ast_node->constant.pat_from_ast, intern, depth + 1);
+            // if(ast_node->constant.pat_eq_ast != NULL)
+            //     print_reified_ast_impl(ast_node->constant.pat_eq_ast, intern, depth + 1);
+            printf("pat_float: ");
         case NECRO_AST_CONSTANT_FLOAT:
             printf("(%f)\n", ast_node->constant.double_literal);
             break;
+        case NECRO_AST_CONSTANT_INTEGER_PATTERN: // FALL THROUGH
+            // For testing type class translation
+            // if(ast_node->constant.pat_from_ast != NULL)
+            //     print_reified_ast_impl(ast_node->constant.pat_from_ast, intern, depth + 1);
+            // if(ast_node->constant.pat_eq_ast != NULL)
+            //     print_reified_ast_impl(ast_node->constant.pat_eq_ast, intern, depth + 1);
+            printf("pat_int: ");
         case NECRO_AST_CONSTANT_INTEGER:
 #if WIN32
             printf("(%lli)\n", ast_node->constant.int_literal);
@@ -220,6 +240,11 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
     case NECRO_AST_DO:
         puts("(do)");
         print_reified_ast_impl(ast_node->do_statement.statement_list, intern, depth + 1);
+        break;
+
+    case NECRO_AST_PAT_EXPRESSION:
+        puts("(pat)");
+        print_reified_ast_impl(ast_node->pattern_expression.expressions, intern, depth + 1);
         break;
 
     case NECRO_AST_EXPRESSION_LIST:
@@ -470,18 +495,18 @@ inline void necro_op_symbol_to_method_symbol(NecroIntern* intern, NecroAST_BinOp
     // change op name to method names
     switch (op_type)
     {
-    case NECRO_BIN_OP_ADD:        *symbol = necro_intern_string(intern, "add");     break;
-    case NECRO_BIN_OP_SUB:        *symbol = necro_intern_string(intern, "sub");     break;
-    case NECRO_BIN_OP_MUL:        *symbol = necro_intern_string(intern, "mul");     break;
-    case NECRO_BIN_OP_DIV:        *symbol = necro_intern_string(intern, "div");     break;
-    case NECRO_BIN_OP_EQUALS:     *symbol = necro_intern_string(intern, "eq");      break;
-    case NECRO_BIN_OP_NOT_EQUALS: *symbol = necro_intern_string(intern, "neq");     break;
-    case NECRO_BIN_OP_GT:         *symbol = necro_intern_string(intern, "gt");      break;
-    case NECRO_BIN_OP_LT:         *symbol = necro_intern_string(intern, "lt");      break;
-    case NECRO_BIN_OP_GTE:        *symbol = necro_intern_string(intern, "gte");     break;
-    case NECRO_BIN_OP_LTE:        *symbol = necro_intern_string(intern, "lte");     break;
-    case NECRO_BIN_OP_BIND_RIGHT: *symbol = necro_intern_string(intern, "bind");    break;
-    case NECRO_BIN_OP_APPEND:     *symbol = necro_intern_string(intern, "mappend"); break;
+    case NECRO_BIN_OP_ADD:        *symbol = necro_intern_string(intern, "add");    break;
+    case NECRO_BIN_OP_SUB:        *symbol = necro_intern_string(intern, "sub");    break;
+    case NECRO_BIN_OP_MUL:        *symbol = necro_intern_string(intern, "mul");    break;
+    case NECRO_BIN_OP_DIV:        *symbol = necro_intern_string(intern, "div");    break;
+    case NECRO_BIN_OP_EQUALS:     *symbol = necro_intern_string(intern, "eq");     break;
+    case NECRO_BIN_OP_NOT_EQUALS: *symbol = necro_intern_string(intern, "neq");    break;
+    case NECRO_BIN_OP_GT:         *symbol = necro_intern_string(intern, "gt");     break;
+    case NECRO_BIN_OP_LT:         *symbol = necro_intern_string(intern, "lt");     break;
+    case NECRO_BIN_OP_GTE:        *symbol = necro_intern_string(intern, "gte");    break;
+    case NECRO_BIN_OP_LTE:        *symbol = necro_intern_string(intern, "lte");    break;
+    case NECRO_BIN_OP_BIND_RIGHT: *symbol = necro_intern_string(intern, "bind");   break;
+    case NECRO_BIN_OP_APPEND:     *symbol = necro_intern_string(intern, "append"); break;
     default: break;
     }
 }
@@ -505,7 +530,7 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
         break;
 
     case NECRO_AST_CONSTANT:
-        switch (node->type)
+        switch (node->constant.type)
         {
 
         case NECRO_AST_CONSTANT_FLOAT:
@@ -513,8 +538,10 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
             NecroAST_Node_Reified* from_node = necro_create_variable_ast(arena, intern, "fromRational", NECRO_VAR_VAR);
             NecroAST_Node_Reified* new_node  = necro_paged_arena_alloc(arena, sizeof(NecroAST_Node_Reified));
             *new_node = *reified_node;
-            new_node->constant.symbol = node->constant.symbol;
-            new_node->constant.type   = node->constant.type;
+            new_node->constant.symbol        = node->constant.symbol;
+            new_node->constant.type          = node->constant.type;
+            new_node->constant.pat_from_ast  = NULL;
+            new_node->constant.pat_eq_ast    = NULL;
             reified_node = necro_create_fexpr_ast(arena, from_node, new_node);
             break;
         }
@@ -524,15 +551,19 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
             NecroAST_Node_Reified* from_node = necro_create_variable_ast(arena, intern, "fromInt", NECRO_VAR_VAR);
             NecroAST_Node_Reified* new_node  = necro_paged_arena_alloc(arena, sizeof(NecroAST_Node_Reified));
             *new_node = *reified_node;
-            new_node->constant.symbol = node->constant.symbol;
-            new_node->constant.type   = node->constant.type;
+            new_node->constant.symbol        = node->constant.symbol;
+            new_node->constant.type          = node->constant.type;
+            new_node->constant.pat_from_ast  = NULL;
+            new_node->constant.pat_eq_ast    = NULL;
             reified_node = necro_create_fexpr_ast(arena, from_node, new_node);
             break;
         }
 
         default:
-            reified_node->constant.symbol = node->constant.symbol;
-            reified_node->constant.type   = node->constant.type;
+            reified_node->constant.symbol       = node->constant.symbol;
+            reified_node->constant.type         = node->constant.type;
+            reified_node->constant.pat_from_ast = NULL;
+            reified_node->constant.pat_eq_ast   = NULL;
             break;
         }
         break;
@@ -609,6 +640,9 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
     case NECRO_AST_DO:
         reified_node->do_statement.statement_list = necro_reify(a_ast, node->do_statement.statement_list, arena, intern);
         reified_node->do_statement.monad_var      = NULL;
+        break;
+    case NECRO_AST_PAT_EXPRESSION:
+        reified_node->pattern_expression.expressions = necro_reify(a_ast, node->pattern_expression.expressions, arena, intern);
         break;
     case NECRO_AST_LIST_NODE:
         reified_node->list.item      = necro_reify(a_ast, node->list.item, arena, intern);

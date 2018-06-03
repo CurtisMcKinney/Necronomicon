@@ -534,7 +534,7 @@ bool necro_occurs(NecroInfer* infer, NecroType* type_var, NecroType* type, Necro
     }
 }
 
-void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* classes, NecroType* type, NecroType* macro_type, const char* error_preamble)
+void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* classes, NecroType* type, NecroType* macro_type, const char* error_preamble, NecroScope* scope)
 {
     if (necro_is_infer_error(infer))
         return;
@@ -585,13 +585,18 @@ void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* clas
                 necro_type_is_not_instance_error(infer, type, classes, macro_type, error_preamble);
                 return;
             }
-            NecroType* current_arg = type->con.args;
-            while (current_arg != NULL)
-            {
-                necro_propogate_type_classes(infer, instance->context, current_arg->list.item, macro_type, error_preamble);
-                if (necro_is_infer_error(infer)) return;
-                current_arg = current_arg->list.next;
-            }
+            // Propogating classes wrong here!
+            NecroType* instance_data_inst = necro_inst(infer, instance->data_type, instance->ast->scope);
+            // Would this method require a proper scope!?!?!
+            necro_unify(infer, instance_data_inst, type, scope, type, "While inferring the instance of a type class");
+            if (necro_is_infer_error(infer)) return;
+            // NecroType* current_arg = type->con.args;
+            // while (current_arg != NULL)
+            // {
+            //     necro_propogate_type_classes(infer, instance->context, current_arg->list.item, macro_type, error_preamble);
+            //     if (necro_is_infer_error(infer)) return;
+            //     current_arg = current_arg->list.next;
+            // }
             if (necro_is_infer_error(infer)) return;
             classes = classes->next;
         }
@@ -599,8 +604,8 @@ void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* clas
     }
     case NECRO_TYPE_FUN:
         // TODO: Type classes for functions!!!
-        necro_propogate_type_classes(infer, classes, type->fun.type1, macro_type, error_preamble);
-        necro_propogate_type_classes(infer, classes, type->fun.type2, macro_type, error_preamble);
+        necro_propogate_type_classes(infer, classes, type->fun.type1, macro_type, error_preamble, scope);
+        necro_propogate_type_classes(infer, classes, type->fun.type2, macro_type, error_preamble, scope);
         // necro_infer_error(infer, error_preamble, macro_type, "(->) Not implemented for type classes!", type->type);
         return;
     // case NECRO_TYPE_APP:  necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: TypeApp not implemented in necro_propogate_type_classes!"); return;
@@ -618,11 +623,11 @@ void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* clas
     }
 }
 
-inline void necro_instantiate_type_var(NecroInfer* infer, NecroTypeVar* type_var, NecroType* type, NecroType* macro_type, const char* error_preamble)
+inline void necro_instantiate_type_var(NecroInfer* infer, NecroTypeVar* type_var, NecroType* type, NecroType* macro_type, const char* error_preamble, NecroScope* scope)
 {
     if (necro_is_infer_error(infer))
         return;
-    necro_propogate_type_classes(infer, type_var->context, type, macro_type, error_preamble);
+    necro_propogate_type_classes(infer, type_var->context, type, macro_type, error_preamble, scope);
     if (necro_is_infer_error(infer)) return;
     necr_bind_type_var(infer, type_var->var, type);
 }
@@ -643,8 +648,6 @@ inline void necro_unify_var(NecroInfer* infer, NecroType* type1, NecroType* type
     switch (type2->type)
     {
     case NECRO_TYPE_VAR:
-        // necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
-        // necro_kind_unify(infer, type1->type_kind, type2->type_kind, scope, macro_type, error_preamble);
         if (type1->var.var.id.id == type2->var.var.id.id)
             return;
         else if (type1->var.is_rigid && type2->var.is_rigid)
@@ -652,13 +655,13 @@ inline void necro_unify_var(NecroInfer* infer, NecroType* type1, NecroType* type
         else if (necro_occurs(infer, type1, type2, macro_type, error_preamble))
             return;
         else if (type1->var.is_rigid)
-            necro_instantiate_type_var(infer, &type2->var, type1, macro_type, error_preamble);
+            necro_instantiate_type_var(infer, &type2->var, type1, macro_type, error_preamble, scope);
         else if (type2->var.is_rigid)
-            necro_instantiate_type_var(infer, &type1->var, type2, macro_type, error_preamble);
+            necro_instantiate_type_var(infer, &type1->var, type2, macro_type, error_preamble, scope);
         else if (necro_is_bound_in_scope(infer, type1, scope))
-            necro_instantiate_type_var(infer, &type2->var, type1, macro_type, error_preamble);
+            necro_instantiate_type_var(infer, &type2->var, type1, macro_type, error_preamble, scope);
         else
-            necro_instantiate_type_var(infer, &type1->var, type2, macro_type, error_preamble);
+            necro_instantiate_type_var(infer, &type1->var, type2, macro_type, error_preamble, scope);
         return;
     case NECRO_TYPE_CON:
     case NECRO_TYPE_APP:
@@ -672,9 +675,7 @@ inline void necro_unify_var(NecroInfer* infer, NecroType* type1, NecroType* type
         {
             return;
         }
-        necro_instantiate_type_var(infer, &type1->var, type2, macro_type, error_preamble);
-        // necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
-        // necro_kind_unify(infer, type1->type_kind, type2->type_kind, scope, macro_type, error_preamble);
+        necro_instantiate_type_var(infer, &type1->var, type2, macro_type, error_preamble, scope);
         return;
     case NECRO_TYPE_FOR:  necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Attempted to unify polytype."); return;
     case NECRO_TYPE_LIST: necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Attempted to unify TypeVar with type args list."); return;
@@ -687,8 +688,6 @@ inline void necro_unify_app(NecroInfer* infer, NecroType* type1, NecroType* type
     if (necro_is_infer_error(infer)) return;
     assert(type1 != NULL);
     assert(type1->type == NECRO_TYPE_APP);
-    // necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
-    // necro_kind_unify(infer, type1->type_kind, type2->type_kind, scope, macro_type, error_preamble);
     if (necro_is_infer_error(infer)) return;
     if (type2 == NULL)
     {
@@ -698,25 +697,19 @@ inline void necro_unify_app(NecroInfer* infer, NecroType* type1, NecroType* type
     switch (type2->type)
     {
     case NECRO_TYPE_VAR:
-        // necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
-        // necro_kind_unify(infer, type1->type_kind, type2->type_kind, scope, macro_type, error_preamble);
         if (type2->var.is_rigid)
             necro_rigid_type_variable_error(infer, type2->var.var, type1, macro_type, error_preamble);
         else if (necro_occurs(infer, type2, type1, macro_type, error_preamble))
             return;
         else
-            necro_instantiate_type_var(infer, &type2->var, type1, macro_type, error_preamble);
+            necro_instantiate_type_var(infer, &type2->var, type1, macro_type, error_preamble, scope);
         return;
     case NECRO_TYPE_APP:
-        // necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
-        // necro_kind_unify(infer, type1->type_kind, type2->type_kind, scope, macro_type, error_preamble);
         necro_unify(infer, type1->app.type1, type2->app.type1, scope, macro_type, error_preamble);
         necro_unify(infer, type1->app.type2, type2->app.type2, scope, macro_type, error_preamble);
         return;
     case NECRO_TYPE_CON:
     {
-        // necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
-        // necro_kind_unify(infer, type1->type_kind, type2->type_kind, scope, macro_type, error_preamble);
         NecroType* uncurried_con = necro_curry_con(infer, type2);
         if (uncurried_con == NULL)
         {
@@ -745,14 +738,12 @@ inline void necro_unify_fun(NecroInfer* infer, NecroType* type1, NecroType* type
     switch (type2->type)
     {
     case NECRO_TYPE_VAR:
-        // necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
-        // necro_kind_unify(infer, type1->type_kind, type2->type_kind, scope, macro_type, error_preamble);
         if (type2->var.is_rigid)
             necro_rigid_type_variable_error(infer, type2->var.var, type1, macro_type, error_preamble);
         else if (necro_occurs(infer, type2, type1, macro_type, error_preamble))
             return;
         else
-            necro_instantiate_type_var(infer, &type2->var, type1, macro_type, error_preamble);
+            necro_instantiate_type_var(infer, &type2->var, type1, macro_type, error_preamble, scope);
         return;
     case NECRO_TYPE_FUN:  necro_unify(infer, type1->fun.type1, type2->fun.type1, scope, macro_type, error_preamble); necro_unify(infer, type1->fun.type2, type2->fun.type2, scope, macro_type, error_preamble); return;
     case NECRO_TYPE_APP:  necro_infer_error(infer, error_preamble, macro_type, "Attempting to unify (->) with TypeApp."); return;
@@ -772,14 +763,12 @@ inline void necro_unify_con(NecroInfer* infer, NecroType* type1, NecroType* type
     switch (type2->type)
     {
     case NECRO_TYPE_VAR:
-        // necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
-        // necro_kind_unify(infer, type1->type_kind, type2->type_kind, scope, macro_type, error_preamble);
         if (type2->var.is_rigid)
             necro_rigid_type_variable_error(infer, type2->var.var, type1, macro_type, error_preamble);
         else if (necro_occurs(infer, type2, type1, macro_type, error_preamble))
             return;
         else
-            necro_instantiate_type_var(infer, &type2->var, type1, macro_type, error_preamble);
+            necro_instantiate_type_var(infer, &type2->var, type1, macro_type, error_preamble, scope);
         return;
     case NECRO_TYPE_CON:
         if (type1->con.con.symbol.id != type2->con.con.symbol.id)
@@ -792,8 +781,6 @@ inline void necro_unify_con(NecroInfer* infer, NecroType* type1, NecroType* type
         // }
         else
         {
-            // necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
-            // necro_kind_unify(infer, type1->type_kind, type2->type_kind, scope, macro_type, error_preamble);
             NecroType* original_type1 = type1;
             NecroType* original_type2 = type2;
             type1 = type1->con.args;
@@ -809,8 +796,6 @@ inline void necro_unify_con(NecroInfer* infer, NecroType* type1, NecroType* type
                 assert(type2->type == NECRO_TYPE_LIST);
                 necro_unify(infer, type1->list.item, type2->list.item, scope, macro_type, error_preamble);
                 if (necro_is_infer_error(infer)) return;
-                // necro_unify_kinds(infer, type2, &type2->list.item->kind, &type1->list.item->kind, macro_type, error_preamble);
-                // necro_kind_unify(infer, type1->list.item->type_kind, type2->list.item->type_kind, scope, macro_type, error_preamble);
                 type1 = type1->list.next;
                 type2 = type2->list.next;
             }
@@ -827,8 +812,6 @@ inline void necro_unify_con(NecroInfer* infer, NecroType* type1, NecroType* type
         {
             necro_unify(infer, uncurried_con, type2, scope, macro_type, error_preamble);
         }
-        // necro_unify_kinds(infer, type2, &type2->kind, &type1->kind, macro_type, error_preamble);
-        // necro_kind_unify(infer, type1->type_kind, type2->type_kind, scope, macro_type, error_preamble);
         return;
     }
     case NECRO_TYPE_FUN:  necro_infer_error(infer, error_preamble, macro_type, "Attempting to unify TypeCon (%s) with (->).", necro_intern_get_string(infer->intern, type1->con.con.symbol)); return;
@@ -838,7 +821,7 @@ inline void necro_unify_con(NecroInfer* infer, NecroType* type1, NecroType* type
     }
 }
 
-// Can only unify with a polymorphic type on the left side
+// NOTE: Can only unify with a polymorphic type on the left side
 void necro_unify(NecroInfer* infer, NecroType* type1, NecroType* type2, NecroScope* scope, NecroType* macro_type, const char* error_preamble)
 {
     if (necro_is_infer_error(infer))
@@ -846,18 +829,10 @@ void necro_unify(NecroInfer* infer, NecroType* type1, NecroType* type2, NecroSco
     assert(infer != NULL);
     assert(type1 != NULL);
     assert(type2 != NULL);
-    // necro_infer_kind(infer, type1, NULL, macro_type, error_preamble);
-    // necro_infer_kind(infer, type2, NULL, macro_type, error_preamble);
-    // necro_kind_infer(infer, type1, type1, error_preamble);
-    // necro_kind_infer(infer, type2, type2, error_preamble);
     type1 = necro_find(infer, type1);
     type2 = necro_find(infer, type2);
     if (type1 == type2)
         return;
-    // necro_infer_kind(infer, type1, NULL, macro_type, error_preamble);
-    // necro_infer_kind(infer, type2, NULL, macro_type, error_preamble);
-    // necro_kind_infer(infer, type1, type1, error_preamble);
-    // necro_kind_infer(infer, type2, type2, error_preamble);
     switch (type1->type)
     {
     case NECRO_TYPE_VAR:  necro_unify_var(infer, type1, type2, scope, macro_type, error_preamble); return;
@@ -1212,11 +1187,11 @@ char* necro_type_string(NecroInfer* infer, NecroType* type)
     return buffer;
 }
 
-const char* necro_id_as_character_string(NecroIntern* intern, NecroVar var)
+NecroSymbol necro_id_as_symbol(NecroIntern* intern, NecroVar var)
 {
     if (var.symbol.id != 0)
     {
-        return necro_intern_get_string(intern, var.symbol);
+        return var.symbol;
     }
     NecroID id     = var.id;
     size_t  length = 2;
@@ -1244,7 +1219,12 @@ const char* necro_id_as_character_string(NecroIntern* intern, NecroVar var)
     NecroSymbol buf_symbol = necro_intern_string(intern, buffer);
     if (length >= 6)
         free(buffer);
-    return necro_intern_get_string(intern, buf_symbol);
+    return buf_symbol;
+}
+
+const char* necro_id_as_character_string(NecroIntern* intern, NecroVar var)
+{
+    return necro_intern_get_string(intern, necro_id_as_symbol(intern, var));
 }
 
 void necro_print_id_as_characters(NecroVar var, NecroIntern* intern)

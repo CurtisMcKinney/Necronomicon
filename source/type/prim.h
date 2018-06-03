@@ -16,8 +16,15 @@
 #include "renamer.h"
 #include "d_analyzer.h"
 #include "driver.h"
+#include "llvm-c/Types.h"
 
+
+//=====================================================
+// Forward Declarations and typedefs
+//=====================================================
 typedef NecroAST_Node_Reified NecroASTNode;
+struct NecroCodeGen;
+
 //=====================================================
 // NecroPrimDef
 //=====================================================
@@ -98,11 +105,16 @@ typedef struct
 typedef struct NecroPrimTypes
 {
     NecroTupleTypes   tuple_types;
+    NecroCon          necro_val_type;
+    NecroCon          necro_data_type;
+    NecroCon          any_type;
     NecroCon          io_type;
     NecroCon          unit_type;
     NecroCon          unit_con;
     NecroCon          list_type;
     NecroCon          sequence_type;
+    NecroCon          unboxed_int_type;
+    NecroCon          unboxed_float_type;
     NecroCon          int_type;
     NecroCon          float_type;
     NecroCon          audio_type;
@@ -116,11 +128,12 @@ typedef struct NecroPrimTypes
     NecroCon          functor_type_class;
     NecroCon          applicative_type_class;
     NecroCon          monad_type_class;
-    // NecroCon          from_int;
-    // NecroCon          from_rational;
+    NecroCon          event_type;
+    NecroCon          pattern_type;
     NecroPrimDef*     defs;
     NecroPrimDef*     def_head;
     NecroPagedArena   arena;
+    LLVMModuleRef     llvm_mod;
 } NecroPrimTypes;
 
 //=====================================================
@@ -132,5 +145,6 @@ NECRO_RETURN_CODE necro_prim_build_scope(NecroPrimTypes* prim_types, NecroScoped
 NECRO_RETURN_CODE necro_prim_rename(NecroPrimTypes* prim_types, NecroRenamer* renamer);
 NECRO_RETURN_CODE necro_prim_infer(NecroPrimTypes* prim_types, NecroDependencyAnalyzer* d_analyzer, NecroInfer* infer, NECRO_PHASE phase);
 void              necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern);
+NECRO_RETURN_CODE necro_codegen_primitives(struct NecroCodeGen* codegen);
 
 #endif // TYPE_PRIM_H

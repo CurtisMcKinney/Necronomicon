@@ -158,6 +158,8 @@ void print_white_space(size_t white_count);
 
 static void necro_announce_phase(const char* phase_name)
 {
+    fflush(stdout);
+    fflush(stderr);
     puts("");
     puts("--------------------------------");
     printf("-- %s\n", phase_name);

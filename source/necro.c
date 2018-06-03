@@ -136,6 +136,14 @@ int main(int32_t argc, char** argv)
             {
                 necro_compile(str, NECRO_PHASE_INFER);
             }
+            else if (argc > 2 && strcmp(argv[2], "-core") == 0)
+            {
+                necro_compile(str, NECRO_PHASE_TRANSFORM_TO_CORE);
+            }
+            else if (argc > 2 && strcmp(argv[2], "-codegen") == 0)
+            {
+                necro_compile(str, NECRO_PHASE_CODEGEN);
+            }
             else
             {
                 necro_compile(str, NECRO_PHASE_ALL);

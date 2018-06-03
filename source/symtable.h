@@ -15,6 +15,7 @@
 #include "ast.h"
 #include "arena.h"
 #include "type.h"
+#include "llvm-c/Types.h"
 
 //=====================================================
 // NecroSymTable, Contains info for a particular ID:
@@ -46,9 +47,10 @@ typedef struct
     NECRO_TYPE_STATUS              type_status;
     struct NecroTypeClass*         method_type_class;
     bool                           is_constructor;
-    // bool                           is_method;
     struct NecroTypeClass*         type_class;
     struct NecroTypeClassInstance* type_class_instance;
+    LLVMValueRef                   llvm_value;
+    LLVMTypeRef                    llvm_type;
 } NecroSymbolInfo;
 
 typedef struct NecroSymTable

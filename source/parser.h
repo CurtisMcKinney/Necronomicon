@@ -36,6 +36,7 @@ typedef enum
     NECRO_AST_WILDCARD,
     NECRO_AST_LAMBDA,
     NECRO_AST_DO,
+    NECRO_AST_PAT_EXPRESSION,
     NECRO_AST_LIST_NODE,
     NECRO_AST_EXPRESSION_LIST,
     NECRO_AST_EXPRESSION_SEQUENCE,
@@ -223,6 +224,10 @@ typedef enum
     NECRO_AST_CONSTANT_STRING,
     NECRO_AST_CONSTANT_BOOL,
     NECRO_AST_CONSTANT_CHAR,
+
+    NECRO_AST_CONSTANT_FLOAT_PATTERN,
+    NECRO_AST_CONSTANT_INTEGER_PATTERN,
+    NECRO_AST_CONSTANT_CHAR_PATTERN,
 } NecroAST_ConstantType;
 
 typedef struct
@@ -511,7 +516,6 @@ typedef struct
 //=====================================================
 // AST Tuple
 //=====================================================
-
 typedef struct
 {
     NecroAST_LocalPtr expressions; // NecroAST_ListNode of expressions
@@ -520,11 +524,18 @@ typedef struct
 //=====================================================
 // AST Do
 //=====================================================
-
 typedef struct
 {
     NecroAST_LocalPtr statement_list; // NecroAST_ListNode of do statement items
 } NecroAST_Do;
+
+//=====================================================
+// AST Pattern Expression
+//=====================================================
+typedef struct
+{
+    NecroAST_LocalPtr expressions; // NecroAST_ListNode of expressions
+} NecroAST_PatternExpression;
 
 //=====================================================
 // AST Variable
@@ -535,6 +546,7 @@ typedef enum
     NECRO_VAR_TYPE_FREE_VAR,
     NECRO_VAR_TYPE_VAR_DECLARATION,
     NECRO_VAR_DECLARATION,
+    // NECRO_VAR_PAT_BIND, // TODO: FINISH!!!!
     NECRO_VAR_SIG,
     NECRO_VAR_CLASS_SIG,
 } NECRO_VAR_TYPE;
@@ -666,6 +678,7 @@ typedef struct
         NecroAST_TypeClassInstance type_class_instance;
         NecroAST_TypeSignature type_signature;
         NecroAST_FunctionType function_type;
+        NecroAST_PatternExpression pattern_expression;
     };
 
     NecroAST_NodeType type;
@@ -754,6 +767,7 @@ typedef enum
 typedef enum
 {
     NECRO_DESCENT_PARSING,
+    NECRO_DESCENT_PARSING_PATTERN,
     NECRO_DESCENT_PARSE_ERROR,
     NECRO_DESCENT_PARSE_DONE
 } NecroParse_DescentState;

@@ -1,0 +1,52 @@
+data Either a b = Left a | Right b
+
+instance (Num a, Fractional b) => Num (Either a b) where
+    add (Left  x) (Left  y) = Left  (x + y)
+    sub (Left  x) (Left  y) = Left  (x + y)
+    mul (Right x) (Right y) = Right (x + y)
+    abs (Right x)           = Right (abs x)
+    signum (Right x)        = Right (signum x)
+    fromInt x               = Left  (fromInt x)
+
+instance Semigroup () where
+    append _ _ = ()
+
+instance Monoid () where
+    mempty = ()
+
+eitherNum :: Either Int Audio
+eitherNum = Left 0 + Right 0
+
+eitherNumL :: Either Int Float
+eitherNumL = Left 0
+
+eitherNumR :: Either Int Float
+eitherNumR = Right 0.0
+
+class ClassTest a where
+    method1 :: (Num b, Num c, Num d) => a -> b -> c -> d -> ()
+    method2 :: (Num b, Num c, Num d) => b -> c -> d -> () -> a
+    method3 :: a -> a
+
+instance (Eq a, Num b) => ClassTest (Either a b) where
+    method1 _ _ _ _   = ()
+    method2 _ _ _ _   = Right 0
+    method3 (Right x) = method2 x x x ()
+
+instance Eq a => Eq (Either a b) where
+    eq  _ _ = True
+    neq _ _ = True
+
+-- Patterns correctly require Num and Eq type classes
+numPat :: (Eq a, Num a) => Either a Float -> a -> Float -> Either a Float
+numPat 0 x y = Left x + Right y + 666
+numPat _ _ _ = Left 0
+
+patTest :: (Eq a, Num a) => a -> a
+patTest 0 = 0
+
+fracTest :: (Eq a, Fractional a) => a -> a
+fracTest 2.0 = 2.0
+
+floatTest :: Float -> Float
+floatTest 2.0 = 2.0

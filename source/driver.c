@@ -22,15 +22,16 @@
 #include "d_analyzer.h"
 #include "driver.h"
 #include "core/core.h"
+#include "codegen/codegen.h"
 
 void necro_compile_impl(
     const char* input_string,
     NECRO_PHASE compilation_phase,
     NecroInfer* infer,
-    // NecroTypeClassEnv* type_class_env,
     NecroParser* parser,
     NecroTransformToCore* core_transform,
     NecroLexer* lexer,
+    NecroCodeGen* codegen,
     NecroAST* ast,
     uint32_t* destruct_flags)
 {
@@ -48,7 +49,8 @@ void necro_compile_impl(
         necro_print_error(&lexer->error, input_string, "Syntax");
         return;
     }
-    necro_print_lexer(lexer);
+    if (compilation_phase == NECRO_PHASE_LEX_PRE_LAYOUT)
+        necro_print_lexer(lexer);
     if (compilation_phase == NECRO_PHASE_LEX_PRE_LAYOUT)
         return;
 
@@ -60,7 +62,8 @@ void necro_compile_impl(
         necro_print_error(&lexer->error, input_string, "Syntax");
         return;
     }
-    necro_print_lexer(lexer);
+    if (compilation_phase == NECRO_PHASE_LEX)
+        necro_print_lexer(lexer);
     if (compilation_phase == NECRO_PHASE_LEX)
         return;
 
@@ -77,7 +80,8 @@ void necro_compile_impl(
         necro_print_error(&parser->error, input_string, "Parsing");
         return;
     }
-    print_ast(ast, &lexer->intern, root_node_ptr);
+    if (compilation_phase == NECRO_PHASE_PARSE)
+        print_ast(ast, &lexer->intern, root_node_ptr);
     if (compilation_phase == NECRO_PHASE_PARSE)
         return;
 
@@ -86,7 +90,8 @@ void necro_compile_impl(
     //=====================================================
     necro_announce_phase("Reifying");
     NecroAST_Reified ast_r = necro_reify_ast(ast, root_node_ptr, &lexer->intern);
-    necro_print_reified_ast(&ast_r, &lexer->intern);
+    if (compilation_phase == NECRO_PHASE_REIFY)
+        necro_print_reified_ast(&ast_r, &lexer->intern);
     *destruct_flags |= BIT(NECRO_PHASE_REIFY);
     if (compilation_phase == NECRO_PHASE_REIFY)
         return;
@@ -110,8 +115,11 @@ void necro_compile_impl(
         necro_print_error(&scoped_symtable.error, input_string, "Building Scopes");
         return;
     }
-    necro_symtable_print(&symtable);
-    necro_scoped_symtable_print(&scoped_symtable);
+    if (compilation_phase == NECRO_PHASE_BUILD_SCOPES)
+    {
+        necro_symtable_print(&symtable);
+        necro_scoped_symtable_print(&scoped_symtable);
+    }
     if (compilation_phase == NECRO_PHASE_BUILD_SCOPES)
         return;
 
@@ -139,7 +147,8 @@ void necro_compile_impl(
         necro_print_error(&renamer.error, input_string, "Renaming (Var Pass)");
         return;
     }
-    necro_print_reified_ast(&ast_r, &lexer->intern);
+    if (compilation_phase == NECRO_PHASE_RENAME)
+        necro_print_reified_ast(&ast_r, &lexer->intern);
     puts("");
     if (compilation_phase == NECRO_PHASE_RENAME)
         return;
@@ -174,17 +183,20 @@ void necro_compile_impl(
     //=====================================================
     necro_announce_phase("Typing");
     necro_infer(infer, ast_r.root);
-    necro_symtable_print(&symtable);
-    necro_print_type_classes(infer);
-    necro_print_env_with_symtable(&symtable, infer);
+    if (compilation_phase == NECRO_PHASE_INFER)
+    {
+        necro_symtable_print(&symtable);
+        necro_print_type_classes(infer);
+        necro_print_env_with_symtable(&symtable, infer);
+    }
     *destruct_flags |= BIT(NECRO_PHASE_INFER);
     if (infer->error.return_code != NECRO_SUCCESS)
     {
+        necro_print_reified_ast(&ast_r, &lexer->intern);
         necro_print_error(&infer->error, input_string, "Type");
         return;
     }
 
-    // TODO: Redo this once TypeClass refactor is done
     necro_type_class_translate(infer, ast_r.root);
     if (infer->error.return_code != NECRO_SUCCESS)
     {
@@ -193,7 +205,8 @@ void necro_compile_impl(
         return;
     }
 
-    necro_print_reified_ast(&ast_r, &lexer->intern);
+    if (compilation_phase == NECRO_PHASE_INFER)
+        necro_print_reified_ast(&ast_r, &lexer->intern);
     if (compilation_phase == NECRO_PHASE_INFER)
         return;
 
@@ -218,6 +231,18 @@ void necro_compile_impl(
 
     if (compilation_phase == NECRO_PHASE_TRANSFORM_TO_CORE)
         return;
+
+    //=====================================================
+    // Codegen
+    //=====================================================
+    necro_announce_phase("CodeGen");
+    *codegen = necro_create_codegen(infer, &lexer->intern, &symtable, "necro");
+    // TESTING ONLY!
+    // necro_test_codegen(codegen);
+    necro_codegen(codegen, &ast_core);
+    *destruct_flags |= BIT(NECRO_PHASE_CODEGEN);
+    if (compilation_phase == NECRO_PHASE_CODEGEN)
+        return;
 }
 
 bool validate_destruct_phase(NECRO_PHASE requested_phase, uint32_t destruct_flags)
@@ -229,20 +254,20 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
 {
     uint32_t destruct_flags = 0;
     NecroInfer infer;
-    // NecroTypeClassEnv type_class_env;
     NecroParser parser;
     NecroTransformToCore core_transform;
     NecroLexer lexer;
     NecroAST ast;
+    NecroCodeGen codegen;
 
     necro_compile_impl(
         input_string,
         compilation_phase,
         &infer,
-        // &type_class_env,
         &parser,
         &core_transform,
         &lexer,
+        &codegen,
         &ast,
         &destruct_flags);
 
@@ -251,11 +276,14 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     //=====================================================
 
     necro_announce_phase("Cleaning Up");
+    if (validate_destruct_phase(NECRO_PHASE_CODEGEN, destruct_flags))
+    {
+        necro_destroy_codegen(&codegen);
+    }
 
     if (validate_destruct_phase(NECRO_PHASE_DEPENDENCY_ANALYSIS, destruct_flags))
     {
         necro_destroy_infer(&infer);
-        // necro_destroy_type_class_env(&type_class_env);
     }
 
     if (validate_destruct_phase(NECRO_PHASE_PARSE, destruct_flags))

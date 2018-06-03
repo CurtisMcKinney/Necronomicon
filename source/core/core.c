@@ -498,7 +498,18 @@ NecroCoreAST_Expression* necro_transform_data_constructor(NecroTransformToCore* 
             next_core_arg_data_expr->list.expr = NULL;
             next_core_arg_data_expr->list.next = NULL;
             break;
-
+        case NECRO_AST_CONID:
+            {
+                NecroCoreAST_Expression* next_core_arg = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+                next_core_arg->expr_type               = NECRO_CORE_EXPR_DATA_CON;
+                next_core_arg->data_con.condid         = (NecroVar) { .id = ast_item->conid.id, .symbol = ast_item->conid.symbol };
+                next_core_arg->data_con.arg_list       = NULL;
+                next_core_arg->data_con.next           = NULL;
+                next_core_arg_data_expr->expr_type = NECRO_CORE_EXPR_LIST;
+                next_core_arg_data_expr->list.expr = next_core_arg;
+                next_core_arg_data_expr->list.next = NULL;
+            }
+            break;
         default:
             assert(false && "Unexpected node type when transforming data constructor arg!");
         }
@@ -928,6 +939,10 @@ NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core
 
     case NECRO_AST_CONID:
         return necro_transform_conid(core_transform, necro_ast_node);
+
+    case NECRO_AST_TYPE_SIGNATURE:
+        // NOTE: Nothing to do here
+        return NULL;
 
     default:
         printf("necro_transform_to_core transforming AST type unimplemented!: %d\n", necro_ast_node->type);

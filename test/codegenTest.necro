@@ -1,0 +1,44 @@
+
+intTest :: Int
+intTest = 666
+
+floatTest :: Float
+floatTest = 4.321
+
+rationalTest :: Rational
+rationalTest = 987654321
+
+audioTest :: Audio
+audioTest = 987654321
+
+unitTest :: ()
+unitTest = ()
+
+data Nullary = Nullary
+
+nullaryTest :: Nullary
+nullaryTest = Nullary
+
+data ThereCanBeOnlyOne = ThereCanBeOnlyOne Int
+
+thereCanBeOnlyOneTest :: ThereCanBeOnlyOne
+thereCanBeOnlyOneTest = ThereCanBeOnlyOne 0
+
+data CakeOrDeath = Cake Int | Death () Float
+
+cake :: CakeOrDeath
+cake = Cake 0
+
+death :: CakeOrDeath
+death = Death () 3.3
+
+data Polymorph a = Polymorph a a | Newt
+
+polymorph :: Polymorph Int
+polymorph = Polymorph 0 0
+
+newt :: Polymorph Int
+newt = Newt
+
+testUntilYouDie :: Polymorph ()
+testUntilYouDie = x where x = Newt

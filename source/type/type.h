@@ -14,7 +14,6 @@
 
 // Forward Declarations
 struct NecroType;
-// struct NecroTypeClassEnv;
 struct NecroSymTable;
 struct NecroTypeClassContext;
 struct NecroLifetime;
@@ -63,7 +62,7 @@ typedef enum
     NECRO_TYPE_CON,
     NECRO_TYPE_FUN,
     NECRO_TYPE_LIST,
-    NECRO_TYPE_LIT,
+    // NECRO_TYPE_LIT,
     NECRO_TYPE_FOR,
 } NECRO_TYPE;
 
@@ -142,7 +141,7 @@ typedef struct
 //=====================================================
 // Infer
 //=====================================================
-typedef struct
+typedef struct NecroInfer
 {
     struct NecroSymTable*       symtable;
     struct NecroScopedSymTable* scoped_symtable;
@@ -206,6 +205,7 @@ void        necro_print_type_sig(NecroType* type, NecroIntern* intern);
 void        necro_print_type_sig_go(NecroType* type, NecroIntern* intern);
 char*       necro_snprintf_type_sig(NecroType* type, NecroIntern* intern, char* buffer, const size_t buffer_length);
 const char* necro_id_as_character_string(NecroIntern* infer, NecroVar var);
+NecroSymbol necro_id_as_symbol(NecroIntern* intern, NecroVar var);
 bool        necro_check_and_print_type_error(NecroInfer* infer);
 void        necro_print_type_test_result(const char* test_name, NecroType* type, const char* test_name2, NecroType* type2, NecroIntern* intern);
 void        necro_print_env(NecroInfer* infer);

@@ -40,7 +40,7 @@ typedef struct
     size_t      string_index;
 } NecroInternEntry;
 
-typedef struct
+typedef struct NecroIntern
 {
     CharVector        strings;
     NecroInternEntry* entries;

@@ -1069,15 +1069,15 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
     if (prim_types->llvm_mod != NULL)
         return NECRO_SUCCESS;
 
-    LLVMModuleRef  codegen_mod     = codegen->mod;
-    LLVMBuilderRef codegen_builder = codegen->builder;
+    // LLVMModuleRef  codegen_mod     = codegen->mod;
+    // LLVMBuilderRef codegen_builder = codegen->builder;
 
-    codegen->mod     = LLVMModuleCreateWithNameInContext("NecroPrim", codegen->context);
-    codegen->builder = LLVMCreateBuilderInContext(codegen->context);
+    // codegen->mod     = LLVMModuleCreateWithNameInContext("NecroPrim", codegen->context);
+    // codegen->builder = LLVMCreateBuilderInContext(codegen->context);
 
     // NecroData#
     LLVMTypeRef necro_type_ref = LLVMStructCreateNamed(codegen->context, "_NecroData");
-    LLVMTypeRef necro_elems[2] = { LLVMInt32Type(), LLVMInt32Type() };
+    LLVMTypeRef necro_elems[2] = { LLVMInt32TypeInContext(codegen->context), LLVMInt32TypeInContext(codegen->context) };
     LLVMStructSetBody(necro_type_ref, necro_elems, 2, false);
     necro_symtable_get(codegen->symtable, prim_types->necro_data_type.id)->llvm_type = necro_type_ref;
 
@@ -1094,32 +1094,32 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
     necro_symtable_get(codegen->symtable, prim_types->any_type.id)->llvm_type = any_type_ref;
 
     // Int#
-    necro_symtable_get(codegen->symtable, prim_types->unboxed_int_type.id)->llvm_type = LLVMInt64Type();
+    necro_symtable_get(codegen->symtable, prim_types->unboxed_int_type.id)->llvm_type = LLVMInt64TypeInContext(codegen->context);
 
     // Float#
-    necro_symtable_get(codegen->symtable, prim_types->unboxed_float_type.id)->llvm_type = LLVMDoubleType();
+    necro_symtable_get(codegen->symtable, prim_types->unboxed_float_type.id)->llvm_type = LLVMDoubleTypeInContext(codegen->context);
 
     // Int
     LLVMTypeRef int_type_ref = LLVMStructCreateNamed(codegen->context, "Int");
-    LLVMTypeRef int_elems[2] = { necro_type_ref, LLVMInt64Type() };
+    LLVMTypeRef int_elems[2] = { necro_type_ref, LLVMInt64TypeInContext(codegen->context) };
     LLVMStructSetBody(int_type_ref, int_elems, 2, false);
     necro_symtable_get(codegen->symtable, prim_types->int_type.id)->llvm_type = int_type_ref;
 
     // Float
     LLVMTypeRef float_type_ref = LLVMStructCreateNamed(codegen->context, "Float");
-    LLVMTypeRef float_elems[2] = { necro_type_ref, LLVMDoubleType() };
+    LLVMTypeRef float_elems[2] = { necro_type_ref, LLVMDoubleTypeInContext(codegen->context) };
     LLVMStructSetBody(float_type_ref, float_elems, 2, false);
     necro_symtable_get(codegen->symtable, prim_types->float_type.id)->llvm_type = float_type_ref;
 
     // Rational
     LLVMTypeRef rational_type_ref = LLVMStructCreateNamed(codegen->context, "Rational");
-    LLVMTypeRef rational_elems[3] = { necro_type_ref, LLVMInt64Type(), LLVMInt64Type() };
+    LLVMTypeRef rational_elems[3] = { necro_type_ref, LLVMInt64TypeInContext(codegen->context), LLVMInt64TypeInContext(codegen->context) };
     LLVMStructSetBody(rational_type_ref, rational_elems, 3, false);
     necro_symtable_get(codegen->symtable, prim_types->rational_type.id)->llvm_type = rational_type_ref;
 
     // Audio
     LLVMTypeRef audio_type_ref = LLVMStructCreateNamed(codegen->context, "Audio");
-    LLVMTypeRef audio_elems[2] = { necro_type_ref, LLVMPointerType(LLVMDoubleType(),0) };
+    LLVMTypeRef audio_elems[2] = { necro_type_ref, LLVMPointerType(LLVMDoubleTypeInContext(codegen->context),0) };
     LLVMStructSetBody(audio_type_ref, audio_elems, 2, false);
     necro_symtable_get(codegen->symtable, prim_types->audio_type.id)->llvm_type = audio_type_ref;
 
@@ -1155,8 +1155,8 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
     if (necro_verify_and_dump_codegen(codegen) == NECRO_ERROR)
         return NECRO_ERROR;
 
-    // Clean up and return
-    codegen->mod     = codegen_mod;
-    codegen->builder = codegen_builder;
+    // // Clean up and return
+    // codegen->mod     = codegen_mod;
+    // codegen->builder = codegen_builder;
     return NECRO_SUCCESS;
 }

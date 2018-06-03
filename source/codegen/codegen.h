@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <inttypes.h>
 #include <llvm-c/Core.h>
+#include <llvm-c/Target.h>
 #include <stdio.h>
 #include "utility.h"
 #include "arena.h"
@@ -41,9 +42,11 @@ typedef struct NecroCodeGen
     struct NecroInfer*    infer;
     struct NecroIntern*   intern;
     struct NecroSymTable* symtable;
+    LLVMContextRef        context;
     LLVMModuleRef         mod;
     LLVMBuilderRef        builder;
-    LLVMContextRef        context;
+    LLVMValueRef          necro_alloc;
+    LLVMTargetDataRef     target;
     NecroError            error;
     NecroBlockIndex       current_block;
     void*                 blocks;

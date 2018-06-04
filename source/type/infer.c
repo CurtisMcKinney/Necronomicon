@@ -607,12 +607,13 @@ NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast)
     // Recursive value Delay check
     if (symbol_info->delay_scope != NULL && symbol_info->type_status != NECRO_TYPE_DONE && ast->variable.var_type == NECRO_VAR_VAR)
     {
-        NecroDelayScope* current_delay_scope = ast->delay_scope;
-        NecroDelayScope* symbol_delay_scope  = symbol_info->delay_scope;
-        if (current_delay_scope == symbol_delay_scope)
-            return necro_infer_ast_error(infer, NULL, ast, "%s cannot instantaneously depend on itself.\n Consider adding a delay of some kind, such as: seq {init, %s}",
-                necro_intern_get_string(infer->intern, ast->variable.symbol),
-                necro_intern_get_string(infer->intern, ast->variable.symbol));
+        // TODO: Replace this with a new recursion testing scheme!
+        // NecroDelayScope* current_delay_scope = ast->delay_scope;
+        // NecroDelayScope* symbol_delay_scope  = symbol_info->delay_scope;
+        // if (current_delay_scope == symbol_delay_scope)
+        //     return necro_infer_ast_error(infer, NULL, ast, "%s cannot instantaneously depend on itself.\n Consider adding a delay of some kind, such as: seq {init, %s}",
+        //         necro_intern_get_string(infer->intern, ast->variable.symbol),
+        //         necro_intern_get_string(infer->intern, ast->variable.symbol));
     }
 
     if (symbol_info->type == NULL)

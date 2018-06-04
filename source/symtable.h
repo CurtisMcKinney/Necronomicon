@@ -29,6 +29,7 @@ struct NecroScope;
 struct NecroDelayScope;
 struct NecroTypeClass;
 struct NecroTypeClassInstance;
+struct NecroNodePrototype;
 
 typedef struct
 {
@@ -51,6 +52,7 @@ typedef struct
     struct NecroTypeClassInstance* type_class_instance;
     LLVMValueRef                   llvm_value;
     LLVMTypeRef                    llvm_type;
+    struct NecroNodePrototype*     node_prototype;
 } NecroSymbolInfo;
 
 typedef struct NecroSymTable

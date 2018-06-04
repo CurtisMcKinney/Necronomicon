@@ -44,6 +44,26 @@ static Necro##CAMEL_NAME##List* necro_snoc_##SNAKE_NAME##_list(NecroPagedArena* 
         head->next = cell;                                                                                                                  \
     }                                                                                                                                       \
     return cell;                                                                                                                            \
+}                                                                                                                                           \
+static Necro##CAMEL_NAME##List* necro_reverse_##SNAKE_NAME##_list(NecroPagedArena* arena, Necro##CAMEL_NAME##List* head)                    \
+{                                                                                                                                           \
+    Necro##CAMEL_NAME##List* new_head = NULL;                                                                                               \
+    while (head != NULL)                                                                                                                    \
+    {                                                                                                                                       \
+        new_head = necro_cons_##SNAKE_NAME##_list(arena, head->data, new_head);                                                             \
+        head = head->next;                                                                                                                  \
+    }                                                                                                                                       \
+    return new_head;                                                                                                                        \
+}                                                                                                                                           \
+static size_t necro_count_##SNAKE_NAME##_list(Necro##CAMEL_NAME##List* head)                                                                \
+{                                                                                                                                           \
+    size_t count = 0;                                                                                                                       \
+    while (head != NULL)                                                                                                                    \
+    {                                                                                                                                       \
+        count++;                                                                                                                            \
+        head = head->next;                                                                                                                  \
+    }                                                                                                                                       \
+    return count;                                                                                                                           \
 }
 
 // // testing

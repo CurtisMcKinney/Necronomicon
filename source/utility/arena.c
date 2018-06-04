@@ -174,7 +174,7 @@ void necro_destroy_paged_arena(NecroPagedArena* arena)
 //=====================================================
 // NecroSnapshotArena
 //=====================================================
-#define NECRO_SNAPSHOT_ARENA_INITIAL_SIZE 512
+#define NECRO_SNAPSHOT_ARENA_INITIAL_SIZE 1024
 NecroSnapshotArena necro_create_snapshot_arena()
 {
     return (NecroSnapshotArena)

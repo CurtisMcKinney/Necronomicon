@@ -42,3 +42,8 @@ newt = Newt
 
 testUntilYouDie :: Polymorph ()
 testUntilYouDie = x where x = Newt
+
+data Lopsided = Light () | Heavy Int Int Int Int Int
+
+lopsidedTest :: Lopsided
+lopsidedTest = Light ()

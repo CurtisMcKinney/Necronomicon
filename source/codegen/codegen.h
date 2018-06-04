@@ -39,6 +39,7 @@ typedef struct
 typedef struct NecroCodeGen
 {
     NecroPagedArena       arena;
+    NecroSnapshotArena    snapshot_arena;
     struct NecroInfer*    infer;
     struct NecroIntern*   intern;
     struct NecroSymTable* symtable;

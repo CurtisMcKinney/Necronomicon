@@ -712,18 +712,21 @@ NecroCoreAST_Expression* necro_transform_tuple(NecroTransformToCore* core_transf
 
     NecroCoreAST_Expression* var_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
     var_expr->expr_type = NECRO_CORE_EXPR_VAR;
-    
+
     NecroCoreAST_Expression* app_expr = tuple_app_expr;
     app_expr->app.exprA = var_expr;
     int tuple_count = 0;
+    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // Curtis: Hey, This is throwing a warning about mismatched types! Double check!!!!!!
+    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     NecroAST_ListNode_Reified* tuple_node = &necro_ast_node->tuple.expressions->list;
-    
+
     while (tuple_node)
     {
         app_expr->app.exprB = necro_transform_to_core_impl(core_transform, tuple_node->item);
         tuple_node = tuple_node->next_item;
         ++tuple_count;
-        
+
         if (tuple_node)
         {
             NecroCoreAST_Expression* prev_app_expr = app_expr;
@@ -732,7 +735,7 @@ NecroCoreAST_Expression* necro_transform_tuple(NecroTransformToCore* core_transf
             app_expr->app.exprA = prev_app_expr;
         }
     }
-    
+
     assert(tuple_count > 1 && "[necro_transform_tuple] unhandled size of tuple!");
     assert(tuple_node == NULL);
 

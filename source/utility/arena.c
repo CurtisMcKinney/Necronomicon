@@ -18,8 +18,6 @@
 #define TRACE_ARENA(...)
 #endif
 
-
-
 NecroArena construct_arena(size_t capacity)
 {
     NecroArena arena;
@@ -37,7 +35,7 @@ NecroArena construct_arena(size_t capacity)
     arena.size = 0;
 
 #ifdef ARENA_DEBUG_PRINT
-    printf("construct_arena { region %p, size: %llu, capacity: %llu }\n", arena.region, arena.size, arena.capacity);
+    printf("construct_arena { region %p, size: %d, capacity: %d }\n", arena.region, arena.size, arena.capacity);
 #endif // ARENA_DEBUG_PRINT
     return arena;
 }
@@ -57,14 +55,14 @@ void destruct_arena(NecroArena* arena)
 void* arena_alloc(NecroArena* arena, size_t size, arena_alloc_policy alloc_policy)
 {
 #ifdef ARENA_DEBUG_PRINT
-    printf("arena_alloc %p { region %p, size: %llu, capacity: %llu }, requested size: %llu\n", arena, arena->region, arena->size, arena->capacity, size);
+    printf("arena_alloc %p { region %p, size: %d, capacity: %d }, requested size: %d\n", arena, arena->region, arena->size, arena->capacity, size);
 #endif // ARENA_DEBUG_PRINT
     bool canFit = arena->capacity > (arena->size + size);
     if (!canFit && (alloc_policy == arena_allow_realloc))
     {
         size_t new_capacity = MAX(arena->capacity * 2, arena->capacity + size);
 #ifdef ARENA_DEBUG_PRINT
-        printf("arena_alloc %p { new_capacity: %llu }\n", arena, new_capacity);
+        printf("arena_alloc %p { new_capacity: %d }\n", arena, new_capacity);
 #endif // ARENA_DEBUG_PRINT
         char* new_region = (arena->region != NULL) ? (char*) realloc(arena->region, new_capacity) : (char*) malloc(new_capacity);
         if (new_region == NULL)
@@ -138,7 +136,7 @@ void* necro_paged_arena_alloc(NecroPagedArena* arena, size_t size)
         NecroArenaPage* page = malloc(sizeof(NecroArenaPage) + arena->size);
         if (page == NULL)
         {
-            fprintf(stderr, "Allocation error: could not allocate %zu of memory for NecroPagedArena", sizeof(NecroArenaPage) + arena->size);
+            fprintf(stderr, "Allocation error: could not allocate %d of memory for NecroPagedArena", sizeof(NecroArenaPage) + arena->size);
             exit(1);
         }
         page->next   = arena->pages;
@@ -146,6 +144,7 @@ void* necro_paged_arena_alloc(NecroPagedArena* arena, size_t size)
         arena->data  = (char*)(page + 1);
         arena->count = 0;
     }
+    // TRACE_ARENA("paged_arena_alloc { data %p, count: %d, size: %d }, requested bytes: %d\n", arena->data, arena->count, arena->size, size);
     char* data = arena->data + arena->count;
     assert(data != NULL);
     arena->count += size;
@@ -155,6 +154,7 @@ void* necro_paged_arena_alloc(NecroPagedArena* arena, size_t size)
 
 void necro_destroy_paged_arena(NecroPagedArena* arena)
 {
+    assert(arena != NULL);
     if (arena == NULL || arena->pages == NULL)
         return;
     NecroArenaPage* current_page = arena->pages;
@@ -169,4 +169,74 @@ void necro_destroy_paged_arena(NecroPagedArena* arena)
     arena->data  = NULL;
     arena->size  = 0;
     arena->count = 0;
+}
+
+//=====================================================
+// NecroSnapshotArena
+//=====================================================
+#define NECRO_SNAPSHOT_ARENA_INITIAL_SIZE 512
+NecroSnapshotArena necro_create_snapshot_arena()
+{
+    return (NecroSnapshotArena)
+    {
+        .data  = malloc(NECRO_SNAPSHOT_ARENA_INITIAL_SIZE),
+        .size  = NECRO_SNAPSHOT_ARENA_INITIAL_SIZE,
+        .count = 0
+    };
+}
+
+void necro_destroy_snapshot_arena(NecroSnapshotArena* arena)
+{
+    assert(arena != NULL);
+    if (arena->data == NULL)
+        return;
+    free(arena->data);
+    arena->data  = NULL;
+    arena->count = 0;
+    arena->size  = 0;
+}
+
+void* necro_snapshot_arena_alloc(NecroSnapshotArena* arena, size_t bytes)
+{
+    assert(arena != NULL);
+    assert(arena->data != NULL);
+    if (arena->count + bytes >= arena->size)
+    {
+        size_t new_size = arena->size * 2;
+        char*  new_data = (char*)realloc(arena->data, new_size);
+        if (new_data == NULL)
+        {
+            if (arena->data != NULL)
+                free(arena->data);
+            assert(false && "Failed to allocate in necro_snapshot_arena_alloc");
+            return NULL;
+        }
+        arena->data = new_data;
+        arena->size = new_size;
+    }
+    char* allocated_data = arena->data + arena->count;
+    arena->count += bytes;
+    assert(arena->data != NULL);
+    assert(arena->count < arena->size);
+    assert(arena->count >= 0);
+    // printf("alloc  arena count: %d\n", arena->count);
+    return allocated_data;
+}
+
+NecroArenaSnapshot necro_get_arena_snapshot(NecroSnapshotArena* arena)
+{
+    assert(arena != NULL);
+    assert(arena->data != NULL);
+    assert(arena->count < arena->size);
+    assert(arena->count >= 0);
+    return (NecroArenaSnapshot) { .count = arena->count };
+}
+
+void necro_rewind_arena(NecroSnapshotArena* arena, NecroArenaSnapshot snapshot)
+{
+    arena->count = snapshot.count;
+    assert(arena->data != NULL);
+    assert(arena->count < arena->size);
+    assert(arena->count >= 0);
+    // printf("rewind arena count: %d\n", arena->count);
 }

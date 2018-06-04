@@ -699,6 +699,89 @@ NecroCoreAST_Expression* necro_transform_expression_list(NecroTransformToCore* c
     return core_expr;
 }
 
+NecroCoreAST_Expression* necro_transform_tuple(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
+{
+    assert(core_transform);
+    assert(necro_ast_node);
+    assert(necro_ast_node->type == NECRO_AST_TUPLE);
+    if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
+        return NULL;
+
+    NecroCoreAST_Expression* tuple_app_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+    tuple_app_expr->expr_type = NECRO_CORE_EXPR_APP;
+
+    NecroCoreAST_Expression* var_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+    var_expr->expr_type = NECRO_CORE_EXPR_VAR;
+    
+    NecroCoreAST_Expression* app_expr = tuple_app_expr;
+    app_expr->app.exprA = var_expr;
+    int tuple_count = 0;
+    NecroAST_ListNode_Reified* tuple_node = &necro_ast_node->tuple.expressions->list;
+    
+    while (tuple_node)
+    {
+        app_expr->app.exprB = necro_transform_to_core_impl(core_transform, tuple_node->item);
+        tuple_node = tuple_node->next_item;
+        ++tuple_count;
+        
+        if (tuple_node)
+        {
+            NecroCoreAST_Expression* prev_app_expr = app_expr;
+            app_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+            app_expr->expr_type = NECRO_CORE_EXPR_APP;
+            app_expr->app.exprA = prev_app_expr;
+        }
+    }
+    
+    assert(tuple_count > 1 && "[necro_transform_tuple] unhandled size of tuple!");
+    assert(tuple_node == NULL);
+
+    switch (tuple_count)
+    {
+    case 2:
+        var_expr->var.symbol = core_transform->prim_types->tuple_types.two.symbol;
+        var_expr->var.id = core_transform->prim_types->tuple_types.two.id;
+        break;
+    case 3:
+        var_expr->var.symbol = core_transform->prim_types->tuple_types.three.symbol;
+        var_expr->var.id = core_transform->prim_types->tuple_types.three.id;
+        break;
+    case 4:
+        var_expr->var.symbol = core_transform->prim_types->tuple_types.four.symbol;
+        var_expr->var.id = core_transform->prim_types->tuple_types.four.id;
+        break;
+    case 5:
+        var_expr->var.symbol = core_transform->prim_types->tuple_types.five.symbol;
+        var_expr->var.id = core_transform->prim_types->tuple_types.five.id;
+        break;
+    case 6:
+        var_expr->var.symbol = core_transform->prim_types->tuple_types.six.symbol;
+        var_expr->var.id = core_transform->prim_types->tuple_types.six.id;
+        break;
+    case 7:
+        var_expr->var.symbol = core_transform->prim_types->tuple_types.seven.symbol;
+        var_expr->var.id = core_transform->prim_types->tuple_types.seven.id;
+        break;
+    case 8:
+        var_expr->var.symbol = core_transform->prim_types->tuple_types.eight.symbol;
+        var_expr->var.id = core_transform->prim_types->tuple_types.eight.id;
+        break;
+    case 9:
+        var_expr->var.symbol = core_transform->prim_types->tuple_types.nine.symbol;
+        var_expr->var.id = core_transform->prim_types->tuple_types.nine.id;
+        break;
+    case 10:
+        var_expr->var.symbol = core_transform->prim_types->tuple_types.ten.symbol;
+        var_expr->var.id = core_transform->prim_types->tuple_types.ten.id;
+        break;
+    default:
+        assert(false && "[necro_transform_tuple] unhandled size of tuple!");
+       break;
+    }
+
+    return app_expr;
+}
+
 NecroCoreAST_Expression* necro_transform_case(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
 {
     assert(core_transform);
@@ -838,6 +921,9 @@ NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core
 
     case NECRO_AST_EXPRESSION_LIST:
         return necro_transform_expression_list(core_transform, necro_ast_node);
+
+    case NECRO_AST_TUPLE:
+        return necro_transform_tuple(core_transform, necro_ast_node);
 
     case NECRO_AST_CASE:
         return necro_transform_case(core_transform, necro_ast_node);

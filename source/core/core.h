@@ -6,8 +6,9 @@
 #include <stdio.h>
 
 #include "ast.h"
-#include "parser.h"
 #include "infer.h"
+#include "parser.h"
+#include "prim.h"
 
 #if 0
 //////////////////////
@@ -192,12 +193,12 @@ typedef struct NecroCoreAST
 
 typedef struct
 {
-    char* error_message;
     NecroCoreAST* core_ast;
     NecroAST_Reified* necro_ast;
-    NecroError error;
     NecroIntern* intern;
+    NecroPrimTypes* prim_types;
     NecroParse_CoreTransformState transform_state;
+    NecroError error;
 } NecroTransformToCore;
 
 void necro_transform_to_core(NecroTransformToCore* core_transform);
@@ -207,21 +208,21 @@ static inline void necro_construct_core_transform(
     NecroTransformToCore* core_transform,
     NecroCoreAST* core_ast,
     NecroAST_Reified* necro_ast,
-    NecroIntern* intern)
+    NecroIntern* intern,
+    NecroPrimTypes* prim_types)
 {
-    core_transform->error_message = malloc(MAX_ERROR_MESSAGE_SIZE * sizeof(char));
-    core_transform->error_message[0] = '\0';
+    core_transform->error.error_message[0] = '\0';
+    core_transform->error.return_code = NECRO_SUCCESS;
     core_transform->core_ast = core_ast;
     core_transform->core_ast->arena = necro_create_paged_arena();
     core_transform->necro_ast = necro_ast;
     core_transform->intern = intern;
+    core_transform->prim_types = prim_types;
     core_transform->transform_state = NECRO_CORE_TRANSFORMING;
 }
 
 static inline void necro_destruct_core_transform(NecroTransformToCore* core_transform)
 {
-    free(core_transform->error_message);
-    core_transform->error_message = NULL;
     necro_destroy_paged_arena(&core_transform->core_ast->arena);
     core_transform->core_ast = NULL;
     core_transform->necro_ast = NULL;

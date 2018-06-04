@@ -74,8 +74,8 @@ patternLambda = \(Page p) -> p
 patternFunc :: Tome a -> a
 patternFunc (Page p) = p
 
-teaFunc :: Tree Int -> Int
-teaFunc (Node (Node _ a _) b (Node _ c _)) = a + b - c
+--firstTuple = a where (a, b) = (1, 2)
+-- (a, b) = (1, 2)
 
 teaLeaves :: Tree Int -> Int
 teaLeaves t = case t of
@@ -83,7 +83,7 @@ teaLeaves t = case t of
                   Node (Node _ a _) b (Node _ c _) -> a + b - c
 
 plusMinus :: Float
-plusMinus = 1 + 2 - 3
+plusMinus = 1 / 2 - 3 * 4 + 5
 
 plusMinusN :: Num a => a
 plusMinusN = 1 + 2 - 3
@@ -99,3 +99,22 @@ patTest :: Pattern Audio
 patTest = 0 + 1 / 3.1
 
 --octopus = "Octopus"
+
+tuple :: (Int, Int)
+tuple = (1, 2)
+
+tuple3 :: (Int, Int, Int)
+tuple3 = (1, 2, 3)
+
+tuple4 :: (Int, Int, Int, Int)
+tuple4 = (1, 2, 3, 4)
+
+tuplesAllTheWayDown :: ((((Int, Int), Int, Int, Int), Int), Int, (Int, ((Int, Int, Int), Int), Int), Int)
+tuplesAllTheWayDown = ((((1, 2), 3, 4, 5), 6), 7, (8, ((9, 10, 11), 12), 13), 14)
+
+--curryTuple = (,) $ 1
+
+apply f a = f a 
+
+
+

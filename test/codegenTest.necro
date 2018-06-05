@@ -9,6 +9,48 @@
 -- nested = f 0 + f 1 where
 --     f x = x + 2
 
+-- -- TODO: Support anonymous functions!
+-- lambdaTest :: Int
+-- lambdaTest = (\x -> x) 1
+
+-- funTest :: Int -> Int
+-- funTest x = x + y where
+--     y = 2 * 3
+
+-- funTest2 :: Int -> Int -> Int
+-- funTest2 x y = x + y + z + w where
+--     z = 4
+--     w = z + x + y
+--
+-- -- TODO: App Temps
+-- -- TODO: Stateless optimization...how!?
+-- -- Only need app temp if:
+-- --     * The function applied carries state or
+-- --     * The function or one of its members carries state
+-- --     * The function is arrived at indirectly through a branch or modulating variable of somesort
+-- --     * The function returns another function
+-- appTest :: Nullary
+-- appTest = id (id (id Nullary))
+--
+-- -- TODO: App type to LLVM type
+-- id :: a -> a
+-- id x = x
+
+-- TODO: Finish!
+data Nullary = Nullary
+doubleID :: a -> b -> a
+doubleID x y = x
+
+doubleTest :: Int
+doubleTest = doubleID 0 Nullary
+
+-- numTest :: Num a => a -> a -> a
+-- numTest x y = x + y
+
+-- data Doom a = Doom a Int
+-- appliedDoom :: () -> Int -> Doom ()
+-- appliedDoom x i = Doom x i
+
 -- selfRec :: Int
 -- selfRec = y + selfRec where
 --     y = 3
@@ -27,12 +69,26 @@
 --         u = 5
 --         v = 6 + a
 
--- TODO: TEMP NODES!!!!!
-data Doom a = Doom a Int
-doomsday :: Doom (Doom Int)
-doomsday = Doom (Doom left right) 0 where
-    left  = 1
-    right = 2
+-- -- TODO: TEMP NODES!!!!!
+-- data Doom a = Doom a Int
+-- doomsday :: Doom (Doom Int)
+-- doomsday = Doom (Doom left right) 0 where
+--     left  = 1
+--     right = 2
+
+-- -- TODO: TEMP NODES!!!!!
+-- -- If all owned nodes are cached at the very top level node
+-- -- Then it is simple to capture variables, even for functions!?
+-- doomsday :: Int
+-- doomsday = x + y + z + doomsday where
+--     x = 1 + 3
+--     y = 2 + x + w where w = 4
+--     z = 3 + y
+
+-- anotherFloat :: Float
+-- anotherFloat = l + r / 3 where
+--     l = 4
+--     r = 5
 
 -- -- Init function needs to be passed all captured variable node
 -- -- AND all captured variable node for each owned node

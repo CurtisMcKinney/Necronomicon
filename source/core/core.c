@@ -317,6 +317,7 @@ NecroCoreAST_Expression* necro_transform_right_hand_side(NecroTransformToCore* c
             NecroDeclarationGroup* group = group_list->declaration_group;
             assert(group);
             assert(group->declaration_ast->type == NECRO_AST_SIMPLE_ASSIGNMENT);
+            // NOTE - Curtis: Why ^^^? Kicking the can on nested functions!?!?!?
             NecroAST_SimpleAssignment_Reified* simple_assignment = &group->declaration_ast->simple_assignment;
             NecroCoreAST_Expression* let_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
             let_expr->expr_type = NECRO_CORE_EXPR_LET;
@@ -949,7 +950,7 @@ NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core
 
     default:
         printf("necro_transform_to_core transforming AST type unimplemented!: %d\n", necro_ast_node->type);
-        assert(false);
+        assert(false && "necro_transform_to_core transforming AST type unimplemented!\n");
         break;
     }
 

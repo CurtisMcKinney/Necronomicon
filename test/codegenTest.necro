@@ -1,12 +1,47 @@
-soManyInsaneBinds :: Int
-soManyInsaneBinds = a * x + y where
-    a = 33
-    x = z + w where
-        z = 4 + w
-        w = 3
-    y = u + v where
-        u = 5
-        v = 6
+-- -- TODO: Mututally recursive bindings are not functioning in core!?!?
+-- mutualRec :: Int
+-- mutualRec = death where
+--     death = toAll + 1
+--     toAll = death + 1
+
+-- -- TODO: Nested functions don't work in core!?!?!
+-- nested :: Int
+-- nested = f 0 + f 1 where
+--     f x = x + 2
+
+-- selfRec :: Int
+-- selfRec = y + selfRec where
+--     y = 3
+
+-- deadSimple :: Int
+-- deadSimple = onlyOne where
+--     onlyOne = 1
+
+-- soManyInsaneBinds :: Int
+-- soManyInsaneBinds = a * x + y - soManyInsaneBinds where
+--     a = 33
+--     x = z + w where
+--         z = 4 + w
+--         w = 3
+--     y = u + v + x where
+--         u = 5
+--         v = 6 + a
+
+-- TODO: TEMP NODES!!!!!
+data Doom a = Doom a Int
+doomsday :: Doom (Doom Int)
+doomsday = Doom (Doom left right) 0 where
+    left  = 1
+    right = 2
+
+-- -- Init function needs to be passed all captured variable node
+-- -- AND all captured variable node for each owned node
+-- -- If we inline all owned node instances perhaps we can obviate the need for captured variables in values (but not functions)
+-- twoLevelsDown :: Int
+-- twoLevelsDown = levelOne where
+--     levelOne = levelTwo where
+--         levelTwo = levelThree where
+--             levelThree = levelOne + levelTwo
 
 -- floatTest :: Float
 -- floatTest = 4.321

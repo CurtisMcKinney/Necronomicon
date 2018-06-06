@@ -368,6 +368,8 @@ NecroType* necro_infer_simple_assignment(NecroInfer* infer, NecroNode* ast)
     if (necro_is_infer_error(infer)) return NULL;
     NecroType* proxy_type = infer->symtable->data[ast->simple_assignment.id.id].type;
     NecroType* rhs_type   = necro_infer_go(infer, ast->simple_assignment.rhs);
+    if (ast->simple_assignment.declaration_group != NULL && ast->simple_assignment.declaration_group->next != NULL)
+        ast->simple_assignment.is_recursive = true;
     if (infer->error.return_code != NECRO_SUCCESS) return NULL;
     necro_unify(infer, proxy_type, rhs_type, ast->scope, proxy_type, "While inferring the type of an assignment: ");
     return NULL;

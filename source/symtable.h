@@ -47,12 +47,12 @@ typedef struct
     NecroType*                     type;
     NECRO_TYPE_STATUS              type_status;
     struct NecroTypeClass*         method_type_class;
-    bool                           is_constructor;
     struct NecroTypeClass*         type_class;
     struct NecroTypeClassInstance* type_class_instance;
     LLVMValueRef                   llvm_value;
     LLVMTypeRef                    llvm_type;
     struct NecroNodePrototype*     node_prototype;
+    bool                           is_constructor;
 } NecroSymbolInfo;
 
 typedef struct NecroSymTable

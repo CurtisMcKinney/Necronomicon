@@ -57,13 +57,13 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
         .optional_type_signature = NULL,
         .type                    = NULL,
         .type_status             = NECRO_TYPE_UNCHECKED,
-        .is_constructor          = false,
         .method_type_class       = NULL,
         .type_class              = NULL,
         .type_class_instance     = NULL,
         .llvm_value              = NULL,
         .llvm_type               = NULL,
         .node_prototype          = NULL,
+        .is_constructor          = false,
     };
 }
 

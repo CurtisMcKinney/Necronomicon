@@ -597,6 +597,7 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
         reified_node->simple_assignment.rhs               = necro_reify(a_ast, node->simple_assignment.rhs, arena, intern);
         reified_node->simple_assignment.variable_name     = node->simple_assignment.variable_name;
         reified_node->simple_assignment.declaration_group = NULL;
+        reified_node->simple_assignment.is_recursive      = false;
         break;
     case NECRO_AST_APATS_ASSIGNMENT:
         reified_node->apats_assignment.variable_name     = node->apats_assignment.variable_name;
@@ -965,6 +966,7 @@ NecroASTNode* necro_create_simple_assignment(NecroPagedArena* arena, NecroIntern
     ast->simple_assignment.variable_name     = necro_intern_string(intern, var_name);
     ast->simple_assignment.rhs               = rhs_ast;
     ast->simple_assignment.declaration_group = NULL;
+    ast->simple_assignment.is_recursive      = false;
     return ast;
 }
 

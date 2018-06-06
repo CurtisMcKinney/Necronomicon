@@ -67,6 +67,7 @@ typedef struct NecroCoreAST_Bind
 {
     NecroVar var;
     struct NecroCoreAST_Expression* expr;
+    bool                            is_recursive;
 } NecroCoreAST_Bind;
 
 typedef struct NecroCoreAST_Application

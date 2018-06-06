@@ -13,6 +13,14 @@
 -- lambdaTest :: Int
 -- lambdaTest = (\x -> x) 1
 
+-- Require delay node for state
+-- ...But how to enforce!??!?!
+intTest :: Int
+intTest = 0 + x * y where
+    y = y
+    x = w -- How to handle state across mutual recursion?!?!?!?
+    w = x
+
 -- funTest :: Int -> Int
 -- funTest x = x + y where
 --     y = 2 * 3
@@ -36,13 +44,13 @@
 -- id :: a -> a
 -- id x = x
 
--- TODO: Finish!
-data Nullary = Nullary
-doubleID :: a -> b -> a
-doubleID x y = x
+-- -- TODO: Finish!
+-- data Nullary = Nullary
+-- doubleID :: a -> b -> a
+-- doubleID x y = x
 
-doubleTest :: Int
-doubleTest = doubleID 0 Nullary
+-- doubleTest :: Int
+-- doubleTest = doubleID 0 Nullary
 
 -- numTest :: Num a => a -> a -> a
 -- numTest x y = x + y

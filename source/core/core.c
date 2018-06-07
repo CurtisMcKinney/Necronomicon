@@ -195,6 +195,7 @@ NecroCoreAST_Expression* necro_transform_bin_op(NecroTransformToCore* core_trans
 
     NecroCoreAST_Expression* inner_core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
     inner_core_expr->expr_type = NECRO_CORE_EXPR_APP;
+    inner_core_expr->app.persistent_slot = 0; // Curtis: Metadata for codegen (would really prefer a constructor...)
     NecroCoreAST_Application* inner_core_app = &inner_core_expr->app;
 
     NecroCoreAST_Expression* var_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
@@ -207,6 +208,7 @@ NecroCoreAST_Expression* necro_transform_bin_op(NecroTransformToCore* core_trans
 
     NecroCoreAST_Expression* outer_core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
     outer_core_expr->expr_type = NECRO_CORE_EXPR_APP;
+    outer_core_expr->app.persistent_slot = 0; // Curtis: Metadata for codegen (would really prefer a constructor...)
     NecroCoreAST_Application* outer_core_app = &outer_core_expr->app;
     outer_core_app->exprA = inner_core_expr;
     outer_core_app->exprB = necro_transform_to_core_impl(core_transform, bin_op->rhs);
@@ -429,6 +431,7 @@ NecroCoreAST_Expression* necro_transform_function_expression(NecroTransformToCor
     core_expr->expr_type = NECRO_CORE_EXPR_APP;
     core_expr->app.exprA = necro_transform_to_core_impl(core_transform, necro_ast_node->fexpression.aexp);
     core_expr->app.exprB = necro_transform_to_core_impl(core_transform, necro_ast_node->fexpression.next_fexpression);
+    core_expr->app.persistent_slot = 0; // Curtis: Metadata for codegen (would really prefer a constructor...)
     return core_expr;
 }
 
@@ -494,6 +497,7 @@ NecroCoreAST_Expression* necro_transform_data_constructor(NecroTransformToCore* 
                 next_core_arg->expr_type = NECRO_CORE_EXPR_APP;
                 next_core_arg->app.exprA = necro_transform_to_core_impl(core_transform, type_app->ty);
                 next_core_arg->app.exprB = necro_transform_to_core_impl(core_transform, type_app->next_ty);
+                next_core_arg->app.persistent_slot = 0; // Curtis: Metadata for codegen (would really prefer a constructor...)
                 next_core_arg_data_expr->expr_type = NECRO_CORE_EXPR_LIST;
                 next_core_arg_data_expr->list.expr = next_core_arg;
                 next_core_arg_data_expr->list.next = NULL;
@@ -728,6 +732,7 @@ NecroCoreAST_Expression* necro_transform_tuple(NecroTransformToCore* core_transf
 
     NecroCoreAST_Expression* tuple_app_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
     tuple_app_expr->expr_type = NECRO_CORE_EXPR_APP;
+    tuple_app_expr->app.persistent_slot = 0; // Curtis: Metadata for codegen (would really prefer a constructor...)
 
     NecroCoreAST_Expression* var_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
     var_expr->expr_type = NECRO_CORE_EXPR_VAR;
@@ -752,6 +757,7 @@ NecroCoreAST_Expression* necro_transform_tuple(NecroTransformToCore* core_transf
             app_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
             app_expr->expr_type = NECRO_CORE_EXPR_APP;
             app_expr->app.exprA = prev_app_expr;
+            app_expr->app.persistent_slot = 0; // Curtis: Metadata for codegen (would really prefer a constructor...)
         }
     }
 

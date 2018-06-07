@@ -3,6 +3,9 @@
  * Proprietary and confidential
  */
 
+#ifndef CORE_H
+#define CORE_H 1
+
 #include <stdio.h>
 
 #include "ast.h"
@@ -67,13 +70,14 @@ typedef struct NecroCoreAST_Bind
 {
     NecroVar var;
     struct NecroCoreAST_Expression* expr;
-    bool                            is_recursive;
+    bool                            is_recursive; // Curtis: Metadata for codegen
 } NecroCoreAST_Bind;
 
 typedef struct NecroCoreAST_Application
 {
     struct NecroCoreAST_Expression* exprA;
     struct NecroCoreAST_Expression* exprB;
+    uint32_t                        persistent_slot; // Curtis: Metadata for codegen
 } NecroCoreAST_Application;
 
 typedef struct NecroCoreAST_Lambda
@@ -230,3 +234,5 @@ static inline void necro_destruct_core_transform(NecroTransformToCore* core_tran
     core_transform->intern = NULL;
     core_transform->transform_state = NECRO_CORE_TRANSFORM_DONE;
 }
+
+#endif // CORE_H

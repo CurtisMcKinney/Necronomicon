@@ -52,6 +52,7 @@ typedef struct
     LLVMValueRef                   llvm_value;
     LLVMTypeRef                    llvm_type;
     struct NecroNodePrototype*     node_prototype;
+    uint32_t                       persistent_slot; // 0 indicates no persistence
     bool                           is_constructor;
 } NecroSymbolInfo;
 

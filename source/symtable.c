@@ -63,6 +63,7 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
         .llvm_value              = NULL,
         .llvm_type               = NULL,
         .node_prototype          = NULL,
+        .persistent_slot         = 0,
         .is_constructor          = false,
     };
 }

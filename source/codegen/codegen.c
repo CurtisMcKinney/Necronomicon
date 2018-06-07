@@ -7,7 +7,6 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <llvm-c/Analysis.h>
-#include "core/core.h"
 #include "symtable.h"
 
 // things to reference:
@@ -697,12 +696,11 @@ void necro_calculate_persistent_vars(NecroCodeGen* codegen, NecroNodePrototype* 
         {
             NecroPersistentVar persistent_var = (NecroPersistentVar) { .prototype = local_prototype, .slot = prototype->slot_count };
             prototype->persistent_vars = necro_cons_persistent_var_list(&codegen->arena, persistent_var, prototype->persistent_vars);
+            necro_symtable_get(codegen->symtable, local_vars->data.id)->persistent_slot = prototype->slot_count + 2;
             prototype->slot_count++;
         }
         local_vars = local_vars->next;
     }
-    // if (prototype->persistent_vars != NULL)
-    //     puts("");
     // Iterate through function calls as well
     NecroCallList* calls = prototype->called_functions;
     while (calls != NULL)
@@ -714,7 +712,9 @@ void necro_calculate_persistent_vars(NecroCodeGen* codegen, NecroNodePrototype* 
             NecroPersistentVar persistent_var = (NecroPersistentVar) { .prototype = call_prototype, .slot = prototype->slot_count };
             prototype->persistent_vars = necro_cons_persistent_var_list(&codegen->arena, persistent_var, prototype->persistent_vars);
             calls->data.is_persistent  = true;
-            calls->data.slot           = prototype->slot_count;
+            calls->data.slot           = prototype->slot_count + 2;
+            necro_symtable_get(codegen->symtable, calls->data.var.id)->persistent_slot = 1; // This is not the ACTUAL slot used for function calls, which are instanced at each call site
+            calls->data.app->persistent_slot = prototype->slot_count + 2;
             prototype->slot_count++;
         }
         else
@@ -936,7 +936,8 @@ void necro_calculate_node_prototype_app(NecroCodeGen* codegen, NecroCoreAST_Expr
     {
         .var           = function->var,
         .is_persistent = false,
-        .slot          = 0
+        .slot          = 0,
+        .app           = &ast->app
     };
     outer_node->called_functions = necro_cons_call_list(&codegen->arena, call, outer_node->called_functions);
 }
@@ -983,9 +984,9 @@ LLVMValueRef necro_calculate_node_call_bind(NecroCodeGen* codegen, NecroCoreAST_
     NecroArenaSnapshot  snapshot       = necro_get_arena_snapshot(&codegen->snapshot_arena);
     NecroNodePrototype* node_prototype = necro_symtable_get(codegen->symtable, ast->bind.var.id)->node_prototype;
     assert(node_prototype != NULL);
-
-    if (node_prototype->outer != NULL)
-        return necro_calculate_node_call(codegen, ast->bind.expr);
+    assert(node_prototype->outer == NULL);
+    // if (node_prototype->outer != NULL)
+    //     return necro_calculate_node_call(codegen, ast->bind.expr);
     const char*  call_name = necro_concat_strings(&codegen->snapshot_arena, 2, (const char*[]){ "_call", necro_intern_get_string(codegen->intern, ast->bind.var.symbol) });
     LLVMValueRef call_fn   = NULL;
     // TODO: Better way to distinguish function from value!
@@ -997,26 +998,41 @@ LLVMValueRef necro_calculate_node_call_bind(NecroCodeGen* codegen, NecroCoreAST_
             call_fn = necro_snapshot_add_function(codegen, call_name, LLVMPointerType(node_prototype->node_value_type, 0), args, 1);
             LLVMBasicBlockRef entry = LLVMAppendBasicBlock(call_fn, "entry");
             LLVMPositionBuilderAtEnd(codegen->builder, entry);
-            LLVMValueRef result    = necro_calculate_node_call(codegen, ast->bind.expr);
-            LLVMValueRef value_ptr = necro_snapshot_gep(codegen, "value_ptr", LLVMGetParam(call_fn, 0), 2, (uint32_t[]) { 0, 1 });
-            LLVMBuildStore(codegen->builder, result, value_ptr);
+
+            // TODO: Move captured variable parameters into mk_ function, not init_ function!
+            LLVMValueRef      tag_ptr    = necro_snapshot_gep(codegen, "tag_ptr", LLVMGetParam(call_fn, 0), 3, (uint32_t[]) { 0, 0, 1 });
+            LLVMValueRef      tag_value  = LLVMBuildLoad(codegen->builder, tag_ptr, "tag_value");
+            LLVMValueRef      needs_init = LLVMBuildICmp(codegen->builder, LLVMIntEQ, LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 0, false), tag_value, "needs_init");
+            LLVMBasicBlockRef init_block = LLVMAppendBasicBlock(call_fn, "init_node");
+            LLVMBasicBlockRef cont_block = LLVMAppendBasicBlock(call_fn, "cont_block");
+            LLVMBuildCondBr(codegen->builder, needs_init, init_block, cont_block);
+            LLVMPositionBuilderAtEnd(codegen->builder, init_block);
+            LLVMBuildCall(codegen->builder, node_prototype->init_function, (LLVMValueRef[]) { LLVMGetParam(call_fn, 0) }, 1, "");
+            LLVMBuildBr(codegen->builder, cont_block);
+            LLVMPositionBuilderAtEnd(codegen->builder, cont_block);
+
+            node_prototype->call_function = call_fn;
+            LLVMValueRef result       = necro_calculate_node_call(codegen, ast->bind.expr);
+            LLVMValueRef top_node_ptr = necro_snapshot_gep(codegen, "top_node_ptr", LLVMGetParam(call_fn, 0), 2, (uint32_t[]) { 0, 1 });
+            LLVMBuildStore(codegen->builder, result, top_node_ptr);
             LLVMBuildRet(codegen->builder, result);
         }
         else
         {
             // LLVMTypeRef        args[0]   = { };
             call_fn = necro_snapshot_add_function(codegen, call_name, LLVMPointerType(node_prototype->node_value_type, 0), NULL, 0);
+            node_prototype->call_function = call_fn;
             LLVMBasicBlockRef entry = LLVMAppendBasicBlock(call_fn, "entry");
             LLVMPositionBuilderAtEnd(codegen->builder, entry);
             LLVMValueRef result = necro_calculate_node_call(codegen, ast->bind.expr);
             LLVMBuildRet(codegen->builder, result);
-            return call_fn;
         }
     }
     else
     {
         // LLVMTypeRef        args[0]   = { };
         call_fn = necro_snapshot_add_function(codegen, call_name, LLVMPointerType(node_prototype->node_value_type, 0), NULL, 0);
+        node_prototype->call_function = call_fn;
         LLVMBasicBlockRef entry = LLVMAppendBasicBlock(call_fn, "entry");
         LLVMPositionBuilderAtEnd(codegen->builder, entry);
         necro_calculate_node_call(codegen, ast->bind.expr);
@@ -1035,24 +1051,33 @@ LLVMValueRef necro_calculate_node_call_let(NecroCodeGen* codegen, NecroCoreAST_E
     assert(ast->expr_type == NECRO_CORE_EXPR_LET);
     assert(ast->let.bind != NULL);
     assert(ast->let.bind->expr_type == NECRO_CORE_EXPR_BIND);
-    LLVMValueRef        bind_result    = necro_calculate_node_call_bind(codegen, ast->let.bind);
-    NecroNodePrototype* bind_prototype = necro_symtable_get(codegen->symtable, ast->let.bind->bind.var.id)->node_prototype;
+
+    NecroSymbolInfo*    bind_var_info  = necro_symtable_get(codegen->symtable, ast->let.bind->bind.var.id);
+    NecroNodePrototype* bind_prototype = bind_var_info->node_prototype;
     assert(bind_prototype != NULL);
-    // TODO: Determine if function or not
-    if (bind_prototype->type == NECRO_NODE_STATEFUL)
+    char buf[10];
+    const char* var_name = necro_concat_strings(&codegen->snapshot_arena, 3, (const char*[]) { necro_intern_get_string(codegen->intern, ast->let.bind->bind.var.symbol), "_", itoa(ast->let.bind->bind.var.id.id, buf, 10) });
+    LLVMValueRef feed_ptr = NULL;
+    if (bind_var_info->persistent_slot != 0)
     {
-        // TODO: Need to retrieve slot somehow...
-        assert(false && "TODO: Finish!");
+        bind_var_info->llvm_type = bind_prototype->node_value_type;
+        LLVMValueRef node_ptr       = necro_snapshot_gep(codegen, "node_ptr", LLVMGetParam(bind_prototype->outer->call_function, 0), 2, (uint32_t[]) { 0, bind_var_info->persistent_slot });
+        LLVMValueRef node_val       = LLVMBuildLoad(codegen->builder, node_ptr, "node_val");
+        feed_ptr                    = necro_snapshot_gep(codegen, "per_ptr", node_val, 2, (uint32_t[]) { 0, 1 });
+        LLVMValueRef persistent_reg = LLVMBuildLoad(codegen->builder, feed_ptr, "per_val");
+        bind_var_info->llvm_value   = persistent_reg;
     }
-    else
+    LLVMValueRef bind_result = necro_calculate_node_call(codegen, ast->let.bind->bind.expr);
+    LLVMSetValueName2(bind_result, var_name, strlen(var_name));
+    bind_var_info->llvm_value = bind_result;
+
+    // Store it back at the end!
+    if (bind_var_info->persistent_slot != 0)
     {
-        char  buf[10];
-        const char* var_name = necro_concat_strings(&codegen->snapshot_arena, 3, (const char*[]) { necro_intern_get_string(codegen->intern, ast->let.bind->bind.var.symbol), "_", itoa(ast->let.bind->bind.var.id.id, buf, 10) });
-        LLVMSetValueName2(bind_result, var_name, strlen(var_name));
-        necro_symtable_get(codegen->symtable, ast->let.bind->var.id)->llvm_value = bind_result;
-        return necro_calculate_node_call(codegen, ast->let.expr);
+        LLVMBuildStore(codegen->builder, bind_result, feed_ptr);
     }
-    return NULL;
+
+    return necro_calculate_node_call(codegen, ast->let.expr);
 }
 
 LLVMValueRef necro_calculate_node_call_var(NecroCodeGen* codegen, NecroCoreAST_Expression* ast)
@@ -1141,6 +1166,7 @@ LLVMValueRef necro_calculate_node_call_case(NecroCodeGen* codegen, NecroCoreAST_
     return NULL;
 }
 
+// TODO: Turn all of this into a separate function to be called?!
 LLVMValueRef necro_calculate_node_call_lit(NecroCodeGen* codegen, NecroCoreAST_Expression* ast)
 {
     if (necro_is_codegen_error(codegen)) return NULL;
@@ -1166,9 +1192,10 @@ LLVMValueRef necro_calculate_node_call_lit(NecroCodeGen* codegen, NecroCoreAST_E
     default:
         break;
     }
-    LLVMValueRef boxed_ptr = necro_gen_alloc_boxed_value(codegen, boxed_type, 0, 0, "boxed_lit");
-    LLVMBuildStore(codegen->builder, raw_value, boxed_ptr);
-    return boxed_ptr;
+    LLVMValueRef boxed_lit = necro_gen_alloc_boxed_value(codegen, boxed_type, 0, 0, "boxed_lit");
+    LLVMValueRef value_ptr = necro_snapshot_gep(codegen, "value_ptr", boxed_lit, 2, (uint32_t[]) { 0, 1 });
+    LLVMBuildStore(codegen->builder, raw_value, value_ptr);
+    return boxed_lit;
 }
 
 LLVMValueRef necro_calculate_node_call(NecroCodeGen* codegen, NecroCoreAST_Expression* ast)

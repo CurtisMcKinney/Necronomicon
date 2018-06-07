@@ -13,27 +13,39 @@
 --     f x = x + 2
 
 -- adder :: Int
--- adder = 0
+-- adder = 666 * x + y * z where
+--     x = 1 + 1
+--     y = 2
+--     z = 3
+
+-- feedInt :: Int
+-- feedInt = x where
+--     x = 1 + 1
+
+-- data KeepGoing = KeepGoing KeepGoing | TheEnd
+-- keepGoing :: KeepGoing
+-- keepGoing = y where
+--     x = KeepGoing x
+--     y = KeepGoing x
 
 data Nullary = Nullary
--- nullaryTest :: Nullary
--- nullaryTest = y where
---     y = x
---     x = Nullary
+nullaryTest :: Nullary
+nullaryTest = n where
+    n = n
+    z = z
 
-data CakeOrDeath = Cake | Death Nullary | MorePlease CakeOrDeath CakeOrDeath
-cakeTest1 :: CakeOrDeath
-cakeTest1 = Cake
-
-cakeTest2 :: CakeOrDeath
-cakeTest2 = Death Nullary
-
-cakeTest3 :: CakeOrDeath
-cakeTest3 = MorePlease z x where
-    z = MorePlease x y
-    x = Cake
-    y = Death Nullary
-
+-- data CakeOrDeath = Cake | Death Nullary | MorePlease CakeOrDeath CakeOrDeath
+-- cakeTest1 :: CakeOrDeath
+-- cakeTest1 = Cake
+--
+-- cakeTest2 :: CakeOrDeath
+-- cakeTest2 = Death Nullary
+--
+-- cakeTest3 :: CakeOrDeath
+-- cakeTest3 = MorePlease z x where
+--     z = MorePlease x y
+--     x = Cake
+--     y = Death Nullary
 
 -- data Maybe a = Just a | Nothing
 

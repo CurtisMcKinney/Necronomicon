@@ -21,6 +21,7 @@
 #include "intern.h"
 #include "utility/small_array.h"
 #include "utility/utility.h"
+#include "core/core.h"
 
 struct NecroInfer;
 struct NecroIntern;
@@ -78,9 +79,10 @@ typedef struct
 
 typedef struct
 {
-    NecroVar var;
-    bool     is_persistent;
-    size_t   slot;
+    NecroVar                  var;
+    bool                      is_persistent;
+    size_t                    slot;
+    NecroCoreAST_Application* app;
 } NecroCall;
 
 typedef struct
@@ -149,6 +151,5 @@ inline void necro_throw_codegen_error(NecroCodeGen* codegen, struct NecroCoreAST
 {
     necro_error(&codegen->error, (NecroSourceLoc) {0}, error_message);
 }
-
 
 #endif // TYPE_CODEGEN_H

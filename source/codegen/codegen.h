@@ -60,6 +60,10 @@ void              necro_test_codegen(NecroCodeGen* codegen);
 NecroSymbol       necro_new_block_name(NecroCodeGen* codegen);
 NECRO_RETURN_CODE necro_codegen(NecroCodeGen* codegen, struct NecroCoreAST* core_ast);
 NECRO_RETURN_CODE necro_verify_and_dump_codegen(NecroCodeGen* codegen);
+LLVMValueRef      necro_snapshot_add_function(NecroCodeGen* codegen, const char* function_name, LLVMTypeRef return_type, LLVMTypeRef* arg_refs, size_t arg_count);
+LLVMValueRef      necro_snapshot_gep(NecroCodeGen* codegen, const char* ptr_name, LLVMValueRef data_ptr, size_t num_indices, uint32_t* indices);
+LLVMValueRef      necro_alloc_codegen(NecroCodeGen* codegen, uint64_t bytes);
+char*             necro_concat_strings(NecroSnapshotArena* arena, uint32_t string_count, const char** strings);
 
 inline bool necro_is_codegen_error(NecroCodeGen* codegen)
 {

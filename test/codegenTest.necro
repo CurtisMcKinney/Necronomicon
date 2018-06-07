@@ -13,22 +13,40 @@
 --     f x = x + 2
 
 -- adder :: Int
--- adder = 0 + 1
+-- adder = 0
 
--- TODO: Make constructor nodes!
+data Nullary = Nullary
+-- nullaryTest :: Nullary
+-- nullaryTest = y where
+--     y = x
+--     x = Nullary
 
-data Maybe a = Just a | Nothing
+data CakeOrDeath = Cake | Death Nullary | MorePlease CakeOrDeath CakeOrDeath
+cakeTest1 :: CakeOrDeath
+cakeTest1 = Cake
 
-dropOne :: a -> a -> a
-dropOne x y = x
+cakeTest2 :: CakeOrDeath
+cakeTest2 = Death Nullary
+
+cakeTest3 :: CakeOrDeath
+cakeTest3 = MorePlease z x where
+    z = MorePlease x y
+    x = Cake
+    y = Death Nullary
+
+
+-- data Maybe a = Just a | Nothing
+
+-- dropOne :: a -> a -> a
+-- dropOne x y = dropOne x y
 
 -- dropTwo :: a -> a -> a
 -- dropTwo x y = dropOne x y
 
-gimme :: Maybe ()
-gimme = dropOne (dropOne Nothing Nothing) (Just ()) where
-    x = x
-    y = Just ()
+-- gimme :: Maybe ()
+-- gimme = dropOne (dropOne Nothing Nothing) (Just ()) where
+--     x = x
+--     y = Just ()
 
 -- -- TODO: Support anonymous functions!
 -- lambdaTest :: Int

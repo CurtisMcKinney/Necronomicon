@@ -1065,7 +1065,7 @@ void necro_gen_bin_op(NecroCodeGen* codegen, NecroVar bin_op_name, LLVMTypeRef i
 {
     NecroArenaSnapshot snapshot  = necro_get_arena_snapshot(&codegen->snapshot_arena);
     // Setup bin op function
-    LLVMTypeRef        args[2]   = { LLVMPointerType(input_type,0), LLVMPointerType(input_type,0) };
+    LLVMTypeRef        args[2]   = { LLVMPointerType(input_type,0), LLVMPointerType(input_type, 0) };
     LLVMValueRef       bin_op    = necro_snapshot_add_function(codegen, necro_intern_get_string(codegen->intern, bin_op_name.symbol), LLVMPointerType(input_type, 0), args, 2);
     LLVMBasicBlockRef  entry     = LLVMAppendBasicBlock(bin_op, "entry");
     LLVMPositionBuilderAtEnd(codegen->builder, entry);
@@ -1170,14 +1170,32 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
     // codegen->mod     = LLVMModuleCreateWithNameInContext("NecroPrim", codegen->context);
     // codegen->builder = LLVMCreateBuilderInContext(codegen->context);
 
+    //=====================================================
+    // Runtime and intrinsics
+    //=====================================================
+    LLVMTypeRef  mem_cpy_args[4] = { LLVMPointerType(LLVMInt64TypeInContext(codegen->context), 0), LLVMPointerType(LLVMInt64TypeInContext(codegen->context), 0), LLVMInt32TypeInContext(codegen->context), LLVMInt1TypeInContext(codegen->context) };
+    LLVMTypeRef  mem_cpy_type    = LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), mem_cpy_args, 4, false);
+    LLVMValueRef mem_cpy         = LLVMAddFunction(codegen->mod, "llvm.memcpy.p0i64.p0i64.i32", mem_cpy_type);
+    codegen->llvm_intrinsics.mem_cpy = mem_cpy;
+    // _necro_alloc(0);
+
     // NecroAlloc
     LLVMTypeRef  necro_alloc_args[1] = { LLVMInt32TypeInContext(codegen->context) };
     LLVMValueRef necro_alloc         = LLVMAddFunction(codegen->mod, "_necro_alloc", LLVMFunctionType(LLVMPointerType(LLVMInt64TypeInContext(codegen->context), 0), necro_alloc_args, 1, false));
     LLVMSetLinkage(necro_alloc, LLVMExternalLinkage);
     LLVMSetFunctionCallConv(necro_alloc, LLVMFastCallConv);
-    _necro_alloc(0);
-    codegen->necro_alloc = necro_alloc;
+    codegen->necro_runtime_functions.necro_alloc = necro_alloc;
 
+    // NecroPrint
+    LLVMTypeRef  necro_print_args[1] = { LLVMInt64TypeInContext(codegen->context) };
+    LLVMValueRef necro_print         = LLVMAddFunction(codegen->mod, "_necro_print", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), necro_print_args, 1, false));
+    LLVMSetLinkage(necro_print, LLVMExternalLinkage);
+    LLVMSetFunctionCallConv(necro_alloc, LLVMFastCallConv);
+    codegen->necro_runtime_functions.necro_print = necro_print;
+
+    //=====================================================
+    // Primitive Types
+    //=====================================================
     // NecroData#
     LLVMTypeRef necro_type_ref = LLVMStructCreateNamed(codegen->context, "_NecroData");
     LLVMTypeRef necro_elems[2] = { LLVMInt32TypeInContext(codegen->context), LLVMInt32TypeInContext(codegen->context) };

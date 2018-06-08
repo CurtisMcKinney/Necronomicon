@@ -46,6 +46,17 @@ typedef struct
     uint64_t index;
 } NecroBlockIndex;
 
+typedef struct
+{
+    LLVMValueRef mem_cpy;
+} LLVMIntrinsics;
+
+typedef struct
+{
+    LLVMValueRef necro_alloc;
+    LLVMValueRef necro_print;
+} NecroRuntimeFunctions;
+
 typedef struct NecroCodeGen
 {
     NecroPagedArena       arena;
@@ -56,14 +67,12 @@ typedef struct NecroCodeGen
     LLVMContextRef        context;
     LLVMModuleRef         mod;
     LLVMBuilderRef        builder;
-    LLVMValueRef          necro_alloc;
     LLVMTargetDataRef     target;
     LLVMPassManagerRef    fn_pass_manager;
     LLVMPassManagerRef    mod_pass_manager;
     NecroError            error;
-    NecroBlockIndex       current_block;
-    void*                 blocks;
-    bool                  is_top_level;
+    LLVMIntrinsics        llvm_intrinsics;
+    NecroRuntimeFunctions necro_runtime_functions;
 } NecroCodeGen;
 
 typedef enum
@@ -154,5 +163,14 @@ inline void necro_throw_codegen_error(NecroCodeGen* codegen, struct NecroCoreAST
 {
     necro_error(&codegen->error, (NecroSourceLoc) {0}, error_message);
 }
+
+#ifdef _WIN32
+#define DLLEXPORT __declspec(dllexport)
+#else
+#define DLLEXPORT
+#endif
+
+extern DLLEXPORT uint64_t* _necro_alloc(uint32_t size);
+extern DLLEXPORT void _necro_print(int64_t value);
 
 #endif // TYPE_CODEGEN_H

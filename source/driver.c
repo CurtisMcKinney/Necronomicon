@@ -240,9 +240,14 @@ void necro_compile_impl(
     //=====================================================
     necro_announce_phase("CodeGen");
     *codegen = necro_create_codegen(infer, &lexer->intern, &symtable, "necro");
-    // TESTING ONLY!
     necro_codegen(codegen, ast_core);
     *destruct_flags |= BIT(NECRO_PHASE_CODEGEN);
+    if (codegen->error.return_code != NECRO_SUCCESS)
+    {
+        // necro_print_reified_ast(ast_r, &lexer->intern);
+        necro_print_error(&codegen->error, input_string, "Necro");
+        return;
+    }
     if (compilation_phase == NECRO_PHASE_CODEGEN)
         return;
 }

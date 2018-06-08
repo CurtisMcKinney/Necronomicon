@@ -18,11 +18,6 @@
 --     y = 2
 --     z = 3
 
--- -- Causes assertion with optimizations on !?
--- feedInt :: Int
--- feedInt = x where
---     x = x + 1
-
 -- feedInt :: Float -> Float -> Float
 -- feedInt delta offset = y + offset where
 --     y = y + delta
@@ -35,13 +30,25 @@
 -- callTailNoState = x + x where
 --     x = tailNoState 0
 
-tailState :: Int -> Int
-tailState x = tailState y where
-    y = y + x
+-- tailState :: Int -> Int
+-- tailState x = tailState y where
+--     y = y + x
 
-callTailState :: Int
-callTailState = x + x where
-    x = tailState 0
+-- callTailState :: Int
+-- callTailState = x + x where
+--     x = tailState 0
+
+-- -- TODO: Need to enforce delay usage!
+-- -- Causes assertion with optimizations on !?
+-- feedInt :: Int
+-- feedInt = x where
+--     x = x + 1
+
+addSomeShit :: Int -> Int
+addSomeShit x = x + x
+
+main :: Int
+main = addSomeShit 20
 
 -- data KeepGoing = KeepGoing KeepGoing | TheEnd
 -- keepGoing :: KeepGoing

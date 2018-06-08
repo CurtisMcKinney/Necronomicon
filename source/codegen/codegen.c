@@ -10,9 +10,11 @@
 #include <llvm-c/Transforms/Scalar.h>
 #include <llvm-c/TargetMachine.h>
 #include <llvm-c/Transforms/PassManagerBuilder.h>
+#include <llvm-c/ExecutionEngine.h>
 #include "symtable.h"
 
 // things to reference:
+//     * https://pauladamsmith.com/blog/2015/01/how-to-get-started-with-llvm-c-api.html
 //     * https://llvm.org/docs/LangRef.html#instruction-reference
 //     * https://llvm.org/docs/tutorial/LangImpl04.html
 //     * http://www.stephendiehl.com/llvm/
@@ -28,17 +30,6 @@
 //        * GC
 //        * Continuous updates
 
-#ifdef _WIN32
-#define DLLEXPORT __declspec(dllexport)
-#else
-#define DLLEXPORT
-#endif
-
-extern DLLEXPORT uint64_t* _necro_alloc(uint32_t size)
-{
-    return malloc(size);
-}
-
 //=====================================================
 // Forward declaration
 //=====================================================
@@ -51,6 +42,7 @@ NecroNodePrototype* necro_declare_node_prototype(NecroCodeGen* codegen, NecroVar
 //=====================================================
 NecroCodeGen necro_create_codegen(NecroInfer* infer, NecroIntern* intern, NecroSymTable* symtable, const char* module_name)
 {
+    LLVMLinkInMCJIT();
     LLVMInitializeNativeTarget();
     LLVMInitializeNativeAsmPrinter();
     LLVMInitializeNativeAsmParser();
@@ -61,6 +53,7 @@ NecroCodeGen necro_create_codegen(NecroInfer* infer, NecroIntern* intern, NecroS
     // LLVMCreateTargetDataLayout()
     // LLVMSetDataLayout(mod, LLVMCreateDataLayout
     LLVMTargetDataRef  target           = LLVMCreateTargetData(LLVMGetTarget(mod));
+    // Optimizations, turn on when you want the code to go fast!
     LLVMPassManagerRef fn_pass_manager  = LLVMCreateFunctionPassManagerForModule(mod);
     LLVMPassManagerRef mod_pass_manager = LLVMCreatePassManager();
     // LLVMAddTailCallEliminationPass(fn_pass_manager);
@@ -86,11 +79,7 @@ NecroCodeGen necro_create_codegen(NecroInfer* infer, NecroIntern* intern, NecroS
         .target           = target,
         .fn_pass_manager  = fn_pass_manager,
         .mod_pass_manager = mod_pass_manager,
-        .necro_alloc      = NULL,
         .error            = necro_create_error(),
-        .current_block    = (NecroBlockIndex) { .index = 0 },
-        .blocks           = 0,
-        .is_top_level     = true
     };
 }
 
@@ -215,13 +204,6 @@ void necro_init_necro_data(NecroCodeGen* codegen, LLVMValueRef data_ptr, uint32_
     LLVMBuildStore(codegen->builder, const_value_1, necro_data_1);
     LLVMBuildStore(codegen->builder, const_value_2, necro_data_2);
     necro_rewind_arena(&codegen->snapshot_arena, snapshot);
-}
-
-LLVMValueRef necro_alloc_codegen(NecroCodeGen* codegen, uint64_t bytes)
-{
-    LLVMValueRef data_size     = LLVMConstInt(LLVMInt32TypeInContext(codegen->context), bytes, false);
-    LLVMValueRef void_ptr      = necro_build_call(codegen, codegen->necro_alloc, &data_size, 1, "void_ptr");
-    return void_ptr;
 }
 
 LLVMValueRef necro_gen_alloc_boxed_value(NecroCodeGen* codegen, LLVMTypeRef boxed_type, uint32_t necro_value1, uint32_t necro_value2, const char* name)
@@ -902,6 +884,11 @@ void necro_calculate_node_prototype_bind(NecroCodeGen* codegen, NecroCoreAST_Exp
             LLVMTypeRef bind_type = necro_get_ast_llvm_type(codegen, ast);
             assert(bind_type != NULL);
             LLVMValueRef bind_value = LLVMAddGlobal(codegen->mod, node_prototype->node_type, bind_name);
+            LLVMSetLinkage(bind_value, LLVMCommonLinkage);
+            // LLVMSetInitializer(bind_value, LLVMConstPointerNull(LLVMPointerType(node_prototype->node_type, 0)));
+            LLVMSetInitializer(bind_value, LLVMConstNamedStruct(node_prototype->node_type, NULL, 0));
+            LLVMSetGlobalConstant(bind_value, false);
+            necro_symtable_get(codegen->symtable, ast->bind.var.id)->llvm_value = bind_value;
         }
         else
         {
@@ -1057,7 +1044,10 @@ LLVMValueRef necro_calculate_node_call_bind(NecroCodeGen* codegen, NecroCoreAST_
     NecroNodePrototype* node_prototype = necro_symtable_get(codegen->symtable, ast->bind.var.id)->node_prototype;
     assert(node_prototype != NULL);
     assert(node_prototype->outer == NULL);
-    const char*  call_name = necro_concat_strings(&codegen->snapshot_arena, 2, (const char*[]){ "_call", necro_intern_get_string(codegen->intern, ast->bind.var.symbol) });
+    // const char*  call_name = necro_concat_strings(&codegen->snapshot_arena, 2, (const char*[]){ "_call", necro_intern_get_string(codegen->intern, ast->bind.var.symbol) });
+    char buf2[10];
+    char* call_name = necro_concat_strings(&codegen->snapshot_arena, 5, (const char*[]) { "_call", necro_intern_get_string(codegen->intern, ast->bind.var.symbol), "_", itoa(ast->bind.var.id.id, buf2, 10), "_Node" });
+    call_name[5] = toupper(call_name[5]);
     // LLVMValueRef call_fn   = NULL;
     //-----------------
     // Set up args
@@ -1134,6 +1124,7 @@ LLVMValueRef necro_calculate_node_call_bind(NecroCodeGen* codegen, NecroCoreAST_
     }
     LLVMRunFunctionPassManager(codegen->fn_pass_manager, call_fn);
     necro_rewind_arena(&codegen->snapshot_arena, snapshot);
+    // TODO: Way to access global bound values!
     return call_fn;
 }
 
@@ -1187,16 +1178,23 @@ LLVMValueRef necro_calculate_node_call_var(NecroCodeGen* codegen, NecroCoreAST_E
     assert(codegen != NULL);
     assert(ast != NULL);
     assert(ast->expr_type == NECRO_CORE_EXPR_VAR);
-    if (necro_symtable_get(codegen->symtable, ast->var.id)->is_constructor)
+    NecroSymbolInfo* info = necro_symtable_get(codegen->symtable, ast->var.id);
+    if (info->is_constructor)
     {
         LLVMValueRef con_mk_function = necro_symtable_get(codegen->symtable, ast->var.id)->node_prototype->call_function;
         const char*  result_name     = necro_concat_strings(&codegen->snapshot_arena, 2, (const char*[]) { necro_intern_get_string(codegen->intern, ast->var.symbol), "_result" });
         LLVMValueRef result          = necro_build_call(codegen, con_mk_function, NULL, 0, result_name);
         return result;
     }
+    else if (info->node_prototype != NULL && info->node_prototype->outer == NULL)
+    {
+        // Global!
+        assert(info->llvm_value != NULL && "Value not present. Maybe infinite loop?");
+        LLVMValueRef global_ptr = necro_snapshot_gep(codegen, "global_node_ptr", info->llvm_value, 2, (uint32_t[]) { 0, 1 });
+        return LLVMBuildLoad(codegen->builder, global_ptr, "global_node_val");
+    }
     else
     {
-        NecroSymbolInfo* info = necro_symtable_get(codegen->symtable, ast->var.id);
         // assert(info->node_prototype != NULL && "Prototype should never be NULL!");
         assert(info->llvm_value != NULL && "Value not present. Maybe infinite loop?");
         return info->llvm_value;
@@ -1322,9 +1320,113 @@ LLVMValueRef necro_calculate_node_call(NecroCodeGen* codegen, NecroCoreAST_Expre
 }
 
 //=====================================================
+// Gen Main
+//=====================================================
+void necro_codegen_main(NecroCodeGen* codegen, NecroCoreAST_Expression* ast)
+{
+    if (necro_is_codegen_error(codegen)) return;
+    assert(codegen != NULL);
+    assert(ast != NULL);
+    assert(ast->expr_type == NECRO_CORE_EXPR_LIST);
+    NecroArenaSnapshot       snapshot    = necro_get_arena_snapshot(&codegen->snapshot_arena);
+    NecroSymbol              main_symbol = necro_intern_string(codegen->intern, "main");
+    NecroNodePrototype*      main_node   = NULL;
+    NecroVar                 main_var;
+    NecroCoreAST_Expression* top         = ast;
+    // Find necro main
+    while (top != NULL)
+    {
+        if (top->list.expr != NULL && top->list.expr->expr_type == NECRO_CORE_EXPR_BIND)
+        {
+            if (top->list.expr->bind.var.symbol.id == main_symbol.id)
+            {
+                main_node = necro_symtable_get(codegen->symtable, top->list.expr->bind.var.id)->node_prototype;
+                main_var  = top->list.expr->bind.var;
+                break;
+            }
+        }
+        top = top->list.next;
+    }
+    if (main_node == NULL)
+    {
+        necro_throw_codegen_error(codegen, ast, "No main function defined.");
+        return;
+    }
+
+    // Create actual main
+    LLVMValueRef       main_fn    = necro_snapshot_add_function(codegen, "main", LLVMVoidTypeInContext(codegen->context), NULL, 0);
+    LLVMBasicBlockRef  entry      = LLVMAppendBasicBlock(main_fn, "entry");
+    LLVMPositionBuilderAtEnd(codegen->builder, entry);
+    // Initialize global nodes
+    top = ast;
+    while (top != NULL)
+    {
+        if (top->list.expr != NULL && top->list.expr->expr_type == NECRO_CORE_EXPR_BIND)
+        {
+            NecroSymbolInfo*    node_info = necro_symtable_get(codegen->symtable, top->list.expr->bind.var.id);
+            NecroNodePrototype* node      = node_info->node_prototype;
+            if (node->args != NULL)
+            {
+                top = top->list.next;
+                continue;
+            }
+            LLVMValueRef node_ptr    = necro_build_call(codegen, node->mk_function, NULL, 0, "node_ptr");
+            LLVMValueRef cast_node   = LLVMBuildBitCast(codegen->builder, node_ptr, LLVMPointerType(LLVMInt64TypeInContext(codegen->context), 0), "cast_node");
+            LLVMValueRef cast_glob   = LLVMBuildBitCast(codegen->builder, node_info->llvm_value, LLVMPointerType(LLVMInt64TypeInContext(codegen->context), 0), "cast_glob");
+            LLVMValueRef data_size   = LLVMConstInt(LLVMInt32TypeInContext(codegen->context), LLVMABISizeOfType(codegen->target, node->node_type), false);
+            LLVMValueRef is_volatile = LLVMConstInt(LLVMInt1TypeInContext(codegen->context), 1, false);
+            necro_build_call(codegen, codegen->llvm_intrinsics.mem_cpy, (LLVMValueRef[]) { cast_glob, cast_node, data_size, is_volatile }, 4, "");
+            // LLVMBuildStore(codegen->builder, node_ptr, node_info->llvm_value);
+        }
+        top = top->list.next;
+    }
+    // Setup main loop
+    LLVMBasicBlockRef main_loop = LLVMAppendBasicBlock(main_fn, "main_loop");
+    LLVMBuildBr(codegen->builder, main_loop);
+    LLVMPositionBuilderAtEnd(codegen->builder, main_loop);
+    // Evaluate top level nodes in a loop
+    top = ast;
+    while (top != NULL)
+    {
+        if (top->list.expr != NULL && top->list.expr->expr_type == NECRO_CORE_EXPR_BIND)
+        {
+            NecroSymbolInfo*    node_info = necro_symtable_get(codegen->symtable, top->list.expr->bind.var.id);
+            NecroNodePrototype* node      = node_info->node_prototype;
+            if (node->args != NULL)
+            {
+                top = top->list.next;
+                continue;
+            }
+            LLVMValueRef node_result;
+            if (node->type == NECRO_NODE_STATEFUL)
+            {
+                node_result = necro_build_call(codegen, node->call_function, (LLVMValueRef[]) { node_info->llvm_value }, 1, "node_result");
+            }
+            else
+            {
+                node_result = necro_build_call(codegen, node->call_function, NULL, 0, "node_result");
+                LLVMValueRef value_ptr   = necro_snapshot_gep(codegen, "value_ptr", node_info->llvm_value, 2, (uint32_t[]) { 0, 1 });
+                LLVMBuildStore(codegen->builder, node_result, value_ptr);
+            }
+            if (node == main_node)
+            {
+                LLVMValueRef result_ptr     = necro_snapshot_gep(codegen, "result_ptr", node_result, 2, (uint32_t[]) { 0, 1 });
+                LLVMValueRef unboxed_result = LLVMBuildLoad(codegen->builder, result_ptr, "unboxed_result");
+                LLVMValueRef print_instr    = necro_build_call(codegen, codegen->necro_runtime_functions.necro_print, (LLVMValueRef[]) { unboxed_result }, 1, "");
+                LLVMSetInstructionCallConv(print_instr, LLVMCCallConv);
+            }
+        }
+        top = top->list.next;
+    }
+    // Looping logic...
+    // LLVMBuildBr(codegen->builder, main_loop);
+    LLVMBuildRetVoid(codegen->builder);
+    necro_rewind_arena(&codegen->snapshot_arena, snapshot);
+}
+
+//=====================================================
 // Go
 //=====================================================
-
 LLVMValueRef necro_codegen_bind(NecroCodeGen* codegen, NecroCoreAST_Expression* ast)
 {
     necro_calculate_node_prototype(codegen, ast, NULL);
@@ -1364,7 +1466,7 @@ NECRO_RETURN_CODE necro_verify_and_dump_codegen(NecroCodeGen* codegen)
     LLVMVerifyModule(codegen->mod, LLVMAbortProcessAction, &error);
     if (strlen(error) != 0)
     {
-        printf("LLVM error message: %s\n", error);
+        fprintf(stderr, "LLVM error: %s\n", error);
         LLVMDisposeMessage(error);
         return NECRO_ERROR;
     }
@@ -1373,6 +1475,52 @@ NECRO_RETURN_CODE necro_verify_and_dump_codegen(NecroCodeGen* codegen)
     printf("\n%s\n", module_string_rep);
 
     // LLVMDisposeBuilder(codegen->builder);
+    return NECRO_SUCCESS;
+}
+
+#define NECRO_MAX_ALLOC 8192
+uint64_t allocation_is_easy[NECRO_MAX_ALLOC];
+uint64_t alloc_pointer = 0;
+extern DLLEXPORT uint64_t* _necro_alloc(uint32_t size)
+{
+    uint64_t* ptr = allocation_is_easy + alloc_pointer;
+    alloc_pointer += size;
+    if (alloc_pointer >= NECRO_MAX_ALLOC)
+        assert(false && "OUT OF MEMORY");
+    return ptr;
+}
+
+extern DLLEXPORT void _necro_print(int64_t value)
+{
+    printf("necro: %lld\n", value);
+}
+
+LLVMValueRef necro_alloc_codegen(NecroCodeGen* codegen, uint64_t size)
+{
+    LLVMValueRef data_size = LLVMConstInt(LLVMInt32TypeInContext(codegen->context), size, false);
+    LLVMValueRef void_ptr  = necro_build_call(codegen, codegen->necro_runtime_functions.necro_alloc, &data_size, 1, "void_ptr");
+    LLVMSetInstructionCallConv(void_ptr, LLVMCCallConv);
+    return void_ptr;
+}
+
+NECRO_RETURN_CODE necro_jit(NecroCodeGen* codegen)
+{
+    LLVMExecutionEngineRef engine;
+    char* error = NULL;
+    if (LLVMCreateJITCompilerForModule(&engine, codegen->mod, 0, &error) != 0)
+    {
+        fprintf(stderr, "necro error: %s\n", error);
+        LLVMDisposeMessage(error);
+        return NECRO_ERROR;
+    }
+    // Do we need to do this!?
+    LLVMAddGlobalMapping(engine, codegen->necro_runtime_functions.necro_alloc, _necro_alloc);
+    LLVMAddGlobalMapping(engine, codegen->necro_runtime_functions.necro_print, _necro_print);
+    void(*fun)() = (void(*)())LLVMGetFunctionAddress(engine, "main");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "; Running main() with NecroJIT...\n");
+    (*fun)();
+    // TODO: Need to dispose execution engine correctly...Put in NecroCodeGen?
     return NECRO_SUCCESS;
 }
 
@@ -1391,7 +1539,11 @@ NECRO_RETURN_CODE necro_codegen(NecroCodeGen* codegen, NecroCoreAST* core_ast)
         if (necro_is_codegen_error(codegen)) return codegen->error.return_code;
         top_level_list = top_level_list->list.next;
     }
-   if (necro_verify_and_dump_codegen(codegen) == NECRO_ERROR)
+    necro_codegen_main(codegen, core_ast->root);
+    if (necro_is_codegen_error(codegen)) return codegen->error.return_code;
+    if (necro_verify_and_dump_codegen(codegen) == NECRO_ERROR)
+        return NECRO_ERROR;
+    if (necro_jit(codegen) == NECRO_ERROR)
         return NECRO_ERROR;
     return NECRO_SUCCESS;
 }

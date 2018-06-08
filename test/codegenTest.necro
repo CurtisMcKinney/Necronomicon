@@ -18,21 +18,42 @@
 --     y = 2
 --     z = 3
 
+-- -- Causes assertion with optimizations on !?
 -- feedInt :: Int
 -- feedInt = x where
---     x = 1 + 1
+--     x = x + 1
+
+-- feedInt :: Float -> Float -> Float
+-- feedInt delta offset = y + offset where
+--     y = y + delta
+
+-- tailNoState :: Int -> Int
+-- tailNoState x = tailNoState y where
+--     y = x * 2
+
+-- callTailNoState :: Int
+-- callTailNoState = x + x where
+--     x = tailNoState 0
+
+tailState :: Int -> Int
+tailState x = tailState y where
+    y = y + x
+
+callTailState :: Int
+callTailState = x + x where
+    x = tailState 0
 
 -- data KeepGoing = KeepGoing KeepGoing | TheEnd
 -- keepGoing :: KeepGoing
 -- keepGoing = y where
 --     x = KeepGoing x
---     y = KeepGoing x
+--     y = KeepGoing y
 
-data Nullary = Nullary
-nullaryTest :: Nullary
-nullaryTest = n where
-    n = n
-    z = z
+-- data Nullary = Nullary
+-- nullaryTest :: Nullary
+-- nullaryTest = n where
+--     n = n
+--     z = z
 
 -- data CakeOrDeath = Cake | Death Nullary | MorePlease CakeOrDeath CakeOrDeath
 -- cakeTest1 :: CakeOrDeath

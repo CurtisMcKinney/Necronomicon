@@ -1138,6 +1138,23 @@ void necro_gen_from_cast(NecroCodeGen* codegen, const char* cast_name_string, LL
     necro_rewind_arena(&codegen->snapshot_arena, snapshot);
 }
 
+LLVMValueRef necro_codegen_box(NecroCodeGen* codegen, const char* type_name, LLVMTypeRef boxed_type, LLVMTypeRef unboxed_type)
+{
+    NecroArenaSnapshot snapshot   = necro_get_arena_snapshot(&codegen->snapshot_arena);
+    const char*        fn_name    = necro_concat_strings(&codegen->snapshot_arena, 2, (const char*[]) { "_mk", type_name });
+    LLVMTypeRef        args[1]    = { unboxed_type };
+    LLVMValueRef       box_fn     = necro_snapshot_add_function(codegen, fn_name, LLVMPointerType(boxed_type, 0), args, 1);
+    LLVMBasicBlockRef  entry      = LLVMAppendBasicBlock(box_fn, "entry");
+    LLVMPositionBuilderAtEnd(codegen->builder, entry);
+    // Store Unboxed value in Box
+    LLVMValueRef       box_ptr    = necro_gen_alloc_boxed_value(codegen, boxed_type, 0, 0, "box_ptr");
+    LLVMValueRef       result_ptr = necro_snapshot_gep(codegen, "result_ptr", box_ptr, 2, (uint32_t[]) { 0, 1 });
+    LLVMBuildStore(codegen->builder, LLVMGetParam(box_fn, 0), result_ptr);
+    LLVMBuildRet(codegen->builder, box_ptr);
+    necro_rewind_arena(&codegen->snapshot_arena, snapshot);
+    return box_fn;
+}
+
 NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
 {
     if (necro_is_codegen_error(codegen)) return codegen->error.return_code;
@@ -1152,6 +1169,14 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
 
     // codegen->mod     = LLVMModuleCreateWithNameInContext("NecroPrim", codegen->context);
     // codegen->builder = LLVMCreateBuilderInContext(codegen->context);
+
+    // NecroAlloc
+    LLVMTypeRef  necro_alloc_args[1] = { LLVMInt32TypeInContext(codegen->context) };
+    LLVMValueRef necro_alloc         = LLVMAddFunction(codegen->mod, "_necro_alloc", LLVMFunctionType(LLVMPointerType(LLVMInt64TypeInContext(codegen->context), 0), necro_alloc_args, 1, false));
+    LLVMSetLinkage(necro_alloc, LLVMExternalLinkage);
+    LLVMSetFunctionCallConv(necro_alloc, LLVMFastCallConv);
+    _necro_alloc(0);
+    codegen->necro_alloc = necro_alloc;
 
     // NecroData#
     LLVMTypeRef necro_type_ref = LLVMStructCreateNamed(codegen->context, "_NecroData");
@@ -1184,6 +1209,8 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
     necro_symtable_get(codegen->symtable, prim_types->int_type.id)->llvm_type = int_type_ref;
     necro_gen_bin_ops(codegen, necro_con_to_var(codegen->infer->prim_types->int_type), int_type_ref, LLVMInt64TypeInContext(codegen->context), LLVMAdd, LLVMSub, LLVMMul, 0);
     necro_gen_from_cast(codegen, "fromInt@Int", int_type_ref, LLVMInt64TypeInContext(codegen->context), int_type_ref, LLVMInt64TypeInContext(codegen->context), LLVMSIToFP);
+    NecroNodePrototype* int_prototype = necro_create_prim_node_prototype(codegen, necro_con_to_var(codegen->infer->prim_types->int_type), NULL, NULL, NECRO_NODE_STATELESS);
+    int_prototype->mk_function = necro_codegen_box(codegen, "Int", int_type_ref, LLVMInt64TypeInContext(codegen->context));
 
     // Float
     LLVMTypeRef float_type_ref = LLVMStructCreateNamed(codegen->context, "Float");
@@ -1193,6 +1220,8 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
     necro_gen_bin_ops(codegen, necro_con_to_var(codegen->infer->prim_types->float_type), float_type_ref, LLVMFloatTypeInContext(codegen->context), LLVMFAdd, LLVMFSub, LLVMFMul, LLVMFDiv);
     necro_gen_from_cast(codegen, "fromInt@Float", int_type_ref, LLVMInt64TypeInContext(codegen->context), float_type_ref, LLVMDoubleTypeInContext(codegen->context), LLVMSIToFP);
     necro_gen_from_cast(codegen, "fromRational@Float", float_type_ref, LLVMDoubleTypeInContext(codegen->context), float_type_ref, LLVMDoubleTypeInContext(codegen->context), LLVMSIToFP);
+    NecroNodePrototype* float_prototype = necro_create_prim_node_prototype(codegen, necro_con_to_var(codegen->infer->prim_types->float_type), NULL, NULL, NECRO_NODE_STATELESS);
+    float_prototype->mk_function = necro_codegen_box(codegen, "Float", float_type_ref, LLVMDoubleTypeInContext(codegen->context));
 
     // Rational
     LLVMTypeRef rational_type_ref = LLVMStructCreateNamed(codegen->context, "Rational");

@@ -144,9 +144,13 @@ int main(int32_t argc, char** argv)
             {
                 necro_compile(str, NECRO_PHASE_CODEGEN);
             }
+            else if (argc > 2 && strcmp(argv[2], "-jit") == 0)
+            {
+                necro_compile(str, NECRO_PHASE_JIT);
+            }
             else
             {
-                necro_compile(str, NECRO_PHASE_ALL);
+                necro_compile(str, NECRO_PHASE_CODEGEN);
             }
 
         }

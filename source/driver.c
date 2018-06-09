@@ -253,6 +253,14 @@ void necro_compile_impl(
     }
     if (compilation_phase == NECRO_PHASE_CODEGEN)
         return;
+
+    //=====================================================
+    // JIT
+    //=====================================================
+    if (necro_jit(codegen) == NECRO_ERROR)
+        return;
+    if (compilation_phase == NECRO_PHASE_JIT)
+        return;
 }
 
 bool validate_destruct_phase(NECRO_PHASE requested_phase, uint32_t destruct_flags)

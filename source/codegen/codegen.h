@@ -151,6 +151,7 @@ NecroNodePrototype* necro_create_prim_node_prototype(NecroCodeGen* codegen, Necr
 LLVMValueRef        necro_gen_alloc_boxed_value(NecroCodeGen* codegen, LLVMTypeRef boxed_type, uint32_t necro_value1, uint32_t necro_value2, const char* name);
 LLVMValueRef        necro_build_call(NecroCodeGen* codegen, LLVMValueRef function, LLVMValueRef* args, uint32_t arg_count, const char* result_name);
 void                necro_init_necro_data(NecroCodeGen* codegen, LLVMValueRef data_ptr, uint32_t value_1, uint32_t value_2);
+NECRO_RETURN_CODE   necro_jit(NecroCodeGen* codegen);
 
 inline bool necro_is_codegen_error(NecroCodeGen* codegen)
 {

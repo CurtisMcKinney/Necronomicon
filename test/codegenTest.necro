@@ -1,3 +1,18 @@
+-- Feedback test
+-- ALERT! - Sleep times don't seem to work correctly from msys/cygwin/mintty
+-- ALERT! - Use an actual CMD prompt for correct necro usage!
+-- necro usage: necro.exe \path\to\file.necro -jit
+
+main :: Int
+main = x where
+    x = 1 + delay 0 x
+
+-- -- Looks like more than 1 persistent var is crashing things...
+-- integrator :: Int -> Int
+-- integrator delta = f where
+--     f = delta + delay 0 f
+-- TODO: Perhaps make delay a keyword instead of a function....!?
+
 -- TODO: Unguarded recursion detection!
 
 -- -- TODO: Mututally recursive bindings are not functioning in core!?!?
@@ -58,12 +73,6 @@
 -- data Either a b = Left a | Right b
 -- leftOrRight :: Either Int Float
 -- leftOrRight = Right 1.2 where
-
-main :: Int
-main = x where
-    x = 1 + delay 0 x
--- main = 2 + delay 0 1
--- main = 1 + 0
 
 -- data KeepGoing = KeepGoing KeepGoing | TheEnd
 -- keepGoing :: KeepGoing

@@ -1543,7 +1543,5 @@ NECRO_RETURN_CODE necro_codegen(NecroCodeGen* codegen, NecroCoreAST* core_ast)
     if (necro_is_codegen_error(codegen)) return codegen->error.return_code;
     if (necro_verify_and_dump_codegen(codegen) == NECRO_ERROR)
         return NECRO_ERROR;
-    if (necro_jit(codegen) == NECRO_ERROR)
-        return NECRO_ERROR;
     return NECRO_SUCCESS;
 }

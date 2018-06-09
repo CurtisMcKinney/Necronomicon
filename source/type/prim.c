@@ -12,6 +12,7 @@
 #include "llvm-c/Analysis.h"
 #include "codegen/codegen.h"
 #include "symtable.h"
+#include "runtime/runtime.h"
 
 //=====================================================
 // Forward Declarations
@@ -1177,21 +1178,8 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
     LLVMTypeRef  mem_cpy_type    = LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), mem_cpy_args, 4, false);
     LLVMValueRef mem_cpy         = LLVMAddFunction(codegen->mod, "llvm.memcpy.p0i64.p0i64.i32", mem_cpy_type);
     codegen->llvm_intrinsics.mem_cpy = mem_cpy;
-    // _necro_alloc(0);
 
-    // NecroAlloc
-    LLVMTypeRef  necro_alloc_args[1] = { LLVMInt32TypeInContext(codegen->context) };
-    LLVMValueRef necro_alloc         = LLVMAddFunction(codegen->mod, "_necro_alloc", LLVMFunctionType(LLVMPointerType(LLVMInt64TypeInContext(codegen->context), 0), necro_alloc_args, 1, false));
-    LLVMSetLinkage(necro_alloc, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_alloc, LLVMFastCallConv);
-    codegen->necro_runtime_functions.necro_alloc = necro_alloc;
-
-    // NecroPrint
-    LLVMTypeRef  necro_print_args[1] = { LLVMInt64TypeInContext(codegen->context) };
-    LLVMValueRef necro_print         = LLVMAddFunction(codegen->mod, "_necro_print", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), necro_print_args, 1, false));
-    LLVMSetLinkage(necro_print, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_alloc, LLVMFastCallConv);
-    codegen->necro_runtime_functions.necro_print = necro_print;
+    necro_declare_runtime_functions(codegen->runtime, codegen);
 
     //=====================================================
     // Primitive Types

@@ -12,6 +12,8 @@
 #include <llvm-c/Core.h>
 #include <llvm-c/Target.h>
 #include <stdio.h>
+#include <llvm-c/ExecutionEngine.h>
+
 #include "utility.h"
 #include "arena.h"
 #include "intern.h"
@@ -27,6 +29,7 @@ struct NecroInfer;
 struct NecroIntern;
 struct NecroCoreAST;
 struct NecroSymTable;
+struct NecroRuntime;
 
 // NECRO_DECLARE_ARENA_LIST(LLVMValueRef, LLVMValue, llvm_value);
 // Do we really need something like this!?
@@ -51,28 +54,22 @@ typedef struct
     LLVMValueRef mem_cpy;
 } LLVMIntrinsics;
 
-typedef struct
-{
-    LLVMValueRef necro_alloc;
-    LLVMValueRef necro_print;
-} NecroRuntimeFunctions;
-
 typedef struct NecroCodeGen
 {
-    NecroPagedArena       arena;
-    NecroSnapshotArena    snapshot_arena;
-    struct NecroInfer*    infer;
-    struct NecroIntern*   intern;
-    struct NecroSymTable* symtable;
-    LLVMContextRef        context;
-    LLVMModuleRef         mod;
-    LLVMBuilderRef        builder;
-    LLVMTargetDataRef     target;
-    LLVMPassManagerRef    fn_pass_manager;
-    LLVMPassManagerRef    mod_pass_manager;
-    NecroError            error;
-    LLVMIntrinsics        llvm_intrinsics;
-    NecroRuntimeFunctions necro_runtime_functions;
+    NecroPagedArena      arena;
+    NecroSnapshotArena   snapshot_arena;
+    struct NecroInfer*   infer;
+    struct NecroIntern*  intern;
+    struct NecroSymTable*symtable;
+    struct NecroRuntime* runtime;
+    LLVMContextRef       context;
+    LLVMModuleRef        mod;
+    LLVMBuilderRef       builder;
+    LLVMTargetDataRef    target;
+    LLVMPassManagerRef   fn_pass_manager;
+    LLVMPassManagerRef   mod_pass_manager;
+    NecroError           error;
+    LLVMIntrinsics       llvm_intrinsics;
 } NecroCodeGen;
 
 typedef enum
@@ -139,7 +136,7 @@ typedef struct NecroNodePrototype
     NECRO_NODE_TYPE            type;
 } NecroNodePrototype;
 
-NecroCodeGen        necro_create_codegen(struct NecroInfer* infer, struct NecroIntern* intern, struct NecroSymTable* symtable, const char* module_name);
+NecroCodeGen        necro_create_codegen(struct NecroInfer* infer, struct NecroIntern* intern, struct NecroSymTable* symtable, struct NecroRuntime* runtime, const char* module_name);
 void                necro_destroy_codegen(NecroCodeGen* codegen);
 void                necro_test_codegen(NecroCodeGen* codegen);
 NecroSymbol         necro_new_block_name(NecroCodeGen* codegen);
@@ -163,14 +160,5 @@ inline void necro_throw_codegen_error(NecroCodeGen* codegen, struct NecroCoreAST
 {
     necro_error(&codegen->error, (NecroSourceLoc) {0}, error_message);
 }
-
-#ifdef _WIN32
-#define DLLEXPORT __declspec(dllexport)
-#else
-#define DLLEXPORT
-#endif
-
-extern DLLEXPORT uint64_t* _necro_alloc(uint32_t size);
-extern DLLEXPORT void _necro_print(int64_t value);
 
 #endif // TYPE_CODEGEN_H

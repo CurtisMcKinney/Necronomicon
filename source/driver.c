@@ -34,7 +34,9 @@ void necro_compile_impl(
     NecroCodeGen* codegen,
     NecroAST* ast,
     NecroAST_Reified* ast_r,
+    NecroRuntime* runtime,
     NecroCoreAST* ast_core,
+
     uint32_t* destruct_flags)
 {
     if (compilation_phase == NECRO_PHASE_NONE)
@@ -239,7 +241,8 @@ void necro_compile_impl(
     // Codegen
     //=====================================================
     necro_announce_phase("CodeGen");
-    *codegen = necro_create_codegen(infer, &lexer->intern, &symtable, "necro");
+    *runtime = necro_create_runtime();
+    *codegen = necro_create_codegen(infer, &lexer->intern, &symtable, runtime, "necro");
     necro_codegen(codegen, ast_core);
     *destruct_flags |= BIT(NECRO_PHASE_CODEGEN);
     if (codegen->error.return_code != NECRO_SUCCESS)
@@ -267,6 +270,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     NecroAST ast;
     NecroAST_Reified ast_r;
     NecroCoreAST ast_core;
+    NecroRuntime runtime;
     NecroCodeGen codegen;
 
     necro_compile_impl(
@@ -279,6 +283,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
         &codegen,
         &ast,
         &ast_r,
+        &runtime,
         &ast_core,
         &destruct_flags);
 
@@ -289,6 +294,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     if (validate_destruct_phase(NECRO_PHASE_CODEGEN, destruct_flags))
     {
         necro_destroy_codegen(&codegen);
+        necro_destroy_runtime(&runtime);
     }
 
     if (validate_destruct_phase(NECRO_PHASE_TRANSFORM_TO_CORE, destruct_flags))
@@ -321,11 +327,11 @@ void necro_test(NECRO_TEST test)
 {
     switch (test)
     {
-    case NECRO_TEST_VM:                necro_test_vm();                break;
-    case NECRO_TEST_DVM:               necro_test_dvm();               break;
+    // case NECRO_TEST_VM:                necro_test_vm();                break;
+    // case NECRO_TEST_DVM:               necro_test_dvm();               break;
     case NECRO_TEST_SYMTABLE:          necro_symtable_test();          break;
-    case NECRO_TEST_SLAB:              necro_test_slab();              break;
-    case NECRO_TEST_TREADMILL:         necro_test_treadmill();         break;
+    // case NECRO_TEST_SLAB:              necro_test_slab();              break;
+    // case NECRO_TEST_TREADMILL:         necro_test_treadmill();         break;
     case NECRO_TEST_LEXER:             necro_test_lexer();             break;
     case NECRO_TEST_INTERN:            necro_test_intern();            break;
     case NECRO_TEST_VAULT:             necro_vault_test();             break;
@@ -335,7 +341,7 @@ void necro_test(NECRO_TEST test)
     case NECRO_TEST_TYPE:              necro_test_type();              break;
     case NECRO_TEST_ARENA_CHAIN_TABLE: necro_arena_chain_table_test(); break;
     case NECRO_TEST_ALL:
-        necro_test_dvm();
+        // necro_test_dvm();
         necro_symtable_test();
         necro_test_lexer();
         necro_test_intern();

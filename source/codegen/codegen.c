@@ -10,8 +10,8 @@
 #include <llvm-c/Transforms/Scalar.h>
 #include <llvm-c/TargetMachine.h>
 #include <llvm-c/Transforms/PassManagerBuilder.h>
-#include <llvm-c/ExecutionEngine.h>
 #include "symtable.h"
+#include "runtime/runtime.h"
 
 // things to reference:
 //     * https://pauladamsmith.com/blog/2015/01/how-to-get-started-with-llvm-c-api.html
@@ -40,7 +40,7 @@ NecroNodePrototype* necro_declare_node_prototype(NecroCodeGen* codegen, NecroVar
 //=====================================================
 // Create / Destroy
 //=====================================================
-NecroCodeGen necro_create_codegen(NecroInfer* infer, NecroIntern* intern, NecroSymTable* symtable, const char* module_name)
+NecroCodeGen necro_create_codegen(NecroInfer* infer, NecroIntern* intern, NecroSymTable* symtable, NecroRuntime* runtime, const char* module_name)
 {
     LLVMLinkInMCJIT();
     LLVMInitializeNativeTarget();
@@ -73,6 +73,7 @@ NecroCodeGen necro_create_codegen(NecroInfer* infer, NecroIntern* intern, NecroS
         .infer            = infer,
         .intern           = intern,
         .symtable         = symtable,
+        .runtime          = runtime,
         .context          = context,
         .mod              = mod,
         .builder          = LLVMCreateBuilderInContext(context),
@@ -1412,15 +1413,18 @@ void necro_codegen_main(NecroCodeGen* codegen, NecroCoreAST_Expression* ast)
             {
                 LLVMValueRef result_ptr     = necro_snapshot_gep(codegen, "result_ptr", node_result, 2, (uint32_t[]) { 0, 1 });
                 LLVMValueRef unboxed_result = LLVMBuildLoad(codegen->builder, result_ptr, "unboxed_result");
-                LLVMValueRef print_instr    = necro_build_call(codegen, codegen->necro_runtime_functions.necro_print, (LLVMValueRef[]) { unboxed_result }, 1, "");
+                LLVMValueRef print_instr    = necro_build_call(codegen, codegen->runtime->functions.necro_print, (LLVMValueRef[]) { unboxed_result }, 1, "");
                 LLVMSetInstructionCallConv(print_instr, LLVMCCallConv);
+
             }
         }
         top = top->list.next;
     }
+    LLVMValueRef sleep_instr = necro_build_call(codegen, codegen->runtime->functions.necro_sleep, (LLVMValueRef[]) { LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 100, false) }, 1, "");
+    LLVMSetInstructionCallConv(sleep_instr, LLVMCCallConv);
     // Looping logic...
-    // LLVMBuildBr(codegen->builder, main_loop);
-    LLVMBuildRetVoid(codegen->builder);
+    LLVMBuildBr(codegen->builder, main_loop);
+    // LLVMBuildRetVoid(codegen->builder);
     necro_rewind_arena(&codegen->snapshot_arena, snapshot);
 }
 
@@ -1478,27 +1482,10 @@ NECRO_RETURN_CODE necro_verify_and_dump_codegen(NecroCodeGen* codegen)
     return NECRO_SUCCESS;
 }
 
-#define NECRO_MAX_ALLOC 8192
-uint64_t allocation_is_easy[NECRO_MAX_ALLOC];
-uint64_t alloc_pointer = 0;
-extern DLLEXPORT uint64_t* _necro_alloc(uint32_t size)
-{
-    uint64_t* ptr = allocation_is_easy + alloc_pointer;
-    alloc_pointer += size;
-    if (alloc_pointer >= NECRO_MAX_ALLOC)
-        assert(false && "OUT OF MEMORY");
-    return ptr;
-}
-
-extern DLLEXPORT void _necro_print(int64_t value)
-{
-    printf("necro: %lld\n", value);
-}
-
 LLVMValueRef necro_alloc_codegen(NecroCodeGen* codegen, uint64_t size)
 {
     LLVMValueRef data_size = LLVMConstInt(LLVMInt32TypeInContext(codegen->context), size, false);
-    LLVMValueRef void_ptr  = necro_build_call(codegen, codegen->necro_runtime_functions.necro_alloc, &data_size, 1, "void_ptr");
+    LLVMValueRef void_ptr  = necro_build_call(codegen, codegen->runtime->functions.necro_alloc, &data_size, 1, "void_ptr");
     LLVMSetInstructionCallConv(void_ptr, LLVMCCallConv);
     return void_ptr;
 }
@@ -1513,12 +1500,10 @@ NECRO_RETURN_CODE necro_jit(NecroCodeGen* codegen)
         LLVMDisposeMessage(error);
         return NECRO_ERROR;
     }
-    // Do we need to do this!?
-    LLVMAddGlobalMapping(engine, codegen->necro_runtime_functions.necro_alloc, _necro_alloc);
-    LLVMAddGlobalMapping(engine, codegen->necro_runtime_functions.necro_print, _necro_print);
+    necro_bind_runtime_functions(codegen->runtime, engine);
     void(*fun)() = (void(*)())LLVMGetFunctionAddress(engine, "main");
     fprintf(stderr, "\n");
-    fprintf(stderr, "; Running main() with NecroJIT...\n");
+    fprintf(stderr, "Necronomicon arises...\n");
     (*fun)();
     // TODO: Need to dispose execution engine correctly...Put in NecroCodeGen?
     return NECRO_SUCCESS;

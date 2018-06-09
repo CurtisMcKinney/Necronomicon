@@ -1045,6 +1045,16 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
         NecroPrimDef* op_prim_def = necro_prim_def_bin_op(prim_types, intern, NULL, op_sig, op_def_ast);
     }
 
+
+    {
+        // delay
+        NecroASTNode* a_var         = necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
+        NecroASTNode* delay_sig_ast = necro_create_fun_type_sig_ast(&prim_types->arena, intern, "delay", NULL,
+            necro_create_fun_ast(&prim_types->arena, a_var,
+                necro_create_fun_ast(&prim_types->arena, a_var, a_var)), NECRO_VAR_DECLARATION, NECRO_SIG_DECLARATION);
+        necro_prim_def_fun(prim_types, intern, &prim_types->delay_fn, delay_sig_ast);
+    }
+
     // TODO: Finish Bool Eq/Ord instances and && / ||!!!
     // &&
     // NecroASTNode* bool_conid   = necro_create_conid_ast(&prim_types->arena, intern, "Bool", NECRO_CON_TYPE_VAR);

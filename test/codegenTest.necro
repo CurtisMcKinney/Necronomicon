@@ -44,11 +44,12 @@
 -- feedInt = x where
 --     x = x + 1
 
+-- TODO: Finish delay!
 addSomeShit :: Int -> Int
 addSomeShit x = x + x
 
 main :: Int
-main = addSomeShit 20
+main = addSomeShit 5
 
 -- data KeepGoing = KeepGoing KeepGoing | TheEnd
 -- keepGoing :: KeepGoing

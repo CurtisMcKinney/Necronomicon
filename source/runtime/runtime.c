@@ -33,7 +33,7 @@ void necro_destroy_runtime(NecroRuntime* runtime)
 {
 }
 
-#define NECRO_MAX_ALLOC 8192
+#define NECRO_MAX_ALLOC (8192 * 32)
 uint64_t allocation_is_easy[NECRO_MAX_ALLOC];
 uint64_t alloc_pointer = 0;
 extern DLLEXPORT uint64_t* _necro_alloc(uint32_t size)

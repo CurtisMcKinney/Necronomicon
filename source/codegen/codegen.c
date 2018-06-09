@@ -1435,7 +1435,7 @@ void necro_codegen_main(NecroCodeGen* codegen, NecroCoreAST_Expression* ast)
         }
         top = top->list.next;
     }
-    LLVMValueRef sleep_instr = necro_build_call(codegen, codegen->runtime->functions.necro_sleep, (LLVMValueRef[]) { LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 10, false) }, 1, "");
+    LLVMValueRef sleep_instr = necro_build_call(codegen, codegen->runtime->functions.necro_sleep, (LLVMValueRef[]) { LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 250, false) }, 1, "");
     LLVMSetInstructionCallConv(sleep_instr, LLVMCCallConv);
     // Looping logic...
     LLVMBuildBr(codegen->builder, main_loop);
@@ -1517,8 +1517,14 @@ NECRO_RETURN_CODE necro_jit(NecroCodeGen* codegen)
     }
     necro_bind_runtime_functions(codegen->runtime, engine);
     void(*fun)() = (void(*)())LLVMGetFunctionAddress(engine, "main");
-    fprintf(stderr, "\n");
-    fprintf(stderr, "Necronomicon arises...\n");
+    // printf("\n");
+    // printf("Necronomicon arises...\n");
+    puts("__/\\\\/\\\\\\\\\\\\_______/\\\\\\\\\\\\\\\\______/\\\\\\\\\\\\\\\\__/\\\\/\\\\\\\\\\\\\\______/\\\\\\\\\\____ ");
+    puts(" _\\/\\\\\\////\\\\\\____/\\\\\\/////\\\\\\___/\\\\\\//////__\\/\\\\\\/////\\\\\\___/\\\\\\///\\\\\\__");
+    puts("  _\\/\\\\\\__\\//\\\\\\__/\\\\\\\\\\\\\\\\\\\\\\___/\\\\\\_________\\/\\\\\\___\\///___/\\\\\\__\\//\\\\\\");
+    puts("   _\\/\\\\\\___\\/\\\\\\_\\//\\\\///////___\\//\\\\\\________\\/\\\\\\_________\\//\\\\\\__/\\\\\\");
+    puts("    _\\/\\\\\\___\\/\\\\\\__\\//\\\\\\\\\\\\\\\\\\\\__\\///\\\\\\\\\\\\\\\\_\\/\\\\\\__________\\///\\\\\\\\\\/");
+    puts("     _\\///____\\///____\\//////////_____\\////////__\\///_____________\\/////_");
     (*fun)();
     // TODO: Need to dispose execution engine correctly...Put in NecroCodeGen?
     return NECRO_SUCCESS;

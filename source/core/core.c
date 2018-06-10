@@ -694,8 +694,18 @@ NecroCoreAST_Expression* necro_transform_expression_list(NecroTransformToCore* c
         return NULL;
 
     NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+    core_expr->expr_type = NECRO_CORE_EXPR_VAR;
+    core_expr->var.symbol = core_transform->prim_types->list_type.symbol;
+    core_expr->var.id = core_transform->prim_types->list_type.id;
 
-    assert(false); // Implement this!
+    while (necro_ast_node->expression_list.expressions)
+    {
+        NecroCoreAST_Expression* cons_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+        cons_expr->expr_type = NECRO_CORE_EXPR_VAR;
+        //cons_expr->var.symbol = core_transform->prim_types-; // FINISH THIS!
+        cons_expr->var.id = core_transform->prim_types->list_type.id;
+    }
+
     return core_expr;
 }
 
@@ -721,7 +731,7 @@ NecroCoreAST_Expression* necro_transform_tuple(NecroTransformToCore* core_transf
     while (tuple_node)
     {
         app_expr->app.exprB = necro_transform_to_core_impl(core_transform, tuple_node->item);
-        tuple_node = tuple_node->next_item;
+        tuple_node = &tuple_node->next_item->list;
         ++tuple_count;
         
         if (tuple_node)

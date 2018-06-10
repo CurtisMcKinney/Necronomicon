@@ -116,5 +116,11 @@ tuplesAllTheWayDown = ((((1, 2), 3, 4, 5), 6), 7, (8, ((9, 10, 11), 12), 13), 14
 
 apply f a = f a 
 
+emptyListTest :: [a]
+emptyListTest = []
 
+--listTest :: [Int]
+--listTest = [1, 2]
 
+--listTest2 :: [Int]
+--listTest2 = 1 : 2 : []i

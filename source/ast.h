@@ -276,6 +276,7 @@ typedef struct
     struct NecroAST_Node_Reified* rhs;
     NecroID                       id;
     struct NecroDeclarationGroup* declaration_group;
+    bool                          is_recursive;
 } NecroAST_SimpleAssignment_Reified;
 
 //=====================================================

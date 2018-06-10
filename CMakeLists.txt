@@ -114,6 +114,6 @@ ADD_EXECUTABLE(necro ${project_HEADERS} ${project_SOURCES})
 
 # Find the libraries that correspond to the LLVM components
 # that we wish to use
-llvm_map_components_to_libnames(llvm_libs support core irreader analysis target)
+llvm_map_components_to_libnames(llvm_libs support core irreader analysis target ScalarOpts native passes mcjit)
 
 TARGET_LINK_LIBRARIES(necro ${llvm_libs})

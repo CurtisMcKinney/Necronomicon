@@ -29,6 +29,7 @@ struct NecroScope;
 struct NecroDelayScope;
 struct NecroTypeClass;
 struct NecroTypeClassInstance;
+struct NecroNodePrototype;
 
 typedef struct
 {
@@ -46,11 +47,13 @@ typedef struct
     NecroType*                     type;
     NECRO_TYPE_STATUS              type_status;
     struct NecroTypeClass*         method_type_class;
-    bool                           is_constructor;
     struct NecroTypeClass*         type_class;
     struct NecroTypeClassInstance* type_class_instance;
     LLVMValueRef                   llvm_value;
     LLVMTypeRef                    llvm_type;
+    struct NecroNodePrototype*     node_prototype;
+    uint32_t                       persistent_slot; // 0 indicates no persistence
+    bool                           is_constructor;
 } NecroSymbolInfo;
 
 typedef struct NecroSymTable

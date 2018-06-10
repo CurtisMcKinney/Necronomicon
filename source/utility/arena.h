@@ -56,4 +56,26 @@ NecroPagedArena necro_create_paged_arena();
 void*           necro_paged_arena_alloc(NecroPagedArena* arena, size_t size);
 void            necro_destroy_paged_arena(NecroPagedArena* arena);
 
+//=====================================================
+// NecroSnapshotArena
+//=====================================================
+// NOTE: Pointers Retrieved from the arena are unstable!
+typedef struct
+{
+    size_t count;
+} NecroArenaSnapshot;
+
+typedef struct
+{
+    char*  data;
+    size_t count;
+    size_t size;
+} NecroSnapshotArena;
+
+NecroSnapshotArena necro_create_snapshot_arena();
+void*              necro_snapshot_arena_alloc(NecroSnapshotArena* arena, size_t bytes);
+void               necro_destroy_snapshot_arena(NecroSnapshotArena* arena);
+NecroArenaSnapshot necro_get_arena_snapshot(NecroSnapshotArena* arena);
+void               necro_rewind_arena(NecroSnapshotArena* arena, NecroArenaSnapshot snapshot);
+
 #endif // ARENA_H

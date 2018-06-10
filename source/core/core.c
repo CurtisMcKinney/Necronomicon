@@ -35,7 +35,10 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
         break;
 
     case NECRO_CORE_EXPR_BIND:
-        printf("(Bind: %s, %d)\n", necro_intern_get_string(intern, ast_node->bind.var.symbol), ast_node->bind.var.id.id);
+        if (!ast_node->bind.is_recursive)
+            printf("(Bind: %s, %d)\n", necro_intern_get_string(intern, ast_node->bind.var.symbol), ast_node->bind.var.id.id);
+        else
+            printf("(BindRec: %s, %d)\n", necro_intern_get_string(intern, ast_node->bind.var.symbol), ast_node->bind.var.id.id);
         necro_print_core_node(ast_node->bind.expr, intern, depth + 1);
         break;
 
@@ -192,6 +195,7 @@ NecroCoreAST_Expression* necro_transform_bin_op(NecroTransformToCore* core_trans
 
     NecroCoreAST_Expression* inner_core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
     inner_core_expr->expr_type = NECRO_CORE_EXPR_APP;
+    inner_core_expr->app.persistent_slot = 0; // Curtis: Metadata for codegen (would really prefer a constructor...)
     NecroCoreAST_Application* inner_core_app = &inner_core_expr->app;
 
     NecroCoreAST_Expression* var_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
@@ -204,6 +208,7 @@ NecroCoreAST_Expression* necro_transform_bin_op(NecroTransformToCore* core_trans
 
     NecroCoreAST_Expression* outer_core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
     outer_core_expr->expr_type = NECRO_CORE_EXPR_APP;
+    outer_core_expr->app.persistent_slot = 0; // Curtis: Metadata for codegen (would really prefer a constructor...)
     NecroCoreAST_Application* outer_core_app = &outer_core_expr->app;
     outer_core_app->exprA = inner_core_expr;
     outer_core_app->exprB = necro_transform_to_core_impl(core_transform, bin_op->rhs);
@@ -260,6 +265,7 @@ NecroCoreAST_Expression* necro_transform_simple_assignment(NecroTransformToCore*
     NecroCoreAST_Bind* core_bind = &core_expr->bind;
     core_bind->var.symbol = simple_assignment->variable_name;
     core_bind->var.id = simple_assignment->id;
+    core_bind->is_recursive = simple_assignment->is_recursive;
     core_bind->expr = necro_transform_to_core_impl(core_transform, simple_assignment->rhs);
     return core_expr;
 }
@@ -278,6 +284,7 @@ NecroCoreAST_Expression* necro_transform_apats_assignment(NecroTransformToCore* 
     NecroCoreAST_Bind* core_bind = &core_expr->bind;
     core_bind->var.symbol = apats_assignment->variable_name;
     core_bind->var.id = apats_assignment->id;
+    core_bind->is_recursive = false;
 
     if (apats_assignment->apats)
     {
@@ -315,28 +322,34 @@ NecroCoreAST_Expression* necro_transform_right_hand_side(NecroTransformToCore* c
         while (group_list)
         {
             NecroDeclarationGroup* group = group_list->declaration_group;
-            assert(group);
-            assert(group->declaration_ast->type == NECRO_AST_SIMPLE_ASSIGNMENT);
-            NecroAST_SimpleAssignment_Reified* simple_assignment = &group->declaration_ast->simple_assignment;
-            NecroCoreAST_Expression* let_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-            let_expr->expr_type = NECRO_CORE_EXPR_LET;
-            NecroCoreAST_Let* let = &let_expr->let;
-            let->bind = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-            let->bind->expr_type = NECRO_CORE_EXPR_BIND;
-            let->bind->bind.var.id = simple_assignment->id;
-            let->bind->bind.var.symbol = simple_assignment->variable_name;
-            let->bind->bind.expr = necro_transform_to_core_impl(core_transform, simple_assignment->rhs);
-            if (core_let)
+            while (group != NULL)
             {
-                core_let->expr = let_expr;
-            }
-            else
-            {
-                core_let_expr = let_expr;
-            }
+                assert(group);
+                assert(group->declaration_ast->type == NECRO_AST_SIMPLE_ASSIGNMENT);
+                // NOTE - Curtis: Why ^^^? Kicking the can on nested functions!?!?!?
+                NecroAST_SimpleAssignment_Reified* simple_assignment = &group->declaration_ast->simple_assignment;
+                NecroCoreAST_Expression* let_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+                let_expr->expr_type = NECRO_CORE_EXPR_LET;
+                NecroCoreAST_Let* let = &let_expr->let;
+                let->bind = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+                let->bind->expr_type = NECRO_CORE_EXPR_BIND;
+                let->bind->bind.var.id = simple_assignment->id;
+                let->bind->bind.var.symbol = simple_assignment->variable_name;
+                let->bind->bind.is_recursive = simple_assignment->is_recursive;
+                let->bind->bind.expr = necro_transform_to_core_impl(core_transform, simple_assignment->rhs);
+                if (core_let)
+                {
+                    core_let->expr = let_expr;
+                }
+                else
+                {
+                    core_let_expr = let_expr;
+                }
 
-            core_let = let;
-            core_let->expr = rhs_expression;
+                core_let = let;
+                core_let->expr = rhs_expression;
+                group = group->next;
+            }
             group_list = group_list->next;
         }
 
@@ -367,28 +380,33 @@ NecroCoreAST_Expression* necro_transform_let(NecroTransformToCore* core_transfor
         while (group_list)
         {
             NecroDeclarationGroup* group = group_list->declaration_group;
-            assert(group);
-            assert(group->declaration_ast->type == NECRO_AST_SIMPLE_ASSIGNMENT);
-            NecroAST_SimpleAssignment_Reified* simple_assignment = &group->declaration_ast->simple_assignment;
-            NecroCoreAST_Expression* let_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-            let_expr->expr_type = NECRO_CORE_EXPR_LET;
-            NecroCoreAST_Let* let = &let_expr->let;
-            let->bind = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-            let->bind->expr_type = NECRO_CORE_EXPR_BIND;
-            let->bind->bind.var.id = simple_assignment->id;
-            let->bind->bind.var.symbol = simple_assignment->variable_name;
-            let->bind->bind.expr = necro_transform_to_core_impl(core_transform, simple_assignment->rhs);
-            if (core_let)
+            while (group != NULL)
             {
-                core_let->expr = let_expr;
-            }
-            else
-            {
-                core_let_expr = let_expr;
-            }
+                assert(group);
+                assert(group->declaration_ast->type == NECRO_AST_SIMPLE_ASSIGNMENT);
+                NecroAST_SimpleAssignment_Reified* simple_assignment = &group->declaration_ast->simple_assignment;
+                NecroCoreAST_Expression* let_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+                let_expr->expr_type = NECRO_CORE_EXPR_LET;
+                NecroCoreAST_Let* let = &let_expr->let;
+                let->bind = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+                let->bind->expr_type = NECRO_CORE_EXPR_BIND;
+                let->bind->bind.var.id = simple_assignment->id;
+                let->bind->bind.var.symbol = simple_assignment->variable_name;
+                let->bind->bind.expr = necro_transform_to_core_impl(core_transform, simple_assignment->rhs);
+                let->bind->bind.is_recursive = simple_assignment->is_recursive;
+                if (core_let)
+                {
+                    core_let->expr = let_expr;
+                }
+                else
+                {
+                    core_let_expr = let_expr;
+                }
 
-            core_let = let;
-            core_let->expr = rhs_expression;
+                core_let = let;
+                core_let->expr = rhs_expression;
+                group = group->next;
+            }
             group_list = group_list->next;
         }
 
@@ -413,6 +431,7 @@ NecroCoreAST_Expression* necro_transform_function_expression(NecroTransformToCor
     core_expr->expr_type = NECRO_CORE_EXPR_APP;
     core_expr->app.exprA = necro_transform_to_core_impl(core_transform, necro_ast_node->fexpression.aexp);
     core_expr->app.exprB = necro_transform_to_core_impl(core_transform, necro_ast_node->fexpression.next_fexpression);
+    core_expr->app.persistent_slot = 0; // Curtis: Metadata for codegen (would really prefer a constructor...)
     return core_expr;
 }
 
@@ -478,6 +497,7 @@ NecroCoreAST_Expression* necro_transform_data_constructor(NecroTransformToCore* 
                 next_core_arg->expr_type = NECRO_CORE_EXPR_APP;
                 next_core_arg->app.exprA = necro_transform_to_core_impl(core_transform, type_app->ty);
                 next_core_arg->app.exprB = necro_transform_to_core_impl(core_transform, type_app->next_ty);
+                next_core_arg->app.persistent_slot = 0; // Curtis: Metadata for codegen (would really prefer a constructor...)
                 next_core_arg_data_expr->expr_type = NECRO_CORE_EXPR_LIST;
                 next_core_arg_data_expr->list.expr = next_core_arg;
                 next_core_arg_data_expr->list.next = NULL;
@@ -619,22 +639,25 @@ NecroCoreAST_Expression* necro_transform_top_decl(NecroTransformToCore* core_tra
     while (group_list)
     {
         NecroDeclarationGroup* group = group_list->declaration_group;
-        assert(group);
-        NecroCoreAST_Expression* last_node = next_node;
-        NecroCoreAST_Expression* expression = necro_transform_to_core_impl(core_transform, (NecroAST_Node_Reified*) group->declaration_ast);
-        next_node = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-        next_node->expr_type = NECRO_CORE_EXPR_LIST;
-        next_node->list.expr = expression;
-        next_node->list.next = NULL;
-        if (top_expression == NULL)
+        while (group != NULL)
         {
-            top_expression = next_node;
+            assert(group);
+            NecroCoreAST_Expression* last_node = next_node;
+            NecroCoreAST_Expression* expression = necro_transform_to_core_impl(core_transform, (NecroAST_Node_Reified*) group->declaration_ast);
+            next_node = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+            next_node->expr_type = NECRO_CORE_EXPR_LIST;
+            next_node->list.expr = expression;
+            next_node->list.next = NULL;
+            if (top_expression == NULL)
+            {
+                top_expression = next_node;
+            }
+            else
+            {
+                last_node->list.next = next_node;
+            }
+            group = group->next;
         }
-        else
-        {
-            last_node->list.next = next_node;
-        }
-
         group_list = group_list->next;
     }
 
@@ -719,30 +742,35 @@ NecroCoreAST_Expression* necro_transform_tuple(NecroTransformToCore* core_transf
 
     NecroCoreAST_Expression* tuple_app_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
     tuple_app_expr->expr_type = NECRO_CORE_EXPR_APP;
+    tuple_app_expr->app.persistent_slot = 0; // Curtis: Metadata for codegen (would really prefer a constructor...)
 
     NecroCoreAST_Expression* var_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
     var_expr->expr_type = NECRO_CORE_EXPR_VAR;
-    
+
     NecroCoreAST_Expression* app_expr = tuple_app_expr;
     app_expr->app.exprA = var_expr;
     int tuple_count = 0;
+    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // Curtis: Hey, This is throwing a warning about mismatched types! Double check!!!!!!
+    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     NecroAST_ListNode_Reified* tuple_node = &necro_ast_node->tuple.expressions->list;
-    
+
     while (tuple_node)
     {
         app_expr->app.exprB = necro_transform_to_core_impl(core_transform, tuple_node->item);
         tuple_node = &tuple_node->next_item->list;
         ++tuple_count;
-        
+
         if (tuple_node)
         {
             NecroCoreAST_Expression* prev_app_expr = app_expr;
             app_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
             app_expr->expr_type = NECRO_CORE_EXPR_APP;
             app_expr->app.exprA = prev_app_expr;
+            app_expr->app.persistent_slot = 0; // Curtis: Metadata for codegen (would really prefer a constructor...)
         }
     }
-    
+
     assert(tuple_count > 1 && "[necro_transform_tuple] unhandled size of tuple!");
     assert(tuple_node == NULL);
 
@@ -956,7 +984,7 @@ NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core
 
     default:
         printf("necro_transform_to_core transforming AST type unimplemented!: %d\n", necro_ast_node->type);
-        assert(false);
+        assert(false && "necro_transform_to_core transforming AST type unimplemented!\n");
         break;
     }
 

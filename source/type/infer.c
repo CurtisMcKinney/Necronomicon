@@ -368,6 +368,8 @@ NecroType* necro_infer_simple_assignment(NecroInfer* infer, NecroNode* ast)
     if (necro_is_infer_error(infer)) return NULL;
     NecroType* proxy_type = infer->symtable->data[ast->simple_assignment.id.id].type;
     NecroType* rhs_type   = necro_infer_go(infer, ast->simple_assignment.rhs);
+    if (ast->simple_assignment.declaration_group != NULL && ast->simple_assignment.declaration_group->next != NULL)
+        ast->simple_assignment.is_recursive = true;
     if (infer->error.return_code != NECRO_SUCCESS) return NULL;
     necro_unify(infer, proxy_type, rhs_type, ast->scope, proxy_type, "While inferring the type of an assignment: ");
     return NULL;
@@ -607,12 +609,13 @@ NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast)
     // Recursive value Delay check
     if (symbol_info->delay_scope != NULL && symbol_info->type_status != NECRO_TYPE_DONE && ast->variable.var_type == NECRO_VAR_VAR)
     {
-        NecroDelayScope* current_delay_scope = ast->delay_scope;
-        NecroDelayScope* symbol_delay_scope  = symbol_info->delay_scope;
-        if (current_delay_scope == symbol_delay_scope)
-            return necro_infer_ast_error(infer, NULL, ast, "%s cannot instantaneously depend on itself.\n Consider adding a delay of some kind, such as: seq {init, %s}",
-                necro_intern_get_string(infer->intern, ast->variable.symbol),
-                necro_intern_get_string(infer->intern, ast->variable.symbol));
+        // TODO: Replace this with a new recursion testing scheme!
+        // NecroDelayScope* current_delay_scope = ast->delay_scope;
+        // NecroDelayScope* symbol_delay_scope  = symbol_info->delay_scope;
+        // if (current_delay_scope == symbol_delay_scope)
+        //     return necro_infer_ast_error(infer, NULL, ast, "%s cannot instantaneously depend on itself.\n Consider adding a delay of some kind, such as: seq {init, %s}",
+        //         necro_intern_get_string(infer->intern, ast->variable.symbol),
+        //         necro_intern_get_string(infer->intern, ast->variable.symbol));
     }
 
     if (symbol_info->type == NULL)

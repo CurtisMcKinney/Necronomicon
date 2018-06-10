@@ -56,6 +56,10 @@ void d_analyze_var(NecroDependencyAnalyzer* d_analyzer, NecroID id)
         w->info->current_group = w;
     NecroDeclarationGroup* v = w->info->current_group;
     assert(v != NULL);
+    // if (w->index != -1 && w->info->current_group->declaration_ast->type == NECRO_AST_SIMPLE_ASSIGNMENT)
+    // {
+    //     w->info->current_group->declaration_ast->simple_assignment.is_recursive = true;
+    // }
     if (w->index == -1)
     {
         symbol_info->declaration_group->info->current_group = w;
@@ -65,6 +69,8 @@ void d_analyze_var(NecroDependencyAnalyzer* d_analyzer, NecroID id)
     else if (w->on_stack)
     {
         v->low_link = min(w->low_link, v->low_link);
+        if (w->info->current_group->declaration_ast->type == NECRO_AST_SIMPLE_ASSIGNMENT)
+            w->info->current_group->declaration_ast->simple_assignment.is_recursive = true;
     }
     symbol_info->declaration_group->info->current_group = v;
 }

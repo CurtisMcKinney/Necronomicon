@@ -1,49 +1,305 @@
+-- Feedback test
+-- ALERT! - Sleep times don't seem to work correctly from msys/cygwin/mintty
+-- ALERT! - Use an actual CMD prompt for correct necro usage!
+-- necro usage: necro.exe \path\to\file.necro -jit
 
-intTest :: Int
-intTest = 666
+main :: Int
+main = x where
+    x = 1 + delay 0 x
 
-floatTest :: Float
-floatTest = 4.321
+-- -- Looks like more than 1 persistent var is crashing things...
+-- integrator :: Int -> Int
+-- integrator delta = f where
+--     f = delta + delay 0 f
+-- TODO: Perhaps make delay a keyword instead of a function....!?
 
-rationalTest :: Rational
-rationalTest = 987654321
+-- TODO: Unguarded recursion detection!
 
-audioTest :: Audio
-audioTest = 987654321
+-- -- TODO: Mututally recursive bindings are not functioning in core!?!?
+-- letrec in core?!?!?!
+-- mutualRec :: Int
+-- mutualRec = death where
+--     death = toAll
+--     toAll = death
 
-unitTest :: ()
-unitTest = ()
+-- -- TODO: Nested functions don't work in core!?!?!
+-- nested :: Int
+-- nested = f 0 + f 1 where
+--     f x = x + 2
 
-data Nullary = Nullary
+-- adder :: Int
+-- adder = 666 * x + y * z where
+--     x = 1 + 1
+--     y = 2
+--     z = 3
 
-nullaryTest :: Nullary
-nullaryTest = Nullary
+-- feedInt :: Float -> Float -> Float
+-- feedInt delta offset = y + offset where
+--     y = y + delta
 
-data ThereCanBeOnlyOne = ThereCanBeOnlyOne Int
+-- tailNoState :: Int -> Int
+-- tailNoState x = tailNoState y where
+--     y = x * 2
 
-thereCanBeOnlyOneTest :: ThereCanBeOnlyOne
-thereCanBeOnlyOneTest = ThereCanBeOnlyOne 0
+-- callTailNoState :: Int
+-- callTailNoState = x + x where
+--     x = tailNoState 0
 
-data CakeOrDeath = Cake Int | Death () Float
+-- tailState :: Int -> Int
+-- tailState x = tailState y where
+--     y = y + x
 
-cake :: CakeOrDeath
-cake = Cake 0
+-- callTailState :: Int
+-- callTailState = x + x where
+--     x = tailState 0
 
-death :: CakeOrDeath
-death = Death () 3.3
+-- -- TODO: Need to enforce delay usage!
+-- -- Causes assertion with optimizations on !?
+-- feedInt :: Int
+-- feedInt = x where
+--     x = x + 1
 
-data Polymorph a = Polymorph a a | Newt
+-- -- TODO: Finish delay!
+-- addSomeShit :: Int -> Int
+-- addSomeShit x = x + x
 
-polymorph :: Polymorph Int
-polymorph = Polymorph 0 0
+-- main :: Int
+-- main = addSomeShit 5
 
-newt :: Polymorph Int
-newt = Newt
+-- data Maybe a = Just a | Nothing
+-- maybe :: Maybe Int
+-- maybe = Just 0
 
-testUntilYouDie :: Polymorph ()
-testUntilYouDie = x where x = Newt
+-- data Either a b = Left a | Right b
+-- leftOrRight :: Either Int Float
+-- leftOrRight = Right 1.2 where
 
-data Lopsided = Light () | Heavy Int Int Int Int Int
+-- data KeepGoing = KeepGoing KeepGoing | TheEnd
+-- keepGoing :: KeepGoing
+-- keepGoing = y where
+--     x = KeepGoing x
+--     y = KeepGoing y
 
-lopsidedTest :: Lopsided
-lopsidedTest = Light ()
+-- data Nullary = Nullary
+-- nullaryTest :: Nullary
+-- nullaryTest = n where
+--     n = n
+--     z = z
+
+-- data CakeOrDeath = Cake | Death Nullary | MorePlease CakeOrDeath CakeOrDeath
+-- cakeTest1 :: CakeOrDeath
+-- cakeTest1 = Cake
+--
+-- cakeTest2 :: CakeOrDeath
+-- cakeTest2 = Death Nullary
+--
+-- cakeTest3 :: CakeOrDeath
+-- cakeTest3 = MorePlease z x where
+--     z = MorePlease x y
+--     x = Cake
+--     y = Death Nullary
+
+-- data Maybe a = Just a | Nothing
+
+-- dropOne :: a -> a -> a
+-- dropOne x y = dropOne x y
+
+-- dropTwo :: a -> a -> a
+-- dropTwo x y = dropOne x y
+
+-- gimme :: Maybe ()
+-- gimme = dropOne (dropOne Nothing Nothing) (Just ()) where
+--     x = x
+--     y = Just ()
+
+-- -- TODO: Support anonymous functions!
+-- lambdaTest :: Int
+-- lambdaTest = (\x -> x) 1
+
+-- simpleRec :: Int
+-- simpleRec = simpleRec
+
+-- lowerRec1 :: Int
+-- lowerRec1 = recX where
+--     recX = recX
+
+-- lowerRec2 :: Int
+-- lowerRec2 = recX + y where
+--     recX = recX
+--     recY = recX + recY
+--     y    = 0
+
+-- recFunc :: Int -> Int
+-- recFunc x = maybeRecValue
+-- recValue :: Int
+-- recValue = maybeRecFunc 0
+
+-- statelessFunc :: Int -> Int
+-- statelessFunc x = y where
+--     y = y
+
+-- topMutRecX :: Int
+-- topMutRecX = topMutRecY
+
+-- topMutRecY :: Int
+-- topMutRecY = topMutRecX
+
+-- -- TODO: Remember that mutual recursion is missing in core!
+-- recTest :: Int
+-- recTest = x + y + z where
+--     x = y
+--     y = x
+--     z = 0
+
+-- feedTest :: Int
+-- feedTest = x where
+--     x = z where z = x
+--     y = x
+
+-- -- Require delay node for state
+-- -- ...But how to enforce!??!?!
+-- intTest :: Int
+-- intTest = 0 + y * x + z + w where
+--     y = y
+--     x = x
+--     z = 0 + 1
+--     w = 3 * 3
+
+-- data Nullary = Nullary
+-- nullaryTest :: Nullary
+-- nullaryTest = x where
+--     x = Nullary
+
+-- id :: a -> a
+-- id x = x
+
+-- appTest :: Nullary
+-- appTest = id (id (id Nullary))
+
+-- -- Finish App!
+-- id :: a -> a
+-- id i = f where
+--     f = f
+
+-- funTest :: Int -> Int
+-- funTest x = x + y where
+--     y = 2 * 3
+
+-- funTest2 :: Int -> Int -> Int
+-- funTest2 x y = x + y + z + w where
+--     z = 4
+--     w = z + x + y
+--
+-- appTest :: Nullary
+-- appTest = id (id (id Nullary))
+--
+
+-- -- TODO: Finish!
+-- data Nullary = Nullary
+-- doubleID :: a -> b -> a
+-- doubleID x y = x
+
+-- doubleTest :: Int
+-- doubleTest = doubleID 0 Nullary
+
+-- numTest :: Num a => a -> a -> a
+-- numTest x y = x + y
+
+-- data Doom a = Doom a Int
+-- appliedDoom :: () -> Int -> Doom ()
+-- appliedDoom x i = Doom x i
+
+-- selfRec :: Int
+-- selfRec = y + selfRec where
+--     y = 3
+
+-- deadSimple :: Int
+-- deadSimple = onlyOne where
+--     onlyOne = 1
+
+-- soManyInsaneBinds :: Int
+-- soManyInsaneBinds = a * x + y - soManyInsaneBinds where
+--     a = 33
+--     x = z + w where
+--         z = 4 + w
+--         w = 3
+--     y = u + v + x where
+--         u = 5
+--         v = 6 + a
+
+-- -- TODO: TEMP NODES!!!!!
+-- data Doom a = Doom a Int
+-- doomsday :: Doom (Doom Int)
+-- doomsday = Doom (Doom left right) 0 where
+--     left  = 1
+--     right = 2
+
+-- -- TODO: TEMP NODES!!!!!
+-- -- If all owned nodes are cached at the very top level node
+-- -- Then it is simple to capture variables, even for functions!?
+-- doomsday :: Int
+-- doomsday = x + y + z + doomsday where
+--     x = 1 + 3
+--     y = 2 + x + w where w = 4
+--     z = 3 + y
+
+-- anotherFloat :: Float
+-- anotherFloat = l + r / 3 where
+--     l = 4
+--     r = 5
+
+-- -- Init function needs to be passed all captured variable node
+-- -- AND all captured variable node for each owned node
+-- -- If we inline all owned node instances perhaps we can obviate the need for captured variables in values (but not functions)
+-- twoLevelsDown :: Int
+-- twoLevelsDown = levelOne where
+--     levelOne = levelTwo where
+--         levelTwo = levelThree where
+--             levelThree = levelOne + levelTwo
+
+-- floatTest :: Float
+-- floatTest = 4.321
+--
+-- rationalTest :: Rational
+-- rationalTest = 987654321
+--
+-- audioTest :: Audio
+-- audioTest = 987654321
+--
+-- unitTest :: ()
+-- unitTest = ()
+--
+-- data Nullary = Nullary
+--
+-- nullaryTest :: Nullary
+-- nullaryTest = Nullary
+--
+-- data ThereCanBeOnlyOne = ThereCanBeOnlyOne Int
+--
+-- thereCanBeOnlyOneTest :: ThereCanBeOnlyOne
+-- thereCanBeOnlyOneTest = ThereCanBeOnlyOne 0
+--
+-- data CakeOrDeath = Cake Int | Death () Float
+--
+-- cake :: CakeOrDeath
+-- cake = Cake 0
+--
+-- death :: CakeOrDeath
+-- death = Death () 3.3
+--
+-- data Polymorph a = Polymorph a a | Newt
+--
+-- polymorph :: Polymorph Int
+-- polymorph = Polymorph 0 0
+--
+-- newt :: Polymorph Int
+-- newt = Newt
+--
+-- testUntilYouDie :: Polymorph ()
+-- testUntilYouDie = x where x = Newt
+--
+-- data Lopsided = Light () | Heavy Int Int Int Int Int | Empty
+--
+-- lopsidedTest :: Lopsided
+-- lopsidedTest = Light ()
+--

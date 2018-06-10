@@ -11,6 +11,8 @@
 #include <llvm-c/Core.h>
 #include "llvm-c/Analysis.h"
 #include "codegen/codegen.h"
+#include "symtable.h"
+#include "runtime/runtime.h"
 
 //=====================================================
 // Forward Declarations
@@ -1043,6 +1045,16 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
         NecroPrimDef* op_prim_def = necro_prim_def_bin_op(prim_types, intern, NULL, op_sig, op_def_ast);
     }
 
+
+    {
+        // delay
+        NecroASTNode* a_var         = necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
+        NecroASTNode* delay_sig_ast = necro_create_fun_type_sig_ast(&prim_types->arena, intern, "delay", NULL,
+            necro_create_fun_ast(&prim_types->arena, a_var,
+                necro_create_fun_ast(&prim_types->arena, a_var, a_var)), NECRO_VAR_DECLARATION, NECRO_SIG_DECLARATION);
+        necro_prim_def_fun(prim_types, intern, &prim_types->delay_fn, delay_sig_ast);
+    }
+
     // TODO: Finish Bool Eq/Ord instances and && / ||!!!
     // &&
     // NecroASTNode* bool_conid   = necro_create_conid_ast(&prim_types->arena, intern, "Bool", NECRO_CON_TYPE_VAR);
@@ -1060,6 +1072,100 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
 
 }
 
+void necro_gen_bin_op(NecroCodeGen* codegen, NecroVar bin_op_name, LLVMTypeRef input_type, LLVMTypeRef raw_type, LLVMOpcode op_code)
+{
+    NecroArenaSnapshot snapshot  = necro_get_arena_snapshot(&codegen->snapshot_arena);
+    // Setup bin op function
+    LLVMTypeRef        args[2]   = { LLVMPointerType(input_type,0), LLVMPointerType(input_type, 0) };
+    LLVMValueRef       bin_op    = necro_snapshot_add_function(codegen, necro_intern_get_string(codegen->intern, bin_op_name.symbol), LLVMPointerType(input_type, 0), args, 2);
+    LLVMBasicBlockRef  entry     = LLVMAppendBasicBlock(bin_op, "entry");
+    LLVMPositionBuilderAtEnd(codegen->builder, entry);
+    // Retrieve raw values
+    LLVMValueRef       raw_left_ptr  = necro_snapshot_gep(codegen, "raw_left_ptr",  LLVMGetParam(bin_op, 0), 2, (uint32_t[]) { 0, 1 });
+    LLVMValueRef       raw_right_ptr = necro_snapshot_gep(codegen, "raw_right_ptr", LLVMGetParam(bin_op, 1), 2, (uint32_t[]) { 0, 1 });
+    LLVMValueRef       raw_left      = LLVMBuildLoad(codegen->builder, raw_left_ptr, "raw_left");
+    LLVMValueRef       raw_right     = LLVMBuildLoad(codegen->builder, raw_right_ptr, "raw_right");
+    LLVMValueRef       raw_result    = LLVMBuildBinOp(codegen->builder, op_code, raw_left, raw_right, "raw_result");
+    // Store Raw value in result
+    LLVMValueRef       data_ptr      = necro_gen_alloc_boxed_value(codegen, input_type, 0, 0, "data_ptr");
+    LLVMValueRef       result_ptr    = necro_snapshot_gep(codegen, "result_ptr", data_ptr, 2, (uint32_t[]) { 0, 1 });
+    LLVMBuildStore(codegen->builder, raw_result, result_ptr);
+    // return
+    LLVMBuildRet(codegen->builder, data_ptr);
+    necro_create_prim_node_prototype(codegen, bin_op_name, LLVMPointerType(input_type, 0), bin_op, NECRO_NODE_STATELESS);
+    necro_rewind_arena(&codegen->snapshot_arena, snapshot);
+}
+
+void necro_gen_bin_ops(NecroCodeGen* codegen, NecroVar type_name, LLVMTypeRef input_type, LLVMTypeRef raw_type, uint32_t add_op, uint32_t sub_op, uint32_t mul_op, uint32_t div_op)
+{
+    NecroSymbol add_symbol = necro_intern_string(codegen->intern, necro_concat_strings(&codegen->snapshot_arena, 2, (const char*[]) { "add@", necro_intern_get_string(codegen->intern, type_name.symbol) }));
+    NecroID     add_id     = necro_scope_find(codegen->infer->scoped_symtable->top_scope, add_symbol);
+    necro_gen_bin_op(codegen, (NecroVar) { .id = add_id, .symbol = add_symbol }, input_type, raw_type, add_op);
+
+    NecroSymbol sub_symbol = necro_intern_string(codegen->intern, necro_concat_strings(&codegen->snapshot_arena, 2, (const char*[]) { "sub@", necro_intern_get_string(codegen->intern, type_name.symbol) }));
+    NecroID     sub_id     = necro_scope_find(codegen->infer->scoped_symtable->top_scope, sub_symbol);
+    necro_gen_bin_op(codegen, (NecroVar) { .id = sub_id, .symbol = sub_symbol }, input_type, raw_type, sub_op);
+
+    NecroSymbol mul_symbol = necro_intern_string(codegen->intern, necro_concat_strings(&codegen->snapshot_arena, 2, (const char*[]) { "mul@", necro_intern_get_string(codegen->intern, type_name.symbol) }));
+    NecroID     mul_id     = necro_scope_find(codegen->infer->scoped_symtable->top_scope, mul_symbol);
+    necro_gen_bin_op(codegen, (NecroVar) { .id = mul_id, .symbol = mul_symbol }, input_type, raw_type, mul_op);
+
+    if (div_op != 0)
+    {
+        NecroSymbol div_symbol = necro_intern_string(codegen->intern, necro_concat_strings(&codegen->snapshot_arena, 2, (const char*[]) { "div@", necro_intern_get_string(codegen->intern, type_name.symbol) }));
+        NecroID     div_id     = necro_scope_find(codegen->infer->scoped_symtable->top_scope, div_symbol);
+        necro_gen_bin_op(codegen, (NecroVar) { .id = div_id, .symbol = div_symbol }, input_type, raw_type, div_op);
+    }
+}
+
+void necro_gen_from_cast(NecroCodeGen* codegen, const char* cast_name_string, LLVMTypeRef boxed_type, LLVMTypeRef raw_type, LLVMTypeRef dest_boxed_type, LLVMTypeRef dest_raw_type, uint32_t cast_op_code)
+{
+    NecroArenaSnapshot snapshot    = necro_get_arena_snapshot(&codegen->snapshot_arena);
+    NecroSymbol        cast_symbol = necro_intern_string(codegen->intern, cast_name_string);
+    NecroID            cast_id     = necro_scope_find(codegen->infer->scoped_symtable->top_scope, cast_symbol);
+    NecroVar           cast_name   = (NecroVar) { .id = cast_id, .symbol = cast_symbol };
+    // Setup bin op function
+    LLVMTypeRef        args[1] = { LLVMPointerType(boxed_type,0) };
+    LLVMValueRef       cast_op = necro_snapshot_add_function(codegen, necro_intern_get_string(codegen->intern, cast_name.symbol), LLVMPointerType(dest_boxed_type, 0), args, 1);
+    LLVMBasicBlockRef  entry   = LLVMAppendBasicBlock(cast_op, "entry");
+    LLVMPositionBuilderAtEnd(codegen->builder, entry);
+    if (boxed_type == dest_boxed_type)
+    {
+        LLVMBuildRet(codegen->builder, LLVMGetParam(cast_op, 0));
+    }
+    else
+    {
+        // Get Value
+        LLVMValueRef raw_ptr    = necro_snapshot_gep(codegen, "raw_ptr",  LLVMGetParam(cast_op, 0), 2, (uint32_t[]) { 0, 1 });
+        LLVMValueRef raw_value  = LLVMBuildLoad(codegen->builder, raw_ptr, "raw_value");
+        LLVMValueRef raw_result = LLVMBuildCast(codegen->builder, cast_op_code, raw_value, dest_raw_type, "raw_result");
+        LLVMValueRef data_ptr   = necro_gen_alloc_boxed_value(codegen, dest_boxed_type, 0, 0, "data_ptr");
+        LLVMValueRef result_ptr = necro_snapshot_gep(codegen, "result_ptr", data_ptr, 2, (uint32_t[]) { 0, 1 });
+        LLVMBuildStore(codegen->builder, raw_result, result_ptr);
+        // return
+        LLVMBuildRet(codegen->builder, data_ptr);
+    }
+    necro_create_prim_node_prototype(codegen, cast_name, LLVMPointerType(dest_boxed_type, 0), cast_op, NECRO_NODE_STATELESS);
+    necro_rewind_arena(&codegen->snapshot_arena, snapshot);
+}
+
+LLVMValueRef necro_codegen_box(NecroCodeGen* codegen, const char* type_name, LLVMTypeRef boxed_type, LLVMTypeRef unboxed_type)
+{
+    NecroArenaSnapshot snapshot   = necro_get_arena_snapshot(&codegen->snapshot_arena);
+    const char*        fn_name    = necro_concat_strings(&codegen->snapshot_arena, 2, (const char*[]) { "_mk", type_name });
+    LLVMTypeRef        args[1]    = { unboxed_type };
+    LLVMValueRef       box_fn     = necro_snapshot_add_function(codegen, fn_name, LLVMPointerType(boxed_type, 0), args, 1);
+    LLVMBasicBlockRef  entry      = LLVMAppendBasicBlock(box_fn, "entry");
+    LLVMPositionBuilderAtEnd(codegen->builder, entry);
+    // Store Unboxed value in Box
+    LLVMValueRef       box_ptr    = necro_gen_alloc_boxed_value(codegen, boxed_type, 0, 0, "box_ptr");
+    LLVMValueRef       result_ptr = necro_snapshot_gep(codegen, "result_ptr", box_ptr, 2, (uint32_t[]) { 0, 1 });
+    LLVMBuildStore(codegen->builder, LLVMGetParam(box_fn, 0), result_ptr);
+    LLVMBuildRet(codegen->builder, box_ptr);
+    necro_rewind_arena(&codegen->snapshot_arena, snapshot);
+    return box_fn;
+}
+
 NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
 {
     if (necro_is_codegen_error(codegen)) return codegen->error.return_code;
@@ -1075,6 +1181,19 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
     // codegen->mod     = LLVMModuleCreateWithNameInContext("NecroPrim", codegen->context);
     // codegen->builder = LLVMCreateBuilderInContext(codegen->context);
 
+    //=====================================================
+    // Runtime and intrinsics
+    //=====================================================
+    LLVMTypeRef  mem_cpy_args[4] = { LLVMPointerType(LLVMInt64TypeInContext(codegen->context), 0), LLVMPointerType(LLVMInt64TypeInContext(codegen->context), 0), LLVMInt32TypeInContext(codegen->context), LLVMInt1TypeInContext(codegen->context) };
+    LLVMTypeRef  mem_cpy_type    = LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), mem_cpy_args, 4, false);
+    LLVMValueRef mem_cpy         = LLVMAddFunction(codegen->mod, "llvm.memcpy.p0i64.p0i64.i32", mem_cpy_type);
+    codegen->llvm_intrinsics.mem_cpy = mem_cpy;
+
+    necro_declare_runtime_functions(codegen->runtime, codegen);
+
+    //=====================================================
+    // Primitive Types
+    //=====================================================
     // NecroData#
     LLVMTypeRef necro_type_ref = LLVMStructCreateNamed(codegen->context, "_NecroData");
     LLVMTypeRef necro_elems[2] = { LLVMInt32TypeInContext(codegen->context), LLVMInt32TypeInContext(codegen->context) };
@@ -1104,12 +1223,21 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
     LLVMTypeRef int_elems[2] = { necro_type_ref, LLVMInt64TypeInContext(codegen->context) };
     LLVMStructSetBody(int_type_ref, int_elems, 2, false);
     necro_symtable_get(codegen->symtable, prim_types->int_type.id)->llvm_type = int_type_ref;
+    necro_gen_bin_ops(codegen, necro_con_to_var(codegen->infer->prim_types->int_type), int_type_ref, LLVMInt64TypeInContext(codegen->context), LLVMAdd, LLVMSub, LLVMMul, 0);
+    necro_gen_from_cast(codegen, "fromInt@Int", int_type_ref, LLVMInt64TypeInContext(codegen->context), int_type_ref, LLVMInt64TypeInContext(codegen->context), LLVMSIToFP);
+    NecroNodePrototype* int_prototype = necro_create_prim_node_prototype(codegen, necro_con_to_var(codegen->infer->prim_types->int_type), NULL, NULL, NECRO_NODE_STATELESS);
+    int_prototype->mk_function = necro_codegen_box(codegen, "Int", int_type_ref, LLVMInt64TypeInContext(codegen->context));
 
     // Float
     LLVMTypeRef float_type_ref = LLVMStructCreateNamed(codegen->context, "Float");
     LLVMTypeRef float_elems[2] = { necro_type_ref, LLVMDoubleTypeInContext(codegen->context) };
     LLVMStructSetBody(float_type_ref, float_elems, 2, false);
     necro_symtable_get(codegen->symtable, prim_types->float_type.id)->llvm_type = float_type_ref;
+    necro_gen_bin_ops(codegen, necro_con_to_var(codegen->infer->prim_types->float_type), float_type_ref, LLVMFloatTypeInContext(codegen->context), LLVMFAdd, LLVMFSub, LLVMFMul, LLVMFDiv);
+    necro_gen_from_cast(codegen, "fromInt@Float", int_type_ref, LLVMInt64TypeInContext(codegen->context), float_type_ref, LLVMDoubleTypeInContext(codegen->context), LLVMSIToFP);
+    necro_gen_from_cast(codegen, "fromRational@Float", float_type_ref, LLVMDoubleTypeInContext(codegen->context), float_type_ref, LLVMDoubleTypeInContext(codegen->context), LLVMSIToFP);
+    NecroNodePrototype* float_prototype = necro_create_prim_node_prototype(codegen, necro_con_to_var(codegen->infer->prim_types->float_type), NULL, NULL, NECRO_NODE_STATELESS);
+    float_prototype->mk_function = necro_codegen_box(codegen, "Float", float_type_ref, LLVMDoubleTypeInContext(codegen->context));
 
     // Rational
     LLVMTypeRef rational_type_ref = LLVMStructCreateNamed(codegen->context, "Rational");
@@ -1123,6 +1251,7 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
     LLVMStructSetBody(audio_type_ref, audio_elems, 2, false);
     necro_symtable_get(codegen->symtable, prim_types->audio_type.id)->llvm_type = audio_type_ref;
 
+    // TODO: Finish
     // ()
     LLVMTypeRef unit_type_ref = LLVMStructCreateNamed(codegen->context, "_Unit");
     LLVMTypeRef unit_elems[1] = { necro_type_ref };
@@ -1134,6 +1263,78 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
     LLVMTypeRef list_elems[3] = { necro_type_ref, LLVMPointerType(necro_val_type_ref, 0), LLVMPointerType(necro_val_type_ref, 0) };
     LLVMStructSetBody(list_type_ref, list_elems, 3, false);
     necro_symtable_get(codegen->symtable, prim_types->list_type.id)->llvm_type = list_type_ref;
+
+    // TODO: Need to solve polymorphism problem!
+    {
+        // delay
+        LLVMTypeRef delay_type_ref = LLVMStructCreateNamed(codegen->context, "_DelayNode");
+        LLVMTypeRef delay_elems[3] = { necro_type_ref, LLVMPointerType(necro_val_type_ref, 0), LLVMPointerType(necro_val_type_ref, 0) };
+        LLVMStructSetBody(delay_type_ref, delay_elems, 3, false);
+        NecroNodePrototype* delay_node = necro_create_necro_node_prototype(codegen, necro_con_to_var(codegen->infer->prim_types->delay_fn), "_DelayNode", delay_type_ref, LLVMPointerType(necro_val_type_ref, 0), NULL, NECRO_NODE_STATEFUL);
+        necro_symtable_get(codegen->symtable, prim_types->delay_fn.id)->llvm_type      = delay_type_ref; // Is this correct!?
+        necro_symtable_get(codegen->symtable, prim_types->delay_fn.id)->node_prototype = delay_node;
+        delay_node->args = necro_cons_arg_list(&codegen->arena, (NecroArg) { .llvm_type = LLVMPointerType(necro_val_type_ref, 0), .var = { 0 } }, delay_node->args);
+        delay_node->args = necro_cons_arg_list(&codegen->arena, (NecroArg) { .llvm_type = LLVMPointerType(necro_val_type_ref, 0), .var = { 0 } }, delay_node->args);
+        {
+            // _mkDelayNode
+            LLVMValueRef       mk_delay_node = necro_snapshot_add_function(codegen, "_mkDelayNode", LLVMPointerType(delay_node->node_type, 0), NULL, 0);
+            delay_node->mk_function          = mk_delay_node;
+            LLVMBasicBlockRef  entry         = LLVMAppendBasicBlock(mk_delay_node, "entry");
+            LLVMPositionBuilderAtEnd(codegen->builder, entry);
+            LLVMValueRef       void_ptr      = necro_alloc_codegen(codegen, LLVMABISizeOfType(codegen->target, delay_node->node_type));
+            LLVMValueRef       node_ptr      = LLVMBuildBitCast(codegen->builder, void_ptr, LLVMPointerType(delay_node->node_type, 0), "node_ptr");
+            necro_init_necro_data(codegen, node_ptr, 0, 0);
+            LLVMValueRef       val_ptr       = necro_snapshot_gep(codegen, "val_ptr", node_ptr, 2, (uint32_t[]) { 0, 1 });
+            LLVMBuildStore(codegen->builder, LLVMConstPointerNull(LLVMPointerType(necro_val_type_ref, 0)), val_ptr);
+            LLVMValueRef       buf_ptr       = necro_snapshot_gep(codegen, "buf_ptr", node_ptr, 2, (uint32_t[]) { 0, 2 });
+            LLVMBuildStore(codegen->builder, LLVMConstPointerNull(LLVMPointerType(necro_val_type_ref, 0)), val_ptr);
+            LLVMBuildRet(codegen->builder, node_ptr);
+        }
+        {
+            // _initDelayNode
+            LLVMValueRef       init_delay_node = necro_snapshot_add_function(codegen, "_initDelayNode", LLVMVoidTypeInContext(codegen->context), (LLVMTypeRef[]) { LLVMPointerType(delay_node->node_type, 0) }, 1);
+            delay_node->init_function          = init_delay_node;
+            LLVMBasicBlockRef  entry           = LLVMAppendBasicBlock(init_delay_node, "entry");
+            LLVMPositionBuilderAtEnd(codegen->builder, entry);
+            LLVMBuildRetVoid(codegen->builder);
+        }
+        {
+            // _callDelayNode
+            LLVMValueRef       call_delay_Node = necro_snapshot_add_function(codegen, "_callDelayNode", LLVMPointerType(necro_val_type_ref, 0), (LLVMTypeRef[]) { LLVMPointerType(delay_node->node_type, 0), LLVMPointerType(necro_val_type_ref, 0), LLVMPointerType(necro_val_type_ref, 0) }, 3);
+            delay_node->call_function          = call_delay_Node;
+            LLVMBasicBlockRef  entry           = LLVMAppendBasicBlock(call_delay_Node, "entry");
+            LLVMPositionBuilderAtEnd(codegen->builder, entry);
+            LLVMValueRef       node_ptr        = LLVMGetParam(call_delay_Node, 0);
+            LLVMValueRef       val_ptr         = necro_snapshot_gep(codegen, "val_ptr", node_ptr, 2, (uint32_t[]) { 0, 1 });
+            // LLVMValueRef       val_val         = LLVMBuildLoad(codegen->builder, val_ptr, "val_val");
+            LLVMValueRef       buf_ptr         = necro_snapshot_gep(codegen, "buf_ptr", node_ptr, 2, (uint32_t[]) { 0, 2 });
+            LLVMValueRef       buf_val         = LLVMBuildLoad(codegen->builder, buf_ptr, "buf_val");
+            LLVMValueRef       tag_ptr         = necro_snapshot_gep(codegen, "tag_ptr", node_ptr, 3, (uint32_t[]) { 0, 0, 1 });
+            LLVMValueRef       tag_value       = LLVMBuildLoad(codegen->builder, tag_ptr, "tag_value");
+            LLVMValueRef       needs_init      = LLVMBuildICmp(codegen->builder, LLVMIntEQ, LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 0, false), tag_value, "needs_init");
+            LLVMBasicBlockRef  init_block      = LLVMAppendBasicBlock(call_delay_Node, "init_block");
+            LLVMBasicBlockRef  cont_block      = LLVMAppendBasicBlock(call_delay_Node, "cont_block");
+            LLVMBasicBlockRef  null_block      = LLVMAppendBasicBlock(call_delay_Node, "null_block");
+            LLVMBasicBlockRef  val_block       = LLVMAppendBasicBlock(call_delay_Node, "val_block");
+            LLVMBuildCondBr(codegen->builder, needs_init, init_block, cont_block);
+            LLVMPositionBuilderAtEnd(codegen->builder, init_block);
+            LLVMBuildStore(codegen->builder, LLVMGetParam(call_delay_Node, 2), buf_ptr);
+            LLVMBuildStore(codegen->builder, LLVMGetParam(call_delay_Node, 1), val_ptr);
+            LLVMBuildStore(codegen->builder, LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 1, false), tag_ptr);
+            LLVMBuildRet(codegen->builder, LLVMGetParam(call_delay_Node, 1));
+            LLVMPositionBuilderAtEnd(codegen->builder, cont_block);
+            LLVMValueRef       is_null         = LLVMBuildICmp(codegen->builder, LLVMIntEQ, buf_val, LLVMConstPointerNull(LLVMPointerType(necro_val_type_ref, 0)), "is_null");
+            LLVMBuildCondBr(codegen->builder, is_null, null_block, val_block);
+            LLVMPositionBuilderAtEnd(codegen->builder, null_block);
+            LLVMBuildStore(codegen->builder, LLVMGetParam(call_delay_Node, 2), val_ptr);
+            LLVMBuildRet(codegen->builder, LLVMGetParam(call_delay_Node, 2));
+            LLVMPositionBuilderAtEnd(codegen->builder, val_block);
+            LLVMBuildStore(codegen->builder, LLVMGetParam(call_delay_Node, 2), buf_ptr);
+            LLVMBuildStore(codegen->builder, buf_val, val_ptr);
+            LLVMBuildRet(codegen->builder, buf_val);
+            // LLVMBuildStore(codegen->builder, LLVMConstPointerNull(LLVMPointerType(necro_val_type_ref, 0)), val_ptr);
+        }
+    }
 
     // Sequence
     // NecroASTNode* sequence_s_type       = necro_create_simple_type_ast(&prim_types->arena, intern, "Sequence", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));

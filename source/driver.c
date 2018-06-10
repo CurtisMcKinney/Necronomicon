@@ -33,6 +33,10 @@ void necro_compile_impl(
     NecroLexer* lexer,
     NecroCodeGen* codegen,
     NecroAST* ast,
+    NecroAST_Reified* ast_r,
+    NecroRuntime* runtime,
+    NecroCoreAST* ast_core,
+
     uint32_t* destruct_flags)
 {
     if (compilation_phase == NECRO_PHASE_NONE)
@@ -89,9 +93,10 @@ void necro_compile_impl(
     // Reifying
     //=====================================================
     necro_announce_phase("Reifying");
-    NecroAST_Reified ast_r = necro_reify_ast(ast, root_node_ptr, &lexer->intern);
+    // NecroAST_Reified ast_r = necro_reify_ast(ast, root_node_ptr, &lexer->intern);
+    *ast_r = necro_reify_ast(ast, root_node_ptr, &lexer->intern);
     if (compilation_phase == NECRO_PHASE_REIFY)
-        necro_print_reified_ast(&ast_r, &lexer->intern);
+        necro_print_reified_ast(ast_r, &lexer->intern);
     *destruct_flags |= BIT(NECRO_PHASE_REIFY);
     if (compilation_phase == NECRO_PHASE_REIFY)
         return;
@@ -110,7 +115,7 @@ void necro_compile_impl(
         necro_print_error(&scoped_symtable.error, input_string, "Building Prim Scopes");
         return;
     }
-    if (necro_build_scopes(&scoped_symtable, &ast_r) != NECRO_SUCCESS)
+    if (necro_build_scopes(&scoped_symtable, ast_r) != NECRO_SUCCESS)
     {
         necro_print_error(&scoped_symtable.error, input_string, "Building Scopes");
         return;
@@ -131,24 +136,24 @@ void necro_compile_impl(
     *destruct_flags |= BIT(NECRO_PHASE_RENAME);
     if (necro_prim_rename(&prim_types, &renamer) != NECRO_SUCCESS)
     {
-        necro_print_reified_ast(&ast_r, &lexer->intern);
+        necro_print_reified_ast(ast_r, &lexer->intern);
         necro_print_error(&renamer.error, input_string, "Renaming (Prim Pass)");
         return;
     }
-    if (necro_rename_declare_pass(&renamer, &ast_r.arena, ast_r.root) != NECRO_SUCCESS)
+    if (necro_rename_declare_pass(&renamer, &ast_r->arena, ast_r->root) != NECRO_SUCCESS)
     {
-        necro_print_reified_ast(&ast_r, &lexer->intern);
+        necro_print_reified_ast(ast_r, &lexer->intern);
         necro_print_error(&renamer.error, input_string, "Renaming (Declare Pass)");
         return;
     }
-    if (necro_rename_var_pass(&renamer, &ast_r.arena, ast_r.root) != NECRO_SUCCESS)
+    if (necro_rename_var_pass(&renamer, &ast_r->arena, ast_r->root) != NECRO_SUCCESS)
     {
-        necro_print_reified_ast(&ast_r, &lexer->intern);
+        necro_print_reified_ast(ast_r, &lexer->intern);
         necro_print_error(&renamer.error, input_string, "Renaming (Var Pass)");
         return;
     }
     if (compilation_phase == NECRO_PHASE_RENAME)
-        necro_print_reified_ast(&ast_r, &lexer->intern);
+        necro_print_reified_ast(ast_r, &lexer->intern);
     puts("");
     if (compilation_phase == NECRO_PHASE_RENAME)
         return;
@@ -166,14 +171,14 @@ void necro_compile_impl(
         necro_print_error(&infer->error, input_string, "Prim Type");
         return;
     }
-    if (necro_dependency_analyze_ast(&d_analyzer, &ast_r.arena, ast_r.root))
+    if (necro_dependency_analyze_ast(&d_analyzer, &ast_r->arena, ast_r->root))
     {
         necro_print_error(&renamer.error, input_string, "Dependency Analysis");
         return;
     }
     if (compilation_phase == NECRO_PHASE_DEPENDENCY_ANALYSIS)
     {
-        necro_print_reified_ast(&ast_r, &lexer->intern);
+        necro_print_reified_ast(ast_r, &lexer->intern);
         return;
     }
     puts("");
@@ -182,7 +187,7 @@ void necro_compile_impl(
     // Infer
     //=====================================================
     necro_announce_phase("Typing");
-    necro_infer(infer, ast_r.root);
+    necro_infer(infer, ast_r->root);
     if (compilation_phase == NECRO_PHASE_INFER)
     {
         necro_symtable_print(&symtable);
@@ -192,21 +197,21 @@ void necro_compile_impl(
     *destruct_flags |= BIT(NECRO_PHASE_INFER);
     if (infer->error.return_code != NECRO_SUCCESS)
     {
-        necro_print_reified_ast(&ast_r, &lexer->intern);
+        necro_print_reified_ast(ast_r, &lexer->intern);
         necro_print_error(&infer->error, input_string, "Type");
         return;
     }
 
-    necro_type_class_translate(infer, ast_r.root);
+    necro_type_class_translate(infer, ast_r->root);
     if (infer->error.return_code != NECRO_SUCCESS)
     {
-        necro_print_reified_ast(&ast_r, &lexer->intern);
+        necro_print_reified_ast(ast_r, &lexer->intern);
         necro_print_error(&infer->error, input_string, "Type");
         return;
     }
 
     if (compilation_phase == NECRO_PHASE_INFER)
-        necro_print_reified_ast(&ast_r, &lexer->intern);
+        necro_print_reified_ast(ast_r, &lexer->intern);
     if (compilation_phase == NECRO_PHASE_INFER)
         return;
 
@@ -215,9 +220,9 @@ void necro_compile_impl(
     //=====================================================
     necro_announce_phase("Transforming to Core!");
 
-    NecroCoreAST ast_core;
-    ast_core.root = NULL;
-    necro_construct_core_transform(core_transform, &ast_core, &ast_r, &lexer->intern, &prim_types);
+    // NecroCoreAST ast_core;
+    ast_core->root = NULL;
+    necro_construct_core_transform(core_transform, ast_core, ast_r, &lexer->intern, &prim_types);
     *destruct_flags |= BIT(NECRO_PHASE_TRANSFORM_TO_CORE);
     necro_transform_to_core(core_transform);
     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
@@ -227,7 +232,7 @@ void necro_compile_impl(
         return;
     }
 
-    necro_print_core(&ast_core, &lexer->intern);
+    necro_print_core(ast_core, &lexer->intern);
 
     if (compilation_phase == NECRO_PHASE_TRANSFORM_TO_CORE)
         return;
@@ -236,12 +241,25 @@ void necro_compile_impl(
     // Codegen
     //=====================================================
     necro_announce_phase("CodeGen");
-    *codegen = necro_create_codegen(infer, &lexer->intern, &symtable, "necro");
-    // TESTING ONLY!
-    // necro_test_codegen(codegen);
-    necro_codegen(codegen, &ast_core);
+    *runtime = necro_create_runtime();
+    *codegen = necro_create_codegen(infer, &lexer->intern, &symtable, runtime, "necro");
+    necro_codegen(codegen, ast_core);
     *destruct_flags |= BIT(NECRO_PHASE_CODEGEN);
+    if (codegen->error.return_code != NECRO_SUCCESS)
+    {
+        // necro_print_reified_ast(ast_r, &lexer->intern);
+        necro_print_error(&codegen->error, input_string, "Necro");
+        return;
+    }
     if (compilation_phase == NECRO_PHASE_CODEGEN)
+        return;
+
+    //=====================================================
+    // JIT
+    //=====================================================
+    if (necro_jit(codegen) == NECRO_ERROR)
+        return;
+    if (compilation_phase == NECRO_PHASE_JIT)
         return;
 }
 
@@ -258,6 +276,9 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     NecroTransformToCore core_transform;
     NecroLexer lexer;
     NecroAST ast;
+    NecroAST_Reified ast_r;
+    NecroCoreAST ast_core;
+    NecroRuntime runtime;
     NecroCodeGen codegen;
 
     necro_compile_impl(
@@ -269,16 +290,24 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
         &lexer,
         &codegen,
         &ast,
+        &ast_r,
+        &runtime,
+        &ast_core,
         &destruct_flags);
 
     //=====================================================
     // Cleaning up
     //=====================================================
-
     necro_announce_phase("Cleaning Up");
     if (validate_destruct_phase(NECRO_PHASE_CODEGEN, destruct_flags))
     {
         necro_destroy_codegen(&codegen);
+        necro_destroy_runtime(&runtime);
+    }
+
+    if (validate_destruct_phase(NECRO_PHASE_TRANSFORM_TO_CORE, destruct_flags))
+    {
+        necro_destruct_core_transform(&core_transform);
     }
 
     if (validate_destruct_phase(NECRO_PHASE_DEPENDENCY_ANALYSIS, destruct_flags))
@@ -289,11 +318,6 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     if (validate_destruct_phase(NECRO_PHASE_PARSE, destruct_flags))
     {
         destruct_parser(&parser);
-    }
-
-    if (validate_destruct_phase(NECRO_PHASE_TRANSFORM_TO_CORE, destruct_flags))
-    {
-        necro_destruct_core_transform(&core_transform);
     }
 
     if (validate_destruct_phase(NECRO_PHASE_LEX, destruct_flags))
@@ -311,11 +335,11 @@ void necro_test(NECRO_TEST test)
 {
     switch (test)
     {
-    case NECRO_TEST_VM:                necro_test_vm();                break;
-    case NECRO_TEST_DVM:               necro_test_dvm();               break;
+    // case NECRO_TEST_VM:                necro_test_vm();                break;
+    // case NECRO_TEST_DVM:               necro_test_dvm();               break;
     case NECRO_TEST_SYMTABLE:          necro_symtable_test();          break;
-    case NECRO_TEST_SLAB:              necro_test_slab();              break;
-    case NECRO_TEST_TREADMILL:         necro_test_treadmill();         break;
+    // case NECRO_TEST_SLAB:              necro_test_slab();              break;
+    // case NECRO_TEST_TREADMILL:         necro_test_treadmill();         break;
     case NECRO_TEST_LEXER:             necro_test_lexer();             break;
     case NECRO_TEST_INTERN:            necro_test_intern();            break;
     case NECRO_TEST_VAULT:             necro_vault_test();             break;
@@ -325,7 +349,7 @@ void necro_test(NECRO_TEST test)
     case NECRO_TEST_TYPE:              necro_test_type();              break;
     case NECRO_TEST_ARENA_CHAIN_TABLE: necro_arena_chain_table_test(); break;
     case NECRO_TEST_ALL:
-        necro_test_dvm();
+        // necro_test_dvm();
         necro_symtable_test();
         necro_test_lexer();
         necro_test_intern();

@@ -130,6 +130,7 @@ typedef struct NecroPrimTypes
     NecroCon          monad_type_class;
     NecroCon          event_type;
     NecroCon          pattern_type;
+    NecroCon          delay_fn;
     NecroPrimDef*     defs;
     NecroPrimDef*     def_head;
     NecroPagedArena   arena;

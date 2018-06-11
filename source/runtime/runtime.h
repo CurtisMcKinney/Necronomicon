@@ -19,6 +19,7 @@ typedef struct
 {
     LLVMValueRef necro_alloc;
     LLVMValueRef necro_print;
+    LLVMValueRef necro_print_u64;
     LLVMValueRef necro_sleep;
 } NecroRuntimeFunctions;
 

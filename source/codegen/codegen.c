@@ -49,8 +49,17 @@ NecroCodeGen necro_create_codegen(NecroInfer* infer, NecroIntern* intern, NecroS
     LLVMContextRef     context        = LLVMContextCreate();
     LLVMModuleRef      mod            = LLVMModuleCreateWithNameInContext(module_name, context);
     // const char*        default_triple = LLVMGetDefaultTargetTriple();
-    // // LLVMTargetDataRef  target         = LLVMCreateTargetData(default_triple);
+    // LLVMTargetDataRef  target         = LLVMCreateTargetData(default_triple);
     LLVMTargetDataRef  target           = LLVMCreateTargetData(LLVMGetTarget(mod));
+    // LLVMAlignment
+    // LLVMSizeOf()
+    // LLVMSetTarget(mod, default_triple);
+    // const char* target_triple = LLVMGetTarget(mod);
+    // printf("target: %s\n", target_triple);
+    // // printf("default: %s\n", default_triple);
+    // // const char* target_desc = LLVMGetTargetDescription();
+    // // printf("target_desc: %s", target_desc);
+    // exit(0);
     // // printf("default triple: %s\n", default_triple);
     // // LLVMSetTarget(mod, default_triple);
     // // LLVMTargetRef target = LLVMCrea
@@ -223,7 +232,7 @@ void necro_init_necro_data(NecroCodeGen* codegen, LLVMValueRef data_ptr, uint32_
 LLVMValueRef necro_gen_alloc_boxed_value(NecroCodeGen* codegen, LLVMTypeRef boxed_type, uint32_t necro_value1, uint32_t necro_value2, const char* name)
 {
     NecroArenaSnapshot snapshot     = necro_get_arena_snapshot(&codegen->snapshot_arena);
-    LLVMValueRef       void_ptr     = necro_alloc_codegen(codegen, LLVMABISizeOfType(codegen->target, boxed_type));
+    LLVMValueRef       void_ptr     = necro_alloc_codegen(codegen, boxed_type);
     LLVMValueRef       data_ptr     = LLVMBuildBitCast(codegen->builder, void_ptr, LLVMPointerType(boxed_type, 0), name);
     LLVMValueRef       necro_data_1 = necro_snapshot_gep(codegen, "necro_data_1", data_ptr, 3, (uint32_t[]) { 0, 0, 0 });
     LLVMValueRef       necro_data_2 = necro_snapshot_gep(codegen, "necro_data_2", data_ptr, 3, (uint32_t[]) { 0, 0, 1 });
@@ -231,6 +240,24 @@ LLVMValueRef necro_gen_alloc_boxed_value(NecroCodeGen* codegen, LLVMTypeRef boxe
     LLVMBuildStore(codegen->builder, LLVMConstInt(LLVMInt32TypeInContext(codegen->context), necro_value2, false), necro_data_2);
     necro_rewind_arena(&codegen->snapshot_arena, snapshot);
     return data_ptr;
+}
+
+// Required for polymorphic values
+LLVMValueRef necro_maybe_cast(NecroCodeGen* codegen, LLVMValueRef value, LLVMTypeRef type_to_match)
+{
+    if (LLVMTypeOf(value) != type_to_match)
+    {
+        LLVMTypeRef necro_val_type = LLVMPointerType(necro_symtable_get(codegen->symtable, codegen->infer->prim_types->necro_val_type.id)->llvm_type, 0);
+        assert(LLVMTypeOf(value) == necro_val_type || type_to_match == necro_val_type);
+        return LLVMBuildBitCast(codegen->builder, value, type_to_match, "cast_arg");
+    }
+    return value;
+}
+
+void necro_codegen_debug_print(NecroCodeGen* codegen, int64_t value)
+{
+    LLVMValueRef print_ref = necro_build_call(codegen, codegen->runtime->functions.necro_print, (LLVMValueRef[]) { LLVMConstInt(LLVMInt64TypeInContext(codegen->context), value, true) }, 1, "");
+    LLVMSetInstructionCallConv(print_ref, LLVMCCallConv);
 }
 
 //=====================================================
@@ -431,7 +458,7 @@ void necro_codegen_data_con(NecroCodeGen* codegen, NecroCoreAST_DataCon* con, LL
     LLVMSetFunctionCallConv(make_con, LLVMFastCallConv);
     LLVMBasicBlockRef entry    = LLVMAppendBasicBlock(make_con, "entry");
     LLVMPositionBuilderAtEnd(codegen->builder, entry);
-    LLVMValueRef      void_ptr = necro_alloc_codegen(codegen, LLVMABISizeOfType(codegen->target, data_type_ref));
+    LLVMValueRef      void_ptr = necro_alloc_codegen(codegen, data_type_ref);
     LLVMValueRef      data_ptr = LLVMBuildBitCast(codegen->builder, void_ptr, LLVMPointerType(data_type_ref, 0), "data_ptr");
     necro_init_necro_data(codegen, data_ptr, 0, con_number);
     //--------------
@@ -564,7 +591,7 @@ LLVMValueRef necro_codegen_mk_node(NecroCodeGen* codegen, NecroNodePrototype* no
     LLVMValueRef       mk_alloc  = necro_snapshot_add_function(codegen, mk_name, LLVMPointerType(node->node_type, 0), NULL, 0);
     LLVMBasicBlockRef  entry     = LLVMAppendBasicBlock(mk_alloc, "entry");
     LLVMPositionBuilderAtEnd(codegen->builder, entry);
-    LLVMValueRef       void_ptr  = necro_alloc_codegen(codegen, LLVMABISizeOfType(codegen->target, node->node_type));
+    LLVMValueRef       void_ptr  = necro_alloc_codegen(codegen, node->node_type);
     LLVMValueRef       node_ptr  = LLVMBuildBitCast(codegen->builder, void_ptr, LLVMPointerType(node->node_type, 0), "node_ptr");
     necro_init_necro_data(codegen, node_ptr, 0, 0);
     LLVMValueRef       value_ptr = necro_snapshot_gep(codegen, "value_ptr", node_ptr, 2, (uint32_t[]) { 0, 1 });
@@ -870,6 +897,43 @@ void necro_finish_node_prototype(NecroCodeGen* codegen, NecroNodePrototype* prot
     // necro_codegen_update_node(codegen, node_prototype);
 }
 
+LLVMValueRef necro_create_constant_struct(NecroCodeGen* codegen, NecroNodePrototype* prototype)
+{
+    if (necro_is_codegen_error(codegen)) return NULL;
+    assert(codegen != NULL);
+    assert(prototype != NULL);
+    LLVMValueRef* constant_args = necro_paged_arena_alloc(&codegen->arena, sizeof(LLVMValueRef) * prototype->slot_count + 2);
+    constant_args[0]            = LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 0, false);
+    constant_args[1]            = LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 0, false);
+
+    //--------------
+    // NULL out Captured Vars
+    size_t i = 2;
+    NecroCapturedVarList* captured_variables = prototype->captured_vars;
+    while (captured_variables != NULL)
+    {
+        // LLVMValueRef node = necro_snapshot_gep(codegen, "captured", node_ptr, 2, (uint32_t[]) { 0, i });
+        // LLVMBuildStore(codegen->builder, LLVMConstPointerNull(LLVMPointerType(captured_variables->data.prototype->node_type, 0)), node);
+        constant_args[i] = LLVMConstPointerNull(LLVMPointerType(captured_variables->data.prototype->node_type, 0));
+        i++;
+        captured_variables = captured_variables->next;
+    }
+
+    //--------------
+    // NULL out Persistent Vars
+    NecroPersistentVarList* persistent_vars = prototype->persistent_vars;
+    while (persistent_vars != NULL)
+    {
+        // LLVMValueRef node = necro_snapshot_gep(codegen, "persistent", node_ptr, 2, (uint32_t[]) { 0, i });
+        // LLVMBuildStore(codegen->builder, LLVMConstPointerNull(LLVMPointerType(persistent_vars->data.prototype->node_type, 0)), node);
+        constant_args[i] = LLVMConstPointerNull(LLVMPointerType(persistent_vars->data.prototype->node_type, 0));
+        i++;
+        persistent_vars = persistent_vars->next;
+    }
+    assert(i == (prototype->slot_count + 2));
+    return LLVMConstNamedStruct(prototype->node_type, constant_args, prototype->slot_count + 2);
+}
+
 void necro_calculate_node_prototype_bind(NecroCodeGen* codegen, NecroCoreAST_Expression* ast, NecroNodePrototype* outer_node)
 {
     if (necro_is_codegen_error(codegen)) return;
@@ -896,17 +960,18 @@ void necro_calculate_node_prototype_bind(NecroCodeGen* codegen, NecroCoreAST_Exp
             //--------------------
             // Global
             // Create global instance
-            char buf2[10];
-            const char* bind_name = necro_concat_strings(&codegen->snapshot_arena, 3, (const char*[]) { necro_intern_get_string(codegen->intern, ast->bind.var.symbol), "_", itoa(ast->bind.var.id.id, buf2, 10) });
-            LLVMTypeRef bind_type = necro_get_ast_llvm_type(codegen, ast);
-            assert(bind_type != NULL);
-            LLVMValueRef bind_value = LLVMAddGlobal(codegen->mod, node_prototype->node_type, bind_name);
-            LLVMSetLinkage(bind_value, LLVMCommonLinkage);
-            LLVMSetAlignment(bind_value, 8);
-            // LLVMSetInitializer(bind_value, LLVMConstPointerNull(LLVMPointerType(node_prototype->node_type, 0)));
-            LLVMSetInitializer(bind_value, LLVMConstNamedStruct(node_prototype->node_type, NULL, 0));
-            LLVMSetGlobalConstant(bind_value, false);
-            necro_symtable_get(codegen->symtable, ast->bind.var.id)->llvm_value = bind_value;
+            // char buf2[10];
+            // const char* bind_name = necro_concat_strings(&codegen->snapshot_arena, 3, (const char*[]) { necro_intern_get_string(codegen->intern, ast->bind.var.symbol), "_", itoa(ast->bind.var.id.id, buf2, 10) });
+            // LLVMTypeRef bind_type = necro_get_ast_llvm_type(codegen, ast);
+            // assert(bind_type != NULL);
+            // LLVMValueRef bind_value = LLVMAddGlobal(codegen->mod, node_prototype->node_type, bind_name);
+            // LLVMSetLinkage(bind_value, LLVMCommonLinkage);
+            // LLVMSetAlignment(bind_value, 4);
+            // // LLVMSetInitializer(bind_value, LLVMConstPointerNull(LLVMPointerType(node_prototype->node_type, 0)));
+            // // LLVMSetInitializer(bind_value, LLVMConstNamedStruct(node_prototype->node_type, NULL, 0));
+            // LLVMSetInitializer(bind_value, necro_create_constant_struct(codegen, node_prototype));
+            // LLVMSetGlobalConstant(bind_value, false);
+            // necro_symtable_get(codegen->symtable, ast->bind.var.id)->llvm_value = bind_value;
         }
         else
         {
@@ -931,6 +996,24 @@ void necro_calculate_node_prototype_bind(NecroCodeGen* codegen, NecroCoreAST_Exp
     }
     necro_finish_node_prototype(codegen, node_prototype, ast->bind.is_recursive);
     necro_rewind_arena(&codegen->snapshot_arena, snapshot);
+    if (outer_node == NULL)
+    {
+        //--------------------
+        // Global
+        // Create global instance
+        char buf2[10];
+        const char* bind_name = necro_concat_strings(&codegen->snapshot_arena, 3, (const char*[]) { necro_intern_get_string(codegen->intern, ast->bind.var.symbol), "_", itoa(ast->bind.var.id.id, buf2, 10) });
+        LLVMTypeRef bind_type = necro_get_ast_llvm_type(codegen, ast);
+        assert(bind_type != NULL);
+        LLVMValueRef bind_value = LLVMAddGlobal(codegen->mod, node_prototype->node_type, bind_name);
+        LLVMSetLinkage(bind_value, LLVMExternalLinkage);
+        LLVMSetAlignment(bind_value, 4);
+        // LLVMSetInitializer(bind_value, LLVMConstPointerNull(LLVMPointerType(node_prototype->node_type, 0)));
+        // LLVMSetInitializer(bind_value, LLVMConstNamedStruct(node_prototype->node_type, NULL, 0));
+        LLVMSetInitializer(bind_value, necro_create_constant_struct(codegen, node_prototype));
+        LLVMSetGlobalConstant(bind_value, false);
+        necro_symtable_get(codegen->symtable, ast->bind.var.id)->llvm_value = bind_value;
+    }
 }
 
 void necro_calculate_node_prototype_let(NecroCodeGen* codegen, NecroCoreAST_Expression* ast, NecroNodePrototype* outer_node)
@@ -1122,14 +1205,16 @@ LLVMValueRef necro_calculate_node_call_bind(NecroCodeGen* codegen, NecroCoreAST_
         LLVMBuildBr(codegen->builder, cont_block);
         LLVMPositionBuilderAtEnd(codegen->builder, cont_block);
         LLVMValueRef result = necro_calculate_node_call(codegen, bind_expr, node_prototype);
-        if (LLVMTypeOf(result) != LLVMPointerType(node_prototype->node_value_type, 0))
-        {
-            result = LLVMBuildBitCast(codegen->builder, result, LLVMPointerType(node_prototype->node_value_type, 0), "cast_result");
-        }
+        result = necro_maybe_cast(codegen, result, LLVMPointerType(node_prototype->node_value_type, 0));
         if (arg_count == 1)
         {
-            LLVMValueRef top_node_ptr = necro_snapshot_gep(codegen, "top_node_ptr", LLVMGetParam(call_fn, 0), 2, (uint32_t[]) { 0, 1 });
-            LLVMBuildStore(codegen->builder, result, top_node_ptr);
+            // LLVMValueRef top_node_ptr = necro_snapshot_gep(codegen, "top_node_ptr", LLVMGetParam(call_fn, 0), 2, (uint32_t[]) { 0, 1 });
+            // LLVMBuildStore(codegen->builder, result, top_node_ptr);
+            // LLVMValueRef value_ptr  = necro_snapshot_gep(codegen, "value_ptr", LLVMGetParam(call_fn, 0), 2, (uint32_t[]) { 0, 1 });
+            // LLVMValueRef load_val   = LLVMBuildLoad(codegen->builder, value_ptr, "g_val");
+            // LLVMValueRef cast_inull = LLVMBuildPtrToInt(codegen->builder, load_val, LLVMInt64TypeInContext(codegen->context), "cast_inull");
+            // LLVMValueRef print_val  = necro_build_call(codegen, codegen->runtime->functions.necro_print, (LLVMValueRef[]) { cast_inull }, 1, "");
+            // LLVMSetInstructionCallConv(print_val, LLVMCCallConv);
         }
         else if (LLVMIsACallInst(result))
         {
@@ -1140,6 +1225,7 @@ LLVMValueRef necro_calculate_node_call_bind(NecroCodeGen* codegen, NecroCoreAST_
     else
     {
         LLVMValueRef result = necro_calculate_node_call(codegen, bind_expr, node_prototype);
+        result = necro_maybe_cast(codegen, result, LLVMPointerType(node_prototype->node_value_type, 0));
         if (LLVMIsACallInst(result))
             LLVMSetTailCall(result, true);
         LLVMBuildRet(codegen->builder, result);
@@ -1186,6 +1272,7 @@ LLVMValueRef necro_calculate_node_call_let(NecroCodeGen* codegen, NecroCoreAST_E
     // Store it back at the end!
     if (bind_var_info->persistent_slot != 0)
     {
+        bind_result = necro_maybe_cast(codegen, bind_result, LLVMGetElementType(LLVMTypeOf(feed_ptr)));
         LLVMBuildStore(codegen->builder, bind_result, feed_ptr);
     }
 
@@ -1213,7 +1300,11 @@ LLVMValueRef necro_calculate_node_call_var(NecroCodeGen* codegen, NecroCoreAST_E
         // Global!
         assert(info->llvm_value != NULL && "Value not present. Maybe infinite loop?");
         LLVMValueRef global_ptr = necro_snapshot_gep(codegen, "global_node_ptr", info->llvm_value, 2, (uint32_t[]) { 0, 1 });
-        return LLVMBuildLoad(codegen->builder, global_ptr, "global_node_val");
+        LLVMValueRef load_val   = LLVMBuildLoad(codegen->builder, global_ptr, "global_node_val");
+        // LLVMValueRef cast_inull = LLVMBuildPtrToInt(codegen->builder, load_val, LLVMInt64TypeInContext(codegen->context), "cast_inull");
+        // LLVMValueRef print_val  = necro_build_call(codegen, codegen->runtime->functions.necro_print, (LLVMValueRef[]) { cast_inull }, 1, "");
+        // LLVMSetInstructionCallConv(print_val, LLVMCCallConv);
+        return load_val;
     }
     else
     {
@@ -1259,13 +1350,9 @@ LLVMValueRef necro_calculate_node_call_app(NecroCodeGen* codegen, NecroCoreAST_E
     while (function->expr_type == NECRO_CORE_EXPR_APP)
     {
         args[arg_index] = necro_calculate_node_call(codegen, function->app.exprB, outer);
-        if (LLVMTypeOf(args[arg_index]) != LLVMTypeOf(params[arg_index]))
-        {
-            // TODO: Put checks in to make sure we're only casting to NecroVals and back!?
-            args[arg_index] = LLVMBuildBitCast(codegen->builder, args[arg_index], LLVMTypeOf(params[arg_index]), "cast_arg");
-        }
+        args[arg_index] = necro_maybe_cast(codegen, args[arg_index], LLVMTypeOf(params[arg_index]));
         arg_index--;
-        function   = function->app.exprA;
+        function        = function->app.exprA;
     }
     necro_rewind_arena(&codegen->snapshot_arena, snapshot);
     // Pass in persistent var
@@ -1400,14 +1487,13 @@ void necro_codegen_main(NecroCodeGen* codegen, NecroCoreAST_Expression* ast)
                 top = top->list.next;
                 continue;
             }
-            // Debug print
             LLVMValueRef node_ptr    = necro_build_call(codegen, node->mk_function, NULL, 0, "node_ptr");
-            LLVMValueRef cast_node   = LLVMBuildBitCast(codegen->builder, node_ptr, LLVMPointerType(LLVMInt64TypeInContext(codegen->context), 0), "cast_node");
-            LLVMValueRef cast_glob   = LLVMBuildBitCast(codegen->builder, node_info->llvm_value, LLVMPointerType(LLVMInt64TypeInContext(codegen->context), 0), "cast_glob");
-            LLVMValueRef data_size   = LLVMConstInt(LLVMInt32TypeInContext(codegen->context), LLVMABISizeOfType(codegen->target, node->node_type), false);
-            // LLVMValueRef data_size   = LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 20, false);
+            LLVMValueRef cast_node   = LLVMBuildBitCast(codegen->builder, node_ptr, LLVMPointerType(LLVMInt32TypeInContext(codegen->context), 0), "cast_node");
+            LLVMValueRef cast_glob   = LLVMBuildBitCast(codegen->builder, node_info->llvm_value, LLVMPointerType(LLVMInt32TypeInContext(codegen->context), 0), "cast_glob");
+            LLVMValueRef data_size   = LLVMSizeOf(node->node_type);
             LLVMValueRef is_volatile = LLVMConstInt(LLVMInt1TypeInContext(codegen->context), 0, false);
-            necro_build_call(codegen, codegen->llvm_intrinsics.mem_cpy, (LLVMValueRef[]) { cast_glob, cast_node, data_size, is_volatile }, 4, "");
+            LLVMValueRef cpy_ref     = necro_build_call(codegen, codegen->llvm_intrinsics.mem_cpy, (LLVMValueRef[]) { cast_glob, cast_node, data_size, is_volatile }, 4, "");
+            LLVMSetInstructionCallConv(cpy_ref, LLVMCCallConv);
         }
         top = top->list.next;
     }
@@ -1417,7 +1503,6 @@ void necro_codegen_main(NecroCodeGen* codegen, NecroCoreAST_Expression* ast)
     LLVMPositionBuilderAtEnd(codegen->builder, main_loop);
     // Evaluate top level nodes in a loop
     top = ast;
-    top = NULL;
     while (top != NULL)
     {
         if (top->list.expr != NULL && top->list.expr->expr_type == NECRO_CORE_EXPR_BIND)
@@ -1433,6 +1518,8 @@ void necro_codegen_main(NecroCodeGen* codegen, NecroCoreAST_Expression* ast)
             if (node->type == NECRO_NODE_STATEFUL)
             {
                 node_result = necro_build_call(codegen, node->call_function, (LLVMValueRef[]) { node_info->llvm_value }, 1, "node_result");
+                LLVMValueRef value_ptr   = necro_snapshot_gep(codegen, "value_ptr", node_info->llvm_value, 2, (uint32_t[]) { 0, 1 });
+                LLVMBuildStore(codegen->builder, node_result, value_ptr);
             }
             else
             {
@@ -1450,11 +1537,11 @@ void necro_codegen_main(NecroCodeGen* codegen, NecroCoreAST_Expression* ast)
         }
         top = top->list.next;
     }
-    // // Looping logic...
-    // LLVMValueRef sleep_instr = necro_build_call(codegen, codegen->runtime->functions.necro_sleep, (LLVMValueRef[]) { LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 250, false) }, 1, "");
-    // LLVMSetInstructionCallConv(sleep_instr, LLVMCCallConv);
-    // LLVMBuildBr(codegen->builder, main_loop);
-    LLVMBuildRetVoid(codegen->builder);
+    // Looping logic...
+    LLVMValueRef sleep_instr = necro_build_call(codegen, codegen->runtime->functions.necro_sleep, (LLVMValueRef[]) { LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 250, false) }, 1, "");
+    LLVMSetInstructionCallConv(sleep_instr, LLVMCCallConv);
+    LLVMBuildBr(codegen->builder, main_loop);
+    // LLVMBuildRetVoid(codegen->builder);
     necro_rewind_arena(&codegen->snapshot_arena, snapshot);
 }
 
@@ -1512,9 +1599,10 @@ NECRO_RETURN_CODE necro_verify_and_dump_codegen(NecroCodeGen* codegen)
     return NECRO_SUCCESS;
 }
 
-LLVMValueRef necro_alloc_codegen(NecroCodeGen* codegen, uint64_t size)
+LLVMValueRef necro_alloc_codegen(NecroCodeGen* codegen, LLVMTypeRef type)
 {
-    LLVMValueRef data_size = LLVMConstInt(LLVMInt32TypeInContext(codegen->context), size, false);
+    // LLVMValueRef data_size = LLVMConstInt(LLVMInt32TypeInContext(codegen->context), size, false);
+    LLVMValueRef data_size = LLVMSizeOf(type);
     LLVMValueRef void_ptr  = necro_build_call(codegen, codegen->runtime->functions.necro_alloc, &data_size, 1, "void_ptr");
     LLVMSetInstructionCallConv(void_ptr, LLVMCCallConv);
     return void_ptr;
@@ -1531,6 +1619,7 @@ NECRO_RETURN_CODE necro_jit(NecroCodeGen* codegen)
         return NECRO_ERROR;
     }
     necro_bind_runtime_functions(codegen->runtime, engine);
+
     void(*fun)() = (void(*)())LLVMGetFunctionAddress(engine, "main");
     puts("__/\\\\/\\\\\\\\\\\\_______/\\\\\\\\\\\\\\\\______/\\\\\\\\\\\\\\\\__/\\\\/\\\\\\\\\\\\\\______/\\\\\\\\\\____ ");
     puts(" _\\/\\\\\\////\\\\\\____/\\\\\\/////\\\\\\___/\\\\\\//////__\\/\\\\\\/////\\\\\\___/\\\\\\///\\\\\\__");
@@ -1540,6 +1629,7 @@ NECRO_RETURN_CODE necro_jit(NecroCodeGen* codegen)
     puts("     _\\///____\\///____\\//////////_____\\////////__\\///_____________\\/////_");
     (*fun)();
     // TODO: Need to dispose execution engine correctly...Put in NecroCodeGen?
+
     return NECRO_SUCCESS;
 }
 

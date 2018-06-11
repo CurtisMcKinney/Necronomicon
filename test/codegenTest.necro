@@ -1,4 +1,3 @@
--- Feedback test
 -- ALERT! - Sleep times don't seem to work correctly from msys/cygwin/mintty
 -- ALERT! - Use an actual CMD prompt for correct necro usage!
 -- necro usage: necro.exe \path\to\file.necro -jit
@@ -7,12 +6,65 @@ integrate :: Int -> Int
 integrate delta = feed where
     feed = delta + delay 0 feed
 
+z :: Int
+z = integrate 20
+
 main :: Int
 main = x + y + z where
-    x = integrate 10
-    y = integrate 10
-    z = integrate 10
-    -- z = 0
+    x = integrate 25
+    y = integrate 5
+
+-- -- Loop
+-- main :: Int
+-- main = delay 0 (delay 100 (delay 200 (delay 300 main)))
+
+-- z :: Int
+-- z = delay 0 1
+
+-- main :: Int
+-- main = 1 + z + x where
+--     x = delay 0 x
+
+-- w :: Int
+-- w = delay 0 100
+
+-- z :: Int
+-- z = 1 + delay 0 z
+
+-- main = delay 1 (delay 2 3)
+
+-- main :: Int
+-- main = z + x where
+--     x = delay 0 x
+
+-- z :: Int
+-- z = x where
+--     x = 1 + delay 0 x
+
+-- main :: Int
+-- main = z
+
+-- main :: Int
+-- main = integrate 10 + z
+
+-- main :: Int
+-- main = x + z where
+--     x = delay 0 x
+
+-- g :: Int
+-- g = x where
+--     x = 1 + delay 0 x
+
+-- z :: Int
+-- z = x + g where
+--     x = 1 + delay 0 x
+
+-- main :: Int
+-- main = z
+
+-- main :: Int
+-- main = x where
+--     x = delay 0 x
 
 -- main :: Int
 -- main = x + y where

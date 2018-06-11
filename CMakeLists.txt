@@ -19,7 +19,7 @@
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 project(necro)
 
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 99)
 set(CMAKE_BUILD_TYPE Debug)
 
 find_package(LLVM REQUIRED CONFIG)

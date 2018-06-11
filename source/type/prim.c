@@ -1184,9 +1184,9 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
     //=====================================================
     // Runtime and intrinsics
     //=====================================================
-    LLVMTypeRef  mem_cpy_args[4] = { LLVMPointerType(LLVMInt64TypeInContext(codegen->context), 0), LLVMPointerType(LLVMInt64TypeInContext(codegen->context), 0), LLVMInt32TypeInContext(codegen->context), LLVMInt1TypeInContext(codegen->context) };
+    LLVMTypeRef  mem_cpy_args[4] = { LLVMPointerType(LLVMInt32TypeInContext(codegen->context), 0), LLVMPointerType(LLVMInt32TypeInContext(codegen->context), 0), LLVMInt64TypeInContext(codegen->context), LLVMInt1TypeInContext(codegen->context) };
     LLVMTypeRef  mem_cpy_type    = LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), mem_cpy_args, 4, false);
-    LLVMValueRef mem_cpy         = LLVMAddFunction(codegen->mod, "llvm.memcpy.p0i64.p0i64.i32", mem_cpy_type);
+    LLVMValueRef mem_cpy         = LLVMAddFunction(codegen->mod, "llvm.memcpy.p0i32.p0i32.i64", mem_cpy_type);
     codegen->llvm_intrinsics.mem_cpy = mem_cpy;
 
     necro_declare_runtime_functions(codegen->runtime, codegen);
@@ -1269,7 +1269,7 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
         // delay
         LLVMTypeRef delay_type_ref = LLVMStructCreateNamed(codegen->context, "_DelayNode");
         LLVMTypeRef delay_elems[3] = { necro_type_ref, LLVMPointerType(necro_val_type_ref, 0), LLVMPointerType(necro_val_type_ref, 0) };
-        LLVMStructSetBody(delay_type_ref, delay_elems, 3, false);
+        LLVMStructSetBody(delay_type_ref, delay_elems, 3, false); // NOTE: Switching this to have no buffer!
         NecroNodePrototype* delay_node = necro_create_necro_node_prototype(codegen, necro_con_to_var(codegen->infer->prim_types->delay_fn), "_DelayNode", delay_type_ref, LLVMPointerType(necro_val_type_ref, 0), NULL, NECRO_NODE_STATEFUL);
         necro_symtable_get(codegen->symtable, prim_types->delay_fn.id)->llvm_type      = delay_type_ref; // Is this correct!?
         necro_symtable_get(codegen->symtable, prim_types->delay_fn.id)->node_prototype = delay_node;
@@ -1281,7 +1281,7 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
             delay_node->mk_function          = mk_delay_node;
             LLVMBasicBlockRef  entry         = LLVMAppendBasicBlock(mk_delay_node, "entry");
             LLVMPositionBuilderAtEnd(codegen->builder, entry);
-            LLVMValueRef       void_ptr      = necro_alloc_codegen(codegen, LLVMABISizeOfType(codegen->target, delay_node->node_type));
+            LLVMValueRef       void_ptr      = necro_alloc_codegen(codegen, delay_node->node_type);
             LLVMValueRef       node_ptr      = LLVMBuildBitCast(codegen->builder, void_ptr, LLVMPointerType(delay_node->node_type, 0), "node_ptr");
             necro_init_necro_data(codegen, node_ptr, 0, 0);
             LLVMValueRef       val_ptr       = necro_snapshot_gep(codegen, "val_ptr", node_ptr, 2, (uint32_t[]) { 0, 1 });
@@ -1306,7 +1306,7 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
             LLVMPositionBuilderAtEnd(codegen->builder, entry);
             LLVMValueRef       node_ptr        = LLVMGetParam(call_delay_Node, 0);
             LLVMValueRef       val_ptr         = necro_snapshot_gep(codegen, "val_ptr", node_ptr, 2, (uint32_t[]) { 0, 1 });
-            // LLVMValueRef       val_val         = LLVMBuildLoad(codegen->builder, val_ptr, "val_val");
+            LLVMValueRef       val_val         = LLVMBuildLoad(codegen->builder, val_ptr, "val_val");
             LLVMValueRef       buf_ptr         = necro_snapshot_gep(codegen, "buf_ptr", node_ptr, 2, (uint32_t[]) { 0, 2 });
             LLVMValueRef       buf_val         = LLVMBuildLoad(codegen->builder, buf_ptr, "buf_val");
             LLVMValueRef       tag_ptr         = necro_snapshot_gep(codegen, "tag_ptr", node_ptr, 3, (uint32_t[]) { 0, 0, 1 });
@@ -1332,7 +1332,7 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
             LLVMBuildStore(codegen->builder, LLVMGetParam(call_delay_Node, 2), buf_ptr);
             LLVMBuildStore(codegen->builder, buf_val, val_ptr);
             LLVMBuildRet(codegen->builder, buf_val);
-            // LLVMBuildStore(codegen->builder, LLVMConstPointerNull(LLVMPointerType(necro_val_type_ref, 0)), val_ptr);
+            // // LLVMBuildStore(codegen->builder, LLVMConstPointerNull(LLVMPointerType(necro_val_type_ref, 0)), val_ptr);
         }
     }
 

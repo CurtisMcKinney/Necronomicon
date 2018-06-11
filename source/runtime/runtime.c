@@ -38,6 +38,7 @@ uint64_t allocation_is_easy[NECRO_MAX_ALLOC];
 uint64_t alloc_pointer = 0;
 extern DLLEXPORT uint64_t* _necro_alloc(uint32_t size)
 {
+    printf("alloc: %d\n", size);
     uint64_t* ptr = allocation_is_easy + alloc_pointer;
     alloc_pointer += size;
     if (alloc_pointer >= NECRO_MAX_ALLOC)
@@ -90,6 +91,14 @@ void necro_bind_runtime_functions(NecroRuntime* runtime, LLVMExecutionEngineRef 
     LLVMAddGlobalMapping(engine, runtime->functions.necro_print, _necro_print);
     LLVMAddGlobalMapping(engine, runtime->functions.necro_sleep, _necro_sleep);
 }
+
+typedef struct
+{
+    size_t size;      // Multiple of 2
+    size_t word_size; // Ususally 32 or 64
+    size_t alignment; // Ususally 4 or 8
+    void*  data;
+} NeroGC;
 
 
 //=====================================================

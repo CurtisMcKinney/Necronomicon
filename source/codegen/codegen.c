@@ -46,13 +46,26 @@ NecroCodeGen necro_create_codegen(NecroInfer* infer, NecroIntern* intern, NecroS
     LLVMInitializeNativeTarget();
     LLVMInitializeNativeAsmPrinter();
     LLVMInitializeNativeAsmParser();
-    LLVMContextRef     context          = LLVMContextCreate();
-    LLVMModuleRef      mod              = LLVMModuleCreateWithNameInContext(module_name, context);
-    // LLVMTargetDataRef  target          = LLVMCreateTargetData(LLVMGetDefaultTargetTriple());
-    // LLVMSetTarget(mod, LLVMGetDefaultTargetTriple());
+    LLVMContextRef     context        = LLVMContextCreate();
+    LLVMModuleRef      mod            = LLVMModuleCreateWithNameInContext(module_name, context);
+    // const char*        default_triple = LLVMGetDefaultTargetTriple();
+    // // LLVMTargetDataRef  target         = LLVMCreateTargetData(default_triple);
+    LLVMTargetDataRef  target           = LLVMCreateTargetData(LLVMGetTarget(mod));
+    // // printf("default triple: %s\n", default_triple);
+    // // LLVMSetTarget(mod, default_triple);
+    // // LLVMTargetRef target = LLVMCrea
+    // // LLVMCreateTargetMachine(LLVMGetTargetFromName(default_triple), default_triple, LLVMGetHostCPUName(), LLVMGetHostCPUFeatures(), 0, LLVMRelocDefault, LLVMCodeModelDefault);
+    // LLVMTargetMachineRef machine = LLVMCreateTargetMachine(LLVMGetFirstTarget(), default_triple, LLVMGetHostCPUName(), LLVMGetHostCPUFeatures(), 0, LLVMRelocDefault, LLVMCodeModelDefault);
+    // // LLVMTargetDataRef  target           = LLVMGetTarget
+    // // LLVMTargetRef target_ref = LLVMGetTargetMachineTarget(machine);
+    // LLVMTargetDataRef target = LLVMCreateTargetDataLayout(machine);
+    // const char* target_desc = LLVMGetTargetDescription(LLVMGetTargetMachineTarget(machine));
+    // printf("target_desc: %s", target_desc);
+    // LLVMSetDataLayout()
+    // LLVMCreateTargetDataLayout();
+    // LLVMSetDataLayout()
     // LLVMCreateTargetDataLayout()
     // LLVMSetDataLayout(mod, LLVMCreateDataLayout
-    LLVMTargetDataRef  target           = LLVMCreateTargetData(LLVMGetTarget(mod));
     // Optimizations, turn on when you want the code to go fast!
     LLVMPassManagerRef fn_pass_manager  = LLVMCreateFunctionPassManagerForModule(mod);
     LLVMPassManagerRef mod_pass_manager = LLVMCreatePassManager();
@@ -889,6 +902,7 @@ void necro_calculate_node_prototype_bind(NecroCodeGen* codegen, NecroCoreAST_Exp
             assert(bind_type != NULL);
             LLVMValueRef bind_value = LLVMAddGlobal(codegen->mod, node_prototype->node_type, bind_name);
             LLVMSetLinkage(bind_value, LLVMCommonLinkage);
+            LLVMSetAlignment(bind_value, 8);
             // LLVMSetInitializer(bind_value, LLVMConstPointerNull(LLVMPointerType(node_prototype->node_type, 0)));
             LLVMSetInitializer(bind_value, LLVMConstNamedStruct(node_prototype->node_type, NULL, 0));
             LLVMSetGlobalConstant(bind_value, false);
@@ -1386,13 +1400,14 @@ void necro_codegen_main(NecroCodeGen* codegen, NecroCoreAST_Expression* ast)
                 top = top->list.next;
                 continue;
             }
+            // Debug print
             LLVMValueRef node_ptr    = necro_build_call(codegen, node->mk_function, NULL, 0, "node_ptr");
             LLVMValueRef cast_node   = LLVMBuildBitCast(codegen->builder, node_ptr, LLVMPointerType(LLVMInt64TypeInContext(codegen->context), 0), "cast_node");
             LLVMValueRef cast_glob   = LLVMBuildBitCast(codegen->builder, node_info->llvm_value, LLVMPointerType(LLVMInt64TypeInContext(codegen->context), 0), "cast_glob");
             LLVMValueRef data_size   = LLVMConstInt(LLVMInt32TypeInContext(codegen->context), LLVMABISizeOfType(codegen->target, node->node_type), false);
-            LLVMValueRef is_volatile = LLVMConstInt(LLVMInt1TypeInContext(codegen->context), 1, false);
+            // LLVMValueRef data_size   = LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 20, false);
+            LLVMValueRef is_volatile = LLVMConstInt(LLVMInt1TypeInContext(codegen->context), 0, false);
             necro_build_call(codegen, codegen->llvm_intrinsics.mem_cpy, (LLVMValueRef[]) { cast_glob, cast_node, data_size, is_volatile }, 4, "");
-            // LLVMBuildStore(codegen->builder, node_ptr, node_info->llvm_value);
         }
         top = top->list.next;
     }
@@ -1402,6 +1417,7 @@ void necro_codegen_main(NecroCodeGen* codegen, NecroCoreAST_Expression* ast)
     LLVMPositionBuilderAtEnd(codegen->builder, main_loop);
     // Evaluate top level nodes in a loop
     top = ast;
+    top = NULL;
     while (top != NULL)
     {
         if (top->list.expr != NULL && top->list.expr->expr_type == NECRO_CORE_EXPR_BIND)
@@ -1430,16 +1446,15 @@ void necro_codegen_main(NecroCodeGen* codegen, NecroCoreAST_Expression* ast)
                 LLVMValueRef unboxed_result = LLVMBuildLoad(codegen->builder, result_ptr, "unboxed_result");
                 LLVMValueRef print_instr    = necro_build_call(codegen, codegen->runtime->functions.necro_print, (LLVMValueRef[]) { unboxed_result }, 1, "");
                 LLVMSetInstructionCallConv(print_instr, LLVMCCallConv);
-
             }
         }
         top = top->list.next;
     }
-    LLVMValueRef sleep_instr = necro_build_call(codegen, codegen->runtime->functions.necro_sleep, (LLVMValueRef[]) { LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 250, false) }, 1, "");
-    LLVMSetInstructionCallConv(sleep_instr, LLVMCCallConv);
-    // Looping logic...
-    LLVMBuildBr(codegen->builder, main_loop);
-    // LLVMBuildRetVoid(codegen->builder);
+    // // Looping logic...
+    // LLVMValueRef sleep_instr = necro_build_call(codegen, codegen->runtime->functions.necro_sleep, (LLVMValueRef[]) { LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 250, false) }, 1, "");
+    // LLVMSetInstructionCallConv(sleep_instr, LLVMCCallConv);
+    // LLVMBuildBr(codegen->builder, main_loop);
+    LLVMBuildRetVoid(codegen->builder);
     necro_rewind_arena(&codegen->snapshot_arena, snapshot);
 }
 
@@ -1517,8 +1532,6 @@ NECRO_RETURN_CODE necro_jit(NecroCodeGen* codegen)
     }
     necro_bind_runtime_functions(codegen->runtime, engine);
     void(*fun)() = (void(*)())LLVMGetFunctionAddress(engine, "main");
-    // printf("\n");
-    // printf("Necronomicon arises...\n");
     puts("__/\\\\/\\\\\\\\\\\\_______/\\\\\\\\\\\\\\\\______/\\\\\\\\\\\\\\\\__/\\\\/\\\\\\\\\\\\\\______/\\\\\\\\\\____ ");
     puts(" _\\/\\\\\\////\\\\\\____/\\\\\\/////\\\\\\___/\\\\\\//////__\\/\\\\\\/////\\\\\\___/\\\\\\///\\\\\\__");
     puts("  _\\/\\\\\\__\\//\\\\\\__/\\\\\\\\\\\\\\\\\\\\\\___/\\\\\\_________\\/\\\\\\___\\///___/\\\\\\__\\//\\\\\\");

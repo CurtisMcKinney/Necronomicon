@@ -31,15 +31,6 @@ struct NecroCoreAST;
 struct NecroSymTable;
 struct NecroRuntime;
 
-// NECRO_DECLARE_ARENA_LIST(LLVMValueRef, LLVMValue, llvm_value);
-// Do we really need something like this!?
-// typedef struct NecroBlockState
-// {
-//     size_t             index;
-//     NecroLLVMValueList instructions;
-//     NecroSymbol        terminator;
-// } NecroBlockState;
-
 //=====================================================
 // Types
 //=====================================================
@@ -118,9 +109,9 @@ typedef struct NecroNodePrototype
 {
     NecroVar                   bind_var;
     NecroSymbol                name;
-    LLVMTypeRef                node_type;          // Type of the actual node
-    LLVMTypeRef                node_value_type;    // The value type that the node calculates
-    NecroArgList*              args;               // Arguments to be passed in. Will be passed in as raw values in registers or on the stack
+    LLVMTypeRef                node_type;        // Type of the actual node
+    LLVMTypeRef                node_value_type;  // The value type that the node calculates
+    NecroArgList*              args;             // Arguments to be passed in. Will be passed in as raw values in registers or on the stack
     NecroVarList*              loaded_vars;
     NecroCallList*             called_functions;
     NecroVarList*              local_vars;
@@ -129,7 +120,7 @@ typedef struct NecroNodePrototype
     LLVMValueRef               mk_function;
     LLVMValueRef               init_function;
     LLVMValueRef               call_function;
-    bool                       is_function;        // Is this necessary?!
+    bool                       is_function;      // Is this necessary?!
     bool                       was_captured;
     struct NecroNodePrototype* outer;
     size_t                     slot_count;

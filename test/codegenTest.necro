@@ -3,9 +3,21 @@
 -- ALERT! - Use an actual CMD prompt for correct necro usage!
 -- necro usage: necro.exe \path\to\file.necro -jit
 
+integrate :: Int -> Int
+integrate delta = feed where
+    feed = delta + delay 0 feed
+
 main :: Int
-main = x where
-    x = 1 + delay 0 x
+main = x + y + z where
+    x = integrate 10
+    y = integrate 10
+    z = integrate 10
+    -- z = 0
+
+-- main :: Int
+-- main = x + y where
+--     x = 1 + delay 0 x
+--     y = 1 + delay 0 y
 
 -- -- Looks like more than 1 persistent var is crashing things...
 -- integrator :: Int -> Int

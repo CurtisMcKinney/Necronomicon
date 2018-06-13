@@ -1281,7 +1281,7 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
             delay_node->mk_function          = mk_delay_node;
             LLVMBasicBlockRef  entry         = LLVMAppendBasicBlock(mk_delay_node, "entry");
             LLVMPositionBuilderAtEnd(codegen->builder, entry);
-            LLVMValueRef       void_ptr      = necro_alloc_codegen(codegen, delay_node->node_type);
+            LLVMValueRef       void_ptr      = necro_alloc_codegen(codegen, delay_node->node_type, 2);
             LLVMValueRef       node_ptr      = LLVMBuildBitCast(codegen->builder, void_ptr, LLVMPointerType(delay_node->node_type, 0), "node_ptr");
             necro_init_necro_data(codegen, node_ptr, 0, 0);
             LLVMValueRef       val_ptr       = necro_snapshot_gep(codegen, "val_ptr", node_ptr, 2, (uint32_t[]) { 0, 1 });
@@ -1305,8 +1305,8 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
             LLVMBasicBlockRef  entry           = LLVMAppendBasicBlock(call_delay_Node, "entry");
             LLVMPositionBuilderAtEnd(codegen->builder, entry);
             LLVMValueRef       node_ptr        = LLVMGetParam(call_delay_Node, 0);
-            LLVMValueRef       val_ptr         = necro_snapshot_gep(codegen, "val_ptr", node_ptr, 2, (uint32_t[]) { 0, 1 });
-            LLVMValueRef       val_val         = LLVMBuildLoad(codegen->builder, val_ptr, "val_val");
+            // LLVMValueRef       val_ptr         = necro_snapshot_gep(codegen, "val_ptr", node_ptr, 2, (uint32_t[]) { 0, 1 });
+            // LLVMValueRef       val_val         = LLVMBuildLoad(codegen->builder, val_ptr, "val_val");
             LLVMValueRef       buf_ptr         = necro_snapshot_gep(codegen, "buf_ptr", node_ptr, 2, (uint32_t[]) { 0, 2 });
             LLVMValueRef       buf_val         = LLVMBuildLoad(codegen->builder, buf_ptr, "buf_val");
             LLVMValueRef       tag_ptr         = necro_snapshot_gep(codegen, "tag_ptr", node_ptr, 3, (uint32_t[]) { 0, 0, 1 });
@@ -1319,18 +1319,18 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
             LLVMBuildCondBr(codegen->builder, needs_init, init_block, cont_block);
             LLVMPositionBuilderAtEnd(codegen->builder, init_block);
             LLVMBuildStore(codegen->builder, LLVMGetParam(call_delay_Node, 2), buf_ptr);
-            LLVMBuildStore(codegen->builder, LLVMGetParam(call_delay_Node, 1), val_ptr);
+            // LLVMBuildStore(codegen->builder, LLVMGetParam(call_delay_Node, 1), val_ptr);
             LLVMBuildStore(codegen->builder, LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 1, false), tag_ptr);
             LLVMBuildRet(codegen->builder, LLVMGetParam(call_delay_Node, 1));
             LLVMPositionBuilderAtEnd(codegen->builder, cont_block);
             LLVMValueRef       is_null         = LLVMBuildICmp(codegen->builder, LLVMIntEQ, buf_val, LLVMConstPointerNull(LLVMPointerType(necro_val_type_ref, 0)), "is_null");
             LLVMBuildCondBr(codegen->builder, is_null, null_block, val_block);
             LLVMPositionBuilderAtEnd(codegen->builder, null_block);
-            LLVMBuildStore(codegen->builder, LLVMGetParam(call_delay_Node, 2), val_ptr);
+            // LLVMBuildStore(codegen->builder, LLVMGetParam(call_delay_Node, 2), val_ptr);
             LLVMBuildRet(codegen->builder, LLVMGetParam(call_delay_Node, 2));
             LLVMPositionBuilderAtEnd(codegen->builder, val_block);
             LLVMBuildStore(codegen->builder, LLVMGetParam(call_delay_Node, 2), buf_ptr);
-            LLVMBuildStore(codegen->builder, buf_val, val_ptr);
+            // LLVMBuildStore(codegen->builder, buf_val, val_ptr);
             LLVMBuildRet(codegen->builder, buf_val);
             // // LLVMBuildStore(codegen->builder, LLVMConstPointerNull(LLVMPointerType(necro_val_type_ref, 0)), val_ptr);
         }

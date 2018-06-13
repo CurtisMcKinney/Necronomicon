@@ -21,6 +21,9 @@ typedef struct
     LLVMValueRef necro_print;
     LLVMValueRef necro_print_u64;
     LLVMValueRef necro_sleep;
+    LLVMValueRef necro_collect;
+    LLVMValueRef necro_initialize_root_set;
+    LLVMValueRef necro_set_root;
 } NecroRuntimeFunctions;
 
 typedef struct NecroRuntime

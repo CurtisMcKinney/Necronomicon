@@ -6,13 +6,65 @@ integrate :: Int -> Int
 integrate delta = feed where
     feed = delta + delay 0 feed
 
-z :: Int
-z = integrate 20
+tenTimes :: Int -> Int
+tenTimes n =
+    integrate n + integrate n + integrate n + integrate n + integrate n +
+    integrate n + integrate n + integrate n + integrate n + integrate n
+
+oneHundredTimes :: Int -> Int
+oneHundredTimes n =
+    tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
+    tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
+
+oneThousandTimes :: Int -> Int
+oneThousandTimes n =
+    oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
+    oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
+
+tenThousandTimes :: Int -> Int
+tenThousandTimes n =
+    oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
+    oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
 
 main :: Int
-main = x + y + z where
-    x = integrate 25
-    y = integrate 5
+main =
+    tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 +
+    tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1
+
+
+-- z :: Int
+-- z = integrate 20
+
+-- z :: Int
+-- z = x where
+--     x = 2 + delay 0 x
+
+-- z :: Int
+-- z = 10
+
+-- w :: Int
+-- w = 20
+
+-- main :: Int
+-- main = z
+
+-- main :: Int
+-- main = x where
+--     x = 1 + delay 0 x
+
+-- w :: Int
+-- w = integrate 20
+
+-- main :: Int
+-- main = z + w
+
+-- main :: Int
+-- main = delay 0 (delay 1 (delay 2 (delay 3 main)))
+
+-- main :: Int
+-- main = x + y + z where
+--     x = integrate 25
+--     y = integrate 5
 
 -- -- Loop
 -- main :: Int
@@ -35,7 +87,7 @@ main = x + y + z where
 
 -- main :: Int
 -- main = z + x where
---     x = delay 0 x
+--     x = 1 + delay 0 x
 
 -- z :: Int
 -- z = x where

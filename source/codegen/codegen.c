@@ -530,6 +530,11 @@ LLVMValueRef necro_codegen_data_declaration(NecroCodeGen* codegen, NecroCoreAST_
 }
 
 //=====================================================
+// Case
+//=====================================================
+
+
+//=====================================================
 // Node
 //=====================================================
 
@@ -626,7 +631,6 @@ LLVMValueRef necro_codegen_mk_node(NecroCodeGen* codegen, NecroNodePrototype* no
 }
 
 // TODO: FINISH!
-// TODO: delay primitive!
 // Only call init at the beginning of the first block that the node will be used in!
 // This preserves the ability to do self and mutual recursion without going infinite!
 LLVMValueRef necro_codegen_init_node(NecroCodeGen* codegen, NecroNodePrototype* node)
@@ -957,21 +961,6 @@ void necro_calculate_node_prototype_bind(NecroCodeGen* codegen, NecroCoreAST_Exp
         assert(node_prototype->args == NULL);
         if (outer_node == NULL)
         {
-            //--------------------
-            // Global
-            // Create global instance
-            // char buf2[10];
-            // const char* bind_name = necro_concat_strings(&codegen->snapshot_arena, 3, (const char*[]) { necro_intern_get_string(codegen->intern, ast->bind.var.symbol), "_", itoa(ast->bind.var.id.id, buf2, 10) });
-            // LLVMTypeRef bind_type = necro_get_ast_llvm_type(codegen, ast);
-            // assert(bind_type != NULL);
-            // LLVMValueRef bind_value = LLVMAddGlobal(codegen->mod, node_prototype->node_type, bind_name);
-            // LLVMSetLinkage(bind_value, LLVMCommonLinkage);
-            // LLVMSetAlignment(bind_value, 4);
-            // // LLVMSetInitializer(bind_value, LLVMConstPointerNull(LLVMPointerType(node_prototype->node_type, 0)));
-            // // LLVMSetInitializer(bind_value, LLVMConstNamedStruct(node_prototype->node_type, NULL, 0));
-            // LLVMSetInitializer(bind_value, necro_create_constant_struct(codegen, node_prototype));
-            // LLVMSetGlobalConstant(bind_value, false);
-            // necro_symtable_get(codegen->symtable, ast->bind.var.id)->llvm_value = bind_value;
         }
         else
         {
@@ -1006,11 +995,7 @@ void necro_calculate_node_prototype_bind(NecroCodeGen* codegen, NecroCoreAST_Exp
         LLVMTypeRef bind_type = necro_get_ast_llvm_type(codegen, ast);
         assert(bind_type != NULL);
         LLVMValueRef bind_value = LLVMAddGlobal(codegen->mod, node_prototype->node_type, bind_name);
-        // LLVMSetLinkage(bind_value, LLVMExternalLinkage);
         LLVMSetLinkage(bind_value, LLVMInternalLinkage);
-        // LLVMSetAlignment(bind_value, 4);
-        // LLVMSetInitializer(bind_value, LLVMConstPointerNull(LLVMPointerType(node_prototype->node_type, 0)));
-        // LLVMSetInitializer(bind_value, LLVMConstNamedStruct(node_prototype->node_type, NULL, 0));
         LLVMSetInitializer(bind_value, necro_create_constant_struct(codegen, node_prototype));
         LLVMSetGlobalConstant(bind_value, false);
         necro_symtable_get(codegen->symtable, ast->bind.var.id)->llvm_value = bind_value;
@@ -1433,7 +1418,7 @@ LLVMValueRef necro_calculate_node_call(NecroCodeGen* codegen, NecroCoreAST_Expre
     case NECRO_CORE_EXPR_DATA_CON:  assert(false && "Should never reach DATA_CON  case in necro_calculate_node_prototype"); return NULL;
     case NECRO_CORE_EXPR_TYPE:      assert(false && "Should never reach EXPR_TYPE case in necro_calculate_node_prototype"); return NULL;
     case NECRO_CORE_EXPR_LIST:      assert(false && "Should never reach EXPR_LIST case in necro_calculate_node_prototype"); return NULL; // used for top decls not language lists
-    default:                        assert(false && "Unimplemented AST type in necro_calculate_node_prototype"); return NULL;
+    default:                        assert(false && "Unimplemented AST type in necro_calculate_node_prototype");            return NULL;
     }
 }
 

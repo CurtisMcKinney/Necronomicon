@@ -2,6 +2,22 @@
 -- ALERT! - Use an actual CMD prompt for correct necro usage!
 -- necro usage: necro.exe \path\to\file.necro -jit
 
+-- data CakeOrDeath a = Cake a | Death
+
+-- cake :: CakeOrDeath Int
+-- cake = Cake 666
+
+-- someNum :: Num a => a -> a
+-- someNum x = x + 1
+
+-- main :: Int
+-- main = 0
+
+-- cake :: CakeOrDeath (CakeOrDeath Int) -> Int
+-- cake c = case c of
+--     Cake (Cake i) -> i
+--     _             -> 0
+
 integrate :: Int -> Int
 integrate delta = feed where
     feed = delta + delay 0 feed

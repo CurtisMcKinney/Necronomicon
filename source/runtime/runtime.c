@@ -434,8 +434,8 @@ extern DLLEXPORT void _necro_collect()
 
 extern DLLEXPORT int64_t* _necro_alloc(int64_t size_in_bytes, uint8_t slots_used)
 {
-    size_t   slots   = next_highest_pow_of_2(((((uint32_t)size_in_bytes) - sizeof(uint64_t)) / sizeof(int64_t*)));
-    size_t   segment = log2_32(slots);
+    size_t slots   = next_highest_pow_of_2(((((uint32_t)size_in_bytes) - sizeof(uint64_t)) / sizeof(int64_t*)));
+    size_t segment = log2_32(slots);
     assert(segment < NECRO_GC_NUM_SEGMENTS);
     // TODO: Do segment calculation statically?
     // printf("-----------------------------------------\n");
@@ -444,7 +444,7 @@ extern DLLEXPORT int64_t* _necro_alloc(int64_t size_in_bytes, uint8_t slots_used
     // printf("slots_used:    %d\n", slots_used);
     // printf("slots:         %d\n", slots);
     // printf("segment:       %d\n", segment);
-    int64_t* data    = necro_gcs_alloc(gc.segments + segment, (uint8_t)segment, slots_used, gc.white_color);
+    int64_t* data = necro_gcs_alloc(gc.segments + segment, (uint8_t)segment, slots_used, gc.white_color);
     assert(data != NULL);
     // printf("data:          %p\n", data);
     return data;

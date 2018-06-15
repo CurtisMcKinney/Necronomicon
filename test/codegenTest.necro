@@ -2,50 +2,58 @@
 -- ALERT! - Use an actual CMD prompt for correct necro usage!
 -- necro usage: necro.exe \path\to\file.necro -jit
 
--- data CakeOrDeath a = Cake a | Death
+-- data CakeOrDeath a = Cake a (CakeOrDeath a) | Death
 
--- cake :: CakeOrDeath Int
--- cake = Cake 666
+-- cake :: CakeOrDeath Int -> Int
 
--- someNum :: Num a => a -> a
--- someNum x = x + 1
+-- cake c = case c of
+--     Cake i Death          -> i
+--     Cake x (Cake _ Death) -> x
+--     Death                 -> 0
+
+data Color     = Red | Green | Blue
+data Maybe a   = Just a | Nothing
+data Tuple a b = Tuple a b
+
+colorz :: Tuple (Maybe Color) Color -> Color
+colorz t = case (Tuple (Just Red) Blue) of
+    Tuple (Just Red) Green -> Blue
+    Tuple (Just y)   Green -> y
+    Tuple Nothing    Green -> Green
+    Tuple _          Red   -> Red
+    _                      -> Blue
 
 -- main :: Int
 -- main = 0
 
--- cake :: CakeOrDeath (CakeOrDeath Int) -> Int
--- cake c = case c of
---     Cake (Cake i) -> i
---     _             -> 0
-
-integrate :: Int -> Int
-integrate delta = feed where
-    feed = delta + delay 0 feed
-
-tenTimes :: Int -> Int
-tenTimes n =
-    integrate n + integrate n + integrate n + integrate n + integrate n +
-    integrate n + integrate n + integrate n + integrate n + integrate n
-
-oneHundredTimes :: Int -> Int
-oneHundredTimes n =
-    tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
-    tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
-
-oneThousandTimes :: Int -> Int
-oneThousandTimes n =
-    oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
-    oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
-
-tenThousandTimes :: Int -> Int
-tenThousandTimes n =
-    oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
-    oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
-
-main :: Int
-main =
-    tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 +
-    tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1
+-- integrate :: Int -> Int
+-- integrate delta = feed where
+--     feed = delta + delay 0 feed
+--
+-- tenTimes :: Int -> Int
+-- tenTimes n =
+--     integrate n + integrate n + integrate n + integrate n + integrate n +
+--     integrate n + integrate n + integrate n + integrate n + integrate n
+--
+-- oneHundredTimes :: Int -> Int
+-- oneHundredTimes n =
+--     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
+--     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
+--
+-- oneThousandTimes :: Int -> Int
+-- oneThousandTimes n =
+--     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
+--     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
+--
+-- tenThousandTimes :: Int -> Int
+-- tenThousandTimes n =
+--     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
+--     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
+--
+-- main :: Int
+-- main =
+--     tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 +
+--     tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1
 
 
 -- z :: Int

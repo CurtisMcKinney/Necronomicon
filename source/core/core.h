@@ -118,6 +118,7 @@ typedef struct
     //NecroVar var; // Don't know what to do with var and type atm
     //struct NecroCoreAST_Type* type;
     NecroCoreAST_CaseAlt* alts;
+    struct NecroType*     type;
 } NecroCoreAST_Case;
 
 typedef struct

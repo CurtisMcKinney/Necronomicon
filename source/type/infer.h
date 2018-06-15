@@ -19,7 +19,7 @@ NecroType* necro_infer(NecroInfer* infer, NecroNode* ast);
 NecroType* necro_infer_ast_error(NecroInfer* infer, NecroType* type, NecroNode* ast, const char* error_message, ...);
 NecroType* necro_infer_type_sig(NecroInfer* infer, NecroNode* ast);
 NecroType* necro_ast_to_type_sig_go(NecroInfer* infer, NecroNode* ast);
-NecroType* necro_create_data_constructor(NecroInfer* infer, NecroNode* ast, NecroType* data_type);
+NecroType* necro_create_data_constructor(NecroInfer* infer, NecroNode* ast, NecroType* data_type, size_t con_num);
 NecroType* necro_ty_vars_to_args(NecroInfer* infer, NecroNode* ty_vars);
 NecroType* necro_infer_declaration_group(NecroInfer* infer, NecroDeclarationGroup* declaration_group);
 

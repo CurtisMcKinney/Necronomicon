@@ -129,8 +129,7 @@ typedef struct NecroNodePrototype
 
 NecroCodeGen        necro_create_codegen(struct NecroInfer* infer, struct NecroIntern* intern, struct NecroSymTable* symtable, struct NecroRuntime* runtime, const char* module_name);
 void                necro_destroy_codegen(NecroCodeGen* codegen);
-void                necro_test_codegen(NecroCodeGen* codegen);
-NecroSymbol         necro_new_block_name(NecroCodeGen* codegen);
+// void                necro_test_codegen(NecroCodeGen* codegen);
 NECRO_RETURN_CODE   necro_codegen(NecroCodeGen* codegen, struct NecroCoreAST* core_ast);
 NECRO_RETURN_CODE   necro_verify_and_dump_codegen(NecroCodeGen* codegen);
 LLVMValueRef        necro_snapshot_add_function(NecroCodeGen* codegen, const char* function_name, LLVMTypeRef return_type, LLVMTypeRef* arg_refs, size_t arg_count);

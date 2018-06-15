@@ -37,7 +37,7 @@ typedef struct
     const char*                    string_name;
     NecroID                        id;
     size_t                         data_size;
-    size_t                         local_var_num;
+    size_t                         con_num;
     NecroSourceLoc                 source_loc;
     struct NecroScope*             scope;
     struct NecroDelayScope*        delay_scope;

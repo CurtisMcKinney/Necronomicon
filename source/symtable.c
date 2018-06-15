@@ -48,7 +48,7 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
         .string_name             = necro_intern_get_string(intern, symbol),
         .id                      = 0,
         .data_size               = 0,
-        .local_var_num           = 0,
+        .con_num                 = 0,
         .source_loc              = source_loc,
         .scope                   = scope,
         .delay_scope             = NULL,
@@ -123,9 +123,6 @@ void necro_symtable_info_print(NecroSymbolInfo info, NecroIntern* intern, size_t
 
     print_white_space(whitespace + 4);
     printf("size:       %d\n", info.data_size);
-
-    print_white_space(whitespace + 4);
-    printf("local var:  %d\n", info.local_var_num);
 
     print_white_space(whitespace + 4);
     printf("source loc: { line: %d, character: %d, pos: %d }\n", info.source_loc.line, info.source_loc.character, info.source_loc.pos);

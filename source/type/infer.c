@@ -247,7 +247,7 @@ NecroType* necro_ty_vars_to_args(NecroInfer* infer, NecroNode* ty_vars)
     return head;
 }
 
-NecroType* necro_create_data_constructor(NecroInfer* infer, NecroNode* ast, NecroType* data_type)
+NecroType* necro_create_data_constructor(NecroInfer* infer, NecroNode* ast, NecroType* data_type, size_t con_num)
 // NecroType* necro_create_data_constructor(NecroInfer* infer, NecroNode* ast)
 {
     // WRONG
@@ -291,6 +291,7 @@ NecroType* necro_create_data_constructor(NecroInfer* infer, NecroNode* ast, Necr
     con_type->pre_supplied = true;
     necro_symtable_get(infer->symtable, ast->constructor.conid->conid.id)->type           = con_type;
     necro_symtable_get(infer->symtable, ast->constructor.conid->conid.id)->is_constructor = true;
+    necro_symtable_get(infer->symtable, ast->constructor.conid->conid.id)->con_num        = con_num;
     necro_kind_infer(infer, con_type, con_type, "While declaring a data constructor");
     necro_kind_unify(infer, con_type->type_kind, infer->star_type_kind, NULL, con_type, "During a data declaration: ");
     return con_type;
@@ -943,6 +944,7 @@ NecroType* necro_infer_if_then_else(NecroInfer* infer, NecroNode* ast)
     necro_unify(infer, if_type, necro_symtable_get(infer->symtable, infer->prim_types->bool_type.id)->type, ast->scope, if_type, "While inferring the type of an if/then/else expression: ");
     necro_unify(infer, then_type, else_type, ast->scope, then_type, "While inferring the type of an if/then/else expression: ");
     if (necro_is_infer_error(infer)) return NULL;
+    ast->necro_type = if_type;
     return then_type;
 }
 
@@ -1169,6 +1171,7 @@ NecroType* necro_infer_case(NecroInfer* infer, NecroNode* ast)
         necro_unify(infer, result_type, necro_infer_go(infer, alternative->case_alternative.body), alternatives->scope, result_type, "While inferring the type of a case expression: ");
         alternatives = alternatives->list.next_item;
     }
+    ast->case_expression.expression->necro_type = expression_type;
     return result_type;
 }
 
@@ -1430,12 +1433,15 @@ NecroType* necro_infer_declaration_group(NecroInfer* infer, NecroDeclarationGrou
         case NECRO_AST_DATA_DECLARATION:
         {
             NecroNode* constructor_list = ast->data_declaration.constructor_list;
+            size_t con_num = 0;
             while (constructor_list != NULL)
             {
-                necro_create_data_constructor(infer, constructor_list->list.item, necro_symtable_get(infer->symtable, ast->data_declaration.simpletype->simple_type.type_con->conid.id)->type);
+                necro_create_data_constructor(infer, constructor_list->list.item, necro_symtable_get(infer->symtable, ast->data_declaration.simpletype->simple_type.type_con->conid.id)->type, con_num);
                 if (necro_is_infer_error(infer)) return NULL;
                 constructor_list = constructor_list->list.next_item;
+                con_num++;
             }
+            necro_symtable_get(infer->symtable, ast->data_declaration.simpletype->simple_type.type_con->conid.id)->con_num = con_num;
             break;
         }
         case NECRO_AST_TYPE_SIGNATURE:

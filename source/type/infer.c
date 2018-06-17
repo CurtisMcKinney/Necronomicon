@@ -297,7 +297,7 @@ NecroType* necro_create_data_constructor(NecroInfer* infer, NecroNode* ast, Necr
     return con_type;
 }
 
-NecroType* necro_infer_simple_type(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_simple_type(NecroInfer* infer, NecroNode* ast, NecroNode* data_declaration_ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -311,6 +311,7 @@ NecroType* necro_infer_simple_type(NecroInfer* infer, NecroNode* ast)
     type->source_loc   = ast->source_loc;
     type->pre_supplied = true;
     necro_symtable_get(infer->symtable, ast->simple_type.type_con->conid.id)->type = type;
+    necro_symtable_get(infer->symtable, ast->simple_type.type_con->conid.id)->ast  = data_declaration_ast;
     // if (necro_is_infer_error(infer)) return NULL;
     // necro_infer_kind(infer, type, infer->star_kind, type, "During data declaration");
     if (necro_is_infer_error(infer)) return NULL;
@@ -944,7 +945,7 @@ NecroType* necro_infer_if_then_else(NecroInfer* infer, NecroNode* ast)
     necro_unify(infer, if_type, necro_symtable_get(infer->symtable, infer->prim_types->bool_type.id)->type, ast->scope, if_type, "While inferring the type of an if/then/else expression: ");
     necro_unify(infer, then_type, else_type, ast->scope, then_type, "While inferring the type of an if/then/else expression: ");
     if (necro_is_infer_error(infer)) return NULL;
-    ast->necro_type = if_type;
+    ast->necro_type = then_type;
     return then_type;
 }
 
@@ -1171,7 +1172,9 @@ NecroType* necro_infer_case(NecroInfer* infer, NecroNode* ast)
         necro_unify(infer, result_type, necro_infer_go(infer, alternative->case_alternative.body), alternatives->scope, result_type, "While inferring the type of a case expression: ");
         alternatives = alternatives->list.next_item;
     }
-    ast->case_expression.expression->necro_type = expression_type;
+    // ast->case_expression.expression->necro_type = expression_type;
+    // ast->case_expression.expression->necro_type = expression_type;
+    ast->necro_type                             = result_type;
     return result_type;
 }
 
@@ -1396,7 +1399,7 @@ NecroType* necro_infer_declaration_group(NecroInfer* infer, NecroDeclarationGrou
             necro_pat_new_name_go(infer, ast->pat_assignment.pat);
             break;
         case NECRO_AST_DATA_DECLARATION:
-            necro_infer_simple_type(infer, ast->data_declaration.simpletype);
+            necro_infer_simple_type(infer, ast->data_declaration.simpletype, ast);
             break;
         case NECRO_AST_TYPE_SIGNATURE:
             necro_infer_type_sig(infer, ast);

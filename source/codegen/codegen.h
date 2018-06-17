@@ -43,6 +43,7 @@ typedef struct
 typedef struct
 {
     LLVMValueRef mem_cpy;
+    LLVMValueRef trap;
 } LLVMIntrinsics;
 
 typedef struct NecroCodeGen
@@ -61,6 +62,7 @@ typedef struct NecroCodeGen
     LLVMPassManagerRef   mod_pass_manager;
     NecroError           error;
     LLVMIntrinsics       llvm_intrinsics;
+    LLVMValueRef         current_func;
 } NecroCodeGen;
 
 typedef enum

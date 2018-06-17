@@ -1189,6 +1189,10 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
     LLVMValueRef mem_cpy         = LLVMAddFunction(codegen->mod, "llvm.memcpy.p0i32.p0i32.i64", mem_cpy_type);
     codegen->llvm_intrinsics.mem_cpy = mem_cpy;
 
+    LLVMTypeRef  trap_type = LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), NULL, 0, false);
+    LLVMValueRef trap_fn   = LLVMAddFunction(codegen->mod, "llvm.trap", trap_type);
+    codegen->llvm_intrinsics.trap = trap_fn;
+
     necro_declare_runtime_functions(codegen->runtime, codegen);
 
     //=====================================================

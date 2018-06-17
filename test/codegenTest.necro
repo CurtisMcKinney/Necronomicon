@@ -2,26 +2,48 @@
 -- ALERT! - Use an actual CMD prompt for correct necro usage!
 -- necro usage: necro.exe \path\to\file.necro -jit
 
+data Maybe a = Just a | Nothing
+data Color   = Red | Green | Blue
+
+maybeInt :: Maybe (Maybe Color) -> Int
+maybeInt mi = case mi of
+    Just (Just Green) -> 0
+    Just (Just Blue)  -> 1
+    Just Nothing      -> 2
+    _                 -> 3
+
+main :: Int
+main = maybeInt (Just (Just Red))
+
+-- -- Lone wildcards cause an error!
+-- colorCode :: Color -> Int
+-- colorCode c = case c of
+--     -- Red   -> 0
+--     _     -> 666
+--     -- Green -> 1
+--     -- Blue  -> 2
+
+-- main :: Int
+-- main = colorCode Blue
+
 -- data CakeOrDeath a = Cake a (CakeOrDeath a) | Death
-
 -- cake :: CakeOrDeath Int -> Int
-
 -- cake c = case c of
 --     Cake i Death          -> i
 --     Cake x (Cake _ Death) -> x
 --     Death                 -> 0
 
-data Color     = Red | Green | Blue
-data Maybe a   = Just a | Nothing
-data Tuple a b = Tuple a b
+-- data Color     = Red | Green | Blue
+-- data Maybe a   = Just a | Nothing
+-- data Tuple a b = Tuple a b
 
-colorz :: Tuple (Maybe Color) Color -> Color
-colorz t = case (Tuple (Just Red) Blue) of
-    Tuple (Just Red) Green -> Blue
-    Tuple (Just y)   Green -> y
-    Tuple Nothing    Green -> Green
-    Tuple _          Red   -> Red
-    _                      -> Blue
+-- colorz :: Tuple (Maybe Color) Color -> Color
+-- colorz t = case (Tuple (Just Red) Blue) of
+--     Tuple (Just Red) Green -> Blue
+--     Tuple (Just y)   Green -> y
+--     Tuple Nothing    Green -> Green
+--     Tuple _          Red   -> Red
+--     _                      -> Blue
 
 -- main :: Int
 -- main = 0

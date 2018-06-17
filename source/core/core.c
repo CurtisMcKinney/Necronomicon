@@ -825,7 +825,7 @@ NecroCoreAST_Expression* necro_transform_case(NecroTransformToCore* core_transfo
     NecroCoreAST_Case* core_case = &core_expr->case_expr;
     core_case->expr = necro_transform_to_core_impl(core_transform, case_ast->expression);
     core_case->alts = NULL;
-    core_case->type = case_ast->expression->necro_type;
+    core_case->type = necro_ast_node->necro_type;
 
     NecroAST_Node_Reified* list_node = case_ast->alternatives;
     // NecroAST_Node_Reified* alt_list_node = case_ast->alternatives;

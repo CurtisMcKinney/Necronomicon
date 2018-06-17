@@ -2,18 +2,45 @@
 -- ALERT! - Use an actual CMD prompt for correct necro usage!
 -- necro usage: necro.exe \path\to\file.necro -jit
 
-data Maybe a = Just a | Nothing
-data Color   = Red | Green | Blue
+data Maybe a     = Just a | Nothing
+data Color       = Red | Green | Blue
+data CakeOrDeath = Cake | Death
+data Tuple a b   = Tuple a b
 
-maybeInt :: Maybe (Maybe Color) -> Int
-maybeInt mi = case mi of
-    Just (Just Green) -> 0
-    Just (Just Blue)  -> 1
-    Just Nothing      -> 2
-    _                 -> 3
+-- maybeInt :: Maybe (Maybe Int) -> Int
+-- maybeInt mi = case mi of
+--     Just (Just _) -> 0
+--     Just Nothing  -> 1
+--     Nothing       -> 2
 
-main :: Int
-main = maybeInt (Just (Just Red))
+-- main :: Int
+-- main = maybeInt Nothing
+
+-- maybeInt :: Maybe (Maybe Color) -> Int
+-- maybeInt mi = case mi of
+--     Just (Just Green) -> 0
+--     Just (Just Blue)  -> 1
+--     Just Nothing      -> 2
+--     _                 -> 3
+
+-- maybeInt :: Maybe (Tuple Color CakeOrDeath) -> Int
+-- maybeInt m = case m of
+--     Just (Tuple Red   Death) -> 0
+--     Just (Tuple Green Cake)  -> 1
+--     Just (Tuple _     Death) -> 2
+--     Nothing                  -> 3
+--
+-- main :: Int
+-- main = maybeInt (Just (Tuple Red Cake))
+
+-- tupleInt :: Tuple Color CakeOrDeath -> Int
+-- tupleInt t = case t of
+--     Tuple Red Death -> 0
+--     Tuple _   Cake  -> 1
+--     Tuple _   Death -> 2
+
+-- main :: Int
+-- main = tupleInt (Tuple Blue Death)
 
 -- -- Lone wildcards cause an error!
 -- colorCode :: Color -> Int
@@ -48,34 +75,34 @@ main = maybeInt (Just (Just Red))
 -- main :: Int
 -- main = 0
 
--- integrate :: Int -> Int
--- integrate delta = feed where
---     feed = delta + delay 0 feed
---
--- tenTimes :: Int -> Int
--- tenTimes n =
---     integrate n + integrate n + integrate n + integrate n + integrate n +
---     integrate n + integrate n + integrate n + integrate n + integrate n
---
--- oneHundredTimes :: Int -> Int
--- oneHundredTimes n =
---     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
---     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
---
--- oneThousandTimes :: Int -> Int
--- oneThousandTimes n =
---     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
---     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
---
--- tenThousandTimes :: Int -> Int
--- tenThousandTimes n =
---     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
---     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
---
--- main :: Int
--- main =
---     tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 +
---     tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1
+integrate :: Int -> Int
+integrate delta = feed where
+    feed = delta + delay 0 feed
+
+tenTimes :: Int -> Int
+tenTimes n =
+    integrate n + integrate n + integrate n + integrate n + integrate n +
+    integrate n + integrate n + integrate n + integrate n + integrate n
+
+oneHundredTimes :: Int -> Int
+oneHundredTimes n =
+    tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
+    tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
+
+oneThousandTimes :: Int -> Int
+oneThousandTimes n =
+    oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
+    oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
+
+tenThousandTimes :: Int -> Int
+tenThousandTimes n =
+    oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
+    oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
+
+main :: Int
+main =
+    tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 +
+    tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1 + tenThousandTimes 1
 
 
 -- z :: Int

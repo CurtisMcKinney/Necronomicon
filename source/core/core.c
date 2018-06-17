@@ -160,7 +160,7 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
         break;
 
     case NECRO_CORE_EXPR_DATA_CON:
-        printf("(DataCon: %s)\n", necro_intern_get_string(intern, ast_node->data_con.condid.symbol));
+        printf("(DataCon: %s, %d)\n", necro_intern_get_string(intern, ast_node->data_con.condid.symbol), ast_node->data_con.condid.id.id);
         if (ast_node->data_con.arg_list)
         {
             necro_print_core_node(ast_node->data_con.arg_list, intern, depth + 1);

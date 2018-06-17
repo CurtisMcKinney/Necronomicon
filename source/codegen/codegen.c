@@ -249,7 +249,12 @@ LLVMValueRef necro_maybe_cast(NecroCodeGen* codegen, LLVMValueRef value, LLVMTyp
     if (LLVMTypeOf(value) != type_to_match)
     {
         LLVMTypeRef necro_val_type = LLVMPointerType(necro_symtable_get(codegen->symtable, codegen->infer->prim_types->necro_val_type.id)->llvm_type, 0);
-        assert(LLVMTypeOf(value) == necro_val_type || type_to_match == necro_val_type);
+        if (LLVMTypeOf(value) != necro_val_type && type_to_match && necro_val_type)
+        {
+            const char* type_of_val_string   = LLVMPrintTypeToString(LLVMTypeOf(value));
+            const char* type_to_match_string = LLVMPrintTypeToString(type_to_match);
+            assert(LLVMTypeOf(value) == necro_val_type || type_to_match == necro_val_type);
+        }
         return LLVMBuildBitCast(codegen->builder, value, type_to_match, "cast_arg");
     }
     return value;
@@ -440,6 +445,7 @@ void necro_codegen_data_con(NecroCodeGen* codegen, NecroCoreAST_DataCon* con, LL
 {
     if (necro_is_codegen_error(codegen)) return;
     NecroArenaSnapshot snapshot = necro_get_arena_snapshot(&codegen->snapshot_arena);
+    necro_symtable_get(codegen->symtable, con->condid.id)->llvm_type = data_type_ref;
     char*  con_name  = necro_concat_strings(&codegen->snapshot_arena, 2, (const char*[]) { "_mk", necro_intern_get_string(codegen->intern, con->condid.symbol) });
     size_t arg_count = necro_codegen_count_num_args(codegen, con);
     assert(arg_count <= max_arg_count);
@@ -541,6 +547,7 @@ struct NecroDecisionTree;
 typedef struct NecroPatternPath
 {
     struct NecroPatternPath* parent;
+    LLVMTypeRef              type;
     LLVMValueRef             value;
     size_t                   slot;
 } NecroPatternPath;
@@ -609,10 +616,11 @@ typedef struct NecroPatternMatrix
     size_t                     con_num;
 } NecroPatternMatrix;
 
-NecroPatternPath* necro_create_pattern_path(NecroCodeGen* codegen, NecroPatternPath* parent, LLVMValueRef value, size_t slot)
+NecroPatternPath* necro_create_pattern_path(NecroCodeGen* codegen, NecroPatternPath* parent, LLVMTypeRef type, LLVMValueRef value, size_t slot)
 {
     NecroPatternPath* path = necro_paged_arena_alloc(&codegen->arena, sizeof(NecroPatternPath));
     path->parent           = parent;
+    path->type             = type;
     path->value            = value;
     path->slot             = slot;
     return path;
@@ -644,12 +652,14 @@ NecroPatternMatrix necro_create_pattern_matrix(NecroCodeGen* codegen, NecroCon p
     NecroPatternPath**         paths       = necro_paged_arena_alloc(&codegen->arena, columns * sizeof(NecroPatternPath*));
     for (size_t r = 0; r < rows; ++r)
     {
-        patterns[r]    = necro_paged_arena_alloc(&codegen->arena, columns * sizeof(NecroCoreAST_Expression*));
+        patterns[r] = necro_paged_arena_alloc(&codegen->arena, columns * sizeof(NecroCoreAST_Expression*));
+        for (size_t c = 0; c < columns; ++c)
+        {
+            patterns[r][c] = NULL;
+            if (r == 0)
+                paths[c] = NULL;
+        }
         expressions[r] = NULL;
-    }
-    for (size_t c = 0; c < columns; ++c)
-    {
-        paths[c] = NULL;
     }
     return (NecroPatternMatrix)
     {
@@ -664,6 +674,7 @@ NecroPatternMatrix necro_create_pattern_matrix(NecroCodeGen* codegen, NecroCon p
 }
 
 // TODO: Figure out refs and slots!
+// TODO: CHAD: Wildcard being NULL is REALLY inconvenient!
 NecroPatternMatrix necro_specialize_matrix(NecroCodeGen* codegen, NecroPatternMatrix* matrix, NecroCon pattern_con)
 {
     size_t     con_arity = 0;
@@ -679,10 +690,9 @@ NecroPatternMatrix necro_specialize_matrix(NecroCodeGen* codegen, NecroPatternMa
     assert(con_type->type == NECRO_TYPE_CON);
     size_t new_rows    = 0;
     size_t new_columns = max(0, con_arity + (matrix->columns - 1));
-    NecroCoreAST_Expression*** patterns = matrix->patterns;
     for (size_t r = 0; r < matrix->rows; ++r)
     {
-        NecroCoreAST_Expression* row_head = patterns[r][0];
+        NecroCoreAST_Expression* row_head = matrix->patterns[r][0];
         // WildCard is NULL....WHY!?!?!....WHY!?!?!?
         if (row_head == NULL)
         {
@@ -702,24 +712,26 @@ NecroPatternMatrix necro_specialize_matrix(NecroCodeGen* codegen, NecroPatternMa
     NecroPatternMatrix specialized_matrix = necro_create_pattern_matrix(codegen, pattern_con, new_rows, new_columns);
     size_t             column_diff        = ((size_t)max(0, 1 + (((int32_t)new_columns) - ((int32_t)matrix->columns))));
     size_t             new_r              = 0;
+
     for (size_t r = 0; r < matrix->rows; ++r)
     {
-        NecroCoreAST_Expression** row      = patterns[r];
+        NecroCoreAST_Expression** row      = matrix->patterns[r];
         NecroCoreAST_Expression*  row_head = row[0];
         if (row_head == NULL) // WILDCARD....why Chad? Why!?!??!
         {
             for (size_t c_d = 0; c_d < column_diff; ++c_d)
             {
                 specialized_matrix.patterns[new_r][c_d] = NULL;
-                specialized_matrix.paths[c_d]           = NULL;
+                if (r == 0)
+                    specialized_matrix.paths[c_d] = NULL;
             }
             for (size_t c = 1; c < matrix->columns - 1; ++c)
             {
                 specialized_matrix.patterns[new_r][column_diff + c] = matrix->patterns[r][c];
-                specialized_matrix.paths[column_diff + c]           = matrix->paths[c];
+                if (r == 0)
+                    specialized_matrix.paths[column_diff + c]           = matrix->paths[c];
             }
             specialized_matrix.expressions[new_r] = matrix->expressions[r];
-            new_r++;
         }
         else if (row_head->expr_type == NECRO_CORE_EXPR_DATA_CON)
         {
@@ -727,25 +739,40 @@ NecroPatternMatrix necro_specialize_matrix(NecroCodeGen* codegen, NecroPatternMa
             if (row_head->data_con.condid.id.id != pattern_con.id.id)
                 continue;
             NecroCoreAST_Expression* con_args = matrix->patterns[r][0]->data_con.arg_list;
+            // if (r == 0)
+            // {
+            //     con_type = necro_symtable_get(codegen->symtable, matrix->patterns[r][0]->data_con.condid.id)->type;
+            //     while (con_type->type == NECRO_TYPE_FOR)
+            //         con_type = con_type->for_all.type;
+            // }
             for (size_t c_d = 0; c_d < column_diff; ++c_d)
             {
                 assert(con_args != NULL);
                 specialized_matrix.patterns[new_r][c_d] = con_args->list.expr;
-                specialized_matrix.paths[c_d]           = necro_create_pattern_path(codegen, matrix->paths[0], NULL, c_d);
+                if (r == 0)
+                {
+                    // specialized_matrix.paths[c_d] = necro_create_pattern_path(codegen, matrix->paths[0], LLVMPointerType(necro_type_to_llvm_type(codegen, con_type->fun.type1), 0), NULL, c_d);
+                    if (con_args->list.expr != NULL)
+                        specialized_matrix.paths[c_d] = necro_create_pattern_path(codegen, matrix->paths[0], LLVMPointerType(necro_get_ast_llvm_type(codegen, con_args->list.expr), 0), NULL, c_d);
+                    else
+                        specialized_matrix.paths[c_d] = necro_create_pattern_path(codegen, matrix->paths[0], necro_get_value_ptr(codegen), NULL, c_d);
+                    // con_type = con_type->fun.type2;
+                }
                 con_args = con_args->list.next;
             }
-            for (size_t c = 1; c < matrix->columns - 1; ++c)
+            for (size_t c = 0; c < matrix->columns - 1; ++c)
             {
-                specialized_matrix.patterns[new_r][column_diff + c] = matrix->patterns[r][c];
-                specialized_matrix.paths[column_diff + c]           = matrix->paths[c];
+                specialized_matrix.patterns[new_r][column_diff + c] = matrix->patterns[r][c + 1];
+                if (r == 0)
+                    specialized_matrix.paths[column_diff + c] = matrix->paths[c + 1];
             }
             specialized_matrix.expressions[new_r] = matrix->expressions[r];
-            new_r++;
         }
         else
         {
             assert(false && "Pattern should be either data con, wild card, or constant!");
         }
+        new_r++;
     }
     return specialized_matrix;
 }
@@ -824,7 +851,7 @@ NecroPatternMatrix necro_create_pattern_matrix_from_case(NecroCodeGen* codegen, 
     }
     for (size_t c = 0; c < columns; ++c)
     {
-        matrix.paths[c] = necro_create_pattern_path(codegen, case_path, case_path->value, c);
+        matrix.paths[c] = necro_create_pattern_path(codegen, case_path, LLVMPointerType(necro_get_ast_llvm_type(codegen, ast->case_expr.expr), 0), case_path->value, c);
     }
     return matrix;
 }
@@ -912,7 +939,7 @@ necro_compile_pattern_matrix_post_drop:
     return necro_create_decision_tree_switch(codegen, matrix->paths[0], cases, cons, num_cons);
 }
 
-void necro_codegen_decision_tree(NecroCodeGen* codegen, NecroDecisionTree* tree, LLVMBasicBlockRef current_block, LLVMBasicBlockRef term_case_block, LLVMBasicBlockRef error_block, LLVMValueRef result_phi, NecroNodePrototype* outer)
+void necro_codegen_decision_tree(NecroCodeGen* codegen, NecroDecisionTree* tree, LLVMBasicBlockRef term_case_block, LLVMBasicBlockRef error_block, LLVMValueRef result_phi, NecroNodePrototype* outer)
 {
     if (necro_is_codegen_error(codegen)) return;
     assert(codegen != NULL);
@@ -924,11 +951,9 @@ void necro_codegen_decision_tree(NecroCodeGen* codegen, NecroDecisionTree* tree,
     {
     case NECRO_DECISION_TREE_LEAF:
     {
-        // assert(current_block != NULL);
         LLVMBasicBlockRef current_block = LLVMGetLastBasicBlock(codegen->current_func);
         LLVMValueRef      leaf_value    = necro_calculate_node_call(codegen, tree->tree_leaf.expression, outer);
         LLVMAddIncoming(result_phi, &leaf_value, &current_block, 1);
-        // LLVMPositionBuilderAtEnd(codegen->builder, current_block);
         LLVMBuildBr(codegen->builder, term_case_block);
         break;
     }
@@ -936,9 +961,9 @@ void necro_codegen_decision_tree(NecroCodeGen* codegen, NecroDecisionTree* tree,
     {
         if (tree->tree_switch.path->value == NULL)
         {
-            // tree->tree_switch.path->parent->value
             LLVMValueRef offset_parent_ptr = necro_snapshot_gep(codegen, "path_slot_ptr", tree->tree_switch.path->parent->value, 2, (uint32_t[]) { 0, 1 + tree->tree_switch.path->slot });
-            tree->tree_switch.path->value  = LLVMBuildLoad(codegen->builder, offset_parent_ptr, "path_slot_val");
+            LLVMValueRef value_ptr         = LLVMBuildLoad(codegen->builder, offset_parent_ptr, "value_ptr");
+            tree->tree_switch.path->value  = necro_maybe_cast(codegen, value_ptr, tree->tree_switch.path->type);
         }
         LLVMValueRef con_ptr           = necro_snapshot_gep(codegen, "con_ptr", tree->tree_switch.path->value, 3, (uint32_t[]) { 0, 0, 1 });
         LLVMValueRef con_val           = LLVMBuildLoad(codegen->builder, con_ptr, "con_val");
@@ -949,7 +974,7 @@ void necro_codegen_decision_tree(NecroCodeGen* codegen, NecroDecisionTree* tree,
             LLVMBasicBlockRef case_block = LLVMAppendBasicBlockInContext(codegen->context, codegen->current_func, case_name);
             LLVMAddCase(switch_value, LLVMConstInt(LLVMInt32TypeInContext(codegen->context), i, false), case_block);
             LLVMPositionBuilderAtEnd(codegen->builder, case_block);
-            necro_codegen_decision_tree(codegen, tree->tree_switch.cases[i], case_block, term_case_block, error_block, result_phi, outer);
+            necro_codegen_decision_tree(codegen, tree->tree_switch.cases[i], term_case_block, error_block, result_phi, outer);
         }
         break;
     }
@@ -966,7 +991,7 @@ LLVMValueRef necro_codegen_case(NecroCodeGen* codegen, NecroCoreAST_Expression* 
     assert(ast->case_expr.type != NULL);
     // TODO: accrue list of (var, LLVMValue, block) tuples!?!?!? How to handle bound variables in patterns!?
     LLVMValueRef       case_expr_value = necro_calculate_node_call(codegen, ast->case_expr.expr, outer); if (necro_is_codegen_error(codegen)) return NULL;
-    NecroPatternPath*  case_path       = necro_create_pattern_path(codegen, NULL, case_expr_value, 0);
+    NecroPatternPath*  case_path       = necro_create_pattern_path(codegen, NULL, LLVMPointerType(necro_get_ast_llvm_type(codegen, ast->case_expr.expr), 0), case_expr_value, 0);
     NecroPatternMatrix matrix          = necro_create_pattern_matrix_from_case(codegen, ast, case_path); if (necro_is_codegen_error(codegen)) return NULL;
     NecroDecisionTree* tree            = necro_compile_pattern_matrix(codegen, &matrix, ast);            if (necro_is_codegen_error(codegen)) return NULL;
     LLVMBasicBlockRef  current_block   = LLVMGetLastBasicBlock(codegen->current_func);
@@ -979,8 +1004,7 @@ LLVMValueRef necro_codegen_case(NecroCodeGen* codegen, NecroCoreAST_Expression* 
     LLVMPositionBuilderAtEnd(codegen->builder, term_case_block);
     LLVMValueRef       case_result     = LLVMBuildPhi(codegen->builder, LLVMPointerType(necro_type_to_llvm_type(codegen, ast->case_expr.type), 0), "case_result");
     LLVMPositionBuilderAtEnd(codegen->builder, current_block);
-    // TODO: Initial block
-    necro_codegen_decision_tree(codegen, tree, NULL, term_case_block, err_block, case_result, outer);    if (necro_is_codegen_error(codegen)) return NULL;
+    necro_codegen_decision_tree(codegen, tree, term_case_block, err_block, case_result, outer);          if (necro_is_codegen_error(codegen)) return NULL;
     LLVMPositionBuilderAtEnd(codegen->builder, term_case_block);
     return case_result;
 }

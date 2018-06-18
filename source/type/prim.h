@@ -104,6 +104,7 @@ typedef struct
 
 typedef struct NecroPrimTypes
 {
+    // Primitive types and functions
     NecroTupleTypes   tuple_types;
     NecroCon          necro_val_type;
     NecroCon          necro_data_type;
@@ -131,6 +132,12 @@ typedef struct NecroPrimTypes
     NecroCon          event_type;
     NecroCon          pattern_type;
     NecroCon          delay_fn;
+
+    // Runtime functions
+    NecroCon          mouse_x_fn;
+    NecroCon          mouse_y_fn;
+
+    // Utility
     NecroPrimDef*     defs;
     NecroPrimDef*     def_head;
     NecroPagedArena   arena;

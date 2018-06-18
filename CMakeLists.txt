@@ -61,6 +61,7 @@ set(project_SOURCES
     source/utility/hash_table.c
 
     source/runtime/runtime.c
+    source/runtime/mouse.c
     source/runtime/slab.c
     source/runtime/vault.c
     source/runtime/region.c
@@ -74,6 +75,7 @@ set(project_SOURCES
     source/core/core.c
 
     source/codegen/codegen.c
+    source/codegen/case.c
     )
 
 set(project_HEADERS
@@ -95,6 +97,7 @@ set(project_HEADERS
     source/utility/small_array.h
 
     source/runtime/runtime.h
+    source/runtime/mouse.h
     source/runtime/slab.h
     source/runtime/vault.h
     source/runtime/region.h
@@ -107,7 +110,8 @@ set(project_HEADERS
 
     source/core/core.h
 
-    source/codegen/codegen.c
+    source/codegen/codegen.h
+    source/codegen/case.h
     )
 
 ADD_EXECUTABLE(necro ${project_HEADERS} ${project_SOURCES})

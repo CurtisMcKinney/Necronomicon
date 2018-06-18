@@ -127,6 +127,7 @@ typedef struct NecroNodePrototype
     struct NecroNodePrototype* outer;
     size_t                     slot_count;
     NECRO_NODE_TYPE            type;
+    LLVMBasicBlockRef          case_error_block;
 } NecroNodePrototype;
 
 NecroCodeGen        necro_create_codegen(struct NecroInfer* infer, struct NecroIntern* intern, struct NecroSymTable* symtable, struct NecroRuntime* runtime, const char* module_name);
@@ -146,6 +147,11 @@ void                necro_init_necro_data(NecroCodeGen* codegen, LLVMValueRef da
 NECRO_RETURN_CODE   necro_jit(NecroCodeGen* codegen);
 LLVMValueRef        necro_maybe_cast(NecroCodeGen* codegen, LLVMValueRef value, LLVMTypeRef type_to_match);
 void                necro_codegen_debug_print(NecroCodeGen* codegen, int64_t value);
+LLVMTypeRef         necro_get_value_ptr(NecroCodeGen* codegen);
+LLVMTypeRef         necro_get_ast_llvm_type(NecroCodeGen* codegen, NecroCoreAST_Expression* ast);
+LLVMTypeRef         necro_type_to_llvm_type(NecroCodeGen* codegen, NecroType* type);
+LLVMValueRef        necro_calculate_node_call(NecroCodeGen* codegen, NecroCoreAST_Expression* ast, NecroNodePrototype* outer);
+void                necro_calculate_node_prototype(NecroCodeGen* codegen, NecroCoreAST_Expression* ast, NecroNodePrototype* outer_node);
 
 inline bool necro_is_codegen_error(NecroCodeGen* codegen)
 {

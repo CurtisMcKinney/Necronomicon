@@ -2,19 +2,25 @@
 -- ALERT! - Use an actual CMD prompt for correct necro usage!
 -- necro usage: necro.exe \path\to\file.necro -jit
 
--- doSomethingWithX :: Int -> Int
--- doSomethingWithX y = y + delay 0 x
+-- data Maybe a     = Just a | Nothing
+-- data Color       = Red | Green | Blue
+-- data CakeOrDeath = Cake | Death
+-- data Tuple a b   = Tuple a b
 
--- x :: Int
--- x = doSomethingWithX 0
+mouseX :: Int
+mouseX = getMouseX world
 
--- main :: Int
--- main = x
+mouseY :: Int
+mouseY = getMouseY world
 
-data Maybe a     = Just a | Nothing
-data Color       = Red | Green | Blue
-data CakeOrDeath = Cake | Death
-data Tuple a b   = Tuple a b
+main :: Int
+main = mouseX * mouseY
+
+-- data World = World
+-- inputMouseX :: World -> Int
+
+-- mouseX :: Int
+-- mouseX = inputMouseX world
 
 -- maybeInt :: Maybe (Maybe Int) -> Int
 -- maybeInt mi = case mi of
@@ -154,26 +160,32 @@ data Tuple a b   = Tuple a b
 -- main :: Int
 -- main = nestedTuple (Just (Tuple 20 10))
 
-data Both a b = This a | That b | Both a b
-caseBinding4 :: Both Int (Both Int Int) -> Int
-caseBinding4 b =
-    case b of
-        This x            -> x
-        That (This y)     -> y
-        That (That y)     -> y * 2
-        That (Both y z)   -> y * z
-        Both x (This y)   -> x + y
-        Both x (That y)   -> x - y
-        Both x (Both y z) -> x * y * z
-main :: Int
--- main = caseBinding4 (This 10)
--- main = caseBinding4 (That (This 100))
--- main = caseBinding4 (That (That 200))
--- main = caseBinding4 (That (Both 2 3))
--- main = caseBinding4 (Both 5 (This 10))
--- main = caseBinding4 (Both 4 (That 5))
-main = caseBinding4 (Both 2 (Both 3 4))
+-- data Both a b = This a | That b | Both a b
+-- caseBinding4 :: Both Int (Both Int Int) -> Int
+-- caseBinding4 b =
+--     case b of
+--         This x            -> x
+--         That (This y)     -> y
+--         That (That y)     -> y * 2
+--         That (Both y z)   -> y * z
+--         Both x (This y)   -> x + y
+--         Both x (That y)   -> x - y
+--         Both x (Both y z) -> x * y * z
+-- main :: Int
+-- -- main = caseBinding4 (This 10)
+-- -- main = caseBinding4 (That (This 100))
+-- -- main = caseBinding4 (That (That 200))
+-- -- main = caseBinding4 (That (Both 2 3))
+-- -- main = caseBinding4 (Both 5 (This 10))
+-- -- main = caseBinding4 (Both 4 (That 5))
+-- main = caseBinding4 (Both 2 (Both 3 4))
 
+-- fst :: Tuple a a -> a
+-- fst t =
+--     case t of
+--         Tuple x _ -> x
+-- main :: Int
+-- main = fst (Tuple 100 10)
 
 -- caseRec :: Color -> Int
 -- caseRec c =
@@ -228,8 +240,7 @@ main = caseBinding4 (Both 2 (Both 3 4))
 --     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
 -- main :: Int
 -- main =
---     oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 +
---     oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1
+--     oneHundredThousandTimes 1
 
 -- z :: Int
 -- z = integrate 20

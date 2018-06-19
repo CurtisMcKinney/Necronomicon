@@ -14,9 +14,8 @@
 
 /*
     TODO:
-        * Stateful node interop
-        * Pattern variable binding
         * Constant equality
+        * Redundant patterns error in case statements!
 */
 
 //=====================================================
@@ -97,7 +96,7 @@ typedef struct NecroDecisionTree
     pat[1][0] pat[1][1] pat[1][C] | -> bnd[1] & exp[1]
     pat[R][0] pat[R][1] pat[R][C] | -> bnd[R] & exp[R]
     -------------------------------
-    pth[0]    pth[1]    pth[c]
+    pth[0]    pth[1]    pth[C]
 */
 
 typedef struct NecroPatternMatrix
@@ -296,7 +295,6 @@ NecroPatternMatrix necro_specialize_matrix(NecroCodeGen* codegen, NecroPatternMa
     return specialized_matrix;
 }
 
-// Need error stuff!
 NecroPatternMatrix necro_create_pattern_matrix_from_case(NecroCodeGen* codegen, NecroCoreAST_Expression* ast, NecroPatternPath* case_path)
 {
     if (necro_is_codegen_error(codegen)) return (NecroPatternMatrix) { 0 };
@@ -308,7 +306,6 @@ NecroPatternMatrix necro_create_pattern_matrix_from_case(NecroCodeGen* codegen, 
     size_t rows    = 0;
     size_t columns = 1;
     NecroCoreAST_CaseAlt* alts = ast->case_expr.alts;
-    // TODO: I think this is wrong for constructors with arguments!?
     while (alts != NULL)
     {
         rows++;
@@ -366,7 +363,6 @@ NecroDecisionTree* necro_compile_pattern_matrix(NecroCodeGen* codegen, NecroPatt
     if (matrix->rows == 0)
     {
         // TODO: Calculate string representation of missing pattern case!
-        // TODO: Redundant patterns error in case statements!
         necro_throw_codegen_error(codegen, top_case_ast, "Non-exhaustive patterns in case statement!");
         return NULL;
     }
@@ -442,7 +438,6 @@ necro_compile_pattern_matrix_post_drop:
     return necro_create_decision_tree_switch(codegen, matrix->paths[0], cases, cons, num_cons);
 }
 
-// TODO: Duplicate case error!
 void necro_codegen_decision_tree(NecroCodeGen* codegen, NecroDecisionTree* tree, LLVMBasicBlockRef term_case_block, LLVMBasicBlockRef error_block, LLVMValueRef result_phi, NecroNodePrototype* outer)
 {
     if (necro_is_codegen_error(codegen)) return;
@@ -485,10 +480,10 @@ void necro_codegen_decision_tree(NecroCodeGen* codegen, NecroDecisionTree* tree,
             LLVMValueRef value_ptr         = LLVMBuildLoad(codegen->builder, offset_parent_ptr, "value_ptr");
             tree->tree_switch.path->value  = necro_maybe_cast(codegen, value_ptr, tree->tree_switch.path->type);
         }
-        LLVMValueRef con_ptr           = necro_snapshot_gep(codegen, "con_ptr", tree->tree_switch.path->value, 3, (uint32_t[]) { 0, 0, 1 });
-        LLVMValueRef con_val           = LLVMBuildLoad(codegen->builder, con_ptr, "con_val");
         if (tree->tree_switch.num_cases > 1)
         {
+            LLVMValueRef con_ptr           = necro_snapshot_gep(codegen, "con_ptr", tree->tree_switch.path->value, 3, (uint32_t[]) { 0, 0, 1 });
+            LLVMValueRef con_val           = LLVMBuildLoad(codegen->builder, con_ptr, "con_val");
             LLVMValueRef switch_value      = LLVMBuildSwitch(codegen->builder, con_val, error_block, tree->tree_switch.num_cases);
             for (size_t i = 0; i < tree->tree_switch.num_cases; ++i)
             {
@@ -742,7 +737,7 @@ void necro_destroy_decision_tree_hash_table(NecroDecisionTreeHashTable* table)
 
 void necro_decision_tree_grow(NecroDecisionTreeHashTable* table)
 {
-    assert(false && "TODO");
+    assert(false && "necro_decision_tree_grow: Theoretically this is unneeded since we pre-compute the maximum table size. If you're seeing this, that assumption has been proven wrong!");
 }
 
 NecroDecisionTree* necro_decision_tree_insert(NecroDecisionTreeHashTable* table, NecroDecisionTree* tree)

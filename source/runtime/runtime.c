@@ -83,7 +83,7 @@ NecroGC gc;
 
 inline NecroSlab* necro_cons_slab(NecroSlab* slab_1, NecroSlab* slab_2)
 {
-    assert(slab_1 != NULL);
+    // assert(slab_1 != NULL);
     slab_1->next = slab_2;
     if (slab_2 != NULL)
         slab_2->prev = slab_1;
@@ -177,6 +177,27 @@ void necro_destroy_gc_segment(NecroGCSegment* gcs)
     gcs->slab_size = 0;
 }
 
+void necro_ensure_off_white_not_null(NecroGCSegment* gcs)
+{
+    if (gcs->off_white != NULL)
+    {
+        assert(gcs->off_white_tail != NULL);
+        return;
+    }
+    assert(gcs->off_white_tail == NULL);
+    if (gcs->free == NULL)
+        necro_gc_alloc_page(gcs, gc.white_color);
+    NecroSlab* slab     = gcs->free;
+    gcs->free           = slab->next;
+    slab->slots_used    = 0;
+    slab->segment       = gcs->segment;
+    slab->prev          = NULL;
+    slab->next          = NULL;
+    slab->color         = gc.white_color;
+    gcs->off_white      = slab;
+    gcs->off_white_tail = slab;
+}
+
 NecroGC necro_create_gc()
 {
     NecroGC gc;
@@ -189,6 +210,7 @@ NecroGC necro_create_gc()
     for (size_t i = 0; i < NECRO_GC_NUM_SEGMENTS; ++i)
     {
         gc.segments[i] = necro_create_gc_segment((slots * sizeof(char*)) + sizeof(NecroSlab), (uint8_t)i, gc.white_color);
+        necro_ensure_off_white_not_null(gc.segments + i);
         slots *= 2;
     }
     return gc;
@@ -252,27 +274,6 @@ void necro_gc_scan_slab(NecroSlab* a_slab, bool is_root)
             gc.segments[a_slab->segment].black_tail = gc.segments[a_slab->segment].black;
         // printf("post-scanned: %p, black count: %d\n", a_slab, necro_count_slabs(gc.segments[a_slab->segment].black));
     }
-}
-
-int64_t* necro_gcs_alloc(NecroGCSegment* gcs, uint8_t segment, uint8_t slots_used, int8_t white_color)
-{
-    // assert(gcs->segment == segment);
-    if (gcs->free == NULL)
-        necro_gc_alloc_page(gcs, white_color);
-    NecroSlab* slab  = gcs->free;
-    gcs->free        = slab->next;
-    slab->slots_used = slots_used;
-    slab->segment    = segment;
-    // necro_unlink_slab(slab, gcs);
-    slab->prev       = NULL;
-    gcs->off_white = necro_cons_slab(slab, gcs->off_white);
-    if (gcs->off_white_tail == NULL)
-        gcs->off_white_tail = gcs->off_white;
-    slab->color = white_color;
-    // int64_t* data = (int64_t*)(&slab->slots_used);
-    // printf("segment: %d, slab_size: %d, allocating: %p, free: %d\n", segment, gcs->slab_size, data, necro_count_slabs(gcs->free));
-    // assert(data != NULL && "NULL data in necro_gcs_alloc");
-    return (int64_t*)(&slab->slots_used);
 }
 
 void necro_print_tab(size_t depth)
@@ -371,12 +372,8 @@ extern DLLEXPORT void _necro_collect()
     while (gc.gray != NULL)
     {
         NecroSlab* slab = gc.gray;
-        // assert(slab != NULL && "NULL gray slab");
-        // slab->color     = 1 - gc.white_color;
-        // slab->color = 0; // gray
         gc.gray = gc.gray->next;
         // printf("scan: %p, gray count: %d\n", slab, necro_count_slabs(gc.gray));
-        // necro_unlink_slab(slab, gc.segments + slab->segment);
         slab->next = NULL;
         slab->prev = NULL;
         necro_gc_scan_slab(slab, false);
@@ -405,6 +402,8 @@ extern DLLEXPORT void _necro_collect()
         gc.segments[i].off_white      = gc.segments[i].black;
         gc.segments[i].off_white_tail = gc.segments[i].black_tail;
 
+        necro_ensure_off_white_not_null(gc.segments + i);
+
         //------------------------------
         // Clear out black
         gc.segments[i].black      = NULL;
@@ -412,9 +411,6 @@ extern DLLEXPORT void _necro_collect()
         // if (white_count > 0 || black_count > 0)
         //     printf("segment: %d, allocated: %d, free: %d\n", i, necro_count_slabs(gc.segments[i].off_white), necro_count_slabs(gc.segments[i].free));
     }
-    // clock_t gc_end_time = clock();
-    // double elapsed_secs = (((double)(gc_end_time - gc_begin_time)) / CLOCKS_PER_SEC) * 1000.0;
-    // printf("gc, latency: %f ms\n", elapsed_secs);
 // #if _WIN32
 //     QueryPerformanceCounter(&gc_end_time);
 //     gc_time = (gc_end_time.QuadPart - gc_begin_time.QuadPart) * 1000.0 / ticks_per_sec.QuadPart;
@@ -422,22 +418,22 @@ extern DLLEXPORT void _necro_collect()
 // #endif
 }
 
-extern DLLEXPORT int64_t* _necro_alloc(int64_t size_in_bytes, uint8_t slots_used)
+extern DLLEXPORT int64_t* _necro_alloc(int64_t size_in_bytes, uint16_t slots_used, uint16_t slots, uint8_t segment)
 {
-    size_t slots   = next_highest_pow_of_2(((((uint32_t)size_in_bytes) - sizeof(uint64_t)) / sizeof(int64_t*)));
-    size_t segment = log2_32(slots);
-    assert(segment < NECRO_GC_NUM_SEGMENTS);
-    // TODO: Do segment calculation statically?
-    // printf("-----------------------------------------\n");
-    // printf("necro_gc_alloc: \n");
-    // printf("size_in_bytes: %lld\n", size_in_bytes);
-    // printf("slots_used:    %d\n", slots_used);
-    // printf("slots:         %d\n", slots);
-    // printf("segment:       %d\n", segment);
-    int64_t* data = necro_gcs_alloc(gc.segments + segment, (uint8_t)segment, slots_used, gc.white_color);
-    assert(data != NULL);
-    // printf("data:          %p\n", data);
-    return data;
+    // NOTE: Assumes that off_white and off_white_tail are not NULL!!!!
+    NecroGCSegment* gcs = gc.segments + segment;
+    if (gcs->free == NULL)
+        necro_gc_alloc_page(gcs, gc.white_color);
+    NecroSlab* slab      = gcs->free;
+    gcs->free            = slab->next;
+    slab->prev           = NULL;
+    slab->next           = gcs->off_white;
+    slab->slots_used     = slots_used;
+    slab->segment        = segment;
+    slab->color          = gc.white_color;
+    gcs->off_white->prev = slab;
+    gcs->off_white       = slab;
+    return (int64_t*)(&slab->slots_used);
 }
 
 extern DLLEXPORT void _necro_print(int64_t value)
@@ -472,14 +468,23 @@ extern DLLEXPORT void _necro_error_exit(uint32_t error_code)
     exit(error_code);
 }
 
+size_t runtime_tick = 0;
+size_t necro_get_runtime_tick()
+{
+    return runtime_tick;
+}
+
 extern DLLEXPORT void _necro_init_runtime()
 {
-    necro_init_mouse();
+    runtime_tick = 0;
+    // necro_init_mouse();
 }
 
 extern DLLEXPORT void _necro_update_runtime()
 {
-    necro_poll_mouse();
+    runtime_tick++;
+    // Update tick!
+    // necro_poll_mouse();
 }
 
 //=====================================================
@@ -488,8 +493,8 @@ extern DLLEXPORT void _necro_update_runtime()
 void necro_declare_runtime_functions(NecroRuntime* runtime, NecroCodeGen* codegen)
 {
     // NecroAlloc
-    LLVMTypeRef  necro_alloc_args[2] = { LLVMInt64TypeInContext(codegen->context), LLVMInt8TypeInContext(codegen->context) };
-    LLVMValueRef necro_alloc         = LLVMAddFunction(codegen->mod, "_necro_alloc", LLVMFunctionType(LLVMPointerType(LLVMInt64TypeInContext(codegen->context), 0), necro_alloc_args, 2, false));
+    LLVMTypeRef  necro_alloc_args[4] = { LLVMInt64TypeInContext(codegen->context), LLVMInt16TypeInContext(codegen->context), LLVMInt16TypeInContext(codegen->context), LLVMInt8TypeInContext(codegen->context) };
+    LLVMValueRef necro_alloc         = LLVMAddFunction(codegen->mod, "_necro_alloc", LLVMFunctionType(LLVMPointerType(LLVMInt64TypeInContext(codegen->context), 0), necro_alloc_args, 4, false));
     LLVMSetLinkage(necro_alloc, LLVMExternalLinkage);
     LLVMSetFunctionCallConv(necro_alloc, LLVMCCallConv);
     codegen->runtime->functions.necro_alloc = necro_alloc;

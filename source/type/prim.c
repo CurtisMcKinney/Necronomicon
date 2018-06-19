@@ -670,6 +670,14 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     NecroASTNode* io_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "IO", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
     NecroPrimDef* io_data_def = necro_prim_def_data(prim_types, intern, &prim_types->io_type, necro_create_data_declaration_ast(&prim_types->arena, intern, io_s_type, NULL));
 
+    // World
+    NecroASTNode* world_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "World", NULL);
+    NecroPrimDef* world_data_def = necro_prim_def_data(prim_types, intern, &prim_types->world_type, necro_create_data_declaration_ast(&prim_types->arena, intern, world_s_type, NULL));
+
+    // _TheWorld
+    NecroASTNode* the_world_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "_TheWorld", NULL);
+    NecroPrimDef* the_world_data_def = necro_prim_def_data(prim_types, intern, &prim_types->the_world_type, necro_create_data_declaration_ast(&prim_types->arena, intern, the_world_s_type, NULL));
+
     // Event
     NecroASTNode* event_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "Event", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
     NecroPrimDef* event_data_def = necro_prim_def_data(prim_types, intern, &prim_types->event_type, necro_create_data_declaration_ast(&prim_types->arena, intern, event_s_type, NULL));
@@ -1055,17 +1063,26 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
         necro_prim_def_fun(prim_types, intern, &prim_types->delay_fn, delay_sig_ast);
     }
 
+    // world value
+    {
+        NecroASTNode* world_value_sig_ast = necro_create_fun_type_sig_ast(&prim_types->arena, intern, "world", NULL,
+            necro_create_conid_ast(&prim_types->arena, intern, "World", NECRO_CON_TYPE_VAR), NECRO_VAR_DECLARATION, NECRO_SIG_DECLARATION);
+        necro_prim_def_fun(prim_types, intern, &prim_types->world_value, world_value_sig_ast);
+    }
+
     {
         // mouseX
-        NecroASTNode* mouse_x_sig_ast = necro_create_fun_type_sig_ast(&prim_types->arena, intern, "mouseX", NULL,
-            necro_create_conid_ast(&prim_types->arena, intern, "Int", NECRO_CON_TYPE_VAR), NECRO_VAR_DECLARATION, NECRO_SIG_DECLARATION);
+        NecroASTNode* mouse_x_sig_ast = necro_create_fun_type_sig_ast(&prim_types->arena, intern, "getMouseX", NULL,
+            necro_create_fun_ast(&prim_types->arena, necro_create_conid_ast(&prim_types->arena, intern, "World", NECRO_CON_TYPE_VAR), necro_create_conid_ast(&prim_types->arena, intern, "Int", NECRO_CON_TYPE_VAR)),
+            NECRO_VAR_DECLARATION, NECRO_SIG_DECLARATION);
         necro_prim_def_fun(prim_types, intern, &prim_types->mouse_x_fn, mouse_x_sig_ast);
     }
 
     {
         // mouseY
-        NecroASTNode* mouse_y_sig_ast = necro_create_fun_type_sig_ast(&prim_types->arena, intern, "mouseY", NULL,
-            necro_create_conid_ast(&prim_types->arena, intern, "Int", NECRO_CON_TYPE_VAR), NECRO_VAR_DECLARATION, NECRO_SIG_DECLARATION);
+        NecroASTNode* mouse_y_sig_ast = necro_create_fun_type_sig_ast(&prim_types->arena, intern, "getMouseY", NULL,
+            necro_create_fun_ast(&prim_types->arena, necro_create_conid_ast(&prim_types->arena, intern, "World", NECRO_CON_TYPE_VAR), necro_create_conid_ast(&prim_types->arena, intern, "Int", NECRO_CON_TYPE_VAR)),
+            NECRO_VAR_DECLARATION, NECRO_SIG_DECLARATION);
         necro_prim_def_fun(prim_types, intern, &prim_types->mouse_y_fn, mouse_y_sig_ast);
     }
 
@@ -1199,12 +1216,12 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
     // Runtime and intrinsics
     //=====================================================
     LLVMTypeRef  mem_cpy_args[4] = { LLVMPointerType(LLVMInt32TypeInContext(codegen->context), 0), LLVMPointerType(LLVMInt32TypeInContext(codegen->context), 0), LLVMInt64TypeInContext(codegen->context), LLVMInt1TypeInContext(codegen->context) };
-    LLVMTypeRef  mem_cpy_type    = LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), mem_cpy_args, 4, false);
-    LLVMValueRef mem_cpy         = LLVMAddFunction(codegen->mod, "llvm.memcpy.p0i32.p0i32.i64", mem_cpy_type);
+    LLVMTypeRef  mem_cpy_type = LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), mem_cpy_args, 4, false);
+    LLVMValueRef mem_cpy = LLVMAddFunction(codegen->mod, "llvm.memcpy.p0i32.p0i32.i64", mem_cpy_type);
     codegen->llvm_intrinsics.mem_cpy = mem_cpy;
 
     LLVMTypeRef  trap_type = LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), NULL, 0, false);
-    LLVMValueRef trap_fn   = LLVMAddFunction(codegen->mod, "llvm.trap", trap_type);
+    LLVMValueRef trap_fn = LLVMAddFunction(codegen->mod, "llvm.trap", trap_type);
     codegen->llvm_intrinsics.trap = trap_fn;
 
     necro_declare_runtime_functions(codegen->runtime, codegen);
@@ -1282,45 +1299,130 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
     LLVMStructSetBody(list_type_ref, list_elems, 3, false);
     necro_symtable_get(codegen->symtable, prim_types->list_type.id)->llvm_type = list_type_ref;
 
-    // // TODO: Figure out how to handle IO!!!!
-    // {
-    //     // mouseX
-    //     LLVMTypeRef mouse_x_type_ref = LLVMStructCreateNamed(codegen->context, "_DelayNode");
-    //     LLVMTypeRef mouse_x_elems[2] = { necro_type_ref, LLVMPointerType(int_type_ref, 0) };
-    //     LLVMStructSetBody(mouse_x_type_ref, mouse_x_elems, 2, false);
-    //     NecroNodePrototype* mouse_x_node = necro_create_necro_node_prototype(codegen, necro_con_to_var(codegen->infer->prim_types->delay_fn), "_MouseXNode", mouse_x_type_ref, LLVMPointerType(int_type_ref, 0), NULL, NECRO_NODE_STATELESS);
-    //     necro_symtable_get(codegen->symtable, prim_types->mouse_x_fn.id)->llvm_type      = mouse_x_type_ref;
-    //     necro_symtable_get(codegen->symtable, prim_types->mouse_x_fn.id)->node_prototype = mouse_x_node;
-    //     {
-    //         // _mkMouseXNode
-    //         LLVMValueRef       mk_mouse_x_node = necro_snapshot_add_function(codegen, "_mkMouseXNode", LLVMPointerType(mouse_x_node->node_type, 0), NULL, 0);
-    //         mouse_x_node->mk_function          = mk_mouse_x_node;
-    //         LLVMBasicBlockRef  entry           = LLVMAppendBasicBlock(mk_mouse_x_node, "entry");
-    //         LLVMPositionBuilderAtEnd(codegen->builder, entry);
-    //         LLVMValueRef       void_ptr        = necro_alloc_codegen(codegen, mouse_x_node->node_type, 1);
-    //         LLVMValueRef       node_ptr        = LLVMBuildBitCast(codegen->builder, void_ptr, LLVMPointerType(mouse_x_node->node_type, 0), "node_ptr");
-    //         necro_init_necro_data(codegen, node_ptr, 0, 0);
-    //         LLVMValueRef       val_ptr       = necro_snapshot_gep(codegen, "val_ptr", node_ptr, 2, (uint32_t[]) { 0, 1 });
-    //         LLVMBuildStore(codegen->builder, LLVMConstPointerNull(LLVMPointerType(int_type_ref, 0)), val_ptr);
-    //         LLVMBuildRet(codegen->builder, node_ptr);
-    //     }
-    //     {
-    //         // _initMouseXNode
-    //         LLVMValueRef       init_mouse_x_node = necro_snapshot_add_function(codegen, "_initMouseXNode", LLVMVoidTypeInContext(codegen->context), (LLVMTypeRef[]) { LLVMPointerType(mouse_x_node->node_type, 0) }, 1);
-    //         mouse_x_node->init_function          = init_mouse_x_node;
-    //         LLVMBasicBlockRef  entry             = LLVMAppendBasicBlock(init_mouse_x_node, "entry");
-    //         LLVMPositionBuilderAtEnd(codegen->builder, entry);
-    //         LLVMBuildRetVoid(codegen->builder);
-    //     }
-    //     {
-    //         // _callMouseXNode
-    //         LLVMValueRef       call_delay_Node = necro_snapshot_add_function(codegen, "_callMouseXNode", LLVMPointerType(int_type_ref, 0), NULL, 0);
-    //         delay_node->call_function          = call_delay_Node;
-    //         LLVMBasicBlockRef  entry           = LLVMAppendBasicBlock(call_delay_Node, "entry");
-    //         LLVMPositionBuilderAtEnd(codegen->builder, entry);
-    //         LLVMValueRef       node_ptr        = LLVMGetParam(call_delay_Node, 0);
-    //     }
-    // }
+    // World
+    LLVMTypeRef world_type_ref = LLVMStructCreateNamed(codegen->context, "_World");
+    LLVMTypeRef world_elems[1] = { necro_type_ref };
+    LLVMStructSetBody(world_type_ref, world_elems, 1, false);
+    necro_symtable_get(codegen->symtable, prim_types->world_type.id)->llvm_type = world_type_ref;
+    NecroNodePrototype* world_node = necro_create_prim_node_prototype(codegen, necro_con_to_var(codegen->infer->prim_types->world_type), world_type_ref, NULL, NECRO_NODE_STATELESS);
+    necro_symtable_get(codegen->symtable, prim_types->world_type.id)->node_prototype = world_node;
+    // float_prototype->mk_function = necro_codegen_box(codegen, "Float", float_type_ref, LLVMDoubleTypeInContext(codegen->context));
+    {
+        // _mkWorld
+        LLVMValueRef       mk_node_fn = necro_snapshot_add_function(codegen, "_mkWorld", LLVMPointerType(world_node->node_type, 0), NULL, 0);
+        world_node->mk_function = mk_node_fn;
+        LLVMBasicBlockRef  entry = LLVMAppendBasicBlock(mk_node_fn, "entry");
+        LLVMPositionBuilderAtEnd(codegen->builder, entry);
+        LLVMValueRef       void_ptr = necro_alloc_codegen(codegen, world_node->node_type, 0);
+        LLVMValueRef       node_ptr = LLVMBuildBitCast(codegen->builder, void_ptr, LLVMPointerType(world_node->node_type, 0), "node_ptr");
+        necro_init_necro_data(codegen, node_ptr, 0, 0);
+        LLVMBuildRet(codegen->builder, node_ptr);
+    }
+    {
+        // _initWorld
+        LLVMValueRef       init_node_fn = necro_snapshot_add_function(codegen, "_initWorld", LLVMVoidTypeInContext(codegen->context), (LLVMTypeRef[]) { LLVMPointerType(world_node->node_type, 0) }, 1);
+        world_node->init_function = init_node_fn;
+        LLVMBasicBlockRef  entry = LLVMAppendBasicBlock(init_node_fn, "entry");
+        LLVMPositionBuilderAtEnd(codegen->builder, entry);
+        LLVMBuildRetVoid(codegen->builder);
+    }
+
+    // TheWorld
+    LLVMTypeRef the_world_type_ref = LLVMStructCreateNamed(codegen->context, "_TheWorldNode");
+    LLVMTypeRef the_world_elems[2] = { necro_type_ref, LLVMPointerType(world_type_ref,0) };
+    LLVMStructSetBody(the_world_type_ref, the_world_elems, 2, false);
+    necro_symtable_get(codegen->symtable, prim_types->the_world_type.id)->llvm_type = the_world_type_ref;
+    NecroNodePrototype* the_world_node = necro_create_prim_node_prototype(codegen, necro_con_to_var(codegen->infer->prim_types->world_type), the_world_type_ref, NULL, NECRO_NODE_STATELESS);
+    necro_symtable_get(codegen->symtable, prim_types->the_world_type.id)->node_prototype = the_world_node;
+    {
+        // _mkTheWorldNode
+        LLVMValueRef       mk_node_fn = necro_snapshot_add_function(codegen, "_mkTheWorldNode", LLVMPointerType(the_world_node->node_type, 0), NULL, 0);
+        the_world_node->mk_function = mk_node_fn;
+        LLVMBasicBlockRef  entry = LLVMAppendBasicBlock(mk_node_fn, "entry");
+        LLVMPositionBuilderAtEnd(codegen->builder, entry);
+        LLVMValueRef       void_ptr = necro_alloc_codegen(codegen, the_world_node->node_type, 0);
+        LLVMValueRef       node_ptr = LLVMBuildBitCast(codegen->builder, void_ptr, LLVMPointerType(the_world_node->node_type, 0), "node_ptr");
+        necro_init_necro_data(codegen, node_ptr, 0, 0);
+        LLVMValueRef       val_ptr   = necro_snapshot_gep(codegen, "val_ptr", node_ptr, 2, (uint32_t[]) { 0, 1 });
+        LLVMValueRef       world_val = necro_build_call(codegen, world_node->mk_function, NULL, 0, "world_val");
+        LLVMBuildStore(codegen->builder, world_val, val_ptr);
+        LLVMBuildRet(codegen->builder, node_ptr);
+    }
+    {
+        // _initTheWorldNode
+        LLVMValueRef       init_node_fn = necro_snapshot_add_function(codegen, "_initTheWorldNode", LLVMVoidTypeInContext(codegen->context), (LLVMTypeRef[]) { LLVMPointerType(the_world_node->node_type, 0) }, 1);
+        the_world_node->init_function = init_node_fn;
+        LLVMBasicBlockRef  entry = LLVMAppendBasicBlock(init_node_fn, "entry");
+        LLVMPositionBuilderAtEnd(codegen->builder, entry);
+        LLVMBuildRetVoid(codegen->builder);
+    }
+
+    // world value
+    {
+        LLVMValueRef actual_world = LLVMAddGlobal(codegen->mod, world_type_ref, "_actual_world");
+        LLVMSetLinkage(actual_world, LLVMInternalLinkage);
+        LLVMSetInitializer(actual_world, LLVMConstNamedStruct(world_type_ref, (LLVMValueRef[])
+        {
+            LLVMConstNamedStruct(necro_type_ref, (LLVMValueRef[]) {LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 0, false), LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 0, false)}, 2)
+        }, 1));
+        LLVMSetGlobalConstant(actual_world, true);
+
+        LLVMValueRef world_value = LLVMAddGlobal(codegen->mod, the_world_type_ref, "world");
+        LLVMSetLinkage(world_value, LLVMInternalLinkage);
+        LLVMSetInitializer(world_value, LLVMConstNamedStruct(the_world_type_ref, (LLVMValueRef[])
+        {
+            LLVMConstNamedStruct(necro_type_ref, (LLVMValueRef[]) {LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 0, false), LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 0, false)}, 2),
+                actual_world
+        }, 2));
+        LLVMSetGlobalConstant(world_value, true);
+        necro_symtable_get(codegen->symtable, prim_types->world_value.id)->llvm_value = world_value;
+    }
+
+    {
+        // mouseX
+        LLVMTypeRef mouse_x_type_ref = LLVMStructCreateNamed(codegen->context, "_InputMouseXNode_");
+        LLVMTypeRef mouse_x_elems[2] = { necro_type_ref, LLVMPointerType(int_type_ref, 0) };
+        LLVMStructSetBody(mouse_x_type_ref, mouse_x_elems, 2, false);
+        NecroNodePrototype* mouse_x_node = necro_create_necro_node_prototype(codegen, necro_con_to_var(codegen->infer->prim_types->delay_fn), "_MouseXNode", mouse_x_type_ref, LLVMPointerType(int_type_ref, 0), NULL, NECRO_NODE_STATELESS);
+        necro_symtable_get(codegen->symtable, prim_types->mouse_x_fn.id)->llvm_type      = mouse_x_type_ref;
+        necro_symtable_get(codegen->symtable, prim_types->mouse_x_fn.id)->node_prototype = mouse_x_node;
+        mouse_x_node->args = necro_cons_arg_list(&codegen->arena, (NecroArg) { .llvm_type = LLVMPointerType(world_type_ref, 0), .var = { 0 } }, NULL);
+        {
+            // _callMouseXNode
+            LLVMValueRef       call_fn  = necro_snapshot_add_function(codegen, "_callInputMouseXNode_", LLVMPointerType(int_type_ref, 0), (LLVMTypeRef[]) { LLVMPointerType(world_type_ref, 0) }, 1);
+            mouse_x_node->call_function = call_fn;
+            LLVMBasicBlockRef  entry    = LLVMAppendBasicBlock(call_fn, "entry");
+            LLVMPositionBuilderAtEnd(codegen->builder, entry);
+            LLVMValueRef       unboxed  = necro_build_call(codegen, codegen->runtime->functions.necro_mouse_x, NULL, 0, "unboxed");
+            LLVMValueRef       box_ptr  = necro_gen_alloc_boxed_value(codegen, int_type_ref, 0, 0, "box_ptr");
+            LLVMValueRef       val_ptr  = necro_snapshot_gep(codegen, "val_ptr", box_ptr, 2, (uint32_t[]) { 0, 1 });
+            LLVMBuildStore(codegen->builder, unboxed, val_ptr);
+            LLVMBuildRet(codegen->builder, box_ptr);
+        }
+    }
+
+    {
+        // mouseY
+        LLVMTypeRef mouse_y_type_ref = LLVMStructCreateNamed(codegen->context, "_InputMouseYNode_");
+        LLVMTypeRef mouse_y_elems[2] = { necro_type_ref, LLVMPointerType(int_type_ref, 0) };
+        LLVMStructSetBody(mouse_y_type_ref, mouse_y_elems, 2, false);
+        NecroNodePrototype* mouse_y_node = necro_create_necro_node_prototype(codegen, necro_con_to_var(codegen->infer->prim_types->delay_fn), "_MouseYNode", mouse_y_type_ref, LLVMPointerType(int_type_ref, 0), NULL, NECRO_NODE_STATELESS);
+        necro_symtable_get(codegen->symtable, prim_types->mouse_y_fn.id)->llvm_type      = mouse_y_type_ref;
+        necro_symtable_get(codegen->symtable, prim_types->mouse_y_fn.id)->node_prototype = mouse_y_node;
+        mouse_y_node->args = necro_cons_arg_list(&codegen->arena, (NecroArg) { .llvm_type = LLVMPointerType(world_type_ref, 0), .var = { 0 } }, NULL);
+        {
+            // _callMouseXNode
+            LLVMValueRef       call_fn  = necro_snapshot_add_function(codegen, "_callInputMouseYNode_", LLVMPointerType(int_type_ref, 0), (LLVMTypeRef[]) { LLVMPointerType(world_type_ref, 0) }, 1);
+            mouse_y_node->call_function = call_fn;
+            LLVMBasicBlockRef  entry    = LLVMAppendBasicBlock(call_fn, "entry");
+            LLVMPositionBuilderAtEnd(codegen->builder, entry);
+            LLVMValueRef       unboxed  = necro_build_call(codegen, codegen->runtime->functions.necro_mouse_y, NULL, 0, "unboxed");
+            LLVMValueRef       box_ptr  = necro_gen_alloc_boxed_value(codegen, int_type_ref, 0, 0, "box_ptr");
+            LLVMValueRef       val_ptr  = necro_snapshot_gep(codegen, "val_ptr", box_ptr, 2, (uint32_t[]) { 0, 1 });
+            LLVMBuildStore(codegen->builder, unboxed, val_ptr);
+            LLVMBuildRet(codegen->builder, box_ptr);
+        }
+    }
 
     // TODO: Switch delay to be a keyword and have it use branching for laziness!
     {

@@ -110,6 +110,9 @@ typedef struct NecroPrimTypes
     NecroCon          necro_data_type;
     NecroCon          any_type;
     NecroCon          io_type;
+    NecroCon          world_type;
+    NecroCon          the_world_type;
+    NecroCon          world_value;
     NecroCon          unit_type;
     NecroCon          unit_con;
     NecroCon          list_type;

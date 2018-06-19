@@ -43,5 +43,6 @@ NecroRuntime necro_create_runtime();
 void         necro_destroy_runtime(NecroRuntime* runtime);
 void         necro_declare_runtime_functions(NecroRuntime* runtime, NecroCodeGen* codegen);
 void         necro_bind_runtime_functions(NecroRuntime* runtime, LLVMExecutionEngineRef engine);
+size_t       necro_get_runtime_tick();
 
 #endif // RUNTIME_H

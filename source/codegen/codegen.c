@@ -1623,6 +1623,7 @@ NECRO_RETURN_CODE necro_verify_and_dump_codegen(NecroCodeGen* codegen)
     LLVMRunPassManager(codegen->mod_pass_manager, codegen->mod);
     char* error = NULL;
     LLVMDumpModule(codegen->mod);
+
     LLVMVerifyModule(codegen->mod, LLVMAbortProcessAction, &error);
     if (strlen(error) != 0)
     {

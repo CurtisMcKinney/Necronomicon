@@ -76,6 +76,7 @@ set(project_SOURCES
 
     source/codegen/codegen.c
     source/codegen/case.c
+    source/codegen/closure.c
     )
 
 set(project_HEADERS
@@ -112,6 +113,7 @@ set(project_HEADERS
 
     source/codegen/codegen.h
     source/codegen/case.h
+    source/codegen/closure.h
     )
 
 ADD_EXECUTABLE(necro ${project_HEADERS} ${project_SOURCES})

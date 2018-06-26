@@ -568,7 +568,7 @@ LLVMValueRef necro_codegen_case(NecroCodeGen* codegen, NecroCoreAST_Expression* 
     // End block
     LLVMBasicBlockRef term_case_block  = (next_block != NULL) ? LLVMInsertBasicBlock(next_block, "case_end") : LLVMAppendBasicBlock(codegen->current_func, "case_end");
     LLVMPositionBuilderAtEnd(codegen->builder, term_case_block);
-    LLVMValueRef       case_result     = LLVMBuildPhi(codegen->builder, LLVMPointerType(necro_type_to_llvm_type(codegen, ast->case_expr.type), 0), "case_result");
+    LLVMValueRef       case_result     = LLVMBuildPhi(codegen->builder, LLVMPointerType(necro_type_to_llvm_type(codegen, ast->case_expr.type, false), 0), "case_result");
 
     // Error block
     LLVMBasicBlockRef  err_block       = outer->case_error_block;

@@ -222,7 +222,7 @@ void necro_compile_impl(
 
     // NecroCoreAST ast_core;
     ast_core->root = NULL;
-    necro_construct_core_transform(core_transform, ast_core, ast_r, &lexer->intern, &prim_types);
+    necro_construct_core_transform(core_transform, ast_core, ast_r, &lexer->intern, &prim_types, &symtable);
     *destruct_flags |= BIT(NECRO_PHASE_TRANSFORM_TO_CORE);
     necro_transform_to_core(core_transform);
     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)

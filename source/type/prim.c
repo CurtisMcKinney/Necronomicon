@@ -11,6 +11,7 @@
 #include <llvm-c/Core.h>
 #include "llvm-c/Analysis.h"
 #include "codegen/codegen.h"
+#include "codegen/closure.h"
 #include "symtable.h"
 #include "runtime/runtime.h"
 
@@ -620,12 +621,16 @@ void necro_bool_instances(NecroPagedArena* arena, NecroIntern* intern)
 void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
 {
     // NecroVal
-    NecroASTNode* necro_val_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "_NecroVal", NULL);
+    NecroASTNode* necro_val_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "NecroVal#", NULL);
     NecroPrimDef* necro_val_data_def = necro_prim_def_data(prim_types, intern, &prim_types->necro_val_type, necro_create_data_declaration_ast(&prim_types->arena, intern, necro_val_s_type, NULL));
 
     // NecroData
     NecroASTNode* necro_data_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "NecroData#", NULL);
     NecroPrimDef* necro_data_data_def = necro_prim_def_data(prim_types, intern, &prim_types->necro_data_type, necro_create_data_declaration_ast(&prim_types->arena, intern, necro_data_s_type, NULL));
+
+    // NecroApp
+    NecroASTNode* necro_app_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "NecroApp#", NULL);
+    NecroPrimDef* necro_app_data_def = necro_prim_def_data(prim_types, intern, &prim_types->necro_app_type, necro_create_data_declaration_ast(&prim_types->arena, intern, necro_app_s_type, NULL));
 
     // Any
     NecroASTNode* any_s_type           = necro_create_simple_type_ast(&prim_types->arena, intern, "Any#", NULL);
@@ -1230,16 +1235,24 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
     // Primitive Types
     //=====================================================
     // NecroData#
-    LLVMTypeRef necro_type_ref = LLVMStructCreateNamed(codegen->context, "_NecroData");
+    LLVMTypeRef necro_type_ref = LLVMStructCreateNamed(codegen->context, "_NecroData_");
     LLVMTypeRef necro_elems[2] = { LLVMInt32TypeInContext(codegen->context), LLVMInt32TypeInContext(codegen->context) };
     LLVMStructSetBody(necro_type_ref, necro_elems, 2, false);
     necro_symtable_get(codegen->symtable, prim_types->necro_data_type.id)->llvm_type = necro_type_ref;
+    codegen->necro_data_type = necro_type_ref;
 
     // NecroVal
-    LLVMTypeRef necro_val_type_ref = LLVMStructCreateNamed(codegen->context, "_NecroVal");
+    LLVMTypeRef necro_val_type_ref = LLVMStructCreateNamed(codegen->context, "_NecroVal_");
     LLVMTypeRef necro_val_elems[1] = { necro_type_ref };
     LLVMStructSetBody(necro_val_type_ref, necro_val_elems, 1, false);
     necro_symtable_get(codegen->symtable, prim_types->necro_val_type.id)->llvm_type = necro_val_type_ref;
+    codegen->necro_val_type = necro_val_type_ref;
+
+    // NecroEnv
+    LLVMTypeRef env_type     = LLVMStructCreateNamed(codegen->context, "_NecroEnv_");
+    LLVMTypeRef env_elems[1] = { codegen->necro_data_type };
+    LLVMStructSetBody(env_type, env_elems, 1, false);
+    codegen->necro_env_type = env_type;
 
     // Any#
     LLVMTypeRef any_type_ref = LLVMStructCreateNamed(codegen->context, "_Any");
@@ -1421,6 +1434,38 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
             LLVMValueRef       val_ptr  = necro_snapshot_gep(codegen, "val_ptr", box_ptr, 2, (uint32_t[]) { 0, 1 });
             LLVMBuildStore(codegen->builder, unboxed, val_ptr);
             LLVMBuildRet(codegen->builder, box_ptr);
+        }
+    }
+
+    {
+        // NecroApp
+        LLVMTypeRef necro_app_type     = LLVMStructCreateNamed(codegen->context, "_NecroApp#");
+        LLVMTypeRef necro_app_elems[2] = { codegen->necro_data_type, LLVMPointerType(necro_val_type_ref, 0) };
+        LLVMStructSetBody(necro_app_type, necro_app_elems, 2, false);
+        codegen->necro_closure_app_type = necro_app_type;
+        NecroNodePrototype* necro_app_node = necro_create_necro_node_prototype(codegen, necro_con_to_var(codegen->infer->prim_types->necro_app_type), "_NecroApp#", necro_app_type, LLVMPointerType(necro_val_type_ref, 0), NULL, NECRO_NODE_STATEFUL);
+        necro_symtable_get(codegen->symtable, prim_types->necro_app_type.id)->llvm_type      = necro_app_type;
+        necro_symtable_get(codegen->symtable, prim_types->necro_app_type.id)->node_prototype = necro_app_node;
+        {
+            // _mk
+            LLVMValueRef       mk_node       = necro_snapshot_add_function(codegen, "_mkAppNode#", LLVMPointerType(necro_app_node->node_type, 0), NULL, 0);
+            necro_app_node->mk_function      = mk_node;
+            LLVMBasicBlockRef  entry         = LLVMAppendBasicBlock(mk_node, "entry");
+            LLVMPositionBuilderAtEnd(codegen->builder, entry);
+            LLVMValueRef       void_ptr      = necro_alloc_codegen(codegen, necro_app_node->node_type, 2);
+            LLVMValueRef       node_ptr      = LLVMBuildBitCast(codegen->builder, void_ptr, LLVMPointerType(necro_app_node->node_type, 0), "node_ptr");
+            necro_init_necro_data(codegen, node_ptr, 0, 0);
+            LLVMValueRef       val_ptr       = necro_snapshot_gep(codegen, "val_ptr", node_ptr, 2, (uint32_t[]) { 0, 1 });
+            LLVMBuildStore(codegen->builder, LLVMConstPointerNull(LLVMPointerType(necro_val_type_ref, 0)), val_ptr);
+            LLVMBuildRet(codegen->builder, node_ptr);
+        }
+        {
+            // _init
+            LLVMValueRef       init_node  = necro_snapshot_add_function(codegen, "_initNecroApp#", LLVMVoidTypeInContext(codegen->context), (LLVMTypeRef[]) { LLVMPointerType(necro_app_node->node_type, 0) }, 1);
+            necro_app_node->init_function = init_node;
+            LLVMBasicBlockRef  entry      = LLVMAppendBasicBlock(init_node, "entry");
+            LLVMPositionBuilderAtEnd(codegen->builder, entry);
+            LLVMBuildRetVoid(codegen->builder);
         }
     }
 

@@ -8,6 +8,7 @@
 #include "type.h"
 #include "type_class.h"
 #include "symtable.h"
+#include "core/core.h"
 
 // Constants
 #define NECRO_SYMTABLE_INITIAL_SIZE 512
@@ -53,6 +54,7 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
         .scope                   = scope,
         .delay_scope             = NULL,
         .ast                     = NULL,
+        .core_ast                = NULL,
         .declaration_group       = NULL,
         .optional_type_signature = NULL,
         .type                    = NULL,
@@ -65,6 +67,7 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
         .node_prototype          = NULL,
         .persistent_slot         = 0,
         .is_constructor          = false,
+        .arity                   = 0,
     };
 }
 

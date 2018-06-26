@@ -7,14 +7,52 @@
 -- data CakeOrDeath = Cake | Death
 -- data Tuple a b   = Tuple a b
 
-mouseX :: Int
-mouseX = getMouseX world
+-- addOne :: Int -> Int
+-- addOne x = x + 1
+-- returnAddOne :: Int -> (Int -> Int)
+-- returnAddOne z = addOne
 
-mouseY :: Int
-mouseY = getMouseY world
+-- gimme :: (Int -> Int) -> Int
+-- gimme f = f 0
+
+-- maybeStateful :: Int -> Int
+-- maybeStateful x = x
+
+-- data CoolF = CoolF (Int -> Int)
+
+-- gimme :: (Int -> Int) -> CoolF
+-- gimme f = CoolF f
+
+-- gimme2 :: CoolF
+-- gimme2 = gimme addOne
+
+-- gimmeIntz :: CoolF -> Int
+-- gimmeIntz cf =
+--     case cf of
+--         CoolF f -> 100
+
+-- addOne :: Int -> Int -> Int
+-- addOne x y = x + y
+
+data Nullary = Nullary
+
+weDemandApps :: (Int -> Float -> Nullary) -> Int -> Float -> Nullary
+weDemandApps argF x y = argF x y
+
+-- main :: Int
+-- main = weDemandApps addOne 50 100
 
 main :: Int
-main = mouseX * mouseY
+main = 10
+
+-- mouseX :: Int
+-- mouseX = getMouseX world
+
+-- mouseY :: Int
+-- mouseY = getMouseY world
+
+-- main :: Int
+-- main = mouseX
 
 -- data World = World
 -- inputMouseX :: World -> Int

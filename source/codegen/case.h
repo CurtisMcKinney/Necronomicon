@@ -9,9 +9,9 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <inttypes.h>
+#include <stdio.h>
 #include <llvm-c/Core.h>
 #include <llvm-c/Target.h>
-#include <stdio.h>
 #include <llvm-c/ExecutionEngine.h>
 
 #include "codegen.h"

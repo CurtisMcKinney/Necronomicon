@@ -108,6 +108,7 @@ typedef struct NecroPrimTypes
     NecroTupleTypes   tuple_types;
     NecroCon          necro_val_type;
     NecroCon          necro_data_type;
+    NecroCon          necro_app_type;
     NecroCon          any_type;
     NecroCon          io_type;
     NecroCon          world_type;

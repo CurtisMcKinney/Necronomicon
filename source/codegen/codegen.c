@@ -13,6 +13,7 @@
 #include "symtable.h"
 #include "runtime/runtime.h"
 #include "codegen/case.h"
+#include "codegen/closure.h"
 
 // things to reference:
 //     * https://pauladamsmith.com/blog/2015/01/how-to-get-started-with-llvm-c-api.html
@@ -21,15 +22,10 @@
 //     * http://www.stephendiehl.com/llvm/
 //     * https://lowlevelbits.org/how-to-use-llvm-api-with-swift.-addendum/
 
-// TODO: Easy method to grab top level things with symbols
 // TODO: LLVM License
 // TODO: Core really should have source locations...
 // TODO: Things that really need to happen:
-//    - A Runtime with:
-//        * Memory allocation onto the heap
-//        * Value retrieval from the heap
-//        * GC
-//        * Continuous updates
+//    - Higher order functions and closures
 
 //=====================================================
 // Forward declaration
@@ -47,21 +43,21 @@ NecroCodeGen necro_create_codegen(NecroInfer* infer, NecroIntern* intern, NecroS
     LLVMInitializeNativeTarget();
     LLVMInitializeNativeAsmPrinter();
     LLVMInitializeNativeAsmParser();
-    LLVMContextRef     context        = LLVMContextCreate();
-    LLVMModuleRef      mod            = LLVMModuleCreateWithNameInContext(module_name, context);
-    LLVMTargetDataRef  target         = LLVMCreateTargetData(LLVMGetTarget(mod));
+    LLVMContextRef     context          = LLVMContextCreate();
+    LLVMModuleRef      mod              = LLVMModuleCreateWithNameInContext(module_name, context);
+    LLVMTargetDataRef  target           = LLVMCreateTargetData(LLVMGetTarget(mod));
     LLVMPassManagerRef fn_pass_manager  = LLVMCreateFunctionPassManagerForModule(mod);
     LLVMPassManagerRef mod_pass_manager = LLVMCreatePassManager();
-    LLVMAddCFGSimplificationPass(fn_pass_manager);
-    LLVMAddDeadStoreEliminationPass(fn_pass_manager);
-    LLVMAddTailCallEliminationPass(fn_pass_manager);
+    // LLVMAddCFGSimplificationPass(fn_pass_manager);
+    // LLVMAddDeadStoreEliminationPass(fn_pass_manager);
+    // LLVMAddTailCallEliminationPass(fn_pass_manager);
     // LLVMAddInstructionCombiningPass(fn_pass_manager);
-    LLVMInitializeFunctionPassManager(fn_pass_manager);
-    LLVMFinalizeFunctionPassManager(fn_pass_manager);
-    LLVMPassManagerBuilderRef pass_manager_builder = LLVMPassManagerBuilderCreate();
-    LLVMPassManagerBuilderSetOptLevel(pass_manager_builder, 0);
-    LLVMPassManagerBuilderUseInlinerWithThreshold(pass_manager_builder, 2);
-    LLVMPassManagerBuilderPopulateModulePassManager(pass_manager_builder, mod_pass_manager);
+    // LLVMInitializeFunctionPassManager(fn_pass_manager);
+    // LLVMFinalizeFunctionPassManager(fn_pass_manager);
+    // LLVMPassManagerBuilderRef pass_manager_builder = LLVMPassManagerBuilderCreate();
+    // LLVMPassManagerBuilderSetOptLevel(pass_manager_builder, 0);
+    // LLVMPassManagerBuilderUseInlinerWithThreshold(pass_manager_builder, 2);
+    // LLVMPassManagerBuilderPopulateModulePassManager(pass_manager_builder, mod_pass_manager);
     return (NecroCodeGen)
     {
         .arena            = necro_create_paged_arena(),
@@ -219,15 +215,16 @@ LLVMValueRef necro_gen_alloc_boxed_value(NecroCodeGen* codegen, LLVMTypeRef boxe
 // Required for polymorphic values
 LLVMValueRef necro_maybe_cast(NecroCodeGen* codegen, LLVMValueRef value, LLVMTypeRef type_to_match)
 {
-    if (LLVMTypeOf(value) != type_to_match)
+    LLVMTypeRef value_type = LLVMTypeOf(value);
+    if (value_type != type_to_match)
     {
         LLVMTypeRef necro_val_type = LLVMPointerType(necro_symtable_get(codegen->symtable, codegen->infer->prim_types->necro_val_type.id)->llvm_type, 0);
-        if (LLVMTypeOf(value) != necro_val_type && type_to_match != necro_val_type)
+        if (value_type != necro_val_type && type_to_match != necro_val_type)
         {
-            const char* type_of_val_string   = LLVMPrintTypeToString(LLVMTypeOf(value));
-            const char* type_to_match_string = LLVMPrintTypeToString(type_to_match);
             LLVMDumpModule(codegen->mod);
-            assert(LLVMTypeOf(value) == necro_val_type || type_to_match == necro_val_type);
+            const char* type_of_val_string   = LLVMPrintTypeToString(value_type);
+            const char* type_to_match_string = LLVMPrintTypeToString(type_to_match);
+            assert(value_type == necro_val_type || type_to_match == necro_val_type);
         }
         return LLVMBuildBitCast(codegen->builder, value, type_to_match, "cast_arg");
     }
@@ -239,6 +236,230 @@ void necro_codegen_debug_print(NecroCodeGen* codegen, int64_t value)
     LLVMValueRef print_ref = necro_build_call(codegen, codegen->runtime->functions.necro_print, (LLVMValueRef[]) { LLVMConstInt(LLVMInt64TypeInContext(codegen->context), value, true) }, 1, "");
     LLVMSetInstructionCallConv(print_ref, LLVMCCallConv);
 }
+
+bool necro_is_a_function_type(NecroCodeGen* codegen, NecroType* type)
+{
+    assert(type != NULL);
+    type = necro_find(codegen->infer, type);
+    switch (type->type)
+    {
+    case NECRO_TYPE_FOR:
+    {
+        NecroType*               for_alls = type;
+        while (for_alls->type == NECRO_TYPE_FOR)
+        {
+            NecroTypeClassContext* for_all_context = type->for_all.context;
+            if (for_all_context != NULL)
+                return true;
+            for_alls = for_alls->for_all.type;
+        }
+        return necro_is_a_function_type(codegen, for_alls);
+    }
+    case NECRO_TYPE_FUN: return true;
+    default:             return false;
+    }
+}
+
+NecroType* necro_get_ast_type(NecroCodeGen* codegen, NecroCoreAST_Expression* ast)
+{
+    assert(ast != NULL);
+    switch (ast->expr_type)
+    {
+    case NECRO_CORE_EXPR_LIT:
+        switch (ast->lit.type)
+        {
+        case NECRO_AST_CONSTANT_INTEGER: return necro_symtable_get(codegen->symtable, codegen->infer->prim_types->int_type.id)->type;
+        case NECRO_AST_CONSTANT_FLOAT:   return necro_symtable_get(codegen->symtable, codegen->infer->prim_types->float_type.id)->type;
+        default:                         assert(false); return NULL;
+        }
+    case NECRO_CORE_EXPR_VAR:  return necro_symtable_get(codegen->symtable, ast->var.id)->type;
+    case NECRO_CORE_EXPR_BIND: return necro_symtable_get(codegen->symtable, ast->bind.var.id)->type;
+    case NECRO_CORE_EXPR_LAM:
+        assert(false && "TODO: Finish!");
+        return NULL;
+    case NECRO_CORE_EXPR_DATA_CON:  return necro_symtable_get(codegen->symtable, ast->data_con.condid.id)->type;
+    case NECRO_CORE_EXPR_TYPE:      return ast->type.type;
+    case NECRO_CORE_EXPR_APP:       assert(false); return NULL;
+    case NECRO_CORE_EXPR_LET:       assert(false); return NULL;
+    case NECRO_CORE_EXPR_CASE:      assert(false); return NULL;
+    case NECRO_CORE_EXPR_DATA_DECL: assert(false); return NULL;
+    case NECRO_CORE_EXPR_LIST:      assert(false); return NULL; // used for top decls not language lists
+    default:                        assert(false && "Unimplemented AST type in necro_codegen_go"); return NULL;
+    }
+}
+
+size_t necro_ast_arity(NecroCodeGen* codegen, NecroCoreAST_Expression* ast)
+{
+    NecroType* type = necro_get_ast_type(codegen, ast);
+    assert(type != NULL);
+    type = necro_find(codegen->infer, type);
+    switch (type->type)
+    {
+    case NECRO_TYPE_FUN: /* FALL THROUGH */
+    case NECRO_TYPE_FOR:
+    {
+        size_t     arg_count = 0;
+        NecroType* for_alls  = type;
+        while (for_alls->type == NECRO_TYPE_FOR)
+        {
+            NecroTypeClassContext* for_all_context = type->for_all.context;
+            while (for_all_context != NULL)
+            {
+                arg_count++;
+                for_all_context = for_all_context->next;
+            }
+            for_alls = for_alls->for_all.type;
+        }
+        NecroType* arrows = for_alls;
+        while (arrows->type == NECRO_TYPE_FUN)
+        {
+            arg_count++;
+            arrows = arrows->fun.type2;
+        }
+        return arg_count;
+    }
+    default: return 0;
+    }
+}
+
+LLVMTypeRef necro_type_to_llvm_type(NecroCodeGen* codegen, NecroType* type, bool is_top_level)
+{
+    assert(type != NULL);
+    type = necro_find(codegen->infer, type);
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR:
+    {
+        LLVMTypeRef llvm_type = necro_symtable_get(codegen->symtable, codegen->infer->prim_types->necro_val_type.id)->llvm_type; // TODO: Is this right?!?!
+        if (llvm_type == NULL)
+        {
+            NecroSymbolInfo* info = necro_symtable_get(codegen->symtable, codegen->infer->prim_types->necro_val_type.id);
+            llvm_type = necro_type_to_llvm_type(codegen, info->type, is_top_level);
+            necro_symtable_get(codegen->symtable, codegen->infer->prim_types->necro_val_type.id)->llvm_type = llvm_type;
+        }
+        return llvm_type;
+    }
+    case NECRO_TYPE_APP:  assert(false); return NULL;
+    case NECRO_TYPE_LIST: return necro_symtable_get(codegen->symtable, codegen->infer->prim_types->list_type.id)->llvm_type;
+    case NECRO_TYPE_CON:  return necro_symtable_get(codegen->symtable, type->con.con.id)->llvm_type;
+    case NECRO_TYPE_FUN:  // !FALLTHROUGH!
+    case NECRO_TYPE_FOR:
+        return necro_function_type(codegen, type, is_top_level);
+    // {
+    //     size_t arg_count = 0;
+    //     size_t arg_index = 0;
+    //     // Count args
+    //     NecroType* for_alls = type;
+    //     while (for_alls->type == NECRO_TYPE_FOR)
+    //     {
+    //         NecroTypeClassContext* for_all_context = type->for_all.context;
+    //         while (for_all_context != NULL)
+    //         {
+    //             arg_count++;
+    //             for_all_context = for_all_context->next;
+    //         }
+    //         for_alls = for_alls->for_all.type;
+    //     }
+    //     NecroType* arrows = for_alls;
+    //     while (arrows->type == NECRO_TYPE_FUN)
+    //     {
+    //         arg_count++;
+    //         arrows = arrows->fun.type2;
+    //     }
+    //     LLVMTypeRef* args = necro_paged_arena_alloc(&codegen->arena, arg_count * sizeof(LLVMTypeRef));
+    //     for_alls = type;
+    //     while (for_alls->type == NECRO_TYPE_FOR)
+    //     {
+    //         NecroTypeClassContext* for_all_context = type->for_all.context;
+    //         while (for_all_context != NULL)
+    //         {
+    //             // necro_get_type_class_instance(codegen->infer, for_alls->for_all.var,)
+    //             arg_index++;
+    //             args[arg_index] = necro_get_value_ptr(codegen);
+    //             for_all_context = for_all_context->next;
+    //         }
+    //         for_alls = for_alls->for_all.type;
+    //     }
+    //     arrows = for_alls;
+    //     while (arrows->type == NECRO_TYPE_FUN)
+    //     {
+    //         args[arg_index] = LLVMPointerType(necro_type_to_llvm_type(codegen, arrows->fun.type1), 0);
+    //         arg_index++;
+    //         arrows = arrows->fun.type2;
+    //     }
+    //     LLVMTypeRef return_type   = LLVMPointerType(necro_type_to_llvm_type(codegen, arrows), 0);
+    //     LLVMTypeRef function_type = LLVMFunctionType(return_type, args, arg_count, false);
+    //     return function_type;
+    // }
+    default: assert(false);
+    }
+    return NULL;
+}
+
+LLVMTypeRef necro_get_ast_llvm_type(NecroCodeGen* codegen, NecroCoreAST_Expression* ast)
+{
+    switch (ast->expr_type)
+    {
+    case NECRO_CORE_EXPR_LIT:
+        switch (ast->lit.type)
+        {
+        case NECRO_AST_CONSTANT_INTEGER: return LLVMInt64TypeInContext(codegen->context);
+        case NECRO_AST_CONSTANT_FLOAT:   return LLVMFloatTypeInContext(codegen->context);
+        default:                         assert(false); return NULL;
+        }
+    case NECRO_CORE_EXPR_VAR:
+    {
+        NecroSymbolInfo* info = necro_symtable_get(codegen->symtable, ast->var.id);
+        if (info->llvm_type == NULL)
+        {
+            // info->llvm_type = necro_type_to_llvm_type(codegen, info->type, ast, info->node_prototype->outer == false);
+            // assert(info->core_ast != NULL);
+            info->llvm_type = necro_type_to_llvm_type(codegen, info->type, false);
+            // if (info->core_ast == NULL)
+            //     info->llvm_type = necro_type_to_llvm_type(codegen, info->type, 0, false);
+            // else if (info->core_ast->expr_type == NECRO_CORE_EXPR_BIND)
+            //     // necro_type_to_llvm_type(codegen, info->type, info->core_ast->bind.expr, true);
+            //     info->llvm_type = necro_type_to_llvm_type(codegen, info->type, info->core_ast->bind.expr, false); // !?!?
+            // else if (info->core_ast->expr_type == NECRO_CORE_EXPR_LET)
+            //     info->llvm_type = necro_type_to_llvm_type(codegen, info->type, info->core_ast->let.bind->bind.expr, false);
+            // assert(info->llvm_type != NULL);
+        }
+        assert(info->llvm_type != NULL);
+        return info->llvm_type;
+    }
+    case NECRO_CORE_EXPR_BIND:
+    {
+        NecroSymbolInfo* info = necro_symtable_get(codegen->symtable, ast->bind.var.id);
+        if (info->llvm_type == NULL)
+            info->llvm_type = necro_type_to_llvm_type(codegen, info->type, true); // !?!?
+            // info->llvm_type = necro_type_to_llvm_type(codegen, info->type, ast->bind.expr, true); // !?!?
+            // info->llvm_type = necro_type_to_llvm_type(codegen, info->type, ast->bind.expr, info->node_prototype->outer == false);
+        assert(info->llvm_type != NULL);
+        return info->llvm_type;
+    }
+    case NECRO_CORE_EXPR_LAM:
+    {
+        // Function binding
+        // Derive LLVMType from function signature!
+        NecroCoreAST_Expression* lambdas = ast;
+        while (lambdas->expr_type == NECRO_CORE_EXPR_LAM)
+        {
+            lambdas = lambdas->lambda.expr;
+        }
+        assert(false && "TODO: Finish!");
+        return NULL;
+    }
+    case NECRO_CORE_EXPR_DATA_CON:  return necro_symtable_get(codegen->symtable, ast->data_con.condid.id)->llvm_type;
+    case NECRO_CORE_EXPR_TYPE:      return necro_type_to_llvm_type(codegen, ast->type.type, false);
+    case NECRO_CORE_EXPR_APP:       assert(false); return NULL;
+    case NECRO_CORE_EXPR_LET:       assert(false); return NULL;
+    case NECRO_CORE_EXPR_CASE:      assert(false); return NULL;
+    case NECRO_CORE_EXPR_DATA_DECL: assert(false); return NULL;
+    case NECRO_CORE_EXPR_LIST:      assert(false); return NULL; // used for top decls not language lists
+    default:                        assert(false && "Unimplemented AST type in necro_codegen_go"); return NULL;
+    }
+}
+
 
 //=====================================================
 // CodeGen
@@ -258,158 +479,6 @@ LLVMValueRef necro_codegen_variable(NecroCodeGen* codegen, NecroCoreAST_Expressi
         return NULL;
     }
     return value;
-}
-
-// TODO: FINISH!
-bool is_app_stateless(NecroCodeGen* codegen, NecroCoreAST_Expression* ast)
-{
-    return false;
-}
-
-bool necro_is_a_function_type(NecroCodeGen* codegen, NecroType* type)
-{
-    assert(type != NULL);
-    type = necro_find(codegen->infer, type);
-    switch (type->type)
-    {
-    case NECRO_TYPE_FOR:
-    {
-        NecroType* for_alls = type;
-        while (for_alls->type == NECRO_TYPE_FOR)
-        {
-            NecroTypeClassContext* for_all_context = type->for_all.context;
-            if (for_all_context != NULL)
-                return true;
-            for_alls = for_alls->for_all.type;
-        }
-    }
-    case NECRO_TYPE_FUN: return true;
-    default:             return false;
-    }
-}
-
-LLVMTypeRef necro_type_to_llvm_type(NecroCodeGen* codegen, NecroType* type)
-{
-    assert(type != NULL);
-    type = necro_find(codegen->infer, type);
-    switch (type->type)
-    {
-    case NECRO_TYPE_VAR:
-    {
-        LLVMTypeRef llvm_type = necro_symtable_get(codegen->symtable, codegen->infer->prim_types->necro_val_type.id)->llvm_type; // TODO: Is this right?!?!
-        if (llvm_type == NULL)
-        {
-            llvm_type = necro_type_to_llvm_type(codegen, necro_symtable_get(codegen->symtable, codegen->infer->prim_types->necro_val_type.id)->type);
-            necro_symtable_get(codegen->symtable, codegen->infer->prim_types->necro_val_type.id)->llvm_type = llvm_type;
-        }
-        return llvm_type;
-    }
-    case NECRO_TYPE_APP:  assert(false); return NULL;
-    case NECRO_TYPE_LIST: return necro_symtable_get(codegen->symtable, codegen->infer->prim_types->list_type.id)->llvm_type;
-    case NECRO_TYPE_CON:  return necro_symtable_get(codegen->symtable, type->con.con.id)->llvm_type;
-    case NECRO_TYPE_FUN:  // !FALLTHROUGH!
-    case NECRO_TYPE_FOR:
-    {
-        size_t arg_count = 0;
-        size_t arg_index = 0;
-        // Count args
-        NecroType* for_alls = type;
-        while (for_alls->type == NECRO_TYPE_FOR)
-        {
-            NecroTypeClassContext* for_all_context = type->for_all.context;
-            while (for_all_context != NULL)
-            {
-                arg_count++;
-                for_all_context = for_all_context->next;
-            }
-            for_alls = for_alls->for_all.type;
-        }
-        NecroType* arrows = for_alls;
-        while (arrows->type == NECRO_TYPE_FUN)
-        {
-            arg_count++;
-            arrows = arrows->fun.type2;
-        }
-        LLVMTypeRef* args = necro_paged_arena_alloc(&codegen->arena, arg_count * sizeof(LLVMTypeRef));
-        for_alls = type;
-        while (for_alls->type == NECRO_TYPE_FOR)
-        {
-            NecroTypeClassContext* for_all_context = type->for_all.context;
-            while (for_all_context != NULL)
-            {
-                // necro_get_type_class_instance(codegen->infer, for_alls->for_all.var,)
-                arg_index++;
-                args[arg_index] = necro_get_value_ptr(codegen);
-                for_all_context = for_all_context->next;
-            }
-            for_alls = for_alls->for_all.type;
-        }
-        arrows = for_alls;
-        while (arrows->type == NECRO_TYPE_FUN)
-        {
-            args[arg_index] = LLVMPointerType(necro_type_to_llvm_type(codegen, arrows->fun.type1), 0);
-            arg_index++;
-            arrows = arrows->fun.type2;
-        }
-        LLVMTypeRef return_type   = LLVMPointerType(necro_type_to_llvm_type(codegen, arrows), 0);
-        LLVMTypeRef function_type = LLVMFunctionType(return_type, args, arg_count, false);
-        return function_type;
-    }
-    default: assert(false);
-    }
-    return NULL;
-}
-
-// TODO: FINISH!
-// TODO: Only meant for constructors!?
-LLVMTypeRef necro_get_ast_llvm_type(NecroCodeGen* codegen, NecroCoreAST_Expression* ast)
-{
-    switch (ast->expr_type)
-    {
-    case NECRO_CORE_EXPR_LIT:
-        switch (ast->lit.type)
-        {
-        case NECRO_AST_CONSTANT_INTEGER: return LLVMInt64TypeInContext(codegen->context);
-        case NECRO_AST_CONSTANT_FLOAT:   return LLVMFloatTypeInContext(codegen->context);
-        default:                         assert(false); return NULL;
-        }
-    case NECRO_CORE_EXPR_VAR:
-    {
-        NecroSymbolInfo* info = necro_symtable_get(codegen->symtable, ast->var.id);
-        if (info->llvm_type == NULL)
-            info->llvm_type = necro_type_to_llvm_type(codegen, info->type);
-        assert(info->llvm_type != NULL);
-        return info->llvm_type;
-    }
-    case NECRO_CORE_EXPR_BIND:
-    {
-        NecroSymbolInfo* info = necro_symtable_get(codegen->symtable, ast->bind.var.id);
-        if (info->llvm_type == NULL)
-            info->llvm_type = necro_type_to_llvm_type(codegen, info->type);
-        assert(info->llvm_type != NULL);
-        return info->llvm_type;
-    }
-    case NECRO_CORE_EXPR_LAM:
-    {
-        // Function binding
-        // Derive LLVMType from function signature!
-        NecroCoreAST_Expression* lambdas = ast;
-        while (lambdas->expr_type == NECRO_CORE_EXPR_LAM)
-        {
-            lambdas = lambdas->lambda.expr;
-        }
-        assert(false && "TODO: Finish!");
-        return NULL;
-    }
-    case NECRO_CORE_EXPR_DATA_CON:  return necro_symtable_get(codegen->symtable, ast->data_con.condid.id)->llvm_type;
-    case NECRO_CORE_EXPR_APP:       assert(false); return NULL;
-    case NECRO_CORE_EXPR_LET:       assert(false); return NULL;
-    case NECRO_CORE_EXPR_CASE:      assert(false); return NULL;
-    case NECRO_CORE_EXPR_TYPE:      assert(false); return NULL;
-    case NECRO_CORE_EXPR_DATA_DECL: assert(false); return NULL;
-    case NECRO_CORE_EXPR_LIST:      assert(false); return NULL; // used for top decls not language lists
-    default:                        assert(false && "Unimplemented AST type in necro_codegen_go"); return NULL;
-    }
 }
 
 //=====================================================
@@ -539,6 +608,7 @@ NecroNodePrototype* necro_create_necro_node_prototype(NecroCodeGen* codegen, Nec
     node_prototype->args                 = NULL;
     node_prototype->loaded_vars          = NULL;
     node_prototype->called_functions     = NULL;
+    node_prototype->closure_apps         = NULL;
     node_prototype->local_vars           = NULL;
     node_prototype->persistent_vars      = NULL;
     node_prototype->captured_vars        = NULL;
@@ -681,9 +751,15 @@ NecroNodePrototype* necro_declare_node_prototype(NecroCodeGen* codegen, NecroVar
     char* node_name = necro_concat_strings(&codegen->snapshot_arena, 4, (const char*[]) { necro_intern_get_string(codegen->intern, bind_var.symbol), "_", itoa(bind_var.id.id, buf2, 10), "_Node" });
     node_name[0]    = toupper(node_name[0]);
     LLVMTypeRef         node_type_ref  = LLVMStructCreateNamed(codegen->context, node_name);
-    LLVMTypeRef         value_type     = necro_type_to_llvm_type(codegen, necro_symtable_get(codegen->symtable, bind_var.id)->type);
+    LLVMTypeRef         value_type;
+    if (necro_symtable_get(codegen->symtable, bind_var.id)->core_ast != NULL)
+        value_type = necro_get_ast_llvm_type(codegen, necro_symtable_get(codegen->symtable, bind_var.id)->core_ast);
+    else
+        value_type = necro_type_to_llvm_type(codegen, necro_symtable_get(codegen->symtable, bind_var.id)->type, true);
     if (necro_is_a_function_type(codegen, necro_symtable_get(codegen->symtable, bind_var.id)->type))
         value_type = LLVMGetElementType(LLVMGetReturnType(value_type));
+    // if (LLVMIsAFunction(value_type))
+    // if (necro_simple_is_a_function(codegen, necro_symtable_get(codegen->symtable, bind_var.id)->core_ast))
     assert(value_type != NULL);
     NecroNodePrototype* node_prototype = necro_create_necro_node_prototype(codegen, bind_var, node_name, node_type_ref, value_type, NULL, NECRO_NODE_STATEFUL);
     // NecroNodePrototype* node_prototype = necro_create_necro_node_prototype(codegen, bind_var, node_name, node_type_ref, value_type, NULL, NECRO_NODE_STATELESS); // IS THIS A BAD IDEA!?!?!?
@@ -734,6 +810,18 @@ necro_calculate_captured_vars_next:
     prototype->captured_vars = necro_reverse_captured_var_list(&codegen->arena, prototype->captured_vars);
 }
 
+bool necro_is_var_node_arg(NecroCodeGen* codegen, NecroNodePrototype* prototype, NecroVar var)
+{
+    NecroArgList* args = prototype->args;
+    while (args != NULL)
+    {
+        if (var.id.id == args->data.var.id.id)
+            return true;
+        args = args->next;
+    }
+    return false;
+}
+
 void necro_calculate_persistent_vars(NecroCodeGen* codegen, NecroNodePrototype* prototype)
 {
     // Nodes are persistent if they are either captured or they contain state.
@@ -742,7 +830,7 @@ void necro_calculate_persistent_vars(NecroCodeGen* codegen, NecroNodePrototype* 
     {
         NecroNodePrototype* local_prototype = necro_declare_node_prototype(codegen, local_vars->data);
         assert(local_prototype != NULL);
-        if (local_prototype->was_captured || local_prototype->type == NECRO_NODE_STATEFUL)
+        if (!necro_is_var_node_arg(codegen, prototype, local_vars->data) && (local_prototype->was_captured || local_prototype->type == NECRO_NODE_STATEFUL))
         {
             NecroPersistentVar persistent_var = (NecroPersistentVar) { .prototype = local_prototype, .slot = prototype->slot_count };
             prototype->persistent_vars = necro_cons_persistent_var_list(&codegen->arena, persistent_var, prototype->persistent_vars);
@@ -757,7 +845,7 @@ void necro_calculate_persistent_vars(NecroCodeGen* codegen, NecroNodePrototype* 
     {
         NecroNodePrototype* call_prototype = necro_declare_node_prototype(codegen, calls->data.var);
         assert(call_prototype != NULL);
-        if (call_prototype->type == NECRO_NODE_STATEFUL && call_prototype != prototype)
+        if (!necro_is_var_node_arg(codegen, prototype, calls->data.var) && call_prototype->type == NECRO_NODE_STATEFUL && call_prototype != prototype)
         {
             NecroPersistentVar persistent_var = (NecroPersistentVar) { .prototype = call_prototype, .slot = prototype->slot_count };
             prototype->persistent_vars = necro_cons_persistent_var_list(&codegen->arena, persistent_var, prototype->persistent_vars);
@@ -772,6 +860,17 @@ void necro_calculate_persistent_vars(NecroCodeGen* codegen, NecroNodePrototype* 
             calls->data.is_persistent = false;
         }
         calls = calls->next;
+    }
+    NecroClosureAppList* apps = prototype->closure_apps;
+    while (apps != NULL)
+    {
+        NecroPersistentVar persistent_var = (NecroPersistentVar) { .prototype = necro_symtable_get(codegen->symtable, codegen->infer->prim_types->necro_app_type.id)->node_prototype, .slot = prototype->slot_count };
+        prototype->persistent_vars = necro_cons_persistent_var_list(&codegen->arena, persistent_var, prototype->persistent_vars);
+        // calls->data.is_persistent  = true;
+        apps->data.slot           = prototype->slot_count + 2;
+        apps->data.app->persistent_slot = prototype->slot_count + 2;
+        prototype->slot_count++;
+        apps = apps->next;
     }
 }
 
@@ -838,6 +937,7 @@ void necro_finish_node_prototype(NecroCodeGen* codegen, NecroNodePrototype* prot
     prototype->args             = necro_reverse_arg_list(&codegen->arena,  prototype->args);
     prototype->loaded_vars      = necro_reverse_var_list(&codegen->arena,  prototype->loaded_vars);
     prototype->called_functions = necro_reverse_call_list(&codegen->arena, prototype->called_functions);
+    prototype->closure_apps     = necro_reverse_closure_app_list(&codegen->arena, prototype->closure_apps);
     prototype->local_vars       = necro_reverse_var_list(&codegen->arena,  prototype->local_vars);
     necro_calculate_captured_vars(codegen, prototype);
     necro_calculate_persistent_vars(codegen, prototype);
@@ -1017,6 +1117,10 @@ void necro_calculate_node_prototype_app(NecroCodeGen* codegen, NecroCoreAST_Expr
     assert(ast->expr_type == NECRO_CORE_EXPR_APP);
     assert(ast->app.exprA != NULL);
     assert(ast->app.exprB != NULL);
+
+    if (necro_calculate_node_prototype_app_closure(codegen, ast, outer_node))
+        return;
+
     // TODO: FINISH!
     // NOTE/HACK: For now assuming the arguments provided exactly match.
     // NOTE/HACK: For now assuming that the function is variable and not an anonymous function
@@ -1251,6 +1355,14 @@ LLVMValueRef necro_calculate_node_call_var(NecroCodeGen* codegen, NecroCoreAST_E
         LLVMValueRef result          = necro_build_call(codegen, con_mk_function, NULL, 0, result_name);
         return result;
     }
+    else if (info->node_prototype != NULL && info->node_prototype->outer == NULL && necro_is_a_function_type(codegen, info->type))
+    {
+        // TODO: Handle captured variables and envs!
+        LLVMTypeRef  closure_type = necro_closure_type(codegen, LLVMTypeOf(info->node_prototype->call_function));
+        bool         stateful     = info->node_prototype->type == NECRO_NODE_STATEFUL;
+        LLVMValueRef closure_val  = necro_mk_closure(codegen, closure_type, info->node_prototype->call_function, stateful ? info->node_prototype->mk_function : NULL, NULL);
+        return closure_val;
+    }
     else if (info->node_prototype != NULL && info->node_prototype->outer == NULL)
     {
         // Global!
@@ -1276,6 +1388,9 @@ LLVMValueRef necro_calculate_node_call_app(NecroCodeGen* codegen, NecroCoreAST_E
     assert(codegen != NULL);
     assert(ast != NULL);
     assert(ast->expr_type == NECRO_CORE_EXPR_APP);
+    LLVMValueRef app_closure_result = NULL;
+    if (necro_calculate_node_call_app_closure(codegen, ast, outer, &app_closure_result))
+        return app_closure_result;
     // TODO: FINISH!
     // NOTE/HACK: For now assuming the arguments provided exactly match.
     // NOTE/HACK: For now assuming that the function is variable and not an anonymous function
@@ -1296,7 +1411,6 @@ LLVMValueRef necro_calculate_node_call_app(NecroCodeGen* codegen, NecroCoreAST_E
     NecroNodePrototype* call_prototype = necro_symtable_get(codegen->symtable, function->var.id)->node_prototype;
     assert(call_prototype != NULL);
     assert(call_prototype->call_function != NULL);
-    // TODO: Support polymorphic functions!!!!
     NecroArenaSnapshot snapshot   = necro_get_arena_snapshot(&codegen->snapshot_arena);
     LLVMValueRef*      params     = necro_snapshot_arena_alloc(&codegen->snapshot_arena, arg_count * sizeof(LLVMValueRef));
     LLVMValueRef*      args       = necro_paged_arena_alloc(&codegen->arena, arg_count * sizeof(LLVMValueRef));
@@ -1596,7 +1710,6 @@ NECRO_RETURN_CODE necro_verify_and_dump_codegen(NecroCodeGen* codegen)
     LLVMRunPassManager(codegen->mod_pass_manager, codegen->mod);
     char* error = NULL;
     LLVMDumpModule(codegen->mod);
-
     LLVMVerifyModule(codegen->mod, LLVMAbortProcessAction, &error);
     if (strlen(error) != 0)
     {

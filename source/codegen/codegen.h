@@ -63,6 +63,10 @@ typedef struct NecroCodeGen
     NecroError           error;
     LLVMIntrinsics       llvm_intrinsics;
     LLVMValueRef         current_func;
+    LLVMTypeRef          necro_data_type;
+    LLVMTypeRef          necro_val_type;
+    LLVMTypeRef          necro_env_type;
+    LLVMTypeRef          necro_closure_app_type;
 } NecroCodeGen;
 
 typedef enum
@@ -88,6 +92,12 @@ typedef struct
 
 typedef struct
 {
+    size_t                    slot;
+    NecroCoreAST_Application* app;
+} NecroClosureApp;
+
+typedef struct
+{
     struct NecroNodePrototype* prototype;
     size_t                     slot;
 } NecroPersistentVar;
@@ -103,6 +113,7 @@ NECRO_DECLARE_ARENA_LIST(LLVMTypeRef, LLVMType, llvm_type);
 NECRO_DECLARE_ARENA_LIST(NecroCon, Con, necro_con);
 NECRO_DECLARE_ARENA_LIST(NecroVar, Var, var);
 NECRO_DECLARE_ARENA_LIST(NecroCall, Call, call);
+NECRO_DECLARE_ARENA_LIST(NecroClosureApp, ClosureApp, closure_app);
 NECRO_DECLARE_ARENA_LIST(NecroPersistentVar, PersistentVar, persistent_var);
 NECRO_DECLARE_ARENA_LIST(NecroCapturedVar, CapturedVar, captured_var);
 NECRO_DECLARE_ARENA_LIST(NecroArg, Arg, arg);
@@ -116,6 +127,7 @@ typedef struct NecroNodePrototype
     NecroArgList*              args;             // Arguments to be passed in. Will be passed in as raw values in registers or on the stack
     NecroVarList*              loaded_vars;
     NecroCallList*             called_functions;
+    NecroClosureAppList*       closure_apps;
     NecroVarList*              local_vars;
     NecroPersistentVarList*    persistent_vars;
     NecroCapturedVarList*      captured_vars;
@@ -149,7 +161,8 @@ LLVMValueRef        necro_maybe_cast(NecroCodeGen* codegen, LLVMValueRef value, 
 void                necro_codegen_debug_print(NecroCodeGen* codegen, int64_t value);
 LLVMTypeRef         necro_get_value_ptr(NecroCodeGen* codegen);
 LLVMTypeRef         necro_get_ast_llvm_type(NecroCodeGen* codegen, NecroCoreAST_Expression* ast);
-LLVMTypeRef         necro_type_to_llvm_type(NecroCodeGen* codegen, NecroType* type);
+LLVMTypeRef         necro_type_to_llvm_type(NecroCodeGen* codegen, NecroType* type, bool is_top_level);
+size_t              necro_ast_arity(NecroCodeGen* codegen, NecroCoreAST_Expression* ast);
 LLVMValueRef        necro_calculate_node_call(NecroCodeGen* codegen, NecroCoreAST_Expression* ast, NecroNodePrototype* outer);
 void                necro_calculate_node_prototype(NecroCodeGen* codegen, NecroCoreAST_Expression* ast, NecroNodePrototype* outer_node);
 

@@ -118,12 +118,12 @@ typedef struct
     //NecroVar var; // Don't know what to do with var and type atm
     //struct NecroCoreAST_Type* type;
     NecroCoreAST_CaseAlt* alts;
-    struct NecroType*     type;
+    NecroType*            type;
 } NecroCoreAST_Case;
 
 typedef struct
 {
-    NecroType type;
+    NecroType* type;
 } NecroCoreAST_Type;
 
 typedef struct
@@ -205,6 +205,7 @@ typedef struct
     NecroPrimTypes* prim_types;
     NecroParse_CoreTransformState transform_state;
     NecroError error;
+    NecroSymTable* symtable;
 } NecroTransformToCore;
 
 void necro_transform_to_core(NecroTransformToCore* core_transform);
@@ -215,7 +216,8 @@ static inline void necro_construct_core_transform(
     NecroCoreAST* core_ast,
     NecroAST_Reified* necro_ast,
     NecroIntern* intern,
-    NecroPrimTypes* prim_types)
+    NecroPrimTypes* prim_types,
+    NecroSymTable* symtable)
 {
     core_transform->error.error_message[0] = '\0';
     core_transform->error.return_code = NECRO_SUCCESS;
@@ -225,6 +227,7 @@ static inline void necro_construct_core_transform(
     core_transform->intern = intern;
     core_transform->prim_types = prim_types;
     core_transform->transform_state = NECRO_CORE_TRANSFORMING;
+    core_transform->symtable = symtable;
 }
 
 static inline void necro_destruct_core_transform(NecroTransformToCore* core_transform)

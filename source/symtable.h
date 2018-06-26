@@ -30,30 +30,33 @@ struct NecroDelayScope;
 struct NecroTypeClass;
 struct NecroTypeClassInstance;
 struct NecroNodePrototype;
+struct NecroCoreAST_Expression;
 
 typedef struct
 {
-    NecroSymbol                    name;
-    const char*                    string_name;
-    NecroID                        id;
-    size_t                         data_size;
-    size_t                         con_num;
-    NecroSourceLoc                 source_loc;
-    struct NecroScope*             scope;
-    struct NecroDelayScope*        delay_scope;
-    NecroASTNode*                  ast;
-    NecroDeclarationGroup*         declaration_group;
-    NecroAST_Node_Reified*         optional_type_signature;
-    NecroType*                     type;
-    NECRO_TYPE_STATUS              type_status;
-    struct NecroTypeClass*         method_type_class;
-    struct NecroTypeClass*         type_class;
-    struct NecroTypeClassInstance* type_class_instance;
-    LLVMValueRef                   llvm_value;
-    LLVMTypeRef                    llvm_type;
-    struct NecroNodePrototype*     node_prototype;
-    uint32_t                       persistent_slot; // 0 indicates no persistence
-    bool                           is_constructor;
+    NecroSymbol                     name;
+    const char*                     string_name;
+    NecroID                         id;
+    size_t                          data_size;
+    size_t                          con_num;
+    NecroSourceLoc                  source_loc;
+    struct NecroScope*              scope;
+    struct NecroDelayScope*         delay_scope;
+    NecroASTNode*                   ast;
+    struct NecroCoreAST_Expression* core_ast;
+    NecroDeclarationGroup*          declaration_group;
+    NecroAST_Node_Reified*          optional_type_signature;
+    NecroType*                      type;
+    NECRO_TYPE_STATUS               type_status;
+    struct NecroTypeClass*          method_type_class;
+    struct NecroTypeClass*          type_class;
+    struct NecroTypeClassInstance*  type_class_instance;
+    LLVMValueRef                    llvm_value;
+    LLVMTypeRef                     llvm_type;
+    struct NecroNodePrototype*      node_prototype;
+    size_t                          arity;
+    uint32_t                        persistent_slot; // 0 indicates no persistence
+    bool                            is_constructor;
 } NecroSymbolInfo;
 
 typedef struct NecroSymTable

@@ -719,7 +719,7 @@ NecroDecisionTreeHashTable necro_create_decision_tree_hash_table(size_t initial_
     table.buckets = malloc(sizeof(NecroDecisionTreeHashTableNode) * initial_size * 2);
     table.count   = 0;
     table.size    = initial_size * 2;
-    for (size_t i = 0; i < initial_size; ++i)
+    for (size_t i = 0; i < initial_size * 2; ++i)
     {
         table.buckets[i].hash = 0;
         table.buckets[i].tree = NULL;

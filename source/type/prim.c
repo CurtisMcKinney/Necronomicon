@@ -1440,8 +1440,8 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
     {
         // NecroApp
         LLVMTypeRef necro_app_type     = LLVMStructCreateNamed(codegen->context, "_NecroApp#");
-        LLVMTypeRef necro_app_elems[2] = { codegen->necro_data_type, LLVMPointerType(necro_val_type_ref, 0) };
-        LLVMStructSetBody(necro_app_type, necro_app_elems, 2, false);
+        LLVMTypeRef necro_app_elems[3] = { codegen->necro_data_type, LLVMPointerType(necro_val_type_ref, 0), LLVMPointerType(LLVMFunctionType(LLVMPointerType(codegen->necro_val_type, 0), NULL, 0, false), 0) };
+        LLVMStructSetBody(necro_app_type, necro_app_elems, 3, false);
         codegen->necro_closure_app_type = necro_app_type;
         NecroNodePrototype* necro_app_node = necro_create_necro_node_prototype(codegen, necro_con_to_var(codegen->infer->prim_types->necro_app_type), "_NecroApp#", necro_app_type, LLVMPointerType(necro_val_type_ref, 0), NULL, NECRO_NODE_STATEFUL);
         necro_symtable_get(codegen->symtable, prim_types->necro_app_type.id)->llvm_type      = necro_app_type;
@@ -1452,11 +1452,13 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
             necro_app_node->mk_function      = mk_node;
             LLVMBasicBlockRef  entry         = LLVMAppendBasicBlock(mk_node, "entry");
             LLVMPositionBuilderAtEnd(codegen->builder, entry);
-            LLVMValueRef       void_ptr      = necro_alloc_codegen(codegen, necro_app_node->node_type, 2);
+            LLVMValueRef       void_ptr      = necro_alloc_codegen(codegen, necro_app_node->node_type, 1);
             LLVMValueRef       node_ptr      = LLVMBuildBitCast(codegen->builder, void_ptr, LLVMPointerType(necro_app_node->node_type, 0), "node_ptr");
             necro_init_necro_data(codegen, node_ptr, 0, 0);
             LLVMValueRef       val_ptr       = necro_snapshot_gep(codegen, "val_ptr", node_ptr, 2, (uint32_t[]) { 0, 1 });
             LLVMBuildStore(codegen->builder, LLVMConstPointerNull(LLVMPointerType(necro_val_type_ref, 0)), val_ptr);
+            LLVMValueRef       mk_ptr        = necro_snapshot_gep(codegen, "mk_ptr", node_ptr, 2, (uint32_t[]) { 0, 2 });
+            LLVMBuildStore(codegen->builder, LLVMConstPointerNull(LLVMPointerType(LLVMFunctionType(LLVMPointerType(codegen->necro_val_type, 0), NULL, 0, false), 0)), mk_ptr);
             LLVMBuildRet(codegen->builder, node_ptr);
         }
         {

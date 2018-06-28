@@ -462,7 +462,12 @@ extern DLLEXPORT void _necro_error_exit(uint32_t error_code)
     switch (error_code)
     {
     case 1:
-        fprintf(stderr, "****Error: Non-exhaustive patterns in case statement!");
+        fprintf(stderr, "****Error: Non-exhaustive patterns in case statement!\n");
+    case 2:
+        fprintf(stderr, "****Error: Malformed closure application!\n");
+        break;
+    default:
+        fprintf(stderr, "****Error: Unrecognized error (%d) during runtime!\n", error_code);
         break;
     }
     exit(error_code);

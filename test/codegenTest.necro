@@ -7,8 +7,6 @@
 -- data CakeOrDeath = Cake | Death
 -- data Tuple a b   = Tuple a b
 
--- addOne :: Int -> Int
--- addOne x = x + 1
 -- returnAddOne :: Int -> (Int -> Int)
 -- returnAddOne z = addOne
 
@@ -20,12 +18,6 @@
 
 -- data CoolF = CoolF (Int -> Int)
 
--- gimme :: (Int -> Int) -> CoolF
--- gimme f = CoolF f
-
--- gimme2 :: CoolF
--- gimme2 = gimme addOne
-
 -- gimmeIntz :: CoolF -> Int
 -- gimmeIntz cf =
 --     case cf of
@@ -33,17 +25,63 @@
 
 -- addOne :: Int -> Int -> Int
 -- addOne x y = x + y
+--
+-- weDemandApps :: (Int -> Int -> Int) -> Int -> Int -> Int
+-- weDemandApps f x y = f x y
+--
+-- appsAllTheWayDown :: ((Int -> Int -> Int) -> Int -> Int -> Int) -> (Int -> Int -> Int) -> Int -> Int -> Int
+-- appsAllTheWayDown ff f x y =  ff f x y
+--
+-- main :: Int
+-- main = appsAllTheWayDown weDemandApps addOne 50 100
 
-data Nullary = Nullary
+countFrom :: Int -> Int
+countFrom x = x + d where
+    d = 1 + delay 0 d
 
-weDemandApps :: (Int -> Float -> Nullary) -> Int -> Float -> Nullary
-weDemandApps argF x y = argF x y
+addOne :: Int -> Int
+addOne x = x + 1
+
+subOne :: Int -> Int
+subOne x = x - 1
+
+-- flipFlop :: Int -> Int
+-- flipFlop x = f x where
+--     f = delay addOne (delay subOne f)
+
+weDemandApps :: (Int -> Int) -> Int -> Int
+weDemandApps f x = f x
+
+main :: Int
+main = weDemandApps countFrom 1000
+-- main = flipFlop 0
+
+-- coolAddOne :: CoolF
+-- coolAddOne = CoolF addOne
+
+-- appsAllTheWayDown :: ((Int -> Int) -> Int -> Int) -> (Int -> Int) -> Int -> Int
+-- appsAllTheWayDown ff f x =  ff f x
+
+-- main :: Int
+-- main = weDemandApps addOne 50
 
 -- main :: Int
 -- main = weDemandApps addOne 50 100
 
-main :: Int
-main = 10
+-- main :: Int
+-- main = 10
+
+-- forTest1 :: (Num a, Eq a) => a -> a
+-- forTest1 x = x
+
+-- forTest2 :: (Eq a, Num a) => a -> a
+-- forTest2 x = x
+
+-- forTests :: (Num a, Eq a) => (a -> a) -> (a -> a) -> a -> a
+-- forTests f1 f2 x = x
+
+-- forTest :: Int
+-- forTest = forTests forTest1 forTest2 10
 
 -- mouseX :: Int
 -- mouseX = getMouseX world

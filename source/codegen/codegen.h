@@ -24,6 +24,7 @@
 #include "utility/small_array.h"
 #include "utility/utility.h"
 #include "core/core.h"
+#include "closure.h"
 
 struct NecroInfer;
 struct NecroIntern;
@@ -48,25 +49,26 @@ typedef struct
 
 typedef struct NecroCodeGen
 {
-    NecroPagedArena      arena;
-    NecroSnapshotArena   snapshot_arena;
-    struct NecroInfer*   infer;
-    struct NecroIntern*  intern;
-    struct NecroSymTable*symtable;
-    struct NecroRuntime* runtime;
-    LLVMContextRef       context;
-    LLVMModuleRef        mod;
-    LLVMBuilderRef       builder;
-    LLVMTargetDataRef    target;
-    LLVMPassManagerRef   fn_pass_manager;
-    LLVMPassManagerRef   mod_pass_manager;
-    NecroError           error;
-    LLVMIntrinsics       llvm_intrinsics;
-    LLVMValueRef         current_func;
-    LLVMTypeRef          necro_data_type;
-    LLVMTypeRef          necro_val_type;
-    LLVMTypeRef          necro_env_type;
-    LLVMTypeRef          necro_closure_app_type;
+    NecroPagedArena       arena;
+    NecroSnapshotArena    snapshot_arena;
+    struct NecroInfer*    infer;
+    struct NecroIntern*   intern;
+    struct NecroSymTable* symtable;
+    struct NecroRuntime*  runtime;
+    LLVMContextRef        context;
+    LLVMModuleRef         mod;
+    LLVMBuilderRef        builder;
+    LLVMTargetDataRef     target;
+    LLVMPassManagerRef    fn_pass_manager;
+    LLVMPassManagerRef    mod_pass_manager;
+    NecroError            error;
+    LLVMIntrinsics        llvm_intrinsics;
+    LLVMValueRef          current_func;
+    LLVMTypeRef           necro_data_type;
+    LLVMTypeRef           necro_val_type;
+    LLVMTypeRef           necro_env_type;
+    LLVMTypeRef           necro_closure_app_type;
+    NecroClosureTypeTable closure_type_table;
 } NecroCodeGen;
 
 typedef enum

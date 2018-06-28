@@ -14,7 +14,10 @@
 #include <llvm-c/Target.h>
 #include <llvm-c/ExecutionEngine.h>
 
-#include "codegen.h"
+#include "core/core.h"
+
+struct NecroCodeGen;
+struct NecroNodePrototype;
 
 /*
     _NecroClosure_:
@@ -34,14 +37,34 @@
     { NecroData, NecroVal* (node) }
 */
 
-LLVMTypeRef  necro_env_type(NecroCodeGen* codegen, LLVMTypeRef* elems, size_t elem_count);
-LLVMTypeRef  necro_closure_type(NecroCodeGen* codegen, LLVMTypeRef function_ptr_type);
-LLVMValueRef necro_mk_env(NecroCodeGen* codegen, LLVMTypeRef env_type, LLVMValueRef* elems, uint16_t elem_count);
-LLVMValueRef necro_mk_closure(NecroCodeGen* codegen, LLVMTypeRef closure_type, LLVMValueRef function_ptr, LLVMValueRef node_mk_function_ptr, LLVMValueRef env);
-LLVMValueRef necro_hoist_function(NecroCodeGen* codegen, NecroCoreAST_Expression* function);
-LLVMTypeRef  necro_function_type(NecroCodeGen* codegen, NecroType* type, bool is_top_level);
+// Include closure app function?!
+typedef struct
+{
+    LLVMTypeRef  function_type;
+    LLVMTypeRef  closure_type;
+    LLVMValueRef closure_app;
+    LLVMValueRef mk_closure;
+    size_t       hash;
+} NecroClosureTypeBucket;
 
+typedef struct
+{
+    NecroClosureTypeBucket* buckets;
+    size_t                  size;
+    size_t                  count;
+} NecroClosureTypeTable;
 
-bool         necro_calculate_node_prototype_app_closure(NecroCodeGen* codegen, NecroCoreAST_Expression* ast, NecroNodePrototype* outer_node);
-bool         necro_calculate_node_call_app_closure(NecroCodeGen* codegen, NecroCoreAST_Expression* ast, NecroNodePrototype* outer, LLVMValueRef* out_result);
+LLVMTypeRef  necro_env_type(struct NecroCodeGen* codegen, LLVMTypeRef* elems, size_t elem_count);
+LLVMTypeRef  necro_closure_type(struct NecroCodeGen* codegen, LLVMTypeRef function_ptr_type);
+LLVMValueRef necro_mk_env(struct NecroCodeGen* codegen, LLVMTypeRef env_type, LLVMValueRef* elems, uint16_t elem_count);
+LLVMValueRef necro_mk_closure(struct NecroCodeGen* codegen, LLVMTypeRef closure_type, LLVMValueRef function_ptr, LLVMValueRef node_mk_function_ptr, LLVMValueRef env);
+LLVMValueRef necro_hoist_function(struct NecroCodeGen* codegen, NecroCoreAST_Expression* function);
+LLVMTypeRef  necro_function_type(struct NecroCodeGen* codegen, NecroType* type, bool is_top_level);
+
+bool         necro_calculate_node_prototype_app_closure(struct NecroCodeGen* codegen, NecroCoreAST_Expression* ast, struct NecroNodePrototype* outer_node);
+bool         necro_calculate_node_call_app_closure(struct NecroCodeGen* codegen, NecroCoreAST_Expression* ast, struct NecroNodePrototype* outer, LLVMValueRef* out_result);
+
+NecroClosureTypeTable necro_create_closure_type_table();
+void                  necro_destroy_closure_type_table(NecroClosureTypeTable* table);
+
 #endif // CODEGEN_CLOSURE_H

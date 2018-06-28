@@ -60,19 +60,20 @@ NecroCodeGen necro_create_codegen(NecroInfer* infer, NecroIntern* intern, NecroS
     // LLVMPassManagerBuilderPopulateModulePassManager(pass_manager_builder, mod_pass_manager);
     return (NecroCodeGen)
     {
-        .arena            = necro_create_paged_arena(),
-        .snapshot_arena   = necro_create_snapshot_arena(),
-        .infer            = infer,
-        .intern           = intern,
-        .symtable         = symtable,
-        .runtime          = runtime,
-        .context          = context,
-        .mod              = mod,
-        .builder          = LLVMCreateBuilderInContext(context),
-        .target           = target,
-        .fn_pass_manager  = fn_pass_manager,
-        .mod_pass_manager = mod_pass_manager,
-        .error            = necro_create_error(),
+        .arena              = necro_create_paged_arena(),
+        .snapshot_arena     = necro_create_snapshot_arena(),
+        .infer              = infer,
+        .intern             = intern,
+        .symtable           = symtable,
+        .runtime            = runtime,
+        .context            = context,
+        .mod                = mod,
+        .builder            = LLVMCreateBuilderInContext(context),
+        .target             = target,
+        .fn_pass_manager    = fn_pass_manager,
+        .mod_pass_manager   = mod_pass_manager,
+        .error              = necro_create_error(),
+        .closure_type_table = necro_create_closure_type_table(),
     };
 }
 
@@ -80,6 +81,7 @@ void necro_destroy_codegen(NecroCodeGen* codegen)
 {
     necro_destroy_paged_arena(&codegen->arena);
     necro_destroy_snapshot_arena(&codegen->snapshot_arena);
+    necro_destroy_closure_type_table(&codegen->closure_type_table);
     LLVMContextDispose(codegen->context);
     LLVMDisposeBuilder(codegen->builder);
 }
@@ -451,8 +453,8 @@ LLVMTypeRef necro_get_ast_llvm_type(NecroCodeGen* codegen, NecroCoreAST_Expressi
     }
     case NECRO_CORE_EXPR_DATA_CON:  return necro_symtable_get(codegen->symtable, ast->data_con.condid.id)->llvm_type;
     case NECRO_CORE_EXPR_TYPE:      return necro_type_to_llvm_type(codegen, ast->type.type, false);
+    case NECRO_CORE_EXPR_LET:       return necro_get_ast_llvm_type(codegen, ast->let.bind);
     case NECRO_CORE_EXPR_APP:       assert(false); return NULL;
-    case NECRO_CORE_EXPR_LET:       assert(false); return NULL;
     case NECRO_CORE_EXPR_CASE:      assert(false); return NULL;
     case NECRO_CORE_EXPR_DATA_DECL: assert(false); return NULL;
     case NECRO_CORE_EXPR_LIST:      assert(false); return NULL; // used for top decls not language lists
@@ -1357,10 +1359,39 @@ LLVMValueRef necro_calculate_node_call_var(NecroCodeGen* codegen, NecroCoreAST_E
     }
     else if (info->node_prototype != NULL && info->node_prototype->outer == NULL && necro_is_a_function_type(codegen, info->type))
     {
+        // mkClosure
         // TODO: Handle captured variables and envs!
-        LLVMTypeRef  closure_type = necro_closure_type(codegen, LLVMTypeOf(info->node_prototype->call_function));
-        bool         stateful     = info->node_prototype->type == NECRO_NODE_STATEFUL;
-        LLVMValueRef closure_val  = necro_mk_closure(codegen, closure_type, info->node_prototype->call_function, stateful ? info->node_prototype->mk_function : NULL, NULL);
+        // Excise extra arguments from node function!
+        bool         has_env      = false;
+        bool         is_stateful  = info->node_prototype->type == NECRO_NODE_STATEFUL;
+        LLVMTypeRef  node_fn_type = LLVMTypeOf(info->node_prototype->call_function);
+        LLVMValueRef node_call_fn = info->node_prototype->call_function;
+        LLVMValueRef mk_node_fn;
+        // 4 cases
+        if (!is_stateful && !has_env)
+        {
+            mk_node_fn = LLVMConstPointerNull(LLVMPointerType(LLVMTypeOf(info->node_prototype->mk_function), 0));
+        }
+        else if (is_stateful && !has_env)
+        {
+            mk_node_fn                  = info->node_prototype->mk_function;
+            size_t       param_count    = LLVMCountParams(node_call_fn) - 1;
+            LLVMTypeRef* node_fn_params = necro_snapshot_arena_alloc(&codegen->snapshot_arena, (param_count + 1) * sizeof(LLVMTypeRef));
+            LLVMGetParamTypes(LLVMGetElementType(node_fn_type), node_fn_params);
+            node_fn_type                = LLVMPointerType(LLVMFunctionType(LLVMGetReturnType(LLVMGetElementType(node_fn_type)), node_fn_params + 1, param_count, false), 0);
+            node_call_fn                = LLVMBuildBitCast(codegen->builder, node_call_fn, node_fn_type, "call_fn");
+        }
+        else if (!is_stateful && has_env)
+        {
+            mk_node_fn = LLVMConstPointerNull(LLVMPointerType(LLVMTypeOf(info->node_prototype->mk_function), 0));
+        }
+        else
+        {
+            mk_node_fn = info->node_prototype->mk_function;
+        }
+        LLVMValueRef env          = LLVMConstPointerNull(LLVMPointerType(codegen->necro_env_type, 0));
+        LLVMTypeRef  closure_type = necro_closure_type(codegen, node_fn_type);
+        LLVMValueRef closure_val  = necro_mk_closure(codegen, closure_type, node_call_fn, mk_node_fn, env);
         return closure_val;
     }
     else if (info->node_prototype != NULL && info->node_prototype->outer == NULL)

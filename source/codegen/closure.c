@@ -15,14 +15,16 @@
 
 /*
     TODO:
-        * Un-pointfree-ify functions
-        * Closure construction
+        * Make a distinction between closure-ified function values and normal functions / values
+        * Handle over application
         * Partial application construction (PAPP)
-        * Closure application
         * Hoist nested functions
         * Captured variables
         * Envs
         * Anonymous functions
+    TEST:
+        * Closure construction
+        * Closure application
 */
 
 
@@ -141,8 +143,57 @@ LLVMTypeRef necro_function_type(NecroCodeGen* codegen, NecroType* type, bool is_
     else
         final_type = function_type;
     // TODO: Remove!
-    const char* type_string = LLVMPrintTypeToString(final_type);
+    // const char* type_string = LLVMPrintTypeToString(final_type);
     return final_type;
+}
+
+bool necro_is_node_ast_a_closure_value(NecroCodeGen* codegen, NecroCoreAST_Expression* ast)
+{
+    assert(codegen != NULL);
+    assert(ast != NULL);
+    NecroType* type = NULL;
+    if (ast->expr_type == NECRO_CORE_EXPR_BIND)
+    {
+        type = necro_symtable_get(codegen->symtable, ast->bind.var.id)->type;
+        ast  = ast->bind.expr;
+    }
+    else if (ast->expr_type == NECRO_CORE_EXPR_LET)
+    {
+        type = necro_symtable_get(codegen->symtable, ast->let.bind->bind.var.id)->type;
+        ast  = ast->let.bind->bind.expr;
+    }
+    else
+    {
+        assert(false && "necro_is_node_ast_a_closure_value called on non-bind/non-let ast");
+    }
+    NecroType* for_alls = type;
+    NecroType* arrows   = NULL;
+    while (for_alls->type == NECRO_TYPE_FOR)
+    {
+        NecroTypeClassContext* for_all_context = type->for_all.context;
+        while (for_all_context != NULL)
+        {
+            if (ast->expr_type == NECRO_CORE_EXPR_VAR)
+                return true;
+            else
+                return false;
+            for_all_context = for_all_context->next;
+        }
+        for_alls = for_alls->for_all.type;
+        for_alls = necro_find(codegen->infer, for_alls);
+    }
+    arrows = for_alls;
+    arrows = necro_find(codegen->infer, arrows);
+    while (arrows->type == NECRO_TYPE_FUN)
+    {
+        if (ast->expr_type == NECRO_CORE_EXPR_VAR)
+            return true;
+        else
+            return false;
+        arrows = arrows->fun.type2;
+        arrows = necro_find(codegen->infer, arrows);
+    }
+    return false;
 }
 
 bool necro_calculate_node_prototype_app_closure(NecroCodeGen* codegen, NecroCoreAST_Expression* ast, NecroNodePrototype* outer_node)
@@ -190,6 +241,7 @@ bool necro_calculate_node_call_app_closure(NecroCodeGen* codegen, NecroCoreAST_E
     assert(ast != NULL);
     assert(ast->expr_type == NECRO_CORE_EXPR_APP);
 
+    NecroArenaSnapshot snapshot   = necro_get_arena_snapshot(&codegen->snapshot_arena);
     NecroCoreAST_Expression*  function        = ast;
     size_t                    arg_count       = 0;
     size_t                    persistent_slot = ast->app.persistent_slot;
@@ -202,22 +254,23 @@ bool necro_calculate_node_call_app_closure(NecroCodeGen* codegen, NecroCoreAST_E
         return false;
 
     LLVMValueRef closure_value = necro_calculate_node_call(codegen, function, outer);
+    closure_value              = necro_maybe_cast(codegen, closure_value, LLVMPointerType(necro_get_ast_llvm_type(codegen, function), 0));
     LLVMTypeRef  closure_type  = LLVMTypeOf(closure_value);
+    // TODO: Need a maybe_cast here for polymorphic return types!
 
-    LLVMValueRef fn_ptr        = necro_snapshot_gep(codegen, "fn_ptr", closure_value, 2, (uint32_t[]) { 0, 1 });
-    fn_ptr                     = LLVMBuildLoad(codegen->builder, fn_ptr, "fn_val");
-    LLVMTypeRef  fn_type       = LLVMTypeOf(fn_ptr);
+    size_t       num_c_elems   = LLVMCountStructElementTypes(LLVMGetElementType(closure_type));
+    LLVMTypeRef* closure_elems = necro_snapshot_arena_alloc(&codegen->snapshot_arena, num_c_elems * sizeof(LLVMTypeRef));
+    LLVMGetStructElementTypes(LLVMGetElementType(closure_type), closure_elems);
+    LLVMTypeRef   fn_type      = closure_elems[1];
 
-    // const char*  type_string = LLVMPrintTypeToString(fn_type);
-    // const char*  fn_string   = LLVMPrintValueToString(fn_ptr);
+    // const char* fn_type_str  = LLVMPrintTypeToString(closure_type);
 
-    NecroArenaSnapshot snapshot   = necro_get_arena_snapshot(&codegen->snapshot_arena);
     LLVMTypeRef*       params     = necro_snapshot_arena_alloc(&codegen->snapshot_arena, arg_count * sizeof(LLVMTypeRef));
     LLVMValueRef*      args       = necro_paged_arena_alloc(&codegen->arena, (arg_count + 2) * sizeof(LLVMValueRef));
     size_t             arg_index  = arg_count + 1;
-    function                      = ast;
 
     LLVMGetParamTypes(LLVMGetElementType(fn_type), params);
+    function                      = ast;
     while (function->expr_type == NECRO_CORE_EXPR_APP)
     {
         args[arg_index] = necro_calculate_node_call(codegen, function->app.exprB, outer);
@@ -230,7 +283,6 @@ bool necro_calculate_node_call_app_closure(NecroCodeGen* codegen, NecroCoreAST_E
     args[0]                  = LLVMBuildLoad(codegen->builder, args[0], "necro_app_val");
     args[1]                  = closure_value;
     LLVMValueRef app_closure = necro_get_closure_type_bucket(&codegen->closure_type_table, codegen, fn_type).closure_app;
-    const char* fn_type_str  = LLVMPrintTypeToString(LLVMTypeOf(app_closure));
     LLVMValueRef result      = necro_build_call(codegen, app_closure, args, arg_count + 2, "app_closure_result");
     *out_result = result;
     necro_rewind_arena(&codegen->snapshot_arena, snapshot);
@@ -327,6 +379,7 @@ NecroClosureTypeBucket necro_create_closure_type(NecroCodeGen* codegen, LLVMType
     LLVMBasicBlockRef  node_env_cont  = LLVMAppendBasicBlock(app_closure, "node_env_cont");
     LLVMBasicBlockRef  error          = LLVMAppendBasicBlock(app_closure, "error");
     LLVMValueRef       tag            = LLVMBuildLoad(codegen->builder, necro_snapshot_gep(codegen, "tag_ptr", closure_val, 3, (uint32_t[]) { 0, 0, 1 }), "tag_val");
+    LLVMValueRef prev_mk_node_fn_ptr  = necro_snapshot_gep(codegen, "prev_mk_node_fn_ptr", necro_app_val, 2, (uint32_t[]) { 0, 2 });
     LLVMValueRef       switch_val     = LLVMBuildSwitch(codegen->builder, tag, error, 4);
     LLVMAddCase(switch_val, LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 3, false), null_null);
     LLVMAddCase(switch_val, LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 2, false), node_null);
@@ -337,6 +390,7 @@ NecroClosureTypeBucket necro_create_closure_type(NecroCodeGen* codegen, LLVMType
     {
         LLVMPositionBuilderAtEnd(codegen->builder, null_null);
         LLVMBuildStore(codegen->builder, LLVMConstNull(LLVMPointerType(codegen->necro_val_type, 0)), app_node_ptr);
+        LLVMBuildStore(codegen->builder, LLVMConstPointerNull(LLVMPointerType(LLVMFunctionType(LLVMPointerType(codegen->necro_val_type, 0), NULL, 0, false), 0)), prev_mk_node_fn_ptr);
         LLVMValueRef* null_null_args = necro_paged_arena_alloc(&codegen->arena, num_params * sizeof(LLVMValueRef));
         for (size_t i = 0; i < num_params; ++i)
             null_null_args[i] = LLVMGetParam(app_closure, i + 2);
@@ -349,7 +403,6 @@ NecroClosureTypeBucket necro_create_closure_type(NecroCodeGen* codegen, LLVMType
         LLVMPositionBuilderAtEnd(codegen->builder, node_null);
         LLVMValueRef mk_node_fn_ptr      = necro_snapshot_gep(codegen, "mk_node_fn_ptr", closure_val, 2, (uint32_t[]) { 0, 2 });
         LLVMValueRef mk_node_fn          = LLVMBuildLoad(codegen->builder, mk_node_fn_ptr, "mk_node_fn");
-        LLVMValueRef prev_mk_node_fn_ptr = necro_snapshot_gep(codegen, "prev_mk_node_fn_ptr", necro_app_val, 2, (uint32_t[]) { 0, 2 });
         LLVMValueRef prev_mk_node_fn     = LLVMBuildLoad(codegen->builder, prev_mk_node_fn_ptr, "prev_mk_node_fn");
         LLVMValueRef is_prev_mk_node     = LLVMBuildICmp(codegen->builder, LLVMIntEQ, mk_node_fn, prev_mk_node_fn, "is_prev_mk_node");
         LLVMBuildCondBr(codegen->builder, is_prev_mk_node, node_null_cont, node_null_init);
@@ -381,6 +434,7 @@ NecroClosureTypeBucket necro_create_closure_type(NecroCodeGen* codegen, LLVMType
     {
         LLVMPositionBuilderAtEnd(codegen->builder, null_env);
         LLVMBuildStore(codegen->builder, LLVMConstNull(LLVMPointerType(codegen->necro_val_type, 0)), app_node_ptr);
+        LLVMBuildStore(codegen->builder, LLVMConstPointerNull(LLVMPointerType(LLVMFunctionType(LLVMPointerType(codegen->necro_val_type, 0), NULL, 0, false), 0)), prev_mk_node_fn_ptr);
         LLVMValueRef  env_ptr       = necro_snapshot_gep(codegen, "env_ptr", closure_val, 2, (uint32_t[]) { 0, 3 });
         LLVMValueRef  env_val       = LLVMBuildLoad(codegen->builder, env_ptr, "env_val");
         LLVMTypeRef*  env_fn_params = necro_paged_arena_alloc(&codegen->arena, (1 + num_params) * sizeof(LLVMTypeRef));
@@ -401,7 +455,7 @@ NecroClosureTypeBucket necro_create_closure_type(NecroCodeGen* codegen, LLVMType
         LLVMPositionBuilderAtEnd(codegen->builder, node_env);
         LLVMValueRef mk_node_fn_ptr      = necro_snapshot_gep(codegen, "mk_node_fn_ptr", closure_val, 2, (uint32_t[]) { 0, 2 });
         LLVMValueRef mk_node_fn          = LLVMBuildLoad(codegen->builder, mk_node_fn_ptr, "mk_node_fn");
-        LLVMValueRef prev_mk_node_fn_ptr = necro_snapshot_gep(codegen, "prev_mk_node_fn_ptr", necro_app_val, 2, (uint32_t[]) { 0, 2 });
+        // LLVMValueRef prev_mk_node_fn_ptr = necro_snapshot_gep(codegen, "prev_mk_node_fn_ptr", necro_app_val, 2, (uint32_t[]) { 0, 2 });
         LLVMValueRef prev_mk_node_fn     = LLVMBuildLoad(codegen->builder, prev_mk_node_fn_ptr, "prev_mk_node_fn");
         LLVMValueRef is_prev_mk_node     = LLVMBuildICmp(codegen->builder, LLVMIntEQ, mk_node_fn, prev_mk_node_fn, "is_prev_mk_node");
         LLVMBuildCondBr(codegen->builder, is_prev_mk_node, node_env_cont, node_env_init);

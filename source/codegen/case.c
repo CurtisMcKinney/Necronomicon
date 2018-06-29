@@ -460,7 +460,7 @@ void necro_codegen_decision_tree(NecroCodeGen* codegen, NecroDecisionTree* tree,
             value_ptr = necro_maybe_cast(codegen, value_ptr, bindings->path->type);
             necro_symtable_get(codegen->symtable, bindings->var->var.id)->llvm_type      = bindings->path->type;
             necro_symtable_get(codegen->symtable, bindings->var->var.id)->llvm_value     = value_ptr;
-            NecroNodePrototype* var_prototype = necro_create_necro_node_prototype(codegen, bindings->var->var, necro_intern_get_string(codegen->intern, bindings->var->var.symbol), bindings->path->type, bindings->path->type, outer, NECRO_NODE_STATELESS);
+            NecroNodePrototype* var_prototype = necro_create_necro_node_prototype(codegen, bindings->var->var, necro_intern_get_string(codegen->intern, bindings->var->var.symbol), bindings->path->type, bindings->path->type, outer, NECRO_NODE_STATELESS, false);
             necro_symtable_get(codegen->symtable, bindings->var->var.id)->node_prototype = var_prototype;
             bindings = bindings->next;
         }

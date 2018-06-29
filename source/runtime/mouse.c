@@ -62,7 +62,13 @@ void necro_poll_mouse()
     // GetConsoleScreenBufferInfo(window, &screen_info);
     // mouseX = screen_info.dwCursorPosition.X;
     // mouseY = screen_info.dwCursorPosition.Y;
-    ReadConsoleInput(h_in, &input_record, 1, &num_read);
+    DWORD  num_waiting = 0;
+    if (GetNumberOfConsoleInputEvents(h_in, &num_waiting) == 0)
+        return;
+    if (num_waiting == 0)
+        return;
+    if (ReadConsoleInput(h_in, &input_record, 1, &num_read) == 0)
+        return;
     switch (input_record.EventType)
     {
     // case KEY_EVENT:

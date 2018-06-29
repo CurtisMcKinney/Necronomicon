@@ -136,24 +136,22 @@ typedef struct NecroNodePrototype
     LLVMValueRef               mk_function;
     LLVMValueRef               init_function;
     LLVMValueRef               call_function;
-    bool                       is_function;      // Is this necessary?!
-    bool                       was_captured;
     struct NecroNodePrototype* outer;
     size_t                     slot_count;
     NECRO_NODE_TYPE            type;
     LLVMBasicBlockRef          case_error_block;
+    bool                       is_closure_value;
 } NecroNodePrototype;
 
 NecroCodeGen        necro_create_codegen(struct NecroInfer* infer, struct NecroIntern* intern, struct NecroSymTable* symtable, struct NecroRuntime* runtime, const char* module_name);
 void                necro_destroy_codegen(NecroCodeGen* codegen);
-// void                necro_test_codegen(NecroCodeGen* codegen);
 NECRO_RETURN_CODE   necro_codegen(NecroCodeGen* codegen, struct NecroCoreAST* core_ast);
 NECRO_RETURN_CODE   necro_verify_and_dump_codegen(NecroCodeGen* codegen);
 LLVMValueRef        necro_snapshot_add_function(NecroCodeGen* codegen, const char* function_name, LLVMTypeRef return_type, LLVMTypeRef* arg_refs, size_t arg_count);
 LLVMValueRef        necro_snapshot_gep(NecroCodeGen* codegen, const char* ptr_name, LLVMValueRef data_ptr, size_t num_indices, uint32_t* indices);
 LLVMValueRef        necro_alloc_codegen(NecroCodeGen* codegen, LLVMTypeRef type, uint16_t slots_used);
 char*               necro_concat_strings(NecroSnapshotArena* arena, uint32_t string_count, const char** strings);
-NecroNodePrototype* necro_create_necro_node_prototype(NecroCodeGen* codegen, NecroVar bind_var, const char* name, LLVMTypeRef node_type, LLVMTypeRef node_value_type, NecroNodePrototype* outer, NECRO_NODE_TYPE type);
+NecroNodePrototype* necro_create_necro_node_prototype(NecroCodeGen* codegen, NecroVar bind_var, const char* name, LLVMTypeRef node_type, LLVMTypeRef node_value_type, NecroNodePrototype* outer, NECRO_NODE_TYPE type, bool is_closure_value);
 NecroNodePrototype* necro_create_prim_node_prototype(NecroCodeGen* codegen, NecroVar prim_var, LLVMTypeRef prim_result_type, LLVMValueRef prim_call_function, NECRO_NODE_TYPE type);
 LLVMValueRef        necro_gen_alloc_boxed_value(NecroCodeGen* codegen, LLVMTypeRef boxed_type, uint32_t necro_value1, uint32_t necro_value2, const char* name);
 LLVMValueRef        necro_build_call(NecroCodeGen* codegen, LLVMValueRef function, LLVMValueRef* args, uint32_t arg_count, const char* result_name);
@@ -164,7 +162,7 @@ void                necro_codegen_debug_print(NecroCodeGen* codegen, int64_t val
 LLVMTypeRef         necro_get_value_ptr(NecroCodeGen* codegen);
 LLVMTypeRef         necro_get_ast_llvm_type(NecroCodeGen* codegen, NecroCoreAST_Expression* ast);
 LLVMTypeRef         necro_type_to_llvm_type(NecroCodeGen* codegen, NecroType* type, bool is_top_level);
-size_t              necro_ast_arity(NecroCodeGen* codegen, NecroCoreAST_Expression* ast);
+// size_t              necro_ast_arity(NecroCodeGen* codegen, NecroCoreAST_Expression* ast);
 LLVMValueRef        necro_calculate_node_call(NecroCodeGen* codegen, NecroCoreAST_Expression* ast, NecroNodePrototype* outer);
 void                necro_calculate_node_prototype(NecroCodeGen* codegen, NecroCoreAST_Expression* ast, NecroNodePrototype* outer_node);
 

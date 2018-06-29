@@ -73,6 +73,7 @@ set(project_SOURCES
     source/type/type_class.c
 
     source/core/core.c
+    source/core/core_final_pass.c
 
     source/codegen/codegen.c
     source/codegen/case.c
@@ -110,6 +111,7 @@ set(project_HEADERS
     source/type/type_class.h
 
     source/core/core.h
+    source/core/core_final_pass.h
 
     source/codegen/codegen.h
     source/codegen/case.h

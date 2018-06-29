@@ -61,8 +61,9 @@ LLVMValueRef necro_mk_closure(struct NecroCodeGen* codegen, LLVMTypeRef closure_
 LLVMValueRef necro_hoist_function(struct NecroCodeGen* codegen, NecroCoreAST_Expression* function);
 LLVMTypeRef  necro_function_type(struct NecroCodeGen* codegen, NecroType* type, bool is_top_level);
 
-bool         necro_calculate_node_prototype_app_closure(struct NecroCodeGen* codegen, NecroCoreAST_Expression* ast, struct NecroNodePrototype* outer_node);
-bool         necro_calculate_node_call_app_closure(struct NecroCodeGen* codegen, NecroCoreAST_Expression* ast, struct NecroNodePrototype* outer, LLVMValueRef* out_result);
+bool necro_calculate_node_prototype_app_closure(struct NecroCodeGen* codegen, NecroCoreAST_Expression* ast, struct NecroNodePrototype* outer_node);
+bool necro_calculate_node_call_app_closure(struct NecroCodeGen* codegen, NecroCoreAST_Expression* ast, struct NecroNodePrototype* outer, LLVMValueRef* out_result);
+bool necro_is_node_ast_a_closure_value(struct NecroCodeGen* codegen, NecroCoreAST_Expression* ast);
 
 NecroClosureTypeTable necro_create_closure_type_table();
 void                  necro_destroy_closure_type_table(NecroClosureTypeTable* table);

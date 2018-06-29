@@ -35,9 +35,9 @@
 -- main :: Int
 -- main = appsAllTheWayDown weDemandApps addOne 50 100
 
-countFrom :: Int -> Int
-countFrom x = x + d where
-    d = 1 + delay 0 d
+-- countFrom :: Int -> Int
+-- countFrom x = x + d where
+--     d = 1 + delay 0 d
 
 addOne :: Int -> Int
 addOne x = x + 1
@@ -45,22 +45,58 @@ addOne x = x + 1
 subOne :: Int -> Int
 subOne x = x - 1
 
--- flipFlop :: Int -> Int
--- flipFlop x = f x where
---     f = delay addOne (delay subOne f)
+-- -- To handle this we have to detect over application
+-- addThenSub :: Int -> Int
+-- addThenSub x = (delay addOne subOne) x
 
-weDemandApps :: (Int -> Int) -> Int -> Int
-weDemandApps f x = f x
+-- flipFlop :: Int -> Int
+-- flipFlop x = pingPong x
+--     -- f x = addOne x
+--     -- f = delay addOne (delay subOne f)
+
+-- TODO: Do we need to sort out PAPPs first!?
+
+-- -- Flag to note if it's a closure or a normal function!?
+-- -- If it's a closure you don't need to closure-ify when it's referred to as a closure
+-- pingPong :: Int -> Int
+-- pingPong = delay addOne (delay subOne pingPong)
+
+-- addOne' :: Int -> Int
+-- addOne' = addOne
+
+addTwo :: Int -> Int -> Int
+addTwo x y = x + y
+
+addTwo' :: Int -> Int -> Int
+addTwo' x = addTwo x
 
 main :: Int
-main = weDemandApps countFrom 1000
--- main = flipFlop 0
+main = 100
+
+-- mouseX :: Int
+-- mouseX = getMouseX world
+--
+-- weDemandApps :: (Int -> Int) -> Int -> Int
+-- weDemandApps f x = f x
+--
+-- appsAllTheWayDown :: ((Int -> Int) -> Int -> Int) -> (Int -> Int) -> Int -> Int
+-- appsAllTheWayDown ff f x =  ff f x
+--
+--
+-- moarApps :: (((Int -> Int) -> Int -> Int) -> (Int -> Int) -> Int -> Int) ->
+--              ((Int -> Int) -> Int -> Int) -> (Int -> Int) -> Int -> Int
+-- moarApps fff ff f x =  fff ff f x
+--
+--
+-- addMouseXAndCounter :: Int -> Int
+-- addMouseXAndCounter x = x + d + mouseX where
+--     d = 1000 + delay 0 d
+--
+-- main :: Int
+-- main = moarApps appsAllTheWayDown weDemandApps addMouseXAndCounter 0
 
 -- coolAddOne :: CoolF
 -- coolAddOne = CoolF addOne
-
--- appsAllTheWayDown :: ((Int -> Int) -> Int -> Int) -> (Int -> Int) -> Int -> Int
--- appsAllTheWayDown ff f x =  ff f x
 
 -- main :: Int
 -- main = weDemandApps addOne 50
@@ -316,7 +352,8 @@ main = weDemandApps countFrom 1000
 --     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
 -- main :: Int
 -- main =
---     oneHundredThousandTimes 1
+--     oneHundredThousandTimes 1 + oneHundredThousandTimes 1
+
 
 -- z :: Int
 -- z = integrate 20

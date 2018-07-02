@@ -60,8 +60,6 @@ void necro_poll_mouse()
     current_tick = runtime_tick;
     // CONSOLE_SCREEN_BUFFER_INFO screen_info;
     // GetConsoleScreenBufferInfo(window, &screen_info);
-    // mouseX = screen_info.dwCursorPosition.X;
-    // mouseY = screen_info.dwCursorPosition.Y;
     DWORD  num_waiting = 0;
     if (GetNumberOfConsoleInputEvents(h_in, &num_waiting) == 0)
         return;

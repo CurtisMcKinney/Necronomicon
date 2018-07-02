@@ -85,7 +85,7 @@ LLVMValueRef necro_hoist_function(NecroCodeGen* codegen, NecroCoreAST_Expression
 LLVMTypeRef necro_function_type(NecroCodeGen* codegen, NecroType* type, bool is_top_level)
 {
     assert(type != NULL);
-    type = necro_find(codegen->infer, type);
+    type = necro_find(type);
     assert(type->type == NECRO_TYPE_FOR || type->type == NECRO_TYPE_FUN);
     size_t arg_count = 0;
     size_t arg_index = 0;
@@ -94,28 +94,29 @@ LLVMTypeRef necro_function_type(NecroCodeGen* codegen, NecroType* type, bool is_
     NecroType* arrows   = NULL;
     while (for_alls->type == NECRO_TYPE_FOR)
     {
-        NecroTypeClassContext* for_all_context = type->for_all.context;
-        while (for_all_context != NULL)
-        {
-            arg_count++;
-            for_all_context = for_all_context->next;
-        }
+        // NecroTypeClassContext* for_all_context = for_alls->for_all.context;
+        // while (for_all_context != NULL)
+        // {
+        //     // do we need this!?!?!?
+        //     arg_count++;
+        //     for_all_context = for_all_context->next;
+        // }
         for_alls = for_alls->for_all.type;
-        for_alls = necro_find(codegen->infer, for_alls);
+        for_alls = necro_find(for_alls);
     }
     arrows = for_alls;
-    arrows = necro_find(codegen->infer, arrows);
+    arrows = necro_find(arrows);
     while (arrows->type == NECRO_TYPE_FUN)
     {
         arg_count++;
         arrows = arrows->fun.type2;
-        arrows = necro_find(codegen->infer, arrows);
+        arrows = necro_find(arrows);
     }
     LLVMTypeRef* args = necro_paged_arena_alloc(&codegen->arena, arg_count * sizeof(LLVMTypeRef));
     for_alls = type;
     while (for_alls->type == NECRO_TYPE_FOR)
     {
-        NecroTypeClassContext* for_all_context = type->for_all.context;
+        NecroTypeClassContext* for_all_context = for_alls->for_all.context;
         while (for_all_context != NULL)
         {
             // necro_get_type_class_instance(codegen->infer, for_alls->for_all.var,)
@@ -124,16 +125,16 @@ LLVMTypeRef necro_function_type(NecroCodeGen* codegen, NecroType* type, bool is_
             for_all_context = for_all_context->next;
         }
         for_alls = for_alls->for_all.type;
-        for_alls = necro_find(codegen->infer, for_alls);
+        for_alls = necro_find(for_alls);
     }
     arrows = for_alls;
-    arrows = necro_find(codegen->infer, arrows);
+    arrows = necro_find(arrows);
     while (arrows->type == NECRO_TYPE_FUN)
     {
         args[arg_index] = LLVMPointerType(necro_type_to_llvm_type(codegen, arrows->fun.type1, false), 0);
         arg_index++;
         arrows = arrows->fun.type2;
-        arrows = necro_find(codegen->infer, arrows);
+        arrows = necro_find(arrows);
     }
     LLVMTypeRef return_type   = LLVMPointerType(necro_type_to_llvm_type(codegen, arrows, false), 0);
     LLVMTypeRef function_type = LLVMFunctionType(return_type, args, arg_count, false);
@@ -170,7 +171,7 @@ bool necro_is_node_ast_a_closure_value(NecroCodeGen* codegen, NecroCoreAST_Expre
     NecroType* arrows   = NULL;
     while (for_alls->type == NECRO_TYPE_FOR)
     {
-        NecroTypeClassContext* for_all_context = type->for_all.context;
+        NecroTypeClassContext* for_all_context = for_alls->for_all.context;
         while (for_all_context != NULL)
         {
             if (ast->expr_type == NECRO_CORE_EXPR_VAR)
@@ -180,10 +181,10 @@ bool necro_is_node_ast_a_closure_value(NecroCodeGen* codegen, NecroCoreAST_Expre
             for_all_context = for_all_context->next;
         }
         for_alls = for_alls->for_all.type;
-        for_alls = necro_find(codegen->infer, for_alls);
+        for_alls = necro_find(for_alls);
     }
     arrows = for_alls;
-    arrows = necro_find(codegen->infer, arrows);
+    arrows = necro_find(arrows);
     while (arrows->type == NECRO_TYPE_FUN)
     {
         if (ast->expr_type == NECRO_CORE_EXPR_VAR)
@@ -191,7 +192,7 @@ bool necro_is_node_ast_a_closure_value(NecroCodeGen* codegen, NecroCoreAST_Expre
         else
             return false;
         arrows = arrows->fun.type2;
-        arrows = necro_find(codegen->infer, arrows);
+        arrows = necro_find(arrows);
     }
     return false;
 }

@@ -132,6 +132,23 @@ typedef struct
     struct NecroCoreAST_Expression* next;
 } NecroCoreAST_List;
 
+typedef enum
+{
+    NECRO_CORE_EXPR_VAR,
+    NECRO_CORE_EXPR_BIND,
+    NECRO_CORE_EXPR_LIT,
+    NECRO_CORE_EXPR_APP,
+    NECRO_CORE_EXPR_LAM,
+    NECRO_CORE_EXPR_LET,
+    NECRO_CORE_EXPR_CASE,
+    NECRO_CORE_EXPR_TYPE,
+    NECRO_CORE_EXPR_LIST, // used for top decls not language lists
+    NECRO_CORE_EXPR_DATA_DECL,
+    NECRO_CORE_EXPR_DATA_CON,
+    NECRO_CORE_EXPR_COUNT,
+    NECRO_CORE_EXPR_UNIMPLEMENTED,
+} NECRO_CORE_EXPR;
+
 typedef struct NecroCoreAST_Expression
 {
     union
@@ -148,23 +165,7 @@ typedef struct NecroCoreAST_Expression
         NecroCoreAST_DataDecl data_decl;
         NecroCoreAST_DataCon data_con;
     };
-
-    enum
-    {
-        NECRO_CORE_EXPR_VAR,
-        NECRO_CORE_EXPR_BIND,
-        NECRO_CORE_EXPR_LIT,
-        NECRO_CORE_EXPR_APP,
-        NECRO_CORE_EXPR_LAM,
-        NECRO_CORE_EXPR_LET,
-        NECRO_CORE_EXPR_CASE,
-        NECRO_CORE_EXPR_TYPE,
-        NECRO_CORE_EXPR_LIST, // used for top decls not language lists
-        NECRO_CORE_EXPR_DATA_DECL,
-        NECRO_CORE_EXPR_DATA_CON,
-        NECRO_CORE_EXPR_COUNT,
-        NECRO_CORE_EXPR_UNIMPLEMENTED,
-    } expr_type;
+    NECRO_CORE_EXPR expr_type;
 } NecroCoreAST_Expression;
 
 static const char* core_ast_names[] =

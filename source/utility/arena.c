@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <assert.h>
+#include <string.h>
 #include "arena.h"
 #include "math.h"
 
@@ -239,4 +240,20 @@ void necro_rewind_arena(NecroSnapshotArena* arena, NecroArenaSnapshot snapshot)
     assert(arena->count < arena->size);
     assert(arena->count >= 0);
     // printf("rewind arena count: %d\n", arena->count);
+}
+
+char* necro_concat_strings(NecroSnapshotArena* arena, uint32_t string_count, const char** strings)
+{
+    size_t total_length = 1;
+    for (size_t i = 0; i < string_count; ++i)
+    {
+        total_length += strlen(strings[i]);
+    }
+    char* buffer = necro_snapshot_arena_alloc(arena, total_length);
+    buffer[0] = '\0';
+    for (size_t i = 0; i < string_count; ++i)
+    {
+        strcat(buffer, strings[i]);
+    }
+    return buffer;
 }

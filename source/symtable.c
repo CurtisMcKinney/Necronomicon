@@ -68,6 +68,7 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
         .persistent_slot         = 0,
         .is_constructor          = false,
         .arity                   = 0,
+        .necro_node_ast          = NULL,
     };
 }
 
@@ -387,6 +388,12 @@ NecroID necro_scoped_symtable_new_symbol_info(NecroScopedSymTable* table, NecroS
     NecroID id = necro_symtable_insert(table->global_table, info);
     necro_scope_insert(scope, info.name, id, &table->arena);
     return id;
+}
+
+NecroID necro_symtable_manual_new_symbol(NecroSymTable* symtable, NecroSymbol symbol)
+{
+    NecroSymbolInfo info = necro_create_initial_symbol_info(symbol, (NecroSourceLoc) { 0 }, NULL, symtable->intern);
+    return necro_symtable_insert(symtable, info);
 }
 
 void necro_scope_set_last_introduced_id(NecroScope* scope, NecroID last_introduced_id)

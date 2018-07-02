@@ -249,8 +249,8 @@ void necro_kind_unify(NecroInfer* infer, NecroTypeKind* kind1, NecroTypeKind* ki
     assert(infer != NULL);
     assert(kind1 != NULL);
     assert(kind2 != NULL);
-    kind1 = necro_find(infer, kind1);
-    kind2 = necro_find(infer, kind2);
+    kind1 = necro_find(kind1);
+    kind2 = necro_find(kind2);
     if (kind1 == kind2)
         return;
     switch (kind1->type)
@@ -404,7 +404,7 @@ NecroTypeKind* necro_kind_gen(NecroInfer* infer, NecroTypeKind* kind)
     assert(infer != NULL);
     assert(kind != NULL);
     if (necro_is_infer_error(infer)) return NULL;
-    kind = necro_find(infer, kind);
+    kind = necro_find(kind);
     switch (kind->type)
     {
 

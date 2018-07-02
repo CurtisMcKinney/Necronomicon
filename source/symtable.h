@@ -31,6 +31,7 @@ struct NecroTypeClass;
 struct NecroTypeClassInstance;
 struct NecroNodePrototype;
 struct NecroCoreAST_Expression;
+struct NecroNodeAST;
 
 typedef struct
 {
@@ -56,6 +57,7 @@ typedef struct
     struct NecroNodePrototype*      node_prototype;
     size_t                          arity;
     uint32_t                        persistent_slot; // 0 indicates no persistence
+    struct NecroNodeAST*            necro_node_ast;
     bool                            is_constructor;
 } NecroSymbolInfo;
 
@@ -132,6 +134,7 @@ NecroID             necro_this_scope_find(NecroScope* scope, NecroSymbol symbol)
 NecroID             necro_scope_find(NecroScope* scope, NecroSymbol symbol);
 NecroID             necro_scoped_symtable_new_symbol_info(NecroScopedSymTable* table, NecroScope* scope, NecroSymbolInfo info);
 void                necro_scope_set_last_introduced_id(NecroScope* scope, NecroID id);
+NecroID             necro_symtable_manual_new_symbol(NecroSymTable* symtable, NecroSymbol symbol);
 
 NecroSymbolInfo*    necro_symtable_get_type_class_declaration_info(NecroSymTable* symtable, NecroAST_Node_Reified* ast);
 NecroSymbolInfo*    necro_symtable_get_type_class_instance_info(NecroSymTable* symtable, NecroAST_Node_Reified* ast);

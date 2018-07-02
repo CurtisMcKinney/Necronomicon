@@ -39,12 +39,6 @@
 -- countFrom x = x + d where
 --     d = 1 + delay 0 d
 
-addOne :: Int -> Int
-addOne x = x + 1
-
-subOne :: Int -> Int
-subOne x = x - 1
-
 -- -- To handle this we have to detect over application
 -- addThenSub :: Int -> Int
 -- addThenSub x = (delay addOne subOne) x
@@ -61,14 +55,35 @@ subOne x = x - 1
 -- pingPong :: Int -> Int
 -- pingPong = delay addOne (delay subOne pingPong)
 
+-- subOne :: Int -> Int
+-- subOne x = x - 1
+
+-- id :: a -> a
+-- id x = x
+
+-- addOne :: Int -> Int
+-- addOne x = x + 1
+--
 -- addOne' :: Int -> Int
 -- addOne' = addOne
+--
+-- addTwo :: Int -> Int -> Int
+-- addTwo x y = x + y
+--
+-- addTwo' :: Int -> Int -> Int
+-- addTwo' x = addTwo x
 
-addTwo :: Int -> Int -> Int
-addTwo x y = x + y
+adder :: Int -> Int
+adder x = x + 1
 
-addTwo' :: Int -> Int -> Int
-addTwo' x = addTwo x
+adder' :: Int -> Int
+adder' = \x -> x + 1
+
+oscf :: Int -> Int -> Int
+oscf x = (oscBetween f1 f2) x
+
+oscf' :: Int -> Int -> Int
+oscf' x y = (oscBetween f1 f2) x y
 
 main :: Int
 main = 100

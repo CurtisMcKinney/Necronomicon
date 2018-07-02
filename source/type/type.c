@@ -439,7 +439,7 @@ NecroType* necro_uncurry(NecroInfer* infer, NecroType* type)
 //=====================================================
 // Find
 //=====================================================
-NecroType* necro_find(NecroInfer* infer, NecroType* type)
+NecroType* necro_find(NecroType* type)
 {
     NecroType* prev = type;
     while (type != NULL && type->type == NECRO_TYPE_VAR)
@@ -512,7 +512,7 @@ bool necro_occurs(NecroInfer* infer, NecroType* type_var, NecroType* type, Necro
     if (type == NULL)
         return false;
     NecroVar name = type_var->var.var;
-    type          = necro_find(infer, type);
+    type          = necro_find(type);
     switch (type->type)
     {
     case NECRO_TYPE_VAR:
@@ -542,7 +542,7 @@ void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* clas
         return;
     if (type == NULL)
         return;
-    type = necro_find(infer, type);
+    type = necro_find(type);
     switch (type->type)
     {
     case NECRO_TYPE_VAR:
@@ -829,8 +829,8 @@ void necro_unify(NecroInfer* infer, NecroType* type1, NecroType* type2, NecroSco
     assert(infer != NULL);
     assert(type1 != NULL);
     assert(type2 != NULL);
-    type1 = necro_find(infer, type1);
-    type2 = necro_find(infer, type2);
+    type1 = necro_find(type1);
+    type2 = necro_find(type2);
     if (type1 == type2)
         return;
     switch (type1->type)
@@ -867,13 +867,13 @@ NecroInstSub* necro_create_inst_sub(NecroInfer* infer, NecroVar var_to_replace, 
     type_var->var.var.symbol = var_to_replace.symbol;
     if (necro_symtable_get(infer->symtable, var_to_replace.id) != NULL && necro_symtable_get(infer->symtable, var_to_replace.id)->type != NULL)// && necro_symtable_get(infer->symtable, var_to_replace.id)->type->type_kind != NULL)
     {
-        NecroType* find_type = necro_find(infer, necro_symtable_get(infer->symtable, var_to_replace.id)->type);
+        NecroType* find_type = necro_find(necro_symtable_get(infer->symtable, var_to_replace.id)->type);
         if (find_type != NULL && find_type->type_kind != NULL)
             type_var->type_kind = find_type->type_kind;
     }
     else if (infer->env.capacity > var_to_replace.id.id && infer->env.data[var_to_replace.id.id] != NULL)// && infer->env.data[var_to_replace.id.id]->type_kind != NULL)
     {
-        NecroType* find_type = necro_find(infer, infer->env.data[var_to_replace.id.id]);
+        NecroType* find_type = necro_find(infer->env.data[var_to_replace.id.id]);
         if (find_type != NULL && find_type->type_kind != NULL)
             type_var->type_kind = find_type->type_kind;
     }
@@ -899,7 +899,7 @@ NecroType* necro_inst_go(NecroInfer* infer, NecroType* type, NecroInstSub* subs,
     assert(infer != NULL);
     if (type == NULL)
         return NULL;
-    type = necro_find(infer, type);
+    type = necro_find(type);
     switch (type->type)
     {
     case NECRO_TYPE_VAR:
@@ -928,7 +928,7 @@ NecroType* necro_inst(NecroInfer* infer, NecroType* type, NecroScope* scope)
 {
     assert(infer != NULL);
     assert(type != NULL);
-    type = necro_find(infer, type);
+    type = necro_find(type);
     NecroType*    current_type = type;
     NecroInstSub* subs         = NULL;
     while (current_type->type == NECRO_TYPE_FOR)
@@ -945,7 +945,7 @@ NecroType* necro_inst_with_context(NecroInfer* infer, NecroType* type, NecroScop
 {
     assert(infer != NULL);
     assert(type != NULL);
-    type = necro_find(infer, type);
+    type = necro_find(type);
     NecroType*    current_type = type;
     NecroInstSub* subs         = NULL;
     *context                   = NULL;
@@ -1007,7 +1007,7 @@ NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type, NecroGenResult p
         return prev_result;
     }
 
-    NecroType* top = necro_find(infer, type);
+    NecroType* top = necro_find(type);
     if (top->type == NECRO_TYPE_VAR && top->var.is_rigid && !top->var.is_type_class_var)
     {
         prev_result.type = top;

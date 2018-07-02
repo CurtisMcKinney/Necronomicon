@@ -13,6 +13,8 @@
 
 #include "runtime.h"
 
+// TODO: easy IO Module which export top level IO stream values
+
 void   necro_init_mouse();
 void   necro_poll_mouse();
 extern DLLEXPORT int64_t _necro_mouse_x();

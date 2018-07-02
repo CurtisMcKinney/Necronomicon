@@ -171,24 +171,6 @@ size_t necro_codegen_count_num_args(NecroCodeGen* codegen, NecroCoreAST_DataCon*
     return count;
 }
 
-// TODO: Make non-variadic
-// char* necro_concat_strings(NecroSnapshotArena* arena,...)
-char* necro_concat_strings(NecroSnapshotArena* arena, uint32_t string_count, const char** strings)
-{
-    size_t total_length = 1;
-    for (size_t i = 0; i < string_count; ++i)
-    {
-        total_length += strlen(strings[i]);
-    }
-    char* buffer = necro_snapshot_arena_alloc(arena, total_length);
-    buffer[0] = '\0';
-    for (size_t i = 0; i < string_count; ++i)
-    {
-        strcat(buffer, strings[i]);
-    }
-    return buffer;
-}
-
 void necro_init_necro_data(NecroCodeGen* codegen, LLVMValueRef data_ptr, uint32_t value_1, uint32_t value_2)
 {
     NecroArenaSnapshot snapshot         = necro_get_arena_snapshot(&codegen->snapshot_arena);
@@ -239,7 +221,7 @@ void necro_codegen_debug_print(NecroCodeGen* codegen, int64_t value)
 bool necro_is_a_function_type(NecroCodeGen* codegen, NecroType* type)
 {
     assert(type != NULL);
-    type = necro_find(codegen->infer, type);
+    type = necro_find(type);
     switch (type->type)
     {
     case NECRO_TYPE_FOR:
@@ -287,44 +269,44 @@ NecroType* necro_get_ast_type(NecroCodeGen* codegen, NecroCoreAST_Expression* as
     }
 }
 
-size_t necro_ast_arity(NecroCodeGen* codegen, NecroCoreAST_Expression* ast)
-{
-    NecroType* type = necro_get_ast_type(codegen, ast);
-    assert(type != NULL);
-    type = necro_find(codegen->infer, type);
-    switch (type->type)
-    {
-    case NECRO_TYPE_FUN: /* FALL THROUGH */
-    case NECRO_TYPE_FOR:
-    {
-        size_t     arg_count = 0;
-        NecroType* for_alls  = type;
-        while (for_alls->type == NECRO_TYPE_FOR)
-        {
-            NecroTypeClassContext* for_all_context = type->for_all.context;
-            while (for_all_context != NULL)
-            {
-                arg_count++;
-                for_all_context = for_all_context->next;
-            }
-            for_alls = for_alls->for_all.type;
-        }
-        NecroType* arrows = for_alls;
-        while (arrows->type == NECRO_TYPE_FUN)
-        {
-            arg_count++;
-            arrows = arrows->fun.type2;
-        }
-        return arg_count;
-    }
-    default: return 0;
-    }
-}
+// size_t necro_ast_arity(NecroCodeGen* codegen, NecroCoreAST_Expression* ast)
+// {
+//     NecroType* type = necro_get_ast_type(codegen, ast);
+//     assert(type != NULL);
+//     type = necro_find(type);
+//     switch (type->type)
+//     {
+//     case NECRO_TYPE_FUN: /* FALL THROUGH */
+//     case NECRO_TYPE_FOR:
+//     {
+//         size_t     arg_count = 0;
+//         NecroType* for_alls  = type;
+//         while (for_alls->type == NECRO_TYPE_FOR)
+//         {
+//             NecroTypeClassContext* for_all_context = type->for_all.context;
+//             while (for_all_context != NULL)
+//             {
+//                 arg_count++;
+//                 for_all_context = for_all_context->next;
+//             }
+//             for_alls = for_alls->for_all.type;
+//         }
+//         NecroType* arrows = for_alls;
+//         while (arrows->type == NECRO_TYPE_FUN)
+//         {
+//             arg_count++;
+//             arrows = arrows->fun.type2;
+//         }
+//         return arg_count;
+//     }
+//     default: return 0;
+//     }
+// }
 
 LLVMTypeRef necro_type_to_llvm_type(NecroCodeGen* codegen, NecroType* type, bool is_top_level)
 {
     assert(type != NULL);
-    type = necro_find(codegen->infer, type);
+    type = necro_find(type);
     switch (type->type)
     {
     case NECRO_TYPE_VAR:

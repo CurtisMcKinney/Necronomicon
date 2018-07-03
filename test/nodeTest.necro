@@ -1,0 +1,7 @@
+data Nullary = Nullary
+
+data Unary = Unary Nullary
+
+data Both = Both Nullary Unary
+
+data Maybe a = Just a | Nothing

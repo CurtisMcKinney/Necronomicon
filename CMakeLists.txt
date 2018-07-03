@@ -73,7 +73,9 @@ set(project_SOURCES
     source/type/type_class.c
 
     source/core/core.c
-    source/core/node.c
+
+    source/node/node.c
+    source/node/node_type.c
 
     source/codegen/codegen.c
     source/codegen/case.c
@@ -111,7 +113,9 @@ set(project_HEADERS
     source/type/type_class.h
 
     source/core/core.h
-    source/core/node.h
+
+    source/node/node.h
+    source/node/node_type.h
 
     source/codegen/codegen.h
     source/codegen/case.h

@@ -140,6 +140,10 @@ int main(int32_t argc, char** argv)
             {
                 necro_compile(str, NECRO_PHASE_TRANSFORM_TO_CORE);
             }
+            else if (argc > 2 && strcmp(argv[2], "-node") == 0)
+            {
+                necro_compile(str, NECRO_PHASE_TRANSFORM_TO_NODE);
+            }
             else if (argc > 2 && strcmp(argv[2], "-codegen") == 0)
             {
                 necro_compile(str, NECRO_PHASE_CODEGEN);
@@ -150,7 +154,7 @@ int main(int32_t argc, char** argv)
             }
             else
             {
-                necro_compile(str, NECRO_PHASE_CODEGEN);
+                necro_compile(str, NECRO_PHASE_TRANSFORM_TO_CORE);
             }
 
         }

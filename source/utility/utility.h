@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <assert.h>
+#include <stdio.h>
 
 //=====================================================
 // A collection of general purpose structs and functions

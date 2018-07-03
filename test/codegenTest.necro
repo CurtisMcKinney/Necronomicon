@@ -79,12 +79,6 @@ adder x = x + 1
 adder' :: Int -> Int
 adder' = \x -> x + 1
 
-oscf :: Int -> Int -> Int
-oscf x = (oscBetween f1 f2) x
-
-oscf' :: Int -> Int -> Int
-oscf' x y = (oscBetween f1 f2) x y
-
 main :: Int
 main = 100
 

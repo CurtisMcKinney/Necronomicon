@@ -102,7 +102,7 @@ size_t necro_expression_list_count(NecroCoreAST_Expression* list)
     return count;
 }
 
-size_t necro_data_con_count(NecroCoreAST_DataCon* con)
+static size_t necro_data_con_count(NecroCoreAST_DataCon* con)
 {
     if (con == NULL) return 0;
     size_t count = 0;

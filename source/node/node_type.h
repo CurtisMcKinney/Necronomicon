@@ -18,10 +18,18 @@ struct NecroNodeProgram;
 
 typedef enum
 {
+    NECRO_STATE_STATIC,
+    NECRO_STATE_CONSTANT,
+    NECRO_STATE_STATELESS,
+    NECRO_STATE_STATEFUL,
+} NECRO_STATE_TYPE;
+
+typedef enum
+{
     NECRO_NODE_TYPE_UINT16,
     NECRO_NODE_TYPE_UINT32,
     NECRO_NODE_TYPE_INT,
-    NECRO_NODE_TYPE_DOUBLE,
+    NECRO_NODE_TYPE_FLOAT,
     NECRO_NODE_TYPE_CHAR,
     NECRO_NODE_TYPE_STRUCT,
     NECRO_NODE_TYPE_FN,
@@ -53,21 +61,18 @@ typedef struct NecroNodeType
     NECRO_NODE_TYPE_TYPE type;
 } NecroNodeType;
 
-static NecroNodeType poly_type; // Poly sentinel type
-
 NecroNodeType* necro_create_node_uint16_type(NecroPagedArena* arena);
 NecroNodeType* necro_create_node_uint32_type(NecroPagedArena* arena);
 NecroNodeType* necro_create_node_int_type(NecroPagedArena* arena);
-NecroNodeType* necro_create_node_double_type(NecroPagedArena* arena);
+NecroNodeType* necro_create_node_float_type(NecroPagedArena* arena);
 NecroNodeType* necro_create_node_char_type(NecroPagedArena* arena);
 NecroNodeType* necro_create_node_struct_type(NecroPagedArena* arena, NecroVar name, NecroNodeType** a_members, size_t num_members);
 NecroNodeType* necro_create_node_fn_type(NecroPagedArena* arena, NecroVar name, NecroNodeType* return_type, NecroNodeType** a_parameters, size_t num_parameters);
 NecroNodeType* necro_create_node_ptr_type(NecroPagedArena* arena, NecroNodeType* element_type);
-NecroNodeType* necro_create_node_poly_ptr_type(NecroPagedArena* arena);
-void           necro_type_check(NecroNodeType* type1, NecroNodeType* type2);
+void           necro_type_check(struct NecroNodeProgram* program, NecroNodeType* type1, NecroNodeType* type2);
 void           necro_node_print_node_type(NecroIntern* intern, NecroNodeType* type);
 void           necro_node_print_node_type_go(NecroIntern* intern, NecroNodeType* type, bool is_recursive);
 NecroNodeType* necro_core_ast_to_node_type(struct NecroNodeProgram* program, NecroCoreAST_Expression* core_ast);
-bool           is_poly_ptr(NecroNodeType* type);
+bool           is_poly_ptr(struct NecroNodeProgram* program, NecroNodeType* type);
 
 #endif // NECRO_NODE_TYPE_H

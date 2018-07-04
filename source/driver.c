@@ -23,6 +23,7 @@
 #include "driver.h"
 #include "core/core.h"
 #include "node/node.h"
+#include "node/node_print.h"
 #include "codegen/codegen.h"
 
 void necro_compile_impl(

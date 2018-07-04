@@ -283,6 +283,13 @@ typedef struct NecroNodeBitCast
     NecroNodeValue to_value;
 } NecroNodeBitCast;
 
+typedef struct NecroNodeNAlloc
+{
+    NecroNodeType* type_to_alloc;
+    uint16_t       slots_used;
+    NecroNodeValue result_reg;
+} NecroNodeNAlloc;
+
 /*
     Notes:
         * Nodes retain state
@@ -298,8 +305,9 @@ typedef enum
 
     NECRO_NODE_LOAD,
     NECRO_NODE_STORE,
-    NECRO_NODE_BIT_CAST,
-    NECRO_NODE_GEP,   // Maybe remove?
+    NECRO_NODE_NALLOC,
+    NECRO_NODE_BIT_CAST, // Maybe remove?
+    NECRO_NODE_GEP,      // Maybe remove?
 
     // Defs
     NECRO_NODE_STRUCT_DEF,
@@ -322,7 +330,8 @@ typedef struct NecroNodeAST
         NecroNodeStructDef     struct_def;
         NecroNodeConstantDef   constant;
         NecroNodeGetElementPtr gep; // Maybe remove?
-        NecroNodeBitCast       bit_cast;
+        NecroNodeBitCast       bit_cast; // Maybe remove?
+        NecroNodeNAlloc        nalloc;
     };
     NECRO_NODE_AST_TYPE type;
     NecroNodeType*      necro_node_type;
@@ -347,7 +356,8 @@ typedef struct NecroNodeProgram
 
     // Cached data
     size_t             gen_vars;
-    NecroNodeType*     necro_val_type;
+    NecroNodeType*     necro_poly_ptr_type;
+    // NecroNodeType*     necro_val_type;
     NecroNodeType*     necro_data_type;
 } NecroNodeProgram;
 

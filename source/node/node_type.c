@@ -69,17 +69,35 @@ NecroNodeType* necro_create_node_fn_type(NecroPagedArena* arena, NecroVar name, 
     return type;
 }
 
+bool is_poly_ptr(NecroNodeType* type)
+{
+    return type->type == NECRO_NODE_TYPE_PTR && type->ptr_type.element_type == &poly_type;
+}
+
 NecroNodeType* necro_create_node_ptr_type(NecroPagedArena* arena, NecroNodeType* element_type)
 {
+    assert(element_type != NULL);
+    // Poly ptrs collapse?
+    // if (is_poly_ptr(element_type))
+    //     return element_type;
     NecroNodeType* type         = necro_paged_arena_alloc(arena, sizeof(NecroNodeType));
     type->type                  = NECRO_NODE_TYPE_PTR;
     type->ptr_type.element_type = element_type;
     return type;
 }
 
+NecroNodeType* necro_create_node_poly_ptr_type(NecroPagedArena* arena)
+{
+    NecroNodeType* type         = necro_paged_arena_alloc(arena, sizeof(NecroNodeType));
+    type->type                  = NECRO_NODE_TYPE_PTR;
+    type->ptr_type.element_type = &poly_type;
+    return type;
+}
+
 void necro_type_check(NecroNodeType* type1, NecroNodeType* type2)
 {
     assert(type1->type == type2->type);
+    if (type1->type)
     switch (type1->type)
     {
     case NECRO_NODE_TYPE_STRUCT:
@@ -95,6 +113,8 @@ void necro_type_check(NecroNodeType* type1, NecroNodeType* type2)
         necro_type_check(type1->fn_type.return_type, type2->fn_type.return_type);
         return;
     case NECRO_NODE_TYPE_PTR:
+        if (is_poly_ptr(type1) || is_poly_ptr(type2))
+            return;
         necro_type_check(type1->ptr_type.element_type, type2->ptr_type.element_type);
         return;
     }
@@ -120,8 +140,15 @@ void necro_node_print_node_type_go(NecroIntern* intern, NecroNodeType* type, boo
         printf("char");
         return;
     case NECRO_NODE_TYPE_PTR:
-        necro_node_print_node_type_go(intern, type->ptr_type.element_type, false);
-        printf("*");
+        if (is_poly_ptr(type))
+        {
+            printf("Poly#*");
+        }
+        else
+        {
+            necro_node_print_node_type_go(intern, type->ptr_type.element_type, false);
+            printf("*");
+        }
         return;
     case NECRO_NODE_TYPE_STRUCT:
         if (is_recursive)
@@ -190,9 +217,11 @@ NecroNodeType* necro_type_to_node_type(NecroNodeProgram* program, NecroType* typ
     {
     case NECRO_TYPE_VAR:
     {
-        NecroNodeAST* node_ast = necro_symtable_get(program->symtable, program->prim_types->necro_val_type.id)->necro_node_ast;
-        assert(node_ast != NULL);
-        return node_ast->necro_node_type;
+        // NecroNodeAST* node_ast = necro_symtable_get(program->symtable, program->prim_types->necro_val_type.id)->necro_node_ast;
+        // assert(node_ast != NULL);
+        // return node_ast->necro_node_type;
+        // return program->necro_poly_ptr_type;
+        return &poly_type;
     }
     case NECRO_TYPE_APP:  assert(false); return NULL;
     case NECRO_TYPE_LIST: return necro_symtable_get(program->symtable, program->prim_types->list_type.id)->necro_node_ast->necro_node_type;

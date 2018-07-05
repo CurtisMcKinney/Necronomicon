@@ -178,6 +178,9 @@ typedef struct NecroNodeFnDef
     struct NecroNodeAST* call_body;
     NECRO_FN_TYPE        fn_type;
     struct NecroNodeAST* fn_value;
+    //-------------------
+    // compile time data
+    struct NecroNodeAST* _curr_block;
 } NecroNodeFnDef;
 
 typedef struct NecroNodeCall

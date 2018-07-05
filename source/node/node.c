@@ -366,7 +366,7 @@ NecroNodeAST* necro_create_node_call(NecroNodeProgram* program, NecroNodeAST* fn
     ast->call.parameters       = parameters;
     ast->call.num_parameters   = num_parameters;
     ast->call.fn_type          = fn_type;
-    ast->call.result_reg       = necro_create_reg(program, ast, necro_node_type, dest_name);
+    ast->call.result_reg       = necro_create_reg(program, ast, necro_node_type->fn_type.return_type, dest_name);
     ast->necro_node_type       = necro_node_type;
     return ast;
 }
@@ -394,6 +394,7 @@ NecroNodeAST* necro_create_node_fn(NecroNodeProgram* program, NecroVar name, Nec
     assert(call_body->type == NECRO_NODE_BLOCK);
     necro_symtable_get(program->symtable, name.id)->necro_node_ast = ast;
     necro_program_add_function(program, ast);
+    ast->fn_def._curr_block = call_body;
     return ast;
 }
 
@@ -543,78 +544,114 @@ void necro_add_statement_to_block(NecroNodeProgram* program, NecroNodeAST* block
     block->block.num_statements++;
 }
 
-NecroNodeAST* necro_build_nalloc(NecroNodeProgram* program, NecroNodeAST* block, NecroNodeType* type, uint16_t a_slots_used)
+void necro_append_block(NecroNodeProgram* program, NecroNodeAST* fn_def, NecroSymbol block_name)
+{
+    assert(fn_def->type == NECRO_NODE_FN_DEF);
+    NecroNodeAST* block = necro_create_node_block(program, block_name, NULL);
+    if (fn_def->fn_def.call_body == NULL)
+    {
+        fn_def->fn_def.call_body   = block;
+        fn_def->fn_def._curr_block = block;
+        return;
+    }
+    NecroNodeAST* fn_block = fn_def->fn_def.call_body;
+    while (block->block.next_block != NULL)
+    {
+        fn_block = fn_block->block.next_block;
+    }
+    fn_block->block.next_block = block;
+    fn_def->fn_def._curr_block = block;
+}
+
+void necro_move_to_block(NecroNodeProgram* program, NecroNodeAST* fn_def, NecroNodeAST* block)
+{
+    assert(fn_def->type == NECRO_NODE_FN_DEF);
+    assert(block->type == NECRO_NODE_BLOCK);
+    NecroNodeAST* fn_block = fn_def->fn_def.call_body;
+    while (fn_block != NULL)
+    {
+        if (fn_block == block)
+        {
+            fn_def->fn_def._curr_block = block;
+            return;
+        }
+        fn_block = fn_block->block.next_block;
+    }
+    assert(false);
+}
+
+NecroNodeAST* necro_build_nalloc(NecroNodeProgram* program, NecroNodeAST* fn_def, NecroNodeType* type, uint16_t a_slots_used)
 {
     assert(program != NULL);
     assert(type != NULL);
-    assert(block != NULL);
-    assert(block->type == NECRO_NODE_BLOCK);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_NODE_FN_DEF);
     NecroNodeAST* data_ptr = necro_create_nalloc(program, type, a_slots_used);
-    necro_add_statement_to_block(program, block, data_ptr);
+    necro_add_statement_to_block(program, fn_def->fn_def._curr_block, data_ptr);
     return data_ptr->nalloc.result_reg;
 }
 
-void necro_build_store_into_tag(NecroNodeProgram* program, NecroNodeAST* block, NecroNodeAST* source_value, NecroNodeAST* dest_ptr)
+void necro_build_store_into_tag(NecroNodeProgram* program, NecroNodeAST* fn_def, NecroNodeAST* source_value, NecroNodeAST* dest_ptr)
 {
     assert(program != NULL);
-    assert(block != NULL);
-    assert(block->type == NECRO_NODE_BLOCK);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_NODE_FN_DEF);
     NecroNodeAST* store_ast = necro_create_node_store_into_tag(program, source_value, dest_ptr);
-    necro_add_statement_to_block(program, block, store_ast);
+    necro_add_statement_to_block(program, fn_def->fn_def._curr_block, store_ast);
 }
 
-void necro_build_store_into_ptr(NecroNodeProgram* program, NecroNodeAST* block, NecroNodeAST* source_value, NecroNodeAST* dest_ptr)
+void necro_build_store_into_ptr(NecroNodeProgram* program, NecroNodeAST* fn_def, NecroNodeAST* source_value, NecroNodeAST* dest_ptr)
 {
     assert(program != NULL);
-    assert(block != NULL);
-    assert(block->type == NECRO_NODE_BLOCK);
-    necro_add_statement_to_block(program, block, necro_create_node_store_into_ptr(program, source_value, dest_ptr));
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_NODE_FN_DEF);
+    necro_add_statement_to_block(program, fn_def->fn_def._curr_block, necro_create_node_store_into_ptr(program, source_value, dest_ptr));
 }
 
-void necro_build_store_into_slot(NecroNodeProgram* program, NecroNodeAST* block, NecroNodeAST* source_value, NecroNodeAST* dest_ptr, NecroSlot dest_slot)
+void necro_build_store_into_slot(NecroNodeProgram* program, NecroNodeAST* fn_def, NecroNodeAST* source_value, NecroNodeAST* dest_ptr, NecroSlot dest_slot)
 {
     assert(program != NULL);
-    assert(block != NULL);
-    assert(block->type == NECRO_NODE_BLOCK);
-    necro_add_statement_to_block(program, block, necro_create_node_store_into_slot(program, source_value, dest_ptr, dest_slot));
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_NODE_FN_DEF);
+    necro_add_statement_to_block(program, fn_def->fn_def._curr_block, necro_create_node_store_into_slot(program, source_value, dest_ptr, dest_slot));
 }
 
-void necro_build_store_into_global(NecroNodeProgram* program, NecroNodeAST* block, NecroNodeAST* source_value, NecroNodeAST* dest_global, NecroNodeType* necro_node_type)
+void necro_build_store_into_global(NecroNodeProgram* program, NecroNodeAST* fn_def, NecroNodeAST* source_value, NecroNodeAST* dest_global, NecroNodeType* necro_node_type)
 {
     assert(program != NULL);
-    assert(block != NULL);
-    assert(block->type == NECRO_NODE_BLOCK);
-    necro_add_statement_to_block(program, block, necro_create_node_store_into_global(program, source_value, dest_global, necro_node_type));
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_NODE_FN_DEF);
+    necro_add_statement_to_block(program, fn_def->fn_def._curr_block, necro_create_node_store_into_global(program, source_value, dest_global, necro_node_type));
 }
 
-NecroNodeAST* necro_build_bit_cast(NecroNodeProgram* program, NecroNodeAST* block, NecroNodeAST* value, NecroNodeType* to_type)
+NecroNodeAST* necro_build_bit_cast(NecroNodeProgram* program, NecroNodeAST* fn_def, NecroNodeAST* value, NecroNodeType* to_type)
 {
     assert(program != NULL);
-    assert(block != NULL);
-    assert(block->type == NECRO_NODE_BLOCK);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_NODE_FN_DEF);
     NecroNodeAST* ast = necro_create_bit_cast(program, value, to_type);
-    necro_add_statement_to_block(program, block, ast);
+    necro_add_statement_to_block(program, fn_def->fn_def._curr_block, ast);
     return ast->bit_cast.to_value;
 }
 
-static NecroNodeAST* necro_build_call(NecroNodeProgram* program, NecroNodeAST* block, NecroNodeAST* fn_value, NecroNodeAST** a_parameters, size_t num_parameters, NECRO_FN_TYPE fn_type, NecroNodeType* necro_node_type, const char* dest_name)
+static NecroNodeAST* necro_build_call(NecroNodeProgram* program, NecroNodeAST* fn_def, NecroNodeAST* fn_to_call_value, NecroNodeAST** a_parameters, size_t num_parameters, NECRO_FN_TYPE fn_type, NecroNodeType* necro_node_type, const char* dest_name_header)
 {
     assert(program != NULL);
-    assert(block != NULL);
-    assert(block->type == NECRO_NODE_BLOCK);
-    NecroNodeAST* ast = necro_create_node_call(program, fn_value, a_parameters, num_parameters, fn_type, necro_node_type, dest_name);
-    necro_add_statement_to_block(program, block, ast);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_NODE_FN_DEF);
+    NecroNodeAST* ast = necro_create_node_call(program, fn_to_call_value, a_parameters, num_parameters, fn_type, necro_node_type, dest_name_header);
+    necro_add_statement_to_block(program, fn_def->fn_def._curr_block, ast);
     return ast->call.result_reg;
 }
 
-void necro_build_return(NecroNodeProgram* program, NecroNodeAST* block, NecroNodeAST* return_value)
+void necro_build_return(NecroNodeProgram* program, NecroNodeAST* fn_def, NecroNodeAST* return_value)
 {
     assert(program != NULL);
-    assert(block != NULL);
-    assert(block->type == NECRO_NODE_BLOCK);
-    block->block.terminator                                 = necro_paged_arena_alloc(&program->arena, sizeof(NecroTerminator));
-    block->block.terminator->type                           = NECRO_TERM_RETURN;
-    block->block.terminator->return_terminator.return_value = return_value;
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_NODE_FN_DEF);
+    fn_def->fn_def._curr_block->block.terminator                                 = necro_paged_arena_alloc(&program->arena, sizeof(NecroTerminator));
+    fn_def->fn_def._curr_block->block.terminator->type                           = NECRO_TERM_RETURN;
+    fn_def->fn_def._curr_block->block.terminator->return_terminator.return_value = return_value;
 }
 
 ///////////////////////////////////////////////////////
@@ -726,7 +763,6 @@ void necro_core_to_node_1_data_con(NecroNodeProgram* program, NecroCoreAST_DataC
     assert(struct_type != NULL);
     assert(struct_type->type = NECRO_NODE_STRUCT_DEF);
     NecroArenaSnapshot snapshot = necro_get_arena_snapshot(&program->snapshot_arena);
-    necro_symtable_get(program->symtable, con->condid.id)->necro_node_ast = struct_type;
     char*  con_name  = necro_concat_strings(&program->snapshot_arena, 3, (const char*[]) { "mk", necro_intern_get_string(program->intern, con->condid.symbol), "#" });
     NecroVar con_var = necro_gen_var(program, NULL, con_name, NECRO_NAME_UNIQUE);
     size_t arg_count = necro_count_data_con_args(con);
@@ -744,8 +780,8 @@ void necro_core_to_node_1_data_con(NecroNodeProgram* program, NecroCoreAST_DataC
     NecroNodeType*  mk_fn_type      = necro_create_node_fn_type(&program->arena, con_var, struct_ptr_type, parameters, arg_count);
     NecroNodeAST*   mk_fn_body      = necro_create_node_block(program, necro_intern_string(program->intern, "enter"), NULL);
     NecroNodeAST*   mk_fn_def       = necro_create_node_fn(program, con_var, mk_fn_body, mk_fn_type);
-    NecroNodeAST*   data_ptr        = necro_build_nalloc(program, mk_fn_body, struct_type->necro_node_type, (uint16_t) arg_count);
-    necro_build_store_into_tag(program, mk_fn_body, necro_create_uint32_necro_node_value(program, con_number), data_ptr);
+    NecroNodeAST*   data_ptr        = necro_build_nalloc(program, mk_fn_def, struct_type->necro_node_type, (uint16_t) arg_count);
+    necro_build_store_into_tag(program, mk_fn_def, necro_create_uint32_necro_node_value(program, con_number), data_ptr);
 
     //--------------
     // Parameters
@@ -755,15 +791,16 @@ void necro_core_to_node_1_data_con(NecroNodeProgram* program, NecroCoreAST_DataC
         {
             char itoa_buff_2[6];
             char* value_name = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "param_", itoa(i, itoa_buff_2, 10) });
-            necro_build_store_into_slot(program, mk_fn_body, necro_create_param_reg(program, con_var, i, parameters[i]), data_ptr, (NecroSlot) { .slot_num = i, .necro_node_type = program->necro_poly_ptr_type });
+            necro_build_store_into_slot(program, mk_fn_def, necro_create_param_reg(program, con_var, i, parameters[i]), data_ptr, (NecroSlot) { .slot_num = i, .necro_node_type = program->necro_poly_ptr_type });
         }
         else
         {
-            necro_build_store_into_slot(program, mk_fn_body, necro_create_null_necro_node_value(program, program->necro_poly_ptr_type), data_ptr, (NecroSlot) { .slot_num = i, .necro_node_type = program->necro_poly_ptr_type });
+            necro_build_store_into_slot(program, mk_fn_def, necro_create_null_necro_node_value(program, program->necro_poly_ptr_type), data_ptr, (NecroSlot) { .slot_num = i, .necro_node_type = program->necro_poly_ptr_type });
         }
     }
 
-    necro_build_return(program, mk_fn_body, data_ptr);
+    necro_symtable_get(program->symtable, con->condid.id)->necro_node_ast = mk_fn_def->fn_def.fn_value;
+    necro_build_return(program, mk_fn_def, data_ptr);
     necro_rewind_arena(&program->snapshot_arena, snapshot);
 }
 
@@ -1122,15 +1159,15 @@ NecroNodeAST* necro_core_to_node_3_bind(NecroNodeProgram* program, NecroCoreAST_
     NecroNodeAST*   update_fn_body  = necro_create_node_block(program, necro_intern_string(program->intern, "enter"), NULL);
     NecroNodeAST*   update_fn_def   = necro_create_node_fn(program, update_var, update_fn_body, update_fn_type);
     program->functions.length--; // HACK: Don't want the update function in the functions list, instead it belongs to the node
+    node_def->node_def.update_fn = update_fn_def;
 
     // Go deeper
-    // NecroNodeValue result = necro_core_to_node_3_go(program, core_ast->bind.expr, node_def);
+    NecroNodeAST* result = necro_core_to_node_3_go(program, core_ast->bind.expr, node_def);
 
     // Finish function
-    NecroNodeAST* result = necro_create_null_necro_node_value(program, necro_create_node_ptr_type(&program->arena, node_def->necro_node_type));
-    necro_build_return(program, update_fn_body, result);
+    // NecroNodeAST* result = necro_create_null_necro_node_value(program, necro_create_node_ptr_type(&program->arena, node_def->necro_node_type));
+    necro_build_return(program, update_fn_def, result);
     necro_rewind_arena(&program->snapshot_arena, snapshot);
-    node_def->node_def.update_fn = update_fn_def;
     return NULL;
 }
 
@@ -1194,6 +1231,15 @@ NecroNodeAST* necro_core_to_node_3_var(NecroNodeProgram* program, NecroCoreAST_E
     assert(core_ast->expr_type == NECRO_CORE_EXPR_VAR);
     if (outer != NULL)
         assert(outer->type == NECRO_NODE_DEF);
+    NecroSymbolInfo* info = necro_symtable_get(program->symtable, core_ast->var.id);
+    if (info->is_constructor)
+    {
+        return necro_build_call(program, outer->node_def.update_fn, info->necro_node_ast, NULL, 0, NECRO_FN_FN, info->necro_node_ast->necro_node_type, "con_tmp");
+    }
+    else
+    {
+        assert(false);
+    }
     // NecroNodeAST* node_ast = necro_symtable_get(program->symtable, core_ast->var.id)->necro_node_ast;
     // if (node_ast == NULL)
     // {

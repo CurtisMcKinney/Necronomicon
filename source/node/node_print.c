@@ -15,16 +15,17 @@ void necro_node_print_fn(NecroNodeProgram* program, NecroNodeAST* ast, size_t de
     if (ast->fn_def.fn_type == NECRO_FN_FN)
     {
         print_white_space(depth);
-        printf("fn ");
-        necro_node_print_node_type_go(program->intern, ast->necro_node_type->fn_type.return_type, false);
-        printf(" %s(", necro_intern_get_string(program->intern, ast->fn_def.name.symbol));
+        // printf("fn ");
+        printf("fn %s(", necro_intern_get_string(program->intern, ast->fn_def.name.symbol));
         for (size_t i = 0; i < ast->necro_node_type->fn_type.num_parameters; ++i)
         {
             necro_node_print_node_type_go(program->intern, ast->necro_node_type->fn_type.parameters[i], false);
             if (i < ast->necro_node_type->fn_type.num_parameters - 1)
                 printf(", ");
         }
-        printf(")\n");
+        printf(") -> ");
+        necro_node_print_node_type_go(program->intern, ast->necro_node_type->fn_type.return_type, false);
+        printf("\n");
         print_white_space(depth);
         printf("{\n");
         necro_node_print_ast_go(program, ast->fn_def.call_body, depth + 4);
@@ -33,7 +34,13 @@ void necro_node_print_fn(NecroNodeProgram* program, NecroNodeAST* ast, size_t de
     }
 }
 
-void necro_print_node_value(NecroNodeProgram* program, NecroNodeAST* ast)
+typedef enum
+{
+     NECRO_PRINT_VALUE_TYPE,
+     NECRO_DONT_PRINT_VALUE_TYPE
+} NECRO_SHOULD_PRINT_VALUE_TYPE;
+
+void necro_print_node_value(NecroNodeProgram* program, NecroNodeAST* ast, NECRO_SHOULD_PRINT_VALUE_TYPE should_print_value_type)
 {
     NecroNodeValue value = ast->value;
     switch (value.value_type)
@@ -63,9 +70,12 @@ void necro_print_node_value(NecroNodeProgram* program, NecroNodeAST* ast)
         assert(false);
         break;
     }
-    printf(" (");
-    necro_node_print_node_type_go(program->intern, value.necro_node_type, false);
-    printf(")");
+    if (should_print_value_type == NECRO_PRINT_VALUE_TYPE)
+    {
+        printf(" (");
+        necro_node_print_node_type_go(program->intern, value.necro_node_type, false);
+        printf(")");
+    }
 }
 
 void necro_node_print_block(NecroNodeProgram* program, NecroNodeAST* ast, size_t depth)
@@ -84,7 +94,7 @@ void necro_node_print_block(NecroNodeProgram* program, NecroNodeAST* ast, size_t
     case NECRO_TERM_RETURN:
         print_white_space(depth);
         printf("return ");
-        necro_print_node_value(program, ast->block.terminator->return_terminator.return_value);
+        necro_print_node_value(program, ast->block.terminator->return_terminator.return_value, NECRO_PRINT_VALUE_TYPE);
         printf("\n");
         return;
     case NECRO_TERM_SWITCH:
@@ -103,11 +113,11 @@ void necro_node_print_call(NecroNodeProgram* program, NecroNodeAST* ast, size_t 
     assert(ast->type == NECRO_NODE_CALL);
     // printf("%%%s = %s(", necro_intern_get_string(program->intern, ast->call.result_reg.reg_name.symbol), necro_intern_get_string(program->intern, ast->call.name.symbol));
     printf("%%%s = call ", necro_intern_get_string(program->intern, ast->call.result_reg->value.reg_name.symbol));
-    necro_print_node_value(program, ast->call.fn_value);
+    necro_print_node_value(program, ast->call.fn_value, NECRO_DONT_PRINT_VALUE_TYPE);
     printf("(");
     for (size_t i = 0; i < ast->call.num_parameters; ++i)
     {
-        necro_print_node_value(program, ast->call.parameters[i]);
+        necro_print_node_value(program, ast->call.parameters[i], NECRO_DONT_PRINT_VALUE_TYPE);
         if (i < ast->call.num_parameters - 1)
             printf(", ");
     }
@@ -121,27 +131,27 @@ void necro_node_print_store(NecroNodeProgram* program, NecroNodeAST* ast, size_t
     {
     case NECRO_STORE_TAG:
         printf("store ");
-        necro_print_node_value(program, ast->store.source_value);
+        necro_print_node_value(program, ast->store.source_value, NECRO_PRINT_VALUE_TYPE);
         printf(" ");
-        necro_print_node_value(program, ast->store.dest_ptr);
+        necro_print_node_value(program, ast->store.dest_ptr, NECRO_PRINT_VALUE_TYPE);
         printf(" (tag)");
         return;
     case NECRO_STORE_PTR:
         printf("store ");
-        necro_print_node_value(program, ast->store.source_value);
+        necro_print_node_value(program, ast->store.source_value, NECRO_PRINT_VALUE_TYPE);
         printf(" ");
-        necro_print_node_value(program, ast->store.dest_ptr);
+        necro_print_node_value(program, ast->store.dest_ptr, NECRO_PRINT_VALUE_TYPE);
         return;
     case NECRO_STORE_SLOT:
         printf("store ");
-        necro_print_node_value(program, ast->store.source_value);
+        necro_print_node_value(program, ast->store.source_value, NECRO_PRINT_VALUE_TYPE);
         printf(" ");
-        necro_print_node_value(program, ast->store.store_slot.dest_ptr);
+        necro_print_node_value(program, ast->store.store_slot.dest_ptr, NECRO_PRINT_VALUE_TYPE);
         printf(" (slot %d)", ast->store.store_slot.dest_slot.slot_num);
         return;
     case NECRO_STORE_GLOBAL:
         printf("store");
-        necro_print_node_value(program, ast->store.source_value);
+        necro_print_node_value(program, ast->store.source_value, NECRO_PRINT_VALUE_TYPE);
         printf("%s", necro_intern_get_string(program->intern, ast->store.dest_global->value.global_name.symbol));
         printf(" (global)");
         return;
@@ -152,7 +162,7 @@ void necro_node_print_bit_cast(NecroNodeProgram* program, NecroNodeAST* ast, siz
 {
     assert(ast->type == NECRO_NODE_BIT_CAST);
     printf("%%%s = bit_cast ", necro_intern_get_string(program->intern, ast->bit_cast.to_value->value.reg_name.symbol));
-    necro_print_node_value(program, ast->bit_cast.from_value);
+    necro_print_node_value(program, ast->bit_cast.from_value, NECRO_PRINT_VALUE_TYPE);
     printf(" => (");
     necro_node_print_node_type_go(program->intern, ast->bit_cast.to_value->necro_node_type, false);
     printf(")");
@@ -309,4 +319,3 @@ void necro_print_node_program(NecroNodeProgram* program)
         puts("");
     }
 }
-

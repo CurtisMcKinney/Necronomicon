@@ -4,18 +4,21 @@ data Both       = Both Nullary Unary
 data Maybe  a   = Just a | Nothing
 data Either a b = Left a | Right b
 
-noStatePlease :: Nullary
-noStatePlease = x where
-    x = Nullary
+simple :: Nullary
+simple = Nullary
 
-myCoolNullary :: Nullary
-myCoolNullary = x where
-    x = delay Nullary x
-
-feedBoth :: Both
-feedBoth = Both x y where
-    x = x
-    y = y
+-- noStatePlease :: Nullary
+-- noStatePlease = x where
+--     x = Nullary
+--
+-- myCoolNullary :: Nullary
+-- myCoolNullary = x where
+--     x = delay Nullary x
+--
+-- feedBoth :: Both
+-- feedBoth = Both x y where
+--     x = x
+--     y = y
 
 -- fnTest :: Nullary -> Nullary
 -- fnTest n = n

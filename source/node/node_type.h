@@ -20,7 +20,7 @@ typedef enum
 {
     NECRO_STATE_STATIC,
     NECRO_STATE_CONSTANT,
-    NECRO_STATE_STATELESS,
+    NECRO_STATE_POINTWISE,
     NECRO_STATE_STATEFUL,
 } NECRO_STATE_TYPE;
 
@@ -52,7 +52,7 @@ typedef struct NecroNodeType
         } ptr_type;
         struct NecroNodeFnType
         {
-            NecroVar               name;
+            // NecroVar               name;
             struct NecroNodeType*  return_type;
             struct NecroNodeType** parameters;
             size_t                 num_parameters;
@@ -67,12 +67,13 @@ NecroNodeType* necro_create_node_int_type(NecroPagedArena* arena);
 NecroNodeType* necro_create_node_float_type(NecroPagedArena* arena);
 NecroNodeType* necro_create_node_char_type(NecroPagedArena* arena);
 NecroNodeType* necro_create_node_struct_type(NecroPagedArena* arena, NecroVar name, NecroNodeType** a_members, size_t num_members);
-NecroNodeType* necro_create_node_fn_type(NecroPagedArena* arena, NecroVar name, NecroNodeType* return_type, NecroNodeType** a_parameters, size_t num_parameters);
+NecroNodeType* necro_create_node_fn_type(NecroPagedArena* arena, NecroNodeType* return_type, NecroNodeType** a_parameters, size_t num_parameters);
 NecroNodeType* necro_create_node_ptr_type(NecroPagedArena* arena, NecroNodeType* element_type);
 void           necro_type_check(struct NecroNodeProgram* program, NecroNodeType* type1, NecroNodeType* type2);
 void           necro_node_print_node_type(NecroIntern* intern, NecroNodeType* type);
 void           necro_node_print_node_type_go(NecroIntern* intern, NecroNodeType* type, bool is_recursive);
 NecroNodeType* necro_core_ast_to_node_type(struct NecroNodeProgram* program, NecroCoreAST_Expression* core_ast);
+NecroNodeType* necro_type_to_node_type(struct NecroNodeProgram* program, NecroType* type);
 bool           is_poly_ptr(struct NecroNodeProgram* program, NecroNodeType* type);
 
 #endif // NECRO_NODE_TYPE_H

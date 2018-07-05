@@ -4,6 +4,7 @@
  */
 
 #include "node_type.h"
+#include <ctype.h>
 #include "node/node.h"
 
 ///////////////////////////////////////////////////////
@@ -56,11 +57,10 @@ NecroNodeType* necro_create_node_struct_type(NecroPagedArena* arena, NecroVar na
     return type;
 }
 
-NecroNodeType* necro_create_node_fn_type(NecroPagedArena* arena, NecroVar name, NecroNodeType* return_type, NecroNodeType** a_parameters, size_t num_parameters)
+NecroNodeType* necro_create_node_fn_type(NecroPagedArena* arena, NecroNodeType* return_type, NecroNodeType** a_parameters, size_t num_parameters)
 {
     NecroNodeType* type          = necro_paged_arena_alloc(arena, sizeof(NecroNodeType));
     type->type                   = NECRO_NODE_TYPE_FN;
-    type->fn_type.name           = name;
     type->fn_type.return_type    = return_type;
     NecroNodeType** parameters   = necro_paged_arena_alloc(arena, num_parameters * sizeof(NecroNodeType*));
     memcpy(parameters, a_parameters, num_parameters * sizeof(NecroNodeType*));
@@ -85,6 +85,8 @@ NecroNodeType* necro_create_node_ptr_type(NecroPagedArena* arena, NecroNodeType*
 
 void necro_type_check(NecroNodeProgram* program, NecroNodeType* type1, NecroNodeType* type2)
 {
+    assert(type1 != NULL);
+    assert(type2 != NULL);
     assert(type1->type == type2->type);
     assert(type1 != program->necro_poly_type);
     assert(type2 != program->necro_poly_type);
@@ -95,7 +97,7 @@ void necro_type_check(NecroNodeProgram* program, NecroNodeType* type1, NecroNode
         assert(type1->struct_type.name.id.id == type2->struct_type.name.id.id);
         return;
     case NECRO_NODE_TYPE_FN:
-        assert(type1->fn_type.name.id.id == type2->fn_type.name.id.id);
+        // assert(type1->fn_type.name.id.id == type2->fn_type.name.id.id);
         assert(type1->fn_type.num_parameters == type2->fn_type.num_parameters);
         for (size_t i = 0; i < type1->fn_type.num_parameters; ++i)
         {
@@ -193,7 +195,36 @@ NecroType* necro_core_ast_to_necro_type(NecroNodeProgram* program, NecroCoreAST_
     }
 }
 
-NecroNodeType* necro_type_to_node_type(NecroNodeProgram* program, NecroType* type, NecroCoreAST_Expression* ast, bool is_top_level)
+NecroNodeType* necro_function_type_to_node_function_type(NecroNodeProgram* program, NecroType* type)
+{
+    assert(type != NULL);
+    type = necro_find(type);
+    assert(type->type == NECRO_TYPE_FUN);
+    size_t arg_count = 0;
+    size_t arg_index = 0;
+    // Count args
+    NecroType* arrows = necro_find(type);
+    while (arrows->type == NECRO_TYPE_FUN)
+    {
+        arg_count++;
+        arrows = arrows->fun.type2;
+        arrows = necro_find(arrows);
+    }
+    NecroNodeType** args = necro_paged_arena_alloc(&program->arena, arg_count * sizeof(NecroNodeType*));
+    arrows = necro_find(type);
+    while (arrows->type == NECRO_TYPE_FUN)
+    {
+        args[arg_index] = necro_create_node_ptr_type(&program->arena, necro_type_to_node_type(program, arrows->fun.type1));
+        arg_index++;
+        arrows = arrows->fun.type2;
+        arrows = necro_find(arrows);
+    }
+    NecroNodeType* return_type   = necro_create_node_ptr_type(&program->arena, necro_type_to_node_type(program, arrows));
+    NecroNodeType* function_type = necro_create_node_fn_type(&program->arena, return_type, args, arg_count);
+    return function_type;
+}
+
+NecroNodeType* necro_type_to_node_type(NecroNodeProgram* program, NecroType* type)
 {
     assert(type != NULL);
     type = necro_find(type);
@@ -203,10 +234,11 @@ NecroNodeType* necro_type_to_node_type(NecroNodeProgram* program, NecroType* typ
     case NECRO_TYPE_LIST: return necro_symtable_get(program->symtable, program->prim_types->list_type.id)->necro_node_ast->necro_node_type;
     case NECRO_TYPE_CON:  return necro_symtable_get(program->symtable, type->con.con.id)->necro_node_ast->necro_node_type;
     case NECRO_TYPE_APP:  assert(false); return NULL;
-    case NECRO_TYPE_FUN:  // !FALLTHROUGH!
+    case NECRO_TYPE_FUN:  return necro_function_type_to_node_function_type(program, type);
     case NECRO_TYPE_FOR:
-        assert(false);
-        // return necro_function_type(codegen, type, is_top_level);
+        while (type->type == NECRO_TYPE_FOR)
+            type = type->for_all.type;
+        return necro_type_to_node_type(program, type);
     default: assert(false);
     }
     return NULL;
@@ -225,14 +257,36 @@ NecroNodeType* necro_core_ast_to_node_type(NecroNodeProgram* program, NecroCoreA
         case NECRO_AST_CONSTANT_FLOAT:   return necro_create_node_float_type(&program->arena);
         default:                         assert(false); return NULL;
         }
-    case NECRO_CORE_EXPR_VAR:            return necro_type_to_node_type(program, necro_core_ast_to_necro_type(program, ast), ast, false);
-    case NECRO_CORE_EXPR_BIND:           return necro_type_to_node_type(program, necro_symtable_get(program->symtable, ast->bind.var.id)->type, ast, false);
-    // case NECRO_CORE_EXPR_LAM:
-    //     assert(false && "TODO: Finish!");
-    //     return NULL;
-    case NECRO_CORE_EXPR_DATA_CON:  return necro_type_to_node_type(program, necro_core_ast_to_necro_type(program, ast), ast, true);
-    case NECRO_CORE_EXPR_TYPE:      return necro_type_to_node_type(program, ast->type.type, ast, true);
-    case NECRO_CORE_EXPR_APP:       assert(false); return NULL;
+    case NECRO_CORE_EXPR_VAR:            return necro_type_to_node_type(program, necro_core_ast_to_necro_type(program, ast));
+    case NECRO_CORE_EXPR_BIND:           return necro_type_to_node_type(program, necro_symtable_get(program->symtable, ast->bind.var.id)->type);
+    case NECRO_CORE_EXPR_LAM:
+        assert(false && "TODO: Finish!");
+        return NULL;
+    case NECRO_CORE_EXPR_DATA_CON:  return necro_type_to_node_type(program, necro_core_ast_to_necro_type(program, ast));
+    case NECRO_CORE_EXPR_TYPE:      return necro_type_to_node_type(program, ast->type.type);
+    case NECRO_CORE_EXPR_APP:
+    {
+        // TODO / HACK: Please make this suck less.
+        // Assuming this is always called with types...
+        // Turn into a necro type by hand....yuck
+        NecroCoreAST_Expression* app = ast;
+        while (app->expr_type == NECRO_CORE_EXPR_APP)
+        {
+            app = app->app.exprA;
+        }
+        if (app->expr_type == NECRO_CORE_EXPR_VAR)
+        {
+            const char* var_string = necro_intern_get_string(program->intern, ast->var.symbol);
+            if (isupper(var_string[0])) // HACK HACK HACK HACK!!!!
+                return program->necro_poly_ptr_type;
+            NecroType* necro_type = NULL;
+        }
+        else if (app->expr_type == NECRO_CORE_EXPR_DATA_CON)
+        {
+            assert(false);
+            return NULL;
+        }
+    }
     case NECRO_CORE_EXPR_LET:       assert(false); return NULL;
     case NECRO_CORE_EXPR_CASE:      assert(false); return NULL;
     case NECRO_CORE_EXPR_DATA_DECL: assert(false); return NULL;

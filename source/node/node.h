@@ -20,11 +20,21 @@
 // Node
 //-----------
 // * Abstract machine target for necrolang
+// * LLVM-IR like, but simpler and necrolang specific
 // * Infinite registers
 // * Heap defined by a graph of nodes containing nodes
 // * Nodes retain state across multiple calls to main
-// * LLVM-IR like, but simpler and necrolang specific
 ///////////////////////////////////////////////////////
+
+/*
+    TODO:
+        * case
+        * dynamic nodes / dynamic application (requires a load) (recursion and closure require dynamic nodes / applications)
+        * recursion
+        * prim ops
+        * closures
+        * globals
+*/
 
 ///////////////////////////////////////////////////////
 // Forward Declarations
@@ -62,7 +72,6 @@ typedef struct NecroNodeValue
         NecroVar global_name;
     };
     NECRO_NODE_VALUE_TYPE value_type;
-    NecroNodeType*        necro_node_type;
 } NecroNodeValue;
 
 typedef struct NecroSlot
@@ -141,9 +150,11 @@ typedef struct NecroNodeDef
     NecroNodeType*       fn_type;
     bool                 default_mk;
     bool                 default_init;
+    struct NodeAST*      decl_group;
 
     // args
     NecroVar*            arg_names;
+    NecroType**          arg_types;
     size_t               num_arg_names;
 
     // members
@@ -151,6 +162,7 @@ typedef struct NecroNodeDef
     size_t               num_members;
     size_t               members_size;
 
+    struct NecroNodeAST* global_value; // If global
     // cache if and where slots have been loaded!
 } NecroNodeDef;
 
@@ -189,7 +201,6 @@ typedef struct NecroNodeCall
     struct NecroNodeAST** parameters;
     size_t                num_parameters;
     struct NecroNodeAST*  result_reg;
-    NECRO_FN_TYPE         fn_type;
 } NecroNodeCall;
 
 typedef enum
@@ -223,7 +234,7 @@ typedef struct NecroNodeLoad
         struct
         {
             struct NecroNodeAST* source_ptr;
-            NecroSlot            source_slot;
+            size_t               source_slot;
         } load_slot;
         struct NecroNodeAST* source_global;
     };
@@ -246,7 +257,7 @@ typedef struct NecroNodeStore
         struct
         {
             struct NecroNodeAST* dest_ptr;
-            NecroSlot            dest_slot;
+            size_t               dest_slot;
         } store_slot;
         struct NecroNodeAST* dest_global;
     };
@@ -263,8 +274,11 @@ typedef struct NecroNodeConstantDef
 {
     union
     {
-        NecroNodeLit*       constant_lit;
-        NecroNodeStructDef* constant_struct;
+        NecroNodeLit constant_lit;
+        struct NecroConstantStruct
+        {
+            NecroVar name;
+        } constant_struct;
     };
     enum
     {
@@ -273,14 +287,14 @@ typedef struct NecroNodeConstantDef
     } constant_type;
 } NecroNodeConstantDef;
 
-// // TODO/NOTE: Do we need this if we use load slot / store tag, etc?
-// typedef struct NecroNodeGetElementPtr
-// {
-//     NecroNodeValue  source_value;
-//     uint32_t*       indices;
-//     size_t          num_indices;
-//     NecroNodeValue  dest_value;
-// } NecroNodeGetElementPtr;
+// TODO/NOTE: Do we need this if we use load slot / store tag, etc?
+typedef struct NecroNodeGetElementPtr
+{
+    struct NecroNodeAST* source_value;
+    uint32_t*            indices;
+    size_t               num_indices;
+    struct NecroNodeAST* dest_value;
+} NecroNodeGetElementPtr;
 
 typedef struct NecroNodeBitCast
 {
@@ -305,21 +319,22 @@ typedef struct NecroNodeNAlloc
 typedef enum
 {
     NECRO_NODE_LIT,
-    NECRO_NODE_CALL,
     NECRO_NODE_VALUE,
     NECRO_NODE_BLOCK,
 
+    // ops
+    NECRO_NODE_CALL,
     NECRO_NODE_LOAD,
     NECRO_NODE_STORE,
     NECRO_NODE_NALLOC,
-    NECRO_NODE_BIT_CAST, // Maybe remove?
-    // NECRO_NODE_GEP,      // Maybe remove?
+    NECRO_NODE_BIT_CAST,
+    NECRO_NODE_GEP,
 
     // Defs
     NECRO_NODE_STRUCT_DEF,
     NECRO_NODE_FN_DEF,
     NECRO_NODE_DEF,
-    NECRO_NODE_CONSTANT_DEF,
+    // NECRO_NODE_CONSTANT_DEF,
 } NECRO_NODE_AST_TYPE;
 
 typedef struct NecroNodeAST
@@ -336,8 +351,8 @@ typedef struct NecroNodeAST
         NecroNodeFnDef         fn_def;
         NecroNodeStructDef     struct_def;
         NecroNodeConstantDef   constant;
-        // NecroNodeGetElementPtr gep; // Maybe remove?
-        NecroNodeBitCast       bit_cast; // Maybe remove?
+        NecroNodeGetElementPtr gep;
+        NecroNodeBitCast       bit_cast;
         NecroNodeNAlloc        nalloc;
     };
     NECRO_NODE_AST_TYPE type;

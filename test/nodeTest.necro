@@ -3,17 +3,23 @@ data Unary      = Unary Nullary
 data Both       = Both Nullary Unary
 data Maybe  a   = Just a | Nothing
 data Either a b = Left a | Right b
+data List a     = Cons a (List a) | Nil
 
-simple :: Nullary
-simple = Nullary
-
--- noStatePlease :: Nullary
--- noStatePlease = x where
+-- simple :: Nullary
+-- simple = Nullary
+--
+-- impossible :: Nullary
+-- impossible = x where
+--     x = x
+--
+-- unaryNow :: Unary
+-- unaryNow = Unary x where
 --     x = Nullary
 --
--- myCoolNullary :: Nullary
--- myCoolNullary = x where
---     x = delay Nullary x
+-- bothNow :: Both
+-- bothNow = Both x y where
+--     x = Nullary
+--     y = Unary Nullary
 --
 -- feedBoth :: Both
 -- feedBoth = Both x y where
@@ -22,3 +28,46 @@ simple = Nullary
 
 -- fnTest :: Nullary -> Nullary
 -- fnTest n = n
+--
+-- feedFn :: Nullary -> Unary
+-- feedFn n = x where
+--     x = x
+--
+-- appFeedFn :: Unary
+-- appFeedFn = feedFn Nullary
+--
+
+-- nested1 :: Nullary -> Nullary
+-- nested1 n = n where
+--     x = x
+--
+-- nested2 :: Nullary -> Nullary
+-- nested2 n = nested1 (nested1 n)
+--
+-- nested4 :: Nullary -> Nullary
+-- nested4 n = nested2 (nested2 n)
+--
+-- nested8 :: Nullary -> Nullary
+-- nested8 n = nested4 (nested4 n)
+--
+-- nested16 :: Nullary -> Nullary
+-- nested16 n = nested8 (nested8 n)
+--
+-- nested32 :: Nullary -> Nullary
+-- nested32 n = nested16 (nested16 n)
+--
+-- nested64 :: Nullary -> Nullary
+-- nested64 n = nested32 (nested32 n)
+--
+-- topNested :: Nullary
+-- topNested = nested64 Nullary
+
+globalTest :: Nullary
+globalTest = Nullary
+
+useGlobal :: Unary
+useGlobal = Unary globalTest
+
+-- recTest1 :: List Int
+-- recTest1 = Cons 0 recTest1
+

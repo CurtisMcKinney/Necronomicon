@@ -150,7 +150,8 @@ typedef struct NecroNodeDef
     NecroNodeType*       fn_type;
     bool                 default_mk;
     bool                 default_init;
-    struct NodeAST*      decl_group;
+    bool                 pushed;
+    // struct NodeAST*      decl_group;
 
     // args
     NecroVar*            arg_names;
@@ -163,7 +164,7 @@ typedef struct NecroNodeDef
     size_t               members_size;
 
     struct NecroNodeAST* global_value; // If global
-    // cache if and where slots have been loaded!
+    // cache if and where slots have been loaded!?
 } NecroNodeDef;
 
 typedef enum

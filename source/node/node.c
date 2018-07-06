@@ -1019,8 +1019,10 @@ void necro_core_to_node_2_bind(NecroNodeProgram* program, NecroCoreAST_Expressio
         necro_calculate_statefulness(program, node_def);
         return;
     }
+    node_def->node_def.pushed = true;
     necro_core_to_node_2_go(program, core_ast->bind.expr, node_def);
     necro_calculate_statefulness(program, node_def);
+    node_def->node_def.pushed = false;
 
     // Calculate node type
     NecroArenaSnapshot snapshot          = necro_get_arena_snapshot(&program->snapshot_arena);
@@ -1143,7 +1145,7 @@ void necro_core_to_node_2_var(NecroNodeProgram* program, NecroCoreAST_Expression
     NecroNodeAST* node_ast = necro_symtable_get(program->symtable, core_ast->var.id)->necro_node_ast;
     if (node_ast == NULL)
     {
-        // Arguments are NULL at first...better way to differentiate!?
+        // Lambda args are NULL at first...better way to differentiate!?
         // assert(false);
         return;
     }
@@ -1152,6 +1154,8 @@ void necro_core_to_node_2_var(NecroNodeProgram* program, NecroCoreAST_Expression
     if (node_ast->node_def.state_type != NECRO_STATE_STATEFUL)
         return;
     if (necro_is_var_node_arg(program, &outer->node_def, core_ast->var))
+        return;
+    if (node_ast->node_def.outer == NULL)
         return;
     if (necro_symtable_get(program->symtable, core_ast->var.id)->persistent_slot != 0)
         return;
@@ -1382,7 +1386,7 @@ NecroNodeAST* necro_core_to_node_3_var(NecroNodeProgram* program, NecroCoreAST_E
     {
         return necro_build_call(program, outer->node_def.update_fn, info->necro_node_ast, NULL, 0, "con");
     }
-    // // It's a recursive value
+    // // It's a dynamic value
     // {
     // }
     // It's a persistent value
@@ -1460,7 +1464,7 @@ NecroNodeProgram necro_core_to_node(NecroCoreAST* core_ast, NecroSymTable* symta
         top_level_list = top_level_list->list.next;
     }
 
-    return;
+    // return program;
 
     // Pass 3
     top_level_list = core_ast->root;

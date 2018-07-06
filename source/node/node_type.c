@@ -186,7 +186,24 @@ NecroType* necro_core_ast_to_necro_type(NecroNodeProgram* program, NecroCoreAST_
         return NULL;
     case NECRO_CORE_EXPR_DATA_CON:  return necro_symtable_get(program->symtable, ast->data_con.condid.id)->type;
     case NECRO_CORE_EXPR_TYPE:      return ast->type.type;
-    case NECRO_CORE_EXPR_APP:       assert(false); return NULL;
+    case NECRO_CORE_EXPR_APP:
+    {
+        // We're assuming that we always hit a var at the end...
+        NecroCoreAST_Expression* app = ast;
+        while (app->expr_type == NECRO_CORE_EXPR_APP)
+        {
+            app = app->app.exprA;
+        }
+        if (app->expr_type == NECRO_CORE_EXPR_VAR)
+        {
+            return necro_symtable_get(program->symtable, app->var.id)->type;
+        }
+        else
+        {
+            assert(false);
+            return NULL;
+        }
+    }
     case NECRO_CORE_EXPR_LET:       assert(false); return NULL;
     case NECRO_CORE_EXPR_CASE:      assert(false); return NULL;
     case NECRO_CORE_EXPR_DATA_DECL: assert(false); return NULL;
@@ -233,12 +250,12 @@ NecroNodeType* necro_type_to_node_type(NecroNodeProgram* program, NecroType* typ
     case NECRO_TYPE_VAR:  return program->necro_poly_type;
     case NECRO_TYPE_LIST: return necro_symtable_get(program->symtable, program->prim_types->list_type.id)->necro_node_ast->necro_node_type;
     case NECRO_TYPE_CON:  return necro_symtable_get(program->symtable, type->con.con.id)->necro_node_ast->necro_node_type;
-    case NECRO_TYPE_APP:  assert(false); return NULL;
     case NECRO_TYPE_FUN:  return necro_function_type_to_node_function_type(program, type);
     case NECRO_TYPE_FOR:
         while (type->type == NECRO_TYPE_FOR)
             type = type->for_all.type;
         return necro_type_to_node_type(program, type);
+    case NECRO_TYPE_APP:  assert(false); return NULL;
     default: assert(false);
     }
     return NULL;
@@ -264,29 +281,7 @@ NecroNodeType* necro_core_ast_to_node_type(NecroNodeProgram* program, NecroCoreA
         return NULL;
     case NECRO_CORE_EXPR_DATA_CON:  return necro_type_to_node_type(program, necro_core_ast_to_necro_type(program, ast));
     case NECRO_CORE_EXPR_TYPE:      return necro_type_to_node_type(program, ast->type.type);
-    case NECRO_CORE_EXPR_APP:
-    {
-        // TODO / HACK: Please make this suck less.
-        // Assuming this is always called with types...
-        // Turn into a necro type by hand....yuck
-        NecroCoreAST_Expression* app = ast;
-        while (app->expr_type == NECRO_CORE_EXPR_APP)
-        {
-            app = app->app.exprA;
-        }
-        if (app->expr_type == NECRO_CORE_EXPR_VAR)
-        {
-            const char* var_string = necro_intern_get_string(program->intern, ast->var.symbol);
-            if (isupper(var_string[0])) // HACK HACK HACK HACK!!!!
-                return program->necro_poly_ptr_type;
-            NecroType* necro_type = NULL;
-        }
-        else if (app->expr_type == NECRO_CORE_EXPR_DATA_CON)
-        {
-            assert(false);
-            return NULL;
-        }
-    }
+    case NECRO_CORE_EXPR_APP:       return necro_type_to_node_type(program, necro_core_ast_to_necro_type(program, ast));
     case NECRO_CORE_EXPR_LET:       assert(false); return NULL;
     case NECRO_CORE_EXPR_CASE:      assert(false); return NULL;
     case NECRO_CORE_EXPR_DATA_DECL: assert(false); return NULL;

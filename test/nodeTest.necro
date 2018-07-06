@@ -62,12 +62,17 @@ data List a     = Cons a (List a) | Nil
 -- topNested :: Nullary
 -- topNested = nested64 Nullary
 
-globalTest :: Nullary
-globalTest = Nullary
+-- globalTest :: Nullary
+-- globalTest = Nullary
 
-useGlobal :: Unary
-useGlobal = Unary globalTest
+-- useGlobal :: Unary
+-- useGlobal = Unary globalTest
 
--- recTest1 :: List Int
--- recTest1 = Cons 0 recTest1
+recTest1 :: List Nullary
+recTest1 = Cons Nullary recTest1
+
+recTest2 :: List Nullary
+recTest2 = recTest1
+
+
 

@@ -73,7 +73,7 @@ LLVMValueRef necro_mk_closure(NecroCodeGen* codegen, LLVMTypeRef closure_type, L
 {
     NecroClosureTypeBucket closure_type_bucket   = necro_get_closure_type_bucket(&codegen->closure_type_table, codegen, LLVMTypeOf(function_ptr));
     LLVMValueRef           necro_val_mk_function = LLVMBuildBitCast(codegen->builder, node_mk_function_ptr, LLVMPointerType(LLVMFunctionType(LLVMPointerType(codegen->necro_val_type, 0), NULL, 0, false), 0), "necro_val_mk");
-    LLVMValueRef           closure               = necro_build_call(codegen, closure_type_bucket.mk_closure, (LLVMValueRef[]) { function_ptr, necro_val_mk_function, env }, 3, "closure");
+    LLVMValueRef           closure               = necro_build_call_llvm(codegen, closure_type_bucket.mk_closure, (LLVMValueRef[]) { function_ptr, necro_val_mk_function, env }, 3, "closure");
     return closure;
 }
 
@@ -284,7 +284,7 @@ bool necro_calculate_node_call_app_closure(NecroCodeGen* codegen, NecroCoreAST_E
     args[0]                  = LLVMBuildLoad(codegen->builder, args[0], "necro_app_val");
     args[1]                  = closure_value;
     LLVMValueRef app_closure = necro_get_closure_type_bucket(&codegen->closure_type_table, codegen, fn_type).closure_app;
-    LLVMValueRef result      = necro_build_call(codegen, app_closure, args, arg_count + 2, "app_closure_result");
+    LLVMValueRef result      = necro_build_call_llvm(codegen, app_closure, args, arg_count + 2, "app_closure_result");
     *out_result = result;
     necro_rewind_arena(&codegen->snapshot_arena, snapshot);
     return true;
@@ -395,7 +395,7 @@ NecroClosureTypeBucket necro_create_closure_type(NecroCodeGen* codegen, LLVMType
         LLVMValueRef* null_null_args = necro_paged_arena_alloc(&codegen->arena, num_params * sizeof(LLVMValueRef));
         for (size_t i = 0; i < num_params; ++i)
             null_null_args[i] = LLVMGetParam(app_closure, i + 2);
-        LLVMValueRef  null_null_result = necro_build_call(codegen, closure_fn, null_null_args, num_params, "null_null_result");
+        LLVMValueRef  null_null_result = necro_build_call_llvm(codegen, closure_fn, null_null_args, num_params, "null_null_result");
         LLVMBuildRet(codegen->builder, null_null_result);
     }
 
@@ -411,7 +411,7 @@ NecroClosureTypeBucket necro_create_closure_type(NecroCodeGen* codegen, LLVMType
         // init
         LLVMPositionBuilderAtEnd(codegen->builder, node_null_init);
         LLVMBuildStore(codegen->builder, mk_node_fn, prev_mk_node_fn_ptr);
-        LLVMValueRef new_node_val = necro_build_call(codegen, mk_node_fn, NULL, 0, "new_node_val");
+        LLVMValueRef new_node_val = necro_build_call_llvm(codegen, mk_node_fn, NULL, 0, "new_node_val");
         LLVMBuildStore(codegen->builder, new_node_val, app_node_ptr);
         LLVMBuildBr(codegen->builder, node_null_cont);
 
@@ -427,7 +427,7 @@ NecroClosureTypeBucket necro_create_closure_type(NecroCodeGen* codegen, LLVMType
         args[0]                      = node_val;
         for (size_t i = 0; i < num_params; ++i)
             args[i + 1] = LLVMGetParam(app_closure, i + 2);
-        LLVMValueRef  node_null_result = necro_build_call(codegen, node_fn, args, num_params + 1, "node_null_result");
+        LLVMValueRef  node_null_result = necro_build_call_llvm(codegen, node_fn, args, num_params + 1, "node_null_result");
         LLVMBuildRet(codegen->builder, node_null_result);
     }
 
@@ -447,7 +447,7 @@ NecroClosureTypeBucket necro_create_closure_type(NecroCodeGen* codegen, LLVMType
         null_env_args[0]            = env_val;
         for (size_t i = 0; i < num_params; ++i)
             null_env_args[i + 1] = LLVMGetParam(app_closure, i + 2);
-        LLVMValueRef  null_env_result = necro_build_call(codegen, env_fn, null_env_args, num_params + 1, "null_env_result");
+        LLVMValueRef  null_env_result = necro_build_call_llvm(codegen, env_fn, null_env_args, num_params + 1, "null_env_result");
         LLVMBuildRet(codegen->builder, null_env_result);
     }
 
@@ -464,7 +464,7 @@ NecroClosureTypeBucket necro_create_closure_type(NecroCodeGen* codegen, LLVMType
         // init
         LLVMPositionBuilderAtEnd(codegen->builder, node_env_init);
         LLVMBuildStore(codegen->builder, mk_node_fn, prev_mk_node_fn_ptr);
-        LLVMValueRef new_node_val = necro_build_call(codegen, mk_node_fn, NULL, 0, "new_node_val");
+        LLVMValueRef new_node_val = necro_build_call_llvm(codegen, mk_node_fn, NULL, 0, "new_node_val");
         LLVMBuildStore(codegen->builder, new_node_val, app_node_ptr);
         LLVMBuildBr(codegen->builder, node_env_cont);
 
@@ -484,13 +484,13 @@ NecroClosureTypeBucket necro_create_closure_type(NecroCodeGen* codegen, LLVMType
         args[1]                      = env_val;
         for (size_t i = 0; i < num_params; ++i)
             args[i + 2] = LLVMGetParam(app_closure, i + 2);
-        LLVMValueRef  node_env_result = necro_build_call(codegen, node_env_fn, args, num_params + 2, "node_env_result");
+        LLVMValueRef  node_env_result = necro_build_call_llvm(codegen, node_env_fn, args, num_params + 2, "node_env_result");
         LLVMBuildRet(codegen->builder, node_env_result);
     }
 
     // error
     LLVMPositionBuilderAtEnd(codegen->builder, error);
-    LLVMValueRef error_call = necro_build_call(codegen, codegen->runtime->functions.necro_error_exit, (LLVMValueRef[]) { LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 2, false) }, 1, "");
+    LLVMValueRef error_call = necro_build_call_llvm(codegen, codegen->runtime->functions.necro_error_exit, (LLVMValueRef[]) { LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 2, false) }, 1, "");
     LLVMSetInstructionCallConv(error_call, LLVMCCallConv);
     LLVMBuildUnreachable(codegen->builder);
 

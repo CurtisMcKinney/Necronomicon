@@ -243,7 +243,7 @@ void necro_compile_impl(
     // Transform to Node
     //--------------------
     necro_announce_phase("Node");
-    *node = necro_core_to_node(ast_core, &symtable, &prim_types);
+    *node = necro_core_to_node(ast_core, &symtable, &scoped_symtable, &prim_types);
     *destruct_flags |= BIT(NECRO_PHASE_TRANSFORM_TO_NODE);
     puts("");
     necro_print_node_program(node);

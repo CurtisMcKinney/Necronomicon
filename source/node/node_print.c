@@ -62,6 +62,9 @@ void necro_print_node_value(NecroNodeProgram* program, NecroNodeAST* ast, NECRO_
     case NECRO_NODE_VALUE_INT_LITERAL:
         printf("%lldi64", value.int_literal);
         return;
+    case NECRO_NODE_VALUE_F64_LITERAL:
+        printf("%f", value.f64_literal);
+        return;
     case NECRO_NODE_VALUE_NULL_PTR_LITERAL:
         printf("null");
         break;
@@ -146,12 +149,12 @@ void necro_node_print_store(NecroNodeProgram* program, NecroNodeAST* ast, size_t
         necro_print_node_value(program, ast->store.store_slot.dest_ptr, NECRO_PRINT_VALUE_TYPE);
         printf(" (slot %d)", ast->store.store_slot.dest_slot);
         return;
-    case NECRO_STORE_GLOBAL:
-        necro_print_node_value(program, ast->store.source_value, NECRO_PRINT_VALUE_TYPE);
-        necro_print_node_value(program, ast->store.dest_global, NECRO_PRINT_VALUE_TYPE);
-        // printf("%s", necro_intern_get_string(program->intern, ast->store.dest_global->value.global_name.symbol));
-        // printf(" (global)");
-        return;
+    // case NECRO_STORE_GLOBAL:
+    //     necro_print_node_value(program, ast->store.source_value, NECRO_PRINT_VALUE_TYPE);
+    //     necro_print_node_value(program, ast->store.dest_global, NECRO_PRINT_VALUE_TYPE);
+    //     // printf("%s", necro_intern_get_string(program->intern, ast->store.dest_global->value.global_name.symbol));
+    //     // printf(" (global)");
+    //     return;
     }
 }
 
@@ -172,11 +175,11 @@ void necro_node_print_load(NecroNodeProgram* program, NecroNodeAST* ast, size_t 
         necro_print_node_value(program, ast->load.load_slot.source_ptr, NECRO_PRINT_VALUE_TYPE);
         printf(" (slot %d)", ast->load.load_slot.source_slot);
         return;
-    case NECRO_LOAD_GLOBAL:
-        necro_print_node_value(program, ast->load.source_global, NECRO_PRINT_VALUE_TYPE);
-        // printf(" ");
-        // printf(" (global))", ast->load.load_slot.source_slot);
-        return;
+    // case NECRO_LOAD_GLOBAL:
+    //     necro_print_node_value(program, ast->load.source_global, NECRO_PRINT_VALUE_TYPE);
+    //     // printf(" ");
+    //     // printf(" (global))", ast->load.load_slot.source_slot);
+    //     return;
     }
 }
 
@@ -260,6 +263,28 @@ void necro_node_print_node_def(NecroNodeProgram* program, NecroNodeAST* ast, siz
     puts("");
 }
 
+void necro_node_print_binop(NecroNodeProgram* program, NecroNodeAST* ast, size_t depth)
+{
+    assert(ast->type == NECRO_NODE_BINOP);
+    print_white_space(depth);
+
+    printf("%%%s = ", necro_intern_get_string(program->intern, ast->binop.result->value.reg_name.symbol));
+    switch (ast->binop.binop_tytpe)
+    {
+    case NECRO_NODE_BINOP_IADD: printf("iadd "); break;
+    case NECRO_NODE_BINOP_ISUB: printf("isub "); break;
+    case NECRO_NODE_BINOP_IMUL: printf("imul "); break;
+    case NECRO_NODE_BINOP_IDIV: printf("idiv "); break;
+    case NECRO_NODE_BINOP_FADD: printf("fadd "); break;
+    case NECRO_NODE_BINOP_FSUB: printf("fsub "); break;
+    case NECRO_NODE_BINOP_FMUL: printf("fmul "); break;
+    case NECRO_NODE_BINOP_FDIV: printf("fdiv "); break;
+    }
+    necro_print_node_value(program, ast->binop.left, NECRO_PRINT_VALUE_TYPE);
+    printf(" ");
+    necro_print_node_value(program, ast->binop.right, NECRO_PRINT_VALUE_TYPE);
+}
+
 void necro_node_print_ast_go(NecroNodeProgram* program, NecroNodeAST* ast, size_t depth)
 {
     switch (ast->type)
@@ -267,8 +292,6 @@ void necro_node_print_ast_go(NecroNodeProgram* program, NecroNodeAST* ast, size_
     case NECRO_NODE_VALUE:
         print_white_space(depth);
         necro_print_node_value(program, ast, NECRO_PRINT_VALUE_TYPE);
-        return;
-    case NECRO_NODE_LIT:
         return;
     case NECRO_NODE_LOAD:
         print_white_space(depth);
@@ -310,6 +333,9 @@ void necro_node_print_ast_go(NecroNodeProgram* program, NecroNodeAST* ast, size_
     case NECRO_NODE_GEP:
         print_white_space(depth);
         necro_node_print_gep(program, ast, depth);
+        return;
+    case NECRO_NODE_BINOP:
+        necro_node_print_binop(program, ast, depth);
         return;
     }
 }

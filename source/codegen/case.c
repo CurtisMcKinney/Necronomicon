@@ -577,7 +577,7 @@ LLVMValueRef necro_codegen_case(NecroCodeGen* codegen, NecroCoreAST_Expression* 
         LLVMBasicBlockRef next_block = LLVMGetNextBasicBlock(term_case_block);
         err_block = (next_block == NULL) ? LLVMAppendBasicBlock(codegen->current_func, "case_error") : LLVMInsertBasicBlock(next_block, "case_error");
         LLVMPositionBuilderAtEnd(codegen->builder, err_block);
-        LLVMValueRef exit_call = necro_build_call(codegen, codegen->runtime->functions.necro_error_exit, (LLVMValueRef[]) { LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 1, false) }, 1, "");
+        LLVMValueRef exit_call = necro_build_call_llvm(codegen, codegen->runtime->functions.necro_error_exit, (LLVMValueRef[]) { LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 1, false) }, 1, "");
         LLVMSetInstructionCallConv(exit_call, LLVMCCallConv);
         LLVMBuildUnreachable(codegen->builder);
         outer->case_error_block = err_block;

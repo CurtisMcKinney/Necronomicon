@@ -61,18 +61,31 @@ data List a     = Cons a (List a) | Nil
 --
 -- topNested :: Nullary
 -- topNested = nested64 Nullary
-
+--
 -- globalTest :: Nullary
 -- globalTest = Nullary
 
 -- useGlobal :: Unary
 -- useGlobal = Unary globalTest
 
-recTest1 :: List Nullary
-recTest1 = Cons Nullary recTest1
+-- localRecTest :: List Nullary
+-- localRecTest = l where
+--     l = Cons Nullary l
 
-recTest2 :: List Nullary
-recTest2 = recTest1
+-- recTest1 :: List Nullary
+-- recTest1 = Cons Nullary recTest1
 
+-- recTest2 :: List Nullary
+-- recTest2 = recTest1
 
+-- recFn :: Nullary -> Nullary
+-- recFn n = recFn n
 
+-- gimmeAnInt :: Int -> Int
+-- gimmeAnInt i = i
+
+-- unitTest :: ()
+-- unitTest = ()
+
+intTest :: Int
+intTest = 1 + 2 * 3 + 4 - 100

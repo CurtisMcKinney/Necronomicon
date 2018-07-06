@@ -17,7 +17,9 @@
 #include "d_analyzer.h"
 #include "driver.h"
 #include "llvm-c/Types.h"
+#include "hash_table.h"
 
+NECRO_DECLARE_ARENA_CHAIN_TABLE(NecroCon, Con, con);
 
 //=====================================================
 // Forward Declarations and typedefs
@@ -140,6 +142,8 @@ typedef struct NecroPrimTypes
     // Runtime functions
     NecroCon          mouse_x_fn;
     NecroCon          mouse_y_fn;
+
+    NecroConTable     con_table; // Maps con symbol ids to con NecroCon
 
     // Utility
     NecroPrimDef*     defs;

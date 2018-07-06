@@ -130,6 +130,8 @@ void* necro_paged_arena_alloc(NecroPagedArena* arena, size_t size)
     assert(arena->pages != NULL);
     assert(arena->data != NULL);
     assert(arena->count < arena->size);
+    if (size == 0)
+        return NULL;
     if (arena->count + size >= arena->size)
     {
         arena->size *= 2;

@@ -28,10 +28,11 @@ NecroPrimTypes necro_create_prim_types(NecroIntern* intern)
     // PrimSymbols
     return (NecroPrimTypes)
     {
-        .arena    = necro_create_paged_arena(),
-        .defs     = NULL,
-        .def_head = NULL,
-        .llvm_mod = NULL
+        .arena     = necro_create_paged_arena(),
+        .defs      = NULL,
+        .def_head  = NULL,
+        .llvm_mod  = NULL,
+        .con_table = necro_create_con_table()
     };
 }
 
@@ -205,6 +206,14 @@ NECRO_RETURN_CODE necro_prim_rename(NecroPrimTypes* prim_types, NecroRenamer* re
         {
             necro_rename_declare_pass(renamer, &prim_types->arena, def->data_def.data_declaration_ast);
             necro_rename_var_pass(renamer, &prim_types->arena, def->data_def.data_declaration_ast);
+            // add constructors to con table
+            NecroASTNode* constructor_list = def->data_def.data_declaration_ast->data_declaration.constructor_list;
+            while (constructor_list != NULL)
+            {
+                NecroCon con = (NecroCon) { .id = constructor_list->list.item->constructor.conid->conid.id, .symbol = constructor_list->list.item->constructor.conid->conid.symbol };
+                necro_con_table_insert(&prim_types->con_table, con.symbol.id, &con);
+                constructor_list = constructor_list->list.next_item;
+            }
             if (def->global_name != NULL)
             {
                 def->global_name->symbol = def->data_def.data_declaration_ast->data_declaration.simpletype->simple_type.type_con->conid.symbol;
@@ -360,7 +369,9 @@ void necro_derive_eq(NecroPrimTypes* prim_types, NecroIntern* intern, NecroPrimD
 void necro_create_prim_num(NecroPrimTypes* prim_types, NecroIntern* intern, NecroCon* global_name, const char* data_type_name)
 {
     NecroASTNode* s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, data_type_name, NULL);
-    NecroPrimDef* data_def = necro_prim_def_data(prim_types, intern, global_name, necro_create_data_declaration_ast(&prim_types->arena, intern, s_type, NULL));
+    NecroASTNode* n_con    = necro_create_data_constructor_ast(&prim_types->arena, intern, data_type_name, NULL);
+    NecroASTNode* con_list = necro_create_ast_list(&prim_types->arena, n_con, NULL);
+    NecroPrimDef* data_def = necro_prim_def_data(prim_types, intern, global_name, necro_create_data_declaration_ast(&prim_types->arena, intern, s_type, con_list));
 }
 
 NecroASTNode* necro_make_poly_con1(NecroPagedArena* arena, NecroIntern* intern, const char* data_type_name)
@@ -1357,7 +1368,7 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
         LLVMValueRef       node_ptr = LLVMBuildBitCast(codegen->builder, void_ptr, LLVMPointerType(the_world_node->node_type, 0), "node_ptr");
         necro_init_necro_data(codegen, node_ptr, 0, 0);
         LLVMValueRef       val_ptr   = necro_snapshot_gep(codegen, "val_ptr", node_ptr, 2, (uint32_t[]) { 0, 1 });
-        LLVMValueRef       world_val = necro_build_call(codegen, world_node->mk_function, NULL, 0, "world_val");
+        LLVMValueRef       world_val = necro_build_call_llvm(codegen, world_node->mk_function, NULL, 0, "world_val");
         LLVMBuildStore(codegen->builder, world_val, val_ptr);
         LLVMBuildRet(codegen->builder, node_ptr);
     }
@@ -1406,7 +1417,7 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
             mouse_x_node->call_function = call_fn;
             LLVMBasicBlockRef  entry    = LLVMAppendBasicBlock(call_fn, "entry");
             LLVMPositionBuilderAtEnd(codegen->builder, entry);
-            LLVMValueRef       unboxed  = necro_build_call(codegen, codegen->runtime->functions.necro_mouse_x, NULL, 0, "unboxed");
+            LLVMValueRef       unboxed  = necro_build_call_llvm(codegen, codegen->runtime->functions.necro_mouse_x, NULL, 0, "unboxed");
             LLVMValueRef       box_ptr  = necro_gen_alloc_boxed_value(codegen, int_type_ref, 0, 0, "box_ptr");
             LLVMValueRef       val_ptr  = necro_snapshot_gep(codegen, "val_ptr", box_ptr, 2, (uint32_t[]) { 0, 1 });
             LLVMBuildStore(codegen->builder, unboxed, val_ptr);
@@ -1429,7 +1440,7 @@ NECRO_RETURN_CODE necro_codegen_primitives(NecroCodeGen* codegen)
             mouse_y_node->call_function = call_fn;
             LLVMBasicBlockRef  entry    = LLVMAppendBasicBlock(call_fn, "entry");
             LLVMPositionBuilderAtEnd(codegen->builder, entry);
-            LLVMValueRef       unboxed  = necro_build_call(codegen, codegen->runtime->functions.necro_mouse_y, NULL, 0, "unboxed");
+            LLVMValueRef       unboxed  = necro_build_call_llvm(codegen, codegen->runtime->functions.necro_mouse_y, NULL, 0, "unboxed");
             LLVMValueRef       box_ptr  = necro_gen_alloc_boxed_value(codegen, int_type_ref, 0, 0, "box_ptr");
             LLVMValueRef       val_ptr  = necro_snapshot_gep(codegen, "val_ptr", box_ptr, 2, (uint32_t[]) { 0, 1 });
             LLVMBuildStore(codegen->builder, unboxed, val_ptr);

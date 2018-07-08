@@ -1,2 +1,24 @@
 -- Types and runtime
 We need to monomorphize all functions.
+
+
+-- To Do 7/1/2018
+
+1) bind rec -> Different node, not just flag
+    If one declaration in a declaration group -> Simple bind
+    If multiple declarations in a group -> They're all bind recs
+    :: Caveat
+        unless they are *ALL* bindings to the same name, which will be desugared to a case statement as a single bind. 
+        Example:
+        foo Nothing = 0
+        foo (Just x) = x
+
+    however even one thing with a different name, then all of them are bind recs
+
+
+
+2) Make nested functions work in core:
+    example: Things that aren't simple assignment!
+
+
+

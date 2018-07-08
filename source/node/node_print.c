@@ -243,15 +243,17 @@ void necro_node_print_node_def(NecroNodeProgram* program, NecroNodeAST* ast, siz
     printf("type: ");
     necro_node_print_node_type_go(program->intern, ast->necro_node_type, true);
     printf("\n");
-    if (ast->node_def.default_mk && ast->node_def.state_type == NECRO_STATE_STATEFUL)
+    if (ast->node_def.default_mk && (ast->node_def.state_type == NECRO_STATE_STATEFUL || ast->node_def.state_type == NECRO_STATE_CONSTANT))
     {
-        print_white_space(depth + 4);
-        printf("mk:   default\n");
+        // print_white_space(depth + 4);
+        printf("\n");
+        necro_node_print_fn(program, ast->node_def.mk_fn, depth + 4);
     }
-    if (ast->node_def.default_init && ast->node_def.state_type == NECRO_STATE_STATEFUL)
+    if (ast->node_def.default_init && (ast->node_def.state_type == NECRO_STATE_STATEFUL || ast->node_def.state_type == NECRO_STATE_CONSTANT))
     {
-        print_white_space(depth + 4);
-        printf("init: default\n");
+        // print_white_space(depth + 4);
+        // printf("init:\n");
+        // necro_node_print_fn(program, ast->node_def.init_fn, depth + 4);
     }
     if (ast->node_def.update_fn != NULL)
     {

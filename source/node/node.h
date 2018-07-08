@@ -28,6 +28,9 @@
 
 /*
     TODO:
+        * null out and zero out memory when allocated with nalloc via memcpy NULL....should be faster than doing it in code!?
+        * init_and_load_dyn function (will require breakcond and other stuff to work)
+        * dync fn nodes need NecroData?
         * prim ops
         * runtime
         * case
@@ -147,7 +150,7 @@ typedef struct NecroNodeDef
     NecroVar             node_name;
 
     struct NecroNodeAST* mk_fn;
-    struct NecroNodeAST* ini_fn;
+    struct NecroNodeAST* init_fn;
     struct NecroNodeAST* update_fn;
     NecroNodeBlock*      update_error_block;
     uint32_t             initial_tag;
@@ -159,6 +162,7 @@ typedef struct NecroNodeDef
     bool                 default_init;
     bool                 is_pushed;
     bool                 is_recursive;
+    bool                 is_persistent_slot_set;
 
     // args
     NecroVar*            arg_names;

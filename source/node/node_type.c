@@ -10,6 +10,13 @@
 ///////////////////////////////////////////////////////
 // Create
 ///////////////////////////////////////////////////////
+NecroNodeType* necro_create_node_void_type(NecroPagedArena* arena)
+{
+    NecroNodeType* type = necro_paged_arena_alloc(arena, sizeof(NecroNodeType));
+    type->type          = NECRO_NODE_TYPE_VOID;
+    return type;
+}
+
 NecroNodeType* necro_create_node_uint32_type(NecroPagedArena* arena)
 {
     NecroNodeType* type = necro_paged_arena_alloc(arena, sizeof(NecroNodeType));
@@ -120,6 +127,9 @@ void necro_node_print_node_type_go(NecroIntern* intern, NecroNodeType* type, boo
 {
     switch (type->type)
     {
+    case NECRO_NODE_TYPE_VOID:
+        printf("void");
+        return;
     case NECRO_NODE_TYPE_UINT32:
         printf("uint32");
         return;

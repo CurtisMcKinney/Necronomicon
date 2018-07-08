@@ -34,6 +34,7 @@ typedef enum
     NECRO_NODE_TYPE_STRUCT,
     NECRO_NODE_TYPE_FN,
     NECRO_NODE_TYPE_PTR,
+    NECRO_NODE_TYPE_VOID,
 } NECRO_NODE_TYPE_TYPE;
 
 typedef struct NecroNodeType
@@ -61,6 +62,7 @@ typedef struct NecroNodeType
     NECRO_NODE_TYPE_TYPE type;
 } NecroNodeType;
 
+NecroNodeType* necro_create_node_void_type(NecroPagedArena* arena);
 NecroNodeType* necro_create_node_uint16_type(NecroPagedArena* arena);
 NecroNodeType* necro_create_node_uint32_type(NecroPagedArena* arena);
 NecroNodeType* necro_create_node_int_type(NecroPagedArena* arena);

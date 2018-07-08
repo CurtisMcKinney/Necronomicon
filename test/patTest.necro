@@ -20,11 +20,19 @@ speed _ x = x
 
 -- TODO: Pattern list/Tuples
 
+-- seq vs pat:
+-- seq is a series of patterns, each pattern plays out before moving to the next
+-- beat is a series of patterns, where each slot is played for the duration of that beat before moving on to the next
+-- par is a series of patterns, where each  slots is playing in parallel and you get the value of that beat at that moment
+-- TODO: How to implement?!?!?!
+-- Via reification by 'play'
+-- play :: Pattern a -> Tempo -> a
+
 patTest :: Pattern Audio
-patTest = pat
+patTest = beat
     0 z _ x
     _ 3 y z
     where
         x = 0.5 * 2
-        y = pat 0 _ 1 _
+        y = beat 0 _ 1 _
         z = 666 * 323

@@ -32,7 +32,7 @@ typedef struct
 //     * All pointers returned by the table are stable
 //     * All data inserted is copied in.
 //     * Data is allocated from large chunks of memory for better cache coherency
-//     * Never removes are deletes anything (use a different structure if you need removal)
+//     * Never removes or deletes anything (use a different structure if you need removal)
 //     * You can pass NULL into insert if you simply want to allocate space and then initialize that memory how you like
 NecroArenaChainTable necro_create_arena_chain_table(size_t data_size);
 void                 necro_destroy_arena_chain_table(NecroArenaChainTable* table);

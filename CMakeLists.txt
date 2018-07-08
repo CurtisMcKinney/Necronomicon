@@ -19,7 +19,7 @@
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 project(necro)
 
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 99)
 set(CMAKE_BUILD_TYPE Debug)
 
 find_package(LLVM REQUIRED CONFIG)
@@ -61,6 +61,7 @@ set(project_SOURCES
     source/utility/hash_table.c
 
     source/runtime/runtime.c
+    source/runtime/mouse.c
     source/runtime/slab.c
     source/runtime/vault.c
     source/runtime/region.c
@@ -73,7 +74,14 @@ set(project_SOURCES
 
     source/core/core.c
 
+    source/node/node.c
+    source/node/node_type.c
+    source/node/node_print.c
+    source/node/node_prim.c
+
     source/codegen/codegen.c
+    source/codegen/case.c
+    source/codegen/closure.c
     )
 
 set(project_HEADERS
@@ -95,6 +103,7 @@ set(project_HEADERS
     source/utility/small_array.h
 
     source/runtime/runtime.h
+    source/runtime/mouse.h
     source/runtime/slab.h
     source/runtime/vault.h
     source/runtime/region.h
@@ -107,7 +116,14 @@ set(project_HEADERS
 
     source/core/core.h
 
-    source/codegen/codegen.c
+    source/node/node.h
+    source/node/node_type.h
+    source/node/node_print.h
+    source/node/node_prim.h
+
+    source/codegen/codegen.h
+    source/codegen/case.h
+    source/codegen/closure.h
     )
 
 ADD_EXECUTABLE(necro ${project_HEADERS} ${project_SOURCES})

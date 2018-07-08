@@ -1,11 +1,459 @@
--- Feedback test
 -- ALERT! - Sleep times don't seem to work correctly from msys/cygwin/mintty
 -- ALERT! - Use an actual CMD prompt for correct necro usage!
 -- necro usage: necro.exe \path\to\file.necro -jit
 
+-- data Maybe a     = Just a | Nothing
+-- data Color       = Red | Green | Blue
+-- data CakeOrDeath = Cake | Death
+-- data Tuple a b   = Tuple a b
+
+-- returnAddOne :: Int -> (Int -> Int)
+-- returnAddOne z = addOne
+
+-- gimme :: (Int -> Int) -> Int
+-- gimme f = f 0
+
+-- maybeStateful :: Int -> Int
+-- maybeStateful x = x
+
+-- data CoolF = CoolF (Int -> Int)
+
+-- gimmeIntz :: CoolF -> Int
+-- gimmeIntz cf =
+--     case cf of
+--         CoolF f -> 100
+
+-- addOne :: Int -> Int -> Int
+-- addOne x y = x + y
+--
+-- weDemandApps :: (Int -> Int -> Int) -> Int -> Int -> Int
+-- weDemandApps f x y = f x y
+--
+-- appsAllTheWayDown :: ((Int -> Int -> Int) -> Int -> Int -> Int) -> (Int -> Int -> Int) -> Int -> Int -> Int
+-- appsAllTheWayDown ff f x y =  ff f x y
+--
+-- main :: Int
+-- main = appsAllTheWayDown weDemandApps addOne 50 100
+
+-- countFrom :: Int -> Int
+-- countFrom x = x + d where
+--     d = 1 + delay 0 d
+
+-- -- To handle this we have to detect over application
+-- addThenSub :: Int -> Int
+-- addThenSub x = (delay addOne subOne) x
+
+-- flipFlop :: Int -> Int
+-- flipFlop x = pingPong x
+--     -- f x = addOne x
+--     -- f = delay addOne (delay subOne f)
+
+-- TODO: Do we need to sort out PAPPs first!?
+
+-- -- Flag to note if it's a closure or a normal function!?
+-- -- If it's a closure you don't need to closure-ify when it's referred to as a closure
+-- pingPong :: Int -> Int
+-- pingPong = delay addOne (delay subOne pingPong)
+
+-- subOne :: Int -> Int
+-- subOne x = x - 1
+
+-- id :: a -> a
+-- id x = x
+
+-- addOne :: Int -> Int
+-- addOne x = x + 1
+--
+-- addOne' :: Int -> Int
+-- addOne' = addOne
+--
+-- addTwo :: Int -> Int -> Int
+-- addTwo x y = x + y
+--
+-- addTwo' :: Int -> Int -> Int
+-- addTwo' x = addTwo x
+
+adder :: Int -> Int
+adder x = x + 1
+
+adder' :: Int -> Int
+adder' = \x -> x + 1
+
 main :: Int
-main = x where
-    x = 1 + delay 0 x
+main = 100
+
+-- mouseX :: Int
+-- mouseX = getMouseX world
+--
+-- weDemandApps :: (Int -> Int) -> Int -> Int
+-- weDemandApps f x = f x
+--
+-- appsAllTheWayDown :: ((Int -> Int) -> Int -> Int) -> (Int -> Int) -> Int -> Int
+-- appsAllTheWayDown ff f x =  ff f x
+--
+--
+-- moarApps :: (((Int -> Int) -> Int -> Int) -> (Int -> Int) -> Int -> Int) ->
+--              ((Int -> Int) -> Int -> Int) -> (Int -> Int) -> Int -> Int
+-- moarApps fff ff f x =  fff ff f x
+--
+--
+-- addMouseXAndCounter :: Int -> Int
+-- addMouseXAndCounter x = x + d + mouseX where
+--     d = 1000 + delay 0 d
+--
+-- main :: Int
+-- main = moarApps appsAllTheWayDown weDemandApps addMouseXAndCounter 0
+
+-- coolAddOne :: CoolF
+-- coolAddOne = CoolF addOne
+
+-- main :: Int
+-- main = weDemandApps addOne 50
+
+-- main :: Int
+-- main = weDemandApps addOne 50 100
+
+-- main :: Int
+-- main = 10
+
+-- forTest1 :: (Num a, Eq a) => a -> a
+-- forTest1 x = x
+
+-- forTest2 :: (Eq a, Num a) => a -> a
+-- forTest2 x = x
+
+-- forTests :: (Num a, Eq a) => (a -> a) -> (a -> a) -> a -> a
+-- forTests f1 f2 x = x
+
+-- forTest :: Int
+-- forTest = forTests forTest1 forTest2 10
+
+-- mouseX :: Int
+-- mouseX = getMouseX world
+
+-- mouseY :: Int
+-- mouseY = getMouseY world
+
+-- main :: Int
+-- main = mouseX
+
+-- data World = World
+-- inputMouseX :: World -> Int
+
+-- mouseX :: Int
+-- mouseX = inputMouseX world
+
+-- maybeInt :: Maybe (Maybe Int) -> Int
+-- maybeInt mi = case mi of
+--     Just (Just _) -> 0
+--     Just Nothing  -> 1
+--     Nothing       -> 2
+
+-- main :: Int
+-- main = maybeInt Nothing
+
+-- maybeInt :: Maybe (Maybe Color) -> Int
+-- maybeInt mi = case mi of
+--     Just (Just Green) -> 0
+--     Just (Just Blue)  -> 1
+--     Just Nothing      -> 2
+--     _                 -> 3
+
+-- maybeInt :: Maybe (Tuple Color CakeOrDeath) -> Int
+-- maybeInt m = case m of
+--     Just (Tuple Red   Death) -> 0
+--     Just (Tuple Green Cake)  -> 1
+--     Just (Tuple _     Cake)  -> 2
+--     Just (Tuple _     Death) -> 3
+--     Nothing                  -> 4
+-- main :: Int
+-- main = maybeInt (Just (Tuple Green Cake))
+
+-- duplicateCase :: Maybe Int -> Int
+-- duplicateCase mi =
+--     case mi of
+--         Just _  -> 0
+--         Nothing -> 1
+--         Nothing -> 2
+-- main :: Int
+-- main = duplicateCase (Just 0)
+
+-- missingCase :: Maybe Int -> Int
+-- missingCase mi =
+--     case mi of
+--         Nothing -> 0
+--         _       ->
+--             case mi of
+--                 Nothing -> 0
+-- main :: Int
+-- main = missingCase (Just 0)
+
+-- nestedCase :: Maybe (Maybe Int) -> Int
+-- nestedCase mi =
+--     case mi of
+--         Just _ ->
+--             case mi of
+--                 Just (Just _) -> 0
+--                 Just Nothing  -> 1
+--                 -- _             -> 2
+--         _ -> 3
+-- main :: Int
+-- main = nestedCase (Just (Just 1))
+
+-- twoCases :: Maybe Int -> Maybe Int -> Int
+-- twoCases x y =
+--     case x of
+--         Nothing -> 0
+--         Just _  ->
+--             case y of
+--                 Nothing -> 1
+--                 Just _  -> 2
+-- main :: Int
+-- main = twoCases (Just 1) Nothing
+--
+
+-- -- Stateful nodes with case statements = KABOOM!
+-- caseRec :: Color -> Int
+-- caseRec c = case c of
+--                 Red   -> x + caseRec Green
+--                 Green -> 1 + caseRec Blue
+--                 Blue  -> 0
+--     where
+--         x = 1 + delay 0 x
+-- main :: Int
+-- main = caseRec Red
+
+-- caseBinding0 :: Maybe Int -> Int
+-- caseBinding0 mi =
+--     case mi of
+--         mi2 -> 0 -- TODO / NOTE: Chad, this should work!
+-- main :: Int
+-- main = caseBinding0 Nothing
+
+-- caseBinding1 :: Maybe Int -> Int
+-- caseBinding1 mi =
+--     case mi of
+--         Just i  -> i * 2
+--         Nothing -> 1
+-- main :: Int
+-- main = caseBinding1 (Just 333)
+
+-- TODO: test tuple with vars
+
+-- caseBinding1 :: Tuple (Maybe Int) (Maybe Int) -> Int
+-- caseBinding1 mi =
+--     case mi of
+--         Tuple (Just x) (Just y) -> x - y
+--         Tuple (Just x) Nothing  -> x * x
+--         Tuple Nothing  (Just y) -> y + y
+--         _ -> 0
+-- main :: Int
+-- main = caseBinding1 (Tuple (Just 100) (Just 10))
+-- -- main = caseBinding1 (Tuple (Just 100) Nothing)
+-- -- main = caseBinding1 (Tuple Nothing (Just 33))
+
+-- caseBinding2 :: Tuple Int Int -> Int
+-- caseBinding2 mi =
+--     case mi of
+--         Tuple x y -> x - y
+-- main :: Int
+-- main = caseBinding2 (Tuple 100 10)
+-- -- main = caseBinding1 (Tuple (Just 100) Nothing)
+-- -- main = caseBinding1 (Tuple Nothing (Just 33))
+
+-- data Both a b = This a | That b | Both a b
+-- caseBinding3 :: Both Int Int -> Int
+-- caseBinding3 b =
+--     case b of
+--         This x   -> x + 1
+--         That y   -> y - 1
+--         Both x y -> x * y
+-- main :: Int
+-- -- main = caseBinding3 (This 10)
+-- -- main = caseBinding3 (That 20)
+-- main = caseBinding3 (Both 4 100)
+
+-- nestedTuple :: Maybe (Tuple Int Int) -> Int
+-- nestedTuple mt =
+--     case mt of
+--         Just (Tuple x y) -> x - y
+--         Nothing          -> 0
+-- main :: Int
+-- main = nestedTuple (Just (Tuple 20 10))
+
+-- data Both a b = This a | That b | Both a b
+-- caseBinding4 :: Both Int (Both Int Int) -> Int
+-- caseBinding4 b =
+--     case b of
+--         This x            -> x
+--         That (This y)     -> y
+--         That (That y)     -> y * 2
+--         That (Both y z)   -> y * z
+--         Both x (This y)   -> x + y
+--         Both x (That y)   -> x - y
+--         Both x (Both y z) -> x * y * z
+-- main :: Int
+-- -- main = caseBinding4 (This 10)
+-- -- main = caseBinding4 (That (This 100))
+-- -- main = caseBinding4 (That (That 200))
+-- -- main = caseBinding4 (That (Both 2 3))
+-- -- main = caseBinding4 (Both 5 (This 10))
+-- -- main = caseBinding4 (Both 4 (That 5))
+-- main = caseBinding4 (Both 2 (Both 3 4))
+
+-- fst :: Tuple a a -> a
+-- fst t =
+--     case t of
+--         Tuple x _ -> x
+-- main :: Int
+-- main = fst (Tuple 100 10)
+
+-- caseRec :: Color -> Int
+-- caseRec c =
+--     case c of
+--         Red   -> let x = 1   + delay 0 x in x
+--         Green -> let x = 10  + delay 0 x in x
+--         Blue  -> let x = 100 + delay 0 x in x
+-- main :: Int
+-- main = caseRec c where
+--     c = delay Red (delay Green (delay Blue c))
+
+-- tupleInt :: Tuple Color CakeOrDeath -> Int
+-- tupleInt t = case t of
+--     Tuple Red Death -> 0
+--     Tuple _   Cake  -> 1
+--     Tuple _   Death -> 2
+-- main :: Int
+-- main = tupleInt (Tuple Red Cake)
+
+-- -- TODO: Duplicate case error!
+-- colorCode :: Color -> Int
+-- colorCode c = case c of
+--     Red   -> 0
+--     Green -> 1
+--     Blue  -> 2
+-- main :: Int
+-- main = colorCode Blue + colorCode Green
+
+-- -- One million stateful calculations at 100 ticks per second
+-- integrate :: Int -> Int
+-- integrate delta = feed where
+--     feed = delta + delay 0 feed
+-- tenTimes :: Int -> Int
+-- tenTimes n =
+--     integrate n + integrate n + integrate n + integrate n + integrate n +
+--     integrate n + integrate n + integrate n + integrate n + integrate n
+-- oneHundredTimes :: Int -> Int
+-- oneHundredTimes n =
+--     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
+--     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
+-- oneThousandTimes :: Int -> Int
+-- oneThousandTimes n =
+--     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
+--     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
+-- tenThousandTimes :: Int -> Int
+-- tenThousandTimes n =
+--     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
+--     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
+-- oneHundredThousandTimes :: Int -> Int
+-- oneHundredThousandTimes n =
+--     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n +
+--     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
+-- main :: Int
+-- main =
+--     oneHundredThousandTimes 1 + oneHundredThousandTimes 1
+
+
+-- z :: Int
+-- z = integrate 20
+
+-- z :: Int
+-- z = x where
+--     x = 2 + delay 0 x
+
+-- z :: Int
+-- z = 10
+
+-- w :: Int
+-- w = 20
+
+-- main :: Int
+-- main = z
+
+-- main :: Int
+-- main = x where
+--     x = 1 + delay 0 x
+
+-- w :: Int
+-- w = integrate 20
+
+-- main :: Int
+-- main = z + w
+
+-- main :: Int
+-- main = delay 0 (delay 1 (delay 2 (delay 3 main)))
+
+-- main :: Int
+-- main = x + y + z where
+--     x = integrate 25
+--     y = integrate 5
+
+-- -- Loop
+-- main :: Int
+-- main = delay 0 (delay 100 (delay 200 (delay 300 main)))
+
+-- z :: Int
+-- z = delay 0 1
+
+-- main :: Int
+-- main = 1 + z + x where
+--     x = delay 0 x
+
+-- w :: Int
+-- w = delay 0 100
+
+-- z :: Int
+-- z = 1 + delay 0 z
+
+-- main = delay 1 (delay 2 3)
+
+-- main :: Int
+-- main = z + x where
+--     x = 1 + delay 0 x
+
+-- z :: Int
+-- z = x where
+--     x = 1 + delay 0 x
+
+-- main :: Int
+-- main = z
+
+-- main :: Int
+-- main = integrate 10 + z
+
+-- main :: Int
+-- main = x + z where
+--     x = delay 0 x
+
+-- g :: Int
+-- g = x where
+--     x = 1 + delay 0 x
+
+-- z :: Int
+-- z = x + g where
+--     x = 1 + delay 0 x
+
+-- main :: Int
+-- main = z
+
+-- main :: Int
+-- main = x where
+--     x = delay 0 x
+
+-- main :: Int
+-- main = x + y where
+--     x = 1 + delay 0 x
+--     y = 1 + delay 0 y
 
 -- -- Looks like more than 1 persistent var is crashing things...
 -- integrator :: Int -> Int

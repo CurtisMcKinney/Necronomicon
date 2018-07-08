@@ -1,0 +1,124 @@
+data Nullary    = Nullary
+data Unary      = Unary Nullary
+data Both       = Both Nullary Unary
+data Maybe  a   = Just a | Nothing
+data Either a b = Left a | Right b
+data List a     = Cons a (List a) | Nil
+
+-- simple :: Nullary
+-- simple = Nullary
+
+-- unaryNow :: Unary
+-- unaryNow = Unary x where
+--     x = Nullary
+--
+-- bothNow :: Both
+-- bothNow = Both x y where
+--     x = Nullary
+--     y = Unary Nullary
+--
+-- feedBoth :: Both
+-- feedBoth = Both x y where
+--     x = x
+--     y = y
+
+-- fnTest :: Nullary -> Nullary
+-- fnTest n = n
+--
+-- feedFn :: Nullary -> Unary
+-- feedFn n = x where
+--     x = x
+--
+-- appFeedFn :: Unary
+-- appFeedFn = feedFn Nullary
+--
+
+-- useGlobal :: Unary
+-- useGlobal = Unary globalTest
+
+-- localRecTest :: List Nullary
+-- localRecTest = l where
+--     l = Cons Nullary l
+
+-- recTest1 :: List Nullary
+-- recTest1 = Cons Nullary recTest1
+
+-- recTest2 :: List Nullary
+-- recTest2 = recTest1
+
+-- recFn :: Nullary -> Nullary
+-- recFn n = recFn n
+
+-- gimmeAnInt :: Int -> Int
+-- gimmeAnInt i = i
+
+-- unitTest :: ()
+-- unitTest = ()
+
+nested1 :: Nullary -> Nullary
+nested1 n = x where
+    x = x
+
+nested2 :: Nullary -> Nullary
+nested2 n = nested1 (nested1 n)
+
+nested4 :: Nullary -> Nullary
+nested4 n = nested2 (nested2 n)
+
+nested8 :: Nullary -> Nullary
+nested8 n = nested4 (nested4 n)
+
+nested16 :: Nullary -> Nullary
+nested16 n = nested8 (nested8 n)
+
+nested32 :: Nullary -> Nullary
+nested32 n = nested16 (nested16 n)
+
+nested64 :: Nullary -> Nullary
+nested64 n = nested32 (nested32 n)
+
+nested128 :: Nullary -> Nullary
+nested128 n = nested64 (nested64 n)
+
+nested256 :: Nullary -> Nullary
+nested256 n = nested128 (nested128 n)
+
+nested512 :: Nullary -> Nullary
+nested512 n = nested256 (nested256 n)
+
+nested1024 :: Nullary -> Nullary
+nested1024 n = nested512 (nested512 n)
+
+topNested :: Nullary
+topNested = nested1024 Nullary
+
+globalTest :: Nullary
+globalTest = Nullary
+
+intTest :: Int
+intTest = 1 + 2 * 3 + 4 - 100
+
+impossible :: Nullary
+impossible = x where
+    x = x
+
+stateFn :: Nullary -> Nullary
+stateFn n = x where
+    x = x
+
+-- fn1 :: Nullary -> Nullary
+-- fn1 n = n
+
+-- fn2 :: Nullary -> Nullary
+-- fn2 n = n where
+--     x = x
+
+-- recFn1 :: Nullary -> Nullary
+-- recFn1 n = recFn1 n
+
+recFn2 :: Nullary -> Nullary
+recFn2 n = recFn2 n where
+    x = x
+
+useRecFn2 :: Nullary
+useRecFn2 = recFn2 (recFn2 Nullary)

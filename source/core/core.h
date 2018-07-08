@@ -118,11 +118,12 @@ typedef struct
     //NecroVar var; // Don't know what to do with var and type atm
     //struct NecroCoreAST_Type* type;
     NecroCoreAST_CaseAlt* alts;
+    NecroType*            type;
 } NecroCoreAST_Case;
 
 typedef struct
 {
-    NecroType type;
+    NecroType* type;
 } NecroCoreAST_Type;
 
 typedef struct
@@ -130,6 +131,23 @@ typedef struct
     struct NecroCoreAST_Expression* expr;
     struct NecroCoreAST_Expression* next;
 } NecroCoreAST_List;
+
+typedef enum
+{
+    NECRO_CORE_EXPR_VAR,
+    NECRO_CORE_EXPR_BIND,
+    NECRO_CORE_EXPR_LIT,
+    NECRO_CORE_EXPR_APP,
+    NECRO_CORE_EXPR_LAM,
+    NECRO_CORE_EXPR_LET,
+    NECRO_CORE_EXPR_CASE,
+    NECRO_CORE_EXPR_TYPE,
+    NECRO_CORE_EXPR_LIST, // used for top decls not language lists
+    NECRO_CORE_EXPR_DATA_DECL,
+    NECRO_CORE_EXPR_DATA_CON,
+    NECRO_CORE_EXPR_COUNT,
+    NECRO_CORE_EXPR_UNIMPLEMENTED,
+} NECRO_CORE_EXPR;
 
 typedef struct NecroCoreAST_Expression
 {
@@ -147,23 +165,7 @@ typedef struct NecroCoreAST_Expression
         NecroCoreAST_DataDecl data_decl;
         NecroCoreAST_DataCon data_con;
     };
-
-    enum
-    {
-        NECRO_CORE_EXPR_VAR,
-        NECRO_CORE_EXPR_BIND,
-        NECRO_CORE_EXPR_LIT,
-        NECRO_CORE_EXPR_APP,
-        NECRO_CORE_EXPR_LAM,
-        NECRO_CORE_EXPR_LET,
-        NECRO_CORE_EXPR_CASE,
-        NECRO_CORE_EXPR_TYPE,
-        NECRO_CORE_EXPR_LIST, // used for top decls not language lists
-        NECRO_CORE_EXPR_DATA_DECL,
-        NECRO_CORE_EXPR_DATA_CON,
-        NECRO_CORE_EXPR_COUNT,
-        NECRO_CORE_EXPR_UNIMPLEMENTED,
-    } expr_type;
+    NECRO_CORE_EXPR expr_type;
 } NecroCoreAST_Expression;
 
 static const char* core_ast_names[] =
@@ -204,6 +206,7 @@ typedef struct
     NecroPrimTypes* prim_types;
     NecroParse_CoreTransformState transform_state;
     NecroError error;
+    NecroSymTable* symtable;
 } NecroTransformToCore;
 
 void necro_transform_to_core(NecroTransformToCore* core_transform);
@@ -214,7 +217,8 @@ static inline void necro_construct_core_transform(
     NecroCoreAST* core_ast,
     NecroAST_Reified* necro_ast,
     NecroIntern* intern,
-    NecroPrimTypes* prim_types)
+    NecroPrimTypes* prim_types,
+    NecroSymTable* symtable)
 {
     core_transform->error.error_message[0] = '\0';
     core_transform->error.return_code = NECRO_SUCCESS;
@@ -224,6 +228,7 @@ static inline void necro_construct_core_transform(
     core_transform->intern = intern;
     core_transform->prim_types = prim_types;
     core_transform->transform_state = NECRO_CORE_TRANSFORMING;
+    core_transform->symtable = symtable;
 }
 
 static inline void necro_destruct_core_transform(NecroTransformToCore* core_transform)

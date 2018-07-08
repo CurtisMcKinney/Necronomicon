@@ -486,7 +486,7 @@ bool necro_ambig_occurs(NecroInfer* infer, NecroCon name, NecroType* type)
 {
     if (type == NULL)
         return false;
-    type = necro_find(infer, type);
+    type = necro_find(type);
     switch (type->type)
     {
     case NECRO_TYPE_VAR:  return name.id.id == type->var.var.id.id;
@@ -948,7 +948,7 @@ NecroASTNode* necro_resolve_context_to_dictionary(NecroInfer* infer, NecroTypeCl
         starting_type = infer->env.data[context->type_var.id.id];
     else
         starting_type = necro_symtable_get(infer->symtable, context->type_var.id)->type;
-    NecroType* var_type = necro_find(infer, starting_type);
+    NecroType* var_type = necro_find(starting_type);
     assert(var_type != NULL);
     switch (var_type->type)
     {
@@ -981,7 +981,7 @@ NecroASTNode* necro_resolve_context_to_dictionary(NecroInfer* infer, NecroTypeCl
                 assert(var_type->var.gen_bound->var.is_rigid == true);
                 // NecroASTNode* d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, var_type->var.gen_bound->var.var);
                 // NecroASTNode* d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, necro_find(infer, var_type->var.gen_bound)->var.var);
-                NecroASTNode* d_var = retrieveDictionaryFromContext(infer, dictionary_context, context, necro_find(infer, var_type->var.gen_bound)->var.var);
+                NecroASTNode* d_var = retrieveDictionaryFromContext(infer, dictionary_context, context, necro_find(var_type->var.gen_bound)->var.var);
                 assert(d_var != NULL);
                 return d_var;
             }
@@ -1035,7 +1035,7 @@ NecroASTNode* necro_resolve_method(NecroInfer* infer, NecroTypeClass* method_typ
         starting_type = infer->env.data[type_class_context->type_var.id.id];
     else
         starting_type = necro_symtable_get(infer->symtable, type_class_context->type_var.id)->type;
-    NecroType* var_type = necro_find(infer, starting_type);
+    NecroType* var_type = necro_find(starting_type);
     assert(var_type != NULL);
     switch (var_type->type)
     {
@@ -1071,7 +1071,7 @@ NecroASTNode* necro_resolve_method(NecroInfer* infer, NecroTypeClass* method_typ
                 assert(var_type->var.gen_bound->var.is_rigid == true);
                 // d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, var_type->var.gen_bound->var.var);
                 // d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, necro_find(infer, var_type->var.gen_bound)->var.var);
-                d_var = retrieveDictionaryFromContext(infer, dictionary_context, type_class_context, necro_find(infer, var_type->var.gen_bound)->var.var);
+                d_var = retrieveDictionaryFromContext(infer, dictionary_context, type_class_context, necro_find(var_type->var.gen_bound)->var.var);
                 d_var->scope = ast->scope;
                 if (necro_is_infer_error(infer)) return NULL;
                 assert(d_var != NULL);
@@ -1922,12 +1922,12 @@ NecroVar necro_get_highest_var(NecroInfer* infer, NecroVar var)
 {
     NecroType* type = NULL;
     if (infer->env.capacity > var.id.id && infer->env.data[var.id.id] != NULL)
-        type = necro_find(infer, infer->env.data[var.id.id]);
+        type = necro_find(infer->env.data[var.id.id]);
     else
-        type = necro_find(infer, necro_symtable_get(infer->symtable, var.id)->type);
+        type = necro_find(necro_symtable_get(infer->symtable, var.id)->type);
     assert(type != NULL);
     if (type->var.gen_bound != NULL)
-        type = necro_find(infer, type->var.gen_bound);
+        type = necro_find(type->var.gen_bound);
     assert(type->type == NECRO_TYPE_VAR);
     if (type->var.context != NULL)
         return necro_con_to_var(type->var.context->type_var);
@@ -2140,7 +2140,7 @@ void necro_create_type_class_instance(NecroInfer* infer, NecroNode* ast)
             NecroTypeClassContext* inst_context = instance_context;
             while (inst_context != NULL)
             {
-                NecroType* inst_context_type_var_type = necro_find(infer, infer->env.data[inst_context->type_var.id.id]);
+                NecroType* inst_context_type_var_type = necro_find(infer->env.data[inst_context->type_var.id.id]);
                 // NecroCon   inst_context_type_var      = necro_var_to_con(inst_context_type_var_type->var.var);
                 NecroCon   inst_context_type_var      = inst_context_type_var_type->var.context->type_var;
                 // NecroCon   inst_context_type_var      = inst_context->type_var;
@@ -2190,7 +2190,7 @@ void necro_create_type_class_instance(NecroInfer* infer, NecroNode* ast)
                     NecroTypeClassContext* inst_context = instance_context;
                     while (inst_context != NULL)
                     {
-                        NecroType* inst_context_type_var_type = necro_find(infer, infer->env.data[inst_context->type_var.id.id]);
+                        NecroType* inst_context_type_var_type = necro_find(infer->env.data[inst_context->type_var.id.id]);
                         NecroCon   inst_context_type_var      = inst_context_type_var_type->var.context->type_var;
                         NecroASTNode* dvar = necro_create_variable_ast(&infer->arena, infer->intern, necro_intern_get_string(infer->intern, necro_create_dictionary_arg_name(infer->intern, inst_context->type_class_name.symbol, inst_context->type_var.id)), NECRO_VAR_VAR);
                         // TODO: Is this required!?!?
@@ -2245,7 +2245,7 @@ void necro_create_type_class_instance(NecroInfer* infer, NecroNode* ast)
             // Super class dictionary arguments
             while (super_context != NULL)
             {
-                NecroType* super_inst_context_type = necro_find(infer, infer->env.data[super_context->type_var.id.id]);
+                NecroType* super_inst_context_type = necro_find(infer->env.data[super_context->type_var.id.id]);
                 NecroVar   super_inst_context_var  = super_inst_context_type->var.var;
                     // necro_con_to_var(necro_find(infer, super_context->type_var);
                 // NecroASTNode* argument_dictionary = retrieveDictionaryFromContext(infer, dictionary_context, super_context, necro_con_to_var(type_class->type_var)); // is using the type class var correct here!?

@@ -22,6 +22,8 @@
 #include "d_analyzer.h"
 #include "driver.h"
 #include "core/core.h"
+#include "node/node.h"
+#include "node/node_print.h"
 #include "codegen/codegen.h"
 
 void necro_compile_impl(
@@ -36,7 +38,7 @@ void necro_compile_impl(
     NecroAST_Reified* ast_r,
     NecroRuntime* runtime,
     NecroCoreAST* ast_core,
-
+    NecroNodeProgram* node,
     uint32_t* destruct_flags)
 {
     if (compilation_phase == NECRO_PHASE_NONE)
@@ -222,7 +224,7 @@ void necro_compile_impl(
 
     // NecroCoreAST ast_core;
     ast_core->root = NULL;
-    necro_construct_core_transform(core_transform, ast_core, ast_r, &lexer->intern, &prim_types);
+    necro_construct_core_transform(core_transform, ast_core, ast_r, &lexer->intern, &prim_types, &symtable);
     *destruct_flags |= BIT(NECRO_PHASE_TRANSFORM_TO_CORE);
     necro_transform_to_core(core_transform);
     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
@@ -235,6 +237,17 @@ void necro_compile_impl(
     necro_print_core(ast_core, &lexer->intern);
 
     if (compilation_phase == NECRO_PHASE_TRANSFORM_TO_CORE)
+        return;
+
+    //--------------------
+    // Transform to Node
+    //--------------------
+    necro_announce_phase("Node");
+    *node = necro_core_to_node(ast_core, &symtable, &scoped_symtable, &prim_types);
+    *destruct_flags |= BIT(NECRO_PHASE_TRANSFORM_TO_NODE);
+    puts("");
+    necro_print_node_program(node);
+    if (compilation_phase == NECRO_PHASE_TRANSFORM_TO_NODE)
         return;
 
     //=====================================================
@@ -278,6 +291,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     NecroAST ast;
     NecroAST_Reified ast_r;
     NecroCoreAST ast_core;
+    NecroNodeProgram node;
     NecroRuntime runtime;
     NecroCodeGen codegen;
 
@@ -293,6 +307,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
         &ast_r,
         &runtime,
         &ast_core,
+        &node,
         &destruct_flags);
 
     //=====================================================
@@ -303,6 +318,11 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     {
         necro_destroy_codegen(&codegen);
         necro_destroy_runtime(&runtime);
+    }
+
+    if (validate_destruct_phase(NECRO_PHASE_TRANSFORM_TO_NODE, destruct_flags))
+    {
+        necro_destroy_node_program(&node);
     }
 
     if (validate_destruct_phase(NECRO_PHASE_TRANSFORM_TO_CORE, destruct_flags))

@@ -4,6 +4,7 @@
  */
 
 #include "core.h"
+#include "type.h"
 
 #define NECRO_CORE_DEBUG 0
 #if NECRO_CORE_DEBUG
@@ -160,12 +161,20 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
         break;
 
     case NECRO_CORE_EXPR_DATA_CON:
-        printf("(DataCon: %s)\n", necro_intern_get_string(intern, ast_node->data_con.condid.symbol));
+        printf("(DataCon: %s, %d)\n", necro_intern_get_string(intern, ast_node->data_con.condid.symbol), ast_node->data_con.condid.id.id);
         if (ast_node->data_con.arg_list)
         {
             necro_print_core_node(ast_node->data_con.arg_list, intern, depth + 1);
         }
         break;
+    case NECRO_CORE_EXPR_TYPE:
+    {
+        char buf[1024];
+        char* buf_end = necro_snprintf_type_sig(ast_node->type.type, intern, buf, 1024);
+        *buf_end = '\0';
+        printf("(Type: %s)\n", buf);
+        break;
+    }
 
     default:
         printf("necro_print_core_node printing expression type unimplemented!: %s\n", core_ast_names[ast_node->expr_type]);
@@ -229,6 +238,7 @@ NecroCoreAST_Expression* necro_transform_if_then_else(NecroTransformToCore* core
 
     NecroCoreAST_Case* core_case = &core_expr->case_expr;
     core_case->expr = necro_transform_to_core_impl(core_transform, ast_if_then_else->if_expr);
+    core_case->type = necro_ast_node->necro_type;
 
     NecroCoreAST_CaseAlt* true_alt = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_CaseAlt));
     true_alt->expr = necro_transform_to_core_impl(core_transform, ast_if_then_else->then_expr);
@@ -267,6 +277,7 @@ NecroCoreAST_Expression* necro_transform_simple_assignment(NecroTransformToCore*
     core_bind->var.id = simple_assignment->id;
     core_bind->is_recursive = simple_assignment->is_recursive;
     core_bind->expr = necro_transform_to_core_impl(core_transform, simple_assignment->rhs);
+    necro_symtable_get(core_transform->symtable, core_bind->var.id)->core_ast = core_expr;
     return core_expr;
 }
 
@@ -285,6 +296,8 @@ NecroCoreAST_Expression* necro_transform_apats_assignment(NecroTransformToCore* 
     core_bind->var.symbol = apats_assignment->variable_name;
     core_bind->var.id = apats_assignment->id;
     core_bind->is_recursive = false;
+    NecroSymbolInfo* info = necro_symtable_get(core_transform->symtable, core_bind->var.id);
+    info->core_ast = core_expr;
 
     if (apats_assignment->apats)
     {
@@ -336,6 +349,7 @@ NecroCoreAST_Expression* necro_transform_right_hand_side(NecroTransformToCore* c
                 let->bind->bind.var.id = simple_assignment->id;
                 let->bind->bind.var.symbol = simple_assignment->variable_name;
                 let->bind->bind.is_recursive = simple_assignment->is_recursive;
+                necro_symtable_get(core_transform->symtable, let->bind->bind.var.id)->core_ast = let_expr;
                 let->bind->bind.expr = necro_transform_to_core_impl(core_transform, simple_assignment->rhs);
                 if (core_let)
                 {
@@ -392,6 +406,7 @@ NecroCoreAST_Expression* necro_transform_let(NecroTransformToCore* core_transfor
                 let->bind->expr_type = NECRO_CORE_EXPR_BIND;
                 let->bind->bind.var.id = simple_assignment->id;
                 let->bind->bind.var.symbol = simple_assignment->variable_name;
+                necro_symtable_get(core_transform->symtable, let->bind->bind.var.id)->core_ast = let_expr;
                 let->bind->bind.expr = necro_transform_to_core_impl(core_transform, simple_assignment->rhs);
                 let->bind->bind.is_recursive = simple_assignment->is_recursive;
                 if (core_let)
@@ -492,7 +507,6 @@ NecroCoreAST_Expression* necro_transform_data_constructor(NecroTransformToCore* 
         case NECRO_AST_TYPE_APP:
             {
                 NecroAST_TypeApp_Reified* type_app = &ast_item->type_app;
-
                 NecroCoreAST_Expression* next_core_arg = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
                 next_core_arg->expr_type = NECRO_CORE_EXPR_APP;
                 next_core_arg->app.exprA = necro_transform_to_core_impl(core_transform, type_app->ty);
@@ -530,6 +544,20 @@ NecroCoreAST_Expression* necro_transform_data_constructor(NecroTransformToCore* 
                 next_core_arg_data_expr->list.next = NULL;
             }
             break;
+        case NECRO_AST_FUNCTION_TYPE:
+        {
+            NecroAST_FunctionType_Reified* type_fun = &ast_item->function_type;
+            NecroCoreAST_Expression* next_core_arg = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+            next_core_arg->expr_type = NECRO_CORE_EXPR_TYPE;
+            next_core_arg->type.type = ast_item->necro_type;
+            // next_core_arg->lambda. = necro_transform_to_core_impl(core_transform, type_app->ty);
+            // next_core_arg->app.exprB = necro_transform_to_core_impl(core_transform, type_app->next_ty);
+            // next_core_arg->app.persistent_slot = 0; // Curtis: Metadata for codegen (would really prefer a constructor...)
+            next_core_arg_data_expr->expr_type = NECRO_CORE_EXPR_LIST;
+            next_core_arg_data_expr->list.expr = next_core_arg;
+            next_core_arg_data_expr->list.next = NULL;
+            break;
+        }
         default:
             assert(false && "Unexpected node type when transforming data constructor arg!");
         }
@@ -686,6 +714,7 @@ NecroCoreAST_Expression* necro_transform_lambda(NecroTransformToCore* core_trans
         NecroAST_Node_Reified* apat = apats->apat;
         current_lambda->lambda.arg = necro_transform_to_core_impl(core_transform, apats->apat);
         current_lambda->lambda.expr = NULL;
+        NecroType* type = necro_symtable_get(core_transform->symtable, current_lambda->lambda.arg->var.id)->type;
 
         if (apats->next_apat)
         {
@@ -705,6 +734,7 @@ NecroCoreAST_Expression* necro_transform_lambda(NecroTransformToCore* core_trans
     }
 
     current_lambda->lambda.expr = necro_transform_to_core_impl(core_transform, lambda->expression);
+    // necro_symtable_get(core_transform->symtable, current_lambda->lambda.arg->var.id)->core_ast = current_lambda->lambda.expr;
     return core_expr;
 }
 
@@ -834,6 +864,7 @@ NecroCoreAST_Expression* necro_transform_case(NecroTransformToCore* core_transfo
     NecroCoreAST_Case* core_case = &core_expr->case_expr;
     core_case->expr = necro_transform_to_core_impl(core_transform, case_ast->expression);
     core_case->alts = NULL;
+    core_case->type = necro_ast_node->necro_type;
 
     NecroAST_Node_Reified* list_node = case_ast->alternatives;
     // NecroAST_Node_Reified* alt_list_node = case_ast->alternatives;

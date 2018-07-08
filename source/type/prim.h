@@ -17,7 +17,9 @@
 #include "d_analyzer.h"
 #include "driver.h"
 #include "llvm-c/Types.h"
+#include "hash_table.h"
 
+NECRO_DECLARE_ARENA_CHAIN_TABLE(NecroCon, Con, con);
 
 //=====================================================
 // Forward Declarations and typedefs
@@ -104,11 +106,16 @@ typedef struct
 
 typedef struct NecroPrimTypes
 {
+    // Primitive types and functions
     NecroTupleTypes   tuple_types;
     NecroCon          necro_val_type;
     NecroCon          necro_data_type;
+    NecroCon          necro_app_type;
     NecroCon          any_type;
     NecroCon          io_type;
+    NecroCon          world_type;
+    NecroCon          the_world_type;
+    NecroCon          world_value;
     NecroCon          unit_type;
     NecroCon          unit_con;
     NecroCon          list_type;
@@ -131,6 +138,14 @@ typedef struct NecroPrimTypes
     NecroCon          event_type;
     NecroCon          pattern_type;
     NecroCon          delay_fn;
+
+    // Runtime functions
+    NecroCon          mouse_x_fn;
+    NecroCon          mouse_y_fn;
+
+    NecroConTable     con_table; // Maps con symbol ids to con NecroCon
+
+    // Utility
     NecroPrimDef*     defs;
     NecroPrimDef*     def_head;
     NecroPagedArena   arena;

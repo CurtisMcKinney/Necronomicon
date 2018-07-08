@@ -172,7 +172,7 @@ NecroType*  necro_inst(NecroInfer* infer, NecroType* poly_type, struct NecroScop
 NecroType*  necro_inst_with_context(NecroInfer* infer, NecroType* type, struct NecroScope* scope, struct NecroTypeClassContext** inst_context);
 NecroType*  necro_gen(NecroInfer* infer, NecroType* type, struct NecroScope* scope);
 NecroType*  necro_new_name(NecroInfer* infer, NecroSourceLoc source_loc);
-NecroType*  necro_find(NecroInfer* infer, NecroType* type);
+NecroType*  necro_find(NecroType* type);
 void        necr_bind_type_var(NecroInfer* infer, NecroVar var, NecroType* type);
 bool        necro_is_bound_in_scope(NecroInfer* infer, NecroType* type, struct NecroScope* scope);
 bool        necro_occurs(NecroInfer* infer, NecroType* type_var, NecroType* type, NecroType* macro_type, const char* error_preamble);

@@ -78,4 +78,6 @@ void               necro_destroy_snapshot_arena(NecroSnapshotArena* arena);
 NecroArenaSnapshot necro_get_arena_snapshot(NecroSnapshotArena* arena);
 void               necro_rewind_arena(NecroSnapshotArena* arena, NecroArenaSnapshot snapshot);
 
+char*              necro_concat_strings(NecroSnapshotArena* arena, uint32_t string_count, const char** strings);
+
 #endif // ARENA_H

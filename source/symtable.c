@@ -8,6 +8,7 @@
 #include "type.h"
 #include "type_class.h"
 #include "symtable.h"
+#include "core/core.h"
 
 // Constants
 #define NECRO_SYMTABLE_INITIAL_SIZE 512
@@ -48,11 +49,12 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
         .string_name             = necro_intern_get_string(intern, symbol),
         .id                      = 0,
         .data_size               = 0,
-        .local_var_num           = 0,
+        .con_num                 = 0,
         .source_loc              = source_loc,
         .scope                   = scope,
         .delay_scope             = NULL,
         .ast                     = NULL,
+        .core_ast                = NULL,
         .declaration_group       = NULL,
         .optional_type_signature = NULL,
         .type                    = NULL,
@@ -65,6 +67,8 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
         .node_prototype          = NULL,
         .persistent_slot         = 0,
         .is_constructor          = false,
+        .arity                   = 0,
+        .necro_node_ast          = NULL,
     };
 }
 
@@ -123,9 +127,6 @@ void necro_symtable_info_print(NecroSymbolInfo info, NecroIntern* intern, size_t
 
     print_white_space(whitespace + 4);
     printf("size:       %d\n", info.data_size);
-
-    print_white_space(whitespace + 4);
-    printf("local var:  %d\n", info.local_var_num);
 
     print_white_space(whitespace + 4);
     printf("source loc: { line: %d, character: %d, pos: %d }\n", info.source_loc.line, info.source_loc.character, info.source_loc.pos);
@@ -387,6 +388,12 @@ NecroID necro_scoped_symtable_new_symbol_info(NecroScopedSymTable* table, NecroS
     NecroID id = necro_symtable_insert(table->global_table, info);
     necro_scope_insert(scope, info.name, id, &table->arena);
     return id;
+}
+
+NecroID necro_symtable_manual_new_symbol(NecroSymTable* symtable, NecroSymbol symbol)
+{
+    NecroSymbolInfo info = necro_create_initial_symbol_info(symbol, (NecroSourceLoc) { 0 }, NULL, symtable->intern);
+    return necro_symtable_insert(symtable, info);
 }
 
 void necro_scope_set_last_introduced_id(NecroScope* scope, NecroID last_introduced_id)

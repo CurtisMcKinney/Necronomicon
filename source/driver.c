@@ -256,9 +256,8 @@ void necro_compile_impl(
     necro_announce_phase("CodeGen");
     // *runtime = necro_create_runtime();
     *codegen_llvm = necro_create_codegen_llvm(&lexer->intern, &symtable, &prim_types);
-    NECRO_RETURN_CODE codegen_llvm_return_code = necro_codegen_llvm(codegen_llvm, machine);
     *destruct_flags |= BIT(NECRO_PHASE_CODEGEN);
-    if (codegen_llvm_return_code != NECRO_SUCCESS)
+    if (necro_codegen_llvm(codegen_llvm, machine) != NECRO_SUCCESS)
         return;
     if (compilation_phase == NECRO_PHASE_CODEGEN)
         return;

@@ -81,7 +81,9 @@ void necro_print_machine_value(NecroMachineProgram* program, NecroMachineAST* as
         assert(false);
         break;
     }
-    if (should_print_value_type == NECRO_PRINT_VALUE_TYPE)
+    // if (should_print_value_type == NECRO_PRINT_VALUE_TYPE)
+    // Turning this off for now to clear some clutter
+    if (false)
     {
         printf(" (");
         necro_machine_print_machine_type_go(program->intern, ast->necro_machine_type, false);
@@ -265,18 +267,18 @@ void necro_machine_print_machine_def(NecroMachineProgram* program, NecroMachineA
     printf("type: ");
     necro_machine_print_machine_type_go(program->intern, ast->necro_machine_type, true);
     printf("\n");
-    if (ast->machine_def.default_mk && (ast->machine_def.state_type == NECRO_STATE_STATEFUL || ast->machine_def.state_type == NECRO_STATE_CONSTANT))
+    if (ast->machine_def.mk_fn != NULL && (ast->machine_def.state_type == NECRO_STATE_STATEFUL || ast->machine_def.state_type == NECRO_STATE_CONSTANT))
     {
         // print_white_space(depth + 4);
         printf("\n");
         necro_machine_print_fn(program, ast->machine_def.mk_fn, depth + 4);
     }
-    if (ast->machine_def.default_init && (ast->machine_def.state_type == NECRO_STATE_STATEFUL || ast->machine_def.state_type == NECRO_STATE_CONSTANT))
-    {
-        // print_white_space(depth + 4);
-        // printf("init:\n");
-        // necro_machine_print_fn(program, ast->machine_def.init_fn, depth + 4);
-    }
+    // if (ast->machine_def.default_init && (ast->machine_def.state_type == NECRO_STATE_STATEFUL || ast->machine_def.state_type == NECRO_STATE_CONSTANT))
+    // {
+    //     // print_white_space(depth + 4);
+    //     // printf("init:\n");
+    //     // necro_machine_print_fn(program, ast->machine_def.init_fn, depth + 4);
+    // }
     if (ast->machine_def.update_fn != NULL)
     {
         printf("\n");

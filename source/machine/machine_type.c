@@ -125,7 +125,6 @@ void necro_type_check(NecroMachineProgram* program, NecroMachineType* type1, Nec
         assert(type1->struct_type.name.id.id == type2->struct_type.name.id.id);
         return;
     case NECRO_MACHINE_TYPE_FN:
-        // assert(type1->fn_type.name.id.id == type2->fn_type.name.id.id);
         assert(type1->fn_type.num_parameters == type2->fn_type.num_parameters);
         for (size_t i = 0; i < type1->fn_type.num_parameters; ++i)
         {
@@ -152,22 +151,22 @@ void necro_machine_print_machine_type_go(NecroIntern* intern, NecroMachineType* 
         printf("void");
         return;
     case NECRO_MACHINE_TYPE_UINT1:
-        printf("uint1");
+        printf("u1");
         return;
     case NECRO_MACHINE_TYPE_UINT8:
-        printf("uint8");
+        printf("u8");
         return;
     case NECRO_MACHINE_TYPE_UINT16:
-        printf("uint16");
+        printf("u16");
         return;
     case NECRO_MACHINE_TYPE_UINT32:
-        printf("uint32");
+        printf("u32");
         return;
     case NECRO_MACHINE_TYPE_UINT64:
-        printf("uint64");
+        printf("u64");
         return;
     case NECRO_MACHINE_TYPE_INT64:
-        printf("int64");
+        printf("i64");
         return;
     case NECRO_MACHINE_TYPE_F64:
         printf("f64");

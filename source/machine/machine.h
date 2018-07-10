@@ -28,6 +28,7 @@
 
 /*
     TODO:
+        * codegen
         * runtime
         * Construct main function
         * null out and zero out memory when allocated with nalloc via memcpy NULL....should be faster than doing it in code!?
@@ -430,7 +431,7 @@ typedef struct NecroMachineProgram
 // TODO: necro_verify_machine_program
 
 NecroMachineProgram necro_core_to_machine(NecroCoreAST* core_ast, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types);
-void             necro_destroy_machine_program(NecroMachineProgram* program);
+void                necro_destroy_machine_program(NecroMachineProgram* program);
 
 ///////////////////////////////////////////////////////
 // create / build API

@@ -1,13 +1,13 @@
 data Nullary    = Nullary
--- data Unary      = Unary Nullary
--- data Both       = Both Nullary Unary
+data Unary      = Unary Nullary
+data Both       = Both Nullary Unary
 -- data Maybe  a   = Just a | Nothing
 -- data Either a b = Left a | Right b
 -- data List a     = Cons a (List a) | Nil
 
-simple :: Nullary
-simple = Nullary
-
+-- simple :: Nullary
+-- simple = Nullary
+--
 -- unaryNow :: Unary
 -- unaryNow = Unary x where
 --     x = Nullary
@@ -25,13 +25,18 @@ simple = Nullary
 -- fnTest :: Nullary -> Nullary
 -- fnTest n = n
 --
+-- appFnTest :: Nullary
+-- appFnTest = fnTest Nullary
+
 -- feedFn :: Nullary -> Unary
 -- feedFn n = x where
 --     x = x
---
+
 -- appFeedFn :: Unary
 -- appFeedFn = feedFn Nullary
---
+
+-- globalTest :: Nullary
+-- globalTest = Nullary
 
 -- useGlobal :: Unary
 -- useGlobal = Unary globalTest
@@ -55,46 +60,43 @@ simple = Nullary
 -- unitTest :: ()
 -- unitTest = ()
 
--- nested1 :: Nullary -> Nullary
--- nested1 n = x where
---     x = x
---
--- nested2 :: Nullary -> Nullary
--- nested2 n = nested1 (nested1 n)
---
--- nested4 :: Nullary -> Nullary
--- nested4 n = nested2 (nested2 n)
---
--- nested8 :: Nullary -> Nullary
--- nested8 n = nested4 (nested4 n)
---
--- nested16 :: Nullary -> Nullary
--- nested16 n = nested8 (nested8 n)
---
--- nested32 :: Nullary -> Nullary
--- nested32 n = nested16 (nested16 n)
---
--- nested64 :: Nullary -> Nullary
--- nested64 n = nested32 (nested32 n)
---
--- nested128 :: Nullary -> Nullary
--- nested128 n = nested64 (nested64 n)
---
--- nested256 :: Nullary -> Nullary
--- nested256 n = nested128 (nested128 n)
---
--- nested512 :: Nullary -> Nullary
--- nested512 n = nested256 (nested256 n)
---
--- nested1024 :: Nullary -> Nullary
--- nested1024 n = nested512 (nested512 n)
---
--- topNested :: Nullary
--- topNested = nested1024 Nullary
---
--- globalTest :: Nullary
--- globalTest = Nullary
---
+nested1 :: Nullary -> Nullary
+nested1 n = x where
+    x = x
+
+nested2 :: Nullary -> Nullary
+nested2 n = nested1 (nested1 n)
+
+nested4 :: Nullary -> Nullary
+nested4 n = nested2 (nested2 n)
+
+nested8 :: Nullary -> Nullary
+nested8 n = nested4 (nested4 n)
+
+nested16 :: Nullary -> Nullary
+nested16 n = nested8 (nested8 n)
+
+nested32 :: Nullary -> Nullary
+nested32 n = nested16 (nested16 n)
+
+nested64 :: Nullary -> Nullary
+nested64 n = nested32 (nested32 n)
+
+nested128 :: Nullary -> Nullary
+nested128 n = nested64 (nested64 n)
+
+nested256 :: Nullary -> Nullary
+nested256 n = nested128 (nested128 n)
+
+nested512 :: Nullary -> Nullary
+nested512 n = nested256 (nested256 n)
+
+nested1024 :: Nullary -> Nullary
+nested1024 n = nested512 (nested512 n)
+
+topNested :: Nullary
+topNested = nested1024 Nullary
+
 -- intTest :: Int
 -- intTest = 1 + 2 * 3 + 4 - 100
 --

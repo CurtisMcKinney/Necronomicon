@@ -22,9 +22,9 @@
 #include "d_analyzer.h"
 #include "driver.h"
 #include "core/core.h"
-#include "node/node.h"
-#include "node/node_print.h"
-#include "codegen/codegen.h"
+#include "machine/machine.h"
+#include "machine/machine_print.h"
+#include "codegen/codegen_llvm.h"
 
 void necro_compile_impl(
     const char* input_string,
@@ -33,12 +33,12 @@ void necro_compile_impl(
     NecroParser* parser,
     NecroTransformToCore* core_transform,
     NecroLexer* lexer,
-    NecroCodeGen* codegen,
+    NecroCodeGenLLVM* codegen_llvm,
     NecroAST* ast,
     NecroAST_Reified* ast_r,
-    NecroRuntime* runtime,
+    // NecroRuntime* runtime,
     NecroCoreAST* ast_core,
-    NecroNodeProgram* node,
+    NecroMachineProgram* machine,
     uint32_t* destruct_flags)
 {
     if (compilation_phase == NECRO_PHASE_NONE)
@@ -80,14 +80,14 @@ void necro_compile_impl(
     *ast = (NecroAST) { construct_arena(lexer->tokens.length * sizeof(NecroAST_Node)) };
     construct_parser(parser, ast, lexer->tokens.data, &lexer->intern);
     *destruct_flags |= BIT(NECRO_PHASE_PARSE);
-    NecroAST_LocalPtr root_node_ptr = null_local_ptr;
-    if (parse_ast(parser, &root_node_ptr) != NECRO_SUCCESS)
+    NecroAST_LocalPtr root_machine_ptr = null_local_ptr;
+    if (parse_ast(parser, &root_machine_ptr) != NECRO_SUCCESS)
     {
         necro_print_error(&parser->error, input_string, "Parsing");
         return;
     }
     if (compilation_phase == NECRO_PHASE_PARSE)
-        print_ast(ast, &lexer->intern, root_node_ptr);
+        print_ast(ast, &lexer->intern, root_machine_ptr);
     if (compilation_phase == NECRO_PHASE_PARSE)
         return;
 
@@ -95,8 +95,8 @@ void necro_compile_impl(
     // Reifying
     //=====================================================
     necro_announce_phase("Reifying");
-    // NecroAST_Reified ast_r = necro_reify_ast(ast, root_node_ptr, &lexer->intern);
-    *ast_r = necro_reify_ast(ast, root_node_ptr, &lexer->intern);
+    // NecroAST_Reified ast_r = necro_reify_ast(ast, root_machine_ptr, &lexer->intern);
+    *ast_r = necro_reify_ast(ast, root_machine_ptr, &lexer->intern);
     if (compilation_phase == NECRO_PHASE_REIFY)
         necro_print_reified_ast(ast_r, &lexer->intern);
     *destruct_flags |= BIT(NECRO_PHASE_REIFY);
@@ -240,38 +240,34 @@ void necro_compile_impl(
         return;
 
     //--------------------
-    // Transform to Node
+    // Transform to Machine
     //--------------------
-    necro_announce_phase("Node");
-    *node = necro_core_to_node(ast_core, &symtable, &scoped_symtable, &prim_types);
-    *destruct_flags |= BIT(NECRO_PHASE_TRANSFORM_TO_NODE);
+    necro_announce_phase("Machine");
+    *machine = necro_core_to_machine(ast_core, &symtable, &scoped_symtable, &prim_types);
+    *destruct_flags |= BIT(NECRO_PHASE_TRANSFORM_TO_MACHINE);
     puts("");
-    necro_print_node_program(node);
-    if (compilation_phase == NECRO_PHASE_TRANSFORM_TO_NODE)
+    necro_print_machine_program(machine);
+    if (compilation_phase == NECRO_PHASE_TRANSFORM_TO_MACHINE)
         return;
 
     //=====================================================
     // Codegen
     //=====================================================
     necro_announce_phase("CodeGen");
-    *runtime = necro_create_runtime();
-    *codegen = necro_create_codegen(infer, &lexer->intern, &symtable, runtime, "necro");
-    necro_codegen(codegen, ast_core);
+    // *runtime = necro_create_runtime();
+    *codegen_llvm = necro_create_codegen_llvm(&lexer->intern, &symtable, &prim_types);
+    NECRO_RETURN_CODE codegen_llvm_return_code = necro_codegen_llvm(codegen_llvm, machine);
     *destruct_flags |= BIT(NECRO_PHASE_CODEGEN);
-    if (codegen->error.return_code != NECRO_SUCCESS)
-    {
-        // necro_print_reified_ast(ast_r, &lexer->intern);
-        necro_print_error(&codegen->error, input_string, "Necro");
+    if (codegen_llvm_return_code != NECRO_SUCCESS)
         return;
-    }
     if (compilation_phase == NECRO_PHASE_CODEGEN)
         return;
 
     //=====================================================
     // JIT
     //=====================================================
-    if (necro_jit(codegen) == NECRO_ERROR)
-        return;
+    // if (necro_jit(codegen) == NECRO_ERROR)
+    //     return;
     if (compilation_phase == NECRO_PHASE_JIT)
         return;
 }
@@ -291,9 +287,9 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     NecroAST ast;
     NecroAST_Reified ast_r;
     NecroCoreAST ast_core;
-    NecroNodeProgram node;
-    NecroRuntime runtime;
-    NecroCodeGen codegen;
+    NecroMachineProgram machine;
+    // NecroRuntime runtime;
+    NecroCodeGenLLVM codegen_llvm;
 
     necro_compile_impl(
         input_string,
@@ -302,12 +298,12 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
         &parser,
         &core_transform,
         &lexer,
-        &codegen,
+        &codegen_llvm,
         &ast,
         &ast_r,
-        &runtime,
+        // &runtime,
         &ast_core,
-        &node,
+        &machine,
         &destruct_flags);
 
     //=====================================================
@@ -316,13 +312,13 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     necro_announce_phase("Cleaning Up");
     if (validate_destruct_phase(NECRO_PHASE_CODEGEN, destruct_flags))
     {
-        necro_destroy_codegen(&codegen);
-        necro_destroy_runtime(&runtime);
+        necro_destroy_codegen_llvm(&codegen_llvm);
+        // necro_destroy_runtime(&runtime);
     }
 
-    if (validate_destruct_phase(NECRO_PHASE_TRANSFORM_TO_NODE, destruct_flags))
+    if (validate_destruct_phase(NECRO_PHASE_TRANSFORM_TO_MACHINE, destruct_flags))
     {
-        necro_destroy_node_program(&node);
+        necro_destroy_machine_program(&machine);
     }
 
     if (validate_destruct_phase(NECRO_PHASE_TRANSFORM_TO_CORE, destruct_flags))

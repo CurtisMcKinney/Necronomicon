@@ -31,7 +31,7 @@ struct NecroTypeClass;
 struct NecroTypeClassInstance;
 struct NecroNodePrototype;
 struct NecroCoreAST_Expression;
-struct NecroNodeAST;
+struct NecroMachineAST;
 
 typedef struct
 {
@@ -52,12 +52,9 @@ typedef struct
     struct NecroTypeClass*          method_type_class;
     struct NecroTypeClass*          type_class;
     struct NecroTypeClassInstance*  type_class_instance;
-    LLVMValueRef                    llvm_value;
-    LLVMTypeRef                     llvm_type;
-    struct NecroNodePrototype*      node_prototype;
     size_t                          arity;
     uint32_t                        persistent_slot; // 0 indicates no persistence
-    struct NecroNodeAST*            necro_node_ast;
+    struct NecroMachineAST*         necro_machine_ast;
     bool                            is_constructor;
 } NecroSymbolInfo;
 

@@ -45,6 +45,7 @@
 ///////////////////////////////////////////////////////
 struct NecroMachineAST;
 struct NecroMachineLit;
+struct NecroMachineDef;
 
 ///////////////////////////////////////////////////////
 // Types
@@ -94,8 +95,9 @@ typedef struct NecroMachineValue
 
 typedef struct NecroSlot
 {
-    size_t         slot_num;
-    NecroMachineType* necro_machine_type;
+    size_t                  slot_num;
+    NecroMachineType*       necro_machine_type;
+    struct NecroMachineDef* machine_def;
 } NecroSlot;
 
 typedef struct NecroTerminator
@@ -154,33 +156,32 @@ typedef struct NecroMachineBlock
 
 typedef struct NecroMachineDef
 {
-    NecroVar             bind_name;
-    NecroVar             machine_name;
+    NecroVar                bind_name;
+    NecroVar                machine_name;
 
     struct NecroMachineAST* mk_fn;
     struct NecroMachineAST* init_fn;
     struct NecroMachineAST* update_fn;
     NecroMachineBlock*      update_error_block;
-    uint32_t             initial_tag;
-    NECRO_STATE_TYPE     state_type;
+    uint32_t                initial_tag;
+    NECRO_STATE_TYPE        state_type;
     struct NecroMachineAST* outer;
     NecroMachineType*       value_type;
     NecroMachineType*       fn_type;
-    bool                 default_mk;
-    bool                 default_init;
-    bool                 is_pushed;
-    bool                 is_recursive;
-    bool                 is_persistent_slot_set;
+    bool                    is_pushed;
+    bool                    is_recursive;
+    bool                    is_persistent_slot_set;
 
     // args
-    NecroVar*            arg_names;
-    NecroType**          arg_types;
-    size_t               num_arg_names;
+    NecroVar*               arg_names;
+    NecroType**             arg_types;
+    size_t                  num_arg_names;
 
     // members
-    NecroSlot*           members;
-    size_t               num_members;
-    size_t               members_size;
+    NecroSlot*              members;
+    size_t                  num_members;
+    size_t                  members_size;
+    int32_t                 _first_dynamic;
 
     struct NecroMachineAST* global_value; // If global
     // cache if and where slots have been loaded!?
@@ -190,17 +191,13 @@ typedef enum
 {
     NECRO_FN_FN,
     NECRO_FN_RUNTIME,
-    // NECRO_FN_PRIM_OP_CMPI,
-    // NECRO_FN_PRIM_OP_ZEXT,
-    // NECRO_FN_PRIM_OP_BIT_OR,
-    // NECRO_FN_PRIM_OP_BIT_AND,
 } NECRO_FN_TYPE;
 
 typedef struct NecroMachineFnDef
 {
-    NecroVar             name;
+    NecroVar                name;
     struct NecroMachineAST* call_body;
-    NECRO_FN_TYPE        fn_type;
+    NECRO_FN_TYPE           fn_type;
     struct NecroMachineAST* fn_value;
     //-------------------
     // compile time data

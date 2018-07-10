@@ -126,16 +126,14 @@ LLVMTypeRef necro_machine_type_to_llvm_type(NecroCodeGenLLVM* codegen, NecroMach
         NecroCodeGenSymbolInfo* info = necro_codegen_symtable_get(codegen, machine_type->struct_type.name);
         if (info->type == NULL)
         {
-            if (machine_type->struct_type.num_members > 256)
-                assert(true);
+            LLVMTypeRef struct_type = LLVMStructCreateNamed(codegen->context, necro_intern_get_string(codegen->intern, machine_type->struct_type.name.symbol));
+            info->type = struct_type;
             LLVMTypeRef* elements = necro_paged_arena_alloc(&codegen->arena, machine_type->struct_type.num_members * sizeof(LLVMTypeRef));
             for (size_t i = 0; i < machine_type->struct_type.num_members; ++i)
             {
                 elements[i] = necro_machine_type_to_llvm_type(codegen, machine_type->struct_type.members[i]);
             }
-            LLVMTypeRef struct_type = LLVMStructCreateNamed(codegen->context, necro_intern_get_string(codegen->intern, machine_type->struct_type.name.symbol));
             LLVMStructSetBody(struct_type, elements, machine_type->struct_type.num_members, false);
-            info->type = struct_type;
         }
         return info->type;
     }
@@ -229,16 +227,16 @@ void necro_codegen_declare_runtime_functions(NecroCodeGenLLVM* codegen, NecroMac
 // {
 //     necro_gc_init();
 //     LLVMAddGlobalMapping(engine, runtime->functions.necro_alloc, _necro_alloc);
-//     LLVMAddGlobalMapping(engine, runtime->functions.necro_print, _necro_print);
-//     LLVMAddGlobalMapping(engine, runtime->functions.necro_sleep, _necro_sleep);
-//     LLVMAddGlobalMapping(engine, runtime->functions.necro_collect, _necro_collect);
-//     LLVMAddGlobalMapping(engine, runtime->functions.necro_initialize_root_set, _necro_initialize_root_set);
-//     LLVMAddGlobalMapping(engine, runtime->functions.necro_set_root, _necro_set_root);
-//     LLVMAddGlobalMapping(engine, runtime->functions.necro_error_exit, _necro_error_exit);
-//     LLVMAddGlobalMapping(engine, runtime->functions.necro_init_runtime, _necro_init_runtime);
-//     LLVMAddGlobalMapping(engine, runtime->functions.necro_update_runtime, _necro_update_runtime);
-//     LLVMAddGlobalMapping(engine, runtime->functions.necro_mouse_x, _necro_mouse_x);
-//     LLVMAddGlobalMapping(engine, runtime->functions.necro_mouse_y, _necro_mouse_y);
+//     // LLVMAddGlobalMapping(engine, runtime->functions.necro_print, _necro_print);
+//     // LLVMAddGlobalMapping(engine, runtime->functions.necro_sleep, _necro_sleep);
+//     // LLVMAddGlobalMapping(engine, runtime->functions.necro_collect, _necro_collect);
+//     // LLVMAddGlobalMapping(engine, runtime->functions.necro_initialize_root_set, _necro_initialize_root_set);
+//     // LLVMAddGlobalMapping(engine, runtime->functions.necro_set_root, _necro_set_root);
+//     // LLVMAddGlobalMapping(engine, runtime->functions.necro_error_exit, _necro_error_exit);
+//     // LLVMAddGlobalMapping(engine, runtime->functions.necro_init_runtime, _necro_init_runtime);
+//     // LLVMAddGlobalMapping(engine, runtime->functions.necro_update_runtime, _necro_update_runtime);
+//     // LLVMAddGlobalMapping(engine, runtime->functions.necro_mouse_x, _necro_mouse_x);
+//     // LLVMAddGlobalMapping(engine, runtime->functions.necro_mouse_y, _necro_mouse_y);
 // }
 
 void necro_codegen_function(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
@@ -293,9 +291,9 @@ LLVMValueRef necro_codegen_terminator(NecroCodeGenLLVM* codegen, NecroTerminator
     case NECRO_TERM_RETURN:
         return LLVMBuildRet(codegen->builder, necro_codegen_value(codegen, term->return_terminator.return_value));
     case NECRO_TERM_BREAK:
-        return NULL;
+        return LLVMBuildBr(codegen->builder, necro_codegen_symtable_get(codegen, term->break_terminator.block_to_jump_to->block.name)->block);
     case NECRO_TERM_COND_BREAK:
-        return NULL;
+        return LLVMBuildCondBr(codegen->builder, necro_codegen_value(codegen, term->cond_break_terminator.cond_value), necro_codegen_symtable_get(codegen, term->cond_break_terminator.true_block->block.name)->block, necro_codegen_symtable_get(codegen, term->cond_break_terminator.false_block->block.name)->block);
     case NECRO_TERM_SWITCH:
         return NULL;
     case NECRO_TERM_UNREACHABLE:
@@ -314,7 +312,7 @@ LLVMValueRef necro_codegen_nalloc(NecroCodeGenLLVM* codegen, NecroMachineAST* as
     LLVMTypeRef  type          = necro_machine_type_to_llvm_type(codegen, ast->nalloc.type_to_alloc);
     uint64_t     data_size_n   = LLVMStoreSizeOfType(codegen->target, type);
     uint16_t     raw_slots     = ((((uint32_t)data_size_n) - sizeof(uint64_t)) / sizeof(int64_t*));
-    uint16_t     slots_total_n = next_highest_pow_of_2(raw_slots);
+    uint16_t     slots_total_n = next_highest_pow_of_2(raw_slots) / 2;
     uint8_t      segment_n     = log2_32(slots_total_n);
     assert(ast->nalloc.slots_used <= slots_total_n);
     LLVMValueRef data_size     = LLVMConstInt(LLVMInt64TypeInContext(codegen->context), data_size_n, false);
@@ -479,6 +477,68 @@ LLVMValueRef necro_codegen_binop(NecroCodeGenLLVM* codegen, NecroMachineAST* ast
     return value;
 }
 
+LLVMValueRef necro_codegen_cmp(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
+{
+    assert(codegen != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_MACHINE_CMP);
+    const char*  name  = necro_intern_get_string(codegen->intern, ast->cmp.result->value.reg_name.symbol);
+    LLVMValueRef left  = necro_codegen_value(codegen, ast->cmp.left);
+    LLVMValueRef right = necro_codegen_value(codegen, ast->cmp.right);
+    LLVMValueRef value = NULL;
+    if (ast->cmp.left->type == NECRO_MACHINE_TYPE_UINT1  ||
+        ast->cmp.left->type == NECRO_MACHINE_TYPE_UINT8  ||
+        ast->cmp.left->type == NECRO_MACHINE_TYPE_UINT16 ||
+        ast->cmp.left->type == NECRO_MACHINE_TYPE_UINT32 ||
+        ast->cmp.left->type == NECRO_MACHINE_TYPE_UINT64 ||
+        ast->cmp.left->type == NECRO_MACHINE_TYPE_PTR)
+    {
+        switch (ast->cmp.cmp_type)
+        {
+        case NECRO_MACHINE_CMP_EQ: value = LLVMBuildICmp(codegen->builder, LLVMIntEQ,  left, right, name); break;
+        case NECRO_MACHINE_CMP_NE: value = LLVMBuildICmp(codegen->builder, LLVMIntNE,  left, right, name); break;
+        case NECRO_MACHINE_CMP_GT: value = LLVMBuildICmp(codegen->builder, LLVMIntUGT, left, right, name); break;
+        case NECRO_MACHINE_CMP_GE: value = LLVMBuildICmp(codegen->builder, LLVMIntUGE, left, right, name); break;
+        case NECRO_MACHINE_CMP_LT: value = LLVMBuildICmp(codegen->builder, LLVMIntULT, left, right, name); break;
+        case NECRO_MACHINE_CMP_LE: value = LLVMBuildICmp(codegen->builder, LLVMIntULE, left, right, name); break;
+        default: assert(false); break;
+        }
+    }
+    else if (ast->cmp.left->type == NECRO_MACHINE_TYPE_INT64)
+    {
+        switch (ast->cmp.cmp_type)
+        {
+        case NECRO_MACHINE_CMP_EQ: value = LLVMBuildICmp(codegen->builder, LLVMIntEQ,  left, right, name); break;
+        case NECRO_MACHINE_CMP_NE: value = LLVMBuildICmp(codegen->builder, LLVMIntNE,  left, right, name); break;
+        case NECRO_MACHINE_CMP_GT: value = LLVMBuildICmp(codegen->builder, LLVMIntSGT, left, right, name); break;
+        case NECRO_MACHINE_CMP_GE: value = LLVMBuildICmp(codegen->builder, LLVMIntSGE, left, right, name); break;
+        case NECRO_MACHINE_CMP_LT: value = LLVMBuildICmp(codegen->builder, LLVMIntSLT, left, right, name); break;
+        case NECRO_MACHINE_CMP_LE: value = LLVMBuildICmp(codegen->builder, LLVMIntSLE, left, right, name); break;
+        default: assert(false); break;
+        }
+    }
+    else if (ast->cmp.left->type == NECRO_MACHINE_TYPE_F64)
+    {
+        switch (ast->cmp.cmp_type)
+        {
+        case NECRO_MACHINE_CMP_EQ: value = LLVMBuildICmp(codegen->builder, LLVMRealUEQ,  left, right, name); break;
+        case NECRO_MACHINE_CMP_NE: value = LLVMBuildICmp(codegen->builder, LLVMRealUNE,  left, right, name); break;
+        case NECRO_MACHINE_CMP_GT: value = LLVMBuildICmp(codegen->builder, LLVMRealUGT, left, right, name); break;
+        case NECRO_MACHINE_CMP_GE: value = LLVMBuildICmp(codegen->builder, LLVMRealUGE, left, right, name); break;
+        case NECRO_MACHINE_CMP_LT: value = LLVMBuildICmp(codegen->builder, LLVMRealULT, left, right, name); break;
+        case NECRO_MACHINE_CMP_LE: value = LLVMBuildICmp(codegen->builder, LLVMRealULE, left, right, name); break;
+        default: assert(false); break;
+        }
+    }
+    else
+    {
+        assert(false);
+    }
+    necro_codegen_symtable_get(codegen, ast->cmp.result->value.reg_name)->type  = necro_machine_type_to_llvm_type(codegen, ast->cmp.result->necro_machine_type);
+    necro_codegen_symtable_get(codegen, ast->cmp.result->value.reg_name)->value = value;
+    return value;
+}
+
 LLVMValueRef necro_codegen_call(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
 {
     assert(codegen != NULL);
@@ -513,7 +573,7 @@ LLVMValueRef necro_codegen_block_statement(NecroCodeGenLLVM* codegen, NecroMachi
     case NECRO_MACHINE_GEP:      return necro_codegen_gep(codegen, ast);
     case NECRO_MACHINE_BINOP:    return necro_codegen_binop(codegen, ast);
     case NECRO_MACHINE_CALL:     return necro_codegen_call(codegen, ast);
-    case NECRO_MACHINE_CMP:      return NULL;
+    case NECRO_MACHINE_CMP:      return necro_codegen_cmp(codegen, ast);
     case NECRO_MACHINE_PHI:      return NULL;
     default:      assert(false); return NULL;
     }

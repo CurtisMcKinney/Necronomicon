@@ -118,7 +118,7 @@ void necro_machine_print_block(NecroMachineProgram* program, NecroMachineAST* as
         break;
     case NECRO_TERM_COND_BREAK:
         print_white_space(depth);
-        printf("condbreak %%%s [0: %s, 1: %s]\n",
+        printf("condbreak %%%s [true: %s, false: %s]\n",
             necro_intern_get_string(program->intern, ast->block.terminator->cond_break_terminator.cond_value->value.reg_name.symbol),
             necro_intern_get_string(program->intern, ast->block.terminator->cond_break_terminator.true_block->block.name.symbol),
             necro_intern_get_string(program->intern, ast->block.terminator->cond_break_terminator.false_block->block.name.symbol)
@@ -137,7 +137,6 @@ void necro_machine_print_block(NecroMachineProgram* program, NecroMachineAST* as
 void necro_machine_print_call(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)
 {
     assert(ast->type == NECRO_MACHINE_CALL);
-    // printf("%%%s = %s(", necro_intern_get_string(program->intern, ast->call.result_reg.reg_name.symbol), necro_intern_get_string(program->intern, ast->call.name.symbol));
     printf("%%%s = call ", necro_intern_get_string(program->intern, ast->call.result_reg->value.reg_name.symbol));
     necro_print_machine_value(program, ast->call.fn_value, NECRO_DONT_PRINT_VALUE_TYPE);
     printf("(");
@@ -173,12 +172,6 @@ void necro_machine_print_store(NecroMachineProgram* program, NecroMachineAST* as
         necro_print_machine_value(program, ast->store.store_slot.dest_ptr, NECRO_PRINT_VALUE_TYPE);
         printf(" (slot %d)", ast->store.store_slot.dest_slot);
         return;
-    // case NECRO_STORE_GLOBAL:
-    //     necro_print_machine_value(program, ast->store.source_value, NECRO_PRINT_VALUE_TYPE);
-    //     necro_print_machine_value(program, ast->store.dest_global, NECRO_PRINT_VALUE_TYPE);
-    //     // printf("%s", necro_intern_get_string(program->intern, ast->store.dest_global->value.global_name.symbol));
-    //     // printf(" (global)");
-    //     return;
     }
 }
 
@@ -333,21 +326,19 @@ void necro_machine_print_cmp(NecroMachineProgram* program, NecroMachineAST* ast,
 {
     assert(ast->type == NECRO_MACHINE_CMP);
     print_white_space(depth);
-    printf("%%%s = cmp ", necro_intern_get_string(program->intern, ast->cmp.result->value.reg_name.symbol));
-    // switch (ast->binop.binop_tytpe)
-    // {
-    // case NECRO_MACHINE_BINOP_IADD: printf("iadd "); break;
-    // case NECRO_MACHINE_BINOP_ISUB: printf("isub "); break;
-    // case NECRO_MACHINE_BINOP_IMUL: printf("imul "); break;
-    // case NECRO_MACHINE_BINOP_IDIV: printf("idiv "); break;
-    // case NECRO_MACHINE_BINOP_FADD: printf("fadd "); break;
-    // case NECRO_MACHINE_BINOP_FSUB: printf("fsub "); break;
-    // case NECRO_MACHINE_BINOP_FMUL: printf("fmul "); break;
-    // case NECRO_MACHINE_BINOP_FDIV: printf("fdiv "); break;
-    // }
-    // necro_print_machine_value(program, ast->binop.left, NECRO_PRINT_VALUE_TYPE);
-    // printf(" ");
-    // necro_print_machine_value(program, ast->binop.right, NECRO_PRINT_VALUE_TYPE);
+    printf("%%%s = ", necro_intern_get_string(program->intern, ast->cmp.result->value.reg_name.symbol));
+    switch (ast->cmp.cmp_type)
+    {
+    case NECRO_MACHINE_CMP_EQ: printf("eq "); break;
+    case NECRO_MACHINE_CMP_NE: printf("ne "); break;
+    case NECRO_MACHINE_CMP_GT: printf("gt "); break;
+    case NECRO_MACHINE_CMP_GE: printf("ge "); break;
+    case NECRO_MACHINE_CMP_LT: printf("lt "); break;
+    case NECRO_MACHINE_CMP_LE: printf("le "); break;
+    }
+    necro_print_machine_value(program, ast->cmp.left, NECRO_PRINT_VALUE_TYPE);
+    printf(" ");
+    necro_print_machine_value(program, ast->cmp.right, NECRO_PRINT_VALUE_TYPE);
 }
 
 void necro_machine_print_ast_go(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)

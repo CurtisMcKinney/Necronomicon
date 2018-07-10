@@ -581,9 +581,9 @@ NecroMachineAST* necro_create_binop(NecroMachineProgram* program, NecroMachineAS
         break;
     }
     }
-    ast->binop.binop_tytpe = op_type;
-    ast->binop.left        = left;
-    ast->binop.right       = right;
+    ast->binop.binop_type = op_type;
+    ast->binop.left       = left;
+    ast->binop.right      = right;
     return ast;
 }
 

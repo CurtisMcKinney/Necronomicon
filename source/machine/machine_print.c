@@ -292,7 +292,7 @@ void necro_machine_print_binop(NecroMachineProgram* program, NecroMachineAST* as
     assert(ast->type == NECRO_MACHINE_BINOP);
     print_white_space(depth);
     printf("%%%s = ", necro_intern_get_string(program->intern, ast->binop.result->value.reg_name.symbol));
-    switch (ast->binop.binop_tytpe)
+    switch (ast->binop.binop_type)
     {
     case NECRO_MACHINE_BINOP_IADD: printf("iadd "); break;
     case NECRO_MACHINE_BINOP_ISUB: printf("isub "); break;

@@ -313,7 +313,7 @@ typedef enum
 
 typedef struct NecroMachineBinOp
 {
-    NECRO_MACHINE_BINOP_TYPE binop_tytpe;
+    NECRO_MACHINE_BINOP_TYPE binop_type;
     struct NecroMachineAST*  left;
     struct NecroMachineAST*  right;
     struct NecroMachineAST*  result;

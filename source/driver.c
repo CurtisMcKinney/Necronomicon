@@ -47,7 +47,8 @@ void necro_compile_impl(
     //=====================================================
     // Lexing, PRE - Layout
     //=====================================================
-    necro_announce_phase("Lexing");
+    if (compilation_phase != NECRO_PHASE_JIT)
+        necro_announce_phase("Lexing");
     *lexer = necro_create_lexer(input_string);
     *destruct_flags |= BIT(NECRO_PHASE_LEX);
     if (necro_lex(lexer) != NECRO_SUCCESS)
@@ -76,7 +77,8 @@ void necro_compile_impl(
     //=====================================================
     // Parsing
     //=====================================================
-    necro_announce_phase("Parsing");
+    if (compilation_phase != NECRO_PHASE_JIT)
+        necro_announce_phase("Parsing");
     *ast = (NecroAST) { construct_arena(lexer->tokens.length * sizeof(NecroAST_Node)) };
     construct_parser(parser, ast, lexer->tokens.data, &lexer->intern);
     *destruct_flags |= BIT(NECRO_PHASE_PARSE);
@@ -94,7 +96,8 @@ void necro_compile_impl(
     //=====================================================
     // Reifying
     //=====================================================
-    necro_announce_phase("Reifying");
+    if (compilation_phase != NECRO_PHASE_JIT)
+        necro_announce_phase("Reifying");
     // NecroAST_Reified ast_r = necro_reify_ast(ast, root_machine_ptr, &lexer->intern);
     *ast_r = necro_reify_ast(ast, root_machine_ptr, &lexer->intern);
     if (compilation_phase == NECRO_PHASE_REIFY)
@@ -106,7 +109,8 @@ void necro_compile_impl(
     //=====================================================
     // Build Scopes
     //=====================================================
-    necro_announce_phase("Building Scopes");
+    if (compilation_phase != NECRO_PHASE_JIT)
+        necro_announce_phase("Building Scopes");
     NecroPrimTypes      prim_types      = necro_create_prim_types(&lexer->intern);
     NecroSymTable       symtable        = necro_create_symtable(&lexer->intern);
     NecroScopedSymTable scoped_symtable = necro_create_scoped_symtable(&symtable);
@@ -133,7 +137,8 @@ void necro_compile_impl(
     //=====================================================
     // Renaming
     //=====================================================
-    necro_announce_phase("Renaming");
+    if (compilation_phase != NECRO_PHASE_JIT)
+        necro_announce_phase("Renaming");
     NecroRenamer renamer = necro_create_renamer(&scoped_symtable, &lexer->intern);
     *destruct_flags |= BIT(NECRO_PHASE_RENAME);
     if (necro_prim_rename(&prim_types, &renamer) != NECRO_SUCCESS)
@@ -163,7 +168,8 @@ void necro_compile_impl(
     //=====================================================
     // Dependency Analyzing
     //=====================================================
-    necro_announce_phase("Dependency Analysis");
+    if (compilation_phase != NECRO_PHASE_JIT)
+        necro_announce_phase("Dependency Analysis");
     NecroDependencyAnalyzer d_analyzer = necro_create_dependency_analyzer(&symtable, &lexer->intern);
     // *type_class_env = necro_create_type_class_env(&scoped_symtable, &renamer);
     *infer = necro_create_infer(&lexer->intern, &symtable, &scoped_symtable, &renamer, &prim_types);
@@ -188,7 +194,8 @@ void necro_compile_impl(
     //=====================================================
     // Infer
     //=====================================================
-    necro_announce_phase("Typing");
+    if (compilation_phase != NECRO_PHASE_JIT)
+        necro_announce_phase("Typing");
     necro_infer(infer, ast_r->root);
     if (compilation_phase == NECRO_PHASE_INFER)
     {
@@ -203,7 +210,6 @@ void necro_compile_impl(
         necro_print_error(&infer->error, input_string, "Type");
         return;
     }
-
     necro_type_class_translate(infer, ast_r->root);
     if (infer->error.return_code != NECRO_SUCCESS)
     {
@@ -211,7 +217,6 @@ void necro_compile_impl(
         necro_print_error(&infer->error, input_string, "Type");
         return;
     }
-
     if (compilation_phase == NECRO_PHASE_INFER)
         necro_print_reified_ast(ast_r, &lexer->intern);
     if (compilation_phase == NECRO_PHASE_INFER)
@@ -220,8 +225,8 @@ void necro_compile_impl(
     //=====================================================
     // Transform to Core
     //=====================================================
-    necro_announce_phase("Transforming to Core!");
-
+    if (compilation_phase != NECRO_PHASE_JIT)
+        necro_announce_phase("Transforming to Core!");
     // NecroCoreAST ast_core;
     ast_core->root = NULL;
     necro_construct_core_transform(core_transform, ast_core, ast_r, &lexer->intern, &prim_types, &symtable);
@@ -233,40 +238,47 @@ void necro_compile_impl(
         //necro_print_error(&parser.error, input_string, "Transforming to Core");
         return;
     }
-
-    necro_print_core(ast_core, &lexer->intern);
-
     if (compilation_phase == NECRO_PHASE_TRANSFORM_TO_CORE)
+    {
+        necro_print_core(ast_core, &lexer->intern);
         return;
+    }
 
-    //--------------------
+    //=====================================================
     // Transform to Machine
-    //--------------------
-    necro_announce_phase("Machine");
+    //=====================================================
+    if (compilation_phase != NECRO_PHASE_JIT)
+        necro_announce_phase("Machine");
     *machine = necro_core_to_machine(ast_core, &symtable, &scoped_symtable, &prim_types);
     *destruct_flags |= BIT(NECRO_PHASE_TRANSFORM_TO_MACHINE);
-    puts("");
-    necro_print_machine_program(machine);
     if (compilation_phase == NECRO_PHASE_TRANSFORM_TO_MACHINE)
+    {
+        puts("");
+        necro_print_machine_program(machine);
         return;
+    }
 
     //=====================================================
     // Codegen
     //=====================================================
-    necro_announce_phase("CodeGen");
-    // *runtime = necro_create_runtime();
+    if (compilation_phase != NECRO_PHASE_JIT)
+        necro_announce_phase("CodeGen");
     *codegen_llvm = necro_create_codegen_llvm(&lexer->intern, &symtable, &prim_types);
     *destruct_flags |= BIT(NECRO_PHASE_CODEGEN);
     if (necro_codegen_llvm(codegen_llvm, machine) != NECRO_SUCCESS)
         return;
     if (compilation_phase == NECRO_PHASE_CODEGEN)
+    {
+        necro_print_machine_program(machine);
+        necro_print_codegen_llvm(codegen_llvm);
         return;
+    }
 
     //=====================================================
     // JIT
     //=====================================================
-    // if (necro_jit(codegen) == NECRO_ERROR)
-    //     return;
+    if (necro_jit_llvm(codegen_llvm) == NECRO_ERROR)
+        return;
     if (compilation_phase == NECRO_PHASE_JIT)
         return;
 }

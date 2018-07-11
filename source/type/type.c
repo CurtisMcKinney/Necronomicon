@@ -153,7 +153,7 @@ NecroType* necro_create_type_var(NecroInfer* infer, NecroVar var)
         size_t new_size = next_highest_pow_of_2(var.id.id) * 2;
         if (new_size < infer->env.capacity)
             new_size = infer->env.capacity * 2;
-        printf("Realloc env, size: %d, new_size: %d, id: %d\n", infer->env.capacity, new_size, var.id.id);
+        // printf("Realloc env, size: %d, new_size: %d, id: %d\n", infer->env.capacity, new_size, var.id.id);
         NecroType** new_data = realloc(infer->env.data, new_size * sizeof(NecroType*));
         if (new_data == NULL)
         {

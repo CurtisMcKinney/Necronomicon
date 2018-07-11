@@ -78,6 +78,7 @@ set(project_SOURCES
     source/machine/machine_type.c
     source/machine/machine_print.c
     source/machine/machine_prim.c
+    source/machine/machine_case.c
 
     source/codegen/codegen_llvm.c
     )
@@ -118,6 +119,7 @@ set(project_HEADERS
     source/machine/machine_type.h
     source/machine/machine_print.h
     source/machine/machine_prim.h
+    source/machine/machine_case.c
 
     source/codegen/codegen_llvm.h
     )

@@ -42,12 +42,12 @@ data Both       = Both Nullary Unary
 -- appFnRec :: Nullary
 -- appFnRec = fnRec (fnRec Nullary)
 
--- Stateful / Recursive
-feedFnRec :: Nullary -> Nullary
-feedFnRec n = feedFnRec n where
-    x = x
-appFeedFnRec :: Nullary
-appFeedFnRec = feedFnRec Nullary
+-- -- Stateful / Recursive
+-- feedFnRec :: Nullary -> Nullary
+-- feedFnRec n = feedFnRec n where
+--     x = x
+-- appFeedFnRec :: Nullary
+-- appFeedFnRec = feedFnRec Nullary
 
 -- globalTest :: Nullary
 -- globalTest = Nullary
@@ -138,3 +138,54 @@ appFeedFnRec = feedFnRec Nullary
 
 -- useRecFn2 :: Nullary
 -- useRecFn2 = recFn2 Nullary
+
+-- constInt :: Int
+-- constInt = 100
+--
+-- constInt2 :: Int
+-- constInt2 = 100 + constInt
+--
+-- globalFeed :: Int
+-- globalFeed = 100 + globalFeed
+--
+-- main :: Int
+-- main = globalFeed
+
+-- -- Many stateful calculations at 100 ticks per second
+-- integrate :: Int -> Int
+-- integrate delta = delta + 1 where
+-- -- integrate delta = feed where
+--     feed = feed
+--     -- feed = delta + delay 0 feed
+-- tenTimes :: Int -> Int
+-- tenTimes n =
+--     integrate n + integrate n + integrate n + integrate n + integrate n +
+--     integrate n + integrate n + integrate n + integrate n + integrate n
+-- oneHundredTimes :: Int -> Int
+-- oneHundredTimes n =
+--     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
+--     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
+-- oneThousandTimes :: Int -> Int
+-- oneThousandTimes n =
+--     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
+--     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
+-- tenThousandTimes :: Int -> Int
+-- tenThousandTimes n =
+--     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
+--     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
+-- oneHundredThousandTimes :: Int -> Int
+-- oneHundredThousandTimes n =
+--     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n +
+--     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
+-- main :: Int
+-- main =
+--     oneHundredThousandTimes 1 + oneHundredThousandTimes 1
+
+mouseX :: Int
+mouseX = getMouseX world
+
+mouseY :: Int
+mouseY = getMouseY world
+
+main :: Int
+main = mouseX * mouseY

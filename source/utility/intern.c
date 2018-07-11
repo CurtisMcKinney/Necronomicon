@@ -103,7 +103,7 @@ void necro_intern_grow(NecroIntern* intern)
     NecroInternEntry* old_entries = intern->entries;
     intern->size                  = intern->size * 2;
     intern->entries               = malloc(intern->size * sizeof(NecroInternEntry));
-    printf("intern grow, old: %d, new: %d", old_size, intern->size);
+    // printf("intern grow, old: %d, new: %d", old_size, intern->size);
     if (intern->entries == NULL)
     {
         fprintf(stderr, "Malloc returned NULL while allocating memory for entries in necro_intern_grow()\n");

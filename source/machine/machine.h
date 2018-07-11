@@ -28,14 +28,15 @@
 
 /*
     TODO:
-        * codegen
-        * runtime
-        * Construct main function
-        * null out and zero out memory when allocated with nalloc via memcpy NULL....should be faster than doing it in code!?
         * case
+        * null out and zero out memory when allocated with nalloc via memcpy NULL....should be faster than doing it in code!?
         * closures
+        * delay
 
     TEST:
+        * runtime
+        * Construct main function
+        * codegen
         * init_and_load_dyn function (will require breakcond and other stuff to work)
         * dyn fn machines need NecroData?
 */
@@ -58,6 +59,7 @@ typedef enum
 
 typedef enum
 {
+    NECRO_MACHINE_VALUE_VOID,
     NECRO_MACHINE_VALUE_REG,
     NECRO_MACHINE_VALUE_PARAM,
     NECRO_MACHINE_VALUE_GLOBAL,
@@ -171,6 +173,7 @@ typedef struct NecroMachineDef
     bool                    is_pushed;
     bool                    is_recursive;
     bool                    is_persistent_slot_set;
+    bool                    references_stateful_global;
 
     // args
     NecroVar*               arg_names;
@@ -200,6 +203,7 @@ typedef struct NecroMachineFnDef
     NECRO_FN_TYPE           fn_type;
     struct NecroMachineAST* fn_value;
     void*                   runtime_fn_addr;
+    bool                    is_primitively_stateful;
     //-------------------
     // compile time data
     struct NecroMachineAST* _curr_block;
@@ -400,6 +404,19 @@ typedef struct NecroMachineAST
 
 NECRO_DECLARE_VECTOR(NecroMachineAST*, NecroMachineAST, necro_machine_ast);
 
+typedef struct NecroRuntime
+{
+    NecroVar _necro_init_runtime;
+    NecroVar _necro_update_runtime;
+    NecroVar _necro_error_exit;
+    NecroVar _necro_sleep;
+    NecroVar _necro_print;
+    NecroVar _necro_set_root;
+    NecroVar _necro_initialize_root_set;
+    NecroVar _necro_alloc;
+    NecroVar _necro_collect;
+} NecroMachineRuntime;
+
 typedef struct NecroMachineProgram
 {
     // Program info
@@ -407,7 +424,7 @@ typedef struct NecroMachineProgram
     NecroMachineASTVector functions;
     NecroMachineASTVector machine_defs;
     NecroMachineASTVector globals;
-    NecroMachineAST*      main;
+    NecroMachineAST*      necro_main;
 
     // Useful structs
     NecroPagedArena       arena;
@@ -422,8 +439,13 @@ typedef struct NecroMachineProgram
     NecroMachineType*     necro_poly_type;
     NecroMachineType*     necro_poly_ptr_type;
     NecroMachineType*     necro_data_type;
+    NecroMachineType*     world_type;
+    NecroMachineType*     the_world_type;
     NecroMachineAST*      mkIntFnValue;
     NecroMachineAST*      mkFloatFnValue;
+    NecroSymbol           main_symbol;
+    NecroMachineAST*      program_main;
+    NecroMachineRuntime   runtime;
 } NecroMachineProgram;
 
 // TODO: necro_verify_machine_program
@@ -440,6 +462,7 @@ NecroMachineAST* necro_create_machine_block(NecroMachineProgram* program, const 
 NecroMachineAST* necro_create_machine_fn(NecroMachineProgram* program, NecroVar name, NecroMachineAST* call_body, NecroMachineType* necro_machine_type);
 NecroMachineAST* necro_create_machine_runtime_fn(NecroMachineProgram* program, NecroVar name, NecroMachineType* necro_machine_type, void* runtime_fn_addr);
 NecroMachineAST* necro_create_param_reg(NecroMachineProgram* program, NecroMachineAST* fn_def, size_t param_num);
+NecroMachineAST* necro_create_global_value(NecroMachineProgram* program, NecroVar global_name, NecroMachineType* necro_machine_type);
 NecroMachineAST* necro_create_uint32_necro_machine_value(NecroMachineProgram* program, uint32_t uint_literal);
 NecroMachineAST* necro_create_null_necro_machine_value(NecroMachineProgram* program, NecroMachineType* ptr_type);
 NecroMachineAST* necro_build_nalloc(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineType* type, uint16_t a_slots_used);
@@ -449,5 +472,6 @@ void             necro_build_return(NecroMachineProgram* program, NecroMachineAS
 NecroMachineAST* necro_build_binop(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* left, NecroMachineAST* right, NECRO_MACHINE_BINOP_TYPE op_type);
 NecroMachineAST* necro_build_load_from_slot(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_ptr_ast, size_t source_slot, const char* dest_name_header);
 NecroMachineAST* necro_build_call(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* fn_to_call_value, NecroMachineAST** a_parameters, size_t num_parameters, const char* dest_name_header);
+void             necro_program_add_global(NecroMachineProgram* program, NecroMachineAST* global);
 
 #endif // NECRO_MACHINE_H

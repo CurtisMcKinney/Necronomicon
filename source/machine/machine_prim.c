@@ -17,11 +17,11 @@ NecroMachineType* necro_create_prim_type(NecroMachineProgram* program, NecroVar 
     assert(num_elems >= 1);
     assert(type_name.id.id != 0);
     assert(con_var.id.id != 0);
-    NecroArenaSnapshot snapshot        = necro_get_arena_snapshot(&program->snapshot_arena);
+    NecroArenaSnapshot    snapshot        = necro_get_arena_snapshot(&program->snapshot_arena);
     NecroMachineAST*      struct_type     = necro_create_machine_struct_def(program, type_name, elems, num_elems);
     NecroMachineType*     struct_ptr_type = necro_create_machine_ptr_type(&program->arena, struct_type->necro_machine_type);
-    const char*        mk_fn_name      = necro_concat_strings(&program->snapshot_arena, 3, (const char*[]) { "mk", necro_intern_get_string(program->intern, con_var.symbol), "#" });
-    NecroVar           mk_fn_var       = necro_gen_var(program, NULL, mk_fn_name, NECRO_NAME_UNIQUE);
+    const char*           mk_fn_name      = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", necro_intern_get_string(program->intern, con_var.symbol), "#" });
+    NecroVar              mk_fn_var       = necro_gen_var(program, NULL, mk_fn_name, NECRO_NAME_UNIQUE);
     NecroMachineType*     mk_fn_type      = necro_create_machine_fn_type(&program->arena, struct_ptr_type, elems + 1, num_elems - 1);
     NecroMachineAST*      mk_fn_body      = necro_create_machine_block(program, "entry", NULL);
     NecroMachineAST*      mk_fn_def       = necro_create_machine_fn(program, mk_fn_var, mk_fn_body, mk_fn_type);
@@ -42,19 +42,19 @@ NecroMachineType* necro_create_prim_type(NecroMachineProgram* program, NecroVar 
 }
 
 // Use this for when you want something more involved, like sum types
-NecroMachineAST* necro_create_prim_con(NecroMachineProgram* program, NecroMachineType* struct_type, NecroVar con_var, NecroMachineType** elems, size_t num_elems)
+NecroMachineAST* necro_create_prim_con(NecroMachineProgram* program, NecroMachineType* struct_type, NecroVar con_var, NecroMachineType** elems, size_t num_elems, uint16_t slots_used)
 {
     assert(struct_type != NULL);
     assert(struct_type->type == NECRO_MACHINE_TYPE_STRUCT);
     assert(con_var.id.id != 0);
-    NecroArenaSnapshot snapshot        = necro_get_arena_snapshot(&program->snapshot_arena);
+    NecroArenaSnapshot    snapshot        = necro_get_arena_snapshot(&program->snapshot_arena);
     NecroMachineType*     struct_ptr_type = necro_create_machine_ptr_type(&program->arena, struct_type);
-    const char*        mk_fn_name      = necro_concat_strings(&program->snapshot_arena, 3, (const char*[]) { "mk", necro_intern_get_string(program->intern, con_var.symbol), "#" });
-    NecroVar           mk_fn_var       = necro_gen_var(program, NULL, mk_fn_name, NECRO_NAME_UNIQUE);
+    const char*           mk_fn_name      = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", necro_intern_get_string(program->intern, con_var.symbol), "#" });
+    NecroVar              mk_fn_var       = necro_gen_var(program, NULL, mk_fn_name, NECRO_NAME_UNIQUE);
     NecroMachineType*     mk_fn_type      = necro_create_machine_fn_type(&program->arena, struct_ptr_type, elems, num_elems);
     NecroMachineAST*      mk_fn_body      = necro_create_machine_block(program, "entry", NULL);
     NecroMachineAST*      mk_fn_def       = necro_create_machine_fn(program, mk_fn_var, mk_fn_body, mk_fn_type);
-    NecroMachineAST*      data_ptr        = necro_build_nalloc(program, mk_fn_def, struct_type, (uint16_t) num_elems);
+    NecroMachineAST*      data_ptr        = necro_build_nalloc(program, mk_fn_def, struct_type, slots_used);
     necro_build_store_into_tag(program, mk_fn_def, necro_create_uint32_necro_machine_value(program, 0), data_ptr);
 
     //--------------
@@ -86,21 +86,14 @@ NecroMachineAST* necro_prim_fn_begin(NecroMachineProgram* program, NecroVar fn_v
 
 void necro_prim_fn_end(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* return_value)
 {
-    necro_symtable_get(program->symtable, fn_def->fn_def.name.id)->necro_machine_ast = fn_def->fn_def.fn_value;
+    // necro_symtable_get(program->symtable, fn_def->fn_def.name.id)->necro_machine_ast = fn_def->fn_def.fn_value;
+    necro_symtable_get(program->symtable, fn_def->fn_def.name.id)->necro_machine_ast = fn_def;
     necro_build_return(program, fn_def, return_value);
-}
-
-NecroVar necro_get_top_level_symbol_var(NecroMachineProgram* program, const char* name)
-{
-    NecroSymbol symbol = necro_intern_string(program->intern, name);
-    NecroID     id     = necro_scope_find(program->scoped_symtable->top_scope, symbol);
-    assert(id.id != 0);
-    return (NecroVar) { .id = id, .symbol = symbol };
 }
 
 void necro_create_prim_binop(NecroMachineProgram* program, const char* fn_name, NecroMachineAST* mk_fn_value, NecroMachineType* type, NECRO_MACHINE_BINOP_TYPE op)
 {
-    NecroVar         binop_var      = necro_get_top_level_symbol_var(program, fn_name);
+    NecroVar         binop_var      = necro_get_top_level_symbol_var(program->scoped_symtable, fn_name);
     NecroMachineAST* binop_fn       = necro_prim_fn_begin(program, binop_var, type, (NecroMachineType*[]) { type, type }, 2);
     NecroMachineAST* binop_l_unbox  = necro_build_load_from_slot(program, binop_fn, necro_create_param_reg(program, binop_fn, 0), 1, "lhs");
     NecroMachineAST* binop_r_unbox  = necro_build_load_from_slot(program, binop_fn, necro_create_param_reg(program, binop_fn, 1), 1, "rhs");
@@ -113,9 +106,6 @@ void necro_create_prim_binops(NecroMachineProgram* program, NecroMachineType* ty
 {
     for (size_t i = 0; i < num_ops; ++i)
         necro_create_prim_binop(program, fn_names[i], mk_fn_value, type, ops[i]);
-    // necro_create_prim_binop(program, fn_names[1], mk_fn_value, type, ops[1]);
-    // necro_create_prim_binop(program, fn_names[2], mk_fn_value, type, ops[2]);
-    // necro_create_prim_binop(program, fn_names[3], mk_fn_value, type, ops[3]);
 }
 
 ///////////////////////////////////////////////////////
@@ -124,21 +114,97 @@ void necro_create_prim_binops(NecroMachineProgram* program, NecroMachineType* ty
 void necro_init_machine_prim(NecroMachineProgram* program)
 {
     //--------------------
+    // Runtime functions
+    //--------------------
+    NecroVar          _necro_init_runtime_var     = necro_gen_var(program, NULL, "_necro_init_runtime", NECRO_NAME_UNIQUE);
+    NecroMachineType* _necro_init_runtime_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), NULL, 0);
+    NecroMachineAST*  _necro_init_runtime_fn      = necro_create_machine_runtime_fn(program, _necro_init_runtime_var, _necro_init_runtime_fn_type, _necro_init_runtime);
+    program->runtime._necro_init_runtime          = _necro_init_runtime_var;
+
+    NecroVar          _necro_update_runtime_var     = necro_gen_var(program, NULL, "_necro_update_runtime", NECRO_NAME_UNIQUE);
+    NecroMachineType* _necro_update_runtime_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), NULL, 0);
+    NecroMachineAST*  _necro_update_runtime_fn      = necro_create_machine_runtime_fn(program, _necro_update_runtime_var, _necro_update_runtime_fn_type, _necro_update_runtime);
+    program->runtime._necro_update_runtime          = _necro_update_runtime_var;
+
+    NecroVar          _necro_error_exit_var     = necro_gen_var(program, NULL, "_necro_error_exit", NECRO_NAME_UNIQUE);
+    NecroMachineType* _necro_error_exit_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), (NecroMachineType*[]) { necro_create_machine_uint32_type(&program->arena) }, 1);
+    NecroMachineAST*  _necro_error_exit_fn      = necro_create_machine_runtime_fn(program, _necro_error_exit_var, _necro_error_exit_fn_type, _necro_error_exit);
+    program->runtime._necro_error_exit          = _necro_error_exit_var;
+
+    NecroVar          _necro_sleep_var     = necro_gen_var(program, NULL, "_necro_sleep", NECRO_NAME_UNIQUE);
+    NecroMachineType* _necro_sleep_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), (NecroMachineType*[]) { necro_create_machine_uint32_type(&program->arena) }, 1);
+    NecroMachineAST*  _necro_sleep_fn      = necro_create_machine_runtime_fn(program, _necro_sleep_var, _necro_sleep_fn_type, _necro_sleep);
+    program->runtime._necro_sleep          = _necro_sleep_var;
+
+    NecroVar          _necro_print_var     = necro_gen_var(program, NULL, "_necro_print", NECRO_NAME_UNIQUE);
+    NecroMachineType* _necro_print_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), (NecroMachineType*[]) { necro_create_machine_int64_type(&program->arena) }, 1);
+    NecroMachineAST*  _necro_print_fn      = necro_create_machine_runtime_fn(program, _necro_print_var, _necro_print_fn_type, _necro_print);
+    program->runtime._necro_print          = _necro_print_var;
+
+    NecroVar          _necro_set_root_var     = necro_gen_var(program, NULL, "_necro_set_root", NECRO_NAME_UNIQUE);
+    NecroMachineType* _necro_set_root_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), (NecroMachineType*[]) { necro_create_machine_ptr_type(&program->arena, necro_create_machine_uint32_type(&program->arena)), necro_create_machine_uint32_type(&program->arena), necro_create_machine_uint16_type(&program->arena) }, 3);
+    NecroMachineAST*  _necro_set_root_fn      = necro_create_machine_runtime_fn(program, _necro_set_root_var, _necro_set_root_fn_type, _necro_set_root);
+    program->runtime._necro_set_root          = _necro_set_root_var;
+
+    NecroVar          _necro_initialize_root_set_var     = necro_gen_var(program, NULL, "_necro_initialize_root_set", NECRO_NAME_UNIQUE);
+    NecroMachineType* _necro_initialize_root_set_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), (NecroMachineType*[]) { necro_create_machine_uint32_type(&program->arena) }, 1);
+    NecroMachineAST*  _necro_initialize_root_set_fn      = necro_create_machine_runtime_fn(program, _necro_initialize_root_set_var, _necro_initialize_root_set_fn_type, _necro_initialize_root_set);
+    program->runtime._necro_initialize_root_set          = _necro_initialize_root_set_var;
+
+    NecroVar          _necro_collect_var     = necro_gen_var(program, NULL, "_necro_collect", NECRO_NAME_UNIQUE);
+    NecroMachineType* _necro_collect_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), NULL, 0);
+    NecroMachineAST*  _necro_collect_fn      = necro_create_machine_runtime_fn(program, _necro_collect_var, _necro_collect_fn_type, _necro_collect);
+    program->runtime._necro_collect          = _necro_collect_var;
+
+    NecroVar          _necro_alloc_var     = necro_gen_var(program, NULL, "_necro_alloc", NECRO_NAME_UNIQUE);
+    NecroMachineType* _necro_alloc_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_ptr_type(&program->arena, necro_create_machine_int64_type(&program->arena)), (NecroMachineType*[])
+    {
+        necro_create_machine_int64_type(&program->arena),
+        necro_create_machine_uint16_type(&program->arena),
+        necro_create_machine_uint16_type(&program->arena),
+        necro_create_machine_uint8_type(&program->arena),
+    }, 4);
+    NecroMachineAST*  _necro_alloc_fn = necro_create_machine_runtime_fn(program, _necro_alloc_var, _necro_alloc_fn_type, _necro_alloc);
+    program->runtime._necro_alloc     = _necro_alloc_var;
+
+    NecroVar          _necro_mouse_x_var     = necro_gen_var(program, NULL, "_necro_mouse_x", NECRO_NAME_UNIQUE);
+    NecroMachineType* _necro_mouse_x_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_int64_type(&program->arena), NULL, 0);
+    NecroMachineAST*  _necro_mouse_x_fn      = necro_create_machine_runtime_fn(program, _necro_mouse_x_var, _necro_mouse_x_fn_type, _necro_mouse_x);
+
+    NecroVar          _necro_mouse_y_var     = necro_gen_var(program, NULL, "_necro_mouse_y", NECRO_NAME_UNIQUE);
+    NecroMachineType* _necro_mouse_y_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_int64_type(&program->arena), NULL, 0);
+    NecroMachineAST*  _necro_mouse_y_fn      = necro_create_machine_runtime_fn(program, _necro_mouse_y_var, _necro_mouse_y_fn_type, _necro_mouse_y);
+
+    //--------------------
     // Prim Types
     //--------------------
 
     // NecroData
     NecroMachineAST* necro_data_struct = necro_create_machine_struct_def(program, necro_con_to_var(program->prim_types->necro_data_type), (NecroMachineType*[]) { necro_create_machine_uint32_type(&program->arena), necro_create_machine_uint32_type(&program->arena) }, 2);
-    program->necro_data_type        = necro_data_struct->necro_machine_type;
+    program->necro_data_type           = necro_data_struct->necro_machine_type;
+
+    // World
+    NecroMachineAST* world_type = necro_create_machine_struct_def(program, necro_con_to_var(program->prim_types->world_type), (NecroMachineType*[]) { necro_data_struct->necro_machine_type }, 1);
+    program->world_type         = world_type->necro_machine_type;
+
+    // TheWorldMachine
+    NecroMachineAST* the_world_type = necro_create_machine_struct_def(program, necro_con_to_var(program->prim_types->the_world_type), (NecroMachineType*[]) { necro_data_struct->necro_machine_type, necro_create_machine_ptr_type(&program->arena, world_type->necro_machine_type) }, 2);
+    program->the_world_type         = the_world_type->necro_machine_type;
+
+    // world value
+    NecroVar         world_value_var = necro_con_to_var(program->prim_types->world_value);
+    NecroMachineAST* world_value     = necro_create_global_value(program, world_value_var, necro_create_machine_ptr_type(&program->arena, the_world_type->necro_machine_type));
+    necro_program_add_global(program, world_value);
+    necro_symtable_get(program->symtable, world_value_var.id)->necro_machine_ast = world_value;
 
     // Poly
-    NecroVar         poly_var          = necro_gen_var(program, NULL, "Poly#", NECRO_NAME_UNIQUE);
+    NecroVar         poly_var          = necro_gen_var(program, NULL, "_Poly", NECRO_NAME_UNIQUE);
     NecroMachineAST* necro_poly_struct = necro_create_machine_struct_def(program, poly_var,  (NecroMachineType*[]) { program->necro_data_type }, 1);
-    program->necro_poly_type        = necro_poly_struct->necro_machine_type;
-    program->necro_poly_ptr_type    = necro_create_machine_ptr_type(&program->arena, program->necro_poly_type);
+    program->necro_poly_type           = necro_poly_struct->necro_machine_type;
+    program->necro_poly_ptr_type       = necro_create_machine_ptr_type(&program->arena, program->necro_poly_type);
 
     // NecroEnv
-    NecroVar         env_var    = necro_gen_var(program, NULL, "Env#", NECRO_NAME_UNIQUE);
+    NecroVar         env_var    = necro_gen_var(program, NULL, "_Env", NECRO_NAME_UNIQUE);
     NecroMachineAST* env_struct = necro_create_machine_struct_def(program, env_var, (NecroMachineType*[]) { program->necro_data_type }, 1);
 
     // Int
@@ -146,19 +212,16 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     NecroVar          int_var  = necro_con_to_var(program->prim_types->int_type);
     NecroVar          int_con  = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "Int").id));
     NecroMachineAST*  int_type = necro_create_machine_struct_def(program, int_var, (NecroMachineType*[]) { program->necro_data_type, i64_type }, 2);
-    NecroMachineAST*  mk_int   = necro_create_prim_con(program, int_type->necro_machine_type, int_con, (NecroMachineType*[]) { i64_type }, 1);
+    NecroMachineAST*  mk_int   = necro_create_prim_con(program, int_type->necro_machine_type, int_con, (NecroMachineType*[]) { i64_type }, 1, 0);
     program->mkIntFnValue   = mk_int->fn_def.fn_value;
-    // necro_gen_bin_ops(codegen, necro_con_to_var(codegen->infer->prim_types->int_type), int_type_ref, LLVMInt64TypeInContext(codegen->context), LLVMAdd, LLVMSub, LLVMMul, 0);
 
     // Float
     NecroMachineType* f64_type   = necro_create_machine_f64_type(&program->arena);
     NecroVar          float_var  = necro_con_to_var(program->prim_types->float_type);
     NecroVar          float_con  = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "Float").id));
     NecroMachineAST*  float_type = necro_create_machine_struct_def(program, float_var, (NecroMachineType*[]) { program->necro_data_type, f64_type }, 2);
-    NecroMachineAST*  mk_float   = necro_create_prim_con(program, float_type->necro_machine_type, float_con, (NecroMachineType*[]) { f64_type }, 1);
+    NecroMachineAST*  mk_float   = necro_create_prim_con(program, float_type->necro_machine_type, float_con, (NecroMachineType*[]) { f64_type }, 1, 0);
     program->mkFloatFnValue      = mk_float->fn_def.fn_value;
-    // necro_gen_bin_ops(codegen, necro_con_to_var(codegen->infer->prim_types->float_type), float_type_ref, LLVMFloatTypeInContext(codegen->context), LLVMFAdd, LLVMFSub, LLVMFMul, LLVMFDiv);
-    // necro_gen_from_cast(codegen, "fromRational@Float", float_type_ref, LLVMDoubleTypeInContext(codegen->context), float_type_ref, LLVMDoubleTypeInContext(codegen->context), LLVMSIToFP);
 
     // Rational
     NecroVar          rational_var  = necro_con_to_var(program->prim_types->rational_type);
@@ -181,31 +244,39 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     NecroVar         cons_con    = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, ":").id));
     NecroVar         nil_con     = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "[]").id));
     NecroMachineAST* list_struct = necro_create_machine_struct_def(program, list_var, (NecroMachineType*[]) { program->necro_data_type, program->necro_poly_ptr_type, program->necro_poly_ptr_type }, 3);
-    necro_create_prim_con(program, list_struct->necro_machine_type, cons_con, (NecroMachineType*[]) { program->necro_poly_ptr_type, necro_create_machine_ptr_type(&program->arena, list_struct->necro_machine_type) }, 2);
-    necro_create_prim_con(program, list_struct->necro_machine_type, nil_con, NULL, 0);
+    necro_create_prim_con(program, list_struct->necro_machine_type, cons_con, (NecroMachineType*[]) { program->necro_poly_ptr_type, necro_create_machine_ptr_type(&program->arena, list_struct->necro_machine_type) }, 2, 2);
+    necro_create_prim_con(program, list_struct->necro_machine_type, nil_con, NULL, 0, 0);
 
     //--------------------
     // Prim Functions
     //--------------------
-
     // Int functions
     NecroMachineType* int_ptr_type    = necro_create_machine_ptr_type(&program->arena, int_type->necro_machine_type);
-    NecroVar          fromInt_Int_var = necro_get_top_level_symbol_var(program, "fromInt@Int");
+    NecroVar          fromInt_Int_var = necro_get_top_level_symbol_var(program->scoped_symtable, "fromInt@Int");
     NecroMachineAST*  fromInt_Int_fn  = necro_prim_fn_begin(program, fromInt_Int_var, int_ptr_type, (NecroMachineType*[]) { int_ptr_type }, 1);
     necro_prim_fn_end(program, fromInt_Int_fn, necro_create_param_reg(program, fromInt_Int_fn, 0));
     necro_create_prim_binops(program, int_ptr_type, program->mkIntFnValue, (const char*[]) { "add@Int", "sub@Int", "mul@Int", "div@Int" }, (NECRO_MACHINE_BINOP_TYPE[]) { NECRO_MACHINE_BINOP_IADD, NECRO_MACHINE_BINOP_ISUB, NECRO_MACHINE_BINOP_IMUL, NECRO_MACHINE_BINOP_IDIV }, 3);
 
     // Float functions
     NecroMachineType* float_ptr_type         = necro_create_machine_ptr_type(&program->arena, float_type->necro_machine_type);
-    NecroVar          fromRational_Float_var = necro_get_top_level_symbol_var(program, "fromRational@Float");
+    NecroVar          fromRational_Float_var = necro_get_top_level_symbol_var(program->scoped_symtable, "fromRational@Float");
     NecroMachineAST*  fromRational_Float_fn  = necro_prim_fn_begin(program, fromRational_Float_var, float_ptr_type, (NecroMachineType*[]) { float_ptr_type }, 1);
     necro_prim_fn_end(program, fromRational_Float_fn, necro_create_param_reg(program, fromRational_Float_fn, 0));
     necro_create_prim_binops(program, float_ptr_type, program->mkFloatFnValue, (const char*[]) { "add@Float", "sub@Float", "mul@Float", "div@Float" }, (NECRO_MACHINE_BINOP_TYPE[]) { NECRO_MACHINE_BINOP_FADD, NECRO_MACHINE_BINOP_FSUB, NECRO_MACHINE_BINOP_FMUL, NECRO_MACHINE_BINOP_FDIV }, 4);
 
-    //--------------------
-    // Runtime functions
-    //--------------------
-    NecroVar          _necro_init_runtime_var     = necro_gen_var(program, NULL, "_necro_init_runtime#", NECRO_NAME_UNIQUE);
-    NecroMachineType* _necro_init_runtime_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), NULL, 0);
-    NecroMachineAST*  _necro_init_runtime_fn      = necro_create_machine_runtime_fn(program, _necro_init_runtime_var, _necro_init_runtime_fn_type, &_necro_init_runtime);
+    // getMouseX
+    NecroVar          get_mouse_x_var   = necro_con_to_var(program->prim_types->mouse_x_fn);
+    NecroMachineAST*  get_mouse_x_fn    = necro_prim_fn_begin(program, get_mouse_x_var, int_ptr_type, (NecroMachineType*[]) { necro_create_machine_ptr_type(&program->arena, world_type->necro_machine_type) }, 1);
+    NecroMachineAST*  mouse_x_value_val = necro_build_call(program, get_mouse_x_fn, _necro_mouse_x_fn->fn_def.fn_value, NULL, 0, "xval");
+    NecroMachineAST*  boxed_mouse_x_val = necro_build_call(program, get_mouse_x_fn, program->mkIntFnValue, (NecroMachineAST*[]) { mouse_x_value_val }, 1, "xbox");
+    necro_prim_fn_end(program, get_mouse_x_fn, boxed_mouse_x_val);
+    get_mouse_x_fn->fn_def.is_primitively_stateful = true;
+
+    // getMouseY
+    NecroVar          get_mouse_y_var   = necro_con_to_var(program->prim_types->mouse_y_fn);
+    NecroMachineAST*  get_mouse_y_fn    = necro_prim_fn_begin(program, get_mouse_y_var, int_ptr_type, (NecroMachineType*[]) { necro_create_machine_ptr_type(&program->arena, world_type->necro_machine_type) }, 1);
+    NecroMachineAST*  mouse_y_value_val = necro_build_call(program, get_mouse_y_fn, _necro_mouse_y_fn->fn_def.fn_value, NULL, 0, "yval");
+    NecroMachineAST*  boxed_mouse_y_val = necro_build_call(program, get_mouse_y_fn, program->mkIntFnValue, (NecroMachineAST*[]) { mouse_y_value_val }, 1, "ybox");
+    necro_prim_fn_end(program, get_mouse_y_fn, boxed_mouse_y_val);
+    get_mouse_y_fn->fn_def.is_primitively_stateful = true;
 }

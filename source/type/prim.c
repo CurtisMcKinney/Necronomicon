@@ -631,12 +631,12 @@ void necro_bool_instances(NecroPagedArena* arena, NecroIntern* intern)
 
 void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
 {
-    // NecroVal
-    NecroASTNode* necro_val_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "NecroVal#", NULL);
-    NecroPrimDef* necro_val_data_def = necro_prim_def_data(prim_types, intern, &prim_types->necro_val_type, necro_create_data_declaration_ast(&prim_types->arena, intern, necro_val_s_type, NULL));
+    // // NecroVal
+    // NecroASTNode* necro_val_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "NecroVal", NULL);
+    // NecroPrimDef* necro_val_data_def = necro_prim_def_data(prim_types, intern, &prim_types->necro_val_type, necro_create_data_declaration_ast(&prim_types->arena, intern, necro_val_s_type, NULL));
 
     // NecroData
-    NecroASTNode* necro_data_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "NecroData#", NULL);
+    NecroASTNode* necro_data_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "_NecroData", NULL);
     NecroPrimDef* necro_data_data_def = necro_prim_def_data(prim_types, intern, &prim_types->necro_data_type, necro_create_data_declaration_ast(&prim_types->arena, intern, necro_data_s_type, NULL));
 
     // NecroApp

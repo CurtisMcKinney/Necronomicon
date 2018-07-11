@@ -920,3 +920,11 @@ NecroSymbolInfo* necro_symtable_get_type_class_instance_info(NecroSymTable* symt
     assert(index <= symtable->count);
     return symtable->data + index;
 }
+
+NecroVar necro_get_top_level_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name)
+{
+    NecroSymbol symbol = necro_intern_string(scoped_symtable->global_table->intern, name);
+    NecroID     id     = necro_scope_find(scoped_symtable->top_scope, symbol);
+    assert(id.id != 0);
+    return (NecroVar) { .id = id, .symbol = symbol };
+}

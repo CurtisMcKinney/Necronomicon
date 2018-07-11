@@ -134,7 +134,8 @@ void* necro_paged_arena_alloc(NecroPagedArena* arena, size_t size)
         return NULL;
     if (arena->count + size >= arena->size)
     {
-        arena->size *= 2;
+        while (arena->count + size >= arena->size)
+            arena->size *= 2;
         TRACE_ARENA("allocating new page of size: %d\n", arena->size);
         NecroArenaPage* page = malloc(sizeof(NecroArenaPage) + arena->size);
         if (page == NULL)

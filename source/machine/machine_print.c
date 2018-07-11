@@ -48,6 +48,8 @@ void necro_print_machine_value(NecroMachineProgram* program, NecroMachineAST* as
     NecroMachineValue value = ast->value;
     switch (value.value_type)
     {
+    case NECRO_MACHINE_VALUE_VOID:
+        break;
     case NECRO_MACHINE_VALUE_GLOBAL:
         printf("@%s", necro_intern_get_string(program->intern, value.global_name.symbol));
         break;
@@ -141,7 +143,10 @@ void necro_machine_print_block(NecroMachineProgram* program, NecroMachineAST* as
 void necro_machine_print_call(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)
 {
     assert(ast->type == NECRO_MACHINE_CALL);
-    printf("%%%s = call ", necro_intern_get_string(program->intern, ast->call.result_reg->value.reg_name.symbol));
+    if (ast->call.result_reg->value.value_type == NECRO_MACHINE_VALUE_VOID)
+        printf("call ");
+    else
+        printf("%%%s = call ", necro_intern_get_string(program->intern, ast->call.result_reg->value.reg_name.symbol));
     necro_print_machine_value(program, ast->call.fn_value, NECRO_DONT_PRINT_VALUE_TYPE);
     printf("(");
     for (size_t i = 0; i < ast->call.num_parameters; ++i)
@@ -440,4 +445,5 @@ void necro_print_machine_program(NecroMachineProgram* program)
     {
         necro_machine_print_ast_go(program, program->machine_defs.data[i], 0);
     }
+    necro_machine_print_ast_go(program, program->necro_main, 0);
 }

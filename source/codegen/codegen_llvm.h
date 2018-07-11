@@ -21,6 +21,11 @@
 #include "closure.h"
 #include "machine/machine.h"
 
+/*
+    TODO:
+        * Optimization level options
+*/
+
 struct NecroSymTable;
 
 typedef struct NecroCodeGenSymbolInfo
@@ -31,36 +36,40 @@ typedef struct NecroCodeGenSymbolInfo
 } NecroCodeGenSymbolInfo;
 NECRO_DECLARE_VECTOR(NecroCodeGenSymbolInfo, NecroCodeGenSymbol, necro_codegen_symbol);
 
+typedef struct NecroRuntimeMapping
+{
+    NecroVar     var;
+    LLVMValueRef value;
+    void*        addr;
+} NecroRuntimeMapping;
+NECRO_DECLARE_VECTOR(NecroRuntimeMapping, NecroRuntimeMapping, necro_runtime_mapping);
+
 typedef struct NecroCodeGenLLVM
 {
-    // Useful necro struct
-    NecroPagedArena          arena;
-    NecroSnapshotArena       snapshot_arena;
-    NecroIntern*             intern;
-    NecroSymTable*           symtable;
-    NecroPrimTypes*          prim_types;
-    NecroCodeGenSymbolVector codegen_symtable;
-    // NecroRuntime*   runtime;
+    NecroPagedArena           arena;
+    NecroSnapshotArena        snapshot_arena;
+    NecroIntern*              intern;
+    NecroSymTable*            symtable;
+    NecroPrimTypes*           prim_types;
+    NecroCodeGenSymbolVector  codegen_symtable;
 
-    LLVMContextRef           context;
-    LLVMModuleRef            mod;
-    LLVMBuilderRef           builder;
-    LLVMTargetDataRef        target;
-    LLVMPassManagerRef       fn_pass_manager;
-    LLVMPassManagerRef       mod_pass_manager;
+    LLVMContextRef            context;
+    LLVMModuleRef             mod;
+    LLVMBuilderRef            builder;
+    LLVMTargetDataRef         target;
+    LLVMPassManagerRef        fn_pass_manager;
+    LLVMPassManagerRef        mod_pass_manager;
 
-    // LLVMTypeRef           necro_data_type;
-    // LLVMTypeRef           necro_val_type;
-    // LLVMTypeRef           necro_env_type;
-    // LLVMTypeRef           necro_closure_app_type;
-    // NecroClosureTypeTable closure_type_table;
-    LLVMValueRef             nalloc_value;
-    LLVMTypeRef              poly_type;
+    LLVMTypeRef               poly_type;
+    NecroVar                  necro_alloc_var;
+    NecroRuntimeMappingVector runtime_mapping;
 } NecroCodeGenLLVM;
 
 NecroCodeGenLLVM necro_create_codegen_llvm(NecroIntern* intern, struct NecroSymTable* symtable, NecroPrimTypes* prim_types);
 void             necro_destroy_codegen_llvm(NecroCodeGenLLVM* codegen);
 
 NECRO_RETURN_CODE necro_codegen_llvm(NecroCodeGenLLVM* codegen, NecroMachineProgram* program);
+NECRO_RETURN_CODE necro_jit_llvm(NecroCodeGenLLVM* codegen);
+void              necro_print_codegen_llvm(NecroCodeGenLLVM* codegen);
 
 #endif // TYPE_CODEGEN_LLVM_H

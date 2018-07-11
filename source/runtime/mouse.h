@@ -11,20 +11,25 @@
 #include <assert.h>
 #include <stdbool.h>
 
+// TODO: easy IO Module which export top level IO stream values
+
 #ifdef _WIN32
 #define DLLEXPORT __declspec(dllexport)
 #else
 #define DLLEXPORT
 #endif
 
-// TODO: easy IO Module which export top level IO stream values
-void   necro_init_mouse();
-void   necro_poll_mouse();
-
 ///////////////////////////////////////////////////////
 // Necro Runtime functions
 ///////////////////////////////////////////////////////
 extern DLLEXPORT int64_t _necro_mouse_x();
 extern DLLEXPORT int64_t _necro_mouse_y();
+
+///////////////////////////////////////////////////////
+// Utility functions
+///////////////////////////////////////////////////////
+void necro_init_mouse();
+void necro_poll_mouse();
+
 
 #endif // RUNTIME_MOUSE_H

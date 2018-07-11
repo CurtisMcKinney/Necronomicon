@@ -15,7 +15,6 @@
 #include "ast.h"
 #include "arena.h"
 #include "type.h"
-#include "llvm-c/Types.h"
 
 //=====================================================
 // NecroSymTable, Contains info for a particular ID:
@@ -135,6 +134,7 @@ NecroID             necro_symtable_manual_new_symbol(NecroSymTable* symtable, Ne
 
 NecroSymbolInfo*    necro_symtable_get_type_class_declaration_info(NecroSymTable* symtable, NecroAST_Node_Reified* ast);
 NecroSymbolInfo*    necro_symtable_get_type_class_instance_info(NecroSymTable* symtable, NecroAST_Node_Reified* ast);
+NecroVar            necro_get_top_level_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name);
 
 // Test
 void                necro_scoped_symtable_print_type_scope(NecroScopedSymTable* table);

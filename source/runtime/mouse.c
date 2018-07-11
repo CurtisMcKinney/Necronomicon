@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "mouse.h"
+#include "runtime.h"
 #include "utility.h"
 
 //=====================================================

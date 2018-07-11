@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <stdbool.h>
-#include "codegen/codegen.h"
+#include "runtime/mouse.h"
 
 #ifdef _WIN32
 #define DLLEXPORT __declspec(dllexport)
@@ -18,31 +18,23 @@
 #define DLLEXPORT
 #endif
 
-typedef struct
-{
-    LLVMValueRef necro_alloc;
-    LLVMValueRef necro_print;
-    LLVMValueRef necro_print_u64;
-    LLVMValueRef necro_sleep;
-    LLVMValueRef necro_collect;
-    LLVMValueRef necro_initialize_root_set;
-    LLVMValueRef necro_set_root;
-    LLVMValueRef necro_error_exit;
-    LLVMValueRef necro_init_runtime;
-    LLVMValueRef necro_update_runtime;
-    LLVMValueRef necro_mouse_x;
-    LLVMValueRef necro_mouse_y;
-} NecroRuntimeFunctions;
+///////////////////////////////////////////////////////
+// Necro Runtime
+///////////////////////////////////////////////////////
+extern DLLEXPORT void     _necro_init_runtime();
+extern DLLEXPORT void     _necro_update_runtime();
+extern DLLEXPORT void     _necro_error_exit(uint32_t error_code);
+extern DLLEXPORT void     _necro_sleep(uint32_t milliseconds);
+extern DLLEXPORT void     _necro_print(int64_t value);
+extern DLLEXPORT void     _necro_print_u64(uint64_t value);
+extern DLLEXPORT void     _necro_set_root(int32_t* root, uint32_t root_index);
+extern DLLEXPORT void     _necro_initialize_root_set(uint32_t root_count);
+extern DLLEXPORT int64_t* _necro_alloc(int64_t size_in_bytes, uint16_t slots_used, uint16_t slots, uint8_t segment);
+extern DLLEXPORT void     _necro_collect();
 
-typedef struct NecroRuntime
-{
-    NecroRuntimeFunctions functions;
-} NecroRuntime;
-
-NecroRuntime necro_create_runtime();
-void         necro_destroy_runtime(NecroRuntime* runtime);
-void         necro_declare_runtime_functions(NecroRuntime* runtime, NecroCodeGen* codegen);
-void         necro_bind_runtime_functions(NecroRuntime* runtime, LLVMExecutionEngineRef engine);
-size_t       necro_get_runtime_tick();
+//--------------------
+// Helper functions
+//--------------------
+size_t necro_get_runtime_tick();
 
 #endif // RUNTIME_H

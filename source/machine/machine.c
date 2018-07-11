@@ -371,13 +371,13 @@ NecroMachineAST* necro_create_machine_struct_def(NecroMachineProgram* program, N
 
 NecroMachineAST* necro_create_machine_fn(NecroMachineProgram* program, NecroVar name, NecroMachineAST* call_body, NecroMachineType* necro_machine_type)
 {
-    NecroMachineAST* ast     = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
-    ast->type             = NECRO_MACHINE_FN_DEF;
-    ast->fn_def.name      = name;
-    ast->fn_def.call_body = call_body;
-    ast->fn_def.fn_type   = NECRO_FN_FN;
-    ast->fn_def.fn_value  = necro_create_global_value(program, name, necro_machine_type);
-    ast->necro_machine_type  = necro_machine_type;
+    NecroMachineAST* ast       = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
+    ast->type                  = NECRO_MACHINE_FN_DEF;
+    ast->fn_def.name           = name;
+    ast->fn_def.call_body      = call_body;
+    ast->fn_def.fn_type        = NECRO_FN_FN;
+    ast->fn_def.fn_value       = necro_create_global_value(program, name, necro_machine_type);
+    ast->necro_machine_type    = necro_machine_type;
     assert(call_body->type == NECRO_MACHINE_BLOCK);
     necro_symtable_get(program->symtable, name.id)->necro_machine_ast = ast;
     necro_program_add_function(program, ast);
@@ -387,15 +387,21 @@ NecroMachineAST* necro_create_machine_fn(NecroMachineProgram* program, NecroVar 
     return ast;
 }
 
-NecroMachineAST* necro_create_machine_runtime_fn(NecroMachineProgram* program, NecroVar name, NecroMachineType* necro_machine_type)
+NecroMachineAST* necro_create_machine_runtime_fn(NecroMachineProgram* program, NecroVar name, NecroMachineType* necro_machine_type, void* runtime_fn_addr)
 {
-    NecroMachineAST* ast     = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
-    ast->type             = NECRO_MACHINE_FN_DEF;
-    ast->fn_def.name      = name;
-    ast->fn_def.fn_type   = NECRO_FN_RUNTIME;
-    ast->fn_def.call_body = NULL;
-    ast->necro_machine_type  = necro_machine_type;
+    NecroMachineAST* ast        = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
+    ast->type                   = NECRO_MACHINE_FN_DEF;
+    ast->fn_def.name            = name;
+    ast->fn_def.fn_type         = NECRO_FN_RUNTIME;
+    ast->fn_def.call_body       = NULL;
+    ast->fn_def.fn_value        = NULL;
+    ast->necro_machine_type     = necro_machine_type;
+    ast->fn_def.runtime_fn_addr = runtime_fn_addr;
     necro_symtable_get(program->symtable, name.id)->necro_machine_ast = ast;
+    necro_program_add_function(program, ast);
+    ast->fn_def._curr_block     = NULL;;
+    ast->fn_def._init_block     = NULL;
+    ast->fn_def._cont_block     = NULL;
     return ast;
 }
 
@@ -1656,7 +1662,6 @@ NecroMachineAST* necro_core_to_machine_3_app(NecroMachineProgram* program, Necro
     if (is_stateful)
     {
         assert(machine_def != NULL);
-        // bool is_dynamic = machine_def->machine_def.is_recursive && outer == machine_def;
         bool is_dynamic = machine_def->machine_def.is_recursive;
         if (!is_dynamic)
         {
@@ -1667,50 +1672,16 @@ NecroMachineAST* necro_core_to_machine_3_app(NecroMachineProgram* program, Necro
         else
         {
             assert(outer->machine_def.update_fn->fn_def._init_block != NULL);
-            // // TODO: break out into seperate function
-            // // dynamic application
-            // if (outer->machine_def.update_fn->fn_def._init_block == NULL)
-            // {
-            //     NecroMachineAST* prev_block = outer->machine_def.update_fn->fn_def._curr_block;
-            //     NecroMachineAST* init_block = necro_append_block(program, outer->machine_def.update_fn, "init");
-            //     NecroMachineAST* cont_block = necro_append_block(program, outer->machine_def.update_fn, "cont");
-
-            //     // entry block
-            //     NecroMachineAST* machine_value_1 = necro_build_load_from_slot(program, outer->machine_def.update_fn, necro_create_param_reg(program, outer->machine_def.update_fn, 0), persistent_slot, "dyn");
-            //     NecroMachineAST* cmp_result      = necro_build_cmp(program, outer->machine_def.update_fn, NECRO_MACHINE_CMP_EQ, machine_value_1, necro_create_null_necro_machine_value(program, machine_value_1->necro_machine_type));
-            //     necro_build_cond_break(program, outer->machine_def.update_fn, cmp_result, init_block, cont_block);
-
-            //     // init block
-            //     necro_move_to_block(program, outer->machine_def.update_fn, init_block);
-            //     NecroMachineAST* machine_value_2 = necro_build_call(program, outer->machine_def.update_fn, machine_def->machine_def.mk_fn->fn_def.fn_value, NULL, 0, "mkn");
-            //     necro_build_store_into_slot(program, outer->machine_def.update_fn, machine_value_2, necro_create_param_reg(program, outer->machine_def.update_fn, 0), persistent_slot);
-            //     necro_build_break(program, outer->machine_def.update_fn, cont_block);
-
-            //     // cont block
-            //     necro_move_to_block(program, outer->machine_def.update_fn, cont_block);
-            //     // NecroMachineAST* machine_value_phi = necro_build_phi(program, outer->machine_def.update_fn, (NecroMachineAST*[]) { prev_block, init_block }, (NecroMachineAST*[]) { machine_value_1, machine_value_2 }, 2);
-            //     // args[0]                            = machine_value_phi;
-            //     NecroMachineAST* machine_value = necro_build_load_from_slot(program, outer->machine_def.update_fn, necro_create_param_reg(program, outer->machine_def.update_fn, 0), persistent_slot, "dyn");
-            //     args[0]                        = machine_value;
-            //     outer->machine_def.update_fn->fn_def._init_block = init_block;
-            //     outer->machine_def.update_fn->fn_def._cont_block = cont_block;
-            // }
-            // else
-            {
-                // Write into existing init and cont blocks
-                NecroMachineAST* prev_block  = outer->machine_def.update_fn->fn_def._curr_block;
-                NecroMachineAST* init_block  = outer->machine_def.update_fn->fn_def._init_block;
-
-                // init block
-                necro_move_to_block(program, outer->machine_def.update_fn, init_block);
-                NecroMachineAST* machine_value_2 = necro_build_call(program, outer->machine_def.update_fn, machine_def->machine_def.mk_fn->fn_def.fn_value, NULL, 0, "mkn");
-                necro_build_store_into_slot(program, outer->machine_def.update_fn, machine_value_2, necro_create_param_reg(program, outer->machine_def.update_fn, 0), persistent_slot);
-
-                // resume writing in prev block
-                necro_move_to_block(program, outer->machine_def.update_fn, prev_block);
-                NecroMachineAST* machine_value = necro_build_load_from_slot(program, outer->machine_def.update_fn, necro_create_param_reg(program, outer->machine_def.update_fn, 0), persistent_slot, "dyn");
-                args[0]                        = machine_value;
-            }
+            NecroMachineAST* prev_block  = outer->machine_def.update_fn->fn_def._curr_block;
+            NecroMachineAST* init_block  = outer->machine_def.update_fn->fn_def._init_block;
+            // Write into existing init block
+            necro_move_to_block(program, outer->machine_def.update_fn, init_block);
+            NecroMachineAST* machine_value_2 = necro_build_call(program, outer->machine_def.update_fn, machine_def->machine_def.mk_fn->fn_def.fn_value, NULL, 0, "mkn");
+            necro_build_store_into_slot(program, outer->machine_def.update_fn, machine_value_2, necro_create_param_reg(program, outer->machine_def.update_fn, 0), persistent_slot);
+            // resume writing in prev block
+            necro_move_to_block(program, outer->machine_def.update_fn, prev_block);
+            NecroMachineAST* machine_value = necro_build_load_from_slot(program, outer->machine_def.update_fn, necro_create_param_reg(program, outer->machine_def.update_fn, 0), persistent_slot, "dyn");
+            args[0]                        = machine_value;
         }
     }
     return necro_build_call(program, outer->machine_def.update_fn, fn_value, args, arg_count, "app");
@@ -1808,6 +1779,11 @@ NecroMachineAST* necro_core_to_machine_3_go(NecroMachineProgram* program, NecroC
     default:                        assert(false && "Unimplemented AST type in necro_core_to_machine_3_go"); return NULL;
     }
 }
+
+///////////////////////////////////////////////////////
+// Construct main
+///////////////////////////////////////////////////////
+
 
 ///////////////////////////////////////////////////////
 // Core to Machine

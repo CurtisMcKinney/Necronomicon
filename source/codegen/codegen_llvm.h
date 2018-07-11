@@ -49,7 +49,6 @@ typedef struct NecroCodeGenLLVM
     LLVMPassManagerRef       fn_pass_manager;
     LLVMPassManagerRef       mod_pass_manager;
 
-    // LLVMIntrinsics        llvm_intrinsics;
     // LLVMTypeRef           necro_data_type;
     // LLVMTypeRef           necro_val_type;
     // LLVMTypeRef           necro_env_type;

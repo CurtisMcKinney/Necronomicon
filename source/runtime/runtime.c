@@ -19,24 +19,25 @@
 #define NECRO_GC_SLAB_TO_PAGES 1024
 #define NECRO_GC_NUM_SEGMENTS 10
 
-//=====================================================
-// Create / Destroy
-//=====================================================
-NecroRuntime necro_create_runtime()
-{
-    return (NecroRuntime)
-    {
-        .functions = (NecroRuntimeFunctions)
-        {
-            .necro_alloc = NULL,
-            .necro_print = NULL
-        }
-    };
-}
+// //=====================================================
+// // Create / Destroy
+// //=====================================================
+// NecroRuntime necro_create_runtime()
+// {
+//     return (NecroRuntime)
+//     {
+//         ._necro_alloc = NULL,
+//         // .functions = (NecroRuntimeFunctions)
+//         // {
+//         //     .necro_alloc = NULL,
+//         //     .necro_print = NULL
+//         // }
+//     };
+// }
 
-void necro_destroy_runtime(NecroRuntime* runtime)
-{
-}
+// void necro_destroy_runtime(NecroRuntime* runtime)
+// {
+// }
 
 //=====================================================
 // GC
@@ -492,101 +493,101 @@ extern DLLEXPORT void _necro_update_runtime()
     // necro_poll_mouse();
 }
 
-//=====================================================
-// Declare and Bind
-//=====================================================
-void necro_declare_runtime_functions(NecroRuntime* runtime, NecroCodeGen* codegen)
-{
-    // NecroAlloc
-    LLVMTypeRef  necro_alloc_args[4] = { LLVMInt64TypeInContext(codegen->context), LLVMInt16TypeInContext(codegen->context), LLVMInt16TypeInContext(codegen->context), LLVMInt8TypeInContext(codegen->context) };
-    LLVMValueRef necro_alloc         = LLVMAddFunction(codegen->mod, "_necro_alloc", LLVMFunctionType(LLVMPointerType(LLVMInt64TypeInContext(codegen->context), 0), necro_alloc_args, 4, false));
-    LLVMSetLinkage(necro_alloc, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_alloc, LLVMCCallConv);
-    codegen->runtime->functions.necro_alloc = necro_alloc;
+// //=====================================================
+// // Declare and Bind
+// //=====================================================
+// void necro_declare_runtime_functions(NecroRuntime* runtime, NecroCodeGen* codegen)
+// {
+//     // NecroAlloc
+//     LLVMTypeRef  necro_alloc_args[4] = { LLVMInt64TypeInContext(codegen->context), LLVMInt16TypeInContext(codegen->context), LLVMInt16TypeInContext(codegen->context), LLVMInt8TypeInContext(codegen->context) };
+//     LLVMValueRef necro_alloc         = LLVMAddFunction(codegen->mod, "_necro_alloc", LLVMFunctionType(LLVMPointerType(LLVMInt64TypeInContext(codegen->context), 0), necro_alloc_args, 4, false));
+//     LLVMSetLinkage(necro_alloc, LLVMExternalLinkage);
+//     LLVMSetFunctionCallConv(necro_alloc, LLVMCCallConv);
+//     codegen->runtime->functions.necro_alloc = necro_alloc;
 
-    // NecroCollect
-    LLVMValueRef necro_collect = LLVMAddFunction(codegen->mod, "_necro_collect", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), NULL, 0, false));
-    LLVMSetLinkage(necro_collect, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_collect, LLVMCCallConv);
-    codegen->runtime->functions.necro_collect = necro_collect;
+//     // NecroCollect
+//     LLVMValueRef necro_collect = LLVMAddFunction(codegen->mod, "_necro_collect", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), NULL, 0, false));
+//     LLVMSetLinkage(necro_collect, LLVMExternalLinkage);
+//     LLVMSetFunctionCallConv(necro_collect, LLVMCCallConv);
+//     codegen->runtime->functions.necro_collect = necro_collect;
 
-    // NecroInitializeRootSet
-    LLVMValueRef necro_initialize_root_set = LLVMAddFunction(codegen->mod, "_necro_initialize_root_set", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), (LLVMTypeRef[]) { LLVMInt32TypeInContext(codegen->context) }, 1, false));
-    LLVMSetLinkage(necro_initialize_root_set, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_initialize_root_set, LLVMCCallConv);
-    codegen->runtime->functions.necro_initialize_root_set = necro_initialize_root_set;
+//     // NecroInitializeRootSet
+//     LLVMValueRef necro_initialize_root_set = LLVMAddFunction(codegen->mod, "_necro_initialize_root_set", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), (LLVMTypeRef[]) { LLVMInt32TypeInContext(codegen->context) }, 1, false));
+//     LLVMSetLinkage(necro_initialize_root_set, LLVMExternalLinkage);
+//     LLVMSetFunctionCallConv(necro_initialize_root_set, LLVMCCallConv);
+//     codegen->runtime->functions.necro_initialize_root_set = necro_initialize_root_set;
 
-    // NecroSetRoot
-    LLVMValueRef necro_set_root = LLVMAddFunction(codegen->mod, "_necro_set_root", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), (LLVMTypeRef[]) { LLVMPointerType(LLVMInt32TypeInContext(codegen->context), 0), LLVMInt32TypeInContext(codegen->context) }, 2, false));
-    LLVMSetLinkage(necro_set_root, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_set_root, LLVMCCallConv);
-    codegen->runtime->functions.necro_set_root = necro_set_root;
+//     // NecroSetRoot
+//     LLVMValueRef necro_set_root = LLVMAddFunction(codegen->mod, "_necro_set_root", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), (LLVMTypeRef[]) { LLVMPointerType(LLVMInt32TypeInContext(codegen->context), 0), LLVMInt32TypeInContext(codegen->context) }, 2, false));
+//     LLVMSetLinkage(necro_set_root, LLVMExternalLinkage);
+//     LLVMSetFunctionCallConv(necro_set_root, LLVMCCallConv);
+//     codegen->runtime->functions.necro_set_root = necro_set_root;
 
-    // NecroPrint
-    LLVMTypeRef  necro_print_args[1] = { LLVMInt64TypeInContext(codegen->context) };
-    LLVMValueRef necro_print         = LLVMAddFunction(codegen->mod, "_necro_print", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), necro_print_args, 1, false));
-    LLVMSetLinkage(necro_print, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_print, LLVMCCallConv);
-    codegen->runtime->functions.necro_print = necro_print;
+//     // NecroPrint
+//     LLVMTypeRef  necro_print_args[1] = { LLVMInt64TypeInContext(codegen->context) };
+//     LLVMValueRef necro_print         = LLVMAddFunction(codegen->mod, "_necro_print", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), necro_print_args, 1, false));
+//     LLVMSetLinkage(necro_print, LLVMExternalLinkage);
+//     LLVMSetFunctionCallConv(necro_print, LLVMCCallConv);
+//     codegen->runtime->functions.necro_print = necro_print;
 
-    // NecroPrint64
-    LLVMTypeRef  necro_print_args_u64[1] = { LLVMInt64TypeInContext(codegen->context) };
-    LLVMValueRef necro_print_u64         = LLVMAddFunction(codegen->mod, "_necro_print_u64", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), necro_print_args_u64, 1, false));
-    LLVMSetLinkage(necro_print_u64, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_print_u64, LLVMCCallConv);
-    codegen->runtime->functions.necro_print_u64 = necro_print_u64;
+//     // NecroPrint64
+//     LLVMTypeRef  necro_print_args_u64[1] = { LLVMInt64TypeInContext(codegen->context) };
+//     LLVMValueRef necro_print_u64         = LLVMAddFunction(codegen->mod, "_necro_print_u64", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), necro_print_args_u64, 1, false));
+//     LLVMSetLinkage(necro_print_u64, LLVMExternalLinkage);
+//     LLVMSetFunctionCallConv(necro_print_u64, LLVMCCallConv);
+//     codegen->runtime->functions.necro_print_u64 = necro_print_u64;
 
-    // NecroSleep
-    LLVMTypeRef  necro_sleep_args[1] = { LLVMInt32TypeInContext(codegen->context) };
-    LLVMValueRef necro_sleep         = LLVMAddFunction(codegen->mod, "_necro_sleep", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), necro_sleep_args, 1, false));
-    LLVMSetLinkage(necro_sleep, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_sleep, LLVMCCallConv);
-    codegen->runtime->functions.necro_sleep = necro_sleep;
+//     // NecroSleep
+//     LLVMTypeRef  necro_sleep_args[1] = { LLVMInt32TypeInContext(codegen->context) };
+//     LLVMValueRef necro_sleep         = LLVMAddFunction(codegen->mod, "_necro_sleep", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), necro_sleep_args, 1, false));
+//     LLVMSetLinkage(necro_sleep, LLVMExternalLinkage);
+//     LLVMSetFunctionCallConv(necro_sleep, LLVMCCallConv);
+//     codegen->runtime->functions.necro_sleep = necro_sleep;
 
-    // NecroErrorExit
-    LLVMTypeRef  necro_exit_args[1] = { LLVMInt32TypeInContext(codegen->context) };
-    LLVMValueRef necro_exit         = LLVMAddFunction(codegen->mod, "_necro_error", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), necro_exit_args, 1, false));
-    LLVMSetLinkage(necro_exit, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_exit, LLVMCCallConv);
-    codegen->runtime->functions.necro_error_exit = necro_exit;
+//     // NecroErrorExit
+//     LLVMTypeRef  necro_exit_args[1] = { LLVMInt32TypeInContext(codegen->context) };
+//     LLVMValueRef necro_exit         = LLVMAddFunction(codegen->mod, "_necro_error", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), necro_exit_args, 1, false));
+//     LLVMSetLinkage(necro_exit, LLVMExternalLinkage);
+//     LLVMSetFunctionCallConv(necro_exit, LLVMCCallConv);
+//     codegen->runtime->functions.necro_error_exit = necro_exit;
 
-    // NecroInitRuntime
-    LLVMValueRef necro_init_runtime = LLVMAddFunction(codegen->mod, "_necro_init_runtime", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), NULL, 0, false));
-    LLVMSetLinkage(necro_init_runtime, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_init_runtime, LLVMCCallConv);
-    codegen->runtime->functions.necro_init_runtime = necro_init_runtime;
+//     // NecroInitRuntime
+//     LLVMValueRef necro_init_runtime = LLVMAddFunction(codegen->mod, "_necro_init_runtime", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), NULL, 0, false));
+//     LLVMSetLinkage(necro_init_runtime, LLVMExternalLinkage);
+//     LLVMSetFunctionCallConv(necro_init_runtime, LLVMCCallConv);
+//     codegen->runtime->functions.necro_init_runtime = necro_init_runtime;
 
-    // NecroUpdateRuntime
-    LLVMValueRef necro_update_runtime = LLVMAddFunction(codegen->mod, "_necro_update_runtime", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), NULL, 0, false));
-    LLVMSetLinkage(necro_update_runtime, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_update_runtime, LLVMCCallConv);
-    codegen->runtime->functions.necro_update_runtime = necro_update_runtime;
+//     // NecroUpdateRuntime
+//     LLVMValueRef necro_update_runtime = LLVMAddFunction(codegen->mod, "_necro_update_runtime", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), NULL, 0, false));
+//     LLVMSetLinkage(necro_update_runtime, LLVMExternalLinkage);
+//     LLVMSetFunctionCallConv(necro_update_runtime, LLVMCCallConv);
+//     codegen->runtime->functions.necro_update_runtime = necro_update_runtime;
 
-    // NecroMouseX
-    LLVMValueRef necro_mouse_x = LLVMAddFunction(codegen->mod, "_necro_mouse_x", LLVMFunctionType(LLVMInt64TypeInContext(codegen->context), NULL, 0, false));
-    LLVMSetLinkage(necro_mouse_x, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_mouse_x, LLVMCCallConv);
-    codegen->runtime->functions.necro_mouse_x = necro_mouse_x;
+//     // NecroMouseX
+//     LLVMValueRef necro_mouse_x = LLVMAddFunction(codegen->mod, "_necro_mouse_x", LLVMFunctionType(LLVMInt64TypeInContext(codegen->context), NULL, 0, false));
+//     LLVMSetLinkage(necro_mouse_x, LLVMExternalLinkage);
+//     LLVMSetFunctionCallConv(necro_mouse_x, LLVMCCallConv);
+//     codegen->runtime->functions.necro_mouse_x = necro_mouse_x;
 
-    // NecroMouseY
-    LLVMValueRef necro_mouse_y = LLVMAddFunction(codegen->mod, "_necro_mouse_y", LLVMFunctionType(LLVMInt64TypeInContext(codegen->context), NULL, 0, false));
-    LLVMSetLinkage(necro_mouse_y, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_mouse_y, LLVMCCallConv);
-    codegen->runtime->functions.necro_mouse_y = necro_mouse_y;
-}
+//     // NecroMouseY
+//     LLVMValueRef necro_mouse_y = LLVMAddFunction(codegen->mod, "_necro_mouse_y", LLVMFunctionType(LLVMInt64TypeInContext(codegen->context), NULL, 0, false));
+//     LLVMSetLinkage(necro_mouse_y, LLVMExternalLinkage);
+//     LLVMSetFunctionCallConv(necro_mouse_y, LLVMCCallConv);
+//     codegen->runtime->functions.necro_mouse_y = necro_mouse_y;
+// }
 
-void necro_bind_runtime_functions(NecroRuntime* runtime, LLVMExecutionEngineRef engine)
-{
-    necro_gc_init();
-    LLVMAddGlobalMapping(engine, runtime->functions.necro_alloc, _necro_alloc);
-    LLVMAddGlobalMapping(engine, runtime->functions.necro_print, _necro_print);
-    LLVMAddGlobalMapping(engine, runtime->functions.necro_sleep, _necro_sleep);
-    LLVMAddGlobalMapping(engine, runtime->functions.necro_collect, _necro_collect);
-    LLVMAddGlobalMapping(engine, runtime->functions.necro_initialize_root_set, _necro_initialize_root_set);
-    LLVMAddGlobalMapping(engine, runtime->functions.necro_set_root, _necro_set_root);
-    LLVMAddGlobalMapping(engine, runtime->functions.necro_error_exit, _necro_error_exit);
-    LLVMAddGlobalMapping(engine, runtime->functions.necro_init_runtime, _necro_init_runtime);
-    LLVMAddGlobalMapping(engine, runtime->functions.necro_update_runtime, _necro_update_runtime);
-    LLVMAddGlobalMapping(engine, runtime->functions.necro_mouse_x, _necro_mouse_x);
-    LLVMAddGlobalMapping(engine, runtime->functions.necro_mouse_y, _necro_mouse_y);
-}
+// void necro_bind_runtime_functions(NecroRuntime* runtime, LLVMExecutionEngineRef engine)
+// {
+//     necro_gc_init();
+//     LLVMAddGlobalMapping(engine, runtime->functions.necro_alloc, _necro_alloc);
+//     LLVMAddGlobalMapping(engine, runtime->functions.necro_print, _necro_print);
+//     LLVMAddGlobalMapping(engine, runtime->functions.necro_sleep, _necro_sleep);
+//     LLVMAddGlobalMapping(engine, runtime->functions.necro_collect, _necro_collect);
+//     LLVMAddGlobalMapping(engine, runtime->functions.necro_initialize_root_set, _necro_initialize_root_set);
+//     LLVMAddGlobalMapping(engine, runtime->functions.necro_set_root, _necro_set_root);
+//     LLVMAddGlobalMapping(engine, runtime->functions.necro_error_exit, _necro_error_exit);
+//     LLVMAddGlobalMapping(engine, runtime->functions.necro_init_runtime, _necro_init_runtime);
+//     LLVMAddGlobalMapping(engine, runtime->functions.necro_update_runtime, _necro_update_runtime);
+//     LLVMAddGlobalMapping(engine, runtime->functions.necro_mouse_x, _necro_mouse_x);
+//     LLVMAddGlobalMapping(engine, runtime->functions.necro_mouse_y, _necro_mouse_y);
+// }

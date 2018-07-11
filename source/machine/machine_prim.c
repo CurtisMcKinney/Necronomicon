@@ -5,6 +5,7 @@
 
 #include "machine_prim.h"
 #include "machine_type.h"
+#include "runtime/runtime.h"
 
 ///////////////////////////////////////////////////////
 // Utility declarations
@@ -184,10 +185,6 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     necro_create_prim_con(program, list_struct->necro_machine_type, nil_con, NULL, 0);
 
     //--------------------
-    // Runtime functions
-    //--------------------
-
-    //--------------------
     // Prim Functions
     //--------------------
 
@@ -204,4 +201,11 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     NecroMachineAST*  fromRational_Float_fn  = necro_prim_fn_begin(program, fromRational_Float_var, float_ptr_type, (NecroMachineType*[]) { float_ptr_type }, 1);
     necro_prim_fn_end(program, fromRational_Float_fn, necro_create_param_reg(program, fromRational_Float_fn, 0));
     necro_create_prim_binops(program, float_ptr_type, program->mkFloatFnValue, (const char*[]) { "add@Float", "sub@Float", "mul@Float", "div@Float" }, (NECRO_MACHINE_BINOP_TYPE[]) { NECRO_MACHINE_BINOP_FADD, NECRO_MACHINE_BINOP_FSUB, NECRO_MACHINE_BINOP_FMUL, NECRO_MACHINE_BINOP_FDIV }, 4);
+
+    //--------------------
+    // Runtime functions
+    //--------------------
+    NecroVar          _necro_init_runtime_var     = necro_gen_var(program, NULL, "_necro_init_runtime#", NECRO_NAME_UNIQUE);
+    NecroMachineType* _necro_init_runtime_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), NULL, 0);
+    NecroMachineAST*  _necro_init_runtime_fn      = necro_create_machine_runtime_fn(program, _necro_init_runtime_var, _necro_init_runtime_fn_type, &_necro_init_runtime);
 }

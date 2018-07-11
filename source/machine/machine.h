@@ -199,6 +199,7 @@ typedef struct NecroMachineFnDef
     struct NecroMachineAST* call_body;
     NECRO_FN_TYPE           fn_type;
     struct NecroMachineAST* fn_value;
+    void*                   runtime_fn_addr;
     //-------------------
     // compile time data
     struct NecroMachineAST* _curr_block;
@@ -437,6 +438,7 @@ NecroVar         necro_gen_var(NecroMachineProgram* program, NecroMachineAST* ne
 NecroMachineAST* necro_create_machine_struct_def(NecroMachineProgram* program, NecroVar name, NecroMachineType** members, size_t num_members);
 NecroMachineAST* necro_create_machine_block(NecroMachineProgram* program, const char* name, NecroMachineAST* next_block);
 NecroMachineAST* necro_create_machine_fn(NecroMachineProgram* program, NecroVar name, NecroMachineAST* call_body, NecroMachineType* necro_machine_type);
+NecroMachineAST* necro_create_machine_runtime_fn(NecroMachineProgram* program, NecroVar name, NecroMachineType* necro_machine_type, void* runtime_fn_addr);
 NecroMachineAST* necro_create_param_reg(NecroMachineProgram* program, NecroMachineAST* fn_def, size_t param_num);
 NecroMachineAST* necro_create_uint32_necro_machine_value(NecroMachineProgram* program, uint32_t uint_literal);
 NecroMachineAST* necro_create_null_necro_machine_value(NecroMachineProgram* program, NecroMachineType* ptr_type);

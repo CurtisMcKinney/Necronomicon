@@ -12,25 +12,29 @@
 void necro_machine_print_fn(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)
 {
     assert(ast->type == NECRO_MACHINE_FN_DEF);
-    if (ast->fn_def.fn_type == NECRO_FN_FN)
+    print_white_space(depth);
+    if (ast->fn_def.fn_type == NECRO_FN_RUNTIME)
+        printf("foreign ");
+    printf("fn %s(", necro_intern_get_string(program->intern, ast->fn_def.name.symbol));
+    for (size_t i = 0; i < ast->necro_machine_type->fn_type.num_parameters; ++i)
     {
-        print_white_space(depth);
-        printf("fn %s(", necro_intern_get_string(program->intern, ast->fn_def.name.symbol));
-        for (size_t i = 0; i < ast->necro_machine_type->fn_type.num_parameters; ++i)
-        {
-            necro_machine_print_machine_type_go(program->intern, ast->necro_machine_type->fn_type.parameters[i], false);
-            if (i < ast->necro_machine_type->fn_type.num_parameters - 1)
-                printf(", ");
-        }
-        printf(") -> ");
-        necro_machine_print_machine_type_go(program->intern, ast->necro_machine_type->fn_type.return_type, false);
-        printf("\n");
-        print_white_space(depth);
-        printf("{\n");
-        necro_machine_print_ast_go(program, ast->fn_def.call_body, depth + 4);
-        print_white_space(depth);
-        printf("}\n");
+        necro_machine_print_machine_type_go(program->intern, ast->necro_machine_type->fn_type.parameters[i], false);
+        if (i < ast->necro_machine_type->fn_type.num_parameters - 1)
+            printf(", ");
     }
+    printf(") -> ");
+    necro_machine_print_machine_type_go(program->intern, ast->necro_machine_type->fn_type.return_type, false);
+    if (ast->fn_def.fn_type == NECRO_FN_RUNTIME)
+    {
+        printf("\n");
+        return;
+    }
+    printf("\n");
+    print_white_space(depth);
+    printf("{\n");
+    necro_machine_print_ast_go(program, ast->fn_def.call_body, depth + 4);
+    print_white_space(depth);
+    printf("}\n");
 }
 
 typedef enum
@@ -413,7 +417,6 @@ void necro_print_machine_program(NecroMachineProgram* program)
     printf("// NecroMachineProgram\n");
     printf("///////////////////////////////////////////////////////\n");
     puts("");
-
     for (size_t i = 0; i < program->structs.length; ++i)
     {
         necro_machine_print_ast_go(program, program->structs.data[i], 0);

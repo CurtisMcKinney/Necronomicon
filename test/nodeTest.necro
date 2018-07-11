@@ -23,24 +23,24 @@ data Both       = Both Nullary Unary
 --     x = x
 --     y = y
 
--- Normal
-fnTest :: Nullary -> Nullary
-fnTest n = n
-appFnTest :: Nullary
-appFnTest = fnTest Nullary
+-- -- Normal
+-- fnTest :: Nullary -> Nullary
+-- fnTest n = n
+-- appFnTest :: Nullary
+-- appFnTest = fnTest Nullary
 
--- Stateful
-feedFn :: Nullary -> Unary
-feedFn n = x where
-    x = x
-appFeedFn :: Unary
-appFeedFn = feedFn Nullary
+-- -- Stateful
+-- feedFn :: Nullary -> Unary
+-- feedFn n = x where
+--     x = x
+-- appFeedFn :: Unary
+-- appFeedFn = feedFn Nullary
 
--- Recursive
-fnRec :: Nullary -> Nullary
-fnRec n = fnRec n
-appFnRec :: Nullary
-appFnRec = fnRec (fnRec Nullary)
+-- -- Recursive
+-- fnRec :: Nullary -> Nullary
+-- fnRec n = fnRec n
+-- appFnRec :: Nullary
+-- appFnRec = fnRec (fnRec Nullary)
 
 -- Stateful / Recursive
 feedFnRec :: Nullary -> Nullary

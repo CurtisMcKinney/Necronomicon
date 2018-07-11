@@ -252,6 +252,13 @@ void necro_codegen_function(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
     LLVMValueRef fn_value = LLVMAddFunction(codegen->mod, necro_intern_get_string(codegen->intern, ast->fn_def.name.symbol), fn_type);
     necro_codegen_symtable_get(codegen, ast->fn_def.name)->type  = fn_type;
     necro_codegen_symtable_get(codegen, ast->fn_def.name)->value = fn_value;
+
+    if (ast->fn_def.fn_type == NECRO_FN_RUNTIME)
+    {
+        // assert(false && "TODO");
+        return;
+    }
+
     necro_codegen_symtable_get(codegen, ast->fn_def.fn_value->value.reg_name)->type  = fn_type;
     necro_codegen_symtable_get(codegen, ast->fn_def.fn_value->value.reg_name)->value = fn_value;
     LLVMSetFunctionCallConv(fn_value, LLVMFastCallConv);

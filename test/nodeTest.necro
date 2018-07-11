@@ -23,30 +23,31 @@ data Both       = Both Nullary Unary
 --     x = x
 --     y = y
 
--- fnTest :: Nullary -> Nullary
--- fnTest n = n
--- appFnTest :: Nullary
--- appFnTest = fnTest Nullary
+-- Normal
+fnTest :: Nullary -> Nullary
+fnTest n = n
+appFnTest :: Nullary
+appFnTest = fnTest Nullary
 
--- feedFn :: Nullary -> Unary
--- feedFn n = x where
---     x = x
--- appFeedFn :: Unary
--- appFeedFn = feedFn Nullary
+-- Stateful
+feedFn :: Nullary -> Unary
+feedFn n = x where
+    x = x
+appFeedFn :: Unary
+appFeedFn = feedFn Nullary
 
--- TODO: This should not be forced to be stateful simply because it is recursive!!!!
--- Fix!!!!
+-- Recursive
 fnRec :: Nullary -> Nullary
 fnRec n = fnRec n
 appFnRec :: Nullary
 appFnRec = fnRec (fnRec Nullary)
 
--- -- TODO: Fix
--- feedFnRec :: Nullary -> Nullary
--- feedFnRec n = feedFnRec n where
---     x = x
--- appFeedFnRec :: Nullary
--- appFeedFnRec = feedFnRec Nullary
+-- Stateful / Recursive
+feedFnRec :: Nullary -> Nullary
+feedFnRec n = feedFnRec n where
+    x = x
+appFeedFnRec :: Nullary
+appFeedFnRec = feedFnRec Nullary
 
 -- globalTest :: Nullary
 -- globalTest = Nullary

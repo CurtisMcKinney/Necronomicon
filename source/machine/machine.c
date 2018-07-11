@@ -1198,13 +1198,10 @@ void necro_remove_only_self_recursive_member(NecroMachineProgram* program, Necro
 {
     assert(program != NULL);
     assert(ast->type == NECRO_MACHINE_DEF);
-    if (ast->machine_def.is_recursive)
-        return;
     if (ast->machine_def.num_arg_names == 0 || ast->machine_def.num_members != 1 || ast->machine_def.members[0].necro_machine_type->ptr_type.element_type != ast->necro_machine_type)
         return;
-    // else if (ast->machine_def.num_arg_names > 0 && ast->machine_def.num_members == 1 && ast->machine_def.members[0].necro_machine_type->ptr_type.element_type == ast->necro_machine_type)
-        // ast->machine_def.state_type = NECRO_STATE_POINTWISE;
-    ast->machine_def.num_members = 0;
+    ast->machine_def.num_members    = 0;
+    ast->machine_def._first_dynamic = -1;
 }
 
 void necro_calculate_statefulness(NecroMachineProgram* program, NecroMachineAST* ast)

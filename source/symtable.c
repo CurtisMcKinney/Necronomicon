@@ -928,3 +928,11 @@ NecroVar necro_get_top_level_symbol_var(NecroScopedSymTable* scoped_symtable, co
     assert(id.id != 0);
     return (NecroVar) { .id = id, .symbol = symbol };
 }
+
+NecroVar necro_get_type_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name)
+{
+    NecroSymbol symbol = necro_intern_string(scoped_symtable->global_table->intern, name);
+    NecroID     id     = necro_scope_find(scoped_symtable->top_type_scope, symbol);
+    assert(id.id != 0);
+    return (NecroVar) { .id = id, .symbol = symbol };
+}

@@ -73,6 +73,7 @@ set(project_SOURCES
     source/type/type_class.c
 
     source/core/core.c
+    source/core/closure_conversion.c
 
     source/machine/machine.c
     source/machine/machine_type.c
@@ -114,6 +115,7 @@ set(project_HEADERS
     source/type/type_class.h
 
     source/core/core.h
+    source/core/closure_conversion.c
 
     source/machine/machine.h
     source/machine/machine_type.h

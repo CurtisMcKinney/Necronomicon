@@ -53,7 +53,7 @@ typedef struct
 typedef struct NecroGCRoot
 {
     char**   slots;
-    uint16_t num_slots;
+    uint32_t num_slots;
 } NecroGCRoot;
 
 typedef struct
@@ -345,7 +345,8 @@ extern DLLEXPORT void _necro_initialize_root_set(uint32_t root_count)
     }
 }
 
-extern DLLEXPORT void _necro_set_root(uint32_t* root, uint32_t root_index, uint16_t num_slots)
+// overflowing slots used!??!?!?!
+extern DLLEXPORT void _necro_set_root(uint32_t* root, uint32_t root_index, uint32_t num_slots)
 {
     // printf("set root, index: %d, root: %p\n", root_index, root);
     // NecroSlab* slab      = necro_gc_slot_to_slab((char*)root);
@@ -419,12 +420,13 @@ extern DLLEXPORT void _necro_collect()
     }
 // #if _WIN32
 //     QueryPerformanceCounter(&gc_end_time);
-//     gc_time = (gc_end_time.QuadPart - gc_begin_time.QuadPart) * 1000.0 / ticks_per_sec.QuadPart;
+//     gc_time = ((gc_end_time.QuadPart - gc_begin_time.QuadPart) * 1000.0) / ticks_per_sec.QuadPart;
+//     // gc_time = (gc_end_time.QuadPart - gc_begin_time.QuadPart) / (ticks_per_sec.QuadPart / 1000.f);
 //     printf("gc, latency: %f ms\n", gc_time);
 // #endif
 }
 
-extern DLLEXPORT int64_t* _necro_alloc(int64_t size_in_bytes, uint16_t slots_used, uint16_t slots, uint8_t segment)
+extern DLLEXPORT int64_t* _necro_alloc(uint32_t slots_used, uint8_t segment)
 {
     // NOTE: Assumes that off_white and off_white_tail are not NULL!!!!
     NecroGCSegment* gcs = gc.segments + segment;
@@ -433,13 +435,20 @@ extern DLLEXPORT int64_t* _necro_alloc(int64_t size_in_bytes, uint16_t slots_use
     NecroSlab* slab      = gcs->free;
     gcs->free            = slab->next;
     slab->prev           = NULL;
+    slab->tag            = 0;
     slab->slots_used     = slots_used;
     slab->segment        = segment;
     slab->color          = gc.white_color;
     slab->next           = gcs->off_white;
     gcs->off_white->prev = slab;
     gcs->off_white       = slab;
-    return (int64_t*)(&slab->slots_used);
+    // zero out memory...better to do it here!?
+    int64_t** data = (int64_t**)(&slab->slots_used);
+    for (uint32_t i = 0; i < slots_used; ++i)
+    {
+        data[i] = NULL;
+    }
+    return (int64_t*) data;
 }
 
 extern DLLEXPORT void _necro_print(int64_t value)

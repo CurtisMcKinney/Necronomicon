@@ -87,9 +87,9 @@ void necro_print_machine_value(NecroMachineProgram* program, NecroMachineAST* as
         assert(false);
         break;
     }
-    // if (should_print_value_type == NECRO_PRINT_VALUE_TYPE)
+    if (should_print_value_type == NECRO_PRINT_VALUE_TYPE)
     // Turning this off for now to clear some clutter
-    if (false)
+    // if (false)
     {
         printf(" (");
         necro_machine_print_machine_type_go(program->intern, ast->necro_machine_type, false);
@@ -117,7 +117,21 @@ void necro_machine_print_block(NecroMachineProgram* program, NecroMachineAST* as
         printf("\n");
         break;
     case NECRO_TERM_SWITCH:
+    {
+        print_white_space(depth);
+        printf("switch ");
+        necro_print_machine_value(program, ast->block.terminator->switch_terminator.choice_val, NECRO_DONT_PRINT_VALUE_TYPE);
+        printf(" [");
+        NecroMachineSwitchList* values = ast->block.terminator->switch_terminator.values;
+        assert(values != NULL);
+        while (values != NULL)
+        {
+            printf("%d: %s, ", values->data.value, necro_intern_get_string(program->intern, values->data.block->block.name.symbol));
+            values = values->next;
+        }
+        printf("else: %s]\n", necro_intern_get_string(program->intern, ast->block.terminator->switch_terminator.else_block->block.name.symbol));
         break;
+    }
     case NECRO_TERM_BREAK:
         print_white_space(depth);
         printf("break %s\n", necro_intern_get_string(program->intern, ast->block.terminator->break_terminator.block_to_jump_to->block.name.symbol));
@@ -131,6 +145,8 @@ void necro_machine_print_block(NecroMachineProgram* program, NecroMachineAST* as
             );
         break;
     case NECRO_TERM_UNREACHABLE:
+        print_white_space(depth);
+        printf("unreachable\n");
         break;
     }
     if (ast->block.next_block != NULL)
@@ -317,18 +333,28 @@ void necro_machine_print_phi(NecroMachineProgram* program, NecroMachineAST* ast,
     assert(ast->type == NECRO_MACHINE_PHI);
     print_white_space(depth);
     printf("%%%s = phi [", necro_intern_get_string(program->intern, ast->phi.result->value.reg_name.symbol));
-    for (size_t i = 0; i < ast->phi.num_values; ++i)
+    NecroMachinePhiList* values = ast->phi.values;
+    while (values != NULL)
     {
-        printf("%s: %%%s", necro_intern_get_string(program->intern, ast->phi.blocks[i]->block.name.symbol), necro_intern_get_string(program->intern, ast->phi.values[i]->value.reg_name.symbol));
-        if (i == ast->phi.num_values - 1)
-        {
+        printf("%s: %%%s", necro_intern_get_string(program->intern, values->data.block->block.name.symbol), necro_intern_get_string(program->intern, values->data.value->value.reg_name.symbol));
+        if (values->next == NULL)
             printf("]");
-        }
         else
-        {
             printf(", ");
-        }
+        values = values->next;
     }
+    // for (size_t i = 0; i < ast->phi.num_values; ++i)
+    // {
+    //     printf("%s: %%%s", necro_intern_get_string(program->intern, ast->phi.blocks[i]->block.name.symbol), necro_intern_get_string(program->intern, ast->phi.values[i]->value.reg_name.symbol));
+    //     if (i == ast->phi.num_values - 1)
+    //     {
+    //         printf("]");
+    //     }
+    //     else
+    //     {
+    //         printf(", ");
+    //     }
+    // }
 }
 
 void necro_machine_print_cmp(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)

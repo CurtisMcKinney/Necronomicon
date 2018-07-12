@@ -14,8 +14,8 @@
 #include "machine.h"
 #include "core/core.h"
 
-NecroMachineAST* necro_core_to_machine_case_1(NecroMachineProgram* program, NecroCoreAST_Expression* ast, NecroMachineAST* outer);
-NecroMachineAST* necro_core_to_machine_case_2(NecroMachineProgram* program, NecroCoreAST_Expression* ast, NecroMachineAST* outer);
-NecroMachineAST* necro_core_to_machine_case_3(NecroMachineProgram* program, NecroCoreAST_Expression* ast, NecroMachineAST* outer);
+void             necro_core_to_machine_1_case(NecroMachineProgram* program, NecroCoreAST_Expression* ast, NecroMachineAST* outer);
+void             necro_core_to_machine_2_case(NecroMachineProgram* program, NecroCoreAST_Expression* ast, NecroMachineAST* outer);
+NecroMachineAST* necro_core_to_machine_3_case(NecroMachineProgram* program, NecroCoreAST_Expression* ast, NecroMachineAST* outer);
 
 #endif // MACHINE_CASE_H

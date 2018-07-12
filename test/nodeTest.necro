@@ -1,9 +1,8 @@
 data Nullary    = Nullary
 data Unary      = Unary Nullary
 data Both       = Both Nullary Unary
-
--- data Maybe  a   = Just a | Nothing
--- data Either a b = Left a | Right b
+data Maybe  a   = Just a | Nothing
+data Either a b = Left a | Right b
 -- data List a     = Cons a (List a) | Nil
 
 -- simple :: Nullary
@@ -153,10 +152,8 @@ data Both       = Both Nullary Unary
 
 -- -- Many stateful calculations at 100 ticks per second
 -- integrate :: Int -> Int
--- integrate delta = delta + 1 where
--- -- integrate delta = feed where
---     feed = feed
---     -- feed = delta + delay 0 feed
+-- integrate delta = feed where
+--     feed = delta + delay 0 feed
 -- tenTimes :: Int -> Int
 -- tenTimes n =
 --     integrate n + integrate n + integrate n + integrate n + integrate n +
@@ -181,11 +178,18 @@ data Both       = Both Nullary Unary
 -- main =
 --     oneHundredThousandTimes 1 + oneHundredThousandTimes 1
 
-mouseX :: Int
-mouseX = getMouseX world
+-- mouseX :: Int
+-- mouseX = getMouseX world
+-- main :: Int
+-- main = x * mouseX where
+--     x = 1 + delay 0 x
 
-mouseY :: Int
-mouseY = getMouseY world
-
+caseTest :: Either Int (Maybe Int) -> Int
+caseTest e =
+    case e of
+        Left x         -> x
+        Right (Just i) -> i * getMouseX world
+        _              -> 1
 main :: Int
-main = mouseX * mouseY
+main = caseTest (Right (Just 100))
+

@@ -75,12 +75,12 @@ NecroMachineType* necro_create_machine_void_type(NecroPagedArena* arena)
 
 NecroMachineType* necro_create_machine_struct_type(NecroPagedArena* arena, NecroVar name, NecroMachineType** a_members, size_t num_members)
 {
-    NecroMachineType* type       = necro_paged_arena_alloc(arena, sizeof(NecroMachineType));
-    type->type                = NECRO_MACHINE_TYPE_STRUCT;
-    type->struct_type.name    = name;
-    NecroMachineType** members   = necro_paged_arena_alloc(arena, num_members * sizeof(NecroMachineType*));
+    NecroMachineType* type        = necro_paged_arena_alloc(arena, sizeof(NecroMachineType));
+    type->type                    = NECRO_MACHINE_TYPE_STRUCT;
+    type->struct_type.name        = name;
+    NecroMachineType** members    = necro_paged_arena_alloc(arena, num_members * sizeof(NecroMachineType*));
     memcpy(members, a_members, num_members * sizeof(NecroMachineType*));
-    type->struct_type.members = members;
+    type->struct_type.members     = members;
     type->struct_type.num_members = num_members;
     return type;
 }
@@ -301,6 +301,30 @@ NecroMachineType* necro_type_to_machine_type(NecroMachineProgram* program, Necro
     default: assert(false);
     }
     return NULL;
+}
+
+NecroMachineType* necro_core_pattern_type_to_machine_type(NecroMachineProgram* program, NecroCoreAST_Expression* ast)
+{
+    // if (ast->expr_type == NECRO_CORE_EXPR_DATA_CON)
+    // {
+        NecroType* type = necro_core_ast_to_necro_type(program, ast);
+        type            = necro_find(type);
+        while (type->type == NECRO_TYPE_FOR)
+        {
+            type = type->for_all.type;
+            type = necro_find(type);
+        }
+        while (type->type == NECRO_TYPE_FUN)
+        {
+            type = type->fun.type2;
+            type = necro_find(type);
+        }
+        return necro_type_to_machine_type(program, type);
+    // }
+    // else
+    // {
+    //     return necro_core_ast_to_machine_type(program, ast);
+    // }
 }
 
 NecroMachineType* necro_core_ast_to_machine_type(NecroMachineProgram* program, NecroCoreAST_Expression* ast)

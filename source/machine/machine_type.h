@@ -77,11 +77,12 @@ NecroMachineType* necro_create_machine_struct_type(NecroPagedArena* arena, Necro
 NecroMachineType* necro_create_machine_fn_type(NecroPagedArena* arena, NecroMachineType* return_type, NecroMachineType** a_parameters, size_t num_parameters);
 NecroMachineType* necro_create_machine_ptr_type(NecroPagedArena* arena, NecroMachineType* element_type);
 NecroMachineType* necro_create_machine_void_type(NecroPagedArena* arena);
-void           necro_type_check(struct NecroMachineProgram* program, NecroMachineType* type1, NecroMachineType* type2);
-void           necro_machine_print_machine_type(NecroIntern* intern, NecroMachineType* type);
-void           necro_machine_print_machine_type_go(NecroIntern* intern, NecroMachineType* type, bool is_recursive);
+void              necro_type_check(struct NecroMachineProgram* program, NecroMachineType* type1, NecroMachineType* type2);
+void              necro_machine_print_machine_type(NecroIntern* intern, NecroMachineType* type);
+void              necro_machine_print_machine_type_go(NecroIntern* intern, NecroMachineType* type, bool is_recursive);
 NecroMachineType* necro_core_ast_to_machine_type(struct NecroMachineProgram* program, NecroCoreAST_Expression* core_ast);
 NecroMachineType* necro_type_to_machine_type(struct NecroMachineProgram* program, NecroType* type);
-bool           is_poly_ptr(struct NecroMachineProgram* program, NecroMachineType* type);
+bool              is_poly_ptr(struct NecroMachineProgram* program, NecroMachineType* type);
+NecroMachineType* necro_core_pattern_type_to_machine_type(struct NecroMachineProgram* program, NecroCoreAST_Expression* ast);
 
 #endif // NECRO_MACHINE_TYPE_H

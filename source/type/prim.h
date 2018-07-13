@@ -21,7 +21,7 @@
 
 NECRO_DECLARE_ARENA_CHAIN_TABLE(NecroCon, Con, con);
 
-#define MAX_CLOSURE_TYPES 16
+#define MAX_CLOSURE_TYPES 24
 
 //=====================================================
 // Forward Declarations and typedefs
@@ -142,8 +142,7 @@ typedef struct NecroPrimTypes
     NecroCon          delay_fn;
     NecroCon          addr_type;
     NecroCon          closure_type;
-    NecroCon          closure_types[MAX_CLOSURE_TYPES];
-    NecroCon          env_types[MAX_CLOSURE_TYPES];
+    // NecroCon          closure_cons[MAX_CLOSURE_TYPES];
 
     // Runtime functions
     NecroCon          mouse_x_fn;

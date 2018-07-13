@@ -100,14 +100,149 @@ NecroCoreAST_Expression* necro_create_core_lit(NecroPagedArena* arena, NecroAST_
     return ast;
 }
 
-// TODO: Finish
-// NecroCoreAST_Expression* necro_create_core_data_con(NecroPagedArena* arena, NecroAST_Constant_Reified lit)
-// {
-//     NecroCoreAST_Expression* ast = necro_paged_arena_alloc(arena, sizeof(NecroCoreAST_Expression));
-//     ast->expr_type               = NECRO_CORE_EXPR_DATA_CON;
-//     ast->data_con.
-//     return ast;
-// }
+NecroCoreAST_Expression* necro_create_core_list(NecroPagedArena* arena, NecroCoreAST_Expression* item, NecroCoreAST_Expression* next)
+{
+    NecroCoreAST_Expression* ast = necro_paged_arena_alloc(arena, sizeof(NecroCoreAST_Expression));
+    ast->expr_type               = NECRO_CORE_EXPR_LIST;
+    ast->list.expr               = item;
+    ast->list.next               = next;
+    return ast;
+}
+
+NecroCoreAST_Expression* necro_create_core_data_con(NecroPagedArena* arena, NecroVar conid, NecroCoreAST_Expression* arg_list, NecroCoreAST_DataCon* next)
+{
+    NecroCoreAST_Expression* ast = necro_paged_arena_alloc(arena, sizeof(NecroCoreAST_Expression));
+    ast->expr_type               = NECRO_CORE_EXPR_DATA_CON;
+    ast->data_con.condid         = conid;
+    ast->data_con.arg_list       = arg_list;
+    ast->data_con.next           = next;
+    return ast;
+}
+
+NecroCoreAST_Expression* necro_create_core_data_decl(NecroPagedArena* arena, NecroVar data_id, NecroCoreAST_DataCon* con_list)
+{
+    NecroCoreAST_Expression* ast = necro_paged_arena_alloc(arena, sizeof(NecroCoreAST_Expression));
+    ast->expr_type               = NECRO_CORE_EXPR_DATA_DECL;
+    ast->data_decl.data_id       = data_id;
+    ast->data_decl.con_list      = con_list;
+    return ast;
+}
+
+NecroCoreAST_Expression* necro_create_core_case(NecroPagedArena* arena, NecroCoreAST_Expression* expr, NecroCoreAST_CaseAlt* alts)
+{
+    NecroCoreAST_Expression* ast = necro_paged_arena_alloc(arena, sizeof(NecroCoreAST_Expression));
+    ast->expr_type               = NECRO_CORE_EXPR_CASE;
+    ast->case_expr.expr          = expr;
+    ast->case_expr.alts          = alts;
+    ast->case_expr.type          = NULL;
+    return ast;
+}
+
+NecroCoreAST_CaseAlt* necro_create_core_case_alt(NecroPagedArena* arena, NecroCoreAST_Expression* expr, NecroCoreAST_Expression* alt_con, NecroCoreAST_CaseAlt* next)
+{
+    NecroCoreAST_CaseAlt* alt = necro_paged_arena_alloc(arena, sizeof(NecroCoreAST_CaseAlt));
+    alt->expr                 = expr;
+    alt->altCon               = alt_con;
+    alt->next                 = next;
+    return alt;
+}
+
+///////////////////////////////////////////////////////
+// Closure conversion
+///////////////////////////////////////////////////////
+NecroCoreAST_Expression* necro_closure_conversion_list(NecroClosureConversion* cc, NecroCoreAST_Expression* in_ast)
+{
+    assert(cc != NULL);
+    assert(in_ast != NULL);
+    assert(in_ast->expr_type == NECRO_CORE_EXPR_LIST);
+    NecroCoreAST_Expression* head = necro_create_core_list(&cc->arena, necro_closure_conversion_go(cc, in_ast->list.expr), NULL);
+    NecroCoreAST_Expression* curr = head;
+    in_ast = in_ast->list.next;
+    while (in_ast != NULL)
+    {
+        curr->list.next = necro_create_core_list(&cc->arena, necro_closure_conversion_go(cc, in_ast->list.expr), NULL);
+        curr            = curr->list.next;
+        in_ast = in_ast->list.next;
+    }
+    return head;
+}
+
+NecroCoreAST_Expression* necro_closure_conversion_data_decl(NecroClosureConversion* cc, NecroCoreAST_Expression* in_ast)
+{
+    assert(cc != NULL);
+    assert(in_ast != NULL);
+    assert(in_ast->expr_type == NECRO_CORE_EXPR_DATA_DECL);
+    assert(in_ast->data_decl.con_list != NULL);
+    NecroCoreAST_Expression con;
+    con.expr_type = NECRO_CORE_EXPR_DATA_CON;
+    con.data_con  = *in_ast->data_decl.con_list;
+    return necro_create_core_data_decl(&cc->arena, in_ast->var, &necro_closure_conversion_go(cc, &con)->data_con);
+}
+
+NecroCoreAST_Expression* necro_closure_conversion_data_con(NecroClosureConversion* cc, NecroCoreAST_Expression* in_ast)
+{
+    assert(cc != NULL);
+    assert(in_ast != NULL);
+    assert(in_ast->expr_type == NECRO_CORE_EXPR_DATA_CON);
+    if (in_ast->data_con.next == NULL)
+    {
+        return necro_create_core_data_con(&cc->arena, in_ast->data_con.condid, necro_closure_conversion_go(cc, in_ast->data_con.arg_list), NULL);
+    }
+    else
+    {
+        NecroCoreAST_Expression con;
+        con.expr_type = NECRO_CORE_EXPR_DATA_CON;
+        con.data_con  = *in_ast->data_con.next;
+        return necro_create_core_data_con(&cc->arena, in_ast->data_con.condid, necro_closure_conversion_go(cc, in_ast->data_con.arg_list), &necro_closure_conversion_go(cc, in_ast->data_con.arg_list)->data_con);
+    }
+}
+
+NecroCoreAST_Expression* necro_closure_conversion_lit(NecroClosureConversion* cc, NecroCoreAST_Expression* in_ast)
+{
+    assert(cc != NULL);
+    assert(in_ast != NULL);
+    assert(in_ast->expr_type == NECRO_CORE_EXPR_LIT);
+    return necro_create_core_lit(&cc->arena, in_ast->lit);
+}
+
+NecroCoreAST_Expression* necro_closure_conversion_var(NecroClosureConversion* cc, NecroCoreAST_Expression* in_ast)
+{
+    assert(cc != NULL);
+    assert(in_ast != NULL);
+    assert(in_ast->expr_type == NECRO_CORE_EXPR_VAR);
+    return necro_create_core_var(&cc->arena, in_ast->var);
+}
+
+NecroCoreAST_CaseAlt* necro_closure_conversion_alts(NecroClosureConversion* cc, NecroCoreAST_CaseAlt* alts)
+{
+    assert(cc != NULL);
+    if (alts == NULL)
+        return NULL;
+    NecroCoreAST_Expression* alt_con = necro_closure_conversion_go(cc, alts->expr);
+    NecroCoreAST_Expression* expr    = necro_closure_conversion_go(cc, alts->altCon);
+    NecroCoreAST_CaseAlt*    next    = necro_closure_conversion_alts(cc, alts->next);
+    return necro_create_core_case_alt(&cc->arena, expr, alt_con, next);
+}
+
+NecroCoreAST_Expression* necro_closure_conversion_case(NecroClosureConversion* cc, NecroCoreAST_Expression* in_ast)
+{
+    assert(cc != NULL);
+    assert(in_ast != NULL);
+    assert(in_ast->expr_type == NECRO_CORE_EXPR_CASE);
+    NecroCoreAST_Expression* expr = necro_closure_conversion_go(cc, in_ast->case_expr.expr);
+    NecroCoreAST_CaseAlt*    alts = necro_closure_conversion_alts(cc, in_ast->case_expr.alts);
+    return necro_create_core_case(&cc->arena, expr, alts);
+}
+
+NecroCoreAST_Expression* necro_closure_conversion_let(NecroClosureConversion* cc, NecroCoreAST_Expression* in_ast)
+{
+    assert(cc != NULL);
+    assert(in_ast != NULL);
+    assert(in_ast->expr_type == NECRO_CORE_EXPR_LET);
+    NecroCoreAST_Expression* bind_ast = necro_closure_conversion_go(cc, in_ast->let.bind);
+    NecroCoreAST_Expression* expr_ast = necro_closure_conversion_go(cc, in_ast->let.expr);
+    return necro_create_core_let(&cc->arena, bind_ast, expr_ast);
+}
 
 ///////////////////////////////////////////////////////
 // Closure Conversion Go
@@ -118,16 +253,16 @@ NecroCoreAST_Expression* necro_closure_conversion_go(NecroClosureConversion* cc,
     assert(in_ast != NULL);
     switch (in_ast->expr_type)
     {
-    case NECRO_CORE_EXPR_BIND:      return NULL; // necro_core_to_machine_3_bind(program, core_ast, outer);
-    case NECRO_CORE_EXPR_LET:       return NULL; // necro_core_to_machine_3_let(program, core_ast, outer);
-    case NECRO_CORE_EXPR_LAM:       return NULL; // necro_core_to_machine_3_lambda(program, core_ast, outer);
-    case NECRO_CORE_EXPR_APP:       return NULL; // necro_core_to_machine_3_app(program, core_ast, outer);
-    case NECRO_CORE_EXPR_CASE:      return NULL; // necro_core_to_machine_3_case(program, core_ast, outer);
-    case NECRO_CORE_EXPR_VAR:       return NULL; // necro_core_to_machine_3_var(program, core_ast, outer);
-    case NECRO_CORE_EXPR_LIT:       return NULL; // necro_core_to_machine_3_lit(program, core_ast, outer);
-    case NECRO_CORE_EXPR_DATA_DECL: return NULL;
-    case NECRO_CORE_EXPR_DATA_CON:  return NULL;
-    case NECRO_CORE_EXPR_LIST:      assert(false); return NULL; // used for top decls not language lists
+    case NECRO_CORE_EXPR_LAM:       return NULL;
+    case NECRO_CORE_EXPR_APP:       return NULL;
+    case NECRO_CORE_EXPR_BIND:      return NULL;
+    case NECRO_CORE_EXPR_CASE:      return necro_closure_conversion_case(cc, in_ast);
+    case NECRO_CORE_EXPR_LET:       return necro_closure_conversion_let(cc, in_ast);
+    case NECRO_CORE_EXPR_VAR:       return necro_closure_conversion_var(cc, in_ast);
+    case NECRO_CORE_EXPR_LIT:       return necro_closure_conversion_lit(cc, in_ast);
+    case NECRO_CORE_EXPR_DATA_DECL: return necro_closure_conversion_data_decl(cc, in_ast);
+    case NECRO_CORE_EXPR_DATA_CON:  return necro_closure_conversion_data_con(cc, in_ast);
+    case NECRO_CORE_EXPR_LIST:      return necro_closure_conversion_list(cc, in_ast);
     case NECRO_CORE_EXPR_TYPE:      assert(false && "NECRO_CORE_EXPR_TYPE not implemented; why are you using it, hmmm?"); return NULL;
     default:                        assert(false && "Unimplemented AST type in necro_closure_conversion_go"); return NULL;
     }

@@ -58,13 +58,14 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
         .declaration_group       = NULL,
         .optional_type_signature = NULL,
         .type                    = NULL,
+        .closure_type            = NULL,
         .type_status             = NECRO_TYPE_UNCHECKED,
         .method_type_class       = NULL,
         .type_class              = NULL,
         .type_class_instance     = NULL,
         .persistent_slot         = 0,
         .is_constructor          = false,
-        .arity                   = 0,
+        .arity                   = -1,
         .necro_machine_ast       = NULL,
     };
 }

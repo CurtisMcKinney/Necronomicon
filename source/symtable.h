@@ -47,11 +47,12 @@ typedef struct
     NecroDeclarationGroup*          declaration_group;
     NecroAST_Node_Reified*          optional_type_signature;
     NecroType*                      type;
+    NecroType*                      closure_type;
     NECRO_TYPE_STATUS               type_status;
     struct NecroTypeClass*          method_type_class;
     struct NecroTypeClass*          type_class;
     struct NecroTypeClassInstance*  type_class_instance;
-    size_t                          arity;
+    int32_t                         arity; // -1 indicates arity has not been set
     uint32_t                        persistent_slot; // 0 indicates no persistence
     struct NecroMachineAST*         necro_machine_ast;
     bool                            is_constructor;

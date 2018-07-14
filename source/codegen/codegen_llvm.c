@@ -8,8 +8,8 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <llvm-c/Analysis.h>
-#include <llvm-c/Transforms/Scalar.h>
-#include <llvm-c/TargetMachine.h>
+// #include <llvm-c/Transforms/Scalar.h>
+// #include <llvm-c/TargetMachine.h>
 #include <llvm-c/Transforms/PassManagerBuilder.h>
 #include "symtable.h"
 #include "runtime/runtime.h"

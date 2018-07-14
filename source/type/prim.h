@@ -21,7 +21,7 @@
 
 NECRO_DECLARE_ARENA_CHAIN_TABLE(NecroCon, Con, con);
 
-#define MAX_CLOSURE_TYPES 24
+#define NECRO_MAX_CLOSURE_TYPES 16
 
 //=====================================================
 // Forward Declarations and typedefs
@@ -53,6 +53,7 @@ typedef struct
 {
     NecroType*      type;
     NecroASTNode*   type_sig_ast;
+    size_t          arity;
 } NecroPrimDefFun;
 
 typedef struct
@@ -142,7 +143,7 @@ typedef struct NecroPrimTypes
     NecroCon          delay_fn;
     NecroCon          addr_type;
     NecroCon          closure_type;
-    // NecroCon          closure_cons[MAX_CLOSURE_TYPES];
+    // NecroCon          closure_cons[NECRO_MAX_CLOSURE_TYPES];
 
     // Runtime functions
     NecroCon          mouse_x_fn;
@@ -166,6 +167,6 @@ NECRO_RETURN_CODE necro_prim_build_scope(NecroPrimTypes* prim_types, NecroScoped
 NECRO_RETURN_CODE necro_prim_rename(NecroPrimTypes* prim_types, NecroRenamer* renamer);
 NECRO_RETURN_CODE necro_prim_infer(NecroPrimTypes* prim_types, NecroDependencyAnalyzer* d_analyzer, NecroInfer* infer, NECRO_PHASE phase);
 void              necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern);
-NECRO_RETURN_CODE necro_codegen_primitives(struct NecroCodeGen* codegen);
+NecroCon          necro_get_data_con_from_symbol(NecroPrimTypes* prim_types, NecroSymbol);
 
 #endif // TYPE_PRIM_H

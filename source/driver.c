@@ -22,9 +22,11 @@
 #include "d_analyzer.h"
 #include "driver.h"
 #include "core/core.h"
+#include "core/closure_conversion.h"
 #include "machine/machine.h"
 #include "machine/machine_print.h"
 #include "codegen/codegen_llvm.h"
+#include "core/core_pretty_print.h"
 
 void necro_compile_impl(
     const char* input_string,
@@ -36,7 +38,6 @@ void necro_compile_impl(
     NecroCodeGenLLVM* codegen_llvm,
     NecroAST* ast,
     NecroAST_Reified* ast_r,
-    // NecroRuntime* runtime,
     NecroCoreAST* ast_core,
     NecroMachineProgram* machine,
     uint32_t* destruct_flags)
@@ -110,7 +111,7 @@ void necro_compile_impl(
     // Build Scopes
     //=====================================================
     if (compilation_phase != NECRO_PHASE_JIT)
-        necro_announce_phase("Building Scopes");
+        necro_announce_phase("Scoping");
     NecroPrimTypes      prim_types      = necro_create_prim_types(&lexer->intern);
     NecroSymTable       symtable        = necro_create_symtable(&lexer->intern);
     NecroScopedSymTable scoped_symtable = necro_create_scoped_symtable(&symtable);
@@ -195,7 +196,7 @@ void necro_compile_impl(
     // Infer
     //=====================================================
     if (compilation_phase != NECRO_PHASE_JIT)
-        necro_announce_phase("Typing");
+        necro_announce_phase("Infer");
     necro_infer(infer, ast_r->root);
     if (compilation_phase == NECRO_PHASE_INFER)
     {
@@ -226,7 +227,7 @@ void necro_compile_impl(
     // Transform to Core
     //=====================================================
     if (compilation_phase != NECRO_PHASE_JIT)
-        necro_announce_phase("Transforming to Core!");
+        necro_announce_phase("Core");
     // NecroCoreAST ast_core;
     ast_core->root = NULL;
     necro_construct_core_transform(core_transform, ast_core, ast_r, &lexer->intern, &prim_types, &symtable);
@@ -245,11 +246,24 @@ void necro_compile_impl(
     }
 
     //=====================================================
+    // Closure Conversion
+    //=====================================================
+    if (compilation_phase != NECRO_PHASE_JIT)
+        necro_announce_phase("Closure Conversion");
+    NecroCoreAST cc_core = necro_closure_conversion(ast_core, &lexer->intern, &symtable, &scoped_symtable, &prim_types, infer);
+    if (compilation_phase == NECRO_PHASE_CLOSURE_CONVERSION)
+    {
+        necro_core_pretty_print(&cc_core, &symtable);
+        // necro_print_core(&cc_core, &lexer->intern);
+        return;
+    }
+
+    //=====================================================
     // Transform to Machine
     //=====================================================
     if (compilation_phase != NECRO_PHASE_JIT)
         necro_announce_phase("Machine");
-    *machine = necro_core_to_machine(ast_core, &symtable, &scoped_symtable, &prim_types);
+    *machine = necro_core_to_machine(&cc_core, &symtable, &scoped_symtable, &prim_types);
     *destruct_flags |= BIT(NECRO_PHASE_TRANSFORM_TO_MACHINE);
     if (compilation_phase == NECRO_PHASE_TRANSFORM_TO_MACHINE)
     {
@@ -299,7 +313,6 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
     NecroAST_Reified ast_r;
     NecroCoreAST ast_core;
     NecroMachineProgram machine;
-    // NecroRuntime runtime;
     NecroCodeGenLLVM codegen_llvm;
 
     necro_compile_impl(

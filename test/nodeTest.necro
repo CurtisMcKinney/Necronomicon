@@ -1,8 +1,8 @@
-data Nullary    = Nullary
-data Unary      = Unary Nullary
-data Both       = Both Nullary Unary
-data Maybe  a   = Just a | Nothing
-data Either a b = Left a | Right b
+-- data Nullary    = Nullary
+-- data Unary      = Unary Nullary
+-- data Both       = Both Nullary Unary
+-- data Maybe  a   = Just a | Nothing
+-- data Either a b = Left a | Right b
 -- data List a     = Cons a (List a) | Nil
 
 -- simple :: Nullary
@@ -184,12 +184,52 @@ data Either a b = Left a | Right b
 -- main = x * mouseX where
 --     x = 1 + delay 0 x
 
-caseTest :: Either Int (Maybe Int) -> Int
-caseTest e =
-    case e of
-        Left x         -> x
-        Right (Just i) -> i * getMouseX world
-        _              -> 1
-main :: Int
-main = caseTest (Right (Just 100))
+-- caseTest :: Either Int (Maybe Int) -> Int
+-- caseTest e =
+--     case e of
+--         Left x         -> x
+--         Right (Just i) -> i * getMouseX world
+--         _              -> 1
+-- main :: Int
+-- main = caseTest (Right (Just 100))
 
+-- closureTest :: Int -> Int -> Int
+-- closureTest x y = x + y
+
+-- appTest :: Int -> Int
+-- appTest = closureTest 1
+
+-- addTwo :: Int -> Int -> Int
+-- addTwo x y = x + y
+
+-- addTwo' :: Int -> Int -> Int
+-- addTwo' = addTwo
+
+-- mkFn :: Int -> Int -> Int
+-- mkFn x = addTwo y where
+--     y = x
+
+addOne :: Int -> Int
+addOne x = x + x
+
+addOne' :: Int -> Int
+addOne' = addOne
+
+addTwo :: Int -> Int -> Int
+addTwo x y = x + y
+
+addTwo' :: Int -> Int -> Int
+addTwo' x = addTwo x
+
+-- Left hand side of function should ALSO be closures!!!!
+takeF :: (Int -> Int) -> Int
+takeF f = 1
+
+giveF :: Int
+giveF = takeF addOne
+
+-- useAddOne' :: Int
+-- useAddOne' = addOne' 0
+
+-- appFn :: Int
+-- appFn = mkFn Nullary 0 1

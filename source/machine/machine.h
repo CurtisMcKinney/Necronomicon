@@ -18,17 +18,38 @@
 #include "utility/list.h"
 
 ///////////////////////////////////////////////////////
-// Machine
+// NecroMachine
 //-----------
 // * Abstract machine target for necrolang
 // * LLVM-IR like, but simpler and necrolang specific
 // * Infinite registers
-// * Heap defined by a graph of machines containing machines
+// * Heap defined by a graph of statically calculated blocks containing blocks
 // * Machines retain state across multiple calls to main
 ///////////////////////////////////////////////////////
 
 /*
     TODO:
+
+        * New memory scheme:
+            - delay && trimDelay: delay :: a -> a -> a (but disallows recursive value), trimDelay :: Trimmable a => const Int -> a -> a -> a (allows recursive constructors but they must implement trimmable)
+              bufDelay :: const Int -> a -> a
+            - class Trimmable a where
+                nil  :: a (must be a non-recursive contructor)
+            - trim :: Trimmable a => const Int -> a -> a (auto-magically crawls the data type and replaces recursions beyond N with the nil constructor
+            - using delay and trimDelay we can statically calculate the size of each block
+            - delay and trimDelay allocate a statically sized area of memory. When something is delayed it is deep copied into this memory area.
+            - A block is a statically known area of data
+            - Somethings dynamically create new blocks (recursion, applying closures, poly, etc)
+            - Blocks are allocated and freed explicity by the runtime.
+            - All IO must use fixed size data types
+            - Thus, there is no garbage collection at runtime.
+            - How to also get unboxed and untagged Int and Float types...
+            - We should statically know ALL the types going into delay (since it requires the type be fully concrete)
+            - call a fully resolved _clone on the type, a compiler generated method for known sized types that recursively copies
+            - Everything is given a specific address in contiguous memory and does in place overwriting.
+            - Necrolang: A real-time audio programming language (without garbage collection)
+            - also need to deep copy into global roots!
+
         * Break API into machine_build.h/c
         * null out and zero out memory when allocated with nalloc via memcpy NULL....should be faster than doing it in code!?
         * closures
@@ -72,7 +93,9 @@ typedef enum
     NECRO_MACHINE_VALUE_UINT16_LITERAL,
     NECRO_MACHINE_VALUE_UINT32_LITERAL,
     NECRO_MACHINE_VALUE_UINT64_LITERAL,
+    NECRO_MACHINE_VALUE_INT32_LITERAL,
     NECRO_MACHINE_VALUE_INT64_LITERAL,
+    NECRO_MACHINE_VALUE_F32_LITERAL,
     NECRO_MACHINE_VALUE_F64_LITERAL,
     NECRO_MACHINE_VALUE_NULL_PTR_LITERAL,
 } NECRO_MACHINE_VALUE_TYPE;
@@ -92,7 +115,9 @@ typedef struct NecroMachineValue
         uint16_t uint16_literal;
         uint32_t uint32_literal;
         uint64_t uint64_literal;
+        int32_t  int32_literal;
         int64_t  int64_literal;
+        float    f32_literal;
         double   f64_literal;
         NecroVar global_name;
     };
@@ -170,6 +195,7 @@ typedef struct NecroMachineDef
 {
     NecroVar                bind_name;
     NecroVar                machine_name;
+    NecroVar                state_name;
 
     struct NecroMachineAST* mk_fn;
     struct NecroMachineAST* init_fn;
@@ -195,8 +221,10 @@ typedef struct NecroMachineDef
     size_t                  num_members;
     size_t                  members_size;
     int32_t                 _first_dynamic;
+    size_t                  total_slots;
 
     struct NecroMachineAST* global_value; // If global
+    struct NecroMachineAST* global_state; // If global
     // cache if and where slots have been loaded!?
 } NecroMachineDef;
 
@@ -361,12 +389,16 @@ NECRO_DECLARE_ARENA_LIST(NecroMachinePhiData, MachinePhi, machine_phi);
 
 typedef struct NecroMachinePhi
 {
-    // struct NecroMachineAST** blocks;
-    // struct NecroMachineAST** values;
-    // size_t                   num_values;
     NecroMachinePhiList*     values;
     struct NecroMachineAST*  result;
 } NecroMachinePhi;
+
+typedef struct NecroMachineMemCpy
+{
+    struct NecroMachineAST* dest;
+    struct NecroMachineAST* source;
+    struct NecroMachineAST* num_bytes;
+} NecroMachineMemCpy;
 
 /*
     Notes:
@@ -390,6 +422,7 @@ typedef enum
     NECRO_MACHINE_BINOP,
     NECRO_MACHINE_CMP,
     NECRO_MACHINE_PHI,
+    NECRO_MACHINE_MEMCPY,
 
     // Defs
     NECRO_MACHINE_STRUCT_DEF,
@@ -417,6 +450,7 @@ typedef struct NecroMachineAST
         NecroMachineBinOp         binop;
         NecroMachineCmp           cmp;
         NecroMachinePhi           phi;
+        NecroMachineMemCpy        memcpy;
     };
     NECRO_MACHINE_AST_TYPE type;
     NecroMachineType*      necro_machine_type;
@@ -456,6 +490,9 @@ typedef struct NecroMachineProgram
 
     // Cached data
     size_t                gen_vars;
+    NecroMachineType*     necro_uint_type;
+    NecroMachineType*     necro_int_type;
+    NecroMachineType*     necro_float_type;
     NecroMachineType*     necro_poly_type;
     NecroMachineType*     necro_poly_ptr_type;
     NecroMachineType*     necro_data_type;
@@ -490,6 +527,9 @@ NecroMachineAST* necro_create_machine_initial_machine_def(NecroMachineProgram* p
 NecroMachineAST* necro_create_param_reg(NecroMachineProgram* program, NecroMachineAST* fn_def, size_t param_num);
 NecroMachineAST* necro_create_global_value(NecroMachineProgram* program, NecroVar global_name, NecroMachineType* necro_machine_type);
 NecroMachineAST* necro_create_uint32_necro_machine_value(NecroMachineProgram* program, uint32_t uint_literal);
+NecroMachineAST* necro_create_word_uint_value(NecroMachineProgram* program, uint64_t int_literal);
+NecroMachineAST* necro_create_word_int_value(NecroMachineProgram* program, int64_t int_literal);
+NecroMachineAST* necro_create_word_float_value(NecroMachineProgram* program, double f_literal);
 NecroMachineAST* necro_create_null_necro_machine_value(NecroMachineProgram* program, NecroMachineType* ptr_type);
 NecroMachineAST* necro_build_nalloc(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineType* type, uint32_t a_slots_used);
 void             necro_build_store_into_tag(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_value, NecroMachineAST* dest_ptr);

@@ -4,6 +4,7 @@
 -- data Maybe  a   = Just a | Nothing
 -- data Either a b = Left a | Right b
 -- data List a     = Cons a (List a) | Nil
+-- data HigherOrder = HigherOrder (Int -> Int)
 
 -- simple :: Nullary
 -- simple = Nullary
@@ -178,6 +179,19 @@
 -- main =
 --     oneHundredThousandTimes 1 + oneHundredThousandTimes 1
 
+main :: Int
+main = 10
+
+-- data Maybe a = Just a | Nothing
+-- gMaybe :: Maybe a
+-- gMaybe = Nothing
+
+-- constInt :: Int
+-- constInt = 100
+-- main :: Int
+-- main = constInt + x where
+--     x = delay 0 x
+
 -- mouseX :: Int
 -- mouseX = getMouseX world
 -- main :: Int
@@ -209,27 +223,72 @@
 -- mkFn x = addTwo y where
 --     y = x
 
-addOne :: Int -> Int
-addOne x = x + x
-
-addOne' :: Int -> Int
-addOne' = addOne
-
-addTwo :: Int -> Int -> Int
-addTwo x y = x + y
-
-addTwo' :: Int -> Int -> Int
-addTwo' x = addTwo x
-
--- Left hand side of function should ALSO be closures!!!!
-takeF :: (Int -> Int) -> Int
-takeF f = 1
-
-giveF :: Int
-giveF = takeF addOne
-
+-- -- TODO: Look at what happens without type sigs!
+-- addOne :: Int -> Int
+-- addOne x = x + x
+--
+-- addOne' :: Int -> Int
+-- addOne' = addOne
+--
 -- useAddOne' :: Int
--- useAddOne' = addOne' 0
+-- useAddOne' = addOne' 666
+--
+-- addTwo :: Int -> Int -> Int
+-- addTwo x y = x + y
+--
+-- addTwo' :: Int -> Int -> Int
+-- addTwo' x = addTwo x
+--
+-- addTwo'' :: Int -> Int -> Int
+-- addTwo'' = addTwo
+--
+-- -- TODO: Figure this out
+-- -- solve by partially applying apply itself
+-- useAddTwo' :: Int -> Int -> Int
+-- useAddTwo' = addTwo'
+-- -- transform into:
+-- --         = _Closure addTwo'@(arity 1)
+-- --         = _Closure 1 1 apply (_Closure 0 1 addTwo')
+-- --         = _Closure0  (\x y -> apply (addTwo' x) y)
+-- --         = _Closure1  _apply (Closure0 addTwo')
+--
 
--- appFn :: Int
--- appFn = mkFn Nullary 0 1
+-- takeAddOne :: (Int -> Int) -> Int
+-- takeAddOne f = f 1
+--
+-- giveAddOne :: Int
+-- giveAddOne = takeAddOne addOne
+--
+-- giveAddOne' :: Int
+-- giveAddOne' = takeAddOne (addTwo 100)
+--
+-- takeAddTwo :: (Int -> Int -> Int) -> Int
+-- takeAddTwo f = f 100 200
+--
+-- giveAddTwo :: Int
+-- giveAddTwo = takeAddTwo addTwo'
+
+-- TODO: Implement functions in data types in Closure conversion
+-- data FBomb = FBomb (Float -> Float)
+--
+
+-- -- data Maybe a = Just a | Nothing
+-- delayTest :: Int
+-- delayTest = 1 + delay 0 delayTest
+
+-- useDelayTest :: Maybe Int
+-- useDelayTest = delayTest
+
+-- main :: Int
+-- main = delayTest
+
+-- countList :: List a -> Int
+-- countList xs =
+--     case xs of
+--         Cons a xss -> 1 + countList xss
+--         Nil        -> 0
+-- main :: Int
+-- main = countList (Cons () (Cons () Nil))
+
+-- main :: Int
+-- main = 0

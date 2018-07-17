@@ -143,7 +143,7 @@ typedef struct NecroPrimTypes
     NecroCon          delay_fn;
     NecroCon          addr_type;
     NecroCon          closure_type;
-    // NecroCon          closure_cons[NECRO_MAX_CLOSURE_TYPES];
+    NecroCon          apply_type;
 
     // Runtime functions
     NecroCon          mouse_x_fn;

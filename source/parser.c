@@ -283,10 +283,17 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
             print_ast_impl(ast, ast_get_node(ast, ast_node->expression_list.expressions), intern, depth + 1);
         break;
 
-    case NECRO_AST_EXPRESSION_SEQUENCE:
-        puts("(Sequence)");
-        if (ast_node->expression_sequence.expressions != null_local_ptr)
-            print_ast_impl(ast, ast_get_node(ast, ast_node->expression_sequence.expressions), intern, depth + 1);
+    case NECRO_AST_DELAY:
+        puts("(delay)");
+        print_ast_impl(ast, ast_get_node(ast, ast_node->delay.init_expr), intern, depth + 1);
+        print_ast_impl(ast, ast_get_node(ast, ast_node->delay.delayed_var), intern, depth + 1);
+        break;
+
+    case NECRO_AST_TRIM_DELAY:
+        puts("(trimDelay)");
+        print_ast_impl(ast, ast_get_node(ast, ast_node->trim_delay.int_literal), intern, depth + 1);
+        print_ast_impl(ast, ast_get_node(ast, ast_node->trim_delay.init_expr), intern, depth + 1);
+        print_ast_impl(ast, ast_get_node(ast, ast_node->trim_delay.delayed_var), intern, depth + 1);
         break;
 
     case NECRO_AST_TUPLE:
@@ -588,12 +595,12 @@ NecroAST_LocalPtr parse_lambda(NecroParser* parser);
 NecroAST_LocalPtr parse_right_hand_side(NecroParser* parser);
 NecroAST_LocalPtr parse_do(NecroParser* parser);
 NecroAST_LocalPtr parse_expression_list(NecroParser* parser);
-NecroAST_LocalPtr parse_expression_sequence(NecroParser* parser);
 NecroAST_LocalPtr parse_pattern_expression(NecroParser* parser);
 NecroAST_LocalPtr parse_arithmetic_sequence(NecroParser* parser);
 NecroAST_LocalPtr parse_case(NecroParser* parser);
 NecroAST_LocalPtr parse_pat(NecroParser* parser);
-
+NecroAST_LocalPtr parse_delay(NecroParser* parser);
+NecroAST_LocalPtr parse_trim_delay(NecroParser* parser);
 NecroAST_LocalPtr parse_con(NecroParser* parser,  NECRO_CON_TYPE var_type);
 NecroAST_LocalPtr parse_gcon(NecroParser* parser, NECRO_CON_TYPE var_type);
 NecroAST_LocalPtr parse_qcon(NecroParser* parser, NECRO_CON_TYPE var_type);
@@ -1322,7 +1329,12 @@ NecroAST_LocalPtr parse_application_expression(NecroParser* parser)
 
     if (local_ptr == null_local_ptr && parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
     {
-        local_ptr = parse_expression_sequence(parser);
+        local_ptr = parse_delay(parser);
+    }
+
+    if (local_ptr == null_local_ptr && parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+    {
+        local_ptr = parse_trim_delay(parser);
     }
 
     if (local_ptr == null_local_ptr && parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
@@ -2528,62 +2540,128 @@ NecroAST_LocalPtr parse_expression_list(NecroParser* parser)
     return null_local_ptr;
 }
 
-NecroAST_LocalPtr parse_expression_sequence(NecroParser* parser)
+NecroAST_LocalPtr parse_delay(NecroParser* parser)
 {
     const NECRO_LEX_TOKEN_TYPE brace_token_type = peek_token_type(parser);
     if (brace_token_type == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
         return null_local_ptr;
-
     NecroParser_Snapshot snapshot = snapshot_parser(parser);
 
-    if (peek_token(parser)->token != NECRO_LEX_LEFT_BRACE || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    if (peek_token(parser)->token != NECRO_LEX_DELAY || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
     {
         restore_parser(parser, snapshot);
         return null_local_ptr;
     }
-    consume_token(parser); // consume '{' token
+    consume_token(parser); // consume 'NECRO_LEX_DELAY' token
 
-    // if (peek_token(parser)->token != NECRO_LEX_PIPE || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
-    // {
-    //     restore_parser(parser, snapshot);
-    //     return null_local_ptr;
-    // }
-    // consume_token(parser); // consume '|' token
-
-    NecroAST_LocalPtr statement_list_local_ptr = parse_list(parser, NECRO_LEX_COMMA, parse_expression);
+    NecroAST_LocalPtr init_expr = parse_application_expression(parser);
     if (parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
     {
         restore_parser(parser, snapshot);
         return null_local_ptr;
     }
+    else if (init_expr == null_local_ptr)
+    {
+        NecroLexToken* look_ahead_token = peek_token(parser);
+        necro_error(&parser->error, look_ahead_token->source_loc, "\'delay\' failed to parse init_expr", necro_lex_token_type_string(look_ahead_token->token));
+        parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+        return null_local_ptr;
+    }
 
-    // if (peek_token(parser)->token != NECRO_LEX_PIPE || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
-    // {
-    //     restore_parser(parser, snapshot);
-    //     return null_local_ptr;
-    // }
-    // consume_token(parser); // consume '|' token
-
-    if (peek_token(parser)->token != NECRO_LEX_RIGHT_BRACE || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    NecroAST_LocalPtr delayed_var = parse_variable(parser, NECRO_VAR_VAR);
+    if (parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
     {
         restore_parser(parser, snapshot);
         return null_local_ptr;
     }
-    consume_token(parser); // consume '}' token
-
-    if (statement_list_local_ptr == null_local_ptr)
+    else if (delayed_var == null_local_ptr)
     {
-        necro_error(&parser->error, peek_token(parser)->source_loc, "Sequence failed to parse. Cannot have an empty sequence.");
+        NecroLexToken* look_ahead_token = peek_token(parser);
+        necro_error(&parser->error, look_ahead_token->source_loc, "\'delay\' failed to parse variable", necro_lex_token_type_string(look_ahead_token->token));
         parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
         return null_local_ptr;
     }
 
     // Success!
-    NecroAST_LocalPtr list_local_ptr = null_local_ptr;
-    NecroAST_Node* list_node = ast_alloc_node_local_ptr(parser, &list_local_ptr);
-    list_node->type = NECRO_AST_EXPRESSION_SEQUENCE;
-    list_node->expression_list.expressions = statement_list_local_ptr;
-    return list_local_ptr;
+    NecroAST_LocalPtr delay_local_ptr = null_local_ptr;
+    NecroAST_Node*    delay_node      = ast_alloc_node_local_ptr(parser, &delay_local_ptr);
+    delay_node->type                  = NECRO_AST_DELAY;
+    delay_node->delay.init_expr       = init_expr;
+    delay_node->delay.delayed_var     = delayed_var;
+    return delay_local_ptr;
+}
+
+NecroAST_LocalPtr parse_trim_delay(NecroParser* parser)
+{
+    const NECRO_LEX_TOKEN_TYPE brace_token_type = peek_token_type(parser);
+    if (brace_token_type == NECRO_LEX_END_OF_STREAM || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+        return null_local_ptr;
+    NecroParser_Snapshot snapshot = snapshot_parser(parser);
+
+    if (peek_token(parser)->token != NECRO_LEX_TRIM_DELAY || parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    {
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
+    }
+    consume_token(parser); // consume 'NECRO_LEX_TRIM_DELAY' token
+
+    NecroAST_LocalPtr int_literal = parse_constant(parser);
+    if (parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    {
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
+    }
+    else if (int_literal == null_local_ptr)
+    {
+        NecroLexToken* look_ahead_token = peek_token(parser);
+        necro_error(&parser->error, look_ahead_token->source_loc, "\'trim_delay\' failed to parse integer", necro_lex_token_type_string(look_ahead_token->token));
+        parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+        return null_local_ptr;
+    }
+    else if (ast_get_node(parser->ast, int_literal)->constant.type != NECRO_AST_CONSTANT_INTEGER)
+    {
+        NecroLexToken* look_ahead_token = peek_token(parser);
+        necro_error(&parser->error, look_ahead_token->source_loc, "\'trim_delay\' failed to parse integer", necro_lex_token_type_string(look_ahead_token->token));
+        parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+        return null_local_ptr;
+    }
+
+    NecroAST_LocalPtr init_expr = parse_application_expression(parser);
+    if (parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    {
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
+    }
+    else if (init_expr == null_local_ptr)
+    {
+        NecroLexToken* look_ahead_token = peek_token(parser);
+        necro_error(&parser->error, look_ahead_token->source_loc, "\'trim_delay\' failed to parse expression", necro_lex_token_type_string(look_ahead_token->token));
+        parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+        return null_local_ptr;
+    }
+
+    NecroAST_LocalPtr delayed_var = parse_variable(parser, NECRO_VAR_VAR);
+    if (parser->descent_state == NECRO_DESCENT_PARSE_ERROR)
+    {
+        restore_parser(parser, snapshot);
+        return null_local_ptr;
+    }
+    else if (init_expr == null_local_ptr)
+    {
+        NecroLexToken* look_ahead_token = peek_token(parser);
+        necro_error(&parser->error, look_ahead_token->source_loc, "\'trim_delay\' failed to parse variable", necro_lex_token_type_string(look_ahead_token->token));
+        parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+        return null_local_ptr;
+    }
+
+    // Success!
+    NecroAST_LocalPtr delay_local_ptr  = null_local_ptr;
+    NecroAST_Node*    delay_node       = ast_alloc_node_local_ptr(parser, &delay_local_ptr);
+    delay_node->type                   = NECRO_AST_TRIM_DELAY;
+    delay_node->trim_delay.int_literal = int_literal;
+    delay_node->trim_delay.init_expr   = init_expr;
+    delay_node->trim_delay.delayed_var = delayed_var;
+    return delay_local_ptr;
 }
 
 NecroAST_LocalPtr parse_pat_expression(NecroParser* parser)

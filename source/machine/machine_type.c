@@ -13,63 +13,98 @@
 NecroMachineType* necro_create_machine_uint1_type(NecroPagedArena* arena)
 {
     NecroMachineType* type = necro_paged_arena_alloc(arena, sizeof(NecroMachineType));
-    type->type          = NECRO_MACHINE_TYPE_UINT1;
+    type->type             = NECRO_MACHINE_TYPE_UINT1;
     return type;
 }
 
 NecroMachineType* necro_create_machine_uint8_type(NecroPagedArena* arena)
 {
     NecroMachineType* type = necro_paged_arena_alloc(arena, sizeof(NecroMachineType));
-    type->type          = NECRO_MACHINE_TYPE_UINT8;
+    type->type             = NECRO_MACHINE_TYPE_UINT8;
     return type;
 }
 
 NecroMachineType* necro_create_machine_uint16_type(NecroPagedArena* arena)
 {
     NecroMachineType* type = necro_paged_arena_alloc(arena, sizeof(NecroMachineType));
-    type->type          = NECRO_MACHINE_TYPE_UINT16;
+    type->type             = NECRO_MACHINE_TYPE_UINT16;
     return type;
 }
 
 NecroMachineType* necro_create_machine_uint32_type(NecroPagedArena* arena)
 {
     NecroMachineType* type = necro_paged_arena_alloc(arena, sizeof(NecroMachineType));
-    type->type          = NECRO_MACHINE_TYPE_UINT32;
+    type->type             = NECRO_MACHINE_TYPE_UINT32;
     return type;
 }
 
 NecroMachineType* necro_create_machine_uint64_type(NecroPagedArena* arena)
 {
     NecroMachineType* type = necro_paged_arena_alloc(arena, sizeof(NecroMachineType));
-    type->type          = NECRO_MACHINE_TYPE_UINT64;
+    type->type             = NECRO_MACHINE_TYPE_UINT64;
+    return type;
+}
+
+NecroMachineType* necro_create_machine_int32_type(NecroPagedArena* arena)
+{
+    NecroMachineType* type = necro_paged_arena_alloc(arena, sizeof(NecroMachineType));
+    type->type             = NECRO_MACHINE_TYPE_INT32;
     return type;
 }
 
 NecroMachineType* necro_create_machine_int64_type(NecroPagedArena* arena)
 {
     NecroMachineType* type = necro_paged_arena_alloc(arena, sizeof(NecroMachineType));
-    type->type          = NECRO_MACHINE_TYPE_INT64;
+    type->type             = NECRO_MACHINE_TYPE_INT64;
+    return type;
+}
+
+NecroMachineType* necro_create_machine_f32_type(NecroPagedArena* arena)
+{
+    NecroMachineType* type = necro_paged_arena_alloc(arena, sizeof(NecroMachineType));
+    type->type             = NECRO_MACHINE_TYPE_F32;
     return type;
 }
 
 NecroMachineType* necro_create_machine_f64_type(NecroPagedArena* arena)
 {
     NecroMachineType* type = necro_paged_arena_alloc(arena, sizeof(NecroMachineType));
-    type->type          = NECRO_MACHINE_TYPE_F64;
+    type->type             = NECRO_MACHINE_TYPE_F64;
     return type;
 }
 
 NecroMachineType* necro_create_machine_char_type(NecroPagedArena* arena)
 {
     NecroMachineType* type = necro_paged_arena_alloc(arena, sizeof(NecroMachineType));
-    type->type          = NECRO_MACHINE_TYPE_CHAR;
+    type->type             = NECRO_MACHINE_TYPE_CHAR;
     return type;
 }
 
 NecroMachineType* necro_create_machine_void_type(NecroPagedArena* arena)
 {
     NecroMachineType* type = necro_paged_arena_alloc(arena, sizeof(NecroMachineType));
-    type->type          = NECRO_MACHINE_TYPE_VOID;
+    type->type             = NECRO_MACHINE_TYPE_VOID;
+    return type;
+}
+
+NecroMachineType* necro_create_word_sized_uint_type(NecroPagedArena* arena)
+{
+    NecroMachineType* type = necro_paged_arena_alloc(arena, sizeof(NecroMachineType));
+    type->type             = (sizeof(void*) == 4) ? NECRO_MACHINE_TYPE_UINT32 : NECRO_MACHINE_TYPE_UINT64;
+    return type;
+}
+
+NecroMachineType* necro_create_word_sized_int_type(NecroPagedArena* arena)
+{
+    NecroMachineType* type = necro_paged_arena_alloc(arena, sizeof(NecroMachineType));
+    type->type             = (sizeof(void*) == 4) ? NECRO_MACHINE_TYPE_INT32 : NECRO_MACHINE_TYPE_INT64;
+    return type;
+}
+
+NecroMachineType* necro_create_word_sized_float_type(NecroPagedArena* arena)
+{
+    NecroMachineType* type = necro_paged_arena_alloc(arena, sizeof(NecroMachineType));
+    type->type             = (sizeof(void*) == 4) ? NECRO_MACHINE_TYPE_F32 : NECRO_MACHINE_TYPE_F64;
     return type;
 }
 
@@ -140,6 +175,11 @@ void necro_type_check(NecroMachineProgram* program, NecroMachineType* type1, Nec
     }
 }
 
+bool is_unboxed_type(struct NecroMachineProgram* program, NecroMachineType* type)
+{
+    return type->type == program->necro_int_type->type || type->type == program->necro_float_type->type || type->type == program->necro_uint_type->type;
+}
+
 ///////////////////////////////////////////////////////
 // Print
 ///////////////////////////////////////////////////////
@@ -165,8 +205,14 @@ void necro_machine_print_machine_type_go(NecroIntern* intern, NecroMachineType* 
     case NECRO_MACHINE_TYPE_UINT64:
         printf("u64");
         return;
+    case NECRO_MACHINE_TYPE_INT32:
+        printf("i32");
+        return;
     case NECRO_MACHINE_TYPE_INT64:
         printf("i64");
+        return;
+    case NECRO_MACHINE_TYPE_F32:
+        printf("f32");
         return;
     case NECRO_MACHINE_TYPE_F64:
         printf("f64");
@@ -297,6 +343,7 @@ NecroMachineType* necro_type_to_machine_type(NecroMachineProgram* program, Necro
         while (type->type == NECRO_TYPE_FOR)
             type = type->for_all.type;
         return necro_type_to_machine_type(program, type);
+
     case NECRO_TYPE_APP:  assert(false); return NULL;
     default: assert(false);
     }
@@ -305,26 +352,19 @@ NecroMachineType* necro_type_to_machine_type(NecroMachineProgram* program, Necro
 
 NecroMachineType* necro_core_pattern_type_to_machine_type(NecroMachineProgram* program, NecroCoreAST_Expression* ast)
 {
-    // if (ast->expr_type == NECRO_CORE_EXPR_DATA_CON)
-    // {
-        NecroType* type = necro_core_ast_to_necro_type(program, ast);
-        type            = necro_find(type);
-        while (type->type == NECRO_TYPE_FOR)
-        {
-            type = type->for_all.type;
-            type = necro_find(type);
-        }
-        while (type->type == NECRO_TYPE_FUN)
-        {
-            type = type->fun.type2;
-            type = necro_find(type);
-        }
-        return necro_type_to_machine_type(program, type);
-    // }
-    // else
-    // {
-    //     return necro_core_ast_to_machine_type(program, ast);
-    // }
+    NecroType* type = necro_core_ast_to_necro_type(program, ast);
+    type            = necro_find(type);
+    while (type->type == NECRO_TYPE_FOR)
+    {
+        type = type->for_all.type;
+        type = necro_find(type);
+    }
+    while (type->type == NECRO_TYPE_FUN)
+    {
+        type = type->fun.type2;
+        type = necro_find(type);
+    }
+    return necro_type_to_machine_type(program, type);
 }
 
 NecroMachineType* necro_core_ast_to_machine_type(NecroMachineProgram* program, NecroCoreAST_Expression* ast)

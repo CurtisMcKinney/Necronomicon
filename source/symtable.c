@@ -65,6 +65,8 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
         .type_class_instance     = NULL,
         .persistent_slot         = 0,
         .is_constructor          = false,
+        .is_recursive            = false,
+        .size                    = 0,
         .arity                   = -1,
         .necro_machine_ast       = NULL,
     };
@@ -407,6 +409,7 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_R
     if (input_node == NULL || scoped_symtable->error.return_code == NECRO_ERROR)
         return;
     input_node->scope       = scoped_symtable->current_scope;
+    // NOTE: Trying something simpler for now...
     input_node->delay_scope = scoped_symtable->current_delay_scope;
     switch (input_node->type)
     {
@@ -521,33 +524,51 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_R
     case NECRO_AST_PAT_EXPRESSION:
         necro_build_scopes_go(scoped_symtable, input_node->pattern_expression.expressions);
         break;
-    case NECRO_AST_EXPRESSION_SEQUENCE:
+    // case NECRO_AST_EXPRESSION_SEQUENCE:
+    // {
+    //     // Push
+    //     NecroAST_Node_Reified* expressions = input_node->expression_sequence.expressions;
+    //     assert(expressions != NULL); // Shouldn't be possible to have an empty sequence
+    //     expressions->delay_scope = scoped_symtable->current_delay_scope;
+    //     necro_build_scopes_go(scoped_symtable, expressions->list.item);
+    //     expressions = expressions->list.next_item;
+    //     while (expressions != NULL)
+    //     {
+    //         necro_scoped_symtable_new_delay_scope(scoped_symtable);
+    //         expressions->delay_scope = scoped_symtable->current_delay_scope;
+    //         necro_build_scopes_go(scoped_symtable, expressions->list.item);
+    //         expressions = expressions->list.next_item;
+    //     }
+    //     // Pop
+    //     expressions = input_node->expression_sequence.expressions;
+    //     expressions = expressions->list.next_item;
+    //     while (expressions != NULL)
+    //     {
+    //         necro_scoped_symtable_pop_delay_scope(scoped_symtable);
+    //         expressions = expressions->list.next_item;
+    //     }
+    //     printf("seq\n");
+    //     break;
+    // }
+    case NECRO_AST_DELAY:
     {
-        // Push
-        NecroAST_Node_Reified* expressions = input_node->expression_sequence.expressions;
-        assert(expressions != NULL); // Shouldn't be possible to have an empty sequence
-        expressions->delay_scope = scoped_symtable->current_delay_scope;
-        necro_build_scopes_go(scoped_symtable, expressions->list.item);
-        expressions = expressions->list.next_item;
-        while (expressions != NULL)
-        {
-            necro_scoped_symtable_new_delay_scope(scoped_symtable);
-            expressions->delay_scope = scoped_symtable->current_delay_scope;
-            necro_build_scopes_go(scoped_symtable, expressions->list.item);
-            expressions = expressions->list.next_item;
-        }
-        // Pop
-        expressions = input_node->expression_sequence.expressions;
-        expressions = expressions->list.next_item;
-        while (expressions != NULL)
-        {
-            necro_scoped_symtable_pop_delay_scope(scoped_symtable);
-            expressions = expressions->list.next_item;
-        }
-        printf("seq\n");
+        necro_build_scopes_go(scoped_symtable, input_node->delay.init_expr);
+        necro_scoped_symtable_new_delay_scope(scoped_symtable);
+        necro_build_scopes_go(scoped_symtable, input_node->delay.delayed_var);
+        input_node->delay.delayed_var->delay_scope = scoped_symtable->current_delay_scope;
+        necro_scoped_symtable_pop_delay_scope(scoped_symtable);
         break;
     }
-
+    case NECRO_AST_TRIM_DELAY:
+    {
+        necro_build_scopes_go(scoped_symtable, input_node->trim_delay.int_literal);
+        necro_build_scopes_go(scoped_symtable, input_node->trim_delay.init_expr);
+        necro_scoped_symtable_new_delay_scope(scoped_symtable);
+        necro_build_scopes_go(scoped_symtable, input_node->trim_delay.delayed_var);
+        input_node->trim_delay.delayed_var->delay_scope = scoped_symtable->current_delay_scope;
+        necro_scoped_symtable_pop_delay_scope(scoped_symtable);
+        break;
+    }
     case NECRO_AST_TUPLE:
         necro_build_scopes_go(scoped_symtable, input_node->tuple.expressions);
         break;

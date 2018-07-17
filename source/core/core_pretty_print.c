@@ -194,7 +194,11 @@ void necro_core_pretty_print_go(NecroCoreAST_Expression* ast, NecroSymTable* sym
         }
         return;
     }
-    case NECRO_CORE_EXPR_TYPE:      assert(false && "NECRO_CORE_EXPR_TYPE not implemented; why are you using it, hmmm?"); return;
+    case NECRO_CORE_EXPR_TYPE:
+        printf("(");
+        necro_print_type_sig_go(ast->type.type, intern);
+        printf(")");
+        return;
     default:                        assert(false && "Unimplemented AST type in necro_core_pretty_print_go"); return;
     }
 }

@@ -31,7 +31,9 @@ typedef enum
     NECRO_MACHINE_TYPE_UINT16,
     NECRO_MACHINE_TYPE_UINT32,
     NECRO_MACHINE_TYPE_UINT64,
+    NECRO_MACHINE_TYPE_INT32,
     NECRO_MACHINE_TYPE_INT64,
+    NECRO_MACHINE_TYPE_F32,
     NECRO_MACHINE_TYPE_F64,
     NECRO_MACHINE_TYPE_CHAR,
     NECRO_MACHINE_TYPE_STRUCT,
@@ -65,12 +67,17 @@ typedef struct NecroMachineType
     NECRO_MACHINE_TYPE_TYPE type;
 } NecroMachineType;
 
+NecroMachineType* necro_create_word_sized_uint_type(NecroPagedArena* arena);
+NecroMachineType* necro_create_word_sized_int_type(NecroPagedArena* arena);
+NecroMachineType* necro_create_word_sized_float_type(NecroPagedArena* arena);
 NecroMachineType* necro_create_machine_uint1_type(NecroPagedArena* arena);
 NecroMachineType* necro_create_machine_uint8_type(NecroPagedArena* arena);
 NecroMachineType* necro_create_machine_uint16_type(NecroPagedArena* arena);
 NecroMachineType* necro_create_machine_uint32_type(NecroPagedArena* arena);
 NecroMachineType* necro_create_machine_uint64_type(NecroPagedArena* arena);
+NecroMachineType* necro_create_machine_int32_type(NecroPagedArena* arena);
 NecroMachineType* necro_create_machine_int64_type(NecroPagedArena* arena);
+NecroMachineType* necro_create_machine_f32_type(NecroPagedArena* arena);
 NecroMachineType* necro_create_machine_f64_type(NecroPagedArena* arena);
 NecroMachineType* necro_create_machine_char_type(NecroPagedArena* arena);
 NecroMachineType* necro_create_machine_struct_type(NecroPagedArena* arena, NecroVar name, NecroMachineType** a_members, size_t num_members);
@@ -84,5 +91,6 @@ NecroMachineType* necro_core_ast_to_machine_type(struct NecroMachineProgram* pro
 NecroMachineType* necro_type_to_machine_type(struct NecroMachineProgram* program, NecroType* type);
 bool              is_poly_ptr(struct NecroMachineProgram* program, NecroMachineType* type);
 NecroMachineType* necro_core_pattern_type_to_machine_type(struct NecroMachineProgram* program, NecroCoreAST_Expression* ast);
+bool              is_unboxed_type(struct NecroMachineProgram* program, NecroMachineType* type);
 
 #endif // NECRO_MACHINE_TYPE_H

@@ -12,16 +12,16 @@
 //=====================================================
 // API
 //=====================================================
-int64_t mouse_x = 0;
-int64_t mouse_y = 0;
+int mouse_x = 0;
+int mouse_y = 0;
 
-int64_t _necro_mouse_x()
+int _necro_mouse_x()
 {
     necro_poll_mouse();
     return mouse_x;
 }
 
-int64_t _necro_mouse_y()
+int _necro_mouse_y()
 {
     necro_poll_mouse();
     return mouse_y;

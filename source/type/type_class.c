@@ -1590,8 +1590,26 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
         necro_type_class_translate_go(dictionary_context, infer, ast->expression_list.expressions);
         break;
 
-    case NECRO_AST_EXPRESSION_SEQUENCE:
-        necro_type_class_translate_go(dictionary_context, infer, ast->expression_sequence.expressions);
+    case NECRO_AST_DELAY:
+    {
+        necro_type_class_translate_go(dictionary_context, infer, ast->delay.init_expr);
+        necro_type_class_translate_go(dictionary_context, infer, ast->delay.delayed_var);
+        NecroType* delay_type = necro_find(ast->necro_type);
+        if (!necro_is_fully_concrete(infer->symtable, delay_type))
+        {
+            necro_infer_ast_error(infer, delay_type, ast, "delay must be called on fully concrete types.");
+        }
+        else if (!necro_is_sized(infer->symtable, delay_type))
+        {
+            necro_infer_ast_error(infer, delay_type, ast, "delay cannot be called on unsized types (i.e., recursive types, function closures, etc). Consider using trimDelay");
+        }
+        break;
+    }
+
+    case NECRO_AST_TRIM_DELAY:
+        // necro_type_class_translate_go(dictionary_context, infer, ast->trim_delay.int_literal);
+        necro_type_class_translate_go(dictionary_context, infer, ast->trim_delay.init_expr);
+        necro_type_class_translate_go(dictionary_context, infer, ast->trim_delay.delayed_var);
         break;
 
     case NECRO_AST_PAT_EXPRESSION:

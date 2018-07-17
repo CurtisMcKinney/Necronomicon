@@ -189,4 +189,14 @@ static void necro_announce_phase(const char* phase_name)
 
 #define STRING_TAB "  "
 
+///////////////////////////////////////////////////////
+// Timing
+///////////////////////////////////////////////////////
+struct NecroTimer;
+struct NecroTimer* necro_create_timer();
+void               necro_destroy_timer(struct NecroTimer* timer);
+void               necro_start_timer(struct NecroTimer* timer);
+double             necro_stop_timer(struct NecroTimer* timer);
+void               necro_stop_and_report_timer(struct NecroTimer* timer, const char* print_header);
+
 #endif // UTILITY_H

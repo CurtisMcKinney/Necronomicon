@@ -74,11 +74,17 @@ void necro_print_machine_value(NecroMachineProgram* program, NecroMachineAST* as
     case NECRO_MACHINE_VALUE_UINT64_LITERAL:
         printf("%lldu64", value.uint64_literal);
         return;
+    case NECRO_MACHINE_VALUE_INT32_LITERAL:
+        printf("%di32", value.int32_literal);
+        return;
     case NECRO_MACHINE_VALUE_INT64_LITERAL:
         printf("%lldi64", value.int64_literal);
         return;
+    case NECRO_MACHINE_VALUE_F32_LITERAL:
+        printf("%ff32", value.f32_literal);
+        return;
     case NECRO_MACHINE_VALUE_F64_LITERAL:
-        printf("%f", value.f64_literal);
+        printf("%ff64", value.f64_literal);
         return;
     case NECRO_MACHINE_VALUE_NULL_PTR_LITERAL:
         printf("null");
@@ -245,6 +251,8 @@ void necro_machine_print_gep(NecroMachineProgram* program, NecroMachineAST* ast,
         if (i < ast->gep.num_indices - 1)
             printf(",");
     }
+    printf(", ");
+    necro_print_machine_value(program, ast->gep.source_value, depth);
 }
 
 void necro_machine_print_nalloc(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)
@@ -253,6 +261,18 @@ void necro_machine_print_nalloc(NecroMachineProgram* program, NecroMachineAST* a
     printf("%%%s = nalloc (", necro_intern_get_string(program->intern, ast->nalloc.result_reg->value.reg_name.symbol));
     necro_machine_print_machine_type_go(program->intern, ast->nalloc.type_to_alloc, false);
     printf(") %du16", ast->nalloc.slots_used);
+}
+
+void necro_machine_print_memcpy(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)
+{
+    assert(ast->type == NECRO_MACHINE_MEMCPY);
+    print_white_space(depth);
+    printf("memcpy ");
+    necro_print_machine_value(program, ast->memcpy.dest, NECRO_PRINT_VALUE_TYPE);
+    printf(" ");
+    necro_print_machine_value(program, ast->memcpy.source, NECRO_PRINT_VALUE_TYPE);
+    printf(" ");
+    necro_print_machine_value(program, ast->memcpy.num_bytes, NECRO_DONT_PRINT_VALUE_TYPE);
 }
 
 void necro_machine_print_state_type(NecroMachineProgram* program, NECRO_STATE_TYPE state_type)
@@ -343,18 +363,6 @@ void necro_machine_print_phi(NecroMachineProgram* program, NecroMachineAST* ast,
             printf(", ");
         values = values->next;
     }
-    // for (size_t i = 0; i < ast->phi.num_values; ++i)
-    // {
-    //     printf("%s: %%%s", necro_intern_get_string(program->intern, ast->phi.blocks[i]->block.name.symbol), necro_intern_get_string(program->intern, ast->phi.values[i]->value.reg_name.symbol));
-    //     if (i == ast->phi.num_values - 1)
-    //     {
-    //         printf("]");
-    //     }
-    //     else
-    //     {
-    //         printf(", ");
-    //     }
-    // }
 }
 
 void necro_machine_print_cmp(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)
@@ -433,6 +441,9 @@ void necro_machine_print_ast_go(NecroMachineProgram* program, NecroMachineAST* a
         return;
     case NECRO_MACHINE_CMP:
         necro_machine_print_cmp(program, ast, depth);
+        return;
+    case NECRO_MACHINE_MEMCPY:
+        necro_machine_print_memcpy(program, ast, depth);
         return;
     }
 }

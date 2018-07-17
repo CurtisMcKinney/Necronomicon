@@ -318,7 +318,8 @@ LLVMValueRef necro_codegen_nalloc(NecroCodeGenLLVM* codegen, NecroMachineAST* as
     uint32_t     raw_slots     = ((((uint32_t)data_size_n) - sizeof(uint64_t)) / sizeof(int64_t*));
     uint32_t     slots_total_n = next_highest_pow_of_2(raw_slots);
     uint8_t      segment_n     = log2_32(slots_total_n);
-    assert(ast->nalloc.slots_used <= slots_total_n);
+    // TODO: Replace nalloc
+    // assert(ast->nalloc.slots_used <= slots_total_n);
     // LLVMValueRef data_size     = LLVMConstInt(LLVMInt64TypeInContext(codegen->context), data_size_n, true);
     LLVMValueRef slots_used    = LLVMConstInt(LLVMInt32TypeInContext(codegen->context), ast->nalloc.slots_used, false);
     // LLVMValueRef slots_total   = LLVMConstInt(LLVMInt16TypeInContext(codegen->context), slots_total_n, false);
@@ -349,26 +350,31 @@ LLVMValueRef necro_codegen_value(NecroCodeGenLLVM* codegen, NecroMachineAST* ast
     case NECRO_MACHINE_VALUE_NULL_PTR_LITERAL: return LLVMConstPointerNull(necro_machine_type_to_llvm_type(codegen, ast->necro_machine_type));
     case NECRO_MACHINE_VALUE_GLOBAL:
     {
-        NecroMachineAST* global_ast = necro_symtable_get(codegen->symtable, ast->value.global_name.id)->necro_machine_ast;
-        if (global_ast->type == NECRO_MACHINE_FN_DEF)
-        {
-            return necro_codegen_symtable_get(codegen, global_ast->fn_def.name)->value;
-            // return necro_codegen_value(codegen, global_ast->fn_def.fn_value);
-        }
-        else if (global_ast->type == NECRO_MACHINE_DEF)
-        {
-            return necro_codegen_symtable_get(codegen, global_ast->machine_def.bind_name)->value;
-        }
-        else if (global_ast->type == NECRO_MACHINE_VALUE)
-        {
-            return necro_codegen_symtable_get(codegen, global_ast->value.global_name)->value;
-        }
-        else
-        {
-            // return necro_codegen_symtable_get(codegen, global_ast->machine_def.bind_name)->value;
-            assert(false);
-        }
-        return NULL;
+        return necro_codegen_symtable_get(codegen, ast->value.global_name)->value;
+        // NecroMachineAST* global_ast = necro_symtable_get(codegen->symtable, ast->value.global_name.id)->necro_machine_ast;
+        // if (global_ast->type == NECRO_MACHINE_FN_DEF)
+        // {
+        //     // return necro_codegen_symtable_get(codegen, global_ast->fn_def.name)->value;
+        //     // return necro_codegen_value(codegen, global_ast->fn_def.fn_value);
+        //     return necro_codegen_symtable_get(codegen, ast->value.global_name)->value;
+        // }
+        // else if (global_ast->type == NECRO_MACHINE_DEF)
+        // {
+        //     // return necro_codegen_symtable_get(codegen, global_ast->machine_def.bind_name)->value;
+        //     // return necro_codegen_symtable_get(codegen, global_ast->value.global_name)->value;
+        //     return necro_codegen_symtable_get(codegen, ast->value.global_name)->value;
+        // }
+        // else if (global_ast->type == NECRO_MACHINE_VALUE)
+        // {
+        //     // return necro_codegen_symtable_get(codegen, global_ast->value.global_name)->value;
+        //     return necro_codegen_symtable_get(codegen, ast->value.global_name)->value;
+        // }
+        // else
+        // {
+        //     // return necro_codegen_symtable_get(codegen, global_ast->machine_def.bind_name)->value;
+        //     assert(false);
+        // }
+        // return NULL;
     }
     default: assert(false); return NULL;
     }
@@ -512,7 +518,8 @@ LLVMValueRef necro_codegen_cmp(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
         default: assert(false); break;
         }
     }
-    else if (ast->cmp.left->type == NECRO_MACHINE_TYPE_INT64)
+    else if (ast->cmp.left->type == NECRO_MACHINE_TYPE_INT32 ||
+             ast->cmp.left->type == NECRO_MACHINE_TYPE_INT64)
     {
         switch (ast->cmp.cmp_type)
         {
@@ -525,16 +532,17 @@ LLVMValueRef necro_codegen_cmp(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
         default: assert(false); break;
         }
     }
-    else if (ast->cmp.left->type == NECRO_MACHINE_TYPE_F64)
+    else if (ast->cmp.left->type == NECRO_MACHINE_TYPE_F32 ||
+             ast->cmp.left->type == NECRO_MACHINE_TYPE_F64)
     {
         switch (ast->cmp.cmp_type)
         {
-        case NECRO_MACHINE_CMP_EQ: value = LLVMBuildICmp(codegen->builder, LLVMRealUEQ,  left, right, name); break;
-        case NECRO_MACHINE_CMP_NE: value = LLVMBuildICmp(codegen->builder, LLVMRealUNE,  left, right, name); break;
-        case NECRO_MACHINE_CMP_GT: value = LLVMBuildICmp(codegen->builder, LLVMRealUGT, left, right, name); break;
-        case NECRO_MACHINE_CMP_GE: value = LLVMBuildICmp(codegen->builder, LLVMRealUGE, left, right, name); break;
-        case NECRO_MACHINE_CMP_LT: value = LLVMBuildICmp(codegen->builder, LLVMRealULT, left, right, name); break;
-        case NECRO_MACHINE_CMP_LE: value = LLVMBuildICmp(codegen->builder, LLVMRealULE, left, right, name); break;
+        case NECRO_MACHINE_CMP_EQ: value = LLVMBuildFCmp(codegen->builder, LLVMRealUEQ,  left, right, name); break;
+        case NECRO_MACHINE_CMP_NE: value = LLVMBuildFCmp(codegen->builder, LLVMRealUNE,  left, right, name); break;
+        case NECRO_MACHINE_CMP_GT: value = LLVMBuildFCmp(codegen->builder, LLVMRealUGT, left, right, name); break;
+        case NECRO_MACHINE_CMP_GE: value = LLVMBuildFCmp(codegen->builder, LLVMRealUGE, left, right, name); break;
+        case NECRO_MACHINE_CMP_LT: value = LLVMBuildFCmp(codegen->builder, LLVMRealULT, left, right, name); break;
+        case NECRO_MACHINE_CMP_LE: value = LLVMBuildFCmp(codegen->builder, LLVMRealULE, left, right, name); break;
         default: assert(false); break;
         }
     }
@@ -628,12 +636,13 @@ void necro_codegen_global(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
     assert(ast->type == NECRO_MACHINE_VALUE);
     assert(ast->value.value_type == NECRO_MACHINE_VALUE_GLOBAL);
     LLVMTypeRef  global_type  = necro_machine_type_to_llvm_type(codegen, ast->necro_machine_type->ptr_type.element_type);
+    LLVMValueRef zero_value   = LLVMConstNull(global_type);
     const char*  global_name  = necro_intern_get_string(codegen->intern, ast->value.global_name.symbol);
     LLVMValueRef global_value = LLVMAddGlobal(codegen->mod, global_type, global_name);
     necro_codegen_symtable_get(codegen, ast->value.global_name)->type  = global_type;
     necro_codegen_symtable_get(codegen, ast->value.global_name)->value = global_value;
     LLVMSetLinkage(global_value, LLVMInternalLinkage);
-    LLVMSetInitializer(global_value, necro_const_zero_machine_type(codegen, ast->necro_machine_type->ptr_type.element_type));
+    LLVMSetInitializer(global_value, zero_value);
     LLVMSetGlobalConstant(global_value, false);
 }
 

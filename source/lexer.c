@@ -41,6 +41,8 @@ NecroLexer necro_create_lexer(const char* str)
     necro_intern_string(&lexer.intern, "newtype");
     necro_intern_string(&lexer.intern, "type");
     necro_intern_string(&lexer.intern, "pat");
+    necro_intern_string(&lexer.intern, "delay");
+    necro_intern_string(&lexer.intern, "trimDelay");
 
     return lexer;
 }
@@ -131,6 +133,8 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
     case NECRO_LEX_NEWTYPE:            return "NEWTYPE";
     case NECRO_LEX_TYPE:               return "TYPE";
     case NECRO_LEX_PAT:                return "PAT";
+    case NECRO_LEX_DELAY:              return "DELAY";
+    case NECRO_LEX_TRIM_DELAY:         return "TRIM_DELAY";
     case NECRO_LEX_WHERE:              return "WHERE";
     default:                           return "UNRECOGNIZED TOKEN";
     }

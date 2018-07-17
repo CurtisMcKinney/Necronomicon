@@ -56,6 +56,8 @@ typedef struct
     uint32_t                        persistent_slot; // 0 indicates no persistence
     struct NecroMachineAST*         necro_machine_ast;
     bool                            is_constructor;
+    bool                            is_recursive;
+    int32_t                         size;
 } NecroSymbolInfo;
 
 typedef struct NecroSymTable

@@ -6,11 +6,12 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <stdarg.h>
+#include "type_class.h"
 #include "infer.h"
 #include "symtable.h"
 #include "kind.h"
-#include "type\prim.h"
-#include "type_class.h"
+#include "type/prim.h"
+#include "type/derive.h"
 
 /*
 TODO:
@@ -1603,6 +1604,7 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
         {
             necro_infer_ast_error(infer, delay_type, ast, "delay cannot be called on unsized types (i.e., recursive types, function closures, etc). Consider using trimDelay");
         }
+        necro_derive_specialized_clone(infer, delay_type);
         break;
     }
 
@@ -1610,6 +1612,7 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
         // necro_type_class_translate_go(dictionary_context, infer, ast->trim_delay.int_literal);
         necro_type_class_translate_go(dictionary_context, infer, ast->trim_delay.init_expr);
         necro_type_class_translate_go(dictionary_context, infer, ast->trim_delay.delayed_var);
+        assert(false && "TODO");
         break;
 
     case NECRO_AST_PAT_EXPRESSION:

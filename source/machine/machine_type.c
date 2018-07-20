@@ -150,9 +150,13 @@ void necro_type_check(NecroMachineProgram* program, NecroMachineType* type1, Nec
 {
     assert(type1 != NULL);
     assert(type2 != NULL);
-    assert(type1->type == type2->type);
     assert(type1 != program->necro_poly_type);
     assert(type2 != program->necro_poly_type);
+    if (is_poly_ptr(program, type1) && (type2->type == NECRO_MACHINE_TYPE_PTR || necro_is_unboxed_type(program, type2)))
+        return;
+    if (is_poly_ptr(program, type2) && (type1->type == NECRO_MACHINE_TYPE_PTR || necro_is_unboxed_type(program, type1)))
+        return;
+    assert(type1->type == type2->type);
     if (type1->type)
     switch (type1->type)
     {
@@ -175,9 +179,20 @@ void necro_type_check(NecroMachineProgram* program, NecroMachineType* type1, Nec
     }
 }
 
-bool is_unboxed_type(struct NecroMachineProgram* program, NecroMachineType* type)
+bool necro_is_unboxed_type(struct NecroMachineProgram* program, NecroMachineType* type)
 {
-    return type->type == program->necro_int_type->type || type->type == program->necro_float_type->type || type->type == program->necro_uint_type->type;
+    return type->type == program->necro_int_type->type
+        || type->type == program->necro_float_type->type
+        || type->type == program->necro_uint_type->type
+        || (type->type == NECRO_MACHINE_TYPE_STRUCT && type->struct_type.name.id.id == program->world_type->struct_type.name.id.id);
+}
+
+NecroMachineType* necro_make_ptr_if_boxed(NecroMachineProgram* program, NecroMachineType* type)
+{
+    if (necro_is_unboxed_type(program, type))
+        return type;
+    else
+        return necro_create_machine_ptr_type(&program->arena, type);
 }
 
 ///////////////////////////////////////////////////////
@@ -319,12 +334,14 @@ NecroMachineType* necro_function_type_to_machine_function_type(NecroMachineProgr
     arrows = necro_find(type);
     while (arrows->type == NECRO_TYPE_FUN)
     {
-        args[arg_index] = necro_create_machine_ptr_type(&program->arena, necro_type_to_machine_type(program, arrows->fun.type1));
+        // args[arg_index] = necro_create_machine_ptr_type(&program->arena, necro_type_to_machine_type(program, arrows->fun.type1));
+        args[arg_index] = necro_make_ptr_if_boxed(program, necro_type_to_machine_type(program, arrows->fun.type1));
         arg_index++;
         arrows = arrows->fun.type2;
         arrows = necro_find(arrows);
     }
-    NecroMachineType* return_type   = necro_create_machine_ptr_type(&program->arena, necro_type_to_machine_type(program, arrows));
+    NecroMachineType* return_type   = necro_make_ptr_if_boxed(program, necro_type_to_machine_type(program, arrows));
+    // NecroMachineType* return_type   = necro_type_to_machine_type(program, arrows);
     NecroMachineType* function_type = necro_create_machine_fn_type(&program->arena, return_type, args, arg_count);
     return function_type;
 }
@@ -376,8 +393,8 @@ NecroMachineType* necro_core_ast_to_machine_type(NecroMachineProgram* program, N
     case NECRO_CORE_EXPR_LIT:
         switch (ast->lit.type)
         {
-        case NECRO_AST_CONSTANT_INTEGER: return necro_create_machine_int64_type(&program->arena);
-        case NECRO_AST_CONSTANT_FLOAT:   return necro_create_machine_f64_type(&program->arena);
+        case NECRO_AST_CONSTANT_INTEGER: return program->necro_int_type;
+        case NECRO_AST_CONSTANT_FLOAT:   return program->necro_float_type;
         default:                         assert(false); return NULL;
         }
     case NECRO_CORE_EXPR_VAR:            return necro_type_to_machine_type(program, necro_core_ast_to_necro_type(program, ast));

@@ -147,8 +147,8 @@ typedef struct NecroInfer
     struct NecroScopedSymTable* scoped_symtable;
     struct NecroRenamer*        renamer;
     struct NecroPrimTypes*      prim_types;
-    // struct NecroTypeClassEnv*   type_class_env;
     NecroTypeEnv                env;
+    NecroSnapshotArena          snapshot_arena;
     NecroPagedArena             arena;
     NecroIntern*                intern;
     NecroError                  error;
@@ -177,6 +177,7 @@ void        necr_bind_type_var(NecroInfer* infer, NecroVar var, NecroType* type)
 bool        necro_is_bound_in_scope(NecroInfer* infer, NecroType* type, struct NecroScope* scope);
 bool        necro_occurs(NecroInfer* infer, NecroType* type_var, NecroType* type, NecroType* macro_type, const char* error_preamble);
 NecroType*  necro_curry_con(NecroInfer* infer, NecroType* con);
+size_t      necro_type_arity(NecroType* type);
 
 NecroType*  necro_declare_type(NecroInfer* infer, NecroCon con, size_t arity);
 NecroType*  necro_create_type_con(NecroInfer* infer, NecroCon con, NecroType* args, size_t arity);
@@ -185,6 +186,7 @@ NecroType*  necro_create_type_var(NecroInfer* infer, NecroVar var);
 NecroType*  necro_create_type_app(NecroInfer* infer, NecroType* type1, NecroType* type2);
 NecroType*  necro_create_type_list(NecroInfer* infer, NecroType* item, NecroType* next);
 NecroType*  necro_create_for_all(NecroInfer* infer, NecroVar var, struct NecroTypeClassContext* context, NecroType* type);
+NecroType*  necro_duplicate_type(NecroInfer* infer, NecroType* type);
 
 NecroType*  necro_make_con_1(NecroInfer* infer,  NecroCon con, NecroType* arg1);
 NecroType*  necro_make_con_2(NecroInfer* infer,  NecroCon con, NecroType* arg1, NecroType* arg2);

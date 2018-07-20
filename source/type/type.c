@@ -47,6 +47,7 @@ NecroInfer necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtabl
     {
         .intern          = intern,
         .arena           = necro_create_paged_arena(),
+        .snapshot_arena  = necro_create_snapshot_arena(),
         .env             = necro_create_type_env(512),
         .error           = necro_create_error(),
         .highest_id      = symtable->count,
@@ -80,6 +81,7 @@ void necro_destroy_infer(NecroInfer* infer)
         return;
     necro_destroy_type_env(&infer->env);
     necro_destroy_paged_arena(&infer->arena);
+    necro_destroy_snapshot_arena(&infer->snapshot_arena);
     infer->intern = NULL;
 }
 
@@ -279,6 +281,23 @@ NecroType* necro_create_for_all(NecroInfer* infer, NecroVar var, NecroTypeClassC
         .type    = type,
     };
     return for_all;
+}
+
+NecroType* necro_duplicate_type(NecroInfer* infer, NecroType* type)
+{
+    if (type == NULL)
+        return NULL;
+    type = necro_find(type);
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR:  return necro_create_type_var(infer, type->var.var);
+    case NECRO_TYPE_APP:  return necro_create_type_app(infer, necro_duplicate_type(infer, type->app.type1), necro_duplicate_type(infer, type->app.type2));
+    case NECRO_TYPE_FUN:  return necro_create_type_fun(infer, necro_duplicate_type(infer, type->fun.type1), necro_duplicate_type(infer, type->fun.type2));
+    case NECRO_TYPE_CON:  return necro_create_type_con(infer, type->con.con, necro_duplicate_type(infer, type->con.args), type->con.arity);
+    case NECRO_TYPE_FOR:  return necro_create_for_all(infer, type->for_all.var, type->for_all.context, necro_duplicate_type(infer, type->for_all.type));
+    case NECRO_TYPE_LIST: return necro_create_type_list(infer, necro_duplicate_type(infer, type->list.item), necro_duplicate_type(infer, type->list.next));
+    default:              assert(false); return NULL;
+    }
 }
 
 size_t necro_type_list_count(NecroType* list)
@@ -1892,6 +1911,20 @@ NecroType* necro_make_con_10(NecroInfer* infer, NecroCon con, NecroType* arg1, N
     NecroType* lst2  = necro_create_type_list(infer, arg2, lst3);
     NecroType* lst1  = necro_create_type_list(infer, arg1, lst2);
     return necro_create_type_con(infer, con, lst1, 10);
+}
+
+size_t necro_type_arity(NecroType* type)
+{
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR:  return 0;
+    case NECRO_TYPE_APP:  return 0;
+    case NECRO_TYPE_CON:  return 0;
+    case NECRO_TYPE_FUN:  return 1 + necro_type_arity(type->fun.type2);
+    case NECRO_TYPE_FOR:  return necro_type_arity(type->for_all.type);
+    case NECRO_TYPE_LIST: assert(false); return 0;
+    default:              assert(false); return 0;
+    }
 }
 
 //=====================================================

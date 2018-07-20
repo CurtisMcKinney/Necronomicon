@@ -203,7 +203,9 @@ NECRO_RETURN_CODE necro_prim_rename(NecroPrimTypes* prim_types, NecroRenamer* re
         case NECRO_PRIM_DEF_DATA:
         {
             necro_rename_declare_pass(renamer, &prim_types->arena, def->data_def.data_declaration_ast);
+            if (renamer->error.return_code != NECRO_SUCCESS) return renamer->error.return_code;
             necro_rename_var_pass(renamer, &prim_types->arena, def->data_def.data_declaration_ast);
+            if (renamer->error.return_code != NECRO_SUCCESS) return renamer->error.return_code;
             // add constructors to con table
             NecroASTNode* constructor_list = def->data_def.data_declaration_ast->data_declaration.constructor_list;
             while (constructor_list != NULL)
@@ -222,7 +224,9 @@ NECRO_RETURN_CODE necro_prim_rename(NecroPrimTypes* prim_types, NecroRenamer* re
         case NECRO_PRIM_DEF_CLASS:
         {
             necro_rename_declare_pass(renamer, &prim_types->arena, def->class_def.type_class_ast);
+            if (renamer->error.return_code != NECRO_SUCCESS) return renamer->error.return_code;
             necro_rename_var_pass(renamer, &prim_types->arena, def->class_def.type_class_ast);
+            if (renamer->error.return_code != NECRO_SUCCESS) return renamer->error.return_code;
             if (def->global_name != NULL)
             {
                 def->global_name->symbol = def->class_def.type_class_ast->type_class_declaration.tycls->conid.symbol;
@@ -233,7 +237,9 @@ NECRO_RETURN_CODE necro_prim_rename(NecroPrimTypes* prim_types, NecroRenamer* re
         case NECRO_PRIM_DEF_FUN:
         {
             necro_rename_declare_pass(renamer, &prim_types->arena, def->fun_def.type_sig_ast);
+            if (renamer->error.return_code != NECRO_SUCCESS) return renamer->error.return_code;
             necro_rename_var_pass(renamer, &prim_types->arena, def->fun_def.type_sig_ast);
+            if (renamer->error.return_code != NECRO_SUCCESS) return renamer->error.return_code;
             if (def->global_name != NULL)
             {
                 def->global_name->symbol = def->fun_def.type_sig_ast->type_signature.var->variable.symbol;
@@ -244,9 +250,13 @@ NECRO_RETURN_CODE necro_prim_rename(NecroPrimTypes* prim_types, NecroRenamer* re
         case NECRO_PRIM_DEF_BIN_OP:
         {
             necro_rename_declare_pass(renamer, &prim_types->arena, def->bin_op_def.type_sig_ast);
+            if (renamer->error.return_code != NECRO_SUCCESS) return renamer->error.return_code;
             necro_rename_declare_pass(renamer, &prim_types->arena, def->bin_op_def.definition_ast);
+            if (renamer->error.return_code != NECRO_SUCCESS) return renamer->error.return_code;
             necro_rename_var_pass(renamer, &prim_types->arena, def->bin_op_def.type_sig_ast);
+            if (renamer->error.return_code != NECRO_SUCCESS) return renamer->error.return_code;
             necro_rename_var_pass(renamer, &prim_types->arena, def->bin_op_def.definition_ast);
+            if (renamer->error.return_code != NECRO_SUCCESS) return renamer->error.return_code;
             if (def->global_name != NULL)
             {
                 def->global_name->symbol = def->bin_op_def.type_sig_ast->type_signature.var->variable.symbol;
@@ -257,7 +267,10 @@ NECRO_RETURN_CODE necro_prim_rename(NecroPrimTypes* prim_types, NecroRenamer* re
         case NECRO_PRIM_DEF_INSTANCE:
         {
             necro_rename_declare_pass(renamer, &prim_types->arena, def->instance_def.instance_ast);
+            if (renamer->error.return_code != NECRO_SUCCESS) { necro_print_reified_ast_node(def->instance_def.instance_ast, renamer->intern); return renamer->error.return_code; }
             necro_rename_var_pass(renamer, &prim_types->arena, def->instance_def.instance_ast);
+            if (renamer->error.return_code != NECRO_SUCCESS) return renamer->error.return_code;
+            necro_print_reified_ast_node(def->instance_def.instance_ast, renamer->intern);
             break;
         }
         default: assert(false); break;
@@ -376,7 +389,7 @@ void necro_create_prim_num(NecroPrimTypes* prim_types, NecroIntern* intern, Necr
 
 NecroASTNode* necro_make_poly_con1(NecroPagedArena* arena, NecroIntern* intern, const char* data_type_name)
 {
-    NecroASTNode* type_var_ast = necro_create_variable_ast(arena, intern, "a", NECRO_VAR_TYPE_VAR_DECLARATION);
+    NecroASTNode* type_var_ast = necro_create_variable_ast(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
     NecroASTNode* type_constr  = necro_create_data_constructor_ast(arena, intern, data_type_name, necro_create_ast_list(arena, type_var_ast, NULL));
     type_constr->constructor.conid->conid.con_type = NECRO_CON_TYPE_VAR;
     // type_constr->conid.con_type = NECRO_CON_TYPE_VAR;
@@ -514,6 +527,17 @@ void necro_create_prim_num_instances(NecroPrimTypes* prim_types, NecroIntern* in
     NecroPrimDef* ord_instance_def = necro_prim_def_instance(prim_types, intern, ord_instance_ast);
 }
 
+void necro_prim_clone_instance(NecroPrimTypes* prim_types, NecroIntern* intern, const char* data_name)
+{
+    NecroSymbol   data_symbol        = necro_intern_string(intern, data_name);
+    const char*   clone_method_name  = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primClone@"), data_symbol));
+    NecroASTNode* clone_method_type  = necro_create_fun_ast(&prim_types->arena, necro_create_conid_ast(&prim_types->arena, intern, data_name, NECRO_CON_TYPE_VAR), necro_create_conid_ast(&prim_types->arena, intern, data_name, NECRO_CON_TYPE_VAR));
+    NecroPrimDef* clone_type_def     = necro_prim_def_fun(prim_types, intern, NULL, necro_create_fun_type_sig_ast(&prim_types->arena, intern, clone_method_name, NULL, clone_method_type, NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 1);
+    NecroASTNode* clone_method_list  = necro_create_declaration_list(&prim_types->arena, necro_create_simple_assignment(&prim_types->arena, intern, "_clone", necro_create_variable_ast(&prim_types->arena, intern, clone_method_name, NECRO_VAR_VAR)), NULL);
+    NecroASTNode* clone_instance_ast = necro_create_instance_ast(&prim_types->arena, intern, "_Clone", necro_create_conid_ast(&prim_types->arena, intern, data_name, NECRO_CON_TYPE_VAR), NULL, clone_method_list);
+    NecroPrimDef* clone_instance_def = necro_prim_def_instance(prim_types, intern, clone_instance_ast);
+}
+
 NecroASTNode* necro_create_class_comp_sig(NecroPagedArena* arena, NecroIntern* intern, const char* sig_name)
 {
     return
@@ -635,9 +659,9 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     NecroASTNode* necro_data_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "_NecroData", NULL);
     NecroPrimDef* necro_data_data_def = necro_prim_def_data(prim_types, intern, &prim_types->necro_data_type, necro_create_data_declaration_ast(&prim_types->arena, intern, necro_data_s_type, NULL));
 
-    // _NecroApp
-    NecroASTNode* necro_app_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "_NecroApp", NULL);
-    NecroPrimDef* necro_app_data_def = necro_prim_def_data(prim_types, intern, &prim_types->necro_app_type, necro_create_data_declaration_ast(&prim_types->arena, intern, necro_app_s_type, NULL));
+    // // _NecroApp
+    // NecroASTNode* necro_app_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "_NecroApp", NULL);
+    // NecroPrimDef* necro_app_data_def = necro_prim_def_data(prim_types, intern, &prim_types->necro_app_type, necro_create_data_declaration_ast(&prim_types->arena, intern, necro_app_s_type, NULL));
 
     // _Any
     NecroASTNode* any_s_type           = necro_create_simple_type_ast(&prim_types->arena, intern, "_Poly", NULL);
@@ -722,17 +746,17 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     // NecroASTNode* seq_type_ast          = necro_create_fun_ast(&prim_types->arena, necro_create_type_app_ast(&prim_types->arena, necro_create_conid_ast(&prim_types->arena, intern, "Sequence", NECRO_CON_TYPE_VAR), seq_a_ast), seq_a_ast);
     // NecroPrimDef* seq_type_def          = necro_prim_def_fun(prim_types, intern, NULL, necro_create_fun_type_sig_ast(&prim_types->arena, intern, "seq", NULL, seq_type_ast, NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION));
 
-    // IO
-    NecroASTNode* io_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "IO", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
-    NecroPrimDef* io_data_def = necro_prim_def_data(prim_types, intern, &prim_types->io_type, necro_create_data_declaration_ast(&prim_types->arena, intern, io_s_type, NULL));
+    // // IO
+    // NecroASTNode* io_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "IO", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
+    // NecroPrimDef* io_data_def = necro_prim_def_data(prim_types, intern, &prim_types->io_type, necro_create_data_declaration_ast(&prim_types->arena, intern, io_s_type, NULL));
 
     // World
     NecroASTNode* world_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "World", NULL);
     NecroPrimDef* world_data_def = necro_prim_def_data(prim_types, intern, &prim_types->world_type, necro_create_data_declaration_ast(&prim_types->arena, intern, world_s_type, NULL));
 
-    // _TheWorld
-    NecroASTNode* the_world_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "_TheWorld", NULL);
-    NecroPrimDef* the_world_data_def = necro_prim_def_data(prim_types, intern, &prim_types->the_world_type, necro_create_data_declaration_ast(&prim_types->arena, intern, the_world_s_type, NULL));
+    // // _TheWorld
+    // NecroASTNode* the_world_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "_TheWorld", NULL);
+    // NecroPrimDef* the_world_data_def = necro_prim_def_data(prim_types, intern, &prim_types->the_world_type, necro_create_data_declaration_ast(&prim_types->arena, intern, the_world_s_type, NULL));
 
     // Event
     NecroASTNode* event_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "Event", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
@@ -750,6 +774,24 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     NecroPrimDef* bool_data_def         = necro_prim_def_data(prim_types, intern, &prim_types->bool_type, necro_create_data_declaration_ast(&prim_types->arena, intern, bool_s_type, bool_constructor_list));
     NecroASTNode* bool_type_conid       = necro_create_conid_ast(&prim_types->arena, intern, "Bool", NECRO_CON_TYPE_VAR);
     NecroASTNode* bool_comp_sig_ast     = necro_create_fun_type_sig_ast(&prim_types->arena, intern, "and", NULL, necro_create_fun_ast(&prim_types->arena, bool_type_conid, necro_create_fun_ast(&prim_types->arena, bool_type_conid, bool_type_conid)), NECRO_VAR_DECLARATION, NECRO_SIG_DECLARATION);
+
+    // Prim Numbers
+    necro_create_prim_num(prim_types, intern, &prim_types->int_type, "Int");
+    necro_create_prim_num(prim_types, intern, &prim_types->float_type, "Float");
+    necro_create_prim_num(prim_types, intern, &prim_types->audio_type, "Audio");
+    necro_create_prim_num(prim_types, intern, &prim_types->rational_type, "Rational");
+
+    // _Clone
+    NecroASTNode* _clone_method_sig  = necro_create_fun_type_sig_ast(&prim_types->arena, intern, "_clone", NULL, necro_create_fun_ast(&prim_types->arena, necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)), NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
+    NecroASTNode* _clone_method_list = necro_create_declaration_list(&prim_types->arena, _clone_method_sig, NULL);
+    NecroASTNode* _clone_class_ast   = necro_create_type_class_ast(&prim_types->arena, intern, "_Clone", "a", NULL, _clone_method_list);
+    NecroPrimDef* _clone_class_def   = necro_prim_def_class(prim_types, intern, &prim_types->_clone_type_class, _clone_class_ast);
+    necro_prim_clone_instance(prim_types, intern, "_NecroData");
+    necro_prim_clone_instance(prim_types, intern, "_Addr");
+    necro_prim_clone_instance(prim_types, intern, "Int");
+    necro_prim_clone_instance(prim_types, intern, "Float");
+    necro_prim_clone_instance(prim_types, intern, "Audio");
+    necro_prim_clone_instance(prim_types, intern, "Rational");
 
     // Eq
     NecroASTNode* eq_method_sig  = necro_create_class_comp_sig(&prim_types->arena, intern, "eq");
@@ -770,12 +812,6 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
                     necro_create_declaration_list(&prim_types->arena, lte_method_sig, NULL))));
     NecroASTNode* ord_class_ast   = necro_create_type_class_ast(&prim_types->arena, intern, "Ord", "a", necro_create_context(&prim_types->arena, intern, "Eq", "a", NULL), ord_method_list);
     NecroPrimDef* ord_class_def   = necro_prim_def_class(prim_types, intern, &prim_types->ord_type_class, ord_class_ast);
-
-    // Prim Numbers
-    necro_create_prim_num(prim_types, intern, &prim_types->int_type, "Int");
-    necro_create_prim_num(prim_types, intern, &prim_types->float_type, "Float");
-    necro_create_prim_num(prim_types, intern, &prim_types->audio_type, "Audio");
-    necro_create_prim_num(prim_types, intern, &prim_types->rational_type, "Rational");
 
     // Num
     NecroASTNode* add_method_sig    = necro_create_class_bin_op_sig(&prim_types->arena, intern, "add");
@@ -812,11 +848,11 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     NecroPrimDef* fractional_class_def = necro_prim_def_class(prim_types, intern, &prim_types->fractional_type_class, fractional_class_ast);
 
     // Prim Num Instances
-    necro_create_prim_num_instances(prim_types, intern, "Pattern", true, true);
     necro_create_prim_num_instances(prim_types, intern, "Int", false, false);
     necro_create_prim_num_instances(prim_types, intern, "Float", false, true);
     necro_create_prim_num_instances(prim_types, intern, "Audio", false, true);
     necro_create_prim_num_instances(prim_types, intern, "Rational", false, true);
+    necro_create_prim_num_instances(prim_types, intern, "Pattern", true, true);
 
     // (,)
     NecroASTNode* tuple_2_s_type      = necro_create_simple_type_ast(&prim_types->arena, intern, "(,)", necro_create_var_list_ast(&prim_types->arena, intern, 2, NECRO_VAR_TYPE_VAR_DECLARATION));

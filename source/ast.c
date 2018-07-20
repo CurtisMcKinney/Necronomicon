@@ -946,6 +946,7 @@ NecroASTNode* necro_create_instance_ast(NecroPagedArena* arena, NecroIntern* int
     ast->type_class_instance.inst                 = inst_ast;
     ast->type_class_instance.context              = context_ast;
     ast->type_class_instance.declarations         = declarations_ast;
+    ast->type_class_instance.dictionary_instance  = NULL;
     ast->type_class_declaration.declaration_group = NULL;
     ast->type_class_instance.instance_name        = necro_create_type_class_instance_name(intern, ast);
     return ast;

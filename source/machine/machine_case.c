@@ -5,6 +5,7 @@
 
 #include "machine_case.h"
 #include "symtable.h"
+#include "machine_build.h"
 
 /*
     TODO:
@@ -590,7 +591,7 @@ NecroMachineAST* necro_core_to_machine_3_case(NecroMachineProgram* program, Necr
     // LLVMValueRef       case_result     = LLVMBuildPhi(codegen->builder, LLVMPointerType(necro_type_to_llvm_type(codegen, ast->case_expr.type, false), 0), "case_result");
     NecroMachineAST*  term_case_block  = (next_block != NULL) ? necro_insert_block_before(program, outer->machine_def.update_fn, "case_end", next_block) : necro_append_block(program, outer->machine_def.update_fn, "case_end");
     necro_move_to_block(program, outer->machine_def.update_fn, term_case_block);
-    NecroMachineAST*  case_result      = necro_build_phi(program, outer->machine_def.update_fn, necro_create_machine_ptr_type(&program->arena, necro_type_to_machine_type(program, ast->case_expr.type)), NULL);
+    NecroMachineAST*  case_result      = necro_build_phi(program, outer->machine_def.update_fn, necro_make_ptr_if_boxed(program, necro_type_to_machine_type(program, ast->case_expr.type)), NULL);
     // HACK
     NecroMachineAST*  result_phi       = outer->machine_def.update_fn->fn_def._curr_block->block.statements[outer->machine_def.update_fn->fn_def._curr_block->block.num_statements - 1];
     // result_phi->necro_machine_type     = case_result->necro_machine_type;

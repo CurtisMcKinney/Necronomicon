@@ -71,6 +71,7 @@ set(project_SOURCES
     source/type/infer.c
     source/type/prim.c
     source/type/type_class.c
+    source/type/derive.c
 
     source/core/core.c
     source/core/closure_conversion.c
@@ -82,6 +83,7 @@ set(project_SOURCES
     source/machine/machine_print.c
     source/machine/machine_prim.c
     source/machine/machine_case.c
+    source/machine/machine_build.c
 
     source/codegen/codegen_llvm.c
     )
@@ -115,6 +117,7 @@ set(project_HEADERS
     source/type/infer.h
     source/type/prim.h
     source/type/type_class.h
+    source/type/derive.h
 
     source/core/core.h
     source/core/closure_conversion.h
@@ -125,7 +128,8 @@ set(project_HEADERS
     source/machine/machine_type.h
     source/machine/machine_print.h
     source/machine/machine_prim.h
-    source/machine/machine_case.c
+    source/machine/machine_case.h
+    source/machine/machine_build.h
 
     source/codegen/codegen_llvm.h
     )

@@ -30,6 +30,7 @@
 
 void necro_compile_impl(
     const char* input_string,
+    bool should_optimize,
     NECRO_PHASE compilation_phase,
     NecroInfer* infer,
     NecroParser* parser,
@@ -295,7 +296,7 @@ void necro_compile_impl(
     if (compilation_phase != NECRO_PHASE_JIT)
         necro_announce_phase("CodeGen");
     necro_start_timer(timer);
-    *codegen_llvm = necro_create_codegen_llvm(&lexer->intern, &symtable, &prim_types);
+    *codegen_llvm = necro_create_codegen_llvm(&lexer->intern, &symtable, &prim_types, should_optimize);
     *destruct_flags |= BIT(NECRO_PHASE_CODEGEN);
     if (necro_codegen_llvm(codegen_llvm, machine) != NECRO_SUCCESS)
         return;
@@ -321,7 +322,7 @@ bool validate_destruct_phase(NECRO_PHASE requested_phase, uint32_t destruct_flag
     return (destruct_flags & BIT(requested_phase)) != 0;
 }
 
-void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
+void necro_compile_go(const char* input_string, NECRO_PHASE compilation_phase, bool should_optimize)
 {
     uint32_t destruct_flags = 0;
     NecroInfer infer;
@@ -336,6 +337,7 @@ void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
 
     necro_compile_impl(
         input_string,
+        should_optimize,
         compilation_phase,
         &infer,
         &parser,
@@ -420,4 +422,14 @@ void necro_test(NECRO_TEST test)
         break;
     default: break;
     }
+}
+
+void necro_compile_opt(const char* input_string, NECRO_PHASE compilation_phase)
+{
+    necro_compile_go(input_string, compilation_phase, true);
+}
+
+void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
+{
+    necro_compile_go(input_string, compilation_phase, false);
 }

@@ -36,3 +36,20 @@ patTest = beat
         x = 0.5 * 2
         y = beat 0 _ 1 _
         z = 666 * 323
+
+patTest :: Pattern Audio
+patTest = beat
+    0 z _ x
+    _ 3 y z
+    with
+        x <- 0.5 * 2
+        y <- beat 0 _ 1 _
+        z <- 666 * 323
+
+patTest :: Pattern Audio
+patTest = do
+    x <- 0.5 * 2
+    y <- beat 0 _ 1 _
+    z <- 666 * 323
+    beat 0 z _ x
+         _ 3 y z

@@ -19,5 +19,6 @@ void           necro_kind_unify(NecroInfer* infer, NecroTypeKind* kind1, NecroTy
 NecroTypeKind* necro_kind_inst(NecroInfer* infer, NecroTypeKind* kind, NecroScope* scope);
 NecroTypeKind* necro_kind_gen(NecroInfer* infer, NecroTypeKind* kind);
 NecroTypeKind* necro_kind_infer(NecroInfer* infer, NecroType* type, NecroType* macro_type, const char* error_preamble);
+size_t         necro_kind_arity(NecroType* type);
 
 #endif // KIND_H

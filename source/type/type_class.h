@@ -99,11 +99,8 @@ NECRO_RETURN_CODE                necro_type_class_translate(NecroInfer* infer, N
 void                             necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_context, NecroInfer* infer, NecroNode* ast);
 void                             necro_create_dictionary_data_declaration(NecroPagedArena* arena, NecroIntern* intern, NecroASTNode* type_class_ast);
 
-//=====================================================
-// Refactor
-//=====================================================
 NecroTypeClassInstance* necro_get_type_class_instance(NecroInfer* infer, NecroSymbol data_type_name, NecroSymbol type_class_name);
-void necro_create_type_class(NecroInfer* infer, NecroNode* type_class_ast);
-void necro_create_type_class_instance(NecroInfer* infer, NecroNode* instance_ast);
+void                    necro_create_type_class(NecroInfer* infer, NecroNode* type_class_ast);
+void                    necro_create_type_class_instance(NecroInfer* infer, NecroNode* instance_ast);
 
 #endif // TYPE_CLASS_H

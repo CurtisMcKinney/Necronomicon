@@ -54,5 +54,6 @@ typedef enum
 
 void necro_test(NECRO_TEST test);
 void necro_compile(const char* input_string, NECRO_PHASE compilation_phase);
+void necro_compile_opt(const char* input_string, NECRO_PHASE compilation_phase);
 
 #endif // DRIVER_H

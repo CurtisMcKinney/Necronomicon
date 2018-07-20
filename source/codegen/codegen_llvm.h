@@ -63,9 +63,10 @@ typedef struct NecroCodeGenLLVM
     LLVMTypeRef               poly_type;
     NecroVar                  necro_alloc_var;
     NecroRuntimeMappingVector runtime_mapping;
+    bool                      should_optimize;
 } NecroCodeGenLLVM;
 
-NecroCodeGenLLVM necro_create_codegen_llvm(NecroIntern* intern, struct NecroSymTable* symtable, NecroPrimTypes* prim_types);
+NecroCodeGenLLVM necro_create_codegen_llvm(NecroIntern* intern, struct NecroSymTable* symtable, NecroPrimTypes* prim_types, bool should_optimize);
 void             necro_destroy_codegen_llvm(NecroCodeGenLLVM* codegen);
 
 NECRO_RETURN_CODE necro_codegen_llvm(NecroCodeGenLLVM* codegen, NecroMachineProgram* program);

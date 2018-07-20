@@ -26,6 +26,7 @@ bool try_create_name(NecroRenamer* renamer, NecroAST_Node_Reified* node, NecroSc
     NecroID id = necro_this_scope_find(scope, symbol);
     if (id.id != 0)
     {
+        NecroSymbolInfo* info = necro_symtable_get(renamer->scoped_symtable->global_table, id);
         NecroSourceLoc original_source_loc = renamer->scoped_symtable->global_table->data[id.id].source_loc;
         necro_error(&renamer->error, node->source_loc, "Multiple definitions for \'%s\'.\n Original definition found at line: %d", necro_intern_get_string(renamer->scoped_symtable->global_table->intern, symbol), original_source_loc.line);
         return false;

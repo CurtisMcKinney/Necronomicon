@@ -165,7 +165,6 @@ NecroCoreAST_Expression* necro_closure_conversion_var(NecroClosureConversion* cc
 
 typedef struct NecroBuildBindClosureType
 {
-    // NecroVar                 bind_var;
     NecroCoreAST_Expression* expr;
     NecroType*               closure_type;
     NecroType*               closure_type_head;
@@ -280,7 +279,8 @@ void necro_build_data_closure_type(NecroClosureConversion* cc, NecroBuildDataCon
         left_type = necro_create_type_con(cc->infer, cc->prim_types->closure_type, necro_create_type_list(cc->infer, fun_left, NULL), 1);
         left_arg  = necro_create_core_app(&cc->arena, necro_create_core_var(&cc->arena, necro_con_to_var(cc->prim_types->closure_type)), left_arg);
     }
-    left_arg->necro_type = left_type;
+    if (left_arg != NULL)
+        left_arg->necro_type = left_type;
     if (builder->closure_type == NULL)
     {
         builder->closure_type_head = necro_create_type_fun(cc->infer, left_type, NULL);

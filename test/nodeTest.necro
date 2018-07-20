@@ -1,7 +1,7 @@
+data Maybe a = Just a | Nothing
 -- data Nullary    = Nullary
 -- data Unary      = Unary Nullary
 -- data Both       = Both Nullary Unary
--- data Maybe  a   = Just a | Nothing
 -- data Either a b = Left a | Right b
 -- data List a     = Cons a (List a) | Nil
 -- data HigherOrder = HigherOrder (Int -> Int)
@@ -179,10 +179,6 @@
 -- main =
 --     oneHundredThousandTimes 1 + oneHundredThousandTimes 1
 
-main :: Int
-main = 10
-
--- data Maybe a = Just a | Nothing
 -- gMaybe :: Maybe a
 -- gMaybe = Nothing
 
@@ -292,3 +288,50 @@ main = 10
 
 -- main :: Int
 -- main = 0
+
+-- data CoolInt = CoolInt Int Float
+
+-- constInt :: Int
+-- constInt = 2000
+
+-- main :: Int
+-- main = 10 * 666 + constInt
+
+-- mouseX :: Int
+-- mouseX = getMouseX world
+
+-- addOne :: Int -> Int
+-- addOne x = x + 1
+
+-- addOne' :: CoolInt -> Int -> Float -> CoolInt
+-- addOne' c x f = CoolInt (x + 1) (f * 3.3)
+
+-- coolId :: CoolInt -> CoolInt
+-- coolId c = c
+
+-- gimmeInt :: CoolInt -> CoolInt
+-- gimmeInt c =
+--     case c of
+--         CoolInt i f -> CoolInt (i * 1000) f
+
+-- constInt :: Int
+-- constInt = 10
+
+-- constCool :: CoolInt
+-- constCool = CoolInt constInt 1.1
+
+-- useConstCool :: Int
+-- useConstCool =
+--     case constCool of
+--         CoolInt i _ -> i
+
+counter :: Maybe Int
+counter = x where
+    x = delay (Just 100) x
+
+counter' :: Int
+counter' = x where
+    x = delay 0 x
+
+main :: Int
+main = 10

@@ -274,6 +274,7 @@ typedef struct
 typedef struct
 {
     NecroSymbol                   variable_name;
+    struct NecroAST_Node_Reified* initializer;
     struct NecroAST_Node_Reified* rhs;
     NecroID                       id;
     struct NecroDeclarationGroup* declaration_group;

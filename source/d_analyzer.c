@@ -278,6 +278,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
                 necro_error(&d_analyzer->error, ast->source_loc, "Multiple declarations of: %s", necro_intern_get_string(d_analyzer->intern, ast->simple_assignment.variable_name));
                 return;
             }
+            d_analyze_go(d_analyzer, current_group->declaration_ast->simple_assignment.initializer);
             d_analyze_go(d_analyzer, current_group->declaration_ast->simple_assignment.rhs);
             initial_group->low_link = min(initial_group->low_link, current_group->low_link);
             current_group = current_group->next;
@@ -293,6 +294,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         }
         ast->simple_assignment.declaration_group->info->current_group = ast->simple_assignment.declaration_group;
         necro_strong_connect2(d_analyzer->arena, ast->simple_assignment.declaration_group);
+        necro_symtable_get(d_analyzer->symtable, ast->simple_assignment.id)->ast = ast;
         break;
     }
 

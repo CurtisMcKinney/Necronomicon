@@ -167,6 +167,7 @@ NecroType*  necro_alloc_type(NecroInfer* infer);
 void*       necro_infer_error(NecroInfer* infer, const char* error_preamble, NecroType* type, const char* error_message, ...);
 
 void        necro_unify(NecroInfer* infer, NecroType* type1, NecroType* type2, struct NecroScope* scope, NecroType* macro_type, const char* error_preamble);
+bool        necro_exact_unify(NecroType* type1, NecroType* type2);
 
 NecroType*  necro_inst(NecroInfer* infer, NecroType* poly_type, struct NecroScope* scope);
 NecroType*  necro_inst_with_context(NecroInfer* infer, NecroType* type, struct NecroScope* scope, struct NecroTypeClassContext** inst_context);
@@ -187,6 +188,7 @@ NecroType*  necro_create_type_app(NecroInfer* infer, NecroType* type1, NecroType
 NecroType*  necro_create_type_list(NecroInfer* infer, NecroType* item, NecroType* next);
 NecroType*  necro_create_for_all(NecroInfer* infer, NecroVar var, struct NecroTypeClassContext* context, NecroType* type);
 NecroType*  necro_duplicate_type(NecroInfer* infer, NecroType* type);
+size_t      necro_type_hash(NecroType* type);
 
 NecroType*  necro_make_con_1(NecroInfer* infer,  NecroCon con, NecroType* arg1);
 NecroType*  necro_make_con_2(NecroInfer* infer,  NecroCon con, NecroType* arg1, NecroType* arg2);

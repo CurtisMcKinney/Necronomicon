@@ -145,6 +145,14 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
 
     case NECRO_AST_SIMPLE_ASSIGNMENT:
         printf("(Assignment: %s, id: %d)\n", necro_intern_get_string(intern, ast_node->simple_assignment.variable_name), ast_node->simple_assignment.id.id);
+        if (ast_node->simple_assignment.initializer != NULL)
+        {
+            print_white_space(depth * 2);
+            printf("<\n");
+            print_reified_ast_impl(ast_node->simple_assignment.initializer, intern, depth);
+            print_white_space(depth * 2);
+            printf(">\n");
+        }
         print_reified_ast_impl(ast_node->simple_assignment.rhs, intern, depth + 1);
         break;
 
@@ -602,6 +610,7 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
         reified_node->declaration.group_list       = NULL;
         break;
     case NECRO_AST_SIMPLE_ASSIGNMENT:
+        reified_node->simple_assignment.initializer       = necro_reify(a_ast, node->simple_assignment.initializer, arena, intern);
         reified_node->simple_assignment.rhs               = necro_reify(a_ast, node->simple_assignment.rhs, arena, intern);
         reified_node->simple_assignment.variable_name     = node->simple_assignment.variable_name;
         reified_node->simple_assignment.declaration_group = NULL;
@@ -981,6 +990,7 @@ NecroASTNode* necro_create_simple_assignment(NecroPagedArena* arena, NecroIntern
     ast->simple_assignment.id                = (NecroID) { 0 };
     ast->simple_assignment.variable_name     = necro_intern_string(intern, var_name);
     ast->simple_assignment.rhs               = rhs_ast;
+    ast->simple_assignment.initializer       = NULL;
     ast->simple_assignment.declaration_group = NULL;
     ast->simple_assignment.is_recursive      = false;
     return ast;

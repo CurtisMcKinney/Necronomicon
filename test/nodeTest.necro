@@ -325,13 +325,34 @@ data Maybe a = Just a | Nothing
 --     case constCool of
 --         CoolInt i _ -> i
 
-counter :: Maybe Int
-counter = x where
-    x = delay (Just 100) x
+-- counter :: Maybe Int
+-- counter = x where
+--     x = delay (Just 100) x
+-- counter' :: Int
+-- counter' = x where
+--     x = delay 0 x
 
-counter' :: Int
-counter' = x where
-    x = delay 0 x
+-------------------------------------------------
+-- Instead of delays, use initialization values?
+counters :: Int
+counters = x where
+    x<0> = y + 1
+    y<0> = x + 1
+
+counter :: Int
+counter<0> = counter + 1
+
+mcounter :: Maybe Int
+mcounter = x where
+    x<Nothing> =
+        case x of
+            Nothing -> Just 1
+            Just _  -> Nothing
+
+mcounter' :: Maybe (Maybe Int)
+mcounter' = go where
+    go<Just (Just 10)> = go
 
 main :: Int
 main = 10
+

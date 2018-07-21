@@ -9,6 +9,7 @@
 #include "machine_case.h"
 #include "machine_print.h"
 #include "machine_build.h"
+#include "machine_persist.h"
 
 /*
     * https://www.microsoft.com/en-us/research/wp-content/uploads/1992/01/student.pdf
@@ -63,6 +64,7 @@ NecroMachineProgram necro_create_initial_machine_program(NecroIntern* intern, Ne
         .gen_vars        = 0,
         .necro_main      = NULL,
         .main_symbol     = necro_intern_string(symtable->intern, "main"),
+        .persist_table   = necro_create_machine_persist_table(symtable, prim_types),
     };
     program.necro_uint_type  = necro_create_word_sized_uint_type(&program.arena);
     program.necro_int_type   = necro_create_word_sized_int_type(&program.arena);
@@ -79,6 +81,7 @@ void necro_destroy_machine_program(NecroMachineProgram* program)
     necro_destroy_necro_machine_ast_vector(&program->globals);
     necro_destroy_necro_machine_ast_vector(&program->functions);
     necro_destroy_necro_machine_ast_vector(&program->machine_defs);
+    necro_destroy_machine_persist_table(&program->persist_table);
 }
 
 ///////////////////////////////////////////////////////
@@ -559,6 +562,8 @@ void necro_core_to_machine_2_var(NecroMachineProgram* program, NecroCoreAST_Expr
     }
     if (machine_ast->machine_def.is_persistent_slot_set)
         return;
+    // gen specialized increment and decrement
+    // necro_gen_specialized_persist(program, core_ast->var);
     machine_ast->machine_def.is_persistent_slot_set = true;
     NecroSlot slot = necro_add_member(program, &outer->machine_def, machine_ast->machine_def.value_type);
     necro_symtable_get(program->symtable, core_ast->var.id)->persistent_slot = slot.slot_num;

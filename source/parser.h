@@ -429,8 +429,9 @@ typedef struct
 
 typedef struct
 {
-    NecroSymbol variable_name;
+    NecroSymbol       variable_name;
     NecroAST_LocalPtr rhs;
+    NecroAST_LocalPtr initializer;
 } NecroAST_SimpleAssignment;
 
 //=====================================================

@@ -84,6 +84,7 @@ set(project_SOURCES
     source/machine/machine_prim.c
     source/machine/machine_case.c
     source/machine/machine_build.c
+    source/machine/machine_persist.c
 
     source/codegen/codegen_llvm.c
     )
@@ -130,6 +131,7 @@ set(project_HEADERS
     source/machine/machine_prim.h
     source/machine/machine_case.h
     source/machine/machine_build.h
+    source/machine/machine_persist.h
 
     source/codegen/codegen_llvm.h
     )

@@ -438,6 +438,7 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_R
         break;
     case NECRO_AST_SIMPLE_ASSIGNMENT:
         necro_scoped_symtable_new_scope(scoped_symtable);
+        necro_build_scopes_go(scoped_symtable, input_node->simple_assignment.initializer);
         necro_build_scopes_go(scoped_symtable, input_node->simple_assignment.rhs);
         necro_scoped_symtable_pop_scope(scoped_symtable);
         break;

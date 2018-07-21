@@ -18,6 +18,6 @@
 // void necro_derive_show(NecroInfer* infer, NecroASTNode* data_ast);
 // void necro_derive_eq(NecroInfer* infer, NecroASTNode* data_ast);
 // void necro_derive_ord(NecroInfer* infer, NecroASTNode* data_ast);
-void necro_derive_specialized_clone(NecroInfer* infer, NecroType* data_type);
+// void necro_derive_specialized_clone(NecroInfer* infer, NecroType* data_type);
 
 #endif // TYPE_DERIVE_H

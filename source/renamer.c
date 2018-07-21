@@ -83,6 +83,7 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         if (!try_create_name(renamer, input_node, input_node->scope, &input_node->simple_assignment.id, input_node->simple_assignment.variable_name))
             return;
         swap_renamer_class_symbol(renamer);
+        rename_declare_go(input_node->simple_assignment.initializer, renamer);
         rename_declare_go(input_node->simple_assignment.rhs, renamer);
         swap_renamer_class_symbol(renamer);
         break;
@@ -363,6 +364,7 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         rename_var_go(input_node->declaration.next_declaration, renamer);
         break;
     case NECRO_AST_SIMPLE_ASSIGNMENT:
+        rename_var_go(input_node->simple_assignment.initializer, renamer);
         rename_var_go(input_node->simple_assignment.rhs, renamer);
         renamer->scoped_symtable->global_table->data[input_node->simple_assignment.id.id].declaration_group =
             necro_append_declaration_group(renamer->arena, input_node, renamer->scoped_symtable->global_table->data[input_node->simple_assignment.id.id].declaration_group);

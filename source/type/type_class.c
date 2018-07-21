@@ -1302,11 +1302,13 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
     //=====================================================
     case NECRO_AST_SIMPLE_ASSIGNMENT:
     {
-        NecroType*                       type                   = necro_symtable_get(infer->symtable, ast->simple_assignment.id)->type;
+        NecroType*                       type                   = necro_find(necro_symtable_get(infer->symtable, ast->simple_assignment.id)->type);
         NecroTypeClassDictionaryContext* new_dictionary_context = dictionary_context;
         NecroASTNode*                    dictionary_args        = NULL;
         NecroASTNode*                    dictionary_args_head   = NULL;
         NecroASTNode*                    rhs = ast->simple_assignment.rhs;
+        if (!necro_is_fully_concrete(infer->symtable, type))
+            necro_infer_ast_error(infer, type, ast, "Only fully concrete (non-polymorphic) types may be used in initializer");
         while (type->type == NECRO_TYPE_FOR)
         {
             NecroTypeClassContext* for_all_context = type->for_all.context;
@@ -1604,7 +1606,7 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
         {
             necro_infer_ast_error(infer, delay_type, ast, "delay cannot be called on unsized types (i.e., recursive types, function closures, etc). Consider using trimDelay");
         }
-        necro_derive_specialized_clone(infer, delay_type);
+        // necro_derive_specialized_clone(infer, delay_type);
         break;
     }
 

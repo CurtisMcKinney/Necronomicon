@@ -345,9 +345,8 @@ pat :: a..a -> Event a
 rand  :: Rand a => a
 srand :: Rand a => Int -> a
 
-input pulseDemon <- loadBuffer "pulseDemon.aiff"
-input mouseX     <- mouseXIn
-input mouseClick <- mouseClickIn
+pulseDemon :: AudioBuffer
+pulseDemon = loadBuffer "pulseDemon.aiff" world
 
 synth :: Audio -> Audio
 synth freq = osc where

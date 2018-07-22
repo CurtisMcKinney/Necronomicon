@@ -353,6 +353,11 @@ mcounter' :: Maybe (Maybe Int)
 mcounter' = go where
     go<Just (Just 10)> = go
 
+synth :: Audio -> Audio
+synth freq = osc |> verb 0.1 0.2 |> mul 0.1 where
+    osc<0> = 440 * mouseX + freq * osc |> sinOsc
+
+
 main :: Int
 main = 10
 

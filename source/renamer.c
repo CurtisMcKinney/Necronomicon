@@ -26,6 +26,7 @@ bool try_create_name(NecroRenamer* renamer, NecroAST_Node_Reified* node, NecroSc
     NecroID id = necro_this_scope_find(scope, symbol);
     if (id.id != 0)
     {
+        NecroSymbolInfo* info = necro_symtable_get(renamer->scoped_symtable->global_table, id);
         NecroSourceLoc original_source_loc = renamer->scoped_symtable->global_table->data[id.id].source_loc;
         necro_error(&renamer->error, node->source_loc, "Multiple definitions for \'%s\'.\n Original definition found at line: %d", necro_intern_get_string(renamer->scoped_symtable->global_table->intern, symbol), original_source_loc.line);
         return false;
@@ -82,6 +83,7 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         if (!try_create_name(renamer, input_node, input_node->scope, &input_node->simple_assignment.id, input_node->simple_assignment.variable_name))
             return;
         swap_renamer_class_symbol(renamer);
+        rename_declare_go(input_node->simple_assignment.initializer, renamer);
         rename_declare_go(input_node->simple_assignment.rhs, renamer);
         swap_renamer_class_symbol(renamer);
         break;
@@ -187,8 +189,14 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
     case NECRO_AST_EXPRESSION_LIST:
         rename_declare_go(input_node->expression_list.expressions, renamer);
         break;
-    case NECRO_AST_EXPRESSION_SEQUENCE:
-        rename_declare_go(input_node->expression_sequence.expressions, renamer);
+    case NECRO_AST_DELAY:
+        rename_declare_go(input_node->delay.init_expr, renamer);
+        rename_declare_go(input_node->delay.delayed_var, renamer);
+        break;
+    case NECRO_AST_TRIM_DELAY:
+        rename_declare_go(input_node->trim_delay.int_literal, renamer);
+        rename_declare_go(input_node->trim_delay.init_expr, renamer);
+        rename_declare_go(input_node->trim_delay.delayed_var, renamer);
         break;
     case NECRO_AST_PAT_EXPRESSION:
         rename_declare_go(input_node->pattern_expression.expressions, renamer);
@@ -356,6 +364,7 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         rename_var_go(input_node->declaration.next_declaration, renamer);
         break;
     case NECRO_AST_SIMPLE_ASSIGNMENT:
+        rename_var_go(input_node->simple_assignment.initializer, renamer);
         rename_var_go(input_node->simple_assignment.rhs, renamer);
         renamer->scoped_symtable->global_table->data[input_node->simple_assignment.id.id].declaration_group =
             necro_append_declaration_group(renamer->arena, input_node, renamer->scoped_symtable->global_table->data[input_node->simple_assignment.id.id].declaration_group);
@@ -442,8 +451,14 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
     case NECRO_AST_EXPRESSION_LIST:
         rename_var_go(input_node->expression_list.expressions, renamer);
         break;
-    case NECRO_AST_EXPRESSION_SEQUENCE:
-        rename_var_go(input_node->expression_sequence.expressions, renamer);
+    case NECRO_AST_DELAY:
+        rename_var_go(input_node->delay.init_expr, renamer);
+        rename_var_go(input_node->delay.delayed_var, renamer);
+        break;
+    case NECRO_AST_TRIM_DELAY:
+        rename_var_go(input_node->trim_delay.int_literal, renamer);
+        rename_var_go(input_node->trim_delay.init_expr, renamer);
+        rename_var_go(input_node->trim_delay.delayed_var, renamer);
         break;
     case NECRO_AST_PAT_EXPRESSION:
         rename_var_go(input_node->pattern_expression.expressions, renamer);

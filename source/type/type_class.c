@@ -6,11 +6,12 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <stdarg.h>
+#include "type_class.h"
 #include "infer.h"
 #include "symtable.h"
 #include "kind.h"
-#include "type\prim.h"
-#include "type_class.h"
+#include "type/prim.h"
+#include "type/derive.h"
 
 /*
 TODO:
@@ -810,12 +811,12 @@ void necro_create_dictionary_data_declaration(NecroPagedArena* arena, NecroInter
     {
         if (dictionary_args_head == NULL)
         {
-            dictionary_args_head = necro_create_ast_list(arena, necro_create_conid_ast(arena, intern, "Any#", NECRO_CON_TYPE_VAR), NULL);
+            dictionary_args_head = necro_create_ast_list(arena, necro_create_conid_ast(arena, intern, "_Poly", NECRO_CON_TYPE_VAR), NULL);
             dictionary_args      = dictionary_args_head;
         }
         else
         {
-            dictionary_args->list.next_item = necro_create_ast_list(arena, necro_create_conid_ast(arena, intern, "Any#", NECRO_CON_TYPE_VAR), NULL);
+            dictionary_args->list.next_item = necro_create_ast_list(arena, necro_create_conid_ast(arena, intern, "_Poly", NECRO_CON_TYPE_VAR), NULL);
             dictionary_args                 = dictionary_args->list.next_item;
         }
         members = members->declaration.next_declaration;
@@ -1301,11 +1302,13 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
     //=====================================================
     case NECRO_AST_SIMPLE_ASSIGNMENT:
     {
-        NecroType*                       type                   = necro_symtable_get(infer->symtable, ast->simple_assignment.id)->type;
+        NecroType*                       type                   = necro_find(necro_symtable_get(infer->symtable, ast->simple_assignment.id)->type);
         NecroTypeClassDictionaryContext* new_dictionary_context = dictionary_context;
         NecroASTNode*                    dictionary_args        = NULL;
         NecroASTNode*                    dictionary_args_head   = NULL;
         NecroASTNode*                    rhs = ast->simple_assignment.rhs;
+        if (ast->simple_assignment.initializer != NULL && !necro_is_fully_concrete(infer->symtable, type))
+            necro_infer_ast_error(infer, type, ast, "Only fully concrete (non-polymorphic) types may be used in initializer");
         while (type->type == NECRO_TYPE_FOR)
         {
             NecroTypeClassContext* for_all_context = type->for_all.context;
@@ -1337,6 +1340,7 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
             *new_rhs = *rhs;
             *rhs = *necro_create_lambda_ast(&infer->arena, dictionary_args_head, new_rhs);
         }
+        necro_type_class_translate_go(new_dictionary_context, infer, ast->simple_assignment.initializer);
         necro_type_class_translate_go(new_dictionary_context, infer, rhs);
         break;
     }
@@ -1590,8 +1594,28 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
         necro_type_class_translate_go(dictionary_context, infer, ast->expression_list.expressions);
         break;
 
-    case NECRO_AST_EXPRESSION_SEQUENCE:
-        necro_type_class_translate_go(dictionary_context, infer, ast->expression_sequence.expressions);
+    case NECRO_AST_DELAY:
+    {
+        necro_type_class_translate_go(dictionary_context, infer, ast->delay.init_expr);
+        necro_type_class_translate_go(dictionary_context, infer, ast->delay.delayed_var);
+        NecroType* delay_type = necro_find(ast->necro_type);
+        if (!necro_is_fully_concrete(infer->symtable, delay_type))
+        {
+            necro_infer_ast_error(infer, delay_type, ast, "delay must be called on fully concrete types.");
+        }
+        else if (!necro_is_sized(infer->symtable, delay_type))
+        {
+            necro_infer_ast_error(infer, delay_type, ast, "delay cannot be called on unsized types (i.e., recursive types, function closures, etc). Consider using trimDelay");
+        }
+        // necro_derive_specialized_clone(infer, delay_type);
+        break;
+    }
+
+    case NECRO_AST_TRIM_DELAY:
+        // necro_type_class_translate_go(dictionary_context, infer, ast->trim_delay.int_literal);
+        necro_type_class_translate_go(dictionary_context, infer, ast->trim_delay.init_expr);
+        necro_type_class_translate_go(dictionary_context, infer, ast->trim_delay.delayed_var);
+        assert(false && "TODO");
         break;
 
     case NECRO_AST_PAT_EXPRESSION:

@@ -71,17 +71,22 @@ set(project_SOURCES
     source/type/infer.c
     source/type/prim.c
     source/type/type_class.c
+    source/type/derive.c
 
     source/core/core.c
+    source/core/closure_conversion.c
+    source/core/core_pretty_print.c
+    source/core/core_create.c
 
-    source/node/node.c
-    source/node/node_type.c
-    source/node/node_print.c
-    source/node/node_prim.c
+    source/machine/machine.c
+    source/machine/machine_type.c
+    source/machine/machine_print.c
+    source/machine/machine_prim.c
+    source/machine/machine_case.c
+    source/machine/machine_build.c
+    source/machine/machine_persist.c
 
-    source/codegen/codegen.c
-    source/codegen/case.c
-    source/codegen/closure.c
+    source/codegen/codegen_llvm.c
     )
 
 set(project_HEADERS
@@ -113,23 +118,29 @@ set(project_HEADERS
     source/type/infer.h
     source/type/prim.h
     source/type/type_class.h
+    source/type/derive.h
 
     source/core/core.h
+    source/core/closure_conversion.h
+    source/core/core_pretty_print.h
+    source/core/core_create.h
 
-    source/node/node.h
-    source/node/node_type.h
-    source/node/node_print.h
-    source/node/node_prim.h
+    source/machine/machine.h
+    source/machine/machine_type.h
+    source/machine/machine_print.h
+    source/machine/machine_prim.h
+    source/machine/machine_case.h
+    source/machine/machine_build.h
+    source/machine/machine_persist.h
 
-    source/codegen/codegen.h
-    source/codegen/case.h
-    source/codegen/closure.h
+    source/codegen/codegen_llvm.h
     )
 
 ADD_EXECUTABLE(necro ${project_HEADERS} ${project_SOURCES})
 
 # Find the libraries that correspond to the LLVM components
 # that we wish to use
-llvm_map_components_to_libnames(llvm_libs support core irreader analysis target ScalarOpts native passes mcjit)
+# llvm_map_components_to_libnames(llvm_libs support core irreader analysis target ScalarOpts native passes mcjit)
+llvm_map_components_to_libnames(llvm_libs core native passes mcjit)
 
 TARGET_LINK_LIBRARIES(necro ${llvm_libs})

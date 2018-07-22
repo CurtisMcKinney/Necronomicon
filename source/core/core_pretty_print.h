@@ -3,16 +3,17 @@
  * Proprietary and confidential
  */
 
-#ifndef NECRO_NODE_PRIM_H
-#define NECRO_NODE_PRIM_H 1
+#ifndef CORE_PRETTY_PRINT_H
+#define CORE_PRETTY_PRINT_H 1
 
 #include <stdlib.h>
 #include <stdint.h>
 #include <assert.h>
 #include <stdbool.h>
 
-#include "node.h"
+#include "core.h"
+#include "symtable.h"
 
-void necro_init_node_prim(NecroNodeProgram* program);
+void necro_core_pretty_print(NecroCoreAST* ast, NecroSymTable* symtable);
 
-#endif // NECRO_NODE_PRIM_H
+#endif // CORE_PRETTY_PRINT_H

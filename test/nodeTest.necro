@@ -1,13 +1,14 @@
-data Nullary    = Nullary
-data Unary      = Unary Nullary
-data Both       = Both Nullary Unary
-data Maybe  a   = Just a | Nothing
-data Either a b = Left a | Right b
-data List a     = Cons a (List a) | Nil
+data Maybe a = Just a | Nothing
+-- data Nullary    = Nullary
+-- data Unary      = Unary Nullary
+-- data Both       = Both Nullary Unary
+-- data Either a b = Left a | Right b
+-- data List a     = Cons a (List a) | Nil
+-- data HigherOrder = HigherOrder (Int -> Int)
 
 -- simple :: Nullary
 -- simple = Nullary
-
+--
 -- unaryNow :: Unary
 -- unaryNow = Unary x where
 --     x = Nullary
@@ -22,16 +23,34 @@ data List a     = Cons a (List a) | Nil
 --     x = x
 --     y = y
 
+-- -- Normal
 -- fnTest :: Nullary -> Nullary
 -- fnTest n = n
---
+-- appFnTest :: Nullary
+-- appFnTest = fnTest Nullary
+
+-- -- Stateful
 -- feedFn :: Nullary -> Unary
 -- feedFn n = x where
 --     x = x
---
 -- appFeedFn :: Unary
 -- appFeedFn = feedFn Nullary
---
+
+-- -- Recursive
+-- fnRec :: Nullary -> Nullary
+-- fnRec n = fnRec n
+-- appFnRec :: Nullary
+-- appFnRec = fnRec (fnRec Nullary)
+
+-- -- Stateful / Recursive
+-- feedFnRec :: Nullary -> Nullary
+-- feedFnRec n = feedFnRec n where
+--     x = x
+-- appFeedFnRec :: Nullary
+-- appFeedFnRec = feedFnRec Nullary
+
+-- globalTest :: Nullary
+-- globalTest = Nullary
 
 -- useGlobal :: Unary
 -- useGlobal = Unary globalTest
@@ -55,57 +74,54 @@ data List a     = Cons a (List a) | Nil
 -- unitTest :: ()
 -- unitTest = ()
 
-nested1 :: Nullary -> Nullary
-nested1 n = x where
-    x = x
+-- nested1 :: Nullary -> Nullary
+-- nested1 n = x where
+--     x = x
+--
+-- nested2 :: Nullary -> Nullary
+-- nested2 n = nested1 (nested1 n)
+--
+-- nested4 :: Nullary -> Nullary
+-- nested4 n = nested2 (nested2 n)
+--
+-- nested8 :: Nullary -> Nullary
+-- nested8 n = nested4 (nested4 n)
+--
+-- nested16 :: Nullary -> Nullary
+-- nested16 n = nested8 (nested8 n)
+--
+-- nested32 :: Nullary -> Nullary
+-- nested32 n = nested16 (nested16 n)
+--
+-- nested64 :: Nullary -> Nullary
+-- nested64 n = nested32 (nested32 n)
+--
+-- nested128 :: Nullary -> Nullary
+-- nested128 n = nested64 (nested64 n)
+--
+-- nested256 :: Nullary -> Nullary
+-- nested256 n = nested128 (nested128 n)
+--
+-- nested512 :: Nullary -> Nullary
+-- nested512 n = nested256 (nested256 n)
+--
+-- nested1024 :: Nullary -> Nullary
+-- nested1024 n = nested512 (nested512 n)
+--
+-- topNested :: Nullary
+-- topNested = nested1024 Nullary
 
-nested2 :: Nullary -> Nullary
-nested2 n = nested1 (nested1 n)
-
-nested4 :: Nullary -> Nullary
-nested4 n = nested2 (nested2 n)
-
-nested8 :: Nullary -> Nullary
-nested8 n = nested4 (nested4 n)
-
-nested16 :: Nullary -> Nullary
-nested16 n = nested8 (nested8 n)
-
-nested32 :: Nullary -> Nullary
-nested32 n = nested16 (nested16 n)
-
-nested64 :: Nullary -> Nullary
-nested64 n = nested32 (nested32 n)
-
-nested128 :: Nullary -> Nullary
-nested128 n = nested64 (nested64 n)
-
-nested256 :: Nullary -> Nullary
-nested256 n = nested128 (nested128 n)
-
-nested512 :: Nullary -> Nullary
-nested512 n = nested256 (nested256 n)
-
-nested1024 :: Nullary -> Nullary
-nested1024 n = nested512 (nested512 n)
-
-topNested :: Nullary
-topNested = nested1024 Nullary
-
-globalTest :: Nullary
-globalTest = Nullary
-
-intTest :: Int
-intTest = 1 + 2 * 3 + 4 - 100
-
-impossible :: Nullary
-impossible = x where
-    x = x
-
-stateFn :: Nullary -> Nullary
-stateFn n = x where
-    x = x
-
+-- intTest :: Int
+-- intTest = 1 + 2 * 3 + 4 - 100
+--
+-- impossible :: Nullary
+-- impossible = x where
+--     x = x
+--
+-- stateFn :: Nullary -> Nullary
+-- stateFn n = x where
+--     x = x
+--
 -- fn1 :: Nullary -> Nullary
 -- fn1 n = n
 
@@ -116,9 +132,226 @@ stateFn n = x where
 -- recFn1 :: Nullary -> Nullary
 -- recFn1 n = recFn1 n
 
-recFn2 :: Nullary -> Nullary
-recFn2 n = recFn2 n where
-    x = x
+-- recFn2 :: Nullary -> Nullary
+-- recFn2 n = recFn2 (recFn2 n) where
+--     x = x
 
-useRecFn2 :: Nullary
-useRecFn2 = recFn2 (recFn2 Nullary)
+-- useRecFn2 :: Nullary
+-- useRecFn2 = recFn2 Nullary
+
+-- constInt :: Int
+-- constInt = 100
+--
+-- constInt2 :: Int
+-- constInt2 = 100 + constInt
+--
+-- globalFeed :: Int
+-- globalFeed = 100 + globalFeed
+--
+-- main :: Int
+-- main = globalFeed
+
+-- -- Many stateful calculations at 100 ticks per second
+-- integrate :: Int -> Int
+-- integrate delta = feed where
+--     feed<0> = delta + feed
+-- tenTimes :: Int -> Int
+-- tenTimes n =
+--     integrate n + integrate n + integrate n + integrate n + integrate n +
+--     integrate n + integrate n + integrate n + integrate n + integrate n
+-- oneHundredTimes :: Int -> Int
+-- oneHundredTimes n =
+--     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
+--     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
+-- oneThousandTimes :: Int -> Int
+-- oneThousandTimes n =
+--     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
+--     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
+-- tenThousandTimes :: Int -> Int
+-- tenThousandTimes n =
+--     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
+--     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
+-- oneHundredThousandTimes :: Int -> Int
+-- oneHundredThousandTimes n =
+--     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n +
+--     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
+-- main :: Int
+-- main =
+--     oneHundredThousandTimes 1 + oneHundredThousandTimes 1
+
+-- gMaybe :: Maybe a
+-- gMaybe = Nothing
+
+-- constInt :: Int
+-- constInt = 100
+-- main :: Int
+-- main = constInt + x where
+--     x = delay 0 x
+
+-- mouseX :: Int
+-- mouseX = getMouseX world
+-- main :: Int
+-- main = x * mouseX where
+--     x = 1 + delay 0 x
+
+-- caseTest :: Either Int (Maybe Int) -> Int
+-- caseTest e =
+--     case e of
+--         Left x         -> x
+--         Right (Just i) -> i * getMouseX world
+--         _              -> 1
+-- main :: Int
+-- main = caseTest (Right (Just 100))
+
+-- closureTest :: Int -> Int -> Int
+-- closureTest x y = x + y
+
+-- appTest :: Int -> Int
+-- appTest = closureTest 1
+
+-- addTwo :: Int -> Int -> Int
+-- addTwo x y = x + y
+
+-- addTwo' :: Int -> Int -> Int
+-- addTwo' = addTwo
+
+-- mkFn :: Int -> Int -> Int
+-- mkFn x = addTwo y where
+--     y = x
+
+-- -- TODO: Look at what happens without type sigs!
+-- addOne :: Int -> Int
+-- addOne x = x + x
+--
+-- addOne' :: Int -> Int
+-- addOne' = addOne
+--
+-- useAddOne' :: Int
+-- useAddOne' = addOne' 666
+--
+-- addTwo :: Int -> Int -> Int
+-- addTwo x y = x + y
+--
+-- addTwo' :: Int -> Int -> Int
+-- addTwo' x = addTwo x
+--
+-- addTwo'' :: Int -> Int -> Int
+-- addTwo'' = addTwo
+--
+-- -- TODO: Figure this out
+-- -- solve by partially applying apply itself
+-- useAddTwo' :: Int -> Int -> Int
+-- useAddTwo' = addTwo'
+-- -- transform into:
+-- --         = _Closure addTwo'@(arity 1)
+-- --         = _Closure 1 1 apply (_Closure 0 1 addTwo')
+-- --         = _Closure0  (\x y -> apply (addTwo' x) y)
+-- --         = _Closure1  _apply (Closure0 addTwo')
+--
+
+-- takeAddOne :: (Int -> Int) -> Int
+-- takeAddOne f = f 1
+--
+-- giveAddOne :: Int
+-- giveAddOne = takeAddOne addOne
+--
+-- giveAddOne' :: Int
+-- giveAddOne' = takeAddOne (addTwo 100)
+--
+-- takeAddTwo :: (Int -> Int -> Int) -> Int
+-- takeAddTwo f = f 100 200
+--
+-- giveAddTwo :: Int
+-- giveAddTwo = takeAddTwo addTwo'
+
+-- TODO: Implement functions in data types in Closure conversion
+-- data FBomb = FBomb (Float -> Float)
+--
+
+-- -- data Maybe a = Just a | Nothing
+-- delayTest :: Int
+-- delayTest = 1 + delay 0 delayTest
+
+-- useDelayTest :: Maybe Int
+-- useDelayTest = delayTest
+
+-- main :: Int
+-- main = delayTest
+
+-- countList :: List a -> Int
+-- countList xs =
+--     case xs of
+--         Cons a xss -> 1 + countList xss
+--         Nil        -> 0
+-- main :: Int
+-- main = countList (Cons () (Cons () Nil))
+
+-- main :: Int
+-- main = 0
+
+-- data CoolInt = CoolInt Int Float
+
+-- constInt :: Int
+-- constInt = 2000
+
+-- main :: Int
+-- main = 10 * 666 + constInt
+
+-- mouseX :: Int
+-- mouseX = getMouseX world
+
+-- addOne :: Int -> Int
+-- addOne x = x + 1
+
+-- addOne' :: CoolInt -> Int -> Float -> CoolInt
+-- addOne' c x f = CoolInt (x + 1) (f * 3.3)
+
+-- coolId :: CoolInt -> CoolInt
+-- coolId c = c
+
+-- gimmeInt :: CoolInt -> CoolInt
+-- gimmeInt c =
+--     case c of
+--         CoolInt i f -> CoolInt (i * 1000) f
+
+-- constInt :: Int
+-- constInt = 10
+
+-- constCool :: CoolInt
+-- constCool = CoolInt constInt 1.1
+
+-- useConstCool :: Int
+-- useConstCool =
+--     case constCool of
+--         CoolInt i _ -> i
+
+-- counter :: Maybe Int
+-- counter = x where
+--     x = delay (Just 100) x
+-- counter' :: Int
+-- counter' = x where
+--     x = delay 0 x
+
+-------------------------------------------------
+-- Instead of delays, use initialization values?
+counters :: Int
+counters = x where
+    x<0> = y + 1
+    y<0> = x + 1
+
+counter :: Int
+counter<0> = counter + 1
+
+mcounter :: Maybe Int
+mcounter = x where
+    x<Nothing> =
+        case x of
+            Nothing -> Just 1
+            Just _  -> Nothing
+
+mcounter' :: Maybe (Maybe Int)
+mcounter' = go where
+    go<Just (Just 10)> = go
+
+main :: Int
+main = 10

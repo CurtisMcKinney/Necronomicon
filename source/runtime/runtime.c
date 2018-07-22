@@ -20,25 +20,6 @@
 #define NECRO_GC_NUM_SEGMENTS 10
 
 //=====================================================
-// Create / Destroy
-//=====================================================
-NecroRuntime necro_create_runtime()
-{
-    return (NecroRuntime)
-    {
-        .functions = (NecroRuntimeFunctions)
-        {
-            .necro_alloc = NULL,
-            .necro_print = NULL
-        }
-    };
-}
-
-void necro_destroy_runtime(NecroRuntime* runtime)
-{
-}
-
-//=====================================================
 // GC
 //=====================================================
 typedef struct NecroGCPage
@@ -69,11 +50,17 @@ typedef struct
     size_t       page_count;
 } NecroGCSegment;
 
+typedef struct NecroGCRoot
+{
+    char**   slots;
+    uint32_t num_slots;
+} NecroGCRoot;
+
 typedef struct
 {
     NecroGCSegment segments[NECRO_GC_NUM_SEGMENTS]; // Increases by powers of 2
     NecroSlab*     gray;
-    NecroSlab**    roots;
+    NecroGCRoot*   roots;
     uint32_t       root_count;
     uint32_t       counter;
     int8_t         white_color;
@@ -246,10 +233,28 @@ void necro_cleanup_gc()
     necro_destroy_gc(&gc);
 }
 
-void necro_gc_scan_slab(NecroSlab* a_slab, bool is_root)
+void necro_gc_scan_root(char** slot, size_t slots_used)
+{
+    for (size_t i = 0; i < slots_used; ++i)
+    {
+        if ((*slot) == NULL)
+            goto necro_gc_scan_slab_next;
+        NecroSlab* slab = necro_gc_slot_to_slab(*slot);
+        // assert(slab != NULL);
+        if (slab->color != gc.white_color)
+            goto necro_gc_scan_slab_next;
+        slab->color = 0;
+        necro_unlink_slab(slab, gc.segments + slab->segment);
+        gc.gray = necro_cons_slab(slab, gc.gray);
+        // printf("pre-scanned: %p, gray count: %d\n", slab, necro_count_slabs(gc.gray));
+    necro_gc_scan_slab_next:
+        slot++;
+    }
+}
+
+void necro_gc_scan_slab(NecroSlab* a_slab)
 {
     assert(a_slab != NULL && "NULL slab in necro_gc_scan_slab");
-    // Need to mark how many slot inside of necro data!!!
     char** slot = (char**)(a_slab + 1);
     for (size_t i = 0; i < a_slab->slots_used; ++i)
     {
@@ -266,14 +271,10 @@ void necro_gc_scan_slab(NecroSlab* a_slab, bool is_root)
     necro_gc_scan_slab_next:
         slot++;
     }
-    if (!is_root)
-    {
-        a_slab->color = -gc.white_color;
-        gc.segments[a_slab->segment].black = necro_cons_slab(a_slab, gc.segments[a_slab->segment].black);
-        if (gc.segments[a_slab->segment].black_tail == NULL)
-            gc.segments[a_slab->segment].black_tail = gc.segments[a_slab->segment].black;
-        // printf("post-scanned: %p, black count: %d\n", a_slab, necro_count_slabs(gc.segments[a_slab->segment].black));
-    }
+    a_slab->color = -gc.white_color;
+    gc.segments[a_slab->segment].black = necro_cons_slab(a_slab, gc.segments[a_slab->segment].black);
+    if (gc.segments[a_slab->segment].black_tail == NULL)
+        gc.segments[a_slab->segment].black_tail = gc.segments[a_slab->segment].black;
 }
 
 void necro_print_tab(size_t depth)
@@ -332,18 +333,25 @@ extern DLLEXPORT void _necro_initialize_root_set(uint32_t root_count)
 {
     // printf("init root_set, root_count: %d\n", root_count);
     gc.root_count = root_count;
-    gc.roots      = malloc(sizeof(NecroSlab*) * root_count);
+    gc.roots      = malloc(root_count * sizeof(NecroGCRoot));
     if (gc.roots == 0)
     {
         fprintf(stderr, "Couldn't allocate memory in _necro_initialize_root_set");
     }
+    for (size_t i = 0; i < root_count; ++i)
+    {
+        gc.roots[i].slots     = NULL;
+        gc.roots[i].num_slots = 0;
+    }
 }
 
-extern DLLEXPORT void _necro_set_root(int32_t* root, uint32_t root_index)
+// overflowing slots used!??!?!?!
+extern DLLEXPORT void _necro_set_root(uint32_t* root, uint32_t root_index, uint32_t num_slots)
 {
     // printf("set root, index: %d, root: %p\n", root_index, root);
-    NecroSlab* slab      = necro_gc_slot_to_slab((char*)root);
-    gc.roots[root_index] = slab;
+    // NecroSlab* slab      = necro_gc_slot_to_slab((char*)root);
+    gc.roots[root_index].slots     = (char**)(((char*) root) + sizeof(uint64_t));
+    gc.roots[root_index].num_slots = num_slots;
     // necro_print_slab(slab);
 }
 
@@ -365,9 +373,8 @@ extern DLLEXPORT void _necro_collect()
     for (size_t i = 0; i < gc.root_count; ++i)
     {
         // necro_print_slab(gc.roots[i]);
-        assert(gc.roots[i] != NULL && "NULL root");
-        gc.roots[i]->color = -gc.white_color;
-        necro_gc_scan_slab(gc.roots[i], true);
+        // assert(gc.roots[i] != NULL && "NULL root");
+        necro_gc_scan_root(gc.roots[i].slots, gc.roots[i].num_slots);
     }
     while (gc.gray != NULL)
     {
@@ -376,7 +383,7 @@ extern DLLEXPORT void _necro_collect()
         // printf("scan: %p, gray count: %d\n", slab, necro_count_slabs(gc.gray));
         slab->next = NULL;
         slab->prev = NULL;
-        necro_gc_scan_slab(slab, false);
+        necro_gc_scan_slab(slab);
     }
     gc.white_color = -gc.white_color;
     for (size_t i = 0; i < NECRO_GC_NUM_SEGMENTS; ++i)
@@ -413,12 +420,13 @@ extern DLLEXPORT void _necro_collect()
     }
 // #if _WIN32
 //     QueryPerformanceCounter(&gc_end_time);
-//     gc_time = (gc_end_time.QuadPart - gc_begin_time.QuadPart) * 1000.0 / ticks_per_sec.QuadPart;
+//     gc_time = ((gc_end_time.QuadPart - gc_begin_time.QuadPart) * 1000.0) / ticks_per_sec.QuadPart;
+//     // gc_time = (gc_end_time.QuadPart - gc_begin_time.QuadPart) / (ticks_per_sec.QuadPart / 1000.f);
 //     printf("gc, latency: %f ms\n", gc_time);
 // #endif
 }
 
-extern DLLEXPORT int64_t* _necro_alloc(int64_t size_in_bytes, uint16_t slots_used, uint16_t slots, uint8_t segment)
+extern DLLEXPORT int64_t* _necro_alloc(uint32_t slots_used, uint8_t segment)
 {
     // NOTE: Assumes that off_white and off_white_tail are not NULL!!!!
     NecroGCSegment* gcs = gc.segments + segment;
@@ -427,24 +435,26 @@ extern DLLEXPORT int64_t* _necro_alloc(int64_t size_in_bytes, uint16_t slots_use
     NecroSlab* slab      = gcs->free;
     gcs->free            = slab->next;
     slab->prev           = NULL;
-    slab->next           = gcs->off_white;
+    slab->tag            = 0;
     slab->slots_used     = slots_used;
     slab->segment        = segment;
     slab->color          = gc.white_color;
+    slab->next           = gcs->off_white;
     gcs->off_white->prev = slab;
     gcs->off_white       = slab;
-    return (int64_t*)(&slab->slots_used);
+    // zero out memory...better to do it here!?
+    int64_t** data = (int64_t**)(&slab->slots_used);
+    for (uint32_t i = 0; i < slots_used; ++i)
+    {
+        data[i] = NULL;
+    }
+    return (int64_t*) data;
 }
 
 extern DLLEXPORT void _necro_print(int64_t value)
 {
     printf("necro: %lld                      \r", value);
     // printf("necro: %lld                      \n", value);
-}
-
-extern DLLEXPORT void _necro_print_u64(uint64_t value)
-{
-    printf("necro: %lld\n", value);
 }
 
 extern DLLEXPORT void _necro_sleep(uint32_t milliseconds)
@@ -492,101 +502,78 @@ extern DLLEXPORT void _necro_update_runtime()
     // necro_poll_mouse();
 }
 
-//=====================================================
-// Declare and Bind
-//=====================================================
-void necro_declare_runtime_functions(NecroRuntime* runtime, NecroCodeGen* codegen)
+///////////////////////////////////////////////////////
+// Concurrent Copying GC
+///////////////////////////////////////////////////////
+#define NECRO_SPACE_SIZE 1048576 // 2 ^ 20, i.e. 1 mb
+
+typedef struct NecroSpace
 {
-    // NecroAlloc
-    LLVMTypeRef  necro_alloc_args[4] = { LLVMInt64TypeInContext(codegen->context), LLVMInt16TypeInContext(codegen->context), LLVMInt16TypeInContext(codegen->context), LLVMInt8TypeInContext(codegen->context) };
-    LLVMValueRef necro_alloc         = LLVMAddFunction(codegen->mod, "_necro_alloc", LLVMFunctionType(LLVMPointerType(LLVMInt64TypeInContext(codegen->context), 0), necro_alloc_args, 4, false));
-    LLVMSetLinkage(necro_alloc, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_alloc, LLVMCCallConv);
-    codegen->runtime->functions.necro_alloc = necro_alloc;
+    union
+    {
+        struct
+        {
+            struct NecroSpace* next_space;
+            char*              alloc_ptr;
+            char*              end_ptr;
+            size_t             data_start;
+        };
+        char data[NECRO_SPACE_SIZE];
+    };
+} NecroSpace;
 
-    // NecroCollect
-    LLVMValueRef necro_collect = LLVMAddFunction(codegen->mod, "_necro_collect", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), NULL, 0, false));
-    LLVMSetLinkage(necro_collect, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_collect, LLVMCCallConv);
-    codegen->runtime->functions.necro_collect = necro_collect;
+typedef struct NecroBlock
+{
+    struct NecroBlock* forwarding_pointer;
+    uint16_t           color;
+    uint16_t           something_else;
+    uint32_t           tag; // Used by necrolang
+    // The rest of the data...
+} NecroBlock;
 
-    // NecroInitializeRootSet
-    LLVMValueRef necro_initialize_root_set = LLVMAddFunction(codegen->mod, "_necro_initialize_root_set", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), (LLVMTypeRef[]) { LLVMInt32TypeInContext(codegen->context) }, 1, false));
-    LLVMSetLinkage(necro_initialize_root_set, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_initialize_root_set, LLVMCCallConv);
-    codegen->runtime->functions.necro_initialize_root_set = necro_initialize_root_set;
+typedef enum
+{
+    NECRO_MUTATE_VALUE,
+    NECRO_MUTATE_REF,
+} NECRO_MUTATION_TYPE;
 
-    // NecroSetRoot
-    LLVMValueRef necro_set_root = LLVMAddFunction(codegen->mod, "_necro_set_root", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), (LLVMTypeRef[]) { LLVMPointerType(LLVMInt32TypeInContext(codegen->context), 0), LLVMInt32TypeInContext(codegen->context) }, 2, false));
-    LLVMSetLinkage(necro_set_root, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_set_root, LLVMCCallConv);
-    codegen->runtime->functions.necro_set_root = necro_set_root;
+typedef struct
+{
+    char*               value;
+    // Scan fn_pointer!?
+    NECRO_MUTATION_TYPE type;
+} NecroMutationEntry;
 
-    // NecroPrint
-    LLVMTypeRef  necro_print_args[1] = { LLVMInt64TypeInContext(codegen->context) };
-    LLVMValueRef necro_print         = LLVMAddFunction(codegen->mod, "_necro_print", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), necro_print_args, 1, false));
-    LLVMSetLinkage(necro_print, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_print, LLVMCCallConv);
-    codegen->runtime->functions.necro_print = necro_print;
+typedef struct
+{
+    NecroMutationEntry* entries;
+    size_t              capacity;
+    size_t              count;
+} NecroMutationLog;
 
-    // NecroPrint64
-    LLVMTypeRef  necro_print_args_u64[1] = { LLVMInt64TypeInContext(codegen->context) };
-    LLVMValueRef necro_print_u64         = LLVMAddFunction(codegen->mod, "_necro_print_u64", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), necro_print_args_u64, 1, false));
-    LLVMSetLinkage(necro_print_u64, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_print_u64, LLVMCCallConv);
-    codegen->runtime->functions.necro_print_u64 = necro_print_u64;
+typedef struct
+{
+    NecroMutationLog mutation_log;
+    NecroSpace*      from_head;
+    NecroSpace*      from_curr;
 
-    // NecroSleep
-    LLVMTypeRef  necro_sleep_args[1] = { LLVMInt32TypeInContext(codegen->context) };
-    LLVMValueRef necro_sleep         = LLVMAddFunction(codegen->mod, "_necro_sleep", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), necro_sleep_args, 1, false));
-    LLVMSetLinkage(necro_sleep, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_sleep, LLVMCCallConv);
-    codegen->runtime->functions.necro_sleep = necro_sleep;
+    NecroSpace*      to_head;
+    NecroSpace*      to_curr;
 
-    // NecroErrorExit
-    LLVMTypeRef  necro_exit_args[1] = { LLVMInt32TypeInContext(codegen->context) };
-    LLVMValueRef necro_exit         = LLVMAddFunction(codegen->mod, "_necro_error", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), necro_exit_args, 1, false));
-    LLVMSetLinkage(necro_exit, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_exit, LLVMCCallConv);
-    codegen->runtime->functions.necro_error_exit = necro_exit;
+    size_t           to_ptr;
+    NecroGCRoot*     roots;
+    uint32_t         root_count;
+    uint32_t         counter;
+} NecroCopyGC;
 
-    // NecroInitRuntime
-    LLVMValueRef necro_init_runtime = LLVMAddFunction(codegen->mod, "_necro_init_runtime", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), NULL, 0, false));
-    LLVMSetLinkage(necro_init_runtime, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_init_runtime, LLVMCCallConv);
-    codegen->runtime->functions.necro_init_runtime = necro_init_runtime;
+NecroCopyGC copy_gc;
 
-    // NecroUpdateRuntime
-    LLVMValueRef necro_update_runtime = LLVMAddFunction(codegen->mod, "_necro_update_runtime", LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), NULL, 0, false));
-    LLVMSetLinkage(necro_update_runtime, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_update_runtime, LLVMCCallConv);
-    codegen->runtime->functions.necro_update_runtime = necro_update_runtime;
-
-    // NecroMouseX
-    LLVMValueRef necro_mouse_x = LLVMAddFunction(codegen->mod, "_necro_mouse_x", LLVMFunctionType(LLVMInt64TypeInContext(codegen->context), NULL, 0, false));
-    LLVMSetLinkage(necro_mouse_x, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_mouse_x, LLVMCCallConv);
-    codegen->runtime->functions.necro_mouse_x = necro_mouse_x;
-
-    // NecroMouseY
-    LLVMValueRef necro_mouse_y = LLVMAddFunction(codegen->mod, "_necro_mouse_y", LLVMFunctionType(LLVMInt64TypeInContext(codegen->context), NULL, 0, false));
-    LLVMSetLinkage(necro_mouse_y, LLVMExternalLinkage);
-    LLVMSetFunctionCallConv(necro_mouse_y, LLVMCCallConv);
-    codegen->runtime->functions.necro_mouse_y = necro_mouse_y;
+// void _necro_copy_scan(Necro)
+char* _necro_copy_alloc(uint32_t size)
+{
+    // char* data =
+        // if (copy_gc)
+    return NULL;
 }
 
-void necro_bind_runtime_functions(NecroRuntime* runtime, LLVMExecutionEngineRef engine)
-{
-    necro_gc_init();
-    LLVMAddGlobalMapping(engine, runtime->functions.necro_alloc, _necro_alloc);
-    LLVMAddGlobalMapping(engine, runtime->functions.necro_print, _necro_print);
-    LLVMAddGlobalMapping(engine, runtime->functions.necro_sleep, _necro_sleep);
-    LLVMAddGlobalMapping(engine, runtime->functions.necro_collect, _necro_collect);
-    LLVMAddGlobalMapping(engine, runtime->functions.necro_initialize_root_set, _necro_initialize_root_set);
-    LLVMAddGlobalMapping(engine, runtime->functions.necro_set_root, _necro_set_root);
-    LLVMAddGlobalMapping(engine, runtime->functions.necro_error_exit, _necro_error_exit);
-    LLVMAddGlobalMapping(engine, runtime->functions.necro_init_runtime, _necro_init_runtime);
-    LLVMAddGlobalMapping(engine, runtime->functions.necro_update_runtime, _necro_update_runtime);
-    LLVMAddGlobalMapping(engine, runtime->functions.necro_mouse_x, _necro_mouse_x);
-    LLVMAddGlobalMapping(engine, runtime->functions.necro_mouse_y, _necro_mouse_y);
-}
+// NecroGC gc;

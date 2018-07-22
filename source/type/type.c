@@ -47,6 +47,7 @@ NecroInfer necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtabl
     {
         .intern          = intern,
         .arena           = necro_create_paged_arena(),
+        .snapshot_arena  = necro_create_snapshot_arena(),
         .env             = necro_create_type_env(512),
         .error           = necro_create_error(),
         .highest_id      = symtable->count,
@@ -80,6 +81,7 @@ void necro_destroy_infer(NecroInfer* infer)
         return;
     necro_destroy_type_env(&infer->env);
     necro_destroy_paged_arena(&infer->arena);
+    necro_destroy_snapshot_arena(&infer->snapshot_arena);
     infer->intern = NULL;
 }
 
@@ -153,7 +155,7 @@ NecroType* necro_create_type_var(NecroInfer* infer, NecroVar var)
         size_t new_size = next_highest_pow_of_2(var.id.id) * 2;
         if (new_size < infer->env.capacity)
             new_size = infer->env.capacity * 2;
-        printf("Realloc env, size: %d, new_size: %d, id: %d\n", infer->env.capacity, new_size, var.id.id);
+        // printf("Realloc env, size: %d, new_size: %d, id: %d\n", infer->env.capacity, new_size, var.id.id);
         NecroType** new_data = realloc(infer->env.data, new_size * sizeof(NecroType*));
         if (new_data == NULL)
         {
@@ -279,6 +281,23 @@ NecroType* necro_create_for_all(NecroInfer* infer, NecroVar var, NecroTypeClassC
         .type    = type,
     };
     return for_all;
+}
+
+NecroType* necro_duplicate_type(NecroInfer* infer, NecroType* type)
+{
+    if (type == NULL)
+        return NULL;
+    type = necro_find(type);
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR:  return necro_create_type_var(infer, type->var.var);
+    case NECRO_TYPE_APP:  return necro_create_type_app(infer, necro_duplicate_type(infer, type->app.type1), necro_duplicate_type(infer, type->app.type2));
+    case NECRO_TYPE_FUN:  return necro_create_type_fun(infer, necro_duplicate_type(infer, type->fun.type1), necro_duplicate_type(infer, type->fun.type2));
+    case NECRO_TYPE_CON:  return necro_create_type_con(infer, type->con.con, necro_duplicate_type(infer, type->con.args), type->con.arity);
+    case NECRO_TYPE_FOR:  return necro_create_for_all(infer, type->for_all.var, type->for_all.context, necro_duplicate_type(infer, type->for_all.type));
+    case NECRO_TYPE_LIST: return necro_create_type_list(infer, necro_duplicate_type(infer, type->list.item), necro_duplicate_type(infer, type->list.next));
+    default:              assert(false); return NULL;
+    }
 }
 
 size_t necro_type_list_count(NecroType* list)
@@ -1892,6 +1911,122 @@ NecroType* necro_make_con_10(NecroInfer* infer, NecroCon con, NecroType* arg1, N
     NecroType* lst2  = necro_create_type_list(infer, arg2, lst3);
     NecroType* lst1  = necro_create_type_list(infer, arg1, lst2);
     return necro_create_type_con(infer, con, lst1, 10);
+}
+
+size_t necro_type_arity(NecroType* type)
+{
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR:  return 0;
+    case NECRO_TYPE_APP:  return 0;
+    case NECRO_TYPE_CON:  return 0;
+    case NECRO_TYPE_FUN:  return 1 + necro_type_arity(type->fun.type2);
+    case NECRO_TYPE_FOR:  return necro_type_arity(type->for_all.type);
+    case NECRO_TYPE_LIST: assert(false); return 0;
+    default:              assert(false); return 0;
+    }
+}
+
+size_t necro_type_hash(NecroType* type)
+{
+    if (type == NULL)
+        return 0;
+    type = necro_find(type);
+    size_t h = 0;
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR:
+        h = necro_hash(type->var.var.id.id);
+        break;
+    case NECRO_TYPE_APP:
+        h = 1361 ^ necro_type_hash(type->app.type1) ^ necro_type_hash(type->app.type2);
+        break;
+    case NECRO_TYPE_FUN:
+        h = 8191 ^ necro_type_hash(type->fun.type1) ^ necro_type_hash(type->fun.type2);
+        break;
+    case NECRO_TYPE_CON:
+    {
+        h = 52103 ^ necro_hash(type->con.con.id.id);
+        NecroType* args = type->con.args;
+        while (args != NULL)
+        {
+            h = h ^ necro_type_hash(args->list.item);
+            args = args->list.next;
+        }
+        break;
+    }
+    case NECRO_TYPE_FOR:
+    {
+        h = 4111;
+        NecroTypeClassContext* context = type->for_all.context;
+        while (context != NULL)
+        {
+            h = h ^ necro_hash(context->type_var.id.id) ^ necro_hash(context->type_class_name.id.id);
+            context = context->next;
+        }
+        h = h ^ necro_type_hash(type->for_all.type);
+        break;
+    }
+    case NECRO_TYPE_LIST:
+        assert(false && "Only used in TYPE_CON case");
+        break;
+    default:
+        assert(false && "Unrecognized tree type in necro_type_hash");
+        break;
+    }
+    return h;
+}
+
+bool necro_exact_unify(NecroType* type1, NecroType* type2)
+{
+    type1 = necro_find(type1);
+    type2 = necro_find(type2);
+    if (type1 == NULL && type2 == NULL)
+        return true;
+    if (type1 == NULL || type2 == NULL)
+        return false;
+    if (type1->type != type2->type)
+        return false;
+    switch (type1->type)
+    {
+    case NECRO_TYPE_VAR: return type1->var.var.id.id == type2->var.var.id.id;
+    case NECRO_TYPE_APP: return necro_exact_unify(type1->app.type1, type2->app.type1) && necro_exact_unify(type1->app.type2, type2->app.type2);
+    case NECRO_TYPE_FUN: return necro_exact_unify(type1->fun.type1, type2->fun.type1) && necro_exact_unify(type1->fun.type2, type2->fun.type2);
+    case NECRO_TYPE_CON: return type1->con.con.id.id == type2->con.con.id.id && necro_exact_unify(type1->con.args, type2->con.args);
+    case NECRO_TYPE_LIST:
+    {
+        while (type1 != NULL || type2 != NULL)
+        {
+            if (type1 == NULL || type2 == NULL)
+                return false;
+            if (!necro_exact_unify(type1->list.item, type2->list.item))
+                return false;
+            type1 = type1->list.next;
+            type2 = type2->list.next;
+        }
+        return true;
+    }
+    case NECRO_TYPE_FOR:
+    {
+        if (type1->for_all.var.id.id != type2->for_all.var.id.id)
+            return false;
+        NecroTypeClassContext* context1 = type1->for_all.context;
+        NecroTypeClassContext* context2 = type2->for_all.context;
+        while (context1 != NULL || context2 != NULL)
+        {
+            if (context1 == NULL || context2 == NULL)
+                return false;
+            if (context1->type_var.id.id != context2->type_var.id.id || context1->type_class_name.id.id != context2->type_class_name.id.id)
+                return false;
+            context1 = context1->next;
+            context2 = context2->next;
+        }
+        return necro_exact_unify(type1->for_all.type, type2->for_all.type);
+    }
+    default:
+        assert(false);
+        return false;
+    }
 }
 
 //=====================================================

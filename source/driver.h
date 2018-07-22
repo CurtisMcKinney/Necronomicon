@@ -46,12 +46,14 @@ typedef enum
     NECRO_PHASE_DEPENDENCY_ANALYSIS,
     NECRO_PHASE_INFER,
     NECRO_PHASE_TRANSFORM_TO_CORE,
-    NECRO_PHASE_TRANSFORM_TO_NODE,
+    NECRO_PHASE_CLOSURE_CONVERSION,
+    NECRO_PHASE_TRANSFORM_TO_MACHINE,
     NECRO_PHASE_CODEGEN,
     NECRO_PHASE_JIT
 } NECRO_PHASE;
 
 void necro_test(NECRO_TEST test);
 void necro_compile(const char* input_string, NECRO_PHASE compilation_phase);
+void necro_compile_opt(const char* input_string, NECRO_PHASE compilation_phase);
 
 #endif // DRIVER_H

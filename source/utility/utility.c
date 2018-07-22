@@ -8,6 +8,12 @@
 #include <ctype.h>
 #include "utility.h"
 
+#ifdef _WIN32
+#include <Windows.h>
+#else
+#include <unistd.h>
+#endif
+
 void print_white_space(size_t white_count)
 {
     for (size_t i = 0; i < white_count; ++i)
@@ -54,4 +60,66 @@ void necro_print_error(NecroError* error, const char* input_string, const char* 
     printf("%.*s", (line_end - line_start), (input_string + line_start));
     printf("\n\n %s\n", error->error_message);
     printf("----------------------------------------------------------------------------\n");
+}
+
+
+///////////////////////////////////////////////////////
+// Timer
+///////////////////////////////////////////////////////
+typedef struct NecroTimer
+{
+#if _WIN32
+    LARGE_INTEGER ticks_per_sec;
+    LARGE_INTEGER start_time;
+    LARGE_INTEGER end_time;
+    double        total_time_ms;
+#else
+    size_t todo;
+#endif
+} NecroTimer;
+
+NecroTimer* necro_create_timer()
+{
+    NecroTimer* timer = malloc(sizeof(NecroTimer));
+    *timer = (NecroTimer) { .start_time = 0, .end_time = 0 };
+#if _WIN32
+    QueryPerformanceFrequency(&timer->ticks_per_sec);
+#else
+    // TODO
+#endif
+    return timer;
+}
+
+void necro_destroy_timer(struct NecroTimer* timer)
+{
+    if (timer == NULL)
+        return;
+    free(timer);
+}
+
+void necro_start_timer(NecroTimer* timer)
+{
+#if _WIN32
+    QueryPerformanceCounter(&timer->start_time);
+#else
+    // TODO
+#endif
+}
+
+double necro_stop_timer(NecroTimer* timer)
+{
+#if _WIN32
+    QueryPerformanceCounter(&timer->end_time);
+    double time = ((timer->end_time.QuadPart - timer->start_time.QuadPart) * 1000.0) / timer->ticks_per_sec.QuadPart;
+    timer->total_time_ms = time;
+    return time;
+#else
+    // TODO
+#endif
+}
+
+void necro_stop_and_report_timer(struct NecroTimer* timer, const char* print_header)
+{
+    double total_time_ms = necro_stop_timer(timer);
+    printf("%s: %fms\n", print_header, total_time_ms);
 }

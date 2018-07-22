@@ -171,6 +171,7 @@ typedef struct NecroCoreAST_Expression
         NecroCoreAST_DataCon data_con;
     };
     NECRO_CORE_EXPR expr_type;
+    NecroType*      necro_type;
 } NecroCoreAST_Expression;
 
 static const char* core_ast_names[] =

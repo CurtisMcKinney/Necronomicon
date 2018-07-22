@@ -15,7 +15,6 @@
 #include "ast.h"
 #include "arena.h"
 #include "type.h"
-#include "llvm-c/Types.h"
 
 //=====================================================
 // NecroSymTable, Contains info for a particular ID:
@@ -31,7 +30,7 @@ struct NecroTypeClass;
 struct NecroTypeClassInstance;
 struct NecroNodePrototype;
 struct NecroCoreAST_Expression;
-struct NecroNodeAST;
+struct NecroMachineAST;
 
 typedef struct
 {
@@ -48,17 +47,17 @@ typedef struct
     NecroDeclarationGroup*          declaration_group;
     NecroAST_Node_Reified*          optional_type_signature;
     NecroType*                      type;
+    NecroType*                      closure_type;
     NECRO_TYPE_STATUS               type_status;
     struct NecroTypeClass*          method_type_class;
     struct NecroTypeClass*          type_class;
     struct NecroTypeClassInstance*  type_class_instance;
-    LLVMValueRef                    llvm_value;
-    LLVMTypeRef                     llvm_type;
-    struct NecroNodePrototype*      node_prototype;
-    size_t                          arity;
+    int32_t                         arity; // -1 indicates arity has not been set
     uint32_t                        persistent_slot; // 0 indicates no persistence
-    struct NecroNodeAST*            necro_node_ast;
+    struct NecroMachineAST*         necro_machine_ast;
     bool                            is_constructor;
+    bool                            is_recursive;
+    int32_t                         size;
 } NecroSymbolInfo;
 
 typedef struct NecroSymTable
@@ -138,6 +137,8 @@ NecroID             necro_symtable_manual_new_symbol(NecroSymTable* symtable, Ne
 
 NecroSymbolInfo*    necro_symtable_get_type_class_declaration_info(NecroSymTable* symtable, NecroAST_Node_Reified* ast);
 NecroSymbolInfo*    necro_symtable_get_type_class_instance_info(NecroSymTable* symtable, NecroAST_Node_Reified* ast);
+NecroVar            necro_get_top_level_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name);
+NecroVar            necro_get_type_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name);
 
 // Test
 void                necro_scoped_symtable_print_type_scope(NecroScopedSymTable* table);

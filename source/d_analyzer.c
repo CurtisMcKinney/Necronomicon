@@ -56,10 +56,6 @@ void d_analyze_var(NecroDependencyAnalyzer* d_analyzer, NecroID id)
         w->info->current_group = w;
     NecroDeclarationGroup* v = w->info->current_group;
     assert(v != NULL);
-    // if (w->index != -1 && w->info->current_group->declaration_ast->type == NECRO_AST_SIMPLE_ASSIGNMENT)
-    // {
-    //     w->info->current_group->declaration_ast->simple_assignment.is_recursive = true;
-    // }
     if (w->index == -1)
     {
         symbol_info->declaration_group->info->current_group = w;
@@ -70,7 +66,15 @@ void d_analyze_var(NecroDependencyAnalyzer* d_analyzer, NecroID id)
     {
         v->low_link = min(w->low_link, v->low_link);
         if (w->info->current_group->declaration_ast->type == NECRO_AST_SIMPLE_ASSIGNMENT)
+        {
             w->info->current_group->declaration_ast->simple_assignment.is_recursive = true;
+            necro_symtable_get(d_analyzer->symtable, w->info->current_group->declaration_ast->simple_assignment.id)->is_recursive = true;
+        }
+        if (w->info->current_group->declaration_ast->type == NECRO_AST_DATA_DECLARATION)
+        {
+            w->info->current_group->declaration_ast->data_declaration.is_recursive = true;
+            necro_symtable_get(d_analyzer->symtable, w->info->current_group->declaration_ast->data_declaration.simpletype->simple_type.type_con->conid.id)->is_recursive = true;
+        }
     }
     symbol_info->declaration_group->info->current_group = v;
 }
@@ -274,6 +278,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
                 necro_error(&d_analyzer->error, ast->source_loc, "Multiple declarations of: %s", necro_intern_get_string(d_analyzer->intern, ast->simple_assignment.variable_name));
                 return;
             }
+            d_analyze_go(d_analyzer, current_group->declaration_ast->simple_assignment.initializer);
             d_analyze_go(d_analyzer, current_group->declaration_ast->simple_assignment.rhs);
             initial_group->low_link = min(initial_group->low_link, current_group->low_link);
             current_group = current_group->next;
@@ -289,6 +294,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         }
         ast->simple_assignment.declaration_group->info->current_group = ast->simple_assignment.declaration_group;
         necro_strong_connect2(d_analyzer->arena, ast->simple_assignment.declaration_group);
+        necro_symtable_get(d_analyzer->symtable, ast->simple_assignment.id)->ast = ast;
         break;
     }
 
@@ -469,8 +475,14 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
     case NECRO_AST_EXPRESSION_LIST:
         d_analyze_go(d_analyzer, ast->expression_list.expressions);
         break;
-    case NECRO_AST_EXPRESSION_SEQUENCE:
-        d_analyze_go(d_analyzer, ast->expression_sequence.expressions);
+    case NECRO_AST_DELAY:
+        d_analyze_go(d_analyzer, ast->delay.init_expr);
+        d_analyze_go(d_analyzer, ast->delay.delayed_var);
+        break;
+    case NECRO_AST_TRIM_DELAY:
+        d_analyze_go(d_analyzer, ast->trim_delay.int_literal);
+        d_analyze_go(d_analyzer, ast->trim_delay.init_expr);
+        d_analyze_go(d_analyzer, ast->trim_delay.delayed_var);
         break;
     case NECRO_AST_PAT_EXPRESSION:
         d_analyze_go(d_analyzer, ast->pattern_expression.expressions);

@@ -173,6 +173,11 @@ static uint32_t log2_32(uint32_t value)
     return tab32[(uint32_t)(value * 0x07C4ACDD) >> 27];
 }
 
+inline size_t necro_hash(size_t input)
+{
+    return (size_t)(input * 37);
+}
+
 void print_white_space(size_t white_count);
 
 static void necro_announce_phase(const char* phase_name)
@@ -188,5 +193,15 @@ static void necro_announce_phase(const char* phase_name)
 #define BIT(x) (1 << x)
 
 #define STRING_TAB "  "
+
+///////////////////////////////////////////////////////
+// Timing
+///////////////////////////////////////////////////////
+struct NecroTimer;
+struct NecroTimer* necro_create_timer();
+void               necro_destroy_timer(struct NecroTimer* timer);
+void               necro_start_timer(struct NecroTimer* timer);
+double             necro_stop_timer(struct NecroTimer* timer);
+void               necro_stop_and_report_timer(struct NecroTimer* timer, const char* print_header);
 
 #endif // UTILITY_H

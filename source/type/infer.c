@@ -32,58 +32,6 @@ void       necro_gen_pat_go(NecroInfer* infer, NecroNode* ast);
 NecroType* necro_infer_pat_assignment(NecroInfer* infer, NecroNode* ast);
 NecroType* necro_infer_apats_assignment(NecroInfer* infer, NecroNode* ast);
 
-/*
-DONE:
-    NECRO_AST_UN_OP,
-    NECRO_AST_UNDEFINED,
-    NECRO_AST_CONSTANT,
-    NECRO_AST_BIN_OP,
-    NECRO_AST_IF_THEN_ELSE,
-    NECRO_AST_SIMPLE_ASSIGNMENT,
-    NECRO_AST_RIGHT_HAND_SIDE,
-    NECRO_AST_FUNCTION_EXPRESSION,
-    NECRO_AST_VARIABLE,
-    NECRO_AST_LET_EXPRESSION,
-    NECRO_AST_TUPLE,
-    NECRO_AST_EXPRESSION_LIST,
-    NECRO_AST_EXPRESSION_SEQUENCE,
-    NECRO_AST_APATS_ASSIGNMENT,
-    NECRO_AST_WILDCARD,
-    NECRO_AST_LIST_NODE,
-    NECRO_AST_LAMBDA,
-    NECRO_AST_ARITHMETIC_SEQUENCE,
-    NECRO_AST_CASE,
-    NECRO_AST_CASE_ALTERNATIVE,
-    Pattern
-    Apat
-    NECRO_AST_CONSTRUCTOR,
-    NECRO_AST_SIMPLE_TYPE,
-    NECRO_AST_DATA_DECLARATION,
-    NECRO_AST_TYPE_SIGNATURE,
-    NECRO_AST_FUNCTION_TYPE,
-    NECRO_AST_CONID
-    NECRO_AST_TYPE_APP,
-    MULTIPLE assignments with same name!
-    NECRO_AST_BIN_OP_SYM,
-    NECRO_AST_TOP_DECL,
-    NECRO_AST_DECL,
-    NECRO_AST_TYPE_CLASS_CONTEXT,
-    NECRO_AST_TYPE_CLASS_DECLARATION,
-    NECRO_AST_TYPE_CLASS_INSTANCE,
-    Correct kind inference
-    NECRO_AST_PAT_ASSIGNMENT
-
-    NECRO_AST_DO,
-    NECRO_BIND_ASSIGNMENT,
-    Declaration dependency analysis (This is how Haskell infers more general types for recursive declarations)
-
-IN PROGRESS:
-    Other ops
-
-TODO:
-    // NECRO_AST_MODULE,
-*/
-
 //=====================================================
 // TypeSig
 //=====================================================
@@ -256,10 +204,10 @@ NecroType* necro_create_data_constructor(NecroInfer* infer, NecroNode* ast, Necr
 {
     // WRONG
     // NecroType* data_type = necro_symtable_get(infer->symtable, ast->simple_type.type_con->conid.id)->type;
-    NecroType* con_head  = NULL;
-    NecroType* con_args  = NULL;
-    NecroNode* args_ast  = ast->constructor.arg_list;
-    size_t     count     = 0;
+    NecroType* con_head     = NULL;
+    NecroType* con_args     = NULL;
+    NecroNode* args_ast     = ast->constructor.arg_list;
+    size_t     count        = 0;
     while (args_ast != NULL)
     {
         NecroType* arg = necro_ast_to_type_sig_go(infer, args_ast->list.item);
@@ -375,11 +323,18 @@ NecroType* necro_infer_simple_assignment(NecroInfer* infer, NecroNode* ast)
     assert(ast->type == NECRO_AST_SIMPLE_ASSIGNMENT);
     if (necro_is_infer_error(infer)) return NULL;
     NecroType* proxy_type = infer->symtable->data[ast->simple_assignment.id.id].type;
+    NecroType* init_type  = (ast->simple_assignment.initializer != NULL) ? necro_infer_go(infer, ast->simple_assignment.initializer) : NULL;
     NecroType* rhs_type   = necro_infer_go(infer, ast->simple_assignment.rhs);
     if (ast->simple_assignment.declaration_group != NULL && ast->simple_assignment.declaration_group->next != NULL)
         ast->simple_assignment.is_recursive = true;
     if (infer->error.return_code != NECRO_SUCCESS) return NULL;
     necro_unify(infer, proxy_type, rhs_type, ast->scope, proxy_type, "While inferring the type of an assignment: ");
+    if (infer->error.return_code != NECRO_SUCCESS) return NULL;
+    if (init_type != NULL)
+    {
+        necro_unify(infer, proxy_type, init_type, ast->scope, proxy_type, "While inferring the type of an assignment initializer: ");
+        if (infer->error.return_code != NECRO_SUCCESS) return NULL;
+    }
     ast->necro_type = rhs_type;
     return NULL;
 }
@@ -615,17 +570,36 @@ NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast)
     if (symbol_info->declaration_group != NULL)
         assert(symbol_info->type != NULL);
 
+    // // Recursive value Delay check
+    // if (ast->variable.var_type == NECRO_VAR_VAR && symbol_info->type_status != NECRO_TYPE_DONE && symbol_info->ast->type == NECRO_AST_SIMPLE_ASSIGNMENT && symbol_info->ast->simple_assignment.initializer == NULL)
+    // {
+    //     return necro_infer_ast_error(infer, NULL, ast, "%s cannot instantaneously depend on itself without initialization.\n Consider adding an initializer, such as: %s<initValue> = ...",
+    //         necro_intern_get_string(infer->intern, ast->variable.symbol),
+    //         necro_intern_get_string(infer->intern, ast->variable.symbol));
+    // }
+
     // Recursive value Delay check
-    if (symbol_info->delay_scope != NULL && symbol_info->type_status != NECRO_TYPE_DONE && ast->variable.var_type == NECRO_VAR_VAR)
+    if (ast->variable.var_type == NECRO_VAR_VAR && symbol_info->delay_scope != NULL && symbol_info->type_status != NECRO_TYPE_DONE && symbol_info->ast->type == NECRO_AST_SIMPLE_ASSIGNMENT && symbol_info->ast->simple_assignment.initializer == NULL)
     {
-        // TODO: Replace this with a new recursion testing scheme!
-        // NecroDelayScope* current_delay_scope = ast->delay_scope;
-        // NecroDelayScope* symbol_delay_scope  = symbol_info->delay_scope;
-        // if (current_delay_scope == symbol_delay_scope)
-        //     return necro_infer_ast_error(infer, NULL, ast, "%s cannot instantaneously depend on itself.\n Consider adding a delay of some kind, such as: seq {init, %s}",
-        //         necro_intern_get_string(infer->intern, ast->variable.symbol),
-        //         necro_intern_get_string(infer->intern, ast->variable.symbol));
+        NecroDelayScope* current_delay_scope = ast->delay_scope;
+        NecroDelayScope* symbol_delay_scope  = symbol_info->delay_scope;
+        if (current_delay_scope == symbol_delay_scope)
+            // return necro_infer_ast_error(infer, NULL, ast, "%s cannot instantaneously depend on itself.\n Consider adding a delay, such as: delay init %s",
+            return necro_infer_ast_error(infer, NULL, ast, "%s cannot instantaneously depend on itself without initialization.\n Consider adding an initializer, such as: %s<initValue> = ...",
+                necro_intern_get_string(infer->intern, ast->variable.symbol),
+                necro_intern_get_string(infer->intern, ast->variable.symbol));
     }
+
+    // if (symbol_info->delay_scope != NULL && symbol_info->type_status != NECRO_TYPE_DONE && ast->variable.var_type == NECRO_VAR_VAR)
+    // {
+    //     // TODO: Replace this with a new recursion testing scheme!
+    //     // NecroDelayScope* current_delay_scope = ast->delay_scope;
+    //     // NecroDelayScope* symbol_delay_scope  = symbol_info->delay_scope;
+    //     // if (current_delay_scope == symbol_delay_scope)
+    //     //     return necro_infer_ast_error(infer, NULL, ast, "%s cannot instantaneously depend on itself.\n Consider adding a delay of some kind, such as: seq {init, %s}",
+    //     //         necro_intern_get_string(infer->intern, ast->variable.symbol),
+    //     //         necro_intern_get_string(infer->intern, ast->variable.symbol));
+    // }
 
     if (symbol_info->type == NULL)
     {
@@ -907,27 +881,96 @@ NecroType* necro_infer_pat_expression(NecroInfer* infer, NecroNode* ast)
 }
 
 //=====================================================
-// Expression Sequence
+// Delay
 //=====================================================
-NecroType* necro_infer_expression_sequence(NecroInfer* infer, NecroNode* ast)
+bool necro_is_fully_concrete(NecroSymTable* symtable, NecroType* type)
+{
+    assert(type != NULL);
+    type = necro_find(type);
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR:  return false;
+    case NECRO_TYPE_APP:  return necro_is_fully_concrete(symtable, type->app.type1) && necro_is_fully_concrete(symtable, type->app.type2);
+    case NECRO_TYPE_FUN:  return necro_is_fully_concrete(symtable, type->fun.type1) && necro_is_fully_concrete(symtable, type->fun.type2);
+    case NECRO_TYPE_CON:  return type->con.args == NULL || necro_is_fully_concrete(symtable, type->con.args);
+    case NECRO_TYPE_FOR:  return false;
+    case NECRO_TYPE_LIST:
+        while (type != NULL)
+        {
+            if (!necro_is_fully_concrete(symtable, type->list.item))
+                return false;
+            type = type->list.next;
+        }
+        return true;
+    default: assert(false); return false;
+    }
+}
+
+bool necro_is_sized(NecroSymTable* symtable, NecroType* type)
+{
+    assert(type != NULL);
+    type = necro_find(type);
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR:  return false;
+    case NECRO_TYPE_APP:  return necro_is_sized(symtable, type->app.type1) && necro_is_sized(symtable, type->app.type2);
+    // case NECRO_TYPE_FUN:  return necro_is_sized(symtable, type->fun.type1) && necro_is_sized(symtable, type->fun.type2);
+    case NECRO_TYPE_FUN:  return false;
+    case NECRO_TYPE_CON:  return (!necro_symtable_get(symtable, type->con.con.id)->is_recursive) && (type->con.args == NULL || necro_is_sized(symtable, type->con.args));
+    case NECRO_TYPE_FOR:  return false;
+    case NECRO_TYPE_LIST:
+        while (type != NULL)
+        {
+            if (!necro_is_sized(symtable, type->list.item))
+                return false;
+            type = type->list.next;
+        }
+        return true;
+    default: assert(false); return false;
+    }
+}
+
+NecroType* necro_infer_delay(NecroInfer* infer, NecroNode* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
-    assert(ast->type == NECRO_AST_EXPRESSION_SEQUENCE);
+    assert(ast->type == NECRO_AST_DELAY);
+    // we're checking this too soon!
     if (necro_is_infer_error(infer)) return NULL;
-    NecroNode* current_cell = ast->expression_sequence.expressions;
-    NecroType* seq_type     = necro_new_name(infer, ast->source_loc);
-    seq_type->source_loc    = ast->source_loc;
-    while (current_cell != NULL)
-    {
-        necro_unify(infer, seq_type, necro_infer_go(infer, current_cell->list.item), ast->scope, seq_type, "While inferring the type for a sequence: ");
-        if (necro_is_infer_error(infer)) return NULL;
-        current_cell = current_cell->list.next_item;
-    }
-    NecroType* sequence  = necro_make_con_1(infer, infer->prim_types->sequence_type, seq_type);
-    ast->necro_type      = sequence;
-    sequence->source_loc = ast->source_loc;
-    return sequence;
+    NecroType* init_type = necro_infer_go(infer, ast->delay.init_expr);
+    if (necro_is_infer_error(infer)) return NULL;
+    NecroType* var_type  = necro_infer_go(infer, ast->delay.delayed_var);
+    if (necro_is_infer_error(infer)) return NULL;
+    necro_unify(infer, init_type, var_type, ast->scope, init_type, "While inferring the type of an delay expression: ");
+    ast->necro_type = var_type;
+    return var_type;
+}
+
+NecroType* necro_infer_trim_delay(NecroInfer* infer, NecroNode* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_TRIM_DELAY);
+    // if (necro_is_infer_error(infer)) return NULL;
+    // NecroType* int_type = necro_infer_go(infer, ast->trim_delay.int_literal);
+    if (necro_is_infer_error(infer)) return NULL;
+    NecroType* init_type = necro_infer_go(infer, ast->trim_delay.init_expr);
+    if (necro_is_infer_error(infer)) return NULL;
+    NecroType* var_type  = necro_infer_go(infer, ast->trim_delay.delayed_var);
+    if (necro_is_infer_error(infer)) return NULL;
+    necro_unify(infer, init_type, var_type, ast->scope, init_type, "While inferring the type of an delay expression: ");
+    // NecroType* delay_type = necro_find(var_type);
+    // if (!necro_is_fully_concrete(infer->symtable, delay_type))
+    // {
+    //     return necro_infer_ast_error(infer, var_type, ast, "delay must be called on fully concrete types.");
+    // }
+    //
+    // else if (!necro_is_sized(infer->symtable, delay_type))
+    // {
+    //     return necro_infer_ast_error(infer, var_type, ast, "delay cannot be called on recursive types. Consider using trimDelay");
+    // }
+    ast->necro_type = var_type;
+    return var_type;
 }
 
 //=====================================================
@@ -946,11 +989,8 @@ NecroType* necro_infer_fexpr(NecroInfer* infer, NecroNode* ast)
     result_type->source_loc = ast->source_loc;
     NecroType* f_type       = necro_create_type_fun(infer, e1_type, result_type);
     f_type->source_loc      = ast->source_loc;
-    // necro_infer_kind(infer, f_type, infer->star_kind, f_type, "While inferring the type for a function application: ");
     if (necro_is_infer_error(infer)) return NULL;
     necro_unify(infer, e0_type, f_type, ast->scope, f_type, "While inferring the type for a function application: ");
-    // necro_kind_infer(infer, f_type, f_type, "While inferring the type for a function application: ");
-    // necro_kind_unify(infer, f_type->type_kind, infer->star_type_kind, NULL, f_type, "While inferring the type for a function application: ");
     ast->necro_type = result_type;
     return result_type;
 }
@@ -1662,7 +1702,8 @@ NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_TOP_DECL:               return necro_infer_top_declaration(infer, ast);
     case NECRO_AST_TUPLE:                  return necro_infer_tuple(infer, ast);
     case NECRO_AST_EXPRESSION_LIST:        return necro_infer_expression_list(infer, ast);
-    case NECRO_AST_EXPRESSION_SEQUENCE:    return necro_infer_expression_sequence(infer, ast);
+    case NECRO_AST_DELAY:                  return necro_infer_delay(infer, ast);
+    case NECRO_AST_TRIM_DELAY:             return necro_infer_trim_delay(infer, ast);
     case NECRO_AST_PAT_EXPRESSION:         return necro_infer_pat_expression(infer, ast);
     case NECRO_AST_CASE:                   return necro_infer_case(infer, ast);
     case NECRO_AST_WILDCARD:               return necro_infer_wildcard(infer, ast);

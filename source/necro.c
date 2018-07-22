@@ -73,7 +73,7 @@ int main(int32_t argc, char** argv)
             necro_test(NECRO_TEST_REGION);
         }
     }
-    else if (argc == 2 || argc == 3)
+    else if (argc == 2 || argc == 3 || argc == 4)
     {
 #ifdef WIN32
         FILE* file;
@@ -140,17 +140,27 @@ int main(int32_t argc, char** argv)
             {
                 necro_compile(str, NECRO_PHASE_TRANSFORM_TO_CORE);
             }
-            else if (argc > 2 && strcmp(argv[2], "-node") == 0)
+            else if (argc > 2 && strcmp(argv[2], "-cc") == 0)
             {
-                necro_compile(str, NECRO_PHASE_TRANSFORM_TO_NODE);
+                necro_compile(str, NECRO_PHASE_CLOSURE_CONVERSION);
+            }
+            else if (argc > 2 && strcmp(argv[2], "-machine") == 0)
+            {
+                necro_compile(str, NECRO_PHASE_TRANSFORM_TO_MACHINE);
             }
             else if (argc > 2 && strcmp(argv[2], "-codegen") == 0)
             {
-                necro_compile(str, NECRO_PHASE_CODEGEN);
+                if (argc > 3 &&  strcmp(argv[3], "-opt") == 0)
+                    necro_compile_opt(str, NECRO_PHASE_CODEGEN);
+                else
+                    necro_compile(str, NECRO_PHASE_CODEGEN);
             }
             else if (argc > 2 && strcmp(argv[2], "-jit") == 0)
             {
-                necro_compile(str, NECRO_PHASE_JIT);
+                if (argc > 3 &&  strcmp(argv[3], "-opt") == 0)
+                    necro_compile_opt(str, NECRO_PHASE_JIT);
+                else
+                    necro_compile(str, NECRO_PHASE_JIT);
             }
             else
             {

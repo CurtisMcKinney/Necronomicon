@@ -145,6 +145,14 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
 
     case NECRO_AST_SIMPLE_ASSIGNMENT:
         printf("(Assignment: %s, id: %d)\n", necro_intern_get_string(intern, ast_node->simple_assignment.variable_name), ast_node->simple_assignment.id.id);
+        if (ast_node->simple_assignment.initializer != NULL)
+        {
+            print_white_space(depth * 2);
+            printf("<\n");
+            print_reified_ast_impl(ast_node->simple_assignment.initializer, intern, depth);
+            print_white_space(depth * 2);
+            printf(">\n");
+        }
         print_reified_ast_impl(ast_node->simple_assignment.rhs, intern, depth + 1);
         break;
 
@@ -253,10 +261,17 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
             print_reified_ast_impl(ast_node->expression_list.expressions, intern, depth + 1);
         break;
 
-    case NECRO_AST_EXPRESSION_SEQUENCE:
-        puts("Sequence");
-        if (ast_node->expression_sequence.expressions != NULL)
-            print_reified_ast_impl(ast_node->expression_sequence.expressions, intern, depth + 1);
+    case NECRO_AST_DELAY:
+        puts("(delay)");
+        print_reified_ast_impl(ast_node->delay.init_expr, intern, depth + 1);
+        print_reified_ast_impl(ast_node->delay.delayed_var, intern, depth + 1);
+        break;
+
+    case NECRO_AST_TRIM_DELAY:
+        puts("(trimDelay)");
+        print_reified_ast_impl(ast_node->trim_delay.int_literal, intern, depth + 1);
+        print_reified_ast_impl(ast_node->trim_delay.init_expr, intern, depth + 1);
+        print_reified_ast_impl(ast_node->trim_delay.delayed_var, intern, depth + 1);
         break;
 
     case NECRO_AST_TUPLE:
@@ -519,10 +534,11 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
     if (node == NULL)
         return NULL;
     NecroAST_Node_Reified* reified_node = necro_paged_arena_alloc(arena, sizeof(NecroAST_Node_Reified));
-    reified_node->type       = node->type;
-    reified_node->source_loc = node->source_loc;
-    reified_node->scope      = NULL;
-    reified_node->necro_type = NULL;
+    reified_node->type        = node->type;
+    reified_node->source_loc  = node->source_loc;
+    reified_node->scope       = NULL;
+    reified_node->necro_type  = NULL;
+    reified_node->delay_scope = NULL;
     switch (node->type)
     {
     case NECRO_AST_UNDEFINED:
@@ -594,6 +610,7 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
         reified_node->declaration.group_list       = NULL;
         break;
     case NECRO_AST_SIMPLE_ASSIGNMENT:
+        reified_node->simple_assignment.initializer       = necro_reify(a_ast, node->simple_assignment.initializer, arena, intern);
         reified_node->simple_assignment.rhs               = necro_reify(a_ast, node->simple_assignment.rhs, arena, intern);
         reified_node->simple_assignment.variable_name     = node->simple_assignment.variable_name;
         reified_node->simple_assignment.declaration_group = NULL;
@@ -652,8 +669,14 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
     case NECRO_AST_EXPRESSION_LIST:
         reified_node->expression_list.expressions = necro_reify(a_ast, node->expression_list.expressions, arena, intern);
         break;
-    case NECRO_AST_EXPRESSION_SEQUENCE:
-        reified_node->expression_sequence.expressions = necro_reify(a_ast, node->expression_sequence.expressions, arena, intern);
+    case NECRO_AST_DELAY:
+        reified_node->delay.init_expr   = necro_reify(a_ast, node->delay.init_expr, arena, intern);
+        reified_node->delay.delayed_var = necro_reify(a_ast, node->delay.delayed_var, arena, intern);
+        break;
+    case NECRO_AST_TRIM_DELAY:
+        reified_node->trim_delay.int_literal = necro_reify(a_ast, node->trim_delay.int_literal, arena, intern);
+        reified_node->trim_delay.init_expr   = necro_reify(a_ast, node->trim_delay.init_expr, arena, intern);
+        reified_node->trim_delay.delayed_var = necro_reify(a_ast, node->trim_delay.delayed_var, arena, intern);
         break;
     case NECRO_AST_TUPLE:
         reified_node->tuple.expressions = necro_reify(a_ast, node->tuple.expressions, arena, intern);
@@ -718,6 +741,7 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
     case NECRO_AST_DATA_DECLARATION:
         reified_node->data_declaration.simpletype       = necro_reify(a_ast, node->data_declaration.simpletype, arena, intern);
         reified_node->data_declaration.constructor_list = necro_reify(a_ast, node->data_declaration.constructor_list, arena, intern);
+        reified_node->data_declaration.is_recursive     = false;
         break;
     case NECRO_AST_TYPE_CLASS_CONTEXT:
         reified_node->type_class_context.conid = necro_reify(a_ast, node->type_class_context.conid, arena, intern);
@@ -931,6 +955,7 @@ NecroASTNode* necro_create_instance_ast(NecroPagedArena* arena, NecroIntern* int
     ast->type_class_instance.inst                 = inst_ast;
     ast->type_class_instance.context              = context_ast;
     ast->type_class_instance.declarations         = declarations_ast;
+    ast->type_class_instance.dictionary_instance  = NULL;
     ast->type_class_declaration.declaration_group = NULL;
     ast->type_class_instance.instance_name        = necro_create_type_class_instance_name(intern, ast);
     return ast;
@@ -965,6 +990,7 @@ NecroASTNode* necro_create_simple_assignment(NecroPagedArena* arena, NecroIntern
     ast->simple_assignment.id                = (NecroID) { 0 };
     ast->simple_assignment.variable_name     = necro_intern_string(intern, var_name);
     ast->simple_assignment.rhs               = rhs_ast;
+    ast->simple_assignment.initializer       = NULL;
     ast->simple_assignment.declaration_group = NULL;
     ast->simple_assignment.is_recursive      = false;
     return ast;

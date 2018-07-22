@@ -154,7 +154,7 @@ data Maybe a = Just a | Nothing
 -- -- Many stateful calculations at 100 ticks per second
 -- integrate :: Int -> Int
 -- integrate delta = feed where
---     feed = delta + delay 0 feed
+--     feed<0> = delta + feed
 -- tenTimes :: Int -> Int
 -- tenTimes n =
 --     integrate n + integrate n + integrate n + integrate n + integrate n +
@@ -353,11 +353,5 @@ mcounter' :: Maybe (Maybe Int)
 mcounter' = go where
     go<Just (Just 10)> = go
 
-synth :: Audio -> Audio
-synth freq = osc |> verb 0.1 0.2 |> mul 0.1 where
-    osc<0> = 440 * mouseX + freq * osc |> sinOsc
-
-
 main :: Int
 main = 10
-

@@ -501,3 +501,79 @@ extern DLLEXPORT void _necro_update_runtime()
     // Update tick!
     // necro_poll_mouse();
 }
+
+///////////////////////////////////////////////////////
+// Concurrent Copying GC
+///////////////////////////////////////////////////////
+#define NECRO_SPACE_SIZE 1048576 // 2 ^ 20, i.e. 1 mb
+
+typedef struct NecroSpace
+{
+    union
+    {
+        struct
+        {
+            struct NecroSpace* next_space;
+            char*              alloc_ptr;
+            char*              end_ptr;
+            size_t             data_start;
+        };
+        char data[NECRO_SPACE_SIZE];
+    };
+} NecroSpace;
+
+typedef struct NecroBlock
+{
+    struct NecroBlock* forwarding_pointer;
+    uint16_t           color;
+    uint16_t           something_else;
+    uint32_t           tag; // Used by necrolang
+    // The rest of the data...
+} NecroBlock;
+
+typedef enum
+{
+    NECRO_MUTATE_VALUE,
+    NECRO_MUTATE_REF,
+} NECRO_MUTATION_TYPE;
+
+typedef struct
+{
+    char*               value;
+    // Scan fn_pointer!?
+    NECRO_MUTATION_TYPE type;
+} NecroMutationEntry;
+
+typedef struct
+{
+    NecroMutationEntry* entries;
+    size_t              capacity;
+    size_t              count;
+} NecroMutationLog;
+
+typedef struct
+{
+    NecroMutationLog mutation_log;
+    NecroSpace*      from_head;
+    NecroSpace*      from_curr;
+
+    NecroSpace*      to_head;
+    NecroSpace*      to_curr;
+
+    size_t           to_ptr;
+    NecroGCRoot*     roots;
+    uint32_t         root_count;
+    uint32_t         counter;
+} NecroCopyGC;
+
+NecroCopyGC copy_gc;
+
+// void _necro_copy_scan(Necro)
+char* _necro_copy_alloc(uint32_t size)
+{
+    // char* data =
+        // if (copy_gc)
+    return NULL;
+}
+
+// NecroGC gc;

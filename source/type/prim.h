@@ -145,6 +145,7 @@ typedef struct NecroPrimTypes
     NecroCon          closure_type;
     NecroCon          apply_type;
     NecroCon          _clone_type_class;
+    NecroCon          _initialize_fn;
 
     // Runtime functions
     NecroCon          mouse_x_fn;

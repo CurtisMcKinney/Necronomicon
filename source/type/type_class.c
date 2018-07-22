@@ -1307,7 +1307,7 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
         NecroASTNode*                    dictionary_args        = NULL;
         NecroASTNode*                    dictionary_args_head   = NULL;
         NecroASTNode*                    rhs = ast->simple_assignment.rhs;
-        if (!necro_is_fully_concrete(infer->symtable, type))
+        if (ast->simple_assignment.initializer != NULL && !necro_is_fully_concrete(infer->symtable, type))
             necro_infer_ast_error(infer, type, ast, "Only fully concrete (non-polymorphic) types may be used in initializer");
         while (type->type == NECRO_TYPE_FOR)
         {
@@ -1340,6 +1340,7 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
             *new_rhs = *rhs;
             *rhs = *necro_create_lambda_ast(&infer->arena, dictionary_args_head, new_rhs);
         }
+        necro_type_class_translate_go(new_dictionary_context, infer, ast->simple_assignment.initializer);
         necro_type_class_translate_go(new_dictionary_context, infer, rhs);
         break;
     }

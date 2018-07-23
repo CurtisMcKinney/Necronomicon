@@ -92,6 +92,7 @@ NecroMachineType* necro_type_to_machine_type(struct NecroMachineProgram* program
 bool              is_poly_ptr(struct NecroMachineProgram* program, NecroMachineType* type);
 NecroMachineType* necro_core_pattern_type_to_machine_type(struct NecroMachineProgram* program, NecroCoreAST_Expression* ast);
 bool              necro_is_unboxed_type(struct NecroMachineProgram* program, NecroMachineType* type);
+bool              necro_is_word_uint_type(struct NecroMachineProgram* program, NecroMachineType* type);
 NecroMachineType* necro_make_ptr_if_boxed(struct NecroMachineProgram* program, NecroMachineType* type);
 
 #endif // NECRO_MACHINE_TYPE_H

@@ -187,6 +187,11 @@ bool necro_is_unboxed_type(struct NecroMachineProgram* program, NecroMachineType
         || (type->type == NECRO_MACHINE_TYPE_STRUCT && type->struct_type.name.id.id == program->world_type->struct_type.name.id.id);
 }
 
+bool necro_is_word_uint_type(struct NecroMachineProgram* program, NecroMachineType* type)
+{
+    return type == program->necro_uint_type;
+}
+
 NecroMachineType* necro_make_ptr_if_boxed(NecroMachineProgram* program, NecroMachineType* type)
 {
     if (necro_is_unboxed_type(program, type))

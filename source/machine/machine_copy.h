@@ -24,17 +24,17 @@ typedef struct
     NecroCon         decrement_con;
     bool             is_primitive;
     // NecroMachineAST* primitive_ast;
-} NecroMachinePersistData;
+} NecroMachineCopyData;
 
 typedef struct
 {
     NecroSymTable*           symtable;
-    NecroMachinePersistData* data;
+    NecroMachineCopyData* data;
     size_t                   capacity;
     size_t                   count;
-} NecroMachinePersistTable;
-NecroMachinePersistTable necro_create_machine_persist_table(NecroSymTable* symtable, NecroPrimTypes* prim_types);
-void                     necro_destroy_machine_persist_table(NecroMachinePersistTable* table);
-struct NecroMachineAST*  necro_gen_specialized_increment(struct NecroMachineProgram* program, NecroVar var);
+} NecroMachineCopyTable;
+NecroMachineCopyTable   necro_create_machine_copy_table(NecroSymTable* symtable, NecroPrimTypes* prim_types);
+void                    necro_destroy_machine_copy_table(NecroMachineCopyTable* table);
+struct NecroMachineAST* necro_gen_specialized_copy(struct NecroMachineProgram* program, NecroVar var);
 
 #endif // NECRO_MACHINE_PERSIST_H

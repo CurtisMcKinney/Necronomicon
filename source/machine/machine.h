@@ -15,7 +15,7 @@
 #include "type.h"
 #include "utility/arena.h"
 #include "machine_type.h"
-#include "machine_persist.h"
+#include "machine_copy.h"
 #include "utility/list.h"
 
 ///////////////////////////////////////////////////////
@@ -505,7 +505,7 @@ typedef struct NecroMachineProgram
     NecroSymbol           main_symbol;
     NecroMachineAST*      program_main;
     NecroMachineRuntime   runtime;
-    NecroMachinePersistTable persist_table;
+    NecroMachineCopyTable copy_table;
 } NecroMachineProgram;
 
 ///////////////////////////////////////////////////////

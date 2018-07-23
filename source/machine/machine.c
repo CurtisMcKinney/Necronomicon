@@ -9,7 +9,7 @@
 #include "machine_case.h"
 #include "machine_print.h"
 #include "machine_build.h"
-#include "machine_persist.h"
+#include "machine_copy.h"
 
 /*
     * https://www.microsoft.com/en-us/research/wp-content/uploads/1992/01/student.pdf
@@ -64,7 +64,7 @@ NecroMachineProgram necro_create_initial_machine_program(NecroIntern* intern, Ne
         .gen_vars        = 0,
         .necro_main      = NULL,
         .main_symbol     = necro_intern_string(symtable->intern, "main"),
-        .persist_table   = necro_create_machine_persist_table(symtable, prim_types),
+        .copy_table      = necro_create_machine_copy_table(symtable, prim_types),
     };
     program.necro_uint_type  = necro_create_word_sized_uint_type(&program.arena);
     program.necro_int_type   = necro_create_word_sized_int_type(&program.arena);
@@ -81,7 +81,7 @@ void necro_destroy_machine_program(NecroMachineProgram* program)
     necro_destroy_necro_machine_ast_vector(&program->globals);
     necro_destroy_necro_machine_ast_vector(&program->functions);
     necro_destroy_necro_machine_ast_vector(&program->machine_defs);
-    necro_destroy_machine_persist_table(&program->persist_table);
+    necro_destroy_machine_copy_table(&program->copy_table);
 }
 
 ///////////////////////////////////////////////////////
@@ -112,7 +112,7 @@ void necro_core_to_machine_1_data_con(NecroMachineProgram* program, NecroCoreAST
     NecroMachineAST*   mk_fn_body      = necro_create_machine_block(program, "entry", NULL);
     NecroMachineAST*   mk_fn_def       = necro_create_machine_fn(program, con_var, mk_fn_body, mk_fn_type);
     NecroMachineAST*   data_ptr        = necro_build_nalloc(program, mk_fn_def, struct_type->necro_machine_type, arg_count);
-    necro_build_store_into_tag(program, mk_fn_def, necro_create_uint32_necro_machine_value(program, con_number), data_ptr);
+    necro_build_store_into_tag(program, mk_fn_def, necro_create_word_uint_value(program, con_number), data_ptr);
 
     //--------------
     // Parameters

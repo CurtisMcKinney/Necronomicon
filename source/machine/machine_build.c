@@ -246,7 +246,7 @@ NecroMachineAST* necro_create_machine_load_from_ptr(NecroMachineProgram* program
     NecroMachineValue source_ptr = source_ptr_ast->value;
     assert(source_ptr_ast->necro_machine_type->type == NECRO_MACHINE_TYPE_PTR);
     assert(source_ptr.value_type == NECRO_MACHINE_VALUE_REG || source_ptr.value_type == NECRO_MACHINE_VALUE_PARAM || source_ptr.value_type == NECRO_MACHINE_VALUE_GLOBAL);
-    NecroMachineAST* ast    = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
+    NecroMachineAST* ast = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
     ast->type            = NECRO_MACHINE_LOAD;
     ast->load.load_type  = NECRO_LOAD_PTR;
     ast->load.source_ptr = source_ptr_ast;
@@ -261,11 +261,12 @@ NecroMachineAST* necro_create_machine_load_tag(NecroMachineProgram* program, Nec
     NecroMachineValue source_ptr = source_ptr_ast->value;
     assert(source_ptr_ast->necro_machine_type->type == NECRO_MACHINE_TYPE_PTR);
     assert(source_ptr.value_type == NECRO_MACHINE_VALUE_REG || source_ptr.value_type == NECRO_MACHINE_VALUE_PARAM || source_ptr.value_type == NECRO_MACHINE_VALUE_GLOBAL);
-    NecroMachineAST* ast    = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
+    NecroMachineAST* ast = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
     ast->type            = NECRO_MACHINE_LOAD;
     ast->load.load_type  = NECRO_LOAD_TAG;
     ast->load.source_ptr = source_ptr_ast;
-    ast->load.dest_value = necro_create_reg(program, necro_create_machine_uint32_type(&program->arena), dest_name);
+    ast->load.dest_value = necro_create_reg(program, program->necro_uint_type, dest_name);
+    // ast->load.dest_value = necro_create_reg(program, necro_create_machine_uint32_type(&program->arena), dest_name);
     ast->necro_machine_type = ast->load.dest_value->necro_machine_type;
     return ast;
 }
@@ -309,7 +310,8 @@ NecroMachineAST* necro_create_machine_store_into_tag(NecroMachineProgram* progra
     NecroMachineValue dest_ptr     = dest_ptr_ast->value;
     assert(dest_ptr_ast->necro_machine_type->type == NECRO_MACHINE_TYPE_PTR);
     assert(dest_ptr.value_type == NECRO_MACHINE_VALUE_REG || dest_ptr.value_type == NECRO_MACHINE_VALUE_PARAM);
-    assert(source_value_ast->necro_machine_type->type == NECRO_MACHINE_TYPE_UINT32);
+    //assert(source_value_ast->necro_machine_type->type == NECRO_MACHINE_TYPE_UINT32);
+    assert(necro_is_word_uint_type(program, source_value_ast->necro_machine_type));
     NecroMachineAST* ast       = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
     ast->type               = NECRO_MACHINE_STORE;
     ast->store.store_type   = NECRO_STORE_TAG;

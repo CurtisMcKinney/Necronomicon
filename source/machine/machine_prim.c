@@ -213,7 +213,7 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     //--------------------
 
     // NecroData
-    NecroMachineAST* necro_data_struct = necro_create_machine_struct_def(program, necro_con_to_var(program->prim_types->necro_data_type), (NecroMachineType*[]) { necro_create_machine_uint32_type(&program->arena), necro_create_machine_uint32_type(&program->arena) }, 2);
+    NecroMachineAST* necro_data_struct = necro_create_machine_struct_def(program, necro_con_to_var(program->prim_types->necro_data_type), (NecroMachineType*[]) { program->necro_poly_ptr_type, program->necro_uint_type }, 2);
     program->necro_data_type           = necro_data_struct->necro_machine_type;
 
     // World

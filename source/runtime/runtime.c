@@ -506,6 +506,7 @@ extern DLLEXPORT void _necro_update_runtime()
 // Concurrent Copying GC
 ///////////////////////////////////////////////////////
 #define NECRO_SPACE_SIZE 1048576 // 2 ^ 20, i.e. 1 mb
+// TODO: Pre-emptively allocate NEcroSpace memory if we're getting close to the end of the line
 
 typedef struct NecroSpace
 {
@@ -514,9 +515,7 @@ typedef struct NecroSpace
         struct
         {
             struct NecroSpace* next_space;
-            char*              alloc_ptr;
-            char*              end_ptr;
-            size_t             data_start;
+            char               data_start; // start of data
         };
         char data[NECRO_SPACE_SIZE];
     };
@@ -525,10 +524,7 @@ typedef struct NecroSpace
 typedef struct NecroBlock
 {
     struct NecroBlock* forwarding_pointer;
-    uint16_t           color;
-    uint16_t           something_else;
-    uint32_t           tag; // Used by necrolang
-    // The rest of the data...
+    size_t             tag; // Used by necrolang
 } NecroBlock;
 
 typedef enum
@@ -554,13 +550,17 @@ typedef struct
 typedef struct
 {
     NecroMutationLog mutation_log;
+
     NecroSpace*      from_head;
     NecroSpace*      from_curr;
+    char*            from_alloc_ptr;
+    char*            from_end_ptr;
 
     NecroSpace*      to_head;
     NecroSpace*      to_curr;
+    char*            to_alloc_ptr;
+    char*            to_end_ptr;
 
-    size_t           to_ptr;
     NecroGCRoot*     roots;
     uint32_t         root_count;
     uint32_t         counter;
@@ -568,12 +568,120 @@ typedef struct
 
 NecroCopyGC copy_gc;
 
-// void _necro_copy_scan(Necro)
-char* _necro_copy_alloc(uint32_t size)
+inline NecroSpace* necro_alloc_space()
 {
-    // char* data =
-        // if (copy_gc)
-    return NULL;
+    NecroSpace* space = malloc(sizeof(NecroSpace));
+    space->next_space = NULL;
+    return space;
 }
 
-// NecroGC gc;
+void necro_destroy_space(NecroSpace* space)
+{
+    if (space == NULL)
+        return;
+    necro_destroy_space(space->next_space);
+    free(space);
+}
+
+NecroCopyGC necro_create_copy_gc()
+{
+    NecroCopyGC copy_gc;
+    copy_gc.roots          = NULL;
+    copy_gc.root_count     = 0;
+    copy_gc.counter        = 0;
+
+    // From
+    copy_gc.from_head      = necro_alloc_space();
+    copy_gc.from_curr      = copy_gc.from_head;
+    copy_gc.from_alloc_ptr =
+    copy_gc.from_alloc_ptr = &copy_gc.from_curr->data_start;
+    copy_gc.from_end_ptr   = copy_gc.from_curr->data + NECRO_SPACE_SIZE;
+
+    // To
+    copy_gc.to_head      = necro_alloc_space();
+    copy_gc.to_curr      = copy_gc.to_head;
+    copy_gc.to_alloc_ptr = &copy_gc.to_curr->data_start;
+    copy_gc.to_end_ptr   = copy_gc.to_curr->data + NECRO_SPACE_SIZE;
+
+    return copy_gc;
+}
+
+void necro_destroy_copy_gc(NecroCopyGC* copy_gc)
+{
+    assert(copy_gc != NULL);
+    necro_destroy_space(copy_gc->from_head);
+    necro_destroy_space(copy_gc->to_head);
+    free(copy_gc->roots);
+    copy_gc->root_count = 0;
+}
+
+char* _necro_from_alloc(uint32_t size)
+{
+    char* data    = copy_gc.from_alloc_ptr;
+    char* new_end = data + size;
+    if (new_end < copy_gc.from_end_ptr)
+    {
+        copy_gc.from_alloc_ptr = new_end;
+        ((NecroBlock*)data)->forwarding_pointer = NULL;
+        return data;
+    }
+    assert(size < NECRO_SPACE_SIZE);
+    if (copy_gc.from_curr->next_space == NULL)
+        copy_gc.from_curr->next_space = necro_alloc_space();
+    copy_gc.from_curr      = copy_gc.from_curr->next_space;
+    copy_gc.from_alloc_ptr = &copy_gc.from_curr->data_start;
+    copy_gc.from_end_ptr   = copy_gc.from_curr->data + NECRO_SPACE_SIZE;
+    return _necro_from_alloc(size);
+}
+
+char* _necro_to_alloc(uint32_t size)
+{
+    char* data    = copy_gc.to_alloc_ptr;
+    char* new_end = data + size;
+    if (new_end < copy_gc.to_end_ptr)
+    {
+        copy_gc.to_alloc_ptr = new_end;
+        ((NecroBlock*)data)->forwarding_pointer = NULL;
+        return data;
+    }
+    assert(size < NECRO_SPACE_SIZE);
+    if (copy_gc.to_curr->next_space == NULL)
+        copy_gc.to_curr->next_space = necro_alloc_space();
+    copy_gc.to_curr      = copy_gc.to_curr->next_space;
+    copy_gc.to_alloc_ptr = &copy_gc.to_curr->data_start;
+    copy_gc.to_end_ptr   = copy_gc.to_curr->data + NECRO_SPACE_SIZE;
+    return _necro_to_alloc(size);
+}
+
+// collecting is just literally allocating into "to" buffer and copying values over!!!
+/* example:
+    Maybe* _copyMaybe$Unary(Maybe*)
+    {
+    entry:
+        %fptr = load %0 (fptr)
+        %is_null = cmp eq fptr null
+        breakcond %is_null [true: ont] [false: retfptr]
+
+    retfptr:
+        ret fptr
+
+    cont:
+        %data = _necro_to_alloc (Maybe*)
+        store %data %0 (fptr)
+        %tag = load %0 (tag)
+        store %tag %data (tag)
+        %is_just = cmp eq tag 0u32
+        breakcond %is_just [true: just] [false: nothing]
+
+    nothing:
+        ret data
+
+    just:
+        %prev_arg1 = load %0 (slot 1)
+        %new_arg1 = _copyUnary(prev_arg1)
+        store %new_arg1 %data (slot 1)
+        ret data
+    }
+*/
+
+// TODO: Initializer on non-recursive value is an error

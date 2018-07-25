@@ -67,9 +67,9 @@ typedef struct NecroMachineType
     NECRO_MACHINE_TYPE_TYPE type;
 } NecroMachineType;
 
-NecroMachineType* necro_create_word_sized_uint_type(NecroPagedArena* arena);
-NecroMachineType* necro_create_word_sized_int_type(NecroPagedArena* arena);
-NecroMachineType* necro_create_word_sized_float_type(NecroPagedArena* arena);
+NecroMachineType* necro_create_word_sized_uint_type(struct NecroMachineProgram* program);
+NecroMachineType* necro_create_word_sized_int_type(struct NecroMachineProgram* program);
+NecroMachineType* necro_create_word_sized_float_type(struct NecroMachineProgram* program);
 NecroMachineType* necro_create_machine_uint1_type(NecroPagedArena* arena);
 NecroMachineType* necro_create_machine_uint8_type(NecroPagedArena* arena);
 NecroMachineType* necro_create_machine_uint16_type(NecroPagedArena* arena);

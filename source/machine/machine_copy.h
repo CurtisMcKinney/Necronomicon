@@ -47,5 +47,6 @@ typedef struct
 NecroMachineCopyTable necro_create_machine_copy_table(NecroSymTable* symtable, NecroPrimTypes* prim_types);
 void                  necro_destroy_machine_copy_table(NecroMachineCopyTable* table);
 size_t                necro_create_data_info(struct NecroMachineProgram* program, NecroType* type);
+// NecroConstructorInfo* necro_get_data_info(struct NecroMachineProgram* program, NecroType* type);
 
 #endif // NECRO_MACHINE_PERSIST_H

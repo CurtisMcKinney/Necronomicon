@@ -31,11 +31,19 @@ extern DLLEXPORT void     _necro_initialize_root_set(uint32_t root_count);
 extern DLLEXPORT int64_t* _necro_alloc(uint32_t slots_used, uint8_t segment);
 extern DLLEXPORT void     _necro_collect();
 
+//-------------------------
+// new copying collector
+extern DLLEXPORT int*     _necro_from_alloc(size_t size);
+extern DLLEXPORT int*     _necro_to_alloc(size_t size);
+extern DLLEXPORT void     _necro_copy_gc_initialize_root_set(size_t root_count);
+extern DLLEXPORT void     _necro_copy_gc_set_root(int* root, size_t root_index, size_t data_id);
+extern DLLEXPORT void     _necro_copy_gc_collect();
+
 ///////////////////////////////////////////////////////
 // Utility functions
 ///////////////////////////////////////////////////////
 size_t necro_get_runtime_tick();
-void   necro_gc_init();
-void   necro_cleanup_gc();
+void   necro_copy_gc_init();
+void   necro_copy_gc_cleanup();
 
 #endif // RUNTIME_H

@@ -47,6 +47,16 @@ size_t necro_count_data_con_args(NecroCoreAST_DataCon* con)
 ///////////////////////////////////////////////////////
 // NecroMachineProgram
 ///////////////////////////////////////////////////////
+NECRO_WORD_SIZE necro_get_word_size()
+{
+    if (sizeof(char*) == 4)
+        return NECRO_WORD_4_BYTES;
+    else if (sizeof(char*) == 8)
+        return NECRO_WORD_8_BYTES;
+    else
+        assert(false);
+}
+
 NecroMachineProgram necro_create_initial_machine_program(NecroIntern* intern, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types, NecroInfer* infer)
 {
     NecroMachineProgram program =
@@ -57,6 +67,7 @@ NecroMachineProgram necro_create_initial_machine_program(NecroIntern* intern, Ne
         .globals         = necro_create_necro_machine_ast_vector(),
         .functions       = necro_create_necro_machine_ast_vector(),
         .machine_defs    = necro_create_necro_machine_ast_vector(),
+        .word_size       = necro_get_word_size(),
         .intern          = intern,
         .symtable        = symtable,
         .scoped_symtable = scoped_symtable,
@@ -67,9 +78,9 @@ NecroMachineProgram necro_create_initial_machine_program(NecroIntern* intern, Ne
         .main_symbol     = necro_intern_string(symtable->intern, "main"),
         .copy_table      = necro_create_machine_copy_table(symtable, prim_types),
     };
-    program.necro_uint_type  = necro_create_word_sized_uint_type(&program.arena);
-    program.necro_int_type   = necro_create_word_sized_int_type(&program.arena);
-    program.necro_float_type = necro_create_word_sized_float_type(&program.arena);
+    program.necro_uint_type  = necro_create_word_sized_uint_type(&program);
+    program.necro_int_type   = necro_create_word_sized_int_type(&program);
+    program.necro_float_type = necro_create_word_sized_float_type(&program);
     necro_init_machine_prim(&program);
     return program;
 }
@@ -124,12 +135,11 @@ void necro_core_to_machine_1_data_con(NecroMachineProgram* program, NecroCoreAST
             char itoa_buff_2[6];
             char* value_name = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "param_", itoa(i, itoa_buff_2, 10) });
             necro_build_store_into_slot(program, mk_fn_def, necro_create_param_reg(program, mk_fn_def, i), data_ptr, i + 1);
-            // necro_build_store_into_slot(program, mk_fn_def, necro_create_param_reg(program, mk_fn_def, i), data_ptr, i);
         }
         else
         {
-            // necro_build_store_into_slot(program, mk_fn_def, necro_create_null_necro_machine_value(program, program->necro_poly_ptr_type), data_ptr, i);
-            necro_build_store_into_slot(program, mk_fn_def, necro_create_null_necro_machine_value(program, program->necro_poly_ptr_type), data_ptr, i + 1);
+            // Taking this out since, theoretically, the gc will no longer check non-assigned members (and in the future we'll allocate a smaller size to exactly match members used)
+            // necro_build_store_into_slot(program, mk_fn_def, necro_create_null_necro_machine_value(program, program->necro_poly_ptr_type), data_ptr, i + 1);
         }
     }
 
@@ -957,8 +967,12 @@ void necro_construct_main(NecroMachineProgram* program)
         if (program->machine_defs.data[i]->machine_def.state_type != NECRO_STATE_CONSTANT || program->machine_defs.data[i]->machine_def.num_arg_names != 0)
             continue;
         NecroMachineAST* const_value = necro_build_call(program, necro_main_fn, program->machine_defs.data[i]->machine_def.update_fn->fn_def.fn_value, NULL, 0, "const");
+        if (necro_is_unboxed_type(program, const_value->necro_machine_type))
+            necro_build_store_into_ptr(program, necro_main_fn, const_value, program->machine_defs.data[i]->machine_def.global_value);
+        else
+            necro_build_memcpy(program, necro_main_fn, program->machine_defs.data[i]->machine_def.global_value, const_value, necro_create_word_uint_value(program, 0));
+        // TODO: Store boxed types
         // necro_build_store_into_ptr(program, necro_main_fn, const_value, program->machine_defs.data[i]->machine_def.global_value);
-        // TODO: Clone
     }
 
     //---------
@@ -972,20 +986,15 @@ void necro_construct_main(NecroMachineProgram* program)
             continue;
         result = necro_build_call(program, necro_main_fn, program->machine_defs.data[i]->machine_def.update_fn->fn_def.fn_value, (NecroMachineAST*[]) { program->machine_defs.data[i]->machine_def.global_state }, 1, "state");
         if (necro_is_unboxed_type(program, result->necro_machine_type))
-        {
             necro_build_store_into_ptr(program, necro_main_fn, result, program->machine_defs.data[i]->machine_def.global_value);
-        }
-        // TODO: Finish
-        // necro_build_memcpy(program, necro_main_fn, program->machine_defs.data[i]->machine_def.global_value, result, necro_create_uint32_necro_machine_value(program, 0));
-        // TODO: Clone
+        else
+            necro_build_memcpy(program, necro_main_fn, program->machine_defs.data[i]->machine_def.global_value, result, necro_create_word_uint_value(program, 0));
+        // TODO: Store boxed types
     }
-    // TODO: Replace!
-    // NecroMachineAST* program_result = necro_build_load_from_ptr(program, necro_main_fn, program->program_main->machine_def.global_value, "result");
-    // NecroMachineAST* unboxed_result = necro_build_load_from_slot(program, necro_main_fn, program_result, 1, "unboxed_result");
     if (result == NULL)
         result = necro_build_load_from_ptr(program, necro_main_fn, program->program_main->machine_def.global_value, "result");
     necro_build_call(program, necro_main_fn, necro_symtable_get(program->symtable, program->runtime._necro_print.id)->necro_machine_ast->fn_def.fn_value, (NecroMachineAST*[]) { result }, 1, "");
-    // necro_build_call(program, necro_main_fn, necro_symtable_get(program->symtable, program->runtime._necro_collect.id)->necro_machine_ast->fn_def.fn_value, NULL, 0, "");
+    necro_build_call(program, necro_main_fn, necro_symtable_get(program->symtable, program->runtime._necro_copy_gc_collect.id)->necro_machine_ast->fn_def.fn_value, NULL, 0, "");
     necro_build_call(program, necro_main_fn, necro_symtable_get(program->symtable, program->runtime._necro_sleep.id)->necro_machine_ast->fn_def.fn_value, (NecroMachineAST*[]) { necro_create_uint32_necro_machine_value(program, 10) }, 1, "");
     necro_build_break(program, necro_main_fn, necro_main_loop);
 

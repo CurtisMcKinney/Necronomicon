@@ -191,3 +191,9 @@ size_t necro_create_data_info(NecroMachineProgram* program, NecroType* type)
     }
     return type_data->data_id;
 }
+
+// NecroConstructorInfo* necro_get_data_info(struct NecroMachineProgram* program, NecroType* type)
+// {
+//     size_t data_id = necro_create_data_info(program, type);
+//     // return program->data_map.
+// }

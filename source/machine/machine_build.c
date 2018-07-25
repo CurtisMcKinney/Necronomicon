@@ -218,7 +218,7 @@ NecroMachineAST* necro_create_null_necro_machine_value(NecroMachineProgram* prog
 
 NecroMachineAST* necro_create_word_uint_value(NecroMachineProgram* program, uint64_t int_literal)
 {
-    if (sizeof(void*) == 4)
+    if (program->word_size == NECRO_WORD_4_BYTES)
         return necro_create_uint32_necro_machine_value(program, (uint32_t) int_literal);
     else
         return necro_create_uint64_necro_machine_value(program, int_literal);
@@ -226,7 +226,7 @@ NecroMachineAST* necro_create_word_uint_value(NecroMachineProgram* program, uint
 
 NecroMachineAST* necro_create_word_int_value(NecroMachineProgram* program, int64_t int_literal)
 {
-    if (sizeof(void*) == 4)
+    if (program->word_size == NECRO_WORD_4_BYTES)
         return necro_create_i32_necro_machine_value(program, (int32_t) int_literal);
     else
         return necro_create_i64_necro_machine_value(program, int_literal);
@@ -234,7 +234,7 @@ NecroMachineAST* necro_create_word_int_value(NecroMachineProgram* program, int64
 
 NecroMachineAST* necro_create_word_float_value(NecroMachineProgram* program, double float_literal)
 {
-    if (sizeof(void*) == 4)
+    if (program->word_size == NECRO_WORD_4_BYTES)
         return necro_create_f32_necro_machine_value(program, (float) float_literal);
     else
         return necro_create_f64_necro_machine_value(program, float_literal);
@@ -958,7 +958,7 @@ void necro_build_memcpy(NecroMachineProgram* program, NecroMachineAST* fn_def, N
     assert(dest->necro_machine_type->type == NECRO_MACHINE_TYPE_PTR);
     assert(source->necro_machine_type->type == NECRO_MACHINE_TYPE_PTR);
     necro_type_check(program, dest->necro_machine_type, source->necro_machine_type);
-    assert(num_bytes->necro_machine_type->type == NECRO_MACHINE_TYPE_UINT32);
+    assert(necro_is_word_uint_type(program, num_bytes->necro_machine_type));
     NecroMachineAST* ast  = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
     ast->type             = NECRO_MACHINE_MEMCPY;
     ast->memcpy.dest      = dest;

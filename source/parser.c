@@ -1506,8 +1506,8 @@ NecroAST_LocalPtr parse_parenthetical_const_con(NecroParser* parser)
             restore_parser(parser, snapshot);
             return null_local_ptr;
         }
-        necro_error(&parser->error, look_ahead_token->source_loc, "Failed to parse parenthetical constant constructor because there was no closing \')\'. Failed beginning with token %s", necro_lex_token_type_string(look_ahead_token->token));
-        parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+        // necro_error(&parser->error, look_ahead_token->source_loc, "Failed to parse parenthetical constant constructor because there was no closing \')\'. Failed beginning with token %s", necro_lex_token_type_string(look_ahead_token->token));
+        // parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
         restore_parser(parser, snapshot);
         return null_local_ptr;
     }
@@ -1585,8 +1585,11 @@ NecroAST_LocalPtr parse_const_tuple(NecroParser* parser)
     return null_local_ptr;
 }
 
+// TODO: Replace!
+// This causes too much havok!
 NecroAST_LocalPtr parse_initializer(NecroParser* parser)
 {
+    return null_local_ptr;
     // NecroLexToken* look_ahead_token = peek_token(parser);
 
     // if (look_ahead_token->token != NECRO_LEX_LT)

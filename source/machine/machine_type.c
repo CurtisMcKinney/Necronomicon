@@ -87,24 +87,24 @@ NecroMachineType* necro_create_machine_void_type(NecroPagedArena* arena)
     return type;
 }
 
-NecroMachineType* necro_create_word_sized_uint_type(NecroPagedArena* arena)
+NecroMachineType* necro_create_word_sized_uint_type(NecroMachineProgram* program)
 {
-    NecroMachineType* type = necro_paged_arena_alloc(arena, sizeof(NecroMachineType));
-    type->type             = (sizeof(void*) == 4) ? NECRO_MACHINE_TYPE_UINT32 : NECRO_MACHINE_TYPE_UINT64;
+    NecroMachineType* type = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineType));
+    type->type             = (program->word_size == NECRO_WORD_4_BYTES) ? NECRO_MACHINE_TYPE_UINT32 : NECRO_MACHINE_TYPE_UINT64;
     return type;
 }
 
-NecroMachineType* necro_create_word_sized_int_type(NecroPagedArena* arena)
+NecroMachineType* necro_create_word_sized_int_type(NecroMachineProgram* program)
 {
-    NecroMachineType* type = necro_paged_arena_alloc(arena, sizeof(NecroMachineType));
-    type->type             = (sizeof(void*) == 4) ? NECRO_MACHINE_TYPE_INT32 : NECRO_MACHINE_TYPE_INT64;
+    NecroMachineType* type = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineType));
+    type->type             = (program->word_size == NECRO_WORD_4_BYTES) ? NECRO_MACHINE_TYPE_INT32 : NECRO_MACHINE_TYPE_INT64;
     return type;
 }
 
-NecroMachineType* necro_create_word_sized_float_type(NecroPagedArena* arena)
+NecroMachineType* necro_create_word_sized_float_type(NecroMachineProgram* program)
 {
-    NecroMachineType* type = necro_paged_arena_alloc(arena, sizeof(NecroMachineType));
-    type->type             = (sizeof(void*) == 4) ? NECRO_MACHINE_TYPE_F32 : NECRO_MACHINE_TYPE_F64;
+    NecroMachineType* type = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineType));
+    type->type             = (program->word_size == NECRO_WORD_4_BYTES) ? NECRO_MACHINE_TYPE_F32 : NECRO_MACHINE_TYPE_F64;
     return type;
 }
 

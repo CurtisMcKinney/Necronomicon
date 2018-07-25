@@ -467,11 +467,28 @@ typedef struct NecroRuntime
     NecroVar _necro_error_exit;
     NecroVar _necro_sleep;
     NecroVar _necro_print;
-    NecroVar _necro_set_root;
-    NecroVar _necro_initialize_root_set;
-    NecroVar _necro_alloc;
-    NecroVar _necro_collect;
+
+    //---------------
+    // old mark sweep gc
+    // NecroVar _necro_initialize_root_set;
+    // NecroVar _necro_set_root;
+    // NecroVar _necro_alloc;
+    // NecroVar _necro_collect;
+
+    //---------------
+    // new copy_gc
+    NecroVar _necro_from_alloc;
+    NecroVar _necro_to_alloc;
+    NecroVar _necro_copy_gc_initialize_root_set;
+    NecroVar _necro_copy_gc_set_root;
+    NecroVar _necro_copy_gc_collect;
 } NecroMachineRuntime;
+
+typedef enum
+{
+    NECRO_WORD_4_BYTES, // 32-bit
+    NECRO_WORD_8_BYTES, // 64-bit
+} NECRO_WORD_SIZE;
 
 typedef struct NecroMachineProgram
 {
@@ -481,6 +498,7 @@ typedef struct NecroMachineProgram
     NecroMachineASTVector machine_defs;
     NecroMachineASTVector globals;
     NecroMachineAST*      necro_main;
+    NECRO_WORD_SIZE       word_size;
 
     // Useful structs
     NecroPagedArena       arena;
@@ -517,5 +535,6 @@ void                necro_destroy_machine_program(NecroMachineProgram* program);
 void                necro_core_to_machine_1_go(NecroMachineProgram* program, NecroCoreAST_Expression* core_ast, NecroMachineAST* outer);
 void                necro_core_to_machine_2_go(NecroMachineProgram* program, NecroCoreAST_Expression* core_ast, NecroMachineAST* outer);
 NecroMachineAST*    necro_core_to_machine_3_go(NecroMachineProgram* program, NecroCoreAST_Expression* core_ast, NecroMachineAST* outer);
+NECRO_WORD_SIZE     necro_get_word_size();
 
 #endif // NECRO_MACHINE_H

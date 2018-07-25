@@ -1,4 +1,7 @@
-data Maybe a = Just a | Nothing
+data Maybe a = Just a | Nothing | AlotOfNothing a a
+-- data Maybe a = Just a | Nothing | AlotOfNothing a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a
+-- TODO: This causes a segfault, fix.
+
 -- data Nullary    = Nullary
 -- data Unary      = Unary Nullary
 -- data Both       = Both Nullary Unary
@@ -383,7 +386,7 @@ data Maybe a = Just a | Nothing
 -- couldBeAnFloat :: Maybe (Maybe Float)
 -- couldBeAnFloat = Just (Just 3.141)
 
--- gimmeThatInt :: Int
+-- gimmeThatInt :: Float
 -- gimmeThatInt =
 --     case couldBeAnFloat of
 --         Just (Just x) -> x * x
@@ -391,25 +394,90 @@ data Maybe a = Just a | Nothing
 
 -- counter :: Int
 -- counter = x where
---     x = 0 => x + 1
+--     x ~ 0 = x + 1
 
-integrate :: Int -> Int
-integrate delta = x where
-    x = 0 => x + delta
+-- integrate :: Int -> Int
+-- integrate delta = x where
+--     x ~ 0 = x + delta
+-- main :: Int
+-- main = integrate (getMouseX world)
 
-twoIntegrates :: Int -> Int -> Int
-twoIntegrates x y = integrate x + integrate y
+-- TODO: .. Ah yeah, that whole allocation / GC thing...
+-- TODO: initializers in core and in necro machine
+
+-- TODO: Replace initializers with something that gives a parsing hint (a la 'of' or '~')
+-- TODO: Memcpy to globals!
+
+alwaysAndForever :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
+alwaysAndForever = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
+
+alwaysAndForever' :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
+alwaysAndForever' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
+
+alwaysAndForever'' :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
+alwaysAndForever'' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
+
+alwaysAndForever''' :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
+alwaysAndForever''' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
+
+alwaysAndForever'''' :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
+alwaysAndForever'''' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
+
+alwaysAndForever''''' :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
+alwaysAndForever''''' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
+
+alwaysAndForever'''''' :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
+alwaysAndForever'''''' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
+
+alwaysAndForever''''''' :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
+alwaysAndForever''''''' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
+
+alwaysAndForever'''''''' :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
+alwaysAndForever'''''''' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
+
+alwaysAndForever''''''''' :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
+alwaysAndForever''''''''' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
+
+balwaysAndForever :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
+balwaysAndForever = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
+
+balwaysAndForever' :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
+balwaysAndForever' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
+
+balwaysAndForever'' :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
+balwaysAndForever'' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
+
+balwaysAndForever''' :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
+balwaysAndForever''' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
+
+balwaysAndForever'''' :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
+balwaysAndForever'''' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
+
+balwaysAndForever''''' :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
+balwaysAndForever''''' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
+
+balwaysAndForever'''''' :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
+balwaysAndForever'''''' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
+
+balwaysAndForever''''''' :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
+balwaysAndForever''''''' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
+
+balwaysAndForever'''''''' :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
+balwaysAndForever'''''''' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
+
+balwaysAndForever''''''''' :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
+balwaysAndForever''''''''' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
 
 main :: Int
-main = integrate (getMouseX world)
+main =
+    case alwaysAndForever of
+        Just (Just (Just (Just (Just (Just (Just (Just x))))))) -> x
+        _ -> (-1)
 
--- main :: Int
--- main = twoIntegrates 100 3333
-
--- -- TODO: .. Ah yeah, that whole allocation / GC thing...
+-- -- TODO: Fix case expr not maybecasting!
 -- main :: Int
 -- main =
---     case mflip of
---         Just (Just x) -> x
---         _             -> 100
+--     case Just 666 of
+--         Just x -> x
+--         _      -> 100
 

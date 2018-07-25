@@ -20,6 +20,15 @@
 #define NECRO_GC_SLAB_TO_PAGES 1024
 #define NECRO_GC_NUM_SEGMENTS 10
 
+// Set to 1 if you want debug trace messages from GC
+#define NECRO_DEBUG_GC 1
+
+#if NECRO_DEBUG_GC
+#define NECRO_TRACE_GC(...) printf(__VA_ARGS__)
+#else
+#define NECRO_TRACE_GC(...)
+#endif
+
 //=====================================================
 // GC
 //=====================================================
@@ -577,6 +586,7 @@ inline NecroSpace* necro_alloc_space()
 {
     NecroSpace* space = malloc(sizeof(NecroSpace));
     space->next_space = NULL;
+    NECRO_TRACE_GC("necro_alloc_space, size: %d mb\n", sizeof(NecroSpace)/1000000);
     return space;
 }
 
@@ -624,44 +634,6 @@ void necro_destroy_copy_gc(NecroCopyGC* copy_gc)
         copy_gc->roots = NULL;
     }
     copy_gc->root_count = 0;
-}
-
-char* _necro_from_alloc(uint32_t size)
-{
-    char* data    = copy_gc.from_alloc_ptr;
-    char* new_end = data + size;
-    if (new_end < copy_gc.from_end_ptr)
-    {
-        copy_gc.from_alloc_ptr = new_end;
-        ((NecroBlock*)data)->forwarding_pointer = NULL;
-        return data;
-    }
-    assert(size < NECRO_SPACE_SIZE);
-    if (copy_gc.from_curr->next_space == NULL)
-        copy_gc.from_curr->next_space = necro_alloc_space();
-    copy_gc.from_curr      = copy_gc.from_curr->next_space;
-    copy_gc.from_alloc_ptr = &copy_gc.from_curr->data_start;
-    copy_gc.from_end_ptr   = copy_gc.from_curr->data + NECRO_SPACE_SIZE;
-    return _necro_from_alloc(size);
-}
-
-char* _necro_to_alloc(uint32_t size)
-{
-    char* data    = copy_gc.to_alloc_ptr;
-    char* new_end = data + size;
-    if (new_end < copy_gc.to_end_ptr)
-    {
-        copy_gc.to_alloc_ptr = new_end;
-        ((NecroBlock*)data)->forwarding_pointer = NULL;
-        return data;
-    }
-    assert(size < NECRO_SPACE_SIZE);
-    if (copy_gc.to_curr->next_space == NULL)
-        copy_gc.to_curr->next_space = necro_alloc_space();
-    copy_gc.to_curr      = copy_gc.to_curr->next_space;
-    copy_gc.to_alloc_ptr = &copy_gc.to_curr->data_start;
-    copy_gc.to_end_ptr   = copy_gc.to_curr->data + NECRO_SPACE_SIZE;
-    return _necro_to_alloc(size);
 }
 
 typedef struct
@@ -745,7 +717,7 @@ void _necro_copy(size_t root_data_id, NecroBlock* root)
         else
         {
             NecroConstructorInfo info          = data_map[job.data_id + job.from_block->tag];
-            NecroBlock*          new_block     = (NecroBlock*)_necro_to_alloc(sizeof(NecroBlock) + info.num_members * sizeof(NecroBlock*));
+            NecroBlock*          new_block     = (NecroBlock*)_necro_to_alloc(info.size_in_bytes);
             new_block->tag                     = job.from_block->tag;
             job.from_block->forwarding_pointer = new_block;
             *job.to_block                      = new_block;
@@ -753,7 +725,10 @@ void _necro_copy(size_t root_data_id, NecroBlock* root)
             NecroBlock**         to_members    = (NecroBlock**) (new_block + 1);
             for (size_t i = 0; i < info.num_members; ++i)
             {
-                // TODO: Atomic load and store? Is it completely necessary?
+                /*
+                    TODO: Atomic load and store?
+                    Is it completely necessary since everything is word sized?
+                */
                 NecroBlock*  from_block = from_members[i];
                 NecroBlock** to_block   = to_members + i;
                 assert(from_block != NULL);
@@ -783,6 +758,14 @@ void _necro_copy_flip()
     copy_gc.to_end_ptr       = copy_gc.to_curr->data + NECRO_SPACE_SIZE;
 }
 
+void necro_report_gc_statistics()
+{
+    // Combine space usage into total memory usage
+    // Put num spaces used
+    // Other useful info!
+    NECRO_TRACE_GC("memory usage: %d.%d kb\n", ((size_t)(copy_gc.from_alloc_ptr - &copy_gc.from_curr->data_start)) / 1000, ((size_t)(copy_gc.from_alloc_ptr - &copy_gc.from_curr->data_start)) % 1000);
+}
+
 //--------------------
 // NecroCopyGC API
 //--------------------
@@ -797,7 +780,7 @@ void necro_copy_gc_cleanup()
 }
 
 // Don't even enter unboxed roots into the gc at all!
-extern DLLEXPORT void _necro_copy_gc_initialize_root_set(uint32_t root_count)
+extern DLLEXPORT void _necro_copy_gc_initialize_root_set(size_t root_count)
 {
     printf("init root_set, root_count: %d\n", root_count);
     copy_gc.root_count = root_count;
@@ -814,9 +797,9 @@ extern DLLEXPORT void _necro_copy_gc_initialize_root_set(uint32_t root_count)
     }
 }
 
-extern DLLEXPORT void _necro_copy_gc_set_root(uint32_t* root, uint32_t root_index, uint32_t data_id)
+extern DLLEXPORT void _necro_copy_gc_set_root(int* root, size_t root_index, size_t data_id)
 {
-    printf("set root, index: %d, root: %p\n", root_index, root);
+    NECRO_TRACE_GC("set root, index: %d, root: %p\n", root_index, root);
     assert(data_id != NECRO_UNBOXED_DATA_ID);
     copy_gc.roots[root_index].block   = (NecroBlock*) root;
     copy_gc.roots[root_index].data_id = data_id;
@@ -826,6 +809,11 @@ extern DLLEXPORT void _necro_copy_gc_set_root(uint32_t* root, uint32_t root_inde
 // Serial version (parallelize later)
 extern DLLEXPORT void _necro_copy_gc_collect()
 {
+#if NECRO_DEBUG_GC
+    necro_report_gc_statistics();
+#endif
+    // TODO: Remove
+    return;
     // necro_start_timer(copy_gc.timer);
     // Copy
     for (size_t i = 0; i < copy_gc.root_count; ++i)
@@ -848,6 +836,44 @@ extern DLLEXPORT void _necro_copy_gc_collect()
     // Flip
     _necro_copy_flip();
     // necro_stop_and_report_timer(copy_gc.timer, "copy collect time: ");
+}
+
+extern DLLEXPORT int* _necro_from_alloc(size_t size)
+{
+    char* data    = copy_gc.from_alloc_ptr;
+    char* new_end = data + size;
+    if (new_end < copy_gc.from_end_ptr)
+    {
+        copy_gc.from_alloc_ptr = new_end;
+        ((NecroBlock*)data)->forwarding_pointer = NULL;
+        return (int*)data;
+    }
+    assert(size < NECRO_SPACE_SIZE);
+    if (copy_gc.from_curr->next_space == NULL)
+        copy_gc.from_curr->next_space = necro_alloc_space();
+    copy_gc.from_curr      = copy_gc.from_curr->next_space;
+    copy_gc.from_alloc_ptr = &copy_gc.from_curr->data_start;
+    copy_gc.from_end_ptr   = copy_gc.from_curr->data + NECRO_SPACE_SIZE;
+    return _necro_from_alloc(size);
+}
+
+extern DLLEXPORT int* _necro_to_alloc(size_t size)
+{
+    char* data    = copy_gc.to_alloc_ptr;
+    char* new_end = data + size;
+    if (new_end < copy_gc.to_end_ptr)
+    {
+        copy_gc.to_alloc_ptr = new_end;
+        ((NecroBlock*)data)->forwarding_pointer = NULL;
+        return (int*)data;
+    }
+    assert(size < NECRO_SPACE_SIZE);
+    if (copy_gc.to_curr->next_space == NULL)
+        copy_gc.to_curr->next_space = necro_alloc_space();
+    copy_gc.to_curr      = copy_gc.to_curr->next_space;
+    copy_gc.to_alloc_ptr = &copy_gc.to_curr->data_start;
+    copy_gc.to_end_ptr   = copy_gc.to_curr->data + NECRO_SPACE_SIZE;
+    return _necro_to_alloc(size);
 }
 
 // TODO: Initializer on non-recursive value is an error

@@ -523,29 +523,30 @@ NecroMachineAST* necro_create_machine_gep(NecroMachineProgram* program, NecroMac
 
 NecroMachineAST* necro_create_bit_cast(NecroMachineProgram* program, NecroMachineAST* from_value_ast, NecroMachineType* to_type)
 {
-    assert(from_value_ast->necro_machine_type->type == NECRO_MACHINE_TYPE_PTR);
-    assert(to_type->type == NECRO_MACHINE_TYPE_PTR);
-    NecroMachineValue from_value = from_value_ast->value;
+    assert(from_value_ast->necro_machine_type->type == NECRO_MACHINE_TYPE_PTR || necro_is_unboxed_type(program, from_value_ast->necro_machine_type));
+    assert(to_type->type == NECRO_MACHINE_TYPE_PTR || necro_is_unboxed_type(program, to_type));
+    // NecroMachineValue from_value = from_value_ast->value;
     NecroMachineAST* ast         = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
-    ast->type                 = NECRO_MACHINE_BIT_CAST;
-    ast->bit_cast.from_value  = from_value_ast;
-    switch (from_value.value_type)
-    {
-    case NECRO_MACHINE_VALUE_REG:
-    case NECRO_MACHINE_VALUE_PARAM:
-    case NECRO_MACHINE_VALUE_GLOBAL:
-    case NECRO_MACHINE_VALUE_NULL_PTR_LITERAL:
-        ast->bit_cast.to_value = necro_create_reg(program, to_type, "cst");
-        break;
-    case NECRO_MACHINE_VALUE_UINT1_LITERAL:
-    case NECRO_MACHINE_VALUE_UINT8_LITERAL:
-    case NECRO_MACHINE_VALUE_UINT16_LITERAL:
-    case NECRO_MACHINE_VALUE_UINT32_LITERAL:
-    case NECRO_MACHINE_VALUE_UINT64_LITERAL:
-    case NECRO_MACHINE_VALUE_INT64_LITERAL:
-        assert(false && "Cannot bit cast int literal values!");
-        break;
-    }
+    ast->type                    = NECRO_MACHINE_BIT_CAST;
+    ast->bit_cast.from_value     = from_value_ast;
+    ast->bit_cast.to_value       = necro_create_reg(program, to_type, "cst");
+    // switch (from_value.value_type)
+    // {
+    // case NECRO_MACHINE_VALUE_REG:
+    // case NECRO_MACHINE_VALUE_PARAM:
+    // case NECRO_MACHINE_VALUE_GLOBAL:
+    // case NECRO_MACHINE_VALUE_NULL_PTR_LITERAL:
+    //     ast->bit_cast.to_value = necro_create_reg(program, to_type, "cst");
+    //     break;
+    // case NECRO_MACHINE_VALUE_UINT1_LITERAL:
+    // case NECRO_MACHINE_VALUE_UINT8_LITERAL:
+    // case NECRO_MACHINE_VALUE_UINT16_LITERAL:
+    // case NECRO_MACHINE_VALUE_UINT32_LITERAL:
+    // case NECRO_MACHINE_VALUE_UINT64_LITERAL:
+    // case NECRO_MACHINE_VALUE_INT64_LITERAL:
+    //     assert(false && "Cannot bit cast int literal values!");
+    //     break;
+    // }
     ast->necro_machine_type = to_type;
     return ast;
 }

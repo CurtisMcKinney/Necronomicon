@@ -280,7 +280,7 @@ void necro_compile_impl(
     if (compilation_phase != NECRO_PHASE_JIT)
         necro_announce_phase("Machine");
     necro_start_timer(timer);
-    *machine = necro_core_to_machine(&cc_core, &symtable, &scoped_symtable, &prim_types);
+    *machine = necro_core_to_machine(&cc_core, &symtable, &scoped_symtable, &prim_types, infer);
     necro_stop_and_report_timer(timer, "machine");
     *destruct_flags |= BIT(NECRO_PHASE_TRANSFORM_TO_MACHINE);
     if (compilation_phase == NECRO_PHASE_TRANSFORM_TO_MACHINE)

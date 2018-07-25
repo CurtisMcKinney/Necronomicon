@@ -61,6 +61,10 @@ typedef struct NecroCodeGenLLVM
     LLVMPassManagerRef        mod_pass_manager;
 
     LLVMTypeRef               poly_type;
+    LLVMTypeRef               poly_ptr_type;
+    LLVMTypeRef               word_int_type;
+    LLVMTypeRef               word_uint_type;
+    LLVMTypeRef               word_float_type;
     NecroVar                  necro_alloc_var;
     NecroRuntimeMappingVector runtime_mapping;
     bool                      should_optimize;

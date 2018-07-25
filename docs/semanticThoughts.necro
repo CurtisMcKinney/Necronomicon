@@ -350,7 +350,7 @@ pulseDemon = loadBuffer "pulseDemon.aiff" world
 
 synth :: Audio -> Audio
 synth freq = osc where
-    osc = 440 * mouseX + freq * (delay 0 osc) |> sinOsc
+    osc = 0 => 440 * mouseX + freq * osc |> sinOsc
 
 -- Layout version
 -- More elegant but doesn't easily allow for things like polyrhythms

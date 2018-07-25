@@ -360,8 +360,9 @@ size_t necro_get_arity(NecroClosureConversion* cc, NecroSymbolInfo* info)
     {
         // This is some primitive value which doesn't have a proper body
         // Calculate naive arity based on type
+        // TODO: Some way to assert that this is infact a primitive type!
         assert(info->core_ast == NULL);
-        assert(info->ast == NULL);
+        // assert(info->ast == NULL);
         assert(info->type != NULL);
         size_t     arity = 0;
         NecroType* type  = info->type;

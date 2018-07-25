@@ -57,7 +57,7 @@ NecroMachineAST* necro_create_prim_con(NecroMachineProgram* program, NecroMachin
     NecroMachineAST*      mk_fn_def       = necro_create_machine_fn(program, mk_fn_var, mk_fn_body, mk_fn_type);
     NecroMachineAST*      data_ptr        = necro_build_nalloc(program, mk_fn_def, struct_type, slots_used);
     if (tag > - 1)
-        necro_build_store_into_tag(program, mk_fn_def, necro_create_uint32_necro_machine_value(program, tag), data_ptr);
+        necro_build_store_into_tag(program, mk_fn_def, necro_create_word_uint_value(program, tag), data_ptr);
 
     //--------------
     // Parameters
@@ -176,7 +176,7 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     program->runtime._necro_sleep          = _necro_sleep_var;
 
     NecroVar          _necro_print_var     = necro_gen_var(program, NULL, "_necro_print", NECRO_NAME_UNIQUE);
-    NecroMachineType* _necro_print_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), (NecroMachineType*[]) { necro_create_machine_int64_type(&program->arena) }, 1);
+    NecroMachineType* _necro_print_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), (NecroMachineType*[]) { necro_create_word_sized_int_type(&program->arena) }, 1);
     NecroMachineAST*  _necro_print_fn      = necro_create_machine_runtime_fn(program, _necro_print_var, _necro_print_fn_type, _necro_print);
     program->runtime._necro_print          = _necro_print_var;
 
@@ -213,7 +213,7 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     //--------------------
 
     // NecroData
-    NecroMachineAST* necro_data_struct = necro_create_machine_struct_def(program, necro_con_to_var(program->prim_types->necro_data_type), (NecroMachineType*[]) { program->necro_poly_ptr_type, program->necro_uint_type }, 2);
+    NecroMachineAST* necro_data_struct = necro_create_machine_struct_def(program, necro_con_to_var(program->prim_types->necro_data_type), (NecroMachineType*[]) { program->necro_uint_type, program->necro_uint_type }, 2);
     program->necro_data_type           = necro_data_struct->necro_machine_type;
 
     // World
@@ -311,24 +311,24 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     necro_prim_fn_end(program, get_mouse_y_fn, mouse_y_value_val);
     get_mouse_y_fn->fn_def.is_primitively_stateful = true;
 
-    // TODO: redo for new system
-    // delay
-    {
-        NecroVar         delay_var             = necro_con_to_var(program->prim_types->delay_fn);
-        NecroVar         delay_update_name;
-        NecroMachineAST* delay_machine_def     = necro_create_stateful_fn_machine_def(program, delay_var, program->necro_poly_type, (NecroMachineType*[]) { program->necro_uint_type }, 1, 3, &delay_update_name);
-        NecroMachineAST* delay_update_fn       = necro_prim_fn_begin(program, delay_update_name, program->necro_poly_ptr_type, (NecroMachineType*[]) { necro_create_machine_ptr_type(&program->arena, delay_machine_def->necro_machine_type), program->necro_poly_ptr_type, program->necro_poly_ptr_type }, 3);
-        delay_machine_def->machine_def.fn_type = necro_create_machine_fn_type(&program->arena, program->necro_poly_ptr_type, (NecroMachineType*[]) { program->necro_poly_ptr_type, program->necro_poly_ptr_type }, 2);
-        NecroMachineAST* delay_buf             = necro_build_load_from_slot(program, delay_update_fn, necro_create_param_reg(program, delay_update_fn, 0), 0, "buf");
-        NecroMachineAST* delay_is_init         = necro_build_cmp(program, delay_update_fn, NECRO_MACHINE_CMP_EQ, delay_buf, necro_create_word_uint_value(program, 0));
-        NecroMachineAST* delay_init            = necro_append_block(program, delay_update_fn, "init");
-        NecroMachineAST* delay_cont            = necro_append_block(program, delay_update_fn, "cont");
-        necro_build_cond_break(program, delay_update_fn, delay_is_init, delay_init, delay_cont);
-        necro_move_to_block(program, delay_update_fn, delay_init);
-        necro_build_store_into_slot(program, delay_update_fn, necro_create_word_uint_value(program, 1), necro_create_param_reg(program, delay_update_fn, 0), 0);
-        necro_build_return(program, delay_update_fn, necro_create_param_reg(program, delay_update_fn, 1));
-        necro_move_to_block(program, delay_update_fn, delay_cont);
-        necro_prim_fn_end(program, delay_update_fn, necro_create_param_reg(program, delay_update_fn, 2));
-        delay_machine_def->machine_def.update_fn = delay_update_fn;
-    }
+    // Replaced by initial values
+    // // delay
+    // {
+    //     NecroVar         delay_var             = necro_con_to_var(program->prim_types->delay_fn);
+    //     NecroVar         delay_update_name;
+    //     NecroMachineAST* delay_machine_def     = necro_create_stateful_fn_machine_def(program, delay_var, program->necro_poly_type, (NecroMachineType*[]) { program->necro_uint_type }, 1, 3, &delay_update_name);
+    //     NecroMachineAST* delay_update_fn       = necro_prim_fn_begin(program, delay_update_name, program->necro_poly_ptr_type, (NecroMachineType*[]) { necro_create_machine_ptr_type(&program->arena, delay_machine_def->necro_machine_type), program->necro_poly_ptr_type, program->necro_poly_ptr_type }, 3);
+    //     delay_machine_def->machine_def.fn_type = necro_create_machine_fn_type(&program->arena, program->necro_poly_ptr_type, (NecroMachineType*[]) { program->necro_poly_ptr_type, program->necro_poly_ptr_type }, 2);
+    //     NecroMachineAST* delay_buf             = necro_build_load_from_slot(program, delay_update_fn, necro_create_param_reg(program, delay_update_fn, 0), 0, "buf");
+    //     NecroMachineAST* delay_is_init         = necro_build_cmp(program, delay_update_fn, NECRO_MACHINE_CMP_EQ, delay_buf, necro_create_word_uint_value(program, 0));
+    //     NecroMachineAST* delay_init            = necro_append_block(program, delay_update_fn, "init");
+    //     NecroMachineAST* delay_cont            = necro_append_block(program, delay_update_fn, "cont");
+    //     necro_build_cond_break(program, delay_update_fn, delay_is_init, delay_init, delay_cont);
+    //     necro_move_to_block(program, delay_update_fn, delay_init);
+    //     necro_build_store_into_slot(program, delay_update_fn, necro_create_word_uint_value(program, 1), necro_create_param_reg(program, delay_update_fn, 0), 0);
+    //     necro_build_return(program, delay_update_fn, necro_create_param_reg(program, delay_update_fn, 1));
+    //     necro_move_to_block(program, delay_update_fn, delay_cont);
+    //     necro_prim_fn_end(program, delay_update_fn, necro_create_param_reg(program, delay_update_fn, 2));
+    //     delay_machine_def->machine_def.update_fn = delay_update_fn;
+    // }
 }

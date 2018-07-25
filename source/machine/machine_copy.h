@@ -15,26 +15,37 @@
 #include "prim.h"
 #include "machine_type.h"
 
-typedef struct
-{
-    size_t           hash;
-    NecroType*       type;
-    NecroCon         type_con;
-    NecroCon         increment_con;
-    NecroCon         decrement_con;
-    bool             is_primitive;
-    // NecroMachineAST* primitive_ast;
-} NecroMachineCopyData;
+#define NECRO_NULL_DATA_ID    0
+#define NECRO_UNBOXED_DATA_ID 1
 
 typedef struct
 {
-    NecroSymTable*           symtable;
+    size_t  members_offset; // offset into members map which contains ids into data map
+    size_t  num_members;
+    size_t  size_in_bytes;
+} NecroConstructorInfo;
+
+typedef struct
+{
+    size_t     hash;
+    NecroType* type;
+    size_t     data_id;
+} NecroMachineCopyData;
+
+NECRO_DECLARE_VECTOR(size_t, NecroMember, member);
+NECRO_DECLARE_VECTOR(NecroConstructorInfo, NecroDataMap, data_map);
+
+typedef struct
+{
+    NecroSymTable*        symtable;
     NecroMachineCopyData* data;
-    size_t                   capacity;
-    size_t                   count;
+    size_t                capacity;
+    size_t                count;
+    NecroMemberVector     member_map;
+    NecroDataMapVector    data_map;
 } NecroMachineCopyTable;
-NecroMachineCopyTable   necro_create_machine_copy_table(NecroSymTable* symtable, NecroPrimTypes* prim_types);
-void                    necro_destroy_machine_copy_table(NecroMachineCopyTable* table);
-struct NecroMachineAST* necro_gen_specialized_copy(struct NecroMachineProgram* program, NecroVar var);
+NecroMachineCopyTable necro_create_machine_copy_table(NecroSymTable* symtable, NecroPrimTypes* prim_types);
+void                  necro_destroy_machine_copy_table(NecroMachineCopyTable* table);
+size_t                necro_create_data_info(struct NecroMachineProgram* program, NecroType* type);
 
 #endif // NECRO_MACHINE_PERSIST_H

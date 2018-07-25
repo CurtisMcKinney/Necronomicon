@@ -25,7 +25,7 @@ extern DLLEXPORT void     _necro_init_runtime();
 extern DLLEXPORT void     _necro_update_runtime();
 extern DLLEXPORT void     _necro_error_exit(uint32_t error_code);
 extern DLLEXPORT void     _necro_sleep(uint32_t milliseconds);
-extern DLLEXPORT void     _necro_print(int64_t value);
+extern DLLEXPORT void     _necro_print(int value);
 extern DLLEXPORT void     _necro_set_root(uint32_t* root, uint32_t root_index, uint32_t num_slots);
 extern DLLEXPORT void     _necro_initialize_root_set(uint32_t root_count);
 extern DLLEXPORT int64_t* _necro_alloc(uint32_t slots_used, uint8_t segment);

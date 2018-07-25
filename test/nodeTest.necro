@@ -154,7 +154,7 @@ data Maybe a = Just a | Nothing
 -- -- Many stateful calculations at 100 ticks per second
 -- integrate :: Int -> Int
 -- integrate delta = feed where
---     feed<0> = delta + feed
+--     feed = 0 => delta + feed
 -- tenTimes :: Int -> Int
 -- tenTimes n =
 --     integrate n + integrate n + integrate n + integrate n + integrate n +
@@ -177,7 +177,8 @@ data Maybe a = Just a | Nothing
 --     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
 -- main :: Int
 -- main =
---     oneHundredThousandTimes 1 + oneHundredThousandTimes 1
+--     oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1  + oneHundredThousandTimes 1 +
+--     oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1  + oneHundredThousandTimes 1
 
 -- gMaybe :: Maybe a
 -- gMaybe = Nothing
@@ -186,13 +187,13 @@ data Maybe a = Just a | Nothing
 -- constInt = 100
 -- main :: Int
 -- main = constInt + x where
---     x = delay 0 x
+--     x = 0 => x
 
 -- mouseX :: Int
 -- mouseX = getMouseX world
 -- main :: Int
 -- main = x * mouseX where
---     x = 1 + delay 0 x
+--     x = 0 => x + 1
 
 -- caseTest :: Either Int (Maybe Int) -> Int
 -- caseTest e =
@@ -325,33 +326,90 @@ data Maybe a = Just a | Nothing
 --     case constCool of
 --         CoolInt i _ -> i
 
--- counter :: Maybe Int
--- counter = x where
---     x = delay (Just 100) x
--- counter' :: Int
+-- -------------------------------------------------
+-- -- Now with initial values
+-- counters :: Int
+-- counters = x where
+--     x of 0 = y + 1
+--     y of 0 = x + 1
+--
+-- mcounter :: Maybe Int
+-- mcounter = x where
+--     x of Nothing =
+--         case x of
+--             Nothing -> Just 1
+--             Just _  -> Nothing
+--
+-- mcounter' :: Maybe (Maybe Int)
+-- mcounter' = go where
+--     go of Just (Just 10) = go
+--
+-- myCoolSynth :: Audio -> Audio
+-- myCoolSynth freq =
+--   osc + osc2
+--   |> verb 0.1 0.1
+--   |> mul  0.2
+--   where
+--     osc of 0 =
+--       freq * mouseX + osc * 10
+--       |> sinOsc
+--     osc2 of 1 =
+--       freq / mouse - osc * 100
+--       |> lpf 0.1 (3000 * freq)
+--       |> pulse
+
+-- mflip :: Maybe (Maybe Int)
+-- mflip = x where
+--     x = Nothing =>
+--         case x of
+--             Nothing -> Just (Just 1)
+--             Just _  -> Nothing
+
+-- counter' :: Maybe (Maybe Float)
 -- counter' = x where
---     x = delay 0 x
+--     x = Nothing =>
+--         case x of
+--             Nothing -> Just (Just 1.0)
+--             Just _  -> Nothing
 
--------------------------------------------------
--- Instead of delays, use initialization values?
-counters :: Int
-counters = x where
-    x<0> = y + 1
-    y<0> = x + 1
+-- alwaysNever :: Maybe Int
+-- alwaysNever = m where
+--     m = Nothing => n
+--     n = Nothing => m
 
-counter :: Int
-counter<0> = counter + 1
+-- couldBeAnInt :: Maybe Int
+-- couldBeAnInt = Just (Just 1)
 
-mcounter :: Maybe Int
-mcounter = x where
-    x<Nothing> =
-        case x of
-            Nothing -> Just 1
-            Just _  -> Nothing
+-- couldBeAnFloat :: Maybe (Maybe Float)
+-- couldBeAnFloat = Just (Just 3.141)
 
-mcounter' :: Maybe (Maybe Int)
-mcounter' = go where
-    go<Just (Just 10)> = go
+-- gimmeThatInt :: Int
+-- gimmeThatInt =
+--     case couldBeAnFloat of
+--         Just (Just x) -> x * x
+--         _             -> 0.1
+
+-- counter :: Int
+-- counter = x where
+--     x = 0 => x + 1
+
+integrate :: Int -> Int
+integrate delta = x where
+    x = 0 => x + delta
+
+twoIntegrates :: Int -> Int -> Int
+twoIntegrates x y = integrate x + integrate y
 
 main :: Int
-main = 10
+main = integrate (getMouseX world)
+
+-- main :: Int
+-- main = twoIntegrates 100 3333
+
+-- -- TODO: .. Ah yeah, that whole allocation / GC thing...
+-- main :: Int
+-- main =
+--     case mflip of
+--         Just (Just x) -> x
+--         _             -> 100
+

@@ -378,7 +378,8 @@ LLVMValueRef necro_codegen_nalloc(NecroCodeGenLLVM* codegen, NecroMachineAST* as
     assert(ast != NULL);
     assert(ast->type == NECRO_MACHINE_NALLOC);
     LLVMTypeRef  type      = necro_machine_type_to_llvm_type(codegen, ast->nalloc.type_to_alloc);
-    uint64_t     data_size = LLVMStoreSizeOfType(codegen->target, type);
+    // uint64_t     data_size = LLVMStoreSizeOfType(codegen->target, type);
+    uint64_t     data_size = ast->nalloc.slots_used * ((necro_get_word_size() == NECRO_WORD_4_BYTES) ? 4 : 8);
     LLVMValueRef size_val  = (necro_get_word_size() == NECRO_WORD_4_BYTES) ?
         LLVMConstInt(LLVMInt32TypeInContext(codegen->context), data_size, false) :
         LLVMConstInt(LLVMInt64TypeInContext(codegen->context), data_size, false);

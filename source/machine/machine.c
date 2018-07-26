@@ -110,8 +110,8 @@ void necro_core_to_machine_1_data_con(NecroMachineProgram* program, NecroCoreAST
     NecroVar con_var = necro_gen_var(program, NULL, con_name, NECRO_NAME_UNIQUE);
     size_t arg_count = necro_count_data_con_args(con);
     assert(arg_count <= max_arg_count);
-    NecroMachineType**          parameters = necro_snapshot_arena_alloc(&program->snapshot_arena, arg_count * sizeof(NecroType*));
-    NecroCoreAST_Expression* arg = con->arg_list;
+    NecroMachineType**       parameters = necro_snapshot_arena_alloc(&program->snapshot_arena, arg_count * sizeof(NecroType*));
+    NecroCoreAST_Expression* arg        = con->arg_list;
     for (size_t i = 0; i < arg_count; ++i)
     {
         assert(arg->expr_type == NECRO_CORE_EXPR_LIST);
@@ -123,8 +123,9 @@ void necro_core_to_machine_1_data_con(NecroMachineProgram* program, NecroCoreAST
     NecroMachineType*  mk_fn_type      = necro_create_machine_fn_type(&program->arena, struct_ptr_type, parameters, arg_count);
     NecroMachineAST*   mk_fn_body      = necro_create_machine_block(program, "entry", NULL);
     NecroMachineAST*   mk_fn_def       = necro_create_machine_fn(program, con_var, mk_fn_body, mk_fn_type);
-    NecroMachineAST*   data_ptr        = necro_build_nalloc(program, mk_fn_def, struct_type->necro_machine_type, arg_count);
-    necro_build_store_into_tag(program, mk_fn_def, necro_create_word_uint_value(program, con_number), data_ptr);
+    NecroMachineAST*   data_ptr        = necro_build_nalloc(program, mk_fn_def, struct_type->necro_machine_type, arg_count + 1);
+    // necro_build_store_into_tag(program, mk_fn_def, necro_create_word_uint_value(program, con_number), data_ptr);
+    necro_build_store_into_slot(program, mk_fn_def, necro_create_word_uint_value(program, con_number), data_ptr, 0);
 
     //--------------
     // Parameters
@@ -168,7 +169,7 @@ void necro_core_to_machine_1_data_decl(NecroMachineProgram* program, NecroCoreAS
     // Members
     bool            is_sum_type = core_ast->data_decl.con_list->next != NULL;
     NecroMachineType** members     = necro_snapshot_arena_alloc(&program->snapshot_arena, max_arg_count * sizeof(NecroMachineType*));
-    members[0] = program->necro_data_type;
+    members[0] = program->necro_uint_type;
     NecroCoreAST_Expression* args = core_ast->data_decl.con_list->arg_list;
     for (size_t i = 1; i < max_arg_count + 1; ++i)
     // for (size_t i = 0; i < max_arg_count; ++i)
@@ -427,10 +428,10 @@ void necro_core_to_machine_2_bind(NecroMachineProgram* program, NecroCoreAST_Exp
     {
         // NecroMachineAST* global_value = necro_create_global_value(program, machine_def->machine_def.bind_name, necro_create_machine_ptr_type(&program->arena, machine_def->machine_def.value_type));
         NecroMachineAST* global_value = NULL;
-        // if (necro_is_unboxed_type(program, machine_def->machine_def.value_type))
-             global_value = necro_create_global_value(program, machine_def->machine_def.bind_name, necro_create_machine_ptr_type(&program->arena, machine_def->machine_def.value_type));
-        // else
-        //      global_value = necro_create_global_value(program, machine_def->machine_def.bind_name, machine_def->machine_def.value_type);
+        if (necro_is_unboxed_type(program, machine_def->machine_def.value_type))
+          global_value = necro_create_global_value(program, machine_def->machine_def.bind_name, necro_create_machine_ptr_type(&program->arena, machine_def->machine_def.value_type));
+        else
+             global_value = necro_create_global_value(program, machine_def->machine_def.bind_name, necro_create_machine_ptr_type(&program->arena, necro_create_machine_ptr_type(&program->arena, machine_def->machine_def.value_type)));
         // NecroMachineAST* global_value = necro_create_global_value(program, machine_def->machine_def.bind_name, necro_make_ptr_if_boxed(program, machine_def->machine_def.value_type));
         machine_def->machine_def.global_value = global_value;
         necro_program_add_global(program, global_value);
@@ -831,10 +832,10 @@ NecroMachineAST* necro_core_to_machine_3_var(NecroMachineProgram* program, Necro
     {
         // return necro_build_load_from_slot(program, outer->machine_def.update_fn, info->necro_machine_ast, 1, "glb");
         NecroMachineType* type = info->necro_machine_ast->necro_machine_type;
-        if (type->type == NECRO_MACHINE_TYPE_PTR && necro_is_unboxed_type(program, type->ptr_type.element_type))
+        // if (type->type == NECRO_MACHINE_TYPE_PTR && necro_is_unboxed_type(program, type->ptr_type.element_type))
             return necro_build_load_from_ptr(program, outer->machine_def.update_fn, info->necro_machine_ast, "glb");
-        else
-            return info->necro_machine_ast;
+        // else
+        //     return info->necro_machine_ast;
     }
     // It's a persistent value
     else if (info->necro_machine_ast->type == NECRO_MACHINE_DEF && info->necro_machine_ast->machine_def.state_type == NECRO_STATE_STATEFUL && info->necro_machine_ast->machine_def.outer != NULL)
@@ -862,10 +863,10 @@ NecroMachineAST* necro_core_to_machine_3_var(NecroMachineProgram* program, Necro
         // return necro_build_load_from_slot(program, outer->machine_def.update_fn, info->necro_machine_ast->machine_def.global_value, 1, "glb");
         // return necro_build_load_from_ptr(program, outer->machine_def.update_fn, info->necro_machine_ast->machine_def.global_value, "glb");
         NecroMachineType* type = info->necro_machine_ast->machine_def.global_value->necro_machine_type;
-        if (type->type == NECRO_MACHINE_TYPE_PTR && necro_is_unboxed_type(program, type->ptr_type.element_type))
+        // if (type->type == NECRO_MACHINE_TYPE_PTR && necro_is_unboxed_type(program, type->ptr_type.element_type))
             return necro_build_load_from_ptr(program, outer->machine_def.update_fn, info->necro_machine_ast->machine_def.global_value, "glb");
-        else
-            return info->necro_machine_ast->machine_def.global_value;
+        // else
+        //     return info->necro_machine_ast->machine_def.global_value;
     }
     else
     {
@@ -967,10 +968,10 @@ void necro_construct_main(NecroMachineProgram* program)
         if (program->machine_defs.data[i]->machine_def.state_type != NECRO_STATE_CONSTANT || program->machine_defs.data[i]->machine_def.num_arg_names != 0)
             continue;
         NecroMachineAST* const_value = necro_build_call(program, necro_main_fn, program->machine_defs.data[i]->machine_def.update_fn->fn_def.fn_value, NULL, 0, "const");
-        if (necro_is_unboxed_type(program, const_value->necro_machine_type))
+        // if (necro_is_unboxed_type(program, const_value->necro_machine_type))
             necro_build_store_into_ptr(program, necro_main_fn, const_value, program->machine_defs.data[i]->machine_def.global_value);
-        else
-            necro_build_memcpy(program, necro_main_fn, program->machine_defs.data[i]->machine_def.global_value, const_value, necro_create_word_uint_value(program, 0));
+        // else
+        //     necro_build_memcpy(program, necro_main_fn, program->machine_defs.data[i]->machine_def.global_value, const_value, necro_create_word_uint_value(program, 0));
         // TODO: Store boxed types
         // necro_build_store_into_ptr(program, necro_main_fn, const_value, program->machine_defs.data[i]->machine_def.global_value);
     }
@@ -985,16 +986,16 @@ void necro_construct_main(NecroMachineProgram* program)
         if (program->machine_defs.data[i]->machine_def.state_type != NECRO_STATE_STATEFUL || program->machine_defs.data[i]->machine_def.num_arg_names != 0)
             continue;
         result = necro_build_call(program, necro_main_fn, program->machine_defs.data[i]->machine_def.update_fn->fn_def.fn_value, (NecroMachineAST*[]) { program->machine_defs.data[i]->machine_def.global_state }, 1, "state");
-        if (necro_is_unboxed_type(program, result->necro_machine_type))
+        // if (necro_is_unboxed_type(program, result->necro_machine_type))
             necro_build_store_into_ptr(program, necro_main_fn, result, program->machine_defs.data[i]->machine_def.global_value);
-        else
-            necro_build_memcpy(program, necro_main_fn, program->machine_defs.data[i]->machine_def.global_value, result, necro_create_word_uint_value(program, 0));
+        // else
+        //     necro_build_memcpy(program, necro_main_fn, program->machine_defs.data[i]->machine_def.global_value, result, necro_create_word_uint_value(program, 0));
         // TODO: Store boxed types
     }
     if (result == NULL)
         result = necro_build_load_from_ptr(program, necro_main_fn, program->program_main->machine_def.global_value, "result");
-    necro_build_call(program, necro_main_fn, necro_symtable_get(program->symtable, program->runtime._necro_print.id)->necro_machine_ast->fn_def.fn_value, (NecroMachineAST*[]) { result }, 1, "");
     necro_build_call(program, necro_main_fn, necro_symtable_get(program->symtable, program->runtime._necro_copy_gc_collect.id)->necro_machine_ast->fn_def.fn_value, NULL, 0, "");
+    necro_build_call(program, necro_main_fn, necro_symtable_get(program->symtable, program->runtime._necro_print.id)->necro_machine_ast->fn_def.fn_value, (NecroMachineAST*[]) { result }, 1, "");
     necro_build_call(program, necro_main_fn, necro_symtable_get(program->symtable, program->runtime._necro_sleep.id)->necro_machine_ast->fn_def.fn_value, (NecroMachineAST*[]) { necro_create_uint32_necro_machine_value(program, 10) }, 1, "");
     necro_build_break(program, necro_main_fn, necro_main_loop);
 

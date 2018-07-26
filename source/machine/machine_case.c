@@ -495,7 +495,8 @@ void necro_decision_tree_to_machine(NecroMachineProgram* program, NecroDecisionT
             // LLVMValueRef con_val           = LLVMBuildLoad(codegen->builder, con_ptr, "con_val");
             // LLVMValueRef switch_value      = LLVMBuildSwitch(codegen->builder, con_val, error_block, tree->tree_switch.num_cases);
             NecroMachineAST*              val          = necro_build_maybe_cast(program, outer->machine_def.update_fn, tree->tree_switch.path->value, tree->tree_switch.path->type);
-            NecroMachineAST*              tag          = necro_build_load_tag(program, outer->machine_def.update_fn, val, "tag");
+            // NecroMachineAST*              tag          = necro_build_load_tag(program, outer->machine_def.update_fn, val, "tag");
+            NecroMachineAST*              tag          = necro_build_load_from_slot(program, outer->machine_def.update_fn, val, 0, "tag");
             struct NecroSwitchTerminator* switch_value = necro_build_switch(program, outer->machine_def.update_fn, tag, NULL, error_block);
             for (size_t i = 0; i < tree->tree_switch.num_cases; ++i)
             {

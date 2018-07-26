@@ -1,5 +1,5 @@
-data Maybe a = Just a | Nothing | AlotOfNothing a a
--- data Maybe a = Just a | Nothing | AlotOfNothing a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a
+-- data Maybe a = Just a | Nothing | AlotOfNothing a a
+data Maybe a = Just a | Nothing | AlotOfNothing a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a
 -- TODO: This causes a segfault, fix.
 
 -- data Nullary    = Nullary
@@ -467,6 +467,10 @@ balwaysAndForever'''''''' = Just (Just (Just (Just (Just (Just (Just (Just (getM
 
 balwaysAndForever''''''''' :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
 balwaysAndForever''''''''' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
+
+wholeLotOfNothing :: Maybe Int
+wholeLotOfNothing = AlotOfNothing (getMouseX world * 100) 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32
+
 
 main :: Int
 main =

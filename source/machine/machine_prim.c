@@ -57,7 +57,8 @@ NecroMachineAST* necro_create_prim_con(NecroMachineProgram* program, NecroMachin
     NecroMachineAST*      mk_fn_def       = necro_create_machine_fn(program, mk_fn_var, mk_fn_body, mk_fn_type);
     NecroMachineAST*      data_ptr        = necro_build_nalloc(program, mk_fn_def, struct_type, slots_used);
     if (tag > - 1)
-        necro_build_store_into_tag(program, mk_fn_def, necro_create_word_uint_value(program, tag), data_ptr);
+        necro_build_store_into_slot(program, mk_fn_def, necro_create_word_uint_value(program, tag), data_ptr, 0);
+        // necro_build_store_into_tag(program, mk_fn_def, necro_create_word_uint_value(program, tag), data_ptr);
 
     //--------------
     // Parameters
@@ -238,9 +239,9 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     // Prim Types
     //--------------------
 
-    // NecroData
-    NecroMachineAST* necro_data_struct = necro_create_machine_struct_def(program, necro_con_to_var(program->prim_types->necro_data_type), (NecroMachineType*[]) { program->necro_uint_type, program->necro_uint_type }, 2);
-    program->necro_data_type           = necro_data_struct->necro_machine_type;
+    // // NecroData
+    // NecroMachineAST* necro_data_struct = necro_create_machine_struct_def(program, necro_con_to_var(program->prim_types->necro_data_type), (NecroMachineType*[]) { program->necro_uint_type, program->necro_uint_type }, 2);
+    // program->necro_data_type           = necro_data_struct->necro_machine_type;
 
     // World
     NecroMachineAST* world_type = necro_create_machine_struct_def(program, necro_con_to_var(program->prim_types->world_type), (NecroMachineType*[]) { program->necro_int_type }, 1);
@@ -258,7 +259,7 @@ void necro_init_machine_prim(NecroMachineProgram* program)
 
     // Poly
     NecroVar         poly_var          = necro_con_to_var(program->prim_types->any_type);
-    NecroMachineAST* necro_poly_struct = necro_create_machine_struct_def(program, poly_var,  (NecroMachineType*[]) { program->necro_data_type }, 1);
+    NecroMachineAST* necro_poly_struct = necro_create_machine_struct_def(program, poly_var,  (NecroMachineType*[]) { program->necro_uint_type }, 1);
     program->necro_poly_type           = necro_poly_struct->necro_machine_type;
     program->necro_poly_ptr_type       = necro_create_machine_ptr_type(&program->arena, program->necro_poly_type);
 
@@ -283,24 +284,24 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     // Rational
     NecroVar          rational_var  = necro_con_to_var(program->prim_types->rational_type);
     NecroVar          rational_con  = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "Rational").id));
-    NecroMachineType* rational_type = necro_create_prim_type(program, rational_var, rational_con, (NecroMachineType*[]) { program->necro_data_type, program->necro_int_type, program->necro_int_type}, 3);
+    NecroMachineType* rational_type = necro_create_prim_type(program, rational_var, rational_con, (NecroMachineType*[]) { program->necro_uint_type, program->necro_int_type, program->necro_int_type}, 3);
     // program->mkFloatFnValue      = fromInt_Int_fn->fn_def.fn_value;
 
     // Audio
     NecroVar          audio_var  = necro_con_to_var(program->prim_types->audio_type);
     NecroVar          audio_con  = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "Audio").id));
-    NecroMachineType* audio_type = necro_create_prim_type(program, audio_var, audio_con, (NecroMachineType*[]) { program->necro_data_type, necro_create_machine_ptr_type(&program->arena, necro_create_machine_f32_type(&program->arena)) }, 2);
+    NecroMachineType* audio_type = necro_create_prim_type(program, audio_var, audio_con, (NecroMachineType*[]) { program->necro_uint_type, necro_create_machine_ptr_type(&program->arena, necro_create_machine_f32_type(&program->arena)) }, 2);
 
     // ()
     NecroVar unit_var = necro_con_to_var(program->prim_types->unit_type);
     NecroVar unit_con = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, unit_var.symbol.id));
-    necro_create_prim_type(program, unit_var, unit_con, (NecroMachineType*[]) { program->necro_data_type }, 1);
+    necro_create_prim_type(program, unit_var, unit_con, (NecroMachineType*[]) { program->necro_uint_type }, 1);
 
     // []
     NecroVar         list_var    = necro_con_to_var(program->prim_types->list_type);
     NecroVar         cons_con    = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, ":").id));
     NecroVar         nil_con     = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "[]").id));
-    NecroMachineAST* list_struct = necro_create_machine_struct_def(program, list_var, (NecroMachineType*[]) { program->necro_data_type, program->necro_poly_ptr_type, program->necro_poly_ptr_type }, 3);
+    NecroMachineAST* list_struct = necro_create_machine_struct_def(program, list_var, (NecroMachineType*[]) { program->necro_uint_type, program->necro_poly_ptr_type, program->necro_poly_ptr_type }, 3);
     necro_create_prim_con(program, list_struct->necro_machine_type, cons_con, (NecroMachineType*[]) { program->necro_poly_ptr_type, necro_create_machine_ptr_type(&program->arena, list_struct->necro_machine_type) }, 2, 2, 0);
     necro_create_prim_con(program, list_struct->necro_machine_type, nil_con, NULL, 0, 0, 1);
 

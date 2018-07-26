@@ -840,13 +840,15 @@ extern DLLEXPORT void _necro_copy_gc_collect()
 
 extern DLLEXPORT int* _necro_from_alloc(size_t size)
 {
+    size         += sizeof(int*); // Add room for header
     char* data    = copy_gc.from_alloc_ptr;
     char* new_end = data + size;
     if (new_end < copy_gc.from_end_ptr)
     {
         copy_gc.from_alloc_ptr = new_end;
         ((NecroBlock*)data)->forwarding_pointer = NULL;
-        return (int*)data;
+        // NECRO_TRACE_GC("alloc: %d\n", size);
+        return ((int*)data) + sizeof(int*); // return address after header
     }
     assert(size < NECRO_SPACE_SIZE);
     if (copy_gc.from_curr->next_space == NULL)

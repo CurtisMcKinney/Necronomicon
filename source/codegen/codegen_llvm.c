@@ -379,7 +379,8 @@ LLVMValueRef necro_codegen_nalloc(NecroCodeGenLLVM* codegen, NecroMachineAST* as
     assert(ast->type == NECRO_MACHINE_NALLOC);
     LLVMTypeRef  type      = necro_machine_type_to_llvm_type(codegen, ast->nalloc.type_to_alloc);
     // uint64_t     data_size = LLVMStoreSizeOfType(codegen->target, type);
-    uint64_t     data_size = ast->nalloc.slots_used * ((necro_get_word_size() == NECRO_WORD_4_BYTES) ? 4 : 8);
+    // Add 1 word for header
+    uint64_t     data_size = (ast->nalloc.slots_used + 1) * ((necro_get_word_size() == NECRO_WORD_4_BYTES) ? 4 : 8);
     LLVMValueRef size_val  = (necro_get_word_size() == NECRO_WORD_4_BYTES) ?
         LLVMConstInt(LLVMInt32TypeInContext(codegen->context), data_size, false) :
         LLVMConstInt(LLVMInt64TypeInContext(codegen->context), data_size, false);
@@ -787,7 +788,6 @@ void necro_codegen_global(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
     assert(ast->type == NECRO_MACHINE_VALUE);
     assert(ast->value.value_type == NECRO_MACHINE_VALUE_GLOBAL);
     LLVMTypeRef  global_type  = necro_machine_type_to_llvm_type(codegen, ast->necro_machine_type->ptr_type.element_type);
-    // LLVMTypeRef  global_type  = necro_machine_type_to_llvm_type(codegen, ast->necro_machine_type);
     LLVMValueRef zero_value   = LLVMConstNull(global_type);
     const char*  global_name  = necro_intern_get_string(codegen->intern, ast->value.global_name.symbol);
     LLVMValueRef global_value = LLVMAddGlobal(codegen->mod, global_type, global_name);

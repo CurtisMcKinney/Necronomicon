@@ -517,7 +517,7 @@ typedef struct NecroMachineProgram
     NecroMachineType*     necro_poly_ptr_type;
     NecroMachineType*     necro_data_type;
     NecroMachineType*     world_type;
-    NecroMachineType*     the_world_type;
+    NecroMachineAST*      world_value;
     NecroMachineAST*      mkIntFnValue;
     NecroMachineAST*      mkFloatFnValue;
     NecroSymbol           main_symbol;

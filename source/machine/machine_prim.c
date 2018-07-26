@@ -219,9 +219,10 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     NecroMachineType* _necro_copy_gc_initialize_root_set_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), (NecroMachineType*[]) { necro_create_word_sized_uint_type(program) }, 1);
     NecroMachineAST*  _necro_copy_gc_initialize_root_set_fn      = necro_create_machine_runtime_fn(program, _necro_copy_gc_initialize_root_set_var, _necro_copy_gc_initialize_root_set_fn_type, _necro_copy_gc_initialize_root_set);
     program->runtime._necro_copy_gc_initialize_root_set          = _necro_copy_gc_initialize_root_set_var;
+    // CallConv?!!?!?!
 
     NecroVar          _necro_copy_gc_set_root_var     = necro_gen_var(program, NULL, "_necro_copy_gc_set_root", NECRO_NAME_UNIQUE);
-    NecroMachineType* _necro_copy_gc_set_root_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), (NecroMachineType*[]) { necro_create_machine_ptr_type(&program->arena, necro_create_word_sized_int_type(program)), necro_create_word_sized_uint_type(program), necro_create_word_sized_uint_type(program) }, 3);
+    NecroMachineType* _necro_copy_gc_set_root_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), (NecroMachineType*[]) { necro_create_machine_ptr_type(&program->arena, necro_create_machine_ptr_type(&program->arena, necro_create_word_sized_int_type(program))), necro_create_word_sized_uint_type(program), necro_create_word_sized_uint_type(program) }, 3);
     NecroMachineAST*  _necro_copy_gc_set_root_fn      = necro_create_machine_runtime_fn(program, _necro_copy_gc_set_root_var, _necro_copy_gc_set_root_fn_type, _necro_copy_gc_set_root);
     program->runtime._necro_copy_gc_set_root          = _necro_copy_gc_set_root_var;
 
@@ -253,9 +254,10 @@ void necro_init_machine_prim(NecroMachineProgram* program)
 
     // world value
     NecroVar         world_value_var = necro_con_to_var(program->prim_types->world_value);
-    NecroMachineAST* world_value     = necro_create_global_value(program, world_value_var, necro_create_machine_ptr_type(&program->arena, world_type->necro_machine_type));
+    NecroMachineAST* world_value     = necro_create_global_value(program, world_value_var, necro_create_machine_ptr_type(&program->arena, necro_create_machine_ptr_type(&program->arena, world_type->necro_machine_type)));
     necro_program_add_global(program, world_value);
     necro_symtable_get(program->symtable, world_value_var.id)->necro_machine_ast = world_value;
+    program->world_value             = world_value;
 
     // Poly
     NecroVar         poly_var          = necro_con_to_var(program->prim_types->any_type);
@@ -324,7 +326,7 @@ void necro_init_machine_prim(NecroMachineProgram* program)
 
     // getMouseX
     NecroVar          get_mouse_x_var   = necro_con_to_var(program->prim_types->mouse_x_fn);
-    NecroMachineAST*  get_mouse_x_fn    = necro_prim_fn_begin(program, get_mouse_x_var, program->necro_int_type, (NecroMachineType*[]) { world_type->necro_machine_type }, 1);
+    NecroMachineAST*  get_mouse_x_fn    = necro_prim_fn_begin(program, get_mouse_x_var, program->necro_int_type, (NecroMachineType*[]) { necro_create_machine_ptr_type(&program->arena, world_type->necro_machine_type) }, 1);
     NecroMachineAST*  mouse_x_value_val = necro_build_call(program, get_mouse_x_fn, _necro_mouse_x_fn->fn_def.fn_value, NULL, 0, "xval");
     // NecroMachineAST*  boxed_mouse_x_val = necro_build_call(program, get_mouse_x_fn, program->mkIntFnValue, (NecroMachineAST*[]) { mouse_x_value_val }, 1, "xbox");
     necro_prim_fn_end(program, get_mouse_x_fn, mouse_x_value_val);
@@ -332,7 +334,7 @@ void necro_init_machine_prim(NecroMachineProgram* program)
 
     // getMouseY
     NecroVar          get_mouse_y_var   = necro_con_to_var(program->prim_types->mouse_y_fn);
-    NecroMachineAST*  get_mouse_y_fn    = necro_prim_fn_begin(program, get_mouse_y_var, program->necro_int_type, (NecroMachineType*[]) { world_type->necro_machine_type }, 1);
+    NecroMachineAST*  get_mouse_y_fn    = necro_prim_fn_begin(program, get_mouse_y_var, program->necro_int_type, (NecroMachineType*[]) { necro_create_machine_ptr_type(&program->arena, world_type->necro_machine_type) }, 1);
     NecroMachineAST*  mouse_y_value_val = necro_build_call(program, get_mouse_y_fn, _necro_mouse_y_fn->fn_def.fn_value, NULL, 0, "yval");
     // NecroMachineAST*  boxed_mouse_y_val = necro_build_call(program, get_mouse_y_fn, program->mkIntFnValue, (NecroMachineAST*[]) { mouse_y_value_val }, 1, "ybox");
     necro_prim_fn_end(program, get_mouse_y_fn, mouse_y_value_val);

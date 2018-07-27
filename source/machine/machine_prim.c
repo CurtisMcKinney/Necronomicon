@@ -124,7 +124,7 @@ void necro_create_prim_binops(NecroMachineProgram* program, NecroMachineType* ty
 NecroMachineAST* necro_create_stateful_fn_machine_def(NecroMachineProgram* program, NecroVar fn_name, NecroMachineType* value_type, NecroMachineType** members, size_t num_members, size_t num_args, NecroVar* out_update_fn_var)
 {
     NecroArenaSnapshot snapshot            = necro_get_arena_snapshot(&program->snapshot_arena);
-    NecroMachineAST*   machine_def         = necro_create_machine_initial_machine_def(program, fn_name, NULL, value_type);
+    NecroMachineAST*   machine_def         = necro_create_machine_initial_machine_def(program, fn_name, NULL, value_type, NULL);
     machine_def->necro_machine_type        = necro_create_machine_struct_type(&program->arena, machine_def->machine_def.machine_name, members, num_members);
     machine_def->machine_def.state_type    = NECRO_STATE_STATEFUL;
     machine_def->machine_def.num_arg_names = num_args;

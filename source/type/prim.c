@@ -270,7 +270,7 @@ NECRO_RETURN_CODE necro_prim_rename(NecroPrimTypes* prim_types, NecroRenamer* re
             if (renamer->error.return_code != NECRO_SUCCESS) { necro_print_reified_ast_node(def->instance_def.instance_ast, renamer->intern); return renamer->error.return_code; }
             necro_rename_var_pass(renamer, &prim_types->arena, def->instance_def.instance_ast);
             if (renamer->error.return_code != NECRO_SUCCESS) return renamer->error.return_code;
-            necro_print_reified_ast_node(def->instance_def.instance_ast, renamer->intern);
+            // necro_print_reified_ast_node(def->instance_def.instance_ast, renamer->intern);
             break;
         }
         default: assert(false); break;

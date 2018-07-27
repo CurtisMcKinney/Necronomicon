@@ -15,14 +15,19 @@
 #include "prim.h"
 #include "machine_type.h"
 
+struct NecroMachineProgram;
+struct NecroMachineAST;
+
 #define NECRO_NULL_DATA_ID    0
 #define NECRO_UNBOXED_DATA_ID 1
 
-typedef struct
+typedef struct NecroConstructorInfo
 {
     size_t  members_offset; // offset into members map which contains ids into data map
     size_t  num_members;
     size_t  size_in_bytes;
+    bool    is_tagged_union;
+    bool    is_machine_def;
 } NecroConstructorInfo;
 
 typedef struct
@@ -47,6 +52,7 @@ typedef struct
 NecroMachineCopyTable necro_create_machine_copy_table(NecroSymTable* symtable, NecroPrimTypes* prim_types);
 void                  necro_destroy_machine_copy_table(NecroMachineCopyTable* table);
 size_t                necro_create_data_info(struct NecroMachineProgram* program, NecroType* type);
-// NecroConstructorInfo* necro_get_data_info(struct NecroMachineProgram* program, NecroType* type);
+size_t                necro_create_machine_def_data_info(struct NecroMachineProgram* program, struct NecroMachineAST* ast);
+void                  necro_print_data_info(struct NecroMachineProgram* program);
 
 #endif // NECRO_MACHINE_PERSIST_H

@@ -88,6 +88,7 @@ void              necro_type_check(struct NecroMachineProgram* program, NecroMac
 void              necro_machine_print_machine_type(NecroIntern* intern, NecroMachineType* type);
 void              necro_machine_print_machine_type_go(NecroIntern* intern, NecroMachineType* type, bool is_recursive);
 NecroMachineType* necro_core_ast_to_machine_type(struct NecroMachineProgram* program, NecroCoreAST_Expression* core_ast);
+NecroType*        necro_core_ast_to_necro_type(struct NecroMachineProgram* program, NecroCoreAST_Expression* ast);
 NecroMachineType* necro_type_to_machine_type(struct NecroMachineProgram* program, NecroType* type);
 bool              is_poly_ptr(struct NecroMachineProgram* program, NecroMachineType* type);
 NecroMachineType* necro_core_pattern_type_to_machine_type(struct NecroMachineProgram* program, NecroCoreAST_Expression* ast);

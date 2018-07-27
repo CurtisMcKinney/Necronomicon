@@ -173,9 +173,10 @@ void necro_compile_impl(
     }
     necro_stop_and_report_timer(timer, "renaming");
     if (compilation_phase == NECRO_PHASE_RENAME)
+    {
         necro_print_reified_ast(ast_r, &lexer->intern);
-    if (compilation_phase == NECRO_PHASE_RENAME)
         return;
+    }
 
     //=====================================================
     // Dependency Analyzing

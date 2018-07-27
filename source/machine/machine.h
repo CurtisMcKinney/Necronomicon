@@ -130,6 +130,7 @@ typedef struct NecroSlot
     size_t                  slot_num;
     NecroMachineType*       necro_machine_type;
     struct NecroMachineDef* machine_def;
+    size_t                  data_id;
 } NecroSlot;
 
 typedef struct NecroMachineSwitchData
@@ -205,6 +206,7 @@ typedef struct NecroMachineDef
     uint32_t                initial_tag;
     NECRO_STATE_TYPE        state_type;
     struct NecroMachineAST* outer;
+    NecroType*              necro_value_type;
     NecroMachineType*       value_type;
     NecroMachineType*       fn_type;
     bool                    is_pushed;
@@ -222,11 +224,13 @@ typedef struct NecroMachineDef
     size_t                  num_members;
     size_t                  members_size;
     int32_t                 _first_dynamic;
-    size_t                  total_slots;
+    // size_t                  total_slots;
 
     struct NecroMachineAST* global_value; // If global
     struct NecroMachineAST* global_state; // If global
     // cache if and where slots have been loaded!?
+    size_t                  data_id;
+    size_t                  value_data_id;
 } NecroMachineDef;
 
 typedef enum

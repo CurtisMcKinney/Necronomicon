@@ -396,7 +396,7 @@ NecroMachineAST* necro_create_machine_runtime_fn(NecroMachineProgram* program, N
     return ast;
 }
 
-NecroMachineAST* necro_create_machine_initial_machine_def(NecroMachineProgram* program, NecroVar bind_name, NecroMachineAST* outer, NecroMachineType* value_type)
+NecroMachineAST* necro_create_machine_initial_machine_def(NecroMachineProgram* program, NecroVar bind_name, NecroMachineAST* outer, NecroMachineType* value_type, NecroType* necro_value_type)
 {
     NecroArenaSnapshot snapshot                 = necro_get_arena_snapshot(&program->snapshot_arena);
     NecroMachineAST* ast                        = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
@@ -423,6 +423,7 @@ NecroMachineAST* necro_create_machine_initial_machine_def(NecroMachineProgram* p
     ast->machine_def.is_persistent_slot_set     = false;
     ast->machine_def.references_stateful_global = false;
     ast->machine_def.outer                      = outer;
+    ast->machine_def.data_id                    = NECRO_NULL_DATA_ID;
     ast->necro_machine_type                     = NULL; // TODO: Machine type will be constructed after analysis!
     if (value_type->type == NECRO_MACHINE_TYPE_FN)
     {
@@ -435,8 +436,9 @@ NecroMachineAST* necro_create_machine_initial_machine_def(NecroMachineProgram* p
     else
     {
         // ast->machine_def.value_type = necro_create_machine_ptr_type(&program->arena, value_type);
-        ast->machine_def.value_type = value_type;
-        ast->machine_def.fn_type    = NULL;
+        ast->machine_def.value_type       = value_type;
+        ast->machine_def.fn_type          = NULL;
+        ast->machine_def.necro_value_type = necro_value_type;
     }
     const size_t initial_members_size  = 4;
     ast->machine_def.members           = necro_paged_arena_alloc(&program->arena, initial_members_size * sizeof(NecroSlot));

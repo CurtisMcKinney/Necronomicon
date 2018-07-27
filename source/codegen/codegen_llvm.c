@@ -804,6 +804,8 @@ void necro_codegen_global(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
 NECRO_RETURN_CODE necro_codegen_llvm(NecroCodeGenLLVM* codegen, NecroMachineProgram* program)
 {
     // cache useful things
+    codegen->member_map      = &program->copy_table.member_map;
+    codegen->data_map        = &program->copy_table.data_map;
     codegen->poly_type       = necro_machine_type_to_llvm_type(codegen, program->necro_poly_type);
     codegen->poly_ptr_type   = necro_machine_type_to_llvm_type(codegen, program->necro_poly_ptr_type);
     codegen->word_int_type   = necro_machine_type_to_llvm_type(codegen, program->necro_int_type);
@@ -872,6 +874,10 @@ NECRO_RETURN_CODE necro_jit_llvm(NecroCodeGenLLVM* codegen)
     for (size_t i = 0; i < codegen->runtime_mapping.length; ++i)
         LLVMAddGlobalMapping(engine, codegen->runtime_mapping.data[i].value, codegen->runtime_mapping.data[i].addr);
 
+    // TODO / HACK: Manual data info set up.
+    // Ideally this should be done via the actual application log...
+    _necro_set_data_map(codegen->data_map->data);
+    _necro_set_member_map(codegen->member_map->data);
     necro_copy_gc_init();
     void(*fun)() = (void(*)())LLVMGetFunctionAddress(engine, "_necro_main");
     assert(fun != NULL);

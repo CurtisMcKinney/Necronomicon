@@ -151,10 +151,12 @@ size_t necro_create_data_info(NecroMachineProgram* program, NecroType* type)
         return type_data->data_id;
     NecroASTNode* data_declaraction_ast = necro_symtable_get(program->symtable, type->con.con.id)->ast;
     NecroASTNode* constructor_ast_list  = data_declaraction_ast->data_declaration.constructor_list;
+    assert(constructor_ast_list != NULL);
+    bool          is_tagged_union       = constructor_ast_list->list.next_item != NULL;
     while (constructor_ast_list != NULL)
     {
         NecroASTNode*        arg_list     = constructor_ast_list->list.item->constructor.arg_list;
-        NecroConstructorInfo info         = (NecroConstructorInfo) { .members_offset = 0, .num_members = 0, .size_in_bytes = sizeof(char*) * 2 };
+        NecroConstructorInfo info         = (NecroConstructorInfo) { .members_offset = program->copy_table.member_map.length, .num_members = 0, .size_in_bytes = sizeof(char*), .is_tagged_union = is_tagged_union, .is_machine_def = false };
         bool                 first_member = true;
         NecroType*           con_inst     = necro_inst(program->infer, constructor_ast_list->list.item->necro_type, NULL);
         NecroType*           con_spec     = type;
@@ -166,6 +168,12 @@ size_t necro_create_data_info(NecroMachineProgram* program, NecroType* type)
         }
         necro_unify(program->infer, con_inst, con_spec, NULL, type, "Compiler bug in machine_copy.c");
         assert(program->infer->error.return_code == NECRO_SUCCESS);
+        // Tag
+        size_t unboxed_id = NECRO_UNBOXED_DATA_ID;
+        necro_push_member_vector(&program->copy_table.member_map, &unboxed_id);
+        info.size_in_bytes += sizeof(char*);
+        info.num_members++;
+        // Members
         while (con_spec->type == NECRO_TYPE_FUN)
         {
             NecroType* member_type    = necro_find(con_spec->fun.type1);
@@ -192,8 +200,91 @@ size_t necro_create_data_info(NecroMachineProgram* program, NecroType* type)
     return type_data->data_id;
 }
 
-// NecroConstructorInfo* necro_get_data_info(struct NecroMachineProgram* program, NecroType* type)
-// {
-//     size_t data_id = necro_create_data_info(program, type);
-//     // return program->data_map.
-// }
+void necro_add_machine_def_members(NecroMachineProgram* program, NecroConstructorInfo machine_def_info)
+{
+    for (size_t i = 0; i < machine_def_info.num_members; ++i)
+    {
+        size_t               member_data_id = program->copy_table.member_map.data[machine_def_info.members_offset + i];
+        NecroConstructorInfo member_info    = program->copy_table.data_map.data[member_data_id];
+        if (member_info.is_machine_def)
+        {
+            // A machine_def data_info should never directly contain another machine_def data_info!
+            assert(false);
+            // necro_add_machine_def_members(program, member_info);
+        }
+        else
+        {
+            necro_push_member_vector(&program->copy_table.member_map, &member_data_id);
+        }
+    }
+}
+
+size_t necro_create_machine_def_data_info(NecroMachineProgram* program, NecroMachineAST* ast)
+{
+    assert(ast->type == NECRO_MACHINE_DEF);
+    NecroMachineDef* machine_def = &ast->machine_def;
+    if (machine_def->data_id != NECRO_NULL_DATA_ID)
+        return machine_def->data_id;
+    NecroConstructorInfo info = (NecroConstructorInfo) { .members_offset = program->copy_table.member_map.length, .num_members = 0, .size_in_bytes = sizeof(char*), .is_tagged_union = false, .is_machine_def = true };
+    for (size_t i = 0; i < machine_def->num_members; ++i)
+    {
+        size_t               member_data_id = machine_def->members[i].data_id;
+        NecroConstructorInfo member_info    = program->copy_table.data_map.data[member_data_id];
+        if (member_info.is_machine_def)
+        {
+            necro_add_machine_def_members(program, member_info);
+            info.num_members   += member_info.num_members;
+            info.size_in_bytes += member_info.size_in_bytes;
+        }
+        else
+        {
+            necro_push_member_vector(&program->copy_table.member_map, &member_data_id);
+            info.num_members++;
+            info.size_in_bytes += sizeof(char*);
+        }
+    }
+    assert((program->copy_table.member_map.length - info.members_offset) == info.num_members);
+    machine_def->data_id = program->copy_table.data_map.length;
+    necro_push_data_map_vector(&program->copy_table.data_map, &info);
+    return machine_def->data_id;
+}
+
+void necro_print_data_info_go(struct NecroMachineProgram* program, size_t id, bool is_top)
+{
+    NecroConstructorInfo info = program->copy_table.data_map.data[id];
+    if (!is_top)
+    {
+        printf("    * { id: %d, ", id);
+    }
+    else
+    {
+        printf("{ id: %d, .member_offset: %d, .num_members: %d, .size_in_bytes: %d, ", id, info.members_offset, info.num_members, info.size_in_bytes);
+    }
+    if (id == NECRO_UNBOXED_DATA_ID)
+        printf(" Unboxed     }\n");
+    else if (info.is_tagged_union)
+        printf(" TaggedUnion }\n");
+    else if (info.is_machine_def)
+        printf(" MachineDef  }\n");
+    else
+        printf(" Constructor }\n");
+    if (is_top)
+    {
+        // Print out members
+        for (size_t i = 0; i < info.num_members; ++i)
+        {
+            necro_print_data_info_go(program, program->copy_table.member_map.data[info.members_offset + i], false);
+        }
+    }
+}
+
+void necro_print_data_info(struct NecroMachineProgram* program)
+{
+    printf("//-------------------\n");
+    printf("// Necro Data Info\n");
+    printf("//-------------------\n");
+    for (size_t i = 0; i < program->copy_table.data_map.length; ++i)
+    {
+        necro_print_data_info_go(program, i, true);
+    }
+}

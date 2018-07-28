@@ -550,7 +550,6 @@ typedef struct NecroValue
 typedef struct NecroBlock
 {
     struct NecroValue* forwarding_pointer;
-    struct NecroValue* members_start;
 } NecroBlock;
 
 typedef struct
@@ -605,6 +604,7 @@ inline NecroSpace* necro_alloc_space()
 {
     NecroSpace* space = malloc(sizeof(NecroSpace));
     space->next_space = NULL;
+    memset(space->data, 0, sizeof(NECRO_SPACE_SIZE));
     return space;
 }
 
@@ -721,7 +721,7 @@ inline NecroCopyJob necro_take_copy_job()
 
 inline NecroValue* necro_block_to_value(NecroBlock* block)
 {
-    return (NecroValue*)(&block->members_start);
+    return (NecroValue*)(block + 1);
 }
 
 inline NecroBlock* necro_value_to_block(NecroValue* value)
@@ -798,7 +798,7 @@ void _necro_copy_flip()
     copy_gc.to_head          = from_head;
     copy_gc.to_curr          = from_head;
     copy_gc.to_alloc_ptr     = &from_head->data_start;
-    copy_gc.to_end_ptr       = copy_gc.to_curr->data + NECRO_SPACE_SIZE;
+    copy_gc.to_end_ptr       = from_head->data + NECRO_SPACE_SIZE;
 }
 
 void necro_report_gc_statistics()
@@ -932,7 +932,7 @@ extern DLLEXPORT int* _necro_from_alloc(size_t size)
     {
         copy_gc.from_alloc_ptr   = new_end;
         data->forwarding_pointer = NULL;
-        return (int*)(&data->members_start); // return address after header
+        return (int*)(data + 1); // return address after header
     }
     assert(size < NECRO_SPACE_SIZE);
     if (copy_gc.from_curr->next_space == NULL)
@@ -951,7 +951,7 @@ extern DLLEXPORT int* _necro_to_alloc(size_t size)
     {
         copy_gc.to_alloc_ptr     = new_end;
         data->forwarding_pointer = NULL;
-        return (int*)(&data->members_start); // return address after header
+        return (int*)(data + 1); // return address after header
     }
     assert(size < NECRO_SPACE_SIZE);
     if (copy_gc.to_curr->next_space == NULL)
@@ -970,7 +970,7 @@ extern DLLEXPORT int* _necro_const_alloc(size_t size)
     {
         copy_gc.const_alloc_ptr  = new_end;
         data->forwarding_pointer = (NecroValue*)(data + 1); // Constant blocks forward to themselves
-        return (int*)(&data->members_start); // return address after header
+        return (int*)(data + 1); // return address after header
     }
     assert(size < NECRO_SPACE_SIZE);
     if (copy_gc.const_curr->next_space == NULL)

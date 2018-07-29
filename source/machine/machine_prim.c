@@ -26,7 +26,7 @@ NecroMachineType* necro_create_prim_type(NecroMachineProgram* program, NecroVar 
     NecroMachineType*     mk_fn_type      = necro_create_machine_fn_type(&program->arena, struct_ptr_type, elems + 1, num_elems - 1);
     NecroMachineAST*      mk_fn_body      = necro_create_machine_block(program, "entry", NULL);
     NecroMachineAST*      mk_fn_def       = necro_create_machine_fn(program, mk_fn_var, mk_fn_body, mk_fn_type);
-    NecroMachineAST*      data_ptr        = necro_build_nalloc(program, mk_fn_def, struct_type->necro_machine_type, (uint16_t) num_elems - 1);
+    NecroMachineAST*      data_ptr        = necro_build_nalloc(program, mk_fn_def, struct_type->necro_machine_type, (uint16_t) num_elems);
     // necro_build_store_into_tag(program, mk_fn_def, necro_create_uint32_necro_machine_value(program, 0), data_ptr);
 
     //--------------
@@ -43,7 +43,7 @@ NecroMachineType* necro_create_prim_type(NecroMachineProgram* program, NecroVar 
 }
 
 // Use this for when you want something more involved, like sum types
-NecroMachineAST* necro_create_prim_con(NecroMachineProgram* program, NecroMachineType* struct_type, NecroVar con_var, NecroMachineType** elems, size_t num_elems, uint16_t slots_used, int32_t tag)
+NecroMachineAST* necro_create_prim_con(NecroMachineProgram* program, NecroMachineType* struct_type, NecroVar con_var, NecroMachineType** elems, size_t num_elems, uint16_t slots_used, uint32_t tag)
 {
     assert(struct_type != NULL);
     assert(struct_type->type == NECRO_MACHINE_TYPE_STRUCT);
@@ -55,9 +55,9 @@ NecroMachineAST* necro_create_prim_con(NecroMachineProgram* program, NecroMachin
     NecroMachineType*     mk_fn_type      = necro_create_machine_fn_type(&program->arena, struct_ptr_type, elems, num_elems);
     NecroMachineAST*      mk_fn_body      = necro_create_machine_block(program, "entry", NULL);
     NecroMachineAST*      mk_fn_def       = necro_create_machine_fn(program, mk_fn_var, mk_fn_body, mk_fn_type);
-    NecroMachineAST*      data_ptr        = necro_build_nalloc(program, mk_fn_def, struct_type, slots_used);
-    if (tag > - 1)
-        necro_build_store_into_slot(program, mk_fn_def, necro_create_word_uint_value(program, tag), data_ptr, 0);
+    NecroMachineAST*      data_ptr        = necro_build_nalloc(program, mk_fn_def, struct_type, slots_used + 1);
+    // if (tag > - 1)
+    necro_build_store_into_slot(program, mk_fn_def, necro_create_word_uint_value(program, tag), data_ptr, 0);
         // necro_build_store_into_tag(program, mk_fn_def, necro_create_word_uint_value(program, tag), data_ptr);
 
     //--------------
@@ -330,7 +330,7 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     NecroMachineAST*  mouse_x_value_val = necro_build_call(program, get_mouse_x_fn, _necro_mouse_x_fn->fn_def.fn_value, NULL, 0, "xval");
     // NecroMachineAST*  boxed_mouse_x_val = necro_build_call(program, get_mouse_x_fn, program->mkIntFnValue, (NecroMachineAST*[]) { mouse_x_value_val }, 1, "xbox");
     necro_prim_fn_end(program, get_mouse_x_fn, mouse_x_value_val);
-    get_mouse_x_fn->fn_def.is_primitively_stateful = true;
+    get_mouse_x_fn->fn_def.state_type = NECRO_STATE_POINTWISE;
 
     // getMouseY
     NecroVar          get_mouse_y_var   = necro_con_to_var(program->prim_types->mouse_y_fn);
@@ -338,7 +338,7 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     NecroMachineAST*  mouse_y_value_val = necro_build_call(program, get_mouse_y_fn, _necro_mouse_y_fn->fn_def.fn_value, NULL, 0, "yval");
     // NecroMachineAST*  boxed_mouse_y_val = necro_build_call(program, get_mouse_y_fn, program->mkIntFnValue, (NecroMachineAST*[]) { mouse_y_value_val }, 1, "ybox");
     necro_prim_fn_end(program, get_mouse_y_fn, mouse_y_value_val);
-    get_mouse_y_fn->fn_def.is_primitively_stateful = true;
+    get_mouse_y_fn->fn_def.state_type = NECRO_STATE_POINTWISE;
 
     // Replaced by initial values
     // // delay

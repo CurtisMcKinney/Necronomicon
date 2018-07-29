@@ -280,8 +280,8 @@ void necro_machine_print_state_type(NecroMachineProgram* program, NECRO_STATE_TY
 {
     switch (state_type)
     {
-    case NECRO_STATE_STATIC:
-        printf("static ");
+    // case NECRO_STATE_STATIC:
+    //     printf("static ");
     case NECRO_STATE_CONSTANT:
         printf("constant ");
         break;

@@ -603,8 +603,8 @@ NecroCopyGC copy_gc;
 inline NecroSpace* necro_alloc_space()
 {
     NecroSpace* space = malloc(sizeof(NecroSpace));
+    memset(space->data, 0, NECRO_SPACE_SIZE);
     space->next_space = NULL;
-    memset(space->data, 0, sizeof(NECRO_SPACE_SIZE));
     return space;
 }
 
@@ -651,6 +651,7 @@ void necro_destroy_copy_gc(NecroCopyGC* copy_gc)
     necro_destroy_timer(copy_gc->timer);
     necro_destroy_space(copy_gc->from_head);
     necro_destroy_space(copy_gc->to_head);
+    necro_destroy_space(copy_gc->const_head);
     if (copy_gc->roots != NULL)
     {
         free(copy_gc->roots);
@@ -783,23 +784,10 @@ void _necro_copy(size_t root_data_id, NecroValue* root)
 
 void _necro_copy_flip()
 {
-    // Cache data
-    NecroSpace* from_head    = copy_gc.from_head;
-    NecroSpace* to_head      = copy_gc.to_head;
-    NecroSpace* to_curr      = copy_gc.to_curr;
-    char*       to_alloc_ptr = copy_gc.to_alloc_ptr;
-    char*       to_end_ptr   = copy_gc.to_end_ptr;
-    // New From
-    copy_gc.from_head        = to_head;
-    copy_gc.from_curr        = to_curr;
-    copy_gc.from_alloc_ptr   = to_alloc_ptr;
-    copy_gc.from_end_ptr     = to_end_ptr;
-    // New To
-    copy_gc.to_head          = from_head;
-    copy_gc.to_curr          = from_head;
-    copy_gc.to_alloc_ptr     = &from_head->data_start;
-    copy_gc.to_end_ptr       = from_head->data + NECRO_SPACE_SIZE;
+
 }
+
+#define NECRO_ONE_MEGABYTE_F ((double)1048576.0)
 
 void necro_report_gc_statistics()
 {
@@ -839,9 +827,9 @@ void necro_report_gc_statistics()
     NECRO_TRACE_GC("--------------------------------\n");
     NECRO_TRACE_GC("-- GC statistics \n");
     NECRO_TRACE_GC("--------------------------------\n");
-    NECRO_TRACE_GC(" from  alloc:  %d.%d mb\n", from_allocated / 1048576, from_allocated % 1048576);
-    NECRO_TRACE_GC(" to    alloc:  %d.%d mb\n", to_allocated / 1048576, to_allocated % 1048576);
-    NECRO_TRACE_GC(" const alloc:  %d.%d mb\n", const_allocated / 1048576, const_allocated % 1048576);
+    NECRO_TRACE_GC(" from  alloc:  %fmb\n", ((double)from_allocated) / NECRO_ONE_MEGABYTE_F);
+    NECRO_TRACE_GC(" to    alloc:  %fmb\n", ((double)to_allocated) / NECRO_ONE_MEGABYTE_F);
+    NECRO_TRACE_GC(" const alloc:  %fmb\n", ((double)const_allocated) / NECRO_ONE_MEGABYTE_F);
     NECRO_TRACE_GC(" from  blocks: %d\n", from_blocks);
     NECRO_TRACE_GC(" to    blocks: %d\n", to_blocks);
     NECRO_TRACE_GC(" const blocks: %d\n", const_blocks);
@@ -895,30 +883,46 @@ extern DLLEXPORT void _necro_copy_gc_set_root(int** root, size_t root_index, siz
 extern DLLEXPORT void _necro_copy_gc_collect()
 {
 #if NECRO_DEBUG_GC
-    NECRO_TRACE_GC("collect: copy\n");
     necro_start_timer(copy_gc.timer);
 #endif
+
+    //-----------
     // Copy
     for (size_t i = 0; i < copy_gc.root_count; ++i)
     {
-        assert(copy_gc.roots[i].data_id != NECRO_UNBOXED_DATA_ID);
+        // assert(copy_gc.roots[i].data_id != NECRO_UNBOXED_DATA_ID);
         _necro_copy(copy_gc.roots[i].data_id, *copy_gc.roots[i].root);
     }
 
+    //-----------
     // Mutation log
-    // TODO:
 
+    //-----------
     // Replace roots
-    NECRO_TRACE_GC("collect: replace roots\n");
     for (size_t i = 0; i < copy_gc.root_count; ++i)
     {
-        assert(copy_gc.roots[i].data_id != NECRO_UNBOXED_DATA_ID);
+        // assert(copy_gc.roots[i].data_id != NECRO_UNBOXED_DATA_ID);
         *copy_gc.roots[i].root = necro_value_to_block(*copy_gc.roots[i].root)->forwarding_pointer;
     }
 
+    //-----------
     // Flip
-    NECRO_TRACE_GC("collect: flip\n");
-    _necro_copy_flip();
+    NecroSpace* from_head    = copy_gc.from_head;
+    NecroSpace* to_head      = copy_gc.to_head;
+    NecroSpace* to_curr      = copy_gc.to_curr;
+    char*       to_alloc_ptr = copy_gc.to_alloc_ptr;
+    char*       to_end_ptr   = copy_gc.to_end_ptr;
+    copy_gc.from_head        = to_head;
+    copy_gc.from_curr        = to_curr;
+    copy_gc.from_alloc_ptr   = to_alloc_ptr;
+    copy_gc.from_end_ptr     = to_end_ptr;
+    copy_gc.to_head          = from_head;
+    copy_gc.to_curr          = from_head;
+    copy_gc.to_alloc_ptr     = &from_head->data_start;
+    copy_gc.to_end_ptr       = from_head->data + NECRO_SPACE_SIZE;
+
+    //-----------
+    // End
 #if NECRO_DEBUG_GC
     necro_stop_and_report_timer(copy_gc.timer, "collect, time: ");
 #endif

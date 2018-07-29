@@ -212,7 +212,7 @@ typedef struct NecroMachineDef
     bool                    is_pushed;
     bool                    is_recursive;
     bool                    is_persistent_slot_set;
-    bool                    references_stateful_global;
+    NECRO_STATE_TYPE        most_stateful_type_referenced;
 
     // args
     NecroVar*               arg_names;
@@ -224,11 +224,12 @@ typedef struct NecroMachineDef
     size_t                  num_members;
     size_t                  members_size;
     int32_t                 _first_dynamic;
-    // size_t                  total_slots;
 
+    // cache if and where slots have been loaded!?
     struct NecroMachineAST* global_value; // If global
     struct NecroMachineAST* global_state; // If global
-    // cache if and where slots have been loaded!?
+
+    // data ids for GC
     size_t                  data_id;
     size_t                  value_data_id;
 } NecroMachineDef;
@@ -246,8 +247,8 @@ typedef struct NecroMachineFnDef
     NECRO_FN_TYPE           fn_type;
     struct NecroMachineAST* fn_value;
     void*                   runtime_fn_addr;
-    // TODO: instead of hacks like this, put NECRO_STATE_TYPE into here
-    bool                    is_primitively_stateful;
+    NECRO_STATE_TYPE        state_type;
+    // bool                    is_primitively_stateful;
     //-------------------
     // compile time data
     struct NecroMachineAST* _curr_block;

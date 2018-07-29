@@ -621,6 +621,7 @@ NecroAST_LocalPtr parse_type_signature(NecroParser* parser, NECRO_SIG_TYPE sig_t
 NecroAST_LocalPtr parse_type_class_declaration(NecroParser* parser);
 NecroAST_LocalPtr parse_type_class_instance(NecroParser* parser);
 NecroAST_LocalPtr parse_initializer(NecroParser* parser);
+#define NECRO_INITIALIZER_TOKEN NECRO_LEX_LEFT_ARROW
 
 NecroParse_DescentState enter_parse_pattern_state(NecroParser* parser);
 void                    restore_parse_state(NecroParser* parser, NecroParse_DescentState prev_state);
@@ -858,7 +859,7 @@ NecroAST_LocalPtr parse_simple_assignment(NecroParser* parser)
 
     // Initializer
     NecroAST_LocalPtr initializer = null_local_ptr;
-    if (peek_token_type(parser) == NECRO_LEX_TILDE)
+    if (peek_token_type(parser) == NECRO_INITIALIZER_TOKEN)
     {
         NecroParser_Snapshot initializer_snapshot = snapshot_parser(parser);
         initializer = parse_initializer(parser);
@@ -1589,10 +1590,10 @@ NecroAST_LocalPtr parse_initializer(NecroParser* parser)
 {
     NecroLexToken* look_ahead_token = peek_token(parser);
 
-    if (look_ahead_token->token != NECRO_LEX_TILDE)
+    if (look_ahead_token->token != NECRO_INITIALIZER_TOKEN)
         return null_local_ptr;
     NecroParser_Snapshot snapshot = snapshot_parser(parser);
-    consume_token(parser); // consume NECRO_LEX_TILDE token
+    consume_token(parser); // consume NECRO_INITIALIZER_TOKEN token
 
     NecroAST_LocalPtr local_ptr = parse_const_con(parser);
     if (local_ptr == null_local_ptr)

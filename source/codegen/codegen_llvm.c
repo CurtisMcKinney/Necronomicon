@@ -8,6 +8,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <llvm-c/Analysis.h>
+#include <llvm-c/Transforms/IPO.h>
 #include <llvm-c/Transforms/Scalar.h>
 #include <llvm-c/TargetMachine.h>
 #include <llvm-c/Transforms/PassManagerBuilder.h>
@@ -38,7 +39,8 @@ NecroCodeGenLLVM necro_create_codegen_llvm(NecroIntern* intern, NecroSymTable* s
         LLVMDisposeMessage(target_error);
         exit(1);
     }
-    LLVMTargetMachineRef target_machine   = LLVMCreateTargetMachine(target, target_triple, target_cpu, target_features, LLVMCodeGenLevelNone, LLVMRelocDefault, LLVMCodeModelJITDefault);
+    LLVMCodeGenOptLevel  opt_level        = should_optimize ? LLVMCodeGenLevelAggressive : LLVMCodeGenLevelNone;
+    LLVMTargetMachineRef target_machine   = LLVMCreateTargetMachine(target, target_triple, target_cpu, target_features, opt_level, LLVMRelocDefault, LLVMCodeModelJITDefault);
     LLVMTargetDataRef    target_data      = LLVMCreateTargetDataLayout(target_machine);
 
     LLVMSetTarget(mod, target_triple);
@@ -51,13 +53,17 @@ NecroCodeGenLLVM necro_create_codegen_llvm(NecroIntern* intern, NecroSymTable* s
     {
         LLVMAddCFGSimplificationPass(fn_pass_manager);
         LLVMAddDeadStoreEliminationPass(fn_pass_manager);
-        LLVMAddTailCallEliminationPass(fn_pass_manager);
+        LLVMAddAggressiveDCEPass(fn_pass_manager);
         LLVMAddInstructionCombiningPass(fn_pass_manager);
+        LLVMAddTailCallEliminationPass(fn_pass_manager);
         LLVMInitializeFunctionPassManager(fn_pass_manager);
         LLVMFinalizeFunctionPassManager(fn_pass_manager);
+        LLVMAddFunctionAttrsPass(mod_pass_manager);
+        LLVMAddGlobalOptimizerPass(mod_pass_manager);
         LLVMPassManagerBuilderRef pass_manager_builder = LLVMPassManagerBuilderCreate();
         LLVMPassManagerBuilderSetOptLevel(pass_manager_builder, 0);
-        LLVMPassManagerBuilderUseInlinerWithThreshold(pass_manager_builder, 60);
+        LLVMPassManagerBuilderUseInlinerWithThreshold(pass_manager_builder, 200);
+        LLVMPassManagerBuilderPopulateFunctionPassManager(pass_manager_builder, fn_pass_manager);
         LLVMPassManagerBuilderPopulateModulePassManager(pass_manager_builder, mod_pass_manager);
     }
     return (NecroCodeGenLLVM)
@@ -187,46 +193,11 @@ LLVMTypeRef necro_machine_type_to_llvm_type(NecroCodeGenLLVM* codegen, NecroMach
     }
 }
 
-// LLVMValueRef necro_const_zero_machine_type(NecroCodeGenLLVM* codegen, NecroMachineType* machine_type)
-// {
-//     assert(machine_type != NULL);
-//     switch (machine_type->type)
-//     {
-//     case NECRO_MACHINE_TYPE_UINT1:  return LLVMConstInt(LLVMInt1TypeInContext(codegen->context), 0, false);
-//     case NECRO_MACHINE_TYPE_UINT8:  return LLVMConstInt(LLVMInt8TypeInContext(codegen->context), 0, false);
-//     case NECRO_MACHINE_TYPE_UINT16: return LLVMConstInt(LLVMInt16TypeInContext(codegen->context), 0, false);
-//     case NECRO_MACHINE_TYPE_UINT32: return LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 0, false);
-//     case NECRO_MACHINE_TYPE_UINT64: return LLVMConstInt(LLVMInt64TypeInContext(codegen->context), 0, false);
-//     case NECRO_MACHINE_TYPE_INT64:  return LLVMConstInt(LLVMInt64TypeInContext(codegen->context), 0, false);
-//     case NECRO_MACHINE_TYPE_F64:    return LLVMConstReal(LLVMDoubleTypeInContext(codegen->context), 0.f);
-//     case NECRO_MACHINE_TYPE_CHAR:   assert(false); return NULL;
-//     case NECRO_MACHINE_TYPE_VOID:   assert(false); return NULL;
-//     case NECRO_MACHINE_TYPE_PTR:    return LLVMConstPointerNull(LLVMPointerType(necro_machine_type_to_llvm_type(codegen, machine_type->ptr_type.element_type), 0));
-//     case NECRO_MACHINE_TYPE_STRUCT:
-//     {
-//         LLVMTypeRef   struct_type = necro_codegen_symtable_get(codegen, machine_type->struct_type.name)->type;
-//         LLVMValueRef* elements    = necro_paged_arena_alloc(&codegen->arena, machine_type->struct_type.num_members * sizeof(LLVMValueRef));
-//         for (size_t i = 0; i < machine_type->struct_type.num_members; ++i)
-//         {
-//             elements[i] = necro_const_zero_machine_type(codegen, machine_type->struct_type.members[i]);
-//         }
-//         return LLVMConstNamedStruct(struct_type, elements, machine_type->struct_type.num_members);
-//     }
-//     case NECRO_MACHINE_TYPE_FN:
-//         assert(false);
-//         return NULL;
-//     default:
-//         assert(false);
-//         return NULL;
-//     }
-// }
-
 bool necro_is_boxed_llvm_type(NecroCodeGenLLVM* codegen, LLVMTypeRef type)
 {
     return type == codegen->word_int_type || type == codegen->word_uint_type || type == codegen->word_float_type;
 }
 
-// TODO: Fix for unboxed types!
 LLVMValueRef necro_maybe_cast(NecroCodeGenLLVM* codegen, LLVMValueRef value, LLVMTypeRef type_to_match)
 {
     LLVMTypeRef value_type = LLVMTypeOf(value);
@@ -371,30 +342,20 @@ LLVMValueRef necro_codegen_terminator(NecroCodeGenLLVM* codegen, NecroTerminator
     }
 }
 
-// TODO: _necro_from_alloc
 LLVMValueRef necro_codegen_nalloc(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
 {
     assert(codegen != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_MACHINE_NALLOC);
     LLVMTypeRef  type      = necro_machine_type_to_llvm_type(codegen, ast->nalloc.type_to_alloc);
-    // uint64_t     data_size = LLVMStoreSizeOfType(codegen->target, type);
     // Add 1 word for header
     uint64_t     data_size = (ast->nalloc.slots_used + 1) * ((necro_get_word_size() == NECRO_WORD_4_BYTES) ? 4 : 8);
     LLVMValueRef size_val  = (necro_get_word_size() == NECRO_WORD_4_BYTES) ?
         LLVMConstInt(LLVMInt32TypeInContext(codegen->context), data_size, false) :
         LLVMConstInt(LLVMInt64TypeInContext(codegen->context), data_size, false);
-    // uint32_t     raw_slots     = ((((uint32_t)data_size_n) - sizeof(uint64_t)) / sizeof(int64_t*));
-    // uint32_t     slots_total_n = next_highest_pow_of_2(raw_slots);
-    // uint8_t      segment_n     = log2_32(slots_total_n);
-    // // TODO: Replace nalloc
-    // // assert(ast->nalloc.slots_used <= slots_total_n);
-    // // LLVMValueRef data_size     = LLVMConstInt(LLVMInt64TypeInContext(codegen->context), data_size_n, true);
-    // LLVMValueRef slots_used    = LLVMConstInt(LLVMInt32TypeInContext(codegen->context), ast->nalloc.slots_used, false);
-    // // LLVMValueRef slots_total   = LLVMConstInt(LLVMInt16TypeInContext(codegen->context), slots_total_n, false);
-    // LLVMValueRef segment       = LLVMConstInt(LLVMInt8TypeInContext(codegen->context), segment_n, false);
-    // LLVMValueRef void_ptr      = LLVMBuildCall(codegen->builder, necro_codegen_symtable_get(codegen, codegen->necro_alloc_var)->value, (LLVMValueRef[]) { slots_used, segment }, 2, "void_ptr");
-    LLVMValueRef void_ptr = LLVMBuildCall(codegen->builder, necro_codegen_symtable_get(codegen, codegen->necro_alloc_var)->value, (LLVMValueRef[]) { size_val }, 1, "void_ptr");
+    LLVMValueRef void_ptr  = ast->nalloc.is_constant ?
+        LLVMBuildCall(codegen->builder, necro_codegen_symtable_get(codegen, codegen->necro_const_alloc_var)->value, (LLVMValueRef[]) { size_val }, 1, "void_ptr") :
+        LLVMBuildCall(codegen->builder, necro_codegen_symtable_get(codegen, codegen->necro_from_alloc_var)->value, (LLVMValueRef[]) { size_val }, 1, "void_ptr");
     LLVMSetInstructionCallConv(void_ptr, LLVMCCallConv);
     LLVMValueRef data_ptr = LLVMBuildBitCast(codegen->builder, void_ptr, LLVMPointerType(type, 0), "data_ptr");
     necro_codegen_symtable_get(codegen, ast->nalloc.result_reg->value.reg_name)->value = data_ptr;
@@ -421,37 +382,7 @@ LLVMValueRef necro_codegen_value(NecroCodeGenLLVM* codegen, NecroMachineAST* ast
     case NECRO_MACHINE_VALUE_F64_LITERAL:      return LLVMConstReal(LLVMDoubleTypeInContext(codegen->context), ast->value.f64_literal);
     case NECRO_MACHINE_VALUE_NULL_PTR_LITERAL: return LLVMConstPointerNull(necro_machine_type_to_llvm_type(codegen, ast->necro_machine_type));
     case NECRO_MACHINE_VALUE_GLOBAL:           return necro_codegen_symtable_get(codegen, ast->value.global_name)->value;
-    // {
-    //     // if (ast->necro_machine_type->type != NECRO_MACHINE_TYPE_STRUCT && ast->necro_machine_type->type != NECRO_MACHINE_TYPE_FN)
-    //     //     return LLVMBuildLoad(codegen->builder, necro_codegen_symtable_get(codegen, ast->value.global_name)->value, "glb");
-    //     // else
-    //     return necro_codegen_symtable_get(codegen, ast->value.global_name)->value;
-    //     // NecroMachineAST* global_ast = necro_symtable_get(codegen->symtable, ast->value.global_name.id)->necro_machine_ast;
-    //     // if (global_ast->type == NECRO_MACHINE_FN_DEF)
-    //     // {
-    //     //     // return necro_codegen_symtable_get(codegen, global_ast->fn_def.name)->value;
-    //     //     // return necro_codegen_value(codegen, global_ast->fn_def.fn_value);
-    //     //     return necro_codegen_symtable_get(codegen, ast->value.global_name)->value;
-    //     // }
-    //     // else if (global_ast->type == NECRO_MACHINE_DEF)
-    //     // {
-    //     //     // return necro_codegen_symtable_get(codegen, global_ast->machine_def.bind_name)->value;
-    //     //     // return necro_codegen_symtable_get(codegen, global_ast->value.global_name)->value;
-    //     //     return necro_codegen_symtable_get(codegen, ast->value.global_name)->value;
-    //     // }
-    //     // else if (global_ast->type == NECRO_MACHINE_VALUE)
-    //     // {
-    //     //     // return necro_codegen_symtable_get(codegen, global_ast->value.global_name)->value;
-    //     //     return necro_codegen_symtable_get(codegen, ast->value.global_name)->value;
-    //     // }
-    //     // else
-    //     // {
-    //     //     // return necro_codegen_symtable_get(codegen, global_ast->machine_def.bind_name)->value;
-    //     //     assert(false);
-    //     // }
-    //     // return NULL;
-    // }
-    default: assert(false); return NULL;
+    default:                    assert(false); return NULL;
     }
 }
 
@@ -804,14 +735,15 @@ void necro_codegen_global(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
 NECRO_RETURN_CODE necro_codegen_llvm(NecroCodeGenLLVM* codegen, NecroMachineProgram* program)
 {
     // cache useful things
-    codegen->member_map      = &program->copy_table.member_map;
-    codegen->data_map        = &program->copy_table.data_map;
-    codegen->poly_type       = necro_machine_type_to_llvm_type(codegen, program->necro_poly_type);
-    codegen->poly_ptr_type   = necro_machine_type_to_llvm_type(codegen, program->necro_poly_ptr_type);
-    codegen->word_int_type   = necro_machine_type_to_llvm_type(codegen, program->necro_int_type);
-    codegen->word_uint_type  = necro_machine_type_to_llvm_type(codegen, program->necro_uint_type);
-    codegen->word_float_type = necro_machine_type_to_llvm_type(codegen, program->necro_float_type);
-    codegen->necro_alloc_var = program->runtime._necro_from_alloc;
+    codegen->member_map            = &program->copy_table.member_map;
+    codegen->data_map              = &program->copy_table.data_map;
+    codegen->poly_type             = necro_machine_type_to_llvm_type(codegen, program->necro_poly_type);
+    codegen->poly_ptr_type         = necro_machine_type_to_llvm_type(codegen, program->necro_poly_ptr_type);
+    codegen->word_int_type         = necro_machine_type_to_llvm_type(codegen, program->necro_int_type);
+    codegen->word_uint_type        = necro_machine_type_to_llvm_type(codegen, program->necro_uint_type);
+    codegen->word_float_type       = necro_machine_type_to_llvm_type(codegen, program->necro_float_type);
+    codegen->necro_from_alloc_var  = program->runtime._necro_from_alloc;
+    codegen->necro_const_alloc_var = program->runtime._necro_const_alloc;
     // Declare structs
     for (size_t i = 0; i < program->structs.length; ++i)
     {

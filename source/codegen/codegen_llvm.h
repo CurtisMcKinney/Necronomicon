@@ -66,7 +66,8 @@ typedef struct NecroCodeGenLLVM
     LLVMTypeRef               word_int_type;
     LLVMTypeRef               word_uint_type;
     LLVMTypeRef               word_float_type;
-    NecroVar                  necro_alloc_var;
+    NecroVar                  necro_from_alloc_var;
+    NecroVar                  necro_const_alloc_var;
     NecroRuntimeMappingVector runtime_mapping;
     bool                      should_optimize;
     NecroMemberVector*        member_map;

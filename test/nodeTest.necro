@@ -1,4 +1,4 @@
-data Maybe a = Just a | Nothing | AlotOfNothing a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a
+data Maybe a = Just a | Nothing
 
 -- data Nullary    = Nullary
 -- data Unary      = Unary Nullary
@@ -444,16 +444,6 @@ data Maybe a = Just a | Nothing | AlotOfNothing a a a a a a a a a a a a a a a a 
 -- balwaysAndForever'''''''' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
 -- balwaysAndForever''''''''' :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
 -- balwaysAndForever''''''''' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
--- wholeLotOfNothing :: Maybe Int
--- wholeLotOfNothing = AlotOfNothing (getMouseX world * 100) 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32
--- wholeLotOfNothing' :: Maybe Int
--- wholeLotOfNothing' = AlotOfNothing (getMouseX world * 100) 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32
--- wholeLotOfNothing'' :: Maybe Int
--- wholeLotOfNothing'' = AlotOfNothing (getMouseX world * 100) 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32
--- wholeLotOfNothing''' :: Maybe Int
--- wholeLotOfNothing''' = AlotOfNothing (getMouseX world * 100) 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32
--- wholeLotOfNothing'''' :: Maybe Int
--- wholeLotOfNothing'''' = AlotOfNothing (getMouseX world * 100) 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32
 
 -- counter :: Int
 -- counter = x where
@@ -481,9 +471,26 @@ data Maybe a = Just a | Nothing | AlotOfNothing a a a a a a a a a a a a a a a a 
 -- counter = x where
 --     x <- 0 = x + 1
 
-main :: Int
-main = x where
-    x <- 0 = x + 1
+-- isItConst :: Maybe Int
+-- isItConst = Just 0
+
+-- main :: Int
+-- main = x where
+--     x <- 0 = x + 1
+
+-- counter' :: Maybe Int
+-- counter' = Just x where
+--     x <- 0 = x + getMouseX world
+
+-- counter' :: Maybe Int
+-- counter' = Just 10
+
+-- -- TODO: Need initializers!!!!
+-- counter' :: Maybe Int
+-- counter' <- Nothing =
+--     case counter' of
+--         Just x  -> Just (x + 1)
+--         Nothing -> Just 0
 
 -- -- TODO: Fix case expr not maybecasting!
 -- main :: Int
@@ -491,4 +498,51 @@ main = x where
 --     case Just 666 of
 --         Just x -> x
 --         _      -> 100
+
+-- counter' :: Maybe Int
+-- counter' = Just x where
+--     x <- 0 = x + 1
+-- main :: Int
+-- main =
+--     case counter' of
+--         Just x -> x
+--         _      -> -1
+
+-- Many stateful calculations at 100 ticks per second
+-- Now with maybes
+integrate :: Int -> Int
+integrate delta = feed'' where
+    feed <- 0 = delta + feed
+    feed'     = Just feed
+    feed''    =
+        case feed' of
+            Nothing -> 0
+            Just x  -> x
+tenTimes :: Int -> Int
+tenTimes n =
+    integrate n + integrate n + integrate n + integrate n + integrate n +
+    integrate n + integrate n + integrate n + integrate n + integrate n
+oneHundredTimes :: Int -> Int
+oneHundredTimes n =
+    tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
+    tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
+oneThousandTimes :: Int -> Int
+oneThousandTimes n =
+    oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
+    oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
+tenThousandTimes :: Int -> Int
+tenThousandTimes n =
+    oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
+    oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
+oneHundredThousandTimes :: Int -> Int
+oneHundredThousandTimes n =
+    tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n +
+    tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
+main :: Int
+main =
+    oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1  + oneHundredThousandTimes 1 +
+    oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1  + oneHundredThousandTimes 1
+-- main =
+--     oneHundredThousandTimes 1 + oneHundredThousandTimes 1
+
 

@@ -376,7 +376,7 @@ NecroMachineAST* necro_create_machine_fn(NecroMachineProgram* program, NecroVar 
     return ast;
 }
 
-NecroMachineAST* necro_create_machine_runtime_fn(NecroMachineProgram* program, NecroVar name, NecroMachineType* necro_machine_type, void* runtime_fn_addr)
+NecroMachineAST* necro_create_machine_runtime_fn(NecroMachineProgram* program, NecroVar name, NecroMachineType* necro_machine_type, void* runtime_fn_addr, NECRO_STATE_TYPE state_type)
 {
     NecroMachineAST* ast                = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
     ast->type                           = NECRO_MACHINE_FN_DEF;
@@ -386,7 +386,7 @@ NecroMachineAST* necro_create_machine_runtime_fn(NecroMachineProgram* program, N
     ast->fn_def.fn_value                = necro_create_global_value(program, name, necro_machine_type);
     ast->necro_machine_type             = necro_machine_type;
     ast->fn_def.runtime_fn_addr         = runtime_fn_addr;
-    ast->fn_def.state_type              = NECRO_STATE_CONSTANT;
+    ast->fn_def.state_type              = state_type;
     necro_symtable_get(program->symtable, name.id)->necro_machine_ast = ast;
     necro_program_add_function(program, ast);
     ast->fn_def._curr_block             = NULL;;
@@ -498,19 +498,6 @@ NecroMachineAST* necro_create_bit_cast(NecroMachineProgram* program, NecroMachin
     ast->bit_cast.from_value = from_value_ast;
     ast->bit_cast.to_value   = necro_create_reg(program, to_type, "cst");
     ast->necro_machine_type = to_type;
-    return ast;
-}
-
-NecroMachineAST* necro_create_nalloc(NecroMachineProgram* program, NecroMachineType* type, uint32_t slots_used)
-{
-    assert(slots_used > 0);
-    NecroMachineAST* ast       = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
-    ast->type                  = NECRO_MACHINE_NALLOC;
-    ast->nalloc.type_to_alloc  = type;
-    ast->nalloc.slots_used     = slots_used;
-    NecroMachineType* type_ptr = necro_create_machine_ptr_type(&program->arena, type);
-    ast->nalloc.result_reg     = necro_create_reg(program, type_ptr, "data_ptr");
-    ast->necro_machine_type    = type_ptr;
     return ast;
 }
 
@@ -626,18 +613,25 @@ void necro_move_to_block(NecroMachineProgram* program, NecroMachineAST* fn_def, 
     assert(false);
 }
 
-// TODO: Figure out size here!!!!!
-NecroMachineAST* necro_build_nalloc(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineType* type, uint32_t a_slots_used)
+NecroMachineAST* necro_build_nalloc(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineType* type, uint32_t a_slots_used, bool is_constant)
 {
     assert(program != NULL);
     assert(type != NULL);
     assert(fn_def != NULL);
     assert(fn_def->type == NECRO_MACHINE_FN_DEF);
-    NecroMachineAST* data_ptr = necro_create_nalloc(program, type, a_slots_used);
-    necro_add_statement_to_block(program, fn_def->fn_def._curr_block, data_ptr);
-    assert(data_ptr->nalloc.result_reg->type == NECRO_MACHINE_VALUE);
-    assert(data_ptr->nalloc.result_reg->value.value_type == NECRO_MACHINE_VALUE_REG);
-    return data_ptr->nalloc.result_reg;
+    assert(a_slots_used > 0);
+    NecroMachineAST* ast       = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
+    ast->type                  = NECRO_MACHINE_NALLOC;
+    ast->nalloc.type_to_alloc  = type;
+    ast->nalloc.slots_used     = a_slots_used;
+    ast->nalloc.is_constant    = is_constant;
+    NecroMachineType* type_ptr = necro_create_machine_ptr_type(&program->arena, type);
+    ast->nalloc.result_reg     = necro_create_reg(program, type_ptr, "data_ptr");
+    ast->necro_machine_type    = type_ptr;
+    necro_add_statement_to_block(program, fn_def->fn_def._curr_block, ast);
+    assert(ast->nalloc.result_reg->type == NECRO_MACHINE_VALUE);
+    assert(ast->nalloc.result_reg->value.value_type == NECRO_MACHINE_VALUE_REG);
+    return ast->nalloc.result_reg;
 }
 
 void necro_build_store_into_ptr(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_value, NecroMachineAST* dest_ptr)

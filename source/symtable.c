@@ -69,6 +69,7 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
         .size                    = 0,
         .arity                   = -1,
         .necro_machine_ast       = NULL,
+        .const_necro_machine_ast = NULL,
     };
 }
 

@@ -345,6 +345,7 @@ typedef struct NecroMachineNAlloc
 {
     NecroMachineType*       type_to_alloc;
     uint32_t                slots_used;
+    bool                    is_constant;
     struct NecroMachineAST* result_reg;
 } NecroMachineNAlloc;
 
@@ -483,6 +484,7 @@ typedef struct NecroRuntime
     // new copy_gc
     NecroVar _necro_from_alloc;
     NecroVar _necro_to_alloc;
+    NecroVar _necro_const_alloc;
     NecroVar _necro_copy_gc_initialize_root_set;
     NecroVar _necro_copy_gc_set_root;
     NecroVar _necro_copy_gc_collect;

@@ -131,6 +131,7 @@ typedef struct NecroSlot
     NecroMachineType*       necro_machine_type;
     struct NecroMachineDef* machine_def;
     size_t                  data_id;
+    bool                    is_dynamic;
 } NecroSlot;
 
 typedef struct NecroMachineSwitchData

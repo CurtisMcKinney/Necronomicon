@@ -508,41 +508,56 @@ data Maybe a = Just a | Nothing
 --         Just x -> x
 --         _      -> -1
 
--- Many stateful calculations at 100 ticks per second
--- Now with maybes
-integrate :: Int -> Int
-integrate delta = feed'' where
-    feed <- 0 = delta + feed
-    feed'     = Just feed
-    feed''    =
-        case feed' of
-            Nothing -> 0
-            Just x  -> x
-tenTimes :: Int -> Int
-tenTimes n =
-    integrate n + integrate n + integrate n + integrate n + integrate n +
-    integrate n + integrate n + integrate n + integrate n + integrate n
-oneHundredTimes :: Int -> Int
-oneHundredTimes n =
-    tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
-    tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
-oneThousandTimes :: Int -> Int
-oneThousandTimes n =
-    oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
-    oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
-tenThousandTimes :: Int -> Int
-tenThousandTimes n =
-    oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
-    oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
-oneHundredThousandTimes :: Int -> Int
-oneHundredThousandTimes n =
-    tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n +
-    tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
-main :: Int
-main =
-    oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1  + oneHundredThousandTimes 1 +
-    oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1  + oneHundredThousandTimes 1
+-- -- Many stateful calculations at 100 ticks per second
+-- -- Now with maybes
+-- integrate :: Int -> Int
+-- integrate delta = feed'' where
+--     feed <- 0 = delta + feed
+--     feed'     = Just feed
+--     feed''    =
+--         case feed' of
+--             Nothing -> 0
+--             Just x  -> x
+-- tenTimes :: Int -> Int
+-- tenTimes n =
+--     integrate n + integrate n + integrate n + integrate n + integrate n +
+--     integrate n + integrate n + integrate n + integrate n + integrate n
+-- oneHundredTimes :: Int -> Int
+-- oneHundredTimes n =
+--     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
+--     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
+-- oneThousandTimes :: Int -> Int
+-- oneThousandTimes n =
+--     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
+--     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
+-- tenThousandTimes :: Int -> Int
+-- tenThousandTimes n =
+--     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
+--     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
+-- oneHundredThousandTimes :: Int -> Int
+-- oneHundredThousandTimes n =
+--     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n +
+--     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
+-- main :: Int
 -- main =
---     oneHundredThousandTimes 1 + oneHundredThousandTimes 1
+--     oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1  + oneHundredThousandTimes 1 +
+--     oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1  + oneHundredThousandTimes 1
+-- -- main =
+-- --     oneHundredThousandTimes 1 + oneHundredThousandTimes 1
 
+data List a = Cons a (List a) | Nil
+
+countList :: List a -> Int
+countList xs =
+    case xs of
+        Cons _ xs' -> 1 + countList xs'
+        Nil        -> c
+    where
+        c <- 0 = c + 1
+
+coolList :: List ()
+coolList = Cons () (Cons () Nil)
+
+main :: Int
+main = countList coolList
 

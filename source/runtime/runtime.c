@@ -21,7 +21,7 @@
 #define NECRO_GC_NUM_SEGMENTS 10
 
 // Set to 1 if you want debug trace messages from GC
-#define NECRO_DEBUG_GC 0
+#define NECRO_DEBUG_GC 1
 
 #if NECRO_DEBUG_GC
 #define NECRO_TRACE_GC(...) printf(__VA_ARGS__)
@@ -498,6 +498,7 @@ extern DLLEXPORT void _necro_error_exit(uint32_t error_code)
     {
     case 1:
         fprintf(stderr, "****Error: Non-exhaustive patterns in case statement!\n");
+        break;
     case 2:
         fprintf(stderr, "****Error: Malformed closure application!\n");
         break;
@@ -772,6 +773,13 @@ void _necro_copy(size_t root_data_id, NecroValue* root)
                 {
                     to_members[i] = from_members[i];
                 }
+                // NULL member
+                else if (from_members[i] == NULL)
+                {
+                    to_members[i] = NULL;
+                }
+                // Forward pointer check here?!
+                // Pointer to some more data
                 else
                 {
                     necro_create_new_copy_job(member_map[info.members_offset + i], from_members[i], to_members + i);

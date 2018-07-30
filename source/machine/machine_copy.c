@@ -225,12 +225,16 @@ size_t necro_create_machine_def_data_info(NecroMachineProgram* program, NecroMac
     NecroMachineDef* machine_def = &ast->machine_def;
     if (machine_def->data_id != NECRO_NULL_DATA_ID)
         return machine_def->data_id;
+    machine_def->data_id = program->copy_table.data_map.length;
     NecroConstructorInfo info = (NecroConstructorInfo) { .members_offset = program->copy_table.member_map.length, .num_members = 0, .size_in_bytes = sizeof(char*), .is_tagged_union = false, .is_machine_def = true };
     for (size_t i = 0; i < machine_def->num_members; ++i)
     {
-        size_t               member_data_id = machine_def->members[i].data_id;
+        NecroSlot            slot           = machine_def->members[i];
+        size_t               member_data_id = slot.data_id;
+        if (slot.is_dynamic && slot.necro_machine_type->type == NECRO_MACHINE_TYPE_PTR && slot.necro_machine_type->ptr_type.element_type == ast->necro_machine_type)
+            member_data_id = machine_def->data_id;
         NecroConstructorInfo member_info    = program->copy_table.data_map.data[member_data_id];
-        if (member_info.is_machine_def)
+        if (member_info.is_machine_def && !slot.is_dynamic)
         {
             necro_add_machine_def_members(program, member_info);
             info.num_members   += member_info.num_members;
@@ -244,7 +248,6 @@ size_t necro_create_machine_def_data_info(NecroMachineProgram* program, NecroMac
         }
     }
     assert((program->copy_table.member_map.length - info.members_offset) == info.num_members);
-    machine_def->data_id = program->copy_table.data_map.length;
     necro_push_data_map_vector(&program->copy_table.data_map, &info);
     return machine_def->data_id;
 }

@@ -809,7 +809,7 @@ NECRO_RETURN_CODE necro_jit_llvm(NecroCodeGenLLVM* codegen)
         LLVMAddGlobalMapping(engine, codegen->runtime_mapping.data[i].value, codegen->runtime_mapping.data[i].addr);
 
     // TODO / HACK: Manual data info set up.
-    // Ideally this should be done via the actual application log...
+    // Ideally this should be done via the actual application logic...
     _necro_set_data_map(codegen->data_map->data);
     _necro_set_member_map(codegen->member_map->data);
     necro_copy_gc_init();

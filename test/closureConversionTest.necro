@@ -1,0 +1,60 @@
+addOne :: Int -> Int
+addOne x = x + x
+
+addOne' :: Int -> Int
+addOne' = addOne
+
+useAddOne' :: Int
+useAddOne' = addOne' 666
+
+main :: Int
+main = 0
+
+-- addTwo :: Int -> Int -> Int
+-- addTwo x y = x + y
+--
+-- addTwo' :: Int -> Int -> Int
+-- addTwo' x = addTwo x
+--
+-- addTwo'' :: Int -> Int -> Int
+-- addTwo'' = addTwo
+--
+-- pipesPlease :: Int -> Int
+-- pipesPlease x = x |> addOne
+--
+-- pipesPlease2 :: Int -> Int
+-- pipesPlease2 x = x |> addTwo 1
+--
+-- useAddTwo' :: Int -> Int -> Int
+-- useAddTwo' = addTwo'
+--
+-- data FBomb a = FBomb a
+--
+-- setTheBomb :: FBomb (Int -> Int)
+-- setTheBomb = FBomb (addTwo 1)
+--
+-- bombGoesBoom :: FBomb (Int -> Int) -> Int
+-- bombGoesBoom f =
+--     case f of
+--         FBomb b -> b 1
+--
+-- doubleBoom :: FBomb ((Int -> Int) -> Int -> Int) -> Int -> Int
+-- doubleBoom f =
+--     case f of
+--         FBomb b -> b addOne
+--
+-- payloadOnly :: ((Int -> Int) -> Int -> Int) -> Int -> Int
+-- payloadOnly f = f addOne
+
+-- TODO: Correct arity with type classes!
+-- addTwo :: Int -> Int -> Int
+-- addTwo = (+)
+
+-- Closure info table:
+-- { farity, num_pargs }
+-- farity:    function arity
+-- num_pargs: number of partially applied args
+-- (implied)
+-- carity:    closure arity
+
+-- TODO: Use closure types in necro-machine land

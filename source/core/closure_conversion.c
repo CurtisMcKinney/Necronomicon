@@ -9,9 +9,26 @@
 #include "prim.h"
 #include "core_create.h"
 
+/*
+    Closure layout: { farity, num_pargs, fn_ptr, pargs... }
+    * farity:    function arity
+    * num_pargs: number of partially applied args
+    * fn_ptr:    function pointer
+
+    (implied)
+    * carity:    closure arity
+*/
+
 ///////////////////////////////////////////////////////
 // Types
 ///////////////////////////////////////////////////////
+typedef enum
+{
+    NECRO_CC_EXPR,
+    NECRO_CC_TYPE,
+    NECRO_CC_PAT
+} NECRO_CC_STATE;
+
 typedef struct NecroClosureConversion
 {
     NecroPagedArena       arena;
@@ -21,8 +38,8 @@ typedef struct NecroClosureConversion
     NecroScopedSymTable*  scoped_symtable;
     NecroPrimTypes*       prim_types;
     NecroInfer*           infer;
-    NecroCon              closure_cons[NECRO_MAX_CLOSURE_TYPES];
-    bool                  converting_type;
+    NecroCon              closure_con;
+    NECRO_CC_STATE        cc_state;
 } NecroClosureConversion;
 
 ///////////////////////////////////////////////////////
@@ -44,17 +61,9 @@ NecroCoreAST necro_closure_conversion(NecroCoreAST* in_ast, NecroIntern* intern,
         .scoped_symtable = scoped_symtable,
         .prim_types      = prim_types,
         .infer           = infer,
-        .converting_type = false,
+        .cc_state        = NECRO_CC_EXPR,
     };
-    for (size_t i = 0; i < NECRO_MAX_CLOSURE_TYPES; ++i)
-    {
-        char num_buffer[10];
-        itoa(i, num_buffer, 10);
-        char closure_name_buffer[16] = "_Closure";
-        strcat(closure_name_buffer, num_buffer);
-        NecroSymbol con_symbol = necro_intern_string(intern, closure_name_buffer);
-        cc.closure_cons[i] = necro_get_data_con_from_symbol(prim_types, con_symbol);
-    }
+    cc.closure_con = necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_Closure"));
     NecroCoreAST_Expression* out_ast = necro_closure_conversion_go(&cc, in_ast->root);
     necro_destroy_snapshot_arena(&cc.snapshot_arena);
     return (NecroCoreAST) { .arena = cc.arena, .root = out_ast };
@@ -101,9 +110,9 @@ NecroCoreAST_CaseAlt* necro_closure_conversion_alts(NecroClosureConversion* cc, 
     assert(cc != NULL);
     if (alts == NULL)
         return NULL;
-    cc->converting_type = true;
+    cc->cc_state = NECRO_CC_PAT;
     NecroCoreAST_Expression* alt_con = necro_closure_conversion_go(cc, alts->altCon);
-    cc->converting_type = false;
+    cc->cc_state = NECRO_CC_EXPR;
     NecroCoreAST_Expression* expr    = necro_closure_conversion_go(cc, alts->expr);
     NecroCoreAST_CaseAlt*    next    = necro_closure_conversion_alts(cc, alts->next);
     return necro_create_core_case_alt(&cc->arena, expr, alt_con, next);
@@ -149,14 +158,21 @@ NecroCoreAST_Expression* necro_closure_conversion_var(NecroClosureConversion* cc
     assert(cc != NULL);
     assert(in_ast != NULL);
     assert(in_ast->expr_type == NECRO_CORE_EXPR_VAR);
-    if (cc->converting_type)
+    if (cc->cc_state != NECRO_CC_EXPR)
         return necro_create_core_var(&cc->arena, in_ast->var);
     NecroSymbolInfo*         info    = necro_symtable_get(cc->symtable, in_ast->var.id);
     NecroCoreAST_Expression* var_ast = necro_create_core_var(&cc->arena, in_ast->var);
     var_ast->necro_type              = info->type;
     if (info->arity > 0)
     {
-        NecroCoreAST_Expression* con_ast = necro_create_core_app(&cc->arena, necro_create_core_var(&cc->arena, necro_con_to_var(cc->closure_cons[0])), var_ast);
+        NecroCoreAST_Expression* con_ast =
+            necro_create_core_app(&cc->arena,
+                necro_create_core_app(&cc->arena,
+                    necro_create_core_app(&cc->arena,
+                        necro_create_core_var(&cc->arena, necro_con_to_var(cc->closure_con)),
+                        necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = info->arity, .type = NECRO_AST_CONSTANT_INTEGER })),
+                    necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER })),
+                var_ast);
         return con_ast;
     }
     else
@@ -252,12 +268,12 @@ NecroCoreAST_Expression* necro_closure_conversion_data_decl(NecroClosureConversi
     assert(in_ast != NULL);
     assert(in_ast->expr_type == NECRO_CORE_EXPR_DATA_DECL);
     assert(in_ast->data_decl.con_list != NULL);
-    cc->converting_type  = true;
+    cc->cc_state = NECRO_CC_TYPE;
     NecroCoreAST_Expression con;
     con.expr_type = NECRO_CORE_EXPR_DATA_CON;
     con.data_con  = *in_ast->data_decl.con_list;
     NecroCoreAST_Expression* decl = necro_create_core_data_decl(&cc->arena, in_ast->var, &necro_closure_conversion_go(cc, &con)->data_con);
-    cc->converting_type           = false;
+    cc->cc_state = NECRO_CC_EXPR;
     return decl;
 }
 
@@ -299,11 +315,29 @@ void necro_build_data_closure_type(NecroClosureConversion* cc, NecroBuildDataCon
     }
     builder->in_con_args = builder->in_con_args->list.next;
 }
+
+NecroCoreAST_Expression* necro_closure_conversion_data_con_pat(NecroClosureConversion* cc, NecroCoreAST_Expression* in_ast)
+{
+    if (in_ast->data_con.next != NULL)
+    {
+        NecroCoreAST_Expression con;
+        con.expr_type = NECRO_CORE_EXPR_DATA_CON;
+        con.data_con  = *in_ast->data_con.next;
+        return necro_create_core_data_con(&cc->arena, in_ast->data_con.condid, necro_closure_conversion_go(cc, in_ast->data_con.arg_list), &necro_closure_conversion_go(cc, &con)->data_con);
+    }
+    else
+    {
+        return necro_create_core_data_con(&cc->arena, in_ast->data_con.condid, necro_closure_conversion_go(cc, in_ast->data_con.arg_list), NULL);
+    }
+}
+
 NecroCoreAST_Expression* necro_closure_conversion_data_con(NecroClosureConversion* cc, NecroCoreAST_Expression* in_ast)
 {
     assert(cc != NULL);
     assert(in_ast != NULL);
     assert(in_ast->expr_type == NECRO_CORE_EXPR_DATA_CON);
+    if (cc->cc_state == NECRO_CC_PAT)
+        return necro_closure_conversion_data_con_pat(cc, in_ast);
     NecroType*                   normal_type  = necro_symtable_get(cc->symtable, in_ast->data_con.condid.id)->type;
     NecroBuildDataConClosureType builder      = (NecroBuildDataConClosureType) { .in_con_args = in_ast->data_con.arg_list, .closure_type = NULL, .arity = 0 };
     while (normal_type->type == NECRO_TYPE_FOR)
@@ -349,7 +383,6 @@ NecroCoreAST_Expression* necro_closure_conversion_data_con(NecroClosureConversio
     }
 }
 
-
 NECRO_DECLARE_ARENA_LIST(NecroCoreAST_Expression*, CoreAST, core_ast);
 
 size_t necro_get_arity(NecroClosureConversion* cc, NecroSymbolInfo* info)
@@ -362,9 +395,9 @@ size_t necro_get_arity(NecroClosureConversion* cc, NecroSymbolInfo* info)
     {
         // This is some primitive value which doesn't have a proper body
         // Calculate naive arity based on type
-        // TODO: Some way to assert that this is infact a primitive type!
+        // TODO: Some way to assert that this is infact a primitive type and a bug has not occured.
+        // assert(info->ast == NULL); // Not all primitives are completely without a normal ast, so this doesn't work.
         assert(info->core_ast == NULL);
-        // assert(info->ast == NULL);
         assert(info->type != NULL);
         size_t     arity = 0;
         NecroType* type  = info->type;
@@ -393,7 +426,7 @@ NecroCoreAST_Expression* necro_closure_conversion_app(NecroClosureConversion* cc
     assert(cc != NULL);
     assert(in_ast != NULL);
     assert(in_ast->expr_type == NECRO_CORE_EXPR_APP);
-    if (cc->converting_type)
+    if (cc->cc_state != NECRO_CC_EXPR)
         return necro_create_core_app(&cc->arena, necro_closure_conversion_go(cc, in_ast->app.exprA), necro_closure_conversion_go(cc, in_ast->app.exprB));
     int32_t                  num_args = 0;
     NecroCoreASTList*        args     = NULL;
@@ -420,7 +453,13 @@ NecroCoreAST_Expression* necro_closure_conversion_app(NecroClosureConversion* cc
     else if (difference > 0)
     {
         // partial application (create closures)
-        NecroCoreAST_Expression* result = necro_create_core_var(&cc->arena, necro_con_to_var(cc->closure_cons[num_args]));
+        NecroCoreAST_Expression* result =
+                necro_create_core_app(&cc->arena,
+                    necro_create_core_app(&cc->arena,
+                        necro_create_core_var(&cc->arena, necro_con_to_var(cc->closure_con)),
+                        necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = info->arity, .type = NECRO_AST_CONSTANT_INTEGER })),
+                    necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = difference, .type = NECRO_AST_CONSTANT_INTEGER }));
+
         result = necro_create_core_app(&cc->arena, result, necro_create_core_var(&cc->arena, app->var));
         while (args != NULL)
         {
@@ -433,7 +472,6 @@ NecroCoreAST_Expression* necro_closure_conversion_app(NecroClosureConversion* cc
     }
     else
     {
-        // Partially apply apply!?!?!?
         // over application (apply closures)
         NecroCoreAST_Expression* result = necro_create_core_var(&cc->arena, app->var);
         for (int32_t i = 0; i < info->arity; ++i)

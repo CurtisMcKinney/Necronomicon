@@ -176,131 +176,18 @@ data Maybe a = Just a | Nothing
 -- main :: Int
 -- main = caseTest (Right (Just 100))
 
--- closureTest :: Int -> Int -> Int
--- closureTest x y = x + y
-
--- appTest :: Int -> Int
--- appTest = closureTest 1
-
--- addTwo :: Int -> Int -> Int
--- addTwo x y = x + y
-
--- addTwo' :: Int -> Int -> Int
--- addTwo' = addTwo
-
--- mkFn :: Int -> Int -> Int
--- mkFn x = addTwo y where
---     y = x
-
--- -- TODO: Look at what happens without type sigs!
--- addOne :: Int -> Int
--- addOne x = x + x
---
--- addOne' :: Int -> Int
--- addOne' = addOne
---
--- useAddOne' :: Int
--- useAddOne' = addOne' 666
---
--- addTwo :: Int -> Int -> Int
--- addTwo x y = x + y
---
--- addTwo' :: Int -> Int -> Int
--- addTwo' x = addTwo x
---
--- addTwo'' :: Int -> Int -> Int
--- addTwo'' = addTwo
---
--- -- TODO: Figure this out
--- -- solve by partially applying apply itself
--- useAddTwo' :: Int -> Int -> Int
--- useAddTwo' = addTwo'
--- -- transform into:
--- --         = _Closure addTwo'@(arity 1)
--- --         = _Closure 1 1 apply (_Closure 0 1 addTwo')
--- --         = _Closure0  (\x y -> apply (addTwo' x) y)
--- --         = _Closure1  _apply (Closure0 addTwo')
---
-
--- takeAddOne :: (Int -> Int) -> Int
--- takeAddOne f = f 1
---
--- giveAddOne :: Int
--- giveAddOne = takeAddOne addOne
---
--- giveAddOne' :: Int
--- giveAddOne' = takeAddOne (addTwo 100)
---
--- takeAddTwo :: (Int -> Int -> Int) -> Int
--- takeAddTwo f = f 100 200
---
--- giveAddTwo :: Int
--- giveAddTwo = takeAddTwo addTwo'
-
--- TODO: Implement functions in data types in Closure conversion
--- data FBomb = FBomb (Float -> Float)
---
-
--- -- data Maybe a = Just a | Nothing
--- delayTest :: Int
--- delayTest = 1 + delay 0 delayTest
-
--- useDelayTest :: Maybe Int
--- useDelayTest = delayTest
-
--- main :: Int
--- main = delayTest
-
--- countList :: List a -> Int
--- countList xs =
---     case xs of
---         Cons a xss -> 1 + countList xss
---         Nil        -> 0
--- main :: Int
--- main = countList (Cons () (Cons () Nil))
-
--- main :: Int
--- main = 0
-
--- data CoolInt = CoolInt Int Float
-
--- constInt :: Int
--- constInt = 2000
-
--- main :: Int
--- main = 10 * 666 + constInt
-
--- mouseX :: Int
--- mouseX = getMouseX world
-
--- addOne :: Int -> Int
--- addOne x = x + 1
-
--- addOne' :: CoolInt -> Int -> Float -> CoolInt
--- addOne' c x f = CoolInt (x + 1) (f * 3.3)
-
--- coolId :: CoolInt -> CoolInt
--- coolId c = c
-
--- gimmeInt :: CoolInt -> CoolInt
--- gimmeInt c =
---     case c of
---         CoolInt i f -> CoolInt (i * 1000) f
-
--- constInt :: Int
--- constInt = 10
-
--- constCool :: CoolInt
--- constCool = CoolInt constInt 1.1
-
 ----------------------------------------
--- Expr in case test
------------------------------------------
-main :: Int
-main =
-    case Just 666 of
-        Just x -> x
-        _      -> 100
+-- TODO: Automated testing
+----------------------------------------
+
+-- ----------------------------------------
+-- -- Expr in case test
+-- -----------------------------------------
+-- main :: Int
+-- main =
+--     case Just 666 of
+--         Just x -> x
+--         _      -> 100
 
 -- ----------------------------------------
 -- -- Deep case test
@@ -381,44 +268,44 @@ main =
 --     integrate n + integrate n + integrate n + integrate n + integrate n
 -- main = tenTimes 10
 
--- -----------------------------------------
--- -- Many Boxed Stateful calculations test
--- -----------------------------------------
--- -- We seem to munging the values somehow
--- integrate :: Int -> Int
--- integrate delta = feed'' where
---     feed <- 0 = delta + feed
---     feed'     = Just feed
---     feed''    =
---         case feed' of
---             Nothing -> 0
---             Just x  -> x
--- tenTimes :: Int -> Int
--- tenTimes n =
---     integrate n + integrate n + integrate n + integrate n + integrate n +
---     integrate n + integrate n + integrate n + integrate n + integrate n
--- oneHundredTimes :: Int -> Int
--- oneHundredTimes n =
---     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
---     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
--- oneThousandTimes :: Int -> Int
--- oneThousandTimes n =
---     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
---     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
--- tenThousandTimes :: Int -> Int
--- tenThousandTimes n =
---     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
---     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
--- oneHundredThousandTimes :: Int -> Int
--- oneHundredThousandTimes n =
---     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n +
---     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
--- main :: Int
+-----------------------------------------
+-- Many Boxed Stateful calculations test
+-----------------------------------------
+-- We seem to munging the values somehow
+integrate :: Int -> Int
+integrate delta = feed'' where
+    feed <= 0 = delta + feed
+    feed'     = Just feed
+    feed''    =
+        case feed' of
+            Nothing -> 0
+            Just x  -> x
+tenTimes :: Int -> Int
+tenTimes n =
+    integrate n + integrate n + integrate n + integrate n + integrate n +
+    integrate n + integrate n + integrate n + integrate n + integrate n
+oneHundredTimes :: Int -> Int
+oneHundredTimes n =
+    tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
+    tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
+oneThousandTimes :: Int -> Int
+oneThousandTimes n =
+    oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
+    oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
+tenThousandTimes :: Int -> Int
+tenThousandTimes n =
+    oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
+    oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
+oneHundredThousandTimes :: Int -> Int
+oneHundredThousandTimes n =
+    tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n +
+    tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
+main :: Int
+main =
+    oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1  + oneHundredThousandTimes 1 +
+    oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1  + oneHundredThousandTimes 1
 -- main =
---     oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1  + oneHundredThousandTimes 1 +
---     oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1  + oneHundredThousandTimes 1
--- -- main =
--- --     oneHundredThousandTimes 1 + oneHundredThousandTimes 1
+--     oneHundredThousandTimes 1 + oneHundredThousandTimes 1
 
 -- -----------------------------------------
 -- -- Many Unboxed Stateful calculations test
@@ -462,9 +349,8 @@ main =
 --         Cons _ xs' -> 1 + countList xs'
 --         Nil        -> c
 --     where
---         c <- 0 = c + 1000
+--         c <= 0 = c + 1000
 -- coolList :: List ()
 -- coolList = Cons () (Cons () Nil)
 -- main :: Int
 -- main = countList coolList
-

@@ -328,7 +328,6 @@ typedef struct NecroMachineConstantDef
     } constant_type;
 } NecroMachineConstantDef;
 
-// TODO/NOTE: Do we need this if we use load slot / store tag, etc?
 typedef struct NecroMachineGetElementPtr
 {
     struct NecroMachineAST* source_value;

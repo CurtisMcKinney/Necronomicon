@@ -781,7 +781,6 @@ void _necro_copy(size_t root_data_id, NecroValue* root)
                     // printf("    NULL member\n");
                     to_members[i] = NULL;
                 }
-                // Forward pointer check here?!
                 // Pointer to some more data
                 else
                 {
@@ -946,9 +945,6 @@ extern DLLEXPORT int* _necro_from_alloc(size_t size)
 {
     NecroBlock* data    = (NecroBlock*)copy_gc.from_alloc_ptr;
     char*       new_end = ((char*)data) + size;
-    // printf("from alloc, size:    %d\n", size);
-    // printf("from alloc, old_end: %p\n", copy_gc.from_alloc_ptr);
-    // printf("from alloc, new_end: %p\n", new_end);
     if (new_end < copy_gc.from_end_ptr)
     {
         copy_gc.from_alloc_ptr   = new_end;

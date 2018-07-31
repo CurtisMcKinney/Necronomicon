@@ -527,17 +527,6 @@ void necro_create_prim_num_instances(NecroPrimTypes* prim_types, NecroIntern* in
     NecroPrimDef* ord_instance_def = necro_prim_def_instance(prim_types, intern, ord_instance_ast);
 }
 
-// void necro_prim_clone_instance(NecroPrimTypes* prim_types, NecroIntern* intern, const char* data_name)
-// {
-//     NecroSymbol   data_symbol        = necro_intern_string(intern, data_name);
-//     const char*   clone_method_name  = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primClone@"), data_symbol));
-//     NecroASTNode* clone_method_type  = necro_create_fun_ast(&prim_types->arena, necro_create_conid_ast(&prim_types->arena, intern, data_name, NECRO_CON_TYPE_VAR), necro_create_conid_ast(&prim_types->arena, intern, data_name, NECRO_CON_TYPE_VAR));
-//     NecroPrimDef* clone_type_def     = necro_prim_def_fun(prim_types, intern, NULL, necro_create_fun_type_sig_ast(&prim_types->arena, intern, clone_method_name, NULL, clone_method_type, NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 1);
-//     NecroASTNode* clone_method_list  = necro_create_declaration_list(&prim_types->arena, necro_create_simple_assignment(&prim_types->arena, intern, "_clone", necro_create_variable_ast(&prim_types->arena, intern, clone_method_name, NECRO_VAR_VAR)), NULL);
-//     NecroASTNode* clone_instance_ast = necro_create_instance_ast(&prim_types->arena, intern, "_Clone", necro_create_conid_ast(&prim_types->arena, intern, data_name, NECRO_CON_TYPE_VAR), NULL, clone_method_list);
-//     NecroPrimDef* clone_instance_def = necro_prim_def_instance(prim_types, intern, clone_instance_ast);
-// }
-
 NecroASTNode* necro_create_class_comp_sig(NecroPagedArena* arena, NecroIntern* intern, const char* sig_name)
 {
     return
@@ -671,46 +660,6 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     NecroASTNode* addr_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "_Addr", NULL);
     NecroPrimDef* addr_data_def = necro_prim_def_data(prim_types, intern, &prim_types->addr_type, necro_create_data_declaration_ast(&prim_types->arena, intern, addr_s_type, NULL));
 
-    // _Closure
-    NecroASTNode* closure_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "_Closure", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
-    NecroASTNode* closure_con_list = NULL;
-    for (size_t i = 0; i < NECRO_MAX_CLOSURE_TYPES; ++i)
-    {
-        char num_buffer[4];
-        itoa(i, num_buffer, 10);
-        //---------------
-        // Non-Machine
-        NecroASTNode* closure_args = NULL;
-        for (size_t arg = 0; arg < i; ++arg)
-        {
-            NecroASTNode* con = necro_create_conid_ast(&prim_types->arena, intern, "_Poly", NECRO_CON_TYPE_VAR);
-            closure_args = necro_create_ast_list(&prim_types->arena, con, closure_args);
-        }
-        char closure_name_buffer[16] = "_Closure";
-        strcat(closure_name_buffer, num_buffer);
-        closure_args = necro_create_ast_list(&prim_types->arena, necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), closure_args);
-        NecroASTNode* closure_con = necro_create_data_constructor_ast(&prim_types->arena, intern, closure_name_buffer, closure_args);
-        closure_con_list = necro_create_ast_list(&prim_types->arena, closure_con, closure_con_list);
-        //---------------
-        // Machine
-        closure_args = NULL;
-        for (size_t arg = 0; arg < i; ++arg)
-        {
-            NecroASTNode* con = necro_create_conid_ast(&prim_types->arena, intern, "_Poly", NECRO_CON_TYPE_VAR);
-            closure_args = necro_create_ast_list(&prim_types->arena, con, closure_args);
-        }
-        char closure_name_buffer_m[16] = "_ClosureM";
-        strcat(closure_name_buffer_m, num_buffer);
-        closure_args = necro_create_ast_list(&prim_types->arena, necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), necro_create_ast_list(&prim_types->arena, necro_create_conid_ast(&prim_types->arena, intern, "_Addr", NECRO_CON_TYPE_VAR), closure_args));
-        closure_con = necro_create_data_constructor_ast(&prim_types->arena, intern, closure_name_buffer_m, closure_args);
-        closure_con_list = necro_create_ast_list(&prim_types->arena, closure_con, closure_con_list);
-    }
-    NecroPrimDef* closure_data_def = necro_prim_def_data(prim_types, intern, &prim_types->closure_type, necro_create_data_declaration_ast(&prim_types->arena, intern, closure_s_type, closure_con_list));
-
-    NecroASTNode* apply_type_ast  = necro_create_fun_ast(&prim_types->arena, necro_create_type_app_ast(&prim_types->arena, necro_create_conid_ast(&prim_types->arena, intern, "_Closure", NECRO_CON_TYPE_VAR), necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)), necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
-    NecroASTNode* apply_sig_ast   = necro_create_fun_type_sig_ast(&prim_types->arena, intern, "_apply", NULL, apply_type_ast, NECRO_VAR_DECLARATION, NECRO_SIG_DECLARATION);
-    NecroPrimDef* apply_type_def  = necro_prim_def_fun(prim_types, intern, &prim_types->apply_type, apply_sig_ast, 1);
-
     // // Int#
     // NecroASTNode* unboxed_int_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "Int#", NULL);
     // NecroPrimDef* unboxed_int_data_def = necro_prim_def_data(prim_types, intern, &prim_types->unboxed_int_type, necro_create_data_declaration_ast(&prim_types->arena, intern, unboxed_int_s_type, NULL));
@@ -781,17 +730,53 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     necro_create_prim_num(prim_types, intern, &prim_types->audio_type, "Audio");
     necro_create_prim_num(prim_types, intern, &prim_types->rational_type, "Rational");
 
-    // // _Clone
-    // NecroASTNode* _clone_method_sig  = necro_create_fun_type_sig_ast(&prim_types->arena, intern, "_clone", NULL, necro_create_fun_ast(&prim_types->arena, necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)), NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
-    // NecroASTNode* _clone_method_list = necro_create_declaration_list(&prim_types->arena, _clone_method_sig, NULL);
-    // NecroASTNode* _clone_class_ast   = necro_create_type_class_ast(&prim_types->arena, intern, "_Clone", "a", NULL, _clone_method_list);
-    // NecroPrimDef* _clone_class_def   = necro_prim_def_class(prim_types, intern, &prim_types->_clone_type_class, _clone_class_ast);
-    // necro_prim_clone_instance(prim_types, intern, "_NecroData");
-    // necro_prim_clone_instance(prim_types, intern, "_Addr");
-    // necro_prim_clone_instance(prim_types, intern, "Int");
-    // necro_prim_clone_instance(prim_types, intern, "Float");
-    // necro_prim_clone_instance(prim_types, intern, "Audio");
-    // necro_prim_clone_instance(prim_types, intern, "Rational");
+    // _Closure
+    NecroASTNode* closure_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "_Closure", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
+    // NecroASTNode* closure_con_list = NULL;
+    NecroASTNode* closure_args     =
+        necro_create_ast_list(&prim_types->arena,
+            necro_create_conid_ast(&prim_types->arena, intern, "Int", NECRO_CON_TYPE_VAR),
+        necro_create_ast_list(&prim_types->arena,
+            necro_create_conid_ast(&prim_types->arena, intern, "Int", NECRO_CON_TYPE_VAR),
+        necro_create_ast_list(&prim_types->arena,
+            necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), NULL)));
+    NecroASTNode* closure_con      = necro_create_data_constructor_ast(&prim_types->arena, intern, "_Closure", closure_args);
+    NecroASTNode* closure_con_list = necro_create_ast_list(&prim_types->arena, closure_con, NULL);
+    // for (size_t i = 0; i < NECRO_MAX_CLOSURE_TYPES; ++i)
+    // {
+    //     char num_buffer[4];
+    //     itoa(i, num_buffer, 10);
+    //     //---------------
+    //     // Non-Machine
+    //     NecroASTNode* closure_args = NULL;
+    //     for (size_t arg = 0; arg < i; ++arg)
+    //     {
+    //         NecroASTNode* con = necro_create_conid_ast(&prim_types->arena, intern, "_Poly", NECRO_CON_TYPE_VAR);
+    //         closure_args = necro_create_ast_list(&prim_types->arena, con, closure_args);
+    //     }
+    //     char closure_name_buffer[16] = "_Closure";
+    //     strcat(closure_name_buffer, num_buffer);
+    //     closure_args = necro_create_ast_list(&prim_types->arena, necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), closure_args);
+    //     NecroASTNode* closure_con = necro_create_data_constructor_ast(&prim_types->arena, intern, closure_name_buffer, closure_args);
+    //     closure_con_list = necro_create_ast_list(&prim_types->arena, closure_con, closure_con_list);
+    //     //---------------
+    //     // Machine
+    //     closure_args = NULL;
+    //     for (size_t arg = 0; arg < i; ++arg)
+    //     {
+    //         NecroASTNode* con = necro_create_conid_ast(&prim_types->arena, intern, "_Poly", NECRO_CON_TYPE_VAR);
+    //         closure_args = necro_create_ast_list(&prim_types->arena, con, closure_args);
+    //     }
+    //     char closure_name_buffer_m[16] = "_ClosureM";
+    //     strcat(closure_name_buffer_m, num_buffer);
+    //     closure_args = necro_create_ast_list(&prim_types->arena, necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), necro_create_ast_list(&prim_types->arena, necro_create_conid_ast(&prim_types->arena, intern, "_Addr", NECRO_CON_TYPE_VAR), closure_args));
+    //     closure_con = necro_create_data_constructor_ast(&prim_types->arena, intern, closure_name_buffer_m, closure_args);
+    //     closure_con_list = necro_create_ast_list(&prim_types->arena, closure_con, closure_con_list);
+    // }
+    NecroPrimDef* closure_data_def = necro_prim_def_data(prim_types, intern, &prim_types->closure_type, necro_create_data_declaration_ast(&prim_types->arena, intern, closure_s_type, closure_con_list));
+    NecroASTNode* apply_type_ast  = necro_create_fun_ast(&prim_types->arena, necro_create_type_app_ast(&prim_types->arena, necro_create_conid_ast(&prim_types->arena, intern, "_Closure", NECRO_CON_TYPE_VAR), necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)), necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
+    NecroASTNode* apply_sig_ast   = necro_create_fun_type_sig_ast(&prim_types->arena, intern, "_apply", NULL, apply_type_ast, NECRO_VAR_DECLARATION, NECRO_SIG_DECLARATION);
+    NecroPrimDef* apply_type_def  = necro_prim_def_fun(prim_types, intern, &prim_types->apply_type, apply_sig_ast, 1);
 
     // Eq
     NecroASTNode* eq_method_sig  = necro_create_class_comp_sig(&prim_types->arena, intern, "eq");

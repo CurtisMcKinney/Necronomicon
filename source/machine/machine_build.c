@@ -424,7 +424,7 @@ NecroMachineAST* necro_create_machine_initial_machine_def(NecroMachineProgram* p
     ast->machine_def.most_stateful_type_referenced = NECRO_STATE_CONSTANT;
     ast->machine_def.outer                         = outer;
     ast->machine_def.data_id                       = NECRO_NULL_DATA_ID;
-    ast->necro_machine_type                        = NULL; // TODO: Machine type will be constructed after analysis!
+    ast->necro_machine_type                        = NULL;
     if (value_type->type == NECRO_MACHINE_TYPE_FN)
     {
         ast->machine_def.fn_type    = value_type;

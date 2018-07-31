@@ -21,7 +21,7 @@
 #define NECRO_GC_NUM_SEGMENTS 10
 
 // Set to 1 if you want debug trace messages from GC
-#define NECRO_DEBUG_GC 1
+#define NECRO_DEBUG_GC 0
 
 #if NECRO_DEBUG_GC
 #define NECRO_TRACE_GC(...) printf(__VA_ARGS__)
@@ -644,9 +644,9 @@ NecroCopyGC necro_create_copy_gc()
 
     // Constant
     copy_gc.const_head      = necro_alloc_space();
-    copy_gc.const_curr      = copy_gc.to_head;
-    copy_gc.const_alloc_ptr = &copy_gc.to_curr->data_start;
-    copy_gc.const_end_ptr   = copy_gc.to_curr->data + NECRO_SPACE_SIZE;
+    copy_gc.const_curr      = copy_gc.const_head;
+    copy_gc.const_alloc_ptr = &copy_gc.const_curr->data_start;
+    copy_gc.const_end_ptr   = copy_gc.const_curr->data + NECRO_SPACE_SIZE;
 
     return copy_gc;
 }
@@ -731,14 +731,14 @@ inline NecroBlock* necro_value_to_block(NecroValue* value)
 
 void _necro_copy(size_t root_data_id, NecroValue* root)
 {
-    NecroValue* _dummy = NULL;
-    necro_create_new_copy_job(root_data_id, root, &_dummy);
     NecroCopyJob         job;
     NecroValue*          new_value;
     NecroConstructorInfo info;
     NecroBlock*          from_block;
     NecroValue**         from_members;
     NecroValue**         to_members;
+    NecroValue*          _dummy;
+    necro_create_new_copy_job(root_data_id, root, &_dummy);
     while (copy_buffer.count > 0)
     {
         copy_buffer.count--;
@@ -746,6 +746,7 @@ void _necro_copy(size_t root_data_id, NecroValue* root)
 #if NECRO_DEBUG_GC
         assert(job.data_id != NECRO_UNBOXED_DATA_ID);
         assert(job.from_value != NULL);
+        // printf("copy job: data_id: %d, from_value: %p, to_value: %p\n", job.data_id, job.from_value, job.to_value);
 #endif
         from_block = necro_value_to_block(job.from_value);
         // We've already copied this at some pointer, simply copy the forwarding pointer over
@@ -771,11 +772,13 @@ void _necro_copy(size_t root_data_id, NecroValue* root)
                 // Unboxed type, simply copy over
                 if (member_map[info.members_offset + i] == NECRO_UNBOXED_DATA_ID)
                 {
+                    // printf("    value member: from_value: %d\n", (int)from_members[i]);
                     to_members[i] = from_members[i];
                 }
                 // NULL member
                 else if (from_members[i] == NULL)
                 {
+                    // printf("    NULL member\n");
                     to_members[i] = NULL;
                 }
                 // Forward pointer check here?!
@@ -911,6 +914,7 @@ extern DLLEXPORT void _necro_copy_gc_collect()
     {
 #if NECRO_DEBUG_GC
         assert(copy_gc.roots[i].data_id != NECRO_UNBOXED_DATA_ID);
+        // printf("copying root, original: %p, forward pointer: %p\n", *copy_gc.roots[i].root, necro_value_to_block(*copy_gc.roots[i].root)->forwarding_pointer);
 #endif
         *copy_gc.roots[i].root = necro_value_to_block(*copy_gc.roots[i].root)->forwarding_pointer;
     }
@@ -942,6 +946,9 @@ extern DLLEXPORT int* _necro_from_alloc(size_t size)
 {
     NecroBlock* data    = (NecroBlock*)copy_gc.from_alloc_ptr;
     char*       new_end = ((char*)data) + size;
+    // printf("from alloc, size:    %d\n", size);
+    // printf("from alloc, old_end: %p\n", copy_gc.from_alloc_ptr);
+    // printf("from alloc, new_end: %p\n", new_end);
     if (new_end < copy_gc.from_end_ptr)
     {
         copy_gc.from_alloc_ptr   = new_end;

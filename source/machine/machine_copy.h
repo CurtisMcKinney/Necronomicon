@@ -54,5 +54,6 @@ void                  necro_destroy_machine_copy_table(NecroMachineCopyTable* ta
 size_t                necro_create_data_info(struct NecroMachineProgram* program, NecroType* type);
 size_t                necro_create_machine_def_data_info(struct NecroMachineProgram* program, struct NecroMachineAST* ast);
 void                  necro_print_data_info(struct NecroMachineProgram* program);
+NecroConstructorInfo  necro_get_data_info(struct NecroMachineProgram* program, size_t data_id, size_t tag);
 
 #endif // NECRO_MACHINE_PERSIST_H

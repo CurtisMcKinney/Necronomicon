@@ -28,6 +28,7 @@ speed _ x = x
 -- Via reification by 'play'
 -- play :: Pattern a -> Tempo -> a
 
+-- Wrong semantics
 patTest :: Pattern Audio
 patTest = beat
     0 z _ x
@@ -36,6 +37,26 @@ patTest = beat
         x = 0.5 * 2
         y = beat 0 _ 1 _
         z = 666 * 323
+
+-- Using "Demand" types
+patTest :: Demand (Pattern Audio)
+patTest = beat
+    0 z _ x
+    _ 3 y z
+    where
+        x = 0.5 * 2
+        y = beat 0 _ 1 _
+        z = 666 * 323
+
+-- Using "Call by Name" semantics
+patTest :: Pattern Audio
+patTest ~ seq
+    [ 0 z _ x
+      _ 3 y z ]
+    where
+        x ~ 0.5 * 2
+        y ~ seq [0 _ 1 _]
+        z ~ 666 * 323
 
 patTest :: Pattern Audio
 patTest = beat

@@ -170,6 +170,7 @@ typedef struct NecroTerminator
     {
         NECRO_TERM_SWITCH,
         NECRO_TERM_RETURN,
+        NECRO_TERM_RETURN_VOID,
         NECRO_TERM_BREAK,
         NECRO_TERM_COND_BREAK,
         NECRO_TERM_UNREACHABLE,

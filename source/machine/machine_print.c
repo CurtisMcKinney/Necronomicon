@@ -123,6 +123,11 @@ void necro_machine_print_block(NecroMachineProgram* program, NecroMachineAST* as
         necro_print_machine_value(program, ast->block.terminator->return_terminator.return_value, NECRO_PRINT_VALUE_TYPE);
         printf("\n");
         break;
+    case NECRO_TERM_RETURN_VOID:
+        print_white_space(depth);
+        printf("return void");
+        printf("\n");
+        break;
     case NECRO_TERM_SWITCH:
     {
         print_white_space(depth);

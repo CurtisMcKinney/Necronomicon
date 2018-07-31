@@ -62,7 +62,7 @@ NecroCodeGenLLVM necro_create_codegen_llvm(NecroIntern* intern, NecroSymTable* s
         LLVMAddGlobalOptimizerPass(mod_pass_manager);
         LLVMPassManagerBuilderRef pass_manager_builder = LLVMPassManagerBuilderCreate();
         LLVMPassManagerBuilderSetOptLevel(pass_manager_builder, 0);
-        LLVMPassManagerBuilderUseInlinerWithThreshold(pass_manager_builder, 200);
+        LLVMPassManagerBuilderUseInlinerWithThreshold(pass_manager_builder, 100);
         LLVMPassManagerBuilderPopulateFunctionPassManager(pass_manager_builder, fn_pass_manager);
         LLVMPassManagerBuilderPopulateModulePassManager(pass_manager_builder, mod_pass_manager);
     }
@@ -308,6 +308,8 @@ LLVMValueRef necro_codegen_terminator(NecroCodeGenLLVM* codegen, NecroTerminator
     {
     case NECRO_TERM_RETURN:
         return LLVMBuildRet(codegen->builder, necro_maybe_cast(codegen, necro_codegen_value(codegen, term->return_terminator.return_value), return_type));
+    case NECRO_TERM_RETURN_VOID:
+        return LLVMBuildRetVoid(codegen->builder);
     case NECRO_TERM_BREAK:
         return LLVMBuildBr(codegen->builder, necro_codegen_symtable_get(codegen, term->break_terminator.block_to_jump_to->block.name)->block);
     case NECRO_TERM_COND_BREAK:

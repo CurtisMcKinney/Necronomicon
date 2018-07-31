@@ -252,6 +252,16 @@ size_t necro_create_machine_def_data_info(NecroMachineProgram* program, NecroMac
     return machine_def->data_id;
 }
 
+NecroConstructorInfo necro_get_data_info(struct NecroMachineProgram* program, size_t data_id, size_t tag)
+{
+    NecroConstructorInfo info = program->copy_table.data_map.data[data_id];
+    if (info.is_tagged_union)
+    {
+        info = program->copy_table.data_map.data[data_id + tag];
+    }
+    return info;
+}
+
 void necro_print_data_info_go(struct NecroMachineProgram* program, size_t id, bool is_top)
 {
     NecroConstructorInfo info = program->copy_table.data_map.data[id];

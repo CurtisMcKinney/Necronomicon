@@ -738,6 +738,19 @@ void necro_build_return(NecroMachineProgram* program, NecroMachineAST* fn_def, N
     fn_def->fn_def._curr_block->block.terminator->return_terminator.return_value = return_value;
 }
 
+void necro_build_return_void(NecroMachineProgram* program, NecroMachineAST* fn_def)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACHINE_FN_DEF);
+    assert(fn_def->fn_def._curr_block != NULL);
+    assert(fn_def->fn_def._curr_block->type == NECRO_MACHINE_BLOCK);
+    assert(fn_def->fn_def._curr_block->block.terminator == NULL);
+    assert(fn_def->fn_def.fn_value->necro_machine_type->fn_type.return_type->type == NECRO_MACHINE_TYPE_VOID);
+    fn_def->fn_def._curr_block->block.terminator                                 = necro_paged_arena_alloc(&program->arena, sizeof(NecroTerminator));
+    fn_def->fn_def._curr_block->block.terminator->type                           = NECRO_TERM_RETURN_VOID;
+}
+
 void necro_build_break(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* block_to_jump_to)
 {
     assert(program != NULL);

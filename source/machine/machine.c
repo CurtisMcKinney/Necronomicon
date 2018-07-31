@@ -467,7 +467,21 @@ void necro_core_to_machine_2_bind(NecroMachineProgram* program, NecroCoreAST_Exp
     if (machine_def->machine_def.mk_fn != NULL)
     {
         machine_def->machine_def.mk_fn->necro_machine_type->fn_type.return_type = necro_create_machine_ptr_type(&program->arena, machine_def->necro_machine_type);
-        NecroMachineAST* data_ptr = necro_build_nalloc(program, machine_def->machine_def.mk_fn, machine_def->necro_machine_type, machine_def->machine_def.num_members, false);
+        // NecroMachineAST* data_ptr = necro_build_nalloc(program, machine_def->machine_def.mk_fn, machine_def->necro_machine_type, machine_def->machine_def.num_members, false);
+
+        size_t               data_id  = necro_create_machine_def_data_info(program, machine_def);
+        NecroConstructorInfo info     = necro_get_data_info(program, data_id, 0);
+        NecroMachineAST*     data_ptr = necro_build_nalloc(program, machine_def->machine_def.mk_fn, machine_def->necro_machine_type, info.num_members, false);
+
+        // for (size_t i = 0; i < info.num_members; ++i)
+        // {
+        //     NecroSlot slot = machine_def->machine_def.members[i];
+        //     if (!slot.is_dynamic)
+        //         continue;
+        //     necro_build_store_into_slot(program, machine_def->machine_def.mk_fn, necro_create_null_necro_machine_value(program, slot.necro_machine_type), data_ptr, slot.slot_num);
+        // }
+
+        // Fuck...how is this supposed to work!?
         for (size_t i = 0; i < machine_def->machine_def.num_members; ++i)
         {
             NecroSlot slot = machine_def->machine_def.members[i];
@@ -475,6 +489,7 @@ void necro_core_to_machine_2_bind(NecroMachineProgram* program, NecroCoreAST_Exp
                 continue;
             necro_build_store_into_slot(program, machine_def->machine_def.mk_fn, necro_create_null_necro_machine_value(program, slot.necro_machine_type), data_ptr, slot.slot_num);
         }
+
         necro_build_return(program, machine_def->machine_def.mk_fn, data_ptr);
     }
 }
@@ -1061,6 +1076,7 @@ void necro_construct_main(NecroMachineProgram* program)
     necro_build_call(program, necro_main_fn, necro_symtable_get(program->symtable, program->runtime._necro_copy_gc_collect.id)->necro_machine_ast->fn_def.fn_value, NULL, 0, "");
     necro_build_call(program, necro_main_fn, necro_symtable_get(program->symtable, program->runtime._necro_sleep.id)->necro_machine_ast->fn_def.fn_value, (NecroMachineAST*[]) { necro_create_uint32_necro_machine_value(program, 10) }, 1, "");
     necro_build_break(program, necro_main_fn, necro_main_loop);
+    // necro_build_return_void(program, necro_main_fn);
     program->necro_main = necro_main_fn;
 }
 

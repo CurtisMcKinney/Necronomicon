@@ -70,6 +70,7 @@ NecroMachineAST* necro_build_binop(NecroMachineProgram* program, NecroMachineAST
 NecroMachineAST* necro_build_maybe_cast(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* ast, NecroMachineType* type_to_match);
 
 // Branching
+void             necro_build_return_void(NecroMachineProgram* program, NecroMachineAST* fn_def);
 void             necro_build_return(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* return_value);
 void             necro_build_break(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* block_to_jump_to);
 void             necro_build_cond_break(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* cond, NecroMachineAST* true_block, NecroMachineAST* false_block);

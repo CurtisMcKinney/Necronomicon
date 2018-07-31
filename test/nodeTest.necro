@@ -152,35 +152,6 @@ data Maybe a = Just a | Nothing
 -- main :: Int
 -- main = globalFeed
 
--- -- Many stateful calculations at 100 ticks per second
--- integrate :: Int -> Int
--- integrate delta = feed where
---     feed = 0 => delta + feed
--- tenTimes :: Int -> Int
--- tenTimes n =
---     integrate n + integrate n + integrate n + integrate n + integrate n +
---     integrate n + integrate n + integrate n + integrate n + integrate n
--- oneHundredTimes :: Int -> Int
--- oneHundredTimes n =
---     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
---     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
--- oneThousandTimes :: Int -> Int
--- oneThousandTimes n =
---     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
---     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
--- tenThousandTimes :: Int -> Int
--- tenThousandTimes n =
---     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
---     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
--- oneHundredThousandTimes :: Int -> Int
--- oneHundredThousandTimes n =
---     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n +
---     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
--- main :: Int
--- main =
---     oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1  + oneHundredThousandTimes 1 +
---     oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1  + oneHundredThousandTimes 1
-
 -- gMaybe :: Maybe a
 -- gMaybe = Nothing
 
@@ -322,88 +293,16 @@ data Maybe a = Just a | Nothing
 -- constCool :: CoolInt
 -- constCool = CoolInt constInt 1.1
 
--- useConstCool :: Int
--- useConstCool =
---     case constCool of
---         CoolInt i _ -> i
-
--- -------------------------------------------------
--- -- Now with initial values
--- counters :: Int
--- counters = x where
---     x of 0 = y + 1
---     y of 0 = x + 1
---
--- mcounter :: Maybe Int
--- mcounter = x where
---     x of Nothing =
---         case x of
---             Nothing -> Just 1
---             Just _  -> Nothing
---
--- mcounter' :: Maybe (Maybe Int)
--- mcounter' = go where
---     go of Just (Just 10) = go
---
--- myCoolSynth :: Audio -> Audio
--- myCoolSynth freq =
---   osc + osc2
---   |> verb 0.1 0.1
---   |> mul  0.2
---   where
---     osc of 0 =
---       freq * mouseX + osc * 10
---       |> sinOsc
---     osc2 of 1 =
---       freq / mouse - osc * 100
---       |> lpf 0.1 (3000 * freq)
---       |> pulse
-
--- mflip :: Maybe (Maybe Int)
--- mflip = x where
---     x = Nothing =>
---         case x of
---             Nothing -> Just (Just 1)
---             Just _  -> Nothing
-
--- counter' :: Maybe (Maybe Float)
--- counter' = x where
---     x = Nothing =>
---         case x of
---             Nothing -> Just (Just 1.0)
---             Just _  -> Nothing
-
--- alwaysNever :: Maybe Int
--- alwaysNever = m where
---     m = Nothing => n
---     n = Nothing => m
-
--- couldBeAnInt :: Maybe Int
--- couldBeAnInt = Just (Just 1)
-
--- couldBeAnFloat :: Maybe (Maybe Float)
--- couldBeAnFloat = Just (Just 3.141)
-
--- gimmeThatInt :: Float
--- gimmeThatInt =
---     case couldBeAnFloat of
---         Just (Just x) -> x * x
---         _             -> 0.1
-
--- counter :: Int
--- counter = x where
---     x ~ 0 = x + 1
-
--- integrate :: Int -> Int
--- integrate delta = x where
---     x ~ 0 = x + delta
-
+-- -- TODO: Fix case expr not maybecasting!
 -- main :: Int
--- main = integrate (getMouseX world)
+-- main =
+--     case Just 666 of
+--         Just x -> x
+--         _      -> 100
 
--- TODO: initializers in core and in necro machine
-
--- -- Allocation test
+-- ----------------------------------------
+-- -- Deep case test
+-- -----------------------------------------
 -- alwaysAndForever :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
 -- alwaysAndForever = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
 -- alwaysAndForever' :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
@@ -444,61 +343,15 @@ data Maybe a = Just a | Nothing
 -- balwaysAndForever'''''''' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
 -- balwaysAndForever''''''''' :: Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe (Maybe Int)))))))
 -- balwaysAndForever''''''''' = Just (Just (Just (Just (Just (Just (Just (Just (getMouseX world * 2000))))))))
-
--- counter :: Int
--- counter = x where
---     x <- 0 = x + 1
--- counters :: Int
--- counters = x + y where
---     x <- 0 = y + 1
---     y <- 0 = x + 1
-
--- -- This is ALSO causing some weirdness...
 -- main :: Int
 -- main =
 --     case alwaysAndForever of
 --         Just (Just (Just (Just (Just (Just (Just (Just x))))))) -> x
 --         _ -> (-1)
 
--- main :: Int
--- main = 10
-
--- maybeCool :: Maybe Int
--- maybeCool = Just (getMouseX world)
-
--- -- Counter test
--- counter :: Int
--- counter = x where
---     x <- 0 = x + 1
-
--- isItConst :: Maybe Int
--- isItConst = Just 0
-
--- main :: Int
--- main = x where
---     x <- 0 = x + 1
-
--- counter' :: Maybe Int
--- counter' = Just x where
---     x <- 0 = x + getMouseX world
-
--- counter' :: Maybe Int
--- counter' = Just 10
-
--- -- TODO: Need initializers!!!!
--- counter' :: Maybe Int
--- counter' <- Nothing =
---     case counter' of
---         Just x  -> Just (x + 1)
---         Nothing -> Just 0
-
--- -- TODO: Fix case expr not maybecasting!
--- main :: Int
--- main =
---     case Just 666 of
---         Just x -> x
---         _      -> 100
-
+-- -----------------------------------------
+-- -- Case counter test
+-- -----------------------------------------
 -- counter' :: Maybe Int
 -- counter' = Just x where
 --     x <- 0 = x + 1
@@ -508,8 +361,28 @@ data Maybe a = Just a | Nothing
 --         Just x -> x
 --         _      -> -1
 
--- -- Many stateful calculations at 100 ticks per second
--- -- Now with maybes
+-- -----------------------------------------
+-- -- Feedback with Just
+-- -----------------------------------------
+-- -- We seem to munging the values somehow
+-- integrate :: Int -> Int
+-- integrate delta = feed'' where
+--     feed <- 0 = feed + 1
+--     feed'     = Just feed
+--     feed''    =
+--         case feed' of
+--             Nothing -> 0
+--             Just x  -> x
+-- tenTimes :: Int -> Int
+-- tenTimes n =
+--     integrate n + integrate n + integrate n + integrate n + integrate n +
+--     integrate n + integrate n + integrate n + integrate n + integrate n
+-- main = tenTimes 10
+
+-- -----------------------------------------
+-- -- Many Boxed Stateful calculations test
+-- -----------------------------------------
+-- -- We seem to munging the values somehow
 -- integrate :: Int -> Int
 -- integrate delta = feed'' where
 --     feed <- 0 = delta + feed
@@ -545,19 +418,51 @@ data Maybe a = Just a | Nothing
 -- -- main =
 -- --     oneHundredThousandTimes 1 + oneHundredThousandTimes 1
 
-data List a = Cons a (List a) | Nil
+-- -----------------------------------------
+-- -- Many Unboxed Stateful calculations test
+-- -----------------------------------------
+-- -- Many stateful calculations at 100 ticks per second
+-- integrate :: Int -> Int
+-- integrate delta = feed where
+--     feed <- 0 = delta + feed
+-- tenTimes :: Int -> Int
+-- tenTimes n =
+--     integrate n + integrate n + integrate n + integrate n + integrate n +
+--     integrate n + integrate n + integrate n + integrate n + integrate n
+-- oneHundredTimes :: Int -> Int
+-- oneHundredTimes n =
+--     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
+--     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
+-- oneThousandTimes :: Int -> Int
+-- oneThousandTimes n =
+--     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
+--     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
+-- tenThousandTimes :: Int -> Int
+-- tenThousandTimes n =
+--     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
+--     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
+-- oneHundredThousandTimes :: Int -> Int
+-- oneHundredThousandTimes n =
+--     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n +
+--     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
+-- main :: Int
+-- main =
+--     oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1  + oneHundredThousandTimes 1 +
+--     oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1  + oneHundredThousandTimes 1
 
-countList :: List a -> Int
-countList xs =
-    case xs of
-        Cons _ xs' -> 1 + countList xs'
-        Nil        -> c
-    where
-        c <- 0 = c + 1
-
-coolList :: List ()
-coolList = Cons () (Cons () Nil)
-
-main :: Int
-main = countList coolList
+-- -----------------------------------------
+-- -- Stateful Recursion + Const alloc Test
+-- -----------------------------------------
+-- data List a = Cons a (List a) | Nil
+-- countList :: List a -> Int
+-- countList xs =
+--     case xs of
+--         Cons _ xs' -> 1 + countList xs'
+--         Nil        -> c
+--     where
+--         c <- 0 = c + 1000
+-- coolList :: List ()
+-- coolList = Cons () (Cons () Nil)
+-- main :: Int
+-- main = countList coolList
 

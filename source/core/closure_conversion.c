@@ -115,9 +115,11 @@ NecroCoreAST_Expression* necro_closure_conversion_case(NecroClosureConversion* c
     assert(in_ast != NULL);
     assert(in_ast->expr_type == NECRO_CORE_EXPR_CASE);
     NecroCoreAST_Expression* expr      = necro_closure_conversion_go(cc, in_ast->case_expr.expr);
+    expr->necro_type                   = in_ast->case_expr.expr->necro_type; // TODO: Replace with closure_type!
     NecroCoreAST_CaseAlt*    alts      = necro_closure_conversion_alts(cc, in_ast->case_expr.alts);
     NecroCoreAST_Expression* case_expr = necro_create_core_case(&cc->arena, expr, alts);
-    case_expr->case_expr.type          = in_ast->case_expr.type;
+    case_expr->case_expr.type          = in_ast->case_expr.type; // TODO: Replace with closure_type!
+    // TODO: ALL nodes in the ast should have an explicit type?
     return case_expr;
 }
 

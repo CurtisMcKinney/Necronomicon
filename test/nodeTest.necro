@@ -293,12 +293,14 @@ data Maybe a = Just a | Nothing
 -- constCool :: CoolInt
 -- constCool = CoolInt constInt 1.1
 
--- -- TODO: Fix case expr not maybecasting!
--- main :: Int
--- main =
---     case Just 666 of
---         Just x -> x
---         _      -> 100
+----------------------------------------
+-- Expr in case test
+-----------------------------------------
+main :: Int
+main =
+    case Just 666 of
+        Just x -> x
+        _      -> 100
 
 -- ----------------------------------------
 -- -- Deep case test

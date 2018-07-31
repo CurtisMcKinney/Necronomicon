@@ -314,7 +314,10 @@ NecroPatternMatrix necro_create_pattern_matrix_from_case(NecroMachineProgram* pr
     size_t             this_rows = 0;
     alts                         = ast->case_expr.alts;
     // NecroPatternPath*  path      = necro_create_pattern_path(program, case_path, LLVMPointerType(necro_get_ast_llvm_type(codegen, ast->case_expr.expr), 0), case_path->value, 0);
-    NecroPatternPath*  path      = necro_create_pattern_path(program, case_path, necro_create_machine_ptr_type(&program->arena, necro_core_ast_to_machine_type(program, ast->case_expr.expr)), case_path->value, 0);
+    // NecroPatternPath*  path      = necro_create_pattern_path(program, case_path, necro_create_machine_ptr_type(&program->arena, necro_type_to_machine_type(program, ast->case_expr.type)), case_path->value, 0);
+    // NecroMachineType*  expr_type = necro_make_ptr_if_boxed(program, necro_core_ast_to_machine_type(program, ast->case_expr.expr));
+    NecroMachineType*  expr_type = necro_make_ptr_if_boxed(program, necro_type_to_machine_type(program, ast->case_expr.expr->necro_type));
+    NecroPatternPath*  path      = necro_create_pattern_path(program, case_path, expr_type, case_path->value, 0);
     while (alts != NULL)
     {
         size_t this_columns = 1;

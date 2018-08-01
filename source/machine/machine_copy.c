@@ -210,7 +210,6 @@ void necro_add_machine_def_members(NecroMachineProgram* program, NecroConstructo
         {
             // A machine_def data_info should never directly contain another machine_def data_info!
             assert(false);
-            // necro_add_machine_def_members(program, member_info);
         }
         else
         {

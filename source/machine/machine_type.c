@@ -287,13 +287,25 @@ NecroType* necro_core_ast_to_necro_type(NecroMachineProgram* program, NecroCoreA
         case NECRO_AST_CONSTANT_FLOAT:   return necro_symtable_get(program->symtable, program->prim_types->float_type.id)->type;
         default:                         assert(false); return NULL;
         }
-    case NECRO_CORE_EXPR_VAR:  return necro_symtable_get(program->symtable, ast->var.id)->type;
-    case NECRO_CORE_EXPR_BIND: return necro_symtable_get(program->symtable, ast->bind.var.id)->type;
+    case NECRO_CORE_EXPR_VAR:
+        if (necro_symtable_get(program->symtable, ast->var.id)->closure_type != NULL)
+            return necro_symtable_get(program->symtable, ast->var.id)->closure_type;
+        else
+            return necro_symtable_get(program->symtable, ast->var.id)->type;
+    case NECRO_CORE_EXPR_BIND:
+        if (necro_symtable_get(program->symtable, ast->bind.var.id)->closure_type != NULL)
+            return necro_symtable_get(program->symtable, ast->bind.var.id)->closure_type;
+        else
+            return necro_symtable_get(program->symtable, ast->bind.var.id)->type;
     case NECRO_CORE_EXPR_LAM:
         assert(false && "TODO: Finish!");
         return NULL;
-    case NECRO_CORE_EXPR_DATA_CON:  return necro_symtable_get(program->symtable, ast->data_con.condid.id)->type;
-    case NECRO_CORE_EXPR_TYPE:      return ast->type.type;
+    case NECRO_CORE_EXPR_DATA_CON:
+        if (necro_symtable_get(program->symtable, ast->data_con.condid.id)->closure_type != NULL)
+            return necro_symtable_get(program->symtable, ast->data_con.condid.id)->closure_type;
+        else
+            return necro_symtable_get(program->symtable, ast->data_con.condid.id)->type;
+    case NECRO_CORE_EXPR_TYPE: return ast->type.type;
     case NECRO_CORE_EXPR_APP:
     {
         // We're assuming that we always hit a var at the end...
@@ -304,7 +316,10 @@ NecroType* necro_core_ast_to_necro_type(NecroMachineProgram* program, NecroCoreA
         }
         if (app->expr_type == NECRO_CORE_EXPR_VAR)
         {
-            return necro_symtable_get(program->symtable, app->var.id)->type;
+            if (necro_symtable_get(program->symtable, app->var.id)->closure_type != NULL)
+                return necro_symtable_get(program->symtable, app->var.id)->closure_type;
+            else
+                return necro_symtable_get(program->symtable, app->var.id)->type;
         }
         else
         {
@@ -403,7 +418,7 @@ NecroMachineType* necro_core_ast_to_machine_type(NecroMachineProgram* program, N
         default:                         assert(false); return NULL;
         }
     case NECRO_CORE_EXPR_VAR:            return necro_type_to_machine_type(program, necro_core_ast_to_necro_type(program, ast));
-    case NECRO_CORE_EXPR_BIND:           return necro_type_to_machine_type(program, necro_symtable_get(program->symtable, ast->bind.var.id)->type);
+    case NECRO_CORE_EXPR_BIND:           return necro_type_to_machine_type(program, necro_core_ast_to_necro_type(program, ast));
     case NECRO_CORE_EXPR_LAM:
         assert(false && "TODO: Finish!");
         return NULL;

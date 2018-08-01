@@ -621,7 +621,7 @@ NecroAST_LocalPtr parse_type_signature(NecroParser* parser, NECRO_SIG_TYPE sig_t
 NecroAST_LocalPtr parse_type_class_declaration(NecroParser* parser);
 NecroAST_LocalPtr parse_type_class_instance(NecroParser* parser);
 NecroAST_LocalPtr parse_initializer(NecroParser* parser);
-#define NECRO_INITIALIZER_TOKEN NECRO_LEX_LTE
+#define NECRO_INITIALIZER_TOKEN NECRO_LEX_TILDE
 
 NecroParse_DescentState enter_parse_pattern_state(NecroParser* parser);
 void                    restore_parse_state(NecroParser* parser, NecroParse_DescentState prev_state);

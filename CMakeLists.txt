@@ -85,6 +85,7 @@ set(project_SOURCES
     source/machine/machine_case.c
     source/machine/machine_build.c
     source/machine/machine_copy.c
+    source/machine/machine_closure.c
 
     source/codegen/codegen_llvm.c
     )
@@ -132,6 +133,7 @@ set(project_HEADERS
     source/machine/machine_case.h
     source/machine/machine_build.h
     source/machine/machine_copy.h
+    source/machine/machine_closure.h
 
     source/codegen/codegen_llvm.h
     )

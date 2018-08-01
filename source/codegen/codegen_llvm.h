@@ -18,13 +18,7 @@
 #include "intern.h"
 #include "type/prim.h"
 #include "core/core.h"
-#include "closure.h"
 #include "machine/machine.h"
-
-/*
-    TODO:
-        * Optimization level options
-*/
 
 struct NecroSymTable;
 
@@ -76,7 +70,6 @@ typedef struct NecroCodeGenLLVM
 
 NecroCodeGenLLVM necro_create_codegen_llvm(NecroIntern* intern, struct NecroSymTable* symtable, NecroPrimTypes* prim_types, bool should_optimize);
 void             necro_destroy_codegen_llvm(NecroCodeGenLLVM* codegen);
-
 NECRO_RETURN_CODE necro_codegen_llvm(NecroCodeGenLLVM* codegen, NecroMachineProgram* program);
 NECRO_RETURN_CODE necro_jit_llvm(NecroCodeGenLLVM* codegen);
 void              necro_print_codegen_llvm(NecroCodeGenLLVM* codegen);

@@ -4,21 +4,21 @@ addOne x = x + x
 addOne' :: Int -> Int
 addOne' = addOne
 
-useAddOne' :: Int
-useAddOne' = addOne' 666
+-- useAddOne' :: Int
+-- useAddOne' = addOne' 666
+
+addTwo :: Int -> Int -> Int
+addTwo x y = x + y
+
+addTwo' :: Int -> Int -> Int
+addTwo' x = addTwo x
+
+addTwo'' :: Int -> Int -> Int
+addTwo'' = addTwo
 
 main :: Int
 main = 0
 
--- addTwo :: Int -> Int -> Int
--- addTwo x y = x + y
---
--- addTwo' :: Int -> Int -> Int
--- addTwo' x = addTwo x
---
--- addTwo'' :: Int -> Int -> Int
--- addTwo'' = addTwo
---
 -- pipesPlease :: Int -> Int
 -- pipesPlease x = x |> addOne
 --
@@ -45,16 +45,16 @@ main = 0
 --
 -- payloadOnly :: ((Int -> Int) -> Int -> Int) -> Int -> Int
 -- payloadOnly f = f addOne
-
--- TODO: Correct arity with type classes!
--- addTwo :: Int -> Int -> Int
--- addTwo = (+)
-
--- Closure info table:
--- { farity, num_pargs }
--- farity:    function arity
--- num_pargs: number of partially applied args
--- (implied)
--- carity:    closure arity
-
--- TODO: Use closure types in necro-machine land
+--
+-- -- TODO: Correct arity with type classes!
+-- -- addTwo :: Int -> Int -> Int
+-- -- addTwo = (+)
+--
+-- -- Closure info table:
+-- -- { farity, num_pargs }
+-- -- farity:    function arity
+-- -- num_pargs: number of partially applied args
+-- -- (implied)
+-- -- carity:    closure arity
+--
+-- -- TODO: check how recursion affects things

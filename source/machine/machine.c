@@ -57,7 +57,7 @@ NECRO_WORD_SIZE necro_get_word_size()
         assert(false);
 }
 
-NecroMachineProgram necro_create_initial_machine_program(NecroIntern* intern, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types, NecroInfer* infer)
+NecroMachineProgram necro_create_initial_machine_program(NecroIntern* intern, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types, NecroInfer* infer, NecroApplyDefVector apply_defs)
 {
     NecroMachineProgram program =
     {
@@ -77,7 +77,10 @@ NecroMachineProgram necro_create_initial_machine_program(NecroIntern* intern, Ne
         .necro_main      = NULL,
         .main_symbol     = necro_intern_string(symtable->intern, "main"),
         .copy_table      = necro_create_machine_copy_table(symtable, prim_types),
+        .closure_con     = necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_Closure")),
+        .closure_cons    = necro_create_closure_con_vector(),
     };
+
     program.necro_uint_type  = necro_create_word_sized_uint_type(&program);
     program.necro_int_type   = necro_create_word_sized_int_type(&program);
     program.necro_float_type = necro_create_word_sized_float_type(&program);
@@ -94,6 +97,8 @@ void necro_destroy_machine_program(NecroMachineProgram* program)
     necro_destroy_necro_machine_ast_vector(&program->functions);
     necro_destroy_necro_machine_ast_vector(&program->machine_defs);
     necro_destroy_machine_copy_table(&program->copy_table);
+    necro_destroy_closure_con_vector(&program->closure_cons);
+    necro_destroy_apply_def_vector(&program->apply_defs);
 }
 
 ///////////////////////////////////////////////////////
@@ -441,22 +446,17 @@ void necro_core_to_machine_2_bind(NecroMachineProgram* program, NecroCoreAST_Exp
         necro_program_add_global(program, global_state);
     }
     // Add global value
-    if (outer == NULL && !is_machine_fn) // && (machine_def->machine_def.state_type == NECRO_STATE_CONSTANT || machine_def->machine_def.state_type == NECRO_STATE_STATEFUL))
+    if (outer == NULL && !is_machine_fn)
     {
-        // NecroMachineAST* global_value = necro_create_global_value(program, machine_def->machine_def.bind_name, necro_create_machine_ptr_type(&program->arena, machine_def->machine_def.value_type));
         NecroMachineAST* global_value = NULL;
         if (necro_is_unboxed_type(program, machine_def->machine_def.value_type))
             global_value = necro_create_global_value(program, machine_def->machine_def.bind_name, necro_create_machine_ptr_type(&program->arena, machine_def->machine_def.value_type));
         else
             global_value = necro_create_global_value(program, machine_def->machine_def.bind_name, necro_create_machine_ptr_type(&program->arena, necro_create_machine_ptr_type(&program->arena, machine_def->machine_def.value_type)));
-        // NecroMachineAST* global_value = necro_create_global_value(program, machine_def->machine_def.bind_name, necro_make_ptr_if_boxed(program, machine_def->machine_def.value_type));
         machine_def->machine_def.global_value = global_value;
         necro_program_add_global(program, global_value);
     }
 
-    // if (machine_def->machine_def.state_type == NECRO_STATE_STATIC || machine_def->machine_def.state_type == NECRO_STATE_POINTWISE || (is_machine_fn && !machine_def->machine_def.is_recursive))
-    // if (machine_def->machine_def.state_type < NECRO_STATE_STATEFUL || (is_machine_fn && !machine_def->machine_def.is_recursive))
-    // Don't make recursive non-stateful machines NECRO_STATE_STATEFUL
     if (machine_def->machine_def.state_type < NECRO_STATE_STATEFUL)
     {
         machine_def->machine_def.mk_fn = NULL;
@@ -464,24 +464,15 @@ void necro_core_to_machine_2_bind(NecroMachineProgram* program, NecroCoreAST_Exp
 
     //--------------------
     // Define mk_fn
+    // TODO: Initializers
     if (machine_def->machine_def.mk_fn != NULL)
     {
         machine_def->machine_def.mk_fn->necro_machine_type->fn_type.return_type = necro_create_machine_ptr_type(&program->arena, machine_def->necro_machine_type);
-        // NecroMachineAST* data_ptr = necro_build_nalloc(program, machine_def->machine_def.mk_fn, machine_def->necro_machine_type, machine_def->machine_def.num_members, false);
 
         size_t               data_id  = necro_create_machine_def_data_info(program, machine_def);
         NecroConstructorInfo info     = necro_get_data_info(program, data_id, 0);
         NecroMachineAST*     data_ptr = necro_build_nalloc(program, machine_def->machine_def.mk_fn, machine_def->necro_machine_type, info.num_members, false);
 
-        // for (size_t i = 0; i < info.num_members; ++i)
-        // {
-        //     NecroSlot slot = machine_def->machine_def.members[i];
-        //     if (!slot.is_dynamic)
-        //         continue;
-        //     necro_build_store_into_slot(program, machine_def->machine_def.mk_fn, necro_create_null_necro_machine_value(program, slot.necro_machine_type), data_ptr, slot.slot_num);
-        // }
-
-        // Fuck...how is this supposed to work!?
         for (size_t i = 0; i < machine_def->machine_def.num_members; ++i)
         {
             NecroSlot slot = machine_def->machine_def.members[i];
@@ -542,10 +533,14 @@ void necro_core_to_machine_2_app(NecroMachineProgram* program, NecroCoreAST_Expr
     }
     assert(function->expr_type == NECRO_CORE_EXPR_VAR);
     NecroMachineAST*  fn_value      = necro_symtable_get(program->symtable, function->var.id)->necro_machine_ast;
+    if (function->var.id.id == program->closure_con.id.id)
+        fn_value = necro_get_closure_con(program, arg_count, true);
     bool              is_persistent = false;
     NecroMachineAST*  fn_def        = NULL;
     NecroMachineType* fn_type       = NULL;
     assert(fn_value != NULL);
+    // Statefulness affected by arguments!
+    // A pointwise function applied to all constant arguments is actually constant!
     if (fn_value->type == NECRO_MACHINE_DEF)
     {
         fn_def        = fn_value;
@@ -610,8 +605,7 @@ void necro_core_to_machine_2_var(NecroMachineProgram* program, NecroCoreAST_Expr
     }
     if (machine_ast->machine_def.is_persistent_slot_set)
         return;
-    // TODO: Replace types with closure types after closure conversion!
-    size_t data_id = necro_create_data_info(program, necro_symtable_get(program->symtable, core_ast->var.id)->type);
+    size_t data_id = necro_create_data_info(program, necro_core_ast_to_necro_type(program, core_ast)); //necro_symtable_get(program->symtable, core_ast->var.id)->type);
     machine_ast->machine_def.is_persistent_slot_set = true;
     NecroSlot slot = necro_is_unboxed_type(program, machine_ast->machine_def.value_type)
         ? necro_add_member(program, &outer->machine_def, machine_ast->machine_def.value_type, data_id, false)
@@ -781,6 +775,8 @@ NecroMachineAST* necro_core_to_machine_3_app(NecroMachineProgram* program, Necro
     NecroMachineAST* fn_value = (outer->machine_def.state_type == NECRO_STATE_CONSTANT && info->is_constructor) ?
         info->const_necro_machine_ast :
         info->necro_machine_ast;
+    if (function->var.id.id == program->closure_con.id.id)
+        fn_value = necro_get_closure_con(program, arg_count, outer->machine_def.state_type == NECRO_STATE_CONSTANT);
     NecroMachineAST* machine_def = NULL;
     bool             is_stateful = false;
     assert(fn_value != NULL);
@@ -803,7 +799,7 @@ NecroMachineAST* necro_core_to_machine_3_app(NecroMachineProgram* program, Necro
     assert(fn_value->necro_machine_type->fn_type.num_parameters == arg_count);
 
     NecroArenaSnapshot snapshot  = necro_get_arena_snapshot(&program->snapshot_arena);
-    NecroMachineAST**     args   = necro_paged_arena_alloc(&program->arena, arg_count * sizeof(NecroMachineAST*));
+    NecroMachineAST**  args      = necro_paged_arena_alloc(&program->arena, arg_count * sizeof(NecroMachineAST*));
     size_t             arg_index = arg_count - 1;
     function                     = core_ast;
     while (function->expr_type == NECRO_CORE_EXPR_APP)
@@ -822,8 +818,6 @@ NecroMachineAST* necro_core_to_machine_3_app(NecroMachineProgram* program, Necro
         if (!is_dynamic)
         {
             NecroMachineAST* gep_value  = necro_build_gep(program, outer->machine_def.update_fn, necro_create_param_reg(program, outer->machine_def.update_fn, 0), (uint32_t[]) { 0, persistent_slot }, 2, "gep");
-            // NecroMachineAST* cast_value = necro_build_bit_cast(program, outer->machine_def.update_fn, gep_value, necro_create_machine_ptr_type(&program->arena, machine_def->necro_machine_type));
-            // args[0]                     = cast_value;
             args[0]                     = gep_value;
         }
         else
@@ -849,27 +843,52 @@ NecroMachineAST* necro_core_to_machine_3_var(NecroMachineProgram* program, Necro
     assert(program != NULL);
     assert(core_ast != NULL);
     assert(core_ast->expr_type == NECRO_CORE_EXPR_VAR);
-    // if (outer != NULL)
     assert(outer != NULL);
     assert(outer->type == NECRO_MACHINE_DEF);
+    assert(core_ast->var.id.id != program->closure_con.id.id); // Should never encounter the closure constructor here
     NecroSymbolInfo* info = necro_symtable_get(program->symtable, core_ast->var.id);
     // It's a constructor
-    if (info->is_constructor)
+    if (info->is_constructor && info->arity == 0)
     {
         if (outer->machine_def.state_type == NECRO_STATE_CONSTANT)
             return necro_build_call(program, outer->machine_def.update_fn, info->const_necro_machine_ast, NULL, 0, "const_con");
         else
             return necro_build_call(program, outer->machine_def.update_fn, info->necro_machine_ast, NULL, 0, "con");
     }
+    // It's a function pointer
+    else if (info->arity > 0)
+    {
+        if (info->necro_machine_ast->type == NECRO_MACHINE_DEF)
+        {
+            NecroMachineAST* fn_value  = info->necro_machine_ast->machine_def.update_fn->fn_def.fn_value;
+            NecroMachineAST* fn_ptr    = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
+            *fn_ptr                    = *fn_value;
+            fn_ptr->necro_machine_type = necro_create_machine_ptr_type(&program->arena, fn_value->necro_machine_type);
+            return fn_ptr;
+        }
+        else if (info->necro_machine_ast->type == NECRO_MACHINE_FN_DEF)
+        {
+            NecroMachineAST* fn_value  = info->necro_machine_ast->fn_def.fn_value;
+            NecroMachineAST* fn_ptr    = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
+            *fn_ptr                    = *fn_value;
+            fn_ptr->necro_machine_type = necro_create_machine_ptr_type(&program->arena, fn_value->necro_machine_type);
+            return fn_ptr;
+        }
+        else if (info->necro_machine_ast->type == NECRO_MACHINE_VALUE)
+        {
+            return info->necro_machine_ast;
+        }
+        else
+        {
+            assert(false);
+            return NULL;
+        }
+    }
     // It's a global
     else if (info->necro_machine_ast->type == NECRO_MACHINE_VALUE && info->necro_machine_ast->value.value_type == NECRO_MACHINE_VALUE_GLOBAL)
     {
-        // return necro_build_load_from_slot(program, outer->machine_def.update_fn, info->necro_machine_ast, 1, "glb");
         NecroMachineType* type = info->necro_machine_ast->necro_machine_type;
-        // if (type->type == NECRO_MACHINE_TYPE_PTR && necro_is_unboxed_type(program, type->ptr_type.element_type))
-            return necro_build_load_from_ptr(program, outer->machine_def.update_fn, info->necro_machine_ast, "glb");
-        // else
-        //     return info->necro_machine_ast;
+        return necro_build_load_from_ptr(program, outer->machine_def.update_fn, info->necro_machine_ast, "glb");
     }
     // It's a persistent value
     else if (info->necro_machine_ast->type == NECRO_MACHINE_DEF && info->necro_machine_ast->machine_def.state_type == NECRO_STATE_STATEFUL && info->necro_machine_ast->machine_def.outer != NULL)
@@ -877,11 +896,8 @@ NecroMachineAST* necro_core_to_machine_3_var(NecroMachineProgram* program, Necro
         NecroMachineType* slot_type = outer->necro_machine_type->struct_type.members[info->persistent_slot];
         if (necro_is_unboxed_type(program, slot_type) || slot_type->type == NECRO_MACHINE_TYPE_PTR)
             return necro_build_load_from_slot(program, outer->machine_def.update_fn, necro_create_param_reg(program, outer->machine_def.update_fn, 0), info->persistent_slot, "per");
-        // TODO: Handle dynamic values for i.e. recursion...
         else
             return necro_build_gep(program, outer->machine_def.update_fn, necro_create_param_reg(program, outer->machine_def.update_fn, 0), (uint32_t[]) { 0, info->persistent_slot }, 2, "per");
-        // NecroMachineAST* param0 = necro_create_param_reg(program, outer->machine_def.update_fn, 0);
-        // NecroMachineAST* loaded = necro_build_load_from_slot(program, outer->machine_def.update_fn, param0, info->persistent_slot, "var");
     }
     // It's a local
     else if (info->necro_machine_ast->type == NECRO_MACHINE_VALUE)
@@ -892,13 +908,8 @@ NecroMachineAST* necro_core_to_machine_3_var(NecroMachineProgram* program, Necro
     else if (info->necro_machine_ast->type == NECRO_MACHINE_DEF)
     {
         assert(info->necro_machine_ast->machine_def.global_value != NULL);
-        // return necro_build_load_from_slot(program, outer->machine_def.update_fn, info->necro_machine_ast->machine_def.global_value, 1, "glb");
-        // return necro_build_load_from_ptr(program, outer->machine_def.update_fn, info->necro_machine_ast->machine_def.global_value, "glb");
         NecroMachineType* type = info->necro_machine_ast->machine_def.global_value->necro_machine_type;
-        // if (type->type == NECRO_MACHINE_TYPE_PTR && necro_is_unboxed_type(program, type->ptr_type.element_type))
-            return necro_build_load_from_ptr(program, outer->machine_def.update_fn, info->necro_machine_ast->machine_def.global_value, "glb");
-        // else
-        //     return info->necro_machine_ast->machine_def.global_value;
+        return necro_build_load_from_ptr(program, outer->machine_def.update_fn, info->necro_machine_ast->machine_def.global_value, "glb");
     }
     else
     {
@@ -1083,9 +1094,9 @@ void necro_construct_main(NecroMachineProgram* program)
 ///////////////////////////////////////////////////////
 // Core to Machine
 ///////////////////////////////////////////////////////
-NecroMachineProgram necro_core_to_machine(NecroCoreAST* core_ast, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types, NecroInfer* infer)
+NecroMachineProgram necro_core_to_machine(NecroCoreAST* core_ast, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types, NecroInfer* infer, NecroApplyDefVector apply_defs)
 {
-    NecroMachineProgram program = necro_create_initial_machine_program(symtable->intern, symtable, scoped_symtable, prim_types, infer);
+    NecroMachineProgram program = necro_create_initial_machine_program(symtable->intern, symtable, scoped_symtable, prim_types, infer, apply_defs);
 
     // Pass 1
     NecroCoreAST_Expression* top_level_list = core_ast->root;

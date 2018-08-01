@@ -17,6 +17,8 @@
 #include "machine_type.h"
 #include "machine_copy.h"
 #include "utility/list.h"
+#include "core/closure_conversion.h"
+#include "machine_closure.h"
 
 ///////////////////////////////////////////////////////
 // NecroMachine
@@ -24,47 +26,15 @@
 // * Abstract machine target for necrolang
 // * LLVM-IR like, but simpler and necrolang specific
 // * Infinite registers
-// * Heap defined by a graph of statically calculated blocks containing blocks
+// * Persistent data defined by a graph of statically calculated blocks containing blocks
 // * Machines retain state across multiple calls to main
 ///////////////////////////////////////////////////////
 
 /*
     TODO:
-
-        * New memory scheme:
-            - delay && trimDelay: delay :: a -> a -> a (but disallows recursive value), trimDelay :: Trimmable a => const Int -> a -> a -> a (allows recursive constructors but they must implement trimmable)
-              bufDelay :: const Int -> a -> a
-            - class Trimmable a where
-                nil  :: a (must be a non-recursive contructor)
-            - trim :: Trimmable a => const Int -> a -> a (auto-magically crawls the data type and replaces recursions beyond N with the nil constructor
-            - using delay and trimDelay we can statically calculate the size of each block
-            - delay and trimDelay allocate a statically sized area of memory. When something is delayed it is deep copied into this memory area.
-            - A block is a statically known area of data
-            - Somethings dynamically create new blocks (recursion, applying closures, poly, etc)
-            - Blocks are allocated and freed explicity by the runtime.
-            - All IO must use fixed size data types
-            - Thus, there is no garbage collection at runtime.
-            - How to also get unboxed and untagged Int and Float types...
-            - We should statically know ALL the types going into delay (since it requires the type be fully concrete)
-            - call a fully resolved _clone on the type, a compiler generated method for known sized types that recursively copies
-            - Everything is given a specific address in contiguous memory and does in place overwriting.
-            - Necrolang: A real-time audio programming language (without garbage collection)
-            - also need to deep copy into global roots!
-
-        * Break API into machine_build.h/c
-        * null out and zero out memory when allocated with nalloc via memcpy NULL....should be faster than doing it in code!?
         * closures
-        * Proper delay (Keyword? Laziness? ...?).
-        * prev Keyword? prev Const Ident, i.e. 1 + prev 0 x
         * necro_verify_machine_program
 
-    TEST:
-        * case
-        * runtime
-        * Construct main function
-        * codegen
-        * init_and_load_dyn function (will require breakcond and other stuff to work)
-        * dyn fn machines need NecroData?
 */
 
 ///////////////////////////////////////////////////////
@@ -473,16 +443,6 @@ typedef struct NecroRuntime
     NecroVar _necro_error_exit;
     NecroVar _necro_sleep;
     NecroVar _necro_print;
-
-    //---------------
-    // old mark sweep gc
-    // NecroVar _necro_initialize_root_set;
-    // NecroVar _necro_set_root;
-    // NecroVar _necro_alloc;
-    // NecroVar _necro_collect;
-
-    //---------------
-    // new copy_gc
     NecroVar _necro_from_alloc;
     NecroVar _necro_to_alloc;
     NecroVar _necro_const_alloc;
@@ -532,12 +492,18 @@ typedef struct NecroMachineProgram
     NecroMachineAST*      program_main;
     NecroMachineRuntime   runtime;
     NecroMachineCopyTable copy_table;
+
+    // Closures
+    NecroCon              closure_con;
+    NecroMachineType*     closure_type;
+    NecroApplyDefVector   apply_defs;
+    NecroClosureConVector closure_cons;
 } NecroMachineProgram;
 
 ///////////////////////////////////////////////////////
 // Core to Machine API
 ///////////////////////////////////////////////////////
-NecroMachineProgram necro_core_to_machine(NecroCoreAST* core_ast, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types, NecroInfer* infer);
+NecroMachineProgram necro_core_to_machine(NecroCoreAST* core_ast, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types, NecroInfer* infer, NecroApplyDefVector apply_defs);
 void                necro_destroy_machine_program(NecroMachineProgram* program);
 void                necro_core_to_machine_1_go(NecroMachineProgram* program, NecroCoreAST_Expression* core_ast, NecroMachineAST* outer);
 void                necro_core_to_machine_2_go(NecroMachineProgram* program, NecroCoreAST_Expression* core_ast, NecroMachineAST* outer);

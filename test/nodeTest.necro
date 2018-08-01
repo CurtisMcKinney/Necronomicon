@@ -243,7 +243,7 @@ data Maybe a = Just a | Nothing
 -- -----------------------------------------
 -- counter' :: Maybe Int
 -- counter' = Just x where
---     x <- 0 = x + 1
+--     x ~ 0 = x + 1
 -- main :: Int
 -- main =
 --     case counter' of
@@ -256,9 +256,9 @@ data Maybe a = Just a | Nothing
 -- -- We seem to munging the values somehow
 -- integrate :: Int -> Int
 -- integrate delta = feed'' where
---     feed <- 0 = feed + 1
---     feed'     = Just feed
---     feed''    =
+--     feed ~ 0 = feed + 1
+--     feed'    = Just feed
+--     feed''   =
 --         case feed' of
 --             Nothing -> 0
 --             Just x  -> x
@@ -274,9 +274,9 @@ data Maybe a = Just a | Nothing
 -- We seem to munging the values somehow
 integrate :: Int -> Int
 integrate delta = feed'' where
-    feed <= 0 = delta + feed
-    feed'     = Just feed
-    feed''    =
+    feed ~ 0 = delta + feed
+    feed'    = Just feed
+    feed''   =
         case feed' of
             Nothing -> 0
             Just x  -> x
@@ -313,7 +313,7 @@ main =
 -- -- Many stateful calculations at 100 ticks per second
 -- integrate :: Int -> Int
 -- integrate delta = feed where
---     feed <- 0 = delta + feed
+--     feed ~ 0 = delta + feed
 -- tenTimes :: Int -> Int
 -- tenTimes n =
 --     integrate n + integrate n + integrate n + integrate n + integrate n +
@@ -349,7 +349,7 @@ main =
 --         Cons _ xs' -> 1 + countList xs'
 --         Nil        -> c
 --     where
---         c <= 0 = c + 1000
+--         c ~ 0 = c + 1000
 -- coolList :: List ()
 -- coolList = Cons () (Cons () Nil)
 -- main :: Int

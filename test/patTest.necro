@@ -50,13 +50,13 @@ patTest = beat
 
 -- Using "Call by Name" semantics
 patTest :: Pattern Audio
-patTest ~= seq
+patTest := seq
     0 z _ x
     _ 3 y z
     where
-        x ~= 0.5 * 2
-        y ~= seq 0 _ 1 _
-        z ~= 666 * 323
+        x := 0.5 * 2
+        y := seq 0 _ 1 _
+        z := 666 * 323
 
 patTest :: Pattern Audio
 patTest = beat

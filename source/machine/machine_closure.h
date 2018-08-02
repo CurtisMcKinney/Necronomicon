@@ -15,6 +15,11 @@
 #include "machine_type.h"
 
 NECRO_DECLARE_VECTOR(struct NecroMachineAST*, NecroClosureCon, closure_con);
+NECRO_DECLARE_VECTOR(struct NecroMachineType*, NecroClosureType, closure_type);
+NECRO_DECLARE_VECTOR(struct NecroMachineAST*, NecroApplyFn, apply_fn);
+
 struct NecroMachineAST* necro_get_closure_con(struct NecroMachineProgram* program, size_t closure_arity, bool is_constant);
+void                    necro_declare_apply_fns(struct NecroMachineProgram* program);
+struct NecroMachineAST* necro_get_apply_fn(struct NecroMachineProgram* program, size_t apply_arity);
 
 #endif // NECRO_MACHINE_CLOSURE_H

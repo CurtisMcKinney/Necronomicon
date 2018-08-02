@@ -143,7 +143,7 @@ typedef struct NecroPrimTypes
     NecroCon          delay_fn;
     NecroCon          addr_type;
     NecroCon          closure_type;
-    NecroCon          apply_type;
+    NecroCon          apply_fn;
     NecroCon          _clone_type_class;
     NecroCon          _initialize_fn;
 

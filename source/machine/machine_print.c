@@ -492,5 +492,5 @@ void necro_print_machine_program(NecroMachineProgram* program)
         necro_machine_print_ast_go(program, program->machine_defs.data[i], 0);
     }
     necro_machine_print_ast_go(program, program->necro_main, 0);
-    // necro_print_data_info(program);
+    necro_print_data_info(program);
 }

@@ -4,8 +4,8 @@ addOne x = x + x
 addOne' :: Int -> Int
 addOne' = addOne
 
--- useAddOne' :: Int
--- useAddOne' = addOne' 666
+useAddOne' :: Int
+useAddOne' = addOne' 666
 
 addTwo :: Int -> Int -> Int
 addTwo x y = x + y
@@ -16,6 +16,31 @@ addTwo' x = addTwo x
 addTwo'' :: Int -> Int -> Int
 addTwo'' = addTwo
 
+useAddTwo' :: Int -> Int -> Int
+useAddTwo' = addTwo'
+
+useUseAddTwo' :: Int
+useUseAddTwo' = useAddTwo' 100 200
+
+useAddTwo'' :: Int
+useAddTwo'' = addTwo'' 33 44
+
+data FBomb a = FBomb a
+-- data FBomb = FBomb (Int -> Int)
+
+setTheBomb :: FBomb (Int -> Int)
+setTheBomb = FBomb (addTwo 1)
+
+bombGoesBoom :: FBomb (Int -> Int) -> Int
+bombGoesBoom f =
+    case f of
+        FBomb b -> b 1
+
+doubleBoom :: FBomb ((Int -> Int) -> Int -> Int) -> Int -> Int
+doubleBoom f =
+    case f of
+        FBomb b -> b addOne
+
 main :: Int
 main = 0
 
@@ -24,25 +49,7 @@ main = 0
 --
 -- pipesPlease2 :: Int -> Int
 -- pipesPlease2 x = x |> addTwo 1
---
--- useAddTwo' :: Int -> Int -> Int
--- useAddTwo' = addTwo'
---
--- data FBomb a = FBomb a
---
--- setTheBomb :: FBomb (Int -> Int)
--- setTheBomb = FBomb (addTwo 1)
---
--- bombGoesBoom :: FBomb (Int -> Int) -> Int
--- bombGoesBoom f =
---     case f of
---         FBomb b -> b 1
---
--- doubleBoom :: FBomb ((Int -> Int) -> Int -> Int) -> Int -> Int
--- doubleBoom f =
---     case f of
---         FBomb b -> b addOne
---
+
 -- payloadOnly :: ((Int -> Int) -> Int -> Int) -> Int -> Int
 -- payloadOnly f = f addOne
 --

@@ -62,7 +62,7 @@ NecroMachineCopyTable necro_create_machine_copy_table(NecroSymTable* symtable, N
     table.symtable   = symtable;
     table.data       = malloc(NECRO_MACHINE_PERSIST_TABLE_INITIAL_SIZE * sizeof(NecroMachineCopyData));
     table.capacity   = NECRO_MACHINE_PERSIST_TABLE_INITIAL_SIZE;
-    table.count      = NECRO_UNBOXED_DATA_ID + 1;
+    table.count      = NECRO_APPLY_DATA_ID + 1;
     table.member_map = necro_create_member_vector();
     table.data_map   = necro_create_data_map_vector();
     for (size_t i = 0; i < table.capacity; ++i)
@@ -71,9 +71,20 @@ NecroMachineCopyTable necro_create_machine_copy_table(NecroSymTable* symtable, N
     int_data->data_id                = NECRO_UNBOXED_DATA_ID;
     NecroMachineCopyData* float_data = necro_machine_copy_table_insert(&table, necro_symtable_get(symtable, prim_types->float_type.id)->type);
     float_data->data_id              = NECRO_UNBOXED_DATA_ID;
-    NecroConstructorInfo prim_info   = (NecroConstructorInfo) { .members_offset = 0, .num_members = 0, .size_in_bytes = sizeof(char*) };
+
+    // NULL / Unboxed
+    NecroConstructorInfo prim_info   = (NecroConstructorInfo) { .members_offset = 0, .num_members = 0, .size_in_bytes = sizeof(char*) }; // TODO: Proper word sizing for target
     necro_push_data_map_vector(&table.data_map, &prim_info); // NULL
     necro_push_data_map_vector(&table.data_map, &prim_info); // Unboxed
+
+    // Apply
+    NecroConstructorInfo apply_info  = (NecroConstructorInfo) { .members_offset = 0, .num_members = 2, .size_in_bytes = 3 * sizeof(char*) }; // TODO: Proper word sizing for target
+    necro_push_data_map_vector(&table.data_map, &apply_info); // Apply
+    size_t unboxed_id = NECRO_UNBOXED_DATA_ID;
+    necro_push_member_vector(&table.member_map, &unboxed_id);
+    size_t null_id = NECRO_NULL_DATA_ID;
+    necro_push_member_vector(&table.member_map, &null_id);
+
     // Need special handling for audio / arrays!
     // NecroMachineCopyData* audio_data = necro_machine_copy_table_insert(&table, prim_types->audio_type);
     // audio_data->data_id = ???
@@ -272,14 +283,18 @@ void necro_print_data_info_go(struct NecroMachineProgram* program, size_t id, bo
     {
         printf("{ id: %d, .member_offset: %d, .num_members: %d, .size_in_bytes: %d, ", id, info.members_offset, info.num_members, info.size_in_bytes);
     }
-    if (id == NECRO_UNBOXED_DATA_ID)
-        printf(" Unboxed     }\n");
+    if (id == NECRO_NULL_DATA_ID)
+        printf("Null }\n");
+    else if (id == NECRO_UNBOXED_DATA_ID)
+        printf("Unboxed }\n");
+    else if (id == NECRO_APPLY_DATA_ID)
+        printf("Apply }\n");
     else if (info.is_tagged_union)
-        printf(" TaggedUnion }\n");
+        printf("TaggedUnion }\n");
     else if (info.is_machine_def)
-        printf(" MachineDef  }\n");
+        printf("MachineDef }\n");
     else
-        printf(" Constructor }\n");
+        printf("Constructor }\n");
     if (is_top)
     {
         // Print out members

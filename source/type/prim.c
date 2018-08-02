@@ -741,7 +741,7 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     NecroPrimDef* closure_data_def = necro_prim_def_data(prim_types, intern, &prim_types->closure_type, necro_create_data_declaration_ast(&prim_types->arena, intern, closure_s_type, closure_con_list));
     NecroASTNode* apply_type_ast  = necro_create_fun_ast(&prim_types->arena, necro_create_type_app_ast(&prim_types->arena, necro_create_conid_ast(&prim_types->arena, intern, "_Closure", NECRO_CON_TYPE_VAR), necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)), necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
     NecroASTNode* apply_sig_ast   = necro_create_fun_type_sig_ast(&prim_types->arena, intern, "_apply", NULL, apply_type_ast, NECRO_VAR_DECLARATION, NECRO_SIG_DECLARATION);
-    NecroPrimDef* apply_type_def  = necro_prim_def_fun(prim_types, intern, &prim_types->apply_type, apply_sig_ast, 1);
+    NecroPrimDef* apply_type_def  = necro_prim_def_fun(prim_types, intern, &prim_types->apply_fn, apply_sig_ast, 1);
 
     // Eq
     NecroASTNode* eq_method_sig  = necro_create_class_comp_sig(&prim_types->arena, intern, "eq");

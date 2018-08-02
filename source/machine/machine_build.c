@@ -411,12 +411,10 @@ NecroMachineAST* necro_create_machine_initial_machine_def(NecroMachineProgram* p
     ast->machine_def.arg_names                     = NULL;
     ast->machine_def.num_arg_names                 = 0;
     ast->machine_def.mk_fn                         = NULL;
-    ast->machine_def.init_fn                       = NULL;
     ast->machine_def.update_fn                     = NULL;
     ast->machine_def.global_value                  = NULL;
     ast->machine_def.global_state                  = NULL;
     ast->machine_def.update_error_block            = NULL;
-    ast->machine_def.initial_tag                   = 0;
     ast->machine_def.state_type                    = NECRO_STATE_STATEFUL;
     ast->machine_def.is_recursive                  = false;
     ast->machine_def.is_pushed                     = false;
@@ -427,7 +425,7 @@ NecroMachineAST* necro_create_machine_initial_machine_def(NecroMachineProgram* p
     ast->necro_machine_type                        = NULL;
     if (value_type->type == NECRO_MACHINE_TYPE_FN)
     {
-        ast->machine_def.fn_type    = value_type;
+        ast->machine_def.fn_type = value_type;
         if (value_type->fn_type.return_type->type == NECRO_MACHINE_TYPE_PTR)
             ast->machine_def.value_type = value_type->fn_type.return_type->ptr_type.element_type;
         else

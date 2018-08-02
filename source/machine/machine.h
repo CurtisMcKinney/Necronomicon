@@ -167,15 +167,14 @@ typedef struct NecroMachineBlock
 
 typedef struct NecroMachineDef
 {
+    // Vars
     NecroVar                bind_name;
     NecroVar                machine_name;
     NecroVar                state_name;
 
     struct NecroMachineAST* mk_fn;
-    struct NecroMachineAST* init_fn;
     struct NecroMachineAST* update_fn;
     NecroMachineBlock*      update_error_block;
-    uint32_t                initial_tag;
     NECRO_STATE_TYPE        state_type;
     struct NecroMachineAST* outer;
     NecroType*              necro_value_type;
@@ -203,7 +202,6 @@ typedef struct NecroMachineDef
 
     // data ids for GC
     size_t                  data_id;
-    size_t                  value_data_id;
 } NecroMachineDef;
 
 typedef enum
@@ -494,10 +492,12 @@ typedef struct NecroMachineProgram
     NecroMachineCopyTable copy_table;
 
     // Closures
-    NecroCon              closure_con;
-    NecroMachineType*     closure_type;
-    NecroApplyDefVector   apply_defs;
-    NecroClosureConVector closure_cons;
+    NecroCon               closure_con;
+    NecroMachineType*      closure_type;
+    NecroClosureConVector  closure_cons;
+    NecroClosureTypeVector closure_types;
+    NecroApplyDefVector    apply_defs;
+    NecroApplyFnVector     apply_fns;
 } NecroMachineProgram;
 
 ///////////////////////////////////////////////////////

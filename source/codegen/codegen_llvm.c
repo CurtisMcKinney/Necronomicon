@@ -693,6 +693,17 @@ LLVMValueRef necro_codegen_memcpy(NecroCodeGenLLVM* codegen, NecroMachineAST* as
     return memcpy_val;
 }
 
+LLVMValueRef necro_codegen_alloca(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
+{
+    assert(codegen != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_MACHINE_ALLOCA);
+    LLVMValueRef result = LLVMBuildArrayAlloca(codegen->builder, codegen->poly_ptr_type, LLVMConstInt(LLVMInt32TypeInContext(codegen->context), ast->alloca.num_slots, false), "alloca");
+    necro_codegen_symtable_get(codegen, ast->alloca.result->value.reg_name)->type  = LLVMTypeOf(result);
+    necro_codegen_symtable_get(codegen, ast->alloca.result->value.reg_name)->value = result;
+    return result;
+}
+
 LLVMValueRef necro_codegen_block_statement(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
 {
     assert(codegen != NULL);
@@ -700,6 +711,7 @@ LLVMValueRef necro_codegen_block_statement(NecroCodeGenLLVM* codegen, NecroMachi
     switch (ast->type)
     {
     case NECRO_MACHINE_NALLOC:   return necro_codegen_nalloc(codegen, ast);
+    case NECRO_MACHINE_ALLOCA:   return necro_codegen_alloca(codegen, ast);
     case NECRO_MACHINE_VALUE:    return necro_codegen_value(codegen, ast);
     case NECRO_MACHINE_STORE:    return necro_codegen_store(codegen, ast);
     case NECRO_MACHINE_LOAD:     return necro_codegen_load(codegen, ast);

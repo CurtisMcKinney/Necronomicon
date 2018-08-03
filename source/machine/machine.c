@@ -57,7 +57,7 @@ NECRO_WORD_SIZE necro_get_word_size()
         assert(false);
 }
 
-NecroMachineProgram necro_create_initial_machine_program(NecroIntern* intern, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types, NecroInfer* infer, NecroApplyDefVector apply_defs)
+NecroMachineProgram necro_create_initial_machine_program(NecroIntern* intern, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types, NecroInfer* infer, NecroClosureDefVector closure_defs)
 {
     NecroMachineProgram program =
     {
@@ -80,7 +80,7 @@ NecroMachineProgram necro_create_initial_machine_program(NecroIntern* intern, Ne
         .closure_con     = necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_Closure")),
         .closure_cons    = necro_create_closure_con_vector(),
         .closure_types   = necro_create_closure_type_vector(),
-        .apply_defs      = apply_defs,
+        .closure_defs    = closure_defs,
         .apply_fns       = necro_create_apply_fn_vector(),
     };
     program.necro_uint_type  = necro_create_word_sized_uint_type(&program);
@@ -101,7 +101,7 @@ void necro_destroy_machine_program(NecroMachineProgram* program)
     necro_destroy_necro_machine_ast_vector(&program->machine_defs);
     necro_destroy_machine_copy_table(&program->copy_table);
     necro_destroy_closure_con_vector(&program->closure_cons);
-    necro_destroy_apply_def_vector(&program->apply_defs);
+    necro_destroy_closure_def_vector(&program->closure_defs);
     necro_destroy_closure_type_vector(&program->closure_types);
     necro_destroy_apply_fn_vector(&program->apply_fns);
 }
@@ -543,6 +543,11 @@ void necro_core_to_machine_2_app(NecroMachineProgram* program, NecroCoreAST_Expr
         fn_value = necro_get_closure_con(program, arg_count, true);
     else if (function->var.id.id == program->prim_types->apply_fn.id.id)
         fn_value = necro_get_apply_fn(program, arg_count);
+    else if (function->var.id.id == program->stack_array_con.id.id)
+    {
+        necro_core_to_machine_2_stack_array(program, core_ast, outer);
+        return;
+    }
     bool              is_persistent = false;
     NecroMachineAST*  fn_def        = NULL;
     NecroMachineType* fn_type       = NULL;
@@ -787,6 +792,8 @@ NecroMachineAST* necro_core_to_machine_3_app(NecroMachineProgram* program, Necro
         fn_value = necro_get_closure_con(program, arg_count, outer->machine_def.state_type == NECRO_STATE_CONSTANT);
     else if (function->var.id.id == program->prim_types->apply_fn.id.id)
         fn_value = necro_get_apply_fn(program, arg_count);
+    else if (function->var.id.id == program->stack_array_con.id.id)
+        return necro_core_to_machine_3_stack_array(program, core_ast, outer, arg_count);
     NecroMachineAST* machine_def = NULL;
     bool             is_stateful = false;
     assert(fn_value != NULL);
@@ -868,31 +875,32 @@ NecroMachineAST* necro_core_to_machine_3_var(NecroMachineProgram* program, Necro
     // It's a function pointer
     else if (info->arity > 0)
     {
-        if (info->necro_machine_ast->type == NECRO_MACHINE_DEF)
+        NecroMachineAST* fn_value = NULL;
+        if (info->is_constructor)
         {
-            NecroMachineAST* fn_value  = info->necro_machine_ast->machine_def.update_fn->fn_def.fn_value;
-            NecroMachineAST* fn_ptr    = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
-            *fn_ptr                    = *fn_value;
-            fn_ptr->necro_machine_type = necro_create_machine_ptr_type(&program->arena, fn_value->necro_machine_type);
-            return fn_ptr;
+            // Can never be const because _apply is always stateful
+            fn_value = info->necro_machine_ast;
+        }
+        else if (info->necro_machine_ast->type == NECRO_MACHINE_DEF)
+        {
+            fn_value = info->necro_machine_ast->machine_def.update_fn->fn_def.fn_value;
         }
         else if (info->necro_machine_ast->type == NECRO_MACHINE_FN_DEF)
         {
-            NecroMachineAST* fn_value  = info->necro_machine_ast->fn_def.fn_value;
-            NecroMachineAST* fn_ptr    = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
-            *fn_ptr                    = *fn_value;
-            fn_ptr->necro_machine_type = necro_create_machine_ptr_type(&program->arena, fn_value->necro_machine_type);
-            return fn_ptr;
+            fn_value = info->necro_machine_ast->fn_def.fn_value;
         }
         else if (info->necro_machine_ast->type == NECRO_MACHINE_VALUE)
         {
-            return info->necro_machine_ast;
+            fn_value = info->necro_machine_ast;
         }
         else
         {
             assert(false);
-            return NULL;
         }
+        NecroMachineAST* fn_ptr    = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
+        *fn_ptr                    = *fn_value;
+        fn_ptr->necro_machine_type = necro_create_machine_ptr_type(&program->arena, fn_value->necro_machine_type);
+        return fn_ptr;
     }
     // It's a global
     else if (info->necro_machine_ast->type == NECRO_MACHINE_VALUE && info->necro_machine_ast->value.value_type == NECRO_MACHINE_VALUE_GLOBAL)
@@ -1104,9 +1112,9 @@ void necro_construct_main(NecroMachineProgram* program)
 ///////////////////////////////////////////////////////
 // Core to Machine
 ///////////////////////////////////////////////////////
-NecroMachineProgram necro_core_to_machine(NecroCoreAST* core_ast, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types, NecroInfer* infer, NecroApplyDefVector apply_defs)
+NecroMachineProgram necro_core_to_machine(NecroCoreAST* core_ast, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types, NecroInfer* infer, NecroClosureDefVector closure_defs)
 {
-    NecroMachineProgram program = necro_create_initial_machine_program(symtable->intern, symtable, scoped_symtable, prim_types, infer, apply_defs);
+    NecroMachineProgram program = necro_create_initial_machine_program(symtable->intern, symtable, scoped_symtable, prim_types, infer, closure_defs);
 
     // Pass 1
     NecroCoreAST_Expression* top_level_list = core_ast->root;

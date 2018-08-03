@@ -251,6 +251,8 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     NecroMachineAST* necro_closure_struct = necro_create_machine_struct_def(program, closure_var,  (NecroMachineType*[]) { program->necro_int_type, program->necro_int_type, program->necro_poly_ptr_type }, 3);
     program->closure_type                 = necro_closure_struct->necro_machine_type;
 
+    program->stack_array_con = necro_get_data_con_from_symbol(program->prim_types, necro_intern_string(program->intern, "_StackArray"));
+
     // Rational
     NecroVar          rational_var  = necro_con_to_var(program->prim_types->rational_type);
     NecroVar          rational_con  = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "Rational").id));
@@ -265,6 +267,7 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     NecroVar unit_var = necro_con_to_var(program->prim_types->unit_type);
     NecroVar unit_con = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, unit_var.symbol.id));
     necro_create_prim_type(program, unit_var, unit_con, (NecroMachineType*[]) { program->necro_uint_type }, 1);
+    necro_symtable_get(program->symtable, unit_con.id)->arity = 0;
 
     // []
     NecroVar         list_var    = necro_con_to_var(program->prim_types->list_type);
@@ -273,6 +276,8 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     NecroMachineAST* list_struct = necro_create_machine_struct_def(program, list_var, (NecroMachineType*[]) { program->necro_uint_type, program->necro_poly_ptr_type, program->necro_poly_ptr_type }, 3);
     necro_create_prim_con(program, list_struct->necro_machine_type, cons_con, (NecroMachineType*[]) { program->necro_poly_ptr_type, necro_create_machine_ptr_type(&program->arena, list_struct->necro_machine_type) }, 2, 2, 0);
     necro_create_prim_con(program, list_struct->necro_machine_type, nil_con, NULL, 0, 0, 1);
+    necro_symtable_get(program->symtable, nil_con.id)->arity = 0;
+    necro_symtable_get(program->symtable, cons_con.id)->arity = 2;
 
     //--------------------
     // Prim Functions

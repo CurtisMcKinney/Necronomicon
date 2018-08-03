@@ -295,7 +295,6 @@ NecroMachineAST* necro_create_machine_store_into_slot(NecroMachineProgram* progr
     assert(dest_ptr_ast->necro_machine_type->ptr_type.element_type->type == NECRO_MACHINE_TYPE_STRUCT);
     assert(dest_ptr_ast->necro_machine_type->ptr_type.element_type->struct_type.num_members > dest_slot);
     necro_type_check(program, source_value_ast->necro_machine_type, dest_ptr_ast->necro_machine_type->ptr_type.element_type->struct_type.members[dest_slot]);
-
     NecroMachineAST* ast               = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
     ast->type                       = NECRO_MACHINE_STORE;
     ast->store.store_type           = NECRO_STORE_SLOT;
@@ -472,7 +471,7 @@ NecroMachineAST* necro_create_machine_gep(NecroMachineProgram* program, NecroMac
         }
         else if (necro_machine_type->type == NECRO_MACHINE_TYPE_PTR)
         {
-            assert(a_indices[i] == 0); // NOTE: The machine abstract machine never directly works with contiguous arrays of data. Thus all pointers should only ever be indexed from 0!
+            // assert(a_indices[i] == 0); // NOTE: The machine abstract machine never directly works with contiguous arrays of data. Thus all pointers should only ever be indexed from 0!
             assert(i == 0);            // NOTE: Can only deref the first type!
             necro_machine_type = necro_machine_type->ptr_type.element_type;
         }
@@ -630,6 +629,23 @@ NecroMachineAST* necro_build_nalloc(NecroMachineProgram* program, NecroMachineAS
     assert(ast->nalloc.result_reg->type == NECRO_MACHINE_VALUE);
     assert(ast->nalloc.result_reg->value.value_type == NECRO_MACHINE_VALUE_REG);
     return ast->nalloc.result_reg;
+}
+
+NecroMachineAST* necro_build_alloca(NecroMachineProgram* program, NecroMachineAST* fn_def, size_t num_slots)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACHINE_FN_DEF);
+    assert(num_slots > 0);
+    NecroMachineAST* ast       = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
+    ast->type                  = NECRO_MACHINE_ALLOCA;
+    ast->alloca.num_slots      = num_slots;
+    ast->alloca.result         = necro_create_reg(program, necro_create_machine_ptr_type(&program->arena, program->necro_poly_ptr_type), "data_ptr");
+    ast->necro_machine_type    = necro_create_machine_ptr_type(&program->arena, program->necro_poly_ptr_type);
+    necro_add_statement_to_block(program, fn_def->fn_def._curr_block, ast);
+    assert(ast->alloca.result->type == NECRO_MACHINE_VALUE);
+    assert(ast->alloca.result->value.value_type == NECRO_MACHINE_VALUE_REG);
+    return ast->alloca.result;
 }
 
 void necro_build_store_into_ptr(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_value, NecroMachineAST* dest_ptr)

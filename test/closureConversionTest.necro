@@ -1,3 +1,5 @@
+data Both a b = Both a b
+
 addOne :: Int -> Int
 addOne x = x + x
 
@@ -40,6 +42,29 @@ doubleBoom :: FBomb ((Int -> Int) -> Int -> Int) -> Int -> Int
 doubleBoom f =
     case f of
         FBomb b -> b addOne
+
+polyBoom :: Num a => FBomb (a -> a) -> a -> a
+polyBoom f x =
+    case f of
+        FBomb b -> b x
+
+plentyOfArgs :: Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> ()
+plentyOfArgs a b c d e f g h i j k l = ()
+
+plentyOfCurries :: Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> ()
+plentyOfCurries = plentyOfArgs
+
+plentyOfApplies :: ()
+plentyOfApplies = plentyOfCurries 0 1.0 2 3.0 4 5.0 6 7.0 8 9.0 10 11.0
+
+curriedJustice :: Int -> Both Float Int
+curriedJustice = Both 9.9
+
+pointwiseJustice :: Both Float Int
+pointwiseJustice = curriedJustice (getMouseX world)
+
+constantJustice :: Both (Both Float Int) (Both Float Int)
+constantJustice = Both (curriedJustice 10) (curriedJustice 10)
 
 main :: Int
 main = 0

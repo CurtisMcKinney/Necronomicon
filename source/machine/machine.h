@@ -318,6 +318,12 @@ typedef struct NecroMachineNAlloc
     struct NecroMachineAST* result_reg;
 } NecroMachineNAlloc;
 
+typedef struct NecroMachineAlloca
+{
+    size_t                  num_slots;
+    struct NecroMachineAST* result;
+} NecroMachineAlloca;
+
 typedef enum
 {
     NECRO_MACHINE_BINOP_IADD,
@@ -400,6 +406,7 @@ typedef enum
     NECRO_MACHINE_CMP,
     NECRO_MACHINE_PHI,
     NECRO_MACHINE_MEMCPY,
+    NECRO_MACHINE_ALLOCA,
 
     // Defs
     NECRO_MACHINE_STRUCT_DEF,
@@ -423,6 +430,7 @@ typedef struct NecroMachineAST
         NecroMachineGetElementPtr gep;
         NecroMachineBitCast       bit_cast;
         NecroMachineNAlloc        nalloc;
+        NecroMachineAlloca        alloca;
         NecroMachineBinOp         binop;
         NecroMachineCmp           cmp;
         NecroMachinePhi           phi;
@@ -490,20 +498,22 @@ typedef struct NecroMachineProgram
     NecroMachineAST*      program_main;
     NecroMachineRuntime   runtime;
     NecroMachineCopyTable copy_table;
+    NecroCon              stack_array_con;
 
     // Closures
     NecroCon               closure_con;
     NecroMachineType*      closure_type;
     NecroClosureConVector  closure_cons;
     NecroClosureTypeVector closure_types;
-    NecroApplyDefVector    apply_defs;
+    NecroClosureDefVector  closure_defs;
+    NecroMachineType*      apply_state_type;
     NecroApplyFnVector     apply_fns;
 } NecroMachineProgram;
 
 ///////////////////////////////////////////////////////
 // Core to Machine API
 ///////////////////////////////////////////////////////
-NecroMachineProgram necro_core_to_machine(NecroCoreAST* core_ast, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types, NecroInfer* infer, NecroApplyDefVector apply_defs);
+NecroMachineProgram necro_core_to_machine(NecroCoreAST* core_ast, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types, NecroInfer* infer, NecroClosureDefVector closure_defs);
 void                necro_destroy_machine_program(NecroMachineProgram* program);
 void                necro_core_to_machine_1_go(NecroMachineProgram* program, NecroCoreAST_Expression* core_ast, NecroMachineAST* outer);
 void                necro_core_to_machine_2_go(NecroMachineProgram* program, NecroCoreAST_Expression* core_ast, NecroMachineAST* outer);

@@ -84,7 +84,9 @@ void necro_add_closure_def(NecroClosureConversion* cc, size_t fn_arity, size_t n
     // No duplicates
     for (size_t i = 0; i < cc->closure_defs.length; ++i)
     {
-        if (cc->closure_defs.data[i].fn_arity == fn_arity && cc->closure_defs.data[i].num_pargs == num_pargs)
+        // if (cc->closure_defs.data[i].fn_arity == fn_arity && cc->closure_defs.data[i].num_pargs == num_pargs)
+        // Unique by fn_arity only for now...
+        if (cc->closure_defs.data[i].fn_arity == fn_arity)
             return;
     }
     // Insert

@@ -298,10 +298,11 @@ typedef struct NecroMachineConstantDef
 
 typedef struct NecroMachineGetElementPtr
 {
-    struct NecroMachineAST* source_value;
-    uint32_t*            indices;
-    size_t               num_indices;
-    struct NecroMachineAST* dest_value;
+    struct NecroMachineAST*  source_value;
+    struct NecroMachineAST** indices;
+    // uint32_t*            indices;
+    size_t                   num_indices;
+    struct NecroMachineAST*  dest_value;
 } NecroMachineGetElementPtr;
 
 typedef struct NecroMachineBitCast
@@ -383,6 +384,14 @@ typedef struct NecroMachineMemCpy
     struct NecroMachineAST* num_bytes;
 } NecroMachineMemCpy;
 
+typedef struct NecroMachineSelect
+{
+    struct NecroMachineAST* cmp_value;
+    struct NecroMachineAST* left;
+    struct NecroMachineAST* right;
+    struct NecroMachineAST* result;
+} NecroMachineSelect;
+
 /*
     Notes:
         * Machines retain state
@@ -407,6 +416,7 @@ typedef enum
     NECRO_MACHINE_PHI,
     NECRO_MACHINE_MEMCPY,
     NECRO_MACHINE_ALLOCA,
+    NECRO_MACHINE_SELECT,
 
     // Defs
     NECRO_MACHINE_STRUCT_DEF,
@@ -435,6 +445,7 @@ typedef struct NecroMachineAST
         NecroMachineCmp           cmp;
         NecroMachinePhi           phi;
         NecroMachineMemCpy        memcpy;
+        NecroMachineSelect        select;
     };
     NECRO_MACHINE_AST_TYPE type;
     NecroMachineType*      necro_machine_type;

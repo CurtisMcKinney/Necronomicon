@@ -50,6 +50,7 @@ void             necro_move_to_block(NecroMachineProgram* program, NecroMachineA
 // Memory
 NecroMachineAST* necro_build_nalloc(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineType* type, uint32_t a_slots_used, bool is_constant);
 NecroMachineAST* necro_build_gep(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_value, uint32_t* a_indices, size_t num_indices, const char* dest_name);
+NecroMachineAST* necro_build_non_const_gep(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_value, NecroMachineAST** a_indices, size_t num_indices, const char* dest_name, NecroMachineType* result_type);
 NecroMachineAST* necro_build_bit_cast(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* value, NecroMachineType* to_type);
 void             necro_build_memcpy(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* dest, NecroMachineAST* source, NecroMachineAST* num_bytes);
 NecroMachineAST* necro_build_alloca(NecroMachineProgram* program, NecroMachineAST* fn_def, size_t num_slots);
@@ -77,6 +78,7 @@ void             necro_build_break(NecroMachineProgram* program, NecroMachineAST
 void             necro_build_cond_break(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* cond, NecroMachineAST* true_block, NecroMachineAST* false_block);
 NecroMachineAST* necro_build_cmp(NecroMachineProgram* program, NecroMachineAST* fn_def, NECRO_MACHINE_CMP_TYPE cmp_type, NecroMachineAST* left, NecroMachineAST* right);
 NecroMachineAST* necro_build_phi(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineType* type, NecroMachinePhiList* values);
+NecroMachineAST* necro_build_select(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* cmp_value, NecroMachineAST* left, NecroMachineAST* right);
 void             necro_add_incoming_to_phi(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* phi, NecroMachineAST* block, NecroMachineAST* value);
 void             necro_add_case_to_switch(NecroMachineProgram* program, struct NecroSwitchTerminator* switch_term, NecroMachineAST* block, size_t value);
 void             necro_build_unreachable(NecroMachineProgram* program, NecroMachineAST* fn_def);

@@ -96,90 +96,139 @@ NecroMachineAST* necro_get_closure_con(NecroMachineProgram* program, size_t clos
 
 void necro_declare_apply_fn(NecroMachineProgram* program)
 {
-    // assert(apply_arity > 0);
     assert(program != NULL);
-    // size_t adjusted_apply_arity = apply_arity - 1;
-    // size_t arity_with_state     = apply_arity + 1;
-    // while (program->apply_fns.length < adjusted_apply_arity + 1)
-    // {
-    //     NecroMachineAST* null_ast = NULL;
-    //     necro_push_apply_fn_vector(&program->apply_fns, &null_ast);
-    // }
-    // if (program->apply_fns.data[adjusted_apply_arity] != NULL)
-    //     return;
     assert(program->closure_type != NULL);
     assert(program->closure_type->type == NECRO_MACHINE_TYPE_STRUCT);
     NecroArenaSnapshot snapshot         = necro_get_arena_snapshot(&program->snapshot_arena);
 
     //--------------------
     // apply non-state update_fn type
-    NecroMachineType*  closure_ptr_type = necro_create_machine_ptr_type(&program->arena, program->closure_type);
-    // NecroMachineType** elems_non_state  = necro_snapshot_arena_alloc(&program->snapshot_arena, apply_arity * sizeof(NecroMachineType*));
-    // NecroMachineType** elems_non_state  = necro_snapshot_arena_alloc(&program->snapshot_arena, 3 * sizeof(NecroMachineType*));
-    // elems_non_state[0]                  = closure_ptr_type;
-    // elems_non_state[1]                  = program->necro_int_type;
-    // elems_non_state[2]                  = necro_create_machine_ptr_type(&program->arena, program->necro_poly_ptr_type);
-    // for (size_t arg = 1; arg < apply_arity; ++arg)
-    // {
-    //     elems_non_state[arg] = program->necro_poly_ptr_type;
-    // }
-    // NecroMachineType* non_state_apply_fn_type = necro_create_machine_fn_type(&program->arena, program->necro_poly_ptr_type, elems_non_state, apply_arity);
-    // NecroMachineType* non_state_apply_fn_type = necro_create_machine_fn_type(&program->arena, program->necro_poly_ptr_type, elems_non_state, 2);
+    NecroMachineType* closure_ptr_type        = necro_create_machine_ptr_type(&program->arena, program->closure_type);
     NecroMachineType* non_state_apply_fn_type = necro_create_machine_fn_type(&program->arena, program->necro_poly_ptr_type, (NecroMachineType*[]) { closure_ptr_type, program->necro_int_type, necro_create_machine_ptr_type(&program->arena, program->necro_poly_ptr_type) }, 3);
 
     //--------------------
     // apply MachineDef
-    // const char*       num_string                 = itoa(adjusted_apply_arity, necro_snapshot_arena_alloc(&program->snapshot_arena, 10), 10);
-    // const char*       apply_machine_name         = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "apply", num_string });
-    // NecroVar          apply_machine_var          = necro_gen_var(program, NULL, apply_machine_name, NECRO_NAME_UNIQUE);
-    // NecroVar          apply_machine_var          = necro_gen_var(program, NULL, "_apply_", NECRO_NAME_UNIQUE);
     NecroVar          apply_var                  = necro_con_to_var(program->prim_types->apply_fn);
     NecroMachineAST*  apply_machine_def          = necro_create_machine_initial_machine_def(program, apply_var, NULL, non_state_apply_fn_type, NULL);
     apply_machine_def->machine_def.num_arg_names = 2;
-    // apply_machine_def->machine_def.num_arg_names = apply_arity;
 
     //--------------------
     // apply MachineDef state
-    // TODO: Only have ONE Apply state type...
-    // const char*       apply_machine_state_name = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_ApplyMachineState", num_string });
     NecroVar          apply_machine_state_var  = necro_gen_var(program, NULL, "_ApplyMachineState", NECRO_NAME_UNIQUE);
-    NecroMachineType* apply_machine_def_type   = necro_create_machine_struct_type(&program->arena, apply_machine_state_var, (NecroMachineType*[]) { program->necro_uint_type, program->necro_poly_ptr_type }, 2);
+    NecroMachineType* apply_machine_def_type   = necro_create_machine_struct_type(&program->arena, apply_machine_state_var, (NecroMachineType*[]) { program->necro_int_type, program->necro_poly_ptr_type, program->necro_poly_ptr_type }, 3);
+    apply_machine_def_type->struct_type.members[2] = necro_create_machine_ptr_type(&program->arena, apply_machine_def_type);
     apply_machine_def->necro_machine_type      = apply_machine_def_type;
     apply_machine_def->machine_def.data_id     = NECRO_APPLY_DATA_ID;
     apply_machine_def->machine_def.state_type  = NECRO_STATE_STATEFUL;
 
     //--------------------
     // apply update_fn
-    // const char*        apply_fn_name    = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_apply_update_fn", num_string });
-    NecroVar           apply_fn_var     = necro_gen_var(program, NULL, "_apply_update_fn", NECRO_NAME_UNIQUE);
-    NecroMachineType** elems            = necro_snapshot_arena_alloc(&program->snapshot_arena, 3 * sizeof(NecroMachineType*));
-    elems[0]                            = necro_create_machine_ptr_type(&program->arena, apply_machine_def->necro_machine_type);
-    elems[1]                            = closure_ptr_type;
-    elems[2]                            = program->necro_int_type;
-    elems[3]                            = necro_create_machine_ptr_type(&program->arena, program->necro_poly_ptr_type);
-    // for (size_t arg = 2; arg < arity_with_state; ++arg)
-    // {
-    //     elems[arg] = program->necro_poly_ptr_type;
-    // }
+    NecroVar           apply_fn_var = necro_gen_var(program, NULL, "_apply_update_fn", NECRO_NAME_UNIQUE);
+    NecroMachineType** elems        = necro_snapshot_arena_alloc(&program->snapshot_arena, 3 * sizeof(NecroMachineType*));
+    elems[0]                        = necro_create_machine_ptr_type(&program->arena, apply_machine_def->necro_machine_type);
+    elems[1]                        = closure_ptr_type;
+    elems[2]                        = program->necro_int_type;
+    elems[3]                        = necro_create_machine_ptr_type(&program->arena, program->necro_poly_ptr_type);
     NecroMachineType* apply_fn_type = necro_create_machine_fn_type(&program->arena, program->necro_poly_ptr_type, elems, 4);
     NecroMachineAST*  apply_fn_body = necro_create_machine_block(program, "entry", NULL);
     NecroMachineAST*  apply_fn_def  = necro_create_machine_fn(program, apply_fn_var, apply_fn_body, apply_fn_type);
     program->functions.length--; // HACK: Don't want the update function in the functions list, instead it belongs to the machine
     apply_fn_def->fn_def.state_type = NECRO_STATE_STATEFUL;
+    NecroMachineAST*  loop_block    = necro_append_block(program, apply_fn_def, "loop");
+    NecroMachineAST*  less_than     = necro_append_block(program, apply_fn_def, "less_than");
+    NecroMachineAST*  saturated     = necro_append_block(program, apply_fn_def, "saturated");
+    NecroMachineAST*  error         = necro_append_block(program, apply_fn_def, "error");
+    NecroMachineAST*  end           = necro_append_block(program, apply_fn_def, "end");
+    apply_fn_def->fn_def._err_block = error;
+    // NecroMachineAST*  greater_than  = necro_append_block(program, apply_fn_def, "greater_than");
 
-    // NecroMachineAST*  data_ptr   = necro_build_nalloc(program, mk_fn_def, actual_type->necro_machine_type, closure_arity, c == 1);
-    // TODO: Body of fn
-    // Iterate through closure defs
-    // When hotswapping simply plan on redefining all apply functions if the closure def vector has changed to reflect all the new possibilities
+    //--------------------
+    // Entry Block
+    necro_build_break(program, apply_fn_def, loop_block);
 
+    //--------------------
+    // Loop Block
+    necro_move_to_block(program, apply_fn_def, loop_block);
+    NecroMachineAST*  fn_arity         = necro_build_load_from_slot(program, apply_fn_def, necro_create_param_reg(program, apply_fn_def, 1), 0, "fn_arity");
+    NecroMachineAST*  num_pargs        = necro_build_load_from_slot(program, apply_fn_def, necro_create_param_reg(program, apply_fn_def, 1), 1, "num_pargs");
+    NecroMachineAST*  total_args       = necro_build_binop(program, apply_fn_def, necro_create_param_reg(program, apply_fn_def, 2), num_pargs, NECRO_MACHINE_BINOP_IADD);
+    NecroMachineAST*  is_less_than     = necro_build_cmp(program, apply_fn_def, NECRO_MACHINE_CMP_LT, total_args, fn_arity);
+    necro_build_cond_break(program, apply_fn_def, is_less_than, less_than, saturated);
+
+    //--------------------
+    // Less Than Block
+    necro_move_to_block(program, apply_fn_def, less_than);
+    necro_build_break(program, apply_fn_def, loop_block);
+
+    //--------------------
+    // Saturated Block
+    necro_move_to_block(program, apply_fn_def, saturated);
+    NecroMachineAST**       closure_arity_blocks = necro_snapshot_arena_alloc(&program->snapshot_arena, program->closure_defs.length * sizeof(NecroMachineAST*));
+    NecroMachineSwitchList* fn_arity_switch_list = NULL;
+    assert(program->closure_defs.length > 0);
+    for (size_t i = 0; i < program->closure_defs.length; ++i)
+    {
+        char        itoa_buf1[10];
+        size_t      closure_def_fn_arity = program->closure_defs.data[i].fn_arity;
+        const char* block_name           = necro_concat_strings(&program->snapshot_arena, 3, (const char*[]) { "closure_fn_arity_", itoa(closure_def_fn_arity, itoa_buf1, 10), "_" });
+        closure_arity_blocks[i]          = necro_append_block(program, apply_fn_def, block_name);
+        fn_arity_switch_list             = necro_cons_machine_switch_list(&program->arena, (NecroMachineSwitchData) { .block = closure_arity_blocks[i], .value = closure_def_fn_arity }, fn_arity_switch_list);
+    }
+    NecroMachineAST* u_fn_arity      = necro_build_bit_cast(program, apply_fn_def, fn_arity, program->necro_uint_type);
+    NecroMachineAST* closure_fn_poly = necro_build_load_from_slot(program, apply_fn_def, necro_create_param_reg(program, apply_fn_def, 1), 2, "closure_fn_poly");
+    necro_build_switch(program, apply_fn_def, u_fn_arity, fn_arity_switch_list, error);
+
+    //--------------------
+    // Closure Arity Blocks
+    for (size_t i = 0; i < program->closure_defs.length; ++i)
+    {
+        NecroArenaSnapshot closure_snapshot      = necro_get_arena_snapshot(&program->snapshot_arena);
+        necro_move_to_block(program, apply_fn_def, closure_arity_blocks[i]);
+        size_t             closure_def_fn_arity  = program->closure_defs.data[i].fn_arity;
+        necro_get_closure_con(program, closure_def_fn_arity + 3, false);
+        NecroMachineAST*   closure_ptr           = necro_build_bit_cast(program, apply_fn_def, necro_create_param_reg(program, apply_fn_def, 1), necro_create_machine_ptr_type(&program->arena, program->closure_types.data[closure_def_fn_arity + 3]));
+        NecroMachineType** closure_fn_type_elems = necro_snapshot_arena_alloc(&program->snapshot_arena, closure_def_fn_arity * sizeof(NecroMachineType*));
+        for (size_t i = 0; i < closure_def_fn_arity; ++i)
+            closure_fn_type_elems[i] = program->necro_poly_ptr_type;
+        NecroMachineType*  closure_fn_type       = necro_create_machine_fn_type(&program->arena, program->necro_poly_ptr_type, closure_fn_type_elems, closure_def_fn_arity);
+        NecroMachineAST*   closure_fn            = necro_build_bit_cast(program, apply_fn_def, closure_fn_poly, necro_create_machine_ptr_type(&program->arena, closure_fn_type));
+        NecroMachineAST**  closure_fn_args       = necro_snapshot_arena_alloc(&program->snapshot_arena, closure_def_fn_arity * sizeof(NecroMachineAST*));
+        NecroMachineAST*   parg_ptr              = necro_build_gep(program, apply_fn_def, closure_ptr, (uint32_t[]) { 0, 3 }, 2, "parg_ptr");
+        NecroMachineAST*   aarg_ptr              = necro_create_param_reg(program, apply_fn_def, 3);
+        for (size_t i = 0; i < closure_def_fn_arity; ++i)
+        {
+            NecroMachineAST* is_parg = necro_build_cmp(program, apply_fn_def, NECRO_MACHINE_CMP_LE, num_pargs, necro_create_i32_necro_machine_value(program, i));
+            NecroMachineAST* is_aarg = necro_build_binop(program, apply_fn_def, necro_create_uint1_necro_machine_value(program, 1), is_parg, NECRO_MACHINE_BINOP_ISUB);
+            NecroMachineAST* arg_ptr = necro_build_select(program, apply_fn_def, is_parg, parg_ptr, aarg_ptr);
+            closure_fn_args[i]       = necro_build_load_from_ptr(program, apply_fn_def, arg_ptr, "arg");
+            // TODO: Zero extend, also type check gep that types are uint32!
+            parg_ptr                 = necro_build_non_const_gep(program, apply_fn_def, parg_ptr, (NecroMachineAST*[]) { is_parg }, 1, "parg_ptr", parg_ptr->necro_machine_type);
+            aarg_ptr                 = necro_build_non_const_gep(program, apply_fn_def, aarg_ptr, (NecroMachineAST*[]) { is_aarg }, 1, "aarg_ptr", aarg_ptr->necro_machine_type);
+        }
+        closure_fn->necro_machine_type    = closure_fn->necro_machine_type->ptr_type.element_type;
+        NecroMachineAST*  closure_result  = necro_build_call(program, apply_fn_def, closure_fn, closure_fn_args, closure_def_fn_arity, "closure_result");
+        closure_fn->necro_machine_type    = necro_create_machine_ptr_type(&program->arena, closure_fn_type);
+        NecroMachineAST*  is_greater_than = necro_build_cmp(program, apply_fn_def, NECRO_MACHINE_CMP_GT, total_args, fn_arity);
+        // Tail call here instead?
+        necro_build_cond_break(program, apply_fn_def, is_greater_than, loop_block, end);
+        necro_rewind_arena(&program->snapshot_arena, closure_snapshot);
+    }
+
+    //--------------------
+    // Error Block
+    necro_move_to_block(program, apply_fn_def, error);
+    necro_build_call(program, apply_fn_def, necro_symtable_get(program->symtable, program->runtime._necro_error_exit.id)->necro_machine_ast->fn_def.fn_value, (NecroMachineAST*[]) { necro_create_uint32_necro_machine_value(program, 2) }, 1, "");
+    necro_build_unreachable(program, apply_fn_def);
+
+    //--------------------
+    // End Block
+    necro_move_to_block(program, apply_fn_def, end);
     necro_build_return(program, apply_fn_def, necro_create_null_necro_machine_value(program, program->necro_poly_ptr_type));
-    // program->apply_fns.data[adjusted_apply_arity] = apply_machine_def;
-    // program->apply_fns.data[0] = apply_machine_def;
+
+    //--------------------
+    // Finish
     apply_machine_def->machine_def.update_fn = apply_fn_def;
     necro_push_apply_fn_vector(&program->apply_fns, &apply_machine_def);
-
-    // TODO: Maybe need mk_fn? Maybe not?
-
     necro_rewind_arena(&program->snapshot_arena, snapshot);
 }
 
@@ -216,25 +265,11 @@ NecroMachineAST* necro_get_apply_fn(NecroMachineProgram* program, size_t apply_a
     // return program->apply_fns.data[adjusted_apply_arity];
 }
 
-// // TODO: Figure out exactly how to do this
-// void necro_core_to_machine_1_stack_array(NecroMachineProgram* program, NecroCoreAST_Expression* ast, NecroMachineAST* outer)
-// {
-//     assert(program != NULL);
-//     assert(ast != NULL);
-//     assert(ast->expr_type == NECRO_CORE_EXPR_APP);
-//     // assert(ast->app.exprA->expr_type == NECRO_CORE_EXPR_VAR);
-//     // assert(ast->app.exprA->var.id.id == program->prim_types->_stack_array_type.id.id);
-//     // assert(ast->app.exprB->expr_type == NECRO_CORE_EXPR_APP);
-//     necro_core_to_machine_1_go(program, ast->app.exprB, outer);
-// }
-
 void necro_core_to_machine_2_stack_array(NecroMachineProgram* program, NecroCoreAST_Expression* ast, NecroMachineAST* outer)
 {
     assert(program != NULL);
     assert(ast != NULL);
     assert(ast->expr_type == NECRO_CORE_EXPR_APP);
-    // assert(ast->app.exprA->expr_type == NECRO_CORE_EXPR_VAR);
-    // assert(ast->app.exprA->var.id.id == program->prim_types->_stack_array_type.id.id);
     necro_core_to_machine_2_go(program, ast->app.exprB, outer);
 }
 
@@ -243,12 +278,7 @@ NecroMachineAST* necro_core_to_machine_3_stack_array(NecroMachineProgram* progra
     assert(program != NULL);
     assert(ast != NULL);
     assert(ast->expr_type == NECRO_CORE_EXPR_APP);
-    // assert(ast->app.exprA->expr_type == NECRO_CORE_EXPR_VAR);
-    // assert(ast->app.exprA->var.id.id == program->prim_types->_stack_array_type.id.id);
-    // // NecroMachineAST* data_ptr = necro_build_alloca(program, )
     NecroMachineAST*   data_ptr  = necro_build_alloca(program, outer->machine_def.update_fn, arg_count);
-    // NecroArenaSnapshot snapshot  = necro_get_arena_snapshot(&program->snapshot_arena);
-    // NecroMachineAST**  args      = necro_paged_arena_alloc(&program->arena, arg_count * sizeof(NecroMachineAST*));
     size_t             arg_index = arg_count - 1;
     while (ast->expr_type == NECRO_CORE_EXPR_APP)
     {

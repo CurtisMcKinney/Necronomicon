@@ -454,8 +454,10 @@ LLVMValueRef necro_codegen_bitcast(NecroCodeGenLLVM* codegen, NecroMachineAST* a
     LLVMTypeRef  to_type    = necro_machine_type_to_llvm_type(codegen, ast->bit_cast.to_value->necro_machine_type);
     LLVMValueRef to_value   = NULL;
 
-    // TODO: Test if it's a pointer or an unboxed type!!!
+    const char* from_type_string = LLVMPrintTypeToString(value_type);
+    const char* to_type_string   = LLVMPrintTypeToString(to_type);
 
+    // TODO: Test if it's a pointer or an unboxed type!!!
     // Same Type
     if (value_type == to_type)
     {
@@ -488,8 +490,6 @@ LLVMValueRef necro_codegen_bitcast(NecroCodeGenLLVM* codegen, NecroMachineAST* a
     {
         to_value = LLVMBuildBitCast(codegen->builder, value, to_type, "bit_cast");
     }
-    const char* from_type_string = LLVMPrintTypeToString(value_type);
-    const char* to_type_string   = LLVMPrintTypeToString(to_type);
 
     necro_codegen_symtable_get(codegen, ast->bit_cast.to_value->value.reg_name)->type  = to_type;
     necro_codegen_symtable_get(codegen, ast->bit_cast.to_value->value.reg_name)->value = to_value;
@@ -507,7 +507,8 @@ LLVMValueRef necro_codegen_gep(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
     LLVMValueRef* indices = necro_paged_arena_alloc(&codegen->arena, ast->gep.num_indices * sizeof(LLVMValueRef));
     for (size_t i = 0; i < ast->gep.num_indices; ++i)
     {
-        indices[i] = LLVMConstInt(LLVMInt32TypeInContext(codegen->context), ast->gep.indices[i], false);
+        // indices[i] = LLVMConstInt(LLVMInt32TypeInContext(codegen->context), ast->gep.indices[i], false);
+        indices[i] = necro_codegen_value(codegen, ast->gep.indices[i]);
     }
     LLVMValueRef value = LLVMBuildGEP(codegen->builder, ptr, indices, ast->gep.num_indices, name);
     necro_codegen_symtable_get(codegen, ast->gep.dest_value->value.reg_name)->type  = necro_machine_type_to_llvm_type(codegen, ast->gep.dest_value->necro_machine_type);
@@ -704,6 +705,17 @@ LLVMValueRef necro_codegen_alloca(NecroCodeGenLLVM* codegen, NecroMachineAST* as
     return result;
 }
 
+LLVMValueRef necro_codegen_select(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
+{
+    assert(codegen != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_MACHINE_SELECT);
+    LLVMValueRef result = LLVMBuildSelect(codegen->builder, necro_codegen_value(codegen, ast->select.cmp_value), necro_codegen_value(codegen, ast->select.left), necro_codegen_value(codegen, ast->select.right), "sel_result");
+    necro_codegen_symtable_get(codegen, ast->select.result->value.reg_name)->type  = LLVMTypeOf(result);
+    necro_codegen_symtable_get(codegen, ast->select.result->value.reg_name)->value = result;
+    return result;
+}
+
 LLVMValueRef necro_codegen_block_statement(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
 {
     assert(codegen != NULL);
@@ -722,6 +734,7 @@ LLVMValueRef necro_codegen_block_statement(NecroCodeGenLLVM* codegen, NecroMachi
     case NECRO_MACHINE_CMP:      return necro_codegen_cmp(codegen, ast);
     case NECRO_MACHINE_PHI:      return necro_codegen_phi(codegen, ast);
     case NECRO_MACHINE_MEMCPY:   return necro_codegen_memcpy(codegen, ast);
+    case NECRO_MACHINE_SELECT:   return necro_codegen_select(codegen, ast);
     default:                     assert(false); return NULL;
     }
 }

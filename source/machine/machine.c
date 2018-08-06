@@ -543,11 +543,11 @@ void necro_core_to_machine_2_app(NecroMachineProgram* program, NecroCoreAST_Expr
         fn_value = necro_get_closure_con(program, arg_count, true);
     else if (function->var.id.id == program->prim_types->apply_fn.id.id)
         fn_value = necro_get_apply_fn(program, arg_count);
-    else if (function->var.id.id == program->stack_array_con.id.id)
-    {
-        necro_core_to_machine_2_stack_array(program, core_ast, outer);
-        return;
-    }
+    // else if (function->var.id.id == program->stack_array_con.id.id)
+    // {
+    //     necro_core_to_machine_2_stack_array(program, core_ast, outer);
+    //     return;
+    // }
     bool              is_persistent = false;
     NecroMachineAST*  fn_def        = NULL;
     NecroMachineType* fn_type       = NULL;
@@ -792,8 +792,8 @@ NecroMachineAST* necro_core_to_machine_3_app(NecroMachineProgram* program, Necro
         fn_value = necro_get_closure_con(program, arg_count, outer->machine_def.state_type == NECRO_STATE_CONSTANT);
     else if (function->var.id.id == program->prim_types->apply_fn.id.id)
         fn_value = necro_get_apply_fn(program, arg_count);
-    else if (function->var.id.id == program->stack_array_con.id.id)
-        return necro_core_to_machine_3_stack_array(program, core_ast, outer, arg_count);
+    // else if (function->var.id.id == program->stack_array_con.id.id)
+    //     return necro_core_to_machine_3_stack_array(program, core_ast, outer, arg_count);
     NecroMachineAST* machine_def = NULL;
     bool             is_stateful = false;
     assert(fn_value != NULL);

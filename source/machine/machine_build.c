@@ -518,45 +518,6 @@ NecroMachineAST* necro_create_bit_cast(NecroMachineProgram* program, NecroMachin
     return ast;
 }
 
-NecroMachineAST* necro_create_binop(NecroMachineProgram* program, NecroMachineAST* left, NecroMachineAST* right, NECRO_MACHINE_BINOP_TYPE op_type)
-{
-    NecroMachineAST* ast = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
-    ast->type         = NECRO_MACHINE_BINOP;
-    assert(left->type == NECRO_MACHINE_VALUE);
-    assert(right->type == NECRO_MACHINE_VALUE);
-    necro_type_check(program, left->necro_machine_type, right->necro_machine_type);
-    // typecheck
-    switch (op_type)
-    {
-    case NECRO_MACHINE_BINOP_IADD: /* FALL THROUGH */
-    case NECRO_MACHINE_BINOP_ISUB: /* FALL THROUGH */
-    case NECRO_MACHINE_BINOP_IMUL: /* FALL THROUGH */
-    case NECRO_MACHINE_BINOP_IDIV: /* FALL THROUGH */
-    {
-        // necro_type_check(program, left->necro_machine_type, program->necro_int_type);
-        // necro_type_check(program, right->necro_machine_type, program->necro_int_type);
-        ast->necro_machine_type = program->necro_int_type;
-        ast->binop.result       = necro_create_reg(program, ast->necro_machine_type, "iop");
-        break;
-    }
-    case NECRO_MACHINE_BINOP_FADD: /* FALL THROUGH */
-    case NECRO_MACHINE_BINOP_FSUB: /* FALL THROUGH */
-    case NECRO_MACHINE_BINOP_FMUL: /* FALL THROUGH */
-    case NECRO_MACHINE_BINOP_FDIV: /* FALL THROUGH */
-    {
-        // necro_type_check(program, left->necro_machine_type, program->necro_float_type);
-        // necro_type_check(program, right->necro_machine_type, program->necro_float_type);
-        ast->necro_machine_type = program->necro_float_type;
-        ast->binop.result       = necro_create_reg(program, ast->necro_machine_type, "fop");
-        break;
-    }
-    }
-    ast->binop.binop_type = op_type;
-    ast->binop.left       = left;
-    ast->binop.right      = right;
-    return ast;
-}
-
 ///////////////////////////////////////////////////////
 // Build
 ///////////////////////////////////////////////////////
@@ -738,7 +699,48 @@ NecroMachineAST* necro_build_binop(NecroMachineProgram* program, NecroMachineAST
     assert(program != NULL);
     assert(fn_def != NULL);
     assert(fn_def->type == NECRO_MACHINE_FN_DEF);
-    NecroMachineAST* ast = necro_create_binop(program, left, right, op_type);
+
+    NecroMachineAST* ast = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
+    ast->type            = NECRO_MACHINE_BINOP;
+    assert(left->type == NECRO_MACHINE_VALUE);
+    assert(right->type == NECRO_MACHINE_VALUE);
+    necro_type_check(program, left->necro_machine_type, right->necro_machine_type);
+    // typecheck
+    switch (op_type)
+    {
+    case NECRO_MACHINE_BINOP_IADD: /* FALL THROUGH */
+    case NECRO_MACHINE_BINOP_ISUB: /* FALL THROUGH */
+    case NECRO_MACHINE_BINOP_IMUL: /* FALL THROUGH */
+    case NECRO_MACHINE_BINOP_IDIV: /* FALL THROUGH */
+    case NECRO_MACHINE_BINOP_OR:
+    case NECRO_MACHINE_BINOP_SHL:
+    case NECRO_MACHINE_BINOP_SHR:
+    {
+        // Type check that it's an int type
+        // necro_type_check(program, left->necro_machine_type, program->necro_int_type);
+        // necro_type_check(program, right->necro_machine_type, program->necro_int_type);
+        ast->necro_machine_type = program->necro_int_type;
+        ast->binop.result       = necro_create_reg(program, ast->necro_machine_type, "iop");
+        break;
+    }
+    case NECRO_MACHINE_BINOP_FADD: /* FALL THROUGH */
+    case NECRO_MACHINE_BINOP_FSUB: /* FALL THROUGH */
+    case NECRO_MACHINE_BINOP_FMUL: /* FALL THROUGH */
+    case NECRO_MACHINE_BINOP_FDIV: /* FALL THROUGH */
+    {
+        // Type check that it's a float type
+        // necro_type_check(program, left->necro_machine_type, program->necro_float_type);
+        // necro_type_check(program, right->necro_machine_type, program->necro_float_type);
+        ast->necro_machine_type = program->necro_float_type;
+        ast->binop.result       = necro_create_reg(program, ast->necro_machine_type, "fop");
+        break;
+    }
+    }
+    ast->binop.binop_type = op_type;
+    ast->binop.left       = left;
+    ast->binop.right      = right;
+    // return ast;
+
     necro_add_statement_to_block(program, fn_def->fn_def._curr_block, ast);
     assert(ast->binop.result->type == NECRO_MACHINE_VALUE);
     assert(ast->binop.result->value.value_type == NECRO_MACHINE_VALUE_REG);

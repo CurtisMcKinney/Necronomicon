@@ -50,22 +50,13 @@ patTest = beat
 
 -- Using "Call by Name" semantics
 patTest :: Pattern Audio
-patTest := seq
+patTest = seq
     0 z _ x
     _ 3 y z
     where
-        x := 0.5 * 2
-        y := seq 0 _ 1 _
-        z := 666 * 323
-
-patTest :: Pattern Audio
-patTest = beat
-    0 z _ x
-    _ 3 y z
-    with
-        x <- 0.5 * 2
-        y <- beat 0 _ 1 _
-        z <- 666 * 323
+        x = 0.5 * 2
+        y ~= seq 0 _ 1 _
+        z = 666 * 323
 
 patTest :: Pattern Audio
 patTest = do
@@ -74,3 +65,72 @@ patTest = do
     z <- 666 * 323
     beat 0 z _ x
          _ 3 y z
+
+-- Applicative functor form / syntax with actual sharing between slots
+patTest :: Pattern Audio
+patTest = beat
+    0 z _ x
+    _ 3 y z
+    demand
+        x =  0.5 * 2
+        y <- 666 * 323
+        z =  beat 0 _ 1 _
+
+patTest :: Pattern Audio
+patTest <=
+    0 z _ x
+    _ 3 y z |
+        x <= 0.5 * 2
+        y <= 0 _ 1 _
+        z <= 666 * 323
+        w <= m n o _ p q
+
+-- True lazy via types with pat syntax desugaring
+-- lazy types, but where memo chains are broken at frame end to prevent space leaks and incorrect evaluation.
+-- Like Idris, lazy and force are implicitly inserted by compiler to make things easier
+beatTest :: Music Audio
+beatTest =
+    beat
+        0 z _ x
+        _ 3 y z
+    where
+        x = 0.5 * 2
+        y = beat 0 _ 1 _
+        z = 666 * 323
+
+poly :: (a -> b) -> Music a -> b
+beat :: [Lazy (Music a)] -> Music a
+
+synth :: Audio -> Audio
+synth freq = osc
+    where
+        osc = 440 * mouseX + freq * 0 `fby` osc |> sinOsc
+
+coolBeat :: Music Audio
+coolBeat = d2f minor <| beat
+    x y (y+y) z
+    _ x [5 z] x
+    _ 0 [1 2] y
+    where
+        x = beat 0 _ [1 2] -1
+        y = 3
+        z = sample mouseX / 100
+
+main :: Audio
+main = poly synth coolBeat
+
+desugarBeat :: Music Audio
+desugarBeat = beat x y x 1 where
+    x = beat 1 2 3 4
+    y = beat 4 3 2 1
+
+-- Thunks overwrite themselves just like in Haskell? This would prevent space leaks for fbys?!
+desugarBeat :: Music Audio
+desugarBeat = force (desugarBeatGo x y) where
+    x = 1 `fby` 2 `fby` 3 `fby` 4 `fby` x
+    y = 4 `fby` 3 `fby` 2 `fby` 1 `fby` y
+    desugarBeatGo x y =
+        let x' = force x in value x' `fby`
+            (\x y -> let y' = force y in value y' `fby`
+                         (\x y -> let x' = force x in value x' `fby`
+                                      (\x y -> 1 fby desugarBeatGo x y) x' y) x y') x' y

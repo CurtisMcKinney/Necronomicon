@@ -245,6 +245,17 @@ LLVMValueRef necro_maybe_cast(NecroCodeGenLLVM* codegen, LLVMValueRef value, LLV
 ///////////////////////////////////////////////////////
 // Codegen
 ///////////////////////////////////////////////////////
+void necro_codegen_declare_function(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
+{
+    // Fn begin
+    LLVMTypeRef  fn_type  = necro_machine_type_to_llvm_type(codegen, ast->necro_machine_type);
+    LLVMValueRef fn_value = LLVMAddFunction(codegen->mod, necro_intern_get_string(codegen->intern, ast->fn_def.name.symbol), fn_type);
+    necro_codegen_symtable_get(codegen, ast->fn_def.name)->type  = fn_type;
+    necro_codegen_symtable_get(codegen, ast->fn_def.name)->value = fn_value;
+    necro_codegen_symtable_get(codegen, ast->fn_def.fn_value->value.reg_name)->type  = fn_type;
+    necro_codegen_symtable_get(codegen, ast->fn_def.fn_value->value.reg_name)->value = fn_value;
+}
+
 void necro_codegen_function(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
 {
     assert(codegen != NULL);
@@ -254,12 +265,14 @@ void necro_codegen_function(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
     assert(ast->fn_def.name.id.id != 0);
 
     // Fn begin
-    LLVMTypeRef  fn_type  = necro_machine_type_to_llvm_type(codegen, ast->necro_machine_type);
-    LLVMValueRef fn_value = LLVMAddFunction(codegen->mod, necro_intern_get_string(codegen->intern, ast->fn_def.name.symbol), fn_type);
-    necro_codegen_symtable_get(codegen, ast->fn_def.name)->type  = fn_type;
-    necro_codegen_symtable_get(codegen, ast->fn_def.name)->value = fn_value;
-    necro_codegen_symtable_get(codegen, ast->fn_def.fn_value->value.reg_name)->type  = fn_type;
-    necro_codegen_symtable_get(codegen, ast->fn_def.fn_value->value.reg_name)->value = fn_value;
+    LLVMTypeRef  fn_type  = necro_codegen_symtable_get(codegen, ast->fn_def.name)->type;
+    LLVMValueRef fn_value = necro_codegen_symtable_get(codegen, ast->fn_def.name)->value;
+    // LLVMTypeRef  fn_type  = necro_machine_type_to_llvm_type(codegen, ast->necro_machine_type);
+    // LLVMValueRef fn_value = LLVMAddFunction(codegen->mod, necro_intern_get_string(codegen->intern, ast->fn_def.name.symbol), fn_type);
+    // necro_codegen_symtable_get(codegen, ast->fn_def.name)->type  = fn_type;
+    // necro_codegen_symtable_get(codegen, ast->fn_def.name)->value = fn_value;
+    // necro_codegen_symtable_get(codegen, ast->fn_def.fn_value->value.reg_name)->type  = fn_type;
+    // necro_codegen_symtable_get(codegen, ast->fn_def.fn_value->value.reg_name)->value = fn_value;
 
     if (ast->fn_def.fn_type == NECRO_FN_RUNTIME)
     {
@@ -527,10 +540,13 @@ LLVMValueRef necro_codegen_binop(NecroCodeGenLLVM* codegen, NecroMachineAST* ast
     LLVMValueRef right = necro_codegen_value(codegen, ast->binop.right);
     switch (ast->binop.binop_type)
     {
-    case NECRO_MACHINE_BINOP_IADD: value = LLVMBuildAdd(codegen->builder, left, right, name); break;
-    case NECRO_MACHINE_BINOP_ISUB: value = LLVMBuildSub(codegen->builder, left, right, name); break;
-    case NECRO_MACHINE_BINOP_IMUL: value = LLVMBuildMul(codegen->builder, left, right, name); break;
+    case NECRO_MACHINE_BINOP_IADD: value = LLVMBuildAdd(codegen->builder, left, right, name);  break;
+    case NECRO_MACHINE_BINOP_ISUB: value = LLVMBuildSub(codegen->builder, left, right, name);  break;
+    case NECRO_MACHINE_BINOP_IMUL: value = LLVMBuildMul(codegen->builder, left, right, name);  break;
     // case NECRO_MACHINE_BINOP_IDIV: value = LLVMBuildMul(codegen->builder, left, right, name); break;
+    case NECRO_MACHINE_BINOP_OR:   value = LLVMBuildOr(codegen->builder, left, right, name);   break;
+    case NECRO_MACHINE_BINOP_SHL:  value = LLVMBuildShl(codegen->builder, left, right, name);  break;
+    case NECRO_MACHINE_BINOP_SHR:  value = LLVMBuildLShr(codegen->builder, left, right, name); break;
     case NECRO_MACHINE_BINOP_FADD: value = LLVMBuildFAdd(codegen->builder, left, right, name); break;
     case NECRO_MACHINE_BINOP_FSUB: value = LLVMBuildFSub(codegen->builder, left, right, name); break;
     case NECRO_MACHINE_BINOP_FMUL: value = LLVMBuildFMul(codegen->builder, left, right, name); break;
@@ -630,7 +646,10 @@ LLVMValueRef necro_codegen_call(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
         params[i] = necro_maybe_cast(codegen, necro_codegen_value(codegen, ast->call.parameters[i]), param_types[i]);
     }
     LLVMValueRef result = LLVMBuildCall(codegen->builder, fn_value, params, num_params, result_name);
-    LLVMSetInstructionCallConv(result, LLVMGetFunctionCallConv(fn_value));
+    if (LLVMIsAFunction(fn_value))
+        LLVMSetInstructionCallConv(result, LLVMGetFunctionCallConv(fn_value));
+    else
+        LLVMSetInstructionCallConv(result, LLVMFastCallConv);
     if (!is_void)
     {
         necro_codegen_symtable_get(codegen, ast->call.result_reg->value.reg_name)->type  = LLVMTypeOf(result);
@@ -786,6 +805,24 @@ NECRO_RETURN_CODE necro_codegen_llvm(NecroCodeGenLLVM* codegen, NecroMachineProg
     {
         necro_codegen_global(codegen, program->globals.data[i]);
     }
+    // Declare functions
+    for (size_t i = 0; i < program->functions.length; ++i)
+    {
+        necro_codegen_declare_function(codegen, program->functions.data[i]);
+    }
+    // Declare machine mk_fns
+    for (size_t i = 0; i < program->machine_defs.length; ++i)
+    {
+        if (program->machine_defs.data[i]->machine_def.mk_fn != NULL)
+            necro_codegen_declare_function(codegen, program->machine_defs.data[i]->machine_def.mk_fn);
+    }
+    // Declare machine update_fns
+    for (size_t i = 0; i < program->machine_defs.length; ++i)
+    {
+        necro_codegen_declare_function(codegen, program->machine_defs.data[i]->machine_def.update_fn);
+    }
+    // Declare main_fn
+    necro_codegen_declare_function(codegen, program->necro_main);
     // codegen functions
     for (size_t i = 0; i < program->functions.length; ++i)
     {

@@ -1,5 +1,8 @@
 data Both a b = Both a b
 
+main :: Int
+main = 0
+
 addOne :: Int -> Int
 addOne x = x + x
 
@@ -21,11 +24,26 @@ addTwo'' = addTwo
 useAddTwo' :: Int -> Int -> Int
 useAddTwo' = addTwo'
 
+useAddTwo'2 :: Int
+useAddTwo'2 = addTwo' 100 200
+
 useUseAddTwo' :: Int
 useUseAddTwo' = useAddTwo' 100 200
 
 useAddTwo'' :: Int
 useAddTwo'' = addTwo'' 33 44
+
+addThree :: Int -> Int -> Int -> Int
+addThree x y z = x + y + z
+
+useAddThree :: Int -> Int -> Int -> Int
+useAddThree = addThree
+
+useAddThree' :: Int -> Int -> Int -> Int
+useAddThree' x = addThree x
+
+useAddThree'' :: Int -> Int -> Int -> Int
+useAddThree'' x y = addThree x y
 
 data FBomb a = FBomb a
 -- data FBomb = FBomb (Int -> Int)
@@ -54,8 +72,14 @@ plentyOfArgs a b c d e f g h i j k l = ()
 plentyOfCurries :: Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> ()
 plentyOfCurries = plentyOfArgs
 
+plentyOfCurries' :: Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> ()
+plentyOfCurries' = plentyOfArgs 0
+
 plentyOfApplies :: ()
 plentyOfApplies = plentyOfCurries 0 1.0 2 3.0 4 5.0 6 7.0 8 9.0 10 11.0
+
+plentyOfApplies' :: ()
+plentyOfApplies' = plentyOfCurries' 1.0 2 3.0 4 5.0 6 7.0 8 9.0 10 11.0
 
 curriedJustice :: Int -> Both Float Int
 curriedJustice = Both 9.9
@@ -66,27 +90,24 @@ pointwiseJustice = curriedJustice (getMouseX world)
 constantJustice :: Both (Both Float Int) (Both Float Int)
 constantJustice = Both (curriedJustice 10) (curriedJustice 10)
 
-main :: Int
-main = 0
-
--- pipesPlease :: Int -> Int
--- pipesPlease x = x |> addOne
+-- -- pipesPlease :: Int -> Int
+-- -- pipesPlease x = x |> addOne
+-- --
+-- -- pipesPlease2 :: Int -> Int
+-- -- pipesPlease2 x = x |> addTwo 1
 --
--- pipesPlease2 :: Int -> Int
--- pipesPlease2 x = x |> addTwo 1
-
--- payloadOnly :: ((Int -> Int) -> Int -> Int) -> Int -> Int
--- payloadOnly f = f addOne
---
--- -- TODO: Correct arity with type classes!
--- -- addTwo :: Int -> Int -> Int
--- -- addTwo = (+)
---
--- -- Closure info table:
--- -- { farity, num_pargs }
--- -- farity:    function arity
--- -- num_pargs: number of partially applied args
--- -- (implied)
--- -- carity:    closure arity
---
--- -- TODO: check how recursion affects things
+-- -- payloadOnly :: ((Int -> Int) -> Int -> Int) -> Int -> Int
+-- -- payloadOnly f = f addOne
+-- --
+-- -- -- TODO: Correct arity with type classes!
+-- -- -- addTwo :: Int -> Int -> Int
+-- -- -- addTwo = (+)
+-- --
+-- -- -- Closure info table:
+-- -- -- { farity, num_pargs }
+-- -- -- farity:    function arity
+-- -- -- num_pargs: number of partially applied args
+-- -- -- (implied)
+-- -- -- carity:    closure arity
+-- --
+-- -- -- TODO: check how recursion affects things

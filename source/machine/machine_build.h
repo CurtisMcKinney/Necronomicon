@@ -67,7 +67,8 @@ NecroMachineAST* necro_build_load_from_ptr(NecroMachineProgram* program, NecroMa
 NecroMachineAST* necro_build_load_from_slot(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_ptr_ast, size_t source_slot, const char* dest_name_header);
 
 // Functions
-NecroMachineAST* necro_build_call(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* fn_to_call_value, NecroMachineAST** a_parameters, size_t num_parameters, const char* dest_name_header);
+
+NecroMachineAST* necro_build_call(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* fn_value_ast, NecroMachineAST** a_parameters, size_t num_parameters, NECRO_MACHINE_CALL_TYPE call_type, const char* dest_name);
 NecroMachineAST* necro_build_binop(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* left, NecroMachineAST* right, NECRO_MACHINE_BINOP_TYPE op_type);
 NecroMachineAST* necro_build_maybe_cast(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* ast, NecroMachineType* type_to_match);
 

@@ -297,14 +297,14 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     // getMouseX
     NecroVar          get_mouse_x_var   = necro_con_to_var(program->prim_types->mouse_x_fn);
     NecroMachineAST*  get_mouse_x_fn    = necro_prim_fn_begin(program, get_mouse_x_var, program->necro_int_type, (NecroMachineType*[]) { necro_create_machine_ptr_type(&program->arena, world_type->necro_machine_type) }, 1);
-    NecroMachineAST*  mouse_x_value_val = necro_build_call(program, get_mouse_x_fn, _necro_mouse_x_fn->fn_def.fn_value, NULL, 0, "xval");
+    NecroMachineAST*  mouse_x_value_val = necro_build_call(program, get_mouse_x_fn, _necro_mouse_x_fn->fn_def.fn_value, NULL, 0, NECRO_C_CALL, "xval");
     necro_prim_fn_end(program, get_mouse_x_fn, mouse_x_value_val);
     get_mouse_x_fn->fn_def.state_type = NECRO_STATE_POINTWISE;
 
     // getMouseY
     NecroVar          get_mouse_y_var   = necro_con_to_var(program->prim_types->mouse_y_fn);
     NecroMachineAST*  get_mouse_y_fn    = necro_prim_fn_begin(program, get_mouse_y_var, program->necro_int_type, (NecroMachineType*[]) { necro_create_machine_ptr_type(&program->arena, world_type->necro_machine_type) }, 1);
-    NecroMachineAST*  mouse_y_value_val = necro_build_call(program, get_mouse_y_fn, _necro_mouse_y_fn->fn_def.fn_value, NULL, 0, "yval");
+    NecroMachineAST*  mouse_y_value_val = necro_build_call(program, get_mouse_y_fn, _necro_mouse_y_fn->fn_def.fn_value, NULL, 0, NECRO_C_CALL, "yval");
     necro_prim_fn_end(program, get_mouse_y_fn, mouse_y_value_val);
     get_mouse_y_fn->fn_def.state_type = NECRO_STATE_POINTWISE;
 

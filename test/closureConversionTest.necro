@@ -1,113 +1,168 @@
-data Both a b = Both a b
-
-main :: Int
-main = 0
-
-addOne :: Int -> Int
-addOne x = x + x
-
-addOne' :: Int -> Int
-addOne' = addOne
-
-useAddOne' :: Int
-useAddOne' = addOne' 666
-
-addTwo :: Int -> Int -> Int
-addTwo x y = x + y
-
-addTwo' :: Int -> Int -> Int
-addTwo' x = addTwo x
-
-addTwo'' :: Int -> Int -> Int
-addTwo'' = addTwo
-
-useAddTwo' :: Int -> Int -> Int
-useAddTwo' = addTwo'
-
-useAddTwo'2 :: Int
-useAddTwo'2 = addTwo' 100 200
-
-useUseAddTwo' :: Int
-useUseAddTwo' = useAddTwo' 100 200
-
-useAddTwo'' :: Int
-useAddTwo'' = addTwo'' 33 44
-
-addThree :: Int -> Int -> Int -> Int
-addThree x y z = x + y + z
-
-useAddThree :: Int -> Int -> Int -> Int
-useAddThree = addThree
-
-useAddThree' :: Int -> Int -> Int -> Int
-useAddThree' x = addThree x
-
-useAddThree'' :: Int -> Int -> Int -> Int
-useAddThree'' x y = addThree x y
-
-data FBomb a = FBomb a
--- data FBomb = FBomb (Int -> Int)
-
-setTheBomb :: FBomb (Int -> Int)
-setTheBomb = FBomb (addTwo 1)
-
-bombGoesBoom :: FBomb (Int -> Int) -> Int
-bombGoesBoom f =
-    case f of
-        FBomb b -> b 1
-
-doubleBoom :: FBomb ((Int -> Int) -> Int -> Int) -> Int -> Int
-doubleBoom f =
-    case f of
-        FBomb b -> b addOne
-
-polyBoom :: Num a => FBomb (a -> a) -> a -> a
-polyBoom f x =
-    case f of
-        FBomb b -> b x
-
-plentyOfArgs :: Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> ()
-plentyOfArgs a b c d e f g h i j k l = ()
-
-plentyOfCurries :: Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> ()
-plentyOfCurries = plentyOfArgs
-
-plentyOfCurries' :: Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> ()
-plentyOfCurries' = plentyOfArgs 0
-
-plentyOfApplies :: ()
-plentyOfApplies = plentyOfCurries 0 1.0 2 3.0 4 5.0 6 7.0 8 9.0 10 11.0
-
-plentyOfApplies' :: ()
-plentyOfApplies' = plentyOfCurries' 1.0 2 3.0 4 5.0 6 7.0 8 9.0 10 11.0
-
-curriedJustice :: Int -> Both Float Int
-curriedJustice = Both 9.9
-
-pointwiseJustice :: Both Float Int
-pointwiseJustice = curriedJustice (getMouseX world)
-
-constantJustice :: Both (Both Float Int) (Both Float Int)
-constantJustice = Both (curriedJustice 10) (curriedJustice 10)
-
+-- data Both a b = Both a b
+-- data List a   = Cons a (List a) | Nil
+--
+-- main :: Int
+-- -- main = bombGoesBoom (FBomb addOne)
+-- -- main = polyBoom (FBomb addOne) 665
+-- main = doit countList coolList
+--
+-- countList :: List a -> Int
+-- countList xs =
+--     case xs of
+--         Cons _ xs' -> 1 + countList xs'
+--         Nil        -> 0
+-- coolList :: List ()
+-- coolList = Cons () (Cons () Nil)
+--
+-- doit :: (a -> b) -> a -> b
+-- doit f x = f x
+--
+-- addOne :: Int -> Int
+-- addOne x = x + 1
+--
+-- addOne' :: Int -> Int
+-- addOne' = addOne
+--
+-- useAddOne' :: Int
+-- useAddOne' = addOne' 666
+--
+-- addTwo :: Int -> Int -> Int
+-- addTwo x y = x + y
+--
+-- addTwo' :: Int -> Int -> Int
+-- addTwo' x = addTwo x
+--
+-- addTwo'' :: Int -> Int -> Int
+-- addTwo'' = addTwo
+--
+-- useAddTwo' :: Int -> Int -> Int
+-- useAddTwo' = addTwo'
+--
+-- useAddTwo'2 :: Int
+-- useAddTwo'2 = addTwo' 100 200
+--
+-- useUseAddTwo' :: Int
+-- useUseAddTwo' = useAddTwo' 100 200
+--
+-- useAddTwo'' :: Int
+-- useAddTwo'' = addTwo'' 33 44
+--
+-- addThree :: Int -> Int -> Int -> Int
+-- addThree x y z = x + y + z
+--
+-- useAddThree :: Int -> Int -> Int -> Int
+-- useAddThree = addThree
+--
+-- useAddThree' :: Int -> Int -> Int -> Int
+-- useAddThree' x = addThree x
+--
+-- useAddThree'' :: Int -> Int -> Int
+-- useAddThree'' x = addThree x 100
+--
+-- data FBomb a = FBomb a
+-- -- -- data FBomb = FBomb (Int -> Int)
+--
+-- setTheBomb :: FBomb (Int -> Int)
+-- setTheBomb = FBomb (addTwo 1)
+--
+-- bombGoesBoom :: FBomb (Int -> Int) -> Int
+-- bombGoesBoom f =
+--     case f of
+--         FBomb b -> b 1
+--
+-- doubleBoom :: FBomb ((Int -> Int) -> Int -> Int) -> Int -> Int
+-- doubleBoom f =
+--     case f of
+--         FBomb b -> b addOne
+--
+-- -- TODO: proper type class dictionary handling
+-- -- polyBoom :: Num a => FBomb (a -> a) -> a -> a
+-- polyBoom :: FBomb (a -> a) -> a -> a
+-- polyBoom f x =
+--     case f of
+--         FBomb b -> b x
+--
+-- plentyOfArgs :: Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> ()
+-- plentyOfArgs a b c d e f g h i j k l = ()
+--
+-- plentyOfCurries :: Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> ()
+-- plentyOfCurries = plentyOfArgs
+--
+-- plentyOfCurries' :: Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> ()
+-- plentyOfCurries' = plentyOfArgs 0
+--
+-- -- plentyOfApplies :: ()
+-- -- plentyOfApplies = plentyOfCurries 0 1.0 2 3.0 4 5.0 6 7.0 8 9.0 10 11.0
+--
+-- -- plentyOfApplies' :: ()
+-- -- plentyOfApplies' = plentyOfCurries' 1.0 2 3.0 4 5.0 6 7.0 8 9.0 10 11.0
+--
+-- curriedJustice :: Int -> Both Float Int
+-- curriedJustice = Both 9.9
+--
+-- pointwiseJustice :: Both Float Int
+-- pointwiseJustice = curriedJustice (getMouseX world)
+--
+-- constantJustice :: Both (Both Float Int) (Both Float Int)
+-- constantJustice = Both (curriedJustice 10) (curriedJustice 10)
+--
+-- -- TODO: Prim operators need to be compiled into NecroMachine AST
 -- -- pipesPlease :: Int -> Int
 -- -- pipesPlease x = x |> addOne
 -- --
 -- -- pipesPlease2 :: Int -> Int
 -- -- pipesPlease2 x = x |> addTwo 1
 --
--- -- payloadOnly :: ((Int -> Int) -> Int -> Int) -> Int -> Int
--- -- payloadOnly f = f addOne
--- --
+-- payloadOnly :: ((Int -> Int) -> Int -> Int) -> Int -> Int
+-- payloadOnly f = f addOne
+--
 -- -- -- TODO: Correct arity with type classes!
 -- -- -- addTwo :: Int -> Int -> Int
 -- -- -- addTwo = (+)
--- --
--- -- -- Closure info table:
--- -- -- { farity, num_pargs }
--- -- -- farity:    function arity
--- -- -- num_pargs: number of partially applied args
--- -- -- (implied)
--- -- -- carity:    closure arity
--- --
--- -- -- TODO: check how recursion affects things
+
+-- -- TODO: Handle statefulness correctly
+-- -- TODO: Handle GC correctly
+-- main :: Int
+-- main = nestedF addSome
+-- addSome :: Int -> Int
+-- addSome x = x + 100
+-- nestedF :: (Int -> Int) -> Int
+-- nestedF f = nestedF' f + nestedF' f
+-- nestedF' :: (Int -> Int) -> Int
+-- nestedF' f = f 1
+--     -- feed ~ 0 = f feed
+
+-----------------------------------------
+-- Many Closure Calculations test
+-----------------------------------------
+-- A million non-stateful closure applications 100ticks / sec ~ 45% cpu (~ 20% cpu optimized)
+addSome :: Int -> Int
+addSome x = x + 1
+integrate :: (Int -> Int) -> Int
+integrate f = f 0 -- where
+    -- feed ~ 0 = f feed
+tenTimes :: (Int -> Int) -> Int
+tenTimes n =
+    integrate n + integrate n + integrate n + integrate n + integrate n +
+    integrate n + integrate n + integrate n + integrate n + integrate n
+oneHundredTimes :: (Int -> Int) -> Int
+oneHundredTimes n =
+    tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
+    tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
+oneThousandTimes :: (Int -> Int) -> Int
+oneThousandTimes n =
+    oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
+    oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
+tenThousandTimes :: (Int -> Int) -> Int
+tenThousandTimes n =
+    oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
+    oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
+oneHundredThousandTimes :: (Int -> Int) -> Int
+oneHundredThousandTimes n =
+    tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n +
+    tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
+main :: Int
+main =
+    oneHundredThousandTimes addSome + oneHundredThousandTimes addSome + oneHundredThousandTimes addSome + oneHundredThousandTimes addSome  + oneHundredThousandTimes addSome +
+    oneHundredThousandTimes addSome + oneHundredThousandTimes addSome + oneHundredThousandTimes addSome + oneHundredThousandTimes addSome  + oneHundredThousandTimes addSome
+

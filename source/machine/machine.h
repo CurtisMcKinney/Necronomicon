@@ -233,6 +233,7 @@ typedef struct NecroMachineCall
     struct NecroMachineAST** parameters;
     size_t                   num_parameters;
     struct NecroMachineAST*  result_reg;
+    NECRO_MACHINE_CALL_TYPE  call_type;
 } NecroMachineCall;
 
 typedef struct NecroMachineLoad

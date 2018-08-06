@@ -615,7 +615,7 @@ NecroMachineAST* necro_core_to_machine_3_case(NecroMachineProgram* program, Necr
         NecroMachineAST* next_block = term_case_block->block.next_block;
         err_block = (next_block == NULL) ? necro_append_block(program, outer->machine_def.update_fn, "error") : necro_insert_block_before(program, outer->machine_def.update_fn, "error", next_block);
         necro_move_to_block(program, outer->machine_def.update_fn, err_block);
-        necro_build_call(program, outer->machine_def.update_fn, necro_symtable_get(program->symtable, program->runtime._necro_error_exit.id)->necro_machine_ast->fn_def.fn_value, (NecroMachineAST*[]) { necro_create_uint32_necro_machine_value(program, 1) }, 1, "");
+        necro_build_call(program, outer->machine_def.update_fn, necro_symtable_get(program->symtable, program->runtime._necro_error_exit.id)->necro_machine_ast->fn_def.fn_value, (NecroMachineAST*[]) { necro_create_uint32_necro_machine_value(program, 1) }, 1, NECRO_C_CALL, "");
         necro_build_unreachable(program, outer->machine_def.update_fn);
         outer->machine_def.update_fn->fn_def._err_block = err_block;
     }

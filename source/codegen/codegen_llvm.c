@@ -646,8 +646,8 @@ LLVMValueRef necro_codegen_call(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
         params[i] = necro_maybe_cast(codegen, necro_codegen_value(codegen, ast->call.parameters[i]), param_types[i]);
     }
     LLVMValueRef result = LLVMBuildCall(codegen->builder, fn_value, params, num_params, result_name);
-    if (LLVMIsAFunction(fn_value))
-        LLVMSetInstructionCallConv(result, LLVMGetFunctionCallConv(fn_value));
+    if (ast->call.call_type == NECRO_C_CALL)
+        LLVMSetInstructionCallConv(result, LLVMCCallConv);
     else
         LLVMSetInstructionCallConv(result, LLVMFastCallConv);
     if (!is_void)

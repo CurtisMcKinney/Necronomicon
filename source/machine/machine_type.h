@@ -25,6 +25,12 @@ typedef enum
 
 typedef enum
 {
+    NECRO_LANG_CALL,
+    NECRO_C_CALL,
+} NECRO_MACHINE_CALL_TYPE;
+
+typedef enum
+{
     NECRO_MACHINE_TYPE_UINT1,
     NECRO_MACHINE_TYPE_UINT8,
     NECRO_MACHINE_TYPE_UINT16,

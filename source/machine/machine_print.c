@@ -286,6 +286,17 @@ void necro_machine_print_memcpy(NecroMachineProgram* program, NecroMachineAST* a
     necro_print_machine_value(program, ast->memcpy.num_bytes, NECRO_DONT_PRINT_VALUE_TYPE);
 }
 
+void necro_machine_memset(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)
+{
+    assert(ast->type == NECRO_MACHINE_MEMSET);
+    print_white_space(depth);
+    printf("memset ");
+    necro_print_machine_value(program, ast->memcpy.dest, NECRO_PRINT_VALUE_TYPE);
+    printf(" ");
+    necro_print_machine_value(program, ast->memcpy.source, NECRO_PRINT_VALUE_TYPE);
+    printf(" ");
+    necro_print_machine_value(program, ast->memcpy.num_bytes, NECRO_PRINT_VALUE_TYPE);
+}
 
 void necro_machine_print_alloca(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)
 {
@@ -464,6 +475,9 @@ void necro_machine_print_ast_go(NecroMachineProgram* program, NecroMachineAST* a
         return;
     case NECRO_MACHINE_MEMCPY:
         necro_machine_print_memcpy(program, ast, depth);
+        return;
+    case NECRO_MACHINE_MEMSET:
+        necro_machine_memset(program, ast, depth);
         return;
     case NECRO_MACHINE_ALLOCA:
         necro_machine_print_alloca(program, ast, depth);

@@ -55,6 +55,7 @@ typedef struct NecroCodeGenLLVM
     LLVMPassManagerRef        mod_pass_manager;
 
     LLVMValueRef              memcpy_fn;
+    LLVMValueRef              memset_fn;
     LLVMTypeRef               poly_type;
     LLVMTypeRef               poly_ptr_type;
     LLVMTypeRef               word_int_type;

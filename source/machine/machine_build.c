@@ -948,3 +948,19 @@ void necro_build_memcpy(NecroMachineProgram* program, NecroMachineAST* fn_def, N
     necro_add_statement_to_block(program, fn_def->fn_def._curr_block, ast);
 }
 
+void necro_build_memset(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* ptr, NecroMachineAST* value, NecroMachineAST* num_bytes)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACHINE_FN_DEF);
+    assert(ptr->necro_machine_type->type == NECRO_MACHINE_TYPE_PTR);
+    assert(value->necro_machine_type->type == NECRO_MACHINE_TYPE_UINT8);
+    assert(necro_is_word_uint_type(program, num_bytes->necro_machine_type));
+    NecroMachineAST* ast  = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
+    ast->type             = NECRO_MACHINE_MEMSET;
+    ast->memset.ptr       = ptr;
+    ast->memset.value     = value;
+    ast->memset.num_bytes = num_bytes;
+    necro_add_statement_to_block(program, fn_def->fn_def._curr_block, ast);
+}
+

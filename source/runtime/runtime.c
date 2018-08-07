@@ -21,7 +21,7 @@
 #define NECRO_GC_NUM_SEGMENTS 10
 
 // Set to 1 if you want debug trace messages from GC
-#define NECRO_DEBUG_GC 0
+#define NECRO_DEBUG_GC 1
 
 #if NECRO_DEBUG_GC
 #define NECRO_TRACE_GC(...) printf(__VA_ARGS__)
@@ -331,8 +331,14 @@ void _necro_copy(size_t root_data_id, NecroValue* root)
             to_members                     = (NecroValue**) new_value;
             for (size_t i = 0; i < info.num_members; ++i)
             {
+                // NULL id
+                if (member_map[info.members_offset + i] == NECRO_NULL_DATA_ID)
+                {
+                    // Dynamic, perhaps separate type?
+                    to_members[i] = NULL;
+                }
                 // Unboxed type, simply copy over
-                if (member_map[info.members_offset + i] == NECRO_UNBOXED_DATA_ID)
+                else if (member_map[info.members_offset + i] == NECRO_UNBOXED_DATA_ID)
                 {
                     // printf("    value member: from_value: %d\n", (int)from_members[i]);
                     to_members[i] = from_members[i];
@@ -482,19 +488,23 @@ extern DLLEXPORT void _necro_copy_gc_collect()
 
     //-----------
     // Flip
-    NecroSpace* from_head    = copy_gc.from_head;
-    NecroSpace* to_head      = copy_gc.to_head;
-    NecroSpace* to_curr      = copy_gc.to_curr;
-    char*       to_alloc_ptr = copy_gc.to_alloc_ptr;
-    char*       to_end_ptr   = copy_gc.to_end_ptr;
-    copy_gc.from_head        = to_head;
-    copy_gc.from_curr        = to_curr;
-    copy_gc.from_alloc_ptr   = to_alloc_ptr;
-    copy_gc.from_end_ptr     = to_end_ptr;
-    copy_gc.to_head          = from_head;
-    copy_gc.to_curr          = from_head;
-    copy_gc.to_alloc_ptr     = &from_head->data_start;
-    copy_gc.to_end_ptr       = from_head->data + NECRO_SPACE_SIZE;
+    NecroSpace* from_head      = copy_gc.from_head;
+    NecroSpace* to_head        = copy_gc.to_head;
+    NecroSpace* to_curr        = copy_gc.to_curr;
+    char*       from_alloc_ptr = copy_gc.from_alloc_ptr;
+    char*       to_alloc_ptr   = copy_gc.to_alloc_ptr;
+    char*       to_end_ptr     = copy_gc.to_end_ptr;
+    copy_gc.from_head          = to_head;
+    copy_gc.from_curr          = to_curr;
+    copy_gc.from_alloc_ptr     = to_alloc_ptr;
+    copy_gc.from_end_ptr       = to_end_ptr;
+    copy_gc.to_head            = from_head;
+    copy_gc.to_curr            = from_head;
+    copy_gc.to_alloc_ptr       = &from_head->data_start;
+    copy_gc.to_end_ptr         = from_head->data + NECRO_SPACE_SIZE;
+    // size_t      num_bytes      = from_alloc_ptr - copy_gc.to_alloc_ptr;
+    // memset(copy_gc.to_alloc_ptr, 0, num_bytes); // Blast out zeroes
+    // printf("memset: %f mb\n", ((double)num_bytes) / 1000000.0f);
 
     //-----------
     // End

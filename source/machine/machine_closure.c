@@ -132,12 +132,15 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
 
     //--------------------
     // apply MachineDef state
-    const char*       apply_machine_state_name = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_ApplyMachineState", num_string });
-    NecroVar          apply_machine_state_var  = necro_gen_var(program, NULL, apply_machine_state_name, NECRO_NAME_UNIQUE);
-    NecroMachineType* apply_machine_def_type   = necro_create_machine_struct_type(&program->arena, apply_machine_state_var, (NecroMachineType*[]) { program->necro_uint_type, program->necro_poly_ptr_type }, 2);
-    apply_machine_def->necro_machine_type      = apply_machine_def_type;
-    apply_machine_def->machine_def.data_id     = NECRO_APPLY_DATA_ID;
-    apply_machine_def->machine_def.state_type  = NECRO_STATE_STATEFUL;
+    const char*       apply_machine_state_name  = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_ApplyMachineState", num_string });
+    NecroVar          apply_machine_state_var   = necro_gen_var(program, NULL, apply_machine_state_name, NECRO_NAME_UNIQUE);
+    NecroMachineType* apply_machine_def_type    = necro_create_machine_struct_type(&program->arena, apply_machine_state_var, (NecroMachineType*[]) { program->necro_uint_type, program->necro_poly_ptr_type, program->necro_poly_ptr_type }, 3);
+    apply_machine_def_type->struct_type.members[2] = necro_create_machine_ptr_type(&program->arena, apply_machine_def_type);
+    apply_machine_def->necro_machine_type       = apply_machine_def_type;
+    apply_machine_def->machine_def.data_id      = NECRO_APPLY_DATA_ID;
+    apply_machine_def->machine_def.state_type   = NECRO_STATE_STATEFUL;
+    apply_machine_def->machine_def.is_recursive = true;
+    apply_machine_def->machine_def.num_members  = 3;
 
     //--------------------
     // apply update_fn
@@ -158,6 +161,9 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
 
     //--------------------
     // Apply Fn Body
+
+    //--------------------
+    // Apply init
 
     //--------------------
     // Closure Arity Blocks
@@ -276,7 +282,22 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
     program->apply_fns.data[adjusted_apply_arity] = apply_machine_def;
     apply_machine_def->machine_def.update_fn = apply_fn_def;
 
-    // TODO: Maybe need mk_fn? Maybe not?
+    //--------------------
+    // Apply mk_fn
+    NecroMachineType*  mk_fn_type      = necro_create_machine_fn_type(&program->arena, necro_create_machine_ptr_type(&program->arena, apply_machine_def_type), NULL, 0);
+    NecroMachineAST*   mk_fn_body      = necro_create_machine_block(program, "entry", NULL);
+    const char*        mk_fn_name      = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mkApply", num_string });
+    NecroVar           mk_fn_var       = necro_gen_var(program, NULL, mk_fn_name, NECRO_NAME_UNIQUE);
+    NecroMachineAST*   mk_fn_def       = necro_create_machine_fn(program, mk_fn_var, mk_fn_body, mk_fn_type);
+    program->functions.length--; // HACK: Don't want the mk function in the functions list, instead it belongs to the machine
+    apply_machine_def->machine_def.mk_fn  = mk_fn_def;
+    NecroMachineAST*   data_ptr        = necro_build_nalloc(program, mk_fn_def, apply_machine_def_type, 3, false);
+    uint64_t           data_size       = apply_machine_def->machine_def.num_members * ((necro_get_word_size() == NECRO_WORD_4_BYTES) ? 4 : 8);
+    necro_build_memset(program, apply_machine_def->machine_def.mk_fn, data_ptr, necro_create_uint8_necro_machine_value(program, 0), necro_create_word_uint_value(program, data_size));
+    // necro_build_store_into_slot(program, mk_fn_def, necro_create_null_necro_machine_value(program, program->necro_poly_ptr_type), data_ptr, 1);
+    // necro_build_store_into_slot(program, mk_fn_def, necro_create_null_necro_machine_value(program, program->necro_poly_ptr_type), data_ptr, 2);
+    necro_build_return(program, mk_fn_def, data_ptr);
+    necro_symtable_get(program->symtable, mk_fn_var.id)->necro_machine_ast = mk_fn_def->fn_def.fn_value;
 
     necro_rewind_arena(&program->snapshot_arena, snapshot);
 }

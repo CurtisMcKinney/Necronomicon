@@ -100,6 +100,7 @@ typedef struct NecroSlot
     size_t                  slot_num;
     NecroMachineType*       necro_machine_type;
     struct NecroMachineDef* machine_def;
+    struct NecroMachineAST* slot_ast;
     size_t                  data_id;
     bool                    is_dynamic;
 } NecroSlot;
@@ -388,6 +389,13 @@ typedef struct NecroMachineMemCpy
     struct NecroMachineAST* num_bytes;
 } NecroMachineMemCpy;
 
+typedef struct NecroMachineMemSet
+{
+    struct NecroMachineAST* ptr;
+    struct NecroMachineAST* value;
+    struct NecroMachineAST* num_bytes;
+} NecroMachineMemSet;
+
 typedef struct NecroMachineSelect
 {
     struct NecroMachineAST* cmp_value;
@@ -419,6 +427,7 @@ typedef enum
     NECRO_MACHINE_CMP,
     NECRO_MACHINE_PHI,
     NECRO_MACHINE_MEMCPY,
+    NECRO_MACHINE_MEMSET,
     NECRO_MACHINE_ALLOCA,
     NECRO_MACHINE_SELECT,
 
@@ -449,6 +458,7 @@ typedef struct NecroMachineAST
         NecroMachineCmp           cmp;
         NecroMachinePhi           phi;
         NecroMachineMemCpy        memcpy;
+        NecroMachineMemSet        memset;
         NecroMachineSelect        select;
     };
     NECRO_MACHINE_AST_TYPE type;

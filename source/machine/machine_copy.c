@@ -12,46 +12,6 @@
 
 #define NECRO_MACHINE_PERSIST_TABLE_INITIAL_SIZE 512
 
-// NecroSymbol necro_create_copy_method_name(NecroMachineProgram* program, NecroType* data_type)
-// {
-//     NecroType*         principal_type       = necro_symtable_get(program->symtable, data_type->con.con.id)->type;
-//     size_t             principal_type_arity = principal_type->con.arity;
-//     size_t             num_copy_method_strs = 2 + principal_type->con.arity * 2;
-//     const char**       copy_method_strs     = necro_snapshot_arena_alloc(&program->snapshot_arena, num_copy_method_strs * sizeof(const char*));
-//     copy_method_strs[0]                     = "_copy@";
-//     copy_method_strs[1]                     = necro_intern_get_string(program->intern, data_type->con.con.symbol);
-//     NecroType*         con_args             = data_type->con.args;
-//     for (size_t i = 2; i < num_copy_method_strs; i+=2)
-//     {
-//         assert(con_args != NULL);
-//         NecroType* arg_type = necro_find(con_args->list.item);
-//         assert(arg_type->type == NECRO_TYPE_CON);
-//         copy_method_strs[i]     = "$";
-//         copy_method_strs[i + 1] = necro_intern_get_string(program->intern, arg_type->con.con.symbol);
-//         con_args = con_args->list.next;
-//     }
-//     const char* copy_method_name = necro_concat_strings(&program->snapshot_arena, num_copy_method_strs, copy_method_strs);
-//     return necro_intern_string(program->intern, copy_method_name);
-// }
-
-// NecroMachineAST* necro_gen_specialized_copy(NecroMachineProgram* program, NecroVar var)
-// {
-//     NecroMachineCopyData* type_data       = necro_machine_copy_table_insert(&program->copy_table, necro_var_to_con(var));
-//     if (type_data != NULL)
-//         return necro_symtable_get(program->symtable, type_data->increment_con.id)->necro_machine_ast;
-//     NecroArenaSnapshot snapshot           = necro_get_arena_snapshot(&program->snapshot_arena);
-//     NecroType*         data_type          = necro_find(necro_symtable_get(program->symtable, var.id)->type);
-//     assert(data_type->type == NECRO_TYPE_CON);
-//     NecroSymbol        copy_method_symbol = necro_create_copy_method_name(program, data_type);
-//     NecroID            copy_method_id     = necro_this_scope_find(program->scoped_symtable->top_scope, copy_method_symbol);
-//     assert(copy_method_id.id == 0);
-//     copy_method_id                        = necro_scoped_symtable_new_symbol_info(program->scoped_symtable, program->scoped_symtable->top_scope, necro_create_initial_symbol_info(copy_method_symbol, (NecroSourceLoc) { 0, 0, 0 }, program->scoped_symtable->top_scope, program->intern));
-//     NecroSymbolInfo*   copy_method_info   = necro_symtable_get(program->symtable, copy_method_id);
-//     copy_method_info->necro_machine_ast   = necro_gen_copy_method(program, necro_symtable_get(program->symtable, data_type->con.con.id)->ast);
-//     necro_rewind_arena(&program->snapshot_arena, snapshot);
-//     return copy_method_info->necro_machine_ast;
-// }
-
 ///////////////////////////////////////////////////////
 // NecroMachineCopyTable
 ///////////////////////////////////////////////////////
@@ -73,17 +33,19 @@ NecroMachineCopyTable necro_create_machine_copy_table(NecroSymTable* symtable, N
     float_data->data_id              = NECRO_UNBOXED_DATA_ID;
 
     // NULL / Unboxed
-    NecroConstructorInfo prim_info   = (NecroConstructorInfo) { .members_offset = 0, .num_members = 0, .size_in_bytes = sizeof(char*) }; // TODO: Proper word sizing for target
+    NecroConstructorInfo prim_info   = (NecroConstructorInfo) { .members_offset = 0, .num_members = 0, .size_in_bytes = sizeof(char*), .is_tagged_union = false, .is_machine_def = false }; // TODO: Proper word sizing for target
     necro_push_data_map_vector(&table.data_map, &prim_info); // NULL
     necro_push_data_map_vector(&table.data_map, &prim_info); // Unboxed
 
     // Apply
-    NecroConstructorInfo apply_info  = (NecroConstructorInfo) { .members_offset = 0, .num_members = 2, .size_in_bytes = 3 * sizeof(char*) }; // TODO: Proper word sizing for target
+    NecroConstructorInfo apply_info  = (NecroConstructorInfo) { .members_offset = 0, .num_members = 3, .size_in_bytes = 3 * sizeof(char*), .is_tagged_union = false, .is_machine_def = true }; // TODO: Proper word sizing for target
     necro_push_data_map_vector(&table.data_map, &apply_info); // Apply
     size_t unboxed_id = NECRO_UNBOXED_DATA_ID;
     necro_push_member_vector(&table.member_map, &unboxed_id);
     size_t null_id = NECRO_NULL_DATA_ID;
     necro_push_member_vector(&table.member_map, &null_id);
+    size_t apply_id = NECRO_APPLY_DATA_ID;
+    necro_push_member_vector(&table.member_map, &apply_id);
 
     // Need special handling for audio / arrays!
     // NecroMachineCopyData* audio_data = necro_machine_copy_table_insert(&table, prim_types->audio_type);
@@ -216,16 +178,17 @@ void necro_add_machine_def_members(NecroMachineProgram* program, NecroConstructo
     for (size_t i = 0; i < machine_def_info.num_members; ++i)
     {
         size_t               member_data_id = program->copy_table.member_map.data[machine_def_info.members_offset + i];
-        NecroConstructorInfo member_info    = program->copy_table.data_map.data[member_data_id];
-        if (member_info.is_machine_def)
-        {
-            // A machine_def data_info should never directly contain another machine_def data_info!
-            assert(false);
-        }
-        else
-        {
+        // NecroConstructorInfo member_info    = program->copy_table.data_map.data[member_data_id];
+        // Or should it!?
+        // if (member_info.is_machine_def)
+        // {
+        //     // A machine_def data_info should never directly contain another machine_def data_info!
+        //     assert(false);
+        // }
+        // else
+        // {
             necro_push_member_vector(&program->copy_table.member_map, &member_data_id);
-        }
+        // }
     }
 }
 

@@ -129,18 +129,20 @@
 -- nestedF :: (Int -> Int) -> Int
 -- nestedF f = nestedF' f + nestedF' f
 -- nestedF' :: (Int -> Int) -> Int
--- nestedF' f = f 1
---     -- feed ~ 0 = f feed
+-- nestedF' f = feed where
+--     feed ~ 0 = f feed
 
 -----------------------------------------
 -- Many Closure Calculations test
 -----------------------------------------
--- A million non-stateful closure applications 100ticks / sec ~ 45% cpu (~ 20% cpu optimized)
+-- A million stateful closure allocations and applications at 100t/s = 75% cpu
 addSome :: Int -> Int
 addSome x = x + 1
+doit :: (a -> b) -> a -> b
+doit f x = f x
 integrate :: (Int -> Int) -> Int
-integrate f = f 0 -- where
-    -- feed ~ 0 = f feed
+integrate f = feed where
+    feed ~ 0 = f feed
 tenTimes :: (Int -> Int) -> Int
 tenTimes n =
     integrate n + integrate n + integrate n + integrate n + integrate n +
@@ -161,8 +163,10 @@ oneHundredThousandTimes :: (Int -> Int) -> Int
 oneHundredThousandTimes n =
     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n +
     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
+oneMillionTimes :: (Int -> Int) -> Int
+oneMillionTimes f =
+    oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f +
+    oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f
 main :: Int
-main =
-    oneHundredThousandTimes addSome + oneHundredThousandTimes addSome + oneHundredThousandTimes addSome + oneHundredThousandTimes addSome  + oneHundredThousandTimes addSome +
-    oneHundredThousandTimes addSome + oneHundredThousandTimes addSome + oneHundredThousandTimes addSome + oneHundredThousandTimes addSome  + oneHundredThousandTimes addSome
+main = oneMillionTimes addSome
 

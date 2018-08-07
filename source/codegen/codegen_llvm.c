@@ -83,6 +83,7 @@ NecroCodeGenLLVM necro_create_codegen_llvm(NecroIntern* intern, NecroSymTable* s
         .mod_pass_manager = mod_pass_manager,
         .should_optimize  = should_optimize,
         .memcpy_fn        = NULL,
+        .memset_fn        = NULL,
     };
 }
 
@@ -699,6 +700,7 @@ LLVMValueRef necro_codegen_memcpy(NecroCodeGenLLVM* codegen, NecroMachineAST* as
             LLVMTypeRef memcpy_type = LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), (LLVMTypeRef[]) { LLVMPointerType(word_int, 0), LLVMPointerType(word_int, 0),  word_int, LLVMInt1TypeInContext(codegen->context) }, 4, false);
             codegen->memcpy_fn      = LLVMAddFunction(codegen->mod, "llvm.memcpy.p0i64.p0i64.i64", memcpy_type);
         }
+        LLVMSetFunctionCallConv(codegen->memcpy_fn, LLVMFastCallConv);
     }
     LLVMValueRef dst         = necro_codegen_value(codegen, ast->memcpy.dest);
     dst                      = LLVMBuildBitCast(codegen->builder, dst, LLVMPointerType(word_int, 0), "dst");
@@ -708,9 +710,45 @@ LLVMValueRef necro_codegen_memcpy(NecroCodeGenLLVM* codegen, NecroMachineAST* as
     LLVMValueRef size_val    = LLVMConstInt(word_int, data_size, false);
     LLVMValueRef is_volatile = LLVMConstInt(LLVMInt1TypeInContext(codegen->context), 0, false);
     LLVMValueRef memcpy_val  =  LLVMBuildCall(codegen->builder, codegen->memcpy_fn, (LLVMValueRef[]) { dst, src, size_val, is_volatile }, 4, "");
-    // LLVMSetLinkage(fn_value, LLVMExternalLinkage);
     LLVMSetInstructionCallConv(memcpy_val, LLVMGetFunctionCallConv(codegen->memcpy_fn));
     return memcpy_val;
+}
+
+LLVMValueRef necro_codegen_memset(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
+{
+    assert(codegen != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_MACHINE_MEMSET);
+    LLVMTypeRef word_int = (necro_get_word_size() == NECRO_WORD_4_BYTES) ? LLVMInt32TypeInContext(codegen->context) : LLVMInt64TypeInContext(codegen->context);
+    if (codegen->memset_fn == NULL)
+    {
+        if (necro_get_word_size() == NECRO_WORD_4_BYTES)
+        {
+            LLVMTypeRef memset_type = LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), (LLVMTypeRef[]) { LLVMPointerType(word_int, 0), LLVMInt8TypeInContext(codegen->context), word_int, LLVMInt1TypeInContext(codegen->context) }, 4, false);
+            codegen->memset_fn      = LLVMAddFunction(codegen->mod, "llvm.memset.p0i32.i32", memset_type);
+        }
+        else
+        {
+            LLVMTypeRef memset_type = LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), (LLVMTypeRef[]) { LLVMPointerType(word_int, 0), LLVMInt8TypeInContext(codegen->context), word_int, LLVMInt1TypeInContext(codegen->context) }, 4, false);
+            codegen->memset_fn      = LLVMAddFunction(codegen->mod, "llvm.memset.p0i64.i64", memset_type);
+        }
+
+        LLVMSetFunctionCallConv(codegen->memset_fn, LLVMFastCallConv);
+        // LLVMSetInstructionCallConv(memset_val, LLVMGetFunctionCallConv(codegen->memset_fn));
+    }
+    LLVMValueRef ptr         = necro_codegen_value(codegen, ast->memset.ptr);
+    ptr                      = LLVMBuildBitCast(codegen->builder, ptr, LLVMPointerType(word_int, 0), "ptr");
+    LLVMValueRef value       = necro_codegen_value(codegen, ast->memset.value);
+    LLVMValueRef num_bytes   = necro_codegen_value(codegen, ast->memset.num_bytes);
+    LLVMValueRef is_volatile = LLVMConstInt(LLVMInt1TypeInContext(codegen->context), 1, false);
+    // src                      = LLVMBuildBitCast(codegen->builder, src, LLVMPointerType(word_int, 0), "src");
+    // size_t       data_size   = (size_t) LLVMStoreSizeOfType(codegen->target, necro_machine_type_to_llvm_type(codegen, ast->memcpy.dest->necro_machine_type->ptr_type.element_type));
+    // LLVMValueRef size_val    = LLVMConstInt(word_int, data_size, false);
+    // LLVMValueRef is_volatile = LLVMConstInt(LLVMInt1TypeInContext(codegen->context), 0, false);
+    const char* type_of_val_string   = LLVMPrintTypeToString(LLVMTypeOf(codegen->memset_fn));
+    LLVMValueRef memset_val  =  LLVMBuildCall(codegen->builder, codegen->memset_fn, (LLVMValueRef[]) { ptr, value, num_bytes, is_volatile }, 4, "");
+    LLVMSetInstructionCallConv(memset_val, LLVMGetFunctionCallConv(codegen->memset_fn));
+    return memset_val;
 }
 
 LLVMValueRef necro_codegen_alloca(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
@@ -753,6 +791,7 @@ LLVMValueRef necro_codegen_block_statement(NecroCodeGenLLVM* codegen, NecroMachi
     case NECRO_MACHINE_CMP:      return necro_codegen_cmp(codegen, ast);
     case NECRO_MACHINE_PHI:      return necro_codegen_phi(codegen, ast);
     case NECRO_MACHINE_MEMCPY:   return necro_codegen_memcpy(codegen, ast);
+    case NECRO_MACHINE_MEMSET:   return necro_codegen_memset(codegen, ast);
     case NECRO_MACHINE_SELECT:   return necro_codegen_select(codegen, ast);
     default:                     assert(false); return NULL;
     }

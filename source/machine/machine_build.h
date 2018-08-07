@@ -53,6 +53,7 @@ NecroMachineAST* necro_build_gep(NecroMachineProgram* program, NecroMachineAST* 
 NecroMachineAST* necro_build_non_const_gep(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_value, NecroMachineAST** a_indices, size_t num_indices, const char* dest_name, NecroMachineType* result_type);
 NecroMachineAST* necro_build_bit_cast(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* value, NecroMachineType* to_type);
 void             necro_build_memcpy(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* dest, NecroMachineAST* source, NecroMachineAST* num_bytes);
+void             necro_build_memset(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* ptr, NecroMachineAST* value, NecroMachineAST* num_bytes);
 NecroMachineAST* necro_build_alloca(NecroMachineProgram* program, NecroMachineAST* fn_def, size_t num_slots);
 
 NecroMachineAST* necro_create_machine_struct_def(NecroMachineProgram* program, NecroVar name, NecroMachineType** members, size_t num_members);

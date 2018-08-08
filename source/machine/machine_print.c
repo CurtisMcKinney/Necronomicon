@@ -333,6 +333,11 @@ void necro_machine_print_machine_def(NecroMachineProgram* program, NecroMachineA
     printf("type: ");
     necro_machine_print_machine_type_go(program->intern, ast->necro_machine_type, true);
     printf("\n");
+    if (ast->machine_def.init_fn != NULL && (ast->machine_def.state_type == NECRO_STATE_STATEFUL || ast->machine_def.state_type == NECRO_STATE_CONSTANT))
+    {
+        printf("\n");
+        necro_machine_print_fn(program, ast->machine_def.init_fn, depth + 4);
+    }
     if (ast->machine_def.mk_fn != NULL && (ast->machine_def.state_type == NECRO_STATE_STATEFUL || ast->machine_def.state_type == NECRO_STATE_CONSTANT))
     {
         printf("\n");
@@ -523,5 +528,5 @@ void necro_print_machine_program(NecroMachineProgram* program)
         necro_machine_print_ast_go(program, program->machine_defs.data[i], 0);
     }
     necro_machine_print_ast_go(program, program->necro_main, 0);
-    // necro_print_data_info(program);
+    necro_print_data_info(program);
 }

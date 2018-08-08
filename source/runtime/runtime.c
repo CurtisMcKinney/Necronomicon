@@ -21,7 +21,7 @@
 #define NECRO_GC_NUM_SEGMENTS 10
 
 // Set to 1 if you want debug trace messages from GC
-#define NECRO_DEBUG_GC 1
+#define NECRO_DEBUG_GC 0
 
 #if NECRO_DEBUG_GC
 #define NECRO_TRACE_GC(...) printf(__VA_ARGS__)
@@ -502,9 +502,6 @@ extern DLLEXPORT void _necro_copy_gc_collect()
     copy_gc.to_curr            = from_head;
     copy_gc.to_alloc_ptr       = &from_head->data_start;
     copy_gc.to_end_ptr         = from_head->data + NECRO_SPACE_SIZE;
-    // size_t      num_bytes      = from_alloc_ptr - copy_gc.to_alloc_ptr;
-    // memset(copy_gc.to_alloc_ptr, 0, num_bytes); // Blast out zeroes
-    // printf("memset: %f mb\n", ((double)num_bytes) / 1000000.0f);
 
     //-----------
     // End

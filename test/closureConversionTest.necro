@@ -91,11 +91,11 @@
 -- plentyOfCurries' :: Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> ()
 -- plentyOfCurries' = plentyOfArgs 0
 --
--- -- plentyOfApplies :: ()
--- -- plentyOfApplies = plentyOfCurries 0 1.0 2 3.0 4 5.0 6 7.0 8 9.0 10 11.0
+-- plentyOfApplies :: ()
+-- plentyOfApplies = plentyOfCurries 0 1.0 2 3.0 4 5.0 6 7.0 8 9.0 10 11.0
 --
--- -- plentyOfApplies' :: ()
--- -- plentyOfApplies' = plentyOfCurries' 1.0 2 3.0 4 5.0 6 7.0 8 9.0 10 11.0
+-- plentyOfApplies' :: ()
+-- plentyOfApplies' = plentyOfCurries' 1.0 2 3.0 4 5.0 6 7.0 8 9.0 10 11.0
 --
 -- curriedJustice :: Int -> Both Float Int
 -- curriedJustice = Both 9.9
@@ -115,10 +115,10 @@
 --
 -- payloadOnly :: ((Int -> Int) -> Int -> Int) -> Int -> Int
 -- payloadOnly f = f addOne
---
--- -- -- TODO: Correct arity with type classes!
--- -- -- addTwo :: Int -> Int -> Int
--- -- -- addTwo = (+)
+
+-- -- TODO: Correct arity with type classes!
+-- -- addTwo :: Int -> Int -> Int
+-- -- addTwo = (+)
 
 -- -- TODO: Handle statefulness correctly
 -- -- TODO: Handle GC correctly
@@ -132,41 +132,130 @@
 -- nestedF' f = feed where
 --     feed ~ 0 = f feed
 
+-- TODO: map like recursive function test
+
+-- -----------------------------------------
+-- -- Under saturated test
+-- -----------------------------------------
+-- addTwo :: Int -> Int -> Int
+-- addTwo x y = x + y
+-- doit :: (a -> b) -> a -> b
+-- doit f x = f x
+-- main :: Int
+-- main = doit (doit addTwo 10) 100
+
+-- -----------------------------------------
+-- -- Saturated test
+-- -----------------------------------------
+-- addThree :: Int -> Int -> Int -> Int
+-- addThree x y z = x + y * z
+-- doit :: (a -> b) -> a -> b
+-- doit f x = f x
+-- main :: Int
+-- main = doit (addThree 100 200) 300
+
+-- -----------------------------------------
+-- -- Over saturated test
+-- -----------------------------------------
+-- data FBomb a = FBomb a
+-- bombsAway :: FBomb (() -> FBomb (Int -> Int -> Int)) -> Int -> Int -> Int
+-- bombsAway fb1 =
+--     case fb1 of
+--         FBomb fb2 ->
+--             case fb2 () of
+--                 FBomb fb -> fb
+-- addTwo :: Int -> Int -> Int
+-- addTwo x y = x + y
+-- thunkBomb :: () -> FBomb (Int -> Int -> Int)
+-- thunkBomb u = FBomb addTwo
+-- main :: Int
+-- main = bombsAway (FBomb thunkBomb) 2 10
+
+-- -----------------------------------------
+-- -- Pointwise Test
+-- -----------------------------------------
+-- data FBomb a = FBomb a
+-- counter :: Int
+-- counter ~ 0 = counter + 1
+-- addTwo :: Int -> Int -> Int
+-- addTwo x y = x + y
+-- app :: (a -> b) -> a -> b
+-- app f x = f x
+-- theBomb :: FBomb (Int -> Int)
+-- theBomb = FBomb (addTwo counter)
+-- main :: Int
+-- main =
+--     case theBomb of
+--         FBomb f -> f 1000000
+
 -----------------------------------------
--- Many Closure Calculations test
+-- Map, fold, sum Test
 -----------------------------------------
--- A million stateful closure allocations and applications at 100t/s = 75% cpu
-addSome :: Int -> Int
-addSome x = x + 1
-doit :: (a -> b) -> a -> b
-doit f x = f x
-integrate :: (Int -> Int) -> Int
-integrate f = feed where
-    feed ~ 0 = f feed
-tenTimes :: (Int -> Int) -> Int
-tenTimes n =
-    integrate n + integrate n + integrate n + integrate n + integrate n +
-    integrate n + integrate n + integrate n + integrate n + integrate n
-oneHundredTimes :: (Int -> Int) -> Int
-oneHundredTimes n =
-    tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
-    tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
-oneThousandTimes :: (Int -> Int) -> Int
-oneThousandTimes n =
-    oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
-    oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
-tenThousandTimes :: (Int -> Int) -> Int
-tenThousandTimes n =
-    oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
-    oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
-oneHundredThousandTimes :: (Int -> Int) -> Int
-oneHundredThousandTimes n =
-    tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n +
-    tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
-oneMillionTimes :: (Int -> Int) -> Int
-oneMillionTimes f =
-    oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f +
-    oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f
+data List a = Cons a (List a) | Nil
+fmap :: (a -> b) -> List a -> List b
+fmap f xs =
+    case xs of
+        Nil        -> Nil
+        Cons x xs' -> Cons (f x) (fmap f xs')
+foldl :: (b -> a -> b) -> b -> List a -> b
+foldl f accu xs =
+    case xs of
+        Nil        -> accu
+        Cons x xs' -> foldl f (f accu x) xs'
+-- raw 'add' function here isn't correctly being turned into a closure during cc!
+-- without the xs this SHOULD become a stateful closure, but right now stateful closures aren't supported
+sum :: List Int -> Int
+sum xs = foldl addTwo 0 xs
+coolList :: List ()
+coolList = Cons () (Cons () (Cons () (Cons () Nil)))
+counter :: Int
+counter ~ 0 = counter + 1
+transmogrify :: a -> Int
+transmogrify x = 1000000 + counter
+addTwo :: Int -> Int -> Int
+addTwo x y = x + y
+intList :: List Int
+intList = fmap transmogrify coolList
 main :: Int
-main = oneMillionTimes addSome
+main = sum intList
+
+-- -----------------------------------------
+-- -- Many Closure Calculations test
+-- -----------------------------------------
+-- -- It's...complicated
+-- addSome :: Int -> Int
+-- addSome x = x + 1
+-- addSomeMore :: Int -> Int -> Int
+-- addSomeMore x y = x + y
+-- doit :: (a -> b) -> a -> b
+-- doit f x = f x
+-- integrate :: (Int -> Int) -> Int
+-- integrate f = feed where
+--     feed ~ 0 = doit (addSomeMore 6) feed
+-- tenTimes :: (Int -> Int) -> Int
+-- tenTimes n =
+--     integrate n + integrate n + integrate n + integrate n + integrate n +
+--     integrate n + integrate n + integrate n + integrate n + integrate n
+-- oneHundredTimes :: (Int -> Int) -> Int
+-- oneHundredTimes n =
+--     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
+--     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
+-- oneThousandTimes :: (Int -> Int) -> Int
+-- oneThousandTimes n =
+--     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
+--     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
+-- tenThousandTimes :: (Int -> Int) -> Int
+-- tenThousandTimes n =
+--     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
+--     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
+-- oneHundredThousandTimes :: (Int -> Int) -> Int
+-- oneHundredThousandTimes n =
+--     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n +
+--     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
+-- oneMillionTimes :: (Int -> Int) -> Int
+-- oneMillionTimes f =
+--     oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f +
+--     oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f
+-- main :: Int
+-- main = oneHundredThousandTimes addSome
 

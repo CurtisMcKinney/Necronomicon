@@ -174,6 +174,7 @@ typedef struct NecroMachineDef
     NecroVar                state_name;
 
     struct NecroMachineAST* mk_fn;
+    struct NecroMachineAST* init_fn;
     struct NecroMachineAST* update_fn;
     NecroMachineBlock*      update_error_block;
     NECRO_STATE_TYPE        state_type;
@@ -426,10 +427,10 @@ typedef enum
     NECRO_MACHINE_BINOP,
     NECRO_MACHINE_CMP,
     NECRO_MACHINE_PHI,
-    NECRO_MACHINE_MEMCPY,
-    NECRO_MACHINE_MEMSET,
-    NECRO_MACHINE_ALLOCA,
-    NECRO_MACHINE_SELECT,
+    NECRO_MACHINE_MEMCPY, // TODO: Maybe remove
+    NECRO_MACHINE_MEMSET, // TODO: Maybe remove
+    NECRO_MACHINE_ALLOCA, // TODO: Maybe remove
+    NECRO_MACHINE_SELECT, // TODO: Maybe remove
 
     // Defs
     NECRO_MACHINE_STRUCT_DEF,

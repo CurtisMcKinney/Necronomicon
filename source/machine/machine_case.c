@@ -475,9 +475,10 @@ void necro_decision_tree_to_machine(NecroMachineProgram* program, NecroDecisionT
         // LLVMBasicBlockRef current_block = LLVMGetInsertBlock(codegen->builder);
         // LLVMAddIncoming(result_phi, &leaf_value, &current_block, 1);
         // LLVMBuildBr(codegen->builder, term_case_block);
-        NecroMachineAST* leaf_value = necro_core_to_machine_3_go(program, tree->tree_leaf.expression, outer);
-        NecroMachineAST* curr_block = outer->machine_def.update_fn->fn_def._curr_block;
-        necro_add_incoming_to_phi(program, outer->machine_def.update_fn, result_phi, curr_block, leaf_value);
+        NecroMachineAST* leaf_value   = necro_core_to_machine_3_go(program, tree->tree_leaf.expression, outer);
+        NecroMachineAST* leaf_value_m = necro_build_maybe_cast(program, outer->machine_def.update_fn, leaf_value, result_phi->phi.result->necro_machine_type);
+        NecroMachineAST* curr_block   = outer->machine_def.update_fn->fn_def._curr_block;
+        necro_add_incoming_to_phi(program, outer->machine_def.update_fn, result_phi, curr_block, leaf_value_m);
         necro_build_break(program, outer->machine_def.update_fn, term_case_block);
         break;
     }

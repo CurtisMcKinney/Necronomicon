@@ -49,6 +49,7 @@ typedef struct NecroClosureConversion
 ///////////////////////////////////////////////////////
 NecroCoreAST_Expression* necro_closure_conversion_go(NecroClosureConversion* cc, NecroCoreAST_Expression* in_ast);
 void                     necro_print_closure_defs(NecroClosureConversion* cc);
+size_t                   necro_add_closure_def(NecroClosureConversion* cc, size_t fn_arity, size_t num_pargs);
 
 ///////////////////////////////////////////////////////
 // Closure Conversion
@@ -69,6 +70,7 @@ NecroCoreAST necro_closure_conversion(NecroCoreAST* in_ast, NecroIntern* intern,
         .closure_defs     = necro_create_closure_def_vector(),
         .stack_array_con  = necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_StackArray")),
     };
+    necro_add_closure_def(&cc, 1, 0); // NOTE: We don't want an empty closure def vector, otherwise apply functions get wonky
     NecroCoreAST_Expression* out_ast = necro_closure_conversion_go(&cc, in_ast->root);
     necro_destroy_snapshot_arena(&cc.snapshot_arena);
     *out_closure_defs = cc.closure_defs;
@@ -92,6 +94,10 @@ size_t necro_add_closure_def(NecroClosureConversion* cc, size_t fn_arity, size_t
     // Insert
     NecroClosureDef def = (NecroClosureDef) { .fn_arity = fn_arity, .num_pargs = num_pargs, .is_stateful = false, .uid = cc->closure_defs.length, .label = 0 };
     necro_push_closure_def_vector(&cc->closure_defs, &def);
+    // if (num_pargs > 0)
+    //     necro_add_closure_def(cc, fn_arity, num_pargs - 1); // Need all iterations from 0..num_pargs
+    if (num_pargs < fn_arity - 1)
+        necro_add_closure_def(cc, fn_arity, num_pargs + 1); // Need all iterations from num_pargs..fn_arity
     return def.uid;
 }
 

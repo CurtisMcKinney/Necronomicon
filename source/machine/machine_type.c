@@ -134,7 +134,7 @@ NecroMachineType* necro_create_machine_fn_type(NecroPagedArena* arena, NecroMach
 
 bool is_poly_ptr(NecroMachineProgram* program, NecroMachineType* type)
 {
-    return type->type == NECRO_MACHINE_TYPE_PTR && type->ptr_type.element_type == program->necro_poly_type;
+    return type->type == NECRO_MACHINE_TYPE_PTR && type->ptr_type.element_type->type == NECRO_MACHINE_TYPE_STRUCT && type->ptr_type.element_type->struct_type.name.id.id == program->necro_poly_type->struct_type.name.id.id;
 }
 
 NecroMachineType* necro_create_machine_ptr_type(NecroPagedArena* arena, NecroMachineType* element_type)

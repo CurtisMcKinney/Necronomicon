@@ -849,6 +849,12 @@ NECRO_RETURN_CODE necro_codegen_llvm(NecroCodeGenLLVM* codegen, NecroMachineProg
     {
         necro_codegen_declare_function(codegen, program->functions.data[i]);
     }
+    // Declare machine init_fns
+    for (size_t i = 0; i < program->machine_defs.length; ++i)
+    {
+        if (program->machine_defs.data[i]->machine_def.init_fn != NULL)
+            necro_codegen_declare_function(codegen, program->machine_defs.data[i]->machine_def.init_fn);
+    }
     // Declare machine mk_fns
     for (size_t i = 0; i < program->machine_defs.length; ++i)
     {
@@ -866,6 +872,12 @@ NECRO_RETURN_CODE necro_codegen_llvm(NecroCodeGenLLVM* codegen, NecroMachineProg
     for (size_t i = 0; i < program->functions.length; ++i)
     {
         necro_codegen_function(codegen, program->functions.data[i]);
+    }
+    // codegen machine init_fns
+    for (size_t i = 0; i < program->machine_defs.length; ++i)
+    {
+        if (program->machine_defs.data[i]->machine_def.init_fn != NULL)
+            necro_codegen_function(codegen, program->machine_defs.data[i]->machine_def.init_fn);
     }
     // codegen machine mk_fns
     for (size_t i = 0; i < program->machine_defs.length; ++i)

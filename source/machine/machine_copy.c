@@ -35,10 +35,11 @@ NecroMachineCopyTable necro_create_machine_copy_table(NecroSymTable* symtable, N
     // NULL / Unboxed
     NecroConstructorInfo prim_info   = (NecroConstructorInfo) { .members_offset = 0, .num_members = 0, .size_in_bytes = sizeof(char*), .is_tagged_union = false, .is_machine_def = false }; // TODO: Proper word sizing for target
     necro_push_data_map_vector(&table.data_map, &prim_info); // NULL
+    necro_push_data_map_vector(&table.data_map, &prim_info); // SELF
     necro_push_data_map_vector(&table.data_map, &prim_info); // Unboxed
 
     // Apply
-    NecroConstructorInfo apply_info  = (NecroConstructorInfo) { .members_offset = 0, .num_members = 3, .size_in_bytes = 3 * sizeof(char*), .is_tagged_union = false, .is_machine_def = true }; // TODO: Proper word sizing for target
+    NecroConstructorInfo apply_info  = (NecroConstructorInfo) { .members_offset = 0, .num_members = 3, .size_in_bytes = 4 * sizeof(char*), .is_tagged_union = false, .is_machine_def = true }; // TODO: Proper word sizing for target
     necro_push_data_map_vector(&table.data_map, &apply_info); // Apply
     size_t unboxed_id = NECRO_UNBOXED_DATA_ID;
     necro_push_member_vector(&table.member_map, &unboxed_id);
@@ -177,7 +178,7 @@ void necro_add_machine_def_members(NecroMachineProgram* program, NecroConstructo
 {
     for (size_t i = 0; i < machine_def_info.num_members; ++i)
     {
-        size_t               member_data_id = program->copy_table.member_map.data[machine_def_info.members_offset + i];
+        size_t member_data_id = program->copy_table.member_map.data[machine_def_info.members_offset + i];
         // NecroConstructorInfo member_info    = program->copy_table.data_map.data[member_data_id];
         // Or should it!?
         // if (member_info.is_machine_def)
@@ -204,6 +205,8 @@ size_t necro_create_machine_def_data_info(NecroMachineProgram* program, NecroMac
     {
         NecroSlot            slot           = machine_def->members[i];
         size_t               member_data_id = slot.data_id;
+        if (member_data_id == NECRO_SELF_DATA_ID)
+            member_data_id = machine_def->data_id;
         if (slot.is_dynamic && slot.necro_machine_type->type == NECRO_MACHINE_TYPE_PTR && slot.necro_machine_type->ptr_type.element_type == ast->necro_machine_type)
             member_data_id = machine_def->data_id;
         NecroConstructorInfo member_info    = program->copy_table.data_map.data[member_data_id];

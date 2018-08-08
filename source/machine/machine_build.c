@@ -389,6 +389,7 @@ NecroMachineAST* necro_create_machine_initial_machine_def(NecroMachineProgram* p
     ast->machine_def.arg_names                     = NULL;
     ast->machine_def.num_arg_names                 = 0;
     ast->machine_def.mk_fn                         = NULL;
+    ast->machine_def.init_fn                       = NULL;
     ast->machine_def.update_fn                     = NULL;
     ast->machine_def.global_value                  = NULL;
     ast->machine_def.global_state                  = NULL;
@@ -865,8 +866,7 @@ NecroMachineAST* necro_build_phi(NecroMachineProgram* program, NecroMachineAST* 
 NecroMachineAST* necro_build_maybe_cast(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* ast, NecroMachineType* type_to_match)
 {
     necro_type_check(program, ast->necro_machine_type, type_to_match);
-    if (ast->necro_machine_type == program->necro_poly_ptr_type || type_to_match == program->necro_poly_ptr_type)
-    // if (ast->necro_machine_type == program->necro_poly_ptr_type)
+    if (is_poly_ptr(program, ast->necro_machine_type) || is_poly_ptr(program, type_to_match))
         return necro_build_bit_cast(program, fn_def, ast, type_to_match);
     else
         return ast;

@@ -866,7 +866,7 @@ NecroMachineAST* necro_build_phi(NecroMachineProgram* program, NecroMachineAST* 
 NecroMachineAST* necro_build_maybe_cast(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* ast, NecroMachineType* type_to_match)
 {
     necro_type_check(program, ast->necro_machine_type, type_to_match);
-    if (is_poly_ptr(program, ast->necro_machine_type) || is_poly_ptr(program, type_to_match))
+    if (is_poly_ptr(program, ast->necro_machine_type) ^ is_poly_ptr(program, type_to_match)) // XOR
         return necro_build_bit_cast(program, fn_def, ast, type_to_match);
     else
         return ast;

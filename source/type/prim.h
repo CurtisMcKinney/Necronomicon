@@ -112,8 +112,6 @@ typedef struct NecroPrimTypes
     // Primitive types and functions
     NecroTupleTypes   tuple_types;
     NecroCon          necro_val_type;
-    NecroCon          necro_data_type;
-    NecroCon          necro_app_type;
     NecroCon          any_type;
     NecroCon          io_type;
     NecroCon          world_type;
@@ -141,16 +139,18 @@ typedef struct NecroPrimTypes
     NecroCon          event_type;
     NecroCon          pattern_type;
     NecroCon          delay_fn;
-    NecroCon          addr_type;
     NecroCon          closure_type;
     NecroCon          _stack_array_type;
     NecroCon          apply_fn;
-    NecroCon          _clone_type_class;
-    NecroCon          _initialize_fn;
+    NecroCon          ptr_type;
+    NecroCon          vector_type;
 
     // Runtime functions
     NecroCon          mouse_x_fn;
     NecroCon          mouse_y_fn;
+    NecroCon          unsafe_malloc;
+    NecroCon          unsafe_peek;
+    NecroCon          unsafe_poke;
 
     NecroConTable     con_table; // Maps con symbol ids to con NecroCon
 

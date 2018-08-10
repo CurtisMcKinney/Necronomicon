@@ -644,21 +644,9 @@ void necro_bool_instances(NecroPagedArena* arena, NecroIntern* intern)
 
 void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
 {
-    // NecroData
-    NecroASTNode* necro_data_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "_NecroData", NULL);
-    NecroPrimDef* necro_data_data_def = necro_prim_def_data(prim_types, intern, &prim_types->necro_data_type, necro_create_data_declaration_ast(&prim_types->arena, intern, necro_data_s_type, NULL));
-
-    // // _NecroApp
-    // NecroASTNode* necro_app_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "_NecroApp", NULL);
-    // NecroPrimDef* necro_app_data_def = necro_prim_def_data(prim_types, intern, &prim_types->necro_app_type, necro_create_data_declaration_ast(&prim_types->arena, intern, necro_app_s_type, NULL));
-
-    // _Any
-    NecroASTNode* any_s_type           = necro_create_simple_type_ast(&prim_types->arena, intern, "_Poly", NULL);
-    NecroPrimDef* any_data_def         = necro_prim_def_data(prim_types, intern, &prim_types->any_type, necro_create_data_declaration_ast(&prim_types->arena, intern, any_s_type, NULL));
-
-    // // _Addr
-    // NecroASTNode* addr_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "_Addr", NULL);
-    // NecroPrimDef* addr_data_def = necro_prim_def_data(prim_types, intern, &prim_types->addr_type, necro_create_data_declaration_ast(&prim_types->arena, intern, addr_s_type, NULL));
+    // _Poly
+    NecroASTNode* any_s_type            = necro_create_simple_type_ast(&prim_types->arena, intern, "_Poly", NULL);
+    NecroPrimDef* any_data_def          = necro_prim_def_data(prim_types, intern, &prim_types->any_type, necro_create_data_declaration_ast(&prim_types->arena, intern, any_s_type, NULL));
 
     // ()
     NecroASTNode* unit_s_type           = necro_create_simple_type_ast(&prim_types->arena, intern, "()", NULL);
@@ -701,6 +689,23 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     necro_create_prim_num(prim_types, intern, &prim_types->float_type, "Float");
     necro_create_prim_num(prim_types, intern, &prim_types->audio_type, "Audio");
     necro_create_prim_num(prim_types, intern, &prim_types->rational_type, "Rational");
+
+    // Ptr
+    NecroASTNode* ptr_s_type            = necro_create_simple_type_ast(&prim_types->arena, intern, "Ptr", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
+    NecroPrimDef* ptr_data_def          = necro_prim_def_data(prim_types, intern, &prim_types->ptr_type, necro_create_data_declaration_ast(&prim_types->arena, intern, ptr_s_type, NULL));
+
+    // Vector
+    NecroASTNode* vector_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "Vector", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
+    NecroASTNode* vector_args     = necro_create_ast_list(&prim_types->arena,
+        necro_create_conid_ast(&prim_types->arena, intern, "Int", NECRO_CON_TYPE_VAR),
+            necro_create_ast_list(&prim_types->arena,
+                necro_create_type_app_ast(&prim_types->arena,
+                    necro_create_conid_ast(&prim_types->arena, intern, "Ptr", NECRO_CON_TYPE_VAR),
+                    necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)),
+                NULL));
+    NecroASTNode* vector_con      = necro_create_data_constructor_ast(&prim_types->arena, intern, "Vector", vector_args);
+    NecroASTNode* vector_con_list = necro_create_ast_list(&prim_types->arena, vector_con, NULL);
+    NecroPrimDef* vector_data_def = necro_prim_def_data(prim_types, intern, &prim_types->vector_type, necro_create_data_declaration_ast(&prim_types->arena, intern, vector_s_type, vector_con_list));
 
     // _StackArray (Allocated and freed on the stack)
     NecroASTNode* stack_array_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "_StackArray", NULL);
@@ -1106,6 +1111,53 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
             NECRO_VAR_DECLARATION, NECRO_SIG_DECLARATION);
         necro_prim_def_fun(prim_types, intern, &prim_types->mouse_y_fn, mouse_y_sig_ast, 1);
     }
+
+    // unsafeMalloc
+    {
+        NecroASTNode* unsafe_malloc_sig_ast = necro_create_fun_type_sig_ast(&prim_types->arena, intern, "unsafeMalloc", NULL,
+            necro_create_fun_ast(&prim_types->arena, necro_create_conid_ast(&prim_types->arena, intern, "Int", NECRO_CON_TYPE_VAR),
+                necro_create_type_app_ast(&prim_types->arena,
+                    necro_create_conid_ast(&prim_types->arena, intern, "Ptr", NECRO_CON_TYPE_VAR),
+                    necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR))
+                ),
+            NECRO_VAR_DECLARATION, NECRO_SIG_DECLARATION);
+        necro_prim_def_fun(prim_types, intern, &prim_types->unsafe_malloc, unsafe_malloc_sig_ast, 1);
+    }
+
+    // unsafePeek
+    {
+        NecroASTNode* unsafe_peek_sig_ast = necro_create_fun_type_sig_ast(&prim_types->arena, intern, "unsafePeek", NULL,
+            necro_create_fun_ast(&prim_types->arena,
+                necro_create_conid_ast(&prim_types->arena, intern, "Int", NECRO_CON_TYPE_VAR),
+                necro_create_fun_ast(&prim_types->arena,
+                    necro_create_type_app_ast(&prim_types->arena,
+                        necro_create_conid_ast(&prim_types->arena, intern, "Ptr", NECRO_CON_TYPE_VAR),
+                        necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)),
+                    necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR))
+                ),
+            NECRO_VAR_DECLARATION, NECRO_SIG_DECLARATION);
+        necro_prim_def_fun(prim_types, intern, &prim_types->unsafe_peek, unsafe_peek_sig_ast, 2);
+    }
+
+    // unsafePoke
+    {
+        NecroASTNode* unsafe_poke_sig_ast = necro_create_fun_type_sig_ast(&prim_types->arena, intern, "unsafePoke", NULL,
+            necro_create_fun_ast(&prim_types->arena,
+                necro_create_conid_ast(&prim_types->arena, intern, "Int", NECRO_CON_TYPE_VAR),
+                necro_create_fun_ast(&prim_types->arena,
+                    necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR),
+                    necro_create_fun_ast(&prim_types->arena,
+                        necro_create_type_app_ast(&prim_types->arena,
+                            necro_create_conid_ast(&prim_types->arena, intern, "Ptr", NECRO_CON_TYPE_VAR),
+                            necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)),
+                        necro_create_type_app_ast(&prim_types->arena,
+                            necro_create_conid_ast(&prim_types->arena, intern, "Ptr", NECRO_CON_TYPE_VAR),
+                            necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR))))),
+            NECRO_VAR_DECLARATION, NECRO_SIG_DECLARATION);
+        necro_prim_def_fun(prim_types, intern, &prim_types->unsafe_poke, unsafe_poke_sig_ast, 3);
+    }
+
+    // plusPtr
 
     // TODO: Finish Bool Eq/Ord instances and && / ||!!!
     // &&

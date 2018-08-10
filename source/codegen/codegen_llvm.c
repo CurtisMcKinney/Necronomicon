@@ -51,18 +51,19 @@ NecroCodeGenLLVM necro_create_codegen_llvm(NecroIntern* intern, NecroSymTable* s
 
     if (should_optimize)
     {
-        LLVMAddCFGSimplificationPass(fn_pass_manager);
+        LLVMInitializeFunctionPassManager(fn_pass_manager);
         LLVMAddDeadStoreEliminationPass(fn_pass_manager);
         LLVMAddAggressiveDCEPass(fn_pass_manager);
         LLVMAddInstructionCombiningPass(fn_pass_manager);
+        LLVMAddCFGSimplificationPass(fn_pass_manager);
         LLVMAddTailCallEliminationPass(fn_pass_manager);
-        LLVMInitializeFunctionPassManager(fn_pass_manager);
+        LLVMAddCFGSimplificationPass(fn_pass_manager);
         LLVMFinalizeFunctionPassManager(fn_pass_manager);
         LLVMAddFunctionAttrsPass(mod_pass_manager);
         LLVMAddGlobalOptimizerPass(mod_pass_manager);
         LLVMPassManagerBuilderRef pass_manager_builder = LLVMPassManagerBuilderCreate();
         LLVMPassManagerBuilderSetOptLevel(pass_manager_builder, 0);
-        LLVMPassManagerBuilderUseInlinerWithThreshold(pass_manager_builder, 100);
+        LLVMPassManagerBuilderUseInlinerWithThreshold(pass_manager_builder, 40);
         LLVMPassManagerBuilderPopulateFunctionPassManager(pass_manager_builder, fn_pass_manager);
         LLVMPassManagerBuilderPopulateModulePassManager(pass_manager_builder, mod_pass_manager);
     }

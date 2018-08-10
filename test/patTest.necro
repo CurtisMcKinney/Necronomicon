@@ -134,3 +134,58 @@ desugarBeat = force (desugarBeatGo x y) where
             (\x y -> let y' = force y in value y' `fby`
                          (\x y -> let x' = force x in value x' `fby`
                                       (\x y -> 1 fby desugarBeatGo x y) x' y) x y') x' y
+
+
+-- New idea, simple and naive patterns with concrete accumulator type
+-- Should actually return a vec of values
+Pattern a
+  = Pattern (PatternState -> (a, PatternPlayState, PatternState))
+
+PatternPlayState
+  = PatternPlaying
+  | PatternDone
+
+PatternState
+  = SeqState  Int (Vec PatternState)
+  | BeatState Int (Vec PatternState)
+  | ParState  Int
+  | PatVal
+  | TupleState (Vec PatternState)
+  | InitState
+
+sugarBeat :: Pattern Audio
+sugarBeat = seq x y x 1 where
+    x = beat 1 2 3 4
+    y = beat 4 3 2 1
+
+-- desugar
+
+patAnon1 :: PatternState -> (a, PatternPlayState, PatternState)
+patAnon1 s =
+  case s of
+    InitState ->
+      patAnon1 (SeqState 0 [InitState, InitState])
+
+    SeqState 0 [xState, yState] ->
+      case patX xState of
+        (x, PatternDone, xState') ->
+          (x, PatternPlaying, SeqState 1 [xState', yState])
+
+        (x, _, xState') ->
+          (x, SeqState 0 [xState', yState])
+
+    SeqState 1 [xState, yState] ->
+      case patY yState of
+        (y, PatternDone, yState') ->
+          (y, SeqState 2 [xState, yState'])
+
+        (y, _, yState') ->
+          (y, SeqState 1 [xState, yState'])
+
+playPattern :: Pattern a
+playPattern p = p' where
+  (p', _, pState ~ InitState) = runPattern p pState
+
+desugarBeat :: Pattern Audio
+desugarBeat = Pattern patAnon1 initPatAnon1State
+

@@ -238,6 +238,11 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     program->necro_poly_type           = necro_poly_struct->necro_machine_type;
     program->necro_poly_ptr_type       = necro_create_machine_ptr_type(&program->arena, program->necro_poly_type);
 
+    // Ptr
+    NecroVar         ptr_var    = necro_con_to_var(program->prim_types->ptr_type);
+    NecroMachineAST* ptr_struct = necro_create_null_necro_machine_value(program, necro_create_machine_ptr_type(&program->arena, program->necro_poly_ptr_type));
+    necro_symtable_get(program->symtable, ptr_var.id)->necro_machine_ast = ptr_struct;
+
     // Int
     NecroVar          int_var  = necro_con_to_var(program->prim_types->int_type);
     necro_symtable_get(program->symtable, int_var.id)->necro_machine_ast = necro_create_word_int_value(program, 0);
@@ -279,6 +284,13 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     necro_symtable_get(program->symtable, nil_con.id)->arity = 0;
     necro_symtable_get(program->symtable, cons_con.id)->arity = 2;
 
+    // Vector
+    NecroVar         vector_var    = necro_con_to_var(program->prim_types->vector_type);
+    NecroVar         vector_con    = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "Vector").id));
+    NecroMachineAST* vector_struct = necro_create_machine_struct_def(program, vector_var, (NecroMachineType*[]) { program->necro_uint_type, program->necro_int_type, necro_create_machine_ptr_type(&program->arena, program->necro_poly_ptr_type) }, 3);
+    necro_create_prim_con(program, vector_struct->necro_machine_type, vector_con, (NecroMachineType*[]) { program->necro_int_type, necro_create_machine_ptr_type(&program->arena, program->necro_poly_ptr_type) }, 2, 2, 0);
+    necro_symtable_get(program->symtable, vector_con.id)->arity = 2;
+
     //--------------------
     // Prim Functions
     //--------------------
@@ -307,5 +319,44 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     NecroMachineAST*  mouse_y_value_val = necro_build_call(program, get_mouse_y_fn, _necro_mouse_y_fn->fn_def.fn_value, NULL, 0, NECRO_C_CALL, "yval");
     necro_prim_fn_end(program, get_mouse_y_fn, mouse_y_value_val);
     get_mouse_y_fn->fn_def.state_type = NECRO_STATE_POINTWISE;
+
+    NecroMachineType* ptr_type = necro_create_machine_ptr_type(&program->arena, program->necro_poly_ptr_type);
+    // unsafeMalloc
+    {
+        NecroVar         unsafe_malloc_var = necro_con_to_var(program->prim_types->unsafe_malloc);
+        NecroMachineAST* unsafe_malloc_fn  = necro_prim_fn_begin(program, unsafe_malloc_var, ptr_type, (NecroMachineType*[]) { program->necro_int_type }, 1);
+        NecroMachineAST* unsafe_slots_used = necro_build_binop(program, unsafe_malloc_fn, necro_create_param_reg(program, unsafe_malloc_fn, 0), necro_create_word_int_value(program, 1), NECRO_MACHINE_BINOP_IADD);
+        if (necro_get_word_size() == NECRO_WORD_4_BYTES)
+            unsafe_slots_used = necro_build_binop(program, unsafe_malloc_fn, unsafe_slots_used, necro_create_word_int_value(program, 4), NECRO_MACHINE_BINOP_IMUL);
+        else
+            unsafe_slots_used = necro_build_binop(program, unsafe_malloc_fn, unsafe_slots_used, necro_create_word_int_value(program, 8), NECRO_MACHINE_BINOP_IMUL);
+        NecroMachineAST* bit_cast_slots    = necro_build_bit_cast(program, unsafe_malloc_fn, unsafe_slots_used, program->necro_uint_type);
+        NecroMachineAST* unsafe_malloc_val = necro_build_call(program, unsafe_malloc_fn, _necro_from_alloc_fn->fn_def.fn_value, (NecroMachineAST*[]) { bit_cast_slots }, 1, NECRO_C_CALL, "data_ptr");
+        NecroMachineAST* bit_cast_val      = necro_build_bit_cast(program, unsafe_malloc_fn, unsafe_malloc_val, ptr_type);
+        necro_prim_fn_end(program, unsafe_malloc_fn, bit_cast_val);
+        unsafe_malloc_fn->fn_def.state_type = NECRO_STATE_POINTWISE;
+    }
+
+    // unsafePeek
+    {
+        // Int -> Ptr a -> a
+        NecroVar         unsafe_peek_var        = necro_con_to_var(program->prim_types->unsafe_peek);
+        NecroMachineAST* unsafe_peek_fn         = necro_prim_fn_begin(program, unsafe_peek_var, program->necro_poly_ptr_type, (NecroMachineType*[]) { program->necro_int_type, ptr_type }, 2);
+        NecroMachineAST* unsafe_peek_ptr_offset = necro_build_non_const_gep(program, unsafe_peek_fn, necro_create_param_reg(program, unsafe_peek_fn, 1), (NecroMachineAST*[]) { necro_create_param_reg(program, unsafe_peek_fn, 0) }, 1, "offset_ptr", ptr_type);
+        NecroMachineAST* unsafe_peek_ptr_val    = necro_build_load_from_ptr(program, unsafe_peek_fn, unsafe_peek_ptr_offset, "val");
+        necro_prim_fn_end(program, unsafe_peek_fn, unsafe_peek_ptr_val);
+        unsafe_peek_fn->fn_def.state_type = NECRO_STATE_POINTWISE;
+    }
+
+    // unsafePoke
+    {
+        // Int -> a -> Ptr a -> Ptr a
+        NecroVar         unsafe_poke_var        = necro_con_to_var(program->prim_types->unsafe_poke);
+        NecroMachineAST* unsafe_poke_fn         = necro_prim_fn_begin(program, unsafe_poke_var, ptr_type, (NecroMachineType*[]) { program->necro_int_type, program->necro_poly_ptr_type, ptr_type }, 3);
+        NecroMachineAST* unsafe_poke_ptr_offset = necro_build_non_const_gep(program, unsafe_poke_fn, necro_create_param_reg(program, unsafe_poke_fn, 2), (NecroMachineAST*[]) { necro_create_param_reg(program, unsafe_poke_fn, 0) }, 1, "offset_ptr", ptr_type);
+        necro_build_store_into_ptr(program, unsafe_poke_fn, necro_create_param_reg(program, unsafe_poke_fn, 1), unsafe_poke_ptr_offset);
+        necro_prim_fn_end(program, unsafe_poke_fn, necro_create_param_reg(program, unsafe_poke_fn, 2));
+        unsafe_poke_fn->fn_def.state_type = NECRO_STATE_POINTWISE;
+    }
 
 }

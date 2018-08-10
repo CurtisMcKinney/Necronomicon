@@ -121,7 +121,6 @@
 -- -- addTwo = (+)
 
 -- -- TODO: Handle statefulness correctly
--- -- TODO: Handle GC correctly
 -- main :: Int
 -- main = nestedF addSome
 -- addSome :: Int -> Int
@@ -131,8 +130,6 @@
 -- nestedF' :: (Int -> Int) -> Int
 -- nestedF' f = feed where
 --     feed ~ 0 = f feed
-
--- TODO: map like recursive function test
 
 -- -----------------------------------------
 -- -- Under saturated test
@@ -148,7 +145,7 @@
 -- -- Saturated test
 -- -----------------------------------------
 -- addThree :: Int -> Int -> Int -> Int
--- addThree x y z = x + y * z
+-- addThree x y z = x + y + z
 -- doit :: (a -> b) -> a -> b
 -- doit f x = f x
 -- main :: Int
@@ -188,74 +185,180 @@
 --     case theBomb of
 --         FBomb f -> f 1000000
 
------------------------------------------
--- Map, fold, sum Test
------------------------------------------
-data List a = Cons a (List a) | Nil
-fmap :: (a -> b) -> List a -> List b
-fmap f xs =
-    case xs of
-        Nil        -> Nil
-        Cons x xs' -> Cons (f x) (fmap f xs')
-foldl :: (b -> a -> b) -> b -> List a -> b
-foldl f accu xs =
-    case xs of
-        Nil        -> accu
-        Cons x xs' -> foldl f (f accu x) xs'
--- raw 'add' function here isn't correctly being turned into a closure during cc!
--- without the xs this SHOULD become a stateful closure, but right now stateful closures aren't supported
-sum :: List Int -> Int
-sum xs = foldl addTwo 0 xs
-coolList :: List ()
-coolList = Cons () (Cons () (Cons () (Cons () Nil)))
-counter :: Int
-counter ~ 0 = counter + 1
-transmogrify :: a -> Int
-transmogrify x = 1000000 + counter
-addTwo :: Int -> Int -> Int
-addTwo x y = x + y
-intList :: List Int
-intList = fmap transmogrify coolList
-main :: Int
-main = sum intList
+-- -----------------------------------------
+-- --Map, fold, sum Test
+-- -----------------------------------------
+-- data List a
+--   = Cons a (List a)
+--   | Nil
+--
+-- fmap :: (a -> b) -> List a -> List b
+-- fmap f xs =
+--   case xs of
+--     Nil ->
+--       Nil
+--
+--     Cons x xs' ->
+--       Cons (f x) (fmap f xs')
+--
+-- foldl :: (b -> a -> b) -> b -> List a -> b
+-- foldl f accu xs =
+--   case xs of
+--     Nil ->
+--       accu
+--
+--     Cons x xs' ->
+--       foldl f (f accu x) xs'
+--
+-- foldr :: (a -> b -> b) -> b -> List a -> b
+-- foldr f accu xs =
+--   case xs of
+--     Nil ->
+--       accu
+--
+--     Cons x xs' ->
+--       f x (foldr f accu xs')
+--
+-- -- raw 'add' function here isn't correctly being turned into a closure during cc!
+-- -- without the xs this SHOULD become a stateful closure, but right now stateful closures aren't supported
+-- sum :: List Int -> Int
+-- sum xs =
+--   foldl addTwo 0 xs
+--
+-- coolList :: List ()
+-- coolList =
+--   Cons () (Cons () (Cons () (Cons () Nil)))
+--
+-- counter :: Int
+-- counter ~ 0 =
+--   counter + 1
+--
+-- transmogrify :: a -> Int
+-- transmogrify x =
+--   1000000 + counter
+--
+-- addTwo :: Int -> Int -> Int
+-- addTwo x y =
+--   x - y
+--
+-- main :: Int
+-- main =
+--   -- sum (fmap transmogrify coolList)
+--   foldl addTwo 0 (fmap transmogrify coolList)
 
 -- -----------------------------------------
 -- -- Many Closure Calculations test
 -- -----------------------------------------
--- -- It's...complicated
+-- -- One hundred thousand stateful closure allocations and applications: 32% cpu (approx  4x slower than non-stateful)
+-- -- One hundred thousand stateful closure applications:                 25% cpu (approx 25x slower than non-stateful)
+-- -- One hundred thousand closure allocations and applications:           8% cpu
+-- -- One hundred thousand closure applications:                         0.1% cpu
+-- -- One hundred thousand reg function applications:                    0.1% cpu
 -- addSome :: Int -> Int
--- addSome x = x + 1
+-- addSome x =
+--   x + 1
 -- addSomeMore :: Int -> Int -> Int
--- addSomeMore x y = x + y
+-- addSomeMore x y =
+--   x + y
 -- doit :: (a -> b) -> a -> b
--- doit f x = f x
+-- doit f x =
+--   f x
 -- integrate :: (Int -> Int) -> Int
--- integrate f = feed where
---     feed ~ 0 = doit (addSomeMore 6) feed
+-- integrate f =
+--   feed where
+--     feed ~ 0 = f feed
 -- tenTimes :: (Int -> Int) -> Int
 -- tenTimes n =
---     integrate n + integrate n + integrate n + integrate n + integrate n +
---     integrate n + integrate n + integrate n + integrate n + integrate n
+--   integrate n + integrate n + integrate n + integrate n + integrate n +
+--   integrate n + integrate n + integrate n + integrate n + integrate n
 -- oneHundredTimes :: (Int -> Int) -> Int
 -- oneHundredTimes n =
---     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
---     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
+--   tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
+--   tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
 -- oneThousandTimes :: (Int -> Int) -> Int
 -- oneThousandTimes n =
---     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
---     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
+--   oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
+--   oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
 -- tenThousandTimes :: (Int -> Int) -> Int
 -- tenThousandTimes n =
---     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
---     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
+--   oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
+--   oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
 -- oneHundredThousandTimes :: (Int -> Int) -> Int
 -- oneHundredThousandTimes n =
---     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n +
---     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
+--   tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n +
+--   tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
 -- oneMillionTimes :: (Int -> Int) -> Int
 -- oneMillionTimes f =
---     oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f +
---     oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f
+--   oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f +
+--   oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f
 -- main :: Int
--- main = oneHundredThousandTimes addSome
+-- main = let f = addSome in
+--   oneMillionTimes f
+
+-- -----------------------------------------
+-- -- Vector thoughts
+-- -----------------------------------------
+-- data Vector a = Vector Int (Ptr a)
+--
+-- -- TODO: Base .necro compiling system?
+-- -- State Analysis with stateful closure detection / type checking !?!?!
+--
+-- -- Some thoughts:
+-- -- 1. Mapping stateful closures can have unintuitive consequences
+-- --    and seem something of an anti-pattern unless you know what you are doing (i.e. how they would be used in poly)
+-- -- 2. Stateful closures have a performance burden
+-- -- Possible Conclusion:
+-- -- Closures by default are "Pointwise", have "Stateful" closures, but you have to opt in to them.
+-- -- This would be checked statically
+--
+-- mapv :: (a -> b) -> Vector a -> Vector b
+-- mapv f v = mapvgo f (unsafeMalloc (len v)) (ptr v) (len v) (len v + 1)
+--
+-- mapvgo :: (a -> b) -> Ptr a -> Ptr b -> Int -> Int -> Vector b
+-- mapvgo f prevPtr newPtr len i =
+--   case i of
+--     0 ->
+--       Vector len newPtr
+--     _ ->
+--       mapvgo f (prevPtr + 1) (unsafePoke i (f (unsafeDeref prevPtr)) newPtr) len (i - 1)
+--
+-- sinOsc :: Vector Float
+-- sinOsc = map (waveTableLookup sinOscTable) phases where
+--   (accu ~ 0, phases) = accumulate (\a -> a + recipDeltaTime) accu blockSize
+
+data Maybe a = Just a | Nothing
+
+makeVec3 :: a -> a -> a -> Vector a
+makeVec3 x y z = Vector 3 ptr''' where
+  ptr    = unsafeMalloc 3
+  ptr'   = unsafePoke 0 x ptr
+  ptr''  = unsafePoke 1 y ptr'
+  ptr''' = unsafePoke 2 z ptr''
+
+lookup :: Int -> Vector a -> Maybe a
+lookup i v =
+  case v of
+    Vector l p ->
+      Just (unsafePeek i p)
+
+unsafeLookup :: Int -> Vector a -> a
+unsafeLookup i v =
+  case v of
+    Vector l p ->
+      unsafePeek i p
+
+intVec :: Vector Int
+intVec = makeVec3 1 2 3
+
+intVecVec :: Vector (Vector Int)
+intVecVec = makeVec3 intVec intVec intVec
+
+main :: Int
+main = unsafeLookup 1 (unsafeLookup 1 intVecVec)
+
+-- loopTest :: Int -> Int
+-- loopTest x =
+--   case x of
+--     0 -> 0
+--     _ -> loopTest (x - 1)
 

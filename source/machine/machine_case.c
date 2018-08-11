@@ -59,20 +59,9 @@ typedef struct
     NecroPatternPath*          path;
     struct NecroDecisionTree** cases;
     NecroCon*                  cons;
+    NecroAST_Constant_Reified* constants;
     size_t                     num_cases;
 } NecroDecisionTreeSwitch;
-
-// typedef struct
-// {
-//     struct NecroDecisionTree* next;
-//     // LLVMValueRef*             parent_var;
-//     // NecroMachineAST**         parent_var;
-//     size_t                    slot;
-//     // LLVMValueRef              bound_var;
-//     // NecroMachineAST*          bound_var;
-//     NecroID*                  bound_ids;
-//     size_t                    num_bound_ids;
-// } NecroDecisionTreeBind;
 
 typedef struct NecroDecisionTree
 {
@@ -82,7 +71,6 @@ typedef struct NecroDecisionTree
         NecroDecisionTreeLeaf   tree_leaf;
     };
     NECRO_DECISION_TREE_TYPE type;
-    // LLVMBasicBlockRef        block;
     NecroMachineAST*         block;
     size_t                   hash;
 } NecroDecisionTree;
@@ -139,18 +127,21 @@ NecroDecisionTree* necro_create_decision_tree_leaf(NecroMachineProgram* program,
     return leaf;
 }
 
-NecroDecisionTree* necro_create_decision_tree_switch(NecroMachineProgram* program, NecroPatternPath* path, NecroDecisionTree** cases, NecroCon* cons, size_t num_cases)
+NecroDecisionTree* necro_create_decision_tree_switch(NecroMachineProgram* program, NecroPatternPath* path, NecroDecisionTree** cases, NecroCon* cons, NecroAST_Constant_Reified* constants, size_t num_cases)
 {
     NecroDecisionTree* tree_switch     = necro_paged_arena_alloc(&program->arena, sizeof(NecroDecisionTree));
     tree_switch->type                  = NECRO_DECISION_TREE_SWITCH;
     tree_switch->tree_switch.path      = path;
     tree_switch->tree_switch.cases     = cases;
     tree_switch->tree_switch.cons      = cons;
+    tree_switch->tree_switch.constants = constants;
     tree_switch->tree_switch.num_cases = num_cases;
     tree_switch->block                 = NULL;
     tree_switch->hash                  = 0;
     return tree_switch;
 }
+
+NecroDecisionTree* necro_compile_pattern_matrix(NecroMachineProgram* program, NecroPatternMatrix* matrix, NecroCoreAST_Expression* top_case_ast);
 
 NecroPatternMatrix necro_create_pattern_matrix(NecroMachineProgram* program, NecroCon pattern_con, size_t rows, size_t columns)
 {
@@ -295,7 +286,6 @@ NecroPatternMatrix necro_specialize_matrix(NecroMachineProgram* program, NecroPa
 
 NecroPatternMatrix necro_create_pattern_matrix_from_case(NecroMachineProgram* program, NecroCoreAST_Expression* ast, NecroPatternPath* case_path)
 {
-    // if (necro_is_codegen_error(codegen)) return (NecroPatternMatrix) { 0 };
     assert(program != NULL);
     assert(ast != NULL);
     assert(ast->expr_type == NECRO_CORE_EXPR_CASE);
@@ -313,9 +303,6 @@ NecroPatternMatrix necro_create_pattern_matrix_from_case(NecroMachineProgram* pr
     NecroPatternMatrix matrix    = necro_create_pattern_matrix(program, (NecroCon) { 0, 0 }, rows, columns);
     size_t             this_rows = 0;
     alts                         = ast->case_expr.alts;
-    // NecroPatternPath*  path      = necro_create_pattern_path(program, case_path, LLVMPointerType(necro_get_ast_llvm_type(codegen, ast->case_expr.expr), 0), case_path->value, 0);
-    // NecroPatternPath*  path      = necro_create_pattern_path(program, case_path, necro_create_machine_ptr_type(&program->arena, necro_type_to_machine_type(program, ast->case_expr.type)), case_path->value, 0);
-    // NecroMachineType*  expr_type = necro_make_ptr_if_boxed(program, necro_core_ast_to_machine_type(program, ast->case_expr.expr));
     NecroMachineType*  expr_type = necro_make_ptr_if_boxed(program, necro_type_to_machine_type(program, ast->case_expr.expr->necro_type));
     NecroPatternPath*  path      = necro_create_pattern_path(program, case_path, expr_type, case_path->value, 0);
     while (alts != NULL)
@@ -334,6 +321,10 @@ NecroPatternMatrix necro_create_pattern_matrix_from_case(NecroMachineProgram* pr
         {
             matrix.patterns[this_rows][0] = alts->altCon;
         }
+        else if (alts->altCon->expr_type == NECRO_CORE_EXPR_LIT) // Literal
+        {
+            matrix.patterns[this_rows][0] = alts->altCon;
+        }
         else
         {
             assert(false && "Case alternatives should be a constructor, wildcard, or constant!");
@@ -344,6 +335,83 @@ NecroPatternMatrix necro_create_pattern_matrix_from_case(NecroMachineProgram* pr
     }
     matrix.paths[0] = path;
     return matrix;
+}
+
+NecroPatternMatrix necro_specialize_lit_matrix(NecroMachineProgram* program, NecroPatternMatrix* matrix, NecroAST_Constant_Reified lit)
+{
+    size_t new_rows    = 0;
+    size_t new_columns = max(0, 1 + (matrix->columns - 1));
+    for (size_t r = 0; r < matrix->rows; ++r)
+    {
+        NecroCoreAST_Expression* row_head = matrix->patterns[r][0];
+        if (row_head->expr_type == NECRO_CORE_EXPR_LIT) // Lit
+        {
+            // Delete other non-matching literals
+            switch (row_head->lit.type)
+            {
+            case NECRO_AST_CONSTANT_FLOAT_PATTERN:
+                if (row_head->lit.double_literal == lit.double_literal) // Floats not being handled very well here...
+                    new_rows++;
+                break;
+            case NECRO_AST_CONSTANT_INTEGER_PATTERN:
+                if (row_head->lit.int_literal == lit.int_literal)
+                    new_rows++;
+                break;
+            case NECRO_AST_CONSTANT_CHAR_PATTERN:
+                if (row_head->lit.char_literal == lit.char_literal)
+                    new_rows++;
+                break;
+            default:
+                assert(false && "Found Non-Pattern literal while compiling case statement");
+            }
+        }
+        else
+        {
+            assert(false && "Pattern should be literal constant");
+        }
+    }
+    NecroPatternMatrix specialized_matrix = necro_create_pattern_matrix(program, (NecroCon) { 0, 0 }, new_rows, new_columns);
+    size_t             new_r              = 0;
+    for (size_t r = 0; r < matrix->rows; ++r)
+    {
+        NecroCoreAST_Expression** row      = matrix->patterns[r];
+        NecroCoreAST_Expression*  row_head = row[0];
+        if (row_head->expr_type == NECRO_CORE_EXPR_LIT) // Lit
+        {
+            assert(row_head->lit.type == lit.type);
+            switch (lit.type)
+            {
+            case NECRO_AST_CONSTANT_INTEGER_PATTERN:
+                if (row_head->lit.int_literal != lit.int_literal)
+                    continue;
+            case NECRO_AST_CONSTANT_FLOAT_PATTERN:
+                if (row_head->lit.double_literal != lit.double_literal)
+                    continue;
+                break;
+            case NECRO_AST_CONSTANT_CHAR_PATTERN:
+                if (row_head->lit.char_literal != lit.char_literal)
+                    continue;
+                break;
+            default:
+                assert(false && "Found Non-Pattern literal while compiling case statement");
+            }
+            specialized_matrix.bindings[new_r]    = matrix->bindings[r];
+            specialized_matrix.patterns[new_r][0] = matrix->patterns[r][0];
+            for (size_t c = 1; c < matrix->columns; ++c)
+            {
+                specialized_matrix.patterns[new_r][c] = matrix->patterns[r][c];
+                if (specialized_matrix.paths[c] == NULL)
+                    specialized_matrix.paths[c] = necro_create_pattern_path(program, matrix->paths[c]->parent, matrix->paths[c]->type, NULL, matrix->paths[c]->slot);
+            }
+            specialized_matrix.expressions[new_r] = matrix->expressions[r];
+        }
+        else
+        {
+            assert(false && "Pattern should be either data con, wild card, or constant!");
+        }
+        new_r++;
+    }
+    return specialized_matrix;
 }
 
 NecroPatternMatrix* necro_drop_columns(NecroPatternMatrix* matrix, size_t num_drop)
@@ -357,6 +425,46 @@ NecroPatternMatrix* necro_drop_columns(NecroPatternMatrix* matrix, size_t num_dr
     matrix->paths   += num_drop;
     matrix->columns -= num_drop;
     return matrix;
+}
+
+NecroDecisionTree* necro_finish_compile_literal_pattern_matrix(NecroMachineProgram* program, NecroPatternMatrix* matrix, NecroCoreAST_Expression* top_case_ast, size_t num_drop)
+{
+    matrix                               = necro_drop_columns(matrix, num_drop);
+    NecroDecisionTree**        cases     = necro_paged_arena_alloc(&program->arena, matrix->rows * sizeof(NecroDecisionTree*));
+    NecroAST_Constant_Reified* constants = necro_paged_arena_alloc(&program->arena, matrix->rows * sizeof(NecroAST_Constant_Reified));
+    for (size_t i = 0; i < matrix->rows; ++i)
+    {
+        assert(matrix->patterns[i][0]->expr_type == NECRO_CORE_EXPR_LIT);
+        NecroPatternMatrix con_matrix = necro_specialize_lit_matrix(program, matrix, matrix->patterns[i][0]->lit);
+        cases[i]                      = necro_compile_pattern_matrix(program, &con_matrix, top_case_ast);
+        constants[i]                  = matrix->patterns[i][0]->lit;
+    }
+    return necro_create_decision_tree_switch(program, matrix->paths[0], cases, NULL, constants, matrix->rows);
+}
+
+NecroDecisionTree* necro_finish_compile_pattern_matrix(NecroMachineProgram* program, NecroPatternMatrix* matrix, NecroCoreAST_Expression* top_case_ast, size_t num_drop, size_t num_cons, NecroType* pattern_type)
+{
+    matrix                        = necro_drop_columns(matrix, num_drop);
+    NecroDecisionTree** cases     = necro_paged_arena_alloc(&program->arena, num_cons * sizeof(NecroDecisionTree*));
+    NecroCon*           cons      = necro_paged_arena_alloc(&program->arena, num_cons * sizeof(NecroCon));
+    NecroSymbolInfo*    info      = necro_symtable_get(program->symtable, pattern_type->con.con.id);
+    NecroASTNode*       data_cons = info->ast->data_declaration.constructor_list;
+    size_t              con_num   = 0;
+    while (data_cons != NULL)
+    {
+        NecroCon pattern_con =
+        {
+            .id     = data_cons->list.item->constructor.conid->conid.id,
+            .symbol = data_cons->list.item->constructor.conid->conid.symbol,
+        };
+        const char*        con_name   = necro_intern_get_string(program->intern, pattern_con.symbol);
+        NecroPatternMatrix con_matrix = necro_specialize_matrix(program, matrix, pattern_con);             // if (necro_is_codegen_error(codegen)) return NULL;
+        cases[con_num]                = necro_compile_pattern_matrix(program, &con_matrix, top_case_ast);  // if (necro_is_codegen_error(codegen)) return NULL;
+        cons[con_num]                 = pattern_con;
+        con_num++;
+        data_cons = data_cons->list.next_item;
+    }
+    return necro_create_decision_tree_switch(program, matrix->paths[0], cases, cons, NULL, num_cons);
 }
 
 NecroDecisionTree* necro_compile_pattern_matrix(NecroMachineProgram* program, NecroPatternMatrix* matrix, NecroCoreAST_Expression* top_case_ast)
@@ -408,7 +516,23 @@ NecroDecisionTree* necro_compile_pattern_matrix(NecroMachineProgram* program, Ne
                 }
                 assert(pattern_type->type == NECRO_TYPE_CON);
                 num_cons = necro_symtable_get(program->symtable, pattern_type->con.con.id)->con_num;
-                goto necro_compile_pattern_matrix_post_drop;
+                return necro_finish_compile_pattern_matrix(program, matrix, top_case_ast, num_drop, num_cons, pattern_type);
+            }
+            else if (matrix->patterns[r][c]->expr_type == NECRO_CORE_EXPR_LIT)
+            {
+                switch (matrix->patterns[r][c]->lit.type)
+                {
+                case NECRO_AST_CONSTANT_INTEGER_PATTERN:
+                    pattern_type = necro_symtable_get(program->symtable, program->prim_types->int_type.id)->type;
+                    break;
+                case NECRO_AST_CONSTANT_FLOAT_PATTERN:
+                    pattern_type = necro_symtable_get(program->symtable, program->prim_types->float_type.id)->type;
+                    break;
+                case NECRO_AST_CONSTANT_CHAR_PATTERN:
+                    pattern_type = necro_symtable_get(program->symtable, program->prim_types->char_type.id)->type;
+                    break;
+                }
+                return necro_finish_compile_literal_pattern_matrix(program, matrix, top_case_ast, num_drop);
             }
             else
             {
@@ -417,34 +541,11 @@ NecroDecisionTree* necro_compile_pattern_matrix(NecroMachineProgram* program, Ne
         }
         num_drop++;
     }
-necro_compile_pattern_matrix_post_drop:
-    matrix                        = necro_drop_columns(matrix, num_drop);
-    NecroDecisionTree** cases     = necro_paged_arena_alloc(&program->arena, num_cons * sizeof(NecroDecisionTree*));
-    NecroCon*           cons      = necro_paged_arena_alloc(&program->arena, num_cons * sizeof(NecroCon));
-    NecroSymbolInfo*    info      = necro_symtable_get(program->symtable, pattern_type->con.con.id);
-    NecroASTNode*       data_cons = info->ast->data_declaration.constructor_list;
-    size_t              con_num   = 0;
-    while (data_cons != NULL)
-    {
-        NecroCon pattern_con =
-        {
-            .id     = data_cons->list.item->constructor.conid->conid.id,
-            .symbol = data_cons->list.item->constructor.conid->conid.symbol,
-        };
-        const char*        con_name   = necro_intern_get_string(program->intern, pattern_con.symbol);
-        NecroPatternMatrix con_matrix = necro_specialize_matrix(program, matrix, pattern_con);             // if (necro_is_codegen_error(codegen)) return NULL;
-        cases[con_num]                = necro_compile_pattern_matrix(program, &con_matrix, top_case_ast);  // if (necro_is_codegen_error(codegen)) return NULL;
-        cons[con_num]                 = pattern_con;
-        con_num++;
-        data_cons = data_cons->list.next_item;
-    }
-    return necro_create_decision_tree_switch(program, matrix->paths[0], cases, cons, num_cons);
+    return necro_finish_compile_pattern_matrix(program, matrix, top_case_ast, num_drop, num_cons, pattern_type);
 }
 
-// void necro_codegen_decision_tree(NecroMachineProgram* program, NecroDecisionTree* tree, LLVMBasicBlockRef term_case_block, LLVMBasicBlockRef error_block, LLVMValueRef result_phi, NecroNodePrototype* outer)
 void necro_decision_tree_to_machine(NecroMachineProgram* program, NecroDecisionTree* tree, NecroMachineAST* term_case_block, NecroMachineAST* error_block, NecroMachineAST* result_phi, NecroMachineAST* outer)
 {
-    // if (necro_is_codegen_error(codegen)) return;
     assert(program != NULL);
     assert(tree != NULL);
     assert(outer != NULL);
@@ -459,22 +560,11 @@ void necro_decision_tree_to_machine(NecroMachineProgram* program, NecroDecisionT
         while (bindings != NULL)
         {
             // Load value
-            // LLVMValueRef offset_parent_ptr = necro_snapshot_gep(codegen, "bind_path_slot_ptr", bindings->path->parent->value, 2, (uint32_t[]) { 0, 1 + bindings->path->slot });
-            // LLVMValueRef value_ptr = LLVMBuildLoad(codegen->builder, offset_parent_ptr, "value_ptr");
-            // value_ptr = necro_maybe_cast(codegen, value_ptr, bindings->path->type);
-            // necro_symtable_get(codegen->symtable, bindings->var->var.id)->llvm_value     = value_ptr;
-            // // NecroNodePrototype* var_prototype = necro_create_necro_node_prototype(codegen, bindings->var->var, necro_intern_get_string(codegen->intern, bindings->var->var.symbol), bindings->path->type, bindings->path->type, outer, NECRO_NODE_STATELESS, false);
-            // necro_symtable_get(codegen->symtable, bindings->var->var.id)->node_prototype = var_prototype;
             NecroMachineAST* parent_val = necro_build_maybe_cast(program, outer->machine_def.update_fn, bindings->path->parent->value, bindings->path->parent->type);
             NecroMachineAST* value_ptr  = necro_build_load_from_slot(program, outer->machine_def.update_fn, parent_val, bindings->path->slot + 1, "value");
             necro_symtable_get(program->symtable, bindings->var->var.id)->necro_machine_ast = value_ptr;
             bindings = bindings->next;
         }
-        // LLVMValueRef leaf_value = necro_calculate_node_call(codegen, tree->tree_leaf.expression, outer);
-        // if (necro_is_codegen_error(codegen)) return;
-        // LLVMBasicBlockRef current_block = LLVMGetInsertBlock(codegen->builder);
-        // LLVMAddIncoming(result_phi, &leaf_value, &current_block, 1);
-        // LLVMBuildBr(codegen->builder, term_case_block);
         NecroMachineAST* leaf_value   = necro_core_to_machine_3_go(program, tree->tree_leaf.expression, outer);
         NecroMachineAST* leaf_value_m = necro_build_maybe_cast(program, outer->machine_def.update_fn, leaf_value, result_phi->phi.result->necro_machine_type);
         NecroMachineAST* curr_block   = outer->machine_def.update_fn->fn_def._curr_block;
@@ -487,37 +577,22 @@ void necro_decision_tree_to_machine(NecroMachineProgram* program, NecroDecisionT
         // Load value
         if (tree->tree_switch.path->value == NULL)
         {
-            // LLVMValueRef offset_parent_ptr = necro_snapshot_gep(codegen, "path_slot_ptr", tree->tree_switch.path->parent->value, 2, (uint32_t[]) { 0, 1 + tree->tree_switch.path->slot });
-            // LLVMValueRef value_ptr         = LLVMBuildLoad(codegen->builder, offset_parent_ptr, "value_ptr");
-            // tree->tree_switch.path->value  = necro_maybe_cast(codegen, value_ptr, tree->tree_switch.path->type);
             NecroMachineAST* parent_val   = necro_build_maybe_cast(program, outer->machine_def.update_fn, tree->tree_switch.path->parent->value, tree->tree_switch.path->parent->type);
             tree->tree_switch.path->value = necro_build_load_from_slot(program, outer->machine_def.update_fn, parent_val, tree->tree_switch.path->slot + 1, "value");
         }
         if (tree->tree_switch.num_cases > 1)
         {
-            // LLVMValueRef con_ptr           = necro_snapshot_gep(codegen, "con_ptr", tree->tree_switch.path->value, 3, (uint32_t[]) { 0, 0, 1 });
-            // LLVMValueRef con_val           = LLVMBuildLoad(codegen->builder, con_ptr, "con_val");
-            // LLVMValueRef switch_value      = LLVMBuildSwitch(codegen->builder, con_val, error_block, tree->tree_switch.num_cases);
             NecroMachineAST*              val          = necro_build_maybe_cast(program, outer->machine_def.update_fn, tree->tree_switch.path->value, tree->tree_switch.path->type);
-            // NecroMachineAST*              tag          = necro_build_load_tag(program, outer->machine_def.update_fn, val, "tag");
             NecroMachineAST*              tag          = necro_build_load_from_slot(program, outer->machine_def.update_fn, val, 0, "tag");
             struct NecroSwitchTerminator* switch_value = necro_build_switch(program, outer->machine_def.update_fn, tag, NULL, error_block);
             for (size_t i = 0; i < tree->tree_switch.num_cases; ++i)
             {
                 if (tree->tree_switch.cases[i]->block != NULL)
                 {
-                    // LLVMAddCase(switch_value, LLVMConstInt(LLVMInt32TypeInContext(codegen->context), i, false), tree->tree_switch.cases[i]->block);
-                    // LLVMAddCase(switch_value, LLVMConstInt(LLVMInt32TypeInContext(codegen->context), i, false), tree->tree_switch.cases[i]->block);
                     necro_add_case_to_switch(program, switch_value, tree->tree_switch.cases[i]->block, i);
                 }
                 else
                 {
-                    // LLVMBasicBlockRef case_block = LLVMInsertBasicBlockInContext(codegen->context, term_case_block, case_name);
-                    // LLVMAddCase(switch_value, LLVMConstInt(LLVMInt32TypeInContext(codegen->context), i, false), case_block);
-                    // LLVMPositionBuilderAtEnd(codegen->builder, case_block);
-                    // necro_codegen_decision_tree(codegen, tree->tree_switch.cases[i], term_case_block, error_block, result_phi, outer);
-                    // if (necro_is_codegen_error(codegen)) return;
-                    // tree->tree_switch.cases[i]->block = case_block;
                     const char*      case_name  = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { necro_intern_get_string(program->intern, tree->tree_switch.cons[i].symbol), "_case" });
                     NecroMachineAST* case_block = necro_insert_block_before(program, outer->machine_def.update_fn, case_name, term_case_block);
                     necro_add_case_to_switch(program, switch_value, case_block, i);
@@ -573,7 +648,6 @@ void necro_core_to_machine_2_case(NecroMachineProgram* program, NecroCoreAST_Exp
 
 NecroMachineAST* necro_core_to_machine_3_case(NecroMachineProgram* program, NecroCoreAST_Expression* ast, NecroMachineAST* outer)
 {
-    // if (necro_is_codegen_error(codegen)) return NULL;
     assert(program != NULL);
     assert(ast != NULL);
     assert(ast->expr_type == NECRO_CORE_EXPR_CASE);
@@ -591,9 +665,6 @@ NecroMachineAST* necro_core_to_machine_3_case(NecroMachineProgram* program, Necr
     NecroMachineAST*  next_block      = current_block->block.next_block;
 
     // End block
-    // LLVMBasicBlockRef term_case_block  = (next_block != NULL) ? LLVMInsertBasicBlock(next_block, "case_end") : LLVMAppendBasicBlock(codegen->current_func, "case_end");
-    // LLVMPositionBuilderAtEnd(codegen->builder, term_case_block);
-    // LLVMValueRef       case_result     = LLVMBuildPhi(codegen->builder, LLVMPointerType(necro_type_to_llvm_type(codegen, ast->case_expr.type, false), 0), "case_result");
     NecroMachineAST*  term_case_block  = (next_block != NULL) ? necro_insert_block_before(program, outer->machine_def.update_fn, "case_end", next_block) : necro_append_block(program, outer->machine_def.update_fn, "case_end");
     necro_move_to_block(program, outer->machine_def.update_fn, term_case_block);
     NecroMachineAST*  case_result      = necro_build_phi(program, outer->machine_def.update_fn, necro_make_ptr_if_boxed(program, necro_type_to_machine_type(program, ast->case_expr.type)), NULL);
@@ -602,17 +673,9 @@ NecroMachineAST* necro_core_to_machine_3_case(NecroMachineProgram* program, Necr
     // result_phi->necro_machine_type     = case_result->necro_machine_type;
 
     // Error block
-    // LLVMBasicBlockRef  err_block       = outer->case_error_block;
     NecroMachineAST* err_block = outer->machine_def.update_fn->fn_def._err_block;
     if (err_block == NULL)
     {
-        // LLVMBasicBlockRef next_block = LLVMGetNextBasicBlock(term_case_block);
-        // err_block = (next_block == NULL) ? LLVMAppendBasicBlock(codegen->current_func, "case_error") : LLVMInsertBasicBlock(next_block, "case_error");
-        // LLVMPositionBuilderAtEnd(codegen->builder, err_block);
-        // LLVMValueRef exit_call = necro_build_call_llvm(codegen, codegen->runtime->functions.necro_error_exit, (LLVMValueRef[]) { LLVMConstInt(LLVMInt32TypeInContext(codegen->context), 1, false) }, 1, "");
-        // LLVMSetInstructionCallConv(exit_call, LLVMCCallConv);
-        // LLVMBuildUnreachable(codegen->builder);
-        // outer->case_error_block = err_block;
         NecroMachineAST* next_block = term_case_block->block.next_block;
         err_block = (next_block == NULL) ? necro_append_block(program, outer->machine_def.update_fn, "error") : necro_insert_block_before(program, outer->machine_def.update_fn, "error", next_block);
         necro_move_to_block(program, outer->machine_def.update_fn, err_block);
@@ -622,16 +685,13 @@ NecroMachineAST* necro_core_to_machine_3_case(NecroMachineProgram* program, Necr
     }
 
     // Build case in current block
-    // LLVMPositionBuilderAtEnd(codegen->builder, current_block);
-    // necro_codegen_decision_tree(codegen, tree, term_case_block, err_block, case_result, outer);          if (necro_is_codegen_error(codegen)) return NULL;
-    // LLVMPositionBuilderAtEnd(codegen->builder, term_case_block);
-    // // LLVMViewFunctionCFG(codegen->current_func);
     necro_move_to_block(program, outer->machine_def.update_fn, current_block);
     necro_decision_tree_to_machine(program, tree, term_case_block, err_block, result_phi, outer);
     necro_move_to_block(program, outer->machine_def.update_fn, term_case_block);
     return case_result;
 }
 
+// TODO: Finish adding literal case statements!
 
 //=====================================================
 // NecroDecisionTreeHashTable

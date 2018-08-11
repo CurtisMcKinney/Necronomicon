@@ -356,9 +356,11 @@ intVecVec = makeVec3 intVec intVec intVec
 main :: Int
 main = unsafeLookup 1 (unsafeLookup 1 intVecVec)
 
--- loopTest :: Int -> Int
--- loopTest x =
---   case x of
---     0 -> 0
---     _ -> loopTest (x - 1)
+loopTest :: Int -> Int
+loopTest x =
+  case x of
+    0 -> 0
+    1 -> 1
+    2 -> 2
+    _ -> loopTest (x - 1)
 

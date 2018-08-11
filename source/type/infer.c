@@ -640,33 +640,39 @@ NecroType* necro_infer_constant(NecroInfer* infer, NecroNode* ast)
     {
     case NECRO_AST_CONSTANT_FLOAT_PATTERN:
     {
-        NecroType* new_name   = necro_new_name(infer, ast->source_loc);
-        new_name->var.context = necro_create_type_class_context(&infer->arena,
-            necro_symtable_get(infer->symtable, infer->prim_types->fractional_type_class.id)->type_class,
-            infer->prim_types->fractional_type_class,
-            (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, NULL);
-        new_name->var.context = necro_create_type_class_context(&infer->arena,
-            necro_symtable_get(infer->symtable, infer->prim_types->eq_type_class.id)->type_class,
-            infer->prim_types->eq_type_class,
-            (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, new_name->var.context);
-        new_name->type_kind   = infer->star_type_kind;
-        ast->necro_type = new_name;
-        return new_name;
+        ast->necro_type = necro_symtable_get(infer->symtable, infer->prim_types->rational_type.id)->type;
+        return ast->necro_type;
+        // Removing overloaded numeric literal patterns for now...
+        // NecroType* new_name   = necro_new_name(infer, ast->source_loc);
+        // new_name->var.context = necro_create_type_class_context(&infer->arena,
+        //     necro_symtable_get(infer->symtable, infer->prim_types->fractional_type_class.id)->type_class,
+        //     infer->prim_types->fractional_type_class,
+        //     (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, NULL);
+        // new_name->var.context = necro_create_type_class_context(&infer->arena,
+        //     necro_symtable_get(infer->symtable, infer->prim_types->eq_type_class.id)->type_class,
+        //     infer->prim_types->eq_type_class,
+        //     (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, new_name->var.context);
+        // new_name->type_kind = infer->star_type_kind;
+        // ast->necro_type     = new_name;
+        // return new_name;
     }
     case NECRO_AST_CONSTANT_INTEGER_PATTERN:
     {
-        NecroType* new_name   = necro_new_name(infer, ast->source_loc);
-        new_name->var.context = necro_create_type_class_context(&infer->arena,
-            necro_symtable_get(infer->symtable, infer->prim_types->num_type_class.id)->type_class,
-            infer->prim_types->num_type_class,
-            (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, NULL);
-        new_name->var.context = necro_create_type_class_context(&infer->arena,
-            necro_symtable_get(infer->symtable, infer->prim_types->eq_type_class.id)->type_class,
-            infer->prim_types->eq_type_class,
-            (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, new_name->var.context);
-        new_name->type_kind   = infer->star_type_kind;
-        ast->necro_type = new_name;
-        return new_name;
+        ast->necro_type = necro_symtable_get(infer->symtable, infer->prim_types->int_type.id)->type;
+        return ast->necro_type;
+        // Removing overloaded numeric literal patterns for now...
+        // NecroType* new_name   = necro_new_name(infer, ast->source_loc);
+        // new_name->var.context = necro_create_type_class_context(&infer->arena,
+        //     necro_symtable_get(infer->symtable, infer->prim_types->num_type_class.id)->type_class,
+        //     infer->prim_types->num_type_class,
+        //     (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, NULL);
+        // new_name->var.context = necro_create_type_class_context(&infer->arena,
+        //     necro_symtable_get(infer->symtable, infer->prim_types->eq_type_class.id)->type_class,
+        //     infer->prim_types->eq_type_class,
+        //     (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, new_name->var.context);
+        // new_name->type_kind   = infer->star_type_kind;
+        // ast->necro_type = new_name;
+        // return new_name;
     }
     case NECRO_AST_CONSTANT_FLOAT:
         ast->necro_type = necro_symtable_get(infer->symtable, infer->prim_types->rational_type.id)->type;

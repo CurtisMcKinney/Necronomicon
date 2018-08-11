@@ -1166,6 +1166,8 @@ void necro_type_class_translate_constant(NecroInfer* infer, NecroNode* ast, Necr
     assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_CONSTANT);
+    // Removing overloaded numeric literal patterns for now.
+    return;
     if (ast->constant.type != NECRO_AST_CONSTANT_FLOAT_PATTERN && ast->constant.type != NECRO_AST_CONSTANT_INTEGER_PATTERN) return;
 
     const char*     from_name  = NULL;

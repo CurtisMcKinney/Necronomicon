@@ -48,35 +48,39 @@ NecroMachineAST* necro_insert_block_before(NecroMachineProgram* program, NecroMa
 void             necro_move_to_block(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* block);
 
 // Memory
-NecroMachineAST* necro_build_nalloc(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineType* type, uint32_t a_slots_used);
+NecroMachineAST* necro_build_nalloc(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineType* type, uint32_t a_slots_used, bool is_constant);
 NecroMachineAST* necro_build_gep(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_value, uint32_t* a_indices, size_t num_indices, const char* dest_name);
+NecroMachineAST* necro_build_non_const_gep(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_value, NecroMachineAST** a_indices, size_t num_indices, const char* dest_name, NecroMachineType* result_type);
 NecroMachineAST* necro_build_bit_cast(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* value, NecroMachineType* to_type);
 void             necro_build_memcpy(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* dest, NecroMachineAST* source, NecroMachineAST* num_bytes);
+void             necro_build_memset(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* ptr, NecroMachineAST* value, NecroMachineAST* num_bytes);
+NecroMachineAST* necro_build_alloca(NecroMachineProgram* program, NecroMachineAST* fn_def, size_t num_slots);
 
 NecroMachineAST* necro_create_machine_struct_def(NecroMachineProgram* program, NecroVar name, NecroMachineType** members, size_t num_members);
 NecroMachineAST* necro_create_machine_fn(NecroMachineProgram* program, NecroVar name, NecroMachineAST* call_body, NecroMachineType* necro_machine_type);
-NecroMachineAST* necro_create_machine_runtime_fn(NecroMachineProgram* program, NecroVar name, NecroMachineType* necro_machine_type, void* runtime_fn_addr);
-NecroMachineAST* necro_create_machine_initial_machine_def(NecroMachineProgram* program, NecroVar bind_name, NecroMachineAST* outer, NecroMachineType* value_type);
+NecroMachineAST* necro_create_machine_runtime_fn(NecroMachineProgram* program, NecroVar name, NecroMachineType* necro_machine_type, void* runtime_fn_addr, NECRO_STATE_TYPE state_type);
+NecroMachineAST* necro_create_machine_initial_machine_def(NecroMachineProgram* program, NecroVar bind_name, NecroMachineAST* outer, NecroMachineType* value_type, NecroType* necro_value_type);
 
 // Load / Store
-void             necro_build_store_into_tag(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_value, NecroMachineAST* dest_ptr);
 void             necro_build_store_into_ptr(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_value, NecroMachineAST* dest_ptr);
 void             necro_build_store_into_slot(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_value, NecroMachineAST* dest_ptr, size_t dest_slot);
 NecroMachineAST* necro_build_load_from_ptr(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_ptr_ast, const char* dest_name_header);
 NecroMachineAST* necro_build_load_from_slot(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_ptr_ast, size_t source_slot, const char* dest_name_header);
-NecroMachineAST* necro_build_load_tag(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_ptr_ast, const char* dest_name);
 
 // Functions
-NecroMachineAST* necro_build_call(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* fn_to_call_value, NecroMachineAST** a_parameters, size_t num_parameters, const char* dest_name_header);
+
+NecroMachineAST* necro_build_call(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* fn_value_ast, NecroMachineAST** a_parameters, size_t num_parameters, NECRO_MACHINE_CALL_TYPE call_type, const char* dest_name);
 NecroMachineAST* necro_build_binop(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* left, NecroMachineAST* right, NECRO_MACHINE_BINOP_TYPE op_type);
 NecroMachineAST* necro_build_maybe_cast(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* ast, NecroMachineType* type_to_match);
 
 // Branching
+void             necro_build_return_void(NecroMachineProgram* program, NecroMachineAST* fn_def);
 void             necro_build_return(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* return_value);
 void             necro_build_break(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* block_to_jump_to);
 void             necro_build_cond_break(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* cond, NecroMachineAST* true_block, NecroMachineAST* false_block);
 NecroMachineAST* necro_build_cmp(NecroMachineProgram* program, NecroMachineAST* fn_def, NECRO_MACHINE_CMP_TYPE cmp_type, NecroMachineAST* left, NecroMachineAST* right);
 NecroMachineAST* necro_build_phi(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineType* type, NecroMachinePhiList* values);
+NecroMachineAST* necro_build_select(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* cmp_value, NecroMachineAST* left, NecroMachineAST* right);
 void             necro_add_incoming_to_phi(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* phi, NecroMachineAST* block, NecroMachineAST* value);
 void             necro_add_case_to_switch(NecroMachineProgram* program, struct NecroSwitchTerminator* switch_term, NecroMachineAST* block, size_t value);
 void             necro_build_unreachable(NecroMachineProgram* program, NecroMachineAST* fn_def);

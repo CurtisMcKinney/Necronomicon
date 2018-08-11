@@ -63,6 +63,10 @@ void necro_program_add_machine_def(NecroMachineProgram* program, NecroMachineAST
     necro_push_necro_machine_ast_vector(&program->machine_defs, &machine_def);
 }
 
+///////////////////////////////////////////////////////
+// Forward Declarations
+///////////////////////////////////////////////////////
+void necro_add_statement_to_block(NecroMachineProgram* program, NecroMachineAST* block, NecroMachineAST* statement);
 
 ///////////////////////////////////////////////////////
 // AST construction
@@ -132,7 +136,7 @@ NecroMachineAST* necro_create_uint1_necro_machine_value(NecroMachineProgram* pro
     {
         .uint1_literal = uint1_literal,
         .value_type    = NECRO_MACHINE_VALUE_UINT1_LITERAL,
-    }, necro_create_machine_uint8_type(&program->arena));
+    }, necro_create_machine_uint1_type(&program->arena));
 }
 
 NecroMachineAST* necro_create_uint8_necro_machine_value(NecroMachineProgram* program, uint8_t uint8_literal)
@@ -218,7 +222,7 @@ NecroMachineAST* necro_create_null_necro_machine_value(NecroMachineProgram* prog
 
 NecroMachineAST* necro_create_word_uint_value(NecroMachineProgram* program, uint64_t int_literal)
 {
-    if (sizeof(void*) == 4)
+    if (program->word_size == NECRO_WORD_4_BYTES)
         return necro_create_uint32_necro_machine_value(program, (uint32_t) int_literal);
     else
         return necro_create_uint64_necro_machine_value(program, int_literal);
@@ -226,7 +230,7 @@ NecroMachineAST* necro_create_word_uint_value(NecroMachineProgram* program, uint
 
 NecroMachineAST* necro_create_word_int_value(NecroMachineProgram* program, int64_t int_literal)
 {
-    if (sizeof(void*) == 4)
+    if (program->word_size == NECRO_WORD_4_BYTES)
         return necro_create_i32_necro_machine_value(program, (int32_t) int_literal);
     else
         return necro_create_i64_necro_machine_value(program, int_literal);
@@ -234,7 +238,7 @@ NecroMachineAST* necro_create_word_int_value(NecroMachineProgram* program, int64
 
 NecroMachineAST* necro_create_word_float_value(NecroMachineProgram* program, double float_literal)
 {
-    if (sizeof(void*) == 4)
+    if (program->word_size == NECRO_WORD_4_BYTES)
         return necro_create_f32_necro_machine_value(program, (float) float_literal);
     else
         return necro_create_f64_necro_machine_value(program, float_literal);
@@ -246,27 +250,12 @@ NecroMachineAST* necro_create_machine_load_from_ptr(NecroMachineProgram* program
     NecroMachineValue source_ptr = source_ptr_ast->value;
     assert(source_ptr_ast->necro_machine_type->type == NECRO_MACHINE_TYPE_PTR);
     assert(source_ptr.value_type == NECRO_MACHINE_VALUE_REG || source_ptr.value_type == NECRO_MACHINE_VALUE_PARAM || source_ptr.value_type == NECRO_MACHINE_VALUE_GLOBAL);
-    NecroMachineAST* ast    = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
+    NecroMachineAST* ast = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
     ast->type            = NECRO_MACHINE_LOAD;
     ast->load.load_type  = NECRO_LOAD_PTR;
     ast->load.source_ptr = source_ptr_ast;
     ast->load.dest_value = necro_create_reg(program, source_ptr_ast->necro_machine_type->ptr_type.element_type, dest_name);
     ast->necro_machine_type = source_ptr_ast->necro_machine_type->ptr_type.element_type;
-    return ast;
-}
-
-NecroMachineAST* necro_create_machine_load_tag(NecroMachineProgram* program, NecroMachineAST* source_ptr_ast, const char* dest_name)
-{
-    assert(source_ptr_ast->type == NECRO_MACHINE_VALUE);
-    NecroMachineValue source_ptr = source_ptr_ast->value;
-    assert(source_ptr_ast->necro_machine_type->type == NECRO_MACHINE_TYPE_PTR);
-    assert(source_ptr.value_type == NECRO_MACHINE_VALUE_REG || source_ptr.value_type == NECRO_MACHINE_VALUE_PARAM || source_ptr.value_type == NECRO_MACHINE_VALUE_GLOBAL);
-    NecroMachineAST* ast    = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
-    ast->type            = NECRO_MACHINE_LOAD;
-    ast->load.load_type  = NECRO_LOAD_TAG;
-    ast->load.source_ptr = source_ptr_ast;
-    ast->load.dest_value = necro_create_reg(program, necro_create_machine_uint32_type(&program->arena), dest_name);
-    ast->necro_machine_type = ast->load.dest_value->necro_machine_type;
     return ast;
 }
 
@@ -302,23 +291,6 @@ NecroMachineAST* necro_create_machine_store_into_ptr(NecroMachineProgram* progra
     return ast;
 }
 
-NecroMachineAST* necro_create_machine_store_into_tag(NecroMachineProgram* program, NecroMachineAST* source_value_ast, NecroMachineAST* dest_ptr_ast)
-{
-    assert(source_value_ast->type == NECRO_MACHINE_VALUE);
-    assert(dest_ptr_ast->type == NECRO_MACHINE_VALUE);
-    NecroMachineValue dest_ptr     = dest_ptr_ast->value;
-    assert(dest_ptr_ast->necro_machine_type->type == NECRO_MACHINE_TYPE_PTR);
-    assert(dest_ptr.value_type == NECRO_MACHINE_VALUE_REG || dest_ptr.value_type == NECRO_MACHINE_VALUE_PARAM);
-    assert(source_value_ast->necro_machine_type->type == NECRO_MACHINE_TYPE_UINT32);
-    NecroMachineAST* ast       = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
-    ast->type               = NECRO_MACHINE_STORE;
-    ast->store.store_type   = NECRO_STORE_TAG;
-    ast->store.source_value = source_value_ast;
-    ast->store.dest_ptr     = dest_ptr_ast;
-    ast->necro_machine_type    = NULL;
-    return ast;
-}
-
 NecroMachineAST* necro_create_machine_store_into_slot(NecroMachineProgram* program, NecroMachineAST* source_value_ast, NecroMachineAST* dest_ptr_ast, size_t dest_slot)
 {
     assert(source_value_ast->type == NECRO_MACHINE_VALUE);
@@ -327,7 +299,6 @@ NecroMachineAST* necro_create_machine_store_into_slot(NecroMachineProgram* progr
     assert(dest_ptr_ast->necro_machine_type->ptr_type.element_type->type == NECRO_MACHINE_TYPE_STRUCT);
     assert(dest_ptr_ast->necro_machine_type->ptr_type.element_type->struct_type.num_members > dest_slot);
     necro_type_check(program, source_value_ast->necro_machine_type, dest_ptr_ast->necro_machine_type->ptr_type.element_type->struct_type.members[dest_slot]);
-
     NecroMachineAST* ast               = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
     ast->type                       = NECRO_MACHINE_STORE;
     ast->store.store_type           = NECRO_STORE_SLOT;
@@ -352,31 +323,6 @@ NecroMachineAST* necro_create_machine_block(NecroMachineProgram* program, const 
     return ast;
 }
 
-NecroMachineAST* necro_create_machine_call(NecroMachineProgram* program, NecroMachineAST* fn_value_ast, NecroMachineAST** a_parameters, size_t num_parameters, const char* dest_name)
-{
-    // type_check
-    assert(fn_value_ast->type == NECRO_MACHINE_VALUE);
-    assert(fn_value_ast->necro_machine_type->type == NECRO_MACHINE_TYPE_FN);
-    assert(fn_value_ast->necro_machine_type->fn_type.num_parameters == num_parameters);
-    for (size_t i = 0; i < num_parameters; i++)
-    {
-        necro_type_check(program, fn_value_ast->necro_machine_type->fn_type.parameters[i], a_parameters[i]->necro_machine_type);
-    }
-    NecroMachineAST* ast       = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
-    ast->type                  = NECRO_MACHINE_CALL;
-    ast->call.fn_value         = fn_value_ast;
-    NecroMachineAST** parameters = necro_paged_arena_alloc(&program->arena, num_parameters * sizeof(NecroMachineAST*));
-    memcpy(parameters, a_parameters, num_parameters * sizeof(NecroMachineAST*));
-    ast->call.parameters       = parameters;
-    ast->call.num_parameters   = num_parameters;
-    if (fn_value_ast->necro_machine_type->fn_type.return_type->type == NECRO_MACHINE_TYPE_VOID)
-        ast->call.result_reg = necro_create_machine_value_ast(program, (NecroMachineValue) { .value_type = NECRO_MACHINE_VALUE_VOID }, fn_value_ast->necro_machine_type->fn_type.return_type);
-    else
-        ast->call.result_reg = necro_create_reg(program, fn_value_ast->necro_machine_type->fn_type.return_type, dest_name);
-    ast->necro_machine_type    = fn_value_ast->necro_machine_type->fn_type.return_type;
-    return ast;
-}
-
 NecroMachineAST* necro_create_machine_struct_def(NecroMachineProgram* program, NecroVar name, NecroMachineType** members, size_t num_members)
 {
     NecroMachineAST* ast    = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
@@ -397,7 +343,7 @@ NecroMachineAST* necro_create_machine_fn(NecroMachineProgram* program, NecroVar 
     ast->fn_def.fn_type                 = NECRO_FN_FN;
     ast->fn_def.fn_value                = necro_create_global_value(program, name, necro_machine_type);
     ast->necro_machine_type             = necro_machine_type;
-    ast->fn_def.is_primitively_stateful = false;
+    ast->fn_def.state_type              = NECRO_STATE_CONSTANT;
     assert(call_body->type == NECRO_MACHINE_BLOCK);
     necro_symtable_get(program->symtable, name.id)->necro_machine_ast = ast;
     necro_program_add_function(program, ast);
@@ -408,7 +354,7 @@ NecroMachineAST* necro_create_machine_fn(NecroMachineProgram* program, NecroVar 
     return ast;
 }
 
-NecroMachineAST* necro_create_machine_runtime_fn(NecroMachineProgram* program, NecroVar name, NecroMachineType* necro_machine_type, void* runtime_fn_addr)
+NecroMachineAST* necro_create_machine_runtime_fn(NecroMachineProgram* program, NecroVar name, NecroMachineType* necro_machine_type, void* runtime_fn_addr, NECRO_STATE_TYPE state_type)
 {
     NecroMachineAST* ast                = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
     ast->type                           = NECRO_MACHINE_FN_DEF;
@@ -418,7 +364,7 @@ NecroMachineAST* necro_create_machine_runtime_fn(NecroMachineProgram* program, N
     ast->fn_def.fn_value                = necro_create_global_value(program, name, necro_machine_type);
     ast->necro_machine_type             = necro_machine_type;
     ast->fn_def.runtime_fn_addr         = runtime_fn_addr;
-    ast->fn_def.is_primitively_stateful = false;
+    ast->fn_def.state_type              = state_type;
     necro_symtable_get(program->symtable, name.id)->necro_machine_ast = ast;
     necro_program_add_function(program, ast);
     ast->fn_def._curr_block             = NULL;;
@@ -428,37 +374,37 @@ NecroMachineAST* necro_create_machine_runtime_fn(NecroMachineProgram* program, N
     return ast;
 }
 
-NecroMachineAST* necro_create_machine_initial_machine_def(NecroMachineProgram* program, NecroVar bind_name, NecroMachineAST* outer, NecroMachineType* value_type)
+NecroMachineAST* necro_create_machine_initial_machine_def(NecroMachineProgram* program, NecroVar bind_name, NecroMachineAST* outer, NecroMachineType* value_type, NecroType* necro_value_type)
 {
-    NecroArenaSnapshot snapshot                 = necro_get_arena_snapshot(&program->snapshot_arena);
-    NecroMachineAST* ast                        = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
-    ast->type                                   = NECRO_MACHINE_DEF;
-    ast->machine_def.bind_name                  = bind_name;
+    NecroArenaSnapshot snapshot                    = necro_get_arena_snapshot(&program->snapshot_arena);
+    NecroMachineAST* ast                           = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
+    ast->type                                      = NECRO_MACHINE_DEF;
+    ast->machine_def.bind_name                     = bind_name;
     char itoabuf[10];
-    char* machine_name                          = necro_concat_strings(&program->snapshot_arena, 4, (const char*[]) { "_", necro_intern_get_string(program->intern, bind_name.symbol), "Machine", itoa(bind_name.id.id, itoabuf, 10) });
-    machine_name[1]                             = toupper(machine_name[1]);
-    char* state_name                            = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { machine_name, "State" });
-    ast->machine_def.machine_name               = necro_gen_var(program, ast, machine_name, NECRO_NAME_UNIQUE);
-    ast->machine_def.state_name                 = necro_gen_var(program, ast, state_name, NECRO_NAME_UNIQUE);
-    ast->machine_def.arg_names                  = NULL;
-    ast->machine_def.num_arg_names              = 0;
-    ast->machine_def.mk_fn                      = NULL;
-    ast->machine_def.init_fn                    = NULL;
-    ast->machine_def.update_fn                  = NULL;
-    ast->machine_def.global_value               = NULL;
-    ast->machine_def.global_state               = NULL;
-    ast->machine_def.update_error_block         = NULL;
-    ast->machine_def.initial_tag                = 0;
-    ast->machine_def.state_type                 = NECRO_STATE_STATEFUL;
-    ast->machine_def.is_recursive               = false;
-    ast->machine_def.is_pushed                  = false;
-    ast->machine_def.is_persistent_slot_set     = false;
-    ast->machine_def.references_stateful_global = false;
-    ast->machine_def.outer                      = outer;
-    ast->necro_machine_type                     = NULL; // TODO: Machine type will be constructed after analysis!
+    char* machine_name                             = necro_concat_strings(&program->snapshot_arena, 4, (const char*[]) { "_", necro_intern_get_string(program->intern, bind_name.symbol), "Machine", itoa(bind_name.id.id, itoabuf, 10) });
+    machine_name[1]                                = toupper(machine_name[1]);
+    char* state_name                               = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { machine_name, "State" });
+    ast->machine_def.machine_name                  = necro_gen_var(program, ast, machine_name, NECRO_NAME_UNIQUE);
+    ast->machine_def.state_name                    = necro_gen_var(program, ast, state_name, NECRO_NAME_UNIQUE);
+    ast->machine_def.arg_names                     = NULL;
+    ast->machine_def.num_arg_names                 = 0;
+    ast->machine_def.mk_fn                         = NULL;
+    ast->machine_def.init_fn                       = NULL;
+    ast->machine_def.update_fn                     = NULL;
+    ast->machine_def.global_value                  = NULL;
+    ast->machine_def.global_state                  = NULL;
+    ast->machine_def.update_error_block            = NULL;
+    ast->machine_def.state_type                    = NECRO_STATE_STATEFUL;
+    ast->machine_def.is_recursive                  = false;
+    ast->machine_def.is_pushed                     = false;
+    ast->machine_def.is_persistent_slot_set        = false;
+    ast->machine_def.most_stateful_type_referenced = NECRO_STATE_CONSTANT;
+    ast->machine_def.outer                         = outer;
+    ast->machine_def.data_id                       = NECRO_NULL_DATA_ID;
+    ast->necro_machine_type                        = NULL;
     if (value_type->type == NECRO_MACHINE_TYPE_FN)
     {
-        ast->machine_def.fn_type    = value_type;
+        ast->machine_def.fn_type = value_type;
         if (value_type->fn_type.return_type->type == NECRO_MACHINE_TYPE_PTR)
             ast->machine_def.value_type = value_type->fn_type.return_type->ptr_type.element_type;
         else
@@ -467,8 +413,9 @@ NecroMachineAST* necro_create_machine_initial_machine_def(NecroMachineProgram* p
     else
     {
         // ast->machine_def.value_type = necro_create_machine_ptr_type(&program->arena, value_type);
-        ast->machine_def.value_type = value_type;
-        ast->machine_def.fn_type    = NULL;
+        ast->machine_def.value_type       = value_type;
+        ast->machine_def.fn_type          = NULL;
+        ast->machine_def.necro_value_type = necro_value_type;
     }
     const size_t initial_members_size  = 4;
     ast->machine_def.members           = necro_paged_arena_alloc(&program->arena, initial_members_size * sizeof(NecroSlot));
@@ -483,16 +430,36 @@ NecroMachineAST* necro_create_machine_initial_machine_def(NecroMachineProgram* p
     return ast;
 }
 
-NecroMachineAST* necro_create_machine_gep(NecroMachineProgram* program, NecroMachineAST* source_value, uint32_t* a_indices, size_t num_indices, const char* dest_name)
+NecroMachineAST* necro_build_non_const_gep(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_value, NecroMachineAST** a_indices, size_t num_indices, const char* dest_name, NecroMachineType* result_type)
 {
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACHINE_FN_DEF);
     assert(source_value->type == NECRO_MACHINE_VALUE);
-    NecroMachineAST* ast     = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
+    NecroMachineAST* ast  = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
     ast->type             = NECRO_MACHINE_GEP;
     ast->gep.source_value = source_value;
-    int32_t* indices      = necro_paged_arena_alloc(&program->arena, num_indices * sizeof(int32_t));
-    memcpy(indices, a_indices, num_indices * sizeof(int32_t));
-    ast->gep.indices      = indices;
-    ast->gep.num_indices  = num_indices;
+    NecroMachineAST** indices = necro_paged_arena_alloc(&program->arena, num_indices * sizeof(NecroMachineAST*));
+    for (size_t i = 0; i < num_indices; ++i)
+        indices[i] = a_indices[i];
+    ast->gep.indices        = indices;
+    ast->gep.num_indices    = num_indices;
+    // necro_machine_type      = necro_create_machine_ptr_type(&program->arena, necro_machine_type);
+    ast->gep.dest_value     = necro_create_reg(program, result_type, dest_name);
+    ast->necro_machine_type = result_type;
+    necro_add_statement_to_block(program, fn_def->fn_def._curr_block, ast);
+    return ast->gep.dest_value;
+}
+
+NecroMachineAST* necro_build_gep(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_value, uint32_t* a_indices, size_t num_indices, const char* dest_name)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACHINE_FN_DEF);
+    assert(source_value->type == NECRO_MACHINE_VALUE);
+    NecroMachineAST** indices = necro_paged_arena_alloc(&program->arena, num_indices * sizeof(NecroMachineAST*));
+    for (size_t i = 0; i < num_indices; ++i)
+        indices[i] = necro_create_uint32_necro_machine_value(program, a_indices[i]);
     // type check gep
     NecroMachineType* necro_machine_type = source_value->necro_machine_type;
     for (size_t i = 0; i < num_indices; ++i)
@@ -504,8 +471,7 @@ NecroMachineAST* necro_create_machine_gep(NecroMachineProgram* program, NecroMac
         }
         else if (necro_machine_type->type == NECRO_MACHINE_TYPE_PTR)
         {
-            assert(a_indices[i] == 0); // NOTE: The machine abstract machine never directly works with contiguous arrays of data. Thus all pointers should only ever be indexed from 0!
-            assert(i == 0);            // NOTE: Can only deref the first type!
+            assert(i == 0); // NOTE: Can only deref the first type!
             necro_machine_type = necro_machine_type->ptr_type.element_type;
         }
         else
@@ -513,88 +479,18 @@ NecroMachineAST* necro_create_machine_gep(NecroMachineProgram* program, NecroMac
             assert(necro_machine_type->type == NECRO_MACHINE_TYPE_STRUCT || necro_machine_type->type == NECRO_MACHINE_TYPE_PTR);
         }
     }
-    necro_machine_type      = necro_create_machine_ptr_type(&program->arena, necro_machine_type);
-    ast->gep.dest_value     = necro_create_reg(program, necro_machine_type, dest_name);
-    ast->necro_machine_type = necro_machine_type;
-    return ast;
+    return necro_build_non_const_gep(program, fn_def, source_value, indices, num_indices, dest_name, necro_create_machine_ptr_type(&program->arena, necro_machine_type));
 }
 
 NecroMachineAST* necro_create_bit_cast(NecroMachineProgram* program, NecroMachineAST* from_value_ast, NecroMachineType* to_type)
 {
-    assert(from_value_ast->necro_machine_type->type == NECRO_MACHINE_TYPE_PTR);
-    assert(to_type->type == NECRO_MACHINE_TYPE_PTR);
-    NecroMachineValue from_value = from_value_ast->value;
-    NecroMachineAST* ast         = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
-    ast->type                 = NECRO_MACHINE_BIT_CAST;
-    ast->bit_cast.from_value  = from_value_ast;
-    switch (from_value.value_type)
-    {
-    case NECRO_MACHINE_VALUE_REG:
-    case NECRO_MACHINE_VALUE_PARAM:
-    case NECRO_MACHINE_VALUE_GLOBAL:
-    case NECRO_MACHINE_VALUE_NULL_PTR_LITERAL:
-        ast->bit_cast.to_value = necro_create_reg(program, to_type, "cst");
-        break;
-    case NECRO_MACHINE_VALUE_UINT1_LITERAL:
-    case NECRO_MACHINE_VALUE_UINT8_LITERAL:
-    case NECRO_MACHINE_VALUE_UINT16_LITERAL:
-    case NECRO_MACHINE_VALUE_UINT32_LITERAL:
-    case NECRO_MACHINE_VALUE_UINT64_LITERAL:
-    case NECRO_MACHINE_VALUE_INT64_LITERAL:
-        assert(false && "Cannot bit cast int literal values!");
-        break;
-    }
+    assert(from_value_ast->necro_machine_type->type == NECRO_MACHINE_TYPE_PTR || necro_is_unboxed_type(program, from_value_ast->necro_machine_type));
+    assert(to_type->type == NECRO_MACHINE_TYPE_PTR || necro_is_unboxed_type(program, to_type));
+    NecroMachineAST* ast     = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
+    ast->type                = NECRO_MACHINE_BIT_CAST;
+    ast->bit_cast.from_value = from_value_ast;
+    ast->bit_cast.to_value   = necro_create_reg(program, to_type, "cst");
     ast->necro_machine_type = to_type;
-    return ast;
-}
-
-NecroMachineAST* necro_create_nalloc(NecroMachineProgram* program, NecroMachineType* type, uint32_t slots_used)
-{
-    NecroMachineAST* ast       = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
-    ast->type                  = NECRO_MACHINE_NALLOC;
-    ast->nalloc.type_to_alloc  = type;
-    ast->nalloc.slots_used     = slots_used;
-    NecroMachineType* type_ptr = necro_create_machine_ptr_type(&program->arena, type);
-    ast->nalloc.result_reg     = necro_create_reg(program, type_ptr, "data_ptr");
-    ast->necro_machine_type    = type_ptr;
-    return ast;
-}
-
-NecroMachineAST* necro_create_binop(NecroMachineProgram* program, NecroMachineAST* left, NecroMachineAST* right, NECRO_MACHINE_BINOP_TYPE op_type)
-{
-    NecroMachineAST* ast = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
-    ast->type         = NECRO_MACHINE_BINOP;
-    assert(left->type == NECRO_MACHINE_VALUE);
-    assert(right->type == NECRO_MACHINE_VALUE);
-    // typecheck
-    switch (op_type)
-    {
-    case NECRO_MACHINE_BINOP_IADD: /* FALL THROUGH */
-    case NECRO_MACHINE_BINOP_ISUB: /* FALL THROUGH */
-    case NECRO_MACHINE_BINOP_IMUL: /* FALL THROUGH */
-    case NECRO_MACHINE_BINOP_IDIV: /* FALL THROUGH */
-    {
-        necro_type_check(program, left->necro_machine_type, program->necro_int_type);
-        necro_type_check(program, right->necro_machine_type, program->necro_int_type);
-        ast->necro_machine_type = program->necro_int_type;
-        ast->binop.result       = necro_create_reg(program, ast->necro_machine_type, "iop");
-        break;
-    }
-    case NECRO_MACHINE_BINOP_FADD: /* FALL THROUGH */
-    case NECRO_MACHINE_BINOP_FSUB: /* FALL THROUGH */
-    case NECRO_MACHINE_BINOP_FMUL: /* FALL THROUGH */
-    case NECRO_MACHINE_BINOP_FDIV: /* FALL THROUGH */
-    {
-        necro_type_check(program, left->necro_machine_type, program->necro_float_type);
-        necro_type_check(program, right->necro_machine_type, program->necro_float_type);
-        ast->necro_machine_type = program->necro_float_type;
-        ast->binop.result       = necro_create_reg(program, ast->necro_machine_type, "fop");
-        break;
-    }
-    }
-    ast->binop.binop_type = op_type;
-    ast->binop.left       = left;
-    ast->binop.right      = right;
     return ast;
 }
 
@@ -672,26 +568,42 @@ void necro_move_to_block(NecroMachineProgram* program, NecroMachineAST* fn_def, 
     assert(false);
 }
 
-NecroMachineAST* necro_build_nalloc(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineType* type, uint32_t a_slots_used)
+NecroMachineAST* necro_build_nalloc(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineType* type, uint32_t a_slots_used, bool is_constant)
 {
     assert(program != NULL);
     assert(type != NULL);
     assert(fn_def != NULL);
     assert(fn_def->type == NECRO_MACHINE_FN_DEF);
-    NecroMachineAST* data_ptr = necro_create_nalloc(program, type, a_slots_used);
-    necro_add_statement_to_block(program, fn_def->fn_def._curr_block, data_ptr);
-    assert(data_ptr->nalloc.result_reg->type == NECRO_MACHINE_VALUE);
-    assert(data_ptr->nalloc.result_reg->value.value_type == NECRO_MACHINE_VALUE_REG);
-    return data_ptr->nalloc.result_reg;
+    assert(a_slots_used > 0);
+    NecroMachineAST* ast       = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
+    ast->type                  = NECRO_MACHINE_NALLOC;
+    ast->nalloc.type_to_alloc  = type;
+    ast->nalloc.slots_used     = a_slots_used;
+    ast->nalloc.is_constant    = is_constant;
+    NecroMachineType* type_ptr = necro_create_machine_ptr_type(&program->arena, type);
+    ast->nalloc.result_reg     = necro_create_reg(program, type_ptr, "data_ptr");
+    ast->necro_machine_type    = type_ptr;
+    necro_add_statement_to_block(program, fn_def->fn_def._curr_block, ast);
+    assert(ast->nalloc.result_reg->type == NECRO_MACHINE_VALUE);
+    assert(ast->nalloc.result_reg->value.value_type == NECRO_MACHINE_VALUE_REG);
+    return ast->nalloc.result_reg;
 }
 
-void necro_build_store_into_tag(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_value, NecroMachineAST* dest_ptr)
+NecroMachineAST* necro_build_alloca(NecroMachineProgram* program, NecroMachineAST* fn_def, size_t num_slots)
 {
     assert(program != NULL);
     assert(fn_def != NULL);
     assert(fn_def->type == NECRO_MACHINE_FN_DEF);
-    NecroMachineAST* store_ast = necro_create_machine_store_into_tag(program, source_value, dest_ptr);
-    necro_add_statement_to_block(program, fn_def->fn_def._curr_block, store_ast);
+    assert(num_slots > 0);
+    NecroMachineAST* ast       = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
+    ast->type                  = NECRO_MACHINE_ALLOCA;
+    ast->alloca.num_slots      = num_slots;
+    ast->alloca.result         = necro_create_reg(program, necro_create_machine_ptr_type(&program->arena, program->necro_poly_ptr_type), "data_ptr");
+    ast->necro_machine_type    = necro_create_machine_ptr_type(&program->arena, program->necro_poly_ptr_type);
+    necro_add_statement_to_block(program, fn_def->fn_def._curr_block, ast);
+    assert(ast->alloca.result->type == NECRO_MACHINE_VALUE);
+    assert(ast->alloca.result->value.value_type == NECRO_MACHINE_VALUE_REG);
+    return ast->alloca.result;
 }
 
 void necro_build_store_into_ptr(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_value, NecroMachineAST* dest_ptr)
@@ -722,18 +634,6 @@ NecroMachineAST* necro_build_bit_cast(NecroMachineProgram* program, NecroMachine
     return ast->bit_cast.to_value;
 }
 
-NecroMachineAST* necro_build_gep(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_value, uint32_t* a_indices, size_t num_indices, const char* dest_name)
-{
-    assert(program != NULL);
-    assert(fn_def != NULL);
-    assert(fn_def->type == NECRO_MACHINE_FN_DEF);
-    NecroMachineAST* ast = necro_create_machine_gep(program, source_value, a_indices, num_indices, dest_name);
-    necro_add_statement_to_block(program, fn_def->fn_def._curr_block, ast);
-    assert(ast->gep.dest_value->type == NECRO_MACHINE_VALUE);
-    assert(ast->gep.dest_value->value.value_type == NECRO_MACHINE_VALUE_REG);
-    return ast->gep.dest_value;
-}
-
 NecroMachineAST* necro_build_load_from_ptr(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_ptr_ast, const char* dest_name_header)
 {
     assert(program != NULL);
@@ -758,24 +658,34 @@ NecroMachineAST* necro_build_load_from_slot(NecroMachineProgram* program, NecroM
     return ast->load.dest_value;
 }
 
-NecroMachineAST* necro_build_load_tag(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* source_ptr_ast, const char* dest_name)
+NecroMachineAST* necro_build_call(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* fn_value_ast, NecroMachineAST** a_parameters, size_t num_parameters, NECRO_MACHINE_CALL_TYPE call_type, const char* dest_name)
 {
     assert(program != NULL);
     assert(fn_def != NULL);
     assert(fn_def->type == NECRO_MACHINE_FN_DEF);
-    NecroMachineAST* ast = necro_create_machine_load_tag(program, source_ptr_ast, dest_name);
-    necro_add_statement_to_block(program, fn_def->fn_def._curr_block, ast);
-    assert(ast->load.dest_value->type == NECRO_MACHINE_VALUE);
-    assert(ast->load.dest_value->value.value_type == NECRO_MACHINE_VALUE_REG);
-    return ast->load.dest_value;
-}
 
-NecroMachineAST* necro_build_call(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* fn_to_call_value, NecroMachineAST** a_parameters, size_t num_parameters, const char* dest_name_header)
-{
-    assert(program != NULL);
-    assert(fn_def != NULL);
-    assert(fn_def->type == NECRO_MACHINE_FN_DEF);
-    NecroMachineAST* ast = necro_create_machine_call(program, fn_to_call_value, a_parameters, num_parameters, dest_name_header);
+    // type_check
+    assert(fn_value_ast->type == NECRO_MACHINE_VALUE);
+    assert(fn_value_ast->necro_machine_type->type == NECRO_MACHINE_TYPE_FN);
+    assert(fn_value_ast->necro_machine_type->fn_type.num_parameters == num_parameters);
+    for (size_t i = 0; i < num_parameters; i++)
+    {
+        necro_type_check(program, fn_value_ast->necro_machine_type->fn_type.parameters[i], a_parameters[i]->necro_machine_type);
+    }
+    NecroMachineAST* ast       = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
+    ast->type                  = NECRO_MACHINE_CALL;
+    ast->call.fn_value         = fn_value_ast;
+    ast->call.call_type        = call_type;
+    NecroMachineAST** parameters = necro_paged_arena_alloc(&program->arena, num_parameters * sizeof(NecroMachineAST*));
+    memcpy(parameters, a_parameters, num_parameters * sizeof(NecroMachineAST*));
+    ast->call.parameters       = parameters;
+    ast->call.num_parameters   = num_parameters;
+    if (fn_value_ast->necro_machine_type->fn_type.return_type->type == NECRO_MACHINE_TYPE_VOID)
+        ast->call.result_reg = necro_create_machine_value_ast(program, (NecroMachineValue) { .value_type = NECRO_MACHINE_VALUE_VOID }, fn_value_ast->necro_machine_type->fn_type.return_type);
+    else
+        ast->call.result_reg = necro_create_reg(program, fn_value_ast->necro_machine_type->fn_type.return_type, dest_name);
+    ast->necro_machine_type    = fn_value_ast->necro_machine_type->fn_type.return_type;
+
     necro_add_statement_to_block(program, fn_def->fn_def._curr_block, ast);
     assert(ast->call.result_reg->type == NECRO_MACHINE_VALUE);
     assert(ast->call.result_reg->value.value_type == NECRO_MACHINE_VALUE_REG || ast->call.result_reg->value.value_type == NECRO_MACHINE_VALUE_VOID);
@@ -787,7 +697,50 @@ NecroMachineAST* necro_build_binop(NecroMachineProgram* program, NecroMachineAST
     assert(program != NULL);
     assert(fn_def != NULL);
     assert(fn_def->type == NECRO_MACHINE_FN_DEF);
-    NecroMachineAST* ast = necro_create_binop(program, left, right, op_type);
+
+    NecroMachineAST* ast = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
+    ast->type            = NECRO_MACHINE_BINOP;
+    assert(left->type == NECRO_MACHINE_VALUE);
+    assert(right->type == NECRO_MACHINE_VALUE);
+    necro_type_check(program, left->necro_machine_type, right->necro_machine_type);
+    // typecheck
+    switch (op_type)
+    {
+    case NECRO_MACHINE_BINOP_IADD: /* FALL THROUGH */
+    case NECRO_MACHINE_BINOP_ISUB: /* FALL THROUGH */
+    case NECRO_MACHINE_BINOP_IMUL: /* FALL THROUGH */
+    case NECRO_MACHINE_BINOP_IDIV: /* FALL THROUGH */
+    case NECRO_MACHINE_BINOP_OR:
+    case NECRO_MACHINE_BINOP_SHL:
+    case NECRO_MACHINE_BINOP_SHR:
+    {
+        // Type check that it's an int type
+        // necro_type_check(program, left->necro_machine_type, program->necro_int_type);
+        // necro_type_check(program, right->necro_machine_type, program->necro_int_type);
+        // ast->necro_machine_type = program->necro_int_type;
+        ast->necro_machine_type = left->necro_machine_type;
+        ast->binop.result       = necro_create_reg(program, ast->necro_machine_type, "iop");
+        break;
+    }
+    case NECRO_MACHINE_BINOP_FADD: /* FALL THROUGH */
+    case NECRO_MACHINE_BINOP_FSUB: /* FALL THROUGH */
+    case NECRO_MACHINE_BINOP_FMUL: /* FALL THROUGH */
+    case NECRO_MACHINE_BINOP_FDIV: /* FALL THROUGH */
+    {
+        // Type check that it's a float type
+        // necro_type_check(program, left->necro_machine_type, program->necro_float_type);
+        // necro_type_check(program, right->necro_machine_type, program->necro_float_type);
+        // ast->necro_machine_type = program->necro_float_type;
+        ast->necro_machine_type = left->necro_machine_type;
+        ast->binop.result       = necro_create_reg(program, ast->necro_machine_type, "fop");
+        break;
+    }
+    }
+    ast->binop.binop_type = op_type;
+    ast->binop.left       = left;
+    ast->binop.right      = right;
+    // return ast;
+
     necro_add_statement_to_block(program, fn_def->fn_def._curr_block, ast);
     assert(ast->binop.result->type == NECRO_MACHINE_VALUE);
     assert(ast->binop.result->value.value_type == NECRO_MACHINE_VALUE_REG);
@@ -808,6 +761,19 @@ void necro_build_return(NecroMachineProgram* program, NecroMachineAST* fn_def, N
     fn_def->fn_def._curr_block->block.terminator                                 = necro_paged_arena_alloc(&program->arena, sizeof(NecroTerminator));
     fn_def->fn_def._curr_block->block.terminator->type                           = NECRO_TERM_RETURN;
     fn_def->fn_def._curr_block->block.terminator->return_terminator.return_value = return_value;
+}
+
+void necro_build_return_void(NecroMachineProgram* program, NecroMachineAST* fn_def)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACHINE_FN_DEF);
+    assert(fn_def->fn_def._curr_block != NULL);
+    assert(fn_def->fn_def._curr_block->type == NECRO_MACHINE_BLOCK);
+    assert(fn_def->fn_def._curr_block->block.terminator == NULL);
+    assert(fn_def->fn_def.fn_value->necro_machine_type->fn_type.return_type->type == NECRO_MACHINE_TYPE_VOID);
+    fn_def->fn_def._curr_block->block.terminator                                 = necro_paged_arena_alloc(&program->arena, sizeof(NecroTerminator));
+    fn_def->fn_def._curr_block->block.terminator->type                           = NECRO_TERM_RETURN_VOID;
 }
 
 void necro_build_break(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* block_to_jump_to)
@@ -864,7 +830,9 @@ NecroMachineAST* necro_build_cmp(NecroMachineProgram* program, NecroMachineAST* 
            left->type == NECRO_MACHINE_TYPE_UINT16 ||
            left->type == NECRO_MACHINE_TYPE_UINT32 ||
            left->type == NECRO_MACHINE_TYPE_UINT64 ||
+           left->type == NECRO_MACHINE_TYPE_INT32  ||
            left->type == NECRO_MACHINE_TYPE_INT64  ||
+           left->type == NECRO_MACHINE_TYPE_F32    ||
            left->type == NECRO_MACHINE_TYPE_F64    ||
            left->type == NECRO_MACHINE_TYPE_PTR);
     assert(left->type == right->type);
@@ -898,8 +866,7 @@ NecroMachineAST* necro_build_phi(NecroMachineProgram* program, NecroMachineAST* 
 NecroMachineAST* necro_build_maybe_cast(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* ast, NecroMachineType* type_to_match)
 {
     necro_type_check(program, ast->necro_machine_type, type_to_match);
-    if (ast->necro_machine_type == program->necro_poly_ptr_type || type_to_match == program->necro_poly_ptr_type)
-    // if (ast->necro_machine_type == program->necro_poly_ptr_type)
+    if (is_poly_ptr(program, ast->necro_machine_type) ^ is_poly_ptr(program, type_to_match)) // XOR
         return necro_build_bit_cast(program, fn_def, ast, type_to_match);
     else
         return ast;
@@ -938,6 +905,23 @@ void necro_add_case_to_switch(NecroMachineProgram* program, struct NecroSwitchTe
     switch_term->values = necro_cons_machine_switch_list(&program->arena, (NecroMachineSwitchData) { .block = block, .value = value }, switch_term->values);
 }
 
+NecroMachineAST* necro_build_select(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* cmp_value, NecroMachineAST* left, NecroMachineAST* right)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACHINE_FN_DEF);
+    assert(cmp_value->type == NECRO_MACHINE_TYPE_UINT1);
+    necro_type_check(program, left->necro_machine_type, right->necro_machine_type);
+    NecroMachineAST* ast  = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
+    ast->type             = NECRO_MACHINE_SELECT;
+    ast->select.cmp_value = cmp_value;
+    ast->select.left      = left;
+    ast->select.right     = right;
+    ast->select.result    = necro_create_reg(program, left->necro_machine_type, "sel_result");
+    necro_add_statement_to_block(program, fn_def->fn_def._curr_block, ast);
+    return ast->select.result;
+}
+
 void necro_build_unreachable(NecroMachineProgram* program, NecroMachineAST* fn_def)
 {
     assert(program != NULL);
@@ -955,12 +939,28 @@ void necro_build_memcpy(NecroMachineProgram* program, NecroMachineAST* fn_def, N
     assert(dest->necro_machine_type->type == NECRO_MACHINE_TYPE_PTR);
     assert(source->necro_machine_type->type == NECRO_MACHINE_TYPE_PTR);
     necro_type_check(program, dest->necro_machine_type, source->necro_machine_type);
-    assert(num_bytes->necro_machine_type->type == NECRO_MACHINE_TYPE_UINT32);
+    assert(necro_is_word_uint_type(program, num_bytes->necro_machine_type));
     NecroMachineAST* ast  = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
     ast->type             = NECRO_MACHINE_MEMCPY;
     ast->memcpy.dest      = dest;
     ast->memcpy.source    = source;
     ast->memcpy.num_bytes = num_bytes;
+    necro_add_statement_to_block(program, fn_def->fn_def._curr_block, ast);
+}
+
+void necro_build_memset(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* ptr, NecroMachineAST* value, NecroMachineAST* num_bytes)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACHINE_FN_DEF);
+    assert(ptr->necro_machine_type->type == NECRO_MACHINE_TYPE_PTR);
+    assert(value->necro_machine_type->type == NECRO_MACHINE_TYPE_UINT8);
+    assert(necro_is_word_uint_type(program, num_bytes->necro_machine_type));
+    NecroMachineAST* ast  = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
+    ast->type             = NECRO_MACHINE_MEMSET;
+    ast->memset.ptr       = ptr;
+    ast->memset.value     = value;
+    ast->memset.num_bytes = num_bytes;
     necro_add_statement_to_block(program, fn_def->fn_def._curr_block, ast);
 }
 

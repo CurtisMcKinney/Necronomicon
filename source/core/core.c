@@ -225,6 +225,7 @@ NecroCoreAST_Expression* necro_transform_bin_op(NecroTransformToCore* core_trans
     return outer_core_expr;
 }
 
+// TODO/Note from Curtis: Boolean literals in necrolang don't exist. They need to be excised from the compiler completely.
 NecroCoreAST_Expression* necro_transform_if_then_else(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
 {
     assert(core_transform);
@@ -239,6 +240,7 @@ NecroCoreAST_Expression* necro_transform_if_then_else(NecroTransformToCore* core
 
     NecroCoreAST_Case* core_case = &core_expr->case_expr;
     core_case->expr = necro_transform_to_core_impl(core_transform, ast_if_then_else->if_expr);
+    core_case->expr->necro_type = ast_if_then_else->if_expr->necro_type;
     core_case->type = necro_ast_node->necro_type;
 
     NecroCoreAST_CaseAlt* true_alt = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_CaseAlt));
@@ -871,6 +873,7 @@ NecroCoreAST_Expression* necro_transform_case(NecroTransformToCore* core_transfo
     core_expr->expr_type = NECRO_CORE_EXPR_CASE;
     NecroCoreAST_Case* core_case = &core_expr->case_expr;
     core_case->expr = necro_transform_to_core_impl(core_transform, case_ast->expression);
+    core_case->expr->necro_type = case_ast->expression->necro_type;
     core_case->alts = NULL;
     core_case->type = necro_ast_node->necro_type;
 

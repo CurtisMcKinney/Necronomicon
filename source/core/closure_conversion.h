@@ -13,6 +13,15 @@
 
 #include "core.h"
 
-NecroCoreAST necro_closure_conversion(NecroCoreAST* in_ast, NecroIntern* intern, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types, NecroInfer* infer);
+typedef struct NecroClosureDef
+{
+    size_t fn_arity;
+    size_t num_pargs;
+    bool   is_stateful;
+    size_t uid;
+    size_t label;
+} NecroClosureDef;
+NECRO_DECLARE_VECTOR(NecroClosureDef, NecroClosureDef, closure_def);
+NecroCoreAST necro_closure_conversion(NecroCoreAST* in_ast, NecroIntern* intern, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types, NecroInfer* infer, NecroClosureDefVector* out_closure_defs);
 
 #endif // CORE_CLOSURE_CONVERSION_H

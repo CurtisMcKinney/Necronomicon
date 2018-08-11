@@ -173,9 +173,10 @@ void necro_compile_impl(
     }
     necro_stop_and_report_timer(timer, "renaming");
     if (compilation_phase == NECRO_PHASE_RENAME)
+    {
         necro_print_reified_ast(ast_r, &lexer->intern);
-    if (compilation_phase == NECRO_PHASE_RENAME)
         return;
+    }
 
     //=====================================================
     // Dependency Analyzing
@@ -265,7 +266,8 @@ void necro_compile_impl(
     if (compilation_phase != NECRO_PHASE_JIT)
         necro_announce_phase("Closure Conversion");
     necro_start_timer(timer);
-    NecroCoreAST cc_core = necro_closure_conversion(ast_core, &lexer->intern, &symtable, &scoped_symtable, &prim_types, infer);
+    NecroClosureDefVector closure_defs;
+    NecroCoreAST          cc_core = necro_closure_conversion(ast_core, &lexer->intern, &symtable, &scoped_symtable, &prim_types, infer, &closure_defs);
     necro_stop_and_report_timer(timer, "closure_conversion");
     if (compilation_phase == NECRO_PHASE_CLOSURE_CONVERSION)
     {
@@ -280,7 +282,7 @@ void necro_compile_impl(
     if (compilation_phase != NECRO_PHASE_JIT)
         necro_announce_phase("Machine");
     necro_start_timer(timer);
-    *machine = necro_core_to_machine(&cc_core, &symtable, &scoped_symtable, &prim_types);
+    *machine = necro_core_to_machine(&cc_core, &symtable, &scoped_symtable, &prim_types, infer, closure_defs);
     necro_stop_and_report_timer(timer, "machine");
     *destruct_flags |= BIT(NECRO_PHASE_TRANSFORM_TO_MACHINE);
     if (compilation_phase == NECRO_PHASE_TRANSFORM_TO_MACHINE)

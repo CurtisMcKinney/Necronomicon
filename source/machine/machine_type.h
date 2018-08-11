@@ -18,11 +18,16 @@ struct NecroMachineProgram;
 
 typedef enum
 {
-    NECRO_STATE_STATIC,
-    NECRO_STATE_CONSTANT,
-    NECRO_STATE_POINTWISE,
-    NECRO_STATE_STATEFUL,
+    NECRO_STATE_CONSTANT  = 0,
+    NECRO_STATE_POINTWISE = 1,
+    NECRO_STATE_STATEFUL  = 2,
 } NECRO_STATE_TYPE;
+
+typedef enum
+{
+    NECRO_LANG_CALL,
+    NECRO_C_CALL,
+} NECRO_MACHINE_CALL_TYPE;
 
 typedef enum
 {
@@ -67,9 +72,9 @@ typedef struct NecroMachineType
     NECRO_MACHINE_TYPE_TYPE type;
 } NecroMachineType;
 
-NecroMachineType* necro_create_word_sized_uint_type(NecroPagedArena* arena);
-NecroMachineType* necro_create_word_sized_int_type(NecroPagedArena* arena);
-NecroMachineType* necro_create_word_sized_float_type(NecroPagedArena* arena);
+NecroMachineType* necro_create_word_sized_uint_type(struct NecroMachineProgram* program);
+NecroMachineType* necro_create_word_sized_int_type(struct NecroMachineProgram* program);
+NecroMachineType* necro_create_word_sized_float_type(struct NecroMachineProgram* program);
 NecroMachineType* necro_create_machine_uint1_type(NecroPagedArena* arena);
 NecroMachineType* necro_create_machine_uint8_type(NecroPagedArena* arena);
 NecroMachineType* necro_create_machine_uint16_type(NecroPagedArena* arena);
@@ -88,10 +93,12 @@ void              necro_type_check(struct NecroMachineProgram* program, NecroMac
 void              necro_machine_print_machine_type(NecroIntern* intern, NecroMachineType* type);
 void              necro_machine_print_machine_type_go(NecroIntern* intern, NecroMachineType* type, bool is_recursive);
 NecroMachineType* necro_core_ast_to_machine_type(struct NecroMachineProgram* program, NecroCoreAST_Expression* core_ast);
+NecroType*        necro_core_ast_to_necro_type(struct NecroMachineProgram* program, NecroCoreAST_Expression* ast);
 NecroMachineType* necro_type_to_machine_type(struct NecroMachineProgram* program, NecroType* type);
 bool              is_poly_ptr(struct NecroMachineProgram* program, NecroMachineType* type);
 NecroMachineType* necro_core_pattern_type_to_machine_type(struct NecroMachineProgram* program, NecroCoreAST_Expression* ast);
 bool              necro_is_unboxed_type(struct NecroMachineProgram* program, NecroMachineType* type);
+bool              necro_is_word_uint_type(struct NecroMachineProgram* program, NecroMachineType* type);
 NecroMachineType* necro_make_ptr_if_boxed(struct NecroMachineProgram* program, NecroMachineType* type);
 
 #endif // NECRO_MACHINE_TYPE_H

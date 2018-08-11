@@ -621,6 +621,7 @@ NecroAST_LocalPtr parse_type_signature(NecroParser* parser, NECRO_SIG_TYPE sig_t
 NecroAST_LocalPtr parse_type_class_declaration(NecroParser* parser);
 NecroAST_LocalPtr parse_type_class_instance(NecroParser* parser);
 NecroAST_LocalPtr parse_initializer(NecroParser* parser);
+#define NECRO_INITIALIZER_TOKEN NECRO_LEX_TILDE
 
 NecroParse_DescentState enter_parse_pattern_state(NecroParser* parser);
 void                    restore_parse_state(NecroParser* parser, NecroParse_DescentState prev_state);
@@ -856,8 +857,9 @@ NecroAST_LocalPtr parse_simple_assignment(NecroParser* parser)
     NecroParser_Snapshot snapshot = snapshot_parser(parser);
     consume_token(parser); // consume identifier token
 
+    // Initializer
     NecroAST_LocalPtr initializer = null_local_ptr;
-    if (peek_token_type(parser) == NECRO_LEX_LT)
+    if (peek_token_type(parser) == NECRO_INITIALIZER_TOKEN)
     {
         NecroParser_Snapshot initializer_snapshot = snapshot_parser(parser);
         initializer = parse_initializer(parser);
@@ -870,6 +872,7 @@ NecroAST_LocalPtr parse_simple_assignment(NecroParser* parser)
     if (peek_token_type(parser) == NECRO_LEX_ASSIGN)
     {
         consume_token(parser); // consume '=' operator
+
         NecroLexToken* look_ahead_token = peek_token(parser);
         NecroAST_LocalPtr rhs_local_ptr = parse_right_hand_side(parser);
         if (rhs_local_ptr != null_local_ptr)
@@ -1487,11 +1490,11 @@ NecroAST_LocalPtr parse_parenthetical_const_con(NecroParser* parser)
     NecroAST_LocalPtr local_ptr = parse_const_con(parser);
     if (local_ptr == null_local_ptr)
     {
-        if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
-        {
-            necro_error(&parser->error, look_ahead_token->source_loc, "Failed to parse constant constructor after \'(\'. Failed beginning with token %s", necro_lex_token_type_string(look_ahead_token->token));
-            parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
-        }
+        // if (parser->descent_state != NECRO_DESCENT_PARSE_ERROR)
+        // {
+        //     necro_error(&parser->error, look_ahead_token->source_loc, "Failed to parse constant constructor after \'(\'. Failed beginning with token %s", necro_lex_token_type_string(look_ahead_token->token));
+        //     parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+        // }
         restore_parser(parser, snapshot);
         return null_local_ptr;
     }
@@ -1504,8 +1507,8 @@ NecroAST_LocalPtr parse_parenthetical_const_con(NecroParser* parser)
             restore_parser(parser, snapshot);
             return null_local_ptr;
         }
-        necro_error(&parser->error, look_ahead_token->source_loc, "Failed to parse parenthetical constant constructor because there was no closing \')\'. Failed beginning with token %s", necro_lex_token_type_string(look_ahead_token->token));
-        parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+        // necro_error(&parser->error, look_ahead_token->source_loc, "Failed to parse parenthetical constant constructor because there was no closing \')\'. Failed beginning with token %s", necro_lex_token_type_string(look_ahead_token->token));
+        // parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
         restore_parser(parser, snapshot);
         return null_local_ptr;
     }
@@ -1586,26 +1589,27 @@ NecroAST_LocalPtr parse_const_tuple(NecroParser* parser)
 NecroAST_LocalPtr parse_initializer(NecroParser* parser)
 {
     NecroLexToken* look_ahead_token = peek_token(parser);
-    if (look_ahead_token->token != NECRO_LEX_LT)
+
+    if (look_ahead_token->token != NECRO_INITIALIZER_TOKEN)
         return null_local_ptr;
     NecroParser_Snapshot snapshot = snapshot_parser(parser);
-    consume_token(parser); // consume NECRO_LEX_LT token
-    look_ahead_token = peek_token(parser);
+    consume_token(parser); // consume NECRO_INITIALIZER_TOKEN token
+
     NecroAST_LocalPtr local_ptr = parse_const_con(parser);
     if (local_ptr == null_local_ptr)
     {
         restore_parser(parser, snapshot);
         return null_local_ptr;
     }
-    look_ahead_token = peek_token(parser);
-    if (look_ahead_token->token != NECRO_LEX_GT)
-    {
-        necro_error(&parser->error, look_ahead_token->source_loc, "Failed to parse initializer because there was no closing \'>\'. Failed beginning with token %s", necro_lex_token_type_string(look_ahead_token->token));
-        parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
-        restore_parser(parser, snapshot);
-        return null_local_ptr;
-    }
-    consume_token(parser);
+    // // look_ahead_token = peek_token(parser);
+    // if (peek_token(parser)->token != NECRO_LEX_FAT_RIGHT_ARROW)
+    // {
+    //     // necro_error(&parser->error, look_ahead_token->source_loc, "Failed to parse initializer because there was no closing \'>\'. Failed beginning with token %s", necro_lex_token_type_string(look_ahead_token->token));
+    //     // parser->descent_state = NECRO_DESCENT_PARSE_ERROR;
+    //     restore_parser(parser, snapshot);
+    //     return null_local_ptr;
+    // }
+    // consume_token(parser);
     return local_ptr;
 }
 

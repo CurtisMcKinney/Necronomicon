@@ -1166,6 +1166,8 @@ void necro_type_class_translate_constant(NecroInfer* infer, NecroNode* ast, Necr
     assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_CONSTANT);
+    // Removing overloaded numeric literal patterns for now.
+    return;
     if (ast->constant.type != NECRO_AST_CONSTANT_FLOAT_PATTERN && ast->constant.type != NECRO_AST_CONSTANT_INTEGER_PATTERN) return;
 
     const char*     from_name  = NULL;
@@ -1308,7 +1310,15 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
         NecroASTNode*                    dictionary_args_head   = NULL;
         NecroASTNode*                    rhs = ast->simple_assignment.rhs;
         if (ast->simple_assignment.initializer != NULL && !necro_is_fully_concrete(infer->symtable, type))
-            necro_infer_ast_error(infer, type, ast, "Only fully concrete (non-polymorphic) types may be used in initializer");
+        {
+            necro_infer_ast_error(infer, type, ast, "Only fully concrete (non-polymorphic) types may be used as initial values");
+            return;
+        }
+        if (ast->simple_assignment.initializer != NULL && !ast->simple_assignment.is_recursive)
+        {
+            necro_infer_ast_error(infer, type, ast, "Cannot set an initial value for non-recursive types. (It would be immediately discarded)");
+            return;
+        }
         while (type->type == NECRO_TYPE_FOR)
         {
             NecroTypeClassContext* for_all_context = type->for_all.context;

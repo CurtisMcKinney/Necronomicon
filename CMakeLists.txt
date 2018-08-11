@@ -84,7 +84,8 @@ set(project_SOURCES
     source/machine/machine_prim.c
     source/machine/machine_case.c
     source/machine/machine_build.c
-    source/machine/machine_persist.c
+    source/machine/machine_copy.c
+    source/machine/machine_closure.c
 
     source/codegen/codegen_llvm.c
     )
@@ -131,7 +132,8 @@ set(project_HEADERS
     source/machine/machine_prim.h
     source/machine/machine_case.h
     source/machine/machine_build.h
-    source/machine/machine_persist.h
+    source/machine/machine_copy.h
+    source/machine/machine_closure.h
 
     source/codegen/codegen_llvm.h
     )
@@ -141,6 +143,6 @@ ADD_EXECUTABLE(necro ${project_HEADERS} ${project_SOURCES})
 # Find the libraries that correspond to the LLVM components
 # that we wish to use
 # llvm_map_components_to_libnames(llvm_libs support core irreader analysis target ScalarOpts native passes mcjit)
-llvm_map_components_to_libnames(llvm_libs core native passes mcjit)
+llvm_map_components_to_libnames(llvm_libs core native passes mcjit target)
 
 TARGET_LINK_LIBRARIES(necro ${llvm_libs})

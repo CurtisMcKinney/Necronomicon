@@ -87,24 +87,24 @@ NecroMachineType* necro_create_machine_void_type(NecroPagedArena* arena)
     return type;
 }
 
-NecroMachineType* necro_create_word_sized_uint_type(NecroPagedArena* arena)
+NecroMachineType* necro_create_word_sized_uint_type(NecroMachineProgram* program)
 {
-    NecroMachineType* type = necro_paged_arena_alloc(arena, sizeof(NecroMachineType));
-    type->type             = (sizeof(void*) == 4) ? NECRO_MACHINE_TYPE_UINT32 : NECRO_MACHINE_TYPE_UINT64;
+    NecroMachineType* type = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineType));
+    type->type             = (program->word_size == NECRO_WORD_4_BYTES) ? NECRO_MACHINE_TYPE_UINT32 : NECRO_MACHINE_TYPE_UINT64;
     return type;
 }
 
-NecroMachineType* necro_create_word_sized_int_type(NecroPagedArena* arena)
+NecroMachineType* necro_create_word_sized_int_type(NecroMachineProgram* program)
 {
-    NecroMachineType* type = necro_paged_arena_alloc(arena, sizeof(NecroMachineType));
-    type->type             = (sizeof(void*) == 4) ? NECRO_MACHINE_TYPE_INT32 : NECRO_MACHINE_TYPE_INT64;
+    NecroMachineType* type = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineType));
+    type->type             = (program->word_size == NECRO_WORD_4_BYTES) ? NECRO_MACHINE_TYPE_INT32 : NECRO_MACHINE_TYPE_INT64;
     return type;
 }
 
-NecroMachineType* necro_create_word_sized_float_type(NecroPagedArena* arena)
+NecroMachineType* necro_create_word_sized_float_type(NecroMachineProgram* program)
 {
-    NecroMachineType* type = necro_paged_arena_alloc(arena, sizeof(NecroMachineType));
-    type->type             = (sizeof(void*) == 4) ? NECRO_MACHINE_TYPE_F32 : NECRO_MACHINE_TYPE_F64;
+    NecroMachineType* type = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineType));
+    type->type             = (program->word_size == NECRO_WORD_4_BYTES) ? NECRO_MACHINE_TYPE_F32 : NECRO_MACHINE_TYPE_F64;
     return type;
 }
 
@@ -134,7 +134,7 @@ NecroMachineType* necro_create_machine_fn_type(NecroPagedArena* arena, NecroMach
 
 bool is_poly_ptr(NecroMachineProgram* program, NecroMachineType* type)
 {
-    return type->type == NECRO_MACHINE_TYPE_PTR && type->ptr_type.element_type == program->necro_poly_type;
+    return type->type == NECRO_MACHINE_TYPE_PTR && type->ptr_type.element_type->type == NECRO_MACHINE_TYPE_STRUCT && type->ptr_type.element_type->struct_type.name.id.id == program->necro_poly_type->struct_type.name.id.id;
 }
 
 NecroMachineType* necro_create_machine_ptr_type(NecroPagedArena* arena, NecroMachineType* element_type)
@@ -185,6 +185,11 @@ bool necro_is_unboxed_type(struct NecroMachineProgram* program, NecroMachineType
         || type->type == program->necro_float_type->type
         || type->type == program->necro_uint_type->type
         || (type->type == NECRO_MACHINE_TYPE_STRUCT && type->struct_type.name.id.id == program->world_type->struct_type.name.id.id);
+}
+
+bool necro_is_word_uint_type(struct NecroMachineProgram* program, NecroMachineType* type)
+{
+    return type->type == program->necro_uint_type->type;
 }
 
 NecroMachineType* necro_make_ptr_if_boxed(NecroMachineProgram* program, NecroMachineType* type)
@@ -282,13 +287,25 @@ NecroType* necro_core_ast_to_necro_type(NecroMachineProgram* program, NecroCoreA
         case NECRO_AST_CONSTANT_FLOAT:   return necro_symtable_get(program->symtable, program->prim_types->float_type.id)->type;
         default:                         assert(false); return NULL;
         }
-    case NECRO_CORE_EXPR_VAR:  return necro_symtable_get(program->symtable, ast->var.id)->type;
-    case NECRO_CORE_EXPR_BIND: return necro_symtable_get(program->symtable, ast->bind.var.id)->type;
+    case NECRO_CORE_EXPR_VAR:
+        if (necro_symtable_get(program->symtable, ast->var.id)->closure_type != NULL)
+            return necro_symtable_get(program->symtable, ast->var.id)->closure_type;
+        else
+            return necro_symtable_get(program->symtable, ast->var.id)->type;
+    case NECRO_CORE_EXPR_BIND:
+        if (necro_symtable_get(program->symtable, ast->bind.var.id)->closure_type != NULL)
+            return necro_symtable_get(program->symtable, ast->bind.var.id)->closure_type;
+        else
+            return necro_symtable_get(program->symtable, ast->bind.var.id)->type;
     case NECRO_CORE_EXPR_LAM:
         assert(false && "TODO: Finish!");
         return NULL;
-    case NECRO_CORE_EXPR_DATA_CON:  return necro_symtable_get(program->symtable, ast->data_con.condid.id)->type;
-    case NECRO_CORE_EXPR_TYPE:      return ast->type.type;
+    case NECRO_CORE_EXPR_DATA_CON:
+        if (necro_symtable_get(program->symtable, ast->data_con.condid.id)->closure_type != NULL)
+            return necro_symtable_get(program->symtable, ast->data_con.condid.id)->closure_type;
+        else
+            return necro_symtable_get(program->symtable, ast->data_con.condid.id)->type;
+    case NECRO_CORE_EXPR_TYPE: return ast->type.type;
     case NECRO_CORE_EXPR_APP:
     {
         // We're assuming that we always hit a var at the end...
@@ -299,7 +316,10 @@ NecroType* necro_core_ast_to_necro_type(NecroMachineProgram* program, NecroCoreA
         }
         if (app->expr_type == NECRO_CORE_EXPR_VAR)
         {
-            return necro_symtable_get(program->symtable, app->var.id)->type;
+            if (necro_symtable_get(program->symtable, app->var.id)->closure_type != NULL)
+                return necro_symtable_get(program->symtable, app->var.id)->closure_type;
+            else
+                return necro_symtable_get(program->symtable, app->var.id)->type;
         }
         else
         {
@@ -398,7 +418,7 @@ NecroMachineType* necro_core_ast_to_machine_type(NecroMachineProgram* program, N
         default:                         assert(false); return NULL;
         }
     case NECRO_CORE_EXPR_VAR:            return necro_type_to_machine_type(program, necro_core_ast_to_necro_type(program, ast));
-    case NECRO_CORE_EXPR_BIND:           return necro_type_to_machine_type(program, necro_symtable_get(program->symtable, ast->bind.var.id)->type);
+    case NECRO_CORE_EXPR_BIND:           return necro_type_to_machine_type(program, necro_core_ast_to_necro_type(program, ast));
     case NECRO_CORE_EXPR_LAM:
         assert(false && "TODO: Finish!");
         return NULL;

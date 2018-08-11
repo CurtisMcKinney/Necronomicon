@@ -222,7 +222,9 @@ NecroType* necro_create_data_constructor(NecroInfer* infer, NecroNode* ast, Necr
             con_args            = con_args->fun.type2;
         }
         if (necro_is_infer_error(infer)) return NULL;
-        args_ast = args_ast->list.next_item;
+        args_ast             = args_ast->list.next_item;
+        if (args_ast != NULL)
+            args_ast->necro_type = arg; // arg type
         count++;
     }
     NecroType* con_type = NULL;
@@ -246,6 +248,7 @@ NecroType* necro_create_data_constructor(NecroInfer* infer, NecroNode* ast, Necr
     necro_symtable_get(infer->symtable, ast->constructor.conid->conid.id)->con_num        = con_num;
     necro_kind_infer(infer, con_type, con_type, "While declaring a data constructor");
     necro_kind_unify(infer, con_type->type_kind, infer->star_type_kind, NULL, con_type, "During a data declaration: ");
+    ast->necro_type = con_type;
     return con_type;
 }
 
@@ -585,7 +588,7 @@ NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast)
         NecroDelayScope* symbol_delay_scope  = symbol_info->delay_scope;
         if (current_delay_scope == symbol_delay_scope)
             // return necro_infer_ast_error(infer, NULL, ast, "%s cannot instantaneously depend on itself.\n Consider adding a delay, such as: delay init %s",
-            return necro_infer_ast_error(infer, NULL, ast, "%s cannot instantaneously depend on itself without initialization.\n Consider adding an initializer, such as: %s<initValue> = ...",
+            return necro_infer_ast_error(infer, NULL, ast, "%s cannot depend on itself without an initial value.\n Consider adding an initial value, such as:\n\n     %s = InitialValue => ...\n",
                 necro_intern_get_string(infer->intern, ast->variable.symbol),
                 necro_intern_get_string(infer->intern, ast->variable.symbol));
     }
@@ -637,33 +640,39 @@ NecroType* necro_infer_constant(NecroInfer* infer, NecroNode* ast)
     {
     case NECRO_AST_CONSTANT_FLOAT_PATTERN:
     {
-        NecroType* new_name   = necro_new_name(infer, ast->source_loc);
-        new_name->var.context = necro_create_type_class_context(&infer->arena,
-            necro_symtable_get(infer->symtable, infer->prim_types->fractional_type_class.id)->type_class,
-            infer->prim_types->fractional_type_class,
-            (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, NULL);
-        new_name->var.context = necro_create_type_class_context(&infer->arena,
-            necro_symtable_get(infer->symtable, infer->prim_types->eq_type_class.id)->type_class,
-            infer->prim_types->eq_type_class,
-            (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, new_name->var.context);
-        new_name->type_kind   = infer->star_type_kind;
-        ast->necro_type = new_name;
-        return new_name;
+        ast->necro_type = necro_symtable_get(infer->symtable, infer->prim_types->rational_type.id)->type;
+        return ast->necro_type;
+        // Removing overloaded numeric literal patterns for now...
+        // NecroType* new_name   = necro_new_name(infer, ast->source_loc);
+        // new_name->var.context = necro_create_type_class_context(&infer->arena,
+        //     necro_symtable_get(infer->symtable, infer->prim_types->fractional_type_class.id)->type_class,
+        //     infer->prim_types->fractional_type_class,
+        //     (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, NULL);
+        // new_name->var.context = necro_create_type_class_context(&infer->arena,
+        //     necro_symtable_get(infer->symtable, infer->prim_types->eq_type_class.id)->type_class,
+        //     infer->prim_types->eq_type_class,
+        //     (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, new_name->var.context);
+        // new_name->type_kind = infer->star_type_kind;
+        // ast->necro_type     = new_name;
+        // return new_name;
     }
     case NECRO_AST_CONSTANT_INTEGER_PATTERN:
     {
-        NecroType* new_name   = necro_new_name(infer, ast->source_loc);
-        new_name->var.context = necro_create_type_class_context(&infer->arena,
-            necro_symtable_get(infer->symtable, infer->prim_types->num_type_class.id)->type_class,
-            infer->prim_types->num_type_class,
-            (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, NULL);
-        new_name->var.context = necro_create_type_class_context(&infer->arena,
-            necro_symtable_get(infer->symtable, infer->prim_types->eq_type_class.id)->type_class,
-            infer->prim_types->eq_type_class,
-            (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, new_name->var.context);
-        new_name->type_kind   = infer->star_type_kind;
-        ast->necro_type = new_name;
-        return new_name;
+        ast->necro_type = necro_symtable_get(infer->symtable, infer->prim_types->int_type.id)->type;
+        return ast->necro_type;
+        // Removing overloaded numeric literal patterns for now...
+        // NecroType* new_name   = necro_new_name(infer, ast->source_loc);
+        // new_name->var.context = necro_create_type_class_context(&infer->arena,
+        //     necro_symtable_get(infer->symtable, infer->prim_types->num_type_class.id)->type_class,
+        //     infer->prim_types->num_type_class,
+        //     (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, NULL);
+        // new_name->var.context = necro_create_type_class_context(&infer->arena,
+        //     necro_symtable_get(infer->symtable, infer->prim_types->eq_type_class.id)->type_class,
+        //     infer->prim_types->eq_type_class,
+        //     (NecroCon) { .id = new_name->var.var.id, .symbol = new_name->var.var.symbol }, new_name->var.context);
+        // new_name->type_kind   = infer->star_type_kind;
+        // ast->necro_type = new_name;
+        // return new_name;
     }
     case NECRO_AST_CONSTANT_FLOAT:
         ast->necro_type = necro_symtable_get(infer->symtable, infer->prim_types->rational_type.id)->type;

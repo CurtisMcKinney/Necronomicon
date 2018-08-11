@@ -5,6 +5,7 @@
 
 #include "machine_print.h"
 #include "machine.h"
+#include "machine_copy.h"
 
 ///////////////////////////////////////////////////////
 // Printing
@@ -120,6 +121,11 @@ void necro_machine_print_block(NecroMachineProgram* program, NecroMachineAST* as
         print_white_space(depth);
         printf("return ");
         necro_print_machine_value(program, ast->block.terminator->return_terminator.return_value, NECRO_PRINT_VALUE_TYPE);
+        printf("\n");
+        break;
+    case NECRO_TERM_RETURN_VOID:
+        print_white_space(depth);
+        printf("return void");
         printf("\n");
         break;
     case NECRO_TERM_SWITCH:
@@ -247,7 +253,9 @@ void necro_machine_print_gep(NecroMachineProgram* program, NecroMachineAST* ast,
     printf("%%%s = gep", necro_intern_get_string(program->intern, ast->gep.dest_value->value.reg_name.symbol));
     for (size_t i = 0; i < ast->gep.num_indices; ++i)
     {
-        printf(" %du32", ast->gep.indices[i]);
+        // printf(" %du32", ast->gep.indices[i]);
+        printf(" ");
+        necro_print_machine_value(program, ast->gep.indices[i], NECRO_DONT_PRINT_VALUE_TYPE);
         if (i < ast->gep.num_indices - 1)
             printf(",");
     }
@@ -258,7 +266,10 @@ void necro_machine_print_gep(NecroMachineProgram* program, NecroMachineAST* ast,
 void necro_machine_print_nalloc(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)
 {
     assert(ast->type == NECRO_MACHINE_NALLOC);
-    printf("%%%s = nalloc (", necro_intern_get_string(program->intern, ast->nalloc.result_reg->value.reg_name.symbol));
+    if (ast->nalloc.is_constant)
+        printf("%%%s = alloc_const (", necro_intern_get_string(program->intern, ast->nalloc.result_reg->value.reg_name.symbol));
+    else
+        printf("%%%s = alloc_from (", necro_intern_get_string(program->intern, ast->nalloc.result_reg->value.reg_name.symbol));
     necro_machine_print_machine_type_go(program->intern, ast->nalloc.type_to_alloc, false);
     printf(") %du16", ast->nalloc.slots_used);
 }
@@ -275,12 +286,29 @@ void necro_machine_print_memcpy(NecroMachineProgram* program, NecroMachineAST* a
     necro_print_machine_value(program, ast->memcpy.num_bytes, NECRO_DONT_PRINT_VALUE_TYPE);
 }
 
+void necro_machine_memset(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)
+{
+    assert(ast->type == NECRO_MACHINE_MEMSET);
+    print_white_space(depth);
+    printf("memset ");
+    necro_print_machine_value(program, ast->memcpy.dest, NECRO_PRINT_VALUE_TYPE);
+    printf(" ");
+    necro_print_machine_value(program, ast->memcpy.source, NECRO_PRINT_VALUE_TYPE);
+    printf(" ");
+    necro_print_machine_value(program, ast->memcpy.num_bytes, NECRO_PRINT_VALUE_TYPE);
+}
+
+void necro_machine_print_alloca(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)
+{
+    assert(ast->type == NECRO_MACHINE_ALLOCA);
+    print_white_space(depth);
+    printf("%%%s = alloca (slots: %d)", necro_intern_get_string(program->intern, ast->alloca.result->value.reg_name.symbol), ast->alloca.num_slots);
+}
+
 void necro_machine_print_state_type(NecroMachineProgram* program, NECRO_STATE_TYPE state_type)
 {
     switch (state_type)
     {
-    case NECRO_STATE_STATIC:
-        printf("static ");
     case NECRO_STATE_CONSTANT:
         printf("constant ");
         break;
@@ -305,18 +333,16 @@ void necro_machine_print_machine_def(NecroMachineProgram* program, NecroMachineA
     printf("type: ");
     necro_machine_print_machine_type_go(program->intern, ast->necro_machine_type, true);
     printf("\n");
+    if (ast->machine_def.init_fn != NULL && (ast->machine_def.state_type == NECRO_STATE_STATEFUL || ast->machine_def.state_type == NECRO_STATE_CONSTANT))
+    {
+        printf("\n");
+        necro_machine_print_fn(program, ast->machine_def.init_fn, depth + 4);
+    }
     if (ast->machine_def.mk_fn != NULL && (ast->machine_def.state_type == NECRO_STATE_STATEFUL || ast->machine_def.state_type == NECRO_STATE_CONSTANT))
     {
-        // print_white_space(depth + 4);
         printf("\n");
         necro_machine_print_fn(program, ast->machine_def.mk_fn, depth + 4);
     }
-    // if (ast->machine_def.default_init && (ast->machine_def.state_type == NECRO_STATE_STATEFUL || ast->machine_def.state_type == NECRO_STATE_CONSTANT))
-    // {
-    //     // print_white_space(depth + 4);
-    //     // printf("init:\n");
-    //     // necro_machine_print_fn(program, ast->machine_def.init_fn, depth + 4);
-    // }
     if (ast->machine_def.update_fn != NULL)
     {
         printf("\n");
@@ -384,6 +410,18 @@ void necro_machine_print_cmp(NecroMachineProgram* program, NecroMachineAST* ast,
     necro_print_machine_value(program, ast->cmp.right, NECRO_PRINT_VALUE_TYPE);
 }
 
+void necro_machine_print_select(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)
+{
+    assert(ast->type == NECRO_MACHINE_SELECT);
+    print_white_space(depth);
+    printf("%%%s = select", necro_intern_get_string(program->intern, ast->select.result->value.reg_name.symbol));
+    necro_print_machine_value(program, ast->select.cmp_value, NECRO_DONT_PRINT_VALUE_TYPE);
+    printf(" ");
+    necro_print_machine_value(program, ast->select.left, NECRO_PRINT_VALUE_TYPE);
+    printf(" ");
+    necro_print_machine_value(program, ast->select.right, NECRO_PRINT_VALUE_TYPE);
+}
+
 void necro_machine_print_ast_go(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)
 {
     switch (ast->type)
@@ -404,8 +442,6 @@ void necro_machine_print_ast_go(NecroMachineProgram* program, NecroMachineAST* a
         print_white_space(depth);
         necro_machine_print_bit_cast(program, ast, depth);
         return;
-    // case NECRO_MACHINE_CONSTANT_DEF:
-    //     return;
     case NECRO_MACHINE_NALLOC:
         print_white_space(depth);
         necro_machine_print_nalloc(program, ast, depth);
@@ -445,6 +481,15 @@ void necro_machine_print_ast_go(NecroMachineProgram* program, NecroMachineAST* a
     case NECRO_MACHINE_MEMCPY:
         necro_machine_print_memcpy(program, ast, depth);
         return;
+    case NECRO_MACHINE_MEMSET:
+        necro_machine_memset(program, ast, depth);
+        return;
+    case NECRO_MACHINE_ALLOCA:
+        necro_machine_print_alloca(program, ast, depth);
+        return;
+    case NECRO_MACHINE_SELECT:
+        necro_machine_print_select(program, ast, depth);
+        return;
     }
 }
 
@@ -483,4 +528,5 @@ void necro_print_machine_program(NecroMachineProgram* program)
         necro_machine_print_ast_go(program, program->machine_defs.data[i], 0);
     }
     necro_machine_print_ast_go(program, program->necro_main, 0);
+    // necro_print_data_info(program);
 }

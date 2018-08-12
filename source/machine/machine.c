@@ -603,7 +603,7 @@ void necro_core_to_machine_2_app(NecroMachineProgram* program, NecroCoreAST_Expr
     assert(fn_type->fn_type.num_parameters == arg_count);
     if (!is_persistent)
         return;
-    bool is_dynamic = fn_def->machine_def.is_pushed || fn_def->machine_def.is_recursive;
+    bool is_dynamic = fn_def->machine_def.is_pushed || (fn_def->machine_def.is_recursive && fn_def  == outer);
     if (!is_dynamic)
     {
         size_t data_id = necro_create_machine_def_data_info(program, fn_def);
@@ -865,7 +865,7 @@ NecroMachineAST* necro_core_to_machine_3_app(NecroMachineProgram* program, Necro
     if (is_stateful)
     {
         assert(machine_def != NULL);
-        bool is_dynamic = machine_def->machine_def.is_recursive;
+        bool is_dynamic = machine_def->machine_def.is_recursive && machine_def == outer;
         if (!is_dynamic)
         {
             NecroMachineAST* gep_value = necro_build_gep(program, outer->machine_def.update_fn, necro_create_param_reg(program, outer->machine_def.update_fn, 0), (uint32_t[]) { 0, persistent_slot }, 2, "gep");

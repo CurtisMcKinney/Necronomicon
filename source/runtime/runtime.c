@@ -153,6 +153,7 @@ typedef struct
     NecroSpace*        to_curr;
     char*              to_alloc_ptr;
     char*              to_end_ptr;
+    char*              to_scan_ptr;
 
     NecroSpace*        const_head;
     NecroSpace*        const_curr;
@@ -203,6 +204,7 @@ NecroCopyGC necro_create_copy_gc()
     copy_gc.to_curr      = copy_gc.to_head;
     copy_gc.to_alloc_ptr = &copy_gc.to_curr->data_start;
     copy_gc.to_end_ptr   = copy_gc.to_curr->data + NECRO_SPACE_SIZE;
+    copy_gc.to_scan_ptr  = copy_gc.to_alloc_ptr;
 
     // Constant
     copy_gc.const_head      = necro_alloc_space();
@@ -281,15 +283,18 @@ inline void necro_create_new_copy_job(size_t data_id, NecroValue* from_value, Ne
     copy_buffer.count++;
 }
 
-inline NecroValue* necro_block_to_value(NecroBlock* block)
-{
-    return (NecroValue*)(block + 1);
-}
+// inline NecroValue* necro_block_to_value(NecroBlock* block)
+// {
+//     return (NecroValue*)(block + 1);
+// }
 
-inline NecroBlock* necro_value_to_block(NecroValue* value)
-{
-    return ((NecroBlock*)value) - 1;
-}
+// inline NecroBlock* necro_value_to_block(NecroValue* value)
+// {
+//     return ((NecroBlock*)value) - 1;
+// }
+
+#define necro_block_to_value(BLOCK) ((NecroValue*)(BLOCK + 1))
+#define necro_value_to_block(VALUE) (((NecroBlock*)VALUE) - 1)
 
 void _necro_copy(size_t root_data_id, NecroValue* root)
 {
@@ -329,16 +334,18 @@ void _necro_copy(size_t root_data_id, NecroValue* root)
             *job.to_value                  = new_value;
             from_members                   = (NecroValue**) job.from_value;
             to_members                     = (NecroValue**) new_value;
+            size_t member_id               = 0;
             for (size_t i = 0; i < info.num_members; ++i)
             {
                 // NULL id
-                if (member_map[info.members_offset + i] == NECRO_NULL_DATA_ID)
+                member_id = member_map[info.members_offset + i];
+                if (member_id == NECRO_NULL_DATA_ID)
                 {
                     // Dynamic, perhaps separate type?
                     to_members[i] = NULL;
                 }
                 // Unboxed type, simply copy over
-                else if (member_map[info.members_offset + i] == NECRO_UNBOXED_DATA_ID)
+                else if (member_id == NECRO_UNBOXED_DATA_ID)
                 {
                     // printf("    value member: from_value: %d\n", (int)from_members[i]);
                     to_members[i] = from_members[i];
@@ -352,12 +359,153 @@ void _necro_copy(size_t root_data_id, NecroValue* root)
                 // Pointer to some more data
                 else
                 {
-                    necro_create_new_copy_job(member_map[info.members_offset + i], from_members[i], to_members + i);
+                    // necro_create_new_copy_job(member_map[info.members_offset + i], from_members[i], to_members + i);
+                    if (copy_buffer.count + 1 >= copy_buffer.capacity)
+                    {
+                        copy_buffer.capacity *= 2;
+                        copy_buffer.data      = realloc(copy_buffer.data, copy_buffer.capacity * sizeof(NecroCopyBuffer));
+                    }
+                    //copy_buffer.data[copy_buffer.count] = (NecroCopyJob) { .data_id = data_id, .from_value = from_value, .to_value = to_value };
+                    // TODO: Perhaps just put relevant info directly into buffer?
+                    copy_buffer.data[copy_buffer.count].data_id    = member_id;
+                    copy_buffer.data[copy_buffer.count].from_value = from_members[i];
+                    copy_buffer.data[copy_buffer.count].to_value   = to_members + i;
+                    copy_buffer.count++;
                 }
             }
         }
     }
 }
+
+// #define NECRO_COPY_MAX_REC 64
+// NecroValue* _necro_copy_rec(size_t data_id, NecroValue* from_value, size_t depth)
+// {
+//     if (depth >= NECRO_COPY_MAX_REC)
+//         _necro_copy(data_id, from_value);
+// #if NECRO_DEBUG_GC
+//     assert(data_id != NECRO_UNBOXED_DATA_ID);
+//     assert(from_value != NULL);
+//     // printf("copy job: data_id: %d, from_value: %p, to_value: %p\n", job.data_id, job.from_value, job.to_value);
+// #endif
+//     NecroBlock*          from_block = necro_value_to_block(from_value);
+//     NecroConstructorInfo info       = data_map[data_id];
+//     if (info.is_tagged_union)
+//         info = data_map[data_id + *((size_t*)(from_value))];
+//     NecroValue*  new_value         = (NecroValue*)_necro_to_alloc(info.size_in_bytes);
+//     from_block->forwarding_pointer = new_value;
+//     NecroValue** from_members      = (NecroValue**) from_value;
+//     NecroValue** to_members        = (NecroValue**) new_value;
+//     size_t       member_id         = 0;
+//     for (size_t i = 0; i < info.num_members; ++i)
+//     {
+//         member_id = member_map[info.members_offset + i];
+//         // NULL id
+//         if (member_id == NECRO_NULL_DATA_ID)
+//         {
+//             // Dynamic, perhaps separate type?
+//             to_members[i] = NULL;
+//         }
+//         // Unboxed type, simply copy over
+//         else if (member_id == NECRO_UNBOXED_DATA_ID)
+//         {
+//             // printf("    value member: from_value: %d\n", (int)from_members[i]);
+//             to_members[i] = from_members[i];
+//         }
+//         // NULL member
+//         else if (from_members[i] == NULL)
+//         {
+//             // printf("    NULL member\n");
+//             to_members[i] = NULL;
+//         }
+//         // Forwarding pointer
+//         else if (necro_value_to_block(from_members[i])->forwarding_pointer != NULL)
+//         {
+//             to_members[i] = necro_value_to_block(from_block)->forwarding_pointer;
+//         }
+//         // Deep copy
+//         else
+//         {
+//             to_members[i] = _necro_copy_rec(member_id, from_members[i], depth + 1);
+//         }
+//     }
+//     return new_value;
+// }
+
+// // Breadthfirst version
+// void _necro_scan()
+// {
+//     // TODO: How do we skip to next space?
+//     NecroConstructorInfo info;
+//     size_t               member_id;
+//     NecroBlock*          block;
+//     NecroValue*          from_value;
+//     NecroValue**         from_members;
+//     NecroValue**         to_members;
+//     size_t               i = 0;
+//     while (copy_gc.to_scan_ptr < copy_gc.to_alloc_ptr)
+//     {
+//         // printf("scan, id: %d, addr %p\n", *((size_t*)copy_gc.to_scan_ptr), copy_gc.to_scan_ptr);
+//         block                                                = (NecroBlock*) copy_gc.to_scan_ptr;
+//         info                                                 = **((NecroConstructorInfo**)block); // info ptr (already offset by constructor) is stored at scan site, to be overwritten
+//         from_value                                           = *(((NecroValue**)block) + 1);    // from value address stored after data_id at scan stire, to be overwritten
+//         necro_value_to_block(from_value)->forwarding_pointer = necro_block_to_value(block);
+//         from_members                                         = (NecroValue**) from_value;
+//         to_members                                           = (NecroValue**) necro_block_to_value(block);
+//         block->forwarding_pointer                            = NULL;
+//         for (i = 0; i < info.num_members; ++i)
+//         {
+//             member_id = member_map[info.members_offset + i];
+//             // NULL id
+//             if (member_id == NECRO_NULL_DATA_ID)
+//             {
+//                 // Dynamic, perhaps separate type?
+//                 // printf("    Dyn member\n");
+//                 to_members[i] = NULL;
+//             }
+//             // Unboxed type, simply copy over
+//             else if (member_id == NECRO_UNBOXED_DATA_ID)
+//             {
+//                 // printf("    value member: from_value: %d\n", (int)from_members[i]);
+//                 to_members[i] = from_members[i];
+//             }
+//             // NULL member
+//             else if (from_members[i] == NULL)
+//             {
+//                 // printf("    NULL member\n");
+//                 to_members[i] = NULL;
+//             }
+//             // Already copied
+//             else if (necro_value_to_block(from_members[i])->forwarding_pointer != NULL)
+//             {
+//                 // printf("    already copied\n");
+//                 to_members[i] = necro_value_to_block(from_members[i])->forwarding_pointer;
+//             }
+//             // Deep copy
+//             else
+//             {
+//                 if (data_map[member_id].is_tagged_union)
+//                     member_id = member_id + *((size_t*)(from_value)); // Tag is stored as first member in a tagged union
+//                 // printf("    deep copy, id: %d\n", member_id);
+//                 to_members[i]                   = (NecroValue*)_necro_to_alloc(data_map[member_id].size_in_bytes);
+//                 *(((NecroConstructorInfo**)to_members[i]) - 1) = data_map + member_id;
+//                 *((NecroValue**)to_members[i])  = from_members[i];
+//                 // printf("    deep copy, id: %d, from_value: %p\n", *(((size_t*)to_members[i]) - 1), *((NecroValue**)to_members[i]));
+//             }
+//         }
+//         // printf(" end scan, num_members: %d, inc: %d\n", info.num_members, ((info.num_members + 1) * sizeof(NecroBlock*)) / 1644448);
+//         copy_gc.to_scan_ptr += info.size_in_bytes;
+//     }
+// }
+//
+// void _necro_copy_root(size_t root_data_id, NecroValue* root)
+// {
+//     if (data_map[root_data_id].is_tagged_union)
+//         root_data_id = root_data_id + *((size_t*)(root)); // Tag is stored as first member in a tagged union
+//     NecroValue* to_value       = (NecroValue*)_necro_to_alloc(data_map[root_data_id].size_in_bytes);
+//     // printf("    deep copy, id: %d, addr: %p\n", root_data_id, necro_value_to_block(to_value));
+//     *(((NecroConstructorInfo**)to_value) - 1) = data_map + root_data_id; // Store data_id
+//     *((NecroValue**)to_value)  = root;         // Store from_value
+// }
 
 #define NECRO_ONE_MEGABYTE_F ((double)1048576.0)
 
@@ -416,7 +564,7 @@ void necro_report_gc_statistics()
 void necro_copy_gc_init()
 {
     copy_buffer = necro_create_copy_buffer();
-    copy_gc = necro_create_copy_gc();
+    copy_gc     = necro_create_copy_gc();
 }
 
 void necro_copy_gc_cleanup()
@@ -463,14 +611,20 @@ extern DLLEXPORT void _necro_copy_gc_collect()
 #endif
 
     //-----------
-    // Copy
+    // Copy Roots
     for (size_t i = 0; i < copy_gc.root_count; ++i)
     {
 #if NECRO_DEBUG_GC
         assert(copy_gc.roots[i].data_id != NECRO_UNBOXED_DATA_ID);
 #endif
         _necro_copy(copy_gc.roots[i].data_id, *copy_gc.roots[i].root);
+        // _necro_copy_root(copy_gc.roots[i].data_id, *copy_gc.roots[i].root);
+        // _necro_copy_rec(copy_gc.roots[i].data_id, *copy_gc.roots[i].root, 0);
     }
+
+    //-----------
+    // Scan
+    // _necro_scan();
 
     //-----------
     // Mutation log
@@ -502,6 +656,7 @@ extern DLLEXPORT void _necro_copy_gc_collect()
     copy_gc.to_curr            = from_head;
     copy_gc.to_alloc_ptr       = &from_head->data_start;
     copy_gc.to_end_ptr         = from_head->data + NECRO_SPACE_SIZE;
+    copy_gc.to_scan_ptr        = copy_gc.to_alloc_ptr;
 
     //-----------
     // End
@@ -532,7 +687,7 @@ extern DLLEXPORT int* _necro_from_alloc(size_t size)
     }
 }
 
-extern DLLEXPORT int* _necro_to_alloc(size_t size)
+inline extern DLLEXPORT int* _necro_to_alloc(size_t size)
 {
     NecroBlock* data    = (NecroBlock*)copy_gc.to_alloc_ptr;
     char*       new_end = copy_gc.to_alloc_ptr + size;

@@ -410,6 +410,7 @@ typedef struct
     NecroID                       id;
     NECRO_VAR_TYPE                var_type;
     struct NecroTypeClassContext* inst_context;
+    struct NecroAST_Node_Reified* initializer;
 } NecroAST_Variable_Reified;
 
 //=====================================================

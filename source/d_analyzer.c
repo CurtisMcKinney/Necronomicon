@@ -407,6 +407,8 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         case NECRO_VAR_CLASS_SIG:            break;
         default: assert(false);
         }
+        if (ast->variable.initializer != NULL)
+            d_analyze_go(d_analyzer, ast->variable.initializer);
         break;
 
     case NECRO_AST_CONID:

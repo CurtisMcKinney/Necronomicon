@@ -27,6 +27,13 @@ typedef enum
     NECRO_TYPE_DONE
 } NECRO_TYPE_STATUS;
 
+typedef enum
+{
+    NECRO_STATE_CONSTANT  = 0,
+    NECRO_STATE_POINTWISE = 1,
+    NECRO_STATE_STATEFUL  = 2,
+} NECRO_STATE_TYPE; // Used for state analysis and in necromachine
+
 //=====================================================
 //  Var / Con
 //=====================================================

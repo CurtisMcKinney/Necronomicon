@@ -48,8 +48,8 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
         .name                    = symbol,
         .string_name             = necro_intern_get_string(intern, symbol),
         .id                      = 0,
-        .data_size               = 0,
         .con_num                 = 0,
+        .is_enum                 = false,
         .source_loc              = source_loc,
         .scope                   = scope,
         .delay_scope             = NULL,
@@ -66,10 +66,10 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
         .persistent_slot         = 0,
         .is_constructor          = false,
         .is_recursive            = false,
-        .size                    = 0,
         .arity                   = -1,
         .necro_machine_ast       = NULL,
         .const_necro_machine_ast = NULL,
+        .state_type              = NECRO_STATE_CONSTANT,
     };
 }
 
@@ -126,8 +126,8 @@ void necro_symtable_info_print(NecroSymbolInfo info, NecroIntern* intern, size_t
     print_white_space(whitespace + 4);
     printf("id:         %d\n", info.id.id);
 
-    print_white_space(whitespace + 4);
-    printf("size:       %d\n", info.data_size);
+    // print_white_space(whitespace + 4);
+    // printf("size:       %d\n", info.data_size);
 
     print_white_space(whitespace + 4);
     printf("source loc: { line: %d, character: %d, pos: %d }\n", info.source_loc.line, info.source_loc.character, info.source_loc.pos);
@@ -182,12 +182,12 @@ void necro_symtable_test()
 
     // Symbol 1 test
     NecroSymbol     test_symbol1 = necro_intern_string(&intern, "test1");
-    NecroSymbolInfo info1        = { .type = { 0},.name = test_symbol1,.id = { 0 },.data_size = 4 };
+    NecroSymbolInfo info1        = { .type = { 0},.name = test_symbol1,.id = { 0 }, };
     NecroID         id1          = necro_symtable_insert(&symtable, info1);
 
     // Symbol 2 test
     NecroSymbol     test_symbol2 = necro_intern_string(&intern, "fuck off!");
-    NecroSymbolInfo info2        = { .type = { 0},.name = test_symbol2,.id = { 0 },.data_size = 8 };
+    NecroSymbolInfo info2        = { .type = { 0},.name = test_symbol2,.id = { 0 }, };
     NecroID         id2          = necro_symtable_insert(&symtable, info2);
 
     // necro_symtable_print(&symtable);
@@ -480,6 +480,8 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_R
         case NECRO_VAR_SIG:                  break;
         case NECRO_VAR_CLASS_SIG:            break;
         }
+        if (input_node->variable.initializer != NULL)
+            necro_build_scopes_go(scoped_symtable, input_node->variable.initializer);
         break;
 
     case NECRO_AST_APATS:
@@ -552,25 +554,25 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_R
     //     printf("seq\n");
     //     break;
     // }
-    case NECRO_AST_DELAY:
-    {
-        necro_build_scopes_go(scoped_symtable, input_node->delay.init_expr);
-        necro_scoped_symtable_new_delay_scope(scoped_symtable);
-        necro_build_scopes_go(scoped_symtable, input_node->delay.delayed_var);
-        input_node->delay.delayed_var->delay_scope = scoped_symtable->current_delay_scope;
-        necro_scoped_symtable_pop_delay_scope(scoped_symtable);
-        break;
-    }
-    case NECRO_AST_TRIM_DELAY:
-    {
-        necro_build_scopes_go(scoped_symtable, input_node->trim_delay.int_literal);
-        necro_build_scopes_go(scoped_symtable, input_node->trim_delay.init_expr);
-        necro_scoped_symtable_new_delay_scope(scoped_symtable);
-        necro_build_scopes_go(scoped_symtable, input_node->trim_delay.delayed_var);
-        input_node->trim_delay.delayed_var->delay_scope = scoped_symtable->current_delay_scope;
-        necro_scoped_symtable_pop_delay_scope(scoped_symtable);
-        break;
-    }
+    // case NECRO_AST_DELAY:
+    // {
+    //     necro_build_scopes_go(scoped_symtable, input_node->delay.init_expr);
+    //     necro_scoped_symtable_new_delay_scope(scoped_symtable);
+    //     necro_build_scopes_go(scoped_symtable, input_node->delay.delayed_var);
+    //     input_node->delay.delayed_var->delay_scope = scoped_symtable->current_delay_scope;
+    //     necro_scoped_symtable_pop_delay_scope(scoped_symtable);
+    //     break;
+    // }
+    // case NECRO_AST_TRIM_DELAY:
+    // {
+    //     necro_build_scopes_go(scoped_symtable, input_node->trim_delay.int_literal);
+    //     necro_build_scopes_go(scoped_symtable, input_node->trim_delay.init_expr);
+    //     necro_scoped_symtable_new_delay_scope(scoped_symtable);
+    //     necro_build_scopes_go(scoped_symtable, input_node->trim_delay.delayed_var);
+    //     input_node->trim_delay.delayed_var->delay_scope = scoped_symtable->current_delay_scope;
+    //     necro_scoped_symtable_pop_delay_scope(scoped_symtable);
+    //     break;
+    // }
     case NECRO_AST_TUPLE:
         necro_build_scopes_go(scoped_symtable, input_node->tuple.expressions);
         break;
@@ -846,7 +848,7 @@ void necro_scoped_symtable_test()
     // New / Find Test
     {
         NecroSymbol     test_sym = necro_intern_string(&intern, "pulseDemon");
-        NecroSymbolInfo info     = { .name = test_sym,.data_size = 4 };
+        NecroSymbolInfo info     = { .name = test_sym, };
         NecroID         id       = necro_scoped_symtable_new_symbol_info(&scoped_symtable, scoped_symtable.current_scope, info);
         NecroID         found_id = necro_scope_find(scoped_symtable.current_scope, test_sym);
         if (id.id == found_id.id)
@@ -859,15 +861,15 @@ void necro_scoped_symtable_test()
     {
         necro_scoped_symtable_new_scope(&scoped_symtable);
         NecroSymbol     test_sym  = necro_intern_string(&intern, "dragonEngine");
-        NecroSymbolInfo info      = { .name = test_sym,.data_size = 8 };
+        NecroSymbolInfo info      = { .name = test_sym, };
         NecroID         id        = necro_scoped_symtable_new_symbol_info(&scoped_symtable, scoped_symtable.current_scope, info);
 
         NecroSymbol     test_sym3 = necro_intern_string(&intern, "pulseDemon");
-        NecroSymbolInfo info3     = { .name = test_sym3,.data_size = 32 };
+        NecroSymbolInfo info3     = { .name = test_sym3, };
         NecroID         id3       = necro_scoped_symtable_new_symbol_info(&scoped_symtable, scoped_symtable.current_scope, info3);
 
         NecroSymbol     test_sym2 = necro_intern_string(&intern, "AcidicSlime");
-        NecroSymbolInfo info2     = { .name = test_sym2,.data_size = 16 };
+        NecroSymbolInfo info2     = { .name = test_sym2, };
         NecroID         id2       = necro_scoped_symtable_new_symbol_info(&scoped_symtable, scoped_symtable.current_scope, info2);
 
         NecroID         found_id  = necro_scope_find(scoped_symtable.current_scope, test_sym);

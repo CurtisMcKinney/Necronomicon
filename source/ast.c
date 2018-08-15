@@ -72,9 +72,9 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
         case NECRO_AST_CONSTANT_CHAR:
             printf("(\'%c\')\n", ast_node->constant.char_literal);
             break;
-        case NECRO_AST_CONSTANT_BOOL:
-            printf("(%s)\n", ast_node->constant.boolean_literal ? " True" : "False");
-            break;
+        // case NECRO_AST_CONSTANT_BOOL:
+        //     printf("(%s)\n", ast_node->constant.boolean_literal ? " True" : "False");
+        //     break;
         }
         break;
 
@@ -148,10 +148,9 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
         if (ast_node->simple_assignment.initializer != NULL)
         {
             print_white_space(depth * 2);
-            printf("<\n");
-            print_reified_ast_impl(ast_node->simple_assignment.initializer, intern, depth);
-            print_white_space(depth * 2);
-            printf(">\n");
+            printf(" ~\n");
+            print_reified_ast_impl(ast_node->simple_assignment.initializer, intern, depth * 2);
+            // print_white_space(depth * 2);
         }
         print_reified_ast_impl(ast_node->simple_assignment.rhs, intern, depth + 1);
         break;
@@ -200,6 +199,12 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
         if (variable_string)
         {
             printf("(varid: %s, id: %d, vtype: %s)\n", variable_string, ast_node->variable.id.id, var_type_string(ast_node->variable.var_type));
+            if (ast_node->variable.initializer != NULL)
+            {
+                print_white_space(depth + 10);
+                printf("~\n");
+                print_reified_ast_impl(ast_node->variable.initializer, intern, depth + 1);
+            }
         }
         else
         {
@@ -643,6 +648,7 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
         reified_node->variable.symbol       = node->variable.symbol;
         reified_node->variable.var_type     = node->variable.var_type;
         reified_node->variable.inst_context = NULL;
+        reified_node->variable.initializer  = necro_reify(a_ast, node->variable.initializer, arena, intern);
         break;
     case NECRO_AST_APATS:
         reified_node->apats.apat      = necro_reify(a_ast, node->apats.apat, arena, intern);
@@ -832,6 +838,7 @@ NecroASTNode* necro_create_variable_ast(NecroPagedArena* arena, NecroIntern* int
     ast->variable.var_type     = var_type;
     ast->variable.id           = (NecroID) { 0 };
     ast->variable.inst_context = NULL;
+    ast->variable.initializer  = NULL;
     return ast;
 }
 

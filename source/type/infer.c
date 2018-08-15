@@ -431,20 +431,23 @@ void necro_pat_new_name_go(NecroInfer* infer, NecroNode* ast)
     {
     case NECRO_AST_VARIABLE:
     {
-        NecroType* type = necro_symtable_get(infer->symtable, ast->variable.id)->type;
+        NecroSymbolInfo* info = necro_symtable_get(infer->symtable, ast->variable.id);
+        NecroType* type = info->type;
         if (type == NULL)
         {
-            NecroType* new_name = necro_new_name(infer, ast->source_loc);
+            NecroType* new_name  = necro_new_name(infer, ast->source_loc);
             new_name->source_loc = ast->source_loc;
             new_name->var.scope  = infer->symtable->data[ast->variable.id.id].scope;
-            infer->symtable->data[ast->variable.id.id].type        = new_name;
-            infer->symtable->data[ast->variable.id.id].type_status = NECRO_TYPE_CHECKING;
-            infer->symtable->data[ast->variable.id.id].delay_scope = ast->delay_scope;
+            info->type           = new_name;
+            info->type_status    = NECRO_TYPE_CHECKING;
+            info->delay_scope    = ast->delay_scope;
         }
         else
         {
             type->pre_supplied = true;
         }
+        if (info->ast == NULL)
+            info->ast = ast;
         return;
     }
     case NECRO_AST_CONSTANT: return;
@@ -581,14 +584,16 @@ NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast)
     //         necro_intern_get_string(infer->intern, ast->variable.symbol));
     // }
 
-    // Recursive value Delay check
-    if (ast->variable.var_type == NECRO_VAR_VAR && symbol_info->delay_scope != NULL && symbol_info->type_status != NECRO_TYPE_DONE && symbol_info->ast->type == NECRO_AST_SIMPLE_ASSIGNMENT && symbol_info->ast->simple_assignment.initializer == NULL)
+    // Recursive value Initializer check
+    if ((ast->variable.var_type == NECRO_VAR_VAR && symbol_info->delay_scope != NULL && symbol_info->type_status != NECRO_TYPE_DONE && symbol_info->ast == NULL) ||
+        (ast->variable.var_type == NECRO_VAR_VAR && symbol_info->delay_scope != NULL && symbol_info->type_status != NECRO_TYPE_DONE && symbol_info->ast->type == NECRO_AST_SIMPLE_ASSIGNMENT && symbol_info->ast->simple_assignment.initializer == NULL) ||
+        (ast->variable.var_type == NECRO_VAR_VAR && symbol_info->delay_scope != NULL && symbol_info->type_status != NECRO_TYPE_DONE && symbol_info->ast->type == NECRO_AST_VARIABLE && ast->variable.var_type == NECRO_VAR_DECLARATION && ast->variable.initializer == NULL))
     {
         NecroDelayScope* current_delay_scope = ast->delay_scope;
         NecroDelayScope* symbol_delay_scope  = symbol_info->delay_scope;
         if (current_delay_scope == symbol_delay_scope)
             // return necro_infer_ast_error(infer, NULL, ast, "%s cannot instantaneously depend on itself.\n Consider adding a delay, such as: delay init %s",
-            return necro_infer_ast_error(infer, NULL, ast, "%s cannot depend on itself without an initial value.\n Consider adding an initial value, such as:\n\n     %s = InitialValue => ...\n",
+            return necro_infer_ast_error(infer, NULL, ast, "%s cannot depend on itself without an initial value.\n Consider adding an initial value, such as:\n\n     %s ~ InitialValue\n",
                 necro_intern_get_string(infer->intern, ast->variable.symbol),
                 necro_intern_get_string(infer->intern, ast->variable.symbol));
     }
@@ -609,11 +614,21 @@ NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast)
         symbol_info->type = necro_new_name(infer, ast->source_loc);
         symbol_info->type->var.scope = symbol_info->scope;
         ast->necro_type = symbol_info->type;
+        if (ast->variable.initializer != NULL)
+        {
+            NecroType* init_type = necro_infer_go(infer, ast->variable.initializer);
+            necro_unify(infer, ast->necro_type, init_type, ast->scope, ast->necro_type, "While type checking variable initializer");
+        }
         return symbol_info->type;
     }
     else if (necro_is_bound_in_scope(infer, symbol_info->type, ast->scope))
     {
         ast->necro_type = symbol_info->type;
+        if (ast->variable.initializer != NULL)
+        {
+            NecroType* init_type = necro_infer_go(infer, ast->variable.initializer);
+            necro_unify(infer, ast->necro_type, init_type, ast->scope, ast->necro_type, "While type checking variable initializer");
+        }
         return symbol_info->type;
     }
     else
@@ -621,6 +636,11 @@ NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast)
         ast->variable.inst_context = NULL;
         NecroType* inst_type       = necro_inst_with_context(infer, symbol_info->type, ast->scope, &ast->variable.inst_context);
         ast->necro_type            = inst_type;
+        if (ast->variable.initializer != NULL)
+        {
+            NecroType* init_type = necro_infer_go(infer, ast->variable.initializer);
+            necro_unify(infer, ast->necro_type, init_type, ast->scope, ast->necro_type, "While type checking variable initializer");
+        }
         return inst_type;
     }
     assert(false);
@@ -680,9 +700,9 @@ NecroType* necro_infer_constant(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_CONSTANT_INTEGER:
         ast->necro_type = necro_symtable_get(infer->symtable, infer->prim_types->int_type.id)->type;
         return ast->necro_type;
-    case NECRO_AST_CONSTANT_BOOL:
-        ast->necro_type = necro_symtable_get(infer->symtable, infer->prim_types->bool_type.id)->type;
-        return ast->necro_type;
+    // case NECRO_AST_CONSTANT_BOOL:
+    //     ast->necro_type = necro_symtable_get(infer->symtable, infer->prim_types->bool_type.id)->type;
+    //     return ast->necro_type;
     case NECRO_AST_CONSTANT_CHAR:
         ast->necro_type = necro_symtable_get(infer->symtable, infer->prim_types->char_type.id)->type;
         return ast->necro_type;

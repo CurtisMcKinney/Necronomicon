@@ -429,6 +429,8 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         case NECRO_VAR_CLASS_SIG:            break;
         default: assert(false);
         }
+        if (input_node->variable.initializer != NULL)
+            rename_var_go(input_node->variable.initializer, renamer);
         break;
 
     case NECRO_AST_APATS:

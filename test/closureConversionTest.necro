@@ -131,11 +131,11 @@
 -- nestedF' f = feed where
 --     feed ~ 0 = f feed
 
--- -----------------------------------------
+--  ----------------------------------------
 -- -- Under saturated test
 -- -----------------------------------------
 -- addTwo :: Int -> Int -> Int
--- addTwo x y = x + y
+-- addTwo x y = x + y + getMouseX world
 -- doit :: (a -> b) -> a -> b
 -- doit f x = f x
 -- main :: Int
@@ -246,60 +246,60 @@
 --   -- sum (fmap transmogrify coolList)
 --   foldl addTwo 0 (fmap transmogrify coolList)
 
------------------------------------------
--- Many Closure Calculations test
------------------------------------------
--- 100,000 stateful closure allocations and applications: 21% cpu, 2.3ms GC (approx  3x slower than non-stateful)
--- 100,000 stateful closure applications:                 15% cpu,          (approx 10x slower than non-stateful)
--- 100,000 closure allocations and applications:           8% cpu,
--- 100,000 closure applications:                         0.1% cpu,
--- 100,000 reg function applications:                    0.1% cpu,
-addSome :: Int -> Int
-addSome x =
-  x + 1
-addSomeMore :: Int -> Int -> Int
-addSomeMore x y =
-  x + y
-doit :: (a -> b) -> a -> b
-doit f x =
-  f x
-integrate :: (Int -> Int) -> Int
-integrate f =
-  feed where
-    feed ~ 0 = doit (addSomeMore 6) feed
-    -- feed ~ 0 = f feed
-tenTimes :: (Int -> Int) -> Int
-tenTimes n =
-  integrate n + integrate n + integrate n + integrate n + integrate n +
-  integrate n + integrate n + integrate n + integrate n + integrate n
-oneHundredTimes :: (Int -> Int) -> Int
-oneHundredTimes n =
-  tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
-  tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
-oneThousandTimes :: (Int -> Int) -> Int
-oneThousandTimes n =
-  oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
-  oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
-tenThousandTimes :: (Int -> Int) -> Int
-tenThousandTimes n =
-  oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
-  oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
-oneHundredThousandTimes :: (Int -> Int) -> Int
-oneHundredThousandTimes n =
-  tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n +
-  tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
-oneMillionTimes :: (Int -> Int) -> Int
-oneMillionTimes f =
-  oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f +
-  oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f
-main :: Int
-main = let f = addSome in
-  oneHundredThousandTimes f
+-- -----------------------------------------
+-- -- Many Closure Calculations test
+-- -----------------------------------------
+-- -- 100,000 stateful closure allocations and applications: 21% cpu, 2.3ms GC (approx  3x slower than non-stateful)
+-- -- 100,000 stateful closure applications:                 15% cpu,          (approx 10x slower than non-stateful)
+-- -- 100,000 closure allocations and applications:           8% cpu,
+-- -- 100,000 closure applications:                         0.1% cpu,
+-- -- 100,000 reg function applications:                    0.1% cpu,
+-- addSome :: Int -> Int
+-- addSome x =
+--   x + 1
+-- addSomeMore :: Int -> Int -> Int
+-- addSomeMore x y =
+--   x + y
+-- doit :: (a -> b) -> a -> b
+-- doit f x =
+--   f x
+-- integrate :: (Int -> Int) -> Int
+-- integrate f =
+--   feed where
+--     feed ~ 0 = doit (addSomeMore 6) feed
+--     -- feed ~ 0 = f feed
+-- tenTimes :: (Int -> Int) -> Int
+-- tenTimes n =
+--   integrate n + integrate n + integrate n + integrate n + integrate n +
+--   integrate n + integrate n + integrate n + integrate n + integrate n
+-- oneHundredTimes :: (Int -> Int) -> Int
+-- oneHundredTimes n =
+--   tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
+--   tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
+-- oneThousandTimes :: (Int -> Int) -> Int
+-- oneThousandTimes n =
+--   oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
+--   oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
+-- tenThousandTimes :: (Int -> Int) -> Int
+-- tenThousandTimes n =
+--   oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
+--   oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
+-- oneHundredThousandTimes :: (Int -> Int) -> Int
+-- oneHundredThousandTimes n =
+--   tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n +
+--   tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
+-- oneMillionTimes :: (Int -> Int) -> Int
+-- oneMillionTimes f =
+--   oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f +
+--   oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f
+-- main :: Int
+-- main = let f = addSome in
+--   oneHundredThousandTimes f
 
 -----------------------------------------
--- Vector thoughts
+-- Array thoughts
 -----------------------------------------
--- data Vector a = Vector Int (Ptr a)
+-- data Array a = Array Int (Ptr a)
 --
 -- -- TODO: Base .necro compiling system?
 -- -- State Analysis with stateful closure detection / type checking !?!?!
@@ -312,58 +312,144 @@ main = let f = addSome in
 -- -- Closures by default are "Pointwise", have "Stateful" closures, but you have to opt in to them.
 -- -- This would be checked statically
 --
--- mapv :: (a -> b) -> Vector a -> Vector b
+-- mapv :: (a -> b) -> Array a -> Array b
 -- mapv f v = mapvgo f (unsafeMalloc (len v)) (ptr v) (len v) (len v + 1)
 --
--- mapvgo :: (a -> b) -> Ptr a -> Ptr b -> Int -> Int -> Vector b
+-- mapvgo :: (a -> b) -> Ptr a -> Ptr b -> Int -> Int -> Array b
 -- mapvgo f prevPtr newPtr len i =
 --   case i of
 --     0 ->
---       Vector len newPtr
+--       Array len newPtr
 --     _ ->
 --       mapvgo f prevPtr (unsafePoke i (f (unsafePeek i prevPtr)) newPtr) len (i - 1)
 --
--- sinOsc :: Vector Float
+-- sinOsc :: Array Float
 -- sinOsc = map (waveTableLookup sinOscTable) phases where
 --   (accu ~ 0, phases) = accumulate (\a -> a + recipDeltaTime) accu blockSize
 
 -- data Maybe a = Just a | Nothing
 --
--- makeVec3 :: a -> a -> a -> Vector a
--- makeVec3 x y z = Vector 3 ptr''' where
+-- makeVec3 :: a -> a -> a -> Array a
+-- makeVec3 x y z = Array 3 ptr''' where
 --   ptr    = unsafeMalloc 3
 --   ptr'   = unsafePoke 0 x ptr
 --   ptr''  = unsafePoke 1 y ptr'
 --   ptr''' = unsafePoke 2 z ptr''
 --
--- lookup :: Int -> Vector a -> Maybe a
+-- lookup :: Int -> Array a -> Maybe a
 -- lookup i v =
 --   case v of
---     Vector l p ->
+--     Array l p ->
 --       Just (unsafePeek i p)
 --
--- unsafeLookup :: Int -> Vector a -> a
+-- lookupOr :: a -> Int -> Array a -> a
+-- lookupOr x i v = unwrapOr x (lookup i v)
+--
+-- unsafeLookup :: Int -> Array a -> a
 -- unsafeLookup i v =
 --   case v of
---     Vector l p ->
+--     Array l p ->
 --       unsafePeek i p
 --
--- intVec :: Vector Int
+-- intVec :: Array Int
 -- intVec = makeVec3 1 2 3
 --
--- intVecVec :: Vector (Vector Int)
+-- intVecVec :: Array (Array Int)
 -- intVecVec = makeVec3 intVec intVec intVec
 --
--- accumulateV :: (b -> a -> b) -> b -> Vector a -> Vector b
+-- unwrapOr :: a -> Maybe a -> a
+-- unwrapOr o m =
+--   case m of
+--     Just x ->
+--       x
+--     Nothing ->
+--       o
 --
 -- main :: Int
--- main = unsafeLookup 1 (unsafeLookup 1 intVecVec)
---
--- -- loopTest :: Int -> Int
--- -- loopTest x =
--- --   case x of
--- --     0 -> 0
--- --     1 -> 1
--- --     2 -> 2
--- --     _ -> loopTest (x - 1)
---
+-- main =
+--   lookupOr 0 1 intVec
+
+-----------------------------------------
+-- Numeric case statements
+-----------------------------------------
+main :: Int
+-- main = 0
+-- main = lookupOr 0 2 (mapv doubleIt intVec)
+main = lookupOr 0 2 (doubleMapVec intVec)
+
+-- loopTest :: Int -> Int
+-- loopTest x =
+--   case x of
+--     0 -> 0
+--     1 -> 100
+--     2 -> 200
+--     _ -> loopTest (x - 1)
+
+-- mapv :: (a -> b) -> Array a -> Array b
+-- mapv f v =
+--   case v of
+--     Array l p ->
+--       Array l (mapptr f p (unsafeMalloc l) (l - 1))
+
+-- mapptr :: (a -> b) -> Ptr a -> Ptr b -> Int -> Ptr b
+-- mapptr f prevPtr newPtr i =
+--   case i of
+--     -1 ->
+--       newPtr
+--     _ ->
+--       mapptr f prevPtr (unsafePoke i (f (unsafePeek i prevPtr)) newPtr) (i - 1)
+
+fillptr :: Int -> a -> Ptr a -> Ptr a
+fillptr i x ptr =
+  case i of
+    -1 -> ptr
+    _  -> fillptr (i - 1) x (unsafePoke i x ptr)
+
+replicatev :: Int -> a -> Array a
+replicatev i x =
+  Array i (fillptr (i - 1) x (unsafeMalloc i))
+
+intVec :: Array Int
+intVec = replicatev 1000000 100
+
+doubleMapVec :: Array Int -> Array Int
+doubleMapVec v =
+  case v of
+    Array l p ->
+      Array l (doubleMapPtr p (unsafeMalloc l) (l - 1))
+
+doubleMapPtr :: Ptr Int -> Ptr Int -> Int -> Ptr Int
+doubleMapPtr prev new i =
+  case i of
+    -1 -> new
+    _  -> doubleMapPtr prev (unsafePoke i (doubleIt (unsafePeek i prev)) new) (i - 1)
+
+doubleIt :: Int -> Int
+doubleIt x = x + x
+
+data Maybe a = Just a | Nothing
+
+lookup :: Int -> Array a -> Maybe a
+lookup i v =
+  case v of
+    Array l p ->
+      Just (unsafePeek i p)
+
+lookupOr :: a -> Int -> Array a -> a
+lookupOr x i v = unwrapOr x (lookup i v)
+
+unwrapOr :: a -> Maybe a -> a
+unwrapOr o m =
+  case m of
+    Just x  -> x
+    Nothing -> o
+
+-- -- TODO / Note for Chad: Core doesn't handle top level alt variables.
+-- -- TODO / Note for Chad: Core doesn't handle nested alt numeric values.
+-- justNum :: Maybe Int -> Int
+-- justNum m =
+--   case m of
+--     Just 0  -> 100
+--     Just 1  -> 200
+--     Nothing -> 300
+--     _       -> 400

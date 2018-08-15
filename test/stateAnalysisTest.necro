@@ -1,0 +1,47 @@
+
+-- mouseX :: Int
+-- mouseX = getMouseX world
+
+-- counter :: Int
+-- counter = x where
+--   x ~ 0 = x + 1
+
+-- main :: Int
+-- main = mouseX + counter
+
+
+-- coolBool :: Bool
+-- coolBool = True == True
+--
+-- lameBool :: Bool
+-- lameBool = False && True
+--
+-- wellWhat :: Int
+-- wellWhat =
+--   if coolBool
+--     then 666
+--     else 333
+--
+-- unitTest :: ()
+-- unitTest = ()
+--
+-- leftRight :: Int
+-- leftRight =
+--   if mouseX > 80
+--     then let x ~ 0 = x + 1 in x
+--     else let y ~ 0 = y - 1 in y
+--
+-- data MyEnum = You | Must | Die
+-- data Tuple a b = Tuple a b
+--
+-- myEnum :: MyEnum
+-- myEnum = Die
+
+leftCounter :: Int
+leftCounter = x + y
+  where
+    (x, y) = (x + 1, 0)
+
+main :: Int
+main = 0
+

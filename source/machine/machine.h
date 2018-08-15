@@ -314,6 +314,12 @@ typedef struct NecroMachineBitCast
     struct NecroMachineAST* to_value;
 } NecroMachineBitCast;
 
+typedef struct NecroMachineZExt
+{
+    struct NecroMachineAST* from_value;
+    struct NecroMachineAST* to_value;
+} NecroMachineZExt;
+
 typedef struct NecroMachineNAlloc
 {
     NecroMachineType*       type_to_alloc;
@@ -338,6 +344,7 @@ typedef enum
     NECRO_MACHINE_BINOP_FSUB,
     NECRO_MACHINE_BINOP_FMUL,
     NECRO_MACHINE_BINOP_FDIV,
+    NECRO_MACHINE_BINOP_AND,
     NECRO_MACHINE_BINOP_OR,
     NECRO_MACHINE_BINOP_SHL,
     NECRO_MACHINE_BINOP_SHR,
@@ -423,6 +430,7 @@ typedef enum
     NECRO_MACHINE_STORE,
     NECRO_MACHINE_NALLOC,
     NECRO_MACHINE_BIT_CAST,
+    NECRO_MACHINE_ZEXT,
     NECRO_MACHINE_GEP,
     NECRO_MACHINE_BINOP,
     NECRO_MACHINE_CMP,
@@ -453,6 +461,7 @@ typedef struct NecroMachineAST
         NecroMachineConstantDef   constant;
         NecroMachineGetElementPtr gep;
         NecroMachineBitCast       bit_cast;
+        NecroMachineZExt          zext;
         NecroMachineNAlloc        nalloc;
         NecroMachineAlloca        alloca;
         NecroMachineBinOp         binop;

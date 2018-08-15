@@ -37,8 +37,8 @@ typedef struct
     NecroSymbol                     name;
     const char*                     string_name;
     NecroID                         id;
-    size_t                          data_size;
     size_t                          con_num;
+    bool                            is_enum;
     NecroSourceLoc                  source_loc;
     struct NecroScope*              scope;
     struct NecroDelayScope*         delay_scope;
@@ -58,7 +58,7 @@ typedef struct
     struct NecroMachineAST*         const_necro_machine_ast;
     bool                            is_constructor;
     bool                            is_recursive;
-    int32_t                         size;
+    NECRO_STATE_TYPE                state_type;
 } NecroSymbolInfo;
 
 typedef struct NecroSymTable

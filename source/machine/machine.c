@@ -181,8 +181,24 @@ void necro_core_to_machine_1_data_decl(NecroMachineProgram* program, NecroCoreAS
         con = con->next;
     }
 
+    // Enum type
+    if (max_arg_count == 0)
+    {
+        NecroMachineAST* int_ast = necro_symtable_get(program->symtable, program->prim_types->int_type.id)->necro_machine_ast;
+        necro_symtable_get(program->symtable, core_ast->data_decl.data_id.id)->is_enum = true;
+        necro_symtable_get(program->symtable, core_ast->data_decl.data_id.id)->necro_machine_ast = int_ast;
+        con = core_ast->data_decl.con_list;
+        while (con != NULL)
+        {
+            necro_symtable_get(program->symtable, con->condid.id)->is_enum           = true;
+            necro_symtable_get(program->symtable, con->condid.id)->necro_machine_ast = int_ast;
+            con = con->next;
+        }
+        return;
+    }
+
     // Members
-    bool            is_sum_type = core_ast->data_decl.con_list->next != NULL;
+    bool               is_sum_type = core_ast->data_decl.con_list->next != NULL;
     NecroMachineType** members     = necro_snapshot_arena_alloc(&program->snapshot_arena, max_arg_count * sizeof(NecroMachineType*));
     members[0] = program->necro_uint_type;
     NecroCoreAST_Expression* args = core_ast->data_decl.con_list->arg_list;
@@ -898,6 +914,11 @@ NecroMachineAST* necro_core_to_machine_3_var(NecroMachineProgram* program, Necro
     assert(outer->type == NECRO_MACHINE_DEF);
     assert(core_ast->var.id.id != program->closure_con.id.id); // Should never encounter the closure constructor here
     NecroSymbolInfo* info = necro_symtable_get(program->symtable, core_ast->var.id);
+    // It's an enum
+    if (info->is_constructor && info->arity == 0 && info->is_enum)
+    {
+        return necro_create_word_int_value(program, info->con_num);
+    }
     // It's a constructor
     if (info->is_constructor && info->arity == 0)
     {

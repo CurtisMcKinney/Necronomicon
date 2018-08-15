@@ -22,6 +22,7 @@
 #include "d_analyzer.h"
 #include "driver.h"
 #include "core/core.h"
+#include "core/state_analysis.h"
 #include "core/closure_conversion.h"
 #include "machine/machine.h"
 #include "machine/machine_print.h"
@@ -264,6 +265,21 @@ void necro_compile_impl(
     // Closure Conversion
     //=====================================================
     if (compilation_phase != NECRO_PHASE_JIT)
+        necro_announce_phase("State Analysis");
+    necro_start_timer(timer);
+    necro_state_analysis(ast_core, &lexer->intern, &symtable, &scoped_symtable, &prim_types, infer);
+    necro_stop_and_report_timer(timer, "state_analysis");
+    if (compilation_phase == NECRO_PHASE_STATE_ANALYSIS)
+    {
+        necro_core_pretty_print(ast_core, &symtable);
+        // necro_print_core(&cc_core, &lexer->intern);
+        return;
+    }
+
+    //=====================================================
+    // Closure Conversion
+    //=====================================================
+    if (compilation_phase != NECRO_PHASE_JIT)
         necro_announce_phase("Closure Conversion");
     necro_start_timer(timer);
     NecroClosureDefVector closure_defs;
@@ -398,26 +414,16 @@ void necro_test(NECRO_TEST test)
 {
     switch (test)
     {
-    // case NECRO_TEST_VM:                necro_test_vm();                break;
-    // case NECRO_TEST_DVM:               necro_test_dvm();               break;
     case NECRO_TEST_SYMTABLE:          necro_symtable_test();          break;
-    // case NECRO_TEST_SLAB:              necro_test_slab();              break;
-    // case NECRO_TEST_TREADMILL:         necro_test_treadmill();         break;
     case NECRO_TEST_LEXER:             necro_test_lexer();             break;
     case NECRO_TEST_INTERN:            necro_test_intern();            break;
-    case NECRO_TEST_VAULT:             necro_vault_test();             break;
-    case NECRO_TEST_ARCHIVE:           necro_archive_test();           break;
-    case NECRO_TEST_REGION:            necro_region_test();            break;
     case NECRO_TEST_INFER:             necro_test_infer();             break;
     case NECRO_TEST_TYPE:              necro_test_type();              break;
     case NECRO_TEST_ARENA_CHAIN_TABLE: necro_arena_chain_table_test(); break;
     case NECRO_TEST_ALL:
-        // necro_test_dvm();
         necro_symtable_test();
         necro_test_lexer();
         necro_test_intern();
-        necro_archive_test();
-        necro_region_test();
         necro_test_infer();
         necro_test_type();
         necro_arena_chain_table_test();

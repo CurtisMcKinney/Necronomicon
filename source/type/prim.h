@@ -143,7 +143,7 @@ typedef struct NecroPrimTypes
     NecroCon          _stack_array_type;
     NecroCon          apply_fn;
     NecroCon          ptr_type;
-    NecroCon          vector_type;
+    NecroCon          array_type;
 
     // Runtime functions
     NecroCon          mouse_x_fn;

@@ -247,6 +247,16 @@ void necro_machine_print_bit_cast(NecroMachineProgram* program, NecroMachineAST*
     printf(")");
 }
 
+void necro_machine_print_zext(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)
+{
+    assert(ast->type == NECRO_MACHINE_ZEXT);
+    printf("%%%s = zext ", necro_intern_get_string(program->intern, ast->bit_cast.to_value->value.reg_name.symbol));
+    necro_print_machine_value(program, ast->bit_cast.from_value, NECRO_PRINT_VALUE_TYPE);
+    printf(" => (");
+    necro_machine_print_machine_type_go(program->intern, ast->bit_cast.to_value->necro_machine_type, false);
+    printf(")");
+}
+
 void necro_machine_print_gep(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)
 {
     assert(ast->type == NECRO_MACHINE_GEP);
@@ -441,6 +451,10 @@ void necro_machine_print_ast_go(NecroMachineProgram* program, NecroMachineAST* a
     case NECRO_MACHINE_BIT_CAST:
         print_white_space(depth);
         necro_machine_print_bit_cast(program, ast, depth);
+        return;
+    case NECRO_MACHINE_ZEXT:
+        print_white_space(depth);
+        necro_machine_print_zext(program, ast, depth);
         return;
     case NECRO_MACHINE_NALLOC:
         print_white_space(depth);

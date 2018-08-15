@@ -224,7 +224,7 @@ typedef enum
     NECRO_AST_CONSTANT_FLOAT,
     NECRO_AST_CONSTANT_INTEGER,
     NECRO_AST_CONSTANT_STRING,
-    NECRO_AST_CONSTANT_BOOL,
+    // NECRO_AST_CONSTANT_BOOL,
     NECRO_AST_CONSTANT_CHAR,
 
     NECRO_AST_CONSTANT_FLOAT_PATTERN,
@@ -239,7 +239,6 @@ typedef struct
         double double_literal;
         int64_t int_literal;
         NecroSymbol symbol;
-		bool boolean_literal;
         char char_literal;
     };
     NecroAST_ConstantType type;
@@ -557,8 +556,9 @@ const char* var_type_string(NECRO_VAR_TYPE symbol_type);
 
 typedef struct
 {
-    NecroSymbol    symbol;
-    NECRO_VAR_TYPE var_type;
+    NecroSymbol       symbol;
+    NECRO_VAR_TYPE    var_type;
+    NecroAST_LocalPtr initializer;
 } NecroAST_Variable;
 
 //=====================================================
@@ -801,6 +801,7 @@ typedef struct
     NecroParse_DescentState descent_state;
     NecroError error;
     NecroIntern* intern;
+    bool parsing_pat_assignment; // TODO / HACK; Find a better way to delineate
 } NecroParser;
 
 static const size_t MAX_ERROR_MESSAGE_SIZE = 512;
@@ -814,6 +815,7 @@ static inline void construct_parser(NecroParser* parser, NecroAST* ast, NecroLex
     parser->tokens = tokens;
     parser->descent_state = NECRO_DESCENT_PARSING;
     parser->intern = intern;
+    parser->parsing_pat_assignment = false;
 }
 
 static inline void destruct_parser(NecroParser* parser)

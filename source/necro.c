@@ -140,6 +140,10 @@ int main(int32_t argc, char** argv)
             {
                 necro_compile(str, NECRO_PHASE_TRANSFORM_TO_CORE);
             }
+            else if (argc > 2 && strcmp(argv[2], "-sa") == 0)
+            {
+                necro_compile(str, NECRO_PHASE_STATE_ANALYSIS);
+            }
             else if (argc > 2 && strcmp(argv[2], "-cc") == 0)
             {
                 necro_compile(str, NECRO_PHASE_CLOSURE_CONVERSION);

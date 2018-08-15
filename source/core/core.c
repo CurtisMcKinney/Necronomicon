@@ -68,9 +68,9 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
             case NECRO_AST_CONSTANT_CHAR:
                 printf("(\'%c\')\n", ast_node->lit.char_literal);
                 break;
-            case NECRO_AST_CONSTANT_BOOL:
-                printf("(%s)\n", ast_node->lit.boolean_literal ? "True" : "False");
-                break;
+            // case NECRO_AST_CONSTANT_BOOL:
+            //     printf("(%s)\n", ast_node->lit.boolean_literal ? "True" : "False");
+            //     break;
             }
         }
         break;
@@ -246,17 +246,19 @@ NecroCoreAST_Expression* necro_transform_if_then_else(NecroTransformToCore* core
     NecroCoreAST_CaseAlt* true_alt = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_CaseAlt));
     true_alt->expr = necro_transform_to_core_impl(core_transform, ast_if_then_else->then_expr);
     true_alt->altCon = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-    true_alt->altCon->lit.boolean_literal = true;
-    true_alt->altCon->lit.type = NECRO_AST_CONSTANT_BOOL;
-    true_alt->altCon->expr_type = NECRO_CORE_EXPR_LIT;
+    // true_alt->altCon->lit.boolean_literal = true;
+    // true_alt->altCon->lit.type = NECRO_AST_CONSTANT_BOOL;
+    true_alt->altCon->var        = necro_con_to_var(necro_get_data_con_from_symbol(core_transform->prim_types, necro_intern_string(core_transform->intern, "True")));
+    true_alt->altCon->expr_type  = NECRO_CORE_EXPR_VAR;
+    true_alt->altCon->necro_type = necro_symtable_get(core_transform->symtable, core_transform->prim_types->bool_type.id)->type;
     true_alt->next = NULL;
 
     NecroCoreAST_CaseAlt* false_alt = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_CaseAlt));
     false_alt->expr = necro_transform_to_core_impl(core_transform, ast_if_then_else->else_expr);
-    false_alt->altCon = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-    false_alt->altCon->lit.boolean_literal = false;
-    false_alt->altCon->lit.type = NECRO_AST_CONSTANT_BOOL;
-    false_alt->altCon->expr_type = NECRO_CORE_EXPR_LIT;
+    // false_alt->altCon = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+    // false_alt->altCon->lit.boolean_literal = false;
+    // false_alt->altCon->lit.type = NECRO_AST_CONSTANT_BOOL;
+    false_alt->altCon = NULL;
     false_alt->next = NULL;
     true_alt->next = false_alt;
 

@@ -138,7 +138,7 @@ void necro_machine_print_block(NecroMachineProgram* program, NecroMachineAST* as
         assert(values != NULL);
         while (values != NULL)
         {
-            printf("%d: %s, ", values->data.value, necro_intern_get_string(program->intern, values->data.block->block.name.symbol));
+            printf("%u: %s, ", values->data.value, necro_intern_get_string(program->intern, values->data.block->block.name.symbol));
             values = values->next;
         }
         printf("else: %s]\n", necro_intern_get_string(program->intern, ast->block.terminator->switch_terminator.else_block->block.name.symbol));
@@ -276,9 +276,9 @@ void necro_machine_print_gep(NecroMachineProgram* program, NecroMachineAST* ast,
 void necro_machine_print_nalloc(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)
 {
     assert(ast->type == NECRO_MACHINE_NALLOC);
-    if (ast->nalloc.is_constant)
-        printf("%%%s = alloc_const (", necro_intern_get_string(program->intern, ast->nalloc.result_reg->value.reg_name.symbol));
-    else
+    // if (ast->nalloc.is_constant)
+    //     printf("%%%s = alloc_const (", necro_intern_get_string(program->intern, ast->nalloc.result_reg->value.reg_name.symbol));
+    // else
         printf("%%%s = alloc_from (", necro_intern_get_string(program->intern, ast->nalloc.result_reg->value.reg_name.symbol));
     necro_machine_print_machine_type_go(program->intern, ast->nalloc.type_to_alloc, false);
     printf(") %du16", ast->nalloc.slots_used);
@@ -319,6 +319,9 @@ void necro_machine_print_state_type(NecroMachineProgram* program, NECRO_STATE_TY
 {
     switch (state_type)
     {
+    case NECRO_STATE_POLY:
+        printf("poly ");
+        break;
     case NECRO_STATE_CONSTANT:
         printf("constant ");
         break;
@@ -378,6 +381,11 @@ void necro_machine_print_binop(NecroMachineProgram* program, NecroMachineAST* as
     case NECRO_MACHINE_BINOP_FSUB: printf("fsub "); break;
     case NECRO_MACHINE_BINOP_FMUL: printf("fmul "); break;
     case NECRO_MACHINE_BINOP_FDIV: printf("fdiv "); break;
+    case NECRO_MACHINE_BINOP_OR:   printf("or ");   break;
+    case NECRO_MACHINE_BINOP_AND:  printf("and ");  break;
+    case NECRO_MACHINE_BINOP_SHL:  printf("shl ");  break;
+    case NECRO_MACHINE_BINOP_SHR:  printf("shr ");  break;
+    default: assert(false); break;
     }
     necro_print_machine_value(program, ast->binop.left, NECRO_PRINT_VALUE_TYPE);
     printf(" ");

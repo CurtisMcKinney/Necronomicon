@@ -57,6 +57,7 @@ NecroType*             necro_instantiate_method_sig(NecroInfer* infer, NecroCon 
 NecroSymbol            necro_create_dictionary_name(NecroIntern* intern, NecroSymbol type_class_name);
 NecroSymbol            necro_create_selector_name(NecroIntern* intern, NecroSymbol member_name, NecroSymbol dictionary_name);
 NecroSymbol            necro_create_dictionary_instance_name(NecroIntern* intern, NecroSymbol type_class_name, NecroASTNode* type_class_instance_ast);
+void                   necro_rec_check_pat_assignment(NecroInfer* infer, NecroNode* ast);
 
 //=====================================================
 // Type Class Instances
@@ -1400,6 +1401,7 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
     // If we REALLY want this (for some reason!?!?) we can look into putting more effort into getting polymorphic pattern bindings in.
     // For now they have a poor weight to power ration.
     case NECRO_AST_PAT_ASSIGNMENT:
+        necro_rec_check_pat_assignment(infer, ast->pat_assignment.pat);
         necro_type_class_translate_go(dictionary_context, infer, ast->pat_assignment.rhs);
         break;
 
@@ -1527,7 +1529,6 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
         op_ast                        = necro_create_fexpr_ast(&infer->arena, op_ast, ast->op_right_section.right);
         NecroASTNode* lambda_ast      = necro_create_lambda_ast(&infer->arena, necro_create_apat_list_ast(&infer->arena, x_var_arg, NULL), op_ast);
         infer->scoped_symtable->current_scope       = ast->scope;
-        infer->scoped_symtable->current_delay_scope = ast->delay_scope;
         lambda_ast->necro_type                      = ast->necro_type;
         necro_build_scopes_go(infer->scoped_symtable, lambda_ast);
         necro_rename_declare_pass(infer->renamer, &infer->arena, lambda_ast);
@@ -1602,30 +1603,6 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
 
     case NECRO_AST_EXPRESSION_LIST:
         necro_type_class_translate_go(dictionary_context, infer, ast->expression_list.expressions);
-        break;
-
-    case NECRO_AST_DELAY:
-    {
-        necro_type_class_translate_go(dictionary_context, infer, ast->delay.init_expr);
-        necro_type_class_translate_go(dictionary_context, infer, ast->delay.delayed_var);
-        NecroType* delay_type = necro_find(ast->necro_type);
-        if (!necro_is_fully_concrete(infer->symtable, delay_type))
-        {
-            necro_infer_ast_error(infer, delay_type, ast, "delay must be called on fully concrete types.");
-        }
-        else if (!necro_is_sized(infer->symtable, delay_type))
-        {
-            necro_infer_ast_error(infer, delay_type, ast, "delay cannot be called on unsized types (i.e., recursive types, function closures, etc). Consider using trimDelay");
-        }
-        // necro_derive_specialized_clone(infer, delay_type);
-        break;
-    }
-
-    case NECRO_AST_TRIM_DELAY:
-        // necro_type_class_translate_go(dictionary_context, infer, ast->trim_delay.int_literal);
-        necro_type_class_translate_go(dictionary_context, infer, ast->trim_delay.init_expr);
-        necro_type_class_translate_go(dictionary_context, infer, ast->trim_delay.delayed_var);
-        assert(false && "TODO");
         break;
 
     case NECRO_AST_PAT_EXPRESSION:
@@ -2322,4 +2299,67 @@ NecroTypeClassInstance* necro_get_type_class_instance(NecroInfer* infer, NecroSy
     NecroTypeClassInstance* super_instance = super_info->type_class_instance;
     // assert(super_instance != NULL);
     return super_instance;
+}
+
+void necro_rec_check_pat_assignment(NecroInfer* infer, NecroNode* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    if (necro_is_infer_error(infer)) return;
+    switch (ast->type)
+    {
+    case NECRO_AST_VARIABLE:
+    {
+        NecroSymbolInfo* symbol_info = necro_symtable_get(infer->symtable, ast->variable.id);
+        if (ast->variable.initializer != NULL && !necro_is_fully_concrete(infer->symtable, necro_symtable_get(infer->symtable, ast->variable.id)->type))
+        {
+            necro_infer_ast_error(infer, necro_symtable_get(infer->symtable, ast->variable.id)->type, ast, "Only fully concrete (non-polymorphic) types may be used as initial values");
+            return;
+        }
+        if (ast->variable.initializer != NULL && !ast->variable.is_recursive)
+        {
+            necro_infer_ast_error(infer, necro_symtable_get(infer->symtable, ast->variable.id)->type, ast, "Cannot set an initial value for %s, which is non-recursive. (It would be immediately discarded)", necro_intern_get_string(infer->intern, ast->variable.symbol));
+            return;
+        }
+        return;
+    }
+    case NECRO_AST_CONSTANT: return;
+    case NECRO_AST_TUPLE:
+    {
+        NecroNode* args = ast->tuple.expressions;
+        while (args != NULL)
+        {
+            necro_rec_check_pat_assignment(infer, args->list.item);
+            args = args->list.next_item;
+        }
+        return;
+    }
+    case NECRO_AST_EXPRESSION_LIST:
+    {
+        NecroNode* args = ast->expression_list.expressions;
+        while (args != NULL)
+        {
+            necro_rec_check_pat_assignment(infer, args->list.item);
+            args = args->list.next_item;
+        }
+        return;
+    }
+    case NECRO_AST_WILDCARD: return;
+    case NECRO_AST_BIN_OP_SYM:
+        necro_rec_check_pat_assignment(infer, ast->bin_op_sym.left);
+        necro_rec_check_pat_assignment(infer, ast->bin_op_sym.right);
+        return;
+    case NECRO_AST_CONID: return;
+    case NECRO_AST_CONSTRUCTOR:
+    {
+        NecroNode* args = ast->constructor.arg_list;
+        while (args != NULL)
+        {
+            necro_rec_check_pat_assignment(infer, args->list.item);
+            args = args->list.next_item;
+        }
+        return;
+    }
+    default: assert(false && "Unimplemented pattern in necro_rec_check_pat_assignment"); return;
+    }
 }

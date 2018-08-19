@@ -265,27 +265,27 @@ void necro_compile_impl(
     // Closure Conversion
     //=====================================================
     if (compilation_phase != NECRO_PHASE_JIT)
-        necro_announce_phase("State Analysis");
-    necro_start_timer(timer);
-    necro_state_analysis(ast_core, &lexer->intern, &symtable, &scoped_symtable, &prim_types, infer);
-    necro_stop_and_report_timer(timer, "state_analysis");
-    if (compilation_phase == NECRO_PHASE_STATE_ANALYSIS)
-    {
-        necro_core_pretty_print(ast_core, &symtable);
-        // necro_print_core(&cc_core, &lexer->intern);
-        return;
-    }
-
-    //=====================================================
-    // Closure Conversion
-    //=====================================================
-    if (compilation_phase != NECRO_PHASE_JIT)
         necro_announce_phase("Closure Conversion");
     necro_start_timer(timer);
     NecroClosureDefVector closure_defs;
     NecroCoreAST          cc_core = necro_closure_conversion(ast_core, &lexer->intern, &symtable, &scoped_symtable, &prim_types, infer, &closure_defs);
     necro_stop_and_report_timer(timer, "closure_conversion");
     if (compilation_phase == NECRO_PHASE_CLOSURE_CONVERSION)
+    {
+        necro_core_pretty_print(&cc_core, &symtable);
+        // necro_print_core(&cc_core, &lexer->intern);
+        return;
+    }
+
+    //=====================================================
+    // State Analysis
+    //=====================================================
+    if (compilation_phase != NECRO_PHASE_JIT)
+        necro_announce_phase("State Analysis");
+    necro_start_timer(timer);
+    necro_state_analysis(&cc_core, &lexer->intern, &symtable, &scoped_symtable, &prim_types, infer);
+    necro_stop_and_report_timer(timer, "state_analysis");
+    if (compilation_phase == NECRO_PHASE_STATE_ANALYSIS)
     {
         necro_core_pretty_print(&cc_core, &symtable);
         // necro_print_core(&cc_core, &lexer->intern);

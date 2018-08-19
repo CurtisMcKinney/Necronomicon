@@ -1,47 +1,187 @@
-
--- mouseX :: Int
--- mouseX = getMouseX world
-
--- counter :: Int
--- counter = x where
---   x ~ 0 = x + 1
-
--- main :: Int
--- main = mouseX + counter
-
-
--- coolBool :: Bool
--- coolBool = True == True
---
--- lameBool :: Bool
--- lameBool = False && True
---
--- wellWhat :: Int
--- wellWhat =
---   if coolBool
---     then 666
---     else 333
---
--- unitTest :: ()
--- unitTest = ()
---
--- leftRight :: Int
--- leftRight =
---   if mouseX > 80
---     then let x ~ 0 = x + 1 in x
---     else let y ~ 0 = y - 1 in y
---
--- data MyEnum = You | Must | Die
--- data Tuple a b = Tuple a b
---
--- myEnum :: MyEnum
--- myEnum = Die
-
-leftCounter :: Int
-leftCounter = x + y
-  where
-    (x, y) = (x + 1, 0)
+data Maybe a = Just a | Nothing
+data Tuple a b = Tuple a b
 
 main :: Int
-main = 0
+main = statefulClosure 1000000
 
+statefulFn :: Int -> Int
+statefulFn x =
+  x + y
+  where
+    -- y ~ 0 = y + 1
+    y = 1
+
+-- TODO: Check things out, need to work out the kinks!
+statefulClosure :: Int -> Int
+statefulClosure =
+  statefulFn
+
+-- statefulFn2 :: Int -> Int -> Int
+-- statefulFn2 x y =
+--   x + y + z
+--     where
+--       z ~ 0 = z + 1
+
+-- statefulClosure2 :: Int -> Int -> Int
+-- statefulClosure2 =
+--   statefulFn2
+
+-- statefulClosure3 :: Int -> Int
+-- statefulClosure3 =
+--   statefulFn2 100
+
+-- statefulClosure4 :: Int -> Int
+-- statefulClosure4 =
+--   statefulClosure2 100
+
+-- useStatefulClosure :: Int
+-- useStatefulClosure =
+--   statefulClosure 100
+
+-- useStatefulClosure2 :: Int
+-- useStatefulClosure2 =
+--   statefulClosure2 100 200
+
+-- add' :: Int -> Int
+-- add' = add 1
+--
+-- -- appAdd :: Int
+-- -- appAdd = add' 2
+--
+-- addThree :: Int -> Int -> Int -> Int
+-- addThree x y z = x + y + z
+--
+-- addThree' :: Int -> Int -> Int -> Int
+-- addThree' = addThree
+--
+-- -- recFn :: Int -> Int
+-- -- recFn x = recFn x
+--
+-- mouseX :: Int
+-- mouseX = getMouseX world
+--
+-- topCounter :: Int
+-- topCounter ~ 0 = topCounter + 1
+--
+-- counter :: Int
+-- counter = x
+--   where
+--     x ~ 0 = x + 1
+--
+--
+-- nothin :: Maybe Int
+-- nothin = Nothing
+--
+-- subCounter :: Int
+-- subCounter = x
+--   where
+--     x = y + y
+--       where
+--         y ~ 0 = y + 1
+
+-- constInt :: Int
+-- constInt = 1 + 2 * 3
+--
+-- constFn :: Int -> Int
+-- constFn x = x * x + 2
+--
+-- statefulFn :: Int -> Int
+-- statefulFn x = x + y
+--   where
+--     y ~ 0 = y + 1
+--
+-- constInt' :: Int
+-- constInt' = constFn 10
+--
+-- statefulInt :: Int
+-- statefulInt = statefulFn constInt'
+--
+-- data Maybe a = Just a | Nothing
+--
+-- constMaybe :: Maybe Int
+-- constMaybe = Just (constFn 10)
+--
+-- constClosure :: Int -> Int
+-- constClosure = constFn
+--
+-- appClosure :: Int
+-- appClosure = constClosure 1
+--
+-- shiftingClosures :: Int -> Int
+-- shiftingClosures =
+--   if mouseX > 80 then
+--     constClosure
+--   else
+--     constFn
+--
+-- shiftingClosures' :: Int -> Int
+-- shiftingClosures' =
+--   if mouseX > 80 then
+--   -- if constInt > (80 + (let y ~ 0 = y + 1 in y)) then
+--     statefulFn
+--   else
+--     shiftingClosures
+--
+-- papp :: (Int -> Int -> Int) -> Int -> Int
+-- papp f = f 1
+--
+-- addc :: Int -> Int -> Int
+-- addc = add
+--
+-- papp'' :: Int -> Int
+-- papp'' = addc 1
+--
+-- pointAdd :: Int -> Int
+-- pointAdd = add mouseX
+--
+-- pointwiseInt :: Int
+-- pointwiseInt = constFn mouseX + constFn counter
+--
+--
+-- -- coolBool :: Bool
+-- -- coolBool = True == True
+-- --
+-- -- lameBool :: Bool
+-- -- lameBool = False && True
+-- --
+-- -- wellWhat :: Int
+-- -- wellWhat =
+-- --   if coolBool
+-- --     then 666
+-- --     else 333
+-- --
+-- -- unitTest :: ()
+-- -- unitTest = ()
+-- --
+-- -- leftRight :: Int
+-- -- leftRight =
+-- --   if mouseX > 80
+-- --     then let x ~ 0 = x + 1 in x
+-- --     else let y ~ 0 = y - 1 in y
+-- --
+-- -- data MyEnum = You | Must | Die
+-- -- data Tuple a b = Tuple a b
+-- --
+-- -- myEnum :: MyEnum
+-- -- myEnum = Die
+--
+-- -- topNotRec :: Int
+-- -- topNotRec = 1
+-- --
+-- -- topRec :: Int
+-- -- topRec ~ 0 = topRec + 1
+-- --
+-- -- nestedRec :: Int
+-- -- nestedRec = nestedX + nestedNonRec
+-- --   where
+-- --     nestedX ~ 0  = nestedX + 1
+-- --     nestedNonRec = 100 * nestedX
+-- --
+-- -- -- TODO: List initializers!
+-- -- leftCounter :: Int -> Int
+-- -- leftCounter a = recX
+-- --   where
+-- --     ((recX ~ 0), recY) = (recX + 1, [a])
+--
+-- -- main :: Int
+-- -- main = 0

@@ -266,19 +266,6 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
             print_reified_ast_impl(ast_node->expression_list.expressions, intern, depth + 1);
         break;
 
-    case NECRO_AST_DELAY:
-        puts("(delay)");
-        print_reified_ast_impl(ast_node->delay.init_expr, intern, depth + 1);
-        print_reified_ast_impl(ast_node->delay.delayed_var, intern, depth + 1);
-        break;
-
-    case NECRO_AST_TRIM_DELAY:
-        puts("(trimDelay)");
-        print_reified_ast_impl(ast_node->trim_delay.int_literal, intern, depth + 1);
-        print_reified_ast_impl(ast_node->trim_delay.init_expr, intern, depth + 1);
-        print_reified_ast_impl(ast_node->trim_delay.delayed_var, intern, depth + 1);
-        break;
-
     case NECRO_AST_TUPLE:
         puts("(tuple)");
         print_reified_ast_impl(ast_node->expression_list.expressions, intern, depth + 1);
@@ -543,7 +530,6 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
     reified_node->source_loc  = node->source_loc;
     reified_node->scope       = NULL;
     reified_node->necro_type  = NULL;
-    reified_node->delay_scope = NULL;
     switch (node->type)
     {
     case NECRO_AST_UNDEFINED:
@@ -645,10 +631,11 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
         reified_node->fexpression.next_fexpression = necro_reify(a_ast, node->fexpression.next_fexpression, arena, intern);
         break;
     case NECRO_AST_VARIABLE:
-        reified_node->variable.symbol       = node->variable.symbol;
-        reified_node->variable.var_type     = node->variable.var_type;
-        reified_node->variable.inst_context = NULL;
-        reified_node->variable.initializer  = necro_reify(a_ast, node->variable.initializer, arena, intern);
+        reified_node->variable.symbol                = node->variable.symbol;
+        reified_node->variable.var_type              = node->variable.var_type;
+        reified_node->variable.inst_context          = NULL;
+        reified_node->variable.initializer           = necro_reify(a_ast, node->variable.initializer, arena, intern);
+        reified_node->variable.is_recursive          = false;
         break;
     case NECRO_AST_APATS:
         reified_node->apats.apat      = necro_reify(a_ast, node->apats.apat, arena, intern);
@@ -674,15 +661,6 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
         break;
     case NECRO_AST_EXPRESSION_LIST:
         reified_node->expression_list.expressions = necro_reify(a_ast, node->expression_list.expressions, arena, intern);
-        break;
-    case NECRO_AST_DELAY:
-        reified_node->delay.init_expr   = necro_reify(a_ast, node->delay.init_expr, arena, intern);
-        reified_node->delay.delayed_var = necro_reify(a_ast, node->delay.delayed_var, arena, intern);
-        break;
-    case NECRO_AST_TRIM_DELAY:
-        reified_node->trim_delay.int_literal = necro_reify(a_ast, node->trim_delay.int_literal, arena, intern);
-        reified_node->trim_delay.init_expr   = necro_reify(a_ast, node->trim_delay.init_expr, arena, intern);
-        reified_node->trim_delay.delayed_var = necro_reify(a_ast, node->trim_delay.delayed_var, arena, intern);
         break;
     case NECRO_AST_TUPLE:
         reified_node->tuple.expressions = necro_reify(a_ast, node->tuple.expressions, arena, intern);
@@ -833,12 +811,13 @@ NecroASTNode* necro_create_conid_ast(NecroPagedArena* arena, NecroIntern* intern
 NecroASTNode* necro_create_variable_ast(NecroPagedArena* arena, NecroIntern* intern, const char* variable_name, NECRO_VAR_TYPE var_type)
 {
     NecroASTNode* ast = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
-    ast->type                  = NECRO_AST_VARIABLE;
-    ast->variable.symbol       = necro_intern_string(intern, variable_name);
-    ast->variable.var_type     = var_type;
-    ast->variable.id           = (NecroID) { 0 };
-    ast->variable.inst_context = NULL;
-    ast->variable.initializer  = NULL;
+    ast->type                           = NECRO_AST_VARIABLE;
+    ast->variable.symbol                = necro_intern_string(intern, variable_name);
+    ast->variable.var_type              = var_type;
+    ast->variable.id                    = (NecroID) { 0 };
+    ast->variable.inst_context          = NULL;
+    ast->variable.initializer           = NULL;
+    ast->variable.is_recursive          = false;
     return ast;
 }
 

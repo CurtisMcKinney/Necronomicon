@@ -440,7 +440,6 @@ void necro_pat_new_name_go(NecroInfer* infer, NecroNode* ast)
             new_name->var.scope  = infer->symtable->data[ast->variable.id.id].scope;
             info->type           = new_name;
             info->type_status    = NECRO_TYPE_CHECKING;
-            info->delay_scope    = ast->delay_scope;
         }
         else
         {
@@ -573,41 +572,45 @@ NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast)
     NecroSymbolInfo* symbol_info = necro_symtable_get(infer->symtable, ast->variable.id);
     assert(symbol_info != NULL);
 
+    // assert?
     if (symbol_info->declaration_group != NULL)
         assert(symbol_info->type != NULL);
 
-    // // Recursive value Delay check
-    // if (ast->variable.var_type == NECRO_VAR_VAR && symbol_info->type_status != NECRO_TYPE_DONE && symbol_info->ast->type == NECRO_AST_SIMPLE_ASSIGNMENT && symbol_info->ast->simple_assignment.initializer == NULL)
+    // // Recursive value Initializer check
+    // if ((ast->variable.var_type == NECRO_VAR_VAR && symbol_info->delay_scope != NULL && symbol_info->type_status != NECRO_TYPE_DONE && symbol_info->ast == NULL) ||
+    //     (ast->variable.var_type == NECRO_VAR_VAR && symbol_info->delay_scope != NULL && symbol_info->type_status != NECRO_TYPE_DONE && symbol_info->ast->type == NECRO_AST_SIMPLE_ASSIGNMENT && symbol_info->ast->simple_assignment.initializer == NULL) ||
+    //     (ast->variable.var_type == NECRO_VAR_VAR && symbol_info->delay_scope != NULL && symbol_info->type_status != NECRO_TYPE_DONE && symbol_info->ast->type == NECRO_AST_VARIABLE && ast->variable.var_type == NECRO_VAR_DECLARATION && ast->variable.initializer == NULL))
     // {
-    //     return necro_infer_ast_error(infer, NULL, ast, "%s cannot instantaneously depend on itself without initialization.\n Consider adding an initializer, such as: %s<initValue> = ...",
-    //         necro_intern_get_string(infer->intern, ast->variable.symbol),
-    //         necro_intern_get_string(infer->intern, ast->variable.symbol));
+    //     NecroDelayScope* current_delay_scope = ast->delay_scope;
+    //     NecroDelayScope* symbol_delay_scope  = symbol_info->delay_scope;
+    //     if (current_delay_scope == symbol_delay_scope)
+    //         // return necro_infer_ast_error(infer, NULL, ast, "%s cannot instantaneously depend on itself.\n Consider adding a delay, such as: delay init %s",
+    //         return necro_infer_ast_error(infer, NULL, ast, "%s cannot depend on itself without an initial value.\n Consider adding an initial value, such as:\n\n     %s ~ InitialValue\n",
+    //             necro_intern_get_string(infer->intern, ast->variable.symbol),
+    //             necro_intern_get_string(infer->intern, ast->variable.symbol));
     // }
 
-    // Recursive value Initializer check
-    if ((ast->variable.var_type == NECRO_VAR_VAR && symbol_info->delay_scope != NULL && symbol_info->type_status != NECRO_TYPE_DONE && symbol_info->ast == NULL) ||
-        (ast->variable.var_type == NECRO_VAR_VAR && symbol_info->delay_scope != NULL && symbol_info->type_status != NECRO_TYPE_DONE && symbol_info->ast->type == NECRO_AST_SIMPLE_ASSIGNMENT && symbol_info->ast->simple_assignment.initializer == NULL) ||
-        (ast->variable.var_type == NECRO_VAR_VAR && symbol_info->delay_scope != NULL && symbol_info->type_status != NECRO_TYPE_DONE && symbol_info->ast->type == NECRO_AST_VARIABLE && ast->variable.var_type == NECRO_VAR_DECLARATION && ast->variable.initializer == NULL))
+    if (ast->variable.var_type == NECRO_VAR_VAR && symbol_info->declaration_group != NULL && symbol_info->type_status != NECRO_TYPE_DONE && symbol_info->ast != NULL)
     {
-        NecroDelayScope* current_delay_scope = ast->delay_scope;
-        NecroDelayScope* symbol_delay_scope  = symbol_info->delay_scope;
-        if (current_delay_scope == symbol_delay_scope)
-            // return necro_infer_ast_error(infer, NULL, ast, "%s cannot instantaneously depend on itself.\n Consider adding a delay, such as: delay init %s",
+        if (symbol_info->ast->type == NECRO_AST_SIMPLE_ASSIGNMENT && symbol_info->ast->simple_assignment.initializer == NULL)
+        {
             return necro_infer_ast_error(infer, NULL, ast, "%s cannot depend on itself without an initial value.\n Consider adding an initial value, such as:\n\n     %s ~ InitialValue\n",
                 necro_intern_get_string(infer->intern, ast->variable.symbol),
                 necro_intern_get_string(infer->intern, ast->variable.symbol));
+        }
+        else if (symbol_info->ast->type == NECRO_AST_VARIABLE && symbol_info->ast->variable.var_type == NECRO_VAR_DECLARATION)
+        {
+            if (symbol_info->ast->variable.initializer == NULL)
+                return necro_infer_ast_error(infer, NULL, ast, "%s cannot depend on itself without an initial value.\n Consider adding an initial value, such as:\n\n     %s ~ InitialValue\n",
+                    necro_intern_get_string(infer->intern, ast->variable.symbol),
+                    necro_intern_get_string(infer->intern, ast->variable.symbol));
+            else
+            {
+                symbol_info->ast->variable.is_recursive = true;
+                symbol_info->is_recursive               = true;
+            }
+        }
     }
-
-    // if (symbol_info->delay_scope != NULL && symbol_info->type_status != NECRO_TYPE_DONE && ast->variable.var_type == NECRO_VAR_VAR)
-    // {
-    //     // TODO: Replace this with a new recursion testing scheme!
-    //     // NecroDelayScope* current_delay_scope = ast->delay_scope;
-    //     // NecroDelayScope* symbol_delay_scope  = symbol_info->delay_scope;
-    //     // if (current_delay_scope == symbol_delay_scope)
-    //     //     return necro_infer_ast_error(infer, NULL, ast, "%s cannot instantaneously depend on itself.\n Consider adding a delay of some kind, such as: seq {init, %s}",
-    //     //         necro_intern_get_string(infer->intern, ast->variable.symbol),
-    //     //         necro_intern_get_string(infer->intern, ast->variable.symbol));
-    // }
 
     if (symbol_info->type == NULL)
     {
@@ -957,49 +960,6 @@ bool necro_is_sized(NecroSymTable* symtable, NecroType* type)
         return true;
     default: assert(false); return false;
     }
-}
-
-NecroType* necro_infer_delay(NecroInfer* infer, NecroNode* ast)
-{
-    assert(infer != NULL);
-    assert(ast != NULL);
-    assert(ast->type == NECRO_AST_DELAY);
-    // we're checking this too soon!
-    if (necro_is_infer_error(infer)) return NULL;
-    NecroType* init_type = necro_infer_go(infer, ast->delay.init_expr);
-    if (necro_is_infer_error(infer)) return NULL;
-    NecroType* var_type  = necro_infer_go(infer, ast->delay.delayed_var);
-    if (necro_is_infer_error(infer)) return NULL;
-    necro_unify(infer, init_type, var_type, ast->scope, init_type, "While inferring the type of an delay expression: ");
-    ast->necro_type = var_type;
-    return var_type;
-}
-
-NecroType* necro_infer_trim_delay(NecroInfer* infer, NecroNode* ast)
-{
-    assert(infer != NULL);
-    assert(ast != NULL);
-    assert(ast->type == NECRO_AST_TRIM_DELAY);
-    // if (necro_is_infer_error(infer)) return NULL;
-    // NecroType* int_type = necro_infer_go(infer, ast->trim_delay.int_literal);
-    if (necro_is_infer_error(infer)) return NULL;
-    NecroType* init_type = necro_infer_go(infer, ast->trim_delay.init_expr);
-    if (necro_is_infer_error(infer)) return NULL;
-    NecroType* var_type  = necro_infer_go(infer, ast->trim_delay.delayed_var);
-    if (necro_is_infer_error(infer)) return NULL;
-    necro_unify(infer, init_type, var_type, ast->scope, init_type, "While inferring the type of an delay expression: ");
-    // NecroType* delay_type = necro_find(var_type);
-    // if (!necro_is_fully_concrete(infer->symtable, delay_type))
-    // {
-    //     return necro_infer_ast_error(infer, var_type, ast, "delay must be called on fully concrete types.");
-    // }
-    //
-    // else if (!necro_is_sized(infer->symtable, delay_type))
-    // {
-    //     return necro_infer_ast_error(infer, var_type, ast, "delay cannot be called on recursive types. Consider using trimDelay");
-    // }
-    ast->necro_type = var_type;
-    return var_type;
 }
 
 //=====================================================
@@ -1468,7 +1428,6 @@ NecroType* necro_infer_declaration_group(NecroInfer* infer, NecroDeclarationGrou
         {
             assert(ast->simple_assignment.id.id < infer->symtable->count);
             symbol_info = necro_symtable_get(infer->symtable, ast->simple_assignment.id);
-            symbol_info->delay_scope = ast->delay_scope;
             if (symbol_info->type == NULL)
             {
                 NecroType* new_name = necro_new_name(infer, ast->source_loc);
@@ -1731,8 +1690,6 @@ NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_TOP_DECL:               return necro_infer_top_declaration(infer, ast);
     case NECRO_AST_TUPLE:                  return necro_infer_tuple(infer, ast);
     case NECRO_AST_EXPRESSION_LIST:        return necro_infer_expression_list(infer, ast);
-    case NECRO_AST_DELAY:                  return necro_infer_delay(infer, ast);
-    case NECRO_AST_TRIM_DELAY:             return necro_infer_trim_delay(infer, ast);
     case NECRO_AST_PAT_EXPRESSION:         return necro_infer_pat_expression(infer, ast);
     case NECRO_AST_CASE:                   return necro_infer_case(infer, ast);
     case NECRO_AST_WILDCARD:               return necro_infer_wildcard(infer, ast);

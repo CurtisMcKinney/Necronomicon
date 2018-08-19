@@ -648,7 +648,9 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
 {
     // _Poly
     NecroASTNode* any_s_type            = necro_create_simple_type_ast(&prim_types->arena, intern, "_Poly", NULL);
-    NecroPrimDef* any_data_def          = necro_prim_def_data(prim_types, intern, &prim_types->any_type, necro_create_data_declaration_ast(&prim_types->arena, intern, any_s_type, NULL));
+    NecroASTNode* any_null              = necro_create_data_constructor_ast(&prim_types->arena, intern, "_NullPoly", NULL);
+    NecroASTNode* any_constructor_list  = necro_create_ast_list(&prim_types->arena, any_null, NULL);
+    NecroPrimDef* any_data_def          = necro_prim_def_data(prim_types, intern, &prim_types->any_type, necro_create_data_declaration_ast(&prim_types->arena, intern, any_s_type, any_constructor_list));
 
     // ()
     NecroASTNode* unit_s_type           = necro_create_simple_type_ast(&prim_types->arena, intern, "()", NULL);
@@ -693,8 +695,8 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     necro_create_prim_num(prim_types, intern, &prim_types->rational_type, "Rational");
 
     // Ptr
-    NecroASTNode* ptr_s_type            = necro_create_simple_type_ast(&prim_types->arena, intern, "Ptr", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
-    NecroPrimDef* ptr_data_def          = necro_prim_def_data(prim_types, intern, &prim_types->ptr_type, necro_create_data_declaration_ast(&prim_types->arena, intern, ptr_s_type, NULL));
+    NecroASTNode* ptr_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "Ptr", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
+    NecroPrimDef* ptr_data_def = necro_prim_def_data(prim_types, intern, &prim_types->ptr_type, necro_create_data_declaration_ast(&prim_types->arena, intern, ptr_s_type, NULL));
 
     // Array
     NecroASTNode* array_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "Array", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
@@ -728,6 +730,14 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     NecroASTNode* apply_type_ast  = necro_create_fun_ast(&prim_types->arena, necro_create_type_app_ast(&prim_types->arena, necro_create_conid_ast(&prim_types->arena, intern, "_Closure", NECRO_CON_TYPE_VAR), necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)), necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
     NecroASTNode* apply_sig_ast   = necro_create_fun_type_sig_ast(&prim_types->arena, intern, "_apply", NULL, apply_type_ast, NECRO_VAR_DECLARATION, NECRO_SIG_DECLARATION);
     NecroPrimDef* apply_type_def  = necro_prim_def_fun(prim_types, intern, &prim_types->apply_fn, apply_sig_ast, 1);
+
+    // _DynState
+    NecroASTNode* dyn_state_s_type           = necro_create_simple_type_ast(&prim_types->arena, intern, "_DynState", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
+    NecroASTNode* dyn_state_constructor      = necro_create_data_constructor_ast(&prim_types->arena, intern, "_DynState",
+        necro_create_ast_list(&prim_types->arena, necro_create_conid_ast(&prim_types->arena, intern, "_Poly", NECRO_CON_TYPE_VAR),
+            necro_create_ast_list(&prim_types->arena, necro_create_conid_ast(&prim_types->arena, intern, "Int", NECRO_CON_TYPE_VAR), NULL)));
+    NecroASTNode* dyn_state_constructor_list = necro_create_ast_list(&prim_types->arena, dyn_state_constructor, NULL);
+    NecroPrimDef* dyn_state_data_def         = necro_prim_def_data(prim_types, intern, &prim_types->dyn_state_type, necro_create_data_declaration_ast(&prim_types->arena, intern, dyn_state_s_type, dyn_state_constructor_list));
 
     // Eq
     NecroASTNode* eq_method_sig  = necro_create_class_comp_sig(&prim_types->arena, intern, "eq");

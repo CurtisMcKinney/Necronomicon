@@ -189,15 +189,6 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
     case NECRO_AST_EXPRESSION_LIST:
         rename_declare_go(input_node->expression_list.expressions, renamer);
         break;
-    case NECRO_AST_DELAY:
-        rename_declare_go(input_node->delay.init_expr, renamer);
-        rename_declare_go(input_node->delay.delayed_var, renamer);
-        break;
-    case NECRO_AST_TRIM_DELAY:
-        rename_declare_go(input_node->trim_delay.int_literal, renamer);
-        rename_declare_go(input_node->trim_delay.init_expr, renamer);
-        rename_declare_go(input_node->trim_delay.delayed_var, renamer);
-        break;
     case NECRO_AST_PAT_EXPRESSION:
         rename_declare_go(input_node->pattern_expression.expressions, renamer);
         break;
@@ -452,15 +443,6 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         break;
     case NECRO_AST_EXPRESSION_LIST:
         rename_var_go(input_node->expression_list.expressions, renamer);
-        break;
-    case NECRO_AST_DELAY:
-        rename_var_go(input_node->delay.init_expr, renamer);
-        rename_var_go(input_node->delay.delayed_var, renamer);
-        break;
-    case NECRO_AST_TRIM_DELAY:
-        rename_var_go(input_node->trim_delay.int_literal, renamer);
-        rename_var_go(input_node->trim_delay.init_expr, renamer);
-        rename_var_go(input_node->trim_delay.delayed_var, renamer);
         break;
     case NECRO_AST_PAT_EXPRESSION:
         rename_var_go(input_node->pattern_expression.expressions, renamer);

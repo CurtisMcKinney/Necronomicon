@@ -59,8 +59,6 @@ typedef enum
     NECRO_AST_TYPE_CLASS_INSTANCE,
     NECRO_AST_TYPE_SIGNATURE,
     NECRO_AST_FUNCTION_TYPE,
-    NECRO_AST_DELAY,
-    NECRO_AST_TRIM_DELAY,
     // NECRO_AST_MODULE,
 } NecroAST_NodeType;
 
@@ -571,25 +569,6 @@ typedef struct
 } NecroAST_FunctionExpression;
 
 //=====================================================
-// AST Delay
-//=====================================================
-typedef struct
-{
-    NecroAST_LocalPtr init_expr;
-    NecroAST_LocalPtr delayed_var;
-} NecroAST_Delay;
-
-//=====================================================
-// AST TrimDelay
-//=====================================================
-typedef struct
-{
-    NecroAST_LocalPtr int_literal;
-    NecroAST_LocalPtr init_expr;
-    NecroAST_LocalPtr delayed_var;
-} NecroAST_TrimDelay;
-
-//=====================================================
 // AST Declarations
 //=====================================================
 typedef struct
@@ -697,8 +676,6 @@ typedef struct
         NecroAST_TypeSignature type_signature;
         NecroAST_FunctionType function_type;
         NecroAST_PatternExpression pattern_expression;
-        NecroAST_Delay delay;
-        NecroAST_TrimDelay trim_delay;
     };
 
     NecroAST_NodeType type;

@@ -953,21 +953,6 @@ NecroCoreAST_Expression* necro_transform_variable(NecroTransformToCore* core_tra
     return core_expr;
 }
 
-NecroCoreAST_Expression* necro_transform_delay(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
-{
-    assert(core_transform);
-    assert(necro_ast_node);
-    assert(necro_ast_node->type == NECRO_AST_DELAY);
-    if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
-        return NULL;
-    NecroCoreAST_Expression* init_expr  = necro_transform_to_core_impl(core_transform, necro_ast_node->delay.init_expr);
-    NecroCoreAST_Expression* var_expr   = necro_transform_to_core_impl(core_transform, necro_ast_node->delay.delayed_var);
-    NecroCoreAST_Expression* _delay_var = necro_create_core_var(&core_transform->core_ast->arena, necro_con_to_var(core_transform->prim_types->delay_fn));
-    NecroCoreAST_Expression* delay_expr = necro_create_core_app(&core_transform->core_ast->arena, necro_create_core_app(&core_transform->core_ast->arena, _delay_var, init_expr), var_expr);
-    delay_expr->necro_type              = necro_ast_node->necro_type;
-    return delay_expr;
-}
-
 NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
 {
     assert(necro_ast_node);
@@ -1026,9 +1011,6 @@ NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core
 
     case NECRO_AST_CONID:
         return necro_transform_conid(core_transform, necro_ast_node);
-
-    case NECRO_AST_DELAY:
-        return necro_transform_delay(core_transform, necro_ast_node);
 
     case NECRO_AST_TYPE_SIGNATURE:
         // NOTE: Nothing to do here

@@ -144,6 +144,7 @@ typedef struct NecroPrimTypes
     NecroCon          apply_fn;
     NecroCon          ptr_type;
     NecroCon          array_type;
+    NecroCon          dyn_state_type;
 
     // Runtime functions
     NecroCon          mouse_x_fn;

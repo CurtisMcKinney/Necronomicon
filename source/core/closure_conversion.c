@@ -40,6 +40,8 @@ typedef struct NecroClosureConversion
     NecroInfer*           infer;
     NecroCon              closure_con;
     NecroCon              stack_array_con;
+    NecroCon              dyn_state_con;
+    NecroCon              null_con;
     NECRO_CC_STATE        cc_state;
     NecroClosureDefVector closure_defs;
 } NecroClosureConversion;
@@ -69,6 +71,8 @@ NecroCoreAST necro_closure_conversion(NecroCoreAST* in_ast, NecroIntern* intern,
         .closure_con      = necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_Closure")),
         .closure_defs     = necro_create_closure_def_vector(),
         .stack_array_con  = necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_StackArray")),
+        .dyn_state_con    = necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_DynState")),
+        .null_con         = necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_NullPoly")),
     };
     necro_add_closure_def(&cc, 1, 0); // NOTE: We don't want an empty closure def vector, otherwise apply functions get wonky
     NecroCoreAST_Expression* out_ast = necro_closure_conversion_go(&cc, in_ast->root);
@@ -250,13 +254,21 @@ NecroCoreAST_Expression* necro_closure_conversion_var(NecroClosureConversion* cc
     if (info->arity > 0)
     {
         necro_add_closure_def(cc, info->arity, 0);
+        NecroCoreAST_Expression* state_ast =
+            necro_create_core_app(&cc->arena,
+                necro_create_core_app(&cc->arena,
+                    necro_create_core_var(&cc->arena, necro_con_to_var(cc->dyn_state_con)),
+                    necro_create_core_var(&cc->arena, var_ast->var)),
+                necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER }));
         NecroCoreAST_Expression* con_ast =
             necro_create_core_app(&cc->arena,
                 necro_create_core_app(&cc->arena,
                     necro_create_core_app(&cc->arena,
-                        necro_create_core_var(&cc->arena, necro_con_to_var(cc->closure_con)),
-                        necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = info->arity, .type = NECRO_AST_CONSTANT_INTEGER })),
-                    necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER })),
+                        necro_create_core_app(&cc->arena,
+                            necro_create_core_var(&cc->arena, necro_con_to_var(cc->closure_con)),
+                            necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = info->arity, .type = NECRO_AST_CONSTANT_INTEGER })),
+                        necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER })),
+                    state_ast),
                 var_ast);
         return con_ast;
     }
@@ -539,16 +551,23 @@ NecroCoreAST_Expression* necro_closure_conversion_app(NecroClosureConversion* cc
     else if (difference > 0)
     {
         necro_add_closure_def(cc, arity, num_args);
+        NecroCoreAST_Expression* state_ast =
+            necro_create_core_app(&cc->arena,
+                necro_create_core_app(&cc->arena,
+                    necro_create_core_var(&cc->arena, necro_con_to_var(cc->dyn_state_con)),
+                    necro_create_core_var(&cc->arena, app->var)),
+                necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER }));
         NecroCoreAST_Expression* result =
                 necro_create_core_app(&cc->arena,
                     necro_create_core_app(&cc->arena,
-                        necro_create_core_var(&cc->arena, necro_con_to_var(cc->closure_con)),
-                        necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = arity, .type = NECRO_AST_CONSTANT_INTEGER })),
-                    necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = num_args, .type = NECRO_AST_CONSTANT_INTEGER }));
+                        necro_create_core_app(&cc->arena,
+                            necro_create_core_var(&cc->arena, necro_con_to_var(cc->closure_con)),
+                            necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = arity, .type = NECRO_AST_CONSTANT_INTEGER })),
+                        necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = num_args, .type = NECRO_AST_CONSTANT_INTEGER })),
+                    state_ast);
         result = necro_create_core_app(&cc->arena, result, necro_create_core_var(&cc->arena, app->var));
         while (args != NULL)
         {
-            // difference--;
             result = necro_create_core_app(&cc->arena, result, args->data);
             args = args->next;
         }
@@ -564,9 +583,7 @@ NecroCoreAST_Expression* necro_closure_conversion_app(NecroClosureConversion* cc
             result = necro_create_core_app(&cc->arena, result, args->data);
             args = args->next;
         }
-        // result = necro_create_core_app(&cc->arena, necro_create_core_var(&cc->arena, necro_con_to_var(cc->prim_types->apply_fn)), result);
         result = necro_create_core_app(&cc->arena, necro_create_core_var(&cc->arena, necro_con_to_var(cc->prim_types->apply_fn)), result);
-        // result = necro_create_core_app(&cc->arena, result, necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = -difference, .type = NECRO_AST_CONSTANT_INTEGER }));
 
         while (args != NULL)
         {
@@ -575,21 +592,9 @@ NecroCoreAST_Expression* necro_closure_conversion_app(NecroClosureConversion* cc
             args = args->next;
         }
 
-        // NecroCoreAST_Expression* arg_array = necro_create_core_var(&cc->arena, necro_con_to_var(cc->stack_array_con));
-                // necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = -difference, .type = NECRO_AST_CONSTANT_INTEGER }));
-        // while (args != NULL)
-        // {
-        //     difference++;
-        //     arg_array = necro_create_core_app(&cc->arena, arg_array, args->data);
-        //     args = args->next;
-        // }
-
-        // result = necro_create_core_app(&cc->arena, result, arg_array);
-
         assert(difference == 0);
         return result;
     }
-    // TODO: Functions stored in data types are ALSO closures!!!!
 }
 
 ///////////////////////////////////////////////////////

@@ -25,7 +25,6 @@
 //         * Misc Attributes
 //=====================================================
 struct NecroScope;
-struct NecroDelayScope;
 struct NecroTypeClass;
 struct NecroTypeClassInstance;
 struct NecroNodePrototype;
@@ -41,7 +40,6 @@ typedef struct
     bool                            is_enum;
     NecroSourceLoc                  source_loc;
     struct NecroScope*              scope;
-    struct NecroDelayScope*         delay_scope;
     NecroASTNode*                   ast;
     struct NecroCoreAST_Expression* core_ast;
     NecroDeclarationGroup*          declaration_group;
@@ -55,7 +53,7 @@ typedef struct
     int32_t                         arity; // -1 indicates arity has not been set
     uint32_t                        persistent_slot; // 0 indicates no persistence
     struct NecroMachineAST*         necro_machine_ast;
-    struct NecroMachineAST*         const_necro_machine_ast;
+    // struct NecroMachineAST*         const_necro_machine_ast;
     bool                            is_constructor;
     bool                            is_recursive;
     NECRO_STATE_TYPE                state_type;
@@ -98,11 +96,6 @@ typedef struct NecroScope
     NecroID            last_introduced_id;
 } NecroScope;
 
-typedef struct NecroDelayScope
-{
-    struct NecroDelayScope* parent;
-} NecroDelayScope;
-
 typedef struct NecroScopedSymTable
 {
     NecroPagedArena  arena;
@@ -111,8 +104,6 @@ typedef struct NecroScopedSymTable
     NecroScope*      current_scope;
     NecroScope*      top_type_scope;
     NecroScope*      current_type_scope;
-    NecroDelayScope* top_delay_scope;
-    NecroDelayScope* current_delay_scope;
     NecroError       error;
 } NecroScopedSymTable;
 

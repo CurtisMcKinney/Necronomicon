@@ -188,6 +188,9 @@ void necro_core_pretty_print_go(NecroCoreAST_Expression* ast, NecroSymTable* sym
                 printf("\n(arity = %d, isRecursive = %s, stateType = ", info->arity, ast->list.expr->bind.is_recursive ? "true" : "false");
                 switch (info->state_type)
                 {
+                case NECRO_STATE_POLY:
+                    printf(" Poly)");
+                    break;
                 case NECRO_STATE_CONSTANT:
                     printf(" Constant)");
                     break;

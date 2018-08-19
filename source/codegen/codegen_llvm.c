@@ -69,8 +69,7 @@ NecroCodeGenLLVM necro_create_codegen_llvm(NecroIntern* intern, NecroSymTable* s
         LLVMPassManagerBuilderSetOptLevel(pass_manager_builder, 0);
         // LLVMPassManagerBuilderUseInlinerWithThreshold(pass_manager_builder, 0);
         // LLVMPassManagerBuilderSetOptLevel(pass_manager_builder, opt_level);
-        // LLVMPassManagerBuilderUseInlinerWithThreshold(pass_manager_builder, 0);
-        // LLVMPassManagerBuilderUseInlinerWithThreshold(pass_manager_builder, 40);
+        LLVMPassManagerBuilderUseInlinerWithThreshold(pass_manager_builder, 40);
         LLVMPassManagerBuilderPopulateFunctionPassManager(pass_manager_builder, fn_pass_manager);
         LLVMPassManagerBuilderPopulateModulePassManager(pass_manager_builder, mod_pass_manager);
     }
@@ -386,8 +385,8 @@ LLVMValueRef necro_codegen_nalloc(NecroCodeGenLLVM* codegen, NecroMachineAST* as
     LLVMValueRef size_val  = (necro_get_word_size() == NECRO_WORD_4_BYTES) ?
         LLVMConstInt(LLVMInt32TypeInContext(codegen->context), data_size, false) :
         LLVMConstInt(LLVMInt64TypeInContext(codegen->context), data_size, false);
-    LLVMValueRef void_ptr  = ast->nalloc.is_constant ?
-        LLVMBuildCall(codegen->builder, necro_codegen_symtable_get(codegen, codegen->necro_const_alloc_var)->value, (LLVMValueRef[]) { size_val }, 1, "void_ptr") :
+    LLVMValueRef void_ptr  = // ast->nalloc.is_constant ?
+        // LLVMBuildCall(codegen->builder, necro_codegen_symtable_get(codegen, codegen->necro_const_alloc_var)->value, (LLVMValueRef[]) { size_val }, 1, "void_ptr") :
         LLVMBuildCall(codegen->builder, necro_codegen_symtable_get(codegen, codegen->necro_from_alloc_var)->value, (LLVMValueRef[]) { size_val }, 1, "void_ptr");
     LLVMSetInstructionCallConv(void_ptr, LLVMCCallConv);
     LLVMValueRef data_ptr = LLVMBuildBitCast(codegen->builder, void_ptr, LLVMPointerType(type, 0), "data_ptr");
@@ -858,7 +857,7 @@ NECRO_RETURN_CODE necro_codegen_llvm(NecroCodeGenLLVM* codegen, NecroMachineProg
     codegen->word_uint_type        = necro_machine_type_to_llvm_type(codegen, program->necro_uint_type);
     codegen->word_float_type       = necro_machine_type_to_llvm_type(codegen, program->necro_float_type);
     codegen->necro_from_alloc_var  = program->runtime._necro_from_alloc;
-    codegen->necro_const_alloc_var = program->runtime._necro_const_alloc;
+    // codegen->necro_const_alloc_var = program->runtime._necro_const_alloc;
     // Declare structs
     for (size_t i = 0; i < program->structs.length; ++i)
     {

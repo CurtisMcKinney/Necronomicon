@@ -49,6 +49,13 @@ void necro_build_debug_print(NecroMachineProgram* program, NecroMachineAST* fn_d
     necro_build_call(program, fn_def, necro_symtable_get(program->symtable, program->runtime._necro_debug_print.id)->necro_machine_ast->fn_def.fn_value, (NecroMachineAST*[]) { necro_create_word_int_value(program, print_value) }, 1, NECRO_C_CALL, "");
 }
 
+void necro_build_debug_print_value(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* print_value)
+{
+    if (print_value->necro_machine_type->type != program->necro_int_type->type)
+        print_value = necro_build_bit_cast(program, fn_def, print_value, program->necro_int_type);
+    necro_build_call(program, fn_def, necro_symtable_get(program->symtable, program->runtime._necro_debug_print.id)->necro_machine_ast->fn_def.fn_value, (NecroMachineAST*[]) { print_value }, 1, NECRO_C_CALL, "");
+}
+
 ///////////////////////////////////////////////////////
 // NecroMachineProgram
 ///////////////////////////////////////////////////////

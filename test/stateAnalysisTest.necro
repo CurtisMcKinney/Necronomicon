@@ -1,34 +1,56 @@
 data Maybe a = Just a | Nothing
-data Tuple a b = Tuple a b
+
+mouseX :: Int
+mouseX = getMouseX world
 
 main :: Int
-main = statefulClosure 1000000
+main = closureSwitch 1000000
+-- main = statefulClosure2 100 200
+-- main = statefulClosure3 200
+-- main =
+--   case theBomb of
+--     FBomb f -> f 1000
+
+data FBomb a = FBomb a
+
+theBomb :: FBomb (Int -> Int)
+theBomb = FBomb statefulFn
 
 statefulFn :: Int -> Int
 statefulFn x =
   x + y
   where
-    -- y ~ 0 = y + 1
-    y = 1
+    y ~ 0 = y + 1
 
--- TODO: Check things out, need to work out the kinks!
+statefulFn' :: Int -> Int
+statefulFn' x =
+  (x - 1000) + y
+  where
+    y ~ 0 = y + 1
+
 statefulClosure :: Int -> Int
 statefulClosure =
   statefulFn
 
--- statefulFn2 :: Int -> Int -> Int
--- statefulFn2 x y =
---   x + y + z
---     where
---       z ~ 0 = z + 1
+closureSwitch :: Int -> Int
+closureSwitch =
+  if mouseX > 80
+    then statefulFn
+    else statefulFn'
 
--- statefulClosure2 :: Int -> Int -> Int
--- statefulClosure2 =
---   statefulFn2
+statefulFn2 :: Int -> Int -> Int
+statefulFn2 x y =
+  x + y + z
+    where
+      z ~ 0 = z + 1
 
--- statefulClosure3 :: Int -> Int
--- statefulClosure3 =
---   statefulFn2 100
+statefulClosure2 :: Int -> Int -> Int
+statefulClosure2 =
+  statefulFn2
+
+statefulClosure3 :: Int -> Int
+statefulClosure3 =
+  statefulFn2 100
 
 -- statefulClosure4 :: Int -> Int
 -- statefulClosure4 =
@@ -56,9 +78,6 @@ statefulClosure =
 --
 -- -- recFn :: Int -> Int
 -- -- recFn x = recFn x
---
--- mouseX :: Int
--- mouseX = getMouseX world
 --
 -- topCounter :: Int
 -- topCounter ~ 0 = topCounter + 1

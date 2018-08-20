@@ -21,7 +21,7 @@
 #define NECRO_GC_NUM_SEGMENTS 10
 
 // Set to 1 if you want debug trace messages from GC
-#define NECRO_DEBUG_GC 1
+#define NECRO_DEBUG_GC 0
 
 #if NECRO_DEBUG_GC
 #define NECRO_TRACE_GC(...) printf(__VA_ARGS__)
@@ -321,6 +321,7 @@ void _necro_copy(size_t root_data_id, NecroValue* root)
         job = copy_buffer.data[copy_buffer.count];
 #if NECRO_DEBUG_GC
         assert(job.data_id != NECRO_UNBOXED_DATA_ID);
+        assert(job.data_id != NECRO_SELF_DATA_ID);
         assert(job.from_value != NULL);
         // printf("copy job: data_id: %d, from_value: %p, to_value: %p\n", job.data_id, job.from_value, job.to_value);
 #endif
@@ -674,6 +675,7 @@ extern DLLEXPORT void _necro_copy_gc_collect()
     copy_gc.to_alloc_ptr       = &from_head->data_start;
     copy_gc.to_end_ptr         = from_head->data + NECRO_SPACE_SIZE;
     // copy_gc.to_scan_ptr        = copy_gc.to_alloc_ptr;
+    // memset(from_head->data, 0, NECRO_SPACE_SIZE); // Only requried for testing while initializer system isn't functional
 
     //-----------
     // End

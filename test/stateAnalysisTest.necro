@@ -4,7 +4,9 @@ mouseX :: Int
 mouseX = getMouseX world
 
 main :: Int
-main = closureSwitch 1000000
+-- main = pointwiseClosure 500
+-- main = closureSwitch 1000000
+main = halfStatefulSwitch 0
 -- main = statefulClosure2 100 200
 -- main = statefulClosure3 200
 -- main =
@@ -22,6 +24,9 @@ statefulFn x =
   where
     y ~ 0 = y + 1
 
+pointwiseClosure :: Int -> Int
+pointwiseClosure = add mouseX
+
 statefulFn' :: Int -> Int
 statefulFn' x =
   (x - 1000) + y
@@ -32,10 +37,16 @@ statefulClosure :: Int -> Int
 statefulClosure =
   statefulFn
 
+halfStatefulSwitch :: Int -> Int
+halfStatefulSwitch =
+  if mouseX > 80
+    then add 2
+    else statefulFn'
+
 closureSwitch :: Int -> Int
 closureSwitch =
   if mouseX > 80
-    then statefulFn
+    then add (statefulFn 16000)
     else statefulFn'
 
 statefulFn2 :: Int -> Int -> Int

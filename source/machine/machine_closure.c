@@ -17,6 +17,7 @@
 */
 
 #define NECRO_NUM_CLOSURE_PRE_ARGS 4
+#define NECRO_DEBUG_PRINT_CLOSURES 0
 
 // TODO: Finish
 NecroMachineAST* necro_core_to_machine_dyn_state_3(NecroMachineProgram* program, NecroCoreAST_Expression* ast, NecroMachineAST* outer)
@@ -134,31 +135,30 @@ NecroMachineAST* necro_create_get_apply_state_fn(NecroMachineProgram* program)
     NecroMachineAST*  fn            = necro_create_machine_fn(program, necro_gen_var(program, NULL, "_getApplyState", NECRO_NAME_UNIQUE), entry, fn_type);
 
     // Entry
-
-    necro_build_debug_print(program, fn, 3000);
+    necro_build_debug_print(program, fn, 1000, NECRO_DEBUG_PRINT_CLOSURES);
     NecroMachineAST*  apply_data_id = necro_build_load_from_ptr(program, fn, necro_create_param_reg(program, fn, 1), "apply_data_id");
     NecroMachineAST*  should_load   = necro_build_cmp(program, fn, NECRO_MACHINE_CMP_EQ, apply_data_id, necro_create_param_reg(program, fn, 3));
     necro_build_cond_break(program, fn, should_load, load_state, mk_state);
 
     // Load State
     necro_move_to_block(program, fn, load_state);
-    necro_build_debug_print(program, fn, 3010);
+    necro_build_debug_print(program, fn, 1010, NECRO_DEBUG_PRINT_CLOSURES);
     NecroMachineAST*  loaded_state  = necro_build_load_from_ptr(program, fn, necro_create_param_reg(program, fn, 0), "loaded_state");
-    necro_build_debug_print(program, fn, 3011);
+    necro_build_debug_print(program, fn, 1011, NECRO_DEBUG_PRINT_CLOSURES);
     necro_build_return(program, fn, loaded_state);
 
     // Mk State
     necro_move_to_block(program, fn, mk_state);
-    necro_build_debug_print(program, fn, 3020);
+    necro_build_debug_print(program, fn, 1020, NECRO_DEBUG_PRINT_CLOSURES);
     NecroMachineType* mk_fn_type     = necro_create_machine_fn_type(&program->arena, program->necro_poly_ptr_type, NULL, 0);
     NecroMachineAST*  bit_cast_mk_fn = necro_build_bit_cast(program, fn, necro_create_param_reg(program, fn, 2), necro_create_machine_ptr_type(&program->arena, mk_fn_type));
-    necro_build_debug_print(program, fn, 3021);
+    necro_build_debug_print(program, fn, 1021, NECRO_DEBUG_PRINT_CLOSURES);
     NecroMachineAST*  new_state      = necro_build_call(program, fn, bit_cast_mk_fn, NULL, 0, NECRO_LANG_CALL, "new_state");
-    necro_build_debug_print(program, fn, 3022);
+    necro_build_debug_print(program, fn, 1022, NECRO_DEBUG_PRINT_CLOSURES);
     necro_build_store_into_ptr(program, fn, new_state, necro_create_param_reg(program, fn, 0));
-    necro_build_debug_print(program, fn, 3023);
+    necro_build_debug_print(program, fn, 1023, NECRO_DEBUG_PRINT_CLOSURES);
     necro_build_store_into_ptr(program, fn, necro_create_param_reg(program, fn, 3), necro_create_param_reg(program, fn, 1));
-    necro_build_debug_print(program, fn, 3024);
+    necro_build_debug_print(program, fn, 1024, NECRO_DEBUG_PRINT_CLOSURES);
     necro_build_return(program, fn, new_state);
 
     // Finish
@@ -267,7 +267,7 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
     //--------------------
     // Apply Fn Body
 
-    necro_build_debug_print(program, apply_fn_def, 100);
+    necro_build_debug_print(program, apply_fn_def, 100, NECRO_DEBUG_PRINT_CLOSURES);
     NecroMachineAST* init_block     = necro_append_block(program, apply_fn_def, "init");
     NecroMachineAST* cont_block     = necro_append_block(program, apply_fn_def, "cont");
     NecroMachineAST* child_ptr      = necro_build_load_from_slot(program, apply_fn_def, necro_create_param_reg(program, apply_fn_def, 0), 2, "child");
@@ -277,7 +277,7 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
     //--------------------
     // Apply init
     necro_move_to_block(program, apply_fn_def, init_block);
-    necro_build_debug_print(program, apply_fn_def, -100);
+    necro_build_debug_print(program, apply_fn_def, -100, NECRO_DEBUG_PRINT_CLOSURES);
     NecroMachineAST* data_ptr = necro_build_call(program, apply_fn_def, apply_machine_def->machine_def.mk_fn->fn_def.fn_value, NULL, 0, NECRO_LANG_CALL, "data_ptr");
     necro_build_store_into_slot(program, apply_fn_def, data_ptr, necro_create_param_reg(program, apply_fn_def, 0), 2);
     necro_build_break(program, apply_fn_def, cont_block);
@@ -285,7 +285,7 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
     //--------------------
     // Closure Arity Blocks
     necro_move_to_block(program, apply_fn_def, cont_block);
-    necro_build_debug_print(program, apply_fn_def, 200);
+    necro_build_debug_print(program, apply_fn_def, 200, NECRO_DEBUG_PRINT_CLOSURES);
     size_t                  num_closure_types    = program->closure_defs.length * 2;
     NecroMachineAST**       closure_arity_blocks = necro_snapshot_arena_alloc(&program->snapshot_arena, num_closure_types * sizeof(NecroMachineAST*));
     NecroMachineSwitchList* fn_arity_switch_list = NULL;
@@ -345,7 +345,13 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
         // Under Saturated, Non-Stateful and Stateful
         if (num_total_args < closure_def_fn_arity)
         {
-            necro_build_debug_print(program, apply_fn_def, 300);
+            necro_build_debug_print(program, apply_fn_def, 300, NECRO_DEBUG_PRINT_CLOSURES);
+            if (!is_stateful)
+            {
+                necro_build_store_into_slot(program, apply_fn_def, necro_create_word_uint_value(program, 0), necro_create_param_reg(program, apply_fn_def, 0), 0);
+                necro_build_store_into_slot(program, apply_fn_def, necro_create_null_necro_machine_value(program, program->necro_poly_ptr_type), necro_create_param_reg(program, apply_fn_def, 0), 1);
+            }
+            necro_build_debug_print(program, apply_fn_def, 301, NECRO_DEBUG_PRINT_CLOSURES);
             NecroMachineAST*  new_closure_con = necro_get_closure_con(program, NECRO_NUM_CLOSURE_PRE_ARGS + num_total_args);
             NecroMachineAST** call_args       = necro_snapshot_arena_alloc(&program->snapshot_arena, (NECRO_NUM_CLOSURE_PRE_ARGS + num_total_args) * sizeof(NecroMachineAST*));
             call_args[0] = closure_fn_arity;
@@ -357,14 +363,15 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
             for (size_t i = 0; i < num_apply_args; ++i)
                 call_args[NECRO_NUM_CLOSURE_PRE_ARGS + i + closure_def_pargs] = necro_create_param_reg(program, apply_fn_def, 2 + i);
             NecroMachineAST*  closure_result    = necro_build_call(program, apply_fn_def, new_closure_con, call_args, NECRO_NUM_CLOSURE_PRE_ARGS + num_total_args, NECRO_LANG_CALL, "result");
-            necro_build_debug_print(program, apply_fn_def, 301);
             necro_build_return(program, apply_fn_def, closure_result);
         }
 
         // Saturated, Non-Stateful
         else if (num_total_args == closure_def_fn_arity && !is_stateful)
         {
-            necro_build_debug_print(program, apply_fn_def, 400);
+            necro_build_debug_print(program, apply_fn_def, 400, NECRO_DEBUG_PRINT_CLOSURES);
+            necro_build_store_into_slot(program, apply_fn_def, necro_create_word_uint_value(program, 0), necro_create_param_reg(program, apply_fn_def, 0), 0);
+            necro_build_store_into_slot(program, apply_fn_def, necro_create_null_necro_machine_value(program, program->necro_poly_ptr_type), necro_create_param_reg(program, apply_fn_def, 0), 1);
             NecroMachineAST** call_args = necro_snapshot_arena_alloc(&program->snapshot_arena, closure_def_fn_arity * sizeof(NecroMachineAST*));
             for (size_t i = 0; i < closure_def_pargs; ++i)
                 call_args[i] = necro_build_load_from_slot(program, apply_fn_def, closure_ptr, NECRO_NUM_CLOSURE_PRE_ARGS + i, "parg");
@@ -376,31 +383,34 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
             NecroMachineType*  closure_fn_type   = necro_create_machine_fn_type(&program->arena, program->necro_poly_ptr_type, closure_fn_type_elems, closure_def_fn_arity);
             NecroMachineAST*   closure_fn        = necro_build_bit_cast(program, apply_fn_def, closure_fn_poly, necro_create_machine_ptr_type(&program->arena, closure_fn_type));
             NecroMachineAST*   closure_result    = necro_build_call(program, apply_fn_def, closure_fn, call_args, closure_def_fn_arity, NECRO_LANG_CALL, "result");
-            necro_build_debug_print(program, apply_fn_def, 401);
+            necro_build_debug_print(program, apply_fn_def, 401, NECRO_DEBUG_PRINT_CLOSURES);
             necro_build_return(program, apply_fn_def, closure_result);
         }
+
+        // TODO: NULL out state when we go to Non-Stateful version!
+        // TODO: TEST this!
 
         // Saturated, Stateful
         else if (num_total_args == closure_def_fn_arity && is_stateful)
         {
-            necro_build_debug_print(program, apply_fn_def, 500);
+            necro_build_debug_print(program, apply_fn_def, 500, NECRO_DEBUG_PRINT_CLOSURES);
             NecroMachineAST** call_args = necro_snapshot_arena_alloc(&program->snapshot_arena, (closure_def_fn_arity + 1) * sizeof(NecroMachineAST*));
 
             // Get State
             NecroMachineAST* get_apply_state_fn = necro_create_get_apply_state_fn(program);
             NecroMachineAST* apply_state_ptr    = necro_build_gep(program, apply_fn_def, necro_create_param_reg(program, apply_fn_def, 0), (uint32_t[]) { 0, 1 }, 2, "apply_state_ptr");
-            necro_build_debug_print(program, apply_fn_def, 501);
+            necro_build_debug_print(program, apply_fn_def, 501, NECRO_DEBUG_PRINT_CLOSURES);
             NecroMachineAST* apply_id_ptr       = necro_build_gep(program, apply_fn_def, necro_create_param_reg(program, apply_fn_def, 0), (uint32_t[]) { 0, 0 }, 2, "apply_id_ptr");
-            necro_build_debug_print(program, apply_fn_def, 502);
+            necro_build_debug_print(program, apply_fn_def, 502, NECRO_DEBUG_PRINT_CLOSURES);
             NecroMachineAST* closure_dyn_state  = necro_build_load_from_slot(program, apply_fn_def, necro_create_param_reg(program, apply_fn_def, 1), 2, "closure_dyn_state");
-            necro_build_debug_print(program, apply_fn_def, 503);
+            necro_build_debug_print(program, apply_fn_def, 503, NECRO_DEBUG_PRINT_CLOSURES);
             NecroMachineAST* closure_mk_fn      = necro_build_load_from_slot(program, apply_fn_def, closure_dyn_state, 1, "closure_mk_dyn_state");
-            necro_build_debug_print(program, apply_fn_def, 504);
+            necro_build_debug_print(program, apply_fn_def, 504, NECRO_DEBUG_PRINT_CLOSURES);
             NecroMachineAST* closure_id         = necro_build_load_from_slot(program, apply_fn_def, closure_dyn_state, 2, "closure_id");
-            necro_build_debug_print(program, apply_fn_def, 505);
+            necro_build_debug_print(program, apply_fn_def, 505, NECRO_DEBUG_PRINT_CLOSURES);
             call_args[0]                        = necro_build_call(program, apply_fn_def, get_apply_state_fn, (NecroMachineAST*[]) { apply_state_ptr, apply_id_ptr, closure_mk_fn, closure_id }, 4, NECRO_LANG_CALL, "dyn_state");
 
-            necro_build_debug_print(program, apply_fn_def, 506);
+            necro_build_debug_print(program, apply_fn_def, 506, NECRO_DEBUG_PRINT_CLOSURES);
             for (size_t i = 0; i < closure_def_pargs; ++i)
                 call_args[i + 1] = necro_build_load_from_slot(program, apply_fn_def, closure_ptr, NECRO_NUM_CLOSURE_PRE_ARGS + i, "parg");
             for (size_t i = 0; i < num_apply_args; ++i)
@@ -411,14 +421,16 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
             NecroMachineType*  closure_fn_type   = necro_create_machine_fn_type(&program->arena, program->necro_poly_ptr_type, closure_fn_type_elems, closure_def_fn_arity + 1);
             NecroMachineAST*   closure_fn        = necro_build_bit_cast(program, apply_fn_def, closure_fn_poly, necro_create_machine_ptr_type(&program->arena, closure_fn_type));
             NecroMachineAST*   closure_result    = necro_build_call(program, apply_fn_def, closure_fn, call_args, closure_def_fn_arity + 1, NECRO_LANG_CALL, "result");
-            necro_build_debug_print(program, apply_fn_def, 507);
+            necro_build_debug_print(program, apply_fn_def, 507, NECRO_DEBUG_PRINT_CLOSURES);
             necro_build_return(program, apply_fn_def, closure_result);
         }
 
         // Over Saturated, Not-Stateful
         else if (!is_stateful)
         {
-            necro_build_debug_print(program, apply_fn_def, 600);
+            necro_build_debug_print(program, apply_fn_def, 600, NECRO_DEBUG_PRINT_CLOSURES);
+            necro_build_store_into_slot(program, apply_fn_def, necro_create_word_uint_value(program, 0), necro_create_param_reg(program, apply_fn_def, 0), 0);
+            necro_build_store_into_slot(program, apply_fn_def, necro_create_null_necro_machine_value(program, program->necro_poly_ptr_type), necro_create_param_reg(program, apply_fn_def, 0), 1);
             //-------------------
             // Call closure fn
             const size_t num_extra_args = num_total_args - closure_def_fn_arity;
@@ -433,7 +445,7 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
             NecroMachineType* closure_fn_type    = necro_create_machine_fn_type(&program->arena, program->necro_poly_ptr_type, closure_fn_type_elems, closure_def_fn_arity);
             NecroMachineAST*  closure_fn         = necro_build_bit_cast(program, apply_fn_def, closure_fn_poly, necro_create_machine_ptr_type(&program->arena, closure_fn_type));
             NecroMachineAST*  closure_result     = necro_build_call(program, apply_fn_def, closure_fn, call_args, closure_def_fn_arity, NECRO_LANG_CALL, "result");
-            necro_build_debug_print(program, apply_fn_def, 601);
+            necro_build_debug_print(program, apply_fn_def, 601, NECRO_DEBUG_PRINT_CLOSURES);
             //-------------------
             // Call overapply fn
             NecroMachineAST*  over_apply_fn   = necro_get_apply_fn(program, num_extra_args + 1);
@@ -444,14 +456,14 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
             for (size_t i = 0; i < num_extra_args; ++i)
                 over_apply_args[i + 2] = necro_create_param_reg(program, apply_fn_def, i + (closure_def_fn_arity - closure_def_pargs) + 2);
             NecroMachineAST* over_result      = necro_build_call(program, apply_fn_def, over_apply_fn->machine_def.update_fn->fn_def.fn_value, over_apply_args, num_extra_args + 2, NECRO_LANG_CALL, "over_result");
-            necro_build_debug_print(program, apply_fn_def, 602);
+            necro_build_debug_print(program, apply_fn_def, 602, NECRO_DEBUG_PRINT_CLOSURES);
             necro_build_return(program, apply_fn_def, over_result);
         }
 
-        // Over Saturated, Not-Stateful
+        // Over Saturated, Stateful
         else
         {
-            necro_build_debug_print(program, apply_fn_def, 700);
+            necro_build_debug_print(program, apply_fn_def, 700, NECRO_DEBUG_PRINT_CLOSURES);
             //-------------------
             // Call closure fn
             const size_t num_extra_args = num_total_args - closure_def_fn_arity;
@@ -462,10 +474,10 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
             NecroMachineAST* apply_state_ptr    = necro_build_gep(program, apply_fn_def, necro_create_param_reg(program, apply_fn_def, 0), (uint32_t[]) { 0, 1 }, 2, "apply_state_ptr");
             NecroMachineAST* apply_id_ptr       = necro_build_gep(program, apply_fn_def, necro_create_param_reg(program, apply_fn_def, 0), (uint32_t[]) { 0, 0 }, 2, "apply_id_ptr");
             NecroMachineAST* closure_dyn_state  = necro_build_load_from_slot(program, apply_fn_def, necro_create_param_reg(program, apply_fn_def, 1), 2, "closure_dyn_state");
-            NecroMachineAST* closure_mk_fn      = necro_build_load_from_slot(program, apply_fn_def, closure_dyn_state, 0, "closure_mk_dyn_state");
-            NecroMachineAST* closure_id         = necro_build_load_from_slot(program, apply_fn_def, closure_dyn_state, 1, "closure_id");
+            NecroMachineAST* closure_mk_fn      = necro_build_load_from_slot(program, apply_fn_def, closure_dyn_state, 1, "closure_mk_dyn_state");
+            NecroMachineAST* closure_id         = necro_build_load_from_slot(program, apply_fn_def, closure_dyn_state, 2, "closure_id");
             call_args[0]                        = necro_build_call(program, apply_fn_def, get_apply_state_fn, (NecroMachineAST*[]) { apply_state_ptr, apply_id_ptr, closure_mk_fn, closure_id }, 4, NECRO_LANG_CALL, "dyn_state");
-            necro_build_debug_print(program, apply_fn_def, 701);
+            necro_build_debug_print(program, apply_fn_def, 701, NECRO_DEBUG_PRINT_CLOSURES);
 
             for (size_t i = 0; i < closure_def_pargs; ++i)
                 call_args[i + 1] = necro_build_load_from_slot(program, apply_fn_def, closure_ptr, NECRO_NUM_CLOSURE_PRE_ARGS + i, "parg");
@@ -477,7 +489,7 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
             NecroMachineType* closure_fn_type    = necro_create_machine_fn_type(&program->arena, program->necro_poly_ptr_type, closure_fn_type_elems, closure_def_fn_arity + 1);
             NecroMachineAST*  closure_fn         = necro_build_bit_cast(program, apply_fn_def, closure_fn_poly, necro_create_machine_ptr_type(&program->arena, closure_fn_type));
             NecroMachineAST*  closure_result     = necro_build_call(program, apply_fn_def, closure_fn, call_args, closure_def_fn_arity + 1, NECRO_LANG_CALL, "result");
-            necro_build_debug_print(program, apply_fn_def, 702);
+            necro_build_debug_print(program, apply_fn_def, 702, NECRO_DEBUG_PRINT_CLOSURES);
             //-------------------
             // Call overapply fn
             NecroMachineAST*  over_apply_fn   = necro_get_apply_fn(program, num_extra_args + 1);
@@ -488,7 +500,7 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
             for (size_t i = 0; i < num_extra_args; ++i)
                 over_apply_args[i + 2] = necro_create_param_reg(program, apply_fn_def, i + (closure_def_fn_arity - closure_def_pargs) + 2);
             NecroMachineAST* over_result      = necro_build_call(program, apply_fn_def, over_apply_fn->machine_def.update_fn->fn_def.fn_value, over_apply_args, num_extra_args + 2, NECRO_LANG_CALL, "over_result");
-            necro_build_debug_print(program, apply_fn_def, 703);
+            necro_build_debug_print(program, apply_fn_def, 703, NECRO_DEBUG_PRINT_CLOSURES);
             necro_build_return(program, apply_fn_def, over_result);
         }
 

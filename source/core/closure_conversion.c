@@ -113,6 +113,42 @@ void necro_print_closure_defs(NecroClosureConversion* cc)
     }
 }
 
+size_t necro_get_arity(NecroClosureConversion* cc, NecroSymbolInfo* info)
+{
+    if (info->arity != -1)
+    {
+        return info->arity;
+    }
+    else
+    {
+        // This is some primitive value which doesn't have a proper body
+        // Calculate naive arity based on type
+        // TODO: Some way to assert that this is infact a primitive type and a bug has not occured.
+        // assert(info->ast == NULL); // Not all primitives are completely without a normal ast, so this doesn't work.
+        assert(info->core_ast == NULL);
+        assert(info->type != NULL);
+        size_t     arity = 0;
+        NecroType* type  = info->type;
+        while (type->type == NECRO_TYPE_FOR)
+        {
+            NecroTypeClassContext* context = type->for_all.context;
+            while (context != NULL)
+            {
+                arity++;
+                context = context->next;
+            }
+            type = type->for_all.type;
+        }
+        while (type->type == NECRO_TYPE_FUN)
+        {
+            arity++;
+            type = type->fun.type2;
+        }
+        info->arity = arity;
+        return arity;
+    }
+}
+
 ///////////////////////////////////////////////////////
 // Closure conversion
 ///////////////////////////////////////////////////////
@@ -251,7 +287,8 @@ NecroCoreAST_Expression* necro_closure_conversion_var(NecroClosureConversion* cc
     NecroSymbolInfo*         info    = necro_symtable_get(cc->symtable, in_ast->var.id);
     NecroCoreAST_Expression* var_ast = necro_create_core_var(&cc->arena, in_ast->var);
     var_ast->necro_type              = info->type;
-    if (info->arity > 0)
+    int32_t                  arity   = necro_get_arity(cc, info);
+    if (arity > 0)
     {
         necro_add_closure_def(cc, info->arity, 0);
         NecroCoreAST_Expression* state_ast =
@@ -481,42 +518,6 @@ NecroCoreAST_Expression* necro_closure_conversion_data_con(NecroClosureConversio
 }
 
 NECRO_DECLARE_ARENA_LIST(NecroCoreAST_Expression*, CoreAST, core_ast);
-
-size_t necro_get_arity(NecroClosureConversion* cc, NecroSymbolInfo* info)
-{
-    if (info->arity != -1)
-    {
-        return info->arity;
-    }
-    else
-    {
-        // This is some primitive value which doesn't have a proper body
-        // Calculate naive arity based on type
-        // TODO: Some way to assert that this is infact a primitive type and a bug has not occured.
-        // assert(info->ast == NULL); // Not all primitives are completely without a normal ast, so this doesn't work.
-        assert(info->core_ast == NULL);
-        assert(info->type != NULL);
-        size_t     arity = 0;
-        NecroType* type  = info->type;
-        while (type->type == NECRO_TYPE_FOR)
-        {
-            NecroTypeClassContext* context = type->for_all.context;
-            while (context != NULL)
-            {
-                arity++;
-                context = context->next;
-            }
-            type = type->for_all.type;
-        }
-        while (type->type == NECRO_TYPE_FUN)
-        {
-            arity++;
-            type = type->fun.type2;
-        }
-        info->arity = arity;
-        return arity;
-    }
-}
 
 NecroCoreAST_Expression* necro_closure_conversion_app(NecroClosureConversion* cc, NecroCoreAST_Expression* in_ast)
 {

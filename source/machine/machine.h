@@ -559,7 +559,7 @@ void                necro_core_to_machine_1_go(NecroMachineProgram* program, Nec
 void                necro_core_to_machine_2_go(NecroMachineProgram* program, NecroCoreAST_Expression* core_ast, NecroMachineAST* outer);
 NecroMachineAST*    necro_core_to_machine_3_go(NecroMachineProgram* program, NecroCoreAST_Expression* core_ast, NecroMachineAST* outer);
 NECRO_WORD_SIZE     necro_get_word_size();
-void                necro_build_debug_print(NecroMachineProgram* program, NecroMachineAST* fn_def, int print_value);
-void                necro_build_debug_print_value(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* print_value);
+void                necro_build_debug_print(NecroMachineProgram* program, NecroMachineAST* fn_def, int print_value, bool should_print);
+void                necro_build_debug_print_value(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* print_value, bool should_print);
 
 #endif // NECRO_MACHINE_H

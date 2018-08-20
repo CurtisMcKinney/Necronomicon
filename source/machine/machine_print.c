@@ -279,7 +279,7 @@ void necro_machine_print_nalloc(NecroMachineProgram* program, NecroMachineAST* a
     // if (ast->nalloc.is_constant)
     //     printf("%%%s = alloc_const (", necro_intern_get_string(program->intern, ast->nalloc.result_reg->value.reg_name.symbol));
     // else
-        printf("%%%s = alloc_from (", necro_intern_get_string(program->intern, ast->nalloc.result_reg->value.reg_name.symbol));
+        printf("%%%s = nalloc (", necro_intern_get_string(program->intern, ast->nalloc.result_reg->value.reg_name.symbol));
     necro_machine_print_machine_type_go(program->intern, ast->nalloc.type_to_alloc, false);
     printf(") %du16", ast->nalloc.slots_used);
 }

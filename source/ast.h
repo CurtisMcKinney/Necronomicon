@@ -358,6 +358,14 @@ typedef struct
 } NecroAST_ExpressionList_Reified;
 
 //=====================================================
+// AST Expression Array
+//=====================================================
+typedef struct
+{
+    struct NecroAST_Node_Reified* expressions; // NecroAST_ListNode of expressions
+} NecroAST_ExpressionArray_Reified;
+
+//=====================================================
 // AST Tuple
 //=====================================================
 typedef struct
@@ -484,6 +492,7 @@ typedef struct NecroAST_Node_Reified
         NecroAST_Do_Reified                   do_statement;
         NecroAST_ListNode_Reified             list;
         NecroAST_ExpressionList_Reified       expression_list;
+        NecroAST_ExpressionArray_Reified      expression_array;
         NecroAST_Tuple_Reified                tuple;
         NecroAST_BindAssignment_Reified       bind_assignment;
         NecroAST_PatBindAssignment_Reified    pat_bind_assignment;

@@ -214,8 +214,8 @@ void necro_compile_impl(
     necro_infer(infer, ast_r->root);
     if (compilation_phase == NECRO_PHASE_INFER)
     {
-        necro_symtable_print(&symtable);
-        necro_print_type_classes(infer);
+        // necro_symtable_print(&symtable);
+        // necro_print_type_classes(infer);
         necro_print_env_with_symtable(&symtable, infer);
     }
     *destruct_flags |= BIT(NECRO_PHASE_INFER);

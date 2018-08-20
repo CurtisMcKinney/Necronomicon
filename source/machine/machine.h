@@ -32,9 +32,7 @@
 
 /*
     TODO:
-        * closures
         * necro_verify_machine_program
-
 */
 
 ///////////////////////////////////////////////////////

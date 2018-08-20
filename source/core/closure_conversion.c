@@ -10,9 +10,10 @@
 #include "core_create.h"
 
 /*
-    Closure layout: { farity, num_pargs, fn_ptr, pargs... }
+    Closure layout: { farity, num_pargs, dyn_state, fn_ptr, pargs... }
     * farity:    function arity
     * num_pargs: number of partially applied args
+    * dyn_state: dyn state object, NULL if not stateful
     * fn_ptr:    function pointer
 
     (implied)
@@ -39,7 +40,6 @@ typedef struct NecroClosureConversion
     NecroPrimTypes*       prim_types;
     NecroInfer*           infer;
     NecroCon              closure_con;
-    NecroCon              stack_array_con;
     NecroCon              dyn_state_con;
     NecroCon              null_con;
     NECRO_CC_STATE        cc_state;
@@ -70,7 +70,6 @@ NecroCoreAST necro_closure_conversion(NecroCoreAST* in_ast, NecroIntern* intern,
         .cc_state         = NECRO_CC_EXPR,
         .closure_con      = necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_Closure")),
         .closure_defs     = necro_create_closure_def_vector(),
-        .stack_array_con  = necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_StackArray")),
         .dyn_state_con    = necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_DynState")),
         .null_con         = necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_NullPoly")),
     };

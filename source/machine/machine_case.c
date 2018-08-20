@@ -11,7 +11,7 @@
 
 /*
     TODO:
-        * Constant equality
+        * Constant equality (more work required for non-Int constant equality)
         * Redundant patterns error in case statements!
 */
 

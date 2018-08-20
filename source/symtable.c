@@ -67,7 +67,6 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
         .is_recursive            = false,
         .arity                   = -1,
         .necro_machine_ast       = NULL,
-        // .const_necro_machine_ast = NULL,
         .state_type              = NECRO_STATE_CONSTANT,
     };
 }
@@ -500,6 +499,9 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_R
         break;
     case NECRO_AST_EXPRESSION_LIST:
         necro_build_scopes_go(scoped_symtable, input_node->expression_list.expressions);
+        break;
+    case NECRO_AST_EXPRESSION_ARRAY:
+        necro_build_scopes_go(scoped_symtable, input_node->expression_array.expressions);
         break;
     case NECRO_AST_PAT_EXPRESSION:
         necro_build_scopes_go(scoped_symtable, input_node->pattern_expression.expressions);

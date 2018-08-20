@@ -155,3 +155,25 @@
 -- --     Just 1  -> 200
 -- --     Nothing -> 300
 -- --     _       -> 400
+
+----------------------
+-- Arrays
+----------------------
+-- coolArray :: Array (Array Int)
+-- coolArray = {1, 2, 3}
+
+myChar :: Char
+myChar = 'a'
+
+myString :: Array Char
+myString = "abc"
+
+main :: Int
+main = 10
+
+----------------------
+-- Chars and Strings
+----------------------
+-- stringTest :: Array Char
+-- stringTest = {'A', 'b', 'c'}
+

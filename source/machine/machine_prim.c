@@ -204,11 +204,6 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     NecroMachineAST*  _necro_from_alloc_fn      = necro_create_machine_runtime_fn(program, _necro_from_alloc_var, _necro_from_alloc_fn_type, _necro_from_alloc, NECRO_STATE_CONSTANT);
     program->runtime._necro_from_alloc          = _necro_from_alloc_var;
 
-    // NecroVar          _necro_const_alloc_var     = necro_gen_var(program, NULL, "_necro_const_alloc", NECRO_NAME_UNIQUE);
-    // NecroMachineType* _necro_const_alloc_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_ptr_type(&program->arena, necro_create_word_sized_int_type(program)), (NecroMachineType*[]) { necro_create_word_sized_uint_type(program) }, 1);
-    // NecroMachineAST*  _necro_const_alloc_fn      = necro_create_machine_runtime_fn(program, _necro_const_alloc_var, _necro_const_alloc_fn_type, _necro_const_alloc, NECRO_STATE_CONSTANT);
-    // program->runtime._necro_const_alloc          = _necro_const_alloc_var;
-
     NecroVar          _necro_flip_const_var     = necro_gen_var(program, NULL, "_necro_flip_const", NECRO_NAME_UNIQUE);
     NecroMachineType* _necro_flip_const_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), NULL, 0);
     NecroMachineAST*  _necro_flip_const_fn      = necro_create_machine_runtime_fn(program, _necro_flip_const_var, _necro_flip_const_fn_type, _necro_flip_const, NECRO_STATE_CONSTANT);
@@ -238,7 +233,6 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     // Ptr
     NecroVar         ptr_var    = necro_con_to_var(program->prim_types->ptr_type);
     NecroMachineAST* ptr_struct = necro_create_null_necro_machine_value(program,  program->necro_poly_ptr_type);
-    // NecroMachineAST* ptr_type   = ptr_struct->necro_machine_type;
     necro_symtable_get(program->symtable, ptr_var.id)->necro_machine_ast = ptr_struct;
 
     // Int
@@ -249,7 +243,9 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     NecroVar          float_var  = necro_con_to_var(program->prim_types->float_type);
     necro_symtable_get(program->symtable, float_var.id)->necro_machine_ast = necro_create_word_float_value(program, 0.f);
 
-    // program->stack_array_con = necro_get_data_con_from_symbol(program->prim_types, necro_intern_string(program->intern, "_StackArray"));
+    // Char
+    NecroVar          char_var  = necro_con_to_var(program->prim_types->char_type);
+    necro_symtable_get(program->symtable, char_var.id)->necro_machine_ast = necro_create_word_int_value(program, 0);
 
     // _DynState
     NecroVar         dyn_state_var    = necro_con_to_var(program->prim_types->dyn_state_type);
@@ -303,8 +299,18 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     NecroMachineAST* list_struct = necro_create_machine_struct_def(program, list_var, (NecroMachineType*[]) { program->necro_uint_type, program->necro_poly_ptr_type, program->necro_poly_ptr_type }, 3);
     necro_create_prim_con(program, list_struct->necro_machine_type, cons_con, (NecroMachineType*[]) { program->necro_poly_ptr_type, necro_create_machine_ptr_type(&program->arena, list_struct->necro_machine_type) }, 2, 2, 0);
     necro_create_prim_con(program, list_struct->necro_machine_type, nil_con, NULL, 0, 0, 1);
-    necro_symtable_get(program->symtable, nil_con.id)->arity = 0;
+    necro_symtable_get(program->symtable, nil_con.id)->arity  = 0;
     necro_symtable_get(program->symtable, cons_con.id)->arity = 2;
+
+    // Maybe
+    NecroVar         maybe_var    = necro_con_to_var(program->prim_types->maybe_type);
+    NecroVar         just_con     = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "Just").id));
+    NecroVar         nothing_con  = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "Nothing").id));
+    NecroMachineAST* maybe_struct = necro_create_machine_struct_def(program, maybe_var, (NecroMachineType*[]) { program->necro_uint_type, program->necro_poly_ptr_type }, 2);
+    necro_create_prim_con(program, maybe_struct->necro_machine_type, just_con, (NecroMachineType*[]) { program->necro_poly_ptr_type }, 1, 1, 0);
+    necro_create_prim_con(program, maybe_struct->necro_machine_type, nothing_con, NULL, 0, 0, 1);
+    necro_symtable_get(program->symtable, nothing_con.id)->arity = 0;
+    necro_symtable_get(program->symtable, just_con.id)->arity    = 1;
 
     // Array
     NecroVar         array_var    = necro_con_to_var(program->prim_types->array_type);

@@ -82,6 +82,9 @@ beat ps =
       where
         (i ~ 0, pval) = foldl (beatPlayYieldIncrement i (length ps) t) ps
 
+demand :: (Time -> a) -> Pattern a
+demand f = Pattern (PYield . f)
+
 interlace :: Array (Pattern a) -> Pattern Int -> Pattern a
 interlace = ...
 

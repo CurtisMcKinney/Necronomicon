@@ -305,6 +305,7 @@ inline void necro_create_new_copy_job(size_t data_id, NecroValue* from_value, Ne
 #define necro_block_to_value(BLOCK) ((NecroValue*)(BLOCK + 1))
 #define necro_value_to_block(VALUE) (((NecroBlock*)VALUE) - 1)
 
+// TODO: GC for Arrays / Ptrs!!!!!!
 void _necro_copy(size_t root_data_id, NecroValue* root)
 {
     NecroCopyJob         job;
@@ -350,41 +351,33 @@ void _necro_copy(size_t root_data_id, NecroValue* root)
             size_t member_id               = 0;
             for (size_t i = 0; i < info.num_members; ++i)
             {
-                // NULL id
                 member_id = member_map[info.members_offset + i];
-
+                // NULL id
                 if (member_id == NECRO_NULL_DATA_ID)
                 {
-                    // Dynamic, perhaps separate type?
                     to_members[i] = NULL;
                 }
                 // Unboxed type, simply copy over
                 else if (member_id == NECRO_UNBOXED_DATA_ID)
                 {
-                    // printf("    value member: from_value: %d\n", (int)from_members[i]);
                     to_members[i] = from_members[i];
                 }
                 // NULL member
                 else if (from_members[i] == NULL)
                 {
-                    // printf("    NULL member\n");
                     to_members[i] = NULL;
                 }
                 // Pointer to some more data
                 else
                 {
-                    // Dynamic type, retrieve data id int at previous index and go deeper
-                    if (member_id == NECRO_DYNAMIC_DATA_ID)
+                    if (member_id == NECRO_DYNAMIC_DATA_ID) // Dynamic type, retrieve data id int at previous index and go deeper
                         member_id = (size_t)from_members[i - 1];
 
-                    // necro_create_new_copy_job(member_map[info.members_offset + i], from_members[i], to_members + i);
                     if (copy_buffer.count + 1 >= copy_buffer.capacity)
                     {
                         copy_buffer.capacity *= 2;
                         copy_buffer.data      = realloc(copy_buffer.data, copy_buffer.capacity * sizeof(NecroCopyBuffer));
                     }
-                    //copy_buffer.data[copy_buffer.count] = (NecroCopyJob) { .data_id = data_id, .from_value = from_value, .to_value = to_value };
-                    // TODO: Perhaps just put relevant info directly into buffer?
                     copy_buffer.data[copy_buffer.count].data_id    = member_id;
                     copy_buffer.data[copy_buffer.count].from_value = from_members[i];
                     copy_buffer.data[copy_buffer.count].to_value   = to_members + i;

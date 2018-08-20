@@ -32,7 +32,6 @@ extern DLLEXPORT void     _necro_debug_print(int value);
 // new copying collector
 extern DLLEXPORT int*     _necro_from_alloc(size_t size);
 extern DLLEXPORT int*     _necro_to_alloc(size_t size);
-// extern DLLEXPORT int*     _necro_const_alloc(size_t size);
 extern DLLEXPORT void     _necro_copy_gc_initialize_root_set(size_t root_count);
 extern DLLEXPORT void     _necro_copy_gc_set_root(int** root, size_t root_index, size_t data_id);
 extern DLLEXPORT void     _necro_copy_gc_collect();

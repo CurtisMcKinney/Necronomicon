@@ -124,7 +124,6 @@ NECRO_STATE_TYPE necro_state_analysis_list(NecroStateAnalysis* sa, NecroCoreAST_
     return state_type;
 }
 
-// TODO: Do we need an outer?
 NECRO_STATE_TYPE necro_state_analysis_bind(NecroStateAnalysis* sa, NecroCoreAST_Expression* ast, NecroOuter* outer)
 {
     assert(sa != NULL);
@@ -153,9 +152,6 @@ NECRO_STATE_TYPE necro_state_analysis_lam(NecroStateAnalysis* sa, NecroCoreAST_E
     assert(sa != NULL);
     assert(ast != NULL);
     assert(ast->expr_type == NECRO_CORE_EXPR_LAM);
-    // TODO: WTF is this about?
-    // necro_state_analysis_bind(sa, ast->let.bind, outer);
-    // necro_symtable_get(sa->symtable, ast->lambda.arg->var.id)->state_type = NECRO_STATE_CONSTANT;
     necro_symtable_get(sa->symtable, ast->lambda.arg->var.id)->state_type = NECRO_STATE_POLY;
     return necro_state_analysis_go(sa, ast->lambda.expr, outer);
 }
@@ -173,7 +169,6 @@ NECRO_STATE_TYPE necro_state_analysis_case(NecroStateAnalysis* sa, NecroCoreAST_
     NecroCoreAST_CaseAlt* alts = ast->case_expr.alts;
     while (alts != NULL)
     {
-        // TODO: Set alt state types!
         state_type = necro_merge_state_types(state_type, necro_state_analysis_go(sa, alts->expr, outer));
         alts = alts->next;
     }

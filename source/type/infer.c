@@ -709,7 +709,17 @@ NecroType* necro_infer_constant(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_CONSTANT_CHAR:
         ast->necro_type = necro_symtable_get(infer->symtable, infer->prim_types->char_type.id)->type;
         return ast->necro_type;
-    case NECRO_AST_CONSTANT_STRING:  return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: String not implemented....");
+    case NECRO_AST_CONSTANT_CHAR_PATTERN:
+        ast->necro_type = necro_symtable_get(infer->symtable, infer->prim_types->char_type.id)->type;
+        return ast->necro_type;
+    case NECRO_AST_CONSTANT_STRING:
+    {
+        NecroType* array_type = necro_make_con_1(infer, infer->prim_types->array_type, necro_symtable_get(infer->symtable, infer->prim_types->char_type.id)->type);
+        ast->necro_type  = array_type;
+        array_type->source_loc = ast->source_loc;
+        // return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: String not implemented....");
+        return array_type;
+    }
     default:                         return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Unrecognized constant type: %d", ast->constant.type);
     }
 }
@@ -842,6 +852,30 @@ NecroType* necro_infer_tuple_type(NecroInfer* infer, NecroNode* ast)
     ast->necro_type   = tuple;
     tuple->source_loc = ast->source_loc;
     return tuple;
+}
+
+///////////////////////////////////////////////////////
+// Expression Array
+///////////////////////////////////////////////////////
+NecroType* necro_infer_expression_array(NecroInfer* infer, NecroNode* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_EXPRESSION_ARRAY);
+    if (necro_is_infer_error(infer)) return NULL;
+    NecroNode* current_cell  = ast->expression_array.expressions;
+    NecroType* element_type  = necro_new_name(infer, ast->source_loc);
+    element_type->source_loc = ast->source_loc;
+    while (current_cell != NULL)
+    {
+        necro_unify(infer, element_type, necro_infer_go(infer, current_cell->list.item), ast->scope, element_type, "While inferring the type for an array: ");
+        if (necro_is_infer_error(infer)) return NULL;
+        current_cell = current_cell->list.next_item;
+    }
+    NecroType* array_type = necro_make_con_1(infer, infer->prim_types->array_type, element_type);
+    ast->necro_type  = array_type;
+    array_type->source_loc = ast->source_loc;
+    return array_type;
 }
 
 //=====================================================
@@ -1407,6 +1441,7 @@ NecroType* necro_infer_do(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Declaration groups
 //=====================================================
+// NOTE: NEW! Local bindings are mono-typed! Read up from Simon Peyton Jones why this is generally a good idea.
 NecroType* necro_infer_declaration_group(NecroInfer* infer, NecroDeclarationGroup* declaration_group)
 {
     assert(infer != NULL);
@@ -1555,8 +1590,9 @@ NecroType* necro_infer_declaration_group(NecroInfer* infer, NecroDeclarationGrou
         {
             symbol_info = necro_symtable_get(infer->symtable, ast->apats_assignment.id);
             if (symbol_info->type->pre_supplied || symbol_info->type_status == NECRO_TYPE_DONE) { symbol_info->type_status = NECRO_TYPE_DONE; curr->type_checked = true; curr = curr->next;  continue; }
+            // if (symbol_info->scope->parent == NULL)
+            // Is local binding....how to check!?
             symbol_info->type = necro_gen(infer, symbol_info->type, symbol_info->scope->parent);
-            // necro_infer_kind(infer, symbol_info->type, infer->star_kind, symbol_info->type, "While declaraing a variable: ");
             necro_kind_infer(infer, symbol_info->type, symbol_info->type, "While declaring a variable: ");
             if (necro_is_infer_error(infer)) return NULL;
             symbol_info->type->type_kind = necro_kind_gen(infer, symbol_info->type->type_kind);
@@ -1569,17 +1605,6 @@ NecroType* necro_infer_declaration_group(NecroInfer* infer, NecroDeclarationGrou
         case NECRO_AST_PAT_ASSIGNMENT:
         {
             necro_gen_pat_go(infer, ast->pat_assignment.pat);
-            // // symbol_info = necro_symtable_get(infer->symtable, ast->apats_assignment.id);
-            // // if (symbol_info->type->pre_supplied || symbol_info->type_status == NECRO_TYPE_DONE) { symbol_info->type_status = NECRO_TYPE_DONE; curr->type_checked = true; curr = curr->next;  continue; }
-            // symbol_info->type = necro_gen(infer, symbol_info->type, symbol_info->scope->parent);
-            // // necro_infer_kind(infer, symbol_info->type, infer->star_kind, symbol_info->type, "While declaraing a variable: ");
-            // necro_kind_infer(infer, symbol_info->type, symbol_info->type, "While declaring a variable: ");
-            // if (necro_is_infer_error(infer)) return NULL;
-            // symbol_info->type->type_kind = necro_kind_gen(infer, symbol_info->type->type_kind);
-            // if (necro_is_infer_error(infer)) return NULL;
-            // necro_kind_unify(infer, symbol_info->type->type_kind, infer->star_type_kind, NULL, symbol_info->type, "While declaring a variable: ");
-            // if (necro_is_infer_error(infer)) return NULL;
-            // symbol_info->type_status = NECRO_TYPE_DONE;
             break;
         }
         case NECRO_AST_DATA_DECLARATION:
@@ -1690,6 +1715,7 @@ NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_TOP_DECL:               return necro_infer_top_declaration(infer, ast);
     case NECRO_AST_TUPLE:                  return necro_infer_tuple(infer, ast);
     case NECRO_AST_EXPRESSION_LIST:        return necro_infer_expression_list(infer, ast);
+    case NECRO_AST_EXPRESSION_ARRAY:       return necro_infer_expression_array(infer, ast);
     case NECRO_AST_PAT_EXPRESSION:         return necro_infer_pat_expression(infer, ast);
     case NECRO_AST_CASE:                   return necro_infer_case(infer, ast);
     case NECRO_AST_WILDCARD:               return necro_infer_wildcard(infer, ast);

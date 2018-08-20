@@ -11,9 +11,6 @@
 
 /*
     TODO:
-        * Redo const allocation
-        * Redo apply logic for statefulness
-        * Correct GC handling for dynamic apply data_ids!
 */
 
 #define NECRO_NUM_CLOSURE_PRE_ARGS 4

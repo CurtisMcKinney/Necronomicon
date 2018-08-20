@@ -1054,8 +1054,9 @@ NecroMachineAST* necro_core_to_machine_3_lit(NecroMachineProgram* program, Necro
         return necro_create_word_float_value(program, core_ast->lit.double_literal);
     }
     case NECRO_AST_CONSTANT_CHAR:
-        assert(false);
-        return NULL;
+        // assert(false);
+        return necro_create_word_int_value(program, core_ast->lit.char_literal);
+        // return NULL;
     default:
         return NULL;
     }

@@ -667,6 +667,14 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     NecroASTNode* list_constructor_list = necro_create_ast_list(&prim_types->arena, cons_constructor, necro_create_ast_list(&prim_types->arena, nil_constructor, NULL));
     NecroPrimDef* list_data_def         = necro_prim_def_data(prim_types, intern, &prim_types->list_type, necro_create_data_declaration_ast(&prim_types->arena, intern, list_s_type, list_constructor_list));
 
+    // Maybe
+    NecroASTNode* maybe_s_type           = necro_create_simple_type_ast(&prim_types->arena, intern, "Maybe", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
+    NecroASTNode* maybe_app              = necro_create_type_app_ast(&prim_types->arena, necro_create_conid_ast(&prim_types->arena, intern, "Maybe", NECRO_CON_TYPE_VAR), necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
+    NecroASTNode* just_constructor       = necro_create_data_constructor_ast(&prim_types->arena, intern, "Just", necro_create_ast_list(&prim_types->arena, necro_create_variable_ast(&prim_types->arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), NULL));
+    NecroASTNode* nothing_constructor    = necro_create_data_constructor_ast(&prim_types->arena, intern, "Nothing", NULL);
+    NecroASTNode* maybe_constructor_list = necro_create_ast_list(&prim_types->arena, just_constructor, necro_create_ast_list(&prim_types->arena, nothing_constructor, NULL));
+    NecroPrimDef* maybe_data_def         = necro_prim_def_data(prim_types, intern, &prim_types->maybe_type, necro_create_data_declaration_ast(&prim_types->arena, intern, maybe_s_type, maybe_constructor_list));
+
     // World
     NecroASTNode* world_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "World", NULL);
     NecroPrimDef* world_data_def = necro_prim_def_data(prim_types, intern, &prim_types->world_type, necro_create_data_declaration_ast(&prim_types->arena, intern, world_s_type, NULL));
@@ -693,6 +701,7 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     necro_create_prim_num(prim_types, intern, &prim_types->float_type, "Float");
     necro_create_prim_num(prim_types, intern, &prim_types->audio_type, "Audio");
     necro_create_prim_num(prim_types, intern, &prim_types->rational_type, "Rational");
+    necro_create_prim_num(prim_types, intern, &prim_types->char_type, "Char");
 
     // Ptr
     NecroASTNode* ptr_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "Ptr", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
@@ -710,13 +719,6 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     NecroASTNode* array_con      = necro_create_data_constructor_ast(&prim_types->arena, intern, "Array", array_args);
     NecroASTNode* array_con_list = necro_create_ast_list(&prim_types->arena, array_con, NULL);
     NecroPrimDef* array_data_def = necro_prim_def_data(prim_types, intern, &prim_types->array_type, necro_create_data_declaration_ast(&prim_types->arena, intern, array_s_type, array_con_list));
-
-    // _StackArray (Allocated and freed on the stack)
-    NecroASTNode* stack_array_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "_StackArray", NULL);
-    NecroASTNode* stack_array_args     = necro_create_ast_list(&prim_types->arena, necro_create_conid_ast(&prim_types->arena, intern, "Int", NECRO_CON_TYPE_VAR), NULL);
-    NecroASTNode* stack_array_con      = necro_create_data_constructor_ast(&prim_types->arena, intern, "_StackArray", stack_array_args);
-    NecroASTNode* stack_array_con_list = necro_create_ast_list(&prim_types->arena, stack_array_con, NULL);
-    NecroPrimDef* stack_array_data_def = necro_prim_def_data(prim_types, intern, &prim_types->_stack_array_type, necro_create_data_declaration_ast(&prim_types->arena, intern, stack_array_s_type, stack_array_con_list));
 
     // _Closure
     NecroASTNode* closure_s_type   = necro_create_simple_type_ast(&prim_types->arena, intern, "_Closure", necro_create_var_list_ast(&prim_types->arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));

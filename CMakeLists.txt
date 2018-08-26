@@ -75,6 +75,7 @@ set(project_SOURCES
 
     source/core/core.c
     source/core/closure_conversion.c
+    source/core/state_analysis.c
     source/core/core_pretty_print.c
     source/core/core_create.c
 
@@ -123,6 +124,7 @@ set(project_HEADERS
 
     source/core/core.h
     source/core/closure_conversion.h
+    source/core/state_analysis.h
     source/core/core_pretty_print.h
     source/core/core_create.h
 

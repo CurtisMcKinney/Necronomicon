@@ -10,9 +10,10 @@
 #include "core_create.h"
 
 /*
-    Closure layout: { farity, num_pargs, fn_ptr, pargs... }
+    Closure layout: { farity, num_pargs, dyn_state, fn_ptr, pargs... }
     * farity:    function arity
     * num_pargs: number of partially applied args
+    * dyn_state: dyn state object, NULL if not stateful
     * fn_ptr:    function pointer
 
     (implied)
@@ -39,7 +40,8 @@ typedef struct NecroClosureConversion
     NecroPrimTypes*       prim_types;
     NecroInfer*           infer;
     NecroCon              closure_con;
-    NecroCon              stack_array_con;
+    NecroCon              dyn_state_con;
+    NecroCon              null_con;
     NECRO_CC_STATE        cc_state;
     NecroClosureDefVector closure_defs;
 } NecroClosureConversion;
@@ -68,7 +70,8 @@ NecroCoreAST necro_closure_conversion(NecroCoreAST* in_ast, NecroIntern* intern,
         .cc_state         = NECRO_CC_EXPR,
         .closure_con      = necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_Closure")),
         .closure_defs     = necro_create_closure_def_vector(),
-        .stack_array_con  = necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_StackArray")),
+        .dyn_state_con    = necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_DynState")),
+        .null_con         = necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_NullPoly")),
     };
     necro_add_closure_def(&cc, 1, 0); // NOTE: We don't want an empty closure def vector, otherwise apply functions get wonky
     NecroCoreAST_Expression* out_ast = necro_closure_conversion_go(&cc, in_ast->root);
@@ -106,6 +109,42 @@ void necro_print_closure_defs(NecroClosureConversion* cc)
     for (size_t i = 0; i < cc->closure_defs.length; ++i)
     {
         printf("NecroClosureDef { .fn_arity = %d, .num_pargs = %d }\n", cc->closure_defs.data[i].fn_arity, cc->closure_defs.data[i].num_pargs);
+    }
+}
+
+size_t necro_get_arity(NecroClosureConversion* cc, NecroSymbolInfo* info)
+{
+    if (info->arity != -1)
+    {
+        return info->arity;
+    }
+    else
+    {
+        // This is some primitive value which doesn't have a proper body
+        // Calculate naive arity based on type
+        // TODO: Some way to assert that this is infact a primitive type and a bug has not occured.
+        // assert(info->ast == NULL); // Not all primitives are completely without a normal ast, so this doesn't work.
+        assert(info->core_ast == NULL);
+        assert(info->type != NULL);
+        size_t     arity = 0;
+        NecroType* type  = info->type;
+        while (type->type == NECRO_TYPE_FOR)
+        {
+            NecroTypeClassContext* context = type->for_all.context;
+            while (context != NULL)
+            {
+                arity++;
+                context = context->next;
+            }
+            type = type->for_all.type;
+        }
+        while (type->type == NECRO_TYPE_FUN)
+        {
+            arity++;
+            type = type->fun.type2;
+        }
+        info->arity = arity;
+        return arity;
     }
 }
 
@@ -247,16 +286,25 @@ NecroCoreAST_Expression* necro_closure_conversion_var(NecroClosureConversion* cc
     NecroSymbolInfo*         info    = necro_symtable_get(cc->symtable, in_ast->var.id);
     NecroCoreAST_Expression* var_ast = necro_create_core_var(&cc->arena, in_ast->var);
     var_ast->necro_type              = info->type;
-    if (info->arity > 0)
+    int32_t                  arity   = necro_get_arity(cc, info);
+    if (arity > 0)
     {
         necro_add_closure_def(cc, info->arity, 0);
+        NecroCoreAST_Expression* state_ast =
+            necro_create_core_app(&cc->arena,
+                necro_create_core_app(&cc->arena,
+                    necro_create_core_var(&cc->arena, necro_con_to_var(cc->dyn_state_con)),
+                    necro_create_core_var(&cc->arena, var_ast->var)),
+                necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER }));
         NecroCoreAST_Expression* con_ast =
             necro_create_core_app(&cc->arena,
                 necro_create_core_app(&cc->arena,
                     necro_create_core_app(&cc->arena,
-                        necro_create_core_var(&cc->arena, necro_con_to_var(cc->closure_con)),
-                        necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = info->arity, .type = NECRO_AST_CONSTANT_INTEGER })),
-                    necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER })),
+                        necro_create_core_app(&cc->arena,
+                            necro_create_core_var(&cc->arena, necro_con_to_var(cc->closure_con)),
+                            necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = info->arity, .type = NECRO_AST_CONSTANT_INTEGER })),
+                        necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER })),
+                    state_ast),
                 var_ast);
         return con_ast;
     }
@@ -470,42 +518,6 @@ NecroCoreAST_Expression* necro_closure_conversion_data_con(NecroClosureConversio
 
 NECRO_DECLARE_ARENA_LIST(NecroCoreAST_Expression*, CoreAST, core_ast);
 
-size_t necro_get_arity(NecroClosureConversion* cc, NecroSymbolInfo* info)
-{
-    if (info->arity != -1)
-    {
-        return info->arity;
-    }
-    else
-    {
-        // This is some primitive value which doesn't have a proper body
-        // Calculate naive arity based on type
-        // TODO: Some way to assert that this is infact a primitive type and a bug has not occured.
-        // assert(info->ast == NULL); // Not all primitives are completely without a normal ast, so this doesn't work.
-        assert(info->core_ast == NULL);
-        assert(info->type != NULL);
-        size_t     arity = 0;
-        NecroType* type  = info->type;
-        while (type->type == NECRO_TYPE_FOR)
-        {
-            NecroTypeClassContext* context = type->for_all.context;
-            while (context != NULL)
-            {
-                arity++;
-                context = context->next;
-            }
-            type = type->for_all.type;
-        }
-        while (type->type == NECRO_TYPE_FUN)
-        {
-            arity++;
-            type = type->fun.type2;
-        }
-        info->arity = arity;
-        return arity;
-    }
-}
-
 NecroCoreAST_Expression* necro_closure_conversion_app(NecroClosureConversion* cc, NecroCoreAST_Expression* in_ast)
 {
     assert(cc != NULL);
@@ -539,16 +551,23 @@ NecroCoreAST_Expression* necro_closure_conversion_app(NecroClosureConversion* cc
     else if (difference > 0)
     {
         necro_add_closure_def(cc, arity, num_args);
+        NecroCoreAST_Expression* state_ast =
+            necro_create_core_app(&cc->arena,
+                necro_create_core_app(&cc->arena,
+                    necro_create_core_var(&cc->arena, necro_con_to_var(cc->dyn_state_con)),
+                    necro_create_core_var(&cc->arena, app->var)),
+                necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER }));
         NecroCoreAST_Expression* result =
                 necro_create_core_app(&cc->arena,
                     necro_create_core_app(&cc->arena,
-                        necro_create_core_var(&cc->arena, necro_con_to_var(cc->closure_con)),
-                        necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = arity, .type = NECRO_AST_CONSTANT_INTEGER })),
-                    necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = num_args, .type = NECRO_AST_CONSTANT_INTEGER }));
+                        necro_create_core_app(&cc->arena,
+                            necro_create_core_var(&cc->arena, necro_con_to_var(cc->closure_con)),
+                            necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = arity, .type = NECRO_AST_CONSTANT_INTEGER })),
+                        necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = num_args, .type = NECRO_AST_CONSTANT_INTEGER })),
+                    state_ast);
         result = necro_create_core_app(&cc->arena, result, necro_create_core_var(&cc->arena, app->var));
         while (args != NULL)
         {
-            // difference--;
             result = necro_create_core_app(&cc->arena, result, args->data);
             args = args->next;
         }
@@ -564,9 +583,7 @@ NecroCoreAST_Expression* necro_closure_conversion_app(NecroClosureConversion* cc
             result = necro_create_core_app(&cc->arena, result, args->data);
             args = args->next;
         }
-        // result = necro_create_core_app(&cc->arena, necro_create_core_var(&cc->arena, necro_con_to_var(cc->prim_types->apply_fn)), result);
         result = necro_create_core_app(&cc->arena, necro_create_core_var(&cc->arena, necro_con_to_var(cc->prim_types->apply_fn)), result);
-        // result = necro_create_core_app(&cc->arena, result, necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = -difference, .type = NECRO_AST_CONSTANT_INTEGER }));
 
         while (args != NULL)
         {
@@ -575,21 +592,9 @@ NecroCoreAST_Expression* necro_closure_conversion_app(NecroClosureConversion* cc
             args = args->next;
         }
 
-        // NecroCoreAST_Expression* arg_array = necro_create_core_var(&cc->arena, necro_con_to_var(cc->stack_array_con));
-                // necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = -difference, .type = NECRO_AST_CONSTANT_INTEGER }));
-        // while (args != NULL)
-        // {
-        //     difference++;
-        //     arg_array = necro_create_core_app(&cc->arena, arg_array, args->data);
-        //     args = args->next;
-        // }
-
-        // result = necro_create_core_app(&cc->arena, result, arg_array);
-
         assert(difference == 0);
         return result;
     }
-    // TODO: Functions stored in data types are ALSO closures!!!!
 }
 
 ///////////////////////////////////////////////////////

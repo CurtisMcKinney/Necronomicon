@@ -1,191 +1,109 @@
-latch :: a -> Event a -> a
-latch x _ = x
+-- Patterns are a simple and naive function wrapper,
+-- giving simple and easy to reason about Call-by-name semantics
 
-poly :: Num a => (a -> a) -> Event a -> a
-poly _ _ = 0
+data Time
+  = Time Int
 
-id :: a -> a
-id x = x
+data Event a
+  = Event [(Time, a)]
 
-speed :: Rational -> Pattern a -> Pattern a
-speed _ x = x
+data PVal a
+  = PPlay  (Event a)
+  | PYield (Event a)
+  | PDone
 
--- psample :: a -> Pattern a
+data Patterna a
+  = Pattern (Time -> PVal a)
 
--- play :: Pattern a -> Event a
--- play _
+runPattern :: Pattern a -> Time -> PVal a
+runPattern p t =
+  case p of
+    Pattern f ->
+      f t
 
--- coolSynth :: Audio
--- coolSynth = poly id <| play patTest
+playPattern :: Pattern a -> Event a
+playPattern p =
+  case runPattern p 1 of
+    PPlay  e -> e
+    PYield e -> e
+    PDone    -> Event []
 
--- TODO: Pattern list/Tuples
+desugarBeat :: PatternAudio
+desugarBeat =
+  Pattern sugarBeatPat
 
--- seq vs pat:
--- seq is a series of patterns, each pattern plays out before moving to the next
--- beat is a series of patterns, where each slot is played for the duration of that beat before moving on to the next
--- par is a series of patterns, where each  slots is playing in parallel and you get the value of that beat at that moment
--- TODO: How to implement?!?!?!
--- Via reification by 'play'
--- play :: Pattern a -> Tempo -> a
+seqYieldAndIncrement :: Int -> Int -> PVal a -> (Int, PVal a)
+seqYieldAndIncrement i max pv =
+  case pv of
+    PYield ev ->
+      if (i + 1) >= max
+        then (0, pv)
+        else (i + 1, PPlay ev)
+    _ ->
+      (i, pv)
 
--- Wrong semantics
-patTest :: Pattern Audio
-patTest = beat
-    0 z _ x
-    _ 3 y z
-    where
-        x = 0.5 * 2
-        y = beat 0 _ 1 _
-        z = 666 * 323
+beatYieldAndIncrement :: Int -> Int -> PVal a -> (Int, PVal a)
+beatYieldAndIncrement i max pv =
+  if (i + 1) >= max then
+    case pv of
+      PDone    -> (0, PDone)
+      PPlay ev -> (0, PYield ev)
+      _        -> (0, pv)
+  else
+    case pv of
+      PDone     -> (i + 1, PDone)
+      PYield ev -> (i + 1, PPlay ev)
+      _         -> (i + 1, pv)
 
--- Using "Demand" types
-patTest :: Demand (Pattern Audio)
-patTest = beat
-    0 z _ x
-    _ 3 y z
-    where
-        x = 0.5 * 2
-        y = beat 0 _ 1 _
-        z = 666 * 323
+-- Note:
+--    * All must be Yield to Yield
+--    * If any one is Done, all are Done.
 
--- Using "Call by Name" semantics
-patTest :: Pattern Audio
-patTest = seq
-    0 z _ x
-    _ 3 y z
-    where
-        x = 0.5 * 2
-        y ~= seq 0 _ 1 _
-        z = 666 * 323
-
-patTest :: Pattern Audio
-patTest = do
-    x <- 0.5 * 2
-    y <- beat 0 _ 1 _
-    z <- 666 * 323
-    beat 0 z _ x
-         _ 3 y z
-
--- Applicative functor form / syntax with actual sharing between slots
-patTest :: Pattern Audio
-patTest = beat
-    0 z _ x
-    _ 3 y z
-    demand
-        x =  0.5 * 2
-        y <- 666 * 323
-        z =  beat 0 _ 1 _
-
-patTest :: Pattern Audio
-patTest <=
-    0 z _ x
-    _ 3 y z |
-        x <= 0.5 * 2
-        y <= 0 _ 1 _
-        z <= 666 * 323
-        w <= m n o _ p q
-
--- True lazy via types with pat syntax desugaring
--- lazy types, but where memo chains are broken at frame end to prevent space leaks and incorrect evaluation.
--- Like Idris, lazy and force are implicitly inserted by compiler to make things easier
-beatTest :: Music Audio
-beatTest =
-    beat
-        0 z _ x
-        _ 3 y z
-    where
-        x = 0.5 * 2
-        y = beat 0 _ 1 _
-        z = 666 * 323
-
-poly :: (a -> b) -> Music a -> b
-beat :: [Lazy (Music a)] -> Music a
-
-synth :: Audio -> Audio
-synth freq = osc
-    where
-        osc = 440 * mouseX + freq * 0 `fby` osc |> sinOsc
-
-coolBeat :: Music Audio
-coolBeat = d2f minor <| beat
-    x y (y+y) z
-    _ x [5 z] x
-    _ 0 [1 2] y
-    where
-        x = beat 0 _ [1 2] -1
-        y = 3
-        z = sample mouseX / 100
-
-main :: Audio
-main = poly synth coolBeat
-
-desugarBeat :: Music Audio
-desugarBeat = beat x y x 1 where
+sugarPat :: Pattern Audio
+sugarPat =
+  seq x y (x + y) 1
+  where
     x = beat 1 2 3 4
-    y = beat 4 3 2 1
+    y = beat 3 2 1
 
--- Thunks overwrite themselves just like in Haskell? This would prevent space leaks for fbys?!
-desugarBeat :: Music Audio
-desugarBeat = force (desugarBeatGo x y) where
-    x = 1 `fby` 2 `fby` 3 `fby` 4 `fby` x
-    y = 4 `fby` 3 `fby` 2 `fby` 1 `fby` y
-    desugarBeatGo x y =
-        let x' = force x in value x' `fby`
-            (\x y -> let y' = force y in value y' `fby`
-                         (\x y -> let x' = force x in value x' `fby`
-                                      (\x y -> 1 fby desugarBeatGo x y) x' y) x y') x' y
+seq :: Array (Pattern a) -> Pattern a
+seq ps =
+  Pattern pf
+  where
+    pf t = pval
+      where
+        (i ~ 0, pval) = foldl (seqPlayYieldIncrement i (length ps) t) ps
 
+beat :: Array (Pattern a) -> Pattern a
+beat ps =
+  Pattern pf
+  where
+    pf t = pval
+      where
+        (i ~ 0, pval) = foldl (beatPlayYieldIncrement i (length ps) t) ps
 
--- New idea, simple and naive patterns with concrete accumulator type
--- Should actually return a vec of values
-Pattern a
-  = Pattern (PatternState -> (a, PatternPlayState, PatternState))
+demand :: (Time -> a) -> Pattern a
+demand f = Pattern (PYield . f)
 
-PatternPlayState
-  = PatternPlaying
-  | PatternDone
+interlace :: Array (Pattern a) -> Pattern Int -> Pattern a
+interlace = ...
 
-PatternState
-  = SeqState  Int (Vec PatternState)
-  | BeatState Int (Vec PatternState)
-  | ParState  Int
-  | PatVal
-  | TupleState (Vec PatternState)
-  | InitState
-
-sugarBeat :: Pattern Audio
-sugarBeat = seq x y x 1 where
+interlaceBeat :: Pattern Audio
+interlaceBeat =
+  interlace {x, y} <| beat
+  0 _ [1 0] _
+  where
     x = beat 1 2 3 4
-    y = beat 4 3 2 1
+    y = beat 3 2 1
 
--- desugar
-
-patAnon1 :: PatternState -> (a, PatternPlayState, PatternState)
-patAnon1 s =
-  case s of
-    InitState ->
-      patAnon1 (SeqState 0 [InitState, InitState])
-
-    SeqState 0 [xState, yState] ->
-      case patX xState of
-        (x, PatternDone, xState') ->
-          (x, PatternPlaying, SeqState 1 [xState', yState])
-
-        (x, _, xState') ->
-          (x, SeqState 0 [xState', yState])
-
-    SeqState 1 [xState, yState] ->
-      case patY yState of
-        (y, PatternDone, yState') ->
-          (y, SeqState 2 [xState, yState'])
-
-        (y, _, yState') ->
-          (y, SeqState 1 [xState, yState'])
-
-playPattern :: Pattern a
-playPattern p = p' where
-  (p', _, pState ~ InitState) = runPattern p pState
-
-desugarBeat :: Pattern Audio
-desugarBeat = Pattern patAnon1 initPatAnon1State
+coolBeat :: Pattern Audio
+coolBeat =
+  map (d2f minor) <| seq
+  x y (y+y) z
+  _ x [5 z] x
+  _ 0 [1 2] y
+  where
+    x = beat 0 _ [1 2] 1
+    y = 3
+    z = pure mouseX / 100
 

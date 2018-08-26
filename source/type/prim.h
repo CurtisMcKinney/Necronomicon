@@ -140,10 +140,11 @@ typedef struct NecroPrimTypes
     NecroCon          pattern_type;
     NecroCon          delay_fn;
     NecroCon          closure_type;
-    NecroCon          _stack_array_type;
     NecroCon          apply_fn;
     NecroCon          ptr_type;
-    NecroCon          vector_type;
+    NecroCon          array_type;
+    NecroCon          dyn_state_type;
+    NecroCon          maybe_type;
 
     // Runtime functions
     NecroCon          mouse_x_fn;

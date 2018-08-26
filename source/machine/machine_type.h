@@ -18,13 +18,6 @@ struct NecroMachineProgram;
 
 typedef enum
 {
-    NECRO_STATE_CONSTANT  = 0,
-    NECRO_STATE_POINTWISE = 1,
-    NECRO_STATE_STATEFUL  = 2,
-} NECRO_STATE_TYPE;
-
-typedef enum
-{
     NECRO_LANG_CALL,
     NECRO_C_CALL,
 } NECRO_MACHINE_CALL_TYPE;

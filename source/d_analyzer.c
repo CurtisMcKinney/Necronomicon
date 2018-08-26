@@ -9,6 +9,15 @@
 #include "type_class.h"
 #include "d_analyzer.h"
 
+///////////////////////////////////////////////////////
+// Forward Declarations
+///////////////////////////////////////////////////////
+void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast);
+void necro_set_pat_assignment_rec(NecroSymTable* symtable, NecroNode* ast, NecroDeclarationGroup* group);
+
+///////////////////////////////////////////////////////
+// Dependency Analysis
+///////////////////////////////////////////////////////
 void necro_strong_connect1(NecroDeclarationGroup* group)
 {
     group->index    = group->info->index;
@@ -21,11 +30,9 @@ void necro_strong_connect1(NecroDeclarationGroup* group)
 
 void necro_strong_connect2(NecroPagedArena* arena, NecroDeclarationGroup* group)
 {
-    // This might actually just construct things how we require them in dependency order?
     // If we're a root node
     if (group->low_link == group->index)
     {
-        // group->info->group_lists                                = necro_prepend_declaration_group_list(arena, group, group->info->group_lists);
         if (group->info->group_lists->declaration_group != NULL)
             necro_append_declaration_group_list(arena, NULL, group->info->group_lists);
         NecroDeclarationGroupList* strongly_connected_component = group->info->group_lists;
@@ -36,7 +43,6 @@ void necro_strong_connect2(NecroPagedArena* arena, NecroDeclarationGroup* group)
             w = necro_pop_declaration_group_vector(&group->info->stack);
             assert(w != NULL);
             w->on_stack = false;
-            // necro_append_declaration_group_to_group_in_group_list(arena, strongly_connected_component, w);
             necro_prepend_declaration_group_to_group_in_group_list(arena, strongly_connected_component, w);
         } while (w != group);
         assert(strongly_connected_component->declaration_group != NULL);
@@ -44,7 +50,6 @@ void necro_strong_connect2(NecroPagedArena* arena, NecroDeclarationGroup* group)
     }
 }
 
-void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast);
 void d_analyze_var(NecroDependencyAnalyzer* d_analyzer, NecroID id)
 {
     NecroSymbolInfo* symbol_info = necro_symtable_get(d_analyzer->symtable, id);
@@ -70,7 +75,7 @@ void d_analyze_var(NecroDependencyAnalyzer* d_analyzer, NecroID id)
             w->info->current_group->declaration_ast->simple_assignment.is_recursive = true;
             necro_symtable_get(d_analyzer->symtable, w->info->current_group->declaration_ast->simple_assignment.id)->is_recursive = true;
         }
-        if (w->info->current_group->declaration_ast->type == NECRO_AST_DATA_DECLARATION)
+        else if (w->info->current_group->declaration_ast->type == NECRO_AST_DATA_DECLARATION)
         {
             w->info->current_group->declaration_ast->data_declaration.is_recursive = true;
             necro_symtable_get(d_analyzer->symtable, w->info->current_group->declaration_ast->data_declaration.simpletype->simple_type.type_con->conid.id)->is_recursive = true;
@@ -226,7 +231,6 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
             case NECRO_AST_TYPE_SIGNATURE:
                 curr->top_declaration.declaration->type_signature.declaration_group->info = info;
                 break;
-            // NOTE: Should never reach
             default: assert(false); break;
             }
             curr = curr->declaration.next_declaration;
@@ -334,7 +338,6 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         break;
     }
 
-    // TODO: Force type signatures first! How?
     case NECRO_AST_PAT_ASSIGNMENT:
         if (ast->pat_assignment.declaration_group->index != -1) return;
         assert(ast->pat_assignment.declaration_group != NULL);
@@ -355,7 +358,6 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         break;
 
     case NECRO_AST_TYPE_CLASS_DECLARATION:
-        // TODO: Circular reference detection
         if (ast->type_class_declaration.declaration_group->index != -1) return;
         assert(ast->type_class_declaration.declaration_group != NULL);
         assert(ast->type_class_declaration.declaration_group->next == NULL);
@@ -407,6 +409,8 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         case NECRO_VAR_CLASS_SIG:            break;
         default: assert(false);
         }
+        if (ast->variable.initializer != NULL)
+            d_analyze_go(d_analyzer, ast->variable.initializer);
         break;
 
     case NECRO_AST_CONID:
@@ -475,14 +479,8 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
     case NECRO_AST_EXPRESSION_LIST:
         d_analyze_go(d_analyzer, ast->expression_list.expressions);
         break;
-    case NECRO_AST_DELAY:
-        d_analyze_go(d_analyzer, ast->delay.init_expr);
-        d_analyze_go(d_analyzer, ast->delay.delayed_var);
-        break;
-    case NECRO_AST_TRIM_DELAY:
-        d_analyze_go(d_analyzer, ast->trim_delay.int_literal);
-        d_analyze_go(d_analyzer, ast->trim_delay.init_expr);
-        d_analyze_go(d_analyzer, ast->trim_delay.delayed_var);
+    case NECRO_AST_EXPRESSION_ARRAY:
+        d_analyze_go(d_analyzer, ast->expression_array.expressions);
         break;
     case NECRO_AST_PAT_EXPRESSION:
         d_analyze_go(d_analyzer, ast->pattern_expression.expressions);

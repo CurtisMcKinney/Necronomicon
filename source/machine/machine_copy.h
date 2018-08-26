@@ -20,9 +20,9 @@ struct NecroMachineAST;
 
 #define NECRO_NULL_DATA_ID    0
 #define NECRO_SELF_DATA_ID    1
-// TODO: NECRO_DYNAMIC_DATA_ID
 #define NECRO_UNBOXED_DATA_ID 2
-#define NECRO_APPLY_DATA_ID   3
+#define NECRO_DYNAMIC_DATA_ID 3
+#define NECRO_APPLY_DATA_ID   4
 
 typedef struct NecroConstructorInfo
 {

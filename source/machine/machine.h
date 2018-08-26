@@ -32,9 +32,7 @@
 
 /*
     TODO:
-        * closures
         * necro_verify_machine_program
-
 */
 
 ///////////////////////////////////////////////////////
@@ -185,7 +183,7 @@ typedef struct NecroMachineDef
     bool                    is_pushed;
     bool                    is_recursive;
     bool                    is_persistent_slot_set;
-    NECRO_STATE_TYPE        most_stateful_type_referenced;
+    // NECRO_STATE_TYPE        most_stateful_type_referenced;
 
     // args
     NecroVar*               arg_names;
@@ -314,11 +312,17 @@ typedef struct NecroMachineBitCast
     struct NecroMachineAST* to_value;
 } NecroMachineBitCast;
 
+typedef struct NecroMachineZExt
+{
+    struct NecroMachineAST* from_value;
+    struct NecroMachineAST* to_value;
+} NecroMachineZExt;
+
 typedef struct NecroMachineNAlloc
 {
     NecroMachineType*       type_to_alloc;
     uint32_t                slots_used;
-    bool                    is_constant;
+    // bool                    is_constant;
     struct NecroMachineAST* result_reg;
 } NecroMachineNAlloc;
 
@@ -338,6 +342,7 @@ typedef enum
     NECRO_MACHINE_BINOP_FSUB,
     NECRO_MACHINE_BINOP_FMUL,
     NECRO_MACHINE_BINOP_FDIV,
+    NECRO_MACHINE_BINOP_AND,
     NECRO_MACHINE_BINOP_OR,
     NECRO_MACHINE_BINOP_SHL,
     NECRO_MACHINE_BINOP_SHR,
@@ -423,6 +428,7 @@ typedef enum
     NECRO_MACHINE_STORE,
     NECRO_MACHINE_NALLOC,
     NECRO_MACHINE_BIT_CAST,
+    NECRO_MACHINE_ZEXT,
     NECRO_MACHINE_GEP,
     NECRO_MACHINE_BINOP,
     NECRO_MACHINE_CMP,
@@ -453,6 +459,7 @@ typedef struct NecroMachineAST
         NecroMachineConstantDef   constant;
         NecroMachineGetElementPtr gep;
         NecroMachineBitCast       bit_cast;
+        NecroMachineZExt          zext;
         NecroMachineNAlloc        nalloc;
         NecroMachineAlloca        alloca;
         NecroMachineBinOp         binop;
@@ -475,9 +482,11 @@ typedef struct NecroRuntime
     NecroVar _necro_error_exit;
     NecroVar _necro_sleep;
     NecroVar _necro_print;
+    NecroVar _necro_debug_print;
     NecroVar _necro_from_alloc;
     NecroVar _necro_to_alloc;
-    NecroVar _necro_const_alloc;
+    // NecroVar _necro_const_alloc;
+    NecroVar _necro_flip_const;
     NecroVar _necro_copy_gc_initialize_root_set;
     NecroVar _necro_copy_gc_set_root;
     NecroVar _necro_copy_gc_collect;
@@ -524,9 +533,11 @@ typedef struct NecroMachineProgram
     NecroMachineAST*      program_main;
     NecroMachineRuntime   runtime;
     NecroMachineCopyTable copy_table;
-    NecroCon              stack_array_con;
+    NecroCon              dyn_state_con;
+    NecroCon              null_con;
 
     // Closures
+    NecroMachineType*      dyn_state_type;
     NecroCon               closure_con;
     NecroMachineType*      closure_type;
     NecroClosureConVector  closure_cons;
@@ -534,6 +545,7 @@ typedef struct NecroMachineProgram
     NecroClosureDefVector  closure_defs;
     NecroMachineType*      apply_state_type;
     NecroApplyFnVector     apply_fns;
+    NecroMachineAST*       get_apply_state_fn;
 } NecroMachineProgram;
 
 ///////////////////////////////////////////////////////
@@ -545,5 +557,7 @@ void                necro_core_to_machine_1_go(NecroMachineProgram* program, Nec
 void                necro_core_to_machine_2_go(NecroMachineProgram* program, NecroCoreAST_Expression* core_ast, NecroMachineAST* outer);
 NecroMachineAST*    necro_core_to_machine_3_go(NecroMachineProgram* program, NecroCoreAST_Expression* core_ast, NecroMachineAST* outer);
 NECRO_WORD_SIZE     necro_get_word_size();
+void                necro_build_debug_print(NecroMachineProgram* program, NecroMachineAST* fn_def, int print_value, bool should_print);
+void                necro_build_debug_print_value(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* print_value, bool should_print);
 
 #endif // NECRO_MACHINE_H

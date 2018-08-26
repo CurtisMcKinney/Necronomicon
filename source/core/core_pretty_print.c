@@ -4,6 +4,7 @@
  */
 
 #include "core_pretty_print.h"
+#include "machine/machine_type.h"
 
 void necro_core_pretty_print_go(NecroCoreAST_Expression* ast, NecroSymTable* symtable, NecroIntern* intern, size_t depth);
 
@@ -184,7 +185,22 @@ void necro_core_pretty_print_go(NecroCoreAST_Expression* ast, NecroSymTable* sym
             if (ast->list.expr->expr_type == NECRO_CORE_EXPR_BIND)
             {
                 NecroSymbolInfo* info = necro_symtable_get(symtable, ast->list.expr->bind.var.id);
-                printf("\n(arity = %d, isRecursive = %s)", info->arity, ast->list.expr->bind.is_recursive ? "true" : "false");
+                printf("\n(arity = %d, isRecursive = %s, stateType = ", info->arity, ast->list.expr->bind.is_recursive ? "true" : "false");
+                switch (info->state_type)
+                {
+                case NECRO_STATE_POLY:
+                    printf(" Poly)");
+                    break;
+                case NECRO_STATE_CONSTANT:
+                    printf(" Constant)");
+                    break;
+                case NECRO_STATE_POINTWISE:
+                    printf(" Pointwise)");
+                    break;
+                case NECRO_STATE_STATEFUL:
+                    printf(" Stateful)");
+                    break;
+                }
             }
             if (ast->list.next != NULL)
                 printf("\n\n");

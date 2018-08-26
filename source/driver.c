@@ -22,6 +22,7 @@
 #include "d_analyzer.h"
 #include "driver.h"
 #include "core/core.h"
+#include "core/state_analysis.h"
 #include "core/closure_conversion.h"
 #include "machine/machine.h"
 #include "machine/machine_print.h"
@@ -213,8 +214,8 @@ void necro_compile_impl(
     necro_infer(infer, ast_r->root);
     if (compilation_phase == NECRO_PHASE_INFER)
     {
-        necro_symtable_print(&symtable);
-        necro_print_type_classes(infer);
+        // necro_symtable_print(&symtable);
+        // necro_print_type_classes(infer);
         necro_print_env_with_symtable(&symtable, infer);
     }
     *destruct_flags |= BIT(NECRO_PHASE_INFER);
@@ -270,6 +271,21 @@ void necro_compile_impl(
     NecroCoreAST          cc_core = necro_closure_conversion(ast_core, &lexer->intern, &symtable, &scoped_symtable, &prim_types, infer, &closure_defs);
     necro_stop_and_report_timer(timer, "closure_conversion");
     if (compilation_phase == NECRO_PHASE_CLOSURE_CONVERSION)
+    {
+        necro_core_pretty_print(&cc_core, &symtable);
+        // necro_print_core(&cc_core, &lexer->intern);
+        return;
+    }
+
+    //=====================================================
+    // State Analysis
+    //=====================================================
+    if (compilation_phase != NECRO_PHASE_JIT)
+        necro_announce_phase("State Analysis");
+    necro_start_timer(timer);
+    necro_state_analysis(&cc_core, &lexer->intern, &symtable, &scoped_symtable, &prim_types, infer);
+    necro_stop_and_report_timer(timer, "state_analysis");
+    if (compilation_phase == NECRO_PHASE_STATE_ANALYSIS)
     {
         necro_core_pretty_print(&cc_core, &symtable);
         // necro_print_core(&cc_core, &lexer->intern);
@@ -398,26 +414,16 @@ void necro_test(NECRO_TEST test)
 {
     switch (test)
     {
-    // case NECRO_TEST_VM:                necro_test_vm();                break;
-    // case NECRO_TEST_DVM:               necro_test_dvm();               break;
     case NECRO_TEST_SYMTABLE:          necro_symtable_test();          break;
-    // case NECRO_TEST_SLAB:              necro_test_slab();              break;
-    // case NECRO_TEST_TREADMILL:         necro_test_treadmill();         break;
     case NECRO_TEST_LEXER:             necro_test_lexer();             break;
     case NECRO_TEST_INTERN:            necro_test_intern();            break;
-    case NECRO_TEST_VAULT:             necro_vault_test();             break;
-    case NECRO_TEST_ARCHIVE:           necro_archive_test();           break;
-    case NECRO_TEST_REGION:            necro_region_test();            break;
     case NECRO_TEST_INFER:             necro_test_infer();             break;
     case NECRO_TEST_TYPE:              necro_test_type();              break;
     case NECRO_TEST_ARENA_CHAIN_TABLE: necro_arena_chain_table_test(); break;
     case NECRO_TEST_ALL:
-        // necro_test_dvm();
         necro_symtable_test();
         necro_test_lexer();
         necro_test_intern();
-        necro_archive_test();
-        necro_region_test();
         necro_test_infer();
         necro_test_type();
         necro_arena_chain_table_test();

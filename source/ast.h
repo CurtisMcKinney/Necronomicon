@@ -358,23 +358,12 @@ typedef struct
 } NecroAST_ExpressionList_Reified;
 
 //=====================================================
-// AST Delay
+// AST Expression Array
 //=====================================================
 typedef struct
 {
-    struct NecroAST_Node_Reified* init_expr;
-    struct NecroAST_Node_Reified* delayed_var;
-} NecroAST_Delay_Reified;
-
-//=====================================================
-// AST TrimDelay
-//=====================================================
-typedef struct
-{
-    struct NecroAST_Node_Reified* int_literal;
-    struct NecroAST_Node_Reified* init_expr;
-    struct NecroAST_Node_Reified* delayed_var;
-} NecroAST_TrimDelay_Reified;
+    struct NecroAST_Node_Reified* expressions; // NecroAST_ListNode of expressions
+} NecroAST_ExpressionArray_Reified;
 
 //=====================================================
 // AST Tuple
@@ -410,6 +399,8 @@ typedef struct
     NecroID                       id;
     NECRO_VAR_TYPE                var_type;
     struct NecroTypeClassContext* inst_context;
+    struct NecroAST_Node_Reified* initializer;
+    bool                          is_recursive;
 } NecroAST_Variable_Reified;
 
 //=====================================================
@@ -501,8 +492,7 @@ typedef struct NecroAST_Node_Reified
         NecroAST_Do_Reified                   do_statement;
         NecroAST_ListNode_Reified             list;
         NecroAST_ExpressionList_Reified       expression_list;
-        NecroAST_Delay_Reified                delay;
-        NecroAST_TrimDelay_Reified            trim_delay;
+        NecroAST_ExpressionArray_Reified      expression_array;
         NecroAST_Tuple_Reified                tuple;
         NecroAST_BindAssignment_Reified       bind_assignment;
         NecroAST_PatBindAssignment_Reified    pat_bind_assignment;
@@ -527,7 +517,6 @@ typedef struct NecroAST_Node_Reified
     NecroAST_NodeType       type;
     NecroSourceLoc          source_loc;
     struct NecroScope*      scope;
-    struct NecroDelayScope* delay_scope; // TODO: perhaps replace with simple bool?
     struct NecroType*       necro_type;
 } NecroAST_Node_Reified;
 

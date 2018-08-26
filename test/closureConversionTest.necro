@@ -1,148 +1,35 @@
--- data Both a b = Both a b
--- data List a   = Cons a (List a) | Nil
---
--- main :: Int
--- -- main = bombGoesBoom (FBomb addOne)
--- -- main = polyBoom (FBomb addOne) 665
--- main = doit countList coolList
---
--- countList :: List a -> Int
--- countList xs =
---     case xs of
---         Cons _ xs' -> 1 + countList xs'
---         Nil        -> 0
--- coolList :: List ()
--- coolList = Cons () (Cons () Nil)
---
--- doit :: (a -> b) -> a -> b
--- doit f x = f x
---
--- addOne :: Int -> Int
--- addOne x = x + 1
---
--- addOne' :: Int -> Int
--- addOne' = addOne
---
--- useAddOne' :: Int
--- useAddOne' = addOne' 666
---
--- addTwo :: Int -> Int -> Int
--- addTwo x y = x + y
---
--- addTwo' :: Int -> Int -> Int
--- addTwo' x = addTwo x
---
--- addTwo'' :: Int -> Int -> Int
--- addTwo'' = addTwo
---
--- useAddTwo' :: Int -> Int -> Int
--- useAddTwo' = addTwo'
---
--- useAddTwo'2 :: Int
--- useAddTwo'2 = addTwo' 100 200
---
--- useUseAddTwo' :: Int
--- useUseAddTwo' = useAddTwo' 100 200
---
--- useAddTwo'' :: Int
--- useAddTwo'' = addTwo'' 33 44
---
--- addThree :: Int -> Int -> Int -> Int
--- addThree x y z = x + y + z
---
--- useAddThree :: Int -> Int -> Int -> Int
--- useAddThree = addThree
---
--- useAddThree' :: Int -> Int -> Int -> Int
--- useAddThree' x = addThree x
---
--- useAddThree'' :: Int -> Int -> Int
--- useAddThree'' x = addThree x 100
---
--- data FBomb a = FBomb a
--- -- -- data FBomb = FBomb (Int -> Int)
---
--- setTheBomb :: FBomb (Int -> Int)
--- setTheBomb = FBomb (addTwo 1)
---
--- bombGoesBoom :: FBomb (Int -> Int) -> Int
--- bombGoesBoom f =
---     case f of
---         FBomb b -> b 1
---
--- doubleBoom :: FBomb ((Int -> Int) -> Int -> Int) -> Int -> Int
--- doubleBoom f =
---     case f of
---         FBomb b -> b addOne
---
--- -- TODO: proper type class dictionary handling
--- -- polyBoom :: Num a => FBomb (a -> a) -> a -> a
--- polyBoom :: FBomb (a -> a) -> a -> a
--- polyBoom f x =
---     case f of
---         FBomb b -> b x
---
--- plentyOfArgs :: Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> ()
--- plentyOfArgs a b c d e f g h i j k l = ()
---
--- plentyOfCurries :: Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> ()
--- plentyOfCurries = plentyOfArgs
---
--- plentyOfCurries' :: Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> Int -> Float -> ()
--- plentyOfCurries' = plentyOfArgs 0
---
--- plentyOfApplies :: ()
--- plentyOfApplies = plentyOfCurries 0 1.0 2 3.0 4 5.0 6 7.0 8 9.0 10 11.0
---
--- plentyOfApplies' :: ()
--- plentyOfApplies' = plentyOfCurries' 1.0 2 3.0 4 5.0 6 7.0 8 9.0 10 11.0
---
--- curriedJustice :: Int -> Both Float Int
--- curriedJustice = Both 9.9
---
--- pointwiseJustice :: Both Float Int
--- pointwiseJustice = curriedJustice (getMouseX world)
---
--- constantJustice :: Both (Both Float Int) (Both Float Int)
--- constantJustice = Both (curriedJustice 10) (curriedJustice 10)
---
--- -- TODO: Prim operators need to be compiled into NecroMachine AST
--- -- pipesPlease :: Int -> Int
--- -- pipesPlease x = x |> addOne
--- --
--- -- pipesPlease2 :: Int -> Int
--- -- pipesPlease2 x = x |> addTwo 1
---
--- payloadOnly :: ((Int -> Int) -> Int -> Int) -> Int -> Int
--- payloadOnly f = f addOne
-
--- -- TODO: Correct arity with type classes!
--- -- addTwo :: Int -> Int -> Int
--- -- addTwo = (+)
-
--- -- TODO: Handle statefulness correctly
--- main :: Int
--- main = nestedF addSome
--- addSome :: Int -> Int
--- addSome x = x + 100
--- nestedF :: (Int -> Int) -> Int
--- nestedF f = nestedF' f + nestedF' f
--- nestedF' :: (Int -> Int) -> Int
--- nestedF' f = feed where
---     feed ~ 0 = f feed
-
 -- -----------------------------------------
--- -- Under saturated test
+-- -- Under saturated test: 2000
 -- -----------------------------------------
 -- addTwo :: Int -> Int -> Int
 -- addTwo x y = x + y
 -- doit :: (a -> b) -> a -> b
 -- doit f x = f x
 -- main :: Int
--- main = doit (doit addTwo 10) 100
+-- main = doit (doit addTwo 1000) 1000
 
 -- -----------------------------------------
--- -- Saturated test
+-- -- Under saturated Pointwise test: 2000 + mouseX
+-- -----------------------------------------
+-- addTwo :: Int -> Int -> Int
+-- addTwo x y = x + y + getMouseX world
+-- doit :: (a -> b) -> a -> b
+-- doit f x = f x
+-- main :: Int
+-- main = doit (doit addTwo 1000) 1000
+
+-- -----------------------------------------
+-- -- Under saturated Stateful test: 2000 + counter
+-- -----------------------------------------
+-- addTwo :: Int -> Int -> Int
+-- addTwo x y = x + y + (let c ~ 0 = c + 1 in c)
+-- doit :: (a -> b) -> a -> b
+-- doit f x = f x
+-- main :: Int
+-- main = doit (doit addTwo 1000) 1000
+
+-- -----------------------------------------
+-- -- Saturated test: 600
 -- -----------------------------------------
 -- addThree :: Int -> Int -> Int -> Int
 -- addThree x y z = x + y + z
@@ -152,7 +39,57 @@
 -- main = doit (addThree 100 200) 300
 
 -- -----------------------------------------
--- -- Over saturated test
+-- -- Saturated test: 600 + mouseX
+-- -----------------------------------------
+-- addThree :: Int -> Int -> Int -> Int
+-- addThree x y z = x + y + z + getMouseX world
+-- doit :: (a -> b) -> a -> b
+-- doit f x = f x
+-- main :: Int
+-- main = doit (addThree 100 200) 300
+
+-- -----------------------------------------
+-- -- Saturated test: 600 + counter
+-- -----------------------------------------
+-- addThree :: Int -> Int -> Int -> Int
+-- addThree x y z = x + y + z + (let c ~ 0 = c + 1 in c)
+-- doit :: (a -> b) -> a -> b
+-- doit f x = f x
+-- main :: Int
+-- main = doit (addThree 100 200) 300
+
+-- -----------------------------------------
+-- -- Over saturated test: 1100
+-- -----------------------------------------
+-- giveMeClosure :: () -> Int -> Int
+-- giveMeClosure u = add 100
+-- nestedClosure :: () -> Int -> Int
+-- nestedClosure = giveMeClosure
+-- main :: Int
+-- main = nestedClosure () 1000
+
+-- -----------------------------------------
+-- -- Over saturated test: 1000 + mouseX
+-- -----------------------------------------
+-- giveMeClosure :: () -> Int -> Int
+-- giveMeClosure u = add (getMouseX world)
+-- nestedClosure :: () -> Int -> Int
+-- nestedClosure = giveMeClosure
+-- main :: Int
+-- main = nestedClosure () 1000
+
+-- -----------------------------------------
+-- -- Over saturated test: 1000 + counter
+-- -----------------------------------------
+-- giveMeClosure :: () -> Int -> Int
+-- giveMeClosure u = add (let c ~ 0 = c + 1 in c)
+-- nestedClosure :: () -> Int -> Int
+-- nestedClosure = giveMeClosure
+-- main :: Int
+-- main = nestedClosure () 1000
+
+-- -----------------------------------------
+-- -- Data member test: 1002
 -- -----------------------------------------
 -- data FBomb a = FBomb a
 -- bombsAway :: FBomb (() -> FBomb (Int -> Int -> Int)) -> Int -> Int -> Int
@@ -166,24 +103,80 @@
 -- thunkBomb :: () -> FBomb (Int -> Int -> Int)
 -- thunkBomb u = FBomb addTwo
 -- main :: Int
--- main = bombsAway (FBomb thunkBomb) 2 10
+-- main = bombsAway (FBomb thunkBomb) 2 1000
 
 -- -----------------------------------------
--- -- Pointwise Test
+-- -- Data member Pointwise test: 1000 + mouseX
 -- -----------------------------------------
 -- data FBomb a = FBomb a
--- counter :: Int
--- counter ~ 0 = counter + 1
+-- bombsAway :: FBomb (() -> FBomb (Int -> Int)) -> Int -> Int
+-- bombsAway fb1 =
+--     case fb1 of
+--         FBomb fb2 ->
+--             case fb2 () of
+--                 FBomb fb -> fb
 -- addTwo :: Int -> Int -> Int
 -- addTwo x y = x + y
--- app :: (a -> b) -> a -> b
--- app f x = f x
--- theBomb :: FBomb (Int -> Int)
--- theBomb = FBomb (addTwo counter)
+-- thunkBomb :: () -> FBomb (Int -> Int)
+-- thunkBomb u = FBomb (add (getMouseX world))
 -- main :: Int
--- main =
---     case theBomb of
---         FBomb f -> f 1000000
+-- main = bombsAway (FBomb thunkBomb) 1000
+
+-- -----------------------------------------
+-- -- Data member Stateful test: 1000 + counter
+-- -----------------------------------------
+-- data FBomb a = FBomb a
+-- bombsAway :: FBomb (() -> FBomb (Int -> Int)) -> Int -> Int
+-- bombsAway fb1 =
+--     case fb1 of
+--         FBomb fb2 ->
+--             case fb2 () of
+--                 FBomb fb -> fb
+-- addTwo :: Int -> Int -> Int
+-- addTwo x y = x + y
+-- thunkBomb :: () -> FBomb (Int -> Int)
+-- thunkBomb u = FBomb (add (let c ~ 0 = c + 1 in c))
+-- main :: Int
+-- main = bombsAway (FBomb thunkBomb) 1000
+
+-- -----------------------------------------
+-- -- Switch Constant Constant Test
+-- -----------------------------------------
+-- mouseF :: Int -> Int
+-- mouseF =
+--   if getMouseX world > 80
+--     then add 10
+--     else add 1000
+-- main :: Int
+-- main = mouseF 2
+
+-- -----------------------------------------
+-- -- Switch Stateful Constant Test
+-- -----------------------------------------
+-- addS :: Int -> Int
+-- addS x = x + c where c ~ 0 = c + 1
+-- mouseF :: Int -> Int
+-- mouseF =
+--   if getMouseX world > 80
+--     then addS
+--     else add 1000
+-- main :: Int
+-- main = mouseF 2
+
+-----------------------------------------
+-- Switch Stateful Stateful Test
+-----------------------------------------
+addS :: Int -> Int
+addS x = x + c where c ~ 0 = c + 1
+addT :: Int -> Int
+addT x = x + c where c ~ 0 = c + 2
+mouseF :: Int -> Int
+mouseF =
+  if getMouseX world > 80
+    then addS
+    else addT
+main :: Int
+main = mouseF 2
 
 -- -----------------------------------------
 -- --Map, fold, sum Test
@@ -239,7 +232,7 @@
 --
 -- addTwo :: Int -> Int -> Int
 -- addTwo x y =
---   x - y
+--   x + y
 --
 -- main :: Int
 -- main =
@@ -249,11 +242,11 @@
 -- -----------------------------------------
 -- -- Many Closure Calculations test
 -- -----------------------------------------
--- -- One hundred thousand stateful closure allocations and applications: 32% cpu (approx  4x slower than non-stateful)
--- -- One hundred thousand stateful closure applications:                 25% cpu (approx 25x slower than non-stateful)
--- -- One hundred thousand closure allocations and applications:           8% cpu
--- -- One hundred thousand closure applications:                         0.1% cpu
--- -- One hundred thousand reg function applications:                    0.1% cpu
+-- -- 100,000 stateful closure allocations and applications: 21% cpu, 2.3ms GC (approx  3x slower than non-stateful)
+-- -- 100,000 stateful closure applications:                 15% cpu,          (approx 10x slower than non-stateful)
+-- -- 100,000 closure allocations and applications:           8% cpu,
+-- -- 100,000 closure applications:                         0.1% cpu,
+-- -- 100,000 reg function applications:                    0.1% cpu,
 -- addSome :: Int -> Int
 -- addSome x =
 --   x + 1
@@ -266,7 +259,8 @@
 -- integrate :: (Int -> Int) -> Int
 -- integrate f =
 --   feed where
---     feed ~ 0 = f feed
+--     feed ~ 0 = doit (addSomeMore 6) feed
+--     -- feed ~ 0 = f feed
 -- tenTimes :: (Int -> Int) -> Int
 -- tenTimes n =
 --   integrate n + integrate n + integrate n + integrate n + integrate n +
@@ -293,74 +287,19 @@
 --   oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f + oneHundredThousandTimes f
 -- main :: Int
 -- main = let f = addSome in
---   oneMillionTimes f
+--   oneHundredThousandTimes f
 
--- -----------------------------------------
--- -- Vector thoughts
--- -----------------------------------------
--- data Vector a = Vector Int (Ptr a)
---
--- -- TODO: Base .necro compiling system?
--- -- State Analysis with stateful closure detection / type checking !?!?!
---
--- -- Some thoughts:
--- -- 1. Mapping stateful closures can have unintuitive consequences
--- --    and seem something of an anti-pattern unless you know what you are doing (i.e. how they would be used in poly)
--- -- 2. Stateful closures have a performance burden
--- -- Possible Conclusion:
--- -- Closures by default are "Pointwise", have "Stateful" closures, but you have to opt in to them.
--- -- This would be checked statically
---
--- mapv :: (a -> b) -> Vector a -> Vector b
--- mapv f v = mapvgo f (unsafeMalloc (len v)) (ptr v) (len v) (len v + 1)
---
--- mapvgo :: (a -> b) -> Ptr a -> Ptr b -> Int -> Int -> Vector b
--- mapvgo f prevPtr newPtr len i =
---   case i of
---     0 ->
---       Vector len newPtr
---     _ ->
---       mapvgo f (prevPtr + 1) (unsafePoke i (f (unsafeDeref prevPtr)) newPtr) len (i - 1)
---
--- sinOsc :: Vector Float
--- sinOsc = map (waveTableLookup sinOscTable) phases where
---   (accu ~ 0, phases) = accumulate (\a -> a + recipDeltaTime) accu blockSize
-
-data Maybe a = Just a | Nothing
-
-makeVec3 :: a -> a -> a -> Vector a
-makeVec3 x y z = Vector 3 ptr''' where
-  ptr    = unsafeMalloc 3
-  ptr'   = unsafePoke 0 x ptr
-  ptr''  = unsafePoke 1 y ptr'
-  ptr''' = unsafePoke 2 z ptr''
-
-lookup :: Int -> Vector a -> Maybe a
-lookup i v =
-  case v of
-    Vector l p ->
-      Just (unsafePeek i p)
-
-unsafeLookup :: Int -> Vector a -> a
-unsafeLookup i v =
-  case v of
-    Vector l p ->
-      unsafePeek i p
-
-intVec :: Vector Int
-intVec = makeVec3 1 2 3
-
-intVecVec :: Vector (Vector Int)
-intVecVec = makeVec3 intVec intVec intVec
-
-main :: Int
-main = unsafeLookup 1 (unsafeLookup 1 intVecVec)
-
-loopTest :: Int -> Int
-loopTest x =
-  case x of
-    0 -> 0
-    1 -> 1
-    2 -> 2
-    _ -> loopTest (x - 1)
+----------------------
+-- Random TODO
+----------------------
+-- -- TODO: proper type class dictionary handling
+-- -- polyBoom :: Num a => FBomb (a -> a) -> a -> a
+-- polyBoom :: FBomb (a -> a) -> a -> a
+-- polyBoom f x =
+--     case f of
+--         FBomb b -> b x
+-- -- TODO: Prim operators need to be compiled into NecroMachine AST
+-- -- pipesPlease :: Int -> Int
+-- -- pipesPlease x = x |> addOne
+-- -- TODO: Correct arity with type classes!
 

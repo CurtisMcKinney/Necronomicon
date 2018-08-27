@@ -119,6 +119,10 @@ apply f a = f a
 emptyListTest :: [a]
 emptyListTest = []
 
+patInt :: Int
+patInt = a + b where
+    (a, b) = (1, 2)
+
 --listTest :: [Int]
 --listTest = [1, 2]
 

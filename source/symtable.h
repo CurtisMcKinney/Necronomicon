@@ -16,6 +16,8 @@
 #include "arena.h"
 #include "type.h"
 
+#define NECRO_SYMTABLE_NULL_ID      ((NecroID) {0})
+
 //=====================================================
 // NecroSymTable, Contains info for a particular ID:
 //         * ID
@@ -115,8 +117,6 @@ void                necro_scoped_symtable_new_scope(NecroScopedSymTable* table);
 void                necro_scoped_symtable_pop_scope(NecroScopedSymTable* table);
 void                necro_scoped_symtable_new_type_scope(NecroScopedSymTable* table);
 void                necro_scoped_symtable_pop_type_scope(NecroScopedSymTable* table);
-void                necro_scoped_symtable_new_delay_scope(NecroScopedSymTable* table);
-void                necro_scoped_symtable_pop_delay_scope(NecroScopedSymTable* table);
 
 // Names API
 NECRO_RETURN_CODE   necro_build_scopes(NecroScopedSymTable* table, NecroAST_Reified* ast);

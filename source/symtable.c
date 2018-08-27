@@ -12,7 +12,6 @@
 
 // Constants
 #define NECRO_SYMTABLE_INITIAL_SIZE 512
-#define NECRO_SYMTABLE_NULL_ID      ((NecroID) {0})
 
 NecroSymTable necro_create_symtable(NecroIntern* intern)
 {

@@ -28,5 +28,6 @@ NecroCoreAST_Expression* necro_create_core_data_decl(NecroPagedArena* arena, Nec
 NecroCoreAST_Expression* necro_create_core_case(NecroPagedArena* arena, NecroCoreAST_Expression* expr, NecroCoreAST_CaseAlt* alts);
 NecroCoreAST_CaseAlt*    necro_create_core_case_alt(NecroPagedArena* arena, NecroCoreAST_Expression* expr, NecroCoreAST_Expression* alt_con, NecroCoreAST_CaseAlt* next);
 NecroCoreAST_Expression* necro_create_core_necro_type(NecroPagedArena* arena, NecroType* necro_type);
+NecroCoreAST_Expression* necro_deep_copy_core_ast(NecroPagedArena* arena, NecroCoreAST_Expression* ast);
 
 #endif // CORE_CREATE_H

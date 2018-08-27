@@ -716,6 +716,7 @@ NecroCoreAST_Expression* necro_transform_lambda(NecroTransformToCore* core_trans
     NecroAST_Lambda_Reified* lambda = &necro_ast_node->lambda;
     NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
     core_expr->expr_type = NECRO_CORE_EXPR_LAM;
+    core_expr->necro_type = necro_ast_node->necro_type;
 
     NecroCoreAST_Expression* last_lambda = NULL;
     NecroCoreAST_Expression* current_lambda = core_expr;

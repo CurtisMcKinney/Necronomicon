@@ -159,17 +159,14 @@
 ----------------------
 -- Arrays
 ----------------------
--- coolArray :: Array (Array Int)
--- coolArray = {1, 2, 3}
+coolArray :: Array (Array Int)
+coolArray = {1, 2, 3}
 
 myChar :: Char
 myChar = 'a'
 
 myString :: Array Char
 myString = "abc"
-
-main :: Int
-main = 10
 
 ----------------------
 -- Chars and Strings

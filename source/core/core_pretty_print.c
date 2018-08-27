@@ -6,6 +6,8 @@
 #include "core_pretty_print.h"
 #include "machine/machine_type.h"
 
+#define NECRO_CORE_INDENT 2
+
 void necro_core_pretty_print_go(NecroCoreAST_Expression* ast, NecroSymTable* symtable, NecroIntern* intern, size_t depth);
 
 void necro_core_pretty_print(NecroCoreAST* ast, NecroSymTable* symtable)
@@ -21,9 +23,9 @@ void necro_core_pretty_print_alts(NecroCoreAST_CaseAlt* alts, NecroSymTable* sym
         if (alts->altCon == NULL)
             printf("_");
         else
-            necro_core_pretty_print_go(alts->altCon, symtable, intern, depth + 4);
+            necro_core_pretty_print_go(alts->altCon, symtable, intern, depth + NECRO_CORE_INDENT);
         printf(" -> ");
-        necro_core_pretty_print_go(alts->expr, symtable, intern, depth + 4);
+        necro_core_pretty_print_go(alts->expr, symtable, intern, depth + NECRO_CORE_INDENT);
         if (alts->next != NULL)
             printf("\n");
         alts = alts->next;
@@ -32,8 +34,8 @@ void necro_core_pretty_print_alts(NecroCoreAST_CaseAlt* alts, NecroSymTable* sym
 
 void necro_core_pretty_print_var(NecroVar var, NecroIntern* intern)
 {
-    // printf("%s.%d", necro_intern_get_string(intern, var.symbol), var.id.id);
-    printf("%s", necro_intern_get_string(intern, var.symbol));
+    printf("%s.%d", necro_intern_get_string(intern, var.symbol), var.id.id);
+    // printf("%s", necro_intern_get_string(intern, var.symbol));
 }
 
 void necro_core_pretty_print_go(NecroCoreAST_Expression* ast, NecroSymTable* symtable, NecroIntern* intern, size_t depth)
@@ -67,7 +69,7 @@ void necro_core_pretty_print_go(NecroCoreAST_Expression* ast, NecroSymTable* sym
             lambdas = lambdas->lambda.expr;
         }
         printf("= ");
-        necro_core_pretty_print_go(lambdas, symtable, intern, depth + 4);
+        necro_core_pretty_print_go(lambdas, symtable, intern, depth + NECRO_CORE_INDENT);
         return;
     }
     case NECRO_CORE_EXPR_LAM:
@@ -89,13 +91,13 @@ void necro_core_pretty_print_go(NecroCoreAST_Expression* ast, NecroSymTable* sym
     }
     case NECRO_CORE_EXPR_LET:
     {
-        printf("\n");
-        print_white_space(depth);
+        // printf("\n");
+        // print_white_space(depth);
         printf("let ");
         necro_core_pretty_print_go(ast->let.bind, symtable, intern, depth);
-        printf("\n");
+        // printf("\n");
+        printf(" in\n");
         print_white_space(depth);
-        printf("in ");
         necro_core_pretty_print_go(ast->let.expr, symtable, intern, depth);
         // printf("\n");
         return;

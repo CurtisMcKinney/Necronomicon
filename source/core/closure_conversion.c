@@ -61,7 +61,7 @@ NecroCoreAST necro_closure_conversion(NecroCoreAST* in_ast, NecroIntern* intern,
     NecroClosureConversion cc = (NecroClosureConversion)
     {
         .arena            = necro_create_paged_arena(),
-        .snapshot_arena   = necro_create_snapshot_arena(0),
+        .snapshot_arena   = necro_create_snapshot_arena(),
         .intern           = intern,
         .symtable         = symtable,
         .scoped_symtable  = scoped_symtable,

@@ -309,8 +309,8 @@ bool necro_lex_multi_character_token(NecroLexer* lexer)
            necro_lex_token_with_pattern(lexer, "<-",  NECRO_LEX_LEFT_ARROW)         ||
            necro_lex_token_with_pattern(lexer, "->",  NECRO_LEX_RIGHT_ARROW)        ||
            necro_lex_token_with_pattern(lexer, "=>",  NECRO_LEX_FAT_RIGHT_ARROW)    ||
-           // necro_lex_token_with_pattern(lexer, ">->", NECRO_LEX_FBY)                ||
            necro_lex_token_with_pattern(lexer, "..",  NECRO_LEX_DOUBLE_DOT);
+           // necro_lex_token_with_pattern(lexer, ">->", NECRO_LEX_FBY)                ||
 }
 
 bool necro_lex_integer(NecroLexer* lexer)

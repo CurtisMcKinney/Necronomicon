@@ -1074,6 +1074,7 @@ NecroASTNode* necro_resolve_method(NecroInfer* infer, NecroTypeClass* method_typ
                 // d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, var_type->var.gen_bound->var.var);
                 // d_var = retrieveDictionaryFromContext(&infer->arena, infer->intern, env, dictionary_context, var_type->var.context, necro_find(infer, var_type->var.gen_bound)->var.var);
                 d_var = retrieveDictionaryFromContext(infer, dictionary_context, type_class_context, necro_find(var_type->var.gen_bound)->var.var);
+                assert(d_var != NULL);
                 d_var->scope = ast->scope;
                 if (necro_is_infer_error(infer)) return NULL;
                 assert(d_var != NULL);

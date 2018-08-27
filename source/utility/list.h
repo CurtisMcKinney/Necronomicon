@@ -17,7 +17,7 @@
 //     * All pointers returned by the list are stable
 //     * All data inserted is copied in.
 
-#define NECRO_DECLARE_ARENA_LIST(TABLE_DATA_TYPE, CAMEL_NAME,SNAKE_NAME)                                                                    \
+#define NECRO_DECLARE_ARENA_LIST(TABLE_DATA_TYPE, CAMEL_NAME, SNAKE_NAME)                                                                   \
 typedef struct Necro##CAMEL_NAME##List                                                                                                      \
 {                                                                                                                                           \
     struct Necro##CAMEL_NAME##List* next;                                                                                                   \

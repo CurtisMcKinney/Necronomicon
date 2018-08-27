@@ -1,0 +1,112 @@
+-- data Either a b = Left a | Right b
+-- data Tuple  a b = Tuple a b
+
+main :: Int
+-- main = ifLambda False 100
+main = 10
+
+-- counter :: Int
+-- counter = feed
+--   where
+--     feed ~ 0 = feed + 1
+
+-- main :: Int
+-- main = ifLambda True 10
+
+-- TODO: Lambda lifting with case statements!!!
+
+-- leftLambda :: Either (Int -> Int) ()
+-- leftLambda = Left (\x -> x + y)
+--   where
+--     y = 10
+
+-- rightLambda :: Either () (a -> a)
+-- rightLambda = Right (\a -> a)
+
+-- ifLambda :: Bool -> Int -> Int
+-- ifLambda b =
+--   if b then
+--     \x -> x + 1
+--   else
+--     \y -> let s ~ 0 = s + 1 in (y + s) + z + z
+--     -- \y -> let s = 1 in (y + s) + z + z
+--     -- \y -> y + z + z
+--   where
+--     z = 1000000
+
+-- constIfLambda :: Int -> Int
+-- constIfLambda = ifLambda True
+
+-- NOTE: Recursive vars are screwing things up! s is free var when it should not be here!!!!
+
+-- tupleLambda :: Maybe (Tuple (Int -> Int) (Int -> Int))
+-- tupleLambda = Just (Tuple (\y -> y + 1) (\x -> x * 2))
+
+-- -- outer != NULL assert failure
+-- maybeLambda :: Maybe (Int -> Int, Int -> Int)
+-- maybeLambda = Just (\y -> y + 1, \x -> x * 2)
+
+-- coolInt :: Int
+-- coolInt = g (f 10)
+--   where
+--     x = 100
+--     z = True
+--     f = \y -> x * y
+--     g = \w -> if z then w else x
+
+-- nestedLam :: a -> Int -> Int
+-- nestedLam x y = h (coolInt + y)
+--   where
+--     h = \i -> i + j
+--       where
+--         j = 10
+
+-- topLam :: Int -> Int
+-- topLam = \fu -> fu + fm
+--   where
+--     fm = 10
+
+shadowTest :: Int
+shadowTest = 0
+
+notShadowTest :: Int -> Int
+notShadowTest w = w * w
+
+topInt :: Int
+topInt = shadowTest x + otherTest y
+  where
+    otherTest  = \a -> notShadowTest (shadowTest a)
+    shadowTest = \z -> z + y
+    y = 10
+    x = 20
+
+-- -- TODO / FUCK: Local functions referring to eachother need to refer to global versions
+-- -- Which means a couple things:
+-- --    1. (DONE) Top level lifted ordering needs to be absolutely correct
+-- --    2. Lifted lambdas need to be named correctly and inserted into top level scope.
+-- topF :: Int -> Int
+-- topF x =
+--   bottomF1 True  3 +
+--   bottomF2 False 3
+--   where
+--     bottomF1 = \y -> \u -> let nestedF = \z -> if z then x else u in nestedF y
+--     bottomF2 = \y -> \u -> let nestedF = \z -> if z then u else x in bottomF1 True 3 + nestedF y
+
+-- topF2 :: Int -> Int
+-- topF2 dummy =
+--   let x = 10 in
+--   let bottomF2 = \y -> let nestedF2 = \z -> x + z in nestedF2 y in
+--   bottomF2 10
+
+-- coolClosure :: Int -> Int
+-- coolClosure =
+--   let
+--     ii = 100 * 2
+--     c  = \y -> y + ii
+--   in
+--     c
+
+-- test :: Rational' -> Int
+-- test i =
+--   case i of
+--     Rational' (Integer _ i _) _ -> i

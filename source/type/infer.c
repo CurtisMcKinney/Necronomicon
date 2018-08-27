@@ -703,9 +703,6 @@ NecroType* necro_infer_constant(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_CONSTANT_INTEGER:
         ast->necro_type = necro_symtable_get(infer->symtable, infer->prim_types->int_type.id)->type;
         return ast->necro_type;
-    // case NECRO_AST_CONSTANT_BOOL:
-    //     ast->necro_type = necro_symtable_get(infer->symtable, infer->prim_types->bool_type.id)->type;
-    //     return ast->necro_type;
     case NECRO_AST_CONSTANT_CHAR:
         ast->necro_type = necro_symtable_get(infer->symtable, infer->prim_types->char_type.id)->type;
         return ast->necro_type;
@@ -717,7 +714,6 @@ NecroType* necro_infer_constant(NecroInfer* infer, NecroNode* ast)
         NecroType* array_type = necro_make_con_1(infer, infer->prim_types->array_type, necro_symtable_get(infer->symtable, infer->prim_types->char_type.id)->type);
         ast->necro_type  = array_type;
         array_type->source_loc = ast->source_loc;
-        // return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: String not implemented....");
         return array_type;
     }
     default:                         return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Unrecognized constant type: %d", ast->constant.type);

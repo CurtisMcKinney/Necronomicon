@@ -1,0 +1,9 @@
+x :: Int
+x = 10
+
+xs :: Int
+xs = x1 + x2 + x3 where
+    x1 = x2 + 1
+    x2 = x3 + 2
+    x3 = 1
+

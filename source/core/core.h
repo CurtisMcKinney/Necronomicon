@@ -73,6 +73,11 @@ typedef struct NecroCoreAST_Bind
     bool                            is_recursive; // Curtis: Metadata for codegen
 } NecroCoreAST_Bind;
 
+typedef struct NecroCoreAST_BindRec
+{
+    struct NecroCoreAST_Expression* binds;
+} NecroCoreAST_BindRec;
+
 typedef struct NecroCoreAST_Application
 {
     struct NecroCoreAST_Expression* exprA;

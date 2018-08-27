@@ -49,9 +49,12 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
             switch (ast_node->lit.type)
             {
             case NECRO_AST_CONSTANT_FLOAT:
+            case NECRO_AST_CONSTANT_FLOAT_PATTERN:
                 printf("(%f)\n", ast_node->lit.double_literal);
                 break;
+
             case NECRO_AST_CONSTANT_INTEGER:
+            case NECRO_AST_CONSTANT_INTEGER_PATTERN:
     #if WIN32
                 printf("(%lli)\n", ast_node->lit.int_literal);
     #else
@@ -65,12 +68,19 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
                         printf("(\"%s\")\n", string);
                 }
                 break;
+
             case NECRO_AST_CONSTANT_CHAR:
+            case NECRO_AST_CONSTANT_CHAR_PATTERN:
                 printf("(\'%c\')\n", ast_node->lit.char_literal);
                 break;
+
             // case NECRO_AST_CONSTANT_BOOL:
             //     printf("(%s)\n", ast_node->lit.boolean_literal ? "True" : "False");
             //     break;
+
+            default:
+                assert(false && "[necro_print_core_node] Unhandled literal type!");
+                break;
             }
         }
         break;
@@ -179,7 +189,7 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
 
     default:
         printf("necro_print_core_node printing expression type unimplemented!: %s\n", core_ast_names[ast_node->expr_type]);
-        assert(false);
+        assert(false && "necro_print_core_node printing expression type unimplemented!");
         break;
     }
 }
@@ -320,6 +330,27 @@ NecroCoreAST_Expression* necro_transform_apats_assignment(NecroTransformToCore* 
     return core_expr;
 }
 
+NecroCoreAST_Expression* necro_transform_pat_assignment(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
+{
+    assert(false && "[necro_transform_pat_assignment] Not implemented yet, soon TM!");
+    assert(core_transform);
+    assert(necro_ast_node);
+    assert(necro_ast_node->type == NECRO_AST_PAT_ASSIGNMENT);
+    if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
+        return NULL;
+
+    NecroAST_ApatsAssignment_Reified* apats_assignment = &necro_ast_node->apats_assignment;
+    NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+    core_expr->expr_type = NECRO_CORE_EXPR_BIND;
+    NecroCoreAST_Bind* core_bind = &core_expr->bind;
+    core_bind->var.symbol = apats_assignment->variable_name;
+    core_bind->var.id = apats_assignment->id;
+    core_bind->is_recursive = false;
+    
+    //necro_ast_node->pat_assignment.pat->pattern_expression.expressions->
+
+    return NULL;
+}
 
 NecroCoreAST_Expression* necro_transform_right_hand_side(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
 {
@@ -760,8 +791,18 @@ NecroCoreAST_Expression* necro_transform_expression_list(NecroTransformToCore* c
         return NULL;
 
     NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+    core_expr->expr_type = NECRO_CORE_EXPR_VAR;
+    core_expr->var.symbol = core_transform->prim_types->list_type.symbol;
+    core_expr->var.id = core_transform->prim_types->list_type.id;
 
-    assert(false); // Implement this!
+    while (necro_ast_node->expression_list.expressions)
+    {
+        NecroCoreAST_Expression* cons_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+        cons_expr->expr_type = NECRO_CORE_EXPR_VAR;
+        //cons_expr->var.symbol = core_transform->prim_types-; // FINISH THIS!
+        cons_expr->var.id = core_transform->prim_types->list_type.id;
+    }
+
     return core_expr;
 }
 
@@ -791,7 +832,7 @@ NecroCoreAST_Expression* necro_transform_tuple(NecroTransformToCore* core_transf
     while (tuple_node)
     {
         app_expr->app.exprB = necro_transform_to_core_impl(core_transform, tuple_node->item);
-        tuple_node = tuple_node->next_item;
+        tuple_node = &tuple_node->next_item->list;
         ++tuple_count;
 
         if (tuple_node)
@@ -918,9 +959,13 @@ NecroCoreAST_Expression* necro_transform_case(NecroTransformToCore* core_transfo
             }
             break;
 
+        case NECRO_AST_TUPLE:
+            case_alt->altCon = necro_transform_tuple(core_transform, alt->pat);
+            break;
+
         default:
             printf("necro_transform_case pattern type not implemented!: %d\n", alt->pat->type);
-            assert(false);
+            assert(false && "necro_transform_case pattern type not implemented!");
             return NULL;
         }
 
@@ -977,6 +1022,9 @@ NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core
     case NECRO_AST_APATS_ASSIGNMENT:
         return necro_transform_apats_assignment(core_transform, necro_ast_node);
 
+    case NECRO_AST_PAT_ASSIGNMENT:
+        return necro_transform_pat_assignment(core_transform, necro_ast_node);
+
     case NECRO_AST_RIGHT_HAND_SIDE:
         return necro_transform_right_hand_side(core_transform, necro_ast_node);
 
@@ -1023,7 +1071,7 @@ NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core
         break;
     }
 
-    assert(false);
+    assert(false && "necro_transform_to_core transforming AST type unimplemented!\n");
     return NULL;
 }
 

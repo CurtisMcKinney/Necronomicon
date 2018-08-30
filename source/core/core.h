@@ -206,6 +206,19 @@ typedef struct NecroCoreAST
 
 typedef struct
 {
+    NecroVar twoTuple;
+    NecroVar threeTuple;
+    NecroVar fourTuple;
+    NecroVar fiveTuple;
+    NecroVar sixTuple;
+    NecroVar sevenTuple;
+    NecroVar eightTuple;
+    NecroVar nineTuple;
+    NecroVar tenTuple;
+} NecroCoreConstructors;
+
+typedef struct
+{
     NecroCoreAST* core_ast;
     NecroAST_Reified* necro_ast;
     NecroIntern* intern;
@@ -213,29 +226,20 @@ typedef struct
     NecroParse_CoreTransformState transform_state;
     NecroError error;
     NecroSymTable* symtable;
+    NecroCoreConstructors constructors;
 } NecroTransformToCore;
 
 void necro_transform_to_core(NecroTransformToCore* core_transform);
 void necro_print_core(NecroCoreAST* ast, NecroIntern* intern);
 
-static inline void necro_construct_core_transform(
+void necro_construct_core_transform(
     NecroTransformToCore* core_transform,
     NecroCoreAST* core_ast,
     NecroAST_Reified* necro_ast,
     NecroIntern* intern,
     NecroPrimTypes* prim_types,
-    NecroSymTable* symtable)
-{
-    core_transform->error.error_message[0] = '\0';
-    core_transform->error.return_code = NECRO_SUCCESS;
-    core_transform->core_ast = core_ast;
-    core_transform->core_ast->arena = necro_create_paged_arena();
-    core_transform->necro_ast = necro_ast;
-    core_transform->intern = intern;
-    core_transform->prim_types = prim_types;
-    core_transform->transform_state = NECRO_CORE_TRANSFORMING;
-    core_transform->symtable = symtable;
-}
+    NecroSymTable* symtable,
+    NecroScopedSymTable* scoped_symtable);
 
 static inline void necro_destruct_core_transform(NecroTransformToCore* core_transform)
 {

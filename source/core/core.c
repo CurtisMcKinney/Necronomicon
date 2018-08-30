@@ -200,6 +200,37 @@ void necro_print_core(NecroCoreAST* ast, NecroIntern* intern)
     necro_print_core_node(ast->root, intern, 0);
 }
 
+void necro_construct_core_transform(
+    NecroTransformToCore* core_transform,
+    NecroCoreAST* core_ast,
+    NecroAST_Reified* necro_ast,
+    NecroIntern* intern,
+    NecroPrimTypes* prim_types,
+    NecroSymTable* symtable,
+    NecroScopedSymTable* scoped_symtable)
+{
+    core_transform->error.error_message[0] = '\0';
+    core_transform->error.return_code = NECRO_SUCCESS;
+    core_transform->core_ast = core_ast;
+    core_transform->core_ast->arena = necro_create_paged_arena();
+    core_transform->necro_ast = necro_ast;
+    core_transform->intern = intern;
+    core_transform->prim_types = prim_types;
+    core_transform->transform_state = NECRO_CORE_TRANSFORMING;
+    core_transform->symtable = symtable;
+
+    NecroCoreConstructors* constructors = &core_transform->constructors;
+    constructors->twoTuple =    necro_get_top_level_symbol_var(scoped_symtable, "(,)");
+    constructors->threeTuple =  necro_get_top_level_symbol_var(scoped_symtable, "(,,)");
+    constructors->fourTuple =   necro_get_top_level_symbol_var(scoped_symtable, "(,,,)");
+    constructors->fiveTuple =   necro_get_top_level_symbol_var(scoped_symtable, "(,,,,)");
+    constructors->sixTuple =    necro_get_top_level_symbol_var(scoped_symtable, "(,,,,,)");
+    constructors->sevenTuple =  necro_get_top_level_symbol_var(scoped_symtable, "(,,,,,,)");
+    constructors->eightTuple =  necro_get_top_level_symbol_var(scoped_symtable, "(,,,,,,,)");
+    constructors->nineTuple =   necro_get_top_level_symbol_var(scoped_symtable, "(,,,,,,,,)");
+    constructors->tenTuple =    necro_get_top_level_symbol_var(scoped_symtable, "(,,,,,,,,,)");
+}
+
 NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node);
 
 NecroCoreAST_Expression* necro_transform_bin_op(NecroTransformToCore* core_transform, NecroAST_Node_Reified* necro_ast_node)
@@ -850,40 +881,31 @@ NecroCoreAST_Expression* necro_transform_tuple(NecroTransformToCore* core_transf
     switch (tuple_count)
     {
     case 2:
-        var_expr->var.symbol = core_transform->prim_types->tuple_types.two.symbol;
-        var_expr->var.id = core_transform->prim_types->tuple_types.two.id;
+        var_expr->var = core_transform->constructors.twoTuple;
         break;
     case 3:
-        var_expr->var.symbol = core_transform->prim_types->tuple_types.three.symbol;
-        var_expr->var.id = core_transform->prim_types->tuple_types.three.id;
+        var_expr->var = core_transform->constructors.threeTuple;
         break;
     case 4:
-        var_expr->var.symbol = core_transform->prim_types->tuple_types.four.symbol;
-        var_expr->var.id = core_transform->prim_types->tuple_types.four.id;
+        var_expr->var = core_transform->constructors.fourTuple;
         break;
     case 5:
-        var_expr->var.symbol = core_transform->prim_types->tuple_types.five.symbol;
-        var_expr->var.id = core_transform->prim_types->tuple_types.five.id;
+        var_expr->var = core_transform->constructors.fiveTuple;
         break;
     case 6:
-        var_expr->var.symbol = core_transform->prim_types->tuple_types.six.symbol;
-        var_expr->var.id = core_transform->prim_types->tuple_types.six.id;
+        var_expr->var = core_transform->constructors.sixTuple;
         break;
     case 7:
-        var_expr->var.symbol = core_transform->prim_types->tuple_types.seven.symbol;
-        var_expr->var.id = core_transform->prim_types->tuple_types.seven.id;
+        var_expr->var = core_transform->constructors.sevenTuple;
         break;
     case 8:
-        var_expr->var.symbol = core_transform->prim_types->tuple_types.eight.symbol;
-        var_expr->var.id = core_transform->prim_types->tuple_types.eight.id;
+        var_expr->var = core_transform->constructors.eightTuple;
         break;
     case 9:
-        var_expr->var.symbol = core_transform->prim_types->tuple_types.nine.symbol;
-        var_expr->var.id = core_transform->prim_types->tuple_types.nine.id;
+        var_expr->var = core_transform->constructors.nineTuple;
         break;
     case 10:
-        var_expr->var.symbol = core_transform->prim_types->tuple_types.ten.symbol;
-        var_expr->var.id = core_transform->prim_types->tuple_types.ten.id;
+        var_expr->var = core_transform->constructors.tenTuple;
         break;
     default:
         assert(false && "[necro_transform_tuple] unhandled size of tuple!");

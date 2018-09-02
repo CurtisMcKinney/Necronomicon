@@ -69,14 +69,14 @@ void necro_print_line_at_source_loc(const char* source_str, NecroSourceLoc sourc
         line_start++;
     size_t line_end   = line_start;
     for (line_end = line_start; source_str[line_end] != '\0' && source_str[line_end] != '\n'; ++line_end);
-    printf(" %u | %.*s\n", source_loc.line, (line_end - line_start), (source_str + line_start));
+    printf(" %zu | %.*s\n", source_loc.line, (int) (line_end - line_start), (source_str + line_start));
     necro_print_range_pointers(source_loc, end_loc);
 }
 
 void necro_print_malformed_float_error(NecroResultError error, const char* source_str, const char* source_name)
 {
     printf("error[NE-%04u]: Malformed float\n", NECRO_MALFORMED_FLOAT);
-    printf(" --> %s:%d:%d\n", source_name, error.malformed_float.source_loc.line, error.malformed_float.source_loc.character);
+    printf(" --> %s:%zu:%zu\n", source_name, error.malformed_float.source_loc.line, error.malformed_float.source_loc.character);
     printf("   |\n");
     necro_print_line_at_source_loc(source_str, error.malformed_float.source_loc, error.malformed_float.end_loc);
     printf("\n");
@@ -85,7 +85,7 @@ void necro_print_malformed_float_error(NecroResultError error, const char* sourc
 void necro_print_malformed_string_error(NecroResultError error, const char* source_str, const char* source_name)
 {
     printf("error[NE-%04u]: Malformed string\n", NECRO_MALFORMED_STRING);
-    printf(" --> %s:%d:%d\n", source_name, error.malformed_string.source_loc.line, error.malformed_string.source_loc.character);
+    printf(" --> %s:%zu:%zu\n", source_name, error.malformed_string.source_loc.line, error.malformed_string.source_loc.character);
     printf("   |\n");
     necro_print_line_at_source_loc(source_str, error.malformed_string.source_loc, error.malformed_string.end_loc);
     printf("\n");
@@ -94,7 +94,7 @@ void necro_print_malformed_string_error(NecroResultError error, const char* sour
 void necro_print_unrecognized_character_sequence_error(NecroResultError error, const char* source_str, const char* source_name)
 {
     printf("error[NE-%04u]: Unrecognized character sequence\n", NECRO_UNRECOGNIZED_CHARACTER_SEQUENCE);
-    printf(" --> %s:%d:%d\n", source_name, error.unrecognized_character_sequence.source_loc.line, error.unrecognized_character_sequence.source_loc.character);
+    printf(" --> %s:%zu:%zu\n", source_name, error.unrecognized_character_sequence.source_loc.line, error.unrecognized_character_sequence.source_loc.character);
     printf("   |\n");
     necro_print_line_at_source_loc(source_str, error.unrecognized_character_sequence.source_loc, error.unrecognized_character_sequence.end_loc);
     printf("\n");

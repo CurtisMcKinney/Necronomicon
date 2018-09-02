@@ -1471,19 +1471,19 @@ void necro_print_lex_token_u(NecroLexerUnicode* lexer, size_t token_id)
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CONTROL_BRACE_MARKER_LET)
     {
-        printf("let {n}:    %d\n", lexer->tokens.data[token_id].brace_marker_n);
+        printf("let {n}:    %zu\n", lexer->tokens.data[token_id].brace_marker_n);
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CONTROL_BRACE_MARKER_WHERE)
     {
-        printf("where {n}:  %d\n", lexer->tokens.data[token_id].brace_marker_n);
+        printf("where {n}:  %zu\n", lexer->tokens.data[token_id].brace_marker_n);
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CONTROL_BRACE_MARKER_OF)
     {
-        printf("of {n}:     %d\n", lexer->tokens.data[token_id].brace_marker_n);
+        printf("of {n}:     %zu\n", lexer->tokens.data[token_id].brace_marker_n);
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CONTROL_BRACE_MARKER_DO)
     {
-        printf("do {n}:     %d\n", lexer->tokens.data[token_id].brace_marker_n);
+        printf("do {n}:     %zu\n", lexer->tokens.data[token_id].brace_marker_n);
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CONTROL_BRACE_MARKER_DO)
     {
@@ -1491,7 +1491,7 @@ void necro_print_lex_token_u(NecroLexerUnicode* lexer, size_t token_id)
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CONTROL_WHITE_MARKER)
     {
-        printf("<n>:        %d\n", lexer->tokens.data[token_id].brace_marker_n);
+        printf("<n>:        %zu\n", lexer->tokens.data[token_id].brace_marker_n);
     }
     else
     {
@@ -1502,8 +1502,8 @@ void necro_print_lex_token_u(NecroLexerUnicode* lexer, size_t token_id)
 void necro_print_lexer_u(NecroLexerUnicode* lexer)
 {
     printf("NecroLexer\n{\n");
-    printf("    line:      %d,\n", lexer->loc.line);
-    printf("    character: %d,\n", lexer->loc.character);
+    printf("    line:      %zu,\n", lexer->loc.line);
+    printf("    character: %zu,\n", lexer->loc.character);
     printf("    tokens:\n    [\n");
     for (size_t i = 0; i < lexer->tokens.length; ++i)
     {

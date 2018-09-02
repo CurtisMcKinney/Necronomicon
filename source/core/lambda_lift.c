@@ -333,9 +333,13 @@ NecroCoreAST_Expression* necro_lambda_lift_lambda(NecroLambdaLift* ll, NecroCore
 
     // Create anonymous function name
     ll->num_anon_functions++;
-    char itoabuf[10];
     NecroArenaSnapshot snapshot = necro_get_arena_snapshot(&ll->snapshot_arena);
-    const char*        fn_name  = necro_concat_strings(&ll->snapshot_arena, 2, (const char*[]) { "_anon_fn_", itoa(ll->num_anon_functions, itoabuf, 10) });
+
+    char num_anon_func_buf[20] = { 0 };
+    snprintf(num_anon_func_buf, 20, "%zu", ll->num_anon_functions);
+    const char* num_anon_func_buf_ptr = (const char*) num_anon_func_buf;
+
+    const char*        fn_name  = necro_concat_strings(&ll->snapshot_arena, 2, (const char*[]) { "_anon_fn_", num_anon_func_buf_ptr });
     NecroSymbol        var_sym  = necro_intern_string(ll->intern, fn_name);
     NecroID            var_id   = necro_scoped_symtable_new_symbol_info(ll->scoped_symtable, ll->scoped_symtable->top_scope, necro_create_initial_symbol_info(var_sym, (NecroSourceLoc) { 0 }, NULL));
     NecroVar           fn_var   = (NecroVar) { .id = var_id, .symbol = var_sym };

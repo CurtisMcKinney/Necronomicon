@@ -559,12 +559,13 @@ void necro_prop_trie_from_parser(NecroUnicodePropertyParser* uparser, const char
             uint64_t        has_prop = (p & property_flag) != 0;
             leaf |= (has_prop << b);
         }
-        necro_insert_property_leaf(&prop_trie, i, leaf);
+        assert(i <= UINT32_MAX);
+        necro_insert_property_leaf(&prop_trie, (uint32_t) i, leaf);
     }
     necro_collapse_table2(&prop_trie);
 
     size_t mem_usage = 256 * sizeof(uint16_t) + prop_trie.table2.length * sizeof(uint16_t) + prop_trie.leaves.length * sizeof(uint64_t);
-    printf("mem usage: %u\n", mem_usage);
+    printf("mem usage: %zu\n", mem_usage);
 
     FILE* out_file = necro_open_write_file_in_director(directory_name, file_name);
 
@@ -574,7 +575,7 @@ void necro_prop_trie_from_parser(NecroUnicodePropertyParser* uparser, const char
     {
         if (i == 0)
             fprintf(out_file, "    ");
-        fprintf(out_file, "%u", prop_trie.table1[i]);
+        fprintf(out_file, "%zu", prop_trie.table1[i]);
         if (i < 255)
             fprintf(out_file, ", ");
         if (i % 32 == 0 && i != 0)

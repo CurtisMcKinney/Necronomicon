@@ -22,9 +22,10 @@ NecroVar necro_gen_var(NecroMachineProgram* program, NecroMachineAST* necro_mach
     const char* var_name = NULL;
     if (uniqueness == NECRO_NAME_NOT_UNIQUE)
     {
-        char buf[10];
-        itoa(program->gen_vars++, buf, 10);
-        var_name = necro_concat_strings(&program->snapshot_arena, 3, (const char*[]) { "_", var_header, buf });
+        char buf[20];
+        sprintf(buf, "%zu", program->gen_vars++);
+        const char* buf_addr = (const char*) buf;
+        var_name = necro_concat_strings(&program->snapshot_arena, 3, (const char*[]) { "_", var_header, buf_addr });
     }
     else
     {
@@ -354,7 +355,7 @@ NecroMachineAST* necro_create_machine_fn(NecroMachineProgram* program, NecroVar 
     return ast;
 }
 
-NecroMachineAST* necro_create_machine_runtime_fn(NecroMachineProgram* program, NecroVar name, NecroMachineType* necro_machine_type, void* runtime_fn_addr, NECRO_STATE_TYPE state_type)
+NecroMachineAST* necro_create_machine_runtime_fn(NecroMachineProgram* program, NecroVar name, NecroMachineType* necro_machine_type, NecroMachineFnPtr runtime_fn_addr, NECRO_STATE_TYPE state_type)
 {
     NecroMachineAST* ast                = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
     ast->type                           = NECRO_MACHINE_FN_DEF;
@@ -382,7 +383,7 @@ NecroMachineAST* necro_create_machine_initial_machine_def(NecroMachineProgram* p
     ast->machine_def.bind_name                     = bind_name;
     char itoabuf[10];
     char* machine_name                             = necro_concat_strings(&program->snapshot_arena, 4, (const char*[]) { "_", necro_intern_get_string(program->intern, bind_name.symbol), "Machine", itoa(bind_name.id.id, itoabuf, 10) });
-    machine_name[1]                                = toupper(machine_name[1]);
+    machine_name[1]                                = (char) toupper(machine_name[1]);
     char* state_name                               = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { machine_name, "State" });
     ast->machine_def.machine_name                  = necro_gen_var(program, ast, machine_name, NECRO_NAME_UNIQUE);
     ast->machine_def.state_name                    = necro_gen_var(program, ast, state_name, NECRO_NAME_UNIQUE);
@@ -541,6 +542,7 @@ NecroMachineAST* necro_insert_block_before(NecroMachineProgram* program, NecroMa
 
 void necro_move_to_block(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* block)
 {
+    UNUSED(program);
     assert(fn_def->type == NECRO_MACHINE_FN_DEF);
     assert(block->type == NECRO_MACHINE_BLOCK);
     NecroMachineAST* fn_block = fn_def->fn_def.call_body;

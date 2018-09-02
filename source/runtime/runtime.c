@@ -196,49 +196,49 @@ void necro_destroy_space(NecroSpace* space)
 
 NecroCopyGC necro_create_copy_gc()
 {
-    NecroCopyGC copy_gc;
-    copy_gc.roots          = NULL;
-    copy_gc.root_count     = 0;
-    copy_gc.counter        = 0;
-    copy_gc.timer          = necro_create_timer();
+    NecroCopyGC necro_copy_gc;
+    necro_copy_gc.roots          = NULL;
+    necro_copy_gc.root_count     = 0;
+    necro_copy_gc.counter        = 0;
+    necro_copy_gc.timer          = necro_create_timer();
 
-    copy_gc.initial_forward_ptr = &const_sentinel;
+    necro_copy_gc.initial_forward_ptr = &const_sentinel;
 
     // From
-    copy_gc.from_head      = necro_alloc_space();
-    copy_gc.from_curr      = copy_gc.from_head;
-    copy_gc.from_alloc_ptr = &copy_gc.from_curr->data_start;
-    copy_gc.from_end_ptr   = copy_gc.from_curr->data + NECRO_SPACE_SIZE;
+    necro_copy_gc.from_head      = necro_alloc_space();
+    necro_copy_gc.from_curr      = necro_copy_gc.from_head;
+    necro_copy_gc.from_alloc_ptr = &necro_copy_gc.from_curr->data_start;
+    necro_copy_gc.from_end_ptr   = necro_copy_gc.from_curr->data + NECRO_SPACE_SIZE;
 
     // To
-    copy_gc.to_head      = necro_alloc_space();
-    copy_gc.to_curr      = copy_gc.to_head;
-    copy_gc.to_alloc_ptr = &copy_gc.to_curr->data_start;
-    copy_gc.to_end_ptr   = copy_gc.to_curr->data + NECRO_SPACE_SIZE;
-    // copy_gc.to_scan_ptr  = copy_gc.to_alloc_ptr;
+    necro_copy_gc.to_head      = necro_alloc_space();
+    necro_copy_gc.to_curr      = necro_copy_gc.to_head;
+    necro_copy_gc.to_alloc_ptr = &necro_copy_gc.to_curr->data_start;
+    necro_copy_gc.to_end_ptr   = necro_copy_gc.to_curr->data + NECRO_SPACE_SIZE;
+    // necro_copy_gc.to_scan_ptr  = copy_gc.to_alloc_ptr;
 
     // Constant
-    copy_gc.const_head      = necro_alloc_space();
-    copy_gc.const_curr      = copy_gc.const_head;
-    copy_gc.const_alloc_ptr = &copy_gc.const_curr->data_start;
-    copy_gc.const_end_ptr   = copy_gc.const_curr->data + NECRO_SPACE_SIZE;
+    necro_copy_gc.const_head      = necro_alloc_space();
+    necro_copy_gc.const_curr      = necro_copy_gc.const_head;
+    necro_copy_gc.const_alloc_ptr = &necro_copy_gc.const_curr->data_start;
+    necro_copy_gc.const_end_ptr   = necro_copy_gc.const_curr->data + NECRO_SPACE_SIZE;
 
-    return copy_gc;
+    return necro_copy_gc;
 }
 
-void necro_destroy_copy_gc(NecroCopyGC* copy_gc)
+void necro_destroy_copy_gc(NecroCopyGC* necro_copy_gc)
 {
-    assert(copy_gc != NULL);
-    necro_destroy_timer(copy_gc->timer);
-    necro_destroy_space(copy_gc->from_head);
-    necro_destroy_space(copy_gc->to_head);
-    necro_destroy_space(copy_gc->const_head);
-    if (copy_gc->roots != NULL)
+    assert(necro_copy_gc != NULL);
+    necro_destroy_timer(necro_copy_gc->timer);
+    necro_destroy_space(necro_copy_gc->from_head);
+    necro_destroy_space(necro_copy_gc->to_head);
+    necro_destroy_space(necro_copy_gc->const_head);
+    if (necro_copy_gc->roots != NULL)
     {
-        free(copy_gc->roots);
-        copy_gc->roots = NULL;
+        free(necro_copy_gc->roots);
+        necro_copy_gc->roots = NULL;
     }
-    copy_gc->root_count = 0;
+    necro_copy_gc->root_count = 0;
 }
 
 typedef struct
@@ -272,15 +272,15 @@ NecroCopyBuffer necro_create_copy_buffer()
     };
 }
 
-void necro_destroy_copy_buffer(NecroCopyBuffer* copy_buffer)
+void necro_destroy_copy_buffer(NecroCopyBuffer* necro_copy_buffer)
 {
-     assert(copy_buffer != NULL);
-     if (copy_buffer->data == NULL)
+     assert(necro_copy_buffer != NULL);
+     if (necro_copy_buffer->data == NULL)
          return;
-     free(copy_buffer->data);
-     copy_buffer->data     = NULL;
-     copy_buffer->capacity = 0;
-     copy_buffer->count    = 0;
+     free(necro_copy_buffer->data);
+     necro_copy_buffer->data     = NULL;
+     necro_copy_buffer->capacity = 0;
+     necro_copy_buffer->count    = 0;
 }
 
 inline void necro_create_new_copy_job(size_t data_id, NecroValue* from_value, NecroValue** to_value)
@@ -589,7 +589,8 @@ void necro_copy_gc_cleanup()
 extern DLLEXPORT void _necro_copy_gc_initialize_root_set(size_t root_count)
 {
     // NECRO_TRACE_GC("init root_set, root_count: %d\n", root_count);
-    copy_gc.root_count = root_count;
+    assert(root_count < UINT32_MAX);
+    copy_gc.root_count = (uint32_t) root_count;
     if (root_count == 0)
     {
         copy_gc.roots = NULL;
@@ -604,7 +605,7 @@ extern DLLEXPORT void _necro_copy_gc_initialize_root_set(size_t root_count)
     for (size_t i = 0; i < root_count; ++i)
     {
         copy_gc.roots[i].root    = NULL;
-        copy_gc.roots[i].data_id = -1;
+        copy_gc.roots[i].data_id = (size_t) -1;
     }
 }
 
@@ -659,6 +660,7 @@ extern DLLEXPORT void _necro_copy_gc_collect()
     NecroSpace* to_head        = copy_gc.to_head;
     NecroSpace* to_curr        = copy_gc.to_curr;
     char*       from_alloc_ptr = copy_gc.from_alloc_ptr;
+    UNUSED(from_alloc_ptr);
     char*       to_alloc_ptr   = copy_gc.to_alloc_ptr;
     char*       to_end_ptr     = copy_gc.to_end_ptr;
     copy_gc.from_head          = to_head;

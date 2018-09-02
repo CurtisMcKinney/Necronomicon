@@ -24,7 +24,7 @@
 
 NecroTypeEnv necro_create_type_env(size_t initial_size)
 {
-    initial_size     = next_highest_pow_of_2(initial_size);
+    initial_size     = (size_t) next_highest_pow_of_2((uint32_t)initial_size);
     NecroType** data = malloc(initial_size * sizeof(NecroType*));
     if (data == NULL)
     {
@@ -345,7 +345,8 @@ NecroType* necro_curry_con(NecroInfer* infer, NecroType* con)
 NecroType* necro_new_name(NecroInfer* infer, NecroSourceLoc source_loc)
 {
     infer->highest_id++;
-    NecroVar   var       = (NecroVar) { .id = { infer->highest_id }, .symbol = NULL_SYMBOL };
+    assert(infer->highest_id <= UINT32_MAX);
+    NecroVar   var       = (NecroVar) { .id = { (uint32_t) infer->highest_id }, .symbol = NULL_SYMBOL };
     NecroType* type_var  = necro_create_type_var(infer, var);
     // type_var->kind       = NULL;
     type_var->source_loc = source_loc;
@@ -474,6 +475,7 @@ NecroType* necro_find(NecroType* type)
 
 bool necro_is_bound_in_scope(NecroInfer* infer, NecroType* type, NecroScope* scope)
 {
+    UNUSED(infer);
     if (type->type != NECRO_TYPE_VAR)
         return false;
     if (type->var.scope == NULL)
@@ -520,6 +522,7 @@ void necro_type_is_not_instance_error(NecroInfer* infer, NecroType* type, NecroT
 
 void necro_occurs_error(NecroInfer* infer, NecroVar type_var, NecroType* type, NecroType* macro_type, const char* error_preamble)
 {
+    UNUSED(type);
     if (necro_is_infer_error(infer))
         return;
     necro_infer_error(infer, error_preamble, macro_type, "Occurs check error, cannot construct the infinite type: \n %s ~ ", necro_id_as_character_string(infer->intern, type_var));
@@ -1199,7 +1202,7 @@ NecroType* necro_gen(NecroInfer* infer, NecroType* type, NecroScope* scope)
 //=====================================================
 char* necro_type_string(NecroInfer* infer, NecroType* type)
 {
-    static const MAX_KIND_BUFFER_LENGTH = 512;
+    static const size_t MAX_KIND_BUFFER_LENGTH = 512;
     char* buffer     = necro_paged_arena_alloc(&infer->arena, MAX_KIND_BUFFER_LENGTH * sizeof(char));
     char* buffer_end = necro_snprintf_type_sig(type, infer->intern, buffer, MAX_KIND_BUFFER_LENGTH);
     *buffer_end = '\0';
@@ -1771,7 +1774,14 @@ void necro_print_env(NecroInfer* infer)
         if (infer->env.data[i] == NULL)
             continue;
         printf("    ");
-        necro_print_id_as_characters((NecroVar) { .id = (NecroID) { i }, .symbol = (NecroSymbol) { .id = 0, .hash = 0 } }, infer->intern);
+        assert(i <= UINT32_MAX);
+        necro_print_id_as_characters(
+            (NecroVar)
+            {
+                .id = (NecroID) { (uint32_t) i },
+                .symbol = (NecroSymbol) { .id = 0, .hash = 0 }
+            },
+            infer->intern);
         printf(" ==> ");
         necro_print_type_sig(infer->env.data[i], infer->intern);
     }

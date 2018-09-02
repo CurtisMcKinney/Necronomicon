@@ -58,7 +58,7 @@ void necro_print_machine_value(NecroMachineProgram* program, NecroMachineAST* as
         printf("%%%s", necro_intern_get_string(program->intern, value.reg_name.symbol));
         break;
     case NECRO_MACHINE_VALUE_PARAM:
-        printf("%%%d", value.param_reg.param_num);
+        printf("%%%zu", value.param_reg.param_num);
         break;
     case NECRO_MACHINE_VALUE_UINT1_LITERAL:
         printf("%uu1", value.uint1_literal);
@@ -138,7 +138,7 @@ void necro_machine_print_block(NecroMachineProgram* program, NecroMachineAST* as
         assert(values != NULL);
         while (values != NULL)
         {
-            printf("%u: %s, ", values->data.value, necro_intern_get_string(program->intern, values->data.block->block.name.symbol));
+            printf("%zu: %s, ", values->data.value, necro_intern_get_string(program->intern, values->data.block->block.name.symbol));
             values = values->next;
         }
         printf("else: %s]\n", necro_intern_get_string(program->intern, ast->block.terminator->switch_terminator.else_block->block.name.symbol));
@@ -170,6 +170,7 @@ void necro_machine_print_block(NecroMachineProgram* program, NecroMachineAST* as
 
 void necro_machine_print_call(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)
 {
+    UNUSED(depth);
     assert(ast->type == NECRO_MACHINE_CALL);
     if (ast->call.result_reg->value.value_type == NECRO_MACHINE_VALUE_VOID)
         printf("call ");
@@ -188,6 +189,7 @@ void necro_machine_print_call(NecroMachineProgram* program, NecroMachineAST* ast
 
 void necro_machine_print_store(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)
 {
+    UNUSED(depth);
     assert(ast->type == NECRO_MACHINE_STORE);
     printf("store ");
     switch (ast->store.store_type)
@@ -207,13 +209,14 @@ void necro_machine_print_store(NecroMachineProgram* program, NecroMachineAST* as
         necro_print_machine_value(program, ast->store.source_value, NECRO_PRINT_VALUE_TYPE);
         printf(" ");
         necro_print_machine_value(program, ast->store.store_slot.dest_ptr, NECRO_PRINT_VALUE_TYPE);
-        printf(" (slot %d)", ast->store.store_slot.dest_slot);
+        printf(" (slot %zu)", ast->store.store_slot.dest_slot);
         return;
     }
 }
 
 void necro_machine_print_load(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)
 {
+    UNUSED(depth);
     assert(ast->type == NECRO_MACHINE_LOAD);
     printf("%%%s = load ", necro_intern_get_string(program->intern, ast->load.dest_value->value.reg_name.symbol));
     switch (ast->load.load_type)
@@ -227,7 +230,7 @@ void necro_machine_print_load(NecroMachineProgram* program, NecroMachineAST* ast
         return;
     case NECRO_LOAD_SLOT:
         necro_print_machine_value(program, ast->load.load_slot.source_ptr, NECRO_PRINT_VALUE_TYPE);
-        printf(" (slot %d)", ast->load.load_slot.source_slot);
+        printf(" (slot %zu)", ast->load.load_slot.source_slot);
         return;
     // case NECRO_LOAD_GLOBAL:
     //     necro_print_machine_value(program, ast->load.source_global, NECRO_PRINT_VALUE_TYPE);
@@ -239,6 +242,7 @@ void necro_machine_print_load(NecroMachineProgram* program, NecroMachineAST* ast
 
 void necro_machine_print_bit_cast(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)
 {
+    UNUSED(depth);
     assert(ast->type == NECRO_MACHINE_BIT_CAST);
     printf("%%%s = bitcast ", necro_intern_get_string(program->intern, ast->bit_cast.to_value->value.reg_name.symbol));
     necro_print_machine_value(program, ast->bit_cast.from_value, NECRO_PRINT_VALUE_TYPE);
@@ -249,6 +253,7 @@ void necro_machine_print_bit_cast(NecroMachineProgram* program, NecroMachineAST*
 
 void necro_machine_print_zext(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)
 {
+    UNUSED(depth);
     assert(ast->type == NECRO_MACHINE_ZEXT);
     printf("%%%s = zext ", necro_intern_get_string(program->intern, ast->bit_cast.to_value->value.reg_name.symbol));
     necro_print_machine_value(program, ast->bit_cast.from_value, NECRO_PRINT_VALUE_TYPE);
@@ -275,6 +280,7 @@ void necro_machine_print_gep(NecroMachineProgram* program, NecroMachineAST* ast,
 
 void necro_machine_print_nalloc(NecroMachineProgram* program, NecroMachineAST* ast, size_t depth)
 {
+    UNUSED(depth);
     assert(ast->type == NECRO_MACHINE_NALLOC);
     // if (ast->nalloc.is_constant)
     //     printf("%%%s = alloc_const (", necro_intern_get_string(program->intern, ast->nalloc.result_reg->value.reg_name.symbol));
@@ -312,11 +318,12 @@ void necro_machine_print_alloca(NecroMachineProgram* program, NecroMachineAST* a
 {
     assert(ast->type == NECRO_MACHINE_ALLOCA);
     print_white_space(depth);
-    printf("%%%s = alloca (slots: %d)", necro_intern_get_string(program->intern, ast->alloca.result->value.reg_name.symbol), ast->alloca.num_slots);
+    printf("%%%s = alloca (slots: %zu)", necro_intern_get_string(program->intern, ast->alloca.result->value.reg_name.symbol), ast->alloca.num_slots);
 }
 
 void necro_machine_print_state_type(NecroMachineProgram* program, NECRO_STATE_TYPE state_type)
 {
+    UNUSED(program);
     switch (state_type)
     {
     case NECRO_STATE_POLY:

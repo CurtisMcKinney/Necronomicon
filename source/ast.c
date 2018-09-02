@@ -884,6 +884,7 @@ NecroASTNode* necro_create_simple_type_ast(NecroPagedArena* arena, NecroIntern* 
 
 NecroASTNode* necro_create_data_declaration_ast(NecroPagedArena* arena, NecroIntern* intern, NecroASTNode* simple_type, NecroASTNode* constructor_list)
 {
+    UNUSED(intern);
     NecroASTNode* ast                      = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
     ast->type                              = NECRO_AST_DATA_DECLARATION;
     ast->data_declaration.simpletype       = simple_type;
@@ -1124,6 +1125,7 @@ NecroDeclarationGroup* necro_append_declaration_group(NecroPagedArena* arena, Ne
 
 void necro_append_declaration_group_to_group_in_group_list(NecroPagedArena* arena, NecroDeclarationGroupList* group_list, NecroDeclarationGroup* group_to_append)
 {
+    UNUSED(arena);
     NecroDeclarationGroup* existing_group = group_list->declaration_group;
     if (existing_group == NULL)
     {
@@ -1138,6 +1140,7 @@ void necro_append_declaration_group_to_group_in_group_list(NecroPagedArena* aren
 
 void necro_prepend_declaration_group_to_group_in_group_list(NecroPagedArena* arena, NecroDeclarationGroupList* group_list, NecroDeclarationGroup* group_to_prepend)
 {
+    UNUSED(arena);
     assert(group_to_prepend != NULL);
     NecroDeclarationGroup* curr = group_to_prepend;
     while (curr->next != NULL)

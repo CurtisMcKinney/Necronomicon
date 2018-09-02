@@ -115,38 +115,37 @@ void necro_add_unicode_property(NecroUnicodePropertyParser* uparser, uint32_t co
         uparser->properties_count = code_point + 1;
     }
     uparser->properties[code_point] |= property_field;
-    return;
-    if (code_point < 256)
-        printf("code point: %c, property: ", (char) code_point);
-    else
-        printf("code point: %u, property: ", code_point);
-    switch (property_field)
-    {
-    case NECRO_UNICODE_DEFAULT: printf("NECRO_UNICODE_DEFAULT\n"); break;
-    case NECRO_UNICODE_MATH: printf("NECRO_UNICODE_MATH\n"); break;
-    case NECRO_UNICODE_ALPHABETIC: printf("NECRO_UNICODE_ALPHABETIC\n"); break;
-    case NECRO_UNICODE_LOWERCASE: printf("NECRO_UNICODE_LOWERCASE\n"); break;
-    case NECRO_UNICODE_UPPERCASE: printf("NECRO_UNICODE_UPPERCASE\n"); break;
-    case NECRO_UNICODE_CASED: printf("NECRO_UNICODE_CASED\n"); break;
-    case NECRO_UNICODE_CASE_IGNOREABLE: printf("NECRO_UNICODE_CASE_IGNOREABLE\n"); break;
-    case NECRO_UNICODE_CHANGES_WHEN_LOWERCASED: printf("NECRO_UNICODE_CHANGES_WHEN_LOWERCASED\n"); break;
-    case NECRO_UNICODE_CHANGES_WHEN_UPPERCASED: printf("NECRO_UNICODE_CHANGES_WHEN_UPPERCASED\n"); break;
-    case NECRO_UNICODE_CHANGES_WHEN_TITLE_CASED: printf("NECRO_UNICODE_CHANGES_WHEN_TITLE_CASED\n"); break;
-    case NECRO_UNICODE_CHANGES_WHEN_CASE_FOLDED: printf("NECRO_UNICODE_CHANGES_WHEN_CASE_FOLDED\n"); break;
-    case NECRO_UNICODE_CHANGES_WHEN_CASE_MAPPED: printf("NECRO_UNICODE_CHANGES_WHEN_CASE_MAPPED\n"); break;
-    case NECRO_UNICODE_ID_START: printf("NECRO_UNICODE_ID_START\n"); break;
-    case NECRO_UNICODE_ID_CONTINUE: printf("NECRO_UNICODE_ID_CONTINUE\n"); break;
-    case NECRO_UNICODE_XID_START: printf("NECRO_UNICODE_XID_START\n"); break;
-    case NECRO_UNICODE_XID_CONTINUE: printf("NECRO_UNICODE_XID_CONTINUE\n"); break;
-    case NECRO_UNICODE_GRAPHEME_EXTEND: printf("NECRO_UNICODE_GRAPHEME_EXTEND\n"); break;
-    case NECRO_UNICODE_GRAPHEME_BASE: printf("NECRO_UNICODE_GRAPHEME_BASE\n"); break;
-    case NECRO_UNICODE_WHITE_SPACE: printf("NECRO_UNICODE_WHITE_SPACE\n"); break;
-    case NECRO_UNICODE_NUMERIC: printf("NECRO_UNICODE_NUMERIC\n"); break;
-    case NECRO_UNICODE_DIGIT: printf("NECRO_UNICODE_DIGIT\n"); break;
-    case NECRO_UNICODE_DECIMAL: printf("NECRO_UNICODE_DECIMAL\n"); break;
-    default:
-        assert(false);
-    }
+    // if (code_point < 256)
+    //     printf("code point: %c, property: ", (char) code_point);
+    // else
+    //     printf("code point: %u, property: ", code_point);
+    // switch (property_field)
+    // {
+    // case NECRO_UNICODE_DEFAULT: printf("NECRO_UNICODE_DEFAULT\n"); break;
+    // case NECRO_UNICODE_MATH: printf("NECRO_UNICODE_MATH\n"); break;
+    // case NECRO_UNICODE_ALPHABETIC: printf("NECRO_UNICODE_ALPHABETIC\n"); break;
+    // case NECRO_UNICODE_LOWERCASE: printf("NECRO_UNICODE_LOWERCASE\n"); break;
+    // case NECRO_UNICODE_UPPERCASE: printf("NECRO_UNICODE_UPPERCASE\n"); break;
+    // case NECRO_UNICODE_CASED: printf("NECRO_UNICODE_CASED\n"); break;
+    // case NECRO_UNICODE_CASE_IGNOREABLE: printf("NECRO_UNICODE_CASE_IGNOREABLE\n"); break;
+    // case NECRO_UNICODE_CHANGES_WHEN_LOWERCASED: printf("NECRO_UNICODE_CHANGES_WHEN_LOWERCASED\n"); break;
+    // case NECRO_UNICODE_CHANGES_WHEN_UPPERCASED: printf("NECRO_UNICODE_CHANGES_WHEN_UPPERCASED\n"); break;
+    // case NECRO_UNICODE_CHANGES_WHEN_TITLE_CASED: printf("NECRO_UNICODE_CHANGES_WHEN_TITLE_CASED\n"); break;
+    // case NECRO_UNICODE_CHANGES_WHEN_CASE_FOLDED: printf("NECRO_UNICODE_CHANGES_WHEN_CASE_FOLDED\n"); break;
+    // case NECRO_UNICODE_CHANGES_WHEN_CASE_MAPPED: printf("NECRO_UNICODE_CHANGES_WHEN_CASE_MAPPED\n"); break;
+    // case NECRO_UNICODE_ID_START: printf("NECRO_UNICODE_ID_START\n"); break;
+    // case NECRO_UNICODE_ID_CONTINUE: printf("NECRO_UNICODE_ID_CONTINUE\n"); break;
+    // case NECRO_UNICODE_XID_START: printf("NECRO_UNICODE_XID_START\n"); break;
+    // case NECRO_UNICODE_XID_CONTINUE: printf("NECRO_UNICODE_XID_CONTINUE\n"); break;
+    // case NECRO_UNICODE_GRAPHEME_EXTEND: printf("NECRO_UNICODE_GRAPHEME_EXTEND\n"); break;
+    // case NECRO_UNICODE_GRAPHEME_BASE: printf("NECRO_UNICODE_GRAPHEME_BASE\n"); break;
+    // case NECRO_UNICODE_WHITE_SPACE: printf("NECRO_UNICODE_WHITE_SPACE\n"); break;
+    // case NECRO_UNICODE_NUMERIC: printf("NECRO_UNICODE_NUMERIC\n"); break;
+    // case NECRO_UNICODE_DIGIT: printf("NECRO_UNICODE_DIGIT\n"); break;
+    // case NECRO_UNICODE_DECIMAL: printf("NECRO_UNICODE_DECIMAL\n"); break;
+    // default:
+    //     assert(false);
+    // }
 }
 
 ///////////////////////////////////////////////////////
@@ -486,7 +485,11 @@ NECRO_RETURN_CODE necro_open_file_in_directory(const char* directory_name, const
 
 #ifdef WIN32
     FILE* file;
-    size_t err = fopen_s(&file, file_name_buf, "r");
+    if (fopen_s(&file, file_name_buf, "r, ccs = UTF-8") != 0)
+    {
+        fprintf(stderr, "Could not open file: %s\n", file_name_buf);
+        exit(1);
+    }
 #else
     FILE* file = fopen(argv[1], "r");
 #endif
@@ -531,7 +534,10 @@ FILE* necro_open_write_file_in_director(const char* directory_name, const char* 
 
 #ifdef WIN32
     FILE* file;
-    size_t err = fopen_s(&file, file_name_buf, "w");
+    if (fopen_s(&file, file_name_buf, "w") != 0)
+    {
+        assert(false);
+    }
 #else
     FILE* file = fopen(argv[1], "w");
 #endif
@@ -1831,7 +1837,7 @@ bool necro_is_grapheme_base(uint32_t code_point)
     uint64_t leaf = grapheme_base_leaves[leaf_index];
     uint64_t mask = (((uint64_t)1) << (((uint64_t)code_point & 0x3F)));
     uint64_t leaf_s = leaf & mask;
-    bool    is_base = (leaf & (((uint64_t)1) << (((uint64_t)code_point & 0x3F)))) != 0;
+    bool    is_base = (leaf_s & (((uint64_t)1) << (((uint64_t)code_point & 0x3F)))) != 0;
     return is_base;
 }
 

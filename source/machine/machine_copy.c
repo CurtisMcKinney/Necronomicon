@@ -134,6 +134,7 @@ size_t necro_create_data_info(NecroMachineProgram* program, NecroType* type)
     while (constructor_ast_list != NULL)
     {
         NecroASTNode*        arg_list     = constructor_ast_list->list.item->constructor.arg_list;
+        UNUSED(arg_list);
         NecroConstructorInfo info         = (NecroConstructorInfo) { .members_offset = program->copy_table.member_map.length, .num_members = 0, .size_in_bytes = sizeof(char*), .is_tagged_union = is_tagged_union, .is_machine_def = false };
         bool                 first_member = true;
         NecroType*           con_inst     = necro_inst(program->infer, constructor_ast_list->list.item->necro_type, NULL);
@@ -247,11 +248,11 @@ void necro_print_data_info_go(struct NecroMachineProgram* program, size_t id, bo
     NecroConstructorInfo info = program->copy_table.data_map.data[id];
     if (!is_top)
     {
-        printf("    * { id: %d, ", id);
+        printf("    * { id: %zu, ", id);
     }
     else
     {
-        printf("{ id: %d, .member_offset: %d, .num_members: %d, .size_in_bytes: %d, ", id, info.members_offset, info.num_members, info.size_in_bytes);
+        printf("{ id: %zu, .member_offset: %zu, .num_members: %zu, .size_in_bytes: %zu, ", id, info.members_offset, info.num_members, info.size_in_bytes);
     }
     if (id == NECRO_NULL_DATA_ID)
         printf("Null }\n");

@@ -192,7 +192,9 @@ LLVMTypeRef necro_machine_type_to_llvm_type(NecroCodeGenLLVM* codegen, NecroMach
             {
                 elements[i] = necro_machine_type_to_llvm_type(codegen, machine_type->struct_type.members[i]);
             }
-            LLVMStructSetBody(struct_type, elements, machine_type->struct_type.num_members, false);
+            const size_t num_members = machine_type->struct_type.num_members;
+            assert(num_members <= UINT32_MAX);
+            LLVMStructSetBody(struct_type, elements, (uint32_t) num_members, false);
         }
         return info->type;
     }
@@ -204,7 +206,10 @@ LLVMTypeRef necro_machine_type_to_llvm_type(NecroCodeGenLLVM* codegen, NecroMach
         {
             parameters[i] = necro_machine_type_to_llvm_type(codegen, machine_type->fn_type.parameters[i]);
         }
-        return LLVMFunctionType(return_type, parameters, machine_type->fn_type.num_parameters, false);
+
+        const size_t num_parameters = machine_type->fn_type.num_parameters;
+        assert(num_parameters <= UINT32_MAX);
+        return LLVMFunctionType(return_type, parameters, (uint32_t) num_parameters, false);
     }
     default:
         assert(false);
@@ -226,7 +231,9 @@ LLVMValueRef necro_maybe_cast(NecroCodeGenLLVM* codegen, LLVMValueRef value, LLV
         {
             LLVMDumpModule(codegen->mod);
             const char* type_of_val_string   = LLVMPrintTypeToString(value_type);
+            UNUSED(type_of_val_string);
             const char* type_to_match_string = LLVMPrintTypeToString(type_to_match);
+            UNUSED(type_to_match_string);
             assert(false && "maybe_cast error");
         }
         // TODO: Test if it's a pointer or an unboxed type!!!
@@ -281,6 +288,7 @@ void necro_codegen_function(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
     assert(ast != NULL);
     assert(ast->type == NECRO_MACHINE_FN_DEF);
     const char* fn_name = necro_intern_get_string(codegen->intern, ast->fn_def.name.symbol);
+    UNUSED(fn_name);
     assert(ast->fn_def.name.id.id != 0);
 
     // Fn begin
@@ -290,8 +298,8 @@ void necro_codegen_function(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
     if (ast->fn_def.fn_type == NECRO_FN_RUNTIME)
     {
         // LLVMAVR
-        LLVMAddAttributeAtIndex(fn_value, LLVMAttributeFunctionIndex, LLVMCreateEnumAttribute(codegen->context, LLVMGetEnumAttributeKindForName("noinline", 8), 0));
-        LLVMAddAttributeAtIndex(fn_value, LLVMAttributeFunctionIndex, LLVMCreateEnumAttribute(codegen->context, LLVMGetEnumAttributeKindForName("optnone", 7), 0));
+        LLVMAddAttributeAtIndex(fn_value, (LLVMAttributeIndex) LLVMAttributeFunctionIndex, LLVMCreateEnumAttribute(codegen->context, LLVMGetEnumAttributeKindForName("noinline", 8), 0));
+        LLVMAddAttributeAtIndex(fn_value, (LLVMAttributeIndex) LLVMAttributeFunctionIndex, LLVMCreateEnumAttribute(codegen->context, LLVMGetEnumAttributeKindForName("optnone", 7), 0));
         // LLVMAddAttributeAtIndex(fn_value, LLVMAttributeFunctionIndex, LLVMCreateEnumAttribute(codegen->context, LLVMGetEnumAttributeKindForName("nodiscard", 9), 0));
         LLVMSetFunctionCallConv(fn_value, LLVMCCallConv);
         LLVMSetLinkage(fn_value, LLVMExternalLinkage);
@@ -357,7 +365,8 @@ LLVMValueRef necro_codegen_terminator(NecroCodeGenLLVM* codegen, NecroTerminator
             num_choices++;
             choices = choices->next;
         }
-        LLVMValueRef switch_value = LLVMBuildSwitch(codegen->builder, cond_value, else_block, num_choices);
+        assert(num_choices <= UINT32_MAX);
+        LLVMValueRef switch_value = LLVMBuildSwitch(codegen->builder, cond_value, else_block, (uint32_t) num_choices);
         choices = term->switch_terminator.values;
         while (choices != NULL)
         {
@@ -381,8 +390,8 @@ LLVMValueRef necro_codegen_nalloc(NecroCodeGenLLVM* codegen, NecroMachineAST* as
     assert(ast->type == NECRO_MACHINE_NALLOC);
     LLVMTypeRef  type      = necro_machine_type_to_llvm_type(codegen, ast->nalloc.type_to_alloc);
     // Add 1 word for header
-    uint64_t     data_size = (ast->nalloc.slots_used + 1) * ((necro_get_word_size() == NECRO_WORD_4_BYTES) ? 4 : 8);
-    LLVMValueRef size_val  = (necro_get_word_size() == NECRO_WORD_4_BYTES) ?
+    uint64_t     data_size = (ast->nalloc.slots_used + 1) * ((necro_word_size == NECRO_WORD_4_BYTES) ? 4 : 8);
+    LLVMValueRef size_val  = (necro_word_size == NECRO_WORD_4_BYTES) ?
         LLVMConstInt(LLVMInt32TypeInContext(codegen->context), data_size, false) :
         LLVMConstInt(LLVMInt64TypeInContext(codegen->context), data_size, false);
     LLVMValueRef void_ptr  = // ast->nalloc.is_constant ?
@@ -402,7 +411,12 @@ LLVMValueRef necro_codegen_value(NecroCodeGenLLVM* codegen, NecroMachineAST* ast
     switch (ast->value.value_type)
     {
     case NECRO_MACHINE_VALUE_REG:              return necro_maybe_cast(codegen, necro_codegen_symtable_get(codegen, ast->value.reg_name)->value, necro_machine_type_to_llvm_type(codegen, ast->necro_machine_type));
-    case NECRO_MACHINE_VALUE_PARAM:            return LLVMGetParam(necro_codegen_symtable_get(codegen, ast->value.param_reg.fn_name)->value, ast->value.param_reg.param_num);
+    case NECRO_MACHINE_VALUE_PARAM:
+    {
+        const size_t param_num = ast->value.param_reg.param_num;
+        assert(param_num <= UINT32_MAX);
+        return LLVMGetParam(necro_codegen_symtable_get(codegen, ast->value.param_reg.fn_name)->value, (uint32_t) param_num);
+    }
     case NECRO_MACHINE_VALUE_UINT1_LITERAL:    return LLVMConstInt(LLVMInt1TypeInContext(codegen->context),  ast->value.uint1_literal,  false);
     case NECRO_MACHINE_VALUE_UINT8_LITERAL:    return LLVMConstInt(LLVMInt8TypeInContext(codegen->context),  ast->value.uint8_literal,  false);
     case NECRO_MACHINE_VALUE_UINT16_LITERAL:   return LLVMConstInt(LLVMInt16TypeInContext(codegen->context), ast->value.uint16_literal, false);
@@ -485,7 +499,9 @@ LLVMValueRef necro_codegen_bitcast(NecroCodeGenLLVM* codegen, NecroMachineAST* a
     LLVMValueRef to_value   = NULL;
 
     const char* from_type_string = LLVMPrintTypeToString(value_type);
+    UNUSED(from_type_string);
     const char* to_type_string   = LLVMPrintTypeToString(to_type);
+    UNUSED(to_type_string);
 
     // TODO: Test if it's a pointer or an unboxed type!!!
     // Same Type
@@ -551,7 +567,9 @@ LLVMValueRef necro_codegen_gep(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
         // indices[i] = LLVMConstInt(LLVMInt32TypeInContext(codegen->context), ast->gep.indices[i], false);
         indices[i] = necro_codegen_value(codegen, ast->gep.indices[i]);
     }
-    LLVMValueRef value = LLVMBuildGEP(codegen->builder, ptr, indices, ast->gep.num_indices, name);
+    const size_t num_indices = ast->gep.num_indices;
+    assert(num_indices <= UINT32_MAX);
+    LLVMValueRef value = LLVMBuildGEP(codegen->builder, ptr, indices, (uint32_t) num_indices, name);
     necro_codegen_symtable_get(codegen, ast->gep.dest_value->value.reg_name)->type  = necro_machine_type_to_llvm_type(codegen, ast->gep.dest_value->necro_machine_type);
     necro_codegen_symtable_get(codegen, ast->gep.dest_value->value.reg_name)->value = value;
     return value;
@@ -674,7 +692,8 @@ LLVMValueRef necro_codegen_call(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
     {
         params[i] = necro_maybe_cast(codegen, necro_codegen_value(codegen, ast->call.parameters[i]), param_types[i]);
     }
-    LLVMValueRef result = LLVMBuildCall(codegen->builder, fn_value, params, num_params, result_name);
+    assert(num_params <= UINT32_MAX);
+    LLVMValueRef result = LLVMBuildCall(codegen->builder, fn_value, params, (uint32_t) num_params, result_name);
     if (ast->call.call_type == NECRO_C_CALL)
         LLVMSetInstructionCallConv(result, LLVMCCallConv);
     else
@@ -701,7 +720,9 @@ LLVMValueRef necro_codegen_phi(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
         LLVMValueRef      leaf_value = necro_codegen_value(codegen, values->data.value);
         LLVMBasicBlockRef block      = necro_codegen_symtable_get(codegen, values->data.block->block.name)->block;
         char* phi_type_string = LLVMPrintTypeToString(phi_type);
+        UNUSED(phi_type_string);
         char* val_type_string = LLVMPrintTypeToString(LLVMTypeOf(leaf_value));
+        UNUSED(val_type_string);
         LLVMAddIncoming(phi_value, &leaf_value, &block, 1);
         values = values->next;
     }
@@ -715,10 +736,10 @@ LLVMValueRef necro_codegen_memcpy(NecroCodeGenLLVM* codegen, NecroMachineAST* as
     assert(codegen != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_MACHINE_MEMCPY);
-    LLVMTypeRef word_int = (necro_get_word_size() == NECRO_WORD_4_BYTES) ? LLVMInt32TypeInContext(codegen->context) : LLVMInt64TypeInContext(codegen->context);
+    LLVMTypeRef word_int = (necro_word_size == NECRO_WORD_4_BYTES) ? LLVMInt32TypeInContext(codegen->context) : LLVMInt64TypeInContext(codegen->context);
     if (codegen->memcpy_fn == NULL)
     {
-        if (necro_get_word_size() == NECRO_WORD_4_BYTES)
+        if (necro_word_size == NECRO_WORD_4_BYTES)
         {
             LLVMTypeRef memcpy_type = LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), (LLVMTypeRef[]) { LLVMPointerType(word_int, 0), LLVMPointerType(word_int, 0),  word_int, LLVMInt1TypeInContext(codegen->context) }, 4, false);
             codegen->memcpy_fn      = LLVMAddFunction(codegen->mod, "llvm.memcpy.p0i32.p0i32.i32", memcpy_type);
@@ -747,10 +768,10 @@ LLVMValueRef necro_codegen_memset(NecroCodeGenLLVM* codegen, NecroMachineAST* as
     assert(codegen != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_MACHINE_MEMSET);
-    LLVMTypeRef word_int = (necro_get_word_size() == NECRO_WORD_4_BYTES) ? LLVMInt32TypeInContext(codegen->context) : LLVMInt64TypeInContext(codegen->context);
+    LLVMTypeRef word_int = (necro_word_size == NECRO_WORD_4_BYTES) ? LLVMInt32TypeInContext(codegen->context) : LLVMInt64TypeInContext(codegen->context);
     if (codegen->memset_fn == NULL)
     {
-        if (necro_get_word_size() == NECRO_WORD_4_BYTES)
+        if (necro_word_size == NECRO_WORD_4_BYTES)
         {
             LLVMTypeRef memset_type = LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), (LLVMTypeRef[]) { LLVMPointerType(word_int, 0), LLVMInt8TypeInContext(codegen->context), word_int, LLVMInt1TypeInContext(codegen->context) }, 4, false);
             codegen->memset_fn      = LLVMAddFunction(codegen->mod, "llvm.memset.p0i32.i32", memset_type);
@@ -774,6 +795,7 @@ LLVMValueRef necro_codegen_memset(NecroCodeGenLLVM* codegen, NecroMachineAST* as
     // LLVMValueRef size_val    = LLVMConstInt(word_int, data_size, false);
     // LLVMValueRef is_volatile = LLVMConstInt(LLVMInt1TypeInContext(codegen->context), 0, false);
     const char* type_of_val_string   = LLVMPrintTypeToString(LLVMTypeOf(codegen->memset_fn));
+    UNUSED(type_of_val_string);
     LLVMValueRef memset_val  =  LLVMBuildCall(codegen->builder, codegen->memset_fn, (LLVMValueRef[]) { ptr, value, num_bytes, is_volatile }, 4, "");
     LLVMSetInstructionCallConv(memset_val, LLVMGetFunctionCallConv(codegen->memset_fn));
     return memset_val;
@@ -960,7 +982,7 @@ NECRO_RETURN_CODE necro_jit_llvm(NecroCodeGenLLVM* codegen)
     _necro_set_data_map(codegen->data_map->data);
     _necro_set_member_map(codegen->member_map->data);
     necro_copy_gc_init();
-    void(*fun)() = (void(*)())LLVMGetFunctionAddress(engine, "_necro_main");
+    void(*fun)() = (void(*)())((size_t)LLVMGetFunctionAddress(engine, "_necro_main"));
     assert(fun != NULL);
 
 #ifdef _WIN32

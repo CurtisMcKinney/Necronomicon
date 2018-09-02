@@ -337,7 +337,7 @@ NecroCoreAST_Expression* necro_lambda_lift_lambda(NecroLambdaLift* ll, NecroCore
     NecroArenaSnapshot snapshot = necro_get_arena_snapshot(&ll->snapshot_arena);
     const char*        fn_name  = necro_concat_strings(&ll->snapshot_arena, 2, (const char*[]) { "_anon_fn_", itoa(ll->num_anon_functions, itoabuf, 10) });
     NecroSymbol        var_sym  = necro_intern_string(ll->intern, fn_name);
-    NecroID            var_id   = necro_scoped_symtable_new_symbol_info(ll->scoped_symtable, ll->scoped_symtable->top_scope, necro_create_initial_symbol_info(var_sym, (NecroSourceLoc) { 0 }, NULL, ll->intern));
+    NecroID            var_id   = necro_scoped_symtable_new_symbol_info(ll->scoped_symtable, ll->scoped_symtable->top_scope, necro_create_initial_symbol_info(var_sym, (NecroSourceLoc) { 0 }, NULL));
     NecroVar           fn_var   = (NecroVar) { .id = var_id, .symbol = var_sym };
     NecroSymbolInfo*   s_info   = necro_symtable_get(ll->symtable, var_id);
     s_info->type                = in_ast->necro_type;
@@ -413,7 +413,7 @@ NecroCoreAST_Expression* necro_lambda_lift_bind(NecroLambdaLift* ll, NecroCoreAS
     // TODO: Nested lambdas messes up ordering at lift point!
     // TODO: Rename lifted functions to avoid name clashes!
 
-    NecroVarList*              prev_env   = env;
+    // NecroVarList*              prev_env   = env;
     NecroLambdaLiftSymbolInfo* prev_outer = outer;
 
     bool is_fn = necro_bind_is_fn(in_ast);
@@ -621,7 +621,7 @@ NecroCoreAST_Expression* necro_lambda_lift_list_pat(NecroLambdaLift* ll, NecroCo
     return head;
 }
 
-NecroCoreAST_Expression* necro_lambda_lift_var_pat(NecroLambdaLift* ll, NecroCoreAST_Expression* in_ast, NecroVarList** env, NecroLambdaLiftSymbolInfo* outer)
+NecroCoreAST_Expression* necro_lambda_lift_var_pat(NecroLambdaLift* ll, NecroCoreAST_Expression* in_ast, NecroVarList** env)
 {
     assert(ll != NULL);
     assert(in_ast != NULL);
@@ -639,7 +639,7 @@ NecroCoreAST_Expression* necro_lambda_lift_pat_go(NecroLambdaLift* ll, NecroCore
         return NULL;
     switch (in_ast->expr_type)
     {
-    case NECRO_CORE_EXPR_VAR:       return necro_lambda_lift_var_pat(ll, in_ast, env, outer);
+    case NECRO_CORE_EXPR_VAR:       return necro_lambda_lift_var_pat(ll, in_ast, env);
     case NECRO_CORE_EXPR_LIST:      return necro_lambda_lift_list_pat(ll, in_ast, env, outer);
     case NECRO_CORE_EXPR_DATA_CON:  return necro_lambda_lift_data_con_pat(ll, in_ast, env, outer);
     case NECRO_CORE_EXPR_APP:       return necro_lambda_lift_app_pat(ll, in_ast, env, outer);

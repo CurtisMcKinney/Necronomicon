@@ -67,7 +67,8 @@ NecroMachineAST* necro_get_closure_con(NecroMachineProgram* program, size_t clos
 
     NecroArenaSnapshot snapshot         = necro_get_arena_snapshot(&program->snapshot_arena);
     NecroMachineType*  struct_ptr_type  = necro_create_machine_ptr_type(&program->arena, program->closure_type);
-    const char*        num_string       = itoa(adjusted_closure_arity, necro_snapshot_arena_alloc(&program->snapshot_arena, 10), 10);
+    assert(adjusted_closure_arity < INT32_MAX);
+    const char*        num_string       = itoa((int32_t) adjusted_closure_arity, necro_snapshot_arena_alloc(&program->snapshot_arena, 10), 10);
     const char*        struct_name      = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_Closure", num_string });
     const char*        mk_fn_name       = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mkClosure", num_string });
     // const char*        const_mk_fn_name = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mkConstClosure", num_string });
@@ -95,7 +96,8 @@ NecroMachineAST* necro_get_closure_con(NecroMachineProgram* program, size_t clos
         NecroMachineType*  mk_fn_type = necro_create_machine_fn_type(&program->arena, struct_ptr_type, elems, closure_arity);
         NecroMachineAST*   mk_fn_body = necro_create_machine_block(program, "entry", NULL);
         NecroMachineAST*   mk_fn_def  = necro_create_machine_fn(program, mk_fn_var, mk_fn_body, mk_fn_type);
-        NecroMachineAST*   data_ptr   = necro_build_nalloc(program, mk_fn_def, actual_type->necro_machine_type, closure_arity);
+        assert(closure_arity < UINT32_MAX);
+        NecroMachineAST*   data_ptr   = necro_build_nalloc(program, mk_fn_def, actual_type->necro_machine_type, (uint32_t) closure_arity);
         // if (c == 0)
             mk_fn_def->fn_def.state_type = NECRO_STATE_CONSTANT;
         // else
@@ -193,7 +195,8 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
 
     //--------------------
     // apply MachineDef
-    const char*       num_string                 = itoa(adjusted_apply_arity, necro_snapshot_arena_alloc(&program->snapshot_arena, 10), 10);
+    assert(adjusted_apply_arity <= INT32_MAX);
+    const char*       num_string                 = itoa((int32_t) adjusted_apply_arity, necro_snapshot_arena_alloc(&program->snapshot_arena, 10), 10);
     const char*       apply_machine_name         = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "apply", num_string });
     NecroVar          apply_machine_var          = necro_gen_var(program, NULL, apply_machine_name, NECRO_NAME_UNIQUE);
     NecroMachineAST*  apply_machine_def          = necro_create_machine_initial_machine_def(program, apply_machine_var, NULL, non_state_apply_fn_type, NULL);
@@ -295,14 +298,18 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
         size_t      closure_def_pargs    = program->closure_defs.data[i].num_pargs;
         // Non-stateful
         {
-            const char* block_name           = necro_concat_strings(&program->snapshot_arena, 5, (const char*[]) { "closure_arity_", itoa(closure_def_fn_arity, itoa_buf1, 10), "_pargs_", itoa(closure_def_pargs, itoa_buf2, 10), "_" });
+            assert(closure_def_fn_arity <= INT32_MAX);
+            assert(closure_def_pargs <= INT32_MAX);
+            const char* block_name           = necro_concat_strings(&program->snapshot_arena, 5, (const char*[]) { "closure_arity_", itoa((int32_t) closure_def_fn_arity, itoa_buf1, 10), "_pargs_", itoa((int32_t) closure_def_pargs, itoa_buf2, 10), "_" });
             closure_arity_blocks[i]          = necro_append_block(program, apply_fn_def, block_name);
             size_t      closure_switch_val   = (closure_def_fn_arity << 16) | closure_def_pargs;
             fn_arity_switch_list             = necro_cons_machine_switch_list(&program->arena, (NecroMachineSwitchData) { .block = closure_arity_blocks[i], .value = closure_switch_val }, fn_arity_switch_list);
         }
         // Stateful
         {
-            const char* block_name           = necro_concat_strings(&program->snapshot_arena, 5, (const char*[]) { "closure_arity_", itoa(closure_def_fn_arity, itoa_buf1, 10), "_pargs_", itoa(closure_def_pargs, itoa_buf2, 10), "_Stateful" });
+            assert(closure_def_fn_arity <= INT32_MAX);
+            assert(closure_def_pargs <= INT32_MAX);
+            const char* block_name           = necro_concat_strings(&program->snapshot_arena, 5, (const char*[]) { "closure_arity_", itoa((int32_t) closure_def_fn_arity, itoa_buf1, 10), "_pargs_", itoa((int32_t) closure_def_pargs, itoa_buf2, 10), "_Stateful" });
             closure_arity_blocks[i + program->closure_defs.length] = necro_append_block(program, apply_fn_def, block_name);
             size_t      closure_switch_val   = (1 << 31) | (closure_def_fn_arity << 16) | closure_def_pargs;
             fn_arity_switch_list             = necro_cons_machine_switch_list(&program->arena, (NecroMachineSwitchData) { .block = closure_arity_blocks[i + program->closure_defs.length], .value = closure_switch_val }, fn_arity_switch_list);
@@ -326,7 +333,7 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
     for (size_t c_stateful = 0; c_stateful < (program->closure_defs.length * 2); ++c_stateful)
     {
         const size_t     c                    = c_stateful % program->closure_defs.length;
-        const bool       is_stateful          = c_stateful >= program->closure_defs.length;
+        const bool       closure_is_stateful  = c_stateful >= program->closure_defs.length;
         NecroArenaSnapshot closure_snapshot   = necro_get_arena_snapshot(&program->snapshot_arena);
         necro_move_to_block(program, apply_fn_def, closure_arity_blocks[c_stateful]);
         const size_t     closure_def_fn_arity = program->closure_defs.data[c].fn_arity;
@@ -334,6 +341,7 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
         const size_t     num_apply_args       = adjusted_apply_arity;
         const size_t     num_total_args       = closure_def_pargs + num_apply_args;
         NecroMachineAST* closure_con          = necro_get_closure_con(program, NECRO_NUM_CLOSURE_PRE_ARGS + closure_def_pargs);
+        UNUSED(closure_con);
         NecroMachineAST* closure_ptr          = necro_build_bit_cast(program, apply_fn_def, necro_create_param_reg(program, apply_fn_def, 1), necro_create_machine_ptr_type(&program->arena, program->closure_types.data[closure_def_pargs + NECRO_NUM_CLOSURE_PRE_ARGS]));
         // TODO: Statefuleness!
         // TODO: Correct GC!
@@ -343,7 +351,7 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
         if (num_total_args < closure_def_fn_arity)
         {
             necro_build_debug_print(program, apply_fn_def, 300, NECRO_DEBUG_PRINT_CLOSURES);
-            if (!is_stateful)
+            if (!closure_is_stateful)
             {
                 necro_build_store_into_slot(program, apply_fn_def, necro_create_word_uint_value(program, 0), necro_create_param_reg(program, apply_fn_def, 0), 0);
                 necro_build_store_into_slot(program, apply_fn_def, necro_create_null_necro_machine_value(program, program->necro_poly_ptr_type), necro_create_param_reg(program, apply_fn_def, 0), 1);
@@ -364,7 +372,7 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
         }
 
         // Saturated, Non-Stateful
-        else if (num_total_args == closure_def_fn_arity && !is_stateful)
+        else if (num_total_args == closure_def_fn_arity && !closure_is_stateful)
         {
             necro_build_debug_print(program, apply_fn_def, 400, NECRO_DEBUG_PRINT_CLOSURES);
             necro_build_store_into_slot(program, apply_fn_def, necro_create_word_uint_value(program, 0), necro_create_param_reg(program, apply_fn_def, 0), 0);
@@ -388,7 +396,7 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
         // TODO: TEST this!
 
         // Saturated, Stateful
-        else if (num_total_args == closure_def_fn_arity && is_stateful)
+        else if (num_total_args == closure_def_fn_arity && closure_is_stateful)
         {
             necro_build_debug_print(program, apply_fn_def, 500, NECRO_DEBUG_PRINT_CLOSURES);
             NecroMachineAST** call_args = necro_snapshot_arena_alloc(&program->snapshot_arena, (closure_def_fn_arity + 1) * sizeof(NecroMachineAST*));
@@ -423,7 +431,7 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
         }
 
         // Over Saturated, Not-Stateful
-        else if (!is_stateful)
+        else if (!closure_is_stateful)
         {
             necro_build_debug_print(program, apply_fn_def, 600, NECRO_DEBUG_PRINT_CLOSURES);
             necro_build_store_into_slot(program, apply_fn_def, necro_create_word_uint_value(program, 0), necro_create_param_reg(program, apply_fn_def, 0), 0);

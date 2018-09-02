@@ -47,7 +47,7 @@ NecroResult(bool) necro_unrecognized_character_sequence_error(NecroPagedArena* a
     return (NecroResult(bool)) { .errors = necro_alloc_error(arena, error), .num_errors = 1 };
 }
 
-void necro_print_character_pointer(const char* source_str, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+void necro_print_range_pointers(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     printf("   |");
     // Arrow spaces
@@ -69,7 +69,7 @@ void necro_print_line_at_source_loc(const char* source_str, NecroSourceLoc sourc
     size_t line_end   = line_start;
     for (line_end = line_start; source_str[line_end] != '\0' && source_str[line_end] != '\n'; ++line_end);
     printf(" %u | %.*s\n", source_loc.line, (line_end - line_start), (source_str + line_start));
-    necro_print_character_pointer(source_str, source_loc, end_loc);
+    necro_print_range_pointers(source_loc, end_loc);
 }
 
 void necro_print_malformed_float_error(NecroResultError error, const char* source_str, const char* source_name)

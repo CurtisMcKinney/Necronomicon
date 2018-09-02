@@ -40,7 +40,7 @@ void necro_destroy_symtable(NecroSymTable* table)
     table->count = 0;
 }
 
-NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSourceLoc source_loc, NecroScope* scope, NecroIntern* intern)
+NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSourceLoc source_loc, NecroScope* scope)
 {
     return (NecroSymbolInfo)
     {
@@ -89,10 +89,11 @@ NecroID necro_symtable_insert(NecroSymTable* table, NecroSymbolInfo info)
     if (table->count >= table->size)
         necro_symtable_grow(table);
     assert(table->count < table->size);
-    info.id.id = table->count;
+    assert(table->count < UINT32_MAX);
+    info.id.id = (uint32_t) table->count;
     table->data[table->count] = info;
     table->count++;
-    return (NecroID) { table->count - 1 };
+    return (NecroID) { ((uint32_t) (table->count - 1)) };
 }
 
 NecroSymbolInfo* necro_symtable_get(NecroSymTable* table, NecroID id)
@@ -126,7 +127,7 @@ void necro_symtable_info_print(NecroSymbolInfo info, NecroIntern* intern, size_t
     // printf("size:       %d\n", info.data_size);
 
     print_white_space(whitespace + 4);
-    printf("source loc: { line: %d, character: %d, pos: %d }\n", info.source_loc.line, info.source_loc.character, info.source_loc.pos);
+    printf("source loc: { line: %zu, character: %zu, pos: %zu }\n", info.source_loc.line, info.source_loc.character, info.source_loc.pos);
 
     print_white_space(whitespace + 4);
     printf("scope:      %p\n", info.scope);
@@ -155,8 +156,8 @@ void necro_symtable_info_print(NecroSymbolInfo info, NecroIntern* intern, size_t
 void necro_symtable_print(NecroSymTable* table)
 {
     printf("NecroSymTable\n{\n");
-    printf("    size:  %d\n", table->size);
-    printf("    count: %d\n", table->count);
+    printf("    size:  %zu\n", table->size);
+    printf("    count: %zu\n", table->count);
     printf("    data:\n");
     printf("    [\n");
     for (size_t i = 0; i < table->count; ++i)
@@ -366,7 +367,7 @@ NecroID necro_scoped_symtable_new_symbol_info(NecroScopedSymTable* table, NecroS
 
 NecroID necro_symtable_manual_new_symbol(NecroSymTable* symtable, NecroSymbol symbol)
 {
-    NecroSymbolInfo info = necro_create_initial_symbol_info(symbol, (NecroSourceLoc) { 0 }, NULL, symtable->intern);
+    NecroSymbolInfo info = necro_create_initial_symbol_info(symbol, (NecroSourceLoc) { 0 }, NULL);
     return necro_symtable_insert(symtable, info);
 }
 
@@ -670,10 +671,10 @@ void necro_scope_print(NecroScope* scope, size_t whitespace, NecroIntern* intern
     printf("{\n");
 
     print_white_space(whitespace + 4);
-    printf("size:  %d\n", scope->size);
+    printf("size:  %zu\n", scope->size);
 
     print_white_space(whitespace + 4);
-    printf("count: %d\n", scope->count);
+    printf("count: %zu\n", scope->count);
 
     print_white_space(whitespace + 4);
     printf("data:\n");
@@ -866,9 +867,9 @@ void necro_scoped_symtable_test()
         for (size_t i = 0; i < 64; ++i)
         {
             char buffer[20];
-            snprintf(buffer, 20, "grow%d", i);
+            snprintf(buffer, 20, "grow%zu", i);
             NecroSymbol     symbol = necro_intern_string(&intern, buffer);
-            NecroSymbolInfo info   = necro_create_initial_symbol_info(symbol, (NecroSourceLoc){ 0, 0, 0 }, NULL, &intern);
+            NecroSymbolInfo info   = necro_create_initial_symbol_info(symbol, (NecroSourceLoc){ 0, 0, 0 }, NULL);
             NecroID         id     = necro_scoped_symtable_new_symbol_info(&scoped_symtable, scoped_symtable.current_scope, info);
             if (id.id == 0)
             {

@@ -646,8 +646,6 @@ NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast)
         }
         return inst_type;
     }
-    assert(false);
-    return NULL;
 }
 
 //=====================================================
@@ -1047,6 +1045,7 @@ NecroType* necro_infer_bin_op(NecroInfer* infer, NecroNode* ast)
 
     ast->bin_op.inst_context = NULL;
     NecroSymbolInfo* info    = infer->symtable->data + ast->bin_op.id.id;
+    UNUSED(info);
     NecroType* op_type       = necro_inst_with_context(infer, infer->symtable->data[ast->bin_op.id.id].type, ast->scope, &ast->bin_op.inst_context);
     assert(op_type != NULL);
 
@@ -1729,7 +1728,6 @@ NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast)
 
     default:                               return necro_infer_ast_error(infer, NULL, ast, "AST type %d has not been implemented for type inference", ast->type);
     }
-    return NULL;
 }
 
 NecroType* necro_infer(NecroInfer* infer, NecroNode* ast)
@@ -1742,6 +1740,7 @@ NecroType* necro_infer(NecroInfer* infer, NecroNode* ast)
 
 NecroType* necro_infer_ast_error(NecroInfer* infer, NecroType* type, NecroNode* ast, const char* error_message, ...)
 {
+    UNUSED(ast);
     if (infer->error.return_code != NECRO_SUCCESS)
         return NULL;
     va_list args;

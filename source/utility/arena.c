@@ -9,6 +9,7 @@
 #include <string.h>
 #include "arena.h"
 #include "math.h"
+#include "utility.h"
 
 // #define ARENA_DEBUG_PRINT 1
 #define DEBUG_ARENA 0
@@ -99,6 +100,8 @@ NecroArenaPtr arena_alloc_local(NecroArena* arena, size_t size, arena_alloc_poli
 
 void* arena_deref_local(NecroArena* arena, NecroArenaPtr ptr)
 {
+    UNUSED(arena);
+    UNUSED(ptr);
     return NULL;
 }
 
@@ -140,7 +143,7 @@ void* necro_paged_arena_alloc(NecroPagedArena* arena, size_t size)
         NecroArenaPage* page = malloc(sizeof(NecroArenaPage) + arena->size);
         if (page == NULL)
         {
-            fprintf(stderr, "Allocation error: could not allocate %d of memory for NecroPagedArena", sizeof(NecroArenaPage) + arena->size);
+            fprintf(stderr, "Allocation error: could not allocate %zu of memory for NecroPagedArena", sizeof(NecroArenaPage) + arena->size);
             exit(1);
         }
         page->next   = arena->pages;

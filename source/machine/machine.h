@@ -210,13 +210,15 @@ typedef enum
     NECRO_FN_RUNTIME,
 } NECRO_FN_TYPE;
 
+typedef void* NecroMachineFnPtr;
+
 typedef struct NecroMachineFnDef
 {
     NecroVar                name;
     struct NecroMachineAST* call_body;
     NECRO_FN_TYPE           fn_type;
     struct NecroMachineAST* fn_value;
-    void*                   runtime_fn_addr;
+    NecroMachineFnPtr       runtime_fn_addr;
     NECRO_STATE_TYPE        state_type;
     // bool                    is_primitively_stateful;
     //-------------------
@@ -494,8 +496,9 @@ typedef struct NecroRuntime
 
 typedef enum
 {
-    NECRO_WORD_4_BYTES, // 32-bit
-    NECRO_WORD_8_BYTES, // 64-bit
+    NECRO_WORD_4_BYTES = 4, // 32-bit
+    NECRO_WORD_8_BYTES = 8, // 64-bit
+    NECRO_WORD_INVALID = -1
 } NECRO_WORD_SIZE;
 
 typedef struct NecroMachineProgram
@@ -556,8 +559,10 @@ void                necro_destroy_machine_program(NecroMachineProgram* program);
 void                necro_core_to_machine_1_go(NecroMachineProgram* program, NecroCoreAST_Expression* core_ast, NecroMachineAST* outer);
 void                necro_core_to_machine_2_go(NecroMachineProgram* program, NecroCoreAST_Expression* core_ast, NecroMachineAST* outer);
 NecroMachineAST*    necro_core_to_machine_3_go(NecroMachineProgram* program, NecroCoreAST_Expression* core_ast, NecroMachineAST* outer);
-NECRO_WORD_SIZE     necro_get_word_size();
 void                necro_build_debug_print(NecroMachineProgram* program, NecroMachineAST* fn_def, int print_value, bool should_print);
 void                necro_build_debug_print_value(NecroMachineProgram* program, NecroMachineAST* fn_def, NecroMachineAST* print_value, bool should_print);
+
+static const size_t word_size = sizeof(char*);
+static const NECRO_WORD_SIZE necro_word_size = (NECRO_WORD_SIZE) sizeof(char*);
 
 #endif // NECRO_MACHINE_H

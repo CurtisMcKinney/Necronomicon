@@ -155,6 +155,19 @@ inline uint32_t next_highest_pow_of_2(uint32_t x)
     return x;
 }
 
+// inline size_t next_highest_pow_of_2_size_t(size_t x)
+// {
+//     x--;
+//     x |= x >> 1;
+//     x |= x >> 2;
+//     x |= x >> 4;
+//     x |= x >> 8;
+//     x |= x >> 16;
+//     x |= x >> 32;
+//     x++;
+//     return x;
+// }
+
 static const uint32_t tab32[32] =
 {
   0,   9,  1, 10, 13, 21,  2, 29,
@@ -193,6 +206,8 @@ static void necro_announce_phase(const char* phase_name)
 #define BIT(x) (1 << x)
 
 #define STRING_TAB "  "
+
+#define UNUSED(x) (void)(x)
 
 ///////////////////////////////////////////////////////
 // Timing

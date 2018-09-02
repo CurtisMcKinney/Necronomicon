@@ -32,6 +32,8 @@ void necro_rigid_kind_variable_error(NecroInfer* infer, NecroVar type_var, Necro
 
 inline void necro_instantiate_kind_var(NecroInfer* infer, NecroTypeVar* kind_var, NecroTypeKind* kind, NecroType* macro_type, const char* error_preamble)
 {
+    UNUSED(macro_type);
+    UNUSED(error_preamble);
     if (necro_is_infer_error(infer))
         return;
     necr_bind_type_var(infer, kind_var->var, kind);
@@ -40,7 +42,7 @@ inline void necro_instantiate_kind_var(NecroInfer* infer, NecroTypeVar* kind_var
 NecroTypeKind* necro_create_star_kind(NecroInfer* infer)
 {
     NecroSymbol     star_symbol = necro_intern_string(infer->intern, "Type");
-    NecroSymbolInfo star_info   = necro_create_initial_symbol_info(star_symbol, (NecroSourceLoc) { 0 }, NULL, infer->intern);
+    NecroSymbolInfo star_info   = necro_create_initial_symbol_info(star_symbol, (NecroSourceLoc) { 0 }, NULL);
     NecroID         star_id     = necro_symtable_insert(infer->symtable, star_info);
     NecroCon        star_con    = (NecroCon) { .id = star_id, .symbol = star_symbol };
     NecroType*      star_type   = necro_alloc_type(infer);
@@ -63,7 +65,7 @@ NecroTypeKind* necro_create_star_kind(NecroInfer* infer)
 NecroTypeKind* necro_create_question_kind(NecroInfer* infer)
 {
     NecroSymbol     question_symbol = necro_intern_string(infer->intern, "?");
-    NecroSymbolInfo question_info   = necro_create_initial_symbol_info(question_symbol, (NecroSourceLoc) { 0 }, NULL, infer->intern);
+    NecroSymbolInfo question_info   = necro_create_initial_symbol_info(question_symbol, (NecroSourceLoc) { 0 }, NULL);
     NecroID         question_id     = necro_symtable_insert(infer->symtable, question_info);
     NecroCon        question_con    = (NecroCon) { .id = question_id, .symbol = question_symbol };
     NecroType*      question_type   = necro_alloc_type(infer);
@@ -86,6 +88,7 @@ NecroTypeKind* necro_create_question_kind(NecroInfer* infer)
 void necro_infer_kinds_for_data_declaration(NecroInfer* infer, NecroASTNode* ast)
 {
     assert(infer != NULL);
+    UNUSED(ast);
 }
 
 
@@ -142,6 +145,12 @@ inline void necro_kind_unify_var(NecroInfer* infer, NecroTypeKind* kind1, NecroT
 
 inline void necro_kind_unify_app(NecroInfer* infer, NecroTypeKind* kind1, NecroTypeKind* kind2, NecroScope* scope, NecroType* macro_type, const char* error_preamble)
 {
+    UNUSED(infer);
+    UNUSED(kind1);
+    UNUSED(kind2);
+    UNUSED(scope);
+    UNUSED(macro_type);
+    UNUSED(error_preamble);
     assert(false);
 }
 
@@ -273,6 +282,7 @@ void necro_kind_unify(NecroInfer* infer, NecroTypeKind* kind1, NecroTypeKind* ki
 
 NecroTypeKind* necro_kind_inst(NecroInfer* infer, NecroTypeKind* kind, NecroScope* scope)
 {
+    UNUSED(scope);
     assert(infer != NULL);
     assert(kind != NULL);
     return kind;

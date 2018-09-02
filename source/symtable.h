@@ -74,7 +74,7 @@ NecroID          necro_symtable_insert(NecroSymTable* table, NecroSymbolInfo inf
 NecroSymbolInfo* necro_symtable_get(NecroSymTable* table, NecroID id);
 void             necro_symtable_print(NecroSymTable* table);
 void             necro_symtable_test();
-NecroSymbolInfo  necro_create_initial_symbol_info(NecroSymbol symbol, NecroSourceLoc source_loc, struct NecroScope* scope, NecroIntern* intern);
+NecroSymbolInfo  necro_create_initial_symbol_info(NecroSymbol symbol, NecroSourceLoc source_loc, struct NecroScope* scope);
 void             necro_print_env_with_symtable(NecroSymTable* table, NecroInfer* infer);
 
 //=====================================================

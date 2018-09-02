@@ -118,6 +118,7 @@ typedef enum
     NECRO_LEX_CONTROL_BRACE_MARKER_DO,
     NECRO_LEX_CONTROL_WHITE_MARKER,
 
+    NECRO_LEX_INVALID,
     NECRO_LEX_END_OF_STREAM
 } NECRO_LEX_TOKEN_TYPE;
 
@@ -145,6 +146,7 @@ typedef struct
     size_t                 line_number;
     size_t                 pos;
     const char*            str;
+    size_t                 str_length;
     NecroLexTokenVector    tokens;
     NecroLexTokenVector    layout_fixed_tokens;
     NecroIntern            intern;

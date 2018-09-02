@@ -238,7 +238,7 @@ typedef struct
         double double_literal;
         int64_t int_literal;
         NecroSymbol symbol;
-        char char_literal;
+        uint32_t char_literal;
     };
     NecroAST_ConstantType type;
 } NecroAST_Constant;
@@ -356,11 +356,9 @@ static inline const char* bin_op_name(NecroAST_BinOpType type)
     case NECRO_BIN_OP_FBY:
         return "(-->)";
     default:
+        assert(false);
         return "(Undefined Binary Operator)";
     }
-
-    assert(false);
-    return NULL;
 }
 
 typedef struct

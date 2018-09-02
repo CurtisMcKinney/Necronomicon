@@ -188,7 +188,7 @@ void necro_arena_chain_table_test()
         size_t* get_i = necro_int_table_get(&int_table, i);
         if (in_i == NULL || *in_i != i || get_i == NULL || *get_i != i)
         {
-            printf("Doesnt match, i: %d, in_i: %d, get_i: %d\n", i, (in_i == NULL) ? 0 : *in_i, (get_i == NULL) ? 0 : *get_i);
+            printf("Doesnt match, i: %zu, in_i: %zu, get_i: %zu\n", i, (in_i == NULL) ? 0 : *in_i, (get_i == NULL) ? 0 : *get_i);
             test_passed = false;
             break;
         }

@@ -547,6 +547,7 @@ NecroDependencyAnalyzer necro_create_dependency_analyzer(NecroSymTable* symtable
 
 void necro_destroy_dependency_analyzer(NecroDependencyAnalyzer* d_analyzer)
 {
+    UNUSED(d_analyzer);
 }
 
 NECRO_RETURN_CODE necro_dependency_analyze_ast(NecroDependencyAnalyzer* d_analyzer, NecroPagedArena* ast_arena, NecroASTNode* ast)

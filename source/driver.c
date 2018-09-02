@@ -10,7 +10,6 @@
 #include "parser.h"
 #include "intern.h"
 #include "runtime.h"
-#include "vault.h"
 #include "symtable.h"
 #include "ast.h"
 #include "renamer.h"
@@ -248,7 +247,7 @@ void necro_compile_impl(
         necro_announce_phase("Core");
     necro_start_timer(timer);
     ast_core->root = NULL;
-    necro_construct_core_transform(core_transform, ast_core, ast_r, &lexer->intern, &prim_types, &symtable);
+    necro_construct_core_transform(core_transform, ast_core, ast_r, &lexer->intern, &prim_types, &symtable, &scoped_symtable);
     *destruct_flags |= BIT(NECRO_PHASE_TRANSFORM_TO_CORE);
     necro_transform_to_core(core_transform);
     necro_stop_and_report_timer(timer, "core");

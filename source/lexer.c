@@ -17,6 +17,7 @@ NecroLexer necro_create_lexer(const char* str, size_t str_length)
         .line_number               = 0,
         .pos                       = 0,
         .str                       = str,
+        .str_length                = str_length,
         .tokens                    = necro_create_lex_token_vector(),
         .layout_fixed_tokens       = necro_create_lex_token_vector(),
         .intern                    = necro_create_intern()
@@ -169,19 +170,19 @@ void necro_print_lex_token(NecroLexer* lexer, size_t token_id)
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CONTROL_BRACE_MARKER_LET)
     {
-        printf("let {n}:    %d\n", lexer->tokens.data[token_id].brace_marker_n);
+        printf("let {n}:    %zu\n", lexer->tokens.data[token_id].brace_marker_n);
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CONTROL_BRACE_MARKER_WHERE)
     {
-        printf("where {n}:  %d\n", lexer->tokens.data[token_id].brace_marker_n);
+        printf("where {n}:  %zu\n", lexer->tokens.data[token_id].brace_marker_n);
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CONTROL_BRACE_MARKER_OF)
     {
-        printf("of {n}:     %d\n", lexer->tokens.data[token_id].brace_marker_n);
+        printf("of {n}:     %zu\n", lexer->tokens.data[token_id].brace_marker_n);
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CONTROL_BRACE_MARKER_DO)
     {
-        printf("do {n}:     %d\n", lexer->tokens.data[token_id].brace_marker_n);
+        printf("do {n}:     %zu\n", lexer->tokens.data[token_id].brace_marker_n);
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CONTROL_BRACE_MARKER_DO)
     {
@@ -189,7 +190,7 @@ void necro_print_lex_token(NecroLexer* lexer, size_t token_id)
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CONTROL_WHITE_MARKER)
     {
-        printf("<n>:        %d\n", lexer->tokens.data[token_id].brace_marker_n);
+        printf("<n>:        %zu\n", lexer->tokens.data[token_id].brace_marker_n);
     }
     else
     {
@@ -200,8 +201,8 @@ void necro_print_lex_token(NecroLexer* lexer, size_t token_id)
 void necro_print_lexer(NecroLexer* lexer)
 {
     printf("NecroLexer\n{\n");
-    printf("    line_number:      %d,\n", lexer->line_number);
-    printf("    character_number: %d,\n", lexer->character_number);
+    printf("    line_number:      %zu,\n", lexer->line_number);
+    printf("    character_number: %zu,\n", lexer->character_number);
     printf("    tokens:\n    [\n");
     for (size_t i = 0; i < lexer->tokens.length; ++i)
     {
@@ -475,13 +476,14 @@ bool necro_lex_identifier(NecroLexer* lexer)
         if (lexer->str[lexer->pos] != '{')
         {
             // BRACE MARKER
-            NECRO_LEX_TOKEN_TYPE brace_type;
+            NECRO_LEX_TOKEN_TYPE brace_type = NECRO_LEX_INVALID;
             switch (lex_token.token)
             {
             case NECRO_LEX_LET:   brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_LET;   break;
             case NECRO_LEX_WHERE: brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_WHERE; break;
             case NECRO_LEX_OF:    brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_OF;    break;
             case NECRO_LEX_DO:    brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_DO;    break;
+            default:              assert(false); break;
             }
             NecroLexToken token = (NecroLexToken)
             {
@@ -920,7 +922,7 @@ uint32_t necro_next_char(NecroLexerUnicode* lexer)
     }
     size_t   num_bytes;
     uint32_t uchar;
-    const uint8_t* curr = lexer->str + lexer->loc.pos;
+    const uint8_t* curr = (uint8_t*) (lexer->str + lexer->loc.pos);
 
     /*
         Unicode 11, UTF8 - Decoding
@@ -961,8 +963,6 @@ uint32_t necro_next_char(NecroLexerUnicode* lexer)
     else if (curr[0] >= 0xE1 && curr[0] <= 0xEC)
     {
         num_bytes = 3;
-        size_t curr_1 = curr[1];
-        size_t curr_2 = curr[2];
         if ((curr[1] >= 0x80 && curr[1] <= 0xBF) &&
             (curr[2] >= 0x80 && curr[2] <= 0xBF))
             uchar =
@@ -1303,7 +1303,7 @@ bool necro_lex_token_with_pattern_u(NecroLexerUnicode* lexer, const char* patter
     size_t i = 0;
     while (pattern[i])
     {
-        if (necro_next_char(lexer) != pattern[i]) // All built-in compiler patterns are ASCII characters only
+        if (necro_next_char(lexer) != (uint8_t)pattern[i]) // All built-in compiler patterns are ASCII characters only
         {
             return necro_lex_rewind(lexer);
         }
@@ -1372,12 +1372,12 @@ bool necro_lex_identifier_u(NecroLexerUnicode* lexer)
     if (lex_token.token <= NECRO_LEX_DO)
     {
         necro_gobble_up_whitespace_and_comments_u(lexer);
-        uint32_t code_point = necro_next_char(lexer);
+        uint32_t keyword_code_point = necro_next_char(lexer);
         // Insert implicit brace marker if an explicit one is not given
-        if (code_point != '{')
+        if (keyword_code_point != '{')
         {
             // BRACE MARKER
-            NECRO_LEX_TOKEN_TYPE brace_type;
+            NECRO_LEX_TOKEN_TYPE brace_type = NECRO_LEX_INVALID;
             switch (lex_token.token)
             {
             case NECRO_LEX_LET:   brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_LET;   break;
@@ -1551,7 +1551,7 @@ void necro_test_lexer()
     {
         const char*       str    = "123 456 789";
         NecroLexerUnicode lexer  = necro_create_lexer_u(str, strlen(str));
-        bool              result = unwrap(bool, necro_lex_u(&lexer));
+        unwrap(bool, necro_lex_u(&lexer));
         assert(lexer.tokens.length == 4);
         assert(lexer.tokens.data[0].token == NECRO_LEX_INTEGER_LITERAL);
         assert(lexer.tokens.data[0].int_literal == 123);
@@ -1569,7 +1569,7 @@ void necro_test_lexer()
     {
         const char*       str    = "helloWorld";
         NecroLexerUnicode lexer  = necro_create_lexer_u(str, strlen(str));
-        bool              result = unwrap(bool, necro_lex_u(&lexer));
+        unwrap(bool, necro_lex_u(&lexer));
         assert(lexer.tokens.length == 2);
         assert(lexer.tokens.data[0].token == NECRO_LEX_IDENTIFIER);
         assert(lexer.tokens.data[0].symbol.id == necro_intern_string(&lexer.intern, "helloWorld").id);
@@ -1587,7 +1587,7 @@ void necro_test_lexer()
     {
         const char*       str    = "grav\xC3\xA9";
         NecroLexerUnicode lexer  = necro_create_lexer_u(str, strlen(str));
-        bool              result = unwrap(bool, necro_lex_u(&lexer));
+        unwrap(bool, necro_lex_u(&lexer));
         assert(lexer.tokens.length == 2);
         assert(lexer.tokens.data[0].token == NECRO_LEX_IDENTIFIER);
         assert(lexer.tokens.data[0].symbol.id == necro_intern_string(&lexer.intern, "grav\xC3\xA9").id);

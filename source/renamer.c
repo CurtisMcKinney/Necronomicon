@@ -26,7 +26,7 @@ bool try_create_name(NecroRenamer* renamer, NecroAST_Node_Reified* node, NecroSc
     NecroID id = necro_this_scope_find(scope, symbol);
     if (id.id != 0)
     {
-        NecroSymbolInfo* info = necro_symtable_get(renamer->scoped_symtable->global_table, id);
+        //NecroSymbolInfo* info = necro_symtable_get(renamer->scoped_symtable->global_table, id); Unreferenced, @Curtis didn't know if you wanted this or not
         NecroSourceLoc original_source_loc = renamer->scoped_symtable->global_table->data[id.id].source_loc;
         necro_error(&renamer->error, node->source_loc, "Multiple definitions for \'%s\'.\n Original definition found at line: %d", necro_intern_get_string(renamer->scoped_symtable->global_table->intern, symbol), original_source_loc.line);
         return false;
@@ -34,7 +34,7 @@ bool try_create_name(NecroRenamer* renamer, NecroAST_Node_Reified* node, NecroSc
     else
     {
         node->scope->last_introduced_id = id;
-        *id_to_set = necro_scoped_symtable_new_symbol_info(renamer->scoped_symtable, scope, necro_create_initial_symbol_info(symbol, node->source_loc, scope, renamer->intern));
+        *id_to_set = necro_scoped_symtable_new_symbol_info(renamer->scoped_symtable, scope, necro_create_initial_symbol_info(symbol, node->source_loc, scope));
         return true;
     }
 }
@@ -104,7 +104,7 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         }
         else
         {
-            input_node->apats_assignment.id       = necro_scoped_symtable_new_symbol_info(renamer->scoped_symtable, input_node->scope, necro_create_initial_symbol_info(input_node->apats_assignment.variable_name, input_node->source_loc, input_node->scope, renamer->intern));
+            input_node->apats_assignment.id       = necro_scoped_symtable_new_symbol_info(renamer->scoped_symtable, input_node->scope, necro_create_initial_symbol_info(input_node->apats_assignment.variable_name, input_node->source_loc, input_node->scope));
             input_node->scope->last_introduced_id = input_node->apats_assignment.id;
         }
         swap_renamer_class_symbol(renamer);
@@ -160,7 +160,7 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
             if (id.id != 0)
                 input_node->variable.id = id;
             else if (renamer->should_free_type_declare)
-                input_node->variable.id = necro_scoped_symtable_new_symbol_info(renamer->scoped_symtable, input_node->scope, necro_create_initial_symbol_info(input_node->variable.symbol, input_node->source_loc, input_node->scope, renamer->intern));
+                input_node->variable.id = necro_scoped_symtable_new_symbol_info(renamer->scoped_symtable, input_node->scope, necro_create_initial_symbol_info(input_node->variable.symbol, input_node->source_loc, input_node->scope));
             else
                 necro_error(&renamer->error, input_node->source_loc, "Not in scope: \'%s\'", necro_intern_get_string(renamer->scoped_symtable->global_table->intern, input_node->variable.symbol));
             break;
@@ -286,7 +286,7 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
         input_node->type_class_instance.instance_id = necro_scoped_symtable_new_symbol_info(
             renamer->scoped_symtable,
             renamer->scoped_symtable->top_type_scope,
-            necro_create_initial_symbol_info(input_node->type_class_instance.instance_name, input_node->source_loc, input_node->scope, renamer->intern));
+            necro_create_initial_symbol_info(input_node->type_class_instance.instance_name, input_node->source_loc, input_node->scope));
         // rename_declare_go(input_node->type_class_instance.dictionary_instance, renamer);
         break;
 
@@ -578,6 +578,8 @@ NecroRenamer necro_create_renamer(NecroScopedSymTable* scoped_symtable, NecroInt
 
 void necro_destroy_renamer(NecroRenamer* renamer)
 {
+    assert(renamer);
+    free(renamer);
 }
 
 NECRO_RETURN_CODE necro_rename_declare_pass(NecroRenamer* renamer, NecroPagedArena* ast_arena, NecroAST_Node_Reified* input_ast)

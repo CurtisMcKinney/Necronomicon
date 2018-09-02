@@ -1377,13 +1377,14 @@ bool necro_lex_identifier_u(NecroLexerUnicode* lexer)
         if (keyword_code_point != '{')
         {
             // BRACE MARKER
-            NECRO_LEX_TOKEN_TYPE brace_type = NECRO_LEX_INVALID;
+            NECRO_LEX_TOKEN_TYPE brace_type;
             switch (lex_token.token)
             {
             case NECRO_LEX_LET:   brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_LET;   break;
             case NECRO_LEX_WHERE: brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_WHERE; break;
             case NECRO_LEX_OF:    brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_OF;    break;
             case NECRO_LEX_DO:    brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_DO;    break;
+            default:              return necro_lex_rewind(lexer);
             }
             NecroLexToken token = (NecroLexToken)
             {
@@ -1529,7 +1530,7 @@ void necro_test_lexer()
         assert(result.num_errors == 1);
         assert(result.errors[0].type == NECRO_MALFORMED_FLOAT);
         // necro_print_lexer_u(&lexer);
-        necro_print_result_errors(result.errors, result.num_errors, str, "lexerTest.necro");
+        // necro_print_result_errors(result.errors, result.num_errors, str, "lexerTest.necro");
         printf("Lex float error test: Passed\n");
         necro_destroy_lexer_u(&lexer);
     }
@@ -1541,7 +1542,7 @@ void necro_test_lexer()
         NecroResult(bool) result = necro_lex_u(&lexer);
         assert(result.num_errors == 1);
         assert(result.errors[0].type == NECRO_MALFORMED_STRING);
-        necro_print_result_errors(result.errors, result.num_errors, str, "lexerTest.necro");
+        // necro_print_result_errors(result.errors, result.num_errors, str, "lexerTest.necro");
         // necro_print_lexer_u(&lexer);
         printf("Lex string error test: Passed\n");
         necro_destroy_lexer_u(&lexer);
@@ -1593,7 +1594,7 @@ void necro_test_lexer()
         assert(lexer.tokens.data[0].symbol.id == necro_intern_string(&lexer.intern, "grav\xC3\xA9").id);
         assert(lexer.tokens.data[1].token == NECRO_LEX_END_OF_STREAM);
         // necro_print_lexer_u(&lexer);
-        printf("Lex identifier test: Passed\n");
+        printf("Lex unicode identifier test: Passed\n");
         necro_destroy_lexer_u(&lexer);
     }
 

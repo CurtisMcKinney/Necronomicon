@@ -55,6 +55,7 @@ void necro_print_range_pointers(NecroSourceLoc source_loc, NecroSourceLoc end_lo
     {
         printf(" ");
     }
+    // Use - instead of ^
     for (size_t i = source_loc.character; i < end_loc.character; ++i)
         printf("^");
     printf("\n");

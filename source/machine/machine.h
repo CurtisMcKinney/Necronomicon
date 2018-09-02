@@ -183,7 +183,6 @@ typedef struct NecroMachineDef
     bool                    is_pushed;
     bool                    is_recursive;
     bool                    is_persistent_slot_set;
-    // NECRO_STATE_TYPE        most_stateful_type_referenced;
 
     // args
     NecroVar*               arg_names;
@@ -220,7 +219,6 @@ typedef struct NecroMachineFnDef
     struct NecroMachineAST* fn_value;
     NecroMachineFnPtr       runtime_fn_addr;
     NECRO_STATE_TYPE        state_type;
-    // bool                    is_primitively_stateful;
     //-------------------
     // compile time data
     struct NecroMachineAST* _curr_block;

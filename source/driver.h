@@ -25,6 +25,7 @@ typedef enum
     NECRO_TEST_INFER,
     NECRO_TEST_TYPE,
     NECRO_TEST_ARENA_CHAIN_TABLE,
+    NECRO_TEST_UNICODE,
 } NECRO_TEST;
 
 typedef enum
@@ -55,7 +56,7 @@ typedef enum
 } NECRO_PHASE;
 
 void necro_test(NECRO_TEST test);
-void necro_compile(const char* input_string, NECRO_PHASE compilation_phase);
-void necro_compile_opt(const char* input_string, NECRO_PHASE compilation_phase);
+void necro_compile(const char* input_string, size_t str_length, NECRO_PHASE compilation_phase);
+void necro_compile_opt(const char* input_string, size_t str_length, NECRO_PHASE compilation_phase);
 
 #endif // DRIVER_H

@@ -59,6 +59,8 @@ set(project_SOURCES
 	source/utility/intern.c
 	source/utility/utility.c
     source/utility/hash_table.c
+    source/utility/unicode_properties.c
+    source/utility/result.c
 
     source/runtime/runtime.c
     source/runtime/mouse.c
@@ -109,6 +111,8 @@ set(project_HEADERS
     source/utility/hash_table.h
     source/utility/list.h
     source/utility/small_array.h
+    source/utility/unicode_properties.h
+    source/utility/result.h
 
     source/runtime/runtime.h
     source/runtime/mouse.h

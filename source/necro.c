@@ -8,17 +8,26 @@
 #include <string.h>
 #include "driver.h"
 #include "necro.h"
+#include "unicode_properties.h"
 
 //=====================================================
 // Main
 //=====================================================
 int main(int32_t argc, char** argv)
 {
-    if (argc == 3 && strcmp(argv[1], "-test") == 0)
+    if (argc == 3 && strcmp(argv[2], "-unicode_p") == 0)
+    {
+        necro_unicode_property_parse(argv[1]);
+    }
+    else if (argc == 3 && strcmp(argv[1], "-test") == 0)
     {
         if (strcmp(argv[2], "all") == 0)
         {
             necro_test(NECRO_TEST_ALL);
+        }
+        else if (strcmp(argv[2], "unicode") == 0)
+        {
+            necro_test(NECRO_TEST_UNICODE);
         }
         else if (strcmp(argv[2], "arena_chain_table") == 0)
         {
@@ -106,73 +115,73 @@ int main(int32_t argc, char** argv)
 
             if (argc > 2 && strcmp(argv[2], "-lex_pre_layout") == 0)
             {
-                necro_compile(str, NECRO_PHASE_LEX_PRE_LAYOUT);
+                necro_compile(str, length, NECRO_PHASE_LEX_PRE_LAYOUT);
             }
             else if (argc > 2 && strcmp(argv[2], "-lex") == 0)
             {
-                necro_compile(str, NECRO_PHASE_LEX);
+                necro_compile(str, length, NECRO_PHASE_LEX);
             }
             else if (argc > 2 && strcmp(argv[2], "-parse") == 0)
             {
-                necro_compile(str, NECRO_PHASE_PARSE);
+                necro_compile(str, length, NECRO_PHASE_PARSE);
             }
             else if (argc > 2 && strcmp(argv[2], "-reify") == 0)
             {
-                necro_compile(str, NECRO_PHASE_REIFY);
+                necro_compile(str, length, NECRO_PHASE_REIFY);
             }
             else if (argc > 2 && strcmp(argv[2], "-scope") == 0)
             {
-                necro_compile(str, NECRO_PHASE_BUILD_SCOPES);
+                necro_compile(str, length, NECRO_PHASE_BUILD_SCOPES);
             }
             else if (argc > 2 && strcmp(argv[2], "-rename") == 0)
             {
-                necro_compile(str, NECRO_PHASE_RENAME);
+                necro_compile(str, length, NECRO_PHASE_RENAME);
             }
             else if (argc > 2 && strcmp(argv[2], "-dependency") == 0)
             {
-                necro_compile(str, NECRO_PHASE_DEPENDENCY_ANALYSIS);
+                necro_compile(str, length, NECRO_PHASE_DEPENDENCY_ANALYSIS);
             }
             else if (argc > 2 && strcmp(argv[2], "-infer") == 0)
             {
-                necro_compile(str, NECRO_PHASE_INFER);
+                necro_compile(str, length, NECRO_PHASE_INFER);
             }
             else if (argc > 2 && strcmp(argv[2], "-core") == 0)
             {
-                necro_compile(str, NECRO_PHASE_TRANSFORM_TO_CORE);
+                necro_compile(str, length, NECRO_PHASE_TRANSFORM_TO_CORE);
             }
             else if (argc > 2 && strcmp(argv[2], "-ll") == 0)
             {
-                necro_compile(str, NECRO_PHASE_LAMBDA_LIFT);
+                necro_compile(str, length, NECRO_PHASE_LAMBDA_LIFT);
             }
             else if (argc > 2 && strcmp(argv[2], "-cc") == 0)
             {
-                necro_compile(str, NECRO_PHASE_CLOSURE_CONVERSION);
+                necro_compile(str, length, NECRO_PHASE_CLOSURE_CONVERSION);
             }
             else if (argc > 2 && strcmp(argv[2], "-sa") == 0)
             {
-                necro_compile(str, NECRO_PHASE_STATE_ANALYSIS);
+                necro_compile(str, length, NECRO_PHASE_STATE_ANALYSIS);
             }
             else if (argc > 2 && strcmp(argv[2], "-machine") == 0)
             {
-                necro_compile(str, NECRO_PHASE_TRANSFORM_TO_MACHINE);
+                necro_compile(str, length, NECRO_PHASE_TRANSFORM_TO_MACHINE);
             }
             else if (argc > 2 && strcmp(argv[2], "-codegen") == 0)
             {
                 if (argc > 3 &&  strcmp(argv[3], "-opt") == 0)
-                    necro_compile_opt(str, NECRO_PHASE_CODEGEN);
+                    necro_compile_opt(str, length, NECRO_PHASE_CODEGEN);
                 else
-                    necro_compile(str, NECRO_PHASE_CODEGEN);
+                    necro_compile(str, length, NECRO_PHASE_CODEGEN);
             }
             else if (argc > 2 && strcmp(argv[2], "-jit") == 0)
             {
                 if (argc > 3 &&  strcmp(argv[3], "-opt") == 0)
-                    necro_compile_opt(str, NECRO_PHASE_JIT);
+                    necro_compile_opt(str, length, NECRO_PHASE_JIT);
                 else
-                    necro_compile(str, NECRO_PHASE_JIT);
+                    necro_compile(str, length, NECRO_PHASE_JIT);
             }
             else
             {
-                necro_compile(str, NECRO_PHASE_TRANSFORM_TO_CORE);
+                necro_compile(str, length, NECRO_PHASE_TRANSFORM_TO_CORE);
             }
 
         }

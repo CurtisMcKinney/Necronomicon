@@ -244,8 +244,8 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     necro_symtable_get(program->symtable, float_var.id)->necro_machine_ast = necro_create_word_float_value(program, 0.f);
 
     // Char
-    NecroVar          char_var  = necro_con_to_var(program->prim_types->char_type);
-    necro_symtable_get(program->symtable, char_var.id)->necro_machine_ast = necro_create_word_int_value(program, 0);
+    NecroVar char_var = necro_con_to_var(program->prim_types->char_type);
+    necro_symtable_get(program->symtable, char_var.id)->necro_machine_ast = necro_create_word_uint_value(program, 0);
 
     // _DynState
     NecroVar         dyn_state_var    = necro_con_to_var(program->prim_types->dyn_state_type);

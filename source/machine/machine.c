@@ -1055,7 +1055,7 @@ NecroMachineAST* necro_core_to_machine_3_lit(NecroMachineProgram* program, Necro
     }
     case NECRO_AST_CONSTANT_CHAR:
         // assert(false);
-        return necro_create_word_int_value(program, core_ast->lit.char_literal);
+        return necro_create_word_uint_value(program, core_ast->lit.char_literal);
         // return NULL;
     default:
         return NULL;

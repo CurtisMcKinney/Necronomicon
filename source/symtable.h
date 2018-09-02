@@ -36,7 +36,6 @@ struct NecroMachineAST;
 typedef struct
 {
     NecroSymbol                     name;
-    const char*                     string_name;
     NecroID                         id;
     size_t                          con_num;
     bool                            is_enum;
@@ -55,7 +54,6 @@ typedef struct
     int32_t                         arity; // -1 indicates arity has not been set
     uint32_t                        persistent_slot; // 0 indicates no persistence
     struct NecroMachineAST*         necro_machine_ast;
-    // struct NecroMachineAST*         const_necro_machine_ast;
     bool                            is_constructor;
     bool                            is_recursive;
     NECRO_STATE_TYPE                state_type;

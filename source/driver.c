@@ -29,9 +29,11 @@
 #include "machine/machine_print.h"
 #include "codegen/codegen_llvm.h"
 #include "core/core_pretty_print.h"
+#include "utility/unicode_properties.h"
 
 void necro_compile_impl(
     const char* input_string,
+    size_t str_length,
     bool should_optimize,
     NECRO_PHASE compilation_phase,
     NecroInfer* infer,
@@ -56,7 +58,7 @@ void necro_compile_impl(
     if (compilation_phase != NECRO_PHASE_JIT)
         necro_announce_phase("Lexing");
     necro_start_timer(timer);
-    *lexer = necro_create_lexer(input_string);
+    *lexer = necro_create_lexer(input_string, str_length);
     *destruct_flags |= BIT(NECRO_PHASE_LEX);
     if (necro_lex(lexer) != NECRO_SUCCESS)
     {
@@ -356,7 +358,7 @@ bool validate_destruct_phase(NECRO_PHASE requested_phase, uint32_t destruct_flag
     return (destruct_flags & BIT(requested_phase)) != 0;
 }
 
-void necro_compile_go(const char* input_string, NECRO_PHASE compilation_phase, bool should_optimize)
+void necro_compile_go(const char* input_string, size_t str_length, NECRO_PHASE compilation_phase, bool should_optimize)
 {
     uint32_t destruct_flags = 0;
     NecroInfer infer;
@@ -371,6 +373,7 @@ void necro_compile_go(const char* input_string, NECRO_PHASE compilation_phase, b
 
     necro_compile_impl(
         input_string,
+        str_length,
         should_optimize,
         compilation_phase,
         &infer,
@@ -430,13 +433,15 @@ void necro_test(NECRO_TEST test)
 {
     switch (test)
     {
-    case NECRO_TEST_SYMTABLE:          necro_symtable_test();          break;
-    case NECRO_TEST_LEXER:             necro_test_lexer();             break;
-    case NECRO_TEST_INTERN:            necro_test_intern();            break;
-    case NECRO_TEST_INFER:             necro_test_infer();             break;
-    case NECRO_TEST_TYPE:              necro_test_type();              break;
-    case NECRO_TEST_ARENA_CHAIN_TABLE: necro_arena_chain_table_test(); break;
+    case NECRO_TEST_UNICODE:           necro_test_unicode_properties(); break;
+    case NECRO_TEST_SYMTABLE:          necro_symtable_test();           break;
+    case NECRO_TEST_LEXER:             necro_test_lexer();              break;
+    case NECRO_TEST_INTERN:            necro_test_intern();             break;
+    case NECRO_TEST_INFER:             necro_test_infer();              break;
+    case NECRO_TEST_TYPE:              necro_test_type();               break;
+    case NECRO_TEST_ARENA_CHAIN_TABLE: necro_arena_chain_table_test();  break;
     case NECRO_TEST_ALL:
+        necro_test_unicode_properties();
         necro_symtable_test();
         necro_test_lexer();
         necro_test_intern();
@@ -448,12 +453,12 @@ void necro_test(NECRO_TEST test)
     }
 }
 
-void necro_compile_opt(const char* input_string, NECRO_PHASE compilation_phase)
+void necro_compile_opt(const char* input_string, size_t str_length, NECRO_PHASE compilation_phase)
 {
-    necro_compile_go(input_string, compilation_phase, true);
+    necro_compile_go(input_string, str_length, compilation_phase, true);
 }
 
-void necro_compile(const char* input_string, NECRO_PHASE compilation_phase)
+void necro_compile(const char* input_string, size_t str_length, NECRO_PHASE compilation_phase)
 {
-    necro_compile_go(input_string, compilation_phase, false);
+    necro_compile_go(input_string, str_length, compilation_phase, false);
 }

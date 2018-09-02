@@ -79,7 +79,6 @@ topInt = shadowTest x + otherTest y
     shadowTest = \z -> z + y
     y = 10
     x = 20
-
 -- -- TODO / FUCK: Local functions referring to eachother need to refer to global versions
 -- -- Which means a couple things:
 -- --    1. (DONE) Top level lifted ordering needs to be absolutely correct

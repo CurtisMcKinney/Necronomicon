@@ -203,7 +203,8 @@ typedef struct
         int64_t     int_literal;
         NecroSymbol symbol;
 		bool        boolean_literal;
-        char        char_literal;
+        uint32_t    char_literal;
+        // char        char_literal;
     };
     NecroAST_ConstantType type;
     struct NecroAST_Node_Reified* pat_from_ast;

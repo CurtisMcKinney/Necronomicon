@@ -12,6 +12,8 @@
 #include "machine/machine_copy.h"
 
 #ifdef _WIN32
+#define UNICODE 1
+#define _UNICODE 1
 #include <Windows.h>
 #else
 #include <unistd.h>

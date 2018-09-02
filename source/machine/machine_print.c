@@ -61,19 +61,19 @@ void necro_print_machine_value(NecroMachineProgram* program, NecroMachineAST* as
         printf("%%%d", value.param_reg.param_num);
         break;
     case NECRO_MACHINE_VALUE_UINT1_LITERAL:
-        printf("%du1", value.uint1_literal);
+        printf("%uu1", value.uint1_literal);
         return;
     case NECRO_MACHINE_VALUE_UINT8_LITERAL:
-        printf("%du8", value.uint8_literal);
+        printf("%uu8", value.uint8_literal);
         return;
     case NECRO_MACHINE_VALUE_UINT16_LITERAL:
-        printf("%du16", value.uint16_literal);
+        printf("%uu16", value.uint16_literal);
         return;
     case NECRO_MACHINE_VALUE_UINT32_LITERAL:
-        printf("%du32", value.uint32_literal);
+        printf("%uu32", value.uint32_literal);
         return;
     case NECRO_MACHINE_VALUE_UINT64_LITERAL:
-        printf("%lldu64", value.uint64_literal);
+        printf("%lluu64", value.uint64_literal);
         return;
     case NECRO_MACHINE_VALUE_INT32_LITERAL:
         printf("%di32", value.int32_literal);

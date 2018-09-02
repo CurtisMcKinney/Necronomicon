@@ -31,6 +31,8 @@ int _necro_mouse_y()
 //=====================================================
 // Windows
 //=====================================================
+#define UNICODE 1
+#define _UNICODE 1
 #include "Windows.h"
 
 // HWND window;

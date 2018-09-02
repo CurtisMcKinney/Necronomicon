@@ -45,7 +45,6 @@ NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSource
     return (NecroSymbolInfo)
     {
         .name                    = symbol,
-        .string_name             = necro_intern_get_string(intern, symbol),
         .id                      = 0,
         .con_num                 = 0,
         .is_enum                 = false,

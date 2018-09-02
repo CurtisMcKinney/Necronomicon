@@ -6,12 +6,16 @@
 #ifndef LEXER_H
 #define LEXER_H 1
 
+#define UNICODE 1
+#define _UNICODE 1
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <assert.h>
 #include "utility.h"
 #include "intern.h"
+#include "utility/result.h"
 
 //=====================================================
 // Lexing
@@ -106,7 +110,6 @@ typedef enum
     NECRO_LEX_LEFT_ARROW,
     NECRO_LEX_RIGHT_ARROW,
     NECRO_LEX_FAT_RIGHT_ARROW,
-    // NECRO_LEX_FBY,
 
     // Control Tokens, should never make it into the parser!
     NECRO_LEX_CONTROL_BRACE_MARKER_LET,
@@ -126,11 +129,12 @@ typedef struct
         double           double_literal;
         NecroSymbol      symbol;
         bool             boolean_literal;
-        char             char_literal;
+        uint32_t         char_literal;
         size_t           brace_marker_n;
         size_t           white_marker_n;
     };
     NecroSourceLoc       source_loc;
+    NecroSourceLoc       end_loc;
     NECRO_LEX_TOKEN_TYPE token;
 } NecroLexToken;
 NECRO_DECLARE_VECTOR(NecroLexToken, NecroLexToken, lex_token)
@@ -140,8 +144,6 @@ typedef struct
     size_t                 character_number;
     size_t                 line_number;
     size_t                 pos;
-    // size_t                 block_indentation_levels[NECRO_MAX_INDENTATIONS];
-    // size_t                 current_indentation_block;
     const char*            str;
     NecroLexTokenVector    tokens;
     NecroLexTokenVector    layout_fixed_tokens;
@@ -157,12 +159,34 @@ typedef enum
 } NECRO_LEX_NUM_STATE;
 
 // API
-NecroLexer        necro_create_lexer(const char* str);
+NecroLexer        necro_create_lexer(const char* str, size_t str_length);
 void              necro_destroy_lexer(NecroLexer* lexer);
 void              necro_print_lexer(NecroLexer* lexer);
 NECRO_RETURN_CODE necro_lex(NecroLexer* lexer);
 NECRO_RETURN_CODE necro_lex_fixup_layout(NecroLexer* lexer);
 const char*       necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
 void              necro_test_lexer();
+
+///////////////////////////////////////////////////////
+// Unicode Lexer
+///////////////////////////////////////////////////////
+typedef struct
+{
+    NecroPagedArena     arena;
+    const char*         str;
+    size_t              str_length;
+    NecroSourceLoc      loc;
+    NecroSourceLoc      prev_loc;
+    NecroLexTokenVector tokens;
+    NecroLexTokenVector layout_fixed_tokens;
+    NecroIntern         intern;
+} NecroLexerUnicode;
+
+NecroLexerUnicode necro_create_lexer_u(const char* str, size_t str_length);
+void              necro_destroy_lexer_u(NecroLexerUnicode* lexer);
+NecroResult(bool) necro_lex_u(NecroLexerUnicode* lexer);
+// void              necro_print_lexer(NecroLexer* lexer);
+// NECRO_RETURN_CODE necro_lex_fixup_layout(NecroLexer* lexer);
+// const char*       necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
 
 #endif // LEXER_H

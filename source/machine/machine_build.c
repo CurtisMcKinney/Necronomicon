@@ -172,7 +172,7 @@ NecroMachineAST* necro_create_uint64_necro_machine_value(NecroMachineProgram* pr
     {
         .uint64_literal  = uint64_literal,
         .value_type      = NECRO_MACHINE_VALUE_UINT64_LITERAL,
-    }, necro_create_machine_uint32_type(&program->arena));
+    }, necro_create_machine_uint64_type(&program->arena));
 }
 
 NecroMachineAST* necro_create_i32_necro_machine_value(NecroMachineProgram* program, int32_t int32_literal)

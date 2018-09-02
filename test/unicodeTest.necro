@@ -1,0 +1,20 @@
+gravé :: Int
+gravé = 5
+
+ßass☀ :: String
+ßass☀ = 200
+
+☕:: (Int, Int)
+☕=
+  (4, 5)
+  |> lpf 0.1
+  |> mul 200
+
+😀:: Bool
+😀 = True
+
+-- 0x01FFFD
+🿽
+
+நி h
+

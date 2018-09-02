@@ -356,11 +356,9 @@ static inline const char* bin_op_name(NecroAST_BinOpType type)
     case NECRO_BIN_OP_FBY:
         return "(-->)";
     default:
+        assert(false);
         return "(Undefined Binary Operator)";
     }
-
-    assert(false);
-    return NULL;
 }
 
 typedef struct

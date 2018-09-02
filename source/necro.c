@@ -77,7 +77,7 @@ int main(int32_t argc, char** argv)
     {
 #ifdef WIN32
         FILE* file;
-        size_t err = fopen_s(&file, argv[1], "r");
+        fopen_s(&file, argv[1], "r");
 #else
         FILE* file = fopen(argv[1], "r");
 #endif

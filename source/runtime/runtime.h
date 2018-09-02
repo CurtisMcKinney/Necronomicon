@@ -18,6 +18,8 @@
 #define DLLEXPORT
 #endif
 
+typedef struct NecroConstructorInfo NecroConstructorInfo;
+
 ///////////////////////////////////////////////////////
 // Necro Runtime
 ///////////////////////////////////////////////////////
@@ -35,7 +37,7 @@ extern DLLEXPORT int*     _necro_to_alloc(size_t size);
 extern DLLEXPORT void     _necro_copy_gc_initialize_root_set(size_t root_count);
 extern DLLEXPORT void     _necro_copy_gc_set_root(int** root, size_t root_index, size_t data_id);
 extern DLLEXPORT void     _necro_copy_gc_collect();
-extern DLLEXPORT void     _necro_set_data_map(struct NecroConstructorInfo* a_data_map);
+extern DLLEXPORT void     _necro_set_data_map(NecroConstructorInfo* a_data_map);
 extern DLLEXPORT void     _necro_set_member_map(size_t* a_member_map);
 extern DLLEXPORT void     _necro_flip_const();
 

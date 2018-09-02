@@ -168,19 +168,19 @@ void necro_print_lex_token(NecroLexer* lexer, size_t token_id)
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CONTROL_BRACE_MARKER_LET)
     {
-        printf("let {n}:    %d\n", lexer->tokens.data[token_id].brace_marker_n);
+        printf("let {n}:    %zu\n", lexer->tokens.data[token_id].brace_marker_n);
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CONTROL_BRACE_MARKER_WHERE)
     {
-        printf("where {n}:  %d\n", lexer->tokens.data[token_id].brace_marker_n);
+        printf("where {n}:  %zu\n", lexer->tokens.data[token_id].brace_marker_n);
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CONTROL_BRACE_MARKER_OF)
     {
-        printf("of {n}:     %d\n", lexer->tokens.data[token_id].brace_marker_n);
+        printf("of {n}:     %zu\n", lexer->tokens.data[token_id].brace_marker_n);
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CONTROL_BRACE_MARKER_DO)
     {
-        printf("do {n}:     %d\n", lexer->tokens.data[token_id].brace_marker_n);
+        printf("do {n}:     %zu\n", lexer->tokens.data[token_id].brace_marker_n);
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CONTROL_BRACE_MARKER_DO)
     {
@@ -188,7 +188,7 @@ void necro_print_lex_token(NecroLexer* lexer, size_t token_id)
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CONTROL_WHITE_MARKER)
     {
-        printf("<n>:        %d\n", lexer->tokens.data[token_id].brace_marker_n);
+        printf("<n>:        %zu\n", lexer->tokens.data[token_id].brace_marker_n);
     }
     else
     {
@@ -199,8 +199,8 @@ void necro_print_lex_token(NecroLexer* lexer, size_t token_id)
 void necro_print_lexer(NecroLexer* lexer)
 {
     printf("NecroLexer\n{\n");
-    printf("    line_number:      %d,\n", lexer->line_number);
-    printf("    character_number: %d,\n", lexer->character_number);
+    printf("    line_number:      %zu,\n", lexer->line_number);
+    printf("    character_number: %zu,\n", lexer->character_number);
     printf("    tokens:\n    [\n");
     for (size_t i = 0; i < lexer->tokens.length; ++i)
     {
@@ -472,13 +472,14 @@ bool necro_lex_identifier(NecroLexer* lexer)
         if (lexer->str[lexer->pos] != '{')
         {
             // BRACE MARKER
-            NECRO_LEX_TOKEN_TYPE brace_type;
+            NECRO_LEX_TOKEN_TYPE brace_type = NECRO_LEX_INVALID;
             switch (lex_token.token)
             {
             case NECRO_LEX_LET:   brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_LET;   break;
             case NECRO_LEX_WHERE: brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_WHERE; break;
             case NECRO_LEX_OF:    brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_OF;    break;
             case NECRO_LEX_DO:    brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_DO;    break;
+            default:              assert(false); break;
             }
             NecroLexToken token = (NecroLexToken)
             {
@@ -828,7 +829,7 @@ void necro_test_lexer()
         char noise[4096];
         for (size_t i = 0; i < 4096; ++i)
         {
-            char c = rand();
+            char c = (char) rand();
             if (c == NECRO_LEX_END_OF_STREAM || c == '\0')
                 c = ' ';
             noise[i] = c;

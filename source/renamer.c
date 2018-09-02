@@ -26,7 +26,7 @@ bool try_create_name(NecroRenamer* renamer, NecroAST_Node_Reified* node, NecroSc
     NecroID id = necro_this_scope_find(scope, symbol);
     if (id.id != 0)
     {
-        NecroSymbolInfo* info = necro_symtable_get(renamer->scoped_symtable->global_table, id);
+        //NecroSymbolInfo* info = necro_symtable_get(renamer->scoped_symtable->global_table, id); Unreferenced, @Curtis didn't know if you wanted this or not
         NecroSourceLoc original_source_loc = renamer->scoped_symtable->global_table->data[id.id].source_loc;
         necro_error(&renamer->error, node->source_loc, "Multiple definitions for \'%s\'.\n Original definition found at line: %d", necro_intern_get_string(renamer->scoped_symtable->global_table->intern, symbol), original_source_loc.line);
         return false;
@@ -578,6 +578,8 @@ NecroRenamer necro_create_renamer(NecroScopedSymTable* scoped_symtable, NecroInt
 
 void necro_destroy_renamer(NecroRenamer* renamer)
 {
+    assert(renamer);
+    free(renamer);
 }
 
 NECRO_RETURN_CODE necro_rename_declare_pass(NecroRenamer* renamer, NecroPagedArena* ast_arena, NecroAST_Node_Reified* input_ast)

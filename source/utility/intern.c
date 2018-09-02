@@ -303,14 +303,14 @@ NecroSymbol necro_intern_string_slice(NecroIntern* intern, NecroStringSlice slic
 void necro_print_intern(NecroIntern* intern)
 {
     printf("NecroIntern\n{\n");
-    printf("    size:    %d,\n", intern->size);
-    printf("    count:   %d,\n", intern->count);
+    printf("    size:    %zu,\n", intern->size);
+    printf("    count:   %zu,\n", intern->count);
     printf("    data:\n    [\n");
     for (size_t i = 0; i < intern->size; ++i)
     {
         if (intern->entries[i].symbol.id == NECRO_INTERN_NULL_ID)
             continue;
-        printf("        hash: %d, id: %d, value: %s\n", intern->entries[i].symbol.hash, intern->entries[i].symbol.id, intern->strings.data + intern->entries[i].string_index);
+        printf("        hash: %zu, id: %zu, value: %s\n", intern->entries[i].symbol.hash, intern->entries[i].symbol.id, intern->strings.data + intern->entries[i].string_index);
     }
     printf("    ]\n");
     printf("}\n\n");
@@ -385,10 +385,12 @@ void necro_test_intern()
     // puts("---\nGrow test");
     intern = necro_create_intern();
     NecroSymbol symbols[NECRO_INITIAL_INTERN_SIZE];
+    char testChars[NECRO_INITIAL_INTERN_SIZE];
     for (size_t i = 0; i < NECRO_INITIAL_INTERN_SIZE; ++i)
     {
-        char num = '0' + (char) i;
-        symbols[i] = necro_intern_string_slice(&intern, (NecroStringSlice) { &num, 1 });
+        testChars[i] = '0' + (char)i;
+        const char* data = ((char*) testChars) + i;
+        symbols[i] = necro_intern_string_slice(&intern, (NecroStringSlice) { data, 1 });
     }
 
     bool grow_test_passed = true;

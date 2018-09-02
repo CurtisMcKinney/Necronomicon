@@ -14,7 +14,7 @@
 #define TRACE_CORE(...)
 #endif
 
-static inline print_tabs(uint32_t num_tabs)
+static inline void print_tabs(uint32_t num_tabs)
 {
     for (uint32_t i = 0; i < num_tabs; ++i)
     {
@@ -621,6 +621,7 @@ NecroCoreAST_Expression* necro_transform_data_constructor(NecroTransformToCore* 
         case NECRO_AST_FUNCTION_TYPE:
         {
             NecroAST_FunctionType_Reified* type_fun = &ast_item->function_type;
+            UNUSED(type_fun);
             NecroCoreAST_Expression* next_core_arg = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
             next_core_arg->expr_type = NECRO_CORE_EXPR_TYPE;
             next_core_arg->type.type = ast_item->necro_type;
@@ -786,9 +787,11 @@ NecroCoreAST_Expression* necro_transform_lambda(NecroTransformToCore* core_trans
     while (apats)
     {
         NecroAST_Node_Reified* apat = apats->apat;
+        UNUSED(apat);
         current_lambda->lambda.arg = necro_transform_to_core_impl(core_transform, apats->apat);
         current_lambda->lambda.expr = NULL;
         NecroType* type = necro_symtable_get(core_transform->symtable, current_lambda->lambda.arg->var.id)->type;
+        UNUSED(type);
 
         if (apats->next_apat)
         {

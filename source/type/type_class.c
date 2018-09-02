@@ -96,6 +96,7 @@ void necro_apply_constraints(NecroInfer* infer, NecroType* type, NecroTypeClassC
 
 NecroType* necro_sub_method_var(NecroInfer* infer, NecroMethodSub* subs, size_t sub_count, NecroVar var)
 {
+    UNUSED(infer);
     for (size_t i = 0; i < sub_count; ++i)
     {
         if (subs[i].old_type_var.id.id == var.id.id)
@@ -333,6 +334,7 @@ bool necro_context_contains_class_and_type_var(NecroTypeClassContext* context, N
 
 NecroTypeClassContext* necro_remove_super_classes(NecroInfer* infer, NecroTypeClassContext* sub_class, NecroTypeClassContext* context)
 {
+    UNUSED(infer);
     NecroTypeClassContext* head = context;
     NecroTypeClassContext* curr = head;
     NecroTypeClassContext* prev = NULL;
@@ -488,6 +490,7 @@ bool necro_ambig_occurs(NecroInfer* infer, NecroCon name, NecroType* type)
 {
     if (type == NULL)
         return false;
+
     type = necro_find(type);
     switch (type->type)
     {
@@ -497,7 +500,7 @@ bool necro_ambig_occurs(NecroInfer* infer, NecroCon name, NecroType* type)
     case NECRO_TYPE_CON:  return necro_ambig_occurs(infer, name, type->con.args);
     case NECRO_TYPE_LIST: return necro_ambig_occurs(infer, name, type->list.item) || necro_ambig_occurs(infer, name, type->list.next);
     case NECRO_TYPE_FOR:  necro_infer_ast_error(infer, type, NULL, "Found polytype in occurs check!"); return false;
-    default:              necro_infer_ast_error(infer, type, NULL, "Compiler bug: Unrecognized type: %d.", type->type); return false;
+    default:              necro_infer_ast_error(infer, type, NULL, "Compiler bug: Unrecognized type: %d.", type->type);
     }
     return false;
 }
@@ -524,6 +527,7 @@ bool necro_ambiguous_type_class_check(NecroInfer* infer, NecroSymbol type_sig_na
 
 bool necro_constrain_class_variable_check(NecroInfer* infer, NecroCon type_class_name, NecroCon type_var, NecroSymbol type_sig_symbol, NecroTypeClassContext* context)
 {
+    UNUSED(type_class_name);
     assert(infer != NULL);
     if (necro_is_infer_error(infer)) return false;
     while (context != NULL)
@@ -704,7 +708,7 @@ NecroSymbol necro_create_dictionary_instance_name(NecroIntern* intern, NecroSymb
 {
     NecroSymbol dictionary_name          = necro_create_dictionary_name(intern, type_class_name);
     NecroSymbol dictionary_symbol        = necro_intern_string(intern, "dictionaryInstance@");
-    NecroSymbol dictionary_instance_name;
+    NecroSymbol dictionary_instance_name = (NecroSymbol) { 0, 0 };
     if (type_class_instance_ast->type_class_instance.inst->type == NECRO_AST_CONID)
     {
         dictionary_instance_name = necro_intern_concat_symbols(intern, dictionary_symbol, type_class_instance_ast->type_class_instance.inst->conid.symbol);
@@ -1014,7 +1018,6 @@ NecroASTNode* necro_resolve_context_to_dictionary(NecroInfer* infer, NecroTypeCl
     }
     default:
         assert(false);
-        return NULL;
     }
     return NULL;
 }
@@ -1146,7 +1149,6 @@ NecroASTNode* necro_resolve_method(NecroInfer* infer, NecroTypeClass* method_typ
         assert(false);
         return NULL;
     }
-    return NULL;
 }
 
 NecroTypeClassDictionaryContext* necro_create_type_class_dictionary_context(NecroPagedArena* arena, NecroCon type_class_name, NecroCon type_var_name, NecroASTNode* dictionary_arg_ast, NecroTypeClassDictionaryContext* next)
@@ -1167,8 +1169,9 @@ void necro_type_class_translate_constant(NecroInfer* infer, NecroNode* ast, Necr
     assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_CONSTANT);
+
     // Removing overloaded numeric literal patterns for now.
-    return;
+#if 0
     if (ast->constant.type != NECRO_AST_CONSTANT_FLOAT_PATTERN && ast->constant.type != NECRO_AST_CONSTANT_INTEGER_PATTERN) return;
 
     const char*     from_name  = NULL;
@@ -1227,7 +1230,9 @@ void necro_type_class_translate_constant(NecroInfer* infer, NecroNode* ast, Necr
         if (necro_is_infer_error(infer)) return;
         ast->constant.pat_from_ast = m_var;
     }
-
+#else
+    UNUSED(dictionary_context);
+#endif
 }
 
 void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_context, NecroInfer* infer, NecroNode* ast)
@@ -1664,34 +1669,34 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
         break;
 
     case NECRO_AST_TYPE_CLASS_DECLARATION:
-        // return, nothing to do here
-        break;
+#if 0
         necro_type_class_translate_go(dictionary_context, infer, ast->type_class_declaration.context);
         necro_type_class_translate_go(dictionary_context, infer, ast->type_class_declaration.tycls);
         necro_type_class_translate_go(dictionary_context, infer, ast->type_class_declaration.tyvar);
         necro_type_class_translate_go(dictionary_context, infer, ast->type_class_declaration.declarations);
+#endif
         break;
 
     case NECRO_AST_TYPE_SIGNATURE:
-        // return, nothing to do here
-        break;
+#if 0
         necro_type_class_translate_go(dictionary_context, infer, ast->type_signature.var);
         necro_type_class_translate_go(dictionary_context, infer, ast->type_signature.context);
         necro_type_class_translate_go(dictionary_context, infer, ast->type_signature.type);
+#endif
         break;
 
     case NECRO_AST_TYPE_CLASS_CONTEXT:
-        // return, nothing to do here
-        break;
+#if 0
         necro_type_class_translate_go(dictionary_context, infer, ast->type_class_context.conid);
         necro_type_class_translate_go(dictionary_context, infer, ast->type_class_context.varid);
+#endif
         break;
 
     case NECRO_AST_FUNCTION_TYPE:
-        // return, nothing to do here
-        break;
+#if 0
         necro_type_class_translate_go(dictionary_context, infer, ast->function_type.type);
         necro_type_class_translate_go(dictionary_context, infer, ast->function_type.next_on_arrow);
+#endif
         break;
 
     default:
@@ -1711,11 +1716,19 @@ NecroSymbol necro_create_type_class_instance_name(NecroIntern* intern, NecroNode
     NecroCon type_class_name = (NecroCon) { .symbol = ast->type_class_instance.qtycls->conid.symbol, .id = ast->type_class_instance.qtycls->conid.id };
     NecroCon data_type_name;
     if (ast->type_class_instance.inst->type == NECRO_AST_CONID)
+    {
         data_type_name = (NecroCon) { .symbol = ast->type_class_instance.inst->conid.symbol, .id = ast->type_class_instance.inst->conid.id };
+    }
     else if (ast->type_class_instance.inst->type == NECRO_AST_CONSTRUCTOR)
+    {
         data_type_name = (NecroCon) { .symbol = ast->type_class_instance.inst->constructor.conid->conid.symbol, .id = ast->type_class_instance.inst->constructor.conid->conid.id };
+    }
     else
+    {
+        data_type_name = (NecroCon) { 0, 0 };
         assert(false);
+    }
+        
     return necro_intern_create_type_class_instance_symbol(intern, data_type_name.symbol, type_class_name.symbol);
 }
 
@@ -1861,10 +1874,10 @@ void necro_create_type_class(NecroInfer* infer, NecroNode* type_class_ast)
                 while (curr_context != NULL)
                 {
                     // NecroTypeClass* type_class     = necro_type_class_table_get(&infer->type_class_env->class_table, curr_context->type_class_name.id.id);
-                    NecroTypeClass* type_class     = curr_context->type_class;
-                    NecroType*      type_class_var = necro_symtable_get(infer->symtable, type_class->type_var.id)->type;
-                    NecroType*      var_type       = necro_symtable_get(infer->symtable, curr_context->type_var.id)->type;
-                    necro_kind_unify(infer, var_type->type_kind, type_class_var->type_kind, method_ast->scope, type_sig, "While inferring the type of a method type signature");
+                    NecroTypeClass* curr_type_class      = curr_context->type_class;
+                    NecroType*      curr_type_class_var  = necro_symtable_get(infer->symtable, curr_type_class->type_var.id)->type;
+                    NecroType*      var_type             = necro_symtable_get(infer->symtable, curr_context->type_var.id)->type;
+                    necro_kind_unify(infer, var_type->type_kind, curr_type_class_var->type_kind, method_ast->scope, type_sig, "While inferring the type of a method type signature");
                     if (necro_is_infer_error(infer)) return;
                     curr_context = curr_context->next;
                 }
@@ -1963,11 +1976,18 @@ void necro_create_type_class_instance(NecroInfer* infer, NecroNode* ast)
     NecroCon type_class_name = (NecroCon) { .symbol = ast->type_class_instance.qtycls->conid.symbol, .id = ast->type_class_instance.qtycls->conid.id };
     NecroCon data_type_name;
     if (ast->type_class_instance.inst->type == NECRO_AST_CONID)
+    {
         data_type_name = (NecroCon) { .symbol = ast->type_class_instance.inst->conid.symbol, .id = ast->type_class_instance.inst->conid.id };
+    }
     else if (ast->type_class_instance.inst->type == NECRO_AST_CONSTRUCTOR)
+    {
         data_type_name = (NecroCon) { .symbol = ast->type_class_instance.inst->constructor.conid->conid.symbol, .id = ast->type_class_instance.inst->constructor.conid->conid.id };
+    }
     else
+    {
+        data_type_name = (NecroCon) { 0, 0 };
         assert(false);
+    }
 
     //------------------
     // Data, Class, Duplicate checks
@@ -2021,6 +2041,7 @@ void necro_create_type_class_instance(NecroInfer* infer, NecroNode* ast)
 
     NecroTypeClassContext* instance_context = NULL;
     NecroType*             inst_data_type   = necro_inst_with_context(infer, instance->data_type, ast->scope, &instance_context);
+    UNUSED(inst_data_type);
 
     //--------------------------------
     // Dictionary Prototype
@@ -2298,6 +2319,7 @@ NecroTypeClassInstance* necro_get_type_class_instance(NecroInfer* infer, NecroSy
 {
     NecroSymbol             super_symbol   = necro_intern_create_type_class_instance_symbol(infer->intern, data_type_name, type_class_name);
     const char*             super_name     = necro_intern_get_string(infer->intern, super_symbol);
+    UNUSED(super_name);
     NecroID                 super_id       = necro_scope_find(infer->scoped_symtable->top_type_scope, super_symbol);
     NecroSymbolInfo*        super_info     = necro_symtable_get(infer->symtable, super_id);
     NecroTypeClassInstance* super_instance = super_info->type_class_instance;
@@ -2315,6 +2337,7 @@ void necro_rec_check_pat_assignment(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_VARIABLE:
     {
         NecroSymbolInfo* symbol_info = necro_symtable_get(infer->symtable, ast->variable.id);
+        UNUSED(symbol_info);
         if (ast->variable.initializer != NULL && !necro_is_fully_concrete(infer->symtable, necro_symtable_get(infer->symtable, ast->variable.id)->type))
         {
             necro_infer_ast_error(infer, necro_symtable_get(infer->symtable, ast->variable.id)->type, ast, "Only fully concrete (non-polymorphic) types may be used as initial values");

@@ -177,6 +177,7 @@ NECRO_STATE_TYPE necro_state_analysis_case(NecroStateAnalysis* sa, NecroCoreAST_
 
 NECRO_STATE_TYPE necro_state_analysis_var(NecroStateAnalysis* sa, NecroCoreAST_Expression* ast, NecroOuter* outer)
 {
+    UNUSED(outer);
     assert(sa != NULL);
     assert(ast != NULL);
     assert(ast->expr_type == NECRO_CORE_EXPR_VAR);
@@ -221,6 +222,7 @@ NECRO_STATE_TYPE necro_state_analysis_app(NecroStateAnalysis* sa, NecroCoreAST_E
     {
         // _State application
         NECRO_STATE_TYPE args_state_type = NECRO_STATE_CONSTANT;
+        UNUSED(args_state_type);
         app                              = ast;
         NECRO_STATE_TYPE fn_state_type   = necro_symtable_get(sa->symtable, app->app.exprA->app.exprB->var.id)->state_type;
         if (fn_state_type != NECRO_STATE_STATEFUL)

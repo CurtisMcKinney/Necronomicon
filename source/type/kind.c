@@ -32,6 +32,8 @@ void necro_rigid_kind_variable_error(NecroInfer* infer, NecroVar type_var, Necro
 
 inline void necro_instantiate_kind_var(NecroInfer* infer, NecroTypeVar* kind_var, NecroTypeKind* kind, NecroType* macro_type, const char* error_preamble)
 {
+    UNUSED(macro_type);
+    UNUSED(error_preamble);
     if (necro_is_infer_error(infer))
         return;
     necr_bind_type_var(infer, kind_var->var, kind);
@@ -86,6 +88,7 @@ NecroTypeKind* necro_create_question_kind(NecroInfer* infer)
 void necro_infer_kinds_for_data_declaration(NecroInfer* infer, NecroASTNode* ast)
 {
     assert(infer != NULL);
+    UNUSED(ast);
 }
 
 
@@ -142,6 +145,12 @@ inline void necro_kind_unify_var(NecroInfer* infer, NecroTypeKind* kind1, NecroT
 
 inline void necro_kind_unify_app(NecroInfer* infer, NecroTypeKind* kind1, NecroTypeKind* kind2, NecroScope* scope, NecroType* macro_type, const char* error_preamble)
 {
+    UNUSED(infer);
+    UNUSED(kind1);
+    UNUSED(kind2);
+    UNUSED(scope);
+    UNUSED(macro_type);
+    UNUSED(error_preamble);
     assert(false);
 }
 
@@ -273,6 +282,7 @@ void necro_kind_unify(NecroInfer* infer, NecroTypeKind* kind1, NecroTypeKind* ki
 
 NecroTypeKind* necro_kind_inst(NecroInfer* infer, NecroTypeKind* kind, NecroScope* scope)
 {
+    UNUSED(scope);
     assert(infer != NULL);
     assert(kind != NULL);
     return kind;

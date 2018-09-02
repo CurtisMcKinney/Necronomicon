@@ -108,12 +108,13 @@ void necro_print_closure_defs(NecroClosureConversion* cc)
 {
     for (size_t i = 0; i < cc->closure_defs.length; ++i)
     {
-        printf("NecroClosureDef { .fn_arity = %d, .num_pargs = %d }\n", cc->closure_defs.data[i].fn_arity, cc->closure_defs.data[i].num_pargs);
+        printf("NecroClosureDef { .fn_arity = %zu, .num_pargs = %zu }\n", cc->closure_defs.data[i].fn_arity, cc->closure_defs.data[i].num_pargs);
     }
 }
 
 size_t necro_get_arity(NecroClosureConversion* cc, NecroSymbolInfo* info)
 {
+    UNUSED(cc);
     if (info->arity != -1)
     {
         return info->arity;
@@ -143,7 +144,8 @@ size_t necro_get_arity(NecroClosureConversion* cc, NecroSymbolInfo* info)
             arity++;
             type = type->fun.type2;
         }
-        info->arity = arity;
+        assert(arity <= INT32_MAX);
+        info->arity = (int32_t) arity;
         return arity;
     }
 }
@@ -286,7 +288,9 @@ NecroCoreAST_Expression* necro_closure_conversion_var(NecroClosureConversion* cc
     NecroSymbolInfo*         info    = necro_symtable_get(cc->symtable, in_ast->var.id);
     NecroCoreAST_Expression* var_ast = necro_create_core_var(&cc->arena, in_ast->var);
     var_ast->necro_type              = info->type;
-    int32_t                  arity   = necro_get_arity(cc, info);
+    size_t arity_size_t              = necro_get_arity(cc, info);
+    assert(arity_size_t <= INT32_MAX);
+    int32_t                  arity = (int32_t) arity_size_t;
     if (arity > 0)
     {
         necro_add_closure_def(cc, info->arity, 0);
@@ -387,7 +391,8 @@ NecroCoreAST_Expression* necro_closure_conversion_bind(NecroClosureConversion* c
     else if (builder.closure_type->type == NECRO_TYPE_FUN && builder.closure_type->fun.type2 == NULL)
         builder.closure_type->fun.type2 = normal_type;
     necro_symtable_get(cc->symtable, in_ast->bind.var.id)->closure_type = builder.closure_type_head;
-    necro_symtable_get(cc->symtable, in_ast->bind.var.id)->arity        = builder.arity;
+    assert(builder.arity <= INT32_MAX);
+    necro_symtable_get(cc->symtable, in_ast->bind.var.id)->arity        = (int32_t) builder.arity;
     NecroCoreAST_Expression* expr_ast = necro_closure_conversion_go(cc, in_ast->bind.expr);
     NecroCoreAST_Expression* bind_ast = necro_create_core_bind(&cc->arena, expr_ast, in_ast->var);
     bind_ast->bind.is_recursive       = in_ast->bind.is_recursive;
@@ -501,7 +506,8 @@ NecroCoreAST_Expression* necro_closure_conversion_data_con(NecroClosureConversio
         builder.con_args->list.next     = necro_closure_conversion_go(cc, builder.in_con_args);
     }
     necro_symtable_get(cc->symtable, in_ast->data_con.condid.id)->closure_type = builder.closure_type_head;
-    necro_symtable_get(cc->symtable, in_ast->data_con.condid.id)->arity        = builder.arity;
+    assert(builder.arity <= INT32_MAX);
+    necro_symtable_get(cc->symtable, in_ast->data_con.condid.id)->arity        = (int32_t) builder.arity;
     // Go deeper
     if (in_ast->data_con.next != NULL)
     {
@@ -536,7 +542,9 @@ NecroCoreAST_Expression* necro_closure_conversion_app(NecroClosureConversion* cc
     }
     assert(app->expr_type == NECRO_CORE_EXPR_VAR);
     NecroSymbolInfo* info       = necro_symtable_get(cc->symtable, app->var.id);
-    int32_t          arity      = necro_get_arity(cc, info);
+    const size_t     arity_size = necro_get_arity(cc, info);
+    assert(arity_size <= INT32_MAX);
+    int32_t          arity = (int32_t) arity_size;
     int32_t          difference = arity - num_args;
     if (difference == 0)
     {

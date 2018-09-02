@@ -145,68 +145,78 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     //--------------------
     NecroVar          _necro_init_runtime_var     = necro_gen_var(program, NULL, "_necro_init_runtime", NECRO_NAME_UNIQUE);
     NecroMachineType* _necro_init_runtime_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), NULL, 0);
-    NecroMachineAST*  _necro_init_runtime_fn      = necro_create_machine_runtime_fn(program, _necro_init_runtime_var, _necro_init_runtime_fn_type, _necro_init_runtime, NECRO_STATE_POINTWISE);
+    NecroMachineAST*  _necro_init_runtime_fn      = necro_create_machine_runtime_fn(program, _necro_init_runtime_var, _necro_init_runtime_fn_type, (NecroMachineFnPtr) _necro_init_runtime, NECRO_STATE_POINTWISE);
+    UNUSED(_necro_init_runtime_fn);
     program->runtime._necro_init_runtime          = _necro_init_runtime_var;
 
     NecroVar          _necro_update_runtime_var     = necro_gen_var(program, NULL, "_necro_update_runtime", NECRO_NAME_UNIQUE);
     NecroMachineType* _necro_update_runtime_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), NULL, 0);
-    NecroMachineAST*  _necro_update_runtime_fn      = necro_create_machine_runtime_fn(program, _necro_update_runtime_var, _necro_update_runtime_fn_type, _necro_update_runtime, NECRO_STATE_POINTWISE);
+    NecroMachineAST*  _necro_update_runtime_fn      = necro_create_machine_runtime_fn(program, _necro_update_runtime_var, _necro_update_runtime_fn_type, (NecroMachineFnPtr) _necro_update_runtime, NECRO_STATE_POINTWISE);
+    UNUSED(_necro_update_runtime_fn);
     program->runtime._necro_update_runtime          = _necro_update_runtime_var;
 
     NecroVar          _necro_error_exit_var     = necro_gen_var(program, NULL, "_necro_error_exit", NECRO_NAME_UNIQUE);
     NecroMachineType* _necro_error_exit_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), (NecroMachineType*[]) { necro_create_machine_uint32_type(&program->arena) }, 1);
-    NecroMachineAST*  _necro_error_exit_fn      = necro_create_machine_runtime_fn(program, _necro_error_exit_var, _necro_error_exit_fn_type, _necro_error_exit, NECRO_STATE_CONSTANT);
+    NecroMachineAST*  _necro_error_exit_fn      = necro_create_machine_runtime_fn(program, _necro_error_exit_var, _necro_error_exit_fn_type, (NecroMachineFnPtr) _necro_error_exit, NECRO_STATE_CONSTANT);
+    UNUSED(_necro_error_exit_fn);
     program->runtime._necro_error_exit          = _necro_error_exit_var;
 
     NecroVar          _necro_sleep_var     = necro_gen_var(program, NULL, "_necro_sleep", NECRO_NAME_UNIQUE);
     NecroMachineType* _necro_sleep_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), (NecroMachineType*[]) { necro_create_machine_uint32_type(&program->arena) }, 1);
-    NecroMachineAST*  _necro_sleep_fn      = necro_create_machine_runtime_fn(program, _necro_sleep_var, _necro_sleep_fn_type, _necro_sleep, NECRO_STATE_CONSTANT);
+    NecroMachineAST*  _necro_sleep_fn      = necro_create_machine_runtime_fn(program, _necro_sleep_var, _necro_sleep_fn_type, (NecroMachineFnPtr) _necro_sleep, NECRO_STATE_CONSTANT);
+    UNUSED(_necro_sleep_fn);
     program->runtime._necro_sleep          = _necro_sleep_var;
 
     NecroVar          _necro_print_var     = necro_gen_var(program, NULL, "_necro_print", NECRO_NAME_UNIQUE);
     NecroMachineType* _necro_print_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), (NecroMachineType*[]) { necro_create_word_sized_int_type(program) }, 1);
-    NecroMachineAST*  _necro_print_fn      = necro_create_machine_runtime_fn(program, _necro_print_var, _necro_print_fn_type, _necro_print, NECRO_STATE_CONSTANT);
+    NecroMachineAST*  _necro_print_fn      = necro_create_machine_runtime_fn(program, _necro_print_var, _necro_print_fn_type, (NecroMachineFnPtr) _necro_print, NECRO_STATE_CONSTANT);
+    UNUSED(_necro_print_fn);
     program->runtime._necro_print          = _necro_print_var;
 
     NecroVar          _necro_debug_print_var     = necro_gen_var(program, NULL, "_necro_debug_print", NECRO_NAME_UNIQUE);
     NecroMachineType* _necro_debug_print_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), (NecroMachineType*[]) { necro_create_word_sized_int_type(program) }, 1);
-    NecroMachineAST*  _necro_debug_print_fn      = necro_create_machine_runtime_fn(program, _necro_debug_print_var, _necro_debug_print_fn_type, _necro_debug_print, NECRO_STATE_CONSTANT);
+    NecroMachineAST*  _necro_debug_print_fn      = necro_create_machine_runtime_fn(program, _necro_debug_print_var, _necro_debug_print_fn_type, (NecroMachineFnPtr) _necro_debug_print, NECRO_STATE_CONSTANT);
+    UNUSED(_necro_debug_print_fn);
     program->runtime._necro_debug_print          = _necro_debug_print_var;
 
     NecroVar          _necro_mouse_x_var     = necro_gen_var(program, NULL, "_necro_mouse_x", NECRO_NAME_UNIQUE);
     NecroMachineType* _necro_mouse_x_fn_type = necro_create_machine_fn_type(&program->arena, program->necro_int_type, NULL, 0);
-    NecroMachineAST*  _necro_mouse_x_fn      = necro_create_machine_runtime_fn(program, _necro_mouse_x_var, _necro_mouse_x_fn_type, _necro_mouse_x, NECRO_STATE_POINTWISE);
+    NecroMachineAST*  _necro_mouse_x_fn      = necro_create_machine_runtime_fn(program, _necro_mouse_x_var, _necro_mouse_x_fn_type, (NecroMachineFnPtr) _necro_mouse_x, NECRO_STATE_POINTWISE);
 
     NecroVar          _necro_mouse_y_var     = necro_gen_var(program, NULL, "_necro_mouse_y", NECRO_NAME_UNIQUE);
     NecroMachineType* _necro_mouse_y_fn_type = necro_create_machine_fn_type(&program->arena, program->necro_int_type, NULL, 0);
-    NecroMachineAST*  _necro_mouse_y_fn      = necro_create_machine_runtime_fn(program, _necro_mouse_y_var, _necro_mouse_y_fn_type, _necro_mouse_y, NECRO_STATE_POINTWISE);
+    NecroMachineAST*  _necro_mouse_y_fn      = necro_create_machine_runtime_fn(program, _necro_mouse_y_var, _necro_mouse_y_fn_type, (NecroMachineFnPtr) _necro_mouse_y, NECRO_STATE_POINTWISE);
 
     //--------------------
     // New Copy GC
     //--------------------
     NecroVar          _necro_copy_gc_initialize_root_set_var     = necro_gen_var(program, NULL, "_necro_copy_gc_initialize_root_set", NECRO_NAME_UNIQUE);
     NecroMachineType* _necro_copy_gc_initialize_root_set_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), (NecroMachineType*[]) { necro_create_word_sized_uint_type(program) }, 1);
-    NecroMachineAST*  _necro_copy_gc_initialize_root_set_fn      = necro_create_machine_runtime_fn(program, _necro_copy_gc_initialize_root_set_var, _necro_copy_gc_initialize_root_set_fn_type, _necro_copy_gc_initialize_root_set, NECRO_STATE_POINTWISE);
+    NecroMachineAST*  _necro_copy_gc_initialize_root_set_fn      = necro_create_machine_runtime_fn(program, _necro_copy_gc_initialize_root_set_var, _necro_copy_gc_initialize_root_set_fn_type, (NecroMachineFnPtr) _necro_copy_gc_initialize_root_set, NECRO_STATE_POINTWISE);
+    UNUSED(_necro_copy_gc_initialize_root_set_fn);
     program->runtime._necro_copy_gc_initialize_root_set          = _necro_copy_gc_initialize_root_set_var;
 
     NecroVar          _necro_copy_gc_set_root_var     = necro_gen_var(program, NULL, "_necro_copy_gc_set_root", NECRO_NAME_UNIQUE);
     NecroMachineType* _necro_copy_gc_set_root_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), (NecroMachineType*[]) { necro_create_machine_ptr_type(&program->arena, necro_create_machine_ptr_type(&program->arena, necro_create_word_sized_int_type(program))), necro_create_word_sized_uint_type(program), necro_create_word_sized_uint_type(program) }, 3);
-    NecroMachineAST*  _necro_copy_gc_set_root_fn      = necro_create_machine_runtime_fn(program, _necro_copy_gc_set_root_var, _necro_copy_gc_set_root_fn_type, _necro_copy_gc_set_root, NECRO_STATE_POINTWISE);
+    NecroMachineAST*  _necro_copy_gc_set_root_fn      = necro_create_machine_runtime_fn(program, _necro_copy_gc_set_root_var, _necro_copy_gc_set_root_fn_type, (NecroMachineFnPtr) _necro_copy_gc_set_root, NECRO_STATE_POINTWISE);
+    UNUSED(_necro_copy_gc_set_root_fn);
     program->runtime._necro_copy_gc_set_root          = _necro_copy_gc_set_root_var;
 
     NecroVar          _necro_copy_gc_collect_var     = necro_gen_var(program, NULL, "_necro_copy_gc_collect", NECRO_NAME_UNIQUE);
     NecroMachineType* _necro_copy_gc_collect_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), NULL, 0);
-    NecroMachineAST*  _necro_copy_gc_collect_fn      = necro_create_machine_runtime_fn(program, _necro_copy_gc_collect_var, _necro_copy_gc_collect_fn_type, _necro_copy_gc_collect, NECRO_STATE_POINTWISE);
+    NecroMachineAST*  _necro_copy_gc_collect_fn      = necro_create_machine_runtime_fn(program, _necro_copy_gc_collect_var, _necro_copy_gc_collect_fn_type, (NecroMachineFnPtr) _necro_copy_gc_collect, NECRO_STATE_POINTWISE);
+    UNUSED(_necro_copy_gc_collect_fn);
     program->runtime._necro_copy_gc_collect          = _necro_copy_gc_collect_var;
 
     NecroVar          _necro_from_alloc_var     = necro_gen_var(program, NULL, "_necro_from_alloc", NECRO_NAME_UNIQUE);
     NecroMachineType* _necro_from_alloc_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_ptr_type(&program->arena, necro_create_word_sized_int_type(program)), (NecroMachineType*[]) { necro_create_word_sized_uint_type(program) }, 1);
-    NecroMachineAST*  _necro_from_alloc_fn      = necro_create_machine_runtime_fn(program, _necro_from_alloc_var, _necro_from_alloc_fn_type, _necro_from_alloc, NECRO_STATE_CONSTANT);
+    NecroMachineAST*  _necro_from_alloc_fn      = necro_create_machine_runtime_fn(program, _necro_from_alloc_var, _necro_from_alloc_fn_type, (NecroMachineFnPtr) _necro_from_alloc, NECRO_STATE_CONSTANT);
     program->runtime._necro_from_alloc          = _necro_from_alloc_var;
 
     NecroVar          _necro_flip_const_var     = necro_gen_var(program, NULL, "_necro_flip_const", NECRO_NAME_UNIQUE);
     NecroMachineType* _necro_flip_const_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), NULL, 0);
-    NecroMachineAST*  _necro_flip_const_fn      = necro_create_machine_runtime_fn(program, _necro_flip_const_var, _necro_flip_const_fn_type, _necro_flip_const, NECRO_STATE_CONSTANT);
+    NecroMachineAST*  _necro_flip_const_fn      = necro_create_machine_runtime_fn(program, _necro_flip_const_var, _necro_flip_const_fn_type, (NecroMachineFnPtr) _necro_flip_const, NECRO_STATE_CONSTANT);
+    UNUSED(_necro_flip_const_fn);
     program->runtime._necro_flip_const          = _necro_flip_const_var;
 
     //--------------------
@@ -264,11 +274,13 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     NecroVar          rational_var  = necro_con_to_var(program->prim_types->rational_type);
     NecroVar          rational_con  = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "Rational").id));
     NecroMachineType* rational_type = necro_create_prim_type(program, rational_var, rational_con, (NecroMachineType*[]) { program->necro_uint_type, program->necro_int_type, program->necro_int_type}, 3);
+    UNUSED(rational_type);
 
     // Audio
     NecroVar          audio_var  = necro_con_to_var(program->prim_types->audio_type);
     NecroVar          audio_con  = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "Audio").id));
     NecroMachineType* audio_type = necro_create_prim_type(program, audio_var, audio_con, (NecroMachineType*[]) { program->necro_uint_type, necro_create_machine_ptr_type(&program->arena, necro_create_machine_f32_type(&program->arena)) }, 2);
+    UNUSED(audio_type);
 
     // () (is_enum)
     NecroVar unit_var = necro_con_to_var(program->prim_types->unit_type);
@@ -372,7 +384,7 @@ void necro_init_machine_prim(NecroMachineProgram* program)
         NecroVar         unsafe_malloc_var = necro_con_to_var(program->prim_types->unsafe_malloc);
         NecroMachineAST* unsafe_malloc_fn  = necro_prim_fn_begin(program, unsafe_malloc_var, ptr_type, (NecroMachineType*[]) { program->necro_int_type }, 1);
         NecroMachineAST* unsafe_slots_used = necro_build_binop(program, unsafe_malloc_fn, necro_create_param_reg(program, unsafe_malloc_fn, 0), necro_create_word_int_value(program, 1), NECRO_MACHINE_BINOP_IADD);
-        if (necro_get_word_size() == NECRO_WORD_4_BYTES)
+        if (necro_word_size == NECRO_WORD_4_BYTES)
             unsafe_slots_used = necro_build_binop(program, unsafe_malloc_fn, unsafe_slots_used, necro_create_word_int_value(program, 4), NECRO_MACHINE_BINOP_IMUL);
         else
             unsafe_slots_used = necro_build_binop(program, unsafe_malloc_fn, unsafe_slots_used, necro_create_word_int_value(program, 8), NECRO_MACHINE_BINOP_IMUL);

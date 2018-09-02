@@ -59,7 +59,7 @@ NecroMachineAST* necro_build_alloca(NecroMachineProgram* program, NecroMachineAS
 
 NecroMachineAST* necro_create_machine_struct_def(NecroMachineProgram* program, NecroVar name, NecroMachineType** members, size_t num_members);
 NecroMachineAST* necro_create_machine_fn(NecroMachineProgram* program, NecroVar name, NecroMachineAST* call_body, NecroMachineType* necro_machine_type);
-NecroMachineAST* necro_create_machine_runtime_fn(NecroMachineProgram* program, NecroVar name, NecroMachineType* necro_machine_type, void* runtime_fn_addr, NECRO_STATE_TYPE state_type);
+NecroMachineAST* necro_create_machine_runtime_fn(NecroMachineProgram* program, NecroVar name, NecroMachineType* necro_machine_type, NecroMachineFnPtr runtime_fn_addr, NECRO_STATE_TYPE state_type);
 NecroMachineAST* necro_create_machine_initial_machine_def(NecroMachineProgram* program, NecroVar bind_name, NecroMachineAST* outer, NecroMachineType* value_type, NecroType* necro_value_type);
 
 // Load / Store

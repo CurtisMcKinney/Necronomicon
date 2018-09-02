@@ -19,7 +19,7 @@
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 project(necro)
 
-set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD 11)
 set(CMAKE_BUILD_TYPE Debug)
 
 find_package(LLVM REQUIRED CONFIG)
@@ -29,12 +29,15 @@ message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
-# if (CMAKE_COMPILER_IS_GNUCC)
-#     set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wall")
-# endif()
-# if (MSVC)
-#     set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} /W4")
-# endif()
+if (CMAKE_COMPILER_IS_GNUCC)
+    set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wall")
+endif()
+
+if (MSVC)
+    set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} /W4 /wd4201 /wd4204 /WX")
+endif()
+
+add_definitions(${CMAKE_C_FLAGS})
 
 set(INCLUDE_DIR
     source
@@ -63,7 +66,6 @@ set(project_SOURCES
     source/runtime/runtime.c
     source/runtime/mouse.c
     source/runtime/slab.c
-    source/runtime/vault.c
     source/runtime/region.c
 
     source/type/type.c
@@ -112,7 +114,6 @@ set(project_HEADERS
     source/runtime/runtime.h
     source/runtime/mouse.h
     source/runtime/slab.h
-    source/runtime/vault.h
     source/runtime/region.h
 
     source/type/type.h

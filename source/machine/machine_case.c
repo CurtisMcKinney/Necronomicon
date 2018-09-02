@@ -222,6 +222,7 @@ NecroPatternMatrix necro_create_pattern_matrix_from_case(NecroMachineProgram* pr
     while (alts != NULL)
     {
         size_t this_columns = 1;
+        UNUSED(this_columns);
         if (alts->altCon == NULL) // Wildcard
         {
             matrix.patterns[this_rows][0] = NULL;
@@ -581,6 +582,7 @@ NecroDecisionTree* necro_finish_compile_pattern_matrix(NecroMachineProgram* prog
             .symbol = data_cons->list.item->constructor.conid->conid.symbol,
         };
         const char*        con_name   = necro_intern_get_string(program->intern, pattern_con.symbol);
+        UNUSED(con_name);
         NecroPatternMatrix con_matrix = necro_specialize_matrix(program, matrix, pattern_con);             // if (necro_is_codegen_error(codegen)) return NULL;
         cases[con_num]                = necro_compile_pattern_matrix(program, &con_matrix, top_case_ast);  // if (necro_is_codegen_error(codegen)) return NULL;
         cons[con_num]                 = pattern_con;
@@ -752,8 +754,11 @@ void necro_decision_tree_to_machine(NecroMachineProgram* program, NecroDecisionT
                 }
                 else
                 {
-                    char             itoa_buf[6];
-                    const char*      case_name  = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { itoa((size_t)tree->tree_lit_switch.constants[i].int_literal, itoa_buf, 10), "_case" });
+                    char int_buf[20] = { 0 };
+                    int64_t int_literal = tree->tree_lit_switch.constants[i].int_literal;
+                    sprintf(int_buf, "%" PRId64, int_literal);
+                    const char* int_buf_addr = (const char*) int_buf;
+                    const char*      case_name  = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { int_buf_addr, "_case" });
                     NecroMachineAST* case_block = necro_insert_block_before(program, outer->machine_def.update_fn, case_name, term_case_block);
                     necro_add_case_to_switch(program, switch_value, case_block, (size_t) tree->tree_lit_switch.constants[i].int_literal);
                     necro_move_to_block(program, outer->machine_def.update_fn, case_block);
@@ -836,8 +841,8 @@ NecroMachineAST* necro_core_to_machine_3_case(NecroMachineProgram* program, Necr
     NecroMachineAST* err_block = outer->machine_def.update_fn->fn_def._err_block;
     if (err_block == NULL)
     {
-        NecroMachineAST* next_block = term_case_block->block.next_block;
-        err_block = (next_block == NULL) ? necro_append_block(program, outer->machine_def.update_fn, "error") : necro_insert_block_before(program, outer->machine_def.update_fn, "error", next_block);
+        NecroMachineAST* next_error_block = term_case_block->block.next_block;
+        err_block = (next_error_block == NULL) ? necro_append_block(program, outer->machine_def.update_fn, "error") : necro_insert_block_before(program, outer->machine_def.update_fn, "error", next_error_block);
         necro_move_to_block(program, outer->machine_def.update_fn, err_block);
         necro_build_call(program, outer->machine_def.update_fn, necro_symtable_get(program->symtable, program->runtime._necro_error_exit.id)->necro_machine_ast->fn_def.fn_value, (NecroMachineAST*[]) { necro_create_uint32_necro_machine_value(program, 1) }, 1, NECRO_C_CALL, "");
         necro_build_unreachable(program, outer->machine_def.update_fn);
@@ -1034,6 +1039,7 @@ void necro_destroy_decision_tree_hash_table(NecroDecisionTreeHashTable* table)
 
 void necro_decision_tree_grow(NecroDecisionTreeHashTable* table)
 {
+    UNUSED(table);
     assert(false && "necro_decision_tree_grow: Theoretically this is unneeded since we pre-compute the maximum table size. If you're seeing this, something has gone wrong!");
 }
 
@@ -1090,7 +1096,7 @@ NecroDecisionTree* necro_maximal_sharing_go(NecroDecisionTreeHashTable* table, N
 
 NecroDecisionTree* necro_maximal_sharing(NecroDecisionTree* tree)
 {
-    size_t                     size  = next_highest_pow_of_2(necro_tree_count_nodes(tree));
+    size_t                     size  = next_highest_pow_of_2_size_t(necro_tree_count_nodes(tree));
     NecroDecisionTreeHashTable table = necro_create_decision_tree_hash_table(size);
     necro_maximal_sharing_go(&table, tree);
     necro_destroy_decision_tree_hash_table(&table);
@@ -1113,7 +1119,7 @@ void necro_print_decision_tree_go(NecroMachineProgram* program, NecroDecisionTre
     case NECRO_DECISION_TREE_SWITCH:
     {
         print_white_space(depth);
-        printf("tree: %p, slot: %d\n", tree, tree->tree_switch.path->slot);
+        printf("tree: %p, slot: %zu\n", tree, tree->tree_switch.path->slot);
         for (size_t i = 0; i < tree->tree_switch.num_cases; ++i)
         {
 
@@ -1126,7 +1132,7 @@ void necro_print_decision_tree_go(NecroMachineProgram* program, NecroDecisionTre
     case NECRO_DECISION_TREE_LIT_SWITCH:
     {
         print_white_space(depth);
-        printf("tree: %p, slot: %d\n", tree, tree->tree_lit_switch.path->slot);
+        printf("tree: %p, slot: %zu\n", tree, tree->tree_lit_switch.path->slot);
         for (size_t i = 0; i < tree->tree_lit_switch.num_cases; ++i)
         {
 

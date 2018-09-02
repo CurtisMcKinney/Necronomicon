@@ -10,7 +10,6 @@
 #include "parser.h"
 #include "intern.h"
 #include "runtime.h"
-#include "vault.h"
 #include "symtable.h"
 #include "ast.h"
 #include "renamer.h"

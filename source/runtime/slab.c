@@ -158,7 +158,7 @@ void necro_bench_slab()
         NecroSlabAllocator slab_allocator = necro_create_slab_allocator(16384);
         double start_time = (double)clock() / (double)CLOCKS_PER_SEC;
         int64_t* mem;
-        for (size_t i = 0; i < iterations; ++i)
+        for (int64_t i = 0; i < iterations; ++i)
         {
             mem = necro_alloc_slab(&slab_allocator, sizeof(int64_t) * 4);
             // necro_free_slab(&slab_allocator, mem, sizeof(int64_t) * 4);
@@ -175,7 +175,7 @@ void necro_bench_slab()
         // C bench
         double start_time = (double)clock() / (double)CLOCKS_PER_SEC;
         size_t* mem;
-        for (size_t i = 0; i < iterations; ++i)
+        for (int64_t i = 0; i < iterations; ++i)
         {
             mem = malloc(sizeof(size_t) * 4);
             // free(mem);

@@ -1737,6 +1737,11 @@ bool necro_is_alphabetical(uint32_t code_point)
     return (leaf & (((uint64_t)1) << (((uint64_t)code_point & 0x3F)))) != 0;
 }
 
+bool necro_is_control(uint32_t code_point)
+{
+    return (code_point >= 0x00 && code_point <= 0x1F) || (code_point >= 0x7F && code_point <= 0x9F);
+}
+
 bool necro_is_lowercase(uint32_t code_point)
 {
     uint32_t table1_index = code_point >> 14;

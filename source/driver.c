@@ -441,12 +441,12 @@ void necro_test(NECRO_TEST test)
     case NECRO_TEST_ARENA_CHAIN_TABLE: necro_arena_chain_table_test();  break;
     case NECRO_TEST_ALL:
         necro_test_unicode_properties();
-        necro_symtable_test();
+        // necro_symtable_test();
         necro_test_lexer();
-        necro_test_intern();
-        necro_test_infer();
-        necro_test_type();
-        necro_arena_chain_table_test();
+        // necro_test_intern();
+        // necro_test_infer();
+        // necro_test_type();
+        // necro_arena_chain_table_test();
         break;
     default: break;
     }

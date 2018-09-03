@@ -50,14 +50,13 @@ NecroResult(bool) necro_unrecognized_character_sequence_error(NecroPagedArena* a
 void necro_print_range_pointers(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     printf("   |");
-    // Arrow spaces
     for (size_t i = 0; i < source_loc.character; ++i)
     {
         printf(" ");
     }
-    // Use - instead of ^
-    for (size_t i = source_loc.character; i < end_loc.character; ++i)
-        printf("^");
+    printf("^");
+    for (size_t i = source_loc.character + 1; i < end_loc.character; ++i)
+        printf("-");
     printf("\n");
 }
 

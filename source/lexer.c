@@ -1542,8 +1542,8 @@ void necro_test_lexer()
         NecroResult(bool) result = necro_lex_u(&lexer);
         assert(result.num_errors == 1);
         assert(result.errors[0].type == NECRO_MALFORMED_STRING);
-        // necro_print_result_errors(result.errors, result.num_errors, str, "lexerTest.necro");
         // necro_print_lexer_u(&lexer);
+        // necro_print_result_errors(result.errors, result.num_errors, str, "lexerTest.necro");
         printf("Lex string error test: Passed\n");
         necro_destroy_lexer_u(&lexer);
     }
@@ -1595,6 +1595,88 @@ void necro_test_lexer()
         assert(lexer.tokens.data[1].token == NECRO_LEX_END_OF_STREAM);
         // necro_print_lexer_u(&lexer);
         printf("Lex unicode identifier test: Passed\n");
+        necro_destroy_lexer_u(&lexer);
+    }
+
+    // Test 6
+    {
+        const char*       str    = "!@#$%^&*(~)_+-=";
+        NecroLexerUnicode lexer  = necro_create_lexer_u(str, strlen(str));
+        unwrap(bool, necro_lex_u(&lexer));
+        // necro_print_lexer_u(&lexer);
+        assert(lexer.tokens.length == 16);
+        assert(lexer.tokens.data[0].token == NECRO_LEX_EXCLAMATION);
+        assert(lexer.tokens.data[1].token == NECRO_LEX_AT);
+        assert(lexer.tokens.data[2].token == NECRO_LEX_HASH);
+        assert(lexer.tokens.data[3].token == NECRO_LEX_DOLLAR);
+        assert(lexer.tokens.data[4].token == NECRO_LEX_MOD);
+        assert(lexer.tokens.data[5].token == NECRO_LEX_CARET);
+        assert(lexer.tokens.data[6].token == NECRO_LEX_AMPERSAND);
+        assert(lexer.tokens.data[7].token == NECRO_LEX_MUL);
+        assert(lexer.tokens.data[8].token == NECRO_LEX_LEFT_PAREN);
+        assert(lexer.tokens.data[9].token == NECRO_LEX_TILDE);
+        assert(lexer.tokens.data[10].token == NECRO_LEX_RIGHT_PAREN);
+        assert(lexer.tokens.data[11].token == NECRO_LEX_UNDER_SCORE);
+        assert(lexer.tokens.data[12].token == NECRO_LEX_ADD);
+        assert(lexer.tokens.data[13].token == NECRO_LEX_SUB);
+        assert(lexer.tokens.data[14].token == NECRO_LEX_ASSIGN);
+        assert(lexer.tokens.data[15].token == NECRO_LEX_END_OF_STREAM);
+        printf("Lex single char test: Passed\n");
+        necro_destroy_lexer_u(&lexer);
+    }
+
+    // Test 7
+    {
+        const char*       str    = "+ - * / % > < >= <= :: << >> | |> <| == /= && || >>= =<< !! <>";
+        NecroLexerUnicode lexer  = necro_create_lexer_u(str, strlen(str));
+        unwrap(bool, necro_lex_u(&lexer));
+        // necro_print_lexer_u(&lexer);
+        assert(lexer.tokens.length == 24);
+        assert(lexer.tokens.data[0].token == NECRO_LEX_ADD);
+        assert(lexer.tokens.data[1].token == NECRO_LEX_SUB);
+        assert(lexer.tokens.data[2].token == NECRO_LEX_MUL);
+        assert(lexer.tokens.data[3].token == NECRO_LEX_DIV);
+        assert(lexer.tokens.data[4].token == NECRO_LEX_MOD);
+        assert(lexer.tokens.data[5].token == NECRO_LEX_GT);
+        assert(lexer.tokens.data[6].token == NECRO_LEX_LT);
+        assert(lexer.tokens.data[7].token == NECRO_LEX_GTE);
+        assert(lexer.tokens.data[8].token == NECRO_LEX_LTE);
+        assert(lexer.tokens.data[9].token == NECRO_LEX_DOUBLE_COLON);
+        assert(lexer.tokens.data[10].token == NECRO_LEX_LEFT_SHIFT);
+        assert(lexer.tokens.data[11].token == NECRO_LEX_RIGHT_SHIFT);
+        assert(lexer.tokens.data[12].token == NECRO_LEX_PIPE);
+        assert(lexer.tokens.data[13].token == NECRO_LEX_BACK_PIPE);
+        assert(lexer.tokens.data[14].token == NECRO_LEX_FORWARD_PIPE);
+        assert(lexer.tokens.data[15].token == NECRO_LEX_EQUALS);
+        assert(lexer.tokens.data[16].token == NECRO_LEX_NOT_EQUALS);
+        assert(lexer.tokens.data[17].token == NECRO_LEX_AND);
+        assert(lexer.tokens.data[18].token == NECRO_LEX_OR);
+        assert(lexer.tokens.data[19].token == NECRO_LEX_BIND_RIGHT);
+        assert(lexer.tokens.data[20].token == NECRO_LEX_BIND_LEFT);
+        assert(lexer.tokens.data[21].token == NECRO_LEX_DOUBLE_EXCLAMATION);
+        assert(lexer.tokens.data[22].token == NECRO_LEX_APPEND);
+        assert(lexer.tokens.data[23].token == NECRO_LEX_END_OF_STREAM);
+        printf("Lex multi-char test: Passed\n");
+        necro_destroy_lexer_u(&lexer);
+    }
+
+    // Test 8
+    {
+        const char*       str    = "\'a\' \'b\' \'c\' \'!\'";
+        NecroLexerUnicode lexer  = necro_create_lexer_u(str, strlen(str));
+        unwrap(bool, necro_lex_u(&lexer));
+        // necro_print_lexer_u(&lexer);
+        assert(lexer.tokens.length == 5);
+        assert(lexer.tokens.data[0].token == NECRO_LEX_CHAR_LITERAL);
+        assert(lexer.tokens.data[0].char_literal == 'a');
+        assert(lexer.tokens.data[1].token == NECRO_LEX_CHAR_LITERAL);
+        assert(lexer.tokens.data[1].char_literal == 'b');
+        assert(lexer.tokens.data[2].token == NECRO_LEX_CHAR_LITERAL);
+        assert(lexer.tokens.data[2].char_literal == 'c');
+        assert(lexer.tokens.data[3].token == NECRO_LEX_CHAR_LITERAL);
+        assert(lexer.tokens.data[3].char_literal == '!');
+        assert(lexer.tokens.data[4].token == NECRO_LEX_END_OF_STREAM);
+        printf("Lex char literal test: Passed\n");
         necro_destroy_lexer_u(&lexer);
     }
 

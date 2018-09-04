@@ -138,18 +138,18 @@ typedef struct
 } NecroLexToken;
 NECRO_DECLARE_VECTOR(NecroLexToken, NecroLexToken, lex_token)
 
-typedef struct
-{
-    size_t                 character_number;
-    size_t                 line_number;
-    size_t                 pos;
-    const char*            str;
-    size_t                 str_length;
-    NecroLexTokenVector    tokens;
-    NecroLexTokenVector    layout_fixed_tokens;
-    NecroIntern            intern;
-    NecroError             error;
-} NecroLexer;
+// typedef struct
+// {
+//     size_t                 character_number;
+//     size_t                 line_number;
+//     size_t                 pos;
+//     const char*            str;
+//     size_t                 str_length;
+//     NecroLexTokenVector    tokens;
+//     NecroLexTokenVector    layout_fixed_tokens;
+//     NecroIntern            intern;
+//     NecroError             error;
+// } NecroLexer;
 
 typedef enum
 {
@@ -158,14 +158,13 @@ typedef enum
     NECRO_LEX_NUM_STATE_FLOAT_POST_DOT,
 } NECRO_LEX_NUM_STATE;
 
-// API
-NecroLexer        necro_create_lexer(const char* str, size_t str_length);
-void              necro_destroy_lexer(NecroLexer* lexer);
-void              necro_print_lexer(NecroLexer* lexer);
-NECRO_RETURN_CODE necro_lex(NecroLexer* lexer);
-NECRO_RETURN_CODE necro_lex_fixup_layout(NecroLexer* lexer);
-const char*       necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
-void              necro_test_lexer();
+// // API
+// NecroLexer        necro_create_lexer(const char* str, size_t str_length);
+// void              necro_destroy_lexer(NecroLexer* lexer);
+// void              necro_print_lexer(NecroLexer* lexer);
+// NECRO_RETURN_CODE necro_lex(NecroLexer* lexer);
+// NECRO_RETURN_CODE necro_lex_fixup_layout(NecroLexer* lexer);
+// const char*       necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
 
 ///////////////////////////////////////////////////////
 // Unicode Lexer
@@ -180,13 +179,14 @@ typedef struct
     NecroLexTokenVector tokens;
     NecroLexTokenVector layout_fixed_tokens;
     NecroIntern         intern;
-} NecroLexerUnicode;
+} NecroLexer;
 
-NecroLexerUnicode necro_create_lexer_u(const char* str, size_t str_length);
-void              necro_destroy_lexer_u(NecroLexerUnicode* lexer);
-NecroResult(bool) necro_lex_u(NecroLexerUnicode* lexer);
-// void              necro_print_lexer(NecroLexer* lexer);
-// NECRO_RETURN_CODE necro_lex_fixup_layout(NecroLexer* lexer);
-// const char*       necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
+NecroLexer        necro_create_lexer(const char* str, size_t str_length);
+void              necro_destroy_lexer(NecroLexer* lexer);
+NecroResult(bool) necro_lex(NecroLexer* lexer);
+void              necro_print_lexer(NecroLexer* lexer);
+NecroResult(bool) necro_lex_fixup_layout(NecroLexer* lexer);
+const char*       necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
+void              necro_test_lexer();
 
 #endif // LEXER_H

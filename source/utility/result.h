@@ -28,6 +28,7 @@ typedef enum
     NECRO_MALFORMED_FLOAT,
     NECRO_MALFORMED_STRING,
     NECRO_UNRECOGNIZED_CHARACTER_SEQUENCE,
+    NECRO_MIXED_BRACES,
     NECRO_MULTIPLE_DEFINITIONS,
 } NECRO_RESULT_ERROR_TYPE;
 
@@ -42,6 +43,12 @@ typedef struct
     NecroSourceLoc source_loc;
     NecroSourceLoc end_loc;
 } NecroMalformedFloat;
+
+typedef struct
+{
+    NecroSourceLoc source_loc;
+    NecroSourceLoc end_loc;
+} NecroMixedBraces;
 
 typedef struct
 {
@@ -62,6 +69,7 @@ typedef struct
         NecroMalformedString               malformed_string;
         NecroMalformedFloat                malformed_float;
         NecroUnrecognizedCharacterSequence unrecognized_character_sequence;
+        NecroMixedBraces                   mixed_braces;
         NecroMultipleDefinitions           multiple_definitions;
     };
     NECRO_RESULT_ERROR_TYPE type;
@@ -79,7 +87,11 @@ typedef struct \
         NecroResultError* errors; \
         TYPE value; \
     }; \
-} NecroResult_##TYPE;
+} NecroResult_##TYPE; \
+inline NecroResult_##TYPE ok_##TYPE(TYPE value) \
+{ \
+    return (NecroResult_##TYPE) { .value = value, .num_errors = 0 }; \
+}
 
 #define NECRO_DECLARE_PTR_RESULT(TYPE) \
 typedef struct \
@@ -94,7 +106,16 @@ typedef struct \
 
 NECRO_DECLARE_RESULT(size_t);
 NECRO_DECLARE_RESULT(bool);
-NECRO_DECLARE_PTR_RESULT(void);
+// NECRO_DECLARE_PTR_RESULT(void);
+
+typedef struct
+{
+    size_t num_errors;
+    union
+    {
+        NecroResultError* errors;
+    };
+} NecroResult_void;
 
 typedef union
 {
@@ -111,9 +132,16 @@ extern NecroResultUnion global_result;
 // Macro API
 ///////////////////////////////////////////////////////
 #define NecroResult(TYPE) NecroResult_##TYPE
-#define ok(TYPE, EXPR) (NecroResult_##TYPE) { .value = EXPR, .num_errors = 0 }
 #define necro_try(TYPE, EXPR) (global_result.TYPE##_result = EXPR).value; if (global_result.TYPE##_result.num_errors != 0) return global_result.TYPE##_result;
+
 #define unwrap(TYPE, EXPR) (global_result.TYPE##_result = EXPR).value; assert(global_result.TYPE##_result.num_errors == 0);
+
+#define necro_try_map(TYPE, TYPE2, EXPR) (global_result.TYPE##_result = EXPR).value; if (global_result.TYPE##_result.num_errors != 0) return global_result.TYPE2##_result;
+
+inline NecroResult(void) ok_void()
+{
+    return (NecroResult_void) { .num_errors = 0 };
+}
 
 ///////////////////////////////////////////////////////
 // Error API
@@ -121,6 +149,7 @@ extern NecroResultUnion global_result;
 NecroResult(bool) necro_malformed_string_error(NecroPagedArena* arena, NecroSourceLoc location, NecroSourceLoc end_loc);
 NecroResult(bool) necro_malformed_float_error(NecroPagedArena* arena, NecroSourceLoc location, NecroSourceLoc end_loc);
 NecroResult(bool) necro_unrecognized_character_sequence_error(NecroPagedArena* arena, NecroSourceLoc location, NecroSourceLoc end_loc);
+NecroResult(bool) necro_mixed_braces_error(NecroPagedArena* arena, NecroSourceLoc location, NecroSourceLoc end_loc);
 void              necro_print_result_error(NecroResultError error, const char* source_str, const char* source_name);
 void              necro_print_result_errors(NecroResultError* errors, size_t num_errors, const char* source_str, const char* source_name);
 

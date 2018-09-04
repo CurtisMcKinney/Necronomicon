@@ -185,3 +185,6 @@ instance Functor (Either a) where
 curryAdd = (+)
 curryAdd2 = (+2)
 curryAddTo2 = (2+)
+
+brokenString = "This is a broken string
+

@@ -17,3 +17,9 @@ gravé = 5
 🿽
 
 কী
+
+test = test2 + test3 + test4 + test5 where
+  test2 = 2 where
+    test3 = 3
+    test4 = 4
+  test5 = 5

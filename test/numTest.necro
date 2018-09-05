@@ -186,5 +186,8 @@ curryAdd = (+)
 curryAdd2 = (+2)
 curryAddTo2 = (2+)
 
-brokenString = "This is a broken string
+-- brokenString = "This is a broken string
+-- brokenFloat = 0. 5
+-- mixItUp = x where
+--   x = 5 }
 

@@ -8,6 +8,7 @@
 
 #include <stdlib.h>
 #include <stdbool.h>
+#include "utility/result.h"
 
 typedef enum
 {
@@ -38,7 +39,6 @@ typedef enum
 {
     NECRO_PHASE_NONE,
     NECRO_PHASE_ALL,
-    NECRO_PHASE_LEX_PRE_LAYOUT,
     NECRO_PHASE_LEX,
     NECRO_PHASE_PARSE,
     NECRO_PHASE_REIFY,
@@ -55,8 +55,16 @@ typedef enum
     NECRO_PHASE_JIT
 } NECRO_PHASE;
 
-void necro_test(NECRO_TEST test);
-void necro_compile(const char* file_name, const char* input_string, size_t str_length, NECRO_PHASE compilation_phase);
-void necro_compile_opt(const char* file_name, const char* input_string, size_t str_length, NECRO_PHASE compilation_phase);
+struct NecroTimer;
+typedef struct
+{
+    size_t             verbosity;
+    struct NecroTimer* timer;
+    NECRO_PHASE        compilation_phase;
+} NecroCompileInfo;
+
+void              necro_test(NECRO_TEST test);
+void              necro_compile(const char* file_name, const char* input_string, size_t str_length, NECRO_PHASE compilation_phase);
+void              necro_compile_opt(const char* file_name, const char* input_string, size_t str_length, NECRO_PHASE compilation_phase);
 
 #endif // DRIVER_H

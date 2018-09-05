@@ -1,4 +1,4 @@
-/* Copyright (C) Chad McKinney and Curtis McKinney - All Rights Reserved
+ /* Copyright (C) Chad McKinney and Curtis McKinney - All Rights Reserved
  * Unauthorized copying of this file, via any medium is strictly prohibited
  * Proprietary and confidential
  */
@@ -59,6 +59,7 @@
 //     necro_destroy_intern(&lexer->intern);
 // }
 
+void necro_print_lexer(NecroLexer* lexer);
 const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
 {
     switch(token)
@@ -779,7 +780,7 @@ NECRO_LEX_LAYOUT token_type_to_layout(NECRO_LEX_TOKEN_TYPE type)
 //     return NECRO_SUCCESS;
 // }
 
-// NECRO_RETURN_CODE necro_lex(NecroLexer* lexer)
+// NECRO_RETURN_CODE necro_lex_go(NecroLexer* lexer)
 // {
 //     while (lexer->str[lexer->pos])
 //     {
@@ -827,14 +828,13 @@ NecroLexer necro_create_lexer(const char* str, size_t str_length)
 {
     NecroLexer lexer  =
     {
-        .arena               = necro_create_paged_arena(),
         .str                 = str,
         .str_length          = str_length,
         .loc                 = (NecroSourceLoc) { .pos = 0, .character = 1, .line = 1 },
         .prev_loc            = (NecroSourceLoc) { .pos = 0, .character = 1, .line = 1 },
         .tokens              = necro_create_lex_token_vector(),
         .layout_fixed_tokens = necro_create_lex_token_vector(),
-        .intern              = necro_create_intern()
+        .intern              = necro_create_intern(),
     };
 
     // Intern keywords, in the same order as their listing in the NECRO_LEX_TOKEN_TYPE enum
@@ -863,12 +863,26 @@ NecroLexer necro_create_lexer(const char* str, size_t str_length)
     return lexer;
 }
 
+NecroLexer necro_empty_lexer()
+{
+    return (NecroLexer)
+    {
+        .str                 = NULL,
+        .str_length          = 0,
+        .loc                 = (NecroSourceLoc) { .pos = 0, .character = 1, .line = 1 },
+        .prev_loc            = (NecroSourceLoc) { .pos = 0, .character = 1, .line = 1 },
+        .tokens              = necro_empty_lex_token_vector(),
+        .layout_fixed_tokens = necro_empty_lex_token_vector(),
+        .intern              = necro_empty_intern(),
+    };
+}
+
 void necro_destroy_lexer(NecroLexer* lexer)
 {
-    necro_destroy_paged_arena(&lexer->arena);
-    necro_destroy_lex_token_vector(&lexer->tokens);
     necro_destroy_lex_token_vector(&lexer->layout_fixed_tokens);
-    necro_destroy_intern(&lexer->intern);
+    // These are passed out and are no longer owned by the lexer after lexing!
+    // necro_destroy_lex_token_vector(&lexer->layout_fixed_tokens);
+    // necro_destroy_intern(&lexer->intern);
 }
 
 bool necro_lex_rewind(NecroLexer* lexer)
@@ -1113,7 +1127,7 @@ NecroResult(bool) necro_lex_string(NecroLexer* lexer)
     }
     if (code_point == '\0' || code_point == '\n')
     {
-        return necro_malformed_string_error(&lexer->arena, source_loc, lexer->loc);
+        return necro_malformed_string_error(source_loc, lexer->loc);
     }
     size_t           length = lexer->loc.pos - beginning;
     NecroLexToken    token  = (NecroLexToken) { .source_loc = source_loc, .end_loc = lexer->loc, .token = NECRO_LEX_STRING_LITERAL };
@@ -1160,6 +1174,13 @@ bool necro_lex_float(NecroLexer* lexer, const char* start_str_pos, NecroSourceLo
     necro_push_lex_token_vector(&lexer->tokens, &lex_token);
     return necro_lex_commit(lexer);
 }
+
+typedef enum
+{
+    NECRO_LEX_NUM_STATE_INT,
+    NECRO_LEX_NUM_STATE_FLOAT_AT_DOT,
+    NECRO_LEX_NUM_STATE_FLOAT_POST_DOT,
+} NECRO_LEX_NUM_STATE;
 
 NecroResult(bool) necro_lex_number(NecroLexer* lexer)
 {
@@ -1212,7 +1233,7 @@ NecroResult(bool) necro_lex_number(NecroLexer* lexer)
     {
     case NECRO_LEX_NUM_STATE_INT:            return ok_bool(necro_lex_int(lexer, num_string, source_loc, end_loc));
     case NECRO_LEX_NUM_STATE_FLOAT_POST_DOT: return ok_bool(necro_lex_float(lexer, num_string, source_loc, end_loc));
-    case NECRO_LEX_NUM_STATE_FLOAT_AT_DOT:   return necro_malformed_float_error(&lexer->arena, source_loc, end_loc);
+    case NECRO_LEX_NUM_STATE_FLOAT_AT_DOT:   return necro_malformed_float_error(source_loc, end_loc);
     default:                                 return ok_bool(false);
     }
 }
@@ -1373,7 +1394,7 @@ bool necro_lex_identifier(NecroLexer* lexer)
     return necro_lex_commit(lexer);
 }
 
-NecroResult(bool) necro_lex_unrecognized_character_sequence(NecroLexer* lexer)
+NecroResult(NecroUnit) necro_lex_unrecognized_character_sequence(NecroLexer* lexer)
 {
     NecroSourceLoc source_loc = lexer->loc;
     uint32_t code_point = necro_next_char(lexer);
@@ -1382,10 +1403,10 @@ NecroResult(bool) necro_lex_unrecognized_character_sequence(NecroLexer* lexer)
         code_point = necro_next_char(lexer);
     }
     NecroSourceLoc end_loc = lexer->loc;
-    return necro_unrecognized_character_sequence_error(&lexer->arena, source_loc, end_loc);
+    return necro_unrecognized_character_sequence_error(source_loc, end_loc);
 }
 
-NecroResult(bool) necro_lex(NecroLexer* lexer)
+NecroResult(NecroUnit) necro_lex_go(NecroLexer* lexer)
 {
     while (lexer->loc.pos < lexer->str_length)
     {
@@ -1393,14 +1414,14 @@ NecroResult(bool) necro_lex(NecroLexer* lexer)
             continue;
         if (necro_lex_comments(lexer))
             continue;
-        bool is_string = necro_try(bool, necro_lex_string(lexer));
+        bool is_string = necro_try_map(bool, NecroUnit, necro_lex_string(lexer));
         if (is_string)
             continue;
         if (necro_lex_char(lexer))
             continue;
         if (necro_lex_identifier(lexer))
             continue;
-        bool is_num = necro_try(bool, necro_lex_number(lexer));
+        bool is_num = necro_try_map(bool, NecroUnit, necro_lex_number(lexer));
         if (is_num)
             continue;
         if (necro_lex_multi_character_token(lexer))
@@ -1411,12 +1432,12 @@ NecroResult(bool) necro_lex(NecroLexer* lexer)
     }
     NecroLexToken lex_eos_token = (NecroLexToken) { .source_loc = lexer->loc, .end_loc = lexer->loc, .token = NECRO_LEX_END_OF_STREAM };
     necro_push_lex_token_vector(&lexer->tokens, &lex_eos_token);
-    return ok_bool(true);
+    return ok_unit();
 }
 
 NECRO_DECLARE_VECTOR(NecroLexLayoutContext, NecroLexLayoutContext, lex_layout_context);
 
-NecroResult(bool) necro_lex_fixup_layout(NecroLexer* lexer)
+NecroResult(NecroUnit) necro_lex_fixup_layout(NecroLexer* lexer)
 {
     size_t                      pos                  = 0;
     size_t                      stack_pos            = 1;
@@ -1516,7 +1537,7 @@ NecroResult(bool) necro_lex_fixup_layout(NecroLexer* lexer)
             }
             else
             {
-                return necro_mixed_braces_error(&lexer->arena, lexer->tokens.data[pos].source_loc, lexer->tokens.data[pos].source_loc);
+                return necro_mixed_braces_error(lexer->tokens.data[pos].source_loc, lexer->tokens.data[pos].source_loc);
             }
         }
         else if (type == NECRO_LEX_LEFT_BRACE)
@@ -1561,8 +1582,23 @@ NecroResult(bool) necro_lex_fixup_layout(NecroLexer* lexer)
     lexer->layout_fixed_tokens              = tokens;
     lexer->tokens                           = layout_fixed_tokens;
     necro_destroy_lex_layout_context_vector(&context_stack);
-    return ok_bool(true);
+    return ok_unit();
 }
+
+NecroResult(NecroUnit) necro_lex(const char* str, size_t str_length, NecroIntern* out_intern, NecroLexTokenVector* out_tokens, NecroCompileInfo info)
+{
+    NecroLexer lexer = necro_create_lexer(str, str_length);
+    necro_lex_go(&lexer);
+    necro_try(NecroUnit, necro_lex_go(&lexer));
+    necro_try(NecroUnit, necro_lex_fixup_layout(&lexer));
+    if (info.verbosity > 0)
+        necro_print_lexer(&lexer);
+    necro_destroy_lexer(&lexer);
+    *out_intern = lexer.intern;
+    *out_tokens = lexer.tokens;
+    return ok_unit();
+}
+
 ///////////////////////////////////////////////////////
 // Printing
 ///////////////////////////////////////////////////////
@@ -1649,9 +1685,9 @@ void necro_test_lexer()
     {
         const char* str    = "    303. This is a test";
         NecroLexer  lexer  = necro_create_lexer(str, strlen(str));
-        NecroResult(bool) result = necro_lex(&lexer);
-        assert(result.num_errors == 1);
-        assert(result.errors[0].type == NECRO_MALFORMED_FLOAT);
+        NecroResult(NecroUnit) result = necro_lex_go(&lexer);
+        assert(result.type == NECRO_RESULT_ERROR);
+        assert(result.error.type == NECRO_LEX_MALFORMED_FLOAT);
         // necro_print_lexer(&lexer);
         // necro_print_result_errors(result.errors, result.num_errors, str, "lexerTest.necro");
         printf("Lex float error test: Passed\n");
@@ -1662,9 +1698,9 @@ void necro_test_lexer()
     {
         const char* str    = "3 4 56 \"Hello all you fuckers";
         NecroLexer  lexer  = necro_create_lexer(str, strlen(str));
-        NecroResult(bool) result = necro_lex(&lexer);
-        assert(result.num_errors == 1);
-        assert(result.errors[0].type == NECRO_MALFORMED_STRING);
+        NecroResult(NecroUnit) result = necro_lex_go(&lexer);
+        assert(result.type == NECRO_RESULT_ERROR);
+        assert(result.error.type == NECRO_LEX_MALFORMED_STRING);
         // necro_print_lexer(&lexer);
         // necro_print_result_errors(result.errors, result.num_errors, str, "lexerTest.necro");
         printf("Lex string error test: Passed\n");
@@ -1675,7 +1711,7 @@ void necro_test_lexer()
     {
         const char* str    = "123 456 789";
         NecroLexer  lexer  = necro_create_lexer(str, strlen(str));
-        unwrap(bool, necro_lex(&lexer));
+        unwrap(NecroUnit, necro_lex_go(&lexer));
         assert(lexer.tokens.length == 4);
         assert(lexer.tokens.data[0].token == NECRO_LEX_INTEGER_LITERAL);
         assert(lexer.tokens.data[0].int_literal == 123);
@@ -1693,7 +1729,7 @@ void necro_test_lexer()
     {
         const char* str    = "helloWorld";
         NecroLexer  lexer  = necro_create_lexer(str, strlen(str));
-        unwrap(bool, necro_lex(&lexer));
+        unwrap(NecroUnit, necro_lex_go(&lexer));
         assert(lexer.tokens.length == 2);
         assert(lexer.tokens.data[0].token == NECRO_LEX_IDENTIFIER);
         assert(lexer.tokens.data[0].symbol.id == necro_intern_string(&lexer.intern, "helloWorld").id);
@@ -1711,7 +1747,7 @@ void necro_test_lexer()
     {
         const char* str    = "grav\xC3\xA9";
         NecroLexer  lexer  = necro_create_lexer(str, strlen(str));
-        unwrap(bool, necro_lex(&lexer));
+        unwrap(NecroUnit, necro_lex_go(&lexer));
         assert(lexer.tokens.length == 2);
         assert(lexer.tokens.data[0].token == NECRO_LEX_IDENTIFIER);
         assert(lexer.tokens.data[0].symbol.id == necro_intern_string(&lexer.intern, "grav\xC3\xA9").id);
@@ -1725,7 +1761,7 @@ void necro_test_lexer()
     {
         const char* str    = "!@#$%^&*(~)_+-=";
         NecroLexer  lexer  = necro_create_lexer(str, strlen(str));
-        unwrap(bool, necro_lex(&lexer));
+        unwrap(NecroUnit, necro_lex_go(&lexer));
         // necro_print_lexer(&lexer);
         assert(lexer.tokens.length == 16);
         assert(lexer.tokens.data[0].token == NECRO_LEX_EXCLAMATION);
@@ -1752,7 +1788,7 @@ void necro_test_lexer()
     {
         const char* str    = "+ - * / % > < >= <= :: << >> | |> <| == /= && || >>= =<< !! <>";
         NecroLexer  lexer  = necro_create_lexer(str, strlen(str));
-        unwrap(bool, necro_lex(&lexer));
+        unwrap(NecroUnit, necro_lex_go(&lexer));
         // necro_print_lexer(&lexer);
         assert(lexer.tokens.length == 24);
         assert(lexer.tokens.data[0].token == NECRO_LEX_ADD);
@@ -1787,7 +1823,7 @@ void necro_test_lexer()
     {
         const char* str    = "\'a\' \'b\' \'c\' \'!\'";
         NecroLexer  lexer  = necro_create_lexer(str, strlen(str));
-        unwrap(bool, necro_lex(&lexer));
+        unwrap(NecroUnit, necro_lex_go(&lexer));
         // necro_print_lexer(&lexer);
         assert(lexer.tokens.length == 5);
         assert(lexer.tokens.data[0].token == NECRO_LEX_CHAR_LITERAL);
@@ -1807,7 +1843,7 @@ void necro_test_lexer()
     {
         const char* str    = "\'\xF0\x9F\x98\x80\' yep";
         NecroLexer  lexer  = necro_create_lexer(str, strlen(str));
-        unwrap(bool, necro_lex(&lexer));
+        unwrap(NecroUnit, necro_lex_go(&lexer));
         // necro_print_lexer(&lexer);
         assert(lexer.tokens.length == 3);
         assert(lexer.tokens.data[0].token == NECRO_LEX_CHAR_LITERAL);
@@ -1824,7 +1860,7 @@ void necro_test_lexer()
     {
         const char* str    = "case class data deriving forall if else then import instance in module newtype type pat";
         NecroLexer  lexer  = necro_create_lexer(str, strlen(str));
-        unwrap(bool, necro_lex(&lexer));
+        unwrap(NecroUnit, necro_lex_go(&lexer));
         // necro_print_lexer(&lexer);
         assert(lexer.tokens.length == 16);
         assert(lexer.tokens.data[0].token == NECRO_LEX_CASE);
@@ -1851,7 +1887,7 @@ void necro_test_lexer()
     {
         const char* str    = "\xE0\xA6\x95\xE0\xA7\x80"; // BENGALI LETTER KA + BENGALI VOWEL SIGN II, Combining characters
         NecroLexer  lexer  = necro_create_lexer(str, strlen(str));
-        unwrap(bool, necro_lex(&lexer));
+        unwrap(NecroUnit, necro_lex_go(&lexer));
         // necro_print_lexer(&lexer);
         assert(lexer.tokens.length == 2);
         assert(lexer.tokens.data[0].token == NECRO_LEX_IDENTIFIER);
@@ -1866,7 +1902,7 @@ void necro_test_lexer()
     {
         const char* str    = "x = y where\n  y = 10";
         NecroLexer  lexer  = necro_create_lexer(str, strlen(str));
-        unwrap(bool, necro_lex(&lexer));
+        unwrap(NecroUnit, necro_lex_go(&lexer));
         // necro_print_lexer(&lexer);
         assert(lexer.tokens.length == 9);
         assert(lexer.tokens.data[0].token == NECRO_LEX_IDENTIFIER);
@@ -1891,7 +1927,7 @@ void necro_test_lexer()
     {
         const char* str    = "x = y where\n  y = 10\n  z = 20\nnext :: Int";
         NecroLexer  lexer  = necro_create_lexer(str, strlen(str));
-        unwrap(bool, necro_lex(&lexer));
+        unwrap(NecroUnit, necro_lex_go(&lexer));
         // necro_print_lexer(&lexer);
         assert(lexer.tokens.length == 17);
         assert(lexer.tokens.data[0].token == NECRO_LEX_IDENTIFIER);
@@ -1930,7 +1966,7 @@ void necro_test_lexer()
     {
         const char* str    = "let\n  x = 10\n  y = 20\nin\n  x";
         NecroLexer  lexer  = necro_create_lexer(str, strlen(str));
-        unwrap(bool, necro_lex(&lexer));
+        unwrap(NecroUnit, necro_lex_go(&lexer));
         // necro_print_lexer(&lexer);
         assert(lexer.tokens.length == 14);
         assert(lexer.tokens.data[0].token == NECRO_LEX_LET);
@@ -1975,8 +2011,8 @@ void necro_test_lexer()
             }
             noise[4095] = '\0';
             NecroLexer lexer = necro_create_lexer(noise, 4095);
-            necro_lex(&lexer);
-            // NecroResult(bool) result = necro_lex(&lexer);
+            necro_lex_go(&lexer);
+            // NecroResult(bool) result = necro_lex_go(&lexer);
             // necro_print_result_errors(result.errors, result.num_errors, noise, "noiseTest.necro");
             // necro_print_lexer(&lexer);
             necro_destroy_lexer(&lexer);
@@ -1999,8 +2035,8 @@ void necro_test_lexer()
             }
             noise[4095] = '\0';
             NecroLexer lexer = necro_create_lexer(noise, 4095);
-            necro_lex(&lexer);
-            // NecroResult(bool) result = necro_lex(&lexer);
+            necro_lex_go(&lexer);
+            // NecroResult(bool) result = necro_lex_go(&lexer);
             // necro_print_result_errors(result.errors, result.num_errors, noise, "noiseTest.necro");
             // necro_print_lexer(&lexer);
             necro_destroy_lexer(&lexer);
@@ -2025,8 +2061,8 @@ void necro_test_lexer()
             noise[4094] = '\"';
             noise[4095] = '\0';
             NecroLexer lexer = necro_create_lexer(noise, 4095);
-            unwrap(bool, necro_lex(&lexer)); // Should be no errors!
-            // NecroResult(bool) result = necro_lex(&lexer);
+            unwrap(NecroUnit, necro_lex_go(&lexer)); // Should be no errors!
+            // NecroResult(bool) result = necro_lex_go(&lexer);
             // necro_print_result_errors(result.errors, result.num_errors, noise, "noiseTest.necro");
             // necro_print_lexer(&lexer);
             necro_destroy_lexer(&lexer);
@@ -2038,8 +2074,8 @@ void necro_test_lexer()
     {
         const char* str    = "test = test2 where\n  test2 = 300";
         NecroLexer  lexer  = necro_create_lexer(str, strlen(str));
-        unwrap(bool, necro_lex(&lexer));
-        unwrap(bool, necro_lex_fixup_layout(&lexer));
+        unwrap(NecroUnit, necro_lex_go(&lexer));
+        unwrap(NecroUnit, necro_lex_fixup_layout(&lexer));
         // necro_print_lexer(&lexer);
         assert(lexer.tokens.length == 10);
         assert(lexer.tokens.data[0].token == NECRO_LEX_IDENTIFIER);
@@ -2064,8 +2100,8 @@ void necro_test_lexer()
     {
         const char* str    = "test = test2 + test3 + test4 + test5 where\n  test2 = 2 where\n    test3 = 3\n    test4 = 4.0\n  test5 = 5";
         NecroLexer  lexer  = necro_create_lexer(str, strlen(str));
-        unwrap(bool, necro_lex(&lexer));
-        unwrap(bool, necro_lex_fixup_layout(&lexer));
+        unwrap(NecroUnit, necro_lex_go(&lexer));
+        unwrap(NecroUnit, necro_lex_fixup_layout(&lexer));
         // necro_print_lexer(&lexer);
         assert(lexer.tokens.length == 30);
         assert(lexer.tokens.data[0].token == NECRO_LEX_IDENTIFIER);
@@ -2119,10 +2155,10 @@ void necro_test_lexer()
     {
         const char* str    = "test = x where\n  x = 4 }";
         NecroLexer  lexer  = necro_create_lexer(str, strlen(str));
-        unwrap(bool, necro_lex(&lexer));
-        NecroResult(bool) result = necro_lex_fixup_layout(&lexer);
-        assert(result.num_errors == 1);
-        assert(result.errors[0].type == NECRO_MIXED_BRACES);
+        unwrap(NecroUnit, necro_lex_go(&lexer));
+        NecroResult(NecroUnit) result = necro_lex_fixup_layout(&lexer);
+        assert(result.type == NECRO_RESULT_ERROR);
+        assert(result.error.type == NECRO_LEX_MIXED_BRACES);
         // necro_print_result_errors(result.errors, result.num_errors, str, "mixedBracesErrorTest.necro");
         // necro_print_lexer(&lexer);
         printf("Lex mixed braces error test: Passed\n");

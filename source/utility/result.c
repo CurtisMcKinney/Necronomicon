@@ -7,72 +7,77 @@
 
 NecroResultUnion global_result;
 
-NecroResultError* necro_alloc_error(NecroPagedArena* arena, NecroResultError error)
-{
-    NecroResultError* error_ptr = necro_paged_arena_alloc(arena, sizeof(NecroResultError));
-    *error_ptr                  = error;
-#if NECRO_ASSERT_RESULT_ERROR
-    assert(false);
-#endif
-    return error_ptr;
-}
+///////////////////////////////////////////////////////
+// Construction
+///////////////////////////////////////////////////////
+// NecroResultError* necro_alloc_error(NecroPagedArena* arena, NecroResultError error)
+// {
+//     NecroResultError* error_ptr = necro_paged_arena_alloc(arena, sizeof(NecroResultError));
+//     *error_ptr                  = error;
+// #if NECRO_ASSERT_RESULT_ERROR
+//     assert(false);
+// #endif
+//     return error_ptr;
+// }
 
-NecroResult(bool) necro_malformed_string_error(NecroPagedArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+NecroResult(bool) necro_malformed_string_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     NecroResultError error =
     {
-        .type             = NECRO_MALFORMED_STRING,
-        .malformed_string = (NecroMalformedString) { .source_loc = source_loc, .end_loc = end_loc },
+        .type               = NECRO_LEX_MALFORMED_STRING,
+        .default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc },
     };
-    return (NecroResult(bool)) { .errors = necro_alloc_error(arena, error), .num_errors = 1 };
+    return (NecroResult(bool)) { .error = error, .type = NECRO_RESULT_ERROR };
 }
 
-NecroResult(bool) necro_malformed_float_error(NecroPagedArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+NecroResult(bool) necro_malformed_float_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     NecroResultError error =
     {
-        .type            = NECRO_MALFORMED_FLOAT,
-        .malformed_float = (NecroMalformedFloat) { .source_loc = source_loc, .end_loc = end_loc },
+        .type               = NECRO_LEX_MALFORMED_FLOAT,
+        .default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc },
     };
-    return (NecroResult(bool)) { .errors = necro_alloc_error(arena, error), .num_errors = 1 };
+    return (NecroResult(bool)) { .error = error, .type = NECRO_RESULT_ERROR };
 }
 
-NecroResult(bool) necro_unrecognized_character_sequence_error(NecroPagedArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+NecroResult(NecroUnit) necro_unrecognized_character_sequence_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     NecroResultError error =
     {
-        .type                            = NECRO_UNRECOGNIZED_CHARACTER_SEQUENCE,
-        .unrecognized_character_sequence = (NecroUnrecognizedCharacterSequence) { .source_loc = source_loc, .end_loc = end_loc },
+        .type               = NECRO_LEX_UNRECOGNIZED_CHARACTER_SEQUENCE,
+        .default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc },
     };
-    return (NecroResult(bool)) { .errors = necro_alloc_error(arena, error), .num_errors = 1 };
+    return (NecroResult(NecroUnit)) { .error = error, .type = NECRO_RESULT_ERROR };
 }
 
-NecroResult(bool) necro_mixed_braces_error(NecroPagedArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+NecroResult(NecroUnit) necro_mixed_braces_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     NecroResultError error =
     {
-        .type         = NECRO_MIXED_BRACES,
-        .mixed_braces = (NecroMixedBraces) { .source_loc = source_loc, .end_loc = end_loc },
+        .type               = NECRO_LEX_MIXED_BRACES,
+        .default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc },
     };
-    return (NecroResult(bool)) { .errors = necro_alloc_error(arena, error), .num_errors = 1 };
+    return (NecroResult(NecroUnit)) { .error = error, .type = NECRO_RESULT_ERROR };
+}
+
+NecroResult(NecroAST_LocalPtr) necro_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    NecroResultError error =
+    {
+        .type               = NECRO_PARSE_ERROR,
+        .default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc },
+    };
+    return (NecroResult(NecroAST_LocalPtr)) { .error = error, .type = NECRO_RESULT_ERROR };
 }
 
 ///////////////////////////////////////////////////////
 // Printing
 ///////////////////////////////////////////////////////
-void necro_print_error_gutter_padding(NecroSourceLoc source_loc)
-{
-    size_t line = source_loc.line;
-    while (line > 0)
-    {
-        fprintf(stderr, " ");
-        line = line / 10;
-    }
-}
+#define N_L_CHAR "|"
 
 void necro_print_blank_error_gutter(NecroSourceLoc source_loc)
 {
-    fprintf(stderr, " ");
+    fprintf(stderr, N_L_CHAR " ");
     size_t line = source_loc.line;
     while (line > 0)
     {
@@ -84,12 +89,11 @@ void necro_print_blank_error_gutter(NecroSourceLoc source_loc)
 
 void necro_print_error_gutter(NecroSourceLoc source_loc)
 {
-    fprintf(stderr, " %zu | ", source_loc.line);
+    fprintf(stderr, N_L_CHAR " %zu | " , source_loc.line);
 }
 
 void necro_print_range_pointers(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    // fprintf(stderr, "   |");
     necro_print_blank_error_gutter(source_loc);
     for (size_t i = 0; i < source_loc.character; ++i)
     {
@@ -111,84 +115,75 @@ void necro_print_line_at_source_loc(const char* source_str, NecroSourceLoc sourc
     for (line_end = line_start; source_str[line_end] != '\0' && source_str[line_end] != '\n'; ++line_end);
     necro_print_error_gutter(source_loc);
     fprintf(stderr, "%.*s\n", (int) (line_end - line_start), (source_str + line_start));
-    // fprintf(stderr, " %zu | %.*s\n", source_loc.line, (int) (line_end - line_start), (source_str + line_start));
     necro_print_range_pointers(source_loc, end_loc);
 }
 
 void necro_print_malformed_float_error(NecroResultError error, const char* source_str, const char* source_name)
 {
-    NecroSourceLoc source_loc = error.malformed_float.source_loc;
-    NecroSourceLoc end_loc    = error.malformed_float.end_loc;
-    fprintf(stderr, "error[NE-%04u]: Malformed float\n", NECRO_MALFORMED_FLOAT);
-    necro_print_error_gutter_padding(source_loc);
-    fprintf(stderr, "--> %s:%zu:%zu\n", source_name, source_loc.line, source_loc.character);
-    // fprintf(stderr, "   |\n");
-    necro_print_blank_error_gutter(source_loc);
-    fprintf(stderr, "\n");
+    NecroSourceLoc source_loc = error.default_error_data.source_loc;
+    NecroSourceLoc end_loc    = error.default_error_data.end_loc;
+    // fprintf(stderr, "error[NE-%04u]: Malformed float\n", NECRO_MALFORMED_FLOAT);
+    fprintf(stderr, "\n ------Malformed Float------\n");
+    fprintf(stderr, N_L_CHAR " (%s:%zu:%zu)\n", source_name, source_loc.line, source_loc.character);
+    fprintf(stderr, N_L_CHAR "\n");
     necro_print_line_at_source_loc(source_str, source_loc, end_loc);
-    fprintf(stderr, "\n");
+    fprintf(stderr, N_L_CHAR " Float literals require digits both before and after the period (.) character.\n");
 }
 
 void necro_print_malformed_string_error(NecroResultError error, const char* source_str, const char* source_name)
 {
-    NecroSourceLoc source_loc = error.malformed_string.source_loc;
-    NecroSourceLoc end_loc    = error.malformed_string.end_loc;
-    fprintf(stderr, "error[NE-%04u]: Malformed string\n", NECRO_MALFORMED_STRING);
-    necro_print_error_gutter_padding(source_loc);
-    fprintf(stderr, "--> %s:%zu:%zu\n", source_name, source_loc.line, source_loc.character);
-    // fprintf(stderr, "   |\n");
-    necro_print_blank_error_gutter(source_loc);
-    fprintf(stderr, "\n");
+    NecroSourceLoc source_loc = error.default_error_data.source_loc;
+    NecroSourceLoc end_loc    = error.default_error_data.end_loc;
+    fprintf(stderr, "\n ------Malformed String------\n");
+    fprintf(stderr, N_L_CHAR " (%s:%zu:%zu)\n", source_name, source_loc.line, source_loc.character);
+    fprintf(stderr, N_L_CHAR "\n");
     necro_print_line_at_source_loc(source_str, source_loc, end_loc);
-    fprintf(stderr, "This error likely means that you forgot to add an enclosing \'\"\' character to terminate a string.\n");
+    fprintf(stderr, N_L_CHAR " Perhaps you forgot a closing quotation character (\") ?\n");
 }
 
 void necro_print_unrecognized_character_sequence_error(NecroResultError error, const char* source_str, const char* source_name)
 {
-    NecroSourceLoc source_loc = error.unrecognized_character_sequence.source_loc;
-    NecroSourceLoc end_loc    = error.unrecognized_character_sequence.end_loc;
-    fprintf(stderr, "error[NE-%04u]: Unrecognized character sequence\n", NECRO_UNRECOGNIZED_CHARACTER_SEQUENCE);
-    necro_print_error_gutter_padding(source_loc);
-    fprintf(stderr, "--> %s:%zu:%zu\n", source_name, source_loc.line, source_loc.character);
-    necro_print_blank_error_gutter(source_loc);
-    fprintf(stderr, "\n");
+    NecroSourceLoc source_loc = error.default_error_data.source_loc;
+    NecroSourceLoc end_loc    = error.default_error_data.end_loc;
+    // fprintf(stderr, "error[NE-%04u]: Unrecognized character sequence\n", NECRO_UNRECOGNIZED_CHARACTER_SEQUENCE);
+    fprintf(stderr, "\n ------Unrecognized Character Sequence------\n");
+    fprintf(stderr, N_L_CHAR " (%s:%zu:%zu)\n", source_name, source_loc.line, source_loc.character);
+    fprintf(stderr, N_L_CHAR "\n");
     necro_print_line_at_source_loc(source_str, source_loc, end_loc);
-    fprintf(stderr, "\n");
+    fprintf(stderr, N_L_CHAR " This is either an unholy message to Cthulhu or perhaps you mistyped some things...\n");
 }
 
 void necro_print_mixed_braces_error(NecroResultError error, const char* source_str, const char* source_name)
 {
-    NecroSourceLoc source_loc = error.mixed_braces.source_loc;
-    NecroSourceLoc end_loc    = error.mixed_braces.end_loc;
-    fprintf(stderr, "error[NE-%04u]: Mixed implicit and explicit braces\n", NECRO_MIXED_BRACES);
-    fprintf(stderr, "--> %s:%zu:%zu\n", source_name, source_loc.line, source_loc.character);
-    necro_print_blank_error_gutter(source_loc);
-    fprintf(stderr, "\n");
+    NecroSourceLoc source_loc = error.default_error_data.source_loc;
+    NecroSourceLoc end_loc    = error.default_error_data.end_loc;
+    // fprintf(stderr, "error[NE-%04u]: Mixed implicit and explicit braces\n", NECRO_MIXED_BRACES);
+    fprintf(stderr, "\n ------Mixed Braces------\n");
+    fprintf(stderr, N_L_CHAR " (%s:%zu:%zu)\n", source_name, source_loc.line, source_loc.character);
+    fprintf(stderr, N_L_CHAR "\n");
     necro_print_line_at_source_loc(source_str, source_loc, end_loc);
-    fprintf(stderr, "Necrolang uses significant whitespace which converts into implicit opening and closing braces.\n");
-    fprintf(stderr, "This error likely means that you are either adding an extra brace where none is required,\n");
-    fprintf(stderr, "or that you forgot to add an opening brace.\n\n");
+    fprintf(stderr, N_L_CHAR " Necrolang uses significant whitespace which converts into implicit opening and closing braces.\n");
+    fprintf(stderr, N_L_CHAR " You're likely adding an explicit closing brace where none is required.\n");
 }
 
 void necro_print_result_error(NecroResultError error, const char* source_str, const char* source_name)
 {
     switch (error.type)
     {
-    case NECRO_MALFORMED_FLOAT:                 necro_print_malformed_float_error(error, source_str, source_name); break;
-    case NECRO_MALFORMED_STRING:                necro_print_malformed_string_error(error, source_str, source_name); break;
-    case NECRO_UNRECOGNIZED_CHARACTER_SEQUENCE: necro_print_unrecognized_character_sequence_error(error, source_str, source_name); break;
-    case NECRO_MIXED_BRACES:                    necro_print_mixed_braces_error(error, source_str, source_name); break;
-    // case NECRO_MULTIPLE_DEFINITIONS:
+    case NECRO_LEX_MALFORMED_FLOAT:                 necro_print_malformed_float_error(error, source_str, source_name); break;
+    case NECRO_LEX_MALFORMED_STRING:                necro_print_malformed_string_error(error, source_str, source_name); break;
+    case NECRO_LEX_UNRECOGNIZED_CHARACTER_SEQUENCE: necro_print_unrecognized_character_sequence_error(error, source_str, source_name); break;
+    case NECRO_LEX_MIXED_BRACES:                    necro_print_mixed_braces_error(error, source_str, source_name); break;
     default:
         assert(false);
         break;
     }
 }
 
-void necro_print_result_errors(NecroResultError* errors, size_t num_errors, const char* source_str, const char* source_name)
-{
-    for (size_t i = 0; i < num_errors; ++i)
-    {
-        necro_print_result_error(errors[i], source_str, source_name);
-    }
-}
+// void necro_print_result_errors(NecroResultError* errors, size_t num_errors, const char* source_str, const char* source_name)
+// {
+//     for (size_t i = 0; i < num_errors; ++i)
+//     {
+//         necro_print_result_error(errors[i], source_str, source_name);
+//     }
+// }

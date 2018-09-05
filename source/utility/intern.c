@@ -15,6 +15,17 @@
 
 static char NULL_CHAR = '\0';
 
+NecroIntern necro_empty_intern()
+{
+    return (NecroIntern)
+    {
+        necro_empty_char_vector(),
+        NULL,
+        0,
+        0,
+    };
+}
+
 NecroIntern necro_create_intern()
 {
     NecroInternEntry* entries = malloc(NECRO_INITIAL_INTERN_SIZE * sizeof(NecroInternEntry));
@@ -42,7 +53,8 @@ void necro_destroy_intern(NecroIntern* intern)
 {
     intern->count      = 0;
     intern->size       = 0;
-    free(intern->entries);
+    if (intern->entries != NULL)
+        free(intern->entries);
     intern->entries    = NULL;
     necro_destroy_char_vector(&intern->strings);
 }

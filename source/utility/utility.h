@@ -75,6 +75,16 @@ typedef struct                                                                  
     size_t capacity;                                                               \
 } camel_type##Vector;                                                              \
                                                                                    \
+static camel_type##Vector necro_empty_##snake_type##_vector()                      \
+{                                                                                  \
+    return (camel_type##Vector)                                                    \
+    {                                                                              \
+        NULL,                                                                      \
+        0,                                                                         \
+        0                                                                          \
+    };                                                                             \
+}                                                                                  \
+                                                                                   \
 static camel_type##Vector necro_create_##snake_type##_vector()                     \
 {                                                                                  \
     type* data = malloc(NECRO_INTIAL_VECTOR_SIZE * sizeof(type));                  \
@@ -95,7 +105,8 @@ static void necro_destroy_##snake_type##_vector(camel_type##Vector* vec)        
 {                                                                                  \
     vec->length   = 0;                                                             \
     vec->capacity = 0;                                                             \
-    free(vec->data);                                                               \
+    if (vec->data != NULL)                                                         \
+        free(vec->data);                                                           \
     vec->data     = NULL;                                                          \
 }                                                                                  \
                                                                                    \

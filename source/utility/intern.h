@@ -49,6 +49,7 @@ typedef struct NecroIntern
 } NecroIntern;
 
 // API
+NecroIntern necro_empty_intern();
 NecroIntern necro_create_intern();
 void        necro_destroy_intern(NecroIntern* intern);
 NecroSymbol necro_intern_string(NecroIntern* intern, const char* str);

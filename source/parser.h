@@ -12,7 +12,7 @@
 #include "arena.h"
 
 // Local offset into AST arena
-typedef uint32_t NecroAST_LocalPtr;
+typedef size_t NecroAST_LocalPtr;
 static const NecroAST_LocalPtr null_local_ptr = (uint32_t) -1;
 
 typedef enum
@@ -209,7 +209,6 @@ typedef struct
 //=====================================================
 // AST Undefined
 //=====================================================
-
 typedef struct
 {
     uint8_t _pad;
@@ -296,70 +295,6 @@ typedef enum
     NECRO_BIN_OP_COUNT,
     NECRO_BIN_OP_UNDEFINED = NECRO_BIN_OP_COUNT
 } NecroAST_BinOpType;
-
-static inline const char* bin_op_name(NecroAST_BinOpType type)
-{
-    switch (type)
-    {
-    case NECRO_BIN_OP_ADD:
-        return "(+)";
-    case NECRO_BIN_OP_SUB:
-        return "(-)";
-    case NECRO_BIN_OP_MUL:
-        return "(*)";
-    case NECRO_BIN_OP_DIV:
-        return "(/)";
-    case NECRO_BIN_OP_MOD:
-        return "(%)";
-    case NECRO_BIN_OP_GT:
-        return "(>)";
-    case NECRO_BIN_OP_LT:
-        return "(<)";
-    case NECRO_BIN_OP_GTE:
-        return "(>=)";
-    case NECRO_BIN_OP_LTE:
-        return "(<=)";
-    case NECRO_BIN_OP_COLON:
-        return "(:)";
-    case NECRO_BIN_OP_DOUBLE_COLON:
-        return "(::)";
-    case NECRO_BIN_OP_LEFT_SHIFT:
-        return "(<<)";
-    case NECRO_BIN_OP_RIGHT_SHIFT:
-        return "(>>)";
-    case NECRO_BIN_OP_PIPE:
-        return "(|)";
-    case NECRO_BIN_OP_FORWARD_PIPE:
-        return "(|>)";
-    case NECRO_BIN_OP_BACK_PIPE:
-        return "(<|)";
-    case NECRO_BIN_OP_EQUALS:
-        return "(=)";
-    case NECRO_BIN_OP_NOT_EQUALS:
-        return "(/=)";
-    case NECRO_BIN_OP_AND:
-        return "(&&)";
-    case NECRO_BIN_OP_OR:
-        return "(||)";
-    case NECRO_BIN_OP_DOT:
-        return "(.)";
-    case NECRO_BIN_OP_DOLLAR:
-        return "($)";
-    case NECRO_BIN_OP_BIND_RIGHT:
-        return "(>>=)";
-    case NECRO_BIN_OP_BIND_LEFT:
-        return "(=<<)";
-    case NECRO_BIN_OP_DOUBLE_EXCLAMATION:
-        return "(!!)";
-    case NECRO_BIN_OP_APPEND:
-        return "(++)";
-    case NECRO_BIN_OP_FBY:
-        return "(-->)";
-    default:
-        assert(false);
-        return "(Undefined Binary Operator)";
-    }
-}
 
 typedef struct
 {
@@ -610,7 +545,6 @@ typedef struct
 //=====================================================
 // AST Arithmetic Sequence
 //=====================================================
-
 typedef enum
 {
     NECRO_ARITHMETIC_ENUM_FROM,
@@ -630,14 +564,13 @@ typedef struct
 //=====================================================
 // AST Node
 //=====================================================
-
 typedef struct
 {
     union
     {
+        // NecroAST_UnaryOp unary_op; // Do we need this?
         NecroAST_Undefined undefined;
         NecroAST_Constant constant;
-        // NecroAST_UnaryOp unary_op; // Do we need this?
         NecroAST_BinOp bin_op;
         NecroAST_IfThenElse if_then_else;
         NecroAST_TopDeclaration top_declaration;
@@ -676,90 +609,25 @@ typedef struct
         NecroAST_FunctionType function_type;
         NecroAST_PatternExpression pattern_expression;
     };
-
     NecroAST_NodeType type;
     NecroSourceLoc    source_loc;
+    NecroSourceLoc    end_loc;
 } NecroAST_Node;
 
 //=====================================================
 // AST
 //=====================================================
-
 typedef struct
 {
     NecroArena arena;
 } NecroAST;
-
-static inline NecroAST_Node* ast_get_node(NecroAST* ast, NecroAST_LocalPtr local_ptr)
-{
-    assert(ast != NULL);
-    assert(local_ptr != null_local_ptr);
-    return ((NecroAST_Node*) ast->arena.region) + local_ptr;
-}
-
-static inline NecroAST_Node* ast_get_root_node(NecroAST* ast)
-{
-    assert(ast != NULL);
-    return (NecroAST_Node*) ast->arena.region;
-}
-
-void print_ast(NecroAST* ast, NecroIntern* intern, NecroAST_LocalPtr root_node_ptr);
+NecroAST_Node* ast_get_node(NecroAST* ast, NecroAST_LocalPtr local_ptr);
+NecroAST_Node* ast_get_root_node(NecroAST* ast);
+void           print_ast(NecroAST* ast, NecroIntern* intern, NecroAST_LocalPtr root_node_ptr);
 
 //=====================================================
 // Parsing
 //=====================================================
-
-
-typedef enum
-{
-    NECRO_BIN_OP_ASSOC_LEFT,
-    NECRO_BIN_OP_ASSOC_NONE,
-    NECRO_BIN_OP_ASSOC_RIGHT
-} NecroParse_BinOpAssociativity;
-
-typedef struct
-{
-    int precedence;
-    NecroParse_BinOpAssociativity associativity;
-} NecroParse_BinOpBehavior;
-
-static const NecroParse_BinOpBehavior bin_op_behaviors[NECRO_BIN_OP_COUNT + 1] = {
-    { 6, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_ADD
-    { 6, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_SUB
-    { 7, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_MUL
-    { 7, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_DIV
-    { 7, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_MOD
-    { 4, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_GT
-    { 4, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_LT
-    { 4, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_GTE
-    { 4, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_LTE
-    { 5, NECRO_BIN_OP_ASSOC_RIGHT },  // NECRO_BIN_OP_COLON
-	{ 9, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_DOUBLE_COLON
-	{ 1, NECRO_BIN_OP_ASSOC_RIGHT },  // NECRO_BIN_OP_LEFT_SHIFT
-	{ 1, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_RIGHT_SHIFT
-	{ 2, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_PIPE
-	{ 0, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_FORWARD_PIPE
-	{ 0, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_BACK_PIPE
-    { 4, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_EQUALS
-    { 4, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_NOT_EQUALS
-	{ 3, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_AND
-	{ 2, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_OR
-    { 9, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_DOT
-    { 0, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_DOLLAR
-    { 1, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_BIND_RIGHT
-    { 1, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_BIND_LEFT
-    { 9, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_DOUBLE_EXCLAMATION
-    { 5, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_APPEND
-	// { 1, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_FBY
-    { 0, NECRO_BIN_OP_ASSOC_NONE }   // NECRO_BIN_OP_UNDEFINED
-};
-
-typedef enum
-{
-    ParseSuccessful,
-    ParseError
-} NecroParse_Result;
-
 typedef enum
 {
     NECRO_DESCENT_PARSING,
@@ -770,37 +638,19 @@ typedef enum
 
 typedef struct
 {
-    char* error_message;
-    NecroAST* ast;
-    NecroLexToken* tokens;
-    size_t current_token;
+    NecroAST                ast;
+    NecroLexToken*          tokens;
+    size_t                  current_token;
     NecroParse_DescentState descent_state;
-    NecroError error;
-    NecroIntern* intern;
-    bool parsing_pat_assignment; // TODO / HACK; Find a better way to delineate
+    NecroError              error;
+    NecroIntern*            intern;
+    bool                    parsing_pat_assignment; // TODO / HACK; Find a better way to delineate
 } NecroParser;
 
-static const size_t MAX_ERROR_MESSAGE_SIZE = 512;
-
-static inline void construct_parser(NecroParser* parser, NecroAST* ast, NecroLexToken* tokens, NecroIntern* intern)
-{
-    parser->error_message = malloc(MAX_ERROR_MESSAGE_SIZE * sizeof(char));
-    parser->error_message[0] = '\0';
-    parser->current_token = 0;
-    parser->ast = ast;
-    parser->tokens = tokens;
-    parser->descent_state = NECRO_DESCENT_PARSING;
-    parser->intern = intern;
-    parser->parsing_pat_assignment = false;
-}
-
-static inline void destruct_parser(NecroParser* parser)
-{
-    free(parser->error_message);
-    *parser = (NecroParser) { 0, NULL, NULL, 0, NECRO_DESCENT_PARSE_DONE };
-}
-
-NECRO_RETURN_CODE parse_ast(NecroParser* parser, NecroAST_LocalPtr* out_root_node_ptr);
-void              compute_ast_math(NecroAST* ast, NecroAST_LocalPtr root_node_ptr);
+NecroParser                    construct_parser(NecroLexToken* tokens, size_t num_tokens, NecroIntern* intern);
+void                           destruct_parser(NecroParser* parser);
+NecroResult(NecroAST_LocalPtr) parse_ast(NecroParser* parser);
+void                           compute_ast_math(NecroAST* ast, NecroAST_LocalPtr root_node_ptr);
+const char*                    bin_op_name(NecroAST_BinOpType type);
 
 #endif // PARSER_H

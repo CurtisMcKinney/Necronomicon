@@ -16,6 +16,7 @@
 #include "utility.h"
 #include "intern.h"
 #include "utility/result.h"
+#include "driver.h"
 
 //=====================================================
 // Lexing
@@ -138,40 +139,8 @@ typedef struct
 } NecroLexToken;
 NECRO_DECLARE_VECTOR(NecroLexToken, NecroLexToken, lex_token)
 
-// typedef struct
-// {
-//     size_t                 character_number;
-//     size_t                 line_number;
-//     size_t                 pos;
-//     const char*            str;
-//     size_t                 str_length;
-//     NecroLexTokenVector    tokens;
-//     NecroLexTokenVector    layout_fixed_tokens;
-//     NecroIntern            intern;
-//     NecroError             error;
-// } NecroLexer;
-
-typedef enum
-{
-    NECRO_LEX_NUM_STATE_INT,
-    NECRO_LEX_NUM_STATE_FLOAT_AT_DOT,
-    NECRO_LEX_NUM_STATE_FLOAT_POST_DOT,
-} NECRO_LEX_NUM_STATE;
-
-// // API
-// NecroLexer        necro_create_lexer(const char* str, size_t str_length);
-// void              necro_destroy_lexer(NecroLexer* lexer);
-// void              necro_print_lexer(NecroLexer* lexer);
-// NECRO_RETURN_CODE necro_lex(NecroLexer* lexer);
-// NECRO_RETURN_CODE necro_lex_fixup_layout(NecroLexer* lexer);
-// const char*       necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
-
-///////////////////////////////////////////////////////
-// Unicode Lexer
-///////////////////////////////////////////////////////
 typedef struct
 {
-    NecroPagedArena     arena;
     const char*         str;
     size_t              str_length;
     NecroSourceLoc      loc;
@@ -181,12 +150,20 @@ typedef struct
     NecroIntern         intern;
 } NecroLexer;
 
-NecroLexer        necro_create_lexer(const char* str, size_t str_length);
-void              necro_destroy_lexer(NecroLexer* lexer);
-NecroResult(bool) necro_lex(NecroLexer* lexer);
-void              necro_print_lexer(NecroLexer* lexer);
-NecroResult(bool) necro_lex_fixup_layout(NecroLexer* lexer);
-const char*       necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
-void              necro_test_lexer();
+typedef struct
+{
+    NecroLexTokenVector tokens;
+    NecroIntern         intern;
+} NecroLexResult;
+
+// NecroLexer          necro_empty_lexer();
+// NecroLexer          necro_create_lexer(const char* str, size_t str_length);
+// void                necro_destroy_lexer(NecroLexer* lexer);
+// NecroResult(void)   necro_lex_fixup_layout(NecroLexer* lexer);
+// void                necro_print_lexer(NecroLexer* lexer);
+
+NecroResult(NecroUnit) necro_lex(const char* str, size_t str_length, NecroIntern* out_intern, NecroLexTokenVector* out_tokens, NecroCompileInfo info);
+const char*            necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
+void                   necro_test_lexer();
 
 #endif // LEXER_H

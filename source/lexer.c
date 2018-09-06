@@ -1432,7 +1432,7 @@ NecroResult(NecroUnit) necro_lex_go(NecroLexer* lexer)
     }
     NecroLexToken lex_eos_token = (NecroLexToken) { .source_loc = lexer->loc, .end_loc = lexer->loc, .token = NECRO_LEX_END_OF_STREAM };
     necro_push_lex_token_vector(&lexer->tokens, &lex_eos_token);
-    return ok_unit();
+    return ok_NecroUnit(necro_unit);
 }
 
 NECRO_DECLARE_VECTOR(NecroLexLayoutContext, NecroLexLayoutContext, lex_layout_context);
@@ -1582,13 +1582,12 @@ NecroResult(NecroUnit) necro_lex_fixup_layout(NecroLexer* lexer)
     lexer->layout_fixed_tokens              = tokens;
     lexer->tokens                           = layout_fixed_tokens;
     necro_destroy_lex_layout_context_vector(&context_stack);
-    return ok_unit();
+    return ok_NecroUnit(necro_unit);
 }
 
 NecroResult(NecroUnit) necro_lex(const char* str, size_t str_length, NecroIntern* out_intern, NecroLexTokenVector* out_tokens, NecroCompileInfo info)
 {
     NecroLexer lexer = necro_create_lexer(str, str_length);
-    necro_lex_go(&lexer);
     necro_try(NecroUnit, necro_lex_go(&lexer));
     necro_try(NecroUnit, necro_lex_fixup_layout(&lexer));
     if (info.verbosity > 0)
@@ -1596,7 +1595,7 @@ NecroResult(NecroUnit) necro_lex(const char* str, size_t str_length, NecroIntern
     necro_destroy_lexer(&lexer);
     *out_intern = lexer.intern;
     *out_tokens = lexer.tokens;
-    return ok_unit();
+    return ok_NecroUnit(necro_unit);
 }
 
 ///////////////////////////////////////////////////////

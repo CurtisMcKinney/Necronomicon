@@ -116,55 +116,51 @@ typedef enum
     NECRO_RESULT_OK,
     NECRO_RESULT_ERROR,
 } NECRO_RESULT_TYPE;
-#define NECRO_DECLARE_RESULT(TYPE) \
-typedef struct \
-{ \
-    NECRO_RESULT_TYPE type; \
-    union \
-    { \
-        NecroResultError error; \
-        TYPE value; \
-    }; \
-} NecroResult_##TYPE; \
+#define NECRO_DECLARE_RESULT(TYPE)              \
+typedef struct                                  \
+{                                               \
+    NECRO_RESULT_TYPE type;                     \
+    union                                       \
+    {                                           \
+        NecroResultError error;                 \
+        TYPE value;                             \
+    };                                          \
+} NecroResult_##TYPE;                           \
 inline NecroResult_##TYPE ok_##TYPE(TYPE value) \
-{ \
-    return (NecroResult_##TYPE) { .value = value, .type = NECRO_RESULT_OK }; \
+{                                               \
+    return (NecroResult_##TYPE)                 \
+    {                                           \
+        .value = value,                         \
+        .type = NECRO_RESULT_OK                 \
+    };                                          \
 }
 
-#define NECRO_DECLARE_PTR_RESULT(TYPE) \
-typedef struct \
-{ \
-    NECRO_RESULT_TYPE type; \
-    union \
-    { \
-        NecroResultError error; \
-        struct TYPE* value; \
-    }; \
-} NecroResult_##TYPE; \
+#define NECRO_DECLARE_PTR_RESULT(TYPE)                  \
+typedef struct                                          \
+{                                                       \
+    NECRO_RESULT_TYPE type;                             \
+    union                                               \
+    {                                                   \
+        NecroResultError error;                         \
+        struct TYPE* value;                             \
+    };                                                  \
+} NecroResult_##TYPE;                                   \
 inline NecroResult_##TYPE ok_##TYPE(struct TYPE* value) \
-{ \
-    return (NecroResult_##TYPE) { .value = value, .type = NECRO_RESULT_OK }; \
+{                                                       \
+    return (NecroResult_##TYPE)                         \
+    {                                                   \
+        .value = value,                                 \
+        .type = NECRO_RESULT_OK                         \
+    };                                                  \
 }
 
+typedef size_t NecroAST_LocalPtr;
+typedef size_t NecroUnit;
+#define necro_unit 0
 NECRO_DECLARE_RESULT(size_t);
 NECRO_DECLARE_RESULT(bool);
-typedef size_t NecroAST_LocalPtr;
 NECRO_DECLARE_RESULT(NecroAST_LocalPtr);
-
-typedef size_t NecroUnit;
-typedef struct
-{
-    NECRO_RESULT_TYPE type;
-    union
-    {
-        NecroResultError  error;
-        NecroUnit         value;
-    };
-} NecroResult_NecroUnit;
-inline NecroResult_NecroUnit ok_unit()
-{
-    return (NecroResult_NecroUnit) { .value = 0, .type = NECRO_RESULT_OK };
-}
+NECRO_DECLARE_RESULT(NecroUnit);
 
 typedef union
 {

@@ -16,7 +16,6 @@
 #include "renamer.h"
 #include "d_analyzer.h"
 #include "driver.h"
-#include "llvm-c/Types.h"
 #include "hash_table.h"
 
 NECRO_DECLARE_ARENA_CHAIN_TABLE(NecroCon, Con, con);
@@ -159,13 +158,14 @@ typedef struct NecroPrimTypes
     NecroPrimDef*     defs;
     NecroPrimDef*     def_head;
     NecroPagedArena   arena;
-    LLVMModuleRef     llvm_mod;
 } NecroPrimTypes;
 
 //=====================================================
 // API
 //=====================================================
-NecroPrimTypes necro_create_prim_types(NecroIntern* intern);
+NecroPrimTypes    necro_empty_prim_types();
+NecroPrimTypes    necro_create_prim_types();
+void              necro_destroy_prim_types(NecroPrimTypes* prim_types);
 
 NECRO_RETURN_CODE necro_prim_build_scope(NecroPrimTypes* prim_types, NecroScopedSymTable* scoped_symtable);
 NECRO_RETURN_CODE necro_prim_rename(NecroPrimTypes* prim_types, NecroRenamer* renamer);

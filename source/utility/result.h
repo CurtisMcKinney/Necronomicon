@@ -42,6 +42,7 @@ typedef enum
     NECRO_PARSE_LET_FAILED_TO_PARSE,
     NECRO_PARSE_LET_EMPTY_IN,
     NECRO_PARSE_LET_EXPECTED_SEMICOLON,
+    NECRO_PARSE_LET_EXPECTED_LEFT_BRACE,
     NECRO_PARSE_LET_EXPECTED_RIGHT_BRACE,
     NECRO_PARSE_LET_MISSING_IN,
     NECRO_PARSE_TUPLE_MISSING_PAREN,
@@ -63,6 +64,21 @@ typedef enum
     NECRO_PARSE_ARITHMETIC_SEQUENCE_FAILED_TO_PARSE_THEN,
     NECRO_PARSE_ARITHMETIC_SEQUENCE_FAILED_TO_PARSE_TO,
     NECRO_PARSE_ARITHMETIC_SEQUENCE_MISSING_RIGHT_BRACKET,
+    NECRO_PARSE_MALFORMED_PATTERN_BIND,
+    NECRO_PARSE_CASE_ALTERNATIVE_EXPECTED_PATTERN,
+    NECRO_PARSE_CASE_ALTERNATIVE_EXPECTED_ARROW,
+    NECRO_PARSE_CASE_ALTERNATIVE_EXPECTED_EXPRESSION,
+    NECRO_PARSE_CASE_ALTERNATIVE_EXPECTED_OF,
+    NECRO_PARSE_CASE_ALTERNATIVE_EXPECTED_LEFT_BRACE,
+    NECRO_PARSE_CASE_ALTERNATIVE_EMPTY,
+    NECRO_PARSE_CASE_ALTERNATIVE_EXPECTED_RIGHT_BRACE,
+    NECRO_PARSE_FN_OP_EXPECTED_ACCENT,
+    NECRO_PARSE_DATA_EXPECTED_TYPE,
+    NECRO_PARSE_DATA_EXPECTED_ASSIGN,
+    NECRO_PARSE_DATA_EXPECTED_DATA_CON,
+    NECRO_PARSE_TYPE_EXPECTED_TYPE,
+    NECRO_PARSE_CLASS_EXPECTED_RIGHT_BRACE,
+    NECRO_PARSE_INSTANCE_EXPECTED_RIGHT_BRACE,
 
     NECRO_MULTIPLE_DEFINITIONS,
 
@@ -155,16 +171,30 @@ inline NecroResult_##TYPE ok_##TYPE(struct TYPE* value) \
 }
 
 typedef size_t NecroAST_LocalPtr;
-typedef size_t NecroUnit;
+// typedef size_t NecroUnit;
 #define necro_unit 0
 NECRO_DECLARE_RESULT(size_t);
 NECRO_DECLARE_RESULT(bool);
 NECRO_DECLARE_RESULT(NecroAST_LocalPtr);
-NECRO_DECLARE_RESULT(NecroUnit);
+// NECRO_DECLARE_RESULT(NecroUnit);
+
+typedef struct
+{
+    NECRO_RESULT_TYPE type;
+    union
+    {
+        NecroResultError error;
+        size_t           value;
+    };
+} NecroResult_void;
+inline NecroResult_void ok_void()
+{
+    return (NecroResult_void) { .value = 0, .type = NECRO_RESULT_OK };
+}
 
 typedef union
 {
-    NecroResult_NecroUnit         NecroUnit_result;
+    NecroResult_void              void_result;
     NecroResult_bool              bool_result;
     NecroResult_size_t            size_t_result;
     NecroResult_NecroAST_LocalPtr NecroAST_LocalPtr_result;
@@ -185,11 +215,58 @@ extern NecroResultUnion global_result;
 ///////////////////////////////////////////////////////
 // Error API
 ///////////////////////////////////////////////////////
-NecroResult(bool)              necro_malformed_string_error(NecroSourceLoc location, NecroSourceLoc end_loc);
-NecroResult(bool)              necro_malformed_float_error(NecroSourceLoc location, NecroSourceLoc end_loc);
-NecroResult(NecroUnit)         necro_unrecognized_character_sequence_error(NecroSourceLoc location, NecroSourceLoc end_loc);
-NecroResult(NecroUnit)         necro_mixed_braces_error(NecroSourceLoc location, NecroSourceLoc end_loc);
-NecroResult(NecroAST_LocalPtr) necro_parse_error(NecroSourceLoc location, NecroSourceLoc end_loc);
+NecroResult(bool)              necro_malformed_string_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(bool)              necro_malformed_float_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(void)              necro_unrecognized_character_sequence_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(void)              necro_mixed_braces_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(void)              necro_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_declarations_missing_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_simple_assignment_rhs_failed_to_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_apat_assignment_rhs_failed_to_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_pat_assignment_rhs_failed_to_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_rhs_failed_to_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_rhs_empty_where_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_let_failed_to_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_let_empty_in_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_let_expected_semicolon_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_let_expected_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_let_missing_in_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_tuple_missing_paren_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_paren_expression_failed_to_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_paren_expression_missing_paren_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_if_failed_to_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_if_missing_then_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_if_missing_expr_after_then_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_if_missing_else_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_if_missing_expr_after_else_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_lambda_failed_to_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_lambda_missing_arrow_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_lambda_failed_to_parse_pattern_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_do_bind_failed_to_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_do_missing_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_list_missing_right_bracket_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_array_missing_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_pattern_empty_expression_list_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_arithmetic_sequence_failed_to_parse_then_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_arithmetic_sequence_failed_to_parse_to_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_arithmetic_sequence_missing_right_bracket_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_let_expected_left_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_malformed_pattern_bind_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_case_alternative_expected_pattern_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_case_alternative_expected_arrow_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_case_alternative_expected_expression_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_case_alternative_expected_of_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_case_alternative_expected_left_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_case_alternative_empty_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_case_alternative_expected_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_fn_op_expected_accent_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_data_expected_type_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_data_expected_assign_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_data_expected_data_con_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_type_expected_type_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_class_expected_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_instance_expected_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+
 void                           necro_print_result_error(NecroResultError error, const char* source_str, const char* source_name);
 
 // TODO: necro_map_result, necro_and_then

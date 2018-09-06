@@ -147,23 +147,11 @@ typedef struct
     NecroSourceLoc      prev_loc;
     NecroLexTokenVector tokens;
     NecroLexTokenVector layout_fixed_tokens;
-    NecroIntern         intern;
+    NecroIntern*        intern;
 } NecroLexer;
 
-typedef struct
-{
-    NecroLexTokenVector tokens;
-    NecroIntern         intern;
-} NecroLexResult;
-
-// NecroLexer          necro_empty_lexer();
-// NecroLexer          necro_create_lexer(const char* str, size_t str_length);
-// void                necro_destroy_lexer(NecroLexer* lexer);
-// NecroResult(void)   necro_lex_fixup_layout(NecroLexer* lexer);
-// void                necro_print_lexer(NecroLexer* lexer);
-
-NecroResult(NecroUnit) necro_lex(const char* str, size_t str_length, NecroIntern* out_intern, NecroLexTokenVector* out_tokens, NecroCompileInfo info);
-const char*            necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
-void                   necro_test_lexer();
+NecroResult(void) necro_lex(const char* str, size_t str_length, NecroIntern* intern, NecroLexTokenVector* out_tokens, NecroCompileInfo info);
+const char*       necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
+void              necro_test_lexer();
 
 #endif // LEXER_H

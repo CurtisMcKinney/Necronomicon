@@ -68,6 +68,7 @@ typedef struct NecroSymTable
 } NecroSymTable;
 
 // API
+NecroSymTable    necro_empty_symtable();
 NecroSymTable    necro_create_symtable(NecroIntern* intern);
 void             necro_destroy_symtable(NecroSymTable* table);
 NecroID          necro_symtable_insert(NecroSymTable* table, NecroSymbolInfo info);
@@ -107,6 +108,7 @@ typedef struct NecroScopedSymTable
     NecroError       error;
 } NecroScopedSymTable;
 
+NecroScopedSymTable necro_empty_scoped_symtable();
 NecroScopedSymTable necro_create_scoped_symtable(NecroSymTable* global_table);
 void                necro_destroy_scoped_symtable(NecroScopedSymTable* table);
 

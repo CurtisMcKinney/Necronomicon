@@ -14,8 +14,27 @@
 static const size_t MAX_LOCAL_PTR = ((size_t)((NecroAST_LocalPtr)-1));
 
 ///////////////////////////////////////////////////////
-// Construstion / Deconstruction
+// NecroParser
 ///////////////////////////////////////////////////////
+typedef enum
+{
+    NECRO_DESCENT_PARSING,
+    NECRO_DESCENT_PARSING_PATTERN,
+    NECRO_DESCENT_PARSE_ERROR,
+    NECRO_DESCENT_PARSE_DONE
+} NecroParse_DescentState;
+
+typedef struct
+{
+    NecroAST                ast;
+    NecroLexToken*          tokens;
+    size_t                  current_token;
+    NecroParse_DescentState descent_state;
+    NecroError              error;
+    NecroIntern*            intern;
+    bool                    parsing_pat_assignment; // TODO / HACK; Find a better way to delineate
+} NecroParser;
+
 NecroParser construct_parser(NecroLexToken* tokens, size_t num_tokens, NecroIntern* intern)
 {
     return (NecroParser)
@@ -31,13 +50,22 @@ NecroParser construct_parser(NecroLexToken* tokens, size_t num_tokens, NecroInte
 
 void destruct_parser(NecroParser* parser)
 {
+    // Ownership of ast is passed out before deconstruction
     parser->current_token          = 0;
-    // parser->ast                    = NULL;
-    destruct_arena(&parser->ast.arena);
     parser->tokens                 = NULL;
     parser->descent_state          = NECRO_DESCENT_PARSE_DONE;
     parser->intern                 = NULL;
     parser->parsing_pat_assignment = false;
+}
+
+NecroAST necro_empty_ast()
+{
+    return (NecroAST) { .arena = necro_empty_arena(), .root = 0 };
+}
+
+void necro_destroy_ast(NecroAST* ast)
+{
+    destruct_arena(&ast->arena);
 }
 
 ///////////////////////////////////////////////////////
@@ -774,30 +802,23 @@ NecroAST_LocalPtr parse_initializer(NecroParser* parser);
 NecroParse_DescentState enter_parse_pattern_state(NecroParser* parser);
 void                    restore_parse_state(NecroParser* parser, NecroParse_DescentState prev_state);
 
-NecroResult(NecroAST_LocalPtr) parse_ast(NecroParser* parser)
+NecroResult(void) necro_parse(NecroLexTokenVector* tokens, NecroIntern* intern, NecroAST* out_ast, NecroCompileInfo info)
 {
-    NecroAST_LocalPtr local_ptr = parse_top_declarations(parser);
-    if ((local_ptr != null_local_ptr) && (parser->descent_state != NECRO_DESCENT_PARSE_ERROR))
+    NecroParser       parser    = construct_parser(tokens->data, tokens->length, intern);
+    NecroAST_LocalPtr local_ptr = parse_top_declarations(&parser);
+    parser.ast.root             = local_ptr;
+    if (peek_token_type(&parser) != NECRO_LEX_END_OF_STREAM && peek_token_type(&parser) != NECRO_LEX_SEMI_COLON)
     {
-        if ((peek_token_type(parser) ==  NECRO_LEX_END_OF_STREAM) || (peek_token_type(parser) ==  NECRO_LEX_SEMI_COLON))
-        {
-            return ok_NecroAST_LocalPtr(local_ptr);
-        }
-        else
-        {
-            NecroLexToken* look_ahead_token = peek_token(parser);
-            return necro_parse_error(look_ahead_token->source_loc, look_ahead_token->end_loc);
-            // necro_error(&parser->error, look_ahead_token->source_loc,
-            //     "Parsing ended without error, but not all tokens were consumed. This is likely a parser bug.\n Parsing stopped at the token %s (number: %d), which is token number %zu.",
-            //     necro_lex_token_type_string(look_ahead_token->token),
-            //     look_ahead_token->token,
-            //     parser->current_token);
-        }
+        NecroLexToken* look_ahead_token = peek_token(&parser);
+        return necro_parse_error(look_ahead_token->source_loc, look_ahead_token->end_loc);
     }
-    // Empty parse tree
-    // *out_root_node_ptr = null_local_ptr;
-    return ok_NecroAST_LocalPtr(null_local_ptr);
-    // return NECRO_ERROR;
+    *out_ast = parser.ast;
+    if (info.compilation_phase == NECRO_PHASE_PARSE && info.verbosity > 0)
+    {
+        print_ast(out_ast, intern, local_ptr);
+    }
+    destruct_parser(&parser);
+    return ok_void();
 }
 
 NecroAST_LocalPtr parse_top_declarations(NecroParser* parser)

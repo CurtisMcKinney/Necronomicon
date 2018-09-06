@@ -20,6 +20,11 @@
 #define TRACE_ARENA(...)
 #endif
 
+NecroArena necro_empty_arena()
+{
+    return (NecroArena) { .region = NULL, .capacity = 0, .size = 0 };
+}
+
 NecroArena construct_arena(size_t capacity)
 {
     NecroArena arena;
@@ -45,10 +50,9 @@ NecroArena construct_arena(size_t capacity)
 void destruct_arena(NecroArena* arena)
 {
     if (arena->region)
-   {
+    {
         free(arena->region);
     }
-
     arena->region = NULL;
     arena->size = 0;
     arena->capacity = 0;
@@ -109,6 +113,18 @@ void* arena_deref_local(NecroArena* arena, NecroArenaPtr ptr)
 // NecroPagedArena
 //=====================================================
 #define NECRO_PAGED_ARENA_INITIAL_SIZE 512
+
+NecroPagedArena necro_empty_paged_arena()
+{
+    return (NecroPagedArena)
+    {
+        .pages = NULL,
+        .data  = NULL,
+        .size  = 0,
+        .count = 0,
+    };
+}
+
 NecroPagedArena necro_create_paged_arena()
 {
     NecroArenaPage* page = malloc(sizeof(NecroArenaPage) + NECRO_PAGED_ARENA_INITIAL_SIZE);
@@ -183,6 +199,17 @@ void necro_destroy_paged_arena(NecroPagedArena* arena)
 // NecroSnapshotArena
 //=====================================================
 #define NECRO_SNAPSHOT_ARENA_INITIAL_SIZE 1024
+
+NecroSnapshotArena necro_empty_snapshot_arena()
+{
+    return (NecroSnapshotArena)
+    {
+        .data  = NULL,
+        .size  = 0,
+        .count = 0,
+    };
+}
+
 NecroSnapshotArena necro_create_snapshot_arena()
 {
     return (NecroSnapshotArena)

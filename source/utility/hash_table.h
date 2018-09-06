@@ -34,6 +34,7 @@ typedef struct
 //     * Data is allocated from large chunks of memory for better cache coherency
 //     * Never removes or deletes anything (use a different structure if you need removal)
 //     * You can pass NULL into insert if you simply want to allocate space and then initialize that memory how you like
+NecroArenaChainTable necro_empty_arena_chain_table();
 NecroArenaChainTable necro_create_arena_chain_table(size_t data_size);
 void                 necro_destroy_arena_chain_table(NecroArenaChainTable* table);
 void*                necro_arena_chain_table_insert(NecroArenaChainTable* table, uint64_t key, void* data_to_be_copied_in);
@@ -46,6 +47,13 @@ typedef struct                                                                  
 {                                                                                                                                                           \
     NecroArenaChainTable chain_table;                                                                                                                       \
 } Necro##TABLE_CAMEL_NAME##Table;                                                                                                                           \
+static Necro##TABLE_CAMEL_NAME##Table necro_empty_##TABLE_SNAKE_NAME##_table()                                                                              \
+{                                                                                                                                                           \
+    return (Necro##TABLE_CAMEL_NAME##Table)                                                                                                                 \
+    {                                                                                                                                                       \
+        .chain_table = necro_empty_arena_chain_table()                                                                                                      \
+    };                                                                                                                                                      \
+}                                                                                                                                                           \
 static Necro##TABLE_CAMEL_NAME##Table necro_create_##TABLE_SNAKE_NAME##_table()                                                                             \
 {                                                                                                                                                           \
     return (Necro##TABLE_CAMEL_NAME##Table)                                                                                                                 \

@@ -13,6 +13,17 @@
 // Constants
 #define NECRO_SYMTABLE_INITIAL_SIZE 512
 
+NecroSymTable necro_empty_symtable()
+{
+    return (NecroSymTable)
+    {
+        NULL,
+        0,
+        0,
+        NULL,
+    };
+}
+
 NecroSymTable necro_create_symtable(NecroIntern* intern)
 {
     NecroSymbolInfo* data = calloc(NECRO_SYMTABLE_INITIAL_SIZE, sizeof(NecroSymbolInfo));
@@ -230,6 +241,19 @@ inline NecroScope* necro_create_scope(NecroPagedArena* arena, NecroScope* parent
     for (size_t bucket = 0; bucket < scope->size; ++bucket)
         scope->buckets[bucket] = (NecroScopeNode) { .id = NECRO_SYMTABLE_NULL_ID };
     return scope;
+}
+
+NecroScopedSymTable necro_empty_scoped_symtable()
+{
+    return (NecroScopedSymTable)
+    {
+        .arena               = necro_empty_paged_arena(),
+        .global_table        = NULL,
+        .top_scope           = NULL,
+        .current_scope       = NULL,
+        .top_type_scope      = NULL,
+        .current_type_scope  = NULL,
+    };
 }
 
 NecroScopedSymTable necro_create_scoped_symtable(NecroSymTable* global_table)

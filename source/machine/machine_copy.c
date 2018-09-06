@@ -16,6 +16,20 @@
 // NecroMachineCopyTable
 ///////////////////////////////////////////////////////
 NecroMachineCopyData* necro_machine_copy_table_insert(NecroMachineCopyTable* table, NecroType* type);
+
+NecroMachineCopyTable necro_empty_copy_table()
+{
+    return (NecroMachineCopyTable)
+    {
+        .symtable   = NULL,
+        .data       = NULL,
+        .capacity   = 0,
+        .count      = 0,
+        .member_map = necro_empty_member_vector(),
+        .data_map   = necro_empty_data_map_vector(),
+    };
+}
+
 NecroMachineCopyTable necro_create_machine_copy_table(NecroSymTable* symtable, NecroPrimTypes* prim_types)
 {
     NecroMachineCopyTable table;

@@ -232,6 +232,7 @@ typedef struct
 void necro_transform_to_core(NecroTransformToCore* core_transform);
 void necro_print_core(NecroCoreAST* ast, NecroIntern* intern);
 
+NecroTransformToCore necro_empty_core_transform();
 void necro_construct_core_transform(
     NecroTransformToCore* core_transform,
     NecroCoreAST* core_ast,
@@ -243,11 +244,16 @@ void necro_construct_core_transform(
 
 static inline void necro_destruct_core_transform(NecroTransformToCore* core_transform)
 {
-    necro_destroy_paged_arena(&core_transform->core_ast->arena);
+    // Ownership of CoreAST is passed out of NecroCoreTransform
+    // if (core_transform->core_ast != NULL)
+    //     necro_destroy_paged_arena(&core_transform->core_ast->arena);
     core_transform->core_ast = NULL;
     core_transform->necro_ast = NULL;
     core_transform->intern = NULL;
     core_transform->transform_state = NECRO_CORE_TRANSFORM_DONE;
 }
+
+NecroCoreAST necro_empty_core_ast();
+void         necro_destroy_core_ast(NecroCoreAST* ast);
 
 #endif // CORE_H

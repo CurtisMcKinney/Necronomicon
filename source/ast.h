@@ -527,6 +527,7 @@ typedef struct
     NecroAST_Node_Reified* root;
 } NecroAST_Reified;
 
+NecroAST_Reified necro_empty_reified_ast();
 NecroAST_Reified necro_create_reified_ast();
 NecroAST_Reified necro_reify_ast(NecroAST* a_ast, NecroAST_LocalPtr a_root, NecroIntern* intern);
 void             necro_destroy_reified_ast(NecroAST_Reified* ast);

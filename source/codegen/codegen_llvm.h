@@ -69,8 +69,9 @@ typedef struct NecroCodeGenLLVM
     NecroDataMapVector*       data_map;
 } NecroCodeGenLLVM;
 
-NecroCodeGenLLVM necro_create_codegen_llvm(NecroIntern* intern, struct NecroSymTable* symtable, NecroPrimTypes* prim_types, bool should_optimize);
-void             necro_destroy_codegen_llvm(NecroCodeGenLLVM* codegen);
+NecroCodeGenLLVM  necro_empty_codegen_llvm();
+NecroCodeGenLLVM  necro_create_codegen_llvm(NecroIntern* intern, struct NecroSymTable* symtable, NecroPrimTypes* prim_types, bool should_optimize);
+void              necro_destroy_codegen_llvm(NecroCodeGenLLVM* codegen);
 NECRO_RETURN_CODE necro_codegen_llvm(NecroCodeGenLLVM* codegen, NecroMachineProgram* program);
 NECRO_RETURN_CODE necro_jit_llvm(NecroCodeGenLLVM* codegen);
 void              necro_print_codegen_llvm(NecroCodeGenLLVM* codegen);

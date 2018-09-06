@@ -776,6 +776,15 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
     return reified_node;
 }
 
+NecroAST_Reified necro_empty_reified_ast()
+{
+    return (NecroAST_Reified)
+    {
+        .arena = necro_empty_paged_arena(),
+        .root  = NULL,
+    };
+}
+
 NecroAST_Reified necro_create_reified_ast()
 {
     NecroPagedArena        arena = necro_create_paged_arena();

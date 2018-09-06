@@ -18,21 +18,34 @@
 void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern);
 
 //=====================================================
-// Symbols
+// Create / Destroy
 //=====================================================
-NecroPrimTypes necro_create_prim_types(NecroIntern* intern)
+NecroPrimTypes necro_empty_prim_types()
 {
-    UNUSED(intern);
+    return (NecroPrimTypes)
+    {
+        .arena     = necro_empty_paged_arena(),
+        .defs      = NULL,
+        .def_head  = NULL,
+        .con_table = necro_empty_con_table(),
+    };
+}
 
-    // PrimSymbols
+NecroPrimTypes necro_create_prim_types()
+{
     return (NecroPrimTypes)
     {
         .arena     = necro_create_paged_arena(),
         .defs      = NULL,
         .def_head  = NULL,
-        .llvm_mod  = NULL,
         .con_table = necro_create_con_table()
     };
+}
+
+void necro_destroy_prim_types(NecroPrimTypes* prim_types)
+{
+    necro_destroy_paged_arena(&prim_types->arena);
+    necro_destroy_con_table(&prim_types->con_table);
 }
 
 //=====================================================
@@ -834,7 +847,7 @@ void necro_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern)
     NecroASTNode* num_class_ast = necro_create_type_class_ast(&prim_types->arena, intern, "Num", "a", NULL, num_method_list);
     NecroPrimDef* num_class_def = necro_prim_def_class(prim_types, intern, &prim_types->num_type_class, num_class_ast);
     UNUSED(num_class_def);
-    
+
     // Frac
     NecroASTNode* div_method_sig    = necro_create_class_bin_op_sig(&prim_types->arena, intern, "div");
     NecroASTNode* recip_method_sig  = necro_create_class_unary_op_sig(&prim_types->arena, intern, "recip");

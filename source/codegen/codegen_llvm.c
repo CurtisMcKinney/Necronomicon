@@ -18,6 +18,29 @@
 ///////////////////////////////////////////////////////
 // Create / Destroy
 ///////////////////////////////////////////////////////
+NecroCodeGenLLVM necro_empty_codegen_llvm()
+{
+    return (NecroCodeGenLLVM)
+    {
+        .arena            = necro_empty_paged_arena(),
+        .snapshot_arena   = necro_empty_snapshot_arena(),
+        .intern           = NULL,
+        .symtable         = NULL,
+        .prim_types       = NULL,
+        .codegen_symtable = necro_empty_necro_codegen_symbol_vector(),
+        .runtime_mapping  = necro_empty_necro_runtime_mapping_vector(),
+        .context          = NULL,
+        .builder          = NULL,
+        .mod              = NULL,
+        .target           = NULL,
+        .fn_pass_manager  = NULL,
+        .mod_pass_manager = NULL,
+        .should_optimize  = false,
+        .memcpy_fn        = NULL,
+        .memset_fn        = NULL,
+    };
+}
+
 NecroCodeGenLLVM necro_create_codegen_llvm(NecroIntern* intern, NecroSymTable* symtable, NecroPrimTypes* prim_types, bool should_optimize)
 {
     LLVMInitializeNativeTarget();
@@ -108,8 +131,12 @@ NecroCodeGenLLVM necro_create_codegen_llvm(NecroIntern* intern, NecroSymTable* s
 void necro_destroy_codegen_llvm(NecroCodeGenLLVM* codegen)
 {
     assert(codegen != NULL);
-    LLVMContextDispose(codegen->context);
-    LLVMDisposeBuilder(codegen->builder);
+    if (codegen->context != NULL)
+        LLVMContextDispose(codegen->context);
+    codegen->context = NULL;
+    if (codegen->builder != NULL)
+        LLVMDisposeBuilder(codegen->builder);
+    codegen->builder = NULL;
     necro_destroy_paged_arena(&codegen->arena);
     necro_destroy_snapshot_arena(&codegen->snapshot_arena);
     necro_destroy_necro_codegen_symbol_vector(&codegen->codegen_symtable);

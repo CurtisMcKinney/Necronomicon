@@ -52,6 +52,7 @@ typedef struct
     NecroMemberVector     member_map;
     NecroDataMapVector    data_map;
 } NecroMachineCopyTable;
+NecroMachineCopyTable necro_empty_copy_table();
 NecroMachineCopyTable necro_create_machine_copy_table(NecroSymTable* symtable, NecroPrimTypes* prim_types);
 void                  necro_destroy_machine_copy_table(NecroMachineCopyTable* table);
 size_t                necro_create_data_info(struct NecroMachineProgram* program, NecroType* type);

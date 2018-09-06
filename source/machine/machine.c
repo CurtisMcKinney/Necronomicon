@@ -63,6 +63,32 @@ void necro_build_debug_print_value(NecroMachineProgram* program, NecroMachineAST
 ///////////////////////////////////////////////////////
 // NecroMachineProgram
 ///////////////////////////////////////////////////////
+NecroMachineProgram necro_empty_machine_program()
+{
+    return (NecroMachineProgram)
+    {
+        .arena              = necro_empty_paged_arena(),
+        .snapshot_arena     = necro_empty_snapshot_arena(),
+        .structs            = necro_empty_necro_machine_ast_vector(),
+        .globals            = necro_empty_necro_machine_ast_vector(),
+        .functions          = necro_empty_necro_machine_ast_vector(),
+        .machine_defs       = necro_empty_necro_machine_ast_vector(),
+        .word_size          = 0,
+        .intern             = NULL,
+        .symtable           = NULL,
+        .scoped_symtable    = NULL,
+        .prim_types         = NULL,
+        .infer              = NULL,
+        .gen_vars           = 0,
+        .necro_main         = NULL,
+        .copy_table         = necro_empty_copy_table(),
+        .closure_cons       = necro_empty_closure_con_vector(),
+        .closure_types      = necro_empty_closure_type_vector(),
+        .closure_defs       = necro_empty_closure_def_vector(),
+        .apply_fns          = necro_empty_apply_fn_vector(),
+        .get_apply_state_fn = NULL,
+    };
+}
 
 NecroMachineProgram necro_create_initial_machine_program(NecroIntern* intern, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types, NecroInfer* infer, NecroClosureDefVector closure_defs)
 {
@@ -279,7 +305,7 @@ void necro_core_to_machine_1_bind(NecroMachineProgram* program, NecroCoreAST_Exp
             lambdas = lambdas->lambda.expr;
         }
     }
-    
+
     if (num_args > 0)
     {
         machine_def->machine_def.num_arg_names = num_args;

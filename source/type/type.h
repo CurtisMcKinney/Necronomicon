@@ -167,6 +167,7 @@ typedef struct NecroInfer
 //=====================================================
 // API
 //=====================================================
+NecroInfer  necro_empty_infer();
 NecroInfer  necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtable, struct NecroScopedSymTable* scoped_symtable, struct NecroRenamer* renamer, struct NecroPrimTypes* prim_types);
 void        necro_destroy_infer(NecroInfer* infer);
 void        necro_reset_infer(NecroInfer* infer);

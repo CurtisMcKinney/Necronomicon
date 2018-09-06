@@ -619,8 +619,11 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    NecroArena arena;
+    NecroArena        arena;
+    NecroAST_LocalPtr root;
 } NecroAST;
+NecroAST       necro_empty_ast();
+void           necro_destroy_ast(NecroAST* ast);
 NecroAST_Node* ast_get_node(NecroAST* ast, NecroAST_LocalPtr local_ptr);
 NecroAST_Node* ast_get_root_node(NecroAST* ast);
 void           print_ast(NecroAST* ast, NecroIntern* intern, NecroAST_LocalPtr root_node_ptr);
@@ -628,29 +631,7 @@ void           print_ast(NecroAST* ast, NecroIntern* intern, NecroAST_LocalPtr r
 //=====================================================
 // Parsing
 //=====================================================
-typedef enum
-{
-    NECRO_DESCENT_PARSING,
-    NECRO_DESCENT_PARSING_PATTERN,
-    NECRO_DESCENT_PARSE_ERROR,
-    NECRO_DESCENT_PARSE_DONE
-} NecroParse_DescentState;
-
-typedef struct
-{
-    NecroAST                ast;
-    NecroLexToken*          tokens;
-    size_t                  current_token;
-    NecroParse_DescentState descent_state;
-    NecroError              error;
-    NecroIntern*            intern;
-    bool                    parsing_pat_assignment; // TODO / HACK; Find a better way to delineate
-} NecroParser;
-
-NecroParser                    construct_parser(NecroLexToken* tokens, size_t num_tokens, NecroIntern* intern);
-void                           destruct_parser(NecroParser* parser);
-NecroResult(NecroAST_LocalPtr) parse_ast(NecroParser* parser);
-void                           compute_ast_math(NecroAST* ast, NecroAST_LocalPtr root_node_ptr);
-const char*                    bin_op_name(NecroAST_BinOpType type);
+NecroResult(void) necro_parse(NecroLexTokenVector* tokens, NecroIntern* intern, NecroAST* out_ast, NecroCompileInfo info);
+const char*       bin_op_name(NecroAST_BinOpType type);
 
 #endif // PARSER_H

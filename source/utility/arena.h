@@ -19,8 +19,9 @@ typedef struct
     size_t size;
 } NecroArena;
 
+NecroArena necro_empty_arena();
 NecroArena construct_arena(size_t capacity);
-void destruct_arena(NecroArena* arena);
+void       destruct_arena(NecroArena* arena);
 
 typedef enum
 {
@@ -52,6 +53,7 @@ typedef struct
     size_t          count;
 } NecroPagedArena;
 
+NecroPagedArena necro_empty_paged_arena();
 NecroPagedArena necro_create_paged_arena();
 void*           necro_paged_arena_alloc(NecroPagedArena* arena, size_t size);
 void            necro_destroy_paged_arena(NecroPagedArena* arena);
@@ -72,6 +74,7 @@ typedef struct
     size_t size;
 } NecroSnapshotArena;
 
+NecroSnapshotArena necro_empty_snapshot_arena();
 NecroSnapshotArena necro_create_snapshot_arena();
 void*              necro_snapshot_arena_alloc(NecroSnapshotArena* arena, size_t bytes);
 void               necro_destroy_snapshot_arena(NecroSnapshotArena* arena);

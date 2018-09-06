@@ -40,6 +40,32 @@ NecroTypeEnv necro_create_type_env(size_t initial_size)
     };
 }
 
+NecroTypeEnv necro_empty_type_env()
+{
+    return (NecroTypeEnv)
+    {
+        .data     = NULL,
+        .capacity = 0,
+    };
+}
+
+NecroInfer necro_empty_infer()
+{
+    return (NecroInfer)
+    {
+        .symtable        = NULL,
+        .scoped_symtable = NULL,
+        .renamer         = NULL,
+        .prim_types      = NULL,
+        .env             = necro_empty_type_env(),
+        .snapshot_arena  = necro_empty_snapshot_arena(),
+        .arena           = necro_empty_paged_arena(),
+        .intern          = NULL,
+        .highest_id      = 0,
+        .star_type_kind  = NULL,
+    };
+}
+
 NecroInfer necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtable, struct NecroScopedSymTable* scoped_symtable, struct NecroRenamer* renamer, struct NecroPrimTypes* prim_types)
 {
 

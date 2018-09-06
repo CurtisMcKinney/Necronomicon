@@ -55,16 +55,22 @@ typedef enum
     NECRO_PHASE_JIT
 } NECRO_PHASE;
 
+typedef enum
+{
+    NECRO_OPT_OFF = 0,
+    NECRO_OPT_ON  = 1
+} NECRO_OPT_LEVEL;
+
 struct NecroTimer;
 typedef struct
 {
     size_t             verbosity;
     struct NecroTimer* timer;
     NECRO_PHASE        compilation_phase;
+    NECRO_OPT_LEVEL    opt_level;
 } NecroCompileInfo;
 
-void              necro_test(NECRO_TEST test);
-void              necro_compile(const char* file_name, const char* input_string, size_t str_length, NECRO_PHASE compilation_phase);
-void              necro_compile_opt(const char* file_name, const char* input_string, size_t str_length, NECRO_PHASE compilation_phase);
+void necro_test(NECRO_TEST test);
+void necro_compile(const char* file_name, const char* input_string, size_t input_string_length, NECRO_PHASE compilation_phase, NECRO_OPT_LEVEL opt_level);
 
 #endif // DRIVER_H

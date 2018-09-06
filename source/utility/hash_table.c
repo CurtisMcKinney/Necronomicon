@@ -18,6 +18,18 @@ size_t hash(uint64_t input)
     return (size_t)(input * 37);
 }
 
+NecroArenaChainTable necro_empty_arena_chain_table()
+{
+    return (NecroArenaChainTable)
+    {
+        .arena     = necro_empty_paged_arena(),
+        .buckets   = NULL,
+        .size      = 0,
+        .count     = 0,
+        .data_size = 0
+    };
+}
+
 NecroArenaChainTable necro_create_arena_chain_table(size_t data_size)
 {
     NecroChainTableNode* buckets = calloc(NECRO_CHAIN_TABLE_INITIAL_SIZE, sizeof(NecroChainTableNode));

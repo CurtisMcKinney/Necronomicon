@@ -200,6 +200,18 @@ void necro_print_core(NecroCoreAST* ast, NecroIntern* intern)
     necro_print_core_node(ast->root, intern, 0);
 }
 
+NecroTransformToCore necro_empty_core_transform()
+{
+    return (NecroTransformToCore)
+    {
+        .necro_ast  = NULL,
+        .core_ast   = NULL,
+        .intern     = NULL,
+        .prim_types = NULL,
+        .symtable   = NULL,
+    };
+}
+
 void necro_construct_core_transform(
     NecroTransformToCore* core_transform,
     NecroCoreAST* core_ast,
@@ -377,7 +389,7 @@ NecroCoreAST_Expression* necro_transform_pat_assignment(NecroTransformToCore* co
     core_bind->var.symbol = apats_assignment->variable_name;
     core_bind->var.id = apats_assignment->id;
     core_bind->is_recursive = false;
-    
+
     //necro_ast_node->pat_assignment.pat->pattern_expression.expressions->
 
     return NULL;
@@ -1107,4 +1119,19 @@ void necro_transform_to_core(NecroTransformToCore* core_transform)
     assert(core_transform->necro_ast->root);
     core_transform->transform_state = NECRO_SUCCESS;
     core_transform->core_ast->root = necro_transform_to_core_impl(core_transform, core_transform->necro_ast->root);
+}
+
+NecroCoreAST necro_empty_core_ast()
+{
+    return (NecroCoreAST)
+    {
+        .arena = necro_empty_paged_arena(),
+        .root  = NULL,
+    };
+}
+
+void necro_destroy_core_ast(NecroCoreAST* ast)
+{
+    necro_destroy_paged_arena(&ast->arena);
+    ast->root = NULL;
 }

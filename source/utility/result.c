@@ -214,6 +214,16 @@ NecroResult(NecroAST_LocalPtr) necro_do_bind_failed_to_parse_error(NecroSourceLo
     return necro_default_parse_error(NECRO_PARSE_DO_BIND_FAILED_TO_PARSE, source_loc, end_loc);
 }
 
+NecroResult(NecroAST_LocalPtr) necro_do_expected_left_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    return necro_default_parse_error(NECRO_PARSE_DO_LET_EXPECTED_LEFT_BRACE, source_loc, end_loc);
+}
+
+NecroResult(NecroAST_LocalPtr) necro_do_expected_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    return necro_default_parse_error(NECRO_PARSE_DO_LET_EXPECTED_RIGHT_BRACE, source_loc, end_loc);
+}
+
 NecroResult(NecroAST_LocalPtr) necro_do_missing_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     return necro_default_parse_error(NECRO_PARSE_DO_MISSING_RIGHT_BRACE, source_loc, end_loc);
@@ -329,6 +339,10 @@ NecroResult(NecroAST_LocalPtr) necro_instance_expected_right_brace_error(NecroSo
     return necro_default_parse_error(NECRO_PARSE_INSTANCE_EXPECTED_RIGHT_BRACE, source_loc, end_loc);
 }
 
+NecroResult(NecroAST_LocalPtr) necro_const_con_missing_right_brace(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    return necro_default_parse_error(NECRO_PARSE_CONST_CON_MISSING_RIGHT_PAREN, source_loc, end_loc);
+}
 
 ///////////////////////////////////////////////////////
 // Printing
@@ -444,19 +458,19 @@ void necro_print_declarations_missing_right_brace_error(NecroResultError error, 
 void necro_print_simple_assignment_rhs_failed_to_parse_error(NecroResultError error, const char* source_str, const char* source_name)
 {
     const char* explanation = "TODO: Explanation";
-    necro_print_default_error_format("Malformed Assignment", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Right-Hand Side of Assignment", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
 }
 
 void necro_print_apat_assignment_rhs_failed_to_parse_error(NecroResultError error, const char* source_str, const char* source_name)
 {
     const char* explanation = "TODO: Explanation";
-    necro_print_default_error_format("Malformed Function", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Right-Hand side of Function", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
 }
 
 void necro_print_pat_assignment_rhs_failed_to_parse_error(NecroResultError error, const char* source_str, const char* source_name)
 {
     const char* explanation = "TODO: Explanation";
-    necro_print_default_error_format("Malformed Pattern Assignment", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Right-Hand side of Pattern Assignment", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
 }
 
 void necro_print_rhs_failed_to_parse_error(NecroResultError error, const char* source_str, const char* source_name)
@@ -570,13 +584,25 @@ void necro_print_lambda_missing_arrow_error(NecroResultError error, const char* 
 void necro_print_lambda_failed_to_parse_pattern_error(NecroResultError error, const char* source_str, const char* source_name)
 {
     const char* explanation = "TODO: Explanation";
-    necro_print_default_error_format("Malformed Lambda Argument Pattern", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Lambda Arguments", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
 }
 
 void necro_print_do_bind_failed_to_parse_error(NecroResultError error, const char* source_str, const char* source_name)
 {
     const char* explanation = "TODO: Explanation";
     necro_print_default_error_format("Malformed \'do\' Block", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+}
+
+void necro_print_do_let_expected_left_brace_error(NecroResultError error, const char* source_str, const char* source_name)
+{
+    const char* explanation = "TODO: Explanation";
+    necro_print_default_error_format("'let' statement in 'do' block Expected '{'", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+}
+
+void necro_print_do_let_expected_right_brace_error(NecroResultError error, const char* source_str, const char* source_name)
+{
+    const char* explanation = "TODO: Explanation";
+    necro_print_default_error_format("'let' statement in 'do' block Expected '}'", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
 }
 
 void necro_print_do_missing_right_brace_error(NecroResultError error, const char* source_str, const char* source_name)
@@ -711,6 +737,12 @@ void necro_print_instance_expected_right_brace_error(NecroResultError error, con
     necro_print_default_error_format("Class Instance Expected Right Brace", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
 }
 
+void necro_print_const_con_missing_right_paren(NecroResultError error, const char* source_str, const char* source_name)
+{
+    const char* explanation = "TODO: Explanation";
+    necro_print_default_error_format("Constant Constructor Missing \')\'", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+}
+
 void necro_print_result_error(NecroResultError error, const char* source_str, const char* source_name)
 {
     switch (error.type)
@@ -767,6 +799,9 @@ void necro_print_result_error(NecroResultError error, const char* source_str, co
     case NECRO_PARSE_TYPE_EXPECTED_TYPE:                        necro_print_type_expected_type_error(error, source_str, source_name); break;
     case NECRO_PARSE_CLASS_EXPECTED_RIGHT_BRACE:                necro_print_class_expected_right_brace_error(error, source_str, source_name); break;
     case NECRO_PARSE_INSTANCE_EXPECTED_RIGHT_BRACE:             necro_print_instance_expected_right_brace_error(error, source_str, source_name); break;
+    case NECRO_PARSE_CONST_CON_MISSING_RIGHT_PAREN:             necro_print_const_con_missing_right_paren(error, source_str, source_name); break;
+    case NECRO_PARSE_DO_LET_EXPECTED_LEFT_BRACE:                necro_print_do_let_expected_left_brace_error(error, source_str, source_name); break;
+    case NECRO_PARSE_DO_LET_EXPECTED_RIGHT_BRACE:               necro_print_do_let_expected_right_brace_error(error, source_str, source_name); break;
 
     default:
         assert(false);

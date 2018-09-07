@@ -13,7 +13,7 @@
 
 // Local offset into AST arena
 typedef size_t NecroAST_LocalPtr;
-static const NecroAST_LocalPtr null_local_ptr = (uint32_t) -1;
+static const NecroAST_LocalPtr null_local_ptr = (size_t) -1;
 
 typedef enum
 {
@@ -40,7 +40,6 @@ typedef enum
     NECRO_AST_LIST_NODE,
     NECRO_AST_EXPRESSION_LIST,
     NECRO_AST_EXPRESSION_ARRAY,
-    // NECRO_AST_EXPRESSION_SEQUENCE,
     NECRO_AST_TUPLE,
     NECRO_BIND_ASSIGNMENT,
     NECRO_PAT_BIND_ASSIGNMENT,

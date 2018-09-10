@@ -26,6 +26,7 @@ struct NecroResultError;
 typedef enum
 {
     NECRO_CANT_OPEN_FILE  = 1,
+    NECRO_ERROR_TUPLE,
 
     NECRO_LEX_MALFORMED_FLOAT,
     NECRO_LEX_MALFORMED_STRING,
@@ -37,7 +38,6 @@ typedef enum
     NECRO_PARSE_SIMPLE_ASSIGNMENT_RHS_FAILED_TO_PARSE,
     NECRO_PARSE_APAT_ASSIGNMENT_RHS_FAILED_TO_PARSE,
     NECRO_PARSE_PAT_ASSIGNMENT_RHS_FAILED_TO_PARSE,
-    NECRO_PARSE_RHS_FAILED_TO_PARSE,
     NECRO_PARSE_RHS_EMPTY_WHERE,
     NECRO_PARSE_LET_FAILED_TO_PARSE,
     NECRO_PARSE_LET_EMPTY_IN,
@@ -66,7 +66,6 @@ typedef enum
     NECRO_PARSE_ARITHMETIC_SEQUENCE_FAILED_TO_PARSE_THEN,
     NECRO_PARSE_ARITHMETIC_SEQUENCE_FAILED_TO_PARSE_TO,
     NECRO_PARSE_ARITHMETIC_SEQUENCE_MISSING_RIGHT_BRACKET,
-    NECRO_PARSE_MALFORMED_PATTERN_BIND,
     NECRO_PARSE_CASE_ALTERNATIVE_EXPECTED_PATTERN,
     NECRO_PARSE_CASE_ALTERNATIVE_EXPECTED_ARROW,
     NECRO_PARSE_CASE_ALTERNATIVE_EXPECTED_EXPRESSION,
@@ -79,6 +78,7 @@ typedef enum
     NECRO_PARSE_DATA_EXPECTED_ASSIGN,
     NECRO_PARSE_DATA_EXPECTED_DATA_CON,
     NECRO_PARSE_TYPE_EXPECTED_TYPE,
+    NECRO_PARSE_TYPE_LIST_EXPECTED_RIGHT_BRACKET,
     NECRO_PARSE_CLASS_EXPECTED_RIGHT_BRACE,
     NECRO_PARSE_INSTANCE_EXPECTED_RIGHT_BRACE,
     NECRO_PARSE_CONST_CON_MISSING_RIGHT_PAREN,
@@ -95,34 +95,41 @@ typedef struct
 
 typedef struct
 {
-    NecroSourceLoc source_loc1;
-    NecroSourceLoc end_loc1;
-    NecroSourceLoc source_loc2;
-    NecroSourceLoc end_loc2;
-} NecroDefaultErrorData2;
+    struct NecroResultError* error1;
+    struct NecroResultError* error2;
+} NecroErrorTuple;
 
-typedef struct
-{
-    NecroSourceLoc def1_source_loc;
-    NecroSourceLoc def1_end_loc;
-    NecroSourceLoc def2_source_loc;
-    NecroSourceLoc def2_end_loc;
-} NecroMultipleDefinitions;
+// typedef struct
+// {
+//     NecroSourceLoc source_loc1;
+//     NecroSourceLoc end_loc1;
+//     NecroSourceLoc source_loc2;
+//     NecroSourceLoc end_loc2;
+// } NecroDefaultErrorData2;
 
-typedef struct
-{
-    struct NecroResultError* errors;
-    size_t                   num_errors;
-} NecroErrorList;
+// typedef struct
+// {
+//     NecroSourceLoc def1_source_loc;
+//     NecroSourceLoc def1_end_loc;
+//     NecroSourceLoc def2_source_loc;
+//     NecroSourceLoc def2_end_loc;
+// } NecroMultipleDefinitions;
+
+// typedef struct
+// {
+//     struct NecroResultError* errors;
+//     size_t                   num_errors;
+// } NecroErrorList;
 
 typedef struct NecroResultError
 {
     union
     {
         NecroDefaultErrorData    default_error_data;
-        NecroDefaultErrorData    default_error_data2;
-        NecroErrorList           error_list;
-        NecroMultipleDefinitions multiple_definitions;
+        NecroErrorTuple          error_tuple;
+        // NecroDefaultErrorData    default_error_data2;
+        // NecroErrorList           error_list;
+        // NecroMultipleDefinitions multiple_definitions;
     };
     NECRO_RESULT_ERROR_TYPE type;
 } NecroResultError;
@@ -225,13 +232,11 @@ NecroResult(bool)              necro_malformed_float_error(NecroSourceLoc source
 NecroResult(void)              necro_unrecognized_character_sequence_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(void)              necro_mixed_braces_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(void)              necro_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_parse_error_tuple(NecroResultError error1, NecroResultError error2);
 NecroResult(NecroAST_LocalPtr) necro_declarations_missing_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_simple_assignment_rhs_failed_to_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_apat_assignment_rhs_failed_to_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_pat_assignment_rhs_failed_to_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
-
-NecroResult(NecroAST_LocalPtr) necro_rhs_failed_to_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc); // Maybe Remove
-
 NecroResult(NecroAST_LocalPtr) necro_rhs_empty_where_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_let_expected_left_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_let_failed_to_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
@@ -251,18 +256,16 @@ NecroResult(NecroAST_LocalPtr) necro_if_missing_expr_after_else_error(NecroSourc
 NecroResult(NecroAST_LocalPtr) necro_lambda_failed_to_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_lambda_missing_arrow_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_lambda_failed_to_parse_pattern_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_do_let_expected_left_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_do_let_expected_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_do_bind_failed_to_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
-
-NecroResult(NecroAST_LocalPtr) necro_do_expected_left_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
-NecroResult(NecroAST_LocalPtr) necro_do_expected_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
-
+NecroResult(NecroAST_LocalPtr) necro_do_missing_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_list_missing_right_bracket_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_array_missing_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_pattern_empty_expression_list_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_arithmetic_sequence_failed_to_parse_then_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_arithmetic_sequence_failed_to_parse_to_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_arithmetic_sequence_missing_right_bracket_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
-NecroResult(NecroAST_LocalPtr) necro_malformed_pattern_bind_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_case_alternative_expected_pattern_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_case_alternative_expected_arrow_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_case_alternative_expected_expression_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
@@ -275,6 +278,7 @@ NecroResult(NecroAST_LocalPtr) necro_data_expected_type_error(NecroSourceLoc sou
 NecroResult(NecroAST_LocalPtr) necro_data_expected_assign_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_data_expected_data_con_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_type_expected_type_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAST_LocalPtr) necro_type_list_expected_right_bracket(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_class_expected_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_instance_expected_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 

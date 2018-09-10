@@ -60,9 +60,10 @@ const char* necro_phase_string(NECRO_PHASE phase)
 
 void necro_begin_phase(NecroCompileInfo compile_info, NECRO_PHASE phase)
 {
-    if (compile_info.compilation_phase == phase && compile_info.verbosity > 0)
-        necro_announce_phase(necro_phase_string(phase));
-    if (compile_info.compilation_phase != NECRO_PHASE_JIT && compile_info.verbosity > 0)
+    // if (compile_info.compilation_phase == phase && compile_info.verbosity > 0)
+    //     necro_announce_phase(necro_phase_string(phase));
+    UNUSED(phase);
+    if (compile_info.compilation_phase != NECRO_PHASE_JIT && compile_info.verbosity > 1)
     {
         necro_start_timer(compile_info.timer);
     }
@@ -70,7 +71,7 @@ void necro_begin_phase(NecroCompileInfo compile_info, NECRO_PHASE phase)
 
 bool necro_end_phase(NecroCompileInfo compile_info, NECRO_PHASE phase)
 {
-    if (compile_info.compilation_phase != NECRO_PHASE_JIT && compile_info.verbosity > 0)
+    if (compile_info.compilation_phase != NECRO_PHASE_JIT && compile_info.verbosity > 1)
     {
         necro_stop_and_report_timer(compile_info.timer, necro_phase_string(phase));
     }

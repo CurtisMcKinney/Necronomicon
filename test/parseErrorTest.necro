@@ -1,0 +1,121 @@
+
+x = 5
+y = 10
+x :: Int
+malformedInit ~ (Just 0 = 0
+
+instance MalformedInstance Int where
+  x y = y
+  !!
+
+class MalformedClass a where
+  x :: a -> a
+  !!
+
+malformedTypeFn :: Int -> !!
+
+data MalformedData3 = !! | Doom
+
+data MalformedData2 !! Hello
+
+data !!MalformedData1 = Hello
+
+malformedOpPat (x `Con y) = x
+
+malformedCaseExpr =
+  case Nothing of
+    Just x -> x !!
+
+malformedCaseExpr =
+  case Nothing of
+
+malformedCaseExpr =
+  case Nothing of {
+    Just x -> x
+
+malformedCaseExpr =
+  case Nothing data
+    Just x -> x
+
+malformedCaseAlternativeExpr =
+  case Nothing of
+    Just x -> data * 10
+
+malformedCaseAlternativeArrow =
+  case Nothing of
+    Just x = 3
+
+malformedCaseAlternative =
+  case 3 of
+    data -> 3
+
+malformedArithmeticSequence = [3..0
+
+malformedArithmeticTo = [3..!]
+
+malformedArithmeticThen = [3,..,1..]
+
+malformedPat = pat
+
+malformedDoBlock = do
+  doIt
+  !
+
+malformedDoLet = do
+  let x = 5
+      !
+
+malformedBind = do
+  x <- !
+
+malformedLambda3 = \ -> x
+
+malformedLambda2 = \x
+
+malformedLambda = \x ->
+
+malformedIf5 = if True then 10 else !
+
+malformedIf4 = if True then 10 ! else 4
+
+malformedIf3 = if True then else 4
+
+malformedIf2 = if True ! then 5 else 4
+
+malformedIf1 = if then 2 else 4
+
+malformedParenExpr = 3 + (2 * y
+
+malformedTuple = (3, 2,
+
+letExpectedIn = let x = 3 !! in x
+
+emptyLet = let x = 3 in !
+
+malformedList = let ! in x
+
+malformedWhere = x where []
+
+malformedRHS = where x
+
+(malformedPat1, malformedPat2) = ?
+
+malformedFunction x y = !
+
+malformedAssignment = =
+
+malformedDeclaration = y + z
+  where
+    y = 10
+    [zlkjsd
+
+malformedList :: [Int]
+malformedList = [1, 2, 3
+
+malformedListType :: [[Int]
+malformedListType = [1, 2, 3]
+
+malformedArray = {3, 1, 2
+
+-- TODO: Fix comments breaking things for some reason?
+

@@ -11,6 +11,16 @@
 #include "lexer.h"
 #include "arena.h"
 
+/*
+    TODO:
+        * Parse top level declarations past parse errors?
+        * correct source_locs!!!!!
+        * OpPats need to work like BinOps and are currently just wrong.
+        * Better Type Class error messages
+        * Better Class Instance error messages
+        * Make declaration parsing merge errors in the same way top declaration parsing merges errors
+*/
+
 // Local offset into AST arena
 typedef size_t NecroAST_LocalPtr;
 static const NecroAST_LocalPtr null_local_ptr = (size_t) -1;

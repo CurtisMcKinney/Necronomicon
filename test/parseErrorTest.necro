@@ -1,7 +1,6 @@
 
-x = 5
-y = 10
-x :: Int
+consPat (x :) = x
+
 malformedInit ~ (Just 0 = 0
 
 instance MalformedInstance Int where

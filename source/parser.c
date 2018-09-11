@@ -860,8 +860,28 @@ NecroResult(NecroAST_LocalPtr) parse_top_declarations(NecroParser* parser)
     // NULL result
     if (necro_is_parse_result_non_error_null(declarations_local_ptr))
     {
+        NecroSourceLoc parse_error_source_loc = peek_token(parser)->source_loc;
+        NecroSourceLoc parse_error_end_loc    = peek_token(parser)->end_loc;
         restore_parser(parser, snapshot);
-        return declarations_local_ptr;
+        while (peek_token_type(parser) != NECRO_LEX_SEMI_COLON && peek_token_type(parser) != NECRO_LEX_END_OF_STREAM)
+            consume_token(parser);
+        if (peek_token_type(parser) == NECRO_LEX_SEMI_COLON)
+        {
+            consume_token(parser);
+            NecroResult(NecroAST_LocalPtr) next_top_decl_result = parse_top_declarations(parser);
+            if (next_top_decl_result.type == NECRO_RESULT_OK)
+            {
+                return ok_NecroAST_LocalPtr(null_local_ptr);
+            }
+            else
+            {
+                return necro_parse_error_tuple(necro_parse_error(parse_error_source_loc, parse_error_end_loc).error, next_top_decl_result.error);
+            }
+        }
+        else
+        {
+            return ok_NecroAST_LocalPtr(null_local_ptr);
+        }
     }
     // Error result
     else if (declarations_local_ptr.type == NECRO_RESULT_ERROR)

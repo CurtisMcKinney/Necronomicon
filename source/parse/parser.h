@@ -13,12 +13,11 @@
 
 /*
     TODO:
-        * Parse top level declarations past parse errors?
+        * Fix comments screwing things up!!
         * correct source_locs!!!!!
-        * OpPats need to work like BinOps and are currently just wrong.
+        * Consider removing OpPats
         * Better Type Class error messages
         * Better Class Instance error messages
-        * Make declaration parsing merge errors in the same way top declaration parsing merges errors
 */
 
 // Local offset into AST arena
@@ -40,7 +39,7 @@ typedef enum
     NECRO_AST_RIGHT_HAND_SIDE,
     NECRO_AST_LET_EXPRESSION,
     NECRO_AST_FUNCTION_EXPRESSION,
-    NECRO_AST_INFIX_EXPRESSION,
+    // NECRO_AST_INFIX_EXPRESSION,
     NECRO_AST_VARIABLE,
     NECRO_AST_APATS,
     NECRO_AST_WILDCARD,
@@ -318,7 +317,7 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr left;
+    NecroAST_LocalPtr  left;
     NecroAST_BinOpType type;
     NecroSymbol        symbol;
 } NecroAST_OpLeftSection;
@@ -528,7 +527,6 @@ typedef struct
     NecroAST_LocalPtr next_top_decl; // Points to the next in the list, null_local_ptr if the end
 } NecroAST_TopDeclaration;
 
-
 //=====================================================
 // AST Module
 //=====================================================
@@ -626,6 +624,7 @@ typedef struct
 //=====================================================
 // AST
 //=====================================================
+struct NecroParser;
 typedef struct
 {
     NecroArena        arena;
@@ -635,6 +634,7 @@ NecroAST       necro_empty_ast();
 void           necro_destroy_ast(NecroAST* ast);
 NecroAST_Node* ast_get_node(NecroAST* ast, NecroAST_LocalPtr local_ptr);
 NecroAST_Node* ast_get_root_node(NecroAST* ast);
+NecroAST_Node* ast_alloc_node_local_ptr(struct NecroParser* parser, NecroAST_LocalPtr* local_ptr);
 void           print_ast(NecroAST* ast, NecroIntern* intern, NecroAST_LocalPtr root_node_ptr);
 
 //=====================================================

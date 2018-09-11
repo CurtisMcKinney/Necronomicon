@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include "intern.h"
-#include "parser.h"
+#include "parse/parser.h"
 #include "type_class.h"
 #include "renamer.h"
 

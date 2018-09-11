@@ -1,5 +1,10 @@
-
 consPat (x :) = x
+
+topDec2 = x + y / z
+  where
+    x = 10
+    y = !!!20
+    z = 30
 
 malformedInit ~ (Just 0 = 0
 
@@ -91,7 +96,7 @@ letExpectedIn = let x = 3 !! in x
 
 emptyLet = let x = 3 in !
 
-malformedList = let ! in x
+malformedLet = let ! in x
 
 malformedWhere = x where []
 
@@ -115,6 +120,12 @@ malformedListType :: [[Int]
 malformedListType = [1, 2, 3]
 
 malformedArray = {3, 1, 2
+
+topDec1 = x + y / z
+  where
+    x = 10
+    y != 20
+    z = 30
 
 -- TODO: Fix comments breaking things for some reason?
 

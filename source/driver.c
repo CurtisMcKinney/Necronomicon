@@ -7,7 +7,8 @@
 #include <inttypes.h>
 #include "utility.h"
 #include "lexer.h"
-#include "parser.h"
+#include "parse/parser.h"
+#include "parse/parse_test.h"
 #include "intern.h"
 #include "runtime.h"
 #include "symtable.h"
@@ -454,6 +455,7 @@ void necro_test(NECRO_TEST test)
     case NECRO_TEST_UNICODE:           necro_test_unicode_properties(); break;
     case NECRO_TEST_SYMTABLE:          necro_symtable_test();           break;
     case NECRO_TEST_LEXER:             necro_test_lexer();              break;
+    case NECRO_TEST_PARSER:            necro_test_parser();             break;
     case NECRO_TEST_INTERN:            necro_test_intern();             break;
     case NECRO_TEST_INFER:             necro_test_infer();              break;
     case NECRO_TEST_TYPE:              necro_test_type();               break;
@@ -461,8 +463,9 @@ void necro_test(NECRO_TEST test)
     case NECRO_TEST_ALL:
         necro_test_unicode_properties();
         // necro_symtable_test();
-        necro_test_lexer();
         // necro_test_intern();
+        necro_test_lexer();
+        necro_test_parser();
         // necro_test_infer();
         // necro_test_type();
         // necro_arena_chain_table_test();

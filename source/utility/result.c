@@ -86,7 +86,7 @@ NecroResult(void) necro_parse_error(NecroSourceLoc source_loc, NecroSourceLoc en
     };
 }
 
-NecroResult(NecroAST_LocalPtr) necro_parse_error_tuple(NecroResultError error1, NecroResultError error2)
+NecroResult(NecroAST_LocalPtr) necro_parse_error_cons(NecroResultError error1, NecroResultError error2)
 {
     // NecroResultError* error1_p = necro_paged_arena_alloc(arena, sizeof(NecroResultError));
     NecroResultError* error1_p = malloc(sizeof(NecroResultError)); // Freed when printed!
@@ -97,8 +97,8 @@ NecroResult(NecroAST_LocalPtr) necro_parse_error_tuple(NecroResultError error1, 
     {
         .error =
         {
-            .type        = NECRO_ERROR_TUPLE,
-            .error_tuple = (NecroErrorTuple) { .error1 = error1_p, .error2 = error2_p },
+            .type       = NECRO_ERROR_CONS,
+            .error_cons = (NecroErrorCons) { .error1 = error1_p, .error2 = error2_p },
         },
         .type = NECRO_RESULT_ERROR
     };
@@ -454,17 +454,17 @@ void necro_print_default_error_format(const char* error_name, NecroSourceLoc sou
     fprintf(stderr, "\n");
 }
 
-void necro_print_error_tuple(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_error_cons(NecroResultError error, const char* source_str, const char* source_name)
 {
-    if (error.error_tuple.error1 != NULL)
+    if (error.error_cons.error1 != NULL)
     {
-        necro_print_result_error(*error.error_tuple.error1, source_str, source_name);
-        free(error.error_tuple.error1);
+        necro_print_result_error(*error.error_cons.error1, source_str, source_name);
+        free(error.error_cons.error1);
     }
-    if (error.error_tuple.error2 != NULL)
+    if (error.error_cons.error2 != NULL)
     {
-        necro_print_result_error(*error.error_tuple.error2, source_str, source_name);
-        free(error.error_tuple.error2);
+        necro_print_result_error(*error.error_cons.error2, source_str, source_name);
+        free(error.error_cons.error2);
     }
 }
 
@@ -790,7 +790,7 @@ void necro_print_result_error(NecroResultError error, const char* source_str, co
 {
     switch (error.type)
     {
-    case NECRO_ERROR_TUPLE:                                     necro_print_error_tuple(error, source_str, source_name); break;
+    case NECRO_ERROR_CONS:                                      necro_print_error_cons(error, source_str, source_name); break;
 
     case NECRO_LEX_MALFORMED_FLOAT:                             necro_print_malformed_float_error(error, source_str, source_name); break;
     case NECRO_LEX_MALFORMED_STRING:                            necro_print_malformed_string_error(error, source_str, source_name); break;

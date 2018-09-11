@@ -11,7 +11,7 @@
 #include "lexer.h"
 #include "intern.h"
 #include "arena.h"
-#include "parser.h"
+#include "parse/parser.h"
 
 struct NecroAST_Node_Reified;
 struct NecroDeclarationGroup;

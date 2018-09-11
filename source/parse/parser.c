@@ -23,7 +23,7 @@ typedef enum
     NECRO_DESCENT_PARSE_DONE
 } NecroParse_DescentState;
 
-typedef struct
+typedef struct NecroParser
 {
     NecroAST                ast;
     NecroLexToken*          tokens;
@@ -215,7 +215,7 @@ NecroAST_Node* ast_alloc_node(NecroParser* parser)
     return (NecroAST_Node*) arena_alloc(&parser->ast.arena, sizeof(NecroAST_Node), arena_allow_realloc);
 }
 
-NecroAST_Node* ast_alloc_node_local_ptr(NecroParser* parser, NecroAST_LocalPtr* local_ptr)
+NecroAST_Node* ast_alloc_node_local_ptr(struct NecroParser* parser, NecroAST_LocalPtr* local_ptr)
 {
     const size_t offset = parser->ast.arena.size / sizeof(NecroAST_Node);
     assert(offset < MAX_LOCAL_PTR);
@@ -806,7 +806,7 @@ NecroResult(void) necro_parse(NecroLexTokenVector* tokens, NecroIntern* intern, 
     NecroParser       parser    = construct_parser(tokens->data, tokens->length, intern);
     NecroAST_LocalPtr local_ptr = necro_try_map(NecroAST_LocalPtr, void, parse_top_declarations(&parser));
     parser.ast.root             = local_ptr;
-    if (peek_token_type(&parser) != NECRO_LEX_END_OF_STREAM && peek_token_type(&parser) != NECRO_LEX_SEMI_COLON)
+    if ((peek_token_type(&parser) != NECRO_LEX_END_OF_STREAM && peek_token_type(&parser) != NECRO_LEX_SEMI_COLON) || (local_ptr == null_local_ptr && tokens->length > 0))
     {
         NecroLexToken* look_ahead_token = peek_token(&parser);
         return necro_parse_error(look_ahead_token->source_loc, look_ahead_token->end_loc);
@@ -867,7 +867,8 @@ NecroResult(NecroAST_LocalPtr) parse_top_declarations(NecroParser* parser)
             consume_token(parser);
         if (peek_token_type(parser) == NECRO_LEX_SEMI_COLON)
         {
-            consume_token(parser);
+            while (peek_token_type(parser) == NECRO_LEX_SEMI_COLON)
+                consume_token(parser);
             NecroResult(NecroAST_LocalPtr) next_top_decl_result = parse_top_declarations(parser);
             if (next_top_decl_result.type == NECRO_RESULT_OK)
             {
@@ -875,7 +876,7 @@ NecroResult(NecroAST_LocalPtr) parse_top_declarations(NecroParser* parser)
             }
             else
             {
-                return necro_parse_error_tuple(necro_parse_error(parse_error_source_loc, parse_error_end_loc).error, next_top_decl_result.error);
+                return necro_parse_error_cons(necro_parse_error(parse_error_source_loc, parse_error_end_loc).error, next_top_decl_result.error);
             }
         }
         else
@@ -883,6 +884,7 @@ NecroResult(NecroAST_LocalPtr) parse_top_declarations(NecroParser* parser)
             return ok_NecroAST_LocalPtr(null_local_ptr);
         }
     }
+
     // Error result
     else if (declarations_local_ptr.type == NECRO_RESULT_ERROR)
     {
@@ -890,7 +892,8 @@ NecroResult(NecroAST_LocalPtr) parse_top_declarations(NecroParser* parser)
             consume_token(parser);
         if (peek_token_type(parser) == NECRO_LEX_SEMI_COLON)
         {
-            consume_token(parser);
+            while (peek_token_type(parser) == NECRO_LEX_SEMI_COLON)
+                consume_token(parser);
             NecroResult(NecroAST_LocalPtr) next_top_decl_result = parse_top_declarations(parser);
             if (next_top_decl_result.type == NECRO_RESULT_OK)
             {
@@ -898,7 +901,7 @@ NecroResult(NecroAST_LocalPtr) parse_top_declarations(NecroParser* parser)
             }
             else
             {
-                return necro_parse_error_tuple(declarations_local_ptr.error, next_top_decl_result.error);
+                return necro_parse_error_cons(declarations_local_ptr.error, next_top_decl_result.error);
             }
         }
         else
@@ -906,6 +909,7 @@ NecroResult(NecroAST_LocalPtr) parse_top_declarations(NecroParser* parser)
             return declarations_local_ptr;
         }
     }
+
     // OK result
     else
     {
@@ -966,29 +970,45 @@ NecroResult(NecroAST_LocalPtr) parse_declarations_list(NecroParser* parser)
         return ok_NecroAST_LocalPtr(null_local_ptr);
 
     // List Item
-    NecroParser_Snapshot snapshot              = snapshot_parser(parser);
-    NecroAST_LocalPtr    declaration_local_ptr = necro_try(NecroAST_LocalPtr, parse_declaration(parser));
-    if (declaration_local_ptr == null_local_ptr)
+    NecroParser_Snapshot           snapshot              = snapshot_parser(parser);
+    NecroResult(NecroAST_LocalPtr) declaration_local_ptr = parse_declaration(parser);
+
+    // NULL result
+    if (necro_is_parse_result_non_error_null(declaration_local_ptr))
     {
         restore_parser(parser, snapshot);
         return ok_NecroAST_LocalPtr(null_local_ptr);
     }
-
-    // List Next
-    NecroAST_LocalPtr next_decl = null_local_ptr;
-    if (peek_token_type(parser) == NECRO_LEX_SEMI_COLON)
+    // Error result
+    else if (declaration_local_ptr.type == NECRO_RESULT_ERROR)
     {
-        consume_token(parser);
-        next_decl = necro_try(NecroAST_LocalPtr, parse_declarations_list(parser));
+        while (peek_token_type(parser) != NECRO_LEX_RIGHT_BRACE && peek_token_type(parser) != NECRO_LEX_END_OF_STREAM)
+            consume_token(parser);
+        while (peek_token_type(parser) == NECRO_LEX_SEMI_COLON || peek_token_type(parser) == NECRO_LEX_RIGHT_BRACE)
+            consume_token(parser);
+        return declaration_local_ptr;
     }
 
-    // Finish
-    NecroAST_LocalPtr decl_local_ptr        = null_local_ptr;
-    NecroAST_Node*    decl_node             = ast_alloc_node_local_ptr(parser, &decl_local_ptr);
-    decl_node->declaration.declaration_impl = declaration_local_ptr;
-    decl_node->declaration.next_declaration = next_decl;
-    decl_node->type = NECRO_AST_DECL;
-    return ok_NecroAST_LocalPtr(decl_local_ptr);
+    // OK result
+    else
+    {
+        NecroAST_LocalPtr declaration_local_value = declaration_local_ptr.value;
+        // List Next
+        NecroAST_LocalPtr next_decl = null_local_ptr;
+        if (peek_token_type(parser) == NECRO_LEX_SEMI_COLON)
+        {
+            consume_token(parser);
+            next_decl = necro_try(NecroAST_LocalPtr, parse_declarations_list(parser));
+        }
+
+        // Finish
+        NecroAST_LocalPtr decl_local_ptr        = null_local_ptr;
+        NecroAST_Node*    decl_node             = ast_alloc_node_local_ptr(parser, &decl_local_ptr);
+        decl_node->declaration.declaration_impl = declaration_local_value;
+        decl_node->declaration.next_declaration = next_decl;
+        decl_node->type = NECRO_AST_DECL;
+        return ok_NecroAST_LocalPtr(decl_local_ptr);
+    }
 }
 
 NecroResult(NecroAST_LocalPtr) parse_declarations(NecroParser* parser)
@@ -1018,7 +1038,13 @@ NecroResult(NecroAST_LocalPtr) parse_declarations(NecroParser* parser)
     {
         if (peek_token_type(parser) != NECRO_LEX_RIGHT_BRACE)
         {
-            return necro_declarations_missing_right_brace_error(peek_token(parser)->source_loc, peek_token(parser)->source_loc);
+            NecroSourceLoc source_loc = peek_token(parser)->source_loc;
+            NecroSourceLoc end_loc    = peek_token(parser)->end_loc;
+            while (peek_token_type(parser) != NECRO_LEX_RIGHT_BRACE && peek_token_type(parser) != NECRO_LEX_END_OF_STREAM)
+                consume_token(parser);
+            while (peek_token_type(parser) == NECRO_LEX_SEMI_COLON || peek_token_type(parser) == NECRO_LEX_RIGHT_BRACE)
+                consume_token(parser);
+            return necro_declarations_missing_right_brace_error(source_loc, end_loc);
         }
         consume_token(parser);
     }

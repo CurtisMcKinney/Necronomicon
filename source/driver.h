@@ -13,16 +13,10 @@
 typedef enum
 {
     NECRO_TEST_ALL,
-    NECRO_TEST_VM,
-    NECRO_TEST_DVM,
     NECRO_TEST_SYMTABLE,
-    NECRO_TEST_SLAB,
-    NECRO_TEST_TREADMILL,
     NECRO_TEST_LEXER,
     NECRO_TEST_INTERN,
-    NECRO_TEST_VAULT,
-    NECRO_TEST_ARCHIVE,
-    NECRO_TEST_REGION,
+    NECRO_TEST_PARSER,
     NECRO_TEST_INFER,
     NECRO_TEST_TYPE,
     NECRO_TEST_ARENA_CHAIN_TABLE,
@@ -69,6 +63,17 @@ typedef struct
     NECRO_PHASE        compilation_phase;
     NECRO_OPT_LEVEL    opt_level;
 } NecroCompileInfo;
+
+static NecroCompileInfo necro_test_compile_info()
+{
+    return (NecroCompileInfo)
+    {
+        .verbosity         = 0,
+        .timer             = NULL,
+        .compilation_phase = NECRO_PHASE_JIT,
+        .opt_level         = 0,
+    };
+}
 
 void necro_test(NECRO_TEST test);
 void necro_compile(const char* file_name, const char* input_string, size_t input_string_length, NECRO_PHASE compilation_phase, NECRO_OPT_LEVEL opt_level);

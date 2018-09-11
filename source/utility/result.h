@@ -26,7 +26,7 @@ struct NecroResultError;
 typedef enum
 {
     NECRO_CANT_OPEN_FILE  = 1,
-    NECRO_ERROR_TUPLE,
+    NECRO_ERROR_CONS,
 
     NECRO_LEX_MALFORMED_FLOAT,
     NECRO_LEX_MALFORMED_STRING,
@@ -97,7 +97,7 @@ typedef struct
 {
     struct NecroResultError* error1;
     struct NecroResultError* error2;
-} NecroErrorTuple;
+} NecroErrorCons;
 
 // typedef struct
 // {
@@ -126,7 +126,7 @@ typedef struct NecroResultError
     union
     {
         NecroDefaultErrorData    default_error_data;
-        NecroErrorTuple          error_tuple;
+        NecroErrorCons           error_cons;
         // NecroDefaultErrorData    default_error_data2;
         // NecroErrorList           error_list;
         // NecroMultipleDefinitions multiple_definitions;
@@ -232,7 +232,7 @@ NecroResult(bool)              necro_malformed_float_error(NecroSourceLoc source
 NecroResult(void)              necro_unrecognized_character_sequence_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(void)              necro_mixed_braces_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(void)              necro_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
-NecroResult(NecroAST_LocalPtr) necro_parse_error_tuple(NecroResultError error1, NecroResultError error2);
+NecroResult(NecroAST_LocalPtr) necro_parse_error_cons(NecroResultError error1, NecroResultError error2);
 NecroResult(NecroAST_LocalPtr) necro_declarations_missing_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_simple_assignment_rhs_failed_to_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroAST_LocalPtr) necro_apat_assignment_rhs_failed_to_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);

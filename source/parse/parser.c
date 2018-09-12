@@ -210,22 +210,6 @@ const char* con_type_string(NECRO_CON_TYPE con_type)
 // =====================================================
 // Abstract Syntax Tree
 // =====================================================
-
-NecroAST_Node* ast_alloc_node(NecroParser* parser)
-{
-    return (NecroAST_Node*) arena_alloc(&parser->ast.arena, sizeof(NecroAST_Node), arena_allow_realloc);
-}
-
-NecroAST_Node* ast_alloc_node_local_ptr(struct NecroParser* parser, NecroAST_LocalPtr* local_ptr)
-{
-    const size_t offset = parser->ast.arena.size / sizeof(NecroAST_Node);
-    assert(offset < MAX_LOCAL_PTR);
-    *local_ptr = (uint32_t) offset;
-    NecroAST_Node* node = (NecroAST_Node*)arena_alloc(&parser->ast.arena, sizeof(NecroAST_Node), arena_allow_realloc);
-    node->source_loc = parser->tokens[parser->current_token > 0 ? (parser->current_token - 1) : 0].source_loc;
-    return node;
-}
-
 NecroAST_Node* necro_parse_ast_alloc(NecroArena* arena, NecroAST_LocalPtr* local_ptr)
 {
     const size_t offset = arena->size / sizeof(NecroAST_Node);
@@ -233,18 +217,6 @@ NecroAST_Node* necro_parse_ast_alloc(NecroArena* arena, NecroAST_LocalPtr* local
     *local_ptr = (uint32_t) offset;
     NecroAST_Node* node = (NecroAST_Node*)arena_alloc(arena, sizeof(NecroAST_Node), arena_allow_realloc);
     return node;
-}
-
-NecroAST_LocalPtr ast_last_node_ptr(NecroParser* parser)
-{
-    NecroAST_LocalPtr local_ptr = null_local_ptr;
-    if (parser->ast.arena.size > 0)
-    {
-        const size_t offset = (parser->ast.arena.size / sizeof(NecroAST_Node)) - 1;
-        assert(offset < MAX_LOCAL_PTR);
-        return (NecroAST_LocalPtr) offset;
-    }
-    return local_ptr;
 }
 
 void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern, uint32_t depth)

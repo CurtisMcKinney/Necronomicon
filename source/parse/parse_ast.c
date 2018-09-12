@@ -8,6 +8,9 @@
 #include <inttypes.h>
 #include "parse_ast.h"
 
+///////////////////////////////////////////////////////
+// Create
+///////////////////////////////////////////////////////
 NecroAST_LocalPtr necro_parse_ast_create_constant(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_Constant constant)
 {
     NecroAST_LocalPtr local_ptr;
@@ -484,4 +487,167 @@ NecroAST_LocalPtr necro_parse_ast_create_function_type(NecroArena* arena, NecroS
     node->source_loc                  = source_loc;
     node->end_loc                     = end_loc;
     return local_ptr;
+}
+
+///////////////////////////////////////////////////////
+// Assert Eq
+///////////////////////////////////////////////////////
+void necro_parse_ast_assert_eq_go(NecroIntern* intern, NecroAST* ast1, NecroAST_LocalPtr ptr1, NecroAST* ast2, NecroAST_LocalPtr ptr2);
+
+void necro_parse_ast_assert_eq_constant(NecroIntern* intern, NecroAST* ast1, NecroAST_Node* node1, NecroAST* ast2, NecroAST_Node* node2)
+{
+    assert(node1->type == NECRO_AST_CONSTANT);
+    assert(node2->type == NECRO_AST_CONSTANT);
+    assert(node1->constant.type == node2->constant.type);
+    switch (node1->constant.type)
+    {
+    case NECRO_AST_CONSTANT_FLOAT_PATTERN:
+    case NECRO_AST_CONSTANT_FLOAT:
+        assert(node1->constant.double_literal == node2->constant.double_literal);
+        break;
+    case NECRO_AST_CONSTANT_INTEGER_PATTERN:
+    case NECRO_AST_CONSTANT_INTEGER:
+        assert(node1->constant.int_literal == node2->constant.int_literal);
+        break;
+    case NECRO_AST_CONSTANT_CHAR_PATTERN:
+    case NECRO_AST_CONSTANT_CHAR:
+        assert(node1->constant.char_literal == node2->constant.char_literal);
+        break;
+    case NECRO_AST_CONSTANT_STRING:
+        assert(strcmp(necro_intern_get_string(intern, node1->constant.symbol), necro_intern_get_string(intern, node2->constant.symbol)) == 0);
+        break;
+    }
+    UNUSED(ast1);
+    UNUSED(ast2);
+}
+
+void necro_parse_ast_assert_eq_bin_op(NecroIntern* intern, NecroAST* ast1, NecroAST_Node* node1, NecroAST* ast2, NecroAST_Node* node2)
+{
+    assert(node1->type == NECRO_AST_BIN_OP);
+    assert(node2->type == NECRO_AST_BIN_OP);
+    assert(node1->bin_op.type == node2->bin_op.type);
+    necro_parse_ast_assert_eq_go(intern, ast1, node1->bin_op.lhs, ast2, node2->bin_op.lhs);
+    necro_parse_ast_assert_eq_go(intern, ast1, node1->bin_op.rhs, ast2, node2->bin_op.rhs);
+}
+
+void necro_parse_ast_assert_eq_if_then_else(NecroIntern* intern, NecroAST* ast1, NecroAST_Node* node1, NecroAST* ast2, NecroAST_Node* node2)
+{
+    assert(node1->type == NECRO_AST_IF_THEN_ELSE);
+    assert(node2->type == NECRO_AST_IF_THEN_ELSE);
+    necro_parse_ast_assert_eq_go(intern, ast1, node1->if_then_else.if_expr, ast2, node2->if_then_else.if_expr);
+    necro_parse_ast_assert_eq_go(intern, ast1, node1->if_then_else.then_expr, ast2, node2->if_then_else.then_expr);
+    necro_parse_ast_assert_eq_go(intern, ast1, node1->if_then_else.else_expr, ast2, node2->if_then_else.else_expr);
+}
+
+void necro_parse_ast_assert_eq_top_decl(NecroIntern* intern, NecroAST* ast1, NecroAST_Node* node1, NecroAST* ast2, NecroAST_Node* node2)
+{
+    assert(node1->type == NECRO_AST_TOP_DECL);
+    assert(node2->type == NECRO_AST_TOP_DECL);
+    necro_parse_ast_assert_eq_go(intern, ast1, node1->top_declaration.declaration, ast2, node2->top_declaration.declaration);
+    necro_parse_ast_assert_eq_go(intern, ast1, node1->top_declaration.next_top_decl, ast2, node2->top_declaration.next_top_decl);
+}
+
+void necro_parse_ast_assert_eq_decl(NecroIntern* intern, NecroAST* ast1, NecroAST_Node* node1, NecroAST* ast2, NecroAST_Node* node2)
+{
+    assert(node1->type == NECRO_AST_DECL);
+    assert(node2->type == NECRO_AST_DECL);
+    necro_parse_ast_assert_eq_go(intern, ast1, node1->declaration.declaration_impl, ast2, node2->declaration.declaration_impl);
+    necro_parse_ast_assert_eq_go(intern, ast1, node1->declaration.next_declaration, ast2, node2->declaration.next_declaration);
+}
+
+void necro_parse_ast_assert_eq_simple_assignment(NecroIntern* intern, NecroAST* ast1, NecroAST_Node* node1, NecroAST* ast2, NecroAST_Node* node2)
+{
+    assert(node1->type == NECRO_AST_SIMPLE_ASSIGNMENT);
+    assert(node2->type == NECRO_AST_SIMPLE_ASSIGNMENT);
+    assert(strcmp(necro_intern_get_string(intern, node1->simple_assignment.variable_name), necro_intern_get_string(intern, node2->simple_assignment.variable_name)) == 0);
+    necro_parse_ast_assert_eq_go(intern, ast1, node1->simple_assignment.initializer, ast2, node2->simple_assignment.initializer);
+    necro_parse_ast_assert_eq_go(intern, ast1, node1->simple_assignment.rhs, ast2, node2->simple_assignment.rhs);
+}
+
+void necro_parse_ast_assert_eq_apats_assignment(NecroIntern* intern, NecroAST* ast1, NecroAST_Node* node1, NecroAST* ast2, NecroAST_Node* node2)
+{
+    assert(node1->type == NECRO_AST_APATS_ASSIGNMENT);
+    assert(node2->type == NECRO_AST_APATS_ASSIGNMENT);
+    assert(strcmp(necro_intern_get_string(intern, node1->apats_assignment.variable_name), necro_intern_get_string(intern, node2->apats_assignment.variable_name)) == 0);
+    necro_parse_ast_assert_eq_go(intern, ast1, node1->apats_assignment.apats, ast2, node2->apats_assignment.apats);
+    necro_parse_ast_assert_eq_go(intern, ast1, node1->apats_assignment.rhs, ast2, node2->apats_assignment.rhs);
+}
+
+void necro_parse_ast_assert_eq_pat_assignment(NecroIntern* intern, NecroAST* ast1, NecroAST_Node* node1, NecroAST* ast2, NecroAST_Node* node2)
+{
+    assert(node1->type == NECRO_AST_PAT_ASSIGNMENT);
+    assert(node2->type == NECRO_AST_PAT_ASSIGNMENT);
+    necro_parse_ast_assert_eq_go(intern, ast1, node1->pat_assignment.pat, ast2, node2->pat_assignment.pat);
+    necro_parse_ast_assert_eq_go(intern, ast1, node1->pat_assignment.rhs, ast2, node2->pat_assignment.rhs);
+}
+
+void necro_parse_ast_assert_eq_var(NecroIntern* intern, NecroAST* ast1, NecroAST_Node* node1, NecroAST* ast2, NecroAST_Node* node2)
+{
+    assert(node1->type == NECRO_AST_VARIABLE);
+    assert(node2->type == NECRO_AST_VARIABLE);
+    assert(strcmp(necro_intern_get_string(intern, node1->variable.symbol), necro_intern_get_string(intern, node2->variable.symbol)) == 0);
+    necro_parse_ast_assert_eq_go(intern, ast1, node1->variable.initializer, ast2, node2->variable.initializer);
+    assert(node2->variable.var_type == node2->variable.var_type);
+}
+
+void necro_parse_ast_assert_eq_go(NecroIntern* intern, NecroAST* ast1, NecroAST_LocalPtr ptr1, NecroAST* ast2, NecroAST_LocalPtr ptr2)
+{
+    if (ptr1 == null_local_ptr && ptr2 == null_local_ptr)
+        return;
+    assert(ptr1 != null_local_ptr);
+    assert(ptr2 != null_local_ptr);
+    NecroAST_Node* node1 = ast_get_node(ast1, ptr1);
+    NecroAST_Node* node2 = ast_get_node(ast2, ptr2);
+    assert(node1->type == node2->type);
+    switch (node1->type)
+    {
+    // case NECRO_AST_UN_OP:                  necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_CONSTANT:               necro_parse_ast_assert_eq_constant(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_BIN_OP:                 necro_parse_ast_assert_eq_bin_op(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_IF_THEN_ELSE:           necro_parse_ast_assert_eq_if_then_else(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_TOP_DECL:               necro_parse_ast_assert_eq_top_decl(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_DECL:                   necro_parse_ast_assert_eq_decl(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_SIMPLE_ASSIGNMENT:      necro_parse_ast_assert_eq_simple_assignment(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_APATS_ASSIGNMENT:       necro_parse_ast_assert_eq_apats_assignment(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_PAT_ASSIGNMENT:         necro_parse_ast_assert_eq_pat_assignment(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_RIGHT_HAND_SIDE:        necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_LET_EXPRESSION:         necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_FUNCTION_EXPRESSION:    necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_VARIABLE:               necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_APATS:                  necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_WILDCARD:               necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_LAMBDA:                 necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_DO:                     necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_PAT_EXPRESSION:         necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_LIST_NODE:              necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_EXPRESSION_LIST:        necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_EXPRESSION_ARRAY:       necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_TUPLE:                  necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_BIND_ASSIGNMENT:            necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_PAT_BIND_ASSIGNMENT:        necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_ARITHMETIC_SEQUENCE:    necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_CASE:                   necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_CASE_ALTERNATIVE:       necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_CONID:                  necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_TYPE_APP:               necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_BIN_OP_SYM:             necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_OP_LEFT_SECTION:        necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_OP_RIGHT_SECTION:       necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_CONSTRUCTOR:            necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_SIMPLE_TYPE:            necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_DATA_DECLARATION:       necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_TYPE_CLASS_CONTEXT:     necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_TYPE_CLASS_DECLARATION: necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_TYPE_CLASS_INSTANCE:    necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_TYPE_SIGNATURE:         necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    case NECRO_AST_FUNCTION_TYPE:          necro_parse_ast_assert_eq_var(intern, ast1, node1, ast2, node2); break;
+    default:
+        assert(false);
+        return;
+    }
+}
+
+void necro_parse_ast_assert_eq(NecroIntern* intern, NecroAST* ast1, NecroAST* ast2)
+{
+    necro_parse_ast_assert_eq_go(intern, ast1, ast1->root, ast2, ast2->root);
 }

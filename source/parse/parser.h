@@ -13,7 +13,6 @@
 
 /*
     TODO:
-        * Fix comments screwing things up!!
         * correct source_locs!!!!!
         * Consider removing OpPats
         * Better Type Class error messages
@@ -624,7 +623,6 @@ typedef struct
 //=====================================================
 // AST
 //=====================================================
-struct NecroParser;
 typedef struct
 {
     NecroArena        arena;
@@ -634,7 +632,7 @@ NecroAST       necro_empty_ast();
 void           necro_destroy_ast(NecroAST* ast);
 NecroAST_Node* ast_get_node(NecroAST* ast, NecroAST_LocalPtr local_ptr);
 NecroAST_Node* ast_get_root_node(NecroAST* ast);
-NecroAST_Node* ast_alloc_node_local_ptr(struct NecroParser* parser, NecroAST_LocalPtr* local_ptr);
+NecroAST_Node* necro_parse_ast_alloc(NecroArena* arena, NecroAST_LocalPtr* local_ptr);
 void           print_ast(NecroAST* ast, NecroIntern* intern, NecroAST_LocalPtr root_node_ptr);
 
 //=====================================================

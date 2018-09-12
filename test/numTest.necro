@@ -99,11 +99,13 @@ synths = sinOsc 440 + sinOsc 32.3 - 32 * sinOsc 33
 rationalFrac :: Rational
 rationalFrac = 0.3
 
-badList :: [Int]
-badList = [0, 0, 2]
+goodList :: [Int]
+goodList = [0, 0, 2]
+
+coolArray :: Array Float
+coolArray = {0.1, 0.2, 0.3}
 
 -- comments
-
 floatTest :: Bool
 floatTest = 3.1 > 3.3
 

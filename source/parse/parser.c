@@ -3281,7 +3281,7 @@ NecroResult(NecroAST_LocalPtr) parse_type(NecroParser* parser)
         consume_token(parser);
         NecroAST_LocalPtr next_after_arrow_ptr = necro_try(NecroAST_LocalPtr, parse_type(parser));
         if (next_after_arrow_ptr == null_local_ptr)
-            return necro_type_expected_type_error(peek_token(parser)->source_loc, peek_token(parser)->end_loc);
+            return necro_type_expected_type_error(source_loc, peek_token(parser)->end_loc);
         NecroAST_LocalPtr ptr = necro_parse_ast_create_function_type(&parser->ast.arena, source_loc, peek_token(parser)->end_loc, ty_ptr, next_after_arrow_ptr);
         return ok_NecroAST_LocalPtr(ptr);
     }

@@ -39,6 +39,8 @@ typedef struct
     size_t pos;
 } NecroSourceLoc;
 
+#define zero_loc ((NecroSourceLoc) { 0, 0, 0 })
+
 typedef struct
 {
     char              error_message[NECRO_MAX_ERROR_MESSAGE_LENGTH];

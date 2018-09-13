@@ -50,6 +50,6 @@ NecroAST_LocalPtr necro_parse_ast_create_instance(NecroArena* arena, NecroSource
 NecroAST_LocalPtr necro_parse_ast_create_type_signature(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr var_ast, NecroAST_LocalPtr context_ast, NecroAST_LocalPtr type_ast, NECRO_SIG_TYPE sig_type);
 NecroAST_LocalPtr necro_parse_ast_create_function_type(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr lhs_ast, NecroAST_LocalPtr rhs_ast);
 
-void              necro_parse_ast_assert_eq(NecroIntern* intern, NecroAST* ast1, NecroAST* ast2);
+void              necro_parse_ast_assert_eq(NecroIntern* intern1, NecroAST* ast1, NecroIntern* intern2, NecroAST* ast2);
 
 #endif // PARSE_AST_TEST

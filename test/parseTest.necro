@@ -1,0 +1,67 @@
+constant1 = 10
+constant2 = 55.8
+constant3 = 'c'
+constant4 = "This is a test"
+
+binop1 = 10 + 5 * 3
+binop2 = 1000.0 <> 3.2 |> 44.4
+
+initialValue ~ 10 = initialValue + 1
+
+ifThenElse = if True then 0.0 else 1.0
+
+apats f x = f x
+
+letX = let x = Nothing in x
+
+wildCard _ = 333
+
+giveUsLambdas = \w -> w 'a'
+
+(l, r) = (True, False)
+
+expressionList = ["one", "two", "three"]
+
+expressionArray = {'1', '2', '3'}
+
+leftSection = (10 +)
+
+rightSection = (/ 100)
+
+patIsATerribleName = pat 0 1 _ 2 3
+
+-- decl f = f x
+--   where
+--     x = 1000
+
+-- doBlock = do
+--   d <- pure 10
+--   pure d
+
+
+-- patDo = do
+--   Just p <- pure 100
+--   pure p
+--
+-- arithmeticSequence1 = [0..]
+-- arithmeticSequence1 = [0..100]
+-- arithmeticSequence2 = [0, 100..1000]
+--
+-- caseExpr :: Maybe Int -> Int
+-- caseExpr =
+--   case Nothing of
+--     Nothing -> 0
+--     Just i  -> i
+
+-- constructor (Just (Just x)) = x
+
+-- data Either a b = Left a | Right b
+--
+-- context1 :: Num a => a -> a
+-- context2 :: (Num a, Show b) => a -> b -> b
+--
+-- class Eq a => HaveSomeClass a where
+--   methodToTheMadness :: Int -> a
+--
+-- instance HaveSomeClass Bool where
+--   methodToTheMadness _ = True

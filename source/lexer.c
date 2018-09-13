@@ -413,16 +413,18 @@ NecroResult(bool) necro_lex_string(NecroLexer* lexer)
     if (code_point != '\"')
         return ok_bool(necro_lex_rewind(lexer));
     size_t         beginning  = lexer->loc.pos;
+    size_t         end        = lexer->loc.pos;
     code_point = necro_next_char(lexer);
     while (code_point != '\"' && code_point != '\0' && code_point != '\n')
     {
+        end        = lexer->loc.pos;
         code_point = necro_next_char(lexer);
     }
     if (code_point == '\0' || code_point == '\n')
     {
         return necro_malformed_string_error(source_loc, lexer->loc);
     }
-    size_t           length = lexer->loc.pos - beginning;
+    size_t           length = end - beginning;
     NecroLexToken    token  = (NecroLexToken) { .source_loc = source_loc, .end_loc = lexer->loc, .token = NECRO_LEX_STRING_LITERAL };
     NecroStringSlice slice  = { lexer->str + beginning, length };
     token.symbol            = necro_intern_string_slice(lexer->intern, slice);

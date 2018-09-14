@@ -212,10 +212,11 @@ const char* con_type_string(NECRO_CON_TYPE con_type)
 // =====================================================
 NecroAST_Node* necro_parse_ast_alloc(NecroArena* arena, NecroAST_LocalPtr* local_ptr)
 {
-    const size_t offset = arena->size / sizeof(NecroAST_Node);
-    assert(offset < MAX_LOCAL_PTR);
-    *local_ptr = (uint32_t) offset;
     NecroAST_Node* node = (NecroAST_Node*)arena_alloc(arena, sizeof(NecroAST_Node), arena_allow_realloc);
+    const size_t offset = node - ((NecroAST_Node*)arena->region);
+    assert(offset < MAX_LOCAL_PTR);
+    assert((((NecroAST_Node*)arena->region) + offset) == node);
+    *local_ptr = offset;
     return node;
 }
 
@@ -242,9 +243,11 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         switch (ast_node->constant.type)
         {
         case NECRO_AST_CONSTANT_FLOAT:
+        case NECRO_AST_CONSTANT_FLOAT_PATTERN:
             printf("(%f)\n", ast_node->constant.double_literal);
             break;
         case NECRO_AST_CONSTANT_INTEGER:
+        case NECRO_AST_CONSTANT_INTEGER_PATTERN:
 #if WIN32
             printf("(%lli)\n", ast_node->constant.int_literal);
 #else
@@ -259,11 +262,15 @@ void print_ast_impl(NecroAST* ast, NecroAST_Node* ast_node, NecroIntern* intern,
         }
         break;
         case NECRO_AST_CONSTANT_CHAR:
+        case NECRO_AST_CONSTANT_CHAR_PATTERN:
             printf("(\'%c\')\n", ast_node->constant.char_literal);
             break;
         // case NECRO_AST_CONSTANT_BOOL:
         //     printf("(%s)\n", ast_node->constant.boolean_literal ? " True" : "False");
         //     break;
+        default:
+            assert(false);
+            break;
         }
         break;
 

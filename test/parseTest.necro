@@ -28,40 +28,48 @@ leftSection = (10 +)
 
 rightSection = (/ 100)
 
-patIsATerribleName = pat 0 1 _ 2 3
+patIsATerribleName = pat 0 1 _ 3
 
--- decl f = f x
---   where
---     x = 1000
+constructor1 (Just (Just x)) = x
+constructor2 [0, 1, 2]       = 1
+constructor3 (x, y, z)       = z
 
--- doBlock = do
---   d <- pure 10
---   pure d
+binOpSym (x : y : xs) = xs
 
+arithmeticSequence1 = [0..]
+arithmeticSequence2 = [0..100]
+arithmeticSequence3 = [0, 100..1000]
 
--- patDo = do
---   Just p <- pure 100
---   pure p
---
--- arithmeticSequence1 = [0..]
--- arithmeticSequence1 = [0..100]
--- arithmeticSequence2 = [0, 100..1000]
---
--- caseExpr :: Maybe Int -> Int
--- caseExpr =
---   case Nothing of
---     Nothing -> 0
---     Just i  -> i
+case1 =
+  case Nothing of
+    Nothing -> 0
+    Just i  -> i
 
--- constructor (Just (Just x)) = x
+case2 =
+  case x of
+    [0, 1, 2] -> 1
+    z : zs    -> z
 
--- data Either a b = Left a | Right b
---
--- context1 :: Num a => a -> a
--- context2 :: (Num a, Show b) => a -> b -> b
---
--- class Eq a => HaveSomeClass a where
---   methodToTheMadness :: Int -> a
---
--- instance HaveSomeClass Bool where
---   methodToTheMadness _ = True
+decl = x - 3
+  where
+    x = 1000
+
+doBlock = do
+  d <- pure 10
+  pure d
+
+patDo = do
+  Just p <- pure 100
+  pure p
+
+data Either a b = Left a | Right b
+
+typeSig1 :: Maybe Int -> Int
+typeSig2 :: Num a => a -> a
+typeSig3 :: (Num a, Show b) => a -> b -> b
+
+class Eq a => HaveSomeClass a where
+  methodToTheMadness :: Int -> a
+
+instance HaveSomeClass Bool where
+  methodToTheMadness _ = True

@@ -10,6 +10,6 @@
 #include <stdbool.h>
 #include "parser.h"
 
-void necro_test_parser();
+void necro_parse_test();
 
 #endif // PARSE_TEST_H

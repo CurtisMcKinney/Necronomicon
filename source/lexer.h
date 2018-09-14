@@ -152,6 +152,6 @@ typedef struct
 
 NecroResult(void) necro_lex(const char* str, size_t str_length, NecroIntern* intern, NecroLexTokenVector* out_tokens, NecroCompileInfo info);
 const char*       necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
-void              necro_test_lexer();
+void              necro_lex_test();
 
 #endif // LEXER_H

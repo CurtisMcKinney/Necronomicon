@@ -41,10 +41,10 @@ typedef struct
     bool                            is_enum;
     NecroSourceLoc                  source_loc;
     struct NecroScope*              scope;
-    NecroASTNode*                   ast;
+    NecroAst*                   ast;
     struct NecroCoreAST_Expression* core_ast;
     NecroDeclarationGroup*          declaration_group;
-    NecroAST_Node_Reified*          optional_type_signature;
+    NecroAst*          optional_type_signature;
     NecroType*                      type;
     NecroType*                      closure_type;
     NECRO_TYPE_STATUS               type_status;
@@ -119,16 +119,16 @@ void                necro_scoped_symtable_new_type_scope(NecroScopedSymTable* ta
 void                necro_scoped_symtable_pop_type_scope(NecroScopedSymTable* table);
 
 // Names API
-NECRO_RETURN_CODE   necro_build_scopes(NecroScopedSymTable* table, NecroAST_Reified* ast);
-void                necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_Reified* input_node);
+NECRO_RETURN_CODE   necro_build_scopes(NecroScopedSymTable* table, NecroAstArena* ast);
+void                necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input_node);
 NecroID             necro_this_scope_find(NecroScope* scope, NecroSymbol symbol);
 NecroID             necro_scope_find(NecroScope* scope, NecroSymbol symbol);
 NecroID             necro_scoped_symtable_new_symbol_info(NecroScopedSymTable* table, NecroScope* scope, NecroSymbolInfo info);
 void                necro_scope_set_last_introduced_id(NecroScope* scope, NecroID id);
 NecroID             necro_symtable_manual_new_symbol(NecroSymTable* symtable, NecroSymbol symbol);
 
-NecroSymbolInfo*    necro_symtable_get_type_class_declaration_info(NecroSymTable* symtable, NecroAST_Node_Reified* ast);
-NecroSymbolInfo*    necro_symtable_get_type_class_instance_info(NecroSymTable* symtable, NecroAST_Node_Reified* ast);
+NecroSymbolInfo*    necro_symtable_get_type_class_declaration_info(NecroSymTable* symtable, NecroAst* ast);
+NecroSymbolInfo*    necro_symtable_get_type_class_instance_info(NecroSymTable* symtable, NecroAst* ast);
 NecroVar            necro_get_top_level_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name);
 NecroVar            necro_get_type_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name);
 

@@ -22,12 +22,12 @@ typedef struct NecroRenamer
     bool                   should_free_type_declare;
     NecroDeclarationGroup* current_declaration_group;
     NecroPagedArena*       arena;
-    NecroAST_Node_Reified* current_type_sig_ast;
+    NecroAst* current_type_sig_ast;
 } NecroRenamer;
 
 NecroRenamer      necro_create_renamer(NecroScopedSymTable* scoped_symtable, NecroIntern*);
 void              necro_destroy_renamer(NecroRenamer* renamer);
-NECRO_RETURN_CODE necro_rename_declare_pass(NecroRenamer* renamer, NecroPagedArena* ast_arena, NecroAST_Node_Reified* input_ast);
-NECRO_RETURN_CODE necro_rename_var_pass(NecroRenamer* renamer, NecroPagedArena* ast_arena, NecroAST_Node_Reified* input_ast);
+NECRO_RETURN_CODE necro_rename_declare_pass(NecroRenamer* renamer, NecroPagedArena* ast_arena, NecroAst* input_ast);
+NECRO_RETURN_CODE necro_rename_var_pass(NecroRenamer* renamer, NecroPagedArena* ast_arena, NecroAst* input_ast);
 
 #endif // RENAMER_H

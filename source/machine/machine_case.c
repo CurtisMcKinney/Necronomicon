@@ -70,7 +70,7 @@ typedef struct
 {
     NecroPatternPath*          path;
     struct NecroDecisionTree** cases;
-    NecroAST_Constant_Reified* constants;
+    NecroAstConstant* constants;
     size_t                     num_cases;
 } NecroDecisionTreeLitSwitch;
 
@@ -152,7 +152,7 @@ NecroDecisionTree* necro_create_decision_tree_switch(NecroMachineProgram* progra
     return tree_switch;
 }
 
-NecroDecisionTree* necro_create_decision_tree_lit_switch(NecroMachineProgram* program, NecroPatternPath* path, NecroDecisionTree** cases, NecroAST_Constant_Reified* constants, size_t num_cases)
+NecroDecisionTree* necro_create_decision_tree_lit_switch(NecroMachineProgram* program, NecroPatternPath* path, NecroDecisionTree** cases, NecroAstConstant* constants, size_t num_cases)
 {
     NecroDecisionTree* tree_switch         = necro_paged_arena_alloc(&program->arena, sizeof(NecroDecisionTree));
     tree_switch->type                      = NECRO_DECISION_TREE_LIT_SWITCH;
@@ -232,7 +232,7 @@ NecroPatternMatrix necro_create_pattern_matrix_from_case(NecroMachineProgram* pr
             NecroSymbolInfo* info = necro_symtable_get(program->symtable, alts->altCon->var.id);
             if (info->is_constructor && info->arity == 0 && info->is_enum)
             {
-                *alts->altCon = *necro_create_core_lit(&program->arena, (NecroAST_Constant_Reified) { .type = NECRO_AST_CONSTANT_INTEGER_PATTERN, .int_literal = info->con_num });
+                *alts->altCon = *necro_create_core_lit(&program->arena, (NecroAstConstant) { .type = NECRO_AST_CONSTANT_INTEGER_PATTERN, .int_literal = info->con_num });
                 matrix.patterns[this_rows][0] = alts->altCon;
                 path->type                    = program->necro_int_type;
             }
@@ -247,7 +247,7 @@ NecroPatternMatrix necro_create_pattern_matrix_from_case(NecroMachineProgram* pr
             NecroSymbolInfo* info = necro_symtable_get(program->symtable, alts->altCon->data_con.condid.id);
             if (info->is_constructor && info->arity == 0 && info->is_enum)
             {
-                *alts->altCon = *necro_create_core_lit(&program->arena, (NecroAST_Constant_Reified) { .type = NECRO_AST_CONSTANT_INTEGER_PATTERN, .int_literal = info->con_num });
+                *alts->altCon = *necro_create_core_lit(&program->arena, (NecroAstConstant) { .type = NECRO_AST_CONSTANT_INTEGER_PATTERN, .int_literal = info->con_num });
                 matrix.patterns[this_rows][0] = alts->altCon;
                 path->type                    = program->necro_int_type;
             }
@@ -382,7 +382,7 @@ NecroPatternMatrix necro_specialize_matrix(NecroMachineProgram* program, NecroPa
     return specialized_matrix;
 }
 
-NecroPatternMatrix necro_specialize_lit_matrix(NecroMachineProgram* program, NecroPatternMatrix* matrix, NecroAST_Constant_Reified lit)
+NecroPatternMatrix necro_specialize_lit_matrix(NecroMachineProgram* program, NecroPatternMatrix* matrix, NecroAstConstant lit)
 {
     size_t new_rows    = 0;
     size_t new_columns = max(0, matrix->columns - 1);
@@ -544,12 +544,12 @@ NecroDecisionTree* necro_finish_compile_literal_pattern_matrix(NecroMachineProgr
     }
     matrix                               = necro_drop_columns(matrix, num_drop);
     NecroDecisionTree**        cases     = necro_paged_arena_alloc(&program->arena, num_cases * sizeof(NecroDecisionTree*));
-    NecroAST_Constant_Reified* constants = necro_paged_arena_alloc(&program->arena, num_cases * sizeof(NecroAST_Constant_Reified));
+    NecroAstConstant* constants = necro_paged_arena_alloc(&program->arena, num_cases * sizeof(NecroAstConstant));
     for (size_t r = 0; r < matrix->rows; ++r)
     {
         if (matrix->patterns[r][0] == NULL || matrix->patterns[r][0]->expr_type == NECRO_CORE_EXPR_VAR)
         {
-            NecroAST_Constant_Reified lit = (NecroAST_Constant_Reified) { .type = NECRO_AST_CONSTANT_STRING, .symbol = (NecroSymbol) { 0, 0 } };
+            NecroAstConstant lit = (NecroAstConstant) { .type = NECRO_AST_CONSTANT_STRING, .symbol = (NecroSymbol) { 0, 0 } };
             NecroPatternMatrix con_matrix = necro_specialize_lit_matrix(program, matrix, lit);
             cases[r]                      = necro_compile_pattern_matrix(program, &con_matrix, top_case_ast);
             constants[r]                  = lit;
@@ -572,7 +572,7 @@ NecroDecisionTree* necro_finish_compile_pattern_matrix(NecroMachineProgram* prog
     NecroDecisionTree** cases     = necro_paged_arena_alloc(&program->arena, num_cons * sizeof(NecroDecisionTree*));
     NecroCon*           cons      = necro_paged_arena_alloc(&program->arena, num_cons * sizeof(NecroCon));
     NecroSymbolInfo*    info      = necro_symtable_get(program->symtable, pattern_type->con.con.id);
-    NecroASTNode*       data_cons = info->ast->data_declaration.constructor_list;
+    NecroAst*       data_cons = info->ast->data_declaration.constructor_list;
     size_t              con_num   = 0;
     while (data_cons != NULL)
     {

@@ -299,15 +299,15 @@ NecroCoreAST_Expression* necro_closure_conversion_var(NecroClosureConversion* cc
                 necro_create_core_app(&cc->arena,
                     necro_create_core_var(&cc->arena, necro_con_to_var(cc->dyn_state_con)),
                     necro_create_core_var(&cc->arena, var_ast->var)),
-                necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER }));
+                necro_create_core_lit(&cc->arena, (NecroAstConstant) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER }));
         NecroCoreAST_Expression* con_ast =
             necro_create_core_app(&cc->arena,
                 necro_create_core_app(&cc->arena,
                     necro_create_core_app(&cc->arena,
                         necro_create_core_app(&cc->arena,
                             necro_create_core_var(&cc->arena, necro_con_to_var(cc->closure_con)),
-                            necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = info->arity, .type = NECRO_AST_CONSTANT_INTEGER })),
-                        necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER })),
+                            necro_create_core_lit(&cc->arena, (NecroAstConstant) { .int_literal = info->arity, .type = NECRO_AST_CONSTANT_INTEGER })),
+                        necro_create_core_lit(&cc->arena, (NecroAstConstant) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER })),
                     state_ast),
                 var_ast);
         return con_ast;
@@ -564,14 +564,14 @@ NecroCoreAST_Expression* necro_closure_conversion_app(NecroClosureConversion* cc
                 necro_create_core_app(&cc->arena,
                     necro_create_core_var(&cc->arena, necro_con_to_var(cc->dyn_state_con)),
                     necro_create_core_var(&cc->arena, app->var)),
-                necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER }));
+                necro_create_core_lit(&cc->arena, (NecroAstConstant) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER }));
         NecroCoreAST_Expression* result =
                 necro_create_core_app(&cc->arena,
                     necro_create_core_app(&cc->arena,
                         necro_create_core_app(&cc->arena,
                             necro_create_core_var(&cc->arena, necro_con_to_var(cc->closure_con)),
-                            necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = arity, .type = NECRO_AST_CONSTANT_INTEGER })),
-                        necro_create_core_lit(&cc->arena, (NecroAST_Constant_Reified) { .int_literal = num_args, .type = NECRO_AST_CONSTANT_INTEGER })),
+                            necro_create_core_lit(&cc->arena, (NecroAstConstant) { .int_literal = arity, .type = NECRO_AST_CONSTANT_INTEGER })),
+                        necro_create_core_lit(&cc->arena, (NecroAstConstant) { .int_literal = num_args, .type = NECRO_AST_CONSTANT_INTEGER })),
                     state_ast);
         result = necro_create_core_app(&cc->arena, result, necro_create_core_var(&cc->arena, app->var));
         while (args != NULL)

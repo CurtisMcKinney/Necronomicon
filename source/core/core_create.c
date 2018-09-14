@@ -59,7 +59,7 @@ NecroCoreAST_Expression* necro_create_core_var(NecroPagedArena* arena, NecroVar 
     return ast;
 }
 
-NecroCoreAST_Expression* necro_create_core_lit(NecroPagedArena* arena, NecroAST_Constant_Reified lit)
+NecroCoreAST_Expression* necro_create_core_lit(NecroPagedArena* arena, NecroAstConstant lit)
 {
     NecroCoreAST_Expression* ast = necro_paged_arena_alloc(arena, sizeof(NecroCoreAST_Expression));
     ast->expr_type               = NECRO_CORE_EXPR_LIT;

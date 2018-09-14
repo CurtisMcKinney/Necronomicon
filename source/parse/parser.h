@@ -3,8 +3,8 @@
  * Proprietary and confidential
  */
 
-#ifndef PARSER_H
-#define PARSER_H 1
+#ifndef NECRO_PARSER_H
+#define NECRO_PARSER_H 1
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -20,8 +20,8 @@
 */
 
 // Local offset into AST arena
-typedef size_t NecroAST_LocalPtr;
-static const NecroAST_LocalPtr null_local_ptr = (size_t) -1;
+typedef size_t NecroParseAstLocalPtr;
+static const NecroParseAstLocalPtr null_local_ptr = (size_t) -1;
 
 typedef enum
 {
@@ -68,47 +68,47 @@ typedef enum
     NECRO_AST_TYPE_SIGNATURE,
     NECRO_AST_FUNCTION_TYPE,
     // NECRO_AST_MODULE,
-} NecroAST_NodeType;
+} NECRO_AST_TYPE;
 
 //=====================================================
 // AST FunctionType
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr type;
-    NecroAST_LocalPtr next_on_arrow;
-} NecroAST_FunctionType;
+    NecroParseAstLocalPtr type;
+    NecroParseAstLocalPtr next_on_arrow;
+} NecroParseAstFunctionType;
 
 //=====================================================
 // AST TypeClassInstance
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr context;// optional, null_local_ptr if not present
-    NecroAST_LocalPtr qtycls;
-    NecroAST_LocalPtr inst;
-    NecroAST_LocalPtr declarations; // Points to the next in the list, null_local_ptr if the end
-} NecroAST_TypeClassInstance;
+    NecroParseAstLocalPtr context;// optional, null_local_ptr if not present
+    NecroParseAstLocalPtr qtycls;
+    NecroParseAstLocalPtr inst;
+    NecroParseAstLocalPtr declarations; // Points to the next in the list, null_local_ptr if the end
+} NecroParseAstTypeClassInstance;
 
 //=====================================================
 // AST TypeClassDeclaration
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr context; // optional, null_local_ptr if not present
-    NecroAST_LocalPtr tycls;
-    NecroAST_LocalPtr tyvar;
-    NecroAST_LocalPtr declarations; // Points to the next in the list, null_local_ptr if the end
-} NecroAST_TypeClassDeclaration;
+    NecroParseAstLocalPtr context; // optional, null_local_ptr if not present
+    NecroParseAstLocalPtr tycls;
+    NecroParseAstLocalPtr tyvar;
+    NecroParseAstLocalPtr declarations; // Points to the next in the list, null_local_ptr if the end
+} NecroParseAstTypeClassDeclaration;
 
 //=====================================================
 // AST TypeClassContext
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr conid;
-    NecroAST_LocalPtr varid;
-} NecroAST_TypeClassContext;
+    NecroParseAstLocalPtr conid;
+    NecroParseAstLocalPtr varid;
+} NecroParseAstTypeClassContext;
 
 //=====================================================
 // AST TypeSignature
@@ -121,57 +121,57 @@ typedef enum
 
 typedef struct
 {
-    NecroAST_LocalPtr var;
-    NecroAST_LocalPtr context; // optional, null_local_ptr if not present
-    NecroAST_LocalPtr type;
-    NECRO_SIG_TYPE    sig_type;
-} NecroAST_TypeSignature;
+    NecroParseAstLocalPtr var;
+    NecroParseAstLocalPtr context; // optional, null_local_ptr if not present
+    NecroParseAstLocalPtr type;
+    NECRO_SIG_TYPE        sig_type;
+} NecroParseAstTypeSignature;
 
 //=====================================================
 // AST DataDeclaration
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr simpletype;
-    NecroAST_LocalPtr constructor_list; // Points to the next in the list, null_local_ptr if the end
-} NecroAST_DataDeclaration;
+    NecroParseAstLocalPtr simpletype;
+    NecroParseAstLocalPtr constructor_list; // Points to the next in the list, null_local_ptr if the end
+} NecroParseAstDataDeclaration;
 
 //=====================================================
 // AST TypeConstructor
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr conid;
-    NecroAST_LocalPtr arg_list; // Points to the next in the list, null_local_ptr if the end
-} NecroAST_Constructor;
+    NecroParseAstLocalPtr conid;
+    NecroParseAstLocalPtr arg_list; // Points to the next in the list, null_local_ptr if the end
+} NecroParseAstConstructor;
 
 //=====================================================
 // AST SimpleType
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr type_con;
-    NecroAST_LocalPtr type_var_list; // Points to the next in the list, null_local_ptr if the end
-} NecroAST_SimpleType;
+    NecroParseAstLocalPtr type_con;
+    NecroParseAstLocalPtr type_var_list; // Points to the next in the list, null_local_ptr if the end
+} NecroParseAstSimpleType;
 
 //=====================================================
 // AST BinOpSym
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr left;
-    NecroAST_LocalPtr op;
-    NecroAST_LocalPtr right;
-} NecroAST_BinOpSym;
+    NecroParseAstLocalPtr left;
+    NecroParseAstLocalPtr op;
+    NecroParseAstLocalPtr right;
+} NecroParseAstBinOpSym;
 
 //=====================================================
 // AST Type App
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr ty;
-    NecroAST_LocalPtr next_ty; // Points to the next in the list, null_local_ptr if the end
-} NecroAST_TypeApp;
+    NecroParseAstLocalPtr ty;
+    NecroParseAstLocalPtr next_ty; // Points to the next in the list, null_local_ptr if the end
+} NecroParseAstTypeApp;
 
 //=====================================================
 // AST ConID
@@ -183,31 +183,30 @@ typedef enum
     NECRO_CON_DATA_DECLARATION,
     NECRO_CON_TYPE_DECLARATION,
 } NECRO_CON_TYPE;
-const char* con_type_string(NECRO_CON_TYPE symbol_type);
 
 typedef struct
 {
     NecroSymbol    symbol;
     NECRO_CON_TYPE con_type;
-} NecroAST_ConID;
+} NecroParseAstConId;
 
 //=====================================================
 // AST Case
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr expression;
-    NecroAST_LocalPtr alternatives;
-} NecroAST_Case;
+    NecroParseAstLocalPtr expression;
+    NecroParseAstLocalPtr alternatives;
+} NecroParseAstCase;
 
 //=====================================================
 // AST CaseAlternative
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr pat;
-    NecroAST_LocalPtr body;
-} NecroAST_CaseAlternative;
+    NecroParseAstLocalPtr pat;
+    NecroParseAstLocalPtr body;
+} NecroParseAstCaseAlternative;
 
 //=====================================================
 // AST Module
@@ -219,7 +218,7 @@ typedef struct
 typedef struct
 {
     uint8_t _pad;
-} NecroAST_Undefined;
+} NecroParseAstUndefined;
 
 //=====================================================
 // AST Constant
@@ -234,19 +233,19 @@ typedef enum
     NECRO_AST_CONSTANT_FLOAT_PATTERN,
     NECRO_AST_CONSTANT_INTEGER_PATTERN,
     NECRO_AST_CONSTANT_CHAR_PATTERN,
-} NecroAST_ConstantType;
+} NECRO_CONSTANT_TYPE;
 
 typedef struct
 {
     union
     {
-        double double_literal;
-        int64_t int_literal;
+        double      double_literal;
+        int64_t     int_literal;
         NecroSymbol symbol;
-        uint32_t char_literal;
+        uint32_t    char_literal;
     };
-    NecroAST_ConstantType type;
-} NecroAST_Constant;
+    NECRO_CONSTANT_TYPE type;
+} NecroParseAstConstant;
 
 //=====================================================
 // AST Unary Operation
@@ -300,35 +299,35 @@ typedef enum
     NECRO_BIN_OP_FBY,
     NECRO_BIN_OP_COUNT,
     NECRO_BIN_OP_UNDEFINED = NECRO_BIN_OP_COUNT
-} NecroAST_BinOpType;
+} NECRO_BIN_OP_TYPE;
 
 typedef struct
 {
-    NecroAST_LocalPtr  lhs;
-    NecroAST_LocalPtr  rhs;
-    NecroAST_BinOpType type;
-    NecroSymbol        symbol;
-} NecroAST_BinOp;
+    NecroParseAstLocalPtr lhs;
+    NecroParseAstLocalPtr rhs;
+    NECRO_BIN_OP_TYPE     type;
+    NecroSymbol           symbol;
+} NecroParseAstBinOp;
 
 //=====================================================
 // AST Op Left Section
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr  left;
-    NecroAST_BinOpType type;
-    NecroSymbol        symbol;
-} NecroAST_OpLeftSection;
+    NecroParseAstLocalPtr left;
+    NECRO_BIN_OP_TYPE     type;
+    NecroSymbol           symbol;
+} NecroParseAstOpLeftSection;
 
 //=====================================================
 // AST Op Right Section
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr right;
-    NecroAST_BinOpType type;
-    NecroSymbol        symbol;
-} NecroAST_OpRightSection;
+    NecroParseAstLocalPtr right;
+    NECRO_BIN_OP_TYPE     type;
+    NecroSymbol           symbol;
+} NecroParseAstOpRightSection;
 
 //=====================================================
 // AST if then else
@@ -336,19 +335,19 @@ typedef struct
 
 typedef struct
 {
-    NecroAST_LocalPtr if_expr;
-    NecroAST_LocalPtr then_expr;
-    NecroAST_LocalPtr else_expr;
-} NecroAST_IfThenElse;
+    NecroParseAstLocalPtr if_expr;
+    NecroParseAstLocalPtr then_expr;
+    NecroParseAstLocalPtr else_expr;
+} NecroParseAstIfThenElse;
 
 //=====================================================
 // AST Right Hand Side
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr expression;
-    NecroAST_LocalPtr declarations;
-} NecroAST_RightHandSide;
+    NecroParseAstLocalPtr expression;
+    NecroParseAstLocalPtr declarations;
+} NecroParseAstRightHandSide;
 
 //=====================================================
 // AST Let Expression
@@ -356,9 +355,9 @@ typedef struct
 
 typedef struct
 {
-    NecroAST_LocalPtr expression;
-    NecroAST_LocalPtr declarations;
-} NecroAST_LetExpression;
+    NecroParseAstLocalPtr expression;
+    NecroParseAstLocalPtr declarations;
+} NecroParseAstLetExpression;
 
 //=====================================================
 // AST Simple Assignment
@@ -366,10 +365,10 @@ typedef struct
 
 typedef struct
 {
-    NecroSymbol       variable_name;
-    NecroAST_LocalPtr rhs;
-    NecroAST_LocalPtr initializer;
-} NecroAST_SimpleAssignment;
+    NecroSymbol           variable_name;
+    NecroParseAstLocalPtr rhs;
+    NecroParseAstLocalPtr initializer;
+} NecroParseAstSimpleAssignment;
 
 //=====================================================
 // AST Bind Assignment
@@ -377,104 +376,104 @@ typedef struct
 
 typedef struct
 {
-    NecroSymbol variable_name;
-    NecroAST_LocalPtr expression;
-} NecroAST_BindAssignment;
+    NecroSymbol           variable_name;
+    NecroParseAstLocalPtr expression;
+} NecroParseAstBindAssignment;
 
 //=====================================================
 // AST Pat Bind Assignment
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr pat;
-    NecroAST_LocalPtr expression;
-} NecroAST_PatBindAssignment;
+    NecroParseAstLocalPtr pat;
+    NecroParseAstLocalPtr expression;
+} NecroParseAstPatBindAssignment;
 
 //=====================================================
 // AST apats
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr apat;
-    NecroAST_LocalPtr next_apat;
-} NecroAST_Apats;
+    NecroParseAstLocalPtr apat;
+    NecroParseAstLocalPtr next_apat;
+} NecroParseAstApats;
 
 //=====================================================
 // AST Apats Assignment
 //=====================================================
 typedef struct
 {
-    NecroSymbol variable_name;
-    NecroAST_LocalPtr apats;
-    NecroAST_LocalPtr rhs;
-} NecroAST_ApatsAssignment;
+    NecroSymbol           variable_name;
+    NecroParseAstLocalPtr apats;
+    NecroParseAstLocalPtr rhs;
+} NecroParseAstApatsAssignment;
 
 //=====================================================
 // AST Pat Assignment
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr pat;
-    NecroAST_LocalPtr rhs;
-} NecroAST_PatAssignment;
+    NecroParseAstLocalPtr pat;
+    NecroParseAstLocalPtr rhs;
+} NecroParseAstPatAssignment;
 
 //=====================================================
 // AST Lambda
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr apats;
-    NecroAST_LocalPtr expression;
-} NecroAST_Lambda;
+    NecroParseAstLocalPtr apats;
+    NecroParseAstLocalPtr expression;
+} NecroParseAstLambda;
 
 //=====================================================
 // AST List Node
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr item;
-    NecroAST_LocalPtr next_item;
-} NecroAST_ListNode;
+    NecroParseAstLocalPtr item;
+    NecroParseAstLocalPtr next_item;
+} NecroParseAstList;
 
 //=====================================================
 // AST Expression List
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr expressions; // NecroAST_ListNode of expressions
-} NecroAST_ExpressionList;
+    NecroParseAstLocalPtr expressions; // NecroAST_ListNode of expressions
+} NecroParseAstExpressionList;
 
 //=====================================================
 // AST Expression Array
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr expressions; // NecroAST_ListNode of expressions
-} NecroAST_ExpressionArray;
+    NecroParseAstLocalPtr expressions; // NecroAST_ListNode of expressions
+} NecroParseAstExpressionArray;
 
 //=====================================================
 // AST Tuple
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr expressions; // NecroAST_ListNode of expressions
-} NecroAST_Tuple;
+    NecroParseAstLocalPtr expressions; // NecroAST_ListNode of expressions
+} NecroParseAstTuple;
 
 //=====================================================
 // AST Do
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr statement_list; // NecroAST_ListNode of do statement items
-} NecroAST_Do;
+    NecroParseAstLocalPtr statement_list; // NecroAST_ListNode of do statement items
+} NecroParseAstDo;
 
 //=====================================================
 // AST Pattern Expression
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr expressions; // NecroAST_ListNode of expressions
-} NecroAST_PatternExpression;
+    NecroParseAstLocalPtr expressions; // NecroAST_ListNode of expressions
+} NecroParseAstPatExpression;
 
 //=====================================================
 // AST Variable
@@ -489,41 +488,41 @@ typedef enum
     NECRO_VAR_SIG,
     NECRO_VAR_CLASS_SIG,
 } NECRO_VAR_TYPE;
-const char* var_type_string(NECRO_VAR_TYPE symbol_type);
+const char* necro_var_type_string(NECRO_VAR_TYPE symbol_type);
 
 typedef struct
 {
-    NecroSymbol       symbol;
-    NECRO_VAR_TYPE    var_type;
-    NecroAST_LocalPtr initializer;
-} NecroAST_Variable;
+    NecroSymbol           symbol;
+    NECRO_VAR_TYPE        var_type;
+    NecroParseAstLocalPtr initializer;
+} NecroParseAstVariable;
 
 //=====================================================
 // AST Function Expression
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr aexp;
-    NecroAST_LocalPtr next_fexpression; // Points to the next in the list, null_local_ptr if the end
-} NecroAST_FunctionExpression;
+    NecroParseAstLocalPtr aexp;
+    NecroParseAstLocalPtr next_fexpression; // Points to the next in the list, null_local_ptr if the end
+} NecroParseAstFunctionExpression;
 
 //=====================================================
 // AST Declarations
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr declaration_impl;
-    NecroAST_LocalPtr next_declaration; // Points to the next in the list, null_local_ptr if the end
-} NecroAST_Declaration;
+    NecroParseAstLocalPtr declaration_impl;
+    NecroParseAstLocalPtr next_declaration; // Points to the next in the list, null_local_ptr if the end
+} NecroParseAstDeclaration;
 
 //=====================================================
 // AST Top Declarations
 //=====================================================
 typedef struct
 {
-    NecroAST_LocalPtr declaration;
-    NecroAST_LocalPtr next_top_decl; // Points to the next in the list, null_local_ptr if the end
-} NecroAST_TopDeclaration;
+    NecroParseAstLocalPtr declaration;
+    NecroParseAstLocalPtr next_top_decl; // Points to the next in the list, null_local_ptr if the end
+} NecroParseAstTopDeclaration;
 
 //=====================================================
 // AST Module
@@ -555,15 +554,15 @@ typedef enum
     NECRO_ARITHMETIC_ENUM_FROM,
     NECRO_ARITHMETIC_ENUM_FROM_TO,
     NECRO_ARITHMETIC_ENUM_FROM_THEN_TO,
-} NecroAST_ArithmeticSeqType;
+} NECRO_ARITHMETIC_SEQUENCE_TYPE;
 
 typedef struct
 {
-    NecroAST_LocalPtr from;
-    NecroAST_LocalPtr then;
-    NecroAST_LocalPtr to;
-    NecroAST_ArithmeticSeqType type;
-} NecroAST_ArithmeticSequence;
+    NecroParseAstLocalPtr          from;
+    NecroParseAstLocalPtr          then;
+    NecroParseAstLocalPtr          to;
+    NECRO_ARITHMETIC_SEQUENCE_TYPE type;
+} NecroParseAstArithmeticSequence;
 
 
 //=====================================================
@@ -574,70 +573,71 @@ typedef struct
     union
     {
         // NecroAST_UnaryOp unary_op; // Do we need this?
-        NecroAST_Undefined undefined;
-        NecroAST_Constant constant;
-        NecroAST_BinOp bin_op;
-        NecroAST_IfThenElse if_then_else;
-        NecroAST_TopDeclaration top_declaration;
-        NecroAST_Declaration declaration;
-        NecroAST_SimpleAssignment simple_assignment;
-        NecroAST_Apats apats;
-        NecroAST_ApatsAssignment apats_assignment;
-        NecroAST_PatAssignment pat_assignment;
-        NecroAST_RightHandSide right_hand_side;
-        NecroAST_LetExpression let_expression;
-        NecroAST_FunctionExpression fexpression;
-        NecroAST_Variable variable;
-        NecroAST_Lambda lambda;
-        NecroAST_Do do_statement;
-        NecroAST_ListNode list;
-        NecroAST_ExpressionList expression_list;
-        NecroAST_ExpressionArray expression_array;
-        NecroAST_Tuple tuple;
-        NecroAST_BindAssignment bind_assignment;
-        NecroAST_PatBindAssignment pat_bind_assignment;
-        NecroAST_ArithmeticSequence arithmetic_sequence;
-        NecroAST_Case case_expression;
-        NecroAST_CaseAlternative case_alternative;
-        NecroAST_ConID conid;
-        NecroAST_BinOpSym bin_op_sym;
-        NecroAST_OpLeftSection op_left_section;
-        NecroAST_OpRightSection op_right_section;
-        NecroAST_TypeApp type_app;
-        NecroAST_SimpleType simple_type;
-        NecroAST_Constructor constructor;
-        NecroAST_DataDeclaration data_declaration;
-        NecroAST_TypeClassContext type_class_context;
-        NecroAST_TypeClassDeclaration type_class_declaration;
-        NecroAST_TypeClassInstance type_class_instance;
-        NecroAST_TypeSignature type_signature;
-        NecroAST_FunctionType function_type;
-        NecroAST_PatternExpression pattern_expression;
+        NecroParseAstUndefined            undefined;
+        NecroParseAstConstant             constant;
+        NecroParseAstBinOp                bin_op;
+        NecroParseAstIfThenElse           if_then_else;
+        NecroParseAstTopDeclaration       top_declaration;
+        NecroParseAstDeclaration          declaration;
+        NecroParseAstSimpleAssignment     simple_assignment;
+        NecroParseAstApats                apats;
+        NecroParseAstApatsAssignment      apats_assignment;
+        NecroParseAstPatAssignment        pat_assignment;
+        NecroParseAstRightHandSide        right_hand_side;
+        NecroParseAstLetExpression        let_expression;
+        NecroParseAstFunctionExpression   fexpression;
+        NecroParseAstVariable             variable;
+        NecroParseAstLambda               lambda;
+        NecroParseAstDo                   do_statement;
+        NecroParseAstList                 list;
+        NecroParseAstExpressionList       expression_list;
+        NecroParseAstExpressionArray      expression_array;
+        NecroParseAstTuple                tuple;
+        NecroParseAstBindAssignment       bind_assignment;
+        NecroParseAstPatBindAssignment    pat_bind_assignment;
+        NecroParseAstArithmeticSequence   arithmetic_sequence;
+        NecroParseAstCase                 case_expression;
+        NecroParseAstCaseAlternative      case_alternative;
+        NecroParseAstConId                conid;
+        NecroParseAstBinOpSym             bin_op_sym;
+        NecroParseAstOpLeftSection        op_left_section;
+        NecroParseAstOpRightSection       op_right_section;
+        NecroParseAstTypeApp              type_app;
+        NecroParseAstSimpleType           simple_type;
+        NecroParseAstConstructor          constructor;
+        NecroParseAstDataDeclaration      data_declaration;
+        NecroParseAstTypeClassContext     type_class_context;
+        NecroParseAstTypeClassDeclaration type_class_declaration;
+        NecroParseAstTypeClassInstance    type_class_instance;
+        NecroParseAstTypeSignature        type_signature;
+        NecroParseAstFunctionType         function_type;
+        NecroParseAstPatExpression        pattern_expression;
     };
-    NecroAST_NodeType type;
-    NecroSourceLoc    source_loc;
-    NecroSourceLoc    end_loc;
-} NecroAST_Node;
+    NECRO_AST_TYPE type;
+    NecroSourceLoc source_loc;
+    NecroSourceLoc end_loc;
+} NecroParseAst;
 
 //=====================================================
 // AST
 //=====================================================
 typedef struct
 {
-    NecroArena        arena;
-    NecroAST_LocalPtr root;
-} NecroAST;
-NecroAST       necro_empty_ast();
-void           necro_destroy_ast(NecroAST* ast);
-NecroAST_Node* ast_get_node(NecroAST* ast, NecroAST_LocalPtr local_ptr);
-NecroAST_Node* ast_get_root_node(NecroAST* ast);
-NecroAST_Node* necro_parse_ast_alloc(NecroArena* arena, NecroAST_LocalPtr* local_ptr);
-void           print_ast(NecroAST* ast, NecroIntern* intern, NecroAST_LocalPtr root_node_ptr);
+    NecroArena            arena;
+    NecroParseAstLocalPtr root;
+} NecroParseAstArena;
+NecroParseAstArena  necro_parse_ast_arena_empty();
+void                necro_parse_ast_arena_destroy(NecroParseAstArena* ast);
+NecroParseAst*      necro_parse_ast_get_node(NecroParseAstArena* ast, NecroParseAstLocalPtr local_ptr);
+NecroParseAst*      necro_parse_ast_get_root_node(NecroParseAstArena* ast);
+NecroParseAst*      necro_parse_ast_alloc(NecroArena* arena, NecroParseAstLocalPtr* local_ptr);
+void                necro_parse_ast_print(NecroParseAstArena* ast, NecroIntern* intern, NecroParseAstLocalPtr root_node_ptr);
 
 //=====================================================
 // Parsing
 //=====================================================
-NecroResult(void) necro_parse(NecroLexTokenVector* tokens, NecroIntern* intern, NecroAST* out_ast, NecroCompileInfo info);
-const char*       bin_op_name(NecroAST_BinOpType type);
+NecroResult(void) necro_parse(NecroLexTokenVector* tokens, NecroIntern* intern, NecroParseAstArena* out_ast, NecroCompileInfo info);
+const char*       necro_bin_op_name(NECRO_BIN_OP_TYPE type);
+const char*       necro_con_type_string(NECRO_CON_TYPE symbol_type);
 
-#endif // PARSER_H
+#endif // NECRO_PARSER_H

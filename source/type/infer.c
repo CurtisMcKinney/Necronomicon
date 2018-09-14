@@ -20,22 +20,22 @@
 #endif
 
 // Forward declarations
-NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast);
-NecroType* necro_infer_apat(NecroInfer* infer, NecroNode* ast);
-NecroType* necro_infer_pattern(NecroInfer* infer, NecroNode* ast);
-NecroType* necro_infer_constant(NecroInfer* infer, NecroNode* ast);
-NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast);
-NecroType* necro_infer_tuple_type(NecroInfer* infer, NecroNode* ast);
-NecroType* necro_infer_simple_assignment(NecroInfer* infer, NecroNode* ast);
-void       necro_pat_new_name_go(NecroInfer* infer, NecroNode* ast);
-void       necro_gen_pat_go(NecroInfer* infer, NecroNode* ast);
-NecroType* necro_infer_pat_assignment(NecroInfer* infer, NecroNode* ast);
-NecroType* necro_infer_apats_assignment(NecroInfer* infer, NecroNode* ast);
+NecroType* necro_infer_go(NecroInfer* infer, NecroAst* ast);
+NecroType* necro_infer_apat(NecroInfer* infer, NecroAst* ast);
+NecroType* necro_infer_pattern(NecroInfer* infer, NecroAst* ast);
+NecroType* necro_infer_constant(NecroInfer* infer, NecroAst* ast);
+NecroType* necro_infer_var(NecroInfer* infer, NecroAst* ast);
+NecroType* necro_infer_tuple_type(NecroInfer* infer, NecroAst* ast);
+NecroType* necro_infer_simple_assignment(NecroInfer* infer, NecroAst* ast);
+void       necro_pat_new_name_go(NecroInfer* infer, NecroAst* ast);
+void       necro_gen_pat_go(NecroInfer* infer, NecroAst* ast);
+NecroType* necro_infer_pat_assignment(NecroInfer* infer, NecroAst* ast);
+NecroType* necro_infer_apats_assignment(NecroInfer* infer, NecroAst* ast);
 
 //=====================================================
 // TypeSig
 //=====================================================
-NecroType* necro_ast_to_type_sig_go(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -64,7 +64,7 @@ NecroType* necro_ast_to_type_sig_go(NecroInfer* infer, NecroNode* ast)
         if (necro_symtable_get(infer->symtable, ast->constructor.conid->conid.id)->type == NULL)
             return necro_infer_ast_error(infer, NULL, ast, "Can't find data type: %s", necro_intern_get_string(infer->intern, ast->conid.symbol));
         NecroType* con_args = NULL;
-        NecroNode* arg_list = ast->constructor.arg_list;
+        NecroAst* arg_list = ast->constructor.arg_list;
         size_t arity = 0;
         while (arg_list != NULL)
         {
@@ -112,7 +112,7 @@ NecroType* necro_ast_to_type_sig_go(NecroInfer* infer, NecroNode* ast)
     }
 }
 
-NecroType* necro_infer_type_sig(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_type_sig(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -164,7 +164,7 @@ NecroType* necro_infer_type_sig(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Data Declaration
 //=====================================================
-size_t necro_count_ty_vars(NecroNode* ty_vars)
+size_t necro_count_ty_vars(NecroAst* ty_vars)
 {
     size_t count = 0;
     while (ty_vars != NULL)
@@ -175,7 +175,7 @@ size_t necro_count_ty_vars(NecroNode* ty_vars)
     return count;
 }
 
-NecroType* necro_ty_vars_to_args(NecroInfer* infer, NecroNode* ty_vars)
+NecroType* necro_ty_vars_to_args(NecroInfer* infer, NecroAst* ty_vars)
 {
     NecroType* type = NULL;
     NecroType* head = NULL;
@@ -199,14 +199,14 @@ NecroType* necro_ty_vars_to_args(NecroInfer* infer, NecroNode* ty_vars)
     return head;
 }
 
-NecroType* necro_create_data_constructor(NecroInfer* infer, NecroNode* ast, NecroType* data_type, size_t con_num)
+NecroType* necro_create_data_constructor(NecroInfer* infer, NecroAst* ast, NecroType* data_type, size_t con_num)
 // NecroType* necro_create_data_constructor(NecroInfer* infer, NecroNode* ast)
 {
     // WRONG
     // NecroType* data_type = necro_symtable_get(infer->symtable, ast->simple_type.type_con->conid.id)->type;
     NecroType* con_head     = NULL;
     NecroType* con_args     = NULL;
-    NecroNode* args_ast     = ast->constructor.arg_list;
+    NecroAst* args_ast     = ast->constructor.arg_list;
     size_t     count        = 0;
     while (args_ast != NULL)
     {
@@ -252,7 +252,7 @@ NecroType* necro_create_data_constructor(NecroInfer* infer, NecroNode* ast, Necr
     return con_type;
 }
 
-NecroType* necro_infer_simple_type(NecroInfer* infer, NecroNode* ast, NecroNode* data_declaration_ast)
+NecroType* necro_infer_simple_type(NecroInfer* infer, NecroAst* ast, NecroAst* data_declaration_ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -281,13 +281,13 @@ NecroType* necro_infer_simple_type(NecroInfer* infer, NecroNode* ast, NecroNode*
     return type;
 }
 
-NecroType* necro_infer_apats_assignment(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_apats_assignment(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_APATS_ASSIGNMENT);
     if (necro_is_infer_error(infer)) return NULL;
-    NecroNode* apats      = ast->apats_assignment.apats;
+    NecroAst* apats      = ast->apats_assignment.apats;
     NecroType* f_type     = NULL;
     NecroType* f_head     = NULL;
     if (necro_is_infer_error(infer)) return NULL;
@@ -319,7 +319,7 @@ NecroType* necro_infer_apats_assignment(NecroInfer* infer, NecroNode* ast)
     return NULL;
 }
 
-NecroType* necro_infer_simple_assignment(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_simple_assignment(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -342,7 +342,7 @@ NecroType* necro_infer_simple_assignment(NecroInfer* infer, NecroNode* ast)
     return NULL;
 }
 
-void necro_ensure_pat_binding_is_monomorphic(NecroInfer* infer, NecroNode* ast)
+void necro_ensure_pat_binding_is_monomorphic(NecroInfer* infer, NecroAst* ast)
 {
     if (necro_is_infer_error(infer)) return;
     assert(infer != NULL);
@@ -358,7 +358,7 @@ void necro_ensure_pat_binding_is_monomorphic(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_WILDCARD: return;
     case NECRO_AST_TUPLE:
     {
-        NecroNode* tuple = ast->tuple.expressions;
+        NecroAst* tuple = ast->tuple.expressions;
         while (tuple != NULL)
         {
             necro_ensure_pat_binding_is_monomorphic(infer, tuple->list.item);
@@ -369,7 +369,7 @@ void necro_ensure_pat_binding_is_monomorphic(NecroInfer* infer, NecroNode* ast)
     }
     case NECRO_AST_EXPRESSION_LIST:
     {
-        NecroNode* list = ast->expression_list.expressions;
+        NecroAst* list = ast->expression_list.expressions;
         while (list != NULL)
         {
             necro_ensure_pat_binding_is_monomorphic(infer, list->list.item);
@@ -387,7 +387,7 @@ void necro_ensure_pat_binding_is_monomorphic(NecroInfer* infer, NecroNode* ast)
 
     case NECRO_AST_CONSTRUCTOR:
     {
-        NecroNode* args = ast->constructor.arg_list;
+        NecroAst* args = ast->constructor.arg_list;
         while (args != NULL)
         {
             necro_ensure_pat_binding_is_monomorphic(infer, args->list.item);
@@ -401,7 +401,7 @@ void necro_ensure_pat_binding_is_monomorphic(NecroInfer* infer, NecroNode* ast)
     }
 }
 
-NecroType* necro_infer_pat_assignment(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_pat_assignment(NecroInfer* infer, NecroAst* ast)
 {
     if (necro_is_infer_error(infer)) return NULL;
     assert(infer != NULL);
@@ -422,7 +422,7 @@ NecroType* necro_infer_pat_assignment(NecroInfer* infer, NecroNode* ast)
     return NULL;
 }
 
-void necro_pat_new_name_go(NecroInfer* infer, NecroNode* ast)
+void necro_pat_new_name_go(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -452,7 +452,7 @@ void necro_pat_new_name_go(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_CONSTANT: return;
     case NECRO_AST_TUPLE:
     {
-        NecroNode* args = ast->tuple.expressions;
+        NecroAst* args = ast->tuple.expressions;
         while (args != NULL)
         {
             necro_pat_new_name_go(infer, args->list.item);
@@ -462,7 +462,7 @@ void necro_pat_new_name_go(NecroInfer* infer, NecroNode* ast)
     }
     case NECRO_AST_EXPRESSION_LIST:
     {
-        NecroNode* args = ast->expression_list.expressions;
+        NecroAst* args = ast->expression_list.expressions;
         while (args != NULL)
         {
             necro_pat_new_name_go(infer, args->list.item);
@@ -480,7 +480,7 @@ void necro_pat_new_name_go(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_CONID: return;
     case NECRO_AST_CONSTRUCTOR:
     {
-        NecroNode* args = ast->constructor.arg_list;
+        NecroAst* args = ast->constructor.arg_list;
         while (args != NULL)
         {
             necro_pat_new_name_go(infer, args->list.item);
@@ -492,7 +492,7 @@ void necro_pat_new_name_go(NecroInfer* infer, NecroNode* ast)
     }
 }
 
-void necro_gen_pat_go(NecroInfer* infer, NecroNode* ast)
+void necro_gen_pat_go(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -519,7 +519,7 @@ void necro_gen_pat_go(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_CONSTANT: return;
     case NECRO_AST_TUPLE:
     {
-        NecroNode* args = ast->tuple.expressions;
+        NecroAst* args = ast->tuple.expressions;
         while (args != NULL)
         {
             necro_gen_pat_go(infer, args->list.item);
@@ -529,7 +529,7 @@ void necro_gen_pat_go(NecroInfer* infer, NecroNode* ast)
     }
     case NECRO_AST_EXPRESSION_LIST:
     {
-        NecroNode* args = ast->expression_list.expressions;
+        NecroAst* args = ast->expression_list.expressions;
         while (args != NULL)
         {
             necro_gen_pat_go(infer, args->list.item);
@@ -547,7 +547,7 @@ void necro_gen_pat_go(NecroInfer* infer, NecroNode* ast)
     case NECRO_AST_CONID: return;
     case NECRO_AST_CONSTRUCTOR:
     {
-        NecroNode* args = ast->constructor.arg_list;
+        NecroAst* args = ast->constructor.arg_list;
         while (args != NULL)
         {
             necro_gen_pat_go(infer, args->list.item);
@@ -562,7 +562,7 @@ void necro_gen_pat_go(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Variable
 //=====================================================
-NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_var(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -651,7 +651,7 @@ NecroType* necro_infer_var(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Constant
 //=====================================================
-NecroType* necro_infer_constant(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_constant(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -721,7 +721,7 @@ NecroType* necro_infer_constant(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // ConID
 //=====================================================
-NecroType* necro_infer_conid(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_conid(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -743,7 +743,7 @@ NecroType* necro_infer_conid(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Wildcard
 //=====================================================
-NecroType* necro_infer_wildcard(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_wildcard(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -757,13 +757,13 @@ NecroType* necro_infer_wildcard(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Tuple
 //=====================================================
-NecroType* necro_infer_tuple(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_tuple(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_TUPLE);
     if (necro_is_infer_error(infer)) return NULL;
-    NecroNode* current_expression = ast->tuple.expressions;
+    NecroAst* current_expression = ast->tuple.expressions;
     NecroType* types_head         = NULL;
     NecroType* tuple_types        = NULL;
     while (current_expression != NULL)
@@ -787,13 +787,13 @@ NecroType* necro_infer_tuple(NecroInfer* infer, NecroNode* ast)
     return tuple;
 }
 
-NecroType* necro_infer_tuple_pattern(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_tuple_pattern(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_TUPLE);
     if (necro_is_infer_error(infer)) return NULL;
-    NecroNode* current_expression = ast->tuple.expressions;
+    NecroAst* current_expression = ast->tuple.expressions;
     NecroType* types_head         = NULL;
     NecroType* tuple_types        = NULL;
     while (current_expression != NULL)
@@ -817,13 +817,13 @@ NecroType* necro_infer_tuple_pattern(NecroInfer* infer, NecroNode* ast)
     return tuple;
 }
 
-NecroType* necro_infer_tuple_type(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_tuple_type(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_TUPLE);
     if (necro_is_infer_error(infer)) return NULL;
-    NecroNode* current_expression = ast->tuple.expressions;
+    NecroAst* current_expression = ast->tuple.expressions;
     NecroType* types_head         = NULL;
     NecroType* tuple_types        = NULL;
     while (current_expression != NULL)
@@ -851,13 +851,13 @@ NecroType* necro_infer_tuple_type(NecroInfer* infer, NecroNode* ast)
 ///////////////////////////////////////////////////////
 // Expression Array
 ///////////////////////////////////////////////////////
-NecroType* necro_infer_expression_array(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_expression_array(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_EXPRESSION_ARRAY);
     if (necro_is_infer_error(infer)) return NULL;
-    NecroNode* current_cell  = ast->expression_array.expressions;
+    NecroAst* current_cell  = ast->expression_array.expressions;
     NecroType* element_type  = necro_new_name(infer, ast->source_loc);
     element_type->source_loc = ast->source_loc;
     while (current_cell != NULL)
@@ -875,13 +875,13 @@ NecroType* necro_infer_expression_array(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Expression List
 //=====================================================
-NecroType* necro_infer_expression_list(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_expression_list(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_EXPRESSION_LIST);
     if (necro_is_infer_error(infer)) return NULL;
-    NecroNode* current_cell = ast->expression_list.expressions;
+    NecroAst* current_cell = ast->expression_list.expressions;
     NecroType* list_type    = necro_new_name(infer, ast->source_loc);
     list_type->source_loc   = ast->source_loc;
     while (current_cell != NULL)
@@ -896,13 +896,13 @@ NecroType* necro_infer_expression_list(NecroInfer* infer, NecroNode* ast)
     return list;
 }
 
-NecroType* necro_infer_expression_list_pattern(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_expression_list_pattern(NecroInfer* infer, NecroAst* ast)
 {
     if (necro_is_infer_error(infer)) return NULL;
     assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_EXPRESSION_LIST);
-    NecroNode* current_cell = ast->expression_list.expressions;
+    NecroAst* current_cell = ast->expression_list.expressions;
     NecroType* list_type    = necro_new_name(infer, ast->source_loc);
     while (current_cell != NULL)
     {
@@ -919,14 +919,14 @@ NecroType* necro_infer_expression_list_pattern(NecroInfer* infer, NecroNode* ast
 //=====================================================
 // Pat Expression
 //=====================================================
-NecroType* necro_infer_pat_expression(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_pat_expression(NecroInfer* infer, NecroAst* ast)
 {
     if (necro_is_infer_error(infer)) return NULL;
     assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_PAT_EXPRESSION);
 
-    NecroNode* current_cell = ast->pattern_expression.expressions;
+    NecroAst* current_cell = ast->pattern_expression.expressions;
     NecroType* pat_type     = necro_new_name(infer, ast->source_loc);
     pat_type                = necro_make_con_1(infer, infer->prim_types->pattern_type, pat_type);
     pat_type->source_loc    = ast->source_loc;
@@ -993,7 +993,7 @@ bool necro_is_sized(NecroSymTable* symtable, NecroType* type)
 //=====================================================
 // Function Expression
 //=====================================================
-NecroType* necro_infer_fexpr(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_fexpr(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -1015,7 +1015,7 @@ NecroType* necro_infer_fexpr(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // If then else
 //=====================================================
-NecroType* necro_infer_if_then_else(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_if_then_else(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -1035,7 +1035,7 @@ NecroType* necro_infer_if_then_else(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // BinOp
 //=====================================================
-NecroType* necro_infer_bin_op(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_bin_op(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -1063,7 +1063,7 @@ NecroType* necro_infer_bin_op(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Operator Left Section
 //=====================================================
-NecroType* necro_infer_op_left_section(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_op_left_section(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -1088,7 +1088,7 @@ NecroType* necro_infer_op_left_section(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Operator Right Section
 //=====================================================
-NecroType* necro_infer_op_right_section(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_op_right_section(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -1115,7 +1115,7 @@ NecroType* necro_infer_op_right_section(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Apat
 //=====================================================
-NecroType* necro_infer_apat(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_apat(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -1178,7 +1178,7 @@ NecroType* necro_infer_apat(NecroInfer* infer, NecroNode* ast)
         if (necro_is_infer_error(infer)) return NULL;
         NecroType* pattern_type_head = NULL;
         NecroType* pattern_type      = NULL;
-        NecroNode* ast_args          = ast->constructor.arg_list;
+        NecroAst* ast_args          = ast->constructor.arg_list;
         size_t arg_count = 0;
         while (ast_args != NULL)
         {
@@ -1231,7 +1231,7 @@ NecroType* necro_infer_apat(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Pattern
 //=====================================================
-NecroType* necro_infer_pattern(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_pattern(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -1242,7 +1242,7 @@ NecroType* necro_infer_pattern(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Cast
 //=====================================================
-NecroType* necro_infer_case(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_case(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -1251,10 +1251,10 @@ NecroType* necro_infer_case(NecroInfer* infer, NecroNode* ast)
     NecroType* expression_type = necro_infer_go(infer, ast->case_expression.expression);
     NecroType* result_type     = necro_new_name(infer, ast->source_loc);
     result_type->source_loc    = ast->source_loc;
-    NecroNode* alternatives    = ast->case_expression.alternatives;
+    NecroAst* alternatives    = ast->case_expression.alternatives;
     while (alternatives != NULL)
     {
-        NecroNode* alternative = alternatives->list.item;
+        NecroAst* alternative = alternatives->list.item;
         necro_unify(infer, expression_type, necro_infer_pattern(infer, alternative->case_alternative.pat), alternatives->scope, expression_type, "While inferring the type of a case expression: ");
         necro_unify(infer, result_type, necro_infer_go(infer, alternative->case_alternative.body), alternatives->scope, result_type, "While inferring the type of a case expression: ");
         alternatives = alternatives->list.next_item;
@@ -1268,13 +1268,13 @@ NecroType* necro_infer_case(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Lambda
 //=====================================================
-NecroType* necro_infer_lambda(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_lambda(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_LAMBDA);
     if (necro_is_infer_error(infer)) return NULL;
-    NecroNode* apats  = ast->lambda.apats;
+    NecroAst* apats  = ast->lambda.apats;
     NecroType* f_type = NULL;
     NecroType* f_head = NULL;
     while (apats != NULL)
@@ -1302,7 +1302,7 @@ NecroType* necro_infer_lambda(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // RightHandSide
 //=====================================================
-NecroType* necro_infer_right_hand_side(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_right_hand_side(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -1317,7 +1317,7 @@ NecroType* necro_infer_right_hand_side(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Let
 //=====================================================
-NecroType* necro_infer_let_expression(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_let_expression(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -1332,7 +1332,7 @@ NecroType* necro_infer_let_expression(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Arithmetic Sequence
 //=====================================================
-NecroType* necro_infer_arithmetic_sequence(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_arithmetic_sequence(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -1354,7 +1354,7 @@ NecroType* necro_infer_arithmetic_sequence(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Do
 //=====================================================
-NecroType* necro_infer_do_statement(NecroInfer* infer, NecroNode* ast, NecroType* monad_var)
+NecroType* necro_infer_do_statement(NecroInfer* infer, NecroAst* ast, NecroType* monad_var)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -1409,14 +1409,14 @@ NecroType* necro_infer_do_statement(NecroInfer* infer, NecroNode* ast, NecroType
 }
 
 // TODO / NOTE: Perhaps drop Monads!?!?! Is that crazy? feels like a heavy handed solution to some specific use cases...
-NecroType* necro_infer_do(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_do(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_DO);
     if (necro_is_infer_error(infer)) return NULL;
     NecroType* monad_var      = necro_new_name(infer, ast->source_loc);
-    NecroNode* statements     = ast->do_statement.statement_list;
+    NecroAst* statements     = ast->do_statement.statement_list;
     NecroType* statement_type = NULL;
     necro_apply_constraints(infer, monad_var, necro_create_type_class_context(&infer->arena, necro_symtable_get(infer->symtable, infer->prim_types->monad_type_class.id)->type_class, infer->prim_types->monad_type_class, (NecroCon) { .id = monad_var->var.var.id, .symbol = monad_var->var.var.symbol }, NULL));
     while (statements != NULL)
@@ -1441,7 +1441,7 @@ NecroType* necro_infer_declaration_group(NecroInfer* infer, NecroDeclarationGrou
 {
     assert(infer != NULL);
     assert(declaration_group != NULL);
-    NecroNode*       ast         = NULL;
+    NecroAst*       ast         = NULL;
     NecroSymbolInfo* symbol_info = NULL;
 
     //-----------------------------
@@ -1528,7 +1528,7 @@ NecroType* necro_infer_declaration_group(NecroInfer* infer, NecroDeclarationGrou
             break;
         case NECRO_AST_DATA_DECLARATION:
         {
-            NecroNode* constructor_list = ast->data_declaration.constructor_list;
+            NecroAst* constructor_list = ast->data_declaration.constructor_list;
             size_t con_num = 0;
             while (constructor_list != NULL)
             {
@@ -1628,7 +1628,7 @@ NecroType* necro_infer_declaration_group(NecroInfer* infer, NecroDeclarationGrou
 //=====================================================
 // Declaration
 //=====================================================
-NecroType* necro_infer_declaration(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_declaration(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
@@ -1655,7 +1655,7 @@ NecroType* necro_infer_declaration(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Top Declaration
 //=====================================================
-NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroAst* ast)
 {
     if (necro_is_infer_error(infer)) return NULL;
     assert(infer != NULL);
@@ -1682,7 +1682,7 @@ NecroType* necro_infer_top_declaration(NecroInfer* infer, NecroNode* ast)
 //=====================================================
 // Infer Go
 //=====================================================
-NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer_go(NecroInfer* infer, NecroAst* ast)
 {
     // TRACE_INFER("necro_infer_go\n");
     if (necro_is_infer_error(infer)) return NULL;
@@ -1730,7 +1730,7 @@ NecroType* necro_infer_go(NecroInfer* infer, NecroNode* ast)
     }
 }
 
-NecroType* necro_infer(NecroInfer* infer, NecroNode* ast)
+NecroType* necro_infer(NecroInfer* infer, NecroAst* ast)
 {
     NecroType* result = necro_infer_go(infer, ast);
     if (infer->error.return_code != NECRO_SUCCESS)
@@ -1738,7 +1738,7 @@ NecroType* necro_infer(NecroInfer* infer, NecroNode* ast)
     return result;
 }
 
-NecroType* necro_infer_ast_error(NecroInfer* infer, NecroType* type, NecroNode* ast, const char* error_message, ...)
+NecroType* necro_infer_ast_error(NecroInfer* infer, NecroType* type, NecroAst* ast, const char* error_message, ...)
 {
     UNUSED(ast);
     if (infer->error.return_code != NECRO_SUCCESS)

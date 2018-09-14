@@ -85,7 +85,7 @@ NecroTypeKind* necro_create_question_kind(NecroInfer* infer)
     return question_type;
 }
 
-void necro_infer_kinds_for_data_declaration(NecroInfer* infer, NecroASTNode* ast)
+void necro_infer_kinds_for_data_declaration(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     UNUSED(ast);

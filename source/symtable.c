@@ -403,7 +403,7 @@ void necro_scope_set_last_introduced_id(NecroScope* scope, NecroID last_introduc
 //=====================================================
 // Build Scopes
 //=====================================================
-void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_Reified* input_node)
+void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input_node)
 {
     if (input_node == NULL || scoped_symtable->error.return_code == NECRO_ERROR)
         return;
@@ -497,7 +497,7 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_R
     case NECRO_AST_DO:
     {
         // necro_build_scopes_go(scoped_symtable, input_node->do_statement.statement_list);
-        NecroAST_Node_Reified* current_statement = input_node->do_statement.statement_list;
+        NecroAst* current_statement = input_node->do_statement.statement_list;
         size_t                 pop_count = 0;
         while (current_statement != NULL)
         {
@@ -676,7 +676,7 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAST_Node_R
     }
 }
 
-NECRO_RETURN_CODE necro_build_scopes(NecroScopedSymTable* table, NecroAST_Reified* ast)
+NECRO_RETURN_CODE necro_build_scopes(NecroScopedSymTable* table, NecroAstArena* ast)
 {
     table->error.return_code = NECRO_SUCCESS;
     necro_build_scopes_go(table, ast->root);
@@ -911,7 +911,7 @@ void necro_scoped_symtable_test()
     necro_destroy_intern(&intern);
 }
 
-NecroSymbolInfo* necro_symtable_get_type_class_declaration_info(NecroSymTable* symtable, NecroAST_Node_Reified* ast)
+NecroSymbolInfo* necro_symtable_get_type_class_declaration_info(NecroSymTable* symtable, NecroAst* ast)
 {
     assert(ast->type == NECRO_AST_TYPE_CLASS_DECLARATION);
     uint32_t index = ast->type_class_declaration.tycls->conid.id.id;
@@ -920,7 +920,7 @@ NecroSymbolInfo* necro_symtable_get_type_class_declaration_info(NecroSymTable* s
     return symtable->data + index;
 }
 
-NecroSymbolInfo* necro_symtable_get_type_class_instance_info(NecroSymTable* symtable, NecroAST_Node_Reified* ast)
+NecroSymbolInfo* necro_symtable_get_type_class_instance_info(NecroSymTable* symtable, NecroAst* ast)
 {
     assert(ast->type == NECRO_AST_TYPE_CLASS_INSTANCE);
     uint32_t index = ast->type_class_instance.instance_id.id;

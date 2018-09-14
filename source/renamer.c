@@ -21,7 +21,7 @@ void swap_renamer_class_symbol(NecroRenamer* renamer)
 
 }
 
-bool try_create_name(NecroRenamer* renamer, NecroAST_Node_Reified* node, NecroScope* scope, NecroID* id_to_set, NecroSymbol symbol)
+bool try_create_name(NecroRenamer* renamer, NecroAst* node, NecroScope* scope, NecroID* id_to_set, NecroSymbol symbol)
 {
     NecroID id = necro_this_scope_find(scope, symbol);
     if (id.id != 0)
@@ -39,7 +39,7 @@ bool try_create_name(NecroRenamer* renamer, NecroAST_Node_Reified* node, NecroSc
     }
 }
 
-void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
+void rename_declare_go(NecroAst* input_node, NecroRenamer* renamer)
 {
     if (input_node == NULL || renamer->error.return_code != NECRO_SUCCESS)
         return;
@@ -142,7 +142,7 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
             if (try_create_name(renamer, input_node, input_node->scope, &input_node->variable.id, input_node->variable.symbol))
             {
                 NecroID                 var_id         = input_node->variable.id;
-                NecroAST_Node_Reified** type_signature = &necro_symtable_get(renamer->scoped_symtable->global_table, var_id)->optional_type_signature;
+                NecroAst** type_signature = &necro_symtable_get(renamer->scoped_symtable->global_table, var_id)->optional_type_signature;
                 if (*type_signature != NULL)
                 {
                     necro_error(&renamer->error, input_node->source_loc, "Duplicate type signature for: \'%s\'.\n Original found at: %d",
@@ -310,7 +310,7 @@ void rename_declare_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
     }
 }
 
-bool try_find_name(NecroRenamer* renamer, NecroAST_Node_Reified* node, NecroScope* scope, NecroID* id_to_set, NecroSymbol symbol)
+bool try_find_name(NecroRenamer* renamer, NecroAst* node, NecroScope* scope, NecroID* id_to_set, NecroSymbol symbol)
 {
     NecroID id = necro_scope_find(scope, symbol);
     if (id.id == 0)
@@ -326,7 +326,7 @@ bool try_find_name(NecroRenamer* renamer, NecroAST_Node_Reified* node, NecroScop
 }
 
 
-void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
+void rename_var_go(NecroAst* input_node, NecroRenamer* renamer)
 {
     if (input_node == NULL || renamer->error.return_code != NECRO_SUCCESS)
         return;
@@ -399,7 +399,7 @@ void rename_var_go(NecroAST_Node_Reified* input_node, NecroRenamer* renamer)
             if (try_find_name(renamer, input_node, input_node->scope, &input_node->variable.id, input_node->variable.symbol))
             {
                 NecroID                 var_id         = input_node->variable.id;
-                NecroAST_Node_Reified** type_signature = &necro_symtable_get(renamer->scoped_symtable->global_table, var_id)->optional_type_signature;
+                NecroAst** type_signature = &necro_symtable_get(renamer->scoped_symtable->global_table, var_id)->optional_type_signature;
                 if (*type_signature != NULL)
                 {
                     necro_error(&renamer->error, input_node->source_loc, "Duplicate type signature for: \'%s\'.\n Original found at: %d",
@@ -582,7 +582,7 @@ void necro_destroy_renamer(NecroRenamer* renamer)
     free(renamer);
 }
 
-NECRO_RETURN_CODE necro_rename_declare_pass(NecroRenamer* renamer, NecroPagedArena* ast_arena, NecroAST_Node_Reified* input_ast)
+NECRO_RETURN_CODE necro_rename_declare_pass(NecroRenamer* renamer, NecroPagedArena* ast_arena, NecroAst* input_ast)
 {
     renamer->arena                         = ast_arena;
     renamer->error.return_code             = NECRO_SUCCESS;
@@ -594,7 +594,7 @@ NECRO_RETURN_CODE necro_rename_declare_pass(NecroRenamer* renamer, NecroPagedAre
     return renamer->error.return_code;
 }
 
-NECRO_RETURN_CODE necro_rename_var_pass(NecroRenamer* renamer, NecroPagedArena* ast_arena, NecroAST_Node_Reified* input_ast)
+NECRO_RETURN_CODE necro_rename_var_pass(NecroRenamer* renamer, NecroPagedArena* ast_arena, NecroAst* input_ast)
 {
     renamer->arena                         = ast_arena;
     renamer->error.return_code             = NECRO_SUCCESS;

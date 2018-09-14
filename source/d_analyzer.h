@@ -23,6 +23,6 @@ typedef struct
 
 NecroDependencyAnalyzer necro_create_dependency_analyzer(NecroSymTable* symtable, NecroIntern* intern);
 void                    necro_destroy_dependency_analyzer(NecroDependencyAnalyzer* d_analyzer);
-NECRO_RETURN_CODE       necro_dependency_analyze_ast(NecroDependencyAnalyzer* d_analyzer, NecroPagedArena* ast_arena, NecroASTNode* ast);
+NECRO_RETURN_CODE       necro_dependency_analyze_ast(NecroDependencyAnalyzer* d_analyzer, NecroPagedArena* ast_arena, NecroAst* ast);
 
 #endif // D_ANALYZER_H

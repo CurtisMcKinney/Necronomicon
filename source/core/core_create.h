@@ -21,7 +21,7 @@ NecroCoreAST_Expression* necro_create_core_let(NecroPagedArena* arena, NecroCore
 NecroCoreAST_Expression* necro_create_core_lam(NecroPagedArena* arena, NecroCoreAST_Expression* arg, NecroCoreAST_Expression* expr);
 NecroCoreAST_Expression* necro_create_core_app(NecroPagedArena* arena, NecroCoreAST_Expression* expr1, NecroCoreAST_Expression* expr2);
 NecroCoreAST_Expression* necro_create_core_var(NecroPagedArena* arena, NecroVar var);
-NecroCoreAST_Expression* necro_create_core_lit(NecroPagedArena* arena, NecroAST_Constant_Reified lit);
+NecroCoreAST_Expression* necro_create_core_lit(NecroPagedArena* arena, NecroAstConstant lit);
 NecroCoreAST_Expression* necro_create_core_list(NecroPagedArena* arena, NecroCoreAST_Expression* item, NecroCoreAST_Expression* next);
 NecroCoreAST_Expression* necro_create_core_data_con(NecroPagedArena* arena, NecroVar conid, NecroCoreAST_Expression* arg_list, NecroCoreAST_DataCon* next);
 NecroCoreAST_Expression* necro_create_core_data_decl(NecroPagedArena* arena, NecroVar data_id, NecroCoreAST_DataCon* con_list);

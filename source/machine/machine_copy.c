@@ -141,13 +141,13 @@ size_t necro_create_data_info(NecroMachineProgram* program, NecroType* type)
     NecroMachineCopyData* type_data = necro_machine_copy_table_insert(&program->copy_table, type);
     if (type_data->data_id != NECRO_NULL_DATA_ID)
         return type_data->data_id;
-    NecroASTNode* data_declaraction_ast = necro_symtable_get(program->symtable, type->con.con.id)->ast;
-    NecroASTNode* constructor_ast_list  = data_declaraction_ast->data_declaration.constructor_list;
+    NecroAst* data_declaraction_ast = necro_symtable_get(program->symtable, type->con.con.id)->ast;
+    NecroAst* constructor_ast_list  = data_declaraction_ast->data_declaration.constructor_list;
     assert(constructor_ast_list != NULL);
     bool          is_tagged_union       = constructor_ast_list->list.next_item != NULL;
     while (constructor_ast_list != NULL)
     {
-        NecroASTNode*        arg_list     = constructor_ast_list->list.item->constructor.arg_list;
+        NecroAst*        arg_list     = constructor_ast_list->list.item->constructor.arg_list;
         UNUSED(arg_list);
         NecroConstructorInfo info         = (NecroConstructorInfo) { .members_offset = program->copy_table.member_map.length, .num_members = 0, .size_in_bytes = sizeof(char*), .is_tagged_union = is_tagged_union, .is_machine_def = false };
         bool                 first_member = true;

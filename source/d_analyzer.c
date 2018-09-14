@@ -12,8 +12,8 @@
 ///////////////////////////////////////////////////////
 // Forward Declarations
 ///////////////////////////////////////////////////////
-void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast);
-void necro_set_pat_assignment_rec(NecroSymTable* symtable, NecroNode* ast, NecroDeclarationGroup* group);
+void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast);
+void necro_set_pat_assignment_rec(NecroSymTable* symtable, NecroAst* ast, NecroDeclarationGroup* group);
 
 ///////////////////////////////////////////////////////
 // Dependency Analysis
@@ -84,7 +84,7 @@ void d_analyze_var(NecroDependencyAnalyzer* d_analyzer, NecroID id)
     symbol_info->declaration_group->info->current_group = v;
 }
 
-void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
+void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
 {
     if (ast == NULL || d_analyzer->error.return_code != NECRO_SUCCESS)
         return;
@@ -96,7 +96,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
     //=====================================================
     case NECRO_AST_TOP_DECL:
     {
-        NecroASTNode*          curr = ast;
+        NecroAst*          curr = ast;
         NecroDeclarationsInfo* info = necro_create_declarations_info(d_analyzer->arena);
         NecroDeclarationGroup* temp = NULL;
         //-----------------------------------------
@@ -149,7 +149,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         curr = ast;
         while (curr != NULL)
         {
-            NecroAST_NodeType type = curr->top_declaration.declaration->type;
+            NECRO_AST_TYPE type = curr->top_declaration.declaration->type;
             if (type == NECRO_AST_DATA_DECLARATION)
                 d_analyze_go(d_analyzer, curr->top_declaration.declaration);
             curr = curr->top_declaration.next_top_decl;
@@ -160,7 +160,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         curr = ast;
         while (curr != NULL)
         {
-            NecroAST_NodeType type = curr->top_declaration.declaration->type;
+            NECRO_AST_TYPE type = curr->top_declaration.declaration->type;
             if (type == NECRO_AST_TYPE_CLASS_DECLARATION ||
                 type == NECRO_AST_TYPE_CLASS_INSTANCE)
                 d_analyze_go(d_analyzer, curr->top_declaration.declaration);
@@ -172,7 +172,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         curr = ast;
         while (curr != NULL)
         {
-            NecroAST_NodeType type = curr->top_declaration.declaration->type;
+            NECRO_AST_TYPE type = curr->top_declaration.declaration->type;
             if (type == NECRO_AST_TYPE_SIGNATURE)
                 d_analyze_go(d_analyzer, curr->top_declaration.declaration);
             curr = curr->top_declaration.next_top_decl;
@@ -183,7 +183,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         curr = ast;
         while (curr != NULL)
         {
-            NecroAST_NodeType type = curr->top_declaration.declaration->type;
+            NECRO_AST_TYPE type = curr->top_declaration.declaration->type;
             if (type == NECRO_AST_SIMPLE_ASSIGNMENT ||
                 type == NECRO_AST_APATS_ASSIGNMENT  ||
                 type == NECRO_AST_PAT_ASSIGNMENT)
@@ -198,7 +198,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
 
     case NECRO_AST_DECL:
     {
-        NecroASTNode*          curr = ast;
+        NecroAst*          curr = ast;
         NecroDeclarationsInfo* info = necro_create_declarations_info(d_analyzer->arena);
         NecroDeclarationGroup* temp = NULL;
         //-----------------------------------------
@@ -240,7 +240,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         curr = ast;
         while (curr != NULL)
         {
-            NecroAST_NodeType type = curr->declaration.declaration_impl->type;
+            NECRO_AST_TYPE type = curr->declaration.declaration_impl->type;
             if (type == NECRO_AST_TYPE_SIGNATURE)
                 d_analyze_go(d_analyzer, curr->declaration.declaration_impl);
             curr = curr->declaration.next_declaration;
@@ -250,7 +250,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroASTNode* ast)
         curr = ast;
         while (curr != NULL)
         {
-            NecroAST_NodeType type = curr->declaration.declaration_impl->type;
+            NECRO_AST_TYPE type = curr->declaration.declaration_impl->type;
             if (type == NECRO_AST_SIMPLE_ASSIGNMENT ||
                 type == NECRO_AST_APATS_ASSIGNMENT  ||
                 type == NECRO_AST_PAT_ASSIGNMENT)
@@ -550,7 +550,7 @@ void necro_destroy_dependency_analyzer(NecroDependencyAnalyzer* d_analyzer)
     UNUSED(d_analyzer);
 }
 
-NECRO_RETURN_CODE necro_dependency_analyze_ast(NecroDependencyAnalyzer* d_analyzer, NecroPagedArena* ast_arena, NecroASTNode* ast)
+NECRO_RETURN_CODE necro_dependency_analyze_ast(NecroDependencyAnalyzer* d_analyzer, NecroPagedArena* ast_arena, NecroAst* ast)
 {
     d_analyzer->arena             = ast_arena;
     d_analyzer->error.return_code = NECRO_SUCCESS;

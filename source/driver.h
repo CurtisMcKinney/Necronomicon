@@ -3,8 +3,8 @@
  * Proprietary and confidential
  */
 
-#ifndef DRIVER_H
-#define DRIVER_H 1
+#ifndef NECRO_DRIVER_H
+#define NECRO_DRIVER_H 1
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -78,4 +78,4 @@ static NecroCompileInfo necro_test_compile_info()
 void necro_test(NECRO_TEST test);
 void necro_compile(const char* file_name, const char* input_string, size_t input_string_length, NECRO_PHASE compilation_phase, NECRO_OPT_LEVEL opt_level);
 
-#endif // DRIVER_H
+#endif // NECRO_DRIVER_H

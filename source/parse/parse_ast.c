@@ -11,10 +11,10 @@
 ///////////////////////////////////////////////////////
 // Create
 ///////////////////////////////////////////////////////
-NecroAST_LocalPtr necro_parse_ast_create_constant(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_Constant constant)
+NecroParseAstLocalPtr necro_parse_ast_create_constant(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstConstant constant)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node = necro_parse_ast_alloc(arena, &local_ptr);
     node->type             = NECRO_AST_CONSTANT;
     node->constant         = constant;
     node->source_loc       = source_loc;
@@ -22,10 +22,10 @@ NecroAST_LocalPtr necro_parse_ast_create_constant(NecroArena* arena, NecroSource
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_bin_op(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr lhs, NecroAST_LocalPtr rhs, NecroAST_BinOpType type, NecroSymbol symbol)
+NecroParseAstLocalPtr necro_parse_ast_create_bin_op(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr lhs, NecroParseAstLocalPtr rhs, NECRO_BIN_OP_TYPE type, NecroSymbol symbol)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node = necro_parse_ast_alloc(arena, &local_ptr);
     node->type             = NECRO_AST_BIN_OP;
     node->bin_op.lhs       = lhs;
     node->bin_op.rhs       = rhs;
@@ -36,10 +36,10 @@ NecroAST_LocalPtr necro_parse_ast_create_bin_op(NecroArena* arena, NecroSourceLo
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_op_left_section(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr left_ast, NecroAST_BinOpType type, NecroSymbol symbol)
+NecroParseAstLocalPtr necro_parse_ast_create_op_left_section(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr left_ast, NECRO_BIN_OP_TYPE type, NecroSymbol symbol)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node       = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node       = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                   = NECRO_AST_OP_LEFT_SECTION;
     node->op_left_section.left   = left_ast;
     node->op_left_section.type   = type;
@@ -49,10 +49,10 @@ NecroAST_LocalPtr necro_parse_ast_create_op_left_section(NecroArena* arena, Necr
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_op_right_section(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr right_ast, NecroAST_BinOpType type, NecroSymbol symbol)
+NecroParseAstLocalPtr necro_parse_ast_create_op_right_section(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr right_ast, NECRO_BIN_OP_TYPE type, NecroSymbol symbol)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node        = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node        = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                    = NECRO_AST_OP_RIGHT_SECTION;
     node->op_right_section.right  = right_ast;
     node->op_right_section.type   = type;
@@ -62,10 +62,10 @@ NecroAST_LocalPtr necro_parse_ast_create_op_right_section(NecroArena* arena, Nec
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_if_then_else(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr if_ast, NecroAST_LocalPtr then_ast, NecroAST_LocalPtr else_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_if_then_else(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr if_ast, NecroParseAstLocalPtr then_ast, NecroParseAstLocalPtr else_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node       = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node       = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                   = NECRO_AST_IF_THEN_ELSE;
     node->if_then_else.if_expr   = if_ast;
     node->if_then_else.then_expr = then_ast;
@@ -75,10 +75,10 @@ NecroAST_LocalPtr necro_parse_ast_create_if_then_else(NecroArena* arena, NecroSo
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_top_decl(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr item_ast, NecroAST_LocalPtr next_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_top_decl(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr item_ast, NecroParseAstLocalPtr next_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node              = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node              = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                          = NECRO_AST_TOP_DECL;
     node->top_declaration.declaration   = item_ast;
     node->top_declaration.next_top_decl = next_ast;
@@ -87,10 +87,10 @@ NecroAST_LocalPtr necro_parse_ast_create_top_decl(NecroArena* arena, NecroSource
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_decl(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr item_ast, NecroAST_LocalPtr next_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_decl(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr item_ast, NecroParseAstLocalPtr next_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node             = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node             = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                         = NECRO_AST_DECL;
     node->declaration.declaration_impl = item_ast;
     node->declaration.next_declaration = next_ast;
@@ -99,10 +99,10 @@ NecroAST_LocalPtr necro_parse_ast_create_decl(NecroArena* arena, NecroSourceLoc 
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_simple_assignment(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroSymbol var_name, NecroAST_LocalPtr rhs_ast, NecroAST_LocalPtr initializer_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_simple_assignment(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroSymbol var_name, NecroParseAstLocalPtr rhs_ast, NecroParseAstLocalPtr initializer_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node                = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node                = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                            = NECRO_AST_SIMPLE_ASSIGNMENT;
     node->simple_assignment.variable_name = var_name;
     node->simple_assignment.rhs           = rhs_ast;
@@ -112,10 +112,10 @@ NecroAST_LocalPtr necro_parse_ast_create_simple_assignment(NecroArena* arena, Ne
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_apats_assignment(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroSymbol var_name, NecroAST_LocalPtr apats_ast, NecroAST_LocalPtr rhs_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_apats_assignment(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroSymbol var_name, NecroParseAstLocalPtr apats_ast, NecroParseAstLocalPtr rhs_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node               = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node               = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                           = NECRO_AST_APATS_ASSIGNMENT;
     node->apats_assignment.variable_name = var_name;
     node->apats_assignment.apats         = apats_ast;
@@ -125,10 +125,10 @@ NecroAST_LocalPtr necro_parse_ast_create_apats_assignment(NecroArena* arena, Nec
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_pat_assignment(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr pat_ast, NecroAST_LocalPtr rhs_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_pat_assignment(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr pat_ast, NecroParseAstLocalPtr rhs_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node   = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node   = necro_parse_ast_alloc(arena, &local_ptr);
     node->type               = NECRO_AST_PAT_ASSIGNMENT;
     node->pat_assignment.pat = pat_ast;
     node->pat_assignment.rhs = rhs_ast;
@@ -137,10 +137,10 @@ NecroAST_LocalPtr necro_parse_ast_create_pat_assignment(NecroArena* arena, Necro
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_rhs(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr expression_ast, NecroAST_LocalPtr declarations_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_rhs(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr expression_ast, NecroParseAstLocalPtr declarations_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node             = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node             = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                         = NECRO_AST_RIGHT_HAND_SIDE;
     node->right_hand_side.expression   = expression_ast;
     node->right_hand_side.declarations = declarations_ast;
@@ -149,10 +149,10 @@ NecroAST_LocalPtr necro_parse_ast_create_rhs(NecroArena* arena, NecroSourceLoc s
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_let(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr expression_ast, NecroAST_LocalPtr declarations_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_let(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr expression_ast, NecroParseAstLocalPtr declarations_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node            = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node            = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                        = NECRO_AST_LET_EXPRESSION;
     node->let_expression.expression   = expression_ast;
     node->let_expression.declarations = declarations_ast;
@@ -161,10 +161,10 @@ NecroAST_LocalPtr necro_parse_ast_create_let(NecroArena* arena, NecroSourceLoc s
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_fexpr(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr aexpr_ast, NecroAST_LocalPtr expr_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_fexpr(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr aexpr_ast, NecroParseAstLocalPtr expr_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node             = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node             = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                         = NECRO_AST_FUNCTION_EXPRESSION;
     node->fexpression.aexp             = aexpr_ast;
     node->fexpression.next_fexpression = expr_ast;
@@ -173,10 +173,10 @@ NecroAST_LocalPtr necro_parse_ast_create_fexpr(NecroArena* arena, NecroSourceLoc
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_var(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroSymbol symbol, NECRO_VAR_TYPE type, NecroAST_LocalPtr initializer_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_var(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroSymbol symbol, NECRO_VAR_TYPE type, NecroParseAstLocalPtr initializer_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node     = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node     = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                 = NECRO_AST_VARIABLE;
     node->variable.symbol      = symbol;
     node->variable.var_type    = type;
@@ -186,10 +186,10 @@ NecroAST_LocalPtr necro_parse_ast_create_var(NecroArena* arena, NecroSourceLoc s
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_apats(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr apat_ast, NecroAST_LocalPtr next_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_apats(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr apat_ast, NecroParseAstLocalPtr next_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node = necro_parse_ast_alloc(arena, &local_ptr);
     node->type             = NECRO_AST_APATS;
     node->apats.apat       = apat_ast;
     node->apats.next_apat  = next_ast;
@@ -198,10 +198,10 @@ NecroAST_LocalPtr necro_parse_ast_create_apats(NecroArena* arena, NecroSourceLoc
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_wildcard(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+NecroParseAstLocalPtr necro_parse_ast_create_wildcard(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node = necro_parse_ast_alloc(arena, &local_ptr);
     node->type             = NECRO_AST_WILDCARD;
     node->undefined._pad   = 0;
     node->source_loc       = source_loc;
@@ -209,10 +209,10 @@ NecroAST_LocalPtr necro_parse_ast_create_wildcard(NecroArena* arena, NecroSource
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_lambda(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr apats_ast, NecroAST_LocalPtr expr_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_lambda(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr apats_ast, NecroParseAstLocalPtr expr_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node  = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node  = necro_parse_ast_alloc(arena, &local_ptr);
     node->type              = NECRO_AST_LAMBDA;
     node->lambda.apats      = apats_ast;
     node->lambda.expression = expr_ast;
@@ -221,10 +221,10 @@ NecroAST_LocalPtr necro_parse_ast_create_lambda(NecroArena* arena, NecroSourceLo
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_do(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr statement_list_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_do(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr statement_list_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node            = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node            = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                        = NECRO_AST_DO;
     node->do_statement.statement_list = statement_list_ast;
     node->source_loc                  = source_loc;
@@ -232,10 +232,10 @@ NecroAST_LocalPtr necro_parse_ast_create_do(NecroArena* arena, NecroSourceLoc so
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_pat_expr(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr expressions_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_pat_expr(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr expressions_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node               = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node               = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                           = NECRO_AST_PAT_EXPRESSION;
     node->pattern_expression.expressions = expressions_ast;
     node->source_loc                     = source_loc;
@@ -243,10 +243,10 @@ NecroAST_LocalPtr necro_parse_ast_create_pat_expr(NecroArena* arena, NecroSource
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_list(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr item_ast, NecroAST_LocalPtr next_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_list(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr item_ast, NecroParseAstLocalPtr next_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node = necro_parse_ast_alloc(arena, &local_ptr);
     node->type             = NECRO_AST_LIST_NODE;
     node->list.item        = item_ast;
     node->list.next_item   = next_ast;
@@ -255,10 +255,10 @@ NecroAST_LocalPtr necro_parse_ast_create_list(NecroArena* arena, NecroSourceLoc 
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_expression_list(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr expressions_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_expression_list(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr expressions_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node            = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node            = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                        = NECRO_AST_EXPRESSION_LIST;
     node->expression_list.expressions = expressions_ast;
     node->source_loc                  = source_loc;
@@ -266,10 +266,10 @@ NecroAST_LocalPtr necro_parse_ast_create_expression_list(NecroArena* arena, Necr
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_expression_array(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr expressions_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_expression_array(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr expressions_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node             = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node             = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                         = NECRO_AST_EXPRESSION_ARRAY;
     node->expression_array.expressions = expressions_ast;
     node->source_loc                   = source_loc;
@@ -277,10 +277,10 @@ NecroAST_LocalPtr necro_parse_ast_create_expression_array(NecroArena* arena, Nec
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_tuple(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr expressions_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_tuple(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr expressions_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node  = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node  = necro_parse_ast_alloc(arena, &local_ptr);
     node->type              = NECRO_AST_TUPLE;
     node->tuple.expressions = expressions_ast;
     node->source_loc        = source_loc;
@@ -288,10 +288,10 @@ NecroAST_LocalPtr necro_parse_ast_create_tuple(NecroArena* arena, NecroSourceLoc
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_bind_assignment(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroSymbol symbol, NecroAST_LocalPtr expr_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_bind_assignment(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroSymbol symbol, NecroParseAstLocalPtr expr_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node              = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node              = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                          = NECRO_BIND_ASSIGNMENT;
     node->bind_assignment.variable_name = symbol;
     node->bind_assignment.expression    = expr_ast;
@@ -300,10 +300,10 @@ NecroAST_LocalPtr necro_parse_ast_create_bind_assignment(NecroArena* arena, Necr
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_pat_bind_assignment(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr pat_ast, NecroAST_LocalPtr expr_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_pat_bind_assignment(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr pat_ast, NecroParseAstLocalPtr expr_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node               = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node               = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                           = NECRO_PAT_BIND_ASSIGNMENT;
     node->pat_bind_assignment.pat        = pat_ast;
     node->pat_bind_assignment.expression = expr_ast;
@@ -312,10 +312,10 @@ NecroAST_LocalPtr necro_parse_ast_create_pat_bind_assignment(NecroArena* arena, 
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_arithmetic_sequence(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr from_ast, NecroAST_LocalPtr then_ast, NecroAST_LocalPtr to_ast, NecroAST_ArithmeticSeqType type)
+NecroParseAstLocalPtr necro_parse_ast_create_arithmetic_sequence(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr from_ast, NecroParseAstLocalPtr then_ast, NecroParseAstLocalPtr to_ast, NECRO_ARITHMETIC_SEQUENCE_TYPE type)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node         = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node         = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                     = NECRO_AST_ARITHMETIC_SEQUENCE;
     node->arithmetic_sequence.from = from_ast;
     node->arithmetic_sequence.then = then_ast;
@@ -326,10 +326,10 @@ NecroAST_LocalPtr necro_parse_ast_create_arithmetic_sequence(NecroArena* arena, 
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_case(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr expr_ast, NecroAST_LocalPtr alts_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_case(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr expr_ast, NecroParseAstLocalPtr alts_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node             = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node             = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                         = NECRO_AST_CASE;
     node->case_expression.expression   = expr_ast;
     node->case_expression.alternatives = alts_ast;
@@ -338,10 +338,10 @@ NecroAST_LocalPtr necro_parse_ast_create_case(NecroArena* arena, NecroSourceLoc 
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_case_alternative(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr pat_ast, NecroAST_LocalPtr body_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_case_alternative(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr pat_ast, NecroParseAstLocalPtr body_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node      = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node      = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                  = NECRO_AST_CASE_ALTERNATIVE;
     node->case_alternative.pat  = pat_ast;
     node->case_alternative.body = body_ast;
@@ -350,10 +350,10 @@ NecroAST_LocalPtr necro_parse_ast_create_case_alternative(NecroArena* arena, Nec
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_conid(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroSymbol symbol, NECRO_CON_TYPE type)
+NecroParseAstLocalPtr necro_parse_ast_create_conid(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroSymbol symbol, NECRO_CON_TYPE type)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node = necro_parse_ast_alloc(arena, &local_ptr);
     node->type             = NECRO_AST_CONID;
     node->conid.symbol     = symbol;
     node->conid.con_type   = type;
@@ -362,10 +362,10 @@ NecroAST_LocalPtr necro_parse_ast_create_conid(NecroArena* arena, NecroSourceLoc
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_type_app(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr atype_ast, NecroAST_LocalPtr type_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_type_app(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr atype_ast, NecroParseAstLocalPtr type_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node = necro_parse_ast_alloc(arena, &local_ptr);
     node->type             = NECRO_AST_TYPE_APP;
     node->type_app.ty      = atype_ast;
     node->type_app.next_ty = type_ast;
@@ -374,10 +374,10 @@ NecroAST_LocalPtr necro_parse_ast_create_type_app(NecroArena* arena, NecroSource
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_bin_op_sym(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr left_ast, NecroAST_LocalPtr op_ast, NecroAST_LocalPtr right_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_bin_op_sym(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr left_ast, NecroParseAstLocalPtr op_ast, NecroParseAstLocalPtr right_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node = necro_parse_ast_alloc(arena, &local_ptr);
     node->type             = NECRO_AST_BIN_OP_SYM;
     node->bin_op_sym.left  = left_ast;
     node->bin_op_sym.op    = op_ast;
@@ -387,10 +387,10 @@ NecroAST_LocalPtr necro_parse_ast_create_bin_op_sym(NecroArena* arena, NecroSour
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_constructor(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr conid_ast, NecroAST_LocalPtr arg_list_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_constructor(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr conid_ast, NecroParseAstLocalPtr arg_list_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node     = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node     = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                 = NECRO_AST_CONSTRUCTOR;
     node->constructor.conid    = conid_ast;
     node->constructor.arg_list = arg_list_ast;
@@ -399,10 +399,10 @@ NecroAST_LocalPtr necro_parse_ast_create_constructor(NecroArena* arena, NecroSou
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_simple_type(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr type_con_ast, NecroAST_LocalPtr type_var_list_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_simple_type(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr type_con_ast, NecroParseAstLocalPtr type_var_list_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node          = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node          = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                      = NECRO_AST_SIMPLE_TYPE;
     node->simple_type.type_con      = type_con_ast;
     node->simple_type.type_var_list = type_var_list_ast;
@@ -411,10 +411,10 @@ NecroAST_LocalPtr necro_parse_ast_create_simple_type(NecroArena* arena, NecroSou
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_data_declaration(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr simple_type_ast, NecroAST_LocalPtr constructor_list_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_data_declaration(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr simple_type_ast, NecroParseAstLocalPtr constructor_list_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node                  = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node                  = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                              = NECRO_AST_DATA_DECLARATION;
     node->data_declaration.simpletype       = simple_type_ast;
     node->data_declaration.constructor_list = constructor_list_ast;
@@ -423,10 +423,10 @@ NecroAST_LocalPtr necro_parse_ast_create_data_declaration(NecroArena* arena, Nec
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_class_context(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr conid_ast, NecroAST_LocalPtr varid_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_class_context(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr conid_ast, NecroParseAstLocalPtr varid_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node         = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node         = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                     = NECRO_AST_TYPE_CLASS_CONTEXT;
     node->type_class_context.conid = conid_ast;
     node->type_class_context.varid = varid_ast;
@@ -435,10 +435,10 @@ NecroAST_LocalPtr necro_parse_ast_create_class_context(NecroArena* arena, NecroS
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_class_declaration(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr context_ast, NecroAST_LocalPtr tycls_ast, NecroAST_LocalPtr tyvar_ast, NecroAST_LocalPtr declarations_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_class_declaration(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr context_ast, NecroParseAstLocalPtr tycls_ast, NecroParseAstLocalPtr tyvar_ast, NecroParseAstLocalPtr declarations_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node                    = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node                    = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                                = NECRO_AST_TYPE_CLASS_DECLARATION;
     node->type_class_declaration.context      = context_ast;
     node->type_class_declaration.tycls        = tycls_ast;
@@ -449,10 +449,10 @@ NecroAST_LocalPtr necro_parse_ast_create_class_declaration(NecroArena* arena, Ne
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_instance(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr context_ast, NecroAST_LocalPtr tycls_ast, NecroAST_LocalPtr inst_ast, NecroAST_LocalPtr declarations_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_instance(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr context_ast, NecroParseAstLocalPtr tycls_ast, NecroParseAstLocalPtr inst_ast, NecroParseAstLocalPtr declarations_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node                 = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node                 = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                             = NECRO_AST_TYPE_CLASS_INSTANCE;
     node->type_class_instance.context      = context_ast;
     node->type_class_instance.qtycls       = tycls_ast;
@@ -463,10 +463,10 @@ NecroAST_LocalPtr necro_parse_ast_create_instance(NecroArena* arena, NecroSource
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_type_signature(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr var_ast, NecroAST_LocalPtr context_ast, NecroAST_LocalPtr type_ast, NECRO_SIG_TYPE sig_type)
+NecroParseAstLocalPtr necro_parse_ast_create_type_signature(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr var_ast, NecroParseAstLocalPtr context_ast, NecroParseAstLocalPtr type_ast, NECRO_SIG_TYPE sig_type)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node        = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node        = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                    = NECRO_AST_TYPE_SIGNATURE;
     node->type_signature.var      = var_ast;
     node->type_signature.context  = context_ast;
@@ -477,10 +477,10 @@ NecroAST_LocalPtr necro_parse_ast_create_type_signature(NecroArena* arena, Necro
     return local_ptr;
 }
 
-NecroAST_LocalPtr necro_parse_ast_create_function_type(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAST_LocalPtr lhs_ast, NecroAST_LocalPtr rhs_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_function_type(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr lhs_ast, NecroParseAstLocalPtr rhs_ast)
 {
-    NecroAST_LocalPtr local_ptr;
-    NecroAST_Node*    node            = necro_parse_ast_alloc(arena, &local_ptr);
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*    node            = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                        = NECRO_AST_FUNCTION_TYPE;
     node->function_type.type          = lhs_ast;
     node->function_type.next_on_arrow = rhs_ast;
@@ -492,9 +492,9 @@ NecroAST_LocalPtr necro_parse_ast_create_function_type(NecroArena* arena, NecroS
 ///////////////////////////////////////////////////////
 // Assert Eq
 ///////////////////////////////////////////////////////
-void necro_parse_ast_assert_eq_go(NecroIntern* intern1, NecroAST* ast1, NecroAST_LocalPtr ptr1, NecroIntern* intern2, NecroAST* ast2, NecroAST_LocalPtr ptr2);
+void necro_parse_ast_assert_eq_go(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAstLocalPtr ptr1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAstLocalPtr ptr2);
 
-void necro_parse_ast_assert_eq_constant(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_constant(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_CONSTANT);
     assert(node2->type == NECRO_AST_CONSTANT);
@@ -525,7 +525,7 @@ void necro_parse_ast_assert_eq_constant(NecroIntern* intern1, NecroAST* ast1, Ne
     UNUSED(ast2);
 }
 
-void necro_parse_ast_assert_eq_bin_op(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_bin_op(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_BIN_OP);
     assert(node2->type == NECRO_AST_BIN_OP);
@@ -535,7 +535,7 @@ void necro_parse_ast_assert_eq_bin_op(NecroIntern* intern1, NecroAST* ast1, Necr
     assert(strcmp(necro_intern_get_string(intern1, node1->bin_op.symbol), necro_intern_get_string(intern2, node2->bin_op.symbol)) == 0);
 }
 
-void necro_parse_ast_assert_eq_if_then_else(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_if_then_else(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_IF_THEN_ELSE);
     assert(node2->type == NECRO_AST_IF_THEN_ELSE);
@@ -544,7 +544,7 @@ void necro_parse_ast_assert_eq_if_then_else(NecroIntern* intern1, NecroAST* ast1
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->if_then_else.else_expr, intern2, ast2, node2->if_then_else.else_expr);
 }
 
-void necro_parse_ast_assert_eq_top_decl(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_top_decl(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_TOP_DECL);
     assert(node2->type == NECRO_AST_TOP_DECL);
@@ -552,7 +552,7 @@ void necro_parse_ast_assert_eq_top_decl(NecroIntern* intern1, NecroAST* ast1, Ne
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->top_declaration.next_top_decl, intern2, ast2, node2->top_declaration.next_top_decl);
 }
 
-void necro_parse_ast_assert_eq_decl(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_decl(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_DECL);
     assert(node2->type == NECRO_AST_DECL);
@@ -560,7 +560,7 @@ void necro_parse_ast_assert_eq_decl(NecroIntern* intern1, NecroAST* ast1, NecroA
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->declaration.next_declaration, intern2, ast2, node2->declaration.next_declaration);
 }
 
-void necro_parse_ast_assert_eq_simple_assignment(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_simple_assignment(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_SIMPLE_ASSIGNMENT);
     assert(node2->type == NECRO_AST_SIMPLE_ASSIGNMENT);
@@ -569,7 +569,7 @@ void necro_parse_ast_assert_eq_simple_assignment(NecroIntern* intern1, NecroAST*
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->simple_assignment.rhs, intern2, ast2, node2->simple_assignment.rhs);
 }
 
-void necro_parse_ast_assert_eq_apats_assignment(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_apats_assignment(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_APATS_ASSIGNMENT);
     assert(node2->type == NECRO_AST_APATS_ASSIGNMENT);
@@ -578,7 +578,7 @@ void necro_parse_ast_assert_eq_apats_assignment(NecroIntern* intern1, NecroAST* 
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->apats_assignment.rhs, intern2, ast2, node2->apats_assignment.rhs);
 }
 
-void necro_parse_ast_assert_eq_pat_assignment(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_pat_assignment(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_PAT_ASSIGNMENT);
     assert(node2->type == NECRO_AST_PAT_ASSIGNMENT);
@@ -586,7 +586,7 @@ void necro_parse_ast_assert_eq_pat_assignment(NecroIntern* intern1, NecroAST* as
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->pat_assignment.rhs, intern2, ast2, node2->pat_assignment.rhs);
 }
 
-void necro_parse_ast_assert_eq_rhs(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_rhs(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_RIGHT_HAND_SIDE);
     assert(node2->type == NECRO_AST_RIGHT_HAND_SIDE);
@@ -594,7 +594,7 @@ void necro_parse_ast_assert_eq_rhs(NecroIntern* intern1, NecroAST* ast1, NecroAS
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->right_hand_side.declarations, intern2, ast2, node2->right_hand_side.declarations);
 }
 
-void necro_parse_ast_assert_eq_let(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_let(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_LET_EXPRESSION);
     assert(node2->type == NECRO_AST_LET_EXPRESSION);
@@ -602,7 +602,7 @@ void necro_parse_ast_assert_eq_let(NecroIntern* intern1, NecroAST* ast1, NecroAS
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->let_expression.declarations, intern2, ast2, node2->let_expression.declarations);
 }
 
-void necro_parse_ast_assert_eq_fexpr(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_fexpr(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_FUNCTION_EXPRESSION);
     assert(node2->type == NECRO_AST_FUNCTION_EXPRESSION);
@@ -610,7 +610,7 @@ void necro_parse_ast_assert_eq_fexpr(NecroIntern* intern1, NecroAST* ast1, Necro
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->fexpression.next_fexpression, intern2, ast2, node2->fexpression.next_fexpression);
 }
 
-void necro_parse_ast_assert_eq_var(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_var(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_VARIABLE);
     assert(node2->type == NECRO_AST_VARIABLE);
@@ -619,7 +619,7 @@ void necro_parse_ast_assert_eq_var(NecroIntern* intern1, NecroAST* ast1, NecroAS
     assert(node2->variable.var_type == node2->variable.var_type);
 }
 
-void necro_parse_ast_assert_eq_apats(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_apats(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_APATS);
     assert(node2->type == NECRO_AST_APATS);
@@ -627,7 +627,7 @@ void necro_parse_ast_assert_eq_apats(NecroIntern* intern1, NecroAST* ast1, Necro
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->apats.next_apat, intern2, ast2, node2->apats.next_apat);
 }
 
-void necro_parse_ast_assert_eq_lambda(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_lambda(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_LAMBDA);
     assert(node2->type == NECRO_AST_LAMBDA);
@@ -635,21 +635,21 @@ void necro_parse_ast_assert_eq_lambda(NecroIntern* intern1, NecroAST* ast1, Necr
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->lambda.expression, intern2, ast2, node2->lambda.expression);
 }
 
-void necro_parse_ast_assert_eq_do(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_do(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_DO);
     assert(node2->type == NECRO_AST_DO);
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->do_statement.statement_list, intern2, ast2, node2->do_statement.statement_list);
 }
 
-void necro_parse_ast_assert_eq_pat_expression(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_pat_expression(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_PAT_EXPRESSION);
     assert(node2->type == NECRO_AST_PAT_EXPRESSION);
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->pattern_expression.expressions, intern2, ast2, node2->pattern_expression.expressions);
 }
 
-void necro_parse_ast_assert_eq_list(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_list(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_LIST_NODE);
     assert(node2->type == NECRO_AST_LIST_NODE);
@@ -657,28 +657,28 @@ void necro_parse_ast_assert_eq_list(NecroIntern* intern1, NecroAST* ast1, NecroA
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->list.next_item, intern2, ast2, node2->list.next_item);
 }
 
-void necro_parse_ast_assert_eq_expression_list(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_expression_list(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_EXPRESSION_LIST);
     assert(node2->type == NECRO_AST_EXPRESSION_LIST);
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->expression_list.expressions, intern2, ast2, node2->expression_list.expressions);
 }
 
-void necro_parse_ast_assert_eq_expression_array(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_expression_array(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_EXPRESSION_ARRAY);
     assert(node2->type == NECRO_AST_EXPRESSION_ARRAY);
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->expression_array.expressions, intern2, ast2, node2->expression_array.expressions);
 }
 
-void necro_parse_ast_assert_eq_tuple(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_tuple(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_TUPLE);
     assert(node2->type == NECRO_AST_TUPLE);
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->tuple.expressions, intern2, ast2, node2->tuple.expressions);
 }
 
-void necro_parse_ast_assert_eq_bind_assignment(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_bind_assignment(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_BIND_ASSIGNMENT);
     assert(node2->type == NECRO_BIND_ASSIGNMENT);
@@ -686,7 +686,7 @@ void necro_parse_ast_assert_eq_bind_assignment(NecroIntern* intern1, NecroAST* a
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->bind_assignment.expression, intern2, ast2, node2->bind_assignment.expression);
 }
 
-void necro_parse_ast_assert_eq_pat_bind_assignment(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_pat_bind_assignment(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_PAT_BIND_ASSIGNMENT);
     assert(node2->type == NECRO_PAT_BIND_ASSIGNMENT);
@@ -694,7 +694,7 @@ void necro_parse_ast_assert_eq_pat_bind_assignment(NecroIntern* intern1, NecroAS
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->pat_bind_assignment.expression, intern2, ast2, node2->pat_bind_assignment.expression);
 }
 
-void necro_parse_ast_assert_eq_arithmetic_sequence(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_arithmetic_sequence(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_ARITHMETIC_SEQUENCE);
     assert(node2->type == NECRO_AST_ARITHMETIC_SEQUENCE);
@@ -703,7 +703,7 @@ void necro_parse_ast_assert_eq_arithmetic_sequence(NecroIntern* intern1, NecroAS
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->arithmetic_sequence.to, intern2, ast2, node2->arithmetic_sequence.to);
 }
 
-void necro_parse_ast_assert_eq_case(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_case(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_CASE);
     assert(node2->type == NECRO_AST_CASE);
@@ -711,7 +711,7 @@ void necro_parse_ast_assert_eq_case(NecroIntern* intern1, NecroAST* ast1, NecroA
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->case_expression.alternatives, intern2, ast2, node2->case_expression.alternatives);
 }
 
-void necro_parse_ast_assert_eq_case_alternative(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_case_alternative(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_CASE_ALTERNATIVE);
     assert(node2->type == NECRO_AST_CASE_ALTERNATIVE);
@@ -719,7 +719,7 @@ void necro_parse_ast_assert_eq_case_alternative(NecroIntern* intern1, NecroAST* 
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->case_alternative.body, intern2, ast2, node2->case_alternative.body);
 }
 
-void necro_parse_ast_assert_eq_conid(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_conid(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_CONID);
     assert(node2->type == NECRO_AST_CONID);
@@ -729,7 +729,7 @@ void necro_parse_ast_assert_eq_conid(NecroIntern* intern1, NecroAST* ast1, Necro
     UNUSED(ast2);
 }
 
-void necro_parse_ast_assert_eq_type_app(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_type_app(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_TYPE_APP);
     assert(node2->type == NECRO_AST_TYPE_APP);
@@ -737,7 +737,7 @@ void necro_parse_ast_assert_eq_type_app(NecroIntern* intern1, NecroAST* ast1, Ne
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->type_app.next_ty, intern2, ast2, node2->type_app.next_ty);
 }
 
-void necro_parse_ast_assert_eq_bin_op_sym(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_bin_op_sym(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_BIN_OP_SYM);
     assert(node2->type == NECRO_AST_BIN_OP_SYM);
@@ -746,7 +746,7 @@ void necro_parse_ast_assert_eq_bin_op_sym(NecroIntern* intern1, NecroAST* ast1, 
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->bin_op_sym.right, intern2, ast2, node2->bin_op_sym.right);
 }
 
-void necro_parse_ast_assert_eq_left_section(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_left_section(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_OP_LEFT_SECTION);
     assert(node2->type == NECRO_AST_OP_LEFT_SECTION);
@@ -754,7 +754,7 @@ void necro_parse_ast_assert_eq_left_section(NecroIntern* intern1, NecroAST* ast1
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->op_left_section.left, intern2, ast2, node2->op_left_section.left);
 }
 
-void necro_parse_ast_assert_eq_right_section(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_right_section(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_OP_RIGHT_SECTION);
     assert(node2->type == NECRO_AST_OP_RIGHT_SECTION);
@@ -762,7 +762,7 @@ void necro_parse_ast_assert_eq_right_section(NecroIntern* intern1, NecroAST* ast
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->op_right_section.right, intern2, ast2, node2->op_right_section.right);
 }
 
-void necro_parse_ast_assert_eq_constructor(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_constructor(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_CONSTRUCTOR);
     assert(node2->type == NECRO_AST_CONSTRUCTOR);
@@ -770,7 +770,7 @@ void necro_parse_ast_assert_eq_constructor(NecroIntern* intern1, NecroAST* ast1,
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->constructor.arg_list, intern2, ast2, node2->constructor.arg_list);
 }
 
-void necro_parse_ast_assert_eq_simple_type(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_simple_type(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_SIMPLE_TYPE);
     assert(node2->type == NECRO_AST_SIMPLE_TYPE);
@@ -778,7 +778,7 @@ void necro_parse_ast_assert_eq_simple_type(NecroIntern* intern1, NecroAST* ast1,
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->simple_type.type_var_list, intern2, ast2, node2->simple_type.type_var_list);
 }
 
-void necro_parse_ast_assert_eq_data_declaration(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_data_declaration(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_DATA_DECLARATION);
     assert(node2->type == NECRO_AST_DATA_DECLARATION);
@@ -786,7 +786,7 @@ void necro_parse_ast_assert_eq_data_declaration(NecroIntern* intern1, NecroAST* 
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->data_declaration.constructor_list, intern2, ast2, node2->data_declaration.constructor_list);
 }
 
-void necro_parse_ast_assert_eq_type_class_context(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_type_class_context(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_TYPE_CLASS_CONTEXT);
     assert(node2->type == NECRO_AST_TYPE_CLASS_CONTEXT);
@@ -794,7 +794,7 @@ void necro_parse_ast_assert_eq_type_class_context(NecroIntern* intern1, NecroAST
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->type_class_context.varid, intern2, ast2, node2->type_class_context.varid);
 }
 
-void necro_parse_ast_assert_eq_type_class_declaration(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_type_class_declaration(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_TYPE_CLASS_DECLARATION);
     assert(node2->type == NECRO_AST_TYPE_CLASS_DECLARATION);
@@ -804,7 +804,7 @@ void necro_parse_ast_assert_eq_type_class_declaration(NecroIntern* intern1, Necr
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->type_class_declaration.declarations, intern2, ast2, node2->type_class_declaration.declarations);
 }
 
-void necro_parse_ast_assert_eq_type_class_instance(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_type_class_instance(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_TYPE_CLASS_INSTANCE);
     assert(node2->type == NECRO_AST_TYPE_CLASS_INSTANCE);
@@ -814,7 +814,7 @@ void necro_parse_ast_assert_eq_type_class_instance(NecroIntern* intern1, NecroAS
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->type_class_instance.declarations, intern2, ast2, node2->type_class_instance.declarations);
 }
 
-void necro_parse_ast_assert_eq_type_signature(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_type_signature(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_TYPE_SIGNATURE);
     assert(node2->type == NECRO_AST_TYPE_SIGNATURE);
@@ -824,7 +824,7 @@ void necro_parse_ast_assert_eq_type_signature(NecroIntern* intern1, NecroAST* as
     assert(node1->type_signature.sig_type == node2->type_signature.sig_type);
 }
 
-void necro_parse_ast_assert_eq_function_type(NecroIntern* intern1, NecroAST* ast1, NecroAST_Node* node1, NecroIntern* intern2, NecroAST* ast2, NecroAST_Node* node2)
+void necro_parse_ast_assert_eq_function_type(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAst* node1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_FUNCTION_TYPE);
     assert(node2->type == NECRO_AST_FUNCTION_TYPE);
@@ -832,14 +832,14 @@ void necro_parse_ast_assert_eq_function_type(NecroIntern* intern1, NecroAST* ast
     necro_parse_ast_assert_eq_go(intern1, ast1, node1->function_type.next_on_arrow, intern2, ast2, node2->function_type.next_on_arrow);
 }
 
-void necro_parse_ast_assert_eq_go(NecroIntern* intern1, NecroAST* ast1, NecroAST_LocalPtr ptr1, NecroIntern* intern2, NecroAST* ast2, NecroAST_LocalPtr ptr2)
+void necro_parse_ast_assert_eq_go(NecroIntern* intern1, NecroParseAstArena* ast1, NecroParseAstLocalPtr ptr1, NecroIntern* intern2, NecroParseAstArena* ast2, NecroParseAstLocalPtr ptr2)
 {
     if (ptr1 == null_local_ptr && ptr2 == null_local_ptr)
         return;
     assert(ptr1 != null_local_ptr);
     assert(ptr2 != null_local_ptr);
-    NecroAST_Node* node1 = ast_get_node(ast1, ptr1);
-    NecroAST_Node* node2 = ast_get_node(ast2, ptr2);
+    NecroParseAst* node1 = necro_parse_ast_get_node(ast1, ptr1);
+    NecroParseAst* node2 = necro_parse_ast_get_node(ast2, ptr2);
     assert(node1->type == node2->type);
     switch (node1->type)
     {
@@ -889,7 +889,7 @@ void necro_parse_ast_assert_eq_go(NecroIntern* intern1, NecroAST* ast1, NecroAST
     }
 }
 
-void necro_parse_ast_assert_eq(NecroIntern* intern1, NecroAST* ast1, NecroIntern* intern2, NecroAST* ast2)
+void necro_parse_ast_assert_eq(NecroIntern* intern1, NecroParseAstArena* ast1, NecroIntern* intern2, NecroParseAstArena* ast2)
 {
     necro_parse_ast_assert_eq_go(intern1, ast1, ast1->root, intern2, ast2, ast2->root);
 }

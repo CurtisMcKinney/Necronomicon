@@ -16,7 +16,7 @@ void necro_parse_ast_test_error(const char* test_name, const char* str, NECRO_RE
     // Set up
     NecroIntern         intern = necro_create_intern();
     NecroLexTokenVector tokens = necro_empty_lex_token_vector();
-    NecroAST            ast    = necro_empty_ast();
+    NecroParseAstArena  ast    = necro_parse_ast_arena_empty();
     NecroCompileInfo    info   = necro_test_compile_info();
 
     // Compile
@@ -29,15 +29,15 @@ void necro_parse_ast_test_error(const char* test_name, const char* str, NECRO_RE
     // Clean up
     necro_destroy_intern(&intern);
     necro_destroy_lex_token_vector(&tokens);
-    necro_destroy_ast(&ast);
+    necro_parse_ast_arena_destroy(&ast);
 }
 
-void necro_parse_ast_test(const char* test_name, const char* str, NecroIntern* intern2, NecroAST* ast2)
+void necro_parse_ast_test(const char* test_name, const char* str, NecroIntern* intern2, NecroParseAstArena* ast2)
 {
     // Set up
     NecroIntern         intern = necro_create_intern();
     NecroLexTokenVector tokens = necro_empty_lex_token_vector();
-    NecroAST            ast    = necro_empty_ast();
+    NecroParseAstArena  ast    = necro_parse_ast_arena_empty();
     NecroCompileInfo    info   = necro_test_compile_info();
 
     // Compile
@@ -51,12 +51,12 @@ void necro_parse_ast_test(const char* test_name, const char* str, NecroIntern* i
     // Clean up
     necro_destroy_intern(&intern);
     necro_destroy_lex_token_vector(&tokens);
-    necro_destroy_ast(&ast);
+    necro_parse_ast_arena_destroy(&ast);
     necro_destroy_intern(intern2);
-    necro_destroy_ast(ast2);
+    necro_parse_ast_arena_destroy(ast2);
 }
 
-void necro_test_parser()
+void necro_parse_test()
 {
     necro_announce_phase("NecroParser");
 
@@ -109,13 +109,13 @@ void necro_test_parser()
 
     // Parse Tests
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "constant1"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
-                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 10, .type = NECRO_AST_CONSTANT_INTEGER }),
+                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 10, .type = NECRO_AST_CONSTANT_INTEGER }),
                         null_local_ptr),
                     null_local_ptr),
                 null_local_ptr);
@@ -123,13 +123,13 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "constant2"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
-                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .double_literal = 55.8, .type = NECRO_AST_CONSTANT_FLOAT }),
+                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .double_literal = 55.8, .type = NECRO_AST_CONSTANT_FLOAT }),
                         null_local_ptr),
                     null_local_ptr),
                 null_local_ptr);
@@ -137,13 +137,13 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "constant3"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
-                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .char_literal = 'c', .type = NECRO_AST_CONSTANT_CHAR }),
+                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .char_literal = 'c', .type = NECRO_AST_CONSTANT_CHAR }),
                         null_local_ptr),
                     null_local_ptr),
                 null_local_ptr);
@@ -151,13 +151,13 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "constant4"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
-                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .symbol = necro_intern_string(&intern, "This is a test"), .type = NECRO_AST_CONSTANT_STRING }),
+                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .symbol = necro_intern_string(&intern, "This is a test"), .type = NECRO_AST_CONSTANT_STRING }),
                         null_local_ptr),
                     null_local_ptr),
                 null_local_ptr);
@@ -165,18 +165,18 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "binop1"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
 
                         necro_parse_ast_create_bin_op(&ast.arena, zero_loc, zero_loc,
-                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 10, .type = NECRO_AST_CONSTANT_INTEGER }),
+                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 10, .type = NECRO_AST_CONSTANT_INTEGER }),
                             necro_parse_ast_create_bin_op(&ast.arena, zero_loc, zero_loc,
-                                necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 5, .type = NECRO_AST_CONSTANT_INTEGER }),
-                                necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 3, .type = NECRO_AST_CONSTANT_INTEGER }),
+                                necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 5, .type = NECRO_AST_CONSTANT_INTEGER }),
+                                necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 3, .type = NECRO_AST_CONSTANT_INTEGER }),
                                 NECRO_BIN_OP_MUL,
                                 necro_intern_string(&intern, "*")),
                             NECRO_BIN_OP_ADD,
@@ -189,20 +189,20 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "binop2"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
 
                         necro_parse_ast_create_bin_op(&ast.arena, zero_loc, zero_loc,
                             necro_parse_ast_create_bin_op(&ast.arena, zero_loc, zero_loc,
-                                necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .double_literal = 1000.0, .type = NECRO_AST_CONSTANT_FLOAT }),
-                                necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .double_literal = 3.2, .type = NECRO_AST_CONSTANT_FLOAT }),
+                                necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .double_literal = 1000.0, .type = NECRO_AST_CONSTANT_FLOAT }),
+                                necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .double_literal = 3.2, .type = NECRO_AST_CONSTANT_FLOAT }),
                                 NECRO_BIN_OP_APPEND,
                                 necro_intern_string(&intern, "<>")),
-                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .double_literal = 44.4, .type = NECRO_AST_CONSTANT_FLOAT }),
+                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .double_literal = 44.4, .type = NECRO_AST_CONSTANT_FLOAT }),
                             NECRO_BIN_OP_BACK_PIPE,
                             necro_intern_string(&intern, "|>")),
 
@@ -213,37 +213,37 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "initialValue"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
 
                         necro_parse_ast_create_bin_op(&ast.arena, zero_loc, zero_loc,
                             necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "initialValue"), NECRO_VAR_VAR, null_local_ptr),
-                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 1, .type = NECRO_AST_CONSTANT_INTEGER }),
+                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 1, .type = NECRO_AST_CONSTANT_INTEGER }),
                             NECRO_BIN_OP_ADD,
                             necro_intern_string(&intern, "+")),
 
                         null_local_ptr),
-                    necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 10, .type = NECRO_AST_CONSTANT_INTEGER })),
+                    necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 10, .type = NECRO_AST_CONSTANT_INTEGER })),
                 null_local_ptr);
         necro_parse_ast_test("InitialValue", "initialValue ~ 10 = initialValue + 1\n", &intern, &ast);
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "ifThenElse"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
 
                         necro_parse_ast_create_if_then_else(&ast.arena, zero_loc, zero_loc,
                             necro_parse_ast_create_conid(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "True"), NECRO_CON_VAR),
-                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .double_literal = 0.0, .type = NECRO_AST_CONSTANT_FLOAT }),
-                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .double_literal = 1.0, .type = NECRO_AST_CONSTANT_FLOAT })),
+                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .double_literal = 0.0, .type = NECRO_AST_CONSTANT_FLOAT }),
+                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .double_literal = 1.0, .type = NECRO_AST_CONSTANT_FLOAT })),
 
                         null_local_ptr),
                     null_local_ptr),
@@ -252,9 +252,9 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_apats_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "apats"),
 
@@ -276,9 +276,9 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "letX"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
@@ -298,9 +298,9 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_apats_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "wildCard"),
 
@@ -309,7 +309,7 @@ void necro_test_parser()
                         null_local_ptr),
 
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
-                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 333, .type = NECRO_AST_CONSTANT_INTEGER }),
+                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 333, .type = NECRO_AST_CONSTANT_INTEGER }),
                         null_local_ptr)),
 
                 null_local_ptr);
@@ -317,9 +317,9 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "giveUsLambdas"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
@@ -330,7 +330,7 @@ void necro_test_parser()
                                 null_local_ptr),
                             necro_parse_ast_create_fexpr(&ast.arena, zero_loc, zero_loc,
                                 necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "w"), NECRO_VAR_VAR, null_local_ptr),
-                                necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .char_literal = 'a', .type = NECRO_AST_CONSTANT_CHAR }))),
+                                necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .char_literal = 'a', .type = NECRO_AST_CONSTANT_CHAR }))),
 
                         null_local_ptr),
                     null_local_ptr),
@@ -339,9 +339,9 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_pat_assignment(&ast.arena, zero_loc, zero_loc,
 
@@ -366,20 +366,20 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "expressionList"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
 
                         necro_parse_ast_create_expression_list(&ast.arena, zero_loc, zero_loc,
                             necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
-                                necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .symbol = necro_intern_string(&intern, "one"), .type = NECRO_AST_CONSTANT_STRING }),
+                                necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .symbol = necro_intern_string(&intern, "one"), .type = NECRO_AST_CONSTANT_STRING }),
                                 necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
-                                    necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .symbol = necro_intern_string(&intern, "two"), .type = NECRO_AST_CONSTANT_STRING }),
+                                    necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .symbol = necro_intern_string(&intern, "two"), .type = NECRO_AST_CONSTANT_STRING }),
                                     necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
-                                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .symbol = necro_intern_string(&intern, "three"), .type = NECRO_AST_CONSTANT_STRING }),
+                                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .symbol = necro_intern_string(&intern, "three"), .type = NECRO_AST_CONSTANT_STRING }),
                                         null_local_ptr)))),
 
 
@@ -390,20 +390,20 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "expressionArray"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
 
                         necro_parse_ast_create_expression_array(&ast.arena, zero_loc, zero_loc,
                             necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
-                                necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .char_literal = '1', .type = NECRO_AST_CONSTANT_CHAR }),
+                                necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .char_literal = '1', .type = NECRO_AST_CONSTANT_CHAR }),
                                 necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
-                                    necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .char_literal = '2', .type = NECRO_AST_CONSTANT_CHAR }),
+                                    necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .char_literal = '2', .type = NECRO_AST_CONSTANT_CHAR }),
                                     necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
-                                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .char_literal = '3', .type = NECRO_AST_CONSTANT_CHAR }),
+                                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .char_literal = '3', .type = NECRO_AST_CONSTANT_CHAR }),
                                         null_local_ptr)))),
 
                         null_local_ptr),
@@ -413,15 +413,15 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "leftSection"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
 
                         necro_parse_ast_create_op_left_section(&ast.arena, zero_loc, zero_loc,
-                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 10, .type = NECRO_AST_CONSTANT_INTEGER }),
+                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 10, .type = NECRO_AST_CONSTANT_INTEGER }),
                             NECRO_BIN_OP_ADD,
                             necro_intern_string(&intern, "+")),
 
@@ -432,15 +432,15 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "rightSection"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
 
                         necro_parse_ast_create_op_right_section(&ast.arena, zero_loc, zero_loc,
-                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 100, .type = NECRO_AST_CONSTANT_INTEGER }),
+                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 100, .type = NECRO_AST_CONSTANT_INTEGER }),
                             NECRO_BIN_OP_DIV,
                             necro_intern_string(&intern, "/")),
 
@@ -451,22 +451,22 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "patIsATerribleName"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
 
                         necro_parse_ast_create_pat_expr(&ast.arena, zero_loc, zero_loc,
                             necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
-                                necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER }),
+                                necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER }),
                                 necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
-                                    necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 1, .type = NECRO_AST_CONSTANT_INTEGER }),
+                                    necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 1, .type = NECRO_AST_CONSTANT_INTEGER }),
                                     necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
                                         necro_parse_ast_create_wildcard(&ast.arena, zero_loc, zero_loc),
                                         necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
-                                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 3, .type = NECRO_AST_CONSTANT_INTEGER }),
+                                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 3, .type = NECRO_AST_CONSTANT_INTEGER }),
                                             null_local_ptr))))),
 
                         null_local_ptr),
@@ -476,9 +476,9 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_apats_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "constructor1"),
 
@@ -504,25 +504,25 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_apats_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "constructor2"),
 
                     necro_parse_ast_create_apats(&ast.arena, zero_loc, zero_loc,
                         necro_parse_ast_create_expression_list(&ast.arena, zero_loc, zero_loc,
                             necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
-                                necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER_PATTERN }),
+                                necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER_PATTERN }),
                                 necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
-                                    necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 1, .type = NECRO_AST_CONSTANT_INTEGER_PATTERN }),
+                                    necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 1, .type = NECRO_AST_CONSTANT_INTEGER_PATTERN }),
                                     necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
-                                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 2, .type = NECRO_AST_CONSTANT_INTEGER_PATTERN }),
+                                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 2, .type = NECRO_AST_CONSTANT_INTEGER_PATTERN }),
                                         null_local_ptr)))),
                         null_local_ptr),
 
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
-                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 1, .type = NECRO_AST_CONSTANT_INTEGER }),
+                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 1, .type = NECRO_AST_CONSTANT_INTEGER }),
                         null_local_ptr)),
 
                 null_local_ptr);
@@ -530,9 +530,9 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_apats_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "constructor3"),
 
@@ -556,9 +556,9 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_apats_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "binOpSym"),
 
@@ -582,15 +582,15 @@ void necro_test_parser()
 
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "arithmeticSequence1"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
 
                         necro_parse_ast_create_arithmetic_sequence(&ast.arena, zero_loc, zero_loc,
-                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER }),
+                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER }),
                             null_local_ptr,
                             null_local_ptr,
                             NECRO_ARITHMETIC_ENUM_FROM),
@@ -602,17 +602,17 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "arithmeticSequence2"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
 
                         necro_parse_ast_create_arithmetic_sequence(&ast.arena, zero_loc, zero_loc,
-                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER }),
+                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER }),
                             null_local_ptr,
-                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 100, .type = NECRO_AST_CONSTANT_INTEGER }),
+                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 100, .type = NECRO_AST_CONSTANT_INTEGER }),
                             NECRO_ARITHMETIC_ENUM_FROM),
 
                         null_local_ptr),
@@ -622,17 +622,17 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "arithmeticSequence3"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
 
                         necro_parse_ast_create_arithmetic_sequence(&ast.arena, zero_loc, zero_loc,
-                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER }),
-                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 100, .type = NECRO_AST_CONSTANT_INTEGER }),
-                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 1000, .type = NECRO_AST_CONSTANT_INTEGER }),
+                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER }),
+                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 100, .type = NECRO_AST_CONSTANT_INTEGER }),
+                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 1000, .type = NECRO_AST_CONSTANT_INTEGER }),
                             NECRO_ARITHMETIC_ENUM_FROM),
 
                         null_local_ptr),
@@ -642,9 +642,9 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "case1"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
@@ -654,7 +654,7 @@ void necro_test_parser()
                             necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
                                 necro_parse_ast_create_case_alternative(&ast.arena, zero_loc, zero_loc,
                                     necro_parse_ast_create_conid(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "Nothing"), NECRO_CON_VAR),
-                                    necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER })),
+                                    necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER })),
                                 necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
                                     necro_parse_ast_create_case_alternative(&ast.arena, zero_loc, zero_loc,
                                         necro_parse_ast_create_constructor(&ast.arena, zero_loc, zero_loc,
@@ -673,9 +673,9 @@ void necro_test_parser()
 
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "case2"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
@@ -686,13 +686,13 @@ void necro_test_parser()
                                 necro_parse_ast_create_case_alternative(&ast.arena, zero_loc, zero_loc,
                                     necro_parse_ast_create_expression_list(&ast.arena, zero_loc, zero_loc,
                                         necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
-                                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER_PATTERN }),
+                                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER_PATTERN }),
                                             necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
-                                                necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 1, .type = NECRO_AST_CONSTANT_INTEGER_PATTERN }),
+                                                necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 1, .type = NECRO_AST_CONSTANT_INTEGER_PATTERN }),
                                                 necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
-                                                    necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 2, .type = NECRO_AST_CONSTANT_INTEGER_PATTERN }),
+                                                    necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 2, .type = NECRO_AST_CONSTANT_INTEGER_PATTERN }),
                                                     null_local_ptr)))),
-                                    necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 1, .type = NECRO_AST_CONSTANT_INTEGER })),
+                                    necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 1, .type = NECRO_AST_CONSTANT_INTEGER })),
                                 necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
                                     necro_parse_ast_create_case_alternative(&ast.arena, zero_loc, zero_loc,
                                         necro_parse_ast_create_bin_op_sym(&ast.arena, zero_loc, zero_loc,
@@ -709,16 +709,16 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "decl"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
 
                         necro_parse_ast_create_bin_op(&ast.arena, zero_loc, zero_loc,
                             necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "x"), NECRO_VAR_VAR, null_local_ptr),
-                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 3, .type = NECRO_AST_CONSTANT_INTEGER }),
+                            necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 3, .type = NECRO_AST_CONSTANT_INTEGER }),
                             NECRO_BIN_OP_SUB,
                             necro_intern_string(&intern, "-")),
 
@@ -726,7 +726,7 @@ void necro_test_parser()
                         necro_parse_ast_create_decl(&ast.arena, zero_loc, zero_loc,
                             necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "x"),
                                 necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
-                                    necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 1000, .type = NECRO_AST_CONSTANT_INTEGER }),
+                                    necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 1000, .type = NECRO_AST_CONSTANT_INTEGER }),
                                     null_local_ptr),
                                 null_local_ptr),
                             null_local_ptr)),
@@ -737,9 +737,9 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "doBlock"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
@@ -750,7 +750,7 @@ void necro_test_parser()
                                     necro_intern_string(&intern, "d"),
                                     necro_parse_ast_create_fexpr(&ast.arena, zero_loc, zero_loc,
                                         necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "pure"), NECRO_VAR_VAR, null_local_ptr),
-                                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 10, .type = NECRO_AST_CONSTANT_INTEGER }))),
+                                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 10, .type = NECRO_AST_CONSTANT_INTEGER }))),
                                 necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
                                     necro_parse_ast_create_fexpr(&ast.arena, zero_loc, zero_loc,
                                         necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "pure"), NECRO_VAR_VAR, null_local_ptr),
@@ -764,9 +764,9 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "patDo"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
@@ -781,7 +781,7 @@ void necro_test_parser()
                                             null_local_ptr)),
                                     necro_parse_ast_create_fexpr(&ast.arena, zero_loc, zero_loc,
                                         necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "pure"), NECRO_VAR_VAR, null_local_ptr),
-                                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroAST_Constant) { .int_literal = 100, .type = NECRO_AST_CONSTANT_INTEGER }))),
+                                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 100, .type = NECRO_AST_CONSTANT_INTEGER }))),
 
                                 necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
                                     necro_parse_ast_create_fexpr(&ast.arena, zero_loc, zero_loc,
@@ -796,9 +796,9 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
 
                 necro_parse_ast_create_data_declaration(&ast.arena, zero_loc, zero_loc,
@@ -830,9 +830,9 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
 
                 necro_parse_ast_create_type_signature(&ast.arena, zero_loc, zero_loc,
@@ -850,9 +850,9 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
 
                 necro_parse_ast_create_type_signature(&ast.arena, zero_loc, zero_loc,
@@ -870,9 +870,9 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
 
                 necro_parse_ast_create_type_signature(&ast.arena, zero_loc, zero_loc,
@@ -898,9 +898,9 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
 
                 necro_parse_ast_create_class_declaration(&ast.arena, zero_loc, zero_loc,
@@ -924,9 +924,9 @@ void necro_test_parser()
     }
 
     {
-        NecroIntern intern = necro_create_intern();
-        NecroAST    ast    = (NecroAST) { construct_arena(100 * sizeof(NecroAST_Node)) };
-        ast.root           =
+        NecroIntern        intern = necro_create_intern();
+        NecroParseAstArena ast    = (NecroParseAstArena) { construct_arena(100 * sizeof(NecroParseAst)) };
+        ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
 
                 necro_parse_ast_create_instance(&ast.arena, zero_loc, zero_loc,

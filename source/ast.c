@@ -11,9 +11,8 @@
 
 #define AST_TAB "  "
 
-void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern, uint32_t depth)
+void print_reified_ast_impl(NecroAst* ast_node, NecroIntern* intern, uint32_t depth)
 {
-    // assert(ast_node != NULL);
     assert(intern != NULL);
     for (uint32_t i = 0;  i < depth; ++i)
     {
@@ -29,7 +28,6 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
     switch(ast_node->type)
     {
     case NECRO_AST_BIN_OP:
-        // puts(bin_op_name(ast_node->bin_op.type));
         printf("(%s, id: %d)\n", necro_intern_get_string(intern, ast_node->bin_op.symbol), ast_node->bin_op.id.id);
         print_reified_ast_impl(ast_node->bin_op.lhs, intern, depth + 1);
         print_reified_ast_impl(ast_node->bin_op.rhs, intern, depth + 1);
@@ -39,21 +37,11 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
         switch(ast_node->constant.type)
         {
         case NECRO_AST_CONSTANT_FLOAT_PATTERN:   // FALL THROUGH
-            // For testing type class translation
-            // if(ast_node->constant.pat_from_ast != NULL)
-            //     print_reified_ast_impl(ast_node->constant.pat_from_ast, intern, depth + 1);
-            // if(ast_node->constant.pat_eq_ast != NULL)
-            //     print_reified_ast_impl(ast_node->constant.pat_eq_ast, intern, depth + 1);
             printf("pat_float: ");
         case NECRO_AST_CONSTANT_FLOAT:
             printf("(%f)\n", ast_node->constant.double_literal);
             break;
         case NECRO_AST_CONSTANT_INTEGER_PATTERN: // FALL THROUGH
-            // For testing type class translation
-            // if(ast_node->constant.pat_from_ast != NULL)
-            //     print_reified_ast_impl(ast_node->constant.pat_from_ast, intern, depth + 1);
-            // if(ast_node->constant.pat_eq_ast != NULL)
-            //     print_reified_ast_impl(ast_node->constant.pat_eq_ast, intern, depth + 1);
             printf("pat_int: ");
         case NECRO_AST_CONSTANT_INTEGER:
 #if WIN32
@@ -72,9 +60,6 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
         case NECRO_AST_CONSTANT_CHAR:
             printf("(\'%c\')\n", ast_node->constant.char_literal);
             break;
-        // case NECRO_AST_CONSTANT_BOOL:
-        //     printf("(%s)\n", ast_node->constant.boolean_literal ? " True" : "False");
-        //     break;
         }
         break;
 
@@ -198,7 +183,7 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
         const char* variable_string = necro_intern_get_string(intern, ast_node->variable.symbol);
         if (variable_string)
         {
-            printf("(varid: %s, id: %d, vtype: %s)\n", variable_string, ast_node->variable.id.id, var_type_string(ast_node->variable.var_type));
+            printf("(varid: %s, id: %d, vtype: %s)\n", variable_string, ast_node->variable.id.id, necro_var_type_string(ast_node->variable.var_type));
             if (ast_node->variable.initializer != NULL)
             {
                 print_white_space(depth + 10);
@@ -345,7 +330,7 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
     {
         const char* con_string = necro_intern_get_string(intern, ast_node->conid.symbol);
         if (con_string)
-            printf("(conid: %s, id: %d, ctype: %s)\n", con_string, ast_node->conid.id.id, con_type_string(ast_node->conid.con_type));
+            printf("(conid: %s, id: %d, ctype: %s)\n", con_string, ast_node->conid.id.id, necro_con_type_string(ast_node->conid.con_type));
         else
             puts("(conid: ???)");
         break;
@@ -387,12 +372,12 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
         break;
 
     case NECRO_AST_OP_LEFT_SECTION:
-        printf("(LeftSection %s)\n", bin_op_name(ast_node->op_left_section.type));
+        printf("(LeftSection %s)\n", necro_bin_op_name(ast_node->op_left_section.type));
         print_reified_ast_impl(ast_node->op_left_section.left, intern, depth + 1);
         break;
 
     case NECRO_AST_OP_RIGHT_SECTION:
-        printf("(%s RightSection)\n", bin_op_name(ast_node->op_right_section.type));
+        printf("(%s RightSection)\n", necro_bin_op_name(ast_node->op_right_section.type));
         print_reified_ast_impl(ast_node->op_right_section.right, intern, depth + 1);
         break;
 
@@ -479,7 +464,7 @@ void print_reified_ast_impl(NecroAST_Node_Reified* ast_node, NecroIntern* intern
     }
 }
 
-void necro_print_reified_ast_node(NecroAST_Node_Reified* ast_node, NecroIntern* intern)
+void necro_print_reified_ast_node(NecroAst* ast_node, NecroIntern* intern)
 {
     if (ast_node == NULL)
     {
@@ -491,7 +476,7 @@ void necro_print_reified_ast_node(NecroAST_Node_Reified* ast_node, NecroIntern* 
     }
 }
 
-void necro_print_reified_ast(NecroAST_Reified* ast, NecroIntern* intern)
+void necro_print_reified_ast(NecroAstArena* ast, NecroIntern* intern)
 {
     if (ast->root == NULL)
     {
@@ -503,7 +488,7 @@ void necro_print_reified_ast(NecroAST_Reified* ast, NecroIntern* intern)
     }
 }
 
-inline void necro_op_symbol_to_method_symbol(NecroIntern* intern, NecroAST_BinOpType op_type, NecroSymbol* symbol)
+inline void necro_op_symbol_to_method_symbol(NecroIntern* intern, NECRO_BIN_OP_TYPE op_type, NecroSymbol* symbol)
 {
     // change op name to method names
     switch (op_type)
@@ -524,14 +509,14 @@ inline void necro_op_symbol_to_method_symbol(NecroIntern* intern, NecroAST_BinOp
     }
 }
 
-NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, NecroPagedArena* arena, NecroIntern* intern)
+NecroAst* necro_reify(NecroParseAstArena* a_ast, NecroParseAstLocalPtr a_ptr, NecroPagedArena* arena, NecroIntern* intern)
 {
     if (a_ptr == null_local_ptr)
         return NULL;
-    NecroAST_Node* node = ast_get_node(a_ast, a_ptr);
+    NecroParseAst* node = necro_parse_ast_get_node(a_ast, a_ptr);
     if (node == NULL)
         return NULL;
-    NecroAST_Node_Reified* reified_node = necro_paged_arena_alloc(arena, sizeof(NecroAST_Node_Reified));
+    NecroAst* reified_node = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     reified_node->type        = node->type;
     reified_node->source_loc  = node->source_loc;
     reified_node->scope       = NULL;
@@ -548,8 +533,8 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
 
         case NECRO_AST_CONSTANT_FLOAT:
         {
-            NecroAST_Node_Reified* from_node = necro_create_variable_ast(arena, intern, "fromRational", NECRO_VAR_VAR);
-            NecroAST_Node_Reified* new_node  = necro_paged_arena_alloc(arena, sizeof(NecroAST_Node_Reified));
+            NecroAst* from_node = necro_create_variable_ast(arena, intern, "fromRational", NECRO_VAR_VAR);
+            NecroAst* new_node  = necro_paged_arena_alloc(arena, sizeof(NecroAst));
             *new_node = *reified_node;
             new_node->constant.symbol        = node->constant.symbol;
             new_node->constant.type          = node->constant.type;
@@ -561,8 +546,8 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
 
         case NECRO_AST_CONSTANT_INTEGER:
         {
-            NecroAST_Node_Reified* from_node = necro_create_variable_ast(arena, intern, "fromInt", NECRO_VAR_VAR);
-            NecroAST_Node_Reified* new_node  = necro_paged_arena_alloc(arena, sizeof(NecroAST_Node_Reified));
+            NecroAst* from_node = necro_create_variable_ast(arena, intern, "fromInt", NECRO_VAR_VAR);
+            NecroAst* new_node  = necro_paged_arena_alloc(arena, sizeof(NecroAst));
             *new_node = *reified_node;
             new_node->constant.symbol        = node->constant.symbol;
             new_node->constant.type          = node->constant.type;
@@ -776,38 +761,38 @@ NecroAST_Node_Reified* necro_reify(NecroAST* a_ast, NecroAST_LocalPtr a_ptr, Nec
     return reified_node;
 }
 
-NecroAST_Reified necro_empty_reified_ast()
+NecroAstArena necro_ast_arena_empty()
 {
-    return (NecroAST_Reified)
+    return (NecroAstArena)
     {
         .arena = necro_empty_paged_arena(),
         .root  = NULL,
     };
 }
 
-NecroAST_Reified necro_create_reified_ast()
+NecroAstArena necro_ast_arena_create()
 {
     NecroPagedArena        arena = necro_create_paged_arena();
-    NecroAST_Node_Reified* root  = NULL;
-    return (NecroAST_Reified)
+    NecroAst* root  = NULL;
+    return (NecroAstArena)
     {
         .arena = arena,
         .root = root,
     };
 }
 
-NecroAST_Reified necro_reify_ast(NecroAST* a_ast, NecroAST_LocalPtr a_root, NecroIntern* intern)
+NecroAstArena necro_reify_ast(NecroParseAstArena* a_ast, NecroParseAstLocalPtr a_root, NecroIntern* intern)
 {
-    NecroPagedArena        arena = necro_create_paged_arena();
-    NecroAST_Node_Reified* root  = necro_reify(a_ast, a_root, &arena, intern);
-    return (NecroAST_Reified)
+    NecroPagedArena arena = necro_create_paged_arena();
+    NecroAst*       root  = necro_reify(a_ast, a_root, &arena, intern);
+    return (NecroAstArena)
     {
         .arena = arena,
         .root = root,
     };
 }
 
-void necro_destroy_reified_ast(NecroAST_Reified* ast)
+void necro_ast_arena_destroy(NecroAstArena* ast)
 {
     necro_destroy_paged_arena(&ast->arena);
 }
@@ -815,10 +800,10 @@ void necro_destroy_reified_ast(NecroAST_Reified* ast)
 //=====================================================
 // Manual AST construction
 //=====================================================
-typedef NecroAST_Node_Reified NecroASTNode;
-NecroASTNode* necro_create_conid_ast(NecroPagedArena* arena, NecroIntern* intern, const char* con_name, NECRO_CON_TYPE con_type)
+typedef NecroAst NecroAst;
+NecroAst* necro_create_conid_ast(NecroPagedArena* arena, NecroIntern* intern, const char* con_name, NECRO_CON_TYPE con_type)
 {
-    NecroASTNode* ast   = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* ast   = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     ast->type           = NECRO_AST_CONID;
     ast->conid.symbol   = necro_intern_string(intern, con_name);
     ast->conid.id       = (NecroID) { 0 };
@@ -826,9 +811,9 @@ NecroASTNode* necro_create_conid_ast(NecroPagedArena* arena, NecroIntern* intern
     return ast;
 }
 
-NecroASTNode* necro_create_variable_ast(NecroPagedArena* arena, NecroIntern* intern, const char* variable_name, NECRO_VAR_TYPE var_type)
+NecroAst* necro_create_variable_ast(NecroPagedArena* arena, NecroIntern* intern, const char* variable_name, NECRO_VAR_TYPE var_type)
 {
-    NecroASTNode* ast = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* ast = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     ast->type                           = NECRO_AST_VARIABLE;
     ast->variable.symbol                = necro_intern_string(intern, variable_name);
     ast->variable.var_type              = var_type;
@@ -839,19 +824,19 @@ NecroASTNode* necro_create_variable_ast(NecroPagedArena* arena, NecroIntern* int
     return ast;
 }
 
-NecroASTNode* necro_create_ast_list(NecroPagedArena* arena, NecroASTNode* item, NecroASTNode* next)
+NecroAst* necro_create_ast_list(NecroPagedArena* arena, NecroAst* item, NecroAst* next)
 {
-    NecroASTNode* ast   = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* ast   = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     ast->type           = NECRO_AST_LIST_NODE;
     ast->list.item      = item;
     ast->list.next_item = next;
     return ast;
 }
 
-NecroASTNode* necro_create_var_list_ast(NecroPagedArena* arena, NecroIntern* intern, size_t num_vars, NECRO_VAR_TYPE var_type)
+NecroAst* necro_create_var_list_ast(NecroPagedArena* arena, NecroIntern* intern, size_t num_vars, NECRO_VAR_TYPE var_type)
 {
-    NecroASTNode* var_head = NULL;
-    NecroASTNode* curr_var = NULL;
+    NecroAst* var_head = NULL;
+    NecroAst* curr_var = NULL;
     static char* var_names[27] = { "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z" };
     size_t name_index = 0;
     assert(num_vars < 27);
@@ -873,64 +858,64 @@ NecroASTNode* necro_create_var_list_ast(NecroPagedArena* arena, NecroIntern* int
     return var_head;
 }
 
-NecroASTNode* necro_create_data_constructor_ast(NecroPagedArena* arena, NecroIntern* intern, const char* con_name, NecroASTNode* arg_list)
+NecroAst* necro_create_data_constructor_ast(NecroPagedArena* arena, NecroIntern* intern, const char* con_name, NecroAst* arg_list)
 {
-    NecroASTNode* ast         = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* ast         = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     ast->type                 = NECRO_AST_CONSTRUCTOR;
     ast->constructor.conid    = necro_create_conid_ast(arena, intern, con_name, NECRO_CON_DATA_DECLARATION);
     ast->constructor.arg_list = arg_list;
     return ast;
 }
 
-NecroASTNode* necro_create_simple_type_ast(NecroPagedArena* arena, NecroIntern* intern, const char* simple_type_name, NecroASTNode* ty_var_list)
+NecroAst* necro_create_simple_type_ast(NecroPagedArena* arena, NecroIntern* intern, const char* simple_type_name, NecroAst* ty_var_list)
 {
-    NecroASTNode* ast              = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* ast              = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     ast->type                      = NECRO_AST_SIMPLE_TYPE;
     ast->simple_type.type_con      = necro_create_conid_ast(arena, intern, simple_type_name, NECRO_CON_TYPE_DECLARATION);
     ast->simple_type.type_var_list = ty_var_list;
     return ast;
 }
 
-NecroASTNode* necro_create_data_declaration_ast(NecroPagedArena* arena, NecroIntern* intern, NecroASTNode* simple_type, NecroASTNode* constructor_list)
+NecroAst* necro_create_data_declaration_ast(NecroPagedArena* arena, NecroIntern* intern, NecroAst* simple_type, NecroAst* constructor_list)
 {
     UNUSED(intern);
-    NecroASTNode* ast                      = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* ast                      = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     ast->type                              = NECRO_AST_DATA_DECLARATION;
     ast->data_declaration.simpletype       = simple_type;
     ast->data_declaration.constructor_list = constructor_list;
     return ast;
 }
 
-NecroASTNode* necro_create_type_app_ast(NecroPagedArena* arena, NecroASTNode* type1, NecroASTNode* type2)
+NecroAst* necro_create_type_app_ast(NecroPagedArena* arena, NecroAst* type1, NecroAst* type2)
 {
-    NecroASTNode* ast     = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* ast     = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     ast->type             = NECRO_AST_TYPE_APP;
     ast->type_app.ty      = type1;
     ast->type_app.next_ty = type2;
     return ast;
 }
 
-NecroASTNode* necro_create_fun_ast(NecroPagedArena* arena, NecroASTNode* type1, NecroASTNode* type2)
+NecroAst* necro_create_fun_ast(NecroPagedArena* arena, NecroAst* type1, NecroAst* type2)
 {
-    NecroASTNode* ast                = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* ast                = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     ast->type                        = NECRO_AST_FUNCTION_TYPE;
     ast->function_type.type          = type1;
     ast->function_type.next_on_arrow = type2;
     return ast;
 }
 
-NecroASTNode* necro_create_fexpr_ast(NecroPagedArena* arena, NecroASTNode* f_ast, NecroASTNode* x_ast)
+NecroAst* necro_create_fexpr_ast(NecroPagedArena* arena, NecroAst* f_ast, NecroAst* x_ast)
 {
-    NecroASTNode* ast                 = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* ast                 = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     ast->type                         = NECRO_AST_FUNCTION_EXPRESSION;
     ast->fexpression.aexp             = f_ast;
     ast->fexpression.next_fexpression = x_ast;
     return ast;
 }
 
-NecroASTNode* necro_create_fun_type_sig_ast(NecroPagedArena* arena, NecroIntern* intern, const char* var_name, NecroASTNode* context_ast, NecroASTNode* type_ast, NECRO_VAR_TYPE var_type, NECRO_SIG_TYPE sig_type)
+NecroAst* necro_create_fun_type_sig_ast(NecroPagedArena* arena, NecroIntern* intern, const char* var_name, NecroAst* context_ast, NecroAst* type_ast, NECRO_VAR_TYPE var_type, NECRO_SIG_TYPE sig_type)
 {
-    NecroASTNode* ast                     = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* ast                     = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     ast->type                             = NECRO_AST_TYPE_SIGNATURE;
     ast->type_signature.var               = necro_create_variable_ast(arena, intern, var_name, var_type);
     ast->type_signature.context           = context_ast;
@@ -940,9 +925,9 @@ NecroASTNode* necro_create_fun_type_sig_ast(NecroPagedArena* arena, NecroIntern*
     return ast;
 }
 
-NecroASTNode* necro_create_type_class_ast(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, const char* class_var, NecroASTNode* context_ast, NecroASTNode* declarations_ast)
+NecroAst* necro_create_type_class_ast(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, const char* class_var, NecroAst* context_ast, NecroAst* declarations_ast)
 {
-    NecroASTNode* ast                             = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* ast                             = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     ast->type                                     = NECRO_AST_TYPE_CLASS_DECLARATION;
     ast->type_class_declaration.tycls             = necro_create_conid_ast(arena, intern, class_name, NECRO_CON_TYPE_DECLARATION);
     ast->type_class_declaration.tyvar             = necro_create_variable_ast(arena, intern, class_var, NECRO_VAR_TYPE_FREE_VAR);
@@ -952,9 +937,9 @@ NecroASTNode* necro_create_type_class_ast(NecroPagedArena* arena, NecroIntern* i
     return ast;
 }
 
-NecroASTNode* necro_create_instance_ast(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, NecroASTNode* inst_ast, NecroASTNode* context_ast, NecroASTNode* declarations_ast)
+NecroAst* necro_create_instance_ast(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, NecroAst* inst_ast, NecroAst* context_ast, NecroAst* declarations_ast)
 {
-    NecroASTNode* ast                             = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* ast                             = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     ast->type                                     = NECRO_AST_TYPE_CLASS_INSTANCE;
     ast->type_class_instance.qtycls               = necro_create_conid_ast(arena, intern, class_name, NECRO_CON_TYPE_VAR);
     ast->type_class_instance.inst                 = inst_ast;
@@ -966,9 +951,9 @@ NecroASTNode* necro_create_instance_ast(NecroPagedArena* arena, NecroIntern* int
     return ast;
 }
 
-NecroASTNode* necro_create_top_level_declaration_list(NecroPagedArena* arena, NecroASTNode* top_level_declaration, NecroASTNode* next)
+NecroAst* necro_create_top_level_declaration_list(NecroPagedArena* arena, NecroAst* top_level_declaration, NecroAst* next)
 {
-    NecroASTNode* ast                  = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* ast                  = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     ast->type                          = NECRO_AST_TOP_DECL;
     ast->top_declaration.declaration   = top_level_declaration;
     ast->top_declaration.next_top_decl = next;
@@ -976,10 +961,10 @@ NecroASTNode* necro_create_top_level_declaration_list(NecroPagedArena* arena, Ne
     return ast;
 }
 
-NecroASTNode* necro_create_declaration_list(NecroPagedArena* arena, NecroASTNode* declaration, NecroASTNode* next)
+NecroAst* necro_create_declaration_list(NecroPagedArena* arena, NecroAst* declaration, NecroAst* next)
 {
     assert(declaration != NULL);
-    NecroASTNode* ast                 = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* ast                 = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     ast->type                         = NECRO_AST_DECL;
     ast->declaration.declaration_impl = declaration;
     ast->declaration.next_declaration = next;
@@ -987,10 +972,10 @@ NecroASTNode* necro_create_declaration_list(NecroPagedArena* arena, NecroASTNode
     return ast;
 }
 
-NecroASTNode* necro_create_simple_assignment(NecroPagedArena* arena, NecroIntern* intern, const char* var_name, NecroASTNode* rhs_ast)
+NecroAst* necro_create_simple_assignment(NecroPagedArena* arena, NecroIntern* intern, const char* var_name, NecroAst* rhs_ast)
 {
     assert(rhs_ast != NULL);
-    NecroASTNode* ast                        = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* ast                        = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     ast->type                                = NECRO_AST_SIMPLE_ASSIGNMENT;
     ast->simple_assignment.id                = (NecroID) { 0 };
     ast->simple_assignment.variable_name     = necro_intern_string(intern, var_name);
@@ -1001,39 +986,39 @@ NecroASTNode* necro_create_simple_assignment(NecroPagedArena* arena, NecroIntern
     return ast;
 }
 
-NecroASTNode* necro_create_context(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, const char* var_name, NecroASTNode* next)
+NecroAst* necro_create_context(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, const char* var_name, NecroAst* next)
 {
     assert(class_name != NULL);
     assert(var_name != NULL);
-    NecroASTNode* ast             = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* ast             = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     ast->type                     = NECRO_AST_TYPE_CLASS_CONTEXT;
     ast->type_class_context.conid = necro_create_conid_ast(arena, intern, class_name, NECRO_CON_TYPE_VAR);
     ast->type_class_context.varid = necro_create_variable_ast(arena, intern, var_name, NECRO_VAR_TYPE_FREE_VAR);
 
-    NecroASTNode* list_ast   = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* list_ast   = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     list_ast->type           = NECRO_AST_LIST_NODE;
     list_ast->list.item      = ast;
     list_ast->list.next_item = next;
     return list_ast;
 }
 
-NecroASTNode* necro_create_apat_list_ast(NecroPagedArena* arena, NecroASTNode* apat_item, NecroASTNode* next_apat)
+NecroAst* necro_create_apat_list_ast(NecroPagedArena* arena, NecroAst* apat_item, NecroAst* next_apat)
 {
     assert(apat_item != NULL);
-    NecroASTNode* ast    = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* ast    = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     ast->type            = NECRO_AST_APATS;
     ast->apats.apat      = apat_item;
     ast->apats.next_apat = next_apat;
     return ast;
 }
 
-NecroASTNode* necro_create_apats_assignment_ast(NecroPagedArena* arena, NecroIntern* intern, const char* var_name, NecroASTNode* apats, NecroASTNode* rhs_ast)
+NecroAst* necro_create_apats_assignment_ast(NecroPagedArena* arena, NecroIntern* intern, const char* var_name, NecroAst* apats, NecroAst* rhs_ast)
 {
     assert(apats != NULL);
     assert(rhs_ast != NULL);
     assert(apats->type == NECRO_AST_APATS);
     assert(rhs_ast->type == NECRO_AST_RIGHT_HAND_SIDE);
-    NecroASTNode* ast                       = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* ast                       = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     ast->type                               = NECRO_AST_APATS_ASSIGNMENT;
     ast->apats_assignment.id                = (NecroID) { 0 };
     ast->apats_assignment.variable_name     = necro_intern_string(intern, var_name);
@@ -1043,41 +1028,41 @@ NecroASTNode* necro_create_apats_assignment_ast(NecroPagedArena* arena, NecroInt
     return ast;
 }
 
-NecroASTNode* necro_create_lambda_ast(NecroPagedArena* arena, NecroASTNode* apats, NecroASTNode* expr_ast)
+NecroAst* necro_create_lambda_ast(NecroPagedArena* arena, NecroAst* apats, NecroAst* expr_ast)
 {
     assert(apats != NULL);
     assert(expr_ast != NULL);
     assert(apats->type == NECRO_AST_APATS);
-    NecroASTNode* ast      = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* ast      = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     ast->type              = NECRO_AST_LAMBDA;
     ast->lambda.apats      = apats;
     ast->lambda.expression = expr_ast;
     return ast;
 }
 
-NecroASTNode* necro_create_rhs_ast(NecroPagedArena* arena, NecroASTNode* expression, NecroASTNode* declarations)
+NecroAst* necro_create_rhs_ast(NecroPagedArena* arena, NecroAst* expression, NecroAst* declarations)
 {
     assert(expression != NULL);
-    NecroASTNode* ast                 = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* ast                 = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     ast->type                         = NECRO_AST_RIGHT_HAND_SIDE;
     ast->right_hand_side.expression   = expression;
     ast->right_hand_side.declarations = declarations;
     return ast;
 }
 
-NecroASTNode* necro_create_wild_card_ast(NecroPagedArena* arena)
+NecroAst* necro_create_wild_card_ast(NecroPagedArena* arena)
 {
-    NecroASTNode* ast = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* ast = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     ast->type         = NECRO_AST_WILDCARD;
     return ast;
 }
 
-NecroASTNode* necro_create_bin_op_ast(NecroPagedArena* arena, NecroIntern* intern, const char* op_name, NecroASTNode* lhs, NecroASTNode* rhs)
+NecroAst* necro_create_bin_op_ast(NecroPagedArena* arena, NecroIntern* intern, const char* op_name, NecroAst* lhs, NecroAst* rhs)
 {
     assert(op_name != NULL);
     assert(lhs != NULL);
     assert(rhs != NULL);
-    NecroASTNode* ast        = necro_paged_arena_alloc(arena, sizeof(NecroASTNode));
+    NecroAst* ast        = necro_paged_arena_alloc(arena, sizeof(NecroAst));
     ast->type                = NECRO_AST_BIN_OP;
     ast->bin_op.id           = (NecroID) { 0 };
     ast->bin_op.symbol       = necro_intern_string(intern, op_name);
@@ -1090,7 +1075,7 @@ NecroASTNode* necro_create_bin_op_ast(NecroPagedArena* arena, NecroIntern* inter
 //=====================================================
 // Dependency Analysis
 //=====================================================
-NecroDeclarationGroup* necro_create_declaration_group(NecroPagedArena* arena, NecroASTNode* declaration_ast, NecroDeclarationGroup* prev)
+NecroDeclarationGroup* necro_create_declaration_group(NecroPagedArena* arena, NecroAst* declaration_ast, NecroDeclarationGroup* prev)
 {
     NecroDeclarationGroup* declaration_group = necro_paged_arena_alloc(arena, sizeof(NecroDeclarationGroup));
     declaration_group->declaration_ast       = declaration_ast;
@@ -1112,7 +1097,7 @@ NecroDeclarationGroup* necro_create_declaration_group(NecroPagedArena* arena, Ne
     }
 }
 
-NecroDeclarationGroup* necro_append_declaration_group(NecroPagedArena* arena, NecroASTNode* declaration_ast, NecroDeclarationGroup* head)
+NecroDeclarationGroup* necro_append_declaration_group(NecroPagedArena* arena, NecroAst* declaration_ast, NecroDeclarationGroup* head)
 {
     NecroDeclarationGroup* declaration_group = necro_paged_arena_alloc(arena, sizeof(NecroDeclarationGroup));
     declaration_group->declaration_ast       = declaration_ast;

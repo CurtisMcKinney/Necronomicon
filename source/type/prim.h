@@ -25,7 +25,7 @@ NECRO_DECLARE_ARENA_CHAIN_TABLE(NecroCon, Con, con);
 //=====================================================
 // Forward Declarations and typedefs
 //=====================================================
-typedef NecroAST_Node_Reified NecroASTNode;
+typedef NecroAst NecroAst;
 struct NecroCodeGen;
 
 //=====================================================
@@ -45,33 +45,33 @@ typedef struct
 {
     NecroType*      type_type;
     NecroType*      type_fully_applied_type;
-    NecroASTNode*   data_declaration_ast;
+    NecroAst*   data_declaration_ast;
 } NecroPrimDefData;
 
 typedef struct
 {
     NecroType*      type;
-    NecroASTNode*   type_sig_ast;
+    NecroAst*   type_sig_ast;
     size_t          arity;
 } NecroPrimDefFun;
 
 typedef struct
 {
     NecroType*      type;
-    NecroASTNode*   type_sig_ast;
-    NecroASTNode*   definition_ast;
+    NecroAst*   type_sig_ast;
+    NecroAst*   definition_ast;
 } NecroPrimDefBinOp;
 
 typedef struct
 {
     NecroTypeClass* type_class;
-    NecroASTNode*   type_class_ast;
+    NecroAst*   type_class_ast;
 } NecroPrimDefClass;
 
 typedef struct
 {
     NecroTypeClassInstance* instance;
-    NecroASTNode*           instance_ast;
+    NecroAst*           instance_ast;
 } NecroPrimDefInstance;
 
 typedef struct NecroPrimDef

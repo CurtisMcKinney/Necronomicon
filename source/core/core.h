@@ -160,7 +160,7 @@ typedef struct NecroCoreAST_Expression
     {
         NecroVar var;
         NecroCoreAST_Bind bind;
-        NecroAST_Constant_Reified lit;
+        NecroAstConstant lit;
         NecroCoreAST_Application app;
         NecroCoreAST_Lambda lambda;
         NecroCoreAST_Let let;
@@ -220,7 +220,7 @@ typedef struct
 typedef struct
 {
     NecroCoreAST* core_ast;
-    NecroAST_Reified* necro_ast;
+    NecroAstArena* necro_ast;
     NecroIntern* intern;
     NecroPrimTypes* prim_types;
     NecroParse_CoreTransformState transform_state;
@@ -236,7 +236,7 @@ NecroTransformToCore necro_empty_core_transform();
 void necro_construct_core_transform(
     NecroTransformToCore* core_transform,
     NecroCoreAST* core_ast,
-    NecroAST_Reified* necro_ast,
+    NecroAstArena* necro_ast,
     NecroIntern* intern,
     NecroPrimTypes* prim_types,
     NecroSymTable* symtable,

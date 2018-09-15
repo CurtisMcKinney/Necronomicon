@@ -42,7 +42,7 @@ inline void necro_instantiate_kind_var(NecroInfer* infer, NecroTypeVar* kind_var
 NecroTypeKind* necro_create_star_kind(NecroInfer* infer)
 {
     NecroSymbol     star_symbol = necro_intern_string(infer->intern, "Type");
-    NecroSymbolInfo star_info   = necro_create_initial_symbol_info(star_symbol, (NecroSourceLoc) { 0 }, NULL);
+    NecroSymbolInfo star_info   = necro_symtable_create_initial_symbol_info(star_symbol, (NecroSourceLoc) { 0 }, NULL);
     NecroID         star_id     = necro_symtable_insert(infer->symtable, star_info);
     NecroCon        star_con    = (NecroCon) { .id = star_id, .symbol = star_symbol };
     NecroType*      star_type   = necro_alloc_type(infer);
@@ -65,7 +65,7 @@ NecroTypeKind* necro_create_star_kind(NecroInfer* infer)
 NecroTypeKind* necro_create_question_kind(NecroInfer* infer)
 {
     NecroSymbol     question_symbol = necro_intern_string(infer->intern, "?");
-    NecroSymbolInfo question_info   = necro_create_initial_symbol_info(question_symbol, (NecroSourceLoc) { 0 }, NULL);
+    NecroSymbolInfo question_info   = necro_symtable_create_initial_symbol_info(question_symbol, (NecroSourceLoc) { 0 }, NULL);
     NecroID         question_id     = necro_symtable_insert(infer->symtable, question_info);
     NecroCon        question_con    = (NecroCon) { .id = question_id, .symbol = question_symbol };
     NecroType*      question_type   = necro_alloc_type(infer);

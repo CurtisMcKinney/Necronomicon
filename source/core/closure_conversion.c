@@ -60,22 +60,22 @@ NecroCoreAST necro_closure_conversion(NecroCoreAST* in_ast, NecroIntern* intern,
 {
     NecroClosureConversion cc = (NecroClosureConversion)
     {
-        .arena            = necro_create_paged_arena(),
-        .snapshot_arena   = necro_create_snapshot_arena(),
+        .arena            = necro_paged_arena_create(),
+        .snapshot_arena   = necro_snapshot_arena_create(),
         .intern           = intern,
         .symtable         = symtable,
         .scoped_symtable  = scoped_symtable,
         .prim_types       = prim_types,
         .infer            = infer,
         .cc_state         = NECRO_CC_EXPR,
-        .closure_con      = necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_Closure")),
+        .closure_con      = necro_prim_types_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_Closure")),
         .closure_defs     = necro_create_closure_def_vector(),
-        .dyn_state_con    = necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_DynState")),
-        .null_con         = necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_NullPoly")),
+        .dyn_state_con    = necro_prim_types_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_DynState")),
+        .null_con         = necro_prim_types_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_NullPoly")),
     };
     necro_add_closure_def(&cc, 1, 0); // NOTE: We don't want an empty closure def vector, otherwise apply functions get wonky
     NecroCoreAST_Expression* out_ast = necro_closure_conversion_go(&cc, in_ast->root);
-    necro_destroy_snapshot_arena(&cc.snapshot_arena);
+    necro_snapshot_arena_destroy(&cc.snapshot_arena);
     *out_closure_defs = cc.closure_defs;
     // necro_print_closure_defs(&cc);
     return (NecroCoreAST) { .arena = cc.arena, .root = out_ast };

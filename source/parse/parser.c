@@ -40,7 +40,7 @@ NecroParser necro_parser_create(NecroLexToken* tokens, size_t num_tokens, NecroI
     return (NecroParser)
     {
         .current_token          = 0,
-        .ast                    = (NecroParseAstArena) { construct_arena(num_tokens * sizeof(NecroParseAst)) },
+        .ast                    = (NecroParseAstArena) { necro_arena_create(num_tokens * sizeof(NecroParseAst)) },
         .tokens                 = tokens,
         .descent_state          = NECRO_PARSING,
         .intern                 = intern,
@@ -60,12 +60,12 @@ void necro_parser_destroy(NecroParser* parser)
 
 NecroParseAstArena necro_parse_ast_arena_empty()
 {
-    return (NecroParseAstArena) { .arena = necro_empty_arena(), .root = 0 };
+    return (NecroParseAstArena) { .arena = necro_arena_empty(), .root = 0 };
 }
 
 void necro_parse_ast_arena_destroy(NecroParseAstArena* ast)
 {
-    destruct_arena(&ast->arena);
+    necro_arena_destroy(&ast->arena);
 }
 
 ///////////////////////////////////////////////////////
@@ -212,7 +212,7 @@ const char* necro_con_type_string(NECRO_CON_TYPE con_type)
 // =====================================================
 NecroParseAst* necro_parse_ast_alloc(NecroArena* arena, NecroParseAstLocalPtr* local_ptr)
 {
-    NecroParseAst* node = (NecroParseAst*)arena_alloc(arena, sizeof(NecroParseAst), arena_allow_realloc);
+    NecroParseAst* node = (NecroParseAst*)necro_arena_alloc(arena, sizeof(NecroParseAst), NECRO_ARENA_REALLOC);
     const size_t offset = node - ((NecroParseAst*)arena->region);
     assert(offset < MAX_LOCAL_PTR);
     assert((((NecroParseAst*)arena->region) + offset) == node);
@@ -742,7 +742,7 @@ NecroParseAstLocalPtr necro_parse_qcon(NecroParser* parser, NECRO_CON_TYPE var_t
 NECRO_PARSE_STATE necro_parse_enter_state(NecroParser* parser);
 void              necro_parse_restore_state(NecroParser* parser, NECRO_PARSE_STATE prev_state);
 
-NecroResult(void) necro_parse(NecroLexTokenVector* tokens, NecroIntern* intern, NecroParseAstArena* out_ast, NecroCompileInfo info)
+NecroResult(void) necro_parse(NecroCompileInfo info, NecroIntern* intern, NecroLexTokenVector* tokens, NecroParseAstArena* out_ast)
 {
     NecroParser           parser    = necro_parser_create(tokens->data, tokens->length, intern);
     NecroParseAstLocalPtr local_ptr = necro_try_map(NecroParseAstLocalPtr, void, necro_parse_top_declarations(&parser));

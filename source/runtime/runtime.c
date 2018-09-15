@@ -200,7 +200,7 @@ NecroCopyGC necro_create_copy_gc()
     necro_copy_gc.roots          = NULL;
     necro_copy_gc.root_count     = 0;
     necro_copy_gc.counter        = 0;
-    necro_copy_gc.timer          = necro_create_timer();
+    necro_copy_gc.timer          = necro_timer_create();
 
     necro_copy_gc.initial_forward_ptr = &const_sentinel;
 
@@ -229,7 +229,7 @@ NecroCopyGC necro_create_copy_gc()
 void necro_destroy_copy_gc(NecroCopyGC* necro_copy_gc)
 {
     assert(necro_copy_gc != NULL);
-    necro_destroy_timer(necro_copy_gc->timer);
+    necro_timer_destroy(necro_copy_gc->timer);
     necro_destroy_space(necro_copy_gc->from_head);
     necro_destroy_space(necro_copy_gc->to_head);
     necro_destroy_space(necro_copy_gc->const_head);

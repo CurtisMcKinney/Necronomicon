@@ -18,10 +18,10 @@ NecroMachineType* necro_create_prim_type(NecroMachineProgram* program, NecroVar 
     assert(num_elems >= 1);
     assert(type_name.id.id != 0);
     assert(con_var.id.id != 0);
-    NecroArenaSnapshot snapshot         = necro_get_arena_snapshot(&program->snapshot_arena);
+    NecroArenaSnapshot snapshot         = necro_snapshot_arena_get(&program->snapshot_arena);
     NecroMachineAST*   struct_type      = necro_create_machine_struct_def(program, type_name, elems, num_elems);
     NecroMachineType*  struct_ptr_type  = necro_create_machine_ptr_type(&program->arena, struct_type->necro_machine_type);
-    const char*        mk_fn_name       = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", necro_intern_get_string(program->intern, con_var.symbol) });
+    const char*        mk_fn_name       = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", necro_intern_get_string(program->intern, con_var.symbol) });
     // const char*        const_mk_fn_name = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mkConst", necro_intern_get_string(program->intern, con_var.symbol) });
     NecroVar           mk_fn_var        = necro_gen_var(program, NULL, mk_fn_name, NECRO_NAME_UNIQUE);
     // NecroVar           const_mk_fn_var  = necro_gen_var(program, NULL, const_mk_fn_name, NECRO_NAME_UNIQUE);
@@ -48,7 +48,7 @@ NecroMachineType* necro_create_prim_type(NecroMachineProgram* program, NecroVar 
         //     necro_symtable_get(program->symtable, con_var.id)->const_necro_machine_ast = mk_fn_def->fn_def.fn_value;
         necro_build_return(program, mk_fn_def, data_ptr);
     // }
-    necro_rewind_arena(&program->snapshot_arena, snapshot);
+    necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
     return struct_type->necro_machine_type;
 }
 
@@ -58,9 +58,9 @@ void necro_create_prim_con(NecroMachineProgram* program, NecroMachineType* struc
     assert(struct_type != NULL);
     assert(struct_type->type == NECRO_MACHINE_TYPE_STRUCT);
     assert(con_var.id.id != 0);
-    NecroArenaSnapshot    snapshot         = necro_get_arena_snapshot(&program->snapshot_arena);
+    NecroArenaSnapshot    snapshot         = necro_snapshot_arena_get(&program->snapshot_arena);
     NecroMachineType*     struct_ptr_type  = necro_create_machine_ptr_type(&program->arena, struct_type);
-    const char*           mk_fn_name       = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", necro_intern_get_string(program->intern, con_var.symbol) });
+    const char*           mk_fn_name       = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", necro_intern_get_string(program->intern, con_var.symbol) });
     // const char*           const_mk_fn_name = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mkConst", necro_intern_get_string(program->intern, con_var.symbol) });
     NecroVar              mk_fn_var        = necro_gen_var(program, NULL, mk_fn_name, NECRO_NAME_UNIQUE);
     // NecroVar              const_mk_fn_var  = necro_gen_var(program, NULL, const_mk_fn_name, NECRO_NAME_UNIQUE);
@@ -87,7 +87,7 @@ void necro_create_prim_con(NecroMachineProgram* program, NecroMachineType* struc
         //     necro_symtable_get(program->symtable, con_var.id)->const_necro_machine_ast = mk_fn_def->fn_def.fn_value;
         necro_build_return(program, mk_fn_def, data_ptr);
     // }
-    necro_rewind_arena(&program->snapshot_arena, snapshot);
+    necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
 }
 
 NecroMachineAST* necro_prim_fn_begin(NecroMachineProgram* program, NecroVar fn_var, NecroMachineType* return_type, NecroMachineType** params, size_t num_params)
@@ -108,7 +108,7 @@ void necro_prim_fn_end(NecroMachineProgram* program, NecroMachineAST* fn_def, Ne
 
 void necro_create_prim_binop(NecroMachineProgram* program, const char* fn_name, NecroMachineType* type, NECRO_MACHINE_BINOP_TYPE op)
 {
-    NecroVar         binop_var      = necro_get_top_level_symbol_var(program->scoped_symtable, fn_name);
+    NecroVar         binop_var      = necro_scoped_symtable_get_top_level_symbol_var(program->scoped_symtable, fn_name);
     NecroMachineAST* binop_fn       = necro_prim_fn_begin(program, binop_var, type, (NecroMachineType*[]) { type, type }, 2);
     NecroMachineAST* bin_op_result  = necro_build_binop(program, binop_fn, necro_create_param_reg(program, binop_fn, 0), necro_create_param_reg(program, binop_fn, 1), op);
     necro_prim_fn_end(program, binop_fn, bin_op_result);
@@ -122,7 +122,7 @@ void necro_create_prim_binops(NecroMachineProgram* program, NecroMachineType* ty
 
 void necro_create_prim_cmp(NecroMachineProgram* program, const char* fn_name, NecroMachineType* type, NECRO_MACHINE_CMP_TYPE op)
 {
-    NecroVar         cmp_var    = necro_get_top_level_symbol_var(program->scoped_symtable, fn_name);
+    NecroVar         cmp_var    = necro_scoped_symtable_get_top_level_symbol_var(program->scoped_symtable, fn_name);
     NecroMachineAST* cmp_fn     = necro_prim_fn_begin(program, cmp_var, program->necro_int_type, (NecroMachineType*[]) { type, type }, 2);
     NecroMachineAST* cmp_result = necro_build_cmp(program, cmp_fn, op, necro_create_param_reg(program, cmp_fn, 0), necro_create_param_reg(program, cmp_fn, 1));
     cmp_result                  = necro_build_zext(program, cmp_fn, cmp_result, cmp_fn->necro_machine_type->fn_type.return_type);
@@ -335,14 +335,14 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     // Prim Functions
     //--------------------
     // Int functions
-    NecroVar          fromInt_Int_var = necro_get_top_level_symbol_var(program->scoped_symtable, "fromInt@Int");
+    NecroVar          fromInt_Int_var = necro_scoped_symtable_get_top_level_symbol_var(program->scoped_symtable, "fromInt@Int");
     NecroMachineAST*  fromInt_Int_fn  = necro_prim_fn_begin(program, fromInt_Int_var, program->necro_int_type, (NecroMachineType*[]) { program->necro_int_type }, 1);
     necro_prim_fn_end(program, fromInt_Int_fn, necro_create_param_reg(program, fromInt_Int_fn, 0));
     necro_create_prim_binops(program, program->necro_int_type, (const char*[]) { "add@Int", "sub@Int", "mul@Int", "div@Int" }, (NECRO_MACHINE_BINOP_TYPE[]) { NECRO_MACHINE_BINOP_IADD, NECRO_MACHINE_BINOP_ISUB, NECRO_MACHINE_BINOP_IMUL, NECRO_MACHINE_BINOP_IDIV }, 3);
     necro_create_prim_cmps(program, program->necro_int_type, (const char*[]) { "eq@Int", "neq@Int", "gt@Int", "gte@Int", "lt@Int", "lte@Int" }, (NECRO_MACHINE_CMP_TYPE[]) { NECRO_MACHINE_CMP_EQ, NECRO_MACHINE_CMP_NE, NECRO_MACHINE_CMP_GT, NECRO_MACHINE_CMP_GE, NECRO_MACHINE_CMP_LT, NECRO_MACHINE_CMP_LE }, 6);
 
     // Float functions
-    NecroVar          fromRational_Float_var = necro_get_top_level_symbol_var(program->scoped_symtable, "fromRational@Float");
+    NecroVar          fromRational_Float_var = necro_scoped_symtable_get_top_level_symbol_var(program->scoped_symtable, "fromRational@Float");
     NecroMachineAST*  fromRational_Float_fn  = necro_prim_fn_begin(program, fromRational_Float_var, program->necro_float_type, (NecroMachineType*[]) { program->necro_float_type }, 1);
     necro_prim_fn_end(program, fromRational_Float_fn, necro_create_param_reg(program, fromRational_Float_fn, 0));
     necro_create_prim_binops(program, program->necro_float_type, (const char*[]) { "add@Float", "sub@Float", "mul@Float", "div@Float" }, (NECRO_MACHINE_BINOP_TYPE[]) { NECRO_MACHINE_BINOP_FADD, NECRO_MACHINE_BINOP_FSUB, NECRO_MACHINE_BINOP_FMUL, NECRO_MACHINE_BINOP_FDIV }, 4);
@@ -351,13 +351,13 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     // Bool functions
     necro_create_prim_cmps(program, program->necro_int_type, (const char*[]) { "eq@Bool", "neq@Bool", "gt@Bool", "gte@Bool", "lt@Bool", "lte@Bool" }, (NECRO_MACHINE_CMP_TYPE[]) { NECRO_MACHINE_CMP_EQ, NECRO_MACHINE_CMP_NE, NECRO_MACHINE_CMP_GT, NECRO_MACHINE_CMP_GE, NECRO_MACHINE_CMP_LT, NECRO_MACHINE_CMP_LE }, 6);
     // And
-    NecroVar          and_var  = necro_get_top_level_symbol_var(program->scoped_symtable, "&&");
+    NecroVar          and_var  = necro_scoped_symtable_get_top_level_symbol_var(program->scoped_symtable, "&&");
     NecroMachineAST*  and_fn   = necro_prim_fn_begin(program, and_var, program->necro_int_type, (NecroMachineType*[]) { program->necro_int_type, program->necro_int_type }, 2);
     NecroMachineAST*  and_val  = necro_build_binop(program, and_fn, necro_create_param_reg(program, and_fn, 0), necro_create_param_reg(program, and_fn, 1), NECRO_MACHINE_BINOP_AND);
     necro_prim_fn_end(program, and_fn, and_val);
     and_fn->fn_def.state_type = NECRO_STATE_CONSTANT;
     // Or
-    NecroVar          or_var  = necro_get_top_level_symbol_var(program->scoped_symtable, "||");
+    NecroVar          or_var  = necro_scoped_symtable_get_top_level_symbol_var(program->scoped_symtable, "||");
     NecroMachineAST*  or_fn   = necro_prim_fn_begin(program, or_var, program->necro_int_type, (NecroMachineType*[]) { program->necro_int_type, program->necro_int_type }, 2);
     NecroMachineAST*  or_val  = necro_build_binop(program, or_fn, necro_create_param_reg(program, or_fn, 0), necro_create_param_reg(program, or_fn, 1), NECRO_MACHINE_BINOP_OR);
     necro_prim_fn_end(program, or_fn, or_val);

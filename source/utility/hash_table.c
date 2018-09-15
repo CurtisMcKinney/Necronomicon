@@ -22,7 +22,7 @@ NecroArenaChainTable necro_empty_arena_chain_table()
 {
     return (NecroArenaChainTable)
     {
-        .arena     = necro_empty_paged_arena(),
+        .arena     = necro_paged_arena_empty(),
         .buckets   = NULL,
         .size      = 0,
         .count     = 0,
@@ -42,7 +42,7 @@ NecroArenaChainTable necro_create_arena_chain_table(size_t data_size)
         buckets[i] = (NecroChainTableNode) { .next = NULL, .key = 0 };
     return (NecroArenaChainTable)
     {
-        .arena     = necro_create_paged_arena(),
+        .arena     = necro_paged_arena_create(),
         .buckets   = buckets,
         .size      = NECRO_CHAIN_TABLE_INITIAL_SIZE,
         .count     = 0,
@@ -57,7 +57,7 @@ void necro_destroy_arena_chain_table(NecroArenaChainTable* table)
         free(table->buckets);
         table->buckets = NULL;
     }
-    necro_destroy_paged_arena(&table->arena);
+    necro_paged_arena_destroy(&table->arena);
     table->size      = 0;
     table->data_size = 0;
     table->count     = 0;

@@ -150,7 +150,7 @@ typedef struct
     NecroIntern*        intern;
 } NecroLexer;
 
-NecroResult(void) necro_lex(const char* str, size_t str_length, NecroIntern* intern, NecroLexTokenVector* out_tokens, NecroCompileInfo info);
+NecroResult(void) necro_lex(NecroCompileInfo info, NecroIntern* intern, const char* str, size_t str_length, NecroLexTokenVector* out_tokens);
 const char*       necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token);
 void              necro_lex_test();
 

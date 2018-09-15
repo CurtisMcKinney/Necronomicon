@@ -18,14 +18,14 @@
 ///////////////////////////////////////////////////////
 NecroVar necro_gen_var(NecroMachineProgram* program, NecroMachineAST* necro_machine_ast, const char* var_header, NECRO_NAME_UNIQUENESS uniqueness)
 {
-    NecroArenaSnapshot snapshot = necro_get_arena_snapshot(&program->snapshot_arena);
+    NecroArenaSnapshot snapshot = necro_snapshot_arena_get(&program->snapshot_arena);
     const char* var_name = NULL;
     if (uniqueness == NECRO_NAME_NOT_UNIQUE)
     {
         char buf[20];
         sprintf(buf, "%zu", program->gen_vars++);
         const char* buf_addr = (const char*) buf;
-        var_name = necro_concat_strings(&program->snapshot_arena, 3, (const char*[]) { "_", var_header, buf_addr });
+        var_name = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 3, (const char*[]) { "_", var_header, buf_addr });
     }
     else
     {
@@ -35,7 +35,7 @@ NecroVar necro_gen_var(NecroMachineProgram* program, NecroMachineAST* necro_mach
     NecroID     var_id   = necro_symtable_manual_new_symbol(program->symtable, var_sym);
     // necro_symtable_get(program->symtable, var_id)->type           = type;
     necro_symtable_get(program->symtable, var_id)->necro_machine_ast = necro_machine_ast;
-    necro_rewind_arena(&program->snapshot_arena, snapshot);
+    necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
     return (NecroVar) { .id = var_id, .symbol = var_sym };
 }
 
@@ -377,14 +377,14 @@ NecroMachineAST* necro_create_machine_runtime_fn(NecroMachineProgram* program, N
 
 NecroMachineAST* necro_create_machine_initial_machine_def(NecroMachineProgram* program, NecroVar bind_name, NecroMachineAST* outer, NecroMachineType* value_type, NecroType* necro_value_type)
 {
-    NecroArenaSnapshot snapshot                    = necro_get_arena_snapshot(&program->snapshot_arena);
+    NecroArenaSnapshot snapshot                    = necro_snapshot_arena_get(&program->snapshot_arena);
     NecroMachineAST* ast                           = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
     ast->type                                      = NECRO_MACHINE_DEF;
     ast->machine_def.bind_name                     = bind_name;
     char itoabuf[10];
-    char* machine_name                             = necro_concat_strings(&program->snapshot_arena, 4, (const char*[]) { "_", necro_intern_get_string(program->intern, bind_name.symbol), "Machine", itoa(bind_name.id.id, itoabuf, 10) });
+    char* machine_name                             = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 4, (const char*[]) { "_", necro_intern_get_string(program->intern, bind_name.symbol), "Machine", itoa(bind_name.id.id, itoabuf, 10) });
     machine_name[1]                                = (char) toupper(machine_name[1]);
-    char* state_name                               = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { machine_name, "State" });
+    char* state_name                               = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { machine_name, "State" });
     ast->machine_def.machine_name                  = necro_gen_var(program, ast, machine_name, NECRO_NAME_UNIQUE);
     ast->machine_def.state_name                    = necro_gen_var(program, ast, state_name, NECRO_NAME_UNIQUE);
     ast->machine_def.arg_names                     = NULL;
@@ -427,7 +427,7 @@ NecroMachineAST* necro_create_machine_initial_machine_def(NecroMachineProgram* p
     necro_symtable_get(program->symtable, ast->machine_def.machine_name.id)->necro_machine_ast = ast;
     if (outer == 0)
         necro_program_add_machine_def(program, ast);
-    necro_rewind_arena(&program->snapshot_arena, snapshot);
+    necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
     return ast;
 }
 

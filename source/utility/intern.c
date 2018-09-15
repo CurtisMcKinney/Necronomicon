@@ -15,7 +15,7 @@
 
 static char NULL_CHAR = '\0';
 
-NecroIntern necro_empty_intern()
+NecroIntern necro_intern_empty()
 {
     return (NecroIntern)
     {
@@ -26,7 +26,7 @@ NecroIntern necro_empty_intern()
     };
 }
 
-NecroIntern necro_create_intern()
+NecroIntern necro_intern_create()
 {
     NecroInternEntry* entries = malloc(NECRO_INITIAL_INTERN_SIZE * sizeof(NecroInternEntry));
     if (entries == NULL)
@@ -49,7 +49,7 @@ NecroIntern necro_create_intern()
     };
 }
 
-void necro_destroy_intern(NecroIntern* intern)
+void necro_intern_destroy(NecroIntern* intern)
 {
     intern->count      = 0;
     intern->size       = 0;
@@ -312,7 +312,7 @@ NecroSymbol necro_intern_string_slice(NecroIntern* intern, NecroStringSlice slic
     return intern->entries[probe].symbol;
 }
 
-void necro_print_intern(NecroIntern* intern)
+void necro_intern_print(NecroIntern* intern)
 {
     printf("NecroIntern\n{\n");
     printf("    size:    %zu,\n", intern->size);
@@ -333,38 +333,24 @@ void necro_print_intern(NecroIntern* intern)
 //=====================================================
 void necro_test_intern_id(NecroIntern* intern, NecroSymbol symbol, const char* compare_str)
 {
-    // printf("----\nstring: %s, hash: %d, symbol: %d\n", compare_str, symbol.hash, symbol.id);
+    assert(symbol.id != NECRO_INTERN_NULL_ID);
+    puts("Intern id test:         passed");
 
-    // ID Test
-    if (symbol.id != NECRO_INTERN_NULL_ID)
-        puts("NecroIntern id test:         passed");
-    else
-        puts("NecroIntern id test:         failed");
+    assert(symbol.hash == necro_hash_string(compare_str));
+    puts("Intern hash test:       passed");
 
-    // Hash Test
-    if (symbol.hash == necro_hash_string(compare_str))
-        puts("NecroIntern hash test:       passed");
-    else
-        puts("NecroIntern hash test:       failed");
+    assert(necro_intern_contains_symbol(intern, symbol));
+    puts("Intern contains test:   passed");
 
-    // Contains test
-    if (necro_intern_contains_symbol(intern, symbol))
-        puts("NecroIntern contains test:   passed");
-    else
-        puts("NecroIntern contains test:   failed");
-
-    // Get test
-    if (strcmp(necro_intern_get_string(intern, symbol), compare_str) == 0)
-        puts("NecroIntern get test:        passed");
-    else
-        puts("NecroIntern get test:        failed");
+    assert(strcmp(necro_intern_get_string(intern, symbol), compare_str) == 0);
+    puts("Intern get test:        passed");
 }
 
-void necro_test_intern()
+void necro_intern_test()
 {
     necro_announce_phase("NecroIntern");
 
-    NecroIntern intern = necro_create_intern();
+    NecroIntern intern = necro_intern_create();
 
     // Test ID1
     NecroSymbol  id1    = necro_intern_string(&intern, "test");
@@ -382,20 +368,13 @@ void necro_test_intern()
     NecroSymbol  id4    = necro_intern_string_slice(&intern, (NecroStringSlice) { "please work?", 6 });
     necro_test_intern_id(&intern, id4, "please");
 
-    // puts("\n---");
-    // necro_print_intern(&intern);
-    // puts("");
-
     // Destroy test
-    necro_destroy_intern(&intern);
-    if (intern.entries == NULL)
-        puts("NecroIntern destroy test:    passed");
-    else
-        puts("NecroIntern destroy test:    failed");
+    necro_intern_destroy(&intern);
+    assert(intern.entries == NULL);
+    puts("Intern destroy test:    passed");
 
     // Grow test
-    // puts("---\nGrow test");
-    intern = necro_create_intern();
+    intern = necro_intern_create();
     NecroSymbol symbols[NECRO_INITIAL_INTERN_SIZE];
     char testChars[NECRO_INITIAL_INTERN_SIZE];
     for (size_t i = 0; i < NECRO_INITIAL_INTERN_SIZE; ++i)
@@ -405,21 +384,13 @@ void necro_test_intern()
         symbols[i] = necro_intern_string_slice(&intern, (NecroStringSlice) { data, 1 });
     }
 
-    bool grow_test_passed = true;
     for (size_t i = 0; i < NECRO_INITIAL_INTERN_SIZE; ++i)
     {
-        grow_test_passed = grow_test_passed && necro_intern_contains_symbol(&intern, symbols[i]);
+        assert(necro_intern_contains_symbol(&intern, symbols[i]));
     }
+    puts("Intern grow test:       passed");
 
-    if (grow_test_passed)
-        puts("NecroIntern grow test:       passed");
-    else
-        puts("NecroIntern grow test:       failed");
-
-    // Grow Destroy test
-    necro_destroy_intern(&intern);
-    if (intern.entries == NULL)
-        puts("NecroIntern g destroy test:  passed");
-    else
-        puts("NecroIntern g destroy test:  failed");
+    necro_intern_destroy(&intern);
+    assert(intern.entries == NULL);
+    puts("Intern g destroy test:  passed");
 }

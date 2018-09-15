@@ -53,8 +53,8 @@ NecroCoreAST necro_lambda_lift(NecroCoreAST* in_ast, NecroIntern* intern, NecroS
     // Init
     NecroLambdaLift ll = (NecroLambdaLift)
     {
-        .arena              = necro_create_paged_arena(),
-        .snapshot_arena     = necro_create_snapshot_arena(),
+        .arena              = necro_paged_arena_create(),
+        .snapshot_arena     = necro_snapshot_arena_create(),
         .ll_symtable        = necro_create_lambda_lift_symbol_vector(),
         .intern             = intern,
         .symtable           = symtable,
@@ -68,7 +68,7 @@ NecroCoreAST necro_lambda_lift(NecroCoreAST* in_ast, NecroIntern* intern, NecroS
     // Lambda Lift
     NecroCoreAST_Expression* out_ast = necro_lambda_lift_go(&ll, in_ast->root, NULL, NULL);
     // Clean up
-    necro_destroy_snapshot_arena(&ll.snapshot_arena);
+    necro_snapshot_arena_destroy(&ll.snapshot_arena);
     necro_destroy_lambda_lift_symbol_vector(&ll.ll_symtable);
     necro_destroy_var_table(&ll.lifted_env);
     // Return
@@ -333,15 +333,15 @@ NecroCoreAST_Expression* necro_lambda_lift_lambda(NecroLambdaLift* ll, NecroCore
 
     // Create anonymous function name
     ll->num_anon_functions++;
-    NecroArenaSnapshot snapshot = necro_get_arena_snapshot(&ll->snapshot_arena);
+    NecroArenaSnapshot snapshot = necro_snapshot_arena_get(&ll->snapshot_arena);
 
     char num_anon_func_buf[20] = { 0 };
     snprintf(num_anon_func_buf, 20, "%zu", ll->num_anon_functions);
     const char* num_anon_func_buf_ptr = (const char*) num_anon_func_buf;
 
-    const char*        fn_name  = necro_concat_strings(&ll->snapshot_arena, 2, (const char*[]) { "_anon_fn_", num_anon_func_buf_ptr });
+    const char*        fn_name  = necro_snapshot_arena_concat_strings(&ll->snapshot_arena, 2, (const char*[]) { "_anon_fn_", num_anon_func_buf_ptr });
     NecroSymbol        var_sym  = necro_intern_string(ll->intern, fn_name);
-    NecroID            var_id   = necro_scoped_symtable_new_symbol_info(ll->scoped_symtable, ll->scoped_symtable->top_scope, necro_create_initial_symbol_info(var_sym, (NecroSourceLoc) { 0 }, NULL));
+    NecroID            var_id   = necro_scoped_symtable_new_symbol_info(ll->scoped_symtable, ll->scoped_symtable->top_scope, necro_symtable_create_initial_symbol_info(var_sym, (NecroSourceLoc) { 0 }, NULL));
     NecroVar           fn_var   = (NecroVar) { .id = var_id, .symbol = var_sym };
     NecroSymbolInfo*   s_info   = necro_symtable_get(ll->symtable, var_id);
     s_info->type                = in_ast->necro_type;
@@ -404,7 +404,7 @@ NecroCoreAST_Expression* necro_lambda_lift_lambda(NecroLambdaLift* ll, NecroCore
     lambda_lift_point->list.expr = bind_ast;
 
     // Apply free vars
-    necro_rewind_arena(&ll->snapshot_arena, snapshot);
+    necro_snapshot_arena_rewind(&ll->snapshot_arena, snapshot);
     return necro_lambda_lift_go(ll, necro_create_core_var(&ll->arena, fn_var), prev_env, prev_outer);
 }
 

@@ -78,7 +78,7 @@ typedef struct NecroTimer
 #endif
 } NecroTimer;
 
-NecroTimer* necro_create_timer()
+NecroTimer* necro_timer_create()
 {
     NecroTimer* timer = malloc(sizeof(NecroTimer));
     *timer = (NecroTimer) { .start_time = 0, .end_time = 0 };
@@ -90,14 +90,14 @@ NecroTimer* necro_create_timer()
     return timer;
 }
 
-void necro_destroy_timer(struct NecroTimer* timer)
+void necro_timer_destroy(struct NecroTimer* timer)
 {
     if (timer == NULL)
         return;
     free(timer);
 }
 
-void necro_start_timer(NecroTimer* timer)
+void necro_timer_start(NecroTimer* timer)
 {
 #if _WIN32
     QueryPerformanceCounter(&timer->start_time);
@@ -106,7 +106,7 @@ void necro_start_timer(NecroTimer* timer)
 #endif
 }
 
-double necro_stop_timer(NecroTimer* timer)
+double necro_timer_stop(NecroTimer* timer)
 {
 #if _WIN32
     QueryPerformanceCounter(&timer->end_time);
@@ -118,8 +118,8 @@ double necro_stop_timer(NecroTimer* timer)
 #endif
 }
 
-void necro_stop_and_report_timer(struct NecroTimer* timer, const char* print_header)
+void necro_timer_stop_and_report(struct NecroTimer* timer, const char* print_header)
 {
-    double total_time_ms = necro_stop_timer(timer);
+    double total_time_ms = necro_timer_stop(timer);
     printf("%s: %fms\n", print_header, total_time_ms);
 }

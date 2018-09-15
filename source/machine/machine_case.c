@@ -706,7 +706,7 @@ void necro_decision_tree_to_machine(NecroMachineProgram* program, NecroDecisionT
                 }
                 else
                 {
-                    const char*      case_name  = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { necro_intern_get_string(program->intern, tree->tree_switch.cons[i].symbol), "_case" });
+                    const char*      case_name  = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { necro_intern_get_string(program->intern, tree->tree_switch.cons[i].symbol), "_case" });
                     NecroMachineAST* case_block = necro_insert_block_before(program, outer->machine_def.update_fn, case_name, term_case_block);
                     necro_add_case_to_switch(program, switch_value, case_block, i);
                     necro_move_to_block(program, outer->machine_def.update_fn, case_block);
@@ -758,7 +758,7 @@ void necro_decision_tree_to_machine(NecroMachineProgram* program, NecroDecisionT
                     int64_t int_literal = tree->tree_lit_switch.constants[i].int_literal;
                     sprintf(int_buf, "%" PRId64, int_literal);
                     const char* int_buf_addr = (const char*) int_buf;
-                    const char*      case_name  = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { int_buf_addr, "_case" });
+                    const char*      case_name  = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { int_buf_addr, "_case" });
                     NecroMachineAST* case_block = necro_insert_block_before(program, outer->machine_def.update_fn, case_name, term_case_block);
                     necro_add_case_to_switch(program, switch_value, case_block, (size_t) tree->tree_lit_switch.constants[i].int_literal);
                     necro_move_to_block(program, outer->machine_def.update_fn, case_block);

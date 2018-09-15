@@ -58,8 +58,8 @@ NecroInfer necro_empty_infer()
         .renamer         = NULL,
         .prim_types      = NULL,
         .env             = necro_empty_type_env(),
-        .snapshot_arena  = necro_empty_snapshot_arena(),
-        .arena           = necro_empty_paged_arena(),
+        .snapshot_arena  = necro_snapshot_arena_empty(),
+        .arena           = necro_paged_arena_empty(),
         .intern          = NULL,
         .highest_id      = 0,
         .star_type_kind  = NULL,
@@ -72,8 +72,8 @@ NecroInfer necro_create_infer(NecroIntern* intern, struct NecroSymTable* symtabl
     NecroInfer infer = (NecroInfer)
     {
         .intern          = intern,
-        .arena           = necro_create_paged_arena(),
-        .snapshot_arena  = necro_create_snapshot_arena(),
+        .arena           = necro_paged_arena_create(),
+        .snapshot_arena  = necro_snapshot_arena_create(),
         .env             = necro_create_type_env(512),
         .error           = necro_create_error(),
         .highest_id      = symtable->count,
@@ -106,8 +106,8 @@ void necro_destroy_infer(NecroInfer* infer)
     if (infer == NULL)
         return;
     necro_destroy_type_env(&infer->env);
-    necro_destroy_paged_arena(&infer->arena);
-    necro_destroy_snapshot_arena(&infer->snapshot_arena);
+    necro_paged_arena_destroy(&infer->arena);
+    necro_snapshot_arena_destroy(&infer->snapshot_arena);
     infer->intern = NULL;
 }
 

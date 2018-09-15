@@ -77,15 +77,15 @@ void necro_state_analysis(NecroCoreAST* in_ast, NecroIntern* intern, NecroSymTab
 {
     NecroStateAnalysis sa = (NecroStateAnalysis)
     {
-        .arena           = necro_create_paged_arena(),
+        .arena           = necro_paged_arena_create(),
         .intern          = intern,
         .symtable        = symtable,
         .scoped_symtable = scoped_symtable,
         .prim_types      = prim_types,
         .infer           = infer,
-        .closure_con     = necro_con_to_var(necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_Closure"))),
-        .null_con        = necro_con_to_var(necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_NullPoly"))),
-        .dyn_state_con   = necro_con_to_var(necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_DynState"))),
+        .closure_con     = necro_con_to_var(necro_prim_types_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_Closure"))),
+        .null_con        = necro_con_to_var(necro_prim_types_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_NullPoly"))),
+        .dyn_state_con   = necro_con_to_var(necro_prim_types_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_DynState"))),
     };
     // Primitively stateful functions, etc
     necro_symtable_get(symtable, prim_types->apply_fn.id)->state_type   = NECRO_STATE_STATEFUL;
@@ -94,7 +94,7 @@ void necro_state_analysis(NecroCoreAST* in_ast, NecroIntern* intern, NecroSymTab
     // Go
     necro_state_analysis_go(&sa, in_ast->root, NULL);
     // Cleanup
-    necro_destroy_paged_arena(&sa.arena);
+    necro_paged_arena_destroy(&sa.arena);
 }
 
 NECRO_STATE_TYPE necro_merge_state_types(NECRO_STATE_TYPE state_type1, NECRO_STATE_TYPE state_type2)

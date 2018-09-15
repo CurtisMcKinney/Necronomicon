@@ -13,7 +13,7 @@
 // Constants
 #define NECRO_SYMTABLE_INITIAL_SIZE 512
 
-NecroSymTable necro_empty_symtable()
+NecroSymTable necro_symtable_empty()
 {
     return (NecroSymTable)
     {
@@ -24,7 +24,7 @@ NecroSymTable necro_empty_symtable()
     };
 }
 
-NecroSymTable necro_create_symtable(NecroIntern* intern)
+NecroSymTable necro_symtable_create(NecroIntern* intern)
 {
     NecroSymbolInfo* data = calloc(NECRO_SYMTABLE_INITIAL_SIZE, sizeof(NecroSymbolInfo));
     if (data == NULL)
@@ -41,7 +41,7 @@ NecroSymTable necro_create_symtable(NecroIntern* intern)
     };
 }
 
-void necro_destroy_symtable(NecroSymTable* table)
+void necro_symtable_destroy(NecroSymTable* table)
 {
     if (table == NULL || table->data == NULL)
         return;
@@ -51,7 +51,7 @@ void necro_destroy_symtable(NecroSymTable* table)
     table->count = 0;
 }
 
-NecroSymbolInfo necro_create_initial_symbol_info(NecroSymbol symbol, NecroSourceLoc source_loc, NecroScope* scope)
+NecroSymbolInfo necro_symtable_create_initial_symbol_info(NecroSymbol symbol, NecroSourceLoc source_loc, NecroScope* scope)
 {
     return (NecroSymbolInfo)
     {
@@ -185,8 +185,8 @@ void necro_symtable_test()
     puts("-- NecroSymTable");
     puts("---------------------------\n");
 
-    NecroIntern     intern       = necro_create_intern();
-    NecroSymTable   symtable     = necro_create_symtable(&intern);
+    NecroIntern     intern       = necro_intern_create();
+    NecroSymTable   symtable     = necro_symtable_create(&intern);
 
     // Symbol 1 test
     NecroSymbol     test_symbol1 = necro_intern_string(&intern, "test1");
@@ -220,8 +220,8 @@ void necro_symtable_test()
         printf("Symbol2 test: failed\n");
     }
 
-    necro_destroy_symtable(&symtable);
-    necro_destroy_intern(&intern);
+    necro_symtable_destroy(&symtable);
+    necro_intern_destroy(&intern);
 
     necro_scoped_symtable_test();
 }
@@ -243,11 +243,11 @@ inline NecroScope* necro_create_scope(NecroPagedArena* arena, NecroScope* parent
     return scope;
 }
 
-NecroScopedSymTable necro_empty_scoped_symtable()
+NecroScopedSymTable necro_scoped_symtable_empty()
 {
     return (NecroScopedSymTable)
     {
-        .arena               = necro_empty_paged_arena(),
+        .arena               = necro_paged_arena_empty(),
         .global_table        = NULL,
         .top_scope           = NULL,
         .current_scope       = NULL,
@@ -256,9 +256,9 @@ NecroScopedSymTable necro_empty_scoped_symtable()
     };
 }
 
-NecroScopedSymTable necro_create_scoped_symtable(NecroSymTable* global_table)
+NecroScopedSymTable necro_scoped_symtable_create(NecroSymTable* global_table)
 {
-    NecroPagedArena  arena       = necro_create_paged_arena();
+    NecroPagedArena  arena       = necro_paged_arena_create();
     NecroScope*      top_scope   = necro_create_scope(&arena, NULL);
     NecroScope*      type_scope  = necro_create_scope(&arena, NULL);
     return (NecroScopedSymTable)
@@ -272,9 +272,9 @@ NecroScopedSymTable necro_create_scoped_symtable(NecroSymTable* global_table)
     };
 }
 
-void necro_destroy_scoped_symtable(NecroScopedSymTable* table)
+void necro_scoped_symtable_destroy(NecroScopedSymTable* table)
 {
-    necro_destroy_paged_arena(&table->arena);
+    necro_paged_arena_destroy(&table->arena);
 }
 
 void necro_scoped_symtable_new_scope(NecroScopedSymTable* table)
@@ -351,7 +351,7 @@ void necro_scope_insert(NecroScope* scope, NecroSymbol symbol, NecroID id, Necro
     scope->count++;
 }
 
-NecroID necro_this_scope_find(NecroScope* scope, NecroSymbol symbol)
+NecroID necro_scope_find_in_this_scope(NecroScope* scope, NecroSymbol symbol)
 {
     assert(scope != NULL);
     assert(scope->buckets != NULL);
@@ -372,7 +372,7 @@ NecroID necro_scope_find(NecroScope* scope, NecroSymbol symbol)
     NecroScope* current_scope = scope;
     while (current_scope != NULL)
     {
-        id = necro_this_scope_find(current_scope, symbol);
+        id = necro_scope_find_in_this_scope(current_scope, symbol);
         if (id.id != NECRO_SYMTABLE_NULL_ID.id)
         {
             return id;
@@ -391,7 +391,7 @@ NecroID necro_scoped_symtable_new_symbol_info(NecroScopedSymTable* table, NecroS
 
 NecroID necro_symtable_manual_new_symbol(NecroSymTable* symtable, NecroSymbol symbol)
 {
-    NecroSymbolInfo info = necro_create_initial_symbol_info(symbol, (NecroSourceLoc) { 0 }, NULL);
+    NecroSymbolInfo info = necro_symtable_create_initial_symbol_info(symbol, (NecroSourceLoc) { 0 }, NULL);
     return necro_symtable_insert(symtable, info);
 }
 
@@ -496,7 +496,6 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
         break;
     case NECRO_AST_DO:
     {
-        // necro_build_scopes_go(scoped_symtable, input_node->do_statement.statement_list);
         NecroAst* current_statement = input_node->do_statement.statement_list;
         size_t                 pop_count = 0;
         while (current_statement != NULL)
@@ -529,32 +528,6 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
     case NECRO_AST_PAT_EXPRESSION:
         necro_build_scopes_go(scoped_symtable, input_node->pattern_expression.expressions);
         break;
-    // case NECRO_AST_EXPRESSION_SEQUENCE:
-    // {
-    //     // Push
-    //     NecroAST_Node_Reified* expressions = input_node->expression_sequence.expressions;
-    //     assert(expressions != NULL); // Shouldn't be possible to have an empty sequence
-    //     expressions->delay_scope = scoped_symtable->current_delay_scope;
-    //     necro_build_scopes_go(scoped_symtable, expressions->list.item);
-    //     expressions = expressions->list.next_item;
-    //     while (expressions != NULL)
-    //     {
-    //         necro_scoped_symtable_new_delay_scope(scoped_symtable);
-    //         expressions->delay_scope = scoped_symtable->current_delay_scope;
-    //         necro_build_scopes_go(scoped_symtable, expressions->list.item);
-    //         expressions = expressions->list.next_item;
-    //     }
-    //     // Pop
-    //     expressions = input_node->expression_sequence.expressions;
-    //     expressions = expressions->list.next_item;
-    //     while (expressions != NULL)
-    //     {
-    //         necro_scoped_symtable_pop_delay_scope(scoped_symtable);
-    //         expressions = expressions->list.next_item;
-    //     }
-    //     printf("seq\n");
-    //     break;
-    // }
     case NECRO_AST_TUPLE:
         necro_build_scopes_go(scoped_symtable, input_node->tuple.expressions);
         break;
@@ -671,7 +644,7 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
         necro_build_scopes_go(scoped_symtable, input_node->function_type.next_on_arrow);
         break;
     default:
-        necro_error(&scoped_symtable->error, input_node->source_loc, "Unrecognized AST Node type found: %d", input_node->type);
+        assert(false);
         break;
     }
 }
@@ -743,7 +716,7 @@ void necro_scoped_symtable_print(NecroScopedSymTable* table)
     printf("}\n");
 }
 
-void necro_print_env_with_symtable(NecroSymTable* table, NecroInfer* infer)
+void necro_symtable_print_env(NecroSymTable* table, NecroInfer* infer)
 {
     printf("\nEnv:\n[\n");
     for (size_t i = 1; i < table->count; ++i)
@@ -805,9 +778,9 @@ void necro_scoped_symtable_test()
 {
     necro_announce_phase("NecroScopedSymTable");
 
-    NecroIntern         intern          = necro_create_intern();
-    NecroSymTable       symtable        = necro_create_symtable(&intern);
-    NecroScopedSymTable scoped_symtable = necro_create_scoped_symtable(&symtable);
+    NecroIntern         intern          = necro_intern_create();
+    NecroSymTable       symtable        = necro_symtable_create(&intern);
+    NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create(&symtable);
 
     NecroScope*         top_scope       = scoped_symtable.current_scope;
     // necro_scoped_symtable_print(&scoped_symtable);
@@ -882,9 +855,9 @@ void necro_scoped_symtable_test()
             printf("Pop/Find test:  FAILED\n");
     }
 
-    necro_destroy_scoped_symtable(&scoped_symtable);
+    necro_scoped_symtable_destroy(&scoped_symtable);
 
-    scoped_symtable = necro_create_scoped_symtable(&symtable);
+    scoped_symtable = necro_scoped_symtable_create(&symtable);
     // Grow Test
     {
         bool test_passed = true;
@@ -893,7 +866,7 @@ void necro_scoped_symtable_test()
             char buffer[20];
             snprintf(buffer, 20, "grow%zu", i);
             NecroSymbol     symbol = necro_intern_string(&intern, buffer);
-            NecroSymbolInfo info   = necro_create_initial_symbol_info(symbol, (NecroSourceLoc){ 0, 0, 0 }, NULL);
+            NecroSymbolInfo info   = necro_symtable_create_initial_symbol_info(symbol, (NecroSourceLoc){ 0, 0, 0 }, NULL);
             NecroID         id     = necro_scoped_symtable_new_symbol_info(&scoped_symtable, scoped_symtable.current_scope, info);
             if (id.id == 0)
             {
@@ -907,8 +880,8 @@ void necro_scoped_symtable_test()
             printf("Grow test:      FAILED\n");
     }
 
-    necro_destroy_symtable(&symtable);
-    necro_destroy_intern(&intern);
+    necro_symtable_destroy(&symtable);
+    necro_intern_destroy(&intern);
 }
 
 NecroSymbolInfo* necro_symtable_get_type_class_declaration_info(NecroSymTable* symtable, NecroAst* ast)
@@ -929,7 +902,7 @@ NecroSymbolInfo* necro_symtable_get_type_class_instance_info(NecroSymTable* symt
     return symtable->data + index;
 }
 
-NecroVar necro_get_top_level_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name)
+NecroVar necro_scoped_symtable_get_top_level_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name)
 {
     NecroSymbol symbol = necro_intern_string(scoped_symtable->global_table->intern, name);
     NecroID     id     = necro_scope_find(scoped_symtable->top_scope, symbol);
@@ -937,7 +910,7 @@ NecroVar necro_get_top_level_symbol_var(NecroScopedSymTable* scoped_symtable, co
     return (NecroVar) { .id = id, .symbol = symbol };
 }
 
-NecroVar necro_get_type_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name)
+NecroVar necro_scoped_symtable_get_type_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name)
 {
     NecroSymbol symbol = necro_intern_string(scoped_symtable->global_table->intern, name);
     NecroID     id     = necro_scope_find(scoped_symtable->top_type_scope, symbol);

@@ -458,12 +458,12 @@ void necro_print_error_cons(NecroResultError error, const char* source_str, cons
 {
     if (error.error_cons.error1 != NULL)
     {
-        necro_print_result_error(*error.error_cons.error1, source_str, source_name);
+        necro_result_error_print(*error.error_cons.error1, source_str, source_name);
         free(error.error_cons.error1);
     }
     if (error.error_cons.error2 != NULL)
     {
-        necro_print_result_error(*error.error_cons.error2, source_str, source_name);
+        necro_result_error_print(*error.error_cons.error2, source_str, source_name);
         free(error.error_cons.error2);
     }
 }
@@ -786,7 +786,7 @@ void necro_print_const_con_missing_right_paren(NecroResultError error, const cha
     necro_print_default_error_format("Malformed Initial Value", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_result_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_result_error_print(NecroResultError error, const char* source_str, const char* source_name)
 {
     switch (error.type)
     {

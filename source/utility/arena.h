@@ -19,23 +19,17 @@ typedef struct
     size_t size;
 } NecroArena;
 
-NecroArena necro_empty_arena();
-NecroArena construct_arena(size_t capacity);
-void       destruct_arena(NecroArena* arena);
+NecroArena necro_arena_empty();
+NecroArena necro_arena_create(size_t capacity);
+void       necro_arena_destroy(NecroArena* arena);
 
 typedef enum
 {
-    arena_fixed_capacity,
-    arena_allow_realloc
-} arena_alloc_policy;
+    NECRO_ARENA_FIXED,
+    NECRO_ARENA_REALLOC
+} NECRO_ARENA_ALLOC_POLICY;
 
-void* arena_alloc(NecroArena* arena, size_t size, arena_alloc_policy alloc_policy);
-
-// LocalPtr
-typedef uint32_t NecroArenaPtr;
-static const NecroArenaPtr null_arena_ptr = (uint32_t) -1;
-NecroArenaPtr arena_alloc_local(NecroArena* arena, size_t size, arena_alloc_policy alloc_policy);
-void*         arena_deref_local(NecroArena* arena, NecroArenaPtr ptr);
+void* necro_arena_alloc(NecroArena* arena, size_t size, NECRO_ARENA_ALLOC_POLICY alloc_policy);
 
 //=====================================================
 // NecroPagedArena
@@ -53,10 +47,10 @@ typedef struct
     size_t          count;
 } NecroPagedArena;
 
-NecroPagedArena necro_empty_paged_arena();
-NecroPagedArena necro_create_paged_arena();
+NecroPagedArena necro_paged_arena_empty();
+NecroPagedArena necro_paged_arena_create();
+void            necro_paged_arena_destroy(NecroPagedArena* arena);
 void*           necro_paged_arena_alloc(NecroPagedArena* arena, size_t size);
-void            necro_destroy_paged_arena(NecroPagedArena* arena);
 
 //=====================================================
 // NecroSnapshotArena
@@ -74,13 +68,12 @@ typedef struct
     size_t size;
 } NecroSnapshotArena;
 
-NecroSnapshotArena necro_empty_snapshot_arena();
-NecroSnapshotArena necro_create_snapshot_arena();
+NecroSnapshotArena necro_snapshot_arena_empty();
+NecroSnapshotArena necro_snapshot_arena_create();
+void               necro_snapshot_arena_destroy(NecroSnapshotArena* arena);
 void*              necro_snapshot_arena_alloc(NecroSnapshotArena* arena, size_t bytes);
-void               necro_destroy_snapshot_arena(NecroSnapshotArena* arena);
-NecroArenaSnapshot necro_get_arena_snapshot(NecroSnapshotArena* arena);
-void               necro_rewind_arena(NecroSnapshotArena* arena, NecroArenaSnapshot snapshot);
-
-char*              necro_concat_strings(NecroSnapshotArena* arena, uint32_t string_count, const char** strings);
+NecroArenaSnapshot necro_snapshot_arena_get(NecroSnapshotArena* arena);
+void               necro_snapshot_arena_rewind(NecroSnapshotArena* arena, NecroArenaSnapshot snapshot);
+char*              necro_snapshot_arena_concat_strings(NecroSnapshotArena* arena, uint32_t string_count, const char** strings);
 
 #endif // ARENA_H

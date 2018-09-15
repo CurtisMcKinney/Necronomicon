@@ -68,15 +68,15 @@ typedef struct NecroSymTable
 } NecroSymTable;
 
 // API
-NecroSymTable    necro_empty_symtable();
-NecroSymTable    necro_create_symtable(NecroIntern* intern);
-void             necro_destroy_symtable(NecroSymTable* table);
+NecroSymTable    necro_symtable_empty();
+NecroSymTable    necro_symtable_create(NecroIntern* intern);
+void             necro_symtable_destroy(NecroSymTable* table);
 NecroID          necro_symtable_insert(NecroSymTable* table, NecroSymbolInfo info);
 NecroSymbolInfo* necro_symtable_get(NecroSymTable* table, NecroID id);
 void             necro_symtable_print(NecroSymTable* table);
 void             necro_symtable_test();
-NecroSymbolInfo  necro_create_initial_symbol_info(NecroSymbol symbol, NecroSourceLoc source_loc, struct NecroScope* scope);
-void             necro_print_env_with_symtable(NecroSymTable* table, NecroInfer* infer);
+NecroSymbolInfo  necro_symtable_create_initial_symbol_info(NecroSymbol symbol, NecroSourceLoc source_loc, struct NecroScope* scope);
+void             necro_symtable_print_env(NecroSymTable* table, NecroInfer* infer);
 
 //=====================================================
 // NecroScopedSymTable
@@ -108,9 +108,9 @@ typedef struct NecroScopedSymTable
     NecroError       error;
 } NecroScopedSymTable;
 
-NecroScopedSymTable necro_empty_scoped_symtable();
-NecroScopedSymTable necro_create_scoped_symtable(NecroSymTable* global_table);
-void                necro_destroy_scoped_symtable(NecroScopedSymTable* table);
+NecroScopedSymTable necro_scoped_symtable_empty();
+NecroScopedSymTable necro_scoped_symtable_create(NecroSymTable* global_table);
+void                necro_scoped_symtable_destroy(NecroScopedSymTable* table);
 
 // Build API
 void                necro_scoped_symtable_new_scope(NecroScopedSymTable* table);
@@ -121,7 +121,7 @@ void                necro_scoped_symtable_pop_type_scope(NecroScopedSymTable* ta
 // Names API
 NECRO_RETURN_CODE   necro_build_scopes(NecroScopedSymTable* table, NecroAstArena* ast);
 void                necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input_node);
-NecroID             necro_this_scope_find(NecroScope* scope, NecroSymbol symbol);
+NecroID             necro_scope_find_in_this_scope(NecroScope* scope, NecroSymbol symbol);
 NecroID             necro_scope_find(NecroScope* scope, NecroSymbol symbol);
 NecroID             necro_scoped_symtable_new_symbol_info(NecroScopedSymTable* table, NecroScope* scope, NecroSymbolInfo info);
 void                necro_scope_set_last_introduced_id(NecroScope* scope, NecroID id);
@@ -129,8 +129,8 @@ NecroID             necro_symtable_manual_new_symbol(NecroSymTable* symtable, Ne
 
 NecroSymbolInfo*    necro_symtable_get_type_class_declaration_info(NecroSymTable* symtable, NecroAst* ast);
 NecroSymbolInfo*    necro_symtable_get_type_class_instance_info(NecroSymTable* symtable, NecroAst* ast);
-NecroVar            necro_get_top_level_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name);
-NecroVar            necro_get_type_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name);
+NecroVar            necro_scoped_symtable_get_top_level_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name);
+NecroVar            necro_scoped_symtable_get_type_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name);
 
 // Test
 void                necro_scoped_symtable_print_type_scope(NecroScopedSymTable* table);

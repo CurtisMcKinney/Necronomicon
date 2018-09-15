@@ -282,7 +282,7 @@ NecroResult(NecroParseAstLocalPtr) necro_type_list_expected_right_bracket(NecroS
 NecroResult(NecroParseAstLocalPtr) necro_class_expected_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroParseAstLocalPtr) necro_instance_expected_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 
-void                               necro_print_result_error(NecroResultError error, const char* source_str, const char* source_name);
+void                               necro_result_error_print(NecroResultError error, const char* source_str, const char* source_name);
 
 // TODO: necro_map_result, necro_and_then
 

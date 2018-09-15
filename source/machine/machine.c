@@ -67,8 +67,8 @@ NecroMachineProgram necro_empty_machine_program()
 {
     return (NecroMachineProgram)
     {
-        .arena              = necro_empty_paged_arena(),
-        .snapshot_arena     = necro_empty_snapshot_arena(),
+        .arena              = necro_paged_arena_empty(),
+        .snapshot_arena     = necro_snapshot_arena_empty(),
         .structs            = necro_empty_necro_machine_ast_vector(),
         .globals            = necro_empty_necro_machine_ast_vector(),
         .functions          = necro_empty_necro_machine_ast_vector(),
@@ -94,8 +94,8 @@ NecroMachineProgram necro_create_initial_machine_program(NecroIntern* intern, Ne
 {
     NecroMachineProgram program =
     {
-        .arena              = necro_create_paged_arena(),
-        .snapshot_arena     = necro_create_snapshot_arena(),
+        .arena              = necro_paged_arena_create(),
+        .snapshot_arena     = necro_snapshot_arena_create(),
         .structs            = necro_create_necro_machine_ast_vector(),
         .globals            = necro_create_necro_machine_ast_vector(),
         .functions          = necro_create_necro_machine_ast_vector(),
@@ -110,13 +110,13 @@ NecroMachineProgram necro_create_initial_machine_program(NecroIntern* intern, Ne
         .necro_main         = NULL,
         .main_symbol        = necro_intern_string(symtable->intern, "main"),
         .copy_table         = necro_create_machine_copy_table(symtable, prim_types),
-        .closure_con        = necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_Closure")),
+        .closure_con        = necro_prim_types_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_Closure")),
         .closure_cons       = necro_create_closure_con_vector(),
         .closure_types      = necro_create_closure_type_vector(),
         .closure_defs       = closure_defs,
         .apply_fns          = necro_create_apply_fn_vector(),
-        .dyn_state_con      = necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_DynState")),
-        .null_con           = necro_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_NullPoly")),
+        .dyn_state_con      = necro_prim_types_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_DynState")),
+        .null_con           = necro_prim_types_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_NullPoly")),
         .get_apply_state_fn = NULL,
     };
     program.necro_uint_type  = necro_create_word_sized_uint_type(&program);
@@ -128,8 +128,8 @@ NecroMachineProgram necro_create_initial_machine_program(NecroIntern* intern, Ne
 
 void necro_destroy_machine_program(NecroMachineProgram* program)
 {
-    necro_destroy_paged_arena(&program->arena);
-    necro_destroy_snapshot_arena(&program->snapshot_arena);
+    necro_paged_arena_destroy(&program->arena);
+    necro_snapshot_arena_destroy(&program->snapshot_arena);
     necro_destroy_necro_machine_ast_vector(&program->structs);
     necro_destroy_necro_machine_ast_vector(&program->globals);
     necro_destroy_necro_machine_ast_vector(&program->functions);
@@ -151,9 +151,9 @@ void necro_core_to_machine_1_data_con(NecroMachineProgram* program, NecroCoreAST
     assert(struct_type != NULL);
     assert(struct_type->type == NECRO_MACHINE_STRUCT_DEF);
 
-    NecroArenaSnapshot snapshot        = necro_get_arena_snapshot(&program->snapshot_arena);
+    NecroArenaSnapshot snapshot        = necro_snapshot_arena_get(&program->snapshot_arena);
     NecroMachineType*  struct_ptr_type = necro_create_machine_ptr_type(&program->arena, struct_type->necro_machine_type);
-    char*              con_name        = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", necro_intern_get_string(program->intern, con->condid.symbol) });
+    char*              con_name        = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", necro_intern_get_string(program->intern, con->condid.symbol) });
     // char*              const_con_name  = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mkConst", necro_intern_get_string(program->intern, con->condid.symbol) });
     NecroVar           con_var         = necro_gen_var(program, NULL, con_name, NECRO_NAME_UNIQUE);
     // NecroVar           const_con_var   = necro_gen_var(program, NULL, const_con_name, NECRO_NAME_UNIQUE);
@@ -189,7 +189,7 @@ void necro_core_to_machine_1_data_con(NecroMachineProgram* program, NecroCoreAST
             {
                 char itoa_buff_2[6];
                 assert(i <= INT32_MAX);
-                char* value_name = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "param_", itoa((int32_t) i, itoa_buff_2, 10) });
+                char* value_name = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "param_", itoa((int32_t) i, itoa_buff_2, 10) });
                 UNUSED(value_name);
                 necro_build_store_into_slot(program, mk_fn_def, necro_create_param_reg(program, mk_fn_def, i), data_ptr, i + 1);
             }
@@ -202,7 +202,7 @@ void necro_core_to_machine_1_data_con(NecroMachineProgram* program, NecroCoreAST
         //     necro_symtable_get(program->symtable, con->condid.id)->const_necro_machine_ast = mk_fn_def->fn_def.fn_value;
     // }
 
-    necro_rewind_arena(&program->snapshot_arena, snapshot);
+    necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
 }
 
 void necro_core_to_machine_1_data_decl(NecroMachineProgram* program, NecroCoreAST_Expression* core_ast)
@@ -211,7 +211,7 @@ void necro_core_to_machine_1_data_decl(NecroMachineProgram* program, NecroCoreAS
     assert(core_ast != NULL);
     assert(core_ast->expr_type == NECRO_CORE_EXPR_DATA_DECL);
 
-    NecroArenaSnapshot snapshot = necro_get_arena_snapshot(&program->snapshot_arena);
+    NecroArenaSnapshot snapshot = necro_snapshot_arena_get(&program->snapshot_arena);
 
     size_t max_arg_count = 0;
     NecroCoreAST_DataCon* con = core_ast->data_decl.con_list;
@@ -271,7 +271,7 @@ void necro_core_to_machine_1_data_decl(NecroMachineProgram* program, NecroCoreAS
         con_number++;
     }
 
-    necro_rewind_arena(&program->snapshot_arena, snapshot);
+    necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
 }
 
 void necro_core_to_machine_1_bind(NecroMachineProgram* program, NecroCoreAST_Expression* core_ast, NecroMachineAST* outer)
@@ -330,7 +330,7 @@ void necro_core_to_machine_1_bind(NecroMachineProgram* program, NecroCoreAST_Exp
     {
         // mk_fn
         {
-            const char*       mk_fn_name = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", necro_intern_get_string(program->intern, machine_def->machine_def.machine_name.symbol) + 1 });
+            const char*       mk_fn_name = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", necro_intern_get_string(program->intern, machine_def->machine_def.machine_name.symbol) + 1 });
             NecroVar          mk_fn_var  = necro_gen_var(program, NULL, mk_fn_name, NECRO_NAME_UNIQUE);
             NecroMachineType* mk_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), NULL, 0);
             NecroMachineAST*  mk_fn_body = necro_create_machine_block(program, "entry", NULL);
@@ -341,7 +341,7 @@ void necro_core_to_machine_1_bind(NecroMachineProgram* program, NecroCoreAST_Exp
 
         // init_fn
         {
-            const char*       init_fn_name = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_init", necro_intern_get_string(program->intern, machine_def->machine_def.machine_name.symbol) + 1 });
+            const char*       init_fn_name = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_init", necro_intern_get_string(program->intern, machine_def->machine_def.machine_name.symbol) + 1 });
             NecroVar          init_fn_var  = necro_gen_var(program, NULL, init_fn_name, NECRO_NAME_UNIQUE);
             NecroMachineType* init_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), (NecroMachineType*[]) { program->necro_poly_ptr_type }, 1);
             NecroMachineAST*  init_fn_body = necro_create_machine_block(program, "entry", NULL);
@@ -801,11 +801,11 @@ NecroMachineAST* necro_core_to_machine_3_bind(NecroMachineProgram* program, Necr
         return return_value;
     }
 
-    NecroArenaSnapshot snapshot = necro_get_arena_snapshot(&program->snapshot_arena);
+    NecroArenaSnapshot snapshot = necro_snapshot_arena_get(&program->snapshot_arena);
 
     // Start function
     bool            is_stateful       = machine_def->machine_def.state_type == NECRO_STATE_STATEFUL;
-    const char*     update_name       = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_update", necro_intern_get_string(program->intern, machine_def->machine_def.machine_name.symbol) + 1 });
+    const char*     update_name       = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_update", necro_intern_get_string(program->intern, machine_def->machine_def.machine_name.symbol) + 1 });
     NecroVar        update_var        = necro_gen_var(program, NULL, update_name, NECRO_NAME_UNIQUE);
     size_t          num_update_params = machine_def->machine_def.num_arg_names;
     if (num_update_params > 0)
@@ -860,7 +860,7 @@ NecroMachineAST* necro_core_to_machine_3_bind(NecroMachineProgram* program, Necr
 
     // Finish function
     necro_build_return(program, update_fn_def, result);
-    necro_rewind_arena(&program->snapshot_arena, snapshot);
+    necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
     return NULL;
 }
 
@@ -934,7 +934,7 @@ NecroMachineAST* necro_core_to_machine_3_app(NecroMachineProgram* program, Necro
 
     assert(fn_value->necro_machine_type->fn_type.num_parameters == arg_count);
 
-    NecroArenaSnapshot snapshot  = necro_get_arena_snapshot(&program->snapshot_arena);
+    NecroArenaSnapshot snapshot  = necro_snapshot_arena_get(&program->snapshot_arena);
     NecroMachineAST**  args      = necro_paged_arena_alloc(&program->arena, arg_count * sizeof(NecroMachineAST*));
     size_t             arg_index = arg_count - 1;
     function                     = core_ast;
@@ -945,7 +945,7 @@ NecroMachineAST* necro_core_to_machine_3_app(NecroMachineProgram* program, Necro
         function        = function->app.exprA;
     }
 
-    necro_rewind_arena(&program->snapshot_arena, snapshot);
+    necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
     // Pass in state struct
     if (is_stateful)
     {

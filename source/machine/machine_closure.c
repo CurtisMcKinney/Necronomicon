@@ -65,12 +65,12 @@ NecroMachineAST* necro_get_closure_con(NecroMachineProgram* program, size_t clos
     assert(program->closure_type != NULL);
     assert(program->closure_type->type == NECRO_MACHINE_TYPE_STRUCT);
 
-    NecroArenaSnapshot snapshot         = necro_get_arena_snapshot(&program->snapshot_arena);
+    NecroArenaSnapshot snapshot         = necro_snapshot_arena_get(&program->snapshot_arena);
     NecroMachineType*  struct_ptr_type  = necro_create_machine_ptr_type(&program->arena, program->closure_type);
     assert(adjusted_closure_arity < INT32_MAX);
     const char*        num_string       = itoa((int32_t) adjusted_closure_arity, necro_snapshot_arena_alloc(&program->snapshot_arena, 10), 10);
-    const char*        struct_name      = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_Closure", num_string });
-    const char*        mk_fn_name       = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mkClosure", num_string });
+    const char*        struct_name      = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_Closure", num_string });
+    const char*        mk_fn_name       = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mkClosure", num_string });
     // const char*        const_mk_fn_name = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mkConstClosure", num_string });
     NecroVar           struct_var       = necro_gen_var(program, NULL, struct_name, NECRO_NAME_UNIQUE);
     NecroVar           mk_fn_var        = necro_gen_var(program, NULL, mk_fn_name, NECRO_NAME_UNIQUE);
@@ -119,7 +119,7 @@ NecroMachineAST* necro_get_closure_con(NecroMachineProgram* program, size_t clos
         // else
         //     program->closure_cons.data[(adjusted_closure_arity * 2) + 1] = mk_fn_def->fn_def.fn_value;
     // }
-    necro_rewind_arena(&program->snapshot_arena, snapshot);
+    necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
     return program->closure_cons.data[adjusted_closure_arity];
 }
 
@@ -180,7 +180,7 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
         return;
     assert(program->closure_type != NULL);
     assert(program->closure_type->type == NECRO_MACHINE_TYPE_STRUCT);
-    NecroArenaSnapshot snapshot         = necro_get_arena_snapshot(&program->snapshot_arena);
+    NecroArenaSnapshot snapshot         = necro_snapshot_arena_get(&program->snapshot_arena);
 
     //--------------------
     // apply non-state update_fn type
@@ -197,14 +197,14 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
     // apply MachineDef
     assert(adjusted_apply_arity <= INT32_MAX);
     const char*       num_string                 = itoa((int32_t) adjusted_apply_arity, necro_snapshot_arena_alloc(&program->snapshot_arena, 10), 10);
-    const char*       apply_machine_name         = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "apply", num_string });
+    const char*       apply_machine_name         = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "apply", num_string });
     NecroVar          apply_machine_var          = necro_gen_var(program, NULL, apply_machine_name, NECRO_NAME_UNIQUE);
     NecroMachineAST*  apply_machine_def          = necro_create_machine_initial_machine_def(program, apply_machine_var, NULL, non_state_apply_fn_type, NULL);
     apply_machine_def->machine_def.num_arg_names = apply_arity;
 
     //--------------------
     // apply MachineDef state
-    const char*       apply_machine_state_name  = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_ApplyMachineState", num_string });
+    const char*       apply_machine_state_name  = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_ApplyMachineState", num_string });
     NecroVar          apply_machine_state_var   = necro_gen_var(program, NULL, apply_machine_state_name, NECRO_NAME_UNIQUE);
     NecroMachineType* apply_machine_def_type    = necro_create_machine_struct_type(&program->arena, apply_machine_state_var, (NecroMachineType*[]) { program->necro_uint_type, program->necro_poly_ptr_type, program->necro_poly_ptr_type }, 3);
     apply_machine_def_type->struct_type.members[2] = necro_create_machine_ptr_type(&program->arena, apply_machine_def_type);
@@ -220,7 +220,7 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
     {
         NecroMachineType*  init_fn_type    = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), (NecroMachineType*[]) { machine_ptr_type }, 1);
         NecroMachineAST*   init_fn_body    = necro_create_machine_block(program, "entry", NULL);
-        const char*        init_fn_name    = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_initApply", num_string });
+        const char*        init_fn_name    = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_initApply", num_string });
         NecroVar           init_fn_var     = necro_gen_var(program, NULL, init_fn_name, NECRO_NAME_UNIQUE);
         NecroMachineAST*   init_fn_def     = necro_create_machine_fn(program, init_fn_var, init_fn_body, init_fn_type);
         program->functions.length--; // HACK: Don't want the mk function in the functions list, instead it belongs to the machine
@@ -236,7 +236,7 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
     {
         NecroMachineType*  mk_fn_type        = necro_create_machine_fn_type(&program->arena, machine_ptr_type, NULL, 0);
         NecroMachineAST*   mk_fn_body        = necro_create_machine_block(program, "entry", NULL);
-        const char*        mk_fn_name        = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mkApply", num_string });
+        const char*        mk_fn_name        = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mkApply", num_string });
         NecroVar           mk_fn_var         = necro_gen_var(program, NULL, mk_fn_name, NECRO_NAME_UNIQUE);
         NecroMachineAST*   mk_fn_def         = necro_create_machine_fn(program, mk_fn_var, mk_fn_body, mk_fn_type);
         program->functions.length--; // HACK: Don't want the mk function in the functions list, instead it belongs to the machine
@@ -249,7 +249,7 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
 
     //--------------------
     // apply update_fn
-    const char*        apply_fn_name    = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_updateApply", num_string });
+    const char*        apply_fn_name    = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_updateApply", num_string });
     NecroVar           apply_fn_var     = necro_gen_var(program, NULL, apply_fn_name, NECRO_NAME_UNIQUE);
     NecroMachineType** elems            = necro_snapshot_arena_alloc(&program->snapshot_arena, arity_with_state * sizeof(NecroMachineType*));
     elems[0]                            = necro_create_machine_ptr_type(&program->arena, apply_machine_def->necro_machine_type);
@@ -300,7 +300,7 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
         {
             assert(closure_def_fn_arity <= INT32_MAX);
             assert(closure_def_pargs <= INT32_MAX);
-            const char* block_name           = necro_concat_strings(&program->snapshot_arena, 5, (const char*[]) { "closure_arity_", itoa((int32_t) closure_def_fn_arity, itoa_buf1, 10), "_pargs_", itoa((int32_t) closure_def_pargs, itoa_buf2, 10), "_" });
+            const char* block_name           = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 5, (const char*[]) { "closure_arity_", itoa((int32_t) closure_def_fn_arity, itoa_buf1, 10), "_pargs_", itoa((int32_t) closure_def_pargs, itoa_buf2, 10), "_" });
             closure_arity_blocks[i]          = necro_append_block(program, apply_fn_def, block_name);
             size_t      closure_switch_val   = (closure_def_fn_arity << 16) | closure_def_pargs;
             fn_arity_switch_list             = necro_cons_machine_switch_list(&program->arena, (NecroMachineSwitchData) { .block = closure_arity_blocks[i], .value = closure_switch_val }, fn_arity_switch_list);
@@ -309,7 +309,7 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
         {
             assert(closure_def_fn_arity <= INT32_MAX);
             assert(closure_def_pargs <= INT32_MAX);
-            const char* block_name           = necro_concat_strings(&program->snapshot_arena, 5, (const char*[]) { "closure_arity_", itoa((int32_t) closure_def_fn_arity, itoa_buf1, 10), "_pargs_", itoa((int32_t) closure_def_pargs, itoa_buf2, 10), "_Stateful" });
+            const char* block_name           = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 5, (const char*[]) { "closure_arity_", itoa((int32_t) closure_def_fn_arity, itoa_buf1, 10), "_pargs_", itoa((int32_t) closure_def_pargs, itoa_buf2, 10), "_Stateful" });
             closure_arity_blocks[i + program->closure_defs.length] = necro_append_block(program, apply_fn_def, block_name);
             size_t      closure_switch_val   = (1 << 31) | (closure_def_fn_arity << 16) | closure_def_pargs;
             fn_arity_switch_list             = necro_cons_machine_switch_list(&program->arena, (NecroMachineSwitchData) { .block = closure_arity_blocks[i + program->closure_defs.length], .value = closure_switch_val }, fn_arity_switch_list);
@@ -334,7 +334,7 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
     {
         const size_t     c                    = c_stateful % program->closure_defs.length;
         const bool       closure_is_stateful  = c_stateful >= program->closure_defs.length;
-        NecroArenaSnapshot closure_snapshot   = necro_get_arena_snapshot(&program->snapshot_arena);
+        NecroArenaSnapshot closure_snapshot   = necro_snapshot_arena_get(&program->snapshot_arena);
         necro_move_to_block(program, apply_fn_def, closure_arity_blocks[c_stateful]);
         const size_t     closure_def_fn_arity = program->closure_defs.data[c].fn_arity;
         const size_t     closure_def_pargs    = program->closure_defs.data[c].num_pargs;
@@ -509,7 +509,7 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
             necro_build_return(program, apply_fn_def, over_result);
         }
 
-        necro_rewind_arena(&program->snapshot_arena, closure_snapshot);
+        necro_snapshot_arena_rewind(&program->snapshot_arena, closure_snapshot);
     }
 
     //--------------------
@@ -521,7 +521,7 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
     program->apply_fns.data[adjusted_apply_arity] = apply_machine_def;
     apply_machine_def->machine_def.update_fn = apply_fn_def;
 
-    necro_rewind_arena(&program->snapshot_arena, snapshot);
+    necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
 }
 
 NecroMachineAST* necro_get_apply_fn(NecroMachineProgram* program, size_t apply_arity)

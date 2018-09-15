@@ -213,10 +213,10 @@ static void necro_announce_phase(const char* phase_name)
 // Timing
 ///////////////////////////////////////////////////////
 struct NecroTimer;
-struct NecroTimer* necro_create_timer();
-void               necro_destroy_timer(struct NecroTimer* timer);
-void               necro_start_timer(struct NecroTimer* timer);
-double             necro_stop_timer(struct NecroTimer* timer);
-void               necro_stop_and_report_timer(struct NecroTimer* timer, const char* print_header);
+struct NecroTimer* necro_timer_create();
+void               necro_timer_destroy(struct NecroTimer* timer);
+void               necro_timer_start(struct NecroTimer* timer);
+double             necro_timer_stop(struct NecroTimer* timer);
+void               necro_timer_stop_and_report(struct NecroTimer* timer, const char* print_header);
 
 #endif // UTILITY_H

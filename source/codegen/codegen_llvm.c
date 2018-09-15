@@ -22,8 +22,8 @@ NecroCodeGenLLVM necro_empty_codegen_llvm()
 {
     return (NecroCodeGenLLVM)
     {
-        .arena            = necro_empty_paged_arena(),
-        .snapshot_arena   = necro_empty_snapshot_arena(),
+        .arena            = necro_paged_arena_empty(),
+        .snapshot_arena   = necro_snapshot_arena_empty(),
         .intern           = NULL,
         .symtable         = NULL,
         .prim_types       = NULL,
@@ -109,8 +109,8 @@ NecroCodeGenLLVM necro_create_codegen_llvm(NecroIntern* intern, NecroSymTable* s
     }
     return (NecroCodeGenLLVM)
     {
-        .arena            = necro_create_paged_arena(),
-        .snapshot_arena   = necro_create_snapshot_arena(),
+        .arena            = necro_paged_arena_create(),
+        .snapshot_arena   = necro_snapshot_arena_create(),
         .intern           = intern,
         .symtable         = symtable,
         .prim_types       = prim_types,
@@ -137,8 +137,8 @@ void necro_destroy_codegen_llvm(NecroCodeGenLLVM* codegen)
     if (codegen->builder != NULL)
         LLVMDisposeBuilder(codegen->builder);
     codegen->builder = NULL;
-    necro_destroy_paged_arena(&codegen->arena);
-    necro_destroy_snapshot_arena(&codegen->snapshot_arena);
+    necro_paged_arena_destroy(&codegen->arena);
+    necro_snapshot_arena_destroy(&codegen->snapshot_arena);
     necro_destroy_necro_codegen_symbol_vector(&codegen->codegen_symtable);
     necro_destroy_necro_runtime_mapping_vector(&codegen->runtime_mapping);
 }
@@ -701,7 +701,7 @@ LLVMValueRef necro_codegen_call(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
     assert(codegen != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_MACHINE_CALL);
-    NecroArenaSnapshot snapshot    = necro_get_arena_snapshot(&codegen->snapshot_arena);
+    NecroArenaSnapshot snapshot    = necro_snapshot_arena_get(&codegen->snapshot_arena);
     bool               is_void     = ast->call.result_reg->value.value_type == NECRO_MACHINE_VALUE_VOID;
     const char*        result_name = NULL;
     if (!is_void)
@@ -730,7 +730,7 @@ LLVMValueRef necro_codegen_call(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
         necro_codegen_symtable_get(codegen, ast->call.result_reg->value.reg_name)->type  = LLVMTypeOf(result);
         necro_codegen_symtable_get(codegen, ast->call.result_reg->value.reg_name)->value = result;
     }
-    necro_rewind_arena(&codegen->snapshot_arena, snapshot);
+    necro_snapshot_arena_rewind(&codegen->snapshot_arena, snapshot);
     return result;
 }
 

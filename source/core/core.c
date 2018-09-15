@@ -224,7 +224,7 @@ void necro_construct_core_transform(
     core_transform->error.error_message[0] = '\0';
     core_transform->error.return_code = NECRO_SUCCESS;
     core_transform->core_ast = core_ast;
-    core_transform->core_ast->arena = necro_create_paged_arena();
+    core_transform->core_ast->arena = necro_paged_arena_create();
     core_transform->necro_ast = necro_ast;
     core_transform->intern = intern;
     core_transform->prim_types = prim_types;
@@ -232,15 +232,15 @@ void necro_construct_core_transform(
     core_transform->symtable = symtable;
 
     NecroCoreConstructors* constructors = &core_transform->constructors;
-    constructors->twoTuple =    necro_get_top_level_symbol_var(scoped_symtable, "(,)");
-    constructors->threeTuple =  necro_get_top_level_symbol_var(scoped_symtable, "(,,)");
-    constructors->fourTuple =   necro_get_top_level_symbol_var(scoped_symtable, "(,,,)");
-    constructors->fiveTuple =   necro_get_top_level_symbol_var(scoped_symtable, "(,,,,)");
-    constructors->sixTuple =    necro_get_top_level_symbol_var(scoped_symtable, "(,,,,,)");
-    constructors->sevenTuple =  necro_get_top_level_symbol_var(scoped_symtable, "(,,,,,,)");
-    constructors->eightTuple =  necro_get_top_level_symbol_var(scoped_symtable, "(,,,,,,,)");
-    constructors->nineTuple =   necro_get_top_level_symbol_var(scoped_symtable, "(,,,,,,,,)");
-    constructors->tenTuple =    necro_get_top_level_symbol_var(scoped_symtable, "(,,,,,,,,,)");
+    constructors->twoTuple =    necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,)");
+    constructors->threeTuple =  necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,)");
+    constructors->fourTuple =   necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,,)");
+    constructors->fiveTuple =   necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,,,)");
+    constructors->sixTuple =    necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,,,,)");
+    constructors->sevenTuple =  necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,,,,,)");
+    constructors->eightTuple =  necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,,,,,,)");
+    constructors->nineTuple =   necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,,,,,,,)");
+    constructors->tenTuple =    necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,,,,,,,,)");
 }
 
 NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core_transform, NecroAst* necro_ast_node);
@@ -301,7 +301,7 @@ NecroCoreAST_Expression* necro_transform_if_then_else(NecroTransformToCore* core
     true_alt->altCon = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
     // true_alt->altCon->lit.boolean_literal = true;
     // true_alt->altCon->lit.type = NECRO_AST_CONSTANT_BOOL;
-    true_alt->altCon->var        = necro_con_to_var(necro_get_data_con_from_symbol(core_transform->prim_types, necro_intern_string(core_transform->intern, "True")));
+    true_alt->altCon->var        = necro_con_to_var(necro_prim_types_get_data_con_from_symbol(core_transform->prim_types, necro_intern_string(core_transform->intern, "True")));
     true_alt->altCon->expr_type  = NECRO_CORE_EXPR_VAR;
     true_alt->altCon->necro_type = necro_symtable_get(core_transform->symtable, core_transform->prim_types->bool_type.id)->type;
     true_alt->next = NULL;
@@ -1125,13 +1125,13 @@ NecroCoreAST necro_empty_core_ast()
 {
     return (NecroCoreAST)
     {
-        .arena = necro_empty_paged_arena(),
+        .arena = necro_paged_arena_empty(),
         .root  = NULL,
     };
 }
 
 void necro_destroy_core_ast(NecroCoreAST* ast)
 {
-    necro_destroy_paged_arena(&ast->arena);
+    necro_paged_arena_destroy(&ast->arena);
     ast->root = NULL;
 }

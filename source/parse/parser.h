@@ -636,7 +636,7 @@ void                necro_parse_ast_print(NecroParseAstArena* ast, NecroIntern* 
 //=====================================================
 // Parsing
 //=====================================================
-NecroResult(void) necro_parse(NecroLexTokenVector* tokens, NecroIntern* intern, NecroParseAstArena* out_ast, NecroCompileInfo info);
+NecroResult(void) necro_parse(NecroCompileInfo info, NecroIntern* intern, NecroLexTokenVector* tokens, NecroParseAstArena* out_ast);
 const char*       necro_bin_op_name(NECRO_BIN_OP_TYPE type);
 const char*       necro_con_type_string(NECRO_CON_TYPE symbol_type);
 

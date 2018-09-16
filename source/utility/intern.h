@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "utility.h"
+#include "arena.h"
 
 //=====================================================
 // NecroIntern:
@@ -20,32 +21,28 @@
 //       thus it does not own, nor will it free any
 //       strings which are passed into the api by the user.
 //     * NULL strings will not be interned and are never considered interned.
-//     * This uses a dynamic memory scheme and thus any string
-//       pointer returned by this could be invalidated after
-//       a new string is interned. Thus you should only use
-//       returned strings for quick ephemeral usage, such as printout
+//     * The strings which are returned with NecroSymbol structs
+//       are stable and can be compared directly with pointer comparisons.
+//     * Still, it is considered best to store them as NecroSymbols
+//       to make the distinction clear that these are interned strings
 //=====================================================
 
 NECRO_DECLARE_VECTOR(char, Char, char)
 
 typedef struct
 {
-    size_t hash;
-    size_t id;
+    // TODO: Keep hash and str, but not id
+    size_t      hash;
+    size_t      id;
+    const char* str;
 } NecroSymbol;
-
-typedef struct
-{
-    NecroSymbol symbol;
-    size_t      string_index;
-} NecroInternEntry;
 
 typedef struct NecroIntern
 {
-    CharVector        strings;
-    NecroInternEntry* entries;
-    size_t            size;
-    size_t            count;
+    NecroPagedArena arena;
+    NecroSymbol*    symbols;
+    size_t          size;
+    size_t          count;
 } NecroIntern;
 
 // API
@@ -62,6 +59,6 @@ NecroSymbol necro_intern_get_type_class_member_symbol_from_instance_symbol(Necro
 void        necro_intern_print(NecroIntern* intern);
 void        necro_intern_test();
 
-#define NULL_SYMBOL ((NecroSymbol){.id = 0, .hash = 0})
+#define NULL_SYMBOL ((NecroSymbol){.id = 0, .hash = 0, .str = NULL})
 
 #endif // INTERN_H

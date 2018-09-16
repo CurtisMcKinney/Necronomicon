@@ -33,14 +33,14 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
     switch (ast_node->expr_type)
     {
     case NECRO_CORE_EXPR_VAR:
-        printf("(Var: %s, %d)\n", necro_intern_get_string(intern, ast_node->var.symbol), ast_node->var.id.id);
+        printf("(Var: %s, %d)\n", ast_node->var.symbol.str, ast_node->var.id.id);
         break;
 
     case NECRO_CORE_EXPR_BIND:
         if (!ast_node->bind.is_recursive)
-            printf("(Bind: %s, %d)\n", necro_intern_get_string(intern, ast_node->bind.var.symbol), ast_node->bind.var.id.id);
+            printf("(Bind: %s, %d)\n", ast_node->bind.var.symbol.str, ast_node->bind.var.id.id);
         else
-            printf("(BindRec: %s, %d)\n", necro_intern_get_string(intern, ast_node->bind.var.symbol), ast_node->bind.var.id.id);
+            printf("(BindRec: %s, %d)\n", ast_node->bind.var.symbol.str, ast_node->bind.var.id.id);
         necro_print_core_node(ast_node->bind.expr, intern, depth + 1);
         break;
 
@@ -63,7 +63,7 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
                 break;
             case NECRO_AST_CONSTANT_STRING:
                 {
-                    const char* string = necro_intern_get_string(intern, ast_node->lit.symbol);
+                    const char* string = ast_node->lit.symbol.str;
                     if (string)
                         printf("(\"%s\")\n", string);
                 }
@@ -158,7 +158,7 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
 
     case NECRO_CORE_EXPR_DATA_DECL:
         {
-            printf("(Data %s)\n", necro_intern_get_string(intern, ast_node->data_decl.data_id.symbol));
+            printf("(Data %s)\n", ast_node->data_decl.data_id.symbol.str);
             NecroCoreAST_DataCon* con = ast_node->data_decl.con_list;
             while (con)
             {
@@ -172,7 +172,7 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
         break;
 
     case NECRO_CORE_EXPR_DATA_CON:
-        printf("(DataCon: %s, %d)\n", necro_intern_get_string(intern, ast_node->data_con.condid.symbol), ast_node->data_con.condid.id.id);
+        printf("(DataCon: %s, %d)\n", ast_node->data_con.condid.symbol.str, ast_node->data_con.condid.id.id);
         if (ast_node->data_con.arg_list)
         {
             necro_print_core_node(ast_node->data_con.arg_list, intern, depth + 1);

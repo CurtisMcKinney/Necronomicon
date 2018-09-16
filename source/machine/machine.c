@@ -153,7 +153,7 @@ void necro_core_to_machine_1_data_con(NecroMachineProgram* program, NecroCoreAST
 
     NecroArenaSnapshot snapshot        = necro_snapshot_arena_get(&program->snapshot_arena);
     NecroMachineType*  struct_ptr_type = necro_create_machine_ptr_type(&program->arena, struct_type->necro_machine_type);
-    char*              con_name        = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", necro_intern_get_string(program->intern, con->condid.symbol) });
+    char*              con_name        = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", con->condid.symbol.str });
     // char*              const_con_name  = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mkConst", necro_intern_get_string(program->intern, con->condid.symbol) });
     NecroVar           con_var         = necro_gen_var(program, NULL, con_name, NECRO_NAME_UNIQUE);
     // NecroVar           const_con_var   = necro_gen_var(program, NULL, const_con_name, NECRO_NAME_UNIQUE);
@@ -330,7 +330,7 @@ void necro_core_to_machine_1_bind(NecroMachineProgram* program, NecroCoreAST_Exp
     {
         // mk_fn
         {
-            const char*       mk_fn_name = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", necro_intern_get_string(program->intern, machine_def->machine_def.machine_name.symbol) + 1 });
+            const char*       mk_fn_name = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", machine_def->machine_def.machine_name.symbol.str + 1 });
             NecroVar          mk_fn_var  = necro_gen_var(program, NULL, mk_fn_name, NECRO_NAME_UNIQUE);
             NecroMachineType* mk_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), NULL, 0);
             NecroMachineAST*  mk_fn_body = necro_create_machine_block(program, "entry", NULL);
@@ -341,7 +341,7 @@ void necro_core_to_machine_1_bind(NecroMachineProgram* program, NecroCoreAST_Exp
 
         // init_fn
         {
-            const char*       init_fn_name = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_init", necro_intern_get_string(program->intern, machine_def->machine_def.machine_name.symbol) + 1 });
+            const char*       init_fn_name = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_init", machine_def->machine_def.machine_name.symbol.str + 1 });
             NecroVar          init_fn_var  = necro_gen_var(program, NULL, init_fn_name, NECRO_NAME_UNIQUE);
             NecroMachineType* init_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), (NecroMachineType*[]) { program->necro_poly_ptr_type }, 1);
             NecroMachineAST*  init_fn_body = necro_create_machine_block(program, "entry", NULL);
@@ -805,7 +805,7 @@ NecroMachineAST* necro_core_to_machine_3_bind(NecroMachineProgram* program, Necr
 
     // Start function
     bool            is_stateful       = machine_def->machine_def.state_type == NECRO_STATE_STATEFUL;
-    const char*     update_name       = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_update", necro_intern_get_string(program->intern, machine_def->machine_def.machine_name.symbol) + 1 });
+    const char*     update_name       = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_update", machine_def->machine_def.machine_name.symbol.str + 1 });
     NecroVar        update_var        = necro_gen_var(program, NULL, update_name, NECRO_NAME_UNIQUE);
     size_t          num_update_params = machine_def->machine_def.num_arg_names;
     if (num_update_params > 0)

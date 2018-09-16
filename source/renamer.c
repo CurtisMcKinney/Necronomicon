@@ -28,7 +28,7 @@ bool try_create_name(NecroRenamer* renamer, NecroAst* node, NecroScope* scope, N
     {
         //NecroSymbolInfo* info = necro_symtable_get(renamer->scoped_symtable->global_table, id); Unreferenced, @Curtis didn't know if you wanted this or not
         NecroSourceLoc original_source_loc = renamer->scoped_symtable->global_table->data[id.id].source_loc;
-        necro_error(&renamer->error, node->source_loc, "Multiple definitions for \'%s\'.\n Original definition found at line: %d", necro_intern_get_string(renamer->scoped_symtable->global_table->intern, symbol), original_source_loc.line);
+        necro_error(&renamer->error, node->source_loc, "Multiple definitions for \'%s\'.\n Original definition found at line: %d", symbol.str, original_source_loc.line);
         return false;
     }
     else
@@ -95,7 +95,7 @@ void rename_declare_go(NecroAst* input_node, NecroRenamer* renamer)
         NecroID id = necro_scope_find_in_this_scope(input_node->scope, input_node->apats_assignment.variable_name);
         if (id.id != 0 && id.id != input_node->scope->last_introduced_id.id)
         {
-            necro_error(&renamer->error, input_node->source_loc, "Multiple definitions for \'%s\'", necro_intern_get_string(renamer->scoped_symtable->global_table->intern, input_node->apats_assignment.variable_name));
+            necro_error(&renamer->error, input_node->source_loc, "Multiple definitions for \'%s\'", input_node->apats_assignment.variable_name.str);
             return;
         }
         else if (id.id != 0 && id.id == input_node->scope->last_introduced_id.id)
@@ -146,7 +146,7 @@ void rename_declare_go(NecroAst* input_node, NecroRenamer* renamer)
                 if (*type_signature != NULL)
                 {
                     necro_error(&renamer->error, input_node->source_loc, "Duplicate type signature for: \'%s\'.\n Original found at: %d",
-                                necro_intern_get_string(renamer->scoped_symtable->global_table->intern, input_node->variable.symbol), (*type_signature)->source_loc);
+                                input_node->variable.symbol.str, (*type_signature)->source_loc);
                 }
                 else
                 {
@@ -162,7 +162,7 @@ void rename_declare_go(NecroAst* input_node, NecroRenamer* renamer)
             else if (renamer->should_free_type_declare)
                 input_node->variable.id = necro_scoped_symtable_new_symbol_info(renamer->scoped_symtable, input_node->scope, necro_symtable_create_initial_symbol_info(input_node->variable.symbol, input_node->source_loc, input_node->scope));
             else
-                necro_error(&renamer->error, input_node->source_loc, "Not in scope: \'%s\'", necro_intern_get_string(renamer->scoped_symtable->global_table->intern, input_node->variable.symbol));
+                necro_error(&renamer->error, input_node->source_loc, "Not in scope: \'%s\'", input_node->variable.symbol.str);
             break;
         }
         default: assert(false);
@@ -315,7 +315,7 @@ bool try_find_name(NecroRenamer* renamer, NecroAst* node, NecroScope* scope, Nec
     NecroID id = necro_scope_find(scope, symbol);
     if (id.id == 0)
     {
-        necro_error(&renamer->error, node->source_loc, "Not in scope: \'%s\'", necro_intern_get_string(renamer->scoped_symtable->global_table->intern, symbol));
+        necro_error(&renamer->error, node->source_loc, "Not in scope: \'%s\'", symbol.str);
         return false;
     }
     else
@@ -403,7 +403,7 @@ void rename_var_go(NecroAst* input_node, NecroRenamer* renamer)
                 if (*type_signature != NULL)
                 {
                     necro_error(&renamer->error, input_node->source_loc, "Duplicate type signature for: \'%s\'.\n Original found at: %d",
-                                necro_intern_get_string(renamer->scoped_symtable->global_table->intern, input_node->variable.symbol), (*type_signature)->source_loc);
+                                input_node->variable.symbol.str, (*type_signature)->source_loc);
                 }
                 else
                 {

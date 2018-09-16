@@ -631,7 +631,6 @@ void                necro_parse_ast_arena_destroy(NecroParseAstArena* ast);
 NecroParseAst*      necro_parse_ast_get_node(NecroParseAstArena* ast, NecroParseAstLocalPtr local_ptr);
 NecroParseAst*      necro_parse_ast_get_root_node(NecroParseAstArena* ast);
 NecroParseAst*      necro_parse_ast_alloc(NecroArena* arena, NecroParseAstLocalPtr* local_ptr);
-void                necro_parse_ast_print(NecroParseAstArena* ast, NecroIntern* intern, NecroParseAstLocalPtr root_node_ptr);
 
 //=====================================================
 // Parsing

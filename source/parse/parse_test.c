@@ -45,7 +45,7 @@ void necro_parse_ast_test(const char* test_name, const char* str, NecroIntern* i
     unwrap(void, necro_parse(info, &intern, &tokens, &ast));
 
     // Compare
-    necro_parse_ast_assert_eq(&intern, &ast, intern2, ast2);
+    necro_parse_ast_assert_eq(&ast, ast2);
     printf("Parse %s test: Passed\n", test_name);
 
     // Clean up

@@ -101,19 +101,19 @@ bool necro_intern_contains_symbol(NecroIntern* intern, NecroSymbol symbol)
     return false;
 }
 
-const char* necro_intern_get_string(NecroIntern* intern, NecroSymbol symbol)
-{
-    UNUSED(intern);
-    return symbol.str;
-    // if (symbol.id == NECRO_INTERN_NULL_ID)
-    //     return NULL;
-    // for (size_t probe = symbol.hash % intern->size; intern->entries[probe].symbol.id != NECRO_INTERN_NULL_ID; probe = (probe + 1) % intern->size)
-    // {
-    //     if (intern->entries[probe].symbol.id == symbol.id)
-    //         return intern->strings.data + intern->entries[probe].string_index;
-    // }
-    // return NULL;
-}
+// const char* necro_symbol_get_string(NecroIntern* intern, NecroSymbol symbol)
+// {
+//     UNUSED(intern);
+//     return symbol.str;
+//     // if (symbol.id == NECRO_INTERN_NULL_ID)
+//     //     return NULL;
+//     // for (size_t probe = symbol.hash % intern->size; intern->entries[probe].symbol.id != NECRO_INTERN_NULL_ID; probe = (probe + 1) % intern->size)
+//     // {
+//     //     if (intern->entries[probe].symbol.id == symbol.id)
+//     //         return intern->strings.data + intern->entries[probe].string_index;
+//     // }
+//     // return NULL;
+// }
 
 void necro_intern_grow(NecroIntern* intern)
 {
@@ -154,9 +154,9 @@ void necro_intern_grow(NecroIntern* intern)
 // TODO: Optimize memory allocation
 NecroSymbol necro_intern_create_type_class_instance_symbol(NecroIntern* intern, NecroSymbol symbol, NecroSymbol type_class_name)
 {
-    const char* string1 = necro_intern_get_string(intern, symbol);
+    const char* string1 = symbol.str;
     const char* div     = "@";
-    const char* string2 = necro_intern_get_string(intern, type_class_name);
+    const char* string2 = type_class_name.str;
     size_t      len1    = strlen(string1);
     size_t      lend    = strlen(div);
     size_t      len2    = strlen(string2);
@@ -184,7 +184,7 @@ NecroSymbol necro_intern_create_type_class_instance_symbol(NecroIntern* intern, 
 // TODO: Optimize memory allocation
 NecroSymbol necro_intern_get_type_class_member_symbol_from_instance_symbol(NecroIntern* intern, NecroSymbol symbol)
 {
-    const char* string1 = necro_intern_get_string(intern, symbol);
+    const char* string1 = symbol.str;
     size_t      len1    = 0;
     for (size_t i = 0; string1[i] != '@'; ++i)
         len1++;
@@ -206,8 +206,8 @@ NecroSymbol necro_intern_get_type_class_member_symbol_from_instance_symbol(Necro
 // TODO: Optimize memory allocation
 NecroSymbol necro_intern_concat_symbols(NecroIntern* intern, NecroSymbol symbol1, NecroSymbol symbol2)
 {
-    const char* string1 = necro_intern_get_string(intern, symbol1);
-    const char* string2 = necro_intern_get_string(intern, symbol2);
+    const char* string1 = symbol1.str;
+    const char* string2 = symbol2.str;
     size_t      len1    = strlen(string1);
     size_t      len2    = strlen(string2);
     char*       str     = malloc((len1 + len2 + 1) * sizeof(char));
@@ -359,7 +359,7 @@ void necro_test_intern_id(NecroIntern* intern, NecroSymbol symbol, const char* c
     assert(necro_intern_contains_symbol(intern, symbol));
     puts("Intern contains test:   passed");
 
-    assert(strcmp(necro_intern_get_string(intern, symbol), compare_str) == 0);
+    assert(strcmp(symbol.str, compare_str) == 0);
     puts("Intern get test:        passed");
 }
 

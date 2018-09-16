@@ -21,7 +21,7 @@ NecroMachineType* necro_create_prim_type(NecroMachineProgram* program, NecroVar 
     NecroArenaSnapshot snapshot         = necro_snapshot_arena_get(&program->snapshot_arena);
     NecroMachineAST*   struct_type      = necro_create_machine_struct_def(program, type_name, elems, num_elems);
     NecroMachineType*  struct_ptr_type  = necro_create_machine_ptr_type(&program->arena, struct_type->necro_machine_type);
-    const char*        mk_fn_name       = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", necro_intern_get_string(program->intern, con_var.symbol) });
+    const char*        mk_fn_name       = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", con_var.symbol.str });
     // const char*        const_mk_fn_name = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mkConst", necro_intern_get_string(program->intern, con_var.symbol) });
     NecroVar           mk_fn_var        = necro_gen_var(program, NULL, mk_fn_name, NECRO_NAME_UNIQUE);
     // NecroVar           const_mk_fn_var  = necro_gen_var(program, NULL, const_mk_fn_name, NECRO_NAME_UNIQUE);
@@ -60,7 +60,7 @@ void necro_create_prim_con(NecroMachineProgram* program, NecroMachineType* struc
     assert(con_var.id.id != 0);
     NecroArenaSnapshot    snapshot         = necro_snapshot_arena_get(&program->snapshot_arena);
     NecroMachineType*     struct_ptr_type  = necro_create_machine_ptr_type(&program->arena, struct_type);
-    const char*           mk_fn_name       = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", necro_intern_get_string(program->intern, con_var.symbol) });
+    const char*           mk_fn_name       = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", con_var.symbol.str });
     // const char*           const_mk_fn_name = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mkConst", necro_intern_get_string(program->intern, con_var.symbol) });
     NecroVar              mk_fn_var        = necro_gen_var(program, NULL, mk_fn_name, NECRO_NAME_UNIQUE);
     // NecroVar              const_mk_fn_var  = necro_gen_var(program, NULL, const_mk_fn_name, NECRO_NAME_UNIQUE);

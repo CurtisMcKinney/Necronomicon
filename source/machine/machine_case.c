@@ -581,8 +581,6 @@ NecroDecisionTree* necro_finish_compile_pattern_matrix(NecroMachineProgram* prog
             .id     = data_cons->list.item->constructor.conid->conid.id,
             .symbol = data_cons->list.item->constructor.conid->conid.symbol,
         };
-        const char*        con_name   = necro_intern_get_string(program->intern, pattern_con.symbol);
-        UNUSED(con_name);
         NecroPatternMatrix con_matrix = necro_specialize_matrix(program, matrix, pattern_con);             // if (necro_is_codegen_error(codegen)) return NULL;
         cases[con_num]                = necro_compile_pattern_matrix(program, &con_matrix, top_case_ast);  // if (necro_is_codegen_error(codegen)) return NULL;
         cons[con_num]                 = pattern_con;
@@ -706,7 +704,7 @@ void necro_decision_tree_to_machine(NecroMachineProgram* program, NecroDecisionT
                 }
                 else
                 {
-                    const char*      case_name  = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { necro_intern_get_string(program->intern, tree->tree_switch.cons[i].symbol), "_case" });
+                    const char*      case_name  = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { tree->tree_switch.cons[i].symbol.str, "_case" });
                     NecroMachineAST* case_block = necro_insert_block_before(program, outer->machine_def.update_fn, case_name, term_case_block);
                     necro_add_case_to_switch(program, switch_value, case_block, i);
                     necro_move_to_block(program, outer->machine_def.update_fn, case_block);
@@ -1124,7 +1122,7 @@ void necro_print_decision_tree_go(NecroMachineProgram* program, NecroDecisionTre
         {
 
             print_white_space(depth + 2);
-            printf("*%s:\n", necro_intern_get_string(program->intern, tree->tree_switch.cons[i].symbol));
+            printf("*%s:\n", tree->tree_switch.cons[i].symbol.str);
             necro_print_decision_tree_go(program, tree->tree_switch.cases[i], depth + 4);
         }
         break;

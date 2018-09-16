@@ -129,7 +129,7 @@ void necro_symtable_info_print(NecroSymbolInfo info, NecroIntern* intern, size_t
     printf("{\n");
 
     print_white_space(whitespace + 4);
-    printf("name:       %s\n",necro_intern_get_string(intern, info.name));
+    printf("name:       %s\n", info.name.str);
 
     print_white_space(whitespace + 4);
     printf("id:         %d\n", info.id.id);
@@ -721,7 +721,7 @@ void necro_symtable_print_env(NecroSymTable* table, NecroInfer* infer)
     printf("\nEnv:\n[\n");
     for (size_t i = 1; i < table->count; ++i)
     {
-        printf("    %s", necro_intern_get_string(infer->intern, table->data[i].name));
+        printf("    %s", table->data[i].name.str);
         if (infer->symtable->data[i].type != NULL)
         {
             printf(" => ");

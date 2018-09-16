@@ -900,15 +900,15 @@ void necro_lex_print_token(NecroLexer* lexer, size_t token_id)
     printf("(line: %zu, char: %zu, pos: %zu), ", lexer->tokens.data[token_id].source_loc.line, lexer->tokens.data[token_id].source_loc.character, lexer->tokens.data[token_id].source_loc.pos);
     if (lexer->tokens.data[token_id].token == NECRO_LEX_STRING_LITERAL)
     {
-        printf("STRING:     \"%s\"\n", necro_intern_get_string(lexer->intern, lexer->tokens.data[token_id].symbol));
+        printf("STRING:     \"%s\"\n", lexer->tokens.data[token_id].symbol.str);
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_IDENTIFIER)
     {
-        printf("IDENTIFIER: %s\n", necro_intern_get_string(lexer->intern, lexer->tokens.data[token_id].symbol));
+        printf("IDENTIFIER: %s\n", lexer->tokens.data[token_id].symbol.str);
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_TYPE_IDENTIFIER)
     {
-        printf("TYPE:       %s\n", necro_intern_get_string(lexer->intern, lexer->tokens.data[token_id].symbol));
+        printf("TYPE:       %s\n", lexer->tokens.data[token_id].symbol.str);
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CHAR_LITERAL)
     {

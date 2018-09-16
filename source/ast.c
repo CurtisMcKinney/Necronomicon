@@ -28,7 +28,7 @@ void necro_ast_print_go(NecroAst* ast, NecroIntern* intern, uint32_t depth)
     switch(ast->type)
     {
     case NECRO_AST_BIN_OP:
-        printf("(%s, id: %d)\n", necro_intern_get_string(intern, ast->bin_op.symbol), ast->bin_op.id.id);
+        printf("(%s, id: %d)\n", ast->bin_op.symbol.str, ast->bin_op.id.id);
         necro_ast_print_go(ast->bin_op.lhs, intern, depth + 1);
         necro_ast_print_go(ast->bin_op.rhs, intern, depth + 1);
         break;
@@ -52,7 +52,7 @@ void necro_ast_print_go(NecroAst* ast, NecroIntern* intern, uint32_t depth)
             break;
         case NECRO_AST_CONSTANT_STRING:
             {
-                const char* string = necro_intern_get_string(intern, ast->constant.symbol);
+                const char* string = ast->constant.symbol.str;
                 if (string)
                     printf("(\"%s\")\n", string);
             }
@@ -129,7 +129,7 @@ void necro_ast_print_go(NecroAst* ast, NecroIntern* intern, uint32_t depth)
         break;
 
     case NECRO_AST_SIMPLE_ASSIGNMENT:
-        printf("(Assignment: %s, id: %d)\n", necro_intern_get_string(intern, ast->simple_assignment.variable_name), ast->simple_assignment.id.id);
+        printf("(Assignment: %s, id: %d)\n", ast->simple_assignment.variable_name.str, ast->simple_assignment.id.id);
         if (ast->simple_assignment.initializer != NULL)
         {
             print_white_space(depth * 2);
@@ -180,7 +180,7 @@ void necro_ast_print_go(NecroAst* ast, NecroIntern* intern, uint32_t depth)
 
     case NECRO_AST_VARIABLE:
     {
-        const char* variable_string = necro_intern_get_string(intern, ast->variable.symbol);
+        const char* variable_string = ast->variable.symbol.str;
         if (variable_string)
         {
             printf("(varid: %s, id: %d, vtype: %s)\n", variable_string, ast->variable.id.id, necro_var_type_string(ast->variable.var_type));
@@ -212,7 +212,7 @@ void necro_ast_print_go(NecroAst* ast, NecroIntern* intern, uint32_t depth)
         break;
 
     case NECRO_AST_APATS_ASSIGNMENT:
-        printf("(Apats Assignment: %s, id: %d)\n", necro_intern_get_string(intern, ast->apats_assignment.variable_name), ast->apats_assignment.id.id);
+        printf("(Apats Assignment: %s, id: %d)\n", ast->apats_assignment.variable_name.str, ast->apats_assignment.id.id);
         necro_ast_print_go(ast->apats_assignment.apats, intern, depth + 1);
         necro_ast_print_go(ast->apats_assignment.rhs, intern, depth + 1);
         break;
@@ -272,7 +272,7 @@ void necro_ast_print_go(NecroAst* ast, NecroIntern* intern, uint32_t depth)
         break;
 
     case NECRO_BIND_ASSIGNMENT:
-        printf("(Bind: %s, id: %d)\n", necro_intern_get_string(intern, ast->bind_assignment.variable_name), ast->bind_assignment.id.id);
+        printf("(Bind: %s, id: %d)\n", ast->bind_assignment.variable_name.str, ast->bind_assignment.id.id);
         necro_ast_print_go(ast->bind_assignment.expression, intern, depth + 1);
         break;
 
@@ -328,7 +328,7 @@ void necro_ast_print_go(NecroAst* ast, NecroIntern* intern, uint32_t depth)
 
     case NECRO_AST_CONID:
     {
-        const char* con_string = necro_intern_get_string(intern, ast->conid.symbol);
+        const char* con_string = ast->conid.symbol.str;
         if (con_string)
             printf("(conid: %s, id: %d, ctype: %s)\n", con_string, ast->conid.id.id, necro_con_type_string(ast->conid.con_type));
         else
@@ -366,7 +366,7 @@ void necro_ast_print_go(NecroAst* ast, NecroIntern* intern, uint32_t depth)
         break;
 
     case NECRO_AST_BIN_OP_SYM:
-        printf("(%s)\n", necro_intern_get_string(intern, ast->bin_op_sym.op->conid.symbol));
+        printf("(%s)\n", ast->bin_op_sym.op->conid.symbol.str);
         necro_ast_print_go(ast->bin_op_sym.left, intern, depth + 1);
         necro_ast_print_go(ast->bin_op_sym.right, intern, depth + 1);
         break;
@@ -779,18 +779,17 @@ NecroAstArena necro_ast_arena_empty()
 
 NecroAstArena necro_ast_arena_create()
 {
-    NecroPagedArena        arena = necro_paged_arena_create();
-    NecroAst* root  = NULL;
     return (NecroAstArena)
     {
-        .arena = arena,
-        .root = root,
+        .arena = necro_paged_arena_create(),
+        .root  = NULL,
     };
 }
 
 void necro_ast_arena_destroy(NecroAstArena* ast)
 {
     necro_paged_arena_destroy(&ast->arena);
+    ast->root = NULL;
 }
 
 //=====================================================

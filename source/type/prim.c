@@ -459,27 +459,27 @@ void necro_create_prim_num_instances(NecroPrimTypes* prim_types, NecroIntern* in
     //--------------
     // Num
 
-    const char*   add_symbol        = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primAdd@"), data_name));
+    const char*   add_symbol        = necro_intern_concat_symbols(intern, necro_intern_string(intern, "primAdd@"), data_name).str;
     NecroPrimDef* add_type_def      = necro_prim_def_fun(prim_types, intern, NULL, necro_ast_create_fn_type_sig(&prim_types->arena, intern, add_symbol, NULL, necro_make_bin_math_ast(prim_types, intern, data_type_name, is_poly), NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 2);
     UNUSED(add_type_def);
 
-    const char*   sub_symbol        = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primSub@"), data_name));
+    const char*   sub_symbol        = necro_intern_concat_symbols(intern, necro_intern_string(intern, "primSub@"), data_name).str;
     NecroPrimDef* sub_type_def      = necro_prim_def_fun(prim_types, intern, NULL, necro_ast_create_fn_type_sig(&prim_types->arena, intern, sub_symbol, NULL, necro_make_bin_math_ast(prim_types, intern, data_type_name, is_poly), NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 2);
     UNUSED(sub_type_def);
 
-    const char*   mul_symbol        = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primMul@"), data_name));
+    const char*   mul_symbol        = necro_intern_concat_symbols(intern, necro_intern_string(intern, "primMul@"), data_name).str;
     NecroPrimDef* mul_type_def      = necro_prim_def_fun(prim_types, intern, NULL, necro_ast_create_fn_type_sig(&prim_types->arena, intern, mul_symbol, NULL, necro_make_bin_math_ast(prim_types, intern, data_type_name, is_poly), NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 2);
     UNUSED(mul_type_def);
 
-    const char*   abs_symbol        = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primAbs@"), data_name));
+    const char*   abs_symbol        = necro_intern_concat_symbols(intern, necro_intern_string(intern, "primAbs@"), data_name).str;
     NecroPrimDef* abs_type_def      = necro_prim_def_fun(prim_types, intern, NULL, necro_ast_create_fn_type_sig(&prim_types->arena, intern, abs_symbol, NULL, necro_make_unary_math_ast(prim_types, intern, data_type_name, is_poly), NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 2);
     UNUSED(abs_type_def);
 
-    const char*   signum_symbol     = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primSignum@"), data_name));
+    const char*   signum_symbol     = necro_intern_concat_symbols(intern, necro_intern_string(intern, "primSignum@"), data_name).str;
     NecroPrimDef* signum_type_def   = necro_prim_def_fun(prim_types, intern, NULL, necro_ast_create_fn_type_sig(&prim_types->arena, intern, signum_symbol, NULL, necro_make_unary_math_ast(prim_types, intern, data_type_name, is_poly), NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 2);
     UNUSED(signum_type_def);
 
-    const char*   from_int_symbol   = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primFromInt@"), data_name));
+    const char*   from_int_symbol   = necro_intern_concat_symbols(intern, necro_intern_string(intern, "primFromInt@"), data_name).str;
     NecroAst* from_int_ast      = necro_ast_create_type_fn(&prim_types->arena, necro_ast_create_conid(&prim_types->arena, intern, "Int", NECRO_CON_TYPE_VAR), necro_make_num_con(&prim_types->arena, intern, data_type_name, is_poly));
     NecroPrimDef* from_int_type_def = necro_prim_def_fun(prim_types, intern, NULL, necro_ast_create_fn_type_sig(&prim_types->arena, intern, from_int_symbol, NULL, from_int_ast, NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 1);
     UNUSED(from_int_type_def);
@@ -499,15 +499,15 @@ void necro_create_prim_num_instances(NecroPrimTypes* prim_types, NecroIntern* in
     // Fractional
     if (is_fractional)
     {
-        const char*   div_symbol     = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primDiv@"), data_name));
+        const char*   div_symbol     = necro_intern_concat_symbols(intern, necro_intern_string(intern, "primDiv@"), data_name).str;
         NecroPrimDef* div_type_def   = necro_prim_def_fun(prim_types, intern, NULL, necro_ast_create_fn_type_sig(&prim_types->arena, intern, div_symbol, NULL, necro_make_bin_math_ast(prim_types, intern, data_type_name, is_poly), NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 2);
         UNUSED(div_type_def);
 
-        const char*   recip_symbol   = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primRecip@"), data_name));
+        const char*   recip_symbol   = necro_intern_concat_symbols(intern, necro_intern_string(intern, "primRecip@"), data_name).str;
         NecroPrimDef* recip_type_def = necro_prim_def_fun(prim_types, intern, NULL, necro_ast_create_fn_type_sig(&prim_types->arena, intern, recip_symbol, NULL, necro_make_unary_math_ast(prim_types, intern, data_type_name, is_poly), NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 2);
         UNUSED(recip_type_def);
 
-        const char*   from_rational_symbol   = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primFromRational@"), data_name));
+        const char*   from_rational_symbol   = necro_intern_concat_symbols(intern, necro_intern_string(intern, "primFromRational@"), data_name).str;
         NecroAst* from_rational_ast      = necro_ast_create_type_fn(&prim_types->arena, necro_ast_create_conid(&prim_types->arena, intern, "Rational", NECRO_CON_TYPE_VAR), necro_make_num_con(&prim_types->arena, intern, data_type_name, is_poly));
         NecroPrimDef* from_rational_type_def = necro_prim_def_fun(prim_types, intern, NULL, necro_ast_create_fn_type_sig(&prim_types->arena, intern, from_rational_symbol, NULL, from_rational_ast, NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 1);
         UNUSED(from_rational_type_def);
@@ -524,11 +524,11 @@ void necro_create_prim_num_instances(NecroPrimTypes* prim_types, NecroIntern* in
     //--------------
     // Eq
     NecroAst* bin_comp_ast = necro_ast_create_type_fn(&prim_types->arena, necro_make_num_con(&prim_types->arena, intern, data_type_name, is_poly), necro_ast_create_type_fn(&prim_types->arena, necro_make_num_con(&prim_types->arena, intern, data_type_name, is_poly), bool_conid));
-    const char*   eq_symbol    = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primEq@"), data_name));
+    const char*   eq_symbol    = necro_intern_concat_symbols(intern, necro_intern_string(intern, "primEq@"), data_name).str;
     NecroPrimDef* eq_type_def  = necro_prim_def_fun(prim_types, intern, NULL, necro_ast_create_fn_type_sig(&prim_types->arena, intern, eq_symbol, NULL, bin_comp_ast, NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 2);
     UNUSED(eq_type_def);
 
-    const char*   neq_symbol   = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primNEq@"), data_name));
+    const char*   neq_symbol   = necro_intern_concat_symbols(intern, necro_intern_string(intern, "primNEq@"), data_name).str;
     NecroPrimDef* neq_type_def = necro_prim_def_fun(prim_types, intern, NULL, necro_ast_create_fn_type_sig(&prim_types->arena, intern, neq_symbol, NULL, bin_comp_ast, NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 2);
     UNUSED(neq_type_def);
 
@@ -542,19 +542,19 @@ void necro_create_prim_num_instances(NecroPrimTypes* prim_types, NecroIntern* in
 
     //--------------
     // Ord
-    const char*   gt_symbol    = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primGT@"), data_name));
+    const char*   gt_symbol    = necro_intern_concat_symbols(intern, necro_intern_string(intern, "primGT@"), data_name).str;
     NecroPrimDef* gt_type_def  = necro_prim_def_fun(prim_types, intern, NULL, necro_ast_create_fn_type_sig(&prim_types->arena, intern, gt_symbol, NULL, bin_comp_ast, NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 2);
     UNUSED(gt_type_def);
 
-    const char*   lt_symbol    = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primLT@"), data_name));
+    const char*   lt_symbol    = necro_intern_concat_symbols(intern, necro_intern_string(intern, "primLT@"), data_name).str;
     NecroPrimDef* lt_type_def  = necro_prim_def_fun(prim_types, intern, NULL, necro_ast_create_fn_type_sig(&prim_types->arena, intern, lt_symbol, NULL, bin_comp_ast, NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 2);
     UNUSED(lt_type_def);
 
-    const char*   gte_symbol   = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primGTE@"), data_name));
+    const char*   gte_symbol   = necro_intern_concat_symbols(intern, necro_intern_string(intern, "primGTE@"), data_name).str;
     NecroPrimDef* gte_type_def = necro_prim_def_fun(prim_types, intern, NULL, necro_ast_create_fn_type_sig(&prim_types->arena, intern, gte_symbol, NULL, bin_comp_ast, NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 2);
     UNUSED(gte_type_def);
 
-    const char*   lte_symbol   = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primLTE@"), data_name));
+    const char*   lte_symbol   = necro_intern_concat_symbols(intern, necro_intern_string(intern, "primLTE@"), data_name).str;
     NecroPrimDef* lte_type_def = necro_prim_def_fun(prim_types, intern, NULL, necro_ast_create_fn_type_sig(&prim_types->arena, intern, lte_symbol, NULL, bin_comp_ast, NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 2);
     UNUSED(lte_type_def);
 
@@ -650,11 +650,11 @@ void necro_bool_instances(NecroPrimTypes* prim_types, NecroIntern* intern)
     //--------------
     // Eq
     NecroAst* bin_comp_ast = necro_ast_create_type_fn(&prim_types->arena, bool_conid, necro_ast_create_type_fn(&prim_types->arena, bool_conid, bool_conid));
-    const char*   eq_symbol    = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primEq@"), data_name));
+    const char*   eq_symbol    = necro_intern_concat_symbols(intern, necro_intern_string(intern, "primEq@"), data_name).str;
     NecroPrimDef* eq_type_def  = necro_prim_def_fun(prim_types, intern, NULL, necro_ast_create_fn_type_sig(&prim_types->arena, intern, eq_symbol, NULL, bin_comp_ast, NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 2);
     UNUSED(eq_type_def);
 
-    const char*   neq_symbol   = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primNEq@"), data_name));
+    const char*   neq_symbol   = necro_intern_concat_symbols(intern, necro_intern_string(intern, "primNEq@"), data_name).str;
     NecroPrimDef* neq_type_def = necro_prim_def_fun(prim_types, intern, NULL, necro_ast_create_fn_type_sig(&prim_types->arena, intern, neq_symbol, NULL, bin_comp_ast, NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 2);
     UNUSED(neq_type_def);
 
@@ -667,19 +667,19 @@ void necro_bool_instances(NecroPrimTypes* prim_types, NecroIntern* intern)
 
     //--------------
     // Ord
-    const char*   gt_symbol    = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primGT@"), data_name));
+    const char*   gt_symbol    = necro_intern_concat_symbols(intern, necro_intern_string(intern, "primGT@"), data_name).str;
     NecroPrimDef* gt_type_def  = necro_prim_def_fun(prim_types, intern, NULL, necro_ast_create_fn_type_sig(&prim_types->arena, intern, gt_symbol, NULL, bin_comp_ast, NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 2);
     UNUSED(gt_type_def);
 
-    const char*   lt_symbol    = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primLT@"), data_name));
+    const char*   lt_symbol    = necro_intern_concat_symbols(intern, necro_intern_string(intern, "primLT@"), data_name).str;
     NecroPrimDef* lt_type_def  = necro_prim_def_fun(prim_types, intern, NULL, necro_ast_create_fn_type_sig(&prim_types->arena, intern, lt_symbol, NULL, bin_comp_ast, NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 2);
     UNUSED(lt_type_def);
 
-    const char*   gte_symbol   = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primGTE@"), data_name));
+    const char*   gte_symbol   = necro_intern_concat_symbols(intern, necro_intern_string(intern, "primGTE@"), data_name).str;
     NecroPrimDef* gte_type_def = necro_prim_def_fun(prim_types, intern, NULL, necro_ast_create_fn_type_sig(&prim_types->arena, intern, gte_symbol, NULL, bin_comp_ast, NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 2);
     UNUSED(gte_type_def);
 
-    const char*   lte_symbol   = necro_intern_get_string(intern, necro_intern_concat_symbols(intern, necro_intern_string(intern, "primLTE@"), data_name));
+    const char*   lte_symbol   = necro_intern_concat_symbols(intern, necro_intern_string(intern, "primLTE@"), data_name).str;
     NecroPrimDef* lte_type_def = necro_prim_def_fun(prim_types, intern, NULL, necro_ast_create_fn_type_sig(&prim_types->arena, intern, lte_symbol, NULL, bin_comp_ast, NECRO_VAR_DECLARATION /*NECRO_VAR_SIG don't use this because prim funs have no body*/, NECRO_SIG_DECLARATION), 2);
     UNUSED(lte_type_def);
 

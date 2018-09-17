@@ -17,7 +17,7 @@ void necro_rigid_kind_variable_error(NecroInfer* infer, NecroVar type_var, Necro
         return;
     const char* type_name = NULL;
     if (type->type == NECRO_TYPE_CON)
-        type_name = type->con.con.symbol.str;
+        type_name = type->con.con.symbol->str;
     else if (type->type == NECRO_TYPE_APP)
         type_name = "TypeApp";
     else if (type->type == NECRO_TYPE_FUN)
@@ -175,7 +175,7 @@ inline void necro_kind_unify_fun(NecroInfer* infer, NecroTypeKind* kind1, NecroT
     case NECRO_TYPE_CON:
     {
         necro_infer_error(infer, error_preamble, macro_type, "Kind error: Attempting to kind unify (->) with KindCon (%s).\n  Kind1: %s\n  Kind2: %s",
-            kind2->con.con.symbol.str,
+            kind2->con.con.symbol->str,
             necro_type_string(infer, kind1),
             necro_type_string(infer, kind2)
             );
@@ -205,9 +205,9 @@ inline void necro_kind_unify_con(NecroInfer* infer, NecroTypeKind* kind1, NecroT
             necro_instantiate_kind_var(infer, &kind2->var, kind1, macro_type, error_preamble);
         return;
     case NECRO_TYPE_CON:
-        if (kind1->con.con.symbol.id != kind2->con.con.symbol.id)
+        if (kind1->con.con.symbol != kind2->con.con.symbol)
         {
-            necro_infer_error(infer, error_preamble, kind2, "Kind error: Attempting to unify two different kinds, Kind1: %s, Kind2: %s", kind1->con.con.symbol.str, kind2->con.con.symbol.str);
+            necro_infer_error(infer, error_preamble, kind2, "Kind error: Attempting to unify two different kinds, Kind1: %s, Kind2: %s", kind1->con.con.symbol->str, kind2->con.con.symbol->str);
             return;
         }
         else
@@ -220,7 +220,7 @@ inline void necro_kind_unify_con(NecroInfer* infer, NecroTypeKind* kind1, NecroT
             {
                 if (kind1 == NULL || kind2 == NULL)
                 {
-                    necro_infer_error(infer, error_preamble, kind1, "Kind error: Mismatched arities, Kind1: %s, Kind2: %s", original_kind1->con.con.symbol.str, original_kind2->con.con.symbol.str);
+                    necro_infer_error(infer, error_preamble, kind1, "Kind error: Mismatched arities, Kind1: %s, Kind2: %s", original_kind1->con.con.symbol->str, original_kind2->con.con.symbol->str);
                     return;
                 }
                 assert(kind1->type == NECRO_TYPE_LIST);
@@ -239,13 +239,13 @@ inline void necro_kind_unify_con(NecroInfer* infer, NecroTypeKind* kind1, NecroT
     case NECRO_TYPE_FUN:
     {
         necro_infer_error(infer, error_preamble, macro_type, "Kind error: Attempting to kind unify KindCon (%s) with (->).\n  Kind1: %s\n  Kind2: %s",
-            kind1->con.con.symbol.str,
+            kind1->con.con.symbol->str,
             necro_type_string(infer, kind1),
             necro_type_string(infer, kind2)
             );
         return;
     }
-    case NECRO_TYPE_LIST: necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Attempted to kind unify KindCon (%s) with type args list.", kind1->con.con.symbol.str); return;
+    case NECRO_TYPE_LIST: necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Attempted to kind unify KindCon (%s) with type args list.", kind1->con.con.symbol->str); return;
     case NECRO_TYPE_FOR:  necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Attempted to kind unify polytype."); return;
     default:              necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Non-existent kind (kind1: %d, kind2: %s) found in necro_unify.", kind1->type, kind2->type); return;
     }

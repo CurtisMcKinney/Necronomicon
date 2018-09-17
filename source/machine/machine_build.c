@@ -382,7 +382,7 @@ NecroMachineAST* necro_create_machine_initial_machine_def(NecroMachineProgram* p
     ast->type                                      = NECRO_MACHINE_DEF;
     ast->machine_def.bind_name                     = bind_name;
     char itoabuf[10];
-    char* machine_name                             = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 4, (const char*[]) { "_", bind_name.symbol.str, "Machine", itoa(bind_name.id.id, itoabuf, 10) });
+    char* machine_name                             = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 4, (const char*[]) { "_", bind_name.symbol->str, "Machine", itoa(bind_name.id.id, itoabuf, 10) });
     machine_name[1]                                = (char) toupper(machine_name[1]);
     char* state_name                               = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { machine_name, "State" });
     ast->machine_def.machine_name                  = necro_gen_var(program, ast, machine_name, NECRO_NAME_UNIQUE);

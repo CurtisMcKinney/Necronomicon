@@ -21,7 +21,7 @@ NecroMachineType* necro_create_prim_type(NecroMachineProgram* program, NecroVar 
     NecroArenaSnapshot snapshot         = necro_snapshot_arena_get(&program->snapshot_arena);
     NecroMachineAST*   struct_type      = necro_create_machine_struct_def(program, type_name, elems, num_elems);
     NecroMachineType*  struct_ptr_type  = necro_create_machine_ptr_type(&program->arena, struct_type->necro_machine_type);
-    const char*        mk_fn_name       = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", con_var.symbol.str });
+    const char*        mk_fn_name       = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", con_var.symbol->str });
     // const char*        const_mk_fn_name = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mkConst", necro_intern_get_string(program->intern, con_var.symbol) });
     NecroVar           mk_fn_var        = necro_gen_var(program, NULL, mk_fn_name, NECRO_NAME_UNIQUE);
     // NecroVar           const_mk_fn_var  = necro_gen_var(program, NULL, const_mk_fn_name, NECRO_NAME_UNIQUE);
@@ -60,7 +60,7 @@ void necro_create_prim_con(NecroMachineProgram* program, NecroMachineType* struc
     assert(con_var.id.id != 0);
     NecroArenaSnapshot    snapshot         = necro_snapshot_arena_get(&program->snapshot_arena);
     NecroMachineType*     struct_ptr_type  = necro_create_machine_ptr_type(&program->arena, struct_type);
-    const char*           mk_fn_name       = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", con_var.symbol.str });
+    const char*           mk_fn_name       = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", con_var.symbol->str });
     // const char*           const_mk_fn_name = necro_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mkConst", necro_intern_get_string(program->intern, con_var.symbol) });
     NecroVar              mk_fn_var        = necro_gen_var(program, NULL, mk_fn_name, NECRO_NAME_UNIQUE);
     // NecroVar              const_mk_fn_var  = necro_gen_var(program, NULL, const_mk_fn_name, NECRO_NAME_UNIQUE);
@@ -261,7 +261,7 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     NecroVar         dyn_state_var    = necro_con_to_var(program->prim_types->dyn_state_type);
     NecroMachineAST* dyn_state_struct = necro_create_machine_struct_def(program, dyn_state_var,  (NecroMachineType*[]) { program->necro_uint_type, program->necro_poly_ptr_type, program->necro_uint_type }, 3);
     program->dyn_state_type           = dyn_state_struct->necro_machine_type;
-    NecroVar         dyn_state_con    = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "_DynState").id));
+    NecroVar         dyn_state_con    = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "_DynState")->symbol_num));
     necro_create_prim_con(program, dyn_state_struct->necro_machine_type, dyn_state_con, (NecroMachineType*[]) { program->necro_poly_ptr_type, program->necro_uint_type }, 2, 2, 0);
     necro_symtable_get(program->symtable, dyn_state_con.id)->arity = 2;
 
@@ -272,19 +272,19 @@ void necro_init_machine_prim(NecroMachineProgram* program)
 
     // Rational
     NecroVar          rational_var  = necro_con_to_var(program->prim_types->rational_type);
-    NecroVar          rational_con  = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "Rational").id));
+    NecroVar          rational_con  = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "Rational")->symbol_num));
     NecroMachineType* rational_type = necro_create_prim_type(program, rational_var, rational_con, (NecroMachineType*[]) { program->necro_uint_type, program->necro_int_type, program->necro_int_type}, 3);
     UNUSED(rational_type);
 
     // Audio
     NecroVar          audio_var  = necro_con_to_var(program->prim_types->audio_type);
-    NecroVar          audio_con  = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "Audio").id));
+    NecroVar          audio_con  = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "Audio")->symbol_num));
     NecroMachineType* audio_type = necro_create_prim_type(program, audio_var, audio_con, (NecroMachineType*[]) { program->necro_uint_type, necro_create_machine_ptr_type(&program->arena, necro_create_machine_f32_type(&program->arena)) }, 2);
     UNUSED(audio_type);
 
     // () (is_enum)
     NecroVar unit_var = necro_con_to_var(program->prim_types->unit_type);
-    NecroVar unit_con = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, unit_var.symbol.id));
+    NecroVar unit_con = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, unit_var.symbol->symbol_num));
     necro_symtable_get(program->symtable, unit_var.id)->is_enum = 0;
     necro_symtable_get(program->symtable, unit_var.id)->necro_machine_ast = necro_symtable_get(program->symtable, int_var.id)->necro_machine_ast;
     necro_symtable_get(program->symtable, unit_con.id)->arity   = 0;
@@ -293,8 +293,8 @@ void necro_init_machine_prim(NecroMachineProgram* program)
 
     // Bool (is_enum)
     NecroVar bool_var  = necro_con_to_var(program->prim_types->bool_type);
-    NecroVar true_con  = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "True").id));
-    NecroVar false_con = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "False").id));
+    NecroVar true_con  = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "True")->symbol_num));
+    NecroVar false_con = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "False")->symbol_num));
     necro_symtable_get(program->symtable, bool_var.id)->is_enum = 0;
     necro_symtable_get(program->symtable, bool_var.id)->necro_machine_ast = necro_symtable_get(program->symtable, int_var.id)->necro_machine_ast;
     necro_symtable_get(program->symtable, true_con.id)->arity   = 0;
@@ -306,8 +306,8 @@ void necro_init_machine_prim(NecroMachineProgram* program)
 
     // []
     NecroVar         list_var    = necro_con_to_var(program->prim_types->list_type);
-    NecroVar         cons_con    = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, ":").id));
-    NecroVar         nil_con     = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "[]").id));
+    NecroVar         cons_con    = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, ":")->symbol_num));
+    NecroVar         nil_con     = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "[]")->symbol_num));
     NecroMachineAST* list_struct = necro_create_machine_struct_def(program, list_var, (NecroMachineType*[]) { program->necro_uint_type, program->necro_poly_ptr_type, program->necro_poly_ptr_type }, 3);
     necro_create_prim_con(program, list_struct->necro_machine_type, cons_con, (NecroMachineType*[]) { program->necro_poly_ptr_type, necro_create_machine_ptr_type(&program->arena, list_struct->necro_machine_type) }, 2, 2, 0);
     necro_create_prim_con(program, list_struct->necro_machine_type, nil_con, NULL, 0, 0, 1);
@@ -316,8 +316,8 @@ void necro_init_machine_prim(NecroMachineProgram* program)
 
     // Maybe
     NecroVar         maybe_var    = necro_con_to_var(program->prim_types->maybe_type);
-    NecroVar         just_con     = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "Just").id));
-    NecroVar         nothing_con  = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "Nothing").id));
+    NecroVar         just_con     = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "Just")->symbol_num));
+    NecroVar         nothing_con  = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "Nothing")->symbol_num));
     NecroMachineAST* maybe_struct = necro_create_machine_struct_def(program, maybe_var, (NecroMachineType*[]) { program->necro_uint_type, program->necro_poly_ptr_type }, 2);
     necro_create_prim_con(program, maybe_struct->necro_machine_type, just_con, (NecroMachineType*[]) { program->necro_poly_ptr_type }, 1, 1, 0);
     necro_create_prim_con(program, maybe_struct->necro_machine_type, nothing_con, NULL, 0, 0, 1);
@@ -326,7 +326,7 @@ void necro_init_machine_prim(NecroMachineProgram* program)
 
     // Array
     NecroVar         array_var    = necro_con_to_var(program->prim_types->array_type);
-    NecroVar         array_con    = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "Array").id));
+    NecroVar         array_con    = necro_con_to_var(*necro_con_table_get(&program->prim_types->con_table, necro_intern_string(program->intern, "Array")->symbol_num));
     NecroMachineAST* array_struct = necro_create_machine_struct_def(program, array_var, (NecroMachineType*[]) { program->necro_uint_type, program->necro_int_type, necro_create_machine_ptr_type(&program->arena, program->necro_poly_ptr_type) }, 3);
     necro_create_prim_con(program, array_struct->necro_machine_type, array_con, (NecroMachineType*[]) { program->necro_int_type, necro_create_machine_ptr_type(&program->arena, program->necro_poly_ptr_type) }, 2, 2, 0);
     necro_symtable_get(program->symtable, array_con.id)->arity = 2;

@@ -129,7 +129,7 @@ void necro_symtable_info_print(NecroSymbolInfo info, NecroIntern* intern, size_t
     printf("{\n");
 
     print_white_space(whitespace + 4);
-    printf("name:       %s\n", info.name.str);
+    printf("name:       %s\n", info.name->str);
 
     print_white_space(whitespace + 4);
     printf("id:         %d\n", info.id.id);
@@ -201,7 +201,7 @@ void necro_symtable_test()
     // necro_symtable_print(&symtable);
 
     NecroSymbolInfo* info1_test = necro_symtable_get(&symtable, id1);
-    if (info1_test != NULL && info1_test->name.id == info1.name.id)
+    if (info1_test != NULL && info1_test->name == info1.name)
     {
         printf("Symbol1 test: passed\n");
     }
@@ -211,7 +211,7 @@ void necro_symtable_test()
     }
 
     NecroSymbolInfo* info2_test = necro_symtable_get(&symtable, id2);
-    if (info2_test != NULL && info2_test->name.id == info2.name.id)
+    if (info2_test != NULL && info2_test->name == info2.name)
     {
         printf("Symbol2 test: passed\n");
     }
@@ -335,10 +335,10 @@ void necro_scope_insert(NecroScope* scope, NecroSymbol symbol, NecroID id, Necro
     if (scope->count >= scope->size / 2)
         necro_scope_grow(scope, arena);
     // printf("necro_scope_insert id: %d\n", id.id);
-    size_t bucket = symbol.hash & (scope->size - 1);
+    size_t bucket = symbol->hash & (scope->size - 1);
     while (scope->buckets[bucket].id.id != NECRO_SYMTABLE_NULL_ID.id)
     {
-        if (scope->buckets[bucket].symbol.id == symbol.id)
+        if (scope->buckets[bucket].symbol == symbol)
         {
             // printf("CONTAINS: %d\n", scope->buckets[bucket].symbol.id);
             return;
@@ -357,9 +357,9 @@ NecroID necro_scope_find_in_this_scope(NecroScope* scope, NecroSymbol symbol)
     assert(scope->buckets != NULL);
     assert(scope->count < scope->size);
 
-    for (size_t bucket = symbol.hash & (scope->size - 1); scope->buckets[bucket].id.id != NECRO_SYMTABLE_NULL_ID.id; bucket = (bucket + 1) & (scope->size - 1))
+    for (size_t bucket = symbol->hash & (scope->size - 1); scope->buckets[bucket].id.id != NECRO_SYMTABLE_NULL_ID.id; bucket = (bucket + 1) & (scope->size - 1))
     {
-        if (scope->buckets[bucket].symbol.id == symbol.id)
+        if (scope->buckets[bucket].symbol == symbol)
             return scope->buckets[bucket].id;
     }
 
@@ -407,7 +407,7 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
 {
     if (input_node == NULL || scoped_symtable->error.return_code == NECRO_ERROR)
         return;
-    input_node->scope       = scoped_symtable->current_scope;
+    input_node->scope = scoped_symtable->current_scope;
     switch (input_node->type)
     {
     case NECRO_AST_UNDEFINED:
@@ -649,11 +649,12 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
     }
 }
 
-NECRO_RETURN_CODE necro_build_scopes(NecroScopedSymTable* table, NecroAstArena* ast)
+void necro_build_scopes(NecroCompileInfo info, NecroScopedSymTable* table, NecroAstArena* ast)
 {
-    table->error.return_code = NECRO_SUCCESS;
+
     necro_build_scopes_go(table, ast->root);
-    return table->error.return_code;
+    if (info.compilation_phase == NECRO_PHASE_BUILD_SCOPES && info.verbosity > 0)
+        necro_ast_arena_print(ast);
 }
 
 void necro_scope_print(NecroScope* scope, size_t whitespace, NecroIntern* intern, NecroSymTable* global_table)
@@ -721,7 +722,7 @@ void necro_symtable_print_env(NecroSymTable* table, NecroInfer* infer)
     printf("\nEnv:\n[\n");
     for (size_t i = 1; i < table->count; ++i)
     {
-        printf("    %s", table->data[i].name.str);
+        printf("    %s", table->data[i].name->str);
         if (infer->symtable->data[i].type != NULL)
         {
             printf(" => ");

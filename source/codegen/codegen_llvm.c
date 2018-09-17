@@ -212,7 +212,7 @@ LLVMTypeRef necro_machine_type_to_llvm_type(NecroCodeGenLLVM* codegen, NecroMach
         NecroCodeGenSymbolInfo* info = necro_codegen_symtable_get(codegen, machine_type->struct_type.name);
         if (info->type == NULL)
         {
-            LLVMTypeRef struct_type = LLVMStructCreateNamed(codegen->context, machine_type->struct_type.name.symbol.str);
+            LLVMTypeRef struct_type = LLVMStructCreateNamed(codegen->context, machine_type->struct_type.name.symbol->str);
             info->type = struct_type;
             LLVMTypeRef* elements = necro_paged_arena_alloc(&codegen->arena, machine_type->struct_type.num_members * sizeof(LLVMTypeRef));
             for (size_t i = 0; i < machine_type->struct_type.num_members; ++i)
@@ -302,7 +302,7 @@ void necro_codegen_declare_function(NecroCodeGenLLVM* codegen, NecroMachineAST* 
 {
     // Fn begin
     LLVMTypeRef  fn_type  = necro_machine_type_to_llvm_type(codegen, ast->necro_machine_type);
-    LLVMValueRef fn_value = LLVMAddFunction(codegen->mod, ast->fn_def.name.symbol.str, fn_type);
+    LLVMValueRef fn_value = LLVMAddFunction(codegen->mod, ast->fn_def.name.symbol->str, fn_type);
     necro_codegen_symtable_get(codegen, ast->fn_def.name)->type  = fn_type;
     necro_codegen_symtable_get(codegen, ast->fn_def.name)->value = fn_value;
     necro_codegen_symtable_get(codegen, ast->fn_def.fn_value->value.reg_name)->type  = fn_type;
@@ -314,7 +314,7 @@ void necro_codegen_function(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
     assert(codegen != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_MACHINE_FN_DEF);
-    const char* fn_name = ast->fn_def.name.symbol.str;
+    const char* fn_name = ast->fn_def.name.symbol->str;
     UNUSED(fn_name);
     assert(ast->fn_def.name.id.id != 0);
 
@@ -342,7 +342,7 @@ void necro_codegen_function(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
     NecroMachineAST* blocks = ast->fn_def.call_body;
     while (blocks != NULL)
     {
-        LLVMBasicBlockRef block = LLVMAppendBasicBlock(fn_value, blocks->block.name.symbol.str);
+        LLVMBasicBlockRef block = LLVMAppendBasicBlock(fn_value, blocks->block.name.symbol->str);
         necro_codegen_symtable_get(codegen, blocks->block.name)->block = block;
         if (entry == NULL)
             entry = block;
@@ -492,7 +492,7 @@ LLVMValueRef necro_codegen_load(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
     assert(ast != NULL);
     assert(ast->type == NECRO_MACHINE_LOAD);
     LLVMValueRef source_ptr = necro_codegen_value(codegen, ast->load.source_ptr);
-    const char*  dest_name  = ast->load.dest_value->value.reg_name.symbol.str;
+    const char*  dest_name  = ast->load.dest_value->value.reg_name.symbol->str;
     LLVMValueRef result     = NULL;
     switch (ast->load.load_type)
     {
@@ -586,7 +586,7 @@ LLVMValueRef necro_codegen_gep(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
     assert(codegen != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_MACHINE_GEP);
-    const char*   name    = ast->gep.dest_value->value.reg_name.symbol.str;
+    const char*   name    = ast->gep.dest_value->value.reg_name.symbol->str;
     LLVMValueRef  ptr     = necro_codegen_value(codegen, ast->gep.source_value);
     LLVMValueRef* indices = necro_paged_arena_alloc(&codegen->arena, ast->gep.num_indices * sizeof(LLVMValueRef));
     for (size_t i = 0; i < ast->gep.num_indices; ++i)
@@ -607,7 +607,7 @@ LLVMValueRef necro_codegen_binop(NecroCodeGenLLVM* codegen, NecroMachineAST* ast
     assert(codegen != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_MACHINE_BINOP);
-    const char*  name  = ast->binop.result->value.reg_name.symbol.str;
+    const char*  name  = ast->binop.result->value.reg_name.symbol->str;
     LLVMValueRef value = NULL;
     LLVMValueRef left  = necro_codegen_value(codegen, ast->binop.left);
     LLVMValueRef right = necro_codegen_value(codegen, ast->binop.right);
@@ -637,7 +637,7 @@ LLVMValueRef necro_codegen_cmp(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
     assert(codegen != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_MACHINE_CMP);
-    const char*  name  = ast->cmp.result->value.reg_name.symbol.str;
+    const char*  name  = ast->cmp.result->value.reg_name.symbol->str;
     LLVMValueRef left  = necro_codegen_value(codegen, ast->cmp.left);
     LLVMValueRef right = necro_codegen_value(codegen, ast->cmp.right);
     LLVMValueRef value = NULL;
@@ -705,7 +705,7 @@ LLVMValueRef necro_codegen_call(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
     bool               is_void     = ast->call.result_reg->value.value_type == NECRO_MACHINE_VALUE_VOID;
     const char*        result_name = NULL;
     if (!is_void)
-        result_name = ast->call.result_reg->value.reg_name.symbol.str;
+        result_name = ast->call.result_reg->value.reg_name.symbol->str;
     else
         result_name = "";
     LLVMValueRef  fn_value    = necro_codegen_value(codegen, ast->call.fn_value);
@@ -740,7 +740,7 @@ LLVMValueRef necro_codegen_phi(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
     assert(ast != NULL);
     assert(ast->type == NECRO_MACHINE_PHI);
     LLVMTypeRef          phi_type  = necro_machine_type_to_llvm_type(codegen, ast->phi.result->necro_machine_type);
-    LLVMValueRef         phi_value = LLVMBuildPhi(codegen->builder, phi_type, ast->phi.result->value.reg_name.symbol.str);
+    LLVMValueRef         phi_value = LLVMBuildPhi(codegen->builder, phi_type, ast->phi.result->value.reg_name.symbol->str);
     NecroMachinePhiList* values    = ast->phi.values;
     while (values != NULL)
     {
@@ -883,7 +883,7 @@ void necro_codegen_global(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
     assert(ast->value.value_type == NECRO_MACHINE_VALUE_GLOBAL);
     LLVMTypeRef  global_type  = necro_machine_type_to_llvm_type(codegen, ast->necro_machine_type->ptr_type.element_type);
     LLVMValueRef zero_value   = LLVMConstNull(global_type);
-    const char*  global_name  = ast->value.global_name.symbol.str;
+    const char*  global_name  = ast->value.global_name.symbol->str;
     LLVMValueRef global_value = LLVMAddGlobal(codegen->mod, global_type, global_name);
     necro_codegen_symtable_get(codegen, ast->value.global_name)->type  = global_type;
     necro_codegen_symtable_get(codegen, ast->value.global_name)->value = global_value;

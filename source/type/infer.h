@@ -3,8 +3,8 @@
  * Proprietary and confidential
  */
 
-#ifndef INFER_H
-#define INFER_H 1
+#ifndef NECRO_INFER_H
+#define NECRO_INFER_H 1
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -26,4 +26,4 @@ bool       necro_is_sized(NecroSymTable* symtable, NecroType* type);
 
 void necro_test_infer();
 
-#endif // INFER_H
+#endif // NECRO_INFER_H

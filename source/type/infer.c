@@ -53,7 +53,7 @@ NecroType* necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast)
     case NECRO_AST_CONID:
     {
         if (necro_symtable_get(infer->symtable, ast->conid.id)->type == NULL)
-            return necro_infer_ast_error(infer, NULL, ast, "Can't find data type: %s", ast->conid.symbol.str);
+            return necro_infer_ast_error(infer, NULL, ast, "Can't find data type: %s", ast->conid.symbol->str);
         NecroType* env_con_type = necro_symtable_get(infer->symtable, ast->conid.id)->type;
         NecroType* con_type     = necro_create_type_con(infer, env_con_type->con.con, NULL, env_con_type->con.arity);
         assert(con_type != NULL);
@@ -62,7 +62,7 @@ NecroType* necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast)
     case NECRO_AST_CONSTRUCTOR:
     {
         if (necro_symtable_get(infer->symtable, ast->constructor.conid->conid.id)->type == NULL)
-            return necro_infer_ast_error(infer, NULL, ast, "Can't find data type: %s", ast->conid.symbol.str);
+            return necro_infer_ast_error(infer, NULL, ast, "Can't find data type: %s", ast->conid.symbol->str);
         NecroType* con_args = NULL;
         NecroAst* arg_list = ast->constructor.arg_list;
         size_t arity = 0;
@@ -595,15 +595,15 @@ NecroType* necro_infer_var(NecroInfer* infer, NecroAst* ast)
         if (symbol_info->ast->type == NECRO_AST_SIMPLE_ASSIGNMENT && symbol_info->ast->simple_assignment.initializer == NULL)
         {
             return necro_infer_ast_error(infer, NULL, ast, "%s cannot depend on itself without an initial value.\n Consider adding an initial value, such as:\n\n     %s ~ InitialValue\n",
-                ast->variable.symbol.str,
-                ast->variable.symbol.str);
+                ast->variable.symbol->str,
+                ast->variable.symbol->str);
         }
         else if (symbol_info->ast->type == NECRO_AST_VARIABLE && symbol_info->ast->variable.var_type == NECRO_VAR_DECLARATION)
         {
             if (symbol_info->ast->variable.initializer == NULL)
                 return necro_infer_ast_error(infer, NULL, ast, "%s cannot depend on itself without an initial value.\n Consider adding an initial value, such as:\n\n     %s ~ InitialValue\n",
-                    ast->variable.symbol.str,
-                    ast->variable.symbol.str);
+                    ast->variable.symbol->str,
+                    ast->variable.symbol->str);
             else
             {
                 symbol_info->ast->variable.is_recursive = true;
@@ -1133,7 +1133,7 @@ NecroType* necro_infer_apat(NecroInfer* infer, NecroAst* ast)
         assert(ast->bin_op_sym.op->type == NECRO_AST_CONID);
         NecroType* constructor_type = necro_symtable_get(infer->symtable, ast->bin_op_sym.op->conid.id)->type;
         if (constructor_type == NULL)
-            return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Constructor \'%s\' has not type", ast->bin_op_sym.op->conid.symbol.str);
+            return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Constructor \'%s\' has not type", ast->bin_op_sym.op->conid.symbol->str);
         constructor_type      = necro_inst(infer, constructor_type, NULL);
         if (necro_is_infer_error(infer)) return NULL;
         NecroType* left_type  = necro_infer_apat(infer, ast->bin_op_sym.left);
@@ -1152,7 +1152,7 @@ NecroType* necro_infer_apat(NecroInfer* infer, NecroAst* ast)
         NecroType* constructor_type  = necro_symtable_get(infer->symtable, ast->conid.id)->type;
         constructor_type             = necro_inst(infer, constructor_type, NULL);
         if (constructor_type == NULL)
-            return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Constructor \'%s\' has not type", ast->constructor.conid->conid.symbol.str);
+            return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Constructor \'%s\' has not type", ast->constructor.conid->conid.symbol->str);
         size_t constructor_args = 0;
         NecroType* con_iter = constructor_type;
         while (con_iter->type == NECRO_TYPE_FUN)
@@ -1162,7 +1162,7 @@ NecroType* necro_infer_apat(NecroInfer* infer, NecroAst* ast)
         }
         NecroType* type = necro_infer_conid(infer, ast);
         if (constructor_args != 0)
-            return necro_infer_ast_error(infer, type, ast, "Wrong number of arguments for constructor %s. Expected arity: %d, found arity %d", ast->conid.symbol.str, constructor_args, 0);
+            return necro_infer_ast_error(infer, type, ast, "Wrong number of arguments for constructor %s. Expected arity: %d, found arity %d", ast->conid.symbol->str, constructor_args, 0);
         necro_unify(infer, type, constructor_type, ast->scope, type, "While inferring the type of a constructor pattern: ");
         if (necro_is_infer_error(infer)) return NULL;
         ast->necro_type = constructor_type;
@@ -1173,7 +1173,7 @@ NecroType* necro_infer_apat(NecroInfer* infer, NecroAst* ast)
     {
         NecroType* constructor_type  = necro_symtable_get(infer->symtable, ast->constructor.conid->conid.id)->type;
         if (constructor_type == NULL)
-            return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Constructor \'%s\' has not type", ast->constructor.conid->conid.symbol.str);
+            return necro_infer_ast_error(infer, NULL, ast, "Compiler bug: Constructor \'%s\' has not type", ast->constructor.conid->conid.symbol->str);
         constructor_type             = necro_inst(infer, constructor_type, NULL);
         if (necro_is_infer_error(infer)) return NULL;
         NecroType* pattern_type_head = NULL;
@@ -1217,7 +1217,7 @@ NecroType* necro_infer_apat(NecroInfer* infer, NecroAst* ast)
             con_iter = con_iter->fun.type2;
         }
         if (arg_count != constructor_args)
-            return necro_infer_ast_error(infer, pattern_type_head, ast, "Wrong number of arguments for constructor %s. Expected arity: %d, found arity %d", ast->constructor.conid->conid.symbol.str, constructor_args, arg_count);
+            return necro_infer_ast_error(infer, pattern_type_head, ast, "Wrong number of arguments for constructor %s. Expected arity: %d, found arity %d", ast->constructor.conid->conid.symbol->str, constructor_args, arg_count);
         necro_unify(infer, constructor_type, pattern_type_head, ast->scope, pattern_type_head, "While inferring the type of a constructor pattern: ");
         if (necro_is_infer_error(infer)) return NULL;
         ast->necro_type = constructor_type;

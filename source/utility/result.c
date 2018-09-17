@@ -11,110 +11,60 @@ NecroResultUnion global_result;
 ///////////////////////////////////////////////////////
 // Construction
 ///////////////////////////////////////////////////////
-// NecroResultError* necro_alloc_error(NecroPagedArena* arena, NecroResultError error)
-// {
-//     NecroResultError* error_ptr = necro_paged_arena_alloc(arena, sizeof(NecroResultError));
-//     *error_ptr                  = error;
-// #if NECRO_ASSERT_RESULT_ERROR
-//     assert(false);
-// #endif
-//     return error_ptr;
-// }
-
-NecroResult(bool) necro_malformed_string_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+NecroResult(NecroParseAstLocalPtr) necro_parse_error_cons(NecroResultError* error1, NecroResultError* error2)
 {
-    return (NecroResult(bool))
-    {
-        .error =
-        {
-            .type               = NECRO_LEX_MALFORMED_STRING,
-            .default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc },
-        },
-        .type = NECRO_RESULT_ERROR
-    };
-}
-
-NecroResult(bool) necro_malformed_float_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
-{
-    return (NecroResult(bool))
-    {
-        .error =
-        {
-            .type               = NECRO_LEX_MALFORMED_FLOAT,
-            .default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc },
-        },
-        .type = NECRO_RESULT_ERROR
-    };
-}
-
-NecroResult(void) necro_unrecognized_character_sequence_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
-{
-    return (NecroResult(void))
-    {
-        .error =
-        {
-            .type               = NECRO_LEX_UNRECOGNIZED_CHARACTER_SEQUENCE,
-            .default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc },
-        },
-        .type = NECRO_RESULT_ERROR
-    };
-}
-
-NecroResult(void) necro_mixed_braces_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
-{
-    return (NecroResult(void))
-    {
-        .error =
-        {
-            .type               = NECRO_LEX_MIXED_BRACES,
-            .default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc },
-        },
-        .type = NECRO_RESULT_ERROR
-    };
-}
-
-NecroResult(void) necro_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
-{
-    return (NecroResult(void))
-    {
-        .error =
-        {
-            .type               = NECRO_PARSE_ERROR,
-            .default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc },
-        },
-        .type = NECRO_RESULT_ERROR
-    };
-}
-
-NecroResult(NecroParseAstLocalPtr) necro_parse_error_cons(NecroResultError error1, NecroResultError error2)
-{
-    // NecroResultError* error1_p = necro_paged_arena_alloc(arena, sizeof(NecroResultError));
-    NecroResultError* error1_p = malloc(sizeof(NecroResultError)); // Freed when printed!
-    *error1_p                  = error1;
-    NecroResultError* error2_p = malloc(sizeof(NecroResultError)); // Feed when printed!
-    *error2_p                  = error2;
-    return (NecroResult(NecroParseAstLocalPtr))
-    {
-        .error =
-        {
-            .type       = NECRO_ERROR_CONS,
-            .error_cons = (NecroErrorCons) { .error1 = error1_p, .error2 = error2_p },
-        },
-        .type = NECRO_RESULT_ERROR
-    };
+    NecroResultError* error = malloc(sizeof(NecroResultError));
+    error->type             = NECRO_ERROR_CONS;
+    error->error_cons       = (NecroErrorCons) { .error1 = error1, .error2 = error2 };
+    return (NecroResult(NecroParseAstLocalPtr)) { .error = error, .type = NECRO_RESULT_ERROR };
 }
 
 inline NecroResult(NecroParseAstLocalPtr) necro_default_parse_error(NECRO_RESULT_ERROR_TYPE type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return (NecroResult(NecroParseAstLocalPtr))
-    {
-        .error =
-        {
-            .type               = type,
-            .default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc },
-        },
-        .type = NECRO_RESULT_ERROR
-    };
+    NecroResultError* error   = malloc(sizeof(NecroResultError));
+    error->type               = type;
+    error->default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc };
+    return (NecroResult(NecroParseAstLocalPtr)) { .error = error, .type = NECRO_RESULT_ERROR };
+}
+
+NecroResult(bool) necro_malformed_string_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    NecroResultError* error   = malloc(sizeof(NecroResultError));
+    error->type               = NECRO_LEX_MALFORMED_STRING;
+    error->default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc };
+    return (NecroResult(bool)) { .error = error, .type = NECRO_RESULT_ERROR };
+}
+
+NecroResult(bool) necro_malformed_float_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    NecroResultError* error   = malloc(sizeof(NecroResultError));
+    error->type               = NECRO_LEX_MALFORMED_FLOAT;
+    error->default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc };
+    return (NecroResult(bool)) { .error = error, .type = NECRO_RESULT_ERROR };
+}
+
+NecroResult(void) necro_unrecognized_character_sequence_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    NecroResultError* error   = malloc(sizeof(NecroResultError));
+    error->type               = NECRO_LEX_UNRECOGNIZED_CHARACTER_SEQUENCE;
+    error->default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc };
+    return (NecroResult(void)) { .error = error, .type = NECRO_RESULT_ERROR };
+}
+
+NecroResult(void) necro_mixed_braces_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    NecroResultError* error   = malloc(sizeof(NecroResultError));
+    error->type               = NECRO_LEX_MIXED_BRACES;
+    error->default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc };
+    return (NecroResult(void)) { .error = error, .type = NECRO_RESULT_ERROR };
+}
+
+NecroResult(void) necro_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    NecroResultError* error   = malloc(sizeof(NecroResultError));
+    error->type               = NECRO_PARSE_ERROR;
+    error->default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc };
+    return (NecroResult(void)) { .error = error, .type = NECRO_RESULT_ERROR };
 }
 
 NecroResult(NecroParseAstLocalPtr) necro_declarations_missing_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
@@ -454,341 +404,345 @@ void necro_print_default_error_format(const char* error_name, NecroSourceLoc sou
     fprintf(stderr, "\n");
 }
 
-void necro_print_error_cons(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_error_cons(NecroResultError* error, const char* source_str, const char* source_name)
 {
-    if (error.error_cons.error1 != NULL)
+    if (error->error_cons.error1 != NULL)
     {
-        necro_result_error_print(*error.error_cons.error1, source_str, source_name);
-        free(error.error_cons.error1);
+        necro_result_error_print(error->error_cons.error1, source_str, source_name);
+        // free(error->error_cons.error1);
     }
-    if (error.error_cons.error2 != NULL)
+    if (error->error_cons.error2 != NULL)
     {
-        necro_result_error_print(*error.error_cons.error2, source_str, source_name);
-        free(error.error_cons.error2);
+        necro_result_error_print(error->error_cons.error2, source_str, source_name);
+        // free(error->error_cons.error2);
     }
 }
 
-void necro_print_malformed_float_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_malformed_float_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Float literals require digits both before and after the period (.) character.";
-    necro_print_default_error_format("Malformed Float", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Float", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_malformed_string_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_malformed_string_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Perhaps you forgot a closing quotation character (\") ?";
-    necro_print_default_error_format("Malformed String", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed String", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_unrecognized_character_sequence_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_unrecognized_character_sequence_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "This is either an unholy message to Cthulhu or perhaps you mistyped some things...";
-    necro_print_default_error_format("Unrecognized Character Sequence", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Unrecognized Character Sequence", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_mixed_braces_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_mixed_braces_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Necrolang uses significant whitespace which converts into implicit opening and closing braces.\nYou're likely adding an explicit closing brace where none is required.";
-    necro_print_default_error_format("Mixed Braces", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Mixed Braces", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_parse_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_parse_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "The Parser could not make sense of this line.";
-    necro_print_default_error_format("Parse Error", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Parse Error", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_declarations_missing_right_brace_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_declarations_missing_right_brace_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "It's likely your indentation is off, or an erroneous character has been inserted.";
-    necro_print_default_error_format("Malformed Declaration", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Declaration", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_simple_assignment_rhs_failed_to_parse_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_simple_assignment_rhs_failed_to_parse_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Assignments should take the form: var = expr";
-    necro_print_default_error_format("Malformed Assignment", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Assignment", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_apat_assignment_rhs_failed_to_parse_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_apat_assignment_rhs_failed_to_parse_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Functions should take the form: fnName arg = expr";
-    necro_print_default_error_format("Malformed Function", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Function", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_pat_assignment_rhs_failed_to_parse_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_pat_assignment_rhs_failed_to_parse_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Pattern assignments should take the form: (var1, var2) = expr";
-    necro_print_default_error_format("Malformed Pattern Assignment", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Pattern Assignment", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_rhs_empty_where_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_rhs_empty_where_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Where declarations should take the form: where var = expr";
-    necro_print_default_error_format("Malformed \'where\' Declaration", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed \'where\' Declaration", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_let_failed_to_parse_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_let_failed_to_parse_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "\'let\' expressions should take the form: let var = expr1 in expr2";
-    necro_print_default_error_format("Malformed \'let\' Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed \'let\' Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_let_empty_in_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_let_empty_in_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "\'let\' expressions should take the form: let var = expr1 in expr2";
-    necro_print_default_error_format("Malformed \'let\' Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed \'let\' Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_let_expected_semicolon_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_let_expected_semicolon_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "\'let\' expressions should take the form: let var = expr1 in expr2";
-    necro_print_default_error_format("Malformed \'let\' Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed \'let\' Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_let_expected_left_brace_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_let_expected_left_brace_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "\'let\' expressions should take the form: let var = expr1 in expr2";
-    necro_print_default_error_format("Malformed \'let\' Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed \'let\' Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_let_expected_right_brace_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_let_expected_right_brace_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "\'let\' expressions should take the form: let var = expr1 in expr2";
-    necro_print_default_error_format("Malformed \'let\' Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed \'let\' Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_let_missing_in_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_let_missing_in_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "\'let\' expressions should take the form: let var = expr1 in expr2";
-    necro_print_default_error_format("Expected \'in\' After \'let\'", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Expected \'in\' After \'let\'", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_tuple_missing_paren_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_tuple_missing_paren_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Tuples should take the form: (expr1, expr2)";
-    necro_print_default_error_format("Malformed Tuple", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Tuple", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_paren_expression_failed_to_parse_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_paren_expression_failed_to_parse_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Parenthetical expressions should take the form: (expr1 expr2)";
-    necro_print_default_error_format("Malformed Parenthetical Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Parenthetical Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_paren_expression_missing_paren_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_paren_expression_missing_paren_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Parenthetical expressions should take the form: (expr1 expr2)";
-    necro_print_default_error_format("Malformed Parenthetical Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Parenthetical Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_if_failed_to_parse_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_if_failed_to_parse_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "\'if\' expressions should take the form: if cond then expr1 else expr2";
-    necro_print_default_error_format("Malformed \'if\' Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed \'if\' Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_if_missing_then_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_if_missing_then_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Expected \'then\' in \'if\' expression. \'if\' expressions should take the form: if cond then expr1 else expr2";
-    necro_print_default_error_format("Malformed \'if\' Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed \'if\' Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_if_missing_expr_after_then_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_if_missing_expr_after_then_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Expected expression after \'then\'. \'if\' expressions should take the form: if cond then expr1 else expr2";
-    necro_print_default_error_format("Malformed \'if\' Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed \'if\' Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_if_missing_else_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_if_missing_else_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Expected \'else\' in \'if\' expression. \'if\' expressions should take the form: if cond then expr1 else expr2";
-    necro_print_default_error_format("Malformed \'if\' Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed \'if\' Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_if_missing_expr_after_else_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_if_missing_expr_after_else_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Expected expression after \'else\'. \'if\' expressions should take the form: if cond then expr1 else expr2";
-    necro_print_default_error_format("Malformed \'if\' Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed \'if\' Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_lambda_failed_to_parse_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_lambda_failed_to_parse_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Lambdas should take the form: \\var -> expr";
-    necro_print_default_error_format("Malformed Lambda Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Lambda Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_lambda_missing_arrow_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_lambda_missing_arrow_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Expected \'->\'. Lambdas should take the form: \\var -> expr";
-    necro_print_default_error_format("Malformed Lambda Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Lambda Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_lambda_failed_to_parse_pattern_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_lambda_failed_to_parse_pattern_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Expected arguments after \'\\\'. Lambdas should take the form: \\var -> expr";
-    necro_print_default_error_format("Malformed Lambda Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Lambda Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_do_bind_failed_to_parse_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_do_bind_failed_to_parse_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "\'do\' bindings should take the form: var <- expr";
-    necro_print_default_error_format("Malformed \'do\' Bind", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed \'do\' Bind", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_do_let_expected_left_brace_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_do_let_expected_left_brace_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "It's likely your indentation is off, or an erroneous character has been inserted.";
-    necro_print_default_error_format("Malformed \'let\' in \'do\' Block", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed \'let\' in \'do\' Block", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_do_let_expected_right_brace_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_do_let_expected_right_brace_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "It's likely your indentation is off, or an erroneous character has been inserted.";
-    necro_print_default_error_format("Malformed \'let\' in \'do\' Block", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed \'let\' in \'do\' Block", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_do_missing_right_brace_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_do_missing_right_brace_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "It's likely your indentation is off, or an erroneous character has been inserted.";
-    necro_print_default_error_format("Malformed \'do\' Block", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed \'do\' Block", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_list_missing_right_bracket_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_list_missing_right_bracket_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Lists should take the form: [expr1, expr2, expr3]";
-    necro_print_default_error_format("Malformed List", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed List", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_array_missing_right_brace_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_array_missing_right_brace_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Arrays should take the form: {expr1, expr2, expr2}";
-    necro_print_default_error_format("Malformed Array Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Array Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_pattern_empty_expression_list_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_pattern_empty_expression_list_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "\'pat\' expressions should take the form: pat arg1 arg2 arg3";
-    necro_print_default_error_format("Malformed \'pat\' Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed \'pat\' Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_arithmetic_sequence_failed_to_parse_then_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_arithmetic_sequence_failed_to_parse_then_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Arithmetic sequences should take the form: [fromExpr..toExpr], or [fromExpr, thenExpr..toExpr]";
-    necro_print_default_error_format("Malformed Arithmetic \'then\' Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Arithmetic \'then\' Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_arithmetic_sequence_failed_to_parse_to_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_arithmetic_sequence_failed_to_parse_to_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Arithmetic sequences should take the form: [fromExpr..toExpr], or [fromExpr, thenExpr..toExpr]";
-    necro_print_default_error_format("Malformed Arithmetic \'to\' Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Arithmetic \'to\' Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_arithmetic_sequence_missing_right_bracket_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_arithmetic_sequence_missing_right_bracket_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Arithmetic sequences should take the form: [fromExpr..toExpr], or [fromExpr, thenExpr..toExpr]";
-    necro_print_default_error_format("Malformed Arithmetic Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Arithmetic Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_case_alternative_expected_pattern_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_case_alternative_expected_pattern_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Expected a pattern here. Case alternatives take the form: Pat -> expr";
-    necro_print_default_error_format("Malformed Case Alternative", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Case Alternative", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_case_alternative_expected_arrow_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_case_alternative_expected_arrow_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Expected \'->\' here. Case alternatives take the form: Pat -> expr";
-    necro_print_default_error_format("Malformed Case Alternative", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Case Alternative", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_case_alternative_expected_expression_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_case_alternative_expected_expression_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Expected expression here. Case alternatives take the form: Pat -> expr";
-    necro_print_default_error_format("Malformed Case Alternative", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Case Alternative", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_case_alternative_expected_of_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_case_alternative_expected_of_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Expected \'of\' here. Case expressions take the form: case expr of { Pat -> expr; }";
-    necro_print_default_error_format("Malformed Case Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Case Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_case_alternative_expected_left_brace_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_case_alternative_expected_left_brace_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Likely there is an indentation error or mistaken character. Case expressions take the form: case expr of { Pat -> expr; }";
-    necro_print_default_error_format("Malformed Case Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Case Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_case_alternative_empty_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_case_alternative_empty_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "No case alternatives. Case expressions take the form: case expr of { Pat -> expr; }";
-    necro_print_default_error_format("Malformed Case Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Case Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_case_alternative_expected_right_brace_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_case_alternative_expected_right_brace_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Likely there is an indentation error or mistaken character. Case expressions take the form: case expr of { Pat -> expr; }";
-    necro_print_default_error_format("Malformed Case Expression", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Case Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_fn_op_expected_accent_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_fn_op_expected_accent_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Constructor Operators take the form: expr1 `Con` expr2";
-    necro_print_default_error_format("Malformed Constructor Operator Pattern", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Constructor Operator Pattern", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_data_expected_type_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_data_expected_type_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Expected Type Name here. Data declarations take the form: data Type = Con1 Type2 | Con2";
-    necro_print_default_error_format("Malformed Data Declaration", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Data Declaration", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_data_expected_assign_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_data_expected_assign_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Expected \'=\' here. Data declarations take the form: data Type = Con1 Type2 | Con2";
-    necro_print_default_error_format("Malformed Data Declaration", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Data Declaration", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_data_expected_data_con_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_data_expected_data_con_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Expected Data Constructor here. Data declarations take the form: data Type = Con1 Type2 | Con2";
-    necro_print_default_error_format("Malformed Data Declaration", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Data Declaration", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_type_expected_type_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_type_expected_type_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Expected Type after \'->\'. Function type signatures take the form: Type1 -> Type2";
-    necro_print_default_error_format("Malformed Type Signature", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Type Signature", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_type_list_expected_right_bracket_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_type_list_expected_right_bracket_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "List types should take the form: [Type]";
-    necro_print_default_error_format("Malformed List Type", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed List Type", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_class_expected_right_brace_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_class_expected_right_brace_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Likely there is an indentation error or a mistaken character.";
-    necro_print_default_error_format("Malformed Type Class", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Type Class", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_instance_expected_right_brace_error(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_instance_expected_right_brace_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Likely there is an indentation error or a mistaken character.";
-    necro_print_default_error_format("Malformed Class Instance", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Class Instance", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_const_con_missing_right_paren(NecroResultError error, const char* source_str, const char* source_name)
+void necro_print_const_con_missing_right_paren(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Expected ')' here. Initial values should take the form: var ~ (InitCon1 InitCon2) = expr";
-    necro_print_default_error_format("Malformed Initial Value", error.default_error_data.source_loc, error.default_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Malformed Initial Value", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_result_error_print(NecroResultError error, const char* source_str, const char* source_name)
+// NOTE:
+// Basic assumption is that and error will be freed after it is printed.
+// Thus nested errors either need to call into necro_result_error_print
+// to assure proper handling, or need to free the memory themselves.
+void necro_result_error_print(NecroResultError* error, const char* source_str, const char* source_name)
 {
-    switch (error.type)
+    switch (error->type)
     {
     case NECRO_ERROR_CONS:                                      necro_print_error_cons(error, source_str, source_name); break;
 
@@ -851,4 +805,5 @@ void necro_result_error_print(NecroResultError error, const char* source_str, co
         assert(false);
         break;
     }
+    free(error);
 }

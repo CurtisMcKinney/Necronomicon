@@ -247,7 +247,7 @@ void necro_machine_print_machine_type_go(NecroIntern* intern, NecroMachineType* 
     case NECRO_MACHINE_TYPE_STRUCT:
         if (is_recursive)
         {
-            printf("%s { ", type->struct_type.name.symbol.str);
+            printf("%s { ", type->struct_type.name.symbol->str);
             for (size_t i = 0; i < type->struct_type.num_members; ++i)
             {
                 necro_machine_print_machine_type_go(intern, type->struct_type.members[i], false);
@@ -258,7 +258,7 @@ void necro_machine_print_machine_type_go(NecroIntern* intern, NecroMachineType* 
         }
         else
         {
-            printf("%s", type->struct_type.name.symbol.str);
+            printf("%s", type->struct_type.name.symbol->str);
         }
         return;
     case NECRO_MACHINE_TYPE_FN:

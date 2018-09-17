@@ -3,8 +3,8 @@
  * Proprietary and confidential
  */
 
-#ifndef INTERN_H
-#define INTERN_H 1
+#ifndef NECRO_INTERN_H
+#define NECRO_INTERN_H 1
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -27,25 +27,30 @@
 //       to make the distinction clear that these are interned strings
 //=====================================================
 
-NECRO_DECLARE_VECTOR(char, Char, char)
-
-typedef struct
+struct NecroSymbolData
 {
-    // TODO: Keep hash and str, but not id
     size_t      hash;
-    size_t      id;
+    size_t      symbol_num;
+    size_t      length;
     const char* str;
-} NecroSymbol;
+};
+
+typedef struct NecroSymbolData* NecroSymbol;
+
+typedef struct NecroInternEntry
+{
+    size_t                  hash;
+    struct NecroSymbolData* data;
+} NecroInternEntry;
 
 typedef struct NecroIntern
 {
-    NecroPagedArena arena;
-    NecroSymbol*    symbols;
-    size_t          size;
-    size_t          count;
+    NecroPagedArena    arena;
+    NecroInternEntry*  entries;
+    size_t             size;
+    size_t             count;
 } NecroIntern;
 
-// API
 NecroIntern necro_intern_empty();
 NecroIntern necro_intern_create();
 void        necro_intern_destroy(NecroIntern* intern);
@@ -58,6 +63,4 @@ NecroSymbol necro_intern_get_type_class_member_symbol_from_instance_symbol(Necro
 void        necro_intern_print(NecroIntern* intern);
 void        necro_intern_test();
 
-#define NULL_SYMBOL ((NecroSymbol){.id = 0, .hash = 0, .str = NULL})
-
-#endif // INTERN_H
+#endif // NECRO_INTERN_H

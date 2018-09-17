@@ -34,7 +34,7 @@ void necro_core_pretty_print_alts(NecroCoreAST_CaseAlt* alts, NecroSymTable* sym
 
 void necro_core_pretty_print_var(NecroVar var)
 {
-    printf("%s.%d", var.symbol.str, var.id.id);
+    printf("%s.%d", var.symbol->str, var.id.id);
     // printf("%s", necro_intern_get_string(intern, var.symbol));
 }
 
@@ -132,7 +132,7 @@ void necro_core_pretty_print_go(NecroCoreAST_Expression* ast, NecroSymTable* sym
     }
     case NECRO_CORE_EXPR_DATA_CON:
     {
-        printf("%s ", ast->data_con.condid.symbol.str);
+        printf("%s ", ast->data_con.condid.symbol->str);
         NecroCoreAST_Expression* args = ast->data_con.arg_list;
         while (args != NULL)
         {
@@ -169,7 +169,7 @@ void necro_core_pretty_print_go(NecroCoreAST_Expression* ast, NecroSymTable* sym
             if (ast->list.expr->expr_type == NECRO_CORE_EXPR_BIND)
             {
                 // printf("%s.%d :: ", necro_intern_get_string(intern, ast->list.expr->bind.var.symbol), ast->list.expr->bind.var.id.id);
-                printf("%s :: ", ast->list.expr->bind.var.symbol.str);
+                printf("%s :: ", ast->list.expr->bind.var.symbol->str);
                 NecroSymbolInfo* info = necro_symtable_get(symtable, ast->list.expr->bind.var.id);
                 if (info->closure_type != NULL)
                 {

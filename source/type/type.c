@@ -372,7 +372,7 @@ NecroType* necro_new_name(NecroInfer* infer, NecroSourceLoc source_loc)
 {
     infer->highest_id++;
     assert(infer->highest_id <= UINT32_MAX);
-    NecroVar   var       = (NecroVar) { .id = { (uint32_t) infer->highest_id }, .symbol = NULL_SYMBOL };
+    NecroVar   var       = (NecroVar) { .id = { (uint32_t) infer->highest_id }, .symbol = NULL };
     NecroType* type_var  = necro_create_type_var(infer, var);
     // type_var->kind       = NULL;
     type_var->source_loc = source_loc;
@@ -526,7 +526,7 @@ void necro_rigid_type_variable_error(NecroInfer* infer, NecroVar type_var, Necro
         return;
     const char* type_name = NULL;
     if (type->type == NECRO_TYPE_CON)
-        type_name = type->con.con.symbol.str;
+        type_name = type->con.con.symbol->str;
     else if (type->type == NECRO_TYPE_APP)
         type_name = "TypeApp";
     else if (type->type == NECRO_TYPE_FUN)
@@ -543,7 +543,7 @@ void necro_type_is_not_instance_error(NecroInfer* infer, NecroType* type, NecroT
 {
     if (necro_is_infer_error(infer))
         return;
-    necro_infer_error(infer, error_preamble, macro_type, "\'%s\' is not an instance of class \'%s\'", type->con.con.symbol.str, type_class->type_class_name.symbol.str);
+    necro_infer_error(infer, error_preamble, macro_type, "\'%s\' is not an instance of class \'%s\'", type->con.con.symbol->str, type_class->type_class_name.symbol->str);
 }
 
 void necro_occurs_error(NecroInfer* infer, NecroVar type_var, NecroType* type, NecroType* macro_type, const char* error_preamble)
@@ -603,7 +603,7 @@ void necro_propogate_type_classes(NecroInfer* infer, NecroTypeClassContext* clas
                 // if (!necro_context_contains_class(infer->type_class_env, type->var.context, classes))
                 if (!necro_context_and_super_classes_contain_class(type->var.context, classes))
                 {
-                    necro_infer_error(infer, error_preamble, macro_type, "No instance for \'%s %s\'", classes->type_class_name.symbol.str, necro_id_as_character_string(infer->intern, type->var.var));
+                    necro_infer_error(infer, error_preamble, macro_type, "No instance for \'%s %s\'", classes->type_class_name.symbol->str, necro_id_as_character_string(infer->intern, type->var.var));
                     return;
                 }
                 classes = classes->next;
@@ -739,7 +739,7 @@ inline void necro_unify_app(NecroInfer* infer, NecroType* type1, NecroType* type
     if (necro_is_infer_error(infer)) return;
     if (type2 == NULL)
     {
-        necro_infer_error(infer, error_preamble, macro_type, "Arity mismatch during unification for type: %s", type1->con.con.symbol.str);
+        necro_infer_error(infer, error_preamble, macro_type, "Arity mismatch during unification for type: %s", type1->con.con.symbol->str);
         return;
     }
     switch (type2->type)
@@ -761,7 +761,7 @@ inline void necro_unify_app(NecroInfer* infer, NecroType* type1, NecroType* type
         NecroType* uncurried_con = necro_curry_con(infer, type2);
         if (uncurried_con == NULL)
         {
-            necro_infer_error(infer, error_preamble, macro_type, "Arity mismatch during unification for type: %s", type2->con.con.symbol.str);
+            necro_infer_error(infer, error_preamble, macro_type, "Arity mismatch during unification for type: %s", type2->con.con.symbol->str);
         }
         else
         {
@@ -795,7 +795,7 @@ inline void necro_unify_fun(NecroInfer* infer, NecroType* type1, NecroType* type
         return;
     case NECRO_TYPE_FUN:  necro_unify(infer, type1->fun.type1, type2->fun.type1, scope, macro_type, error_preamble); necro_unify(infer, type1->fun.type2, type2->fun.type2, scope, macro_type, error_preamble); return;
     case NECRO_TYPE_APP:  necro_infer_error(infer, error_preamble, macro_type, "Attempting to unify (->) with TypeApp."); return;
-    case NECRO_TYPE_CON:  necro_infer_error(infer, error_preamble, macro_type, "Attempting to unify (->) with TypeCon (%s)", type2->con.con.symbol.str); return;
+    case NECRO_TYPE_CON:  necro_infer_error(infer, error_preamble, macro_type, "Attempting to unify (->) with TypeCon (%s)", type2->con.con.symbol->str); return;
     case NECRO_TYPE_LIST: necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Attempted to unify (->) with type args list."); return;
     default:              necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Non-existent type (type1: %d, type2: %s) type found in necro_unify.", type1->type, type2->type); return;
     }
@@ -819,9 +819,9 @@ inline void necro_unify_con(NecroInfer* infer, NecroType* type1, NecroType* type
             necro_instantiate_type_var(infer, &type2->var, type1, macro_type, error_preamble, scope);
         return;
     case NECRO_TYPE_CON:
-        if (type1->con.con.symbol.id != type2->con.con.symbol.id)
+        if (type1->con.con.symbol == type2->con.con.symbol)
         {
-            necro_infer_error(infer, error_preamble, type1, "Attempting to unify two different types, Type1: %s Type2: %s", type1->con.con.symbol.str, type2->con.con.symbol.str);
+            necro_infer_error(infer, error_preamble, type1, "Attempting to unify two different types, Type1: %s Type2: %s", type1->con.con.symbol->str, type2->con.con.symbol->str);
         }
         // else if (type1->con.arity != type2->con.arity)
         // {
@@ -837,7 +837,7 @@ inline void necro_unify_con(NecroInfer* infer, NecroType* type1, NecroType* type
             {
                 if (type1 == NULL || type2 == NULL)
                 {
-                    necro_infer_error(infer, error_preamble, type1, "Mismatched arities, Type1: %s Type2: %s", original_type1->con.con.symbol.str, original_type2->con.con.symbol.str);
+                    necro_infer_error(infer, error_preamble, type1, "Mismatched arities, Type1: %s Type2: %s", original_type1->con.con.symbol->str, original_type2->con.con.symbol->str);
                     return;
                 }
                 assert(type1->type == NECRO_TYPE_LIST);
@@ -854,7 +854,7 @@ inline void necro_unify_con(NecroInfer* infer, NecroType* type1, NecroType* type
         NecroType* uncurried_con = necro_curry_con(infer, type1);
         if (uncurried_con == NULL)
         {
-            necro_infer_error(infer, error_preamble, type1, "Arity mismatch during unification for type: %s", type1->con.con.symbol.str);
+            necro_infer_error(infer, error_preamble, type1, "Arity mismatch during unification for type: %s", type1->con.con.symbol->str);
         }
         else
         {
@@ -862,8 +862,8 @@ inline void necro_unify_con(NecroInfer* infer, NecroType* type1, NecroType* type
         }
         return;
     }
-    case NECRO_TYPE_FUN:  necro_infer_error(infer, error_preamble, macro_type, "Attempting to unify TypeCon (%s) with (->).", type1->con.con.symbol.str); return;
-    case NECRO_TYPE_LIST: necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Attempted to unify TypeCon (%s) with type args list.", type1->con.con.symbol.str); return;
+    case NECRO_TYPE_FUN:  necro_infer_error(infer, error_preamble, macro_type, "Attempting to unify TypeCon (%s) with (->).", type1->con.con.symbol->str); return;
+    case NECRO_TYPE_LIST: necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Attempted to unify TypeCon (%s) with type args list.", type1->con.con.symbol->str); return;
     case NECRO_TYPE_FOR:  necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Attempted to unify polytype."); return;
     default:              necro_infer_error(infer, error_preamble, macro_type, "Compiler bug: Non-existent type (type1: %d, type2: %s) type found in necro_unify.", type1->type, type2->type); return;
     }
@@ -1107,7 +1107,7 @@ NecroGenResult necro_gen_go(NecroInfer* infer, NecroType* type, NecroGenResult p
                 NecroTypeClassContext* context = type_var->var.context;
                 while (context != NULL)
                 {
-                    if (type_var->var.var.symbol.id == 0)
+                    if (type_var->var.var.symbol == NULL)
                     {
                         type_var->var.var.symbol = necro_intern_string(infer->intern, necro_id_as_character_string(infer->intern, type_var->var.var));
                     }
@@ -1237,7 +1237,7 @@ char* necro_type_string(NecroInfer* infer, NecroType* type)
 
 NecroSymbol necro_id_as_symbol(NecroIntern* intern, NecroVar var)
 {
-    if (var.symbol.id != 0)
+    if (var.symbol != NULL)
     {
         return var.symbol;
     }
@@ -1272,14 +1272,14 @@ NecroSymbol necro_id_as_symbol(NecroIntern* intern, NecroVar var)
 
 const char* necro_id_as_character_string(NecroIntern* intern, NecroVar var)
 {
-    return necro_id_as_symbol(intern, var).str;
+    return necro_id_as_symbol(intern, var)->str;
 }
 
 void necro_print_id_as_characters(NecroVar var)
 {
-    if (var.symbol.id != 0)
+    if (var.symbol != NULL)
     {
-        printf("%s", var.symbol.str);
+        printf("%s", var.symbol->str);
         return;
     }
     NecroID id = var.id;
@@ -1292,9 +1292,9 @@ void necro_print_id_as_characters(NecroVar var)
 
 char* necro_snprintf_id_as_characters(NecroVar var, char* buffer, size_t buffer_size)
 {
-    if (var.symbol.id != 0)
+    if (var.symbol != NULL)
     {
-        return buffer + snprintf(buffer, buffer_size, "%s", var.symbol.str);
+        return buffer + snprintf(buffer, buffer_size, "%s", var.symbol->str);
     }
     NecroID id = var.id;
     if (id.id <= 26)
@@ -1323,7 +1323,7 @@ void necro_print_type_sig_go_maybe_with_parens(NecroType* type, NecroIntern* int
 bool necro_print_tuple_sig(NecroType* type, NecroIntern* intern)
 {
     NecroSymbol con_symbol = type->con.con.symbol;
-    const char* con_string = type->con.con.symbol.str;
+    const char* con_string = type->con.con.symbol->str;
 
     if (con_string[0] != '(' && con_string[0] != '[')
         return false;
@@ -1331,7 +1331,7 @@ bool necro_print_tuple_sig(NecroType* type, NecroIntern* intern)
 
     // Unit
     NecroSymbol unit_symbol = necro_intern_string(intern, "()");
-    if (con_symbol.id == unit_symbol.id)
+    if (con_symbol == unit_symbol)
     {
         printf("()");
         return true;
@@ -1339,7 +1339,7 @@ bool necro_print_tuple_sig(NecroType* type, NecroIntern* intern)
 
     // List
     NecroSymbol list_symbol = necro_intern_string(intern, "[]");
-    if (con_symbol.id == list_symbol.id)
+    if (con_symbol == list_symbol)
     {
         printf("[");
         if (current_element != NULL && current_element->list.item != NULL)
@@ -1352,7 +1352,7 @@ bool necro_print_tuple_sig(NecroType* type, NecroIntern* intern)
 
     // 2
     NecroSymbol two_symbol = necro_intern_string(intern, "(,)");
-    if (con_symbol.id == two_symbol.id)
+    if (con_symbol == two_symbol)
     {
         printf("(");
         necro_print_type_sig_go(current_element->list.item, intern);
@@ -1365,7 +1365,7 @@ bool necro_print_tuple_sig(NecroType* type, NecroIntern* intern)
 
     // 3
     NecroSymbol three_symbol = necro_intern_string(intern, "(,,)");
-    if (con_symbol.id == three_symbol.id)
+    if (con_symbol == three_symbol)
     {
         printf("(");
         necro_print_type_sig_go(current_element->list.item, intern);
@@ -1381,7 +1381,7 @@ bool necro_print_tuple_sig(NecroType* type, NecroIntern* intern)
 
     // 4
     NecroSymbol four_symbol = necro_intern_string(intern, "(,,,)");
-    if (con_symbol.id == four_symbol.id)
+    if (con_symbol == four_symbol)
     {
         printf("(");
         necro_print_type_sig_go(current_element->list.item, intern);
@@ -1400,7 +1400,7 @@ bool necro_print_tuple_sig(NecroType* type, NecroIntern* intern)
 
     // 5
     NecroSymbol five_symbol = necro_intern_string(intern, "(,,,,)");
-    if (con_symbol.id == five_symbol.id)
+    if (con_symbol == five_symbol)
     {
         printf("(");
         necro_print_type_sig_go(current_element->list.item, intern);
@@ -1456,9 +1456,7 @@ void necro_print_type_sig_go(NecroType* type, NecroIntern* intern)
         if (necro_print_tuple_sig(type, intern))
             break;
         bool has_args = necro_type_list_count(type->con.args) > 0;
-        if (type->con.con.symbol.id == 1 || type->con.con.symbol.id == 2)
-            printf("WHAT THE FUCK ");
-        printf("%s", type->con.con.symbol.str);
+        printf("%s", type->con.con.symbol->str);
         if (has_args)
         {
             printf(" ");
@@ -1516,7 +1514,7 @@ void necro_print_type_sig_go(NecroType* type, NecroIntern* intern)
                 {
                     if (count > 0)
                         printf(", ");
-                    printf("%s ", context->type_class_name.symbol.str);
+                    printf("%s ", context->type_class_name.symbol->str);
                     necro_print_id_as_characters(current_context_var);
                     context = context->next;
                     count++;
@@ -1539,14 +1537,14 @@ void necro_print_type_sig_go(NecroType* type, NecroIntern* intern)
 char* necro_snprintf_tuple_sig(NecroType* type, NecroIntern* intern, char* buffer, const size_t buffer_length)
 {
     NecroSymbol con_symbol = type->con.con.symbol;
-    const char* con_string = type->con.con.symbol.str;
+    const char* con_string = type->con.con.symbol->str;
     if (con_string[0] != ')' && con_string[0] != '[')
         return NULL;
     NecroType* current_element = type->con.args;
 
     // Unit
     NecroSymbol unit_symbol = necro_intern_string(intern, "()");
-    if (con_symbol.id == unit_symbol.id)
+    if (con_symbol == unit_symbol)
     {
         buffer += snprintf(buffer, buffer_length, "()");
         return buffer;
@@ -1554,7 +1552,7 @@ char* necro_snprintf_tuple_sig(NecroType* type, NecroIntern* intern, char* buffe
 
     // List
     NecroSymbol list_symbol = necro_intern_string(intern, "[]");
-    if (con_symbol.id == list_symbol.id)
+    if (con_symbol == list_symbol)
     {
         buffer += snprintf(buffer, buffer_length, "[");
         buffer  = necro_snprintf_type_sig(current_element->list.item, intern, buffer, buffer_length);
@@ -1564,7 +1562,7 @@ char* necro_snprintf_tuple_sig(NecroType* type, NecroIntern* intern, char* buffe
 
     // 2
     NecroSymbol two_symbol = necro_intern_string(intern, "(,)");
-    if (con_symbol.id == two_symbol.id)
+    if (con_symbol == two_symbol)
     {
         buffer += snprintf(buffer, buffer_length, "(");
         buffer  = necro_snprintf_type_sig(current_element->list.item, intern, buffer, buffer_length);
@@ -1577,7 +1575,7 @@ char* necro_snprintf_tuple_sig(NecroType* type, NecroIntern* intern, char* buffe
 
     // 3
     NecroSymbol three_symbol = necro_intern_string(intern, "(,,)");
-    if (con_symbol.id == three_symbol.id)
+    if (con_symbol == three_symbol)
     {
         buffer += snprintf(buffer, buffer_length, "(");
         buffer  = necro_snprintf_type_sig(current_element->list.item, intern, buffer, buffer_length);
@@ -1593,7 +1591,7 @@ char* necro_snprintf_tuple_sig(NecroType* type, NecroIntern* intern, char* buffe
 
     // 4
     NecroSymbol four_symbol = necro_intern_string(intern, "(,,,)");
-    if (con_symbol.id == four_symbol.id)
+    if (con_symbol == four_symbol)
     {
         buffer += snprintf(buffer, buffer_length, "(");
         buffer  = necro_snprintf_type_sig(current_element->list.item, intern, buffer, buffer_length);
@@ -1612,7 +1610,7 @@ char* necro_snprintf_tuple_sig(NecroType* type, NecroIntern* intern, char* buffe
 
     // 5
     NecroSymbol five_symbol = necro_intern_string(intern, "(,,,,)");
-    if (con_symbol.id == five_symbol.id)
+    if (con_symbol == five_symbol)
     {
         buffer += snprintf(buffer, buffer_length, "(");
         buffer  = necro_snprintf_type_sig(current_element->list.item, intern, buffer, buffer_length);
@@ -1678,7 +1676,7 @@ char* necro_snprintf_type_sig(NecroType* type, NecroIntern* intern, char* buffer
         if (tuple_buffer != NULL)
             return tuple_buffer;
         bool has_args = necro_type_list_count(type->con.args) > 0;
-        buffer += snprintf(buffer, buffer_length, "%s", type->con.con.symbol.str);
+        buffer += snprintf(buffer, buffer_length, "%s", type->con.con.symbol->str);
         if (has_args)
         {
             buffer += snprintf(buffer, buffer_length, " ");
@@ -1741,7 +1739,7 @@ char* necro_snprintf_type_sig(NecroType* type, NecroIntern* intern, char* buffer
                 {
                     if (count > 0)
                         buffer += snprintf(buffer, buffer_length, ", ");
-                    buffer += snprintf(buffer, buffer_length, "%s ", context->type_class_name.symbol.str);
+                    buffer += snprintf(buffer, buffer_length, "%s ", context->type_class_name.symbol->str);
                     buffer = necro_snprintf_id_as_characters(current_context_var, buffer, buffer_length);
                     context = context->next;
                     count++;
@@ -1805,7 +1803,7 @@ void necro_print_env(NecroInfer* infer)
             (NecroVar)
             {
                 .id = (NecroID) { (uint32_t) i },
-                .symbol = (NecroSymbol) { .id = 0, .hash = 0 }
+                .symbol = NULL,
             }
             );
         printf(" ==> ");

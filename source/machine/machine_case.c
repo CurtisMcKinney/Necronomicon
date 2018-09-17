@@ -549,7 +549,7 @@ NecroDecisionTree* necro_finish_compile_literal_pattern_matrix(NecroMachineProgr
     {
         if (matrix->patterns[r][0] == NULL || matrix->patterns[r][0]->expr_type == NECRO_CORE_EXPR_VAR)
         {
-            NecroAstConstant lit = (NecroAstConstant) { .type = NECRO_AST_CONSTANT_STRING, .symbol = (NecroSymbol) { 0, 0 } };
+            NecroAstConstant lit = (NecroAstConstant) { .type = NECRO_AST_CONSTANT_STRING, .symbol = NULL };
             NecroPatternMatrix con_matrix = necro_specialize_lit_matrix(program, matrix, lit);
             cases[r]                      = necro_compile_pattern_matrix(program, &con_matrix, top_case_ast);
             constants[r]                  = lit;
@@ -704,7 +704,7 @@ void necro_decision_tree_to_machine(NecroMachineProgram* program, NecroDecisionT
                 }
                 else
                 {
-                    const char*      case_name  = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { tree->tree_switch.cons[i].symbol.str, "_case" });
+                    const char*      case_name  = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { tree->tree_switch.cons[i].symbol->str, "_case" });
                     NecroMachineAST* case_block = necro_insert_block_before(program, outer->machine_def.update_fn, case_name, term_case_block);
                     necro_add_case_to_switch(program, switch_value, case_block, i);
                     necro_move_to_block(program, outer->machine_def.update_fn, case_block);
@@ -1122,7 +1122,7 @@ void necro_print_decision_tree_go(NecroMachineProgram* program, NecroDecisionTre
         {
 
             print_white_space(depth + 2);
-            printf("*%s:\n", tree->tree_switch.cons[i].symbol.str);
+            printf("*%s:\n", tree->tree_switch.cons[i].symbol->str);
             necro_print_decision_tree_go(program, tree->tree_switch.cases[i], depth + 4);
         }
         break;

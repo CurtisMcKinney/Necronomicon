@@ -41,10 +41,10 @@ typedef struct
     bool                            is_enum;
     NecroSourceLoc                  source_loc;
     struct NecroScope*              scope;
-    NecroAst*                   ast;
+    NecroAst*                       ast;
     struct NecroCoreAST_Expression* core_ast;
     NecroDeclarationGroup*          declaration_group;
-    NecroAst*          optional_type_signature;
+    NecroAst*                       optional_type_signature;
     NecroType*                      type;
     NecroType*                      closure_type;
     NECRO_TYPE_STATUS               type_status;
@@ -119,7 +119,7 @@ void                necro_scoped_symtable_new_type_scope(NecroScopedSymTable* ta
 void                necro_scoped_symtable_pop_type_scope(NecroScopedSymTable* table);
 
 // Names API
-NECRO_RETURN_CODE   necro_build_scopes(NecroScopedSymTable* table, NecroAstArena* ast);
+void                necro_build_scopes(NecroCompileInfo info, NecroScopedSymTable* table, NecroAstArena* ast);
 void                necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input_node);
 NecroID             necro_scope_find_in_this_scope(NecroScope* scope, NecroSymbol symbol);
 NecroID             necro_scope_find(NecroScope* scope, NecroSymbol symbol);

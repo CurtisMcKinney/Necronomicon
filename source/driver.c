@@ -123,69 +123,32 @@ NecroResult(void) necro_compile_go(
     if (necro_compile_end_phase(info, NECRO_PHASE_REIFY))
         return ok_void();
 
-    //=====================================================
+    //--------------------
     // Build Scopes
-    //=====================================================
-    if (info.compilation_phase != NECRO_PHASE_JIT && NECRO_VERBOSITY > 0)
-        necro_announce_phase("Scoping");
-    // *prim_types      = necro_create_prim_types();
-    // *symtable        = necro_create_symtable(intern);
-    // *scoped_symtable = necro_create_scoped_symtable(symtable);
+    //--------------------
+    // TODO: What to do about primitives?
+    necro_compile_begin_phase(info, NECRO_PHASE_BUILD_SCOPES);
     necro_prim_types_init_prim_defs(prim_types, intern);
-    if (necro_prim_types_build_scopes(prim_types, scoped_symtable) != NECRO_SUCCESS)
-    {
-        // TODO: Error handling
-        // necro_print_error(scoped_symtable.error, input_string, "Building Prim Scopes");
+    necro_prim_types_build_scopes(prim_types, scoped_symtable);
+    necro_build_scopes(info, scoped_symtable, ast);
+    if (necro_compile_end_phase(info, NECRO_PHASE_BUILD_SCOPES))
         return ok_void();
-    }
-    if (necro_build_scopes(scoped_symtable, ast) != NECRO_SUCCESS)
-    {
-        // TODO: Error handling
-        // necro_print_error(scoped_symtable.error, input_string, "Building Scopes");
-        return ok_void();
-    }
-    // necro_stop_and_report_timer(timer, "scoping");
-    if (info.compilation_phase == NECRO_PHASE_BUILD_SCOPES)
-    {
-        necro_symtable_print(symtable);
-        necro_scoped_symtable_print(scoped_symtable);
-        return ok_void();
-    }
 
-    //=====================================================
-    // Renaming
-    //=====================================================
-    if (info.compilation_phase != NECRO_PHASE_JIT && NECRO_VERBOSITY > 0)
-        necro_announce_phase("Renaming");
-    // necro_start_timer(timer);
+    //--------------------
+    // Rename
+    //--------------------
+    necro_compile_begin_phase(info, NECRO_PHASE_RENAME);
     NecroRenamer renamer = necro_create_renamer(scoped_symtable, intern);
     if (necro_prim_types_rename(prim_types, &renamer) != NECRO_SUCCESS)
     {
         // TODO: Error handling
-        necro_ast_arena_print(ast, intern);
+        necro_ast_arena_print(ast);
         // necro_print_error(&renamer.error, input_string, "Renaming (Prim Pass)");
         return ok_void();
     }
-    if (necro_rename_declare_pass(&renamer, &ast->arena, ast->root) != NECRO_SUCCESS)
-    {
-        // TODO: Error handling
-        necro_ast_arena_print(ast, intern);
-        // necro_print_error(&renamer.error, input_string, "Renaming (Declare Pass)");
+    necro_try(void, necro_rename(info, scoped_symtable, intern, ast));
+    if (necro_compile_end_phase(info, NECRO_PHASE_BUILD_SCOPES))
         return ok_void();
-    }
-    if (necro_rename_var_pass(&renamer, &ast->arena, ast->root) != NECRO_SUCCESS)
-    {
-        // TODO: Error handling
-        necro_ast_arena_print(ast, intern);
-        // necro_print_error(&renamer.error, input_string, "Renaming (Var Pass)");
-        return ok_void();
-    }
-    // necro_stop_and_report_timer(timer, "renaming");
-    if (info.compilation_phase == NECRO_PHASE_RENAME)
-    {
-        necro_ast_arena_print(ast, intern);
-        return ok_void();
-    }
 
     //=====================================================
     // Dependency Analyzing
@@ -209,7 +172,7 @@ NecroResult(void) necro_compile_go(
     // necro_stop_and_report_timer(timer, "d_analyze");
     if (info.compilation_phase == NECRO_PHASE_DEPENDENCY_ANALYSIS)
     {
-        necro_ast_arena_print(ast, intern);
+        necro_ast_arena_print(ast);
         return ok_void();
     }
 
@@ -228,7 +191,7 @@ NecroResult(void) necro_compile_go(
     }
     if (infer->error.return_code != NECRO_SUCCESS)
     {
-        necro_ast_arena_print(ast, intern);
+        necro_ast_arena_print(ast);
         // TODO: Error handling
         // necro_print_error(&infer->error, input_string, "Type");
         return ok_void();
@@ -236,7 +199,7 @@ NecroResult(void) necro_compile_go(
     necro_type_class_translate(infer, ast->root);
     if (infer->error.return_code != NECRO_SUCCESS)
     {
-        necro_ast_arena_print(ast, intern);
+        necro_ast_arena_print(ast);
         // TODO: Error handling
         // necro_print_error(&infer->error, input_string, "Type");
         return ok_void();
@@ -244,7 +207,7 @@ NecroResult(void) necro_compile_go(
     // necro_stop_and_report_timer(timer, "infer");
     if (info.compilation_phase == NECRO_PHASE_INFER)
     {
-        necro_ast_arena_print(ast, intern);
+        necro_ast_arena_print(ast);
         return ok_void();
     }
 

@@ -44,6 +44,7 @@ set(INCLUDE_DIR
     source/type
     source/runtime
     source/utility
+    source/symbol
     source/parse
     source/core
     source/machine
@@ -55,18 +56,20 @@ include_directories(${INCLUDE_DIR})
 set(project_SOURCES
     source/necro.c
     source/lexer.c
-    source/renamer.c
     source/symtable.c
     source/ast.c
     source/driver.c
     source/d_analyzer.c
+
+    source/symbol/intern.c
+    source/symbol/ast_symbol.c
+    source/symbol/renamer.c
 
     source/parse/parser.c
     source/parse/parse_test.c
     source/parse/parse_ast.c
 
     source/utility/arena.c
-	source/utility/intern.c
 	source/utility/utility.c
     source/utility/hash_table.c
     source/utility/unicode_properties.c
@@ -106,11 +109,14 @@ set(project_SOURCES
 set(project_HEADERS
     source/necro.h
     source/lexer.h
-    source/renamer.h
     source/symtable.h
     source/ast.h
     source/driver.h
     source/d_analyzer.h
+
+    source/symbol/intern.h
+    source/symbol/ast_symbol.h
+    source/symbol/renamer.h
 
     source/parse/parser.h
     source/parse/parse_test.h
@@ -118,7 +124,6 @@ set(project_HEADERS
 
     source/utility/arena.h
 	source/utility/utility.h
-	source/utility/intern.h
     source/utility/math.h
     source/utility/hash_table.h
     source/utility/list.h

@@ -23,7 +23,7 @@ void necro_parse_ast_test_error(const char* test_name, const char* str, NECRO_RE
     unwrap(void, necro_lex(info, &intern, str, strlen(str), &tokens));
     NecroResult(void) result = necro_parse(info, &intern, &tokens, &ast);
     assert(result.type == NECRO_RESULT_ERROR);
-    assert(result.error.type == error_type);
+    assert(result.error->type == error_type);
     printf("Parse %s test: Passed\n", test_name);
 
     // Clean up

@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include "utility.h"
-#include "utility/intern.h"
+#include "symbol/intern.h"
 #include "type.h"
 #include "type_class.h"
 #include "symtable.h"

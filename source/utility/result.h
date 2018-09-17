@@ -13,6 +13,7 @@
 
 #include "utility.h"
 #include "arena.h"
+#include "ast_symbol.h"
 
 ///////////////////////////////////////////////////////
 // NOTE: Set to 1 to assert at NecroResult errors
@@ -83,6 +84,10 @@ typedef enum
     NECRO_PARSE_INSTANCE_EXPECTED_RIGHT_BRACE,
     NECRO_PARSE_CONST_CON_MISSING_RIGHT_PAREN,
 
+    NECRO_RENAME_MULTIPLE_DEFINITIONS,
+    NECRO_RENAME_DUPLICATE_TYPE_SIGNATURES,
+    NECRO_RENAME_NOT_IN_SCOPE,
+
     NECRO_MULTIPLE_DEFINITIONS,
 
 } NECRO_RESULT_ERROR_TYPE;
@@ -99,37 +104,23 @@ typedef struct
     struct NecroResultError* error2;
 } NecroErrorCons;
 
-// typedef struct
-// {
-//     NecroSourceLoc source_loc1;
-//     NecroSourceLoc end_loc1;
-//     NecroSourceLoc source_loc2;
-//     NecroSourceLoc end_loc2;
-// } NecroDefaultErrorData2;
-
-// typedef struct
-// {
-//     NecroSourceLoc def1_source_loc;
-//     NecroSourceLoc def1_end_loc;
-//     NecroSourceLoc def2_source_loc;
-//     NecroSourceLoc def2_end_loc;
-// } NecroMultipleDefinitions;
-
-// typedef struct
-// {
-//     struct NecroResultError* errors;
-//     size_t                   num_errors;
-// } NecroErrorList;
+typedef struct
+{
+    NecroAstSymbol(NecroAst) ast_symbol1;
+    NecroSourceLoc           source_loc1;
+    NecroSourceLoc           end_loc1;
+    NecroAstSymbol(NecroAst) ast_symbol2;
+    NecroSourceLoc           source_loc2;
+    NecroSourceLoc           end_loc2;
+} NecroDefaultAstErrorData2;
 
 typedef struct NecroResultError
 {
     union
     {
-        NecroDefaultErrorData    default_error_data;
-        NecroErrorCons           error_cons;
-        // NecroDefaultErrorData    default_error_data2;
-        // NecroErrorList           error_list;
-        // NecroMultipleDefinitions multiple_definitions;
+        NecroDefaultErrorData     default_error_data;
+        NecroDefaultAstErrorData2 default_ast_error_data_2;
+        NecroErrorCons            error_cons;
     };
     NECRO_RESULT_ERROR_TYPE type;
 } NecroResultError;
@@ -148,7 +139,7 @@ typedef struct                                  \
     NECRO_RESULT_TYPE type;                     \
     union                                       \
     {                                           \
-        NecroResultError error;                 \
+        NecroResultError* error;                \
         TYPE value;                             \
     };                                          \
 } NecroResult_##TYPE;                           \
@@ -167,7 +158,7 @@ typedef struct                                          \
     NECRO_RESULT_TYPE type;                             \
     union                                               \
     {                                                   \
-        NecroResultError error;                         \
+        NecroResultError* error;                        \
         struct TYPE* value;                             \
     };                                                  \
 } NecroResult_##TYPE;                                   \
@@ -180,21 +171,21 @@ inline NecroResult_##TYPE ok_##TYPE(struct TYPE* value) \
     };                                                  \
 }
 
+// NOTE: Try to keep all the value sizes to word size!
 typedef size_t NecroParseAstLocalPtr;
-// typedef size_t NecroUnit;
-#define necro_unit 0
 NECRO_DECLARE_RESULT(size_t);
 NECRO_DECLARE_RESULT(bool);
 NECRO_DECLARE_RESULT(NecroParseAstLocalPtr);
-// NECRO_DECLARE_RESULT(NecroUnit);
+struct NecroAst;
+NECRO_DECLARE_PTR_RESULT(NecroAst);
 
 typedef struct
 {
     NECRO_RESULT_TYPE type;
     union
     {
-        NecroResultError error;
-        size_t           value;
+        NecroResultError* error;
+        size_t            value;
     };
 } NecroResult_void;
 inline NecroResult_void ok_void()
@@ -232,7 +223,7 @@ NecroResult(bool)                  necro_malformed_float_error(NecroSourceLoc so
 NecroResult(void)                  necro_unrecognized_character_sequence_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(void)                  necro_mixed_braces_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(void)                  necro_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
-NecroResult(NecroParseAstLocalPtr) necro_parse_error_cons(NecroResultError error1, NecroResultError error2);
+NecroResult(NecroParseAstLocalPtr) necro_parse_error_cons(NecroResultError* error1, NecroResultError* error2);
 NecroResult(NecroParseAstLocalPtr) necro_declarations_missing_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroParseAstLocalPtr) necro_simple_assignment_rhs_failed_to_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroParseAstLocalPtr) necro_apat_assignment_rhs_failed_to_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
@@ -282,7 +273,12 @@ NecroResult(NecroParseAstLocalPtr) necro_type_list_expected_right_bracket(NecroS
 NecroResult(NecroParseAstLocalPtr) necro_class_expected_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroParseAstLocalPtr) necro_instance_expected_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 
-void                               necro_result_error_print(NecroResultError error, const char* source_str, const char* source_name);
+// Rename
+// NecroResult(void)                  necro_multiple_definitions_error(NecroAstSymbol(NecroAst) ast_symbol1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol(NecroAst) ast_symbol2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2);
+// NecroResult(void)                  necro_duplicate_type_signatures_error(NecroAstSymbol(NecroAst) ast_symbol, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2);
+// NecroResult(void)                  necro_not_in_scope_error(NecroAstSymbol(NecroAst) ast_symbol, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+
+void                               necro_result_error_print(NecroResultError* error, const char* source_str, const char* source_name);
 
 // TODO: necro_map_result, necro_and_then
 

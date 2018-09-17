@@ -232,7 +232,7 @@ void necro_parse_ast_print_go(NecroParseAstArena* ast, NecroParseAst* ast_node, 
     {
     case NECRO_AST_BIN_OP:
         // puts(bin_op_name(ast_node->bin_op.type));
-        printf("(%s)\n", ast_node->bin_op.symbol.str);
+        printf("(%s)\n", ast_node->bin_op.symbol->str);
         necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->bin_op.lhs), depth + 1);
         necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->bin_op.rhs), depth + 1);
         break;
@@ -254,7 +254,7 @@ void necro_parse_ast_print_go(NecroParseAstArena* ast, NecroParseAst* ast_node, 
             break;
         case NECRO_AST_CONSTANT_STRING:
         {
-            const char* string = ast_node->constant.symbol.str;
+            const char* string = ast_node->constant.symbol->str;
             if (string)
                 printf("(\"%s\")\n", string);
         }
@@ -298,7 +298,7 @@ void necro_parse_ast_print_go(NecroParseAstArena* ast, NecroParseAst* ast_node, 
         break;
 
     case NECRO_AST_SIMPLE_ASSIGNMENT:
-        printf("(Assignment: %s)\n", ast_node->simple_assignment.variable_name.str);
+        printf("(Assignment: %s)\n", ast_node->simple_assignment.variable_name->str);
         if (ast_node->simple_assignment.initializer != null_local_ptr)
         {
             print_white_space(depth * 2);
@@ -350,7 +350,7 @@ void necro_parse_ast_print_go(NecroParseAstArena* ast, NecroParseAst* ast_node, 
 
     case NECRO_AST_VARIABLE:
         {
-            const char* variable_string = ast_node->variable.symbol.str;
+            const char* variable_string = ast_node->variable.symbol->str;
             if (variable_string)
             {
                 printf("(varid: %s, vtype: %s)\n", variable_string, necro_var_type_string(ast_node->variable.var_type));
@@ -376,7 +376,7 @@ void necro_parse_ast_print_go(NecroParseAstArena* ast, NecroParseAst* ast_node, 
         break;
 
     case NECRO_AST_APATS_ASSIGNMENT:
-        printf("(Apats Assignment: %s)\n", ast_node->apats_assignment.variable_name.str);
+        printf("(Apats Assignment: %s)\n", ast_node->apats_assignment.variable_name->str);
         necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->apats_assignment.apats), depth + 1);
         necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->apats_assignment.rhs), depth + 1);
         break;
@@ -435,7 +435,7 @@ void necro_parse_ast_print_go(NecroParseAstArena* ast, NecroParseAst* ast_node, 
         break;
 
     case NECRO_BIND_ASSIGNMENT:
-        printf("(Bind: %s)\n", ast_node->bind_assignment.variable_name.str);
+        printf("(Bind: %s)\n", ast_node->bind_assignment.variable_name->str);
         necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->bind_assignment.expression), depth + 1);
         break;
 
@@ -491,7 +491,7 @@ void necro_parse_ast_print_go(NecroParseAstArena* ast, NecroParseAst* ast_node, 
 
     case NECRO_AST_CONID:
     {
-        const char* con_string = ast_node->conid.symbol.str;
+        const char* con_string = ast_node->conid.symbol->str;
         if (con_string)
             printf("(conid: %s, ctype: %s)\n", con_string, necro_con_type_string(ast_node->conid.con_type));
         else
@@ -529,7 +529,7 @@ void necro_parse_ast_print_go(NecroParseAstArena* ast, NecroParseAst* ast_node, 
         break;
 
     case NECRO_AST_BIN_OP_SYM:
-        printf("(%s)\n", necro_parse_ast_get_node(ast, ast_node->bin_op_sym.op)->conid.symbol.str);
+        printf("(%s)\n", necro_parse_ast_get_node(ast, ast_node->bin_op_sym.op)->conid.symbol->str);
         necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->bin_op_sym.left), depth + 1);
         necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->bin_op_sym.right), depth + 1);
         break;

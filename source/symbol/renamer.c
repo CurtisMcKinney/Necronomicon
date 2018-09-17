@@ -28,7 +28,7 @@ bool try_create_name(NecroRenamer* renamer, NecroAst* node, NecroScope* scope, N
     {
         //NecroSymbolInfo* info = necro_symtable_get(renamer->scoped_symtable->global_table, id); Unreferenced, @Curtis didn't know if you wanted this or not
         NecroSourceLoc original_source_loc = renamer->scoped_symtable->global_table->data[id.id].source_loc;
-        necro_error(&renamer->error, node->source_loc, "Multiple definitions for \'%s\'.\n Original definition found at line: %d", symbol.str, original_source_loc.line);
+        necro_error(&renamer->error, node->source_loc, "Multiple definitions for \'%s\'.\n Original definition found at line: %d", symbol->str, original_source_loc.line);
         return false;
     }
     else
@@ -78,7 +78,7 @@ void rename_declare_go(NecroAst* input_node, NecroRenamer* renamer)
     }
 
     case NECRO_AST_SIMPLE_ASSIGNMENT:
-        if (renamer->current_class_instance_symbol.id != 0)
+        if (renamer->current_class_instance_symbol != NULL)
             input_node->simple_assignment.variable_name = necro_intern_create_type_class_instance_symbol(renamer->scoped_symtable->global_table->intern, input_node->simple_assignment.variable_name, renamer->current_class_instance_symbol);
         if (!try_create_name(renamer, input_node, input_node->scope, &input_node->simple_assignment.id, input_node->simple_assignment.variable_name))
             return;
@@ -90,12 +90,12 @@ void rename_declare_go(NecroAst* input_node, NecroRenamer* renamer)
 
     case NECRO_AST_APATS_ASSIGNMENT:
     {
-        if (renamer->current_class_instance_symbol.id != 0)
+        if (renamer->current_class_instance_symbol != NULL)
             input_node->apats_assignment.variable_name = necro_intern_create_type_class_instance_symbol(renamer->scoped_symtable->global_table->intern, input_node->apats_assignment.variable_name, renamer->current_class_instance_symbol);
         NecroID id = necro_scope_find_in_this_scope(input_node->scope, input_node->apats_assignment.variable_name);
         if (id.id != 0 && id.id != input_node->scope->last_introduced_id.id)
         {
-            necro_error(&renamer->error, input_node->source_loc, "Multiple definitions for \'%s\'", input_node->apats_assignment.variable_name.str);
+            necro_error(&renamer->error, input_node->source_loc, "Multiple definitions for \'%s\'", input_node->apats_assignment.variable_name->str);
             return;
         }
         else if (id.id != 0 && id.id == input_node->scope->last_introduced_id.id)
@@ -146,7 +146,7 @@ void rename_declare_go(NecroAst* input_node, NecroRenamer* renamer)
                 if (*type_signature != NULL)
                 {
                     necro_error(&renamer->error, input_node->source_loc, "Duplicate type signature for: \'%s\'.\n Original found at: %d",
-                                input_node->variable.symbol.str, (*type_signature)->source_loc);
+                                input_node->variable.symbol->str, (*type_signature)->source_loc);
                 }
                 else
                 {
@@ -162,7 +162,7 @@ void rename_declare_go(NecroAst* input_node, NecroRenamer* renamer)
             else if (renamer->should_free_type_declare)
                 input_node->variable.id = necro_scoped_symtable_new_symbol_info(renamer->scoped_symtable, input_node->scope, necro_symtable_create_initial_symbol_info(input_node->variable.symbol, input_node->source_loc, input_node->scope));
             else
-                necro_error(&renamer->error, input_node->source_loc, "Not in scope: \'%s\'", input_node->variable.symbol.str);
+                necro_error(&renamer->error, input_node->source_loc, "Not in scope: \'%s\'", input_node->variable.symbol->str);
             break;
         }
         default: assert(false);
@@ -305,7 +305,7 @@ void rename_declare_go(NecroAst* input_node, NecroRenamer* renamer)
         rename_declare_go(input_node->function_type.next_on_arrow, renamer);
         break;
     default:
-        necro_error(&renamer->error, input_node->source_loc, "Unrecognized AST Node type found: %d", input_node->type);
+        assert(false);
         break;
     }
 }
@@ -315,7 +315,7 @@ bool try_find_name(NecroRenamer* renamer, NecroAst* node, NecroScope* scope, Nec
     NecroID id = necro_scope_find(scope, symbol);
     if (id.id == 0)
     {
-        necro_error(&renamer->error, node->source_loc, "Not in scope: \'%s\'", symbol.str);
+        necro_error(&renamer->error, node->source_loc, "Not in scope: \'%s\'", symbol->str);
         return false;
     }
     else
@@ -403,7 +403,7 @@ void rename_var_go(NecroAst* input_node, NecroRenamer* renamer)
                 if (*type_signature != NULL)
                 {
                     necro_error(&renamer->error, input_node->source_loc, "Duplicate type signature for: \'%s\'.\n Original found at: %d",
-                                input_node->variable.symbol.str, (*type_signature)->source_loc);
+                                input_node->variable.symbol->str, (*type_signature)->source_loc);
                 }
                 else
                 {
@@ -560,7 +560,7 @@ void rename_var_go(NecroAst* input_node, NecroRenamer* renamer)
         rename_var_go(input_node->function_type.next_on_arrow, renamer);
         break;
     default:
-        necro_error(&renamer->error, input_node->source_loc, "Unrecognized AST Node type found: %d", input_node->type);
+        assert(false);
         break;
     }
 }
@@ -586,8 +586,8 @@ NECRO_RETURN_CODE necro_rename_declare_pass(NecroRenamer* renamer, NecroPagedAre
 {
     renamer->arena                         = ast_arena;
     renamer->error.return_code             = NECRO_SUCCESS;
-    renamer->current_class_instance_symbol = (NecroSymbol) { 0 };
-    renamer->prev_class_instance_symbol    = (NecroSymbol) { 0 };
+    renamer->current_class_instance_symbol = NULL;
+    renamer->prev_class_instance_symbol    = NULL;
     renamer->current_declaration_group     = NULL;
     rename_declare_go(input_ast, renamer);
     renamer->arena                         = NULL;
@@ -598,10 +598,20 @@ NECRO_RETURN_CODE necro_rename_var_pass(NecroRenamer* renamer, NecroPagedArena* 
 {
     renamer->arena                         = ast_arena;
     renamer->error.return_code             = NECRO_SUCCESS;
-    renamer->current_class_instance_symbol = (NecroSymbol) { 0 };
-    renamer->prev_class_instance_symbol    = (NecroSymbol) { 0 };
+    renamer->current_class_instance_symbol = NULL;
+    renamer->prev_class_instance_symbol    = NULL;
     renamer->current_declaration_group     = NULL;
     rename_var_go(input_ast, renamer);
     renamer->arena                         = NULL;
     return renamer->error.return_code;
+}
+
+NecroResult(void) necro_rename(NecroCompileInfo info, NecroScopedSymTable* scoped_symtable, NecroIntern* intern, NecroAstArena* ast_arena)
+{
+    NecroRenamer renamer = necro_create_renamer(scoped_symtable, intern);
+    necro_rename_declare_pass(&renamer, &ast_arena->arena, ast_arena->root);
+    necro_rename_var_pass(&renamer, &ast_arena->arena, ast_arena->root);
+    if (info.compilation_phase == NECRO_PHASE_RENAME && info.verbosity > 0)
+        necro_ast_arena_print(ast_arena);
+    return ok_void();
 }

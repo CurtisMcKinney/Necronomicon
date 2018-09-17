@@ -649,8 +649,8 @@ bool necro_lex_identifier(NecroLexer* lexer)
     NecroLexToken    lex_token = (NecroLexToken) { .source_loc = source_loc, .end_loc = lexer->loc, .token = NECRO_LEX_IDENTIFIER };
     NecroStringSlice slice     = { lexer->str + source_loc.pos, identifier_length };
     lex_token.symbol           = necro_intern_string_slice(lexer->intern, slice);
-    if (lex_token.symbol.id - 1 < NECRO_LEX_END_OF_KEY_WORDS)
-        lex_token.token = lex_token.symbol.id - 1;
+    if (lex_token.symbol->symbol_num - 1 < NECRO_LEX_END_OF_KEY_WORDS)
+        lex_token.token = lex_token.symbol->symbol_num - 1;
     else if (is_type_identifier)
         lex_token.token = NECRO_LEX_TYPE_IDENTIFIER;
     necro_push_lex_token_vector(&lexer->tokens, &lex_token);
@@ -900,15 +900,15 @@ void necro_lex_print_token(NecroLexer* lexer, size_t token_id)
     printf("(line: %zu, char: %zu, pos: %zu), ", lexer->tokens.data[token_id].source_loc.line, lexer->tokens.data[token_id].source_loc.character, lexer->tokens.data[token_id].source_loc.pos);
     if (lexer->tokens.data[token_id].token == NECRO_LEX_STRING_LITERAL)
     {
-        printf("STRING:     \"%s\"\n", lexer->tokens.data[token_id].symbol.str);
+        printf("STRING:     \"%s\"\n", lexer->tokens.data[token_id].symbol->str);
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_IDENTIFIER)
     {
-        printf("IDENTIFIER: %s\n", lexer->tokens.data[token_id].symbol.str);
+        printf("IDENTIFIER: %s\n", lexer->tokens.data[token_id].symbol->str);
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_TYPE_IDENTIFIER)
     {
-        printf("TYPE:       %s\n", lexer->tokens.data[token_id].symbol.str);
+        printf("TYPE:       %s\n", lexer->tokens.data[token_id].symbol->str);
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CHAR_LITERAL)
     {
@@ -981,7 +981,7 @@ void necro_lex_test()
         NecroLexer  lexer  = necro_lexer_create(str, strlen(str), &intern);
         NecroResult(void) result = necro_lex_go(&lexer);
         assert(result.type == NECRO_RESULT_ERROR);
-        assert(result.error.type == NECRO_LEX_MALFORMED_FLOAT);
+        assert(result.error->type == NECRO_LEX_MALFORMED_FLOAT);
         // necro_print_lexer(&lexer);
         // necro_print_result_errors(result.errors, result.num_errors, str, "lexerTest.necro");
         printf("Lex float error test: Passed\n");
@@ -996,7 +996,7 @@ void necro_lex_test()
         NecroLexer  lexer  = necro_lexer_create(str, strlen(str), &intern);
         NecroResult(void) result = necro_lex_go(&lexer);
         assert(result.type == NECRO_RESULT_ERROR);
-        assert(result.error.type == NECRO_LEX_MALFORMED_STRING);
+        assert(result.error->type == NECRO_LEX_MALFORMED_STRING);
         // necro_print_lexer(&lexer);
         // necro_print_result_errors(result.errors, result.num_errors, str, "lexerTest.necro");
         printf("Lex string error test: Passed\n");
@@ -1032,7 +1032,7 @@ void necro_lex_test()
         unwrap(void, necro_lex_go(&lexer));
         assert(lexer.tokens.length == 2);
         assert(lexer.tokens.data[0].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[0].symbol.id == necro_intern_string(lexer.intern, "helloWorld").id);
+        assert(lexer.tokens.data[0].symbol == necro_intern_string(lexer.intern, "helloWorld"));
         assert(lexer.tokens.data[1].token == NECRO_LEX_END_OF_STREAM);
         // necro_print_lexer(&lexer);
         printf("Lex identifier test: Passed\n");
@@ -1052,7 +1052,7 @@ void necro_lex_test()
         unwrap(void, necro_lex_go(&lexer));
         assert(lexer.tokens.length == 2);
         assert(lexer.tokens.data[0].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[0].symbol.id == necro_intern_string(lexer.intern, "grav\xC3\xA9").id);
+        assert(lexer.tokens.data[0].symbol == necro_intern_string(lexer.intern, "grav\xC3\xA9"));
         assert(lexer.tokens.data[1].token == NECRO_LEX_END_OF_STREAM);
         // necro_print_lexer(&lexer);
         printf("Lex unicode identifier test: Passed\n");
@@ -1159,7 +1159,7 @@ void necro_lex_test()
         assert(lexer.tokens.data[0].token == NECRO_LEX_CHAR_LITERAL);
         assert(lexer.tokens.data[0].char_literal == 0x0001F600); // Grinning face
         assert(lexer.tokens.data[1].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[1].symbol.id == necro_intern_string(lexer.intern, "yep").id);
+        assert(lexer.tokens.data[1].symbol == necro_intern_string(lexer.intern, "yep"));
         assert(lexer.tokens.data[1].source_loc.character == 5);
         assert(lexer.tokens.data[2].token == NECRO_LEX_END_OF_STREAM);
         printf("Lex unicode char literal test: Passed\n");
@@ -1205,7 +1205,7 @@ void necro_lex_test()
         // necro_print_lexer(&lexer);
         assert(lexer.tokens.length == 2);
         assert(lexer.tokens.data[0].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[0].symbol.id == necro_intern_string(lexer.intern, "\xE0\xA6\x95\xE0\xA7\x80").id);
+        assert(lexer.tokens.data[0].symbol == necro_intern_string(lexer.intern, "\xE0\xA6\x95\xE0\xA7\x80"));
         assert(lexer.tokens.data[1].token == NECRO_LEX_END_OF_STREAM);
         assert(lexer.loc.character == 3);
         printf("Lex combining character test: Passed\n");
@@ -1222,15 +1222,15 @@ void necro_lex_test()
         // necro_print_lexer(&lexer);
         assert(lexer.tokens.length == 9);
         assert(lexer.tokens.data[0].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[0].symbol.id == necro_intern_string(lexer.intern, "x").id);
+        assert(lexer.tokens.data[0].symbol == necro_intern_string(lexer.intern, "x"));
         assert(lexer.tokens.data[1].token == NECRO_LEX_ASSIGN);
         assert(lexer.tokens.data[2].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[2].symbol.id == necro_intern_string(lexer.intern, "y").id);
+        assert(lexer.tokens.data[2].symbol == necro_intern_string(lexer.intern, "y"));
         assert(lexer.tokens.data[3].token == NECRO_LEX_WHERE);
         assert(lexer.tokens.data[4].token == NECRO_LEX_CONTROL_BRACE_MARKER_WHERE);
         assert(lexer.tokens.data[4].brace_marker_n == 3);
         assert(lexer.tokens.data[5].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[5].symbol.id == necro_intern_string(lexer.intern, "y").id);
+        assert(lexer.tokens.data[5].symbol == necro_intern_string(lexer.intern, "y"));
         assert(lexer.tokens.data[6].token == NECRO_LEX_ASSIGN);
         assert(lexer.tokens.data[7].token == NECRO_LEX_INTEGER_LITERAL); // 10
         assert(lexer.tokens.data[7].int_literal == 10);
@@ -1249,32 +1249,32 @@ void necro_lex_test()
         // necro_print_lexer(&lexer);
         assert(lexer.tokens.length == 17);
         assert(lexer.tokens.data[0].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[0].symbol.id == necro_intern_string(lexer.intern, "x").id);
+        assert(lexer.tokens.data[0].symbol == necro_intern_string(lexer.intern, "x"));
         assert(lexer.tokens.data[1].token == NECRO_LEX_ASSIGN);
         assert(lexer.tokens.data[2].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[2].symbol.id == necro_intern_string(lexer.intern, "y").id);
+        assert(lexer.tokens.data[2].symbol == necro_intern_string(lexer.intern, "y"));
         assert(lexer.tokens.data[3].token == NECRO_LEX_WHERE);
         assert(lexer.tokens.data[4].token == NECRO_LEX_CONTROL_BRACE_MARKER_WHERE);
         assert(lexer.tokens.data[4].brace_marker_n == 3);
         assert(lexer.tokens.data[5].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[5].symbol.id == necro_intern_string(lexer.intern, "y").id);
+        assert(lexer.tokens.data[5].symbol == necro_intern_string(lexer.intern, "y"));
         assert(lexer.tokens.data[6].token == NECRO_LEX_ASSIGN);
         assert(lexer.tokens.data[7].token == NECRO_LEX_INTEGER_LITERAL);
         assert(lexer.tokens.data[7].int_literal == 10);
         assert(lexer.tokens.data[8].token == NECRO_LEX_CONTROL_WHITE_MARKER);
         assert(lexer.tokens.data[8].white_marker_n == 3);
         assert(lexer.tokens.data[9].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[9].symbol.id == necro_intern_string(lexer.intern, "z").id);
+        assert(lexer.tokens.data[9].symbol == necro_intern_string(lexer.intern, "z"));
         assert(lexer.tokens.data[10].token == NECRO_LEX_ASSIGN);
         assert(lexer.tokens.data[11].token == NECRO_LEX_INTEGER_LITERAL);
         assert(lexer.tokens.data[11].int_literal == 20);
         assert(lexer.tokens.data[12].token == NECRO_LEX_CONTROL_WHITE_MARKER);
         assert(lexer.tokens.data[12].white_marker_n == 1);
         assert(lexer.tokens.data[13].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[13].symbol.id == necro_intern_string(lexer.intern, "next").id);
+        assert(lexer.tokens.data[13].symbol == necro_intern_string(lexer.intern, "next"));
         assert(lexer.tokens.data[14].token == NECRO_LEX_DOUBLE_COLON);
         assert(lexer.tokens.data[15].token == NECRO_LEX_TYPE_IDENTIFIER);
-        assert(lexer.tokens.data[15].symbol.id == necro_intern_string(lexer.intern, "Int").id);
+        assert(lexer.tokens.data[15].symbol == necro_intern_string(lexer.intern, "Int"));
         assert(lexer.tokens.data[16].token == NECRO_LEX_END_OF_STREAM);
         printf("Lex where test 2: Passed\n");
         necro_lexer_destroy(&lexer);
@@ -1293,14 +1293,14 @@ void necro_lex_test()
         assert(lexer.tokens.data[1].token == NECRO_LEX_CONTROL_BRACE_MARKER_LET);
         assert(lexer.tokens.data[1].brace_marker_n == 3);
         assert(lexer.tokens.data[2].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[2].symbol.id == necro_intern_string(lexer.intern, "x").id);
+        assert(lexer.tokens.data[2].symbol == necro_intern_string(lexer.intern, "x"));
         assert(lexer.tokens.data[3].token == NECRO_LEX_ASSIGN);
         assert(lexer.tokens.data[4].token == NECRO_LEX_INTEGER_LITERAL);
         assert(lexer.tokens.data[4].int_literal == 10);
         assert(lexer.tokens.data[5].token == NECRO_LEX_CONTROL_WHITE_MARKER);
         assert(lexer.tokens.data[5].white_marker_n == 3);
         assert(lexer.tokens.data[6].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[6].symbol.id == necro_intern_string(lexer.intern, "y").id);
+        assert(lexer.tokens.data[6].symbol == necro_intern_string(lexer.intern, "y"));
         assert(lexer.tokens.data[7].token == NECRO_LEX_ASSIGN);
         assert(lexer.tokens.data[8].token == NECRO_LEX_INTEGER_LITERAL);
         assert(lexer.tokens.data[8].int_literal == 20);
@@ -1310,7 +1310,7 @@ void necro_lex_test()
         assert(lexer.tokens.data[11].token == NECRO_LEX_CONTROL_WHITE_MARKER);
         assert(lexer.tokens.data[11].white_marker_n == 3);
         assert(lexer.tokens.data[12].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[12].symbol.id == necro_intern_string(lexer.intern, "x").id);
+        assert(lexer.tokens.data[12].symbol == necro_intern_string(lexer.intern, "x"));
         assert(lexer.tokens.data[13].token == NECRO_LEX_END_OF_STREAM);
         printf("Lex let test: Passed\n");
         necro_lexer_destroy(&lexer);
@@ -1407,14 +1407,14 @@ void necro_lex_test()
         // necro_print_lexer(&lexer);
         assert(lexer.tokens.length == 10);
         assert(lexer.tokens.data[0].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[0].symbol.id == necro_intern_string(lexer.intern, "test").id);
+        assert(lexer.tokens.data[0].symbol == necro_intern_string(lexer.intern, "test"));
         assert(lexer.tokens.data[1].token == NECRO_LEX_ASSIGN);
         assert(lexer.tokens.data[2].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[2].symbol.id == necro_intern_string(lexer.intern, "test2").id);
+        assert(lexer.tokens.data[2].symbol == necro_intern_string(lexer.intern, "test2"));
         assert(lexer.tokens.data[3].token == NECRO_LEX_WHERE);
         assert(lexer.tokens.data[4].token == NECRO_LEX_LEFT_BRACE);
         assert(lexer.tokens.data[5].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[5].symbol.id == necro_intern_string(lexer.intern, "test2").id);
+        assert(lexer.tokens.data[5].symbol == necro_intern_string(lexer.intern, "test2"));
         assert(lexer.tokens.data[6].token == NECRO_LEX_ASSIGN);
         assert(lexer.tokens.data[7].token == NECRO_LEX_INTEGER_LITERAL);
         assert(lexer.tokens.data[7].int_literal == 300);
@@ -1435,43 +1435,43 @@ void necro_lex_test()
         // necro_print_lexer(&lexer);
         assert(lexer.tokens.length == 30);
         assert(lexer.tokens.data[0].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[0].symbol.id == necro_intern_string(lexer.intern, "test").id);
+        assert(lexer.tokens.data[0].symbol == necro_intern_string(lexer.intern, "test"));
         assert(lexer.tokens.data[1].token == NECRO_LEX_ASSIGN);
         assert(lexer.tokens.data[2].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[2].symbol.id == necro_intern_string(lexer.intern, "test2").id);
+        assert(lexer.tokens.data[2].symbol == necro_intern_string(lexer.intern, "test2"));
         assert(lexer.tokens.data[3].token == NECRO_LEX_ADD);
         assert(lexer.tokens.data[4].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[4].symbol.id == necro_intern_string(lexer.intern, "test3").id);
+        assert(lexer.tokens.data[4].symbol == necro_intern_string(lexer.intern, "test3"));
         assert(lexer.tokens.data[5].token == NECRO_LEX_ADD);
         assert(lexer.tokens.data[6].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[6].symbol.id == necro_intern_string(lexer.intern, "test4").id);
+        assert(lexer.tokens.data[6].symbol == necro_intern_string(lexer.intern, "test4"));
         assert(lexer.tokens.data[7].token == NECRO_LEX_ADD);
         assert(lexer.tokens.data[8].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[8].symbol.id == necro_intern_string(lexer.intern, "test5").id);
+        assert(lexer.tokens.data[8].symbol == necro_intern_string(lexer.intern, "test5"));
         assert(lexer.tokens.data[9].token == NECRO_LEX_WHERE);
         assert(lexer.tokens.data[10].token == NECRO_LEX_LEFT_BRACE);
         assert(lexer.tokens.data[11].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[11].symbol.id == necro_intern_string(lexer.intern, "test2").id);
+        assert(lexer.tokens.data[11].symbol == necro_intern_string(lexer.intern, "test2"));
         assert(lexer.tokens.data[12].token == NECRO_LEX_ASSIGN);
         assert(lexer.tokens.data[13].token == NECRO_LEX_INTEGER_LITERAL);
         assert(lexer.tokens.data[13].int_literal == 2);
         assert(lexer.tokens.data[14].token == NECRO_LEX_WHERE);
         assert(lexer.tokens.data[15].token == NECRO_LEX_LEFT_BRACE);
         assert(lexer.tokens.data[16].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[16].symbol.id == necro_intern_string(lexer.intern, "test3").id);
+        assert(lexer.tokens.data[16].symbol == necro_intern_string(lexer.intern, "test3"));
         assert(lexer.tokens.data[17].token == NECRO_LEX_ASSIGN);
         assert(lexer.tokens.data[18].token == NECRO_LEX_INTEGER_LITERAL);
         assert(lexer.tokens.data[18].int_literal == 3);
         assert(lexer.tokens.data[19].token == NECRO_LEX_SEMI_COLON);
         assert(lexer.tokens.data[20].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[20].symbol.id == necro_intern_string(lexer.intern, "test4").id);
+        assert(lexer.tokens.data[20].symbol == necro_intern_string(lexer.intern, "test4"));
         assert(lexer.tokens.data[21].token == NECRO_LEX_ASSIGN);
         assert(lexer.tokens.data[22].token == NECRO_LEX_FLOAT_LITERAL);
         assert(lexer.tokens.data[22].double_literal == 4.0);
         assert(lexer.tokens.data[23].token == NECRO_LEX_RIGHT_BRACE);
         assert(lexer.tokens.data[24].token == NECRO_LEX_SEMI_COLON);
         assert(lexer.tokens.data[25].token == NECRO_LEX_IDENTIFIER);
-        assert(lexer.tokens.data[25].symbol.id == necro_intern_string(lexer.intern, "test5").id);
+        assert(lexer.tokens.data[25].symbol == necro_intern_string(lexer.intern, "test5"));
         assert(lexer.tokens.data[26].token == NECRO_LEX_ASSIGN);
         assert(lexer.tokens.data[27].token == NECRO_LEX_INTEGER_LITERAL);
         assert(lexer.tokens.data[27].int_literal == 5);
@@ -1490,7 +1490,7 @@ void necro_lex_test()
         unwrap(void, necro_lex_go(&lexer));
         NecroResult(void) result = necro_lex_fixup_layout(&lexer);
         assert(result.type == NECRO_RESULT_ERROR);
-        assert(result.error.type == NECRO_LEX_MIXED_BRACES);
+        assert(result.error->type == NECRO_LEX_MIXED_BRACES);
         // necro_print_result_errors(result.errors, result.num_errors, str, "mixedBracesErrorTest.necro");
         // necro_print_lexer(&lexer);
         printf("Lex mixed braces error test: Passed\n");

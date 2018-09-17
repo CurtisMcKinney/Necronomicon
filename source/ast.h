@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include "lexer.h"
 #include "intern.h"
+#include "ast_symbol.h"
 #include "arena.h"
 #include "parse/parser.h"
 
@@ -41,6 +42,7 @@ typedef struct
     struct NecroDeclarationGroup* declaration_group;
     NecroSymbol                   instance_name;
     NecroID                       instance_id;
+    NecroAstSymbol(NecroAst)      ast_symbol;
 } NecroAstTypeClassInstance;
 
 //=====================================================
@@ -127,6 +129,7 @@ typedef struct
     NecroID                       id;
     struct NecroTypeClassContext* inst_context;
     struct NecroType*             op_necro_type;
+    NecroAstSymbol(NecroAst)      ast_symbol;
 } NecroAstOpLeftSection;
 
 //=====================================================
@@ -140,6 +143,7 @@ typedef struct
     NecroID                       id;
     struct NecroTypeClassContext* inst_context;
     struct NecroType*             op_necro_type;
+    NecroAstSymbol(NecroAst)      ast_symbol;
 } NecroAstOpRightSection;
 
 //=====================================================
@@ -156,9 +160,10 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    NecroSymbol    symbol;
-    NecroID        id;
-    NECRO_CON_TYPE con_type;
+    NecroSymbol              symbol;
+    NecroID                  id;
+    NECRO_CON_TYPE           con_type;
+    NecroAstSymbol(NecroAst) ast_symbol;
 } NecroAstConId;
 
 //=====================================================
@@ -238,6 +243,7 @@ typedef struct
     NecroSymbol                   symbol;
     NecroID                       id;
     struct NecroTypeClassContext* inst_context;
+    NecroAstSymbol(NecroAst)      ast_symbol;
 } NecroAstBinOp;
 
 //=====================================================
@@ -279,6 +285,7 @@ typedef struct
     NecroID                       id;
     struct NecroDeclarationGroup* declaration_group;
     bool                          is_recursive;
+    NecroAstSymbol(NecroAst)      ast_symbol;
 } NecroAstSimpleAssignment;
 
 //=====================================================
@@ -286,9 +293,10 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    NecroSymbol      variable_name;
-    struct NecroAst* expression;
-    NecroID          id;
+    NecroSymbol              variable_name;
+    struct NecroAst*         expression;
+    NecroID                  id;
+    NecroAstSymbol(NecroAst) ast_symbol;
 } NecroAstBindAssignment;
 
 //=====================================================
@@ -319,6 +327,7 @@ typedef struct
     struct NecroAst*              rhs;
     NecroID                       id;
     struct NecroDeclarationGroup* declaration_group;
+    NecroAstSymbol(NecroAst)      ast_symbol;
 } NecroAstApatsAssignment;
 
 //=====================================================
@@ -401,6 +410,7 @@ typedef struct
     struct NecroTypeClassContext* inst_context;
     struct NecroAst*              initializer;
     bool                          is_recursive;
+    NecroAstSymbol(NecroAst)      ast_symbol;
 } NecroAstVariable;
 
 //=====================================================
@@ -417,8 +427,8 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    struct NecroAst*     declaration_impl;
-    struct NecroAst*     next_declaration; // Points to the next in the list, null_local_ptr if the end
+    struct NecroAst*                  declaration_impl;
+    struct NecroAst*                  next_declaration; // Points to the next in the list, null_local_ptr if the end
     struct NecroDeclarationGroupList* group_list;
 } NecroAstDeclaration;
 
@@ -427,8 +437,8 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    struct NecroAst*     declaration;
-    struct NecroAst*     next_top_decl; // Points to the next in the list, null_local_ptr if the end
+    struct NecroAst*                  declaration;
+    struct NecroAst*                  next_top_decl; // Points to the next in the list, null_local_ptr if the end
     struct NecroDeclarationGroupList* group_list;
 } NecroAstTopDeclaration;
 
@@ -526,12 +536,11 @@ typedef struct
     NecroAst*       root;
 } NecroAstArena;
 
-//NecroAstRef ?
 NecroAstArena necro_ast_arena_empty();
 NecroAstArena necro_ast_arena_create();
 void          necro_ast_arena_destroy(NecroAstArena* ast);
-void          necro_ast_arena_print(NecroAstArena* ast, NecroIntern* intern);
-void          necro_ast_print(NecroAst* ast, NecroIntern* intern);
+void          necro_ast_arena_print(NecroAstArena* ast);
+void          necro_ast_print(NecroAst* ast);
 NecroAstArena necro_reify(NecroCompileInfo info, NecroIntern* intern, NecroParseAstArena* parse_ast_arena);
 
 // Manual AST Creation

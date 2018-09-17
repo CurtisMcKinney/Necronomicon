@@ -85,7 +85,7 @@ bool necro_bind_is_fn(NecroCoreAST_Expression* bind_ast)
 bool necro_is_in_env(NecroVarList* env, NecroVar var)
 {
     // while (env != NULL && env->data.id.id != var.id.id)
-    while (env != NULL && env->data.symbol.id != var.symbol.id)
+    while (env != NULL && env->data.symbol != var.symbol)
     {
         env = env->next;
     }
@@ -110,7 +110,7 @@ NecroVar necro_find_in_env(NecroVarList* env, NecroVar var)
     // while (env != NULL && env->data.id.id != var.id.id)
     while (env != NULL)
     {
-        if (env->data.symbol.id == var.symbol.id)
+        if (env->data.symbol != var.symbol)
             return env->data;
         env = env->next;
     }

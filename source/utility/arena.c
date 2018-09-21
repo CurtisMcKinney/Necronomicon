@@ -263,3 +263,19 @@ char* necro_snapshot_arena_concat_strings(NecroSnapshotArena* arena, uint32_t st
     }
     return buffer;
 }
+
+char* necro_snapshot_arena_concat_strings_with_lengths(NecroSnapshotArena* arena, uint32_t string_count, const char** strings, size_t* lengths)
+{
+    size_t total_length = 1;
+    for (size_t i = 0; i < string_count; ++i)
+    {
+        total_length += lengths[i];
+    }
+    char* buffer = necro_snapshot_arena_alloc(arena, total_length);
+    buffer[0] = '\0';
+    for (size_t i = 0; i < string_count; ++i)
+    {
+        strcat(buffer, strings[i]);
+    }
+    return buffer;
+}

@@ -111,7 +111,7 @@ int main(int32_t argc, char** argv)
             {
                 necro_compile(file_name, str, length, NECRO_PHASE_RENAME, NECRO_OPT_OFF);
             }
-            else if (argc > 2 && strcmp(argv[2], "-dependency") == 0)
+            else if (argc > 2 && strcmp(argv[2], "-dep") == 0)
             {
                 necro_compile(file_name, str, length, NECRO_PHASE_DEPENDENCY_ANALYSIS, NECRO_OPT_OFF);
             }

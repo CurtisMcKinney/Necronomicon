@@ -101,8 +101,10 @@ bool necro_is_free_var(NecroLambdaLift* ll, NecroVarList* env, NecroLambdaLiftSy
         return false;
     if (outer != NULL && necro_is_in_env(outer->free_vars, var))
         return false;
-    NecroID found_id = necro_scope_find(ll->scoped_symtable->top_scope, var.symbol);
-    return found_id.id != var.id.id;
+    // TODO: Fix this! Broken after symtable changes
+    // NecroID found_id = necro_scope_find(ll->scoped_symtable->top_scope, var.symbol);
+    // return found_id.id != var.id.id;
+    return false;
 }
 
 NecroVar necro_find_in_env(NecroVarList* env, NecroVar var)
@@ -128,8 +130,10 @@ NecroVar necro_find_free_var(NecroLambdaLift*ll, NecroVarList* env, NecroLambdaL
     result = (outer != NULL) ? necro_find_in_env(outer->free_vars, var) : (NecroVar) { 0, 0 };
     if (result.id.id != 0)
         return result;
-    NecroID found_id = necro_scope_find(ll->scoped_symtable->top_scope, var.symbol);
-    return (NecroVar) { .id = found_id, .symbol = var.symbol };
+    // TODO: FIX THIS!! broken after symtable changes
+    // NecroID found_id = necro_scope_find(ll->scoped_symtable->top_scope, var.symbol);
+    // return (NecroVar) { .id = found_id, .symbol = var.symbol };
+    return (NecroVar) { 0 };
 }
 
 NecroVar necro_copy_var(NecroLambdaLift* ll, NecroVar old_var)

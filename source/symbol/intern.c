@@ -16,10 +16,11 @@ NecroIntern necro_intern_empty()
 {
     return (NecroIntern)
     {
-        .arena   = necro_paged_arena_empty(),
-        .entries = NULL,
-        .size    = 0,
-        .count   = 0,
+        .arena          = necro_paged_arena_empty(),
+        .snapshot_arena = necro_snapshot_arena_empty(),
+        .entries        = NULL,
+        .size           = 0,
+        .count          = 0,
     };
 }
 
@@ -37,13 +38,39 @@ NecroIntern necro_intern_create()
         entries[i] = (NecroInternEntry) { .hash = 0, .data = NULL };
     }
 
-    return (NecroIntern)
+    NecroIntern intern =
     {
-        .arena   = necro_paged_arena_create(),
-        .entries = entries,
-        .size    = NECRO_INITIAL_INTERN_SIZE,
-        .count   = 0,
+        .arena          = necro_paged_arena_create(),
+        .snapshot_arena = necro_snapshot_arena_create(),
+        .entries        = entries,
+        .size           = NECRO_INITIAL_INTERN_SIZE,
+        .count          = 0,
     };
+
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // Intern keywords, in the same order as their listing in the NECRO_LEX_TOKEN_TYPE enum
+    // MAKE SURE THAT THE FIRST N ENTRIES IN NECRO_LEX_TOKEN_TYPE ARE THE KEYWORD TYPES AND THAT THEY EXACTLY MATCH THEIR SYMBOLS MINUS ONE!!!!
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!
+    necro_intern_string(&intern, "let");
+    necro_intern_string(&intern, "where");
+    necro_intern_string(&intern, "of");
+    necro_intern_string(&intern, "do");
+    necro_intern_string(&intern, "case");
+    necro_intern_string(&intern, "class");
+    necro_intern_string(&intern, "data");
+    necro_intern_string(&intern, "deriving");
+    necro_intern_string(&intern, "forall");
+    necro_intern_string(&intern, "if");
+    necro_intern_string(&intern, "else");
+    necro_intern_string(&intern, "then");
+    necro_intern_string(&intern, "import");
+    necro_intern_string(&intern, "instance");
+    necro_intern_string(&intern, "in");
+    necro_intern_string(&intern, "module");
+    necro_intern_string(&intern, "newtype");
+    necro_intern_string(&intern, "type");
+    necro_intern_string(&intern, "pat");
+    return intern;
 }
 
 void necro_intern_destroy(NecroIntern* intern)
@@ -54,6 +81,7 @@ void necro_intern_destroy(NecroIntern* intern)
         free(intern->entries);
     intern->entries    = NULL;
     necro_paged_arena_destroy(&intern->arena);
+    necro_snapshot_arena_destroy(&intern->snapshot_arena);
 }
 
 size_t necro_hash_string(const char* str)
@@ -98,6 +126,7 @@ void necro_intern_grow(NecroIntern* intern)
     NecroInternEntry* old_entries = intern->entries;
     intern->size                  = intern->size * 2;
     intern->entries               = malloc(intern->size * sizeof(NecroInternEntry));
+    size_t            new_count   = 0;
     if (intern->entries == NULL)
     {
         fprintf(stderr, "Malloc returned NULL while allocating memory for entries in necro_intern_grow()\n");
@@ -121,8 +150,10 @@ void necro_intern_grow(NecroIntern* intern)
             }
             assert(intern->entries[probe].data == NULL);
             intern->entries[probe] = old_entries[i];
+            new_count++;
         }
     }
+    assert(new_count == intern->count);
     free(old_entries);
 }
 

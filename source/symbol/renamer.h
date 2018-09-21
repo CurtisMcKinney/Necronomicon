@@ -12,24 +12,20 @@
 #include "symtable.h"
 #include "ast.h"
 
-typedef struct NecroRenamer
+typedef enum
 {
-    NecroPagedArena*       arena;
-    NecroIntern*           intern;
-    NecroScopedSymTable*   scoped_symtable;
-    NecroError             error;
-    NecroSymbol            current_class_instance_symbol;
-    NecroSymbol            prev_class_instance_symbol;
-    bool                   should_free_type_declare;
-    NecroDeclarationGroup* current_declaration_group;
-    NecroAst*              current_type_sig_ast;
-} NecroRenamer;
+    NECRO_VALUE_NAMESPACE,
+    NECRO_TYPE_NAMESPACE,
+} NECRO_NAMESPACE_TYPE;
 
-NecroRenamer      necro_create_renamer(NecroScopedSymTable* scoped_symtable, NecroIntern*);
-void              necro_destroy_renamer(NecroRenamer* renamer);
-NECRO_RETURN_CODE necro_rename_declare_pass(NecroRenamer* renamer, NecroPagedArena* ast_arena, NecroAst* input_ast);
-NECRO_RETURN_CODE necro_rename_var_pass(NecroRenamer* renamer, NecroPagedArena* ast_arena, NecroAst* input_ast);
+typedef enum
+{
+    NECRO_MANGLE_NAME,
+    NECRO_DONT_MANGLE,
+} NECRO_MANGLE_TYPE;
 
 NecroResult(void) necro_rename(NecroCompileInfo info, NecroScopedSymTable* scoped_symtable, NecroIntern* intern, NecroAstArena* ast_arena);
+NecroAstSymbol    necro_get_unique_name(NecroAstArena* ast_arena, NecroIntern* intern, NECRO_NAMESPACE_TYPE namespace_type, NECRO_MANGLE_TYPE mangle_type, NecroAstSymbol ast_symbol);
+void              necro_rename_test();
 
 #endif // NECRO_RENAMER_H

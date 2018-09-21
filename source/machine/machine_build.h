@@ -19,7 +19,7 @@
 #include "machine.h"
 
 // Utility
-NecroVar         necro_gen_var(NecroMachineProgram* program, NecroMachineAST* necro_machine_ast, const char* var_header, NECRO_NAME_UNIQUENESS uniqueness);
+NecroVar         necro_gen_var(NecroMachineProgram* program, NecroMachineAST* necro_machine_ast, const char* var_header, NECRO_MANGLE_TYPE uniqueness);
 
 // Value
 NecroMachineAST* necro_create_machine_value_ast(NecroMachineProgram* program, NecroMachineValue value, NecroMachineType* necro_machine_type);

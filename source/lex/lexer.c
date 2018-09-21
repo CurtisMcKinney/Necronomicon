@@ -120,7 +120,7 @@ NECRO_LEX_LAYOUT necro_token_type_to_layout(NECRO_LEX_TOKEN_TYPE type)
 uint32_t necro_lex_next_char(NecroLexer* lexer);
 NecroLexer necro_lexer_create(const char* str, size_t str_length, NecroIntern* intern)
 {
-    NecroLexer lexer  =
+    return (NecroLexer)
     {
         .str                 = str,
         .str_length          = str_length,
@@ -130,31 +130,6 @@ NecroLexer necro_lexer_create(const char* str, size_t str_length, NecroIntern* i
         .layout_fixed_tokens = necro_create_lex_token_vector(),
         .intern              = intern,
     };
-
-    // Intern keywords, in the same order as their listing in the NECRO_LEX_TOKEN_TYPE enum
-    // MAKE SURE THAT THE FIRST N ENTRIES IN NECRO_LEX_TOKEN_TYPE ARE THE KEYWORD TYPES AND THAT THEY EXACTLY MATCH THEIR SYMBOLS MINUS ONE!!!!
-    necro_intern_string(lexer.intern, "let");
-    necro_intern_string(lexer.intern, "where");
-    necro_intern_string(lexer.intern, "of");
-    necro_intern_string(lexer.intern, "do");
-    necro_intern_string(lexer.intern, "case");
-    necro_intern_string(lexer.intern, "class");
-    necro_intern_string(lexer.intern, "data");
-    necro_intern_string(lexer.intern, "deriving");
-    necro_intern_string(lexer.intern, "forall");
-    necro_intern_string(lexer.intern, "if");
-    necro_intern_string(lexer.intern, "else");
-    necro_intern_string(lexer.intern, "then");
-    necro_intern_string(lexer.intern, "import");
-    necro_intern_string(lexer.intern, "instance");
-    necro_intern_string(lexer.intern, "in");
-    necro_intern_string(lexer.intern, "module");
-    necro_intern_string(lexer.intern, "newtype");
-    necro_intern_string(lexer.intern, "type");
-    necro_intern_string(lexer.intern, "pat");
-    necro_intern_string(lexer.intern, "delay");
-    necro_intern_string(lexer.intern, "trimDelay");
-    return lexer;
 }
 
 NecroLexer necro_lexer_empty()

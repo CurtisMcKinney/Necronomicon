@@ -14,6 +14,7 @@
 #include "arena.h"
 #include "parse/parser.h"
 
+struct NecroScope;
 struct NecroAst;
 struct NecroDeclarationGroup;
 struct NecroDeclarationGroupList;
@@ -42,7 +43,7 @@ typedef struct
     struct NecroDeclarationGroup* declaration_group;
     NecroSymbol                   instance_name;
     NecroID                       instance_id;
-    NecroAstSymbol(NecroAst)      ast_symbol;
+    NecroAstSymbol                ast_symbol;
 } NecroAstTypeClassInstance;
 
 //=====================================================
@@ -129,7 +130,7 @@ typedef struct
     NecroID                       id;
     struct NecroTypeClassContext* inst_context;
     struct NecroType*             op_necro_type;
-    NecroAstSymbol(NecroAst)      ast_symbol;
+    NecroAstSymbol                ast_symbol;
 } NecroAstOpLeftSection;
 
 //=====================================================
@@ -143,7 +144,7 @@ typedef struct
     NecroID                       id;
     struct NecroTypeClassContext* inst_context;
     struct NecroType*             op_necro_type;
-    NecroAstSymbol(NecroAst)      ast_symbol;
+    NecroAstSymbol                ast_symbol;
 } NecroAstOpRightSection;
 
 //=====================================================
@@ -163,7 +164,7 @@ typedef struct
     NecroSymbol              symbol;
     NecroID                  id;
     NECRO_CON_TYPE           con_type;
-    NecroAstSymbol(NecroAst) ast_symbol;
+    NecroAstSymbol           ast_symbol;
 } NecroAstConId;
 
 //=====================================================
@@ -243,7 +244,7 @@ typedef struct
     NecroSymbol                   symbol;
     NecroID                       id;
     struct NecroTypeClassContext* inst_context;
-    NecroAstSymbol(NecroAst)      ast_symbol;
+    NecroAstSymbol                ast_symbol;
 } NecroAstBinOp;
 
 //=====================================================
@@ -285,7 +286,8 @@ typedef struct
     NecroID                       id;
     struct NecroDeclarationGroup* declaration_group;
     bool                          is_recursive;
-    NecroAstSymbol(NecroAst)      ast_symbol;
+    NecroAstSymbol                ast_symbol;
+    struct NecroAst*              optional_type_signature;
 } NecroAstSimpleAssignment;
 
 //=====================================================
@@ -296,7 +298,7 @@ typedef struct
     NecroSymbol              variable_name;
     struct NecroAst*         expression;
     NecroID                  id;
-    NecroAstSymbol(NecroAst) ast_symbol;
+    NecroAstSymbol           ast_symbol;
 } NecroAstBindAssignment;
 
 //=====================================================
@@ -327,7 +329,8 @@ typedef struct
     struct NecroAst*              rhs;
     NecroID                       id;
     struct NecroDeclarationGroup* declaration_group;
-    NecroAstSymbol(NecroAst)      ast_symbol;
+    NecroAstSymbol                ast_symbol;
+    struct NecroAst*              optional_type_signature;
 } NecroAstApatsAssignment;
 
 //=====================================================
@@ -338,6 +341,7 @@ typedef struct
     struct NecroAst*              pat;
     struct NecroAst*              rhs;
     struct NecroDeclarationGroup* declaration_group;
+    struct NecroAst*              optional_type_signatures; // list
 } NecroAstPatAssignment;
 
 //=====================================================
@@ -410,7 +414,7 @@ typedef struct
     struct NecroTypeClassContext* inst_context;
     struct NecroAst*              initializer;
     bool                          is_recursive;
-    NecroAstSymbol(NecroAst)      ast_symbol;
+    NecroAstSymbol                ast_symbol;
 } NecroAstVariable;
 
 //=====================================================
@@ -532,12 +536,16 @@ typedef struct NecroAst
 
 typedef struct
 {
-    NecroPagedArena arena;
-    NecroAst*       root;
+    NecroPagedArena    arena;
+    NecroAst*          root;
+    NecroSymbol        module_name;
+    struct NecroScope* module_names;
+    struct NecroScope* module_type_names;
+    size_t             clash_suffix;
 } NecroAstArena;
 
 NecroAstArena necro_ast_arena_empty();
-NecroAstArena necro_ast_arena_create();
+NecroAstArena necro_ast_arena_create(NecroSymbol module_name);
 void          necro_ast_arena_destroy(NecroAstArena* ast);
 void          necro_ast_arena_print(NecroAstArena* ast);
 void          necro_ast_print(NecroAst* ast);

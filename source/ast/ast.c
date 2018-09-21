@@ -27,7 +27,10 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
     switch(ast->type)
     {
     case NECRO_AST_BIN_OP:
-        printf("(%s)\n", necro_ast_symbol_NecroAst_most_qualified_name(ast->variable.ast_symbol));
+        if (ast->bin_op.ast_symbol.module_name != NULL)
+            printf("(%s.%s)\n", ast->bin_op.ast_symbol.module_name->str, necro_ast_symbol_most_qualified_name(ast->bin_op.ast_symbol));
+        else
+            printf("(%s)\n", necro_ast_symbol_most_qualified_name(ast->bin_op.ast_symbol));
         necro_ast_print_go(ast->bin_op.lhs, depth + 1);
         necro_ast_print_go(ast->bin_op.rhs, depth + 1);
         break;
@@ -128,7 +131,10 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
         break;
 
     case NECRO_AST_SIMPLE_ASSIGNMENT:
-        printf("(Assignment: %s)\n", necro_ast_symbol_NecroAst_most_qualified_name(ast->simple_assignment.ast_symbol));
+        if (ast->simple_assignment.ast_symbol.module_name != NULL)
+            printf("(Assignment: %s.%s)\n", ast->simple_assignment.ast_symbol.module_name->str, necro_ast_symbol_most_qualified_name(ast->simple_assignment.ast_symbol));
+        else
+            printf("(Assignment: %s)\n", necro_ast_symbol_most_qualified_name(ast->simple_assignment.ast_symbol));
         if (ast->simple_assignment.initializer != NULL)
         {
             print_white_space(depth * 2);
@@ -178,7 +184,10 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
         break;
 
     case NECRO_AST_VARIABLE:
-        printf("(var: %s, type: %s)\n", necro_ast_symbol_NecroAst_most_qualified_name(ast->variable.ast_symbol), necro_var_type_string(ast->variable.var_type));
+        if (ast->variable.ast_symbol.module_name != NULL && (ast->variable.var_type != NECRO_VAR_TYPE_VAR_DECLARATION && ast->variable.var_type != NECRO_VAR_TYPE_FREE_VAR))
+            printf("(%s.%s)\n", ast->variable.ast_symbol.module_name->str, necro_ast_symbol_most_qualified_name(ast->variable.ast_symbol));
+        else
+            printf("(var: %s, type: %s)\n", ast->variable.ast_symbol.source_name->str, necro_var_type_string(ast->variable.var_type));
         if (ast->variable.initializer != NULL)
         {
             print_white_space(depth + 10);
@@ -201,13 +210,15 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
         break;
 
     case NECRO_AST_APATS_ASSIGNMENT:
-        printf("(Apats Assignment: %s)\n", necro_ast_symbol_NecroAst_most_qualified_name(ast->apats_assignment.ast_symbol));
+        if (ast->apats_assignment.ast_symbol.module_name != NULL)
+            printf("(Apats Assignment: %s.%s)\n", ast->apats_assignment.ast_symbol.module_name->str, necro_ast_symbol_most_qualified_name(ast->apats_assignment.ast_symbol));
+        else
+            printf("(Apats Assignment: %s)\n", necro_ast_symbol_most_qualified_name(ast->apats_assignment.ast_symbol));
         necro_ast_print_go(ast->apats_assignment.apats, depth + 1);
         necro_ast_print_go(ast->apats_assignment.rhs, depth + 1);
         break;
 
     case NECRO_AST_PAT_ASSIGNMENT:
-        // printf("(Pat Assignment: %s, id: %d)\n", necro_intern_get_string(intern, ast->pat_assignment.variable_name), ast->pat_assignment.id.id);
         printf("(Pat Assignment)\n");
         necro_ast_print_go(ast->pat_assignment.pat, depth + 1);
         necro_ast_print_go(ast->pat_assignment.rhs, depth + 1);
@@ -261,7 +272,7 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
         break;
 
     case NECRO_BIND_ASSIGNMENT:
-        printf("(Bind: %s)\n", necro_ast_symbol_NecroAst_most_qualified_name(ast->bind_assignment.ast_symbol));
+        printf("(Bind: %s)\n", necro_ast_symbol_most_qualified_name(ast->bind_assignment.ast_symbol));
         necro_ast_print_go(ast->bind_assignment.expression, depth + 1);
         break;
 
@@ -316,7 +327,10 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
         break;
 
     case NECRO_AST_CONID:
-        printf("(conid: %s, ctype: %s)\n", necro_ast_symbol_NecroAst_most_qualified_name(ast->conid.ast_symbol), necro_con_type_string(ast->conid.con_type));
+        if (ast->conid.ast_symbol.module_name != NULL)
+            printf("(%s.%s)\n", ast->conid.ast_symbol.module_name->str, necro_ast_symbol_most_qualified_name(ast->conid.ast_symbol));
+        else
+            printf("(conid: %s, ctype: %s)\n", necro_ast_symbol_most_qualified_name(ast->conid.ast_symbol), necro_con_type_string(ast->conid.con_type));
         break;
 
     case NECRO_AST_DATA_DECLARATION:
@@ -349,18 +363,27 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
         break;
 
     case NECRO_AST_BIN_OP_SYM:
-        printf("(%s)\n", necro_ast_symbol_NecroAst_most_qualified_name(ast->bin_op_sym.op->conid.ast_symbol));
+        if (ast->bin_op_sym.op->conid.ast_symbol.module_name != NULL)
+            printf("(%s.%s)\n", ast->bin_op_sym.op->conid.ast_symbol.module_name->str, necro_ast_symbol_most_qualified_name(ast->bin_op_sym.op->conid.ast_symbol));
+        else
+            printf("(%s)\n", necro_ast_symbol_most_qualified_name(ast->bin_op_sym.op->conid.ast_symbol));
         necro_ast_print_go(ast->bin_op_sym.left, depth + 1);
         necro_ast_print_go(ast->bin_op_sym.right, depth + 1);
         break;
 
     case NECRO_AST_OP_LEFT_SECTION:
-        printf("(LeftSection %s)\n", necro_ast_symbol_NecroAst_most_qualified_name(ast->op_left_section.ast_symbol));
+        if (ast->op_left_section.ast_symbol.module_name != NULL)
+            printf("(LeftSection %s.%s)\n", ast->op_left_section.ast_symbol.module_name->str, necro_ast_symbol_most_qualified_name(ast->op_left_section.ast_symbol));
+        else
+            printf("(LeftSection %s)\n", necro_ast_symbol_most_qualified_name(ast->op_left_section.ast_symbol));
         necro_ast_print_go(ast->op_left_section.left, depth + 1);
         break;
 
     case NECRO_AST_OP_RIGHT_SECTION:
-        printf("(%s RightSection)\n", necro_ast_symbol_NecroAst_most_qualified_name(ast->op_right_section.ast_symbol));
+        if (ast->op_right_section.ast_symbol.module_name != NULL)
+            printf("(%s.%s RightSection)\n", ast->op_right_section.ast_symbol.module_name->str, necro_ast_symbol_most_qualified_name(ast->op_right_section.ast_symbol));
+        else
+            printf("(%s RightSection)\n", necro_ast_symbol_most_qualified_name(ast->op_right_section.ast_symbol));
         necro_ast_print_go(ast->op_right_section.right, depth + 1);
         break;
 
@@ -464,39 +487,35 @@ void necro_ast_arena_print(NecroAstArena* ast)
     }
 }
 
-inline void necro_op_symbol_to_method_symbol(NecroIntern* intern, NECRO_BIN_OP_TYPE op_type, NecroSymbol* symbol)
-{
-    // change op name to method names
-    switch (op_type)
-    {
-    case NECRO_BIN_OP_ADD:        *symbol = necro_intern_string(intern, "add");    break;
-    case NECRO_BIN_OP_SUB:        *symbol = necro_intern_string(intern, "sub");    break;
-    case NECRO_BIN_OP_MUL:        *symbol = necro_intern_string(intern, "mul");    break;
-    case NECRO_BIN_OP_DIV:        *symbol = necro_intern_string(intern, "div");    break;
-    case NECRO_BIN_OP_EQUALS:     *symbol = necro_intern_string(intern, "eq");     break;
-    case NECRO_BIN_OP_NOT_EQUALS: *symbol = necro_intern_string(intern, "neq");    break;
-    case NECRO_BIN_OP_GT:         *symbol = necro_intern_string(intern, "gt");     break;
-    case NECRO_BIN_OP_LT:         *symbol = necro_intern_string(intern, "lt");     break;
-    case NECRO_BIN_OP_GTE:        *symbol = necro_intern_string(intern, "gte");    break;
-    case NECRO_BIN_OP_LTE:        *symbol = necro_intern_string(intern, "lte");    break;
-    case NECRO_BIN_OP_BIND_RIGHT: *symbol = necro_intern_string(intern, "bind");   break;
-    case NECRO_BIN_OP_APPEND:     *symbol = necro_intern_string(intern, "append"); break;
-    default: break;
-    }
-}
+// inline void necro_op_symbol_to_method_symbol(NecroIntern* intern, NECRO_BIN_OP_TYPE op_type, NecroSymbol* symbol)
+// {
+//     // change op name to method names
+//     switch (op_type)
+//     {
+//     case NECRO_BIN_OP_ADD:        *symbol = necro_intern_string(intern, "add");    break;
+//     case NECRO_BIN_OP_SUB:        *symbol = necro_intern_string(intern, "sub");    break;
+//     case NECRO_BIN_OP_MUL:        *symbol = necro_intern_string(intern, "mul");    break;
+//     case NECRO_BIN_OP_DIV:        *symbol = necro_intern_string(intern, "div");    break;
+//     case NECRO_BIN_OP_EQUALS:     *symbol = necro_intern_string(intern, "eq");     break;
+//     case NECRO_BIN_OP_NOT_EQUALS: *symbol = necro_intern_string(intern, "neq");    break;
+//     case NECRO_BIN_OP_GT:         *symbol = necro_intern_string(intern, "gt");     break;
+//     case NECRO_BIN_OP_LT:         *symbol = necro_intern_string(intern, "lt");     break;
+//     case NECRO_BIN_OP_GTE:        *symbol = necro_intern_string(intern, "gte");    break;
+//     case NECRO_BIN_OP_LTE:        *symbol = necro_intern_string(intern, "lte");    break;
+//     case NECRO_BIN_OP_BIND_RIGHT: *symbol = necro_intern_string(intern, "bind");   break;
+//     case NECRO_BIN_OP_APPEND:     *symbol = necro_intern_string(intern, "append"); break;
+//     default: break;
+//     }
+// }
 
 NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocalPtr parse_ast_ptr, NecroPagedArena* arena, NecroIntern* intern);
 NecroAstArena necro_reify(NecroCompileInfo info, NecroIntern* intern, NecroParseAstArena* ast)
 {
-    NecroPagedArena arena = necro_paged_arena_create();
-    NecroAst*       root  = necro_reify_go(ast, ast->root, &arena, intern);
+    NecroAstArena ast_arena = necro_ast_arena_create(ast->module_name);
+    ast_arena.root          = necro_reify_go(ast, ast->root, &ast_arena.arena, intern);
     if (info.compilation_phase == NECRO_PHASE_REIFY && info.verbosity > 0)
-        necro_ast_print(root);
-    return (NecroAstArena)
-    {
-        .arena = arena,
-        .root = root,
-    };
+        necro_ast_print(ast_arena.root);
+    return ast_arena;
 }
 
 NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocalPtr parse_ast_ptr, NecroPagedArena* arena, NecroIntern* intern)
@@ -579,8 +598,8 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
     case NECRO_AST_UN_OP:
         break;
     case NECRO_AST_BIN_OP:
-        necro_op_symbol_to_method_symbol(intern, ast->bin_op.type, &ast->bin_op.symbol);
-        reified_ast->bin_op.ast_symbol   = (NecroAstSymbol(NecroAst)) { .ast = NULL, .name = NULL, .source_name = ast->bin_op.symbol, .module_name = NULL };
+        // necro_op_symbol_to_method_symbol(intern, ast->bin_op.type, &ast->bin_op.symbol);
+        reified_ast->bin_op.ast_symbol   = (NecroAstSymbol) { .data = necro_ast_symbol_data_create(arena, NULL, NULL, NULL), .name = NULL, .source_name = ast->bin_op.symbol, .module_name = NULL };
         reified_ast->bin_op.lhs          = necro_reify_go(parse_ast_arena, ast->bin_op.lhs, arena, intern);
         reified_ast->bin_op.rhs          = necro_reify_go(parse_ast_arena, ast->bin_op.rhs, arena, intern);
         reified_ast->bin_op.symbol       = ast->bin_op.symbol;
@@ -608,19 +627,20 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         reified_ast->simple_assignment.variable_name     = ast->simple_assignment.variable_name;
         reified_ast->simple_assignment.declaration_group = NULL;
         reified_ast->simple_assignment.is_recursive      = false;
-        reified_ast->simple_assignment.ast_symbol        = (NecroAstSymbol(NecroAst)) { .ast = NULL, .name = NULL, .source_name = ast->simple_assignment.variable_name, .module_name = NULL };
+        reified_ast->simple_assignment.ast_symbol        = (NecroAstSymbol) { .data = necro_ast_symbol_data_create(arena, reified_ast, NULL, NULL), .name = ast->simple_assignment.variable_name, .source_name = ast->simple_assignment.variable_name, .module_name = parse_ast_arena->module_name };
         break;
     case NECRO_AST_APATS_ASSIGNMENT:
         reified_ast->apats_assignment.variable_name     = ast->apats_assignment.variable_name;
         reified_ast->apats_assignment.apats             = necro_reify_go(parse_ast_arena, ast->apats_assignment.apats, arena, intern);
         reified_ast->apats_assignment.rhs               = necro_reify_go(parse_ast_arena, ast->apats_assignment.rhs, arena, intern);
         reified_ast->apats_assignment.declaration_group = NULL;
-        reified_ast->apats_assignment.ast_symbol        = (NecroAstSymbol(NecroAst)) { .ast = NULL, .name = NULL, .source_name = ast->apats_assignment.variable_name, .module_name = NULL };
+        reified_ast->apats_assignment.ast_symbol        = (NecroAstSymbol) { .data = necro_ast_symbol_data_create(arena, reified_ast, NULL, NULL), .name = ast->apats_assignment.variable_name, .source_name = ast->apats_assignment.variable_name, .module_name = parse_ast_arena->module_name };
         break;
     case NECRO_AST_PAT_ASSIGNMENT:
-        reified_ast->pat_assignment.pat               = necro_reify_go(parse_ast_arena, ast->pat_assignment.pat, arena, intern);
-        reified_ast->pat_assignment.rhs               = necro_reify_go(parse_ast_arena, ast->pat_assignment.rhs, arena, intern);
-        reified_ast->pat_assignment.declaration_group = NULL;
+        reified_ast->pat_assignment.pat                      = necro_reify_go(parse_ast_arena, ast->pat_assignment.pat, arena, intern);
+        reified_ast->pat_assignment.rhs                      = necro_reify_go(parse_ast_arena, ast->pat_assignment.rhs, arena, intern);
+        reified_ast->pat_assignment.declaration_group        = NULL;
+        reified_ast->pat_assignment.optional_type_signatures = NULL;
         break;
     case NECRO_AST_RIGHT_HAND_SIDE:
         reified_ast->right_hand_side.expression   = necro_reify_go(parse_ast_arena, ast->right_hand_side.expression, arena, intern);
@@ -635,7 +655,7 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         reified_ast->fexpression.next_fexpression = necro_reify_go(parse_ast_arena, ast->fexpression.next_fexpression, arena, intern);
         break;
     case NECRO_AST_VARIABLE:
-        reified_ast->variable.ast_symbol   = (NecroAstSymbol(NecroAst)) { .ast = NULL, .name = NULL, .source_name = ast->variable.symbol, .module_name = NULL };
+        reified_ast->variable.ast_symbol   = (NecroAstSymbol) { .data = necro_ast_symbol_data_create(arena, NULL, NULL, NULL), .name = NULL, .source_name = ast->variable.symbol, .module_name = NULL };
         reified_ast->variable.symbol       = ast->variable.symbol;
         reified_ast->variable.var_type     = ast->variable.var_type;
         reified_ast->variable.inst_context = NULL;
@@ -676,7 +696,7 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
     case NECRO_BIND_ASSIGNMENT:
         reified_ast->bind_assignment.variable_name = ast->bind_assignment.variable_name;
         reified_ast->bind_assignment.expression    = necro_reify_go(parse_ast_arena, ast->bind_assignment.expression, arena, intern);
-        reified_ast->bind_assignment.ast_symbol    = (NecroAstSymbol(NecroAst)) { .ast = NULL, .name = NULL, .source_name = ast->bind_assignment.variable_name, .module_name = NULL };
+        reified_ast->bind_assignment.ast_symbol    = (NecroAstSymbol) { .data = necro_ast_symbol_data_create(arena, NULL, NULL, NULL), .name = ast->bind_assignment.variable_name, .source_name = ast->bind_assignment.variable_name, .module_name = parse_ast_arena->module_name };
         break;
     case NECRO_PAT_BIND_ASSIGNMENT:
         reified_ast->pat_bind_assignment.pat        = necro_reify_go(parse_ast_arena, ast->pat_bind_assignment.pat, arena, intern);
@@ -699,7 +719,7 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
     case NECRO_AST_CONID:
         reified_ast->conid.symbol     = ast->conid.symbol;
         reified_ast->conid.con_type   = ast->conid.con_type;
-        reified_ast->conid.ast_symbol = (NecroAstSymbol(NecroAst)) { .ast = NULL, .name = NULL, .source_name = ast->conid.symbol, .module_name = NULL };
+        reified_ast->conid.ast_symbol = (NecroAstSymbol) { .data = necro_ast_symbol_data_create(arena, NULL, NULL, NULL), .name = NULL, .source_name = ast->conid.symbol, .module_name = NULL };
         break;
     case NECRO_AST_TYPE_APP:
         reified_ast->type_app.ty      = necro_reify_go(parse_ast_arena, ast->type_app.ty, arena, intern);
@@ -711,20 +731,20 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         reified_ast->bin_op_sym.right = necro_reify_go(parse_ast_arena, ast->bin_op_sym.right, arena, intern);
         break;
     case NECRO_AST_OP_LEFT_SECTION:
-        necro_op_symbol_to_method_symbol(intern, ast->op_left_section.type, &ast->op_left_section.symbol);
+        // necro_op_symbol_to_method_symbol(intern, ast->op_left_section.type, &ast->op_left_section.symbol);
         reified_ast->op_left_section.left         = necro_reify_go(parse_ast_arena, ast->op_left_section.left, arena, intern);
         reified_ast->op_left_section.symbol       = ast->op_left_section.symbol;
         reified_ast->op_left_section.type         = ast->op_left_section.type;
         reified_ast->op_left_section.inst_context = NULL;
-        reified_ast->op_left_section.ast_symbol   = (NecroAstSymbol(NecroAst)) { .ast = NULL, .name = NULL, .source_name = ast->op_left_section.symbol, .module_name = NULL };
+        reified_ast->op_left_section.ast_symbol   = (NecroAstSymbol) { .data = necro_ast_symbol_data_create(arena, NULL, NULL, NULL), .name = NULL, .source_name = ast->op_left_section.symbol, .module_name = NULL };
         break;
     case NECRO_AST_OP_RIGHT_SECTION:
-        necro_op_symbol_to_method_symbol(intern, ast->op_right_section.type, &ast->op_right_section.symbol);
+        // necro_op_symbol_to_method_symbol(intern, ast->op_right_section.type, &ast->op_right_section.symbol);
         reified_ast->op_right_section.symbol       = ast->op_right_section.symbol;
         reified_ast->op_right_section.type         = ast->op_right_section.type;
         reified_ast->op_right_section.right        = necro_reify_go(parse_ast_arena, ast->op_right_section.right, arena, intern);
         reified_ast->op_right_section.inst_context = NULL;
-        reified_ast->op_right_section.ast_symbol   = (NecroAstSymbol(NecroAst)) { .ast = NULL, .name = NULL, .source_name = ast->op_right_section.symbol, .module_name = NULL };
+        reified_ast->op_right_section.ast_symbol   = (NecroAstSymbol) { .data = necro_ast_symbol_data_create(arena, NULL, NULL, NULL), .name = NULL, .source_name = ast->op_right_section.symbol, .module_name = NULL };
         break;
     case NECRO_AST_CONSTRUCTOR:
         reified_ast->constructor.conid    = necro_reify_go(parse_ast_arena, ast->constructor.conid, arena, intern);
@@ -759,7 +779,7 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         reified_ast->type_class_instance.dictionary_instance = NULL;
         reified_ast->type_class_instance.declaration_group   = NULL;
         reified_ast->type_class_instance.instance_name       = necro_create_type_class_instance_name(intern, reified_ast);
-        reified_ast->type_class_instance.ast_symbol          = (NecroAstSymbol(NecroAst)) { .ast = NULL, .name = NULL, .source_name = NULL, .module_name = NULL };
+        reified_ast->type_class_instance.ast_symbol          = (NecroAstSymbol) { .data = necro_ast_symbol_data_create(arena, reified_ast, NULL, NULL), .name = NULL, .source_name = NULL, .module_name = NULL };
         break;
     case NECRO_AST_TYPE_SIGNATURE:
         reified_ast->type_signature.var               = necro_reify_go(parse_ast_arena, ast->type_signature.var, arena, intern);
@@ -783,24 +803,35 @@ NecroAstArena necro_ast_arena_empty()
 {
     return (NecroAstArena)
     {
-        .arena = necro_paged_arena_empty(),
-        .root  = NULL,
+        .arena        = necro_paged_arena_empty(),
+        .root         = NULL,
+        .clash_suffix = 0,
+        .module_name  = NULL,
+        .module_names = NULL,
     };
 }
 
-NecroAstArena necro_ast_arena_create()
+NecroAstArena necro_ast_arena_create(NecroSymbol module_name)
 {
+    NecroPagedArena arena             = necro_paged_arena_create();
+    NecroScope*     module_names      = necro_scope_create(&arena, NULL);
+    NecroScope*     module_type_names = necro_scope_create(&arena, NULL);
     return (NecroAstArena)
     {
-        .arena = necro_paged_arena_create(),
-        .root  = NULL,
+        .arena             = arena,
+        .root              = NULL,
+        .clash_suffix      = 13000,
+        .module_name       = module_name,
+        .module_names      = module_names,
+        .module_type_names = module_type_names,
     };
 }
 
 void necro_ast_arena_destroy(NecroAstArena* ast)
 {
     necro_paged_arena_destroy(&ast->arena);
-    ast->root = NULL;
+    ast->root         = NULL;
+    ast->module_names = 0;
 }
 
 //=====================================================
@@ -814,7 +845,7 @@ NecroAst* necro_ast_create_conid(NecroPagedArena* arena, NecroIntern* intern, co
     ast->conid.symbol     = necro_intern_string(intern, con_name);
     ast->conid.id         = (NecroID) { 0 };
     ast->conid.con_type   = con_type;
-    ast->conid.ast_symbol = (NecroAstSymbol(NecroAst)) { .ast = NULL, .name = NULL, .source_name = ast->conid.symbol, .module_name = NULL };
+    ast->conid.ast_symbol = (NecroAstSymbol) { .data = necro_ast_symbol_data_create(arena, NULL, NULL, NULL), .name = NULL, .source_name = ast->conid.symbol, .module_name = NULL };
     return ast;
 }
 
@@ -828,7 +859,7 @@ NecroAst* necro_ast_create_var(NecroPagedArena* arena, NecroIntern* intern, cons
     ast->variable.inst_context = NULL;
     ast->variable.initializer  = NULL;
     ast->variable.is_recursive = false;
-    ast->variable.ast_symbol   = (NecroAstSymbol(NecroAst)) { .ast = NULL, .name = NULL, .source_name = ast->variable.symbol, .module_name = NULL };
+    ast->variable.ast_symbol   = (NecroAstSymbol) { .data = necro_ast_symbol_data_create(arena, NULL, NULL, NULL), .name = NULL, .source_name = ast->variable.symbol, .module_name = NULL };
     return ast;
 }
 
@@ -935,13 +966,14 @@ NecroAst* necro_ast_create_fn_type_sig(NecroPagedArena* arena, NecroIntern* inte
 
 NecroAst* necro_ast_create_type_class(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, const char* class_var, NecroAst* context_ast, NecroAst* declarations_ast)
 {
-    NecroAst* ast                                 = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                                     = NECRO_AST_TYPE_CLASS_DECLARATION;
-    ast->type_class_declaration.tycls             = necro_ast_create_conid(arena, intern, class_name, NECRO_CON_TYPE_DECLARATION);
-    ast->type_class_declaration.tyvar             = necro_ast_create_var(arena, intern, class_var, NECRO_VAR_TYPE_FREE_VAR);
-    ast->type_class_declaration.context           = context_ast;
-    ast->type_class_declaration.declarations      = declarations_ast;
-    ast->type_class_declaration.declaration_group = NULL;
+    NecroAst* ast                                           = necro_paged_arena_alloc(arena, sizeof(NecroAst));
+    ast->type                                               = NECRO_AST_TYPE_CLASS_DECLARATION;
+    ast->type_class_declaration.tycls                       = necro_ast_create_conid(arena, intern, class_name, NECRO_CON_TYPE_DECLARATION);
+    ast->type_class_declaration.tyvar                       = necro_ast_create_var(arena, intern, class_var, NECRO_VAR_TYPE_FREE_VAR);
+    ast->type_class_declaration.context                     = context_ast;
+    ast->type_class_declaration.declarations                = declarations_ast;
+    ast->type_class_declaration.declaration_group           = NULL;
+    ast->type_class_declaration.dictionary_data_declaration = NULL;
     return ast;
 }
 
@@ -956,7 +988,7 @@ NecroAst* necro_ast_create_instance(NecroPagedArena* arena, NecroIntern* intern,
     ast->type_class_instance.dictionary_instance  = NULL;
     ast->type_class_declaration.declaration_group = NULL;
     ast->type_class_instance.instance_name        = necro_create_type_class_instance_name(intern, ast);
-    ast->type_class_instance.ast_symbol           = (NecroAstSymbol(NecroAst)) { .ast = NULL, .name = NULL, .source_name = NULL, .module_name = NULL };
+    ast->type_class_instance.ast_symbol           = (NecroAstSymbol) { .data = necro_ast_symbol_data_create(arena, ast, NULL, NULL), .name = NULL, .source_name = NULL, .module_name = NULL };
     return ast;
 }
 
@@ -984,15 +1016,16 @@ NecroAst* necro_ast_create_decl(NecroPagedArena* arena, NecroAst* declaration, N
 NecroAst* necro_ast_create_simple_assignment(NecroPagedArena* arena, NecroIntern* intern, const char* var_name, NecroAst* rhs_ast)
 {
     assert(rhs_ast != NULL);
-    NecroAst* ast                            = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                                = NECRO_AST_SIMPLE_ASSIGNMENT;
-    ast->simple_assignment.id                = (NecroID) { 0 };
-    ast->simple_assignment.variable_name     = necro_intern_string(intern, var_name);
-    ast->simple_assignment.rhs               = rhs_ast;
-    ast->simple_assignment.initializer       = NULL;
-    ast->simple_assignment.declaration_group = NULL;
-    ast->simple_assignment.is_recursive      = false;
-    ast->simple_assignment.ast_symbol        = (NecroAstSymbol(NecroAst)) { .ast = NULL, .name = NULL, .source_name = ast->simple_assignment.variable_name, .module_name = NULL };
+    NecroAst* ast                                  = necro_paged_arena_alloc(arena, sizeof(NecroAst));
+    ast->type                                      = NECRO_AST_SIMPLE_ASSIGNMENT;
+    ast->simple_assignment.id                      = (NecroID) { 0 };
+    ast->simple_assignment.variable_name           = necro_intern_string(intern, var_name);
+    ast->simple_assignment.rhs                     = rhs_ast;
+    ast->simple_assignment.initializer             = NULL;
+    ast->simple_assignment.declaration_group       = NULL;
+    ast->simple_assignment.is_recursive            = false;
+    ast->simple_assignment.ast_symbol              = (NecroAstSymbol) { .data = necro_ast_symbol_data_create(arena, ast, NULL, NULL), .name = NULL, .source_name = ast->simple_assignment.variable_name, .module_name = NULL };
+    ast->simple_assignment.optional_type_signature = NULL;
     return ast;
 }
 
@@ -1028,14 +1061,15 @@ NecroAst* necro_ast_create_apats_assignment(NecroPagedArena* arena, NecroIntern*
     assert(rhs_ast != NULL);
     assert(apats->type == NECRO_AST_APATS);
     assert(rhs_ast->type == NECRO_AST_RIGHT_HAND_SIDE);
-    NecroAst* ast                           = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                               = NECRO_AST_APATS_ASSIGNMENT;
-    ast->apats_assignment.id                = (NecroID) { 0 };
-    ast->apats_assignment.variable_name     = necro_intern_string(intern, var_name);
-    ast->apats_assignment.apats             = apats;
-    ast->apats_assignment.rhs               = rhs_ast;
-    ast->apats_assignment.declaration_group = NULL;
-    ast->apats_assignment.ast_symbol        = (NecroAstSymbol(NecroAst)) { .ast = NULL, .name = NULL, .source_name = ast->apats_assignment.variable_name, .module_name = NULL };
+    NecroAst* ast                                 = necro_paged_arena_alloc(arena, sizeof(NecroAst));
+    ast->type                                     = NECRO_AST_APATS_ASSIGNMENT;
+    ast->apats_assignment.id                      = (NecroID) { 0 };
+    ast->apats_assignment.variable_name           = necro_intern_string(intern, var_name);
+    ast->apats_assignment.apats                   = apats;
+    ast->apats_assignment.rhs                     = rhs_ast;
+    ast->apats_assignment.declaration_group       = NULL;
+    ast->apats_assignment.ast_symbol              = (NecroAstSymbol) { .data = necro_ast_symbol_data_create(arena, ast, NULL, NULL), .name = NULL, .source_name = ast->apats_assignment.variable_name, .module_name = NULL };
+    ast->apats_assignment.optional_type_signature = NULL;
     return ast;
 }
 
@@ -1080,7 +1114,7 @@ NecroAst* necro_ast_create_bin_op(NecroPagedArena* arena, NecroIntern* intern, c
     ast->bin_op.lhs          = lhs;
     ast->bin_op.rhs          = rhs;
     ast->bin_op.inst_context = NULL;
-    ast->bin_op.ast_symbol   = (NecroAstSymbol(NecroAst)) { .ast = NULL, .name = NULL, .source_name = ast->bin_op.symbol, .module_name = NULL };
+    ast->bin_op.ast_symbol   = (NecroAstSymbol) { .data = necro_ast_symbol_data_create(arena, ast, NULL, NULL), .name = NULL, .source_name = ast->bin_op.symbol, .module_name = NULL };
     return ast;
 }
 

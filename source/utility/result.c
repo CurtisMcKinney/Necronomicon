@@ -19,6 +19,14 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_error_cons(NecroResultError* erro
     return (NecroResult(NecroParseAstLocalPtr)) { .error = error, .type = NECRO_RESULT_ERROR };
 }
 
+inline NecroResult(bool) necro_default_lex_error(NECRO_RESULT_ERROR_TYPE type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    NecroResultError* error   = malloc(sizeof(NecroResultError));
+    error->type               = type;
+    error->default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc };
+    return (NecroResult(bool)) { .error = error, .type = NECRO_RESULT_ERROR };
+}
+
 inline NecroResult(NecroParseAstLocalPtr) necro_default_parse_error(NECRO_RESULT_ERROR_TYPE type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     NecroResultError* error   = malloc(sizeof(NecroResultError));
@@ -27,36 +35,53 @@ inline NecroResult(NecroParseAstLocalPtr) necro_default_parse_error(NECRO_RESULT
     return (NecroResult(NecroParseAstLocalPtr)) { .error = error, .type = NECRO_RESULT_ERROR };
 }
 
+inline NecroResult(NecroAst) necro_default_ast_error(NECRO_RESULT_ERROR_TYPE type, NecroAstSymbol ast_symbol, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    NecroResultError* error       = malloc(sizeof(NecroResultError));
+    error->type                   = type;
+    error->default_ast_error_data = (NecroDefaultAstErrorData)
+    {
+        .ast_symbol = ast_symbol,
+        .source_loc = source_loc,
+        .end_loc    = end_loc,
+    };
+    return (NecroResult(NecroAst)) { .error = error, .type = NECRO_RESULT_ERROR };
+}
+
+inline NecroResult(NecroAst) necro_default_ast_error2(NECRO_RESULT_ERROR_TYPE type, NecroAstSymbol ast_symbol1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol ast_symbol2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    NecroResultError* error         = malloc(sizeof(NecroResultError));
+    error->type                     = type;
+    error->default_ast_error_data_2 = (NecroDefaultAstErrorData2)
+    {
+        .ast_symbol1 = ast_symbol1,
+        .source_loc1 = source_loc1,
+        .end_loc1    = end_loc1,
+        .ast_symbol2 = ast_symbol2,
+        .source_loc2 = source_loc2,
+        .end_loc2    = end_loc2
+    };
+    return (NecroResult(NecroAst)) { .error = error, .type = NECRO_RESULT_ERROR };
+}
+
 NecroResult(bool) necro_malformed_string_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    NecroResultError* error   = malloc(sizeof(NecroResultError));
-    error->type               = NECRO_LEX_MALFORMED_STRING;
-    error->default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc };
-    return (NecroResult(bool)) { .error = error, .type = NECRO_RESULT_ERROR };
+    return necro_default_lex_error(NECRO_LEX_MALFORMED_STRING, source_loc, end_loc);
 }
 
 NecroResult(bool) necro_malformed_float_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    NecroResultError* error   = malloc(sizeof(NecroResultError));
-    error->type               = NECRO_LEX_MALFORMED_FLOAT;
-    error->default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc };
-    return (NecroResult(bool)) { .error = error, .type = NECRO_RESULT_ERROR };
+    return necro_default_lex_error(NECRO_LEX_MALFORMED_FLOAT, source_loc, end_loc);
 }
 
 NecroResult(void) necro_unrecognized_character_sequence_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    NecroResultError* error   = malloc(sizeof(NecroResultError));
-    error->type               = NECRO_LEX_UNRECOGNIZED_CHARACTER_SEQUENCE;
-    error->default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc };
-    return (NecroResult(void)) { .error = error, .type = NECRO_RESULT_ERROR };
+    return necro_error_map(bool, void, necro_default_lex_error(NECRO_LEX_UNRECOGNIZED_CHARACTER_SEQUENCE, source_loc, end_loc));
 }
 
 NecroResult(void) necro_mixed_braces_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    NecroResultError* error   = malloc(sizeof(NecroResultError));
-    error->type               = NECRO_LEX_MIXED_BRACES;
-    error->default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc };
-    return (NecroResult(void)) { .error = error, .type = NECRO_RESULT_ERROR };
+    return necro_error_map(bool, void, necro_default_lex_error(NECRO_LEX_MIXED_BRACES, source_loc, end_loc));
 }
 
 NecroResult(void) necro_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
@@ -307,6 +332,21 @@ NecroResult(NecroParseAstLocalPtr) necro_const_con_missing_right_brace(NecroSour
     return necro_default_parse_error(NECRO_PARSE_CONST_CON_MISSING_RIGHT_PAREN, source_loc, end_loc);
 }
 
+NecroResult(void) necro_multiple_definitions_error(NecroAstSymbol ast_symbol1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol ast_symbol2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_error_map(NecroAst, void, necro_default_ast_error2(NECRO_RENAME_MULTIPLE_DEFINITIONS, ast_symbol1, source_loc1, end_loc1, ast_symbol2, source_loc2, end_loc2));
+}
+
+NecroResult(void) necro_duplicate_type_signatures_error(NecroAstSymbol ast_symbol1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol ast_symbol2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_error_map(NecroAst, void, necro_default_ast_error2(NECRO_RENAME_MULTIPLE_TYPE_SIGNATURES, ast_symbol1, source_loc1, end_loc1, ast_symbol2, source_loc2, end_loc2));
+}
+
+NecroResult(void) necro_not_in_scope_error(NecroAstSymbol ast_symbol, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    return necro_error_map(NecroAst, void, necro_default_ast_error(NECRO_RENAME_NOT_IN_SCOPE, ast_symbol, source_loc, end_loc));
+}
+
 ///////////////////////////////////////////////////////
 // Printing
 ///////////////////////////////////////////////////////
@@ -328,7 +368,6 @@ const char* file_base_name(const char* file_name)
 }
 
 #define NECRO_ERR_LEFT_CHAR "*"
-// #define NECRO_ERR_LEFT_CHAR
 
 void necro_print_blank_error_gutter(NecroSourceLoc source_loc)
 {
@@ -386,36 +425,47 @@ void necro_print_default_error_format(const char* error_name, NecroSourceLoc sou
 {
     // fprintf(stderr, "error[NE-%04u]: Malformed float\n", NECRO_MALFORMED_FLOAT);
     fprintf(stderr, "\n----- %s ----- ", error_name);
-    // fprintf(stderr, N_L_CHAR " (%s:%zu:%zu)\n", source_name, source_loc.line, source_loc.character);
-    // fprintf(stderr, "%s:%zu:%zu\n", file_base_name(source_name), source_loc.line, source_loc.character);
-
-    // fprintf(stderr, "\n");
-    UNUSED(source_name);
     fprintf(stderr, "\n" NECRO_ERR_LEFT_CHAR " \n");
     necro_print_line_at_source_loc(source_str, source_loc, end_loc);
-    // fprintf(stderr, NECRO_ERR_LEFT_CHAR " \n");
     fprintf(stderr, NECRO_ERR_LEFT_CHAR " %s\n", explanation);
-    // fprintf(stderr, NECRO_ERR_LEFT_CHAR " \n");
-    // fprintf(stderr, NECRO_ERR_LEFT_CHAR "> ");
-    // // fprintf(stderr, "%s\n", file_base_name(source_name));
-    // In msys this throws seg fault...
-    // fprintf(stderr, "(%s:%zu:%zu)\n", file_base_name(source_name), source_loc.line, source_loc.character);
-    // fprintf(stderr, "%s:%zu:%zu\n", source_name, source_loc.line, source_loc.character);
     fprintf(stderr, "\n");
+    // fprintf(stderr, "%s:%zu:%zu\n", file_base_name(source_name), source_loc.line, source_loc.character);
+    UNUSED(source_name);
 }
+
+void necro_print_default_ast_error_2_format(
+    const char* error_name,
+    NecroAstSymbol ast_symbol1,
+    NecroSourceLoc source_loc1,
+    NecroSourceLoc end_loc1,
+    NecroAstSymbol ast_symbol2,
+    NecroSourceLoc source_loc2,
+    NecroSourceLoc end_loc2,
+    const char* source_str,
+    const char* source_name,
+    const char* explanation1,
+    const char* explanation2)
+{
+    fprintf(stderr, "\n----- %s ----- ", error_name);
+    fprintf(stderr, "\n" NECRO_ERR_LEFT_CHAR " \n");
+    necro_print_line_at_source_loc(source_str, source_loc1, end_loc1);
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " %s\n", explanation1);
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " \n");
+    necro_print_line_at_source_loc(source_str, source_loc2, end_loc2);
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " %s\n", explanation2);
+    fprintf(stderr, "\n");
+    UNUSED(source_name);
+    UNUSED(ast_symbol1);
+    UNUSED(ast_symbol2);
+}
+
 
 void necro_print_error_cons(NecroResultError* error, const char* source_str, const char* source_name)
 {
     if (error->error_cons.error1 != NULL)
-    {
         necro_result_error_print(error->error_cons.error1, source_str, source_name);
-        // free(error->error_cons.error1);
-    }
     if (error->error_cons.error2 != NULL)
-    {
         necro_result_error_print(error->error_cons.error2, source_str, source_name);
-        // free(error->error_cons.error2);
-    }
 }
 
 void necro_print_malformed_float_error(NecroResultError* error, const char* source_str, const char* source_name)
@@ -736,6 +786,44 @@ void necro_print_const_con_missing_right_paren(NecroResultError* error, const ch
     necro_print_default_error_format("Malformed Initial Value", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
+void necro_print_multiple_definitions_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    necro_print_default_ast_error_2_format(
+        "Multiple Declarations",
+        error->default_ast_error_data_2.ast_symbol2,
+        error->default_ast_error_data_2.source_loc2,
+        error->default_ast_error_data_2.end_loc2,
+        error->default_ast_error_data_2.ast_symbol1,
+        error->default_ast_error_data_2.source_loc1,
+        error->default_ast_error_data_2.end_loc1,
+        source_str,
+        source_name,
+        "First declaration here.",
+        "Second declaration here.");
+}
+
+void necro_print_duplicate_type_signatures_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    necro_print_default_ast_error_2_format(
+        "Multiple Type Signatures",
+        error->default_ast_error_data_2.ast_symbol2,
+        error->default_ast_error_data_2.source_loc2,
+        error->default_ast_error_data_2.end_loc2,
+        error->default_ast_error_data_2.ast_symbol1,
+        error->default_ast_error_data_2.source_loc1,
+        error->default_ast_error_data_2.end_loc1,
+        source_str,
+        source_name,
+        "First type signature found here.",
+        "Second type signature found here.");
+}
+
+void necro_print_not_in_scope_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char* explanation = "Could not find an identifier with this name in scope.";
+    necro_print_default_error_format("Name Not In Scope", error->default_ast_error_data.source_loc, error->default_ast_error_data.end_loc, source_str, source_name, explanation);
+}
+
 // NOTE:
 // Basic assumption is that and error will be freed after it is printed.
 // Thus nested errors either need to call into necro_result_error_print
@@ -800,6 +888,10 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_PARSE_CLASS_EXPECTED_RIGHT_BRACE:                necro_print_class_expected_right_brace_error(error, source_str, source_name); break;
     case NECRO_PARSE_INSTANCE_EXPECTED_RIGHT_BRACE:             necro_print_instance_expected_right_brace_error(error, source_str, source_name); break;
     case NECRO_PARSE_CONST_CON_MISSING_RIGHT_PAREN:             necro_print_const_con_missing_right_paren(error, source_str, source_name); break;
+
+    case NECRO_RENAME_MULTIPLE_DEFINITIONS:                     necro_print_multiple_definitions_error(error, source_str, source_name); break;
+    case NECRO_RENAME_MULTIPLE_TYPE_SIGNATURES:                necro_print_duplicate_type_signatures_error(error, source_str, source_name); break;
+    case NECRO_RENAME_NOT_IN_SCOPE:                             necro_print_not_in_scope_error(error, source_str, source_name); break;
 
     default:
         assert(false);

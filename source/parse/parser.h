@@ -625,6 +625,7 @@ typedef struct
 {
     NecroArena            arena;
     NecroParseAstLocalPtr root;
+    NecroSymbol           module_name;
 } NecroParseAstArena;
 NecroParseAstArena  necro_parse_ast_arena_empty();
 void                necro_parse_ast_arena_destroy(NecroParseAstArena* ast);
@@ -635,7 +636,7 @@ NecroParseAst*      necro_parse_ast_alloc(NecroArena* arena, NecroParseAstLocalP
 //=====================================================
 // Parsing
 //=====================================================
-NecroResult(void) necro_parse(NecroCompileInfo info, NecroIntern* intern, NecroLexTokenVector* tokens, NecroParseAstArena* out_ast);
+NecroResult(void) necro_parse(NecroCompileInfo info, NecroIntern* intern, NecroLexTokenVector* tokens, NecroSymbol module_name, NecroParseAstArena* out_ast);
 const char*       necro_bin_op_name(NECRO_BIN_OP_TYPE type);
 const char*       necro_con_type_string(NECRO_CON_TYPE symbol_type);
 

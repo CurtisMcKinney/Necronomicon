@@ -45,8 +45,9 @@ case1 =
     Nothing -> 0
     Just i  -> i
 
+
 case2 =
-  case x of
+  case case1 of
     [0, 1, 2] -> 1
     z : zs    -> z
 
@@ -64,12 +65,22 @@ patDo = do
 
 data Either a b = Left a | Right b
 
-typeSig1 :: Maybe Int -> Int
-typeSig2 :: Num a => a -> a
-typeSig3 :: (Num a, Show b) => a -> b -> b
+case1 :: Maybe Int -> Int
+case2 :: Num a => a -> a
+patDo :: (Num a, Eq b) => a -> b -> b
 
 class Eq a => HaveSomeClass a where
   methodToTheMadness :: Int -> a
 
 instance HaveSomeClass Bool where
   methodToTheMadness _ = True
+
+multiDef1 Nothing  = 0
+multiDef1 (Just x) = x
+
+-- -- Note: This should be an error!
+-- multiDef1 Nothing 0
+-- multiDef1 (Just x) = x
+
+-- TODO: Figure out a way not to mangle pattern assignments!
+(left, right) = (20, 30)

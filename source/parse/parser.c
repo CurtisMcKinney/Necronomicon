@@ -34,12 +34,12 @@ typedef struct NecroParser
     bool               parsing_pat_assignment; // TODO / HACK; Find a better way to delineate
 } NecroParser;
 
-NecroParser necro_parser_create(NecroLexToken* tokens, size_t num_tokens, NecroIntern* intern)
+NecroParser necro_parser_create(NecroLexToken* tokens, size_t num_tokens, NecroIntern* intern, NecroSymbol module_name)
 {
     return (NecroParser)
     {
         .current_token          = 0,
-        .ast                    = (NecroParseAstArena) { necro_arena_create(num_tokens * sizeof(NecroParseAst)) },
+        .ast                    = (NecroParseAstArena) { .arena = necro_arena_create(num_tokens * sizeof(NecroParseAst)), .root = 0, .module_name = module_name },
         .tokens                 = tokens,
         .descent_state          = NECRO_PARSING,
         .intern                 = intern,
@@ -740,9 +740,9 @@ NecroParseAstLocalPtr necro_parse_qcon(NecroParser* parser, NECRO_CON_TYPE var_t
 NECRO_PARSE_STATE necro_parse_enter_state(NecroParser* parser);
 void              necro_parse_restore_state(NecroParser* parser, NECRO_PARSE_STATE prev_state);
 
-NecroResult(void) necro_parse(NecroCompileInfo info, NecroIntern* intern, NecroLexTokenVector* tokens, NecroParseAstArena* out_ast)
+NecroResult(void) necro_parse(NecroCompileInfo info, NecroIntern* intern, NecroLexTokenVector* tokens, NecroSymbol module_name, NecroParseAstArena* out_ast)
 {
-    NecroParser           parser    = necro_parser_create(tokens->data, tokens->length, intern);
+    NecroParser           parser    = necro_parser_create(tokens->data, tokens->length, intern, module_name);
     NecroParseAstLocalPtr local_ptr = necro_try_map(NecroParseAstLocalPtr, void, necro_parse_top_declarations(&parser));
     parser.ast.root                 = local_ptr;
     if ((necro_parse_peek_token_type(&parser) != NECRO_LEX_END_OF_STREAM && necro_parse_peek_token_type(&parser) != NECRO_LEX_SEMI_COLON) || (local_ptr == null_local_ptr && tokens->length > 0))
@@ -773,6 +773,14 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_top_declarations(NecroParser* par
     NecroResult(NecroParseAstLocalPtr) declarations_local_ptr = ok_NecroParseAstLocalPtr(null_local_ptr);
     NecroSourceLoc                     source_loc             = necro_parse_peek_token(parser)->source_loc;
 
+    // ;
+    if (necro_is_parse_result_non_error_null(declarations_local_ptr) && necro_parse_peek_token_type(parser) == NECRO_LEX_SEMI_COLON)
+    {
+        necro_parse_consume_token(parser);
+        // declarations_local_ptr = parse_type_class_instance(parser);
+        return necro_parse_top_declarations(parser);
+    }
+
     // declaration
     if (necro_is_parse_result_non_error_null(declarations_local_ptr))
     {
@@ -795,14 +803,6 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_top_declarations(NecroParser* par
     if (necro_is_parse_result_non_error_null(declarations_local_ptr))
     {
         declarations_local_ptr = necro_parse_type_class_instance(parser);
-    }
-
-    // ;
-    if (necro_is_parse_result_non_error_null(declarations_local_ptr) && necro_parse_peek_token_type(parser) == NECRO_LEX_SEMI_COLON)
-    {
-        necro_parse_consume_token(parser);
-        // declarations_local_ptr = parse_type_class_instance(parser);
-        return necro_parse_top_declarations(parser);
     }
 
     // NULL result
@@ -1002,6 +1002,7 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_simple_assignment(NecroParser* pa
     if (token_type == NECRO_LEX_END_OF_STREAM || token_type != NECRO_LEX_IDENTIFIER)
         return ok_NecroParseAstLocalPtr(null_local_ptr);
     NecroSourceLoc             source_loc          = necro_parse_peek_token(parser)->source_loc;
+    NecroSourceLoc             end_loc             = necro_parse_peek_token(parser)->end_loc;
     necro_parse_consume_token(parser);
 
     // Initializer
@@ -1031,7 +1032,7 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_simple_assignment(NecroParser* pa
     }
 
     // Finish
-    NecroParseAstLocalPtr assignment_local_ptr = necro_parse_ast_create_simple_assignment(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->source_loc, variable_name_token->symbol, rhs_local_ptr, initializer);
+    NecroParseAstLocalPtr assignment_local_ptr = necro_parse_ast_create_simple_assignment(&parser->ast.arena, source_loc, end_loc, variable_name_token->symbol, rhs_local_ptr, initializer);
     return ok_NecroParseAstLocalPtr(assignment_local_ptr);
 }
 
@@ -1044,6 +1045,7 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_apats_assignment(NecroParser* par
     if (token_type == NECRO_LEX_END_OF_STREAM || token_type != NECRO_LEX_IDENTIFIER)
         return ok_NecroParseAstLocalPtr(null_local_ptr);
     NecroSourceLoc             source_loc          = necro_parse_peek_token(parser)->source_loc;
+    NecroSourceLoc             end_loc             = necro_parse_peek_token(parser)->end_loc;
     necro_parse_consume_token(parser);
 
     // Apats
@@ -1066,7 +1068,7 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_apats_assignment(NecroParser* par
     }
 
     // Finish
-    NecroParseAstLocalPtr assignment_local_ptr = necro_parse_ast_create_apats_assignment(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->source_loc, variable_name_token->symbol, apats_local_ptr, rhs_local_ptr);
+    NecroParseAstLocalPtr assignment_local_ptr = necro_parse_ast_create_apats_assignment(&parser->ast.arena, source_loc, end_loc, variable_name_token->symbol, apats_local_ptr, rhs_local_ptr);
     return ok_NecroParseAstLocalPtr(assignment_local_ptr);
 }
 
@@ -1248,6 +1250,7 @@ NecroParseAstLocalPtr necro_parse_variable(NecroParser* parser, NECRO_VAR_TYPE v
 
     // Token
     NecroSourceLoc             source_loc     = necro_parse_peek_token(parser)->source_loc;
+    NecroSourceLoc             end_loc        = necro_parse_peek_token(parser)->end_loc;
     NecroParserSnapshot        snapshot       = necro_parse_snapshot(parser);
     const NecroLexToken*       variable_token = necro_parse_peek_token(parser);
     const NECRO_LEX_TOKEN_TYPE token_type     = variable_token->token;
@@ -1256,7 +1259,7 @@ NecroParseAstLocalPtr necro_parse_variable(NecroParser* parser, NECRO_VAR_TYPE v
     // Variable Name
     if (token_type == NECRO_LEX_IDENTIFIER)
     {
-        NecroParseAstLocalPtr varid_local_ptr = necro_parse_ast_create_var(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->source_loc, variable_token->symbol, var_type, null_local_ptr);
+        NecroParseAstLocalPtr varid_local_ptr = necro_parse_ast_create_var(&parser->ast.arena, source_loc, end_loc, variable_token->symbol, var_type, null_local_ptr);
         return varid_local_ptr;
     }
 
@@ -3573,6 +3576,7 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_type_signature(NecroParser* parse
         return ok_NecroParseAstLocalPtr(null_local_ptr);
     NecroParserSnapshot snapshot   = necro_parse_snapshot(parser);
     NecroSourceLoc      source_loc = necro_parse_peek_token(parser)->source_loc;
+    NecroSourceLoc      end_loc    = necro_parse_peek_token(parser)->end_loc;
 
     // var
     NecroParseAstLocalPtr var;
@@ -3624,7 +3628,7 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_type_signature(NecroParser* parse
     }
 
     // Finish
-    NecroParseAstLocalPtr local_ptr = necro_parse_ast_create_type_signature(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->end_loc, var, context, type, sig_type);
+    NecroParseAstLocalPtr local_ptr = necro_parse_ast_create_type_signature(&parser->ast.arena, source_loc, end_loc, var, context, type, sig_type);
     return ok_NecroParseAstLocalPtr(local_ptr);
 }
 

@@ -9,11 +9,17 @@
 #include "type_class.h"
 #include "d_analyzer.h"
 
+typedef struct
+{
+    NecroDeclarationGroup* current_declaration_group;
+    NecroPagedArena*       arena;
+    NecroIntern*           intern;
+} NecroDependencyAnalyzer;
+
 ///////////////////////////////////////////////////////
 // Forward Declarations
 ///////////////////////////////////////////////////////
 void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast);
-void necro_set_pat_assignment_rec(NecroSymTable* symtable, NecroAst* ast, NecroDeclarationGroup* group);
 
 ///////////////////////////////////////////////////////
 // Dependency Analysis
@@ -50,12 +56,11 @@ void necro_strong_connect2(NecroPagedArena* arena, NecroDeclarationGroup* group)
     }
 }
 
-void d_analyze_var(NecroDependencyAnalyzer* d_analyzer, NecroID id)
+void d_analyze_var(NecroDependencyAnalyzer* d_analyzer, NecroAstSymbol ast_symbol)
 {
-    NecroSymbolInfo* symbol_info = necro_symtable_get(d_analyzer->symtable, id);
-    assert(symbol_info != NULL);
-    if (symbol_info->declaration_group == NULL) return;
-    NecroDeclarationGroup* w = necro_symtable_get(d_analyzer->symtable, id)->declaration_group;
+    assert(ast_symbol.data != NULL);
+    if (ast_symbol.data->declaration_group == NULL) return;
+    NecroDeclarationGroup* w = ast_symbol.data->declaration_group;
     assert(w->info != NULL);
     if (w->info->current_group == NULL)
         w->info->current_group = w;
@@ -63,7 +68,7 @@ void d_analyze_var(NecroDependencyAnalyzer* d_analyzer, NecroID id)
     assert(v != NULL);
     if (w->index == -1)
     {
-        symbol_info->declaration_group->info->current_group = w;
+        ast_symbol.data->declaration_group->info->current_group = w;
         d_analyze_go(d_analyzer, w->declaration_ast);
         v->low_link = min(w->low_link, v->low_link);
     }
@@ -73,20 +78,20 @@ void d_analyze_var(NecroDependencyAnalyzer* d_analyzer, NecroID id)
         if (w->info->current_group->declaration_ast->type == NECRO_AST_SIMPLE_ASSIGNMENT)
         {
             w->info->current_group->declaration_ast->simple_assignment.is_recursive = true;
-            necro_symtable_get(d_analyzer->symtable, w->info->current_group->declaration_ast->simple_assignment.id)->is_recursive = true;
+            // necro_symtable_get(d_analyzer->symtable, w->info->current_group->declaration_ast->simple_assignment.id)->is_recursive = true;
         }
         else if (w->info->current_group->declaration_ast->type == NECRO_AST_DATA_DECLARATION)
         {
             w->info->current_group->declaration_ast->data_declaration.is_recursive = true;
-            necro_symtable_get(d_analyzer->symtable, w->info->current_group->declaration_ast->data_declaration.simpletype->simple_type.type_con->conid.id)->is_recursive = true;
+            // necro_symtable_get(d_analyzer->symtable, w->info->current_group->declaration_ast->data_declaration.simpletype->simple_type.type_con->conid.id)->is_recursive = true;
         }
     }
-    symbol_info->declaration_group->info->current_group = v;
+    ast_symbol.data->declaration_group->info->current_group = v;
 }
 
 void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
 {
-    if (ast == NULL || d_analyzer->error.return_code != NECRO_SUCCESS)
+    if (ast == NULL)
         return;
     switch (ast->type)
     {
@@ -96,7 +101,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
     //=====================================================
     case NECRO_AST_TOP_DECL:
     {
-        NecroAst*          curr = ast;
+        NecroAst*              curr = ast;
         NecroDeclarationsInfo* info = necro_create_declarations_info(d_analyzer->arena);
         NecroDeclarationGroup* temp = NULL;
         //-----------------------------------------
@@ -106,7 +111,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
             switch (curr->top_declaration.declaration->type)
             {
             case NECRO_AST_SIMPLE_ASSIGNMENT:
-                curr->top_declaration.declaration->simple_assignment.declaration_group = necro_symtable_get(d_analyzer->symtable, curr->top_declaration.declaration->simple_assignment.id)->declaration_group;
+                curr->top_declaration.declaration->simple_assignment.declaration_group = curr->top_declaration.declaration->simple_assignment.ast_symbol.data->declaration_group;
                 temp = curr->top_declaration.declaration->simple_assignment.declaration_group;
                 while (temp != NULL)
                 {
@@ -115,7 +120,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
                 }
                 break;
             case NECRO_AST_APATS_ASSIGNMENT:
-                curr->top_declaration.declaration->apats_assignment.declaration_group = necro_symtable_get(d_analyzer->symtable, curr->top_declaration.declaration->apats_assignment.id)->declaration_group;
+                curr->top_declaration.declaration->apats_assignment.declaration_group = curr->top_declaration.declaration->apats_assignment.ast_symbol.data->declaration_group;
                 temp = curr->top_declaration.declaration->apats_assignment.declaration_group;
                 while (temp != NULL)
                 {
@@ -138,8 +143,9 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
             case NECRO_AST_TYPE_SIGNATURE:
                 curr->top_declaration.declaration->type_signature.declaration_group->info = info;
                 break;
-            // Note: Should never reach here
-            default: assert(false);  break;
+            default:
+                assert(false);
+                break;
             }
             curr = curr->top_declaration.next_top_decl;
         }
@@ -208,7 +214,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
             switch (curr->declaration.declaration_impl->type)
             {
             case NECRO_AST_SIMPLE_ASSIGNMENT:
-                curr->declaration.declaration_impl->simple_assignment.declaration_group = necro_symtable_get(d_analyzer->symtable, curr->declaration.declaration_impl->simple_assignment.id)->declaration_group;
+                curr->declaration.declaration_impl->simple_assignment.declaration_group = curr->declaration.declaration_impl->simple_assignment.ast_symbol.data->declaration_group;
                 temp = curr->declaration.declaration_impl->simple_assignment.declaration_group;
                 while (temp != NULL)
                 {
@@ -217,7 +223,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
                 }
                 break;
             case NECRO_AST_APATS_ASSIGNMENT:
-                curr->declaration.declaration_impl->apats_assignment.declaration_group = necro_symtable_get(d_analyzer->symtable, curr->declaration.declaration_impl->apats_assignment.id)->declaration_group;
+                curr->declaration.declaration_impl->apats_assignment.declaration_group = curr->declaration.declaration_impl->apats_assignment.ast_symbol.data->declaration_group;
                 temp = curr->declaration.declaration_impl->apats_assignment.declaration_group;
                 while (temp != NULL)
                 {
@@ -269,19 +275,15 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
     {
         if (ast->simple_assignment.declaration_group->index != -1) return;
         assert(ast->simple_assignment.declaration_group != NULL);
-        if (necro_symtable_get(d_analyzer->symtable, ast->simple_assignment.id)->optional_type_signature != NULL)
-            d_analyze_go(d_analyzer, necro_symtable_get(d_analyzer->symtable, ast->simple_assignment.id)->optional_type_signature);
+        if (ast->simple_assignment.ast_symbol.data->optional_type_signature != NULL)
+            d_analyze_go(d_analyzer, ast->simple_assignment.ast_symbol.data->optional_type_signature);
         NecroDeclarationGroup* initial_group = ast->simple_assignment.declaration_group;
         NecroDeclarationGroup* current_group = initial_group;
         while (current_group != NULL)
         {
             // current_group->info = initial_group->info;
             necro_strong_connect1(current_group);
-            if (current_group->declaration_ast->type != NECRO_AST_SIMPLE_ASSIGNMENT)
-            {
-                necro_error(&d_analyzer->error, ast->source_loc, "Multiple declarations of: %s", ast->simple_assignment.variable_name->str);
-                return;
-            }
+            assert(current_group->declaration_ast->type == NECRO_AST_SIMPLE_ASSIGNMENT);
             d_analyze_go(d_analyzer, current_group->declaration_ast->simple_assignment.initializer);
             d_analyze_go(d_analyzer, current_group->declaration_ast->simple_assignment.rhs);
             initial_group->low_link = min(initial_group->low_link, current_group->low_link);
@@ -298,7 +300,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
         }
         ast->simple_assignment.declaration_group->info->current_group = ast->simple_assignment.declaration_group;
         necro_strong_connect2(d_analyzer->arena, ast->simple_assignment.declaration_group);
-        necro_symtable_get(d_analyzer->symtable, ast->simple_assignment.id)->ast = ast;
+        // necro_symtable_get(d_analyzer->symtable, ast->simple_assignment.id)->ast = ast;
         break;
     }
 
@@ -306,19 +308,15 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
     {
         if (ast->apats_assignment.declaration_group->index != -1) return;
         assert(ast->apats_assignment.declaration_group != NULL);
-        if (necro_symtable_get(d_analyzer->symtable, ast->apats_assignment.id)->optional_type_signature != NULL)
-            d_analyze_go(d_analyzer, necro_symtable_get(d_analyzer->symtable, ast->apats_assignment.id)->optional_type_signature);
+        if (ast->apats_assignment.ast_symbol.data->optional_type_signature != NULL)
+            d_analyze_go(d_analyzer, ast->apats_assignment.ast_symbol.data->optional_type_signature);
         NecroDeclarationGroup* initial_group = ast->apats_assignment.declaration_group;
         NecroDeclarationGroup* current_group = initial_group;
         while (current_group != NULL)
         {
             // current_group->info = initial_group->info;
             necro_strong_connect1(current_group);
-            if (current_group->declaration_ast->type != NECRO_AST_APATS_ASSIGNMENT)
-            {
-                necro_error(&d_analyzer->error, ast->source_loc, "Multiple declarations of: %s", ast->apats_assignment.variable_name->str);
-                return;
-            }
+            assert(current_group->declaration_ast->type == NECRO_AST_APATS_ASSIGNMENT);
             d_analyze_go(d_analyzer, current_group->declaration_ast->apats_assignment.apats);
             d_analyze_go(d_analyzer, current_group->declaration_ast->apats_assignment.rhs);
             initial_group->low_link = min(initial_group->low_link, current_group->low_link);
@@ -400,7 +398,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
         switch (ast->variable.var_type)
         {
         case NECRO_VAR_VAR:
-            d_analyze_var(d_analyzer, ast->variable.id);
+            d_analyze_var(d_analyzer, ast->variable.ast_symbol);
             break;
         case NECRO_VAR_SIG:                  break;
         case NECRO_VAR_DECLARATION:          break;
@@ -415,7 +413,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
 
     case NECRO_AST_CONID:
         if (ast->conid.con_type == NECRO_CON_TYPE_VAR)
-            d_analyze_var(d_analyzer, ast->conid.id);
+            d_analyze_var(d_analyzer, ast->conid.ast_symbol);
         break;
 
     case NECRO_AST_TYPE_CLASS_CONTEXT:
@@ -531,30 +529,19 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
         break;
 
     default:
-        necro_error(&d_analyzer->error, ast->source_loc, "Unrecognized AST Node type found in dependency analysis: %d", ast->type);
+        assert(false);
         break;
     }
 }
 
-NecroDependencyAnalyzer necro_create_dependency_analyzer(NecroSymTable* symtable, NecroIntern* intern)
+void necro_dependency_analyze(NecroCompileInfo info, NecroIntern* intern, NecroAstArena* ast_arena)
 {
-    return (NecroDependencyAnalyzer)
+    NecroDependencyAnalyzer d_analyzer =
     {
-        .symtable = symtable,
-        .intern   = intern,
+        .intern = intern,
+        .arena  = &ast_arena->arena,
     };
-}
-
-void necro_destroy_dependency_analyzer(NecroDependencyAnalyzer* d_analyzer)
-{
-    UNUSED(d_analyzer);
-}
-
-NECRO_RETURN_CODE necro_dependency_analyze_ast(NecroDependencyAnalyzer* d_analyzer, NecroPagedArena* ast_arena, NecroAst* ast)
-{
-    d_analyzer->arena             = ast_arena;
-    d_analyzer->error.return_code = NECRO_SUCCESS;
-    d_analyze_go(d_analyzer, ast);
-    d_analyzer->arena             = NULL;
-    return d_analyzer->error.return_code;
+    d_analyze_go(&d_analyzer, ast_arena->root);
+    if (info.compilation_phase == NECRO_PHASE_DEPENDENCY_ANALYSIS && info.verbosity > 0)
+        necro_ast_arena_print(ast_arena);
 }

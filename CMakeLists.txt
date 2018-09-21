@@ -30,7 +30,7 @@ include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
 if (CMAKE_COMPILER_IS_GNUCC)
-    set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wall")
+    set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wall -Wextra")
 endif()
 
 if (MSVC)
@@ -41,6 +41,10 @@ add_definitions(${CMAKE_C_FLAGS})
 
 set(INCLUDE_DIR
     source
+    source/lex
+    source/ast
+    source/necro
+    source/base
     source/type
     source/runtime
     source/utility
@@ -54,12 +58,16 @@ set(INCLUDE_DIR
 include_directories(${INCLUDE_DIR})
 
 set(project_SOURCES
-    source/necro.c
-    source/lexer.c
-    source/symtable.c
-    source/ast.c
-    source/driver.c
-    source/d_analyzer.c
+    source/necro/necro.c
+    source/necro/driver.c
+
+    source/lex/lexer.c
+
+    source/ast/symtable.c
+    source/ast/ast.c
+    source/ast/d_analyzer.c
+
+    source/base/base.c
 
     source/symbol/intern.c
     source/symbol/ast_symbol.c
@@ -107,12 +115,16 @@ set(project_SOURCES
     )
 
 set(project_HEADERS
-    source/necro.h
-    source/lexer.h
-    source/symtable.h
-    source/ast.h
-    source/driver.h
-    source/d_analyzer.h
+    source/necro/necro.h
+    source/necro/driver.h
+
+    source/lex/lexer.h
+
+    source/ast/symtable.h
+    source/ast/ast.h
+    source/ast/d_analyzer.h
+
+    source/base/base.h
 
     source/symbol/intern.h
     source/symbol/ast_symbol.h

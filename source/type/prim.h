@@ -160,16 +160,16 @@ typedef struct NecroPrimTypes
     NecroPagedArena   arena;
 } NecroPrimTypes;
 
-//=====================================================
-// API
-//=====================================================
-NecroPrimTypes    necro_prim_types_empty();
-NecroPrimTypes    necro_prim_types_create();
-void              necro_prim_types_destroy(NecroPrimTypes* prim_types);
-NECRO_RETURN_CODE necro_prim_types_build_scopes(NecroPrimTypes* prim_types, NecroScopedSymTable* scoped_symtable);
-NECRO_RETURN_CODE necro_prim_types_rename(NecroPrimTypes* prim_types, NecroRenamer* renamer);
-NECRO_RETURN_CODE necro_prim_types_infer(NecroPrimTypes* prim_types, NecroDependencyAnalyzer* d_analyzer, NecroInfer* infer, NECRO_PHASE phase);
-void              necro_prim_types_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern);
+// //=====================================================
+// // API
+// //=====================================================
+// NecroPrimTypes    necro_prim_types_empty();
+// NecroPrimTypes    necro_prim_types_create();
+// void              necro_prim_types_destroy(NecroPrimTypes* prim_types);
+// NECRO_RETURN_CODE necro_prim_types_build_scopes(NecroPrimTypes* prim_types, NecroScopedSymTable* scoped_symtable);
+// NECRO_RETURN_CODE necro_prim_types_rename(NecroPrimTypes* prim_types, NecroRenamer* renamer);
+// NECRO_RETURN_CODE necro_prim_types_infer(NecroPrimTypes* prim_types, NecroDependencyAnalyzer* d_analyzer, NecroInfer* infer, NECRO_PHASE phase);
+// void              necro_prim_types_init_prim_defs(NecroPrimTypes* prim_types, NecroIntern* intern);
 NecroCon          necro_prim_types_get_data_con_from_symbol(NecroPrimTypes* prim_types, NecroSymbol symbol);
 
 #endif // TYPE_PRIM_H

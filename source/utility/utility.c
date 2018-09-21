@@ -81,6 +81,11 @@ typedef struct NecroTimer
 NecroTimer* necro_timer_create()
 {
     NecroTimer* timer = malloc(sizeof(NecroTimer));
+    if (timer == NULL)
+    {
+        fprintf(stderr, "Could not allocate memory in necro_timer_create\n");
+        exit(1);
+    }
     *timer = (NecroTimer) { .start_time = 0, .end_time = 0 };
 #if _WIN32
     QueryPerformanceFrequency(&timer->ticks_per_sec);

@@ -85,7 +85,7 @@ typedef enum
     NECRO_PARSE_CONST_CON_MISSING_RIGHT_PAREN,
 
     NECRO_RENAME_MULTIPLE_DEFINITIONS,
-    NECRO_RENAME_DUPLICATE_TYPE_SIGNATURES,
+    NECRO_RENAME_MULTIPLE_TYPE_SIGNATURES,
     NECRO_RENAME_NOT_IN_SCOPE,
 
     NECRO_MULTIPLE_DEFINITIONS,
@@ -106,10 +106,17 @@ typedef struct
 
 typedef struct
 {
-    NecroAstSymbol(NecroAst) ast_symbol1;
+    NecroAstSymbol           ast_symbol;
+    NecroSourceLoc           source_loc;
+    NecroSourceLoc           end_loc;
+} NecroDefaultAstErrorData;
+
+typedef struct
+{
+    NecroAstSymbol           ast_symbol1;
     NecroSourceLoc           source_loc1;
     NecroSourceLoc           end_loc1;
-    NecroAstSymbol(NecroAst) ast_symbol2;
+    NecroAstSymbol           ast_symbol2;
     NecroSourceLoc           source_loc2;
     NecroSourceLoc           end_loc2;
 } NecroDefaultAstErrorData2;
@@ -119,6 +126,7 @@ typedef struct NecroResultError
     union
     {
         NecroDefaultErrorData     default_error_data;
+        NecroDefaultAstErrorData  default_ast_error_data;
         NecroDefaultAstErrorData2 default_ast_error_data_2;
         NecroErrorCons            error_cons;
     };
@@ -199,6 +207,7 @@ typedef union
     NecroResult_bool                  bool_result;
     NecroResult_size_t                size_t_result;
     NecroResult_NecroParseAstLocalPtr NecroParseAstLocalPtr_result;
+    NecroResult_NecroAst              NecroAst_result;
 } NecroResultUnion;
 
 // TODO: If and when the compiler becomes threaded,
@@ -212,6 +221,7 @@ extern NecroResultUnion global_result;
 #define necro_try(TYPE, EXPR) (global_result.TYPE##_result = EXPR).value; if (global_result.TYPE##_result.type != NECRO_RESULT_OK) return global_result.TYPE##_result;
 #define necro_try_map(TYPE, TYPE2, EXPR) (global_result.TYPE##_result = EXPR).value; if (global_result.TYPE##_result.type != NECRO_RESULT_OK) return global_result.TYPE2##_result;
 #define unwrap(TYPE, EXPR) (global_result.TYPE##_result = EXPR).value; assert(global_result.TYPE##_result.type == NECRO_RESULT_OK);
+#define necro_error_map(TYPE1, TYPE2, EXPR) (((NecroResultUnion) { .TYPE1##_result = EXPR }).TYPE2##_result);
 
 ///////////////////////////////////////////////////////
 // Error API
@@ -274,9 +284,9 @@ NecroResult(NecroParseAstLocalPtr) necro_class_expected_right_brace_error(NecroS
 NecroResult(NecroParseAstLocalPtr) necro_instance_expected_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 
 // Rename
-// NecroResult(void)                  necro_multiple_definitions_error(NecroAstSymbol(NecroAst) ast_symbol1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol(NecroAst) ast_symbol2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2);
-// NecroResult(void)                  necro_duplicate_type_signatures_error(NecroAstSymbol(NecroAst) ast_symbol, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2);
-// NecroResult(void)                  necro_not_in_scope_error(NecroAstSymbol(NecroAst) ast_symbol, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(void)                  necro_multiple_definitions_error(NecroAstSymbol ast_symbol1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol ast_symbol2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2);
+NecroResult(void)                  necro_duplicate_type_signatures_error(NecroAstSymbol ast_symbol, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol ast_symbol2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2);
+NecroResult(void)                  necro_not_in_scope_error(NecroAstSymbol ast_symbol, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 
 void                               necro_result_error_print(NecroResultError* error, const char* source_str, const char* source_name);
 

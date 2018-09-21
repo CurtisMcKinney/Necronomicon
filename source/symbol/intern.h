@@ -46,6 +46,7 @@ typedef struct NecroInternEntry
 typedef struct NecroIntern
 {
     NecroPagedArena    arena;
+    NecroSnapshotArena snapshot_arena;
     NecroInternEntry*  entries;
     size_t             size;
     size_t             count;

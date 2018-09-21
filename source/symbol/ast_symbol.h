@@ -12,27 +12,27 @@
 #include <string.h>
 #include "intern.h"
 
-#define NECRO_DECLARE_NECRO_AST_SYMBOL(AST_TYPE) \
-struct AST_TYPE; \
-typedef struct \
-{ \
-    NecroSymbol        name; \
-    NecroSymbol        source_name; \
-    NecroSymbol        module_name; \
-    struct AST_TYPE*   ast; \
-} NecroAstSymbol##AST_TYPE; \
-inline const char* necro_ast_symbol_##AST_TYPE##_most_qualified_name(NecroAstSymbol##AST_TYPE symbol) \
-{ \
-    if (symbol.name != NULL && symbol.name->str != NULL) \
-        return symbol.name->str; \
-    else if (symbol.source_name != NULL && symbol.source_name->str != NULL) \
-        return symbol.source_name->str; \
-    else \
-        return "NULL AST_SYMBOL"; \
-}
+struct NecroScope;
+struct NecroDeclarationGroup;
 
-#define NecroAstSymbol(AST_TYPE) NecroAstSymbol##AST_TYPE
+typedef struct
+{
+    struct NecroAst*                ast;
+    struct NecroAst*                optional_type_signature;
+    struct NecroDeclarationGroup*   declaration_group;
+} NecroAstSymbolData;
 
-NECRO_DECLARE_NECRO_AST_SYMBOL(NecroAst);
+typedef struct
+{
+    NecroSymbol         name;
+    NecroSymbol         source_name;
+    NecroSymbol         module_name;
+    NecroAstSymbolData* data;
+} NecroAstSymbol;
+
+static const NecroAstSymbol necro_ast_symbol_empty = { .name = NULL, .source_name = NULL, .module_name = NULL, .data = NULL };
+
+const char*         necro_ast_symbol_most_qualified_name(NecroAstSymbol ast_symbol);
+NecroAstSymbolData* necro_ast_symbol_data_create(NecroPagedArena* arena, struct NecroAst* ast, struct NecroAst* optional_type_signature, struct NecroDeclarationGroup* declaration_group);
 
 #endif // NECRO_AST_SYMBOL_H

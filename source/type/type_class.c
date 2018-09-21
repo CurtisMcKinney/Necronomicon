@@ -897,7 +897,8 @@ NecroAst* retrieveNestedDictionaryFromContext(NecroInfer* infer, NecroTypeClassC
                 NecroSymbol   selector_symbol = necro_create_selector_name(infer->intern, super_classes->type_class_name.symbol, dictionary_name);
                 NecroAst* selector_var    = necro_ast_create_var(&infer->arena, infer->intern, selector_symbol->str, NECRO_VAR_VAR);
                 selector_var->scope           = infer->scoped_symtable->top_scope;
-                necro_rename_var_pass(infer->renamer, &infer->arena, selector_var);
+                // TODO: NOTE THIS NEEDS TO BE REPLACED WITH NEW SYSTEM THAT DOESN'T USE THE RENAMER!
+                // necro_rename_var_pass(infer->renamer, &infer->arena, selector_var);
                 NecroAst* super_ast       = retrieveNestedDictionaryFromContext(infer, super_classes, dictionary_to_retrieve, necro_ast_create_fexpr(&infer->arena, selector_var, ast_so_far));
                 assert(super_ast != NULL);
                 super_classes->next = super_next;
@@ -1087,7 +1088,8 @@ NecroAst* necro_resolve_method(NecroInfer* infer, NecroTypeClass* method_type_cl
         NecroSymbol   selector_name                 = necro_create_selector_name(infer->intern, ast->variable.symbol, dictionary_name);
         NecroAst* selector_var                  = necro_ast_create_var(&infer->arena, infer->intern, selector_name->str, NECRO_VAR_VAR);
         selector_var->scope                         = infer->scoped_symtable->top_scope;
-        necro_rename_var_pass(infer->renamer, &infer->arena, selector_var);
+        // TODO: NOTE THIS NEEDS TO BE REPLACED WITH NEW SYSTEM THAT DOESN'T USE THE RENAMER!
+        // necro_rename_var_pass(infer->renamer, &infer->arena, selector_var);
         NecroAst* m_var                         = necro_ast_create_fexpr(&infer->arena, selector_var, d_var);
         m_var->scope                                = ast->scope;
         while (context != NULL)
@@ -1334,7 +1336,8 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
                 NecroSymbol   dictionary_arg_name = necro_create_dictionary_arg_name(infer->intern, for_all_context->type_class_name.symbol, for_all_context->type_var.id);
                 NecroAst* dictionary_arg_var  = necro_ast_create_var(&infer->arena, infer->intern, dictionary_arg_name->str, NECRO_VAR_DECLARATION);
                 dictionary_arg_var->scope         = ast->simple_assignment.rhs->scope;
-                necro_rename_declare_pass(infer->renamer, &infer->arena, dictionary_arg_var);
+                // TODO: NOTE THIS NEEDS TO BE REPLACED WITH NEW SYSTEM THAT DOESN'T USE THE RENAMER!
+                // necro_rename_declare_pass(infer->renamer, &infer->arena, dictionary_arg_var);
                 if (necro_is_infer_error(infer)) return;
                 new_dictionary_context = necro_create_type_class_dictionary_context(&infer->arena, for_all_context->type_class_name, for_all_context->type_var, dictionary_arg_var, new_dictionary_context);
                 if (dictionary_args_head == NULL)
@@ -1376,7 +1379,8 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
                 NecroSymbol   dictionary_arg_name = necro_create_dictionary_arg_name(infer->intern, for_all_context->type_class_name.symbol, for_all_context->type_var.id);
                 NecroAst* dictionary_arg_var = necro_ast_create_var(&infer->arena, infer->intern, dictionary_arg_name->str, NECRO_VAR_DECLARATION);
                 dictionary_arg_var->scope = ast->apats_assignment.rhs->scope;
-                necro_rename_declare_pass(infer->renamer, &infer->arena, dictionary_arg_var);
+                // TODO: NOTE THIS NEEDS TO BE REPLACED WITH NEW SYSTEM THAT DOESN'T USE THE RENAMER!
+                // necro_rename_declare_pass(infer->renamer, &infer->arena, dictionary_arg_var);
                 if (necro_is_infer_error(infer)) return;
                 new_dictionary_context = necro_create_type_class_dictionary_context(&infer->arena, for_all_context->type_class_name, for_all_context->type_var, dictionary_arg_var, new_dictionary_context);
                 if (dictionary_args_head == NULL)
@@ -1433,7 +1437,8 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
                 if (necro_is_infer_error(infer)) return;
                 assert(m_var != NULL);
                 m_var->scope   = ast->scope;
-                necro_rename_var_pass(infer->renamer, &infer->arena, m_var);
+                // TODO: NOTE THIS NEEDS TO BE REPLACED WITH NEW SYSTEM THAT DOESN'T USE THE RENAMER!
+                // necro_rename_var_pass(infer->renamer, &infer->arena, m_var);
                 if (necro_is_infer_error(infer)) return;
                 *ast = *m_var;
             }
@@ -1450,7 +1455,8 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
                     assert(d_var != NULL);
                     var_ast = necro_ast_create_fexpr(&infer->arena, var_ast, d_var);
                     d_var->scope   = ast->scope;
-                    necro_rename_var_pass(infer->renamer, &infer->arena, d_var);
+                    // TODO: NOTE THIS NEEDS TO BE REPLACED WITH NEW SYSTEM THAT DOESN'T USE THE RENAMER!
+                    // necro_rename_var_pass(infer->renamer, &infer->arena, d_var);
                     var_ast->scope = ast->scope;
                     inst_context = inst_context->next;
                 }
@@ -1537,8 +1543,9 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
         infer->scoped_symtable->current_scope       = ast->scope;
         lambda_ast->necro_type                      = ast->necro_type;
         necro_build_scopes_go(infer->scoped_symtable, lambda_ast);
-        necro_rename_declare_pass(infer->renamer, &infer->arena, lambda_ast);
-        necro_rename_var_pass(infer->renamer, &infer->arena, lambda_ast);
+        // TODO: NOTE THIS NEEDS TO BE REPLACED WITH NEW SYSTEM THAT DOESN'T USE THE RENAMER!
+        // necro_rename_declare_pass(infer->renamer, &infer->arena, lambda_ast);
+        // necro_rename_var_pass(infer->renamer, &infer->arena, lambda_ast);
         *ast = *lambda_ast;
         if (ast->op_right_section.inst_context != NULL)
             necro_type_class_translate_go(dictionary_context, infer, ast);
@@ -1589,7 +1596,8 @@ void necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_c
         while (scope->parent != NULL)
             scope = scope->parent;
         bind_node->scope = bind_node->scope = scope;
-        necro_rename_var_pass(infer->renamer, &infer->arena, bind_node);
+        // TODO: NOTE THIS NEEDS TO BE REPLACED WITH NEW SYSTEM THAT DOESN'T USE THE RENAMER!
+        // necro_rename_var_pass(infer->renamer, &infer->arena, bind_node);
         bind_node->necro_type = necro_symtable_get(infer->symtable, bind_node->variable.id)->type;
         NecroTypeClassContext* bind_context     = necro_symtable_get(infer->symtable, bind_node->variable.id)->type->for_all.context;
         NecroTypeClassContext* monad_context    = ast->do_statement.monad_var->var.context;
@@ -1930,11 +1938,13 @@ void necro_create_type_class(NecroInfer* infer, NecroAst* type_class_ast)
         necro_build_scopes_go(infer->scoped_symtable, dictionary_declarations->top_declaration.declaration);
         infer->error = infer->scoped_symtable->error;
         if (necro_is_infer_error(infer)) return;
-        necro_rename_declare_pass(infer->renamer, &infer->arena, dictionary_declarations->top_declaration.declaration);
-        infer->error = infer->renamer->error;
+        // TODO: NOTE THIS NEEDS TO BE REPLACED WITH NEW SYSTEM THAT DOESN'T USE THE RENAMER!
+        // necro_rename_declare_pass(infer->renamer, &infer->arena, dictionary_declarations->top_declaration.declaration);
+        // infer->error = infer->renamer->error;
         if (necro_is_infer_error(infer)) return;
-        necro_rename_var_pass(infer->renamer, &infer->arena, dictionary_declarations->top_declaration.declaration);
-        infer->error = infer->renamer->error;
+        // TODO: NOTE THIS NEEDS TO BE REPLACED WITH NEW SYSTEM THAT DOESN'T USE THE RENAMER!
+        // necro_rename_var_pass(infer->renamer, &infer->arena, dictionary_declarations->top_declaration.declaration);
+        // infer->error = infer->renamer->error;
         if (necro_is_infer_error(infer)) return;
 
         dictionary_declaration_group = necro_append_declaration_group(&infer->arena, dictionary_declarations->top_declaration.declaration, dictionary_declaration_group);
@@ -2305,11 +2315,13 @@ void necro_create_type_class_instance(NecroInfer* infer, NecroAst* ast)
         necro_build_scopes_go(infer->scoped_symtable, dictionary_instance);
         infer->error = infer->scoped_symtable->error;
         if (necro_is_infer_error(infer)) return;
-        necro_rename_declare_pass(infer->renamer, &infer->arena, dictionary_instance);
-        infer->error = infer->renamer->error;
+        // TODO: NOTE THIS NEEDS TO BE REPLACED WITH NEW SYSTEM THAT DOESN'T USE THE RENAMER!
+        // necro_rename_declare_pass(infer->renamer, &infer->arena, dictionary_instance);
+        // infer->error = infer->renamer->error;
         if (necro_is_infer_error(infer)) return;
-        necro_rename_var_pass(infer->renamer, &infer->arena, dictionary_instance);
-        infer->error = infer->renamer->error;
+        // TODO: NOTE THIS NEEDS TO BE REPLACED WITH NEW SYSTEM THAT DOESN'T USE THE RENAMER!
+        // necro_rename_var_pass(infer->renamer, &infer->arena, dictionary_instance);
+        // infer->error = infer->renamer->error;
         if (necro_is_infer_error(infer)) return;
     }
 }
@@ -2320,11 +2332,13 @@ NecroTypeClassInstance* necro_get_type_class_instance(NecroInfer* infer, NecroSy
     NecroSymbol             super_symbol   = necro_intern_create_type_class_instance_symbol(infer->intern, data_type_name, type_class_name);
     const char*             super_name     = super_symbol->str;
     UNUSED(super_name);
-    NecroID                 super_id       = necro_scope_find(infer->scoped_symtable->top_type_scope, super_symbol);
-    NecroSymbolInfo*        super_info     = necro_symtable_get(infer->symtable, super_id);
-    NecroTypeClassInstance* super_instance = super_info->type_class_instance;
-    // assert(super_instance != NULL);
-    return super_instance;
+    // TODO: FIX THIS! Broken after symtable changes
+    // // NecroID                 super_id       = necro_scope_find(infer->scoped_symtable->top_type_scope, super_symbol);
+    // NecroSymbolInfo*        super_info     = necro_symtable_get(infer->symtable, super_id);
+    // NecroTypeClassInstance* super_instance = super_info->type_class_instance;
+    // // assert(super_instance != NULL);
+    // return super_instance;
+    return NULL;
 }
 
 void necro_rec_check_pat_assignment(NecroInfer* infer, NecroAst* ast)

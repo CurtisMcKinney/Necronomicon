@@ -75,5 +75,6 @@ void*              necro_snapshot_arena_alloc(NecroSnapshotArena* arena, size_t 
 NecroArenaSnapshot necro_snapshot_arena_get(NecroSnapshotArena* arena);
 void               necro_snapshot_arena_rewind(NecroSnapshotArena* arena, NecroArenaSnapshot snapshot);
 char*              necro_snapshot_arena_concat_strings(NecroSnapshotArena* arena, uint32_t string_count, const char** strings);
+char*              necro_snapshot_arena_concat_strings_with_lengths(NecroSnapshotArena* arena, uint32_t string_count, const char** strings, size_t* lengths);
 
 #endif // ARENA_H

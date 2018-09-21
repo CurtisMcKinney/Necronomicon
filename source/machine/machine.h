@@ -49,7 +49,7 @@ typedef enum
 {
     NECRO_NAME_UNIQUE,
     NECRO_NAME_NOT_UNIQUE
-} NECRO_NAME_UNIQUENESS;
+} NECRO_MANGLE_TYPE;
 
 typedef enum
 {

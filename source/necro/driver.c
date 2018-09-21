@@ -13,6 +13,7 @@
 #include "runtime.h"
 #include "symtable.h"
 #include "ast.h"
+#include "base.h"
 #include "renamer.h"
 #include "type/type.h"
 #include "type/infer.h"
@@ -84,7 +85,7 @@ NecroResult(void) necro_compile_go(
     const char*           input_string,
     size_t                input_string_length,
     NecroIntern*          intern,
-    NecroPrimTypes*       prim_types,
+    NecroBase*            base,
     NecroSymTable*        symtable,
     NecroScopedSymTable*  scoped_symtable,
     NecroLexTokenVector*  lex_tokens,
@@ -96,6 +97,8 @@ NecroResult(void) necro_compile_go(
     NecroCoreAST*         ast_core,
     NecroMachineProgram*  machine)
 {
+    UNUSED(base);
+
     if (info.compilation_phase == NECRO_PHASE_NONE)
         return ok_void();
 
@@ -111,7 +114,7 @@ NecroResult(void) necro_compile_go(
     // Parse
     //--------------------
     necro_compile_begin_phase(info, NECRO_PHASE_PARSE);
-    necro_try(void, necro_parse(info, intern, lex_tokens, parse_ast));
+    necro_try(void, necro_parse(info, intern, lex_tokens, necro_intern_string(intern, "Main"), parse_ast));
     if (necro_compile_end_phase(info, NECRO_PHASE_PARSE))
         return ok_void();
 
@@ -126,10 +129,7 @@ NecroResult(void) necro_compile_go(
     //--------------------
     // Build Scopes
     //--------------------
-    // TODO: What to do about primitives?
     necro_compile_begin_phase(info, NECRO_PHASE_BUILD_SCOPES);
-    necro_prim_types_init_prim_defs(prim_types, intern);
-    necro_prim_types_build_scopes(prim_types, scoped_symtable);
     necro_build_scopes(info, scoped_symtable, ast);
     if (necro_compile_end_phase(info, NECRO_PHASE_BUILD_SCOPES))
         return ok_void();
@@ -138,49 +138,24 @@ NecroResult(void) necro_compile_go(
     // Rename
     //--------------------
     necro_compile_begin_phase(info, NECRO_PHASE_RENAME);
-    NecroRenamer renamer = necro_create_renamer(scoped_symtable, intern);
-    if (necro_prim_types_rename(prim_types, &renamer) != NECRO_SUCCESS)
-    {
-        // TODO: Error handling
-        necro_ast_arena_print(ast);
-        // necro_print_error(&renamer.error, input_string, "Renaming (Prim Pass)");
-        return ok_void();
-    }
     necro_try(void, necro_rename(info, scoped_symtable, intern, ast));
-    if (necro_compile_end_phase(info, NECRO_PHASE_BUILD_SCOPES))
+    if (necro_compile_end_phase(info, NECRO_PHASE_RENAME))
         return ok_void();
 
-    //=====================================================
-    // Dependency Analyzing
-    //=====================================================
-    if (info.compilation_phase != NECRO_PHASE_JIT && NECRO_VERBOSITY > 0)
-        necro_announce_phase("Dependency Analysis");
-    NecroDependencyAnalyzer d_analyzer = necro_create_dependency_analyzer(symtable, intern);
-    *infer = necro_create_infer(intern, symtable, scoped_symtable, &renamer, prim_types);
-    // necro_start_timer(timer);
-    if (necro_prim_types_infer(prim_types, &d_analyzer, infer, info.compilation_phase) != NECRO_SUCCESS)
-    {
-        // necro_print_error(&infer->error, input_string, "Prim Type");
+    //--------------------
+    // Dependency Analyze
+    //--------------------
+    necro_compile_begin_phase(info, NECRO_PHASE_DEPENDENCY_ANALYSIS);
+    necro_dependency_analyze(info, intern, ast);
+    if (necro_compile_end_phase(info, NECRO_PHASE_DEPENDENCY_ANALYSIS))
         return ok_void();
-    }
-    if (necro_dependency_analyze_ast(&d_analyzer, &ast->arena, ast->root))
-    {
-        // TODO: Error handling
-        // necro_print_error(&renamer.error, input_string, "Dependency Analysis");
-        return ok_void();
-    }
-    // necro_stop_and_report_timer(timer, "d_analyze");
-    if (info.compilation_phase == NECRO_PHASE_DEPENDENCY_ANALYSIS)
-    {
-        necro_ast_arena_print(ast);
-        return ok_void();
-    }
 
     //=====================================================
     // Infer
     //=====================================================
     if (info.compilation_phase != NECRO_PHASE_JIT && NECRO_VERBOSITY > 0)
         necro_announce_phase("Infer");
+    *infer = necro_create_infer(intern, symtable, scoped_symtable, NULL, NULL);
     // necro_start_timer(timer);
     necro_infer(infer, ast->root);
     if (info.compilation_phase == NECRO_PHASE_INFER)
@@ -218,7 +193,7 @@ NecroResult(void) necro_compile_go(
         necro_announce_phase("Core");
     // necro_start_timer(timer);
     ast_core->root = NULL;
-    necro_construct_core_transform(core_transform, ast_core, ast, intern, prim_types, symtable, scoped_symtable);
+    necro_construct_core_transform(core_transform, ast_core, ast, intern, NULL, symtable, scoped_symtable);
     necro_transform_to_core(core_transform);
     // necro_stop_and_report_timer(timer, "core");
     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
@@ -239,7 +214,7 @@ NecroResult(void) necro_compile_go(
     if (info.compilation_phase != NECRO_PHASE_JIT && NECRO_VERBOSITY > 0)
         necro_announce_phase("Lambda Lift");
     // necro_start_timer(timer);
-    NecroCoreAST ll_core = necro_lambda_lift(ast_core, intern, symtable, scoped_symtable, prim_types, infer);
+    NecroCoreAST ll_core = necro_lambda_lift(ast_core, intern, symtable, scoped_symtable, NULL, infer);
     // necro_stop_and_report_timer(timer, "lambda_lift");
     if (info.compilation_phase == NECRO_PHASE_LAMBDA_LIFT)
     {
@@ -255,7 +230,7 @@ NecroResult(void) necro_compile_go(
         necro_announce_phase("Closure Conversion");
     // necro_start_timer(timer);
     NecroClosureDefVector closure_defs;
-    NecroCoreAST          cc_core = necro_closure_conversion(&ll_core, intern, symtable, scoped_symtable, prim_types, infer, &closure_defs);
+    NecroCoreAST          cc_core = necro_closure_conversion(&ll_core, intern, symtable, scoped_symtable, NULL, infer, &closure_defs);
     // necro_stop_and_report_timer(timer, "closure_conversion");
     if (info.compilation_phase == NECRO_PHASE_CLOSURE_CONVERSION)
     {
@@ -270,7 +245,7 @@ NecroResult(void) necro_compile_go(
     if (info.compilation_phase != NECRO_PHASE_JIT && NECRO_VERBOSITY > 0)
         necro_announce_phase("State Analysis");
     // necro_start_timer(timer);
-    necro_state_analysis(&cc_core, intern, symtable, scoped_symtable, prim_types, infer);
+    necro_state_analysis(&cc_core, intern, symtable, scoped_symtable, NULL, infer);
     // necro_stop_and_report_timer(timer, "state_analysis");
     if (info.compilation_phase == NECRO_PHASE_STATE_ANALYSIS)
     {
@@ -285,7 +260,7 @@ NecroResult(void) necro_compile_go(
     if (info.compilation_phase != NECRO_PHASE_JIT && NECRO_VERBOSITY > 0)
         necro_announce_phase("Machine");
     // necro_start_timer(timer);
-    *machine = necro_core_to_machine(&cc_core, symtable, scoped_symtable, prim_types, infer, closure_defs);
+    *machine = necro_core_to_machine(&cc_core, symtable, scoped_symtable, NULL, infer, closure_defs);
     // necro_stop_and_report_timer(timer, "machine");
     if (info.compilation_phase == NECRO_PHASE_TRANSFORM_TO_MACHINE)
     {
@@ -300,7 +275,7 @@ NecroResult(void) necro_compile_go(
     if (info.compilation_phase != NECRO_PHASE_JIT && NECRO_VERBOSITY > 0)
         necro_announce_phase("CodeGen");
     // necro_start_timer(timer);
-    *codegen_llvm = necro_create_codegen_llvm(intern, symtable, prim_types, info.opt_level);
+    *codegen_llvm = necro_create_codegen_llvm(intern, symtable, NULL, info.opt_level);
     if (necro_codegen_llvm(codegen_llvm, machine) != NECRO_SUCCESS)
     {
         // TODO: Error handling
@@ -337,9 +312,9 @@ void necro_compile(const char* file_name, const char* input_string, size_t input
     // Global data
     //--------------------
     NecroIntern          intern          = necro_intern_create();
-    NecroPrimTypes       prim_types      = necro_prim_types_create();
     NecroSymTable        symtable        = necro_symtable_create(&intern);
     NecroScopedSymTable  scoped_symtable = necro_scoped_symtable_create(&symtable);
+    NecroBase            base            = necro_base_compile(&intern, &scoped_symtable);
 
     //--------------------
     // Pass data
@@ -363,7 +338,7 @@ void necro_compile(const char* file_name, const char* input_string, size_t input
         input_string,
         input_string_length,
         &intern,
-        &prim_types,
+        &base,
         &symtable,
         &scoped_symtable,
         &lex_tokens,
@@ -399,9 +374,9 @@ void necro_compile(const char* file_name, const char* input_string, size_t input
     necro_destroy_lex_token_vector(&lex_tokens);
 
     // Global data
+    necro_base_destroy(&base);
     necro_scoped_symtable_destroy(&scoped_symtable);
     necro_symtable_destroy(&symtable);
-    necro_prim_types_destroy(&prim_types);
     necro_intern_destroy(&intern);
 }
 
@@ -414,6 +389,7 @@ void necro_test(NECRO_TEST test)
     case NECRO_TEST_LEXER:             necro_lex_test();                break;
     case NECRO_TEST_PARSER:            necro_parse_test ();             break;
     case NECRO_TEST_INTERN:            necro_intern_test();             break;
+    case NECRO_TEST_RENAME:            necro_rename_test();             break;
     case NECRO_TEST_INFER:             necro_test_infer();              break;
     case NECRO_TEST_TYPE:              necro_test_type();               break;
     case NECRO_TEST_ARENA_CHAIN_TABLE: necro_arena_chain_table_test();  break;
@@ -422,6 +398,7 @@ void necro_test(NECRO_TEST test)
         necro_intern_test();
         necro_lex_test();
         necro_parse_test();
+        necro_rename_test();
         // necro_symtable_test();
         // necro_test_infer();
         // necro_test_type();

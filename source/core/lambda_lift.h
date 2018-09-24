@@ -13,6 +13,6 @@
 
 #include "core.h"
 
-NecroCoreAST necro_lambda_lift(NecroCoreAST* in_ast, NecroIntern* intern, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types, NecroInfer* infer);
+NecroCoreAST necro_lambda_lift(NecroCoreAST* in_ast, NecroIntern* intern, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types);
 
 #endif // CORE_LAMBDA_LIFT_H

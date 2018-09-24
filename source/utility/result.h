@@ -181,9 +181,9 @@ inline NecroResult_##TYPE ok_##TYPE(struct TYPE* value) \
 
 // NOTE: Try to keep all the value sizes to word size!
 typedef size_t NecroParseAstLocalPtr;
+NECRO_DECLARE_RESULT(NecroParseAstLocalPtr);
 NECRO_DECLARE_RESULT(size_t);
 NECRO_DECLARE_RESULT(bool);
-NECRO_DECLARE_RESULT(NecroParseAstLocalPtr);
 struct NecroAst;
 NECRO_DECLARE_PTR_RESULT(NecroAst);
 
@@ -226,7 +226,6 @@ extern NecroResultUnion global_result;
 ///////////////////////////////////////////////////////
 // Error API
 ///////////////////////////////////////////////////////
-// TODO: Make errors allocate, otherwise NULL, to keep result types small and fast (ideally word sized)? Clean up after printing with manual free
 
 NecroResult(bool)                  necro_malformed_string_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(bool)                  necro_malformed_float_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
@@ -289,7 +288,5 @@ NecroResult(void)                  necro_duplicate_type_signatures_error(NecroAs
 NecroResult(void)                  necro_not_in_scope_error(NecroAstSymbol ast_symbol, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 
 void                               necro_result_error_print(NecroResultError* error, const char* source_str, const char* source_name);
-
-// TODO: necro_map_result, necro_and_then
 
 #endif // NECRO_RESULT_H

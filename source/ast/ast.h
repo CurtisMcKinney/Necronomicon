@@ -41,8 +41,6 @@ typedef struct
     struct NecroAst*              declarations; // Points to the next in the list, null_local_ptr if the end
     struct NecroAst*              dictionary_instance; // Dictionary instance which is generated at compile time by the compiler
     struct NecroDeclarationGroup* declaration_group;
-    NecroSymbol                   instance_name;
-    NecroID                       instance_id;
     NecroAstSymbol                ast_symbol;
 } NecroAstTypeClassInstance;
 
@@ -575,51 +573,5 @@ NecroAst* necro_ast_create_wildcard(NecroPagedArena* arena);
 NecroAst* necro_ast_create_context(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, const char* var_name, NecroAst* next);
 NecroAst* necro_ast_create_rhs(NecroPagedArena* arena, NecroAst* expression, NecroAst* declarations);
 NecroAst* necro_ast_create_bin_op(NecroPagedArena* arena, NecroIntern* intern, const char* op_name, NecroAst* lhs, NecroAst* rhs);
-
-// Dependency analysis
-typedef struct NecroDependencyList
-{
-    struct NecroDeclarationGroup* dependency_group;
-    struct NecroDependencyList*   next;
-} NecroDependencyList;
-
-typedef struct NecroDeclarationGroup
-{
-    NecroAst*                 declaration_ast;
-    struct NecroDeclarationGroup* next;
-    NecroDependencyList*          dependency_list;
-    struct NecroDeclarationsInfo* info;
-    bool                          type_checked;
-    int32_t                       index;
-    int32_t                       low_link;
-    bool                          on_stack;
-} NecroDeclarationGroup;
-
-typedef struct NecroDeclarationGroupList
-{
-    NecroDeclarationGroup*            declaration_group;
-    struct NecroDeclarationGroupList* next;
-} NecroDeclarationGroupList;
-
-NECRO_DECLARE_VECTOR(NecroDeclarationGroup*, NecroDeclarationGroup, declaration_group)
-
-typedef struct NecroDeclarationsInfo
-{
-    int32_t                     index;
-    NecroDeclarationGroupVector stack;
-    NecroDeclarationGroupList*  group_lists;
-    NecroDeclarationGroup*      current_group;
-} NecroDeclarationsInfo;
-
-NecroDependencyList*       necro_create_dependency_list(NecroPagedArena* arena, NecroDeclarationGroup* dependency_group, NecroDependencyList* head);
-NecroDeclarationsInfo*     necro_create_declarations_info(NecroPagedArena* arena);
-NecroDeclarationGroup*     necro_create_declaration_group(NecroPagedArena* arena, NecroAst* declaration_ast, NecroDeclarationGroup* prev);
-NecroDeclarationGroup*     necro_append_declaration_group(NecroPagedArena* arena, NecroAst* declaration_ast, NecroDeclarationGroup* head);
-void                       necro_append_declaration_group_to_group_in_group_list(NecroPagedArena* arena, NecroDeclarationGroupList* group_list, NecroDeclarationGroup* group_to_append);
-void                       necro_prepend_declaration_group_to_group_in_group_list(NecroPagedArena* arena, NecroDeclarationGroupList* group_list, NecroDeclarationGroup* group_to_prepend);
-NecroDeclarationGroupList* necro_prepend_declaration_group_list(NecroPagedArena* arena, NecroDeclarationGroup* declaration_group, NecroDeclarationGroupList* next);
-NecroDeclarationGroupList* necro_create_declaration_group_list(NecroPagedArena* arena, NecroDeclarationGroup* declaration_group, NecroDeclarationGroupList* prev);
-NecroDeclarationGroupList* necro_append_declaration_group_list(NecroPagedArena* arena, NecroDeclarationGroup* declaration_group, NecroDeclarationGroupList* head);
-NecroDeclarationGroupList* necro_get_curr_group_list(NecroDeclarationGroupList* group_list);
 
 #endif // NECRO_AST_H

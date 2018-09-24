@@ -9,6 +9,7 @@
 #include "base.h"
 #include "renamer.h"
 #include "d_analyzer.h"
+#include "kind.h"
 
 ///////////////////////////////////////////////////////
 // Create / Destroy
@@ -18,6 +19,8 @@ NecroBase necro_base_create(NecroIntern* intern)
     return (NecroBase)
     {
         .ast                    = necro_ast_arena_create(necro_intern_string(intern, "Necro.Base")),
+
+        .star_kind              = necro_ast_symbol_empty,
 
         .tuple2_con             = necro_ast_symbol_empty,
         .tuple3_con             = necro_ast_symbol_empty,
@@ -299,6 +302,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     NecroBase        base  = necro_base_create(intern);
     NecroPagedArena* arena = &base.ast.arena;
     NecroAst*        top   = NULL;
+
+    base.star_kind = necro_create_star_kind(&base.ast.arena, intern);
 
     // _Poly
     NecroAst* poly_s_type            = necro_ast_create_simple_type(arena, intern, "_Poly", NULL);

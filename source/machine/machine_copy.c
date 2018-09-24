@@ -141,7 +141,8 @@ size_t necro_create_data_info(NecroMachineProgram* program, NecroType* type)
     NecroMachineCopyData* type_data = necro_machine_copy_table_insert(&program->copy_table, type);
     if (type_data->data_id != NECRO_NULL_DATA_ID)
         return type_data->data_id;
-    NecroAst* data_declaraction_ast = necro_symtable_get(program->symtable, type->con.con.id)->ast;
+    // TODO: Redo with NecroAstSymbol system, also WTF is a regular NecroAst doing in here, should be based off of NecroCoreAst!!!!
+    NecroAst* data_declaraction_ast = type->con.con_symbol.ast_data->ast;
     NecroAst* constructor_ast_list  = data_declaraction_ast->data_declaration.constructor_list;
     assert(constructor_ast_list != NULL);
     bool          is_tagged_union       = constructor_ast_list->list.next_item != NULL;
@@ -156,7 +157,7 @@ size_t necro_create_data_info(NecroMachineProgram* program, NecroType* type)
         NecroType*           con_inst_go  = con_inst;
         while (con_inst_go->type == NECRO_TYPE_FUN)
         {
-            con_spec    = necro_create_type_fun(program->infer, necro_new_name(program->infer, (NecroSourceLoc) { 0, 0, 0 }), con_spec);
+            con_spec    = necro_type_fn_create(&program->arena, necro_new_name(program->infer), con_spec);
             con_inst_go = con_inst_go->fun.type2;
         }
         necro_unify(program->infer, con_inst, con_spec, NULL, type, "Compiler bug in machine_copy.c");

@@ -13,6 +13,7 @@ NecroAstSymbolData* necro_ast_symbol_data_create(NecroPagedArena* arena, struct 
     data->ast                     = ast;
     data->optional_type_signature = optional_type_signature;
     data->declaration_group       = declaration_group;
+    data->type                    = NULL;
     return data;
 }
 

@@ -37,8 +37,7 @@ typedef struct NecroClosureConversion
     NecroIntern*          intern;
     NecroSymTable*        symtable;
     NecroScopedSymTable*  scoped_symtable;
-    NecroPrimTypes*       prim_types;
-    NecroInfer*           infer;
+    NecroBase*            base;
     NecroCon              closure_con;
     NecroCon              dyn_state_con;
     NecroCon              null_con;
@@ -56,7 +55,7 @@ size_t                   necro_add_closure_def(NecroClosureConversion* cc, size_
 ///////////////////////////////////////////////////////
 // Closure Conversion
 ///////////////////////////////////////////////////////
-NecroCoreAST necro_closure_conversion(NecroCoreAST* in_ast, NecroIntern* intern, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types, NecroInfer* infer, NecroClosureDefVector* out_closure_defs)
+NecroCoreAST necro_closure_conversion(NecroCoreAST* in_ast, NecroIntern* intern, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroBase* base, NecroClosureDefVector* out_closure_defs)
 {
     NecroClosureConversion cc = (NecroClosureConversion)
     {
@@ -65,13 +64,13 @@ NecroCoreAST necro_closure_conversion(NecroCoreAST* in_ast, NecroIntern* intern,
         .intern           = intern,
         .symtable         = symtable,
         .scoped_symtable  = scoped_symtable,
-        .prim_types       = prim_types,
-        .infer            = infer,
+        .base             = base,
         .cc_state         = NECRO_CC_EXPR,
-        .closure_con      = necro_prim_types_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_Closure")),
+        // TODO: Fix this with NecroBase!
+        // .closure_con      = necro_prim_types_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_Closure")),
         .closure_defs     = necro_create_closure_def_vector(),
-        .dyn_state_con    = necro_prim_types_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_DynState")),
-        .null_con         = necro_prim_types_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_NullPoly")),
+        // .dyn_state_con    = necro_prim_types_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_DynState")),
+        // .null_con         = necro_prim_types_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_NullPoly")),
     };
     necro_add_closure_def(&cc, 1, 0); // NOTE: We don't want an empty closure def vector, otherwise apply functions get wonky
     NecroCoreAST_Expression* out_ast = necro_closure_conversion_go(&cc, in_ast->root);
@@ -211,12 +210,12 @@ NecroType* necro_type_to_closure_type(NecroClosureConversion* cc, NecroType* typ
         {
             if (new_type_head == NULL)
             {
-                new_type_head = necro_create_type_fun(cc->infer, necro_symtable_get(cc->symtable, cc->prim_types->any_type.id)->type, NULL);
+                new_type_head = necro_type_fn_create(&cc->arena, cc->base->poly_type.ast_data->type, NULL);
                 new_type_curr = new_type_head;
             }
             else
             {
-                new_type_curr->fun.type2 = necro_create_type_fun(cc->infer, necro_symtable_get(cc->symtable, cc->prim_types->any_type.id)->type, NULL);
+                new_type_curr->fun.type2 = necro_type_fn_create(&cc->arena, cc->base->poly_type.ast_data->type, NULL);
                 new_type_curr            = new_type_curr->fun.type2;
             }
             context = context->next;
@@ -232,7 +231,7 @@ NecroType* necro_type_to_closure_type(NecroClosureConversion* cc, NecroType* typ
     }
     type = necro_find(type);
     if (type->type == NECRO_TYPE_FUN)
-        type = necro_create_type_con(cc->infer, cc->prim_types->closure_type, necro_create_type_list(cc->infer, type, NULL), 1);
+        type = necro_type_con_create(&cc->arena, cc->base->closure_type, necro_type_list_create(&cc->arena, type, NULL), 1);
     return type;
 }
 
@@ -331,12 +330,12 @@ bool necro_build_bind_closure_type(NecroClosureConversion* cc, NecroBuildBindClo
     {
         if (builder->closure_type == NULL)
         {
-            builder->closure_type_head = necro_create_type_con(cc->infer, cc->prim_types->closure_type, necro_create_type_list(cc->infer, rest_of_type, NULL), 1);
+            builder->closure_type_head = necro_type_con_create(&cc->arena, cc->base->closure_type, necro_type_list_create(&cc->arena, rest_of_type, NULL), 1);
             builder->closure_type      = builder->closure_type_head;
         }
         else
         {
-            builder->closure_type->fun.type2 = necro_create_type_con(cc->infer, cc->prim_types->closure_type, necro_create_type_list(cc->infer, rest_of_type, NULL), 1);
+            builder->closure_type->fun.type2 = necro_type_con_create(&cc->arena, cc->base->closure_type, necro_type_list_create(&cc->arena, rest_of_type, NULL), 1);
         }
         return true;
     }
@@ -345,15 +344,15 @@ bool necro_build_bind_closure_type(NecroClosureConversion* cc, NecroBuildBindClo
         builder->arity++;
         NecroType* left_type = fun_left;
         if (left_type->type == NECRO_TYPE_FUN)
-            left_type = necro_create_type_con(cc->infer, cc->prim_types->closure_type, necro_create_type_list(cc->infer, fun_left, NULL), 1);
+            left_type = necro_type_con_create(&cc->arena, cc->base->closure_type, necro_type_list_create(&cc->arena, fun_left, NULL), 1);
         if (builder->closure_type == NULL)
         {
-            builder->closure_type_head = necro_create_type_fun(cc->infer, left_type, NULL);
+            builder->closure_type_head = necro_type_fn_create(&cc->arena, left_type, NULL);
             builder->closure_type      = builder->closure_type_head;
         }
         else
         {
-            builder->closure_type->fun.type2 = necro_create_type_fun(cc->infer, left_type, NULL);
+            builder->closure_type->fun.type2 = necro_type_fn_create(&cc->arena, left_type, NULL);
             builder->closure_type            = builder->closure_type->fun.type2;
         }
         builder->expr = builder->expr->lambda.expr;
@@ -374,7 +373,7 @@ NecroCoreAST_Expression* necro_closure_conversion_bind(NecroClosureConversion* c
         NecroTypeClassContext* context = normal_type->for_all.context;
         while (context != NULL)
         {
-            if (necro_build_bind_closure_type(cc, &builder, necro_symtable_get(cc->symtable, cc->prim_types->any_type.id)->type, NULL))
+            if (necro_build_bind_closure_type(cc, &builder, cc->base->poly_type.ast_data->type, NULL))
                 assert(false); // Should never be possible
             context = context->next;
         }
@@ -432,21 +431,22 @@ void necro_build_data_closure_type(NecroClosureConversion* cc, NecroBuildDataCon
     NecroCoreAST_Expression* left_arg  = necro_closure_conversion_go(cc, builder->in_con_args->list.expr);
     if (left_type->type == NECRO_TYPE_FUN)
     {
-        left_type = necro_create_type_con(cc->infer, cc->prim_types->closure_type, necro_create_type_list(cc->infer, fun_left, NULL), 1);
-        left_arg  = necro_create_core_app(&cc->arena, necro_create_core_var(&cc->arena, necro_con_to_var(cc->prim_types->closure_type)), left_arg);
+        left_type = necro_type_con_create(&cc->arena, cc->base->closure_type, necro_type_list_create(&cc->arena, fun_left, NULL), 1);
+        // TODO: Fix with new base and NecroAstSymbol systems!
+        // left_arg  = necro_create_core_app(&cc->arena, necro_create_core_var(&cc->arena, cc->base->closure_type), left_arg);
     }
     if (left_arg != NULL)
         left_arg->necro_type = left_type;
     if (builder->closure_type == NULL)
     {
-        builder->closure_type_head = necro_create_type_fun(cc->infer, left_type, NULL);
+        builder->closure_type_head = necro_type_fn_create(&cc->arena, left_type, NULL);
         builder->closure_type      = builder->closure_type_head;
         builder->con_args_head     = necro_create_core_list(&cc->arena, left_arg, NULL);
         builder->con_args          = builder->con_args_head;
     }
     else
     {
-        builder->closure_type->fun.type2 = necro_create_type_fun(cc->infer, left_type, NULL);
+        builder->closure_type->fun.type2 = necro_type_fn_create(&cc->arena, left_type, NULL);
         builder->closure_type            = builder->closure_type->fun.type2;
         builder->con_args->list.next     = necro_create_core_list(&cc->arena, left_arg, NULL);
         builder->con_args                = builder->con_args->list.next;
@@ -591,7 +591,8 @@ NecroCoreAST_Expression* necro_closure_conversion_app(NecroClosureConversion* cc
             result = necro_create_core_app(&cc->arena, result, args->data);
             args = args->next;
         }
-        result = necro_create_core_app(&cc->arena, necro_create_core_var(&cc->arena, necro_con_to_var(cc->prim_types->apply_fn)), result);
+        // TODO: Fix with new base and NecroAstSymbol systems!
+        // result = necro_create_core_app(&cc->arena, necro_create_core_var(&cc->arena, necro_con_to_var(cc->prim_types->apply_fn)), result);
 
         while (args != NULL)
         {

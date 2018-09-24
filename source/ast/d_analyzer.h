@@ -12,6 +12,34 @@
 #include "symtable.h"
 #include "ast.h"
 
-void necro_dependency_analyze(NecroCompileInfo info, NecroIntern* intern, NecroAstArena* ast_arena);
+// Dependency analysis
+typedef struct NecroDependencyList
+{
+    struct NecroDeclarationGroup* dependency_group;
+    struct NecroDependencyList*   next;
+} NecroDependencyList;
+
+typedef struct NecroDeclarationGroup
+{
+    NecroAst*                     declaration_ast;
+    struct NecroDeclarationGroup* next;
+    NecroDependencyList*          dependency_list;
+    struct NecroDeclarationsInfo* info;
+    bool                          type_checked;
+    int32_t                       index;
+    int32_t                       low_link;
+    bool                          on_stack;
+} NecroDeclarationGroup;
+
+typedef struct NecroDeclarationGroupList
+{
+    NecroDeclarationGroup*            declaration_group;
+    struct NecroDeclarationGroupList* next;
+} NecroDeclarationGroupList;
+
+NECRO_DECLARE_VECTOR(NecroDeclarationGroup*, NecroDeclarationGroup, declaration_group)
+
+NecroDeclarationGroup* necro_declaration_group_append(NecroPagedArena* arena, NecroAst* declaration_ast, NecroDeclarationGroup* head);
+void                   necro_dependency_analyze(NecroCompileInfo info, NecroIntern* intern, NecroAstArena* ast_arena);
 
 #endif // D_ANALYZER_H

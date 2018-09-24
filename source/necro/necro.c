@@ -45,10 +45,6 @@ int main(int32_t argc, char** argv)
         {
             necro_test(NECRO_TEST_INFER);
         }
-        else if (strcmp(argv[2], "symtable") == 0)
-        {
-            necro_test(NECRO_TEST_SYMTABLE);
-        }
         else if (strcmp(argv[2], "lexer") == 0)
         {
             necro_test(NECRO_TEST_LEXER);
@@ -118,6 +114,10 @@ int main(int32_t argc, char** argv)
             else if (argc > 2 && strcmp(argv[2], "-infer") == 0)
             {
                 necro_compile(file_name, str, length, NECRO_PHASE_INFER, NECRO_OPT_OFF);
+            }
+            else if (argc > 2 && strcmp(argv[2], "-type_class") == 0)
+            {
+                necro_compile(file_name, str, length, NECRO_PHASE_TYPE_CLASS_TRANSLATE, NECRO_OPT_OFF);
             }
             else if (argc > 2 && strcmp(argv[2], "-core") == 0)
             {

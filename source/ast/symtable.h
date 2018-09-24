@@ -32,6 +32,7 @@ struct NecroTypeClassInstance;
 struct NecroNodePrototype;
 struct NecroCoreAST_Expression;
 struct NecroMachineAST;
+struct NecroDeclarationGroup;
 
 typedef struct
 {
@@ -43,7 +44,7 @@ typedef struct
     struct NecroScope*              scope;
     NecroAst*                       ast;
     struct NecroCoreAST_Expression* core_ast;
-    NecroDeclarationGroup*          declaration_group;
+    struct NecroDeclarationGroup*   declaration_group;
     NecroAst*                       optional_type_signature;
     NecroType*                      type;
     NecroType*                      closure_type;
@@ -73,8 +74,8 @@ NecroSymTable    necro_symtable_create(NecroIntern* intern);
 void             necro_symtable_destroy(NecroSymTable* table);
 NecroID          necro_symtable_insert(NecroSymTable* table, NecroSymbolInfo info);
 NecroSymbolInfo* necro_symtable_get(NecroSymTable* table, NecroID id);
-void             necro_symtable_print(NecroSymTable* table);
-void             necro_symtable_test();
+// void             necro_symtable_print(NecroSymTable* table);
+// void             necro_symtable_test();
 NecroSymbolInfo  necro_symtable_create_initial_symbol_info(NecroSymbol symbol, NecroSourceLoc source_loc, struct NecroScope* scope);
 void             necro_symtable_print_env(NecroSymTable* table, NecroInfer* infer);
 

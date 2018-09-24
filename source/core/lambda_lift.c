@@ -33,7 +33,6 @@ typedef struct NecroLambdaLift
     NecroSymTable*              symtable;
     NecroScopedSymTable*        scoped_symtable;
     NecroPrimTypes*             prim_types;
-    NecroInfer*                 infer;
     NecroCoreAST_Expression*    lift_point;
     size_t                      num_anon_functions;
     NecroVarTable               lifted_env;
@@ -48,7 +47,7 @@ NecroCoreAST_Expression* necro_lambda_lift_pat_go(NecroLambdaLift* ll, NecroCore
 ///////////////////////////////////////////////////////
 // Lambda Lifting
 ///////////////////////////////////////////////////////
-NecroCoreAST necro_lambda_lift(NecroCoreAST* in_ast, NecroIntern* intern, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types, NecroInfer* infer)
+NecroCoreAST necro_lambda_lift(NecroCoreAST* in_ast, NecroIntern* intern, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types)
 {
     // Init
     NecroLambdaLift ll = (NecroLambdaLift)
@@ -60,7 +59,6 @@ NecroCoreAST necro_lambda_lift(NecroCoreAST* in_ast, NecroIntern* intern, NecroS
         .symtable           = symtable,
         .scoped_symtable    = scoped_symtable,
         .prim_types         = prim_types,
-        .infer              = infer,
         .lift_point         = NULL,
         .num_anon_functions = 0,
         .lifted_env         = necro_create_var_table(),
@@ -395,7 +393,7 @@ NecroCoreAST_Expression* necro_lambda_lift_lambda(NecroLambdaLift* ll, NecroCore
     {
         NecroVar env_var = necro_find_free_var(ll, env, outer, free_vars->data);
         expr_ast     = necro_create_core_lam(&ll->arena, necro_create_core_var(&ll->arena, env_var), expr_ast);
-        s_info->type = necro_create_type_fun(ll->infer, necro_symtable_get(ll->symtable, free_vars->data.id)->type, s_info->type);
+        s_info->type = necro_type_fn_create(&ll->arena, necro_symtable_get(ll->symtable, free_vars->data.id)->type, s_info->type);
         // if (prev_outer != NULL && necro_is_free_var(ll, prev_env, prev_outer, free_vars->data))
         // {
         //     // prev_outer->free_vars = necro_cons_var_list(&ll->arena, free_vars->data, prev_outer->free_vars);
@@ -449,7 +447,7 @@ NecroCoreAST_Expression* necro_lambda_lift_bind(NecroLambdaLift* ll, NecroCoreAS
         {
             NecroVar env_var = necro_find_free_var(ll, env, outer, free_vars->data);
             expr_ast     = necro_create_core_lam(&ll->arena, necro_create_core_var(&ll->arena, env_var), expr_ast);
-            s_info->type = necro_create_type_fun(ll->infer, necro_symtable_get(ll->symtable, free_vars->data.id)->type, s_info->type);
+            s_info->type = necro_type_fn_create(&ll->arena, necro_symtable_get(ll->symtable, free_vars->data.id)->type, s_info->type);
             // if (prev_outer != NULL && necro_is_free_var(ll, prev_env, prev_outer, free_vars->data))
             // {
             //     // prev_outer->free_vars = necro_cons_var_list(&ll->arena, free_vars->data, prev_outer->free_vars);

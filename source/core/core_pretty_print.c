@@ -122,7 +122,8 @@ void necro_core_pretty_print_go(NecroCoreAST_Expression* ast, NecroSymTable* sym
     }
     case NECRO_CORE_EXPR_DATA_DECL:
     {
-        necro_print_type_sig_go(necro_symtable_get(symtable, ast->data_decl.data_id.id)->type, intern);
+        // TODO: Redo with new NecroAstSymbol system
+        // necro_type_sig_print_go(necro_symtable_get(symtable, ast->data_decl.data_id.id)->type, intern);
         printf(" = ");
         NecroCoreAST_Expression con;
         con.expr_type = NECRO_CORE_EXPR_DATA_CON;
@@ -170,15 +171,16 @@ void necro_core_pretty_print_go(NecroCoreAST_Expression* ast, NecroSymTable* sym
             {
                 // printf("%s.%d :: ", necro_intern_get_string(intern, ast->list.expr->bind.var.symbol), ast->list.expr->bind.var.id.id);
                 printf("%s :: ", ast->list.expr->bind.var.symbol->str);
-                NecroSymbolInfo* info = necro_symtable_get(symtable, ast->list.expr->bind.var.id);
-                if (info->closure_type != NULL)
-                {
-                    necro_print_type_sig_go(info->closure_type, intern);
-                }
-                else
-                {
-                    necro_print_type_sig_go(info->type, intern);
-                }
+                // TODO: Redo with new NecroAstSymbol system!
+                // NecroSymbolInfo* info = necro_symtable_get(symtable, ast->list.expr->bind.var.id);
+                // if (info->closure_type != NULL)
+                // {
+                //     necro_type_sig_print_go(info->closure_type);
+                // }
+                // else
+                // {
+                //     necro_type_sig_print_go(info->type, intern);
+                // }
                 // printf("\n    (arity = %d, isRecursive = %s)\n", info->arity, ast->list.expr->bind.is_recursive ? "true" : "false");
                 printf("\n");
                 print_white_space(depth);
@@ -214,9 +216,11 @@ void necro_core_pretty_print_go(NecroCoreAST_Expression* ast, NecroSymTable* sym
     }
     case NECRO_CORE_EXPR_TYPE:
         printf("(");
-        necro_print_type_sig_go(ast->type.type, intern);
+        necro_type_sig_print_go(ast->type.type);
         printf(")");
         return;
-    default:                        assert(false && "Unimplemented AST type in necro_core_pretty_print_go"); return;
+    default:
+        assert(false && "Unimplemented AST type in necro_core_pretty_print_go");
+        return;
     }
 }

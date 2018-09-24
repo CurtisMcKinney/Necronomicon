@@ -120,111 +120,111 @@ NecroSymbolInfo* necro_symtable_get(NecroSymTable* table, NecroID id)
     }
 }
 
-void necro_symtable_info_print(NecroSymbolInfo info, NecroIntern* intern, size_t whitespace)
-{
-    print_white_space(whitespace);
-    printf("NecroSymbolInfo\n");
+// void necro_symtable_info_print(NecroSymbolInfo info, size_t whitespace)
+// {
+//     print_white_space(whitespace);
+//     printf("NecroSymbolInfo\n");
 
-    print_white_space(whitespace);
-    printf("{\n");
+//     print_white_space(whitespace);
+//     printf("{\n");
 
-    print_white_space(whitespace + 4);
-    printf("name:       %s\n", info.name->str);
+//     print_white_space(whitespace + 4);
+//     printf("name:       %s\n", info.name->str);
 
-    print_white_space(whitespace + 4);
-    printf("id:         %d\n", info.id.id);
+//     print_white_space(whitespace + 4);
+//     printf("id:         %d\n", info.id.id);
 
-    // print_white_space(whitespace + 4);
-    // printf("size:       %d\n", info.data_size);
+//     // print_white_space(whitespace + 4);
+//     // printf("size:       %d\n", info.data_size);
 
-    print_white_space(whitespace + 4);
-    printf("source loc: { line: %zu, character: %zu, pos: %zu }\n", info.source_loc.line, info.source_loc.character, info.source_loc.pos);
+//     print_white_space(whitespace + 4);
+//     printf("source loc: { line: %zu, character: %zu, pos: %zu }\n", info.source_loc.line, info.source_loc.character, info.source_loc.pos);
 
-    print_white_space(whitespace + 4);
-    printf("scope:      %p\n", info.scope);
+//     print_white_space(whitespace + 4);
+//     printf("scope:      %p\n", info.scope);
 
-    print_white_space(whitespace + 4);
-    printf("sig:        %p\n", info.optional_type_signature);
+//     print_white_space(whitespace + 4);
+//     printf("sig:        %p\n", info.optional_type_signature);
 
-    if (info.type != NULL)
-    {
-        print_white_space(whitespace + 4);
-        printf("type:       ");
-        necro_print_type_sig(info.type, intern);
-        // printf("\n");
-    }
+//     if (info.type != NULL)
+//     {
+//         print_white_space(whitespace + 4);
+//         printf("type:       ");
+//         necro_type_sig_print(info.type);
+//         // printf("\n");
+//     }
 
-    print_white_space(whitespace + 4);
-    if (info.method_type_class != NULL)
-        printf("is_method:  true\n");
-    else
-        printf("is_method:  false\n");
+//     print_white_space(whitespace + 4);
+//     if (info.method_type_class != NULL)
+//         printf("is_method:  true\n");
+//     else
+//         printf("is_method:  false\n");
 
-    print_white_space(whitespace);
-    printf("}\n");
-}
+//     print_white_space(whitespace);
+//     printf("}\n");
+// }
 
-void necro_symtable_print(NecroSymTable* table)
-{
-    printf("NecroSymTable\n{\n");
-    printf("    size:  %zu\n", table->size);
-    printf("    count: %zu\n", table->count);
-    printf("    data:\n");
-    printf("    [\n");
-    for (size_t i = 0; i < table->count; ++i)
-    {
-        necro_symtable_info_print(table->data[i], table->intern, 8);
-    }
-    printf("    ]\n");
-    printf("}\n");
-}
+// void necro_symtable_print(NecroSymTable* table)
+// {
+//     printf("NecroSymTable\n{\n");
+//     printf("    size:  %zu\n", table->size);
+//     printf("    count: %zu\n", table->count);
+//     printf("    data:\n");
+//     printf("    [\n");
+//     for (size_t i = 0; i < table->count; ++i)
+//     {
+//         necro_symtable_info_print(table->data[i], table->intern, 8);
+//     }
+//     printf("    ]\n");
+//     printf("}\n");
+// }
 
-void necro_symtable_test()
-{
-    puts("---------------------------");
-    puts("-- NecroSymTable");
-    puts("---------------------------\n");
+// void necro_symtable_test()
+// {
+//     puts("---------------------------");
+//     puts("-- NecroSymTable");
+//     puts("---------------------------\n");
 
-    NecroIntern     intern       = necro_intern_create();
-    NecroSymTable   symtable     = necro_symtable_create(&intern);
+//     NecroIntern     intern       = necro_intern_create();
+//     NecroSymTable   symtable     = necro_symtable_create(&intern);
 
-    // Symbol 1 test
-    NecroSymbol     test_symbol1 = necro_intern_string(&intern, "test1");
-    NecroSymbolInfo info1        = { .type = { 0},.name = test_symbol1,.id = { 0 }, };
-    NecroID         id1          = necro_symtable_insert(&symtable, info1);
+//     // Symbol 1 test
+//     NecroSymbol     test_symbol1 = necro_intern_string(&intern, "test1");
+//     NecroSymbolInfo info1        = { .type = { 0},.name = test_symbol1,.id = { 0 }, };
+//     NecroID         id1          = necro_symtable_insert(&symtable, info1);
 
-    // Symbol 2 test
-    NecroSymbol     test_symbol2 = necro_intern_string(&intern, "fuck off!");
-    NecroSymbolInfo info2        = { .type = { 0},.name = test_symbol2,.id = { 0 }, };
-    NecroID         id2          = necro_symtable_insert(&symtable, info2);
+//     // Symbol 2 test
+//     NecroSymbol     test_symbol2 = necro_intern_string(&intern, "fuck off!");
+//     NecroSymbolInfo info2        = { .type = { 0},.name = test_symbol2,.id = { 0 }, };
+//     NecroID         id2          = necro_symtable_insert(&symtable, info2);
 
-    // necro_symtable_print(&symtable);
+//     // necro_symtable_print(&symtable);
 
-    NecroSymbolInfo* info1_test = necro_symtable_get(&symtable, id1);
-    if (info1_test != NULL && info1_test->name == info1.name)
-    {
-        printf("Symbol1 test: passed\n");
-    }
-    else
-    {
-        printf("Symbol1 test: failed\n");
-    }
+//     NecroSymbolInfo* info1_test = necro_symtable_get(&symtable, id1);
+//     if (info1_test != NULL && info1_test->name == info1.name)
+//     {
+//         printf("Symbol1 test: passed\n");
+//     }
+//     else
+//     {
+//         printf("Symbol1 test: failed\n");
+//     }
 
-    NecroSymbolInfo* info2_test = necro_symtable_get(&symtable, id2);
-    if (info2_test != NULL && info2_test->name == info2.name)
-    {
-        printf("Symbol2 test: passed\n");
-    }
-    else
-    {
-        printf("Symbol2 test: failed\n");
-    }
+//     NecroSymbolInfo* info2_test = necro_symtable_get(&symtable, id2);
+//     if (info2_test != NULL && info2_test->name == info2.name)
+//     {
+//         printf("Symbol2 test: passed\n");
+//     }
+//     else
+//     {
+//         printf("Symbol2 test: failed\n");
+//     }
 
-    necro_symtable_destroy(&symtable);
-    necro_intern_destroy(&intern);
+//     necro_symtable_destroy(&symtable);
+//     necro_intern_destroy(&intern);
 
-    necro_scoped_symtable_test();
-}
+//     necro_scoped_symtable_test();
+// }
 
 //=====================================================
 // NecroScopedSymTable
@@ -718,7 +718,7 @@ void necro_build_scopes(NecroCompileInfo info, NecroScopedSymTable* table, Necro
         necro_ast_arena_print(ast);
 }
 
-void necro_scope_print(NecroScope* scope, size_t whitespace, NecroIntern* intern, NecroSymTable* global_table)
+void necro_scope_print(NecroScope* scope, size_t whitespace, NecroIntern* intern)
 {
     assert(scope != NULL);
     assert(intern != NULL);
@@ -745,9 +745,10 @@ void necro_scope_print(NecroScope* scope, size_t whitespace, NecroIntern* intern
     {
         if (scope->buckets[bucket].id.id != NECRO_SYMTABLE_NULL_ID.id)
         {
+            // TODO: Replace symtable printing with NecroAstSymbolData printing!
             // print_white_space(whitespace + 8);
-            NecroSymbolInfo info = *necro_symtable_get(global_table, scope->buckets[bucket].id);
-            necro_symtable_info_print(info, intern, whitespace + 8);
+            // NecroSymbolInfo info = *necro_symtable_get(global_table, scope->buckets[bucket].id);
+            // necro_symtable_info_print(info, intern, whitespace + 8);
             // printf("{ name: %s, id: %d }\n", necro_intern_get_string(intern, table->buckets[bucket].symbol), table->buckets[bucket].id.id);
         }
     }
@@ -761,7 +762,7 @@ void necro_scope_print(NecroScope* scope, size_t whitespace, NecroIntern* intern
 
 void necro_scoped_symtable_print_type_scope(NecroScopedSymTable* table)
 {
-    necro_scope_print(table->top_type_scope, 8, table->global_table->intern, table->global_table);
+    necro_scope_print(table->top_type_scope, 8, table->global_table->intern);
 }
 
 void necro_scoped_symtable_print(NecroScopedSymTable* table)
@@ -772,7 +773,7 @@ void necro_scoped_symtable_print(NecroScopedSymTable* table)
     NecroScope* current_scope = table->current_scope;
     while (current_scope != NULL)
     {
-        necro_scope_print(current_scope, 8, table->global_table->intern, table->global_table);
+        necro_scope_print(current_scope, 8, table->global_table->intern);
         current_scope = current_scope->parent;
     }
     printf("}\n");
@@ -780,27 +781,29 @@ void necro_scoped_symtable_print(NecroScopedSymTable* table)
 
 void necro_symtable_print_env(NecroSymTable* table, NecroInfer* infer)
 {
+    UNUSED(infer);
+    UNUSED(table);
     printf("\nEnv:\n[\n");
     for (size_t i = 1; i < table->count; ++i)
     {
         printf("    %s", table->data[i].name->str);
-        if (infer->symtable->data[i].type != NULL)
-        {
-            printf(" => ");
-            // if (infer->symtable->data[i].type->type == NECRO_TYPE_CON)
-            // {
-            //     printf(" (kind: %d) ", infer->symtable->data[i].type->con.arity);
-            // }
-            necro_print_type_sig_go(infer->symtable->data[i].type, infer->intern);
-            printf(" :: ");
-            // necro_print_kind(table->data[i].type->kind);
-            necro_print_type_sig_go(infer->symtable->data[i].type->type_kind, infer->intern);
-            printf("\n");
-        }
-        else
-        {
-            printf("\n");
-        }
+        // if (infer->symtable->data[i].type != NULL)
+        // {
+        //     printf(" => ");
+        //     // if (infer->symtable->data[i].type->type == NECRO_TYPE_CON)
+        //     // {
+        //     //     printf(" (kind: %d) ", infer->symtable->data[i].type->con.arity);
+        //     // }
+        //     necro_type_sig_print_go(infer->symtable->data[i].type);
+        //     printf(" :: ");
+        //     // necro_print_kind(table->data[i].type->kind);
+        //     necro_type_sig_print_go(infer->symtable->data[i].type->kind);
+        //     printf("\n");
+        // }
+        // else
+        // {
+        //     printf("\n");
+        // }
     }
     printf("]\n\n");
     // for now turning this off, turn back on for extra debugging
@@ -830,7 +833,7 @@ void necro_symtable_print_env(NecroSymTable* table, NecroInfer* infer)
     //     }
     // }
     // printf("]\n");
-    printf("Total mem usage: %f mb\n", ((float) (sizeof(NecroSymbolInfo) * table->count + sizeof(NecroType) * infer->env.capacity) * 8) / 1000000.0);
+    // printf("Total mem usage: %f mb\n", ((float) (sizeof(NecroSymbolInfo) * table->count + sizeof(NecroType) * infer->env.capacity) * 8) / 1000000.0);
 }
 
 //=====================================================
@@ -944,24 +947,6 @@ void necro_scoped_symtable_test()
 
     necro_symtable_destroy(&symtable);
     necro_intern_destroy(&intern);
-}
-
-NecroSymbolInfo* necro_symtable_get_type_class_declaration_info(NecroSymTable* symtable, NecroAst* ast)
-{
-    assert(ast->type == NECRO_AST_TYPE_CLASS_DECLARATION);
-    uint32_t index = ast->type_class_declaration.tycls->conid.id.id;
-    assert(index > 0);
-    assert(index <= symtable->count);
-    return symtable->data + index;
-}
-
-NecroSymbolInfo* necro_symtable_get_type_class_instance_info(NecroSymTable* symtable, NecroAst* ast)
-{
-    assert(ast->type == NECRO_AST_TYPE_CLASS_INSTANCE);
-    uint32_t index = ast->type_class_instance.instance_id.id;
-    assert(index > 0);
-    assert(index <= symtable->count);
-    return symtable->data + index;
 }
 
 NecroVar necro_scoped_symtable_get_top_level_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name)

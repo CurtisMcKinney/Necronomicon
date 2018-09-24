@@ -30,7 +30,6 @@ typedef struct NecroStateAnalysis
     NecroSymTable*        symtable;
     NecroScopedSymTable*  scoped_symtable;
     NecroPrimTypes*       prim_types;
-    NecroInfer*           infer;
     NecroVar              closure_con;
     NecroVar              null_con;
     NecroVar              dyn_state_con;
@@ -73,7 +72,7 @@ NECRO_STATE_TYPE necro_state_analysis_go(NecroStateAnalysis* sa, NecroCoreAST_Ex
 ///////////////////////////////////////////////////////
 // State Analysis
 ///////////////////////////////////////////////////////
-void necro_state_analysis(NecroCoreAST* in_ast, NecroIntern* intern, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types, NecroInfer* infer)
+void necro_state_analysis(NecroCoreAST* in_ast, NecroIntern* intern, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types)
 {
     NecroStateAnalysis sa = (NecroStateAnalysis)
     {
@@ -82,7 +81,6 @@ void necro_state_analysis(NecroCoreAST* in_ast, NecroIntern* intern, NecroSymTab
         .symtable        = symtable,
         .scoped_symtable = scoped_symtable,
         .prim_types      = prim_types,
-        .infer           = infer,
         .closure_con     = necro_con_to_var(necro_prim_types_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_Closure"))),
         .null_con        = necro_con_to_var(necro_prim_types_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_NullPoly"))),
         .dyn_state_con   = necro_con_to_var(necro_prim_types_get_data_con_from_symbol(prim_types, necro_intern_string(intern, "_DynState"))),

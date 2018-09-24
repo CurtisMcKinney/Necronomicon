@@ -180,10 +180,12 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
         break;
     case NECRO_CORE_EXPR_TYPE:
     {
-        char buf[1024];
-        char* buf_end = necro_snprintf_type_sig(ast_node->type.type, intern, buf, 1024);
-        *buf_end = '\0';
-        printf("(Type: %s)\n", buf);
+        // char buf[1024];
+        // char* buf_end = necro_type_sig_snprintf(ast_node->type.type, intern, buf, 1024);
+        // *buf_end = '\0';
+        // printf("(Type: %s)\n", buf);
+        printf("(Type: ");
+        necro_type_sig_print(ast_node->type.type);
         break;
     }
 

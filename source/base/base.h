@@ -16,6 +16,8 @@ typedef struct NecroBase
 {
     NecroAstArena ast;
 
+    NecroAstSymbol star_kind;
+
     NecroAstSymbol tuple2_con;
     NecroAstSymbol tuple3_con;
     NecroAstSymbol tuple4_con;

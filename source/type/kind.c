@@ -12,31 +12,29 @@
 #include "kind.h"
 #include "base.h"
 
-void necro_rigid_kind_variable_error(NecroInfer* infer, NecroAstSymbol type_var, NecroTypeKind* type, NecroType* macro_type, const char* error_preamble)
+void necro_rigid_kind_variable_error(NecroInfer* infer, NecroAstSymbol* type_var, NecroTypeKind* type, NecroType* macro_type, const char* error_preamble)
 {
     if (necro_is_infer_error(infer))
         return;
     const char* type_name = NULL;
     if (type->type == NECRO_TYPE_CON)
-        type_name = type->con.con_symbol.source_name->str;
+        type_name = type->con.con_symbol->source_name->str;
     else if (type->type == NECRO_TYPE_APP)
         type_name = "TypeApp";
     else if (type->type == NECRO_TYPE_FUN)
         type_name = "(->)";
     else if (type->type == NECRO_TYPE_VAR)
-        type_name = type->var.var_symbol.source_name->str;
+        type_name = type->var.var_symbol->source_name->str;
     else
         assert(false);
-    const char* var_name = type_var.source_name->str;
+    const char* var_name = type_var->source_name->str;
     necro_infer_error(infer, error_preamble, macro_type, "Couldn't match kind \'%s\' with kind \'%s\'.\n\'%s\' is a rigid kind variable bound by a type signature.", var_name, type_name, var_name);
 }
 
-NecroAstSymbol necro_create_star_kind(NecroPagedArena* arena, NecroIntern* intern)
+NecroAstSymbol* necro_create_star_kind(NecroPagedArena* arena, NecroIntern* intern)
 {
     // Add to Base?!?!?! Add to Type namespace!?!?
-    NecroSymbol         star_symbol = necro_intern_string(intern, "Type");
-    NecroAstSymbolData* ast_data    = necro_paged_arena_alloc(arena, sizeof(NecroAstSymbolData));
-    NecroAstSymbol      ast_symbol  = { .name = star_symbol, .source_name = star_symbol, .module_name = necro_intern_string(intern, "Base"), .ast_data = ast_data };
+    NecroAstSymbol*     ast_symbol  = necro_ast_symbol_create(arena, necro_intern_string(intern, "Necro.Base.Type"), necro_intern_string(intern, "Type"), necro_intern_string(intern, "Necro.Base"), NULL);
     NecroType*          star_type   = necro_type_alloc(arena);
     star_type->type                 = NECRO_TYPE_CON;
     star_type->con                  = (NecroTypeCon)
@@ -46,10 +44,9 @@ NecroAstSymbol necro_create_star_kind(NecroPagedArena* arena, NecroIntern* inter
         .arity      = 0,
         .is_class   = false,
     };
-    star_type->kind           = NULL;
-    star_type->pre_supplied   = true;
-    ast_symbol.ast_data->type = star_type;
-    ast_symbol.ast_data->ast  = NULL;
+    star_type->kind         = NULL;
+    star_type->pre_supplied = true;
+    ast_symbol->type        = star_type;
     return ast_symbol;
 }
 
@@ -68,7 +65,7 @@ inline void necro_kind_unify_var(NecroInfer* infer, NecroTypeKind* kind1, NecroT
     switch (kind2->type)
     {
     case NECRO_TYPE_VAR:
-        if (kind1->var.var_symbol.name == kind2->var.var_symbol.name)
+        if (kind1->var.var_symbol->name == kind2->var.var_symbol->name)
             return;
         else if (kind1->var.is_rigid && kind2->var.is_rigid)
             necro_rigid_kind_variable_error(infer, kind1->var.var_symbol, kind2, macro_type, error_preamble);
@@ -166,7 +163,7 @@ inline void necro_kind_unify_con(NecroInfer* infer, NecroTypeKind* kind1, NecroT
             kind2->var.bound = kind1;
         return;
     case NECRO_TYPE_CON:
-        if (kind1->con.con_symbol.name != kind2->con.con_symbol.name)
+        if (kind1->con.con_symbol->name != kind2->con.con_symbol->name)
         {
             // TODO: NecroResultError
             // necro_infer_error(infer, error_preamble, kind2, "Kind error: Attempting to unify two different kinds, Kind1: %s, Kind2: %s", kind1->con.con.symbol->str, kind2->con.con.symbol->str);
@@ -260,7 +257,7 @@ NecroTypeKind* necro_kind_infer(NecroInfer* infer, NecroType* type, NecroType* m
     case NECRO_TYPE_VAR:
     {
         // TODO: Look at cleaning this up
-        NecroAstSymbolData* data = type->var.var_symbol.ast_data;
+        NecroAstSymbol* data = type->var.var_symbol;
         if (data != NULL)
         {
             // assert(symbol_info != NULL);
@@ -291,9 +288,9 @@ NecroTypeKind* necro_kind_infer(NecroInfer* infer, NecroType* type, NecroType* m
     {
         NecroTypeKind* type1_kind = necro_kind_infer(infer, type->fun.type1, macro_type, error_preamble);
         NecroTypeKind* type2_kind = necro_kind_infer(infer, type->fun.type2, macro_type, error_preamble);
-        necro_kind_unify(infer, type1_kind, infer->base->star_kind.ast_data->type, NULL, macro_type, error_preamble);
-        necro_kind_unify(infer, type2_kind, infer->base->star_kind.ast_data->type, NULL, macro_type, error_preamble);
-        type->kind                = infer->base->star_kind.ast_data->type;
+        necro_kind_unify(infer, type1_kind, infer->base->star_kind->type, NULL, macro_type, error_preamble);
+        necro_kind_unify(infer, type2_kind, infer->base->star_kind->type, NULL, macro_type, error_preamble);
+        type->kind                = infer->base->star_kind->type;
         return type->kind;
     }
 
@@ -310,7 +307,7 @@ NecroTypeKind* necro_kind_infer(NecroInfer* infer, NecroType* type, NecroType* m
 
     case NECRO_TYPE_CON:
     {
-        NecroAstSymbolData* data = type->con.con_symbol.ast_data;
+        NecroAstSymbol* data = type->con.con_symbol;
         assert(data != NULL);
         assert(data->type != NULL);
         if (data->type->kind == NULL)
@@ -367,8 +364,8 @@ NecroTypeKind* necro_kind_gen(NecroInfer* infer, NecroTypeKind* kind)
 
     // Default free kind vars to *
     case NECRO_TYPE_VAR:
-        kind->var.bound = infer->base->star_kind.ast_data->type;
-        return infer->base->star_kind.ast_data->type;
+        kind->var.bound = infer->base->star_kind->type;
+        return infer->base->star_kind->type;
 
     case NECRO_TYPE_FUN:
         return necro_type_fn_create(infer->arena, necro_kind_gen(infer, kind->fun.type1), necro_kind_gen(infer, kind->fun.type2));
@@ -398,7 +395,7 @@ NecroTypeKind* necro_kind_gen(NecroInfer* infer, NecroTypeKind* kind)
             args = args->list.next;
         }
         if (args_kinds != NULL)
-            args_kinds->fun.type2 = infer->base->star_kind.ast_data->type;
+            args_kinds->fun.type2 = infer->base->star_kind->type;
         else
             args_head = kind;
             // args_head = infer->star_type_kind;

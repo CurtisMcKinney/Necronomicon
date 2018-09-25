@@ -69,8 +69,7 @@ typedef enum
 
 typedef struct
 {
-    // NecroVar                      var;
-    NecroAstSymbol                var_symbol;
+    NecroAstSymbol*               var_symbol;
     int32_t                       arity;
     bool                          is_rigid;
     bool                          is_type_class_var;
@@ -88,8 +87,7 @@ typedef struct
 
 typedef struct
 {
-    // NecroCon              con;
-    NecroAstSymbol     con_symbol;
+    NecroAstSymbol*    con_symbol;
     struct NecroType*  args;
     size_t             arity;
     bool               is_class;
@@ -109,8 +107,7 @@ typedef struct
 
 typedef struct
 {
-    // NecroVar                      var;
-    NecroAstSymbol                var_symbol;
+    NecroAstSymbol*               var_symbol;
     struct NecroTypeClassContext* context;
     struct NecroType*             type;
 } NecroTypeForAll;
@@ -148,6 +145,7 @@ typedef struct NecroInfer
 //=====================================================
 // API
 //=====================================================
+
 NecroInfer  necro_infer_empty();
 NecroInfer  necro_infer_create(NecroPagedArena* arena, NecroIntern* intern, struct NecroScopedSymTable* scoped_symtable, struct NecroBase* base);
 void        necro_infer_destroy(NecroInfer* infer);
@@ -163,7 +161,7 @@ NecroType*  necro_gen(NecroInfer* infer, NecroType* type, struct NecroScope* sco
 NecroType*  necro_new_name(NecroInfer* infer);
 NecroType*  necro_find(NecroType* type);
 bool        necro_is_bound_in_scope(NecroType* type, struct NecroScope* scope);
-bool        necro_occurs(NecroAstSymbol var_symbol, NecroType* type, NecroType* macro_type, const char* error_preamble);
+bool        necro_occurs(NecroAstSymbol* var_symbol, NecroType* type, NecroType* macro_type, const char* error_preamble);
 NecroType*  necro_curry_con(NecroPagedArena* arena, NecroType* con);
 size_t      necro_type_arity(NecroType* type);
 
@@ -171,33 +169,30 @@ NecroType*  necro_type_duplicate(NecroPagedArena* arena, NecroType* type);
 size_t      necro_type_hash(NecroType* type);
 
 NecroType*  necro_type_alloc(NecroPagedArena* arena);
-NecroType*  necro_type_var_create(NecroPagedArena* arena, NecroAstSymbol var_symbol);
-NecroType*  necro_type_declare(NecroPagedArena* arena, NecroAstSymbol con_symbol, size_t arity);
-NecroType*  necro_type_con_create(NecroPagedArena* arena, NecroAstSymbol con_symbol, NecroType* args, size_t arity);
+NecroType*  necro_type_var_create(NecroPagedArena* arena, NecroAstSymbol* var_symbol);
+NecroType*  necro_type_declare(NecroPagedArena* arena, NecroAstSymbol* con_symbol, size_t arity);
+NecroType*  necro_type_con_create(NecroPagedArena* arena, NecroAstSymbol* con_symbol, NecroType* args, size_t arity);
 NecroType*  necro_type_fn_create(NecroPagedArena* arena, NecroType* type1, NecroType* type2);
 NecroType*  necro_type_app_create(NecroPagedArena* arena, NecroType* type1, NecroType* type2);
 NecroType*  necro_type_list_create(NecroPagedArena* arena, NecroType* item, NecroType* next);
-NecroType*  necro_type_for_all_create(NecroPagedArena* arena, NecroAstSymbol var_symbol, struct NecroTypeClassContext* context, NecroType* type);
+NecroType*  necro_type_for_all_create(NecroPagedArena* arena, NecroAstSymbol* var_symbol, struct NecroTypeClassContext* context, NecroType* type);
 
-NecroType*  necro_type_con1_create(NecroPagedArena* arena,  NecroAstSymbol con_symbol, NecroType* arg1);
-NecroType*  necro_type_con2_create(NecroPagedArena* arena,  NecroAstSymbol con_symbol, NecroType* arg1, NecroType* arg2);
-NecroType*  necro_type_con3_create(NecroPagedArena* arena,  NecroAstSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3);
-NecroType*  necro_type_con4_create(NecroPagedArena* arena,  NecroAstSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4);
-NecroType*  necro_type_con5_create(NecroPagedArena* arena,  NecroAstSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5);
-NecroType*  necro_type_con6_create(NecroPagedArena* arena,  NecroAstSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6);
-NecroType*  necro_type_con7_create(NecroPagedArena* arena,  NecroAstSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7);
-NecroType*  necro_type_con8_create(NecroPagedArena* arena,  NecroAstSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8);
-NecroType*  necro_type_con9_create(NecroPagedArena* arena,  NecroAstSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8, NecroType* arg9);
-NecroType*  necro_type_con10_create(NecroPagedArena* arena, NecroAstSymbol con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8, NecroType* arg9, NecroType* arg10);
+NecroType*  necro_type_con1_create(NecroPagedArena* arena,  NecroAstSymbol* con_symbol, NecroType* arg1);
+NecroType*  necro_type_con2_create(NecroPagedArena* arena,  NecroAstSymbol* con_symbol, NecroType* arg1, NecroType* arg2);
+NecroType*  necro_type_con3_create(NecroPagedArena* arena,  NecroAstSymbol* con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3);
+NecroType*  necro_type_con4_create(NecroPagedArena* arena,  NecroAstSymbol* con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4);
+NecroType*  necro_type_con5_create(NecroPagedArena* arena,  NecroAstSymbol* con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5);
+NecroType*  necro_type_con6_create(NecroPagedArena* arena,  NecroAstSymbol* con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6);
+NecroType*  necro_type_con7_create(NecroPagedArena* arena,  NecroAstSymbol* con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7);
+NecroType*  necro_type_con8_create(NecroPagedArena* arena,  NecroAstSymbol* con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8);
+NecroType*  necro_type_con9_create(NecroPagedArena* arena,  NecroAstSymbol* con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8, NecroType* arg9);
+NecroType*  necro_type_con10_create(NecroPagedArena* arena, NecroAstSymbol* con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8, NecroType* arg9, NecroType* arg10);
 NecroType*  necro_type_tuple_con_create(NecroInfer* infer, NecroType* types_list);
 
 size_t      necro_type_list_count(NecroType* list);
 
-// char*       necro_type_string(NecroInfer* infer, NecroType* type);
 void        necro_type_sig_print(NecroType* type);
 void        necro_type_sig_print_go(NecroType* type);
-// char*       necro_type_sig_snprintf(NecroType* type, char* buffer, const size_t buffer_length);
-// bool        necro_check_and_print_type_error(NecroInfer* infer);
 void        necro_type_test();
 
 #endif // TYPE_H

@@ -41,7 +41,7 @@ typedef struct
     struct NecroAst*              declarations; // Points to the next in the list, null_local_ptr if the end
     struct NecroAst*              dictionary_instance; // Dictionary instance which is generated at compile time by the compiler
     struct NecroDeclarationGroup* declaration_group;
-    NecroAstSymbol                ast_symbol;
+    NecroAstSymbol*               ast_symbol;
 } NecroAstTypeClassInstance;
 
 //=====================================================
@@ -55,6 +55,7 @@ typedef struct
     struct NecroAst*              declarations; // Points to the next in the list, null_local_ptr if the end
     struct NecroAst*              dictionary_data_declaration; // Dictionary data declaration which is generated at compile time by the compiler
     struct NecroDeclarationGroup* declaration_group;
+    NecroAstSymbol*               ast_symbol;
 } NecroAstTypeClassDeclaration;
 
 //=====================================================
@@ -87,6 +88,7 @@ typedef struct
     struct NecroAst*              constructor_list; // Points to the next in the list, null_local_ptr if the end
     struct NecroDeclarationGroup* declaration_group;
     bool                          is_recursive;
+    NecroAstSymbol*               ast_symbol;
 } NecroAstDataDeclaration;
 
 //=====================================================
@@ -128,7 +130,7 @@ typedef struct
     NecroID                       id;
     struct NecroTypeClassContext* inst_context;
     struct NecroType*             op_necro_type;
-    NecroAstSymbol                ast_symbol;
+    NecroAstSymbol*               ast_symbol;
 } NecroAstOpLeftSection;
 
 //=====================================================
@@ -142,7 +144,7 @@ typedef struct
     NecroID                       id;
     struct NecroTypeClassContext* inst_context;
     struct NecroType*             op_necro_type;
-    NecroAstSymbol                ast_symbol;
+    NecroAstSymbol*               ast_symbol;
 } NecroAstOpRightSection;
 
 //=====================================================
@@ -162,7 +164,7 @@ typedef struct
     NecroSymbol              symbol;
     NecroID                  id;
     NECRO_CON_TYPE           con_type;
-    NecroAstSymbol           ast_symbol;
+    NecroAstSymbol*          ast_symbol;
 } NecroAstConId;
 
 //=====================================================
@@ -242,7 +244,7 @@ typedef struct
     NecroSymbol                   symbol;
     NecroID                       id;
     struct NecroTypeClassContext* inst_context;
-    NecroAstSymbol                ast_symbol;
+    NecroAstSymbol*               ast_symbol;
 } NecroAstBinOp;
 
 //=====================================================
@@ -278,13 +280,13 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    NecroSymbol                   variable_name;
+    NecroSymbol                   variable_name; // TODO: Remove
     struct NecroAst*              initializer;
     struct NecroAst*              rhs;
     NecroID                       id;
     struct NecroDeclarationGroup* declaration_group;
     bool                          is_recursive;
-    NecroAstSymbol                ast_symbol;
+    NecroAstSymbol*               ast_symbol;
     struct NecroAst*              optional_type_signature;
 } NecroAstSimpleAssignment;
 
@@ -293,10 +295,10 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    NecroSymbol              variable_name;
+    NecroSymbol              variable_name; // TODO: Remove
     struct NecroAst*         expression;
     NecroID                  id;
-    NecroAstSymbol           ast_symbol;
+    NecroAstSymbol*          ast_symbol;
 } NecroAstBindAssignment;
 
 //=====================================================
@@ -322,12 +324,12 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    NecroSymbol                   variable_name;
+    NecroSymbol                   variable_name; // TODO: Remove
     struct NecroAst*              apats;
     struct NecroAst*              rhs;
     NecroID                       id;
     struct NecroDeclarationGroup* declaration_group;
-    NecroAstSymbol                ast_symbol;
+    NecroAstSymbol*               ast_symbol;
     struct NecroAst*              optional_type_signature;
 } NecroAstApatsAssignment;
 
@@ -406,13 +408,13 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    NecroSymbol                   symbol;
+    NecroSymbol                   symbol; // TODO: Remove
     NecroID                       id;
     NECRO_VAR_TYPE                var_type;
     struct NecroTypeClassContext* inst_context;
     struct NecroAst*              initializer;
     bool                          is_recursive;
-    NecroAstSymbol                ast_symbol;
+    NecroAstSymbol*               ast_symbol;
 } NecroAstVariable;
 
 //=====================================================

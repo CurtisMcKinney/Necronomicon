@@ -210,12 +210,12 @@ NecroType* necro_type_to_closure_type(NecroClosureConversion* cc, NecroType* typ
         {
             if (new_type_head == NULL)
             {
-                new_type_head = necro_type_fn_create(&cc->arena, cc->base->poly_type.ast_data->type, NULL);
+                new_type_head = necro_type_fn_create(&cc->arena, cc->base->poly_type->type, NULL);
                 new_type_curr = new_type_head;
             }
             else
             {
-                new_type_curr->fun.type2 = necro_type_fn_create(&cc->arena, cc->base->poly_type.ast_data->type, NULL);
+                new_type_curr->fun.type2 = necro_type_fn_create(&cc->arena, cc->base->poly_type->type, NULL);
                 new_type_curr            = new_type_curr->fun.type2;
             }
             context = context->next;
@@ -373,7 +373,7 @@ NecroCoreAST_Expression* necro_closure_conversion_bind(NecroClosureConversion* c
         NecroTypeClassContext* context = normal_type->for_all.context;
         while (context != NULL)
         {
-            if (necro_build_bind_closure_type(cc, &builder, cc->base->poly_type.ast_data->type, NULL))
+            if (necro_build_bind_closure_type(cc, &builder, cc->base->poly_type->type, NULL))
                 assert(false); // Should never be possible
             context = context->next;
         }

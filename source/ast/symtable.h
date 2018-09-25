@@ -86,7 +86,7 @@ typedef struct NecroScopedHashtableNode
 {
     NecroSymbol              symbol;
     NecroID                  id;
-    NecroAstSymbol           ast_symbol;
+    NecroAstSymbol*          ast_symbol;
 } NecroScopeNode;
 
 typedef struct NecroScope
@@ -96,7 +96,6 @@ typedef struct NecroScope
     NecroScopeNode*    id_buckets;
     size_t             size;
     size_t             count;
-    // NecroID            last_introduced_id;
     NecroSymbol        last_introduced_symbol;
 } NecroScope;
 
@@ -108,7 +107,7 @@ typedef struct NecroScopedSymTable
     NecroScope*      current_scope;
     NecroScope*      top_type_scope;
     NecroScope*      current_type_scope;
-    NecroError       error;
+    NecroError       error; // TODO: REMOVE THIS!
 } NecroScopedSymTable;
 
 NecroScopedSymTable necro_scoped_symtable_empty();
@@ -129,14 +128,12 @@ NecroID             necro_scoped_symtable_new_symbol_info(NecroScopedSymTable* t
 NecroID             necro_symtable_manual_new_symbol(NecroSymTable* symtable, NecroSymbol symbol);
 
 bool                necro_scope_contains(NecroScope* scope, NecroSymbol symbol);
-void                necro_scope_insert_ast_symbol(NecroPagedArena* arena, NecroScope* scope, NecroAstSymbol ast_symbol);
-bool                necro_scope_find_ast_symbol(NecroScope* scope, NecroSymbol symbol, NecroAstSymbol* out_ast_symbol);
-bool                necro_scope_find_in_this_scope_ast_symbol(NecroScope* scope, NecroSymbol symbol, NecroAstSymbol* out_ast_symbol);
-NecroAstSymbol      necro_symtable_get_top_level_ast_symbol(NecroScopedSymTable* scoped_symtable, NecroSymbol symbol);
-NecroAstSymbol      necro_symtable_get_type_ast_symbol(NecroScopedSymTable* scoped_symtable, NecroSymbol symbol);
+void                necro_scope_insert_ast_symbol(NecroPagedArena* arena, NecroScope* scope, NecroAstSymbol* ast_symbol);
+NecroAstSymbol*     necro_scope_find_ast_symbol(NecroScope* scope, NecroSymbol symbol);
+NecroAstSymbol*     necro_scope_find_in_this_scope_ast_symbol(NecroScope* scope, NecroSymbol symbol);
+NecroAstSymbol*     necro_symtable_get_top_level_ast_symbol(NecroScopedSymTable* scoped_symtable, NecroSymbol symbol);
+NecroAstSymbol*     necro_symtable_get_type_ast_symbol(NecroScopedSymTable* scoped_symtable, NecroSymbol symbol);
 
-NecroSymbolInfo*    necro_symtable_get_type_class_declaration_info(NecroSymTable* symtable, NecroAst* ast);
-NecroSymbolInfo*    necro_symtable_get_type_class_instance_info(NecroSymTable* symtable, NecroAst* ast);
 NecroVar            necro_scoped_symtable_get_top_level_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name);
 NecroVar            necro_scoped_symtable_get_type_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name);
 

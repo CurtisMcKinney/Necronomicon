@@ -106,17 +106,17 @@ typedef struct
 
 typedef struct
 {
-    NecroAstSymbol           ast_symbol;
+    NecroAstSymbol*          ast_symbol;
     NecroSourceLoc           source_loc;
     NecroSourceLoc           end_loc;
 } NecroDefaultAstErrorData;
 
 typedef struct
 {
-    NecroAstSymbol           ast_symbol1;
+    NecroAstSymbol*          ast_symbol1;
     NecroSourceLoc           source_loc1;
     NecroSourceLoc           end_loc1;
-    NecroAstSymbol           ast_symbol2;
+    NecroAstSymbol*          ast_symbol2;
     NecroSourceLoc           source_loc2;
     NecroSourceLoc           end_loc2;
 } NecroDefaultAstErrorData2;
@@ -186,6 +186,8 @@ NECRO_DECLARE_RESULT(size_t);
 NECRO_DECLARE_RESULT(bool);
 struct NecroAst;
 NECRO_DECLARE_PTR_RESULT(NecroAst);
+struct NecroAstSymbol;
+NECRO_DECLARE_PTR_RESULT(NecroAstSymbol);
 
 typedef struct
 {
@@ -208,6 +210,7 @@ typedef union
     NecroResult_size_t                size_t_result;
     NecroResult_NecroParseAstLocalPtr NecroParseAstLocalPtr_result;
     NecroResult_NecroAst              NecroAst_result;
+    NecroResult_NecroAstSymbol        NecroAstSymbol_result;
 } NecroResultUnion;
 
 // TODO: If and when the compiler becomes threaded,
@@ -283,9 +286,9 @@ NecroResult(NecroParseAstLocalPtr) necro_class_expected_right_brace_error(NecroS
 NecroResult(NecroParseAstLocalPtr) necro_instance_expected_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 
 // Rename
-NecroResult(void)                  necro_multiple_definitions_error(NecroAstSymbol ast_symbol1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol ast_symbol2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2);
-NecroResult(void)                  necro_duplicate_type_signatures_error(NecroAstSymbol ast_symbol, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol ast_symbol2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2);
-NecroResult(void)                  necro_not_in_scope_error(NecroAstSymbol ast_symbol, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroAstSymbol)        necro_multiple_definitions_error(NecroAstSymbol* ast_symbol1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2);
+NecroResult(NecroAstSymbol)        necro_duplicate_type_signatures_error(NecroAstSymbol* ast_symbol, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2);
+NecroResult(NecroAstSymbol)        necro_not_in_scope_error(NecroAstSymbol* ast_symbol, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 
 void                               necro_result_error_print(NecroResultError* error, const char* source_str, const char* source_name);
 

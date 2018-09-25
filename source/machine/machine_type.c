@@ -374,7 +374,7 @@ NecroMachineType* necro_type_to_machine_type(NecroMachineProgram* program, Necro
     {
     case NECRO_TYPE_VAR:  return program->necro_poly_type;
     case NECRO_TYPE_LIST: return necro_symtable_get(program->symtable, program->prim_types->list_type.id)->necro_machine_ast->necro_machine_type;
-    case NECRO_TYPE_CON:  return type->con.con_symbol.ast_data->necro_machine_ast->necro_machine_type;
+    case NECRO_TYPE_CON:  return type->con.con_symbol->necro_machine_ast->necro_machine_type;
     case NECRO_TYPE_FUN:  return necro_function_type_to_machine_function_type(program, type);
     case NECRO_TYPE_FOR:
         while (type->type == NECRO_TYPE_FOR)

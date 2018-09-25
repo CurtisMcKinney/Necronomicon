@@ -572,9 +572,9 @@ NecroDecisionTree* necro_finish_compile_pattern_matrix(NecroMachineProgram* prog
     NecroDecisionTree** cases     = necro_paged_arena_alloc(&program->arena, num_cons * sizeof(NecroDecisionTree*));
     NecroCon*           cons      = necro_paged_arena_alloc(&program->arena, num_cons * sizeof(NecroCon));
     // TODO: Redo with new NecroAstSymbol system AND also, wtf why did a regular NecroAst sneak into here, shouldn't this be based off of the NecroCoreAst!?!?!?!
-    NecroAstSymbolData* data      = pattern_type->con.con_symbol.ast_data;
-    NecroAst*           data_cons = data->ast->data_declaration.constructor_list;
-    size_t              con_num   = 0;
+    NecroAstSymbol* data      = pattern_type->con.con_symbol;
+    NecroAst*       data_cons = data->ast->data_declaration.constructor_list;
+    size_t          con_num   = 0;
     while (data_cons != NULL)
     {
         NecroCon pattern_con =
@@ -639,7 +639,7 @@ NecroDecisionTree* necro_compile_pattern_matrix(NecroMachineProgram* program, Ne
                     pattern_type = pattern_type->fun.type2;
                 }
                 assert(pattern_type->type == NECRO_TYPE_CON);
-                num_cons = pattern_type->con.con_symbol.ast_data->con_num;
+                num_cons = pattern_type->con.con_symbol->con_num;
                 return necro_finish_compile_pattern_matrix(program, matrix, top_case_ast, num_drop, num_cons, pattern_type);
             }
             else if (matrix->patterns[r][c]->expr_type == NECRO_CORE_EXPR_LIT)

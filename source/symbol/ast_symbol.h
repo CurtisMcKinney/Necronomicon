@@ -28,8 +28,12 @@ typedef enum
     NECRO_TYPE_DONE
 } NECRO_TYPE_STATUS;
 
-typedef struct
+// Make NecroAstSymbols unique to that identified object and compare NecroAstSymbol pointers directly
+typedef struct NecroAstSymbol
 {
+    NecroSymbol                    name;
+    NecroSymbol                    source_name;
+    NecroSymbol                    module_name;
     struct NecroAst*               ast;
     struct NecroAst*               optional_type_signature;
     struct NecroDeclarationGroup*  declaration_group;
@@ -42,23 +46,9 @@ typedef struct
     struct NecroTypeClass*         type_class;
     struct NecroTypeClassInstance* type_class_instance;
     struct NecroMachineAST*        necro_machine_ast;
-} NecroAstSymbolData;
-
-// name -> unique_name
-// name += module_name
-// Collapse NecroAstSymbolData into NecroAstSymbol and make it a pointer!
-// Make NecroAstSymbols unique to that identified object and compare NecroAstSymbol pointers directly
-typedef struct
-{
-    NecroSymbol         name;
-    NecroSymbol         source_name;
-    NecroSymbol         module_name;
-    NecroAstSymbolData* ast_data;
 } NecroAstSymbol;
 
-static const NecroAstSymbol necro_ast_symbol_empty = { .name = NULL, .source_name = NULL, .module_name = NULL, .ast_data = NULL };
-
-const char*         necro_ast_symbol_most_qualified_name(NecroAstSymbol ast_symbol);
-NecroAstSymbolData* necro_ast_symbol_data_create(NecroPagedArena* arena, struct NecroAst* ast, struct NecroAst* optional_type_signature, struct NecroDeclarationGroup* declaration_group);
+NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name, NecroSymbol source_name, NecroSymbol module_name, struct NecroAst* ast);
+const char*     necro_ast_symbol_most_qualified_name(NecroAstSymbol* ast_symbol);
 
 #endif // NECRO_AST_SYMBOL_H

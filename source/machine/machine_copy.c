@@ -142,7 +142,7 @@ size_t necro_create_data_info(NecroMachineProgram* program, NecroType* type)
     if (type_data->data_id != NECRO_NULL_DATA_ID)
         return type_data->data_id;
     // TODO: Redo with NecroAstSymbol system, also WTF is a regular NecroAst doing in here, should be based off of NecroCoreAst!!!!
-    NecroAst* data_declaraction_ast = type->con.con_symbol.ast_data->ast;
+    NecroAst* data_declaraction_ast = type->con.con_symbol->ast;
     NecroAst* constructor_ast_list  = data_declaraction_ast->data_declaration.constructor_list;
     assert(constructor_ast_list != NULL);
     bool          is_tagged_union       = constructor_ast_list->list.next_item != NULL;

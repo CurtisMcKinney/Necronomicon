@@ -43,54 +43,63 @@ void necro_swap_renamer_class_symbol(NecroRenamer* renamer)
 
 }
 
-NecroAstSymbol necro_get_unique_name(NecroAstArena* ast_arena, NecroIntern* intern, NECRO_NAMESPACE_TYPE namespace_type, NECRO_MANGLE_TYPE mangle_type, NecroAstSymbol ast_symbol)
+void necro_prepend_module_name_to_name(NecroIntern* intern, NecroAstSymbol* ast_symbol)
 {
-    struct NecroScope* namespace_scope = (namespace_type == NECRO_VALUE_NAMESPACE) ? ast_arena->module_names : ast_arena->module_type_names;
-    while (necro_scope_contains(namespace_scope, ast_symbol.name) || mangle_type == NECRO_MANGLE_NAME)
+    NecroArenaSnapshot snapshot = necro_snapshot_arena_get(&intern->snapshot_arena);
+    ast_symbol->name            = necro_intern_string(intern, necro_snapshot_arena_concat_strings(&intern->snapshot_arena, 3, (const char*[]) { ast_symbol->module_name->str, ".", ast_symbol->name->str }));
+    necro_snapshot_arena_rewind(&intern->snapshot_arena, snapshot);
+}
+
+NecroAstSymbol* necro_get_unique_name(NecroAstArena* ast_arena, NecroIntern* intern, NECRO_NAMESPACE_TYPE namespace_type, NECRO_MANGLE_TYPE mangle_type, NecroAstSymbol* ast_symbol)
+{
+    NecroScope* namespace_scope = (namespace_type == NECRO_VALUE_NAMESPACE) ? ast_arena->module_names : ast_arena->module_type_names;
+    necro_prepend_module_name_to_name(intern, ast_symbol);
+    while (necro_scope_contains(namespace_scope, ast_symbol->name) || mangle_type == NECRO_MANGLE_NAME)
     {
-        mangle_type = NECRO_DONT_MANGLE;
         NecroArenaSnapshot snapshot = necro_snapshot_arena_get(&intern->snapshot_arena);
+        mangle_type = NECRO_DONT_MANGLE;
         ast_arena->clash_suffix++;
         char itoa_buf[16];
-        const char* new_name   = necro_snapshot_arena_concat_strings(&intern->snapshot_arena, 3, (const char*[]) { ast_symbol.name->str, "_", itoa(ast_arena->clash_suffix, itoa_buf, 36) });
-        ast_symbol.name        = necro_intern_string(intern, new_name);
+        const char* new_name = necro_snapshot_arena_concat_strings(&intern->snapshot_arena, 3, (const char*[]) { ast_symbol->name->str, "_", itoa(ast_arena->clash_suffix, itoa_buf, 36) });
+        ast_symbol->name     = necro_intern_string(intern, new_name);
         necro_snapshot_arena_rewind(&intern->snapshot_arena, snapshot);
     }
     necro_scope_insert_ast_symbol(&ast_arena->arena, namespace_scope, ast_symbol);
     return ast_symbol;
 }
 
-NecroResult(void) necro_create_name(NecroAstArena* ast_arena, NecroIntern* intern, NECRO_NAMESPACE_TYPE namespace_type, NECRO_MANGLE_TYPE mangle_type, NecroScope* scope, NecroAstSymbol ast_symbol, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAstSymbol* out_ast_symbol)
+NecroResult(NecroAstSymbol) necro_create_name(NecroAstArena* ast_arena, NecroIntern* intern, NECRO_NAMESPACE_TYPE namespace_type, NECRO_MANGLE_TYPE mangle_type, NecroScope* scope, NecroAstSymbol* ast_symbol, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    assert(ast_symbol.name        != NULL);
-    assert(ast_symbol.source_name != NULL);
-    assert(ast_symbol.module_name != NULL);
-    assert(ast_symbol.ast_data    != NULL);
-    if (necro_scope_find_in_this_scope_ast_symbol(scope, ast_symbol.source_name, out_ast_symbol))
+    assert(ast_symbol              != NULL);
+    assert(ast_symbol->name        != NULL);
+    assert(ast_symbol->source_name != NULL);
+    assert(ast_symbol->module_name != NULL);
+    NecroAstSymbol* out_ast_symbol = necro_scope_find_in_this_scope_ast_symbol(scope, ast_symbol->source_name);
+    if (out_ast_symbol != NULL)
     {
-        assert(out_ast_symbol->ast_data != NULL);
-        assert(out_ast_symbol->ast_data->ast != NULL);
-        return necro_multiple_definitions_error(ast_symbol, source_loc, end_loc, *out_ast_symbol, out_ast_symbol->ast_data->ast->source_loc, out_ast_symbol->ast_data->ast->end_loc);
+        assert(out_ast_symbol->ast != NULL);
+        return necro_multiple_definitions_error(ast_symbol, source_loc, end_loc, out_ast_symbol, out_ast_symbol->ast->source_loc, out_ast_symbol->ast->end_loc);
     }
     else
     {
-        *out_ast_symbol = necro_get_unique_name(ast_arena, intern, namespace_type, mangle_type, ast_symbol);
-        necro_scope_insert_ast_symbol(&ast_arena->arena, scope, *out_ast_symbol);
-        return ok_void();
+        out_ast_symbol = necro_get_unique_name(ast_arena, intern, namespace_type, mangle_type, ast_symbol);
+        necro_scope_insert_ast_symbol(&ast_arena->arena, scope, out_ast_symbol);
+        return ok_NecroAstSymbol(out_ast_symbol);
     }
 }
 
-NecroResult(void) necro_find_name(NecroScope* scope, NecroAstSymbol ast_symbol, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAstSymbol* out_ast_symbol)
+NecroResult(NecroAstSymbol) necro_find_name(NecroScope* scope, NecroSymbol source_name, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    assert(ast_symbol.source_name != NULL);
-    if (necro_scope_find_ast_symbol(scope, ast_symbol.source_name, out_ast_symbol))
+    assert(source_name != NULL);
+    NecroAstSymbol* out_ast_symbol = necro_scope_find_ast_symbol(scope, source_name);
+    if (out_ast_symbol != NULL)
     {
-        assert(out_ast_symbol->ast_data != NULL);
-        return ok_void();
+        return ok_NecroAstSymbol(out_ast_symbol);
     }
     else
     {
-        return necro_not_in_scope_error(ast_symbol, source_loc, end_loc);
+        return necro_not_in_scope_error(NULL, source_loc, end_loc);
+        // return necro_not_in_scope_error(ast_symbol, source_loc, end_loc);
     }
 }
 
@@ -99,10 +108,10 @@ NecroResult(void) necro_find_name(NecroScope* scope, NecroAstSymbol ast_symbol, 
 ///////////////////////////////////////////////////////
 
 // TODO: Error cons
-NecroResult(void) necro_rename_declare(NecroRenamer* renamer, NecroAst* ast)
+NecroResult(NecroAstSymbol) necro_rename_declare(NecroRenamer* renamer, NecroAst* ast)
 {
     if (ast == NULL)
-        return ok_void();
+        return ok_NecroAstSymbol(NULL);
     switch (ast->type)
     {
     case NECRO_AST_UNDEFINED:
@@ -112,90 +121,91 @@ NecroResult(void) necro_rename_declare(NecroRenamer* renamer, NecroAst* ast)
     case NECRO_AST_UN_OP:
         break;
     case NECRO_AST_BIN_OP:
-        necro_try(void, necro_rename_declare(renamer, ast->bin_op.lhs));
-        necro_try(void, necro_rename_declare(renamer, ast->bin_op.rhs));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->bin_op.lhs));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->bin_op.rhs));
         break;
     case NECRO_AST_IF_THEN_ELSE:
-        necro_try(void, necro_rename_declare(renamer, ast->if_then_else.if_expr));
-        necro_try(void, necro_rename_declare(renamer, ast->if_then_else.then_expr));
-        necro_try(void, necro_rename_declare(renamer, ast->if_then_else.else_expr));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->if_then_else.if_expr));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->if_then_else.then_expr));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->if_then_else.else_expr));
         break;
     case NECRO_AST_TOP_DECL:
-        necro_try(void, necro_rename_declare(renamer, ast->top_declaration.declaration));
-        necro_try(void, necro_rename_declare(renamer, ast->top_declaration.next_top_decl));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->top_declaration.declaration));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->top_declaration.next_top_decl));
         break;
     case NECRO_AST_DECL:
-        necro_try(void, necro_rename_declare(renamer, ast->declaration.declaration_impl));
-        necro_try(void, necro_rename_declare(renamer, ast->declaration.next_declaration));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->declaration.declaration_impl));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->declaration.next_declaration));
         break;
 
     case NECRO_AST_SIMPLE_ASSIGNMENT:
         if (renamer->current_class_instance_symbol != NULL)
-            ast->simple_assignment.ast_symbol.name = necro_intern_create_type_class_instance_symbol(renamer->intern, ast->simple_assignment.ast_symbol.source_name, renamer->current_class_instance_symbol);
+            ast->simple_assignment.ast_symbol->name = necro_intern_create_type_class_instance_symbol(renamer->intern, ast->simple_assignment.ast_symbol->source_name, renamer->current_class_instance_symbol);
         else
-            ast->simple_assignment.ast_symbol.name = ast->simple_assignment.ast_symbol.source_name;
-        ast->simple_assignment.ast_symbol.ast_data->ast = ast;
-        ast->simple_assignment.ast_symbol.module_name   = renamer->ast_arena->module_name;
-        ast->scope->last_introduced_symbol = NULL;
-        necro_try(void, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_VALUE_NAMESPACE, NECRO_DONT_MANGLE, ast->scope, ast->simple_assignment.ast_symbol, ast->source_loc, ast->end_loc, &ast->simple_assignment.ast_symbol));
+            ast->simple_assignment.ast_symbol->name = ast->simple_assignment.ast_symbol->source_name;
+        // TODO: NECRO_DONT_MANGLE vs NECRO_MANGLE should be based on if its on the top level.
+        //       IF ITS NOT IT SHOULD BE MANGLED!!!!
+        ast->simple_assignment.ast_symbol->ast         = ast;
+        ast->simple_assignment.ast_symbol->module_name = renamer->ast_arena->module_name;
+        ast->scope->last_introduced_symbol             = NULL;
+        ast->simple_assignment.ast_symbol              = necro_try(NecroAstSymbol, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_VALUE_NAMESPACE, NECRO_DONT_MANGLE, ast->scope, ast->simple_assignment.ast_symbol, ast->source_loc, ast->end_loc));
         necro_swap_renamer_class_symbol(renamer);
-        necro_try(void, necro_rename_declare(renamer, ast->simple_assignment.initializer));
-        necro_try(void, necro_rename_declare(renamer, ast->simple_assignment.rhs));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->simple_assignment.initializer));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->simple_assignment.rhs));
         necro_swap_renamer_class_symbol(renamer);
         break;
 
     case NECRO_AST_APATS_ASSIGNMENT:
         if (renamer->current_class_instance_symbol != NULL)
-            ast->apats_assignment.ast_symbol.name = necro_intern_create_type_class_instance_symbol(renamer->intern, ast->apats_assignment.ast_symbol.source_name, renamer->current_class_instance_symbol);
+            ast->apats_assignment.ast_symbol->name = necro_intern_create_type_class_instance_symbol(renamer->intern, ast->apats_assignment.ast_symbol->source_name, renamer->current_class_instance_symbol);
         else
-            ast->apats_assignment.ast_symbol.name = ast->apats_assignment.ast_symbol.source_name;
-        ast->apats_assignment.ast_symbol.ast_data->ast = ast;
-        ast->apats_assignment.ast_symbol.module_name   = renamer->ast_arena->module_name;
-        NecroAstSymbol ast_symbol2;
-        if (necro_scope_find_in_this_scope_ast_symbol(ast->scope, ast->apats_assignment.ast_symbol.source_name, &ast_symbol2))
+            ast->apats_assignment.ast_symbol->name = ast->apats_assignment.ast_symbol->source_name;
+        ast->apats_assignment.ast_symbol->ast         = ast;
+        ast->apats_assignment.ast_symbol->module_name = renamer->ast_arena->module_name;
+        necro_prepend_module_name_to_name(renamer->intern, ast->apats_assignment.ast_symbol);
+        NecroAstSymbol* ast_symbol2                   = necro_scope_find_in_this_scope_ast_symbol(ast->scope, ast->apats_assignment.ast_symbol->source_name);
+        if (ast_symbol2 != NULL)
         {
             // Multi-line definition
-            if (ast_symbol2.name == ast->scope->last_introduced_symbol)
+            if (ast_symbol2->name == ast->scope->last_introduced_symbol)
             {
                 ast->apats_assignment.ast_symbol = ast_symbol2;
             }
             // Multiple Definitions error
             else
             {
-                assert(ast_symbol2.ast_data != NULL);
-                assert(ast_symbol2.ast_data->ast != NULL);
-                return necro_multiple_definitions_error(ast->apats_assignment.ast_symbol, ast->source_loc, ast->end_loc, ast_symbol2, ast_symbol2.ast_data->ast->source_loc, ast_symbol2.ast_data->ast->end_loc);
+                assert(ast_symbol2->ast != NULL);
+                return necro_multiple_definitions_error(ast->apats_assignment.ast_symbol, ast->source_loc, ast->end_loc, ast_symbol2, ast_symbol2->ast->source_loc, ast_symbol2->ast->end_loc);
             }
         }
         else
         {
-            // ast->apats_assignment.ast_symbol   = necro_get_unique_name(renamer->ast_arena, renamer->intern, NECRO_VALUE_NAMESPACE, ast->apats_assignment.ast_symbol);
             necro_scope_insert_ast_symbol(&renamer->ast_arena->arena, ast->scope, ast->apats_assignment.ast_symbol);
-            ast->scope->last_introduced_symbol = ast->apats_assignment.ast_symbol.name;
+            ast->scope->last_introduced_symbol = ast->apats_assignment.ast_symbol->name;
         }
         necro_swap_renamer_class_symbol(renamer);
-        necro_try(void, necro_rename_declare(renamer, ast->apats_assignment.apats));
-        necro_try(void, necro_rename_declare(renamer, ast->apats_assignment.rhs));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->apats_assignment.apats));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->apats_assignment.rhs));
         necro_swap_renamer_class_symbol(renamer);
         break;
 
     case NECRO_AST_PAT_ASSIGNMENT:
         renamer->state = NECRO_RENAME_PAT_ASSIGNMENT;
-        necro_try(void, necro_rename_declare(renamer, ast->pat_assignment.pat));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->pat_assignment.pat));
         renamer->state = NECRO_RENAME_NORMAL;
-        necro_try(void, necro_rename_declare(renamer, ast->pat_assignment.rhs));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->pat_assignment.rhs));
         break;
     case NECRO_AST_RIGHT_HAND_SIDE:
-        necro_try(void, necro_rename_declare(renamer, ast->right_hand_side.declarations));
-        necro_try(void, necro_rename_declare(renamer, ast->right_hand_side.expression));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->right_hand_side.declarations));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->right_hand_side.expression));
         break;
     case NECRO_AST_LET_EXPRESSION:
-        necro_try(void, necro_rename_declare(renamer, ast->let_expression.declarations));
-        necro_try(void, necro_rename_declare(renamer, ast->let_expression.expression));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->let_expression.declarations));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->let_expression.expression));
         break;
     case NECRO_AST_FUNCTION_EXPRESSION:
-        necro_try(void, necro_rename_declare(renamer, ast->fexpression.aexp));
-        necro_try(void, necro_rename_declare(renamer, ast->fexpression.next_fexpression));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->fexpression.aexp));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->fexpression.next_fexpression));
         break;
 
     case NECRO_AST_VARIABLE:
@@ -204,37 +214,35 @@ NecroResult(void) necro_rename_declare(NecroRenamer* renamer, NecroAst* ast)
         case NECRO_VAR_VAR: break;
         case NECRO_VAR_SIG: ast->scope->last_introduced_symbol = NULL; break;
         case NECRO_VAR_DECLARATION:
-            ast->variable.ast_symbol.ast_data->ast = ast;
-            ast->variable.ast_symbol.name          = ast->variable.ast_symbol.source_name;
-            ast->variable.ast_symbol.module_name   = renamer->ast_arena->module_name;
-            necro_try(void, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_VALUE_NAMESPACE, (renamer->state == NECRO_RENAME_PAT_ASSIGNMENT) ? NECRO_DONT_MANGLE : NECRO_MANGLE_NAME, ast->scope, ast->variable.ast_symbol, ast->source_loc, ast->end_loc, &ast->variable.ast_symbol));
+            ast->variable.ast_symbol->ast         = ast;
+            ast->variable.ast_symbol->name        = ast->variable.ast_symbol->source_name;
+            ast->variable.ast_symbol->module_name = renamer->ast_arena->module_name;
+            ast->variable.ast_symbol              = necro_try(NecroAstSymbol, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_VALUE_NAMESPACE, (renamer->state == NECRO_RENAME_PAT_ASSIGNMENT) ? NECRO_DONT_MANGLE : NECRO_MANGLE_NAME, ast->scope, ast->variable.ast_symbol, ast->source_loc, ast->end_loc));
             break;
         case NECRO_VAR_TYPE_VAR_DECLARATION:
-            ast->variable.ast_symbol.ast_data->ast = ast;
-            ast->variable.ast_symbol.name          = ast->variable.ast_symbol.source_name;
-            ast->variable.ast_symbol.module_name   = renamer->ast_arena->module_name;
-            necro_try(void, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_TYPE_NAMESPACE, NECRO_MANGLE_NAME, ast->scope, ast->variable.ast_symbol, ast->source_loc, ast->end_loc, &ast->variable.ast_symbol));
+            ast->variable.ast_symbol->ast         = ast;
+            ast->variable.ast_symbol->name        = ast->variable.ast_symbol->source_name;
+            ast->variable.ast_symbol->module_name = renamer->ast_arena->module_name;
+            ast->variable.ast_symbol              = necro_try(NecroAstSymbol, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_TYPE_NAMESPACE, NECRO_MANGLE_NAME, ast->scope, ast->variable.ast_symbol, ast->source_loc, ast->end_loc));
             break;
         case NECRO_VAR_CLASS_SIG:
-            ast->scope->last_introduced_symbol     = NULL;
-            ast->variable.ast_symbol.ast_data->ast = ast;
-            ast->variable.ast_symbol.name          = ast->variable.ast_symbol.source_name;
-            ast->variable.ast_symbol.module_name   = renamer->ast_arena->module_name;
-            necro_try(void, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_VALUE_NAMESPACE, NECRO_DONT_MANGLE, ast->scope, ast->variable.ast_symbol, ast->source_loc, ast->end_loc, &ast->variable.ast_symbol));
-            if (ast->variable.ast_symbol.ast_data->optional_type_signature != NULL)
-                return necro_duplicate_type_signatures_error(ast->variable.ast_symbol, renamer->current_type_sig_ast->source_loc, renamer->current_type_sig_ast->end_loc, ast->variable.ast_symbol, ast->variable.ast_symbol.ast_data->optional_type_signature->source_loc, ast->variable.ast_symbol.ast_data->optional_type_signature->end_loc);
+            ast->scope->last_introduced_symbol    = NULL;
+            ast->variable.ast_symbol->ast         = ast;
+            ast->variable.ast_symbol->name        = ast->variable.ast_symbol->source_name;
+            ast->variable.ast_symbol->module_name = renamer->ast_arena->module_name;
+            ast->variable.ast_symbol              = necro_try(NecroAstSymbol, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_VALUE_NAMESPACE, NECRO_DONT_MANGLE, ast->scope, ast->variable.ast_symbol, ast->source_loc, ast->end_loc));
+            if (ast->variable.ast_symbol->optional_type_signature != NULL)
+                return necro_duplicate_type_signatures_error(ast->variable.ast_symbol, renamer->current_type_sig_ast->source_loc, renamer->current_type_sig_ast->end_loc, ast->variable.ast_symbol, ast->variable.ast_symbol->optional_type_signature->source_loc, ast->variable.ast_symbol->optional_type_signature->end_loc);
             else
-                ast->variable.ast_symbol.ast_data->optional_type_signature = renamer->current_type_sig_ast;
+                ast->variable.ast_symbol->optional_type_signature = renamer->current_type_sig_ast;
             break;
         case NECRO_VAR_TYPE_FREE_VAR:
-            if (!necro_scope_find_ast_symbol(ast->scope, ast->variable.ast_symbol.source_name, &ast->variable.ast_symbol))
+            if ((ast->variable.ast_symbol = necro_scope_find_ast_symbol(ast->scope, ast->variable.ast_symbol->source_name)) == NULL)
             {
                 if (renamer->state == NECRO_RENAME_NORMAL)
                 {
-                    ast->variable.ast_symbol.ast_data->ast = ast;
-                    ast->variable.ast_symbol.name          = ast->variable.ast_symbol.source_name;
-                    ast->variable.ast_symbol.module_name   = renamer->ast_arena->module_name;
-                    necro_try(void, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_TYPE_NAMESPACE, NECRO_MANGLE_NAME, ast->scope, ast->variable.ast_symbol, ast->source_loc, ast->end_loc, &ast->variable.ast_symbol));
+                    ast->variable.ast_symbol = necro_ast_symbol_create(&renamer->ast_arena->arena, ast->variable.symbol, ast->variable.symbol, renamer->ast_arena->module_name, ast);
+                    ast->variable.ast_symbol = necro_try(NecroAstSymbol, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_TYPE_NAMESPACE, NECRO_MANGLE_NAME, ast->scope, ast->variable.ast_symbol, ast->source_loc, ast->end_loc));
                 }
                 else
                 {
@@ -248,53 +256,53 @@ NecroResult(void) necro_rename_declare(NecroRenamer* renamer, NecroAst* ast)
         break;
 
     case NECRO_AST_APATS:
-        necro_try(void, necro_rename_declare(renamer, ast->apats.apat));
-        necro_try(void, necro_rename_declare(renamer, ast->apats.next_apat));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->apats.apat));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->apats.next_apat));
         break;
     case NECRO_AST_WILDCARD:
         break;
     case NECRO_AST_LAMBDA:
-        necro_try(void, necro_rename_declare(renamer, ast->lambda.apats));
-        necro_try(void, necro_rename_declare(renamer, ast->lambda.expression));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->lambda.apats));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->lambda.expression));
         break;
     case NECRO_AST_DO:
-        necro_try(void, necro_rename_declare(renamer, ast->do_statement.statement_list));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->do_statement.statement_list));
         break;
     case NECRO_AST_LIST_NODE:
-        necro_try(void, necro_rename_declare(renamer, ast->list.item));
-        necro_try(void, necro_rename_declare(renamer, ast->list.next_item));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->list.item));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->list.next_item));
         break;
     case NECRO_AST_EXPRESSION_LIST:
-        necro_try(void, necro_rename_declare(renamer, ast->expression_list.expressions));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->expression_list.expressions));
         break;
     case NECRO_AST_EXPRESSION_ARRAY:
-        necro_try(void, necro_rename_declare(renamer, ast->expression_array.expressions));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->expression_array.expressions));
         break;
     case NECRO_AST_PAT_EXPRESSION:
-        necro_try(void, necro_rename_declare(renamer, ast->pattern_expression.expressions));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->pattern_expression.expressions));
         break;
     case NECRO_AST_TUPLE:
-        necro_try(void, necro_rename_declare(renamer, ast->tuple.expressions));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->tuple.expressions));
         break;
     case NECRO_BIND_ASSIGNMENT:
-        necro_try(void, necro_rename_declare(renamer, ast->bind_assignment.expression));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->bind_assignment.expression));
         break;
     case NECRO_PAT_BIND_ASSIGNMENT:
-        necro_try(void, necro_rename_declare(renamer, ast->pat_bind_assignment.pat));
-        necro_try(void, necro_rename_declare(renamer, ast->pat_bind_assignment.expression));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->pat_bind_assignment.pat));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->pat_bind_assignment.expression));
         break;
     case NECRO_AST_ARITHMETIC_SEQUENCE:
-        necro_try(void, necro_rename_declare(renamer, ast->arithmetic_sequence.from));
-        necro_try(void, necro_rename_declare(renamer, ast->arithmetic_sequence.then));
-        necro_try(void, necro_rename_declare(renamer, ast->arithmetic_sequence.to));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->arithmetic_sequence.from));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->arithmetic_sequence.then));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->arithmetic_sequence.to));
         break;
     case NECRO_AST_CASE:
-        necro_try(void, necro_rename_declare(renamer, ast->case_expression.expression));
-        necro_try(void, necro_rename_declare(renamer, ast->case_expression.alternatives));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->case_expression.expression));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->case_expression.alternatives));
         break;
     case NECRO_AST_CASE_ALTERNATIVE:
-        necro_try(void, necro_rename_declare(renamer, ast->case_alternative.pat));
-        necro_try(void, necro_rename_declare(renamer, ast->case_alternative.body));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->case_alternative.pat));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->case_alternative.body));
         break;
 
     case NECRO_AST_CONID:
@@ -305,112 +313,112 @@ NecroResult(void) necro_rename_declare(NecroRenamer* renamer, NecroAst* ast)
         case NECRO_CON_TYPE_VAR:
             break;
         case NECRO_CON_TYPE_DECLARATION:
-            ast->scope->last_introduced_symbol  = NULL;
-            ast->conid.ast_symbol.ast_data->ast = ast;
-            ast->conid.ast_symbol.name          = ast->conid.ast_symbol.source_name;
-            ast->conid.ast_symbol.module_name   = renamer->ast_arena->module_name;
-            necro_try(void, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_TYPE_NAMESPACE, NECRO_DONT_MANGLE, renamer->scoped_symtable->top_type_scope, ast->conid.ast_symbol, ast->source_loc, ast->end_loc, &ast->conid.ast_symbol));
+            ast->scope->last_introduced_symbol = NULL;
+            ast->conid.ast_symbol->ast         = ast;
+            ast->conid.ast_symbol->name        = ast->conid.ast_symbol->source_name;
+            ast->conid.ast_symbol->module_name = renamer->ast_arena->module_name;
+            ast->conid.ast_symbol              = necro_try(NecroAstSymbol, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_TYPE_NAMESPACE, NECRO_DONT_MANGLE, renamer->scoped_symtable->top_type_scope, ast->conid.ast_symbol, ast->source_loc, ast->end_loc));
             break;
         case NECRO_CON_DATA_DECLARATION:
-            ast->scope->last_introduced_symbol  = NULL;
-            ast->conid.ast_symbol.ast_data->ast = ast;
-            ast->conid.ast_symbol.name          = ast->conid.ast_symbol.source_name;
-            ast->conid.ast_symbol.module_name   = renamer->ast_arena->module_name;
-            necro_try(void, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_VALUE_NAMESPACE, NECRO_DONT_MANGLE, renamer->scoped_symtable->top_scope, ast->conid.ast_symbol, ast->source_loc, ast->end_loc, &ast->conid.ast_symbol));
+            ast->scope->last_introduced_symbol = NULL;
+            ast->conid.ast_symbol->ast         = ast;
+            ast->conid.ast_symbol->name        = ast->conid.ast_symbol->source_name;
+            ast->conid.ast_symbol->module_name = renamer->ast_arena->module_name;
+            ast->conid.ast_symbol              = necro_try(NecroAstSymbol, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_VALUE_NAMESPACE, NECRO_DONT_MANGLE, renamer->scoped_symtable->top_scope, ast->conid.ast_symbol, ast->source_loc, ast->end_loc));
             break;
         }
         break;
 
     case NECRO_AST_TYPE_APP:
-        necro_try(void, necro_rename_declare(renamer, ast->type_app.ty));
-        necro_try(void, necro_rename_declare(renamer, ast->type_app.next_ty));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->type_app.ty));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->type_app.next_ty));
         break;
     case NECRO_AST_BIN_OP_SYM:
-        necro_try(void, necro_rename_declare(renamer, ast->bin_op_sym.left));
-        necro_try(void, necro_rename_declare(renamer, ast->bin_op_sym.op));
-        necro_try(void, necro_rename_declare(renamer, ast->bin_op_sym.right));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->bin_op_sym.left));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->bin_op_sym.op));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->bin_op_sym.right));
         break;
     case NECRO_AST_OP_LEFT_SECTION:
-        necro_try(void, necro_rename_declare(renamer, ast->op_left_section.left));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->op_left_section.left));
         break;
     case NECRO_AST_OP_RIGHT_SECTION:
-        necro_try(void, necro_rename_declare(renamer, ast->op_right_section.right));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->op_right_section.right));
         break;
     case NECRO_AST_CONSTRUCTOR:
-        necro_try(void, necro_rename_declare(renamer, ast->constructor.conid));
-        necro_try(void, necro_rename_declare(renamer, ast->constructor.arg_list));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->constructor.conid));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->constructor.arg_list));
         break;
     case NECRO_AST_SIMPLE_TYPE:
-        necro_try(void, necro_rename_declare(renamer, ast->simple_type.type_con));
-        necro_try(void, necro_rename_declare(renamer, ast->simple_type.type_var_list));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->simple_type.type_con));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->simple_type.type_var_list));
         break;
 
     case NECRO_AST_DATA_DECLARATION:
         ast->scope->last_introduced_symbol = NULL;
-        necro_try(void, necro_rename_declare(renamer, ast->data_declaration.simpletype));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->data_declaration.simpletype));
         // TODO: Better distinctions between var types. I.e. be really specific about the usage.
         renamer->state = NECRO_RENAME_DATA;
-        necro_try(void, necro_rename_declare(renamer, ast->data_declaration.constructor_list));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->data_declaration.constructor_list));
         renamer->state = NECRO_RENAME_NORMAL;
         break;
 
     case NECRO_AST_TYPE_CLASS_DECLARATION:
         ast->scope->last_introduced_symbol = NULL;
-        necro_try(void, necro_rename_declare(renamer, ast->type_class_declaration.tycls));
-        necro_try(void, necro_rename_declare(renamer, ast->type_class_declaration.tyvar));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->type_class_declaration.tycls));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->type_class_declaration.tyvar));
         renamer->state = NECRO_RENAME_TYPECLASS_CONTEXT;
-        necro_try(void, necro_rename_declare(renamer, ast->type_class_declaration.context));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->type_class_declaration.context));
         renamer->state = NECRO_RENAME_NORMAL;
-        necro_try(void, necro_rename_declare(renamer, ast->type_class_declaration.declarations));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->type_class_declaration.declarations));
         break;
 
     case NECRO_AST_TYPE_CLASS_INSTANCE:
         ast->scope->last_introduced_symbol = NULL;
-        necro_try(void, necro_rename_declare(renamer, ast->type_class_instance.qtycls));
-        necro_try(void, necro_rename_declare(renamer, ast->type_class_instance.inst));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->type_class_instance.qtycls));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->type_class_instance.inst));
         renamer->state = NECRO_RENAME_TYPECLASS_CONTEXT;
-        necro_try(void, necro_rename_declare(renamer, ast->type_class_instance.context));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->type_class_instance.context));
         renamer->state = NECRO_RENAME_NORMAL;
         if (ast->type_class_instance.inst->type == NECRO_AST_CONID)
-            renamer->current_class_instance_symbol = ast->type_class_instance.inst->conid.ast_symbol.source_name;
+            renamer->current_class_instance_symbol = ast->type_class_instance.inst->conid.symbol;
         else if (ast->type_class_instance.inst->type == NECRO_AST_CONSTRUCTOR)
-            renamer->current_class_instance_symbol = ast->type_class_instance.inst->constructor.conid->conid.ast_symbol.source_name;
+            renamer->current_class_instance_symbol = ast->type_class_instance.inst->constructor.conid->conid.symbol;
         else
             assert(false);
-        necro_try(void, necro_rename_declare(renamer, ast->type_class_instance.declarations));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->type_class_instance.declarations));
         renamer->current_class_instance_symbol = NULL;
         break;
 
     case NECRO_AST_TYPE_SIGNATURE:
         renamer->current_type_sig_ast = ast;
-        necro_try(void, necro_rename_declare(renamer, ast->type_signature.var));
-        necro_try(void, necro_rename_declare(renamer, ast->type_signature.context));
-        necro_try(void, necro_rename_declare(renamer, ast->type_signature.type));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->type_signature.var));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->type_signature.context));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->type_signature.type));
         break;
 
     case NECRO_AST_TYPE_CLASS_CONTEXT:
-        necro_try(void, necro_rename_declare(renamer, ast->type_class_context.conid));
-        necro_try(void, necro_rename_declare(renamer, ast->type_class_context.varid));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->type_class_context.conid));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->type_class_context.varid));
         break;
     case NECRO_AST_FUNCTION_TYPE:
-        necro_try(void, necro_rename_declare(renamer, ast->function_type.type));
-        necro_try(void, necro_rename_declare(renamer, ast->function_type.next_on_arrow));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->function_type.type));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->function_type.next_on_arrow));
         break;
     default:
         assert(false);
         break;
     }
-    return ok_void();
+    return ok_NecroAstSymbol(NULL);
 }
 
 ///////////////////////////////////////////////////////
 // Var pass
 ///////////////////////////////////////////////////////
 
-NecroResult(void) necro_rename_var(NecroRenamer* renamer, NecroAst* ast)
+NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* ast)
 {
     if (ast == NULL)
-        return ok_void();
+        return ok_NecroAstSymbol(NULL);
     switch (ast->type)
     {
     case NECRO_AST_UNDEFINED:
@@ -420,148 +428,142 @@ NecroResult(void) necro_rename_var(NecroRenamer* renamer, NecroAst* ast)
     case NECRO_AST_UN_OP:
         break;
     case NECRO_AST_BIN_OP:
-        necro_try(void, necro_find_name(ast->scope, ast->bin_op.ast_symbol, ast->source_loc, ast->end_loc, &ast->bin_op.ast_symbol));
-        necro_try(void, necro_rename_var(renamer, ast->bin_op.lhs));
-        necro_try(void, necro_rename_var(renamer, ast->bin_op.rhs));
+        ast->bin_op.ast_symbol = necro_try(NecroAstSymbol, necro_find_name(ast->scope, ast->bin_op.symbol, ast->source_loc, ast->end_loc));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->bin_op.lhs));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->bin_op.rhs));
         break;
     case NECRO_AST_IF_THEN_ELSE:
-        necro_try(void, necro_rename_var(renamer, ast->if_then_else.if_expr));
-        necro_try(void, necro_rename_var(renamer, ast->if_then_else.then_expr));
-        necro_try(void, necro_rename_var(renamer, ast->if_then_else.else_expr));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->if_then_else.if_expr));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->if_then_else.then_expr));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->if_then_else.else_expr));
         break;
     case NECRO_AST_TOP_DECL:
-        necro_try(void, necro_rename_var(renamer, ast->top_declaration.declaration));
-        necro_try(void, necro_rename_var(renamer, ast->top_declaration.next_top_decl));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->top_declaration.declaration));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->top_declaration.next_top_decl));
         break;
     case NECRO_AST_DECL:
-        necro_try(void, necro_rename_var(renamer, ast->declaration.declaration_impl));
-        necro_try(void, necro_rename_var(renamer, ast->declaration.next_declaration));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->declaration.declaration_impl));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->declaration.next_declaration));
         break;
     case NECRO_AST_SIMPLE_ASSIGNMENT:
-        necro_try(void, necro_rename_var(renamer, ast->simple_assignment.initializer));
-        necro_try(void, necro_rename_var(renamer, ast->simple_assignment.rhs));
-        ast->simple_assignment.ast_symbol.ast_data->declaration_group = necro_declaration_group_append(&renamer->ast_arena->arena, ast, ast->simple_assignment.ast_symbol.ast_data->declaration_group);
-        ast->simple_assignment.declaration_group                      = ast->simple_assignment.ast_symbol.ast_data->declaration_group;
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->simple_assignment.initializer));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->simple_assignment.rhs));
+        ast->simple_assignment.ast_symbol->declaration_group = necro_declaration_group_append(&renamer->ast_arena->arena, ast, ast->simple_assignment.ast_symbol->declaration_group);
+        ast->simple_assignment.declaration_group             = ast->simple_assignment.ast_symbol->declaration_group;
         break;
     case NECRO_AST_APATS_ASSIGNMENT:
-        necro_try(void, necro_rename_var(renamer, ast->apats_assignment.apats));
-        necro_try(void, necro_rename_var(renamer, ast->apats_assignment.rhs));
-        ast->apats_assignment.ast_symbol.ast_data->declaration_group = necro_declaration_group_append(&renamer->ast_arena->arena, ast, ast->apats_assignment.ast_symbol.ast_data->declaration_group);
-        ast->apats_assignment.declaration_group                      = ast->apats_assignment.ast_symbol.ast_data->declaration_group;
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->apats_assignment.apats));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->apats_assignment.rhs));
+        ast->apats_assignment.ast_symbol->declaration_group = necro_declaration_group_append(&renamer->ast_arena->arena, ast, ast->apats_assignment.ast_symbol->declaration_group);
+        ast->apats_assignment.declaration_group             = ast->apats_assignment.ast_symbol->declaration_group;
         break;
     case NECRO_AST_PAT_ASSIGNMENT:
         renamer->current_declaration_group    = necro_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
         ast->pat_assignment.declaration_group = renamer->current_declaration_group;
         renamer->state                        = NECRO_RENAME_PAT_ASSIGNMENT;
-        necro_try(void, necro_rename_var(renamer, ast->pat_assignment.pat));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->pat_assignment.pat));
         renamer->current_declaration_group    = NULL;
         renamer->state                        = NECRO_RENAME_NORMAL;
-        necro_try(void, necro_rename_var(renamer, ast->pat_assignment.rhs));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->pat_assignment.rhs));
         break;
     case NECRO_AST_RIGHT_HAND_SIDE:
-        necro_try(void, necro_rename_var(renamer, ast->right_hand_side.declarations));
-        necro_try(void, necro_rename_var(renamer, ast->right_hand_side.expression));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->right_hand_side.declarations));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->right_hand_side.expression));
         break;
     case NECRO_AST_LET_EXPRESSION:
-        necro_try(void, necro_rename_var(renamer, ast->let_expression.declarations));
-        necro_try(void, necro_rename_var(renamer, ast->let_expression.expression));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->let_expression.declarations));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->let_expression.expression));
         break;
     case NECRO_AST_FUNCTION_EXPRESSION:
-        necro_try(void, necro_rename_var(renamer, ast->fexpression.aexp));
-        necro_try(void, necro_rename_var(renamer, ast->fexpression.next_fexpression));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->fexpression.aexp));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->fexpression.next_fexpression));
         break;
 
     case NECRO_AST_VARIABLE:
         switch (ast->variable.var_type)
         {
         case NECRO_VAR_VAR:
-            ast->variable.ast_symbol.ast_data->ast = ast;
-            ast->variable.ast_symbol.name          = ast->variable.ast_symbol.source_name;
-            ast->variable.ast_symbol.module_name   = renamer->ast_arena->module_name;
-            necro_try(void, necro_find_name(ast->scope, ast->variable.ast_symbol, ast->source_loc, ast->end_loc, &ast->variable.ast_symbol));
+            ast->variable.ast_symbol = necro_try(NecroAstSymbol, necro_find_name(ast->scope, ast->variable.symbol, ast->source_loc, ast->end_loc));
             break;
         case NECRO_VAR_SIG:
-            ast->variable.ast_symbol.ast_data->ast = ast;
-            ast->variable.ast_symbol.name          = ast->variable.ast_symbol.source_name;
-            ast->variable.ast_symbol.module_name   = renamer->ast_arena->module_name;
-            necro_try(void, necro_find_name(ast->scope, ast->variable.ast_symbol, ast->source_loc, ast->end_loc, &ast->variable.ast_symbol));
-            if (ast->variable.ast_symbol.ast_data->optional_type_signature != NULL)
-                return necro_duplicate_type_signatures_error(ast->variable.ast_symbol, renamer->current_type_sig_ast->source_loc, renamer->current_type_sig_ast->end_loc, ast->variable.ast_symbol, ast->variable.ast_symbol.ast_data->optional_type_signature->source_loc, ast->variable.ast_symbol.ast_data->optional_type_signature->end_loc);
+            ast->variable.ast_symbol = necro_try(NecroAstSymbol, necro_find_name(ast->scope, ast->variable.symbol, ast->source_loc, ast->end_loc));
+            if (ast->variable.ast_symbol->optional_type_signature != NULL)
+                return necro_duplicate_type_signatures_error(ast->variable.ast_symbol, renamer->current_type_sig_ast->source_loc, renamer->current_type_sig_ast->end_loc, ast->variable.ast_symbol, ast->variable.ast_symbol->optional_type_signature->source_loc, ast->variable.ast_symbol->optional_type_signature->end_loc);
             else
-                ast->variable.ast_symbol.ast_data->optional_type_signature = renamer->current_type_sig_ast;
+                ast->variable.ast_symbol->optional_type_signature = renamer->current_type_sig_ast;
             break;
         case NECRO_VAR_DECLARATION:
             // if we are in a pat_assignment, set our declaration_ast
             if (renamer->current_declaration_group != NULL)
-                ast->variable.ast_symbol.ast_data->declaration_group = renamer->current_declaration_group;
+                ast->variable.ast_symbol->declaration_group = renamer->current_declaration_group;
             break;
         case NECRO_VAR_TYPE_VAR_DECLARATION: break;
         case NECRO_VAR_TYPE_FREE_VAR:        break;
         case NECRO_VAR_CLASS_SIG:            break;
         default: assert(false);
         }
-        necro_try(void, necro_rename_var(renamer, ast->variable.initializer));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->variable.initializer));
         break;
 
     case NECRO_AST_APATS:
-        necro_try(void, necro_rename_var(renamer, ast->apats.apat));
-        necro_try(void, necro_rename_var(renamer, ast->apats.next_apat));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->apats.apat));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->apats.next_apat));
         break;
     case NECRO_AST_WILDCARD:
         break;
     case NECRO_AST_LAMBDA:
-        necro_try(void, necro_rename_var(renamer, ast->lambda.apats));
-        necro_try(void, necro_rename_var(renamer, ast->lambda.expression));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->lambda.apats));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->lambda.expression));
         break;
     case NECRO_AST_DO:
-        necro_try(void, necro_rename_var(renamer, ast->do_statement.statement_list));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->do_statement.statement_list));
         break;
     case NECRO_AST_LIST_NODE:
-        necro_try(void, necro_rename_var(renamer, ast->list.item));
-        necro_try(void, necro_rename_var(renamer, ast->list.next_item));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->list.item));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->list.next_item));
         break;
     case NECRO_AST_EXPRESSION_LIST:
-        necro_try(void, necro_rename_var(renamer, ast->expression_list.expressions));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->expression_list.expressions));
         break;
     case NECRO_AST_EXPRESSION_ARRAY:
-        necro_try(void, necro_rename_var(renamer, ast->expression_array.expressions));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->expression_array.expressions));
         break;
     case NECRO_AST_PAT_EXPRESSION:
-        necro_try(void, necro_rename_var(renamer, ast->pattern_expression.expressions));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->pattern_expression.expressions));
         break;
     case NECRO_AST_TUPLE:
-        necro_try(void, necro_rename_var(renamer, ast->tuple.expressions));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->tuple.expressions));
         break;
     case NECRO_BIND_ASSIGNMENT:
-        necro_try(void, necro_rename_var(renamer, ast->bind_assignment.expression));
-        necro_try(void, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_VALUE_NAMESPACE, NECRO_MANGLE_NAME, ast->scope, ast->bind_assignment.ast_symbol, ast->source_loc, ast->end_loc, &ast->bind_assignment.ast_symbol));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->bind_assignment.expression));
+        ast->bind_assignment.ast_symbol = necro_try(NecroAstSymbol, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_VALUE_NAMESPACE, NECRO_MANGLE_NAME, ast->scope, ast->bind_assignment.ast_symbol, ast->source_loc, ast->end_loc));
         break;
     case NECRO_PAT_BIND_ASSIGNMENT:
-        necro_try(void, necro_rename_var(renamer, ast->pat_bind_assignment.pat));
-        necro_try(void, necro_rename_var(renamer, ast->pat_bind_assignment.expression));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->pat_bind_assignment.pat));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->pat_bind_assignment.expression));
         break;
     case NECRO_AST_ARITHMETIC_SEQUENCE:
-        necro_try(void, necro_rename_var(renamer, ast->arithmetic_sequence.from));
-        necro_try(void, necro_rename_var(renamer, ast->arithmetic_sequence.then));
-        necro_try(void, necro_rename_var(renamer, ast->arithmetic_sequence.to));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->arithmetic_sequence.from));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->arithmetic_sequence.then));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->arithmetic_sequence.to));
         break;
     case NECRO_AST_CASE:
-        necro_try(void, necro_rename_var(renamer, ast->case_expression.expression));
-        necro_try(void, necro_rename_var(renamer, ast->case_expression.alternatives));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->case_expression.expression));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->case_expression.alternatives));
         break;
     case NECRO_AST_CASE_ALTERNATIVE:
-        necro_try(void, necro_rename_var(renamer, ast->case_alternative.pat));
-        necro_try(void, necro_rename_var(renamer, ast->case_alternative.body));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->case_alternative.pat));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->case_alternative.body));
         break;
 
     case NECRO_AST_CONID:
         switch (ast->conid.con_type)
         {
         case NECRO_CON_VAR:
-            necro_try(void, necro_find_name(ast->scope, ast->conid.ast_symbol, ast->source_loc, ast->end_loc, &ast->conid.ast_symbol));
+            ast->conid.ast_symbol = necro_try(NecroAstSymbol, necro_find_name(ast->scope, ast->conid.symbol, ast->source_loc, ast->end_loc));
             break;
         case NECRO_CON_TYPE_VAR:
-            necro_try(void, necro_find_name(renamer->scoped_symtable->top_type_scope, ast->conid.ast_symbol, ast->source_loc, ast->end_loc, &ast->conid.ast_symbol));
+            ast->conid.ast_symbol = necro_try(NecroAstSymbol, necro_find_name(renamer->scoped_symtable->top_type_scope, ast->conid.symbol, ast->source_loc, ast->end_loc));
             break;
         case NECRO_CON_TYPE_DECLARATION: break; //try_find_name(renamer, ast, renamer->scoped_symtable->top_type_scope, &ast->conid.id, ast->conid.symbol); break;
         case NECRO_CON_DATA_DECLARATION: break;
@@ -569,103 +571,89 @@ NecroResult(void) necro_rename_var(NecroRenamer* renamer, NecroAst* ast)
         break;
 
     case NECRO_AST_TYPE_APP:
-        necro_try(void, necro_rename_var(renamer, ast->type_app.ty));
-        necro_try(void, necro_rename_var(renamer, ast->type_app.next_ty));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_app.ty));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_app.next_ty));
         break;
     case NECRO_AST_BIN_OP_SYM:
-        necro_try(void, necro_rename_var(renamer, ast->bin_op_sym.left));
-        necro_try(void, necro_rename_var(renamer, ast->bin_op_sym.op));
-        necro_try(void, necro_rename_var(renamer, ast->bin_op_sym.right));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->bin_op_sym.left));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->bin_op_sym.op));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->bin_op_sym.right));
         break;
     case NECRO_AST_OP_LEFT_SECTION:
-        necro_try(void, necro_rename_var(renamer, ast->op_left_section.left));
-        necro_try(void, necro_find_name(ast->scope, ast->op_left_section.ast_symbol, ast->source_loc, ast->end_loc, &ast->op_left_section.ast_symbol));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->op_left_section.left));
+        ast->op_left_section.ast_symbol = necro_try(NecroAstSymbol, necro_find_name(ast->scope, ast->op_left_section.symbol, ast->source_loc, ast->end_loc));
         break;
     case NECRO_AST_OP_RIGHT_SECTION:
-        necro_try(void, necro_find_name(ast->scope, ast->op_right_section.ast_symbol, ast->source_loc, ast->end_loc, &ast->op_right_section.ast_symbol));
-        necro_try(void, necro_rename_var(renamer, ast->op_right_section.right));
+        ast->op_right_section.ast_symbol = necro_try(NecroAstSymbol, necro_find_name(ast->scope, ast->op_right_section.symbol, ast->source_loc, ast->end_loc));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->op_right_section.right));
         break;
 
     case NECRO_AST_CONSTRUCTOR:
-    {
-        necro_try(void, necro_rename_var(renamer, ast->constructor.conid));
-        necro_try(void, necro_rename_var(renamer, ast->constructor.arg_list));
-        NecroAstSymbol ast_symbol = ast->constructor.conid->conid.ast_symbol;
-        ast_symbol.ast_data->ast  = ast;
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->constructor.conid));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->constructor.arg_list));
         break;
-    }
 
     case NECRO_AST_SIMPLE_TYPE:
-    {
-        necro_try(void, necro_rename_var(renamer, ast->simple_type.type_con));
-        necro_try(void, necro_rename_var(renamer, ast->simple_type.type_var_list));
-        NecroAstSymbol ast_symbol = ast->simple_type.type_con->conid.ast_symbol;
-        ast_symbol.ast_data->ast  = ast;
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->simple_type.type_con));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->simple_type.type_var_list));
         break;
-    }
 
     case NECRO_AST_DATA_DECLARATION:
-    {
-        necro_try(void, necro_rename_var(renamer, ast->data_declaration.simpletype));
-        necro_try(void, necro_rename_var(renamer, ast->data_declaration.constructor_list));
-        NecroAstSymbol ast_symbol               = ast->data_declaration.simpletype->simple_type.type_con->conid.ast_symbol;
-        ast_symbol.ast_data->ast                = ast;
-        ast_symbol.ast_data->declaration_group  = necro_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
-        ast->data_declaration.declaration_group = ast_symbol.ast_data->declaration_group;
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->data_declaration.simpletype));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->data_declaration.constructor_list));
+        ast->data_declaration.ast_symbol                     = ast->data_declaration.simpletype->simple_type.type_con->conid.ast_symbol;
+        ast->data_declaration.ast_symbol->ast                = ast;
+        ast->data_declaration.ast_symbol->declaration_group  = necro_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
+        ast->data_declaration.declaration_group              = ast->data_declaration.ast_symbol->declaration_group;
         break;
-    }
 
     case NECRO_AST_TYPE_CLASS_DECLARATION:
-    {
-        necro_try(void, necro_rename_var(renamer, ast->type_class_declaration.context));
-        necro_try(void, necro_rename_var(renamer, ast->type_class_declaration.tycls));
-        necro_try(void, necro_rename_var(renamer, ast->type_class_declaration.tyvar));
-        necro_try(void, necro_rename_var(renamer, ast->type_class_declaration.declarations));
-        NecroAstSymbol ast_symbol                     = ast->type_class_declaration.tycls->conid.ast_symbol;
-        ast_symbol.ast_data->ast                      = ast;
-        ast_symbol.ast_data->declaration_group        = necro_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
-        ast->type_class_declaration.declaration_group = ast_symbol.ast_data->declaration_group;
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_class_declaration.context));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_class_declaration.tycls));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_class_declaration.tyvar));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_class_declaration.declarations));
+        ast->type_class_declaration.ast_symbol                    = ast->type_class_declaration.tycls->conid.ast_symbol;
+        ast->type_class_declaration.ast_symbol->ast               = ast;
+        ast->type_class_declaration.ast_symbol->declaration_group = necro_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
+        ast->type_class_declaration.declaration_group             = ast->type_class_declaration.ast_symbol->declaration_group;
         break;
-    }
 
     case NECRO_AST_TYPE_CLASS_INSTANCE:
-    {
-        necro_try(void, necro_rename_var(renamer, ast->type_class_instance.context));
-        necro_try(void, necro_rename_var(renamer, ast->type_class_instance.qtycls));
-        necro_try(void, necro_rename_var(renamer, ast->type_class_instance.inst));
-        necro_try(void, necro_rename_var(renamer, ast->type_class_instance.declarations));
-        NecroAstSymbol ast_symbol                  = ast->type_class_instance.ast_symbol;
-        ast_symbol.ast_data->ast                   = ast;
-        ast_symbol.ast_data->declaration_group     = necro_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
-        ast->type_class_instance.declaration_group = ast_symbol.ast_data->declaration_group;
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_class_instance.context));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_class_instance.qtycls));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_class_instance.inst));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_class_instance.declarations));
+        ast->type_class_instance.ast_symbol                    = necro_ast_symbol_create(&renamer->ast_arena->arena, NULL, NULL, renamer->ast_arena->module_name, ast);
+        ast->type_class_instance.ast_symbol->ast               = ast;
+        ast->type_class_instance.ast_symbol->declaration_group = necro_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
+        ast->type_class_instance.declaration_group             = ast->type_class_instance.ast_symbol->declaration_group;
         break;
-    }
 
     case NECRO_AST_TYPE_SIGNATURE:
         // TODO / HACK: Hack with global state. Type signatures are precarious and are being abused by primitives.
         // This should get around some of the hackery. Clean up with proper solution later.
         renamer->current_type_sig_ast = ast;
-        necro_try(void, necro_rename_var(renamer, ast->type_signature.var));
-        necro_try(void, necro_rename_var(renamer, ast->type_signature.context));
-        necro_try(void, necro_rename_var(renamer, ast->type_signature.type));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_signature.var));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_signature.context));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_signature.type));
         ast->type_signature.declaration_group = necro_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
         break;
 
     case NECRO_AST_TYPE_CLASS_CONTEXT:
-        necro_try(void, necro_rename_var(renamer, ast->type_class_context.conid));
-        necro_try(void, necro_rename_var(renamer, ast->type_class_context.varid));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_class_context.conid));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_class_context.varid));
         break;
 
     case NECRO_AST_FUNCTION_TYPE:
-        necro_try(void, necro_rename_var(renamer, ast->function_type.type));
-        necro_try(void, necro_rename_var(renamer, ast->function_type.next_on_arrow));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->function_type.type));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->function_type.next_on_arrow));
         break;
 
     default:
         assert(false);
         break;
     }
-    return ok_void();
+    return ok_NecroAstSymbol(NULL);
 }
 
 NecroResult(void) necro_rename(NecroCompileInfo info, NecroScopedSymTable* scoped_symtable, NecroIntern* intern, NecroAstArena* ast_arena)
@@ -685,7 +673,7 @@ NecroResult(void) necro_rename(NecroCompileInfo info, NecroScopedSymTable* scope
     renamer.current_declaration_group     = NULL;
     renamer.current_type_sig_ast          = NULL;
     renamer.state                         = NECRO_RENAME_NORMAL;
-    necro_try(void, necro_rename_declare(&renamer, ast_arena->root));
+    necro_try_map(NecroAstSymbol, void, necro_rename_declare(&renamer, ast_arena->root));
 
     // Var pass
     renamer.current_class_instance_symbol = NULL;
@@ -693,7 +681,7 @@ NecroResult(void) necro_rename(NecroCompileInfo info, NecroScopedSymTable* scope
     renamer.current_declaration_group     = NULL;
     renamer.current_type_sig_ast          = NULL;
     renamer.state                         = NECRO_RENAME_NORMAL;
-    necro_try(void, necro_rename_var(&renamer, ast_arena->root));
+    necro_try_map(NecroAstSymbol, void, necro_rename_var(&renamer, ast_arena->root));
 
     if (info.compilation_phase == NECRO_PHASE_RENAME && info.verbosity > 0)
         necro_ast_arena_print(ast_arena);

@@ -5,6 +5,7 @@
 
 #include "result.h"
 #include <string.h>
+#include "ast_symbol.h"
 
 NecroResultUnion global_result;
 
@@ -35,7 +36,7 @@ inline NecroResult(NecroParseAstLocalPtr) necro_default_parse_error(NECRO_RESULT
     return (NecroResult(NecroParseAstLocalPtr)) { .error = error, .type = NECRO_RESULT_ERROR };
 }
 
-inline NecroResult(NecroAst) necro_default_ast_error(NECRO_RESULT_ERROR_TYPE type, NecroAstSymbol ast_symbol, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+inline NecroResult(NecroAst) necro_default_ast_error(NECRO_RESULT_ERROR_TYPE type, NecroAstSymbol* ast_symbol, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     NecroResultError* error       = malloc(sizeof(NecroResultError));
     error->type                   = type;
@@ -48,7 +49,7 @@ inline NecroResult(NecroAst) necro_default_ast_error(NECRO_RESULT_ERROR_TYPE typ
     return (NecroResult(NecroAst)) { .error = error, .type = NECRO_RESULT_ERROR };
 }
 
-inline NecroResult(NecroAst) necro_default_ast_error2(NECRO_RESULT_ERROR_TYPE type, NecroAstSymbol ast_symbol1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol ast_symbol2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+inline NecroResult(NecroAst) necro_default_ast_error2(NECRO_RESULT_ERROR_TYPE type, NecroAstSymbol* ast_symbol1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
 {
     NecroResultError* error         = malloc(sizeof(NecroResultError));
     error->type                     = type;
@@ -332,19 +333,19 @@ NecroResult(NecroParseAstLocalPtr) necro_const_con_missing_right_brace(NecroSour
     return necro_default_parse_error(NECRO_PARSE_CONST_CON_MISSING_RIGHT_PAREN, source_loc, end_loc);
 }
 
-NecroResult(void) necro_multiple_definitions_error(NecroAstSymbol ast_symbol1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol ast_symbol2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+NecroResult(NecroAstSymbol) necro_multiple_definitions_error(NecroAstSymbol* ast_symbol1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
 {
-    return necro_error_map(NecroAst, void, necro_default_ast_error2(NECRO_RENAME_MULTIPLE_DEFINITIONS, ast_symbol1, source_loc1, end_loc1, ast_symbol2, source_loc2, end_loc2));
+    return necro_error_map(NecroAst, NecroAstSymbol, necro_default_ast_error2(NECRO_RENAME_MULTIPLE_DEFINITIONS, ast_symbol1, source_loc1, end_loc1, ast_symbol2, source_loc2, end_loc2));
 }
 
-NecroResult(void) necro_duplicate_type_signatures_error(NecroAstSymbol ast_symbol1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol ast_symbol2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+NecroResult(NecroAstSymbol) necro_duplicate_type_signatures_error(NecroAstSymbol* ast_symbol1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
 {
-    return necro_error_map(NecroAst, void, necro_default_ast_error2(NECRO_RENAME_MULTIPLE_TYPE_SIGNATURES, ast_symbol1, source_loc1, end_loc1, ast_symbol2, source_loc2, end_loc2));
+    return necro_error_map(NecroAst, NecroAstSymbol, necro_default_ast_error2(NECRO_RENAME_MULTIPLE_TYPE_SIGNATURES, ast_symbol1, source_loc1, end_loc1, ast_symbol2, source_loc2, end_loc2));
 }
 
-NecroResult(void) necro_not_in_scope_error(NecroAstSymbol ast_symbol, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+NecroResult(NecroAstSymbol) necro_not_in_scope_error(NecroAstSymbol* ast_symbol, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_error_map(NecroAst, void, necro_default_ast_error(NECRO_RENAME_NOT_IN_SCOPE, ast_symbol, source_loc, end_loc));
+    return necro_error_map(NecroAst, NecroAstSymbol, necro_default_ast_error(NECRO_RENAME_NOT_IN_SCOPE, ast_symbol, source_loc, end_loc));
 }
 
 ///////////////////////////////////////////////////////
@@ -435,10 +436,10 @@ void necro_print_default_error_format(const char* error_name, NecroSourceLoc sou
 
 void necro_print_default_ast_error_2_format(
     const char* error_name,
-    NecroAstSymbol ast_symbol1,
+    NecroAstSymbol* ast_symbol1,
     NecroSourceLoc source_loc1,
     NecroSourceLoc end_loc1,
-    NecroAstSymbol ast_symbol2,
+    NecroAstSymbol* ast_symbol2,
     NecroSourceLoc source_loc2,
     NecroSourceLoc end_loc2,
     const char* source_str,

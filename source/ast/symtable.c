@@ -240,7 +240,7 @@ inline NecroScope* necro_scope_create(NecroPagedArena* arena, NecroScope* parent
     scope->count                  = 0;
     scope->last_introduced_symbol = NULL;
     for (size_t bucket = 0; bucket < scope->size; ++bucket)
-        scope->buckets[bucket] = (NecroScopeNode) { .id = NECRO_SYMTABLE_NULL_ID, .symbol = NULL, .ast_symbol = necro_ast_symbol_empty };
+        scope->buckets[bucket] = (NecroScopeNode) { .id = NECRO_SYMTABLE_NULL_ID, .symbol = NULL, .ast_symbol = NULL };
     return scope;
 }
 
@@ -305,24 +305,19 @@ inline void necro_scope_grow(NecroScope* scope, NecroPagedArena* arena)
     assert(scope != NULL);
     assert(scope->buckets != NULL);
     assert(scope->count < scope->size);
-    // printf("GROW\n");
     NecroScopeNode* prev_buckets = scope->buckets;
     size_t          prev_size    = scope->size;
     size_t          prev_count   = scope->count;
     scope->size                 *= 2;
     scope->buckets               = necro_paged_arena_alloc(arena, scope->size * sizeof(NecroScopeNode));
     scope->count                 = 0;
-    // memset(scope->buckets, 0, scope->size * sizeof(NecroScopeNode));
     for (size_t bucket = 0; bucket < scope->size; ++bucket)
-        scope->buckets[bucket] = (NecroScopeNode) { .id = NECRO_SYMTABLE_NULL_ID, .symbol = NULL, .ast_symbol = necro_ast_symbol_empty };
+        scope->buckets[bucket] = (NecroScopeNode) { .id = NECRO_SYMTABLE_NULL_ID, .symbol = NULL, .ast_symbol = NULL };
     for (size_t bucket = 0; bucket < prev_size; ++bucket)
     {
-        // NecroID     id     = prev_buckets[bucket].id;
         NecroSymbol symbol = prev_buckets[bucket].symbol;
         if (symbol == NULL)
-        // if (id.id == NECRO_SYMTABLE_NULL_ID.id)
             continue;
-        // necro_scope_insert(arena, scope, symbol, id);
         necro_scope_insert_ast_symbol(arena, scope, prev_buckets[bucket].ast_symbol);
     }
     assert(scope->count == prev_count);
@@ -354,12 +349,12 @@ void necro_scope_insert(NecroPagedArena* arena, NecroScope* scope, NecroSymbol s
     scope->count++;
 }
 
-void necro_scope_insert_ast_symbol(NecroPagedArena* arena, NecroScope* scope, NecroAstSymbol ast_symbol)
+void necro_scope_insert_ast_symbol(NecroPagedArena* arena, NecroScope* scope, NecroAstSymbol* ast_symbol)
 {
     assert(scope != NULL);
     assert(scope->buckets != NULL);
     assert(scope->count < scope->size);
-    NecroSymbol symbol = ast_symbol.source_name;
+    NecroSymbol symbol = ast_symbol->source_name;
     if (scope->count >= scope->size / 2)
         necro_scope_grow(scope, arena);
     size_t bucket = symbol->hash & (scope->size - 1);
@@ -408,7 +403,7 @@ NecroID necro_scope_find(NecroScope* scope, NecroSymbol symbol)
     return id;
 }
 
-bool necro_scope_find_in_this_scope_ast_symbol(NecroScope* scope, NecroSymbol symbol, NecroAstSymbol* out_ast_symbol)
+NecroAstSymbol* necro_scope_find_in_this_scope_ast_symbol(NecroScope* scope, NecroSymbol symbol)
 {
     assert(scope != NULL);
     assert(scope->buckets != NULL);
@@ -418,32 +413,30 @@ bool necro_scope_find_in_this_scope_ast_symbol(NecroScope* scope, NecroSymbol sy
     {
         if (scope->buckets[bucket].symbol == symbol)
         {
-            *out_ast_symbol = scope->buckets[bucket].ast_symbol;
-            return true;
+            return scope->buckets[bucket].ast_symbol;
         }
     }
-    // *out_ast_symbol = necro_ast_symbol_NecroAst_empty;
-    return false;
+    return NULL;
 }
 
 bool necro_scope_contains(NecroScope* scope, NecroSymbol symbol)
 {
-    NecroAstSymbol ast_symbol;
-    return necro_scope_find_in_this_scope_ast_symbol(scope, symbol, &ast_symbol);
+    return necro_scope_find_in_this_scope_ast_symbol(scope, symbol) != NULL;
 }
 
-bool necro_scope_find_ast_symbol(NecroScope* scope, NecroSymbol symbol, NecroAstSymbol* out_ast_symbol)
+NecroAstSymbol* necro_scope_find_ast_symbol(NecroScope* scope, NecroSymbol symbol)
 {
-    NecroScope* current_scope = scope;
+    NecroScope*     current_scope = scope;
+    NecroAstSymbol* result        = NULL;
     while (current_scope != NULL)
     {
-        if (necro_scope_find_in_this_scope_ast_symbol(current_scope, symbol, out_ast_symbol))
+        if ((result = necro_scope_find_in_this_scope_ast_symbol(current_scope, symbol)) != NULL)
         {
-            return true;
+            return result;
         }
         current_scope = current_scope->parent;
     }
-    return false;
+    return NULL;
 }
 
 NecroID necro_scoped_symtable_new_symbol_info(NecroScopedSymTable* table, NecroScope* scope, NecroSymbolInfo info)
@@ -464,7 +457,7 @@ NecroID necro_symtable_manual_new_symbol(NecroSymTable* symtable, NecroSymbol sy
 //=====================================================
 void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input_node)
 {
-    if (input_node == NULL || scoped_symtable->error.return_code == NECRO_ERROR)
+    if (input_node == NULL)
         return;
     input_node->scope = scoped_symtable->current_scope;
     switch (input_node->type)
@@ -965,16 +958,12 @@ NecroVar necro_scoped_symtable_get_type_symbol_var(NecroScopedSymTable* scoped_s
     return (NecroVar) { .id = id, .symbol = symbol };
 }
 
-NecroAstSymbol necro_symtable_get_top_level_ast_symbol(NecroScopedSymTable* scoped_symtable, NecroSymbol symbol)
+NecroAstSymbol* necro_symtable_get_top_level_ast_symbol(NecroScopedSymTable* scoped_symtable, NecroSymbol symbol)
 {
-    NecroAstSymbol ast_symbol = necro_ast_symbol_empty;
-    necro_scope_find_ast_symbol(scoped_symtable->top_scope, symbol, &ast_symbol);
-    return ast_symbol;
+    return necro_scope_find_ast_symbol(scoped_symtable->top_scope, symbol);
 }
 
-NecroAstSymbol necro_symtable_get_type_ast_symbol(NecroScopedSymTable* scoped_symtable, NecroSymbol symbol)
+NecroAstSymbol* necro_symtable_get_type_ast_symbol(NecroScopedSymTable* scoped_symtable, NecroSymbol symbol)
 {
-    NecroAstSymbol ast_symbol = necro_ast_symbol_empty;
-    necro_scope_find_ast_symbol(scoped_symtable->top_type_scope, symbol, &ast_symbol);
-    return ast_symbol;
+    return necro_scope_find_ast_symbol(scoped_symtable->top_type_scope, symbol);
 }

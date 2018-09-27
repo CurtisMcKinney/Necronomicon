@@ -11,12 +11,12 @@
 #include "utility.h"
 #include "type.h"
 
-typedef NecroType NecroTypeKind;
+struct NecroBase;
 
-NecroAstSymbol* necro_create_star_kind(NecroPagedArena* arena, NecroIntern* intern);
-void            necro_kind_unify(NecroInfer* infer, NecroTypeKind* kind1, NecroTypeKind* kind2, NecroScope* scope, NecroType* macro_type, const char* error_preamble);
-NecroTypeKind*  necro_kind_inst(NecroInfer* infer, NecroTypeKind* kind, NecroScope* scope);
-NecroTypeKind*  necro_kind_gen(NecroInfer* infer, NecroTypeKind* kind);
-NecroTypeKind*  necro_kind_infer(NecroInfer* infer, NecroType* type, NecroType* macro_type, const char* error_preamble);
+NecroAstSymbol*        necro_create_star_kind(NecroPagedArena* arena, NecroIntern* intern);
+
+NecroResult(NecroType) necro_kind_unify(NecroType* kind1, NecroType* kind2, NecroScope* scope);
+NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase* base, NecroType* type);
+NecroType*             necro_kind_gen(NecroPagedArena* arena, struct NecroBase* base, NecroType* kind);
 
 #endif // KIND_H

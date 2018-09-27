@@ -122,7 +122,7 @@ NecroMachineCopyData* necro_machine_copy_table_insert(NecroMachineCopyTable* tab
     copy_data.hash = hash;
     while (table->data[bucket].type != NULL)
     {
-        if (table->data[bucket].hash == hash && necro_exact_unify(table->data[bucket].type, copy_data.type))
+        if (table->data[bucket].hash == hash && necro_type_exact_unify(table->data[bucket].type, copy_data.type))
             return table->data + bucket; // Already in table
         bucket = (bucket + 1) & (table->capacity - 1);
     }
@@ -136,7 +136,7 @@ NecroMachineCopyData* necro_machine_copy_table_insert(NecroMachineCopyTable* tab
 ///////////////////////////////////////////////////////
 size_t necro_create_data_info(NecroMachineProgram* program, NecroType* type)
 {
-    type = necro_find(type);
+    type = necro_type_find(type);
     assert(type->type == NECRO_TYPE_CON);
     NecroMachineCopyData* type_data = necro_machine_copy_table_insert(&program->copy_table, type);
     if (type_data->data_id != NECRO_NULL_DATA_ID)
@@ -152,15 +152,15 @@ size_t necro_create_data_info(NecroMachineProgram* program, NecroType* type)
         UNUSED(arg_list);
         NecroConstructorInfo info         = (NecroConstructorInfo) { .members_offset = program->copy_table.member_map.length, .num_members = 0, .size_in_bytes = sizeof(char*), .is_tagged_union = is_tagged_union, .is_machine_def = false };
         bool                 first_member = true;
-        NecroType*           con_inst     = necro_inst(program->infer, constructor_ast_list->list.item->necro_type, NULL);
+        NecroType*           con_inst     = necro_type_instantiate(program->infer, constructor_ast_list->list.item->necro_type, NULL);
         NecroType*           con_spec     = type;
         NecroType*           con_inst_go  = con_inst;
         while (con_inst_go->type == NECRO_TYPE_FUN)
         {
-            con_spec    = necro_type_fn_create(&program->arena, necro_new_name(program->infer), con_spec);
+            con_spec    = necro_type_fn_create(&program->arena, necro_type_fresh_var(&program->arena), con_spec);
             con_inst_go = con_inst_go->fun.type2;
         }
-        necro_unify(program->infer, con_inst, con_spec, NULL, type, "Compiler bug in machine_copy.c");
+        necro_type_unify(program->infer, con_inst, con_spec, NULL, type, "Compiler bug in machine_copy.c");
         assert(program->infer->error.return_code == NECRO_SUCCESS);
         // Tag
         size_t unboxed_id = NECRO_UNBOXED_DATA_ID;
@@ -170,7 +170,7 @@ size_t necro_create_data_info(NecroMachineProgram* program, NecroType* type)
         // Members
         while (con_spec->type == NECRO_TYPE_FUN)
         {
-            NecroType* member_type    = necro_find(con_spec->fun.type1);
+            NecroType* member_type    = necro_type_find(con_spec->fun.type1);
             size_t     member_data_id = necro_create_data_info(program, member_type);
             if (first_member)
             {
@@ -182,7 +182,7 @@ size_t necro_create_data_info(NecroMachineProgram* program, NecroType* type)
             info.num_members++;
             con_spec = con_spec->fun.type2;
         }
-        assert(necro_exact_unify(con_spec, type));
+        assert(necro_type_exact_unify(con_spec, type));
         size_t constructor_data_id = program->copy_table.data_map.length;
         necro_push_data_map_vector(&program->copy_table.data_map, &info);
         if (type_data->data_id == NECRO_NULL_DATA_ID)

@@ -185,7 +185,7 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
         // *buf_end = '\0';
         // printf("(Type: %s)\n", buf);
         printf("(Type: ");
-        necro_type_sig_print(ast_node->type.type);
+        necro_type_print(ast_node->type.type);
         break;
     }
 

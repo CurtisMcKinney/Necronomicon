@@ -832,6 +832,8 @@ NecroAst* necro_ast_create_conid(NecroPagedArena* arena, NecroIntern* intern, co
     ast->conid.symbol     = necro_intern_string(intern, con_name);
     ast->conid.id         = (NecroID) { 0 };
     ast->conid.con_type   = con_type;
+    ast->source_loc       = NULL_LOC;
+    ast->end_loc          = NULL_LOC;
     switch (ast->conid.con_type)
     {
     case NECRO_CON_VAR:
@@ -856,6 +858,8 @@ NecroAst* necro_ast_create_var(NecroPagedArena* arena, NecroIntern* intern, cons
     ast->variable.inst_context = NULL;
     ast->variable.initializer  = NULL;
     ast->variable.is_recursive = false;
+    ast->source_loc            = NULL_LOC;
+    ast->end_loc               = NULL_LOC;
     switch (ast->variable.var_type)
     {
     case NECRO_VAR_TYPE_FREE_VAR:
@@ -878,6 +882,8 @@ NecroAst* necro_ast_create_list(NecroPagedArena* arena, NecroAst* item, NecroAst
     ast->type           = NECRO_AST_LIST_NODE;
     ast->list.item      = item;
     ast->list.next_item = next;
+    ast->source_loc     = NULL_LOC;
+    ast->end_loc        = NULL_LOC;
     return ast;
 }
 
@@ -912,6 +918,8 @@ NecroAst* necro_ast_create_data_con(NecroPagedArena* arena, NecroIntern* intern,
     ast->type                 = NECRO_AST_CONSTRUCTOR;
     ast->constructor.conid    = necro_ast_create_conid(arena, intern, con_name, NECRO_CON_DATA_DECLARATION);
     ast->constructor.arg_list = arg_list;
+    ast->source_loc           = NULL_LOC;
+    ast->end_loc              = NULL_LOC;
     return ast;
 }
 
@@ -921,6 +929,8 @@ NecroAst* necro_ast_create_simple_type(NecroPagedArena* arena, NecroIntern* inte
     ast->type                      = NECRO_AST_SIMPLE_TYPE;
     ast->simple_type.type_con      = necro_ast_create_conid(arena, intern, simple_type_name, NECRO_CON_TYPE_DECLARATION);
     ast->simple_type.type_var_list = ty_var_list;
+    ast->source_loc                = NULL_LOC;
+    ast->end_loc                   = NULL_LOC;
     return ast;
 }
 
@@ -932,6 +942,8 @@ NecroAst* necro_ast_create_data_declaration(NecroPagedArena* arena, NecroIntern*
     ast->data_declaration.simpletype       = simple_type;
     ast->data_declaration.constructor_list = constructor_list;
     ast->data_declaration.ast_symbol       = NULL;
+    ast->source_loc                        = NULL_LOC;
+    ast->end_loc                           = NULL_LOC;
     return ast;
 }
 
@@ -941,6 +953,8 @@ NecroAst* necro_ast_create_type_app(NecroPagedArena* arena, NecroAst* type1, Nec
     ast->type             = NECRO_AST_TYPE_APP;
     ast->type_app.ty      = type1;
     ast->type_app.next_ty = type2;
+    ast->source_loc       = NULL_LOC;
+    ast->end_loc          = NULL_LOC;
     return ast;
 }
 
@@ -950,6 +964,8 @@ NecroAst* necro_ast_create_type_fn(NecroPagedArena* arena, NecroAst* type1, Necr
     ast->type                        = NECRO_AST_FUNCTION_TYPE;
     ast->function_type.type          = type1;
     ast->function_type.next_on_arrow = type2;
+    ast->source_loc                  = NULL_LOC;
+    ast->end_loc                     = NULL_LOC;
     return ast;
 }
 
@@ -959,6 +975,8 @@ NecroAst* necro_ast_create_fexpr(NecroPagedArena* arena, NecroAst* f_ast, NecroA
     ast->type                         = NECRO_AST_FUNCTION_EXPRESSION;
     ast->fexpression.aexp             = f_ast;
     ast->fexpression.next_fexpression = x_ast;
+    ast->source_loc                   = NULL_LOC;
+    ast->end_loc                      = NULL_LOC;
     return ast;
 }
 
@@ -971,6 +989,8 @@ NecroAst* necro_ast_create_fn_type_sig(NecroPagedArena* arena, NecroIntern* inte
     ast->type_signature.type              = type_ast;
     ast->type_signature.sig_type          = sig_type;
     ast->type_signature.declaration_group = NULL;
+    ast->source_loc                       = NULL_LOC;
+    ast->end_loc                          = NULL_LOC;
     return ast;
 }
 
@@ -985,6 +1005,8 @@ NecroAst* necro_ast_create_type_class(NecroPagedArena* arena, NecroIntern* inter
     ast->type_class_declaration.declaration_group           = NULL;
     ast->type_class_declaration.dictionary_data_declaration = NULL;
     ast->type_class_declaration.ast_symbol                  = NULL;
+    ast->source_loc                                         = NULL_LOC;
+    ast->end_loc                                            = NULL_LOC;
     return ast;
 }
 
@@ -999,6 +1021,8 @@ NecroAst* necro_ast_create_instance(NecroPagedArena* arena, NecroIntern* intern,
     ast->type_class_instance.dictionary_instance  = NULL;
     ast->type_class_declaration.declaration_group = NULL;
     ast->type_class_instance.ast_symbol           = NULL;
+    ast->source_loc                               = NULL_LOC;
+    ast->end_loc                                  = NULL_LOC;
     return ast;
 }
 
@@ -1009,6 +1033,8 @@ NecroAst* necro_ast_create_top_decl(NecroPagedArena* arena, NecroAst* top_level_
     ast->top_declaration.declaration   = top_level_declaration;
     ast->top_declaration.next_top_decl = next;
     ast->top_declaration.group_list    = NULL;
+    ast->source_loc                   = NULL_LOC;
+    ast->end_loc                      = NULL_LOC;
     return ast;
 }
 
@@ -1020,6 +1046,8 @@ NecroAst* necro_ast_create_decl(NecroPagedArena* arena, NecroAst* declaration, N
     ast->declaration.declaration_impl = declaration;
     ast->declaration.next_declaration = next;
     ast->declaration.group_list       = NULL;
+    ast->source_loc                   = NULL_LOC;
+    ast->end_loc                      = NULL_LOC;
     return ast;
 }
 
@@ -1036,6 +1064,8 @@ NecroAst* necro_ast_create_simple_assignment(NecroPagedArena* arena, NecroIntern
     ast->simple_assignment.is_recursive            = false;
     ast->simple_assignment.ast_symbol              = necro_ast_symbol_create(arena, ast->simple_assignment.variable_name, ast->simple_assignment.variable_name, NULL, ast);
     ast->simple_assignment.optional_type_signature = NULL;
+    ast->source_loc                                = NULL_LOC;
+    ast->end_loc                                   = NULL_LOC;
     return ast;
 }
 
@@ -1052,6 +1082,8 @@ NecroAst* necro_ast_create_context(NecroPagedArena* arena, NecroIntern* intern, 
     list_ast->type           = NECRO_AST_LIST_NODE;
     list_ast->list.item      = ast;
     list_ast->list.next_item = next;
+    ast->source_loc          = NULL_LOC;
+    ast->end_loc             = NULL_LOC;
     return list_ast;
 }
 
@@ -1062,6 +1094,8 @@ NecroAst* necro_ast_create_apats(NecroPagedArena* arena, NecroAst* apat_item, Ne
     ast->type            = NECRO_AST_APATS;
     ast->apats.apat      = apat_item;
     ast->apats.next_apat = next_apat;
+    ast->source_loc      = NULL_LOC;
+    ast->end_loc         = NULL_LOC;
     return ast;
 }
 
@@ -1080,6 +1114,8 @@ NecroAst* necro_ast_create_apats_assignment(NecroPagedArena* arena, NecroIntern*
     ast->apats_assignment.declaration_group       = NULL;
     ast->apats_assignment.ast_symbol              = necro_ast_symbol_create(arena, ast->apats_assignment.variable_name, ast->apats_assignment.variable_name, NULL, ast);
     ast->apats_assignment.optional_type_signature = NULL;
+    ast->source_loc                               = NULL_LOC;
+    ast->end_loc                                  = NULL_LOC;
     return ast;
 }
 
@@ -1092,6 +1128,8 @@ NecroAst* necro_ast_create_lambda(NecroPagedArena* arena, NecroAst* apats, Necro
     ast->type              = NECRO_AST_LAMBDA;
     ast->lambda.apats      = apats;
     ast->lambda.expression = expr_ast;
+    ast->source_loc        = NULL_LOC;
+    ast->end_loc           = NULL_LOC;
     return ast;
 }
 
@@ -1102,13 +1140,17 @@ NecroAst* necro_ast_create_rhs(NecroPagedArena* arena, NecroAst* expression, Nec
     ast->type                         = NECRO_AST_RIGHT_HAND_SIDE;
     ast->right_hand_side.expression   = expression;
     ast->right_hand_side.declarations = declarations;
+    ast->source_loc                   = NULL_LOC;
+    ast->end_loc                      = NULL_LOC;
     return ast;
 }
 
 NecroAst* necro_ast_create_wildcard(NecroPagedArena* arena)
 {
-    NecroAst* ast = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type     = NECRO_AST_WILDCARD;
+    NecroAst* ast   = necro_paged_arena_alloc(arena, sizeof(NecroAst));
+    ast->type       = NECRO_AST_WILDCARD;
+    ast->source_loc = NULL_LOC;
+    ast->end_loc    = NULL_LOC;
     return ast;
 }
 
@@ -1125,6 +1167,8 @@ NecroAst* necro_ast_create_bin_op(NecroPagedArena* arena, NecroIntern* intern, c
     ast->bin_op.rhs          = rhs;
     ast->bin_op.inst_context = NULL;
     ast->bin_op.ast_symbol   = NULL;
+    ast->source_loc          = NULL_LOC;
+    ast->end_loc             = NULL_LOC;
     return ast;
 }
 

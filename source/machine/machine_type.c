@@ -338,27 +338,27 @@ NecroType* necro_core_ast_to_necro_type(NecroMachineProgram* program, NecroCoreA
 NecroMachineType* necro_function_type_to_machine_function_type(NecroMachineProgram* program, NecroType* type)
 {
     assert(type != NULL);
-    type = necro_find(type);
+    type = necro_type_find(type);
     assert(type->type == NECRO_TYPE_FUN);
     size_t arg_count = 0;
     size_t arg_index = 0;
     // Count args
-    NecroType* arrows = necro_find(type);
+    NecroType* arrows = necro_type_find(type);
     while (arrows->type == NECRO_TYPE_FUN)
     {
         arg_count++;
         arrows = arrows->fun.type2;
-        arrows = necro_find(arrows);
+        arrows = necro_type_find(arrows);
     }
     NecroMachineType** args = necro_paged_arena_alloc(&program->arena, arg_count * sizeof(NecroMachineType*));
-    arrows = necro_find(type);
+    arrows = necro_type_find(type);
     while (arrows->type == NECRO_TYPE_FUN)
     {
         // args[arg_index] = necro_create_machine_ptr_type(&program->arena, necro_type_to_machine_type(program, arrows->fun.type1));
         args[arg_index] = necro_make_ptr_if_boxed(program, necro_type_to_machine_type(program, arrows->fun.type1));
         arg_index++;
         arrows = arrows->fun.type2;
-        arrows = necro_find(arrows);
+        arrows = necro_type_find(arrows);
     }
     NecroMachineType* return_type   = necro_make_ptr_if_boxed(program, necro_type_to_machine_type(program, arrows));
     // NecroMachineType* return_type   = necro_type_to_machine_type(program, arrows);
@@ -369,7 +369,7 @@ NecroMachineType* necro_function_type_to_machine_function_type(NecroMachineProgr
 NecroMachineType* necro_type_to_machine_type(NecroMachineProgram* program, NecroType* type)
 {
     assert(type != NULL);
-    type = necro_find(type);
+    type = necro_type_find(type);
     switch (type->type)
     {
     case NECRO_TYPE_VAR:  return program->necro_poly_type;
@@ -390,16 +390,16 @@ NecroMachineType* necro_type_to_machine_type(NecroMachineProgram* program, Necro
 NecroMachineType* necro_core_pattern_type_to_machine_type(NecroMachineProgram* program, NecroCoreAST_Expression* ast)
 {
     NecroType* type = necro_core_ast_to_necro_type(program, ast);
-    type            = necro_find(type);
+    type            = necro_type_find(type);
     while (type->type == NECRO_TYPE_FOR)
     {
         type = type->for_all.type;
-        type = necro_find(type);
+        type = necro_type_find(type);
     }
     while (type->type == NECRO_TYPE_FUN)
     {
         type = type->fun.type2;
-        type = necro_find(type);
+        type = necro_type_find(type);
     }
     return necro_type_to_machine_type(program, type);
 }

@@ -216,7 +216,7 @@ void necro_core_pretty_print_go(NecroCoreAST_Expression* ast, NecroSymTable* sym
     }
     case NECRO_CORE_EXPR_TYPE:
         printf("(");
-        necro_type_sig_print_go(ast->type.type);
+        necro_type_print(ast->type.type);
         printf(")");
         return;
     default:

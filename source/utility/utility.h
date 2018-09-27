@@ -40,6 +40,7 @@ typedef struct
 } NecroSourceLoc;
 
 #define zero_loc ((NecroSourceLoc) { 0, 0, 0 })
+#define NULL_LOC ((NecroSourceLoc) { (size_t)-1, (size_t)-1, (size_t)-1 })
 
 typedef struct
 {

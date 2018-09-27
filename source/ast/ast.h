@@ -528,6 +528,7 @@ typedef struct NecroAst
         NecroAstPatExpression        pattern_expression;
     };
     NECRO_AST_TYPE     type;
+    // TODO: Replace NecroSourceLoc in NecroParseAst and NecroAst with const char* str
     NecroSourceLoc     source_loc;
     NecroSourceLoc     end_loc;
     struct NecroScope* scope;

@@ -6,6 +6,8 @@
 #include "result.h"
 #include <string.h>
 #include "ast_symbol.h"
+#include "ast.h"
+#include "type.h"
 
 NecroResultUnion global_result;
 
@@ -348,6 +350,129 @@ NecroResult(NecroAstSymbol) necro_not_in_scope_error(NecroAstSymbol* ast_symbol,
     return necro_error_map(NecroAst, NecroAstSymbol, necro_default_ast_error(NECRO_RENAME_NOT_IN_SCOPE, ast_symbol, source_loc, end_loc));
 }
 
+inline NecroResult(NecroType) necro_default_type_error(NECRO_RESULT_ERROR_TYPE error_type, NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    NecroResultError* error        = malloc(sizeof(NecroResultError));
+    error->type                    = error_type;
+    error->default_type_error_data = (NecroDefaultTypeErrorData)
+    {
+        .ast_symbol1 = ast_symbol1,
+        .type1       = type1,
+        .source_loc1 = source_loc1,
+        .end_loc1    = end_loc1,
+        .ast_symbol2 = ast_symbol2,
+        .type2       = type2,
+        .source_loc2 = source_loc2,
+        .end_loc2    = end_loc2
+    };
+    return (NecroResult(NecroType)) { .error = error, .type = NECRO_RESULT_ERROR };
+}
+
+NecroResult(NecroType) necro_type_rigid_type_variable_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_default_type_error(NECRO_TYPE_RIGID_TYPE_VARIABLE, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+}
+
+NecroResult(NecroType) necro_type_not_an_instance_of_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_default_type_error(NECRO_TYPE_NOT_AN_INSTANCE_OF, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+}
+
+NecroResult(NecroType) necro_type_occurs_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_default_type_error(NECRO_TYPE_OCCURS, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+}
+
+NecroResult(NecroType) necro_type_mismatched_arity_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_default_type_error(NECRO_TYPE_MISMATCHED_ARITY, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+}
+
+NecroResult(NecroType) necro_type_mismatched_type_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_default_type_error(NECRO_TYPE_MISMATCHED_TYPE, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+}
+
+NecroResult(NecroType) necro_type_polymorphic_pat_bind_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_default_type_error(NECRO_TYPE_POLYMORPHIC_PAT_BIND, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+}
+
+NecroResult(NecroType) necro_type_uninitialized_recursive_value_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_default_type_error(NECRO_TYPE_UNINITIALIZED_RECURSIVE_VALUE, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+}
+
+NecroResult(NecroType) necro_type_final_do_statement_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_default_type_error(NECRO_TYPE_FINAL_DO_STATEMENT, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+}
+
+NecroResult(NecroType) necro_type_ambiguous_class_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_default_type_error(NECRO_TYPE_AMBIGUOUS_CLASS, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+}
+
+NecroResult(NecroType) necro_type_constrains_only_class_var_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_default_type_error(NECRO_TYPE_CONSTRAINS_ONLY_CLASS_VAR, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+}
+
+NecroResult(NecroType) necro_type_ambiguous_type_var_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_default_type_error(NECRO_TYPE_AMBIGUOUS_TYPE_VAR, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+}
+
+NecroResult(NecroType) necro_type_non_concrete_initialized_value_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_default_type_error(NECRO_TYPE_NON_CONCRETE_INITIALIZED_VALUE, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+}
+
+NecroResult(NecroType) necro_type_non_recursive_initialized_value_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_default_type_error(NECRO_TYPE_NON_RECURSIVE_INITIALIZED_VALUE, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+}
+
+NecroResult(NecroType) necro_type_not_a_class_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_default_type_error(NECRO_TYPE_NOT_A_CLASS, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+}
+
+NecroResult(NecroType) necro_type_multiple_class_declarations_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_default_type_error(NECRO_TYPE_MULTIPLE_CLASS_DECLARATIONS, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+}
+
+NecroResult(NecroType) necro_type_not_a_visible_method_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_default_type_error(NECRO_TYPE_NOT_A_VISIBLE_METHOD, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+}
+
+NecroResult(NecroType) necro_type_no_explicit_implementation_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_default_type_error(NECRO_TYPE_NO_EXPLICIT_IMPLEMENTATION, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+}
+
+NecroResult(NecroType) necro_type_does_not_implement_super_class_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_default_type_error(NECRO_TYPE_DOES_NOT_IMPLEMENT_SUPER_CLASS, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+}
+
+NecroResult(NecroType) necro_kind_mismatched_kind_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_default_type_error(NECRO_KIND_MISMATCHED_KIND, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+}
+
+NecroResult(NecroType) necro_kind_mismatched_arity_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_default_type_error(NECRO_KIND_MISMATCHED_ARITY, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+}
+
+NecroResult(NecroType) necro_kind_rigid_kind_variable_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+{
+    return necro_default_type_error(NECRO_KIND_RIGID_KIND_VARIABLE, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+}
+
 ///////////////////////////////////////////////////////
 // Printing
 ///////////////////////////////////////////////////////
@@ -449,15 +574,39 @@ void necro_print_default_ast_error_2_format(
 {
     fprintf(stderr, "\n----- %s ----- ", error_name);
     fprintf(stderr, "\n" NECRO_ERR_LEFT_CHAR " \n");
-    necro_print_line_at_source_loc(source_str, source_loc1, end_loc1);
+    if (source_loc1.pos != -1)
+    {
+        necro_print_line_at_source_loc(source_str, source_loc1, end_loc1);
+    }
+    else if (ast_symbol1->source_name != NULL && ast_symbol1->source_name->str != NULL)
+    {
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " .. | %s (Necro.Base)\n", ast_symbol1->source_name->str);
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " \n");
+    }
+    else
+    {
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " .. | (a primitive type or value found in Necro.Base)\n");
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " \n");
+    }
     fprintf(stderr, NECRO_ERR_LEFT_CHAR " %s\n", explanation1);
     fprintf(stderr, NECRO_ERR_LEFT_CHAR " \n");
-    necro_print_line_at_source_loc(source_str, source_loc2, end_loc2);
+    if (source_loc2.pos != -1)
+    {
+        necro_print_line_at_source_loc(source_str, source_loc2, end_loc2);
+    }
+    else if (ast_symbol2->source_name != NULL && ast_symbol2->source_name->str != NULL)
+    {
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " .. | %s (Necro.Base)\n", ast_symbol2->source_name->str);
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " \n");
+    }
+    else
+    {
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " .. | (a primitive type or value found in Necro.Base)\n");
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " \n");
+    }
     fprintf(stderr, NECRO_ERR_LEFT_CHAR " %s\n", explanation2);
     fprintf(stderr, "\n");
     UNUSED(source_name);
-    UNUSED(ast_symbol1);
-    UNUSED(ast_symbol2);
 }
 
 
@@ -891,7 +1040,7 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_PARSE_CONST_CON_MISSING_RIGHT_PAREN:             necro_print_const_con_missing_right_paren(error, source_str, source_name); break;
 
     case NECRO_RENAME_MULTIPLE_DEFINITIONS:                     necro_print_multiple_definitions_error(error, source_str, source_name); break;
-    case NECRO_RENAME_MULTIPLE_TYPE_SIGNATURES:                necro_print_duplicate_type_signatures_error(error, source_str, source_name); break;
+    case NECRO_RENAME_MULTIPLE_TYPE_SIGNATURES:                 necro_print_duplicate_type_signatures_error(error, source_str, source_name); break;
     case NECRO_RENAME_NOT_IN_SCOPE:                             necro_print_not_in_scope_error(error, source_str, source_name); break;
 
     default:

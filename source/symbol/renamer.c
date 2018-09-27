@@ -37,7 +37,7 @@ typedef struct NecroRenamer
 //=====================================================
 void necro_swap_renamer_class_symbol(NecroRenamer* renamer)
 {
-    NecroSymbol class_symbol = renamer->prev_class_instance_symbol;
+    NecroSymbol class_symbol               = renamer->prev_class_instance_symbol;
     renamer->prev_class_instance_symbol    = renamer->current_class_instance_symbol;
     renamer->current_class_instance_symbol = class_symbol;
 
@@ -715,7 +715,7 @@ void necro_rename_test_error(const char* test_name, const char* str, NECRO_RESUL
     // Assert
     assert(result.type == NECRO_RESULT_ERROR);
     assert(result.error->type == error_type);
-    printf("Parse %s test: Passed\n", test_name);
+    printf("Rename %s test: Passed\n", test_name);
 
     // Clean up
     necro_ast_arena_destroy(&ast);

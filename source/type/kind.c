@@ -12,107 +12,62 @@
 #include "kind.h"
 #include "base.h"
 
-void necro_rigid_kind_variable_error(NecroInfer* infer, NecroAstSymbol* type_var, NecroTypeKind* type, NecroType* macro_type, const char* error_preamble)
-{
-    if (necro_is_infer_error(infer))
-        return;
-    const char* type_name = NULL;
-    if (type->type == NECRO_TYPE_CON)
-        type_name = type->con.con_symbol->source_name->str;
-    else if (type->type == NECRO_TYPE_APP)
-        type_name = "TypeApp";
-    else if (type->type == NECRO_TYPE_FUN)
-        type_name = "(->)";
-    else if (type->type == NECRO_TYPE_VAR)
-        type_name = type->var.var_symbol->source_name->str;
-    else
-        assert(false);
-    const char* var_name = type_var->source_name->str;
-    necro_infer_error(infer, error_preamble, macro_type, "Couldn't match kind \'%s\' with kind \'%s\'.\n\'%s\' is a rigid kind variable bound by a type signature.", var_name, type_name, var_name);
-}
-
 NecroAstSymbol* necro_create_star_kind(NecroPagedArena* arena, NecroIntern* intern)
 {
-    // Add to Base?!?!?! Add to Type namespace!?!?
-    NecroAstSymbol*     ast_symbol  = necro_ast_symbol_create(arena, necro_intern_string(intern, "Necro.Base.Type"), necro_intern_string(intern, "Type"), necro_intern_string(intern, "Necro.Base"), NULL);
-    NecroType*          star_type   = necro_type_alloc(arena);
-    star_type->type                 = NECRO_TYPE_CON;
-    star_type->con                  = (NecroTypeCon)
+    NecroAstSymbol* ast_symbol  = necro_ast_symbol_create(arena, necro_intern_string(intern, "Necro.Base.Type"), necro_intern_string(intern, "Type"), necro_intern_string(intern, "Necro.Base"), NULL);
+    NecroType*      star_type   = necro_type_alloc(arena);
+    star_type->type             = NECRO_TYPE_CON;
+    star_type->con              = (NecroTypeCon)
     {
         .con_symbol = ast_symbol,
         .args       = NULL,
         .arity      = 0,
         .is_class   = false,
     };
-    star_type->kind         = NULL;
-    star_type->pre_supplied = true;
-    ast_symbol->type        = star_type;
+    star_type->kind          = NULL;
+    star_type->pre_supplied  = true;
+    ast_symbol->type         = star_type;
+    ast_symbol->ast          = necro_ast_create_var(arena, intern, "Type", NECRO_VAR_DECLARATION);
     return ast_symbol;
 }
 
-inline void necro_kind_unify_var(NecroInfer* infer, NecroTypeKind* kind1, NecroTypeKind* kind2, NecroScope* scope, NecroType* macro_type, const char* error_preamble)
+NecroResult(NecroType) necro_kind_unify_var(NecroType* kind1, NecroType* kind2, NecroScope* scope)
 {
     assert(kind1 != NULL);
     assert(kind1->type == NECRO_TYPE_VAR);
-    if (kind2 == NULL)
-    {
-        // TODO: NecroResultError
-        // necro_infer_error(infer, error_preamble, macro_type, "Kind error: Mismatched kind arities");
-        return;
-    }
-    if (kind1 == kind2)
-        return;
+    assert(kind2 != NULL);
     switch (kind2->type)
     {
     case NECRO_TYPE_VAR:
-        if (kind1->var.var_symbol->name == kind2->var.var_symbol->name)
-            return;
-        else if (kind1->var.is_rigid && kind2->var.is_rigid)
-            necro_rigid_kind_variable_error(infer, kind1->var.var_symbol, kind2, macro_type, error_preamble);
-        else if (necro_occurs(kind1->var.var_symbol, kind2, macro_type, error_preamble))
-            return;
-        else if (kind1->var.is_rigid)
+        if (kind1->var.var_symbol == kind2->var.var_symbol)
+            return ok_NecroType(NULL);
+        if (kind1->var.is_rigid && kind2->var.is_rigid)
+            return necro_kind_rigid_kind_variable_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
+        necro_try(NecroType, necro_type_occurs(kind1->var.var_symbol, kind2));
+        if (kind1->var.is_rigid)
             kind2->var.bound = kind1;
         else if (kind2->var.is_rigid)
             kind1->var.bound = kind2;
-        else if (necro_is_bound_in_scope(kind1, scope))
+        else if (necro_type_is_bound_in_scope(kind1, scope))
             kind2->var.bound = kind1;
         else
             kind1->var.bound = kind2;
-        return;
+        return ok_NecroType(NULL);
     case NECRO_TYPE_CON:
     case NECRO_TYPE_APP:
     case NECRO_TYPE_FUN:
         if (kind1->var.is_rigid)
-        {
-            // TODO: NecroResultError
-            // necro_rigid_kind_variable_error(infer, kind1->var.var, kind2, macro_type, error_preamble);
-            return;
-        }
-        if (necro_occurs(kind1->var.var_symbol, kind2, macro_type, error_preamble))
-        {
-            return;
-        }
+            return necro_kind_rigid_kind_variable_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
+        necro_try(NecroType, necro_type_occurs(kind1->var.var_symbol, kind2));
         kind1->var.bound = kind2;
-        return;
-    case NECRO_TYPE_FOR:  assert(false); break;
-    case NECRO_TYPE_LIST: assert(false); break;
-    default:              assert(false); break;
+        return ok_NecroType(NULL);
+    case NECRO_TYPE_FOR:  necro_unreachable(NecroType);
+    case NECRO_TYPE_LIST: necro_unreachable(NecroType);
+    default:              necro_unreachable(NecroType);
     }
 }
 
-inline void necro_kind_unify_app(NecroInfer* infer, NecroTypeKind* kind1, NecroTypeKind* kind2, NecroScope* scope, NecroType* macro_type, const char* error_preamble)
-{
-    UNUSED(infer);
-    UNUSED(kind1);
-    UNUSED(kind2);
-    UNUSED(scope);
-    UNUSED(macro_type);
-    UNUSED(error_preamble);
-    assert(false);
-}
-
-inline void necro_kind_unify_fun(NecroInfer* infer, NecroTypeKind* kind1, NecroTypeKind* kind2, NecroScope* scope, NecroType* macro_type, const char* error_preamble)
+NecroResult(NecroType) necro_kind_unify_fun(NecroType* kind1, NecroType* kind2, NecroScope* scope)
 {
     assert(kind1 != NULL);
     assert(kind1->type == NECRO_TYPE_FUN);
@@ -121,33 +76,22 @@ inline void necro_kind_unify_fun(NecroInfer* infer, NecroTypeKind* kind1, NecroT
     {
     case NECRO_TYPE_VAR:
         if (kind2->var.is_rigid)
-            necro_rigid_kind_variable_error(infer, kind2->var.var_symbol, kind1, macro_type, error_preamble);
-        else if (necro_occurs(kind2->var.var_symbol, kind1, macro_type, error_preamble))
-            return;
-        else
-            kind2->var.bound = kind1;
-        return;
+            return necro_kind_rigid_kind_variable_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
+        necro_try(NecroType, necro_type_occurs(kind2->var.var_symbol, kind1));
+        kind2->var.bound = kind1;
+        return ok_NecroType(NULL);
     case NECRO_TYPE_FUN:
-        necro_kind_unify(infer, kind1->fun.type1, kind2->fun.type1, scope, macro_type, error_preamble);
-        necro_kind_unify(infer, kind1->fun.type2, kind2->fun.type2, scope, macro_type, error_preamble);
-        return;
-    case NECRO_TYPE_CON:
-    {
-        // TODO: NecroResultError
-        // necro_infer_error(infer, error_preamble, macro_type, "Kind error: Attempting to kind unify (->) with KindCon (%s).\n  Kind1: %s\n  Kind2: %s",
-        //     kind2->con.con_symbol->str,
-        //     necro_type_string(infer, kind1),
-        //     necro_type_string(infer, kind2)
-        //     );
-        return;
-    }
-    case NECRO_TYPE_APP:  necro_infer_error(infer, error_preamble, macro_type, "Kind error: Attempting to kind unify (->) with KindApp."); return;
-    case NECRO_TYPE_LIST: assert(false); return;
-    default:              assert(false); return;
+        necro_kind_unify(kind1->fun.type1, kind2->fun.type1, scope);
+        necro_kind_unify(kind1->fun.type2, kind2->fun.type2, scope
+        return ok_NecroType(NULL);
+    case NECRO_TYPE_CON:  return necro_kind_mismatched_kind_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
+    case NECRO_TYPE_APP:  return necro_kind_mismatched_kind_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
+    case NECRO_TYPE_LIST: necro_unreachable(NecroType);
+    default:              necro_unreachable(NecroType);
     }
 }
 
-inline void necro_kind_unify_con(NecroInfer* infer, NecroTypeKind* kind1, NecroTypeKind* kind2, NecroScope* scope, NecroType* macro_type, const char* error_preamble)
+NecroResult(NecroType) necro_kind_unify_con(NecroType* kind1, NecroType* kind2, NecroScope* scope)
 {
     assert(kind1 != NULL);
     assert(kind1->type == NECRO_TYPE_CON);
@@ -156,129 +100,88 @@ inline void necro_kind_unify_con(NecroInfer* infer, NecroTypeKind* kind1, NecroT
     {
     case NECRO_TYPE_VAR:
         if (kind2->var.is_rigid)
-            necro_rigid_kind_variable_error(infer, kind2->var.var_symbol, kind1, macro_type, error_preamble);
-        else if (necro_occurs(kind2->var.var_symbol, kind1, macro_type, error_preamble))
-            return;
-        else
-            kind2->var.bound = kind1;
-        return;
+            return necro_kind_rigid_kind_variable_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
+        necro_try(NecroType, necro_type_occurs(kind2->var.var_symbol, kind1));
+        kind2->var.bound = kind1;
+        return ok_NecroType(NULL);
     case NECRO_TYPE_CON:
-        if (kind1->con.con_symbol->name != kind2->con.con_symbol->name)
+        if (kind1->con.con_symbol != kind2->con.con_symbol)
         {
-            // TODO: NecroResultError
-            // necro_infer_error(infer, error_preamble, kind2, "Kind error: Attempting to unify two different kinds, Kind1: %s, Kind2: %s", kind1->con.con.symbol->str, kind2->con.con.symbol->str);
-            return;
+            return necro_kind_mismatched_kind_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
         }
         else
         {
-            // NecroTypeKind* original_kind1 = kind1;
-            // NecroTypeKind* original_kind2 = kind2;
+            NecroType* original_kind1 = kind1;
+            NecroType* original_kind2 = kind2;
             kind1 = kind1->con.args;
             kind2 = kind2->con.args;
             while (kind1 != NULL && kind2 != NULL)
             {
                 if (kind1 == NULL || kind2 == NULL)
                 {
-                    // TODO: NecroResultError
-                    // necro_infer_error(infer, error_preamble, kind1, "Kind error: Mismatched arities, Kind1: %s, Kind2: %s", original_kind1->con.con.symbol->str, original_kind2->con.con.symbol->str);
-                    return;
+                    return necro_kind_mismatched_arity_error(NULL, original_kind1, NULL_LOC, NULL_LOC, NULL, original_kind2, NULL_LOC, NULL_LOC);
                 }
                 assert(kind1->type == NECRO_TYPE_LIST);
                 assert(kind2->type == NECRO_TYPE_LIST);
-                necro_kind_unify(infer, kind1->list.item, kind2->list.item, scope, macro_type, error_preamble);
+                necro_try(NecroType, necro_kind_unify(kind1->list.item, kind2->list.item, scope));
                 kind1 = kind1->list.next;
                 kind2 = kind2->list.next;
             }
-            return;
+            return ok_NecroTry(NULL);
         }
-    case NECRO_TYPE_APP:
-    {
-        assert(false);
-        return;
-    }
-    case NECRO_TYPE_FUN:
-    {
-        // TODO: NecroResultError
-        // necro_infer_error(infer, error_preamble, macro_type, "Kind error: Attempting to kind unify KindCon (%s) with (->).\n  Kind1: %s\n  Kind2: %s",
-        //     kind1->con.con.symbol->str,
-        //     necro_type_string(infer, kind1),
-        //     necro_type_string(infer, kind2)
-        //     );
-        return;
-    }
-    case NECRO_TYPE_LIST: assert(false); return;
-    case NECRO_TYPE_FOR:  assert(false); return;
-    default:              assert(false); return;
+    case NECRO_TYPE_FUN:  return necro_kind_mismatched_kind_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
+    case NECRO_TYPE_APP:  necro_unreachable(NecroType);
+    case NECRO_TYPE_LIST: necro_unreachable(NecroType);
+    case NECRO_TYPE_FOR:  necro_unreachable(NecroType);
+    default:              necro_unreachable(NecroType);
     }
 }
 
-void necro_kind_unify(NecroInfer* infer, NecroTypeKind* kind1, NecroTypeKind* kind2, NecroScope* scope, NecroType* macro_type, const char* error_preamble)
+NecroResult(NecroType) necro_kind_unify(NecroType* kind1, NecroType* kind2, NecroScope* scope)
 {
-    assert(infer != NULL);
     assert(kind1 != NULL);
     assert(kind2 != NULL);
-    kind1 = necro_find(kind1);
-    kind2 = necro_find(kind2);
+    kind1 = necro_type_find(kind1);
+    kind2 = necro_type_find(kind2);
     if (kind1 == kind2)
-        return;
+        return ok_NecroType(NULL);
     switch (kind1->type)
     {
-    case NECRO_TYPE_VAR:  necro_kind_unify_var(infer, kind1, kind2, scope, macro_type, error_preamble); return;
-    case NECRO_TYPE_APP:  necro_kind_unify_app(infer, kind1, kind2, scope, macro_type, error_preamble); return;
-    case NECRO_TYPE_FUN:  necro_kind_unify_fun(infer, kind1, kind2, scope, macro_type, error_preamble); return;
-    case NECRO_TYPE_CON:  necro_kind_unify_con(infer, kind1, kind2, scope, macro_type, error_preamble); return;
-    case NECRO_TYPE_LIST: assert(false); return;
-    case NECRO_TYPE_FOR:
-    {
-        while (kind1->type == NECRO_TYPE_FOR)
-            kind1 = kind1->for_all.type;
-        necro_kind_unify(infer, kind1, kind2, scope, macro_type, error_preamble);
-        return;
-    }
-    default: assert(false); return;
+    case NECRO_TYPE_VAR:  return necro_kind_unify_var(kind1, kind2, scope);
+    case NECRO_TYPE_FUN:  return necro_kind_unify_fun(kind1, kind2, scope);
+    case NECRO_TYPE_CON:  return necro_kind_unify_con(kind1, kind2, scope);
+    case NECRO_TYPE_FOR:  necro_unreachable(NecroType);
+    case NECRO_TYPE_APP:  necro_unreachable(NecroType);
+    case NECRO_TYPE_LIST: necro_unreachable(NecroType);
+    default:              necro_unreachable(NecroType);
     }
 }
 
-NecroTypeKind* necro_kind_inst(NecroInfer* infer, NecroTypeKind* kind, NecroScope* scope)
+NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase* base, NecroType* type)
 {
-    UNUSED(scope);
-    assert(infer != NULL);
-    assert(kind != NULL);
-    return kind;
-}
-
-NecroTypeKind* necro_kind_infer(NecroInfer* infer, NecroType* type, NecroType* macro_type, const char* error_preamble)
-{
-    assert(infer != NULL);
-    assert(type != NULL);
     switch (type->type)
     {
 
     case NECRO_TYPE_VAR:
     {
-        // TODO: Look at cleaning this up
-        NecroAstSymbol* data = type->var.var_symbol;
-        if (data != NULL)
+        NecroAstSymbol* ast_symbol = type->var.var_symbol;
+        if (ast_symbol != NULL)
         {
-            // assert(symbol_info != NULL);
-            // assert(symbol_info->type != NULL);
-            if (data->type == NULL)
+            if (ast_symbol->type == NULL)
             {
-                data->type = necro_new_name(infer);
+                ast_symbol->type = necro_type_fresh_var(arena);
             }
-            // assert(symbol_info->type->type_kind != NULL);
-            if (data->type->kind == NULL)
+            if (ast_symbol->type->kind == NULL)
             {
-                data->type->kind = necro_new_name(infer);
+                ast_symbol->type->kind = necro_type_fresh_var(arena);
             }
-            type->kind = data->type->kind;
+            type->kind = ast_symbol->type->kind;
         }
         else
         {
-            // NecroType* var_type = necro_find(infer, type);
             if (type->kind == NULL)
             {
-                type->kind = necro_new_name(infer);
+                type->kind = necro_type_fresh_var(arena);
             }
         }
         return type->kind;
@@ -286,121 +189,118 @@ NecroTypeKind* necro_kind_infer(NecroInfer* infer, NecroType* type, NecroType* m
 
     case NECRO_TYPE_FUN:
     {
-        NecroTypeKind* type1_kind = necro_kind_infer(infer, type->fun.type1, macro_type, error_preamble);
-        NecroTypeKind* type2_kind = necro_kind_infer(infer, type->fun.type2, macro_type, error_preamble);
-        necro_kind_unify(infer, type1_kind, infer->base->star_kind->type, NULL, macro_type, error_preamble);
-        necro_kind_unify(infer, type2_kind, infer->base->star_kind->type, NULL, macro_type, error_preamble);
-        type->kind                = infer->base->star_kind->type;
+        NecroType* type1_kind = necro_kind_infer(arena, base, type->fun.type1);
+        NecroType* type2_kind = necro_kind_infer(arena, base, type->fun.type2);
+        necro_try(NecroType, necro_kind_unify(type1_kind, base->star_kind->type, NULL));
+        necro_try(NecroType, necro_kind_unify(type2_kind, base->star_kind->type, NULL));
+        type->kind            = base->star_kind->type;
         return type->kind;
     }
 
     case NECRO_TYPE_APP:
     {
-        NecroTypeKind* type1_kind = necro_kind_infer(infer, type->app.type1, macro_type, error_preamble);
-        NecroTypeKind* type2_kind = necro_kind_infer(infer, type->app.type2, macro_type, error_preamble);
-        NecroType* result_kind    = necro_new_name(infer);
-        NecroType* f_kind         = necro_type_fn_create(infer->arena, type2_kind, result_kind);
-        necro_kind_unify(infer, type1_kind, f_kind, NULL, macro_type, error_preamble);
-        type->kind                = result_kind;
+        NecroType* type1_kind  = necro_kind_infer(arena, base, type->app.type1);
+        NecroType* type2_kind  = necro_kind_infer(arena, base, type->app.type2);
+        NecroType* result_kind = necro_type_fresh_var(arena);
+        NecroType* f_kind      = necro_type_fn_create(arena, type2_kind, result_kind);
+        necro_try(NecroType, necro_kind_unify(type1_kind, f_kind, NULL));
+        type->kind             = result_kind;
         return type->kind;
     }
 
     case NECRO_TYPE_CON:
     {
-        NecroAstSymbol* data = type->con.con_symbol;
-        assert(data != NULL);
-        assert(data->type != NULL);
-        if (data->type->kind == NULL)
+        NecroAstSymbol* con_symbol = type->con.con_symbol;
+        assert(con_symbol != NULL);
+        assert(con_symbol->type != NULL);
+        if (con_symbol->type->kind == NULL)
         {
-            data->type->kind = necro_new_name(infer);
-            type->kind       = data->type->kind;
+            con_symbol->type->kind = necro_type_fresh_var(arena);
+            type->kind             = con_symbol->type->kind;
         }
-        NecroType*     args       = type->con.args;
-        NecroTypeKind* args_kinds = NULL;
-        NecroTypeKind* args_head  = NULL;
+        NecroType* args       = type->con.args;
+        NecroType* args_kinds = NULL;
+        NecroType* args_head  = NULL;
         while (args != NULL)
         {
-            NecroTypeKind* arg_kind = necro_kind_infer(infer, args->list.item, macro_type, error_preamble);
-            if (necro_is_infer_error(infer)) return NULL;
+            NecroType* arg_kind = necro_try(NecroType, necro_kind_infer(arena, base, args->list.item));
             if (args_head == NULL)
             {
-                args_kinds = necro_type_fn_create(infer->arena, arg_kind, NULL);
+                args_kinds = necro_type_fn_create(arena, arg_kind, NULL);
                 args_head  = args_kinds;
             }
             else
             {
-                args_kinds->fun.type2 = necro_type_fn_create(infer->arena, arg_kind, NULL);
+                args_kinds->fun.type2 = necro_type_fn_create(arena, arg_kind, NULL);
                 args_kinds = args_kinds->fun.type2;
             }
             args = args->list.next;
         }
-        NecroTypeKind* result_type = necro_new_name(infer);
+        NecroType* result_type = necro_type_fresh_var(arena);
         if (args_kinds != NULL)
             args_kinds->fun.type2 = result_type;
         else
             args_head = result_type;
-        necro_kind_unify(infer, data->type->kind, args_head, NULL, macro_type, error_preamble);
+        necro_try(NecroType, necro_kind_unify(con_symbol->type->kind, args_head, NULL));
         if (type->kind == NULL)
             type->kind = result_type;
         return result_type;
     }
 
     case NECRO_TYPE_FOR:
-        type->kind = necro_kind_infer(infer, type->for_all.type, macro_type, error_preamble);
+        type->kind = necro_kind_infer(type->for_all.type, macro_type, error_preamble);
         return type->kind;
 
-    case NECRO_TYPE_LIST: assert(false); return NULL;
-    default:              assert(false); return NULL;
+    case NECRO_TYPE_LIST: necro_unreachable(NecroType);
+    default:              necro_unreachable(NecroType);
     }
 }
 
-NecroTypeKind* necro_kind_gen(NecroInfer* infer, NecroTypeKind* kind)
+NecroType* necro_kind_gen(NecroPagedArena* arena, struct NecroBase* base, NecroType* kind)
 {
-    assert(infer != NULL);
     assert(kind != NULL);
-    kind = necro_find(kind);
+    kind = necro_type_find(kind);
     switch (kind->type)
     {
 
     // Default free kind vars to *
     case NECRO_TYPE_VAR:
-        kind->var.bound = infer->base->star_kind->type;
-        return infer->base->star_kind->type;
+        kind->var.bound = base->star_kind->type;
+        return base->star_kind->type;
 
     case NECRO_TYPE_FUN:
-        return necro_type_fn_create(infer->arena, necro_kind_gen(infer, kind->fun.type1), necro_kind_gen(infer, kind->fun.type2));
-
-    case NECRO_TYPE_APP:
-        assert(false);
-        return NULL;
+        return necro_type_fn_create(arena, necro_kind_gen(arena, base, kind->fun.type1), necro_kind_gen(arena, base, kind->fun.type2));
 
     case NECRO_TYPE_CON:
     {
-        NecroType*     args       = kind->con.args;
-        NecroTypeKind* args_kinds = NULL;
-        NecroTypeKind* args_head  = NULL;
+        NecroType* args       = kind->con.args;
+        NecroType* args_kinds = NULL;
+        NecroType* args_head  = NULL;
         while (args != NULL)
         {
-            NecroTypeKind* arg_kind = necro_kind_gen(infer, args->list.item);
+            NecroType* arg_kind = necro_kind_gen(arena, base, args->list.item);
             if (args_head == NULL)
             {
-                args_kinds = necro_type_fn_create(infer->arena, arg_kind, NULL);
+                args_kinds = necro_type_fn_create(arena, arg_kind, NULL);
                 args_head  = args_kinds;
             }
             else
             {
-                args_kinds->fun.type2 = necro_type_fn_create(infer->arena, args_kinds, NULL);
+                args_kinds->fun.type2 = necro_type_fn_create(arena, args_kinds, NULL);
                 args_kinds = args_kinds->fun.type2;
             }
             args = args->list.next;
         }
         if (args_kinds != NULL)
-            args_kinds->fun.type2 = infer->base->star_kind->type;
+            args_kinds->fun.type2 = base->star_kind->type;
         else
             args_head = kind;
-            // args_head = infer->star_type_kind;
         return args_head;
     }
+
+    case NECRO_TYPE_APP:
+        assert(false);
+        return NULL;
 
     case NECRO_TYPE_FOR:
         assert(false);

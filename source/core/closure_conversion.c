@@ -202,7 +202,7 @@ NecroType* necro_type_to_closure_type(NecroClosureConversion* cc, NecroType* typ
 {
     NecroType* new_type_head = NULL;
     NecroType* new_type_curr = NULL;
-    type                     = necro_find(type);
+    type                     = necro_type_find(type);
     while (type->type == NECRO_TYPE_FOR)
     {
         NecroTypeClassContext* context = type->for_all.context;
@@ -221,15 +221,15 @@ NecroType* necro_type_to_closure_type(NecroClosureConversion* cc, NecroType* typ
             context = context->next;
         }
         type = type->for_all.type;
-        type = necro_find(type);
+        type = necro_type_find(type);
     }
     if (new_type_head != NULL)
     {
         assert(new_type_curr != NULL);
-        new_type_curr->fun.type2 = necro_find(type);
+        new_type_curr->fun.type2 = necro_type_find(type);
         type                     = new_type_head;
     }
-    type = necro_find(type);
+    type = necro_type_find(type);
     if (type->type == NECRO_TYPE_FUN)
         type = necro_type_con_create(&cc->arena, cc->base->closure_type, necro_type_list_create(&cc->arena, type, NULL), 1);
     return type;

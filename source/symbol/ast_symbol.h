@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "intern.h"
+#include "list.h"
 
 struct NecroAst;
 struct NecroScope;
@@ -20,6 +21,7 @@ struct NecroCoreAst;
 struct NecroMachineAST;
 struct NecroMachineType;
 struct NecroTypeClass;
+struct NecroTypeClassInstance;
 
 typedef enum
 {
@@ -27,6 +29,8 @@ typedef enum
     NECRO_TYPE_CHECKING,
     NECRO_TYPE_DONE
 } NECRO_TYPE_STATUS;
+
+NECRO_DECLARE_ARENA_LIST(struct NecroTypeClassInstance*, TypeClassInstance, type_class_instance);
 
 // Make NecroAstSymbols unique to that identified object and compare NecroAstSymbol pointers directly
 typedef struct NecroAstSymbol
@@ -46,6 +50,7 @@ typedef struct NecroAstSymbol
     struct NecroTypeClass*         type_class;
     struct NecroTypeClassInstance* type_class_instance;
     struct NecroMachineAST*        necro_machine_ast;
+    NecroTypeClassInstanceList*    instance_list;
 } NecroAstSymbol;
 
 NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name, NecroSymbol source_name, NecroSymbol module_name, struct NecroAst* ast);

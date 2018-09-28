@@ -145,13 +145,14 @@ typedef struct NecroInfer
 // API
 //=====================================================
 
+// TODO: move this into infer.h
 NecroInfer             necro_infer_empty();
 NecroInfer             necro_infer_create(NecroPagedArena* arena, NecroIntern* intern, struct NecroScopedSymTable* scoped_symtable, struct NecroBase* base);
 void                   necro_infer_destroy(NecroInfer* infer);
 
-NecroResult(NecroType) necro_type_unify(NecroInfer* infer, NecroType* type1, NecroType* type2, struct NecroScope* scope);
+NecroResult(NecroType) necro_type_unify(NecroPagedArena* arena, struct NecroBase* base, NecroType* type1, NecroType* type2, struct NecroScope* scope);
 NecroResult(NecroType) necro_type_occurs(NecroAstSymbol* var_symbol, NecroType* type);
-NecroResult(NecroType) necro_type_instantiate(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, NecroScope* scope);
+NecroResult(NecroType) necro_type_instantiate(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope);
 NecroResult(NecroType) necro_type_instantiate_with_context(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope, struct NecroTypeClassContext** inst_context);
 NecroResult(NecroType) necro_type_generalize(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope);
 

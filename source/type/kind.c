@@ -40,7 +40,7 @@ NecroResult(NecroType) necro_kind_unify_var(NecroType* kind1, NecroType* kind2, 
     {
     case NECRO_TYPE_VAR:
         if (kind1->var.var_symbol == kind2->var.var_symbol)
-            return ok_NecroType(NULL);
+            return ok(NecroType, NULL);
         if (kind1->var.is_rigid && kind2->var.is_rigid)
             return necro_kind_rigid_kind_variable_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs(kind1->var.var_symbol, kind2));
@@ -52,7 +52,7 @@ NecroResult(NecroType) necro_kind_unify_var(NecroType* kind1, NecroType* kind2, 
             kind2->var.bound = kind1;
         else
             kind1->var.bound = kind2;
-        return ok_NecroType(NULL);
+        return ok(NecroType, NULL);
     case NECRO_TYPE_CON:
     case NECRO_TYPE_APP:
     case NECRO_TYPE_FUN:
@@ -60,7 +60,7 @@ NecroResult(NecroType) necro_kind_unify_var(NecroType* kind1, NecroType* kind2, 
             return necro_kind_rigid_kind_variable_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs(kind1->var.var_symbol, kind2));
         kind1->var.bound = kind2;
-        return ok_NecroType(NULL);
+        return ok(NecroType, NULL);
     case NECRO_TYPE_FOR:  necro_unreachable(NecroType);
     case NECRO_TYPE_LIST: necro_unreachable(NecroType);
     default:              necro_unreachable(NecroType);
@@ -79,11 +79,10 @@ NecroResult(NecroType) necro_kind_unify_fun(NecroType* kind1, NecroType* kind2, 
             return necro_kind_rigid_kind_variable_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs(kind2->var.var_symbol, kind1));
         kind2->var.bound = kind1;
-        return ok_NecroType(NULL);
+        return ok(NecroType, NULL);
     case NECRO_TYPE_FUN:
-        necro_kind_unify(kind1->fun.type1, kind2->fun.type1, scope);
-        necro_kind_unify(kind1->fun.type2, kind2->fun.type2, scope
-        return ok_NecroType(NULL);
+        necro_try(NecroType, necro_kind_unify(kind1->fun.type1, kind2->fun.type1, scope));
+        return necro_kind_unify(kind1->fun.type2, kind2->fun.type2, scope);
     case NECRO_TYPE_CON:  return necro_kind_mismatched_kind_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
     case NECRO_TYPE_APP:  return necro_kind_mismatched_kind_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
     case NECRO_TYPE_LIST: necro_unreachable(NecroType);
@@ -103,7 +102,7 @@ NecroResult(NecroType) necro_kind_unify_con(NecroType* kind1, NecroType* kind2, 
             return necro_kind_rigid_kind_variable_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs(kind2->var.var_symbol, kind1));
         kind2->var.bound = kind1;
-        return ok_NecroType(NULL);
+        return ok(NecroType, NULL);
     case NECRO_TYPE_CON:
         if (kind1->con.con_symbol != kind2->con.con_symbol)
         {
@@ -127,7 +126,7 @@ NecroResult(NecroType) necro_kind_unify_con(NecroType* kind1, NecroType* kind2, 
                 kind1 = kind1->list.next;
                 kind2 = kind2->list.next;
             }
-            return ok_NecroTry(NULL);
+            return ok(NecroType, NULL);
         }
     case NECRO_TYPE_FUN:  return necro_kind_mismatched_kind_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
     case NECRO_TYPE_APP:  necro_unreachable(NecroType);
@@ -144,7 +143,7 @@ NecroResult(NecroType) necro_kind_unify(NecroType* kind1, NecroType* kind2, Necr
     kind1 = necro_type_find(kind1);
     kind2 = necro_type_find(kind2);
     if (kind1 == kind2)
-        return ok_NecroType(NULL);
+        return ok(NecroType, NULL);
     switch (kind1->type)
     {
     case NECRO_TYPE_VAR:  return necro_kind_unify_var(kind1, kind2, scope);
@@ -184,28 +183,28 @@ NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase
                 type->kind = necro_type_fresh_var(arena);
             }
         }
-        return type->kind;
+        return ok(NecroType, type->kind);
     }
 
     case NECRO_TYPE_FUN:
     {
-        NecroType* type1_kind = necro_kind_infer(arena, base, type->fun.type1);
-        NecroType* type2_kind = necro_kind_infer(arena, base, type->fun.type2);
+        NecroType* type1_kind = necro_try(NecroType, necro_kind_infer(arena, base, type->fun.type1));
         necro_try(NecroType, necro_kind_unify(type1_kind, base->star_kind->type, NULL));
+        NecroType* type2_kind = necro_try(NecroType, necro_kind_infer(arena, base, type->fun.type2));
         necro_try(NecroType, necro_kind_unify(type2_kind, base->star_kind->type, NULL));
         type->kind            = base->star_kind->type;
-        return type->kind;
+        return ok(NecroType, type->kind);
     }
 
     case NECRO_TYPE_APP:
     {
-        NecroType* type1_kind  = necro_kind_infer(arena, base, type->app.type1);
-        NecroType* type2_kind  = necro_kind_infer(arena, base, type->app.type2);
+        NecroType* type1_kind  = necro_try(NecroType, necro_kind_infer(arena, base, type->app.type1));
+        NecroType* type2_kind  = necro_try(NecroType, necro_kind_infer(arena, base, type->app.type2));
         NecroType* result_kind = necro_type_fresh_var(arena);
         NecroType* f_kind      = necro_type_fn_create(arena, type2_kind, result_kind);
         necro_try(NecroType, necro_kind_unify(type1_kind, f_kind, NULL));
         type->kind             = result_kind;
-        return type->kind;
+        return ok(NecroType, type->kind);
     }
 
     case NECRO_TYPE_CON:
@@ -244,12 +243,12 @@ NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase
         necro_try(NecroType, necro_kind_unify(con_symbol->type->kind, args_head, NULL));
         if (type->kind == NULL)
             type->kind = result_type;
-        return result_type;
+        return ok(NecroType, type->kind);
     }
 
     case NECRO_TYPE_FOR:
-        type->kind = necro_kind_infer(type->for_all.type, macro_type, error_preamble);
-        return type->kind;
+        type->kind = necro_try(NecroType, necro_kind_infer(arena, base, type->for_all.type));
+        return ok(NecroType, type->kind);
 
     case NECRO_TYPE_LIST: necro_unreachable(NecroType);
     default:              necro_unreachable(NecroType);

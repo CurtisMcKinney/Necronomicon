@@ -23,6 +23,7 @@ NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name
         .is_constructor          = false,
         .type_status             = NECRO_TYPE_UNCHECKED,
         .is_recursive            = false,
+        .instance_list           = NULL,
         .method_type_class       = NULL,
         .type_class              = NULL,
         .type_class_instance     = NULL,

@@ -12,7 +12,7 @@
 #include "kind.h"
 #include "base.h"
 
-NecroAstSymbol* necro_create_star_kind(NecroPagedArena* arena, NecroIntern* intern)
+NecroAstSymbol* necro_kind_create_star(NecroPagedArena* arena, NecroIntern* intern)
 {
     NecroAstSymbol* ast_symbol  = necro_ast_symbol_create(arena, necro_intern_string(intern, "Necro.Base.Type"), necro_intern_string(intern, "Type"), necro_intern_string(intern, "Necro.Base"), NULL);
     NecroType*      star_type   = necro_type_alloc(arena);

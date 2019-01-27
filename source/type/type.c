@@ -67,7 +67,6 @@ NecroType* necro_type_alloc(NecroPagedArena* arena)
 {
     NecroType* type    = necro_paged_arena_alloc(arena, sizeof(NecroType));
     type->pre_supplied = false;
-    type->source_loc   = (NecroSourceLoc) { 0, 0, 0 };
     type->kind         = NULL;
     return type;
 }
@@ -285,18 +284,15 @@ NecroResult(NecroType) necro_type_occurs(NecroAstSymbol* type_var_symbol, NecroT
             return ok(NecroType, NULL);
     case NECRO_TYPE_APP:
         necro_try(NecroType, necro_type_occurs(type_var_symbol, type->app.type1));
-        necro_try(NecroType, necro_type_occurs(type_var_symbol, type->app.type2));
-        return ok(NecroType, NULL);
+        return necro_type_occurs(type_var_symbol, type->app.type2);
     case NECRO_TYPE_FUN:
         necro_try(NecroType, necro_type_occurs(type_var_symbol, type->fun.type1));
-        necro_try(NecroType, necro_type_occurs(type_var_symbol, type->fun.type2));
-        return ok(NecroType, NULL);
+        return necro_type_occurs(type_var_symbol, type->fun.type2);
     case NECRO_TYPE_CON:
         return necro_type_occurs(type_var_symbol, type->con.args);
     case NECRO_TYPE_LIST:
         necro_try(NecroType, necro_type_occurs(type_var_symbol, type->list.item));
-        necro_try(NecroType, necro_type_occurs(type_var_symbol, type->list.next));
-        return ok(NecroType, NULL);
+        return necro_type_occurs(type_var_symbol, type->list.next);
     case NECRO_TYPE_FOR:  necro_unreachable(NecroType);
     default:              necro_unreachable(NecroType);
     }
@@ -366,8 +362,7 @@ NecroResult(NecroType) necro_propogate_type_classes(NecroPagedArena* arena, Necr
     case NECRO_TYPE_FUN:
         // TODO: Type classes for functions!!!
         necro_try(NecroType, necro_propogate_type_classes(arena, base, classes, type->fun.type1, scope));
-        necro_try(NecroType, necro_propogate_type_classes(arena, base, classes, type->fun.type2, scope));
-        return ok(NecroType, NULL);
+        return necro_propogate_type_classes(arena, base, classes, type->fun.type2, scope);
 
     case NECRO_TYPE_APP:
         // necro_propogate_type_classes(infer, classes, type->app.type1, macro_type, error_preamble);

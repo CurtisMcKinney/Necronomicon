@@ -351,6 +351,20 @@ NecroResult(NecroAstSymbol) necro_not_in_scope_error(NecroAstSymbol* ast_symbol,
     return necro_error_map(NecroAst, NecroAstSymbol, necro_default_ast_error(NECRO_RENAME_NOT_IN_SCOPE, ast_symbol, source_loc, end_loc));
 }
 
+inline NecroResult(NecroType) necro_mismatched_types_error(NECRO_RESULT_ERROR_TYPE error_type, NecroType* type1, NecroType* type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    NecroResultError* error            = malloc(sizeof(NecroResultError));
+    error->type                        = error_type;
+    error->mismatched_types_error_data = (NecroMismatchedTypesErrorData)
+    {
+        .type1      = type1,
+        .type2      = type2,
+        .source_loc = source_loc,
+        .end_loc    = end_loc,
+    };
+    return (NecroResult(NecroType)) { .error = error, .type = NECRO_RESULT_ERROR };
+}
+
 inline NecroResult(NecroType) necro_default_type_error1(NECRO_RESULT_ERROR_TYPE error_type, NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     NecroResultError* error         = malloc(sizeof(NecroResultError));
@@ -464,7 +478,6 @@ NecroResult(NecroType) necro_type_multiple_instance_declarations_error(NecroAstS
 {
     return necro_default_type_error(NECRO_TYPE_MULTIPLE_INSTANCE_DECLARATIONS, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
 }
-
 
 NecroResult(NecroType) necro_type_not_a_visible_method_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
 {

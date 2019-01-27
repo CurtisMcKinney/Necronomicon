@@ -124,7 +124,6 @@ typedef struct NecroType
         NecroTypeForAll for_all;
     };
     NECRO_TYPE        type;
-    NecroSourceLoc    source_loc;
     bool              pre_supplied;
     struct NecroType* kind;
 } NecroType;

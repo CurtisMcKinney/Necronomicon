@@ -19,7 +19,7 @@ struct NecroTypeClass;
 
 typedef struct NecroTypeClassContext
 {
-    NecroAstSymbol*               class_symbol;
+    NecroAstSymbol*               class_symbol; // TODO: Using this system this COULD be a TypeVar? Store NecroTypeClass in here?
     NecroAstSymbol*               var_symbol;
     struct NecroTypeClass*        type_class;
     struct NecroTypeClassContext* next;

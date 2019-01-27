@@ -303,7 +303,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     NecroPagedArena* arena = &base.ast.arena;
     NecroAst*        top   = NULL;
 
-    base.star_kind = necro_create_star_kind(&base.ast.arena, intern);
+    base.star_kind = necro_kind_create_star(&base.ast.arena, intern);
     necro_scope_insert_ast_symbol(arena, scoped_symtable->top_type_scope, base.star_kind);
 
     // _Poly

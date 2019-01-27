@@ -158,16 +158,25 @@ typedef struct
     NecroSourceLoc    end_loc;
 } NecroDefaultTypeErrorData1;
 
+typedef struct
+{
+    struct NecroType* type1;
+    struct NecroType* type2;
+    NecroSourceLoc    source_loc;
+    NecroSourceLoc    end_loc;
+} NecroMismatchedTypesErrorData;
+
 typedef struct NecroResultError
 {
     union
     {
-        NecroDefaultErrorData      default_error_data;
-        NecroDefaultAstErrorData   default_ast_error_data;
-        NecroDefaultAstErrorData2  default_ast_error_data_2;
-        NecroDefaultTypeErrorData1 default_type_error_data1;
-        NecroDefaultTypeErrorData  default_type_error_data;
-        NecroErrorCons             error_cons;
+        NecroDefaultErrorData         default_error_data;
+        NecroDefaultAstErrorData      default_ast_error_data;
+        NecroDefaultAstErrorData2     default_ast_error_data_2;
+        NecroDefaultTypeErrorData1    default_type_error_data1;
+        NecroDefaultTypeErrorData     default_type_error_data;
+        NecroMismatchedTypesErrorData mismatched_types_error_data;
+        NecroErrorCons                error_cons;
     };
     NECRO_RESULT_ERROR_TYPE type;
 } NecroResultError;
@@ -347,7 +356,6 @@ NecroResult(NecroAstSymbol)        necro_duplicate_type_signatures_error(NecroAs
 NecroResult(NecroAstSymbol)        necro_not_in_scope_error(NecroAstSymbol* ast_symbol, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 
 // Infer
-
 NecroResult(NecroType)             necro_type_polymorphic_pat_bind_error(NecroAstSymbol* ast_symbol, struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroType)             necro_type_non_concrete_initialized_value_error(NecroAstSymbol* ast_symbol, struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroType)             necro_type_non_recursive_initialized_value_error(NecroAstSymbol* ast_symbol, struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);

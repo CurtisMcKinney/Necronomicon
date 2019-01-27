@@ -1744,7 +1744,6 @@ NecroResult(NecroType) necro_create_type_class(NecroInfer* infer, NecroAst* type
                 necro_try(NecroType, necro_ambiguous_type_class_check(method_ast->type_signature.var->variable.ast_symbol, context, type_sig));
                 necro_apply_constraints(infer->arena, type_sig, context);
                 type_sig->pre_supplied = true;
-                type_sig->source_loc   = method_ast->source_loc;
                 type_sig               = necro_try(NecroType, necro_type_generalize(infer->arena, infer->base, type_sig, NULL));
                 necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, type_sig));
                 type_sig->kind         = necro_kind_gen(infer->arena, infer->base, type_sig->kind);

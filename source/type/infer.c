@@ -205,7 +205,7 @@ NecroResult(NecroType) necro_create_data_constructor(NecroInfer* infer, NecroAst
         con_type            = con_head;
     }
     con_type                                                 = necro_try(NecroType, necro_type_generalize(infer->arena, infer->base, con_type, NULL));
-    con_type->source_loc                                     = ast->source_loc;
+    // con_type->source_loc                                     = ast->source_loc;
     con_type->pre_supplied                                   = true;
     ast->constructor.conid->conid.ast_symbol->type           = con_type;
     ast->constructor.conid->conid.ast_symbol->is_constructor = true;
@@ -356,7 +356,7 @@ void necro_pat_new_name_go(NecroInfer* infer, NecroAst* ast)
         if (type == NULL)
         {
             NecroType* new_name  = necro_type_fresh_var(infer->arena);
-            new_name->source_loc = ast->source_loc;
+            // new_name->source_loc = ast->source_loc;
             new_name->var.scope  = data->ast->scope;
             data->type           = new_name;
             data->type_status    = NECRO_TYPE_CHECKING;
@@ -786,7 +786,6 @@ NecroResult(NecroType) necro_infer_pat_expression(NecroInfer* infer, NecroAst* a
     NecroAst* current_cell = ast->pattern_expression.expressions;
     NecroType* pat_type     = necro_type_fresh_var(infer->arena);
     pat_type                = necro_type_con1_create(infer->arena, infer->base->pattern_type, pat_type);
-    pat_type->source_loc    = ast->source_loc;
     while (current_cell != NULL)
     {
         NecroType* item_type = necro_try(NecroType, necro_infer_go(infer, current_cell->list.item));

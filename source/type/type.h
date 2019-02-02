@@ -187,6 +187,5 @@ NecroType*             necro_type_con10_create(NecroPagedArena* arena, NecroAstS
 NecroType*             necro_type_tuple_con_create(NecroPagedArena* arena, struct NecroBase* base, NecroType* types_list);
 
 void                   necro_type_print(NecroType* type);
-void                   necro_type_test();
 
 #endif // TYPE_H

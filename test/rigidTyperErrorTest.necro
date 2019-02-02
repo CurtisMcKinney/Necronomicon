@@ -1,0 +1,4 @@
+data Book = Pages
+class Fail a where result :: a -> a
+x :: Fail a => a
+x = Pages

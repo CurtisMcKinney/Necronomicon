@@ -909,7 +909,7 @@ void necro_type_print(NecroType* type)
         }
         else
         {
-            printf("tyvar_%d", (size_t) type->var.var_symbol);
+            printf("tyvar_%zu", (size_t) type->var.var_symbol);
         }
         break;
 
@@ -1262,12 +1262,4 @@ bool necro_type_exact_unify(NecroType* type1, NecroType* type2)
         assert(false);
         return false;
     }
-}
-
-//=====================================================
-// Testing
-//=====================================================
-void necro_type_test()
-{
-    necro_announce_phase("NecroType");
 }

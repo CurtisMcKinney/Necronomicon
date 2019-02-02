@@ -60,7 +60,8 @@ NecroAstSymbol* necro_get_unique_name(NecroAstArena* ast_arena, NecroIntern* int
         mangle_type = NECRO_DONT_MANGLE;
         ast_arena->clash_suffix++;
         char itoa_buf[16];
-        const char* new_name = necro_snapshot_arena_concat_strings(&intern->snapshot_arena, 3, (const char*[]) { ast_symbol->name->str, "_", itoa(ast_arena->clash_suffix, itoa_buf, 36) });
+		assert(ast_arena->clash_suffix <= UINT32_MAX);
+        const char* new_name = necro_snapshot_arena_concat_strings(&intern->snapshot_arena, 3u, (const char*[]) { ast_symbol->name->str, "_", itoa((uint32_t)ast_arena->clash_suffix, itoa_buf, 36) });
         ast_symbol->name     = necro_intern_string(intern, new_name);
         necro_snapshot_arena_rewind(&intern->snapshot_arena, snapshot);
     }

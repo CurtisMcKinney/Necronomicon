@@ -1296,7 +1296,7 @@ void necro_lex_test()
     {
         for (size_t n = 0; n < 20; ++n)
         {
-            srand(666 + n);
+            srand(666u + (uint32_t) n);
             char noise[4096];
             for (size_t i = 0; i < 4096; ++i)
             {
@@ -1322,7 +1322,7 @@ void necro_lex_test()
     {
         for (size_t n = 0; n < 20; ++n)
         {
-            srand(666 + n);
+            srand(666u + (uint32_t) n);
             char noise[4096];
             for (size_t i = 0; i < 4096; ++i)
             {
@@ -1348,7 +1348,7 @@ void necro_lex_test()
     {
         for (size_t n = 0; n < 20; ++n)
         {
-            srand(666 + n);
+            srand(666u + (uint32_t) n);
             char noise[4096];
             for (size_t i = 0; i < 4096; ++i)
             {

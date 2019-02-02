@@ -1010,6 +1010,12 @@ void necro_print_not_in_scope_error(NecroResultError* error, const char* source_
     necro_print_default_error_format("Name Not In Scope", error->default_ast_error_data.source_loc, error->default_ast_error_data.end_loc, source_str, source_name, explanation);
 }
 
+void necro_print_type_not_a_class_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char* explanation = "Type is not a class";
+    necro_print_default_error_format("Type Is Not A Class", error->default_ast_error_data.source_loc, error->default_ast_error_data.end_loc, source_str, source_name, explanation);
+}
+
 // NOTE:
 // Basic assumption is that and error will be freed after it is printed.
 // Thus nested errors either need to call into necro_result_error_print
@@ -1079,8 +1085,10 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_RENAME_MULTIPLE_TYPE_SIGNATURES:                 necro_print_duplicate_type_signatures_error(error, source_str, source_name); break;
     case NECRO_RENAME_NOT_IN_SCOPE:                             necro_print_not_in_scope_error(error, source_str, source_name); break;
 
+    case NECRO_TYPE_NOT_A_CLASS:                                necro_print_type_not_a_class_error(error, source_str, source_name); break;
+
     default:
-        assert(false);
+        assert(false && "[necro_result_error_print] Unknown error type");
         break;
     }
     free(error);

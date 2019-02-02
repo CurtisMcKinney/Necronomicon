@@ -1496,7 +1496,114 @@ NecroResult(void) necro_infer(NecroCompileInfo info, NecroIntern* intern, NecroS
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
+
+void necro_infer_test_error(const char* test_name, const char* str, NECRO_RESULT_TYPE expected_result, const NECRO_RESULT_ERROR_TYPE* error_type)
+{
+    // Set up
+    NecroIntern         intern          = necro_intern_create();
+    NecroSymTable       symtable        = necro_symtable_create(&intern);
+    NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create(&symtable);
+    NecroBase           base            = necro_base_compile(&intern, &scoped_symtable);
+    UNUSED(base);
+
+    NecroLexTokenVector tokens          = necro_empty_lex_token_vector();
+    NecroParseAstArena  parse_ast       = necro_parse_ast_arena_empty();
+    NecroAstArena       ast             = necro_ast_arena_empty();
+    NecroCompileInfo    info            = necro_test_compile_info();
+
+    // Compile
+    unwrap(void, necro_lex(info, &intern, str, strlen(str), &tokens));
+    unwrap(void, necro_parse(info, &intern, &tokens, necro_intern_string(&intern, "Test"), &parse_ast));
+    ast = necro_reify(info, &intern, &parse_ast);
+    necro_build_scopes(info, &scoped_symtable, &ast);
+    unwrap(void, necro_rename(info, &scoped_symtable, &intern, &ast));
+    necro_dependency_analyze(info, &intern, &ast);
+    NecroResult(void) result = necro_infer(info, &intern, &scoped_symtable, &base, &ast);
+
+    // Assert
+    assert(result.type == expected_result);
+
+    bool passed = result.type == expected_result;
+    if (expected_result == NECRO_RESULT_ERROR)
+    {
+        assert(error_type != NULL);
+        assert(result.error->type == *error_type);
+        passed &= result.error->type == *error_type;
+    }
+
+    const char* result_string = passed ? "Passed" : "Failed";
+    printf("Infer %s test: %s\n", test_name, result_string);
+
+    // Clean up
+    necro_ast_arena_destroy(&ast);
+    necro_parse_ast_arena_destroy(&parse_ast);
+    necro_destroy_lex_token_vector(&tokens);
+    necro_scoped_symtable_destroy(&scoped_symtable);
+    necro_symtable_destroy(&symtable);
+    necro_intern_destroy(&intern);
+}
+
 void necro_test_infer()
 {
     necro_announce_phase("NecroInfer");
+
+#if 0 // This crashes right now during inference :(
+    {
+        const char* test_source = ""
+            "data Book = Pages\n"
+            "class Fail a where result :: a -> a\n"
+            "x :: Fail a => a\n"
+            "x = Pages\n";
+
+        const NECRO_RESULT_TYPE expected_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error = NECRO_TYPE_RIGID_TYPE_VARIABLE;
+        necro_infer_test_error("RigidTypeVariable", test_source, expected_result, &expected_error);
+    }
+#endif
+
+    {
+        const char* test_source = ""
+            "data Book = Pages\n"
+            "data NotBook = EmptyPages\n";
+
+        const NECRO_RESULT_TYPE expected_result = NECRO_RESULT_OK;
+        const NECRO_RESULT_ERROR_TYPE* no_expected_error = NULL;
+        necro_infer_test_error("MistmatchedType", test_source, expected_result, no_expected_error);
+    }
+
+#if 0 // This also crashes
+    {
+        const char* test_source = ""
+            "data Book = Pages\n"
+            "data NotBook = EmptyPages\n"
+            "notcronomicon::Book\n";
+            "notcronomicon = EmptyPages\n";
+
+        const NECRO_RESULT_TYPE expected_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error = NECRO_TYPE_MISMATCHED_TYPE;
+        necro_infer_test_error("MistmatchedType", test_source, expected_result, &expected_error);
+    }
+#endif
+
+    /*
+    NECRO_TYPE_RIGID_TYPE_VARIABLE,
+    NECRO_TYPE_NOT_AN_INSTANCE_OF,
+    NECRO_TYPE_OCCURS,
+    NECRO_TYPE_MISMATCHED_ARITY,
+    NECRO_TYPE_MISMATCHED_TYPE,
+    NECRO_TYPE_POLYMORPHIC_PAT_BIND,
+    NECRO_TYPE_UNINITIALIZED_RECURSIVE_VALUE,
+    NECRO_TYPE_FINAL_DO_STATEMENT,
+    NECRO_TYPE_AMBIGUOUS_CLASS,
+    NECRO_TYPE_CONSTRAINS_ONLY_CLASS_VAR,
+    NECRO_TYPE_AMBIGUOUS_TYPE_VAR,
+    NECRO_TYPE_NON_CONCRETE_INITIALIZED_VALUE,
+    NECRO_TYPE_NON_RECURSIVE_INITIALIZED_VALUE,
+    NECRO_TYPE_NOT_A_CLASS,
+    NECRO_TYPE_NOT_A_VISIBLE_METHOD,
+    NECRO_TYPE_NO_EXPLICIT_IMPLEMENTATION,
+    NECRO_TYPE_DOES_NOT_IMPLEMENT_SUPER_CLASS,
+    NECRO_TYPE_MULTIPLE_CLASS_DECLARATIONS,
+    NECRO_TYPE_MULTIPLE_INSTANCE_DECLARATIONS,
+    */
 }

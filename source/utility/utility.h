@@ -210,6 +210,26 @@ static void necro_announce_phase(const char* phase_name)
 
 #define UNUSED(x) (void)(x)
 
+#if __RELEASE
+#define DEBUG_BREAK() assert(false)
+#elif defined(_WIN32) || defined(WIN32) || defined(_WIN64)
+#include <intrin.h>
+#define DEBUG_BREAK() __debugbreak()
+#elif defined(__unix)
+#include <signal.h>
+    #if __has_builtin(__builtin_debugtrap)
+        #define DEBUG_BREAK() __builtin_debugtrap()
+    #elif defined(SIGTRAP)
+        #define DEBUG_BREAK() raise(SIGTRAP)
+    #else
+        #define DEBUG_BREAK() assert(false)
+    #endif
+#else
+#define DEBUG_BREAK assert(false)
+#endif
+
+#define ASSERT_BREAK(b) if (!(b)) { DEBUG_BREAK(); }
+
 ///////////////////////////////////////////////////////
 // Timing
 ///////////////////////////////////////////////////////

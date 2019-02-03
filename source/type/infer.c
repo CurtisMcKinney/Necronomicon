@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <inttypes.h>
+#include <signal.h>
 #include <stdarg.h>
 #include "symtable.h"
 #include "prim.h"
@@ -12,6 +13,7 @@
 #include "kind.h"
 #include "infer.h"
 #include "base.h"
+#include "utility.h"
 
 // Forward declarations
 NecroResult(NecroType) necro_infer_apat(NecroInfer* infer, NecroAst* ast);
@@ -1497,7 +1499,7 @@ NecroResult(void) necro_infer(NecroCompileInfo info, NecroIntern* intern, NecroS
 // Testing
 ///////////////////////////////////////////////////////
 
-void necro_infer_test_error(const char* test_name, const char* str, NECRO_RESULT_TYPE expected_result, const NECRO_RESULT_ERROR_TYPE* error_type)
+void necro_infer_test_result(const char* test_name, const char* str, NECRO_RESULT_TYPE expected_result, const NECRO_RESULT_ERROR_TYPE* error_type)
 {
     // Set up
     NecroIntern         intern          = necro_intern_create();
@@ -1521,14 +1523,21 @@ void necro_infer_test_error(const char* test_name, const char* str, NECRO_RESULT
     NecroResult(void) result = necro_infer(info, &intern, &scoped_symtable, &base, &ast);
 
     // Assert
-    assert(result.type == expected_result);
+    ASSERT_BREAK(result.type == expected_result);
 
     bool passed = result.type == expected_result;
     if (expected_result == NECRO_RESULT_ERROR)
     {
-        assert(error_type != NULL);
-        assert(result.error->type == *error_type);
-        passed &= result.error->type == *error_type;
+        ASSERT_BREAK(error_type != NULL);
+        if (error_type != NULL)
+        {
+            ASSERT_BREAK(result.error->type == *error_type);
+            passed &= result.error->type == *error_type;
+        }
+        else
+        {
+            passed = false;
+        }
     }
 
     const char* result_string = passed ? "Passed" : "Failed";
@@ -1547,8 +1556,35 @@ void necro_test_infer()
 {
     necro_announce_phase("NecroInfer");
 
+    {
+        const char* test_name = "DataDeclarations";
+        const char* test_source = ""
+            "data Book = Pages\n"
+            "data NotBook = EmptyPages\n";
+
+        const NECRO_RESULT_TYPE expected_result = NECRO_RESULT_OK;
+        const NECRO_RESULT_ERROR_TYPE* no_expected_error = NULL;
+        necro_infer_test_result(test_name, test_source, expected_result, no_expected_error);
+    }
+
+#if 0 // This also crashes
+    {
+        const char* test_name = "MistmatchedType";
+        const char* test_source = ""
+            "data Book = Pages\n"
+            "data NotBook = EmptyPages\n"
+            "notcronomicon::Book\n"
+            "notcronomicon = EmptyPages\n";
+
+        const NECRO_RESULT_TYPE expected_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error = NECRO_TYPE_MISMATCHED_TYPE;
+        necro_infer_test_result(test_name, test_source, expected_result, &expected_error);
+    }
+#endif
+
 #if 0 // This crashes right now during inference :(
     {
+        const char* test_name = "RigidTypeVariable";
         const char* test_source = ""
             "data Book = Pages\n"
             "class Fail a where result :: a -> a\n"
@@ -1557,32 +1593,8 @@ void necro_test_infer()
 
         const NECRO_RESULT_TYPE expected_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error = NECRO_TYPE_RIGID_TYPE_VARIABLE;
-        necro_infer_test_error("RigidTypeVariable", test_source, expected_result, &expected_error);
-    }
-#endif
-
-    {
-        const char* test_source = ""
-            "data Book = Pages\n"
-            "data NotBook = EmptyPages\n";
-
-        const NECRO_RESULT_TYPE expected_result = NECRO_RESULT_OK;
-        const NECRO_RESULT_ERROR_TYPE* no_expected_error = NULL;
-        necro_infer_test_error("MistmatchedType", test_source, expected_result, no_expected_error);
-    }
-
-#if 0 // This also crashes
-    {
-        const char* test_source = ""
-            "data Book = Pages\n"
-            "data NotBook = EmptyPages\n"
-            "notcronomicon::Book\n";
-            "notcronomicon = EmptyPages\n";
-
-        const NECRO_RESULT_TYPE expected_result = NECRO_RESULT_ERROR;
-        const NECRO_RESULT_ERROR_TYPE expected_error = NECRO_TYPE_MISMATCHED_TYPE;
-        necro_infer_test_error("MistmatchedType", test_source, expected_result, &expected_error);
-    }
+        necro_infer_test_result(test_name, test_source, expected_result, &expected_error);
+}
 #endif
 
     /*

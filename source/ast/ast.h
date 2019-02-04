@@ -208,8 +208,8 @@ typedef struct
         double      double_literal;
         int64_t     int_literal;
         NecroSymbol symbol;
-		bool        boolean_literal;
         uint32_t    char_literal;
+		// bool        boolean_literal;
     };
     NECRO_CONSTANT_TYPE type;
     struct NecroAst*    pat_from_ast;
@@ -576,5 +576,14 @@ NecroAst* necro_ast_create_wildcard(NecroPagedArena* arena);
 NecroAst* necro_ast_create_context(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, const char* var_name, NecroAst* next);
 NecroAst* necro_ast_create_rhs(NecroPagedArena* arena, NecroAst* expression, NecroAst* declarations);
 NecroAst* necro_ast_create_bin_op(NecroPagedArena* arena, NecroIntern* intern, const char* op_name, NecroAst* lhs, NecroAst* rhs);
+NecroAst* necro_ast_create_constant(NecroPagedArena* arena, NecroParseAstConstant constant);
+NecroAst* necro_ast_create_let(NecroPagedArena* arena, NecroAst* expression_ast, NecroAst* declarations_ast);
+
+// Manual AST Creation with provided NecroAstSymbol
+NecroAst* necro_ast_create_simple_assignment_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* rhs_ast);
+NecroAst* necro_ast_create_var_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_VAR_TYPE var_type);
+NecroAst* necro_ast_create_conid_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_CON_TYPE con_type);
+
+void      necro_ast_assert_eq(NecroAst* ast1, NecroAst* ast2);
 
 #endif // NECRO_AST_H

@@ -50,6 +50,7 @@ void necro_prepend_module_name_to_name(NecroIntern* intern, NecroAstSymbol* ast_
     necro_snapshot_arena_rewind(&intern->snapshot_arena, snapshot);
 }
 
+// Bump the clash suffix counter and append the name with a string version of the counter.
 NecroSymbol necro_append_clash_suffix_to_name(NecroAstArena* ast_arena, NecroIntern* intern, const char* name)
 {
     ast_arena->clash_suffix++;
@@ -58,6 +59,9 @@ NecroSymbol necro_append_clash_suffix_to_name(NecroAstArena* ast_arena, NecroInt
     return necro_intern_string(intern, necro_snapshot_arena_concat_strings(&intern->snapshot_arena, 3u, (const char*[]) { name, "_", itoa((uint32_t)ast_arena->clash_suffix, itoa_buf, 36) }));
 }
 
+// Take a name and makes it unique if need be.
+// If it need to mangle a name it will recursively apply necro_append_clash_suffix_to_name until the name is unique to the module.
+// It will the prepend the module name, making the name unique across the whole project.
 NecroAstSymbol* necro_get_unique_name(NecroAstArena* ast_arena, NecroIntern* intern, NECRO_NAMESPACE_TYPE namespace_type, NECRO_MANGLE_TYPE mangle_type, NecroAstSymbol* ast_symbol)
 {
     NecroScope* namespace_scope = (namespace_type == NECRO_VALUE_NAMESPACE) ? ast_arena->module_names : ast_arena->module_type_names;
@@ -144,6 +148,7 @@ NecroResult(NecroAstSymbol) necro_rename_declare(NecroRenamer* renamer, NecroAst
         break;
 
     case NECRO_AST_SIMPLE_ASSIGNMENT:
+    {
         if (renamer->current_class_instance_symbol != NULL)
             ast->simple_assignment.ast_symbol->name = necro_intern_create_type_class_instance_symbol(renamer->intern, ast->simple_assignment.ast_symbol->source_name, renamer->current_class_instance_symbol);
         else
@@ -158,8 +163,10 @@ NecroResult(NecroAstSymbol) necro_rename_declare(NecroRenamer* renamer, NecroAst
         necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->simple_assignment.rhs));
         necro_swap_renamer_class_symbol(renamer);
         break;
+    }
 
     case NECRO_AST_APATS_ASSIGNMENT:
+    {
         if (renamer->current_class_instance_symbol != NULL)
             ast->apats_assignment.ast_symbol->name = necro_intern_create_type_class_instance_symbol(renamer->intern, ast->apats_assignment.ast_symbol->source_name, renamer->current_class_instance_symbol);
         else
@@ -192,6 +199,7 @@ NecroResult(NecroAstSymbol) necro_rename_declare(NecroRenamer* renamer, NecroAst
         necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->apats_assignment.rhs));
         necro_swap_renamer_class_symbol(renamer);
         break;
+    }
 
     case NECRO_AST_PAT_ASSIGNMENT:
         renamer->state = NECRO_RENAME_PAT_ASSIGNMENT;
@@ -772,6 +780,10 @@ void necro_rename_test()
     necro_rename_test_error("MultipleDeclarations", "multi = 0\nsomethingElse = 1\nmulti = 2\n", NECRO_RENAME_MULTIPLE_DEFINITIONS);
     necro_rename_test_error("MultipleTypeSigs", "multiSig :: Int\nmultiSig :: Float\nmultiSig = 20\n", NECRO_RENAME_MULTIPLE_TYPE_SIGNATURES);
 
+    // Note: Consult ast_symbol.h / .c for more info on NecroAstSymbols names.
+    // We're testing that compiled strings are renamed correctly.
+    // To do this we need to hand construct a NecroAST with hand mangled names.
+    // Hence the usage of necro_append_clash_suffix_to_name which appends a clash suffix.
     {
         NecroIntern   intern = necro_intern_create();
         NecroAstArena ast    = necro_ast_arena_create(necro_intern_string(&intern, "Test"));
@@ -784,7 +796,7 @@ void necro_rename_test()
                         NULL)
                     ),
                 NULL);
-        necro_rename_test_case("ConstantTest1", "constant1 = 10\n", &intern, &ast);
+        necro_rename_test_case("Constant1", "constant1 = 10\n", &intern, &ast);
     }
 
     {

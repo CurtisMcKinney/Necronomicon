@@ -34,7 +34,7 @@ NecroMachineCopyTable necro_create_machine_copy_table(NecroSymTable* symtable, N
 {
     NecroMachineCopyTable table;
     table.symtable   = symtable;
-    table.data       = malloc(NECRO_MACHINE_PERSIST_TABLE_INITIAL_SIZE * sizeof(NecroMachineCopyData));
+    table.data       = emalloc(NECRO_MACHINE_PERSIST_TABLE_INITIAL_SIZE * sizeof(NecroMachineCopyData));
     table.capacity   = NECRO_MACHINE_PERSIST_TABLE_INITIAL_SIZE;
     table.count      = NECRO_APPLY_DATA_ID + 1;
     table.member_map = necro_create_member_vector();
@@ -87,7 +87,7 @@ void necro_machine_copy_table_grow(NecroMachineCopyTable* table)
     size_t               prev_count    = table->count;
     table->count                       = 0;
     table->capacity                   *= 2;
-    table->data                        = malloc(table->capacity * sizeof(NecroMachineCopyData));
+    table->data                        = emalloc(table->capacity * sizeof(NecroMachineCopyData));
     for (size_t i = 0; i < table->capacity; ++i)
         table->data[i] = (NecroMachineCopyData) { .hash = 0, .type = NULL };
     for (size_t i = 0; i < prev_capacity; ++i)

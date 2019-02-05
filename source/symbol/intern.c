@@ -26,13 +26,7 @@ NecroIntern necro_intern_empty()
 
 NecroIntern necro_intern_create()
 {
-    NecroInternEntry* entries = malloc(NECRO_INITIAL_INTERN_SIZE * sizeof(NecroInternEntry));
-    if (entries == NULL)
-    {
-        fprintf(stderr, "Malloc returned null while allocating entries in necro_create_intern()\n");
-        exit(1);
-    }
-
+    NecroInternEntry* entries = emalloc(NECRO_INITIAL_INTERN_SIZE * sizeof(NecroInternEntry));
     for (int32_t i = 0; i < NECRO_INITIAL_INTERN_SIZE; ++i)
     {
         entries[i] = (NecroInternEntry) { .hash = 0, .data = NULL };
@@ -125,13 +119,8 @@ void necro_intern_grow(NecroIntern* intern)
     size_t            old_size    = intern->size;
     NecroInternEntry* old_entries = intern->entries;
     intern->size                  = intern->size * 2;
-    intern->entries               = malloc(intern->size * sizeof(NecroInternEntry));
+    intern->entries               = emalloc(intern->size * sizeof(NecroInternEntry));
     size_t            new_count   = 0;
-    if (intern->entries == NULL)
-    {
-        fprintf(stderr, "Malloc returned NULL while allocating memory for entries in necro_intern_grow()\n");
-        exit(1);
-    }
     // initialize new block of memory
     for (size_t i = 0; i < intern->size; ++i)
     {
@@ -166,12 +155,7 @@ NecroSymbol necro_intern_create_type_class_instance_symbol(NecroIntern* intern, 
     size_t      len1    = strlen(string1);
     size_t      lend    = strlen(div);
     size_t      len2    = strlen(string2);
-    char*       str     = malloc((len1 + lend + len2 + 1) * sizeof(char));
-    if (str == NULL)
-    {
-        fprintf(stderr, "Could not allocate memory in necro_intern_concat_symbol\n");
-        exit(1);
-    }
+    char*       str     = emalloc((len1 + lend + len2 + 1) * sizeof(char));
     // Copy str1
     for (size_t i = 0; i < len1; ++i)
         str[i] = string1[i];
@@ -194,12 +178,7 @@ NecroSymbol necro_intern_get_type_class_member_symbol_from_instance_symbol(Necro
     size_t      len1    = 0;
     for (size_t i = 0; string1[i] != '@'; ++i)
         len1++;
-    char* str = malloc((len1 + 1) * sizeof(char));
-    if (str == NULL)
-    {
-        fprintf(stderr, "Could not allocate memory in necro_intern_get_type_class_member_symbol_from_instance_symbol\n");
-        exit(1);
-    }
+    char* str = emalloc((len1 + 1) * sizeof(char));
     // Copy str1
     for (size_t i = 0; i < len1; ++i)
         str[i] = string1[i];
@@ -216,12 +195,7 @@ NecroSymbol necro_intern_concat_symbols(NecroIntern* intern, NecroSymbol symbol1
     const char* string2 = symbol2->str;
     size_t      len1    = symbol1->length;
     size_t      len2    = symbol2->length;
-    char*       str     = malloc((len1 + len2 + 1) * sizeof(char));
-    if (str == NULL)
-    {
-        fprintf(stderr, "Could not allocate memory in necro_intern_concat_symbol\n");
-        exit(1);
-    }
+    char*       str     = emalloc((len1 + len2 + 1) * sizeof(char));
     for (size_t i = 0; i < len1; ++i)
         str[i] = string1[i];
     for (size_t i = 0; i < len2; ++i)

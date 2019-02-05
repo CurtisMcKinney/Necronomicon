@@ -180,7 +180,7 @@ NecroCopyGC copy_gc;
 
 inline NecroSpace* necro_alloc_space()
 {
-    NecroSpace* space = malloc(sizeof(NecroSpace));
+    NecroSpace* space = emalloc(sizeof(NecroSpace));
     memset(space->data, 0, NECRO_SPACE_SIZE);
     space->next_space = NULL;
     return space;
@@ -266,7 +266,7 @@ NecroCopyBuffer necro_create_copy_buffer()
 {
     return (NecroCopyBuffer)
     {
-        .data     = malloc(NECRO_INITIAL_COPY_BUFFER_SIZE * sizeof(NecroCopyJob)),
+        .data     = emalloc(NECRO_INITIAL_COPY_BUFFER_SIZE * sizeof(NecroCopyJob)),
         .capacity = NECRO_INITIAL_COPY_BUFFER_SIZE,
         .count    = 0,
     };
@@ -596,12 +596,7 @@ extern DLLEXPORT void _necro_copy_gc_initialize_root_set(size_t root_count)
         copy_gc.roots = NULL;
         return;
     }
-    copy_gc.roots = malloc(root_count * sizeof(NecropCopyGCRoot));
-    if (copy_gc.roots == 0)
-    {
-        fprintf(stderr, "Couldn't allocate memory in _necro_copy_gc_initialize_root_set");
-        exit(1);
-    }
+    copy_gc.roots = emalloc(root_count * sizeof(NecropCopyGCRoot));
     for (size_t i = 0; i < root_count; ++i)
     {
         copy_gc.roots[i].root    = NULL;
@@ -879,7 +874,7 @@ extern DLLEXPORT void _necro_flip_const()
 //     segment->page_count++;
 //     // printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
 //     // printf("!! alloc_page: segment: %d, pages: %d, slab_size: %d\n", segment->segment, segment->page_count, segment->slab_size);
-//     NecroGCPage* page = malloc(sizeof(NecroGCPage) + segment->slab_size * NECRO_GC_SLAB_TO_PAGES);
+//     NecroGCPage* page = emalloc(sizeof(NecroGCPage) + segment->slab_size * NECRO_GC_SLAB_TO_PAGES);
 //     memset(page, 0, sizeof(NecroGCPage) + segment->slab_size * NECRO_GC_SLAB_TO_PAGES);
 //     if (page == NULL)
 //     {
@@ -1109,7 +1104,7 @@ extern DLLEXPORT void _necro_flip_const()
 //         gc.roots = NULL;
 //         return;
 //     }
-//     gc.roots = malloc(root_count * sizeof(NecroGCRoot));
+//     gc.roots = emalloc(root_count * sizeof(NecroGCRoot));
 //     if (gc.roots == 0)
 //     {
 //         fprintf(stderr, "Couldn't allocate memory in _necro_initialize_root_set");

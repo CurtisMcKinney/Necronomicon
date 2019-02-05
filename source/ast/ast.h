@@ -126,8 +126,6 @@ typedef struct
 {
     struct NecroAst*              left;
     NECRO_BIN_OP_TYPE             type;
-    NecroSymbol                   symbol;
-    NecroID                       id;
     struct NecroTypeClassContext* inst_context;
     struct NecroType*             op_necro_type;
     NecroAstSymbol*               ast_symbol;
@@ -140,8 +138,6 @@ typedef struct
 {
     struct NecroAst*              right;
     NECRO_BIN_OP_TYPE             type;
-    NecroSymbol                   symbol;
-    NecroID                       id;
     struct NecroTypeClassContext* inst_context;
     struct NecroType*             op_necro_type;
     NecroAstSymbol*               ast_symbol;
@@ -161,10 +157,8 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    NecroSymbol              symbol;
-    NecroID                  id;
-    NECRO_CON_TYPE           con_type;
-    NecroAstSymbol*          ast_symbol;
+    NECRO_CON_TYPE  con_type;
+    NecroAstSymbol* ast_symbol;
 } NecroAstConId;
 
 //=====================================================
@@ -209,7 +203,6 @@ typedef struct
         int64_t     int_literal;
         NecroSymbol symbol;
         uint32_t    char_literal;
-		// bool        boolean_literal;
     };
     NECRO_CONSTANT_TYPE type;
     struct NecroAst*    pat_from_ast;
@@ -241,8 +234,6 @@ typedef struct
     struct NecroAst*              lhs;
     struct NecroAst*              rhs;
     NECRO_BIN_OP_TYPE             type;
-    NecroSymbol                   symbol;
-    NecroID                       id;
     struct NecroTypeClassContext* inst_context;
     NecroAstSymbol*               ast_symbol;
 } NecroAstBinOp;
@@ -280,10 +271,8 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    NecroSymbol                   variable_name; // TODO: Remove
     struct NecroAst*              initializer;
     struct NecroAst*              rhs;
-    NecroID                       id;
     struct NecroDeclarationGroup* declaration_group;
     bool                          is_recursive;
     NecroAstSymbol*               ast_symbol;
@@ -295,10 +284,8 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    NecroSymbol              variable_name; // TODO: Remove
-    struct NecroAst*         expression;
-    NecroID                  id;
-    NecroAstSymbol*          ast_symbol;
+    struct NecroAst* expression;
+    NecroAstSymbol*  ast_symbol;
 } NecroAstBindAssignment;
 
 //=====================================================
@@ -324,10 +311,8 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    NecroSymbol                   variable_name; // TODO: Remove
     struct NecroAst*              apats;
     struct NecroAst*              rhs;
-    NecroID                       id;
     struct NecroDeclarationGroup* declaration_group;
     NecroAstSymbol*               ast_symbol;
     struct NecroAst*              optional_type_signature;
@@ -408,8 +393,6 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    NecroSymbol                   symbol; // TODO: Remove
-    NecroID                       id;
     NECRO_VAR_TYPE                var_type;
     struct NecroTypeClassContext* inst_context;
     struct NecroAst*              initializer;
@@ -578,6 +561,7 @@ NecroAst* necro_ast_create_rhs(NecroPagedArena* arena, NecroAst* expression, Nec
 NecroAst* necro_ast_create_bin_op(NecroPagedArena* arena, NecroIntern* intern, const char* op_name, NecroAst* lhs, NecroAst* rhs);
 NecroAst* necro_ast_create_constant(NecroPagedArena* arena, NecroParseAstConstant constant);
 NecroAst* necro_ast_create_let(NecroPagedArena* arena, NecroAst* expression_ast, NecroAst* declarations_ast);
+// NecroAst* necro_ast_create_left_section(NecroPagedArena* arena, NecroAstSymbol* ast_symbol,
 
 // Manual AST Creation with provided NecroAstSymbol
 NecroAst* necro_ast_create_simple_assignment_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* rhs_ast);

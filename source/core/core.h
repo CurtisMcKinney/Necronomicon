@@ -66,6 +66,10 @@ typedef struct
 //////////////////////
 struct NecroCoreAST_Expression;
 
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// TODO (Curtis, 2/5/18): Port core over to using new NecroAstSymbol system !!
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 typedef struct NecroCoreAST_Bind
 {
     NecroVar var;
@@ -224,7 +228,6 @@ typedef struct
     NecroIntern* intern;
     NecroPrimTypes* prim_types;
     NecroParse_CoreTransformState transform_state;
-    NecroError error;
     NecroSymTable* symtable;
     NecroCoreConstructors constructors;
 } NecroTransformToCore;

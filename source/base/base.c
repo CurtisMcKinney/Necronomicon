@@ -844,7 +844,13 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 
     // Compile
     necro_build_scopes(info, scoped_symtable, &base.ast);
-    unwrap(void, necro_rename(info, scoped_symtable, intern, &base.ast));
+    // unwrap(void, necro_rename(info, scoped_symtable, intern, &base.ast));
+    NecroResult(void) result = necro_rename(info, scoped_symtable, intern, &base.ast);
+    if (result.type != NECRO_RESULT_OK )
+    {
+        necro_result_error_print(result.error, "", "Necro.Base");
+        assert(false);
+    }
     necro_dependency_analyze(info, intern, &base.ast);
 
     // Cache useful symbols

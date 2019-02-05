@@ -223,8 +223,6 @@ void necro_construct_core_transform(
     NecroSymTable* symtable,
     NecroScopedSymTable* scoped_symtable)
 {
-    core_transform->error.error_message[0] = '\0';
-    core_transform->error.return_code = NECRO_SUCCESS;
     core_transform->core_ast = core_ast;
     core_transform->core_ast->arena = necro_paged_arena_create();
     core_transform->necro_ast = necro_ast;
@@ -265,8 +263,8 @@ NecroCoreAST_Expression* necro_transform_bin_op(NecroTransformToCore* core_trans
 
     NecroCoreAST_Expression* var_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
     var_expr->expr_type = NECRO_CORE_EXPR_VAR;
-    var_expr->var.symbol = bin_op->symbol;
-    var_expr->var.id = bin_op->id;
+    // var_expr->var.symbol = bin_op->symbol; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
+    // var_expr->var.id = bin_op->id; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
 
     inner_core_app->exprA = var_expr;
     inner_core_app->exprB = necro_transform_to_core_impl(core_transform, bin_op->lhs);
@@ -333,8 +331,8 @@ NecroCoreAST_Expression* necro_transform_simple_assignment(NecroTransformToCore*
     NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
     core_expr->expr_type = NECRO_CORE_EXPR_BIND;
     NecroCoreAST_Bind* core_bind = &core_expr->bind;
-    core_bind->var.symbol = simple_assignment->variable_name;
-    core_bind->var.id = simple_assignment->id;
+    // core_bind->var.symbol = simple_assignment->variable_name; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
+    // core_bind->var.id = simple_assignment->id; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
     core_bind->is_recursive = simple_assignment->is_recursive;
     core_bind->expr = necro_transform_to_core_impl(core_transform, simple_assignment->rhs);
     necro_symtable_get(core_transform->symtable, core_bind->var.id)->core_ast = core_expr;
@@ -353,8 +351,8 @@ NecroCoreAST_Expression* necro_transform_apats_assignment(NecroTransformToCore* 
     NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
     core_expr->expr_type = NECRO_CORE_EXPR_BIND;
     NecroCoreAST_Bind* core_bind = &core_expr->bind;
-    core_bind->var.symbol = apats_assignment->variable_name;
-    core_bind->var.id = apats_assignment->id;
+    // core_bind->var.symbol = apats_assignment->variable_name; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
+    // core_bind->var.id = apats_assignment->id; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
     core_bind->is_recursive = false;
     NecroSymbolInfo* info = necro_symtable_get(core_transform->symtable, core_bind->var.id);
     info->core_ast = core_expr;
@@ -384,12 +382,12 @@ NecroCoreAST_Expression* necro_transform_pat_assignment(NecroTransformToCore* co
     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
         return NULL;
 
-    NecroAstApatsAssignment* apats_assignment = &necro_ast_node->apats_assignment;
+    // NecroAstApatsAssignment* apats_assignment = &necro_ast_node->apats_assignment; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
     NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
     core_expr->expr_type = NECRO_CORE_EXPR_BIND;
     NecroCoreAST_Bind* core_bind = &core_expr->bind;
-    core_bind->var.symbol = apats_assignment->variable_name;
-    core_bind->var.id = apats_assignment->id;
+    // core_bind->var.symbol = apats_assignment->variable_name; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
+    // core_bind->var.id = apats_assignment->id; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
     core_bind->is_recursive = false;
 
     //necro_ast_node->pat_assignment.pat->pattern_expression.expressions->
@@ -427,8 +425,8 @@ NecroCoreAST_Expression* necro_transform_right_hand_side(NecroTransformToCore* c
                 NecroCoreAST_Let* let = &let_expr->let;
                 let->bind = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
                 let->bind->expr_type = NECRO_CORE_EXPR_BIND;
-                let->bind->bind.var.id = simple_assignment->id;
-                let->bind->bind.var.symbol = simple_assignment->variable_name;
+                // let->bind->bind.var.id = simple_assignment->id; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
+                // let->bind->bind.var.symbol = simple_assignment->variable_name; // TODO: CONVERT CORE TO USE NEW NecroAstSymbol system!
                 let->bind->bind.is_recursive = simple_assignment->is_recursive;
                 necro_symtable_get(core_transform->symtable, let->bind->bind.var.id)->core_ast = let_expr;
                 let->bind->bind.expr = necro_transform_to_core_impl(core_transform, simple_assignment->rhs);
@@ -485,8 +483,8 @@ NecroCoreAST_Expression* necro_transform_let(NecroTransformToCore* core_transfor
                 NecroCoreAST_Let* let = &let_expr->let;
                 let->bind = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
                 let->bind->expr_type = NECRO_CORE_EXPR_BIND;
-                let->bind->bind.var.id = simple_assignment->id;
-                let->bind->bind.var.symbol = simple_assignment->variable_name;
+                // let->bind->bind.var.id = simple_assignment->id; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
+                // let->bind->bind.var.symbol = simple_assignment->variable_name; // TODO: Convert core over to use new NecroAstSymbol system!!!!
                 necro_symtable_get(core_transform->symtable, let->bind->bind.var.id)->core_ast = let_expr;
                 let->bind->bind.expr = necro_transform_to_core_impl(core_transform, simple_assignment->rhs);
                 let->bind->bind.is_recursive = simple_assignment->is_recursive;
@@ -558,8 +556,8 @@ NecroCoreAST_Expression* necro_transform_data_constructor(NecroTransformToCore* 
     core_datacon_expr->expr_type = NECRO_CORE_EXPR_DATA_CON;
 
     NecroCoreAST_DataCon* core_datacon = &core_datacon_expr->data_con;
-    core_datacon->condid.id = ast_constructor->conid->conid.id;
-    core_datacon->condid.symbol = ast_constructor->conid->conid.symbol;
+    // core_datacon->condid.id = ast_constructor->conid->conid.id; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
+    // core_datacon->condid.symbol = ast_constructor->conid->conid.symbol; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
     core_datacon->next = NULL;
     core_datacon->arg_list = NULL;
 
@@ -583,8 +581,8 @@ NecroCoreAST_Expression* necro_transform_data_constructor(NecroTransformToCore* 
             {
                 NecroCoreAST_Expression* next_core_arg = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
                 next_core_arg->expr_type = NECRO_CORE_EXPR_VAR;
-                next_core_arg->var.id = ast_item->variable.id;
-                next_core_arg->var.symbol = ast_item->variable.symbol;
+                // next_core_arg->var.id = ast_item->variable.id; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
+                // next_core_arg->var.symbol = ast_item->variable.symbol; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
 
                 next_core_arg_data_expr->expr_type  = NECRO_CORE_EXPR_LIST;
                 next_core_arg_data_expr->list.expr = next_core_arg;
@@ -624,7 +622,7 @@ NecroCoreAST_Expression* necro_transform_data_constructor(NecroTransformToCore* 
             {
                 NecroCoreAST_Expression* next_core_arg = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
                 next_core_arg->expr_type               = NECRO_CORE_EXPR_DATA_CON;
-                next_core_arg->data_con.condid         = (NecroVar) { .id = ast_item->conid.id, .symbol = ast_item->conid.symbol };
+                // next_core_arg->data_con.condid         = (NecroVar) { .id = ast_item->conid.id, .symbol = ast_item->conid.symbol }; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
                 next_core_arg->data_con.arg_list       = NULL;
                 next_core_arg->data_con.next           = NULL;
                 next_core_arg_data_expr->expr_type = NECRO_CORE_EXPR_LIST;
@@ -679,12 +677,12 @@ NecroCoreAST_Expression* necro_transform_data_decl(NecroTransformToCore* core_tr
     assert(data_decl->simpletype->type == NECRO_AST_SIMPLE_TYPE);
     NecroAstSimpleType* simple_type = &data_decl->simpletype->simple_type;
     assert(simple_type->type_con->type == NECRO_AST_CONID);
-    NecroAstConId* conid = &simple_type->type_con->conid;
+    // NecroAstConId* conid = &simple_type->type_con->conid;
 
     NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
     core_expr->expr_type = NECRO_CORE_EXPR_DATA_DECL;
-    core_expr->data_decl.data_id.id = conid->id;
-    core_expr->data_decl.data_id.symbol = conid->symbol;
+    // core_expr->data_decl.data_id.id = conid->id; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
+    // core_expr->data_decl.data_id.symbol = conid->symbol; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
     core_expr->data_decl.con_list = NULL;
 
     NecroCoreAST_DataCon* current_core_data_con = NULL;
@@ -736,8 +734,8 @@ NecroCoreAST_Expression* necro_transform_conid(NecroTransformToCore* core_transf
 
     NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
     core_expr->expr_type = NECRO_CORE_EXPR_VAR;
-    core_expr->var.id = necro_ast_node->conid.id;
-    core_expr->var.symbol = necro_ast_node->conid.symbol;
+    // core_expr->var.id = necro_ast_node->conid.id; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
+    // core_expr->var.symbol = necro_ast_node->conid.symbol; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
     return core_expr;
 }
 
@@ -991,8 +989,8 @@ NecroCoreAST_Expression* necro_transform_case(NecroTransformToCore* core_transfo
                 case_alt->altCon->expr_type = NECRO_CORE_EXPR_DATA_CON;
 
                 NecroCoreAST_DataCon* core_datacon = &case_alt->altCon->data_con;
-                core_datacon->condid.id = alt->pat->conid.id;
-                core_datacon->condid.symbol = alt->pat->conid.symbol;
+                // core_datacon->condid.id = alt->pat->conid.id; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
+                // core_datacon->condid.symbol = alt->pat->conid.symbol; // TODO: CONVERT / FINISH! Needs to be converted to NecroAstSymbol system!!!!!!
                 core_datacon->next = NULL;
                 core_datacon->arg_list = NULL;
             }
@@ -1033,8 +1031,8 @@ NecroCoreAST_Expression* necro_transform_variable(NecroTransformToCore* core_tra
 
     NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
     core_expr->expr_type = NECRO_CORE_EXPR_VAR;
-    core_expr->var.id = necro_ast_node->variable.id;
-    core_expr->var.symbol = necro_ast_node->variable.symbol;
+    // core_expr->var.id = necro_ast_node->variable.id; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
+    // core_expr->var.symbol = necro_ast_node->variable.symbol; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
     return core_expr;
 }
 

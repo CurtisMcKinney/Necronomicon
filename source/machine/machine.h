@@ -32,6 +32,7 @@
 
 /*
     TODO:
+        * (Curtis 2-5-18) FINISH NecroAstSymbol system!!!!!!!
         * necro_verify_machine_program
 */
 

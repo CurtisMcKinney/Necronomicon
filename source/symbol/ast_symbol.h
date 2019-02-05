@@ -34,9 +34,10 @@ NECRO_DECLARE_ARENA_LIST(struct NecroTypeClassInstance*, TypeClassInstance, type
 
 ///////////////////////////////////////////////////////
 // NecroAstSymbol
-///////////////////////////////////////////////////////
+//------------------
 // Unique identifier and information container for any "Symbol" (i.e. identified object, such as Data Constructor, variables, Type Classes, etc)
 // contained in the program being compiled.
+///////////////////////////////////////////////////////
 typedef struct NecroAstSymbol
 {
     NecroSymbol                    name;                    // Most fully qualified version of the name of the NecroAstSymbol, which should be unique to the entire project and all included modules. takes the form: ModuleName.sourceName_clashSuffix

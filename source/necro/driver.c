@@ -97,8 +97,6 @@ NecroResult(void) necro_compile_go(
     NecroCoreAST*         ast_core,
     NecroMachineProgram*  machine)
 {
-    UNUSED(base);
-
     if (info.compilation_phase == NECRO_PHASE_NONE)
         return ok_void();
 
@@ -363,12 +361,14 @@ void necro_test(NECRO_TEST test)
     case NECRO_TEST_RENAME:            necro_rename_test();             break;
     case NECRO_TEST_INFER:             necro_test_infer();              break;
     case NECRO_TEST_ARENA_CHAIN_TABLE: necro_arena_chain_table_test();  break;
+    case NECRO_TEST_BASE:              necro_base_test();               break;
     case NECRO_TEST_ALL:
         necro_test_unicode_properties();
         necro_intern_test();
         necro_lex_test();
         necro_parse_test();
         necro_rename_test();
+        // necro_base_test();
         necro_test_infer();
         // necro_arena_chain_table_test();
         break;

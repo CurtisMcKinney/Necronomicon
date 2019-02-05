@@ -138,6 +138,7 @@ typedef struct NecroInfer
     NecroIntern*                intern;
     NecroPagedArena*            arena;
     NecroSnapshotArena          snapshot_arena;
+    NecroAstArena*              ast_arena;
 } NecroInfer;
 
 //=====================================================
@@ -146,7 +147,7 @@ typedef struct NecroInfer
 
 // TODO: move this into infer.h
 NecroInfer             necro_infer_empty();
-NecroInfer             necro_infer_create(NecroPagedArena* arena, NecroIntern* intern, struct NecroScopedSymTable* scoped_symtable, struct NecroBase* base);
+NecroInfer             necro_infer_create(NecroPagedArena* arena, NecroIntern* intern, struct NecroScopedSymTable* scoped_symtable, struct NecroBase* base, NecroAstArena* ast_arena);
 void                   necro_infer_destroy(NecroInfer* infer);
 
 NecroResult(NecroType) necro_type_unify(NecroPagedArena* arena, struct NecroBase* base, NecroType* type1, NecroType* type2, struct NecroScope* scope);

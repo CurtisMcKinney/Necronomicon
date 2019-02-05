@@ -1813,6 +1813,9 @@ NecroResult(NecroType) necro_create_type_class(NecroInfer* infer, NecroAst* type
         // necro_rename_var_pass(infer->renamer, infer->arena, dictionary_declarations->top_declaration.declaration);
         // infer->error = infer->renamer->error;
 
+        // New System?
+        necro_internal_scope_and_rename(infer->ast_arena, infer->scoped_symtable, infer->intern, dictionary_declarations->top_declaration.declaration);
+
         dictionary_declaration_group = necro_declaration_group_append(infer->arena, dictionary_declarations->top_declaration.declaration, dictionary_declaration_group);
         dictionary_declarations      = dictionary_declarations->top_declaration.next_top_decl;
     }
@@ -2140,6 +2143,7 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
         // TODO: NOTE THIS NEEDS TO BE REPLACED WITH NEW SYSTEM THAT DOESN'T USE THE RENAMER!
         // necro_rename_var_pass(infer->renamer, infer->arena, dictionary_instance);
         // infer->error = infer->renamer->error;
+        necro_internal_scope_and_rename(infer->ast_arena, infer->scoped_symtable, infer->intern, dictionary_instance);
     }
     return ok(NecroType, NULL);
 }

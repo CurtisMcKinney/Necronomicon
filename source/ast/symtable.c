@@ -705,7 +705,6 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
 
 void necro_build_scopes(NecroCompileInfo info, NecroScopedSymTable* table, NecroAstArena* ast)
 {
-
     necro_build_scopes_go(table, ast->root);
     if (info.compilation_phase == NECRO_PHASE_BUILD_SCOPES && info.verbosity > 0)
         necro_ast_arena_print(ast);

@@ -1233,6 +1233,24 @@ NecroAst* necro_ast_create_let(NecroPagedArena* arena, NecroAst* expression_ast,
     return ast;
 }
 
+NecroAst* necro_ast_create_do(NecroPagedArena* arena, NecroAst* statement_list_ast)
+{
+    NecroAst* ast                    = necro_paged_arena_alloc(arena, sizeof(NecroAst));
+    ast->type                        = NECRO_AST_DO;
+    ast->do_statement.monad_var      = NULL;
+    ast->do_statement.statement_list = statement_list_ast;
+    return ast;
+}
+
+NecroAst* necro_ast_create_bind_assignment(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* expr)
+{
+    NecroAst* ast                   = necro_paged_arena_alloc(arena, sizeof(NecroAst));
+    ast->type                       = NECRO_BIND_ASSIGNMENT;
+    ast->bind_assignment.ast_symbol = ast_symbol;
+    ast->bind_assignment.expression = expr;
+    return ast;
+}
+
 ///////////////////////////////////////////////////////
 // Assert Eq
 ///////////////////////////////////////////////////////

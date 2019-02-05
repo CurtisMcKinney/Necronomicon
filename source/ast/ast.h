@@ -561,6 +561,8 @@ NecroAst* necro_ast_create_rhs(NecroPagedArena* arena, NecroAst* expression, Nec
 NecroAst* necro_ast_create_bin_op(NecroPagedArena* arena, NecroIntern* intern, const char* op_name, NecroAst* lhs, NecroAst* rhs);
 NecroAst* necro_ast_create_constant(NecroPagedArena* arena, NecroParseAstConstant constant);
 NecroAst* necro_ast_create_let(NecroPagedArena* arena, NecroAst* expression_ast, NecroAst* declarations_ast);
+NecroAst* necro_ast_create_do(NecroPagedArena* arena, NecroAst* statement_list_ast);
+NecroAst* necro_ast_create_bind_assignment(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* expr);
 // NecroAst* necro_ast_create_left_section(NecroPagedArena* arena, NecroAstSymbol* ast_symbol,
 
 // Manual AST Creation with provided NecroAstSymbol

@@ -65,6 +65,7 @@ typedef struct NecroBase
     NecroAstSymbol* array_type;
     NecroAstSymbol* dyn_state_type;
     NecroAstSymbol* maybe_type;
+    NecroAstSymbol* prim_undefined;
 
     // Runtime functions
     NecroAstSymbol* mouse_x_fn;
@@ -77,5 +78,6 @@ typedef struct NecroBase
 
 NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_symtable);
 void      necro_base_destroy(NecroBase* base);
+void      necro_base_test();
 
 #endif // NECRO_BASE_H

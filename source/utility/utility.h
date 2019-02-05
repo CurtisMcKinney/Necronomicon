@@ -190,12 +190,10 @@ void print_white_space(size_t white_count);
 
 static void necro_announce_phase(const char* phase_name)
 {
-    // fflush(stdout);
-    // fflush(stderr);
-    puts("");
-    puts("--------------------------------");
+    printf("\n");
+    printf("--------------------------------\n");
     printf("-- %s\n", phase_name);
-    puts("--------------------------------");
+    printf("--------------------------------\n");
 }
 
 #define BIT(x) (1 << x)

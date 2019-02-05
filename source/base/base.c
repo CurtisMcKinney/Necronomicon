@@ -10,6 +10,7 @@
 #include "renamer.h"
 #include "d_analyzer.h"
 #include "kind.h"
+#include "infer.h"
 
 ///////////////////////////////////////////////////////
 // Create / Destroy
@@ -842,18 +843,14 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "||", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
     }
 
-    // Compile
+    // Compile, part I
     necro_build_scopes(info, scoped_symtable, &base.ast);
-    // unwrap(void, necro_rename(info, scoped_symtable, intern, &base.ast));
-    NecroResult(void) result = necro_rename(info, scoped_symtable, intern, &base.ast);
-    if (result.type != NECRO_RESULT_OK )
-    {
-        necro_result_error_print(result.error, "", "Necro.Base");
-        assert(false);
-    }
+    unwrap(void, necro_rename(info, scoped_symtable, intern, &base.ast));
     necro_dependency_analyze(info, intern, &base.ast);
 
     // Cache useful symbols
+    base.prim_undefined         = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "_primUndefined"));;
+
     base.tuple2_con             = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "(,)"));
     base.tuple3_con             = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "(,,)"));
     base.tuple4_con             = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "(,,,)"));
@@ -909,7 +906,25 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.unsafe_peek            = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "unsafePeek"));
     base.unsafe_poke            = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "unsafePoke"));
 
+
+    // Compile, part II
+    // unwrap(void, necro_infer(info, intern, scoped_symtable, &base, &base.ast));
+
     // Finish
-    // necro_ast_arena_print(&base.ast);
     return base;
+}
+
+void necro_base_test()
+{
+    necro_announce_phase("NecroBase");
+    // Set up
+    NecroIntern         intern          = necro_intern_create();
+    NecroAstArena       ast             = necro_ast_arena_create(necro_intern_string(&intern, "Test"));
+    NecroSymTable       symtable        = necro_symtable_create(&intern);
+    NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create(&symtable);
+    NecroBase           base            = necro_base_compile(&intern, &scoped_symtable);
+    UNUSED(base);
+    UNUSED(ast);
+
+    necro_ast_arena_print(&base.ast);
 }

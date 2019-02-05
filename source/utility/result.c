@@ -1093,3 +1093,12 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     }
     free(error);
 }
+
+void necro_assert_on_error(bool condition, NecroResultError* error)
+{
+    if (condition)
+        return;
+    // necro_result_error_print()
+    UNUSED(error);
+    assert(false);
+}

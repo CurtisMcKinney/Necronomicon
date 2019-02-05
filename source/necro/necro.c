@@ -57,6 +57,10 @@ int main(int32_t argc, char** argv)
         {
             necro_test(NECRO_TEST_RENAME);
         }
+        else if (strcmp(argv[2], "base") == 0)
+        {
+            necro_test(NECRO_TEST_BASE);
+        }
     }
     else if (argc == 2 || argc == 3 || argc == 4)
     {

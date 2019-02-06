@@ -735,13 +735,16 @@ void necro_scope_print(NecroScope* scope, size_t whitespace, NecroIntern* intern
 
     for (size_t bucket = 0; bucket < scope->size; ++bucket)
     {
-        if (scope->buckets[bucket].id.id != NECRO_SYMTABLE_NULL_ID.id)
+        // if (scope->buckets[bucket].id.id != NECRO_SYMTABLE_NULL_ID.id)
+        if (scope->buckets[bucket].ast_symbol != NULL)
         {
             // TODO: Replace symtable printing with NecroAstSymbolData printing!
             // print_white_space(whitespace + 8);
             // NecroSymbolInfo info = *necro_symtable_get(global_table, scope->buckets[bucket].id);
             // necro_symtable_info_print(info, intern, whitespace + 8);
             // printf("{ name: %s, id: %d }\n", necro_intern_get_string(intern, table->buckets[bucket].symbol), table->buckets[bucket].id.id);
+            necro_ast_symbol_print_type_and_kind(scope->buckets[bucket].ast_symbol, whitespace + 8);
+            printf("\n");
         }
     }
 
@@ -754,7 +757,13 @@ void necro_scope_print(NecroScope* scope, size_t whitespace, NecroIntern* intern
 
 void necro_scoped_symtable_print_type_scope(NecroScopedSymTable* table)
 {
-    necro_scope_print(table->top_type_scope, 8, table->global_table->intern);
+    necro_scope_print(table->top_type_scope, 0, table->global_table->intern);
+}
+
+void necro_scoped_symtable_print_top_scopes(NecroScopedSymTable* table)
+{
+    necro_scope_print(table->top_type_scope, 0, table->global_table->intern);
+    necro_scope_print(table->top_scope, 0, table->global_table->intern);
 }
 
 void necro_scoped_symtable_print(NecroScopedSymTable* table)

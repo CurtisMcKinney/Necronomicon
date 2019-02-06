@@ -486,7 +486,7 @@ NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroBase* base, 
         necro_try(NecroType, necro_instantiate_type_var(arena, base, &type2->var, type1, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_CON:
-        if (type1->con.con_symbol == type2->con.con_symbol)
+        if (type1->con.con_symbol != type2->con.con_symbol)
         {
             return necro_type_mismatched_type_error(NULL, type1, NULL_LOC, NULL_LOC, NULL, type2, NULL_LOC, NULL_LOC);
         }
@@ -542,7 +542,7 @@ NecroResult(NecroType) necro_type_unify(NecroPagedArena* arena, NecroBase* base,
     case NECRO_TYPE_FOR:
         while (type1->type == NECRO_TYPE_FOR)
             type1 = type1->for_all.type;
-        necro_type_unify(arena, base, type1, type2, scope);
+        necro_try(NecroType, necro_type_unify(arena, base, type1, type2, scope));
         return ok(NecroType, NULL);
     default:
         necro_unreachable(NecroType);
@@ -562,6 +562,7 @@ typedef struct NecroInstSub
 NecroInstSub* necro_create_inst_sub(NecroPagedArena* arena, NecroAstSymbol* var_to_replace, NecroTypeClassContext* context, NecroInstSub* next)
 {
     NecroType* type_var                   = necro_type_fresh_var(arena);
+    type_var->var.var_symbol->name        = var_to_replace->name;
     type_var->var.var_symbol->source_name = var_to_replace->source_name;
     type_var->kind                        = necro_type_find(var_to_replace->type)->kind;
     NecroInstSub* sub = necro_paged_arena_alloc(arena, sizeof(NecroInstSub));
@@ -725,6 +726,7 @@ NecroGenResult necro_gen_go(NecroPagedArena* arena, NecroType* type, NecroGenRes
             if (!type->var.is_type_class_var)
             {
                 type_var                              = necro_type_fresh_var(arena);
+                type_var->var.var_symbol->name        = type->var.var_symbol->name;
                 type_var->var.var_symbol->source_name = type->var.var_symbol->source_name;
                 type_var->var.is_rigid                = true;
                 type_var->var.context                 = type->var.context;
@@ -890,6 +892,7 @@ bool necro_print_tuple_sig(NecroType* type)
         necro_type_print(current_element->list.item);
         if (current_element->list.next != NULL)
             printf(",");
+        current_element = current_element->list.next;
     }
     printf(")");
     return true;

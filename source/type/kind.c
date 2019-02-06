@@ -242,8 +242,9 @@ NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase
             args_head = result_type;
         necro_try(NecroType, necro_kind_unify(con_symbol->type->kind, args_head, NULL));
         if (type->kind == NULL)
-            type->kind = result_type;
-        return ok(NecroType, type->kind);
+            type->kind = necro_type_find(result_type);
+        // return ok(NecroType, type->kind);
+        return ok(NecroType, necro_type_find(result_type));
     }
 
     case NECRO_TYPE_FOR:

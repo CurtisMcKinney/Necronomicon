@@ -1251,7 +1251,7 @@ NecroResult(NecroType) necro_infer_declaration_group(NecroInfer* infer, NecroDec
             size_t    con_num          = 0;
             while (constructor_list != NULL)
             {
-                necro_create_data_constructor(infer, constructor_list->list.item, ast->data_declaration.simpletype->simple_type.type_con->conid.ast_symbol->type, con_num);
+                necro_try(NecroType, necro_create_data_constructor(infer, constructor_list->list.item, ast->data_declaration.simpletype->simple_type.type_con->conid.ast_symbol->type, con_num));
                 constructor_list = constructor_list->list.next_item;
                 con_num++;
             }
@@ -1556,7 +1556,7 @@ void necro_infer_test_result(const char* test_name, const char* str, NECRO_RESUL
 void necro_test_infer()
 {
     necro_announce_phase("NecroInfer");
-    
+
 #if 0 // Crashes
     {
         const char* test_name = "NothingType";

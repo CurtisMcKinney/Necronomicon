@@ -141,8 +141,9 @@ NecroAstSymbol*     necro_symtable_get_type_ast_symbol(NecroScopedSymTable* scop
 NecroVar            necro_scoped_symtable_get_top_level_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name);
 NecroVar            necro_scoped_symtable_get_type_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name);
 
-// Test
+void                necro_scoped_symtable_print_top_scopes(NecroScopedSymTable* table);
 void                necro_scoped_symtable_print_type_scope(NecroScopedSymTable* table);
 void                necro_scoped_symtable_print(NecroScopedSymTable* table);
 void                necro_scoped_symtable_test();
+
 #endif // SYMTABLE_H

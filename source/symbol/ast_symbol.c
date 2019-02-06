@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "ast_symbol.h"
+#include "type.h"
 
 NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name, NecroSymbol source_name, NecroSymbol module_name, struct NecroAst* ast)
 {
@@ -40,4 +41,28 @@ const char* necro_ast_symbol_most_qualified_name(NecroAstSymbol* ast_symbol)
         return ast_symbol->source_name->str;
     else
         return "NULL AST_SYMBOL";
+}
+
+void necro_ast_symbol_print_type_and_kind(NecroAstSymbol* ast_symbol, size_t num_white_spaces)
+{
+    assert(ast_symbol != NULL);
+    print_white_space(num_white_spaces);
+    printf("%s ", ast_symbol->name->str);
+    size_t length = strlen(ast_symbol->name->str);
+    size_t offset = max(24, length) - length;
+    for (size_t i = 0; i < offset; i++)
+        printf(" ");
+    printf(" :: ");
+    if (ast_symbol->type == NULL)
+    {
+        printf(" NULL_TYPE!");
+        return;
+    }
+    necro_type_print(ast_symbol->type);
+    printf(" : ");
+    if (ast_symbol->type->kind == NULL)
+    {
+        printf(" NULL_KIND!");
+    }
+    necro_type_print(ast_symbol->type->kind);
 }

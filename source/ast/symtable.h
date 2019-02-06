@@ -34,6 +34,11 @@ struct NecroCoreAST_Expression;
 struct NecroMachineAST;
 struct NecroDeclarationGroup;
 
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// TODO (Curtis, 2-5-18):
+// REMOVE THIS ONCE NecroAstSymbol SYSTEM
+// IS FINISHED!!!
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 typedef struct
 {
     NecroSymbol                     name;
@@ -84,8 +89,8 @@ void             necro_symtable_print_env(NecroSymTable* table, NecroInfer* infe
 //=====================================================
 typedef struct NecroScopedHashtableNode
 {
-    NecroSymbol              symbol;
-    NecroID                  id;
+    NecroSymbol              symbol;     // TODO: Remove
+    NecroID                  id;         // TODO: Remove
     NecroAstSymbol*          ast_symbol;
 } NecroScopeNode;
 
@@ -107,7 +112,6 @@ typedef struct NecroScopedSymTable
     NecroScope*      current_scope;
     NecroScope*      top_type_scope;
     NecroScope*      current_type_scope;
-    NecroError       error; // TODO: REMOVE THIS!
 } NecroScopedSymTable;
 
 NecroScopedSymTable necro_scoped_symtable_empty();
@@ -125,7 +129,7 @@ void                necro_build_scopes(NecroCompileInfo info, NecroScopedSymTabl
 void                necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input_node);
 NecroScope*         necro_scope_create(NecroPagedArena* arena, NecroScope* parent);
 NecroID             necro_scoped_symtable_new_symbol_info(NecroScopedSymTable* table, NecroScope* scope, NecroSymbolInfo info);
-NecroID             necro_symtable_manual_new_symbol(NecroSymTable* symtable, NecroSymbol symbol);
+NecroID             necro_symtable_manual_new_symbol(NecroSymTable* symtable, NecroSymbol symbol); // TODO: Remove!!!!!!!
 
 bool                necro_scope_contains(NecroScope* scope, NecroSymbol symbol);
 void                necro_scope_insert_ast_symbol(NecroPagedArena* arena, NecroScope* scope, NecroAstSymbol* ast_symbol);

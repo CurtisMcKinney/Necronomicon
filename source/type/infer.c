@@ -495,7 +495,7 @@ NecroResult(NecroType) necro_infer_var(NecroInfer* infer, NecroAst* ast)
 
     if (ast->variable.var_type == NECRO_VAR_VAR && data->declaration_group != NULL && data->type_status != NECRO_TYPE_DONE && data->ast != NULL)
     {
-        if (data->ast->type == NECRO_AST_SIMPLE_ASSIGNMENT && data->ast->simple_assignment.initializer == NULL)
+        if (data->ast->type == NECRO_AST_SIMPLE_ASSIGNMENT && data->ast->simple_assignment.initializer == NULL && data->ast->simple_assignment.ast_symbol != infer->base->prim_undefined)
         {
             return necro_type_uninitialized_recursive_value_error(data, data->type, ast->source_loc, ast->end_loc);
         }
@@ -1481,15 +1481,16 @@ NecroResult(NecroType) necro_infer_go(NecroInfer* infer, NecroAst* ast)
 // TODO: Printing symbol data (perhaps crawl top level?)
 NecroResult(void) necro_infer(NecroCompileInfo info, NecroIntern* intern, NecroScopedSymTable* scoped_symtable, NecroBase* base, NecroAstArena* ast_arena)
 {
-    NecroInfer infer = necro_infer_create(&ast_arena->arena, intern, scoped_symtable, base);
+    NecroInfer infer = necro_infer_create(&ast_arena->arena, intern, scoped_symtable, base, ast_arena);
     necro_try_map(NecroType, void, necro_infer_go(&infer, ast_arena->root));
     if (info.compilation_phase == NECRO_PHASE_INFER && info.verbosity > 0)
     {
         necro_ast_arena_print(ast_arena);
         return ok_void();
     }
+    // TODO: Removing type class translation for now...
     // TODO: Separate Infer and Type Class translation phases with Different State object for type class translation!!!!
-    necro_try(void, necro_type_class_translate(&infer, ast_arena->root));
+    // necro_try(void, necro_type_class_translate(&infer, ast_arena->root));
     if (info.compilation_phase == NECRO_PHASE_TYPE_CLASS_TRANSLATE && info.verbosity > 0)
         necro_ast_arena_print(ast_arena);
     return ok_void();

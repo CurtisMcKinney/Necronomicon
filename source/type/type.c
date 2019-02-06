@@ -38,7 +38,7 @@ NecroInfer necro_infer_empty()
     };
 }
 
-NecroInfer necro_infer_create(NecroPagedArena* arena, NecroIntern* intern, struct NecroScopedSymTable* scoped_symtable, struct NecroBase* base)
+NecroInfer necro_infer_create(NecroPagedArena* arena, NecroIntern* intern, struct NecroScopedSymTable* scoped_symtable, struct NecroBase* base, NecroAstArena* ast_arena)
 {
 
     NecroInfer infer = (NecroInfer)
@@ -48,6 +48,7 @@ NecroInfer necro_infer_create(NecroPagedArena* arena, NecroIntern* intern, struc
         .snapshot_arena  = necro_snapshot_arena_create(),
         .scoped_symtable = scoped_symtable,
         .base            = base,
+        .ast_arena       = ast_arena,
     };
     return infer;
 }

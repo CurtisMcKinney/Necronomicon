@@ -17,7 +17,7 @@ NecroResultUnion global_result;
 ///////////////////////////////////////////////////////
 NecroResult(NecroParseAstLocalPtr) necro_parse_error_cons(NecroResultError* error1, NecroResultError* error2)
 {
-    NecroResultError* error = malloc(sizeof(NecroResultError));
+    NecroResultError* error = emalloc(sizeof(NecroResultError));
     error->type             = NECRO_ERROR_CONS;
     error->error_cons       = (NecroErrorCons) { .error1 = error1, .error2 = error2 };
     return (NecroResult(NecroParseAstLocalPtr)) { .error = error, .type = NECRO_RESULT_ERROR };
@@ -25,7 +25,7 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_error_cons(NecroResultError* erro
 
 inline NecroResult(bool) necro_default_lex_error(NECRO_RESULT_ERROR_TYPE type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    NecroResultError* error   = malloc(sizeof(NecroResultError));
+    NecroResultError* error   = emalloc(sizeof(NecroResultError));
     error->type               = type;
     error->default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc };
     return (NecroResult(bool)) { .error = error, .type = NECRO_RESULT_ERROR };
@@ -33,7 +33,7 @@ inline NecroResult(bool) necro_default_lex_error(NECRO_RESULT_ERROR_TYPE type, N
 
 inline NecroResult(NecroParseAstLocalPtr) necro_default_parse_error(NECRO_RESULT_ERROR_TYPE type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    NecroResultError* error   = malloc(sizeof(NecroResultError));
+    NecroResultError* error   = emalloc(sizeof(NecroResultError));
     error->type               = type;
     error->default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc };
     return (NecroResult(NecroParseAstLocalPtr)) { .error = error, .type = NECRO_RESULT_ERROR };
@@ -41,7 +41,7 @@ inline NecroResult(NecroParseAstLocalPtr) necro_default_parse_error(NECRO_RESULT
 
 inline NecroResult(NecroAst) necro_default_ast_error(NECRO_RESULT_ERROR_TYPE type, NecroAstSymbol* ast_symbol, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    NecroResultError* error       = malloc(sizeof(NecroResultError));
+    NecroResultError* error       = emalloc(sizeof(NecroResultError));
     error->type                   = type;
     error->default_ast_error_data = (NecroDefaultAstErrorData)
     {
@@ -54,7 +54,7 @@ inline NecroResult(NecroAst) necro_default_ast_error(NECRO_RESULT_ERROR_TYPE typ
 
 inline NecroResult(NecroAst) necro_default_ast_error2(NECRO_RESULT_ERROR_TYPE type, NecroAstSymbol* ast_symbol1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
 {
-    NecroResultError* error         = malloc(sizeof(NecroResultError));
+    NecroResultError* error         = emalloc(sizeof(NecroResultError));
     error->type                     = type;
     error->default_ast_error_data_2 = (NecroDefaultAstErrorData2)
     {
@@ -90,7 +90,7 @@ NecroResult(void) necro_mixed_braces_error(NecroSourceLoc source_loc, NecroSourc
 
 NecroResult(void) necro_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    NecroResultError* error   = malloc(sizeof(NecroResultError));
+    NecroResultError* error   = emalloc(sizeof(NecroResultError));
     error->type               = NECRO_PARSE_ERROR;
     error->default_error_data = (NecroDefaultErrorData) { .source_loc = source_loc, .end_loc = end_loc };
     return (NecroResult(void)) { .error = error, .type = NECRO_RESULT_ERROR };
@@ -353,7 +353,7 @@ NecroResult(NecroAstSymbol) necro_not_in_scope_error(NecroAstSymbol* ast_symbol,
 
 inline NecroResult(NecroType) necro_mismatched_types_error(NECRO_RESULT_ERROR_TYPE error_type, NecroType* type1, NecroType* type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    NecroResultError* error            = malloc(sizeof(NecroResultError));
+    NecroResultError* error            = emalloc(sizeof(NecroResultError));
     error->type                        = error_type;
     error->mismatched_types_error_data = (NecroMismatchedTypesErrorData)
     {
@@ -367,7 +367,7 @@ inline NecroResult(NecroType) necro_mismatched_types_error(NECRO_RESULT_ERROR_TY
 
 inline NecroResult(NecroType) necro_default_type_error1(NECRO_RESULT_ERROR_TYPE error_type, NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    NecroResultError* error         = malloc(sizeof(NecroResultError));
+    NecroResultError* error         = emalloc(sizeof(NecroResultError));
     error->type                     = error_type;
     error->default_type_error_data1 = (NecroDefaultTypeErrorData1)
     {
@@ -381,7 +381,7 @@ inline NecroResult(NecroType) necro_default_type_error1(NECRO_RESULT_ERROR_TYPE 
 
 inline NecroResult(NecroType) necro_default_type_error(NECRO_RESULT_ERROR_TYPE error_type, NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
 {
-    NecroResultError* error        = malloc(sizeof(NecroResultError));
+    NecroResultError* error        = emalloc(sizeof(NecroResultError));
     error->type                    = error_type;
     error->default_type_error_data = (NecroDefaultTypeErrorData)
     {
@@ -1092,4 +1092,13 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
         break;
     }
     free(error);
+}
+
+void necro_assert_on_error(bool condition, NecroResultError* error)
+{
+    if (condition)
+        return;
+    // necro_result_error_print()
+    UNUSED(error);
+    assert(false);
 }

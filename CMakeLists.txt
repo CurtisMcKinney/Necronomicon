@@ -85,8 +85,6 @@ set(project_SOURCES
 
     source/runtime/runtime.c
     source/runtime/mouse.c
-    source/runtime/slab.c
-    source/runtime/region.c
 
     source/type/type.c
     source/type/kind.c
@@ -145,8 +143,6 @@ set(project_HEADERS
 
     source/runtime/runtime.h
     source/runtime/mouse.h
-    source/runtime/slab.h
-    source/runtime/region.h
 
     source/type/type.h
     source/type/kind.h

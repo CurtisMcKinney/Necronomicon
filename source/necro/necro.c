@@ -53,6 +53,14 @@ int main(int32_t argc, char** argv)
         {
             necro_test(NECRO_TEST_INTERN);
         }
+        else if (strcmp(argv[2], "rename") == 0)
+        {
+            necro_test(NECRO_TEST_RENAME);
+        }
+        else if (strcmp(argv[2], "base") == 0)
+        {
+            necro_test(NECRO_TEST_BASE);
+        }
     }
     else if (argc == 2 || argc == 3 || argc == 4)
     {
@@ -79,88 +87,82 @@ int main(int32_t argc, char** argv)
         fseek(file, 0, SEEK_SET);
 
         // Allocate buffer
-        str = malloc(length + 2);
-        if (str)
-        {
-            // read contents of buffer
-            length = fread(str, 1, length, file);
-            str[length]     = '\n';
-            str[length + 1] = '\0';
+        str = emalloc(length + 2);
 
-            if (argc > 2 && strcmp(argv[2], "-lex") == 0)
-            {
-                necro_compile(file_name, str, length, NECRO_PHASE_LEX, NECRO_OPT_OFF);
-            }
-            else if (argc > 2 && strcmp(argv[2], "-parse") == 0)
-            {
-                necro_compile(file_name, str, length, NECRO_PHASE_PARSE, NECRO_OPT_OFF);
-            }
-            else if (argc > 2 && strcmp(argv[2], "-reify") == 0)
-            {
-                necro_compile(file_name, str, length, NECRO_PHASE_REIFY, NECRO_OPT_OFF);
-            }
-            else if (argc > 2 && strcmp(argv[2], "-scope") == 0)
-            {
-                necro_compile(file_name, str, length, NECRO_PHASE_BUILD_SCOPES, NECRO_OPT_OFF);
-            }
-            else if (argc > 2 && strcmp(argv[2], "-rename") == 0)
-            {
-                necro_compile(file_name, str, length, NECRO_PHASE_RENAME, NECRO_OPT_OFF);
-            }
-            else if (argc > 2 && strcmp(argv[2], "-dep") == 0)
-            {
-                necro_compile(file_name, str, length, NECRO_PHASE_DEPENDENCY_ANALYSIS, NECRO_OPT_OFF);
-            }
-            else if (argc > 2 && strcmp(argv[2], "-infer") == 0)
-            {
-                necro_compile(file_name, str, length, NECRO_PHASE_INFER, NECRO_OPT_OFF);
-            }
-            else if (argc > 2 && strcmp(argv[2], "-type_class") == 0)
-            {
-                necro_compile(file_name, str, length, NECRO_PHASE_TYPE_CLASS_TRANSLATE, NECRO_OPT_OFF);
-            }
-            else if (argc > 2 && strcmp(argv[2], "-core") == 0)
-            {
-                necro_compile(file_name, str, length, NECRO_PHASE_TRANSFORM_TO_CORE, NECRO_OPT_OFF);
-            }
-            else if (argc > 2 && strcmp(argv[2], "-ll") == 0)
-            {
-                necro_compile(file_name, str, length, NECRO_PHASE_LAMBDA_LIFT, NECRO_OPT_OFF);
-            }
-            else if (argc > 2 && strcmp(argv[2], "-cc") == 0)
-            {
-                necro_compile(file_name, str, length, NECRO_PHASE_CLOSURE_CONVERSION, NECRO_OPT_OFF);
-            }
-            else if (argc > 2 && strcmp(argv[2], "-sa") == 0)
-            {
-                necro_compile(file_name, str, length, NECRO_PHASE_STATE_ANALYSIS, NECRO_OPT_OFF);
-            }
-            else if (argc > 2 && strcmp(argv[2], "-machine") == 0)
-            {
-                necro_compile(file_name, str, length, NECRO_PHASE_TRANSFORM_TO_MACHINE, NECRO_OPT_OFF);
-            }
-            else if (argc > 2 && strcmp(argv[2], "-codegen") == 0)
-            {
-                if (argc > 3 &&  strcmp(argv[3], "-opt") == 0)
-                    necro_compile(file_name, str, length, NECRO_PHASE_CODEGEN, NECRO_OPT_ON);
-                else
-                    necro_compile(file_name, str, length, NECRO_PHASE_CODEGEN, NECRO_OPT_OFF);
-            }
-            else if (argc > 2 && strcmp(argv[2], "-jit") == 0)
-            {
-                if (argc > 3 &&  strcmp(argv[3], "-opt") == 0)
-                    necro_compile(file_name, str, length, NECRO_PHASE_JIT, NECRO_OPT_ON);
-                else
-                    necro_compile(file_name, str, length, NECRO_PHASE_JIT, NECRO_OPT_OFF);
-            }
+        // read contents of buffer
+        length = fread(str, 1, length, file);
+        str[length]     = '\n';
+        str[length + 1] = '\0';
+
+        if (argc > 2 && strcmp(argv[2], "-lex") == 0)
+        {
+            necro_compile(file_name, str, length, NECRO_PHASE_LEX, NECRO_OPT_OFF);
+        }
+        else if (argc > 2 && strcmp(argv[2], "-parse") == 0)
+        {
+            necro_compile(file_name, str, length, NECRO_PHASE_PARSE, NECRO_OPT_OFF);
+        }
+        else if (argc > 2 && strcmp(argv[2], "-reify") == 0)
+        {
+            necro_compile(file_name, str, length, NECRO_PHASE_REIFY, NECRO_OPT_OFF);
+        }
+        else if (argc > 2 && strcmp(argv[2], "-scope") == 0)
+        {
+            necro_compile(file_name, str, length, NECRO_PHASE_BUILD_SCOPES, NECRO_OPT_OFF);
+        }
+        else if (argc > 2 && strcmp(argv[2], "-rename") == 0)
+        {
+            necro_compile(file_name, str, length, NECRO_PHASE_RENAME, NECRO_OPT_OFF);
+        }
+        else if (argc > 2 && strcmp(argv[2], "-dep") == 0)
+        {
+            necro_compile(file_name, str, length, NECRO_PHASE_DEPENDENCY_ANALYSIS, NECRO_OPT_OFF);
+        }
+        else if (argc > 2 && strcmp(argv[2], "-infer") == 0)
+        {
+            necro_compile(file_name, str, length, NECRO_PHASE_INFER, NECRO_OPT_OFF);
+        }
+        else if (argc > 2 && strcmp(argv[2], "-type_class") == 0)
+        {
+            necro_compile(file_name, str, length, NECRO_PHASE_TYPE_CLASS_TRANSLATE, NECRO_OPT_OFF);
+        }
+        else if (argc > 2 && strcmp(argv[2], "-core") == 0)
+        {
+            necro_compile(file_name, str, length, NECRO_PHASE_TRANSFORM_TO_CORE, NECRO_OPT_OFF);
+        }
+        else if (argc > 2 && strcmp(argv[2], "-ll") == 0)
+        {
+            necro_compile(file_name, str, length, NECRO_PHASE_LAMBDA_LIFT, NECRO_OPT_OFF);
+        }
+        else if (argc > 2 && strcmp(argv[2], "-cc") == 0)
+        {
+            necro_compile(file_name, str, length, NECRO_PHASE_CLOSURE_CONVERSION, NECRO_OPT_OFF);
+        }
+        else if (argc > 2 && strcmp(argv[2], "-sa") == 0)
+        {
+            necro_compile(file_name, str, length, NECRO_PHASE_STATE_ANALYSIS, NECRO_OPT_OFF);
+        }
+        else if (argc > 2 && strcmp(argv[2], "-machine") == 0)
+        {
+            necro_compile(file_name, str, length, NECRO_PHASE_TRANSFORM_TO_MACHINE, NECRO_OPT_OFF);
+        }
+        else if (argc > 2 && strcmp(argv[2], "-codegen") == 0)
+        {
+            if (argc > 3 &&  strcmp(argv[3], "-opt") == 0)
+                necro_compile(file_name, str, length, NECRO_PHASE_CODEGEN, NECRO_OPT_ON);
             else
-            {
-                necro_compile(file_name, str, length, NECRO_PHASE_TRANSFORM_TO_CORE, NECRO_OPT_OFF);
-            }
+                necro_compile(file_name, str, length, NECRO_PHASE_CODEGEN, NECRO_OPT_OFF);
+        }
+        else if (argc > 2 && strcmp(argv[2], "-jit") == 0)
+        {
+            if (argc > 3 &&  strcmp(argv[3], "-opt") == 0)
+                necro_compile(file_name, str, length, NECRO_PHASE_JIT, NECRO_OPT_ON);
+            else
+                necro_compile(file_name, str, length, NECRO_PHASE_JIT, NECRO_OPT_OFF);
         }
         else
         {
-            fprintf(stderr, "Null character buffer.\n");
+            necro_compile(file_name, str, length, NECRO_PHASE_TRANSFORM_TO_CORE, NECRO_OPT_OFF);
         }
 
         // Cleanup

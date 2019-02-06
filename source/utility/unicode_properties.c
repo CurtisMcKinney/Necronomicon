@@ -18,7 +18,6 @@ typedef struct
     size_t              str_length;
     NecroSourceLoc      loc;
     NecroSourceLoc      prev_loc;
-    NecroError          error;
     uproperty_field*    properties;
     size_t              properties_count;
 } NecroUnicodePropertyParser;
@@ -45,7 +44,7 @@ NecroUnicodePropertyParser necro_create_unicode_property_parser()
         .str_length       = 0,
         .loc              = (NecroSourceLoc) { .pos = 0, .character = 0, .line = 1 },
         .prev_loc         = (NecroSourceLoc) { .pos = 0, .character = 0, .line = 1 },
-        .properties       = malloc(NECRO_MAX_UNICODE_CODE_POINT * sizeof(uproperty_field)),
+        .properties       = emalloc(NECRO_MAX_UNICODE_CODE_POINT * sizeof(uproperty_field)),
         .properties_count = 0
     };
     memset(uparser.properties, 0, NECRO_MAX_UNICODE_CODE_POINT * sizeof(uproperty_field));
@@ -478,7 +477,7 @@ NECRO_RETURN_CODE necro_unicode_property_parse_file(NecroUnicodePropertyParser* 
 NECRO_RETURN_CODE necro_open_file_in_directory(const char* directory_name, const char* file_name, const char** out_str, size_t* out_str_length)
 {
     size_t dir_file_name_length = strlen(directory_name) + strlen(file_name) + 2;
-    char*  file_name_buf        = malloc(dir_file_name_length);
+    char*  file_name_buf        = emalloc(dir_file_name_length);
     file_name_buf[0]            = '\0';
     strcat(file_name_buf, directory_name);
     strcat(file_name_buf, file_name);
@@ -508,12 +507,8 @@ NECRO_RETURN_CODE necro_open_file_in_directory(const char* directory_name, const
     fseek(file, 0, SEEK_SET);
 
     // Allocate buffer
-    str = malloc(length + 2);
-    if (!str)
-    {
-        fprintf(stderr, "Could not allocate memory to open file: %s\n", file_name_buf);
-        exit(1);
-    }
+    str = emalloc(length + 2);
+
     // read contents of buffer
     length = fread(str, 1, length, file);
     str[length]     = '\n';
@@ -527,7 +522,7 @@ NECRO_RETURN_CODE necro_open_file_in_directory(const char* directory_name, const
 FILE* necro_open_write_file_in_director(const char* directory_name, const char* file_name)
 {
     size_t dir_file_name_length = strlen(directory_name) + strlen(file_name) + 2;
-    char*  file_name_buf        = malloc(dir_file_name_length);
+    char*  file_name_buf        = emalloc(dir_file_name_length);
     file_name_buf[0]            = '\0';
     strcat(file_name_buf, directory_name);
     strcat(file_name_buf, file_name);

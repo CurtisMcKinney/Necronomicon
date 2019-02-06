@@ -20,6 +20,17 @@ typedef struct
     uint32_t id;
 } NecroID;
 
+inline void* emalloc(const size_t a_size)
+{
+    void* data = malloc(a_size);
+    if (data == NULL)
+    {
+        printf("Could not allocate enough memory: %zu\n", a_size);
+        exit(1);
+    }
+    return data;
+}
+
 //=====================================================
 // Error Messaging
 //=====================================================
@@ -41,18 +52,6 @@ typedef struct
 
 #define zero_loc ((NecroSourceLoc) { 0, 0, 0 })
 #define NULL_LOC ((NecroSourceLoc) { (size_t)-1, (size_t)-1, (size_t)-1 })
-
-typedef struct
-{
-    char              error_message[NECRO_MAX_ERROR_MESSAGE_LENGTH];
-    NecroSourceLoc    source_loc;
-    NECRO_RETURN_CODE return_code;
-} NecroError;
-
-NecroError necro_create_error();
-size_t     necro_verror(NecroError* error, NecroSourceLoc source_loc, const char* error_message, va_list args);
-size_t     necro_error(NecroError* error, NecroSourceLoc source_loc, const char* error_message, ...);
-void       necro_print_error(NecroError* error, const char* input_string, const char* error_type);
 
 //=====================================================
 // NecroVector:
@@ -90,12 +89,7 @@ static camel_type##Vector necro_empty_##snake_type##_vector()                   
                                                                                    \
 static camel_type##Vector necro_create_##snake_type##_vector()                     \
 {                                                                                  \
-    type* data = malloc(NECRO_INTIAL_VECTOR_SIZE * sizeof(type));                  \
-    if (data == NULL)                                                              \
-    {                                                                              \
-        fprintf(stderr, "Malloc returned null creating vector!\n");                \
-        exit(1);                                                                   \
-    }                                                                              \
+    type* data = emalloc(NECRO_INTIAL_VECTOR_SIZE * sizeof(type));                 \
     return (camel_type##Vector)                                                    \
     {                                                                              \
         data,                                                                      \
@@ -196,12 +190,10 @@ void print_white_space(size_t white_count);
 
 static void necro_announce_phase(const char* phase_name)
 {
-    // fflush(stdout);
-    // fflush(stderr);
-    puts("");
-    puts("--------------------------------");
+    printf("\n");
+    printf("--------------------------------\n");
     printf("-- %s\n", phase_name);
-    puts("--------------------------------");
+    printf("--------------------------------\n");
 }
 
 #define BIT(x) (1 << x)

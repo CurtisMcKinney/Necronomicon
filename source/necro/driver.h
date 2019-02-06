@@ -21,6 +21,7 @@ typedef enum
     NECRO_TEST_TYPE,
     NECRO_TEST_ARENA_CHAIN_TABLE,
     NECRO_TEST_UNICODE,
+    NECRO_TEST_BASE,
 } NECRO_TEST;
 
 typedef enum

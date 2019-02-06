@@ -577,10 +577,12 @@ NecroDecisionTree* necro_finish_compile_pattern_matrix(NecroMachineProgram* prog
     size_t          con_num   = 0;
     while (data_cons != NULL)
     {
+        // TODO: CONVERT / FINISH! Needs to be converted to NecroAstSymbol system!!!!!!
         NecroCon pattern_con =
         {
-            .id     = data_cons->list.item->constructor.conid->conid.id,
-            .symbol = data_cons->list.item->constructor.conid->conid.symbol,
+            .id = 0 // THIS IS TEMP HOLDER BS UNTIL SYSTEM IS CONVERTED
+            // .id     = data_cons->list.item->constructor.conid->conid.id,
+            // .symbol = data_cons->list.item->constructor.conid->conid.symbol,
         };
         NecroPatternMatrix con_matrix = necro_specialize_matrix(program, matrix, pattern_con);             // if (necro_is_codegen_error(codegen)) return NULL;
         cases[con_num]                = necro_compile_pattern_matrix(program, &con_matrix, top_case_ast);  // if (necro_is_codegen_error(codegen)) return NULL;
@@ -1017,7 +1019,7 @@ size_t necro_tree_count_nodes(NecroDecisionTree* tree)
 NecroDecisionTreeHashTable necro_create_decision_tree_hash_table(size_t initial_size)
 {
     NecroDecisionTreeHashTable table;
-    table.buckets = malloc(sizeof(NecroDecisionTreeHashTableNode) * initial_size * 2);
+    table.buckets = emalloc(sizeof(NecroDecisionTreeHashTableNode) * initial_size * 2);
     table.count   = 0;
     table.size    = initial_size * 2;
     for (size_t i = 0; i < initial_size * 2; ++i)

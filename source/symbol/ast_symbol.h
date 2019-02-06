@@ -32,25 +32,30 @@ typedef enum
 
 NECRO_DECLARE_ARENA_LIST(struct NecroTypeClassInstance*, TypeClassInstance, type_class_instance);
 
-// Make NecroAstSymbols unique to that identified object and compare NecroAstSymbol pointers directly
+///////////////////////////////////////////////////////
+// NecroAstSymbol
+//------------------
+// Unique identifier and information container for any "Symbol" (i.e. identified object, such as Data Constructor, variables, Type Classes, etc)
+// contained in the program being compiled.
+///////////////////////////////////////////////////////
 typedef struct NecroAstSymbol
 {
-    NecroSymbol                    name;
-    NecroSymbol                    source_name;
-    NecroSymbol                    module_name;
-    struct NecroAst*               ast;
-    struct NecroAst*               optional_type_signature;
-    struct NecroDeclarationGroup*  declaration_group;
-    struct NecroType*              type;
-    size_t                         con_num;
-    bool                           is_constructor;
-    NECRO_TYPE_STATUS              type_status;
-    bool                           is_recursive;
-    struct NecroTypeClass*         method_type_class;
-    struct NecroTypeClass*         type_class;
-    struct NecroTypeClassInstance* type_class_instance;
-    struct NecroMachineAST*        necro_machine_ast;
-    NecroTypeClassInstanceList*    instance_list;
+    NecroSymbol                    name;                    // Most fully qualified version of the name of the NecroAstSymbol, which should be unique to the entire project and all included modules. takes the form: ModuleName.sourceName_clashSuffix
+    NecroSymbol                    source_name;             // The name of the NecroAstSymbol as it appears in the source code.
+    NecroSymbol                    module_name;             // The name of the module that contains the NecroAstSymbol.
+    struct NecroAst*               ast;                     // Pointer to the actual ast node that this symbol identifies.
+    struct NecroAst*               optional_type_signature; // Type signature of the symbol in NecroAst form, if present. Resolved after reification phase.
+    struct NecroDeclarationGroup*  declaration_group;       // Declaration group of the symbol, if present. Resolved after d_analysis phase.
+    struct NecroType*              type;                    // Type of the symbol, if present. Resolved after inference phase.
+    size_t                         con_num;                 // Constructor Number, if present. This is the order in the constructor list of a data object a constructor sits at. Resolved after inference phase and used in code generation phase.
+    bool                           is_constructor;          // Whether or not the symbol is a constructor (HACK?)
+    NECRO_TYPE_STATUS              type_status;             // Type checking status of the symbol. Useful for detecting recursion in the ast.
+    bool                           is_recursive;            // Whether or not symbol is recursive. Create an enum for this?
+    struct NecroTypeClass*         method_type_class;       // Type class for a class method, if present. Resolved at inference phase.
+    struct NecroTypeClass*         type_class;              // Type class, if present. Resolved at inference phase.
+    struct NecroTypeClassInstance* type_class_instance;     // Class instance, if present. Resolved at inference phase.
+    struct NecroMachineAST*        necro_machine_ast;       // NecroMachineAST that this symbol was compiled into. Generated at NecroMachine compilation phase.
+    NecroTypeClassInstanceList*    instance_list;           // List of type classes this symbol is an instance of. Resolved at inference phase.
 } NecroAstSymbol;
 
 NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name, NecroSymbol source_name, NecroSymbol module_name, struct NecroAst* ast);

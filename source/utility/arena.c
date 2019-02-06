@@ -30,8 +30,7 @@ NecroArena necro_arena_create(size_t capacity)
     NecroArena arena;
     if (capacity > 0)
     {
-        arena.region = malloc(capacity);
-        if (arena.region == NULL) exit(1);
+        arena.region = emalloc(capacity);
     }
     else
     {
@@ -59,15 +58,9 @@ void* necro_arena_alloc(NecroArena* arena, size_t size, NECRO_ARENA_ALLOC_POLICY
     if (!canFit && (alloc_policy == NECRO_ARENA_REALLOC))
     {
         size_t new_capacity = MAX(arena->capacity * 2, arena->capacity + size);
-        char* new_region = (arena->region != NULL) ? (char*) realloc(arena->region, new_capacity) : (char*) malloc(new_capacity);
-        if (new_region == NULL)
-        {
-            if (arena->region != NULL)
-               free(arena->region);
-            exit(1);
-        }
-        arena->region   = new_region;
-        arena->capacity = new_capacity;
+        char* new_region = (arena->region != NULL) ? (char*) realloc(arena->region, new_capacity) : (char*) emalloc(new_capacity);
+        arena->region    = new_region;
+        arena->capacity  = new_capacity;
         canFit = true;
     }
 
@@ -99,12 +92,7 @@ NecroPagedArena necro_paged_arena_empty()
 
 NecroPagedArena necro_paged_arena_create()
 {
-    NecroArenaPage* page = malloc(sizeof(NecroArenaPage) + NECRO_PAGED_ARENA_INITIAL_SIZE);
-    if (page == NULL)
-    {
-        fprintf(stderr, "Allocation error: could not allocate %zu of memory for NecroRegionAllocator", sizeof(NecroArenaPage) + NECRO_PAGED_ARENA_INITIAL_SIZE);
-        exit(1);
-    }
+    NecroArenaPage* page = emalloc(sizeof(NecroArenaPage) + NECRO_PAGED_ARENA_INITIAL_SIZE);
     page->next = NULL;
     return (NecroPagedArena)
     {
@@ -128,12 +116,7 @@ void* necro_paged_arena_alloc(NecroPagedArena* arena, size_t size)
         while (arena->count + size >= arena->size)
             arena->size *= 2;
         TRACE_ARENA("allocating new page of size: %d\n", arena->size);
-        NecroArenaPage* page = malloc(sizeof(NecroArenaPage) + arena->size);
-        if (page == NULL)
-        {
-            fprintf(stderr, "Allocation error: could not allocate %zu of memory for NecroPagedArena", sizeof(NecroArenaPage) + arena->size);
-            exit(1);
-        }
+        NecroArenaPage* page = emalloc(sizeof(NecroArenaPage) + arena->size);
         page->next   = arena->pages;
         arena->pages = page;
         arena->data  = (char*)(page + 1);
@@ -186,7 +169,7 @@ NecroSnapshotArena necro_snapshot_arena_create()
 {
     return (NecroSnapshotArena)
     {
-        .data  = malloc(NECRO_SNAPSHOT_ARENA_INITIAL_SIZE),
+        .data  = emalloc(NECRO_SNAPSHOT_ARENA_INITIAL_SIZE),
         .size  = NECRO_SNAPSHOT_ARENA_INITIAL_SIZE,
         .count = 0
     };

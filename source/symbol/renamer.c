@@ -811,6 +811,8 @@ void necro_rename_test_case(const char* test_name, const char* str, NecroIntern*
     necro_build_scopes(info, &scoped_symtable, &ast);
     unwrap(void, necro_rename(info, &scoped_symtable, intern, &ast));
 
+		necro_ast_print(ast.root);
+
     // Assert
     necro_ast_assert_eq(ast.root, ast2->root);
     printf("Rename %s test: Passed\n", test_name);
@@ -1026,6 +1028,31 @@ void necro_rename_test()
         necro_ast_print(ast.root);
         necro_rename_test_case("BindClash", "x = do\n  x <- Nothing\n  pure x\n", &intern, &ast);
     }
+
+		{
+			NecroIntern   intern = necro_intern_create();
+			NecroAstArena ast = necro_ast_arena_create(necro_intern_string(&intern, "Test"));
+			NecroSymbol   clash_y = necro_append_clash_suffix_to_name(&ast, &intern, "Test.y");
+			
+			ast.root =
+				necro_ast_create_top_decl(&ast.arena,
+					necro_ast_create_apats_assignment_with_ast_symbol(&ast.arena,
+						necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.x"), necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL),
+						necro_ast_create_apats(&ast.arena, 
+							necro_ast_create_var_with_ast_symbol(&ast.arena,
+								necro_ast_symbol_create(&ast.arena, clash_y, necro_intern_string(&intern, "y"), necro_intern_string(&intern, "Test"), NULL),
+								NECRO_VAR_DECLARATION), 
+							NULL),
+						necro_ast_create_rhs(&ast.arena,
+							necro_ast_create_var_with_ast_symbol(&ast.arena,
+								necro_ast_symbol_create(&ast.arena, clash_y, necro_intern_string(&intern, "y"), necro_intern_string(&intern, "Test"), NULL),
+								NECRO_VAR_VAR),
+							NULL)), 
+					NULL);
+			necro_ast_print(ast.root);
+
+			necro_rename_test_case("ApatsAssignment1", "x y = y\n", &intern, &ast);
+		}
 
     //--------------------
     // TODO list for Chad...

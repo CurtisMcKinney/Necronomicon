@@ -1142,6 +1142,25 @@ NecroAst* necro_ast_create_apats_assignment(NecroPagedArena* arena, NecroIntern*
     return ast;
 }
 
+NecroAst* necro_ast_create_apats_assignment_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* apats, NecroAst* rhs_ast)
+{
+	assert(apats != NULL);
+	assert(rhs_ast != NULL);
+	assert(apats->type == NECRO_AST_APATS);
+	assert(rhs_ast->type == NECRO_AST_RIGHT_HAND_SIDE);
+	NecroAst* ast = necro_paged_arena_alloc(arena, sizeof(NecroAst));
+	ast->type = NECRO_AST_APATS_ASSIGNMENT;
+	ast->apats_assignment.apats = apats;
+	ast->apats_assignment.rhs = rhs_ast;
+	ast->apats_assignment.declaration_group = NULL;
+	ast->apats_assignment.ast_symbol = ast_symbol;
+	ast->apats_assignment.optional_type_signature = NULL;
+	ast->source_loc = NULL_LOC;
+	ast->end_loc = NULL_LOC;
+	return ast;
+}
+
+
 NecroAst* necro_ast_create_lambda(NecroPagedArena* arena, NecroAst* apats, NecroAst* expr_ast)
 {
     assert(apats != NULL);
@@ -1260,9 +1279,9 @@ void necro_ast_assert_ast_symbol_name_eq(NecroAstSymbol* ast_symbol1, NecroAstSy
 {
     assert(ast_symbol1 != NULL);
     assert(ast_symbol2 != NULL);
-    assert(strcmp(ast_symbol1->source_name->str, ast_symbol2->source_name->str) == 0);
-    assert(strcmp(ast_symbol1->name->str, ast_symbol2->name->str) == 0);
-    assert(strcmp(ast_symbol1->module_name->str, ast_symbol2->module_name->str) == 0);
+		assert(strcmp(ast_symbol1->source_name->str, ast_symbol2->source_name->str) == 0);
+		assert(strcmp(ast_symbol1->name->str, ast_symbol2->name->str) == 0);
+		assert(strcmp(ast_symbol1->module_name->str, ast_symbol2->module_name->str) == 0);
 }
 
 void necro_ast_assert_eq_constant(NecroAst* ast1, NecroAst* ast2)

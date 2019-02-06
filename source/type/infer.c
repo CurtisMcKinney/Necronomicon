@@ -625,7 +625,7 @@ NecroResult(NecroType) necro_infer_conid(NecroInfer* infer, NecroAst* ast)
 {
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_CONID);
-    ast->necro_type = necro_try(NecroType, necro_type_instantiate(infer->arena, infer->base, ast->variable.ast_symbol->type, ast->scope));
+    ast->necro_type = necro_try(NecroType, necro_type_instantiate(infer->arena, infer->base, ast->conid.ast_symbol->type, ast->scope));
     return ok(NecroType, ast->necro_type);
 }
 
@@ -1555,6 +1555,18 @@ void necro_infer_test_result(const char* test_name, const char* str, NECRO_RESUL
 void necro_test_infer()
 {
     necro_announce_phase("NecroInfer");
+    
+#if 0 // Crashes
+    {
+        const char* test_name = "NothingType";
+        const char* test_source = ""
+            "notcronomicon = Nothing\n";
+
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error = NECRO_TYPE_MISMATCHED_TYPE;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+#endif
 
     {
         const char* test_name = "DataDeclarations";
@@ -1562,9 +1574,9 @@ void necro_test_infer()
             "data Book = Pages\n"
             "data NotBook = EmptyPages\n";
 
-        const NECRO_RESULT_TYPE expected_result = NECRO_RESULT_OK;
+        const NECRO_RESULT_TYPE expect_ok_result = NECRO_RESULT_OK;
         const NECRO_RESULT_ERROR_TYPE* no_expected_error = NULL;
-        necro_infer_test_result(test_name, test_source, expected_result, no_expected_error);
+        necro_infer_test_result(test_name, test_source, expect_ok_result, no_expected_error);
     }
 
 #if 0 // This also crashes
@@ -1576,9 +1588,9 @@ void necro_test_infer()
             "notcronomicon::Book\n"
             "notcronomicon = EmptyPages\n";
 
-        const NECRO_RESULT_TYPE expected_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error = NECRO_TYPE_MISMATCHED_TYPE;
-        necro_infer_test_result(test_name, test_source, expected_result, &expected_error);
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 #endif
 
@@ -1591,9 +1603,9 @@ void necro_test_infer()
             "x :: Fail a => a\n"
             "x = Pages\n";
 
-        const NECRO_RESULT_TYPE expected_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error = NECRO_TYPE_RIGID_TYPE_VARIABLE;
-        necro_infer_test_result(test_name, test_source, expected_result, &expected_error);
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
 }
 #endif
 

@@ -564,7 +564,7 @@ void necro_parse_ast_assert_eq_simple_assignment(NecroParseAstArena* ast1, Necro
 {
     assert(node1->type == NECRO_AST_SIMPLE_ASSIGNMENT);
     assert(node2->type == NECRO_AST_SIMPLE_ASSIGNMENT);
-    assert(strcmp(node1->simple_assignment.variable_name->str, node2->simple_assignment.variable_name->str) == 0);
+    ASSERT_BREAK(strcmp(node1->simple_assignment.variable_name->str, node2->simple_assignment.variable_name->str) == 0);
     necro_parse_ast_assert_eq_go(ast1, node1->simple_assignment.initializer, ast2, node2->simple_assignment.initializer);
     necro_parse_ast_assert_eq_go(ast1, node1->simple_assignment.rhs, ast2, node2->simple_assignment.rhs);
 }
@@ -614,7 +614,7 @@ void necro_parse_ast_assert_eq_var(NecroParseAstArena* ast1, NecroParseAst* node
 {
     assert(node1->type == NECRO_AST_VARIABLE);
     assert(node2->type == NECRO_AST_VARIABLE);
-    assert(strcmp(node1->variable.symbol->str, node2->variable.symbol->str) == 0);
+    //ASSERT_BREAK(strcmp(node1->variable.symbol->str, node2->variable.symbol->str) == 0);
     necro_parse_ast_assert_eq_go(ast1, node1->variable.initializer, ast2, node2->variable.initializer);
     assert(node2->variable.var_type == node2->variable.var_type);
 }

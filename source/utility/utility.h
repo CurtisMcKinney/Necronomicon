@@ -228,7 +228,7 @@ static void necro_announce_phase(const char* phase_name)
 #define DEBUG_BREAK assert(false)
 #endif
 
-#define ASSERT_BREAK(b) if (!(b)) { DEBUG_BREAK(); }
+#define ASSERT_BREAK(b) if (!(b)) { fprintf(stderr, "ASSERT_BREAK failed in %s line %d: %s\n", __FUNCTION__, __LINE__, #b); DEBUG_BREAK(); }
 
 ///////////////////////////////////////////////////////
 // Timing

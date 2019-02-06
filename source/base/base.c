@@ -905,6 +905,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 void necro_base_test()
 {
     necro_announce_phase("NecroBase");
+
     // Set up
     NecroIntern         intern          = necro_intern_create();
     NecroAstArena       ast             = necro_ast_arena_create(necro_intern_string(&intern, "Test"));
@@ -914,6 +915,17 @@ void necro_base_test()
     UNUSED(base);
     UNUSED(ast);
 
+    //--------------------
+    // TODO list for Chad...
+    //--------------------
+    // Make tests that check that the base types are correct!!!!!
+
     necro_ast_arena_print(&base.ast);
     necro_scoped_symtable_print_top_scopes(&scoped_symtable);
+
+    // Clean up
+    necro_ast_arena_destroy(&ast);
+    necro_scoped_symtable_destroy(&scoped_symtable);
+    necro_symtable_destroy(&symtable);
+    necro_intern_destroy(&intern);
 }

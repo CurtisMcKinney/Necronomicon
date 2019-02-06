@@ -1478,7 +1478,6 @@ NecroResult(NecroType) necro_infer_go(NecroInfer* infer, NecroAst* ast)
     }
 }
 
-// TODO: Printing symbol data (perhaps crawl top level?)
 NecroResult(void) necro_infer(NecroCompileInfo info, NecroIntern* intern, NecroScopedSymTable* scoped_symtable, NecroBase* base, NecroAstArena* ast_arena)
 {
     NecroInfer infer = necro_infer_create(&ast_arena->arena, intern, scoped_symtable, base, ast_arena);

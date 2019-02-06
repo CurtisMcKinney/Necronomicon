@@ -1790,11 +1790,13 @@ NecroResult(NecroType) necro_create_type_class(NecroInfer* infer, NecroAst* type
         }
     }
 
+    // TODO (Curtis, 2-6-18): Fix this! Broken NecroAstSymbol changes
     // //---------------------------
     // // Build dictionary declarations
     // // NecroASTNode* dictionary_declaration_ast = type_class->ast->type_class_declaration.dictionary_data_declaration;
     // necro_create_dictionary_data_declaration(infer->arena, infer->intern, type_class->ast);
 
+    // TODO (Curtis, 2-6-18): Fix this! Broken NecroAstSymbol changes
     // //---------------------------
     // // Infer dictionary data declaration types
     // NecroDeclarationGroup* dictionary_declaration_group = NULL;
@@ -1893,74 +1895,75 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
 
     // NecroTypeClassContext* instance_context = NULL;
 
-    // //--------------------------------
-    // // Dictionary Prototype
-    // if (instance->ast->type_class_instance.declarations != NULL)
-    // {
-    //     NecroDeclarationGroupList* group_list = instance->ast->type_class_instance.declarations->declaration.group_list;
-    //     while (group_list != NULL)
-    //     {
-    //         NecroDeclarationGroup* declaration_group = group_list->declaration_group;
-    //         while (declaration_group != NULL)
-    //         {
-    //             NecroAst* method_ast = declaration_group->declaration_ast;
-    //             assert(method_ast != NULL);
-    //             assert(method_ast->type == NECRO_AST_SIMPLE_ASSIGNMENT || method_ast->type == NECRO_AST_APATS_ASSIGNMENT);
+    // TODO (Curtis, 2-6-18): Is this working???
+    //--------------------------------
+    // Dictionary Prototype
+    if (instance->ast->type_class_instance.declarations != NULL)
+    {
+        NecroDeclarationGroupList* group_list = instance->ast->type_class_instance.declarations->declaration.group_list;
+        while (group_list != NULL)
+        {
+            NecroDeclarationGroup* declaration_group = group_list->declaration_group;
+            while (declaration_group != NULL)
+            {
+                NecroAst* method_ast = declaration_group->declaration_ast;
+                assert(method_ast != NULL);
+                assert(method_ast->type == NECRO_AST_SIMPLE_ASSIGNMENT || method_ast->type == NECRO_AST_APATS_ASSIGNMENT);
 
-    //             //--------------------------------
-    //             // Create dictionary prototype entry
-    //             NecroDictionaryPrototype* prev_dictionary = instance->dictionary_prototype;
-    //             instance->dictionary_prototype            = necro_paged_arena_alloc(infer->arena, sizeof(NecroDictionaryPrototype));
-    //             if (method_ast->type == NECRO_AST_SIMPLE_ASSIGNMENT)
-    //                 instance->dictionary_prototype->prototype_varid = method_ast->simple_assignment.ast_symbol;
-    //             else if (method_ast->type == NECRO_AST_APATS_ASSIGNMENT)
-    //                 instance->dictionary_prototype->prototype_varid = method_ast->apats_assignment.ast_symbol;
-    //             else
-    //                 assert(false);
-    //             instance->dictionary_prototype->next = NULL;
-    //             NecroSymbol member_symbol = necro_intern_get_type_class_member_symbol_from_instance_symbol(infer->intern, instance->dictionary_prototype->prototype_varid->source_name);
+                //--------------------------------
+                // Create dictionary prototype entry
+                NecroDictionaryPrototype* prev_dictionary = instance->dictionary_prototype;
+                instance->dictionary_prototype            = necro_paged_arena_alloc(infer->arena, sizeof(NecroDictionaryPrototype));
+                if (method_ast->type == NECRO_AST_SIMPLE_ASSIGNMENT)
+                    instance->dictionary_prototype->prototype_varid = method_ast->simple_assignment.ast_symbol;
+                else if (method_ast->type == NECRO_AST_APATS_ASSIGNMENT)
+                    instance->dictionary_prototype->prototype_varid = method_ast->apats_assignment.ast_symbol;
+                else
+                    assert(false);
+                instance->dictionary_prototype->next = NULL;
+                NecroSymbol member_symbol = necro_intern_get_type_class_member_symbol_from_instance_symbol(infer->intern, instance->dictionary_prototype->prototype_varid->source_name);
 
-    //             //--------------------------------
-    //             // Search for Type Class member
-    //             bool                  found   = false;
-    //             NecroTypeClassMember* members = type_class->members;
-    //             while (members != NULL)
-    //             {
-    //                 if (members->member_varid->source_name == member_symbol) // TODO: Replace with direct NecroAstSymbol comparison!!!!!
-    //                 {
-    //                     instance->dictionary_prototype->type_class_member_varid = members->member_varid;
-    //                     found = true;
-    //                     break;
-    //                 }
-    //                 members = members->next;
-    //             }
+                //--------------------------------
+                // Search for Type Class member
+                bool                  found   = false;
+                NecroTypeClassMember* members = type_class->members;
+                while (members != NULL)
+                {
+                    if (members->member_varid->source_name == member_symbol) // TODO: Replace with direct NecroAstSymbol comparison!!!!!
+                    {
+                        instance->dictionary_prototype->type_class_member_varid = members->member_varid;
+                        found = true;
+                        break;
+                    }
+                    members = members->next;
+                }
 
-    //             //--------------------------------
-    //             // Didn't find a matching method in class, bail out!
-    //             if (found == false)
-    //             {
-    //                 instance->dictionary_prototype->next = NULL;
-    //                 return necro_type_not_a_visible_method_error(necro_ast_symbol_create(infer->arena, member_symbol, member_symbol, NULL, NULL), NULL, method_ast->source_loc, method_ast->end_loc, instance->ast->type_class_instance.ast_symbol, NULL, instance->ast->source_loc, instance->ast->end_loc);
-    //             }
+                //--------------------------------
+                // Didn't find a matching method in class, bail out!
+                if (found == false)
+                {
+                    instance->dictionary_prototype->next = NULL;
+                    return necro_type_not_a_visible_method_error(necro_ast_symbol_create(infer->arena, member_symbol, member_symbol, NULL, NULL), NULL, method_ast->source_loc, method_ast->end_loc, instance->ast->type_class_instance.ast_symbol, NULL, instance->ast->source_loc, instance->ast->end_loc);
+                }
 
-    //             //--------------------------------
-    //             // Assemble types for overloaded methods
-    //             assert(members != NULL);
-    //             assert(members->member_varid != NULL);
+                //--------------------------------
+                // Assemble types for overloaded methods
+                assert(members != NULL);
+                assert(members->member_varid != NULL);
 
-    //             NecroType* method_type      = members->member_varid->type;
-    //             NecroType* inst_method_type = necro_instantiate_method_sig(infer, type_class->type_var, method_type, instance->data_type);
-    //             instance->dictionary_prototype->prototype_varid->type               = inst_method_type;
-    //             instance->dictionary_prototype->prototype_varid->type->pre_supplied = true;
+                NecroType* method_type      = members->member_varid->type;
+                NecroType* inst_method_type = necro_instantiate_method_sig(infer, type_class->type_var, method_type, instance->data_type);
+                instance->dictionary_prototype->prototype_varid->type               = inst_method_type;
+                instance->dictionary_prototype->prototype_varid->type->pre_supplied = true;
 
-    //             //--------------------------------
-    //             // next
-    //             instance->dictionary_prototype->next = prev_dictionary;
-    //             declaration_group = declaration_group->next;
-    //         }
-    //         group_list = group_list->next;
-    //     }
-    // }
+                //--------------------------------
+                // next
+                instance->dictionary_prototype->next = prev_dictionary;
+                declaration_group = declaration_group->next;
+            }
+            group_list = group_list->next;
+        }
+    }
 
     //--------------------------------
     // Infer declarations
@@ -1970,32 +1973,32 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
         necro_try(NecroType, necro_infer_go(infer, instance->ast->type_class_instance.declarations));
     }
 
-    // TODO: Fix!!!!!
+    // TODO (Curtis, 2-6-18): Is this working!?
     //--------------------------------
     // Missing members check
-    // NecroTypeClassMember* type_class_members = type_class->members;
-    // while (type_class_members != NULL)
-    // {
-    //     NecroDictionaryPrototype* dictionary_prototype = instance->dictionary_prototype;
-    //     bool matched = false;
-    //     while (dictionary_prototype != NULL)
-    //     {
-    //         if (dictionary_prototype->type_class_member_varid == type_class_members->member_varid)
-    //         {
-    //             matched = true;
-    //             break;
-    //         }
-    //         dictionary_prototype = dictionary_prototype->next;
-    //     }
-    //     if (!matched)
-    //     {
-    //         return necro_type_no_explicit_implementation_error(type_class_members->member_varid, NULL, type_class_members->member_varid->ast->source_loc, type_class_members->member_varid->ast->end_loc, instance->ast->type_class_instance.ast_symbol, NULL, instance->ast->source_loc, instance->ast->end_loc);
-    //     }
-    //     type_class_members = type_class_members->next;
-    // }
+    NecroTypeClassMember* type_class_members = type_class->members;
+    while (type_class_members != NULL)
+    {
+        NecroDictionaryPrototype* dictionary_prototype = instance->dictionary_prototype;
+        bool matched = false;
+        while (dictionary_prototype != NULL)
+        {
+            if (dictionary_prototype->type_class_member_varid == type_class_members->member_varid)
+            {
+                matched = true;
+                break;
+            }
+            dictionary_prototype = dictionary_prototype->next;
+        }
+        if (!matched)
+        {
+            return necro_type_no_explicit_implementation_error(type_class_members->member_varid, NULL, type_class_members->member_varid->ast->source_loc, type_class_members->member_varid->ast->end_loc, instance->ast->type_class_instance.ast_symbol, NULL, instance->ast->source_loc, instance->ast->end_loc);
+        }
+        type_class_members = type_class_members->next;
+    }
 
     // TODO: Fix!!!
-    // // TODO: Figure Dictionary system. Perhaps replace with static compilation?
+    // // TODO: Figure out Dictionary system. Perhaps replace with static compilation?
     // //--------------------------------
     // // Create Dictionary Instance
     // {

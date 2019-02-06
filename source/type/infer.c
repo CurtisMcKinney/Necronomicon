@@ -844,7 +844,7 @@ NecroResult(NecroType) necro_infer_bin_op(NecroInfer* infer, NecroAst* ast)
     NecroType* result_type   = necro_type_fresh_var(infer->arena);
     NecroType* bin_op_type   = necro_type_fn_create(infer->arena, x_type, necro_type_fn_create(infer->arena, y_type, result_type));
     necro_try(NecroType, necro_type_unify(infer->arena, infer->base, op_type, bin_op_type, ast->scope));
-    ast->necro_type          = bin_op_type;
+    ast->necro_type          = result_type;
     return ok(NecroType, ast->necro_type);
 }
 

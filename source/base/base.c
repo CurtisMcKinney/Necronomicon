@@ -640,30 +640,30 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, ">>=", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "bind", NECRO_VAR_VAR), NULL)));
     }
 
-    // // >>
-    // {
-    //     NecroAst* a_var       = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
-    //     NecroAst* b_var       = necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR);
-    //     NecroAst* m_var       = necro_ast_create_var(arena, intern, "m", NECRO_VAR_TYPE_FREE_VAR);
-    //     NecroAst* op_sig =
-    //         necro_ast_create_fn_type_sig(arena, intern, ">>", necro_ast_create_context(arena, intern, "Monad", "m", NULL),
-    //             necro_ast_create_type_fn(arena,
-    //                 necro_ast_create_type_app(arena, m_var, a_var),
-    //                 necro_ast_create_type_fn(arena,
-    //                     necro_ast_create_type_app(arena, m_var, b_var),
-    //                     necro_ast_create_type_app(arena, m_var, b_var))),
-    //             NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
-    //     NecroAst* mm_var      = necro_ast_create_var(arena, intern, "m", NECRO_VAR_DECLARATION);
-    //     NecroAst* mk_var      = necro_ast_create_var(arena, intern, "k", NECRO_VAR_DECLARATION);
-    //     NecroAst* op_args     = necro_ast_create_apats(arena, mm_var, necro_ast_create_apats(arena, mk_var, NULL));
-    //     NecroAst* op_lambda   = necro_ast_create_bin_op(arena, intern, ">>=",
-    //         necro_ast_create_var(arena, intern, "m", NECRO_VAR_VAR),
-    //         necro_ast_create_lambda(arena, necro_ast_create_apats(arena, necro_ast_create_wildcard(arena), NULL), necro_ast_create_var(arena, intern, "k", NECRO_VAR_VAR)));
-    //     NecroAst* op_rhs      = necro_ast_create_rhs(arena, op_lambda, NULL);
-    //     NecroAst* op_def_ast  = necro_ast_create_apats_assignment(arena, intern, ">>", op_args, op_rhs);
-    //     necro_append_top(arena, top, op_sig);
-    //     necro_append_top(arena, top, op_def_ast);
-    // }
+    // >>
+    {
+        NecroAst* a_var       = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
+        NecroAst* b_var       = necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR);
+        NecroAst* m_var       = necro_ast_create_var(arena, intern, "m", NECRO_VAR_TYPE_FREE_VAR);
+        NecroAst* op_sig =
+            necro_ast_create_fn_type_sig(arena, intern, ">>", necro_ast_create_context(arena, intern, "Monad", "m", NULL),
+                necro_ast_create_type_fn(arena,
+                    necro_ast_create_type_app(arena, m_var, a_var),
+                    necro_ast_create_type_fn(arena,
+                        necro_ast_create_type_app(arena, m_var, b_var),
+                        necro_ast_create_type_app(arena, m_var, b_var))),
+                NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
+        NecroAst* mm_var      = necro_ast_create_var(arena, intern, "m", NECRO_VAR_DECLARATION);
+        NecroAst* mk_var      = necro_ast_create_var(arena, intern, "k", NECRO_VAR_DECLARATION);
+        NecroAst* op_args     = necro_ast_create_apats(arena, mm_var, necro_ast_create_apats(arena, mk_var, NULL));
+        NecroAst* bind        = necro_ast_create_fexpr(arena,
+            necro_ast_create_fexpr(arena, necro_ast_create_var(arena, intern, "bind", NECRO_VAR_VAR), necro_ast_create_var(arena, intern, "m", NECRO_VAR_VAR)),
+            necro_ast_create_lambda(arena, necro_ast_create_apats(arena, necro_ast_create_wildcard(arena), NULL), necro_ast_create_var(arena, intern, "k", NECRO_VAR_VAR)));
+        NecroAst* op_rhs      = necro_ast_create_rhs(arena, bind, NULL);
+        NecroAst* op_def_ast  = necro_ast_create_apats_assignment(arena, intern, ">>", op_args, op_rhs);
+        necro_append_top(arena, top, op_sig);
+        necro_append_top(arena, top, op_def_ast);
+    }
 
     // <|
     {
@@ -914,6 +914,6 @@ void necro_base_test()
     UNUSED(base);
     UNUSED(ast);
 
-    // necro_ast_arena_print(&base.ast);
+    necro_ast_arena_print(&base.ast);
     necro_scoped_symtable_print_top_scopes(&scoped_symtable);
 }

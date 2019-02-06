@@ -913,7 +913,7 @@ void necro_type_print(NecroType* type)
         }
         else
         {
-            printf("tyvar_%zu", (size_t) type->var.var_symbol);
+            printf("tyvar_%p", type->var.var_symbol);
         }
         break;
 
@@ -963,7 +963,10 @@ void necro_type_print(NecroType* type)
         NecroType* for_all_head = type;
         while (type->for_all.type->type == NECRO_TYPE_FOR)
         {
-            printf("%s", type->for_all.var_symbol->source_name->str);
+            if (type->for_all.var_symbol->source_name != NULL)
+                printf("%s", type->for_all.var_symbol->source_name->str);
+            else
+                printf("tyvar_%p", type->for_all.var_symbol);
             printf(" ");
             type = type->for_all.type;
         }

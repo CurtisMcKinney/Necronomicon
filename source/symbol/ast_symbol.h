@@ -54,7 +54,6 @@ typedef struct NecroAstSymbol
     struct NecroTypeClass*         type_class;              // Type class, if present. Resolved at inference phase.
     struct NecroTypeClassInstance* type_class_instance;     // Class instance, if present. Resolved at inference phase.
     struct NecroMachineAST*        necro_machine_ast;       // NecroMachineAST that this symbol was compiled into. Generated at NecroMachine compilation phase.
-    // NecroTypeClassInstanceList*    instance_list;           // List of type classes this symbol is an instance of. Resolved at inference phase.
     struct NecroInstanceList*      instance_list;           // List of type classes this symbol is an instance of. Resolved at inference phase.
 } NecroAstSymbol;
 

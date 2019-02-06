@@ -715,44 +715,38 @@ void necro_scope_print(NecroScope* scope, size_t whitespace, NecroIntern* intern
     assert(scope != NULL);
     assert(intern != NULL);
 
-    print_white_space(whitespace);
-    printf("NecroScope\n");
+    // print_white_space(whitespace);
+    // printf("NecroScope\n");
 
-    print_white_space(whitespace);
-    printf("{\n");
+    // print_white_space(whitespace);
+    // printf("{\n");
 
-    print_white_space(whitespace + 4);
-    printf("size:  %zu\n", scope->size);
+    // print_white_space(whitespace + 4);
+    // printf("size:  %zu\n", scope->size);
 
-    print_white_space(whitespace + 4);
-    printf("count: %zu\n", scope->count);
+    // print_white_space(whitespace + 4);
+    // printf("count: %zu\n", scope->count);
 
-    print_white_space(whitespace + 4);
-    printf("data:\n");
+    // print_white_space(whitespace + 4);
+    // printf("data:\n");
 
-    print_white_space(whitespace + 4);
+    // print_white_space(whitespace + 4);
     printf("[\n");
 
     for (size_t bucket = 0; bucket < scope->size; ++bucket)
     {
-        // if (scope->buckets[bucket].id.id != NECRO_SYMTABLE_NULL_ID.id)
         if (scope->buckets[bucket].ast_symbol != NULL)
         {
-            // TODO: Replace symtable printing with NecroAstSymbolData printing!
-            // print_white_space(whitespace + 8);
-            // NecroSymbolInfo info = *necro_symtable_get(global_table, scope->buckets[bucket].id);
-            // necro_symtable_info_print(info, intern, whitespace + 8);
-            // printf("{ name: %s, id: %d }\n", necro_intern_get_string(intern, table->buckets[bucket].symbol), table->buckets[bucket].id.id);
-            necro_ast_symbol_print_type_and_kind(scope->buckets[bucket].ast_symbol, whitespace + 8);
+            necro_ast_symbol_print_type_and_kind(scope->buckets[bucket].ast_symbol, whitespace + 4);
             printf("\n");
         }
     }
 
-    print_white_space(whitespace + 4);
+    // print_white_space(whitespace + 4);
     printf("]\n");
 
-    print_white_space(whitespace);
-    printf("}\n");
+    // print_white_space(whitespace);
+    // printf("}\n");
 }
 
 void necro_scoped_symtable_print_type_scope(NecroScopedSymTable* table)
@@ -762,7 +756,9 @@ void necro_scoped_symtable_print_type_scope(NecroScopedSymTable* table)
 
 void necro_scoped_symtable_print_top_scopes(NecroScopedSymTable* table)
 {
+    printf("Types:\n");
     necro_scope_print(table->top_type_scope, 0, table->global_table->intern);
+    printf("\nExpressions:\n");
     necro_scope_print(table->top_scope, 0, table->global_table->intern);
 }
 

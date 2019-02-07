@@ -138,6 +138,7 @@ NecroAstSymbol*     necro_scope_find_in_this_scope_ast_symbol(NecroScope* scope,
 NecroAstSymbol*     necro_symtable_get_top_level_ast_symbol(NecroScopedSymTable* scoped_symtable, NecroSymbol symbol);
 NecroAstSymbol*     necro_symtable_get_type_ast_symbol(NecroScopedSymTable* scoped_symtable, NecroSymbol symbol);
 
+// TODO (Curtis, 2-7-18): Remove These two!
 NecroVar            necro_scoped_symtable_get_top_level_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name);
 NecroVar            necro_scoped_symtable_get_type_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name);
 

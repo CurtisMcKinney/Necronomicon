@@ -148,7 +148,7 @@ typedef struct
     struct NecroType* type2;
     NecroSourceLoc    source_loc2;
     NecroSourceLoc    end_loc2;
-} NecroDefaultTypeErrorData;
+} NecroDefaultTypeErrorData2;
 
 typedef struct
 {
@@ -174,7 +174,7 @@ typedef struct NecroResultError
         NecroDefaultAstErrorData      default_ast_error_data;
         NecroDefaultAstErrorData2     default_ast_error_data_2;
         NecroDefaultTypeErrorData1    default_type_error_data1;
-        NecroDefaultTypeErrorData     default_type_error_data;
+        NecroDefaultTypeErrorData2    default_type_error_data2;
         NecroMismatchedTypesErrorData mismatched_types_error_data;
         NecroErrorCons                error_cons;
     };
@@ -359,6 +359,7 @@ NecroResult(NecroAstSymbol)        necro_not_in_scope_error(NecroAstSymbol* ast_
 
 // Infer
 NecroResult(NecroType)             necro_type_polymorphic_pat_bind_error(NecroAstSymbol* ast_symbol, struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+
 NecroResult(NecroType)             necro_type_non_concrete_initialized_value_error(NecroAstSymbol* ast_symbol, struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroType)             necro_type_non_recursive_initialized_value_error(NecroAstSymbol* ast_symbol, struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroType)             necro_type_uninitialized_recursive_value_error(NecroAstSymbol* ast_symbol, struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);

@@ -368,7 +368,7 @@ void necro_test(NECRO_TEST test)
         necro_lex_test();
         necro_parse_test();
         necro_rename_test();
-        // necro_base_test();
+        necro_base_test();
         necro_test_infer();
         // necro_arena_chain_table_test();
         break;

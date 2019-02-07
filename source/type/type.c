@@ -169,22 +169,22 @@ NecroType* necro_type_for_all_create(NecroPagedArena* arena, NecroAstSymbol* var
     return for_all;
 }
 
-NecroType* necro_type_duplicate(NecroPagedArena* arena, NecroType* type)
-{
-    if (type == NULL)
-        return NULL;
-    type = necro_type_find(type);
-    switch (type->type)
-    {
-    case NECRO_TYPE_VAR:  return necro_type_var_create(arena, type->var.var_symbol);
-    case NECRO_TYPE_APP:  return necro_type_app_create(arena, necro_type_duplicate(arena, type->app.type1), necro_type_duplicate(arena, type->app.type2));
-    case NECRO_TYPE_FUN:  return necro_type_fn_create(arena, necro_type_duplicate(arena, type->fun.type1), necro_type_duplicate(arena, type->fun.type2));
-    case NECRO_TYPE_CON:  return necro_type_con_create(arena, type->con.con_symbol, necro_type_duplicate(arena, type->con.args), type->con.arity);
-    case NECRO_TYPE_FOR:  return necro_type_for_all_create(arena, type->for_all.var_symbol, type->for_all.context, necro_type_duplicate(arena, type->for_all.type));
-    case NECRO_TYPE_LIST: return necro_type_list_create(arena, necro_type_duplicate(arena, type->list.item), necro_type_duplicate(arena, type->list.next));
-    default:              assert(false); return NULL;
-    }
-}
+// NecroType* necro_type_duplicate(NecroPagedArena* arena, NecroType* type)
+// {
+//     if (type == NULL)
+//         return NULL;
+//     type = necro_type_find(type);
+//     switch (type->type)
+//     {
+//     case NECRO_TYPE_VAR:  return necro_type_var_create(arena, type->var.var_symbol);
+//     case NECRO_TYPE_APP:  return necro_type_app_create(arena, necro_type_duplicate(arena, type->app.type1), necro_type_duplicate(arena, type->app.type2));
+//     case NECRO_TYPE_FUN:  return necro_type_fn_create(arena, necro_type_duplicate(arena, type->fun.type1), necro_type_duplicate(arena, type->fun.type2));
+//     case NECRO_TYPE_CON:  return necro_type_con_create(arena, type->con.con_symbol, necro_type_duplicate(arena, type->con.args), type->con.arity);
+//     case NECRO_TYPE_FOR:  return necro_type_for_all_create(arena, type->for_all.var_symbol, type->for_all.context, necro_type_duplicate(arena, type->for_all.type));
+//     case NECRO_TYPE_LIST: return necro_type_list_create(arena, necro_type_duplicate(arena, type->list.item), necro_type_duplicate(arena, type->list.next));
+//     default:              assert(false); return NULL;
+//     }
+// }
 
 size_t necro_type_list_count(NecroType* list)
 {
@@ -549,6 +549,57 @@ NecroResult(NecroType) necro_type_unify(NecroPagedArena* arena, NecroBase* base,
     }
 }
 
+NecroResult(NecroType) necro_type_unify_with_info(NecroPagedArena* arena, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    NecroResult(NecroType) result = necro_type_unify(arena, base, type1, type2, scope);
+    if (result.type == NECRO_RESULT_OK)
+    {
+        return result;
+    }
+    assert(result.error != NULL);
+    switch (result.error->type)
+    {
+    case NECRO_TYPE_MISMATCHED_TYPE:
+        result.error->default_type_error_data2.type1       = type1;
+        result.error->default_type_error_data2.type2       = type2;
+        result.error->default_type_error_data2.source_loc1 = source_loc;
+        result.error->default_type_error_data2.end_loc1    = end_loc;
+        break;
+
+    case NECRO_TYPE_RIGID_TYPE_VARIABLE:
+    case NECRO_TYPE_NOT_AN_INSTANCE_OF:
+    case NECRO_TYPE_OCCURS:
+    case NECRO_TYPE_MISMATCHED_ARITY:
+    case NECRO_TYPE_POLYMORPHIC_PAT_BIND:
+    case NECRO_TYPE_UNINITIALIZED_RECURSIVE_VALUE:
+    case NECRO_TYPE_FINAL_DO_STATEMENT:
+    case NECRO_TYPE_AMBIGUOUS_CLASS:
+    case NECRO_TYPE_CONSTRAINS_ONLY_CLASS_VAR:
+    case NECRO_TYPE_AMBIGUOUS_TYPE_VAR:
+    case NECRO_TYPE_NON_CONCRETE_INITIALIZED_VALUE:
+    case NECRO_TYPE_NON_RECURSIVE_INITIALIZED_VALUE:
+    case NECRO_TYPE_NOT_A_CLASS:
+    case NECRO_TYPE_NOT_A_VISIBLE_METHOD:
+    case NECRO_TYPE_NO_EXPLICIT_IMPLEMENTATION:
+    case NECRO_TYPE_DOES_NOT_IMPLEMENT_SUPER_CLASS:
+    case NECRO_TYPE_MULTIPLE_CLASS_DECLARATIONS:
+    case NECRO_TYPE_MULTIPLE_INSTANCE_DECLARATIONS:
+        assert(false);
+        break;
+
+    case NECRO_KIND_MISMATCHED_KIND:
+    case NECRO_KIND_MISMATCHED_ARITY:
+    case NECRO_KIND_RIGID_KIND_VARIABLE:
+        assert(false);
+        break;
+
+    default:
+        assert(false);
+        break;
+    }
+    return result;
+}
+
 //=====================================================
 // Inst
 //=====================================================
@@ -843,24 +894,27 @@ NecroResult(NecroType) necro_type_generalize(NecroPagedArena* arena, struct Necr
 //=====================================================
 // Printing
 //=====================================================
+void necro_type_print(NecroType* type)
+{
+    necro_type_fprint(stdout, type);
+}
+
 bool necro_is_simple_type(NecroType* type)
 {
     assert(type != NULL);
     return type->type == NECRO_TYPE_VAR || (type->type == NECRO_TYPE_CON && necro_type_list_count(type->con.args) == 0);
 }
 
-void necro_type_print(NecroType* type);
-
-void necro_print_type_sig_go_maybe_with_parens(NecroType* type)
+void necro_print_type_sig_go_maybe_with_parens(FILE* stream, NecroType* type)
 {
     if (!necro_is_simple_type(type))
-        printf("(");
-    necro_type_print(type);
+        fprintf(stream, "(");
+    necro_type_fprint(stream, type);
     if (!necro_is_simple_type(type))
-        printf(")");
+        fprintf(stream, ")");
 }
 
-bool necro_print_tuple_sig(NecroType* type)
+bool necro_print_tuple_sig(FILE* stream, NecroType* type)
 {
     NecroSymbol con_symbol = type->con.con_symbol->source_name;
     const char* con_string = type->con.con_symbol->source_name->str;
@@ -872,33 +926,33 @@ bool necro_print_tuple_sig(NecroType* type)
     // Unit
     if (strcmp(con_symbol->str, "()") == 0)
     {
-        printf("()");
+        fprintf(stream, "()");
         return true;
     }
 
     // List
     if (strcmp(con_symbol->str, "[]") == 0)
     {
-        printf("[");
+        fprintf(stream, "[");
         if (current_element != NULL && current_element->list.item != NULL)
-            necro_type_print(current_element->list.item);
-        printf("]");
+            necro_type_fprint(stream, current_element->list.item);
+        fprintf(stream, "]");
         return true;
     }
 
-    printf("(");
+    fprintf(stream, "(");
     while (current_element != NULL)
     {
-        necro_type_print(current_element->list.item);
+        necro_type_fprint(stream, current_element->list.item);
         if (current_element->list.next != NULL)
-            printf(",");
+            fprintf(stream, ",");
         current_element = current_element->list.next;
     }
-    printf(")");
+    fprintf(stream, ")");
     return true;
 }
 
-void necro_type_print(NecroType* type)
+void necro_type_fprint(FILE* stream, NecroType* type)
 {
     if (type == NULL)
         return;
@@ -909,69 +963,69 @@ void necro_type_print(NecroType* type)
     case NECRO_TYPE_VAR:
         if (type->var.var_symbol->source_name != NULL && type->var.var_symbol->source_name->str != NULL)
         {
-            printf("%s", type->var.var_symbol->source_name->str);
+            fprintf(stream, "%s", type->var.var_symbol->source_name->str);
         }
         else
         {
-            printf("tyvar_%p", type->var.var_symbol);
+            fprintf(stream, "tyvar_%p", type->var.var_symbol);
         }
         break;
 
     case NECRO_TYPE_APP:
-        necro_print_type_sig_go_maybe_with_parens(type->app.type1);
-        printf(" ");
-        necro_print_type_sig_go_maybe_with_parens(type->app.type2);
+        necro_print_type_sig_go_maybe_with_parens(stream, type->app.type1);
+        fprintf(stream, " ");
+        necro_print_type_sig_go_maybe_with_parens(stream, type->app.type2);
         break;
 
     case NECRO_TYPE_FUN:
         if (type->fun.type1->type == NECRO_TYPE_FUN)
-            printf("(");
-        necro_type_print(type->fun.type1);
+            fprintf(stream, "(");
+        necro_type_fprint(stream, type->fun.type1);
         if (type->fun.type1->type == NECRO_TYPE_FUN)
-            printf(")");
-        printf(" -> ");
-        necro_type_print(type->fun.type2);
+            fprintf(stream, ")");
+        fprintf(stream, " -> ");
+        necro_type_fprint(stream, type->fun.type2);
         break;
 
     case NECRO_TYPE_CON:
     {
-        if (necro_print_tuple_sig(type))
+        if (necro_print_tuple_sig(stream, type))
             break;
         bool has_args = necro_type_list_count(type->con.args) > 0;
-        printf("%s", type->con.con_symbol->source_name->str);
+        fprintf(stream, "%s", type->con.con_symbol->source_name->str);
         if (has_args)
         {
-            printf(" ");
-            necro_type_print(type->con.args);
+            fprintf(stream, " ");
+            necro_type_fprint(stream, type->con.args);
         }
         break;
     }
 
     case NECRO_TYPE_LIST:
-        necro_print_type_sig_go_maybe_with_parens(type->list.item);
+        necro_print_type_sig_go_maybe_with_parens(stream, type->list.item);
         if (type->list.next != NULL)
         {
-            printf(" ");
-            necro_type_print(type->list.next);
+            fprintf(stream, " ");
+            necro_type_fprint(stream, type->list.next);
         }
         break;
 
     case NECRO_TYPE_FOR:
-        printf("forall ");
+        fprintf(stream, "forall ");
 
         // Print quantified type vars
         NecroType* for_all_head = type;
         while (type->for_all.type->type == NECRO_TYPE_FOR)
         {
             if (type->for_all.var_symbol->source_name != NULL)
-                printf("%s", type->for_all.var_symbol->source_name->str);
+                fprintf(stream, "%s", type->for_all.var_symbol->source_name->str);
             else
-                printf("tyvar_%p", type->for_all.var_symbol);
-            printf(" ");
+                fprintf(stream, "tyvar_%p", type->for_all.var_symbol);
+            fprintf(stream, " ");
             type = type->for_all.type;
         }
-        printf("%s", type->for_all.var_symbol->source_name->str);
-        printf(". ");
+        fprintf(stream, "%s", type->for_all.var_symbol->source_name->str);
+        fprintf(stream, ". ");
         type = type->for_all.type;
 
         // Print context
@@ -988,7 +1042,7 @@ void necro_type_print(NecroType* type)
         }
         if (has_context)
         {
-            printf("(");
+            fprintf(stream, "(");
             size_t count = 0;
             type = for_all_head;
             while (type->type == NECRO_TYPE_FOR)
@@ -997,19 +1051,19 @@ void necro_type_print(NecroType* type)
                 while (context != NULL)
                 {
                     if (count > 0)
-                        printf(", ");
-                    printf("%s ", context->class_symbol->source_name->str);
-                    printf("%s", type->for_all.var_symbol->source_name->str);
+                        fprintf(stream, ", ");
+                    fprintf(stream, "%s ", context->class_symbol->source_name->str);
+                    fprintf(stream, "%s", type->for_all.var_symbol->source_name->str);
                     context = context->next;
                     count++;
                 }
                 type = type->for_all.type;
             }
-            printf(") => ");
+            fprintf(stream, ") => ");
         }
 
         // Print rest of type
-        necro_type_print(type);
+        necro_type_fprint(stream, type);
         break;
 
     default:

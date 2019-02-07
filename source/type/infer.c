@@ -27,6 +27,15 @@ NecroResult(NecroType) necro_gen_pat_go(NecroInfer* infer, NecroAst* ast);
 NecroType*             necro_infer_constant(NecroInfer* infer, NecroAst* ast);
 void                   necro_pat_new_name_go(NecroInfer* infer, NecroAst* ast);
 
+
+///////////////////////////////////////////////////////
+// Catch Unify
+///////////////////////////////////////////////////////
+// NecroResult(NecroType) necro_infer_catch_unify(NecroInfer* infer, NecroAst* ast, NecroType* type, NecroType* type2, NecroResult(NecroType) result)
+// {
+//     return result;
+// }
+
 //=====================================================
 // TypeSig
 //=====================================================
@@ -274,10 +283,11 @@ NecroResult(NecroType) necro_infer_simple_assignment(NecroInfer* infer, NecroAst
     NecroType* rhs_type   = necro_try(NecroType, necro_infer_go(infer, ast->simple_assignment.rhs));
     if (ast->simple_assignment.declaration_group != NULL && ast->simple_assignment.declaration_group->next != NULL)
         ast->simple_assignment.is_recursive = true;
-    necro_try(NecroType, necro_type_unify(infer->arena, infer->base, proxy_type, rhs_type, ast->scope));
+
+    necro_try(NecroType, necro_type_unify_with_info(infer->arena, infer->base, proxy_type, rhs_type, ast->scope, ast->simple_assignment.rhs->source_loc, ast->simple_assignment.rhs->end_loc));
     if (init_type != NULL)
     {
-        necro_try(NecroType, necro_type_unify(infer->arena, infer->base, proxy_type, init_type, ast->scope));
+        necro_try(NecroType, necro_type_unify_with_info(infer->arena, infer->base, proxy_type, init_type, ast->scope, ast->simple_assignment.initializer->source_loc, ast->simple_assignment.initializer->end_loc));
     }
     ast->necro_type = rhs_type;
     return ok(NecroType, ast->necro_type);
@@ -1523,15 +1533,18 @@ void necro_infer_test_result(const char* test_name, const char* str, NECRO_RESUL
     NecroResult(void) result = necro_infer(info, &intern, &scoped_symtable, &base, &ast);
 
     // Assert
-    ASSERT_BREAK(result.type == expected_result);
-
+    // TODO (Curtis, 2-7-18): ASSERT_BREAK macro is broken.
+    // ASSERT_BREAK(result.type == expected_result);
+    assert(result.type == expected_result);
     bool passed = result.type == expected_result;
     if (expected_result == NECRO_RESULT_ERROR)
     {
-        ASSERT_BREAK(error_type != NULL);
-        if (error_type != NULL)
+        // ASSERT_BREAK(error_type != NULL);
+        assert(error_type != NULL);
+        if (result.error != NULL && error_type != NULL)
         {
-            ASSERT_BREAK(result.error->type == *error_type);
+            // ASSERT_BREAK(result.error->type == *error_type);
+            assert(result.error->type == *error_type);
             passed &= result.error->type == *error_type;
         }
         else
@@ -1544,6 +1557,10 @@ void necro_infer_test_result(const char* test_name, const char* str, NECRO_RESUL
     printf("Infer %s test: %s\n", test_name, result_string);
 
     // Clean up
+    if (result.type == NECRO_RESULT_ERROR)
+        necro_result_error_print(result.error, str, "Test");
+    else
+        free(result.error);
     necro_ast_arena_destroy(&ast);
     necro_parse_ast_arena_destroy(&parse_ast);
     necro_destroy_lex_token_vector(&tokens);
@@ -1556,17 +1573,19 @@ void necro_test_infer()
 {
     necro_announce_phase("NecroInfer");
 
-#if 0 // Crashes
+/*
+    NOTE (Curtis, 2-7-18): The test shouldn't produce an error, and correctly does not.
+    However your test function crashes when it expects an error and doesn't get one.
+*/
     {
         const char* test_name = "NothingType";
         const char* test_source = ""
             "notcronomicon = Nothing\n";
 
-        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         const NECRO_RESULT_ERROR_TYPE expected_error = NECRO_TYPE_MISMATCHED_TYPE;
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
-#endif
 
     {
         const char* test_name = "DataDeclarations";
@@ -1579,20 +1598,33 @@ void necro_test_infer()
         necro_infer_test_result(test_name, test_source, expect_ok_result, no_expected_error);
     }
 
-#if 0 // This also crashes
     {
-        const char* test_name = "MistmatchedType";
+        const char*                   test_name           = "Uninitialized Recursive Value";
+        const char*                   test_source         = "impossible = impossible\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_UNINITIALIZED_RECURSIVE_VALUE;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name = "MistmatchedType: SimpleAssignment";
         const char* test_source = ""
             "data Book = Pages\n"
             "data NotBook = EmptyPages\n"
-            "notcronomicon::Book\n"
-            "notcronomicon = EmptyPages\n";
-
+            "notcronomicon :: Maybe Book\n"
+            "notcronomicon = Just EmptyPages\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error = NECRO_TYPE_MISMATCHED_TYPE;
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
-#endif
+
+    {
+        const char* test_name   = "MistmatchedType: Initializer";
+        const char* test_source = "looper ~ () = looper && True\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error = NECRO_TYPE_MISMATCHED_TYPE;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
 
 #if 0 // This crashes right now during inference :(
     {
@@ -1610,13 +1642,16 @@ void necro_test_infer()
 #endif
 
     /*
+    FINISHED:
+    NECRO_TYPE_UNINITIALIZED_RECURSIVE_VALUE,
+
+    TODO:
+    NECRO_TYPE_MISMATCHED_TYPE, (In all its various forms...)
     NECRO_TYPE_RIGID_TYPE_VARIABLE,
     NECRO_TYPE_NOT_AN_INSTANCE_OF,
     NECRO_TYPE_OCCURS,
     NECRO_TYPE_MISMATCHED_ARITY,
-    NECRO_TYPE_MISMATCHED_TYPE,
     NECRO_TYPE_POLYMORPHIC_PAT_BIND,
-    NECRO_TYPE_UNINITIALIZED_RECURSIVE_VALUE,
     NECRO_TYPE_FINAL_DO_STATEMENT,
     NECRO_TYPE_AMBIGUOUS_CLASS,
     NECRO_TYPE_CONSTRAINS_ONLY_CLASS_VAR,

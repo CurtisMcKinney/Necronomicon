@@ -234,9 +234,15 @@ NecroType* necro_type_fresh_var(NecroPagedArena* arena)
     return type_var;
 }
 
-//=====================================================
-// Find
-//=====================================================
+NecroType* necro_type_strip_for_all(NecroType* type)
+{
+    while (type != NULL && type->type == NECRO_TYPE_FOR)
+    {
+        type = type->for_all.type;
+    }
+    return type;
+}
+
 NecroType* necro_type_find(NecroType* type)
 {
     NecroType* prev = type;
@@ -551,6 +557,11 @@ NecroResult(NecroType) necro_type_unify(NecroPagedArena* arena, NecroBase* base,
 
 NecroResult(NecroType) necro_type_unify_with_info(NecroPagedArena* arena, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
+    return necro_type_unify_with_full_info(arena, base, type1, type2, scope, source_loc, end_loc, type1, type2);
+}
+
+NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroType* print_type1, NecroType* print_type2)
+{
     NecroResult(NecroType) result = necro_type_unify(arena, base, type1, type2, scope);
     if (result.type == NECRO_RESULT_OK)
     {
@@ -560,8 +571,8 @@ NecroResult(NecroType) necro_type_unify_with_info(NecroPagedArena* arena, NecroB
     switch (result.error->type)
     {
     case NECRO_TYPE_MISMATCHED_TYPE:
-        result.error->default_type_error_data2.type1       = type1;
-        result.error->default_type_error_data2.type2       = type2;
+        result.error->default_type_error_data2.type1       = print_type1;
+        result.error->default_type_error_data2.type2       = print_type2;
         result.error->default_type_error_data2.source_loc1 = source_loc;
         result.error->default_type_error_data2.end_loc1    = end_loc;
         break;
@@ -956,12 +967,17 @@ void necro_type_fprint(FILE* stream, NecroType* type)
 {
     if (type == NULL)
         return;
-    while (type->type == NECRO_TYPE_VAR && type->var.bound != NULL)
-        type = type->var.bound;
+    type = necro_type_find(type);
     switch (type->type)
     {
     case NECRO_TYPE_VAR:
-        if (type->var.var_symbol->source_name != NULL && type->var.var_symbol->source_name->str != NULL)
+        if (type->var.var_symbol == NULL)
+        {
+            if (type->var.gen_bound != NULL)
+                necro_type_fprint(stream, type->var.gen_bound);
+            // fprintf(stream, "tyvar_NULL");
+        }
+        else if (type->var.var_symbol->source_name != NULL && type->var.var_symbol->source_name->str != NULL)
         {
             fprintf(stream, "%s", type->var.var_symbol->source_name->str);
         }

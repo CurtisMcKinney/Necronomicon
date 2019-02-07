@@ -717,14 +717,12 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         reified_ast->op_left_section.ast_symbol   = necro_ast_symbol_create(arena, ast->op_left_section.symbol, ast->op_left_section.symbol, NULL, reified_ast);
         reified_ast->op_left_section.type         = ast->op_left_section.type;
         reified_ast->op_left_section.inst_context = NULL;
-        reified_ast->op_left_section.ast_symbol   = NULL;
         break;
     case NECRO_AST_OP_RIGHT_SECTION:
         reified_ast->op_right_section.ast_symbol   = necro_ast_symbol_create(arena, ast->op_right_section.symbol, ast->op_right_section.symbol, NULL, reified_ast);
         reified_ast->op_right_section.type         = ast->op_right_section.type;
         reified_ast->op_right_section.right        = necro_reify_go(parse_ast_arena, ast->op_right_section.right, arena, intern);
         reified_ast->op_right_section.inst_context = NULL;
-        reified_ast->op_right_section.ast_symbol   = NULL;
         break;
     case NECRO_AST_CONSTRUCTOR:
         reified_ast->constructor.conid    = necro_reify_go(parse_ast_arena, ast->constructor.conid, arena, intern);

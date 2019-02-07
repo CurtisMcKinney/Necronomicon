@@ -1033,11 +1033,11 @@ void necro_print_mismatched_type_error(NecroResultError* error, const char* sour
     necro_print_line_at_source_loc(source_str, source_loc, end_loc);
 
     fprintf(stderr, NECRO_ERR_LEFT_CHAR " Expected type: ");
-    necro_type_fprint(stderr, error->default_type_error_data2.type1);
+    necro_type_fprint(stderr, necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.type1)));
     fprintf(stderr, "\n");
 
     fprintf(stderr, NECRO_ERR_LEFT_CHAR " Found type:    ");
-    necro_type_fprint(stderr, error->default_type_error_data2.type2);
+    necro_type_fprint(stderr, necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.type2)));
     fprintf(stderr, "\n");
 
     fprintf(stderr, "\n");

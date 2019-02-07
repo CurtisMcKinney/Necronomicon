@@ -151,6 +151,7 @@ NecroInfer             necro_infer_create(NecroPagedArena* arena, NecroIntern* i
 void                   necro_infer_destroy(NecroInfer* infer);
 
 NecroResult(NecroType) necro_type_unify_with_info(NecroPagedArena* arena, struct NecroBase* base, NecroType* type1, NecroType* type2, struct NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, struct NecroBase* base, NecroType* type1, NecroType* type2, struct NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroType* print_type1, NecroType* print_type2);
 NecroResult(NecroType) necro_type_unify(NecroPagedArena* arena, struct NecroBase* base, NecroType* type1, NecroType* type2, struct NecroScope* scope);
 NecroResult(NecroType) necro_type_occurs(NecroAstSymbol* var_symbol, NecroType* type);
 NecroResult(NecroType) necro_type_instantiate(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope);
@@ -164,6 +165,7 @@ NecroType*             necro_type_curry_con(NecroPagedArena* arena, NecroType* c
 size_t                 necro_type_arity(NecroType* type);
 size_t                 necro_type_hash(NecroType* type);
 size_t                 necro_type_list_count(NecroType* list);
+NecroType*             necro_type_strip_for_all(NecroType* type);
 
 NecroType*             necro_type_alloc(NecroPagedArena* arena);
 NecroType*             necro_type_fresh_var(NecroPagedArena* arena);

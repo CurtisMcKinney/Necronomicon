@@ -257,6 +257,20 @@ NecroType* necro_type_find(NecroType* type)
         return type;
 }
 
+const NecroType* necro_type_find_const(const NecroType* type)
+{
+    const NecroType* prev = type;
+    while (type != NULL && type->type == NECRO_TYPE_VAR)
+    {
+        prev = type;
+        type = type->var.bound;
+    }
+    if (type == NULL)
+        return prev;
+    else
+        return type;
+}
+
 bool necro_type_is_bound_in_scope(NecroType* type, NecroScope* scope)
 {
     if (type->type != NECRO_TYPE_VAR)
@@ -272,6 +286,15 @@ bool necro_type_is_bound_in_scope(NecroType* type, NecroScope* scope)
             current_scope = current_scope->parent;
     }
     return false;
+}
+
+NecroType* necro_type_get_fully_applied_fun_type(NecroType* type)
+{
+    while (type->type == NECRO_TYPE_FUN)
+    {
+        type = type->fun.type2;
+    }
+    return type;
 }
 
 //=====================================================
@@ -447,7 +470,7 @@ NecroResult(NecroType) necro_unify_app(NecroPagedArena* arena, NecroBase* base, 
         else
             return necro_type_unify(arena, base, type1, uncurried_con, scope);
     }
-    case NECRO_TYPE_FUN:  return necro_type_mismatched_type_error(NULL, type1, NULL_LOC, NULL_LOC, NULL, type2, NULL_LOC, NULL_LOC);
+    case NECRO_TYPE_FUN:  return necro_type_mismatched_type_error_partial(type1, type2);
     case NECRO_TYPE_FOR:  necro_unreachable(NecroType);
     case NECRO_TYPE_LIST: necro_unreachable(NecroType);
     default:              necro_unreachable(NecroType);
@@ -471,8 +494,8 @@ NecroResult(NecroType) necro_unify_fun(NecroPagedArena* arena, NecroBase* base, 
         necro_try(NecroType, necro_type_unify(arena, base, type1->fun.type1, type2->fun.type1, scope));
         necro_try(NecroType, necro_type_unify(arena, base, type1->fun.type2, type2->fun.type2, scope));
         return ok(NecroType, NULL);
-    case NECRO_TYPE_APP:  return necro_type_mismatched_type_error(NULL, type1, NULL_LOC, NULL_LOC, NULL, type2, NULL_LOC, NULL_LOC);
-    case NECRO_TYPE_CON:  return necro_type_mismatched_type_error(NULL, type1, NULL_LOC, NULL_LOC, NULL, type2, NULL_LOC, NULL_LOC);
+    case NECRO_TYPE_APP:  return necro_type_mismatched_type_error_partial(type1, type2);
+    case NECRO_TYPE_CON:  return necro_type_mismatched_type_error_partial(type1, type2);
     case NECRO_TYPE_LIST: necro_unreachable(NecroType);
     default:              necro_unreachable(NecroType);
     }
@@ -494,7 +517,7 @@ NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroBase* base, 
     case NECRO_TYPE_CON:
         if (type1->con.con_symbol != type2->con.con_symbol)
         {
-            return necro_type_mismatched_type_error(NULL, type1, NULL_LOC, NULL_LOC, NULL, type2, NULL_LOC, NULL_LOC);
+            return necro_type_mismatched_type_error_partial(type1, type2);
         }
         else
         {
@@ -504,6 +527,7 @@ NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroBase* base, 
             type2 = type2->con.args;
             while (type1 != NULL && type2 != NULL)
             {
+                // TODO: (Curtis, 2-8-18): Replace with kinds check!?!?!?
                 if (type1 == NULL || type2 == NULL)
                     return necro_type_mismatched_arity_error(NULL, original_type1, NULL_LOC, NULL_LOC, NULL, original_type2, NULL_LOC, NULL_LOC);
                 assert(type1->type == NECRO_TYPE_LIST);
@@ -522,7 +546,7 @@ NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroBase* base, 
         else
             return necro_type_unify(arena, base, uncurried_con, type2, scope);
     }
-    case NECRO_TYPE_FUN:  return necro_type_mismatched_type_error(NULL, type1, NULL_LOC, NULL_LOC, NULL, type2, NULL_LOC, NULL_LOC);
+    case NECRO_TYPE_FUN:  return necro_type_mismatched_type_error_partial(type1, type2);
     case NECRO_TYPE_LIST: necro_unreachable(NecroType);
     case NECRO_TYPE_FOR:  necro_unreachable(NecroType);
     default:              necro_unreachable(NecroType);
@@ -555,12 +579,12 @@ NecroResult(NecroType) necro_type_unify(NecroPagedArena* arena, NecroBase* base,
     }
 }
 
-NecroResult(NecroType) necro_type_unify_with_info(NecroPagedArena* arena, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+NecroResult(NecroType) necro_type_unify_with_info(NecroPagedArena* arena, struct NecroBase* base, NecroType* type1, NecroType* type2, struct NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     return necro_type_unify_with_full_info(arena, base, type1, type2, scope, source_loc, end_loc, type1, type2);
 }
 
-NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroType* print_type1, NecroType* print_type2)
+NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroType* macro_type1, NecroType* macro_type2)
 {
     NecroResult(NecroType) result = necro_type_unify(arena, base, type1, type2, scope);
     if (result.type == NECRO_RESULT_OK)
@@ -571,10 +595,10 @@ NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, N
     switch (result.error->type)
     {
     case NECRO_TYPE_MISMATCHED_TYPE:
-        result.error->default_type_error_data2.type1       = print_type1;
-        result.error->default_type_error_data2.type2       = print_type2;
-        result.error->default_type_error_data2.source_loc1 = source_loc;
-        result.error->default_type_error_data2.end_loc1    = end_loc;
+        result.error->mismatched_types_error_data.macro_type1 = macro_type1;
+        result.error->mismatched_types_error_data.macro_type2 = macro_type2;
+        result.error->mismatched_types_error_data.source_loc  = source_loc;
+        result.error->mismatched_types_error_data.end_loc     = end_loc;
         break;
 
     case NECRO_TYPE_RIGID_TYPE_VARIABLE:
@@ -905,18 +929,18 @@ NecroResult(NecroType) necro_type_generalize(NecroPagedArena* arena, struct Necr
 //=====================================================
 // Printing
 //=====================================================
-void necro_type_print(NecroType* type)
+void necro_type_print(const NecroType* type)
 {
     necro_type_fprint(stdout, type);
 }
 
-bool necro_is_simple_type(NecroType* type)
+bool necro_is_simple_type(const NecroType* type)
 {
     assert(type != NULL);
     return type->type == NECRO_TYPE_VAR || (type->type == NECRO_TYPE_CON && necro_type_list_count(type->con.args) == 0);
 }
 
-void necro_print_type_sig_go_maybe_with_parens(FILE* stream, NecroType* type)
+void necro_print_type_sig_go_maybe_with_parens(FILE* stream, const NecroType* type)
 {
     if (!necro_is_simple_type(type))
         fprintf(stream, "(");
@@ -925,14 +949,14 @@ void necro_print_type_sig_go_maybe_with_parens(FILE* stream, NecroType* type)
         fprintf(stream, ")");
 }
 
-bool necro_print_tuple_sig(FILE* stream, NecroType* type)
+bool necro_print_tuple_sig(FILE* stream, const NecroType* type)
 {
     NecroSymbol con_symbol = type->con.con_symbol->source_name;
     const char* con_string = type->con.con_symbol->source_name->str;
 
     if (con_string[0] != '(' && con_string[0] != '[')
         return false;
-    NecroType* current_element = type->con.args;
+    const NecroType* current_element = type->con.args;
 
     // Unit
     if (strcmp(con_symbol->str, "()") == 0)
@@ -963,11 +987,11 @@ bool necro_print_tuple_sig(FILE* stream, NecroType* type)
     return true;
 }
 
-void necro_type_fprint(FILE* stream, NecroType* type)
+void necro_type_fprint(FILE* stream, const NecroType* type)
 {
     if (type == NULL)
         return;
-    type = necro_type_find(type);
+    type = necro_type_find_const(type);
     switch (type->type)
     {
     case NECRO_TYPE_VAR:
@@ -1030,7 +1054,7 @@ void necro_type_fprint(FILE* stream, NecroType* type)
         fprintf(stream, "forall ");
 
         // Print quantified type vars
-        NecroType* for_all_head = type;
+        const NecroType* for_all_head = type;
         while (type->for_all.type->type == NECRO_TYPE_FOR)
         {
             if (type->for_all.var_symbol->source_name != NULL)

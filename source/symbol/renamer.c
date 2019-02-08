@@ -1054,6 +1054,33 @@ void necro_rename_test()
 			necro_rename_test_case("ApatsAssignment1", "x y = y\n", &intern, &ast);
 		}
 
+#if 0
+		{
+			NecroIntern   intern = necro_intern_create();
+			NecroAstArena ast = necro_ast_arena_create(necro_intern_string(&intern, "Test"));
+			NecroSymbol   clash_y = necro_append_clash_suffix_to_name(&ast, &intern, "Test.y");
+
+			ast.root =
+				necro_ast_create_top_decl(&ast.arena,
+					necro_ast_create_apats_assignment_with_ast_symbol(&ast.arena,
+						necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.x"), necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL),
+						necro_ast_create_apats(&ast.arena,
+							necro_ast_create_var_with_ast_symbol(&ast.arena,
+								necro_ast_symbol_create(&ast.arena, clash_y, necro_intern_string(&intern, "y"), necro_intern_string(&intern, "Test"), NULL),
+								NECRO_VAR_DECLARATION),
+							NULL),
+						necro_ast_create_rhs(&ast.arena,
+							necro_ast_create_var_with_ast_symbol(&ast.arena,
+								necro_ast_symbol_create(&ast.arena, clash_y, necro_intern_string(&intern, "y"), necro_intern_string(&intern, "Test"), NULL),
+								NECRO_VAR_VAR),
+							NULL)),
+					NULL);
+			necro_ast_print(ast.root);
+
+			necro_rename_test_case("ApatsAssignmentYs", "x y = y where y = y\n", &intern, &ast);
+		}
+#endif
+
     //--------------------
     // TODO list for Chad...
     //--------------------

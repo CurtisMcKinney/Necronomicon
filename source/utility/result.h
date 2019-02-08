@@ -271,7 +271,7 @@ typedef union
 // replace this with a thread local storage version!
 extern NecroResultUnion global_result;
 
-void necro_assert_on_error(bool condition, NecroResultError* error);
+#define necro_assert_on_error(RESULT, ERROR) assert(RESULT == NECRO_RESULT_OK); UNUSED(ERROR);
 
 ///////////////////////////////////////////////////////
 // Macro API
@@ -279,7 +279,7 @@ void necro_assert_on_error(bool condition, NecroResultError* error);
 #define NecroResult(TYPE) NecroResult_##TYPE
 #define necro_try(TYPE, EXPR) (global_result.TYPE##_result = EXPR).value; if (global_result.TYPE##_result.type != NECRO_RESULT_OK) return global_result.TYPE##_result;
 #define necro_try_map(TYPE, TYPE2, EXPR) (global_result.TYPE##_result = EXPR).value; if (global_result.TYPE##_result.type != NECRO_RESULT_OK) return global_result.TYPE2##_result;
-#define unwrap(TYPE, EXPR) (global_result.TYPE##_result = EXPR).value; necro_assert_on_error(global_result.TYPE##_result.type == NECRO_RESULT_OK, global_result.TYPE##_result.error);
+#define unwrap(TYPE, EXPR) (global_result.TYPE##_result = EXPR).value; necro_assert_on_error(global_result.TYPE##_result.type, global_result.TYPE##_result.error);
 #define necro_error_map(TYPE1, TYPE2, EXPR) (((NecroResultUnion) { .TYPE1##_result = EXPR }).TYPE2##_result);
 #define necro_unreachable(TYPE) assert(false); return global_result.TYPE##_result
 #define necro_try2_then_return(TYPE, EXPR1, EXPR2, THEN_EXPR) \

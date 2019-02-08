@@ -563,9 +563,9 @@ void necro_print_dictionary_prototype(NecroDictionaryPrototype* prototype, size_
 {
     if (prototype == NULL)
         return;
-    NecroType* member_type = prototype->prototype_varid->type;
+    NecroType* member_type = prototype->instance_member_ast_symbol->type;
     print_white_space(white_count + 4);
-    printf("%s :: ", prototype->prototype_varid->name->str);
+    printf("%s :: ", prototype->instance_member_ast_symbol->name->str);
     necro_type_print(member_type);
     printf("\n");
     necro_print_dictionary_prototype(prototype->next, white_count);
@@ -1042,12 +1042,12 @@ NecroResult(NecroAst) necro_resolve_method(NecroInfer* infer, NecroTypeClass* me
         NecroDictionaryPrototype* prototype = instance->dictionary_prototype;
         while (prototype != NULL)
         {
-            if (prototype->type_class_member_varid == ast->variable.ast_symbol)
+            if (prototype->type_class_member_ast_symbol == ast->variable.ast_symbol)
             {
-                NecroAst*              m_var                = necro_ast_create_var(infer->arena, infer->intern, prototype->prototype_varid->source_name->str, NECRO_VAR_VAR);
-                m_var->variable.ast_symbol                  = prototype->prototype_varid;
+                NecroAst*              m_var                = necro_ast_create_var(infer->arena, infer->intern, prototype->instance_member_ast_symbol->source_name->str, NECRO_VAR_VAR);
+                m_var->variable.ast_symbol                  = prototype->instance_member_ast_symbol;
                 m_var->scope                                = ast->scope;
-                NecroType*             member_instance_type = prototype->prototype_varid->type;
+                NecroType*             member_instance_type = prototype->instance_member_ast_symbol->type;
                 NecroTypeClassContext* inst_context         = NULL;
                 NecroType*             inst_type            = necro_try_map(NecroType, NecroAst, necro_type_instantiate_with_context(infer->arena, infer->base, member_instance_type, NULL, &inst_context));
                 necro_try_map(NecroType, NecroAst, necro_type_unify(infer->arena, infer->base, ast->necro_type, inst_type, NULL));
@@ -1893,8 +1893,6 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
     necro_apply_constraints(infer->arena, instance->data_type, instance->context);
     instance->data_type = necro_try(NecroType, necro_type_generalize(infer->arena, infer->base, instance->data_type, NULL));
 
-    // NecroTypeClassContext* instance_context = NULL;
-
     // TODO (Curtis, 2-6-18): Is this working???
     //--------------------------------
     // Dictionary Prototype
@@ -1915,13 +1913,15 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
                 NecroDictionaryPrototype* prev_dictionary = instance->dictionary_prototype;
                 instance->dictionary_prototype            = necro_paged_arena_alloc(infer->arena, sizeof(NecroDictionaryPrototype));
                 if (method_ast->type == NECRO_AST_SIMPLE_ASSIGNMENT)
-                    instance->dictionary_prototype->prototype_varid = method_ast->simple_assignment.ast_symbol;
+                    instance->dictionary_prototype->instance_member_ast_symbol = method_ast->simple_assignment.ast_symbol;
                 else if (method_ast->type == NECRO_AST_APATS_ASSIGNMENT)
-                    instance->dictionary_prototype->prototype_varid = method_ast->apats_assignment.ast_symbol;
+                    instance->dictionary_prototype->instance_member_ast_symbol = method_ast->apats_assignment.ast_symbol;
                 else
                     assert(false);
-                instance->dictionary_prototype->next = NULL;
-                NecroSymbol member_symbol = necro_intern_get_type_class_member_symbol_from_instance_symbol(infer->intern, instance->dictionary_prototype->prototype_varid->source_name);
+                instance->dictionary_prototype->next                         = NULL;
+                instance->dictionary_prototype->type_class_member_ast_symbol = necro_scope_find_ast_symbol(infer->scoped_symtable->top_scope, instance->dictionary_prototype->instance_member_ast_symbol->source_name);
+                assert(instance->dictionary_prototype->type_class_member_ast_symbol != NULL);
+                NecroAstSymbol* member_symbol = instance->dictionary_prototype->type_class_member_ast_symbol;
 
                 //--------------------------------
                 // Search for Type Class member
@@ -1929,9 +1929,9 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
                 NecroTypeClassMember* members = type_class->members;
                 while (members != NULL)
                 {
-                    if (members->member_varid->source_name == member_symbol) // TODO: Replace with direct NecroAstSymbol comparison!!!!!
+                    if (members->member_varid == member_symbol)
                     {
-                        instance->dictionary_prototype->type_class_member_varid = members->member_varid;
+                        instance->dictionary_prototype->type_class_member_ast_symbol = members->member_varid;
                         found = true;
                         break;
                     }
@@ -1943,7 +1943,7 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
                 if (found == false)
                 {
                     instance->dictionary_prototype->next = NULL;
-                    return necro_type_not_a_visible_method_error(necro_ast_symbol_create(infer->arena, member_symbol, member_symbol, NULL, NULL), NULL, method_ast->source_loc, method_ast->end_loc, instance->ast->type_class_instance.ast_symbol, NULL, instance->ast->source_loc, instance->ast->end_loc);
+                    return necro_type_not_a_visible_method_error(member_symbol, NULL, method_ast->source_loc, method_ast->end_loc, instance->ast->type_class_instance.ast_symbol, NULL, instance->ast->source_loc, instance->ast->end_loc);
                 }
 
                 //--------------------------------
@@ -1953,8 +1953,8 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
 
                 NecroType* method_type      = members->member_varid->type;
                 NecroType* inst_method_type = necro_instantiate_method_sig(infer, type_class->type_var, method_type, instance->data_type);
-                instance->dictionary_prototype->prototype_varid->type               = inst_method_type;
-                instance->dictionary_prototype->prototype_varid->type->pre_supplied = true;
+                instance->dictionary_prototype->instance_member_ast_symbol->type               = inst_method_type;
+                instance->dictionary_prototype->instance_member_ast_symbol->type->pre_supplied = true;
 
                 //--------------------------------
                 // next
@@ -1983,7 +1983,7 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
         bool matched = false;
         while (dictionary_prototype != NULL)
         {
-            if (dictionary_prototype->type_class_member_varid == type_class_members->member_varid)
+            if (dictionary_prototype->type_class_member_ast_symbol == type_class_members->member_varid)
             {
                 matched = true;
                 break;

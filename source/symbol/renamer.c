@@ -722,7 +722,7 @@ NecroResult(void) necro_rename(NecroCompileInfo info, NecroScopedSymTable* scope
     return ok_void();
 }
 
-void necro_internal_scope_and_rename(NecroAstArena* ast_arena, NecroScopedSymTable* scoped_symtable, NecroIntern* intern, NecroAst* ast)
+void necro_rename_internal_scope_and_rename(NecroAstArena* ast_arena, NecroScopedSymTable* scoped_symtable, NecroIntern* intern, NecroAst* ast)
 {
     static const NecroCompileInfo info = { .verbosity = 0, .timer = NULL, .opt_level = NECRO_OPT_OFF, .compilation_phase = NECRO_PHASE_JIT };
     necro_build_scopes_go(scoped_symtable, ast);
@@ -783,6 +783,7 @@ void necro_rename_test_error(const char* test_name, const char* str, NECRO_RESUL
     printf("Rename %s test: Passed\n", test_name);
 
     // Clean up
+    free(result.error);
     necro_ast_arena_destroy(&ast);
     necro_parse_ast_arena_destroy(&parse_ast);
     necro_destroy_lex_token_vector(&tokens);

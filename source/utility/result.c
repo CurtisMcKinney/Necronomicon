@@ -381,9 +381,9 @@ inline NecroResult(NecroType) necro_default_type_error1(NECRO_RESULT_ERROR_TYPE 
 
 inline NecroResult(NecroType) necro_default_type_error(NECRO_RESULT_ERROR_TYPE error_type, NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
 {
-    NecroResultError* error        = emalloc(sizeof(NecroResultError));
-    error->type                    = error_type;
-    error->default_type_error_data = (NecroDefaultTypeErrorData)
+    NecroResultError* error         = emalloc(sizeof(NecroResultError));
+    error->type                     = error_type;
+    error->default_type_error_data2 = (NecroDefaultTypeErrorData2)
     {
         .ast_symbol1 = ast_symbol1,
         .type1       = type1,
@@ -1013,7 +1013,35 @@ void necro_print_not_in_scope_error(NecroResultError* error, const char* source_
 void necro_print_type_not_a_class_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Type is not a class";
-    necro_print_default_error_format("Type Is Not A Class", error->default_ast_error_data.source_loc, error->default_ast_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_default_error_format("Type Is Not A Class", error->default_type_error_data1.source_loc, error->default_type_error_data1.end_loc, source_str, source_name, explanation);
+}
+
+void necro_print_uninitialized_recursive_value_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char* explanation = "All recursive values must be given a static initial value of the form: recursiveValue ~ StaticInitialValue = expr";
+    necro_print_default_error_format("Uninitialized Recursive Value", error->default_type_error_data1.source_loc, error->default_type_error_data1.end_loc, source_str, source_name, explanation);
+}
+
+void necro_print_mismatched_type_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char*          error_name = "Mismatched Types";
+    const NecroSourceLoc source_loc = error->default_type_error_data2.source_loc1;
+    const NecroSourceLoc end_loc    = error->default_type_error_data2.end_loc1;
+
+    fprintf(stderr, "\n----- %s ----- ", error_name);
+    fprintf(stderr, "\n" NECRO_ERR_LEFT_CHAR " \n");
+    necro_print_line_at_source_loc(source_str, source_loc, end_loc);
+
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Expected type: ");
+    necro_type_fprint(stderr, necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.type1)));
+    fprintf(stderr, "\n");
+
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Found type:    ");
+    necro_type_fprint(stderr, necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.type2)));
+    fprintf(stderr, "\n");
+
+    fprintf(stderr, "\n");
+    UNUSED(source_name);
 }
 
 // NOTE:
@@ -1086,6 +1114,8 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_RENAME_NOT_IN_SCOPE:                             necro_print_not_in_scope_error(error, source_str, source_name); break;
 
     case NECRO_TYPE_NOT_A_CLASS:                                necro_print_type_not_a_class_error(error, source_str, source_name); break;
+    case NECRO_TYPE_UNINITIALIZED_RECURSIVE_VALUE:              necro_print_uninitialized_recursive_value_error(error, source_str, source_name); break;
+    case NECRO_TYPE_MISMATCHED_TYPE:                            necro_print_mismatched_type_error(error, source_str, source_name); break;
 
     default:
         assert(false && "[necro_result_error_print] Unknown error type");

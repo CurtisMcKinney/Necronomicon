@@ -27,6 +27,7 @@ void necro_parse_ast_test_error(const char* test_name, const char* str, NECRO_RE
     printf("Parse %s test: Passed\n", test_name);
 
     // Clean up
+    free(result.error);
     necro_intern_destroy(&intern);
     necro_destroy_lex_token_vector(&tokens);
     necro_parse_ast_arena_destroy(&ast);

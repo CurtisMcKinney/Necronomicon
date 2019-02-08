@@ -902,6 +902,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     return base;
 }
 
+#define NECRO_BASE_TEST_VERBOSE 0
+
 void necro_base_test()
 {
     necro_announce_phase("NecroBase");
@@ -920,8 +922,10 @@ void necro_base_test()
     //--------------------
     // Make tests that check that the base types are correct!!!!!
 
+#if NECRO_BASE_TEST_VERBOSE
     necro_ast_arena_print(&base.ast);
     necro_scoped_symtable_print_top_scopes(&scoped_symtable);
+#endif
 
     // Clean up
     necro_ast_arena_destroy(&ast);

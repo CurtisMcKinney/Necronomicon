@@ -46,8 +46,8 @@ typedef struct NecroTypeClass
 
 typedef struct NecroDictionaryPrototype
 {
-    NecroAstSymbol*                  type_class_member_varid; // TODO: Rename
-    NecroAstSymbol*                  prototype_varid; // TODO: Rename
+    NecroAstSymbol*                  type_class_member_ast_symbol;
+    NecroAstSymbol*                  instance_member_ast_symbol;
     struct NecroDictionaryPrototype* next;
 } NecroDictionaryPrototype;
 

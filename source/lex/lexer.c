@@ -960,6 +960,7 @@ void necro_lex_test()
         // necro_print_lexer(&lexer);
         // necro_print_result_errors(result.errors, result.num_errors, str, "lexerTest.necro");
         printf("Lex float error test: Passed\n");
+        free(result.error);
         necro_lexer_destroy(&lexer);
         necro_intern_destroy(&intern);
     }
@@ -975,6 +976,7 @@ void necro_lex_test()
         // necro_print_lexer(&lexer);
         // necro_print_result_errors(result.errors, result.num_errors, str, "lexerTest.necro");
         printf("Lex string error test: Passed\n");
+        free(result.error);
         necro_lexer_destroy(&lexer);
         necro_intern_destroy(&intern);
     }
@@ -1469,6 +1471,7 @@ void necro_lex_test()
         // necro_print_result_errors(result.errors, result.num_errors, str, "mixedBracesErrorTest.necro");
         // necro_print_lexer(&lexer);
         printf("Lex mixed braces error test: Passed\n");
+        free(result.error);
         necro_lexer_destroy(&lexer);
         necro_intern_destroy(&intern);
     }

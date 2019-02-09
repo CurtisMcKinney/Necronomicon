@@ -1197,7 +1197,34 @@ void necro_rename_test()
         necro_rename_test_case("ApatsAssignmentInitializedVar", "x (10) = 10\n", &intern, &ast);
     }
 
-#if 1
+    {
+        NecroIntern   intern = necro_intern_create();
+        NecroAstArena ast = necro_ast_arena_create(necro_intern_string(&intern, "Test"));
+
+        ast.root =
+            necro_ast_create_top_decl(&ast.arena,
+                necro_ast_create_apats_assignment_with_ast_symbol(&ast.arena,
+                    necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.x"), necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL),
+                    necro_ast_create_apats(&ast.arena,
+                        necro_ast_create_constant(&ast.arena, (NecroParseAstConstant) { .int_literal = 10, .type = NECRO_AST_CONSTANT_INTEGER_PATTERN }),
+                        NULL
+                    ),
+                    necro_ast_create_rhs(&ast.arena,
+                        necro_ast_create_fexpr(&ast.arena, necro_ast_create_var_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Necro.Base.fromInt"), necro_intern_string(&intern, "fromInt"), necro_intern_string(&intern, "Necro.Base"), NULL), NECRO_VAR_VAR),
+                            necro_ast_create_constant(&ast.arena, (NecroParseAstConstant) { .int_literal = 10, .type = NECRO_AST_CONSTANT_INTEGER })),
+                        NULL
+                    )
+                ),
+                NULL
+            );
+
+#if RENAME_TEST_VERBOSE
+        necro_ast_print(ast.root);
+#endif
+
+        necro_rename_test_case("ApatsAssignmentNumericLiteral", "x 10 = 10\n", &intern, &ast);
+    }
+
     {
         NecroIntern			intern = necro_intern_create();
         NecroAstArena		ast = necro_ast_arena_create(necro_intern_string(&intern, "Test"));
@@ -1236,7 +1263,76 @@ void necro_rename_test()
 
         necro_rename_test_case("ApatsAssignmentPatBind", "x (Just y) = y\n", &intern, &ast);
     }
+
+    {
+        NecroIntern			intern = necro_intern_create();
+        NecroAstArena		ast = necro_ast_arena_create(necro_intern_string(&intern, "Test"));
+        NecroSymbol			clash_jz = necro_append_clash_suffix_to_name(&ast, &intern, "Test.jz");
+        NecroSymbol			clash_y = necro_append_clash_suffix_to_name(&ast, &intern, "Test.y");
+
+        ast.root =
+            necro_ast_create_top_decl(&ast.arena,
+                necro_ast_create_apats_assignment_with_ast_symbol(&ast.arena,
+                    necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.x"), necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL),
+                    necro_ast_create_apats(&ast.arena,
+                        necro_ast_create_var_with_ast_symbol(&ast.arena,
+                            necro_ast_symbol_create(&ast.arena, clash_jz, necro_intern_string(&intern, "jz"), necro_intern_string(&intern, "Test"), NULL),
+                            NECRO_VAR_VAR
+                        ),
+                        NULL
+                    ),
+                    necro_ast_create_rhs(&ast.arena,
+                        necro_ast_create_fexpr(&ast.arena, 
+                            necro_ast_create_var_with_ast_symbol(&ast.arena, 
+                                necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.z"), necro_intern_string(&intern, "z"), necro_intern_string(&intern, "Test"), NULL), 
+                                NECRO_VAR_VAR
+                            ),
+                            necro_ast_create_var_with_ast_symbol(&ast.arena,
+                                necro_ast_symbol_create(&ast.arena, clash_jz, necro_intern_string(&intern, "jz"), necro_intern_string(&intern, "Test"), NULL),
+                                NECRO_VAR_VAR
+                            )
+                        ),
+                        necro_ast_create_decl(
+                            &ast.arena,
+                            necro_ast_create_apats_assignment_with_ast_symbol(&ast.arena,
+                                necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.z"), necro_intern_string(&intern, "z"), necro_intern_string(&intern, "Test"), NULL),
+                                necro_ast_create_apats(&ast.arena,
+                                    necro_ast_create_constructor_with_ast_symbol(&ast.arena,
+                                        necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Necro.Base.Just"), necro_intern_string(&intern, "Just"), necro_intern_string(&intern, "Necro.Base"), NULL),
+                                        necro_ast_create_apats(&ast.arena,
+                                            necro_ast_create_var_with_ast_symbol(&ast.arena,
+                                                necro_ast_symbol_create(&ast.arena, clash_y, necro_intern_string(&intern, "y"), necro_intern_string(&intern, "Test"), NULL),
+                                                NECRO_VAR_DECLARATION),
+                                            NULL
+                                        )
+                                    ),
+                                    NULL
+                                ),
+                                necro_ast_create_rhs(&ast.arena,
+                                    necro_ast_create_var_with_ast_symbol(&ast.arena,
+                                        necro_ast_symbol_create(&ast.arena, clash_y, necro_intern_string(&intern, "y"), necro_intern_string(&intern, "Test"), NULL),
+                                        NECRO_VAR_VAR
+                                    ),
+                                    NULL
+                                )
+                            ),
+                            NULL
+                        )
+                    )
+                ),
+                NULL
+            );
+
+#if RENAME_TEST_VERBOSE
+        necro_ast_print(ast.root);
 #endif
+
+        const char* test_code = ""
+            "x jz = z jz\n"
+            "   where z (Just y) = y\n";
+
+        necro_rename_test_case("ApatsAssignmentWherePatBind", test_code, &intern, &ast);
+    }
 
     //--------------------
     // TODO list for Chad...

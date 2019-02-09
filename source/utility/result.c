@@ -1029,6 +1029,12 @@ void necro_print_uninitialized_recursive_value_error(NecroResultError* error, co
     necro_print_default_error_format("Uninitialized Recursive Value", error->default_type_error_data1.source_loc, error->default_type_error_data1.end_loc, source_str, source_name, explanation);
 }
 
+void necro_print_polymorphic_pat_bind_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char* explanation = "All pattern bindings must be monomorphic";
+    necro_print_default_error_format("Polymorphic pattern binding", error->default_type_error_data1.source_loc, error->default_type_error_data1.end_loc, source_str, source_name, explanation);
+}
+
 void necro_print_mismatched_type_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char*          error_name  = "Mismatched Types";
@@ -1152,6 +1158,7 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_TYPE_NOT_A_CLASS:                                necro_print_type_not_a_class_error(error, source_str, source_name); break;
     case NECRO_TYPE_UNINITIALIZED_RECURSIVE_VALUE:              necro_print_uninitialized_recursive_value_error(error, source_str, source_name); break;
     case NECRO_TYPE_MISMATCHED_TYPE:                            necro_print_mismatched_type_error(error, source_str, source_name); break;
+    case NECRO_TYPE_POLYMORPHIC_PAT_BIND:                       necro_print_polymorphic_pat_bind_error(error, source_str, source_name); break;
 
     default:
         assert(false && "[necro_result_error_print] Unknown error type");

@@ -1007,7 +1007,7 @@ void necro_type_fprint(FILE* stream, const NecroType* type)
         }
         else
         {
-            fprintf(stream, "tyvar_%p", type->var.var_symbol);
+            fprintf(stream, "t%p", type->var.var_symbol);
         }
         break;
 
@@ -1060,7 +1060,7 @@ void necro_type_fprint(FILE* stream, const NecroType* type)
             if (type->for_all.var_symbol->source_name != NULL)
                 fprintf(stream, "%s", type->for_all.var_symbol->source_name->str);
             else
-                fprintf(stream, "tyvar_%p", type->for_all.var_symbol);
+                fprintf(stream, "t%p", type->for_all.var_symbol);
             fprintf(stream, " ");
             type = type->for_all.type;
         }

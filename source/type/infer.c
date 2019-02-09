@@ -1554,8 +1554,9 @@ void necro_infer_test_result(const char* test_name, const char* str, NECRO_RESUL
     // Clean up
     if (result.type == NECRO_RESULT_ERROR)
         necro_result_error_print(result.error, str, "Test");
-    else
+    else if (result.error)
         free(result.error);
+
     necro_ast_arena_destroy(&ast);
     necro_parse_ast_arena_destroy(&parse_ast);
     necro_destroy_lex_token_vector(&tokens);
@@ -1574,8 +1575,8 @@ void necro_test_infer()
             "notcronomicon = Nothing\n";
 
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        const NECRO_RESULT_ERROR_TYPE expected_error = NECRO_TYPE_MISMATCHED_TYPE;
-        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+        const NECRO_RESULT_ERROR_TYPE* no_expected_error = NULL;
+        necro_infer_test_result(test_name, test_source, expect_error_result, no_expected_error);
     }
 
     {

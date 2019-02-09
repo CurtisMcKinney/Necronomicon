@@ -504,8 +504,10 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
         necro_scoped_symtable_pop_scope(scoped_symtable);
         break;
     case NECRO_AST_RIGHT_HAND_SIDE:
+        necro_scoped_symtable_new_scope(scoped_symtable);
         necro_build_scopes_go(scoped_symtable, input_node->right_hand_side.declarations);
         necro_build_scopes_go(scoped_symtable, input_node->right_hand_side.expression);
+        necro_scoped_symtable_pop_scope(scoped_symtable);
         break;
     case NECRO_AST_LET_EXPRESSION:
         necro_scoped_symtable_new_scope(scoped_symtable);

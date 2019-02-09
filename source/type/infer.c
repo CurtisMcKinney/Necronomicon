@@ -1667,7 +1667,7 @@ void necro_test_infer()
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 
-    // Is generalization broken???
+    // Note (Curtis, 2-9-19): Generalization is not broken, this is related to making all local bindings default to being monomorphic a la Simon Peyton Jones recommendation.
     // // This seems broken. Should trigger monomorphism restriction, and it's not
     // {
     //     const char* test_name = "PolymorphicPatternBinding";
@@ -1681,8 +1681,7 @@ void necro_test_infer()
     //     necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     // }
 
-    // // Is generalization broken???
-    // // This seems broken. Should trigger monomorphism restriction, and it's not
+    // Note (Curtis, 2-9-19): Generalization is not broken, this is related to making all local bindings default to being monomorphic a la Simon Peyton Jones recommendation.
     // {
     //     const char* test_name = "PolymorphicPatternBinding";
     //     const char* test_source = ""

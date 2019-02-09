@@ -131,6 +131,7 @@ NecroScope*         necro_scope_create(NecroPagedArena* arena, NecroScope* paren
 NecroID             necro_scoped_symtable_new_symbol_info(NecroScopedSymTable* table, NecroScope* scope, NecroSymbolInfo info);
 NecroID             necro_symtable_manual_new_symbol(NecroSymTable* symtable, NecroSymbol symbol); // TODO: Remove!!!!!!!
 
+void                necro_scope_print(NecroScope* scope, size_t whitespace, NecroIntern* intern);
 bool                necro_scope_contains(NecroScope* scope, NecroSymbol symbol);
 void                necro_scope_insert_ast_symbol(NecroPagedArena* arena, NecroScope* scope, NecroAstSymbol* ast_symbol);
 NecroAstSymbol*     necro_scope_find_ast_symbol(NecroScope* scope, NecroSymbol symbol);

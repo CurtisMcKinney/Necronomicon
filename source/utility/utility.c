@@ -41,7 +41,7 @@ NecroTimer* necro_timer_create()
     if (timer == NULL)
     {
         fprintf(stderr, "Could not allocate memory in necro_timer_create\n");
-        exit(1);
+        necro_exit(1);
     }
     *timer = (NecroTimer) { .start_time = 0, .end_time = 0 };
 #if _WIN32

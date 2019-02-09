@@ -133,7 +133,8 @@ set(project_HEADERS
     source/parse/parse_ast.h
 
     source/utility/arena.h
-	source/utility/utility.h
+    source/utility/debug_memory.h
+    source/utility/utility.h
     source/utility/math.h
     source/utility/hash_table.h
     source/utility/list.h

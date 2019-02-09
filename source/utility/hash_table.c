@@ -36,7 +36,7 @@ NecroArenaChainTable necro_create_arena_chain_table(size_t data_size)
     if (buckets == NULL)
     {
         fprintf(stderr, "Malloc returned NULL in necro_create_chain_table!\n");
-        exit(1);
+        necro_exit(1);
     }
     for (size_t i = 0; i < NECRO_CHAIN_TABLE_INITIAL_SIZE; ++i)
         buckets[i] = (NecroChainTableNode) { .next = NULL, .key = 0 };
@@ -77,7 +77,7 @@ void necro_arena_chain_table_grow(NecroArenaChainTable* table)
         if (prev_buckets != NULL)
             free(prev_buckets);
         fprintf(stderr, "Malloc returned NULL in necro_arena_chain_table_grow!\n");
-        exit(1);
+        necro_exit(1);
     }
     for (size_t i = 0; i < table->size; ++i)
         table->buckets[i] = (NecroChainTableNode) { .next = NULL, .key = 0 };

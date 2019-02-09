@@ -487,7 +487,7 @@ NECRO_RETURN_CODE necro_open_file_in_directory(const char* directory_name, const
     if (fopen_s(&file, file_name_buf, "r, ccs = UTF-8") != 0)
     {
         fprintf(stderr, "Could not open file: %s\n", file_name_buf);
-        exit(1);
+        necro_exit(1);
     }
 #else
     FILE* file = fopen(argv[1], "r");
@@ -495,7 +495,7 @@ NECRO_RETURN_CODE necro_open_file_in_directory(const char* directory_name, const
     if (!file)
     {
         fprintf(stderr, "Could not open file: %s\n", file_name_buf);
-        exit(1);
+        necro_exit(1);
     }
 
     char*  str    = NULL;

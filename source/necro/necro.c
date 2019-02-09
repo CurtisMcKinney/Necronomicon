@@ -15,6 +15,7 @@
 //=====================================================
 int main(int32_t argc, char** argv)
 {
+    ENABLE_AUTO_MEM_CHECK();
     if (argc == 3 && strcmp(argv[2], "-unicode_p") == 0)
     {
         necro_unicode_property_parse(argv[1]);
@@ -75,7 +76,7 @@ int main(int32_t argc, char** argv)
         {
             // TODO: Error handling
             fprintf(stderr, "Could not open file: %s\n", file_name);
-            exit(1);
+            necro_exit(1);
         }
 
         char*  str    = NULL;
@@ -174,5 +175,6 @@ int main(int32_t argc, char** argv)
         fprintf(stderr, "Incorrect necro usage. Should be: necro filename\n");
     }
 
+    MEM_CHECK();
     return 0;
 }

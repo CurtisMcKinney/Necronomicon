@@ -77,7 +77,7 @@ extern DLLEXPORT void _necro_error_exit(uint32_t error_code)
         fprintf(stderr, "****Error: Unrecognized error (%d) during runtime!\n", error_code);
         break;
     }
-    exit(error_code);
+    necro_exit(error_code);
 }
 
 size_t runtime_tick = 0;

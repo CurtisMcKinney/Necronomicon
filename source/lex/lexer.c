@@ -1318,10 +1318,14 @@ void necro_lex_test()
             noise[4095] = '\0';
             NecroIntern intern = necro_intern_create();
             NecroLexer  lexer  = necro_lexer_create(noise, 4095, &intern);
-            necro_lex_go(&lexer);
+            NecroResult(void) result = necro_lex_go(&lexer);
             // NecroResult(bool) result = necro_lex_go(&lexer);
             // necro_print_result_errors(result.errors, result.num_errors, noise, "noiseTest.necro");
             // necro_print_lexer(&lexer);
+            
+            if (result.error)
+                free(result.error);
+            
             necro_lexer_full_destroy(&lexer);
             necro_intern_destroy(&intern);
         }
@@ -1344,10 +1348,14 @@ void necro_lex_test()
             noise[4095] = '\0';
             NecroIntern intern = necro_intern_create();
             NecroLexer  lexer  = necro_lexer_create(noise, 4095, &intern);
-            necro_lex_go(&lexer);
+            NecroResult(void) result = necro_lex_go(&lexer);
             // NecroResult(bool) result = necro_lex_go(&lexer);
             // necro_print_result_errors(result.errors, result.num_errors, noise, "noiseTest.necro");
             // necro_print_lexer(&lexer);
+
+            if (result.error)
+                free(result.error);
+
             necro_lexer_full_destroy(&lexer);
             necro_intern_destroy(&intern);
         }

@@ -179,3 +179,10 @@ ADD_EXECUTABLE(necro ${project_HEADERS} ${project_SOURCES})
 llvm_map_components_to_libnames(llvm_libs core native passes mcjit target)
 
 TARGET_LINK_LIBRARIES(necro ${llvm_libs})
+
+
+
+execute_process (
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMAND bash -c "git config core.hooksPath .githooks"
+)

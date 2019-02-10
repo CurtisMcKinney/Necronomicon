@@ -2041,8 +2041,8 @@ void necro_test_infer()
             "noThankYouKindly :: Monad m => m () ()\n"
             "noThankYouKindly = pure ()\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-        // const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_KIND_MISMATCHED_KIND;
-        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_KIND_MISMATCHED_KIND;
+        // const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 

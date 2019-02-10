@@ -931,5 +931,4 @@ void necro_base_test()
     necro_scoped_symtable_destroy(&scoped_symtable);
     necro_symtable_destroy(&symtable);
     necro_intern_destroy(&intern);
-    assert(false);
 }

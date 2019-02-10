@@ -48,9 +48,19 @@ typedef struct
 } NecroPagedArena;
 
 NecroPagedArena necro_paged_arena_empty();
-NecroPagedArena necro_paged_arena_create();
+#if DEBUG_MEMORY
+NecroPagedArena __necro_paged_arena_create(const char *srcFile, int srcLine);
+#else
+NecroPagedArena __necro_paged_arena_create();
+#endif // DEBUG_MEMORY
 void            necro_paged_arena_destroy(NecroPagedArena* arena);
 void*           necro_paged_arena_alloc(NecroPagedArena* arena, size_t size);
+
+#if DEBUG_MEMORY
+#define necro_paged_arena_create() __necro_paged_arena_create(__FILE__, __LINE__)
+#else
+#define necro_paged_arena_create() __necro_paged_arena_create()
+#endif // DEBUG_MEMORY
 
 //=====================================================
 // NecroSnapshotArena

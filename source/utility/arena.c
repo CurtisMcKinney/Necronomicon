@@ -90,9 +90,18 @@ NecroPagedArena necro_paged_arena_empty()
     };
 }
 
-NecroPagedArena necro_paged_arena_create()
+#if DEBUG_MEMORY
+NecroPagedArena __necro_paged_arena_create(const char *srcFile, int srcLine)
+#else
+NecroPagedArena __necro_paged_arena_create()
+#endif // DEBUG_MEMORY
 {
-    NecroArenaPage* page = emalloc(sizeof(NecroArenaPage) + NECRO_PAGED_ARENA_INITIAL_SIZE);
+#if DEBUG_MEMORY
+    NecroArenaPage* page = __emalloc(sizeof(NecroArenaPage) + NECRO_PAGED_ARENA_INITIAL_SIZE, srcFile, srcLine);
+#else
+    NecroArenaPage* page = __emalloc(sizeof(NecroArenaPage) + NECRO_PAGED_ARENA_INITIAL_SIZE);
+#endif // DEBUG_MEMORY
+    
     page->next = NULL;
     return (NecroPagedArena)
     {

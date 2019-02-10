@@ -10,6 +10,7 @@
 #include <ctype.h>
 #include "utility/utility.h"
 #include "hash_table.h"
+#include "arena.h"
 
 #define NECRO_CHAIN_TABLE_INITIAL_SIZE 512
 

@@ -826,7 +826,7 @@ NecroMachineAST* necro_core_to_machine_3_case(NecroMachineProgram* program, Necr
     // necro_print_decision_tree(program, tree);
     tree                               = necro_maximal_sharing(tree);
     // necro_print_decision_tree(program, tree);
-    // exit(0);
+    // necro_exit(0);
     NecroMachineAST*  current_block   = outer->machine_def.update_fn->fn_def._curr_block;
     NecroMachineAST*  next_block      = current_block->block.next_block;
 

@@ -914,8 +914,6 @@ void necro_base_test()
     NecroSymTable       symtable        = necro_symtable_create(&intern);
     NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create(&symtable);
     NecroBase           base            = necro_base_compile(&intern, &scoped_symtable);
-    UNUSED(base);
-    UNUSED(ast);
 
     //--------------------
     // TODO list for Chad...
@@ -929,6 +927,7 @@ void necro_base_test()
 
     // Clean up
     necro_ast_arena_destroy(&ast);
+    necro_base_destroy(&base);
     necro_scoped_symtable_destroy(&scoped_symtable);
     necro_symtable_destroy(&symtable);
     necro_intern_destroy(&intern);

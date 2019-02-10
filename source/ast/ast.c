@@ -929,6 +929,18 @@ NecroAst* necro_ast_create_data_con(NecroPagedArena* arena, NecroIntern* intern,
     return ast;
 }
 
+NecroAst* necro_ast_create_constructor_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* con_name_symbol, NecroAst* arg_list)
+{
+	NecroAst* ast = necro_paged_arena_alloc(arena, sizeof(NecroAst));
+	ast->type = NECRO_AST_CONSTRUCTOR;
+	ast->constructor.conid = necro_ast_create_conid_with_ast_symbol(arena, con_name_symbol, NECRO_CON_VAR);
+	ast->constructor.arg_list = arg_list;
+	ast->source_loc = NULL_LOC;
+	ast->end_loc = NULL_LOC;
+	return ast;
+}
+
+
 NecroAst* necro_ast_create_simple_type(NecroPagedArena* arena, NecroIntern* intern, const char* simple_type_name, NecroAst* ty_var_list)
 {
     NecroAst* ast                  = necro_paged_arena_alloc(arena, sizeof(NecroAst));

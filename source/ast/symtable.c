@@ -30,7 +30,7 @@ NecroSymTable necro_symtable_create(NecroIntern* intern)
     if (data == NULL)
     {
         fprintf(stderr, "Malloc returned null while allocating data in necro_create_symtable()\n");
-        exit(1);
+        necro_exit(1);
     }
     return (NecroSymTable)
     {
@@ -89,7 +89,7 @@ inline void necro_symtable_grow(NecroSymTable* table)
         if (table->data != NULL)
             free(table->data);
         fprintf(stderr, "Malloc returned NULL in necro_symtable_grow!\n");
-        exit(1);
+        necro_exit(1);
     }
     table->data = new_data;
     assert(table->data != NULL);

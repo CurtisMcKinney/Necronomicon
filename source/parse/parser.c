@@ -743,6 +743,7 @@ void              necro_parse_restore_state(NecroParser* parser, NECRO_PARSE_STA
 NecroResult(void) necro_parse(NecroCompileInfo info, NecroIntern* intern, NecroLexTokenVector* tokens, NecroSymbol module_name, NecroParseAstArena* out_ast)
 {
     NecroParser           parser    = necro_parser_create(tokens->data, tokens->length, intern, module_name);
+    *out_ast = parser.ast;
     NecroParseAstLocalPtr local_ptr = necro_try_map(NecroParseAstLocalPtr, void, necro_parse_top_declarations(&parser));
     parser.ast.root                 = local_ptr;
     if ((necro_parse_peek_token_type(&parser) != NECRO_LEX_END_OF_STREAM && necro_parse_peek_token_type(&parser) != NECRO_LEX_SEMI_COLON) || (local_ptr == null_local_ptr && tokens->length > 0))

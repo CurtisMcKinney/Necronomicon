@@ -12,6 +12,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#include "debug_memory.h"
+
 typedef struct
 {
     char*  region;
@@ -20,8 +22,18 @@ typedef struct
 } NecroArena;
 
 NecroArena necro_arena_empty();
-NecroArena necro_arena_create(size_t capacity);
+#if DEBUG_MEMORY
+NecroArena __necro_arena_create(size_t capacity, const char *srcFile, int srcLine);
+#else
+NecroArena __necro_arena_create(size_t capacity);
+#endif // DEBUG_MEMORY
 void       necro_arena_destroy(NecroArena* arena);
+
+#if DEBUG_MEMORY
+#define necro_arena_create(CAPACITY) __necro_arena_create(CAPACITY, __FILE__, __LINE__)
+#else
+#define necro_arena_create(CAPACITY) __necro_arena_create(CAPACITY)
+#endif // DEBUG_MEMORY
 
 typedef enum
 {
@@ -48,9 +60,25 @@ typedef struct
 } NecroPagedArena;
 
 NecroPagedArena necro_paged_arena_empty();
-NecroPagedArena necro_paged_arena_create();
+#if DEBUG_MEMORY
+NecroPagedArena __necro_paged_arena_create(const char *srcFile, int srcLine);
+#else
+NecroPagedArena __necro_paged_arena_create();
+#endif // DEBUG_MEMORY
 void            necro_paged_arena_destroy(NecroPagedArena* arena);
-void*           necro_paged_arena_alloc(NecroPagedArena* arena, size_t size);
+#if DEBUG_MEMORY
+void* __necro_paged_arena_alloc(NecroPagedArena* arena, size_t size, const char *srcFile, int srcLine);
+#else
+void* __necro_paged_arena_alloc(NecroPagedArena* arena, size_t size);
+#endif // DEBUG_MEMORY
+
+#if DEBUG_MEMORY
+#define necro_paged_arena_create() __necro_paged_arena_create(__FILE__, __LINE__)
+#define necro_paged_arena_alloc(ARENA, SIZE) __necro_paged_arena_alloc(ARENA, SIZE, __FILE__, __LINE__)
+#else
+#define necro_paged_arena_create() __necro_paged_arena_create()
+#define necro_paged_arena_alloc __necro_paged_arena_alloc
+#endif // DEBUG_MEMORY
 
 //=====================================================
 // NecroSnapshotArena

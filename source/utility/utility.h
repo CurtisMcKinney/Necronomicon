@@ -11,22 +11,54 @@
 #include <assert.h>
 #include <stdio.h>
 
+#include "debug_memory.h"
+
+#if (!__DEBUG)
+#define _RELEASE 1
+#define __RELEASE 1
+#define RELEASE 1
+#endif
+
 //=====================================================
 // A collection of general purpose structs and functions
 //=====================================================
+
+static inline void necro_exit(int code)
+{
+    MEM_CHECK();
+    exit(code);
+}
 
 typedef struct
 {
     uint32_t id;
 } NecroID;
 
-inline void* emalloc(const size_t a_size)
+#if DEBUG_MEMORY
+#define emalloc(A_SIZE) __emalloc(A_SIZE, __FILE__, __LINE__)
+#else
+#define emalloc(A_SIZE) __emalloc(A_SIZE)
+#endif
+
+#if DEBUG_MEMORY
+inline void* __emalloc(const size_t a_size, const char *srcFile, int srcLine)
+#else
+inline void* __emalloc(const size_t a_size)
+#endif
 {
+#if DEBUG_MEMORY
+    #if defined(_WIN32) || defined(WIN32) || defined(_WIN64)
+    void* data = _malloc_dbg(a_size, _NORMAL_BLOCK, srcFile, srcLine);
+    #else
     void* data = malloc(a_size);
+    #endif // defined(_WIN32) || defined(WIN32) || defined(_WIN64)
+#else // DEBUG_MEMORY
+    void* data = malloc(a_size);
+#endif
     if (data == NULL)
     {
         printf("Could not allocate enough memory: %zu\n", a_size);
-        exit(1);
+        necro_exit(1);
     }
     return data;
 }
@@ -118,7 +150,7 @@ static void necro_push_##snake_type##_vector(camel_type##Vector* vec, type* item
             if (vec->data != NULL)                                                 \
                 free(vec->data);                                                   \
             fprintf(stderr, "Malloc returned NULL in vector reallocation!\n");     \
-            exit(1);                                                               \
+            necro_exit(1);                                                         \
         }                                                                          \
         vec->data = new_data;                                                      \
     }                                                                              \
@@ -231,5 +263,4 @@ void               necro_timer_destroy(struct NecroTimer* timer);
 void               necro_timer_start(struct NecroTimer* timer);
 double             necro_timer_stop(struct NecroTimer* timer);
 void               necro_timer_stop_and_report(struct NecroTimer* timer, const char* print_header);
-
 #endif // UTILITY_H

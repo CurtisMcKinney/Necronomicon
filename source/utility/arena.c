@@ -25,12 +25,20 @@ NecroArena necro_arena_empty()
     return (NecroArena) { .region = NULL, .capacity = 0, .size = 0 };
 }
 
-NecroArena necro_arena_create(size_t capacity)
+#if DEBUG_MEMORY
+NecroArena __necro_arena_create(size_t capacity, const char *srcFile, int srcLine)
+#else
+NecroArena __necro_arena_create(size_t capacity)
+#endif // DEBUG_MEMORY
 {
     NecroArena arena;
     if (capacity > 0)
     {
-        arena.region = emalloc(capacity);
+#if DEBUG_MEMORY
+        arena.region = __emalloc(capacity, srcFile, srcLine);
+#else
+        arena.region = __emalloc(capcity);
+#endif // DEBUG_MEMORY
     }
     else
     {
@@ -90,9 +98,18 @@ NecroPagedArena necro_paged_arena_empty()
     };
 }
 
-NecroPagedArena necro_paged_arena_create()
+#if DEBUG_MEMORY
+NecroPagedArena __necro_paged_arena_create(const char *srcFile, int srcLine)
+#else
+NecroPagedArena __necro_paged_arena_create()
+#endif // DEBUG_MEMORY
 {
-    NecroArenaPage* page = emalloc(sizeof(NecroArenaPage) + NECRO_PAGED_ARENA_INITIAL_SIZE);
+#if DEBUG_MEMORY
+    NecroArenaPage* page = __emalloc(sizeof(NecroArenaPage) + NECRO_PAGED_ARENA_INITIAL_SIZE, srcFile, srcLine);
+#else
+    NecroArenaPage* page = __emalloc(sizeof(NecroArenaPage) + NECRO_PAGED_ARENA_INITIAL_SIZE);
+#endif // DEBUG_MEMORY
+    
     page->next = NULL;
     return (NecroPagedArena)
     {
@@ -103,7 +120,11 @@ NecroPagedArena necro_paged_arena_create()
     };
 }
 
-void* necro_paged_arena_alloc(NecroPagedArena* arena, size_t size)
+#if DEBUG_MEMORY
+void* __necro_paged_arena_alloc(NecroPagedArena* arena, size_t size, const char *srcFile, int srcLine)
+#else
+void* __necro_paged_arena_alloc(NecroPagedArena* arena, size_t size)
+#endif // DEBUG_MEMORY
 {
     assert(arena != NULL);
     assert(arena->pages != NULL);
@@ -116,7 +137,11 @@ void* necro_paged_arena_alloc(NecroPagedArena* arena, size_t size)
         while (arena->count + size >= arena->size)
             arena->size *= 2;
         TRACE_ARENA("allocating new page of size: %d\n", arena->size);
-        NecroArenaPage* page = emalloc(sizeof(NecroArenaPage) + arena->size);
+#if DEBUG_MEMORY
+        NecroArenaPage* page = __emalloc(sizeof(NecroArenaPage) + arena->size, srcFile, srcLine);
+#else
+        NecroArenaPage* page = __emalloc(sizeof(NecroArenaPage) + arena->size);
+#endif // DEBUG_MEMORY
         page->next   = arena->pages;
         arena->pages = page;
         arena->data  = (char*)(page + 1);
@@ -140,8 +165,7 @@ void necro_paged_arena_destroy(NecroPagedArena* arena)
     while (current_page != NULL)
     {
         next_page = current_page->next;
-        if (next_page != NULL)
-            free(current_page);
+        free(current_page);
         current_page = next_page;
     }
     arena->pages = NULL;

@@ -60,7 +60,7 @@ NecroCodeGenLLVM necro_create_codegen_llvm(NecroIntern* intern, NecroSymTable* s
     {
         fprintf(stderr, "necro error: %s\n", target_error);
         LLVMDisposeMessage(target_error);
-        exit(1);
+        necro_exit(1);
     }
     // LLVMCodeGenOptLevel  opt_level        = should_optimize ? LLVMCodeGenLevelAggressive : LLVMCodeGenLevelNone;
     LLVMCodeGenOptLevel  opt_level        = should_optimize ? LLVMCodeGenLevelDefault : LLVMCodeGenLevelNone;

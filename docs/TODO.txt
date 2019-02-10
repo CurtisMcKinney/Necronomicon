@@ -1,3 +1,13 @@
+-- Chad To Do 2/10/2019
+Switch to new ast symbol system (no necrovar etc..)
+	1. make a NecroCoreAstSymbol and use that instead
+	2. finish implementing all the transformations  for the Core AST
+	3. Make it typed (somehow...), can use NecroTypes (shouldn't need higher ranked polymorphism
+	4. driver.c (around line 83) --> all the phases work in a uniform way, Core needs to work in the same way!
+
+type inference testing, the AST and types
+	NecroTypeExecUnify (or something) -> something like that -> assert result and expected
+
 -- Types and runtime
 We need to monomorphize all functions.
 

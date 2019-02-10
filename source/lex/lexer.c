@@ -146,11 +146,17 @@ NecroLexer necro_lexer_empty()
     };
 }
 
-void necro_lexer_destroy(NecroLexer* lexer)
+void necro_lexer_partial_destroy(NecroLexer* lexer)
 {
     necro_destroy_lex_token_vector(&lexer->layout_fixed_tokens);
     // Ownership of lex tokens is passed out after lex phase
     // necro_destroy_lex_token_vector(&lexer->tokens);
+}
+
+void necro_lexer_full_destroy(NecroLexer* lexer)
+{
+    necro_destroy_lex_token_vector(&lexer->layout_fixed_tokens);
+    necro_destroy_lex_token_vector(&lexer->tokens);
 }
 
 bool necro_lex_rewind(NecroLexer* lexer)
@@ -807,7 +813,9 @@ NecroResult(void) necro_lex_fixup_layout(NecroLexer* lexer)
             }
             else
             {
-                return necro_mixed_braces_error(lexer->tokens.data[pos].source_loc, lexer->tokens.data[pos].source_loc);
+                NecroResult(void) result = necro_mixed_braces_error(lexer->tokens.data[pos].source_loc, lexer->tokens.data[pos].source_loc);
+                necro_destroy_lex_layout_context_vector(&context_stack);
+                return result;
             }
         }
         else if (type == NECRO_LEX_LEFT_BRACE)
@@ -862,7 +870,7 @@ NecroResult(void) necro_lex(NecroCompileInfo info, NecroIntern* intern, const ch
     necro_try(void, necro_lex_fixup_layout(&lexer));
     if (info.compilation_phase == NECRO_PHASE_LEX && info.verbosity > 0)
         necro_lex_print(&lexer);
-    necro_lexer_destroy(&lexer);
+    necro_lexer_partial_destroy(&lexer);
     *out_tokens = lexer.tokens;
     return ok_void();
 }
@@ -961,7 +969,7 @@ void necro_lex_test()
         // necro_print_result_errors(result.errors, result.num_errors, str, "lexerTest.necro");
         printf("Lex float error test: Passed\n");
         free(result.error);
-        necro_lexer_destroy(&lexer);
+        necro_lexer_full_destroy(&lexer);
         necro_intern_destroy(&intern);
     }
 
@@ -977,7 +985,7 @@ void necro_lex_test()
         // necro_print_result_errors(result.errors, result.num_errors, str, "lexerTest.necro");
         printf("Lex string error test: Passed\n");
         free(result.error);
-        necro_lexer_destroy(&lexer);
+        necro_lexer_full_destroy(&lexer);
         necro_intern_destroy(&intern);
     }
 
@@ -997,7 +1005,7 @@ void necro_lex_test()
         assert(lexer.tokens.data[3].token == NECRO_LEX_END_OF_STREAM);
         // necro_print_lexer(&lexer);
         printf("Lex number test: Passed\n");
-        necro_lexer_destroy(&lexer);
+        necro_lexer_full_destroy(&lexer);
         necro_intern_destroy(&intern);
     }
 
@@ -1013,7 +1021,7 @@ void necro_lex_test()
         assert(lexer.tokens.data[1].token == NECRO_LEX_END_OF_STREAM);
         // necro_print_lexer(&lexer);
         printf("Lex identifier test: Passed\n");
-        necro_lexer_destroy(&lexer);
+        necro_lexer_full_destroy(&lexer);
         necro_intern_destroy(&intern);
     }
 
@@ -1033,7 +1041,7 @@ void necro_lex_test()
         assert(lexer.tokens.data[1].token == NECRO_LEX_END_OF_STREAM);
         // necro_print_lexer(&lexer);
         printf("Lex unicode identifier test: Passed\n");
-        necro_lexer_destroy(&lexer);
+        necro_lexer_full_destroy(&lexer);
         necro_intern_destroy(&intern);
     }
 
@@ -1062,7 +1070,7 @@ void necro_lex_test()
         assert(lexer.tokens.data[14].token == NECRO_LEX_ASSIGN);
         assert(lexer.tokens.data[15].token == NECRO_LEX_END_OF_STREAM);
         printf("Lex single char test: Passed\n");
-        necro_lexer_destroy(&lexer);
+        necro_lexer_full_destroy(&lexer);
         necro_intern_destroy(&intern);
     }
 
@@ -1099,7 +1107,7 @@ void necro_lex_test()
         assert(lexer.tokens.data[22].token == NECRO_LEX_APPEND);
         assert(lexer.tokens.data[23].token == NECRO_LEX_END_OF_STREAM);
         printf("Lex multi-char test: Passed\n");
-        necro_lexer_destroy(&lexer);
+        necro_lexer_full_destroy(&lexer);
         necro_intern_destroy(&intern);
     }
 
@@ -1121,7 +1129,7 @@ void necro_lex_test()
         assert(lexer.tokens.data[3].char_literal == '!');
         assert(lexer.tokens.data[4].token == NECRO_LEX_END_OF_STREAM);
         printf("Lex char literal test: Passed\n");
-        necro_lexer_destroy(&lexer);
+        necro_lexer_full_destroy(&lexer);
         necro_intern_destroy(&intern);
     }
 
@@ -1140,7 +1148,7 @@ void necro_lex_test()
         assert(lexer.tokens.data[1].source_loc.character == 5);
         assert(lexer.tokens.data[2].token == NECRO_LEX_END_OF_STREAM);
         printf("Lex unicode char literal test: Passed\n");
-        necro_lexer_destroy(&lexer);
+        necro_lexer_full_destroy(&lexer);
         necro_intern_destroy(&intern);
     }
 
@@ -1169,7 +1177,7 @@ void necro_lex_test()
         assert(lexer.tokens.data[14].token == NECRO_LEX_PAT);
         assert(lexer.tokens.data[15].token == NECRO_LEX_END_OF_STREAM);
         printf("Lex keyword test: Passed\n");
-        necro_lexer_destroy(&lexer);
+        necro_lexer_full_destroy(&lexer);
         necro_intern_destroy(&intern);
     }
 
@@ -1186,7 +1194,7 @@ void necro_lex_test()
         assert(lexer.tokens.data[1].token == NECRO_LEX_END_OF_STREAM);
         assert(lexer.loc.character == 3);
         printf("Lex combining character test: Passed\n");
-        necro_lexer_destroy(&lexer);
+        necro_lexer_full_destroy(&lexer);
         necro_intern_destroy(&intern);
     }
 
@@ -1213,7 +1221,7 @@ void necro_lex_test()
         assert(lexer.tokens.data[7].int_literal == 10);
         assert(lexer.tokens.data[8].token == NECRO_LEX_END_OF_STREAM);
         printf("Lex where test 1: Passed\n");
-        necro_lexer_destroy(&lexer);
+        necro_lexer_full_destroy(&lexer);
         necro_intern_destroy(&intern);
     }
 
@@ -1254,7 +1262,7 @@ void necro_lex_test()
         assert(lexer.tokens.data[15].symbol == necro_intern_string(lexer.intern, "Int"));
         assert(lexer.tokens.data[16].token == NECRO_LEX_END_OF_STREAM);
         printf("Lex where test 2: Passed\n");
-        necro_lexer_destroy(&lexer);
+        necro_lexer_full_destroy(&lexer);
         necro_intern_destroy(&intern);
     }
 
@@ -1290,7 +1298,7 @@ void necro_lex_test()
         assert(lexer.tokens.data[12].symbol == necro_intern_string(lexer.intern, "x"));
         assert(lexer.tokens.data[13].token == NECRO_LEX_END_OF_STREAM);
         printf("Lex let test: Passed\n");
-        necro_lexer_destroy(&lexer);
+        necro_lexer_full_destroy(&lexer);
         necro_intern_destroy(&intern);
     }
 
@@ -1314,7 +1322,7 @@ void necro_lex_test()
             // NecroResult(bool) result = necro_lex_go(&lexer);
             // necro_print_result_errors(result.errors, result.num_errors, noise, "noiseTest.necro");
             // necro_print_lexer(&lexer);
-            necro_lexer_destroy(&lexer);
+            necro_lexer_full_destroy(&lexer);
             necro_intern_destroy(&intern);
         }
         printf("Lex fuzz test 1: passed\n");
@@ -1340,7 +1348,7 @@ void necro_lex_test()
             // NecroResult(bool) result = necro_lex_go(&lexer);
             // necro_print_result_errors(result.errors, result.num_errors, noise, "noiseTest.necro");
             // necro_print_lexer(&lexer);
-            necro_lexer_destroy(&lexer);
+            necro_lexer_full_destroy(&lexer);
             necro_intern_destroy(&intern);
         }
         printf("Lex fuzz test 2: passed\n");
@@ -1368,7 +1376,7 @@ void necro_lex_test()
             // NecroResult(bool) result = necro_lex_go(&lexer);
             // necro_print_result_errors(result.errors, result.num_errors, noise, "noiseTest.necro");
             // necro_print_lexer(&lexer);
-            necro_lexer_destroy(&lexer);
+            necro_lexer_full_destroy(&lexer);
             necro_intern_destroy(&intern);
         }
         printf("Lex string fuzz test: passed\n");
@@ -1398,7 +1406,7 @@ void necro_lex_test()
         assert(lexer.tokens.data[8].token == NECRO_LEX_RIGHT_BRACE);
         assert(lexer.tokens.data[9].token == NECRO_LEX_END_OF_STREAM);
         printf("Lex layout test 1: Passed\n");
-        necro_lexer_destroy(&lexer);
+        necro_lexer_full_destroy(&lexer);
         necro_intern_destroy(&intern);
     }
 
@@ -1455,7 +1463,7 @@ void necro_lex_test()
         assert(lexer.tokens.data[28].token == NECRO_LEX_RIGHT_BRACE);
         assert(lexer.tokens.data[29].token == NECRO_LEX_END_OF_STREAM);
         printf("Lex layout test 2: Passed\n");
-        necro_lexer_destroy(&lexer);
+        necro_lexer_full_destroy(&lexer);
         necro_intern_destroy(&intern);
     }
 
@@ -1472,7 +1480,7 @@ void necro_lex_test()
         // necro_print_lexer(&lexer);
         printf("Lex mixed braces error test: Passed\n");
         free(result.error);
-        necro_lexer_destroy(&lexer);
+        necro_lexer_full_destroy(&lexer);
         necro_intern_destroy(&intern);
     }
 

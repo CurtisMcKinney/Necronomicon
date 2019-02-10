@@ -149,7 +149,7 @@ void necro_paged_arena_destroy(NecroPagedArena* arena)
     while (current_page != NULL)
     {
         next_page = current_page->next;
-        if (next_page != NULL)
+        if (current_page != NULL)
             free(current_page);
         current_page = next_page;
     }

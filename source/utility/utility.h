@@ -150,7 +150,7 @@ static void necro_push_##snake_type##_vector(camel_type##Vector* vec, type* item
             if (vec->data != NULL)                                                 \
                 free(vec->data);                                                   \
             fprintf(stderr, "Malloc returned NULL in vector reallocation!\n");     \
-            necro_exit(1);                                                               \
+            necro_exit(1);                                                         \
         }                                                                          \
         vec->data = new_data;                                                      \
     }                                                                              \

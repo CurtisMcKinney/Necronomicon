@@ -36,6 +36,7 @@
             if (_CrtMemDifference(&__necro_memory_state_diff,&__necro_memory_initial_state,&__necro_memory_end_state))\
             {\
                 _CrtMemDumpStatistics(&__necro_memory_state_diff);\
+                return 1;\
             }
     #elif defined(__unix)
         // TODO: ADD MEMORY CHECK FOR NON-WINDOWS PLATFORMS!

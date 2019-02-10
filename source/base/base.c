@@ -927,9 +927,9 @@ void necro_base_test()
 
     // Clean up
     necro_ast_arena_destroy(&ast);
-    //necro_base_destroy(&base);
-    UNUSED(base);
+    necro_base_destroy(&base);
     necro_scoped_symtable_destroy(&scoped_symtable);
     necro_symtable_destroy(&symtable);
     necro_intern_destroy(&intern);
+    assert(false);
 }

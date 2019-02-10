@@ -120,7 +120,7 @@ NecroResult(NecroType) necro_infer_type_sig(NecroInfer* infer, NecroAst* ast)
     type_sig                        = necro_try(NecroType, necro_type_generalize(infer->arena, infer->base, type_sig, ast->type_signature.type->scope));
     necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, type_sig));
     type_sig->kind                  = necro_kind_gen(infer->arena, infer->base, type_sig->kind);
-    necro_try(NecroType, necro_kind_unify(type_sig->kind, infer->base->star_kind->type, ast->scope));
+    necro_try(NecroType, necro_kind_unify_with_info(infer->base->star_kind->type, type_sig->kind, ast->scope, ast->source_loc, ast->end_loc));
 
     // TODO: Finish!
     // kind check for type context!
@@ -130,7 +130,7 @@ NecroResult(NecroType) necro_infer_type_sig(NecroInfer* infer, NecroAst* ast)
         NecroTypeClass* type_class     = curr_context->type_class;
         NecroType*      type_class_var = type_class->type_var->type;
         NecroType*      var_type       = curr_context->var_symbol->type;
-        necro_try(NecroType, necro_kind_unify(var_type->kind, type_class_var->kind, ast->scope));
+        necro_try(NecroType, necro_kind_unify_with_info(type_class_var->kind, var_type->kind, ast->scope, curr_context->var_symbol->ast->source_loc, curr_context->var_symbol->ast->end_loc));
         curr_context = curr_context->next;
     }
 
@@ -220,7 +220,7 @@ NecroResult(NecroType) necro_create_data_constructor(NecroInfer* infer, NecroAst
     ast->constructor.conid->conid.ast_symbol->is_constructor = true;
     ast->constructor.conid->conid.ast_symbol->con_num        = con_num;
     necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, con_type));
-    necro_try(NecroType, necro_kind_unify(con_type->kind, infer->base->star_kind->type, NULL));
+    necro_try(NecroType, necro_kind_unify_with_info(infer->base->star_kind->type, con_type->kind, NULL, ast->constructor.conid->source_loc, ast->constructor.conid->end_loc));
     ast->necro_type = con_type;
     return ok(NecroType, ast->necro_type);
 }
@@ -460,7 +460,7 @@ NecroResult(NecroType) necro_gen_pat_go(NecroInfer* infer, NecroAst* ast)
         data->type_status = NECRO_TYPE_DONE;
         necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, data->type));
         data->type->kind = necro_kind_gen(infer->arena, infer->base, data->type->kind);
-        return necro_kind_unify(data->type->kind, infer->base->star_kind->type, NULL);
+        return necro_kind_unify_with_info(infer->base->star_kind->type, data->type->kind, NULL, ast->source_loc, ast->end_loc);
     }
     case NECRO_AST_CONSTANT:
         return ok(NecroType, NULL);
@@ -1212,14 +1212,13 @@ NecroResult(NecroType) necro_infer_do(NecroInfer* infer, NecroAst* ast)
     while (statements != NULL)
     {
         statement_type = necro_try(NecroType, necro_infer_do_statement(infer, statements->list.item, monad_var));
-        statements     = statements->list.next_item;
+        if (statements->list.next_item == NULL && statement_type == NULL)
+            return necro_type_final_do_statement_error(NULL, monad_var, statements->list.item->source_loc, statements->list.item->end_loc);
+        statements = statements->list.next_item;
     }
     ast->necro_type             = statement_type;
     ast->do_statement.monad_var = monad_var;
-    if (statement_type == NULL)
-        return necro_type_final_do_statement_error(NULL, monad_var, ast->source_loc, ast->end_loc);
-    else
-        return ok(NecroType, ast->necro_type);
+    return ok(NecroType, ast->necro_type);
 }
 
 //=====================================================
@@ -1359,7 +1358,7 @@ NecroResult(NecroType) necro_infer_declaration_group(NecroInfer* infer, NecroDec
             // necro_infer_kind(infer, symbol_info->type, infer->base->star_kind->type, symbol_info->type, "While declaraing a variable: ");
             necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, data->type));
             data->type->kind = necro_kind_gen(infer->arena, infer->base, data->type->kind);
-            necro_try(NecroType, necro_kind_unify(data->type->kind, infer->base->star_kind->type, NULL));
+            necro_try(NecroType, necro_kind_unify_with_info(data->type->kind, infer->base->star_kind->type, NULL, ast->source_loc, ast->end_loc));
             data->type_status = NECRO_TYPE_DONE;
             break;
         }
@@ -1376,7 +1375,7 @@ NecroResult(NecroType) necro_infer_declaration_group(NecroInfer* infer, NecroDec
             data->type       = necro_try(NecroType, necro_type_generalize(infer->arena, infer->base, data->type, ast->scope->parent));
             necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, data->type));
             data->type->kind = necro_kind_gen(infer->arena, infer->base, data->type->kind);
-            necro_try(NecroType, necro_kind_unify(data->type->kind, infer->base->star_kind->type, NULL));
+            necro_try(NecroType, necro_kind_unify_with_info(data->type->kind, infer->base->star_kind->type, NULL, ast->source_loc, ast->end_loc));
             data->type_status = NECRO_TYPE_DONE;
             break;
         }
@@ -2016,6 +2015,47 @@ void necro_test_infer()
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 
+    {
+        const char* test_name = "Occurs1";
+        const char* test_source = ""
+            "finalCountdown = do\n"
+            "    x <- pure ()\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_FINAL_DO_STATEMENT;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name = "MismatchedKinds: TypeSig";
+        const char* test_source = ""
+            "thankYouKindly :: Maybe\n"
+            "thankYouKindly = Just ()\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_KIND_MISMATCHED_KIND;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name = "MismatchedKinds: Context";
+        const char* test_source = ""
+            "noThankYouKindly :: Monad m => m () ()\n"
+            "noThankYouKindly = pure ()\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_KIND_MISMATCHED_KIND;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    // // TODO (Curtis, 2-10-19): This error message has messed up source loc, track it down
+    // {
+    //     const char* test_name = "MismatchedKinds: TypeSig";
+    //     const char* test_source = ""
+    //         "thankYouKindly1 :: () -> Maybe\n"
+    //         "thankYouKindly1 x = Just ()\n";
+    //     const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+    //     const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_KIND_MISMATCHED_KIND;
+    //     necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    // }
+
 #if 0 // This crashes right now during inference :(
     {
         const char* test_name = "RigidTypeVariable";
@@ -2066,14 +2106,17 @@ void necro_test_infer()
     FINISHED:
     NECRO_TYPE_UNINITIALIZED_RECURSIVE_VALUE,
     NECRO_TYPE_MISMATCHED_TYPE, (In all its various forms...Needs clean up work)
+    NECRO_TYPE_OCCURS,
+    NECRO_TYPE_FINAL_DO_STATEMENT,
+
+    IN PROGRESS:
+    NECRO_KIND_MISMATCHED_KIND (Type sig, context, Constructor, Pattern, SimpleAssignment, ApatsAssignment)
 
     TODO:
     NECRO_TYPE_RIGID_TYPE_VARIABLE,
     NECRO_TYPE_NOT_AN_INSTANCE_OF,
-    NECRO_TYPE_OCCURS,
     NECRO_TYPE_MISMATCHED_ARITY,
     NECRO_TYPE_POLYMORPHIC_PAT_BIND,
-    NECRO_TYPE_FINAL_DO_STATEMENT,
     NECRO_TYPE_AMBIGUOUS_CLASS,
     NECRO_TYPE_CONSTRAINS_ONLY_CLASS_VAR,
     NECRO_TYPE_AMBIGUOUS_TYPE_VAR,
@@ -2085,5 +2128,8 @@ void necro_test_infer()
     NECRO_TYPE_DOES_NOT_IMPLEMENT_SUPER_CLASS,
     NECRO_TYPE_MULTIPLE_CLASS_DECLARATIONS,
     NECRO_TYPE_MULTIPLE_INSTANCE_DECLARATIONS,
+
+    NECRO_KIND_MISMATCHED_ARITY,
+    NECRO_KIND_RIGID_KIND_VARIABLE,
     */
 }

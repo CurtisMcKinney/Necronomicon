@@ -1070,6 +1070,12 @@ void necro_print_polymorphic_pat_bind_error(NecroResultError* error, const char*
     necro_print_default_error_format("Polymorphic pattern binding", error->default_type_error_data1.source_loc, error->default_type_error_data1.end_loc, source_str, source_name, explanation);
 }
 
+void necro_print_final_do_statement_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char* explanation = "The final statement of a do block must produce a value.";
+    necro_print_default_error_format("Malformed Do Block", error->default_type_error_data1.source_loc, error->default_type_error_data1.end_loc, source_str, source_name, explanation);
+}
+
 void necro_print_mismatched_type_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char*          error_name  = "Mismatched Types";
@@ -1127,52 +1133,77 @@ void necro_print_occurs_error(NecroResultError* error, const char* source_str, c
     const NecroSourceLoc source_loc  = error->default_type_error_data2.source_loc;
     const NecroSourceLoc end_loc     = error->default_type_error_data2.end_loc;
     const NecroType*     type1       = necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.type1));
-    // const NecroType*     type2       = necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.type2));
-    // const NecroType*     macro_type1 = necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.macro_type1));
     const NecroType*     macro_type2 = necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.macro_type2));
 
-    // if (type1 == macro_type1 &&
-    //     type2 == macro_type2)
-    // {
+    fprintf(stderr, "\n----- %s ----- ", error_name);
+    fprintf(stderr, "\n" NECRO_ERR_LEFT_CHAR " \n");
+    necro_print_line_at_source_loc(source_str, source_loc, end_loc);
+
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Attempting to assert that: ");
+    necro_type_fprint(stderr, type1);
+    fprintf(stderr, "\n");
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " is equivalant to:          ");
+    necro_type_fprint(stderr, macro_type2);
+    fprintf(stderr, "\n");
+
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR "\n");
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " This would create an infinite type!\n");
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " A type becomes infinite when it contains itself.\n");
+    fprintf(stderr, "\n");
+    UNUSED(source_name);
+}
+
+void necro_print_mismatched_kind_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char*          error_name  = "Mismatched Kinds";
+    const NecroSourceLoc source_loc  = error->default_type_error_data2.source_loc;
+    const NecroSourceLoc end_loc     = error->default_type_error_data2.end_loc;
+    const NecroType*     type1       = necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.type1));
+    const NecroType*     type2       = necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.type2));
+    const NecroType*     macro_type1 = necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.macro_type1));
+    const NecroType*     macro_type2 = necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.macro_type2));
+
+    if (type1 == macro_type1 &&
+        type2 == macro_type2)
+    {
         fprintf(stderr, "\n----- %s ----- ", error_name);
         fprintf(stderr, "\n" NECRO_ERR_LEFT_CHAR " \n");
         necro_print_line_at_source_loc(source_str, source_loc, end_loc);
 
-        // fprintf(stderr, NECRO_ERR_LEFT_CHAR "\n");
-
-        fprintf(stderr, NECRO_ERR_LEFT_CHAR " Attempting to assert that: ");
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " Expected: ");
         necro_type_fprint(stderr, type1);
         fprintf(stderr, "\n");
-        fprintf(stderr, NECRO_ERR_LEFT_CHAR " is equivalant to:          ");
+
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " Found:    ");
+        necro_type_fprint(stderr, type2);
+        fprintf(stderr, "\n");
+
+    }
+    else
+    {
+        fprintf(stderr, "\n----- %s ----- ", error_name);
+        fprintf(stderr, "\n" NECRO_ERR_LEFT_CHAR " \n");
+        necro_print_line_at_source_loc(source_str, source_loc, end_loc);
+
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " Couldn't match ");
+        necro_type_fprint(stderr, type1);
+        fprintf(stderr, " with ");
+        necro_type_fprint(stderr, type2);
+        fprintf(stderr, "\n");
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR "\n");
+
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " Expected: ");
+        necro_type_fprint(stderr, macro_type1);
+        fprintf(stderr, "\n");
+
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " Found:    ");
         necro_type_fprint(stderr, macro_type2);
         fprintf(stderr, "\n");
+    }
 
-        fprintf(stderr, NECRO_ERR_LEFT_CHAR "\n");
-        fprintf(stderr, NECRO_ERR_LEFT_CHAR " This would create an infinite type!\n");
-        fprintf(stderr, NECRO_ERR_LEFT_CHAR " A type becomes infinite when it contains itself.\n");
-        fprintf(stderr, "\n");
-    // }
-    // else
-    // {
-    //     fprintf(stderr, "\n----- %s ----- ", error_name);
-    //     fprintf(stderr, "\n" NECRO_ERR_LEFT_CHAR " \n");
-    //     necro_print_line_at_source_loc(source_str, source_loc, end_loc);
-
-    //     fprintf(stderr, NECRO_ERR_LEFT_CHAR " Couldn't match ");
-    //     necro_type_fprint(stderr, type1);
-    //     fprintf(stderr, " with ");
-    //     necro_type_fprint(stderr, type2);
-    //     fprintf(stderr, "\n");
-    //     fprintf(stderr, NECRO_ERR_LEFT_CHAR "\n");
-
-    //     fprintf(stderr, NECRO_ERR_LEFT_CHAR " Expected: ");
-    //     necro_type_fprint(stderr, macro_type1);
-    //     fprintf(stderr, "\n");
-
-    //     fprintf(stderr, NECRO_ERR_LEFT_CHAR " Found:    ");
-    //     necro_type_fprint(stderr, macro_type2);
-    //     fprintf(stderr, "\n");
-    // }
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR "\n");
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " 'Kinds' are the 'types' of types\n");
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " You likely applied too few or too many type parameters to a type\n");
 
     fprintf(stderr, "\n");
     UNUSED(source_name);
@@ -1252,6 +1283,9 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_TYPE_MISMATCHED_TYPE:                            necro_print_mismatched_type_error(error, source_str, source_name); break;
     case NECRO_TYPE_POLYMORPHIC_PAT_BIND:                       necro_print_polymorphic_pat_bind_error(error, source_str, source_name); break;
     case NECRO_TYPE_OCCURS:                                     necro_print_occurs_error(error, source_str, source_name); break;
+    case NECRO_TYPE_FINAL_DO_STATEMENT:                         necro_print_final_do_statement_error(error, source_str, source_name); break;
+
+    case NECRO_KIND_MISMATCHED_KIND:                            necro_print_mismatched_kind_error(error, source_str, source_name); break;
 
     default:
         assert(false && "[necro_result_error_print] Unknown error type");

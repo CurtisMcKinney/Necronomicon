@@ -15,6 +15,7 @@ struct NecroBase;
 
 NecroAstSymbol*        necro_kind_create_star(NecroPagedArena* arena, NecroIntern* intern);
 
+NecroResult(NecroType) necro_kind_unify_with_info(NecroType* kind1, NecroType* kind2, NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroType) necro_kind_unify(NecroType* kind1, NecroType* kind2, NecroScope* scope);
 NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase* base, NecroType* type);
 NecroType*             necro_kind_gen(NecroPagedArena* arena, struct NecroBase* base, NecroType* kind);

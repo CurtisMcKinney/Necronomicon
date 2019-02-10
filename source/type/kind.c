@@ -156,6 +156,35 @@ NecroResult(NecroType) necro_kind_unify(NecroType* kind1, NecroType* kind2, Necr
     }
 }
 
+NecroResult(NecroType) necro_kind_unify_with_info(NecroType* kind1, NecroType* kind2, NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    NecroResult(NecroType) result = necro_kind_unify(kind1, kind2, scope);
+    if (result.type == NECRO_RESULT_OK)
+    {
+        return result;
+    }
+    assert(result.error != NULL);
+    switch (result.error->type)
+    {
+    case NECRO_KIND_MISMATCHED_KIND:
+        result.error->default_type_error_data2.macro_type1 = kind1;
+        result.error->default_type_error_data2.macro_type2 = kind2;
+        result.error->default_type_error_data2.source_loc  = source_loc;
+        result.error->default_type_error_data2.end_loc     = end_loc;
+        break;
+
+    case NECRO_KIND_MISMATCHED_ARITY:
+    case NECRO_KIND_RIGID_KIND_VARIABLE:
+        assert(false);
+        break;
+
+    default:
+        assert(false);
+        break;
+    }
+    return result;
+}
+
 NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase* base, NecroType* type)
 {
     switch (type->type)

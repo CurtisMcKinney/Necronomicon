@@ -534,6 +534,8 @@ NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroBase* base, 
         {
             NecroType* original_type1 = type1;
             NecroType* original_type2 = type2;
+            // TODO (Curtis, 2-10-19): Kind unify here!
+            // necro_kind_unify(type1->kind, type2->)
             type1 = type1->con.args;
             type2 = type2->con.args;
             while (type1 != NULL && type2 != NULL)
@@ -613,6 +615,13 @@ NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, N
         result.error->default_type_error_data2.end_loc     = end_loc;
         break;
 
+    case NECRO_KIND_MISMATCHED_KIND:
+        result.error->default_type_error_data2.macro_type1 = macro_type1->kind;
+        result.error->default_type_error_data2.macro_type2 = macro_type2->kind;
+        result.error->default_type_error_data2.source_loc  = source_loc;
+        result.error->default_type_error_data2.end_loc     = end_loc;
+        break;
+
     case NECRO_TYPE_RIGID_TYPE_VARIABLE:
     case NECRO_TYPE_NOT_AN_INSTANCE_OF:
     case NECRO_TYPE_MISMATCHED_ARITY:
@@ -633,7 +642,6 @@ NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, N
         assert(false);
         break;
 
-    case NECRO_KIND_MISMATCHED_KIND:
     case NECRO_KIND_MISMATCHED_ARITY:
     case NECRO_KIND_RIGID_KIND_VARIABLE:
         assert(false);

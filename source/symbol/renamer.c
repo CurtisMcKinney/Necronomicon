@@ -763,7 +763,6 @@ void necro_rename_test_error(const char* test_name, const char* str, NECRO_RESUL
     NecroSymTable       symtable = necro_symtable_create(&intern);
     NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create(&symtable);
     NecroBase           base = necro_base_compile(&intern, &scoped_symtable);
-    UNUSED(base);
 
     NecroLexTokenVector tokens = necro_empty_lex_token_vector();
     NecroParseAstArena  parse_ast = necro_parse_ast_arena_empty();
@@ -785,6 +784,7 @@ void necro_rename_test_error(const char* test_name, const char* str, NECRO_RESUL
     // Clean up
     free(result.error);
     necro_ast_arena_destroy(&ast);
+    necro_base_destroy(&base);
     necro_parse_ast_arena_destroy(&parse_ast);
     necro_destroy_lex_token_vector(&tokens);
     necro_scoped_symtable_destroy(&scoped_symtable);
@@ -800,7 +800,6 @@ void necro_rename_test_case(const char* test_name, const char* str, NecroIntern*
     NecroSymTable       symtable = necro_symtable_create(intern);
     NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create(&symtable);
     NecroBase           base = necro_base_compile(intern, &scoped_symtable);
-    UNUSED(base);
 
     NecroLexTokenVector tokens = necro_empty_lex_token_vector();
     NecroParseAstArena  parse_ast = necro_parse_ast_arena_empty();
@@ -823,6 +822,8 @@ void necro_rename_test_case(const char* test_name, const char* str, NecroIntern*
 
     // Clean up
     necro_ast_arena_destroy(&ast);
+    necro_ast_arena_destroy(ast2);
+    necro_base_destroy(&base);
     necro_parse_ast_arena_destroy(&parse_ast);
     necro_destroy_lex_token_vector(&tokens);
     necro_scoped_symtable_destroy(&scoped_symtable);

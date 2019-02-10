@@ -1552,18 +1552,27 @@ NecroResult(NecroType) necro_infer_go(NecroInfer* infer, NecroAst* ast)
 NecroResult(void) necro_infer(NecroCompileInfo info, NecroIntern* intern, NecroScopedSymTable* scoped_symtable, NecroBase* base, NecroAstArena* ast_arena)
 {
     NecroInfer infer = necro_infer_create(&ast_arena->arena, intern, scoped_symtable, base, ast_arena);
-    necro_try_map(NecroType, void, necro_infer_go(&infer, ast_arena->root));
-    if (info.compilation_phase == NECRO_PHASE_INFER && info.verbosity > 0)
+    NecroResultUnion result;
+    result.NecroType_result = necro_infer_go(&infer, ast_arena->root);
+    necro_infer_destroy(&infer);
+
+    if (result.NecroType_result.type == NECRO_RESULT_OK)
     {
-        necro_ast_arena_print(ast_arena);
+        if (info.compilation_phase == NECRO_PHASE_INFER && info.verbosity > 0)
+        {
+            necro_ast_arena_print(ast_arena);
+            return ok_void();
+        }
+        // TODO: Removing type class translation for now...
+        // TODO: Separate Infer and Type Class translation phases with Different State object for type class translation!!!!
+        // necro_try(void, necro_type_class_translate(&infer, ast_arena->root));
+        if (info.compilation_phase == NECRO_PHASE_TYPE_CLASS_TRANSLATE && info.verbosity > 0)
+            necro_ast_arena_print(ast_arena);
+
         return ok_void();
     }
-    // TODO: Removing type class translation for now...
-    // TODO: Separate Infer and Type Class translation phases with Different State object for type class translation!!!!
-    // necro_try(void, necro_type_class_translate(&infer, ast_arena->root));
-    if (info.compilation_phase == NECRO_PHASE_TYPE_CLASS_TRANSLATE && info.verbosity > 0)
-        necro_ast_arena_print(ast_arena);
-    return ok_void();
+
+    return result.void_result;
 }
 
 ///////////////////////////////////////////////////////
@@ -1577,7 +1586,6 @@ void necro_infer_test_result(const char* test_name, const char* str, NECRO_RESUL
     NecroSymTable       symtable        = necro_symtable_create(&intern);
     NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create(&symtable);
     NecroBase           base            = necro_base_compile(&intern, &scoped_symtable);
-    UNUSED(base);
 
     NecroLexTokenVector tokens          = necro_empty_lex_token_vector();
     NecroParseAstArena  parse_ast       = necro_parse_ast_arena_empty();
@@ -1627,6 +1635,7 @@ void necro_infer_test_result(const char* test_name, const char* str, NECRO_RESUL
         free(result.error);
 
     necro_ast_arena_destroy(&ast);
+    necro_base_destroy(&base);
     necro_parse_ast_arena_destroy(&parse_ast);
     necro_destroy_lex_token_vector(&tokens);
     necro_scoped_symtable_destroy(&scoped_symtable);

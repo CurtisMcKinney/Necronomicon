@@ -483,7 +483,8 @@ NecroResult(NecroType) necro_ambiguous_type_class_check(NecroAstSymbol* type_sig
     while (context != NULL)
     {
         if (!necro_ambig_occurs(context->var_symbol, type))
-            return necro_type_ambiguous_class_error(type_sig_name, type_sig_name->type, type_sig_name->ast->source_loc, type_sig_name->ast->end_loc, context->class_symbol, type, context->class_symbol->ast->source_loc, context->class_symbol->ast->end_loc);
+            return necro_type_ambiguous_class_error(context->var_symbol, type, NULL, NULL, NULL, type_sig_name->ast->source_loc, type_sig_name->ast->end_loc);
+            // return necro_type_ambiguous_class_error(type_sig_name, type_sig_name->type, type_sig_name->ast->source_loc, type_sig_name->ast->end_loc, context->class_symbol, type, context->class_symbol->ast->source_loc, context->class_symbol->ast->end_loc);
         context = context->next;
     }
     return ok(NecroType, NULL);
@@ -491,10 +492,12 @@ NecroResult(NecroType) necro_ambiguous_type_class_check(NecroAstSymbol* type_sig
 
 NecroResult(NecroType) necro_constrain_class_variable_check(NecroAstSymbol* type_var, NecroAstSymbol* type_sig_symbol, NecroTypeClassContext* context)
 {
+    UNUSED(type_sig_symbol);
     while (context != NULL)
     {
         if (context->var_symbol == type_var)
-            return necro_type_constrains_only_class_var_error(type_var, type_var->type, type_var->ast->source_loc, type_var->ast->end_loc, type_sig_symbol, context->class_symbol->type, context->class_symbol->ast->source_loc, context->class_symbol->ast->end_loc);
+            return necro_type_constrains_only_class_var_error(context->var_symbol, type_var->type, NULL, NULL, NULL, type_var->ast->source_loc, type_var->ast->end_loc);
+            // return necro_type_constrains_only_class_var_error(type_var, type_var->type, type_var->ast->source_loc, type_var->ast->end_loc, type_sig_symbol, context->class_symbol->type, context->class_symbol->ast->source_loc, context->class_symbol->ast->end_loc);
         context = context->next;
     }
     return ok(NecroType, NULL);
@@ -1863,7 +1866,7 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
     }
     if (data->type_class_instance != NULL)
     {
-        return necro_type_multiple_instance_declarations_error(data, data->type, ast->source_loc, ast->end_loc, data->type_class_instance->data_type_name, data->type_class_instance->ast->necro_type, data->type_class_instance->ast->source_loc, data->type_class_instance->ast->end_loc);
+        return necro_type_multiple_instance_declarations_error(type_class_name, data->type, NULL, NULL, NULL, data->type_class_instance->ast->source_loc, data->type_class_instance->ast->end_loc);
     }
 
     //------------------
@@ -1943,7 +1946,7 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
                 if (found == false)
                 {
                     instance->dictionary_prototype->next = NULL;
-                    return necro_type_not_a_visible_method_error(member_symbol, NULL, method_ast->source_loc, method_ast->end_loc, instance->ast->type_class_instance.ast_symbol, NULL, instance->ast->source_loc, instance->ast->end_loc);
+                    return necro_type_not_a_visible_method_error(member_symbol, instance->data_type, NULL, NULL, NULL, method_ast->source_loc, method_ast->end_loc);
                 }
 
                 //--------------------------------
@@ -1992,7 +1995,7 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
         }
         if (!matched)
         {
-            return necro_type_no_explicit_implementation_error(type_class_members->member_varid, NULL, type_class_members->member_varid->ast->source_loc, type_class_members->member_varid->ast->end_loc, instance->ast->type_class_instance.ast_symbol, NULL, instance->ast->source_loc, instance->ast->end_loc);
+            return necro_type_no_explicit_implementation_error(type_class_members->member_varid, instance->data_type, NULL, NULL, NULL, instance->ast->source_loc, instance->ast->end_loc);
         }
         type_class_members = type_class_members->next;
     }

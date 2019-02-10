@@ -1638,6 +1638,9 @@ void necro_test_infer()
     necro_announce_phase("NecroInfer");
     fflush(stdout);
 
+    ///////////////////////////////////////////////////////
+    // Error tests
+    ///////////////////////////////////////////////////////
     {
         const char* test_name = "NothingType";
         const char* test_source = ""
@@ -1949,7 +1952,7 @@ void necro_test_infer()
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 
-    // TODO: Something wonky with this. However arithmetic sequences are a "nice to have"...
+    // TODO (Curtis, 2-8-19): Something wonky with this. However arithmetic sequences are a "nice to have"...
     // {
     //     const char* test_name = "MistmatchedType: ArithmeticSequence3";
     //     const char* test_source = ""
@@ -1994,15 +1997,14 @@ void necro_test_infer()
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 
-    // // TODO: CRASH! type genralization!!!!
-    // {
-    //     const char* test_name = "MistmatchedType: Apats3";
-    //     const char* test_source = ""
-    //         "theCallOfWrongthulhu x () = False\n";
-    //     const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-    //     const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
-    //     necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
-    // }
+    {
+        const char* test_name = "Occurs1";
+        const char* test_source = ""
+            "caughtInATimeLoop ~ Nothing = Just caughtInATimeLoop\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_OCCURS;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
 
 #if 0 // This crashes right now during inference :(
     {
@@ -2012,12 +2014,43 @@ void necro_test_infer()
             "class Fail a where result :: a -> a\n"
             "x :: Fail a => a\n"
             "x = Pages\n";
-
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error = NECRO_TYPE_RIGID_TYPE_VARIABLE;
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
 }
 #endif
+
+    ///////////////////////////////////////////////////////
+    // OK tests
+    ///////////////////////////////////////////////////////
+    // Ok test, needs to match on AST
+    {
+        const char* test_name = "GeneralizationIsOk1";
+        const char* test_source = ""
+            "atTheMountainsOfOK = False\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    // Ok test, needs to match on AST
+    {
+        const char* test_name = "GeneralizationIsOk2";
+        const char* test_source = ""
+            "atTheMountainsOfOK2 x = False\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    // Ok test, needs to match on AST
+    {
+        const char* test_name = "GeneralizationIsOk3";
+        const char* test_source = ""
+            "atTheMountainsOfOK3 x () = False\n";
+            "okggoth :: "
+            "atTheMountainsOfOK3 x () = False\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
 
     /*
     FINISHED:

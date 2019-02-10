@@ -309,7 +309,7 @@ NecroResult(NecroType) necro_type_occurs(NecroAstSymbol* type_var_symbol, NecroT
     {
     case NECRO_TYPE_VAR:
         if (type_var_symbol == type->var.var_symbol)
-            return necro_type_occurs_error(type_var_symbol, type_var_symbol->type, NULL_LOC, NULL_LOC, NULL, type, NULL_LOC, NULL_LOC);
+            return necro_type_occurs_error_partial(type_var_symbol->type, type);
         else
             return ok(NecroType, NULL);
     case NECRO_TYPE_APP:
@@ -326,6 +326,18 @@ NecroResult(NecroType) necro_type_occurs(NecroAstSymbol* type_var_symbol, NecroT
     case NECRO_TYPE_FOR:  necro_unreachable(NecroType);
     default:              necro_unreachable(NecroType);
     }
+}
+
+NecroResult(NecroType) necro_type_occurs_flipped(NecroAstSymbol* type_var_symbol, NecroType* type)
+{
+    NecroResult(NecroType) result = necro_type_occurs(type_var_symbol, type);
+    if (result.type == NECRO_RESULT_OK)
+        return result;
+    NecroType* type1 = result.error->default_type_error_data2.type1;
+    NecroType* type2 = result.error->default_type_error_data2.type2;
+    result.error->default_type_error_data2.type1 = type2;
+    result.error->default_type_error_data2.type2 = type1;
+    return result;
 }
 
 NecroResult(NecroType) necro_propogate_type_classes(NecroPagedArena* arena, NecroBase* base, NecroTypeClassContext* classes, NecroType* type, NecroScope* scope)
@@ -345,8 +357,7 @@ NecroResult(NecroType) necro_propogate_type_classes(NecroPagedArena* arena, Necr
             {
                 if (!necro_context_and_super_classes_contain_class(type->var.context, classes))
                 {
-                    // necro_infer_error(infer, error_preamble, macro_type, "No instance for \'%s %s\'", classes->type_class_name.symbol->str, necro_id_as_character_string(infer->intern, type->var.var));
-                    return necro_type_not_an_instance_of_error(NULL, type, NULL_LOC, NULL_LOC, NULL, classes->class_symbol->type, NULL_LOC, NULL_LOC);
+                    return necro_type_not_an_instance_of_error_partial(classes->class_symbol, type);
                 }
                 classes = classes->next;
             }
@@ -371,7 +382,7 @@ NecroResult(NecroType) necro_propogate_type_classes(NecroPagedArena* arena, Necr
             NecroTypeClassInstance* instance = necro_get_type_class_instance(type->con.con_symbol, classes->class_symbol);
             if (instance == NULL)
             {
-                return necro_type_not_an_instance_of_error(NULL, type, NULL_LOC, NULL_LOC, NULL, classes->class_symbol->type, NULL_LOC, NULL_LOC);
+                return necro_type_not_an_instance_of_error_partial(classes->class_symbol, type);
             }
             // Would this method require a proper scope!?!?!
             NecroType* instance_data_inst = necro_try(NecroType, necro_type_instantiate(arena, base, instance->data_type, instance->ast->scope));
@@ -425,7 +436,7 @@ NecroResult(NecroType) necro_unify_var(NecroPagedArena* arena, NecroBase* base, 
     {
     case NECRO_TYPE_VAR:
         if (type1->var.var_symbol == type2->var.var_symbol)  return ok(NecroType, NULL);
-        else if (type1->var.is_rigid && type2->var.is_rigid) return necro_type_rigid_type_variable_error(NULL, type1, NULL_LOC, NULL_LOC, NULL, type2, NULL_LOC, NULL_LOC);
+        else if (type1->var.is_rigid && type2->var.is_rigid) return necro_type_rigid_type_variable_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs(type1->var.var_symbol, type2));
         if (type1->var.is_rigid)                             return necro_instantiate_type_var(arena, base, &type2->var, type1, scope);
         else if (type2->var.is_rigid)                        return necro_instantiate_type_var(arena, base, &type1->var, type2, scope);
@@ -435,7 +446,7 @@ NecroResult(NecroType) necro_unify_var(NecroPagedArena* arena, NecroBase* base, 
     case NECRO_TYPE_APP:
     case NECRO_TYPE_FUN:
         if (type1->var.is_rigid)
-            return necro_type_rigid_type_variable_error(NULL, type1, NULL_LOC, NULL_LOC, NULL, type2, NULL_LOC, NULL_LOC);
+            return necro_type_rigid_type_variable_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs(type1->var.var_symbol , type2));
         necro_try(NecroType, necro_instantiate_type_var(arena, base, &type1->var, type2, scope));
         return ok(NecroType, NULL);
@@ -454,8 +465,8 @@ NecroResult(NecroType) necro_unify_app(NecroPagedArena* arena, NecroBase* base, 
     {
     case NECRO_TYPE_VAR:
         if (type2->var.is_rigid)
-            return necro_type_rigid_type_variable_error(NULL, type1, NULL_LOC, NULL_LOC, NULL, type2, NULL_LOC, NULL_LOC);
-        necro_try(NecroType, necro_type_occurs(type2->var.var_symbol, type1));
+            return necro_type_rigid_type_variable_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
+        necro_try(NecroType, necro_type_occurs_flipped(type2->var.var_symbol, type1));
         necro_try(NecroType, necro_instantiate_type_var(arena, base, &type2->var, type1, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_APP:
@@ -466,7 +477,7 @@ NecroResult(NecroType) necro_unify_app(NecroPagedArena* arena, NecroBase* base, 
     {
         NecroType* uncurried_con = necro_type_curry_con(arena, type2);
         if (uncurried_con == NULL)
-            return necro_type_mismatched_arity_error(NULL, type1, NULL_LOC, NULL_LOC, NULL, type2, NULL_LOC, NULL_LOC);
+            return necro_type_mismatched_arity_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
         else
             return necro_type_unify(arena, base, type1, uncurried_con, scope);
     }
@@ -486,8 +497,8 @@ NecroResult(NecroType) necro_unify_fun(NecroPagedArena* arena, NecroBase* base, 
     {
     case NECRO_TYPE_VAR:
         if (type2->var.is_rigid)
-            return necro_type_rigid_type_variable_error(NULL, type1, NULL_LOC, NULL_LOC, NULL, type2, NULL_LOC, NULL_LOC);
-        necro_try(NecroType, necro_type_occurs(type2->var.var_symbol, type1));
+            return necro_type_rigid_type_variable_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
+        necro_try(NecroType, necro_type_occurs_flipped(type2->var.var_symbol, type1));
         necro_try(NecroType, necro_instantiate_type_var(arena, base, &type2->var, type1, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_FUN:
@@ -510,8 +521,8 @@ NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroBase* base, 
     {
     case NECRO_TYPE_VAR:
         if (type2->var.is_rigid)
-            return necro_type_rigid_type_variable_error(NULL, type1, NULL_LOC, NULL_LOC, NULL, type2, NULL_LOC, NULL_LOC);
-        necro_try(NecroType, necro_type_occurs(type2->var.var_symbol, type1));
+            return necro_type_rigid_type_variable_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
+        necro_try(NecroType, necro_type_occurs_flipped(type2->var.var_symbol, type1));
         necro_try(NecroType, necro_instantiate_type_var(arena, base, &type2->var, type1, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_CON:
@@ -529,7 +540,7 @@ NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroBase* base, 
             {
                 // TODO: (Curtis, 2-8-18): Replace with kinds check!?!?!?
                 if (type1 == NULL || type2 == NULL)
-                    return necro_type_mismatched_arity_error(NULL, original_type1, NULL_LOC, NULL_LOC, NULL, original_type2, NULL_LOC, NULL_LOC);
+                    return necro_type_mismatched_arity_error(original_type1, original_type2, NULL, NULL, NULL_LOC, NULL_LOC);
                 assert(type1->type == NECRO_TYPE_LIST);
                 assert(type2->type == NECRO_TYPE_LIST);
                 necro_try(NecroType, necro_type_unify(arena, base, type1->list.item, type2->list.item, scope));
@@ -542,7 +553,7 @@ NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroBase* base, 
     {
         NecroType* uncurried_con = necro_type_curry_con(arena, type1);
         if (uncurried_con == NULL)
-            return necro_type_mismatched_arity_error(NULL, type1, NULL_LOC, NULL_LOC, NULL, type2, NULL_LOC, NULL_LOC);
+            return necro_type_mismatched_arity_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
         else
             return necro_type_unify(arena, base, uncurried_con, type2, scope);
     }
@@ -594,16 +605,16 @@ NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, N
     assert(result.error != NULL);
     switch (result.error->type)
     {
+    case NECRO_TYPE_OCCURS:
     case NECRO_TYPE_MISMATCHED_TYPE:
-        result.error->mismatched_types_error_data.macro_type1 = macro_type1;
-        result.error->mismatched_types_error_data.macro_type2 = macro_type2;
-        result.error->mismatched_types_error_data.source_loc  = source_loc;
-        result.error->mismatched_types_error_data.end_loc     = end_loc;
+        result.error->default_type_error_data2.macro_type1 = macro_type1;
+        result.error->default_type_error_data2.macro_type2 = macro_type2;
+        result.error->default_type_error_data2.source_loc  = source_loc;
+        result.error->default_type_error_data2.end_loc     = end_loc;
         break;
 
     case NECRO_TYPE_RIGID_TYPE_VARIABLE:
     case NECRO_TYPE_NOT_AN_INSTANCE_OF:
-    case NECRO_TYPE_OCCURS:
     case NECRO_TYPE_MISMATCHED_ARITY:
     case NECRO_TYPE_POLYMORPHIC_PAT_BIND:
     case NECRO_TYPE_UNINITIALIZED_RECURSIVE_VALUE:

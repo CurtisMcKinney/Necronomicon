@@ -42,7 +42,7 @@ NecroResult(NecroType) necro_kind_unify_var(NecroType* kind1, NecroType* kind2, 
         if (kind1->var.var_symbol == kind2->var.var_symbol)
             return ok(NecroType, NULL);
         if (kind1->var.is_rigid && kind2->var.is_rigid)
-            return necro_kind_rigid_kind_variable_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
+            return necro_kind_rigid_kind_variable_error(kind1, kind2, NULL, NULL, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs(kind1->var.var_symbol, kind2));
         if (kind1->var.is_rigid)
             kind2->var.bound = kind1;
@@ -57,7 +57,7 @@ NecroResult(NecroType) necro_kind_unify_var(NecroType* kind1, NecroType* kind2, 
     case NECRO_TYPE_APP:
     case NECRO_TYPE_FUN:
         if (kind1->var.is_rigid)
-            return necro_kind_rigid_kind_variable_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
+            return necro_kind_rigid_kind_variable_error(kind1, kind2, NULL, NULL, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs(kind1->var.var_symbol, kind2));
         kind1->var.bound = kind2;
         return ok(NecroType, NULL);
@@ -76,15 +76,15 @@ NecroResult(NecroType) necro_kind_unify_fun(NecroType* kind1, NecroType* kind2, 
     {
     case NECRO_TYPE_VAR:
         if (kind2->var.is_rigid)
-            return necro_kind_rigid_kind_variable_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
+            return necro_kind_rigid_kind_variable_error(kind1, kind2, NULL, NULL, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs(kind2->var.var_symbol, kind1));
         kind2->var.bound = kind1;
         return ok(NecroType, NULL);
     case NECRO_TYPE_FUN:
         necro_try(NecroType, necro_kind_unify(kind1->fun.type1, kind2->fun.type1, scope));
         return necro_kind_unify(kind1->fun.type2, kind2->fun.type2, scope);
-    case NECRO_TYPE_CON:  return necro_kind_mismatched_kind_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
-    case NECRO_TYPE_APP:  return necro_kind_mismatched_kind_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
+    case NECRO_TYPE_CON:  return necro_kind_mismatched_kind_error(kind1, kind2, NULL, NULL, NULL_LOC, NULL_LOC);
+    case NECRO_TYPE_APP:  return necro_kind_mismatched_kind_error(kind1, kind2, NULL, NULL, NULL_LOC, NULL_LOC);
     case NECRO_TYPE_LIST: necro_unreachable(NecroType);
     default:              necro_unreachable(NecroType);
     }
@@ -99,14 +99,14 @@ NecroResult(NecroType) necro_kind_unify_con(NecroType* kind1, NecroType* kind2, 
     {
     case NECRO_TYPE_VAR:
         if (kind2->var.is_rigid)
-            return necro_kind_rigid_kind_variable_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
+            return necro_kind_rigid_kind_variable_error(kind1, kind2, NULL, NULL, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs(kind2->var.var_symbol, kind1));
         kind2->var.bound = kind1;
         return ok(NecroType, NULL);
     case NECRO_TYPE_CON:
         if (kind1->con.con_symbol != kind2->con.con_symbol)
         {
-            return necro_kind_mismatched_kind_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
+            return necro_kind_mismatched_kind_error(kind1, kind2, NULL, NULL, NULL_LOC, NULL_LOC);
         }
         else
         {
@@ -118,7 +118,7 @@ NecroResult(NecroType) necro_kind_unify_con(NecroType* kind1, NecroType* kind2, 
             {
                 if (kind1 == NULL || kind2 == NULL)
                 {
-                    return necro_kind_mismatched_arity_error(NULL, original_kind1, NULL_LOC, NULL_LOC, NULL, original_kind2, NULL_LOC, NULL_LOC);
+                    return necro_kind_mismatched_arity_error(original_kind1, original_kind2, NULL, NULL, NULL_LOC, NULL_LOC);
                 }
                 assert(kind1->type == NECRO_TYPE_LIST);
                 assert(kind2->type == NECRO_TYPE_LIST);
@@ -128,7 +128,7 @@ NecroResult(NecroType) necro_kind_unify_con(NecroType* kind1, NecroType* kind2, 
             }
             return ok(NecroType, NULL);
         }
-    case NECRO_TYPE_FUN:  return necro_kind_mismatched_kind_error(NULL, kind1, NULL_LOC, NULL_LOC, NULL, kind2, NULL_LOC, NULL_LOC);
+    case NECRO_TYPE_FUN:  return necro_kind_mismatched_kind_error(kind1, kind2, NULL, NULL, NULL_LOC, NULL_LOC);
     case NECRO_TYPE_APP:  necro_unreachable(NecroType);
     case NECRO_TYPE_LIST: necro_unreachable(NecroType);
     case NECRO_TYPE_FOR:  necro_unreachable(NecroType);

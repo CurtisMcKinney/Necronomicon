@@ -365,23 +365,6 @@ NecroResult(NecroAstSymbol) necro_not_in_scope_error(NecroAstSymbol* ast_symbol,
     return necro_error_map(NecroAst, NecroAstSymbol, necro_default_ast_error(NECRO_RENAME_NOT_IN_SCOPE, ast_symbol, source_loc, end_loc));
 }
 
-inline NecroResult(NecroType) necro_mismatched_types_error(NECRO_RESULT_ERROR_TYPE error_type, NecroType* type1, NecroType* type2, NecroType* macro_type1, NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
-{
-    necro_error_single_break_point();
-    NecroResultError* error            = emalloc(sizeof(NecroResultError));
-    error->type                        = error_type;
-    error->mismatched_types_error_data = (NecroMismatchedTypesErrorData)
-    {
-        .type1       = type1,
-        .type2       = type2,
-        .macro_type1 = macro_type1,
-        .macro_type2 = macro_type2,
-        .source_loc  = source_loc,
-        .end_loc     = end_loc,
-    };
-    return (NecroResult(NecroType)) { .error = error, .type = NECRO_RESULT_ERROR };
-}
-
 inline NecroResult(NecroType) necro_default_type_error1(NECRO_RESULT_ERROR_TYPE error_type, NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     necro_error_single_break_point();
@@ -397,26 +380,45 @@ inline NecroResult(NecroType) necro_default_type_error1(NECRO_RESULT_ERROR_TYPE 
     return (NecroResult(NecroType)) { .error = error, .type = NECRO_RESULT_ERROR };
 }
 
-inline NecroResult(NecroType) necro_default_type_error(NECRO_RESULT_ERROR_TYPE error_type, NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+inline NecroResult(NecroType) necro_default_type_error2(NECRO_RESULT_ERROR_TYPE error_type, NecroType* type1, NecroType* type2, NecroType* macro_type1, NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     necro_error_single_break_point();
     NecroResultError* error         = emalloc(sizeof(NecroResultError));
     error->type                     = error_type;
     error->default_type_error_data2 = (NecroDefaultTypeErrorData2)
     {
-        .ast_symbol1 = ast_symbol1,
         .type1       = type1,
-        .source_loc1 = source_loc1,
-        .end_loc1    = end_loc1,
-        .ast_symbol2 = ast_symbol2,
         .type2       = type2,
-        .source_loc2 = source_loc2,
-        .end_loc2    = end_loc2
+        .macro_type1 = macro_type1,
+        .macro_type2 = macro_type2,
+        .source_loc  = source_loc,
+        .end_loc     = end_loc,
     };
     return (NecroResult(NecroType)) { .error = error, .type = NECRO_RESULT_ERROR };
 }
 
-// Type 1
+inline NecroResult(NecroType) necro_default_type_class_error(NECRO_RESULT_ERROR_TYPE error_type, NecroAstSymbol* type_class_symbol, NecroType* type1, NecroType* type2, NecroType* macro_type1, NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    necro_error_single_break_point();
+    NecroResultError* error              = emalloc(sizeof(NecroResultError));
+    error->type                          = error_type;
+    error->default_type_class_error_data = (NecroDefaultTypeClassErrorData)
+    {
+        .type_class_symbol = type_class_symbol,
+        .type1             = type1,
+        .type2             = type2,
+        .macro_type1       = macro_type1,
+        .macro_type2       = macro_type2,
+        .source_loc        = source_loc,
+        .end_loc           = end_loc,
+    };
+    return (NecroResult(NecroType)) { .error = error, .type = NECRO_RESULT_ERROR };
+}
+
+
+///////////////////////////////////////////////////////
+// NecroDefaultTypeErrorData1
+///////////////////////////////////////////////////////
 NecroResult(NecroType) necro_type_uninitialized_recursive_value_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     return necro_default_type_error1(NECRO_TYPE_UNINITIALIZED_RECURSIVE_VALUE, ast_symbol, type, source_loc, end_loc);
@@ -442,95 +444,111 @@ NecroResult(NecroType) necro_type_final_do_statement_error(NecroAstSymbol* ast_s
     return necro_default_type_error1(NECRO_TYPE_FINAL_DO_STATEMENT, ast_symbol, type, source_loc, end_loc);
 }
 
-NecroResult(NecroAst) necro_type_ambiguous_type_var_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
-{
-    return necro_error_map(NecroType, NecroAst, necro_default_type_error1(NECRO_TYPE_AMBIGUOUS_TYPE_VAR, ast_symbol, type, source_loc, end_loc));
-}
-
 NecroResult(NecroTypeClassContext) necro_type_not_a_class_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     return necro_error_map(NecroType, NecroTypeClassContext, necro_default_type_error1(NECRO_TYPE_NOT_A_CLASS, ast_symbol, type, source_loc, end_loc));
 }
 
-// Type 2
-NecroResult(NecroType) necro_type_rigid_type_variable_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+NecroResult(NecroAst) necro_type_ambiguous_type_var_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_default_type_error(NECRO_TYPE_RIGID_TYPE_VARIABLE, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+    return necro_error_map(NecroType, NecroAst, necro_default_type_error1(NECRO_TYPE_AMBIGUOUS_TYPE_VAR, ast_symbol, type, source_loc, end_loc));
 }
 
-NecroResult(NecroType) necro_type_not_an_instance_of_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+///////////////////////////////////////////////////////
+// NecroDefaultTypeErrorData2
+///////////////////////////////////////////////////////
+NecroResult(NecroType) necro_type_rigid_type_variable_error(struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_default_type_error(NECRO_TYPE_NOT_AN_INSTANCE_OF, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+    return necro_default_type_error2(NECRO_TYPE_RIGID_TYPE_VARIABLE, type1, type2, macro_type1, macro_type2, source_loc, end_loc);
 }
 
-NecroResult(NecroType) necro_type_occurs_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+NecroResult(NecroType) necro_type_occurs_error(struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_default_type_error(NECRO_TYPE_OCCURS, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+    return necro_default_type_error2(NECRO_TYPE_OCCURS, type1, type2, macro_type1, macro_type2, source_loc, end_loc);
 }
 
-NecroResult(NecroType) necro_type_mismatched_arity_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+NecroResult(NecroType) necro_type_occurs_error_partial(struct NecroType* type1, struct NecroType* type2)
 {
-    return necro_default_type_error(NECRO_TYPE_MISMATCHED_ARITY, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+    return necro_default_type_error2(NECRO_TYPE_OCCURS, type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
 }
 
 NecroResult(NecroType) necro_type_mismatched_type_error(struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_mismatched_types_error(NECRO_TYPE_MISMATCHED_TYPE, type1, type2, macro_type1, macro_type2, source_loc, end_loc);
+    return necro_default_type_error2(NECRO_TYPE_MISMATCHED_TYPE, type1, type2, macro_type1, macro_type2, source_loc, end_loc);
 }
 
 NecroResult(NecroType) necro_type_mismatched_type_error_partial(struct NecroType* type1, struct NecroType* type2)
 {
-    return necro_mismatched_types_error(NECRO_TYPE_MISMATCHED_TYPE, type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
+    return necro_default_type_error2(NECRO_TYPE_MISMATCHED_TYPE, type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
 }
 
-NecroResult(NecroType) necro_type_ambiguous_class_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+NecroResult(NecroType) necro_type_mismatched_arity_error(struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_default_type_error(NECRO_TYPE_AMBIGUOUS_CLASS, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+    return necro_default_type_error2(NECRO_TYPE_MISMATCHED_ARITY, type1, type2, macro_type1, macro_type2, source_loc, end_loc);
 }
 
-NecroResult(NecroType) necro_type_constrains_only_class_var_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+NecroResult(NecroType) necro_kind_mismatched_kind_error(struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_default_type_error(NECRO_TYPE_CONSTRAINS_ONLY_CLASS_VAR, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+    return necro_default_type_error2(NECRO_KIND_MISMATCHED_KIND, type1, type2, macro_type1, macro_type2, source_loc, end_loc);
 }
 
-NecroResult(NecroType) necro_type_multiple_class_declarations_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+NecroResult(NecroType) necro_kind_mismatched_arity_error(struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_default_type_error(NECRO_TYPE_MULTIPLE_CLASS_DECLARATIONS, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+    return necro_default_type_error2(NECRO_KIND_MISMATCHED_ARITY, type1, type2, macro_type1, macro_type2, source_loc, end_loc);
 }
 
-NecroResult(NecroType) necro_type_multiple_instance_declarations_error(NecroAstSymbol* ast_symbol1, struct NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, struct NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+NecroResult(NecroType) necro_kind_rigid_kind_variable_error(struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_default_type_error(NECRO_TYPE_MULTIPLE_INSTANCE_DECLARATIONS, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+    return necro_default_type_error2(NECRO_KIND_RIGID_KIND_VARIABLE, type1, type2, macro_type1, macro_type2, source_loc, end_loc);
 }
 
-NecroResult(NecroType) necro_type_not_a_visible_method_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+
+///////////////////////////////////////////////////////
+// NecroDefaultTypeClassErrorData
+///////////////////////////////////////////////////////
+NecroResult(NecroType) necro_type_not_an_instance_of_error_partial(NecroAstSymbol* type_class_ast_symbol, struct NecroType* type)
 {
-    return necro_default_type_error(NECRO_TYPE_NOT_A_VISIBLE_METHOD, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+    return necro_default_type_class_error(NECRO_TYPE_NOT_AN_INSTANCE_OF, type_class_ast_symbol, type, NULL, NULL, NULL, NULL_LOC, NULL_LOC);
 }
 
-NecroResult(NecroType) necro_type_no_explicit_implementation_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+NecroResult(NecroType) necro_type_not_an_instance_of_error(NecroAstSymbol* type_class_ast_symbol, struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_default_type_error(NECRO_TYPE_NO_EXPLICIT_IMPLEMENTATION, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+    return necro_default_type_class_error(NECRO_TYPE_NOT_AN_INSTANCE_OF, type_class_ast_symbol, type1, type2, macro_type1, macro_type2, source_loc, end_loc);
 }
 
-NecroResult(NecroType) necro_type_does_not_implement_super_class_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+NecroResult(NecroType) necro_type_ambiguous_class_error(NecroAstSymbol* type_class_ast_symbol, struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_default_type_error(NECRO_TYPE_DOES_NOT_IMPLEMENT_SUPER_CLASS, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+    return necro_default_type_class_error(NECRO_TYPE_AMBIGUOUS_CLASS, type_class_ast_symbol, type1, type2, macro_type1, macro_type2, source_loc, end_loc);
 }
 
-NecroResult(NecroType) necro_kind_mismatched_kind_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+NecroResult(NecroType) necro_type_constrains_only_class_var_error(NecroAstSymbol* type_class_ast_symbol, struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_default_type_error(NECRO_KIND_MISMATCHED_KIND, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+    return necro_default_type_class_error(NECRO_TYPE_CONSTRAINS_ONLY_CLASS_VAR, type_class_ast_symbol, type1, type2, macro_type1, macro_type2, source_loc, end_loc);
 }
 
-NecroResult(NecroType) necro_kind_mismatched_arity_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+NecroResult(NecroType) necro_type_multiple_class_declarations_error(NecroAstSymbol* type_class_ast_symbol, struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_default_type_error(NECRO_KIND_MISMATCHED_ARITY, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+    return necro_default_type_class_error(NECRO_TYPE_MULTIPLE_CLASS_DECLARATIONS, type_class_ast_symbol, type1, type2, macro_type1, macro_type2, source_loc, end_loc);
 }
 
-NecroResult(NecroType) necro_kind_rigid_kind_variable_error(NecroAstSymbol* ast_symbol1, NecroType* type1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroType* type2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+NecroResult(NecroType) necro_type_multiple_instance_declarations_error(NecroAstSymbol* type_class_ast_symbol, struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_default_type_error(NECRO_KIND_RIGID_KIND_VARIABLE, ast_symbol1, type1, source_loc1, end_loc1, ast_symbol2, type2, source_loc2, end_loc2);
+    return necro_default_type_class_error(NECRO_TYPE_MULTIPLE_INSTANCE_DECLARATIONS, type_class_ast_symbol, type1, type2, macro_type1, macro_type2, source_loc, end_loc);
+}
+
+NecroResult(NecroType) necro_type_not_a_visible_method_error(NecroAstSymbol* type_class_ast_symbol, struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    return necro_default_type_class_error(NECRO_TYPE_NOT_A_VISIBLE_METHOD, type_class_ast_symbol, type1, type2, macro_type1, macro_type2, source_loc, end_loc);
+}
+
+NecroResult(NecroType) necro_type_no_explicit_implementation_error(NecroAstSymbol* type_class_ast_symbol, struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    return necro_default_type_class_error(NECRO_TYPE_NO_EXPLICIT_IMPLEMENTATION, type_class_ast_symbol, type1, type2, macro_type1, macro_type2, source_loc, end_loc);
+}
+
+NecroResult(NecroType) necro_type_does_not_implement_super_class_error(NecroAstSymbol* type_class_ast_symbol, struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    return necro_default_type_class_error(NECRO_TYPE_DOES_NOT_IMPLEMENT_SUPER_CLASS, type_class_ast_symbol, type1, type2, macro_type1, macro_type2, source_loc, end_loc);
 }
 
 ///////////////////////////////////////////////////////
@@ -1055,12 +1073,12 @@ void necro_print_polymorphic_pat_bind_error(NecroResultError* error, const char*
 void necro_print_mismatched_type_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char*          error_name  = "Mismatched Types";
-    const NecroSourceLoc source_loc  = error->mismatched_types_error_data.source_loc;
-    const NecroSourceLoc end_loc     = error->mismatched_types_error_data.end_loc;
-    const NecroType*     type1       = necro_type_strip_for_all(necro_type_find(error->mismatched_types_error_data.type1));
-    const NecroType*     type2       = necro_type_strip_for_all(necro_type_find(error->mismatched_types_error_data.type2));
-    const NecroType*     macro_type1 = necro_type_strip_for_all(necro_type_find(error->mismatched_types_error_data.macro_type1));
-    const NecroType*     macro_type2 = necro_type_strip_for_all(necro_type_find(error->mismatched_types_error_data.macro_type2));
+    const NecroSourceLoc source_loc  = error->default_type_error_data2.source_loc;
+    const NecroSourceLoc end_loc     = error->default_type_error_data2.end_loc;
+    const NecroType*     type1       = necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.type1));
+    const NecroType*     type2       = necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.type2));
+    const NecroType*     macro_type1 = necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.macro_type1));
+    const NecroType*     macro_type2 = necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.macro_type2));
 
     if (type1 == macro_type1 &&
         type2 == macro_type2)
@@ -1098,6 +1116,63 @@ void necro_print_mismatched_type_error(NecroResultError* error, const char* sour
         necro_type_fprint(stderr, macro_type2);
         fprintf(stderr, "\n");
     }
+
+    fprintf(stderr, "\n");
+    UNUSED(source_name);
+}
+
+void necro_print_occurs_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char*          error_name  = "Infinite Type";
+    const NecroSourceLoc source_loc  = error->default_type_error_data2.source_loc;
+    const NecroSourceLoc end_loc     = error->default_type_error_data2.end_loc;
+    const NecroType*     type1       = necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.type1));
+    // const NecroType*     type2       = necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.type2));
+    // const NecroType*     macro_type1 = necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.macro_type1));
+    const NecroType*     macro_type2 = necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.macro_type2));
+
+    // if (type1 == macro_type1 &&
+    //     type2 == macro_type2)
+    // {
+        fprintf(stderr, "\n----- %s ----- ", error_name);
+        fprintf(stderr, "\n" NECRO_ERR_LEFT_CHAR " \n");
+        necro_print_line_at_source_loc(source_str, source_loc, end_loc);
+
+        // fprintf(stderr, NECRO_ERR_LEFT_CHAR "\n");
+
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " Attempting to assert that: ");
+        necro_type_fprint(stderr, type1);
+        fprintf(stderr, "\n");
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " is equivalant to:          ");
+        necro_type_fprint(stderr, macro_type2);
+        fprintf(stderr, "\n");
+
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR "\n");
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " This would create an infinite type!\n");
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " A type becomes infinite when it contains itself.\n");
+        fprintf(stderr, "\n");
+    // }
+    // else
+    // {
+    //     fprintf(stderr, "\n----- %s ----- ", error_name);
+    //     fprintf(stderr, "\n" NECRO_ERR_LEFT_CHAR " \n");
+    //     necro_print_line_at_source_loc(source_str, source_loc, end_loc);
+
+    //     fprintf(stderr, NECRO_ERR_LEFT_CHAR " Couldn't match ");
+    //     necro_type_fprint(stderr, type1);
+    //     fprintf(stderr, " with ");
+    //     necro_type_fprint(stderr, type2);
+    //     fprintf(stderr, "\n");
+    //     fprintf(stderr, NECRO_ERR_LEFT_CHAR "\n");
+
+    //     fprintf(stderr, NECRO_ERR_LEFT_CHAR " Expected: ");
+    //     necro_type_fprint(stderr, macro_type1);
+    //     fprintf(stderr, "\n");
+
+    //     fprintf(stderr, NECRO_ERR_LEFT_CHAR " Found:    ");
+    //     necro_type_fprint(stderr, macro_type2);
+    //     fprintf(stderr, "\n");
+    // }
 
     fprintf(stderr, "\n");
     UNUSED(source_name);
@@ -1176,6 +1251,7 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_TYPE_UNINITIALIZED_RECURSIVE_VALUE:              necro_print_uninitialized_recursive_value_error(error, source_str, source_name); break;
     case NECRO_TYPE_MISMATCHED_TYPE:                            necro_print_mismatched_type_error(error, source_str, source_name); break;
     case NECRO_TYPE_POLYMORPHIC_PAT_BIND:                       necro_print_polymorphic_pat_bind_error(error, source_str, source_name); break;
+    case NECRO_TYPE_OCCURS:                                     necro_print_occurs_error(error, source_str, source_name); break;
 
     default:
         assert(false && "[necro_result_error_print] Unknown error type");

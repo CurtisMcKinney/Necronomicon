@@ -6,10 +6,12 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <inttypes.h>
+
 #include "parse_test.h"
 #include "lexer.h"
 #include "result.h"
 #include "parse_ast.h"
+#include "utility.h"
 
 void necro_parse_ast_test_error(const char* test_name, const char* str, NECRO_RESULT_ERROR_TYPE error_type)
 {
@@ -948,4 +950,22 @@ void necro_parse_test()
         necro_parse_ast_test("Instance", "instance HaveSomeClass Bool where\n  methodToTheMadness _ = True\n", &intern, &ast);
     }
 
+
+    {
+        puts("Parse {{{ child process test_lex1:  starting...");
+        assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\parse_test.necro -parse") == 0);
+        puts("Parse }}} child process test_lex1:  passed\n");
+    }
+
+    {
+        puts("Parse {{{ child process test_lex1:  starting...");
+        assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\parseTest.necro -parse") == 0);
+        puts("Parse }}} child process test_lex1:  passed\n");
+    }
+
+    {
+        puts("Parse {{{ child process test_lex1:  starting...");
+        assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\parseErrorTest.necro -parse") == 0);
+        puts("Parse }}} child process test_lex1:  passed\n");
+    }
 }

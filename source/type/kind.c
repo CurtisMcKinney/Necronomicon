@@ -185,8 +185,11 @@ NecroResult(NecroType) necro_kind_unify_with_info(NecroType* kind1, NecroType* k
     return result;
 }
 
-NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase* base, NecroType* type)
+NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
+    // TODO (Curtis, 2-11-19): Memoizing kind isn't working!?!?
+    if (type->kind != NULL)
+        return ok(NecroType, type->kind);
     switch (type->type)
     {
 
@@ -217,21 +220,21 @@ NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase
 
     case NECRO_TYPE_FUN:
     {
-        NecroType* type1_kind = necro_try(NecroType, necro_kind_infer(arena, base, type->fun.type1));
-        necro_try(NecroType, necro_kind_unify(type1_kind, base->star_kind->type, NULL));
-        NecroType* type2_kind = necro_try(NecroType, necro_kind_infer(arena, base, type->fun.type2));
-        necro_try(NecroType, necro_kind_unify(type2_kind, base->star_kind->type, NULL));
+        NecroType* type1_kind = necro_try(NecroType, necro_kind_infer(arena, base, type->fun.type1, source_loc, end_loc));
+        necro_try(NecroType, necro_kind_unify_with_info(base->star_kind->type, type1_kind, NULL, source_loc, end_loc));
+        NecroType* type2_kind = necro_try(NecroType, necro_kind_infer(arena, base, type->fun.type2, source_loc, end_loc));
+        necro_try(NecroType, necro_kind_unify_with_info(base->star_kind->type, type2_kind, NULL, source_loc, end_loc));
         type->kind            = base->star_kind->type;
         return ok(NecroType, type->kind);
     }
 
     case NECRO_TYPE_APP:
     {
-        NecroType* type1_kind  = necro_try(NecroType, necro_kind_infer(arena, base, type->app.type1));
-        NecroType* type2_kind  = necro_try(NecroType, necro_kind_infer(arena, base, type->app.type2));
+        NecroType* type1_kind  = necro_try(NecroType, necro_kind_infer(arena, base, type->app.type1, source_loc, end_loc));
+        NecroType* type2_kind  = necro_try(NecroType, necro_kind_infer(arena, base, type->app.type2, source_loc, end_loc));
         NecroType* result_kind = necro_type_fresh_var(arena);
         NecroType* f_kind      = necro_type_fn_create(arena, type2_kind, result_kind);
-        necro_try(NecroType, necro_kind_unify(type1_kind, f_kind, NULL));
+        necro_try(NecroType, necro_kind_unify_with_info(type1_kind, f_kind, NULL, source_loc, end_loc));
         type->kind             = result_kind;
         return ok(NecroType, type->kind);
     }
@@ -241,17 +244,13 @@ NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase
         NecroAstSymbol* con_symbol = type->con.con_symbol;
         assert(con_symbol != NULL);
         assert(con_symbol->type != NULL);
-        if (con_symbol->type->kind == NULL)
-        {
-            con_symbol->type->kind = necro_type_fresh_var(arena);
-            type->kind             = con_symbol->type->kind;
-        }
+        assert(con_symbol->type->kind != NULL);
         NecroType* args       = type->con.args;
         NecroType* args_kinds = NULL;
         NecroType* args_head  = NULL;
         while (args != NULL)
         {
-            NecroType* arg_kind = necro_try(NecroType, necro_kind_infer(arena, base, args->list.item));
+            NecroType* arg_kind = necro_try(NecroType, necro_kind_infer(arena, base, args->list.item, source_loc, end_loc));
             if (args_head == NULL)
             {
                 args_kinds = necro_type_fn_create(arena, arg_kind, NULL);
@@ -264,20 +263,18 @@ NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase
             }
             args = args->list.next;
         }
-        NecroType* result_type = necro_type_fresh_var(arena);
+        NecroType* result_kind = necro_type_fresh_var(arena);
         if (args_kinds != NULL)
-            args_kinds->fun.type2 = result_type;
+            args_kinds->fun.type2 = result_kind;
         else
-            args_head = result_type;
-        necro_try(NecroType, necro_kind_unify(con_symbol->type->kind, args_head, NULL));
-        if (type->kind == NULL)
-            type->kind = necro_type_find(result_type);
-        // return ok(NecroType, type->kind);
-        return ok(NecroType, necro_type_find(result_type));
+            args_head = result_kind;
+        necro_try(NecroType, necro_kind_unify_with_info(con_symbol->type->kind, args_head, NULL, source_loc, end_loc));
+        type->kind = necro_type_find(result_kind);
+        return ok(NecroType, necro_type_find(result_kind));
     }
 
     case NECRO_TYPE_FOR:
-        type->kind = necro_try(NecroType, necro_kind_infer(arena, base, type->for_all.type));
+        type->kind = necro_try(NecroType, necro_kind_infer(arena, base, type->for_all.type, source_loc, end_loc));
         return ok(NecroType, type->kind);
 
     case NECRO_TYPE_LIST: necro_unreachable(NecroType);
@@ -343,4 +340,14 @@ NecroType* necro_kind_gen(NecroPagedArena* arena, struct NecroBase* base, NecroT
         assert(false);
         return NULL;
     }
+}
+
+NecroResult(void) necro_kind_infer_gen_unify_with_star(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    if (type->kind != NULL)
+        return ok_void();
+    necro_try_map(NecroType, void, necro_kind_infer(arena, base, type, source_loc, end_loc));
+    type->kind = necro_kind_gen(arena, base, type->kind);
+    necro_try_map(NecroType, void, necro_kind_unify_with_info(base->star_kind->type, type->kind, scope, source_loc, end_loc));
+    return ok_void();
 }

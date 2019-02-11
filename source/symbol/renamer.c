@@ -840,6 +840,15 @@ void necro_rename_test()
     necro_rename_test_error("MultipleDeclarations", "multi = 0\nsomethingElse = 1\nmulti = 2\n", NECRO_RENAME_MULTIPLE_DEFINITIONS);
     necro_rename_test_error("MultipleTypeSigs", "multiSig :: Int\nmultiSig :: Float\nmultiSig = 20\n", NECRO_RENAME_MULTIPLE_TYPE_SIGNATURES);
 
+    {
+        const char* test_name = "NotInScope: SimpleAssignment";
+        const char* test_source = ""
+            "data Book = Pages\n"
+            "data NotBook = EmptyPages\n"
+            "notcronomicon :: Maybe Book\n"
+            "notcronomicon = Just Book\n";
+        necro_rename_test_error(test_name, test_source, NECRO_RENAME_NOT_IN_SCOPE);
+    }
 
     //--------------------
     // Note:
@@ -1283,9 +1292,9 @@ void necro_rename_test()
                         NULL
                     ),
                     necro_ast_create_rhs(&ast.arena,
-                        necro_ast_create_fexpr(&ast.arena, 
-                            necro_ast_create_var_with_ast_symbol(&ast.arena, 
-                                necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.z"), necro_intern_string(&intern, "z"), necro_intern_string(&intern, "Test"), NULL), 
+                        necro_ast_create_fexpr(&ast.arena,
+                            necro_ast_create_var_with_ast_symbol(&ast.arena,
+                                necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.z"), necro_intern_string(&intern, "z"), necro_intern_string(&intern, "Test"), NULL),
                                 NECRO_VAR_VAR
                             ),
                             necro_ast_create_var_with_ast_symbol(&ast.arena,

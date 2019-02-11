@@ -607,6 +607,7 @@ NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, N
     assert(result.error != NULL);
     switch (result.error->type)
     {
+    case NECRO_TYPE_RIGID_TYPE_VARIABLE:
     case NECRO_TYPE_OCCURS:
     case NECRO_TYPE_MISMATCHED_TYPE:
         result.error->default_type_error_data2.macro_type1 = macro_type1;
@@ -622,7 +623,6 @@ NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, N
         result.error->default_type_error_data2.end_loc     = end_loc;
         break;
 
-    case NECRO_TYPE_RIGID_TYPE_VARIABLE:
     case NECRO_TYPE_NOT_AN_INSTANCE_OF:
     case NECRO_TYPE_MISMATCHED_ARITY:
     case NECRO_TYPE_POLYMORPHIC_PAT_BIND:
@@ -721,7 +721,7 @@ NecroResult(NecroType) necro_type_instantiate(NecroPagedArena* arena, NecroBase*
         current_type = current_type->for_all.type;
     }
     NecroType* result = necro_inst_go(arena, current_type, subs, scope);
-    necro_try(NecroType, necro_kind_infer(arena, base, result));
+    necro_try(NecroType, necro_kind_infer(arena, base, result, NULL_LOC, NULL_LOC));
     return ok(NecroType, result);
 }
 
@@ -754,7 +754,7 @@ NecroResult(NecroType) necro_type_instantiate_with_context(NecroPagedArena* aren
         current_type = current_type->for_all.type;
     }
     NecroType* result = necro_inst_go(arena, current_type, subs, scope);
-    necro_try(NecroType, necro_kind_infer(arena, base, result));
+    necro_try(NecroType, necro_kind_infer(arena, base, result, NULL_LOC, NULL_LOC));
     assert(result != NULL);
     return ok(NecroType, result);
 }
@@ -908,7 +908,7 @@ NecroResult(NecroType) necro_type_generalize(NecroPagedArena* arena, struct Necr
     assert(type != NULL);
     assert(type->type != NECRO_TYPE_FOR);
     // Switch positions!?!?!?
-    necro_try(NecroType, necro_kind_infer(arena, base, type));
+    necro_try(NecroType, necro_kind_infer(arena, base, type, NULL_LOC, NULL_LOC));
     NecroGenResult result = necro_gen_go(arena, type, (NecroGenResult) { NULL, NULL, NULL }, scope);
     if (result.subs != NULL)
     {
@@ -933,14 +933,14 @@ NecroResult(NecroType) necro_type_generalize(NecroPagedArena* arena, struct Necr
             {
                 assert(tail->for_all.type == NULL);
                 tail->for_all.type = result.type;
-                necro_try(NecroType, necro_kind_infer(arena, base, head));
+                necro_try(NecroType, necro_kind_infer(arena, base, head, NULL_LOC, NULL_LOC));
                 return ok_NecroType(head);
             }
         }
     }
     else
     {
-        necro_try(NecroType, necro_kind_infer(arena, base, result.type));
+        necro_try(NecroType, necro_kind_infer(arena, base, result.type, NULL_LOC, NULL_LOC));
         return ok_NecroType(result.type);
     }
 }
@@ -1018,7 +1018,6 @@ void necro_type_fprint(FILE* stream, const NecroType* type)
         {
             if (type->var.gen_bound != NULL)
                 necro_type_fprint(stream, type->var.gen_bound);
-            // fprintf(stream, "tyvar_NULL");
         }
         else if (type->var.var_symbol->source_name != NULL && type->var.var_symbol->source_name->str != NULL)
         {
@@ -1083,7 +1082,10 @@ void necro_type_fprint(FILE* stream, const NecroType* type)
             fprintf(stream, " ");
             type = type->for_all.type;
         }
-        fprintf(stream, "%s", type->for_all.var_symbol->source_name->str);
+        if (type->for_all.var_symbol->source_name != NULL)
+            fprintf(stream, "%s", type->for_all.var_symbol->source_name->str);
+        else
+            fprintf(stream, "t%p", type->for_all.var_symbol);
         fprintf(stream, ". ");
         type = type->for_all.type;
 

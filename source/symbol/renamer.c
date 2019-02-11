@@ -1347,4 +1347,16 @@ void necro_rename_test()
     // TODO: ConID
     // TODO: BinOp
     // TODO: ?
+
+    {
+        puts("Rename {{{ child process rename_test:  starting...");
+        assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\rename_test.txt -rename") == 0);
+        puts("Rename }}} child process rename_test:  passed\n");
+    }
+
+    {
+        puts("Rename {{{ child process parseTest:  starting...");
+        assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\parseTest.necro -rename") == 0);
+        puts("Rename }}} child process parseTest:  passed\n");
+    }
 }

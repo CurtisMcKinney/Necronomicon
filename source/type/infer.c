@@ -2132,4 +2132,28 @@ void necro_test_infer()
     NECRO_KIND_MISMATCHED_ARITY,
     NECRO_KIND_RIGID_KIND_VARIABLE,
     */
+
+    {
+        puts("Infer {{{ child process inferTest:  starting...");
+        assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\inferTest.necro -infer") == 0);
+        puts("Infer }}} child process inferTest:  passed\n");
+    }
+
+    {
+        puts("Infer {{{ child process typeClassTest:  starting...");
+        assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\typeClassTest.necro -infer") == 0);
+        puts("Infer }}} child process typeClassTest:  passed\n");
+    }
+
+    {
+        puts("Infer {{{ child process typeClassTranslateTest:  starting...");
+        assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\typeClassTranslateTest.necro -infer") == 0);
+        puts("Infer }}} child process typeClassTranslateTest:  passed\n");
+    }
+
+    {
+        puts("Infer {{{ child process pathologicalType:  starting...");
+        assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\pathologicalType.necro -infer") == 0);
+        puts("Infer }}} child process pathologicalType:  passed\n");
+    }
 }

@@ -2134,6 +2134,7 @@ void necro_test_infer()
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_RIGID_TYPE_VARIABLE;
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
+
 // TODO (Curtis 2-11-19): This should be a rigid type variable error and is not. generalizing broken when given a local variable type signature!?!?!?
 //     {
 //         const char* test_name = "Rigid Type Variable 3";
@@ -2146,6 +2147,35 @@ void necro_test_infer()
 //         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_RIGID_TYPE_VARIABLE;
 //         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
 //     }
+
+    {
+        const char* test_name = "Not A Type Class 1";
+        const char* test_source = ""
+            "maybeNever :: Maybe a => a\n"
+            "maybeNever = Nothing\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_NOT_A_CLASS;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name = "Not A Type Class 2";
+        const char* test_source = ""
+            "noClass :: (Monad m, Int m) => m ()\n"
+            "noClass = Nothing\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_NOT_A_CLASS;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name = "Not A Type Class 3";
+        const char* test_source = ""
+            "instance World Int where\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_NOT_A_CLASS;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
 
 #if 0 // This crashes right now during inference :(
     {
@@ -2205,16 +2235,16 @@ void necro_test_infer()
     NECRO_TYPE_POLYMORPHIC_PAT_BIND (Not really possible if we use monomorphic simple assignments...Do we change this given the type class translation changes?)
 
     IN PROGRESS:
+    NECRO_TYPE_RIGID_TYPE_VARIABLE,
 
     TODO:
-    NECRO_TYPE_RIGID_TYPE_VARIABLE,
+    NECRO_TYPE_NON_CONCRETE_INITIALIZED_VALUE,
+    NECRO_TYPE_NON_RECURSIVE_INITIALIZED_VALUE,
+    NECRO_TYPE_MISMATCHED_ARITY, // Shouldn't be possible?
     NECRO_TYPE_NOT_AN_INSTANCE_OF,
-    NECRO_TYPE_MISMATCHED_ARITY,
     NECRO_TYPE_AMBIGUOUS_CLASS,
     NECRO_TYPE_CONSTRAINS_ONLY_CLASS_VAR,
     NECRO_TYPE_AMBIGUOUS_TYPE_VAR,
-    NECRO_TYPE_NON_CONCRETE_INITIALIZED_VALUE,
-    NECRO_TYPE_NON_RECURSIVE_INITIALIZED_VALUE,
     NECRO_TYPE_NOT_A_CLASS,
     NECRO_TYPE_NOT_A_VISIBLE_METHOD,
     NECRO_TYPE_NO_EXPLICIT_IMPLEMENTATION,

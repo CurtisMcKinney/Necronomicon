@@ -635,9 +635,6 @@ void necro_print_error_header(const char* error_name)
 
 void necro_print_default_error_format(const char* error_name, NecroSourceLoc source_loc, NecroSourceLoc end_loc, const char* source_str, const char* source_name, const char* explanation)
 {
-    // // fprintf(stderr, "error[NE-%04u]: Malformed float\n", NECRO_MALFORMED_FLOAT);
-    // fprintf(stderr, "\n----- %s ----- ", error_name);
-    // fprintf(stderr, "\n" NECRO_ERR_LEFT_CHAR " \n");
     necro_print_error_header(error_name);
     necro_print_line_at_source_loc(source_str, source_loc, end_loc);
     fprintf(stderr, NECRO_ERR_LEFT_CHAR " %s\n", explanation);
@@ -1060,12 +1057,6 @@ void necro_print_not_in_scope_error(NecroResultError* error, const char* source_
     necro_print_default_error_format("Name Not In Scope", error->default_ast_error_data.source_loc, error->default_ast_error_data.end_loc, source_str, source_name, explanation);
 }
 
-void necro_print_type_not_a_class_error(NecroResultError* error, const char* source_str, const char* source_name)
-{
-    const char* explanation = "Type is not a class";
-    necro_print_default_error_format("Type Is Not A Class", error->default_type_error_data1.source_loc, error->default_type_error_data1.end_loc, source_str, source_name, explanation);
-}
-
 void necro_print_uninitialized_recursive_value_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "All recursive values must be given a static initial value of the form: recursiveValue ~ StaticInitialValue = expr";
@@ -1203,6 +1194,18 @@ void necro_print_occurs_error(NecroResultError* error, const char* source_str, c
     UNUSED(source_name);
 }
 
+void necro_print_type_not_a_class_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char*          error_name = "Not A Type Class";
+    const NecroSourceLoc source_loc = error->default_type_error_data1.source_loc;
+    const NecroSourceLoc end_loc    = error->default_type_error_data1.end_loc;
+    necro_print_error_header(error_name);
+    necro_print_line_at_source_loc(source_str, source_loc, end_loc);
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Attempting to use %s as a type class, but it is not a type class.\n", error->default_type_error_data1.ast_symbol->source_name->str);
+    fprintf(stderr, "\n");
+    UNUSED(source_name);
+}
+
 // NOTE:
 // Basic assumption is that and error will be freed after it is printed.
 // Thus nested errors either need to call into necro_result_error_print
@@ -1272,13 +1275,14 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_RENAME_MULTIPLE_TYPE_SIGNATURES:                 necro_print_duplicate_type_signatures_error(error, source_str, source_name); break;
     case NECRO_RENAME_NOT_IN_SCOPE:                             necro_print_not_in_scope_error(error, source_str, source_name); break;
 
-    case NECRO_TYPE_NOT_A_CLASS:                                necro_print_type_not_a_class_error(error, source_str, source_name); break;
     case NECRO_TYPE_UNINITIALIZED_RECURSIVE_VALUE:              necro_print_uninitialized_recursive_value_error(error, source_str, source_name); break;
     case NECRO_TYPE_MISMATCHED_TYPE:                            necro_print_mismatched_type_error(error, source_str, source_name); break;
     case NECRO_TYPE_POLYMORPHIC_PAT_BIND:                       necro_print_polymorphic_pat_bind_error(error, source_str, source_name); break;
     case NECRO_TYPE_OCCURS:                                     necro_print_occurs_error(error, source_str, source_name); break;
     case NECRO_TYPE_FINAL_DO_STATEMENT:                         necro_print_final_do_statement_error(error, source_str, source_name); break;
     case NECRO_TYPE_RIGID_TYPE_VARIABLE:                        necro_print_rigid_type_variable_error(error, source_str, source_name); break;
+
+    case NECRO_TYPE_NOT_A_CLASS:                                necro_print_type_not_a_class_error(error, source_str, source_name); break;
 
     case NECRO_KIND_MISMATCHED_KIND:                            necro_print_mismatched_kind_error(error, source_str, source_name); break;
 

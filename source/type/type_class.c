@@ -1862,7 +1862,7 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
     NecroTypeClass* type_class = type_class_name->type_class;
     if (type_class == NULL)
     {
-        return necro_error_map(NecroTypeClassContext, NecroType, necro_type_not_a_class_error(type_class_name, type_class_name->type, type_class_name->ast->source_loc, type_class_name->ast->end_loc));
+        return necro_error_map(NecroTypeClassContext, NecroType, necro_type_not_a_class_error(type_class_name, type_class_name->type, ast->type_class_instance.qtycls->source_loc, ast->type_class_instance.qtycls->end_loc));
     }
     if (data->type_class_instance != NULL)
     {

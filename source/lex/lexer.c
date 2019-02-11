@@ -866,13 +866,20 @@ NecroResult(void) necro_lex_fixup_layout(NecroLexer* lexer)
 NecroResult(void) necro_lex(NecroCompileInfo info, NecroIntern* intern, const char* str, size_t str_length, NecroLexTokenVector* out_tokens)
 {
     NecroLexer lexer = necro_lexer_create(str, str_length, intern);
-    necro_try(void, necro_lex_go(&lexer));
-    necro_try(void, necro_lex_fixup_layout(&lexer));
-    if (info.compilation_phase == NECRO_PHASE_LEX && info.verbosity > 0)
-        necro_lex_print(&lexer);
-    necro_lexer_partial_destroy(&lexer);
+    NecroResult(void) lex_result = necro_lex_go(&lexer);
+    if (lex_result.type == NECRO_RESULT_OK)
+    {
+        lex_result = necro_lex_fixup_layout(&lexer);
+        if (lex_result.type == NECRO_RESULT_OK)
+        {
+            if (info.compilation_phase == NECRO_PHASE_LEX && info.verbosity > 0)
+                necro_lex_print(&lexer);
+        }
+    }
+
     *out_tokens = lexer.tokens;
-    return ok_void();
+    necro_lexer_partial_destroy(&lexer);
+    return lex_result;
 }
 
 ///////////////////////////////////////////////////////
@@ -1492,4 +1499,21 @@ void necro_lex_test()
         necro_intern_destroy(&intern);
     }
 
+    {
+        puts("Lex {{{ child process test_lex1:  starting...");
+        assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\test_lex1.txt -lex") == 0);
+        puts("Lex }}} child process test_lex1:  passed");
+    }
+
+    {
+        puts("Lex {{{ child process test_lex2:  starting...");
+        assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\test_lex2.txt -lex") == 0);
+        puts("Lex }}} child process test_lex2:  passed");
+    }
+
+    {
+        puts("Lex {{{ child process unicodeTest.necro:  starting...");
+        assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\unicodeTest.necro -lex") == 0);
+        puts("Lex }}} child process unicodeTest.necro:  passed");
+    }
 }

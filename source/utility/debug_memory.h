@@ -6,6 +6,8 @@
 #ifndef DEBUG_MEMORY_H
 #define DEBUG_MEMORY_H 1
 
+static const int EXIT_MEMORY_LEAK_DETECTED = 666;
+
 #if defined(_DEBUG)
 #define DEBUG_MEMORY 1
 #define FULL_DEBUG_MEMORY 0 // includes default windows allocations and detects leaks on empty main :(
@@ -36,7 +38,7 @@
             if (_CrtMemDifference(&__necro_memory_state_diff,&__necro_memory_initial_state,&__necro_memory_end_state))\
             {\
                 _CrtMemDumpStatistics(&__necro_memory_state_diff);\
-                return 1;\
+                return EXIT_MEMORY_LEAK_DETECTED;\
             }
     #elif defined(__unix)
         // TODO: ADD MEMORY CHECK FOR NON-WINDOWS PLATFORMS!

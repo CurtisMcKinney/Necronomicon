@@ -5,6 +5,7 @@
 
 #include <string.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <ctype.h>
 #include "utility.h"
 
@@ -13,6 +14,68 @@
 #else
 #include <unistd.h>
 #endif
+
+ ///////////////////////////////////////////////////////
+process_error_code_t necro_compile_in_child_process(const char* command_line_arguments)
+{
+    assert(command_line_arguments && command_line_arguments[0]);
+
+#if defined(_WIN32) || defined(WIN32) || defined(_WIN64)
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+
+    SetHandleInformation(si.hStdOutput, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+    SetHandleInformation(si.hStdError, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+
+    const size_t length_command_line_arguments = strlen(command_line_arguments) + 1 /* null terminator */;
+    wchar_t* wchar_command_line_arguments = (wchar_t*) _alloca(length_command_line_arguments * sizeof(wchar_t));
+    memset(wchar_command_line_arguments, 0, length_command_line_arguments * sizeof(wchar_t));
+    mbstowcs(wchar_command_line_arguments, command_line_arguments, length_command_line_arguments);
+
+    // Start the child process. 
+    if (!CreateProcess(NULL,   // No module name (use command line)
+        wchar_command_line_arguments,        // Command line
+        NULL,           // Process handle not inheritable
+        NULL,           // Thread handle not inheritable
+        FALSE,          // Set handle inheritance to FALSE
+        0,              // No creation flags
+        NULL,           // Use parent's environment block
+        NULL,           // Use parent's starting directory 
+        &si,            // Pointer to STARTUPINFO structure
+        &pi)           // Pointer to PROCESS_INFORMATION structure
+    )
+    {
+        printf("CreateProcess failed (%d).\n", GetLastError());
+        return 1;
+    }
+
+    // Wait until child process exits.
+    WaitForSingleObject(pi.hProcess, INFINITE);
+
+    DWORD exit_code = 1;
+    GetExitCodeProcess(pi.hProcess, &exit_code);
+
+    if (exit_code == (DWORD) EXIT_MEMORY_LEAK_DETECTED)
+    {
+        puts("==============================vvvvvvvvvvv!!");
+        puts("Sub process failed because of memory leak!!");
+        puts("==============================^^^^^^^^^^^!!");
+    }
+
+    // Close process and thread handles. 
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    return exit_code;
+
+#else
+    assert(false && "necro_compile_file_in_child_process not implemented for this platform yet! Add the implementation here.");
+    return 1;
+#endif
+}
 
 void print_white_space(size_t white_count)
 {

@@ -254,6 +254,9 @@ static void necro_announce_phase(const char* phase_name)
 
 #define ASSERT_BREAK(b) if (!(b)) { fprintf(stderr, "ASSERT_BREAK failed in %s line %d: %s\n", __FUNCTION__, __LINE__, #b); DEBUG_BREAK(); }
 
+typedef int process_error_code_t;
+process_error_code_t necro_compile_in_child_process(const char* command_line_arguments);
+
 ///////////////////////////////////////////////////////
 // Timing
 ///////////////////////////////////////////////////////

@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <assert.h>
+
 #include "intern.h"
 
 // Constants

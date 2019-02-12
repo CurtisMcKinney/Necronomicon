@@ -71,8 +71,7 @@ typedef struct NecroMethodSub
     NecroType*      new_type_var;
 } NecroMethodSub;
 
-NecroSymbol             necro_create_type_class_instance_name(NecroIntern* intern, NecroAst* ast);
-void                    necro_print_type_classes(NecroInfer* infer);
+void                               necro_print_type_classes(NecroInfer* infer);
 
 bool                               necro_context_contains_class(NecroTypeClassContext* context, NecroTypeClassContext* type_class);
 bool                               necro_context_and_super_classes_contain_class(NecroTypeClassContext* context, NecroTypeClassContext* type_class);
@@ -94,12 +93,15 @@ typedef struct NecroTypeClassDictionaryContext
     struct NecroTypeClassDictionaryContext* next;
 } NecroTypeClassDictionaryContext;
 NecroTypeClassDictionaryContext* necro_create_type_class_dictionary_context(NecroPagedArena* arena, NecroAstSymbol* type_class_name, NecroAstSymbol* type_var_name, NecroAst* dictionary_arg_ast, NecroTypeClassDictionaryContext* next);
-NecroResult(void)                necro_type_class_translate(NecroInfer* infer, NecroAst* ast);
+// NecroResult(void)                necro_type_class_translate(NecroInfer* infer, NecroAst* ast);
 NecroResult(NecroType)           necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_context, NecroInfer* infer, NecroAst* ast);
 void                             necro_create_dictionary_data_declaration(NecroPagedArena* arena, NecroIntern* intern, NecroAst* type_class_ast);
 
 NecroTypeClassInstance* necro_get_type_class_instance(NecroAstSymbol* data_type_symbol, NecroAstSymbol* type_class_symbol);
 NecroResult(NecroType)  necro_create_type_class(NecroInfer* infer, NecroAst* type_class_ast);
 NecroResult(NecroType)  necro_create_type_class_instance(NecroInfer* infer, NecroAst* instance_ast);
+
+// TODO: Is This Cruft to be removed?
+// NecroSymbol necro_create_type_class_instance_name(NecroIntern* intern, NecroAst* ast);
 
 #endif // TYPE_CLASS_H

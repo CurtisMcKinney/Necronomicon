@@ -31,6 +31,7 @@
 #include "codegen/codegen_llvm.h"
 #include "core/core_pretty_print.h"
 #include "utility/unicode_properties.h"
+#include "type/type_class_translate.h"
 
 #define NECRO_VERBOSITY 1
 
@@ -154,6 +155,14 @@ NecroResult(void) necro_compile_go(
     necro_compile_begin_phase(info, NECRO_PHASE_INFER);
     necro_try(void, necro_infer(info, intern, scoped_symtable, base, ast));
     if (necro_compile_end_phase(info, NECRO_PHASE_INFER))
+        return ok_void();
+
+    //--------------------
+    // Type Class Translate
+    //--------------------
+    necro_compile_begin_phase(info, NECRO_PHASE_TYPE_CLASS_TRANSLATE);
+    necro_try(void, necro_type_class_translate(info, intern, scoped_symtable, base, ast));
+    if (necro_compile_end_phase(info, NECRO_PHASE_TYPE_CLASS_TRANSLATE))
         return ok_void();
 
     //=====================================================

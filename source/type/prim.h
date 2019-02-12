@@ -18,6 +18,12 @@
 #include "driver.h"
 #include "hash_table.h"
 
+
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// WARNING: THIS WHOLE SYSTEM WILL BE REPLACED !!!!!!!!
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
 NECRO_DECLARE_ARENA_CHAIN_TABLE(NecroCon, Con, con);
 
 #define NECRO_MAX_CLOSURE_TYPES 16

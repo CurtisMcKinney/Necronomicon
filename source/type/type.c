@@ -40,7 +40,6 @@ NecroInfer necro_infer_empty()
 
 NecroInfer necro_infer_create(NecroPagedArena* arena, NecroIntern* intern, struct NecroScopedSymTable* scoped_symtable, struct NecroBase* base, NecroAstArena* ast_arena)
 {
-
     NecroInfer infer = (NecroInfer)
     {
         .intern          = intern,

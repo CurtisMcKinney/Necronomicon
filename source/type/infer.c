@@ -1576,12 +1576,11 @@ NecroResult(NecroType) necro_infer_go(NecroInfer* infer, NecroAst* ast)
 
 NecroResult(void) necro_infer(NecroCompileInfo info, NecroIntern* intern, NecroScopedSymTable* scoped_symtable, NecroBase* base, NecroAstArena* ast_arena)
 {
-    NecroInfer infer = necro_infer_create(&ast_arena->arena, intern, scoped_symtable, base, ast_arena);
-    NecroResultUnion result;
-    result.NecroType_result = necro_infer_go(&infer, ast_arena->root);
+    NecroInfer             infer  = necro_infer_create(&ast_arena->arena, intern, scoped_symtable, base, ast_arena);
+    NecroResult(NecroType) result = necro_infer_go(&infer, ast_arena->root);
     necro_infer_destroy(&infer);
 
-    if (result.NecroType_result.type == NECRO_RESULT_OK)
+    if (result.type == NECRO_RESULT_OK)
     {
         if (info.compilation_phase == NECRO_PHASE_INFER && info.verbosity > 0)
         {
@@ -1597,7 +1596,7 @@ NecroResult(void) necro_infer(NecroCompileInfo info, NecroIntern* intern, NecroS
         return ok_void();
     }
 
-    return result.void_result;
+    return necro_error_map(NecroType, void, result);
 }
 
 ///////////////////////////////////////////////////////

@@ -1448,32 +1448,32 @@ NecroResult(NecroType) necro_type_class_translate_go(NecroTypeClassDictionaryCon
     }
 }
 
-NecroResult(void) necro_type_class_translate(NecroInfer* infer, NecroAst* ast)
-{
-    return necro_error_map(NecroType, void, necro_type_class_translate_go(NULL, infer, ast));
-}
+// NecroResult(void) necro_type_class_translate(NecroInfer* infer, NecroAst* ast)
+// {
+//     return necro_error_map(NecroType, void, necro_type_class_translate_go(NULL, infer, ast));
+// }
 
-NecroSymbol necro_create_type_class_instance_name(NecroIntern* intern, NecroAst* ast)
-{
-    NecroAstSymbol* type_class_name = ast->type_class_instance.qtycls->conid.ast_symbol;
-    NecroAstSymbol* data_type_name;
-    if (ast->type_class_instance.inst->type == NECRO_AST_CONID)
-    {
-        data_type_name = ast->type_class_instance.inst->conid.ast_symbol;
-    }
-    else if (ast->type_class_instance.inst->type == NECRO_AST_CONSTRUCTOR)
-    {
-        data_type_name = ast->type_class_instance.inst->constructor.conid->conid.ast_symbol;
-    }
-    else
-    {
-        assert(false);
-        data_type_name = NULL;
-    }
-
-    // TODO: Redo this to use NecroSymbol system...!
-    return necro_intern_create_type_class_instance_symbol(intern, data_type_name->name, type_class_name->source_name);
-}
+// NecroSymbol necro_create_type_class_instance_name(NecroIntern* intern, NecroAst* ast)
+// {
+//     NecroAstSymbol* type_class_name = ast->type_class_instance.qtycls->conid.ast_symbol;
+//     NecroAstSymbol* data_type_name;
+//     if (ast->type_class_instance.inst->type == NECRO_AST_CONID)
+//     {
+//         data_type_name = ast->type_class_instance.inst->conid.ast_symbol;
+//     }
+//     else if (ast->type_class_instance.inst->type == NECRO_AST_CONSTRUCTOR)
+//     {
+//         data_type_name = ast->type_class_instance.inst->constructor.conid->conid.ast_symbol;
+//     }
+//     else
+//     {
+//         assert(false);
+//         data_type_name = NULL;
+//     }
+//
+//     // TODO: Redo this to use NecroSymbol system...!
+//     return necro_intern_create_type_class_instance_symbol(intern, data_type_name->name, type_class_name->source_name);
+// }
 
 NecroResult(NecroTypeClassContext) necro_ast_to_context(NecroInfer* infer, NecroAst* context_ast)
 {
@@ -1801,7 +1801,6 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
         necro_try(NecroType, necro_infer_go(infer, instance->ast->type_class_instance.declarations));
     }
 
-    // TODO (Curtis, 2-6-18): Is this working!?
     //--------------------------------
     // Missing members check
     NecroTypeClassMember* type_class_members = type_class->members;

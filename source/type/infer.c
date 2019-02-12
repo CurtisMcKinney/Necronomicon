@@ -2212,6 +2212,49 @@ void necro_test_infer()
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 
+    // TODO (Curtis 2-12-19): Error highlighting is off on this. Putting the error arrows in the wrong place.
+    {
+        const char* test_name   = "Not An Instance 1";
+        const char* test_source = ""
+            "data Illogical = Illogical Bool\n"
+            "logical :: Illogical\n"
+            "logical = Illogical True + Illogical False\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_NOT_AN_INSTANCE_OF;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Not An Instance 2";
+        const char* test_source = ""
+            "data Illogical a = Illogical a\n"
+            "logical :: Num a => a -> Illogical a\n"
+            "logical x = Illogical x + Illogical x\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_NOT_AN_INSTANCE_OF;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    // NOTE: Theoretically can't get this far as the renamer will stop it. Perhaps in the futre with proper modules this will be possible to throw.
+    // {
+    //     const char* test_name   = "Multiple Class Declarations";
+    //     const char* test_source = ""
+    //         "class Num a where\n";
+    //     const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+    //     const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MULTIPLE_CLASS_DECLARATIONS;
+    //     necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    // }
+
+    // NOTE: Theoretically can't get this far as the renamer will stop it. Perhaps in the futre with proper modules this will be possible to throw.
+    {
+        const char* test_name   = "Multiple Instance Declarations";
+        const char* test_source = ""
+            "instance Num Int where\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MULTIPLE_INSTANCE_DECLARATIONS;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
 #if 0 // This crashes right now during inference :(
     {
         const char* test_name = "RigidTypeVariable";
@@ -2327,7 +2370,7 @@ void necro_test_infer()
     NECRO_TYPE_FINAL_DO_STATEMENT,
     NECRO_KIND_MISMATCHED_KIND (Type sig, context, Constructor, Pattern, SimpleAssignment, ApatsAssignment)
     NECRO_KIND_RIGID_KIND_VARIABLE (Not possible to produce currently. Would need something like functions over generic kinds)
-    NECRO_KIND_MISMATCHED_ARITY (Also not possible currently. As it sits there's only one Kind constructor, which is Type. Even in the future it's likely most kind constructors would have the same arity, i.e. UniqueType)
+    NECRO_KIND_MISMATCHED_ARITY (Also not possible currently. As it sits there's only one Kind constructor, which is Type. Even in the future it's likely most kind constructors would have the same arity, i.e. something like UniqueType)
     NECRO_TYPE_POLYMORPHIC_PAT_BIND (Not really possible if we use monomorphic simple assignments...Do we change this given the type class translation changes?)
     NECRO_TYPE_NOT_A_CLASS,
     NECRO_TYPE_RIGID_TYPE_VARIABLE,
@@ -2335,18 +2378,18 @@ void necro_test_infer()
     NECRO_TYPE_NO_EXPLICIT_IMPLEMENTATION,
     NECRO_TYPE_AMBIGUOUS_CLASS,
     NECRO_TYPE_CONSTRAINS_ONLY_CLASS_VAR,
+    NECRO_TYPE_NOT_AN_INSTANCE_OF,
+    NECRO_TYPE_MULTIPLE_INSTANCE_DECLARATIONS,
+    NECRO_TYPE_MULTIPLE_CLASS_DECLARATIONS,
 
     IN PROGRESS:
 
     TODO:
     NECRO_TYPE_MISMATCHED_ARITY, // Shouldn't be possible?
-    NECRO_TYPE_NOT_AN_INSTANCE_OF,
     NECRO_TYPE_NON_CONCRETE_INITIALIZED_VALUE,
     NECRO_TYPE_NON_RECURSIVE_INITIALIZED_VALUE,
     NECRO_TYPE_AMBIGUOUS_TYPE_VAR,
     NECRO_TYPE_DOES_NOT_IMPLEMENT_SUPER_CLASS,
-    NECRO_TYPE_MULTIPLE_CLASS_DECLARATIONS,
-    NECRO_TYPE_MULTIPLE_INSTANCE_DECLARATIONS,
 
     */
 

@@ -662,12 +662,12 @@ void necro_print_default_ast_error_2_format(
     }
     else if (ast_symbol1->source_name != NULL && ast_symbol1->source_name->str != NULL)
     {
-        fprintf(stderr, NECRO_ERR_LEFT_CHAR " .. | %s (Necro.Base)\n", ast_symbol1->source_name->str);
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " (Necro.Base) | %s\n", ast_symbol1->source_name->str);
         fprintf(stderr, NECRO_ERR_LEFT_CHAR " \n");
     }
     else
     {
-        fprintf(stderr, NECRO_ERR_LEFT_CHAR " .. | (a primitive type or value found in Necro.Base)\n");
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " (Necro.Base) | (a primitive type or value found in Necro.Base)\n");
         fprintf(stderr, NECRO_ERR_LEFT_CHAR " \n");
     }
     fprintf(stderr, NECRO_ERR_LEFT_CHAR " %s\n", explanation1);
@@ -678,12 +678,12 @@ void necro_print_default_ast_error_2_format(
     }
     else if (ast_symbol2->source_name != NULL && ast_symbol2->source_name->str != NULL)
     {
-        fprintf(stderr, NECRO_ERR_LEFT_CHAR " .. | %s (Necro.Base)\n", ast_symbol2->source_name->str);
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " (Necro.Base) | %s (Necro.Base)\n", ast_symbol2->source_name->str);
         fprintf(stderr, NECRO_ERR_LEFT_CHAR " \n");
     }
     else
     {
-        fprintf(stderr, NECRO_ERR_LEFT_CHAR " .. | (a primitive type or value found in Necro.Base)\n");
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " (Necro.Base) | (a primitive type or value found in Necro.Base)\n");
         fprintf(stderr, NECRO_ERR_LEFT_CHAR " \n");
     }
     fprintf(stderr, NECRO_ERR_LEFT_CHAR " %s\n", explanation2);
@@ -1256,6 +1256,89 @@ void necro_print_type_constrains_only_class_var_error(NecroResultError* error, c
     UNUSED(source_name);
 }
 
+void necro_print_type_is_not_an_instance_of_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char*          error_name  = "Not An Instance";
+    const NecroSourceLoc source_loc  = error->default_type_class_error_data.source_loc;
+    const NecroSourceLoc end_loc     = error->default_type_class_error_data.end_loc;
+    const NecroType*     type1       = necro_type_strip_for_all(necro_type_find(error->default_type_class_error_data.type1));
+    const NecroType*     macro_type1 = necro_type_strip_for_all(necro_type_find(error->default_type_class_error_data.macro_type2));
+
+    necro_print_error_header(error_name);
+    necro_print_line_at_source_loc(source_str, source_loc, end_loc);
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " '");
+    necro_type_fprint(stderr, type1);
+    fprintf(stderr, "' is not an instance of class %s\n", error->default_type_class_error_data.type_class_symbol->source_name->str);
+    if (type1 != macro_type1)
+    {
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " Found in Type: ");
+        necro_type_fprint(stderr, macro_type1);
+    }
+    fprintf(stderr, "\n");
+    UNUSED(source_name);
+}
+
+void necro_print_type_multiple_class_declarations_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char*           error_name   = "Multiple Class Declarations";
+    const NecroSourceLoc  source_loc1  = error->default_type_class_error_data.source_loc;
+    const NecroSourceLoc  end_loc1     = error->default_type_class_error_data.end_loc;
+    const NecroSourceLoc  source_loc2  = error->default_type_class_error_data.type_class_symbol->ast->source_loc;
+    const NecroSourceLoc  end_loc2     = error->default_type_class_error_data.type_class_symbol->ast->end_loc;
+    const NecroAstSymbol* class_symbol = error->default_type_class_error_data.type_class_symbol;
+
+    necro_print_error_header(error_name);
+    necro_print_line_at_source_loc(source_str, source_loc1, end_loc1);
+
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Multiple declarations for the Class '%s'\n", class_symbol->source_name->str);
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Original declaration found here:\n");
+
+    if (source_loc2.pos != -1)
+    {
+        necro_print_line_at_source_loc(source_str, source_loc2, end_loc2);
+    }
+    else
+    {
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " (Necro.Base) | %s\n", class_symbol->source_name->str);
+    }
+
+
+    fprintf(stderr, "\n");
+    UNUSED(source_name);
+}
+
+void necro_print_type_multiple_instance_declarations_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char*           error_name   = "Multiple Instance Declarations";
+    const NecroSourceLoc  source_loc1  = error->default_type_class_error_data.source_loc;
+    const NecroSourceLoc  end_loc1     = error->default_type_class_error_data.end_loc;
+    const NecroAstSymbol* class_symbol = error->default_type_class_error_data.type_class_symbol;
+    const NecroAstSymbol* data_symbol  = necro_type_find(error->default_type_class_error_data.type1)->con.con_symbol;
+    const NecroSourceLoc  source_loc2  = class_symbol->ast->source_loc;
+    const NecroSourceLoc  end_loc2     = class_symbol->ast->end_loc;
+
+    necro_print_error_header(error_name);
+    necro_print_line_at_source_loc(source_str, source_loc1, end_loc1);
+
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Multiple Instance declarations for '%s %s'\n", class_symbol->source_name->str, data_symbol->source_name->str);
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Original declaration found at: \n");
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR "\n");
+
+    if (source_loc2.pos != -1)
+    {
+        necro_print_line_at_source_loc(source_str, source_loc2, end_loc2);
+    }
+    else
+    {
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " (Necro.Base) | instance %s %s where\n", class_symbol->source_name->str, data_symbol->source_name->str);
+    }
+
+    fprintf(stderr, "\n");
+    UNUSED(source_name);
+}
+
+
+
 // NOTE:
 // Basic assumption is that and error will be freed after it is printed.
 // Thus nested errors either need to call into necro_result_error_print
@@ -1337,6 +1420,9 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_TYPE_NO_EXPLICIT_IMPLEMENTATION:                 necro_print_type_no_explicit_implementation_error(error, source_str, source_name); break;
     case NECRO_TYPE_AMBIGUOUS_CLASS:                            necro_print_type_ambiguous_class_error(error, source_str, source_name); break;
     case NECRO_TYPE_CONSTRAINS_ONLY_CLASS_VAR:                  necro_print_type_constrains_only_class_var_error(error, source_str, source_name); break;
+    case NECRO_TYPE_NOT_AN_INSTANCE_OF:                         necro_print_type_is_not_an_instance_of_error(error, source_str, source_name); break;
+    case NECRO_TYPE_MULTIPLE_CLASS_DECLARATIONS:                necro_print_type_multiple_class_declarations_error(error, source_str, source_name); break;
+    case NECRO_TYPE_MULTIPLE_INSTANCE_DECLARATIONS:             necro_print_type_multiple_instance_declarations_error(error, source_str, source_name); break;
 
     case NECRO_KIND_MISMATCHED_KIND:                            necro_print_mismatched_kind_error(error, source_str, source_name); break;
 

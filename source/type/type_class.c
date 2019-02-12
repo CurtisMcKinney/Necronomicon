@@ -1708,9 +1708,14 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
     {
         return necro_error_map(NecroTypeClassContext, NecroType, necro_type_not_a_class_error(type_class_name, type_class_name->type, ast->type_class_instance.qtycls->source_loc, ast->type_class_instance.qtycls->end_loc));
     }
-    if (data->type_class_instance != NULL)
+
+    // Multiple instance declarations!
+    NecroInstanceList* instances = data_type_name->instance_list;
+    while (instances != NULL)
     {
-        return necro_type_multiple_instance_declarations_error(type_class_name, data->type, NULL, NULL, NULL, data->type_class_instance->ast->source_loc, data->type_class_instance->ast->end_loc);
+        if (instances->data->type_class_name == type_class_name)
+            return necro_type_multiple_instance_declarations_error(type_class_name, data_type_name->type, NULL, NULL, NULL, ast->type_class_instance.qtycls->source_loc, ast->type_class_instance.qtycls->end_loc);
+        instances = instances->next;
     }
 
     //------------------
@@ -1978,6 +1983,7 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
     //     // infer->error = infer->renamer->error;
     //     necro_internal_scope_and_rename(infer->ast_arena, infer->scoped_symtable, infer->intern, dictionary_instance);
     // }
+
     return ok(NecroType, NULL);
 }
 

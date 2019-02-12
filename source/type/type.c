@@ -620,6 +620,12 @@ NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, N
         break;
 
     case NECRO_TYPE_NOT_AN_INSTANCE_OF:
+        result.error->default_type_class_error_data.source_loc  = source_loc;
+        result.error->default_type_class_error_data.end_loc     = end_loc;
+        result.error->default_type_class_error_data.macro_type1 = macro_type1;
+        result.error->default_type_class_error_data.macro_type2 = macro_type2;
+        break;
+
     case NECRO_TYPE_MISMATCHED_ARITY:
     case NECRO_TYPE_POLYMORPHIC_PAT_BIND:
     case NECRO_TYPE_UNINITIALIZED_RECURSIVE_VALUE:

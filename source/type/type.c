@@ -113,7 +113,7 @@ NecroType* necro_type_fn_create(NecroPagedArena* arena, NecroType* type1, NecroT
     return type;
 }
 
-NecroType* necro_type_declare(NecroPagedArena* arena, NecroAstSymbol* con_symbol, size_t arity)
+NecroType* necro_type_declare(NecroPagedArena* arena, NecroAstSymbol* con_symbol)
 {
     NecroType* type = necro_type_alloc(arena);
     type->type      = NECRO_TYPE_CON;
@@ -121,15 +121,13 @@ NecroType* necro_type_declare(NecroPagedArena* arena, NecroAstSymbol* con_symbol
     {
         .con_symbol = con_symbol,
         .args       = NULL,
-        .arity      = arity,
         .is_class   = false,
     };
     type->pre_supplied = true;
-    type->con.arity    = arity;
     return type;
 }
 
-NecroType* necro_type_con_create(NecroPagedArena* arena, NecroAstSymbol* con_symbol, NecroType* args, size_t arity)
+NecroType* necro_type_con_create(NecroPagedArena* arena, NecroAstSymbol* con_symbol, NecroType* args)
 {
     NecroType* type = necro_type_alloc(arena);
     type->type      = NECRO_TYPE_CON;
@@ -137,7 +135,6 @@ NecroType* necro_type_con_create(NecroPagedArena* arena, NecroAstSymbol* con_sym
     {
         .con_symbol = con_symbol,
         .args       = args,
-        .arity      = arity,
         .is_class   = false,
     };
     return type;
@@ -220,7 +217,7 @@ NecroType* necro_type_curry_con(NecroPagedArena* arena, NecroType* con)
     }
     if (tail != NULL)
         tail->list.next = NULL;
-    NecroType* new_con = necro_type_con_create(arena, con->con.con_symbol, head, con->con.arity);
+    NecroType* new_con = necro_type_con_create(arena, con->con.con_symbol, head);
     NecroType* ap      = necro_type_app_create(arena, new_con, curr->list.item);
     return ap;
 }
@@ -694,7 +691,7 @@ NecroType* necro_inst_go(NecroPagedArena* arena, NecroType* type, NecroInstSub* 
     }
     case NECRO_TYPE_APP:  return necro_type_app_create(arena, necro_inst_go(arena, type->app.type1, subs, scope), necro_inst_go(arena, type->app.type2, subs, scope));
     case NECRO_TYPE_FUN:  return necro_type_fn_create(arena, necro_inst_go(arena, type->fun.type1, subs, scope), necro_inst_go(arena, type->fun.type2, subs, scope));
-    case NECRO_TYPE_CON:  return necro_type_con_create(arena, type->con.con_symbol, necro_inst_go(arena, type->con.args, subs, scope), type->con.arity);
+    case NECRO_TYPE_CON:  return necro_type_con_create(arena, type->con.con_symbol, necro_inst_go(arena, type->con.args, subs, scope));
     case NECRO_TYPE_LIST: return necro_type_list_create(arena, necro_inst_go(arena, type->list.item, subs, scope), necro_inst_go(arena, type->list.next, subs, scope));
     case NECRO_TYPE_FOR:  assert(false); return NULL;
     default:              assert(false); return NULL;
@@ -897,7 +894,7 @@ NecroGenResult necro_gen_go(NecroPagedArena* arena, NecroType* type, NecroGenRes
     case NECRO_TYPE_CON:
     {
         NecroGenResult result = necro_gen_go(arena, type->con.args, prev_result, scope);
-        result.type           = necro_type_con_create(arena, type->con.con_symbol, result.type, type->con.arity);
+        result.type           = necro_type_con_create(arena, type->con.con_symbol, result.type);
         return result;
     }
     case NECRO_TYPE_FOR: assert(false); return (NecroGenResult) { NULL, NULL, NULL };
@@ -1164,20 +1161,20 @@ NecroType* necro_type_tuple_con_create(NecroPagedArena* arena, NecroBase* base, 
         assert(false && "Tuple size too large");
         break;
     }
-    return necro_type_con_create(arena, con_symbol, types_list, tuple_count);
+    return necro_type_con_create(arena, con_symbol, types_list);
 }
 
 NecroType* necro_type_con1_create(NecroPagedArena* arena, NecroAstSymbol* con, NecroType* arg1)
 {
     NecroType* lst1 = necro_type_list_create(arena, arg1, NULL);
-    return necro_type_con_create(arena, con, lst1 , 1);
+    return necro_type_con_create(arena, con, lst1 );
 }
 
 NecroType* necro_type_con2_create(NecroPagedArena* arena, NecroAstSymbol* con, NecroType* arg1, NecroType* arg2)
 {
     NecroType* lst2 = necro_type_list_create(arena, arg2, NULL);
     NecroType* lst1 = necro_type_list_create(arena, arg1, lst2);
-    return necro_type_con_create(arena, con, lst1, 2);
+    return necro_type_con_create(arena, con, lst1);
 }
 
 NecroType* necro_type_con3_create(NecroPagedArena* arena, NecroAstSymbol* con, NecroType* arg1, NecroType* arg2, NecroType* arg3)
@@ -1185,7 +1182,7 @@ NecroType* necro_type_con3_create(NecroPagedArena* arena, NecroAstSymbol* con, N
     NecroType* lst3 = necro_type_list_create(arena, arg3, NULL);
     NecroType* lst2 = necro_type_list_create(arena, arg2, lst3);
     NecroType* lst1 = necro_type_list_create(arena, arg1, lst2);
-    return necro_type_con_create(arena, con, lst1, 3);
+    return necro_type_con_create(arena, con, lst1);
 }
 
 NecroType* necro_type_con4_create(NecroPagedArena* arena, NecroAstSymbol* con, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4)
@@ -1194,7 +1191,7 @@ NecroType* necro_type_con4_create(NecroPagedArena* arena, NecroAstSymbol* con, N
     NecroType* lst3 = necro_type_list_create(arena, arg3, lst4);
     NecroType* lst2 = necro_type_list_create(arena, arg2, lst3);
     NecroType* lst1 = necro_type_list_create(arena, arg1, lst2);
-    return necro_type_con_create(arena, con, lst1, 4);
+    return necro_type_con_create(arena, con, lst1);
 }
 
 NecroType* necro_type_con5_create(NecroPagedArena* arena, NecroAstSymbol* con, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5)
@@ -1204,7 +1201,7 @@ NecroType* necro_type_con5_create(NecroPagedArena* arena, NecroAstSymbol* con, N
     NecroType* lst3 = necro_type_list_create(arena, arg3, lst4);
     NecroType* lst2 = necro_type_list_create(arena, arg2, lst3);
     NecroType* lst1 = necro_type_list_create(arena, arg1, lst2);
-    return necro_type_con_create(arena, con, lst1, 5);
+    return necro_type_con_create(arena, con, lst1);
 }
 
 NecroType* necro_type_con6_create(NecroPagedArena* arena, NecroAstSymbol* con, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6)
@@ -1215,7 +1212,7 @@ NecroType* necro_type_con6_create(NecroPagedArena* arena, NecroAstSymbol* con, N
     NecroType* lst3 = necro_type_list_create(arena, arg3, lst4);
     NecroType* lst2 = necro_type_list_create(arena, arg2, lst3);
     NecroType* lst1 = necro_type_list_create(arena, arg1, lst2);
-    return necro_type_con_create(arena, con, lst1, 6);
+    return necro_type_con_create(arena, con, lst1);
 }
 
 NecroType* necro_type_con7_create(NecroPagedArena* arena, NecroAstSymbol* con, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7)
@@ -1227,7 +1224,7 @@ NecroType* necro_type_con7_create(NecroPagedArena* arena, NecroAstSymbol* con, N
     NecroType* lst3 = necro_type_list_create(arena, arg3, lst4);
     NecroType* lst2 = necro_type_list_create(arena, arg2, lst3);
     NecroType* lst1 = necro_type_list_create(arena, arg1, lst2);
-    return necro_type_con_create(arena, con, lst1, 7);
+    return necro_type_con_create(arena, con, lst1);
 }
 
 NecroType* necro_type_con8_create(NecroPagedArena* arena, NecroAstSymbol* con, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8)
@@ -1240,7 +1237,7 @@ NecroType* necro_type_con8_create(NecroPagedArena* arena, NecroAstSymbol* con, N
     NecroType* lst3 = necro_type_list_create(arena, arg3, lst4);
     NecroType* lst2 = necro_type_list_create(arena, arg2, lst3);
     NecroType* lst1 = necro_type_list_create(arena, arg1, lst2);
-    return necro_type_con_create(arena, con, lst1, 8);
+    return necro_type_con_create(arena, con, lst1);
 }
 
 NecroType* necro_type_con9_create(NecroPagedArena* arena, NecroAstSymbol* con, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8, NecroType* arg9)
@@ -1254,7 +1251,7 @@ NecroType* necro_type_con9_create(NecroPagedArena* arena, NecroAstSymbol* con, N
     NecroType* lst3 = necro_type_list_create(arena, arg3, lst4);
     NecroType* lst2 = necro_type_list_create(arena, arg2, lst3);
     NecroType* lst1 = necro_type_list_create(arena, arg1, lst2);
-    return necro_type_con_create(arena, con, lst1, 9);
+    return necro_type_con_create(arena, con, lst1);
 }
 
 NecroType* necro_type_con10_create(NecroPagedArena* arena, NecroAstSymbol* con, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8, NecroType* arg9, NecroType* arg10)
@@ -1269,7 +1266,7 @@ NecroType* necro_type_con10_create(NecroPagedArena* arena, NecroAstSymbol* con, 
     NecroType* lst3  = necro_type_list_create(arena, arg3, lst4);
     NecroType* lst2  = necro_type_list_create(arena, arg2, lst3);
     NecroType* lst1  = necro_type_list_create(arena, arg1, lst2);
-    return necro_type_con_create(arena, con, lst1, 10);
+    return necro_type_con_create(arena, con, lst1);
 }
 
 size_t necro_type_arity(NecroType* type)

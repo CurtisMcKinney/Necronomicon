@@ -231,7 +231,7 @@ NecroType* necro_type_to_closure_type(NecroClosureConversion* cc, NecroType* typ
     }
     type = necro_type_find(type);
     if (type->type == NECRO_TYPE_FUN)
-        type = necro_type_con_create(&cc->arena, cc->base->closure_type, necro_type_list_create(&cc->arena, type, NULL), 1);
+        type = necro_type_con_create(&cc->arena, cc->base->closure_type, necro_type_list_create(&cc->arena, type, NULL));
     return type;
 }
 
@@ -330,12 +330,12 @@ bool necro_build_bind_closure_type(NecroClosureConversion* cc, NecroBuildBindClo
     {
         if (builder->closure_type == NULL)
         {
-            builder->closure_type_head = necro_type_con_create(&cc->arena, cc->base->closure_type, necro_type_list_create(&cc->arena, rest_of_type, NULL), 1);
+            builder->closure_type_head = necro_type_con_create(&cc->arena, cc->base->closure_type, necro_type_list_create(&cc->arena, rest_of_type, NULL));
             builder->closure_type      = builder->closure_type_head;
         }
         else
         {
-            builder->closure_type->fun.type2 = necro_type_con_create(&cc->arena, cc->base->closure_type, necro_type_list_create(&cc->arena, rest_of_type, NULL), 1);
+            builder->closure_type->fun.type2 = necro_type_con_create(&cc->arena, cc->base->closure_type, necro_type_list_create(&cc->arena, rest_of_type, NULL));
         }
         return true;
     }
@@ -344,7 +344,7 @@ bool necro_build_bind_closure_type(NecroClosureConversion* cc, NecroBuildBindClo
         builder->arity++;
         NecroType* left_type = fun_left;
         if (left_type->type == NECRO_TYPE_FUN)
-            left_type = necro_type_con_create(&cc->arena, cc->base->closure_type, necro_type_list_create(&cc->arena, fun_left, NULL), 1);
+            left_type = necro_type_con_create(&cc->arena, cc->base->closure_type, necro_type_list_create(&cc->arena, fun_left, NULL));
         if (builder->closure_type == NULL)
         {
             builder->closure_type_head = necro_type_fn_create(&cc->arena, left_type, NULL);
@@ -431,7 +431,7 @@ void necro_build_data_closure_type(NecroClosureConversion* cc, NecroBuildDataCon
     NecroCoreAST_Expression* left_arg  = necro_closure_conversion_go(cc, builder->in_con_args->list.expr);
     if (left_type->type == NECRO_TYPE_FUN)
     {
-        left_type = necro_type_con_create(&cc->arena, cc->base->closure_type, necro_type_list_create(&cc->arena, fun_left, NULL), 1);
+        left_type = necro_type_con_create(&cc->arena, cc->base->closure_type, necro_type_list_create(&cc->arena, fun_left, NULL));
         // TODO: Fix with new base and NecroAstSymbol systems!
         // left_arg  = necro_create_core_app(&cc->arena, necro_create_core_var(&cc->arena, cc->base->closure_type), left_arg);
     }

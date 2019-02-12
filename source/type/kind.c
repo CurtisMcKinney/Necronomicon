@@ -21,7 +21,6 @@ NecroAstSymbol* necro_kind_create_star(NecroPagedArena* arena, NecroIntern* inte
     {
         .con_symbol = ast_symbol,
         .args       = NULL,
-        .arity      = 0,
         .is_class   = false,
     };
     star_type->kind          = NULL;

@@ -88,7 +88,6 @@ typedef struct
 {
     NecroAstSymbol*    con_symbol;
     struct NecroType*  args;
-    size_t             arity;
     bool               is_class;
 } NecroTypeCon;
 
@@ -179,8 +178,8 @@ NecroType*             necro_type_get_fully_applied_fun_type(NecroType* type);
 NecroType*             necro_type_alloc(NecroPagedArena* arena);
 NecroType*             necro_type_fresh_var(NecroPagedArena* arena);
 NecroType*             necro_type_var_create(NecroPagedArena* arena, NecroAstSymbol* var_symbol);
-NecroType*             necro_type_declare(NecroPagedArena* arena, NecroAstSymbol* con_symbol, size_t arity);
-NecroType*             necro_type_con_create(NecroPagedArena* arena, NecroAstSymbol* con_symbol, NecroType* args, size_t arity);
+NecroType*             necro_type_declare(NecroPagedArena* arena, NecroAstSymbol* con_symbol);
+NecroType*             necro_type_con_create(NecroPagedArena* arena, NecroAstSymbol* con_symbol, NecroType* args);
 NecroType*             necro_type_fn_create(NecroPagedArena* arena, NecroType* type1, NecroType* type2);
 NecroType*             necro_type_app_create(NecroPagedArena* arena, NecroType* type1, NecroType* type2);
 NecroType*             necro_type_list_create(NecroPagedArena* arena, NecroType* item, NecroType* next);

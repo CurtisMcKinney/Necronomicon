@@ -58,7 +58,7 @@ NecroResult(NecroType) necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast
     }
 
     case NECRO_AST_CONID:
-        ast->necro_type = necro_type_con_create(infer->arena, ast->conid.ast_symbol->type->con.con_symbol, NULL, ast->conid.ast_symbol->type->con.arity);
+        ast->necro_type = necro_type_con_create(infer->arena, ast->conid.ast_symbol->type->con.con_symbol, NULL);
         return ok(NecroType, ast->necro_type);
 
     case NECRO_AST_CONSTRUCTOR:
@@ -78,7 +78,7 @@ NecroResult(NecroType) necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast
             arity++;
         }
         NecroType* env_con_type = ast->constructor.conid->conid.ast_symbol->type;
-        ast->necro_type         = necro_type_con_create(infer->arena, env_con_type->con.con_symbol, con_args, env_con_type->con.arity);
+        ast->necro_type         = necro_type_con_create(infer->arena, env_con_type->con.con_symbol, con_args);
         return ok(NecroType, ast->necro_type);
     }
 
@@ -241,7 +241,7 @@ NecroResult(NecroType) necro_infer_simple_type(NecroInfer* infer, NecroAst* ast)
     const size_t arity                                = necro_count_ty_vars(ast->simple_type.type_var_list);
 
     // Constructor type
-    NecroType*   constructor_type                     = necro_type_con_create(infer->arena, ast->simple_type.type_con->conid.ast_symbol, NULL, arity);
+    NecroType*   constructor_type                     = necro_type_con_create(infer->arena, ast->simple_type.type_con->conid.ast_symbol, NULL);
     NecroType*   constructor_type_kind                = infer->base->star_kind->type;
     for (size_t i = 0; i < arity; ++i)
     {
@@ -252,7 +252,7 @@ NecroResult(NecroType) necro_infer_simple_type(NecroInfer* infer, NecroAst* ast)
     ast->simple_type.type_con->conid.ast_symbol->type = constructor_type;
 
     // Fully applied type
-    NecroType*   fully_applied_type                   = necro_type_con_create(infer->arena, ast->simple_type.type_con->conid.ast_symbol, necro_ty_vars_to_args(infer, ast->simple_type.type_var_list), arity);
+    NecroType*   fully_applied_type                   = necro_type_con_create(infer->arena, ast->simple_type.type_con->conid.ast_symbol, necro_ty_vars_to_args(infer, ast->simple_type.type_var_list));
     fully_applied_type->pre_supplied                  = true;
     necro_try_map(void, NecroType, necro_kind_infer_gen_unify_with_star(infer->arena, infer->base, fully_applied_type, NULL, ast->simple_type.type_con->source_loc, ast->simple_type.type_con->end_loc));
     ast->necro_type                                   = fully_applied_type;

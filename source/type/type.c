@@ -82,7 +82,6 @@ NecroType* necro_type_var_create(NecroPagedArena* arena, NecroAstSymbol* var_sym
         .var_symbol        = var_symbol,
         .arity             = -1,
         .is_rigid          = false,
-        .is_type_class_var = false,
         .context           = NULL,
         .bound             = NULL,
         .scope             = NULL,
@@ -796,13 +795,13 @@ NecroGenResult necro_gen_go(NecroPagedArena* arena, NecroType* type, NecroGenRes
     }
 
     NecroType* top = necro_type_find(type);
-    if (top->type == NECRO_TYPE_VAR && top->var.is_rigid && !top->var.is_type_class_var)
+    if (top->type == NECRO_TYPE_VAR && top->var.is_rigid)
     {
         prev_result.type = top;
         return prev_result;
     }
 
-    if (necro_type_is_bound_in_scope(type, scope) && !type->var.is_type_class_var)
+    if (necro_type_is_bound_in_scope(type, scope))
     {
         prev_result.type = type;
         return prev_result;
@@ -812,13 +811,13 @@ NecroGenResult necro_gen_go(NecroPagedArena* arena, NecroType* type, NecroGenRes
     {
     case NECRO_TYPE_VAR:
     {
-        if (type->var.is_rigid && !type->var.is_type_class_var)
+        if (type->var.is_rigid)
         {
             prev_result.type = type;
             return prev_result;
         }
         NecroType* bound_type = type->var.bound;
-        if (bound_type != NULL && !type->var.is_type_class_var)
+        if (bound_type != NULL)
         {
             return necro_gen_go(arena, bound_type, prev_result, scope);
         }
@@ -836,28 +835,22 @@ NecroGenResult necro_gen_go(NecroPagedArena* arena, NecroType* type, NecroGenRes
                 subs = subs->next;
             }
             NecroGenSub* sub = necro_paged_arena_alloc(arena, sizeof(NecroGenSub));
-            NecroType*   type_var;
-            if (!type->var.is_type_class_var)
+
+            NecroType*   type_var                 = necro_type_fresh_var(arena);
+            type_var->var.var_symbol->name        = type->var.var_symbol->name;
+            type_var->var.var_symbol->source_name = type->var.var_symbol->source_name;
+            type_var->var.is_rigid                = true;
+            type_var->var.context                 = type->var.context;
+            // Set context vars to new rigid var?
+            NecroTypeClassContext* context = type_var->var.context;
+            while (context != NULL)
             {
-                type_var                              = necro_type_fresh_var(arena);
-                type_var->var.var_symbol->name        = type->var.var_symbol->name;
-                type_var->var.var_symbol->source_name = type->var.var_symbol->source_name;
-                type_var->var.is_rigid                = true;
-                type_var->var.context                 = type->var.context;
-                // Set context vars to new rigid var?
-                NecroTypeClassContext* context = type_var->var.context;
-                while (context != NULL)
-                {
-                    context->var_symbol = type_var->var.var_symbol;
-                    context             = context->next;
-                }
-                type_var->kind      = type->kind;
-                type->var.gen_bound = type_var;
+                context->var_symbol = type_var->var.var_symbol;
+                context             = context->next;
             }
-            else
-            {
-                type_var = type;
-            }
+            type_var->kind      = type->kind;
+            type->var.gen_bound = type_var;
+
             NecroType* for_all = necro_type_for_all_create(arena, type_var->var.var_symbol, type->var.context, NULL);
             *sub               = (NecroGenSub)
             {

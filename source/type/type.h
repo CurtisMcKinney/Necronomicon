@@ -72,7 +72,6 @@ typedef struct
     NecroAstSymbol*               var_symbol;
     int32_t                       arity;
     bool                          is_rigid;
-    bool                          is_type_class_var;
     struct NecroTypeClassContext* context;
     struct NecroType*             bound;
     struct NecroScope*            scope;

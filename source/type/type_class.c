@@ -93,8 +93,6 @@ NecroType* necro_instantiate_method_sig(NecroInfer* infer, NecroAstSymbol* type_
             unwrap(void, necro_kind_infer_gen_unify_with_star(infer->arena, infer->base, type, NULL, NULL_LOC, NULL_LOC));
             type = unwrap(NecroType, necro_type_generalize(infer->arena, infer->base, type, NULL));
             unwrap(void, necro_kind_infer_gen_unify_with_star(infer->arena, infer->base, type, NULL, NULL_LOC, NULL_LOC));
-            printf("\n");
-            necro_type_print(type);
             return type;
         }
         subs = subs->next;
@@ -102,179 +100,6 @@ NecroType* necro_instantiate_method_sig(NecroInfer* infer, NecroAstSymbol* type_
     assert(false);
     return NULL;
 }
-
-// NecroType* necro_sub_method_var(NecroMethodSub* subs, size_t sub_count, NecroAstSymbol* var)
-// {
-//     for (size_t i = 0; i < sub_count; ++i)
-//     {
-//         if (subs[i].old_type_var == var)
-//         {
-//             return subs[i].new_type_var;
-//         }
-//     }
-//     assert(false); // Should be impossible
-//     return NULL;
-// }
-//
-// NecroMethodSub necro_create_method_sub(NecroInfer* infer, NecroAstSymbol* old_type_var, NecroScope* scope)
-// {
-//     NecroType* type_var             = necro_type_fresh_var(infer->arena);
-//     type_var->var.is_rigid          = true;
-//     type_var->var.bound             = NULL;
-//     type_var->var.gen_bound         = NULL;
-//     type_var->var.arity             = -1;
-//     type_var->var.is_type_class_var = false;
-//     type_var->var.scope             = scope;
-//     type_var->kind                  = old_type_var->type->kind;
-//     return (NecroMethodSub)
-//     {
-//         .old_type_var = old_type_var,
-//         .new_type_var = type_var
-//     };
-// }
-
-// void necro_create_new_method_for_all(NecroInfer* infer, NecroMethodSub* sub, NecroType* data_type, NecroType** data_type_for_all, NecroType** data_type_for_all_curr, NecroScope* scope)
-// {
-//     *sub                                    = necro_create_method_sub(infer, data_type->for_all.var_symbol, scope);
-//     NecroTypeClassContext* new_context_head = NULL;
-//     NecroTypeClassContext* new_context_curr = NULL;
-//     NecroTypeClassContext* old_context      = data_type->for_all.context;
-//     while (old_context != NULL)
-//     {
-//         NecroTypeClassContext* new_context = necro_create_type_class_context(infer->arena, old_context->type_class, old_context->class_symbol, sub->new_type_var->var.var_symbol, NULL);
-//         if (new_context_head == NULL)
-//         {
-//             new_context_head = new_context;
-//             new_context_curr = new_context_head;
-//         }
-//         else
-//         {
-//             new_context_curr->next = new_context;
-//             new_context_curr       = new_context_curr->next;
-//         }
-//         old_context = old_context->next;
-//     }
-//     sub->new_type_var->var.context = new_context_head;
-//     NecroType* new_type = necro_type_for_all_create(infer->arena, sub->new_type_var->var.var_symbol, new_context_head, NULL);
-//     if ((*data_type_for_all) == NULL)
-//     {
-//         (*data_type_for_all)      = new_type;
-//         (*data_type_for_all_curr) = *data_type_for_all;
-//     }
-//     else
-//     {
-//         (*data_type_for_all_curr)->for_all.type = new_type;
-//         (*data_type_for_all_curr)               = (*data_type_for_all_curr)->for_all.type;
-//     }
-// }
-//
-// NecroType* necro_instantiate_method_sig_go(NecroInfer* infer, NecroAstSymbol* type_class_var, NecroType* method_type, NecroType* data_type, NecroMethodSub* subs, size_t sub_count)
-// {
-//     assert(infer != NULL);
-//     assert(data_type != NULL);
-//     if (method_type == NULL) return NULL;
-//     switch (method_type->type)
-//     {
-//     case NECRO_TYPE_VAR:
-//         if (method_type->var.var_symbol == type_class_var)
-//         {
-//             // inst data_type
-//             assert(method_type->var.is_type_class_var == true);
-//             return necro_instantiate_method_sig_go(infer, type_class_var, data_type, data_type, subs, sub_count);
-//         }
-//         else
-//         {
-//             // sub var
-//             return necro_sub_method_var(subs, sub_count, method_type->var.var_symbol);
-//         }
-//     case NECRO_TYPE_APP:  return necro_type_app_create(infer->arena,  necro_instantiate_method_sig_go(infer, type_class_var, method_type->app.type1, data_type, subs, sub_count), necro_instantiate_method_sig_go(infer, type_class_var, method_type->app.type2, data_type, subs, sub_count));
-//     case NECRO_TYPE_FUN:  return necro_type_fn_create(infer->arena,  necro_instantiate_method_sig_go(infer, type_class_var, method_type->fun.type1, data_type, subs, sub_count), necro_instantiate_method_sig_go(infer, type_class_var, method_type->fun.type2, data_type, subs, sub_count));
-//     case NECRO_TYPE_LIST: return necro_type_list_create(infer->arena, necro_instantiate_method_sig_go(infer, type_class_var, method_type->list.item, data_type, subs, sub_count), necro_instantiate_method_sig_go(infer, type_class_var, method_type->list.next, data_type, subs, sub_count));
-//     case NECRO_TYPE_CON:  return necro_type_con_create(infer->arena, method_type->con.con_symbol, necro_instantiate_method_sig_go(infer, type_class_var, method_type->con.args, data_type, subs, sub_count), method_type->con.arity);
-//     case NECRO_TYPE_FOR:  assert(false); return NULL;
-//     default:              assert(false); return NULL;
-//     }
-// }
-
-// NecroType* necro_instantiate_method_sig(NecroInfer* infer, NecroAstSymbol* type_class_var, NecroType* a_method_type, NecroType* a_data_type)
-// {
-//     assert(infer != NULL);
-//     assert(a_method_type != NULL);
-//     assert(a_data_type != NULL);
-//
-//     // Local vars
-//     NecroType*  data_type_for_all_curr = NULL;
-//     NecroType*  data_type_for_all      = NULL;
-//     NecroType*  data_type              = a_data_type;
-//     NecroType*  method_type            = a_method_type;
-//     size_t      sub_count              = 0;
-//     // TODO: This seems very hacky....Replace with something better!
-//     infer->scoped_symtable->current_type_scope = infer->scoped_symtable->top_type_scope;
-//     necro_scoped_symtable_new_type_scope(infer->scoped_symtable);
-//     NecroScope* scope                  = infer->scoped_symtable->current_type_scope;
-//     necro_scoped_symtable_pop_type_scope(infer->scoped_symtable);
-//
-//     // Count the number of subs
-//     while (data_type->type == NECRO_TYPE_FOR)
-//     {
-//         sub_count++;
-//         data_type = data_type->for_all.type;
-//     }
-//     while (method_type->type == NECRO_TYPE_FOR)
-//     {
-//         if (method_type->for_all.var_symbol != type_class_var)
-//             sub_count++;
-//         method_type = method_type->for_all.type;
-//     }
-//
-//     // Alloc subs
-//     size_t          sub_i = 0;
-//     // TODO: Replace with NecroSnapshotArena solution!
-//     NecroMethodSub* subs  = malloc(sub_count * sizeof(NecroMethodSub));
-//
-//     // reset
-//     data_type   = a_data_type;
-//     method_type = a_method_type;
-//
-//     // Iterate through data_type for_alls
-//     while (data_type->type == NECRO_TYPE_FOR)
-//     {
-//         necro_create_new_method_for_all(infer, subs + sub_i, data_type, &data_type_for_all, &data_type_for_all_curr, scope);
-//         sub_i++;
-//         data_type = data_type->for_all.type;
-//     }
-//
-//     // Iterate through method_type for_alls
-//     while (method_type->type == NECRO_TYPE_FOR)
-//     {
-//         if (method_type->for_all.var_symbol == type_class_var)
-//         {
-//             method_type = method_type->for_all.type;
-//             continue;
-//         }
-//         necro_create_new_method_for_all(infer, subs + sub_i, method_type, &data_type_for_all, &data_type_for_all_curr, scope);
-//         sub_i++;
-//         method_type = method_type->for_all.type;
-//     }
-//     assert(sub_i == sub_count);
-//
-//     // Instanatiate method_sig
-//     NecroType* inst_method_type = necro_instantiate_method_sig_go(infer, type_class_var, method_type, data_type, subs, sub_count);
-//     if (data_type_for_all != NULL && data_type_for_all_curr != NULL)
-//     {
-//         data_type_for_all_curr->for_all.type = inst_method_type;
-//     }
-//     else
-//     {
-//         data_type_for_all = inst_method_type;
-//     }
-//     data_type_for_all->pre_supplied = true;
-//
-//     // Cleanup
-//     free(subs);
-//
-//     return data_type_for_all;
-// }
 
 //=====================================================
 // Contexts
@@ -1728,9 +1553,7 @@ NecroResult(NecroType) necro_create_type_class(NecroInfer* infer, NecroAst* type
     //------------------------------------
     // Create type_var for type_class
     NecroType* type_class_var             = necro_type_var_create(infer->arena, type_class_ast->type_class_declaration.tyvar->variable.ast_symbol);
-    // ty_var->var.is_rigid                 = false;
     type_class_var->var.is_rigid          = true;
-    type_class_var->var.is_type_class_var = true;
     type_class->type                      = necro_type_con1_create(infer->arena, type_class->type_class_name, necro_type_list_create(infer->arena, type_class_var, NULL));
     type_class->type->con.is_class        = true;
     type_class->context                   = necro_try_map(NecroTypeClassContext, NecroType, necro_ast_to_context(infer, type_class_ast->type_class_declaration.context));

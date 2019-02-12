@@ -128,6 +128,13 @@ typedef struct NecroType
     struct NecroType* kind;
 } NecroType;
 
+typedef struct NecroInstSub
+{
+    NecroAstSymbol*      var_to_replace;
+    NecroType*           new_name;
+    struct NecroInstSub* next;
+} NecroInstSub;
+
 //=====================================================
 // Infer
 //=====================================================
@@ -156,6 +163,7 @@ NecroResult(NecroType) necro_type_unify(NecroPagedArena* arena, struct NecroBase
 NecroResult(NecroType) necro_type_occurs(NecroAstSymbol* var_symbol, NecroType* type);
 NecroResult(NecroType) necro_type_instantiate(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope);
 NecroResult(NecroType) necro_type_instantiate_with_context(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope, struct NecroTypeClassContext** inst_context);
+NecroResult(NecroType) necro_type_instantiate_with_subs(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope, NecroInstSub** subs);
 NecroResult(NecroType) necro_type_generalize(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope);
 
 bool                   necro_type_exact_unify(NecroType* type1, NecroType* type2);

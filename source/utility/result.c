@@ -1206,6 +1206,19 @@ void necro_print_type_not_a_class_error(NecroResultError* error, const char* sou
     UNUSED(source_name);
 }
 
+void necro_print_type_not_a_visible_member_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char*          error_name = "Not A Visible Method";
+    const NecroSourceLoc source_loc = error->default_type_class_error_data.source_loc;
+    const NecroSourceLoc end_loc    = error->default_type_class_error_data.end_loc;
+    necro_print_error_header(error_name);
+    necro_print_line_at_source_loc(source_str, source_loc, end_loc);
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " %s is not a visible method of the %s type class.\n", error->default_type_class_error_data.type_class_symbol->source_name->str, error->default_type_class_error_data.type2->con.con_symbol->source_name->str);
+    fprintf(stderr, "\n");
+    UNUSED(source_name);
+}
+
+
 // NOTE:
 // Basic assumption is that and error will be freed after it is printed.
 // Thus nested errors either need to call into necro_result_error_print
@@ -1283,6 +1296,7 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_TYPE_RIGID_TYPE_VARIABLE:                        necro_print_rigid_type_variable_error(error, source_str, source_name); break;
 
     case NECRO_TYPE_NOT_A_CLASS:                                necro_print_type_not_a_class_error(error, source_str, source_name); break;
+    case NECRO_TYPE_NOT_A_VISIBLE_METHOD:                       necro_print_type_not_a_visible_member_error(error, source_str, source_name); break;
 
     case NECRO_KIND_MISMATCHED_KIND:                            necro_print_mismatched_kind_error(error, source_str, source_name); break;
 

@@ -20,6 +20,9 @@
         * Static type class scheme to replace dictionary transformation?
         * in lieu of the above, remove all monomorphism restrictions and make everything polymorphic?
         * Healthy defaulting scheme, including a --> ()
+        * Default type class. Use this for polymorphic recursion
+        * Return to the idea of making all types used for recursion statically sized?
+        * Given the above we could do an even more drastic memory scheme, such as large scale Region based memory management.
 */
 
 // Forward declarations
@@ -1337,21 +1340,7 @@ NecroResult(NecroType) necro_infer_declaration_group(NecroInfer* infer, NecroDec
 
             while (constructor_list != NULL)
             {
-
-                // // Construct fully applied type
-                // NecroType* simple_type_type = ast->data_declaration.simpletype->simple_type.type_con->conid.ast_symbol->type;
-                // assert(simple_type_type->type == NECRO_TYPE_CON);
-                // NecroType* data_type_type   = necro_type_con_create(infer->arena, simple_type_type->con.con_symbol, NULL, simple_type_type->con.arity);
-                // NecroType* data_type_kind   = necro_type_find(simple_type_type->kind);
-                // NecroAst*  args             = ast->data_declaration.simpletype->simple_type.type_var_list;
-                // while (data_type_kind->type == NECRO_TYPE_FUN)
-                // {
-                //     // data_type_type->con.args = necro_type_list_create(infer->arena, necro_type_fresh_var(infer->arena), data_type_type->con.args);
-                //     data_type_kind = necro_type_find(data_type_kind->fun.type2);
-                // }
-                // unwrap(void, necro_kind_infer_gen_unify_with_star(infer->arena, infer->base, data_type_type, NULL, NULL_LOC, NULL_LOC));
-
-                // Duplicate type!
+                // Duplicate type!?
                 necro_try(NecroType, necro_create_data_constructor(infer, constructor_list->list.item, ast->data_declaration.simpletype->necro_type, con_num));
                 // necro_try(NecroType, necro_create_data_constructor(infer, constructor_list->list.item, data_type_type, con_num));
 
@@ -1699,38 +1688,6 @@ void necro_test_infer()
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
-    }
-
-    {
-        const char* test_name = "Ok: SimpleAssignment";
-        const char* test_source = ""
-            "data Book = Pages\n"
-            "data NotBook = EmptyPages\n"
-            "notcronomicon :: Maybe Book\n"
-            "notcronomicon = Just Pages\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
-        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
-    }
-
-    {
-        const char* test_name = "NothingType";
-        const char* test_source = ""
-            "notcronomicon = Nothing\n";
-
-        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        const NECRO_RESULT_ERROR_TYPE* no_expected_error = NULL;
-        necro_infer_test_result(test_name, test_source, expect_error_result, no_expected_error);
-    }
-
-    {
-        const char* test_name = "DataDeclarations";
-        const char* test_source = ""
-            "data Book = Pages\n"
-            "data NotBook = EmptyPages\n";
-
-        const NECRO_RESULT_TYPE expect_ok_result = NECRO_RESULT_OK;
-        const NECRO_RESULT_ERROR_TYPE* no_expected_error = NULL;
-        necro_infer_test_result(test_name, test_source, expect_ok_result, no_expected_error);
     }
 
     {
@@ -2177,6 +2134,42 @@ void necro_test_infer()
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 
+    {
+        const char* test_name = "Not A Visible Method";
+        const char* test_source = ""
+            "data Invisible = Invisible\n"
+            "instance Num Invisible where\n"
+            "  nothingToSeeHere x y = Invisible\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_NOT_A_VISIBLE_METHOD;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Rigid Type Variable: Instance Method";
+        const char* test_source = ""
+            "class OgreMagi a where\n"
+            "  twoHeads :: OgreMagi b => b -> (a, b)\n"
+            "instance OgreMagi (Maybe a) where\n"
+            "  twoHeads x = (Just x, x)\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_RIGID_TYPE_VARIABLE;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    // TODO (Curtis 2-12-19): Instance context is fuxoring things? Isn't present in the declaration group...
+    // {
+    //     const char* test_name   = "Rigid Type Variable: Instance Method";
+    //     const char* test_source = ""
+    //         "class OgreMagi a where\n"
+    //         "  twoHeads :: OgreMagi b => b -> (a, b)\n"
+    //         "OgreMagi c => instance OgreMagi (Maybe c) where\n"
+    //         "  twoHeads x = (Just x, x)\n";
+    //     const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+    //     const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_RIGID_TYPE_VARIABLE;
+    //     necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    // }
+
 #if 0 // This crashes right now during inference :(
     {
         const char* test_name = "RigidTypeVariable";
@@ -2193,33 +2186,94 @@ void necro_test_infer()
 
     ///////////////////////////////////////////////////////
     // OK tests
+    // TODO (Curtis 2-12-19): Ok test, needs to match on AST
     ///////////////////////////////////////////////////////
-    // Ok test, needs to match on AST
+
     {
-        const char* test_name = "GeneralizationIsOk1";
+        const char* test_name = "Ok: SimpleAssignment";
+        const char* test_source = ""
+            "data Book = Pages\n"
+            "data NotBook = EmptyPages\n"
+            "notcronomicon :: Maybe Book\n"
+            "notcronomicon = Just Pages\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name = "NothingType";
+        const char* test_source = ""
+            "notcronomicon = Nothing\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        const NECRO_RESULT_ERROR_TYPE* no_expected_error = NULL;
+        necro_infer_test_result(test_name, test_source, expect_error_result, no_expected_error);
+    }
+
+    {
+        const char* test_name = "DataDeclarations";
+        const char* test_source = ""
+            "data Book = Pages\n"
+            "data NotBook = EmptyPages\n";
+        const NECRO_RESULT_TYPE expect_ok_result = NECRO_RESULT_OK;
+        const NECRO_RESULT_ERROR_TYPE* no_expected_error = NULL;
+        necro_infer_test_result(test_name, test_source, expect_ok_result, no_expected_error);
+    }
+
+
+    {
+        const char* test_name   = "GeneralizationIsOk1";
         const char* test_source = ""
             "atTheMountainsOfOK = False\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
-    // Ok test, needs to match on AST
     {
-        const char* test_name = "GeneralizationIsOk2";
+        const char* test_name   = "GeneralizationIsOk2";
         const char* test_source = ""
             "atTheMountainsOfOK2 x = False\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
-    // Ok test, needs to match on AST
     {
-        const char* test_name = "GeneralizationIsOk3";
+        const char* test_name   = "GeneralizationIsOk3";
         const char* test_source = ""
             "atTheMountainsOfOK3 x () = False\n";
             "okggoth :: "
             "atTheMountainsOfOK3 x () = False\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Instance Methods";
+        const char* test_source = ""
+            "data Invisible = Invisible\n"
+            "instance Eq Invisible where\n"
+            "  eq  x y = True\n"
+            "  neq x y = False\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Tuple Types";
+        const char* test_source = ""
+            "threeOfAPerfectTuple :: a -> b -> (a, b)\n"
+            "threeOfAPerfectTuple x y = (x, y)\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Two Class Type Variables";
+        const char* test_source = ""
+            "class OgreMagi a where\n"
+            "  twoHeads :: OgreMagi b => b -> (a, b)\n"
+            "instance OgreMagi (Maybe a) where\n"
+            "  twoHeads x = (Nothing, x)\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
@@ -2233,20 +2287,20 @@ void necro_test_infer()
     NECRO_KIND_RIGID_KIND_VARIABLE (Not possible to produce currently. Would need something like functions over generic kinds)
     NECRO_KIND_MISMATCHED_ARITY (Also not possible currently. As it sits there's only one Kind constructor, which is Type. Even in the future it's likely most kind constructors would have the same arity, i.e. UniqueType)
     NECRO_TYPE_POLYMORPHIC_PAT_BIND (Not really possible if we use monomorphic simple assignments...Do we change this given the type class translation changes?)
+    NECRO_TYPE_NOT_A_CLASS,
+    NECRO_TYPE_RIGID_TYPE_VARIABLE,
+    NECRO_TYPE_NOT_A_VISIBLE_METHOD,
 
     IN PROGRESS:
-    NECRO_TYPE_RIGID_TYPE_VARIABLE,
 
     TODO:
+    NECRO_TYPE_NOT_AN_INSTANCE_OF,
+    NECRO_TYPE_MISMATCHED_ARITY, // Shouldn't be possible?
     NECRO_TYPE_NON_CONCRETE_INITIALIZED_VALUE,
     NECRO_TYPE_NON_RECURSIVE_INITIALIZED_VALUE,
-    NECRO_TYPE_MISMATCHED_ARITY, // Shouldn't be possible?
-    NECRO_TYPE_NOT_AN_INSTANCE_OF,
     NECRO_TYPE_AMBIGUOUS_CLASS,
     NECRO_TYPE_CONSTRAINS_ONLY_CLASS_VAR,
     NECRO_TYPE_AMBIGUOUS_TYPE_VAR,
-    NECRO_TYPE_NOT_A_CLASS,
-    NECRO_TYPE_NOT_A_VISIBLE_METHOD,
     NECRO_TYPE_NO_EXPLICIT_IMPLEMENTATION,
     NECRO_TYPE_DOES_NOT_IMPLEMENT_SUPER_CLASS,
     NECRO_TYPE_MULTIPLE_CLASS_DECLARATIONS,

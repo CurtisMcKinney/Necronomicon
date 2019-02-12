@@ -120,112 +120,6 @@ NecroSymbolInfo* necro_symtable_get(NecroSymTable* table, NecroID id)
     }
 }
 
-// void necro_symtable_info_print(NecroSymbolInfo info, size_t whitespace)
-// {
-//     print_white_space(whitespace);
-//     printf("NecroSymbolInfo\n");
-
-//     print_white_space(whitespace);
-//     printf("{\n");
-
-//     print_white_space(whitespace + 4);
-//     printf("name:       %s\n", info.name->str);
-
-//     print_white_space(whitespace + 4);
-//     printf("id:         %d\n", info.id.id);
-
-//     // print_white_space(whitespace + 4);
-//     // printf("size:       %d\n", info.data_size);
-
-//     print_white_space(whitespace + 4);
-//     printf("source loc: { line: %zu, character: %zu, pos: %zu }\n", info.source_loc.line, info.source_loc.character, info.source_loc.pos);
-
-//     print_white_space(whitespace + 4);
-//     printf("scope:      %p\n", info.scope);
-
-//     print_white_space(whitespace + 4);
-//     printf("sig:        %p\n", info.optional_type_signature);
-
-//     if (info.type != NULL)
-//     {
-//         print_white_space(whitespace + 4);
-//         printf("type:       ");
-//         necro_type_sig_print(info.type);
-//         // printf("\n");
-//     }
-
-//     print_white_space(whitespace + 4);
-//     if (info.method_type_class != NULL)
-//         printf("is_method:  true\n");
-//     else
-//         printf("is_method:  false\n");
-
-//     print_white_space(whitespace);
-//     printf("}\n");
-// }
-
-// void necro_symtable_print(NecroSymTable* table)
-// {
-//     printf("NecroSymTable\n{\n");
-//     printf("    size:  %zu\n", table->size);
-//     printf("    count: %zu\n", table->count);
-//     printf("    data:\n");
-//     printf("    [\n");
-//     for (size_t i = 0; i < table->count; ++i)
-//     {
-//         necro_symtable_info_print(table->data[i], table->intern, 8);
-//     }
-//     printf("    ]\n");
-//     printf("}\n");
-// }
-
-// void necro_symtable_test()
-// {
-//     puts("---------------------------");
-//     puts("-- NecroSymTable");
-//     puts("---------------------------\n");
-
-//     NecroIntern     intern       = necro_intern_create();
-//     NecroSymTable   symtable     = necro_symtable_create(&intern);
-
-//     // Symbol 1 test
-//     NecroSymbol     test_symbol1 = necro_intern_string(&intern, "test1");
-//     NecroSymbolInfo info1        = { .type = { 0},.name = test_symbol1,.id = { 0 }, };
-//     NecroID         id1          = necro_symtable_insert(&symtable, info1);
-
-//     // Symbol 2 test
-//     NecroSymbol     test_symbol2 = necro_intern_string(&intern, "fuck off!");
-//     NecroSymbolInfo info2        = { .type = { 0},.name = test_symbol2,.id = { 0 }, };
-//     NecroID         id2          = necro_symtable_insert(&symtable, info2);
-
-//     // necro_symtable_print(&symtable);
-
-//     NecroSymbolInfo* info1_test = necro_symtable_get(&symtable, id1);
-//     if (info1_test != NULL && info1_test->name == info1.name)
-//     {
-//         printf("Symbol1 test: passed\n");
-//     }
-//     else
-//     {
-//         printf("Symbol1 test: failed\n");
-//     }
-
-//     NecroSymbolInfo* info2_test = necro_symtable_get(&symtable, id2);
-//     if (info2_test != NULL && info2_test->name == info2.name)
-//     {
-//         printf("Symbol2 test: passed\n");
-//     }
-//     else
-//     {
-//         printf("Symbol2 test: failed\n");
-//     }
-
-//     necro_symtable_destroy(&symtable);
-//     necro_intern_destroy(&intern);
-
-//     necro_scoped_symtable_test();
-// }
-
 //=====================================================
 // NecroScopedSymTable
 //=====================================================
@@ -678,9 +572,11 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
         necro_build_scopes_go(scoped_symtable, input_node->type_class_instance.context);
         necro_build_scopes_go(scoped_symtable, input_node->type_class_instance.qtycls);
         necro_build_scopes_go(scoped_symtable, input_node->type_class_instance.inst);
+
         necro_scoped_symtable_new_scope(scoped_symtable);
         necro_build_scopes_go(scoped_symtable, input_node->type_class_instance.declarations);
         necro_scoped_symtable_pop_scope(scoped_symtable);
+        // TODO: Remove all dictionary cruft
         // TODO: Get AST arena into here and use that instead of the scope arena!
         // necro_create_dictionary_instance(&scoped_symtable->arena, scoped_symtable->global_table->intern, input_node);
         // necro_build_scopes_go(scoped_symtable, input_node->type_class_instance.dictionary_instance);

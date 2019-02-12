@@ -340,17 +340,17 @@ NecroResult(NecroAstSymbol) necro_rename_declare(NecroRenamer* renamer, NecroAst
             break;
         case NECRO_CON_TYPE_DECLARATION:
             ast->scope->last_introduced_symbol = NULL;
-            ast->conid.ast_symbol->ast = ast;
-            ast->conid.ast_symbol->name = ast->conid.ast_symbol->source_name;
+            ast->conid.ast_symbol->ast         = ast;
+            ast->conid.ast_symbol->name        = ast->conid.ast_symbol->source_name;
             ast->conid.ast_symbol->module_name = renamer->ast_arena->module_name;
-            ast->conid.ast_symbol = necro_try(NecroAstSymbol, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_TYPE_NAMESPACE, NECRO_DONT_MANGLE, renamer->scoped_symtable->top_type_scope, ast->conid.ast_symbol, ast->source_loc, ast->end_loc));
+            ast->conid.ast_symbol              = necro_try(NecroAstSymbol, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_TYPE_NAMESPACE, NECRO_DONT_MANGLE, renamer->scoped_symtable->top_type_scope, ast->conid.ast_symbol, ast->source_loc, ast->end_loc));
             break;
         case NECRO_CON_DATA_DECLARATION:
             ast->scope->last_introduced_symbol = NULL;
-            ast->conid.ast_symbol->ast = ast;
-            ast->conid.ast_symbol->name = ast->conid.ast_symbol->source_name;
+            ast->conid.ast_symbol->ast         = ast;
+            ast->conid.ast_symbol->name        = ast->conid.ast_symbol->source_name;
             ast->conid.ast_symbol->module_name = renamer->ast_arena->module_name;
-            ast->conid.ast_symbol = necro_try(NecroAstSymbol, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_VALUE_NAMESPACE, NECRO_DONT_MANGLE, renamer->scoped_symtable->top_scope, ast->conid.ast_symbol, ast->source_loc, ast->end_loc));
+            ast->conid.ast_symbol              = necro_try(NecroAstSymbol, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_VALUE_NAMESPACE, NECRO_DONT_MANGLE, renamer->scoped_symtable->top_scope, ast->conid.ast_symbol, ast->source_loc, ast->end_loc));
             break;
         }
         break;

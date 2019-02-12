@@ -902,7 +902,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     return base;
 }
 
-#define NECRO_BASE_TEST_VERBOSE 0
+#define NECRO_BASE_TEST_VERBOSE 1
 
 void necro_base_test()
 {

@@ -657,13 +657,6 @@ NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, N
 //=====================================================
 // Inst
 //=====================================================
-typedef struct NecroInstSub
-{
-    NecroAstSymbol*      var_to_replace;
-    NecroType*           new_name;
-    struct NecroInstSub* next;
-} NecroInstSub;
-
 NecroInstSub* necro_create_inst_sub(NecroPagedArena* arena, NecroAstSymbol* var_to_replace, NecroTypeClassContext* context, NecroInstSub* next)
 {
     NecroType* type_var                   = necro_type_fresh_var(arena);
@@ -756,6 +749,22 @@ NecroResult(NecroType) necro_type_instantiate_with_context(NecroPagedArena* aren
     NecroType* result = necro_inst_go(arena, current_type, subs, scope);
     necro_try(NecroType, necro_kind_infer(arena, base, result, NULL_LOC, NULL_LOC));
     assert(result != NULL);
+    return ok(NecroType, result);
+}
+
+NecroResult(NecroType) necro_type_instantiate_with_subs(NecroPagedArena* arena, NecroBase* base, NecroType* type, NecroScope* scope, NecroInstSub** subs)
+{
+    assert(type != NULL);
+    type = necro_type_find(type);
+    NecroType*    current_type = type;
+    *subs                      = NULL;
+    while (current_type->type == NECRO_TYPE_FOR)
+    {
+        *subs        = necro_create_inst_sub(arena, current_type->for_all.var_symbol, current_type->for_all.context, *subs);
+        current_type = current_type->for_all.type;
+    }
+    NecroType* result = necro_inst_go(arena, current_type, *subs, scope);
+    necro_try(NecroType, necro_kind_infer(arena, base, result, NULL_LOC, NULL_LOC));
     return ok(NecroType, result);
 }
 
@@ -1149,15 +1158,15 @@ NecroType* necro_type_tuple_con_create(NecroPagedArena* arena, NecroBase* base, 
     NecroAstSymbol* con_symbol = NULL;
     switch (tuple_count)
     {
-    case 2:  con_symbol = base->tuple2_con;  break;
-    case 3:  con_symbol = base->tuple3_con;  break;
-    case 4:  con_symbol = base->tuple4_con;  break;
-    case 5:  con_symbol = base->tuple5_con;  break;
-    case 6:  con_symbol = base->tuple6_con;  break;
-    case 7:  con_symbol = base->tuple7_con;  break;
-    case 8:  con_symbol = base->tuple7_con;  break;
-    case 9:  con_symbol = base->tuple9_con;  break;
-    case 10: con_symbol = base->tuple10_con; break;
+    case 2:  con_symbol = base->tuple2_type;  break;
+    case 3:  con_symbol = base->tuple3_type;  break;
+    case 4:  con_symbol = base->tuple4_type;  break;
+    case 5:  con_symbol = base->tuple5_type;  break;
+    case 6:  con_symbol = base->tuple6_type;  break;
+    case 7:  con_symbol = base->tuple7_type;  break;
+    case 8:  con_symbol = base->tuple7_type;  break;
+    case 9:  con_symbol = base->tuple9_type;  break;
+    case 10: con_symbol = base->tuple10_type; break;
     default:
         assert(false && "Tuple size too large");
         break;

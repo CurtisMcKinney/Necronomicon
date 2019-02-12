@@ -2170,6 +2170,48 @@ void necro_test_infer()
     //     necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     // }
 
+    {
+        const char* test_name   = "No Explicit Implementation";
+        const char* test_source = ""
+            "data HalfMeasures = HalfMeasures\n"
+            "instance Num HalfMeasures where\n"
+            "  add x y = x\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_NO_EXPLICIT_IMPLEMENTATION;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Ambiguous Type Class 1";
+        const char* test_source = ""
+            "class Ambiguity a where\n"
+            "  amb :: Int -> Int\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_AMBIGUOUS_CLASS;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Ambiguous Type Class 2";
+        const char* test_source = ""
+            "class Bad b where\n"
+            "badzathoth :: Bad z => Int -> Int\n"
+            "badzathoth x = x\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_AMBIGUOUS_CLASS;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Constrains Only Class Var";
+        const char* test_source = ""
+            "class Prison b where\n"
+            "  cell :: Prison b => b -> b\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_CONSTRAINS_ONLY_CLASS_VAR;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
 #if 0 // This crashes right now during inference :(
     {
         const char* test_name = "RigidTypeVariable";
@@ -2290,18 +2332,18 @@ void necro_test_infer()
     NECRO_TYPE_NOT_A_CLASS,
     NECRO_TYPE_RIGID_TYPE_VARIABLE,
     NECRO_TYPE_NOT_A_VISIBLE_METHOD,
+    NECRO_TYPE_NO_EXPLICIT_IMPLEMENTATION,
+    NECRO_TYPE_AMBIGUOUS_CLASS,
+    NECRO_TYPE_CONSTRAINS_ONLY_CLASS_VAR,
 
     IN PROGRESS:
 
     TODO:
-    NECRO_TYPE_NOT_AN_INSTANCE_OF,
     NECRO_TYPE_MISMATCHED_ARITY, // Shouldn't be possible?
+    NECRO_TYPE_NOT_AN_INSTANCE_OF,
     NECRO_TYPE_NON_CONCRETE_INITIALIZED_VALUE,
     NECRO_TYPE_NON_RECURSIVE_INITIALIZED_VALUE,
-    NECRO_TYPE_AMBIGUOUS_CLASS,
-    NECRO_TYPE_CONSTRAINS_ONLY_CLASS_VAR,
     NECRO_TYPE_AMBIGUOUS_TYPE_VAR,
-    NECRO_TYPE_NO_EXPLICIT_IMPLEMENTATION,
     NECRO_TYPE_DOES_NOT_IMPLEMENT_SUPER_CLASS,
     NECRO_TYPE_MULTIPLE_CLASS_DECLARATIONS,
     NECRO_TYPE_MULTIPLE_INSTANCE_DECLARATIONS,

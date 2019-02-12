@@ -330,8 +330,7 @@ NecroResult(NecroType) necro_ambiguous_type_class_check(NecroAstSymbol* type_sig
     while (context != NULL)
     {
         if (!necro_ambig_occurs(context->var_symbol, type))
-            return necro_type_ambiguous_class_error(context->var_symbol, type, NULL, NULL, NULL, type_sig_name->ast->source_loc, type_sig_name->ast->end_loc);
-            // return necro_type_ambiguous_class_error(type_sig_name, type_sig_name->type, type_sig_name->ast->source_loc, type_sig_name->ast->end_loc, context->class_symbol, type, context->class_symbol->ast->source_loc, context->class_symbol->ast->end_loc);
+            return necro_type_ambiguous_class_error(context->class_symbol, type_sig_name->ast->source_loc, type_sig_name->ast->end_loc, context->var_symbol, NULL_LOC, NULL_LOC);
         context = context->next;
     }
     return ok(NecroType, NULL);
@@ -343,7 +342,7 @@ NecroResult(NecroType) necro_constrain_class_variable_check(NecroAstSymbol* type
     while (context != NULL)
     {
         if (context->var_symbol == type_var)
-            return necro_type_constrains_only_class_var_error(context->var_symbol, type_var->type, NULL, NULL, NULL, type_var->ast->source_loc, type_var->ast->end_loc);
+            return necro_type_constrains_only_class_var_error(context->class_symbol, type_sig_symbol->ast->source_loc, type_sig_symbol->ast->end_loc, type_var, NULL_LOC, NULL_LOC);
             // return necro_type_constrains_only_class_var_error(type_var, type_var->type, type_var->ast->source_loc, type_var->ast->end_loc, type_sig_symbol, context->class_symbol->type, context->class_symbol->ast->source_loc, context->class_symbol->ast->end_loc);
         context = context->next;
     }
@@ -1817,7 +1816,7 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
         }
         if (!matched)
         {
-            return necro_type_no_explicit_implementation_error(type_class_members->member_varid, instance->data_type, NULL, NULL, NULL, instance->ast->source_loc, instance->ast->end_loc);
+            return necro_type_no_explicit_implementation_error(type_class_members->member_varid, instance->data_type, type_class->type, NULL, NULL, instance->ast->source_loc, instance->ast->end_loc);
         }
         type_class_members = type_class_members->next;
     }

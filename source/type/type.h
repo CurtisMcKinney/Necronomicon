@@ -88,7 +88,6 @@ typedef struct
 {
     NecroAstSymbol*    con_symbol;
     struct NecroType*  args;
-    bool               is_class;
 } NecroTypeCon;
 
 typedef struct

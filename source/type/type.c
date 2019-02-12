@@ -121,7 +121,6 @@ NecroType* necro_type_declare(NecroPagedArena* arena, NecroAstSymbol* con_symbol
     {
         .con_symbol = con_symbol,
         .args       = NULL,
-        .is_class   = false,
     };
     type->pre_supplied = true;
     return type;
@@ -135,7 +134,6 @@ NecroType* necro_type_con_create(NecroPagedArena* arena, NecroAstSymbol* con_sym
     {
         .con_symbol = con_symbol,
         .args       = args,
-        .is_class   = false,
     };
     return type;
 }

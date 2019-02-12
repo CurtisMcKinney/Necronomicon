@@ -1551,12 +1551,11 @@ NecroResult(NecroType) necro_create_type_class(NecroInfer* infer, NecroAst* type
 
     //------------------------------------
     // Create type_var for type_class
-    NecroType* type_class_var             = necro_type_var_create(infer->arena, type_class_ast->type_class_declaration.tyvar->variable.ast_symbol);
-    type_class_var->var.is_rigid          = true;
-    type_class->type                      = necro_type_con1_create(infer->arena, type_class->type_class_name, necro_type_list_create(infer->arena, type_class_var, NULL));
-    type_class->type->con.is_class        = true;
-    type_class->context                   = necro_try_map(NecroTypeClassContext, NecroType, necro_ast_to_context(infer, type_class_ast->type_class_declaration.context));
-    data->type                            = type_class_var;
+    NecroType* type_class_var      = necro_type_var_create(infer->arena, type_class_ast->type_class_declaration.tyvar->variable.ast_symbol);
+    type_class_var->var.is_rigid   = true;
+    type_class->type               = necro_type_con1_create(infer->arena, type_class->type_class_name, necro_type_list_create(infer->arena, type_class_var, NULL));
+    type_class->context            = necro_try_map(NecroTypeClassContext, NecroType, necro_ast_to_context(infer, type_class_ast->type_class_declaration.context));
+    data->type                     = type_class_var;
 
     type_class_var->var.context = necro_create_type_class_context(infer->arena, type_class, type_class->type_class_name, type_class->type_var, type_class->context);
     necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, type_class_var, type_class_ast->source_loc, type_class_ast->end_loc));

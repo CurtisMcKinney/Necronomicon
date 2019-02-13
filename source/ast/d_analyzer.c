@@ -26,120 +26,6 @@ typedef struct
     NecroIntern*     intern;
 } NecroDependencyAnalyzer;
 
-// NecroDeclarationGroup* necro_declaration_group_create(NecroPagedArena* arena, NecroAst* declaration_ast, NecroDeclarationGroup* prev)
-// {
-//     NecroDeclarationGroup* declaration_group = necro_paged_arena_alloc(arena, sizeof(NecroDeclarationGroup));
-//     declaration_group->declaration_ast       = declaration_ast;
-//     declaration_group->next                  = NULL;
-//     declaration_group->dependency_list       = NULL;
-//     declaration_group->info                  = NULL;
-//     declaration_group->type_checked          = false;
-//     declaration_group->index                 = -1;
-//     declaration_group->low_link              = 0;
-//     declaration_group->on_stack              = false;
-//     if (prev == NULL)
-//     {
-//         return declaration_group;
-//     }
-//     else
-//     {
-//         prev->next = declaration_group;
-//         return prev;
-//     }
-// }
-
-// NecroDeclarationGroup* necro_declaration_group_append(NecroPagedArena* arena, NecroAst* declaration_ast, NecroDeclarationGroup* head)
-// {
-//     NecroDeclarationGroup* declaration_group = necro_paged_arena_alloc(arena, sizeof(NecroDeclarationGroup));
-//     declaration_group->declaration_ast       = declaration_ast;
-//     declaration_group->next                  = NULL;
-//     declaration_group->dependency_list       = NULL;
-//     declaration_group->info                  = NULL;
-//     declaration_group->type_checked          = false;
-//     declaration_group->index                 = -1;
-//     declaration_group->low_link              = 0;
-//     declaration_group->on_stack              = false;
-//     if (head == NULL)
-//         return declaration_group;
-//     NecroDeclarationGroup* curr = head;
-//     while (curr->next != NULL)
-//         curr = curr->next;
-//     curr->next = declaration_group;
-//     return head;
-// }
-
-// void necro_declaration_group_append_to_group_in_group_list(NecroPagedArena* arena, NecroDeclarationGroupList* group_list, NecroDeclarationGroup* group_to_append)
-// {
-//     UNUSED(arena);
-//     NecroDeclarationGroup* existing_group = group_list->declaration_group;
-//     if (existing_group == NULL)
-//     {
-//         group_list->declaration_group = group_to_append;
-//         return;
-//     }
-//     NecroDeclarationGroup* curr = existing_group;
-//     while (curr->next != NULL)
-//         curr = curr->next;
-//     curr->next = group_to_append;
-// }
-
-// void necro_declaration_group_prepend_to_group_in_group_list(NecroPagedArena* arena, NecroDeclarationGroupList* group_list, NecroDeclarationGroup* group_to_prepend)
-// {
-//     UNUSED(arena);
-//     assert(group_to_prepend != NULL);
-//     NecroDeclarationGroup* curr = group_to_prepend;
-//     while (curr->next != NULL)
-//         curr = curr->next;
-//     curr->next = group_list->declaration_group;
-//     group_list->declaration_group = curr;
-// }
-
-// NecroDeclarationGroupList* necro_declaration_group_list_create(NecroPagedArena* arena, NecroDeclarationGroup* declaration_group, NecroDeclarationGroupList* prev)
-// {
-//     NecroDeclarationGroupList* declaration_group_list = necro_paged_arena_alloc(arena, sizeof(NecroDeclarationGroupList));
-//     declaration_group_list->declaration_group         = declaration_group;
-//     declaration_group_list->next                      = NULL;
-//     if (prev == NULL)
-//     {
-//         return declaration_group_list;
-//     }
-//     else
-//     {
-//         prev->next = declaration_group_list;
-//         return prev;
-//     }
-// }
-
-// NecroDeclarationGroupList* necro_declaration_group_list_prepend(NecroPagedArena* arena, NecroDeclarationGroup* declaration_group, NecroDeclarationGroupList* next)
-// {
-//     NecroDeclarationGroupList* declaration_group_list = necro_paged_arena_alloc(arena, sizeof(NecroDeclarationGroupList));
-//     declaration_group_list->declaration_group         = declaration_group;
-//     declaration_group_list->next                      = next;
-//     return declaration_group_list;
-// }
-
-// NecroDeclarationGroupList* necro_declaration_group_list_append(NecroPagedArena* arena, NecroDeclarationGroup* declaration_group, NecroDeclarationGroupList* head)
-// {
-//     NecroDeclarationGroupList* declaration_group_list = necro_paged_arena_alloc(arena, sizeof(NecroDeclarationGroupList));
-//     declaration_group_list->declaration_group         = declaration_group;
-//     declaration_group_list->next                      = NULL;
-//     if (head == NULL)
-//         return declaration_group_list;
-//     NecroDeclarationGroupList* curr = head;
-//     while (curr->next != NULL)
-//         curr = curr->next;
-//     curr->next = declaration_group_list;
-//     return head;
-// }
-
-// NecroDeclarationGroupList* necro_declaration_group_list_get_curr(NecroDeclarationGroupList* group_list)
-// {
-//     assert(group_list != NULL);
-//     while (group_list->next != NULL)
-//         group_list = group_list->next;
-//     return group_list;
-// }
-
 NecroDeclarationsInfo* necro_declaration_info_create(NecroPagedArena* arena)
 {
     NecroDeclarationsInfo* info = necro_paged_arena_alloc(arena, sizeof(NecroDeclarationsInfo));
@@ -149,20 +35,6 @@ NecroDeclarationsInfo* necro_declaration_info_create(NecroPagedArena* arena)
     info->index                 = 0;
     return info;
 }
-
-// NecroDependencyList*necro_dependency_list_create(NecroPagedArena* arena, NecroDeclarationGroup* dependency_group, NecroDependencyList* head)
-// {
-//     NecroDependencyList* dependency_list = necro_paged_arena_alloc(arena, sizeof(NecroDependencyList));
-//     dependency_list->dependency_group    = dependency_group;
-//     dependency_list->next                = NULL;
-//     if (head == NULL)
-//         return dependency_list;
-//     NecroDependencyList* curr = head;
-//     while (curr->next != NULL)
-//         curr = curr->next;
-//     curr->next = dependency_list;
-//     return curr;
-// }
 
 ///////////////////////////////////////////////////////
 // Forward Declarations
@@ -351,8 +223,6 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
         }
 
         // Overwrite ast with group lists
-        // TODO (2-13-19): Test this!
-        // ast->top_declaration.group_list = info->group_lists;
         *ast = *info->group_lists;
         necro_destroy_declaration_group_vector(&info->stack);
         break;
@@ -420,8 +290,6 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
             curr = curr->declaration.next_declaration;
         }
         // Overwrite ast with group lists
-        // TODO (2-13-19): Test this!
-        // ast->declaration.group_list = info->group_lists;
         *ast = *info->group_lists;
         necro_destroy_declaration_group_vector(&info->stack);
         break;

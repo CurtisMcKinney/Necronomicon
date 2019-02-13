@@ -12,32 +12,6 @@
 #include "symtable.h"
 #include "ast.h"
 
-// Dependency analysis
-// typedef struct NecroDependencyList
-// {
-//     struct NecroDeclarationGroup* dependency_group;
-//     struct NecroDependencyList*   next;
-// } NecroDependencyList;
-
-// typedef struct NecroDeclarationGroup
-// {
-//     NecroAst*                     declaration_ast;
-//     struct NecroDeclarationGroup* next;
-//     NecroDependencyList*          dependency_list;
-//     struct NecroDeclarationsInfo* info;
-//     int32_t                       index;
-//     int32_t                       low_link;
-//     bool                          on_stack;
-//     bool                          type_checked;
-// } NecroDeclarationGroup;
-
-// typedef struct NecroDeclarationGroupList
-// {
-//     NecroDeclarationGroup*            declaration_group;
-//     struct NecroDeclarationGroupList* next;
-// } NecroDeclarationGroupList;
-
-// NecroDeclarationGroup* necro_declaration_group_append(NecroPagedArena* arena, NecroAst* declaration_ast, NecroDeclarationGroup* head);
 void necro_dependency_analyze(NecroCompileInfo info, NecroIntern* intern, NecroAstArena* ast_arena);
 
 #endif // D_ANALYZER_H

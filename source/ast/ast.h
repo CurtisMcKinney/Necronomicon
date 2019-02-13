@@ -437,7 +437,6 @@ typedef struct
     bool                          on_stack;
     bool                          type_checked;
 
-    // struct NecroAst*              group_list;
 } NecroAstDeclaration;
 
 //=====================================================
@@ -447,7 +446,6 @@ typedef struct
 {
     struct NecroAst* declaration;
     struct NecroAst* next_top_decl; // Points to the next in the list, null_local_ptr if the end
-    // struct NecroAst* group_list;
 } NecroAstTopDeclaration;
 
 //=====================================================

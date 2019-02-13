@@ -15,16 +15,6 @@
 #include "base.h"
 #include "utility.h"
 
-/*
-    Notes (Curtis, 2-8-19):
-        * Static type class scheme to replace dictionary transformation?
-        * in lieu of the above, remove all monomorphism restrictions and make everything polymorphic?
-        * Healthy defaulting scheme, including a --> ()
-        * Default type class. Use this for polymorphic recursion
-        * Return to the idea of making all types used for recursion statically sized?
-        * Given the above we could do an even more drastic memory scheme, such as large scale Region based memory management.
-*/
-
 // Forward declarations
 NecroResult(NecroType) necro_infer_apat(NecroInfer* infer, NecroAst* ast);
 NecroResult(NecroType) necro_infer_pattern(NecroInfer* infer, NecroAst* ast);
@@ -1348,8 +1338,6 @@ NecroResult(NecroType) necro_infer_declaration(NecroInfer* infer, NecroAst* decl
         curr = curr->declaration.next_declaration;
     }
 
-    // declaration_group->type_checked = true;
-
     //-----------------------------
     // Pass 3, generalize
     curr = declaration_group;
@@ -1440,31 +1428,6 @@ NecroResult(NecroType) necro_infer_declaration_group_list(NecroInfer* infer, Nec
     // Declarations themselves have no types
     return ok(NecroType, NULL);
 }
-
-//=====================================================
-// Declaration
-//=====================================================
-// NecroResult(NecroType) necro_infer_declaration(NecroInfer* infer, NecroAst* ast)
-// {
-//     assert(ast != NULL);
-//     assert(ast->type == NECRO_AST_DECL);
-//
-//     // TODO (Curtis 2-13-19): FINISH
-//     // //----------------------------------------------------
-//     // // Infer types for declaration groups
-//     // NecroDeclarationGroupList* groups = ast->declaration.group_list;
-//     // while (groups != NULL)
-//     // {
-//     //     if (groups->declaration_group != NULL)
-//     //     {
-//     //         necro_try(NecroType, necro_infer_declaration_group(infer, groups->declaration_group));
-//     //     }
-//     //     groups = groups->next;
-//     // }
-//
-//     // Declarations themselves have no types
-//     return ok(NecroType, NULL);
-// }
 
 ///////////////////////////////////////////////////////
 // Recursion

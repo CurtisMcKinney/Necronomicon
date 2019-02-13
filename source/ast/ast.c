@@ -71,61 +71,21 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
         break;
 
     case NECRO_AST_TOP_DECL:
-        // if (ast->top_declaration.group_list != NULL)
-        // {
-        //     puts("");
-        //     NecroAst* groups = ast->top_declaration.group_list;
-        //     while (groups != NULL)
-        //     {
-        //         for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
-        //         puts("(Top Declaration Group)");
-        //         NecroAst* declarations = groups->declaration_group_list.declaration_group;
-        //         while (declarations != NULL)
-        //         {
-        //             necro_ast_print_go(declarations->declaration.declaration_impl, depth + 1);
-        //             declarations = declarations->declaration.next_declaration;
-        //         }
-        //         groups = groups->declaration_group_list.next;
-        //     }
-        // }
-        // else
-        // {
-            puts("(Top Declaration)");
-            necro_ast_print_go(ast->top_declaration.declaration, depth + 1);
-            if (ast->top_declaration.next_top_decl != NULL)
-            {
-                necro_ast_print_go(ast->top_declaration.next_top_decl, depth);
-            }
-        // }
+        puts("(Top Declaration)");
+        necro_ast_print_go(ast->top_declaration.declaration, depth + 1);
+        if (ast->top_declaration.next_top_decl != NULL)
+        {
+            necro_ast_print_go(ast->top_declaration.next_top_decl, depth);
+        }
         break;
 
     case NECRO_AST_DECL:
-        // if (ast->declaration.group_list != NULL)
-        // {
-        //     puts("");
-        //     NecroAst* groups = ast->declaration.group_list;
-        //     while (groups != NULL)
-        //     {
-        //         for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
-        //         puts("(Declaration Group)");
-        //         NecroAst* declarations = groups->declaration_group_list.declaration_group;
-        //         while (declarations != NULL)
-        //         {
-        //             necro_ast_print_go(declarations->declaration.declaration_impl, depth + 1);
-        //             declarations = declarations->declaration.next_declaration;
-        //         }
-        //         groups = groups->declaration_group_list.next;
-        //     }
-        // }
-        // else
-        // {
-            puts("(Declaration)");
-            necro_ast_print_go(ast->declaration.declaration_impl, depth + 1);
-            if (ast->declaration.next_declaration != NULL)
-            {
-                necro_ast_print_go(ast->declaration.next_declaration, depth);
-            }
-        // }
+        puts("(Declaration)");
+        necro_ast_print_go(ast->declaration.declaration_impl, depth + 1);
+        if (ast->declaration.next_declaration != NULL)
+        {
+            necro_ast_print_go(ast->declaration.next_declaration, depth);
+        }
         break;
 
     case NECRO_AST_DECLARATION_GROUP_LIST:

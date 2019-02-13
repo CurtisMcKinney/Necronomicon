@@ -8,6 +8,17 @@
 #include "type_class_translate.h"
 #include "base.h"
 
+/*
+    Notes (Curtis, 2-8-19):
+        * Static type class scheme to replace dictionary transformation?
+        * in lieu of the above, remove all monomorphism restrictions and make everything polymorphic?
+        * Healthy defaulting scheme, including a --> ()
+        * Default type class. Use this for polymorphic recursion
+        * Return to the idea of making all types used for recursion statically sized?
+        * Given the above we could do an even more drastic memory scheme, such as large scale Region based memory management.
+*/
+
+
 ///////////////////////////////////////////////////////
 // NecroTypeClassTranslate
 ///////////////////////////////////////////////////////

@@ -436,6 +436,7 @@ typedef struct
     int32_t                       low_link;
     bool                          on_stack;
     bool                          type_checked;
+    struct NecroAst*              declaration_group_list; // The DeclarationGroupList which owns this
 
 } NecroAstDeclaration;
 

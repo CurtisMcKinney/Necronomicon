@@ -16,6 +16,13 @@
         * Default type class. Use this for polymorphic recursion
         * Return to the idea of making all types used for recursion statically sized?
         * Given the above we could do an even more drastic memory scheme, such as large scale Region based memory management.
+
+        * Fully translate ALL polymorphism? If so we also have to translate data declarations....
+        * This would mean that NecroCoreAst could be completely monotyped which would significantly simplify typing there. 
+
+        * Default type class to allow for polymorphic recursive values?
+
+        * Rename pass to necro_type_specialize ???
 */
 
 
@@ -95,26 +102,27 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
         return ok_void();
     switch (ast->type)
     {
-//
-//         //=====================================================
-//         // Declaration type things
-//         //=====================================================
-//     case NECRO_AST_TOP_DECL:
-//     {
-//         NecroDeclarationGroupList* group_list = ast->top_declaration.group_list;
-//         while (group_list != NULL)
-//         {
-//             NecroDeclarationGroup* declaration_group = group_list->declaration_group;
-//             while (declaration_group != NULL)
-//             {
-//                 necro_try(NecroType, necro_type_class_translate_go(dictionary_context, infer, declaration_group->declaration_ast));
-//                 declaration_group = declaration_group->next;
-//             }
-//             group_list = group_list->next;
-//         }
-//         return ok(NecroType, NULL);
-//     }
-//
+    //=====================================================
+    // Declaration type things
+    //=====================================================
+    case NECRO_AST_TOP_DECL:
+        necro_unreachable(void);
+    case NECRO_AST_DECLARATION_GROUP_LIST:
+    {
+        NecroAst* group_list = ast;
+        while (group_list != NULL)
+        {
+            // NecroAst* declaration_group = group_list->declaration_group;
+            // while (declaration_group != NULL)
+            // {
+            //     necro_try(NecroType, necro_type_class_translate_go(dictionary_context, infer, declaration_group->declaration_ast));
+            //     declaration_group = declaration_group->next;
+            // }
+            group_list = group_list->declaration_group_list.next;
+        }
+        return ok_void();
+    }
+
 //     case NECRO_AST_DECL:
 //     {
 //         NecroDeclarationGroupList* group_list = ast->declaration.group_list;
@@ -494,37 +502,11 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
 //         necro_try(NecroType, necro_type_class_translate_go(dictionary_context, infer, ast->simple_type.type_con));
 //         return necro_type_class_translate_go(dictionary_context, infer, ast->simple_type.type_var_list);
 //
-//     case NECRO_AST_TYPE_CLASS_DECLARATION:
-// #if 0
-//         necro_type_class_translate_go(dictionary_context, infer, ast->type_class_declaration.context);
-//         necro_type_class_translate_go(dictionary_context, infer, ast->type_class_declaration.tycls);
-//         necro_type_class_translate_go(dictionary_context, infer, ast->type_class_declaration.tyvar);
-//         necro_type_class_translate_go(dictionary_context, infer, ast->type_class_declaration.declarations);
-// #endif
-//         return ok(NecroType, NULL);
-//
-//     case NECRO_AST_TYPE_SIGNATURE:
-// #if 0
-//         necro_type_class_translate_go(dictionary_context, infer, ast->type_signature.var);
-//         necro_type_class_translate_go(dictionary_context, infer, ast->type_signature.context);
-//         necro_type_class_translate_go(dictionary_context, infer, ast->type_signature.type);
-// #endif
-//         return ok(NecroType, NULL);
-//
-//     case NECRO_AST_TYPE_CLASS_CONTEXT:
-// #if 0
-//         necro_type_class_translate_go(dictionary_context, infer, ast->type_class_context.conid);
-//         necro_type_class_translate_go(dictionary_context, infer, ast->type_class_context.varid);
-// #endif
-//         return ok(NecroType, NULL);
-//
-//     case NECRO_AST_FUNCTION_TYPE:
-// #if 0
-//         necro_type_class_translate_go(dictionary_context, infer, ast->function_type.type);
-//         necro_type_class_translate_go(dictionary_context, infer, ast->function_type.next_on_arrow);
-// #endif
-//         return ok(NecroType, NULL);
-//
+    case NECRO_AST_TYPE_CLASS_DECLARATION:
+    case NECRO_AST_TYPE_SIGNATURE:
+    case NECRO_AST_TYPE_CLASS_CONTEXT:
+    case NECRO_AST_FUNCTION_TYPE:
+        return ok_void();
     default:
         necro_unreachable(void);
     }

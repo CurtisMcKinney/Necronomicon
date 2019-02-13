@@ -1026,18 +1026,18 @@ NecroAst* necro_ast_create_top_decl(NecroPagedArena* arena, NecroAst* top_level_
 NecroAst* necro_ast_create_decl(NecroPagedArena* arena, NecroAst* declaration, NecroAst* next)
 {
     assert(declaration != NULL);
-    NecroAst* ast                     = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                         = NECRO_AST_DECL;
-    ast->declaration.declaration_impl = declaration;
-    ast->declaration.next_declaration = next;
-    // ast->declaration.group_list       = NULL;
-    ast->declaration.info             = NULL;
-    ast->declaration.index            = -1;
-    ast->declaration.low_link         = 0;
-    ast->declaration.on_stack         = false;
-    ast->declaration.type_checked     = false;
-    ast->source_loc                   = NULL_LOC;
-    ast->end_loc                      = NULL_LOC;
+    NecroAst* ast                           = necro_paged_arena_alloc(arena, sizeof(NecroAst));
+    ast->type                               = NECRO_AST_DECL;
+    ast->declaration.declaration_impl       = declaration;
+    ast->declaration.next_declaration       = next;
+    ast->declaration.declaration_group_list = NULL;
+    ast->declaration.info                   = NULL;
+    ast->declaration.index                  = -1;
+    ast->declaration.low_link               = 0;
+    ast->declaration.on_stack               = false;
+    ast->declaration.type_checked           = false;
+    ast->source_loc                         = NULL_LOC;
+    ast->end_loc                            = NULL_LOC;
     return ast;
 }
 

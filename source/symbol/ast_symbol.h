@@ -44,10 +44,7 @@ typedef struct NecroAstSymbol
     NecroSymbol                    module_name;             // The name of the module that contains the NecroAstSymbol.
     struct NecroAst*               ast;                     // Pointer to the actual ast node that this symbol identifies.
     struct NecroAst*               optional_type_signature; // Type signature of the symbol in NecroAst form, if present. Resolved after reification phase.
-
-    // struct NecroDeclarationGroup*  declaration_group;       // Declaration group of the symbol, if present. Resolved after d_analysis phase.
-    struct NecroAst*               declaration_group;       // Refactor
-
+    struct NecroAst*               declaration_group;       // Declaration group of the symbol, if present. Resolved after d_analysis phase.
     struct NecroType*              type;                    // Type of the symbol, if present. Resolved after inference phase.
     size_t                         con_num;                 // Constructor Number, if present. This is the order in the constructor list of a data object a constructor sits at. Resolved after inference phase and used in code generation phase.
     bool                           is_constructor;          // Whether or not the symbol is a constructor (HACK?)

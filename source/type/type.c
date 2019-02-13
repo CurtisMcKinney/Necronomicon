@@ -290,6 +290,17 @@ NecroType* necro_type_get_fully_applied_fun_type(NecroType* type)
     return type;
 }
 
+bool necro_type_is_bounded_polymorphic(const NecroType* type)
+{
+    while (type->type == NECRO_TYPE_FOR)
+    {
+        if (type->for_all.context != NULL)
+            return true;
+        type = type->for_all.type;
+    }
+    return false;
+}
+
 //=====================================================
 // Unify
 //=====================================================

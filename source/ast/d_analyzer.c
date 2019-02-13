@@ -224,6 +224,23 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
 
         // Overwrite ast with group lists
         *ast = *info->group_lists;
+
+        //-----------------------------------------
+        // Pass 6, Set back pointers from DeclarationGroup to this DeclarationGroupList
+        curr = ast;
+        while (curr != NULL)
+        {
+            assert(curr->type == NECRO_AST_DECLARATION_GROUP_LIST);
+            NecroAst* group = curr->declaration_group_list.declaration_group;
+            while (group != NULL)
+            {
+                assert(group->type == NECRO_AST_DECL);
+                group->declaration.declaration_group_list = curr;
+                group                                     = group->declaration.next_declaration;
+            }
+            curr = curr->declaration_group_list.next;
+        }
+
         necro_destroy_declaration_group_vector(&info->stack);
         break;
     }
@@ -291,6 +308,21 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
         }
         // Overwrite ast with group lists
         *ast = *info->group_lists;
+        //-----------------------------------------
+        // Pass 4, Set back pointers from DeclarationGroup to this DeclarationGroupList
+        curr = info->group_lists;
+        while (curr != NULL)
+        {
+            assert(curr->type == NECRO_AST_DECLARATION_GROUP_LIST);
+            NecroAst* group = curr->declaration_group_list.declaration_group;
+            while (group != NULL)
+            {
+                assert(group->type == NECRO_AST_DECL);
+                group->declaration.declaration_group_list = curr;
+                group                                     = group->declaration.next_declaration;
+            }
+            curr = curr->declaration_group_list.next;
+        }
         necro_destroy_declaration_group_vector(&info->stack);
         break;
     }

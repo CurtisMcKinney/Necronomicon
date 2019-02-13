@@ -317,7 +317,7 @@ NecroResult(NecroType) necro_infer_simple_assignment(NecroInfer* infer, NecroAst
     NecroType* proxy_type = ast->simple_assignment.ast_symbol->type;
     NecroType* init_type  = necro_try(NecroType, necro_infer_go(infer, ast->simple_assignment.initializer));
     NecroType* rhs_type   = necro_try(NecroType, necro_infer_go(infer, ast->simple_assignment.rhs));
-    if (ast->simple_assignment.declaration_group != NULL && ast->simple_assignment.declaration_group->next != NULL)
+    if (ast->simple_assignment.declaration_group != NULL && ast->simple_assignment.declaration_group->declaration.next_declaration != NULL)
         ast->simple_assignment.is_recursive = true;
     necro_try(NecroType, necro_type_unify_with_info(infer->arena, infer->base, proxy_type, rhs_type, ast->scope, ast->simple_assignment.rhs->source_loc, ast->simple_assignment.rhs->end_loc));
     if (init_type != NULL)
@@ -1247,23 +1247,25 @@ NecroResult(NecroType) necro_infer_do(NecroInfer* infer, NecroAst* ast)
 // Declaration groups
 //=====================================================
 // NOTE: NEW! Local bindings are mono-typed! Read up from Simon Peyton Jones why this is generally a good idea.
-NecroResult(NecroType) necro_infer_declaration_group(NecroInfer* infer, NecroDeclarationGroup* declaration_group)
+NecroResult(NecroType) necro_infer_declaration(NecroInfer* infer, NecroAst* declaration_group)
 {
     assert(declaration_group != NULL);
+    assert(declaration_group->type == NECRO_AST_DECL);
     NecroAst*       ast  = NULL;
     NecroAstSymbol* data = NULL;
 
     //-----------------------------
     // Pass 1, new names
-    NecroDeclarationGroup* curr = declaration_group;
+    // NecroDeclarationGroup* curr = declaration_group;
+    NecroAst* curr = declaration_group;
     while (curr != NULL)
     {
-        if (curr->type_checked) { curr = curr->next; continue; }
-        ast = curr->declaration_ast;
+        assert(curr->type == NECRO_AST_DECL);
+        if (curr->declaration.type_checked) { curr = curr->declaration.next_declaration; continue; }
+        ast = curr->declaration.declaration_impl;
         switch(ast->type)
         {
         case NECRO_AST_SIMPLE_ASSIGNMENT:
-        {
             data = ast->simple_assignment.ast_symbol;
             if (data->type == NULL)
             {
@@ -1271,15 +1273,8 @@ NecroResult(NecroType) necro_infer_declaration_group(NecroInfer* infer, NecroDec
                 new_name->var.scope = ast->scope;
                 data->type          = new_name;
             }
-            else
-            {
-                // Hack: For built-ins
-                data->type->pre_supplied = true;
-            }
             break;
-        }
         case NECRO_AST_APATS_ASSIGNMENT:
-        {
             data = ast->apats_assignment.ast_symbol;
             if (data->type == NULL)
             {
@@ -1287,18 +1282,13 @@ NecroResult(NecroType) necro_infer_declaration_group(NecroInfer* infer, NecroDec
                 new_name->var.scope = ast->scope;
                 data->type          = new_name;
             }
-            else
-            {
-                // Hack: For built-ins
-                // symbol_info->type->pre_supplied = true;
-            }
             break;
-        }
         case NECRO_AST_PAT_ASSIGNMENT:
             necro_pat_new_name_go(infer, ast->pat_assignment.pat);
             break;
         case NECRO_AST_DATA_DECLARATION:
             necro_try(NecroType, necro_infer_simple_type(infer, ast->data_declaration.simpletype));
+            fflush(stdout);
             break;
         case NECRO_AST_TYPE_SIGNATURE:
             necro_try(NecroType, necro_infer_type_sig(infer, ast));
@@ -1312,7 +1302,7 @@ NecroResult(NecroType) necro_infer_declaration_group(NecroInfer* infer, NecroDec
         default:
             necro_unreachable(NecroType);
         }
-        curr = curr->next;
+        curr = curr->declaration.next_declaration;
     }
 
     //-----------------------------
@@ -1320,8 +1310,8 @@ NecroResult(NecroType) necro_infer_declaration_group(NecroInfer* infer, NecroDec
     curr = declaration_group;
     while (curr != NULL)
     {
-        if (curr->type_checked) { curr = curr->next; continue; }
-        ast = curr->declaration_ast;
+        if (curr->declaration.type_checked) { curr = curr->declaration.next_declaration; continue; }
+        ast = curr->declaration.declaration_impl;
         switch(ast->type)
         {
         case NECRO_AST_SIMPLE_ASSIGNMENT:
@@ -1337,13 +1327,9 @@ NecroResult(NecroType) necro_infer_declaration_group(NecroInfer* infer, NecroDec
         {
             NecroAst*  constructor_list = ast->data_declaration.constructor_list;
             size_t     con_num          = 0;
-
             while (constructor_list != NULL)
             {
-                // Duplicate type!?
                 necro_try(NecroType, necro_create_data_constructor(infer, constructor_list->list.item, ast->data_declaration.simpletype->necro_type, con_num));
-                // necro_try(NecroType, necro_create_data_constructor(infer, constructor_list->list.item, data_type_type, con_num));
-
                 constructor_list = constructor_list->list.next_item;
                 con_num++;
             }
@@ -1359,7 +1345,7 @@ NecroResult(NecroType) necro_infer_declaration_group(NecroInfer* infer, NecroDec
         default:
             necro_unreachable(NecroType);
         }
-        curr = curr->next;
+        curr = curr->declaration.next_declaration;
     }
 
     // declaration_group->type_checked = true;
@@ -1369,14 +1355,14 @@ NecroResult(NecroType) necro_infer_declaration_group(NecroInfer* infer, NecroDec
     curr = declaration_group;
     while (curr != NULL)
     {
-        ast = curr->declaration_ast;
-        if (curr->type_checked) { curr = curr->next;  continue; }
+        ast = curr->declaration.declaration_impl;
+        if (curr->declaration.type_checked) { curr = curr->declaration.next_declaration; continue; }
         switch(ast->type)
         {
         case NECRO_AST_SIMPLE_ASSIGNMENT:
         {
             data = ast->simple_assignment.ast_symbol;
-            if (data->type->pre_supplied || data->type_status == NECRO_TYPE_DONE) { data->type_status = NECRO_TYPE_DONE; curr->type_checked = true; curr = curr->next;  continue; }
+            if (data->type->pre_supplied || data->type_status == NECRO_TYPE_DONE) { data->type_status = NECRO_TYPE_DONE; curr->declaration.type_checked = true; continue; }
 
             // Monomorphism restriction
             // symbol_info->type = necro_gen(infer, symbol_info->type, symbol_info->scope->parent);
@@ -1391,7 +1377,7 @@ NecroResult(NecroType) necro_infer_declaration_group(NecroInfer* infer, NecroDec
         case NECRO_AST_APATS_ASSIGNMENT:
         {
             data = ast->apats_assignment.ast_symbol;
-            if (data->type->pre_supplied || data->type_status == NECRO_TYPE_DONE) { data->type_status = NECRO_TYPE_DONE; curr->type_checked = true; curr = curr->next;  continue; }
+            if (data->type->pre_supplied || data->type_status == NECRO_TYPE_DONE) { data->type_status = NECRO_TYPE_DONE; curr->declaration.type_checked = true; continue; }
             // monomorphic local bindings!!!!
             if (necro_symtable_get_top_level_ast_symbol(infer->scoped_symtable, data->name) == NULL)
                 break;
@@ -1425,61 +1411,60 @@ NecroResult(NecroType) necro_infer_declaration_group(NecroInfer* infer, NecroDec
         default:
             necro_unreachable(NecroType);
         }
-        curr->type_checked = true;
-        curr               = curr->next;
+        curr->declaration.type_checked = true;
+        curr                           = curr->declaration.next_declaration;
     }
 
+    return ok(NecroType, NULL);
+}
+
+//=====================================================
+// Declaration Group List
+//=====================================================
+NecroResult(NecroType) necro_infer_declaration_group_list(NecroInfer* infer, NecroAst* ast)
+{
+    assert(infer != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_DECLARATION_GROUP_LIST);
+    //----------------------------------------------------
+    // Iterate declaration groups
+    NecroAst* groups = ast;
+    while (groups != NULL)
+    {
+        if (groups->declaration_group_list.declaration_group != NULL)
+        {
+            necro_try(NecroType, necro_infer_declaration(infer, groups->declaration_group_list.declaration_group));
+        }
+        groups = groups->declaration_group_list.next;
+    }
+    // Declarations themselves have no types
     return ok(NecroType, NULL);
 }
 
 //=====================================================
 // Declaration
 //=====================================================
-NecroResult(NecroType) necro_infer_declaration(NecroInfer* infer, NecroAst* ast)
-{
-    assert(ast != NULL);
-    assert(ast->type == NECRO_AST_DECL);
-
-    //----------------------------------------------------
-    // Infer types for declaration groups
-    NecroDeclarationGroupList* groups = ast->declaration.group_list;
-    while (groups != NULL)
-    {
-        if (groups->declaration_group != NULL)
-        {
-            necro_try(NecroType, necro_infer_declaration_group(infer, groups->declaration_group));
-        }
-        groups = groups->next;
-    }
-
-    // Declarations themselves have no types
-    return ok(NecroType, NULL);
-}
-
-//=====================================================
-// Top Declaration
-//=====================================================
-NecroResult(NecroType) necro_infer_top_declaration(NecroInfer* infer, NecroAst* ast)
-{
-    assert(infer != NULL);
-    assert(ast != NULL);
-    assert(ast->type == NECRO_AST_TOP_DECL);
-
-    //----------------------------------------------------
-    // Iterate declaration groups
-    NecroDeclarationGroupList* groups = ast->top_declaration.group_list;
-    while (groups != NULL)
-    {
-        if (groups->declaration_group != NULL)
-        {
-            necro_try(NecroType, necro_infer_declaration_group(infer, groups->declaration_group));
-        }
-        groups = groups->next;
-    }
-
-    // Declarations themselves have no types
-    return ok(NecroType, NULL);
-}
+// NecroResult(NecroType) necro_infer_declaration(NecroInfer* infer, NecroAst* ast)
+// {
+//     assert(ast != NULL);
+//     assert(ast->type == NECRO_AST_DECL);
+//
+//     // TODO (Curtis 2-13-19): FINISH
+//     // //----------------------------------------------------
+//     // // Infer types for declaration groups
+//     // NecroDeclarationGroupList* groups = ast->declaration.group_list;
+//     // while (groups != NULL)
+//     // {
+//     //     if (groups->declaration_group != NULL)
+//     //     {
+//     //         necro_try(NecroType, necro_infer_declaration_group(infer, groups->declaration_group));
+//     //     }
+//     //     groups = groups->next;
+//     // }
+//
+//     // Declarations themselves have no types
+//     return ok(NecroType, NULL);
+// }
 
 ///////////////////////////////////////////////////////
 // Recursion
@@ -1554,7 +1539,7 @@ NecroResult(NecroType) necro_infer_go(NecroInfer* infer, NecroAst* ast)
     case NECRO_AST_LAMBDA:                 return necro_infer_lambda(infer, ast);
     case NECRO_AST_LET_EXPRESSION:         return necro_infer_let_expression(infer, ast);
     case NECRO_AST_DECL:                   return necro_infer_declaration(infer, ast);
-    case NECRO_AST_TOP_DECL:               return necro_infer_top_declaration(infer, ast);
+    case NECRO_AST_DECLARATION_GROUP_LIST: return necro_infer_declaration_group_list(infer, ast);
     case NECRO_AST_TUPLE:                  return necro_infer_tuple(infer, ast);
     case NECRO_AST_EXPRESSION_LIST:        return necro_infer_expression_list(infer, ast);
     case NECRO_AST_EXPRESSION_ARRAY:       return necro_infer_expression_array(infer, ast);
@@ -1564,6 +1549,7 @@ NecroResult(NecroType) necro_infer_go(NecroInfer* infer, NecroAst* ast)
     case NECRO_AST_DO:                     return necro_infer_do(infer, ast);
     case NECRO_AST_TYPE_SIGNATURE:         return necro_infer_type_sig(infer, ast);
 
+    case NECRO_AST_TOP_DECL:               /* FALLTHROUGH */
     case NECRO_AST_SIMPLE_ASSIGNMENT:      /* FALLTHROUGH */
     case NECRO_AST_APATS_ASSIGNMENT:       /* FALLTHROUGH */
     case NECRO_AST_PAT_ASSIGNMENT:         /* FALLTHROUGH */
@@ -2357,6 +2343,17 @@ void necro_test_infer()
             "  twoHeads :: OgreMagi b => b -> (a, b)\n"
             "instance OgreMagi (Maybe a) where\n"
             "  twoHeads x = (Nothing, x)\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Mutual Recursion";
+        const char* test_source = ""
+            "mutantRec1 :: Int -> Int\n"
+            "mutantRec1 x = mutantRec2 x\n"
+            "mutantRec2 :: Int -> Int\n"
+            "mutantRec2 x = mutantRec1 x\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
     }

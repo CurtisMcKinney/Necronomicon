@@ -27,7 +27,8 @@ typedef struct NecroRenamer
     NecroScopedSymTable*   scoped_symtable;
     NecroSymbol            current_class_instance_symbol;
     NecroSymbol            prev_class_instance_symbol;
-    NecroDeclarationGroup* current_declaration_group;
+    // NecroDeclarationGroup* current_declaration_group;
+    NecroAst*              current_declaration_group;
     NecroAst*              current_type_sig_ast;
     NecroAstArena*         ast_arena;
     NECRO_RENAME_STATE     state;
@@ -482,17 +483,17 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
     case NECRO_AST_SIMPLE_ASSIGNMENT:
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->simple_assignment.initializer));
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->simple_assignment.rhs));
-        ast->simple_assignment.ast_symbol->declaration_group = necro_declaration_group_append(&renamer->ast_arena->arena, ast, ast->simple_assignment.ast_symbol->declaration_group);
+        ast->simple_assignment.ast_symbol->declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, ast->simple_assignment.ast_symbol->declaration_group);
         ast->simple_assignment.declaration_group = ast->simple_assignment.ast_symbol->declaration_group;
         break;
     case NECRO_AST_APATS_ASSIGNMENT:
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->apats_assignment.apats));
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->apats_assignment.rhs));
-        ast->apats_assignment.ast_symbol->declaration_group = necro_declaration_group_append(&renamer->ast_arena->arena, ast, ast->apats_assignment.ast_symbol->declaration_group);
+        ast->apats_assignment.ast_symbol->declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, ast->apats_assignment.ast_symbol->declaration_group);
         ast->apats_assignment.declaration_group = ast->apats_assignment.ast_symbol->declaration_group;
         break;
     case NECRO_AST_PAT_ASSIGNMENT:
-        renamer->current_declaration_group = necro_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
+        renamer->current_declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
         ast->pat_assignment.declaration_group = renamer->current_declaration_group;
         renamer->state = NECRO_RENAME_PAT_ASSIGNMENT;
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->pat_assignment.pat));
@@ -637,7 +638,7 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->data_declaration.constructor_list));
         ast->data_declaration.ast_symbol = ast->data_declaration.simpletype->simple_type.type_con->conid.ast_symbol;
         ast->data_declaration.ast_symbol->ast = ast;
-        ast->data_declaration.ast_symbol->declaration_group = necro_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
+        ast->data_declaration.ast_symbol->declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
         ast->data_declaration.declaration_group = ast->data_declaration.ast_symbol->declaration_group;
         break;
 
@@ -648,7 +649,7 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_class_declaration.declarations));
         ast->type_class_declaration.ast_symbol = ast->type_class_declaration.tycls->conid.ast_symbol;
         ast->type_class_declaration.ast_symbol->ast = ast;
-        ast->type_class_declaration.ast_symbol->declaration_group = necro_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
+        ast->type_class_declaration.ast_symbol->declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
         ast->type_class_declaration.declaration_group = ast->type_class_declaration.ast_symbol->declaration_group;
         break;
 
@@ -659,7 +660,7 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_class_instance.declarations));
         ast->type_class_instance.ast_symbol = necro_ast_symbol_create(&renamer->ast_arena->arena, NULL, NULL, renamer->ast_arena->module_name, ast);
         ast->type_class_instance.ast_symbol->ast = ast;
-        ast->type_class_instance.ast_symbol->declaration_group = necro_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
+        ast->type_class_instance.ast_symbol->declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
         ast->type_class_instance.declaration_group = ast->type_class_instance.ast_symbol->declaration_group;
         break;
 
@@ -670,7 +671,7 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_signature.var));
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_signature.context));
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_signature.type));
-        ast->type_signature.declaration_group = necro_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
+        ast->type_signature.declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
         break;
 
     case NECRO_AST_TYPE_CLASS_CONTEXT:

@@ -1329,10 +1329,10 @@ void necro_lex_test()
             // NecroResult(bool) result = necro_lex_go(&lexer);
             // necro_print_result_errors(result.errors, result.num_errors, noise, "noiseTest.necro");
             // necro_print_lexer(&lexer);
-            
+
             if (result.error)
                 free(result.error);
-            
+
             necro_lexer_full_destroy(&lexer);
             necro_intern_destroy(&intern);
         }

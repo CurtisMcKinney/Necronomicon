@@ -407,19 +407,21 @@ NecroCoreAST_Expression* necro_transform_right_hand_side(NecroTransformToCore* c
     if (right_hand_side->declarations)
     {
         assert(right_hand_side->declarations->type == NECRO_AST_DECL);
-        NecroDeclarationGroupList* group_list = right_hand_side->declarations->declaration.group_list;
+        NecroAst* group_list = right_hand_side->declarations;
+        assert(group_list->type == NECRO_AST_DECLARATION_GROUP_LIST);
         NecroCoreAST_Expression* core_let_expr = NULL;
         NecroCoreAST_Let* core_let = NULL;
         NecroCoreAST_Expression* rhs_expression = necro_transform_to_core_impl(core_transform, right_hand_side->expression);
         while (group_list)
         {
-            NecroDeclarationGroup* group = group_list->declaration_group;
+            NecroAst* group = group_list->declaration_group_list.declaration_group;
             while (group != NULL)
             {
                 assert(group);
-                assert(group->declaration_ast->type == NECRO_AST_SIMPLE_ASSIGNMENT);
+                assert(group->type == NECRO_AST_DECL);
+                assert(group->declaration.declaration_impl->type == NECRO_AST_SIMPLE_ASSIGNMENT);
                 // NOTE - Curtis: Why ^^^? Kicking the can on nested functions!?!?!?
-                NecroAstSimpleAssignment* simple_assignment = &group->declaration_ast->simple_assignment;
+                NecroAstSimpleAssignment* simple_assignment = &group->declaration.declaration_impl->simple_assignment;
                 NecroCoreAST_Expression* let_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
                 let_expr->expr_type = NECRO_CORE_EXPR_LET;
                 NecroCoreAST_Let* let = &let_expr->let;
@@ -441,9 +443,9 @@ NecroCoreAST_Expression* necro_transform_right_hand_side(NecroTransformToCore* c
 
                 core_let = let;
                 core_let->expr = rhs_expression;
-                group = group->next;
+                group = group->declaration.next_declaration;
             }
-            group_list = group_list->next;
+            group_list = group_list->declaration_group_list.next;
         }
 
         return core_let_expr;
@@ -466,18 +468,20 @@ NecroCoreAST_Expression* necro_transform_let(NecroTransformToCore* core_transfor
     if (reified_ast_let->declarations)
     {
         assert(reified_ast_let->declarations->type == NECRO_AST_DECL);
-        NecroDeclarationGroupList* group_list = reified_ast_let->declarations->declaration.group_list;
+        NecroAst* group_list = reified_ast_let->declarations;
+        assert(group_list->type == NECRO_AST_DECLARATION_GROUP_LIST);
         NecroCoreAST_Expression* core_let_expr = NULL;
         NecroCoreAST_Let* core_let = NULL;
         NecroCoreAST_Expression* rhs_expression = necro_transform_to_core_impl(core_transform, reified_ast_let->expression);
         while (group_list)
         {
-            NecroDeclarationGroup* group = group_list->declaration_group;
+            NecroAst* group = group_list->declaration_group_list.declaration_group;
             while (group != NULL)
             {
                 assert(group);
-                assert(group->declaration_ast->type == NECRO_AST_SIMPLE_ASSIGNMENT);
-                NecroAstSimpleAssignment* simple_assignment = &group->declaration_ast->simple_assignment;
+                assert(group->type == NECRO_AST_DECL);
+                assert(group->declaration.declaration_impl->type == NECRO_AST_SIMPLE_ASSIGNMENT);
+                NecroAstSimpleAssignment* simple_assignment = &group->declaration.declaration_impl->simple_assignment;
                 NecroCoreAST_Expression* let_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
                 let_expr->expr_type = NECRO_CORE_EXPR_LET;
                 NecroCoreAST_Let* let = &let_expr->let;
@@ -499,9 +503,9 @@ NecroCoreAST_Expression* necro_transform_let(NecroTransformToCore* core_transfor
 
                 core_let = let;
                 core_let->expr = rhs_expression;
-                group = group->next;
+                group = group->declaration.next_declaration;
             }
-            group_list = group_list->next;
+            group_list = group_list->declaration_group_list.next;
         }
 
         return core_let_expr;
@@ -747,37 +751,41 @@ NecroCoreAST_Expression* necro_transform_top_decl(NecroTransformToCore* core_tra
     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
         return NULL;
 
-    NecroCoreAST_Expression* top_expression = NULL;
-    NecroCoreAST_Expression* next_node = NULL;
-    NecroDeclarationGroupList* group_list = necro_ast_node->top_declaration.group_list;
-    assert(group_list);
-    while (group_list)
-    {
-        NecroDeclarationGroup* group = group_list->declaration_group;
-        while (group != NULL)
-        {
-            assert(group);
-            NecroCoreAST_Expression* last_node = next_node;
-            NecroCoreAST_Expression* expression = necro_transform_to_core_impl(core_transform, (NecroAst*) group->declaration_ast);
-            next_node = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-            next_node->expr_type = NECRO_CORE_EXPR_LIST;
-            next_node->list.expr = expression;
-            next_node->list.next = NULL;
-            if (top_expression == NULL)
-            {
-                top_expression = next_node;
-            }
-            else
-            {
-                last_node->list.next = next_node;
-            }
-            group = group->next;
-        }
-        group_list = group_list->next;
-    }
+    // NOTE (Curtis, 2-13-19); New system has NECRO_AST_DECLARATION_GROUP_LIST subsume NECRO_AST_TOP_DECL after dependency analysis
+    assert(false);
+    return NULL;
 
-    assert(top_expression);
-    return top_expression;
+    // NecroCoreAST_Expression* top_expression = NULL;
+    // NecroCoreAST_Expression* next_node = NULL;
+    // NecroDeclarationGroupList* group_list = necro_ast_node->top_declaration.group_list;
+    // assert(group_list);
+    // while (group_list)
+    // {
+    //     NecroDeclarationGroup* group = group_list->declaration_group;
+    //     while (group != NULL)
+    //     {
+    //         assert(group);
+    //         NecroCoreAST_Expression* last_node = next_node;
+    //         NecroCoreAST_Expression* expression = necro_transform_to_core_impl(core_transform, (NecroAst*) group->declaration_ast);
+    //         next_node = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
+    //         next_node->expr_type = NECRO_CORE_EXPR_LIST;
+    //         next_node->list.expr = expression;
+    //         next_node->list.next = NULL;
+    //         if (top_expression == NULL)
+    //         {
+    //             top_expression = next_node;
+    //         }
+    //         else
+    //         {
+    //             last_node->list.next = next_node;
+    //         }
+    //         group = group->next;
+    //     }
+    //     group_list = group_list->next;
+    // }
+
+    // assert(top_expression);
+    // return top_expression;
 }
 
 NecroCoreAST_Expression* necro_transform_lambda(NecroTransformToCore* core_transform, NecroAst* necro_ast_node)

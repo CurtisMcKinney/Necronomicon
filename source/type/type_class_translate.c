@@ -77,8 +77,7 @@ NecroResult(void) necro_type_class_translate(NecroCompileInfo info, NecroIntern*
 ///////////////////////////////////////////////////////
 // Go
 ///////////////////////////////////////////////////////
-// TODO: Replace original in type_class.h
-NecroResult(void) necro_type_class_translate_go2(NecroTypeClassTranslate* type_class_translate, NecroAst* ast)
+NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_class_translate, NecroAst* ast)
 {
     UNUSED(type_class_translate);
     if (ast == NULL)

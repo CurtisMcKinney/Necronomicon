@@ -94,7 +94,7 @@ typedef struct NecroTypeClassDictionaryContext
 } NecroTypeClassDictionaryContext;
 NecroTypeClassDictionaryContext* necro_create_type_class_dictionary_context(NecroPagedArena* arena, NecroAstSymbol* type_class_name, NecroAstSymbol* type_var_name, NecroAst* dictionary_arg_ast, NecroTypeClassDictionaryContext* next);
 // NecroResult(void)                necro_type_class_translate(NecroInfer* infer, NecroAst* ast);
-NecroResult(NecroType)           necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_context, NecroInfer* infer, NecroAst* ast);
+// NecroResult(NecroType)           necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_context, NecroInfer* infer, NecroAst* ast);
 void                             necro_create_dictionary_data_declaration(NecroPagedArena* arena, NecroIntern* intern, NecroAst* type_class_ast);
 
 NecroTypeClassInstance* necro_get_type_class_instance(NecroAstSymbol* data_type_symbol, NecroAstSymbol* type_class_symbol);

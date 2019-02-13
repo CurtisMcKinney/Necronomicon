@@ -71,61 +71,68 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
         break;
 
     case NECRO_AST_TOP_DECL:
-        if (ast->top_declaration.group_list != NULL)
-        {
-            puts("");
-            NecroDeclarationGroupList* groups = ast->top_declaration.group_list;
-            while (groups != NULL)
-            {
-                for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
-                puts("(Top Declaration Group)");
-                NecroDeclarationGroup* declarations = groups->declaration_group;
-                while (declarations != NULL)
-                {
-                    necro_ast_print_go(declarations->declaration_ast, depth + 1);
-                    declarations = declarations->next;
-                }
-                groups = groups->next;
-            }
-        }
-        else
-        {
+        // if (ast->top_declaration.group_list != NULL)
+        // {
+        //     puts("");
+        //     NecroAst* groups = ast->top_declaration.group_list;
+        //     while (groups != NULL)
+        //     {
+        //         for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
+        //         puts("(Top Declaration Group)");
+        //         NecroAst* declarations = groups->declaration_group_list.declaration_group;
+        //         while (declarations != NULL)
+        //         {
+        //             necro_ast_print_go(declarations->declaration.declaration_impl, depth + 1);
+        //             declarations = declarations->declaration.next_declaration;
+        //         }
+        //         groups = groups->declaration_group_list.next;
+        //     }
+        // }
+        // else
+        // {
             puts("(Top Declaration)");
             necro_ast_print_go(ast->top_declaration.declaration, depth + 1);
             if (ast->top_declaration.next_top_decl != NULL)
             {
                 necro_ast_print_go(ast->top_declaration.next_top_decl, depth);
             }
-        }
+        // }
         break;
 
     case NECRO_AST_DECL:
-        if (ast->declaration.group_list != NULL)
-        {
-            puts("");
-            NecroDeclarationGroupList* groups = ast->declaration.group_list;
-            while (groups != NULL)
-            {
-                for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
-                puts("(Declaration Group)");
-                NecroDeclarationGroup* declarations = groups->declaration_group;
-                while (declarations != NULL)
-                {
-                    necro_ast_print_go(declarations->declaration_ast, depth + 1);
-                    declarations = declarations->next;
-                }
-                groups = groups->next;
-            }
-        }
-        else
-        {
+        // if (ast->declaration.group_list != NULL)
+        // {
+        //     puts("");
+        //     NecroAst* groups = ast->declaration.group_list;
+        //     while (groups != NULL)
+        //     {
+        //         for (uint32_t i = 0;  i < depth; ++i) printf(AST_TAB);
+        //         puts("(Declaration Group)");
+        //         NecroAst* declarations = groups->declaration_group_list.declaration_group;
+        //         while (declarations != NULL)
+        //         {
+        //             necro_ast_print_go(declarations->declaration.declaration_impl, depth + 1);
+        //             declarations = declarations->declaration.next_declaration;
+        //         }
+        //         groups = groups->declaration_group_list.next;
+        //     }
+        // }
+        // else
+        // {
             puts("(Declaration)");
             necro_ast_print_go(ast->declaration.declaration_impl, depth + 1);
             if (ast->declaration.next_declaration != NULL)
             {
                 necro_ast_print_go(ast->declaration.next_declaration, depth);
             }
-        }
+        // }
+        break;
+
+    case NECRO_AST_DECLARATION_GROUP_LIST:
+        puts("(DeclarationGroupList)");
+        necro_ast_print_go(ast->declaration_group_list.declaration_group, depth + 1);
+        if (ast->declaration_group_list.next != NULL)
+            necro_ast_print_go(ast->declaration_group_list.next, depth);
         break;
 
     case NECRO_AST_SIMPLE_ASSIGNMENT:
@@ -579,12 +586,12 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
     case NECRO_AST_TOP_DECL:
         reified_ast->top_declaration.declaration   = necro_reify_go(parse_ast_arena, ast->top_declaration.declaration, arena, intern);
         reified_ast->top_declaration.next_top_decl = necro_reify_go(parse_ast_arena, ast->top_declaration.next_top_decl, arena, intern);
-        reified_ast->top_declaration.group_list    = NULL;
+        // reified_ast->top_declaration.group_list    = NULL;
         break;
     case NECRO_AST_DECL:
         reified_ast->declaration.declaration_impl = necro_reify_go(parse_ast_arena, ast->declaration.declaration_impl, arena, intern);
         reified_ast->declaration.next_declaration = necro_reify_go(parse_ast_arena, ast->declaration.next_declaration, arena, intern);
-        reified_ast->declaration.group_list       = NULL;
+        // reified_ast->declaration.group_list       = NULL;
         break;
     case NECRO_AST_SIMPLE_ASSIGNMENT:
         reified_ast->simple_assignment.initializer       = necro_reify_go(parse_ast_arena, ast->simple_assignment.initializer, arena, intern);
@@ -1050,7 +1057,7 @@ NecroAst* necro_ast_create_top_decl(NecroPagedArena* arena, NecroAst* top_level_
     ast->type                          = NECRO_AST_TOP_DECL;
     ast->top_declaration.declaration   = top_level_declaration;
     ast->top_declaration.next_top_decl = next;
-    ast->top_declaration.group_list    = NULL;
+    // ast->top_declaration.group_list    = NULL;
     ast->source_loc                   = NULL_LOC;
     ast->end_loc                      = NULL_LOC;
     return ast;
@@ -1063,7 +1070,12 @@ NecroAst* necro_ast_create_decl(NecroPagedArena* arena, NecroAst* declaration, N
     ast->type                         = NECRO_AST_DECL;
     ast->declaration.declaration_impl = declaration;
     ast->declaration.next_declaration = next;
-    ast->declaration.group_list       = NULL;
+    // ast->declaration.group_list       = NULL;
+    ast->declaration.info             = NULL;
+    ast->declaration.index            = -1;
+    ast->declaration.low_link         = 0;
+    ast->declaration.on_stack         = false;
+    ast->declaration.type_checked     = false;
     ast->source_loc                   = NULL_LOC;
     ast->end_loc                      = NULL_LOC;
     return ast;
@@ -1230,6 +1242,8 @@ NecroAst* necro_ast_create_constant(NecroPagedArena* arena, NecroParseAstConstan
     ast->constant.pat_eq_ast   = NULL;
     ast->constant.pat_from_ast = NULL;
     ast->constant.type         = constant.type;
+    ast->source_loc            = NULL_LOC;
+    ast->end_loc               = NULL_LOC;
     switch (constant.type)
     {
     case NECRO_AST_CONSTANT_FLOAT:
@@ -1259,6 +1273,8 @@ NecroAst* necro_ast_create_let(NecroPagedArena* arena, NecroAst* expression_ast,
     ast->type                        = NECRO_AST_LET_EXPRESSION;
     ast->let_expression.expression   = expression_ast;
     ast->let_expression.declarations = declarations_ast;
+    ast->source_loc                  = NULL_LOC;
+    ast->end_loc                     = NULL_LOC;
     return ast;
 }
 
@@ -1268,6 +1284,8 @@ NecroAst* necro_ast_create_do(NecroPagedArena* arena, NecroAst* statement_list_a
     ast->type                        = NECRO_AST_DO;
     ast->do_statement.monad_var      = NULL;
     ast->do_statement.statement_list = statement_list_ast;
+    ast->source_loc                  = NULL_LOC;
+    ast->end_loc                     = NULL_LOC;
     return ast;
 }
 
@@ -1277,7 +1295,70 @@ NecroAst* necro_ast_create_bind_assignment(NecroPagedArena* arena, NecroAstSymbo
     ast->type                       = NECRO_BIND_ASSIGNMENT;
     ast->bind_assignment.ast_symbol = ast_symbol;
     ast->bind_assignment.expression = expr;
+    ast->source_loc                 = NULL_LOC;
+    ast->end_loc                    = NULL_LOC;
     return ast;
+}
+
+NecroAst* necro_ast_create_declaration_group_list(NecroPagedArena* arena, NecroAst* declaration_group, NecroAst* prev)
+{
+    if (declaration_group != NULL)
+        assert(declaration_group->type == NECRO_AST_DECL);
+    NecroAst* ast                                 = necro_paged_arena_alloc(arena, sizeof(NecroAst));
+    ast->type                                     = NECRO_AST_DECLARATION_GROUP_LIST;
+    ast->declaration_group_list.declaration_group = declaration_group;
+    ast->declaration_group_list.next              = NULL;
+    ast->source_loc                               = NULL_LOC;
+    ast->end_loc                                  = NULL_LOC;
+    if (prev == NULL)
+    {
+        return ast;
+    }
+    else
+    {
+        prev->declaration_group_list.next = ast;
+        return prev;
+    }
+}
+
+NecroAst* necro_ast_declaration_group_append(NecroPagedArena* arena, NecroAst* declaration_ast, NecroAst* declaration_group_head)
+{
+    NecroAst* ast = necro_ast_create_decl(arena, declaration_ast, NULL);
+    if (declaration_group_head == NULL)
+        return ast;
+    assert(declaration_group_head->type == NECRO_AST_DECL);
+    NecroAst* curr = declaration_group_head;
+    while (curr->declaration.next_declaration != NULL)
+        curr = curr->declaration.next_declaration;
+    curr->declaration.next_declaration = ast;
+    return declaration_group_head;
+}
+
+void necro_ast_declaration_group_prepend_to_group_in_group_list(NecroAst* group_list, NecroAst* group_to_prepend)
+{
+    assert(group_list->type == NECRO_AST_DECLARATION_GROUP_LIST);
+    assert(group_to_prepend->type == NECRO_AST_DECL);
+    assert(group_to_prepend != NULL);
+    NecroAst* curr = group_to_prepend;
+    while (curr->declaration.next_declaration != NULL)
+        curr = curr->declaration.next_declaration;
+    curr->declaration.next_declaration = group_list->declaration_group_list.declaration_group;
+    group_list->declaration_group_list.declaration_group = curr;
+}
+
+NecroAst* necro_ast_declaration_group_list_append(NecroPagedArena* arena, NecroAst* declaration_group, NecroAst* declaration_group_list_head)
+{
+    if (declaration_group != NULL)
+        assert(declaration_group->type == NECRO_AST_DECL);
+    NecroAst* declaration_group_list = necro_ast_create_declaration_group_list(arena, declaration_group, NULL);
+    if (declaration_group_list_head == NULL)
+        return declaration_group_list;
+    assert(declaration_group_list_head->type == NECRO_AST_DECLARATION_GROUP_LIST);
+    NecroAst* curr = declaration_group_list_head;
+    while (curr->declaration_group_list.next != NULL)
+        curr = curr->declaration_group_list.next;
+    curr->declaration_group_list.next = declaration_group_list;
+    return declaration_group_list_head;
 }
 
 ///////////////////////////////////////////////////////
@@ -1358,6 +1439,14 @@ void necro_ast_assert_eq_decl(NecroAst* ast1, NecroAst* ast2)
     assert(ast2->type == NECRO_AST_DECL);
     necro_ast_assert_eq_go(ast1->declaration.declaration_impl, ast2->declaration.declaration_impl);
     necro_ast_assert_eq_go(ast1->declaration.next_declaration, ast2->declaration.next_declaration);
+}
+
+void necro_ast_assert_eq_declaration_group_list(NecroAst* ast1, NecroAst* ast2)
+{
+    assert(ast1->type == NECRO_AST_DECLARATION_GROUP_LIST);
+    assert(ast2->type == NECRO_AST_DECLARATION_GROUP_LIST);
+    necro_ast_assert_eq_go(ast1->declaration_group_list.declaration_group, ast2->declaration_group_list.declaration_group);
+    necro_ast_assert_eq_go(ast1->declaration_group_list.next, ast2->declaration_group_list.next);
 }
 
 void necro_ast_assert_eq_simple_assignment(NecroAst* ast1, NecroAst* ast2)
@@ -1645,6 +1734,7 @@ void necro_ast_assert_eq_go(NecroAst* ast1, NecroAst* ast2)
     case NECRO_AST_IF_THEN_ELSE:           necro_ast_assert_eq_if_then_else(ast1, ast2); break;
     case NECRO_AST_TOP_DECL:               necro_ast_assert_eq_top_decl(ast1, ast2); break;
     case NECRO_AST_DECL:                   necro_ast_assert_eq_decl(ast1, ast2); break;
+    case NECRO_AST_DECLARATION_GROUP_LIST: necro_ast_assert_eq_declaration_group_list(ast1, ast2); break;
     case NECRO_AST_SIMPLE_ASSIGNMENT:      necro_ast_assert_eq_simple_assignment(ast1, ast2); break;
     case NECRO_AST_APATS_ASSIGNMENT:       necro_ast_assert_eq_apats_assignment(ast1, ast2); break;
     case NECRO_AST_PAT_ASSIGNMENT:         necro_ast_assert_eq_pat_assignment(ast1, ast2); break;

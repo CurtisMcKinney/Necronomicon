@@ -16,7 +16,7 @@
 int main(int32_t argc, char** argv)
 {
     ENABLE_AUTO_MEM_CHECK();
-    
+
     if (argc == 3 && strcmp(argv[2], "-unicode_p") == 0)
     {
         necro_unicode_property_parse(argv[1]);
@@ -27,7 +27,7 @@ int main(int32_t argc, char** argv)
         {
             necro_test(NECRO_TEST_ALL);
         }
-        else if (strcmp(argv[2], "parser") == 0)
+        else if (strcmp(argv[2], "parser") == 0 || strcmp(argv[2], "parse") == 0)
         {
             necro_test(NECRO_TEST_PARSER);
         }
@@ -47,7 +47,7 @@ int main(int32_t argc, char** argv)
         {
             necro_test(NECRO_TEST_INFER);
         }
-        else if (strcmp(argv[2], "lexer") == 0)
+        else if (strcmp(argv[2], "lexer") == 0 || strcmp(argv[2], "lex") == 0)
         {
             necro_test(NECRO_TEST_LEXER);
         }
@@ -55,7 +55,7 @@ int main(int32_t argc, char** argv)
         {
             necro_test(NECRO_TEST_INTERN);
         }
-        else if (strcmp(argv[2], "rename") == 0)
+        else if (strcmp(argv[2], "rename") == 0 || strcmp(argv[2], "renamer") == 0)
         {
             necro_test(NECRO_TEST_RENAME);
         }

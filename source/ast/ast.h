@@ -16,10 +16,16 @@
 
 struct NecroScope;
 struct NecroAst;
-struct NecroDeclarationGroup;
-struct NecroDeclarationGroupList;
 struct NecroDeclarationsInfo;
 struct NecroTypeClassContext;
+
+/*
+    TODO (Curtis 2-13-19):
+        Make NecroAst completely freestanding.
+        Remove / Replace all pointer to Non-NecroAst structs in NecroAst.
+        The two big offenders are NecroAstSymbol and NecroTypeClassContext.
+        The goal should be able to write and read a freestanding NecroAst to disc.
+*/
 
 //=====================================================
 // AST FunctionType
@@ -35,13 +41,13 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    struct NecroAst*              context;// optional, null_local_ptr if not present
-    struct NecroAst*              qtycls;
-    struct NecroAst*              inst;
-    struct NecroAst*              declarations; // Points to the next in the list, null_local_ptr if the end
-    struct NecroAst*              dictionary_instance; // Dictionary instance which is generated at compile time by the compiler
-    struct NecroDeclarationGroup* declaration_group;
-    NecroAstSymbol*               ast_symbol;
+    struct NecroAst* context;// optional, null_local_ptr if not present
+    struct NecroAst* qtycls;
+    struct NecroAst* inst;
+    struct NecroAst* declarations; // Points to the next in the list, null_local_ptr if the end
+    struct NecroAst* dictionary_instance; // Dictionary instance which is generated at compile time by the compiler
+    struct NecroAst* declaration_group;
+    NecroAstSymbol*  ast_symbol;
 } NecroAstTypeClassInstance;
 
 //=====================================================
@@ -49,13 +55,13 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    struct NecroAst*              context; // optional, null_local_ptr if not present
-    struct NecroAst*              tycls;
-    struct NecroAst*              tyvar;
-    struct NecroAst*              declarations; // Points to the next in the list, null_local_ptr if the end
-    struct NecroAst*              dictionary_data_declaration; // Dictionary data declaration which is generated at compile time by the compiler
-    struct NecroDeclarationGroup* declaration_group;
-    NecroAstSymbol*               ast_symbol;
+    struct NecroAst* context; // optional, null_local_ptr if not present
+    struct NecroAst* tycls;
+    struct NecroAst* tyvar;
+    struct NecroAst* declarations; // Points to the next in the list, null_local_ptr if the end
+    struct NecroAst* dictionary_data_declaration; // Dictionary data declaration which is generated at compile time by the compiler
+    struct NecroAst* declaration_group;
+    NecroAstSymbol*  ast_symbol;
 } NecroAstTypeClassDeclaration;
 
 //=====================================================
@@ -72,11 +78,11 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    struct NecroAst*              var;
-    struct NecroAst*              context; // optional, null_local_ptr if not present
-    struct NecroAst*              type;
-    NECRO_SIG_TYPE                sig_type;
-    struct NecroDeclarationGroup* declaration_group;
+    struct NecroAst* var;
+    struct NecroAst* context; // optional, null_local_ptr if not present
+    struct NecroAst* type;
+    NECRO_SIG_TYPE   sig_type;
+    struct NecroAst* declaration_group;
 } NecroAstTypeSignature;
 
 //=====================================================
@@ -84,11 +90,11 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    struct NecroAst*              simpletype;
-    struct NecroAst*              constructor_list; // Points to the next in the list, null_local_ptr if the end
-    struct NecroDeclarationGroup* declaration_group;
-    bool                          is_recursive;
-    NecroAstSymbol*               ast_symbol;
+    struct NecroAst* simpletype;
+    struct NecroAst* constructor_list; // Points to the next in the list, null_local_ptr if the end
+    struct NecroAst* declaration_group;
+    bool             is_recursive;
+    NecroAstSymbol*  ast_symbol;
 } NecroAstDataDeclaration;
 
 //=====================================================
@@ -212,7 +218,6 @@ typedef struct
 //=====================================================
 // AST Unary Operation
 //=====================================================
-
 // typedef enum
 // {
 //     NECRO_UN_OP_NEG = 0,
@@ -271,12 +276,12 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    struct NecroAst*              initializer;
-    struct NecroAst*              rhs;
-    struct NecroDeclarationGroup* declaration_group;
-    bool                          is_recursive;
-    NecroAstSymbol*               ast_symbol;
-    struct NecroAst*              optional_type_signature;
+    struct NecroAst* initializer;
+    struct NecroAst* rhs;
+    struct NecroAst* declaration_group;
+    bool             is_recursive;
+    NecroAstSymbol*  ast_symbol;
+    struct NecroAst* optional_type_signature;
 } NecroAstSimpleAssignment;
 
 //=====================================================
@@ -311,11 +316,11 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    struct NecroAst*              apats;
-    struct NecroAst*              rhs;
-    struct NecroDeclarationGroup* declaration_group;
-    NecroAstSymbol*               ast_symbol;
-    struct NecroAst*              optional_type_signature;
+    struct NecroAst* apats;
+    struct NecroAst* rhs;
+    struct NecroAst* declaration_group;
+    NecroAstSymbol*  ast_symbol;
+    struct NecroAst* optional_type_signature;
 } NecroAstApatsAssignment;
 
 //=====================================================
@@ -323,10 +328,10 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    struct NecroAst*              pat;
-    struct NecroAst*              rhs;
-    struct NecroDeclarationGroup* declaration_group;
-    struct NecroAst*              optional_type_signatures; // list
+    struct NecroAst* pat;
+    struct NecroAst* rhs;
+    struct NecroAst* declaration_group;
+    struct NecroAst* optional_type_signatures; // list
 } NecroAstPatAssignment;
 
 //=====================================================
@@ -410,13 +415,29 @@ typedef struct
 } NecroAstFunctionExpression;
 
 //=====================================================
+// AST DeclarationGroupList
+//=====================================================
+typedef struct NecroAstDeclarationGroupList
+{
+    struct NecroAst* declaration_group;
+    struct NecroAst* next;
+} NecroAstDeclarationGroupList;
+
+//=====================================================
 // AST Declarations
 //=====================================================
 typedef struct
 {
-    struct NecroAst*                  declaration_impl;
-    struct NecroAst*                  next_declaration; // Points to the next in the list, null_local_ptr if the end
-    struct NecroDeclarationGroupList* group_list;
+    struct NecroAst*              declaration_impl; // TODO (Curtis 2-13-19): refactor to declaration_ast
+    struct NecroAst*              next_declaration; // TODO (Curtis 2-13-19): refactor to next
+
+    struct NecroDeclarationsInfo* info; // Does this need to be a pointer!?!?!?
+    int32_t                       index;
+    int32_t                       low_link;
+    bool                          on_stack;
+    bool                          type_checked;
+
+    // struct NecroAst*              group_list;
 } NecroAstDeclaration;
 
 //=====================================================
@@ -424,9 +445,9 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    struct NecroAst*                  declaration;
-    struct NecroAst*                  next_top_decl; // Points to the next in the list, null_local_ptr if the end
-    struct NecroDeclarationGroupList* group_list;
+    struct NecroAst* declaration;
+    struct NecroAst* next_top_decl; // Points to the next in the list, null_local_ptr if the end
+    // struct NecroAst* group_list;
 } NecroAstTopDeclaration;
 
 //=====================================================
@@ -509,6 +530,7 @@ typedef struct NecroAst
         NecroAstTypeSignature        type_signature;
         NecroAstFunctionType         function_type;
         NecroAstPatExpression        pattern_expression;
+        NecroAstDeclarationGroupList declaration_group_list;
     };
     NECRO_AST_TYPE     type;
     // TODO: Replace NecroSourceLoc in NecroParseAst and NecroAst with const char* str
@@ -565,6 +587,10 @@ NecroAst* necro_ast_create_constant(NecroPagedArena* arena, NecroParseAstConstan
 NecroAst* necro_ast_create_let(NecroPagedArena* arena, NecroAst* expression_ast, NecroAst* declarations_ast);
 NecroAst* necro_ast_create_do(NecroPagedArena* arena, NecroAst* statement_list_ast);
 NecroAst* necro_ast_create_bind_assignment(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* expr);
+NecroAst* necro_ast_create_declaration_group_list(NecroPagedArena* arena, NecroAst* declaration_group, NecroAst* prev);
+NecroAst* necro_ast_declaration_group_append(NecroPagedArena* arena, NecroAst* declaration_ast, NecroAst* declaration_group_head);
+void      necro_ast_declaration_group_prepend_to_group_in_group_list(NecroAst* group_list, NecroAst* group_to_prepend);
+NecroAst* necro_ast_declaration_group_list_append(NecroPagedArena* arena, NecroAst* declaration_group, NecroAst* declaration_group_list_head);
 // NecroAst* necro_ast_create_left_section(NecroPagedArena* arena, NecroAstSymbol* ast_symbol,
 
 // Manual AST Creation with provided NecroAstSymbol

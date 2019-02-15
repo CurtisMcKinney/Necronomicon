@@ -1255,7 +1255,8 @@ NecroResult(NecroAst) necro_resolve_context_to_dictionary(NecroInfer* infer, Nec
     {
         NecroTypeClassInstance* instance     = necro_get_type_class_instance(var_type->con.con_symbol, context->class_symbol);
         NecroTypeClassContext*  inst_context = NULL;
-        NecroType*              inst_type    = necro_try_map(NecroType, NecroAst, necro_type_instantiate_with_context(infer->arena, infer->base, instance->data_type, NULL, &inst_context));
+        // NecroType*              inst_type    = necro_try_map(NecroType, NecroAst, necro_type_instantiate_with_context(infer->arena, infer->base, instance->data_type, NULL, &inst_context));
+        NecroType*              inst_type    = necro_try_map(NecroType, NecroAst, necro_type_instantiate(infer->arena, infer->base, instance->data_type, NULL));
         necro_try_map(NecroType, NecroAst, necro_type_unify(infer->arena, infer->base, var_type, inst_type, NULL));
         NecroAst*               d_var        = necro_ast_create_var(infer->arena, infer->intern, instance->dictionary_instance_name->str, NECRO_VAR_VAR);
         d_var->scope = infer->scoped_symtable->top_type_scope;
@@ -1360,7 +1361,8 @@ NecroResult(NecroAst) necro_resolve_method(NecroInfer* infer, NecroTypeClass* me
                 m_var->scope                                = ast->scope;
                 NecroType*             member_instance_type = prototype->instance_member_ast_symbol->type;
                 NecroTypeClassContext* inst_context         = NULL;
-                NecroType*             inst_type            = necro_try_map(NecroType, NecroAst, necro_type_instantiate_with_context(infer->arena, infer->base, member_instance_type, NULL, &inst_context));
+                // NecroType*             inst_type            = necro_try_map(NecroType, NecroAst, necro_type_instantiate_with_context(infer->arena, infer->base, member_instance_type, NULL, &inst_context));
+                NecroType*             inst_type            = necro_try_map(NecroType, NecroAst, necro_type_instantiate(infer->arena, infer->base, member_instance_type, NULL));
                 necro_try_map(NecroType, NecroAst, necro_type_unify(infer->arena, infer->base, ast->necro_type, inst_type, NULL));
                 while (inst_context != NULL)
                 {
@@ -1474,11 +1476,11 @@ NecroResult(NecroType) necro_rec_check_pat_assignment(NecroInfer* infer, NecroAs
     case NECRO_AST_VARIABLE:
         if (ast->variable.initializer != NULL && !necro_is_fully_concrete(ast->variable.ast_symbol->type))
         {
-            return necro_type_non_concrete_initialized_value_error(ast->simple_assignment.ast_symbol, ast->necro_type, ast->source_loc, ast->end_loc);
+            return necro_error_map(void, NecroType, necro_type_non_concrete_initialized_value_error(ast->simple_assignment.ast_symbol, ast->necro_type, ast->source_loc, ast->end_loc));
         }
         if (ast->variable.initializer != NULL && !ast->variable.is_recursive)
         {
-            return necro_type_non_recursive_initialized_value_error(ast->simple_assignment.ast_symbol, ast->necro_type, ast->source_loc, ast->end_loc);
+            return necro_error_map(void, NecroType, necro_type_non_recursive_initialized_value_error(ast->simple_assignment.ast_symbol, ast->necro_type, ast->source_loc, ast->end_loc));
         }
         return ok(NecroType, NULL);
     case NECRO_AST_CONSTANT:

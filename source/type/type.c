@@ -301,6 +301,11 @@ bool necro_type_is_bounded_polymorphic(const NecroType* type)
     return false;
 }
 
+bool necro_type_is_polymorphic(const NecroType* type)
+{
+    return type->type == NECRO_TYPE_FOR;
+}
+
 //=====================================================
 // Unify
 //=====================================================
@@ -681,6 +686,15 @@ NecroInstSub* necro_create_inst_sub(NecroPagedArena* arena, NecroAstSymbol* var_
         .next           = next,
     };
     sub->new_name->var.context = context;
+    return sub;
+}
+
+NecroInstSub* necro_create_inst_sub_manual(NecroPagedArena* arena, NecroAstSymbol* var_to_replace, NecroType* new_type, NecroInstSub* next)
+{
+    NecroInstSub* sub = necro_paged_arena_alloc(arena, sizeof(NecroInstSub));
+    sub->var_to_replace = var_to_replace;
+    sub->new_name       = new_type;
+    sub->next           = next;
     return sub;
 }
 
@@ -1144,6 +1158,111 @@ void necro_type_fprint(FILE* stream, const NecroType* type)
         assert(false);
         break;
     }
+}
+
+size_t necro_type_mangled_string_length(const NecroType* type)
+{
+    if (type == NULL)
+        return 0;
+    type = necro_type_find_const(type);
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR:
+        assert(false &&  "Mangled types must be fully concrete");
+        return 0;
+
+    case NECRO_TYPE_APP:
+        assert(false &&  "Mangled types must be fully concrete");
+        return 0;
+
+    case NECRO_TYPE_FUN:
+        return necro_type_mangled_string_length(type->fun.type1) + necro_type_mangled_string_length(type->fun.type2) + 3;
+
+    case NECRO_TYPE_CON:
+        return strlen(type->con.con_symbol->source_name->str) + necro_type_mangled_string_length(type->con.args);
+
+    case NECRO_TYPE_LIST:
+    {
+        size_t length = 1;
+        while (type != NULL)
+        {
+            length += necro_type_mangled_string_length(type->list.item);
+            type = type->list.next;
+        }
+        return length;
+    }
+
+    case NECRO_TYPE_FOR:
+        assert(false && "Mangled types must be fully concrete");
+        return 0;
+
+    default:
+        assert(false);
+        return 0;
+    }
+}
+
+size_t necro_type_mangled_sprintf(char* buffer, size_t offset, const NecroType* type)
+{
+    if (type == NULL)
+        return offset;
+    type = necro_type_find_const(type);
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR:
+        assert(false &&  "Mangled types must be fully concrete");
+        return offset;
+
+    case NECRO_TYPE_APP:
+        assert(false &&  "Mangled types must be fully concrete");
+        return offset;
+
+    case NECRO_TYPE_FUN:
+        offset += sprintf(buffer + offset, "<");
+        offset  = necro_type_mangled_sprintf(buffer, offset, type->fun.type1);
+        offset += sprintf(buffer + offset, ",");
+        offset  = necro_type_mangled_sprintf(buffer, offset, type->fun.type2);
+        offset += sprintf(buffer + offset, ">");
+        return offset;
+
+    case NECRO_TYPE_CON:
+        offset += sprintf(buffer + offset, "%s", type->con.con_symbol->source_name->str);
+        return necro_type_mangled_sprintf(buffer, offset, type->con.args);
+
+    case NECRO_TYPE_LIST:
+    {
+        offset += sprintf(buffer + offset, "_");
+        while (type != NULL)
+        {
+            offset = necro_type_mangled_sprintf(buffer, offset, type->list.item);
+            type = type->list.next;
+        }
+        return offset;
+    }
+
+    case NECRO_TYPE_FOR:
+        assert(false && "Mangled types must be fully concrete");
+        return offset;
+
+    default:
+        assert(false);
+        return offset;
+    }
+}
+
+NecroSymbol necro_type_mangled_symbol(NecroIntern* intern, const NecroType* type)
+{
+    const size_t length  = necro_type_mangled_string_length(type) + 2;
+    char*        buffer  = malloc(length * sizeof(char));
+
+    buffer[0]            = '@';
+    const size_t length2 = necro_type_mangled_sprintf(buffer, 1, type);
+    assert(length2 + 1 == length);
+
+    NecroSymbol symbol   = necro_intern_string(intern, buffer);
+
+    free(buffer);
+    return symbol;
 }
 
 //=====================================================

@@ -452,6 +452,7 @@ NecroAstArena necro_reify(NecroCompileInfo info, NecroIntern* intern, NecroParse
     return ast_arena;
 }
 
+// TODO (Curtis, 2-14-19): Refactor to use ast creation functions
 NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocalPtr parse_ast_ptr, NecroPagedArena* arena, NecroIntern* intern)
 {
     if (parse_ast_ptr == null_local_ptr)
@@ -537,6 +538,7 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         reified_ast->bin_op.ast_symbol   = necro_ast_symbol_create(arena, ast->bin_op.symbol, ast->bin_op.symbol, NULL, NULL);
         reified_ast->bin_op.type         = ast->bin_op.type;
         reified_ast->bin_op.inst_context = NULL;
+        reified_ast->bin_op.inst_subs    = NULL;
         break;
     case NECRO_AST_IF_THEN_ELSE:
         reified_ast->if_then_else.if_expr   = necro_reify_go(parse_ast_arena, ast->if_then_else.if_expr, arena, intern);
@@ -549,9 +551,14 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         // reified_ast->top_declaration.group_list    = NULL;
         break;
     case NECRO_AST_DECL:
-        reified_ast->declaration.declaration_impl = necro_reify_go(parse_ast_arena, ast->declaration.declaration_impl, arena, intern);
-        reified_ast->declaration.next_declaration = necro_reify_go(parse_ast_arena, ast->declaration.next_declaration, arena, intern);
-        // reified_ast->declaration.group_list       = NULL;
+        reified_ast->declaration.declaration_impl       = necro_reify_go(parse_ast_arena, ast->declaration.declaration_impl, arena, intern);
+        reified_ast->declaration.next_declaration       = necro_reify_go(parse_ast_arena, ast->declaration.next_declaration, arena, intern);
+        reified_ast->declaration.declaration_group_list = NULL;
+        reified_ast->declaration.info                   = NULL;
+        reified_ast->declaration.index                  = -1;
+        reified_ast->declaration.low_link               = 0;
+        reified_ast->declaration.on_stack               = false;
+        reified_ast->declaration.type_checked           = false;
         break;
     case NECRO_AST_SIMPLE_ASSIGNMENT:
         reified_ast->simple_assignment.initializer       = necro_reify_go(parse_ast_arena, ast->simple_assignment.initializer, arena, intern);
@@ -600,6 +607,7 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         }
         reified_ast->variable.var_type     = ast->variable.var_type;
         reified_ast->variable.inst_context = NULL;
+        reified_ast->variable.inst_subs    = NULL;
         reified_ast->variable.initializer  = necro_reify_go(parse_ast_arena, ast->variable.initializer, arena, intern);
         reified_ast->variable.is_recursive = false;
         break;
@@ -684,12 +692,14 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         reified_ast->op_left_section.ast_symbol   = necro_ast_symbol_create(arena, ast->op_left_section.symbol, ast->op_left_section.symbol, NULL, reified_ast);
         reified_ast->op_left_section.type         = ast->op_left_section.type;
         reified_ast->op_left_section.inst_context = NULL;
+        reified_ast->op_left_section.inst_subs    = NULL;
         break;
     case NECRO_AST_OP_RIGHT_SECTION:
         reified_ast->op_right_section.ast_symbol   = necro_ast_symbol_create(arena, ast->op_right_section.symbol, ast->op_right_section.symbol, NULL, reified_ast);
         reified_ast->op_right_section.type         = ast->op_right_section.type;
         reified_ast->op_right_section.right        = necro_reify_go(parse_ast_arena, ast->op_right_section.right, arena, intern);
         reified_ast->op_right_section.inst_context = NULL;
+        reified_ast->op_right_section.inst_subs    = NULL;
         break;
     case NECRO_AST_CONSTRUCTOR:
         reified_ast->constructor.conid    = necro_reify_go(parse_ast_arena, ast->constructor.conid, arena, intern);
@@ -813,6 +823,7 @@ NecroAst* necro_ast_create_var(NecroPagedArena* arena, NecroIntern* intern, cons
     ast->type                   = NECRO_AST_VARIABLE;
     ast->variable.var_type      = var_type;
     ast->variable.inst_context  = NULL;
+    ast->variable.inst_subs     = NULL;
     ast->variable.initializer   = NULL;
     ast->variable.is_recursive  = false;
     ast->source_loc             = NULL_LOC;
@@ -840,6 +851,7 @@ NecroAst* necro_ast_create_var_with_ast_symbol(NecroPagedArena* arena, NecroAstS
     ast->type                     = NECRO_AST_VARIABLE;
     ast->variable.var_type        = var_type;
     ast->variable.inst_context    = NULL;
+    ast->variable.inst_subs       = NULL;
     ast->variable.initializer     = NULL;
     ast->variable.is_recursive    = false;
     ast->source_loc               = NULL_LOC;
@@ -1190,6 +1202,7 @@ NecroAst* necro_ast_create_bin_op(NecroPagedArena* arena, NecroIntern* intern, c
     ast->bin_op.lhs          = lhs;
     ast->bin_op.rhs          = rhs;
     ast->bin_op.inst_context = NULL;
+    ast->bin_op.inst_subs    = NULL;
     ast->source_loc          = NULL_LOC;
     ast->end_loc             = NULL_LOC;
     return ast;

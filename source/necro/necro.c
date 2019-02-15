@@ -63,6 +63,10 @@ int main(int32_t argc, char** argv)
         {
             necro_test(NECRO_TEST_BASE);
         }
+        else if (strcmp(argv[2], "translate") == 0 || strcmp(argv[2], "specialize") == 0)
+        {
+            necro_test(NECRO_TEST_TYPE_CLASS_TRANSLATE);
+        }
     }
     else if (argc == 2 || argc == 3 || argc == 4)
     {

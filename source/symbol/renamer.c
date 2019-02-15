@@ -27,7 +27,6 @@ typedef struct NecroRenamer
     NecroScopedSymTable*   scoped_symtable;
     NecroSymbol            current_class_instance_symbol;
     NecroSymbol            prev_class_instance_symbol;
-    // NecroDeclarationGroup* current_declaration_group;
     NecroAst*              current_declaration_group;
     NecroAst*              current_type_sig_ast;
     NecroAstArena*         ast_arena;

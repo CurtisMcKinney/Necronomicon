@@ -159,7 +159,7 @@ NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, s
 NecroResult(NecroType) necro_type_unify(NecroPagedArena* arena, struct NecroBase* base, NecroType* type1, NecroType* type2, struct NecroScope* scope);
 NecroResult(NecroType) necro_type_occurs(NecroAstSymbol* var_symbol, NecroType* type);
 NecroResult(NecroType) necro_type_instantiate(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope);
-NecroResult(NecroType) necro_type_instantiate_with_context(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope, struct NecroTypeClassContext** inst_context);
+// NecroResult(NecroType) necro_type_instantiate_with_context(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope, struct NecroTypeClassContext** inst_context);
 NecroResult(NecroType) necro_type_instantiate_with_subs(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope, NecroInstSub** subs);
 NecroResult(NecroType) necro_type_generalize(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope);
 
@@ -167,6 +167,7 @@ bool                   necro_type_exact_unify(NecroType* type1, NecroType* type2
 NecroType*             necro_type_find(NecroType* type);
 const NecroType*       necro_type_find_const(const NecroType* type);
 bool                   necro_type_is_bound_in_scope(NecroType* type, struct NecroScope* scope);
+bool                   necro_type_is_polymorphic(const NecroType* type);
 bool                   necro_type_is_bounded_polymorphic(const NecroType* type);
 NecroType*             necro_type_curry_con(NecroPagedArena* arena, NecroType* con);
 size_t                 necro_type_arity(NecroType* type);
@@ -199,5 +200,9 @@ NecroType*             necro_type_tuple_con_create(NecroPagedArena* arena, struc
 
 void                   necro_type_fprint(FILE* stream, const NecroType* type);
 void                   necro_type_print(const NecroType* type);
+NecroSymbol            necro_type_mangled_symbol(NecroIntern* intern, const NecroType* type);
+size_t                 necro_type_mangled_string_length(const NecroType* type);
+size_t                 necro_type_mangled_sprintf(char* buffer, size_t offset, const NecroType* type);
 
+NecroInstSub*          necro_create_inst_sub_manual(NecroPagedArena* arena, NecroAstSymbol* var_to_replace, NecroType* new_type, NecroInstSub* next);
 #endif // TYPE_H

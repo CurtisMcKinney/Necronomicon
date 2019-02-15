@@ -576,9 +576,9 @@ NecroResult(NecroType) necro_infer_var(NecroInfer* infer, NecroAst* ast)
     }
     else
     {
-        ast->variable.inst_context = NULL;
-        NecroType* inst_type       = necro_try(NecroType, necro_type_instantiate_with_context(infer->arena, infer->base, data->type, ast->scope, &ast->variable.inst_context));
-        ast->necro_type            = inst_type;
+        ast->variable.inst_subs = NULL;
+        NecroType* inst_type    = necro_try(NecroType, necro_type_instantiate_with_subs(infer->arena, infer->base, data->type, ast->scope, &ast->variable.inst_subs));
+        ast->necro_type         = inst_type;
         necro_try(NecroType, necro_infer_var_initializer(infer, ast));
         return ok(NecroType, ast->necro_type);
     }
@@ -888,8 +888,8 @@ NecroResult(NecroType) necro_infer_bin_op(NecroInfer* infer, NecroAst* ast)
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_BIN_OP);
     NecroType* x_type        = necro_try(NecroType, necro_infer_go(infer, ast->bin_op.lhs));
-    ast->bin_op.inst_context = NULL;
-    NecroType* op_type       = necro_try(NecroType, necro_type_instantiate_with_context(infer->arena, infer->base, ast->bin_op.ast_symbol->type, ast->scope, &ast->bin_op.inst_context));
+    ast->bin_op.inst_subs    = NULL;
+    NecroType* op_type       = necro_try(NecroType, necro_type_instantiate_with_subs(infer->arena, infer->base, ast->bin_op.ast_symbol->type, ast->scope, &ast->bin_op.inst_subs));
     NecroType* y_type        = necro_try(NecroType, necro_infer_go(infer, ast->bin_op.rhs));
 
     NecroType* left_type     = necro_type_fresh_var(infer->arena);
@@ -918,8 +918,8 @@ NecroResult(NecroType) necro_infer_op_left_section(NecroInfer* infer, NecroAst* 
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_OP_LEFT_SECTION);
     NecroType* x_type                  = necro_try(NecroType, necro_infer_go(infer, ast->op_left_section.left));
-    ast->op_left_section.inst_context  = NULL;
-    NecroType* op_type                 = necro_try(NecroType, necro_type_instantiate_with_context(infer->arena, infer->base, ast->op_left_section.ast_symbol->type, ast->scope, &ast->op_left_section.inst_context));
+    ast->op_left_section.inst_subs     = NULL;
+    NecroType* op_type                 = necro_try(NecroType, necro_type_instantiate_with_subs(infer->arena, infer->base, ast->op_left_section.ast_symbol->type, ast->scope, &ast->op_left_section.inst_subs));
     ast->op_left_section.op_necro_type = op_type;
 
     NecroType* left_type               = necro_type_fresh_var(infer->arena);
@@ -943,8 +943,8 @@ NecroResult(NecroType) necro_infer_op_right_section(NecroInfer* infer, NecroAst*
 {
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_OP_RIGHT_SECTION);
-    ast->op_right_section.inst_context  = NULL;
-    NecroType* op_type                  = necro_try(NecroType, necro_type_instantiate_with_context(infer->arena, infer->base, ast->op_right_section.ast_symbol->type, ast->scope, &ast->op_right_section.inst_context));
+    ast->op_right_section.inst_subs     = NULL;
+    NecroType* op_type                  = necro_try(NecroType, necro_type_instantiate_with_subs(infer->arena, infer->base, ast->op_right_section.ast_symbol->type, ast->scope, &ast->op_right_section.inst_subs));
     ast->op_right_section.op_necro_type = op_type;
     NecroType* y_type                   = necro_try(NecroType, necro_infer_go(infer, ast->op_right_section.right));
 
@@ -1414,8 +1414,6 @@ NecroResult(NecroType) necro_infer_declaration_group_list(NecroInfer* infer, Nec
     assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_DECLARATION_GROUP_LIST);
-    //----------------------------------------------------
-    // Iterate declaration groups
     NecroAst* groups = ast;
     while (groups != NULL)
     {
@@ -1425,7 +1423,6 @@ NecroResult(NecroType) necro_infer_declaration_group_list(NecroInfer* infer, Nec
         }
         groups = groups->declaration_group_list.next;
     }
-    // Declarations themselves have no types
     return ok(NecroType, NULL);
 }
 

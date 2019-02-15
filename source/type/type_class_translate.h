@@ -9,5 +9,6 @@
 #include "type_class.h"
 
 NecroResult(void) necro_type_class_translate(NecroCompileInfo info, NecroIntern* intern, NecroScopedSymTable* scoped_symtable, struct NecroBase* base, NecroAstArena* ast_arena);
+void necro_type_class_translate_test();
 
 #endif // TYPE_CLASS_TRANSLATE_H

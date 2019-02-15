@@ -11,6 +11,7 @@
 #include "d_analyzer.h"
 #include "kind.h"
 #include "infer.h"
+#include "type_class_translate.h"
 
 ///////////////////////////////////////////////////////
 // Create / Destroy
@@ -902,7 +903,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     return base;
 }
 
-#define NECRO_BASE_TEST_VERBOSE 1
+#define NECRO_BASE_TEST_VERBOSE 0
 
 void necro_base_test()
 {

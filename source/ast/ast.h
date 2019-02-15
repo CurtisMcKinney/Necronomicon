@@ -18,6 +18,7 @@ struct NecroScope;
 struct NecroAst;
 struct NecroDeclarationsInfo;
 struct NecroTypeClassContext;
+struct NecroInstSub;
 
 /*
     TODO (Curtis 2-13-19):
@@ -133,6 +134,7 @@ typedef struct
     struct NecroAst*              left;
     NECRO_BIN_OP_TYPE             type;
     struct NecroTypeClassContext* inst_context;
+    struct NecroInstSub*          inst_subs;
     struct NecroType*             op_necro_type;
     NecroAstSymbol*               ast_symbol;
 } NecroAstOpLeftSection;
@@ -145,6 +147,7 @@ typedef struct
     struct NecroAst*              right;
     NECRO_BIN_OP_TYPE             type;
     struct NecroTypeClassContext* inst_context;
+    struct NecroInstSub*          inst_subs;
     struct NecroType*             op_necro_type;
     NecroAstSymbol*               ast_symbol;
 } NecroAstOpRightSection;
@@ -240,6 +243,7 @@ typedef struct
     struct NecroAst*              rhs;
     NECRO_BIN_OP_TYPE             type;
     struct NecroTypeClassContext* inst_context;
+    struct NecroInstSub*          inst_subs;
     NecroAstSymbol*               ast_symbol;
 } NecroAstBinOp;
 
@@ -400,6 +404,7 @@ typedef struct
 {
     NECRO_VAR_TYPE                var_type;
     struct NecroTypeClassContext* inst_context;
+    struct NecroInstSub*          inst_subs;
     struct NecroAst*              initializer;
     bool                          is_recursive;
     NecroAstSymbol*               ast_symbol;

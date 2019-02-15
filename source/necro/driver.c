@@ -363,14 +363,15 @@ void necro_test(NECRO_TEST test)
 {
     switch (test)
     {
-    case NECRO_TEST_UNICODE:           necro_test_unicode_properties(); break;
-    case NECRO_TEST_LEXER:             necro_lex_test();                break;
-    case NECRO_TEST_PARSER:            necro_parse_test ();             break;
-    case NECRO_TEST_INTERN:            necro_intern_test();             break;
-    case NECRO_TEST_RENAME:            necro_rename_test();             break;
-    case NECRO_TEST_INFER:             necro_test_infer();              break;
-    case NECRO_TEST_ARENA_CHAIN_TABLE: necro_arena_chain_table_test();  break;
-    case NECRO_TEST_BASE:              necro_base_test();               break;
+    case NECRO_TEST_UNICODE:              necro_test_unicode_properties();   break;
+    case NECRO_TEST_LEXER:                necro_lex_test();                  break;
+    case NECRO_TEST_PARSER:               necro_parse_test ();               break;
+    case NECRO_TEST_INTERN:               necro_intern_test();               break;
+    case NECRO_TEST_RENAME:               necro_rename_test();               break;
+    case NECRO_TEST_INFER:                necro_test_infer();                break;
+    case NECRO_TEST_TYPE_CLASS_TRANSLATE: necro_type_class_translate_test(); break;
+    case NECRO_TEST_ARENA_CHAIN_TABLE:    necro_arena_chain_table_test();    break;
+    case NECRO_TEST_BASE:                 necro_base_test();                 break;
     case NECRO_TEST_ALL:
         necro_test_unicode_properties();
         necro_intern_test();
@@ -379,6 +380,7 @@ void necro_test(NECRO_TEST test)
         necro_rename_test();
         necro_base_test();
         necro_test_infer();
+        necro_type_class_translate_test();
         // necro_arena_chain_table_test();
         break;
     default: break;

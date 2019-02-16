@@ -272,7 +272,8 @@ typedef union
 // replace this with a thread local storage version!
 extern NecroResultUnion global_result;
 
-#define necro_assert_on_error(RESULT, ERROR) assert(RESULT == NECRO_RESULT_OK); UNUSED(ERROR);
+// #define necro_assert_on_error(RESULT, ERROR) assert(RESULT == NECRO_RESULT_OK); UNUSED(ERROR);
+void necro_assert_on_error(NECRO_RESULT_TYPE result_type, NecroResultError* error);
 
 ///////////////////////////////////////////////////////
 // Macro API

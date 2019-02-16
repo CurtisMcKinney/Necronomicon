@@ -92,6 +92,7 @@ void necro_type_class_translate_destroy(NecroTypeClassTranslate* type_class_tran
 ///////////////////////////////////////////////////////
 NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_class_translate, NecroAst* ast);
 NecroAst*         necro_ast_specialize_go(NecroTypeClassTranslate* type_class_translate, NecroAst* ast, NecroInstSub* subs);
+NecroAst*         necro_ast_specialize(NecroTypeClassTranslate* type_class_translate, NecroAstSymbol* ast_symbol, NecroInstSub* subs);
 
 
 NecroResult(void) necro_type_class_translate(NecroCompileInfo info, NecroIntern* intern, NecroScopedSymTable* scoped_symtable, NecroBase* base, NecroAstArena* ast_arena)
@@ -154,7 +155,34 @@ NecroAst* necro_ast_specialize_method(NecroTypeClassTranslate* type_class_transl
     assert(type_class_translate != NULL);
     assert(ast_symbol != NULL);
     assert(subs != NULL);
-    assert(false && "Finish!");
+
+    // TODO: Fuuuuuuuck....how to handle multi-line apat assignments and mututally recursive bindings!? Cornercases hate your life.
+    NecroTypeClass* type_class        = ast_symbol->method_type_class;
+    NecroAstSymbol* type_class_var    = type_class->type_var;
+    NecroInstSub*   curr_sub          = subs;
+    while (curr_sub != NULL)
+    {
+        if (curr_sub->var_to_replace->name == type_class_var->name)
+        {
+            NecroType* sub_con = necro_type_find(curr_sub->new_name);
+            assert(sub_con->type == NECRO_TYPE_CON);
+            NecroSymbol     instance_method_name       = necro_intern_create_type_class_instance_symbol(type_class_translate->intern, ast_symbol->source_name, sub_con->con.con_symbol->source_name);
+            NecroAstSymbol* instance_method_ast_symbol = necro_scope_find_ast_symbol(type_class_translate->scoped_symtable->top_scope, instance_method_name);
+            assert(instance_method_ast_symbol != NULL);
+            if (necro_type_is_polymorphic(instance_method_ast_symbol->type))
+            {
+                return necro_ast_specialize(type_class_translate, instance_method_ast_symbol, subs);
+            }
+            else
+            {
+                NecroAst* instance_method_var   = necro_ast_create_var_full(type_class_translate->arena, instance_method_ast_symbol, NECRO_VAR_VAR, NULL, NULL);
+                instance_method_var->necro_type = instance_method_ast_symbol->type;
+                return instance_method_var;
+            }
+        }
+        curr_sub = curr_sub->next;
+    }
+    assert(false);
     return NULL;
 }
 
@@ -177,7 +205,9 @@ NecroAst* necro_ast_specialize(NecroTypeClassTranslate* type_class_translate, Ne
     if (specialized_ast_symbol != NULL)
     {
         assert(specialized_ast_symbol->ast != NULL);
-        return necro_ast_create_var_full(type_class_translate->arena, specialized_ast_symbol, NECRO_VAR_VAR, NULL, NULL);
+        NecroAst* var_ast   = necro_ast_create_var_full(type_class_translate->arena, specialized_ast_symbol, NECRO_VAR_VAR, NULL, NULL);
+        var_ast->necro_type = specialized_ast_symbol->type;
+        return var_ast;
     }
     // necro_scope_insert_ast_symbol(type_class_translate->arena, scope, specialized_ast_symbol);
     NecroAst* declaration_group_list = ast_symbol->declaration_group->declaration.declaration_group_list;
@@ -207,7 +237,6 @@ NecroAst* necro_ast_specialize(NecroTypeClassTranslate* type_class_translate, Ne
         assert(false);
         break;
     }
-    // TODO: Type gets broken in DoublePoly test, check it out!!!
     NecroScope* prev_scope                                    = type_class_translate->scoped_symtable->current_scope;
     NecroScope* prev_type_scope                               = type_class_translate->scoped_symtable->current_type_scope;
     type_class_translate->scoped_symtable->current_scope      = scope;
@@ -221,7 +250,9 @@ NecroAst* necro_ast_specialize(NecroTypeClassTranslate* type_class_translate, Ne
     specialized_ast_symbol->type                              = necro_type_replace_with_subs_deep_copy(type_class_translate->arena, ast_symbol->type, subs);
     necro_ast_specialize_go(type_class_translate, specialized_ast_symbol->ast, subs);
 
-    return necro_ast_create_var_full(type_class_translate->arena, specialized_ast_symbol, NECRO_VAR_VAR, NULL, NULL);
+    NecroAst* var_ast   = necro_ast_create_var_full(type_class_translate->arena, specialized_ast_symbol, NECRO_VAR_VAR, NULL, NULL);
+    var_ast->necro_type = specialized_ast_symbol->type;
+    return var_ast;
 }
 
 ///////////////////////////////////////////////////////
@@ -355,26 +386,30 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
     case NECRO_AST_UN_OP:
         return ok_void();
 
-//     case NECRO_AST_BIN_OP:
-//     {
-//         assert(ast->necro_type != NULL);
-//         // TODO: necro_ast_create_bin_op
-//         NecroAst* op_ast              = necro_ast_create_var(infer->arena, infer->intern, ast->bin_op.ast_symbol->source_name->str, NECRO_VAR_VAR);
-//         op_ast->variable.inst_context = ast->bin_op.inst_context;
-//         op_ast->variable.ast_symbol   = ast->bin_op.ast_symbol;
-//         op_ast->scope                 = ast->scope;
-//         op_ast->necro_type            = ast->necro_type;
-//         op_ast                        = necro_ast_create_fexpr(infer->arena, op_ast, ast->bin_op.lhs);
-//         op_ast->scope                 = ast->scope;
-//         op_ast->necro_type            = ast->necro_type;
-//         op_ast                        = necro_ast_create_fexpr(infer->arena, op_ast, ast->bin_op.rhs);
-//         op_ast->scope                 = ast->scope;
-//         op_ast->necro_type            = ast->necro_type;
-//         *ast = *op_ast;
-//         if (ast->bin_op.inst_context != NULL)
-//             necro_try(NecroType, necro_type_class_translate_go(dictionary_context, infer, ast));
-//         return ok(NecroType, NULL);
-//     }
+    case NECRO_AST_BIN_OP:
+    {
+        assert(ast->necro_type != NULL);
+        // // TODO: necro_ast_create_bin_op
+        NecroAst* op_ast              = necro_ast_create_var(type_class_translate->arena, type_class_translate->intern, ast->bin_op.ast_symbol->source_name->str, NECRO_VAR_VAR);
+        op_ast->variable.inst_subs    = ast->bin_op.inst_subs;
+        op_ast->variable.ast_symbol   = ast->bin_op.ast_symbol;
+        op_ast->scope                 = ast->scope;
+        op_ast->necro_type            = ast->necro_type;
+        op_ast                        = necro_ast_create_fexpr(type_class_translate->arena, op_ast, ast->bin_op.lhs);
+        op_ast->scope                 = ast->scope;
+        op_ast->necro_type            = ast->necro_type;
+        op_ast                        = necro_ast_create_fexpr(type_class_translate->arena, op_ast, ast->bin_op.rhs);
+        op_ast->scope                 = ast->scope;
+        op_ast->necro_type            = ast->necro_type;
+        // TODO: Correct types!
+        *ast                          = *op_ast;
+        return necro_type_class_translate_go(type_class_translate, op_ast);
+        // op_ast->scope                 = ast->scope;
+        // op_ast->necro_type            = ast->necro_type;
+        // if (ast->bin_op.inst_context != NULL)
+        //     necro_try(NecroType, necro_type_class_translate_go(dictionary_context, infer, ast));
+        // return ok(NecroType, NULL);
+    }
 
 //     case NECRO_AST_OP_LEFT_SECTION:
 //     {
@@ -897,6 +932,7 @@ void necro_type_class_translate_test_result(const char* test_name, const char* s
     // Assert
     // if (result.type != expected_result)
     // {
+        necro_ast_arena_print(&base.ast);
         necro_ast_arena_print(&ast);
         necro_scoped_symtable_print_top_scopes(&scoped_symtable);
     // }
@@ -1027,6 +1063,24 @@ void necro_type_class_translate_test()
             "polyTuple x y = (x, y)\n"
             "concreteTuple :: ((), Bool)\n"
             "concreteTuple = polyTuple () False\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Method1";
+        const char* test_source = ""
+            "getReal :: Float\n"
+            "getReal = 0\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Method2";
+        const char* test_source = ""
+            "unreal :: Audio\n"
+            "unreal = 10 * 440 / 3\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
     }

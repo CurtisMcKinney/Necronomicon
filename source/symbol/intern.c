@@ -182,7 +182,7 @@ NecroSymbol necro_intern_get_type_class_member_symbol_from_instance_symbol(Necro
 {
     const char* string1 = symbol->str;
     size_t      len1    = 0;
-    for (size_t i = 0; string1[i] != '@'; ++i)
+    for (size_t i = 0; string1[i] != '<'; ++i)
         len1++;
     char* str = emalloc((len1 + 1) * sizeof(char));
     // Copy str1
@@ -193,6 +193,14 @@ NecroSymbol necro_intern_get_type_class_member_symbol_from_instance_symbol(Necro
     free(str);
     return new_symbol;
 }
+
+// NecroSymbol necro_intern_strip_instance_symbol_from_method(NecroIntern* intern, NecroSymbol symbol)
+// {
+//     size_t      length     = 0; 
+//     const char* symbol_str = necro_intern_get_string(intern, symbol);
+//     const char* curr_str   = symbol_str;
+//     while (*curr_str != '\0' && *curr_str != '<')
+// }
 
 // TODO: Optimize memory allocation
 NecroSymbol necro_intern_concat_symbols(NecroIntern* intern, NecroSymbol symbol1, NecroSymbol symbol2)

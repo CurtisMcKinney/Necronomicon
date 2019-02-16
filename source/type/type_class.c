@@ -729,7 +729,7 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
                 else
                     assert(false);
                 instance->dictionary_prototype->next                         = NULL;
-                instance->dictionary_prototype->type_class_member_ast_symbol = necro_scope_find_ast_symbol(infer->scoped_symtable->top_scope, instance->dictionary_prototype->instance_member_ast_symbol->source_name);
+                instance->dictionary_prototype->type_class_member_ast_symbol = necro_scope_find_ast_symbol(infer->scoped_symtable->top_scope, necro_intern_get_type_class_member_symbol_from_instance_symbol(infer->intern, instance->dictionary_prototype->instance_member_ast_symbol->source_name));
 
                 if (instance->dictionary_prototype->type_class_member_ast_symbol == NULL)
                 {

@@ -162,9 +162,14 @@ NecroResult(NecroAstSymbol) necro_rename_declare(NecroRenamer* renamer, NecroAst
     case NECRO_AST_SIMPLE_ASSIGNMENT:
     {
         if (renamer->current_class_instance_symbol != NULL)
-            ast->simple_assignment.ast_symbol->name = necro_intern_create_type_class_instance_symbol(renamer->intern, ast->simple_assignment.ast_symbol->source_name, renamer->current_class_instance_symbol);
+        {
+            ast->simple_assignment.ast_symbol->name        = necro_intern_create_type_class_instance_symbol(renamer->intern, ast->simple_assignment.ast_symbol->source_name, renamer->current_class_instance_symbol);
+            ast->simple_assignment.ast_symbol->source_name = necro_intern_create_type_class_instance_symbol(renamer->intern, ast->simple_assignment.ast_symbol->source_name, renamer->current_class_instance_symbol);
+        }
         else
+        {
             ast->simple_assignment.ast_symbol->name = ast->simple_assignment.ast_symbol->source_name;
+        }
         ast->simple_assignment.ast_symbol->ast = ast;
         ast->simple_assignment.ast_symbol->module_name = renamer->ast_arena->module_name;
         ast->scope->last_introduced_symbol = NULL;
@@ -180,9 +185,14 @@ NecroResult(NecroAstSymbol) necro_rename_declare(NecroRenamer* renamer, NecroAst
     case NECRO_AST_APATS_ASSIGNMENT:
     {
         if (renamer->current_class_instance_symbol != NULL)
-            ast->apats_assignment.ast_symbol->name = necro_intern_create_type_class_instance_symbol(renamer->intern, ast->apats_assignment.ast_symbol->source_name, renamer->current_class_instance_symbol);
+        {
+            ast->apats_assignment.ast_symbol->name        = necro_intern_create_type_class_instance_symbol(renamer->intern, ast->apats_assignment.ast_symbol->source_name, renamer->current_class_instance_symbol);
+            ast->apats_assignment.ast_symbol->source_name = necro_intern_create_type_class_instance_symbol(renamer->intern, ast->apats_assignment.ast_symbol->source_name, renamer->current_class_instance_symbol);
+        }
         else
+        {
             ast->apats_assignment.ast_symbol->name = ast->apats_assignment.ast_symbol->source_name;
+        }
         ast->apats_assignment.ast_symbol->ast = ast;
         ast->apats_assignment.ast_symbol->module_name = renamer->ast_arena->module_name;
         necro_prepend_module_name_to_name(renamer->intern, ast->apats_assignment.ast_symbol);

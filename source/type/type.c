@@ -162,22 +162,22 @@ NecroType* necro_type_for_all_create(NecroPagedArena* arena, NecroAstSymbol* var
     return for_all;
 }
 
-// NecroType* necro_type_duplicate(NecroPagedArena* arena, NecroType* type)
-// {
-//     if (type == NULL)
-//         return NULL;
-//     type = necro_type_find(type);
-//     switch (type->type)
-//     {
-//     case NECRO_TYPE_VAR:  return necro_type_var_create(arena, type->var.var_symbol);
-//     case NECRO_TYPE_APP:  return necro_type_app_create(arena, necro_type_duplicate(arena, type->app.type1), necro_type_duplicate(arena, type->app.type2));
-//     case NECRO_TYPE_FUN:  return necro_type_fn_create(arena, necro_type_duplicate(arena, type->fun.type1), necro_type_duplicate(arena, type->fun.type2));
-//     case NECRO_TYPE_CON:  return necro_type_con_create(arena, type->con.con_symbol, necro_type_duplicate(arena, type->con.args), type->con.arity);
-//     case NECRO_TYPE_FOR:  return necro_type_for_all_create(arena, type->for_all.var_symbol, type->for_all.context, necro_type_duplicate(arena, type->for_all.type));
-//     case NECRO_TYPE_LIST: return necro_type_list_create(arena, necro_type_duplicate(arena, type->list.item), necro_type_duplicate(arena, type->list.next));
-//     default:              assert(false); return NULL;
-//     }
-// }
+NecroType* necro_type_deep_copy(NecroPagedArena* arena, NecroType* type)
+{
+    if (type == NULL)
+        return NULL;
+    type = necro_type_find(type);
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR:  return necro_type_var_create(arena, type->var.var_symbol);
+    case NECRO_TYPE_APP:  return necro_type_app_create(arena, necro_type_deep_copy(arena, type->app.type1), necro_type_deep_copy(arena, type->app.type2));
+    case NECRO_TYPE_FUN:  return necro_type_fn_create(arena, necro_type_deep_copy(arena, type->fun.type1), necro_type_deep_copy(arena, type->fun.type2));
+    case NECRO_TYPE_CON:  return necro_type_con_create(arena, type->con.con_symbol, necro_type_deep_copy(arena, type->con.args));
+    case NECRO_TYPE_FOR:  return necro_type_for_all_create(arena, type->for_all.var_symbol, type->for_all.context, necro_type_deep_copy(arena, type->for_all.type));
+    case NECRO_TYPE_LIST: return necro_type_list_create(arena, necro_type_deep_copy(arena, type->list.item), necro_type_deep_copy(arena, type->list.next));
+    default:              assert(false); return NULL;
+    }
+}
 
 size_t necro_type_list_count(NecroType* list)
 {
@@ -682,7 +682,7 @@ NecroInstSub* necro_create_inst_sub(NecroPagedArena* arena, NecroAstSymbol* var_
     *sub              = (NecroInstSub)
     {
         .var_to_replace = var_to_replace,
-        .new_name       = type_var,
+        .new_name       = necro_type_find(type_var),
         .next           = next,
     };
     sub->new_name->var.context = context;
@@ -698,7 +698,7 @@ NecroInstSub* necro_create_inst_sub_manual(NecroPagedArena* arena, NecroAstSymbo
     return sub;
 }
 
-NecroType* necro_inst_go(NecroPagedArena* arena, NecroType* type, NecroInstSub* subs, NecroScope* scope)
+NecroType* necro_type_replace_with_subs_deep_copy(NecroPagedArena* arena, NecroType* type, NecroInstSub* subs)
 {
     if (type == NULL)
         return NULL;
@@ -706,7 +706,6 @@ NecroType* necro_inst_go(NecroPagedArena* arena, NecroType* type, NecroInstSub* 
     switch (type->type)
     {
     case NECRO_TYPE_VAR:
-    {
         while (subs != NULL)
         {
             if (type->var.var_symbol == subs->var_to_replace)
@@ -716,18 +715,104 @@ NecroType* necro_inst_go(NecroPagedArena* arena, NecroType* type, NecroInstSub* 
             subs = subs->next;
         }
         return type;
-    }
-    case NECRO_TYPE_APP:  return necro_type_app_create(arena, necro_inst_go(arena, type->app.type1, subs, scope), necro_inst_go(arena, type->app.type2, subs, scope));
-    case NECRO_TYPE_FUN:  return necro_type_fn_create(arena, necro_inst_go(arena, type->fun.type1, subs, scope), necro_inst_go(arena, type->fun.type2, subs, scope));
-    case NECRO_TYPE_CON:  return necro_type_con_create(arena, type->con.con_symbol, necro_inst_go(arena, type->con.args, subs, scope));
-    case NECRO_TYPE_LIST: return necro_type_list_create(arena, necro_inst_go(arena, type->list.item, subs, scope), necro_inst_go(arena, type->list.next, subs, scope));
-    case NECRO_TYPE_FOR:  assert(false); return NULL;
+    case NECRO_TYPE_FOR:
+        while (subs != NULL)
+        {
+            if (type->for_all.var_symbol == subs->var_to_replace)
+            {
+                return necro_type_replace_with_subs_deep_copy(arena, type->for_all.type, subs);
+            }
+            subs = subs->next;
+        }
+        return necro_type_for_all_create(arena, type->for_all.var_symbol, type->for_all.context, necro_type_replace_with_subs_deep_copy(arena, type->for_all.type, subs));
+    case NECRO_TYPE_APP:  return necro_type_app_create(arena, necro_type_replace_with_subs_deep_copy(arena, type->app.type1, subs), necro_type_replace_with_subs_deep_copy(arena, type->app.type2, subs));
+    case NECRO_TYPE_FUN:  return necro_type_fn_create(arena, necro_type_replace_with_subs_deep_copy(arena, type->fun.type1, subs), necro_type_replace_with_subs_deep_copy(arena, type->fun.type2, subs));
+    case NECRO_TYPE_CON:  return necro_type_con_create(arena, type->con.con_symbol, necro_type_replace_with_subs_deep_copy(arena, type->con.args, subs));
+    case NECRO_TYPE_LIST: return necro_type_list_create(arena, necro_type_replace_with_subs_deep_copy(arena, type->list.item, subs), necro_type_replace_with_subs_deep_copy(arena, type->list.next, subs));
+
     default:              assert(false); return NULL;
+    }
+}
+
+// TODO: Do we need the scope argument?
+NecroType* necro_type_replace_with_subs(NecroPagedArena* arena, NecroType* type, NecroInstSub* subs)
+{
+    if (type == NULL || subs == NULL)
+        return NULL;
+    type = necro_type_find(type);
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR:
+        while (subs != NULL)
+        {
+            if (type->var.var_symbol == subs->var_to_replace ||
+               (type->var.gen_bound != NULL && type->var.gen_bound->var.var_symbol == subs->var_to_replace))
+            {
+                return subs->new_name;
+            }
+            subs = subs->next;
+        }
+        return type;
+    case NECRO_TYPE_FOR:
+    {
+        while (subs != NULL)
+        {
+            if (type->for_all.var_symbol == subs->var_to_replace)
+            {
+                return necro_type_replace_with_subs_deep_copy(arena, type->for_all.type, subs);
+            }
+            subs = subs->next;
+        }
+        NecroType* next_type = necro_type_replace_with_subs(arena, type->for_all.type, subs);
+        if (next_type == type->for_all.type)
+            return type;
+        else
+            return necro_type_for_all_create(arena, type->for_all.var_symbol, type->for_all.context, next_type);
+    }
+    case NECRO_TYPE_APP:
+    {
+        NecroType* type1 = necro_type_replace_with_subs(arena, type->app.type1, subs);
+        NecroType* type2 = necro_type_replace_with_subs(arena, type->app.type2, subs);
+        if (type1 == type->app.type1 && type2 == type->app.type2)
+            return type;
+        else
+            return necro_type_app_create(arena, type1, type2);
+    }
+    case NECRO_TYPE_FUN:
+    {
+        NecroType* type1 = necro_type_replace_with_subs(arena, type->fun.type1, subs);
+        NecroType* type2 = necro_type_replace_with_subs(arena, type->fun.type2, subs);
+        if (type1 == type->fun.type1 && type2 == type->fun.type2)
+            return type;
+        else
+            return necro_type_fn_create(arena, type1, type2);
+    }
+    case NECRO_TYPE_CON:
+    {
+        NecroType* args = necro_type_replace_with_subs(arena, type->con.args, subs);
+        if (args == type->con.args)
+            return type;
+        else
+            return necro_type_con_create(arena, type->con.con_symbol, args);
+    }
+    case NECRO_TYPE_LIST:
+    {
+        NecroType* item = necro_type_replace_with_subs(arena, type->list.item, subs);
+        NecroType* next = necro_type_replace_with_subs(arena, type->list.next, subs);
+        if (item == type->list.item && next == type->list.next)
+            return type;
+        else
+            return necro_type_list_create(arena, item, next);
+    }
+    default:
+        assert(false);
+        return NULL;
     }
 }
 
 NecroResult(NecroType) necro_type_instantiate(NecroPagedArena* arena, NecroBase* base, NecroType* type, NecroScope* scope)
 {
+    UNUSED(scope);
     assert(type != NULL);
     type = necro_type_find(type);
     NecroType*    current_type = type;
@@ -737,13 +822,14 @@ NecroResult(NecroType) necro_type_instantiate(NecroPagedArena* arena, NecroBase*
         subs         = necro_create_inst_sub(arena, current_type->for_all.var_symbol, current_type->for_all.context, subs);
         current_type = current_type->for_all.type;
     }
-    NecroType* result = necro_inst_go(arena, current_type, subs, scope);
+    NecroType* result = necro_type_replace_with_subs_deep_copy(arena, current_type, subs);
     necro_try(NecroType, necro_kind_infer(arena, base, result, NULL_LOC, NULL_LOC));
     return ok(NecroType, result);
 }
 
 NecroResult(NecroType) necro_type_instantiate_with_context(NecroPagedArena* arena, NecroBase* base, NecroType* type, NecroScope* scope, NecroTypeClassContext** context)
 {
+    UNUSED(scope);
     assert(type != NULL);
     type = necro_type_find(type);
     NecroType*    current_type = type;
@@ -770,7 +856,7 @@ NecroResult(NecroType) necro_type_instantiate_with_context(NecroPagedArena* aren
         }
         current_type = current_type->for_all.type;
     }
-    NecroType* result = necro_inst_go(arena, current_type, subs, scope);
+    NecroType* result = necro_type_replace_with_subs_deep_copy(arena, current_type, subs);
     necro_try(NecroType, necro_kind_infer(arena, base, result, NULL_LOC, NULL_LOC));
     assert(result != NULL);
     return ok(NecroType, result);
@@ -778,6 +864,7 @@ NecroResult(NecroType) necro_type_instantiate_with_context(NecroPagedArena* aren
 
 NecroResult(NecroType) necro_type_instantiate_with_subs(NecroPagedArena* arena, NecroBase* base, NecroType* type, NecroScope* scope, NecroInstSub** subs)
 {
+    UNUSED(scope);
     assert(type != NULL);
     type = necro_type_find(type);
     NecroType*    current_type = type;
@@ -787,7 +874,7 @@ NecroResult(NecroType) necro_type_instantiate_with_subs(NecroPagedArena* arena, 
         *subs        = necro_create_inst_sub(arena, current_type->for_all.var_symbol, current_type->for_all.context, *subs);
         current_type = current_type->for_all.type;
     }
-    NecroType* result = necro_inst_go(arena, current_type, *subs, scope);
+    NecroType* result = necro_type_replace_with_subs_deep_copy(arena, current_type, *subs);
     necro_try(NecroType, necro_kind_infer(arena, base, result, NULL_LOC, NULL_LOC));
     return ok(NecroType, result);
 }
@@ -1176,17 +1263,19 @@ size_t necro_type_mangled_string_length(const NecroType* type)
         return 0;
 
     case NECRO_TYPE_FUN:
-        return necro_type_mangled_string_length(type->fun.type1) + necro_type_mangled_string_length(type->fun.type2) + 3;
+        return necro_type_mangled_string_length(type->fun.type1) + necro_type_mangled_string_length(type->fun.type2) + 4;
 
     case NECRO_TYPE_CON:
         return strlen(type->con.con_symbol->source_name->str) + necro_type_mangled_string_length(type->con.args);
 
     case NECRO_TYPE_LIST:
     {
-        size_t length = 1;
+        size_t length = 2;
         while (type != NULL)
         {
             length += necro_type_mangled_string_length(type->list.item);
+            if (type->list.next != NULL)
+                length += 1;
             type = type->list.next;
         }
         return length;
@@ -1218,11 +1307,11 @@ size_t necro_type_mangled_sprintf(char* buffer, size_t offset, const NecroType* 
         return offset;
 
     case NECRO_TYPE_FUN:
-        offset += sprintf(buffer + offset, "<");
+        offset += sprintf(buffer + offset, "(");
         offset  = necro_type_mangled_sprintf(buffer, offset, type->fun.type1);
-        offset += sprintf(buffer + offset, ",");
+        offset += sprintf(buffer + offset, "->");
         offset  = necro_type_mangled_sprintf(buffer, offset, type->fun.type2);
-        offset += sprintf(buffer + offset, ">");
+        offset += sprintf(buffer + offset, ")");
         return offset;
 
     case NECRO_TYPE_CON:
@@ -1231,12 +1320,15 @@ size_t necro_type_mangled_sprintf(char* buffer, size_t offset, const NecroType* 
 
     case NECRO_TYPE_LIST:
     {
-        offset += sprintf(buffer + offset, "_");
+        offset += sprintf(buffer + offset, "<");
         while (type != NULL)
         {
             offset = necro_type_mangled_sprintf(buffer, offset, type->list.item);
+            if (type->list.next != NULL)
+                offset += sprintf(buffer + offset, ",");
             type = type->list.next;
         }
+        offset += sprintf(buffer + offset, ">");
         return offset;
     }
 
@@ -1248,21 +1340,6 @@ size_t necro_type_mangled_sprintf(char* buffer, size_t offset, const NecroType* 
         assert(false);
         return offset;
     }
-}
-
-NecroSymbol necro_type_mangled_symbol(NecroIntern* intern, const NecroType* type)
-{
-    const size_t length  = necro_type_mangled_string_length(type) + 2;
-    char*        buffer  = malloc(length * sizeof(char));
-
-    buffer[0]            = '@';
-    const size_t length2 = necro_type_mangled_sprintf(buffer, 1, type);
-    assert(length2 + 1 == length);
-
-    NecroSymbol symbol   = necro_intern_string(intern, buffer);
-
-    free(buffer);
-    return symbol;
 }
 
 //=====================================================

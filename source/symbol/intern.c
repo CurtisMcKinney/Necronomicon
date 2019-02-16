@@ -151,22 +151,27 @@ void necro_intern_grow(NecroIntern* intern)
 NecroSymbol necro_intern_create_type_class_instance_symbol(NecroIntern* intern, NecroSymbol symbol, NecroSymbol type_class_name)
 {
     const char* string1 = symbol->str;
-    const char* div     = "@";
+    const char* div1    = "<";
     const char* string2 = type_class_name->str;
+    const char* div2    = ">";
     size_t      len1    = strlen(string1);
-    size_t      lend    = strlen(div);
+    size_t      lend    = strlen(div1);
     size_t      len2    = strlen(string2);
-    char*       str     = emalloc((len1 + lend + len2 + 1) * sizeof(char));
+    size_t      lend2   = strlen(div2);
+    char*       str     = emalloc((len1 + lend + len2 + lend2 + 1) * sizeof(char));
     // Copy str1
     for (size_t i = 0; i < len1; ++i)
         str[i] = string1[i];
-    // Copy div
+    // Copy div1
     for (size_t i = 0; i < lend; ++i)
-        str[len1 + i] = div[i];
+        str[len1 + i] = div1[i];
     // Copy str2
     for (size_t i = 0; i < len2; ++i)
         str[len1 + lend + i] = string2[i];
-    str[len1 + lend + len2]   = '\0';
+    // Copy div2
+    for (size_t i = 0; i < lend; ++i)
+        str[len1 + lend + len2 + i] = div2[i];
+    str[len1 + lend + len2 + lend2]   = '\0';
     NecroSymbol new_symbol = necro_intern_string(intern, str);
     free(str);
     return new_symbol;

@@ -33,6 +33,10 @@ typedef struct NecroRenamer
     NECRO_RENAME_STATE     state;
 } NecroRenamer;
 
+/*
+    TODO: Redo setting declaration_group to be similar to necro_ast_deep_copy? Or would that break d_analysis?
+*/
+
 //=====================================================
 // Logic
 //=====================================================
@@ -482,18 +486,27 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
     case NECRO_AST_SIMPLE_ASSIGNMENT:
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->simple_assignment.initializer));
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->simple_assignment.rhs));
-        ast->simple_assignment.ast_symbol->declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, ast->simple_assignment.ast_symbol->declaration_group);
-        ast->simple_assignment.declaration_group = ast->simple_assignment.ast_symbol->declaration_group;
+        if (ast->simple_assignment.ast_symbol->declaration_group == NULL)
+        {
+            ast->simple_assignment.ast_symbol->declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, ast->simple_assignment.ast_symbol->declaration_group);
+            ast->simple_assignment.declaration_group             = ast->simple_assignment.ast_symbol->declaration_group;
+        }
         break;
     case NECRO_AST_APATS_ASSIGNMENT:
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->apats_assignment.apats));
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->apats_assignment.rhs));
-        ast->apats_assignment.ast_symbol->declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, ast->apats_assignment.ast_symbol->declaration_group);
-        ast->apats_assignment.declaration_group = ast->apats_assignment.ast_symbol->declaration_group;
+        if (ast->apats_assignment.ast_symbol->declaration_group == NULL)
+        {
+            ast->apats_assignment.ast_symbol->declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, ast->apats_assignment.ast_symbol->declaration_group);
+            ast->apats_assignment.declaration_group             = ast->apats_assignment.ast_symbol->declaration_group;
+        }
         break;
     case NECRO_AST_PAT_ASSIGNMENT:
-        renamer->current_declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
-        ast->pat_assignment.declaration_group = renamer->current_declaration_group;
+        if (ast->pat_assignment.declaration_group == NULL)
+        {
+            renamer->current_declaration_group    = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
+            ast->pat_assignment.declaration_group = renamer->current_declaration_group;
+        }
         renamer->state = NECRO_RENAME_PAT_ASSIGNMENT;
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->pat_assignment.pat));
         renamer->current_declaration_group = NULL;
@@ -528,7 +541,7 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
             break;
         case NECRO_VAR_DECLARATION:
             // if we are in a pat_assignment, set our declaration_ast
-            if (renamer->current_declaration_group != NULL)
+            if (renamer->current_declaration_group != NULL && ast->variable.ast_symbol->declaration_group == NULL)
                 ast->variable.ast_symbol->declaration_group = renamer->current_declaration_group;
             break;
         case NECRO_VAR_TYPE_VAR_DECLARATION: break;
@@ -635,10 +648,13 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
     case NECRO_AST_DATA_DECLARATION:
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->data_declaration.simpletype));
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->data_declaration.constructor_list));
-        ast->data_declaration.ast_symbol = ast->data_declaration.simpletype->simple_type.type_con->conid.ast_symbol;
+        ast->data_declaration.ast_symbol      = ast->data_declaration.simpletype->simple_type.type_con->conid.ast_symbol;
         ast->data_declaration.ast_symbol->ast = ast;
-        ast->data_declaration.ast_symbol->declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
-        ast->data_declaration.declaration_group = ast->data_declaration.ast_symbol->declaration_group;
+        if (ast->data_declaration.ast_symbol->declaration_group == NULL)
+        {
+            ast->data_declaration.ast_symbol->declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
+            ast->data_declaration.declaration_group             = ast->data_declaration.ast_symbol->declaration_group;
+        }
         break;
 
     case NECRO_AST_TYPE_CLASS_DECLARATION:
@@ -646,10 +662,13 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_class_declaration.tycls));
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_class_declaration.tyvar));
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_class_declaration.declarations));
-        ast->type_class_declaration.ast_symbol = ast->type_class_declaration.tycls->conid.ast_symbol;
+        ast->type_class_declaration.ast_symbol      = ast->type_class_declaration.tycls->conid.ast_symbol;
         ast->type_class_declaration.ast_symbol->ast = ast;
-        ast->type_class_declaration.ast_symbol->declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
-        ast->type_class_declaration.declaration_group = ast->type_class_declaration.ast_symbol->declaration_group;
+        if (ast->type_class_declaration.ast_symbol->declaration_group == NULL)
+        {
+            ast->type_class_declaration.ast_symbol->declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
+            ast->type_class_declaration.declaration_group             = ast->type_class_declaration.ast_symbol->declaration_group;
+        }
         break;
 
     case NECRO_AST_TYPE_CLASS_INSTANCE:
@@ -659,8 +678,11 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_class_instance.declarations));
         ast->type_class_instance.ast_symbol = necro_ast_symbol_create(&renamer->ast_arena->arena, NULL, NULL, renamer->ast_arena->module_name, ast);
         ast->type_class_instance.ast_symbol->ast = ast;
-        ast->type_class_instance.ast_symbol->declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
-        ast->type_class_instance.declaration_group = ast->type_class_instance.ast_symbol->declaration_group;
+        if (ast->type_class_instance.ast_symbol->declaration_group == NULL)
+        {
+            ast->type_class_instance.ast_symbol->declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
+            ast->type_class_instance.declaration_group             = ast->type_class_instance.ast_symbol->declaration_group;
+        }
         break;
 
     case NECRO_AST_TYPE_SIGNATURE:
@@ -670,7 +692,8 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_signature.var));
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_signature.context));
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_signature.type));
-        ast->type_signature.declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
+        if (ast->type_signature.declaration_group == NULL)
+            ast->type_signature.declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
         break;
 
     case NECRO_AST_TYPE_CLASS_CONTEXT:
@@ -729,27 +752,27 @@ void necro_rename_internal_scope_and_rename(NecroAstArena* ast_arena, NecroScope
 
     NecroRenamer renamer = (NecroRenamer)
     {
-        .intern = intern,
-            .scoped_symtable = scoped_symtable,
-            .current_declaration_group = NULL,
-            .ast_arena = ast_arena,
-            .state = NECRO_RENAME_NORMAL,
+        .intern                    = intern,
+        .scoped_symtable           = scoped_symtable,
+        .current_declaration_group = NULL,
+        .ast_arena                 = ast_arena,
+        .state                     = NECRO_RENAME_NORMAL,
     };
 
     // Declare pass
     renamer.current_class_instance_symbol = NULL;
-    renamer.prev_class_instance_symbol = NULL;
-    renamer.current_declaration_group = NULL;
-    renamer.current_type_sig_ast = NULL;
-    renamer.state = NECRO_RENAME_NORMAL;
+    renamer.prev_class_instance_symbol    = NULL;
+    renamer.current_declaration_group     = NULL;
+    renamer.current_type_sig_ast          = NULL;
+    renamer.state                         = NECRO_RENAME_NORMAL;
     unwrap(NecroAstSymbol, necro_rename_declare(&renamer, ast));
 
     // Var pass
     renamer.current_class_instance_symbol = NULL;
-    renamer.prev_class_instance_symbol = NULL;
-    renamer.current_declaration_group = NULL;
-    renamer.current_type_sig_ast = NULL;
-    renamer.state = NECRO_RENAME_NORMAL;
+    renamer.prev_class_instance_symbol    = NULL;
+    renamer.current_declaration_group     = NULL;
+    renamer.current_type_sig_ast          = NULL;
+    renamer.state                         = NECRO_RENAME_NORMAL;
     unwrap(NecroAstSymbol, necro_rename_var(&renamer, ast));
 }
 
@@ -862,7 +885,7 @@ void necro_rename_test()
         NecroAstArena ast = necro_ast_arena_create(necro_intern_string(&intern, "Test"));
         ast.root =
             necro_ast_create_top_decl(&ast.arena,
-                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.constant1"), necro_intern_string(&intern, "constant1"), necro_intern_string(&intern, "Test"), NULL),
+                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.constant1"), necro_intern_string(&intern, "constant1"), necro_intern_string(&intern, "Test"), NULL), NULL,
                     necro_ast_create_rhs(&ast.arena,
                         necro_ast_create_fexpr(&ast.arena, necro_ast_create_var_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Necro.Base.fromInt"), necro_intern_string(&intern, "fromInt"), necro_intern_string(&intern, "Necro.Base"), NULL), NECRO_VAR_VAR),
                             necro_ast_create_constant(&ast.arena, (NecroParseAstConstant) { .int_literal = 10, .type = NECRO_AST_CONSTANT_INTEGER })),
@@ -878,12 +901,12 @@ void necro_rename_test()
         NecroSymbol   inner_name = necro_append_clash_suffix_to_name(&ast, &intern, "Test.inner");
         ast.root =
             necro_ast_create_top_decl(&ast.arena,
-                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.top"), necro_intern_string(&intern, "top"), necro_intern_string(&intern, "Test"), NULL),
+                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.top"), necro_intern_string(&intern, "top"), necro_intern_string(&intern, "Test"), NULL), NULL,
                     necro_ast_create_rhs(&ast.arena,
                         necro_ast_create_let(&ast.arena,
                             necro_ast_create_var_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, inner_name, necro_intern_string(&intern, "inner"), necro_intern_string(&intern, "Test"), NULL), NECRO_VAR_DECLARATION),
                             necro_ast_create_decl(&ast.arena,
-                                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, inner_name, necro_intern_string(&intern, "inner"), necro_intern_string(&intern, "Test"), NULL),
+                                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, inner_name, necro_intern_string(&intern, "inner"), necro_intern_string(&intern, "Test"), NULL), NULL,
                                     necro_ast_create_rhs(&ast.arena,
                                         necro_ast_create_conid_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Necro.Base.Nothing"), necro_intern_string(&intern, "Nothing"), necro_intern_string(&intern, "Necro.Base"), NULL),
                                             NECRO_CON_VAR), NULL)
@@ -903,21 +926,21 @@ void necro_rename_test()
         NecroSymbol   other_name = necro_append_clash_suffix_to_name(&ast, &intern, "Test.other");
         ast.root =
             necro_ast_create_top_decl(&ast.arena,
-                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.top"), necro_intern_string(&intern, "top"), necro_intern_string(&intern, "Test"), NULL),
+                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.top"), necro_intern_string(&intern, "top"), necro_intern_string(&intern, "Test"), NULL), NULL,
                     necro_ast_create_rhs(&ast.arena,
 
                         necro_ast_create_let(&ast.arena,
                             necro_ast_create_var_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, inner_name, necro_intern_string(&intern, "inner"), necro_intern_string(&intern, "Test"), NULL), NECRO_VAR_DECLARATION),
                             // declaration1
                             necro_ast_create_decl(&ast.arena,
-                                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, inner_name, necro_intern_string(&intern, "inner"), necro_intern_string(&intern, "Test"), NULL),
+                                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, inner_name, necro_intern_string(&intern, "inner"), necro_intern_string(&intern, "Test"), NULL), NULL,
                                     necro_ast_create_rhs(&ast.arena,
                                         necro_ast_create_conid_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Necro.Base.Nothing"), necro_intern_string(&intern, "Nothing"), necro_intern_string(&intern, "Necro.Base"), NULL),
                                             NECRO_CON_VAR),
                                         NULL)),
                                 // declaration2
                                 necro_ast_create_decl(&ast.arena,
-                                    necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, other_name, necro_intern_string(&intern, "other"), necro_intern_string(&intern, "Test"), NULL),
+                                    necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, other_name, necro_intern_string(&intern, "other"), necro_intern_string(&intern, "Test"), NULL), NULL,
                                         necro_ast_create_rhs(&ast.arena,
                                             necro_ast_create_conid_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Necro.Base.False"), necro_intern_string(&intern, "False"), necro_intern_string(&intern, "Necro.Base"), NULL),
                                                 NECRO_CON_VAR),
@@ -936,12 +959,12 @@ void necro_rename_test()
         NecroSymbol   clash_x = necro_append_clash_suffix_to_name(&ast, &intern, "Test.x");
         ast.root =
             necro_ast_create_top_decl(&ast.arena,
-                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.x"), necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL),
+                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.x"), necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NULL,
                     necro_ast_create_rhs(&ast.arena,
                         necro_ast_create_let(&ast.arena,
                             necro_ast_create_var_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_x, necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NECRO_VAR_DECLARATION),
                             necro_ast_create_decl(&ast.arena,
-                                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_x, necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL),
+                                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_x, necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NULL,
                                     necro_ast_create_rhs(&ast.arena,
                                         necro_ast_create_conid_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Necro.Base.Nothing"), necro_intern_string(&intern, "Nothing"), necro_intern_string(&intern, "Necro.Base"), NULL),
                                             NECRO_CON_VAR), NULL)
@@ -961,18 +984,18 @@ void necro_rename_test()
         NecroSymbol   clash_x2 = necro_append_clash_suffix_to_name(&ast, &intern, "Test.x");
         ast.root =
             necro_ast_create_top_decl(&ast.arena,
-                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.x"), necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL),
+                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.x"), necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NULL,
                     necro_ast_create_rhs(&ast.arena,
 
                         necro_ast_create_let(&ast.arena,
                             necro_ast_create_var_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_x, necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NECRO_VAR_DECLARATION),
                             necro_ast_create_decl(&ast.arena,
-                                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_x, necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL),
+                                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_x, necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NULL,
                                     necro_ast_create_rhs(&ast.arena,
                                         necro_ast_create_let(&ast.arena,
                                             necro_ast_create_var_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_x2, necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NECRO_VAR_DECLARATION),
                                             necro_ast_create_decl(&ast.arena,
-                                                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_x2, necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL),
+                                                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_x2, necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NULL,
                                                     necro_ast_create_rhs(&ast.arena,
                                                         necro_ast_create_conid_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Necro.Base.Nothing"), necro_intern_string(&intern, "Nothing"), necro_intern_string(&intern, "Necro.Base"), NULL),
                                                             NECRO_CON_VAR), NULL)
@@ -995,11 +1018,11 @@ void necro_rename_test()
         NecroSymbol   clash_x = necro_append_clash_suffix_to_name(&ast, &intern, "Test.x");
         ast.root =
             necro_ast_create_top_decl(&ast.arena,
-                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.x"), necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL),
+                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.x"), necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NULL,
                     necro_ast_create_rhs(&ast.arena,
                         necro_ast_create_var_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_x, necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NECRO_VAR_DECLARATION),
                         necro_ast_create_decl(&ast.arena,
-                            necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_x, necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL),
+                            necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_x, necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NULL,
                                 necro_ast_create_rhs(&ast.arena,
                                     necro_ast_create_conid_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Necro.Base.Nothing"), necro_intern_string(&intern, "Nothing"), necro_intern_string(&intern, "Necro.Base"), NULL), NECRO_CON_VAR)
                                     , NULL)),
@@ -1015,7 +1038,7 @@ void necro_rename_test()
         ast.root =
             necro_ast_create_top_decl(&ast.arena,
                 necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena,
-                    necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.x"), necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL),
+                    necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.x"), necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NULL,
                     necro_ast_create_rhs(&ast.arena,
                         necro_ast_create_do(&ast.arena,
                             necro_ast_create_list(&ast.arena,
@@ -1086,7 +1109,7 @@ void necro_rename_test()
                         // RHS declarations
                         necro_ast_create_decl(&ast.arena,
                             necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena,
-                                necro_ast_symbol_create(&ast.arena, clash_y2, necro_intern_string(&intern, "y"), necro_intern_string(&intern, "Test"), NULL),
+                                necro_ast_symbol_create(&ast.arena, clash_y2, necro_intern_string(&intern, "y"), necro_intern_string(&intern, "Test"), NULL), NULL,
                                 necro_ast_create_rhs(&ast.arena,
                                     necro_ast_create_var_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_y2, necro_intern_string(&intern, "y"), necro_intern_string(&intern, "Test"), NULL), NECRO_VAR_VAR), NULL)),
                             NULL)
@@ -1125,7 +1148,7 @@ void necro_rename_test()
                         necro_ast_create_decl(
                             &ast.arena,
                             necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena,
-                                necro_ast_symbol_create(&ast.arena, clash_w, necro_intern_string(&intern, "w"), necro_intern_string(&intern, "Test"), NULL),
+                                necro_ast_symbol_create(&ast.arena, clash_w, necro_intern_string(&intern, "w"), necro_intern_string(&intern, "Test"), NULL), NULL,
                                 necro_ast_create_rhs(&ast.arena,
                                     necro_ast_create_var_with_ast_symbol(&ast.arena,
                                         necro_ast_symbol_create(&ast.arena, clash_y, necro_intern_string(&intern, "y"), necro_intern_string(&intern, "Test"), NULL),

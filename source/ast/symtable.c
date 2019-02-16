@@ -379,6 +379,10 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
         necro_build_scopes_go(scoped_symtable, input_node->declaration.declaration_impl);
         necro_build_scopes_go(scoped_symtable, input_node->declaration.next_declaration);
         break;
+    case NECRO_AST_DECLARATION_GROUP_LIST:
+        necro_build_scopes_go(scoped_symtable, input_node->declaration_group_list.declaration_group);
+        necro_build_scopes_go(scoped_symtable, input_node->declaration_group_list.next);
+        break;
     case NECRO_AST_SIMPLE_ASSIGNMENT:
         necro_scoped_symtable_new_scope(scoped_symtable);
         necro_build_scopes_go(scoped_symtable, input_node->simple_assignment.initializer);

@@ -793,41 +793,43 @@ void necro_ast_arena_destroy(NecroAstArena* ast)
 //=====================================================
 // Manual AST construction
 //=====================================================
+inline NecroAst* necro_ast_alloc(NecroPagedArena* arena, NECRO_AST_TYPE type)
+{
+    NecroAst* ast   = necro_paged_arena_alloc(arena, sizeof(NecroAst));
+    ast->type       = type;
+    ast->source_loc = NULL_LOC;
+    ast->end_loc    = NULL_LOC;
+    ast->necro_type = NULL;
+    ast->scope      = NULL;
+    return ast;
+}
+
 NecroAst* necro_ast_create_conid(NecroPagedArena* arena, NecroIntern* intern, const char* con_name, NECRO_CON_TYPE con_type)
 {
+    NecroAst*   ast        = necro_ast_alloc(arena, NECRO_AST_CONID);
     NecroSymbol con_symbol = necro_intern_string(intern, con_name);
-    NecroAst* ast          = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type              = NECRO_AST_CONID;
     ast->conid.con_type    = con_type;
-    ast->source_loc        = NULL_LOC;
-    ast->end_loc           = NULL_LOC;
     ast->conid.ast_symbol  = necro_ast_symbol_create(arena, con_symbol, con_symbol, NULL, NULL);
     return ast;
 }
 
 NecroAst* necro_ast_create_conid_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_CON_TYPE con_type)
 {
-    NecroAst* ast         = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type             = NECRO_AST_CONID;
+    NecroAst* ast         = necro_ast_alloc(arena, NECRO_AST_CONID);
     ast->conid.con_type   = con_type;
-    ast->source_loc       = NULL_LOC;
-    ast->end_loc          = NULL_LOC;
     ast->conid.ast_symbol = ast_symbol;
-    ast_symbol->ast       = ast;
+    // ast_symbol->ast       = ast;
     return ast;
 }
 
 NecroAst* necro_ast_create_var(NecroPagedArena* arena, NecroIntern* intern, const char* variable_name, NECRO_VAR_TYPE var_type)
 {
-    NecroAst* ast               = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                   = NECRO_AST_VARIABLE;
+    NecroAst* ast               = necro_ast_alloc(arena, NECRO_AST_VARIABLE);
     ast->variable.var_type      = var_type;
     ast->variable.inst_context  = NULL;
     ast->variable.inst_subs     = NULL;
     ast->variable.initializer   = NULL;
     ast->variable.is_recursive  = false;
-    ast->source_loc             = NULL_LOC;
-    ast->end_loc                = NULL_LOC;
     NecroSymbol variable_symbol = necro_intern_string(intern, variable_name);
     switch (ast->variable.var_type)
     {
@@ -847,28 +849,34 @@ NecroAst* necro_ast_create_var(NecroPagedArena* arena, NecroIntern* intern, cons
 
 NecroAst* necro_ast_create_var_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_VAR_TYPE var_type)
 {
-    NecroAst* ast                 = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                     = NECRO_AST_VARIABLE;
+    NecroAst* ast                 = necro_ast_alloc(arena, NECRO_AST_VARIABLE);
     ast->variable.var_type        = var_type;
     ast->variable.inst_context    = NULL;
     ast->variable.inst_subs       = NULL;
     ast->variable.initializer     = NULL;
     ast->variable.is_recursive    = false;
-    ast->source_loc               = NULL_LOC;
-    ast->end_loc                  = NULL_LOC;
     ast->variable.ast_symbol      = ast_symbol;
-    ast->variable.ast_symbol->ast = ast;
+    // ast->variable.ast_symbol->ast = ast;
+    return ast;
+}
+
+NecroAst* necro_ast_create_var_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_VAR_TYPE var_type, NecroInstSub* inst_subs, NecroAst* initializer)
+{
+    NecroAst* ast                 = necro_ast_alloc(arena, NECRO_AST_VARIABLE);
+    ast->variable.var_type        = var_type;
+    ast->variable.inst_context    = NULL;
+    ast->variable.inst_subs       = inst_subs;
+    ast->variable.initializer     = initializer;
+    ast->variable.is_recursive    = false;
+    ast->variable.ast_symbol      = ast_symbol;
     return ast;
 }
 
 NecroAst* necro_ast_create_list(NecroPagedArena* arena, NecroAst* item, NecroAst* next)
 {
-    NecroAst* ast   = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type           = NECRO_AST_LIST_NODE;
+    NecroAst* ast       = necro_ast_alloc(arena, NECRO_AST_LIST_NODE);
     ast->list.item      = item;
     ast->list.next_item = next;
-    ast->source_loc     = NULL_LOC;
-    ast->end_loc        = NULL_LOC;
     return ast;
 }
 
@@ -899,102 +907,105 @@ NecroAst* necro_ast_create_var_list(NecroPagedArena* arena, NecroIntern* intern,
 
 NecroAst* necro_ast_create_data_con(NecroPagedArena* arena, NecroIntern* intern, const char* con_name, NecroAst* arg_list)
 {
-    NecroAst* ast             = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                 = NECRO_AST_CONSTRUCTOR;
+    NecroAst* ast             = necro_ast_alloc(arena, NECRO_AST_CONSTRUCTOR);
     ast->constructor.conid    = necro_ast_create_conid(arena, intern, con_name, NECRO_CON_DATA_DECLARATION);
     ast->constructor.arg_list = arg_list;
-    ast->source_loc           = NULL_LOC;
-    ast->end_loc              = NULL_LOC;
     return ast;
 }
 
 NecroAst* necro_ast_create_constructor_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* con_name_symbol, NecroAst* arg_list)
 {
-	NecroAst* ast = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-	ast->type = NECRO_AST_CONSTRUCTOR;
-	ast->constructor.conid = necro_ast_create_conid_with_ast_symbol(arena, con_name_symbol, NECRO_CON_VAR);
+    NecroAst* ast             = necro_ast_alloc(arena, NECRO_AST_CONSTRUCTOR);
+	ast->constructor.conid    = necro_ast_create_conid_with_ast_symbol(arena, con_name_symbol, NECRO_CON_VAR);
 	ast->constructor.arg_list = arg_list;
-	ast->source_loc = NULL_LOC;
-	ast->end_loc = NULL_LOC;
 	return ast;
 }
 
+NecroAst* necro_ast_create_constructor(NecroPagedArena* arena, NecroAst* conid, NecroAst* arg_list)
+{
+    NecroAst* ast             = necro_ast_alloc(arena, NECRO_AST_CONSTRUCTOR);
+	ast->constructor.conid    = conid;
+	ast->constructor.arg_list = arg_list;
+	return ast;
+}
 
 NecroAst* necro_ast_create_simple_type(NecroPagedArena* arena, NecroIntern* intern, const char* simple_type_name, NecroAst* ty_var_list)
 {
-    NecroAst* ast                  = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                      = NECRO_AST_SIMPLE_TYPE;
+    NecroAst* ast                  = necro_ast_alloc(arena, NECRO_AST_SIMPLE_TYPE);
     ast->simple_type.type_con      = necro_ast_create_conid(arena, intern, simple_type_name, NECRO_CON_TYPE_DECLARATION);
     ast->simple_type.type_var_list = ty_var_list;
-    ast->source_loc                = NULL_LOC;
-    ast->end_loc                   = NULL_LOC;
+    return ast;
+}
+
+NecroAst* necro_ast_create_simple_type_with_type_con(NecroPagedArena* arena, NecroAst* type_con, NecroAst* ty_var_list)
+{
+    NecroAst* ast                  = necro_ast_alloc(arena, NECRO_AST_SIMPLE_TYPE);
+    ast->simple_type.type_con      = type_con;
+    ast->simple_type.type_var_list = ty_var_list;
     return ast;
 }
 
 NecroAst* necro_ast_create_data_declaration(NecroPagedArena* arena, NecroIntern* intern, NecroAst* simple_type, NecroAst* constructor_list)
 {
     UNUSED(intern);
-    NecroAst* ast                          = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                              = NECRO_AST_DATA_DECLARATION;
-    ast->data_declaration.simpletype       = simple_type;
-    ast->data_declaration.constructor_list = constructor_list;
-    ast->data_declaration.ast_symbol       = NULL;
-    ast->source_loc                        = NULL_LOC;
-    ast->end_loc                           = NULL_LOC;
+    NecroAst* ast                           = necro_ast_alloc(arena, NECRO_AST_DATA_DECLARATION);
+    ast->data_declaration.simpletype        = simple_type;
+    ast->data_declaration.constructor_list  = constructor_list;
+    ast->data_declaration.ast_symbol        = NULL;
+    ast->data_declaration.declaration_group = NULL;
+    ast->data_declaration.is_recursive      = false;
+    return ast;
+}
+
+NecroAst* necro_ast_create_data_declaration_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* simple_type, NecroAst* constructor_list)
+{
+    NecroAst* ast                           = necro_ast_alloc(arena, NECRO_AST_DATA_DECLARATION);
+    ast->data_declaration.ast_symbol        = ast_symbol;
+    ast->data_declaration.simpletype        = simple_type;
+    ast->data_declaration.constructor_list  = constructor_list;
+    ast->data_declaration.declaration_group = NULL;
+    ast->data_declaration.is_recursive      = false;
     return ast;
 }
 
 NecroAst* necro_ast_create_type_app(NecroPagedArena* arena, NecroAst* type1, NecroAst* type2)
 {
-    NecroAst* ast         = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type             = NECRO_AST_TYPE_APP;
+    NecroAst* ast         = necro_ast_alloc(arena, NECRO_AST_TYPE_APP);
     ast->type_app.ty      = type1;
     ast->type_app.next_ty = type2;
-    ast->source_loc       = NULL_LOC;
-    ast->end_loc          = NULL_LOC;
     return ast;
 }
 
 NecroAst* necro_ast_create_type_fn(NecroPagedArena* arena, NecroAst* type1, NecroAst* type2)
 {
-    NecroAst* ast                    = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                        = NECRO_AST_FUNCTION_TYPE;
+    NecroAst* ast                    = necro_ast_alloc(arena, NECRO_AST_FUNCTION_TYPE);
     ast->function_type.type          = type1;
     ast->function_type.next_on_arrow = type2;
-    ast->source_loc                  = NULL_LOC;
-    ast->end_loc                     = NULL_LOC;
     return ast;
 }
 
 NecroAst* necro_ast_create_fexpr(NecroPagedArena* arena, NecroAst* f_ast, NecroAst* x_ast)
 {
-    NecroAst* ast                     = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                         = NECRO_AST_FUNCTION_EXPRESSION;
+    NecroAst* ast                     = necro_ast_alloc(arena, NECRO_AST_FUNCTION_EXPRESSION);
     ast->fexpression.aexp             = f_ast;
     ast->fexpression.next_fexpression = x_ast;
-    ast->source_loc                   = NULL_LOC;
-    ast->end_loc                      = NULL_LOC;
     return ast;
 }
 
 NecroAst* necro_ast_create_fn_type_sig(NecroPagedArena* arena, NecroIntern* intern, const char* var_name, NecroAst* context_ast, NecroAst* type_ast, NECRO_VAR_TYPE var_type, NECRO_SIG_TYPE sig_type)
 {
-    NecroAst* ast                         = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                             = NECRO_AST_TYPE_SIGNATURE;
+    NecroAst* ast                         = necro_ast_alloc(arena, NECRO_AST_TYPE_SIGNATURE);
     ast->type_signature.var               = necro_ast_create_var(arena, intern, var_name, var_type);
     ast->type_signature.context           = context_ast;
     ast->type_signature.type              = type_ast;
     ast->type_signature.sig_type          = sig_type;
     ast->type_signature.declaration_group = NULL;
-    ast->source_loc                       = NULL_LOC;
-    ast->end_loc                          = NULL_LOC;
     return ast;
 }
 
 NecroAst* necro_ast_create_type_class(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, const char* class_var, NecroAst* context_ast, NecroAst* declarations_ast)
 {
-    NecroAst* ast                                           = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                                               = NECRO_AST_TYPE_CLASS_DECLARATION;
+    NecroAst* ast                                           = necro_ast_alloc(arena, NECRO_AST_TYPE_CLASS_DECLARATION);
     ast->type_class_declaration.tycls                       = necro_ast_create_conid(arena, intern, class_name, NECRO_CON_TYPE_DECLARATION);
     ast->type_class_declaration.tyvar                       = necro_ast_create_var(arena, intern, class_var, NECRO_VAR_TYPE_FREE_VAR);
     ast->type_class_declaration.context                     = context_ast;
@@ -1002,15 +1013,25 @@ NecroAst* necro_ast_create_type_class(NecroPagedArena* arena, NecroIntern* inter
     ast->type_class_declaration.declaration_group           = NULL;
     ast->type_class_declaration.dictionary_data_declaration = NULL;
     ast->type_class_declaration.ast_symbol                  = NULL;
-    ast->source_loc                                         = NULL_LOC;
-    ast->end_loc                                            = NULL_LOC;
+    return ast;
+}
+
+NecroAst* necro_ast_create_type_class_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* tycls, NecroAst* tyvar, NecroAst* context_ast, NecroAst* declarations_ast)
+{
+    NecroAst* ast                                           = necro_ast_alloc(arena, NECRO_AST_TYPE_CLASS_DECLARATION);
+    ast->type_class_declaration.tycls                       = tycls;
+    ast->type_class_declaration.tyvar                       = tyvar;
+    ast->type_class_declaration.context                     = context_ast;
+    ast->type_class_declaration.declarations                = declarations_ast;
+    ast->type_class_declaration.declaration_group           = NULL;
+    ast->type_class_declaration.dictionary_data_declaration = NULL;
+    ast->type_class_declaration.ast_symbol                  = ast_symbol;
     return ast;
 }
 
 NecroAst* necro_ast_create_instance(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, NecroAst* inst_ast, NecroAst* context_ast, NecroAst* declarations_ast)
 {
-    NecroAst* ast                                 = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                                     = NECRO_AST_TYPE_CLASS_INSTANCE;
+    NecroAst* ast                                 = necro_ast_alloc(arena, NECRO_AST_TYPE_CLASS_INSTANCE);
     ast->type_class_instance.qtycls               = necro_ast_create_conid(arena, intern, class_name, NECRO_CON_TYPE_VAR);
     ast->type_class_instance.inst                 = inst_ast;
     ast->type_class_instance.context              = context_ast;
@@ -1018,28 +1039,34 @@ NecroAst* necro_ast_create_instance(NecroPagedArena* arena, NecroIntern* intern,
     ast->type_class_instance.dictionary_instance  = NULL;
     ast->type_class_declaration.declaration_group = NULL;
     ast->type_class_instance.ast_symbol           = NULL;
-    ast->source_loc                               = NULL_LOC;
-    ast->end_loc                                  = NULL_LOC;
+    return ast;
+}
+
+NecroAst* necro_ast_create_instance_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* qtycls, NecroAst* inst_ast, NecroAst* context_ast, NecroAst* declarations_ast)
+{
+    NecroAst* ast                                 = necro_ast_alloc(arena, NECRO_AST_TYPE_CLASS_INSTANCE);
+    ast->type_class_instance.ast_symbol           = ast_symbol;
+    ast->type_class_instance.qtycls               = qtycls;
+    ast->type_class_instance.inst                 = inst_ast;
+    ast->type_class_instance.context              = context_ast;
+    ast->type_class_instance.declarations         = declarations_ast;
+    ast->type_class_instance.dictionary_instance  = NULL;
+    ast->type_class_declaration.declaration_group = NULL;
     return ast;
 }
 
 NecroAst* necro_ast_create_top_decl(NecroPagedArena* arena, NecroAst* top_level_declaration, NecroAst* next)
 {
-    NecroAst* ast                      = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                          = NECRO_AST_TOP_DECL;
+    NecroAst* ast                      = necro_ast_alloc(arena, NECRO_AST_TOP_DECL);
     ast->top_declaration.declaration   = top_level_declaration;
     ast->top_declaration.next_top_decl = next;
-    // ast->top_declaration.group_list    = NULL;
-    ast->source_loc                   = NULL_LOC;
-    ast->end_loc                      = NULL_LOC;
     return ast;
 }
 
 NecroAst* necro_ast_create_decl(NecroPagedArena* arena, NecroAst* declaration, NecroAst* next)
 {
     assert(declaration != NULL);
-    NecroAst* ast                           = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                               = NECRO_AST_DECL;
+    NecroAst* ast                           = necro_ast_alloc(arena, NECRO_AST_DECL);
     ast->declaration.declaration_impl       = declaration;
     ast->declaration.next_declaration       = next;
     ast->declaration.declaration_group_list = NULL;
@@ -1048,8 +1075,6 @@ NecroAst* necro_ast_create_decl(NecroPagedArena* arena, NecroAst* declaration, N
     ast->declaration.low_link               = 0;
     ast->declaration.on_stack               = false;
     ast->declaration.type_checked           = false;
-    ast->source_loc                         = NULL_LOC;
-    ast->end_loc                            = NULL_LOC;
     return ast;
 }
 
@@ -1057,33 +1082,27 @@ NecroAst* necro_ast_create_simple_assignment(NecroPagedArena* arena, NecroIntern
 {
     assert(rhs_ast != NULL);
     NecroSymbol variable_symbol                    = necro_intern_string(intern, var_name);
-    NecroAst* ast                                  = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                                      = NECRO_AST_SIMPLE_ASSIGNMENT;
+    NecroAst*   ast                                = necro_ast_alloc(arena, NECRO_AST_SIMPLE_ASSIGNMENT);
     ast->simple_assignment.rhs                     = rhs_ast;
     ast->simple_assignment.initializer             = NULL;
     ast->simple_assignment.declaration_group       = NULL;
     ast->simple_assignment.is_recursive            = false;
     ast->simple_assignment.ast_symbol              = necro_ast_symbol_create(arena, variable_symbol, variable_symbol, NULL, ast);
     ast->simple_assignment.optional_type_signature = NULL;
-    ast->source_loc                                = NULL_LOC;
-    ast->end_loc                                   = NULL_LOC;
     return ast;
 }
 
-NecroAst* necro_ast_create_simple_assignment_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* rhs_ast)
+NecroAst* necro_ast_create_simple_assignment_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* initializer, NecroAst* rhs_ast)
 {
     assert(rhs_ast != NULL);
-    NecroAst* ast                                  = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                                      = NECRO_AST_SIMPLE_ASSIGNMENT;
+    NecroAst* ast                                  = necro_ast_alloc(arena, NECRO_AST_SIMPLE_ASSIGNMENT);
     ast->simple_assignment.rhs                     = rhs_ast;
-    ast->simple_assignment.initializer             = NULL;
+    ast->simple_assignment.initializer             = initializer;
     ast->simple_assignment.declaration_group       = NULL;
     ast->simple_assignment.is_recursive            = false;
     ast->simple_assignment.ast_symbol              = ast_symbol;
     ast->simple_assignment.optional_type_signature = NULL;
-    ast->source_loc                                = NULL_LOC;
-    ast->end_loc                                   = NULL_LOC;
-    ast_symbol->ast                                = ast;
+    // ast_symbol->ast                                = ast;
     return ast;
 }
 
@@ -1091,29 +1110,30 @@ NecroAst* necro_ast_create_context(NecroPagedArena* arena, NecroIntern* intern, 
 {
     assert(class_name != NULL);
     assert(var_name != NULL);
-    NecroAst* ast                 = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                     = NECRO_AST_TYPE_CLASS_CONTEXT;
+    NecroAst* ast                 = necro_ast_alloc(arena, NECRO_AST_TYPE_CLASS_CONTEXT);
     ast->type_class_context.conid = necro_ast_create_conid(arena, intern, class_name, NECRO_CON_TYPE_VAR);
     ast->type_class_context.varid = necro_ast_create_var(arena, intern, var_name, NECRO_VAR_TYPE_FREE_VAR);
 
-    NecroAst* list_ast       = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    list_ast->type           = NECRO_AST_LIST_NODE;
+    NecroAst* list_ast       = necro_ast_alloc(arena, NECRO_AST_LIST_NODE);
     list_ast->list.item      = ast;
     list_ast->list.next_item = next;
-    ast->source_loc          = NULL_LOC;
-    ast->end_loc             = NULL_LOC;
     return list_ast;
+}
+
+NecroAst* necro_ast_create_context_full(NecroPagedArena* arena, NecroAst* conid, NecroAst* varid)
+{
+    NecroAst* ast                 = necro_ast_alloc(arena, NECRO_AST_TYPE_CLASS_CONTEXT);
+    ast->type_class_context.conid = conid;
+    ast->type_class_context.varid = varid;
+    return ast;
 }
 
 NecroAst* necro_ast_create_apats(NecroPagedArena* arena, NecroAst* apat_item, NecroAst* next_apat)
 {
     assert(apat_item != NULL);
-    NecroAst* ast        = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type            = NECRO_AST_APATS;
+    NecroAst* ast        = necro_ast_alloc(arena, NECRO_AST_APATS);
     ast->apats.apat      = apat_item;
     ast->apats.next_apat = next_apat;
-    ast->source_loc      = NULL_LOC;
-    ast->end_loc         = NULL_LOC;
     return ast;
 }
 
@@ -1124,15 +1144,12 @@ NecroAst* necro_ast_create_apats_assignment(NecroPagedArena* arena, NecroIntern*
     assert(apats->type == NECRO_AST_APATS);
     assert(rhs_ast->type == NECRO_AST_RIGHT_HAND_SIDE);
     NecroSymbol variable_symbol                   = necro_intern_string(intern, var_name);
-    NecroAst* ast                                 = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                                     = NECRO_AST_APATS_ASSIGNMENT;
+    NecroAst* ast                                 = necro_ast_alloc(arena, NECRO_AST_APATS_ASSIGNMENT);
     ast->apats_assignment.apats                   = apats;
     ast->apats_assignment.rhs                     = rhs_ast;
     ast->apats_assignment.declaration_group       = NULL;
     ast->apats_assignment.ast_symbol              = necro_ast_symbol_create(arena, variable_symbol, variable_symbol, NULL, ast);
     ast->apats_assignment.optional_type_signature = NULL;
-    ast->source_loc                               = NULL_LOC;
-    ast->end_loc                                  = NULL_LOC;
     return ast;
 }
 
@@ -1142,51 +1159,38 @@ NecroAst* necro_ast_create_apats_assignment_with_ast_symbol(NecroPagedArena* are
 	assert(rhs_ast != NULL);
 	assert(apats->type == NECRO_AST_APATS);
 	assert(rhs_ast->type == NECRO_AST_RIGHT_HAND_SIDE);
-	NecroAst* ast = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-	ast->type = NECRO_AST_APATS_ASSIGNMENT;
-	ast->apats_assignment.apats = apats;
-	ast->apats_assignment.rhs = rhs_ast;
-	ast->apats_assignment.declaration_group = NULL;
-	ast->apats_assignment.ast_symbol = ast_symbol;
+    NecroAst* ast                                 = necro_ast_alloc(arena, NECRO_AST_APATS_ASSIGNMENT);
+	ast->apats_assignment.apats                   = apats;
+	ast->apats_assignment.rhs                     = rhs_ast;
+	ast->apats_assignment.declaration_group       = NULL;
+	ast->apats_assignment.ast_symbol              = ast_symbol;
 	ast->apats_assignment.optional_type_signature = NULL;
-	ast->source_loc = NULL_LOC;
-	ast->end_loc = NULL_LOC;
 	return ast;
 }
-
 
 NecroAst* necro_ast_create_lambda(NecroPagedArena* arena, NecroAst* apats, NecroAst* expr_ast)
 {
     assert(apats != NULL);
     assert(expr_ast != NULL);
     assert(apats->type == NECRO_AST_APATS);
-    NecroAst* ast          = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type              = NECRO_AST_LAMBDA;
+    NecroAst* ast          = necro_ast_alloc(arena, NECRO_AST_LAMBDA);
     ast->lambda.apats      = apats;
     ast->lambda.expression = expr_ast;
-    ast->source_loc        = NULL_LOC;
-    ast->end_loc           = NULL_LOC;
     return ast;
 }
 
 NecroAst* necro_ast_create_rhs(NecroPagedArena* arena, NecroAst* expression, NecroAst* declarations)
 {
     assert(expression != NULL);
-    NecroAst* ast                     = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                         = NECRO_AST_RIGHT_HAND_SIDE;
+    NecroAst* ast                     = necro_ast_alloc(arena, NECRO_AST_RIGHT_HAND_SIDE);
     ast->right_hand_side.expression   = expression;
     ast->right_hand_side.declarations = declarations;
-    ast->source_loc                   = NULL_LOC;
-    ast->end_loc                      = NULL_LOC;
     return ast;
 }
 
 NecroAst* necro_ast_create_wildcard(NecroPagedArena* arena)
 {
-    NecroAst* ast   = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type       = NECRO_AST_WILDCARD;
-    ast->source_loc = NULL_LOC;
-    ast->end_loc    = NULL_LOC;
+    NecroAst* ast = necro_ast_alloc(arena, NECRO_AST_WILDCARD);
     return ast;
 }
 
@@ -1196,27 +1200,72 @@ NecroAst* necro_ast_create_bin_op(NecroPagedArena* arena, NecroIntern* intern, c
     assert(lhs != NULL);
     assert(rhs != NULL);
     NecroSymbol op_symbol    = necro_intern_string(intern, op_name);
-    NecroAst* ast            = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                = NECRO_AST_BIN_OP;
+    NecroAst* ast            = necro_ast_alloc(arena, NECRO_AST_BIN_OP);
     ast->bin_op.ast_symbol   = necro_ast_symbol_create(arena, op_symbol, op_symbol, NULL, ast);
     ast->bin_op.lhs          = lhs;
     ast->bin_op.rhs          = rhs;
     ast->bin_op.inst_context = NULL;
     ast->bin_op.inst_subs    = NULL;
-    ast->source_loc          = NULL_LOC;
-    ast->end_loc             = NULL_LOC;
+    return ast;
+}
+
+NecroAst* necro_ast_create_bin_op_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* lhs, NecroAst* rhs)
+{
+    assert(ast_symbol != NULL);
+    assert(lhs != NULL);
+    assert(rhs != NULL);
+    NecroAst* ast            = necro_ast_alloc(arena, NECRO_AST_BIN_OP);
+    ast->bin_op.ast_symbol   = ast_symbol;
+    ast->bin_op.lhs          = lhs;
+    ast->bin_op.rhs          = rhs;
+    ast->bin_op.inst_context = NULL;
+    ast->bin_op.inst_subs    = NULL;
+    return ast;
+}
+
+NecroAst* necro_ast_create_left_section(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* lhs)
+{
+    assert(ast_symbol != NULL);
+    assert(lhs != NULL);
+    NecroAst* ast                      = necro_ast_alloc(arena, NECRO_AST_OP_LEFT_SECTION);
+    ast->op_left_section.ast_symbol    = ast_symbol;
+    ast->op_left_section.left          = lhs;
+    ast->op_left_section.inst_context  = NULL;
+    ast->op_left_section.inst_subs     = NULL;
+    ast->op_left_section.op_necro_type = NULL;
+    return ast;
+}
+
+NecroAst* necro_ast_create_right_section(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* rhs)
+{
+    assert(ast_symbol != NULL);
+    assert(rhs != NULL);
+    NecroAst* ast                       = necro_ast_alloc(arena, NECRO_AST_OP_RIGHT_SECTION);
+    ast->op_right_section.ast_symbol    = ast_symbol;
+    ast->op_right_section.right         = rhs;
+    ast->op_right_section.inst_context  = NULL;
+    ast->op_right_section.inst_subs     = NULL;
+    ast->op_right_section.op_necro_type = NULL;
+    return ast;
+}
+
+NecroAst* necro_ast_create_type_signature(NecroPagedArena* arena, NECRO_SIG_TYPE sig_type, NecroAst* var, NecroAst* context, NecroAst* type)
+{
+    NecroAst* ast                         = necro_ast_alloc(arena, NECRO_AST_TYPE_SIGNATURE);
+    ast->type_signature.sig_type          = sig_type;
+    ast->type_signature.var               = var;
+    ast->type_signature.context           = context;
+    ast->type_signature.type              = type;
+    ast->type_signature.declaration_group = NULL;
     return ast;
 }
 
 NecroAst* necro_ast_create_constant(NecroPagedArena* arena, NecroParseAstConstant constant)
 {
-    NecroAst* ast              = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                  = NECRO_AST_CONSTANT;
+    NecroAst* ast              = necro_ast_alloc(arena, NECRO_AST_CONSTANT);
     ast->constant.pat_eq_ast   = NULL;
     ast->constant.pat_from_ast = NULL;
     ast->constant.type         = constant.type;
-    ast->source_loc            = NULL_LOC;
-    ast->end_loc               = NULL_LOC;
     switch (constant.type)
     {
     case NECRO_AST_CONSTANT_FLOAT:
@@ -1242,34 +1291,106 @@ NecroAst* necro_ast_create_constant(NecroPagedArena* arena, NecroParseAstConstan
 
 NecroAst* necro_ast_create_let(NecroPagedArena* arena, NecroAst* expression_ast, NecroAst* declarations_ast)
 {
-    NecroAst* ast                    = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                        = NECRO_AST_LET_EXPRESSION;
+    NecroAst* ast                    = necro_ast_alloc(arena, NECRO_AST_LET_EXPRESSION);
     ast->let_expression.expression   = expression_ast;
     ast->let_expression.declarations = declarations_ast;
-    ast->source_loc                  = NULL_LOC;
-    ast->end_loc                     = NULL_LOC;
     return ast;
 }
 
 NecroAst* necro_ast_create_do(NecroPagedArena* arena, NecroAst* statement_list_ast)
 {
-    NecroAst* ast                    = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                        = NECRO_AST_DO;
+    NecroAst* ast                    = necro_ast_alloc(arena, NECRO_AST_DO);
     ast->do_statement.monad_var      = NULL;
     ast->do_statement.statement_list = statement_list_ast;
-    ast->source_loc                  = NULL_LOC;
-    ast->end_loc                     = NULL_LOC;
     return ast;
 }
 
 NecroAst* necro_ast_create_bind_assignment(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* expr)
 {
-    NecroAst* ast                   = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                       = NECRO_BIND_ASSIGNMENT;
+    NecroAst* ast                   = necro_ast_alloc(arena, NECRO_BIND_ASSIGNMENT);
     ast->bind_assignment.ast_symbol = ast_symbol;
     ast->bind_assignment.expression = expr;
-    ast->source_loc                 = NULL_LOC;
-    ast->end_loc                    = NULL_LOC;
+    return ast;
+}
+
+NecroAst* necro_ast_create_if_then_else(NecroPagedArena* arena, NecroAst* if_ast, NecroAst* then_ast, NecroAst* else_ast)
+{
+    NecroAst* ast               = necro_ast_alloc(arena, NECRO_AST_IF_THEN_ELSE);
+    ast->if_then_else.if_expr   = if_ast;
+    ast->if_then_else.then_expr = then_ast;
+    ast->if_then_else.else_expr = else_ast;
+    return ast;
+}
+
+NecroAst* necro_ast_create_pat_assignment(NecroPagedArena* arena, NecroAst* pat, NecroAst* rhs)
+{
+    NecroAst* ast                                = necro_ast_alloc(arena, NECRO_AST_PAT_ASSIGNMENT);
+    ast->pat_assignment.pat                      = pat;
+    ast->pat_assignment.rhs                      = rhs;
+    ast->pat_assignment.declaration_group        = NULL;
+    ast->pat_assignment.optional_type_signatures = NULL;
+    return ast;
+}
+
+NecroAst* necro_ast_create_pat_bind_assignment(NecroPagedArena* arena, NecroAst* pat, NecroAst* expression)
+{
+    NecroAst* ast                       = necro_ast_alloc(arena, NECRO_PAT_BIND_ASSIGNMENT);
+    ast->pat_bind_assignment.pat        = pat;
+    ast->pat_bind_assignment.expression = expression;
+    return ast;
+}
+
+NecroAst* necro_ast_create_expression_list(NecroPagedArena* arena, NecroAst* expressions)
+{
+    NecroAst* ast                    = necro_ast_alloc(arena, NECRO_AST_EXPRESSION_LIST);
+    ast->expression_list.expressions = expressions;
+    return ast;
+}
+
+NecroAst* necro_ast_create_expression_array(NecroPagedArena* arena, NecroAst* expressions)
+{
+    NecroAst* ast                     = necro_ast_alloc(arena, NECRO_AST_EXPRESSION_ARRAY);
+    ast->expression_array.expressions = expressions;
+    return ast;
+}
+
+NecroAst* necro_ast_create_pat_expression(NecroPagedArena* arena, NecroAst* expressions)
+{
+    NecroAst* ast                       = necro_ast_alloc(arena, NECRO_AST_PAT_EXPRESSION);
+    ast->pattern_expression.expressions = expressions;
+    return ast;
+}
+
+NecroAst* necro_ast_create_tuple(NecroPagedArena* arena, NecroAst* expressions)
+{
+    NecroAst* ast          = necro_ast_alloc(arena, NECRO_AST_TUPLE);
+    ast->tuple.expressions = expressions;
+    return ast;
+}
+
+NecroAst* necro_ast_create_arithmetic_sequence(NecroPagedArena* arena, NECRO_ARITHMETIC_SEQUENCE_TYPE sequence_type, NecroAst* from, NecroAst* then, NecroAst* to)
+{
+    NecroAst* ast                 = necro_ast_alloc(arena, NECRO_AST_ARITHMETIC_SEQUENCE);
+    ast->arithmetic_sequence.type = sequence_type;
+    ast->arithmetic_sequence.from = from;
+    ast->arithmetic_sequence.then = then;
+    ast->arithmetic_sequence.to   = to;
+    return ast;
+}
+
+NecroAst* necro_ast_create_case(NecroPagedArena* arena, NecroAst* alternatives, NecroAst* expression)
+{
+    NecroAst* ast                     = necro_ast_alloc(arena, NECRO_AST_CASE);
+    ast->case_expression.alternatives = alternatives;
+    ast->case_expression.expression   = expression;
+    return ast;
+}
+
+NecroAst* necro_ast_create_case_alternative(NecroPagedArena* arena, NecroAst* pat, NecroAst* body)
+{
+    NecroAst* ast              = necro_ast_alloc(arena, NECRO_AST_CASE_ALTERNATIVE);
+    ast->case_alternative.pat  = pat;
+    ast->case_alternative.body = body;
     return ast;
 }
 
@@ -1277,12 +1398,9 @@ NecroAst* necro_ast_create_declaration_group_list(NecroPagedArena* arena, NecroA
 {
     if (declaration_group != NULL)
         assert(declaration_group->type == NECRO_AST_DECL);
-    NecroAst* ast                                 = necro_paged_arena_alloc(arena, sizeof(NecroAst));
-    ast->type                                     = NECRO_AST_DECLARATION_GROUP_LIST;
+    NecroAst* ast                                 = necro_ast_alloc(arena, NECRO_AST_DECLARATION_GROUP_LIST);
     ast->declaration_group_list.declaration_group = declaration_group;
     ast->declaration_group_list.next              = NULL;
-    ast->source_loc                               = NULL_LOC;
-    ast->end_loc                                  = NULL_LOC;
     if (prev == NULL)
     {
         return ast;
@@ -1292,6 +1410,16 @@ NecroAst* necro_ast_create_declaration_group_list(NecroPagedArena* arena, NecroA
         prev->declaration_group_list.next = ast;
         return prev;
     }
+}
+
+NecroAst* necro_ast_create_declaration_group_list_with_next(NecroPagedArena* arena, NecroAst* declaration_group, NecroAst* next)
+{
+    assert(declaration_group != NULL);
+    assert(declaration_group->type == NECRO_AST_DECL);
+    NecroAst* ast                                 = necro_ast_alloc(arena, NECRO_AST_DECLARATION_GROUP_LIST);
+    ast->declaration_group_list.declaration_group = declaration_group;
+    ast->declaration_group_list.next              = next;
+    return ast;
 }
 
 NecroAst* necro_ast_declaration_group_append(NecroPagedArena* arena, NecroAst* declaration_ast, NecroAst* declaration_group_head)
@@ -1751,5 +1879,243 @@ void necro_ast_assert_eq_go(NecroAst* ast1, NecroAst* ast2)
 void necro_ast_assert_eq(NecroAst* ast1, NecroAst* ast2)
 {
     necro_ast_assert_eq_go(ast1, ast2);
+}
+
+
+///////////////////////////////////////////////////////
+// Deep Copy
+///////////////////////////////////////////////////////
+NecroAst* necro_ast_copy_basic_info(NecroPagedArena* arena, NecroAst* declaration_group, NecroAst* ast_to_copy, NecroAst* ast2)
+{
+    ast2->necro_type = necro_type_deep_copy(arena, ast_to_copy->necro_type);
+    ast2->source_loc = ast_to_copy->source_loc;
+    ast2->end_loc    = ast_to_copy->end_loc;
+    ast2->scope      = NULL; // ???
+    if (declaration_group != NULL)
+        assert(declaration_group->type == NECRO_AST_DECL || declaration_group->type == NECRO_AST_DECLARATION_GROUP_LIST);
+    switch (ast2->type)
+    {
+    case NECRO_AST_TYPE_CLASS_DECLARATION:
+        ast2->type_class_declaration.declaration_group = declaration_group;
+        break;
+    case NECRO_AST_TYPE_CLASS_INSTANCE:
+        ast2->type_class_instance.declaration_group = declaration_group;
+        break;
+    case NECRO_AST_TYPE_SIGNATURE:
+        ast2->type_signature.declaration_group = declaration_group;
+        break;
+    case NECRO_AST_DATA_DECLARATION:
+        ast2->data_declaration.declaration_group = declaration_group;
+        break;
+    case NECRO_AST_SIMPLE_ASSIGNMENT:
+        ast2->simple_assignment.declaration_group = declaration_group;
+        break;
+    case NECRO_AST_APATS_ASSIGNMENT:
+        ast2->apats_assignment.declaration_group = declaration_group;
+        break;
+    case NECRO_AST_PAT_ASSIGNMENT:
+        ast2->pat_assignment.declaration_group = declaration_group;
+        break;
+    case NECRO_AST_DECL:
+        ast2->declaration.declaration_group_list = declaration_group;
+        break;
+    }
+    return ast2;
+}
+
+NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_group, NecroAst* ast)
+{
+    if (ast == NULL)
+        return NULL;
+    switch (ast->type)
+    {
+    case NECRO_AST_TOP_DECL:
+    {
+        NecroAst* copy_head = necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_top_decl(arena, necro_ast_deep_copy_go(arena, declaration_group, ast->top_declaration.declaration), NULL));
+        NecroAst* copy_curr = copy_head;
+        ast                 = ast->top_declaration.next_top_decl;
+        while (ast != NULL)
+        {
+            copy_curr->top_declaration.next_top_decl = necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_top_decl(arena, necro_ast_deep_copy_go(arena, declaration_group, ast->top_declaration.declaration), NULL));
+            copy_curr                                = copy_curr->top_declaration.next_top_decl;
+            ast                                      = ast->top_declaration.next_top_decl;
+        }
+        return copy_head;
+    }
+    case NECRO_AST_DECL:
+    {
+        NecroAst* copy_head                     = necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_decl(arena, NULL, NULL));
+        NecroAst* copy_curr                     = copy_head;
+        copy_curr->declaration.declaration_impl = necro_ast_deep_copy_go(arena, copy_curr, ast->declaration.declaration_impl);
+        ast                                     = ast->declaration.next_declaration;
+        while (ast != NULL)
+        {
+            copy_curr->declaration.next_declaration = necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_decl(arena, NULL, NULL));
+            copy_curr                               = copy_curr->declaration.next_declaration;
+            copy_curr->declaration.declaration_impl = necro_ast_deep_copy_go(arena, copy_curr, ast->declaration.declaration_impl);
+            ast                                     = ast->declaration.next_declaration;
+        }
+        return copy_head;
+    }
+    case NECRO_AST_DECLARATION_GROUP_LIST:
+    {
+        NecroAst* copy_head                                 = necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_declaration_group_list(arena, NULL, NULL));
+        NecroAst* copy_curr                                 = copy_head;
+        copy_curr->declaration_group_list.declaration_group = necro_ast_deep_copy_go(arena, copy_curr, ast->declaration_group_list.declaration_group);
+        ast                                                 = ast->declaration_group_list.next;
+        while (ast != NULL)
+        {
+            copy_curr->declaration_group_list.next              = necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_declaration_group_list(arena, NULL, NULL));
+            copy_curr                                           = copy_curr->declaration_group_list.next;
+            copy_curr->declaration_group_list.declaration_group = necro_ast_deep_copy_go(arena, copy_curr, ast->declaration_group_list.declaration_group);
+            ast                                                 = ast->declaration_group_list.next;
+        }
+        return copy_head;
+    }
+    case NECRO_AST_CONSTANT:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_constant(arena, (NecroParseAstConstant) { .type = ast->constant.type, .int_literal = ast->constant.int_literal }));
+    case NECRO_AST_BIN_OP:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_bin_op_with_ast_symbol(arena, ast->bin_op.ast_symbol,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->bin_op.lhs),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->bin_op.rhs)));
+    case NECRO_AST_IF_THEN_ELSE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_if_then_else(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->if_then_else.if_expr),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->if_then_else.then_expr),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->if_then_else.else_expr)));
+    case NECRO_AST_SIMPLE_ASSIGNMENT:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_simple_assignment_with_ast_symbol(arena, ast->simple_assignment.ast_symbol,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->simple_assignment.initializer),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->simple_assignment.rhs)));
+    case NECRO_AST_APATS_ASSIGNMENT:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_apats_assignment_with_ast_symbol(arena, ast->apats_assignment.ast_symbol,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->apats_assignment.apats),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->apats_assignment.rhs)));
+    case NECRO_AST_PAT_ASSIGNMENT:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_pat_assignment(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->pat_assignment.pat),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->pat_assignment.rhs)));
+    case NECRO_AST_RIGHT_HAND_SIDE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_rhs(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->right_hand_side.expression),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->right_hand_side.declarations)));
+    case NECRO_AST_LET_EXPRESSION:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_let(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->let_expression.expression),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->let_expression.declarations)));
+    case NECRO_AST_FUNCTION_EXPRESSION:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_fexpr(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->fexpression.aexp),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->fexpression.next_fexpression)));
+    case NECRO_AST_VARIABLE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_var_full(arena, ast->variable.ast_symbol, ast->variable.var_type, ast->variable.inst_subs,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->variable.initializer)));
+    case NECRO_AST_APATS:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_apats(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->apats.apat),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->apats.next_apat)));
+    case NECRO_AST_WILDCARD:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_wildcard(arena));
+    case NECRO_AST_LAMBDA:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_lambda(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->lambda.apats),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->lambda.expression)));
+    case NECRO_AST_DO:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_do(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->do_statement.statement_list)));
+    case NECRO_AST_LIST_NODE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_list(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->list.item),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->list.next_item)));
+    case NECRO_AST_EXPRESSION_LIST:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_expression_list(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->expression_list.expressions)));
+    case NECRO_AST_EXPRESSION_ARRAY:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_expression_array(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->expression_array.expressions)));
+    case NECRO_AST_PAT_EXPRESSION:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_pat_expression(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->pattern_expression.expressions)));
+    case NECRO_AST_TUPLE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_tuple(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->tuple.expressions)));
+    case NECRO_BIND_ASSIGNMENT:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_bind_assignment(arena, ast->bind_assignment.ast_symbol,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->bind_assignment.expression)));
+    case NECRO_PAT_BIND_ASSIGNMENT:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_pat_bind_assignment(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->pat_bind_assignment.pat),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->pat_bind_assignment.expression)));
+    case NECRO_AST_ARITHMETIC_SEQUENCE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_arithmetic_sequence(arena, ast->arithmetic_sequence.type,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->arithmetic_sequence.from),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->arithmetic_sequence.then),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->arithmetic_sequence.to)));
+    case NECRO_AST_CASE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_case(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->case_expression.alternatives),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->case_expression.expression)));
+    case NECRO_AST_CASE_ALTERNATIVE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_case_alternative(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->case_alternative.pat),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->case_alternative.body)));
+    case NECRO_AST_CONID:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_conid_with_ast_symbol(arena, ast->conid.ast_symbol, ast->conid.con_type));
+    case NECRO_AST_TYPE_APP:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_type_app(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->type_app.ty),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->type_app.next_ty)));
+    case NECRO_AST_OP_LEFT_SECTION:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_left_section(arena, ast->op_left_section.ast_symbol,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->op_left_section.left)));
+    case NECRO_AST_OP_RIGHT_SECTION:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_right_section(arena, ast->op_right_section.ast_symbol,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->op_right_section.right)));
+    case NECRO_AST_CONSTRUCTOR:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_constructor(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->constructor.conid),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->constructor.arg_list)));
+    case NECRO_AST_SIMPLE_TYPE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_simple_type_with_type_con(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->simple_type.type_con),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->simple_type.type_var_list)));
+    case NECRO_AST_DATA_DECLARATION:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_data_declaration_with_ast_symbol(arena, ast->data_declaration.ast_symbol,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->data_declaration.simpletype),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->data_declaration.constructor_list)));
+    case NECRO_AST_TYPE_CLASS_DECLARATION:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_type_class_full(arena, ast->type_class_declaration.ast_symbol,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->type_class_declaration.tycls),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->type_class_declaration.tycls),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->type_class_declaration.context),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->type_class_declaration.declarations)));
+    case NECRO_AST_TYPE_CLASS_INSTANCE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_instance_full(arena, ast->type_class_instance.ast_symbol,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->type_class_instance.qtycls),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->type_class_instance.inst),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->type_class_instance.context),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->type_class_instance.declarations)));
+    case NECRO_AST_TYPE_SIGNATURE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_type_signature(arena, ast->type_signature.sig_type,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->type_signature.var),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->type_signature.context),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->type_signature.type)));
+    case NECRO_AST_TYPE_CLASS_CONTEXT:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_context_full(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->type_class_context.conid),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->type_class_context.varid)));
+    case NECRO_AST_FUNCTION_TYPE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_type_fn(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->function_type.type),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->function_type.next_on_arrow)));
+    default:
+        assert(false);
+        return NULL;
+    }
+}
+
+NecroAst* necro_ast_deep_copy(NecroPagedArena* arena, NecroAst* ast)
+{
+    return necro_ast_deep_copy_go(arena, NULL, ast);
 }
 

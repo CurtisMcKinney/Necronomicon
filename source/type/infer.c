@@ -1278,7 +1278,6 @@ NecroResult(NecroType) necro_infer_declaration(NecroInfer* infer, NecroAst* decl
             break;
         case NECRO_AST_DATA_DECLARATION:
             necro_try(NecroType, necro_infer_simple_type(infer, ast->data_declaration.simpletype));
-            fflush(stdout);
             break;
         case NECRO_AST_TYPE_SIGNATURE:
             necro_try(NecroType, necro_infer_type_sig(infer, ast));

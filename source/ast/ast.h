@@ -562,20 +562,26 @@ void          necro_ast_print(NecroAst* ast);
 NecroAstArena necro_reify(NecroCompileInfo info, NecroIntern* intern, NecroParseAstArena* parse_ast_arena);
 
 // Manual AST Creation
+NecroAst* necro_ast_alloc(NecroPagedArena* arena, NECRO_AST_TYPE type);
 NecroAst* necro_ast_create_conid(NecroPagedArena* arena, NecroIntern* intern, const char* con_name, NECRO_CON_TYPE con_type);
 NecroAst* necro_ast_create_var(NecroPagedArena* arena, NecroIntern* intern, const char* variable_name, NECRO_VAR_TYPE var_type);
 NecroAst* necro_ast_create_list(NecroPagedArena* arena, NecroAst* item, NecroAst* next);
 NecroAst* necro_ast_create_var_list(NecroPagedArena* arena, NecroIntern* intern, size_t num_vars, NECRO_VAR_TYPE var_type);
 NecroAst* necro_ast_create_data_con(NecroPagedArena* arena, NecroIntern* intern, const char* con_name, NecroAst* arg_list);
 NecroAst* necro_ast_create_constructor_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* con_name_symbol, NecroAst* arg_list);
+NecroAst* necro_ast_create_constructor(NecroPagedArena* arena, NecroAst* conid, NecroAst* arg_list);
 NecroAst* necro_ast_create_simple_type(NecroPagedArena* arena, NecroIntern* intern, const char* simple_type_name, NecroAst* ty_var_list);
+NecroAst* necro_ast_create_simple_type_with_type_con(NecroPagedArena* arena, NecroAst* type_con, NecroAst* ty_var_list);
 NecroAst* necro_ast_create_data_declaration(NecroPagedArena* arena, NecroIntern* intern, NecroAst* simple_type, NecroAst* constructor_list);
+NecroAst* necro_ast_create_data_declaration_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* simple_type, NecroAst* constructor_list);
 NecroAst* necro_ast_create_type_app(NecroPagedArena* arena, NecroAst* type1, NecroAst* type2);
 NecroAst* necro_ast_create_type_fn(NecroPagedArena* arena, NecroAst* type1, NecroAst* type2);
 NecroAst* necro_ast_create_fexpr(NecroPagedArena* arena, NecroAst* f_ast, NecroAst* x_ast);
 NecroAst* necro_ast_create_fn_type_sig(NecroPagedArena* arena, NecroIntern* intern, const char* var_name, NecroAst* context_ast, NecroAst* type_ast, NECRO_VAR_TYPE var_type, NECRO_SIG_TYPE sig_type);
 NecroAst* necro_ast_create_type_class(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, const char* class_var, NecroAst* context_ast, NecroAst* declarations_ast);
+NecroAst* necro_ast_create_type_class_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* tycls, NecroAst* tyvar, NecroAst* context_ast, NecroAst* declarations_ast);
 NecroAst* necro_ast_create_instance(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, NecroAst* inst_ast, NecroAst* context_ast, NecroAst* declarations_ast);
+NecroAst* necro_ast_create_instance_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* qtycls, NecroAst* inst_ast, NecroAst* context_ast, NecroAst* declarations_ast);
 NecroAst* necro_ast_create_top_decl(NecroPagedArena* arena, NecroAst* top_level_declaration, NecroAst* next);
 NecroAst* necro_ast_create_decl(NecroPagedArena* arena, NecroAst* declaration, NecroAst* next);
 NecroAst* necro_ast_create_simple_assignment(NecroPagedArena* arena, NecroIntern* intern, const char* var_name, NecroAst* rhs_ast);
@@ -585,22 +591,41 @@ NecroAst* necro_ast_create_apats_assignment_with_ast_symbol(NecroPagedArena* are
 NecroAst* necro_ast_create_lambda(NecroPagedArena* arena, NecroAst* apats, NecroAst* expr_ast);
 NecroAst* necro_ast_create_wildcard(NecroPagedArena* arena);
 NecroAst* necro_ast_create_context(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, const char* var_name, NecroAst* next);
+NecroAst* necro_ast_create_context_full(NecroPagedArena* arena, NecroAst* conid, NecroAst* varid);
 NecroAst* necro_ast_create_rhs(NecroPagedArena* arena, NecroAst* expression, NecroAst* declarations);
 NecroAst* necro_ast_create_bin_op(NecroPagedArena* arena, NecroIntern* intern, const char* op_name, NecroAst* lhs, NecroAst* rhs);
+NecroAst* necro_ast_create_bin_op_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* lhs, NecroAst* rhs);
 NecroAst* necro_ast_create_constant(NecroPagedArena* arena, NecroParseAstConstant constant);
 NecroAst* necro_ast_create_let(NecroPagedArena* arena, NecroAst* expression_ast, NecroAst* declarations_ast);
 NecroAst* necro_ast_create_do(NecroPagedArena* arena, NecroAst* statement_list_ast);
 NecroAst* necro_ast_create_bind_assignment(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* expr);
+NecroAst* necro_ast_create_if_then_else(NecroPagedArena* arena, NecroAst* if_ast, NecroAst* then_ast, NecroAst* else_ast);
+NecroAst* necro_ast_create_pat_assignment(NecroPagedArena* arena, NecroAst* pat, NecroAst* rhs);
+NecroAst* necro_ast_create_pat_bind_assignment(NecroPagedArena* arena, NecroAst* pat, NecroAst* expression);
+NecroAst* necro_ast_create_expression_list(NecroPagedArena* arena, NecroAst* expressions);
+NecroAst* necro_ast_create_expression_array(NecroPagedArena* arena, NecroAst* expressions);
+NecroAst* necro_ast_create_pat_expression(NecroPagedArena* arena, NecroAst* expressions);
+NecroAst* necro_ast_create_tuple(NecroPagedArena* arena, NecroAst* expressions);
+NecroAst* necro_ast_create_arithmetic_sequence(NecroPagedArena* arena, NECRO_ARITHMETIC_SEQUENCE_TYPE sequence_type, NecroAst* from, NecroAst* then, NecroAst* to);
+NecroAst* necro_ast_create_case(NecroPagedArena* arena, NecroAst* alternatives, NecroAst* expression);
+NecroAst* necro_ast_create_case_alternative(NecroPagedArena* arena, NecroAst* pat, NecroAst* body);
+NecroAst* necro_ast_create_left_section(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* lhs);
+NecroAst* necro_ast_create_right_section(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* rhs);
+NecroAst* necro_ast_create_type_signature(NecroPagedArena* arena, NECRO_SIG_TYPE sig_type, NecroAst* var, NecroAst* context, NecroAst* type);
+NecroAst* necro_ast_create_simple_assignment_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* initializer, NecroAst* rhs_ast);
+NecroAst* necro_ast_create_var_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_VAR_TYPE var_type);
+NecroAst* necro_ast_create_var_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_VAR_TYPE var_type, struct NecroInstSub* inst_subs, NecroAst* initializer);
+NecroAst* necro_ast_create_conid_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_CON_TYPE con_type);
+
+// Declaration Groups
 NecroAst* necro_ast_create_declaration_group_list(NecroPagedArena* arena, NecroAst* declaration_group, NecroAst* prev);
+NecroAst* necro_ast_create_declaration_group_list_with_next(NecroPagedArena* arena, NecroAst* declaration_group, NecroAst* next);
 NecroAst* necro_ast_declaration_group_append(NecroPagedArena* arena, NecroAst* declaration_ast, NecroAst* declaration_group_head);
 void      necro_ast_declaration_group_prepend_to_group_in_group_list(NecroAst* group_list, NecroAst* group_to_prepend);
 NecroAst* necro_ast_declaration_group_list_append(NecroPagedArena* arena, NecroAst* declaration_group, NecroAst* declaration_group_list_head);
-// NecroAst* necro_ast_create_left_section(NecroPagedArena* arena, NecroAstSymbol* ast_symbol,
 
-// Manual AST Creation with provided NecroAstSymbol
-NecroAst* necro_ast_create_simple_assignment_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* rhs_ast);
-NecroAst* necro_ast_create_var_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_VAR_TYPE var_type);
-NecroAst* necro_ast_create_conid_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_CON_TYPE con_type);
+NecroAst* necro_ast_deep_copy(NecroPagedArena* arena, NecroAst* ast);
+NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_group, NecroAst* ast);
 
 void      necro_ast_assert_eq(NecroAst* ast1, NecroAst* ast2);
 

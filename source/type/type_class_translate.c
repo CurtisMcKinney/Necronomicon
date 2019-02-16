@@ -91,6 +91,7 @@ void necro_type_class_translate_destroy(NecroTypeClassTranslate* type_class_tran
 // Forward Declarations
 ///////////////////////////////////////////////////////
 NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_class_translate, NecroAst* ast);
+NecroAst*         necro_ast_specialize_go(NecroTypeClassTranslate* type_class_translate, NecroAst* ast, NecroInstSub* subs);
 
 
 NecroResult(void) necro_type_class_translate(NecroCompileInfo info, NecroIntern* intern, NecroScopedSymTable* scoped_symtable, NecroBase* base, NecroAstArena* ast_arena)
@@ -113,11 +114,13 @@ NecroResult(void) necro_type_class_translate(NecroCompileInfo info, NecroIntern*
 NecroSymbol necro_create_suffix_from_subs(NecroTypeClassTranslate* type_class_translate, NecroSymbol prefix, const NecroInstSub* subs)
 {
     // Count length
-    size_t              length   = 1 + strlen(prefix->str);
+    size_t              length   = 2 + strlen(prefix->str);
     const NecroInstSub* curr_sub = subs;
     while (curr_sub != NULL)
     {
-        length += necro_type_mangled_string_length(curr_sub->new_name) + 1;
+        length += necro_type_mangled_string_length(curr_sub->new_name);
+        if (curr_sub->next != NULL)
+            length += 1;
         curr_sub = curr_sub->next;
     }
 
@@ -131,15 +134,16 @@ NecroSymbol necro_create_suffix_from_subs(NecroTypeClassTranslate* type_class_tr
     }
 
     // Write type strings
-    size_t offset = sprintf(type_class_translate->suffix_buffer, "%s", prefix->str);
+    size_t offset = sprintf(type_class_translate->suffix_buffer, "%s<", prefix->str);
     curr_sub      = subs;
     while (curr_sub != NULL)
     {
-        offset += sprintf(type_class_translate->suffix_buffer + offset, "@");
         offset  = necro_type_mangled_sprintf(type_class_translate->suffix_buffer, offset, curr_sub->new_name);
+        if (curr_sub->next != NULL)
+            offset += sprintf(type_class_translate->suffix_buffer + offset, ",");
         curr_sub = curr_sub->next;
     }
-    offset += 1; // \0 character
+    offset += sprintf(type_class_translate->suffix_buffer + offset, ">");
     assert(offset == length);
 
     return necro_intern_string(type_class_translate->intern, type_class_translate->suffix_buffer);
@@ -158,19 +162,66 @@ NecroAst* necro_ast_specialize(NecroTypeClassTranslate* type_class_translate, Ne
 {
     assert(type_class_translate != NULL);
     assert(ast_symbol != NULL);
+    assert(ast_symbol->ast != NULL);
+    assert(ast_symbol->ast->scope != NULL);
     assert(subs != NULL);
     if (ast_symbol->method_type_class)
         return necro_ast_specialize_method(type_class_translate, ast_symbol, subs);
-    NecroSymbol     specialized_name       = necro_create_suffix_from_subs(type_class_translate, ast_symbol->name, subs);
-    NecroAstSymbol* specialized_ast_symbol = necro_symtable_get_top_level_ast_symbol(type_class_translate->scoped_symtable, specialized_name);
+
+    // TODO: Fuuuuuuuck....how to handle multi-line apat assignments and mututally recursive bindings!? Cornercases hate your life.
+
+    // Find specialized ast
+    NecroSymbol     specialized_name       = necro_create_suffix_from_subs(type_class_translate, ast_symbol->source_name, subs);
+    NecroScope*     scope                  = ast_symbol->ast->scope;
+    NecroAstSymbol* specialized_ast_symbol = necro_scope_find_ast_symbol(scope, specialized_name);
     if (specialized_ast_symbol != NULL)
     {
         assert(specialized_ast_symbol->ast != NULL);
-        return specialized_ast_symbol->ast;
+        return necro_ast_create_var_full(type_class_translate->arena, specialized_ast_symbol, NECRO_VAR_VAR, NULL, NULL);
     }
-    specialized_ast_symbol = necro_ast_symbol_create(type_class_translate->arena, specialized_name, specialized_name, type_class_translate->ast_arena->module_name, NULL);
-    necro_scope_insert_ast_symbol(type_class_translate->arena, type_class_translate->scoped_symtable->top_scope, specialized_ast_symbol);
-    return specialized_ast_symbol->ast;
+    // necro_scope_insert_ast_symbol(type_class_translate->arena, scope, specialized_ast_symbol);
+    NecroAst* declaration_group_list = ast_symbol->declaration_group->declaration.declaration_group_list;
+    assert(declaration_group_list != NULL);
+    assert(declaration_group_list->type == NECRO_AST_DECLARATION_GROUP_LIST);
+    NecroAst* next_group_list                           = declaration_group_list->declaration_group_list.next;
+    NecroAst* new_declaration                           = necro_ast_create_decl(type_class_translate->arena, ast_symbol->ast, NULL);
+    NecroAst* new_group_list                            = necro_ast_create_declaration_group_list_with_next(type_class_translate->arena, new_declaration, next_group_list);
+    declaration_group_list->declaration_group_list.next = new_group_list;
+    new_declaration->declaration.declaration_impl       = NULL; // Removing dummy argument
+
+    // Create specialized ast
+    specialized_ast_symbol                        = necro_ast_symbol_create(type_class_translate->arena, specialized_name, specialized_name, type_class_translate->ast_arena->module_name, NULL);
+    specialized_ast_symbol->ast                   = necro_ast_deep_copy_go(type_class_translate->arena, new_declaration, ast_symbol->ast);
+    new_declaration->declaration.declaration_impl = specialized_ast_symbol->ast;
+    assert(ast_symbol->ast != specialized_ast_symbol->ast);
+    // necro_ast_assert_eq(ast_symbol->ast, specialized_ast_symbol->ast);
+    switch (specialized_ast_symbol->ast->type)
+    {
+    case NECRO_AST_SIMPLE_ASSIGNMENT:
+        specialized_ast_symbol->ast->simple_assignment.ast_symbol = specialized_ast_symbol;
+        break;
+    case NECRO_AST_APATS_ASSIGNMENT:
+        specialized_ast_symbol->ast->apats_assignment.ast_symbol = specialized_ast_symbol;
+        break;
+    default:
+        assert(false);
+        break;
+    }
+    // TODO: Type gets broken in DoublePoly test, check it out!!!
+    NecroScope* prev_scope                                    = type_class_translate->scoped_symtable->current_scope;
+    NecroScope* prev_type_scope                               = type_class_translate->scoped_symtable->current_type_scope;
+    type_class_translate->scoped_symtable->current_scope      = scope;
+    necro_rename_internal_scope_and_rename(type_class_translate->ast_arena, type_class_translate->scoped_symtable, type_class_translate->intern, specialized_ast_symbol->ast);
+    type_class_translate->scoped_symtable->current_scope      = prev_scope;
+    type_class_translate->scoped_symtable->current_type_scope = prev_type_scope;
+    new_declaration->scope                                    = specialized_ast_symbol->ast->scope;
+    new_group_list->scope                                     = specialized_ast_symbol->ast->scope;
+    // TODO: Set types, go deeper
+
+    specialized_ast_symbol->type                              = necro_type_replace_with_subs_deep_copy(type_class_translate->arena, ast_symbol->type, subs);
+    necro_ast_specialize_go(type_class_translate, specialized_ast_symbol->ast, subs);
+
+    return necro_ast_create_var_full(type_class_translate->arena, specialized_ast_symbol, NECRO_VAR_VAR, NULL, NULL);
 }
 
 ///////////////////////////////////////////////////////
@@ -277,7 +328,7 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
             // TODO: Finish
             NecroAst* specialized_var = necro_ast_specialize(type_class_translate, ast_symbol, ast->variable.inst_subs);
             UNUSED(specialized_var);
-            // *ast = *specialized_var;
+            *ast = *specialized_var;
             return ok_void();
         }
 
@@ -496,15 +547,13 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
 // TODO: How to handle renamed declarations that are then referenced via the original name!?
 // TODO: Rename Map / scope. Look up names first, if it's in the rename map/scope then use the renamed version, otherwise don'tk
 // TODO: Initial SimpleAssignment / ApatsAssignment handled by necro_ast_specialized not necro_specialize_go, as it has special handling.
-NecroAst* necro_ast_specialize_go(NecroTypeClassTranslate* type_class_translate, NecroAst* ast, NecroSymbol clash_suffix, NecroAst* group, NecroScope* rename_scope)
+NecroAst* necro_ast_specialize_go(NecroTypeClassTranslate* type_class_translate, NecroAst* ast, NecroInstSub* subs)
 {
     UNUSED(type_class_translate);
-    UNUSED(clash_suffix);
-    UNUSED(group);
-    UNUSED(rename_scope);
-    assert(group->type == NECRO_AST_DECL || group->type == NECRO_AST_DECLARATION_GROUP_LIST);
+    UNUSED(subs);
     if (ast == NULL)
         return NULL;
+    ast->necro_type = necro_type_replace_with_subs(type_class_translate->arena, ast->necro_type, subs);
     return NULL; // TODO: Remove
     // switch (ast->type)
     // {
@@ -846,11 +895,11 @@ void necro_type_class_translate_test_result(const char* test_name, const char* s
     NecroResult(void) result = necro_type_class_translate(info, &intern, &scoped_symtable, &base, &ast);
 
     // Assert
-    if (result.type != expected_result)
-    {
+    // if (result.type != expected_result)
+    // {
         necro_ast_arena_print(&ast);
         necro_scoped_symtable_print_top_scopes(&scoped_symtable);
-    }
+    // }
     assert(result.type == expected_result);
     bool passed = result.type == expected_result;
     if (expected_result == NECRO_RESULT_ERROR)
@@ -922,12 +971,19 @@ void necro_type_class_translate_test_suffix()
             NULL);
     NecroSymbol suffix_symbol3 = necro_create_suffix_from_subs(&translate, prefix, subs3);
     printf("suffix3: %s\n", suffix_symbol3->str);
-}
 
+    NecroInstSub* subs4 =
+        necro_create_inst_sub_manual(&base.ast.arena, NULL,
+            necro_type_con_create(&base.ast.arena, base.tuple2_type, necro_type_list_create(&base.ast.arena, base.int_type->type, necro_type_list_create(&base.ast.arena, base.float_type->type, NULL))),
+            NULL);
+    NecroSymbol suffix_symbol4 = necro_create_suffix_from_subs(&translate, prefix, subs4);
+    printf("suffix4: %s\n", suffix_symbol4->str);
+
+}
 
 void necro_type_class_translate_test()
 {
-    // necro_type_class_translate_test_suffix();
+    necro_type_class_translate_test_suffix();
 
     {
         const char* test_name   = "SimplePoly1";
@@ -939,5 +995,41 @@ void necro_type_class_translate_test()
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
     }
+
+    {
+        const char* test_name   = "SimplePoly2";
+        const char* test_source = ""
+            "polyNothing :: Maybe a\n"
+            "polyNothing = Nothing\n"
+            "concreteNothing :: Maybe Int\n"
+            "concreteNothing = polyNothing\n"
+            "concreteNothing2 :: Maybe Int\n"
+            "concreteNothing2 = polyNothing\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "SimplePoly3";
+        const char* test_source = ""
+            "polyNothing :: Maybe a\n"
+            "polyNothing = Nothing\n"
+            "concreteTuple :: (Maybe Bool, Maybe Audio)\n"
+            "concreteTuple = (polyNothing, polyNothing)\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    // {
+    //     const char* test_name   = "DoublePoly1";
+    //     const char* test_source = ""
+    //         "polyTuple :: a -> b -> (a, b) \n"
+    //         "polyTuple x y = (x, y)\n"
+    //         "concreteTuple :: ((), Bool)\n"
+    //         "concreteTuple = polyTuple () False\n";
+    //     const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+    //     necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    // }
+
 }
 

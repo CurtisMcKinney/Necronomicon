@@ -60,5 +60,6 @@ typedef struct NecroAstSymbol
 NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name, NecroSymbol source_name, NecroSymbol module_name, struct NecroAst* ast);
 const char*     necro_ast_symbol_most_qualified_name(NecroAstSymbol* ast_symbol);
 void            necro_ast_symbol_print_type_and_kind(NecroAstSymbol* ast_symbol, size_t num_white_spaces);
+NecroAstSymbol* necro_ast_symbol_deep_copy(NecroPagedArena* arena, NecroAstSymbol* ast_symbol);
 
 #endif // NECRO_AST_SYMBOL_H

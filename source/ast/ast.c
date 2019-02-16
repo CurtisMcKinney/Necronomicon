@@ -2008,7 +2008,7 @@ NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_g
             necro_ast_deep_copy_go(arena, declaration_group, ast->fexpression.aexp),
             necro_ast_deep_copy_go(arena, declaration_group, ast->fexpression.next_fexpression)));
     case NECRO_AST_VARIABLE:
-        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_var_full(arena, ast->variable.ast_symbol, ast->variable.var_type, ast->variable.inst_subs,
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_var_full(arena, necro_ast_symbol_deep_copy(arena, ast->variable.ast_symbol), ast->variable.var_type, ast->variable.inst_subs,
             necro_ast_deep_copy_go(arena, declaration_group, ast->variable.initializer)));
     case NECRO_AST_APATS:
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_apats(arena,

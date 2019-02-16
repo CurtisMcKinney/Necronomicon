@@ -716,15 +716,18 @@ NecroType* necro_type_replace_with_subs_deep_copy(NecroPagedArena* arena, NecroT
         }
         return type;
     case NECRO_TYPE_FOR:
-        while (subs != NULL)
+    {
+        NecroInstSub* curr_sub = subs;
+        while (curr_sub != NULL)
         {
-            if (type->for_all.var_symbol == subs->var_to_replace)
+            if (type->for_all.var_symbol == curr_sub->var_to_replace)
             {
                 return necro_type_replace_with_subs_deep_copy(arena, type->for_all.type, subs);
             }
-            subs = subs->next;
+            curr_sub = curr_sub->next;
         }
         return necro_type_for_all_create(arena, type->for_all.var_symbol, type->for_all.context, necro_type_replace_with_subs_deep_copy(arena, type->for_all.type, subs));
+    }
     case NECRO_TYPE_APP:  return necro_type_app_create(arena, necro_type_replace_with_subs_deep_copy(arena, type->app.type1, subs), necro_type_replace_with_subs_deep_copy(arena, type->app.type2, subs));
     case NECRO_TYPE_FUN:  return necro_type_fn_create(arena, necro_type_replace_with_subs_deep_copy(arena, type->fun.type1, subs), necro_type_replace_with_subs_deep_copy(arena, type->fun.type2, subs));
     case NECRO_TYPE_CON:  return necro_type_con_create(arena, type->con.con_symbol, necro_type_replace_with_subs_deep_copy(arena, type->con.args, subs));
@@ -755,13 +758,14 @@ NecroType* necro_type_replace_with_subs(NecroPagedArena* arena, NecroType* type,
         return type;
     case NECRO_TYPE_FOR:
     {
-        while (subs != NULL)
+        NecroInstSub* curr_sub = subs;
+        while (curr_sub != NULL)
         {
-            if (type->for_all.var_symbol == subs->var_to_replace)
+            if (type->for_all.var_symbol == curr_sub->var_to_replace)
             {
                 return necro_type_replace_with_subs_deep_copy(arena, type->for_all.type, subs);
             }
-            subs = subs->next;
+            curr_sub = curr_sub->next;
         }
         NecroType* next_type = necro_type_replace_with_subs(arena, type->for_all.type, subs);
         if (next_type == type->for_all.type)

@@ -983,7 +983,7 @@ void necro_type_class_translate_test_suffix()
 
 void necro_type_class_translate_test()
 {
-    necro_type_class_translate_test_suffix();
+    // necro_type_class_translate_test_suffix();
 
     {
         const char* test_name   = "SimplePoly1";
@@ -1020,16 +1020,16 @@ void necro_type_class_translate_test()
         necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
-    // {
-    //     const char* test_name   = "DoublePoly1";
-    //     const char* test_source = ""
-    //         "polyTuple :: a -> b -> (a, b) \n"
-    //         "polyTuple x y = (x, y)\n"
-    //         "concreteTuple :: ((), Bool)\n"
-    //         "concreteTuple = polyTuple () False\n";
-    //     const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-    //     necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
-    // }
+    {
+        const char* test_name   = "DoublePoly1";
+        const char* test_source = ""
+            "polyTuple :: a -> b -> (a, b) \n"
+            "polyTuple x y = (x, y)\n"
+            "concreteTuple :: ((), Bool)\n"
+            "concreteTuple = polyTuple () False\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    }
 
 }
 

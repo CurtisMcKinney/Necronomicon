@@ -238,23 +238,23 @@ NecroResult(NecroAstSymbol) necro_rename_declare(NecroRenamer* renamer, NecroAst
         case NECRO_VAR_VAR: break;
         case NECRO_VAR_SIG: ast->scope->last_introduced_symbol = NULL; break;
         case NECRO_VAR_DECLARATION:
-            ast->variable.ast_symbol->ast = ast;
             ast->variable.ast_symbol->name = ast->variable.ast_symbol->source_name;
             ast->variable.ast_symbol->module_name = renamer->ast_arena->module_name;
             ast->variable.ast_symbol = necro_try(NecroAstSymbol, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_VALUE_NAMESPACE, (renamer->state == NECRO_RENAME_PAT_ASSIGNMENT) ? NECRO_DONT_MANGLE : NECRO_MANGLE_NAME, ast->scope, ast->variable.ast_symbol, ast->source_loc, ast->end_loc));
+            ast->variable.ast_symbol->ast = ast;
             break;
         case NECRO_VAR_TYPE_VAR_DECLARATION:
-            ast->variable.ast_symbol->ast = ast;
             ast->variable.ast_symbol->name = ast->variable.ast_symbol->source_name;
             ast->variable.ast_symbol->module_name = renamer->ast_arena->module_name;
             ast->variable.ast_symbol = necro_try(NecroAstSymbol, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_TYPE_NAMESPACE, NECRO_MANGLE_NAME, ast->scope, ast->variable.ast_symbol, ast->source_loc, ast->end_loc));
+            ast->variable.ast_symbol->ast = ast;
             break;
         case NECRO_VAR_CLASS_SIG:
             ast->scope->last_introduced_symbol = NULL;
-            ast->variable.ast_symbol->ast = ast;
             ast->variable.ast_symbol->name = ast->variable.ast_symbol->source_name;
             ast->variable.ast_symbol->module_name = renamer->ast_arena->module_name;
             ast->variable.ast_symbol = necro_try(NecroAstSymbol, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_VALUE_NAMESPACE, NECRO_DONT_MANGLE, ast->scope, ast->variable.ast_symbol, ast->source_loc, ast->end_loc));
+            ast->variable.ast_symbol->ast = ast;
             if (ast->variable.ast_symbol->optional_type_signature != NULL)
                 return necro_duplicate_type_signatures_error(ast->variable.ast_symbol, renamer->current_type_sig_ast->source_loc, renamer->current_type_sig_ast->end_loc, ast->variable.ast_symbol, ast->variable.ast_symbol->optional_type_signature->source_loc, ast->variable.ast_symbol->optional_type_signature->end_loc);
             else

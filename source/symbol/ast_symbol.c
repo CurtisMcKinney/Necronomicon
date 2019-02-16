@@ -33,6 +33,31 @@ NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name
     return ast_symbol;
 }
 
+NecroAstSymbol* necro_ast_symbol_deep_copy(NecroPagedArena* arena, NecroAstSymbol* ast_symbol)
+{
+    NecroAstSymbol* new_symbol = necro_paged_arena_alloc(arena, sizeof(NecroAstSymbol));
+    *new_symbol                = (NecroAstSymbol)
+    {
+        .name                    = ast_symbol->name,
+        .source_name             = ast_symbol->source_name,
+        .module_name             = ast_symbol->module_name,
+        .ast                     = NULL,
+        .optional_type_signature = NULL,
+        .declaration_group       = NULL,
+        .type                    = necro_type_deep_copy(arena, ast_symbol->type),
+        .con_num                 = ast_symbol->con_num,
+        .is_constructor          = ast_symbol->is_constructor,
+        .type_status             = ast_symbol->type_status,
+        .is_recursive            = ast_symbol->is_recursive,
+        .instance_list           = NULL,
+        .method_type_class       = NULL,
+        .type_class              = NULL,
+        .type_class_instance     = NULL,
+        .necro_machine_ast       = NULL,
+    };
+    return new_symbol;
+}
+
 const char* necro_ast_symbol_most_qualified_name(NecroAstSymbol* ast_symbol)
 {
     if (ast_symbol->name != NULL && ast_symbol->name->str != NULL)

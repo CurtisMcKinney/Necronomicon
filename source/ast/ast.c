@@ -1055,6 +1055,19 @@ NecroAst* necro_ast_create_instance(NecroPagedArena* arena, NecroIntern* intern,
     return ast;
 }
 
+NecroAst* necro_ast_create_instance_with_symbol(NecroPagedArena* arena, NecroAstSymbol* class_name, NecroAst* inst_ast, NecroAst* context_ast, NecroAst* declarations_ast)
+{
+    NecroAst* ast = necro_ast_alloc(arena, NECRO_AST_TYPE_CLASS_INSTANCE);
+    ast->type_class_instance.qtycls = necro_ast_create_conid_with_ast_symbol(arena, class_name, NECRO_CON_TYPE_VAR);
+    ast->type_class_instance.inst = inst_ast;
+    ast->type_class_instance.context = context_ast;
+    ast->type_class_instance.declarations = declarations_ast;
+    ast->type_class_instance.dictionary_instance = NULL;
+    ast->type_class_declaration.declaration_group = NULL;
+    ast->type_class_instance.ast_symbol = NULL;
+    return ast;
+}
+
 NecroAst* necro_ast_create_instance_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* qtycls, NecroAst* inst_ast, NecroAst* context_ast, NecroAst* declarations_ast)
 {
     NecroAst* ast                                 = necro_ast_alloc(arena, NECRO_AST_TYPE_CLASS_INSTANCE);
@@ -1243,6 +1256,18 @@ NecroAst* necro_ast_create_bin_op_with_ast_symbol(NecroPagedArena* arena, NecroA
     ast->bin_op.rhs          = rhs;
     ast->bin_op.inst_context = NULL;
     ast->bin_op.inst_subs    = NULL;
+    return ast;
+}
+
+NecroAst* necro_ast_create_bin_op_sym_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* lhs, NecroAst* rhs)
+{
+    assert(ast_symbol != NULL);
+    assert(lhs != NULL);
+    assert(rhs != NULL);
+    NecroAst* ast = necro_ast_alloc(arena, NECRO_AST_BIN_OP_SYM);
+    ast->bin_op_sym.op = necro_ast_create_conid_with_ast_symbol(arena, ast_symbol, NECRO_CON_VAR);
+    ast->bin_op_sym.left = lhs;
+    ast->bin_op_sym.right = rhs;
     return ast;
 }
 

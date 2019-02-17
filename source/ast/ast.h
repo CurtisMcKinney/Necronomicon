@@ -582,6 +582,7 @@ NecroAst* necro_ast_create_type_class(NecroPagedArena* arena, NecroIntern* inter
 NecroAst* necro_ast_create_type_class_with_ast_symbols(NecroPagedArena* arena, NecroAstSymbol* class_name, NecroAstSymbol* class_var, NecroAst* context_ast, NecroAst* declarations_ast);
 NecroAst* necro_ast_create_type_class_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* tycls, NecroAst* tyvar, NecroAst* context_ast, NecroAst* declarations_ast);
 NecroAst* necro_ast_create_instance(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, NecroAst* inst_ast, NecroAst* context_ast, NecroAst* declarations_ast);
+NecroAst* necro_ast_create_instance_with_symbol(NecroPagedArena* arena, NecroAstSymbol* class_name, NecroAst* inst_ast, NecroAst* context_ast, NecroAst* declarations_ast);
 NecroAst* necro_ast_create_instance_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* qtycls, NecroAst* inst_ast, NecroAst* context_ast, NecroAst* declarations_ast);
 NecroAst* necro_ast_create_top_decl(NecroPagedArena* arena, NecroAst* top_level_declaration, NecroAst* next);
 NecroAst* necro_ast_create_decl(NecroPagedArena* arena, NecroAst* declaration, NecroAst* next);
@@ -597,6 +598,7 @@ NecroAst* necro_ast_create_context_full(NecroPagedArena* arena, NecroAst* conid,
 NecroAst* necro_ast_create_rhs(NecroPagedArena* arena, NecroAst* expression, NecroAst* declarations);
 NecroAst* necro_ast_create_bin_op(NecroPagedArena* arena, NecroIntern* intern, const char* op_name, NecroAst* lhs, NecroAst* rhs);
 NecroAst* necro_ast_create_bin_op_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* lhs, NecroAst* rhs);
+NecroAst* necro_ast_create_bin_op_sym_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* lhs, NecroAst* rhs);
 NecroAst* necro_ast_create_constant(NecroPagedArena* arena, NecroParseAstConstant constant);
 NecroAst* necro_ast_create_let(NecroPagedArena* arena, NecroAst* expression_ast, NecroAst* declarations_ast);
 NecroAst* necro_ast_create_do(NecroPagedArena* arena, NecroAst* statement_list_ast);

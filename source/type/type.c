@@ -306,19 +306,29 @@ bool necro_type_is_polymorphic(const NecroType* type)
     return type->type == NECRO_TYPE_FOR;
 }
 
-NecroInstSub* necro_type_filter_subs(NecroInstSub* subs_to_filter, NecroInstSub* filter_subs)
+NecroInstSub* necro_type_union_subs(NecroInstSub* subs1, NecroInstSub* subs2)
 {
-    if (subs_to_filter == NULL || filter_subs == NULL)
-        return subs_to_filter;
-    NecroInstSub* curr_filter = filter_subs;
-    while (curr_filter != NULL)
+    if (subs1 == NULL)
+        return NULL;
+    if (subs2 == NULL)
+        return subs1;
+    NecroInstSub* curr_sub2 = subs2;
+    while (curr_sub2 != NULL)
     {
-        if (subs_to_filter->var_to_replace == filter_subs->var_to_replace)
-            return necro_type_filter_subs(subs_to_filter->next, filter_subs);
-        curr_filter = curr_filter->next;
+        if (subs1->var_to_replace == curr_sub2->var_to_replace)
+        {
+            subs1->new_name = necro_type_find(curr_sub2->new_name);
+            break;
+        }
+        else if (necro_type_find(subs1->new_name)->type == NECRO_TYPE_VAR && necro_type_find(subs1->new_name)->var.var_symbol == curr_sub2->var_to_replace)
+        {
+            subs1->new_name = necro_type_find(curr_sub2->new_name);
+            break;
+        }
+        curr_sub2 = curr_sub2->next;
     }
-    subs_to_filter->next = necro_type_filter_subs(subs_to_filter->next, filter_subs);
-    return subs_to_filter;
+    subs1->next = necro_type_union_subs(subs1->next, subs2);
+    return subs1;
 }
 
 //=====================================================

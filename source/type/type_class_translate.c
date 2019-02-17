@@ -363,7 +363,7 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
                 return ok_void();
             if (necro_type_is_polymorphic(ast->necro_type))
                 return ok_void();
-            ast->variable.inst_subs   = necro_type_filter_subs(ast->variable.inst_subs, subs);
+            ast->variable.inst_subs   = necro_type_union_subs(ast->variable.inst_subs, subs);
             // TODO: Finish after going recursive
             NecroAst* specialized_var = necro_ast_specialize(type_class_translate, ast_symbol, ast->variable.inst_subs);
             UNUSED(specialized_var);
@@ -398,7 +398,7 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
     {
         assert(ast->necro_type != NULL);
         ast->bin_op.ast_symbol->type  = necro_type_replace_with_subs(type_class_translate->arena, ast->bin_op.ast_symbol->type, subs);
-        ast->bin_op.inst_subs         = necro_type_filter_subs(ast->bin_op.inst_subs, subs);
+        ast->bin_op.inst_subs         = necro_type_union_subs(ast->bin_op.inst_subs, subs);
         NecroAst* op_ast              = necro_ast_create_var(type_class_translate->arena, type_class_translate->intern, ast->bin_op.ast_symbol->source_name->str, NECRO_VAR_VAR);
         op_ast->variable.inst_subs    = ast->bin_op.inst_subs;
         op_ast->variable.ast_symbol   = ast->bin_op.ast_symbol;
@@ -420,7 +420,7 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
 //         assert(ast->necro_type != NULL);
 //         // // TODO: necro_ast_create_left_section
            // // ast->bin_op.ast_symbol->type  = necro_type_replace_with_subs(type_class_translate->arena, ast->bin_op.ast_symbol->type, subs);
-           // // ast->bin_op.inst_subs         = necro_type_filter_subs(ast->bin_op.inst_subs, subs);
+           // // ast->bin_op.inst_subs         = necro_type_union_subs(ast->bin_op.inst_subs, subs);
 //         NecroAst* op_ast              = necro_ast_create_var(infer->arena, infer->intern, ast->op_left_section.ast_symbol->source_name->str, NECRO_VAR_VAR);
 //         op_ast->variable.inst_context = ast->op_left_section.inst_context;
 //         op_ast->variable.ast_symbol   = ast->op_left_section.ast_symbol;
@@ -441,7 +441,7 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
 //         // TODO: necro_ast_create_var_from_ast_symbol
 //         assert(ast->necro_type != NULL);
            // // ast->bin_op.ast_symbol->type  = necro_type_replace_with_subs(type_class_translate->arena, ast->bin_op.ast_symbol->type, subs);
-           // // ast->bin_op.inst_subs         = necro_type_filter_subs(ast->bin_op.inst_subs, subs);
+           // // ast->bin_op.inst_subs         = necro_type_union_subs(ast->bin_op.inst_subs, subs);
 //         NecroAst* x_var_arg                   = necro_ast_create_var(infer->arena, infer->intern, "left@rightSection", NECRO_VAR_DECLARATION);
 //         NecroAst* x_var_var                   = necro_ast_create_var(infer->arena, infer->intern, "left@rightSection", NECRO_VAR_VAR);
 //         NecroAst* op_ast                      = necro_ast_create_var(infer->arena, infer->intern, ast->op_right_section.ast_symbol->source_name->str, NECRO_VAR_VAR);

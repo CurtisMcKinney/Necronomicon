@@ -1,3 +1,14 @@
+-- Chad To Do 2/17/2019
+
+Translate to core:
+	* Typeclasses don't use dictionaries
+	* Instead deep copy every version of the AST for the instances, modified/name mangled to use the types (recursive)
+	* Make everything concrete types in core (no polymorphism), don't need big/small lambda stuff
+	* Don't have to worry about .forall or lambdas etc..
+	* Should make typing core simpler
+
+
+
 -- Chad To Do 2/10/2019
 Switch to new ast symbol system (no necrovar etc..)
 	1. make a NecroCoreAstSymbol and use that instead

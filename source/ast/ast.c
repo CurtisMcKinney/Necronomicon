@@ -1120,6 +1120,16 @@ NecroAst* necro_ast_create_context(NecroPagedArena* arena, NecroIntern* intern, 
     return list_ast;
 }
 
+NecroAst* necro_ast_create_context_with_ast_symbols(NecroPagedArena* arena, NecroAstSymbol* class_name, NecroAstSymbol* var_name)
+{
+    assert(class_name != NULL);
+    assert(var_name != NULL);
+    NecroAst* ast = necro_ast_alloc(arena, NECRO_AST_TYPE_CLASS_CONTEXT);
+    ast->type_class_context.conid = necro_ast_create_conid_with_ast_symbol(arena, class_name, NECRO_CON_TYPE_VAR);
+    ast->type_class_context.varid = necro_ast_create_var_with_ast_symbol(arena, var_name, NECRO_VAR_TYPE_FREE_VAR);
+    return ast;
+}
+
 NecroAst* necro_ast_create_context_full(NecroPagedArena* arena, NecroAst* conid, NecroAst* varid)
 {
     NecroAst* ast                 = necro_ast_alloc(arena, NECRO_AST_TYPE_CLASS_CONTEXT);

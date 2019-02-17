@@ -1638,6 +1638,8 @@ void necro_rename_test()
     {
         NecroIntern   intern = necro_intern_create();
         NecroAstArena ast = necro_ast_arena_create(necro_intern_string(&intern, "Test"));
+        NecroSymbol   clash_a = necro_append_clash_suffix_to_name(&ast, &intern, "Test.a");
+        NecroSymbol   clash_b = necro_append_clash_suffix_to_name(&ast, &intern, "Test.b");
 
         ast.root =
             necro_ast_create_top_decl(&ast.arena,
@@ -1664,17 +1666,22 @@ void necro_rename_test()
                     NULL,
                     necro_ast_create_decl(
                         &ast.arena,
-                        necro_ast_create_pat_assignment(
+                        necro_ast_create_apats_assignment_with_ast_symbol(
                             &ast.arena,
-                            necro_ast_create_bin_op_sym_with_ast_symbol(&ast.arena,
-                                necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Necro.Base.=="), necro_intern_string(&intern, "=="), necro_intern_string(&intern, "Necro.Base"), NULL),
+                            necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.eq<()>"), necro_intern_string(&intern, "eq<()>"), necro_intern_string(&intern, "Test"), NULL),
+                            necro_ast_create_apats(
+                                &ast.arena,
                                 necro_ast_create_var_with_ast_symbol(&ast.arena,
-                                    necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.a"), necro_intern_string(&intern, "a"), necro_intern_string(&intern, "Test"), NULL),
+                                    necro_ast_symbol_create(&ast.arena, clash_a, necro_intern_string(&intern, "a"), necro_intern_string(&intern, "Test"), NULL),
                                     NECRO_VAR_DECLARATION
                                 ),
-                                necro_ast_create_var_with_ast_symbol(&ast.arena,
-                                    necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.b"), necro_intern_string(&intern, "b"), necro_intern_string(&intern, "Test"), NULL),
-                                    NECRO_VAR_DECLARATION
+                                necro_ast_create_apats(
+                                    &ast.arena,
+                                    necro_ast_create_var_with_ast_symbol(&ast.arena,
+                                        necro_ast_symbol_create(&ast.arena, clash_b, necro_intern_string(&intern, "b"), necro_intern_string(&intern, "Test"), NULL),
+                                        NECRO_VAR_DECLARATION
+                                    ),
+                                    NULL
                                 )
                             ),
                             necro_ast_create_rhs(
@@ -1703,7 +1710,7 @@ void necro_rename_test()
 
         const char* test_code = ""
             "instance Eq () where\n"
-            "   a == b = True\n";
+            "   eq a b = True\n";
 
         necro_rename_test_case("TypeClassInstance", test_code, &intern, &ast);
     }

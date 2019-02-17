@@ -1826,10 +1826,43 @@ void necro_rename_test()
         necro_rename_test_case("RightSection", test_code, &intern, &ast);
     }
 
-    //--------------------
-    // TODO list for Chad...
-    //--------------------
-    // TODO: LeftSection
+    {
+        NecroIntern   intern = necro_intern_create();
+        NecroAstArena ast = necro_ast_arena_create(necro_intern_string(&intern, "Test"));
+
+        ast.root =
+            necro_ast_create_top_decl(&ast.arena,
+                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena,
+                    necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.reciprocal"), necro_intern_string(&intern, "reciprocal"), necro_intern_string(&intern, "Test"), NULL), NULL,
+                    necro_ast_create_rhs(&ast.arena,
+                        necro_ast_create_left_section(&ast.arena,
+                            necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Necro.Base./"), necro_intern_string(&intern, "/"), necro_intern_string(&intern, "Necro.Base"), NULL),
+                            necro_ast_create_fexpr(&ast.arena,
+                                necro_ast_create_var_with_ast_symbol(&ast.arena,
+                                    necro_ast_symbol_create(&ast.arena,
+                                        necro_intern_string(&intern, "Necro.Base.fromInt"),
+                                        necro_intern_string(&intern, "fromInt"),
+                                        necro_intern_string(&intern, "Necro.Base"),
+                                        NULL
+                                    ),
+                                    NECRO_VAR_VAR
+                                ),
+                                necro_ast_create_constant(&ast.arena, (NecroParseAstConstant) { .int_literal = 1, .type = NECRO_AST_CONSTANT_INTEGER })
+                            )
+                        ),
+                        NULL
+                    )
+                ),
+                NULL
+            );
+
+#if RENAME_TEST_VERBOSE
+        necro_ast_print(ast.root);
+#endif
+
+        const char* test_code = "reciprocal = (1/)\n";
+        necro_rename_test_case("LeftSection", test_code, &intern, &ast);
+    }
 
     {
         puts("Rename {{{ child process rename_test:  starting...");

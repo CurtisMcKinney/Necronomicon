@@ -1708,10 +1708,82 @@ void necro_rename_test()
         necro_rename_test_case("TypeClassInstance", test_code, &intern, &ast);
     }
 
+    {
+        NecroIntern   intern = necro_intern_create();
+        NecroAstArena ast = necro_ast_arena_create(necro_intern_string(&intern, "Test"));
+
+        ast.root =
+            necro_ast_create_top_decl(&ast.arena,
+                necro_ast_create_data_declaration_with_ast_symbol(
+                    &ast.arena,
+                    necro_ast_symbol_create(&ast.arena,
+                        necro_intern_string(&intern, "Test.MFDoom"),
+                        necro_intern_string(&intern, "MFDoom"),
+                        necro_intern_string(&intern, "Test"),
+                        NULL
+                    ),
+                    necro_ast_create_simple_type_with_ast_symbol(
+                        &ast.arena,
+                        necro_ast_symbol_create(&ast.arena,
+                            necro_intern_string(&intern, "Test.MFDoom"),
+                            necro_intern_string(&intern, "MFDoom"),
+                            necro_intern_string(&intern, "Test"),
+                            NULL
+                        ),
+                        NULL
+                    ),
+                    necro_ast_create_list(
+                        &ast.arena,
+                        necro_ast_create_data_con_with_ast_symbol(&ast.arena,
+                            necro_ast_symbol_create(&ast.arena,
+                                necro_intern_string(&intern, "Test.Doom"),
+                                necro_intern_string(&intern, "Doom"),
+                                necro_intern_string(&intern, "Test"),
+                                NULL
+                            ),
+                            NULL
+                        ),
+                        necro_ast_create_list(
+                            &ast.arena,
+                            necro_ast_create_data_con_with_ast_symbol(&ast.arena,
+                                necro_ast_symbol_create(&ast.arena,
+                                    necro_intern_string(&intern, "Test.DoomII"),
+                                    necro_intern_string(&intern, "DoomII"),
+                                    necro_intern_string(&intern, "Test"),
+                                    NULL
+                                ),
+                                NULL
+                            ),
+                            necro_ast_create_list(
+                                &ast.arena,
+                                necro_ast_create_data_con_with_ast_symbol(&ast.arena,
+                                    necro_ast_symbol_create(&ast.arena,
+                                        necro_intern_string(&intern, "Test.DoomIII"),
+                                        necro_intern_string(&intern, "DoomIII"),
+                                        necro_intern_string(&intern, "Test"),
+                                        NULL
+                                    ),
+                                    NULL
+                                ),
+                                NULL
+                            )
+                        )
+                    )
+                ),
+                NULL
+            );
+
+#if RENAME_TEST_VERBOSE
+        necro_ast_print(ast.root);
+#endif
+
+        const char* test_code = "data MFDoom = Doom | DoomII | DoomIII\n";
+        necro_rename_test_case("DataDeclaration", test_code, &intern, &ast);
+    }
+
     //--------------------
     // TODO list for Chad...
     //--------------------
-    // TODO: DataDeclaration
     // TODO: LeftSection
     // TODO: RightSection
     // TODO: ConID

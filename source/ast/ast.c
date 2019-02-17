@@ -913,6 +913,14 @@ NecroAst* necro_ast_create_data_con(NecroPagedArena* arena, NecroIntern* intern,
     return ast;
 }
 
+NecroAst* necro_ast_create_data_con_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* con_name, NecroAst* arg_list)
+{
+    NecroAst* ast = necro_ast_alloc(arena, NECRO_AST_CONSTRUCTOR);
+    ast->constructor.conid = necro_ast_create_conid_with_ast_symbol(arena, con_name, NECRO_CON_DATA_DECLARATION);
+    ast->constructor.arg_list = arg_list;
+    return ast;
+}
+
 NecroAst* necro_ast_create_constructor_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* con_name_symbol, NecroAst* arg_list)
 {
     NecroAst* ast             = necro_ast_alloc(arena, NECRO_AST_CONSTRUCTOR);
@@ -933,6 +941,14 @@ NecroAst* necro_ast_create_simple_type(NecroPagedArena* arena, NecroIntern* inte
 {
     NecroAst* ast                  = necro_ast_alloc(arena, NECRO_AST_SIMPLE_TYPE);
     ast->simple_type.type_con      = necro_ast_create_conid(arena, intern, simple_type_name, NECRO_CON_TYPE_DECLARATION);
+    ast->simple_type.type_var_list = ty_var_list;
+    return ast;
+}
+
+NecroAst* necro_ast_create_simple_type_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* simple_type_name, NecroAst* ty_var_list)
+{
+    NecroAst* ast = necro_ast_alloc(arena, NECRO_AST_SIMPLE_TYPE);
+    ast->simple_type.type_con = necro_ast_create_conid_with_ast_symbol(arena, simple_type_name, NECRO_CON_TYPE_DECLARATION);
     ast->simple_type.type_var_list = ty_var_list;
     return ast;
 }

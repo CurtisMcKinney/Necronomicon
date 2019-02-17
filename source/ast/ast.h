@@ -579,6 +579,7 @@ NecroAst* necro_ast_create_type_fn(NecroPagedArena* arena, NecroAst* type1, Necr
 NecroAst* necro_ast_create_fexpr(NecroPagedArena* arena, NecroAst* f_ast, NecroAst* x_ast);
 NecroAst* necro_ast_create_fn_type_sig(NecroPagedArena* arena, NecroIntern* intern, const char* var_name, NecroAst* context_ast, NecroAst* type_ast, NECRO_VAR_TYPE var_type, NECRO_SIG_TYPE sig_type);
 NecroAst* necro_ast_create_type_class(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, const char* class_var, NecroAst* context_ast, NecroAst* declarations_ast);
+NecroAst* necro_ast_create_type_class_with_ast_symbols(NecroPagedArena* arena, NecroAstSymbol* class_name, NecroAstSymbol* class_var, NecroAst* context_ast, NecroAst* declarations_ast);
 NecroAst* necro_ast_create_type_class_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* tycls, NecroAst* tyvar, NecroAst* context_ast, NecroAst* declarations_ast);
 NecroAst* necro_ast_create_instance(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, NecroAst* inst_ast, NecroAst* context_ast, NecroAst* declarations_ast);
 NecroAst* necro_ast_create_instance_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* qtycls, NecroAst* inst_ast, NecroAst* context_ast, NecroAst* declarations_ast);

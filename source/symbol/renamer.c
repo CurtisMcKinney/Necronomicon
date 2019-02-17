@@ -1580,6 +1580,61 @@ void necro_rename_test()
         necro_rename_test_case("BinOp", test_code, &intern, &ast);
     }
 
+    {
+        NecroIntern   intern = necro_intern_create();
+        NecroAstArena ast = necro_ast_arena_create(necro_intern_string(&intern, "Test"));
+        NecroSymbol   clash_a = necro_append_clash_suffix_to_name(&ast, &intern, "Test.a");
+
+        ast.root =
+            necro_ast_create_top_decl(&ast.arena,
+                necro_ast_create_type_class_with_ast_symbols(
+                    &ast.arena,
+                    necro_ast_symbol_create(
+                        &ast.arena, 
+                        necro_intern_string(&intern, "Test.Doom"), 
+                        necro_intern_string(&intern, "Doom"), 
+                        necro_intern_string(&intern, "Test"), 
+                        NULL
+                    ),
+                    necro_ast_symbol_create(&ast.arena, clash_a, necro_intern_string(&intern, "a"), necro_intern_string(&intern, "Test"), NULL),
+                    NULL, // Context
+                    necro_ast_create_decl(
+                        &ast.arena,
+                        necro_ast_create_type_signature(&ast.arena,
+                            NECRO_SIG_TYPE_CLASS,
+                            necro_ast_create_var_with_ast_symbol(&ast.arena,
+                                necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.yourDoom"), necro_intern_string(&intern, "yourDoom"), necro_intern_string(&intern, "Test"), NULL),
+                                NECRO_VAR_SIG
+                            ),
+                            NULL,
+                            necro_ast_create_type_fn(&ast.arena,
+                                necro_ast_create_var_with_ast_symbol(&ast.arena,
+                                    necro_ast_symbol_create(&ast.arena, clash_a, necro_intern_string(&intern, "a"), necro_intern_string(&intern, "Test"), NULL),
+                                    NECRO_VAR_TYPE_FREE_VAR
+                                ),
+                                necro_ast_create_var_with_ast_symbol(&ast.arena,
+                                    necro_ast_symbol_create(&ast.arena, clash_a, necro_intern_string(&intern, "a"), necro_intern_string(&intern, "Test"), NULL),
+                                    NECRO_VAR_TYPE_FREE_VAR
+                                )
+                            )
+                        ),
+                        NULL
+                    )
+                ),
+                NULL
+            );
+
+#if RENAME_TEST_VERBOSE
+        necro_ast_print(ast.root);
+#endif
+
+        const char* test_code = ""
+            "class Doom a where\n"
+            "   yourDoom :: a -> a\n";
+
+        necro_rename_test_case("TypeClassDeclaration", test_code, &intern, &ast);
+    }
+
     //--------------------
     // TODO list for Chad...
     //--------------------
@@ -1589,7 +1644,6 @@ void necro_rename_test()
     // TODO: LeftSection
     // TODO: RightSection
     // TODO: ConID
-    // TODO: BinOp
     // TODO: ?
 
     {

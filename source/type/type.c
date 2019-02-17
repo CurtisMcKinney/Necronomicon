@@ -331,6 +331,16 @@ NecroInstSub* necro_type_union_subs(NecroInstSub* subs1, NecroInstSub* subs2)
     return subs1;
 }
 
+NecroInstSub* necro_type_deep_copy_subs(NecroPagedArena* arena, NecroInstSub* subs)
+{
+    if (subs == NULL)
+        return NULL;
+    NecroInstSub* new_sub = necro_paged_arena_alloc(arena, sizeof(NecroInstSub));
+    *new_sub = *subs;
+    new_sub->next = necro_type_deep_copy_subs(arena, subs->next);
+    return new_sub;
+}
+
 //=====================================================
 // Unify
 //=====================================================

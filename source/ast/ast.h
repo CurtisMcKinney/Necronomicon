@@ -600,6 +600,7 @@ NecroAst* necro_ast_create_context_full(NecroPagedArena* arena, NecroAst* conid,
 NecroAst* necro_ast_create_rhs(NecroPagedArena* arena, NecroAst* expression, NecroAst* declarations);
 NecroAst* necro_ast_create_bin_op(NecroPagedArena* arena, NecroIntern* intern, const char* op_name, NecroAst* lhs, NecroAst* rhs);
 NecroAst* necro_ast_create_bin_op_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* lhs, NecroAst* rhs);
+NecroAst* necro_ast_create_bin_op_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* lhs, NecroAst* rhs, struct NecroInstSub* inst_subs);
 NecroAst* necro_ast_create_bin_op_sym_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* lhs, NecroAst* rhs);
 NecroAst* necro_ast_create_constant(NecroPagedArena* arena, NecroParseAstConstant constant);
 NecroAst* necro_ast_create_let(NecroPagedArena* arena, NecroAst* expression_ast, NecroAst* declarations_ast);
@@ -616,7 +617,9 @@ NecroAst* necro_ast_create_arithmetic_sequence(NecroPagedArena* arena, NECRO_ARI
 NecroAst* necro_ast_create_case(NecroPagedArena* arena, NecroAst* alternatives, NecroAst* expression);
 NecroAst* necro_ast_create_case_alternative(NecroPagedArena* arena, NecroAst* pat, NecroAst* body);
 NecroAst* necro_ast_create_left_section(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* lhs);
+NecroAst* necro_ast_create_left_section_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* lhs, struct NecroInstSub* inst_subs);
 NecroAst* necro_ast_create_right_section(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* rhs);
+NecroAst* necro_ast_create_right_section_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* rhs, struct NecroInstSub* inst_subs);
 NecroAst* necro_ast_create_type_signature(NecroPagedArena* arena, NECRO_SIG_TYPE sig_type, NecroAst* var, NecroAst* context, NecroAst* type);
 NecroAst* necro_ast_create_simple_assignment_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* initializer, NecroAst* rhs_ast);
 NecroAst* necro_ast_create_var_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_VAR_TYPE var_type);

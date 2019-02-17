@@ -162,6 +162,7 @@ NecroResult(NecroType) necro_type_instantiate(NecroPagedArena* arena, struct Nec
 NecroType*             necro_type_replace_with_subs(NecroPagedArena* arena, NecroType* type, struct NecroInstSub* subs);
 NecroType*             necro_type_replace_with_subs_deep_copy(NecroPagedArena* arena, NecroType* type, NecroInstSub* subs);
 NecroInstSub*          necro_type_union_subs(NecroInstSub* subs1, NecroInstSub* subs2);
+NecroInstSub*          necro_type_deep_copy_subs(NecroPagedArena* arena, NecroInstSub* subs);
 // NecroResult(NecroType) necro_type_instantiate_with_context(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope, struct NecroTypeClassContext** inst_context);
 NecroResult(NecroType) necro_type_instantiate_with_subs(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope, NecroInstSub** subs);
 NecroResult(NecroType) necro_type_generalize(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope);

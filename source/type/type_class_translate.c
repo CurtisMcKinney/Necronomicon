@@ -1096,5 +1096,14 @@ void necro_type_class_translate_test()
         necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
+    {
+        const char* test_name   = "Method2";
+        const char* test_source = ""
+            "unreal :: Audio\n"
+            "unreal = 10 * 440 / 3\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
 }
 

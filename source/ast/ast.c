@@ -1275,6 +1275,13 @@ NecroAst* necro_ast_create_bin_op_with_ast_symbol(NecroPagedArena* arena, NecroA
     return ast;
 }
 
+NecroAst* necro_ast_create_bin_op_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* lhs, NecroAst* rhs, NecroInstSub* inst_subs)
+{
+    NecroAst* ast = necro_ast_create_bin_op_with_ast_symbol(arena, ast_symbol, lhs, rhs);
+    ast->bin_op.inst_subs = inst_subs;
+    return ast;
+}
+
 NecroAst* necro_ast_create_bin_op_sym_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* lhs, NecroAst* rhs)
 {
     assert(ast_symbol != NULL);
@@ -1300,6 +1307,13 @@ NecroAst* necro_ast_create_left_section(NecroPagedArena* arena, NecroAstSymbol* 
     return ast;
 }
 
+NecroAst* necro_ast_create_left_section_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* lhs, NecroInstSub* inst_subs)
+{
+    NecroAst* ast                  = necro_ast_create_left_section(arena, ast_symbol, lhs);
+    ast->op_left_section.inst_subs = inst_subs;
+    return ast;
+}
+
 NecroAst* necro_ast_create_right_section(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* rhs)
 {
     assert(ast_symbol != NULL);
@@ -1310,6 +1324,13 @@ NecroAst* necro_ast_create_right_section(NecroPagedArena* arena, NecroAstSymbol*
     ast->op_right_section.inst_context  = NULL;
     ast->op_right_section.inst_subs     = NULL;
     ast->op_right_section.op_necro_type = NULL;
+    return ast;
+}
+
+NecroAst* necro_ast_create_right_section_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* rhs, NecroInstSub* inst_subs)
+{
+    NecroAst* ast                   = necro_ast_create_right_section(arena, ast_symbol, rhs);
+    ast->op_right_section.inst_subs = inst_subs;
     return ast;
 }
 
@@ -2039,9 +2060,10 @@ NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_g
     case NECRO_AST_CONSTANT:
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_constant(arena, (NecroParseAstConstant) { .type = ast->constant.type, .int_literal = ast->constant.int_literal }));
     case NECRO_AST_BIN_OP:
-        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_bin_op_with_ast_symbol(arena, ast->bin_op.ast_symbol,
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_bin_op_full(arena, ast->bin_op.ast_symbol,
             necro_ast_deep_copy_go(arena, declaration_group, ast->bin_op.lhs),
-            necro_ast_deep_copy_go(arena, declaration_group, ast->bin_op.rhs)));
+            necro_ast_deep_copy_go(arena, declaration_group, ast->bin_op.rhs),
+            necro_type_deep_copy_subs(arena, ast->bin_op.inst_subs)));
     case NECRO_AST_IF_THEN_ELSE:
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_if_then_else(arena,
             necro_ast_deep_copy_go(arena, declaration_group, ast->if_then_else.if_expr),
@@ -2072,7 +2094,9 @@ NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_g
             necro_ast_deep_copy_go(arena, declaration_group, ast->fexpression.aexp),
             necro_ast_deep_copy_go(arena, declaration_group, ast->fexpression.next_fexpression)));
     case NECRO_AST_VARIABLE:
-        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_var_full(arena, necro_ast_symbol_deep_copy(arena, ast->variable.ast_symbol), ast->variable.var_type, ast->variable.inst_subs,
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_var_full(arena,
+            necro_ast_symbol_deep_copy(arena, ast->variable.ast_symbol),
+            ast->variable.var_type, necro_type_deep_copy_subs(arena, ast->variable.inst_subs),
             necro_ast_deep_copy_go(arena, declaration_group, ast->variable.initializer)));
     case NECRO_AST_APATS:
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_apats(arena,
@@ -2130,11 +2154,13 @@ NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_g
             necro_ast_deep_copy_go(arena, declaration_group, ast->type_app.ty),
             necro_ast_deep_copy_go(arena, declaration_group, ast->type_app.next_ty)));
     case NECRO_AST_OP_LEFT_SECTION:
-        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_left_section(arena, ast->op_left_section.ast_symbol,
-            necro_ast_deep_copy_go(arena, declaration_group, ast->op_left_section.left)));
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_left_section_full(arena, ast->op_left_section.ast_symbol,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->op_left_section.left),
+            necro_type_deep_copy_subs(arena, ast->op_left_section.inst_subs)));
     case NECRO_AST_OP_RIGHT_SECTION:
-        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_right_section(arena, ast->op_right_section.ast_symbol,
-            necro_ast_deep_copy_go(arena, declaration_group, ast->op_right_section.right)));
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_right_section_full(arena, ast->op_right_section.ast_symbol,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->op_right_section.right),
+            necro_type_deep_copy_subs(arena, ast->op_right_section.inst_subs)));
     case NECRO_AST_CONSTRUCTOR:
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_constructor(arena,
             necro_ast_deep_copy_go(arena, declaration_group, ast->constructor.conid),

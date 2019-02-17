@@ -20,10 +20,6 @@ process_error_code_t necro_compile_in_child_process(const char* command_line_arg
 {
     assert(command_line_arguments && command_line_arguments[0]);
 
-    // TODO (Curtis, 2-13-19): This is not working currently. As I'm in the middle of a tricky refactor I'm removing this for now to address that. Come back later and fix the problem here.
-    if (1)
-        return 0;
-
 #if defined(_WIN32) || defined(WIN32) || defined(_WIN64)
     STARTUPINFO si;
     PROCESS_INFORMATION pi;
@@ -53,7 +49,9 @@ process_error_code_t necro_compile_in_child_process(const char* command_line_arg
         &pi)           // Pointer to PROCESS_INFORMATION structure
     )
     {
-        printf("CreateProcess failed (%d).\n", GetLastError());
+        printf("CreateProcess failed (%d)!!!.\n", GetLastError());
+        printf("Failed using this command: %s", command_line_arguments);
+        printf("Also make sure your working directory is set to .. (which should be the root directory)");
         return 1;
     }
 

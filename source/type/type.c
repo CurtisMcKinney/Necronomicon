@@ -306,6 +306,21 @@ bool necro_type_is_polymorphic(const NecroType* type)
     return type->type == NECRO_TYPE_FOR;
 }
 
+NecroInstSub* necro_type_filter_subs(NecroInstSub* subs_to_filter, NecroInstSub* filter_subs)
+{
+    if (subs_to_filter == NULL || filter_subs == NULL)
+        return subs_to_filter;
+    NecroInstSub* curr_filter = filter_subs;
+    while (curr_filter != NULL)
+    {
+        if (subs_to_filter->var_to_replace == filter_subs->var_to_replace)
+            return necro_type_filter_subs(subs_to_filter->next, filter_subs);
+        curr_filter = curr_filter->next;
+    }
+    subs_to_filter->next = necro_type_filter_subs(subs_to_filter->next, filter_subs);
+    return subs_to_filter;
+}
+
 //=====================================================
 // Unify
 //=====================================================
@@ -741,7 +756,7 @@ NecroType* necro_type_replace_with_subs_deep_copy(NecroPagedArena* arena, NecroT
 NecroType* necro_type_replace_with_subs(NecroPagedArena* arena, NecroType* type, NecroInstSub* subs)
 {
     if (type == NULL || subs == NULL)
-        return NULL;
+        return type;
     type = necro_type_find(type);
     switch (type->type)
     {

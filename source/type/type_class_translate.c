@@ -209,7 +209,6 @@ NecroAst* necro_ast_specialize(NecroTypeClassTranslate* type_class_translate, Ne
         var_ast->necro_type = specialized_ast_symbol->type;
         return var_ast;
     }
-    // necro_scope_insert_ast_symbol(type_class_translate->arena, scope, specialized_ast_symbol);
     NecroAst* declaration_group_list = ast_symbol->declaration_group->declaration.declaration_group_list;
     assert(declaration_group_list != NULL);
     assert(declaration_group_list->type == NECRO_AST_DECLARATION_GROUP_LIST);
@@ -224,7 +223,6 @@ NecroAst* necro_ast_specialize(NecroTypeClassTranslate* type_class_translate, Ne
     specialized_ast_symbol->ast                   = necro_ast_deep_copy_go(type_class_translate->arena, new_declaration, ast_symbol->ast);
     new_declaration->declaration.declaration_impl = specialized_ast_symbol->ast;
     assert(ast_symbol->ast != specialized_ast_symbol->ast);
-    // necro_ast_assert_eq(ast_symbol->ast, specialized_ast_symbol->ast);
     switch (specialized_ast_symbol->ast->type)
     {
     case NECRO_AST_SIMPLE_ASSIGNMENT:
@@ -233,6 +231,7 @@ NecroAst* necro_ast_specialize(NecroTypeClassTranslate* type_class_translate, Ne
     case NECRO_AST_APATS_ASSIGNMENT:
         specialized_ast_symbol->ast->apats_assignment.ast_symbol = specialized_ast_symbol;
         break;
+    // TODO: Other named things?
     default:
         assert(false);
         break;
@@ -356,15 +355,25 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
         {
         case NECRO_VAR_VAR:
         {
+            /*
+                Note: To specialize a value or function:
+                    * The value or function must be polymorphic
+                    * The usage of the value or function must be completely concrete
+            */
             NecroAstSymbol* ast_symbol = ast->variable.ast_symbol;
             if (!necro_type_is_polymorphic(ast_symbol->type))
                 return ok_void();
             if (necro_type_is_polymorphic(ast->necro_type))
                 return ok_void();
-            ast->variable.inst_subs   = necro_type_union_subs(ast->variable.inst_subs, subs);
-            // TODO: Finish after going recursive
+            ast->variable.inst_subs = necro_type_union_subs(ast->variable.inst_subs, subs);
+            NecroInstSub* curr_sub  = ast->variable.inst_subs;
+            while (curr_sub != NULL)
+            {
+                if (necro_type_is_polymorphic(curr_sub->new_name))
+                    return ok_void();
+                curr_sub = curr_sub->next;
+            }
             NecroAst* specialized_var = necro_ast_specialize(type_class_translate, ast_symbol, ast->variable.inst_subs);
-            UNUSED(specialized_var);
             *ast = *specialized_var;
             return ok_void();
         }
@@ -580,6 +589,7 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
         necro_unreachable(void);
     }
 }
+
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
@@ -776,17 +786,95 @@ void necro_type_class_translate_test()
         necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
-    // TODO: Finish
+    {
+        const char* test_name   = "Context1";
+        const char* test_source = ""
+            "inContext :: Num a => a -> a -> a\n"
+            "inContext x y = x + y * 1000\n"
+            "outOfContext :: Int\n"
+            "outOfContext = inContext 10 99\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Context2";
+        const char* test_source = ""
+            "numbernomicon :: Num a => a -> a -> a\n"
+            "numbernomicon x y = x + y * 1000\n"
+            "atTheIntOfMadness :: Int\n"
+            "atTheIntOfMadness = numbernomicon 0 300\n"
+            "audioOutOfSpace :: Audio\n"
+            "audioOutOfSpace = numbernomicon 10 99\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    // TODO: fromRational
+
+    // // NOTE / TODO: This should proc defaulting / ambiguous Type class error!
     // {
-    //     const char* test_name   = "Method3";
+    //     const char* test_name   = "Context3";
     //     const char* test_source = ""
-    //         "inContext :: Num a => a -> a -> a\n"
-    //         "inContext x y = x + y * 1000\n"
-    //         "outOfContext :: Int\n"
-    //         "outOfContext = inContext 22 9\n";
+    //         // "equalizer :: (Num a, Eq a) => a -> a -> Bool\n"
+    //         // "equalizer x y = x + y == x\n"
+    //         "equalizer :: (Eq a) => a -> a -> Bool\n"
+    //         "equalizer x y = x == x\n"
+    //         "notTheSame :: Bool\n"
+    //         "notTheSame = equalizer 0 100\n";
     //     const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
     //     necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
     // }
+
+    {
+        const char* test_name   = "Context3";
+        const char* test_source = ""
+            "equalizer :: (Num a, Eq a) => a -> a -> Bool\n"
+            "equalizer x y = x + y == x\n"
+            "zero :: Int\n"
+            "zero = 0\n"
+            "oneHundred :: Int\n"
+            "oneHundred = 1000\n"
+            "notTheSame :: Bool\n"
+            "notTheSame = equalizer zero oneHundred\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "DoubleContext";
+        const char* test_source = ""
+            "doubleTrouble :: (Num a, Num b) => a -> b -> (a, b)\n"
+            "doubleTrouble x y = (x - 1000, y + 1000)\n"
+            "doubleEdge :: (Rational, Float)\n"
+            "doubleEdge = doubleTrouble 22 33\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "HalfContext";
+        const char* test_source = ""
+            "halfTrouble :: Num a => a -> Int -> (a, Int)\n"
+            "halfTrouble x y = (x - 1000, y + 1000)\n"
+            "halfEdge :: (Audio, Int)\n"
+            "halfEdge = halfTrouble 22.2 33\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "DeepContext";
+        const char* test_source = ""
+            "deep :: Fractional a => a -> a\n"
+            "deep x = x / x\n"
+            "shallow :: (Fractional a, Fractional b) => a -> b -> (a, b)\n"
+            "shallow y z = (deep y, deep z)\n"
+            "top :: (Rational, Float)\n"
+            "top = shallow 22.2 33.3\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    }
 
 }
 

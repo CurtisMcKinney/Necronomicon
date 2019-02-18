@@ -443,7 +443,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     NecroAst* recip_method_sig  = necro_base_create_class_unary_op_sig(arena, intern, "recip");
     NecroAst* from_rational_sig =
         necro_ast_create_fn_type_sig(arena, intern, "fromRational", NULL, necro_ast_create_type_fn(arena,
-            necro_ast_create_conid(arena, intern, "Rational", NECRO_CON_TYPE_VAR),
+            necro_ast_create_conid(arena, intern, "Float", NECRO_CON_TYPE_VAR),
             necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)), NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
     NecroAst* fractional_method_list =
         necro_ast_create_decl(arena, div_method_sig,

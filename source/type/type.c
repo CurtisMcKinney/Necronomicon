@@ -303,7 +303,35 @@ bool necro_type_is_bounded_polymorphic(const NecroType* type)
 
 bool necro_type_is_polymorphic(const NecroType* type)
 {
-    return type->type == NECRO_TYPE_FOR;
+    type = necro_type_find_const(type);
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR:
+        return true;
+    case NECRO_TYPE_APP:
+        return necro_type_is_polymorphic(type->app.type1) || necro_type_is_polymorphic(type->app.type2);
+    case NECRO_TYPE_FUN:
+        return necro_type_is_polymorphic(type->fun.type1) || necro_type_is_polymorphic(type->fun.type2);
+    case NECRO_TYPE_CON:
+    {
+        const NecroType* args = type->con.args;
+        while (args != NULL)
+        {
+            if (necro_type_is_polymorphic(args->list.item))
+                return true;
+            args = args->list.next;
+        }
+        return false;
+    }
+    case NECRO_TYPE_LIST:
+        assert(false);
+        return false;
+    case NECRO_TYPE_FOR:
+        return true;
+    default:
+        assert(false);
+        return false;
+    }
 }
 
 NecroInstSub* necro_type_union_subs(NecroInstSub* subs1, NecroInstSub* subs2)

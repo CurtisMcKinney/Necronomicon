@@ -12,25 +12,19 @@
 
 /*
     Notes (Curtis, 2-8-19):
-        * Static type class scheme to replace dictionary transformation?
-        * in lieu of the above, remove all monomorphism restrictions and make everything polymorphic?
         * Healthy defaulting scheme, including a --> ()
         * Default type class. Use this for polymorphic recursion
-        * Return to the idea of making all types used for recursion statically sized?
         * Given the above we could do an even more drastic memory scheme, such as large scale Region based memory management.
-
-        * Fully translate ALL polymorphism? If so we also have to translate data declarations....
-        * This would mean that NecroCoreAst could be completely monotyped which would significantly simplify typing there.
-
-        * Default type class to allow for polymorphic recursive values?
-
         * Rename pass to necro_type_specialize ???
-        * Check for and shove all generated names into top scope since they will be unique anyways
-        * Apply suffix to the thing you are specializing, as well as ALL local variables inside of it!
+        * Implement Patterns (The musical ones...) similarly to Iterator trait in Rust, via TypeClasses?
 
+    TODO:
+        * Defaulting / Ambiguous Type Class error
         * Prune pass after to cull all unneeded stuff and put it in a direct form to make Chad's job for Core translation easier?
-
-    * Implement Patterns (The musical ones...) similarly to Iterator trait in Rust, via TypeClasses
+        * Pattern Literals
+        * Mutually recursive bindings
+        * Pattern bindings
+        * do statements
 */
 
 ///////////////////////////////////////////////////////
@@ -91,8 +85,7 @@ void necro_type_class_translate_destroy(NecroTypeClassTranslate* type_class_tran
 // Forward Declarations
 ///////////////////////////////////////////////////////
 NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_class_translate, NecroAst* ast, NecroInstSub* subs);
-NecroAst*         necro_ast_specialize_go(NecroTypeClassTranslate* type_class_translate, NecroAst* ast, NecroInstSub* subs);
-NecroAst*         necro_ast_specialize(NecroTypeClassTranslate* type_class_translate, NecroAstSymbol* ast_symbol, NecroInstSub* subs);
+NecroAstSymbol*   necro_ast_specialize(NecroTypeClassTranslate* type_class_translate, NecroAstSymbol* ast_symbol, NecroInstSub* subs);
 
 
 NecroResult(void) necro_type_class_translate(NecroCompileInfo info, NecroIntern* intern, NecroScopedSymTable* scoped_symtable, NecroBase* base, NecroAstArena* ast_arena)
@@ -150,7 +143,7 @@ NecroSymbol necro_create_suffix_from_subs(NecroTypeClassTranslate* type_class_tr
     return necro_intern_string(type_class_translate->intern, type_class_translate->suffix_buffer);
 }
 
-NecroAst* necro_ast_specialize_method(NecroTypeClassTranslate* type_class_translate, NecroAstSymbol* ast_symbol, NecroInstSub* subs)
+NecroAstSymbol* necro_ast_specialize_method(NecroTypeClassTranslate* type_class_translate, NecroAstSymbol* ast_symbol, NecroInstSub* subs)
 {
     assert(type_class_translate != NULL);
     assert(ast_symbol != NULL);
@@ -175,9 +168,7 @@ NecroAst* necro_ast_specialize_method(NecroTypeClassTranslate* type_class_transl
             }
             else
             {
-                NecroAst* instance_method_var   = necro_ast_create_var_full(type_class_translate->arena, instance_method_ast_symbol, NECRO_VAR_VAR, NULL, NULL);
-                instance_method_var->necro_type = instance_method_ast_symbol->type;
-                return instance_method_var;
+                return instance_method_ast_symbol;
             }
         }
         curr_sub = curr_sub->next;
@@ -186,7 +177,7 @@ NecroAst* necro_ast_specialize_method(NecroTypeClassTranslate* type_class_transl
     return NULL;
 }
 
-NecroAst* necro_ast_specialize(NecroTypeClassTranslate* type_class_translate, NecroAstSymbol* ast_symbol, NecroInstSub* subs)
+NecroAstSymbol* necro_ast_specialize(NecroTypeClassTranslate* type_class_translate, NecroAstSymbol* ast_symbol, NecroInstSub* subs)
 {
     assert(type_class_translate != NULL);
     assert(ast_symbol != NULL);
@@ -205,21 +196,38 @@ NecroAst* necro_ast_specialize(NecroTypeClassTranslate* type_class_translate, Ne
     if (specialized_ast_symbol != NULL)
     {
         assert(specialized_ast_symbol->ast != NULL);
-        NecroAst* var_ast   = necro_ast_create_var_full(type_class_translate->arena, specialized_ast_symbol, NECRO_VAR_VAR, NULL, NULL);
-        var_ast->necro_type = specialized_ast_symbol->type;
-        return var_ast;
+        return specialized_ast_symbol;
     }
-    NecroAst* declaration_group_list = ast_symbol->declaration_group->declaration.declaration_group_list;
+
+    // NecroAst* declaration_group_list = ast_symbol->declaration_group->declaration.declaration_group_list;
+    NecroAst* declaration_group_list = NULL;
+    switch (ast_symbol->ast->type)
+    {
+    case NECRO_AST_SIMPLE_ASSIGNMENT:
+        declaration_group_list = ast_symbol->ast->simple_assignment.declaration_group->declaration.declaration_group_list;
+        break;
+    case NECRO_AST_APATS_ASSIGNMENT:
+        declaration_group_list = ast_symbol->ast->apats_assignment.declaration_group->declaration.declaration_group_list;
+        break;
+    // TODO: Other named things?
+    default:
+        assert(false);
+        break;
+    }
+
     assert(declaration_group_list != NULL);
     assert(declaration_group_list->type == NECRO_AST_DECLARATION_GROUP_LIST);
+
     NecroAst* next_group_list                           = declaration_group_list->declaration_group_list.next;
     NecroAst* new_declaration                           = necro_ast_create_decl(type_class_translate->arena, ast_symbol->ast, NULL);
     NecroAst* new_group_list                            = necro_ast_create_declaration_group_list_with_next(type_class_translate->arena, new_declaration, next_group_list);
     declaration_group_list->declaration_group_list.next = new_group_list;
+    new_declaration->declaration.declaration_group_list = new_group_list;
     new_declaration->declaration.declaration_impl       = NULL; // Removing dummy argument
 
     // Create specialized ast
     specialized_ast_symbol                        = necro_ast_symbol_create(type_class_translate->arena, specialized_name, specialized_name, type_class_translate->ast_arena->module_name, NULL);
+    specialized_ast_symbol->declaration_group     = new_declaration;
     specialized_ast_symbol->ast                   = necro_ast_deep_copy_go(type_class_translate->arena, new_declaration, ast_symbol->ast);
     new_declaration->declaration.declaration_impl = specialized_ast_symbol->ast;
     assert(ast_symbol->ast != specialized_ast_symbol->ast);
@@ -242,16 +250,49 @@ NecroAst* necro_ast_specialize(NecroTypeClassTranslate* type_class_translate, Ne
     necro_rename_internal_scope_and_rename(type_class_translate->ast_arena, type_class_translate->scoped_symtable, type_class_translate->intern, specialized_ast_symbol->ast);
     type_class_translate->scoped_symtable->current_scope      = prev_scope;
     type_class_translate->scoped_symtable->current_type_scope = prev_type_scope;
-    new_declaration->scope                                    = specialized_ast_symbol->ast->scope;
-    new_group_list->scope                                     = specialized_ast_symbol->ast->scope;
-    // TODO: Set types, go deeper
 
     specialized_ast_symbol->type                              = necro_type_replace_with_subs_deep_copy(type_class_translate->arena, ast_symbol->type, subs);
     unwrap(void, necro_type_class_translate_go(type_class_translate, specialized_ast_symbol->ast, subs));
+    return specialized_ast_symbol;
+}
 
-    NecroAst* var_ast   = necro_ast_create_var_full(type_class_translate->arena, specialized_ast_symbol, NECRO_VAR_VAR, NULL, NULL);
-    var_ast->necro_type = specialized_ast_symbol->type;
-    return var_ast;
+/*
+    Note: To specialize a value or function:
+        * The value or function must be polymorphic
+        * The usage of the value or function must be completely concrete
+    TODO: Figure out ambigous type variable error and defaulting....rigid type variable?
+*/
+NecroResult(bool) necro_ast_should_specialize(NecroAstSymbol* ast_symbol, NecroAst* ast, NecroInstSub* inst_subs, NecroInstSub* subs)
+{
+    UNUSED(subs);
+    if (!necro_type_is_polymorphic(ast_symbol->type))
+        return ok(bool, false);
+    if (necro_type_is_polymorphic(ast->necro_type))
+    {
+        // if (subs != NULL)
+            return ok(bool, false);
+        // else
+        //     return necro_error_map(void, bool, necro_type_ambiguous_type_var_error(ast_symbol, ast->necro_type, ast->source_loc, ast->end_loc));
+    }
+    NecroInstSub* curr_sub  = inst_subs;
+    while (curr_sub != NULL)
+    {
+        if (necro_type_is_polymorphic(curr_sub->new_name))
+        {
+            return ok(bool, false);
+            // return necro_error_map(void, bool, necro_type_ambiguous_type_var_error(ast_symbol, curr_sub->new_name, ast->source_loc, ast->end_loc));
+        }
+        curr_sub = curr_sub->next;
+    }
+    return ok(bool, true);
+}
+
+NecroResult(void) necro_type_ambiguous_type_var_check(NecroTypeClassTranslate* type_class_translate, NecroAst* ast)
+{
+    UNUSED(type_class_translate);
+    UNUSED(ast);
+    return ok_void();
+    // necro_type_ambiguous_type_var_error
 }
 
 ///////////////////////////////////////////////////////
@@ -293,28 +334,8 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
         return ok_void();
     }
 
-//     case NECRO_AST_TYPE_CLASS_INSTANCE:
-//     {
-//         // NecroCon type_class_name = (NecroCon) { .symbol = ast->type_class_instance.qtycls->conid.symbol, .id = ast->type_class_instance.qtycls->conid.id };
-//         // NecroCon data_type_name;
-//         // if (ast->type_class_instance.inst->type == NECRO_AST_CONID)
-//         //     data_type_name = (NecroCon) { .symbol = ast->type_class_instance.inst->conid.symbol, .id = ast->type_class_instance.inst->conid.id };
-//         // else if (ast->type_class_instance.inst->type == NECRO_AST_CONSTRUCTOR)
-//         //     data_type_name = (NecroCon) { .symbol = ast->type_class_instance.inst->constructor.conid->conid.symbol, .id = ast->type_class_instance.inst->constructor.conid->conid.id };
-//         // else
-//         //     assert(false);
-//         // NecroTypeClassInstance*          instance               = necro_get_type_class_instance(infer, data_type_name.symbol, type_class_name.symbol);
-//         // NecroSymbol                      dictionary_arg_name    = necro_create_dictionary_arg_name(infer->intern, type_class_name.symbol, data_type_name.symbol);
-//         // NecroASTNode*                    dictionary_arg_var     = necro_create_variable_ast(infer->arena, infer->intern, necro_intern_get_string(infer->intern, dictionary_arg_name), NECRO_VAR_DECLARATION);
-//         // dictionary_arg_var->scope                               = ast->scope;
-//         // necro_rename_declare_pass(infer->renamer, infer->arena, dictionary_arg_var);
-//         // if (necro_is_infer_error(infer)) return;
-//         // NecroTypeClassDictionaryContext* new_dictionary_context = necro_create_type_class_dictionary_context(infer->arena, type_class_name, data_type_name, dictionary_arg_var, dictionary_context);
-//         // necro_type_class_translate_go(new_dictionary_context, infer, env, ast->type_class_instance.context);
-//         // necro_type_class_translate_go(new_dictionary_context, infer, env, ast->type_class_instance.qtycls);
-//         // necro_type_class_translate_go(new_dictionary_context, infer, env, ast->type_class_instance.inst);
-//         return necro_type_class_translate_go(dictionary_context, infer, ast->type_class_instance.declarations);
-//     }
+    case NECRO_AST_TYPE_CLASS_INSTANCE:
+        return necro_type_class_translate_go(type_class_translate, ast->type_class_instance.declarations, subs);
 
     //=====================================================
     // Assignment type things
@@ -349,36 +370,25 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
         return necro_type_class_translate_go(type_class_translate, ast->data_declaration.constructor_list, subs);
 
     case NECRO_AST_VARIABLE:
-        if (ast->variable.ast_symbol != NULL)
-            ast->variable.ast_symbol->type = necro_type_replace_with_subs(type_class_translate->arena, ast->variable.ast_symbol->type, subs);
         switch (ast->variable.var_type)
         {
         case NECRO_VAR_VAR:
         {
-            /*
-                Note: To specialize a value or function:
-                    * The value or function must be polymorphic
-                    * The usage of the value or function must be completely concrete
-            */
-            NecroAstSymbol* ast_symbol = ast->variable.ast_symbol;
-            if (!necro_type_is_polymorphic(ast_symbol->type))
+            ast->variable.inst_subs      = necro_type_union_subs(ast->variable.inst_subs, subs);
+            const bool should_specialize = necro_try_map(bool, void, necro_ast_should_specialize(ast->variable.ast_symbol, ast, ast->variable.inst_subs, subs));
+            if (!should_specialize)
                 return ok_void();
-            if (necro_type_is_polymorphic(ast->necro_type))
-                return ok_void();
-            ast->variable.inst_subs = necro_type_union_subs(ast->variable.inst_subs, subs);
-            NecroInstSub* curr_sub  = ast->variable.inst_subs;
-            while (curr_sub != NULL)
-            {
-                if (necro_type_is_polymorphic(curr_sub->new_name))
-                    return ok_void();
-                curr_sub = curr_sub->next;
-            }
-            NecroAst* specialized_var = necro_ast_specialize(type_class_translate, ast_symbol, ast->variable.inst_subs);
+            NecroAstSymbol* specialized_ast_symbol = necro_ast_specialize(type_class_translate, ast->variable.ast_symbol, ast->variable.inst_subs);
+            NecroAst*       specialized_var        = necro_ast_create_var_full(type_class_translate->arena, specialized_ast_symbol, NECRO_VAR_VAR, NULL, NULL);
+            specialized_var->necro_type            = specialized_ast_symbol->type;
             *ast = *specialized_var;
             return ok_void();
         }
 
-        case NECRO_VAR_DECLARATION:          return ok_void();
+        case NECRO_VAR_DECLARATION:
+            if (ast->variable.ast_symbol != NULL)
+                ast->variable.ast_symbol->type = necro_type_replace_with_subs(type_class_translate->arena, ast->variable.ast_symbol->type, subs);
+            return ok_void();
         case NECRO_VAR_SIG:                  return ok_void();
         case NECRO_VAR_TYPE_VAR_DECLARATION: return ok_void();
         case NECRO_VAR_TYPE_FREE_VAR:        return ok_void();
@@ -394,7 +404,7 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
         return ok_void();
 
     case NECRO_AST_CONSTANT:
-        // TODO (Curtis, 2-14-19): Handle this
+        // TODO (Curtis, 2-14-19): Handle this for overloaded numeric literals in patterns
         // necro_type_class_translate_constant(infer, ast, dictionary_context);
         return ok_void();
 
@@ -403,73 +413,37 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
 
     case NECRO_AST_BIN_OP:
     {
-        assert(ast->necro_type != NULL);
-        ast->bin_op.ast_symbol->type  = necro_type_replace_with_subs(type_class_translate->arena, ast->bin_op.ast_symbol->type, subs);
-        ast->bin_op.inst_subs         = necro_type_union_subs(ast->bin_op.inst_subs, subs);
-        NecroAst* op_ast              = necro_ast_create_var(type_class_translate->arena, type_class_translate->intern, ast->bin_op.ast_symbol->source_name->str, NECRO_VAR_VAR);
-        op_ast->variable.inst_subs    = ast->bin_op.inst_subs;
-        op_ast->variable.ast_symbol   = ast->bin_op.ast_symbol;
-        op_ast->scope                 = ast->scope;
-        op_ast->necro_type            = ast->necro_type;
-        op_ast                        = necro_ast_create_fexpr(type_class_translate->arena, op_ast, ast->bin_op.lhs);
-        op_ast->scope                 = ast->scope;
-        op_ast->necro_type            = ast->necro_type;
-        op_ast                        = necro_ast_create_fexpr(type_class_translate->arena, op_ast, ast->bin_op.rhs);
-        op_ast->scope                 = ast->scope;
-        op_ast->necro_type            = ast->necro_type;
-        // TODO: Create Correct types for intermediate ast nodes!
-        *ast                          = *op_ast;
-        return necro_type_class_translate_go(type_class_translate, op_ast, subs);
+        ast->bin_op.inst_subs        = necro_type_union_subs(ast->bin_op.inst_subs, subs);
+        const bool should_specialize = necro_try_map(bool, void, necro_ast_should_specialize(ast->bin_op.ast_symbol, ast, ast->bin_op.inst_subs, subs));
+        if (should_specialize)
+        {
+            ast->bin_op.ast_symbol = necro_ast_specialize(type_class_translate, ast->bin_op.ast_symbol, ast->bin_op.inst_subs);
+        }
+        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->bin_op.lhs, subs));
+        return necro_type_class_translate_go(type_class_translate, ast->bin_op.rhs, subs);
     }
 
-//     case NECRO_AST_OP_LEFT_SECTION:
-//     {
-//         assert(ast->necro_type != NULL);
-//         // // TODO: necro_ast_create_left_section
-           // // ast->bin_op.ast_symbol->type  = necro_type_replace_with_subs(type_class_translate->arena, ast->bin_op.ast_symbol->type, subs);
-           // // ast->bin_op.inst_subs         = necro_type_union_subs(ast->bin_op.inst_subs, subs);
-//         NecroAst* op_ast              = necro_ast_create_var(infer->arena, infer->intern, ast->op_left_section.ast_symbol->source_name->str, NECRO_VAR_VAR);
-//         op_ast->variable.inst_context = ast->op_left_section.inst_context;
-//         op_ast->variable.ast_symbol   = ast->op_left_section.ast_symbol;
-//         op_ast->scope                 = ast->scope;
-//         op_ast->necro_type            = ast->op_left_section.op_necro_type;
-//         op_ast                        = necro_ast_create_fexpr(infer->arena, op_ast, ast->op_left_section.left);
-//         op_ast->scope                 = ast->scope;
-//         op_ast->necro_type            = ast->necro_type;
-//         *ast = *op_ast;
-//         if (ast->op_left_section.inst_context != NULL)
-//             necro_try(NecroType, necro_type_class_translate_go(dictionary_context, infer, ast));
-//         return ok(NecroType, NULL);
-//     }
+    case NECRO_AST_OP_LEFT_SECTION:
+    {
+        ast->op_left_section.inst_subs = necro_type_union_subs(ast->op_left_section.inst_subs, subs);
+        const bool should_specialize   = necro_try_map(bool, void, necro_ast_should_specialize(ast->op_left_section.ast_symbol, ast, ast->op_left_section.inst_subs, subs));
+        if (should_specialize)
+        {
+            ast->op_left_section.ast_symbol = necro_ast_specialize(type_class_translate, ast->op_left_section.ast_symbol, ast->op_left_section.inst_subs);
+        }
+        return necro_type_class_translate_go(type_class_translate, ast->op_left_section.left, subs);
+    }
 
-//     case NECRO_AST_OP_RIGHT_SECTION:
-//     {
-//         // TODO: necro_ast_create_right_section
-//         // TODO: necro_ast_create_var_from_ast_symbol
-//         assert(ast->necro_type != NULL);
-           // // ast->bin_op.ast_symbol->type  = necro_type_replace_with_subs(type_class_translate->arena, ast->bin_op.ast_symbol->type, subs);
-           // // ast->bin_op.inst_subs         = necro_type_union_subs(ast->bin_op.inst_subs, subs);
-//         NecroAst* x_var_arg                   = necro_ast_create_var(infer->arena, infer->intern, "left@rightSection", NECRO_VAR_DECLARATION);
-//         NecroAst* x_var_var                   = necro_ast_create_var(infer->arena, infer->intern, "left@rightSection", NECRO_VAR_VAR);
-//         NecroAst* op_ast                      = necro_ast_create_var(infer->arena, infer->intern, ast->op_right_section.ast_symbol->source_name->str, NECRO_VAR_VAR);
-//         op_ast->variable.inst_context         = ast->op_right_section.inst_context;
-//         op_ast->variable.ast_symbol           = ast->op_right_section.ast_symbol;
-//         op_ast->scope                         = NULL;
-//         op_ast->necro_type                    = ast->op_right_section.op_necro_type;
-//         op_ast                                = necro_ast_create_fexpr(infer->arena, op_ast, x_var_var);
-//         op_ast                                = necro_ast_create_fexpr(infer->arena, op_ast, ast->op_right_section.right);
-//         NecroAst* lambda_ast                  = necro_ast_create_lambda(infer->arena, necro_ast_create_apats(infer->arena, x_var_arg, NULL), op_ast);
-//         infer->scoped_symtable->current_scope = ast->scope;
-//         lambda_ast->necro_type                = ast->necro_type;
-//         necro_build_scopes_go(infer->scoped_symtable, lambda_ast);
-//         // TODO: NOTE THIS NEEDS TO BE REPLACED WITH NEW SYSTEM THAT DOESN'T USE THE RENAMER!
-//         // necro_rename_declare_pass(infer->renamer, infer->arena, lambda_ast);
-//         // necro_rename_var_pass(infer->renamer, infer->arena, lambda_ast);
-//         *ast = *lambda_ast;
-//         if (ast->op_right_section.inst_context != NULL)
-//             necro_try(NecroType, necro_type_class_translate_go(dictionary_context, infer, ast));
-//         return ok(NecroType, NULL);
-//     }
+    case NECRO_AST_OP_RIGHT_SECTION:
+    {
+        ast->op_right_section.inst_subs = necro_type_union_subs(ast->op_right_section.inst_subs, subs);
+        const bool should_specialize    = necro_try_map(bool, void, necro_ast_should_specialize(ast->op_right_section.ast_symbol, ast, ast->op_right_section.inst_subs, subs));
+        if (should_specialize)
+        {
+            ast->op_right_section.ast_symbol = necro_ast_specialize(type_class_translate, ast->op_right_section.ast_symbol, ast->op_right_section.inst_subs);
+        }
+        return necro_type_class_translate_go(type_class_translate, ast->op_right_section.right, subs);
+    }
 
     case NECRO_AST_IF_THEN_ELSE:
         necro_try(void, necro_type_class_translate_go(type_class_translate, ast->if_then_else.if_expr, subs));
@@ -489,7 +463,6 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
         return necro_type_class_translate_go(type_class_translate, ast->fexpression.next_fexpression, subs);
 
     case NECRO_AST_APATS:
-        // necro_type_class_translate_go(infer, ast->apats.apat, dictionary_context);
         necro_try(void, necro_type_class_translate_go(type_class_translate, ast->apats.apat, subs));
         return necro_type_class_translate_go(type_class_translate, ast->apats.next_apat, subs);
 
@@ -624,9 +597,9 @@ void necro_type_class_translate_test_result(const char* test_name, const char* s
     // Assert
     // if (result.type != expected_result)
     // {
-        necro_ast_arena_print(&base.ast);
+        // necro_ast_arena_print(&base.ast);
         necro_ast_arena_print(&ast);
-        necro_scoped_symtable_print_top_scopes(&scoped_symtable);
+        // necro_scoped_symtable_print_top_scopes(&scoped_symtable);
     // }
     assert(result.type == expected_result);
     bool passed = result.type == expected_result;
@@ -731,7 +704,7 @@ void necro_type_class_translate_test()
             "polyNothing = Nothing\n"
             "concreteNothing :: Maybe Int\n"
             "concreteNothing = polyNothing\n"
-            "concreteNothing2 :: Maybe Int\n"
+            "concreteNothing2 :: Maybe Audio\n"
             "concreteNothing2 = polyNothing\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
@@ -798,6 +771,24 @@ void necro_type_class_translate_test()
     }
 
     {
+        const char* test_name   = "Left Section";
+        const char* test_source = ""
+            "left :: Int -> Int \n"
+            "left = (10+)\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Right Section";
+        const char* test_source = ""
+            "right :: Rational -> Rational \n"
+            "right = (*33.3)\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
         const char* test_name   = "Context2";
         const char* test_source = ""
             "numbernomicon :: Num a => a -> a -> a\n"
@@ -809,22 +800,6 @@ void necro_type_class_translate_test()
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
     }
-
-    // TODO: fromRational
-
-    // // NOTE / TODO: This should proc defaulting / ambiguous Type class error!
-    // {
-    //     const char* test_name   = "Context3";
-    //     const char* test_source = ""
-    //         // "equalizer :: (Num a, Eq a) => a -> a -> Bool\n"
-    //         // "equalizer x y = x + y == x\n"
-    //         "equalizer :: (Eq a) => a -> a -> Bool\n"
-    //         "equalizer x y = x == x\n"
-    //         "notTheSame :: Bool\n"
-    //         "notTheSame = equalizer 0 100\n";
-    //     const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-    //     necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
-    // }
 
     {
         const char* test_name   = "Context3";
@@ -875,6 +850,122 @@ void necro_type_class_translate_test()
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
     }
+
+    // // BUG / TODO: This should proc defaulting / ambiguous Type class error!
+    // {
+    //     const char* test_name   = "Context3";
+    //     const char* test_source = ""
+    //         // "equalizer :: (Num a, Eq a) => a -> a -> Bool\n"
+    //         // "equalizer x y = x + y == x\n"
+    //         "equalizer :: (Eq a) => a -> a -> Bool\n"
+    //         "equalizer x y = x == x\n"
+    //         "notTheSame :: Bool\n"
+    //         "notTheSame = equalizer 0 100\n";
+    //     const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+    //     necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    // }
+
+    {
+        const char* test_name   = "No Monomorphism Restriction 1";
+        const char* test_source = ""
+            "data Alive = Alive\n"
+            "data Dead  = Dead\n"
+            "schroedingersMaybe = Nothing\n"
+            "alive = schroedingersMaybe\n"
+            "dead = schroedingersMaybe\n"
+            "cat :: (Maybe Alive, Maybe Dead)\n"
+            "cat = (alive, dead)\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "No Monomorphism Restriction 2";
+        const char* test_source = ""
+            "data Alive = Alive\n"
+            "data Dead  = Dead\n"
+            "cat :: (Maybe Alive, Maybe Dead)\n"
+            "cat = (alive, dead) where\n"
+            "  schroedingersMaybe = Nothing\n"
+            "  alive :: Maybe Alive\n"
+            "  alive = schroedingersMaybe\n"
+            "  dead :: Maybe Dead\n"
+            "  dead = schroedingersMaybe\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    // // BUG / TODO: schroedingersMaybe specialized asts aren't appearing in declaration list?
+    // {
+    //     const char* test_name   = "No Monomorphism Restriction 3";
+    //     const char* test_source = ""
+    //         "data Alive = Alive\n"
+    //         "data Dead  = Dead\n"
+    //         "cat :: (Maybe Alive, Maybe Dead)\n"
+    //         "cat = (alive, dead) where\n"
+    //         "  schroedingersMaybe = Nothing\n"
+    //         "  alive              = schroedingersMaybe\n"
+    //         "  dead               = schroedingersMaybe\n";
+    //     const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+    //     necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    // }
+
+    {
+        const char* test_name   = "No Monomorphism Restriction 5";
+        const char* test_source = ""
+            "notMonoFucker = add\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    // // BUG / TODO: div<Pattern><Pattern<Float>> is getting dropped!
+    // {
+    //     const char* test_name   = "Polymorphic methods 1";
+    //     const char* test_source = ""
+    //         "floatPat :: Pattern Float\n"
+    //         "floatPat = 3.3 / 2.2\n";
+    //     const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+    //     necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    // }
+
+    {
+        const char* test_name   = "Instance Declarations 1";
+        const char* test_source = ""
+            "class NumCollection c where\n"
+            "  checkOutMyIntCollection :: Int -> c Int\n"
+            "instance NumCollection [] where\n"
+            "  checkOutMyIntCollection x = [x + 1]\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    // // BUG / TODO: div<Pattern><Pattern<Float>> is getting dropped!
+    // {
+    //     const char* test_name   = "Instance Declarations 2";
+    //     const char* test_source = ""
+    //         "class NumCollection c where\n"
+    //         "  checkOutMyCollection :: Num a => a -> c a\n"
+    //         "instance NumCollection [] where\n"
+    //         "  checkOutMyCollection x = [x + 1]\n"
+    //         "rationalCollection :: [Rational]\n"
+    //         "rationalCollection = checkOutMyCollection 22\n";
+    //     const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+    //     necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    // }
+
+    // // TODO: Finish ambigous type variable error
+    // // TODO: Finish defaulting!!!
+    // {
+    //     const char* test_name   = "Ambiguous Type Var 1";
+    //     const char* test_source = ""
+    //         "const :: a -> b -> a\n"
+    //         "const x y = x\n"
+    //         "amb :: Int\n"
+    //         "amb = const 22 33\n";
+    //     const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+    //     const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_AMBIGUOUS_TYPE_VAR;
+    //     necro_type_class_translate_test_result(test_name, test_source, expect_error_result, &expected_error);
+    // }
 
 }
 

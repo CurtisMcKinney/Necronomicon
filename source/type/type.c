@@ -162,6 +162,18 @@ NecroType* necro_type_for_all_create(NecroPagedArena* arena, NecroAstSymbol* var
     return for_all;
 }
 
+NecroTypeClassContext* necro_context_deep_copy(NecroPagedArena* arena, NecroTypeClassContext* context)
+{
+    if (context == NULL)
+        return NULL;
+    NecroTypeClassContext* new_context = necro_paged_arena_alloc(arena, sizeof(NecroTypeClassContext));
+    new_context->class_symbol          = context->class_symbol;
+    new_context->type_class            = context->type_class;
+    new_context->var_symbol            = context->var_symbol;
+    new_context->next                  = necro_context_deep_copy(arena, context->next);
+    return new_context;
+}
+
 NecroType* necro_type_deep_copy(NecroPagedArena* arena, NecroType* type)
 {
     if (type == NULL)
@@ -173,7 +185,7 @@ NecroType* necro_type_deep_copy(NecroPagedArena* arena, NecroType* type)
     case NECRO_TYPE_APP:  return necro_type_app_create(arena, necro_type_deep_copy(arena, type->app.type1), necro_type_deep_copy(arena, type->app.type2));
     case NECRO_TYPE_FUN:  return necro_type_fn_create(arena, necro_type_deep_copy(arena, type->fun.type1), necro_type_deep_copy(arena, type->fun.type2));
     case NECRO_TYPE_CON:  return necro_type_con_create(arena, type->con.con_symbol, necro_type_deep_copy(arena, type->con.args));
-    case NECRO_TYPE_FOR:  return necro_type_for_all_create(arena, type->for_all.var_symbol, type->for_all.context, necro_type_deep_copy(arena, type->for_all.type));
+    case NECRO_TYPE_FOR:  return necro_type_for_all_create(arena, type->for_all.var_symbol, necro_context_deep_copy(arena, type->for_all.context), necro_type_deep_copy(arena, type->for_all.type));
     case NECRO_TYPE_LIST: return necro_type_list_create(arena, necro_type_deep_copy(arena, type->list.item), necro_type_deep_copy(arena, type->list.next));
     default:              assert(false); return NULL;
     }
@@ -811,8 +823,7 @@ NecroType* necro_type_replace_with_subs(NecroPagedArena* arena, NecroType* type,
     case NECRO_TYPE_VAR:
         while (subs != NULL)
         {
-            if (type->var.var_symbol == subs->var_to_replace ||
-               (type->var.gen_bound != NULL && type->var.gen_bound->var.var_symbol == subs->var_to_replace))
+            if (type->var.var_symbol == subs->var_to_replace)
             {
                 return subs->new_name;
             }
@@ -1008,27 +1019,15 @@ NecroGenResult necro_gen_go(NecroPagedArena* arena, NecroType* type, NecroGenRes
                 if (subs->var_to_replace == type->var.var_symbol)
                 {
                     prev_result.type    = subs->type_var;
-                    type->var.gen_bound = subs->type_var;
                     return prev_result;
                 }
                 subs = subs->next;
             }
-            NecroGenSub* sub = necro_paged_arena_alloc(arena, sizeof(NecroGenSub));
 
-            NecroType*   type_var                 = necro_type_fresh_var(arena);
-            type_var->var.var_symbol->name        = type->var.var_symbol->name;
-            type_var->var.var_symbol->source_name = type->var.var_symbol->source_name;
-            type_var->var.is_rigid                = true;
-            type_var->var.context                 = type->var.context;
-            // Set context vars to new rigid var?
-            NecroTypeClassContext* context = type_var->var.context;
-            while (context != NULL)
-            {
-                context->var_symbol = type_var->var.var_symbol;
-                context             = context->next;
-            }
-            type_var->kind      = type->kind;
-            type->var.gen_bound = type_var;
+            // NOTE:  Test, Generalize type variable in place?
+            NecroGenSub* sub       = necro_paged_arena_alloc(arena, sizeof(NecroGenSub));
+            NecroType*   type_var  = type;
+            type_var->var.is_rigid = true;
 
             NecroType* for_all = necro_type_for_all_create(arena, type_var->var.var_symbol, type->var.context, NULL);
             *sub               = (NecroGenSub)
@@ -1038,6 +1037,7 @@ NecroGenResult necro_gen_go(NecroPagedArena* arena, NecroType* type, NecroGenRes
                 .type_var       = type_var,
                 .for_all        = for_all,
             };
+
             prev_result.type = type_var;
             if (prev_result.sub_tail == NULL)
             {
@@ -1197,8 +1197,6 @@ void necro_type_fprint(FILE* stream, const NecroType* type)
     case NECRO_TYPE_VAR:
         if (type->var.var_symbol == NULL)
         {
-            if (type->var.gen_bound != NULL)
-                necro_type_fprint(stream, type->var.gen_bound);
         }
         else if (type->var.var_symbol->source_name != NULL && type->var.var_symbol->source_name->str != NULL)
         {
@@ -1295,7 +1293,10 @@ void necro_type_fprint(FILE* stream, const NecroType* type)
                     if (count > 0)
                         fprintf(stream, ", ");
                     fprintf(stream, "%s ", context->class_symbol->source_name->str);
-                    fprintf(stream, "%s", type->for_all.var_symbol->source_name->str);
+                    if (type->for_all.var_symbol->source_name != NULL)
+                        fprintf(stream, "%s", type->for_all.var_symbol->source_name->str);
+                    else
+                        fprintf(stream, "t%p", type->for_all.var_symbol);
                     context = context->next;
                     count++;
                 }

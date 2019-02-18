@@ -65,12 +65,6 @@ typedef struct NecroTypeClassInstance
     NecroInstanceList*        super_instances;
 } NecroTypeClassInstance;
 
-typedef struct NecroMethodSub
-{
-    NecroAstSymbol* old_type_var;
-    NecroType*      new_type_var;
-} NecroMethodSub;
-
 void                               necro_print_type_classes(NecroInfer* infer);
 
 bool                               necro_context_contains_class(NecroTypeClassContext* context, NecroTypeClassContext* type_class);
@@ -83,23 +77,9 @@ void                               necro_apply_constraints(NecroPagedArena* aren
 NecroTypeClassContext*             necro_create_type_class_context(NecroPagedArena* arena, NecroTypeClass* type_class, NecroAstSymbol* type_class_name, NecroAstSymbol* type_var, NecroTypeClassContext* next);
 NecroTypeClassContext*             necro_scrub_super_classes(NecroTypeClassContext* context);
 
-// TODO: Replace with NecroArenaList???
-typedef struct NecroTypeClassDictionaryContext
-{
-    NecroAstSymbol* type_class_name;
-    NecroAstSymbol* type_var_name;
-    NecroAst*       dictionary_arg_ast;
-    bool            intentially_not_included;
-    struct NecroTypeClassDictionaryContext* next;
-} NecroTypeClassDictionaryContext;
-NecroTypeClassDictionaryContext* necro_create_type_class_dictionary_context(NecroPagedArena* arena, NecroAstSymbol* type_class_name, NecroAstSymbol* type_var_name, NecroAst* dictionary_arg_ast, NecroTypeClassDictionaryContext* next);
-// NecroResult(void)                necro_type_class_translate(NecroInfer* infer, NecroAst* ast);
-// NecroResult(NecroType)           necro_type_class_translate_go(NecroTypeClassDictionaryContext* dictionary_context, NecroInfer* infer, NecroAst* ast);
-void                             necro_create_dictionary_data_declaration(NecroPagedArena* arena, NecroIntern* intern, NecroAst* type_class_ast);
-
-NecroTypeClassInstance* necro_get_type_class_instance(NecroAstSymbol* data_type_symbol, NecroAstSymbol* type_class_symbol);
-NecroResult(NecroType)  necro_create_type_class(NecroInfer* infer, NecroAst* type_class_ast);
-NecroResult(NecroType)  necro_create_type_class_instance(NecroInfer* infer, NecroAst* instance_ast);
+NecroTypeClassInstance*            necro_get_type_class_instance(NecroAstSymbol* data_type_symbol, NecroAstSymbol* type_class_symbol);
+NecroResult(NecroType)             necro_create_type_class(NecroInfer* infer, NecroAst* type_class_ast);
+NecroResult(NecroType)             necro_create_type_class_instance(NecroInfer* infer, NecroAst* instance_ast);
 
 // TODO: Is This Cruft to be removed?
 // NecroSymbol necro_create_type_class_instance_name(NecroIntern* intern, NecroAst* ast);

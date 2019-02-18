@@ -1354,7 +1354,9 @@ NecroResult(NecroType) necro_infer_declaration(NecroInfer* infer, NecroAst* decl
             // Monomorphism restriction
             // symbol_info->type = necro_gen(infer, symbol_info->type, symbol_info->scope->parent);
 
-            // necro_infer_kind(infer, symbol_info->type, infer->base->star_kind->type, symbol_info->type, "While declaraing a variable: ");
+            // No monomorphism restriction !!!!!!!
+            data->type = necro_try(NecroType, necro_type_generalize(infer->arena, infer->base, data->type, ast->scope->parent));
+
             necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, data->type, ast->source_loc, ast->end_loc));
             data->type->kind = necro_kind_gen(infer->arena, infer->base, data->type->kind);
             necro_try(NecroType, necro_kind_unify_with_info(data->type->kind, infer->base->star_kind->type, NULL, ast->source_loc, ast->end_loc));
@@ -1365,12 +1367,6 @@ NecroResult(NecroType) necro_infer_declaration(NecroInfer* infer, NecroAst* decl
         {
             data = ast->apats_assignment.ast_symbol;
             if (data->type->pre_supplied || data->type_status == NECRO_TYPE_DONE) { data->type_status = NECRO_TYPE_DONE; curr->declaration.type_checked = true; continue; }
-            // monomorphic local bindings!!!!
-            if (necro_symtable_get_top_level_ast_symbol(infer->scoped_symtable, data->name) == NULL)
-                break;
-            // if (symbol_info->scope->parent == NULL)
-            // Is local binding....how to check!?
-            // TODO (Curtis, 2-8-19): Only generalize top level functions!!!!!!!
             data->type       = necro_try(NecroType, necro_type_generalize(infer->arena, infer->base, data->type, ast->scope->parent));
             necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, data->type, ast->source_loc, ast->end_loc));
             data->type->kind = necro_kind_gen(infer->arena, infer->base, data->type->kind);

@@ -75,7 +75,6 @@ typedef struct
     struct NecroTypeClassContext* context;
     struct NecroType*             bound;
     struct NecroScope*            scope;
-    struct NecroType*             gen_bound;
 } NecroTypeVar;
 
 typedef struct

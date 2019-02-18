@@ -449,9 +449,9 @@ NecroResult(NecroTypeClassContext) necro_type_not_a_class_error(NecroAstSymbol* 
     return necro_error_map(NecroType, NecroTypeClassContext, necro_default_type_error1(NECRO_TYPE_NOT_A_CLASS, ast_symbol, type, source_loc, end_loc));
 }
 
-NecroResult(NecroAst) necro_type_ambiguous_type_var_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+NecroResult(void) necro_type_ambiguous_type_var_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_error_map(NecroType, NecroAst, necro_default_type_error1(NECRO_TYPE_AMBIGUOUS_TYPE_VAR, ast_symbol, type, source_loc, end_loc));
+    return necro_error_map(NecroType, void, necro_default_type_error1(NECRO_TYPE_AMBIGUOUS_TYPE_VAR, ast_symbol, type, source_loc, end_loc));
 }
 
 ///////////////////////////////////////////////////////
@@ -1238,7 +1238,7 @@ void necro_print_type_ambiguous_class_error(NecroResultError* error, const char*
     necro_print_error_header(error_name);
     necro_print_line_at_source_loc(source_str, source_loc, end_loc);
     fprintf(stderr, NECRO_ERR_LEFT_CHAR " Could not deduce '(%s %s)' from the context of this type signature\n", error->default_ast_error_data_2.ast_symbol1->source_name->str, error->default_ast_error_data_2.ast_symbol2->source_name->str);
-    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Perhaps you forgot to use the constrained type variable in the type signature?\n");
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Perhaps you forgot to use the class constrained type variable in the type signature?\n");
     fprintf(stderr, "\n");
     UNUSED(source_name);
 }
@@ -1337,7 +1337,16 @@ void necro_print_type_multiple_instance_declarations_error(NecroResultError* err
     UNUSED(source_name);
 }
 
-
+void necro_print_ambiguous_type_var(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char*           error_name   = "Ambiguous Type Variable";
+    const NecroSourceLoc  source_loc1  = error->default_type_error_data1.source_loc;
+    const NecroSourceLoc  end_loc1     = error->default_type_error_data1.end_loc;
+    necro_print_error_header(error_name);
+    necro_print_line_at_source_loc(source_str, source_loc1, end_loc1);
+    fprintf(stderr, "\n");
+    UNUSED(source_name);
+}
 
 // NOTE:
 // Basic assumption is that and error will be freed after it is printed.
@@ -1423,6 +1432,7 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_TYPE_NOT_AN_INSTANCE_OF:                         necro_print_type_is_not_an_instance_of_error(error, source_str, source_name); break;
     case NECRO_TYPE_MULTIPLE_CLASS_DECLARATIONS:                necro_print_type_multiple_class_declarations_error(error, source_str, source_name); break;
     case NECRO_TYPE_MULTIPLE_INSTANCE_DECLARATIONS:             necro_print_type_multiple_instance_declarations_error(error, source_str, source_name); break;
+    case NECRO_TYPE_AMBIGUOUS_TYPE_VAR:                         necro_print_ambiguous_type_var(error, source_str, source_name); break;
 
     case NECRO_KIND_MISMATCHED_KIND:                            necro_print_mismatched_kind_error(error, source_str, source_name); break;
 

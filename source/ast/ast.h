@@ -46,7 +46,6 @@ typedef struct
     struct NecroAst* qtycls;
     struct NecroAst* inst;
     struct NecroAst* declarations; // Points to the next in the list, null_local_ptr if the end
-    struct NecroAst* dictionary_instance; // Dictionary instance which is generated at compile time by the compiler
     struct NecroAst* declaration_group;
     NecroAstSymbol*  ast_symbol;
 } NecroAstTypeClassInstance;
@@ -60,7 +59,6 @@ typedef struct
     struct NecroAst* tycls;
     struct NecroAst* tyvar;
     struct NecroAst* declarations; // Points to the next in the list, null_local_ptr if the end
-    struct NecroAst* dictionary_data_declaration; // Dictionary data declaration which is generated at compile time by the compiler
     struct NecroAst* declaration_group;
     NecroAstSymbol*  ast_symbol;
 } NecroAstTypeClassDeclaration;

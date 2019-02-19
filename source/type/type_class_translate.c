@@ -19,11 +19,13 @@
         * Implement Patterns (The musical ones...) similarly to Iterator trait in Rust, via TypeClasses?
 
     TODO:
-        * Prune pass after to cull all unneeded stuff and put it in a direct form to make Chad's job for Core translation easier?
+        * Dropped DeclarationGroupLists
+        * Pattern Bindings
         * Pattern Literals
         * Mutually recursive bindings
         * Pattern bindings
         * do statements
+        * Prune pass after to cull all unneeded stuff and put it in a direct form to make Chad's job for Core translation easier?
 */
 
 ///////////////////////////////////////////////////////
@@ -962,6 +964,18 @@ void necro_type_class_translate_test()
     }
 
     {
+        const char* test_name   = "Defaulting 4";
+        const char* test_source = ""
+            "class NotUnit a where\n"
+            "equalizer :: (Eq a) => Maybe a -> Maybe a -> Bool\n"
+            "equalizer x y = True\n"
+            "notTheSame :: Bool\n"
+            "notTheSame = equalizer Nothing Nothing\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
         const char* test_name   = "Ambiguous Type Var 1";
         const char* test_source = ""
             "maybeNothing :: Maybe c\n"
@@ -970,6 +984,21 @@ void necro_type_class_translate_test()
             "const x y = x\n"
             "amb :: Int\n"
             "amb = const 22 Nothing\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_AMBIGUOUS_TYPE_VAR;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Ambiguous Type Var 2";
+        const char* test_source = ""
+            "class BS a where\n"
+            "maybeNothing :: Maybe c\n"
+            "maybeNothing = Nothing\n"
+            "constBS :: (Num b, BS b) => a -> b -> a\n"
+            "constBS x y = x\n"
+            "amb :: Int\n"
+            "amb = constBS 22 0\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_AMBIGUOUS_TYPE_VAR;
         necro_type_class_translate_test_result(test_name, test_source, expect_error_result, &expected_error);

@@ -346,6 +346,28 @@ bool necro_type_is_polymorphic(const NecroType* type)
     }
 }
 
+bool necro_type_bind_var_to_type_if_instance_of_context(NecroPagedArena* arena, NecroType* type, NecroAstSymbol* type_symbol, const NecroTypeClassContext* context)
+{
+    assert(type->type == NECRO_TYPE_VAR);
+    assert(!type->var.is_rigid);
+    while (context != NULL)
+    {
+        NecroInstanceList* instance_list = type_symbol->instance_list;
+        while (instance_list != NULL)
+        {
+            if (instance_list->data->type_class_name == context->class_symbol)
+                break;
+            instance_list = instance_list->next;
+        }
+        if (instance_list != NULL)
+            context = context->next;
+        else
+            return false;
+    }
+    type->var.bound = necro_type_con_create(arena, type_symbol, NULL);
+    return true;
+}
+
 bool necro_type_default(NecroPagedArena* arena, NecroBase* base, NecroType* type)
 {
     assert(type->type == NECRO_TYPE_VAR);
@@ -366,28 +388,21 @@ bool necro_type_default(NecroPagedArena* arena, NecroBase* base, NecroType* type
     }
     if (contains_fractional)
     {
-        type->var.bound = necro_type_con_create(arena, base->float_type, NULL);
-        return true;
+        if (necro_type_bind_var_to_type_if_instance_of_context(arena, type, base->float_type, type->var.context))
+            return true;
     }
     else if (contains_num)
     {
-        type->var.bound = necro_type_con_create(arena, base->int_type, NULL);
-        return true;
+        if (necro_type_bind_var_to_type_if_instance_of_context(arena, type, base->int_type, type->var.context) ||
+            necro_type_bind_var_to_type_if_instance_of_context(arena, type, base->float_type, type->var.context))
+            return true;
     }
-    else if (contains_eq)
+    else if (contains_eq || contains_ord)
     {
-        type->var.bound = necro_type_con_create(arena, base->unit_type, NULL);
-        return true;
+        if (necro_type_bind_var_to_type_if_instance_of_context(arena, type, base->unit_type, type->var.context))
+            return true;
     }
-    else if (contains_ord)
-    {
-        type->var.bound = necro_type_con_create(arena, base->unit_type, NULL);
-        return true;
-    }
-    else
-    {
-        return false;
-    }
+    return false;
 }
 
 NecroResult(bool) necro_type_is_unambiguous_polymorphic(NecroPagedArena* arena, NecroBase* base, NecroType* type, const NecroType* macro_type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)

@@ -265,26 +265,35 @@ NecroAstSymbol* necro_ast_specialize(NecroTypeClassTranslate* type_class_transla
 NecroResult(bool) necro_ast_should_specialize(NecroAstSymbol* ast_symbol, NecroAst* ast, NecroInstSub* inst_subs, NecroInstSub* subs)
 {
     UNUSED(subs);
-    if (!necro_type_is_polymorphic(ast_symbol->type))
-        return ok(bool, false);
-    if (necro_type_is_polymorphic(ast->necro_type))
-    {
-        // if (subs != NULL)
-            return ok(bool, false);
-        // else
-        //     return necro_error_map(void, bool, necro_type_ambiguous_type_var_error(ast_symbol, ast->necro_type, ast->source_loc, ast->end_loc));
-    }
-    NecroInstSub* curr_sub  = inst_subs;
+    const bool is_symbol_poly = !necro_try(bool, necro_type_is_unambiguous_polymorphic(ast_symbol->type, ast->source_loc, ast->end_loc));
+    const bool is_ast_poly    = necro_try(bool, necro_type_is_unambiguous_polymorphic(ast->necro_type, ast->source_loc, ast->end_loc));
+
+    // assert(is_symbol_poly == !necro_type_is_polymorphic(ast_symbol->type));
+    // assert(is_ast_poly == necro_type_is_polymorphic(ast->necro_type));
+
+    // if (!necro_type_is_polymorphic(ast_symbol->type))
+    //     return ok(bool, false);
+    // if (necro_type_is_polymorphic(ast->necro_type))
+    // {
+    //     // if (subs != NULL)
+    //         return ok(bool, false);
+    //     // else
+    //     //     return necro_error_map(void, bool, necro_type_ambiguous_type_var_error(ast_symbol, ast->necro_type, ast->source_loc, ast->end_loc));
+    // }
+    bool          is_sub_poly = is_symbol_poly || is_ast_poly;
+    NecroInstSub* curr_sub    = inst_subs;
     while (curr_sub != NULL)
     {
-        if (necro_type_is_polymorphic(curr_sub->new_name))
-        {
-            return ok(bool, false);
-            // return necro_error_map(void, bool, necro_type_ambiguous_type_var_error(ast_symbol, curr_sub->new_name, ast->source_loc, ast->end_loc));
-        }
+        const bool is_curr_sub_poly = necro_try(bool, necro_type_is_unambiguous_polymorphic(curr_sub->new_name, ast->source_loc, ast->end_loc));
+        is_sub_poly                 = is_sub_poly || is_curr_sub_poly;
+        // if (necro_type_is_polymorphic(curr_sub->new_name))
+        // {
+        //     return ok(bool, false);
+        //     // return necro_error_map(void, bool, necro_type_ambiguous_type_var_error(ast_symbol, curr_sub->new_name, ast->source_loc, ast->end_loc));
+        // }
         curr_sub = curr_sub->next;
     }
-    return ok(bool, true);
+    return ok(bool, !is_sub_poly);
 }
 
 NecroResult(void) necro_type_ambiguous_type_var_check(NecroTypeClassTranslate* type_class_translate, NecroAst* ast)
@@ -459,8 +468,8 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
         return necro_type_class_translate_go(type_class_translate, ast->let_expression.expression, subs);
 
     case NECRO_AST_FUNCTION_EXPRESSION:
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->fexpression.aexp, subs));
-        return necro_type_class_translate_go(type_class_translate, ast->fexpression.next_fexpression, subs);
+        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->fexpression.next_fexpression, subs));
+        return necro_type_class_translate_go(type_class_translate, ast->fexpression.aexp, subs);
 
     case NECRO_AST_APATS:
         necro_try(void, necro_type_class_translate_go(type_class_translate, ast->apats.apat, subs));
@@ -770,6 +779,7 @@ void necro_type_class_translate_test()
         necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
+/*
     {
         const char* test_name   = "Left Section";
         const char* test_source = ""
@@ -938,6 +948,7 @@ void necro_type_class_translate_test()
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
     }
+*/
 
     // // BUG / TODO: div<Pattern><Pattern<Float>> is getting dropped!
     // {
@@ -953,19 +964,19 @@ void necro_type_class_translate_test()
     //     necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
     // }
 
-    // // TODO: Finish ambigous type variable error
-    // // TODO: Finish defaulting!!!
-    // {
-    //     const char* test_name   = "Ambiguous Type Var 1";
-    //     const char* test_source = ""
-    //         "const :: a -> b -> a\n"
-    //         "const x y = x\n"
-    //         "amb :: Int\n"
-    //         "amb = const 22 33\n";
-    //     const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-    //     const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_AMBIGUOUS_TYPE_VAR;
-    //     necro_type_class_translate_test_result(test_name, test_source, expect_error_result, &expected_error);
-    // }
+    // TODO: Finish ambigous type variable error
+    // TODO: Finish defaulting!!!
+    {
+        const char* test_name   = "Ambiguous Type Var 1";
+        const char* test_source = ""
+            "const :: a -> b -> a\n"
+            "const x y = x\n"
+            "amb :: Int\n"
+            "amb = const 22 33\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_AMBIGUOUS_TYPE_VAR;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
 
 }
 

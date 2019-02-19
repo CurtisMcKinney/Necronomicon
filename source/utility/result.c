@@ -365,7 +365,7 @@ NecroResult(NecroAstSymbol) necro_not_in_scope_error(NecroAstSymbol* ast_symbol,
     return necro_error_map(NecroAst, NecroAstSymbol, necro_default_ast_error(NECRO_RENAME_NOT_IN_SCOPE, ast_symbol, source_loc, end_loc));
 }
 
-inline NecroResult(NecroType) necro_default_type_error1(NECRO_RESULT_ERROR_TYPE error_type, NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+inline NecroResult(NecroType) necro_default_type_error1(NECRO_RESULT_ERROR_TYPE error_type, NecroAstSymbol* ast_symbol, const NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     necro_error_single_break_point();
     NecroResultError* error         = emalloc(sizeof(NecroResultError));
@@ -449,9 +449,9 @@ NecroResult(NecroTypeClassContext) necro_type_not_a_class_error(NecroAstSymbol* 
     return necro_error_map(NecroType, NecroTypeClassContext, necro_default_type_error1(NECRO_TYPE_NOT_A_CLASS, ast_symbol, type, source_loc, end_loc));
 }
 
-NecroResult(void) necro_type_ambiguous_type_var_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+NecroResult(bool) necro_type_ambiguous_type_var_error(NecroAstSymbol* ast_symbol, const NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_error_map(NecroType, void, necro_default_type_error1(NECRO_TYPE_AMBIGUOUS_TYPE_VAR, ast_symbol, type, source_loc, end_loc));
+    return necro_error_map(NecroType, bool, necro_default_type_error1(NECRO_TYPE_AMBIGUOUS_TYPE_VAR, ast_symbol, type, source_loc, end_loc));
 }
 
 ///////////////////////////////////////////////////////

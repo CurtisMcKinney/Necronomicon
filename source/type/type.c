@@ -346,6 +346,54 @@ bool necro_type_is_polymorphic(const NecroType* type)
     }
 }
 
+NecroResult(bool) necro_type_is_unambiguous_polymorphic(const NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    type = necro_type_find_const(type);
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR:
+    {
+        if (type->var.is_rigid)
+            return ok(bool, true);
+        else
+            return necro_type_ambiguous_type_var_error(NULL, type, source_loc, end_loc);
+    }
+    case NECRO_TYPE_APP:
+    {
+        bool is_type1_poly = necro_try(bool, necro_type_is_unambiguous_polymorphic(type->app.type1, source_loc, end_loc));
+        bool is_type2_poly = necro_try(bool, necro_type_is_unambiguous_polymorphic(type->app.type2, source_loc, end_loc));
+        return ok(bool, is_type1_poly || is_type2_poly);
+    }
+    case NECRO_TYPE_FUN:
+    {
+        bool is_type1_poly = necro_try(bool, necro_type_is_unambiguous_polymorphic(type->fun.type1, source_loc, end_loc));
+        bool is_type2_poly = necro_try(bool, necro_type_is_unambiguous_polymorphic(type->fun.type2, source_loc, end_loc));
+        return ok(bool, is_type1_poly || is_type2_poly);
+    }
+    case NECRO_TYPE_CON:
+    {
+        const NecroType* args = type->con.args;
+        bool is_poly          = false;
+        while (args != NULL)
+        {
+            const bool is_poly_item = necro_try(bool, necro_type_is_unambiguous_polymorphic(args->list.item, source_loc, end_loc));
+            is_poly                 = is_poly || is_poly_item;
+            args                    = args->list.next;
+        }
+        return ok(bool, is_poly);
+    }
+    case NECRO_TYPE_LIST:
+        assert(false);
+        return ok(bool, false);
+    case NECRO_TYPE_FOR:
+        necro_try(bool, necro_type_is_unambiguous_polymorphic(type->for_all.type, source_loc, end_loc));
+        return ok(bool, true);
+    default:
+        assert(false);
+        return ok(bool, false);
+    }
+}
+
 NecroInstSub* necro_type_union_subs(NecroInstSub* subs1, NecroInstSub* subs2)
 {
     if (subs1 == NULL)

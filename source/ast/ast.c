@@ -477,26 +477,38 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         case NECRO_AST_CONSTANT_FLOAT:
         {
             NecroAst* from_ast               = necro_ast_create_var(arena, intern, "fromRational", NECRO_VAR_VAR);
+            from_ast->source_loc           = reified_ast->source_loc;
+            from_ast->end_loc              = reified_ast->end_loc;
             NecroAst* new_ast                = necro_paged_arena_alloc(arena, sizeof(NecroAst));
             *new_ast                         = *reified_ast;
             new_ast->constant.double_literal = ast->constant.double_literal;
             new_ast->constant.type           = ast->constant.type;
             new_ast->constant.pat_from_ast   = NULL;
             new_ast->constant.pat_eq_ast     = NULL;
+            new_ast->source_loc              = reified_ast->source_loc;
+            new_ast->end_loc                 = reified_ast->end_loc;
             reified_ast                      = necro_ast_create_fexpr(arena, from_ast, new_ast);
+            reified_ast->source_loc          = reified_ast->source_loc;
+            reified_ast->end_loc             = reified_ast->end_loc;
             break;
         }
 
         case NECRO_AST_CONSTANT_INTEGER:
         {
             NecroAst* from_ast             = necro_ast_create_var(arena, intern, "fromInt", NECRO_VAR_VAR);
+            from_ast->source_loc           = reified_ast->source_loc;
+            from_ast->end_loc              = reified_ast->end_loc;
             NecroAst* new_ast              = necro_paged_arena_alloc(arena, sizeof(NecroAst));
             *new_ast                       = *reified_ast;
             new_ast->constant.int_literal  = ast->constant.int_literal;
             new_ast->constant.type         = ast->constant.type;
             new_ast->constant.pat_from_ast = NULL;
             new_ast->constant.pat_eq_ast   = NULL;
+            new_ast->source_loc            = reified_ast->source_loc;
+            new_ast->end_loc               = reified_ast->end_loc;
             reified_ast                    = necro_ast_create_fexpr(arena, from_ast, new_ast);
+            reified_ast->source_loc        = reified_ast->source_loc;
+            reified_ast->end_loc           = reified_ast->end_loc;
             break;
         }
 

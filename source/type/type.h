@@ -170,6 +170,7 @@ bool                   necro_type_exact_unify(NecroType* type1, NecroType* type2
 NecroType*             necro_type_find(NecroType* type);
 const NecroType*       necro_type_find_const(const NecroType* type);
 bool                   necro_type_is_bound_in_scope(NecroType* type, struct NecroScope* scope);
+NecroResult(bool)      necro_type_is_unambiguous_polymorphic(const NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 bool                   necro_type_is_polymorphic(const NecroType* type);
 bool                   necro_type_is_bounded_polymorphic(const NecroType* type);
 NecroType*             necro_type_curry_con(NecroPagedArena* arena, NecroType* con);

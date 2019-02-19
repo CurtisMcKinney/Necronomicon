@@ -141,7 +141,7 @@ typedef struct
 typedef struct
 {
     NecroAstSymbol*   ast_symbol;
-    struct NecroType* type;
+    const struct NecroType* type;
     NecroSourceLoc    source_loc;
     NecroSourceLoc    end_loc;
 } NecroDefaultTypeErrorData1;
@@ -367,7 +367,7 @@ NecroResult(void)                  necro_type_non_concrete_initialized_value_err
 NecroResult(void)                  necro_type_non_recursive_initialized_value_error(NecroAstSymbol* ast_symbol, struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroType)             necro_type_uninitialized_recursive_value_error(NecroAstSymbol* ast_symbol, struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroType)             necro_type_final_do_statement_error(NecroAstSymbol* ast_symbol, struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
-NecroResult(void)                  necro_type_ambiguous_type_var_error(NecroAstSymbol* ast_symbol, struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(bool)                  necro_type_ambiguous_type_var_error(NecroAstSymbol* ast_symbol, const struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroTypeClassContext) necro_type_not_a_class_error(NecroAstSymbol* ast_symbol, struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 
 NecroResult(NecroType)             necro_type_mismatched_type_error(struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc);

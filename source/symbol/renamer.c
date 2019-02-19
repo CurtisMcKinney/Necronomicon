@@ -1520,13 +1520,13 @@ void necro_rename_test()
                     ),
                     NULL,
                     necro_ast_create_type_fn(&ast.arena,
-                        necro_ast_create_conid_with_ast_symbol(&ast.arena, 
-                            necro_ast_symbol_create(&ast.arena, 
-                                necro_intern_string(&intern, "Necro.Base.Int"), 
-                                necro_intern_string(&intern, "Int"), 
-                                necro_intern_string(&intern, "Necro.Base"), 
+                        necro_ast_create_conid_with_ast_symbol(&ast.arena,
+                            necro_ast_symbol_create(&ast.arena,
+                                necro_intern_string(&intern, "Necro.Base.Int"),
+                                necro_intern_string(&intern, "Int"),
+                                necro_intern_string(&intern, "Necro.Base"),
                                 NULL
-                            ), 
+                            ),
                             NECRO_CON_TYPE_VAR
                         ),
                         necro_ast_create_type_fn(&ast.arena,
@@ -1590,10 +1590,10 @@ void necro_rename_test()
                 necro_ast_create_type_class_with_ast_symbols(
                     &ast.arena,
                     necro_ast_symbol_create(
-                        &ast.arena, 
-                        necro_intern_string(&intern, "Test.Doom"), 
-                        necro_intern_string(&intern, "Doom"), 
-                        necro_intern_string(&intern, "Test"), 
+                        &ast.arena,
+                        necro_intern_string(&intern, "Test.Doom"),
+                        necro_intern_string(&intern, "Doom"),
+                        necro_intern_string(&intern, "Test"),
                         NULL
                     ),
                     necro_ast_symbol_create(&ast.arena, clash_a, necro_intern_string(&intern, "a"), necro_intern_string(&intern, "Test"), NULL),
@@ -1647,8 +1647,8 @@ void necro_rename_test()
                     &ast.arena,
                     necro_ast_symbol_create(
                         &ast.arena,
-                        necro_intern_string(&intern, "Necro.Base.Eq"), 
-                        necro_intern_string(&intern, "Eq"),
+                        necro_intern_string(&intern, "Necro.Base.Num"),
+                        necro_intern_string(&intern, "Num"),
                         necro_intern_string(&intern, "Necro.Base"),
                         NULL
                     ),
@@ -1668,7 +1668,7 @@ void necro_rename_test()
                         &ast.arena,
                         necro_ast_create_apats_assignment_with_ast_symbol(
                             &ast.arena,
-                            necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.eq<()>"), necro_intern_string(&intern, "eq<()>"), necro_intern_string(&intern, "Test"), NULL),
+                            necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.add<()>"), necro_intern_string(&intern, "add<()>"), necro_intern_string(&intern, "Test"), NULL),
                             necro_ast_create_apats(
                                 &ast.arena,
                                 necro_ast_create_var_with_ast_symbol(&ast.arena,
@@ -1688,8 +1688,8 @@ void necro_rename_test()
                                 &ast.arena,
                                 necro_ast_create_conid_with_ast_symbol(&ast.arena,
                                     necro_ast_symbol_create(&ast.arena,
-                                        necro_intern_string(&intern, "Necro.Base.True"),
-                                        necro_intern_string(&intern, "True"),
+                                        necro_intern_string(&intern, "Necro.Base.()"),
+                                        necro_intern_string(&intern, "()"),
                                         necro_intern_string(&intern, "Necro.Base"),
                                         NULL
                                     ),
@@ -1709,8 +1709,8 @@ void necro_rename_test()
 #endif
 
         const char* test_code = ""
-            "instance Eq () where\n"
-            "   eq a b = True\n";
+            "instance Num () where\n"
+            "   add a b = ()\n";
 
         necro_rename_test_case("TypeClassInstance", test_code, &intern, &ast);
     }
@@ -1800,13 +1800,13 @@ void necro_rename_test()
                         necro_ast_create_right_section(&ast.arena,
                             necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Necro.Base.+"), necro_intern_string(&intern, "+"), necro_intern_string(&intern, "Necro.Base"), NULL),
                             necro_ast_create_fexpr(&ast.arena,
-                                necro_ast_create_var_with_ast_symbol(&ast.arena, 
-                                    necro_ast_symbol_create(&ast.arena, 
-                                        necro_intern_string(&intern, "Necro.Base.fromInt"), 
-                                        necro_intern_string(&intern, "fromInt"), 
-                                        necro_intern_string(&intern, "Necro.Base"), 
+                                necro_ast_create_var_with_ast_symbol(&ast.arena,
+                                    necro_ast_symbol_create(&ast.arena,
+                                        necro_intern_string(&intern, "Necro.Base.fromInt"),
+                                        necro_intern_string(&intern, "fromInt"),
+                                        necro_intern_string(&intern, "Necro.Base"),
                                         NULL
-                                    ), 
+                                    ),
                                     NECRO_VAR_VAR
                                 ),
                                 necro_ast_create_constant(&ast.arena, (NecroParseAstConstant) { .int_literal = 1, .type = NECRO_AST_CONSTANT_INTEGER })

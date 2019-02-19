@@ -11,7 +11,7 @@
 #include "result.h"
 
 /*
-    Notes (Curtis, 2-8-19):
+    Notes:
         * Healthy defaulting scheme, including a --> ()
         * Default type class. Use this for polymorphic recursion
         * Given the above we could do an even more drastic memory scheme, such as large scale Region based memory management.
@@ -19,7 +19,6 @@
         * Implement Patterns (The musical ones...) similarly to Iterator trait in Rust, via TypeClasses?
 
     TODO:
-        * Defaulting / Ambiguous Type Class error
         * Prune pass after to cull all unneeded stuff and put it in a direct form to make Chad's job for Core translation easier?
         * Pattern Literals
         * Mutually recursive bindings
@@ -262,46 +261,20 @@ NecroAstSymbol* necro_ast_specialize(NecroTypeClassTranslate* type_class_transla
         * The usage of the value or function must be completely concrete
     TODO: Figure out ambigous type variable error and defaulting....rigid type variable?
 */
-NecroResult(bool) necro_ast_should_specialize(NecroAstSymbol* ast_symbol, NecroAst* ast, NecroInstSub* inst_subs, NecroInstSub* subs)
+NecroResult(bool) necro_ast_should_specialize(NecroPagedArena* arena, NecroBase* base, NecroAstSymbol* ast_symbol, NecroAst* ast, NecroInstSub* inst_subs, NecroInstSub* subs)
 {
     UNUSED(subs);
-    const bool is_symbol_poly = !necro_try(bool, necro_type_is_unambiguous_polymorphic(ast_symbol->type, ast->source_loc, ast->end_loc));
-    const bool is_ast_poly    = necro_try(bool, necro_type_is_unambiguous_polymorphic(ast->necro_type, ast->source_loc, ast->end_loc));
-
-    // assert(is_symbol_poly == !necro_type_is_polymorphic(ast_symbol->type));
-    // assert(is_ast_poly == necro_type_is_polymorphic(ast->necro_type));
-
-    // if (!necro_type_is_polymorphic(ast_symbol->type))
-    //     return ok(bool, false);
-    // if (necro_type_is_polymorphic(ast->necro_type))
-    // {
-    //     // if (subs != NULL)
-    //         return ok(bool, false);
-    //     // else
-    //     //     return necro_error_map(void, bool, necro_type_ambiguous_type_var_error(ast_symbol, ast->necro_type, ast->source_loc, ast->end_loc));
-    // }
-    bool          is_sub_poly = is_symbol_poly || is_ast_poly;
+    const bool is_symbol_poly = !necro_try(bool, necro_type_is_unambiguous_polymorphic(arena, base, ast_symbol->type, ast_symbol->type, ast->source_loc, ast->end_loc));
+    const bool is_ast_poly    = necro_try(bool, necro_type_is_unambiguous_polymorphic(arena, base, ast->necro_type, ast->necro_type, ast->source_loc, ast->end_loc));
+    bool       is_sub_poly    = is_symbol_poly || is_ast_poly;
     NecroInstSub* curr_sub    = inst_subs;
     while (curr_sub != NULL)
     {
-        const bool is_curr_sub_poly = necro_try(bool, necro_type_is_unambiguous_polymorphic(curr_sub->new_name, ast->source_loc, ast->end_loc));
+        const bool is_curr_sub_poly = necro_try(bool, necro_type_is_unambiguous_polymorphic(arena, base, curr_sub->new_name, curr_sub->new_name, ast->source_loc, ast->end_loc));
         is_sub_poly                 = is_sub_poly || is_curr_sub_poly;
-        // if (necro_type_is_polymorphic(curr_sub->new_name))
-        // {
-        //     return ok(bool, false);
-        //     // return necro_error_map(void, bool, necro_type_ambiguous_type_var_error(ast_symbol, curr_sub->new_name, ast->source_loc, ast->end_loc));
-        // }
-        curr_sub = curr_sub->next;
+        curr_sub                    = curr_sub->next;
     }
     return ok(bool, !is_sub_poly);
-}
-
-NecroResult(void) necro_type_ambiguous_type_var_check(NecroTypeClassTranslate* type_class_translate, NecroAst* ast)
-{
-    UNUSED(type_class_translate);
-    UNUSED(ast);
-    return ok_void();
-    // necro_type_ambiguous_type_var_error
 }
 
 ///////////////////////////////////////////////////////
@@ -384,7 +357,7 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
         case NECRO_VAR_VAR:
         {
             ast->variable.inst_subs      = necro_type_union_subs(ast->variable.inst_subs, subs);
-            const bool should_specialize = necro_try_map(bool, void, necro_ast_should_specialize(ast->variable.ast_symbol, ast, ast->variable.inst_subs, subs));
+            const bool should_specialize = necro_try_map(bool, void, necro_ast_should_specialize(type_class_translate->arena, type_class_translate->base, ast->variable.ast_symbol, ast, ast->variable.inst_subs, subs));
             if (!should_specialize)
                 return ok_void();
             NecroAstSymbol* specialized_ast_symbol = necro_ast_specialize(type_class_translate, ast->variable.ast_symbol, ast->variable.inst_subs);
@@ -407,6 +380,7 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
         }
 
     case NECRO_AST_CONID:
+        necro_try(void, necro_type_ambiguous_type_variable_check(type_class_translate->arena, type_class_translate->base, ast->necro_type, ast->necro_type, ast->source_loc, ast->end_loc));
         return ok_void();
 
     case NECRO_AST_UNDEFINED:
@@ -415,15 +389,17 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
     case NECRO_AST_CONSTANT:
         // TODO (Curtis, 2-14-19): Handle this for overloaded numeric literals in patterns
         // necro_type_class_translate_constant(infer, ast, dictionary_context);
+        necro_try(void, necro_type_ambiguous_type_variable_check(type_class_translate->arena, type_class_translate->base, ast->necro_type, ast->necro_type, ast->source_loc, ast->end_loc));
         return ok_void();
 
     case NECRO_AST_UN_OP:
+        necro_try(void, necro_type_ambiguous_type_variable_check(type_class_translate->arena, type_class_translate->base, ast->necro_type, ast->necro_type, ast->source_loc, ast->end_loc));
         return ok_void();
 
     case NECRO_AST_BIN_OP:
     {
         ast->bin_op.inst_subs        = necro_type_union_subs(ast->bin_op.inst_subs, subs);
-        const bool should_specialize = necro_try_map(bool, void, necro_ast_should_specialize(ast->bin_op.ast_symbol, ast, ast->bin_op.inst_subs, subs));
+        const bool should_specialize = necro_try_map(bool, void, necro_ast_should_specialize(type_class_translate->arena, type_class_translate->base, ast->bin_op.ast_symbol, ast, ast->bin_op.inst_subs, subs));
         if (should_specialize)
         {
             ast->bin_op.ast_symbol = necro_ast_specialize(type_class_translate, ast->bin_op.ast_symbol, ast->bin_op.inst_subs);
@@ -435,7 +411,7 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
     case NECRO_AST_OP_LEFT_SECTION:
     {
         ast->op_left_section.inst_subs = necro_type_union_subs(ast->op_left_section.inst_subs, subs);
-        const bool should_specialize   = necro_try_map(bool, void, necro_ast_should_specialize(ast->op_left_section.ast_symbol, ast, ast->op_left_section.inst_subs, subs));
+        const bool should_specialize   = necro_try_map(bool, void, necro_ast_should_specialize(type_class_translate->arena, type_class_translate->base, ast->op_left_section.ast_symbol, ast, ast->op_left_section.inst_subs, subs));
         if (should_specialize)
         {
             ast->op_left_section.ast_symbol = necro_ast_specialize(type_class_translate, ast->op_left_section.ast_symbol, ast->op_left_section.inst_subs);
@@ -446,7 +422,7 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
     case NECRO_AST_OP_RIGHT_SECTION:
     {
         ast->op_right_section.inst_subs = necro_type_union_subs(ast->op_right_section.inst_subs, subs);
-        const bool should_specialize    = necro_try_map(bool, void, necro_ast_should_specialize(ast->op_right_section.ast_symbol, ast, ast->op_right_section.inst_subs, subs));
+        const bool should_specialize    = necro_try_map(bool, void, necro_ast_should_specialize(type_class_translate->arena, type_class_translate->base, ast->op_right_section.ast_symbol, ast, ast->op_right_section.inst_subs, subs));
         if (should_specialize)
         {
             ast->op_right_section.ast_symbol = necro_ast_specialize(type_class_translate, ast->op_right_section.ast_symbol, ast->op_right_section.inst_subs);
@@ -525,10 +501,12 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
         return necro_type_class_translate_go(type_class_translate, ast->tuple.expressions, subs);
 
     case NECRO_BIND_ASSIGNMENT:
+        necro_try(void, necro_type_ambiguous_type_variable_check(type_class_translate->arena, type_class_translate->base, ast->necro_type, ast->necro_type, ast->source_loc, ast->end_loc));
         ast->bind_assignment.ast_symbol->type = necro_type_replace_with_subs(type_class_translate->arena, ast->bind_assignment.ast_symbol->type, subs);
         return necro_type_class_translate_go(type_class_translate, ast->bind_assignment.expression, subs);
 
     case NECRO_PAT_BIND_ASSIGNMENT:
+        necro_try(void, necro_type_ambiguous_type_variable_check(type_class_translate->arena, type_class_translate->base, ast->necro_type, ast->necro_type, ast->source_loc, ast->end_loc));
         necro_try(void, necro_type_class_translate_go(type_class_translate, ast->pat_bind_assignment.pat, subs));
         return necro_type_class_translate_go(type_class_translate, ast->pat_bind_assignment.expression, subs);
 
@@ -779,7 +757,6 @@ void necro_type_class_translate_test()
         necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
-/*
     {
         const char* test_name   = "Left Section";
         const char* test_source = ""
@@ -861,20 +838,6 @@ void necro_type_class_translate_test()
         necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
-    // // BUG / TODO: This should proc defaulting / ambiguous Type class error!
-    // {
-    //     const char* test_name   = "Context3";
-    //     const char* test_source = ""
-    //         // "equalizer :: (Num a, Eq a) => a -> a -> Bool\n"
-    //         // "equalizer x y = x + y == x\n"
-    //         "equalizer :: (Eq a) => a -> a -> Bool\n"
-    //         "equalizer x y = x == x\n"
-    //         "notTheSame :: Bool\n"
-    //         "notTheSame = equalizer 0 100\n";
-    //     const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-    //     necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
-    // }
-
     {
         const char* test_name   = "No Monomorphism Restriction 1";
         const char* test_source = ""
@@ -948,7 +911,6 @@ void necro_type_class_translate_test()
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
     }
-*/
 
     // // BUG / TODO: div<Pattern><Pattern<Float>> is getting dropped!
     // {
@@ -964,15 +926,50 @@ void necro_type_class_translate_test()
     //     necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
     // }
 
-    // TODO: Finish ambigous type variable error
-    // TODO: Finish defaulting!!!
     {
-        const char* test_name   = "Ambiguous Type Var 1";
+        const char* test_name   = "Defaulting 1";
         const char* test_source = ""
             "const :: a -> b -> a\n"
             "const x y = x\n"
+            "amb :: Audio\n"
+            "amb = const 22 33.0\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_AMBIGUOUS_TYPE_VAR;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Defaulting 2";
+        const char* test_source = ""
+            "eqconst :: Eq b => a -> Maybe b -> a\n"
+            "eqconst x y = x\n"
+            "amb :: Bool\n"
+            "amb = eqconst True Nothing\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_AMBIGUOUS_TYPE_VAR;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Defaulting 3";
+        const char* test_source = ""
+            "equalizer :: (Eq a) => a -> a -> Bool\n"
+            "equalizer x y = x == x\n"
+            "notTheSame :: Bool\n"
+            "notTheSame = equalizer 0.5 100\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Ambiguous Type Var 1";
+        const char* test_source = ""
+            "maybeNothing :: Maybe c\n"
+            "maybeNothing = Nothing\n"
+            "const :: a -> b -> a\n"
+            "const x y = x\n"
             "amb :: Int\n"
-            "amb = const 22 33\n";
+            "amb = const 22 Nothing\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_AMBIGUOUS_TYPE_VAR;
         necro_type_class_translate_test_result(test_name, test_source, expect_error_result, &expected_error);

@@ -346,28 +346,74 @@ bool necro_type_is_polymorphic(const NecroType* type)
     }
 }
 
-NecroResult(bool) necro_type_is_unambiguous_polymorphic(const NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+bool necro_type_default(NecroPagedArena* arena, NecroBase* base, NecroType* type)
 {
-    type = necro_type_find_const(type);
+    assert(type->type == NECRO_TYPE_VAR);
+    bool                   contains_fractional = false;
+    bool                   contains_num        = false;
+    bool                   contains_eq         = false;
+    bool                   contains_ord        = false;
+    // bool                   contains_show       = false;
+    NecroTypeClassContext* context             = type->var.context;
+    while (context != NULL)
+    {
+        contains_num        = contains_num || context->class_symbol == base->num_type_class;
+        contains_fractional = contains_fractional || context->class_symbol == base->fractional_type_class;
+        contains_eq         = contains_eq || context->class_symbol == base->eq_type_class;
+        contains_ord        = contains_ord || context->class_symbol == base->ord_type_class;
+        // contains_show       = contains_show || context->class_symbol == base->s;
+        context             = context->next;
+    }
+    if (contains_fractional)
+    {
+        type->var.bound = necro_type_con_create(arena, base->float_type, NULL);
+        return true;
+    }
+    else if (contains_num)
+    {
+        type->var.bound = necro_type_con_create(arena, base->int_type, NULL);
+        return true;
+    }
+    else if (contains_eq)
+    {
+        type->var.bound = necro_type_con_create(arena, base->unit_type, NULL);
+        return true;
+    }
+    else if (contains_ord)
+    {
+        type->var.bound = necro_type_con_create(arena, base->unit_type, NULL);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+NecroResult(bool) necro_type_is_unambiguous_polymorphic(NecroPagedArena* arena, NecroBase* base, NecroType* type, const NecroType* macro_type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    type = necro_type_find(type);
     switch (type->type)
     {
     case NECRO_TYPE_VAR:
     {
         if (type->var.is_rigid)
             return ok(bool, true);
+        else if (necro_type_default(arena, base, type))
+            return ok(bool, false);
         else
-            return necro_type_ambiguous_type_var_error(NULL, type, source_loc, end_loc);
+            return necro_type_ambiguous_type_var_error(NULL, type, macro_type, source_loc, end_loc);
     }
     case NECRO_TYPE_APP:
     {
-        bool is_type1_poly = necro_try(bool, necro_type_is_unambiguous_polymorphic(type->app.type1, source_loc, end_loc));
-        bool is_type2_poly = necro_try(bool, necro_type_is_unambiguous_polymorphic(type->app.type2, source_loc, end_loc));
+        bool is_type1_poly = necro_try(bool, necro_type_is_unambiguous_polymorphic(arena, base, type->app.type1, macro_type, source_loc, end_loc));
+        bool is_type2_poly = necro_try(bool, necro_type_is_unambiguous_polymorphic(arena, base, type->app.type2, macro_type, source_loc, end_loc));
         return ok(bool, is_type1_poly || is_type2_poly);
     }
     case NECRO_TYPE_FUN:
     {
-        bool is_type1_poly = necro_try(bool, necro_type_is_unambiguous_polymorphic(type->fun.type1, source_loc, end_loc));
-        bool is_type2_poly = necro_try(bool, necro_type_is_unambiguous_polymorphic(type->fun.type2, source_loc, end_loc));
+        bool is_type1_poly = necro_try(bool, necro_type_is_unambiguous_polymorphic(arena, base, type->fun.type1, macro_type, source_loc, end_loc));
+        bool is_type2_poly = necro_try(bool, necro_type_is_unambiguous_polymorphic(arena, base, type->fun.type2, macro_type, source_loc, end_loc));
         return ok(bool, is_type1_poly || is_type2_poly);
     }
     case NECRO_TYPE_CON:
@@ -376,7 +422,7 @@ NecroResult(bool) necro_type_is_unambiguous_polymorphic(const NecroType* type, N
         bool is_poly          = false;
         while (args != NULL)
         {
-            const bool is_poly_item = necro_try(bool, necro_type_is_unambiguous_polymorphic(args->list.item, source_loc, end_loc));
+            const bool is_poly_item = necro_try(bool, necro_type_is_unambiguous_polymorphic(arena, base, args->list.item, macro_type, source_loc, end_loc));
             is_poly                 = is_poly || is_poly_item;
             args                    = args->list.next;
         }
@@ -386,11 +432,57 @@ NecroResult(bool) necro_type_is_unambiguous_polymorphic(const NecroType* type, N
         assert(false);
         return ok(bool, false);
     case NECRO_TYPE_FOR:
-        necro_try(bool, necro_type_is_unambiguous_polymorphic(type->for_all.type, source_loc, end_loc));
+        necro_try(bool, necro_type_is_unambiguous_polymorphic(arena, base, type->for_all.type, macro_type, source_loc, end_loc));
         return ok(bool, true);
     default:
         assert(false);
         return ok(bool, false);
+    }
+}
+
+NecroResult(void) necro_type_ambiguous_type_variable_check(NecroPagedArena* arena, NecroBase* base, NecroType* type, const NecroType* macro_type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    if (type == NULL)
+        return ok_void();
+    type = necro_type_find(type);
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR:
+    {
+        if (type->var.is_rigid)
+            return ok_void();
+        else if (necro_type_default(arena, base, type))
+            return ok_void();
+        else
+            return necro_error_map(bool, void, necro_type_ambiguous_type_var_error(NULL, type, macro_type, source_loc, end_loc));
+    }
+    case NECRO_TYPE_APP:
+        necro_try(void, necro_type_ambiguous_type_variable_check(arena, base, type->app.type1, macro_type, source_loc, end_loc));
+        necro_try(void, necro_type_ambiguous_type_variable_check(arena, base, type->app.type2, macro_type, source_loc, end_loc));
+        return ok_void();
+    case NECRO_TYPE_FUN:
+        necro_try(void, necro_type_ambiguous_type_variable_check(arena, base, type->fun.type1, macro_type, source_loc, end_loc));
+        necro_try(void, necro_type_ambiguous_type_variable_check(arena, base, type->fun.type2, macro_type, source_loc, end_loc));
+        return ok_void();
+    case NECRO_TYPE_CON:
+    {
+        const NecroType* args = type->con.args;
+        while (args != NULL)
+        {
+            necro_try(void, necro_type_ambiguous_type_variable_check(arena, base, args->list.item, macro_type, source_loc, end_loc));
+            args = args->list.next;
+        }
+        return ok_void();
+    }
+    case NECRO_TYPE_LIST:
+        assert(false);
+        return ok_void();
+    case NECRO_TYPE_FOR:
+        necro_try(void, necro_type_ambiguous_type_variable_check(arena, base, type->for_all.type, macro_type, source_loc, end_loc));
+        return ok_void();
+    default:
+        assert(false);
+        return ok_void();
     }
 }
 

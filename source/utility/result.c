@@ -365,7 +365,7 @@ NecroResult(NecroAstSymbol) necro_not_in_scope_error(NecroAstSymbol* ast_symbol,
     return necro_error_map(NecroAst, NecroAstSymbol, necro_default_ast_error(NECRO_RENAME_NOT_IN_SCOPE, ast_symbol, source_loc, end_loc));
 }
 
-inline NecroResult(NecroType) necro_default_type_error1(NECRO_RESULT_ERROR_TYPE error_type, NecroAstSymbol* ast_symbol, const NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+inline NecroResult(NecroType) necro_default_type_error1(NECRO_RESULT_ERROR_TYPE error_type, NecroAstSymbol* ast_symbol, const NecroType* type, const NecroType* macro_type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     necro_error_single_break_point();
     NecroResultError* error         = emalloc(sizeof(NecroResultError));
@@ -374,6 +374,7 @@ inline NecroResult(NecroType) necro_default_type_error1(NECRO_RESULT_ERROR_TYPE 
     {
         .ast_symbol = ast_symbol,
         .type       = type,
+        .macro_type = macro_type,
         .source_loc = source_loc,
         .end_loc    = end_loc,
     };
@@ -421,37 +422,37 @@ inline NecroResult(NecroType) necro_default_type_class_error(NECRO_RESULT_ERROR_
 ///////////////////////////////////////////////////////
 NecroResult(NecroType) necro_type_uninitialized_recursive_value_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_default_type_error1(NECRO_TYPE_UNINITIALIZED_RECURSIVE_VALUE, ast_symbol, type, source_loc, end_loc);
+    return necro_default_type_error1(NECRO_TYPE_UNINITIALIZED_RECURSIVE_VALUE, ast_symbol, type, NULL, source_loc, end_loc);
 }
 
 NecroResult(void) necro_type_non_recursive_initialized_value_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_error_map(NecroType, void, necro_default_type_error1(NECRO_TYPE_NON_RECURSIVE_INITIALIZED_VALUE, ast_symbol, type, source_loc, end_loc));
+    return necro_error_map(NecroType, void, necro_default_type_error1(NECRO_TYPE_NON_RECURSIVE_INITIALIZED_VALUE, ast_symbol, type, NULL, source_loc, end_loc));
 }
 
 NecroResult(NecroType) necro_type_polymorphic_pat_bind_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_default_type_error1(NECRO_TYPE_POLYMORPHIC_PAT_BIND, ast_symbol, type, source_loc, end_loc);
+    return necro_default_type_error1(NECRO_TYPE_POLYMORPHIC_PAT_BIND, ast_symbol, type, NULL, source_loc, end_loc);
 }
 
 NecroResult(void) necro_type_non_concrete_initialized_value_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_error_map(NecroType, void, necro_default_type_error1(NECRO_TYPE_NON_CONCRETE_INITIALIZED_VALUE, ast_symbol, type, source_loc, end_loc));
+    return necro_error_map(NecroType, void, necro_default_type_error1(NECRO_TYPE_NON_CONCRETE_INITIALIZED_VALUE, ast_symbol, type, NULL, source_loc, end_loc));
 }
 
 NecroResult(NecroType) necro_type_final_do_statement_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_default_type_error1(NECRO_TYPE_FINAL_DO_STATEMENT, ast_symbol, type, source_loc, end_loc);
+    return necro_default_type_error1(NECRO_TYPE_FINAL_DO_STATEMENT, ast_symbol, type, NULL, source_loc, end_loc);
 }
 
 NecroResult(NecroTypeClassContext) necro_type_not_a_class_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_error_map(NecroType, NecroTypeClassContext, necro_default_type_error1(NECRO_TYPE_NOT_A_CLASS, ast_symbol, type, source_loc, end_loc));
+    return necro_error_map(NecroType, NecroTypeClassContext, necro_default_type_error1(NECRO_TYPE_NOT_A_CLASS, ast_symbol, type, NULL, source_loc, end_loc));
 }
 
-NecroResult(bool) necro_type_ambiguous_type_var_error(NecroAstSymbol* ast_symbol, const NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+NecroResult(bool) necro_type_ambiguous_type_var_error(NecroAstSymbol* ast_symbol, const NecroType* type, const NecroType* macro_type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_error_map(NecroType, bool, necro_default_type_error1(NECRO_TYPE_AMBIGUOUS_TYPE_VAR, ast_symbol, type, source_loc, end_loc));
+    return necro_error_map(NecroType, bool, necro_default_type_error1(NECRO_TYPE_AMBIGUOUS_TYPE_VAR, ast_symbol, type, macro_type, source_loc, end_loc));
 }
 
 ///////////////////////////////////////////////////////
@@ -613,6 +614,8 @@ void necro_print_range_pointers(const char* source_str, NecroSourceLoc source_lo
 
 void necro_print_line_at_source_loc(const char* source_str, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
+    if (source_loc.pos == NULL_LOC.pos || end_loc.pos == NULL_LOC.pos)
+        return;
     size_t line_start = source_loc.pos;
     for (line_start = source_loc.pos; line_start > 0 && source_str[line_start] != '\0' && source_str[line_start] != '\n'; --line_start);
     if (source_str[line_start] == '\n')
@@ -1339,11 +1342,24 @@ void necro_print_type_multiple_instance_declarations_error(NecroResultError* err
 
 void necro_print_ambiguous_type_var(NecroResultError* error, const char* source_str, const char* source_name)
 {
-    const char*           error_name   = "Ambiguous Type Variable";
+    const char*           error_name   = "Ambiguous Type";
     const NecroSourceLoc  source_loc1  = error->default_type_error_data1.source_loc;
     const NecroSourceLoc  end_loc1     = error->default_type_error_data1.end_loc;
+    const NecroType*      type         = error->default_type_error_data1.type;
+    const NecroType*      macro_type   = error->default_type_error_data1.macro_type;
     necro_print_error_header(error_name);
     necro_print_line_at_source_loc(source_str, source_loc1, end_loc1);
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Could not infer a concrete type for the type variable: ");
+    necro_type_fprint(stderr, type);
+    fprintf(stderr, "\n");
+    // TODO: Figure out context printing!!!!!!!
+    if (type != macro_type)
+    {
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " In type: ");
+        necro_type_fprint(stderr, macro_type);
+        fprintf(stderr, "\n");
+    }
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Perhaps try adding an explicit type signature which supplies a concrete type.\n");
     fprintf(stderr, "\n");
     UNUSED(source_name);
 }

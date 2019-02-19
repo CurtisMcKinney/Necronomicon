@@ -47,6 +47,8 @@ void necro_parse_ast_test(const char* test_name, const char* str, NecroIntern* i
     unwrap(void, necro_lex(info, &intern, str, strlen(str), &tokens));
     unwrap(void, necro_parse(info, &intern, &tokens, necro_intern_string(&intern, "Test"), &ast));
 
+    // necro_parse_ast_print(&ast);
+
     // Compare
     necro_parse_ast_assert_eq(&ast, ast2);
     printf("Parse %s test: Passed\n", test_name);
@@ -109,6 +111,19 @@ void necro_parse_test()
     necro_parse_ast_test_error("MalformedTypeClss", "class MalformedClass a where\n  x :: a -> a\n  !!\n", NECRO_PARSE_CLASS_EXPECTED_RIGHT_BRACE);
     necro_parse_ast_test_error("MalformedClassInstance", "instance MalformedInstance Int where\n  x y = y\n  !!\n", NECRO_PARSE_INSTANCE_EXPECTED_RIGHT_BRACE);
     necro_parse_ast_test_error("InitialValueError", "malformedInit ~ (Just 0 = 0\n", NECRO_PARSE_CONST_CON_MISSING_RIGHT_PAREN);
+
+
+    // TODO: This should proc a parse error!
+    // {
+    //     NecroIntern        intern = necro_intern_create();
+    //     NecroParseAstArena ast    = (NecroParseAstArena) { necro_arena_create(128 * sizeof(NecroParseAst)) };
+    //     ast.root                  = null_local_ptr;
+    //     const char* test_name   = "Instance Context";
+    //     const char* test_source = ""
+    //         "Num a => instance OgreMagi (Maybe a) where\n"
+    //         "  twoHeads x = (Just x, x)\n";
+    //     necro_parse_ast_test(test_name, test_source, &intern, &ast);
+    // }
 
     // Parse Tests
     {
@@ -949,7 +964,6 @@ void necro_parse_test()
                 null_local_ptr);
         necro_parse_ast_test("Instance", "instance HaveSomeClass Bool where\n  methodToTheMadness _ = True\n", &intern, &ast);
     }
-
 
     {
         puts("Parse {{{ child process parse_test:  starting...");

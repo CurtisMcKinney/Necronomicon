@@ -1520,7 +1520,6 @@ NecroResult(void) necro_infer(NecroCompileInfo info, NecroIntern* intern, NecroS
     NecroInfer             infer  = necro_infer_create(&ast_arena->arena, intern, scoped_symtable, base, ast_arena);
     NecroResult(NecroType) result = necro_infer_go(&infer, ast_arena->root);
     necro_infer_destroy(&infer);
-
     if (result.type == NECRO_RESULT_OK)
     {
         if (info.compilation_phase == NECRO_PHASE_INFER && info.verbosity > 0)
@@ -1528,15 +1527,10 @@ NecroResult(void) necro_infer(NecroCompileInfo info, NecroIntern* intern, NecroS
             necro_ast_arena_print(ast_arena);
             return ok_void();
         }
-        // TODO: Removing type class translation for now...
-        // TODO: Separate Infer and Type Class translation phases with Different State object for type class translation!!!!
-        // necro_try(void, necro_type_class_translate(&infer, ast_arena->root));
         if (info.compilation_phase == NECRO_PHASE_TYPE_CLASS_TRANSLATE && info.verbosity > 0)
             necro_ast_arena_print(ast_arena);
-
         return ok_void();
     }
-
     return necro_error_map(NecroType, void, result);
 }
 
@@ -2032,18 +2026,16 @@ void necro_test_infer()
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 
-// TODO (Curtis 2-11-19): This should be a rigid type variable error and is not. generalizing broken when given a local variable type signature!?!?!?
-//     {
-//         const char* test_name = "Rigid Type Variable 3";
-//         const char* test_source = ""
-//             "notSoftMachine :: Maybe a\n"
-//             "notSoftMachine = n where\n"
-//             "  n :: Maybe b\n"
-//             "  n = Nothing\n";
-//         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-//         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_RIGID_TYPE_VARIABLE;
-//         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
-//     }
+    {
+        const char* test_name = "Rigid Type Variable 3";
+        const char* test_source = ""
+            "notSoftMachine :: Maybe a\n"
+            "notSoftMachine = n where\n"
+            "  n :: Maybe b\n"
+            "  n = Nothing\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
 
     {
         const char* test_name = "Not A Type Class 1";
@@ -2097,18 +2089,17 @@ void necro_test_infer()
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 
-    // TODO (Curtis 2-12-19): Instance context is fuxoring things? Isn't present in the declaration group...
-    // {
-    //     const char* test_name   = "Rigid Type Variable: Instance Method";
-    //     const char* test_source = ""
-    //         "class OgreMagi a where\n"
-    //         "  twoHeads :: OgreMagi b => b -> (a, b)\n"
-    //         "OgreMagi c => instance OgreMagi (Maybe c) where\n"
-    //         "  twoHeads x = (Just x, x)\n";
-    //     const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-    //     const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_RIGID_TYPE_VARIABLE;
-    //     necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
-    // }
+    {
+        const char* test_name   = "Rigid Type Variable: Instance Method";
+        const char* test_source = ""
+            "class OgreMagi a where\n"
+            "  twoHeads :: OgreMagi b => b -> (a, b)\n"
+            "instance OgreMagi c => OgreMagi (Maybe c) where\n"
+            "  twoHeads x = (Just x, x)\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_RIGID_TYPE_VARIABLE;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
 
     {
         const char* test_name   = "No Explicit Implementation";
@@ -2332,14 +2323,14 @@ void necro_test_infer()
     NECRO_TYPE_NOT_AN_INSTANCE_OF,
     NECRO_TYPE_MULTIPLE_INSTANCE_DECLARATIONS,
     NECRO_TYPE_MULTIPLE_CLASS_DECLARATIONS,
+    NECRO_TYPE_NON_CONCRETE_INITIALIZED_VALUE,
+    NECRO_TYPE_NON_RECURSIVE_INITIALIZED_VALUE,
+    NECRO_TYPE_AMBIGUOUS_TYPE_VAR,
 
     IN PROGRESS:
 
     TODO:
     NECRO_TYPE_MISMATCHED_ARITY, // Shouldn't be possible?
-    NECRO_TYPE_NON_CONCRETE_INITIALIZED_VALUE,
-    NECRO_TYPE_NON_RECURSIVE_INITIALIZED_VALUE,
-    NECRO_TYPE_AMBIGUOUS_TYPE_VAR,
     NECRO_TYPE_DOES_NOT_IMPLEMENT_SUPER_CLASS,
 
     */

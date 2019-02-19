@@ -12,7 +12,6 @@
 
 /*
     Notes:
-        * Healthy defaulting scheme, including a --> ()
         * Default type class. Use this for polymorphic recursion
         * Given the above we could do an even more drastic memory scheme, such as large scale Region based memory management.
         * Rename pass to necro_type_specialize ???
@@ -21,9 +20,8 @@
     TODO:
         * Dropped DeclarationGroupLists
         * Pattern Bindings
-        * Pattern Literals
         * Mutually recursive bindings
-        * Pattern bindings
+        * Pattern Literals
         * do statements
         * Prune pass after to cull all unneeded stuff and put it in a direct form to make Chad's job for Core translation easier?
 */
@@ -261,7 +259,6 @@ NecroAstSymbol* necro_ast_specialize(NecroTypeClassTranslate* type_class_transla
     Note: To specialize a value or function:
         * The value or function must be polymorphic
         * The usage of the value or function must be completely concrete
-    TODO: Figure out ambigous type variable error and defaulting....rigid type variable?
 */
 NecroResult(bool) necro_ast_should_specialize(NecroPagedArena* arena, NecroBase* base, NecroAstSymbol* ast_symbol, NecroAst* ast, NecroInstSub* inst_subs, NecroInstSub* subs)
 {
@@ -1001,6 +998,25 @@ void necro_type_class_translate_test()
             "amb = constBS 22 0\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_AMBIGUOUS_TYPE_VAR;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Polymorphic Recursive Value";
+        const char* test_source = ""
+            "polyNothing :: Maybe a\n"
+            "polyNothing ~ Nothing = polyNothing\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_NON_CONCRETE_INITIALIZED_VALUE;
+        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Initialized Non-Recursive Value";
+        const char* test_source = ""
+            "nonRec ~ True = True\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_NON_RECURSIVE_INITIALIZED_VALUE;
         necro_type_class_translate_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 

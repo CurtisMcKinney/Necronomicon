@@ -1065,6 +1065,27 @@ void necro_print_uninitialized_recursive_value_error(NecroResultError* error, co
     necro_print_default_error_format("Uninitialized Recursive Value", error->default_type_error_data1.source_loc, error->default_type_error_data1.end_loc, source_str, source_name, explanation);
 }
 
+void necro_print_non_concrete_initialized_value_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char*          explanation = "All recursive values must have concrete (Non-polymorphic) types";
+    const NecroSourceLoc source_loc  = error->default_type_error_data1.source_loc;
+    const NecroSourceLoc end_loc     = error->default_type_error_data1.end_loc;
+    necro_print_error_header("Polymorphic Recursive Value");
+    necro_print_line_at_source_loc(source_str, source_loc, end_loc);
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " %s\n", explanation);
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Found Type: ");
+    necro_type_fprint(stderr, error->default_type_error_data1.type);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "\n");
+    UNUSED(source_name);
+}
+
+void necro_print_non_recursive_initialized_value_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char* explanation = "Non-recursive values cannot not have an initializer since it would have no effect";
+    necro_print_default_error_format("Initialized Non-Recursive Value", error->default_type_error_data1.source_loc, error->default_type_error_data1.end_loc, source_str, source_name, explanation);
+}
+
 void necro_print_polymorphic_pat_bind_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "All pattern bindings must be monomorphic";
@@ -1434,6 +1455,9 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_RENAME_NOT_IN_SCOPE:                             necro_print_not_in_scope_error(error, source_str, source_name); break;
 
     case NECRO_TYPE_UNINITIALIZED_RECURSIVE_VALUE:              necro_print_uninitialized_recursive_value_error(error, source_str, source_name); break;
+    case NECRO_TYPE_NON_CONCRETE_INITIALIZED_VALUE:             necro_print_non_concrete_initialized_value_error(error, source_str, source_name); break;
+    case NECRO_TYPE_NON_RECURSIVE_INITIALIZED_VALUE:            necro_print_non_recursive_initialized_value_error(error, source_str, source_name); break;
+
     case NECRO_TYPE_MISMATCHED_TYPE:                            necro_print_mismatched_type_error(error, source_str, source_name); break;
     case NECRO_TYPE_POLYMORPHIC_PAT_BIND:                       necro_print_polymorphic_pat_bind_error(error, source_str, source_name); break;
     case NECRO_TYPE_OCCURS:                                     necro_print_occurs_error(error, source_str, source_name); break;

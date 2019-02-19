@@ -810,6 +810,10 @@ void necro_rename_test_error(const char* test_name, const char* str, NECRO_RESUL
     NecroResult(void) result = necro_rename(info, &scoped_symtable, &intern, &ast);
 
     // Assert
+    if (result.type != NECRO_RESULT_ERROR)
+    {
+        necro_ast_print(ast.root);
+    }
     assert(result.type == NECRO_RESULT_ERROR);
     assert(result.error->type == error_type);
     printf("Rename %s test: Passed\n", test_name);

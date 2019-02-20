@@ -62,7 +62,7 @@ typedef struct NecroTypeClassInstance
     NecroDictionaryPrototype* dictionary_prototype;
     NecroType*                data_type;
     NecroSymbol               dictionary_instance_name;
-    NecroInstanceList*        super_instances;
+    // NecroInstanceList*        super_instances;
 } NecroTypeClassInstance;
 
 void                               necro_print_type_classes(NecroInfer* infer);

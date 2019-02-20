@@ -2166,6 +2166,19 @@ void necro_test_infer()
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 
+    {
+        const char* test_name   = "Does not implement Super Class";
+        const char* test_source = ""
+            "data Imaginary = Imaginary\n"
+            "instance Fractional Imaginary where\n"
+            "  div _ _ = Imaginary\n"
+            "  recip _ = Imaginary\n"
+            "  fromRational _ = Imaginary\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_DOES_NOT_IMPLEMENT_SUPER_CLASS;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
     // NOTE: Theoretically can't get this far as the renamer will stop it. Perhaps in the futre with proper modules this will be possible to throw.
     // {
     //     const char* test_name   = "Multiple Class Declarations";

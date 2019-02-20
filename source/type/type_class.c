@@ -499,7 +499,6 @@ NecroResult(NecroType) necro_create_type_class(NecroInfer* infer, NecroAst* type
     // Build Member Type Signatures
     if (type_class->ast->type_class_declaration.declarations != NULL)
     {
-        // NecroDeclarationGroupList* group_list = type_class->ast->type_class_declaration.declarations->declaration.group_list;
         NecroAst* group_list = type_class->ast->type_class_declaration.declarations;
         assert(group_list->type == NECRO_AST_DECLARATION_GROUP_LIST);
         while (group_list != NULL)
@@ -631,7 +630,7 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
     instance->dictionary_prototype         = NULL;
     instance->ast                          = ast;
     instance->data_type                    = necro_try(NecroType, necro_ast_to_type_sig_go(infer, instance->ast->type_class_instance.inst));
-    instance->super_instances              = NULL;
+    // instance->super_instances              = NULL;
     data->type_class_instance              = instance;
 
     // Add to instance list
@@ -728,21 +727,20 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
         type_class_members = type_class_members->next;
     }
 
-    // TODO: Reimplement and test!
-    //     //---------------------------------
-    //     // Resolve Super instance symbols
-    //     NecroTypeClassContext* super_classes = type_class->context;
-    //     while (super_classes != NULL)
-    //     {
-    //         NecroTypeClassInstance* super_instance = necro_get_type_class_instance(instance->data_type_name, super_classes->class_symbol);
-    //         if (super_instance == NULL)
-    //         {
-    //             return necro_type_does_not_implement_super_class_error(super_classes->class_symbol, super_classes->class_symbol->type, super_classes->class_symbol->ast->source_loc, super_classes->class_symbol->ast->end_loc, instance->ast->type_class_instance.ast_symbol, NULL, instance->ast->source_loc, instance->ast->end_loc);;
-    //         }
-    //         assert(super_instance != NULL);
-    //         instance->super_instances = necro_cons_instance_list(infer->arena, super_instance, instance->super_instances);
-    //         super_classes             = super_classes->next;
-    //     }
+    //---------------------------------
+    // Resolve Super instance symbols
+    NecroTypeClassContext* super_classes = type_class->context;
+    while (super_classes != NULL)
+    {
+        NecroTypeClassInstance* super_instance = necro_get_type_class_instance(instance->data_type_name, super_classes->class_symbol);
+        if (super_instance == NULL)
+        {
+            return necro_type_does_not_implement_super_class_error(super_classes->class_symbol, instance->data_type, type_class->type, NULL, NULL, ast->type_class_instance.inst->source_loc, ast->type_class_instance.inst->end_loc);
+        }
+        // assert(super_instance != NULL);
+        // instance->super_instances = necro_cons_instance_list(infer->arena, super_instance, instance->super_instances);
+        super_classes = super_classes->next;
+    }
 
     return ok(NecroType, NULL);
 }

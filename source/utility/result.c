@@ -1361,6 +1361,22 @@ void necro_print_type_multiple_instance_declarations_error(NecroResultError* err
     UNUSED(source_name);
 }
 
+void necro_print_type_does_not_implment_super_class_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char*           error_name   = "Type Does Not Implement Super Class";
+    const NecroAstSymbol* data_symbol  = necro_type_find(error->default_type_class_error_data.type1)->con.con_symbol;
+    const NecroAstSymbol* class_symbol = necro_type_find(error->default_type_class_error_data.type2)->con.con_symbol;
+    const NecroAstSymbol* super_symbol = error->default_type_class_error_data.type_class_symbol;
+    const NecroSourceLoc  source_loc1  = error->default_type_class_error_data.source_loc;
+    const NecroSourceLoc  end_loc1     = error->default_type_class_error_data.end_loc;
+    necro_print_error_header(error_name);
+    necro_print_line_at_source_loc(source_str, source_loc1, end_loc1);
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " '%s' should implement class '%s', but does not.\n", data_symbol->source_name->str, super_symbol->source_name->str);
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " This is required because '%s' is a super class of '%s'\n", super_symbol->source_name->str, class_symbol->source_name->str);
+    fprintf(stderr, "\n");
+    UNUSED(source_name);
+}
+
 void necro_print_ambiguous_type_var(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char*           error_name   = "Ambiguous Type";
@@ -1472,6 +1488,7 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_TYPE_NOT_AN_INSTANCE_OF:                         necro_print_type_is_not_an_instance_of_error(error, source_str, source_name); break;
     case NECRO_TYPE_MULTIPLE_CLASS_DECLARATIONS:                necro_print_type_multiple_class_declarations_error(error, source_str, source_name); break;
     case NECRO_TYPE_MULTIPLE_INSTANCE_DECLARATIONS:             necro_print_type_multiple_instance_declarations_error(error, source_str, source_name); break;
+    case NECRO_TYPE_DOES_NOT_IMPLEMENT_SUPER_CLASS:             necro_print_type_does_not_implment_super_class_error(error, source_str, source_name); break;
     case NECRO_TYPE_AMBIGUOUS_TYPE_VAR:                         necro_print_ambiguous_type_var(error, source_str, source_name); break;
 
     case NECRO_KIND_MISMATCHED_KIND:                            necro_print_mismatched_kind_error(error, source_str, source_name); break;

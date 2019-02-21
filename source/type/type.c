@@ -176,6 +176,8 @@ NecroTypeClassContext* necro_context_deep_copy(NecroPagedArena* arena, NecroType
 
 NecroType* necro_type_deep_copy(NecroPagedArena* arena, NecroType* type)
 {
+    // if (true)
+    //     return type;
     if (type == NULL)
         return NULL;
     type = necro_type_find(type);
@@ -501,29 +503,58 @@ NecroResult(void) necro_type_ambiguous_type_variable_check(NecroPagedArena* aren
     }
 }
 
+NecroInstSub* necro_type_filter_and_deep_copy_subs(NecroPagedArena* arena, NecroInstSub* subs, NecroAstSymbol* var_to_replace, NecroType* new_name)
+{
+    if (subs == NULL)
+        return NULL;
+    if ((subs->var_to_replace == var_to_replace ||
+        (subs->var_to_replace->name != NULL && subs->var_to_replace->name == var_to_replace->name))
+        &&
+        necro_type_exact_unify(subs->new_name, new_name))
+    {
+        return necro_type_filter_and_deep_copy_subs(arena, subs->next, var_to_replace, new_name);
+    }
+    else
+    {
+        NecroInstSub* new_sub = necro_paged_arena_alloc(arena, sizeof(NecroInstSub));
+        *new_sub              = *subs;
+        new_sub->next         = necro_type_filter_and_deep_copy_subs(arena, subs->next, var_to_replace, new_name);
+        return new_sub;
+    }
+}
+
 NecroInstSub* necro_type_union_subs(NecroInstSub* subs1, NecroInstSub* subs2)
 {
     if (subs1 == NULL)
         return NULL;
     if (subs2 == NULL)
         return subs1;
-    NecroInstSub* curr_sub2 = subs2;
+    NecroType*    subs1_new_name = necro_type_find(subs1->new_name);
+    NecroInstSub* curr_sub2      = subs2;
     while (curr_sub2 != NULL)
     {
-        if (subs1->var_to_replace == curr_sub2->var_to_replace)
+        if (subs1->var_to_replace == curr_sub2->var_to_replace ||
+           (subs1->var_to_replace->name != NULL &&  subs1->var_to_replace->name == curr_sub2->var_to_replace->name))
         {
             subs1->new_name = necro_type_find(curr_sub2->new_name);
             break;
+            // subs1->next = necro_type_union_subs(subs1->next, subs2);
+            // return subs1;
         }
-        else if (necro_type_find(subs1->new_name)->type == NECRO_TYPE_VAR && necro_type_find(subs1->new_name)->var.var_symbol == curr_sub2->var_to_replace)
+        else if (subs1_new_name->type == NECRO_TYPE_VAR &&
+                (subs1_new_name->var.var_symbol == curr_sub2->var_to_replace ||
+                (subs1_new_name->var.var_symbol->name != NULL && subs1_new_name->var.var_symbol->name == curr_sub2->var_to_replace->name)))
         {
             subs1->new_name = necro_type_find(curr_sub2->new_name);
             break;
+            // subs1->next = necro_type_union_subs(subs1->next, subs2);
+            // return subs1;
         }
         curr_sub2 = curr_sub2->next;
     }
     subs1->next = necro_type_union_subs(subs1->next, subs2);
     return subs1;
+    // return necro_type_union_subs(subs1->next, subs2);
 }
 
 NecroInstSub* necro_type_deep_copy_subs(NecroPagedArena* arena, NecroInstSub* subs)
@@ -626,15 +657,13 @@ NecroResult(NecroType) necro_propogate_type_classes(NecroPagedArena* arena, Necr
             // Would this method require a proper scope!?!?!
             NecroType* instance_data_inst = necro_try(NecroType, necro_type_instantiate(arena, base, instance->data_type, instance->ast->scope));
             necro_try(NecroType, necro_type_unify(arena, base, instance_data_inst, type, scope));
-            // Propogating classes wrong here!
-            // NecroType* current_arg = type->con.args;
-            // while (current_arg != NULL)
-            // {
-            //     necro_propogate_type_classes(infer, instance->context, current_arg->list.item, macro_type, error_preamble);
-            //     if (necro_is_infer_error(infer)) return;
-            //     current_arg = current_arg->list.next;
-            // }
-            // if (necro_is_infer_error(infer)) return;
+            // Propogating type classes
+            NecroType* current_arg = type->con.args;
+            while (current_arg != NULL)
+            {
+                necro_try(NecroType, necro_propogate_type_classes(arena, base, instance->context, current_arg->list.item, instance->ast->scope));
+                current_arg = current_arg->list.next;
+            }
             classes = classes->next;
         }
         return ok(NecroType, NULL);
@@ -938,7 +967,8 @@ NecroType* necro_type_replace_with_subs_deep_copy(NecroPagedArena* arena, NecroT
     case NECRO_TYPE_VAR:
         while (subs != NULL)
         {
-            if (type->var.var_symbol == subs->var_to_replace)
+            if (type->for_all.var_symbol == subs->var_to_replace ||
+               (type->for_all.var_symbol->name != NULL && type->for_all.var_symbol->name == subs->var_to_replace->name))
             {
                 return subs->new_name;
             }
@@ -950,7 +980,8 @@ NecroType* necro_type_replace_with_subs_deep_copy(NecroPagedArena* arena, NecroT
         NecroInstSub* curr_sub = subs;
         while (curr_sub != NULL)
         {
-            if (type->for_all.var_symbol == curr_sub->var_to_replace)
+            if (type->for_all.var_symbol == curr_sub->var_to_replace ||
+               (type->for_all.var_symbol->name != NULL && type->for_all.var_symbol->name == curr_sub->var_to_replace->name))
             {
                 return necro_type_replace_with_subs_deep_copy(arena, type->for_all.type, subs);
             }
@@ -978,7 +1009,8 @@ NecroType* necro_type_replace_with_subs(NecroPagedArena* arena, NecroType* type,
     case NECRO_TYPE_VAR:
         while (subs != NULL)
         {
-            if (type->var.var_symbol == subs->var_to_replace)
+            if (type->for_all.var_symbol == subs->var_to_replace ||
+               (type->for_all.var_symbol->name != NULL && type->for_all.var_symbol->name == subs->var_to_replace->name))
             {
                 return subs->new_name;
             }
@@ -990,7 +1022,8 @@ NecroType* necro_type_replace_with_subs(NecroPagedArena* arena, NecroType* type,
         NecroInstSub* curr_sub = subs;
         while (curr_sub != NULL)
         {
-            if (type->for_all.var_symbol == curr_sub->var_to_replace)
+            if (type->for_all.var_symbol == curr_sub->var_to_replace ||
+               (type->for_all.var_symbol->name != NULL && type->for_all.var_symbol->name == curr_sub->var_to_replace->name))
             {
                 return necro_type_replace_with_subs_deep_copy(arena, type->for_all.type, subs);
             }

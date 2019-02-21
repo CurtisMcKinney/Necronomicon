@@ -700,7 +700,6 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
     // Infer declarations
     if (instance->ast->type_class_instance.declarations != NULL)
     {
-        // assert(instance->ast->type_class_instance.declarations->declaration.group_list != NULL);
         necro_try(NecroType, necro_infer_go(infer, instance->ast->type_class_instance.declarations));
     }
 

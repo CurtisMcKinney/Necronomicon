@@ -89,8 +89,6 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
         break;
 
     case NECRO_AST_DECLARATION_GROUP_LIST:
-        // if (ast->declaration_group_list.declaration_group->declaration.declaration_group_list != ast)
-        //     assert(ast->declaration_group_list.declaration_group->declaration.declaration_group_list == ast);
         puts("(DeclarationGroupList)");
         necro_ast_print_go(ast->declaration_group_list.declaration_group, depth + 1);
         if (ast->declaration_group_list.next != NULL)
@@ -104,7 +102,6 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
             print_white_space(depth * 2);
             printf(" ~\n");
             necro_ast_print_go(ast->simple_assignment.initializer, depth * 2);
-            // print_white_space(depth * 2);
         }
         necro_ast_print_go(ast->simple_assignment.rhs, depth + 1);
         break;

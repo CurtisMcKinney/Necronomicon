@@ -15,29 +15,13 @@
 #include "base.h"
 
 /*
-TODO:
-    - Pattern literal cleanup: Require Eq for pattern literals, also make sure it's getting type class translated correctly
-    - Require type signature for all top level bindings?!?!?
-    - Numeric patterns seem messed up!?
-    - Make sure nested super dictionaries are added and applied in correct order!!!
-    - Make sure dictionaries get renamed correctly to get passed correct ID!!!!
-    - Make sure selector argument ordering / forwarding IS CORRECT!!!!
-    - Right now making sure the order of dictionaries and arguments lines up correctly!!!!
-    - After translation some ids for added AST nodes are coming back as 0
-    - Make sure we aren't duplicating names / scopes
-    - Test deeply nested class dictionary passing!
 BACKBURNER
-    - Follow Haskell's lead: Make top declaration's default to Haskell style monomorphism restriction, and where bindings default to not generalizing (unless type signature is given!!!)
-    - Better unification error messaging! This is especially true when it occurs during SuperClass constraint checking. Make necro_unify return struct with either Success or Error data
-    - Can we collapse env into symtable!?!?!
-    - Can we collide symtable and env IDs like this!
-    - Defaulting
-    - Make context ALWAYS a list, even if it's just one item...
+    - Require type signature for all top level bindings?!?!?
+    - Pattern literal cleanup: Require Eq for pattern literals, also make sure it's getting type class translated correctly
     - split NECRO_DECLARATION into:
         case NECRO_VAR_PATTERN?
         case NECRO_VAR_ARG?
     - Do statements
-    - Perhaps drop Monads!?!?! Is that crazy? feels like a heavy handed solution to some specific use cases...
 */
 
 //=====================================================
@@ -799,9 +783,6 @@ NecroResult(NecroTypeClassContext) necro_ast_to_context(NecroInfer* infer, Necro
     return ok(NecroTypeClassContext, context_head);
 }
 
-// TODO: FIX THIS! Broken after symtable changes
-// TODO: Construct Instance list and store inside of AST!!!!!
-// TODO: Replace NecroTypeClassInstance struct entirely!?!?!
 NecroTypeClassInstance* necro_get_type_class_instance(NecroAstSymbol* data_type_symbol, NecroAstSymbol* type_class_symbol)
 {
     NecroInstanceList* instance_list = data_type_symbol->instance_list;
@@ -812,65 +793,6 @@ NecroTypeClassInstance* necro_get_type_class_instance(NecroAstSymbol* data_type_
         instance_list = instance_list->next;
     }
     return NULL;
-}
-
-NecroResult(NecroType) necro_rec_check_pat_assignment(NecroInfer* infer, NecroAst* ast)
-{
-    assert(ast != NULL);
-    switch (ast->type)
-    {
-    case NECRO_AST_VARIABLE:
-        if (ast->variable.initializer != NULL && !necro_is_fully_concrete(ast->variable.ast_symbol->type))
-        {
-            return necro_error_map(void, NecroType, necro_type_non_concrete_initialized_value_error(ast->simple_assignment.ast_symbol, ast->necro_type, ast->source_loc, ast->end_loc));
-        }
-        if (ast->variable.initializer != NULL && !ast->variable.is_recursive)
-        {
-            return necro_error_map(void, NecroType, necro_type_non_recursive_initialized_value_error(ast->simple_assignment.ast_symbol, ast->necro_type, ast->source_loc, ast->end_loc));
-        }
-        return ok(NecroType, NULL);
-    case NECRO_AST_CONSTANT:
-        return ok(NecroType, NULL);
-    case NECRO_AST_TUPLE:
-    {
-        NecroAst* args = ast->tuple.expressions;
-        while (args != NULL)
-        {
-            necro_try(NecroType, necro_rec_check_pat_assignment(infer, args->list.item));
-            args = args->list.next_item;
-        }
-        return ok(NecroType, NULL);
-    }
-    case NECRO_AST_EXPRESSION_LIST:
-    {
-        NecroAst* args = ast->expression_list.expressions;
-        while (args != NULL)
-        {
-            necro_try(NecroType, necro_rec_check_pat_assignment(infer, args->list.item));
-            args = args->list.next_item;
-        }
-        return ok(NecroType, NULL);
-    }
-    case NECRO_AST_WILDCARD:
-        return ok(NecroType, NULL);
-    case NECRO_AST_BIN_OP_SYM:
-        necro_try(NecroType, necro_rec_check_pat_assignment(infer, ast->bin_op_sym.left));
-        return necro_rec_check_pat_assignment(infer, ast->bin_op_sym.right);
-    case NECRO_AST_CONID:
-        return ok(NecroType, NULL);
-    case NECRO_AST_CONSTRUCTOR:
-    {
-        NecroAst* args = ast->constructor.arg_list;
-        while (args != NULL)
-        {
-            necro_try(NecroType, necro_rec_check_pat_assignment(infer, args->list.item));
-            args = args->list.next_item;
-        }
-        return ok(NecroType, NULL);
-    }
-    default:
-        necro_unreachable(NecroType);
-    }
 }
 
 // // TODO: Knock this around a bit!

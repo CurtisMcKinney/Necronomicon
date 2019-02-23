@@ -31,6 +31,7 @@ typedef struct NecroRenamer
     NecroAst*              current_type_sig_ast;
     NecroAstArena*         ast_arena;
     NECRO_RENAME_STATE     state;
+    bool                   is_internal_rename;
 } NecroRenamer;
 
 /*
@@ -146,7 +147,6 @@ NecroResult(NecroAstSymbol) necro_rename_declare(NecroRenamer* renamer, NecroAst
         while (ast != NULL)
         {
             necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->top_declaration.declaration));
-            // necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->top_declaration.next_top_decl));
             ast = ast->top_declaration.next_top_decl;
         }
         break;
@@ -154,8 +154,14 @@ NecroResult(NecroAstSymbol) necro_rename_declare(NecroRenamer* renamer, NecroAst
         while (ast != NULL)
         {
             necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->declaration.declaration_impl));
-            // necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->declaration.next_declaration));
             ast = ast->declaration.next_declaration;
+        }
+        break;
+    case NECRO_AST_DECLARATION_GROUP_LIST:
+        while (ast != NULL)
+        {
+            necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->declaration_group_list.declaration_group));
+            ast = ast->declaration_group_list.next;
         }
         break;
 
@@ -199,17 +205,18 @@ NecroResult(NecroAstSymbol) necro_rename_declare(NecroRenamer* renamer, NecroAst
         NecroAstSymbol* ast_symbol2 = necro_scope_find_in_this_scope_ast_symbol(ast->scope, ast->apats_assignment.ast_symbol->source_name);
         if (ast_symbol2 != NULL)
         {
-            // Multi-line definition
-            if (ast_symbol2->name == ast->scope->last_introduced_symbol)
-            {
-                ast->apats_assignment.ast_symbol = ast_symbol2;
-            }
+            // NOTE (Curtis 2-22-19): Removing Multi-line definitions for now...
+            // // Multi-line definition
+            // if (ast_symbol2->name == ast->scope->last_introduced_symbol)
+            // {
+            //     ast->apats_assignment.ast_symbol = ast_symbol2;
+            // }
             // Multiple Definitions error
-            else
-            {
+            // else
+            // {
                 assert(ast_symbol2->ast != NULL);
                 return necro_multiple_definitions_error(ast->apats_assignment.ast_symbol, ast->source_loc, ast->end_loc, ast_symbol2, ast_symbol2->ast->source_loc, ast_symbol2->ast->end_loc);
-            }
+            // }
         }
         else
         {
@@ -224,9 +231,11 @@ NecroResult(NecroAstSymbol) necro_rename_declare(NecroRenamer* renamer, NecroAst
     }
 
     case NECRO_AST_PAT_ASSIGNMENT:
-        renamer->state = NECRO_RENAME_PAT_ASSIGNMENT;
+        if (ast->scope->parent == NULL)
+            renamer->state = NECRO_RENAME_PAT_ASSIGNMENT;
         necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->pat_assignment.pat));
-        renamer->state = NECRO_RENAME_NORMAL;
+        if (ast->scope->parent == NULL)
+            renamer->state = NECRO_RENAME_NORMAL;
         necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->pat_assignment.rhs));
         break;
     case NECRO_AST_RIGHT_HAND_SIDE:
@@ -481,7 +490,6 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
         while (ast != NULL)
         {
             necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->top_declaration.declaration));
-            // necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->top_declaration.next_top_decl));
             ast = ast->top_declaration.next_top_decl;
         }
         break;
@@ -489,14 +497,22 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
         while (ast != NULL)
         {
             necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->declaration.declaration_impl));
-            // necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->declaration.next_declaration));
             ast = ast->declaration.next_declaration;
         }
         break;
+    case NECRO_AST_DECLARATION_GROUP_LIST:
+        while (ast != NULL)
+        {
+            necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->declaration_group_list.declaration_group));
+            ast = ast->declaration_group_list.next;
+        }
+        break;
+
     case NECRO_AST_SIMPLE_ASSIGNMENT:
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->simple_assignment.initializer));
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->simple_assignment.rhs));
-        if (ast->simple_assignment.ast_symbol->declaration_group == NULL)
+        // if (ast->simple_assignment.ast_symbol->declaration_group == NULL)
+        if (!renamer->is_internal_rename)
         {
             ast->simple_assignment.ast_symbol->declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, ast->simple_assignment.ast_symbol->declaration_group);
             ast->simple_assignment.declaration_group             = ast->simple_assignment.ast_symbol->declaration_group;
@@ -505,7 +521,8 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
     case NECRO_AST_APATS_ASSIGNMENT:
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->apats_assignment.apats));
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->apats_assignment.rhs));
-        if (ast->apats_assignment.ast_symbol->declaration_group == NULL)
+        // if (ast->apats_assignment.ast_symbol->declaration_group == NULL)
+        if (!renamer->is_internal_rename)
         {
             ast->apats_assignment.ast_symbol->declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, ast->apats_assignment.ast_symbol->declaration_group);
             ast->apats_assignment.declaration_group             = ast->apats_assignment.ast_symbol->declaration_group;
@@ -727,11 +744,12 @@ NecroResult(void) necro_rename(NecroCompileInfo info, NecroScopedSymTable* scope
 {
     NecroRenamer renamer = (NecroRenamer)
     {
-        .intern = intern,
-            .scoped_symtable = scoped_symtable,
-            .current_declaration_group = NULL,
-            .ast_arena = ast_arena,
-            .state = NECRO_RENAME_NORMAL,
+        .intern                    = intern,
+        .scoped_symtable           = scoped_symtable,
+        .current_declaration_group = NULL,
+        .ast_arena                 = ast_arena,
+        .state                     = NECRO_RENAME_NORMAL,
+        .is_internal_rename        = false,
     };
 
     // Declare pass
@@ -767,6 +785,7 @@ void necro_rename_internal_scope_and_rename(NecroAstArena* ast_arena, NecroScope
         .current_declaration_group = NULL,
         .ast_arena                 = ast_arena,
         .state                     = NECRO_RENAME_NORMAL,
+        .is_internal_rename        = true,
     };
 
     // Declare pass

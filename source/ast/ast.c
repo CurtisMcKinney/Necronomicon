@@ -1106,7 +1106,7 @@ NecroAst* necro_ast_create_top_decl(NecroPagedArena* arena, NecroAst* top_level_
 
 NecroAst* necro_ast_create_decl(NecroPagedArena* arena, NecroAst* declaration, NecroAst* next)
 {
-    assert(declaration != NULL);
+    // assert(declaration != NULL);
     NecroAst* ast                           = necro_ast_alloc(arena, NECRO_AST_DECL);
     ast->declaration.declaration_impl       = declaration;
     ast->declaration.next_declaration       = next;
@@ -2069,9 +2069,13 @@ NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_g
             necro_ast_deep_copy_go(arena, declaration_group, ast->if_then_else.then_expr),
             necro_ast_deep_copy_go(arena, declaration_group, ast->if_then_else.else_expr)));
     case NECRO_AST_SIMPLE_ASSIGNMENT:
-        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_simple_assignment_with_ast_symbol(arena, ast->simple_assignment.ast_symbol,
+    {
+        NecroAst* copy = necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_simple_assignment_with_ast_symbol(arena, ast->simple_assignment.ast_symbol,
             necro_ast_deep_copy_go(arena, declaration_group, ast->simple_assignment.initializer),
             necro_ast_deep_copy_go(arena, declaration_group, ast->simple_assignment.rhs)));
+        copy->simple_assignment.is_recursive = ast->simple_assignment.is_recursive;
+        return copy;
+    }
     case NECRO_AST_APATS_ASSIGNMENT:
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_apats_assignment_with_ast_symbol(arena, ast->apats_assignment.ast_symbol,
             necro_ast_deep_copy_go(arena, declaration_group, ast->apats_assignment.apats),

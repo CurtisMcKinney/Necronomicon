@@ -376,11 +376,11 @@ NecroResult(NecroType) necro_infer_pat_assignment(NecroInfer* infer, NecroAst* a
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_PAT_ASSIGNMENT);
     assert(ast->pat_assignment.pat != NULL);
-    necro_try(NecroType, necro_ensure_pat_binding_is_monomorphic(infer, ast->pat_assignment.pat));
+    // necro_try(NecroType, necro_ensure_pat_binding_is_monomorphic(infer, ast->pat_assignment.pat));
     NecroType* pat_type = necro_try(NecroType, necro_infer_apat(infer, ast->pat_assignment.pat));
     NecroType* rhs_type = necro_try(NecroType, necro_infer_go(infer, ast->pat_assignment.rhs));
     necro_try(NecroType, necro_type_unify_with_info(infer->arena, infer->base, pat_type, rhs_type, ast->scope, ast->pat_assignment.rhs->source_loc, ast->pat_assignment.rhs->end_loc));
-    necro_try(NecroType, necro_ensure_pat_binding_is_monomorphic(infer, ast->pat_assignment.pat));
+    // necro_try(NecroType, necro_ensure_pat_binding_is_monomorphic(infer, ast->pat_assignment.pat));
     ast->necro_type = pat_type;
     return ok(NecroType, ast->necro_type);
 }
@@ -460,19 +460,22 @@ NecroResult(NecroType) necro_gen_pat_go(NecroInfer* infer, NecroAst* ast)
     {
     case NECRO_AST_VARIABLE:
     {
-        // TODO: Take a closer look at this!!!!
-        NecroAstSymbol* data = ast->variable.ast_symbol;
-        if (data->type->pre_supplied || data->type_status == NECRO_TYPE_DONE)
+        NecroAstSymbol* var_symbol = ast->variable.ast_symbol;
+        if (var_symbol->type->pre_supplied || var_symbol->type_status == NECRO_TYPE_DONE)
         {
-            data->type_status = NECRO_TYPE_DONE;
-            return ok(NecroType, NULL);
+            var_symbol->type_status = NECRO_TYPE_DONE;
+            ast->necro_type   = var_symbol->type;
+            return ok(NecroType, ast->necro_type);
         }
-        // Monomorphism restriction
-        // infer->symtable->data[id.id].type                      = necro_gen(infer, proxy_type, infer->symtable->data[id.id].scope->parent);
-        data->type_status = NECRO_TYPE_DONE;
-        necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, data->type, ast->source_loc, ast->end_loc));
-        data->type->kind = necro_kind_gen(infer->arena, infer->base, data->type->kind);
-        return necro_kind_unify_with_info(infer->base->star_kind->type, data->type->kind, NULL, ast->source_loc, ast->end_loc);
+        // Monomorphism restriction applies to pattern assignment
+        // Is the scoping right on this!?
+        // var_symbol->type        = necro_try(NecroType, necro_type_generalize(infer->arena, infer->base, var_symbol->type, ast->scope->parent));
+        var_symbol->type_status = NECRO_TYPE_DONE;
+        necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, var_symbol->type, ast->source_loc, ast->end_loc));
+        var_symbol->type->kind = necro_kind_gen(infer->arena, infer->base, var_symbol->type->kind);
+        necro_try(NecroType, necro_kind_unify_with_info(infer->base->star_kind->type, var_symbol->type->kind, NULL, ast->source_loc, ast->end_loc));
+        ast->necro_type = var_symbol->type;
+        return ok(NecroType, ast->necro_type);
     }
     case NECRO_AST_CONSTANT:
         return ok(NecroType, NULL);
@@ -1350,15 +1353,9 @@ NecroResult(NecroType) necro_infer_declaration(NecroInfer* infer, NecroAst* decl
         {
             data = ast->simple_assignment.ast_symbol;
             if (data->type->pre_supplied || data->type_status == NECRO_TYPE_DONE) { data->type_status = NECRO_TYPE_DONE; curr->declaration.type_checked = true; continue; }
-
-            // Monomorphism restriction
-            // symbol_info->type = necro_gen(infer, symbol_info->type, symbol_info->scope->parent);
-
-            // No monomorphism restriction !!!!!!!
-            data->type = necro_try(NecroType, necro_type_generalize(infer->arena, infer->base, data->type, ast->scope->parent));
-
+            data->type        = necro_try(NecroType, necro_type_generalize(infer->arena, infer->base, data->type, ast->scope->parent));
             necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, data->type, ast->source_loc, ast->end_loc));
-            data->type->kind = necro_kind_gen(infer->arena, infer->base, data->type->kind);
+            data->type->kind  = necro_kind_gen(infer->arena, infer->base, data->type->kind);
             necro_try(NecroType, necro_kind_unify_with_info(data->type->kind, infer->base->star_kind->type, NULL, ast->source_loc, ast->end_loc));
             data->type_status = NECRO_TYPE_DONE;
             break;
@@ -1367,9 +1364,9 @@ NecroResult(NecroType) necro_infer_declaration(NecroInfer* infer, NecroAst* decl
         {
             data = ast->apats_assignment.ast_symbol;
             if (data->type->pre_supplied || data->type_status == NECRO_TYPE_DONE) { data->type_status = NECRO_TYPE_DONE; curr->declaration.type_checked = true; continue; }
-            data->type       = necro_try(NecroType, necro_type_generalize(infer->arena, infer->base, data->type, ast->scope->parent));
+            data->type        = necro_try(NecroType, necro_type_generalize(infer->arena, infer->base, data->type, ast->scope->parent));
             necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, data->type, ast->source_loc, ast->end_loc));
-            data->type->kind = necro_kind_gen(infer->arena, infer->base, data->type->kind);
+            data->type->kind  = necro_kind_gen(infer->arena, infer->base, data->type->kind);
             necro_try(NecroType, necro_kind_unify_with_info(data->type->kind, infer->base->star_kind->type, NULL, ast->source_loc, ast->end_loc));
             data->type_status = NECRO_TYPE_DONE;
             break;
@@ -1424,21 +1421,41 @@ NecroResult(NecroType) necro_infer_declaration_group_list(NecroInfer* infer, Nec
 ///////////////////////////////////////////////////////
 // Recursion
 ///////////////////////////////////////////////////////
-bool necro_is_fully_concrete(NecroType* type)
+bool necro_is_fully_concrete(NecroBase* base, NecroType* type)
 {
     assert(type != NULL);
     type = necro_type_find(type);
     switch (type->type)
     {
-    case NECRO_TYPE_VAR:  return false;
-    case NECRO_TYPE_APP:  return necro_is_fully_concrete(type->app.type1) && necro_is_fully_concrete(type->app.type2);
-    case NECRO_TYPE_FUN:  return necro_is_fully_concrete(type->fun.type1) && necro_is_fully_concrete(type->fun.type2);
-    case NECRO_TYPE_CON:  return type->con.args == NULL || necro_is_fully_concrete(type->con.args);
-    case NECRO_TYPE_FOR:  return false;
+    case NECRO_TYPE_VAR:
+    {
+        NecroTypeClassContext* context = type->var.context;
+        while (context != NULL)
+        {
+            if (context->class_symbol == base->default_type_class)
+                return true;
+            context = context->next;
+        }
+        return false;
+    }
+    case NECRO_TYPE_FOR:
+    {
+        NecroTypeClassContext* context = type->for_all.context;
+        while (context != NULL)
+        {
+            if (context->class_symbol == base->default_type_class)
+                return necro_is_fully_concrete(base, type->for_all.type);
+            context = context->next;
+        }
+        return false;
+    }
+    case NECRO_TYPE_APP:  return necro_is_fully_concrete(base, type->app.type1) && necro_is_fully_concrete(base, type->app.type2);
+    case NECRO_TYPE_FUN:  return necro_is_fully_concrete(base, type->fun.type1) && necro_is_fully_concrete(base, type->fun.type2);
+    case NECRO_TYPE_CON:  return type->con.args == NULL || necro_is_fully_concrete(base, type->con.args);
     case NECRO_TYPE_LIST:
         while (type != NULL)
         {
-            if (!necro_is_fully_concrete(type->list.item))
+            if (!necro_is_fully_concrete(base, type->list.item))
                 return false;
             type = type->list.next;
         }
@@ -1631,32 +1648,6 @@ void necro_test_infer()
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_UNINITIALIZED_RECURSIVE_VALUE;
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
-
-    // Note (Curtis, 2-9-19): Generalization is not broken, this is related to making all local bindings default to being monomorphic a la Simon Peyton Jones recommendation.
-    // // This seems broken. Should trigger monomorphism restriction, and it's not
-    // {
-    //     const char* test_name = "PolymorphicPatternBinding";
-    //     const char* test_source = ""
-    //         "polyBad1 :: Bool\n"
-    //         "polyBad1 = y where\n"
-    //         "  x = Nothing\n"
-    //         "  y = True\n";
-    //     const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-    //     const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
-    //     necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
-    // }
-
-    // Note (Curtis, 2-9-19): Generalization is not broken, this is related to making all local bindings default to being monomorphic a la Simon Peyton Jones recommendation.
-    // {
-    //     const char* test_name = "PolymorphicPatternBinding";
-    //     const char* test_source = ""
-    //         "polyBad2 :: Bool\n"
-    //         "polyBad2 = y where\n"
-    //         "  (x, y) = (Nothing, True)\n";
-    //     const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-    //     const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
-    //     necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
-    // }
 
     {
         const char* test_name   = "MistmatchedType: Initializer";
@@ -2339,12 +2330,12 @@ void necro_test_infer()
     NECRO_TYPE_NON_CONCRETE_INITIALIZED_VALUE,
     NECRO_TYPE_NON_RECURSIVE_INITIALIZED_VALUE,
     NECRO_TYPE_AMBIGUOUS_TYPE_VAR,
+    NECRO_TYPE_DOES_NOT_IMPLEMENT_SUPER_CLASS,
 
     IN PROGRESS:
 
     TODO:
-    NECRO_TYPE_MISMATCHED_ARITY, // Shouldn't be possible?
-    NECRO_TYPE_DOES_NOT_IMPLEMENT_SUPER_CLASS,
+    NECRO_TYPE_MISMATCHED_ARITY // Shouldn't be possible?
 
     */
 

@@ -62,7 +62,6 @@ typedef struct NecroTypeClassInstance
     NecroDictionaryPrototype* dictionary_prototype;
     NecroType*                data_type;
     NecroSymbol               dictionary_instance_name;
-    // NecroInstanceList*        super_instances;
 } NecroTypeClassInstance;
 
 void                               necro_print_type_classes(NecroInfer* infer);
@@ -80,8 +79,5 @@ NecroTypeClassContext*             necro_scrub_super_classes(NecroTypeClassConte
 NecroTypeClassInstance*            necro_get_type_class_instance(NecroAstSymbol* data_type_symbol, NecroAstSymbol* type_class_symbol);
 NecroResult(NecroType)             necro_create_type_class(NecroInfer* infer, NecroAst* type_class_ast);
 NecroResult(NecroType)             necro_create_type_class_instance(NecroInfer* infer, NecroAst* instance_ast);
-
-// TODO: Is This Cruft to be removed?
-// NecroSymbol necro_create_type_class_instance_name(NecroIntern* intern, NecroAst* ast);
 
 #endif // TYPE_CLASS_H

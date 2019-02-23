@@ -1548,7 +1548,10 @@ NecroResult(void) necro_infer(NecroCompileInfo info, NecroIntern* intern, NecroS
 // Testing
 ///////////////////////////////////////////////////////
 
-void necro_infer_test_result(const char* test_name, const char* str, NECRO_RESULT_TYPE expected_result, const NECRO_RESULT_ERROR_TYPE* error_type)
+
+#define INFER_TEST_VERBOSE 1
+
+void necro_infer_test_impl(const char* test_name, const char* str, NECRO_RESULT_TYPE expected_result, const NECRO_RESULT_ERROR_TYPE* error_type, NecroAstArena* ast2)
 {
     // Set up
     NecroIntern         intern          = necro_intern_create();
@@ -1576,6 +1579,24 @@ void necro_infer_test_result(const char* test_name, const char* str, NECRO_RESUL
         necro_ast_arena_print(&ast);
         necro_scoped_symtable_print_top_scopes(&scoped_symtable);
     }
+    else if (ast2)
+    {
+        assert(expected_result == NECRO_RESULT_OK);
+        assert(error_type == NULL);
+#ifdef INFER_TEST_VERBOSE
+        puts("//////////////////////////////");
+        puts("// necro_infer_test ast");
+        puts("//////////////////////////////");
+        necro_ast_arena_print(&ast);
+        puts("//////////////////////////////");
+        puts("// necro_infer_test ast2");
+        puts("//////////////////////////////");
+        necro_ast_arena_print(ast2);
+        puts("//////////////////////////////");
+#endif
+        necro_ast_assert_eq(ast.root, ast2->root);
+    }
+
     assert(result.type == expected_result);
     bool passed = result.type == expected_result;
     if (expected_result == NECRO_RESULT_ERROR)
@@ -1593,7 +1614,7 @@ void necro_infer_test_result(const char* test_name, const char* str, NECRO_RESUL
     }
 
     const char* result_string = passed ? "Passed" : "Failed";
-    printf("Infer %s test: %s\n", test_name, result_string);
+    printf("Infer %s test: %s\n\n\n", test_name, result_string);
     fflush(stdout);
     // UNUSED(test_name);
     // UNUSED(result_string);
@@ -1611,6 +1632,20 @@ void necro_infer_test_result(const char* test_name, const char* str, NECRO_RESUL
     necro_scoped_symtable_destroy(&scoped_symtable);
     necro_symtable_destroy(&symtable);
     necro_intern_destroy(&intern);
+}
+
+void necro_infer_test_result(const char* test_name, const char* str, NECRO_RESULT_TYPE expected_result, const NECRO_RESULT_ERROR_TYPE* error_type)
+{
+    NecroAstArena* no_ast_comparison = NULL;
+    necro_infer_test_impl(test_name, str, expected_result, error_type, no_ast_comparison);
+}
+
+void necro_infer_test_comparison(const char* test_name, const char* str, NecroIntern* intern, NecroAstArena* ast2)
+{
+    const NECRO_RESULT_TYPE ok_result_expected = NECRO_RESULT_OK;
+    const NECRO_RESULT_ERROR_TYPE* no_error_expected = NULL;
+    necro_infer_test_impl(test_name, str, ok_result_expected, no_error_expected, ast2);
+    necro_intern_destroy(intern);
 }
 
 void necro_test_infer()
@@ -2371,4 +2406,330 @@ void necro_test_infer()
         assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\pathologicalType.necro -infer") == 0);
         puts("Infer }}} child process pathologicalType:  passed\n");
     }
+
+    {
+        NecroIntern   intern = necro_intern_create();
+        NecroAstArena ast = necro_ast_arena_create(necro_intern_string(&intern, "Test"));
+        ast.root =
+            necro_ast_create_declaration_group_list_with_next(&ast.arena,
+                necro_ast_create_decl(&ast.arena,
+                    necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.constant1"), necro_intern_string(&intern, "constant1"), necro_intern_string(&intern, "Test"), NULL), NULL,
+                        necro_ast_create_rhs(&ast.arena,
+                            necro_ast_create_fexpr(&ast.arena, necro_ast_create_var_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Necro.Base.fromInt"), necro_intern_string(&intern, "fromInt"), necro_intern_string(&intern, "Necro.Base"), NULL), NECRO_VAR_VAR),
+                                necro_ast_create_constant(&ast.arena, (NecroParseAstConstant) { .int_literal = 10, .type = NECRO_AST_CONSTANT_INTEGER })),
+                            NULL)
+                    ),
+                    NULL
+                ),
+                NULL);
+        necro_infer_test_comparison("Constant1", "constant1 = 10\n", &intern, &ast);
+    }
+
+    {
+        NecroIntern   intern = necro_intern_create();
+        NecroAstArena ast = necro_ast_arena_create(necro_intern_string(&intern, "Test"));
+        NecroSymbol   inner_name = necro_append_clash_suffix_to_name(&ast, &intern, "Test.inner");
+        ast.root =
+            necro_ast_create_declaration_group_list_with_next(&ast.arena,
+                necro_ast_create_decl(&ast.arena,
+                    necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.top"), necro_intern_string(&intern, "top"), necro_intern_string(&intern, "Test"), NULL), NULL,
+                        necro_ast_create_rhs(&ast.arena,
+                            necro_ast_create_let(&ast.arena,
+                                necro_ast_create_var_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, inner_name, necro_intern_string(&intern, "inner"), necro_intern_string(&intern, "Test"), NULL), NECRO_VAR_DECLARATION),
+                                necro_ast_create_declaration_group_list_with_next(&ast.arena,
+                                    necro_ast_create_decl(&ast.arena,
+                                        necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena,
+                                            necro_ast_symbol_create(&ast.arena,
+                                                inner_name,
+                                                necro_intern_string(&intern, "inner"),
+                                                necro_intern_string(&intern, "Test"),
+                                                NULL
+                                            ),
+                                            NULL,
+                                            necro_ast_create_rhs(&ast.arena,
+                                                necro_ast_create_conid_with_ast_symbol(&ast.arena,
+                                                    necro_ast_symbol_create(&ast.arena,
+                                                        necro_intern_string(&intern, "Necro.Base.Nothing"),
+                                                        necro_intern_string(&intern, "Nothing"),
+                                                        necro_intern_string(&intern, "Necro.Base"),
+                                                        NULL
+                                                    ),
+                                                    NECRO_CON_VAR
+                                                ),
+                                                NULL
+                                            )
+                                        ),
+                                        NULL
+                                    ),
+                                    NULL
+                                )
+                            ),
+                            NULL
+                        )
+                    ),
+                    NULL
+                ),
+                NULL
+            );
+        necro_infer_test_comparison("Let", "top = let inner = Nothing in inner\n", &intern, &ast);
+    }
+
+    {
+        NecroIntern   intern = necro_intern_create();
+        NecroAstArena ast = necro_ast_arena_create(necro_intern_string(&intern, "Test"));
+        NecroSymbol   inner_name = necro_append_clash_suffix_to_name(&ast, &intern, "Test.inner");
+        NecroSymbol   other_name = necro_append_clash_suffix_to_name(&ast, &intern, "Test.other");
+        ast.root =
+            necro_ast_create_declaration_group_list_with_next(&ast.arena,
+                necro_ast_create_decl(&ast.arena,
+                    necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.top"), necro_intern_string(&intern, "top"), necro_intern_string(&intern, "Test"), NULL), NULL,
+                        necro_ast_create_rhs(&ast.arena,
+
+                            necro_ast_create_let(&ast.arena,
+                                necro_ast_create_var_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, inner_name, necro_intern_string(&intern, "inner"), necro_intern_string(&intern, "Test"), NULL), NECRO_VAR_DECLARATION),
+                                // declaration1
+                                necro_ast_create_declaration_group_list_with_next(&ast.arena,
+                                    necro_ast_create_decl(&ast.arena,
+                                        necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, inner_name, necro_intern_string(&intern, "inner"), necro_intern_string(&intern, "Test"), NULL), NULL,
+                                            necro_ast_create_rhs(&ast.arena,
+                                                necro_ast_create_conid_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Necro.Base.Nothing"), necro_intern_string(&intern, "Nothing"), necro_intern_string(&intern, "Necro.Base"), NULL),
+                                                    NECRO_CON_VAR),
+                                                NULL)),
+                                        NULL),
+                                    necro_ast_create_declaration_group_list_with_next(&ast.arena,
+                                        // declaration2
+                                        necro_ast_create_decl(&ast.arena,
+                                            necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, other_name, necro_intern_string(&intern, "other"), necro_intern_string(&intern, "Test"), NULL), NULL,
+                                                necro_ast_create_rhs(&ast.arena,
+                                                    necro_ast_create_conid_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Necro.Base.False"), necro_intern_string(&intern, "False"), necro_intern_string(&intern, "Necro.Base"), NULL),
+                                                        NECRO_CON_VAR),
+                                                    NULL)),
+                                            NULL),
+                                        NULL
+                                    )
+                                )
+                            ),
+                            NULL)
+                    ),
+                    NULL
+                ),
+                NULL
+            );
+
+        const char* test_code = ""
+            "top =\n"
+            "  let\n"
+            "    inner = Nothing\n"
+            "    other = False\n"
+            "  in inner\n";
+
+        necro_infer_test_comparison("Let2", test_code, &intern, &ast);
+    }
+
+    {
+        NecroIntern   intern = necro_intern_create();
+        NecroAstArena ast = necro_ast_arena_create(necro_intern_string(&intern, "Test"));
+        NecroSymbol   clash_x = necro_append_clash_suffix_to_name(&ast, &intern, "Test.x");
+        ast.root =
+            necro_ast_create_declaration_group_list_with_next(&ast.arena,
+                necro_ast_create_decl(&ast.arena,
+                    necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.x"), necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NULL,
+                        necro_ast_create_rhs(&ast.arena,
+                            necro_ast_create_let(&ast.arena,
+                                necro_ast_create_var_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_x, necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NECRO_VAR_DECLARATION),
+                                    necro_ast_create_declaration_group_list_with_next(&ast.arena,
+                                        necro_ast_create_decl(&ast.arena, // CHANGE THIS TO A GROUP LIST!
+                                            necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_x, necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NULL,
+                                                necro_ast_create_rhs(&ast.arena,
+                                                    necro_ast_create_conid_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Necro.Base.Nothing"), necro_intern_string(&intern, "Nothing"), necro_intern_string(&intern, "Necro.Base"), NULL),
+                                                        NECRO_CON_VAR), NULL)
+                                            ),
+                                            NULL),
+                                        NULL)
+                                ),
+                        NULL)
+                    ),
+                    NULL
+                ),
+                NULL
+            );
+        
+        necro_infer_test_comparison("LetClash", "x = let x = Nothing in x\n", &intern, &ast);
+    }
+
+    {
+        NecroIntern   intern = necro_intern_create();
+        NecroAstArena ast = necro_ast_arena_create(necro_intern_string(&intern, "Test"));
+        NecroSymbol   clash_x = necro_append_clash_suffix_to_name(&ast, &intern, "Test.x");
+        NecroSymbol   clash_x2 = necro_append_clash_suffix_to_name(&ast, &intern, "Test.x");
+        ast.root =
+            necro_ast_create_declaration_group_list_with_next(&ast.arena,
+                necro_ast_create_decl(&ast.arena,
+                    necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.x"), necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NULL,
+                        necro_ast_create_rhs(&ast.arena,
+                            necro_ast_create_let(&ast.arena,
+                                necro_ast_create_var_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_x, necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NECRO_VAR_DECLARATION),
+                                necro_ast_create_declaration_group_list_with_next(&ast.arena,
+                                    necro_ast_create_decl(&ast.arena,
+                                        necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_x, necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NULL,
+                                            necro_ast_create_rhs(&ast.arena,
+                                                necro_ast_create_let(&ast.arena,
+                                                    necro_ast_create_var_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_x2, necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NECRO_VAR_DECLARATION),
+                                                        necro_ast_create_declaration_group_list_with_next(&ast.arena,
+                                                            necro_ast_create_decl(&ast.arena,
+                                                                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_x2, necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NULL,
+                                                                    necro_ast_create_rhs(&ast.arena,
+                                                                        necro_ast_create_conid_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Necro.Base.Nothing"), necro_intern_string(&intern, "Nothing"), necro_intern_string(&intern, "Necro.Base"), NULL),
+                                                                            NECRO_CON_VAR), NULL)
+                                                                ),
+                                                                NULL),
+                                                            NULL
+                                                        )
+                                                    ),
+                                                NULL)
+                                        ),
+                                        NULL),
+                                    NULL)
+                                ),
+                            NULL)
+                    ),
+                    NULL),
+                NULL);
+
+        necro_infer_test_comparison("LetClash2", "x = let x = (let x = Nothing in x) in x\n", &intern, &ast);
+    }
+
+    {
+        NecroIntern   intern = necro_intern_create();
+        NecroAstArena ast = necro_ast_arena_create(necro_intern_string(&intern, "Test"));
+        NecroSymbol   clash_x = necro_append_clash_suffix_to_name(&ast, &intern, "Test.x");
+        ast.root =
+            necro_ast_create_declaration_group_list_with_next(&ast.arena,
+                necro_ast_create_decl(&ast.arena,
+                    necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.x"), necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NULL,
+                        necro_ast_create_rhs(&ast.arena,
+                            necro_ast_create_var_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_x, necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NECRO_VAR_DECLARATION),
+                                necro_ast_create_declaration_group_list_with_next(&ast.arena,
+                                    necro_ast_create_decl(&ast.arena,
+                                        necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_x, necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NULL,
+                                            necro_ast_create_rhs(&ast.arena,
+                                                necro_ast_create_conid_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Necro.Base.Nothing"), necro_intern_string(&intern, "Nothing"), necro_intern_string(&intern, "Necro.Base"), NULL), NECRO_CON_VAR)
+                                                , NULL)),
+                                        NULL),
+                                    NULL)
+                            )),
+                    NULL
+                ),
+                NULL
+            );
+
+        necro_infer_test_comparison("WhereClash", "x = x where x = Nothing\n", &intern, &ast);
+    }
+
+ #if 0 // Throws an error about Type Not An Instance Of, though I'm not sure that's expected
+    {
+        NecroIntern   intern = necro_intern_create();
+        NecroAstArena ast = necro_ast_arena_create(necro_intern_string(&intern, "Test"));
+        NecroSymbol   clash_x = necro_append_clash_suffix_to_name(&ast, &intern, "Test.x");
+        ast.root =
+                necro_ast_create_declaration_group_list_with_next(&ast.arena,
+                    necro_ast_create_decl(&ast.arena,
+                    necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena,
+                        necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.x"), necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NULL,
+                        necro_ast_create_rhs(&ast.arena,
+                            necro_ast_create_do(&ast.arena,
+                                necro_ast_create_list(&ast.arena,
+                                    necro_ast_create_bind_assignment(&ast.arena,
+                                        necro_ast_symbol_create(&ast.arena, clash_x, necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL),
+                                        necro_ast_create_conid_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Necro.Base.Nothing"), necro_intern_string(&intern, "Nothing"), necro_intern_string(&intern, "Necro.Base"), NULL), NECRO_CON_VAR)
+                                    ),
+                                    necro_ast_create_list(&ast.arena,
+                                        necro_ast_create_fexpr(&ast.arena,
+                                            necro_ast_create_var_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Necro.Base.pure"), necro_intern_string(&intern, "pure"), necro_intern_string(&intern, "Necro.Base"), NULL), NECRO_VAR_VAR),
+                                            necro_ast_create_var_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_x, necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL), NECRO_VAR_VAR)
+                                        ),
+                                        NULL)
+                                )
+                            ),
+                            NULL)),
+                    NULL
+                ),
+                NULL
+            );
+
+        // necro_ast_print(ast.root);
+        necro_infer_test_comparison("BindClash", "x = do\n  x <- Nothing\n  pure x\n", &intern, &ast);
+    }
+#endif
+
+    {
+        NecroIntern   intern = necro_intern_create();
+        NecroAstArena ast = necro_ast_arena_create(necro_intern_string(&intern, "Test"));
+        NecroSymbol   clash_y = necro_append_clash_suffix_to_name(&ast, &intern, "Test.y");
+
+        ast.root =
+            necro_ast_create_declaration_group_list_with_next(&ast.arena,
+                necro_ast_create_decl(&ast.arena,
+                    necro_ast_create_apats_assignment_with_ast_symbol(&ast.arena,
+                        necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.x"), necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL),
+                        necro_ast_create_apats(&ast.arena,
+                            necro_ast_create_var_with_ast_symbol(&ast.arena,
+                                necro_ast_symbol_create(&ast.arena, clash_y, necro_intern_string(&intern, "y"), necro_intern_string(&intern, "Test"), NULL),
+                                NECRO_VAR_DECLARATION),
+                            NULL),
+                        necro_ast_create_rhs(&ast.arena,
+                            necro_ast_create_var_with_ast_symbol(&ast.arena,
+                                necro_ast_symbol_create(&ast.arena, clash_y, necro_intern_string(&intern, "y"), necro_intern_string(&intern, "Test"), NULL),
+                                NECRO_VAR_VAR),
+                            NULL)),
+                    NULL
+                 ),
+                 NULL
+            );
+        // necro_ast_print(ast.root);
+
+        necro_infer_test_comparison("ApatsAssignment1", "x y = y\n", &intern, &ast);
+    }
+
+#if 0 // Still in progress
+    {
+        NecroIntern   intern = necro_intern_create();
+        NecroAstArena ast = necro_ast_arena_create(necro_intern_string(&intern, "Test"));
+        NecroSymbol   clash_y = necro_append_clash_suffix_to_name(&ast, &intern, "Test.y");
+        NecroSymbol   clash_y2 = necro_append_clash_suffix_to_name(&ast, &intern, "Test.y");
+
+        ast.root =
+            necro_ast_create_declaration_group_list_with_next(&ast.arena,
+                necro_ast_create_decl(&ast.arena,
+                    necro_ast_create_apats_assignment_with_ast_symbol(&ast.arena,
+                        // apat assignment var
+                        necro_ast_symbol_create(&ast.arena, necro_intern_string(&intern, "Test.x"), necro_intern_string(&intern, "x"), necro_intern_string(&intern, "Test"), NULL),
+                        // apat assignment apats
+                        necro_ast_create_apats(&ast.arena,
+                            necro_ast_create_var_with_ast_symbol(&ast.arena,
+                                necro_ast_symbol_create(&ast.arena, clash_y, necro_intern_string(&intern, "y"), necro_intern_string(&intern, "Test"), NULL),
+                                NECRO_VAR_DECLARATION),
+                            NULL),
+                        necro_ast_create_rhs(&ast.arena,
+                            // RHS expression
+                            necro_ast_create_var_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_y2, necro_intern_string(&intern, "y"), necro_intern_string(&intern, "Test"), NULL), NECRO_VAR_VAR),
+                            // RHS declarations
+                            necro_ast_create_decl(&ast.arena,
+                                necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena,
+                                    necro_ast_symbol_create(&ast.arena, clash_y2, necro_intern_string(&intern, "y"), necro_intern_string(&intern, "Test"), NULL), NULL,
+                                    necro_ast_create_rhs(&ast.arena,
+                                        necro_ast_create_var_with_ast_symbol(&ast.arena, necro_ast_symbol_create(&ast.arena, clash_y2, necro_intern_string(&intern, "y"), necro_intern_string(&intern, "Test"), NULL), NECRO_VAR_VAR), NULL)),
+                                NULL)
+                        )),
+                    NULL
+                ),
+                NULL
+            );
+
+#ifdef RENAME_TEST_VERBOSE
+        necro_ast_print(ast.root);
+#endif
+        necro_infer_test_comparison("ApatsAssignmentYs", "x y = y where y ~ 0 = y\n", &intern, &ast);
+    }
+#endif
 }

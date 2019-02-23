@@ -310,7 +310,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
         *ast = *info->group_lists;
         //-----------------------------------------
         // Pass 4, Set back pointers from DeclarationGroup to this DeclarationGroupList
-        curr = info->group_lists;
+        curr = ast;
         while (curr != NULL)
         {
             assert(curr->type == NECRO_AST_DECLARATION_GROUP_LIST);

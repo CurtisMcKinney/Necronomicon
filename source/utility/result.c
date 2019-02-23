@@ -365,7 +365,7 @@ NecroResult(NecroAstSymbol) necro_not_in_scope_error(NecroAstSymbol* ast_symbol,
     return necro_error_map(NecroAst, NecroAstSymbol, necro_default_ast_error(NECRO_RENAME_NOT_IN_SCOPE, ast_symbol, source_loc, end_loc));
 }
 
-inline NecroResult(NecroType) necro_default_type_error1(NECRO_RESULT_ERROR_TYPE error_type, NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+inline NecroResult(NecroType) necro_default_type_error1(NECRO_RESULT_ERROR_TYPE error_type, NecroAstSymbol* ast_symbol, const NecroType* type, const NecroType* macro_type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     necro_error_single_break_point();
     NecroResultError* error         = emalloc(sizeof(NecroResultError));
@@ -374,6 +374,7 @@ inline NecroResult(NecroType) necro_default_type_error1(NECRO_RESULT_ERROR_TYPE 
     {
         .ast_symbol = ast_symbol,
         .type       = type,
+        .macro_type = macro_type,
         .source_loc = source_loc,
         .end_loc    = end_loc,
     };
@@ -421,37 +422,37 @@ inline NecroResult(NecroType) necro_default_type_class_error(NECRO_RESULT_ERROR_
 ///////////////////////////////////////////////////////
 NecroResult(NecroType) necro_type_uninitialized_recursive_value_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_default_type_error1(NECRO_TYPE_UNINITIALIZED_RECURSIVE_VALUE, ast_symbol, type, source_loc, end_loc);
+    return necro_default_type_error1(NECRO_TYPE_UNINITIALIZED_RECURSIVE_VALUE, ast_symbol, type, NULL, source_loc, end_loc);
 }
 
 NecroResult(void) necro_type_non_recursive_initialized_value_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_error_map(NecroType, void, necro_default_type_error1(NECRO_TYPE_NON_RECURSIVE_INITIALIZED_VALUE, ast_symbol, type, source_loc, end_loc));
+    return necro_error_map(NecroType, void, necro_default_type_error1(NECRO_TYPE_NON_RECURSIVE_INITIALIZED_VALUE, ast_symbol, type, NULL, source_loc, end_loc));
 }
 
 NecroResult(NecroType) necro_type_polymorphic_pat_bind_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_default_type_error1(NECRO_TYPE_POLYMORPHIC_PAT_BIND, ast_symbol, type, source_loc, end_loc);
+    return necro_default_type_error1(NECRO_TYPE_POLYMORPHIC_PAT_BIND, ast_symbol, type, NULL, source_loc, end_loc);
 }
 
 NecroResult(void) necro_type_non_concrete_initialized_value_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_error_map(NecroType, void, necro_default_type_error1(NECRO_TYPE_NON_CONCRETE_INITIALIZED_VALUE, ast_symbol, type, source_loc, end_loc));
+    return necro_error_map(NecroType, void, necro_default_type_error1(NECRO_TYPE_NON_CONCRETE_INITIALIZED_VALUE, ast_symbol, type, NULL, source_loc, end_loc));
 }
 
 NecroResult(NecroType) necro_type_final_do_statement_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_default_type_error1(NECRO_TYPE_FINAL_DO_STATEMENT, ast_symbol, type, source_loc, end_loc);
+    return necro_default_type_error1(NECRO_TYPE_FINAL_DO_STATEMENT, ast_symbol, type, NULL, source_loc, end_loc);
 }
 
 NecroResult(NecroTypeClassContext) necro_type_not_a_class_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_error_map(NecroType, NecroTypeClassContext, necro_default_type_error1(NECRO_TYPE_NOT_A_CLASS, ast_symbol, type, source_loc, end_loc));
+    return necro_error_map(NecroType, NecroTypeClassContext, necro_default_type_error1(NECRO_TYPE_NOT_A_CLASS, ast_symbol, type, NULL, source_loc, end_loc));
 }
 
-NecroResult(NecroAst) necro_type_ambiguous_type_var_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+NecroResult(bool) necro_type_ambiguous_type_var_error(NecroAstSymbol* ast_symbol, const NecroType* type, const NecroType* macro_type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_error_map(NecroType, NecroAst, necro_default_type_error1(NECRO_TYPE_AMBIGUOUS_TYPE_VAR, ast_symbol, type, source_loc, end_loc));
+    return necro_error_map(NecroType, bool, necro_default_type_error1(NECRO_TYPE_AMBIGUOUS_TYPE_VAR, ast_symbol, type, macro_type, source_loc, end_loc));
 }
 
 ///////////////////////////////////////////////////////
@@ -613,6 +614,8 @@ void necro_print_range_pointers(const char* source_str, NecroSourceLoc source_lo
 
 void necro_print_line_at_source_loc(const char* source_str, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
+    if (source_loc.pos == NULL_LOC.pos || end_loc.pos == NULL_LOC.pos)
+        return;
     size_t line_start = source_loc.pos;
     for (line_start = source_loc.pos; line_start > 0 && source_str[line_start] != '\0' && source_str[line_start] != '\n'; --line_start);
     if (source_str[line_start] == '\n')
@@ -1062,6 +1065,27 @@ void necro_print_uninitialized_recursive_value_error(NecroResultError* error, co
     necro_print_default_error_format("Uninitialized Recursive Value", error->default_type_error_data1.source_loc, error->default_type_error_data1.end_loc, source_str, source_name, explanation);
 }
 
+void necro_print_non_concrete_initialized_value_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char*          explanation = "All recursive values must have concrete (Non-polymorphic) types";
+    const NecroSourceLoc source_loc  = error->default_type_error_data1.source_loc;
+    const NecroSourceLoc end_loc     = error->default_type_error_data1.end_loc;
+    necro_print_error_header("Polymorphic Recursive Value");
+    necro_print_line_at_source_loc(source_str, source_loc, end_loc);
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " %s\n", explanation);
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Found Type: ");
+    necro_type_fprint(stderr, error->default_type_error_data1.type);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "\n");
+    UNUSED(source_name);
+}
+
+void necro_print_non_recursive_initialized_value_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char* explanation = "Non-recursive values cannot not have an initializer since it would have no effect";
+    necro_print_default_error_format("Initialized Non-Recursive Value", error->default_type_error_data1.source_loc, error->default_type_error_data1.end_loc, source_str, source_name, explanation);
+}
+
 void necro_print_polymorphic_pat_bind_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "All pattern bindings must be monomorphic";
@@ -1238,7 +1262,7 @@ void necro_print_type_ambiguous_class_error(NecroResultError* error, const char*
     necro_print_error_header(error_name);
     necro_print_line_at_source_loc(source_str, source_loc, end_loc);
     fprintf(stderr, NECRO_ERR_LEFT_CHAR " Could not deduce '(%s %s)' from the context of this type signature\n", error->default_ast_error_data_2.ast_symbol1->source_name->str, error->default_ast_error_data_2.ast_symbol2->source_name->str);
-    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Perhaps you forgot to use the constrained type variable in the type signature?\n");
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Perhaps you forgot to use the class constrained type variable in the type signature?\n");
     fprintf(stderr, "\n");
     UNUSED(source_name);
 }
@@ -1337,7 +1361,45 @@ void necro_print_type_multiple_instance_declarations_error(NecroResultError* err
     UNUSED(source_name);
 }
 
+void necro_print_type_does_not_implment_super_class_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char*           error_name   = "Type Does Not Implement Super Class";
+    const NecroAstSymbol* data_symbol  = necro_type_find(error->default_type_class_error_data.type1)->con.con_symbol;
+    const NecroAstSymbol* class_symbol = necro_type_find(error->default_type_class_error_data.type2)->con.con_symbol;
+    const NecroAstSymbol* super_symbol = error->default_type_class_error_data.type_class_symbol;
+    const NecroSourceLoc  source_loc1  = error->default_type_class_error_data.source_loc;
+    const NecroSourceLoc  end_loc1     = error->default_type_class_error_data.end_loc;
+    necro_print_error_header(error_name);
+    necro_print_line_at_source_loc(source_str, source_loc1, end_loc1);
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " '%s' should implement class '%s', but does not.\n", data_symbol->source_name->str, super_symbol->source_name->str);
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " This is required because '%s' is a super class of '%s'\n", super_symbol->source_name->str, class_symbol->source_name->str);
+    fprintf(stderr, "\n");
+    UNUSED(source_name);
+}
 
+void necro_print_ambiguous_type_var(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char*           error_name   = "Ambiguous Type";
+    const NecroSourceLoc  source_loc1  = error->default_type_error_data1.source_loc;
+    const NecroSourceLoc  end_loc1     = error->default_type_error_data1.end_loc;
+    const NecroType*      type         = error->default_type_error_data1.type;
+    const NecroType*      macro_type   = error->default_type_error_data1.macro_type;
+    necro_print_error_header(error_name);
+    necro_print_line_at_source_loc(source_str, source_loc1, end_loc1);
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Could not infer a concrete type for the type variable: ");
+    necro_type_fprint(stderr, type);
+    fprintf(stderr, "\n");
+    // TODO: Figure out context printing!!!!!!!
+    if (type != macro_type)
+    {
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " In type: ");
+        necro_type_fprint(stderr, macro_type);
+        fprintf(stderr, "\n");
+    }
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Perhaps try adding an explicit type signature which supplies a concrete type.\n");
+    fprintf(stderr, "\n");
+    UNUSED(source_name);
+}
 
 // NOTE:
 // Basic assumption is that and error will be freed after it is printed.
@@ -1409,6 +1471,9 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_RENAME_NOT_IN_SCOPE:                             necro_print_not_in_scope_error(error, source_str, source_name); break;
 
     case NECRO_TYPE_UNINITIALIZED_RECURSIVE_VALUE:              necro_print_uninitialized_recursive_value_error(error, source_str, source_name); break;
+    case NECRO_TYPE_NON_CONCRETE_INITIALIZED_VALUE:             necro_print_non_concrete_initialized_value_error(error, source_str, source_name); break;
+    case NECRO_TYPE_NON_RECURSIVE_INITIALIZED_VALUE:            necro_print_non_recursive_initialized_value_error(error, source_str, source_name); break;
+
     case NECRO_TYPE_MISMATCHED_TYPE:                            necro_print_mismatched_type_error(error, source_str, source_name); break;
     case NECRO_TYPE_POLYMORPHIC_PAT_BIND:                       necro_print_polymorphic_pat_bind_error(error, source_str, source_name); break;
     case NECRO_TYPE_OCCURS:                                     necro_print_occurs_error(error, source_str, source_name); break;
@@ -1423,6 +1488,8 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_TYPE_NOT_AN_INSTANCE_OF:                         necro_print_type_is_not_an_instance_of_error(error, source_str, source_name); break;
     case NECRO_TYPE_MULTIPLE_CLASS_DECLARATIONS:                necro_print_type_multiple_class_declarations_error(error, source_str, source_name); break;
     case NECRO_TYPE_MULTIPLE_INSTANCE_DECLARATIONS:             necro_print_type_multiple_instance_declarations_error(error, source_str, source_name); break;
+    case NECRO_TYPE_DOES_NOT_IMPLEMENT_SUPER_CLASS:             necro_print_type_does_not_implment_super_class_error(error, source_str, source_name); break;
+    case NECRO_TYPE_AMBIGUOUS_TYPE_VAR:                         necro_print_ambiguous_type_var(error, source_str, source_name); break;
 
     case NECRO_KIND_MISMATCHED_KIND:                            necro_print_mismatched_kind_error(error, source_str, source_name); break;
 

@@ -102,7 +102,6 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
             print_white_space(depth * 2);
             printf(" ~\n");
             necro_ast_print_go(ast->simple_assignment.initializer, depth * 2);
-            // print_white_space(depth * 2);
         }
         necro_ast_print_go(ast->simple_assignment.rhs, depth + 1);
         break;
@@ -378,8 +377,6 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
             puts("where");
             necro_ast_print_go(ast->type_class_declaration.declarations, depth + 2);
         }
-        if (ast->type_class_declaration.dictionary_data_declaration != NULL)
-            necro_ast_print_go(ast->type_class_declaration.dictionary_data_declaration, depth);
         break;
 
     case NECRO_AST_TYPE_CLASS_INSTANCE:
@@ -398,8 +395,6 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
             puts("where");
             necro_ast_print_go(ast->type_class_declaration.declarations, depth + 2);
         }
-        if (ast->type_class_instance.dictionary_instance != NULL)
-            necro_ast_print_go(ast->type_class_instance.dictionary_instance, depth);
         break;
 
     case NECRO_AST_FUNCTION_TYPE:
@@ -479,26 +474,38 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         case NECRO_AST_CONSTANT_FLOAT:
         {
             NecroAst* from_ast               = necro_ast_create_var(arena, intern, "fromRational", NECRO_VAR_VAR);
+            from_ast->source_loc           = reified_ast->source_loc;
+            from_ast->end_loc              = reified_ast->end_loc;
             NecroAst* new_ast                = necro_paged_arena_alloc(arena, sizeof(NecroAst));
             *new_ast                         = *reified_ast;
             new_ast->constant.double_literal = ast->constant.double_literal;
             new_ast->constant.type           = ast->constant.type;
             new_ast->constant.pat_from_ast   = NULL;
             new_ast->constant.pat_eq_ast     = NULL;
+            new_ast->source_loc              = reified_ast->source_loc;
+            new_ast->end_loc                 = reified_ast->end_loc;
             reified_ast                      = necro_ast_create_fexpr(arena, from_ast, new_ast);
+            reified_ast->source_loc          = reified_ast->source_loc;
+            reified_ast->end_loc             = reified_ast->end_loc;
             break;
         }
 
         case NECRO_AST_CONSTANT_INTEGER:
         {
             NecroAst* from_ast             = necro_ast_create_var(arena, intern, "fromInt", NECRO_VAR_VAR);
+            from_ast->source_loc           = reified_ast->source_loc;
+            from_ast->end_loc              = reified_ast->end_loc;
             NecroAst* new_ast              = necro_paged_arena_alloc(arena, sizeof(NecroAst));
             *new_ast                       = *reified_ast;
             new_ast->constant.int_literal  = ast->constant.int_literal;
             new_ast->constant.type         = ast->constant.type;
             new_ast->constant.pat_from_ast = NULL;
             new_ast->constant.pat_eq_ast   = NULL;
+            new_ast->source_loc            = reified_ast->source_loc;
+            new_ast->end_loc               = reified_ast->end_loc;
             reified_ast                    = necro_ast_create_fexpr(arena, from_ast, new_ast);
+            reified_ast->source_loc        = reified_ast->source_loc;
+            reified_ast->end_loc           = reified_ast->end_loc;
             break;
         }
 
@@ -724,7 +731,6 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         reified_ast->type_class_declaration.tycls                       = necro_reify_go(parse_ast_arena, ast->type_class_declaration.tycls, arena, intern);
         reified_ast->type_class_declaration.tyvar                       = necro_reify_go(parse_ast_arena, ast->type_class_declaration.tyvar, arena, intern);
         reified_ast->type_class_declaration.declarations                = necro_reify_go(parse_ast_arena, ast->type_class_declaration.declarations, arena, intern);
-        reified_ast->type_class_declaration.dictionary_data_declaration = NULL;
         reified_ast->type_class_declaration.declaration_group           = NULL;
         reified_ast->type_class_declaration.ast_symbol                  = NULL;
         break;
@@ -733,7 +739,6 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         reified_ast->type_class_instance.qtycls              = necro_reify_go(parse_ast_arena, ast->type_class_instance.qtycls, arena, intern);
         reified_ast->type_class_instance.inst                = necro_reify_go(parse_ast_arena, ast->type_class_instance.inst, arena, intern);
         reified_ast->type_class_instance.declarations        = necro_reify_go(parse_ast_arena, ast->type_class_instance.declarations, arena, intern);
-        reified_ast->type_class_instance.dictionary_instance = NULL;
         reified_ast->type_class_instance.declaration_group   = NULL;
         reified_ast->type_class_instance.ast_symbol          = NULL;
         break;
@@ -1027,7 +1032,6 @@ NecroAst* necro_ast_create_type_class(NecroPagedArena* arena, NecroIntern* inter
     ast->type_class_declaration.context                     = context_ast;
     ast->type_class_declaration.declarations                = declarations_ast;
     ast->type_class_declaration.declaration_group           = NULL;
-    ast->type_class_declaration.dictionary_data_declaration = NULL;
     ast->type_class_declaration.ast_symbol                  = NULL;
     return ast;
 }
@@ -1040,7 +1044,6 @@ NecroAst* necro_ast_create_type_class_with_ast_symbols(NecroPagedArena* arena, N
     ast->type_class_declaration.context = context_ast;
     ast->type_class_declaration.declarations = declarations_ast;
     ast->type_class_declaration.declaration_group = NULL;
-    ast->type_class_declaration.dictionary_data_declaration = NULL;
     ast->type_class_declaration.ast_symbol = NULL;
     return ast;
 }
@@ -1053,7 +1056,6 @@ NecroAst* necro_ast_create_type_class_full(NecroPagedArena* arena, NecroAstSymbo
     ast->type_class_declaration.context                     = context_ast;
     ast->type_class_declaration.declarations                = declarations_ast;
     ast->type_class_declaration.declaration_group           = NULL;
-    ast->type_class_declaration.dictionary_data_declaration = NULL;
     ast->type_class_declaration.ast_symbol                  = ast_symbol;
     return ast;
 }
@@ -1065,7 +1067,6 @@ NecroAst* necro_ast_create_instance(NecroPagedArena* arena, NecroIntern* intern,
     ast->type_class_instance.inst                 = inst_ast;
     ast->type_class_instance.context              = context_ast;
     ast->type_class_instance.declarations         = declarations_ast;
-    ast->type_class_instance.dictionary_instance  = NULL;
     ast->type_class_declaration.declaration_group = NULL;
     ast->type_class_instance.ast_symbol           = NULL;
     return ast;
@@ -1078,7 +1079,6 @@ NecroAst* necro_ast_create_instance_with_symbol(NecroPagedArena* arena, NecroAst
     ast->type_class_instance.inst = inst_ast;
     ast->type_class_instance.context = context_ast;
     ast->type_class_instance.declarations = declarations_ast;
-    ast->type_class_instance.dictionary_instance = NULL;
     ast->type_class_declaration.declaration_group = NULL;
     ast->type_class_instance.ast_symbol = NULL;
     return ast;
@@ -1092,7 +1092,6 @@ NecroAst* necro_ast_create_instance_full(NecroPagedArena* arena, NecroAstSymbol*
     ast->type_class_instance.inst                 = inst_ast;
     ast->type_class_instance.context              = context_ast;
     ast->type_class_instance.declarations         = declarations_ast;
-    ast->type_class_instance.dictionary_instance  = NULL;
     ast->type_class_declaration.declaration_group = NULL;
     return ast;
 }
@@ -1107,7 +1106,7 @@ NecroAst* necro_ast_create_top_decl(NecroPagedArena* arena, NecroAst* top_level_
 
 NecroAst* necro_ast_create_decl(NecroPagedArena* arena, NecroAst* declaration, NecroAst* next)
 {
-    assert(declaration != NULL);
+    // assert(declaration != NULL);
     NecroAst* ast                           = necro_ast_alloc(arena, NECRO_AST_DECL);
     ast->declaration.declaration_impl       = declaration;
     ast->declaration.next_declaration       = next;
@@ -2070,9 +2069,13 @@ NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_g
             necro_ast_deep_copy_go(arena, declaration_group, ast->if_then_else.then_expr),
             necro_ast_deep_copy_go(arena, declaration_group, ast->if_then_else.else_expr)));
     case NECRO_AST_SIMPLE_ASSIGNMENT:
-        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_simple_assignment_with_ast_symbol(arena, ast->simple_assignment.ast_symbol,
+    {
+        NecroAst* copy = necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_simple_assignment_with_ast_symbol(arena, ast->simple_assignment.ast_symbol,
             necro_ast_deep_copy_go(arena, declaration_group, ast->simple_assignment.initializer),
             necro_ast_deep_copy_go(arena, declaration_group, ast->simple_assignment.rhs)));
+        copy->simple_assignment.is_recursive = ast->simple_assignment.is_recursive;
+        return copy;
+    }
     case NECRO_AST_APATS_ASSIGNMENT:
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_apats_assignment_with_ast_symbol(arena, ast->apats_assignment.ast_symbol,
             necro_ast_deep_copy_go(arena, declaration_group, ast->apats_assignment.apats),

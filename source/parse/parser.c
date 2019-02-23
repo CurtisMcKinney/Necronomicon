@@ -1620,12 +1620,20 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_initializer(NecroParser* parser)
 
     // Constant Con
     NecroParseAstLocalPtr local_ptr = necro_try(NecroParseAstLocalPtr, necro_parse_const_con(parser));
-    if (local_ptr == null_local_ptr)
+    if (local_ptr != null_local_ptr)
+        return ok_NecroParseAstLocalPtr(local_ptr);
+
+    // default
+    if (necro_parse_peek_token_type(parser) == NECRO_LEX_IDENTIFIER && necro_parse_peek_token(parser)->symbol == necro_intern_string(parser->intern, "default"))
     {
-        necro_parse_restore(parser, snapshot);
-        return ok_NecroParseAstLocalPtr(null_local_ptr);
+        local_ptr = necro_parse_variable(parser, NECRO_VAR_VAR);
+        if (local_ptr != null_local_ptr)
+            return ok_NecroParseAstLocalPtr(local_ptr);
     }
-    return ok_NecroParseAstLocalPtr(local_ptr);
+
+    // Not an initializer
+    necro_parse_restore(parser, snapshot);
+    return ok_NecroParseAstLocalPtr(null_local_ptr);
 }
 
 ///////////////////////////////////////////////////////

@@ -57,6 +57,7 @@ typedef struct NecroBase
     NecroAstSymbol* functor_type_class;
     NecroAstSymbol* applicative_type_class;
     NecroAstSymbol* monad_type_class;
+    NecroAstSymbol* default_type_class;
     NecroAstSymbol* event_type;
     NecroAstSymbol* pattern_type;
     NecroAstSymbol* closure_type;

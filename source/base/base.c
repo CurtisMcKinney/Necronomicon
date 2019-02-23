@@ -63,6 +63,7 @@ NecroBase necro_base_create(NecroIntern* intern)
         .functor_type_class     = NULL,
         .applicative_type_class = NULL,
         .monad_type_class       = NULL,
+        .default_type_class     = NULL,
         .event_type             = NULL,
         .pattern_type           = NULL,
         .closure_type           = NULL,
@@ -296,6 +297,23 @@ void necro_base_create_prim_num_instances(NecroPagedArena* arena, NecroAst* top,
                 necro_ast_create_decl(arena, necro_ast_create_prim_bin_op_method_ast(arena, intern, "lte"),
                     necro_ast_create_decl(arena, necro_ast_create_prim_bin_op_method_ast(arena, intern, "gte"), NULL))));
     necro_append_top(arena, top, necro_ast_create_instance(arena, intern, "Ord", necro_base_make_num_con(arena, intern, data_type_name, is_poly), necro_base_make_num_context(arena, intern, "Ord", is_poly), ord_method_list));
+
+
+    //--------------
+    // Default
+    if (is_num)
+    {
+        NecroAst* default_method_ast  =
+            necro_ast_create_simple_assignment(arena, intern, "default",
+                necro_ast_create_rhs(arena,
+                    necro_ast_create_fexpr(arena,
+                        necro_ast_create_var(arena, intern, "fromInt", NECRO_VAR_VAR),
+                        necro_ast_create_constant(arena, (NecroParseAstConstant) { .type = NECRO_AST_CONSTANT_INTEGER, .int_literal = 0 })),
+                    NULL
+                ));
+        NecroAst* default_method_list = necro_ast_create_decl(arena, default_method_ast, NULL);
+        necro_append_top(arena, top, necro_ast_create_instance(arena, intern, "Default", necro_base_make_num_con(arena, intern, data_type_name, is_poly), necro_base_make_num_context(arena, intern, "Num", is_poly), default_method_list));
+    }
 }
 
 NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_symtable)
@@ -325,6 +343,25 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     NecroAst* unit_constructor       = necro_ast_create_data_con(arena, intern, "()", NULL);
     NecroAst* unit_constructor_list  = necro_ast_create_list(arena, unit_constructor, NULL);
     necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, unit_s_type, unit_constructor_list));
+
+    {
+        // TODO: Make proper instance methods for (), not relying on _primUndefined
+        //--------------
+        // Eq ()
+        NecroAst* eq_method_list =
+            necro_ast_create_decl(arena, necro_ast_create_prim_bin_op_method_ast(arena, intern, "eq"),
+                necro_ast_create_decl(arena, necro_ast_create_prim_bin_op_method_ast(arena, intern, "neq"), NULL));
+        necro_append_top(arena, top, necro_ast_create_instance(arena, intern, "Eq", necro_base_make_num_con(arena, intern, "()", false), necro_base_make_num_context(arena, intern, "Eq", false), eq_method_list));
+
+        //--------------
+        // Ord ()
+        NecroAst* ord_method_list =
+            necro_ast_create_decl(arena, necro_ast_create_prim_bin_op_method_ast(arena, intern, "lt"),
+                necro_ast_create_decl(arena, necro_ast_create_prim_bin_op_method_ast(arena, intern, "gt"),
+                    necro_ast_create_decl(arena, necro_ast_create_prim_bin_op_method_ast(arena, intern, "lte"),
+                        necro_ast_create_decl(arena, necro_ast_create_prim_bin_op_method_ast(arena, intern, "gte"), NULL))));
+        necro_append_top(arena, top, necro_ast_create_instance(arena, intern, "Ord", necro_base_make_num_con(arena, intern, "()", false), necro_base_make_num_context(arena, intern, "Ord", false), ord_method_list));
+    }
 
     // []
     NecroAst* list_s_type            = necro_ast_create_simple_type(arena, intern, "[]", necro_ast_create_var_list(arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
@@ -443,7 +480,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     NecroAst* recip_method_sig  = necro_base_create_class_unary_op_sig(arena, intern, "recip");
     NecroAst* from_rational_sig =
         necro_ast_create_fn_type_sig(arena, intern, "fromRational", NULL, necro_ast_create_type_fn(arena,
-            necro_ast_create_conid(arena, intern, "Rational", NECRO_CON_TYPE_VAR),
+            necro_ast_create_conid(arena, intern, "Float", NECRO_CON_TYPE_VAR),
             necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)), NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
     NecroAst* fractional_method_list =
         necro_ast_create_decl(arena, div_method_sig,
@@ -451,6 +488,12 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
                 necro_ast_create_decl(arena, from_rational_sig, NULL)));
     NecroAst* fractional_class_ast = necro_ast_create_type_class(arena, intern, "Fractional", "a", necro_ast_create_context(arena, intern, "Num", "a", NULL), fractional_method_list);
     necro_append_top(arena, top, fractional_class_ast);
+
+    // TODO: Default Type Class
+    NecroAst* default_type_sig    = necro_ast_create_fn_type_sig(arena, intern, "default", NULL, necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
+    NecroAst* default_method_list = necro_ast_create_decl(arena, default_type_sig, NULL);
+    NecroAst* default_class_ast   = necro_ast_create_type_class(arena, intern, "Default", "a", NULL, default_method_list);
+    necro_append_top(arena, top, default_class_ast);
 
     // Num instances
     necro_base_create_prim_num_instances(arena, top, intern, "Int", false, true, false);
@@ -879,6 +922,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.functor_type_class     = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Functor"));
     base.applicative_type_class = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Applicative"));
     base.monad_type_class       = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Monad"));
+    base.default_type_class     = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Default"));
     base.event_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Event"));
     base.pattern_type           = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Pattern"));
     base.closure_type           = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "_Closure"));
@@ -898,12 +942,13 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 
     // Compile, part II
     unwrap(void, necro_infer(info, intern, scoped_symtable, &base, &base.ast));
+    unwrap(void, necro_type_class_translate(info, intern, scoped_symtable, &base, &base.ast));
 
     // Finish
     return base;
 }
 
-#define NECRO_BASE_TEST_VERBOSE 0
+#define NECRO_BASE_TEST_VERBOSE 1
 
 void necro_base_test()
 {

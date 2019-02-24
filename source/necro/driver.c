@@ -31,7 +31,7 @@
 #include "codegen/codegen_llvm.h"
 #include "core/core_pretty_print.h"
 #include "utility/unicode_properties.h"
-#include "type/type_class_translate.h"
+#include "type/monomorphize.h"
 
 #define NECRO_VERBOSITY 1
 
@@ -48,6 +48,7 @@ const char* necro_compile_phase_string(NECRO_PHASE phase)
     case NECRO_PHASE_RENAME:               return "Rename";
     case NECRO_PHASE_DEPENDENCY_ANALYSIS:  return "DependencyAnalysis";
     case NECRO_PHASE_INFER:                return "Infer";
+    case NECRO_PHASE_MONOMORPHIZE:         return "Monomorphize";
     case NECRO_PHASE_TRANSFORM_TO_CORE:    return "Core";
     case NECRO_PHASE_LAMBDA_LIFT:          return "LambdaLift";
     case NECRO_PHASE_CLOSURE_CONVERSION:   return "ClosureConversion";
@@ -158,11 +159,11 @@ NecroResult(void) necro_compile_go(
         return ok_void();
 
     //--------------------
-    // Type Class Translate
+    // Monomorphize
     //--------------------
-    necro_compile_begin_phase(info, NECRO_PHASE_TYPE_CLASS_TRANSLATE);
-    necro_try(void, necro_type_class_translate(info, intern, scoped_symtable, base, ast));
-    if (necro_compile_end_phase(info, NECRO_PHASE_TYPE_CLASS_TRANSLATE))
+    necro_compile_begin_phase(info, NECRO_PHASE_MONOMORPHIZE);
+    necro_try(void, necro_monomorphize(info, intern, scoped_symtable, base, ast));
+    if (necro_compile_end_phase(info, NECRO_PHASE_MONOMORPHIZE))
         return ok_void();
 
     //=====================================================
@@ -369,7 +370,7 @@ void necro_test(NECRO_TEST test)
     case NECRO_TEST_INTERN:               necro_intern_test();               break;
     case NECRO_TEST_RENAME:               necro_rename_test();               break;
     case NECRO_TEST_INFER:                necro_test_infer();                break;
-    case NECRO_TEST_TYPE_CLASS_TRANSLATE: necro_type_class_translate_test(); break;
+    case NECRO_TEST_MONOMORPHIZE: necro_monomorphize_test(); break;
     case NECRO_TEST_ARENA_CHAIN_TABLE:    necro_arena_chain_table_test();    break;
     case NECRO_TEST_BASE:                 necro_base_test();                 break;
     case NECRO_TEST_ALL:
@@ -380,7 +381,7 @@ void necro_test(NECRO_TEST test)
         necro_rename_test();
         necro_base_test();
         necro_test_infer();
-        necro_type_class_translate_test();
+        necro_monomorphize_test();
         // necro_arena_chain_table_test();
         break;
     default: break;

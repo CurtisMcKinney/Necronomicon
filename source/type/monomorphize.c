@@ -5,13 +5,35 @@
 
 #include <stdio.h>
 #include <inttypes.h>
-#include "type_class_translate.h"
+#include "monomorphize.h"
 #include "base.h"
 #include "infer.h"
 #include "result.h"
 
 /*
     Notes:
+        * Crazy thoughts on Region based memory management:
+            - Regions are large constant sized blocks of memory which are statically determined at compile time.
+            - Regions are formed from all the memory required to form recursive values.
+            - A region is allocated in one giant chunk and deallocated in one giant chunk.
+            - To determine the size of the region we should put some (perhaps extreme) restrictions on the language:
+                * No recursive functions
+                * No recursive data types.
+                * The language requires monomorphization.
+                * Futhark type function restrictions (Can't be returned from an if statement, etc).
+                * Recursive values must be statically initialized with a statically known initializer value.
+            - Recursive value use cases:
+                * Collections of objects (with list, etc),
+                    Solution: use fixed size collections such as tuples or Arrays.
+            - Recursive function use cases:
+                * Functional equivalant of for-loop type construct (i.e mapping/folding over a list),
+                    Solution: use regular values (with feedback for state is necessary) with (take/demand/?) function.
+            - With the given restrictions all required memory for a region is statically known.
+            - The runtime will then require:
+                * A statically sized Region back buffer, to read from.
+                * A statically sized Region front buffer, to write to.
+                * A simple bump allocating temp buffer.
+
         * Default type class. Use this for polymorphic recursion
         * Given the above we could do an even more drastic memory scheme, such as large scale Region based memory management.
         * Rename pass to necro_type_specialize ???
@@ -33,7 +55,7 @@
 */
 
 ///////////////////////////////////////////////////////
-// NecroTypeClassTranslate
+// NecroMonomorphize
 ///////////////////////////////////////////////////////
 
 typedef struct
@@ -46,11 +68,11 @@ typedef struct
     NecroSnapshotArena   snapshot_arena;
     char*                suffix_buffer;
     size_t               suffix_size;
-} NecroTypeClassTranslate;
+} NecroMonomorphize;
 
-NecroTypeClassTranslate necro_type_class_translate_empty()
+NecroMonomorphize necro_monomorphize_empty()
 {
-    NecroTypeClassTranslate type_class_translate = (NecroTypeClassTranslate)
+    NecroMonomorphize monomorphize = (NecroMonomorphize)
     {
         .intern          = NULL,
         .arena           = NULL,
@@ -59,12 +81,12 @@ NecroTypeClassTranslate necro_type_class_translate_empty()
         .base            = NULL,
         .ast_arena       = NULL,
     };
-    return type_class_translate;
+    return monomorphize;
 }
 
-NecroTypeClassTranslate necro_type_class_translate_create(NecroIntern* intern, NecroScopedSymTable* scoped_symtable, NecroBase* base, NecroAstArena* ast_arena)
+NecroMonomorphize necro_monomorphize_create(NecroIntern* intern, NecroScopedSymTable* scoped_symtable, NecroBase* base, NecroAstArena* ast_arena)
 {
-    NecroTypeClassTranslate type_class_translate = (NecroTypeClassTranslate)
+    NecroMonomorphize monomorphize = (NecroMonomorphize)
     {
         .intern          = intern,
         .arena           = &ast_arena->arena,
@@ -75,32 +97,32 @@ NecroTypeClassTranslate necro_type_class_translate_create(NecroIntern* intern, N
         .suffix_buffer   = malloc(256 * sizeof(char)),
         .suffix_size     = 256,
     };
-    return type_class_translate;
+    return monomorphize;
 }
 
-void necro_type_class_translate_destroy(NecroTypeClassTranslate* type_class_translate)
+void necro_monomorphize_destroy(NecroMonomorphize* monomorphize)
 {
-    assert(type_class_translate != NULL);
-    necro_snapshot_arena_destroy(&type_class_translate->snapshot_arena);
-    free(type_class_translate->suffix_buffer);
-    *type_class_translate = necro_type_class_translate_empty();
+    assert(monomorphize != NULL);
+    necro_snapshot_arena_destroy(&monomorphize->snapshot_arena);
+    free(monomorphize->suffix_buffer);
+    *monomorphize = necro_monomorphize_empty();
 }
 
 ///////////////////////////////////////////////////////
 // Forward Declarations
 ///////////////////////////////////////////////////////
-NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_class_translate, NecroAst* ast, NecroInstSub* subs);
-NecroAstSymbol*   necro_ast_specialize(NecroTypeClassTranslate* type_class_translate, NecroAstSymbol* ast_symbol, NecroInstSub* subs);
+NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAst* ast, NecroInstSub* subs);
+NecroAstSymbol*   necro_ast_specialize(NecroMonomorphize* monomorphize, NecroAstSymbol* ast_symbol, NecroInstSub* subs);
 
 
-NecroResult(void) necro_type_class_translate(NecroCompileInfo info, NecroIntern* intern, NecroScopedSymTable* scoped_symtable, NecroBase* base, NecroAstArena* ast_arena)
+NecroResult(void) necro_monomorphize(NecroCompileInfo info, NecroIntern* intern, NecroScopedSymTable* scoped_symtable, NecroBase* base, NecroAstArena* ast_arena)
 {
-    NecroTypeClassTranslate type_class_translate = necro_type_class_translate_create(intern, scoped_symtable, base, ast_arena);
-    NecroResult(void)       result               = necro_type_class_translate_go(&type_class_translate, ast_arena->root, NULL);
-    necro_type_class_translate_destroy(&type_class_translate);
+    NecroMonomorphize monomorphize = necro_monomorphize_create(intern, scoped_symtable, base, ast_arena);
+    NecroResult(void) result       = necro_monomorphize_go(&monomorphize, ast_arena->root, NULL);
+    necro_monomorphize_destroy(&monomorphize);
     if (result.type == NECRO_RESULT_OK)
     {
-        if (info.compilation_phase == NECRO_PHASE_TYPE_CLASS_TRANSLATE && info.verbosity > 0)
+        if (info.compilation_phase == NECRO_PHASE_MONOMORPHIZE && info.verbosity > 0)
             necro_ast_arena_print(ast_arena);
         return ok_void();
     }
@@ -121,7 +143,7 @@ size_t necro_type_mangle_subs_recursive(char* suffix_buffer, size_t offset, cons
     return offset;
 }
 
-NecroSymbol necro_create_suffix_from_subs(NecroTypeClassTranslate* type_class_translate, NecroSymbol prefix, const NecroInstSub* subs)
+NecroSymbol necro_create_suffix_from_subs(NecroMonomorphize* monomorphize, NecroSymbol prefix, const NecroInstSub* subs)
 {
     // Count length
     const size_t        prefix_length = strlen(prefix->str);
@@ -136,12 +158,12 @@ NecroSymbol necro_create_suffix_from_subs(NecroTypeClassTranslate* type_class_tr
     }
 
     // Resize buffer
-    if (type_class_translate->suffix_size < length)
+    if (monomorphize->suffix_size < length)
     {
-        free(type_class_translate->suffix_buffer);
-        while (type_class_translate->suffix_size < length)
-            type_class_translate->suffix_size *= 2;
-        type_class_translate->suffix_buffer = malloc(type_class_translate->suffix_size * sizeof(char));
+        free(monomorphize->suffix_buffer);
+        while (monomorphize->suffix_size < length)
+            monomorphize->suffix_size *= 2;
+        monomorphize->suffix_buffer = malloc(monomorphize->suffix_size * sizeof(char));
     }
 
     // Write type strings
@@ -149,22 +171,22 @@ NecroSymbol necro_create_suffix_from_subs(NecroTypeClassTranslate* type_class_tr
     if (prefix->str[prefix_length - 1] == '>')
     {
         // Name has already been overloaded for a type class, instead append to type list.
-        offset = sprintf(type_class_translate->suffix_buffer, "%s", prefix->str);
-        type_class_translate->suffix_buffer[prefix_length - 1] = ',';
+        offset = sprintf(monomorphize->suffix_buffer, "%s", prefix->str);
+        monomorphize->suffix_buffer[prefix_length - 1] = ',';
         length -= 1;
     }
     else
     {
-        offset = sprintf(type_class_translate->suffix_buffer, "%s<", prefix->str);
+        offset = sprintf(monomorphize->suffix_buffer, "%s<", prefix->str);
     }
-    offset        = necro_type_mangle_subs_recursive (type_class_translate->suffix_buffer, offset, subs);
-    offset       += sprintf(type_class_translate->suffix_buffer + offset, ">");
+    offset        = necro_type_mangle_subs_recursive (monomorphize->suffix_buffer, offset, subs);
+    offset       += sprintf(monomorphize->suffix_buffer + offset, ">");
     assert(offset == length);
 
-    return necro_intern_string(type_class_translate->intern, type_class_translate->suffix_buffer);
+    return necro_intern_string(monomorphize->intern, monomorphize->suffix_buffer);
 }
 
-NecroInstSub* necro_type_create_instance_subs(NecroTypeClassTranslate* type_class_translate, NecroTypeClass* type_class, NecroInstSub* subs)
+NecroInstSub* necro_type_create_instance_subs(NecroMonomorphize* monomorphize, NecroTypeClass* type_class, NecroInstSub* subs)
 {
     // Find Sub
     NecroInstSub* curr_sub = subs;
@@ -183,9 +205,9 @@ NecroInstSub* necro_type_create_instance_subs(NecroTypeClassTranslate* type_clas
                     // Create InstanceSubs
                     NecroTypeClassInstance* instance      = instance_list->data;
                     NecroInstSub*           instance_subs = NULL;
-                    NecroType*              instance_type = unwrap(NecroType, necro_type_instantiate_with_subs(type_class_translate->arena, type_class_translate->base, instance->data_type, NULL, &instance_subs));
-                    unwrap(NecroType, necro_type_unify(type_class_translate->arena, type_class_translate->base, instance_type, sub_type, NULL));
-                    NecroInstSub*           new_subs      = necro_type_filter_and_deep_copy_subs(type_class_translate->arena, subs, type_class->type_class_name, instance_type);
+                    NecroType*              instance_type = unwrap(NecroType, necro_type_instantiate_with_subs(monomorphize->arena, monomorphize->base, instance->data_type, NULL, &instance_subs));
+                    unwrap(NecroType, necro_type_unify(monomorphize->arena, monomorphize->base, instance_type, sub_type, NULL));
+                    NecroInstSub*           new_subs      = necro_type_filter_and_deep_copy_subs(monomorphize->arena, subs, type_class->type_class_name, instance_type);
                     new_subs                              = necro_type_union_subs(new_subs, instance_subs);
                     if (new_subs != NULL)
                     {
@@ -195,12 +217,12 @@ NecroInstSub* necro_type_create_instance_subs(NecroTypeClassTranslate* type_clas
                             curr_new_sub = curr_new_sub->next;
                         }
                         curr_new_sub->next = instance_subs;
-                        new_subs = necro_type_filter_and_deep_copy_subs(type_class_translate->arena, new_subs, type_class->type_var, instance_type);
+                        new_subs = necro_type_filter_and_deep_copy_subs(monomorphize->arena, new_subs, type_class->type_var, instance_type);
                         return new_subs;
                     }
                     else
                     {
-                        instance_subs = necro_type_filter_and_deep_copy_subs(type_class_translate->arena, instance_subs, type_class->type_class_name, instance_type);
+                        instance_subs = necro_type_filter_and_deep_copy_subs(monomorphize->arena, instance_subs, type_class->type_class_name, instance_type);
                         return instance_subs;
                     }
                 }
@@ -214,28 +236,28 @@ NecroInstSub* necro_type_create_instance_subs(NecroTypeClassTranslate* type_clas
     return NULL;
 }
 
-NecroAstSymbol* necro_ast_specialize_method(NecroTypeClassTranslate* type_class_translate, NecroAstSymbol* ast_symbol, NecroInstSub* subs)
+NecroAstSymbol* necro_ast_specialize_method(NecroMonomorphize* monomorphize, NecroAstSymbol* ast_symbol, NecroInstSub* subs)
 {
-    assert(type_class_translate != NULL);
+    assert(monomorphize != NULL);
     assert(ast_symbol != NULL);
     assert(subs != NULL);
 
-    NecroTypeClass* type_class        = ast_symbol->method_type_class;
-    NecroAstSymbol* type_class_var    = type_class->type_var;
-    NecroInstSub*   curr_sub          = subs;
+    NecroTypeClass* type_class     = ast_symbol->method_type_class;
+    NecroAstSymbol* type_class_var = type_class->type_var;
+    NecroInstSub*   curr_sub       = subs;
     while (curr_sub != NULL)
     {
         if (curr_sub->var_to_replace->name == type_class_var->name)
         {
             NecroType* sub_con = necro_type_find(curr_sub->new_name);
             assert(sub_con->type == NECRO_TYPE_CON);
-            NecroSymbol     instance_method_name       = necro_intern_create_type_class_instance_symbol(type_class_translate->intern, ast_symbol->source_name, sub_con->con.con_symbol->source_name);
-            NecroAstSymbol* instance_method_ast_symbol = necro_scope_find_ast_symbol(type_class_translate->scoped_symtable->top_scope, instance_method_name);
+            NecroSymbol     instance_method_name       = necro_intern_create_type_class_instance_symbol(monomorphize->intern, ast_symbol->source_name, sub_con->con.con_symbol->source_name);
+            NecroAstSymbol* instance_method_ast_symbol = necro_scope_find_ast_symbol(monomorphize->scoped_symtable->top_scope, instance_method_name);
             assert(instance_method_ast_symbol != NULL);
             if (necro_type_is_polymorphic(instance_method_ast_symbol->type))
             {
-                NecroInstSub* instance_subs = necro_type_create_instance_subs(type_class_translate, type_class, subs);
-                return necro_ast_specialize(type_class_translate, instance_method_ast_symbol, instance_subs);
+                NecroInstSub* instance_subs = necro_type_create_instance_subs(monomorphize, type_class, subs);
+                return necro_ast_specialize(monomorphize, instance_method_ast_symbol, instance_subs);
             }
             else
             {
@@ -248,9 +270,9 @@ NecroAstSymbol* necro_ast_specialize_method(NecroTypeClassTranslate* type_class_
     return NULL;
 }
 
-NecroAstSymbol* necro_ast_specialize(NecroTypeClassTranslate* type_class_translate, NecroAstSymbol* ast_symbol, NecroInstSub* subs)
+NecroAstSymbol* necro_ast_specialize(NecroMonomorphize* monomorphize, NecroAstSymbol* ast_symbol, NecroInstSub* subs)
 {
-    assert(type_class_translate != NULL);
+    assert(monomorphize != NULL);
     assert(ast_symbol != NULL);
     assert(ast_symbol->ast != NULL);
     assert(ast_symbol->ast->scope != NULL);
@@ -258,12 +280,12 @@ NecroAstSymbol* necro_ast_specialize(NecroTypeClassTranslate* type_class_transla
 
     // TODO: Assert sub size == for_all size
     if (ast_symbol->method_type_class)
-        return necro_ast_specialize_method(type_class_translate, ast_symbol, subs);
+        return necro_ast_specialize_method(monomorphize, ast_symbol, subs);
 
     //--------------------
     // Find specialized ast
     //--------------------
-    NecroSymbol     specialized_name       = necro_create_suffix_from_subs(type_class_translate, ast_symbol->source_name, subs);
+    NecroSymbol     specialized_name       = necro_create_suffix_from_subs(monomorphize, ast_symbol->source_name, subs);
     NecroScope*     scope                  = ast_symbol->ast->scope;
     NecroAstSymbol* specialized_ast_symbol = necro_scope_find_ast_symbol(scope, specialized_name);
     if (specialized_ast_symbol != NULL)
@@ -279,7 +301,7 @@ NecroAstSymbol* necro_ast_specialize(NecroTypeClassTranslate* type_class_transla
 
     assert(declaration_group != NULL);
     assert(declaration_group->type == NECRO_AST_DECL);
-    NecroAst* new_declaration                           = necro_ast_create_decl(type_class_translate->arena, ast_symbol->ast, declaration_group->declaration.next_declaration);
+    NecroAst* new_declaration                           = necro_ast_create_decl(monomorphize->arena, ast_symbol->ast, declaration_group->declaration.next_declaration);
     declaration_group->declaration.next_declaration     = new_declaration;
     new_declaration->declaration.declaration_group_list = declaration_group->declaration.declaration_group_list;
     new_declaration->declaration.declaration_impl       = NULL; // Removing dummy argument
@@ -287,9 +309,9 @@ NecroAstSymbol* necro_ast_specialize(NecroTypeClassTranslate* type_class_transla
     //--------------------
     // Deep Copy Ast
     //--------------------
-    specialized_ast_symbol                        = necro_ast_symbol_create(type_class_translate->arena, specialized_name, specialized_name, type_class_translate->ast_arena->module_name, NULL);
+    specialized_ast_symbol                        = necro_ast_symbol_create(monomorphize->arena, specialized_name, specialized_name, monomorphize->ast_arena->module_name, NULL);
     specialized_ast_symbol->declaration_group     = new_declaration;
-    specialized_ast_symbol->ast                   = necro_ast_deep_copy_go(type_class_translate->arena, new_declaration, ast_symbol->ast);
+    specialized_ast_symbol->ast                   = necro_ast_deep_copy_go(monomorphize->arena, new_declaration, ast_symbol->ast);
     new_declaration->declaration.declaration_impl = specialized_ast_symbol->ast;
     assert(ast_symbol->ast != specialized_ast_symbol->ast);
     switch (specialized_ast_symbol->ast->type)
@@ -304,18 +326,18 @@ NecroAstSymbol* necro_ast_specialize(NecroTypeClassTranslate* type_class_transla
         assert(false);
         break;
     }
-    NecroScope* prev_scope                                    = type_class_translate->scoped_symtable->current_scope;
-    NecroScope* prev_type_scope                               = type_class_translate->scoped_symtable->current_type_scope;
-    type_class_translate->scoped_symtable->current_scope      = scope;
-    necro_rename_internal_scope_and_rename(type_class_translate->ast_arena, type_class_translate->scoped_symtable, type_class_translate->intern, specialized_ast_symbol->ast);
-    type_class_translate->scoped_symtable->current_scope      = prev_scope;
-    type_class_translate->scoped_symtable->current_type_scope = prev_type_scope;
+    NecroScope* prev_scope                                    = monomorphize->scoped_symtable->current_scope;
+    NecroScope* prev_type_scope                               = monomorphize->scoped_symtable->current_type_scope;
+    monomorphize->scoped_symtable->current_scope      = scope;
+    necro_rename_internal_scope_and_rename(monomorphize->ast_arena, monomorphize->scoped_symtable, monomorphize->intern, specialized_ast_symbol->ast);
+    monomorphize->scoped_symtable->current_scope      = prev_scope;
+    monomorphize->scoped_symtable->current_type_scope = prev_type_scope;
 
     //--------------------
     // Specialize Ast
     //--------------------
-    specialized_ast_symbol->type                              = necro_type_replace_with_subs_deep_copy(type_class_translate->arena, ast_symbol->type, subs);
-    unwrap(void, necro_type_class_translate_go(type_class_translate, specialized_ast_symbol->ast, subs));
+    specialized_ast_symbol->type                              = necro_type_replace_with_subs_deep_copy(monomorphize->arena, ast_symbol->type, subs);
+    unwrap(void, necro_monomorphize_go(monomorphize, specialized_ast_symbol->ast, subs));
 
     return specialized_ast_symbol;
 }
@@ -400,15 +422,14 @@ NecroResult(void) necro_rec_check_pat_assignment(NecroBase* base, NecroAst* ast)
     }
 }
 
-
 ///////////////////////////////////////////////////////
 // Translate Go
 ///////////////////////////////////////////////////////
-NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_class_translate, NecroAst* ast, NecroInstSub* subs)
+NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAst* ast, NecroInstSub* subs)
 {
     if (ast == NULL)
         return ok_void();
-    ast->necro_type = necro_type_replace_with_subs(type_class_translate->arena, ast->necro_type, subs);
+    ast->necro_type = necro_type_replace_with_subs(monomorphize->arena, ast->necro_type, subs);
     switch (ast->type)
     {
 
@@ -423,7 +444,7 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
         NecroAst* group_list = ast;
         while (group_list != NULL)
         {
-            necro_try(void, necro_type_class_translate_go(type_class_translate, group_list->declaration_group_list.declaration_group, subs));
+            necro_try(void, necro_monomorphize_go(monomorphize, group_list->declaration_group_list.declaration_group, subs));
             group_list = group_list->declaration_group_list.next;
         }
         return ok_void();
@@ -434,21 +455,21 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
         NecroAst* declaration_group = ast;
         while (declaration_group != NULL)
         {
-            necro_try(void, necro_type_class_translate_go(type_class_translate, declaration_group->declaration.declaration_impl, subs));
+            necro_try(void, necro_monomorphize_go(monomorphize, declaration_group->declaration.declaration_impl, subs));
             declaration_group = declaration_group->declaration.next_declaration;
         }
         return ok_void();
     }
 
     case NECRO_AST_TYPE_CLASS_INSTANCE:
-        return necro_type_class_translate_go(type_class_translate, ast->type_class_instance.declarations, subs);
+        return necro_monomorphize_go(monomorphize, ast->type_class_instance.declarations, subs);
 
     //=====================================================
     // Assignment type things
     //=====================================================
     case NECRO_AST_SIMPLE_ASSIGNMENT:
-        ast->simple_assignment.ast_symbol->type = necro_type_replace_with_subs(type_class_translate->arena, ast->simple_assignment.ast_symbol->type, subs);
-        if (ast->simple_assignment.initializer != NULL && !necro_is_fully_concrete(type_class_translate->base, ast->necro_type))
+        ast->simple_assignment.ast_symbol->type = necro_type_replace_with_subs(monomorphize->arena, ast->simple_assignment.ast_symbol->type, subs);
+        if (ast->simple_assignment.initializer != NULL && !necro_is_fully_concrete(monomorphize->base, ast->necro_type))
         {
             return necro_type_non_concrete_initialized_value_error(ast->simple_assignment.ast_symbol, ast->necro_type, ast->source_loc, ast->end_loc);
         }
@@ -456,38 +477,38 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
         {
             return necro_type_non_recursive_initialized_value_error(ast->simple_assignment.ast_symbol, ast->necro_type, ast->source_loc, ast->end_loc);
         }
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->simple_assignment.initializer, subs));
-        return necro_type_class_translate_go(type_class_translate, ast->simple_assignment.rhs, subs);
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->simple_assignment.initializer, subs));
+        return necro_monomorphize_go(monomorphize, ast->simple_assignment.rhs, subs);
 
     case NECRO_AST_APATS_ASSIGNMENT:
-        ast->apats_assignment.ast_symbol->type = necro_type_replace_with_subs(type_class_translate->arena, ast->apats_assignment.ast_symbol->type, subs);
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->apats_assignment.apats, subs));
-        return necro_type_class_translate_go(type_class_translate, ast->apats_assignment.rhs, subs);
+        ast->apats_assignment.ast_symbol->type = necro_type_replace_with_subs(monomorphize->arena, ast->apats_assignment.ast_symbol->type, subs);
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->apats_assignment.apats, subs));
+        return necro_monomorphize_go(monomorphize, ast->apats_assignment.rhs, subs);
 
     case NECRO_AST_PAT_ASSIGNMENT:
         // TODO: Rec check pat assignment
-        necro_try(void, necro_rec_check_pat_assignment(type_class_translate->base, ast->pat_assignment.pat));
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->pat_assignment.pat, subs));
-        return necro_type_class_translate_go(type_class_translate, ast->pat_assignment.rhs, subs);
+        necro_try(void, necro_rec_check_pat_assignment(monomorphize->base, ast->pat_assignment.pat));
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->pat_assignment.pat, subs));
+        return necro_monomorphize_go(monomorphize, ast->pat_assignment.rhs, subs);
 
     case NECRO_AST_DATA_DECLARATION:
-        // necro_try(void, necro_type_class_translate_go(type_class_translate, ast->data_declaration.simpletype, subs));
-        // return necro_type_class_translate_go(type_class_translate, ast->data_declaration.constructor_list, subs);
+        // necro_try(void, necro_monomorphize_go(monomorphize, ast->data_declaration.simpletype, subs));
+        // return necro_monomorphize_go(monomorphize, ast->data_declaration.constructor_list, subs);
         return ok_void();
 
     case NECRO_AST_VARIABLE:
-        if (ast->variable.ast_symbol == type_class_translate->base->prim_undefined)
+        if (ast->variable.ast_symbol == monomorphize->base->prim_undefined)
             return ok_void();
         switch (ast->variable.var_type)
         {
         case NECRO_VAR_VAR:
         {
             ast->variable.inst_subs      = necro_type_union_subs(ast->variable.inst_subs, subs);
-            const bool should_specialize = necro_try_map(bool, void, necro_ast_should_specialize(type_class_translate->arena, type_class_translate->base, ast->variable.ast_symbol, ast, ast->variable.inst_subs));
+            const bool should_specialize = necro_try_map(bool, void, necro_ast_should_specialize(monomorphize->arena, monomorphize->base, ast->variable.ast_symbol, ast, ast->variable.inst_subs));
             if (!should_specialize)
                 return ok_void();
-            NecroAstSymbol* specialized_ast_symbol = necro_ast_specialize(type_class_translate, ast->variable.ast_symbol, ast->variable.inst_subs);
-            NecroAst*       specialized_var        = necro_ast_create_var_full(type_class_translate->arena, specialized_ast_symbol, NECRO_VAR_VAR, NULL, NULL);
+            NecroAstSymbol* specialized_ast_symbol = necro_ast_specialize(monomorphize, ast->variable.ast_symbol, ast->variable.inst_subs);
+            NecroAst*       specialized_var        = necro_ast_create_var_full(monomorphize->arena, specialized_ast_symbol, NECRO_VAR_VAR, NULL, NULL);
             specialized_var->necro_type            = specialized_ast_symbol->type;
             *ast = *specialized_var;
             return ok_void();
@@ -495,9 +516,9 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
 
         case NECRO_VAR_DECLARATION:
             if (ast->variable.ast_symbol != NULL)
-                ast->variable.ast_symbol->type = necro_type_replace_with_subs(type_class_translate->arena, ast->variable.ast_symbol->type, subs);
+                ast->variable.ast_symbol->type = necro_type_replace_with_subs(monomorphize->arena, ast->variable.ast_symbol->type, subs);
             if (ast->variable.initializer != NULL)
-                necro_try(void, necro_type_class_translate_go(type_class_translate, ast->variable.initializer, subs));
+                necro_try(void, necro_monomorphize_go(monomorphize, ast->variable.initializer, subs));
             return ok_void();
         case NECRO_VAR_SIG:                  return ok_void();
         case NECRO_VAR_TYPE_VAR_DECLARATION: return ok_void();
@@ -508,7 +529,7 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
         }
 
     case NECRO_AST_CONID:
-        necro_try(void, necro_type_ambiguous_type_variable_check(type_class_translate->arena, type_class_translate->base, ast->necro_type, ast->necro_type, ast->source_loc, ast->end_loc));
+        necro_try(void, necro_type_ambiguous_type_variable_check(monomorphize->arena, monomorphize->base, ast->necro_type, ast->necro_type, ast->source_loc, ast->end_loc));
         return ok_void();
 
     case NECRO_AST_UNDEFINED:
@@ -516,79 +537,79 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
 
     case NECRO_AST_CONSTANT:
         // TODO (Curtis, 2-14-19): Handle this for overloaded numeric literals in patterns
-        necro_try(void, necro_type_ambiguous_type_variable_check(type_class_translate->arena, type_class_translate->base, ast->necro_type, ast->necro_type, ast->source_loc, ast->end_loc));
+        necro_try(void, necro_type_ambiguous_type_variable_check(monomorphize->arena, monomorphize->base, ast->necro_type, ast->necro_type, ast->source_loc, ast->end_loc));
         return ok_void();
 
     case NECRO_AST_UN_OP:
-        necro_try(void, necro_type_ambiguous_type_variable_check(type_class_translate->arena, type_class_translate->base, ast->necro_type, ast->necro_type, ast->source_loc, ast->end_loc));
+        necro_try(void, necro_type_ambiguous_type_variable_check(monomorphize->arena, monomorphize->base, ast->necro_type, ast->necro_type, ast->source_loc, ast->end_loc));
         return ok_void();
 
     case NECRO_AST_BIN_OP:
     {
         ast->bin_op.inst_subs        = necro_type_union_subs(ast->bin_op.inst_subs, subs);
-        const bool should_specialize = necro_try_map(bool, void, necro_ast_should_specialize(type_class_translate->arena, type_class_translate->base, ast->bin_op.ast_symbol, ast, ast->bin_op.inst_subs));
+        const bool should_specialize = necro_try_map(bool, void, necro_ast_should_specialize(monomorphize->arena, monomorphize->base, ast->bin_op.ast_symbol, ast, ast->bin_op.inst_subs));
         if (should_specialize)
         {
-            ast->bin_op.ast_symbol = necro_ast_specialize(type_class_translate, ast->bin_op.ast_symbol, ast->bin_op.inst_subs);
+            ast->bin_op.ast_symbol = necro_ast_specialize(monomorphize, ast->bin_op.ast_symbol, ast->bin_op.inst_subs);
         }
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->bin_op.lhs, subs));
-        return necro_type_class_translate_go(type_class_translate, ast->bin_op.rhs, subs);
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->bin_op.lhs, subs));
+        return necro_monomorphize_go(monomorphize, ast->bin_op.rhs, subs);
     }
 
     case NECRO_AST_OP_LEFT_SECTION:
     {
         ast->op_left_section.inst_subs = necro_type_union_subs(ast->op_left_section.inst_subs, subs);
-        const bool should_specialize   = necro_try_map(bool, void, necro_ast_should_specialize(type_class_translate->arena, type_class_translate->base, ast->op_left_section.ast_symbol, ast, ast->op_left_section.inst_subs));
+        const bool should_specialize   = necro_try_map(bool, void, necro_ast_should_specialize(monomorphize->arena, monomorphize->base, ast->op_left_section.ast_symbol, ast, ast->op_left_section.inst_subs));
         if (should_specialize)
         {
-            ast->op_left_section.ast_symbol = necro_ast_specialize(type_class_translate, ast->op_left_section.ast_symbol, ast->op_left_section.inst_subs);
+            ast->op_left_section.ast_symbol = necro_ast_specialize(monomorphize, ast->op_left_section.ast_symbol, ast->op_left_section.inst_subs);
         }
-        return necro_type_class_translate_go(type_class_translate, ast->op_left_section.left, subs);
+        return necro_monomorphize_go(monomorphize, ast->op_left_section.left, subs);
     }
 
     case NECRO_AST_OP_RIGHT_SECTION:
     {
         ast->op_right_section.inst_subs = necro_type_union_subs(ast->op_right_section.inst_subs, subs);
-        const bool should_specialize    = necro_try_map(bool, void, necro_ast_should_specialize(type_class_translate->arena, type_class_translate->base, ast->op_right_section.ast_symbol, ast, ast->op_right_section.inst_subs));
+        const bool should_specialize    = necro_try_map(bool, void, necro_ast_should_specialize(monomorphize->arena, monomorphize->base, ast->op_right_section.ast_symbol, ast, ast->op_right_section.inst_subs));
         if (should_specialize)
         {
-            ast->op_right_section.ast_symbol = necro_ast_specialize(type_class_translate, ast->op_right_section.ast_symbol, ast->op_right_section.inst_subs);
+            ast->op_right_section.ast_symbol = necro_ast_specialize(monomorphize, ast->op_right_section.ast_symbol, ast->op_right_section.inst_subs);
         }
-        return necro_type_class_translate_go(type_class_translate, ast->op_right_section.right, subs);
+        return necro_monomorphize_go(monomorphize, ast->op_right_section.right, subs);
     }
 
     case NECRO_AST_IF_THEN_ELSE:
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->if_then_else.if_expr, subs));
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->if_then_else.then_expr, subs));
-        return necro_type_class_translate_go(type_class_translate, ast->if_then_else.else_expr, subs);
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->if_then_else.if_expr, subs));
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->if_then_else.then_expr, subs));
+        return necro_monomorphize_go(monomorphize, ast->if_then_else.else_expr, subs);
 
     case NECRO_AST_RIGHT_HAND_SIDE:
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->right_hand_side.declarations, subs));
-        return necro_type_class_translate_go(type_class_translate, ast->right_hand_side.expression, subs);
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->right_hand_side.declarations, subs));
+        return necro_monomorphize_go(monomorphize, ast->right_hand_side.expression, subs);
 
     case NECRO_AST_LET_EXPRESSION:
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->let_expression.declarations, subs));
-        return necro_type_class_translate_go(type_class_translate, ast->let_expression.expression, subs);
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->let_expression.declarations, subs));
+        return necro_monomorphize_go(monomorphize, ast->let_expression.expression, subs);
 
     case NECRO_AST_FUNCTION_EXPRESSION:
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->fexpression.next_fexpression, subs));
-        return necro_type_class_translate_go(type_class_translate, ast->fexpression.aexp, subs);
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->fexpression.next_fexpression, subs));
+        return necro_monomorphize_go(monomorphize, ast->fexpression.aexp, subs);
 
     case NECRO_AST_APATS:
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->apats.apat, subs));
-        return necro_type_class_translate_go(type_class_translate, ast->apats.next_apat, subs);
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->apats.apat, subs));
+        return necro_monomorphize_go(monomorphize, ast->apats.next_apat, subs);
 
     case NECRO_AST_WILDCARD:
         return ok_void();
 
     case NECRO_AST_LAMBDA:
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->lambda.apats, subs));
-        return necro_type_class_translate_go(type_class_translate, ast->lambda.expression, subs);
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->lambda.apats, subs));
+        return necro_monomorphize_go(monomorphize, ast->lambda.expression, subs);
 
 //     case NECRO_AST_DO:
 //     {
            // // TODO: update ast_symbol type for bind!
-           // // ast->bin_op.ast_symbol->type  = necro_type_replace_with_subs(type_class_translate->arena, ast->bin_op.ast_symbol->type, subs);
+           // // ast->bin_op.ast_symbol->type  = necro_type_replace_with_subs(monomorphize->arena, ast->bin_op.ast_symbol->type, subs);
 //         // DO statements NOT FULLY IMPLEMENTED currently
 //         necro_unreachable(NecroType);
 //         // TODO: REDO!
@@ -607,65 +628,65 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
 //         // // assert(monad_context->type_class_name.id.id != bind_context->type_class_name.id.id);
 //         // NecroAst*          bind_method_inst = necro_resolve_method(infer, monad_context->type_class, monad_context, bind_node, dictionary_context);
 //         // necro_ast_print(bind_method_inst);
-//         // necro_type_class_translate_go(type_class_translate, ast->do_statement.statement_list);
+//         // necro_monomorphize_go(monomorphize, ast->do_statement.statement_list);
 //         // break;
 //     }
 
     case NECRO_AST_LIST_NODE:
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->list.item, subs));
-        return necro_type_class_translate_go(type_class_translate, ast->list.next_item, subs);
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->list.item, subs));
+        return necro_monomorphize_go(monomorphize, ast->list.next_item, subs);
 
     case NECRO_AST_EXPRESSION_LIST:
-        return necro_type_class_translate_go(type_class_translate, ast->expression_list.expressions, subs);
+        return necro_monomorphize_go(monomorphize, ast->expression_list.expressions, subs);
 
     case NECRO_AST_EXPRESSION_ARRAY:
-        return necro_type_class_translate_go(type_class_translate, ast->expression_array.expressions, subs);
+        return necro_monomorphize_go(monomorphize, ast->expression_array.expressions, subs);
 
     case NECRO_AST_PAT_EXPRESSION:
-        return necro_type_class_translate_go(type_class_translate, ast->pattern_expression.expressions, subs);
+        return necro_monomorphize_go(monomorphize, ast->pattern_expression.expressions, subs);
 
     case NECRO_AST_TUPLE:
-        return necro_type_class_translate_go(type_class_translate, ast->tuple.expressions, subs);
+        return necro_monomorphize_go(monomorphize, ast->tuple.expressions, subs);
 
     case NECRO_BIND_ASSIGNMENT:
-        necro_try(void, necro_type_ambiguous_type_variable_check(type_class_translate->arena, type_class_translate->base, ast->necro_type, ast->necro_type, ast->source_loc, ast->end_loc));
-        ast->bind_assignment.ast_symbol->type = necro_type_replace_with_subs(type_class_translate->arena, ast->bind_assignment.ast_symbol->type, subs);
-        return necro_type_class_translate_go(type_class_translate, ast->bind_assignment.expression, subs);
+        necro_try(void, necro_type_ambiguous_type_variable_check(monomorphize->arena, monomorphize->base, ast->necro_type, ast->necro_type, ast->source_loc, ast->end_loc));
+        ast->bind_assignment.ast_symbol->type = necro_type_replace_with_subs(monomorphize->arena, ast->bind_assignment.ast_symbol->type, subs);
+        return necro_monomorphize_go(monomorphize, ast->bind_assignment.expression, subs);
 
     case NECRO_PAT_BIND_ASSIGNMENT:
-        necro_try(void, necro_type_ambiguous_type_variable_check(type_class_translate->arena, type_class_translate->base, ast->necro_type, ast->necro_type, ast->source_loc, ast->end_loc));
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->pat_bind_assignment.pat, subs));
-        return necro_type_class_translate_go(type_class_translate, ast->pat_bind_assignment.expression, subs);
+        necro_try(void, necro_type_ambiguous_type_variable_check(monomorphize->arena, monomorphize->base, ast->necro_type, ast->necro_type, ast->source_loc, ast->end_loc));
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->pat_bind_assignment.pat, subs));
+        return necro_monomorphize_go(monomorphize, ast->pat_bind_assignment.expression, subs);
 
     case NECRO_AST_ARITHMETIC_SEQUENCE:
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->arithmetic_sequence.from, subs));
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->arithmetic_sequence.then, subs));
-        return necro_type_class_translate_go(type_class_translate, ast->arithmetic_sequence.to, subs);
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->arithmetic_sequence.from, subs));
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->arithmetic_sequence.then, subs));
+        return necro_monomorphize_go(monomorphize, ast->arithmetic_sequence.to, subs);
 
     case NECRO_AST_CASE:
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->case_expression.expression, subs));
-        return necro_type_class_translate_go(type_class_translate, ast->case_expression.alternatives, subs);
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->case_expression.expression, subs));
+        return necro_monomorphize_go(monomorphize, ast->case_expression.alternatives, subs);
 
     case NECRO_AST_CASE_ALTERNATIVE:
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->case_alternative.pat, subs));
-        return necro_type_class_translate_go(type_class_translate, ast->case_alternative.body, subs);
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->case_alternative.pat, subs));
+        return necro_monomorphize_go(monomorphize, ast->case_alternative.body, subs);
 
     case NECRO_AST_TYPE_APP:
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->type_app.ty, subs));
-        return necro_type_class_translate_go(type_class_translate, ast->type_app.next_ty, subs);
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->type_app.ty, subs));
+        return necro_monomorphize_go(monomorphize, ast->type_app.next_ty, subs);
 
     case NECRO_AST_BIN_OP_SYM:
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->bin_op_sym.left, subs));
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->bin_op_sym.op, subs));
-        return necro_type_class_translate_go(type_class_translate, ast->bin_op_sym.right, subs);
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->bin_op_sym.left, subs));
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->bin_op_sym.op, subs));
+        return necro_monomorphize_go(monomorphize, ast->bin_op_sym.right, subs);
 
     case NECRO_AST_CONSTRUCTOR:
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->constructor.conid, subs));
-        return necro_type_class_translate_go(type_class_translate, ast->constructor.arg_list, subs);
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->constructor.conid, subs));
+        return necro_monomorphize_go(monomorphize, ast->constructor.arg_list, subs);
 
     case NECRO_AST_SIMPLE_TYPE:
-        necro_try(void, necro_type_class_translate_go(type_class_translate, ast->simple_type.type_con, subs));
-        return necro_type_class_translate_go(type_class_translate, ast->simple_type.type_var_list, subs);
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->simple_type.type_con, subs));
+        return necro_monomorphize_go(monomorphize, ast->simple_type.type_var_list, subs);
 
     case NECRO_AST_TYPE_CLASS_DECLARATION:
     case NECRO_AST_TYPE_SIGNATURE:
@@ -680,7 +701,7 @@ NecroResult(void) necro_type_class_translate_go(NecroTypeClassTranslate* type_cl
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
-void necro_type_class_translate_test_result(const char* test_name, const char* str, NECRO_RESULT_TYPE expected_result, const NECRO_RESULT_ERROR_TYPE* error_type)
+void necro_monomorphize_test_result(const char* test_name, const char* str, NECRO_RESULT_TYPE expected_result, const NECRO_RESULT_ERROR_TYPE* error_type)
 {
     // Set up
     NecroIntern         intern          = necro_intern_create();
@@ -701,7 +722,7 @@ void necro_type_class_translate_test_result(const char* test_name, const char* s
     unwrap(void, necro_rename(info, &scoped_symtable, &intern, &ast));
     necro_dependency_analyze(info, &intern, &ast);
     unwrap(void, necro_infer(info, &intern, &scoped_symtable, &base, &ast));
-    NecroResult(void) result = necro_type_class_translate(info, &intern, &scoped_symtable, &base, &ast);
+    NecroResult(void) result = necro_monomorphize(info, &intern, &scoped_symtable, &base, &ast);
     // NecroResult(void) result = ok_void();
 
     // Assert
@@ -746,7 +767,7 @@ void necro_type_class_translate_test_result(const char* test_name, const char* s
     necro_intern_destroy(&intern);
 }
 
-void necro_type_class_translate_test_suffix()
+void necro_monomorphize_test_suffix()
 {
     // Set up
     NecroIntern         intern          = necro_intern_create();
@@ -754,7 +775,7 @@ void necro_type_class_translate_test_suffix()
     NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create(&symtable);
     NecroBase           base            = necro_base_compile(&intern, &scoped_symtable);
 
-    NecroTypeClassTranslate translate = necro_type_class_translate_create(&intern, &scoped_symtable, &base, &base.ast);
+    NecroMonomorphize translate = necro_monomorphize_create(&intern, &scoped_symtable, &base, &base.ast);
     NecroSymbol             prefix    = necro_intern_string(&intern, "superCool");
 
     NecroInstSub* subs =
@@ -792,9 +813,9 @@ void necro_type_class_translate_test_suffix()
 
 }
 
-void necro_type_class_translate_test()
+void necro_monomorphize_test()
 {
-    // necro_type_class_translate_test_suffix();
+    // necro_monomorphize_test_suffix();
 
     {
         const char* test_name   = "SimplePoly1";
@@ -804,7 +825,7 @@ void necro_type_class_translate_test()
             "concreteNothing :: Maybe Int\n"
             "concreteNothing = polyNothing\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -817,7 +838,7 @@ void necro_type_class_translate_test()
             "concreteNothing2 :: Maybe Audio\n"
             "concreteNothing2 = polyNothing\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -828,7 +849,7 @@ void necro_type_class_translate_test()
             "concreteTuple :: (Maybe Bool, Maybe Audio)\n"
             "concreteTuple = (polyNothing, polyNothing)\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -839,7 +860,7 @@ void necro_type_class_translate_test()
             "concreteTuple :: ((), Bool)\n"
             "concreteTuple = polyTuple () False\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -848,7 +869,7 @@ void necro_type_class_translate_test()
             "getReal :: Float\n"
             "getReal = 0\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -857,7 +878,7 @@ void necro_type_class_translate_test()
             "unreal :: Audio\n"
             "unreal = 10 * 440 / 3\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -868,7 +889,7 @@ void necro_type_class_translate_test()
             "outOfContext :: Int\n"
             "outOfContext = inContext 10 99\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -877,7 +898,7 @@ void necro_type_class_translate_test()
             "left :: Int -> Int \n"
             "left = (10+)\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -886,7 +907,7 @@ void necro_type_class_translate_test()
             "right :: Rational -> Rational \n"
             "right = (*33.3)\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -899,7 +920,7 @@ void necro_type_class_translate_test()
             "audioOutOfSpace :: Audio\n"
             "audioOutOfSpace = numbernomicon 10 99\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -914,7 +935,7 @@ void necro_type_class_translate_test()
             "notTheSame :: Bool\n"
             "notTheSame = equalizer zero oneHundred\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -925,7 +946,7 @@ void necro_type_class_translate_test()
             "doubleEdge :: (Rational, Float)\n"
             "doubleEdge = doubleTrouble 22 33\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -936,7 +957,7 @@ void necro_type_class_translate_test()
             "halfEdge :: (Audio, Int)\n"
             "halfEdge = halfTrouble 22.2 33\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -949,7 +970,7 @@ void necro_type_class_translate_test()
             "top :: (Rational, Float)\n"
             "top = shallow 22.2 33.3\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -963,7 +984,7 @@ void necro_type_class_translate_test()
             "  alive              = schroedingersMaybe\n"
             "  dead               = schroedingersMaybe\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -971,7 +992,7 @@ void necro_type_class_translate_test()
         const char* test_source = ""
             "notMonoFucker = add\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -985,7 +1006,7 @@ void necro_type_class_translate_test()
             "intThing :: Thing Int\n"
             "intThing = addThing (thingInt 1) (thingInt 2)\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -998,7 +1019,7 @@ void necro_type_class_translate_test()
             "tupleIntFloat :: (Int, Float)\n"
             "tupleIntFloat = tupleAdd (tupleFromInt 1) (tupleFromInt 2)\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -1015,7 +1036,7 @@ void necro_type_class_translate_test()
             "intThing :: Thing Int\n"
             "intThing = 10 + 33 * 3\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -1028,7 +1049,7 @@ void necro_type_class_translate_test()
             "rationalCollection :: [Rational]\n"
             "rationalCollection = checkOutMyCollection 22\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -1039,7 +1060,7 @@ void necro_type_class_translate_test()
             "floatPat :: Pattern Float\n"
             "floatPat = 3.3 / 4 * 22.2\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
     {
         const char* test_name   = "Instance Chains 1";
@@ -1059,7 +1080,7 @@ void necro_type_class_translate_test()
             "iAmNotAMonster :: Float\n"
             "iAmNotAMonster = mensch 1\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -1070,7 +1091,7 @@ void necro_type_class_translate_test()
             "amb :: Audio\n"
             "amb = const 22 33.0\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -1081,7 +1102,7 @@ void necro_type_class_translate_test()
             "amb :: Bool\n"
             "amb = eqconst True Nothing\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -1092,7 +1113,7 @@ void necro_type_class_translate_test()
             "notTheSame :: Bool\n"
             "notTheSame = equalizer 0.5 100\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -1104,7 +1125,7 @@ void necro_type_class_translate_test()
             "notTheSame :: Bool\n"
             "notTheSame = equalizer Nothing Nothing\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -1118,7 +1139,7 @@ void necro_type_class_translate_test()
             "amb = const 22 Nothing\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_AMBIGUOUS_TYPE_VAR;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, &expected_error);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 
     {
@@ -1133,7 +1154,7 @@ void necro_type_class_translate_test()
             "amb = constBS 22 0\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_AMBIGUOUS_TYPE_VAR;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, &expected_error);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 
     {
@@ -1143,7 +1164,7 @@ void necro_type_class_translate_test()
             "polyNothing ~ Nothing = polyNothing\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_NON_CONCRETE_INITIALIZED_VALUE;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, &expected_error);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 
     {
@@ -1152,7 +1173,7 @@ void necro_type_class_translate_test()
             "nonRec ~ True = True\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_NON_RECURSIVE_INITIALIZED_VALUE;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, &expected_error);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 
     {
@@ -1163,7 +1184,7 @@ void necro_type_class_translate_test()
             "rec2 :: a -> b -> b\n"
             "rec2 x y = rec1 x y\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -1176,7 +1197,7 @@ void necro_type_class_translate_test()
             "go :: Int\n"
             "go = rec1 (Just ()) 2\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -1186,7 +1207,7 @@ void necro_type_class_translate_test()
             "leftPlus :: Rational -> Rational\n"
             "leftPlus x = left\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -1200,7 +1221,7 @@ void necro_type_class_translate_test()
             "intFirst :: Int\n"
             "intFirst = fst (0, ())\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -1213,7 +1234,7 @@ void necro_type_class_translate_test()
             "rationalAudio :: (Rational, Audio)\n"
             "rationalAudio = leftRight\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -1222,7 +1243,7 @@ void necro_type_class_translate_test()
             "coolOsc :: Audio\n"
             "coolOsc ~ 0 = coolOsc + 1\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -1235,7 +1256,7 @@ void necro_type_class_translate_test()
             "coolAudio :: Audio\n"
             "coolAudio = coolOsc\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     // TODO: Look into Tuples with initializers in parser
@@ -1246,7 +1267,7 @@ void necro_type_class_translate_test()
     //         "leftPlus :: Int\n"
     //         "leftPlus = leftOsc + 1\n";
     //     const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-    //     necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    //     necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     // }
 
     // // TODO (Curtis 2-22-19): Pattern Assignment with Initializers with Numeric literals seems a little strange...
@@ -1259,7 +1280,7 @@ void necro_type_class_translate_test()
     //         "plusOne :: Audio\n"
     //         "plusOne = wrappedOsc + 1\n";
     //     const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-    //     necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    //     necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     // }
 
     // NOTE: Multi-line Definitions are currently removed.
@@ -1270,7 +1291,7 @@ void necro_type_class_translate_test()
     //         "skateOrDie _        = False\n"
     //         "die                 = skateOrDie (Just ())\n";
     //     const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-    //     necro_type_class_translate_test_result(test_name, test_source, expect_error_result, NULL);
+    //     necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     // }
 
 }

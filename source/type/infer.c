@@ -1540,11 +1540,6 @@ NecroResult(void) necro_infer(NecroCompileInfo info, NecroIntern* intern, NecroS
     if (result.type == NECRO_RESULT_OK)
     {
         if (info.compilation_phase == NECRO_PHASE_INFER && info.verbosity > 0)
-        {
-            necro_ast_arena_print(ast_arena);
-            return ok_void();
-        }
-        if (info.compilation_phase == NECRO_PHASE_TYPE_CLASS_TRANSLATE && info.verbosity > 0)
             necro_ast_arena_print(ast_arena);
         return ok_void();
     }
@@ -1554,7 +1549,6 @@ NecroResult(void) necro_infer(NecroCompileInfo info, NecroIntern* intern, NecroS
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
-
 
 #define INFER_TEST_VERBOSE 1
 
@@ -2545,7 +2539,7 @@ void necro_test_infer()
                 ),
                 NULL
             );
-        
+
         necro_infer_test_comparison("LetClash", "x = let x = Nothing in x\n", &intern, &ast);
     }
 
@@ -2708,20 +2702,20 @@ void necro_test_infer()
                             necro_ast_create_declaration_group_list_with_next(&ast.arena,
                                 necro_ast_create_decl(&ast.arena,
                                     necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena,
-                                        necro_ast_symbol_create(&ast.arena, 
-                                            clash_y2, 
-                                            necro_intern_string(&intern, "y"), 
-                                            necro_intern_string(&intern, "Test"), 
+                                        necro_ast_symbol_create(&ast.arena,
+                                            clash_y2,
+                                            necro_intern_string(&intern, "y"),
+                                            necro_intern_string(&intern, "Test"),
                                             NULL
-                                        ), 
-                                        necro_ast_create_fexpr(&ast.arena, 
-                                            necro_ast_create_var_with_ast_symbol(&ast.arena, 
-                                                necro_ast_symbol_create(&ast.arena, 
-                                                    necro_intern_string(&intern, "Necro.Base.fromInt"), 
-                                                    necro_intern_string(&intern, "fromInt"), 
-                                                    necro_intern_string(&intern, "Necro.Base"), 
+                                        ),
+                                        necro_ast_create_fexpr(&ast.arena,
+                                            necro_ast_create_var_with_ast_symbol(&ast.arena,
+                                                necro_ast_symbol_create(&ast.arena,
+                                                    necro_intern_string(&intern, "Necro.Base.fromInt"),
+                                                    necro_intern_string(&intern, "fromInt"),
+                                                    necro_intern_string(&intern, "Necro.Base"),
                                                     NULL
-                                                ), 
+                                                ),
                                                 NECRO_VAR_VAR
                                             ),
                                             necro_ast_create_constant(&ast.arena, (NecroParseAstConstant) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER })
@@ -2808,7 +2802,7 @@ void necro_test_infer()
 
         ast.root =
             necro_ast_create_declaration_group_list_with_next(&ast.arena,
-                necro_ast_create_decl(&ast.arena, 
+                necro_ast_create_decl(&ast.arena,
                     necro_ast_create_type_signature(&ast.arena,
                         NECRO_SIG_DECLARATION,
                         necro_ast_create_var_with_ast_symbol(&ast.arena,
@@ -3204,10 +3198,10 @@ void necro_test_infer()
                         necro_ast_create_decl(&ast.arena,
                             necro_ast_create_simple_assignment_with_ast_symbol(&ast.arena,
                                 necro_ast_symbol_create(
-                                    &ast.arena, 
-                                    necro_intern_string(&intern, "Test.unity"), 
-                                    necro_intern_string(&intern, "unity"), 
-                                    necro_intern_string(&intern, "Test"), 
+                                    &ast.arena,
+                                    necro_intern_string(&intern, "Test.unity"),
+                                    necro_intern_string(&intern, "unity"),
+                                    necro_intern_string(&intern, "Test"),
                                     NULL
                                 ),
                                 NULL,

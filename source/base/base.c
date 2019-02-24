@@ -11,7 +11,7 @@
 #include "d_analyzer.h"
 #include "kind.h"
 #include "infer.h"
-#include "type_class_translate.h"
+#include "monomorphize.h"
 
 ///////////////////////////////////////////////////////
 // Create / Destroy
@@ -942,7 +942,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 
     // Compile, part II
     unwrap(void, necro_infer(info, intern, scoped_symtable, &base, &base.ast));
-    unwrap(void, necro_type_class_translate(info, intern, scoped_symtable, &base, &base.ast));
+    unwrap(void, necro_monomorphize(info, intern, scoped_symtable, &base, &base.ast));
 
     // Finish
     return base;

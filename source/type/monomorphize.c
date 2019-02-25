@@ -25,6 +25,8 @@
             - Recursive value use cases:
                 * Collections of objects (with list, etc),
                     Solution: use fixed size collections such as tuples or Arrays.
+                * Associative collections:
+                    Solution: ???
             - Recursive function use cases:
                 * Functional equivalant of for-loop type construct (i.e mapping/folding over a list),
                     Solution: use regular values (with feedback for state is necessary) with (take/demand/?) function.
@@ -33,6 +35,8 @@
                 * A statically sized Region back buffer, to read from.
                 * A statically sized Region front buffer, to write to.
                 * A simple bump allocating temp buffer.
+
+        * Need good story for fixed size arrays
 
         * Default type class. Use this for polymorphic recursion
         * Given the above we could do an even more drastic memory scheme, such as large scale Region based memory management.
@@ -45,9 +49,7 @@
         * Use Region based memory management
 
     TODO:
-        * Refactor name of phase to monomorphize or specialize phase?
-        * Recursive check for pattern assignments
-        * Default type class. Use this for polymorphic recursion
+        * Look into Pattern Assignment + Initializers
         * Check Numeric patterns
         * Pattern Literals
         * do statements

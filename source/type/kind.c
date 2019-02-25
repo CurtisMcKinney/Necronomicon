@@ -12,55 +12,42 @@
 #include "kind.h"
 #include "base.h"
 
-NecroAstSymbol* necro_kind_create_star(NecroPagedArena* arena, NecroIntern* intern)
+NecroAstSymbol* necro_kind_create_kind_ast_symbol(NecroPagedArena* arena, NecroSymbol name, NecroSymbol source_name, NecroSymbol module_name, NecroType* kind_kind)
 {
-    NecroAstSymbol* ast_symbol  = necro_ast_symbol_create(arena, necro_intern_string(intern, "Necro.Base.Type"), necro_intern_string(intern, "Type"), necro_intern_string(intern, "Necro.Base"), NULL);
-    NecroType*      star_type   = necro_type_alloc(arena);
-    star_type->type             = NECRO_TYPE_CON;
-    star_type->con              = (NecroTypeCon)
+    NecroAstSymbol* ast_symbol = necro_ast_symbol_create(arena, name, source_name, module_name, NULL);
+    NecroType*      kind_type  = necro_type_alloc(arena);
+    kind_type->type            = NECRO_TYPE_CON;
+    kind_type->con             = (NecroTypeCon)
     {
         .con_symbol = ast_symbol,
         .args       = NULL,
     };
-    star_type->kind          = NULL;
-    star_type->pre_supplied  = true;
-    ast_symbol->type         = star_type;
-    ast_symbol->ast          = necro_ast_create_var(arena, intern, "Type", NECRO_VAR_DECLARATION);
+    kind_type->kind         = kind_kind;
+    kind_type->pre_supplied = true;
+    ast_symbol->type        = kind_type;
+    ast_symbol->ast         = NULL;
+    // ast_symbol->ast         = necro_ast_create_var(arena, intern, source_name, NECRO_VAR_DECLARATION);
     return ast_symbol;
 }
 
-NecroAstSymbol* necro_kind_create_nat(NecroPagedArena* arena, NecroIntern* intern)
+void necro_kind_init_kinds(NecroBase* base, NecroScopedSymTable* scoped_symtable, NecroIntern* intern)
 {
-    NecroAstSymbol* ast_symbol = necro_ast_symbol_create(arena, necro_intern_string(intern, "Necro.Base.Nat"), necro_intern_string(intern, "Nat"), necro_intern_string(intern, "Necro.Base"), NULL);
-    NecroType*      nat_type   = necro_type_alloc(arena);
-    nat_type->type             = NECRO_TYPE_CON;
-    nat_type->con              = (NecroTypeCon)
-    {
-        .con_symbol = ast_symbol,
-        .args       = NULL,
-    };
-    nat_type->kind          = NULL;
-    nat_type->pre_supplied  = true;
-    ast_symbol->type        = nat_type;
-    ast_symbol->ast         = necro_ast_create_var(arena, intern, "Nat", NECRO_VAR_DECLARATION);
-    return ast_symbol;
-}
+    NecroSymbol base_name = necro_intern_string(intern, "Necro.Base");
 
-NecroAstSymbol* necro_kind_create_sym(NecroPagedArena* arena, NecroIntern* intern)
-{
-    NecroAstSymbol* ast_symbol = necro_ast_symbol_create(arena, necro_intern_string(intern, "Necro.Base.Sym"), necro_intern_string(intern, "Sym"), necro_intern_string(intern, "Necro.Base"), NULL);
-    NecroType*      sym_type   = necro_type_alloc(arena);
-    sym_type->type             = NECRO_TYPE_CON;
-    sym_type->con              = (NecroTypeCon)
-    {
-        .con_symbol = ast_symbol,
-        .args       = NULL,
-    };
-    sym_type->kind          = NULL;
-    sym_type->pre_supplied  = true;
-    ast_symbol->type        = sym_type;
-    ast_symbol->ast         = necro_ast_create_var(arena, intern, "Sym", NECRO_VAR_DECLARATION);
-    return ast_symbol;
+    base->higher_kind     = necro_kind_create_kind_ast_symbol(&base->ast.arena, necro_intern_string(intern, "Necro.Base.TheoreticalHigherKindedKind"), necro_intern_string(intern, "TheoreticalHigherKindedKind"), base_name, NULL);
+    necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->higher_kind);
+
+    base->kind_kind       = necro_kind_create_kind_ast_symbol(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Kind"), necro_intern_string(intern, "Kind"), base_name, base->higher_kind->type);
+    necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->kind_kind);
+
+    base->star_kind       = necro_kind_create_kind_ast_symbol(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Type"), necro_intern_string(intern, "Type"), base_name, base->kind_kind->type);
+    necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->star_kind);
+
+    base->nat_kind        = necro_kind_create_kind_ast_symbol(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Nat"), necro_intern_string(intern, "Nat"), base_name, base->kind_kind->type);
+    necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->nat_kind);
+
+    base->sym_kind        = necro_kind_create_kind_ast_symbol(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Sym"), necro_intern_string(intern, "Sym"), base_name, base->kind_kind->type);
+    necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->sym_kind);
 }
 
 NecroResult(NecroType) necro_kind_unify_var(NecroType* kind1, NecroType* kind2, NecroScope* scope)
@@ -384,9 +371,10 @@ NecroType* necro_kind_gen(NecroPagedArena* arena, struct NecroBase* base, NecroT
 
 NecroResult(void) necro_kind_infer_gen_unify_with_star(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    if (type->kind != NULL)
-        return ok_void();
-    necro_try_map(NecroType, void, necro_kind_infer(arena, base, type, source_loc, end_loc));
+    if (type->kind == NULL)
+    {
+        necro_try_map(NecroType, void, necro_kind_infer(arena, base, type, source_loc, end_loc));
+    }
     type->kind = necro_kind_gen(arena, base, type->kind);
     necro_try_map(NecroType, void, necro_kind_unify_with_info(base->star_kind->type, type->kind, scope, source_loc, end_loc));
     return ok_void();

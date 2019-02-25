@@ -12,10 +12,14 @@
 #include "ast.h"
 #include "symtable.h"
 
+// TODO: Proxy type?
+
 typedef struct NecroBase
 {
     NecroAstArena ast;
 
+    NecroAstSymbol* higher_kind; // NOTE: Not actually supported, only here for error messages
+    NecroAstSymbol* kind_kind; // NOTE: Instead of Kind of Type being NULL or Type
     NecroAstSymbol* star_kind;
     NecroAstSymbol* nat_kind;
     NecroAstSymbol* sym_kind;

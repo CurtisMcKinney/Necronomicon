@@ -155,6 +155,11 @@ NecroResult(NecroParseAstLocalPtr) necro_let_expected_right_brace_error(NecroSou
     return necro_default_parse_error(NECRO_PARSE_LET_EXPECTED_RIGHT_BRACE, source_loc, end_loc);
 }
 
+NecroResult(NecroParseAstLocalPtr) necro_type_sig_expected_right_paren_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    return necro_default_parse_error(NECRO_PARSE_TYPE_SIG_EXPECTED_RIGHT_PAREN, source_loc, end_loc);
+}
+
 NecroResult(NecroParseAstLocalPtr) necro_let_missing_in_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     return necro_default_parse_error(NECRO_PARSE_LET_MISSING_IN, source_loc, end_loc);
@@ -793,6 +798,12 @@ void necro_print_let_expected_right_brace_error(NecroResultError* error, const c
     necro_print_default_error_format("Malformed \'let\' Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
+void necro_print_type_sig_expected_right_paren_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char* explanation = "Type variable signature should take the form: (tyvar :: Kind)";
+    necro_print_default_error_format("Malformed Type Var Sig", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
+}
+
 void necro_print_let_missing_in_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "\'let\' expressions should take the form: let var = expr1 in expr2";
@@ -1186,7 +1197,7 @@ void necro_print_mismatched_kind_error(NecroResultError* error, const char* sour
 
     fprintf(stderr, NECRO_ERR_LEFT_CHAR "\n");
     fprintf(stderr, NECRO_ERR_LEFT_CHAR " 'Kinds' are the 'types' of types\n");
-    fprintf(stderr, NECRO_ERR_LEFT_CHAR " You likely applied too few or too many type parameters to a type\n");
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Perhaps you applied too few or too many type parameters to a type\n");
 
     fprintf(stderr, "\n");
     UNUSED(source_name);
@@ -1465,6 +1476,7 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_PARSE_CLASS_EXPECTED_RIGHT_BRACE:                necro_print_class_expected_right_brace_error(error, source_str, source_name); break;
     case NECRO_PARSE_INSTANCE_EXPECTED_RIGHT_BRACE:             necro_print_instance_expected_right_brace_error(error, source_str, source_name); break;
     case NECRO_PARSE_CONST_CON_MISSING_RIGHT_PAREN:             necro_print_const_con_missing_right_paren(error, source_str, source_name); break;
+    case NECRO_PARSE_TYPE_SIG_EXPECTED_RIGHT_PAREN:             necro_print_type_sig_expected_right_paren_error(error, source_str, source_name); break;
 
     case NECRO_RENAME_MULTIPLE_DEFINITIONS:                     necro_print_multiple_definitions_error(error, source_str, source_name); break;
     case NECRO_RENAME_MULTIPLE_TYPE_SIGNATURES:                 necro_print_duplicate_type_signatures_error(error, source_str, source_name); break;

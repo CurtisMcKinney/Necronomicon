@@ -580,7 +580,8 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
         break;
     case NECRO_AST_SIMPLE_TYPE:
         d_analyze_go(d_analyzer, ast->simple_type.type_con);
-        d_analyze_go(d_analyzer, ast->simple_type.type_var_list);
+        // TODO / HACK: Don't run d_analyze on kind signatures?....
+        // d_analyze_go(d_analyzer, ast->simple_type.type_var_list);
         break;
     case NECRO_AST_FUNCTION_TYPE:
         d_analyze_go(d_analyzer, ast->function_type.type);

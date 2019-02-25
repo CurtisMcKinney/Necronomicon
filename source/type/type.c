@@ -1382,9 +1382,15 @@ NecroGenResult necro_gen_go(NecroPagedArena* arena, NecroType* type, NecroGenRes
         return result;
     }
     case NECRO_TYPE_NAT:
+    {
+        prev_result.type = type;
         return prev_result;
+    }
     case NECRO_TYPE_SYM:
+    {
+        prev_result.type = type;
         return prev_result;
+    }
     case NECRO_TYPE_FOR: assert(false); return (NecroGenResult) { NULL, NULL, NULL };
     default:             assert(false); return (NecroGenResult) { NULL, NULL, NULL };
     }

@@ -37,11 +37,12 @@ NecroResult(NecroType) necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast
     {
     case NECRO_AST_VARIABLE:      return ok(NecroType, necro_type_var_create(infer->arena, ast->variable.ast_symbol));
     case NECRO_AST_TUPLE:         return necro_infer_tuple_type(infer, ast);
+    case NECRO_AST_CONSTANT:      return ok(NecroType, necro_infer_constant(infer, ast));
     case NECRO_AST_FUNCTION_TYPE:
     {
         NecroType* left  = necro_try(NecroType, necro_ast_to_type_sig_go(infer, ast->function_type.type));
         necro_try_map(void, NecroType, necro_kind_infer_gen_unify_with_star(infer->arena, infer->base, left, NULL, ast->function_type.type->source_loc, ast->function_type.type->end_loc));
-        NecroType* right = necro_try(NecroType, necro_ast_to_type_sig_go(infer, ast->function_type.next_on_arrow));
+        NecroType* right  = necro_try(NecroType, necro_ast_to_type_sig_go(infer, ast->function_type.next_on_arrow));
         necro_try_map(void, NecroType, necro_kind_infer_gen_unify_with_star(infer->arena, infer->base, right, NULL, ast->function_type.next_on_arrow->source_loc, ast->function_type.next_on_arrow->end_loc));
         ast->necro_type  = necro_type_fn_create(infer->arena, left, right);
         return ok(NecroType, ast->necro_type);
@@ -49,6 +50,7 @@ NecroResult(NecroType) necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast
 
     case NECRO_AST_CONID:
         ast->necro_type = necro_type_con_create(infer->arena, ast->conid.ast_symbol->type->con.con_symbol, NULL);
+        necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, ast->necro_type, ast->source_loc, ast->end_loc));
         return ok(NecroType, ast->necro_type);
 
     case NECRO_AST_CONSTRUCTOR:
@@ -59,7 +61,7 @@ NecroResult(NecroType) necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast
         while (arg_list != NULL)
         {
             NecroType* arg_type = necro_try(NecroType, necro_ast_to_type_sig_go(infer, arg_list->list.item));
-            necro_try_map(void, NecroType, necro_kind_infer_gen_unify_with_star(infer->arena, infer->base, arg_type, NULL, arg_list->list.item->source_loc, arg_list->list.item->end_loc));
+            necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, arg_type, arg_list->list.item->source_loc, arg_list->list.item->end_loc));
             if (con_args == NULL)
                 con_args = necro_type_list_create(infer->arena, arg_type, NULL);
             else
@@ -69,6 +71,7 @@ NecroResult(NecroType) necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast
         }
         NecroType* env_con_type = ast->constructor.conid->conid.ast_symbol->type;
         ast->necro_type         = necro_type_con_create(infer->arena, env_con_type->con.con_symbol, con_args);
+        necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, ast->necro_type, ast->source_loc, ast->end_loc));
         return ok(NecroType, ast->necro_type);
     }
 
@@ -76,7 +79,8 @@ NecroResult(NecroType) necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast
     {
         NecroType* left   = necro_try(NecroType, necro_ast_to_type_sig_go(infer, ast->type_app.ty));
         NecroType* right  = necro_try(NecroType, necro_ast_to_type_sig_go(infer, ast->type_app.next_ty));
-        necro_try_map(void, NecroType, necro_kind_infer_gen_unify_with_star(infer->arena, infer->base, right, NULL, ast->type_app.next_ty->source_loc, ast->type_app.next_ty->end_loc));
+        necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, left, ast->type_app.ty->source_loc, ast->type_app.ty->end_loc));
+        necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, right, ast->type_app.next_ty->source_loc, ast->type_app.next_ty->end_loc));
 
         if (left->type == NECRO_TYPE_CON)
         {
@@ -92,12 +96,14 @@ NecroResult(NecroType) necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast
                 current_arg->list.next = necro_type_list_create(infer->arena, right, NULL);
             }
             ast->necro_type = left;
+            ast->necro_type->kind = NULL;
+            necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, ast->necro_type, ast->source_loc, ast->end_loc));
             return ok(NecroType, ast->necro_type);
         }
         else
         {
             ast->necro_type = necro_type_app_create(infer->arena, left, right);
-            // necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, ast->necro_type, ast->source_loc, ast->end_loc));
+            necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, ast->necro_type, ast->source_loc, ast->end_loc));
             return ok(NecroType, ast->necro_type);
         }
     }
@@ -138,6 +144,70 @@ NecroResult(NecroType) necro_infer_type_sig(NecroInfer* infer, NecroAst* ast)
     return ok(NecroType, ast->necro_type);
 }
 
+NecroResult(NecroType) necro_ast_to_kind_sig_go(NecroInfer* infer, NecroAst* ast)
+{
+    assert(ast != NULL);
+    switch (ast->type)
+    {
+    case NECRO_AST_VARIABLE:
+    {
+        NecroType* kind_var = necro_type_var_create(infer->arena, ast->variable.ast_symbol);
+        kind_var->kind      = infer->base->kind_kind->type;
+        return ok(NecroType, kind_var);
+    }
+    case NECRO_AST_TUPLE:
+        return necro_kind_unify_with_info(infer->base->kind_kind->type, infer->base->star_kind->type, NULL, ast->source_loc, ast->end_loc); // Will produce necessary unification error
+    case NECRO_AST_FUNCTION_TYPE:
+    {
+        NecroType* left  = necro_try(NecroType, necro_ast_to_kind_sig_go(infer, ast->function_type.type));
+        necro_try(NecroType, necro_kind_unify_with_info(infer->base->kind_kind->type, left->kind, NULL, ast->source_loc, ast->end_loc));
+        NecroType* right = necro_try(NecroType, necro_ast_to_kind_sig_go(infer, ast->function_type.next_on_arrow));
+        necro_try(NecroType, necro_kind_unify_with_info(infer->base->kind_kind->type, right->kind, NULL, ast->source_loc, ast->end_loc));
+        ast->necro_type  = necro_type_fn_create(infer->arena, left, right);
+        ast->necro_type->kind = infer->base->kind_kind->type;
+        return ok(NecroType, ast->necro_type);
+    }
+
+    case NECRO_AST_CONID:
+        ast->necro_type       = necro_type_con_create(infer->arena, ast->conid.ast_symbol->type->con.con_symbol, NULL);
+        ast->necro_type->kind = ast->conid.ast_symbol->type->con.con_symbol->type->kind;
+        necro_try(NecroType, necro_kind_unify_with_info(infer->base->kind_kind->type, ast->necro_type->kind, NULL, ast->source_loc, ast->end_loc));
+        return ok(NecroType, ast->necro_type);
+
+    case NECRO_AST_CONSTRUCTOR:
+    {
+        if (ast->constructor.arg_list != NULL)
+            return necro_kind_unify_with_info(infer->base->kind_kind->type, infer->base->higher_kind->type, NULL, ast->source_loc, ast->end_loc); // Will produce necessary unification error
+        NecroType* env_con_type = ast->constructor.conid->conid.ast_symbol->type;
+        ast->necro_type         = necro_type_con_create(infer->arena, env_con_type->con.con_symbol, NULL);
+        ast->necro_type->kind   = env_con_type->con.con_symbol->type->kind;
+        necro_try(NecroType, necro_kind_unify_with_info(infer->base->kind_kind->type, ast->necro_type->kind, NULL, ast->source_loc, ast->end_loc));
+        return ok(NecroType, ast->necro_type);
+    }
+
+    case NECRO_AST_TYPE_APP:
+        return necro_kind_unify_with_info(infer->base->kind_kind->type, infer->base->higher_kind->type, NULL, ast->source_loc, ast->end_loc); // Will produce necessary unification error
+
+    default: necro_unreachable(NecroType);
+    }
+}
+
+NecroResult(NecroType) necro_infer_kind_sig(NecroInfer* infer, NecroAst* ast)
+{
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_TYPE_SIGNATURE);
+    NecroType* kind_sig = necro_try(NecroType, necro_ast_to_kind_sig_go(infer, ast->type_signature.type));
+    necro_try(NecroType, necro_kind_unify_with_info(infer->base->kind_kind->type, kind_sig->kind, NULL, ast->source_loc, ast->end_loc));
+    // TODO: Throw error if kind signatures has a context!!!!!!!
+    // TODO: Generalize all kinds in a type...
+    NecroType* tyvar_type                              = necro_type_var_create(infer->arena, ast->type_signature.var->variable.ast_symbol);
+    tyvar_type->kind                                   = kind_sig;
+    kind_sig->pre_supplied                             = true;
+    ast->type_signature.var->variable.ast_symbol->type = tyvar_type;
+    ast->necro_type                                    = tyvar_type;
+    return ok(NecroType, ast->necro_type);
+}
+
 //=====================================================
 // Data Declaration
 //=====================================================
@@ -152,29 +222,42 @@ size_t necro_count_ty_vars(NecroAst* ty_vars)
     return count;
 }
 
-NecroType* necro_ty_vars_to_args(NecroInfer* infer, NecroAst* ty_vars)
+NecroResult(NecroType) necro_ty_vars_to_args(NecroInfer* infer, NecroAst* ty_vars)
 {
     NecroType* type = NULL;
     NecroType* head = NULL;
     while (ty_vars != NULL)
     {
         assert(ty_vars->type == NECRO_AST_LIST_NODE);
-        if (ty_vars->list.item->variable.ast_symbol->type == NULL)
-            ty_vars->list.item->variable.ast_symbol->type = necro_type_var_create(infer->arena, ty_vars->list.item->variable.ast_symbol);
+        NecroType* tyvar_type = NULL;
+        if (ty_vars->list.item->type == NECRO_AST_VARIABLE)
+        {
+            if (ty_vars->list.item->variable.ast_symbol->type == NULL)
+                ty_vars->list.item->variable.ast_symbol->type = necro_type_var_create(infer->arena, ty_vars->list.item->variable.ast_symbol);
+            tyvar_type = ty_vars->list.item->variable.ast_symbol->type;
+        }
+        else if (ty_vars->list.item->type == NECRO_AST_TYPE_SIGNATURE)
+        {
+            tyvar_type = necro_try(NecroType, necro_infer_kind_sig(infer, ty_vars->list.item));
+        }
+        else
+        {
+            assert(false);
+        }
         if (type == NULL)
         {
 
-            head = necro_type_list_create(infer->arena, ty_vars->list.item->variable.ast_symbol->type, NULL);
+            head = necro_type_list_create(infer->arena, tyvar_type, NULL);
             type = head;
         }
         else
         {
-            type->list.next = necro_type_list_create(infer->arena, ty_vars->list.item->variable.ast_symbol->type, NULL);
+            type->list.next = necro_type_list_create(infer->arena, tyvar_type, NULL);
             type = type->list.next;
         }
         ty_vars = ty_vars->list.next_item;
     }
-    return head;
+    return ok(NecroType, head);
 }
 
 NecroResult(NecroType) necro_create_data_constructor(NecroInfer* infer, NecroAst* ast, NecroType* data_type, size_t con_num)
@@ -235,14 +318,18 @@ NecroResult(NecroType) necro_infer_simple_type(NecroInfer* infer, NecroAst* ast)
     NecroType*   constructor_type_kind                = infer->base->star_kind->type;
     for (size_t i = 0; i < arity; ++i)
     {
-        constructor_type_kind = necro_type_fn_create(infer->arena, infer->base->star_kind->type, constructor_type_kind);
+        // constructor_type_kind = necro_type_fn_create(infer->arena, infer->base->star_kind->type, constructor_type_kind);
+        NecroType* kind_var = necro_type_fresh_var(infer->arena);
+        kind_var->kind      = infer->base->kind_kind->type;
+        constructor_type_kind = necro_type_fn_create(infer->arena, kind_var, constructor_type_kind);
     }
     constructor_type->kind                            = constructor_type_kind;
     constructor_type->pre_supplied                    = true;
     ast->simple_type.type_con->conid.ast_symbol->type = constructor_type;
 
     // Fully applied type
-    NecroType*   fully_applied_type                   = necro_type_con_create(infer->arena, ast->simple_type.type_con->conid.ast_symbol, necro_ty_vars_to_args(infer, ast->simple_type.type_var_list));
+    NecroType*   data_type_type                       = necro_try(NecroType, necro_ty_vars_to_args(infer, ast->simple_type.type_var_list));
+    NecroType*   fully_applied_type                   = necro_type_con_create(infer->arena, ast->simple_type.type_con->conid.ast_symbol, data_type_type);
     fully_applied_type->pre_supplied                  = true;
     necro_try_map(void, NecroType, necro_kind_infer_gen_unify_with_star(infer->arena, infer->base, fully_applied_type, NULL, ast->simple_type.type_con->source_loc, ast->simple_type.type_con->end_loc));
     ast->necro_type                                   = fully_applied_type;
@@ -632,6 +719,10 @@ NecroType* necro_infer_constant(NecroInfer* infer, NecroAst* ast)
         // ast->necro_type = new_name;
         // return new_name;
     }
+    case NECRO_AST_CONSTANT_TYPE_INT:
+        ast->necro_type       = necro_type_nat_create(infer->arena, (size_t) ast->constant.int_literal);
+        ast->necro_type->kind = infer->base->nat_kind->type;
+        return ast->necro_type;
     case NECRO_AST_CONSTANT_FLOAT:
         ast->necro_type = infer->base->float_type->type;
         return ast->necro_type;
@@ -2200,17 +2291,6 @@ void necro_test_infer()
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 
-    // NOTE: Theoretically can't get this far as the renamer will stop it. Perhaps in the futre with proper modules this will be possible to throw.
-    // {
-    //     const char* test_name   = "Multiple Class Declarations";
-    //     const char* test_source = ""
-    //         "class Num a where\n";
-    //     const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-    //     const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MULTIPLE_CLASS_DECLARATIONS;
-    //     necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
-    // }
-
-    // NOTE: Theoretically can't get this far as the renamer will stop it. Perhaps in the futre with proper modules this will be possible to throw.
     {
         const char* test_name   = "Multiple Instance Declarations";
         const char* test_source = ""
@@ -2218,6 +2298,165 @@ void necro_test_infer()
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MULTIPLE_INSTANCE_DECLARATIONS;
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Kind is not a type";
+        const char* test_source = ""
+            "notKind :: Type -> Int\n"
+            "notKind _ = 0\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_KIND_MISMATCHED_KIND;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Kind Signature is Ok 1";
+        const char* test_source = ""
+            "data Phantom (a :: Nat) = Phantom\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Kind Signature is Ok 2";
+        const char* test_source = ""
+            "data Phantom (a :: Type -> Type) = Phantom\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Wrong Kind Signature 1";
+        const char* test_source = ""
+            "data Phantom (a :: Bool) = Phantom\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_KIND_MISMATCHED_KIND;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Wrong Kind Signature 2";
+        const char* test_source = ""
+            "data Phantom (a :: Maybe) = Phantom\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_KIND_MISMATCHED_KIND;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Mismatched Kinds 1";
+        const char* test_source = ""
+            "data Phantom (a :: Nat) = Phantom\n"
+            "solitaryPhantom :: Phantom ()\n"
+            "solitaryPhantom = Phantom\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_KIND_MISMATCHED_KIND;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Mismatched Kinds 2";
+        const char* test_source = ""
+            "data Apply (a :: Type) b = Apply (a b)\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_KIND_MISMATCHED_KIND;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Mismatched Kinds 3";
+        const char* test_source = ""
+            "data Apply (a :: Type -> Type) = Apply a\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_KIND_MISMATCHED_KIND;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Higher Kinds Ok 1";
+        const char* test_source = ""
+            "data Apply (a :: Type -> Type) b = Apply (a b)\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Higher Kinds Ok 2";
+        const char* test_source = ""
+            "data DontApply (a :: Type -> Type) b = DontApply b\n"
+            "dontApply :: DontApply Maybe Int\n"
+            "dontApply = DontApply 22\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Mismatched Kinds 4";
+        const char* test_source = ""
+            "data DontApply (a :: Type -> Type) b = DontApply b\n"
+            "dontApply :: DontApply () Int\n"
+            "dontApply = DontApply 22\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_KIND_MISMATCHED_KIND;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Higher Kinds Ok 3";
+        const char* test_source = ""
+            "data DoubleApply m a b = DoubleApply (m a) (m b)\n"
+            "doubleApplyMaybe :: DoubleApply Maybe () Bool\n"
+            "doubleApplyMaybe = DoubleApply Nothing (Just False)\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Mismatched Kinds 5";
+        const char* test_source = ""
+            "data WrongApply m a b = WrongApply (m a) (m a b)\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_KIND_MISMATCHED_KIND;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Higher Kinds Ok 4";
+        const char* test_source = ""
+            "data ArrayN (n :: Nat) a = ArrayN a\n"
+            "data UseArray (a :: Nat -> Type -> Type) b = UseArray b\n"
+            "useArray :: UseArray ArrayN Int\n"
+            "useArray = UseArray 22\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Mismatched Kinds 6";
+        const char* test_source = ""
+            "data ArrayN (n :: Nat) a = ArrayN a\n"
+            "data UseArray (a :: Nat -> Type -> Type) b = UseArray b\n"
+            "useArray :: UseArray Maybe Int\n"
+            "useArray = UseArray 22\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_KIND_MISMATCHED_KIND;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    // TODO: Better type signature inference. Use what we have, kind signatures in Constructor AstSymbols to enforce more accurate and local kinds inference. Treat with the same care we treat type inference with!
+    // TODO: Test kind inference with kind signatures
+    // TODO: Test infer_generalize with different kinds
+    // TODO: Create type literals in parsing, etc
+    // TODO: Bang this around a lot.
+    {
+        const char* test_name   = "Nat Kind 1";
+        const char* test_source = ""
+            "data ArrayN (n :: Nat) a = ArrayN a\n"
+            "arrayN :: ArrayN 8 Int\n"
+            "arrayN = ArrayN 22\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
 #if 0 // This crashes right now during inference :(
@@ -2375,7 +2614,7 @@ void necro_test_infer()
                                     ),
                                     NULL,
                                     necro_ast_create_rhs(
-                                        &ast.arena, 
+                                        &ast.arena,
                                         necro_ast_create_fexpr(
                                             &ast.arena,
                                             necro_ast_create_conid_with_ast_symbol(&ast.arena,
@@ -2617,7 +2856,7 @@ void necro_test_infer()
                                 &ast.arena,
                                 necro_ast_symbol_create(
                                     &ast.arena,
-                                    clash_x, 
+                                    clash_x,
                                     necro_intern_string(&intern, "x"),
                                     necro_intern_string(&intern, "Test"),
                                     NULL
@@ -2958,7 +3197,7 @@ void necro_test_infer()
                                         NECRO_VAR_DECLARATION),
                                     NULL)),
                             necro_ast_create_rhs(
-                                &ast.arena, 
+                                &ast.arena,
                                 necro_ast_create_tuple(
                                     &ast.arena,
                                     necro_ast_create_list(

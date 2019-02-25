@@ -43,6 +43,7 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
             break;
         case NECRO_AST_CONSTANT_INTEGER_PATTERN: // FALL THROUGH
             printf("pat_int: ");
+        case NECRO_AST_CONSTANT_TYPE_INT:
         case NECRO_AST_CONSTANT_INTEGER:
 #if WIN32
             printf("(%lli)\n", ast->constant.int_literal);
@@ -515,6 +516,8 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
             reified_ast->constant.pat_from_ast   = NULL;
             reified_ast->constant.pat_eq_ast     = NULL;
             break;
+
+        case NECRO_AST_CONSTANT_TYPE_INT:
         case NECRO_AST_CONSTANT_INTEGER_PATTERN:
             reified_ast->constant.int_literal  = ast->constant.int_literal;
             reified_ast->constant.type         = ast->constant.type;
@@ -1356,7 +1359,9 @@ NecroAst* necro_ast_create_constant(NecroPagedArena* arena, NecroParseAstConstan
     case NECRO_AST_CONSTANT_FLOAT_PATTERN:
         ast->constant.double_literal = constant.double_literal;
         break;
+
     case NECRO_AST_CONSTANT_INTEGER:
+    case NECRO_AST_CONSTANT_TYPE_INT:
     case NECRO_AST_CONSTANT_INTEGER_PATTERN:
         ast->constant.int_literal = constant.int_literal;
         break;
@@ -1571,6 +1576,7 @@ void necro_ast_assert_eq_constant(NecroAst* ast1, NecroAst* ast2)
     case NECRO_AST_CONSTANT_FLOAT:
         assert(ast1->constant.double_literal == ast2->constant.double_literal);
         break;
+    case NECRO_AST_CONSTANT_TYPE_INT:
     case NECRO_AST_CONSTANT_INTEGER_PATTERN:
     case NECRO_AST_CONSTANT_INTEGER:
         assert(ast1->constant.int_literal == ast2->constant.int_literal);

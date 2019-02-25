@@ -38,6 +38,8 @@
 
         * Need good story for fixed size arrays
 
+        * Demand (or perhaps Lazy?) types, which have separate instantiations for each demand (or force?) site.
+
         * Default type class. Use this for polymorphic recursion
         * Given the above we could do an even more drastic memory scheme, such as large scale Region based memory management.
         * Rename pass to necro_type_specialize ???

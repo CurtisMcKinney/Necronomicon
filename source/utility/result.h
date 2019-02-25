@@ -78,6 +78,7 @@ typedef enum
     NECRO_PARSE_CLASS_EXPECTED_RIGHT_BRACE,
     NECRO_PARSE_INSTANCE_EXPECTED_RIGHT_BRACE,
     NECRO_PARSE_CONST_CON_MISSING_RIGHT_PAREN,
+    NECRO_PARSE_TYPE_SIG_EXPECTED_RIGHT_PAREN,
 
     NECRO_RENAME_MULTIPLE_DEFINITIONS,
     NECRO_RENAME_MULTIPLE_TYPE_SIGNATURES,
@@ -318,6 +319,7 @@ NecroResult(NecroParseAstLocalPtr) necro_let_missing_in_error(NecroSourceLoc sou
 NecroResult(NecroParseAstLocalPtr) necro_let_empty_in_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroParseAstLocalPtr) necro_let_expected_semicolon_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroParseAstLocalPtr) necro_let_expected_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroParseAstLocalPtr) necro_type_sig_expected_right_paren_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroParseAstLocalPtr) necro_const_con_missing_right_brace(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroParseAstLocalPtr) necro_tuple_missing_paren_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroParseAstLocalPtr) necro_paren_expression_failed_to_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);

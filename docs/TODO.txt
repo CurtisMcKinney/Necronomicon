@@ -1,3 +1,20 @@
+-- Chad To Do 2/24/2019
+
+CORE TRANSLATION
+	* Check notes in core.h
+	* Things should be filtered out
+	* don't need typeclass
+	* have to get rid of polymorphism (if necro type is polymorphic returns true, ignore, goes for functions and values)
+	* typeclass instances, ignore everything but declarations
+	* merge the different modules into one giant ast: First base, then user code, into one singular AST (make this more general somehow?)
+	* later passes: fix things I break (maybe make the current AST _deprecated, then just operate independantly)
+
+Type unify, compare types
+look at type.h line 57, the necro types
+necro_type_exact_unify (intern strings, get necrosymbol, necro_symtable_get_typed_ast_symbol, get ast symbol pointers, then compare)
+
+
+
 -- Chad To Do 2/17/2019
 
 Translate to core:

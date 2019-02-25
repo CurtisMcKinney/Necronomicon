@@ -29,6 +29,40 @@ NecroAstSymbol* necro_kind_create_star(NecroPagedArena* arena, NecroIntern* inte
     return ast_symbol;
 }
 
+NecroAstSymbol* necro_kind_create_nat(NecroPagedArena* arena, NecroIntern* intern)
+{
+    NecroAstSymbol* ast_symbol = necro_ast_symbol_create(arena, necro_intern_string(intern, "Necro.Base.Nat"), necro_intern_string(intern, "Nat"), necro_intern_string(intern, "Necro.Base"), NULL);
+    NecroType*      nat_type   = necro_type_alloc(arena);
+    nat_type->type             = NECRO_TYPE_CON;
+    nat_type->con              = (NecroTypeCon)
+    {
+        .con_symbol = ast_symbol,
+        .args       = NULL,
+    };
+    nat_type->kind          = NULL;
+    nat_type->pre_supplied  = true;
+    ast_symbol->type        = nat_type;
+    ast_symbol->ast         = necro_ast_create_var(arena, intern, "Nat", NECRO_VAR_DECLARATION);
+    return ast_symbol;
+}
+
+NecroAstSymbol* necro_kind_create_sym(NecroPagedArena* arena, NecroIntern* intern)
+{
+    NecroAstSymbol* ast_symbol = necro_ast_symbol_create(arena, necro_intern_string(intern, "Necro.Base.Sym"), necro_intern_string(intern, "Sym"), necro_intern_string(intern, "Necro.Base"), NULL);
+    NecroType*      sym_type   = necro_type_alloc(arena);
+    sym_type->type             = NECRO_TYPE_CON;
+    sym_type->con              = (NecroTypeCon)
+    {
+        .con_symbol = ast_symbol,
+        .args       = NULL,
+    };
+    sym_type->kind          = NULL;
+    sym_type->pre_supplied  = true;
+    ast_symbol->type        = sym_type;
+    ast_symbol->ast         = necro_ast_create_var(arena, intern, "Sym", NECRO_VAR_DECLARATION);
+    return ast_symbol;
+}
+
 NecroResult(NecroType) necro_kind_unify_var(NecroType* kind1, NecroType* kind2, NecroScope* scope)
 {
     assert(kind1 != NULL);
@@ -273,6 +307,14 @@ NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase
 
     case NECRO_TYPE_FOR:
         type->kind = necro_try(NecroType, necro_kind_infer(arena, base, type->for_all.type, source_loc, end_loc));
+        return ok(NecroType, type->kind);
+
+    case NECRO_TYPE_NAT:
+        type->kind = necro_type_con_create(arena, base->nat_kind, NULL);
+        return ok(NecroType, type->kind);
+
+    case NECRO_TYPE_SYM:
+        type->kind = necro_type_con_create(arena, base->sym_kind, NULL);
         return ok(NecroType, type->kind);
 
     case NECRO_TYPE_LIST: necro_unreachable(NecroType);

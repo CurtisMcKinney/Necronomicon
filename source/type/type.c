@@ -162,6 +162,28 @@ NecroType* necro_type_for_all_create(NecroPagedArena* arena, NecroAstSymbol* var
     return for_all;
 }
 
+NecroType* necro_type_nat_create(NecroPagedArena* arena, size_t value)
+{
+    NecroType* type = necro_type_alloc(arena);
+    type->type      = NECRO_TYPE_NAT;
+    type->nat       = (NecroTypeNat)
+    {
+        .value      = value
+    };
+    return type;
+}
+
+NecroType* necro_type_sym_create(NecroPagedArena* arena, NecroSymbol value)
+{
+    NecroType* type = necro_type_alloc(arena);
+    type->type      = NECRO_TYPE_SYM;
+    type->sym       = (NecroTypeSym)
+    {
+        .value      = value
+    };
+    return type;
+}
+
 NecroTypeClassContext* necro_context_deep_copy(NecroPagedArena* arena, NecroTypeClassContext* context)
 {
     if (context == NULL)
@@ -176,8 +198,6 @@ NecroTypeClassContext* necro_context_deep_copy(NecroPagedArena* arena, NecroType
 
 NecroType* necro_type_deep_copy(NecroPagedArena* arena, NecroType* type)
 {
-    // if (true)
-    //     return type;
     if (type == NULL)
         return NULL;
     type = necro_type_find(type);
@@ -189,6 +209,8 @@ NecroType* necro_type_deep_copy(NecroPagedArena* arena, NecroType* type)
     case NECRO_TYPE_CON:  return necro_type_con_create(arena, type->con.con_symbol, necro_type_deep_copy(arena, type->con.args));
     case NECRO_TYPE_FOR:  return necro_type_for_all_create(arena, type->for_all.var_symbol, necro_context_deep_copy(arena, type->for_all.context), necro_type_deep_copy(arena, type->for_all.type));
     case NECRO_TYPE_LIST: return necro_type_list_create(arena, necro_type_deep_copy(arena, type->list.item), necro_type_deep_copy(arena, type->list.next));
+    case NECRO_TYPE_NAT:  return necro_type_nat_create(arena, type->nat.value);
+    case NECRO_TYPE_SYM:  return necro_type_sym_create(arena, type->sym.value);
     default:              assert(false); return NULL;
     }
 }
@@ -342,6 +364,10 @@ bool necro_type_is_polymorphic(const NecroType* type)
         return false;
     case NECRO_TYPE_FOR:
         return true;
+    case NECRO_TYPE_NAT:
+        return false;
+    case NECRO_TYPE_SYM:
+        return false;
     default:
         assert(false);
         return false;
@@ -451,6 +477,10 @@ NecroResult(bool) necro_type_is_unambiguous_polymorphic(NecroPagedArena* arena, 
     case NECRO_TYPE_FOR:
         necro_try(bool, necro_type_is_unambiguous_polymorphic(arena, base, type->for_all.type, macro_type, source_loc, end_loc));
         return ok(bool, true);
+    case NECRO_TYPE_NAT:
+        return ok(bool, false);
+    case NECRO_TYPE_SYM:
+        return ok(bool, false);
     default:
         assert(false);
         return ok(bool, false);
@@ -593,6 +623,10 @@ NecroResult(NecroType) necro_type_occurs(NecroAstSymbol* type_var_symbol, NecroT
     case NECRO_TYPE_LIST:
         necro_try(NecroType, necro_type_occurs(type_var_symbol, type->list.item));
         return necro_type_occurs(type_var_symbol, type->list.next);
+    case NECRO_TYPE_NAT:
+        return ok(NecroType, NULL);
+    case NECRO_TYPE_SYM:
+        return ok(NecroType, NULL);
     case NECRO_TYPE_FOR:  necro_unreachable(NecroType);
     default:              necro_unreachable(NecroType);
     }
@@ -679,6 +713,11 @@ NecroResult(NecroType) necro_propogate_type_classes(NecroPagedArena* arena, Necr
         assert(false && "Compiler bug: TypeApp not implemented in necro_propogate_type_classes! (i.e. constraints of the form: Num (f a), or (c a), are not currently supported)");
         return ok(NecroType, NULL);
 
+    case NECRO_TYPE_NAT:
+        return ok(NecroType, NULL);
+    case NECRO_TYPE_SYM:
+        return ok(NecroType, NULL);
+
     case NECRO_TYPE_LIST: necro_unreachable(NecroType);
     case NECRO_TYPE_FOR:  necro_unreachable(NecroType);
     default:              necro_unreachable(NecroType);
@@ -713,6 +752,8 @@ NecroResult(NecroType) necro_unify_var(NecroPagedArena* arena, NecroBase* base, 
     case NECRO_TYPE_CON:
     case NECRO_TYPE_APP:
     case NECRO_TYPE_FUN:
+    case NECRO_TYPE_NAT:
+    case NECRO_TYPE_SYM:
         if (type1->var.is_rigid)
             return necro_type_rigid_type_variable_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs(type1->var.var_symbol , type2));
@@ -749,7 +790,10 @@ NecroResult(NecroType) necro_unify_app(NecroPagedArena* arena, NecroBase* base, 
         else
             return necro_type_unify(arena, base, type1, uncurried_con, scope);
     }
-    case NECRO_TYPE_FUN:  return necro_type_mismatched_type_error_partial(type1, type2);
+    case NECRO_TYPE_FUN:
+    case NECRO_TYPE_NAT:
+    case NECRO_TYPE_SYM:
+        return necro_type_mismatched_type_error_partial(type1, type2);
     case NECRO_TYPE_FOR:  necro_unreachable(NecroType);
     case NECRO_TYPE_LIST: necro_unreachable(NecroType);
     default:              necro_unreachable(NecroType);
@@ -773,8 +817,11 @@ NecroResult(NecroType) necro_unify_fun(NecroPagedArena* arena, NecroBase* base, 
         necro_try(NecroType, necro_type_unify(arena, base, type1->fun.type1, type2->fun.type1, scope));
         necro_try(NecroType, necro_type_unify(arena, base, type1->fun.type2, type2->fun.type2, scope));
         return ok(NecroType, NULL);
-    case NECRO_TYPE_APP:  return necro_type_mismatched_type_error_partial(type1, type2);
-    case NECRO_TYPE_CON:  return necro_type_mismatched_type_error_partial(type1, type2);
+    case NECRO_TYPE_APP:
+    case NECRO_TYPE_CON:
+    case NECRO_TYPE_NAT:
+    case NECRO_TYPE_SYM:
+        return necro_type_mismatched_type_error_partial(type1, type2);
     case NECRO_TYPE_LIST: necro_unreachable(NecroType);
     default:              necro_unreachable(NecroType);
     }
@@ -827,9 +874,68 @@ NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroBase* base, 
         else
             return necro_type_unify(arena, base, uncurried_con, type2, scope);
     }
-    case NECRO_TYPE_FUN:  return necro_type_mismatched_type_error_partial(type1, type2);
+    case NECRO_TYPE_NAT:
+    case NECRO_TYPE_SYM:
+    case NECRO_TYPE_FUN:
+        return necro_type_mismatched_type_error_partial(type1, type2);
     case NECRO_TYPE_LIST: necro_unreachable(NecroType);
     case NECRO_TYPE_FOR:  necro_unreachable(NecroType);
+    default:              necro_unreachable(NecroType);
+    }
+}
+
+NecroResult(NecroType) necro_unify_nat(NecroPagedArena* arena, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope)
+{
+    assert(type1 != NULL);
+    assert(type1->type == NECRO_TYPE_NAT);
+    assert(type2 != NULL);
+    switch (type2->type)
+    {
+    case NECRO_TYPE_VAR:
+        if (type2->var.is_rigid)
+            return necro_type_rigid_type_variable_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
+        necro_try(NecroType, necro_type_occurs_flipped(type2->var.var_symbol, type1));
+        necro_try(NecroType, necro_instantiate_type_var(arena, base, &type2->var, type1, scope));
+        return ok(NecroType, NULL);
+    case NECRO_TYPE_NAT:
+        if (type1->nat.value == type2->nat.value)
+            return necro_type_mismatched_type_error_partial(type1, type2);
+        else
+            return ok(NecroType, NULL);
+    case NECRO_TYPE_FUN:
+    case NECRO_TYPE_APP:
+    case NECRO_TYPE_CON:
+    case NECRO_TYPE_SYM:
+        return necro_type_mismatched_type_error_partial(type1, type2);
+    case NECRO_TYPE_LIST: necro_unreachable(NecroType);
+    default:              necro_unreachable(NecroType);
+    }
+}
+
+NecroResult(NecroType) necro_unify_sym(NecroPagedArena* arena, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope)
+{
+    assert(type1 != NULL);
+    assert(type1->type == NECRO_TYPE_SYM);
+    assert(type2 != NULL);
+    switch (type2->type)
+    {
+    case NECRO_TYPE_VAR:
+        if (type2->var.is_rigid)
+            return necro_type_rigid_type_variable_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
+        necro_try(NecroType, necro_type_occurs_flipped(type2->var.var_symbol, type1));
+        necro_try(NecroType, necro_instantiate_type_var(arena, base, &type2->var, type1, scope));
+        return ok(NecroType, NULL);
+    case NECRO_TYPE_SYM:
+        if (type1->sym.value == type2->sym.value)
+            return necro_type_mismatched_type_error_partial(type1, type2);
+        else
+            return ok(NecroType, NULL);
+    case NECRO_TYPE_FUN:
+    case NECRO_TYPE_APP:
+    case NECRO_TYPE_CON:
+    case NECRO_TYPE_NAT:
+        return necro_type_mismatched_type_error_partial(type1, type2);
+    case NECRO_TYPE_LIST: necro_unreachable(NecroType);
     default:              necro_unreachable(NecroType);
     }
 }
@@ -849,6 +955,8 @@ NecroResult(NecroType) necro_type_unify(NecroPagedArena* arena, NecroBase* base,
     case NECRO_TYPE_APP:  return necro_unify_app(arena, base, type1, type2, scope);
     case NECRO_TYPE_FUN:  return necro_unify_fun(arena, base, type1, type2, scope);
     case NECRO_TYPE_CON:  return necro_unify_con(arena, base, type1, type2, scope);
+    case NECRO_TYPE_NAT:  return necro_unify_nat(arena, base, type1, type2, scope);
+    case NECRO_TYPE_SYM:  return necro_unify_sym(arena, base, type1, type2, scope);
     case NECRO_TYPE_LIST: necro_unreachable(NecroType);
     case NECRO_TYPE_FOR:
         while (type1->type == NECRO_TYPE_FOR)
@@ -993,6 +1101,8 @@ NecroType* necro_type_replace_with_subs_deep_copy(NecroPagedArena* arena, NecroT
     case NECRO_TYPE_FUN:  return necro_type_fn_create(arena, necro_type_replace_with_subs_deep_copy(arena, type->fun.type1, subs), necro_type_replace_with_subs_deep_copy(arena, type->fun.type2, subs));
     case NECRO_TYPE_CON:  return necro_type_con_create(arena, type->con.con_symbol, necro_type_replace_with_subs_deep_copy(arena, type->con.args, subs));
     case NECRO_TYPE_LIST: return necro_type_list_create(arena, necro_type_replace_with_subs_deep_copy(arena, type->list.item, subs), necro_type_replace_with_subs_deep_copy(arena, type->list.next, subs));
+    case NECRO_TYPE_NAT:  return necro_type_nat_create(arena, type->nat.value);
+    case NECRO_TYPE_SYM:  return necro_type_sym_create(arena, type->sym.value);
 
     default:              assert(false); return NULL;
     }
@@ -1070,6 +1180,10 @@ NecroType* necro_type_replace_with_subs(NecroPagedArena* arena, NecroType* type,
         else
             return necro_type_list_create(arena, item, next);
     }
+    case NECRO_TYPE_NAT:
+        return type;
+    case NECRO_TYPE_SYM:
+        return type;
     default:
         assert(false);
         return NULL;
@@ -1267,6 +1381,10 @@ NecroGenResult necro_gen_go(NecroPagedArena* arena, NecroType* type, NecroGenRes
         result.type           = necro_type_con_create(arena, type->con.con_symbol, result.type);
         return result;
     }
+    case NECRO_TYPE_NAT:
+        return prev_result;
+    case NECRO_TYPE_SYM:
+        return prev_result;
     case NECRO_TYPE_FOR: assert(false); return (NecroGenResult) { NULL, NULL, NULL };
     default:             assert(false); return (NecroGenResult) { NULL, NULL, NULL };
     }
@@ -1497,6 +1615,14 @@ void necro_type_fprint(FILE* stream, const NecroType* type)
         necro_type_fprint(stream, type);
         break;
 
+    case NECRO_TYPE_NAT:
+        fprintf(stream, "%d", type->nat.value);
+        break;
+
+    case NECRO_TYPE_SYM:
+        fprintf(stream, "%s", type->sym.value->str);
+        break;
+
     default:
         assert(false);
         break;
@@ -1540,6 +1666,16 @@ size_t necro_type_mangled_string_length(const NecroType* type)
     case NECRO_TYPE_FOR:
         assert(false && "Mangled types must be fully concrete");
         return 0;
+
+    case NECRO_TYPE_NAT:
+    {
+        char buffer[16];
+        itoa(type->nat.value, buffer, 10);
+        return strlen(buffer);
+    }
+
+    case NECRO_TYPE_SYM:
+        return strlen(type->sym.value->str);
 
     default:
         assert(false);
@@ -1590,6 +1726,14 @@ size_t necro_type_mangled_sprintf(char* buffer, size_t offset, const NecroType* 
 
     case NECRO_TYPE_FOR:
         assert(false && "Mangled types must be fully concrete");
+        return offset;
+
+    case NECRO_TYPE_NAT:
+        offset += sprintf(buffer + offset, "%d", type->nat.value);
+        return offset;
+
+    case NECRO_TYPE_SYM:
+        offset += sprintf(buffer + offset, "%s", type->sym.value->str);
         return offset;
 
     default:
@@ -1745,6 +1889,8 @@ size_t necro_type_arity(NecroType* type)
     case NECRO_TYPE_FUN:  return 1 + necro_type_arity(type->fun.type2);
     case NECRO_TYPE_FOR:  return necro_type_arity(type->for_all.type);
     case NECRO_TYPE_LIST: assert(false); return 0;
+    case NECRO_TYPE_NAT:  assert(false); return 0;
+    case NECRO_TYPE_SYM:  assert(false); return 0;
     default:              assert(false); return 0;
     }
 }
@@ -1789,6 +1935,12 @@ size_t necro_type_hash(NecroType* type)
         h = h ^ necro_type_hash(type->for_all.type);
         break;
     }
+    case NECRO_TYPE_NAT:
+        h = type->nat.value ^ 37;
+        break;
+    case NECRO_TYPE_SYM:
+        h = type->sym.value->hash;
+        break;
     case NECRO_TYPE_LIST:
         assert(false && "Only used in TYPE_CON case");
         break;
@@ -1845,6 +1997,10 @@ bool necro_type_exact_unify(NecroType* type1, NecroType* type2)
         }
         return necro_type_exact_unify(type1->for_all.type, type2->for_all.type);
     }
+    case NECRO_TYPE_NAT:
+        return type1->nat.value == type2->nat.value;
+    case NECRO_TYPE_SYM:
+        return type1->sym.value == type2->sym.value;
     default:
         assert(false);
         return false;

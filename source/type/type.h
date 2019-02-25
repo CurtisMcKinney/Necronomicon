@@ -65,6 +65,10 @@ typedef enum
     NECRO_TYPE_FUN,
     NECRO_TYPE_LIST,
     NECRO_TYPE_FOR,
+
+    // Type Literals
+    NECRO_TYPE_NAT,
+    NECRO_TYPE_SYM,
 } NECRO_TYPE;
 
 typedef struct
@@ -108,6 +112,16 @@ typedef struct
     struct NecroType*             type;
 } NecroTypeForAll;
 
+typedef struct
+{
+    size_t value;
+} NecroTypeNat;
+
+typedef struct
+{
+    NecroSymbol value;
+} NecroTypeSym;
+
 typedef struct NecroType
 {
     union
@@ -118,6 +132,8 @@ typedef struct NecroType
         NecroTypeFun    fun;
         NecroTypeList   list;
         NecroTypeForAll for_all;
+        NecroTypeNat    nat;
+        NecroTypeSym    sym;
     };
     NECRO_TYPE        type;
     bool              pre_supplied;
@@ -191,6 +207,8 @@ NecroType*             necro_type_fn_create(NecroPagedArena* arena, NecroType* t
 NecroType*             necro_type_app_create(NecroPagedArena* arena, NecroType* type1, NecroType* type2);
 NecroType*             necro_type_list_create(NecroPagedArena* arena, NecroType* item, NecroType* next);
 NecroType*             necro_type_for_all_create(NecroPagedArena* arena, NecroAstSymbol* var_symbol, struct NecroTypeClassContext* context, NecroType* type);
+NecroType*             necro_type_nat_create(NecroPagedArena* arena, size_t value);
+NecroType*             necro_type_sym_create(NecroPagedArena* arena, NecroSymbol value);
 
 NecroType*             necro_type_con1_create(NecroPagedArena* arena,  NecroAstSymbol* con_symbol, NecroType* arg1);
 NecroType*             necro_type_con2_create(NecroPagedArena* arena,  NecroAstSymbol* con_symbol, NecroType* arg1, NecroType* arg2);

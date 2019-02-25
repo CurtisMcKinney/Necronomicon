@@ -326,6 +326,12 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.star_kind = necro_kind_create_star(&base.ast.arena, intern);
     necro_scope_insert_ast_symbol(arena, scoped_symtable->top_type_scope, base.star_kind);
 
+    base.nat_kind = necro_kind_create_nat(&base.ast.arena, intern);
+    necro_scope_insert_ast_symbol(arena, scoped_symtable->top_type_scope, base.nat_kind);
+
+    base.sym_kind = necro_kind_create_sym(&base.ast.arena, intern);
+    necro_scope_insert_ast_symbol(arena, scoped_symtable->top_type_scope, base.sym_kind);
+
     // _Poly
     NecroAst* poly_s_type            = necro_ast_create_simple_type(arena, intern, "_Poly", NULL);
     NecroAst* poly_null              = necro_ast_create_data_con(arena, intern, "_NullPoly", NULL);

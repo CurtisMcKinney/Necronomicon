@@ -1616,7 +1616,7 @@ void necro_type_fprint(FILE* stream, const NecroType* type)
         break;
 
     case NECRO_TYPE_NAT:
-        fprintf(stream, "%d", type->nat.value);
+        fprintf(stream, "%zu", type->nat.value);
         break;
 
     case NECRO_TYPE_SYM:
@@ -1670,7 +1670,8 @@ size_t necro_type_mangled_string_length(const NecroType* type)
     case NECRO_TYPE_NAT:
     {
         char buffer[16];
-        itoa(type->nat.value, buffer, 10);
+        assert(type->nat.value < INT32_MAX);
+        itoa((int) type->nat.value, buffer, 10);
         return strlen(buffer);
     }
 
@@ -1729,7 +1730,7 @@ size_t necro_type_mangled_sprintf(char* buffer, size_t offset, const NecroType* 
         return offset;
 
     case NECRO_TYPE_NAT:
-        offset += sprintf(buffer + offset, "%d", type->nat.value);
+        offset += sprintf(buffer + offset, "%zu", type->nat.value);
         return offset;
 
     case NECRO_TYPE_SYM:

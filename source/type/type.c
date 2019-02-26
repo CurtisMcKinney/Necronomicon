@@ -898,7 +898,7 @@ NecroResult(NecroType) necro_unify_nat(NecroPagedArena* arena, NecroBase* base, 
         necro_try(NecroType, necro_instantiate_type_var(arena, base, &type2->var, type1, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_NAT:
-        if (type1->nat.value == type2->nat.value)
+        if (type1->nat.value != type2->nat.value)
             return necro_type_mismatched_type_error_partial(type1, type2);
         else
             return ok(NecroType, NULL);
@@ -926,7 +926,7 @@ NecroResult(NecroType) necro_unify_sym(NecroPagedArena* arena, NecroBase* base, 
         necro_try(NecroType, necro_instantiate_type_var(arena, base, &type2->var, type1, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_SYM:
-        if (type1->sym.value == type2->sym.value)
+        if (type1->sym.value != type2->sym.value)
             return necro_type_mismatched_type_error_partial(type1, type2);
         else
             return ok(NecroType, NULL);
@@ -1449,7 +1449,7 @@ void necro_type_print(const NecroType* type)
 bool necro_is_simple_type(const NecroType* type)
 {
     assert(type != NULL);
-    return type->type == NECRO_TYPE_VAR || (type->type == NECRO_TYPE_CON && necro_type_list_count(type->con.args) == 0);
+    return type->type == NECRO_TYPE_VAR || type->type == NECRO_TYPE_NAT || type->type == NECRO_TYPE_SYM || (type->type == NECRO_TYPE_CON && necro_type_list_count(type->con.args) == 0);
 }
 
 void necro_print_type_sig_go_maybe_with_parens(FILE* stream, const NecroType* type)
@@ -1626,7 +1626,7 @@ void necro_type_fprint(FILE* stream, const NecroType* type)
         break;
 
     case NECRO_TYPE_SYM:
-        fprintf(stream, "%s", type->sym.value->str);
+        fprintf(stream, "\"%s\"", type->sym.value->str);
         break;
 
     default:

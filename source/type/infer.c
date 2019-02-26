@@ -737,7 +737,9 @@ NecroType* necro_infer_constant(NecroInfer* infer, NecroAst* ast)
         return ast->necro_type;
     case NECRO_AST_CONSTANT_STRING:
     {
-        NecroType* array_type = necro_type_con1_create(infer->arena, infer->base->array_type, infer->base->char_type->type);
+        NecroType* arity_type = necro_type_nat_create(infer->arena, strlen(ast->constant.symbol->str) + 1);
+        arity_type->kind      = infer->base->nat_kind->type;
+        NecroType* array_type = necro_type_con2_create(infer->arena, infer->base->array_type, arity_type, infer->base->char_type->type);
         ast->necro_type       = array_type;
         return array_type;
     }
@@ -862,13 +864,17 @@ NecroResult(NecroType) necro_infer_expression_array(NecroInfer* infer, NecroAst*
     assert(ast->type == NECRO_AST_EXPRESSION_ARRAY);
     NecroAst*  current_cell  = ast->expression_array.expressions;
     NecroType* element_type  = necro_type_fresh_var(infer->arena);
+    size_t    arity          = 0;
     while (current_cell != NULL)
     {
         NecroType* item_type = necro_try(NecroType, necro_infer_go(infer, current_cell->list.item));
         necro_try(NecroType, necro_type_unify_with_info(infer->arena, infer->base, item_type, element_type, ast->scope, current_cell->list.item->source_loc, current_cell->list.item->end_loc));
+        arity++;
         current_cell = current_cell->list.next_item;
     }
-    ast->necro_type = necro_type_con1_create(infer->arena, infer->base->array_type, element_type);
+    NecroType* arity_type   = necro_type_nat_create(infer->arena, arity);
+    arity_type->kind        = infer->base->nat_kind->type;
+    ast->necro_type         = necro_type_con2_create(infer->arena, infer->base->array_type, arity_type, element_type);
     return ok(NecroType, ast->necro_type);
 }
 
@@ -1803,8 +1809,18 @@ void necro_test_infer()
     {
         const char* test_name = "MistmatchedType: Array";
         const char* test_source = ""
-            "notLikeTheOthers :: Array Bool\n"
+            "notLikeTheOthers :: Array 3 Bool\n"
             "notLikeTheOthers = { True, False, () }\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name = "MistmatchedType: Array 2";
+        const char* test_source = ""
+            "neverEnough :: Array 4 Int\n"
+            "neverEnough = { 0, 1, 2 }\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
@@ -2455,6 +2471,15 @@ void necro_test_infer()
             "data ArrayN (n :: Nat) a = ArrayN a\n"
             "arrayN :: ArrayN 8 Int\n"
             "arrayN = ArrayN 22\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Array is Ok 1";
+        const char* test_source = ""
+            "gimme :: Array 8 Float\n"
+            "gimme = { 7, 6, 5, 4, 3, 2, 1, 0 }\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
         necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
     }

@@ -399,14 +399,14 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_create_simple_poly_data_decl(arena, top, intern, "Ptr");
 
     // Array
-    NecroAst* array_s_type   = necro_ast_create_simple_type(arena, intern, "Array", necro_ast_create_var_list(arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
-    NecroAst* array_args     = necro_ast_create_list(arena,
-        necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR),
+    NecroAst* array_n_type   = necro_ast_create_type_signature(arena, NECRO_SIG_TYPE_VAR, necro_ast_create_var(arena, intern, "n", NECRO_VAR_TYPE_VAR_DECLARATION), NULL, necro_ast_create_conid(arena, intern, "Nat", NECRO_CON_TYPE_VAR));
+    NecroAst* array_s_type   = necro_ast_create_simple_type(arena, intern, "Array", necro_ast_create_list(arena, array_n_type, necro_ast_create_var_list(arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION)));
+    NecroAst* array_args     =
             necro_ast_create_list(arena,
                 necro_ast_create_type_app(arena,
                     necro_ast_create_conid(arena, intern, "Ptr", NECRO_CON_TYPE_VAR),
                     necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)),
-                NULL));
+                NULL);
     NecroAst* array_con      = necro_ast_create_data_con(arena, intern, "Array", array_args);
     NecroAst* array_con_list = necro_ast_create_list(arena, array_con, NULL);
     necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, array_s_type, array_con_list));

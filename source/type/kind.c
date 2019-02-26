@@ -206,14 +206,15 @@ NecroResult(NecroType) necro_kind_unify_with_info(NecroType* kind1, NecroType* k
 
 NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    // TODO (Curtis, 2-11-19): Memoizing kind isn't working!?!?
-    if (type->kind != NULL)
-        return ok(NecroType, type->kind);
+
+    type = necro_type_find(type);
     switch (type->type)
     {
 
     case NECRO_TYPE_VAR:
     {
+        if (type->kind != NULL)
+            return ok(NecroType, type->kind);
         NecroAstSymbol* ast_symbol = type->var.var_symbol;
         if (ast_symbol != NULL)
         {
@@ -251,6 +252,8 @@ NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase
     {
         NecroType* type1_kind  = necro_try(NecroType, necro_kind_infer(arena, base, type->app.type1, source_loc, end_loc));
         NecroType* type2_kind  = necro_try(NecroType, necro_kind_infer(arena, base, type->app.type2, source_loc, end_loc));
+        if (type->kind != NULL)
+            return ok(NecroType, type->kind);
         NecroType* result_kind = necro_type_fresh_var(arena);
         NecroType* f_kind      = necro_type_fn_create(arena, type2_kind, result_kind);
         necro_try(NecroType, necro_kind_unify_with_info(type1_kind, f_kind, NULL, source_loc, end_loc));
@@ -282,6 +285,8 @@ NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase
             }
             args = args->list.next;
         }
+        if (type->kind != NULL)
+            return ok(NecroType, type->kind);
         NecroType* result_kind = necro_type_fresh_var(arena);
         if (args_kinds != NULL)
             args_kinds->fun.type2 = result_kind;
@@ -297,10 +302,14 @@ NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase
         return ok(NecroType, type->kind);
 
     case NECRO_TYPE_NAT:
+        if (type->kind != NULL)
+            return ok(NecroType, type->kind);
         type->kind = necro_type_con_create(arena, base->nat_kind, NULL);
         return ok(NecroType, type->kind);
 
     case NECRO_TYPE_SYM:
+        if (type->kind != NULL)
+            return ok(NecroType, type->kind);
         type->kind = necro_type_con_create(arena, base->sym_kind, NULL);
         return ok(NecroType, type->kind);
 

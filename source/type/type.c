@@ -196,23 +196,34 @@ NecroTypeClassContext* necro_context_deep_copy(NecroPagedArena* arena, NecroType
     return new_context;
 }
 
-NecroType* necro_type_deep_copy(NecroPagedArena* arena, NecroType* type)
+NecroType* necro_type_deep_copy_go(NecroPagedArena* arena, NecroType* type)
 {
     if (type == NULL)
         return NULL;
     type = necro_type_find(type);
+    NecroType* new_type = NULL;
     switch (type->type)
     {
-    case NECRO_TYPE_VAR:  return necro_type_var_create(arena, type->var.var_symbol);
-    case NECRO_TYPE_APP:  return necro_type_app_create(arena, necro_type_deep_copy(arena, type->app.type1), necro_type_deep_copy(arena, type->app.type2));
-    case NECRO_TYPE_FUN:  return necro_type_fn_create(arena, necro_type_deep_copy(arena, type->fun.type1), necro_type_deep_copy(arena, type->fun.type2));
-    case NECRO_TYPE_CON:  return necro_type_con_create(arena, type->con.con_symbol, necro_type_deep_copy(arena, type->con.args));
-    case NECRO_TYPE_FOR:  return necro_type_for_all_create(arena, type->for_all.var_symbol, necro_context_deep_copy(arena, type->for_all.context), necro_type_deep_copy(arena, type->for_all.type));
-    case NECRO_TYPE_LIST: return necro_type_list_create(arena, necro_type_deep_copy(arena, type->list.item), necro_type_deep_copy(arena, type->list.next));
-    case NECRO_TYPE_NAT:  return necro_type_nat_create(arena, type->nat.value);
-    case NECRO_TYPE_SYM:  return necro_type_sym_create(arena, type->sym.value);
-    default:              assert(false); return NULL;
+    case NECRO_TYPE_VAR:  new_type = necro_type_var_create(arena, type->var.var_symbol); break;
+    case NECRO_TYPE_APP:  new_type = necro_type_app_create(arena, necro_type_deep_copy_go(arena, type->app.type1), necro_type_deep_copy_go(arena, type->app.type2)); break;
+    case NECRO_TYPE_FUN:  new_type = necro_type_fn_create(arena, necro_type_deep_copy_go(arena, type->fun.type1), necro_type_deep_copy_go(arena, type->fun.type2)); break;
+    case NECRO_TYPE_CON:  new_type = necro_type_con_create(arena, type->con.con_symbol, necro_type_deep_copy_go(arena, type->con.args)); break;
+    case NECRO_TYPE_FOR:  new_type = necro_type_for_all_create(arena, type->for_all.var_symbol, necro_context_deep_copy(arena, type->for_all.context), necro_type_deep_copy_go(arena, type->for_all.type)); break;
+    case NECRO_TYPE_LIST: new_type = necro_type_list_create(arena, necro_type_deep_copy_go(arena, type->list.item), necro_type_deep_copy_go(arena, type->list.next)); break;
+    case NECRO_TYPE_NAT:  new_type = necro_type_nat_create(arena, type->nat.value); break;
+    case NECRO_TYPE_SYM:  new_type = necro_type_sym_create(arena, type->sym.value); break;
+    default:              assert(false);
     }
+    new_type->kind = type->kind;
+    return new_type;
+}
+
+NecroType* necro_type_deep_copy(NecroPagedArena* arena, NecroType* type)
+{
+    NecroType* new_type = necro_type_deep_copy_go(arena, type);
+    // TODO: Kind infer deep copies!!!
+    // unwrap(NecroType, necro_kind_infer_gen_unify_with_star(arena, base, new_type));
+    return new_type;
 }
 
 size_t necro_type_list_count(NecroType* list)
@@ -227,7 +238,7 @@ size_t necro_type_list_count(NecroType* list)
     return count;
 }
 
-NecroType* necro_type_curry_con(NecroPagedArena* arena, NecroType* con)
+NecroType* necro_type_curry_con(NecroPagedArena* arena, NecroBase* base, NecroType* con)
 {
     assert(arena != NULL);
     assert(con != NULL);
@@ -252,6 +263,7 @@ NecroType* necro_type_curry_con(NecroPagedArena* arena, NecroType* con)
         tail->list.next = NULL;
     NecroType* new_con = necro_type_con_create(arena, con->con.con_symbol, head);
     NecroType* ap      = necro_type_app_create(arena, new_con, curr->list.item);
+    unwrap(NecroType, necro_kind_infer(arena, base, ap, NULL_LOC, NULL_LOC));
     return ap;
 }
 
@@ -739,6 +751,7 @@ NecroResult(NecroType) necro_unify_var(NecroPagedArena* arena, NecroBase* base, 
     assert(type2 != NULL);
     if (type1 == type2)
         return ok(NecroType, NULL);
+    necro_try(NecroType, necro_kind_unify(type1->kind, type2->kind, scope));
     switch (type2->type)
     {
     case NECRO_TYPE_VAR:
@@ -770,6 +783,7 @@ NecroResult(NecroType) necro_unify_app(NecroPagedArena* arena, NecroBase* base, 
     assert(type1 != NULL);
     assert(type1->type == NECRO_TYPE_APP);
     assert(type2 != NULL);
+    necro_try(NecroType, necro_kind_unify(type1->kind, type2->kind, scope));
     switch (type2->type)
     {
     case NECRO_TYPE_VAR:
@@ -779,16 +793,17 @@ NecroResult(NecroType) necro_unify_app(NecroPagedArena* arena, NecroBase* base, 
         necro_try(NecroType, necro_instantiate_type_var(arena, base, &type2->var, type1, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_APP:
-        necro_try(NecroType, necro_type_unify(arena, base, type1->app.type1, type2->app.type1, scope));
         necro_try(NecroType, necro_type_unify(arena, base, type1->app.type2, type2->app.type2, scope));
+        necro_try(NecroType, necro_type_unify(arena, base, type1->app.type1, type2->app.type1, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_CON:
     {
-        NecroType* uncurried_con = necro_type_curry_con(arena, type2);
-        if (uncurried_con == NULL)
-            return necro_type_mismatched_arity_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
-        else
-            return necro_type_unify(arena, base, type1, uncurried_con, scope);
+        NecroType* uncurried_con = necro_type_curry_con(arena, base, type2);
+        assert(uncurried_con != NULL);
+        // if (uncurried_con == NULL)
+        //     return necro_type_mismatched_arity_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
+        // else
+        return necro_type_unify(arena, base, type1, uncurried_con, scope);
     }
     case NECRO_TYPE_FUN:
     case NECRO_TYPE_NAT:
@@ -805,6 +820,7 @@ NecroResult(NecroType) necro_unify_fun(NecroPagedArena* arena, NecroBase* base, 
     assert(type1 != NULL);
     assert(type1->type == NECRO_TYPE_FUN);
     assert(type2 != NULL);
+    necro_try(NecroType, necro_kind_unify(type1->kind, type2->kind, scope));
     switch (type2->type)
     {
     case NECRO_TYPE_VAR:
@@ -814,8 +830,8 @@ NecroResult(NecroType) necro_unify_fun(NecroPagedArena* arena, NecroBase* base, 
         necro_try(NecroType, necro_instantiate_type_var(arena, base, &type2->var, type1, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_FUN:
-        necro_try(NecroType, necro_type_unify(arena, base, type1->fun.type1, type2->fun.type1, scope));
         necro_try(NecroType, necro_type_unify(arena, base, type1->fun.type2, type2->fun.type2, scope));
+        necro_try(NecroType, necro_type_unify(arena, base, type1->fun.type1, type2->fun.type1, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_APP:
     case NECRO_TYPE_CON:
@@ -832,6 +848,7 @@ NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroBase* base, 
     assert(type1 != NULL);
     assert(type1->type == NECRO_TYPE_CON);
     assert(type2 != NULL);
+    necro_try(NecroType, necro_kind_unify(type1->kind, type2->kind, scope));
     switch (type2->type)
     {
     case NECRO_TYPE_VAR:
@@ -847,17 +864,18 @@ NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroBase* base, 
         }
         else
         {
-            NecroType* original_type1 = type1;
-            NecroType* original_type2 = type2;
+            // NecroType* original_type1 = type1;
+            // NecroType* original_type2 = type2;
             // TODO (Curtis, 2-10-19): Kind unify here!
             // necro_kind_unify(type1->kind, type2->)
+            // necro_try(NecroType, necro_kind_unify(type1->kind, type2->kind, scope));
             type1 = type1->con.args;
             type2 = type2->con.args;
             while (type1 != NULL && type2 != NULL)
             {
                 // TODO: (Curtis, 2-8-18): Replace with kinds check!?!?!?
-                if (type1 == NULL || type2 == NULL)
-                    return necro_type_mismatched_arity_error(original_type1, original_type2, NULL, NULL, NULL_LOC, NULL_LOC);
+                // if (type1 == NULL || type2 == NULL)
+                //     return necro_type_mismatched_arity_error(original_type1, original_type2, NULL, NULL, NULL_LOC, NULL_LOC);
                 assert(type1->type == NECRO_TYPE_LIST);
                 assert(type2->type == NECRO_TYPE_LIST);
                 necro_try(NecroType, necro_type_unify(arena, base, type1->list.item, type2->list.item, scope));
@@ -868,11 +886,13 @@ NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroBase* base, 
         }
     case NECRO_TYPE_APP:
     {
-        NecroType* uncurried_con = necro_type_curry_con(arena, type1);
-        if (uncurried_con == NULL)
-            return necro_type_mismatched_arity_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
-        else
-            return necro_type_unify(arena, base, uncurried_con, type2, scope);
+        // necro_try(NecroType, necro_kind_unify(type1->kind, type2->kind, scope));
+        NecroType* uncurried_con = necro_type_curry_con(arena, base, type1);
+        assert(uncurried_con != NULL);
+        // if (uncurried_con == NULL)
+        //     return necro_type_mismatched_arity_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
+        // else
+        return necro_type_unify(arena, base, uncurried_con, type2, scope);
     }
     case NECRO_TYPE_NAT:
     case NECRO_TYPE_SYM:
@@ -889,6 +909,7 @@ NecroResult(NecroType) necro_unify_nat(NecroPagedArena* arena, NecroBase* base, 
     assert(type1 != NULL);
     assert(type1->type == NECRO_TYPE_NAT);
     assert(type2 != NULL);
+    necro_try(NecroType, necro_kind_unify(type1->kind, type2->kind, scope));
     switch (type2->type)
     {
     case NECRO_TYPE_VAR:
@@ -917,6 +938,7 @@ NecroResult(NecroType) necro_unify_sym(NecroPagedArena* arena, NecroBase* base, 
     assert(type1 != NULL);
     assert(type1->type == NECRO_TYPE_SYM);
     assert(type2 != NULL);
+    necro_try(NecroType, necro_kind_unify(type1->kind, type2->kind, scope));
     switch (type2->type)
     {
     case NECRO_TYPE_VAR:
@@ -1058,14 +1080,14 @@ NecroInstSub* necro_create_inst_sub(NecroPagedArena* arena, NecroAstSymbol* var_
 
 NecroInstSub* necro_create_inst_sub_manual(NecroPagedArena* arena, NecroAstSymbol* var_to_replace, NecroType* new_type, NecroInstSub* next)
 {
-    NecroInstSub* sub = necro_paged_arena_alloc(arena, sizeof(NecroInstSub));
+    NecroInstSub* sub   = necro_paged_arena_alloc(arena, sizeof(NecroInstSub));
     sub->var_to_replace = var_to_replace;
     sub->new_name       = new_type;
     sub->next           = next;
     return sub;
 }
 
-NecroType* necro_type_replace_with_subs_deep_copy(NecroPagedArena* arena, NecroType* type, NecroInstSub* subs)
+NecroType* necro_type_replace_with_subs_deep_copy_go(NecroPagedArena* arena, NecroType* type, NecroInstSub* subs)
 {
     if (type == NULL)
         return NULL;
@@ -1091,16 +1113,16 @@ NecroType* necro_type_replace_with_subs_deep_copy(NecroPagedArena* arena, NecroT
             if (type->for_all.var_symbol == curr_sub->var_to_replace ||
                (type->for_all.var_symbol->name != NULL && type->for_all.var_symbol->name == curr_sub->var_to_replace->name))
             {
-                return necro_type_replace_with_subs_deep_copy(arena, type->for_all.type, subs);
+                return necro_type_replace_with_subs_deep_copy_go(arena, type->for_all.type, subs);
             }
             curr_sub = curr_sub->next;
         }
-        return necro_type_for_all_create(arena, type->for_all.var_symbol, type->for_all.context, necro_type_replace_with_subs_deep_copy(arena, type->for_all.type, subs));
+        return necro_type_for_all_create(arena, type->for_all.var_symbol, type->for_all.context, necro_type_replace_with_subs_deep_copy_go(arena, type->for_all.type, subs));
     }
-    case NECRO_TYPE_APP:  return necro_type_app_create(arena, necro_type_replace_with_subs_deep_copy(arena, type->app.type1, subs), necro_type_replace_with_subs_deep_copy(arena, type->app.type2, subs));
-    case NECRO_TYPE_FUN:  return necro_type_fn_create(arena, necro_type_replace_with_subs_deep_copy(arena, type->fun.type1, subs), necro_type_replace_with_subs_deep_copy(arena, type->fun.type2, subs));
-    case NECRO_TYPE_CON:  return necro_type_con_create(arena, type->con.con_symbol, necro_type_replace_with_subs_deep_copy(arena, type->con.args, subs));
-    case NECRO_TYPE_LIST: return necro_type_list_create(arena, necro_type_replace_with_subs_deep_copy(arena, type->list.item, subs), necro_type_replace_with_subs_deep_copy(arena, type->list.next, subs));
+    case NECRO_TYPE_APP:  return necro_type_app_create(arena, necro_type_replace_with_subs_deep_copy_go(arena, type->app.type1, subs), necro_type_replace_with_subs_deep_copy_go(arena, type->app.type2, subs));
+    case NECRO_TYPE_FUN:  return necro_type_fn_create(arena, necro_type_replace_with_subs_deep_copy_go(arena, type->fun.type1, subs), necro_type_replace_with_subs_deep_copy_go(arena, type->fun.type2, subs));
+    case NECRO_TYPE_CON:  return necro_type_con_create(arena, type->con.con_symbol, necro_type_replace_with_subs_deep_copy_go(arena, type->con.args, subs));
+    case NECRO_TYPE_LIST: return necro_type_list_create(arena, necro_type_replace_with_subs_deep_copy_go(arena, type->list.item, subs), necro_type_replace_with_subs_deep_copy_go(arena, type->list.next, subs));
     case NECRO_TYPE_NAT:  return necro_type_nat_create(arena, type->nat.value);
     case NECRO_TYPE_SYM:  return necro_type_sym_create(arena, type->sym.value);
 
@@ -1108,8 +1130,18 @@ NecroType* necro_type_replace_with_subs_deep_copy(NecroPagedArena* arena, NecroT
     }
 }
 
+NecroResult(NecroType) necro_type_replace_with_subs_deep_copy(NecroPagedArena* arena, NecroBase* base, NecroType* type, NecroInstSub* subs)
+{
+    NecroType* new_type = necro_type_replace_with_subs_deep_copy_go(arena, type, subs);
+    if (new_type == NULL)
+        return ok(NecroType, NULL);
+    // necro_try_map(void, NecroType, necro_kind_infer_gen_unify_with_star(arena, base, new_type, NULL, NULL_LOC, NULL_LOC));
+    necro_try(NecroType, necro_kind_infer(arena, base, new_type, NULL_LOC, NULL_LOC));
+    return ok(NecroType, new_type);
+}
+
 // TODO: Do we need the scope argument?
-NecroType* necro_type_replace_with_subs(NecroPagedArena* arena, NecroType* type, NecroInstSub* subs)
+NecroType* necro_type_replace_with_subs_go(NecroPagedArena* arena, NecroType* type, NecroInstSub* subs)
 {
     if (type == NULL || subs == NULL)
         return type;
@@ -1135,11 +1167,11 @@ NecroType* necro_type_replace_with_subs(NecroPagedArena* arena, NecroType* type,
             if (type->for_all.var_symbol == curr_sub->var_to_replace ||
                (type->for_all.var_symbol->name != NULL && type->for_all.var_symbol->name == curr_sub->var_to_replace->name))
             {
-                return necro_type_replace_with_subs_deep_copy(arena, type->for_all.type, subs);
+                return necro_type_replace_with_subs_go(arena, type->for_all.type, subs);
             }
             curr_sub = curr_sub->next;
         }
-        NecroType* next_type = necro_type_replace_with_subs(arena, type->for_all.type, subs);
+        NecroType* next_type = necro_type_replace_with_subs_go(arena, type->for_all.type, subs);
         if (next_type == type->for_all.type)
             return type;
         else
@@ -1147,8 +1179,8 @@ NecroType* necro_type_replace_with_subs(NecroPagedArena* arena, NecroType* type,
     }
     case NECRO_TYPE_APP:
     {
-        NecroType* type1 = necro_type_replace_with_subs(arena, type->app.type1, subs);
-        NecroType* type2 = necro_type_replace_with_subs(arena, type->app.type2, subs);
+        NecroType* type1 = necro_type_replace_with_subs_go(arena, type->app.type1, subs);
+        NecroType* type2 = necro_type_replace_with_subs_go(arena, type->app.type2, subs);
         if (type1 == type->app.type1 && type2 == type->app.type2)
             return type;
         else
@@ -1156,8 +1188,8 @@ NecroType* necro_type_replace_with_subs(NecroPagedArena* arena, NecroType* type,
     }
     case NECRO_TYPE_FUN:
     {
-        NecroType* type1 = necro_type_replace_with_subs(arena, type->fun.type1, subs);
-        NecroType* type2 = necro_type_replace_with_subs(arena, type->fun.type2, subs);
+        NecroType* type1 = necro_type_replace_with_subs_go(arena, type->fun.type1, subs);
+        NecroType* type2 = necro_type_replace_with_subs_go(arena, type->fun.type2, subs);
         if (type1 == type->fun.type1 && type2 == type->fun.type2)
             return type;
         else
@@ -1165,7 +1197,7 @@ NecroType* necro_type_replace_with_subs(NecroPagedArena* arena, NecroType* type,
     }
     case NECRO_TYPE_CON:
     {
-        NecroType* args = necro_type_replace_with_subs(arena, type->con.args, subs);
+        NecroType* args = necro_type_replace_with_subs_go(arena, type->con.args, subs);
         if (args == type->con.args)
             return type;
         else
@@ -1173,8 +1205,8 @@ NecroType* necro_type_replace_with_subs(NecroPagedArena* arena, NecroType* type,
     }
     case NECRO_TYPE_LIST:
     {
-        NecroType* item = necro_type_replace_with_subs(arena, type->list.item, subs);
-        NecroType* next = necro_type_replace_with_subs(arena, type->list.next, subs);
+        NecroType* item = necro_type_replace_with_subs_go(arena, type->list.item, subs);
+        NecroType* next = necro_type_replace_with_subs_go(arena, type->list.next, subs);
         if (item == type->list.item && next == type->list.next)
             return type;
         else
@@ -1190,6 +1222,16 @@ NecroType* necro_type_replace_with_subs(NecroPagedArena* arena, NecroType* type,
     }
 }
 
+NecroResult(NecroType) necro_type_replace_with_subs(NecroPagedArena* arena, NecroBase* base, NecroType* type, NecroInstSub* subs)
+{
+    NecroType* new_type = necro_type_replace_with_subs_go(arena, type, subs);
+    if (new_type == NULL)
+        return ok(NecroType, NULL);
+    // necro_try_map(void, NecroType, necro_kind_infer_gen_unify_with_star(arena, base, new_type, NULL, NULL_LOC, NULL_LOC));
+    necro_try(NecroType, necro_kind_infer(arena, base, new_type, NULL_LOC, NULL_LOC));
+    return ok(NecroType, new_type);
+}
+
 NecroResult(NecroType) necro_type_instantiate(NecroPagedArena* arena, NecroBase* base, NecroType* type, NecroScope* scope)
 {
     UNUSED(scope);
@@ -1202,8 +1244,7 @@ NecroResult(NecroType) necro_type_instantiate(NecroPagedArena* arena, NecroBase*
         subs         = necro_create_inst_sub(arena, current_type->for_all.var_symbol, current_type->for_all.context, subs);
         current_type = current_type->for_all.type;
     }
-    NecroType* result = necro_type_replace_with_subs_deep_copy(arena, current_type, subs);
-    necro_try(NecroType, necro_kind_infer(arena, base, result, NULL_LOC, NULL_LOC));
+    NecroType* result = necro_try(NecroType, necro_type_replace_with_subs_deep_copy(arena, base, current_type, subs));
     return ok(NecroType, result);
 }
 
@@ -1236,8 +1277,7 @@ NecroResult(NecroType) necro_type_instantiate_with_context(NecroPagedArena* aren
         }
         current_type = current_type->for_all.type;
     }
-    NecroType* result = necro_type_replace_with_subs_deep_copy(arena, current_type, subs);
-    necro_try(NecroType, necro_kind_infer(arena, base, result, NULL_LOC, NULL_LOC));
+    NecroType* result = necro_try(NecroType, necro_type_replace_with_subs_deep_copy(arena, base, current_type, subs));
     assert(result != NULL);
     return ok(NecroType, result);
 }
@@ -1254,8 +1294,7 @@ NecroResult(NecroType) necro_type_instantiate_with_subs(NecroPagedArena* arena, 
         *subs        = necro_create_inst_sub(arena, current_type->for_all.var_symbol, current_type->for_all.context, *subs);
         current_type = current_type->for_all.type;
     }
-    NecroType* result = necro_type_replace_with_subs_deep_copy(arena, current_type, *subs);
-    necro_try(NecroType, necro_kind_infer(arena, base, result, NULL_LOC, NULL_LOC));
+    NecroType* result = necro_try(NecroType, necro_type_replace_with_subs_deep_copy(arena, base, current_type, *subs));
     return ok(NecroType, result);
 }
 

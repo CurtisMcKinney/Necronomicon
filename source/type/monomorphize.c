@@ -9,6 +9,7 @@
 #include "base.h"
 #include "infer.h"
 #include "result.h"
+#include "kind.h"
 
 /*
     Notes:
@@ -340,7 +341,7 @@ NecroAstSymbol* necro_ast_specialize(NecroMonomorphize* monomorphize, NecroAstSy
     //--------------------
     // Specialize Ast
     //--------------------
-    specialized_ast_symbol->type                              = necro_type_replace_with_subs_deep_copy(monomorphize->arena, ast_symbol->type, subs);
+    specialized_ast_symbol->type = unwrap(NecroType, necro_type_replace_with_subs_deep_copy(monomorphize->arena, monomorphize->base, ast_symbol->type, subs));
     unwrap(void, necro_monomorphize_go(monomorphize, specialized_ast_symbol->ast, subs));
 
     return specialized_ast_symbol;
@@ -433,7 +434,7 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
 {
     if (ast == NULL)
         return ok_void();
-    ast->necro_type = necro_type_replace_with_subs(monomorphize->arena, ast->necro_type, subs);
+    ast->necro_type = necro_try_map(NecroType, void, necro_type_replace_with_subs(monomorphize->arena, monomorphize->base, ast->necro_type, subs));
     switch (ast->type)
     {
 
@@ -472,7 +473,7 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
     // Assignment type things
     //=====================================================
     case NECRO_AST_SIMPLE_ASSIGNMENT:
-        ast->simple_assignment.ast_symbol->type = necro_type_replace_with_subs(monomorphize->arena, ast->simple_assignment.ast_symbol->type, subs);
+        ast->simple_assignment.ast_symbol->type = necro_try_map(NecroType, void, necro_type_replace_with_subs(monomorphize->arena, monomorphize->base, ast->simple_assignment.ast_symbol->type, subs));
         if (ast->simple_assignment.initializer != NULL && !necro_is_fully_concrete(monomorphize->base, ast->necro_type))
         {
             return necro_type_non_concrete_initialized_value_error(ast->simple_assignment.ast_symbol, ast->necro_type, ast->source_loc, ast->end_loc);
@@ -485,12 +486,11 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
         return necro_monomorphize_go(monomorphize, ast->simple_assignment.rhs, subs);
 
     case NECRO_AST_APATS_ASSIGNMENT:
-        ast->apats_assignment.ast_symbol->type = necro_type_replace_with_subs(monomorphize->arena, ast->apats_assignment.ast_symbol->type, subs);
+        ast->apats_assignment.ast_symbol->type = necro_try_map(NecroType, void, necro_type_replace_with_subs(monomorphize->arena, monomorphize->base, ast->apats_assignment.ast_symbol->type, subs));
         necro_try(void, necro_monomorphize_go(monomorphize, ast->apats_assignment.apats, subs));
         return necro_monomorphize_go(monomorphize, ast->apats_assignment.rhs, subs);
 
     case NECRO_AST_PAT_ASSIGNMENT:
-        // TODO: Rec check pat assignment
         necro_try(void, necro_rec_check_pat_assignment(monomorphize->base, ast->pat_assignment.pat));
         necro_try(void, necro_monomorphize_go(monomorphize, ast->pat_assignment.pat, subs));
         return necro_monomorphize_go(monomorphize, ast->pat_assignment.rhs, subs);
@@ -520,7 +520,9 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
 
         case NECRO_VAR_DECLARATION:
             if (ast->variable.ast_symbol != NULL)
-                ast->variable.ast_symbol->type = necro_type_replace_with_subs(monomorphize->arena, ast->variable.ast_symbol->type, subs);
+            {
+                ast->variable.ast_symbol->type = necro_try_map(NecroType, void, necro_type_replace_with_subs(monomorphize->arena, monomorphize->base, ast->variable.ast_symbol->type, subs));
+            }
             if (ast->variable.initializer != NULL)
                 necro_try(void, necro_monomorphize_go(monomorphize, ast->variable.initializer, subs));
             return ok_void();
@@ -654,7 +656,7 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
 
     case NECRO_BIND_ASSIGNMENT:
         necro_try(void, necro_type_ambiguous_type_variable_check(monomorphize->arena, monomorphize->base, ast->necro_type, ast->necro_type, ast->source_loc, ast->end_loc));
-        ast->bind_assignment.ast_symbol->type = necro_type_replace_with_subs(monomorphize->arena, ast->bind_assignment.ast_symbol->type, subs);
+        ast->bind_assignment.ast_symbol->type = necro_try_map(NecroType, void, necro_type_replace_with_subs(monomorphize->arena, monomorphize->base, ast->bind_assignment.ast_symbol->type, subs));
         return necro_monomorphize_go(monomorphize, ast->bind_assignment.expression, subs);
 
     case NECRO_PAT_BIND_ASSIGNMENT:

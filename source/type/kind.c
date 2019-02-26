@@ -318,6 +318,7 @@ NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase
     }
 }
 
+// TODO: Optimize allocations
 NecroType* necro_kind_gen(NecroPagedArena* arena, struct NecroBase* base, NecroType* kind)
 {
     assert(kind != NULL);

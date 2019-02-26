@@ -736,7 +736,7 @@ void necro_monomorphize_test_result(const char* test_name, const char* str, NECR
     // {
         // necro_ast_arena_print(&base.ast);
         necro_ast_arena_print(&ast);
-        // necro_scoped_symtable_print_top_scopes(&scoped_symtable);
+        necro_scoped_symtable_print_top_scopes(&scoped_symtable);
     // }
     assert(result.type == expected_result);
     bool passed = result.type == expected_result;
@@ -1262,6 +1262,24 @@ void necro_monomorphize_test()
             "coolAudio :: Audio\n"
             "coolAudio = coolOsc\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    // TODO: This should specialize dropOne should it not?
+    {
+        const char* test_name   = "Array is Ok 2";
+        const char* test_source = ""
+            "dropOne :: Array n a -> Array n a -> Array n a\n"
+            "dropOne x _ = x\n"
+            "arr1 = { 0, 1, 2, 3 }\n"
+            "arr2 = { 3, 2, 1, 0 }\n"
+            "one :: Array 4 Int\n"
+            "one = dropOne arr1 arr2\n"
+            "arr3 = { 0, 1, 2, 3, 4 }\n"
+            "arr4 = { 4, 3, 2, 1, 0 }\n"
+            "three :: Array 5 Int\n"
+            "three = dropOne arr3 arr4\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 

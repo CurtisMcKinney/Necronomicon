@@ -2515,6 +2515,29 @@ void necro_test_infer()
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 
+    {
+        const char* test_name   = "Mismatched Kinds 7";
+        const char* test_source = ""
+            "class LitNum n where\n"
+            "  intArr :: Array n Int\n"
+            "instance LitNum Int where\n"
+            "  intArr = { 0 }\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_KIND_MISMATCHED_KIND;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Nat Class";
+        const char* test_source = ""
+            "class LitNum n where\n"
+            "  intArr :: Array n Int\n"
+            "instance LitNum 1 where\n"
+            "  intArr = { 0 }\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
     // TODO: Better type signature inference. Use what we have, kind signatures in Constructor AstSymbols to enforce more accurate and local kinds inference. Treat with the same care we treat type inference with!
     // TODO: Test kind inference with kind signatures
     // TODO: Test infer_generalize with different kinds
@@ -2540,7 +2563,7 @@ void necro_test_infer()
     }
 
     {
-        const char* test_name   = "Array is Not Ok";
+        const char* test_name   = "Array is Not Ok 1";
         const char* test_source = ""
             "dropOne :: Array n a -> Array n a -> Array n a\n"
             "dropOne x _ = x\n"
@@ -2565,6 +2588,19 @@ void necro_test_infer()
             "three = dropOne arr3 arr4\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
         necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Array is Not Ok 2";
+        const char* test_source = ""
+            "dropOne :: a -> a -> a\n"
+            "dropOne x _ = x\n"
+            "arr1 = { 7, 6, 5, 4, 3, 2, 1, 0 }\n"
+            "arr2 = { 3, 2, 1, 0 }\n"
+            "one = dropOne arr1 arr2\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 
 #if 0 // This crashes right now during inference :(

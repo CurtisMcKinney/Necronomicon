@@ -736,7 +736,7 @@ void necro_monomorphize_test_result(const char* test_name, const char* str, NECR
     // {
         // necro_ast_arena_print(&base.ast);
         necro_ast_arena_print(&ast);
-        necro_scoped_symtable_print_top_scopes(&scoped_symtable);
+        // necro_scoped_symtable_print_top_scopes(&scoped_symtable);
     // }
     assert(result.type == expected_result);
     bool passed = result.type == expected_result;
@@ -1265,7 +1265,6 @@ void necro_monomorphize_test()
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
-    // TODO: This should specialize dropOne should it not?
     {
         const char* test_name   = "Array is Ok 2";
         const char* test_source = ""

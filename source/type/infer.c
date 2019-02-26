@@ -409,58 +409,58 @@ NecroResult(NecroType) necro_infer_simple_assignment(NecroInfer* infer, NecroAst
     return ok(NecroType, ast->necro_type);
 }
 
-NecroResult(NecroType) necro_ensure_pat_binding_is_monomorphic(NecroInfer* infer, NecroAst* ast)
-{
-    assert(ast != NULL);
-    switch (ast->type)
-    {
-    case NECRO_AST_VARIABLE:
-        if (necro_type_find(ast->variable.ast_symbol->type)->type == NECRO_TYPE_FOR)
-            return necro_type_polymorphic_pat_bind_error(ast->variable.ast_symbol, ast->variable.ast_symbol->type, ast->source_loc, ast->end_loc);
-        else
-            return ok(NecroType, NULL);
-    case NECRO_AST_CONID:    return ok(NecroType, NULL);
-    case NECRO_AST_CONSTANT: return ok(NecroType, NULL);
-    case NECRO_AST_WILDCARD: return ok(NecroType, NULL);
-    case NECRO_AST_TUPLE:
-    {
-        NecroAst* tuple = ast->tuple.expressions;
-        while (tuple != NULL)
-        {
-            necro_try(NecroType, necro_ensure_pat_binding_is_monomorphic(infer, tuple->list.item));
-            tuple = tuple->list.next_item;
-        }
-        return ok(NecroType, NULL);
-    }
-    case NECRO_AST_EXPRESSION_LIST:
-    {
-        NecroAst* list = ast->expression_list.expressions;
-        while (list != NULL)
-        {
-            necro_try(NecroType, necro_ensure_pat_binding_is_monomorphic(infer, list->list.item));
-            list = list->list.next_item;
-        }
-        return ok(NecroType, NULL);
-    }
-
-    case NECRO_AST_BIN_OP_SYM:
-        necro_try(NecroType, necro_ensure_pat_binding_is_monomorphic(infer, ast->bin_op_sym.left));
-        return necro_ensure_pat_binding_is_monomorphic(infer, ast->bin_op_sym.right);
-
-    case NECRO_AST_CONSTRUCTOR:
-    {
-        NecroAst* args = ast->constructor.arg_list;
-        while (args != NULL)
-        {
-            necro_try(NecroType, necro_ensure_pat_binding_is_monomorphic(infer, args->list.item));
-            args = args->list.next_item;
-        }
-        return ok(NecroType, NULL);
-    }
-
-    default: necro_unreachable(NecroType);
-    }
-}
+// NecroResult(NecroType) necro_ensure_pat_binding_is_monomorphic(NecroInfer* infer, NecroAst* ast)
+// {
+//     assert(ast != NULL);
+//     switch (ast->type)
+//     {
+//     case NECRO_AST_VARIABLE:
+//         if (necro_type_find(ast->variable.ast_symbol->type)->type == NECRO_TYPE_FOR)
+//             return necro_type_polymorphic_pat_bind_error(ast->variable.ast_symbol, ast->variable.ast_symbol->type, ast->source_loc, ast->end_loc);
+//         else
+//             return ok(NecroType, NULL);
+//     case NECRO_AST_CONID:    return ok(NecroType, NULL);
+//     case NECRO_AST_CONSTANT: return ok(NecroType, NULL);
+//     case NECRO_AST_WILDCARD: return ok(NecroType, NULL);
+//     case NECRO_AST_TUPLE:
+//     {
+//         NecroAst* tuple = ast->tuple.expressions;
+//         while (tuple != NULL)
+//         {
+//             necro_try(NecroType, necro_ensure_pat_binding_is_monomorphic(infer, tuple->list.item));
+//             tuple = tuple->list.next_item;
+//         }
+//         return ok(NecroType, NULL);
+//     }
+//     case NECRO_AST_EXPRESSION_LIST:
+//     {
+//         NecroAst* list = ast->expression_list.expressions;
+//         while (list != NULL)
+//         {
+//             necro_try(NecroType, necro_ensure_pat_binding_is_monomorphic(infer, list->list.item));
+//             list = list->list.next_item;
+//         }
+//         return ok(NecroType, NULL);
+//     }
+//
+//     case NECRO_AST_BIN_OP_SYM:
+//         necro_try(NecroType, necro_ensure_pat_binding_is_monomorphic(infer, ast->bin_op_sym.left));
+//         return necro_ensure_pat_binding_is_monomorphic(infer, ast->bin_op_sym.right);
+//
+//     case NECRO_AST_CONSTRUCTOR:
+//     {
+//         NecroAst* args = ast->constructor.arg_list;
+//         while (args != NULL)
+//         {
+//             necro_try(NecroType, necro_ensure_pat_binding_is_monomorphic(infer, args->list.item));
+//             args = args->list.next_item;
+//         }
+//         return ok(NecroType, NULL);
+//     }
+//
+//     default: necro_unreachable(NecroType);
+//     }
+// }
 
 NecroResult(NecroType) necro_infer_pat_assignment(NecroInfer* infer, NecroAst* ast)
 {
@@ -899,16 +899,35 @@ NecroResult(NecroType) necro_infer_expression_list(NecroInfer* infer, NecroAst* 
 {
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_EXPRESSION_LIST);
-    NecroAst*  current_cell = ast->expression_list.expressions;
-    NecroType* list_type    = necro_type_fresh_var(infer->arena);
-    list_type->kind         = infer->base->star_kind->type;
+    // NOTE: Changing Lists to be arrays given language changes.
+
+    // NecroAst*  current_cell = ast->expression_list.expressions;
+    // NecroType* list_type    = necro_type_fresh_var(infer->arena);
+    // list_type->kind         = infer->base->star_kind->type;
+    // while (current_cell != NULL)
+    // {
+    //     NecroType* item_type = necro_try(NecroType, necro_infer_go(infer, current_cell->list.item));
+    //     necro_try(NecroType, necro_type_unify_with_info(infer->arena, infer->base, list_type, item_type, ast->scope, current_cell->list.item->source_loc, current_cell->list.item->end_loc));
+    //     current_cell = current_cell->list.next_item;
+    // }
+    // ast->necro_type = necro_type_con1_create(infer->arena, infer->base->list_type, list_type);
+    // necro_try_map(void, NecroType, necro_kind_infer_gen_unify_with_star(infer->arena, infer->base, ast->necro_type, ast->scope, ast->simple_type.type_con->source_loc, ast->simple_type.type_con->end_loc));
+    // return ok(NecroType, ast->necro_type);
+
+    NecroAst*  current_cell  = ast->expression_list.expressions;
+    NecroType* element_type  = necro_type_fresh_var(infer->arena);
+    element_type->kind       = infer->base->star_kind->type;
+    size_t    arity          = 0;
     while (current_cell != NULL)
     {
         NecroType* item_type = necro_try(NecroType, necro_infer_go(infer, current_cell->list.item));
-        necro_try(NecroType, necro_type_unify_with_info(infer->arena, infer->base, list_type, item_type, ast->scope, current_cell->list.item->source_loc, current_cell->list.item->end_loc));
+        necro_try(NecroType, necro_type_unify_with_info(infer->arena, infer->base, item_type, element_type, ast->scope, current_cell->list.item->source_loc, current_cell->list.item->end_loc));
+        arity++;
         current_cell = current_cell->list.next_item;
     }
-    ast->necro_type = necro_type_con1_create(infer->arena, infer->base->list_type, list_type);
+    NecroType* arity_type   = necro_type_nat_create(infer->arena, arity);
+    arity_type->kind        = infer->base->nat_kind->type;
+    ast->necro_type         = necro_type_con2_create(infer->arena, infer->base->array_type, arity_type, element_type);
     necro_try_map(void, NecroType, necro_kind_infer_gen_unify_with_star(infer->arena, infer->base, ast->necro_type, ast->scope, ast->simple_type.type_con->source_loc, ast->simple_type.type_con->end_loc));
     return ok(NecroType, ast->necro_type);
 }
@@ -917,16 +936,35 @@ NecroResult(NecroType) necro_infer_expression_list_pattern(NecroInfer* infer, Ne
 {
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_EXPRESSION_LIST);
-    NecroAst*  current_cell = ast->expression_list.expressions;
-    NecroType* list_type    = necro_type_fresh_var(infer->arena);
-    list_type->kind         = infer->base->star_kind->type;
+    // NOTE: Changing Lists to be arrays given language changes
+
+    // NecroAst*  current_cell = ast->expression_list.expressions;
+    // NecroType* list_type    = necro_type_fresh_var(infer->arena);
+    // list_type->kind         = infer->base->star_kind->type;
+    // while (current_cell != NULL)
+    // {
+    //     NecroType* item_type = necro_try(NecroType, necro_infer_pattern(infer, current_cell->list.item));
+    //     necro_try(NecroType, necro_type_unify_with_info(infer->arena, infer->base, list_type, item_type, ast->scope, current_cell->list.item->source_loc, current_cell->list.item->end_loc));
+    //     current_cell = current_cell->list.next_item;
+    // }
+    // ast->necro_type = necro_type_con1_create(infer->arena, infer->base->list_type, list_type);
+    // necro_try_map(void, NecroType, necro_kind_infer_gen_unify_with_star(infer->arena, infer->base, ast->necro_type, ast->scope, ast->simple_type.type_con->source_loc, ast->simple_type.type_con->end_loc));
+    // return ok(NecroType, ast->necro_type);
+
+    NecroAst*  current_cell  = ast->expression_list.expressions;
+    NecroType* element_type  = necro_type_fresh_var(infer->arena);
+    element_type->kind       = infer->base->star_kind->type;
+    size_t    arity          = 0;
     while (current_cell != NULL)
     {
         NecroType* item_type = necro_try(NecroType, necro_infer_pattern(infer, current_cell->list.item));
-        necro_try(NecroType, necro_type_unify_with_info(infer->arena, infer->base, list_type, item_type, ast->scope, current_cell->list.item->source_loc, current_cell->list.item->end_loc));
+        necro_try(NecroType, necro_type_unify_with_info(infer->arena, infer->base, item_type, element_type, ast->scope, current_cell->list.item->source_loc, current_cell->list.item->end_loc));
+        arity++;
         current_cell = current_cell->list.next_item;
     }
-    ast->necro_type = necro_type_con1_create(infer->arena, infer->base->list_type, list_type);
+    NecroType* arity_type   = necro_type_nat_create(infer->arena, arity);
+    arity_type->kind        = infer->base->nat_kind->type;
+    ast->necro_type         = necro_type_con2_create(infer->arena, infer->base->array_type, arity_type, element_type);
     necro_try_map(void, NecroType, necro_kind_infer_gen_unify_with_star(infer->arena, infer->base, ast->necro_type, ast->scope, ast->simple_type.type_con->source_loc, ast->simple_type.type_con->end_loc));
     return ok(NecroType, ast->necro_type);
 }
@@ -1294,27 +1332,30 @@ NecroResult(NecroType) necro_infer_let_expression(NecroInfer* infer, NecroAst* a
 //=====================================================
 NecroResult(NecroType) necro_infer_arithmetic_sequence(NecroInfer* infer, NecroAst* ast)
 {
+    assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_ARITHMETIC_SEQUENCE);
-    NecroType* type = infer->base->int_type->type;
-    if (ast->arithmetic_sequence.from != NULL)
-    {
-        NecroType* from_type = necro_try(NecroType, necro_infer_go(infer, ast->arithmetic_sequence.from));
-        necro_try(NecroType, necro_type_unify_with_info(infer->arena, infer->base, type, from_type, ast->scope, ast->arithmetic_sequence.from->source_loc, ast->arithmetic_sequence.from->end_loc));
-    }
-    if (ast->arithmetic_sequence.then != NULL)
-    {
-        NecroType* then_type = necro_try(NecroType, necro_infer_go(infer, ast->arithmetic_sequence.then));
-        necro_try(NecroType, necro_type_unify_with_info(infer->arena, infer->base, type, then_type, ast->scope, ast->arithmetic_sequence.then->source_loc, ast->arithmetic_sequence.then->end_loc));
-    }
-    if (ast->arithmetic_sequence.to != NULL)
-    {
-        NecroType* to_type = necro_try(NecroType, necro_infer_go(infer, ast->arithmetic_sequence.to));
-        necro_try(NecroType, necro_type_unify_with_info(infer->arena, infer->base, type, to_type, ast->scope, ast->arithmetic_sequence.to->source_loc, ast->arithmetic_sequence.to->end_loc));
-    }
-    ast->necro_type = necro_type_con1_create(infer->arena, infer->base->list_type, type);
-    necro_try_map(void, NecroType, necro_kind_infer_gen_unify_with_star(infer->arena, infer->base, ast->necro_type, ast->scope, ast->simple_type.type_con->source_loc, ast->simple_type.type_con->end_loc));
-    return ok(NecroType, ast->necro_type);
+    assert(false && "Arithmetic Sequences currently not supported given the current list changes");
+    return ok(NecroType, NULL);
+    // NecroType* type = infer->base->int_type->type;
+    // if (ast->arithmetic_sequence.from != NULL)
+    // {
+    //     NecroType* from_type = necro_try(NecroType, necro_infer_go(infer, ast->arithmetic_sequence.from));
+    //     necro_try(NecroType, necro_type_unify_with_info(infer->arena, infer->base, type, from_type, ast->scope, ast->arithmetic_sequence.from->source_loc, ast->arithmetic_sequence.from->end_loc));
+    // }
+    // if (ast->arithmetic_sequence.then != NULL)
+    // {
+    //     NecroType* then_type = necro_try(NecroType, necro_infer_go(infer, ast->arithmetic_sequence.then));
+    //     necro_try(NecroType, necro_type_unify_with_info(infer->arena, infer->base, type, then_type, ast->scope, ast->arithmetic_sequence.then->source_loc, ast->arithmetic_sequence.then->end_loc));
+    // }
+    // if (ast->arithmetic_sequence.to != NULL)
+    // {
+    //     NecroType* to_type = necro_try(NecroType, necro_infer_go(infer, ast->arithmetic_sequence.to));
+    //     necro_try(NecroType, necro_type_unify_with_info(infer->arena, infer->base, type, to_type, ast->scope, ast->arithmetic_sequence.to->source_loc, ast->arithmetic_sequence.to->end_loc));
+    // }
+    // ast->necro_type = necro_type_con1_create(infer->arena, infer->base->list_type, type);
+    // necro_try_map(void, NecroType, necro_kind_infer_gen_unify_with_star(infer->arena, infer->base, ast->necro_type, ast->scope, ast->simple_type.type_con->source_loc, ast->simple_type.type_con->end_loc));
+    // return ok(NecroType, ast->necro_type);
 }
 
 //=====================================================
@@ -1884,7 +1925,8 @@ void necro_test_infer()
     {
         const char* test_name = "MistmatchedType: List";
         const char* test_source = ""
-            "notLikeTheOthers :: [()]\n"
+            // "notLikeTheOthers :: [()]\n"
+            "notLikeTheOthers :: Array 3 ()\n"
             "notLikeTheOthers = [ (), False, () ]\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
@@ -2075,15 +2117,15 @@ void necro_test_infer()
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 
-    {
-        const char* test_name = "MistmatchedType: ArithmeticSequence1";
-        const char* test_source = ""
-            "sequencer1 :: [Int]\n"
-            "sequencer1 = [True..10]\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
-        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
-    }
+    // {
+    //     const char* test_name = "MistmatchedType: ArithmeticSequence1";
+    //     const char* test_source = ""
+    //         "sequencer1 :: [Int]\n"
+    //         "sequencer1 = [True..10]\n";
+    //     const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+    //     const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
+    //     necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    // }
 
     // TODO (Curtis, 2-8-19): Something wonky with this. However arithmetic sequences are a "nice to have"...
     // {
@@ -2096,15 +2138,15 @@ void necro_test_infer()
     //     necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     // }
 
-    {
-        const char* test_name = "MistmatchedType: ArithmeticSequence2";
-        const char* test_source = ""
-            "sequencer2 :: [Int]\n"
-            "sequencer2 = [1..()]\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
-        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
-    }
+    // {
+    //     const char* test_name = "MistmatchedType: ArithmeticSequence2";
+    //     const char* test_source = ""
+    //         "sequencer2 :: [Int]\n"
+    //         "sequencer2 = [1..()]\n";
+    //     const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+    //     const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
+    //     necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    // }
 
     // TODO (Curtis, 2-8-19): Do statements rely heavily on type class machinery behaving. Revisit once it's sorted.
     {

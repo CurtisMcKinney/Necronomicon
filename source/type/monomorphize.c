@@ -1046,19 +1046,6 @@ void necro_monomorphize_test()
     }
 
     {
-        const char* test_name   = "Instance Declarations 2";
-        const char* test_source = ""
-            "class NumCollection c where\n"
-            "  checkOutMyCollection :: Num a => a -> c a\n"
-            "instance NumCollection [] where\n"
-            "  checkOutMyCollection x = [x + 1]\n"
-            "rationalCollection :: [Rational]\n"
-            "rationalCollection = checkOutMyCollection 22\n";
-        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
-    }
-
-    {
         const char* test_name   = "Polymorphic methods 1";
         const char* test_source = ""
             "audioPat :: Pattern Audio\n"
@@ -1279,6 +1266,22 @@ void necro_monomorphize_test()
             "three :: Array 5 Int\n"
             "three = dropOne arr3 arr4\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    // TODO: Fix
+    {
+        const char* test_name   = "Instance Declarations 2";
+        const char* test_source = ""
+            "class NumCollection c where\n"
+            "  checkOutMyCollection :: Num a => a -> c a -> c a\n"
+            "instance NumCollection (Array n) where\n"
+            "  checkOutMyCollection x c = c\n"
+            "rationals1 :: Array 1 Rational\n"
+            "rationals1 = checkOutMyCollection 22 [33]\n"
+            "rationals2 :: Array 2 Rational\n"
+            "rationals2 = checkOutMyCollection 22 [33, 44]\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 

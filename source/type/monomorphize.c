@@ -51,6 +51,10 @@
         * Allow functions as first class values, as currently, with stateful functions createing dynamic regions of memory
         * Use Region based memory management
 
+        * type Pattern a = Demand (Time, a)
+        * seq :: Array n (Demand (Time, a)) -> Int -> Demand (Time, a)
+        * seq :: Array n (Pattern a) -> Int -> Pattern a
+
     TODO:
         * Look into Pattern Assignment + Initializers
         * Check Numeric patterns
@@ -374,9 +378,12 @@ NecroResult(void) necro_rec_check_pat_assignment(NecroBase* base, NecroAst* ast)
     switch (ast->type)
     {
     case NECRO_AST_VARIABLE:
-        if (ast->variable.initializer != NULL && !necro_is_fully_concrete(base, ast->variable.ast_symbol->type))
+        // if (ast->variable.initializer != NULL && !necro_is_fully_concrete(base, ast->variable.ast_symbol->type))
+        // if (ast->variable.initializer != NULL && !necro_type_is_zero_order(ast->variable.ast_symbol->type))
+        if (ast->variable.initializer != NULL)
         {
-            return necro_type_non_concrete_initialized_value_error(ast->simple_assignment.ast_symbol, ast->necro_type, ast->source_loc, ast->end_loc);
+            necro_try_map(NecroType, void, necro_type_set_zero_order(ast->variable.ast_symbol->type, &ast->source_loc, &ast->end_loc));
+            // return necro_type_non_concrete_initialized_value_error(ast->simple_assignment.ast_symbol, ast->necro_type, ast->source_loc, ast->end_loc);
         }
         if (ast->variable.initializer != NULL && !ast->variable.is_recursive)
         {
@@ -474,9 +481,14 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
     //=====================================================
     case NECRO_AST_SIMPLE_ASSIGNMENT:
         ast->simple_assignment.ast_symbol->type = necro_try_map(NecroType, void, necro_type_replace_with_subs(monomorphize->arena, monomorphize->base, ast->simple_assignment.ast_symbol->type, subs));
-        if (ast->simple_assignment.initializer != NULL && !necro_is_fully_concrete(monomorphize->base, ast->necro_type))
+        // TODO: Change necro_is_fully_concrete to necro_type_recursive_check, and ensure that functional types are banned!
+        //       This is required to ensure that there are no recursive functions!
+        // if (ast->simple_assignment.initializer != NULL && !necro_is_fully_concrete(monomorphize->base, ast->necro_type))
+        // if (ast->simple_assignment.initializer != NULL && !necro_type_is_zero_order(ast->necro_type))
+        if (ast->simple_assignment.initializer != NULL)
         {
-            return necro_type_non_concrete_initialized_value_error(ast->simple_assignment.ast_symbol, ast->necro_type, ast->source_loc, ast->end_loc);
+            necro_try_map(NecroType, void, necro_type_set_zero_order(ast->necro_type, &ast->source_loc, &ast->end_loc));
+            // return necro_type_non_concrete_initialized_value_error(ast->simple_assignment.ast_symbol, ast->necro_type, ast->source_loc, ast->end_loc);
         }
         if (ast->simple_assignment.initializer != NULL && !ast->simple_assignment.is_recursive)
         {
@@ -732,11 +744,12 @@ void necro_monomorphize_test_result(const char* test_name, const char* str, NECR
     // NecroResult(void) result = ok_void();
 
     // Assert
-    // if (result.type != expected_result)
-    // {
+    if (result.type != expected_result)
+    {
+        necro_scoped_symtable_print_top_scopes(&scoped_symtable);
+    }
         // necro_ast_arena_print(&base.ast);
         necro_ast_arena_print(&ast);
-        // necro_scoped_symtable_print_top_scopes(&scoped_symtable);
     // }
     assert(result.type == expected_result);
     bool passed = result.type == expected_result;
@@ -1151,12 +1164,21 @@ void necro_monomorphize_test()
     }
 
     {
-        const char* test_name   = "Polymorphic Recursive Value";
+        const char* test_name   = "Zero Order Recursive Value";
         const char* test_source = ""
             "polyNothing :: Maybe a\n"
             "polyNothing ~ Nothing = polyNothing\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Higher Order Recursive Value";
+        const char* test_source = ""
+            "polyNothing :: a -> Maybe a\n"
+            "polyNothing ~ Just = \\a -> polyNothing a\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_NON_CONCRETE_INITIALIZED_VALUE;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_HIGHER_ORDER_BRANCHING;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 
@@ -1169,29 +1191,30 @@ void necro_monomorphize_test()
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 
-    {
-        const char* test_name   = "Mutual Recursion 2";
-        const char* test_source = ""
-            "rec1 :: a -> b -> b\n"
-            "rec1 x y = rec2 True y\n"
-            "rec2 :: a -> b -> b\n"
-            "rec2 x y = rec1 x y\n";
-        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
-    }
+    // NOTE: Recrusive functions are currently a type error
+    // {
+    //     const char* test_name   = "Mutual Recursion 2";
+    //     const char* test_source = ""
+    //         "rec1 :: a -> b -> b\n"
+    //         "rec1 x y = rec2 True y\n"
+    //         "rec2 :: a -> b -> b\n"
+    //         "rec2 x y = rec1 x y\n";
+    //     const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+    //     necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
+    // }
 
-    {
-        const char* test_name   = "Mutual Recursion 2";
-        const char* test_source = ""
-            "rec1 :: a -> b -> b\n"
-            "rec1 x y = rec2 True y\n"
-            "rec2 :: a -> b -> b\n"
-            "rec2 x y = rec1 () y\n"
-            "go :: Int\n"
-            "go = rec1 (Just ()) 2\n";
-        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
-    }
+    // {
+    //     const char* test_name   = "Mutual Recursion 3";
+    //     const char* test_source = ""
+    //         "rec1 :: a -> b -> b\n"
+    //         "rec1 x y = rec2 True y\n"
+    //         "rec2 :: a -> b -> b\n"
+    //         "rec2 x y = rec1 () y\n"
+    //         "go :: Int\n"
+    //         "go = rec1 (Just ()) 2\n";
+    //     const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+    //     necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
+    // }
 
     {
         const char* test_name   = "Pattern Assignment 1";
@@ -1228,6 +1251,29 @@ void necro_monomorphize_test()
             "rationalAudio = leftRight\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Recursive Pattern Assignment 1";
+        const char* test_source = ""
+            "data Pair a b = Pair a b\n"
+            "Pair (leftOsc ~ 0) _ = Pair (leftOsc + 1) True\n"
+            "leftPlus :: Int\n"
+            "leftPlus = leftOsc + 1\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Recursive Pattern Assignment 1";
+        const char* test_source = ""
+            "data Pair a b = Pair a b\n"
+            "Pair (left ~ Just) _ = Pair left True\n"
+            "leftGo :: a -> Maybe a\n"
+            "leftGo = left\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_HIGHER_ORDER_BRANCHING;
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 
     {
@@ -1269,7 +1315,6 @@ void necro_monomorphize_test()
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
-    // TODO: Fix
     {
         const char* test_name   = "Instance Declarations 2";
         const char* test_source = ""
@@ -1284,6 +1329,109 @@ void necro_monomorphize_test()
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
+
+    {
+        const char* test_name   = "Defunctionalization 1";
+        const char* test_source = ""
+            "pipe :: a -> (a -> b) -> b\n"
+            "pipe x f = f x\n"
+            "dopeSmoker :: Audio\n"
+            "dopeSmoker = pipe 100 (mul 100)\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Defunctionalization 2";
+        const char* test_source = ""
+            "fst :: (a, b) -> a\n"
+            "fst (x, _) = x\n"
+            "fstOfItsKind :: Int -> Int -> Int\n"
+            "fstOfItsKind = fst (mul, 0)\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+/*
+Thoughts on Futhark style Defunctionalization:
+    * Maybe Demand type not rely upon closures.
+    * Implement "necro_is_zero_order" to test for functional types
+    * Functional Types can't be returned from branches (if statements, case statements, etc)
+    * Functional Types can't be stored in data types
+
+Thoughts on Demand:
+    * Shouldn't rely upon closures
+
+    data Demand a
+        = Demand a -- A delayed / demanded value. Will be translated in later pass.
+        | Sample a -- Sampled value, simply represents whatever the value was when it was last seen.
+        | Interval -- A Nil value which indicates that it may come back at some point.
+        | End      -- End of stream, will never come back.
+
+    Translation:
+        * Rule 1 (Abstraction):
+            Demand values (Demand a) are translated to lambdas of type: () -> Demand a.
+            NOTE: This prevents sharing.
+
+            top :: Demand Int
+            top = expr
+
+            ==>
+
+            top :: () -> Demand Int
+            top _ = expr
+
+        * Rule 2 (Usage):
+            Demand value usage is translated to an application of () to the created lambdas
+
+            doubleTop :: Demand Int
+            doubleTop = top + top
+
+            ==>
+
+            doubleTop :: () -> Demand Int
+            doubleTop _ = top () + top ()
+
+        * Rule 3 (Recursion):
+            Recursive demand values are are translated to have a recursive subexpression value (not function) with the outer value translated as per rule 1.
+            Usages of the recursive value inside its definition are untranslated, usages outside of its definition are translated as per rule 1.
+            NOTE: This preserves self-sharing.
+
+            rec :: Demand Int
+            rec ~ 0 = rec + 1
+
+            ==>
+
+            rec :: () -> Demand Int
+            rec _ = rec' ()
+              where
+                rec' ~ 0 = rec' + 1
+
+        * Rule 4 (Cleanup):
+            Calls to delay are removed.
+
+        * All non-top level demand values are left in tact
+        * Recursive non-top level demand values work as normal values
+
+    noisey :: Audio
+    noisey = poly coolSynth (play coolPat)
+      where
+        a       = ...
+        b       = ...
+        coolPat = seq [a b _ [2 a] (sample mouseX)]
+
+    * How the fuck does sharing work like this?
+
+    * sample :: a -> Demand a
+
+    * delay  :: (() -> a) -> Demand a (Needs to be keyword, not function, since it can't be curried)
+    * demand :: Demand a -> Maybe a
+
+    // Lists as demand streams?
+    * (:) :: a -> Demand a -> Demand a
+    * [a] ==> Demand a (translated by
+
+*/
 
     // TODO: Look into Tuples with initializers in parser
     // {

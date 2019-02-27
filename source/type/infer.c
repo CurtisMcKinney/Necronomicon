@@ -1037,6 +1037,9 @@ NecroResult(NecroType) necro_infer_if_then_else(NecroInfer* infer, NecroAst* ast
     necro_try(NecroType, necro_type_unify_with_info(infer->arena, infer->base, infer->base->bool_type->type, if_type, ast->scope, ast->if_then_else.if_expr->source_loc, ast->if_then_else.if_expr->end_loc));
     necro_try(NecroType, necro_type_unify_with_info(infer->arena, infer->base, then_type, else_type, ast->scope, ast->if_then_else.else_expr->source_loc, ast->if_then_else.else_expr->end_loc));
     ast->necro_type = then_type;
+    // if (!necro_type_is_zero_order(ast->necro_type))
+    //     return necro_type_higher_order_branching_error(NULL, ast->necro_type, ast->if_then_else.then_expr->source_loc, ast->if_then_else.then_expr->end_loc);
+    necro_try(NecroType, necro_type_set_zero_order(ast->necro_type, &ast->if_then_else.then_expr->source_loc, &ast->if_then_else.then_expr->end_loc));
     return ok(NecroType, ast->necro_type);
 }
 
@@ -1268,6 +1271,9 @@ NecroResult(NecroType) necro_infer_case(NecroInfer* infer, NecroAst* ast)
         alternatives = alternatives->list.next_item;
     }
     ast->necro_type = result_type;
+    // if (!necro_type_is_zero_order(ast->necro_type))
+    //     return necro_type_higher_order_branching_error(NULL, ast->necro_type, ast->case_expression.alternatives->list.item->case_alternative.body->source_loc, ast->case_expression.alternatives->list.item->case_alternative.body->end_loc);
+    necro_try(NecroType, necro_type_set_zero_order(ast->necro_type, &ast->case_expression.alternatives->list.item->case_alternative.body->source_loc, &ast->case_expression.alternatives->list.item->case_alternative.body->end_loc));
     return ok(NecroType, ast->necro_type);
 }
 
@@ -1430,7 +1436,6 @@ NecroResult(NecroType) necro_infer_do(NecroInfer* infer, NecroAst* ast)
 //=====================================================
 // Declaration groups
 //=====================================================
-// NOTE: NEW! Local bindings are mono-typed! Read up from Simon Peyton Jones why this is generally a good idea.
 NecroResult(NecroType) necro_infer_declaration(NecroInfer* infer, NecroAst* declaration_group)
 {
     assert(declaration_group != NULL);
@@ -1440,7 +1445,6 @@ NecroResult(NecroType) necro_infer_declaration(NecroInfer* infer, NecroAst* decl
 
     //-----------------------------
     // Pass 1, new names
-    // NecroDeclarationGroup* curr = declaration_group;
     NecroAst* curr = declaration_group;
     while (curr != NULL)
     {
@@ -1460,6 +1464,8 @@ NecroResult(NecroType) necro_infer_declaration(NecroInfer* infer, NecroAst* decl
             }
             break;
         case NECRO_AST_APATS_ASSIGNMENT:
+            if (ast->apats_assignment.is_recursive)
+                return necro_type_recursive_function_error(ast->apats_assignment.ast_symbol, NULL, ast->source_loc, ast->end_loc);
             data = ast->apats_assignment.ast_symbol;
             if (data->type == NULL)
             {
@@ -1473,6 +1479,8 @@ NecroResult(NecroType) necro_infer_declaration(NecroInfer* infer, NecroAst* decl
             necro_pat_new_name_go(infer, ast->pat_assignment.pat);
             break;
         case NECRO_AST_DATA_DECLARATION:
+            if (ast->data_declaration.is_recursive)
+                return necro_type_recursive_data_type_error(ast->data_declaration.ast_symbol, NULL, ast->data_declaration.simpletype->source_loc, ast->data_declaration.simpletype->end_loc);
             necro_try(NecroType, necro_infer_simple_type(infer, ast->data_declaration.simpletype));
             break;
         case NECRO_AST_TYPE_SIGNATURE:
@@ -2645,6 +2653,53 @@ void necro_test_infer()
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 
+    // NOTE: Recursive functions are now a type error
+    {
+        const char* test_name   = "Mutual Recursion";
+        const char* test_source = ""
+            "mutantRec1 :: Int -> Int\n"
+            "mutantRec1 x = mutantRec2 x\n"
+            "mutantRec2 :: Int -> Int\n"
+            "mutantRec2 x = mutantRec1 x\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_RECURSIVE_FUNCTION;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    // NOTE: Recursive data types are now an error
+    {
+        const char* test_name   = "Recursive Data Types";
+        const char* test_source = ""
+            "data RecList a = RecList a (RecList a) | RecNil";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_RECURSIVE_DATA_TYPE;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Higher Order Branching 1";
+        const char* test_source = ""
+            "eitherOr :: Int -> Int -> Int\n"
+            "eitherOr = if True then mul else sub\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_HIGHER_ORDER_BRANCHING;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    // TODO (Curtis 2-27-19): MORE HIGHER ORDER RESTRICTION TESTING!!!!!!!
+    {
+        const char* test_name   = "Higher Order Branching 2";
+        const char* test_source = ""
+            "eitherOr :: Int -> Int -> Int\n"
+            "eitherOr =\n"
+            "  case Nothing of\n"
+            "    Nothing -> sub\n"
+            "    Just x  -> mul\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_HIGHER_ORDER_BRANCHING;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
 #if 0 // This crashes right now during inference :(
     {
         const char* test_name = "RigidTypeVariable";
@@ -3426,17 +3481,6 @@ void necro_test_infer()
             "  twoHeads :: OgreMagi b => b -> (a, b)\n"
             "instance OgreMagi (Maybe a) where\n"
             "  twoHeads x = (Nothing, x)\n";
-        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
-    }
-
-    {
-        const char* test_name   = "Mutual Recursion";
-        const char* test_source = ""
-            "mutantRec1 :: Int -> Int\n"
-            "mutantRec1 x = mutantRec2 x\n"
-            "mutantRec2 :: Int -> Int\n"
-            "mutantRec2 x = mutantRec1 x\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
     }

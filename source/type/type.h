@@ -54,6 +54,16 @@ inline NecroVar necro_con_to_var(NecroCon con)
     return (NecroVar) { .symbol = con.symbol, .id = con.id };
 }
 
+///////////////////////////////////////////////////////
+// Order
+///////////////////////////////////////////////////////
+typedef enum
+{
+    NECRO_TYPE_ZERO_ORDER,
+    NECRO_TYPE_HIGHER_ORDER,
+    NECRO_TYPE_POLY_ORDER,
+} NECRO_TYPE_ORDER;
+
 //=====================================================
 // NecorType
 //=====================================================
@@ -74,11 +84,12 @@ typedef enum
 typedef struct
 {
     NecroAstSymbol*               var_symbol;
-    int32_t                       arity;
-    bool                          is_rigid;
     struct NecroTypeClassContext* context;
     struct NecroType*             bound;
     struct NecroScope*            scope;
+    int32_t                       arity;
+    bool                          is_rigid;
+    NECRO_TYPE_ORDER              order;
 } NecroTypeVar;
 
 typedef struct
@@ -182,6 +193,7 @@ NecroInstSub*          necro_type_filter_and_deep_copy_subs(NecroPagedArena* are
 // NecroResult(NecroType) necro_type_instantiate_with_context(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope, struct NecroTypeClassContext** inst_context);
 NecroResult(NecroType) necro_type_instantiate_with_subs(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope, NecroInstSub** subs);
 NecroResult(NecroType) necro_type_generalize(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope);
+NecroResult(NecroType) necro_type_set_zero_order(NecroType* type, const NecroSourceLoc* source_loc, const NecroSourceLoc* end_loc);
 
 bool                   necro_type_exact_unify(NecroType* type1, NecroType* type2);
 NecroType*             necro_type_find(NecroType* type);

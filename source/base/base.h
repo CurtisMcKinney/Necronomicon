@@ -49,7 +49,7 @@ typedef struct NecroBase
     NecroAstSymbol* world_value;
     NecroAstSymbol* unit_type;
     NecroAstSymbol* unit_con;
-    NecroAstSymbol* list_type;
+    // NecroAstSymbol* list_type;
     NecroAstSymbol* int_type;
     NecroAstSymbol* float_type;
     NecroAstSymbol* audio_type;
@@ -67,10 +67,10 @@ typedef struct NecroBase
     NecroAstSymbol* event_type;
     NecroAstSymbol* pattern_type;
     NecroAstSymbol* closure_type;
-    NecroAstSymbol* apply_fn;
+    // NecroAstSymbol* dyn_state_type;
+    // NecroAstSymbol* apply_fn;
     NecroAstSymbol* ptr_type;
     NecroAstSymbol* array_type;
-    NecroAstSymbol* dyn_state_type;
     NecroAstSymbol* maybe_type;
     NecroAstSymbol* prim_undefined;
 

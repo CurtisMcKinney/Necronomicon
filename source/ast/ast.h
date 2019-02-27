@@ -321,6 +321,7 @@ typedef struct
     struct NecroAst* apats;
     struct NecroAst* rhs;
     struct NecroAst* declaration_group;
+    bool             is_recursive;
     NecroAstSymbol*  ast_symbol;
     struct NecroAst* optional_type_signature;
 } NecroAstApatsAssignment;

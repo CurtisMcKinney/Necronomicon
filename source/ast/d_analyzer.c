@@ -103,12 +103,14 @@ void d_analyze_var(NecroDependencyAnalyzer* d_analyzer, NecroAstSymbol* ast_symb
         if (w->declaration.info->current_group->declaration.declaration_impl->type == NECRO_AST_SIMPLE_ASSIGNMENT)
         {
             w->declaration.info->current_group->declaration.declaration_impl->simple_assignment.is_recursive = true;
-            // necro_symtable_get(d_analyzer->symtable, w->info->current_group->declaration_ast->simple_assignment.id)->is_recursive = true;
         }
         else if (w->declaration.info->current_group->declaration.declaration_impl->type == NECRO_AST_DATA_DECLARATION)
         {
             w->declaration.info->current_group->declaration.declaration_impl->data_declaration.is_recursive = true;
-            // necro_symtable_get(d_analyzer->symtable, w->info->current_group->declaration_ast->data_declaration.simpletype->simple_type.type_con->conid.id)->is_recursive = true;
+        }
+        else if (w->declaration.info->current_group->declaration.declaration_impl->type == NECRO_AST_APATS_ASSIGNMENT)
+        {
+            w->declaration.info->current_group->declaration.declaration_impl->apats_assignment.is_recursive = true;
         }
     }
     ast_symbol->declaration_group->declaration.info->current_group = v;

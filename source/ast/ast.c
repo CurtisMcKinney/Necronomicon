@@ -582,6 +582,7 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         reified_ast->apats_assignment.rhs               = necro_reify_go(parse_ast_arena, ast->apats_assignment.rhs, arena, intern);
         reified_ast->apats_assignment.declaration_group = NULL;
         reified_ast->apats_assignment.ast_symbol        = necro_ast_symbol_create(arena, ast->apats_assignment.variable_name, ast->apats_assignment.variable_name, parse_ast_arena->module_name, reified_ast);
+        reified_ast->apats_assignment.is_recursive      = false;
         break;
     case NECRO_AST_PAT_ASSIGNMENT:
         reified_ast->pat_assignment.pat                      = necro_reify_go(parse_ast_arena, ast->pat_assignment.pat, arena, intern);
@@ -1202,6 +1203,7 @@ NecroAst* necro_ast_create_apats_assignment(NecroPagedArena* arena, NecroIntern*
     ast->apats_assignment.apats                   = apats;
     ast->apats_assignment.rhs                     = rhs_ast;
     ast->apats_assignment.declaration_group       = NULL;
+    ast->apats_assignment.is_recursive            = false;
     ast->apats_assignment.ast_symbol              = necro_ast_symbol_create(arena, variable_symbol, variable_symbol, NULL, ast);
     ast->apats_assignment.optional_type_signature = NULL;
     return ast;
@@ -1217,6 +1219,7 @@ NecroAst* necro_ast_create_apats_assignment_with_ast_symbol(NecroPagedArena* are
 	ast->apats_assignment.apats                   = apats;
 	ast->apats_assignment.rhs                     = rhs_ast;
 	ast->apats_assignment.declaration_group       = NULL;
+    ast->apats_assignment.is_recursive            = false;
 	ast->apats_assignment.ast_symbol              = ast_symbol;
 	ast->apats_assignment.optional_type_signature = NULL;
 	return ast;

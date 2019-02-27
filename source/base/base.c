@@ -49,7 +49,7 @@ NecroBase necro_base_create(NecroIntern* intern)
         .world_value            = NULL,
         .unit_type              = NULL,
         .unit_con               = NULL,
-        .list_type              = NULL,
+        // .list_type              = NULL,
         .int_type               = NULL,
         .float_type             = NULL,
         .audio_type             = NULL,
@@ -67,10 +67,10 @@ NecroBase necro_base_create(NecroIntern* intern)
         .event_type             = NULL,
         .pattern_type           = NULL,
         .closure_type           = NULL,
-        .apply_fn               = NULL,
+        // .apply_fn               = NULL,
+        // .dyn_state_type         = NULL,
         .ptr_type               = NULL,
         .array_type             = NULL,
-        .dyn_state_type         = NULL,
         .maybe_type             = NULL,
 
         .mouse_x_fn             = NULL,
@@ -411,28 +411,29 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     NecroAst* array_con_list = necro_ast_create_list(arena, array_con, NULL);
     necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, array_s_type, array_con_list));
 
-    // _Closure
-    NecroAst* closure_s_type   = necro_ast_create_simple_type(arena, intern, "_Closure", necro_ast_create_var_list(arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
-    NecroAst* closure_args     =
-        necro_ast_create_list(arena, necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR),
-            necro_ast_create_list(arena, necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR),
-                necro_ast_create_list(arena, necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), NULL)));
-    NecroAst* closure_con      = necro_ast_create_data_con(arena, intern, "_Closure", closure_args);
-    NecroAst* closure_con_list = necro_ast_create_list(arena, closure_con, NULL);
-    necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, closure_s_type, closure_con_list));
+    // NOTE: Removing with new function restriction in place for futhark style defunctionalization
+    // // _Closure
+    // NecroAst* closure_s_type   = necro_ast_create_simple_type(arena, intern, "_Closure", necro_ast_create_var_list(arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
+    // NecroAst* closure_args     =
+    //     necro_ast_create_list(arena, necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR),
+    //         necro_ast_create_list(arena, necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR),
+    //             necro_ast_create_list(arena, necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), NULL)));
+    // NecroAst* closure_con      = necro_ast_create_data_con(arena, intern, "_Closure", closure_args);
+    // NecroAst* closure_con_list = necro_ast_create_list(arena, closure_con, NULL);
+    // necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, closure_s_type, closure_con_list));
 
-    // _apply
-    NecroAst* apply_type_ast  = necro_ast_create_type_fn(arena, necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "_Closure", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)), necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
-    necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "_apply", NULL, apply_type_ast, NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
-    necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "_apply", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
+    // // _apply
+    // NecroAst* apply_type_ast  = necro_ast_create_type_fn(arena, necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "_Closure", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)), necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
+    // necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "_apply", NULL, apply_type_ast, NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+    // necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "_apply", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
 
-    // _DynState
-    NecroAst* dyn_state_s_type           = necro_ast_create_simple_type(arena, intern, "_DynState", necro_ast_create_var_list(arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
-    NecroAst* dyn_state_constructor      = necro_ast_create_data_con(arena, intern, "_DynState",
-        necro_ast_create_list(arena, necro_ast_create_conid(arena, intern, "_Poly", NECRO_CON_TYPE_VAR),
-            necro_ast_create_list(arena, necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR), NULL)));
-    NecroAst* dyn_state_constructor_list = necro_ast_create_list(arena, dyn_state_constructor, NULL);
-    necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, dyn_state_s_type, dyn_state_constructor_list));
+    // // _DynState
+    // NecroAst* dyn_state_s_type           = necro_ast_create_simple_type(arena, intern, "_DynState", necro_ast_create_var_list(arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
+    // NecroAst* dyn_state_constructor      = necro_ast_create_data_con(arena, intern, "_DynState",
+    //     necro_ast_create_list(arena, necro_ast_create_conid(arena, intern, "_Poly", NECRO_CON_TYPE_VAR),
+    //         necro_ast_create_list(arena, necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR), NULL)));
+    // NecroAst* dyn_state_constructor_list = necro_ast_create_list(arena, dyn_state_constructor, NULL);
+    // necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, dyn_state_s_type, dyn_state_constructor_list));
 
     // Eq
     NecroAst* eq_method_sig  = necro_base_create_class_comp_sig(arena, intern, "eq");
@@ -683,6 +684,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, ">>=", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "bind", NECRO_VAR_VAR), NULL)));
     }
 
+    // TODO: Make >> and << composition operators instead
     // >>
     {
         NecroAst* a_var       = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
@@ -924,11 +926,11 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.default_type_class     = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Default"));
     base.event_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Event"));
     base.pattern_type           = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Pattern"));
-    base.closure_type           = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "_Closure"));
-    base.apply_fn               = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "_apply"));
+    // base.closure_type           = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "_Closure"));
+    // base.apply_fn               = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "_apply"));
+    // base.dyn_state_type         = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "_DynState"));
     base.ptr_type               = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Ptr"));
     base.array_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Array"));
-    base.dyn_state_type         = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "_DynState"));
     base.maybe_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Maybe"));;
 
     // Runtime functions

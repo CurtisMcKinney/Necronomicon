@@ -63,6 +63,8 @@ void necro_infer_destroy(NecroInfer* infer)
 //=====================================================
 // Utility
 //=====================================================
+NecroResult(NecroType) necro_type_unify_order(NecroType* type1, NecroType* type2);
+
 NecroType* necro_type_alloc(NecroPagedArena* arena)
 {
     NecroType* type    = necro_paged_arena_alloc(arena, sizeof(NecroType));
@@ -78,12 +80,13 @@ NecroType* necro_type_var_create(NecroPagedArena* arena, NecroAstSymbol* var_sym
     type->kind      = NULL;
     type->var       = (NecroTypeVar)
     {
-        .var_symbol        = var_symbol,
-        .arity             = -1,
-        .is_rigid          = false,
-        .context           = NULL,
-        .bound             = NULL,
-        .scope             = NULL,
+        .var_symbol = var_symbol,
+        .arity      = -1,
+        .is_rigid   = false,
+        .context    = NULL,
+        .bound      = NULL,
+        .scope      = NULL,
+        .order      = NECRO_TYPE_POLY_ORDER,
     };
     return type;
 }
@@ -737,8 +740,11 @@ NecroResult(NecroType) necro_propogate_type_classes(NecroPagedArena* arena, Necr
 }
 
 // TODO: rename -> necro_bind_type_var
-NecroResult(NecroType) necro_instantiate_type_var(NecroPagedArena* arena, NecroBase* base, NecroTypeVar* type_var, NecroType* type, NecroScope* scope)
+NecroResult(NecroType) necro_instantiate_type_var(NecroPagedArena* arena, NecroBase* base, NecroType* type_var_type, NecroType* type, NecroScope* scope)
 {
+    assert(type_var_type->type == NECRO_TYPE_VAR);
+    NecroTypeVar* type_var = &type_var_type->var;
+    necro_try(NecroType, necro_type_unify_order(type_var_type, type));
     necro_try(NecroType, necro_propogate_type_classes(arena, base, type_var->context, type, scope));
     type_var->bound = necro_type_find(type);
     return ok(NecroType, NULL);
@@ -758,19 +764,20 @@ NecroResult(NecroType) necro_unify_var(NecroPagedArena* arena, NecroBase* base, 
         if (type1->var.var_symbol == type2->var.var_symbol)  return ok(NecroType, NULL);
         else if (type1->var.is_rigid && type2->var.is_rigid) return necro_type_rigid_type_variable_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs(type1->var.var_symbol, type2));
-        if (type1->var.is_rigid)                             return necro_instantiate_type_var(arena, base, &type2->var, type1, scope);
-        else if (type2->var.is_rigid)                        return necro_instantiate_type_var(arena, base, &type1->var, type2, scope);
-        else if (necro_type_is_bound_in_scope(type1, scope)) return necro_instantiate_type_var(arena, base, &type2->var, type1, scope);
-        else                                                 return necro_instantiate_type_var(arena, base, &type1->var, type2, scope);
+        if (type1->var.is_rigid)                             return necro_instantiate_type_var(arena, base, type2, type1, scope);
+        else if (type2->var.is_rigid)                        return necro_instantiate_type_var(arena, base, type1, type2, scope);
+        else if (necro_type_is_bound_in_scope(type1, scope)) return necro_instantiate_type_var(arena, base, type2, type1, scope);
+        else                                                 return necro_instantiate_type_var(arena, base, type1, type2, scope);
+    case NECRO_TYPE_FUN:
+        // return necro_type_mismatched_order_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
     case NECRO_TYPE_CON:
     case NECRO_TYPE_APP:
-    case NECRO_TYPE_FUN:
     case NECRO_TYPE_NAT:
     case NECRO_TYPE_SYM:
         if (type1->var.is_rigid)
             return necro_type_rigid_type_variable_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs(type1->var.var_symbol , type2));
-        necro_try(NecroType, necro_instantiate_type_var(arena, base, &type1->var, type2, scope));
+        necro_try(NecroType, necro_instantiate_type_var(arena, base, type1, type2, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_FOR:  necro_unreachable(NecroType);
     case NECRO_TYPE_LIST: necro_unreachable(NecroType);
@@ -790,7 +797,7 @@ NecroResult(NecroType) necro_unify_app(NecroPagedArena* arena, NecroBase* base, 
         if (type2->var.is_rigid)
             return necro_type_rigid_type_variable_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs_flipped(type2->var.var_symbol, type1));
-        necro_try(NecroType, necro_instantiate_type_var(arena, base, &type2->var, type1, scope));
+        necro_try(NecroType, necro_instantiate_type_var(arena, base, type2, type1, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_APP:
         necro_try(NecroType, necro_type_unify(arena, base, type1->app.type2, type2->app.type2, scope));
@@ -824,10 +831,11 @@ NecroResult(NecroType) necro_unify_fun(NecroPagedArena* arena, NecroBase* base, 
     switch (type2->type)
     {
     case NECRO_TYPE_VAR:
+        // return necro_type_mismatched_order_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
         if (type2->var.is_rigid)
             return necro_type_rigid_type_variable_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs_flipped(type2->var.var_symbol, type1));
-        necro_try(NecroType, necro_instantiate_type_var(arena, base, &type2->var, type1, scope));
+        necro_try(NecroType, necro_instantiate_type_var(arena, base, type2, type1, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_FUN:
         necro_try(NecroType, necro_type_unify(arena, base, type1->fun.type2, type2->fun.type2, scope));
@@ -855,7 +863,7 @@ NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroBase* base, 
         if (type2->var.is_rigid)
             return necro_type_rigid_type_variable_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs_flipped(type2->var.var_symbol, type1));
-        necro_try(NecroType, necro_instantiate_type_var(arena, base, &type2->var, type1, scope));
+        necro_try(NecroType, necro_instantiate_type_var(arena, base, type2, type1, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_CON:
         if (type1->con.con_symbol != type2->con.con_symbol)
@@ -916,7 +924,7 @@ NecroResult(NecroType) necro_unify_nat(NecroPagedArena* arena, NecroBase* base, 
         if (type2->var.is_rigid)
             return necro_type_rigid_type_variable_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs_flipped(type2->var.var_symbol, type1));
-        necro_try(NecroType, necro_instantiate_type_var(arena, base, &type2->var, type1, scope));
+        necro_try(NecroType, necro_instantiate_type_var(arena, base, type2, type1, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_NAT:
         if (type1->nat.value != type2->nat.value)
@@ -945,7 +953,7 @@ NecroResult(NecroType) necro_unify_sym(NecroPagedArena* arena, NecroBase* base, 
         if (type2->var.is_rigid)
             return necro_type_rigid_type_variable_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs_flipped(type2->var.var_symbol, type1));
-        necro_try(NecroType, necro_instantiate_type_var(arena, base, &type2->var, type1, scope));
+        necro_try(NecroType, necro_instantiate_type_var(arena, base, type2, type1, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_SYM:
         if (type1->sym.value != type2->sym.value)
@@ -1005,6 +1013,7 @@ NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, N
     assert(result.error != NULL);
     switch (result.error->type)
     {
+    case NECRO_TYPE_MISMATCHED_ORDER:
     case NECRO_TYPE_RIGID_TYPE_VARIABLE:
     case NECRO_TYPE_OCCURS:
     case NECRO_TYPE_MISMATCHED_TYPE:
@@ -1063,10 +1072,12 @@ NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, N
 //=====================================================
 NecroInstSub* necro_create_inst_sub(NecroPagedArena* arena, NecroAstSymbol* var_to_replace, NecroTypeClassContext* context, NecroInstSub* next)
 {
+    NecroType* type_to_replace            = necro_type_find(var_to_replace->type);
     NecroType* type_var                   = necro_type_fresh_var(arena);
     type_var->var.var_symbol->name        = var_to_replace->name;
     type_var->var.var_symbol->source_name = var_to_replace->source_name;
-    type_var->kind                        = necro_type_find(var_to_replace->type)->kind;
+    type_var->kind                        = type_to_replace->kind;
+    type_var->var.order                   = type_to_replace->var.order;
     NecroInstSub* sub = necro_paged_arena_alloc(arena, sizeof(NecroInstSub));
     *sub              = (NecroInstSub)
     {
@@ -1369,6 +1380,10 @@ NecroGenResult necro_gen_go(NecroPagedArena* arena, NecroType* type, NecroGenRes
             NecroGenSub* sub       = necro_paged_arena_alloc(arena, sizeof(NecroGenSub));
             NecroType*   type_var  = type;
             type_var->var.is_rigid = true;
+            if (type_var->var.order == NECRO_TYPE_POLY_ORDER)
+                type_var->var.order = NECRO_TYPE_ZERO_ORDER;
+            else if (type_var->var.order == NECRO_TYPE_HIGHER_ORDER)
+                type_var->var.order = NECRO_TYPE_POLY_ORDER;
 
             NecroType* for_all = necro_type_for_all_create(arena, type_var->var.var_symbol, type->var.context, NULL);
             *sub               = (NecroGenSub)
@@ -2052,3 +2067,152 @@ bool necro_type_exact_unify(NecroType* type1, NecroType* type2)
         return false;
     }
 }
+
+NecroResult(NecroType) necro_type_set_zero_order(NecroType* type, const NecroSourceLoc* source_loc, const NecroSourceLoc* end_loc)
+{
+    type = necro_type_find(type);
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR:
+        switch (type->var.order)
+        {
+        case NECRO_TYPE_ZERO_ORDER:   return ok(NecroType, NULL);
+        case NECRO_TYPE_POLY_ORDER:   type->var.order = NECRO_TYPE_ZERO_ORDER; return ok(NecroType, NULL);
+        case NECRO_TYPE_HIGHER_ORDER: return necro_type_higher_order_branching_error(NULL, type, *source_loc, *end_loc);
+        }
+    case NECRO_TYPE_FOR:
+        switch (type->var.order)
+        {
+        case NECRO_TYPE_ZERO_ORDER:   break;
+        case NECRO_TYPE_POLY_ORDER:   break;
+        case NECRO_TYPE_HIGHER_ORDER: return necro_type_higher_order_branching_error(NULL, type, *source_loc, *end_loc);
+        }
+        return necro_type_set_zero_order(type->for_all.type, source_loc, end_loc);
+    case NECRO_TYPE_FUN:
+        return necro_type_higher_order_branching_error(NULL, type, *source_loc, *end_loc);
+    case NECRO_TYPE_APP:
+        necro_try(NecroType, necro_type_set_zero_order(type->app.type1, source_loc, end_loc));
+        return necro_type_set_zero_order(type->app.type2, source_loc, end_loc);
+    case NECRO_TYPE_CON:
+    {
+        const NecroType* args = type->con.args;
+        while (args != NULL)
+        {
+            necro_try(NecroType, necro_type_set_zero_order(args->list.item, source_loc, end_loc));
+            args = args->list.next;
+        }
+        return ok(NecroType, NULL);
+    }
+    case NECRO_TYPE_LIST:
+        assert(false);
+        return ok(NecroType, NULL);
+    case NECRO_TYPE_NAT:
+        return ok(NecroType, NULL);
+    case NECRO_TYPE_SYM:
+        return ok(NecroType, NULL);
+    default:
+        assert(false);
+        return ok(NecroType, NULL); }
+}
+
+// TODO: binding order unification
+NecroResult(NecroType) necro_type_unify_order(NecroType* type1, NecroType* type2)
+{
+    assert(type1->type == NECRO_TYPE_VAR);
+    type2 = necro_type_find(type2);
+    switch (type2->type)
+    {
+    case NECRO_TYPE_VAR:
+        if (type2->var.order == NECRO_TYPE_POLY_ORDER)
+        {
+            if (!type2->var.is_rigid)
+                type2->var.order = type1->var.order;
+            return ok(NecroType, NULL);
+        }
+        else if (type1->var.order == NECRO_TYPE_POLY_ORDER)
+        {
+            if (!type1->var.is_rigid)
+                type1->var.order = type2->var.order;
+            return ok(NecroType, NULL);
+        }
+        else if (type1->var.order == type2->var.order)
+        {
+            return ok(NecroType, NULL);
+        }
+        else
+        {
+            return necro_type_mismatched_order_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
+        }
+    case NECRO_TYPE_FUN:
+        if (type1->var.order == NECRO_TYPE_ZERO_ORDER)
+        {
+            return necro_type_mismatched_order_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
+        }
+        else
+        {
+            necro_try(NecroType, necro_type_unify_order(type1, type2->fun.type1));
+            return necro_type_unify_order(type1, type2->fun.type2);
+        }
+    case NECRO_TYPE_APP:
+        necro_try(NecroType, necro_type_unify_order(type1, type2->app.type1));
+        return necro_type_unify_order(type1, type2->app.type2);
+    case NECRO_TYPE_CON:
+    {
+        const NecroType* args = type2->con.args;
+        while (args != NULL)
+        {
+            necro_try(NecroType, necro_type_unify_order(type1, args->list.item));
+            args = args->list.next;
+        }
+        return ok(NecroType, NULL);
+    }
+    case NECRO_TYPE_LIST:
+        assert(false);
+        return ok(NecroType, NULL);
+    case NECRO_TYPE_NAT:
+        return ok(NecroType, NULL);
+    case NECRO_TYPE_SYM:
+        return ok(NecroType, NULL);
+    case NECRO_TYPE_FOR:
+    default:
+        assert(false);
+        return ok(NecroType, NULL);
+    }
+}
+
+// bool necro_type_is_zero_order(const NecroType* type)
+// {
+//     type = necro_type_find_const(type);
+//     switch (type->type)
+//     {
+//     case NECRO_TYPE_VAR:
+//         return true; // Always false, for now. Implement lifted type variables later.
+//     case NECRO_TYPE_APP:
+//         return necro_type_is_zero_order(type->app.type1) && necro_type_is_zero_order(type->app.type2);
+//     case NECRO_TYPE_FUN:
+//         return false;
+//     case NECRO_TYPE_CON:
+//     {
+//         const NecroType* args = type->con.args;
+//         while (args != NULL)
+//         {
+//             if (!necro_type_is_zero_order(args->list.item))
+//                 return false;
+//             args = args->list.next;
+//         }
+//         return true;
+//     }
+//     case NECRO_TYPE_LIST:
+//         assert(false);
+//         return false;
+//     case NECRO_TYPE_FOR:
+//         return necro_type_is_zero_order(type->for_all.type);
+//     case NECRO_TYPE_NAT:
+//         return true;
+//     case NECRO_TYPE_SYM:
+//         return true;
+//     default:
+//         assert(false);
+//         return false;
+//     }
+// }

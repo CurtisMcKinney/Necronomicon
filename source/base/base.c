@@ -334,7 +334,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.ast.root                    = top;
 
     // _primUndefined
-    necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "_primUndefined", NULL, necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+    // necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "_primUndefined", NULL, necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
     necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "_primUndefined", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
 
     // ()
@@ -489,7 +489,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     NecroAst* fractional_class_ast = necro_ast_create_type_class(arena, intern, "Fractional", "a", necro_ast_create_context(arena, intern, "Num", "a", NULL), fractional_method_list);
     necro_append_top(arena, top, fractional_class_ast);
 
-    // TODO: Default Type Class
+    // TODO: Put Static constraints on this
     NecroAst* default_type_sig    = necro_ast_create_fn_type_sig(arena, intern, "default", NULL, necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
     NecroAst* default_method_list = necro_ast_create_decl(arena, default_type_sig, NULL);
     NecroAst* default_class_ast   = necro_ast_create_type_class(arena, intern, "Default", "a", NULL, default_method_list);
@@ -714,6 +714,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     {
         NecroAst* a_var       = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
         NecroAst* b_var       = necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR);
+        a_var->variable.order = NECRO_TYPE_HIGHER_ORDER;
+        b_var->variable.order = NECRO_TYPE_HIGHER_ORDER;
         NecroAst* op_sig      =
             necro_ast_create_fn_type_sig(arena, intern, "<|", NULL,
                 necro_ast_create_type_fn(arena, necro_ast_create_type_fn(arena, a_var, b_var),
@@ -732,6 +734,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     {
         NecroAst* a_var       = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
         NecroAst* b_var       = necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR);
+        a_var->variable.order = NECRO_TYPE_HIGHER_ORDER;
+        b_var->variable.order = NECRO_TYPE_HIGHER_ORDER;
         NecroAst* op_sig      =
             necro_ast_create_fn_type_sig(arena, intern, "|>", NULL,
                 necro_ast_create_type_fn(arena, a_var,
@@ -751,6 +755,9 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         NecroAst* a_var       = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
         NecroAst* b_var       = necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR);
         NecroAst* c_var       = necro_ast_create_var(arena, intern, "c", NECRO_VAR_TYPE_FREE_VAR);
+        a_var->variable.order = NECRO_TYPE_HIGHER_ORDER;
+        b_var->variable.order = NECRO_TYPE_HIGHER_ORDER;
+        c_var->variable.order = NECRO_TYPE_HIGHER_ORDER;
         NecroAst* op_sig      =
             necro_ast_create_fn_type_sig(arena, intern, ".", NULL,
                 necro_ast_create_type_fn(arena, necro_ast_create_type_fn(arena, b_var, c_var),

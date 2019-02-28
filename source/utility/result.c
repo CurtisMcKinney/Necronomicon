@@ -440,9 +440,9 @@ NecroResult(NecroType) necro_type_recursive_data_type_error(NecroAstSymbol* ast_
     return necro_default_type_error1(NECRO_TYPE_RECURSIVE_DATA_TYPE, ast_symbol, type, type, source_loc, end_loc);
 }
 
-NecroResult(NecroType) necro_type_higher_order_branching_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+NecroResult(NecroType) necro_type_lifted_type_restriction_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_default_type_error1(NECRO_TYPE_HIGHER_ORDER_BRANCHING, ast_symbol, type, type, source_loc, end_loc);
+    return necro_default_type_error1(NECRO_TYPE_LIFTED_TYPE_RESTRICTION, ast_symbol, type, type, source_loc, end_loc);
 }
 
 NecroResult(void) necro_type_non_recursive_initialized_value_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
@@ -501,12 +501,6 @@ NecroResult(NecroType) necro_type_mismatched_type_error(struct NecroType* type1,
 NecroResult(NecroType) necro_type_mismatched_type_error_partial(struct NecroType* type1, struct NecroType* type2)
 {
     return necro_default_type_error2(NECRO_TYPE_MISMATCHED_TYPE, type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
-}
-
-NecroResult(NecroType) necro_type_mismatched_order_error(struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
-{
-
-    return necro_default_type_error2(NECRO_TYPE_MISMATCHED_ORDER, type1, type2, macro_type1, macro_type2, source_loc, end_loc);
 }
 
 NecroResult(NecroType) necro_type_mismatched_arity_error(struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
@@ -575,6 +569,22 @@ NecroResult(NecroType) necro_type_no_explicit_implementation_error(NecroAstSymbo
 NecroResult(NecroType) necro_type_does_not_implement_super_class_error(NecroAstSymbol* type_class_ast_symbol, struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     return necro_default_type_class_error(NECRO_TYPE_DOES_NOT_IMPLEMENT_SUPER_CLASS, type_class_ast_symbol, type1, type2, macro_type1, macro_type2, source_loc, end_loc);
+}
+
+NecroResult(NecroType) necro_type_mismatched_order_error(size_t expected_order, size_t found_order, NecroType* found_type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    necro_error_single_break_point();
+    NecroResultError* error            = emalloc(sizeof(NecroResultError));
+    error->type                        = NECRO_TYPE_MISMATCHED_ORDER;
+    error->mismatched_order_error_data = (NecroMismatchedOrderErrorData)
+    {
+        .expected_order = expected_order,
+        .found_order    = found_order,
+        .found_type     = found_type,
+        .source_loc     = source_loc,
+        .end_loc        = end_loc,
+    };
+    return (NecroResult(NecroType)) { .error = error, .type = NECRO_RESULT_ERROR };
 }
 
 ///////////////////////////////////////////////////////
@@ -1099,13 +1109,17 @@ void necro_print_uninitialized_recursive_value_error(NecroResultError* error, co
 
 void necro_print_recursive_function_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
-    const char* explanation = "Functions cannot be recursive. Consider using a recursive value for a similar effect";
+    const char* explanation =
+        "Functions cannot be recursive.\n"
+        NECRO_ERR_LEFT_CHAR " Consider using a recursive value for a similar effect";
     necro_print_default_error_format("Recursive Function", error->default_type_error_data1.source_loc, error->default_type_error_data1.end_loc, source_str, source_name, explanation);
 }
 
 void necro_print_recursive_data_type_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
-    const char* explanation = "Data types cannot be recursive. Consider using a recursive value for a similar effect";
+    const char* explanation =
+        "Data types cannot be recursive.\n"
+        NECRO_ERR_LEFT_CHAR " Consider using a recursive value for a similar effect";
     necro_print_default_error_format("Recursive Data Type", error->default_type_error_data1.source_loc, error->default_type_error_data1.end_loc, source_str, source_name, explanation);
 }
 
@@ -1128,12 +1142,6 @@ void necro_print_non_recursive_initialized_value_error(NecroResultError* error, 
 {
     const char* explanation = "Non-recursive values cannot not have an initializer since it would have no effect";
     necro_print_default_error_format("Initialized Non-Recursive Value", error->default_type_error_data1.source_loc, error->default_type_error_data1.end_loc, source_str, source_name, explanation);
-}
-
-void necro_print_higher_order_branching_error(NecroResultError* error, const char* source_str, const char* source_name)
-{
-    const char* explanation = "Functions and higher order type variables may not be returned from if expressions or case statements, or be used as recursive values.\n";
-    necro_print_default_error_format("Higher Order Restriction", error->default_type_error_data1.source_loc, error->default_type_error_data1.end_loc, source_str, source_name, explanation);
 }
 
 void necro_print_polymorphic_pat_bind_error(NecroResultError* error, const char* source_str, const char* source_name)
@@ -1199,18 +1207,75 @@ void necro_print_mismatched_type_error(NecroResultError* error, const char* sour
 
 void necro_print_mismatched_order_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
-    const char*          error_name  = "Mismatched Order";
-    const NecroSourceLoc source_loc  = error->default_type_error_data2.source_loc;
-    const NecroSourceLoc end_loc     = error->default_type_error_data2.end_loc;
-    const NecroType*     type1       = necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.type1));
-    const NecroType*     type2       = necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.type2));
-    const NecroType*     macro_type1 = necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.macro_type1));
-    const NecroType*     macro_type2 = necro_type_strip_for_all(necro_type_find(error->default_type_error_data2.macro_type2));
+    assert(error->type == NECRO_TYPE_MISMATCHED_ORDER);
+    const char*            error_name     = "Mismatched Type Order";
+    const NECRO_TYPE_ORDER expected_order = error->mismatched_order_error_data.expected_order;
+    const NECRO_TYPE_ORDER found_order    = error->mismatched_order_error_data.found_order;
+    const NecroType*       found_type     = error->mismatched_order_error_data.found_type;
+    const NecroSourceLoc   source_loc     = error->mismatched_order_error_data.source_loc;
+    const NecroSourceLoc   end_loc        = error->mismatched_order_error_data.end_loc;
     necro_print_error_header(error_name);
     necro_print_line_at_source_loc(source_str, source_loc, end_loc);
-    necro_print_type_mismatch(type1, type2, macro_type1, macro_type2);
-    fprintf(stderr, " Functions and higher order type variables cannot be matched with zero order type variables.\n");
-    fprintf(stderr, " This can usually be fixed by referring to the function type explicitly instead of by using a polymorphic type variable.\n");
+
+    switch (expected_order)
+    {
+    case NECRO_TYPE_ZERO_ORDER:
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " Expected Order: Zero\n");
+        break;
+    case NECRO_TYPE_HIGHER_ORDER:
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " Expected Order: Lifted\n");
+        break;
+    case NECRO_TYPE_POLY_ORDER:
+        assert(false);
+        break;
+    }
+
+    switch (found_order)
+    {
+    case NECRO_TYPE_ZERO_ORDER:
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " Found Order:    Zero\n");
+        break;
+    case NECRO_TYPE_HIGHER_ORDER:
+        fprintf(stderr, NECRO_ERR_LEFT_CHAR " Found Order:    Lifted\n");
+        break;
+    case NECRO_TYPE_POLY_ORDER:
+        assert(false);
+        break;
+    }
+
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " With Type:      ");
+    necro_type_fprint(stderr, found_type);
+    fprintf(stderr, "\n");
+
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR "\n");
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Functions and lifted type variables have special restrictions:\n");
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR "   - Cannot be returned from an 'if' or 'case' expression.\n");
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR "   - Cannot be part of a recursive value.\n");
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR "   - Cannot be stored in an Array.\n");
+
+    fprintf(stderr, "\n");
+    UNUSED(source_name);
+}
+
+void necro_print_higher_order_branching_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char*            error_name     = "Lifted Type Restriction";
+    const NecroType*       found_type     = error->default_type_error_data1.type;
+    const NecroSourceLoc   source_loc     = error->default_type_error_data1.source_loc;
+    const NecroSourceLoc   end_loc        = error->default_type_error_data1.end_loc;
+    necro_print_error_header(error_name);
+    necro_print_line_at_source_loc(source_str, source_loc, end_loc);
+
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Lifted Type: ");
+    necro_type_fprint(stderr, found_type);
+    fprintf(stderr, "\n");
+
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR "\n");
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Functions and lifted type variables have special restrictions:\n");
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR "   - Cannot be returned from an 'if' or 'case' expression.\n");
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR "   - Cannot be part of a recursive value.\n");
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR "   - Cannot be stored in an Array.\n");
+
     fprintf(stderr, "\n");
     UNUSED(source_name);
 }
@@ -1544,7 +1609,7 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_TYPE_RECURSIVE_DATA_TYPE:                        necro_print_recursive_data_type_error(error, source_str, source_name); break;
     case NECRO_TYPE_NON_CONCRETE_INITIALIZED_VALUE:             necro_print_non_concrete_initialized_value_error(error, source_str, source_name); break;
     case NECRO_TYPE_NON_RECURSIVE_INITIALIZED_VALUE:            necro_print_non_recursive_initialized_value_error(error, source_str, source_name); break;
-    case NECRO_TYPE_HIGHER_ORDER_BRANCHING:                     necro_print_higher_order_branching_error(error, source_str, source_name); break;
+    case NECRO_TYPE_LIFTED_TYPE_RESTRICTION:                     necro_print_higher_order_branching_error(error, source_str, source_name); break;
 
     case NECRO_TYPE_MISMATCHED_TYPE:                            necro_print_mismatched_type_error(error, source_str, source_name); break;
     case NECRO_TYPE_MISMATCHED_ORDER:                           necro_print_mismatched_order_error(error, source_str, source_name); break;

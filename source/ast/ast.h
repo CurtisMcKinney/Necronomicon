@@ -406,6 +406,7 @@ typedef struct
     struct NecroInstSub*          inst_subs;
     struct NecroAst*              initializer;
     bool                          is_recursive;
+    NECRO_TYPE_ORDER              order;
     NecroAstSymbol*               ast_symbol;
 } NecroAstVariable;
 
@@ -622,7 +623,7 @@ NecroAst* necro_ast_create_right_section_full(NecroPagedArena* arena, NecroAstSy
 NecroAst* necro_ast_create_type_signature(NecroPagedArena* arena, NECRO_SIG_TYPE sig_type, NecroAst* var, NecroAst* context, NecroAst* type);
 NecroAst* necro_ast_create_simple_assignment_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* initializer, NecroAst* rhs_ast);
 NecroAst* necro_ast_create_var_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_VAR_TYPE var_type);
-NecroAst* necro_ast_create_var_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_VAR_TYPE var_type, struct NecroInstSub* inst_subs, NecroAst* initializer);
+NecroAst* necro_ast_create_var_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_VAR_TYPE var_type, struct NecroInstSub* inst_subs, NecroAst* initializer, NECRO_TYPE_ORDER order);
 NecroAst* necro_ast_create_conid_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_CON_TYPE con_type);
 
 // Declaration Groups

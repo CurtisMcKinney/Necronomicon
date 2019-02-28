@@ -107,7 +107,7 @@ typedef enum
     // NOTE (Curtis 2-26-19): New restrictions for Region based memory management
     NECRO_TYPE_RECURSIVE_FUNCTION,
     NECRO_TYPE_RECURSIVE_DATA_TYPE,
-    NECRO_TYPE_HIGHER_ORDER_BRANCHING,
+    NECRO_TYPE_LIFTED_TYPE_RESTRICTION,
     NECRO_TYPE_MISMATCHED_ORDER,
 
     NECRO_KIND_MISMATCHED_KIND,
@@ -175,6 +175,15 @@ typedef struct
     NecroSourceLoc    end_loc;
 } NecroDefaultTypeClassErrorData;
 
+typedef struct
+{
+    size_t            expected_order;
+    size_t            found_order;
+    struct NecroType* found_type;
+    NecroSourceLoc    source_loc;
+    NecroSourceLoc    end_loc;
+} NecroMismatchedOrderErrorData;
+
 typedef struct NecroResultError
 {
     union
@@ -185,6 +194,7 @@ typedef struct NecroResultError
         NecroDefaultTypeErrorData1     default_type_error_data1;
         NecroDefaultTypeErrorData2     default_type_error_data2;
         NecroDefaultTypeClassErrorData default_type_class_error_data;
+        NecroMismatchedOrderErrorData  mismatched_order_error_data;
         NecroErrorCons                 error_cons;
     };
     NECRO_RESULT_ERROR_TYPE type;
@@ -377,14 +387,14 @@ NecroResult(void)                  necro_type_non_recursive_initialized_value_er
 NecroResult(NecroType)             necro_type_uninitialized_recursive_value_error(NecroAstSymbol* ast_symbol, struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroType)             necro_type_recursive_function_error(NecroAstSymbol* ast_symbol, struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroType)             necro_type_recursive_data_type_error(NecroAstSymbol* ast_symbol, struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
-NecroResult(NecroType)             necro_type_higher_order_branching_error(NecroAstSymbol* ast_symbol, struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroType)             necro_type_lifted_type_restriction_error(NecroAstSymbol* ast_symbol, struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroType)             necro_type_final_do_statement_error(NecroAstSymbol* ast_symbol, struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(bool)                  necro_type_ambiguous_type_var_error(NecroAstSymbol* ast_symbol, const struct NecroType* type, const struct NecroType* macro_type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroTypeClassContext) necro_type_not_a_class_error(NecroAstSymbol* ast_symbol, struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 
 NecroResult(NecroType)             necro_type_mismatched_type_error(struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroType)             necro_type_mismatched_type_error_partial( struct NecroType* type1, struct NecroType* type2);
-NecroResult(NecroType)             necro_type_mismatched_order_error(struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroType)             necro_type_mismatched_order_error(size_t expected_order, size_t found_order, struct NecroType* found_type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroType)             necro_type_occurs_error(struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroType)             necro_type_occurs_error_partial( struct NecroType* type1, struct NecroType* type2);
 

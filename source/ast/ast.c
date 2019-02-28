@@ -475,8 +475,8 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         case NECRO_AST_CONSTANT_FLOAT:
         {
             NecroAst* from_ast               = necro_ast_create_var(arena, intern, "fromRational", NECRO_VAR_VAR);
-            from_ast->source_loc           = reified_ast->source_loc;
-            from_ast->end_loc              = reified_ast->end_loc;
+            from_ast->source_loc             = reified_ast->source_loc;
+            from_ast->end_loc                = reified_ast->end_loc;
             NecroAst* new_ast                = necro_paged_arena_alloc(arena, sizeof(NecroAst));
             *new_ast                         = *reified_ast;
             new_ast->constant.double_literal = ast->constant.double_literal;
@@ -621,6 +621,7 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         reified_ast->variable.inst_subs    = NULL;
         reified_ast->variable.initializer  = necro_reify_go(parse_ast_arena, ast->variable.initializer, arena, intern);
         reified_ast->variable.is_recursive = false;
+        reified_ast->variable.order        = ast->variable.order;
         break;
     case NECRO_AST_APATS:
         reified_ast->apats.apat      = necro_reify_go(parse_ast_arena, ast->apats.apat, arena, intern);
@@ -839,6 +840,7 @@ NecroAst* necro_ast_create_var(NecroPagedArena* arena, NecroIntern* intern, cons
     ast->variable.inst_subs     = NULL;
     ast->variable.initializer   = NULL;
     ast->variable.is_recursive  = false;
+    ast->variable.order         = NECRO_TYPE_ZERO_ORDER;
     NecroSymbol variable_symbol = necro_intern_string(intern, variable_name);
     switch (ast->variable.var_type)
     {
@@ -858,18 +860,18 @@ NecroAst* necro_ast_create_var(NecroPagedArena* arena, NecroIntern* intern, cons
 
 NecroAst* necro_ast_create_var_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_VAR_TYPE var_type)
 {
-    NecroAst* ast                 = necro_ast_alloc(arena, NECRO_AST_VARIABLE);
-    ast->variable.var_type        = var_type;
-    ast->variable.inst_context    = NULL;
-    ast->variable.inst_subs       = NULL;
-    ast->variable.initializer     = NULL;
-    ast->variable.is_recursive    = false;
-    ast->variable.ast_symbol      = ast_symbol;
-    // ast->variable.ast_symbol->ast = ast;
+    NecroAst* ast              = necro_ast_alloc(arena, NECRO_AST_VARIABLE);
+    ast->variable.var_type     = var_type;
+    ast->variable.inst_context = NULL;
+    ast->variable.inst_subs    = NULL;
+    ast->variable.initializer  = NULL;
+    ast->variable.is_recursive = false;
+    ast->variable.order        = NECRO_TYPE_ZERO_ORDER;
+    ast->variable.ast_symbol   = ast_symbol;
     return ast;
 }
 
-NecroAst* necro_ast_create_var_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_VAR_TYPE var_type, NecroInstSub* inst_subs, NecroAst* initializer)
+NecroAst* necro_ast_create_var_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_VAR_TYPE var_type, NecroInstSub* inst_subs, NecroAst* initializer, NECRO_TYPE_ORDER order)
 {
     NecroAst* ast                 = necro_ast_alloc(arena, NECRO_AST_VARIABLE);
     ast->variable.var_type        = var_type;
@@ -877,6 +879,7 @@ NecroAst* necro_ast_create_var_full(NecroPagedArena* arena, NecroAstSymbol* ast_
     ast->variable.inst_subs       = inst_subs;
     ast->variable.initializer     = initializer;
     ast->variable.is_recursive    = false;
+    ast->variable.order           = order;
     ast->variable.ast_symbol      = ast_symbol;
     return ast;
 }
@@ -2109,7 +2112,7 @@ NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_g
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_var_full(arena,
             necro_ast_symbol_deep_copy(arena, ast->variable.ast_symbol),
             ast->variable.var_type, necro_type_deep_copy_subs(arena, ast->variable.inst_subs),
-            necro_ast_deep_copy_go(arena, declaration_group, ast->variable.initializer)));
+            necro_ast_deep_copy_go(arena, declaration_group, ast->variable.initializer), ast->variable.order));
     case NECRO_AST_APATS:
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_apats(arena,
             necro_ast_deep_copy_go(arena, declaration_group, ast->apats.apat),

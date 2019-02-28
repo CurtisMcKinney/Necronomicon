@@ -469,11 +469,12 @@ NecroResult(NecroType) necro_create_type_class(NecroInfer* infer, NecroAst* type
 
     //------------------------------------
     // Create type_var for type_class
-    NecroType* type_class_var      = necro_type_var_create(infer->arena, type_class_ast->type_class_declaration.tyvar->variable.ast_symbol);
-    type_class_var->var.is_rigid   = true;
-    type_class->type               = necro_type_con1_create(infer->arena, type_class->type_class_name, necro_type_list_create(infer->arena, type_class_var, NULL));
-    type_class->context            = necro_try_map(NecroTypeClassContext, NecroType, necro_ast_to_context(infer, type_class_ast->type_class_declaration.context));
-    data->type                     = type_class_var;
+    NecroType* type_class_var    = necro_type_var_create(infer->arena, type_class_ast->type_class_declaration.tyvar->variable.ast_symbol);
+    type_class_var->var.is_rigid = true;
+    type_class_var->var.order    = NECRO_TYPE_ZERO_ORDER;
+    type_class->type             = necro_type_con1_create(infer->arena, type_class->type_class_name, necro_type_list_create(infer->arena, type_class_var, NULL));
+    type_class->context          = necro_try_map(NecroTypeClassContext, NecroType, necro_ast_to_context(infer, type_class_ast->type_class_declaration.context));
+    data->type                   = type_class_var;
 
     type_class_var->var.context = necro_create_type_class_context(infer->arena, type_class, type_class->type_class_name, type_class->type_var, type_class->context);
     necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, type_class_var, type_class_ast->source_loc, type_class_ast->end_loc));
@@ -495,7 +496,7 @@ NecroResult(NecroType) necro_create_type_class(NecroInfer* infer, NecroAst* type
                 if (method_ast->type != NECRO_AST_TYPE_SIGNATURE)
                     continue;
 
-                NecroType* type_sig = necro_try(NecroType, necro_ast_to_type_sig_go(infer, method_ast->type_signature.type));
+                NecroType* type_sig = necro_try(NecroType, necro_ast_to_type_sig_go(infer, method_ast->type_signature.type, NECRO_TYPE_ZERO_ORDER));
 
                 //---------------------------------
                 // Infer and check method type sig
@@ -613,7 +614,7 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
     instance->context                      = necro_try_map(NecroTypeClassContext, NecroType, necro_ast_to_context(infer, ast->type_class_instance.context));
     instance->dictionary_prototype         = NULL;
     instance->ast                          = ast;
-    instance->data_type                    = necro_try(NecroType, necro_ast_to_type_sig_go(infer, instance->ast->type_class_instance.inst));
+    instance->data_type                    = necro_try(NecroType, necro_ast_to_type_sig_go(infer, instance->ast->type_class_instance.inst, NECRO_TYPE_ZERO_ORDER));
     // instance->super_instances              = NULL;
     data->type_class_instance              = instance;
 

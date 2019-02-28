@@ -54,16 +54,6 @@ inline NecroVar necro_con_to_var(NecroCon con)
     return (NecroVar) { .symbol = con.symbol, .id = con.id };
 }
 
-///////////////////////////////////////////////////////
-// Order
-///////////////////////////////////////////////////////
-typedef enum
-{
-    NECRO_TYPE_ZERO_ORDER,
-    NECRO_TYPE_HIGHER_ORDER,
-    NECRO_TYPE_POLY_ORDER,
-} NECRO_TYPE_ORDER;
-
 //=====================================================
 // NecorType
 //=====================================================

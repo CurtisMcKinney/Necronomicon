@@ -173,7 +173,7 @@ NecroParseAstLocalPtr necro_parse_ast_create_fexpr(NecroArena* arena, NecroSourc
     return local_ptr;
 }
 
-NecroParseAstLocalPtr necro_parse_ast_create_var(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroSymbol symbol, NECRO_VAR_TYPE type, NecroParseAstLocalPtr initializer_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_var(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroSymbol symbol, NECRO_VAR_TYPE type, NecroParseAstLocalPtr initializer_ast, NECRO_TYPE_ORDER order)
 {
     NecroParseAstLocalPtr local_ptr;
     NecroParseAst*    node     = necro_parse_ast_alloc(arena, &local_ptr);
@@ -181,6 +181,7 @@ NecroParseAstLocalPtr necro_parse_ast_create_var(NecroArena* arena, NecroSourceL
     node->variable.symbol      = symbol;
     node->variable.var_type    = type;
     node->variable.initializer = initializer_ast;
+    node->variable.order       = order;
     node->source_loc           = source_loc;
     node->end_loc              = end_loc;
     return local_ptr;
@@ -616,7 +617,8 @@ void necro_parse_ast_assert_eq_var(NecroParseAstArena* ast1, NecroParseAst* node
     assert(node2->type == NECRO_AST_VARIABLE);
     assert(strcmp(node1->variable.symbol->str, node2->variable.symbol->str) == 0);
     necro_parse_ast_assert_eq_go(ast1, node1->variable.initializer, ast2, node2->variable.initializer);
-    assert(node2->variable.var_type == node2->variable.var_type);
+    assert(node1->variable.var_type == node2->variable.var_type);
+    assert(node1->variable.order == node2->variable.order);
 }
 
 void necro_parse_ast_assert_eq_apats(NecroParseAstArena* ast1, NecroParseAst* node1, NecroParseAstArena* ast2, NecroParseAst* node2)

@@ -524,7 +524,7 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
             if (!should_specialize)
                 return ok_void();
             NecroAstSymbol* specialized_ast_symbol = necro_ast_specialize(monomorphize, ast->variable.ast_symbol, ast->variable.inst_subs);
-            NecroAst*       specialized_var        = necro_ast_create_var_full(monomorphize->arena, specialized_ast_symbol, NECRO_VAR_VAR, NULL, NULL);
+            NecroAst*       specialized_var        = necro_ast_create_var_full(monomorphize->arena, specialized_ast_symbol, NECRO_VAR_VAR, NULL, NULL, ast->variable.order);
             specialized_var->necro_type            = specialized_ast_symbol->type;
             *ast = *specialized_var;
             return ok_void();
@@ -1173,16 +1173,6 @@ void necro_monomorphize_test()
     }
 
     {
-        const char* test_name   = "Higher Order Recursive Value";
-        const char* test_source = ""
-            "polyNothing :: a -> Maybe a\n"
-            "polyNothing ~ Just = \\a -> polyNothing a\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_HIGHER_ORDER_BRANCHING;
-        necro_monomorphize_test_result(test_name, test_source, expect_error_result, &expected_error);
-    }
-
-    {
         const char* test_name   = "Initialized Non-Recursive Value";
         const char* test_source = ""
             "nonRec ~ True = True\n";
@@ -1265,18 +1255,6 @@ void necro_monomorphize_test()
     }
 
     {
-        const char* test_name   = "Recursive Pattern Assignment 1";
-        const char* test_source = ""
-            "data Pair a b = Pair a b\n"
-            "Pair (left ~ Just) _ = Pair left True\n"
-            "leftGo :: a -> Maybe a\n"
-            "leftGo = left\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_HIGHER_ORDER_BRANCHING;
-        necro_monomorphize_test_result(test_name, test_source, expect_error_result, &expected_error);
-    }
-
-    {
         const char* test_name   = "Recursive Value 1";
         const char* test_source = ""
             "coolOsc :: Audio\n"
@@ -1344,7 +1322,7 @@ void necro_monomorphize_test()
     {
         const char* test_name   = "Defunctionalization 2";
         const char* test_source = ""
-            "fst :: (a, b) -> a\n"
+            "fst :: (^a, b) -> ^a\n"
             "fst (x, _) = x\n"
             "fstOfItsKind :: Int -> Int -> Int\n"
             "fstOfItsKind = fst (mul, 0)\n";
@@ -1407,8 +1385,8 @@ Thoughts on Demand:
               where
                 rec' ~ 0 = rec' + 1
 
-        * Rule 4 (Cleanup):
-            Calls to delay are removed.
+        * Rule 4 (Elimination):
+            Calls to delay are removed.  Translations of the form: (\() -> dmdValue ()), are reduced to: dmdValue
 
         * All non-top level demand values are left in tact
         * Recursive non-top level demand values work as normal values
@@ -1420,7 +1398,12 @@ Thoughts on Demand:
         b       = ...
         coolPat = seq [a b _ [2 a] (sample mouseX)]
 
-    * How the fuck does sharing work like this?
+    * Pattern sequence notation: [a b] translates to pat0 :: Time -> Demand (Time, a)
+    * seq :: (Time -> Demand (Time, a)) -> Demand (Time, a)
+
+    * Common sub-expression elimination for wasteful re-evaluation in same time scope.
+      Or translate into let binding?
+      No sharing in other time scopes (as intended). Best of both worlds.
 
     * sample :: a -> Demand a
 

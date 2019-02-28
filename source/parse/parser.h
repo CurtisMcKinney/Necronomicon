@@ -489,17 +489,24 @@ typedef enum
     NECRO_VAR_TYPE_FREE_VAR,
     NECRO_VAR_TYPE_VAR_DECLARATION,
     NECRO_VAR_DECLARATION,
-    // NECRO_VAR_PAT_BIND, // TODO: FINISH!!!!
     NECRO_VAR_SIG,
     NECRO_VAR_CLASS_SIG,
 } NECRO_VAR_TYPE;
 const char* necro_var_type_string(NECRO_VAR_TYPE symbol_type);
+
+typedef enum
+{
+    NECRO_TYPE_ZERO_ORDER,
+    NECRO_TYPE_HIGHER_ORDER,
+    NECRO_TYPE_POLY_ORDER,
+} NECRO_TYPE_ORDER;
 
 typedef struct
 {
     NecroSymbol           symbol;
     NECRO_VAR_TYPE        var_type;
     NecroParseAstLocalPtr initializer;
+    NECRO_TYPE_ORDER      order;
 } NecroParseAstVariable;
 
 //=====================================================

@@ -1261,7 +1261,7 @@ NecroParseAstLocalPtr necro_parse_variable(NecroParser* parser, NECRO_VAR_TYPE v
     // Variable Name
     if (token_type == NECRO_LEX_IDENTIFIER)
     {
-        NecroParseAstLocalPtr varid_local_ptr = necro_parse_ast_create_var(&parser->ast.arena, source_loc, end_loc, variable_token->symbol, var_type, null_local_ptr);
+        NecroParseAstLocalPtr varid_local_ptr = necro_parse_ast_create_var(&parser->ast.arena, source_loc, end_loc, variable_token->symbol, var_type, null_local_ptr, NECRO_TYPE_ZERO_ORDER);
         return varid_local_ptr;
     }
 
@@ -1315,7 +1315,7 @@ NecroParseAstLocalPtr necro_parse_variable(NecroParser* parser, NECRO_VAR_TYPE v
             if (necro_parse_peek_token_type(parser) == NECRO_LEX_RIGHT_PAREN)
             {
                 necro_parse_consume_token(parser); // consume ")" token
-                NecroParseAstLocalPtr varsym_local_ptr = necro_parse_ast_create_var(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->source_loc, sym_variable_token->symbol, var_type, null_local_ptr);
+                NecroParseAstLocalPtr varsym_local_ptr = necro_parse_ast_create_var(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->source_loc, sym_variable_token->symbol, var_type, null_local_ptr, NECRO_TYPE_ZERO_ORDER);
                 return varsym_local_ptr;
             }
             break;
@@ -3329,7 +3329,25 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_atype(NecroParser* parser, NECRO_
     // tyvar
     if (ptr == null_local_ptr)
     {
-        ptr = necro_parse_tyvar(parser, tyvar_var_type);
+        // ^tyvar
+        if (necro_parse_peek_token_type(parser) == NECRO_LEX_CARET)
+        {
+            necro_parse_consume_token(parser); // consume ^
+            ptr = necro_parse_tyvar(parser, tyvar_var_type);
+            if (ptr != null_local_ptr)
+            {
+                NecroParseAst* ast_node  = necro_parse_ast_get_node(&parser->ast, ptr);
+                ast_node->variable.order = NECRO_TYPE_HIGHER_ORDER;
+            }
+            else
+            {
+                necro_parse_restore(parser, snapshot);
+            }
+        }
+        else
+        {
+            ptr = necro_parse_tyvar(parser, tyvar_var_type);
+        }
     }
 
     // Int literal
@@ -3455,7 +3473,7 @@ NecroParseAstLocalPtr necro_parse_tyvar(NecroParser* parser, NECRO_VAR_TYPE var_
     }
 
     // Finish
-    NecroParseAstLocalPtr type_var_local_ptr = necro_parse_ast_create_var(&parser->ast.arena, necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc, look_ahead_token->symbol, var_type, null_local_ptr);
+    NecroParseAstLocalPtr type_var_local_ptr = necro_parse_ast_create_var(&parser->ast.arena, necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc, look_ahead_token->symbol, var_type, null_local_ptr, NECRO_TYPE_ZERO_ORDER);
     necro_parse_consume_token(parser);
     return type_var_local_ptr;
 }

@@ -770,7 +770,7 @@ void necro_monomorphize_test_result(const char* test_name, const char* str, NECR
     }
 
     const char* result_string = passed ? "Passed" : "Failed";
-    printf("Infer %s test: %s\n", test_name, result_string);
+    printf("Monomorphize %s test: %s\n", test_name, result_string);
     fflush(stdout);
 
     // Clean up

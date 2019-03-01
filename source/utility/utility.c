@@ -52,7 +52,7 @@ process_error_code_t necro_compile_in_child_process(const char* command_line_arg
         printf("CreateProcess failed (%d)!!!.\n", GetLastError());
         printf("Failed using this command: %s", command_line_arguments);
         printf("Also make sure your working directory is set to .. (which should be the root directory)");
-        return 1;
+        return 2;
     }
 
     // Wait until child process exits.

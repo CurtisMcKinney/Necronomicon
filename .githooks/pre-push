@@ -53,12 +53,16 @@ done
 echo >&2 "Running necronomicon tests"
 
 ./build/Debug/necro.exe -test all 2>&1
-
-if [ $? -eq 0 ]
+result=$?
+if [ $result -eq 0 ]
 then
   echo "Necronomicon tests completed succesfully"
+elif [ $result -eq 2 ]
+then
+  echo "Necronomicon test could not open sub-process"
 else
   echo "Necronomicon tests failed. git push aborted." >&2
+  echo $result
   exit 1
 fi
 

@@ -370,7 +370,7 @@ void necro_test(NECRO_TEST test)
     case NECRO_TEST_INTERN:               necro_intern_test();               break;
     case NECRO_TEST_RENAME:               necro_rename_test();               break;
     case NECRO_TEST_INFER:                necro_test_infer();                break;
-    case NECRO_TEST_MONOMORPHIZE: necro_monomorphize_test(); break;
+    case NECRO_TEST_MONOMORPHIZE:         necro_monomorphize_test();         break;
     case NECRO_TEST_ARENA_CHAIN_TABLE:    necro_arena_chain_table_test();    break;
     case NECRO_TEST_BASE:                 necro_base_test();                 break;
     case NECRO_TEST_ALL:

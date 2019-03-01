@@ -848,7 +848,7 @@ void necro_rename_test_error(const char* test_name, const char* str, NECRO_RESUL
     necro_intern_destroy(&intern);
 }
 
-#define RENAME_TEST_VERBOSE 1
+#define RENAME_TEST_VERBOSE 0
 
 void necro_rename_test_case(const char* test_name, const char* str, NecroIntern* intern, NecroAstArena* ast2)
 {
@@ -869,7 +869,7 @@ void necro_rename_test_case(const char* test_name, const char* str, NecroIntern*
     necro_build_scopes(info, &scoped_symtable, &ast);
     unwrap(void, necro_rename(info, &scoped_symtable, intern, &ast));
 
-#ifdef RENAME_TEST_VERBOSE
+#if RENAME_TEST_VERBOSE
     necro_ast_print(ast.root);
 #endif
     // Assert
@@ -1147,7 +1147,7 @@ void necro_rename_test()
                             NULL)
                     )),
                 NULL);
-#ifdef RENAME_TEST_VERBOSE
+#if RENAME_TEST_VERBOSE
         necro_ast_print(ast.root);
 #endif
         necro_rename_test_case("ApatsAssignmentYs", "x y = y where y = y\n", &intern, &ast);

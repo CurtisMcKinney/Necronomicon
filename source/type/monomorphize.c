@@ -719,6 +719,7 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
+#define NECRO_MONOMORPHIZE_TEST_VERBOSE 0
 void necro_monomorphize_test_result(const char* test_name, const char* str, NECRO_RESULT_TYPE expected_result, const NECRO_RESULT_ERROR_TYPE* error_type)
 {
     // Set up
@@ -748,9 +749,10 @@ void necro_monomorphize_test_result(const char* test_name, const char* str, NECR
     {
         necro_scoped_symtable_print_top_scopes(&scoped_symtable);
     }
+#if NECRO_MONOMORPHIZE_TEST_VERBOSE
         // necro_ast_arena_print(&base.ast);
         necro_ast_arena_print(&ast);
-    // }
+#endif
     assert(result.type == expected_result);
     bool passed = result.type == expected_result;
     if (expected_result == NECRO_RESULT_ERROR)

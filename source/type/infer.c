@@ -1784,7 +1784,7 @@ NecroResult(void) necro_infer(NecroCompileInfo info, NecroIntern* intern, NecroS
 // Testing
 ///////////////////////////////////////////////////////
 
-#define INFER_TEST_VERBOSE 1
+#define INFER_TEST_VERBOSE 0
 
 void necro_infer_test_impl(const char* test_name, const char* str, NECRO_RESULT_TYPE expected_result, const NECRO_RESULT_ERROR_TYPE* error_type, NecroAstArena* ast2)
 {
@@ -1818,7 +1818,7 @@ void necro_infer_test_impl(const char* test_name, const char* str, NECRO_RESULT_
     {
         assert(expected_result == NECRO_RESULT_OK);
         assert(error_type == NULL);
-#ifdef INFER_TEST_VERBOSE
+#if INFER_TEST_VERBOSE
         puts("//////////////////////////////");
         puts("// necro_infer_test ast");
         puts("//////////////////////////////");
@@ -1849,16 +1849,20 @@ void necro_infer_test_impl(const char* test_name, const char* str, NECRO_RESULT_
     }
 
     const char* result_string = passed ? "Passed" : "Failed";
-    printf("Infer %s test: %s\n\n\n", test_name, result_string);
+    printf("Infer %s test: %s\n", test_name, result_string);
     fflush(stdout);
     // UNUSED(test_name);
     // UNUSED(result_string);
 
     // Clean up
+#if INFER_TEST_VERBOSE
     if (result.type == NECRO_RESULT_ERROR)
         necro_result_error_print(result.error, str, "Test");
     else if (result.error)
         free(result.error);
+#else
+    free(result.error);
+#endif
 
     necro_ast_arena_destroy(&ast);
     necro_base_destroy(&base);

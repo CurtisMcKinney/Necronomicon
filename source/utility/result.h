@@ -420,5 +420,6 @@ NecroResult(NecroType)             necro_kind_mismatched_arity_error(struct Necr
 NecroResult(NecroType)             necro_kind_rigid_kind_variable_error(struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 
 void                               necro_result_error_print(NecroResultError* error, const char* source_str, const char* source_name);
+void                               necro_result_error_destroy(NECRO_RESULT_TYPE result_type, NecroResultError* error);
 
 #endif // NECRO_RESULT_H

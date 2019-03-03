@@ -334,9 +334,9 @@ void necro_compile(const char* file_name, const char* input_string, size_t input
     // Error Handling
     //--------------------
     if (result.type != NECRO_RESULT_OK )
-    {
         necro_result_error_print(result.error, input_string, file_name);
-    }
+    else
+        necro_result_error_destroy(result.type, result.error);
 
     //--------------------
     // Clean up

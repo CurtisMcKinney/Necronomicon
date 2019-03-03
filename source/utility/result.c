@@ -1638,8 +1638,20 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     free(error);
 }
 
+void necro_result_error_destroy(NECRO_RESULT_TYPE result_type, NecroResultError* error)
+{
+    if (result_type == NECRO_RESULT_OK || error == NULL)
+        return;
+    if (error->type == NECRO_ERROR_CONS)
+    {
+        necro_result_error_destroy(result_type, error->error_cons.error1);
+        necro_result_error_destroy(result_type, error->error_cons.error2);
+    }
+    free(error);
+}
+
 void necro_assert_on_error(NECRO_RESULT_TYPE result_type, NecroResultError* error)
 {
     assert(result_type == NECRO_RESULT_OK);
-    UNUSED(error);
+    necro_result_error_destroy(result_type, error);
 }

@@ -838,7 +838,7 @@ void necro_rename_test_error(const char* test_name, const char* str, NECRO_RESUL
     printf("Rename %s test: Passed\n", test_name);
 
     // Clean up
-    free(result.error);
+    necro_result_error_destroy(result.type, result.error);
     necro_ast_arena_destroy(&ast);
     necro_base_destroy(&base);
     necro_parse_ast_arena_destroy(&parse_ast);

@@ -778,9 +778,9 @@ void necro_monomorphize_test_result(const char* test_name, const char* str, NECR
     if (result.type == NECRO_RESULT_ERROR)
         necro_result_error_print(result.error, str, "Test");
     else if (result.error)
-        free(result.error);
+        necro_result_error_destroy(result.type, result.error);
 #else
-    free(result.error);
+    necro_result_error_destroy(result.type, result.error);
 #endif
 
     necro_ast_arena_destroy(&ast);

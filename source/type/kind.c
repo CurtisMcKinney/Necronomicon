@@ -26,7 +26,6 @@ NecroAstSymbol* necro_kind_create_kind_ast_symbol(NecroPagedArena* arena, NecroS
     kind_type->pre_supplied = true;
     ast_symbol->type        = kind_type;
     ast_symbol->ast         = NULL;
-    // ast_symbol->ast         = necro_ast_create_var(arena, intern, source_name, NECRO_VAR_DECLARATION);
     return ast_symbol;
 }
 
@@ -240,10 +239,13 @@ NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase
 
     case NECRO_TYPE_FUN:
     {
+        // TODO / NOTE / HACK: Removing this in an attempt to get DemandType off the ground...is this a terrible idea?
         NecroType* type1_kind = necro_try(NecroType, necro_kind_infer(arena, base, type->fun.type1, source_loc, end_loc));
         necro_try(NecroType, necro_kind_unify_with_info(base->star_kind->type, type1_kind, NULL, source_loc, end_loc));
         NecroType* type2_kind = necro_try(NecroType, necro_kind_infer(arena, base, type->fun.type2, source_loc, end_loc));
         necro_try(NecroType, necro_kind_unify_with_info(base->star_kind->type, type2_kind, NULL, source_loc, end_loc));
+        // UNUSED(type1_kind);
+        // UNUSED(type2_kind);
         type->kind            = base->star_kind->type;
         return ok(NecroType, type->kind);
     }

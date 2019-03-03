@@ -66,8 +66,6 @@ inline void* __emalloc(const size_t a_size)
 //=====================================================
 // Error Messaging
 //=====================================================
-#define NECRO_MAX_ERROR_MESSAGE_LENGTH 2048
-
 typedef enum
 {
     NECRO_SUCCESS,

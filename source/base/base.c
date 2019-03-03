@@ -22,7 +22,11 @@ NecroBase necro_base_create(NecroIntern* intern)
     {
         .ast                    = necro_ast_arena_create(necro_intern_string(intern, "Necro.Base")),
 
+        .higher_kind            = NULL,
+        .kind_kind              = NULL,
         .star_kind              = NULL,
+        .nat_kind               = NULL,
+        .sym_kind               = NULL,
 
         .tuple2_con             = NULL,
         .tuple3_con             = NULL,
@@ -947,7 +951,6 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.unsafe_peek            = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "unsafePeek"));
     base.unsafe_poke            = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "unsafePoke"));
 
-
     // Compile, part II
     unwrap(void, necro_infer(info, intern, scoped_symtable, &base, &base.ast));
     unwrap(void, necro_monomorphize(info, intern, scoped_symtable, &base, &base.ast));
@@ -956,7 +959,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     return base;
 }
 
-#define NECRO_BASE_TEST_VERBOSE 0
+#define NECRO_BASE_TEST_VERBOSE 1
 
 void necro_base_test()
 {

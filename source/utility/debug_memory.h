@@ -6,7 +6,7 @@
 #ifndef DEBUG_MEMORY_H
 #define DEBUG_MEMORY_H 1
 
-static const int EXIT_MEMORY_LEAK_DETECTED = 666;
+static const int EXIT_MEMORY_LEAK_DETECTED = 255;
 
 #if defined(_DEBUG)
 #define DEBUG_MEMORY 1
@@ -26,13 +26,13 @@ static const int EXIT_MEMORY_LEAK_DETECTED = 666;
             _CrtMemState __necro_memory_initial_state;\
             _CrtMemState __necro_memory_end_state;\
             _CrtMemCheckpoint(&__necro_memory_initial_state);
-        
+
 #if FULL_DEBUG_MEMORY
         #define MEM_CHECK() ___CrtDumpMemoryLeaks();
 #else
         #define MEM_CHECK()
 #endif
-        
+
         #define SCOPED_MEM_CHECK()\
             _CrtMemCheckpoint(&__necro_memory_end_state);\
             if (_CrtMemDifference(&__necro_memory_state_diff,&__necro_memory_initial_state,&__necro_memory_end_state))\

@@ -342,47 +342,58 @@ delay :: a -> a -> a
 
 pat :: a..a -> Event a
 
-rand  :: Rand a => a
-srand :: Rand a => Int -> a
+trand :: Rand a => a -> a -> a
+srand :: Rand a => Int -> a -> a -> a
 
 pulseDemon :: AudioBuffer
 pulseDemon = loadBuffer "pulseDemon.aiff" world
 
 synth :: Audio -> Audio
-synth freq = osc where
-    osc = 0 => 440 * mouseX + freq * osc |> sinOsc
+synth freq = osc
+  where
+    osc ~ 0 = 440 * mouseX + freq * osc |> sinOsc
 
 -- Layout version
 -- More elegant but doesn't easily allow for things like polyrhythms
-fpat :: Event Audio
-fpat = speed m <| s * m where
-    s = pat 0   1 _ 2 mouseX fpat _ (delay 0 s)
-    m = pat 0.5 1 2
+fpat :: Pattern Audio
+fpat = s * m |> speed 2
+  where
+    s = [ 0   1 _ 2 (sample mouseX) _ 0 ]
+    m = [ 0.5 1 2 ]
 
 -- Sequence sublanguage, influenced by let/in, dmd/seq.
 -- dmd demands the value when the sequence gets to it
 -- seq is a series of white space seperated expressions
 -- "plays" the expressions in a sequence
 -- Values in the dmd form are updated each time they are encountered by the seq form
-coolBeat :: Event Float
-coolBeat = pat
+coolBeat :: Pattern Float
+coolBeat =
+  [
     x y (y+y) z
     _ x [5 z] x
     _ 0 [1 2] y
-    where
-        x = rand - mouseX * 4 - (delay 0 x)
-        y = rand - osc2   + 3 + (delay 0 y)
-        z = rand - osc3   / 4 * (delay 0 z)
+  ]
+  where
+    x = trand 0 100 * sample mouseX * 4
+    y = trand 0 100 * sample osc2   + 3
+    z = trand 0 100 * sample osc3   / 4
 
 ifTest :: Bool -> Int
-ifTest up = if up then countUp else countDown where
-    countUp   = delay 0 (countUp + 1)
-    countDown = delay 0 (countUp - 1)
+ifTest up = if up then countUp else countDown
+  where
+    countUp   ~ 0 = countUp + 1
+    countDown ~ 0 = countUp - 1
 
 main :: Audio
 main = synths where
-    freq1  = on mouseX mouseClick |> realToFrac
-    synths = poly synth <| merge fpat freq1
+  freq1  =
+    on mouseX mouseClick
+    |> realToFrac
+
+  synths =
+    play tempo60 fpat
+      <> freq1
+      |> poly synth
 
 -- No longer have pinned values?!?!?
 -- -- now equivalant?

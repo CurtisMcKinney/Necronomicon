@@ -774,10 +774,14 @@ void necro_monomorphize_test_result(const char* test_name, const char* str, NECR
     fflush(stdout);
 
     // Clean up
+#if NECRO_MONOMORPHIZE_TEST_VERBOSE
     if (result.type == NECRO_RESULT_ERROR)
         necro_result_error_print(result.error, str, "Test");
     else if (result.error)
         free(result.error);
+#else
+    free(result.error);
+#endif
 
     necro_ast_arena_destroy(&ast);
     necro_base_destroy(&base);
@@ -1339,8 +1343,43 @@ Thoughts on Futhark style Defunctionalization:
     * Functional Types can't be returned from branches (if statements, case statements, etc)
     * Functional Types can't be stored in data types
 
-Thoughts on Demand:
-    * Shouldn't rely upon closures
+
+///////////////////////////////////////////////////////
+// Demand Streams Ideas
+///////////////////////////////////////////////////////
+
+-----------------------
+* Idea 0: Simple Closures
+
+    * Pros:
+        - Simple semantics and implementation
+        - No surprises if you understand how normal closures work
+        - No additional overhead to understanding beyond understanding how closures work.
+        - No actual "Translation" phase is required.
+    * Cons:
+        - Closures currently have some big restrictions on them that are more painful when put on something like Patterns.
+        - Due to the semantics of Necrolang, no real way to memoize.
+
+    * Mitigations:
+        - Switch combinator is probably a better fit for "scanning" through patterns anyways, since it can use the same "pattern" syntax that loop and seq do.
+        - If really worried about expensive patterns we can create an explicit memo function which will memoize the value manually.
+        - Pattern
+        - Might as well look into some of the restrictions for futhark style defunctionalization and see if we might be able to loosen them somewhat.
+
+    data PVal a    = PVal Time a | PRest Time | PInterval | PEnd
+    data Pattern a = Pattern (Time -> PVal a)
+    data EVal a    = EVal Time a | EInterval Time a
+    data Event a   = Event (() -> EVal a)
+    seq     :: Int -> Pattern a -> Pattern a
+    rswitch :: Int -> Pattern a -> Pattern a
+    switch  :: Pattern Int -> Pattern a -> Pattern a
+    play    :: Tempo -> Pattern a -> Event a
+    poly    :: (Default a, Num a) => (a -> a) -> Event a -> a
+    mouse   :: Event (Int, Int)
+    pmemo   :: Pattern a -> Pattern a
+
+-----------------------
+* Idea 1: Demand Types
 
     data Demand a
         = Demand a -- A delayed / demanded value. Will be translated in later pass.
@@ -1415,6 +1454,190 @@ Thoughts on Demand:
     // Lists as demand streams?
     * (:) :: a -> Demand a -> Demand a
     * [a] ==> Demand a (translated by
+
+-----------------------
+* Idea 2: Demand rate Bindings:
+    * Instead of accomplishing this through types, use it variable bindings (much like how Haskell has strictness annotations on variable bindings)
+    * Demand annotations on variable bindings.
+    * Variables annotated as demand are not evaluated strictly.
+
+    // * Implicitly evaluated at the call site where they are used instead, using that call site's "Time scope".
+    * To be evaluated strictly is must be demanded via: demand ~: a -> a
+    * A strict value can be used in a demand via: sample :: a ~> a
+
+    * Can be used with certain built-in constructs that call demand values multiple times, such as poly, take, drop, etc.
+    * Eliminates some corner cases (such as nested demand types), should make usage easier and semantics clearer.
+    * Uses a simple translation process which turns demand bindings into functions bindings
+        x ~: Int
+        x = ...
+        ==>
+        x' :: () -> Int
+        x' _ = ...
+    * Use sites translate into let bindings and applications.
+        y = x + x
+        ==>
+        y = x + x where x = x' ()
+    * This preserves sharing within the time scope but still prevents sharing different time scope (exactly what we want).
+    * Less noise in type signatures
+
+        seq  ~: Int -> PatternSteps a ~> Pattern a
+        play ~: Tempo -> Pattern a ~> Event a
+        poly  : (Default a, Num a) => (a -> a) -> Event a ~> a
+
+    * does prevent demand type inference, and places the burden on the programmer to remember to explicitly annotate demand-ness every it is required.
+    * Also sub declarations which aren't explicitly declared as demand rate would implicitly evaluate strictly, which would cause some weirdness...
+    * Need additional translation rules, hmmm.....
+
+    data Pattern a
+        = PVal Time a
+        | PRest Time
+        | PInterval
+        | PEnd
+
+    data Event a
+        = EVal Time a
+        | EInterval
+
+
+-----------------------
+* Idea 3: Demand Attributes (similar to clean uniqueness attributes)
+
+    * Type signatures
+        demand :: *a -> a
+        sample :: a -> *a
+        seq    :: Int -> (Int -> *Pattern a) -> *Pattern a
+        play   :: Tempo -> *Pattern a -> *Event a
+        poly   :: (Default a, Num a) => (a -> a) -> *Event a -> a
+        mouse  :: *Event (Int, Int)
+
+    * Translation Rules:
+        * Demand Types are types decorated by a Demand Attribute
+        * Attribute propagation means that "Demandedness" can't nest.
+        * DemandTypes are translated into the type: () -> a. // data Demand a = Demand (() -> a), *a ==> Demand a
+        * DemandTypes are demanded when used as the expression portion of a case expression, similar to Haskell lazy evaluation.
+        * DemandTypes are demanded and reboxed when used in the branch portion of a case expression.
+        * Recursive DemandTypes lift a value into a sub declaration which is recursive where it is demanded, then it is reboxed and assigned to the original value which is turned into a function of type: () -> Demand a
+        * (More advanced) Memo values placed at each "Time scope" which memoizes results to recover sharing where we need it?
+
+    * Translation:
+        sample :: a -> *a
+        demand :: *a -> a
+
+        x :: *Int
+        x = ...
+
+        y :: *Int
+        y = x + x + sample nonDemandInt
+
+        z :: Int
+        z = demand y
+
+        c :: Bool -> *Int
+        c b = if b then x else y
+
+        ==>
+
+        sample :: a -> (() -> a)
+        sample x = \_ -> x
+
+        demand :: (() -> a) -> a
+        demand x = x ()
+
+        x :: () -> Int
+        x = \_ -> ...
+
+        y :: () -> Int
+        y = \_ ->
+          let x' = x ()
+          in  x' + x' + nonDemandInt -- NOTE: this should translate naively should be: x' + x' + demand (sample nonDemandInt), but demand + sample next to eachother in translation should cancel eachother out.
+
+        z :: Int
+        z = y ()
+
+        c :: Bool -> () -> Int
+        c b = \_ -> if b
+          then let x' = x () in x'
+          else let y' = y () in y'
+
+    * Attribute propagation ensures that we can't have nested demand types and other weirdness.
+
+-----------------------
+* Idea 4: Demand Kinds
+
+    * Type signatures
+        data Pattern a :: DemandType = PVal Time a | PRest Time | PInterval | PEnd
+        data Event   a :: DemandType = Event Time a | EInterval
+        data Demand  a :: DemandType = Demand a
+
+        -- no need for sample, use pure instead
+        demand :: (DemandClass c) => c a -> a
+        seq    :: Int -> (Int -> Pattern a) -> Pattern a
+        play   :: Tempo -> Pattern a -> Event a
+        poly   :: (Default a, Num a) => (a -> a) -> Event a -> a
+        mouse  :: Event (Int, Int)
+
+    * Demand Kind rules / restrictions:
+        * Non-Nesting: DemandType cannot be arguments of other type's kind signatures
+        * Must implement "DemandClass" (need better name).
+        * Only built-in DemandTypes for now. No syntax for user built ones.
+
+    * Translation Rules:
+        * DemandTypes are translated into a function of type: (DemandClass c) => () -> c a
+        * DemandTypes are demanded when used as the expression portion of a case expression, similar to Haskell lazy evaluation.
+        * DemandTypes are demanded and reboxed when used in the branch portion of a case expression.
+        * Recursive DemandTypes lift a value into a sub declaration which is recursive where it is demanded, then it is reboxed and assigned to the original value which is turned into a function of type: () -> Demand a
+        * (More advanced) Memo values placed at each "Time scope" which memoizes results to recover sharing where we need it?
+
+    * Translation:
+        data Demand a = Demand a
+
+        pure :: a -> Demand a
+        pure x = Demand x
+
+        x :: Demand Int
+        x = ...
+
+        y :: Demand Int
+        y = x + x + pure nonDemandInt
+
+        z :: Int
+        z = demand y
+
+        c :: Bool -> Demand Int
+        c b = if b then x else y
+
+        demand :: Demand a -> a
+        demand x = case x of
+          Demand x' -> x'
+
+        instance Num a => Num (Demand a) where
+          add x y = pure (demand x + demand y)
+
+        ==>
+
+        pure :: a -> (() -> Demand a)
+        pure x = \_ -> Demand x
+
+        x :: () -> Demand Int
+        x = ...
+
+        y :: () -> Demand Int
+        y = x + x + pure nonDemandInt -- Num class instance of Demand does the heavy lifting, but this prevents sharing. Rely on common sub-expression elimination?
+
+        z :: Int
+        z = demand y
+
+        c :: Bool -> () -> Demand Int
+        c b = pure <| if b then demand x else demand y
+
+        demand :: (() -> Demand a) -> a
+        demand x = case x () of
+          Demand x' -> x'
+
+        instance Num a => Num (Demand a) where
+          add x y = pure (demand x + demand y)
+
+    * Translation occurs before, after, or during monomorphization?
 
 */
 

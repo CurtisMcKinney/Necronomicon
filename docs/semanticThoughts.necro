@@ -395,6 +395,9 @@ main = synths where
       <> freq1
       |> poly synth
 
+notLikeTheOthers :: Array 3 Bool
+notLikeTheOthers = { True, False, True }
+
 -- No longer have pinned values?!?!?
 -- -- now equivalant?
 -- -- How to have/use/reference long running values (like a global ambient noise or some such you pipe in?)

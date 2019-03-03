@@ -50,10 +50,10 @@ process_error_code_t necro_compile_in_child_process(const char* command_line_arg
     )
     {
         printf("CreateProcess failed (%d)!!!.\n", GetLastError());
-        printf("Failed using this command: %s", command_line_arguments);
-        printf("Also make sure your working directory is set to .. (which should be the root directory)");
-        // return 2;
-        return 0;
+        printf("Failed using this command: %s\n", command_line_arguments);
+        printf("Also make sure your working directory is set to .. (which should be the root directory)\n");
+        return 2;
+        // return 0;
     }
 
     // Wait until child process exits.
@@ -66,8 +66,10 @@ process_error_code_t necro_compile_in_child_process(const char* command_line_arg
     {
         puts("==============================vvvvvvvvvvv!!");
         puts("Sub process failed because of memory leak!!");
+        printf("Failed using this command: %s\n", command_line_arguments);
         puts("==============================^^^^^^^^^^^!!");
     }
+    assert(exit_code == 0);
 
     // Close process and thread handles.
     CloseHandle(pi.hProcess);

@@ -1587,6 +1587,8 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_const_tuple(NecroParser* parser)
 
 NecroResult(NecroParseAstLocalPtr) necro_parse_const_list(NecroParser* parser)
 {
+    if (true)
+        return ok(NecroParseAstLocalPtr, null_local_ptr);
     // [
     NecroParserSnapshot snapshot = necro_parse_snapshot(parser);
     if (necro_parse_peek_token_type(parser) != NECRO_LEX_LEFT_BRACKET)
@@ -2452,8 +2454,12 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_do(NecroParser* parser)
     return ok_NecroParseAstLocalPtr(do_local_ptr);
 }
 
+// TODO: Retrofit to array patterns
 NecroResult(NecroParseAstLocalPtr) necro_parse_expression_list(NecroParser* parser)
 {
+    // NOTE: Removing Expression lists [expr] for now in favor of pattern syntax.
+    if (true)
+        return ok(NecroParseAstLocalPtr, null_local_ptr);
     // [
     NecroSourceLoc             source_loc       = necro_parse_peek_token(parser)->source_loc;
     NecroParserSnapshot        snapshot         = necro_parse_snapshot(parser);
@@ -2567,11 +2573,12 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_expressions_for_pattern_expressio
 
 NecroResult(NecroParseAstLocalPtr) necro_parse_pattern_expression(NecroParser* parser)
 {
-    // pat
-    // NecroParser_Snapshot snapshot   = snapshot_parser(parser);
-    if (necro_parse_peek_token_type(parser) != NECRO_LEX_PAT)
-        return ok_NecroParseAstLocalPtr(null_local_ptr);
-    NecroSourceLoc       source_loc = necro_parse_peek_token(parser)->source_loc;
+    // [
+    if (necro_parse_peek_token(parser)->token != NECRO_LEX_LEFT_BRACKET)
+        return ok(NecroParseAstLocalPtr, null_local_ptr);
+
+    NecroParserSnapshot snapshot   = necro_parse_snapshot(parser);
+    NecroSourceLoc      source_loc = necro_parse_peek_token(parser)->source_loc;
     necro_parse_consume_token(parser);
 
     // Expressions
@@ -2580,6 +2587,14 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_pattern_expression(NecroParser* p
     {
         return necro_pattern_empty_expression_list_error(source_loc, necro_parse_peek_token(parser)->end_loc);
     }
+
+    // ]
+    if (necro_parse_peek_token(parser)->token != NECRO_LEX_RIGHT_BRACKET)
+    {
+        necro_parse_restore(parser, snapshot);
+        return ok(NecroParseAstLocalPtr, null_local_ptr);
+    }
+    necro_parse_consume_token(parser);
 
     // Finish
     NecroParseAstLocalPtr pat_expression_local_ptr = necro_parse_ast_create_pat_expr(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->end_loc, expression_list);
@@ -3053,6 +3068,8 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_qconop(NecroParser* parser, NECRO
 
 NecroResult(NecroParseAstLocalPtr) necro_parse_list_pat(NecroParser* parser)
 {
+    if (true)
+        return ok(NecroParseAstLocalPtr, null_local_ptr);
     NecroParserSnapshot snapshot = necro_parse_snapshot(parser);
 
     // [
@@ -3480,6 +3497,9 @@ NecroParseAstLocalPtr necro_parse_tyvar(NecroParser* parser, NECRO_VAR_TYPE var_
 
 NecroResult(NecroParseAstLocalPtr) necro_parse_list_type(NecroParser* parser)
 {
+    // NOTE: Removing support for Lists
+    if (true)
+        return ok(NecroParseAstLocalPtr, null_local_ptr);
     NecroParserSnapshot   snapshot   = necro_parse_snapshot(parser);
     NecroParseAstLocalPtr ptr        = null_local_ptr;
 

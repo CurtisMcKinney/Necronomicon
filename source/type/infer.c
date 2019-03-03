@@ -1784,7 +1784,7 @@ NecroResult(void) necro_infer(NecroCompileInfo info, NecroIntern* intern, NecroS
 // Testing
 ///////////////////////////////////////////////////////
 
-#define INFER_TEST_VERBOSE 0
+#define INFER_TEST_VERBOSE 1
 
 void necro_infer_test_impl(const char* test_name, const char* str, NECRO_RESULT_TYPE expected_result, const NECRO_RESULT_ERROR_TYPE* error_type, NecroAstArena* ast2)
 {
@@ -1972,7 +1972,7 @@ void necro_test_infer()
         const char* test_source = ""
             // "notLikeTheOthers :: [()]\n"
             "notLikeTheOthers :: Array 3 ()\n"
-            "notLikeTheOthers = [ (), False, () ]\n";
+            "notLikeTheOthers = { (), False, () }\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);

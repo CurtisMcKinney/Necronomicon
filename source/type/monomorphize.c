@@ -1307,9 +1307,9 @@ void necro_monomorphize_test()
             "instance NumCollection (Array n) where\n"
             "  checkOutMyCollection x c = c\n"
             "rationals1 :: Array 1 Rational\n"
-            "rationals1 = checkOutMyCollection 22 [33]\n"
+            "rationals1 = checkOutMyCollection 22 {33}\n"
             "rationals2 :: Array 2 Rational\n"
-            "rationals2 = checkOutMyCollection 22 [33, 44]\n";
+            "rationals2 = checkOutMyCollection 22 {33, 44}\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }

@@ -28,7 +28,7 @@ static const int EXIT_MEMORY_LEAK_DETECTED = 255;
             _CrtMemCheckpoint(&__necro_memory_initial_state);
 
 #if FULL_DEBUG_MEMORY
-        #define MEM_CHECK() ___CrtDumpMemoryLeaks();
+        #define MEM_CHECK() _CrtDumpMemoryLeaks();
 #else
         #define MEM_CHECK()
 #endif
@@ -38,6 +38,9 @@ static const int EXIT_MEMORY_LEAK_DETECTED = 255;
             if (_CrtMemDifference(&__necro_memory_state_diff,&__necro_memory_initial_state,&__necro_memory_end_state))\
             {\
                 _CrtMemDumpStatistics(&__necro_memory_state_diff);\
+                fprintf(stderr, "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");\
+                fprintf(stderr, "!!MEMORY LEAK!");\
+                fprintf(stderr, "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");\
                 return EXIT_MEMORY_LEAK_DETECTED;\
             }
     #elif defined(__unix)

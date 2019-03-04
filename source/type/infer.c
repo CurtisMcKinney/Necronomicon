@@ -400,12 +400,13 @@ NecroResult(NecroType) necro_infer_apats_assignment(NecroInfer* infer, NecroAst*
 
     // Unify args
     necro_try_map(void, NecroType, necro_kind_infer_gen_unify_with_star(infer->arena, infer->base, f_head, ast->scope, ast->simple_type.type_con->source_loc, ast->simple_type.type_con->end_loc));
-    NecroResult(NecroType) lhs_result = necro_type_unify_with_info(infer->arena, infer->base, proxy_type, f_head, ast->scope, ast->source_loc, ast->apats_assignment.apats->end_loc);
-    if (lhs_result.type == NECRO_RESULT_ERROR)
-    {
-        necro_try(NecroType, necro_type_unify_with_info(infer->arena, infer->base, rhs_proxy, rhs, ast->scope, ast->apats_assignment.rhs->source_loc, ast->apats_assignment.rhs->end_loc));
-        return lhs_result;
-    }
+    necro_try(NecroType, necro_type_unify_with_info(infer->arena, infer->base, proxy_type, f_head, ast->scope, ast->source_loc, ast->apats_assignment.apats->end_loc));
+    // NecroResult(NecroType) lhs_result = necro_type_unify_with_info(infer->arena, infer->base, proxy_type, f_head, ast->scope, ast->source_loc, ast->apats_assignment.apats->end_loc);
+    // if (lhs_result.type == NECRO_RESULT_ERROR)
+    // {
+    //     NecroResult(NecroType) rhs_result = necro_type_unify_with_info(infer->arena, infer->base, rhs_proxy, rhs, ast->scope, ast->apats_assignment.rhs->source_loc, ast->apats_assignment.rhs->end_loc));
+    //     return lhs_result;
+    // }
 
     // Unify rhs
     necro_try(NecroType, necro_type_unify_with_info(infer->arena, infer->base, rhs_proxy, rhs, ast->scope, ast->apats_assignment.rhs->source_loc, ast->apats_assignment.rhs->end_loc));
@@ -1784,7 +1785,7 @@ NecroResult(void) necro_infer(NecroCompileInfo info, NecroIntern* intern, NecroS
 // Testing
 ///////////////////////////////////////////////////////
 
-#define INFER_TEST_VERBOSE 1
+#define INFER_TEST_VERBOSE 0
 
 void necro_infer_test_impl(const char* test_name, const char* str, NECRO_RESULT_TYPE expected_result, const NECRO_RESULT_ERROR_TYPE* error_type, NecroAstArena* ast2)
 {
@@ -1851,8 +1852,6 @@ void necro_infer_test_impl(const char* test_name, const char* str, NECRO_RESULT_
     const char* result_string = passed ? "Passed" : "Failed";
     printf("Infer %s test: %s\n", test_name, result_string);
     fflush(stdout);
-    // UNUSED(test_name);
-    // UNUSED(result_string);
 
     // Clean up
 #if INFER_TEST_VERBOSE

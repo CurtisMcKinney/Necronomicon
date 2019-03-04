@@ -2126,7 +2126,8 @@ NecroResult(NecroType) necro_type_set_zero_order(NecroType* type, const NecroSou
         return ok(NecroType, NULL);
     default:
         assert(false);
-        return ok(NecroType, NULL); }
+        return ok(NecroType, NULL);
+    }
 }
 
 NecroResult(NecroType) necro_type_unify_order(NecroType* type1, NecroType* type2)

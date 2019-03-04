@@ -398,6 +398,9 @@ main = synths where
 notLikeTheOthers :: Array 3 Bool
 notLikeTheOthers = { True, False, True }
 
+-- Rename "Pattern matching" to Destructuring.
+-- Keep "Patterns" as a name for musical patterns.
+
 -- No longer have pinned values?!?!?
 -- -- now equivalant?
 -- -- How to have/use/reference long running values (like a global ambient noise or some such you pipe in?)

@@ -19,9 +19,6 @@ NecroResult(void)      necro_infer(NecroCompileInfo info, NecroIntern* intern, N
 NecroResult(NecroType) necro_infer_go(NecroInfer* infer, NecroAst* ast);
 NecroResult(NecroType) necro_infer_type_sig(NecroInfer* infer, NecroAst* ast);
 NecroResult(NecroType) necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast, NECRO_TYPE_ORDER variable_type_order);
-
-bool                   necro_is_sized(NecroType* type);
-bool                   necro_is_fully_concrete(struct NecroBase* base, NecroType* type);
 void                   necro_test_infer();
 
 #endif // NECRO_INFER_H

@@ -52,6 +52,7 @@ set(INCLUDE_DIR
     source/parse
     source/core
     source/machine
+    source/mach
     source/codegen
     )
 
@@ -95,6 +96,7 @@ set(project_SOURCES
     source/type/derive.c
 
     source/core/core.c
+    source/core/defunctionalization.c
     source/core/closure_conversion.c
     source/core/lambda_lift.c
     source/core/state_analysis.c
@@ -109,6 +111,8 @@ set(project_SOURCES
     source/machine/machine_build.c
     source/machine/machine_copy.c
     source/machine/machine_closure.c
+
+    source/mach/mach_ast.c
 
     source/codegen/codegen_llvm.c
     )
@@ -155,6 +159,7 @@ set(project_HEADERS
     source/type/derive.h
 
     source/core/core.h
+    source/core/defunctionalization.h
     source/core/closure_conversion.h
     source/core/lambda_lift.h
     source/core/state_analysis.h
@@ -169,6 +174,8 @@ set(project_HEADERS
     source/machine/machine_build.h
     source/machine/machine_copy.h
     source/machine/machine_closure.h
+
+    source/mach/mach_ast.h
 
     source/codegen/codegen_llvm.h
     )

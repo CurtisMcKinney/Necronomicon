@@ -25,6 +25,7 @@
 #include "core/core.h"
 #include "core/closure_conversion.h"
 #include "core/lambda_lift.h"
+#include "core/defunctionalization.h"
 #include "core/state_analysis.h"
 #include "machine/machine.h"
 #include "machine/machine_print.h"

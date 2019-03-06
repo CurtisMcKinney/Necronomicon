@@ -549,6 +549,10 @@ NecroResult(void) necro_type_ambiguous_type_variable_check(NecroPagedArena* aren
     case NECRO_TYPE_FOR:
         necro_try(void, necro_type_ambiguous_type_variable_check(arena, base, type->for_all.type, macro_type, source_loc, end_loc));
         return ok_void();
+    case NECRO_TYPE_NAT:
+        return ok_void();
+    case NECRO_TYPE_SYM:
+        return ok_void();
     default:
         assert(false);
         return ok_void();

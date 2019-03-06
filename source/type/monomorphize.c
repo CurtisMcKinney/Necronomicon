@@ -750,8 +750,10 @@ void necro_monomorphize_test_result(const char* test_name, const char* str, NECR
         necro_scoped_symtable_print_top_scopes(&scoped_symtable);
     }
 #if NECRO_MONOMORPHIZE_TEST_VERBOSE
-        // necro_ast_arena_print(&base.ast);
-        necro_ast_arena_print(&ast);
+    if (result.type == expected_result)
+        necro_scoped_symtable_print_top_scopes(&scoped_symtable);
+    // necro_ast_arena_print(&base.ast);
+    necro_ast_arena_print(&ast);
 #endif
     assert(result.type == expected_result);
     bool passed = result.type == expected_result;
@@ -1336,6 +1338,15 @@ void necro_monomorphize_test()
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
+    {
+        const char* test_name   = "String Test 1";
+        const char* test_source = ""
+            "helloWorld :: Array 12 Char\n"
+            "helloWorld = \"Hello World\"\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
 /*
 Thoughts on Futhark style Defunctionalization:
     * Maybe Demand type not rely upon closures.
@@ -1356,6 +1367,9 @@ Thoughts on Futhark style Defunctionalization:
         - No surprises if you understand how normal closures work
         - No additional overhead to understanding beyond understanding how closures work.
         - No actual "Translation" phase is required.
+        - Wide variety of pattern manipulating combinators are possible and easy to use.
+        - Can easily create user defined pattern combinators
+        - Allows for unbounded "demands" while still maintaining a static/fixed memory footprint.
     * Cons:
         - Closures currently have some big restrictions on them that are more painful when put on something like Patterns.
         - Due to the semantics of Necrolang, no real way to memoize.
@@ -1366,17 +1380,46 @@ Thoughts on Futhark style Defunctionalization:
         - Pattern
         - Might as well look into some of the restrictions for futhark style defunctionalization and see if we might be able to loosen them somewhat.
 
-    data PVal a    = PVal Time a | PRest Time | PInterval | PEnd
+    data PVal a    = PVal Time a | PRest Time | PConst a | PInterval | PEnd
     data Pattern a = Pattern (Time -> PVal a)
-    data EVal a    = EVal Time a | EInterval Time a
-    data Event a   = Event (() -> EVal a)
     seq     :: Int -> Pattern a -> Pattern a
     rswitch :: Int -> Pattern a -> Pattern a
     switch  :: Pattern Int -> Pattern a -> Pattern a
-    play    :: Tempo -> Pattern a -> Event a
-    poly    :: (Default a, Num a) => (a -> a) -> Event a -> a
-    mouse   :: Event (Int, Int)
+    tempo   :: Tempo -> Pattern a -> Pattern a
+    poly    :: Num a => (a -> a) -> Pattern a -> a
+    mouse   :: Pattern (Int, Int)
     pmemo   :: Pattern a -> Pattern a
+    every   :: Int -> (Pattern a -> Pattern a) -> Pattern a
+    rev     :: Pattern a -> Pattern a
+
+-----------------------
+* Idea Syntax: Special 'pat' and 'with' syntax, similar to 'do' syntax in Haskell (i.e. enter into a sublanguage)
+    - Everything is still strict, but the time scoping semantics are different.
+
+    data PVal a    = PVal Time a | PRest Time | PConst a | PInterval | PEnd
+    data Pattern a = Pattern (Time -> PVal a)
+    seq     :: Int -> Pattern a -> Pattern a
+    rswitch :: Int -> Pattern a -> Pattern a
+    switch  :: Pattern Int -> Pattern a -> Pattern a
+    tempo   :: Tempo -> Pattern a -> Pattern a
+    poly    :: Num a => (a -> a) -> Pattern a -> a
+    mouse   :: Pattern (Int, Int)
+    pmemo   :: Pattern a -> Pattern a
+
+-----------------------
+* Idea 0.5: Lazy Pattern Type with forcing behavior
+
+    * All types that have "demand" like characteristics use the Pattern Types (lazy list like things, input event type things, musical patterns, etc).
+    * Certain constructs "force" the value: case expressions evaluations (force), case branches (force, box), arrays (force, box), recursive values (lift, force, box), strictness annotations?
+
+    data Pattern a = PVal Time a | PRest Time | PConst a | PInterval | PEnd
+    seq     :: Int -> Pattern a -> Pattern a
+    rswitch :: Int -> Pattern a -> Pattern a
+    switch  :: Pattern Int -> Pattern a -> Pattern a
+    tempo   :: Tempo -> Pattern a -> Pattern a
+    poly    :: Num a => (a -> a) -> Pattern a -> a
+    mouse   :: Pattern (Int, Int)
+
 
 -----------------------
 * Idea 1: Demand Types
@@ -1505,49 +1548,70 @@ Thoughts on Futhark style Defunctionalization:
     * Type signatures
         demand :: *a -> a
         sample :: a -> *a
-        seq    :: Int -> (Int -> *Pattern a) -> *Pattern a
-        play   :: Tempo -> *Pattern a -> *Event a
-        poly   :: (Default a, Num a) => (a -> a) -> *Event a -> a
-        mouse  :: *Event (Int, Int)
+        seq    :: Int -> *a -> *a
+        tempo  :: Tempo -> *a -> *a
+        pause  :: Bool -> *a -> *a
+        poly   :: Num a => (a -> a) -> *a -> a
+        mouse  :: *(Int, Int)
+        mouseX :: *Int
 
-    * Translation Rules:
+    * Pros:
+        - Doesn't need to follow function restrictions
+        - In theory allows for sharing in the local context (but not global sharing).
+
+    * Rules:
         * Demand Types are types decorated by a Demand Attribute
         * Attribute propagation means that "Demandedness" can't nest.
+        * Implicit demand and delay (Force which attaches "Strict ConsumedDemand" attribute), like Idris.
         * DemandTypes are translated into the type: () -> a. // data Demand a = Demand (() -> a), *a ==> Demand a
         * DemandTypes are demanded when used as the expression portion of a case expression, similar to Haskell lazy evaluation.
         * DemandTypes are demanded and reboxed when used in the branch portion of a case expression.
         * Recursive DemandTypes lift a value into a sub declaration which is recursive where it is demanded, then it is reboxed and assigned to the original value which is turned into a function of type: () -> Demand a
         * (More advanced) Memo values placed at each "Time scope" which memoizes results to recover sharing where we need it?
+        * requires deltaTime :: Time combinator which is updated with local delta time to function.
+        * Some combinators ignore negative time and treat it as positive time, or ignore time manipulation altogether (events, audio combinators, etc).
+        * Don't generalize local declaration groups automatically.
+
+    * Demand Attribute:
+        * Strict
+        * Demand
+        * StrictConsumedDemand
 
     * Translation:
-        sample :: a -> *a
+        delay  :: a -> *a
         demand :: *a -> a
 
         x :: *Int
         x = ...
 
         y :: *Int
-        y = x + x + sample nonDemandInt
+        y = x + x + nonDemandInt
 
         z :: Int
-        z = demand y
+        z = y
 
         c :: Bool -> *Int
-        c b = if b then x else y
+        c b = if b then x else drop x y + y
+
+        drop :: *a -> *b -> *a
+        drop x _ = x
+
+        pat :: *Int
+        pat = [0 x _ [y (delay z)] mouseX _]
 
         ==>
 
-        sample :: a -> (() -> a)
-        sample x = \_ -> x
+        delay :: a -> () -> a
+        delay x _ = x
 
         demand :: (() -> a) -> a
         demand x = x ()
 
         x :: () -> Int
-        x = \_ -> ...
+        x _ = ...
 
         y :: () -> Int
-        y = \_ ->
+        y _ =
           let x' = x ()
           in  x' + x' + nonDemandInt -- NOTE: this should translate naively should be: x' + x' + demand (sample nonDemandInt), but demand + sample next to eachother in translation should cancel eachother out.
 
@@ -1555,9 +1619,12 @@ Thoughts on Futhark style Defunctionalization:
         z = y ()
 
         c :: Bool -> () -> Int
-        c b = \_ -> if b
+        c b _ = if b
           then let x' = x () in x'
-          else let y' = y () in y'
+          else
+            let y' = y ()
+            let d' = drop x y () in
+            d' + y'
 
     * Attribute propagation ensures that we can't have nested demand types and other weirdness.
 
@@ -1638,6 +1705,91 @@ Thoughts on Futhark style Defunctionalization:
           add x y = pure (demand x + demand y)
 
     * Translation occurs before, after, or during monomorphization?
+
+
+-----------------------
+* Idea 3: Internal Attributes on special Pattern type (similar to clean uniqueness attributes, but only applied internally.)
+
+    * Type signatures
+        data Pattern a = PVal Time a | PRest Time a | PInterval | PConst a | PEnd a
+
+        seq    :: Int -> Pattern a -> Pattern a
+        play   :: Tempo -> Pattern a -> Event a
+        pause  :: Bool -> Pattern a -> Pattern a
+        poly   :: Num a => (a -> a) -> Event a -> a
+        mouse  :: Event (Int, Int)
+        mouseX :: Event Int
+
+    * Pattern Attribute:
+        * Strict
+        * Lazy
+        * StrictConsumedLazy
+
+    * Pros:
+        - Doesn't need to follow function restrictions
+        - In theory allows for sharing in the local context (but not global sharing).
+
+    * Rules:
+        * Demand Types are types decorated by a Demand Attribute
+        * Attribute propagation means that "Demandedness" can't nest.
+        * Implicit demand and delay (Force which attaches "Strict ConsumedDemand" attribute), like Idris.
+        * DemandTypes are translated into the type: () -> a. // data Demand a = Demand (() -> a), *a ==> Demand a
+        * DemandTypes are demanded when used as the expression portion of a case expression, similar to Haskell lazy evaluation.
+        * DemandTypes are demanded and reboxed when used in the branch portion of a case expression.
+        * Recursive DemandTypes lift a value into a sub declaration which is recursive where it is demanded, then it is reboxed and assigned to the original value which is turned into a function of type: () -> Demand a
+        * (More advanced) Memo values placed at each "Time scope" which memoizes results to recover sharing where we need it?
+        * requires deltaTime :: Time combinator which is updated with local delta time to function.
+        * Some combinators ignore negative time and treat it as positive time, or ignore time manipulation altogether (events, audio combinators, etc).
+        * Don't generalize local declaration groups automatically.
+
+    * Translation:
+        x :: Pattern Int
+        x = ...
+
+        y :: Pattern Int
+        y = x + x + pure nonDemandInt
+
+        z :: Int
+        z = sample y
+
+        c :: Bool -> Pattern Int
+        c b = if b then x else drop x y + y
+
+        drop :: Pattern a -> Pattern b -> Pattern a
+        drop x _ = x
+
+        pat :: Pattern Int
+        pat = [0 x _ [y (pure z)] mouseX _]
+
+        ==>
+
+        x :: () -> Pattern Int
+        x _ = ...
+
+        y :: () -> Pattern Int
+        y _ =
+          let x' = x ()
+          in  x' + x' + pure nonDemandInt -- NOTE: this should translate naively should be: x' + x' + demand (sample nonDemandInt), but demand + sample next to eachother in translation should cancel eachother out.
+
+        z :: Int
+        z = sample (y ())
+
+        c :: Bool -> () -> Pattern Int
+        c b _ = if b
+          then let x' = x () in x'
+          else
+            let y' = y ()
+            let d' = drop x y () in
+            d' + y'
+
+        drop :: Pattern a -> Pattern b -> () -> Pattern a
+        drop x y _ = x
+
+        pat :: () -> Pattern Int
+        pat _ = ...more intense translation...
+
+    * Attribute propagation ensures that we can't have nested demand types and other weirdness.
+
 
 */
 

@@ -367,16 +367,16 @@ fpat = s * m |> speed 2
 -- "plays" the expressions in a sequence
 -- Values in the dmd form are updated each time they are encountered by the seq form
 coolBeat :: Pattern Float
-coolBeat =
+coolBeat ~ 0 =
   [
     x y (y+y) z
     _ x [5 z] x
-    _ 0 [1 2] y
+    _ 0 [1 2] y,
   ]
   where
-    x = trand 0 100 * sample mouseX * 4
-    y = trand 0 100 * sample osc2   + 3
-    z = trand 0 100 * sample osc3   / 4
+    x ~ 0 = if someBool then trand 0 100 * fromInt mouseX * 4 + x else x + 1
+    y ~ 0 = trand 0 100 * pure osc2 + 3 + y
+    z     = trand 0 100 * pure osc3 / 4 + coolBeat
 
 ifTest :: Bool -> Int
 ifTest up = if up then countUp else countDown
@@ -386,17 +386,40 @@ ifTest up = if up then countUp else countDown
 
 main :: Audio
 main = synths where
-  freq1  =
-    on mouseX mouseClick
-    |> realToFrac
+  mouseFreq  =
+    on mouseX mouseClick |> gain 7 |> d2f slendro |> fromInt
 
   synths =
-    play tempo60 fpat
-      <> freq1
-      |> poly synth
+    d2f coolBeat slendro <> mouseFreq |> poly synth
 
 notLikeTheOthers :: Array 3 Bool
 notLikeTheOthers = { True, False, True }
+
+seq    :: Int -> Pattern a -> Pattern a
+tempo  :: Tempo -> Pattern a -> Pattern a
+pause  :: Bool -> Pattern a -> Pattern a
+poly   :: Num a => (a -> a) -> Pattern a -> a
+mouse  :: Pattern (Int, Int)
+mouseX :: Pattern Int
+sample :: Pattern a -> Maybe a
+
+x :: Pattern Int
+x = ...
+
+y :: Pattern Int
+y = x + x + pure nonDemandInt
+
+z :: Int
+z = y
+
+c :: Bool -> Pattern Int
+c b = if b then x else drop x y + y
+
+drop :: Pattern a -> Pattern b -> Pattern a
+drop x _ = x
+
+pat :: Pattern Int
+pat = [0 x _ [y (pure z)] mouseX _]
 
 -- Rename "Pattern matching" to Destructuring.
 -- Keep "Patterns" as a name for musical patterns.

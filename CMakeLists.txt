@@ -113,6 +113,7 @@ set(project_SOURCES
     source/machine/machine_closure.c
 
     source/mach/mach_ast.c
+    source/mach/mach_type.c
 
     source/codegen/codegen_llvm.c
     )
@@ -176,6 +177,7 @@ set(project_HEADERS
     source/machine/machine_closure.h
 
     source/mach/mach_ast.h
+    source/mach/mach_type.h
 
     source/codegen/codegen_llvm.h
     )

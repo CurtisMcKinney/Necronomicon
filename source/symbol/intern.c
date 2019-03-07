@@ -79,15 +79,18 @@ void necro_intern_destroy(NecroIntern* intern)
     necro_snapshot_arena_destroy(&intern->snapshot_arena);
 }
 
-size_t necro_hash_string(const char* str)
+size_t necro_hash_string(const char* str, size_t* out_string_length)
 {
     uint8_t* u_str = (uint8_t*) str;
     size_t   hash  = NECRO_INTERN_HASH_MAGIC;
+    size_t   len   = 0;
     while (*u_str != '\0')
     {
         hash = hash * NECRO_INTERN_HASH_MULTIPLIER + *u_str;
         u_str++;
+        len++;
     }
+    *out_string_length = len;
     return hash;
 }
 
@@ -196,7 +199,7 @@ NecroSymbol necro_intern_get_type_class_member_symbol_from_instance_symbol(Necro
 
 // NecroSymbol necro_intern_strip_instance_symbol_from_method(NecroIntern* intern, NecroSymbol symbol)
 // {
-//     size_t      length     = 0; 
+//     size_t      length     = 0;
 //     const char* symbol_str = necro_intern_get_string(intern, symbol);
 //     const char* curr_str   = symbol_str;
 //     while (*curr_str != '\0' && *curr_str != '<')
@@ -220,29 +223,38 @@ NecroSymbol necro_intern_concat_symbols(NecroIntern* intern, NecroSymbol symbol1
     return symbol;
 }
 
-NecroSymbol necro_intern_string(NecroIntern* intern, const char* str)
+typedef struct
+{
+    size_t      hash;
+    size_t      length;
+    size_t      probe;
+    NecroSymbol symbol;
+} NecroInternProbeResult;
+
+NecroInternProbeResult necro_intern_prob(NecroIntern* intern, const char* str)
 {
     assert(intern          != NULL);
     assert(intern->entries != NULL);
 
     // Early exit on NULL strings
     if (str == NULL)
-        return NULL;
+        return (NecroInternProbeResult) { .hash = 0, .length = 0, .probe = 0, .symbol = NULL};
 
     // Grow if we're over 50% load
     if (intern->count >= (intern->size / 2))
         necro_intern_grow(intern);
 
     // Do linear probe
-    size_t hash  = necro_hash_string(str);
-    size_t probe = hash % intern->size;
+    size_t length = 0;
+    size_t hash   = necro_hash_string(str, &length);
+    size_t probe  = hash % intern->size;
     while (intern->entries[probe].data != NULL)
     {
         if (intern->entries[probe].hash == hash)
         {
             const char* str_at_probe = intern->entries[probe].data->str;
             if (str_at_probe != NULL && strcmp(str_at_probe, str) == 0)
-                return intern->entries[probe].data;
+                return (NecroInternProbeResult) { .hash = hash, .length = length, .probe = probe, .symbol = intern->entries[probe].data };
         }
         probe = (probe + 1) % intern->size;
     }
@@ -250,8 +262,21 @@ NecroSymbol necro_intern_string(NecroIntern* intern, const char* str)
     // Assert that this entry is in fact empty
     assert(intern->entries[probe].data == NULL);
 
+    return (NecroInternProbeResult) { .hash = hash, .length = length, .probe = probe, .symbol = NULL};
+}
+
+NecroSymbol necro_intern_string(NecroIntern* intern, const char* str)
+{
+    // Probe
+    NecroInternProbeResult probe_result = necro_intern_prob(intern, str);
+    if (probe_result.symbol != NULL)
+        return probe_result.symbol;
+
+    const size_t length          = probe_result.length;
+    const size_t hash            = probe_result.hash;
+    const size_t probe           = probe_result.probe;
+
     // Alloc and insert
-    size_t length                = strlen(str);
     intern->entries[probe].data  = necro_paged_arena_alloc(&intern->arena, sizeof(struct NecroSymbolData));
     char*  new_str               = necro_paged_arena_alloc(&intern->arena, length + 1);
     strcpy(new_str, str);
@@ -260,6 +285,39 @@ NecroSymbol necro_intern_string(NecroIntern* intern, const char* str)
 
     // Increase count, return symbol
     intern->count += 1;
+    return intern->entries[probe].data;
+}
+
+NecroSymbol necro_intern_unique_string(NecroIntern* intern, const char* str, size_t* clash_suffix)
+{
+    // Probe
+    const size_t           str_len    = strlen(str);
+    const size_t           buf_size   = str_len + 32;
+    NecroArenaSnapshot     snapshot   = necro_snapshot_arena_get(&intern->snapshot_arena);
+    char*                  unique_str = necro_snapshot_arena_alloc(&intern->snapshot_arena, buf_size);
+    NecroInternProbeResult probe_result;
+    do
+    {
+        *clash_suffix++;
+        snprintf(unique_str, buf_size, "_%s_%d", str, *clash_suffix);
+        probe_result = necro_intern_prob(intern, str);
+    }
+    while (probe_result.symbol != NULL);
+
+    const size_t length          = probe_result.length;
+    const size_t hash            = probe_result.hash;
+    const size_t probe           = probe_result.probe;
+
+    // Alloc and insert
+    intern->entries[probe].data  = necro_paged_arena_alloc(&intern->arena, sizeof(struct NecroSymbolData));
+    char*  new_str               = necro_paged_arena_alloc(&intern->arena, length + 1);
+    strcpy(new_str, unique_str);
+    *intern->entries[probe].data = (struct NecroSymbolData) { .hash = hash, .symbol_num = intern->count + 1, .str = new_str, .length = length };
+    intern->entries[probe].hash  = hash;
+
+    // Increase count, return symbol
+    intern->count += 1;
+    necro_snapshot_arena_rewind(&intern->snapshot_arena, snapshot);
     return intern->entries[probe].data;
 }
 
@@ -331,7 +389,8 @@ void necro_test_intern_id(NecroIntern* intern, NecroSymbol symbol, const char* c
     assert(symbol->str != NULL);
     puts("Intern id test:         passed");
 
-    assert(symbol->hash == necro_hash_string(compare_str));
+    size_t length = 0;
+    assert(symbol->hash == necro_hash_string(compare_str, &length));
     puts("Intern hash test:       passed");
 
     assert(necro_intern_contains_symbol(intern, symbol));

@@ -16,7 +16,7 @@
 ///////////////////////////////////////////////////////
 // Utility
 ///////////////////////////////////////////////////////
-NecroVar necro_gen_var(NecroMachineProgram* program, NecroMachineAST* necro_machine_ast, const char* var_header, NECRO_MANGLE_TYPE uniqueness)
+NecroVar necro_gen_var(NecroMachineProgram* program, NecroMachineAST* necro_machine_ast, const char* var_header, NECRO_MANGLE_TYPE_OLD uniqueness)
 {
     NecroArenaSnapshot snapshot = necro_snapshot_arena_get(&program->snapshot_arena);
     const char* var_name = NULL;

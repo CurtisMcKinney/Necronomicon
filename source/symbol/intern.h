@@ -27,6 +27,12 @@
 //       to make the distinction clear that these are interned strings
 //=====================================================
 
+typedef enum
+{
+    NECRO_MANGLE_NAME,
+    NECRO_DONT_MANGLE,
+} NECRO_MANGLE_TYPE;
+
 struct NecroSymbolData
 {
     size_t      hash;
@@ -56,6 +62,7 @@ NecroIntern necro_intern_empty();
 NecroIntern necro_intern_create();
 void        necro_intern_destroy(NecroIntern* intern);
 NecroSymbol necro_intern_string(NecroIntern* intern, const char* str);
+NecroSymbol necro_intern_unique_string(NecroIntern* intern, const char* str, size_t* clash_suffix);
 NecroSymbol necro_intern_string_slice(NecroIntern* intern, NecroStringSlice slice);
 bool        necro_intern_contains_symbol(NecroIntern* intern, NecroSymbol symbol);
 NecroSymbol necro_intern_concat_symbols(NecroIntern* intern, NecroSymbol symbol1, NecroSymbol symbol2);

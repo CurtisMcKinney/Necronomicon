@@ -71,6 +71,9 @@ typedef struct NecroMachType
     NECRO_MACH_TYPE_TYPE type;
 } NecroMachType;
 
+//--------------------
+// Create
+//--------------------
 NecroMachType* necro_mach_type_create_word_sized_uint(struct NecroMachProgram* program);
 NecroMachType* necro_mach_type_create_word_sized_int(struct NecroMachProgram* program);
 NecroMachType* necro_mach_type_create_word_sized_float(struct NecroMachProgram* program);
@@ -88,6 +91,10 @@ NecroMachType* necro_mach_type_create_struct(NecroPagedArena* arena, struct Necr
 NecroMachType* necro_mach_type_create_fn(NecroPagedArena* arena, NecroMachType* return_type, NecroMachType** a_parameters, size_t num_parameters);
 NecroMachType* necro_mach_type_create_ptr(NecroPagedArena* arena, NecroMachType* element_type);
 NecroMachType* necro_mach_type_create_void(NecroPagedArena* arena);
+
+//--------------------
+// Utility
+//--------------------
 void           necro_mach_type_check(struct NecroMachProgram* program, NecroMachType* type1, NecroMachType* type2);
 bool           necro_mach_type_is_unboxed(struct NecroMachProgram* program, NecroMachType* type);
 bool           necro_mach_type_is_word_uint(struct NecroMachProgram* program, NecroMachType* type);

@@ -487,7 +487,7 @@ typedef enum
     NECRO_MACH_LOAD,
     NECRO_MACH_STORE,
     NECRO_MACH_NALLOC,   // TODO: Replace with system for locating slot within region?
-    NECRO_MACH_BIT_CAst, // TODO / NOTE: Hopefully we can avoid this...
+    NECRO_MACH_BIT_CAST, // TODO / NOTE: Hopefully we can avoid this...
     NECRO_MACH_ZEXT,
     NECRO_MACH_GEP,
     NECRO_MACH_BINOP,
@@ -495,8 +495,8 @@ typedef enum
     NECRO_MACH_PHI,
     NECRO_MACH_MEMCPY, // TODO: Maybe remove
     NECRO_MACH_MEMSET, // TODO: Maybe remove
-    NECRO_MACH_ALLOCA, // TODO: Maybe remove
-    NECRO_MACH_SELECT, // TODO: Maybe remove
+    // NECRO_MACH_ALLOCA, // TODO: Maybe remove
+    // NECRO_MACH_SELECT, // TODO: Maybe remove
 
     // Defs
     NECRO_MACH_STRUCT_DEF,
@@ -596,29 +596,56 @@ typedef struct NecroMachProgram
 //--------------------
 // Utility
 //--------------------
-NecroMachAstSymbol* necro_mach_create_ast_symbol(NecroPagedArena* arena, NecroSymbol name);
-NecroMachAstSymbol* necro_mach_gen_ast_symbol(NecroMachProgram* program, NecroMachAst* ast, const char* str, NECRO_MANGLE_TYPE mangle_type);
+NecroMachAstSymbol* necro_mach_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name);
+NecroMachAstSymbol* necro_mach_ast_symbol_gen(NecroMachProgram* program, NecroMachAst* ast, const char* str, NECRO_MANGLE_TYPE mangle_type);
 
 //--------------------
 // Values
 //--------------------
-// NecroMachAst* necro_mach_create_reg(NecroMachProgram* program, NecroMachType* necro_machine_type, const char* reg_name_head);
-NecroMachAst* necro_mach_create_machine_value_ast(NecroMachProgram* program, NecroMachValue value, struct NecroMachType* necro_machine_type);
-NecroMachAst* necro_mach_create_global_value(NecroMachProgram* program, NecroMachAstSymbol* symbol, struct NecroMachType* necro_machine_type);
-NecroMachAst* necro_mach_create_param_reg(NecroMachProgram* program, NecroMachAst* fn_def, size_t param_num);
-NecroMachAst* necro_mach_create_uint1_value(NecroMachProgram* program, bool uint1_literal);
-NecroMachAst* necro_mach_create_uint8_value(NecroMachProgram* program, uint8_t uint8_literal);
-NecroMachAst* necro_mach_create_uint16_value(NecroMachProgram* program, uint16_t uint16_literal);
-NecroMachAst* necro_mach_create_uint32_value(NecroMachProgram* program, uint32_t uint32_literal);
-NecroMachAst* necro_mach_create_uint64_value(NecroMachProgram* program, uint64_t uint64_literal);
-NecroMachAst* necro_mach_create_i32_value(NecroMachProgram* program, int32_t int32_literal);
-NecroMachAst* necro_mach_create_i64_value(NecroMachProgram* program, int64_t int64_literal);
-NecroMachAst* necro_mach_create_f32_value(NecroMachProgram* program, float f32_literal);
-NecroMachAst* necro_mach_create_f64_value(NecroMachProgram* program, double f64_literal);
-NecroMachAst* necro_mach_create_null_value(NecroMachProgram* program, struct NecroMachType* ptr_type);
-NecroMachAst* necro_mach_create_word_uint_value(NecroMachProgram* program, uint64_t int_literal);
-NecroMachAst* necro_mach_create_word_int_value(NecroMachProgram* program, int64_t int_literal);
-NecroMachAst* necro_mach_create_word_float_value(NecroMachProgram* program, double float_literal);
+NecroMachAst* necro_mach_value_create(NecroMachProgram* program, NecroMachValue value, struct NecroMachType* necro_machine_type);
+NecroMachAst* necro_mach_value_create_reg(NecroMachProgram* program, struct NecroMachType* necro_machine_type, const char* reg_name);
+NecroMachAst* necro_mach_value_create_global(NecroMachProgram* program, NecroMachAstSymbol* symbol, struct NecroMachType* necro_machine_type);
+NecroMachAst* necro_mach_value_create_param_reg(NecroMachProgram* program, NecroMachAst* fn_def, size_t param_num);
+NecroMachAst* necro_mach_value_create_uint1(NecroMachProgram* program, bool uint1_literal);
+NecroMachAst* necro_mach_value_create_uint8(NecroMachProgram* program, uint8_t uint8_literal);
+NecroMachAst* necro_mach_value_create_uint16(NecroMachProgram* program, uint16_t uint16_literal);
+NecroMachAst* necro_mach_value_create_uint32(NecroMachProgram* program, uint32_t uint32_literal);
+NecroMachAst* necro_mach_value_create_uint64(NecroMachProgram* program, uint64_t uint64_literal);
+NecroMachAst* necro_mach_value_create_i32(NecroMachProgram* program, int32_t int32_literal);
+NecroMachAst* necro_mach_value_create_i64(NecroMachProgram* program, int64_t int64_literal);
+NecroMachAst* necro_mach_value_create_f32(NecroMachProgram* program, float f32_literal);
+NecroMachAst* necro_mach_value_create_f64(NecroMachProgram* program, double f64_literal);
+NecroMachAst* necro_mach_value_create_null(NecroMachProgram* program, struct NecroMachType* ptr_type);
+NecroMachAst* necro_mach_value_create_word_uint(NecroMachProgram* program, uint64_t int_literal);
+NecroMachAst* necro_mach_value_create_word_int(NecroMachProgram* program, int64_t int_literal);
+NecroMachAst* necro_mach_value_create_word_float(NecroMachProgram* program, double float_literal);
+
+//--------------------
+// Blocks
+//--------------------
+NecroMachAst* necro_mach_block_create(NecroMachProgram* program, const char* name, NecroMachAst* next_block);
+void          necro_mach_block_add_statement(NecroMachProgram* program, NecroMachAst* block, NecroMachAst* statement);
+NecroMachAst* necro_mach_block_append(NecroMachProgram* program, NecroMachAst* fn_def, const char* block_name);
+NecroMachAst* necro_mach_block_insert_before(NecroMachProgram* program, NecroMachAst* fn_def, const char* block_name, NecroMachAst* block_to_precede);
+void          necro_mach_block_move_to(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* block);
+
+//--------------------
+// Memory
+//--------------------
+// NecroMachAst* necro_mach_build_nalloc(NecroMachProgram* program, NecroMachAst* fn_def, struct NecroMachType* type, uint32_t a_slots_used);
+// NecroMachAst* necro_mach_build_alloca(NecroMachProgram* program, NecroMachAst* fn_def, size_t num_slots);
+NecroMachAst* necro_mach_build_gep(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* source_value, uint32_t* a_indices, size_t num_indices, const char* dest_name);
+NecroMachAst* necro_mach_build_non_const_gep(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* source_value, NecroMachAst** a_indices, size_t num_indices, const char* dest_name, struct NecroMachType* result_type);
+NecroMachAst* necro_mach_build_bit_cast(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* value, struct NecroMachType* to_type);
+NecroMachAst* necro_mach_build_zext(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* value, struct NecroMachType* to_type);
+void          necro_mach_build_memcpy(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* dest, NecroMachAst* source, NecroMachAst* num_bytes);
+void          necro_mach_build_memset(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* ptr, NecroMachAst* value, NecroMachAst* num_bytes);
+
+//--------------------
+// Load / Store
+//--------------------
+void          necro_mach_build_store(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* source_value, NecroMachAst* dest_ptr);
+NecroMachAst* necro_mach_build_load(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* source_ptr_ast, const char* dest_name);
 
 //--------------------
 // Program

@@ -69,7 +69,6 @@ void necro_mach_program_add_machine_def(NecroMachProgram* program, NecroMachAst*
 ///////////////////////////////////////////////////////
 // Forward Declarations
 ///////////////////////////////////////////////////////
-void necro_mach_add_statement_to_block(NecroMachProgram* program, NecroMachAst* block, NecroMachAst* statement);
 
 
 ///////////////////////////////////////////////////////
@@ -239,9 +238,9 @@ NecroMachAst* necro_mach_value_create_word_float(NecroMachProgram* program, doub
         return necro_mach_value_create_f64(program, float_literal);
 }
 
-//--------------------
+///////////////////////////////////////////////////////
 // Blocks
-//--------------------
+///////////////////////////////////////////////////////
 NecroMachAst* necro_mach_block_create(NecroMachProgram* program, const char* name, NecroMachAst* next_block)
 {
     NecroMachAst* ast       = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
@@ -328,9 +327,9 @@ void necro_mach_block_move_to(NecroMachProgram* program, NecroMachAst* fn_def, N
     assert(false);
 }
 
-//--------------------
+///////////////////////////////////////////////////////
 // Memory
-//--------------------
+///////////////////////////////////////////////////////
 NecroMachAst* necro_mach_build_gep(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* source_value, uint32_t* a_indices, size_t num_indices, const char* dest_name)
 {
     assert(program != NULL);
@@ -501,3 +500,181 @@ NecroMachAst* necro_mach_build_load(NecroMachProgram* program, NecroMachAst* fn_
     necro_mach_block_add_statement(program, fn_def->fn_def._curr_block, ast);
     return ast->load.dest_value;
 }
+
+///////////////////////////////////////////////////////
+// Branching
+///////////////////////////////////////////////////////
+void necro_mach_build_return(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* return_value)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACH_FN_DEF);
+    assert(fn_def->fn_def._curr_block != NULL);
+    assert(fn_def->fn_def._curr_block->type == NECRO_MACH_BLOCK);
+    assert(fn_def->fn_def._curr_block->block.terminator == NULL);
+    assert(return_value != NULL);
+    assert(return_value->type == NECRO_MACH_VALUE);
+    necro_mach_type_check(program, fn_def->fn_def.fn_value->necro_machine_type->fn_type.return_type, return_value->necro_machine_type);
+    fn_def->fn_def._curr_block->block.terminator                                 = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachTerminator));
+    fn_def->fn_def._curr_block->block.terminator->type                           = NECRO_MACH_TERM_RETURN;
+    fn_def->fn_def._curr_block->block.terminator->return_terminator.return_value = return_value;
+}
+
+void necro_mach_build_return_void(NecroMachProgram* program, NecroMachAst* fn_def)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACH_FN_DEF);
+    assert(fn_def->fn_def._curr_block != NULL);
+    assert(fn_def->fn_def._curr_block->type == NECRO_MACH_BLOCK);
+    assert(fn_def->fn_def._curr_block->block.terminator == NULL);
+    assert(fn_def->fn_def.fn_value->necro_machine_type->fn_type.return_type->type == NECRO_MACH_TYPE_VOID);
+    fn_def->fn_def._curr_block->block.terminator                                 = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachTerminator));
+    fn_def->fn_def._curr_block->block.terminator->type                           = NECRO_MACH_TERM_RETURN_VOID;
+}
+
+void necro_mach_build_break(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* block_to_jump_to)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACH_FN_DEF);
+    assert(fn_def->fn_def._curr_block != NULL);
+    assert(fn_def->fn_def._curr_block->type == NECRO_MACH_BLOCK);
+    assert(fn_def->fn_def._curr_block->block.terminator == NULL);
+    assert(block_to_jump_to != NULL);
+    assert(block_to_jump_to->type == NECRO_MACH_BLOCK);
+    fn_def->fn_def._curr_block->block.terminator                                    = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachTerminator));
+    fn_def->fn_def._curr_block->block.terminator->type                              = NECRO_MACH_TERM_BREAK;
+    fn_def->fn_def._curr_block->block.terminator->break_terminator.block_to_jump_to = block_to_jump_to;
+}
+
+void necro_mach_build_cond_break(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* cond, NecroMachAst* true_block, NecroMachAst* false_block)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACH_FN_DEF);
+    assert(fn_def->fn_def._curr_block != NULL);
+    assert(fn_def->fn_def._curr_block->type == NECRO_MACH_BLOCK);
+    assert(fn_def->fn_def._curr_block->block.terminator == NULL);
+    assert(cond != NULL);
+    assert(cond->type == NECRO_MACH_VALUE);
+    assert(cond->necro_machine_type->type == NECRO_MACH_TYPE_UINT1);
+    assert(true_block != NULL);
+    assert(true_block->type == NECRO_MACH_BLOCK);
+    assert(false_block != NULL);
+    assert(false_block->type == NECRO_MACH_BLOCK);
+    fn_def->fn_def._curr_block->block.terminator                                    = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachTerminator));
+    fn_def->fn_def._curr_block->block.terminator->type                              = NECRO_MACH_TERM_COND_BREAK;
+    fn_def->fn_def._curr_block->block.terminator->cond_break_terminator.cond_value  = cond;
+    fn_def->fn_def._curr_block->block.terminator->cond_break_terminator.true_block  = true_block;
+    fn_def->fn_def._curr_block->block.terminator->cond_break_terminator.false_block = false_block;
+}
+
+NecroMachAst* necro_mach_build_cmp(NecroMachProgram* program, NecroMachAst* fn_def, NECRO_MACH_CMP_TYPE cmp_type, NecroMachAst* left, NecroMachAst* right)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACH_FN_DEF);
+    assert(fn_def->fn_def._curr_block != NULL);
+    assert(fn_def->fn_def._curr_block->type == NECRO_MACH_BLOCK);
+    assert(fn_def->fn_def._curr_block->block.terminator == NULL);
+    assert(left != NULL);
+    assert(left->type == NECRO_MACH_VALUE);
+    assert(right != NULL);
+    assert(right->type == NECRO_MACH_VALUE);
+    assert(left->type == NECRO_MACH_TYPE_UINT1  ||
+           left->type == NECRO_MACH_TYPE_UINT8  ||
+           left->type == NECRO_MACH_TYPE_UINT16 ||
+           left->type == NECRO_MACH_TYPE_UINT32 ||
+           left->type == NECRO_MACH_TYPE_UINT64 ||
+           left->type == NECRO_MACH_TYPE_INT32  ||
+           left->type == NECRO_MACH_TYPE_INT64  ||
+           left->type == NECRO_MACH_TYPE_F32    ||
+           left->type == NECRO_MACH_TYPE_F64    ||
+           left->type == NECRO_MACH_TYPE_PTR);
+    assert(left->type == right->type);
+    NecroMachAst* cmp = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
+    cmp->type         = NECRO_MACH_CMP;
+    cmp->cmp.cmp_type = cmp_type;
+    cmp->cmp.left     = left;
+    cmp->cmp.right    = right;
+    cmp->cmp.result   = necro_mach_value_create_reg(program, necro_mach_type_create_uint1(&program->arena), "cmp");
+    necro_mach_block_add_statement(program, fn_def->fn_def._curr_block, cmp);
+    assert(cmp->cmp.result->type == NECRO_MACH_VALUE);
+    assert(cmp->cmp.result->value.value_type == NECRO_MACH_VALUE_REG);
+    return cmp->cmp.result;
+}
+
+NecroMachAst* necro_mach_build_phi(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachType* type, NecroMachPhiList* values)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACH_FN_DEF);
+    assert(fn_def->fn_def._curr_block->block.num_statements == 0 ||
+           fn_def->fn_def._curr_block->block.statements[fn_def->fn_def._curr_block->block.num_statements - 1]->type == NECRO_MACH_PHI); // Verify at beginning of block or preceded by a phi machine
+    NecroMachAst* ast     = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
+    ast->type             = NECRO_MACH_PHI;
+    ast->phi.values       = values;
+    ast->phi.result       = necro_mach_value_create_reg(program, type, "phi");
+    necro_mach_block_add_statement(program, fn_def->fn_def._curr_block, ast);
+    return ast->phi.result;
+}
+
+void necro_mach_add_incoming_to_phi(NecroMachProgram* program, NecroMachAst* phi, NecroMachAst* block, NecroMachAst* value)
+{
+    assert(program != NULL);
+    assert(phi != NULL);
+    assert(phi->type == NECRO_MACH_PHI);
+    assert(block != NULL);
+    assert(block->type == NECRO_MACH_BLOCK);
+    assert(value != NULL);
+    necro_mach_type_check(program, phi->phi.result->necro_machine_type, value->necro_machine_type);
+    // value = necro_mach_build_maybe_cast(program, fn_def, value, phi->phi.result->necro_machine_type);
+    phi->phi.values = necro_cons_mach_phi_list(&program->arena, (NecroMachPhiData) { .block = block, .value = value }, phi->phi.values);
+}
+
+struct NecroMachSwitchTerminator* necro_mach_build_switch(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* choice_val, NecroMachSwitchList* values, NecroMachAst* else_block)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACH_FN_DEF);
+    assert(choice_val != NULL);
+    assert(choice_val->necro_machine_type->type == NECRO_MACH_TYPE_UINT32);
+    fn_def->fn_def._curr_block->block.terminator                               = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachTerminator));
+    fn_def->fn_def._curr_block->block.terminator->type                         = NECRO_MACH_TERM_SWITCH;
+    fn_def->fn_def._curr_block->block.terminator->switch_terminator.choice_val = choice_val;
+    fn_def->fn_def._curr_block->block.terminator->switch_terminator.values     = values;
+    fn_def->fn_def._curr_block->block.terminator->switch_terminator.else_block = else_block;
+    return &fn_def->fn_def._curr_block->block.terminator->switch_terminator;
+}
+
+void necro_mach_build_unreachable(NecroMachProgram* program, NecroMachAst* fn_def)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACH_FN_DEF);
+    fn_def->fn_def._curr_block->block.terminator       = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachTerminator));
+    fn_def->fn_def._curr_block->block.terminator->type = NECRO_MACH_TERM_UNREACHABLE;
+}
+
+void necro_mach_add_case_to_switch(NecroMachProgram* program, NecroMachSwitchTerminator* switch_term, NecroMachAst* block, size_t value)
+{
+    switch_term->values = necro_cons_mach_switch_list(&program->arena, (NecroMachSwitchData) { .block = block, .value = value }, switch_term->values);
+}
+
+// NecroMachAst* necro_mach_build_select(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* cmp_value, NecroMachAst* left, NecroMachAst* right)
+// {
+//     assert(program != NULL);
+//     assert(fn_def != NULL);
+//     assert(fn_def->type == NECRO_MACH_FN_DEF);
+//     assert(cmp_value->type == NECRO_MACH_TYPE_UINT1);
+//     necro_type_check(program, left->necro_machine_type, right->necro_machine_type);
+//     NecroMachAst* ast  = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
+//     ast->type             = NECRO_MACH_SELECT;
+//     ast->select.cmp_value = cmp_value;
+//     ast->select.left      = left;
+//     ast->select.right     = right;
+//     ast->select.result    = necro_create_reg(program, left->necro_machine_type, "sel_result");
+//     necro_add_statement_to_block(program, fn_def->fn_def._curr_block, ast);
+//     return ast->select.result;
+// }

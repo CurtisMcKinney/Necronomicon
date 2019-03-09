@@ -5,11 +5,11 @@
 
 #include "mach_ast.h"
 #include "mach_type.h"
+#include <ctype.h>
 
 /*
     * https://www.microsoft.com/en-us/research/wp-content/uploads/1992/01/student.pdf
 */
-
 
 ///////////////////////////////////////////////////////
 // Utility
@@ -21,6 +21,7 @@ NecroMachAstSymbol* necro_mach_ast_symbol_create(NecroPagedArena* arena, NecroSy
     symbol->ast                = NULL;
     symbol->mach_type          = NULL;
     symbol->necro_type         = NULL;
+    symbol->state_type         = NECRO_STATE_POINTWISE;
     return symbol;
 }
 
@@ -678,3 +679,207 @@ void necro_mach_add_case_to_switch(NecroMachProgram* program, NecroMachSwitchTer
 //     necro_add_statement_to_block(program, fn_def->fn_def._curr_block, ast);
 //     return ast->select.result;
 // }
+
+///////////////////////////////////////////////////////
+// Call
+///////////////////////////////////////////////////////
+NecroMachAst* necro_mach_build_call(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* fn_value_ast, NecroMachAst** a_parameters, size_t num_parameters, NECRO_MACH_CALL_TYPE call_type, const char* dest_name)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACH_FN_DEF);
+
+    // type_check
+    NecroMachType* fn_value_type = fn_value_ast->necro_machine_type;
+    // if (fn_value_type->type == NECRO_MACH_TYPE_PTR && fn_value_type->ptr_type.element_type->type == NECRO_MACH_TYPE_FN)
+    //     fn_value_type = fn_value_type->ptr_type.element_type;
+    assert(fn_value_ast->type == NECRO_MACH_VALUE);
+    assert(fn_value_type->type == NECRO_MACH_TYPE_FN);
+    assert(fn_value_type->fn_type.num_parameters == num_parameters);
+    for (size_t i = 0; i < num_parameters; i++)
+    {
+        necro_mach_type_check(program, fn_value_type->fn_type.parameters[i], a_parameters[i]->necro_machine_type);
+    }
+    NecroMachAst* ast         = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
+    ast->type                 = NECRO_MACH_CALL;
+    ast->call.fn_value        = fn_value_ast;
+    ast->call.call_type       = call_type;
+    NecroMachAst** parameters = necro_paged_arena_alloc(&program->arena, num_parameters * sizeof(NecroMachAst*));
+    memcpy(parameters, a_parameters, num_parameters * sizeof(NecroMachAst*));
+    ast->call.parameters      = parameters;
+    ast->call.num_parameters  = num_parameters;
+    if (fn_value_type->fn_type.return_type->type == NECRO_MACH_TYPE_VOID)
+        ast->call.result_reg = necro_mach_value_create(program, (NecroMachValue) { .value_type = NECRO_MACH_VALUE_VOID }, fn_value_type->fn_type.return_type);
+    else
+        ast->call.result_reg = necro_mach_value_create_reg(program, fn_value_type->fn_type.return_type, dest_name);
+    ast->necro_machine_type = fn_value_type->fn_type.return_type;
+
+    necro_mach_block_add_statement(program, fn_def->fn_def._curr_block, ast);
+    assert(ast->call.result_reg->type == NECRO_MACH_VALUE);
+    assert(ast->call.result_reg->value.value_type == NECRO_MACH_VALUE_REG || ast->call.result_reg->value.value_type == NECRO_MACH_VALUE_VOID);
+    return ast->call.result_reg;
+}
+
+NecroMachAst* necro_mach_build_binop(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* left, NecroMachAst* right, NECRO_MACH_BINOP_TYPE op_type)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACH_FN_DEF);
+
+    NecroMachAst* ast = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
+    ast->type         = NECRO_MACH_BINOP;
+    assert(left->type == NECRO_MACH_VALUE);
+    assert(right->type == NECRO_MACH_VALUE);
+    necro_mach_type_check(program, left->necro_machine_type, right->necro_machine_type);
+    // typecheck
+    switch (op_type)
+    {
+    case NECRO_MACH_BINOP_IADD: /* FALL THROUGH */
+    case NECRO_MACH_BINOP_ISUB: /* FALL THROUGH */
+    case NECRO_MACH_BINOP_IMUL: /* FALL THROUGH */
+    case NECRO_MACH_BINOP_IDIV: /* FALL THROUGH */
+    case NECRO_MACH_BINOP_OR:
+    case NECRO_MACH_BINOP_AND:
+    case NECRO_MACH_BINOP_SHL:
+    case NECRO_MACH_BINOP_SHR:
+    {
+        // Type check that it's an int type
+        necro_mach_type_check(program, left->necro_machine_type, program->necro_int_type);
+        necro_mach_type_check(program, right->necro_machine_type, program->necro_int_type);
+        ast->necro_machine_type = program->necro_int_type;
+        // ast->necro_machine_type = left->necro_machine_type;
+        ast->binop.result       = necro_mach_value_create_reg(program, ast->necro_machine_type, "iop");
+        break;
+    }
+    case NECRO_MACH_BINOP_FADD: /* FALL THROUGH */
+    case NECRO_MACH_BINOP_FSUB: /* FALL THROUGH */
+    case NECRO_MACH_BINOP_FMUL: /* FALL THROUGH */
+    case NECRO_MACH_BINOP_FDIV: /* FALL THROUGH */
+    {
+        // Type check that it's a float type
+        necro_mach_type_check(program, left->necro_machine_type, program->necro_float_type);
+        necro_mach_type_check(program, right->necro_machine_type, program->necro_float_type);
+        ast->necro_machine_type = program->necro_float_type;
+        // ast->necro_machine_type = left->necro_machine_type;
+        ast->binop.result       = necro_mach_value_create_reg(program, ast->necro_machine_type, "fop");
+        break;
+    }
+    default:
+        assert(false);
+    }
+    ast->binop.binop_type = op_type;
+    ast->binop.left       = left;
+    ast->binop.right      = right;
+    // return ast;
+
+    necro_mach_block_add_statement(program, fn_def->fn_def._curr_block, ast);
+    assert(ast->binop.result->type == NECRO_MACH_VALUE);
+    assert(ast->binop.result->value.value_type == NECRO_MACH_VALUE_REG);
+    return ast->binop.result;
+}
+
+///////////////////////////////////////////////////////
+// Defs
+///////////////////////////////////////////////////////
+NecroMachAst* necro_mach_create_struct_def(NecroMachProgram* program, NecroMachAstSymbol* symbol, NecroMachType** members, size_t num_members)
+{
+    NecroMachAst* ast       = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
+    ast->type               = NECRO_MACH_STRUCT_DEF;
+    ast->struct_def.symbol  = symbol;
+    ast->necro_machine_type = necro_mach_type_create_struct(&program->arena, symbol, members, num_members);
+    symbol->ast             = ast;
+    necro_mach_program_add_struct(program, ast);
+    return ast;
+}
+
+NecroMachAst* necro_mach_create_fn(NecroMachProgram* program, NecroMachAstSymbol* symbol, NecroMachAst* call_body, NecroMachType* necro_machine_type)
+{
+    NecroMachAst* ast                   = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
+    ast->type                           = NECRO_MACH_FN_DEF;
+    ast->fn_def.symbol                  = symbol;
+    ast->fn_def.call_body               = call_body;
+    ast->fn_def.fn_type                 = NECRO_MACH_FN_FN;
+    ast->fn_def.fn_value                = necro_mach_value_create_global(program, symbol, necro_machine_type);
+    ast->necro_machine_type             = necro_machine_type;
+    ast->fn_def.state_type              = NECRO_STATE_CONSTANT;
+    ast->fn_def._curr_block             = call_body;
+    ast->fn_def._init_block             = NULL;
+    ast->fn_def._cont_block             = NULL;
+    ast->fn_def._err_block              = NULL;
+    assert(call_body->type == NECRO_MACH_BLOCK);
+    symbol->ast                         = ast;
+    necro_mach_program_add_function(program, ast);
+    return ast;
+}
+
+NecroMachAst* necro_mach_create_runtime_fn(NecroMachProgram* program, NecroMachAstSymbol* symbol, NecroMachType* necro_machine_type, NecroMachFnPtr runtime_fn_addr, NECRO_STATE_TYPE state_type)
+{
+    NecroMachAst* ast                   = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
+    ast->type                           = NECRO_MACH_FN_DEF;
+    ast->fn_def.symbol                  = symbol;
+    ast->fn_def.fn_type                 = NECRO_MACH_FN_RUNTIME;
+    ast->fn_def.call_body               = NULL;
+    ast->fn_def.fn_value                = necro_mach_value_create_global(program, symbol, necro_machine_type);
+    ast->necro_machine_type             = necro_machine_type;
+    ast->fn_def.runtime_fn_addr         = runtime_fn_addr;
+    ast->fn_def.state_type              = state_type;
+    ast->fn_def._curr_block             = NULL;;
+    ast->fn_def._init_block             = NULL;
+    ast->fn_def._cont_block             = NULL;
+    ast->fn_def._err_block              = NULL;
+    symbol->ast                         = ast;
+    necro_mach_program_add_function(program, ast);
+    return ast;
+}
+
+NecroMachAst* necro_mach_create_initial_machine_def(NecroMachProgram* program, NecroMachAstSymbol* symbol, NecroMachAst* outer, struct NecroMachType* value_type, NecroType* necro_value_type)
+{
+    NecroArenaSnapshot snapshot                    = necro_snapshot_arena_get(&program->snapshot_arena);
+    NecroMachAst* ast                              = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
+    ast->type                                      = NECRO_MACH_DEF;
+    ast->machine_def.symbol                        = symbol;
+    char* machine_name                             = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 3, (const char*[]) { "_", symbol->name->str, "Machine" });
+    machine_name[1]                                = (char) toupper(machine_name[1]);
+    char* state_name                               = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { machine_name, "State" });
+    ast->machine_def.machine_name                  = necro_mach_ast_symbol_gen(program, ast, machine_name, NECRO_DONT_MANGLE);
+    ast->machine_def.state_name                    = necro_mach_ast_symbol_gen(program, ast, state_name, NECRO_DONT_MANGLE);
+    ast->machine_def.arg_names                     = NULL;
+    ast->machine_def.num_arg_names                 = 0;
+    ast->machine_def.mk_fn                         = NULL;
+    ast->machine_def.init_fn                       = NULL;
+    ast->machine_def.update_fn                     = NULL;
+    ast->machine_def.global_value                  = NULL;
+    ast->machine_def.global_state                  = NULL;
+    ast->machine_def.update_error_block            = NULL;
+    ast->machine_def.state_type                    = symbol->state_type;
+    ast->machine_def.is_persistent_slot_set        = false;
+    ast->machine_def.outer                         = outer;
+    ast->necro_machine_type                        = NULL;
+    if (value_type->type == NECRO_MACH_TYPE_FN)
+    {
+        ast->machine_def.fn_type = value_type;
+        // TODO: Why unbox result pointer types?
+        if (value_type->fn_type.return_type->type == NECRO_MACH_TYPE_PTR)
+            ast->machine_def.value_type = value_type->fn_type.return_type->ptr_type.element_type;
+        else
+            ast->machine_def.value_type = value_type->fn_type.return_type;
+    }
+    else
+    {
+        // ast->machine_def.value_type = necro_create_machine_ptr_type(&program->arena, value_type);
+        ast->machine_def.value_type       = value_type;
+        ast->machine_def.fn_type          = NULL;
+        ast->machine_def.necro_value_type = necro_value_type;
+    }
+    const size_t initial_members_size  = 4;
+    ast->machine_def.members           = necro_paged_arena_alloc(&program->arena, initial_members_size * sizeof(NecroSlot));
+    ast->machine_def.num_members       = 0;
+    ast->machine_def.members_size      = initial_members_size;
+    symbol->ast                        = ast;
+    ast->machine_def.machine_name->ast = ast;
+    if (outer == 0)
+        necro_mach_program_add_machine_def(program, ast);
+    necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
+    return ast;
+}
+

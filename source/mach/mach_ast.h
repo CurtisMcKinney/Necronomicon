@@ -29,6 +29,13 @@
 // * Machines retain state in these regions across multiple calls to main
 ///////////////////////////////////////////////////////
 
+/*
+    TODO / NOTES / Thoughts:
+        * Region structs instead of completely inlined type data?
+        * Then regions stack into eachother.
+        * Type monomorphization / caching / uniquing.
+*/
+
 
 //--------------------
 // Forward Declarations
@@ -48,6 +55,7 @@ typedef struct NecroMachAstSymbol
     struct NecroMachAst*  ast;
     struct NecroMachType* mach_type;
     NecroType*            necro_type;
+    NECRO_STATE_TYPE      state_type;
 } NecroMachAstSymbol;
 
 
@@ -105,6 +113,7 @@ typedef struct NecroMachValue
 typedef struct NecroMachSlot
 {
     size_t                slot_num;
+    NECRO_STATE_TYPE      state_type;
     struct NecroMachType* necro_machine_type;
     struct NecroMachDef*  machine_def;
     struct NecroMachAst*  slot_ast;
@@ -202,9 +211,8 @@ typedef enum
 typedef struct NecroMachDef
 {
     NecroMachAstSymbol*   symbol;
-    NecroSymbol           bind_name;
-    NecroSymbol           machine_name;
-    NecroSymbol           state_name;
+    NecroMachAstSymbol*   machine_name;
+    NecroMachAstSymbol*   state_name;
 
     struct NecroMachAst*  mk_fn;
     struct NecroMachAst*  init_fn;
@@ -215,15 +223,14 @@ typedef struct NecroMachDef
     NecroType*            necro_value_type;
     struct NecroMachType* value_type;
     struct NecroMachType* fn_type;
-    bool                  is_recursive;
     bool                  is_persistent_slot_set;
 
     // args
-    NecroVar*             arg_names;
+    NecroSymbol*          arg_names;
     NecroType**           arg_types;
     size_t                num_arg_names;
 
-    // members
+    // Region members
     NecroSlot*            members;
     size_t                num_members;
     size_t                members_size;
@@ -648,6 +655,12 @@ void          necro_mach_build_store(NecroMachProgram* program, NecroMachAst* fn
 NecroMachAst* necro_mach_build_load(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* source_ptr_ast, const char* dest_name);
 
 //--------------------
+// Functions
+//--------------------
+NecroMachAst* necro_mach_build_call(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* fn_value_ast, NecroMachAst** a_parameters, size_t num_parameters, NECRO_MACH_CALL_TYPE call_type, const char* dest_name);
+NecroMachAst* necro_mach_build_binop(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* left, NecroMachAst* right, NECRO_MACH_BINOP_TYPE op_type);
+
+//--------------------
 // Branching
 //--------------------
 void          necro_mach_build_return_void(NecroMachProgram* program, NecroMachAst* fn_def);
@@ -661,6 +674,14 @@ void          necro_mach_build_unreachable(NecroMachProgram* program, NecroMachA
 void          necro_mach_add_case_to_switch(NecroMachProgram* program, NecroMachSwitchTerminator* switch_term, NecroMachAst* block, size_t value);
 NecroMachSwitchTerminator* necro_mach_build_switch(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* choice_val, NecroMachSwitchList* values, NecroMachAst* else_block);
 // NecroMachAst* necro_build_select(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* cmp_value, NecroMachAst* left, NecroMachAst* right);
+
+//--------------------
+// Defs
+//--------------------
+NecroMachAst* necro_mach_create_struct_def(NecroMachProgram* program, NecroMachAstSymbol* symbol, struct NecroMachType** members, size_t num_members);
+NecroMachAst* necro_mach_create_fn(NecroMachProgram* program, NecroMachAstSymbol* symbol, NecroMachAst* call_body, struct NecroMachType* necro_machine_type);
+NecroMachAst* necro_mach_create_runtime_fn(NecroMachProgram* program, NecroMachAstSymbol* symbol, struct NecroMachType* necro_machine_type, NecroMachFnPtr runtime_fn_addr, NECRO_STATE_TYPE state_type);
+NecroMachAst* necro_mach_create_initial_machine_def(NecroMachProgram* program, NecroMachAstSymbol* symbol, NecroMachAst* outer, struct NecroMachType* value_type, NecroType* necro_value_type);
 
 //--------------------
 // Program

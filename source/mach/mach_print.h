@@ -18,7 +18,6 @@ struct NecroMachAst;
 struct NecroMachProgram;
 
 void necro_mach_print_ast(struct NecroMachAst* ast);
-void necro_mach_print_ast_go(struct NecroMachAst* ast, size_t depth);
 void necro_mach_print_program(struct NecroMachProgram* program);
 
 #endif // NECRO_MACH_PRINT_H

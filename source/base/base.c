@@ -12,6 +12,7 @@
 #include "kind.h"
 #include "infer.h"
 #include "monomorphize.h"
+#include "mach/mach_ast.h"
 
 ///////////////////////////////////////////////////////
 // Create / Destroy
@@ -867,6 +868,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     // plusPtr??
 
     // && / ||
+    // NOTE: && and || turn into NecroMach binops 'and' and 'or', thus use _primUndefined.
     {
         NecroAst* bool_conid = necro_ast_create_conid(arena, intern, "Bool", NECRO_CON_TYPE_VAR);
         necro_append_top(arena, top,
@@ -959,7 +961,13 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     return base;
 }
 
-#define NECRO_BASE_TEST_VERBOSE 0
+void necro_base_init_mach(NecroMachProgram* program, NecroBase* base)
+{
+    UNUSED(program);
+    UNUSED(base);
+}
+
+#define NECRO_BASE_TEST_VERBOSE 1
 
 void necro_base_test()
 {

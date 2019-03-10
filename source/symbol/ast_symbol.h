@@ -23,6 +23,7 @@ struct NecroMachineType;
 struct NecroTypeClass;
 struct NecroTypeClassInstance;
 struct NecroInstanceList;
+struct NecroMachAstSymbol;
 
 typedef enum
 {
@@ -55,6 +56,7 @@ typedef struct NecroAstSymbol
     struct NecroTypeClassInstance* type_class_instance;     // Class instance, if present. Resolved at inference phase.
     struct NecroMachineAST*        necro_machine_ast;       // NecroMachineAST that this symbol was compiled into. Generated at NecroMachine compilation phase.
     struct NecroInstanceList*      instance_list;           // List of type classes this symbol is an instance of. Resolved at inference phase.
+    struct NecroMachAstSymbol*     mach_symbol;             // Resolved at necro_mach_translate.
 } NecroAstSymbol;
 
 NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name, NecroSymbol source_name, NecroSymbol module_name, struct NecroAst* ast);

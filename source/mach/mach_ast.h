@@ -509,7 +509,7 @@ typedef enum
     NECRO_MACH_STRUCT_DEF,
     NECRO_MACH_FN_DEF,
     NECRO_MACH_DEF,
-} NECRO_MACH_Ast_TYPE;
+} NECRO_MACH_AST_TYPE;
 
 typedef struct NecroMachAst
 {
@@ -536,7 +536,7 @@ typedef struct NecroMachAst
         NecroMachMemSet        memset;
         NecroMachSelect        select;
     };
-    NECRO_MACH_Ast_TYPE   type;
+    NECRO_MACH_AST_TYPE   type;
     struct NecroMachType* necro_machine_type;
 } NecroMachAst;
 

@@ -14,6 +14,8 @@
 
 // TODO: Proxy type?
 
+struct NecroMachProgram;
+
 typedef struct NecroBase
 {
     NecroAstArena ast;
@@ -84,6 +86,7 @@ typedef struct NecroBase
 } NecroBase;
 
 NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_symtable);
+void      necro_base_init_mach(struct NecroMachProgram* program, NecroBase* base);
 void      necro_base_destroy(NecroBase* base);
 void      necro_base_test();
 

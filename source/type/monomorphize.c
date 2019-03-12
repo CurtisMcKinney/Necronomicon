@@ -121,6 +121,7 @@ void necro_monomorphize_destroy(NecroMonomorphize* monomorphize)
 // Forward Declarations
 ///////////////////////////////////////////////////////
 NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAst* ast, NecroInstSub* subs);
+void              necro_monomorphize_type_go(NecroMonomorphize* monomorphize, NecroAst* ast);
 NecroAstSymbol*   necro_ast_specialize(NecroMonomorphize* monomorphize, NecroAstSymbol* ast_symbol, NecroInstSub* subs);
 
 
@@ -128,13 +129,15 @@ NecroResult(void) necro_monomorphize(NecroCompileInfo info, NecroIntern* intern,
 {
     NecroMonomorphize monomorphize = necro_monomorphize_create(intern, scoped_symtable, base, ast_arena);
     NecroResult(void) result       = necro_monomorphize_go(&monomorphize, ast_arena->root, NULL);
-    necro_monomorphize_destroy(&monomorphize);
     if (result.type == NECRO_RESULT_OK)
     {
+        necro_monomorphize_type_go(&monomorphize, ast_arena->root);
+        necro_monomorphize_destroy(&monomorphize);
         if (info.compilation_phase == NECRO_PHASE_MONOMORPHIZE && info.verbosity > 0)
             necro_ast_arena_print(ast_arena);
         return ok_void();
     }
+    necro_monomorphize_destroy(&monomorphize);
     return result;
 }
 
@@ -435,7 +438,7 @@ NecroResult(void) necro_rec_check_pat_assignment(NecroBase* base, NecroAst* ast)
 }
 
 ///////////////////////////////////////////////////////
-// Translate Go
+// Monomorphize Go
 ///////////////////////////////////////////////////////
 NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAst* ast, NecroInstSub* subs)
 {
@@ -481,14 +484,9 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
     //=====================================================
     case NECRO_AST_SIMPLE_ASSIGNMENT:
         ast->simple_assignment.ast_symbol->type = necro_try_map(NecroType, void, necro_type_replace_with_subs(monomorphize->arena, monomorphize->base, ast->simple_assignment.ast_symbol->type, subs));
-        // TODO: Change necro_is_fully_concrete to necro_type_recursive_check, and ensure that functional types are banned!
-        //       This is required to ensure that there are no recursive functions!
-        // if (ast->simple_assignment.initializer != NULL && !necro_is_fully_concrete(monomorphize->base, ast->necro_type))
-        // if (ast->simple_assignment.initializer != NULL && !necro_type_is_zero_order(ast->necro_type))
         if (ast->simple_assignment.initializer != NULL)
         {
             necro_try_map(NecroType, void, necro_type_set_zero_order(ast->necro_type, &ast->source_loc, &ast->end_loc));
-            // return necro_type_non_concrete_initialized_value_error(ast->simple_assignment.ast_symbol, ast->necro_type, ast->source_loc, ast->end_loc);
         }
         if (ast->simple_assignment.initializer != NULL && !ast->simple_assignment.is_recursive)
         {
@@ -508,8 +506,6 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
         return necro_monomorphize_go(monomorphize, ast->pat_assignment.rhs, subs);
 
     case NECRO_AST_DATA_DECLARATION:
-        // necro_try(void, necro_monomorphize_go(monomorphize, ast->data_declaration.simpletype, subs));
-        // return necro_monomorphize_go(monomorphize, ast->data_declaration.constructor_list, subs);
         return ok_void();
 
     case NECRO_AST_VARIABLE:
@@ -624,31 +620,9 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
         necro_try(void, necro_monomorphize_go(monomorphize, ast->lambda.apats, subs));
         return necro_monomorphize_go(monomorphize, ast->lambda.expression, subs);
 
-//     case NECRO_AST_DO:
-//     {
-           // // TODO: update ast_symbol type for bind!
-           // // ast->bin_op.ast_symbol->type  = necro_type_replace_with_subs(monomorphize->arena, ast->bin_op.ast_symbol->type, subs);
-//         // DO statements NOT FULLY IMPLEMENTED currently
-//         necro_unreachable(NecroType);
-//         // TODO: REDO!
-//         // NecroAst* bind_node = necro_ast_create_var(infer->arena, infer->intern, "bind", NECRO_VAR_VAR);
-//         // NecroScope* scope = ast->scope;
-//         // while (scope->parent != NULL)
-//         //     scope = scope->parent;
-//         // bind_node->scope = bind_node->scope = scope;
-//         // // TODO: NOTE THIS NEEDS TO BE REPLACED WITH NEW SYSTEM THAT DOESN'T USE THE RENAMER!
-//         // // necro_rename_var_pass(infer->renamer, infer->arena, bind_node);
-//         // bind_node->necro_type = necro_symtable_get(infer->symtable, bind_node->variable.id)->type;
-//         // NecroTypeClassContext* bind_context     = necro_symtable_get(infer->symtable, bind_node->variable.id)->type->for_all.context;
-//         // NecroTypeClassContext* monad_context    = ast->do_statement.monad_var->var.context;
-//         // while (monad_context->type_class_name.id.id != bind_context->type_class_name.id.id)
-//         //     monad_context = monad_context->next;
-//         // // assert(monad_context->type_class_name.id.id != bind_context->type_class_name.id.id);
-//         // NecroAst*          bind_method_inst = necro_resolve_method(infer, monad_context->type_class, monad_context, bind_node, dictionary_context);
-//         // necro_ast_print(bind_method_inst);
-//         // necro_monomorphize_go(monomorphize, ast->do_statement.statement_list);
-//         // break;
-//     }
+    case NECRO_AST_DO:
+        assert(false && "Not Implemented");
+        return ok_void();
 
     case NECRO_AST_LIST_NODE:
         necro_try(void, necro_monomorphize_go(monomorphize, ast->list.item, subs));
@@ -721,8 +695,9 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
 ///////////////////////////////////////////////////////
 NecroType* necro_specialize_type(NecroMonomorphize* monomorphize, NecroType* type)
 {
-    if (necro_type_is_polymorphic(type))
+    if (type == NULL || necro_type_is_polymorphic(type))
         return type;
+    type = necro_type_find(type);
     switch (type->type)
     {
 
@@ -730,7 +705,7 @@ NecroType* necro_specialize_type(NecroMonomorphize* monomorphize, NecroType* typ
     {
 
         //--------------------
-        // If there's no args, we're already monomorphic
+        // If there's no args, we don't need to be specialized
         //--------------------
         if (type->con.args == NULL)
             return type;
@@ -738,10 +713,11 @@ NecroType* necro_specialize_type(NecroMonomorphize* monomorphize, NecroType* typ
         //--------------------
         // Create Name and Lookup (probably a faster way of doing this, such as hashing types directly, instead of their names?)
         //--------------------
+        // TODO: Name's should use fully qualified name, not source name!
         NecroArenaSnapshot snapshot                     = necro_snapshot_arena_get(&monomorphize->snapshot_arena);
         const size_t       specialized_type_name_length = necro_type_mangled_string_length(type);
         char*              specialized_type_name_buffer = necro_snapshot_arena_alloc(&monomorphize->snapshot_arena, specialized_type_name_length * sizeof(char));
-        necro_type_mangled_sprintf(specialized_type_name_buffer, specialized_type_name_length, type);
+        necro_type_mangled_sprintf(specialized_type_name_buffer, 0, type);
         const NecroSymbol  specialized_type_source_name = necro_intern_string(monomorphize->intern, specialized_type_name_buffer);
         NecroAstSymbol*    specialized_type_ast_symbol  = necro_scope_find_ast_symbol(monomorphize->scoped_symtable->top_type_scope, specialized_type_source_name);
         if (specialized_type_ast_symbol != NULL)
@@ -755,8 +731,8 @@ NecroType* necro_specialize_type(NecroMonomorphize* monomorphize, NecroType* typ
         //--------------------
         // Create Specialized Type's NecroAstSymbol
         //--------------------
-        const NecroSymbol specialized_type_name = necro_intern_concat_symbols(monomorphize->intern, monomorphize->ast_arena->module_name, specialized_type_source_name);
-        specialized_type_ast_symbol             = necro_ast_symbol_create(monomorphize->arena, specialized_type_name, specialized_type_source_name, monomorphize->ast_arena->module_name, NULL);
+        // const NecroSymbol specialized_type_name = necro_intern_concat_symbols(monomorphize->intern, monomorphize->ast_arena->module_name, specialized_type_source_name);
+        specialized_type_ast_symbol             = necro_ast_symbol_create(monomorphize->arena, specialized_type_source_name, specialized_type_source_name, monomorphize->ast_arena->module_name, NULL);
         specialized_type_ast_symbol->type       = necro_type_con_create(monomorphize->arena, specialized_type_ast_symbol, NULL);
         specialized_type_ast_symbol->type->kind = monomorphize->base->star_kind->type;
         necro_scope_insert_ast_symbol(monomorphize->arena, monomorphize->scoped_symtable->top_type_scope, specialized_type_ast_symbol);
@@ -789,6 +765,9 @@ NecroType* necro_specialize_type(NecroMonomorphize* monomorphize, NecroType* typ
             specialized_type_suffix_buffer++;
         NecroSymbol specialized_type_suffix_symbol = necro_intern_string(monomorphize->intern, specialized_type_suffix_buffer);
 
+        // TODO: We shouldn't need to kind infer the incoming type, something is up here...Look at necro_kind_infer_gen_unify_with_star and necro_kind_gen, and make sure it recursively applies to all sub types in type!
+        // unwrap(void, necro_kind_infer_gen_unify_with_star(monomorphize->arena, monomorphize->base, type, NULL, NULL_LOC, NULL_LOC));
+
         //--------------------
         // Specialize Data Declaration
         //--------------------
@@ -800,8 +779,8 @@ NecroType* necro_specialize_type(NecroMonomorphize* monomorphize, NecroType* typ
             NecroAst*       data_con                      = specialized_type_data_cons->list.item;
             NecroAstSymbol* old_data_con_symbol           = data_con->constructor.conid->conid.ast_symbol;
             NecroSymbol     new_data_con_source_name      = necro_intern_concat_symbols(monomorphize->intern, old_data_con_symbol->source_name, specialized_type_suffix_symbol);
-            NecroSymbol     new_data_con_name             = necro_intern_concat_symbols(monomorphize->intern, monomorphize->ast_arena->module_name, new_data_con_source_name);
-            NecroAstSymbol* new_data_con_symbol           = necro_ast_symbol_create(monomorphize->arena, new_data_con_name, new_data_con_source_name, monomorphize->ast_arena->module_name, data_con);
+            // NecroSymbol     new_data_con_name             = necro_intern_concat_symbols(monomorphize->intern, monomorphize->ast_arena->module_name, new_data_con_source_name);
+            NecroAstSymbol* new_data_con_symbol           = necro_ast_symbol_create(monomorphize->arena, new_data_con_source_name, new_data_con_source_name, monomorphize->ast_arena->module_name, data_con);
             data_con->constructor.conid->conid.ast_symbol = new_data_con_symbol;
             data_con->constructor.arg_list                = NULL;
             // Specialize Type
@@ -811,8 +790,10 @@ NecroType* necro_specialize_type(NecroMonomorphize* monomorphize, NecroType* typ
                 data_con_result = data_con_result->fun.type2;
             unwrap(NecroType, necro_type_unify(monomorphize->arena, monomorphize->base, data_con_result, type, NULL));
             NecroType*      specialized_data_con_type     = necro_specialize_type(monomorphize, data_con_type);
+            unwrap(void, necro_kind_infer_gen_unify_with_star(monomorphize->arena, monomorphize->base, specialized_data_con_type, NULL, NULL_LOC, NULL_LOC));
             new_data_con_symbol->type                     = specialized_data_con_type;
             data_con->necro_type                          = specialized_data_con_type;
+            necro_scope_insert_ast_symbol(monomorphize->arena, monomorphize->scoped_symtable->top_scope, new_data_con_symbol);
             specialized_type_data_cons                    = specialized_type_data_cons->list.next_item;
         }
         specialized_type_ast->data_declaration.simpletype->simple_type.type_var_list = NULL;
@@ -852,6 +833,220 @@ NecroType* necro_specialize_type(NecroMonomorphize* monomorphize, NecroType* typ
         return NULL;
     }
 }
+
+///////////////////////////////////////////////////////
+// Monomorphize Type Go
+///////////////////////////////////////////////////////
+void necro_monomorphize_type_go(NecroMonomorphize* monomorphize, NecroAst* ast)
+{
+    if (ast == NULL)
+        return;
+    NecroType* original_type = ast->necro_type;
+    ast->necro_type          = necro_specialize_type(monomorphize, ast->necro_type);
+    switch (ast->type)
+    {
+
+    //=====================================================
+    // Declaration type things
+    //=====================================================
+    case NECRO_AST_DECLARATION_GROUP_LIST:
+    {
+        NecroAst* group_list = ast;
+        while (group_list != NULL)
+        {
+            necro_monomorphize_type_go(monomorphize, group_list->declaration_group_list.declaration_group);
+            group_list = group_list->declaration_group_list.next;
+        }
+        return;
+    }
+
+    case NECRO_AST_DECL:
+    {
+        NecroAst* declaration_group = ast;
+        while (declaration_group != NULL)
+        {
+            necro_monomorphize_type_go(monomorphize, declaration_group->declaration.declaration_impl);
+            declaration_group = declaration_group->declaration.next_declaration;
+        }
+        return;
+    }
+
+    //=====================================================
+    // Assignment type things
+    //=====================================================
+    case NECRO_AST_SIMPLE_ASSIGNMENT:
+        ast->simple_assignment.ast_symbol->type = necro_specialize_type(monomorphize, ast->simple_assignment.ast_symbol->type);
+        necro_monomorphize_type_go(monomorphize, ast->simple_assignment.initializer);
+        necro_monomorphize_type_go(monomorphize, ast->simple_assignment.rhs);
+        return;
+
+    case NECRO_AST_APATS_ASSIGNMENT:
+        ast->apats_assignment.ast_symbol->type = necro_specialize_type(monomorphize, ast->apats_assignment.ast_symbol->type);
+        necro_monomorphize_type_go(monomorphize, ast->apats_assignment.apats);
+        necro_monomorphize_type_go(monomorphize, ast->apats_assignment.rhs);
+        return;
+
+    case NECRO_BIND_ASSIGNMENT:
+        ast->bind_assignment.ast_symbol->type = necro_specialize_type(monomorphize, ast->bind_assignment.ast_symbol->type);
+        necro_monomorphize_type_go(monomorphize, ast->bind_assignment.expression);
+        return;
+
+    case NECRO_AST_VARIABLE:
+        switch (ast->variable.var_type)
+        {
+        case NECRO_VAR_DECLARATION:
+            if (ast->variable.ast_symbol != NULL)
+                ast->variable.ast_symbol->type = necro_specialize_type(monomorphize, ast->variable.ast_symbol->type);
+            if (ast->variable.initializer != NULL)
+                necro_monomorphize_type_go(monomorphize, ast->variable.initializer);
+            return;
+        case NECRO_VAR_VAR:                  return;
+        case NECRO_VAR_SIG:                  return;
+        case NECRO_VAR_TYPE_VAR_DECLARATION: return;
+        case NECRO_VAR_TYPE_FREE_VAR:        return;
+        case NECRO_VAR_CLASS_SIG:            return;
+        default:
+            assert(false);
+            return;
+        }
+
+    case NECRO_AST_CONID:
+        if (necro_type_find(ast->necro_type) != necro_type_find(original_type))
+        {
+            // Specialize Type
+            NecroType* curr_type = ast->necro_type;
+            while (curr_type->type == NECRO_TYPE_FUN)
+                curr_type = necro_type_find(curr_type->fun.type2);
+            assert(curr_type->type == NECRO_TYPE_CON);
+            //--------------------
+            // Create specialized type suffix
+            //--------------------
+            // TODO: Name's should use fully qualified name, not source name!
+            const char* specialized_type_suffix_buffer = curr_type->con.con_symbol->name->str;
+            while (*specialized_type_suffix_buffer != '<')
+                specialized_type_suffix_buffer++;
+            NecroSymbol     specialized_type_suffix_symbol = necro_intern_string(monomorphize->intern, specialized_type_suffix_buffer);
+            NecroSymbol     specialized_type_con_name      = necro_intern_concat_symbols(monomorphize->intern, ast->conid.ast_symbol->source_name, specialized_type_suffix_symbol);
+            NecroAstSymbol* specialized_type_con_symbol    = necro_scope_find_ast_symbol(monomorphize->scoped_symtable->top_scope, specialized_type_con_name);
+            ast->conid.ast_symbol                          = specialized_type_con_symbol;
+            assert(specialized_type_con_symbol != NULL);
+        }
+        return;
+
+    case NECRO_AST_TYPE_CLASS_INSTANCE:
+        necro_monomorphize_type_go(monomorphize, ast->type_class_instance.declarations);
+        return;
+    case NECRO_AST_PAT_ASSIGNMENT:
+        necro_monomorphize_type_go(monomorphize, ast->pat_assignment.pat);
+        necro_monomorphize_type_go(monomorphize, ast->pat_assignment.rhs);
+        return;
+    case NECRO_AST_BIN_OP:
+        necro_monomorphize_type_go(monomorphize, ast->bin_op.lhs);
+        necro_monomorphize_type_go(monomorphize, ast->bin_op.rhs);
+        return;
+    case NECRO_AST_OP_LEFT_SECTION:
+        necro_monomorphize_type_go(monomorphize, ast->op_left_section.left);
+        return;
+    case NECRO_AST_OP_RIGHT_SECTION:
+        necro_monomorphize_type_go(monomorphize, ast->op_right_section.right);
+        return;
+    case NECRO_AST_IF_THEN_ELSE:
+        necro_monomorphize_type_go(monomorphize, ast->if_then_else.if_expr);
+        necro_monomorphize_type_go(monomorphize, ast->if_then_else.then_expr);
+        necro_monomorphize_type_go(monomorphize, ast->if_then_else.else_expr);
+        return;
+    case NECRO_AST_RIGHT_HAND_SIDE:
+        necro_monomorphize_type_go(monomorphize, ast->right_hand_side.declarations);
+        necro_monomorphize_type_go(monomorphize, ast->right_hand_side.expression);
+        return;
+    case NECRO_AST_LET_EXPRESSION:
+        necro_monomorphize_type_go(monomorphize, ast->let_expression.declarations);
+        necro_monomorphize_type_go(monomorphize, ast->let_expression.expression);
+        return;
+    case NECRO_AST_FUNCTION_EXPRESSION:
+        necro_monomorphize_type_go(monomorphize, ast->fexpression.next_fexpression);
+        necro_monomorphize_type_go(monomorphize, ast->fexpression.aexp);
+        return;
+    case NECRO_AST_APATS:
+        necro_monomorphize_type_go(monomorphize, ast->apats.apat);
+        necro_monomorphize_type_go(monomorphize, ast->apats.next_apat);
+        return;
+    case NECRO_AST_WILDCARD:
+        return;
+    case NECRO_AST_LAMBDA:
+        necro_monomorphize_type_go(monomorphize, ast->lambda.apats);
+        necro_monomorphize_type_go(monomorphize, ast->lambda.expression);
+        return;
+    case NECRO_AST_DO:
+        assert(false && "Not Implemented");
+        return;
+    case NECRO_AST_LIST_NODE:
+        necro_monomorphize_type_go(monomorphize, ast->list.item);
+        necro_monomorphize_type_go(monomorphize, ast->list.next_item);
+        return;
+    case NECRO_AST_EXPRESSION_LIST:
+        necro_monomorphize_type_go(monomorphize, ast->expression_list.expressions);
+        return;
+    case NECRO_AST_EXPRESSION_ARRAY:
+        necro_monomorphize_type_go(monomorphize, ast->expression_array.expressions);
+        return;
+    case NECRO_AST_PAT_EXPRESSION:
+        necro_monomorphize_type_go(monomorphize, ast->pattern_expression.expressions);
+        return;
+    case NECRO_AST_TUPLE:
+        necro_monomorphize_type_go(monomorphize, ast->tuple.expressions);
+        return;
+    case NECRO_PAT_BIND_ASSIGNMENT:
+        necro_monomorphize_type_go(monomorphize, ast->pat_bind_assignment.pat);
+        necro_monomorphize_type_go(monomorphize, ast->pat_bind_assignment.expression);
+        return;
+    case NECRO_AST_ARITHMETIC_SEQUENCE:
+        necro_monomorphize_type_go(monomorphize, ast->arithmetic_sequence.from);
+        necro_monomorphize_type_go(monomorphize, ast->arithmetic_sequence.then);
+        necro_monomorphize_type_go(monomorphize, ast->arithmetic_sequence.to);
+        return;
+    case NECRO_AST_CASE:
+        necro_monomorphize_type_go(monomorphize, ast->case_expression.expression);
+        necro_monomorphize_type_go(monomorphize, ast->case_expression.alternatives);
+        return;
+    case NECRO_AST_CASE_ALTERNATIVE:
+        necro_monomorphize_type_go(monomorphize, ast->case_alternative.pat);
+        necro_monomorphize_type_go(monomorphize, ast->case_alternative.body);
+        return;
+    case NECRO_AST_TYPE_APP:
+        necro_monomorphize_type_go(monomorphize, ast->type_app.ty);
+        necro_monomorphize_type_go(monomorphize, ast->type_app.next_ty);
+        return;
+    case NECRO_AST_BIN_OP_SYM:
+        necro_monomorphize_type_go(monomorphize, ast->bin_op_sym.left);
+        necro_monomorphize_type_go(monomorphize, ast->bin_op_sym.op);
+        necro_monomorphize_type_go(monomorphize, ast->bin_op_sym.right);
+        return;
+    case NECRO_AST_CONSTRUCTOR:
+        necro_monomorphize_type_go(monomorphize, ast->constructor.conid);
+        necro_monomorphize_type_go(monomorphize, ast->constructor.arg_list);
+        return;
+    case NECRO_AST_SIMPLE_TYPE:
+        necro_monomorphize_type_go(monomorphize, ast->simple_type.type_con);
+        necro_monomorphize_type_go(monomorphize, ast->simple_type.type_var_list);
+        return;
+
+    case NECRO_AST_TOP_DECL:
+    case NECRO_AST_UNDEFINED:
+    case NECRO_AST_CONSTANT:
+    case NECRO_AST_UN_OP:
+    case NECRO_AST_DATA_DECLARATION:
+    case NECRO_AST_TYPE_CLASS_DECLARATION:
+    case NECRO_AST_TYPE_SIGNATURE:
+    case NECRO_AST_TYPE_CLASS_CONTEXT:
+    case NECRO_AST_FUNCTION_TYPE:
+        return;
+    default:
+        assert(false);
+        return;
+    }
+}
+
 
 ///////////////////////////////////////////////////////
 // Testing
@@ -980,6 +1175,20 @@ void necro_monomorphize_test_suffix()
 void necro_monomorphize_test()
 {
     // necro_monomorphize_test_suffix();
+
+    {
+        const char* test_name   = "SimpleUserPoly";
+        const char* test_source = ""
+            "data Neither a b = Either a b | Neither\n"
+            "polyNeither :: Neither a b\n"
+            "polyNeither = Neither\n"
+            "concreteEither :: Neither () Bool\n"
+            "concreteEither = Either () True\n"
+            "concreteNeither :: Neither Int Float\n"
+            "concreteNeither = polyNeither\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
+    }
 
     {
         const char* test_name   = "SimplePoly1";
@@ -1484,6 +1693,43 @@ void necro_monomorphize_test()
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
+    // TODO: Look into Tuples with initializers in parser
+    // {
+    //     const char* test_name   = "Recursive Pattern Assignment 1";
+    //     const char* test_source = ""
+    //         "(leftOsc ~ 0, _) = (leftOsc + 1, True)\n"
+    //         "leftPlus :: Int\n"
+    //         "leftPlus = leftOsc + 1\n";
+    //     const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+    //     necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
+    // }
+
+    // // TODO (Curtis 2-22-19): Pattern Assignment with Initializers with Numeric literals seems a little strange...
+    // // TODO: check that default method is constant somehow...
+    // {
+    //     const char* test_name   = "Recursive Pattern Assignment 1";
+    //     const char* test_source = ""
+    //         "data Wrapper a = Wrapper a\n"
+    //         "Wrapper (wrappedOsc ~ default) = Wrapper (wrappedOsc + 1)\n"
+    //         "plusOne :: Audio\n"
+    //         "plusOne = wrappedOsc + 1\n";
+    //     const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+    //     necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
+    // }
+
+    // NOTE: Multi-line Definitions are currently removed.
+    // {
+    //     const char* test_name   = "Multi-line Function";
+    //     const char* test_source = ""
+    //         "skateOrDie (Just _) = True\n"
+    //         "skateOrDie _        = False\n"
+    //         "die                 = skateOrDie (Just ())\n";
+    //     const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+    //     necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
+    // }
+}
+
+
 /*
 Thoughts on Futhark style Defunctionalization:
     * Maybe Demand type not rely upon closures.
@@ -1528,6 +1774,41 @@ Thoughts on Futhark style Defunctionalization:
     pmemo   :: Pattern a -> Pattern a
     every   :: Int -> (Pattern a -> Pattern a) -> Pattern a
     rev     :: Pattern a -> Pattern a
+
+-----------------------
+* Idea !: Bang Type Attributes
+
+    * Pros:
+        - Simple semantics and implementation
+        - No surprises if you understand how normal closures work
+        - No additional overhead to understanding beyond understanding how closures work.
+        - No actual "Translation" phase is required.
+        - Wide variety of pattern manipulating combinators are possible and easy to use.
+        - Can easily create user defined pattern combinators
+        - Allows for unbounded "demands" while still maintaining a static/fixed memory footprint.
+    * Cons:
+        - Closures currently have some big restrictions on them that are more painful when put on something like Patterns.
+        - Due to the semantics of Necrolang, no real way to memoize.
+
+    * Mitigations:
+        - Switch combinator is probably a better fit for "scanning" through patterns anyways, since it can use the same "pattern" syntax that loop and seq do.
+        - If really worried about expensive patterns we can create an explicit memo function which will memoize the value manually.
+        - Pattern
+        - Might as well look into some of the restrictions for futhark style defunctionalization and see if we might be able to loosen them somewhat.
+
+    data PVal a    = PVal Time a | PRest Time | PConst a | PInterval | PEnd
+    // data Pattern a = Pattern (Time -> PVal a)
+
+    seq     :: Int -> !a -> !a
+    rswitch :: Int -> !a -> !a
+    switch  :: !Int -> !a -> !a
+    tempo   :: Tempo -> !a -> !a
+    poly    :: Num a => (a -> a) -> !a -> a
+    mouse   :: !(Int, Int)
+    pmemo   :: Pattern a -> Pattern a
+    every   :: Int -> (!a -> !a) -> !a
+    rev     :: !a -> !a
+
 
 -----------------------
 * Idea Syntax: Special 'pat' and 'with' syntax, similar to 'do' syntax in Haskell (i.e. enter into a sublanguage)
@@ -1929,41 +2210,3 @@ Thoughts on Futhark style Defunctionalization:
 
 
 */
-
-    // TODO: Look into Tuples with initializers in parser
-    // {
-    //     const char* test_name   = "Recursive Pattern Assignment 1";
-    //     const char* test_source = ""
-    //         "(leftOsc ~ 0, _) = (leftOsc + 1, True)\n"
-    //         "leftPlus :: Int\n"
-    //         "leftPlus = leftOsc + 1\n";
-    //     const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-    //     necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
-    // }
-
-    // // TODO (Curtis 2-22-19): Pattern Assignment with Initializers with Numeric literals seems a little strange...
-    // // TODO: check that default method is constant somehow...
-    // {
-    //     const char* test_name   = "Recursive Pattern Assignment 1";
-    //     const char* test_source = ""
-    //         "data Wrapper a = Wrapper a\n"
-    //         "Wrapper (wrappedOsc ~ default) = Wrapper (wrappedOsc + 1)\n"
-    //         "plusOne :: Audio\n"
-    //         "plusOne = wrappedOsc + 1\n";
-    //     const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-    //     necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
-    // }
-
-    // NOTE: Multi-line Definitions are currently removed.
-    // {
-    //     const char* test_name   = "Multi-line Function";
-    //     const char* test_source = ""
-    //         "skateOrDie (Just _) = True\n"
-    //         "skateOrDie _        = False\n"
-    //         "die                 = skateOrDie (Just ())\n";
-    //     const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-    //     necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
-    // }
-
-}
-

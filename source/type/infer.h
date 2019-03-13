@@ -15,6 +15,19 @@
 #include "d_analyzer.h"
 #include "result.h"
 
+typedef struct NecroInfer
+{
+    struct NecroScopedSymTable* scoped_symtable;
+    struct NecroBase*           base;
+    NecroIntern*                intern;
+    NecroPagedArena*            arena;
+    NecroSnapshotArena          snapshot_arena;
+    NecroAstArena*              ast_arena;
+} NecroInfer;
+
+NecroInfer             necro_infer_empty();
+NecroInfer             necro_infer_create(NecroPagedArena* arena, NecroIntern* intern, struct NecroScopedSymTable* scoped_symtable, struct NecroBase* base, NecroAstArena* ast_arena);
+void                   necro_infer_destroy(NecroInfer* infer);
 NecroResult(void)      necro_infer(NecroCompileInfo info, NecroIntern* intern, NecroScopedSymTable* scoped_symtable, struct NecroBase* base, NecroAstArena* ast_arena);
 NecroResult(NecroType) necro_infer_go(NecroInfer* infer, NecroAst* ast);
 NecroResult(NecroType) necro_infer_type_sig(NecroInfer* infer, NecroAst* ast);

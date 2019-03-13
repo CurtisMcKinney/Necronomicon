@@ -42,6 +42,7 @@
 struct NecroMachineAST;
 struct NecroMachineLit;
 struct NecroMachineDef;
+struct NecroInfer;
 
 ///////////////////////////////////////////////////////
 // Types
@@ -517,7 +518,7 @@ typedef struct NecroMachineProgram
     NecroSymTable*        symtable;
     NecroScopedSymTable*  scoped_symtable;
     NecroPrimTypes*       prim_types;
-    NecroInfer*           infer;
+    struct NecroInfer*    infer;
 
     // Cached data
     size_t                gen_vars;
@@ -554,7 +555,7 @@ typedef struct NecroMachineProgram
 // Core to Machine API
 ///////////////////////////////////////////////////////
 NecroMachineProgram necro_empty_machine_program();
-NecroMachineProgram necro_core_to_machine(NecroCoreAST* core_ast, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types, NecroInfer* infer, NecroClosureDefVector closure_defs);
+NecroMachineProgram necro_core_to_machine(NecroCoreAST* core_ast, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types, struct NecroInfer* infer, NecroClosureDefVector closure_defs);
 void                necro_destroy_machine_program(NecroMachineProgram* program);
 void                necro_core_to_machine_1_go(NecroMachineProgram* program, NecroCoreAST_Expression* core_ast, NecroMachineAST* outer);
 void                necro_core_to_machine_2_go(NecroMachineProgram* program, NecroCoreAST_Expression* core_ast, NecroMachineAST* outer);

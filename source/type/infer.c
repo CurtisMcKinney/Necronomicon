@@ -15,7 +15,46 @@
 #include "base.h"
 #include "utility.h"
 
+///////////////////////////////////////////////////////
+// Infer
+///////////////////////////////////////////////////////
+NecroInfer necro_infer_empty()
+{
+    return (NecroInfer)
+    {
+        .scoped_symtable = NULL,
+        .snapshot_arena  = necro_snapshot_arena_empty(),
+        .arena           = NULL,
+        .intern          = NULL,
+        .base            = NULL,
+    };
+}
+
+NecroInfer necro_infer_create(NecroPagedArena* arena, NecroIntern* intern, struct NecroScopedSymTable* scoped_symtable, struct NecroBase* base, NecroAstArena* ast_arena)
+{
+    NecroInfer infer = (NecroInfer)
+    {
+        .intern          = intern,
+        .arena           = arena,
+        .snapshot_arena  = necro_snapshot_arena_create(),
+        .scoped_symtable = scoped_symtable,
+        .base            = base,
+        .ast_arena       = ast_arena,
+    };
+    return infer;
+}
+
+void necro_infer_destroy(NecroInfer* infer)
+{
+    if (infer == NULL)
+        return;
+    necro_snapshot_arena_destroy(&infer->snapshot_arena);
+    *infer = necro_infer_empty();
+}
+
+///////////////////////////////////////////////////////
 // Forward declarations
+///////////////////////////////////////////////////////
 NecroResult(NecroType) necro_infer_apat(NecroInfer* infer, NecroAst* ast);
 NecroResult(NecroType) necro_infer_pattern(NecroInfer* infer, NecroAst* ast);
 NecroResult(NecroType) necro_infer_var(NecroInfer* infer, NecroAst* ast);

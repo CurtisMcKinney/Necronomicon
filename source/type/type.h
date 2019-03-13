@@ -149,27 +149,8 @@ typedef struct NecroInstSub
 } NecroInstSub;
 
 //=====================================================
-// Infer
-//=====================================================
-typedef struct NecroInfer
-{
-    struct NecroScopedSymTable* scoped_symtable;
-    struct NecroBase*           base;
-    NecroIntern*                intern;
-    NecroPagedArena*            arena;
-    NecroSnapshotArena          snapshot_arena;
-    NecroAstArena*              ast_arena;
-} NecroInfer;
-
-//=====================================================
 // API
 //=====================================================
-
-// TODO: move this into infer.h
-NecroInfer             necro_infer_empty();
-NecroInfer             necro_infer_create(NecroPagedArena* arena, NecroIntern* intern, struct NecroScopedSymTable* scoped_symtable, struct NecroBase* base, NecroAstArena* ast_arena);
-void                   necro_infer_destroy(NecroInfer* infer);
-
 NecroResult(NecroType) necro_type_unify_with_info(NecroPagedArena* arena, struct NecroBase* base, NecroType* type1, NecroType* type2, struct NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, struct NecroBase* base, NecroType* type1, NecroType* type2, struct NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroType* macro_type1, NecroType* macro_type2);
 NecroResult(NecroType) necro_type_unify(NecroPagedArena* arena, struct NecroBase* base, NecroType* type1, NecroType* type2, struct NecroScope* scope);
@@ -229,4 +210,5 @@ size_t                 necro_type_mangled_sprintf(char* buffer, size_t offset, c
 
 NecroInstSub*          necro_create_inst_sub_manual(NecroPagedArena* arena, NecroAstSymbol* var_to_replace, NecroType* new_type, NecroInstSub* next);
 NecroType*             necro_type_deep_copy(NecroPagedArena* arena, NecroType* type);
+
 #endif // TYPE_H

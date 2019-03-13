@@ -679,63 +679,6 @@ void necro_scoped_symtable_print(NecroScopedSymTable* table)
     printf("}\n");
 }
 
-void necro_symtable_print_env(NecroSymTable* table, NecroInfer* infer)
-{
-    UNUSED(infer);
-    UNUSED(table);
-    printf("\nEnv:\n[\n");
-    for (size_t i = 1; i < table->count; ++i)
-    {
-        printf("    %s", table->data[i].name->str);
-        // if (infer->symtable->data[i].type != NULL)
-        // {
-        //     printf(" => ");
-        //     // if (infer->symtable->data[i].type->type == NECRO_TYPE_CON)
-        //     // {
-        //     //     printf(" (kind: %d) ", infer->symtable->data[i].type->con.arity);
-        //     // }
-        //     necro_type_sig_print_go(infer->symtable->data[i].type);
-        //     printf(" :: ");
-        //     // necro_print_kind(table->data[i].type->kind);
-        //     necro_type_sig_print_go(infer->symtable->data[i].type->kind);
-        //     printf("\n");
-        // }
-        // else
-        // {
-        //     printf("\n");
-        // }
-    }
-    printf("]\n\n");
-    // for now turning this off, turn back on for extra debugging
-    // printf("TyVars, all\n[\n");
-    // for (size_t i = 1; i <= infer->highest_id; ++i)
-    // {
-    //     if (i <= table->count) continue;
-    //     printf("    %s", necro_id_as_character_string(infer, (NecroVar) { .id = (NecroID) { i }, .symbol = (NecroSymbol) {.id = 0, .hash = 0} }));
-    //     if (infer->env.data[i]->var.bound != NULL)
-    //     {
-
-    //         printf(" => ");
-    //         necro_print_type_sig_go(infer->env.data[i]->var.bound, infer->intern);
-    //         printf(" :: ");
-    //         necro_print_kind(infer->env.data[i]->kind);
-    //         printf("\n");
-    //     }
-    //     // else if (infer->env.data[i]->var.arity != -1 && infer->env.data[i]->var.arity != 0)
-    //     // {
-    //     //     printf(" (kind: %d)\n", infer->env.data[i]->var.arity);
-    //     // }
-    //     else
-    //     {
-    //         printf(" :: ");
-    //         necro_print_kind(infer->env.data[i]->kind);
-    //         printf("\n");
-    //     }
-    // }
-    // printf("]\n");
-    // printf("Total mem usage: %f mb\n", ((float) (sizeof(NecroSymbolInfo) * table->count + sizeof(NecroType) * infer->env.capacity) * 8) / 1000000.0);
-}
-
 //=====================================================
 // Testing
 //=====================================================

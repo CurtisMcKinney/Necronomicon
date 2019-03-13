@@ -70,9 +70,9 @@ NecroType* necro_instantiate_method_sig(NecroInfer* infer, NecroAstSymbol* type_
         if (subs->var_to_replace->name == type_class_var->name)
         {
             unwrap(NecroType, necro_type_unify(infer->arena, infer->base, subs->new_name, a_data_type, NULL));
-            unwrap(void, necro_kind_infer_gen_unify_with_star(infer->arena, infer->base, type, NULL, NULL_LOC, NULL_LOC));
+            unwrap(void, necro_kind_infer_default_unify_with_star(infer->arena, infer->base, type, NULL, NULL_LOC, NULL_LOC));
             type = unwrap(NecroType, necro_type_generalize(infer->arena, infer->base, type, NULL));
-            unwrap(void, necro_kind_infer_gen_unify_with_star(infer->arena, infer->base, type, NULL, NULL_LOC, NULL_LOC));
+            unwrap(void, necro_kind_infer_default_unify_with_star(infer->arena, infer->base, type, NULL, NULL_LOC, NULL_LOC));
             return type;
         }
         subs = subs->next;
@@ -510,8 +510,9 @@ NecroResult(NecroType) necro_create_type_class(NecroInfer* infer, NecroAst* type
                 type_sig->pre_supplied = true;
                 type_sig               = necro_try(NecroType, necro_type_generalize(infer->arena, infer->base, type_sig, NULL));
                 necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, type_sig, method_ast->source_loc, method_ast->end_loc));
-                type_sig->kind         = necro_kind_gen(infer->arena, infer->base, type_sig->kind);
+                // type_sig->kind         = necro_kind_gen(infer->arena, infer->base, type_sig->kind);
                 necro_try(NecroType, necro_kind_unify(type_sig->kind, infer->base->star_kind->type, NULL));
+                // necro_try_map(void, NecroType, necro_kind_infer_default_unify_with_star(infer->arena, infer->base, type_sig, NULL, method_ast->source_loc, method_ast->end_loc));
                 method_ast->type_signature.var->variable.ast_symbol->type              = type_sig;
                 method_ast->type_signature.var->variable.ast_symbol->method_type_class = type_class;
 
@@ -558,7 +559,8 @@ NecroResult(NecroType) necro_create_type_class(NecroInfer* infer, NecroAst* type
     }
 
     // Generalize type class kind
-    type_class_var->kind = necro_kind_gen(infer->arena, infer->base, type_class_var->kind);
+    // type_class_var->kind = necro_kind_gen(infer->arena, infer->base, type_class_var->kind);
+    necro_kind_default_type_kinds(infer->arena, infer->base, type_class_var);
     return ok(NecroType, NULL);
 }
 

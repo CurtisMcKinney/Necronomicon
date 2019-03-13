@@ -224,15 +224,14 @@ NecroType* necro_type_deep_copy_go(NecroPagedArena* arena, NecroType* type)
     case NECRO_TYPE_SYM:  new_type = necro_type_sym_create(arena, type->sym.value); break;
     default:              assert(false);
     }
-    new_type->kind = type->kind;
+    new_type->kind = necro_type_find(type->kind);
+    // new_type->kind = necro_type_deep_copy(arena, type->kind);
     return new_type;
 }
 
-NecroType* necro_type_deep_copy(NecroPagedArena* arena, NecroType* type)
+NecroType* necro_type_deep_copy(NecroPagedArena* arena,  NecroType* type)
 {
     NecroType* new_type = necro_type_deep_copy_go(arena, type);
-    // TODO: Kind infer deep copies!!!
-    // unwrap(NecroType, necro_kind_infer_gen_unify_with_star(arena, base, new_type));
     return new_type;
 }
 
@@ -414,7 +413,8 @@ bool necro_type_bind_var_to_type_if_instance_of_context(NecroPagedArena* arena, 
         else
             return false;
     }
-    type->var.bound = necro_type_con_create(arena, type_symbol, NULL);
+    type->var.bound       = necro_type_con_create(arena, type_symbol, NULL);
+    type->var.bound->kind = type_symbol->type->kind;
     return true;
 }
 
@@ -1470,8 +1470,7 @@ NecroResult(NecroType) necro_type_generalize(NecroPagedArena* arena, struct Necr
 {
     assert(type != NULL);
     assert(type->type != NECRO_TYPE_FOR);
-    // Switch positions!?!?!?
-    necro_try(NecroType, necro_kind_infer(arena, base, type, NULL_LOC, NULL_LOC));
+    necro_try_map(void, NecroType, necro_kind_infer_default(arena, base, type, NULL_LOC, NULL_LOC));
     NecroGenResult result = necro_gen_go(arena, type, (NecroGenResult) { NULL, NULL, NULL }, scope);
     if (result.subs != NULL)
     {
@@ -1496,14 +1495,16 @@ NecroResult(NecroType) necro_type_generalize(NecroPagedArena* arena, struct Necr
             {
                 assert(tail->for_all.type == NULL);
                 tail->for_all.type = result.type;
-                necro_try(NecroType, necro_kind_infer(arena, base, head, NULL_LOC, NULL_LOC));
+                // necro_try(NecroType, necro_kind_infer(arena, base, head, NULL_LOC, NULL_LOC));
+                necro_try_map(void, NecroType, necro_kind_infer_default(arena, base, head, NULL_LOC, NULL_LOC));
                 return ok_NecroType(head);
             }
         }
     }
     else
     {
-        necro_try(NecroType, necro_kind_infer(arena, base, result.type, NULL_LOC, NULL_LOC));
+        // necro_try(NecroType, necro_kind_infer(arena, base, result.type, NULL_LOC, NULL_LOC));
+        necro_try_map(void, NecroType, necro_kind_infer_default(arena, base, result.type, NULL_LOC, NULL_LOC));
         return ok_NecroType(result.type);
     }
 }

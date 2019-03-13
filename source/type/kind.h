@@ -17,7 +17,12 @@ void                   necro_kind_init_kinds(struct NecroBase* base, struct Necr
 NecroResult(NecroType) necro_kind_unify_with_info(NecroType* kind1, NecroType* kind2, NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroType) necro_kind_unify(NecroType* kind1, NecroType* kind2, NecroScope* scope);
 NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
-NecroType*             necro_kind_gen(NecroPagedArena* arena, struct NecroBase* base, NecroType* kind);
-NecroResult(void)      necro_kind_infer_gen_unify_with_star(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+
+// NecroType*             necro_kind_gen(NecroPagedArena* arena, struct NecroBase* base, NecroType* kind);
+// NecroResult(void)      necro_kind_infer_gen_unify_with_star(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+
+void                   necro_kind_default_type_kinds(NecroPagedArena* arena, struct NecroBase* base, NecroType* type);
+NecroResult(void)      necro_kind_infer_default_unify_with_star(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(void)      necro_kind_infer_default(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 
 #endif // KIND_H

@@ -765,9 +765,6 @@ NecroType* necro_specialize_type(NecroMonomorphize* monomorphize, NecroType* typ
             specialized_type_suffix_buffer++;
         NecroSymbol specialized_type_suffix_symbol = necro_intern_string(monomorphize->intern, specialized_type_suffix_buffer);
 
-        // TODO: We shouldn't need to kind infer the incoming type, something is up here...Look at necro_kind_infer_gen_unify_with_star and necro_kind_gen, and make sure it recursively applies to all sub types in type!
-        // unwrap(void, necro_kind_infer_gen_unify_with_star(monomorphize->arena, monomorphize->base, type, NULL, NULL_LOC, NULL_LOC));
-
         //--------------------
         // Specialize Data Declaration
         //--------------------
@@ -790,7 +787,7 @@ NecroType* necro_specialize_type(NecroMonomorphize* monomorphize, NecroType* typ
                 data_con_result = data_con_result->fun.type2;
             unwrap(NecroType, necro_type_unify(monomorphize->arena, monomorphize->base, data_con_result, type, NULL));
             NecroType*      specialized_data_con_type     = necro_specialize_type(monomorphize, data_con_type);
-            unwrap(void, necro_kind_infer_gen_unify_with_star(monomorphize->arena, monomorphize->base, specialized_data_con_type, NULL, NULL_LOC, NULL_LOC));
+            unwrap(void, necro_kind_infer_default_unify_with_star(monomorphize->arena, monomorphize->base, specialized_data_con_type, NULL, NULL_LOC, NULL_LOC));
             new_data_con_symbol->type                     = specialized_data_con_type;
             data_con->necro_type                          = specialized_data_con_type;
             necro_scope_insert_ast_symbol(monomorphize->arena, monomorphize->scoped_symtable->top_scope, new_data_con_symbol);
@@ -815,9 +812,11 @@ NecroType* necro_specialize_type(NecroMonomorphize* monomorphize, NecroType* typ
             return necro_type_fn_create(monomorphize->arena, type1, type2);
     }
 
-    // Ignore
+    // TODO: DON'T IGNORE THIS! Fully Apply types and specialize!
     case NECRO_TYPE_APP:
         return type;
+
+    // Ignore
     case NECRO_TYPE_VAR:
         return type;
     case NECRO_TYPE_FOR:

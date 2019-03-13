@@ -391,3 +391,127 @@ NecroResult(void) necro_kind_infer_gen_unify_with_star(NecroPagedArena* arena, s
     necro_try_map(NecroType, void, necro_kind_unify_with_info(base->star_kind->type, type->kind, scope, source_loc, end_loc));
     return ok_void();
 }
+
+NecroType* necro_kind_default(NecroPagedArena* arena, struct NecroBase* base, NecroType* kind)
+{
+    assert(kind != NULL);
+    kind = necro_type_find(kind);
+    switch (kind->type)
+    {
+
+    // Default free kind vars to *
+    case NECRO_TYPE_VAR:
+        kind->var.bound = base->star_kind->type;
+        return base->star_kind->type;
+
+    case NECRO_TYPE_FUN:
+    {
+        NecroType* kind1 = necro_kind_default(arena, base, kind->fun.type1);
+        NecroType* kind2 = necro_kind_default(arena, base, kind->fun.type2);
+        if (kind1 != kind->fun.type1 || kind2 != kind->fun.type2)
+            return necro_type_fn_create(arena, kind1, kind2);
+        else
+            return kind;
+    }
+
+    case NECRO_TYPE_CON:
+        if (kind->con.args != NULL)
+        {
+            NecroType* args = necro_kind_default(arena, base, kind->con.args);
+            if (args != kind->con.args)
+                return necro_type_con_create(arena, kind->con.con_symbol, args);
+            else
+                return kind;
+        }
+        return kind;
+
+    case NECRO_TYPE_LIST:
+    {
+        NecroType* item = necro_kind_default(arena, base, kind->list.item);
+        NecroType* next = necro_kind_default(arena, base, kind->list.next);
+        if (item != kind->list.item || next != kind->list.next)
+            return necro_type_list_create(arena, item, next);
+        else
+            return kind;
+    }
+
+    case NECRO_TYPE_APP:
+        assert(false);
+        return NULL;
+
+    case NECRO_TYPE_FOR:
+        assert(false);
+        return NULL;
+
+    default:
+        assert(false);
+        return NULL;
+    }
+}
+
+void necro_kind_default_type_kinds(NecroPagedArena* arena, struct NecroBase* base, NecroType* type)
+{
+    type = necro_type_find(type);
+    if (type->kind == NULL)
+    {
+        unwrap(NecroType, necro_kind_infer(arena, base, type, NULL_LOC, NULL_LOC));
+    }
+    switch (type->type)
+    {
+    case NECRO_TYPE_CON:
+    {
+        NecroType* args = type->con.args;
+        while (args != NULL)
+        {
+            necro_kind_default_type_kinds(arena, base, args->list.item);
+            args = args->list.next;
+        }
+        break;
+    }
+    case NECRO_TYPE_FUN:
+        necro_kind_default_type_kinds(arena, base, type->fun.type1);
+        necro_kind_default_type_kinds(arena, base, type->fun.type2);
+        break;
+    case NECRO_TYPE_APP:
+        necro_kind_default_type_kinds(arena, base, type->app.type1);
+        necro_kind_default_type_kinds(arena, base, type->app.type2);
+        break;
+    case NECRO_TYPE_FOR:
+        necro_kind_default_type_kinds(arena, base, type->for_all.type);
+        break;
+    case NECRO_TYPE_VAR:
+    case NECRO_TYPE_NAT:
+    case NECRO_TYPE_SYM:
+    case NECRO_TYPE_LIST:
+        break;
+    default:
+        assert(false);
+        break;
+    }
+    type->kind = necro_kind_default(arena, base, type->kind);
+}
+
+NecroResult(void) necro_kind_infer_default_unify_with_star(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    if (type->kind == NULL)
+    {
+        necro_try_map(NecroType, void, necro_kind_infer(arena, base, type, source_loc, end_loc));
+    }
+    necro_kind_default_type_kinds(arena, base, type);
+    necro_try_map(NecroType, void, necro_kind_unify_with_info(base->star_kind->type, type->kind, scope, source_loc, end_loc));
+    return ok_void();
+}
+
+NecroResult(void) necro_kind_infer_default(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    if (type->kind == NULL)
+    {
+        necro_try_map(NecroType, void, necro_kind_infer(arena, base, type, source_loc, end_loc));
+    }
+    necro_kind_default_type_kinds(arena, base, type);
+    return ok_void();
+}
+
+
+
+

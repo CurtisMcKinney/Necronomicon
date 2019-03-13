@@ -276,6 +276,47 @@ NecroType* necro_type_curry_con(NecroPagedArena* arena, NecroBase* base, NecroTy
     return ap;
 }
 
+// NOTE: Expects that the type function being applied is TypeCon and NOT a TypeVar. If it is, it asserts(false);
+NecroType* necro_type_uncurry_app(NecroPagedArena* arena, NecroBase* base, NecroType* app)
+{
+    assert(arena != NULL);
+    assert(app != NULL);
+    app = necro_type_find(app);
+    assert(app->type == NECRO_TYPE_APP);
+
+    // Get Args from TypeApp applications
+    NecroType* args = NULL;
+    while (app->type == NECRO_TYPE_APP)
+    {
+        args = necro_type_list_create(arena, app->app.type2, args);
+        app  = app->app.type1;
+        app  = necro_type_find(app);
+    }
+    assert(app->type == NECRO_TYPE_CON);
+
+    // Combine TypeApp args with TypeCon args
+    if (app->con.args != NULL)
+    {
+        NecroType* prev_args     = app->con.args;
+        NecroType* new_args_curr = necro_type_list_create(arena, prev_args->list.item, NULL);
+        NecroType* new_args_head = new_args_curr;
+        prev_args                = prev_args->list.next;
+        while (prev_args != NULL)
+        {
+            new_args_curr->list.next = necro_type_list_create(arena, prev_args->list.item, NULL);
+            new_args_curr            = new_args_curr->list.next;
+            prev_args                = prev_args->list.next;
+        }
+        new_args_curr->list.next = args;
+        args                     = new_args_head;
+    }
+
+    // Create TypeCon
+    NecroType* con = necro_type_con_create(arena, app->con.con_symbol, args);
+    unwrap(void, necro_kind_infer_default_unify_with_star(arena, base, con, NULL, NULL_LOC, NULL_LOC));
+    return con;
+}
+
 NecroType* necro_type_fresh_var(NecroPagedArena* arena)
 {
     NecroAstSymbol* ast_symbol = necro_ast_symbol_create(arena, NULL, NULL, NULL, NULL);
@@ -345,17 +386,6 @@ NecroType* necro_type_get_fully_applied_fun_type(NecroType* type)
         type = type->fun.type2;
     }
     return type;
-}
-
-bool necro_type_is_bounded_polymorphic(const NecroType* type)
-{
-    while (type->type == NECRO_TYPE_FOR)
-    {
-        if (type->for_all.context != NULL)
-            return true;
-        type = type->for_all.type;
-    }
-    return false;
 }
 
 bool necro_type_is_polymorphic(const NecroType* type)

@@ -180,7 +180,6 @@ NecroResult(NecroType) necro_type_replace_with_subs_deep_copy(NecroPagedArena* a
 NecroInstSub*          necro_type_union_subs(NecroInstSub* subs1, NecroInstSub* subs2);
 NecroInstSub*          necro_type_deep_copy_subs(NecroPagedArena* arena, NecroInstSub* subs);
 NecroInstSub*          necro_type_filter_and_deep_copy_subs(NecroPagedArena* arena, NecroInstSub* subs, NecroAstSymbol* var_to_replace, NecroType* new_name);
-// NecroResult(NecroType) necro_type_instantiate_with_context(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope, struct NecroTypeClassContext** inst_context);
 NecroResult(NecroType) necro_type_instantiate_with_subs(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope, NecroInstSub** subs);
 NecroResult(NecroType) necro_type_generalize(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope);
 NecroResult(NecroType) necro_type_set_zero_order(NecroType* type, const NecroSourceLoc* source_loc, const NecroSourceLoc* end_loc);
@@ -192,12 +191,12 @@ bool                   necro_type_is_bound_in_scope(NecroType* type, struct Necr
 NecroResult(bool)      necro_type_is_unambiguous_polymorphic(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, const NecroType* macro_type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(void)      necro_type_ambiguous_type_variable_check(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, const NecroType* macro_type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 bool                   necro_type_is_polymorphic(const NecroType* type);
-bool                   necro_type_is_bounded_polymorphic(const NecroType* type);
 size_t                 necro_type_arity(NecroType* type);
 size_t                 necro_type_hash(NecroType* type);
 size_t                 necro_type_list_count(NecroType* list);
 NecroType*             necro_type_strip_for_all(NecroType* type);
 NecroType*             necro_type_get_fully_applied_fun_type(NecroType* type);
+NecroType*             necro_type_uncurry_app(NecroPagedArena* arena, struct NecroBase* base, NecroType* app);
 
 NecroType*             necro_type_alloc(NecroPagedArena* arena);
 NecroType*             necro_type_fresh_var(NecroPagedArena* arena);

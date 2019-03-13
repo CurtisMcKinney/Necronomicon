@@ -812,9 +812,8 @@ NecroType* necro_specialize_type(NecroMonomorphize* monomorphize, NecroType* typ
             return necro_type_fn_create(monomorphize->arena, type1, type2);
     }
 
-    // TODO: DON'T IGNORE THIS! Fully Apply types and specialize!
     case NECRO_TYPE_APP:
-        return type;
+        return necro_specialize_type(monomorphize, necro_type_uncurry_app(monomorphize->arena, monomorphize->base, type));
 
     // Ignore
     case NECRO_TYPE_VAR:

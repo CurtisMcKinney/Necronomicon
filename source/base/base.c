@@ -69,6 +69,7 @@ NecroBase necro_base_create(NecroIntern* intern)
         .applicative_type_class = NULL,
         .monad_type_class       = NULL,
         .default_type_class     = NULL,
+        .prev_fn                = NULL,
         .event_type             = NULL,
         .pattern_type           = NULL,
         .closure_type           = NULL,
@@ -783,6 +784,30 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         necro_append_top(arena, top, op_def_ast);
     }
 
+    // prev
+    {
+        NecroAst* a_var       = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
+        a_var->variable.order = NECRO_TYPE_ZERO_ORDER;
+        NecroAst* context     = necro_ast_create_context(arena, intern, "Default", "a", NULL);
+        NecroAst* fn_sig      =
+            necro_ast_create_fn_type_sig(arena, intern, "prev", context,
+                necro_ast_create_type_fn(arena, a_var, a_var),
+                NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
+        NecroAst* x_var       = necro_ast_create_var(arena, intern, "x", NECRO_VAR_DECLARATION);
+        NecroAst* fn_args     = necro_ast_create_apats(arena, x_var, NULL);
+        NecroAst* px_var      = necro_ast_create_var(arena, intern, "px", NECRO_VAR_DECLARATION);
+        NecroAst* cx_var      = necro_ast_create_var(arena, intern, "cx", NECRO_VAR_DECLARATION);
+        px_var->variable.initializer = necro_ast_create_var(arena, intern, "default", NECRO_VAR_VAR);
+        NecroAst* pat_assign  = necro_ast_create_pat_assignment(arena,
+            necro_ast_create_tuple(arena, necro_ast_create_list(arena, px_var, necro_ast_create_list(arena, cx_var, NULL))),
+            necro_ast_create_tuple(arena, necro_ast_create_list(arena, necro_ast_create_var(arena, intern, "x", NECRO_VAR_VAR), necro_ast_create_list(arena, necro_ast_create_var(arena, intern, "px", NECRO_VAR_VAR), NULL))));
+        NecroAst* fn_decl     = necro_ast_create_decl(arena, pat_assign, NULL);
+        NecroAst* fn_rhs_ast  = necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "cx", NECRO_VAR_VAR), fn_decl);
+        NecroAst* fn_def_ast  = necro_ast_create_apats_assignment(arena, intern, "prev", fn_args, fn_rhs_ast);
+        necro_append_top(arena, top, fn_sig);
+        necro_append_top(arena, top, fn_def_ast);
+    }
+
     // world value
     {
         necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "world", NULL, necro_ast_create_conid(arena, intern, "World", NECRO_CON_TYPE_VAR), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
@@ -937,6 +962,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.applicative_type_class = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Applicative"));
     base.monad_type_class       = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Monad"));
     base.default_type_class     = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Default"));
+    base.prev_fn                = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "prev"));
     base.event_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Event"));
     base.pattern_type           = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Pattern"));
     // base.closure_type           = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "_Closure"));

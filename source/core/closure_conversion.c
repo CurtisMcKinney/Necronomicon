@@ -130,7 +130,7 @@ size_t necro_get_arity(NecroClosureConversion* cc, NecroSymbolInfo* info)
         NecroType* type  = info->type;
         while (type->type == NECRO_TYPE_FOR)
         {
-            NecroTypeClassContext* context = type->for_all.context;
+            NecroTypeClassContext* context = type->for_all.var_symbol->type->var.context;
             while (context != NULL)
             {
                 arity++;
@@ -205,7 +205,7 @@ NecroType* necro_type_to_closure_type(NecroClosureConversion* cc, NecroType* typ
     type                     = necro_type_find(type);
     while (type->type == NECRO_TYPE_FOR)
     {
-        NecroTypeClassContext* context = type->for_all.context;
+        NecroTypeClassContext* context = type->for_all.var_symbol->type->var.context;
         while (context != NULL)
         {
             if (new_type_head == NULL)
@@ -370,7 +370,7 @@ NecroCoreAST_Expression* necro_closure_conversion_bind(NecroClosureConversion* c
     NecroBuildBindClosureType builder      = (NecroBuildBindClosureType) { .expr = in_ast->bind.expr, .closure_type = NULL, .arity = 0 };
     while (normal_type->type == NECRO_TYPE_FOR)
     {
-        NecroTypeClassContext* context = normal_type->for_all.context;
+        NecroTypeClassContext* context = normal_type->for_all.var_symbol->type->var.context;
         while (context != NULL)
         {
             if (necro_build_bind_closure_type(cc, &builder, cc->base->poly_type->type, NULL))
@@ -480,7 +480,7 @@ NecroCoreAST_Expression* necro_closure_conversion_data_con(NecroClosureConversio
     NecroBuildDataConClosureType builder      = (NecroBuildDataConClosureType) { .in_con_args = in_ast->data_con.arg_list, .closure_type = NULL, .arity = 0 };
     while (normal_type->type == NECRO_TYPE_FOR)
     {
-        NecroTypeClassContext* context = normal_type->for_all.context;
+        NecroTypeClassContext* context = normal_type->for_all.var_symbol->type->var.context;
         // We don't allow type class contexts in data constructors
         assert(context == NULL);
         // while (context != NULL)

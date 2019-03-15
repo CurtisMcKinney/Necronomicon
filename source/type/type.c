@@ -115,14 +115,13 @@ NecroType* necro_type_list_create(NecroPagedArena* arena, NecroType* item, Necro
     return type;
 }
 
-NecroType* necro_type_for_all_create(NecroPagedArena* arena, NecroAstSymbol* var_symbol, NecroTypeClassContext* context, NecroType* type)
+NecroType* necro_type_for_all_create(NecroPagedArena* arena, NecroAstSymbol* var_symbol, NecroType* type)
 {
     NecroType* for_all  = necro_type_alloc(arena);
     for_all->type       = NECRO_TYPE_FOR;
     for_all->for_all    = (NecroTypeForAll)
     {
         .var_symbol = var_symbol,
-        .context    = context,
         .type       = type,
     };
     return for_all;
@@ -181,7 +180,7 @@ NecroType* necro_type_deep_copy_go(NecroPagedArena* arena, NecroType* type)
     case NECRO_TYPE_APP:  new_type = necro_type_app_create(arena, necro_type_deep_copy_go(arena, type->app.type1), necro_type_deep_copy_go(arena, type->app.type2)); break;
     case NECRO_TYPE_FUN:  new_type = necro_type_fn_create(arena, necro_type_deep_copy_go(arena, type->fun.type1), necro_type_deep_copy_go(arena, type->fun.type2)); break;
     case NECRO_TYPE_CON:  new_type = necro_type_con_create(arena, type->con.con_symbol, necro_type_deep_copy_go(arena, type->con.args)); break;
-    case NECRO_TYPE_FOR:  new_type = necro_type_for_all_create(arena, type->for_all.var_symbol, necro_context_deep_copy(arena, type->for_all.context), necro_type_deep_copy_go(arena, type->for_all.type)); break;
+    case NECRO_TYPE_FOR:  new_type = necro_type_for_all_create(arena, type->for_all.var_symbol, necro_type_deep_copy_go(arena, type->for_all.type)); break;
     case NECRO_TYPE_LIST: new_type = necro_type_list_create(arena, necro_type_deep_copy_go(arena, type->list.item), necro_type_deep_copy_go(arena, type->list.next)); break;
     case NECRO_TYPE_NAT:  new_type = necro_type_nat_create(arena, type->nat.value); break;
     case NECRO_TYPE_SYM:  new_type = necro_type_sym_create(arena, type->sym.value); break;
@@ -663,86 +662,6 @@ NecroResult(NecroType) necro_type_occurs_flipped(NecroAstSymbol* type_var_symbol
     return result;
 }
 
-NecroResult(NecroType) necro_propogate_type_classes(NecroPagedArena* arena, NecroBase* base, NecroTypeClassContext* classes, NecroType* type, NecroScope* scope)
-{
-    if (classes == NULL)
-        return ok(NecroType, NULL);
-    if (type == NULL)
-        return ok(NecroType, NULL);
-    type = necro_type_find(type);
-    switch (type->type)
-    {
-    case NECRO_TYPE_VAR:
-        if (type->var.is_rigid)
-        {
-            // If it's a rigid variable, make sure it has all of the necessary classes in its context already
-            while (classes != NULL)
-            {
-                if (!necro_context_and_super_classes_contain_class(type->var.context, classes))
-                {
-                    return necro_type_not_an_instance_of_error_partial(classes->class_symbol, type);
-                }
-                classes = classes->next;
-            }
-        }
-        else
-        {
-            // TODO: Optimally would want to unify kinds here, but we need a better kinds story to make sure we don't break things
-            // NecroTypeClassContext* curr = classes;
-            // while (curr != NULL)
-            // {
-            //     necro_unify_kinds(infer, type, &type->kind, necro_symtable_get(infer->symtable, curr->type_class_name.id)->type->kind, macro_type, error_preamble);
-            //     curr = curr->next;
-            // }
-            // type->var.context = necro_union_contexts(infer, type->var.context, classes);
-            type->var.context = necro_union_contexts_to_same_var(arena, type->var.context, classes, type->var.var_symbol);
-        }
-        return ok(NecroType, NULL);
-
-    case NECRO_TYPE_CON:
-        while (classes != NULL)
-        {
-            NecroTypeClassInstance* instance = necro_get_type_class_instance(type->con.con_symbol, classes->class_symbol);
-            if (instance == NULL)
-            {
-                return necro_type_not_an_instance_of_error_partial(classes->class_symbol, type);
-            }
-            // Would this method require a proper scope!?!?!
-            NecroType* instance_data_inst = necro_try(NecroType, necro_type_instantiate(arena, base, instance->data_type, instance->ast->scope));
-            necro_try(NecroType, necro_type_unify(arena, base, instance_data_inst, type, scope));
-            // Propogating type classes
-            NecroType* current_arg = type->con.args;
-            while (current_arg != NULL)
-            {
-                necro_try(NecroType, necro_propogate_type_classes(arena, base, instance->context, current_arg->list.item, instance->ast->scope));
-                current_arg = current_arg->list.next;
-            }
-            classes = classes->next;
-        }
-        return ok(NecroType, NULL);
-
-    case NECRO_TYPE_FUN:
-        // TODO: Type classes for functions!!!
-        necro_try(NecroType, necro_propogate_type_classes(arena, base, classes, type->fun.type1, scope));
-        return necro_propogate_type_classes(arena, base, classes, type->fun.type2, scope);
-
-    case NECRO_TYPE_APP:
-        // necro_propogate_type_classes(infer, classes, type->app.type1, macro_type, error_preamble);
-        // necro_propogate_type_classes(infer, classes, type->app.type2, macro_type, error_preamble);
-        assert(false && "Compiler bug: TypeApp not implemented in necro_propogate_type_classes! (i.e. constraints of the form: Num (f a), or (c a), are not currently supported)");
-        return ok(NecroType, NULL);
-
-    case NECRO_TYPE_NAT:
-        return ok(NecroType, NULL);
-    case NECRO_TYPE_SYM:
-        return ok(NecroType, NULL);
-
-    case NECRO_TYPE_LIST: necro_unreachable(NecroType);
-    case NECRO_TYPE_FOR:  necro_unreachable(NecroType);
-    default:              necro_unreachable(NecroType);
-    }
-}
-
 // TODO: rename -> necro_bind_type_var
 NecroResult(NecroType) necro_instantiate_type_var(NecroPagedArena* arena, NecroBase* base, NecroType* type_var_type, NecroType* type, NecroScope* scope)
 {
@@ -1137,7 +1056,7 @@ NecroType* necro_type_replace_with_subs_deep_copy_go(NecroPagedArena* arena, Nec
             }
             curr_sub = curr_sub->next;
         }
-        return necro_type_for_all_create(arena, type->for_all.var_symbol, type->for_all.context, necro_type_replace_with_subs_deep_copy_go(arena, type->for_all.type, subs));
+        return necro_type_for_all_create(arena, type->for_all.var_symbol, necro_type_replace_with_subs_deep_copy_go(arena, type->for_all.type, subs));
     }
     case NECRO_TYPE_APP:  return necro_type_app_create(arena, necro_type_replace_with_subs_deep_copy_go(arena, type->app.type1, subs), necro_type_replace_with_subs_deep_copy_go(arena, type->app.type2, subs));
     case NECRO_TYPE_FUN:  return necro_type_fn_create(arena, necro_type_replace_with_subs_deep_copy_go(arena, type->fun.type1, subs), necro_type_replace_with_subs_deep_copy_go(arena, type->fun.type2, subs));
@@ -1195,7 +1114,7 @@ NecroType* necro_type_replace_with_subs_go(NecroPagedArena* arena, NecroType* ty
         if (next_type == type->for_all.type)
             return type;
         else
-            return necro_type_for_all_create(arena, type->for_all.var_symbol, type->for_all.context, next_type);
+            return necro_type_for_all_create(arena, type->for_all.var_symbol, next_type);
     }
     case NECRO_TYPE_APP:
     {
@@ -1261,7 +1180,7 @@ NecroResult(NecroType) necro_type_instantiate(NecroPagedArena* arena, NecroBase*
     NecroInstSub* subs         = NULL;
     while (current_type->type == NECRO_TYPE_FOR)
     {
-        subs         = necro_create_inst_sub(arena, current_type->for_all.var_symbol, current_type->for_all.context, subs);
+        subs         = necro_create_inst_sub(arena, current_type->for_all.var_symbol, current_type->for_all.var_symbol->type->var.context, subs);
         current_type = current_type->for_all.type;
     }
     NecroType* result = necro_try(NecroType, necro_type_replace_with_subs_deep_copy(arena, base, current_type, subs));
@@ -1279,8 +1198,8 @@ NecroResult(NecroType) necro_type_instantiate_with_context(NecroPagedArena* aren
     NecroTypeClassContext* curr_context = NULL;
     while (current_type->type == NECRO_TYPE_FOR)
     {
-        subs = necro_create_inst_sub(arena, current_type->for_all.var_symbol, current_type->for_all.context, subs);
-        NecroTypeClassContext* for_all_context = current_type->for_all.context;
+        subs = necro_create_inst_sub(arena, current_type->for_all.var_symbol, current_type->for_all.var_symbol->type->var.context, subs);
+        NecroTypeClassContext* for_all_context = current_type->for_all.var_symbol->type->var.context;
         while (for_all_context != NULL)
         {
             if (*context == NULL)
@@ -1311,7 +1230,7 @@ NecroResult(NecroType) necro_type_instantiate_with_subs(NecroPagedArena* arena, 
     *subs                      = NULL;
     while (current_type->type == NECRO_TYPE_FOR)
     {
-        *subs        = necro_create_inst_sub(arena, current_type->for_all.var_symbol, current_type->for_all.context, *subs);
+        *subs        = necro_create_inst_sub(arena, current_type->for_all.var_symbol, current_type->for_all.var_symbol->type->var.context, *subs);
         current_type = current_type->for_all.type;
     }
     NecroType* result = necro_try(NecroType, necro_type_replace_with_subs_deep_copy(arena, base, current_type, *subs));
@@ -1394,7 +1313,7 @@ NecroGenResult necro_gen_go(NecroPagedArena* arena, NecroType* type, NecroGenRes
             // if (type_var->var.order == NECRO_TYPE_HIGHER_ORDER)
             //     type_var->var.order = NECRO_TYPE_POLY_ORDER;
 
-            NecroType* for_all = necro_type_for_all_create(arena, type_var->var.var_symbol, type->var.context, NULL);
+            NecroType* for_all = necro_type_for_all_create(arena, type_var->var.var_symbol, NULL);
             *sub               = (NecroGenSub)
             {
                 .next           = NULL,
@@ -1648,7 +1567,7 @@ void necro_type_fprint(FILE* stream, const NecroType* type)
         bool has_context = false;
         while (type->type == NECRO_TYPE_FOR)
         {
-            if (type->for_all.context != NULL)
+            if (type->for_all.var_symbol->type->var.context != NULL)
             {
                 has_context = true;
                 break;
@@ -1662,7 +1581,7 @@ void necro_type_fprint(FILE* stream, const NecroType* type)
             type = for_all_head;
             while (type->type == NECRO_TYPE_FOR)
             {
-                NecroTypeClassContext* context = type->for_all.context;
+                NecroTypeClassContext* context = type->for_all.var_symbol->type->var.context;
                 while (context != NULL)
                 {
                     if (count > 0)
@@ -1996,7 +1915,7 @@ size_t necro_type_hash(NecroType* type)
     case NECRO_TYPE_FOR:
     {
         h = 4111;
-        NecroTypeClassContext* context = type->for_all.context;
+        NecroTypeClassContext* context = type->for_all.var_symbol->type->var.context;
         while (context != NULL)
         {
             h = h ^ (size_t) context->var_symbol ^ (size_t) context->class_symbol;
@@ -2054,8 +1973,8 @@ bool necro_type_exact_unify(NecroType* type1, NecroType* type2)
     {
         if (type1->for_all.var_symbol != type2->for_all.var_symbol)
             return false;
-        NecroTypeClassContext* context1 = type1->for_all.context;
-        NecroTypeClassContext* context2 = type2->for_all.context;
+        NecroTypeClassContext* context1 = type1->for_all.var_symbol->type->var.context;
+        NecroTypeClassContext* context2 = type2->for_all.var_symbol->type->var.context;
         while (context1 != NULL || context2 != NULL)
         {
             if (context1 == NULL || context2 == NULL)

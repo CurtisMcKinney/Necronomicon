@@ -18,6 +18,8 @@
 
 #define NECRO_SYMTABLE_NULL_ID      ((NecroID) {0})
 
+// TODO: Clean up LOTS of shit in this.
+
 //=====================================================
 // NecroSymTable, Contains info for a particular ID:
 //         * ID

@@ -513,5 +513,3 @@ NecroResult(void) necro_kind_infer_default(NecroPagedArena* arena, struct NecroB
 }
 
 
-
-

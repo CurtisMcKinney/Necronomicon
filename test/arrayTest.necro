@@ -1,3 +1,15 @@
+
+speed :: Float -> Float -> Float
+speed x y = dx * dx + dy * dy
+  where
+    dx = x - prev x
+    dy = x - prev x
+
+prev :: Default a => a -> a
+prev x = cx
+  where
+    (px ~ default, cx) = (x, px)
+
 -----------------------------------------
 -- Array thoughts
 -----------------------------------------

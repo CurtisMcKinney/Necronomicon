@@ -268,9 +268,9 @@ NecroMachType* necro_mach_type_fn_from_necro_type(NecroMachProgram* program, Nec
     type = necro_type_find(type);
     assert(type->type == NECRO_TYPE_FUN);
     // Count args
-    size_t arg_count = 0;
-    size_t arg_index = 0;
-    NecroType* arrows = necro_type_find(type);
+    size_t     arg_count = 0;
+    size_t     arg_index = 0;
+    NecroType* arrows    = necro_type_find(type);
     while (arrows->type == NECRO_TYPE_FUN)
     {
         arg_count++;
@@ -291,24 +291,27 @@ NecroMachType* necro_mach_type_fn_from_necro_type(NecroMachProgram* program, Nec
     return function_type;
 }
 
+// Notes:
+// Should always be monomorphic
+// Constructors should always be completely applied.
 NecroMachType* necro_mach_type_from_necro_type(NecroMachProgram* program, NecroType* type)
 {
     assert(type != NULL);
     type = necro_type_find(type);
     switch (type->type)
     {
-    case NECRO_TYPE_FUN:  return necro_mach_type_fn_from_necro_type(program, type);
-    case NECRO_TYPE_CON:  return NULL; // TODO: FINISH!
-    // TODO: Make completely monomorphic types.
-    // Memoize / Unique the types via a hash map in NecroMachProgram
-
-    case NECRO_TYPE_LIST: assert(false); return NULL;
-    case NECRO_TYPE_APP:  assert(false); return NULL; // Constructors should always be completely applied.
-    case NECRO_TYPE_VAR:  assert(false); return NULL; // Should always be monomorphic
-    case NECRO_TYPE_FOR:  assert(false); return NULL; // Should always be monomorphic
-    default: assert(false);
+    case NECRO_TYPE_FUN:
+        return necro_mach_type_fn_from_necro_type(program, type);
+    case NECRO_TYPE_CON:
+        assert(type->con.args == NULL);
+        assert(type->con.con_symbol != NULL);
+        assert(type->con.con_symbol->mach_symbol != NULL);
+        assert(type->con.con_symbol->mach_symbol->mach_type != NULL);
+        return type->con.con_symbol->mach_symbol->mach_type;
+    default:
+        assert(false);
+        return NULL;
     }
-    return NULL;
 }
 
 // ///////////////////////////////////////////////////////

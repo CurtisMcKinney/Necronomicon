@@ -693,6 +693,7 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
 ///////////////////////////////////////////////////////
 // Specialize Type
 ///////////////////////////////////////////////////////
+// NOTE: Should we be doing in this in core before NecroMach translation instead?
 NecroType* necro_specialize_type(NecroMonomorphize* monomorphize, NecroType* type)
 {
     if (type == NULL || necro_type_is_polymorphic(type))

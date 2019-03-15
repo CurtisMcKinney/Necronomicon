@@ -26,6 +26,8 @@ NecroBase necro_base_create(NecroIntern* intern)
         .higher_kind            = NULL,
         .kind_kind              = NULL,
         .star_kind              = NULL,
+        .unique_type_kind       = NULL,
+        .any_type_kind          = NULL,
         .nat_kind               = NULL,
         .sym_kind               = NULL,
 

@@ -19,7 +19,14 @@ struct NecroBase;
         * "Uniqueness Types, Simplified": http://www.edsko.net/pubs/ifl07-paper.pdf
 
     Look into new syntax for adding kind signatures to type variables in type signatures (similar to how Idris):
-        *  (a :: UniqueType) -> (b :: Type*) -> f a
+        * (a :: UniqueType) -> (b :: AnyType) -> f a
+
+    Need syntax for declaraing unique data types:
+        * data UArray (n :: Nat) a :: UniqueType = UArray a
+
+    * Rule 1: Function type is UniqueType if either a or b is a UniqueType
+    * Rule 2: If a data type constructors contains a UniqueType the data type itself must be a UniqueType.
+    * Rule 3: Recursive values? How are they handled?
 */
 
 void                   necro_kind_init_kinds(struct NecroBase* base, struct NecroScopedSymTable* scoped_symtable, NecroIntern* intern);

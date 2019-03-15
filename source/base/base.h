@@ -23,6 +23,8 @@ typedef struct NecroBase
     NecroAstSymbol* higher_kind; // NOTE: Not actually supported, only here for error messages
     NecroAstSymbol* kind_kind; // NOTE: Instead of Kind of Type being NULL or Type
     NecroAstSymbol* star_kind;
+    NecroAstSymbol* unique_type_kind;
+    NecroAstSymbol* any_type_kind;
     NecroAstSymbol* nat_kind;
     NecroAstSymbol* sym_kind;
 

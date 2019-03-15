@@ -33,19 +33,25 @@ void necro_kind_init_kinds(NecroBase* base, NecroScopedSymTable* scoped_symtable
 {
     NecroSymbol base_name = necro_intern_string(intern, "Necro.Base");
 
-    base->higher_kind     = necro_kind_create_kind_ast_symbol(&base->ast.arena, necro_intern_string(intern, "Necro.Base.TheoreticalHigherKindedKind"), necro_intern_string(intern, "TheoreticalHigherKindedKind"), base_name, NULL);
+    base->higher_kind      = necro_kind_create_kind_ast_symbol(&base->ast.arena, necro_intern_string(intern, "Necro.Base.TheoreticalHigherKindedKind"), necro_intern_string(intern, "TheoreticalHigherKindedKind"), base_name, NULL);
     necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->higher_kind);
 
-    base->kind_kind       = necro_kind_create_kind_ast_symbol(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Kind"), necro_intern_string(intern, "Kind"), base_name, base->higher_kind->type);
+    base->kind_kind        = necro_kind_create_kind_ast_symbol(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Kind"), necro_intern_string(intern, "Kind"), base_name, base->higher_kind->type);
     necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->kind_kind);
 
-    base->star_kind       = necro_kind_create_kind_ast_symbol(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Type"), necro_intern_string(intern, "Type"), base_name, base->kind_kind->type);
+    base->star_kind        = necro_kind_create_kind_ast_symbol(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Type"), necro_intern_string(intern, "Type"), base_name, base->kind_kind->type);
     necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->star_kind);
 
-    base->nat_kind        = necro_kind_create_kind_ast_symbol(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Nat"), necro_intern_string(intern, "Nat"), base_name, base->kind_kind->type);
+    base->unique_type_kind = necro_kind_create_kind_ast_symbol(&base->ast.arena, necro_intern_string(intern, "Necro.Base.UniqueType"), necro_intern_string(intern, "UniqueType"), base_name, base->kind_kind->type);
+    necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->unique_type_kind);
+
+    base->any_type_kind    = necro_kind_create_kind_ast_symbol(&base->ast.arena, necro_intern_string(intern, "Necro.Base.AnyType"), necro_intern_string(intern, "AnyType"), base_name, base->kind_kind->type);
+    necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->any_type_kind);
+
+    base->nat_kind         = necro_kind_create_kind_ast_symbol(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Nat"), necro_intern_string(intern, "Nat"), base_name, base->kind_kind->type);
     necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->nat_kind);
 
-    base->sym_kind        = necro_kind_create_kind_ast_symbol(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Sym"), necro_intern_string(intern, "Sym"), base_name, base->kind_kind->type);
+    base->sym_kind         = necro_kind_create_kind_ast_symbol(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Sym"), necro_intern_string(intern, "Sym"), base_name, base->kind_kind->type);
     necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->sym_kind);
 }
 

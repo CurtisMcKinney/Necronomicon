@@ -12,6 +12,9 @@
 #include "kind.h"
 #include "base.h"
 
+///////////////////////////////////////////////////////
+// Utility
+///////////////////////////////////////////////////////
 NecroAstSymbol* necro_kind_create_kind_ast_symbol(NecroPagedArena* arena, NecroSymbol name, NecroSymbol source_name, NecroSymbol module_name, NecroType* kind_kind)
 {
     NecroAstSymbol* ast_symbol = necro_ast_symbol_create(arena, name, source_name, module_name, NULL);
@@ -29,6 +32,26 @@ NecroAstSymbol* necro_kind_create_kind_ast_symbol(NecroPagedArena* arena, NecroS
     return ast_symbol;
 }
 
+NecroType* necro_kind_fresh_kind_var(NecroPagedArena* arena, NecroBase* base)
+{
+    NecroType* kind_var   = necro_type_fresh_var(arena);
+    kind_var->kind        = base->kind_kind->type;
+    return kind_var;
+}
+
+// NecroType* necro_kind_op_create(NecroPagedArena* arena, NECRO_KIND_OP_TYPE op_type, NecroType* kind1, NecroType* kind2)
+// {
+//     NecroType* op_kind   = necro_type_alloc(arena);
+//     op_kind->type        = NECRO_KIND_OP;
+//     op_kind->kop.op_type = op_type;
+//     op_kind->kop.kind1   = kind1;
+//     op_kind->kop.kind2   = kind2;
+//     return op_kind;
+// }
+
+///////////////////////////////////////////////////////
+// Base Init
+///////////////////////////////////////////////////////
 void necro_kind_init_kinds(NecroBase* base, NecroScopedSymTable* scoped_symtable, NecroIntern* intern)
 {
     NecroSymbol base_name = necro_intern_string(intern, "Necro.Base");
@@ -55,43 +78,9 @@ void necro_kind_init_kinds(NecroBase* base, NecroScopedSymTable* scoped_symtable
     necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->sym_kind);
 }
 
-NecroType* necro_kind_fresh_kind_var(NecroPagedArena* arena, NecroBase* base)
-{
-    NecroType* kind_var   = necro_type_fresh_var(arena);
-    kind_var->kind        = base->kind_kind->type;
-    return kind_var;
-}
-
-NecroResult(NecroType) necro_kind_derive_fn_kind(NecroBase* base, NecroType* domain_kind, NecroType* codomain_kind, NecroType* macro_kind1, NecroType* macro_kind2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
-{
-    domain_kind   = necro_type_find(domain_kind);
-    codomain_kind = necro_type_find(codomain_kind);
-    if (domain_kind->type == NECRO_TYPE_VAR)
-    {
-        domain_kind->var.bound = base->star_kind->type;
-        domain_kind            = base->star_kind->type;
-    }
-    if (codomain_kind->type == NECRO_TYPE_VAR)
-    {
-        codomain_kind->var.bound = base->star_kind->type;
-        codomain_kind            = base->star_kind->type;
-    }
-    if (domain_kind->type != NECRO_TYPE_CON)
-        return necro_kind_mismatched_kind_error(base->star_kind->type, domain_kind, macro_kind1, macro_kind2, source_loc, end_loc);
-    else if (codomain_kind->type != NECRO_TYPE_CON)
-        return necro_kind_mismatched_kind_error(base->star_kind->type, codomain_kind, macro_kind1, macro_kind2, source_loc, end_loc);
-    const NecroAstSymbol* symbol1 = domain_kind->con.con_symbol;
-    const NecroAstSymbol* symbol2 = codomain_kind->con.con_symbol;
-    if (symbol1 != base->star_kind && symbol1 != base->unique_type_kind && symbol1 != base->any_type_kind)
-        return necro_kind_mismatched_kind_error(base->star_kind->type, domain_kind, macro_kind1, macro_kind2, source_loc, end_loc);
-    else if (symbol2 != base->star_kind && symbol2 != base->unique_type_kind && symbol2 != base->any_type_kind)
-        return necro_kind_mismatched_kind_error(base->star_kind->type, codomain_kind, macro_kind1, macro_kind2, source_loc, end_loc);
-    else if (symbol1 == base->unique_type_kind || symbol1 == base->any_type_kind || symbol2 == base->unique_type_kind || symbol2 == base->any_type_kind)
-        return ok(NecroType, base->unique_type_kind->type);
-    else
-        return ok(NecroType, base->star_kind->type);
-}
-
+///////////////////////////////////////////////////////
+// Unify
+///////////////////////////////////////////////////////
 NecroResult(NecroType) necro_kind_unify_var(NecroType* kind1, NecroType* kind2, NecroScope* scope)
 {
     assert(kind1 != NULL);
@@ -246,6 +235,48 @@ NecroResult(NecroType) necro_kind_unify_with_info(NecroType* kind1, NecroType* k
     return result;
 }
 
+///////////////////////////////////////////////////////
+// Infer / Default
+///////////////////////////////////////////////////////
+NecroResult(NecroType) necro_kind_derive_fn_kind(NecroBase* base, NecroType* domain_kind, NecroType* codomain_kind, NecroType* macro_kind1, NecroType* macro_kind2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    domain_kind   = necro_type_find(domain_kind);
+    codomain_kind = necro_type_find(codomain_kind);
+    if (domain_kind->type == NECRO_TYPE_VAR)
+    {
+        domain_kind->var.bound = base->star_kind->type;
+        domain_kind            = base->star_kind->type;
+    }
+    if (codomain_kind->type == NECRO_TYPE_VAR)
+    {
+        codomain_kind->var.bound = base->star_kind->type;
+        codomain_kind            = base->star_kind->type;
+    }
+    if (domain_kind->type != NECRO_TYPE_CON)
+        return necro_kind_mismatched_kind_error(base->star_kind->type, domain_kind, macro_kind1, macro_kind2, source_loc, end_loc);
+    else if (codomain_kind->type != NECRO_TYPE_CON)
+        return necro_kind_mismatched_kind_error(base->star_kind->type, codomain_kind, macro_kind1, macro_kind2, source_loc, end_loc);
+    const NecroAstSymbol* symbol1 = domain_kind->con.con_symbol;
+    const NecroAstSymbol* symbol2 = codomain_kind->con.con_symbol;
+    if (symbol1 != base->star_kind && symbol1 != base->unique_type_kind && symbol1 != base->any_type_kind)
+        return necro_kind_mismatched_kind_error(base->star_kind->type, domain_kind, macro_kind1, macro_kind2, source_loc, end_loc);
+    else if (symbol2 != base->star_kind && symbol2 != base->unique_type_kind && symbol2 != base->any_type_kind)
+        return necro_kind_mismatched_kind_error(base->star_kind->type, codomain_kind, macro_kind1, macro_kind2, source_loc, end_loc);
+    else if (symbol1 == base->unique_type_kind || symbol1 == base->any_type_kind || symbol2 == base->unique_type_kind || symbol2 == base->any_type_kind)
+        return ok(NecroType, base->unique_type_kind->type);
+    else
+        return ok(NecroType, base->star_kind->type);
+}
+
+// NecroResult(NecroType) necro_kind_type_union(NecroBase* base, NecroType* kind1, NecroType* kind2, NecroType* macro_kind1, NecroType* macro_kind2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+// {
+//     kind1 = necro_type_find(kind1);
+//     kind2 = necro_type_find(kind2);
+//     return ok(NecroType, NULL);
+// }
+
+// NecroType* necro_kind_inst
+
 NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
 
@@ -282,15 +313,12 @@ NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase
 
     case NECRO_TYPE_FUN:
     {
-        // TODO / NOTE / HACK: Removing this in an attempt to get DemandType off the ground...is this a terrible idea?
         NecroType* type1_kind = necro_try(NecroType, necro_kind_infer(arena, base, type->fun.type1, source_loc, end_loc));
-        // necro_try(NecroType, necro_kind_unify_with_info(base->star_kind->type, type1_kind, NULL, source_loc, end_loc));
+        necro_try(NecroType, necro_kind_unify_with_info(base->star_kind->type, type1_kind, NULL, source_loc, end_loc));
         NecroType* type2_kind = necro_try(NecroType, necro_kind_infer(arena, base, type->fun.type2, source_loc, end_loc));
-        // necro_try(NecroType, necro_kind_unify_with_info(base->star_kind->type, type2_kind, NULL, source_loc, end_loc));
-        // UNUSED(type1_kind);
-        // UNUSED(type2_kind);
-        // type->kind            = base->star_kind->type;
-        type->kind            = necro_try(NecroType, necro_kind_derive_fn_kind(base, type1_kind, type2_kind, type1_kind, type2_kind, source_loc, end_loc));
+        necro_try(NecroType, necro_kind_unify_with_info(base->star_kind->type, type2_kind, NULL, source_loc, end_loc));
+        type->kind            = base->star_kind->type;
+        // type->kind            = necro_try(NecroType, necro_kind_derive_fn_kind(base, type1_kind, type2_kind, type1_kind, type2_kind, source_loc, end_loc));
         return ok(NecroType, type->kind);
     }
 

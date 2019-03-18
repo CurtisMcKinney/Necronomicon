@@ -27,6 +27,47 @@ struct NecroBase;
     * Rule 1: Function type is UniqueType if either a or b is a UniqueType
     * Rule 2: If a data type constructors contains a UniqueType the data type itself must be a UniqueType. (But you can declare a UniqueType which does not contain any UniqueTypes.)
     * Rule 3: Recursive values? How are they handled?
+
+
+    - Idea 2, Alms influenced Affine Kinds (but without subtyping):
+        * "Practical Affine Types": http://users.eecs.northwestern.edu/~jesse/pubs/alms/tovpucella-alms.pdf
+        * "Practical Affine Types": https://www.researchgate.net/publication/216817423_Practical_Affine_Types/download
+
+    - Type Constructors (including the function arrow (->)) are dependently kinded based on their input values, i.e.:
+        * data Maybe a = Just a | Nothing
+        * Maybe has kind:
+            forall (a : k). k -> k
+        * data Either a b = Left a | Right b
+        * Either has kind:
+            forall (a : k1) (b : k2). k1 -> k2 -> k1 | k2
+
+sinOsc :: Audio -> Audio
+sinOsc freq = result
+  where
+    (result, sinOscState ~ default) = accumulateNewAudio1 updateSinOscState freq sinOscState
+
+updateSinOscState:: Double -> *SinOscState -> (Double, *SinOscState)
+accumulateNewAudio1 :: (Double -> *s -> (Double, *s)) -> Audio -> *s -> (Array, *s)
+
+    * Idea 3, Clean style Uniqueness Types, but simplified:
+        - "Equality based Uniqueness Types": https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.160.5690&rep=rep1&type=pdf
+
+// World based IO
+outputAudio :: Audio -> Int -> *World -> *World
+outputFrame :: Frame -> *World -> *World
+recordAudio :: Audio -> Text -> *World -> *World
+main        :: *World -> *World
+main = outAudio synths 1 |> outputFrame scene |> recordAudio synths fileName
+
+// Type state based IO
+openFile  :: Text  -> *File
+writeFile :: Text -> *File -> *File
+closeFile :: *File -> *()
+
+openAudioChan  :: *AudioChan
+writeAudioChan :: Audio -> *AudioChan -> *AudioChan
+closeAudioChan :: *AudioChan -> *()
+
 */
 
 NecroType*             necro_kind_fresh_kind_var(NecroPagedArena* arena, struct NecroBase* base);

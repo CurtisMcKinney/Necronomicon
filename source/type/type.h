@@ -15,10 +15,10 @@
 // Forward Declarations
 struct NecroType;
 struct NecroTypeClassContext;
-struct NecroLifetime;
 struct NecroScopedSymTable;
 struct NecroRenamer;
 struct NecroBase;
+struct NecroTypeAttribute;
 
 typedef enum
 {
@@ -54,21 +54,24 @@ inline NecroVar necro_con_to_var(NecroCon con)
     return (NecroVar) { .symbol = con.symbol, .id = con.id };
 }
 
-//=====================================================
-// NecorType
-//=====================================================
+///////////////////////////////////////////////////////
+// NecroType
+///////////////////////////////////////////////////////
 typedef enum
 {
+    // Main
     NECRO_TYPE_VAR,
     NECRO_TYPE_APP,
     NECRO_TYPE_CON,
     NECRO_TYPE_FUN,
     NECRO_TYPE_LIST,
     NECRO_TYPE_FOR,
+    NECRO_TYPE_FAT,
 
-    // Type Literals
+    // Other
     NECRO_TYPE_NAT,
     NECRO_TYPE_SYM,
+    // NECRO_KIND_OP,
 } NECRO_TYPE;
 
 typedef struct
@@ -80,24 +83,29 @@ typedef struct
     int32_t                       arity;
     bool                          is_rigid;
     NECRO_TYPE_ORDER              order;
+    struct NecroTypeAttribute*    attribute;
 } NecroTypeVar;
 
 typedef struct
 {
-    struct NecroType* type1;
-    struct NecroType* type2;
+    struct NecroType*          type1;
+    struct NecroType*          type2;
+    struct NecroTypeAttribute* attribute; // NULL if the type's kind not fully applied
 } NecroTypeApp;
 
 typedef struct
 {
-    NecroAstSymbol*    con_symbol;
-    struct NecroType*  args;
+    NecroAstSymbol*            con_symbol;
+    struct NecroType*          args;
+    struct NecroTypeAttribute* attribute;
 } NecroTypeCon;
 
 typedef struct
 {
-    struct NecroType* type1;
-    struct NecroType* type2;
+    struct NecroType*          type1;
+    struct NecroType*          type2;
+    struct NecroTypeAttribute* attribute;
+    struct NecroTypeAttribute* closure_attribute;
 } NecroTypeFun;
 
 typedef struct
@@ -114,6 +122,12 @@ typedef struct
 
 typedef struct
 {
+    NecroAstSymbol*   attribute_var_symbol;
+    struct NecroType* type;
+} NecroTypeForAllAttribute;
+
+typedef struct
+{
     size_t value;
 } NecroTypeNat;
 
@@ -122,18 +136,33 @@ typedef struct
     NecroSymbol value;
 } NecroTypeSym;
 
+// typedef enum
+// {
+//     NECRO_KIND_OP_UNION,
+//     NECRO_KIND_OP_INTERSECTION,
+//     NECRO_KIND_OP_INVERSE,
+// } NECRO_KIND_OP_TYPE;
+
+// typedef struct
+// {
+//     NECRO_KIND_OP_TYPE op_type;
+//     struct NecroType*  kind1;
+//     struct NecroType*  kind2;
+// } NecroKindOp;
+
 typedef struct NecroType
 {
     union
     {
-        NecroTypeVar    var;
-        NecroTypeApp    app;
-        NecroTypeCon    con;
-        NecroTypeFun    fun;
-        NecroTypeList   list;
-        NecroTypeForAll for_all;
-        NecroTypeNat    nat;
-        NecroTypeSym    sym;
+        NecroTypeVar     var;
+        NecroTypeApp     app;
+        NecroTypeCon     con;
+        NecroTypeFun     fun;
+        NecroTypeList    list;
+        NecroTypeForAll  for_all;
+        NecroTypeNat     nat;
+        NecroTypeSym     sym;
+        // NecroKindOp      kop;
     };
     NECRO_TYPE        type;
     bool              pre_supplied;

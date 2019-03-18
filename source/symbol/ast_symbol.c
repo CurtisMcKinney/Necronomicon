@@ -29,6 +29,7 @@ NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name
         .type_class              = NULL,
         .type_class_instance     = NULL,
         .necro_machine_ast       = NULL,
+        .type_attribute          = NULL,
     };
     return ast_symbol;
 }
@@ -54,6 +55,7 @@ NecroAstSymbol* necro_ast_symbol_deep_copy(NecroPagedArena* arena, NecroAstSymbo
         .type_class              = NULL,
         .type_class_instance     = NULL,
         .necro_machine_ast       = NULL,
+        .type_attribute          = ast_symbol->type_attribute,
     };
     return new_symbol;
 }

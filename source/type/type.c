@@ -23,9 +23,22 @@
 
 // TODO: "Normalize" type variables in printing so that you never print the same variable name twice with two different meanings!
 
-//=====================================================
+
+///////////////////////////////////////////////////////
+// Forward Declarations
+///////////////////////////////////////////////////////
+struct NecroTypeAttribute* necro_type_attribute_alloc(NecroPagedArena* arena);
+struct NecroTypeAttribute* necro_type_attribute_create_var(NecroPagedArena* arena, NecroAstSymbol* var_symbol);
+struct NecroTypeAttribute* necro_type_attribute_fresh_var(NecroPagedArena* arena);
+struct NecroTypeAttribute* necro_type_attribute_create_unique(NecroPagedArena* arena);
+struct NecroTypeAttribute* necro_type_attribute_create_non_unique(NecroPagedArena* arena);
+struct NecroTypeAttribute* necro_type_attribute_create_neg(NecroPagedArena* arena, struct NecroTypeAttribute* attribute_to_negate);
+struct NecroTypeAttribute* necro_type_attribute_create_and(NecroPagedArena* arena, struct NecroTypeAttribute* attribute1, struct NecroTypeAttribute* attribute2);
+struct NecroTypeAttribute* necro_type_attribute_create_or(NecroPagedArena* arena, struct NecroTypeAttribute* attribute1, struct NecroTypeAttribute* attribute2);
+
+///////////////////////////////////////////////////////
 // Utility
-//=====================================================
+///////////////////////////////////////////////////////
 NecroResult(NecroType) necro_type_unify_order(NecroType* type1, NecroType* type2);
 
 NecroType* necro_type_alloc(NecroPagedArena* arena)
@@ -2112,4 +2125,117 @@ NecroResult(NecroType) necro_type_unify_order(NecroType* type1, NecroType* type2
         assert(false);
         return ok(NecroType, NULL);
     }
+}
+
+///////////////////////////////////////////////////////
+// NecroTypeAttr
+// -----------------
+// largely based on "Equality based Uniqueness Types":
+// https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.160.5690&rep=rep1&type=pdf
+///////////////////////////////////////////////////////
+typedef enum
+{
+    NECRO_TYPE_ATTRIBUTE_VAR,
+    NECRO_TYPE_ATTRIBUTE_UNIQUE,
+    NECRO_TYPE_ATTRIBUTE_NON_UNIQUE,
+    NECRO_TYPE_ATTRIBUTE_NEG,
+    NECRO_TYPE_ATTRIBUTE_AND,
+    NECRO_TYPE_ATTRIBUTE_OR,
+} NECRO_TYPE_ATTRIBUTE_TYPE;
+
+typedef struct
+{
+    NecroAstSymbol*            var_symbol;
+    struct NecroTypeAttribute* bound;
+} NecroTypeAttributeVar;
+
+typedef struct
+{
+    struct NecroTypeAttribute* attribute;
+} NecroTypeAttributeNegation;
+
+typedef struct
+{
+    struct NecroTypeAttribute* attribute1;
+    struct NecroTypeAttribute* attribute2;
+} NecroTypeAttributeAnd;
+
+typedef struct
+{
+    struct NecroTypeAttribute* attribute1;
+    struct NecroTypeAttribute* attribute2;
+} NecroTypeAttributeOr;
+
+typedef struct NecroTypeAttribute
+{
+    union
+    {
+        NecroTypeAttributeVar      var;
+        NecroTypeAttributeNegation neg;
+        NecroTypeAttributeAnd      and;
+        NecroTypeAttributeOr       or;
+    };
+    NECRO_TYPE_ATTRIBUTE_TYPE type;
+} NecroTypeAttribute;
+
+NecroTypeAttribute* necro_type_attribute_alloc(NecroPagedArena* arena)
+{
+    return necro_paged_arena_alloc(arena, sizeof(NecroTypeAttribute));
+}
+
+NecroTypeAttribute* necro_type_attribute_create_var(NecroPagedArena* arena, NecroAstSymbol* var_symbol)
+{
+    if (var_symbol->type_attribute != NULL)
+        return var_symbol->type_attribute;
+    NecroTypeAttribute* attribute = necro_type_attribute_alloc(arena);
+    attribute->type               = NECRO_TYPE_ATTRIBUTE_VAR;
+    attribute->var.var_symbol     = var_symbol;
+    attribute->var.bound          = NULL;
+    var_symbol->type_attribute    = attribute;
+    return attribute;
+}
+
+NecroTypeAttribute* necro_type_attribute_fresh_var(NecroPagedArena* arena)
+{
+    return necro_type_attribute_create_var(arena, necro_ast_symbol_create(arena, NULL, NULL, NULL, NULL));
+}
+
+NecroTypeAttribute* necro_type_attribute_create_unique(NecroPagedArena* arena)
+{
+    NecroTypeAttribute* attribute = necro_type_attribute_alloc(arena);
+    attribute->type               = NECRO_TYPE_ATTRIBUTE_UNIQUE;
+    return attribute;
+}
+
+NecroTypeAttribute* necro_type_attribute_create_non_unique(NecroPagedArena* arena)
+{
+    NecroTypeAttribute* attribute = necro_type_attribute_alloc(arena);
+    attribute->type               = NECRO_TYPE_ATTRIBUTE_NON_UNIQUE;
+    return attribute;
+}
+
+NecroTypeAttribute* necro_type_attribute_create_neg(NecroPagedArena* arena, NecroTypeAttribute* attribute_to_negate)
+{
+    NecroTypeAttribute* attribute = necro_type_attribute_alloc(arena);
+    attribute->type               = NECRO_TYPE_ATTRIBUTE_NEG;
+    attribute->neg.attribute      = attribute_to_negate;
+    return attribute;
+}
+
+NecroTypeAttribute* necro_type_attribute_create_and(NecroPagedArena* arena, NecroTypeAttribute* attribute1, NecroTypeAttribute* attribute2)
+{
+    NecroTypeAttribute* attribute = necro_type_attribute_alloc(arena);
+    attribute->type               = NECRO_TYPE_ATTRIBUTE_AND;
+    attribute->and.attribute1     = attribute1;
+    attribute->and.attribute2     = attribute2;
+    return attribute;
+}
+
+NecroTypeAttribute* necro_type_attribute_create_or(NecroPagedArena* arena, NecroTypeAttribute* attribute1, NecroTypeAttribute* attribute2)
+{
+    NecroTypeAttribute* attribute = necro_type_attribute_alloc(arena);
+    attribute->type               = NECRO_TYPE_ATTRIBUTE_OR;
+    attribute->or.attribute1      = attribute1;
+    attribute->or.attribute2      = attribute2;
+    return attribute;
 }

@@ -987,6 +987,16 @@ void necro_parse_test()
     }
 
     {
+        const char* test_name   = "Instance Declarations 2";
+        const char* test_source = ""
+            "class NumCollection c where\n"
+            "  checkOutMyCollection :: Num a => a -> c a -> c a\n"
+            "instance NumCollection (Array 1) where\n"
+            "  checkOutMyCollection x c = c\n";
+        necro_parse_ast_test_error(test_name, test_source, NECRO_PARSE_ERROR);
+    }
+
+    {
         puts("Parse {{{ child process parse_test:  starting...");
         assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\parse_test.necro -parse") == 0);
         puts("Parse }}} child process parse_test:  passed\n");

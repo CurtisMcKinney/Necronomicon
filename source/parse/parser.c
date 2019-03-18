@@ -747,7 +747,8 @@ NecroResult(void) necro_parse(NecroCompileInfo info, NecroIntern* intern, NecroL
     *out_ast = parser.ast;
     NecroParseAstLocalPtr local_ptr = necro_try_map(NecroParseAstLocalPtr, void, necro_parse_top_declarations(&parser));
     parser.ast.root                 = local_ptr;
-    if ((necro_parse_peek_token_type(&parser) != NECRO_LEX_END_OF_STREAM && necro_parse_peek_token_type(&parser) != NECRO_LEX_SEMI_COLON) || (local_ptr == null_local_ptr && tokens->length > 0))
+    // if ((necro_parse_peek_token_type(&parser) != NECRO_LEX_END_OF_STREAM && necro_parse_peek_token_type(&parser) != NECRO_LEX_SEMI_COLON) || (local_ptr == null_local_ptr && tokens->length > 0))
+    if (necro_parse_peek_token_type(&parser) != NECRO_LEX_END_OF_STREAM || (local_ptr == null_local_ptr && tokens->length > 0))
     {
         NecroLexToken* look_ahead_token = necro_parse_peek_token(&parser);
         return necro_parse_error(look_ahead_token->source_loc, look_ahead_token->end_loc);
@@ -822,7 +823,8 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_top_declarations(NecroParser* par
             NecroResult(NecroParseAstLocalPtr) next_top_decl_result = necro_parse_top_declarations(parser);
             if (next_top_decl_result.type == NECRO_RESULT_OK)
             {
-                return ok_NecroParseAstLocalPtr(null_local_ptr);
+                // return ok_NecroParseAstLocalPtr(null_local_ptr);
+                return necro_error_map(void, NecroParseAstLocalPtr, necro_parse_error(parse_error_source_loc, parse_error_end_loc));
             }
             else
             {
@@ -831,7 +833,8 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_top_declarations(NecroParser* par
         }
         else
         {
-            return ok_NecroParseAstLocalPtr(null_local_ptr);
+            // return ok_NecroParseAstLocalPtr(null_local_ptr);
+            return necro_error_map(void, NecroParseAstLocalPtr, necro_parse_error(parse_error_source_loc, parse_error_end_loc));
         }
     }
 
@@ -4050,6 +4053,8 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_inst(NecroParser* parser)
     //     return arr_ptr;
     // }
 
+    // Nothing recognized, rewind
+    necro_parse_restore(parser, snapshot);
     return ok(NecroParseAstLocalPtr, ptr);
 }
 

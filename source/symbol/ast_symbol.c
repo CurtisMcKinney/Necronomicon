@@ -21,6 +21,7 @@ NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name
         .declaration_group       = NULL,
         .type                    = NULL,
         .con_num                 = 0,
+        .is_enum                 = true,
         .is_constructor          = false,
         .type_status             = NECRO_TYPE_UNCHECKED,
         .is_recursive            = false,
@@ -30,6 +31,7 @@ NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name
         .type_class_instance     = NULL,
         .necro_machine_ast       = NULL,
         .type_attribute          = NULL,
+        .alias_set               = NULL,
     };
     return ast_symbol;
 }
@@ -56,6 +58,7 @@ NecroAstSymbol* necro_ast_symbol_deep_copy(NecroPagedArena* arena, NecroAstSymbo
         .type_class_instance     = NULL,
         .necro_machine_ast       = NULL,
         .type_attribute          = ast_symbol->type_attribute,
+        .alias_set               = NULL,
     };
     return new_symbol;
 }

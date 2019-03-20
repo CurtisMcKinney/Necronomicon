@@ -259,6 +259,8 @@ struct NecroType;
 NECRO_DECLARE_PTR_RESULT(NecroType);
 struct NecroTypeClassContext;
 NECRO_DECLARE_PTR_RESULT(NecroTypeClassContext);
+struct NecroAliasSet;
+NECRO_DECLARE_PTR_RESULT(NecroAliasSet);
 
 typedef struct
 {
@@ -284,6 +286,7 @@ typedef union
     NecroResult_NecroAstSymbol        NecroAstSymbol_result;
     NecroResult_NecroType             NecroType_result;
     NecroResult_NecroTypeClassContext NecroTypeClassContext_result;
+    NecroResult_NecroAliasSet         NecroAliasSet_result;
 } NecroResultUnion;
 
 // TODO: If and when the compiler becomes threaded,

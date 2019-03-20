@@ -1,6 +1,18 @@
+accumulateNewAudio1 :: Default s => (Double -> *s -> *(Double, s)) -> Audio -> Audio
+
+updateSinOscState :: Double -> *SinOscState -> *(Double, SinOscState)
+updateSinOscState freq state =
+  (value, state { .phase <- phase' })
+  where
+    phase' = state.phase + freq * inverseSampleRateDelta
+    value  = waveTableLookup phase' sinOscWaveTable
+
+sinOsc :: Audio -> Audio
+sinOsc freq = accumulateNewAudio1 updateSinOscState freq
 
 speed :: Float -> Float -> Float
-speed x y = dx * dx + dy * dy
+speed x y =
+  dx * dx + dy * dy
   where
     dx = x - prev x
     dy = x - prev x

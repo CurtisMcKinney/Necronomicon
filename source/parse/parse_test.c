@@ -987,7 +987,7 @@ void necro_parse_test()
     }
 
     {
-        const char* test_name   = "Instance Declarations 2";
+        const char* test_name   = "Instance Declaration Error";
         const char* test_source = ""
             "class NumCollection c where\n"
             "  checkOutMyCollection :: Num a => a -> c a -> c a\n"

@@ -33,7 +33,6 @@ struct NecroBase;
         * "Practical Affine Types": http://users.eecs.northwestern.edu/~jesse/pubs/alms/tovpucella-alms.pdf
         * "Practical Affine Types": https://www.researchgate.net/publication/216817423_Practical_Affine_Types/download
 
-    - Type Constructors (including the function arrow (->)) are dependently kinded based on their input values, i.e.:
         * data Maybe a = Just a | Nothing
         * Maybe has kind:
             forall (a : k). k -> k
@@ -41,33 +40,74 @@ struct NecroBase;
         * Either has kind:
             forall (a : k1) (b : k2). k1 -> k2 -> k1 | k2
 
-sinOsc :: Audio -> Audio
-sinOsc freq = result
-  where
-    (result, sinOscState ~ default) = accumulateNewAudio1 updateSinOscState freq sinOscState
+        sinOsc :: Audio -> Audio
+        sinOsc freq = result
+          where
+            (result, sinOscState ~ default) = accumulateNewAudio1 updateSinOscState freq sinOscState
 
-updateSinOscState:: Double -> *SinOscState -> (Double, *SinOscState)
-accumulateNewAudio1 :: (Double -> *s -> (Double, *s)) -> Audio -> *s -> (Array, *s)
+        updateSinOscState:: Double -> *SinOscState -> (Double, *SinOscState)
+        accumulateNewAudio1 :: (Default s, s : UniqueType) => (Double -> s -> (Double, s)) -> Audio -> *s -> (Audio, *s)
 
-    * Idea 3, Clean style Uniqueness Types, but simplified:
-        - "Equality based Uniqueness Types": https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.160.5690&rep=rep1&type=pdf
+    - Idea 3, Clean style Uniqueness Types, but simplified:
+                - "Equality based Uniqueness Types": https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.160.5690&rep=rep1&type=pdf
 
-// World based IO
-outputAudio :: Audio -> Int -> *World -> *World
-outputFrame :: Frame -> *World -> *World
-recordAudio :: Audio -> Text -> *World -> *World
-main        :: *World -> *World
-main = outAudio synths 1 |> outputFrame scene |> recordAudio synths fileName
+        * World based IO
+        outputAudio :: Audio -> Int -> *World -> *World
+        outputFrame :: Frame -> *World -> *World
+        recordAudio :: Audio -> Text -> *World -> *World
+        main        :: *World -> *World
+        main = outAudio synths 1 |> outputFrame scene |> recordAudio synths fileName
 
-// Type state based IO
-openFile  :: Text  -> *File
-writeFile :: Text -> *File -> *File
-closeFile :: *File -> *()
+        - Clean based system but without uniqueness polymorphism?
 
-openAudioChan  :: *AudioChan
-writeAudioChan :: Audio -> *AudioChan -> *AudioChan
-closeAudioChan :: *AudioChan -> *()
 
+    - Idea 3, Linear Bindings ala Linear Haskell
+        * data Maybe a = Just a | Nothing
+            forall a. a -o Just a
+            forall a. Nothing
+        * data Either a b = Left a | Right b
+            forall a b. a -o Left a
+            forall a b. b -o Left b
+        * data SinOscState = SinOscState (Unrestricted Double)
+        * accumulateNewAudio1 :: Default s => (Double -o s -o (Double, s)) -o Audio -o Audio
+        * updateSinOscState :: Double -o SinOscState -o (Double, SinOscState)
+          updateSinOscState freq (SinOscState phase) =
+            (waveTableLookup phase' sinOscWaveTable, SinOscState phase')
+            where
+              phase' = phase + freq * inverseSampleRateDelta
+          sinOsc :: Audio -o Audio
+          sinOsc freq = accumulateNewAudio1 updateSinOscState freq
+
+        * World based IO
+        outputAudio :: Audio -> Int -> World -o World
+        outputFrame :: Frame -> World -o World
+        recordAudio :: Audio -> Text -> World -o World
+        main        :: World -o World
+        main world = world |> outAudio synths 1 |> outputFrame scene |> recordAudio synths fileName
+
+    - Idea 4: Rust / Futhark style Ownership types based on aliasing
+        * Futhark design: https://futhark-lang.org/publications/troels-henriksen-phd-thesis.pdf
+        * Only restricts function calls
+        * Only performs simple alias analysis
+
+        * Ownership based DSP
+            accumulateNewAudio1 :: Default s => (Double -> !s -> !(Double, s)) -> Audio -> Audio
+            updateSinOscState :: Double -> *SinOscState -> !(Double, SinOscState)
+            updateSinOscState freq (SinOscState phase) =
+              (waveTableLookup phase' sinOscWaveTable, SinOscState phase')
+              where
+                phase' = phase + freq * inverseSampleRateDelta
+            sinOsc :: Audio -> Audio
+            sinOsc freq = accumulateNewAudio1 updateSinOscState freq
+
+        * Ownership based World IO
+            outputAudio :: Audio -> Int -> !World -> !World
+            outputFrame :: Frame -> !World -> !World
+            recordAudio :: Audio -> Text -> !World -> !World
+            main        :: !World -> !World
+            main world = world |> outAudio synths 1 |> outputFrame scene |> recordAudio synths fileName
+
+    - Crazy Idea 5: Rust / Futhark style Ownership types based on aliasing
 */
 
 NecroType*             necro_kind_fresh_kind_var(NecroPagedArena* arena, struct NecroBase* base);

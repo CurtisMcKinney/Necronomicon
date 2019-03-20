@@ -18,7 +18,7 @@ struct NecroTypeClassContext;
 struct NecroScopedSymTable;
 struct NecroRenamer;
 struct NecroBase;
-struct NecroTypeAttribute;
+// struct NecroTypeAttribute;
 
 typedef enum
 {
@@ -66,12 +66,10 @@ typedef enum
     NECRO_TYPE_FUN,
     NECRO_TYPE_LIST,
     NECRO_TYPE_FOR,
-    NECRO_TYPE_FAT,
 
     // Other
     NECRO_TYPE_NAT,
     NECRO_TYPE_SYM,
-    // NECRO_KIND_OP,
 } NECRO_TYPE;
 
 typedef struct
@@ -83,29 +81,24 @@ typedef struct
     int32_t                       arity;
     bool                          is_rigid;
     NECRO_TYPE_ORDER              order;
-    struct NecroTypeAttribute*    attribute;
 } NecroTypeVar;
 
 typedef struct
 {
     struct NecroType*          type1;
     struct NecroType*          type2;
-    struct NecroTypeAttribute* attribute; // NULL if the type's kind not fully applied
 } NecroTypeApp;
 
 typedef struct
 {
     NecroAstSymbol*            con_symbol;
     struct NecroType*          args;
-    struct NecroTypeAttribute* attribute;
 } NecroTypeCon;
 
 typedef struct
 {
     struct NecroType*          type1;
     struct NecroType*          type2;
-    struct NecroTypeAttribute* attribute;
-    struct NecroTypeAttribute* closure_attribute;
 } NecroTypeFun;
 
 typedef struct
@@ -122,12 +115,6 @@ typedef struct
 
 typedef struct
 {
-    NecroAstSymbol*   attribute_var_symbol;
-    struct NecroType* type;
-} NecroTypeForAllAttribute;
-
-typedef struct
-{
     size_t value;
 } NecroTypeNat;
 
@@ -136,19 +123,11 @@ typedef struct
     NecroSymbol value;
 } NecroTypeSym;
 
-// typedef enum
-// {
-//     NECRO_KIND_OP_UNION,
-//     NECRO_KIND_OP_INTERSECTION,
-//     NECRO_KIND_OP_INVERSE,
-// } NECRO_KIND_OP_TYPE;
-
-// typedef struct
-// {
-//     NECRO_KIND_OP_TYPE op_type;
-//     struct NecroType*  kind1;
-//     struct NecroType*  kind2;
-// } NecroKindOp;
+typedef enum
+{
+    NECRO_TYPE_UNIQUE,
+    NECRO_TYPE_NOT_UNIQUE,
+} NECRO_TYPE_UNIQUENESS_ATTRIBUTE;
 
 typedef struct NecroType
 {
@@ -162,11 +141,11 @@ typedef struct NecroType
         NecroTypeForAll  for_all;
         NecroTypeNat     nat;
         NecroTypeSym     sym;
-        // NecroKindOp      kop;
     };
-    NECRO_TYPE        type;
-    bool              pre_supplied;
-    struct NecroType* kind;
+    NECRO_TYPE                      type;
+    bool                            pre_supplied;
+    NECRO_TYPE_UNIQUENESS_ATTRIBUTE uniqueness_attribute;
+    struct NecroType*               kind;
 } NecroType;
 
 typedef struct NecroInstSub
@@ -200,6 +179,7 @@ bool                   necro_type_is_bound_in_scope(NecroType* type, struct Necr
 NecroResult(bool)      necro_type_is_unambiguous_polymorphic(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, const NecroType* macro_type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(void)      necro_type_ambiguous_type_variable_check(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, const NecroType* macro_type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 bool                   necro_type_is_polymorphic(const NecroType* type);
+bool                   necro_type_is_copy_type(const NecroType* type);
 size_t                 necro_type_arity(NecroType* type);
 size_t                 necro_type_hash(NecroType* type);
 size_t                 necro_type_list_count(NecroType* list);
@@ -210,7 +190,6 @@ NecroType*             necro_type_uncurry_app(NecroPagedArena* arena, struct Nec
 NecroType*             necro_type_alloc(NecroPagedArena* arena);
 NecroType*             necro_type_fresh_var(NecroPagedArena* arena);
 NecroType*             necro_type_var_create(NecroPagedArena* arena, NecroAstSymbol* var_symbol);
-NecroType*             necro_type_declare(NecroPagedArena* arena, NecroAstSymbol* con_symbol);
 NecroType*             necro_type_con_create(NecroPagedArena* arena, NecroAstSymbol* con_symbol, NecroType* args);
 NecroType*             necro_type_fn_create(NecroPagedArena* arena, NecroType* type1, NecroType* type2);
 NecroType*             necro_type_app_create(NecroPagedArena* arena, NecroType* type1, NecroType* type2);

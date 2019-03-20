@@ -25,6 +25,7 @@ struct NecroTypeClassInstance;
 struct NecroInstanceList;
 struct NecroMachAstSymbol;
 struct NecroTypeAttribute;
+struct NecroAliasSet;
 
 typedef enum
 {
@@ -49,16 +50,18 @@ typedef struct NecroAstSymbol
     struct NecroAst*               declaration_group;       // Declaration group of the symbol, if present. Resolved after d_analysis phase.
     struct NecroType*              type;                    // Type of the symbol, if present. Resolved after inference phase.
     size_t                         con_num;                 // Constructor Number, if present. This is the order in the constructor list of a data object a constructor sits at. Resolved after inference phase and used in code generation phase.
-    bool                           is_constructor;          // Whether or not the symbol is a constructor (HACK?)
+    bool                           is_enum;                 // Whether or not this type is an enum type. Resolved in necro_infer.
     NECRO_TYPE_STATUS              type_status;             // Type checking status of the symbol. Useful for detecting recursion in the ast.
+    bool                           is_constructor;          // Whether or not the symbol is a constructor (HACK?)
     bool                           is_recursive;            // Whether or not symbol is recursive. Create an enum for this?
     struct NecroTypeClass*         method_type_class;       // Type class for a class method, if present. Resolved at inference phase.
     struct NecroTypeClass*         type_class;              // Type class, if present. Resolved at inference phase.
     struct NecroTypeClassInstance* type_class_instance;     // Class instance, if present. Resolved at inference phase.
-    struct NecroMachineAST*        necro_machine_ast;       // NecroMachineAST that this symbol was compiled into. Generated at NecroMachine compilation phase.
     struct NecroInstanceList*      instance_list;           // List of type classes this symbol is an instance of. Resolved at inference phase.
     struct NecroMachAstSymbol*     mach_symbol;             // Resolved at necro_mach_translate.
     struct NecroTypeAttribute*     type_attribute;          // Type Attribute. Resolves during necro_infer
+    struct NecroAliasSet*          alias_set;               // Alias Set. Resolved during alias analysis.
+    struct NecroMachineAST*        necro_machine_ast;       // NecroMachineAST that this symbol was compiled into. Generated at NecroMachine compilation phase.
 } NecroAstSymbol;
 
 NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name, NecroSymbol source_name, NecroSymbol module_name, struct NecroAst* ast);

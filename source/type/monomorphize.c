@@ -12,49 +12,6 @@
 #include "kind.h"
 
 /*
-    Notes:
-        * Crazy thoughts on Region based memory management:
-            - Regions are large constant sized blocks of memory which are statically determined at compile time.
-            - Regions are formed from all the memory required to form recursive values.
-            - A region is allocated in one giant chunk and deallocated in one giant chunk.
-            - To determine the size of the region we should put some (perhaps extreme) restrictions on the language:
-                * No recursive functions
-                * No recursive data types.
-                * The language requires monomorphization.
-                * Futhark type function restrictions (Can't be returned from an if statement, etc).
-                * Recursive values must be statically initialized with a statically known initializer value.
-            - Recursive value use cases:
-                * Collections of objects (with list, etc),
-                    Solution: use fixed size collections such as tuples or Arrays.
-                * Associative collections:
-                    Solution: ???
-            - Recursive function use cases:
-                * Functional equivalant of for-loop type construct (i.e mapping/folding over a list),
-                    Solution: use regular values (with feedback for state is necessary) with (take/demand/?) function.
-            - With the given restrictions all required memory for a region is statically known.
-            - The runtime will then require:
-                * A statically sized Region back buffer, to read from.
-                * A statically sized Region front buffer, to write to.
-                * A simple bump allocating temp buffer.
-
-        * Need good story for fixed size arrays
-
-        * Demand (or perhaps Lazy?) types, which have separate instantiations for each demand (or force?) site.
-
-        * Default type class. Use this for polymorphic recursion
-        * Given the above we could do an even more drastic memory scheme, such as large scale Region based memory management.
-        * Rename pass to necro_type_specialize ???
-        * Implement Patterns (The musical ones...) similarly to Iterator trait in Rust, via TypeClasses?
-
-        * Allow recursive functions
-        * Recursive functions behave as they currently do, as dynamic regions of memory
-        * Allow functions as first class values, as currently, with stateful functions createing dynamic regions of memory
-        * Use Region based memory management
-
-        * type Pattern a = Demand (Time, a)
-        * seq :: Array n (Demand (Time, a)) -> Int -> Demand (Time, a)
-        * seq :: Array n (Pattern a) -> Int -> Pattern a
-
     TODO:
         * Look into Pattern Assignment + Initializers
         * Check Numeric patterns

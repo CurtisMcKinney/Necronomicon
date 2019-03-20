@@ -93,6 +93,7 @@ set(project_SOURCES
     source/type/prim.c
     source/type/type_class.c
     source/type/monomorphize.c
+    source/type/alias_analysis.c
     source/type/derive.c
 
     source/core/core.c
@@ -158,6 +159,7 @@ set(project_HEADERS
     source/type/prim.h
     source/type/type_class.h
     source/type/monomorphize.h
+    source/type/alias_analysis.h
     source/type/derive.h
 
     source/core/core.h

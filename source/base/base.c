@@ -395,16 +395,16 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 
     // Simple Data Decls
     necro_base_create_simple_data_decl(arena, top, intern, "World");
-    necro_base_create_simple_data_decl(arena, top, intern, "Event");
     necro_base_create_simple_data_decl(arena, top, intern, "Int");
     necro_base_create_simple_data_decl(arena, top, intern, "Float");
-    necro_base_create_simple_data_decl(arena, top, intern, "Audio");
     necro_base_create_simple_data_decl(arena, top, intern, "Rational");
     necro_base_create_simple_data_decl(arena, top, intern, "Char");
+    necro_base_create_simple_data_decl(arena, top, intern, "Audio"); // TODO: Change to data Audio = AKr Double | AMono (Array 2048 Double) | AStereo (Array 2048 Double) (Array 2048 Double) | AQuad (Array 2048 Double) (Array 2048 Double) (Array 2048 Double) (Array 2048 Double)
 
     // Simple Poly Data Decls
     necro_base_create_simple_poly_data_decl(arena, top, intern, "Pattern");
     necro_base_create_simple_poly_data_decl(arena, top, intern, "Ptr");
+    necro_base_create_simple_poly_data_decl(arena, top, intern, "Event");
 
     // Array
     NecroAst* array_n_type   = necro_ast_create_type_signature(arena, NECRO_SIG_TYPE_VAR, necro_ast_create_var(arena, intern, "n", NECRO_VAR_TYPE_VAR_DECLARATION), NULL, necro_ast_create_conid(arena, intern, "Nat", NECRO_CON_TYPE_VAR));
@@ -675,48 +675,47 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_append_top(arena, top, necro_base_create_ord_comp_sig(arena, intern, ">="));
     necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, ">=", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "gte", NECRO_VAR_VAR), NULL)));
 
-    // >>=
-    {
-        NecroAst* a_var       = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
-        NecroAst* b_var       = necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR);
-        NecroAst* m_var       = necro_ast_create_var(arena, intern, "m", NECRO_VAR_TYPE_FREE_VAR);
-        NecroAst* bind_op_sig =
-            necro_ast_create_fn_type_sig(arena, intern, ">>=", necro_ast_create_context(arena, intern, "Monad", "m", NULL),
-                necro_ast_create_type_fn(arena,
-                    necro_ast_create_type_app(arena, m_var, a_var),
-                    necro_ast_create_type_fn(arena,
-                        necro_ast_create_type_fn(arena, a_var, necro_ast_create_type_app(arena, m_var, b_var)),
-                        necro_ast_create_type_app(arena, m_var, b_var))),
-                NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
-        necro_append_top(arena, top, bind_op_sig);
-        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, ">>=", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "bind", NECRO_VAR_VAR), NULL)));
-    }
+    // // >>=
+    // {
+    //     NecroAst* a_var       = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
+    //     NecroAst* b_var       = necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR);
+    //     NecroAst* m_var       = necro_ast_create_var(arena, intern, "m", NECRO_VAR_TYPE_FREE_VAR);
+    //     NecroAst* bind_op_sig =
+    //         necro_ast_create_fn_type_sig(arena, intern, ">>=", necro_ast_create_context(arena, intern, "Monad", "m", NULL),
+    //             necro_ast_create_type_fn(arena,
+    //                 necro_ast_create_type_app(arena, m_var, a_var),
+    //                 necro_ast_create_type_fn(arena,
+    //                     necro_ast_create_type_fn(arena, a_var, necro_ast_create_type_app(arena, m_var, b_var)),
+    //                     necro_ast_create_type_app(arena, m_var, b_var))),
+    //             NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
+    //     necro_append_top(arena, top, bind_op_sig);
+    //     necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, ">>=", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "bind", NECRO_VAR_VAR), NULL)));
+    // }
 
-    // TODO: Make >> and << composition operators instead
-    // >>
-    {
-        NecroAst* a_var       = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
-        NecroAst* b_var       = necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR);
-        NecroAst* m_var       = necro_ast_create_var(arena, intern, "m", NECRO_VAR_TYPE_FREE_VAR);
-        NecroAst* op_sig =
-            necro_ast_create_fn_type_sig(arena, intern, ">>", necro_ast_create_context(arena, intern, "Monad", "m", NULL),
-                necro_ast_create_type_fn(arena,
-                    necro_ast_create_type_app(arena, m_var, a_var),
-                    necro_ast_create_type_fn(arena,
-                        necro_ast_create_type_app(arena, m_var, b_var),
-                        necro_ast_create_type_app(arena, m_var, b_var))),
-                NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
-        NecroAst* mm_var      = necro_ast_create_var(arena, intern, "m", NECRO_VAR_DECLARATION);
-        NecroAst* mk_var      = necro_ast_create_var(arena, intern, "k", NECRO_VAR_DECLARATION);
-        NecroAst* op_args     = necro_ast_create_apats(arena, mm_var, necro_ast_create_apats(arena, mk_var, NULL));
-        NecroAst* bind        = necro_ast_create_fexpr(arena,
-            necro_ast_create_fexpr(arena, necro_ast_create_var(arena, intern, "bind", NECRO_VAR_VAR), necro_ast_create_var(arena, intern, "m", NECRO_VAR_VAR)),
-            necro_ast_create_lambda(arena, necro_ast_create_apats(arena, necro_ast_create_wildcard(arena), NULL), necro_ast_create_var(arena, intern, "k", NECRO_VAR_VAR)));
-        NecroAst* op_rhs      = necro_ast_create_rhs(arena, bind, NULL);
-        NecroAst* op_def_ast  = necro_ast_create_apats_assignment(arena, intern, ">>", op_args, op_rhs);
-        necro_append_top(arena, top, op_sig);
-        necro_append_top(arena, top, op_def_ast);
-    }
+    // >> , no longer monadic bind operator, co-opted by forwards compose operator
+    // {
+    //     NecroAst* a_var       = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
+    //     NecroAst* b_var       = necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR);
+    //     NecroAst* m_var       = necro_ast_create_var(arena, intern, "m", NECRO_VAR_TYPE_FREE_VAR);
+    //     NecroAst* op_sig =
+    //         necro_ast_create_fn_type_sig(arena, intern, ">>", necro_ast_create_context(arena, intern, "Monad", "m", NULL),
+    //             necro_ast_create_type_fn(arena,
+    //                 necro_ast_create_type_app(arena, m_var, a_var),
+    //                 necro_ast_create_type_fn(arena,
+    //                     necro_ast_create_type_app(arena, m_var, b_var),
+    //                     necro_ast_create_type_app(arena, m_var, b_var))),
+    //             NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
+    //     NecroAst* mm_var      = necro_ast_create_var(arena, intern, "m", NECRO_VAR_DECLARATION);
+    //     NecroAst* mk_var      = necro_ast_create_var(arena, intern, "k", NECRO_VAR_DECLARATION);
+    //     NecroAst* op_args     = necro_ast_create_apats(arena, mm_var, necro_ast_create_apats(arena, mk_var, NULL));
+    //     NecroAst* bind        = necro_ast_create_fexpr(arena,
+    //         necro_ast_create_fexpr(arena, necro_ast_create_var(arena, intern, "bind", NECRO_VAR_VAR), necro_ast_create_var(arena, intern, "m", NECRO_VAR_VAR)),
+    //         necro_ast_create_lambda(arena, necro_ast_create_apats(arena, necro_ast_create_wildcard(arena), NULL), necro_ast_create_var(arena, intern, "k", NECRO_VAR_VAR)));
+    //     NecroAst* op_rhs      = necro_ast_create_rhs(arena, bind, NULL);
+    //     NecroAst* op_def_ast  = necro_ast_create_apats_assignment(arena, intern, ">>", op_args, op_rhs);
+    //     necro_append_top(arena, top, op_sig);
+    //     necro_append_top(arena, top, op_def_ast);
+    // }
 
     // <|
     {
@@ -758,7 +757,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         necro_append_top(arena, top, op_def_ast);
     }
 
-    // .
+    // << :: (b -> c) -> (a -> b) -> a -> c
     {
         NecroAst* a_var       = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
         NecroAst* b_var       = necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR);
@@ -767,7 +766,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         b_var->variable.order = NECRO_TYPE_HIGHER_ORDER;
         c_var->variable.order = NECRO_TYPE_HIGHER_ORDER;
         NecroAst* op_sig      =
-            necro_ast_create_fn_type_sig(arena, intern, ".", NULL,
+            necro_ast_create_fn_type_sig(arena, intern, "<<", NULL,
                 necro_ast_create_type_fn(arena, necro_ast_create_type_fn(arena, b_var, c_var),
                     necro_ast_create_type_fn(arena, necro_ast_create_type_fn(arena, a_var, b_var),
                         necro_ast_create_type_fn(arena, a_var, c_var))),
@@ -781,7 +780,35 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
                 necro_ast_create_fexpr(arena, necro_ast_create_var(arena, intern, "g", NECRO_VAR_VAR),
                     necro_ast_create_var(arena, intern, "x", NECRO_VAR_VAR))));
         NecroAst* op_rhs_ast  = necro_ast_create_rhs(arena, op_lambda, NULL);
-        NecroAst* op_def_ast  = necro_ast_create_apats_assignment(arena, intern, ".", op_args, op_rhs_ast);
+        NecroAst* op_def_ast  = necro_ast_create_apats_assignment(arena, intern, "<<", op_args, op_rhs_ast);
+        necro_append_top(arena, top, op_sig);
+        necro_append_top(arena, top, op_def_ast);
+    }
+
+    // >> :: (a -> b) -> (b -> c) -> a -> c
+    {
+        NecroAst* a_var       = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
+        NecroAst* b_var       = necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR);
+        NecroAst* c_var       = necro_ast_create_var(arena, intern, "c", NECRO_VAR_TYPE_FREE_VAR);
+        a_var->variable.order = NECRO_TYPE_HIGHER_ORDER;
+        b_var->variable.order = NECRO_TYPE_HIGHER_ORDER;
+        c_var->variable.order = NECRO_TYPE_HIGHER_ORDER;
+        NecroAst* op_sig      =
+            necro_ast_create_fn_type_sig(arena, intern, ">>", NULL,
+                necro_ast_create_type_fn(arena, necro_ast_create_type_fn(arena, a_var, b_var),
+                    necro_ast_create_type_fn(arena, necro_ast_create_type_fn(arena, b_var, c_var),
+                        necro_ast_create_type_fn(arena, a_var, c_var))),
+                NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
+        NecroAst* f_var       = necro_ast_create_var(arena, intern, "f", NECRO_VAR_DECLARATION);
+        NecroAst* g_var       = necro_ast_create_var(arena, intern, "g", NECRO_VAR_DECLARATION);
+        NecroAst* x_var       = necro_ast_create_var(arena, intern, "x", NECRO_VAR_DECLARATION);
+        NecroAst* op_args     = necro_ast_create_apats(arena, f_var, necro_ast_create_apats(arena, g_var, NULL));
+        NecroAst* op_lambda   = necro_ast_create_lambda(arena, necro_ast_create_apats(arena, x_var, NULL),
+            necro_ast_create_fexpr(arena, necro_ast_create_var(arena, intern, "g", NECRO_VAR_VAR),
+                necro_ast_create_fexpr(arena, necro_ast_create_var(arena, intern, "f", NECRO_VAR_VAR),
+                    necro_ast_create_var(arena, intern, "x", NECRO_VAR_VAR))));
+        NecroAst* op_rhs_ast  = necro_ast_create_rhs(arena, op_lambda, NULL);
+        NecroAst* op_def_ast  = necro_ast_create_apats_assignment(arena, intern, ">>", op_args, op_rhs_ast);
         necro_append_top(arena, top, op_sig);
         necro_append_top(arena, top, op_def_ast);
     }

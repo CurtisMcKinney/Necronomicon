@@ -335,6 +335,8 @@ NecroResult(NecroType) necro_create_data_constructor(NecroInfer* infer, NecroAst
     NecroType* con_args = NULL;
     NecroAst*  args_ast = ast->constructor.arg_list;
     size_t     count    = 0;
+    if (args_ast != NULL)
+        data_type->con.con_symbol->is_enum = false;
     while (args_ast != NULL)
     {
         NecroType* arg = necro_try(NecroType, necro_ast_to_type_sig_go(infer, args_ast->list.item, NECRO_TYPE_POLY_ORDER));

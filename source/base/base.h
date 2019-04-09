@@ -21,12 +21,31 @@ typedef struct NecroBase
     NecroAstArena ast;
 
     NecroAstSymbol* higher_kind; // NOTE: Not actually supported, only here for error messages
-    NecroAstSymbol* kind_kind; // NOTE: Instead of Kind of Type being NULL or Type
+    NecroAstSymbol* kind_kind;   // NOTE: Instead of Kind of Type being NULL or Type
     NecroAstSymbol* star_kind;
-    NecroAstSymbol* unique_type_kind;
-    NecroAstSymbol* any_type_kind;
+    NecroAstSymbol* attribute_kind;
     NecroAstSymbol* nat_kind;
     NecroAstSymbol* sym_kind;
+
+    // // Attributes
+    // NecroAstSymbol* unique_type_attribute;
+    // NecroAstSymbol* non_unique_type_attribute;
+    // NecroAstSymbol* disjunction_type_attribute;
+    // NecroAstSymbol* conjunction_type_attribute;
+    // NecroAstSymbol* negation_type_attribute;
+
+    // // Multiplicities
+    // NecroAstSymbol* multiplicity_kind;
+    // NecroAstSymbol* multiplicity_one;
+    // NecroAstSymbol* multiplicity_omega;
+    // NecroAstSymbol* multiplicity_mul;
+    // NecroAstSymbol* multiplicity_add;
+    // NecroAstSymbol* multiplicity_lte;
+
+    // Ownership
+    NecroAstSymbol* ownership_kind;
+    NecroAstSymbol* ownership_share;
+    NecroAstSymbol* ownership_steal;
 
     NecroAstSymbol* tuple2_con;
     NecroAstSymbol* tuple3_con;

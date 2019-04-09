@@ -318,6 +318,17 @@ bool necro_scope_contains(NecroScope* scope, NecroSymbol symbol)
     return necro_scope_find_in_this_scope_ast_symbol(scope, symbol) != NULL;
 }
 
+bool necro_scope_is_subscope_of(NecroScope* super_scope, NecroScope* maybe_sub_scope)
+{
+    while (maybe_sub_scope != NULL)
+    {
+        if (maybe_sub_scope == super_scope)
+            return true;
+        maybe_sub_scope = maybe_sub_scope->parent;
+    }
+    return false;
+}
+
 NecroAstSymbol* necro_scope_find_ast_symbol(NecroScope* scope, NecroSymbol symbol)
 {
     NecroScope*     current_scope = scope;
@@ -599,6 +610,9 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
         input_node->scope = scoped_symtable->current_type_scope;
         necro_build_scopes_go(scoped_symtable, input_node->function_type.type);
         necro_build_scopes_go(scoped_symtable, input_node->function_type.next_on_arrow);
+        break;
+    case NECRO_AST_TYPE_ATTRIBUTE:
+        necro_build_scopes_go(scoped_symtable, input_node->attribute.attribute_type);
         break;
     default:
         assert(false);

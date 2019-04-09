@@ -589,6 +589,9 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
         d_analyze_go(d_analyzer, ast->function_type.type);
         d_analyze_go(d_analyzer, ast->function_type.next_on_arrow);
         break;
+    case NECRO_AST_TYPE_ATTRIBUTE:
+        d_analyze_go(d_analyzer, ast->attribute.attribute_type);
+        break;
 
     default:
         assert(false);

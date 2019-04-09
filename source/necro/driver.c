@@ -33,6 +33,7 @@
 #include "core/core_pretty_print.h"
 #include "utility/unicode_properties.h"
 #include "type/monomorphize.h"
+#include "alias_analysis.h"
 
 #define NECRO_VERBOSITY 1
 
@@ -148,6 +149,7 @@ NecroResult(void) necro_compile_go(
     //--------------------
     necro_compile_begin_phase(info, NECRO_PHASE_DEPENDENCY_ANALYSIS);
     necro_dependency_analyze(info, intern, ast);
+    necro_alias_analysis(info, ast); // NOTE: Consider merging alias_analysis into RENAME_VAR phase?
     if (necro_compile_end_phase(info, NECRO_PHASE_DEPENDENCY_ANALYSIS))
         return ok_void();
 
@@ -370,6 +372,7 @@ void necro_test(NECRO_TEST test)
     case NECRO_TEST_PARSER:               necro_parse_test ();               break;
     case NECRO_TEST_INTERN:               necro_intern_test();               break;
     case NECRO_TEST_RENAME:               necro_rename_test();               break;
+    case NECRO_TEST_ALIAS:                necro_alias_analysis_test();       break;
     case NECRO_TEST_INFER:                necro_test_infer();                break;
     case NECRO_TEST_MONOMORPHIZE:         necro_monomorphize_test();         break;
     case NECRO_TEST_ARENA_CHAIN_TABLE:    necro_arena_chain_table_test();    break;
@@ -381,6 +384,7 @@ void necro_test(NECRO_TEST test)
         necro_parse_test();
         necro_rename_test();
         necro_base_test();
+        necro_alias_analysis_test();
         necro_test_infer();
         necro_monomorphize_test();
         // necro_arena_chain_table_test();

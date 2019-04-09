@@ -76,7 +76,7 @@ NecroResult(NecroType)             necro_ambiguous_type_class_check(NecroAstSymb
 NecroResult(NecroTypeClassContext) necro_ast_to_context(struct NecroInfer* infer, NecroAst* context_ast);
 void                               necro_apply_constraints(NecroPagedArena* arena, NecroType* type, NecroTypeClassContext* context);
 NecroTypeClassContext*             necro_create_type_class_context(NecroPagedArena* arena, NecroTypeClass* type_class, NecroAstSymbol* type_class_name, NecroAstSymbol* type_var, NecroTypeClassContext* next);
-NecroResult(NecroType)             necro_propogate_type_classes(NecroPagedArena* arena, struct NecroBase* base, NecroTypeClassContext* classes, NecroType* type, NecroScope* scope);
+NecroResult(NecroType)             necro_propagate_type_classes(NecroPagedArena* arena, struct NecroBase* base, NecroTypeClassContext* classes, NecroType* type, NecroScope* scope);
 
 NecroResult(NecroType)             necro_create_type_class(struct NecroInfer* infer, NecroAst* type_class_ast);
 NecroResult(NecroType)             necro_create_type_class_instance(struct NecroInfer* infer, NecroAst* instance_ast);

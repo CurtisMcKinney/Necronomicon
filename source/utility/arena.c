@@ -107,9 +107,9 @@ NecroPagedArena __necro_paged_arena_create()
 #if DEBUG_MEMORY
     NecroArenaPage* page = __emalloc(sizeof(NecroArenaPage) + NECRO_PAGED_ARENA_INITIAL_SIZE, srcFile, srcLine);
 #else
-    NecroArenaPage* page = __emalloc(sizeof(NecroArenaPage) + NECRO_PAGED_ARENA_INITIAL_SIZE);
+    NecroArenaPage* page = emalloc(sizeof(NecroArenaPage) + NECRO_PAGED_ARENA_INITIAL_SIZE);
 #endif // DEBUG_MEMORY
-    
+
     page->next = NULL;
     return (NecroPagedArena)
     {
@@ -132,6 +132,10 @@ void* __necro_paged_arena_alloc(NecroPagedArena* arena, size_t size)
     assert(arena->count < arena->size);
     if (size == 0)
         return NULL;
+    // Branchless Align
+    size +=
+        ((size & (sizeof(size_t) - 1)) != 0) *
+        (sizeof(size_t) - (size & (sizeof(size_t) - 1)));
     if (arena->count + size >= arena->size)
     {
         while (arena->count + size >= arena->size)
@@ -183,75 +187,95 @@ NecroSnapshotArena necro_snapshot_arena_empty()
 {
     return (NecroSnapshotArena)
     {
-        .data  = NULL,
-        .size  = 0,
-        .count = 0,
+        .pages     = NULL,
+        .curr_page = NULL,
     };
 }
 
 NecroSnapshotArena necro_snapshot_arena_create()
 {
+    NecroSnapshotArenaPage* page = emalloc(sizeof(NecroSnapshotArenaPage) + NECRO_PAGED_ARENA_INITIAL_SIZE);
+    page->next                   = NULL;
+    page->size                   = NECRO_PAGED_ARENA_INITIAL_SIZE;
+    page->count                  = 0;
     return (NecroSnapshotArena)
     {
-        .data  = emalloc(NECRO_SNAPSHOT_ARENA_INITIAL_SIZE),
-        .size  = NECRO_SNAPSHOT_ARENA_INITIAL_SIZE,
-        .count = 0
+        .pages     = page,
+        .curr_page = page,
     };
 }
 
 void necro_snapshot_arena_destroy(NecroSnapshotArena* arena)
 {
     assert(arena != NULL);
-    if (arena->data == NULL)
+    if (arena->pages == NULL)
         return;
-    free(arena->data);
-    arena->data  = NULL;
-    arena->count = 0;
-    arena->size  = 0;
+    NecroSnapshotArenaPage* current_page = arena->pages;
+    NecroSnapshotArenaPage* next_page    = NULL;
+    while (current_page != NULL)
+    {
+        next_page = current_page->next;
+        free(current_page);
+        current_page = next_page;
+    }
+    arena->pages     = NULL;
+    arena->curr_page = NULL;
 }
 
-void* necro_snapshot_arena_alloc(NecroSnapshotArena* arena, size_t bytes)
+void* necro_snapshot_arena_alloc(NecroSnapshotArena* arena, size_t alloc_size)
 {
     assert(arena != NULL);
-    assert(arena->data != NULL);
-    if (arena->count + bytes >= arena->size)
+    assert(arena->pages != NULL);
+    assert(arena->curr_page != NULL);
+    assert(arena->curr_page->count < arena->curr_page->size);
+    if (alloc_size == 0)
+        return NULL;
+    // Branchless Align
+    alloc_size +=
+        ((alloc_size & (sizeof(size_t) - 1)) != 0) *
+        (sizeof(size_t) - (alloc_size & (sizeof(size_t) - 1)));
+    while (arena->curr_page->count + alloc_size >= arena->curr_page->size)
     {
-        size_t new_size = arena->size * 2;
-        char*  new_data = (char*)realloc(arena->data, new_size);
-        if (new_data == NULL)
+        if (arena->curr_page->next != NULL)
         {
-            if (arena->data != NULL)
-                free(arena->data);
-            assert(false && "Failed to allocate in necro_snapshot_arena_alloc");
-            return NULL;
+            arena->curr_page        = arena->curr_page->next;
+            arena->curr_page->count = 0;
         }
-        arena->data = new_data;
-        arena->size = new_size;
+        else
+        {
+            const size_t new_size = arena->curr_page->size * 2;
+            TRACE_ARENA("allocating new snapshot arena page of size: %d\n", arena->size);
+// #if DEBUG_MEMORY
+//          NecroArenaPage* page = __emalloc(sizeof(NecroArenaPage) + arena->size, srcFile, srcLine);
+// #else
+            NecroSnapshotArenaPage* new_page = emalloc(sizeof(NecroSnapshotArenaPage) + new_size);
+// #endif // DEBUG_MEMORY
+            arena->curr_page->next  = new_page;
+            arena->curr_page        = new_page;
+            arena->curr_page->next  = NULL;
+            arena->curr_page->size  = new_size;
+            arena->curr_page->count = 0;
+        }
     }
-    char* allocated_data = arena->data + arena->count;
-    arena->count += bytes;
-    assert(arena->data != NULL);
-    assert(arena->count < arena->size);
-    assert(arena->count >= 0);
-    // printf("alloc  arena count: %d\n", arena->count);
-    return allocated_data;
+    // TRACE_ARENA("paged_arena_alloc { data %p, count: %d, size: %d }, requested bytes: %d\n", arena->data, arena->count, arena->size, alloc_size);
+    char* data = &arena->curr_page->data + arena->curr_page->count;
+    arena->curr_page->count += alloc_size;
+    assert(arena->curr_page->count < arena->curr_page->size);
+    return data;
 }
 
 NecroArenaSnapshot necro_snapshot_arena_get(NecroSnapshotArena* arena)
 {
     assert(arena != NULL);
-    assert(arena->data != NULL);
-    assert(arena->count < arena->size);
-    assert(arena->count >= 0);
-    return (NecroArenaSnapshot) { .count = arena->count };
+    assert(arena->curr_page->count < arena->curr_page->size);
+    return (NecroArenaSnapshot) { .page = arena->curr_page, .count = arena->curr_page->count };
 }
 
 void necro_snapshot_arena_rewind(NecroSnapshotArena* arena, NecroArenaSnapshot snapshot)
 {
-    arena->count = snapshot.count;
-    assert(arena->data != NULL);
-    assert(arena->count < arena->size);
-    assert(arena->count >= 0);
+    arena->curr_page        = snapshot.page;
+    arena->curr_page->count = snapshot.count;
+    assert(arena->curr_page->count < arena->curr_page->size);
     // printf("rewind arena count: %d\n", arena->count);
 }
 

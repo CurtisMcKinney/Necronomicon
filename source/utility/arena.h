@@ -83,17 +83,25 @@ void* __necro_paged_arena_alloc(NecroPagedArena* arena, size_t size);
 //=====================================================
 // NecroSnapshotArena
 //=====================================================
-// NOTE: Pointers Retrieved from the arena are unstable!
+// NOTE: Pointers and data are now stable UNTIL the arena is rewound to the snapshot.
+typedef struct NecroSnapshotArenaPage
+{
+    struct NecroSnapshotArenaPage* next;
+    size_t                         size;
+    size_t                         count;
+    char                           data;
+} NecroSnapshotArenaPage;
+
 typedef struct
 {
-    size_t count;
+    NecroSnapshotArenaPage* page;
+    size_t                  count;
 } NecroArenaSnapshot;
 
 typedef struct
 {
-    char*  data;
-    size_t count;
-    size_t size;
+    NecroSnapshotArenaPage* pages;
+    NecroSnapshotArenaPage* curr_page;
 } NecroSnapshotArena;
 
 NecroSnapshotArena necro_snapshot_arena_empty();

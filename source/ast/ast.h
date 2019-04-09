@@ -19,6 +19,7 @@ struct NecroAst;
 struct NecroDeclarationsInfo;
 struct NecroTypeClassContext;
 struct NecroInstSub;
+struct NecroFreeVars;
 
 /*
     TODO (Curtis 2-13-19):
@@ -33,8 +34,9 @@ struct NecroInstSub;
 //=====================================================
 typedef struct
 {
-    struct NecroAst* type;
-    struct NecroAst* next_on_arrow;
+    struct NecroAst*      type;
+    struct NecroAst*      next_on_arrow;
+    NECRO_ARROW_OWNERSHIP ownership;
 } NecroAstFunctionType;
 
 //=====================================================
@@ -309,8 +311,8 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    struct NecroAst* apat;
-    struct NecroAst* next_apat;
+    struct NecroAst*      apat;
+    struct NecroAst*      next_apat;
 } NecroAstApats;
 
 //=====================================================
@@ -318,12 +320,13 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    struct NecroAst* apats;
-    struct NecroAst* rhs;
-    struct NecroAst* declaration_group;
-    bool             is_recursive;
-    NecroAstSymbol*  ast_symbol;
-    struct NecroAst* optional_type_signature;
+    struct NecroAst*      apats;
+    struct NecroAst*      rhs;
+    struct NecroAst*      declaration_group;
+    bool                  is_recursive;
+    NecroAstSymbol*       ast_symbol;
+    struct NecroAst*      optional_type_signature;
+    struct NecroFreeVars* free_vars;
 } NecroAstApatsAssignment;
 
 //=====================================================
@@ -342,8 +345,9 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    struct NecroAst* apats;
-    struct NecroAst* expression;
+    struct NecroAst*      apats;
+    struct NecroAst*      expression;
+    struct NecroFreeVars* free_vars;
 } NecroAstLambda;
 
 //=====================================================
@@ -487,6 +491,15 @@ typedef struct
 } NecroAstArithmeticSequence;
 
 //=====================================================
+// AST Type Attribute
+//=====================================================
+typedef struct
+{
+    struct NecroAst*          attribute_type;
+    NECRO_TYPE_ATTRIBUTE_TYPE type;
+} NecroAstTypeAttribute;
+
+//=====================================================
 // AST Node
 //=====================================================
 struct NecroScope;
@@ -535,13 +548,14 @@ typedef struct NecroAst
         NecroAstFunctionType         function_type;
         NecroAstPatExpression        pattern_expression;
         NecroAstDeclarationGroupList declaration_group_list;
+        NecroAstTypeAttribute        attribute;
     };
-    NECRO_AST_TYPE     type;
+    NECRO_AST_TYPE        type;
     // TODO: Replace NecroSourceLoc in NecroParseAst and NecroAst with const char* str
-    NecroSourceLoc     source_loc;
-    NecroSourceLoc     end_loc;
-    struct NecroScope* scope;
-    struct NecroType*  necro_type;
+    NecroSourceLoc        source_loc;
+    NecroSourceLoc        end_loc;
+    struct NecroScope*    scope;
+    struct NecroType*     necro_type;
 } NecroAst;
 
 typedef struct
@@ -577,7 +591,7 @@ NecroAst* necro_ast_create_simple_type_with_type_con(NecroPagedArena* arena, Nec
 NecroAst* necro_ast_create_data_declaration(NecroPagedArena* arena, NecroIntern* intern, NecroAst* simple_type, NecroAst* constructor_list);
 NecroAst* necro_ast_create_data_declaration_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* simple_type, NecroAst* constructor_list);
 NecroAst* necro_ast_create_type_app(NecroPagedArena* arena, NecroAst* type1, NecroAst* type2);
-NecroAst* necro_ast_create_type_fn(NecroPagedArena* arena, NecroAst* type1, NecroAst* type2);
+NecroAst* necro_ast_create_type_fn(NecroPagedArena* arena, NecroAst* type1, NecroAst* type2, NECRO_ARROW_OWNERSHIP ownership);
 NecroAst* necro_ast_create_fexpr(NecroPagedArena* arena, NecroAst* f_ast, NecroAst* x_ast);
 NecroAst* necro_ast_create_fn_type_sig(NecroPagedArena* arena, NecroIntern* intern, const char* var_name, NecroAst* context_ast, NecroAst* type_ast, NECRO_VAR_TYPE var_type, NECRO_SIG_TYPE sig_type);
 NecroAst* necro_ast_create_type_class(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, const char* class_var, NecroAst* context_ast, NecroAst* declarations_ast);
@@ -625,6 +639,7 @@ NecroAst* necro_ast_create_simple_assignment_with_ast_symbol(NecroPagedArena* ar
 NecroAst* necro_ast_create_var_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_VAR_TYPE var_type);
 NecroAst* necro_ast_create_var_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_VAR_TYPE var_type, struct NecroInstSub* inst_subs, NecroAst* initializer, NECRO_TYPE_ORDER order);
 NecroAst* necro_ast_create_conid_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_CON_TYPE con_type);
+NecroAst* necro_ast_create_type_attribute(NecroPagedArena* arena, NecroAst* attributed_type, NECRO_TYPE_ATTRIBUTE_TYPE type);
 
 // Declaration Groups
 NecroAst* necro_ast_create_declaration_group_list(NecroPagedArena* arena, NecroAst* declaration_group, NecroAst* prev);

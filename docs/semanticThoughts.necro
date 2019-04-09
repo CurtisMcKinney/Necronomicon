@@ -371,7 +371,7 @@ coolBeat ~ 0 =
   [
     x y (y+y) z
     _ x [5 z] x
-    _ 0 [1 2] y,
+    _ 0 [1 2] y
   ]
   where
     x ~ 0 = if someBool then trand 0 100 * fromInt mouseX * 4 + x else x + 1

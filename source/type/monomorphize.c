@@ -32,8 +32,6 @@ typedef struct
     NecroAstArena*       ast_arena;
     NecroPagedArena*     arena;
     NecroSnapshotArena   snapshot_arena;
-    char*                suffix_buffer;
-    size_t               suffix_size;
 } NecroMonomorphize;
 
 NecroMonomorphize necro_monomorphize_empty()
@@ -60,8 +58,6 @@ NecroMonomorphize necro_monomorphize_create(NecroIntern* intern, NecroScopedSymT
         .scoped_symtable = scoped_symtable,
         .base            = base,
         .ast_arena       = ast_arena,
-        .suffix_buffer   = malloc(256 * sizeof(char)),
-        .suffix_size     = 256,
     };
     return monomorphize;
 }
@@ -70,7 +66,6 @@ void necro_monomorphize_destroy(NecroMonomorphize* monomorphize)
 {
     assert(monomorphize != NULL);
     necro_snapshot_arena_destroy(&monomorphize->snapshot_arena);
-    free(monomorphize->suffix_buffer);
     *monomorphize = necro_monomorphize_empty();
 }
 
@@ -80,7 +75,6 @@ void necro_monomorphize_destroy(NecroMonomorphize* monomorphize)
 NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAst* ast, NecroInstSub* subs);
 void              necro_monomorphize_type_go(NecroMonomorphize* monomorphize, NecroAst* ast);
 NecroAstSymbol*   necro_ast_specialize(NecroMonomorphize* monomorphize, NecroAstSymbol* ast_symbol, NecroInstSub* subs);
-
 
 NecroResult(void) necro_monomorphize(NecroCompileInfo info, NecroIntern* intern, NecroScopedSymTable* scoped_symtable, NecroBase* base, NecroAstArena* ast_arena)
 {
@@ -127,33 +121,31 @@ NecroSymbol necro_create_suffix_from_subs(NecroMonomorphize* monomorphize, Necro
         curr_sub = curr_sub->next;
     }
 
-    // Resize buffer
-    if (monomorphize->suffix_size < length)
-    {
-        free(monomorphize->suffix_buffer);
-        while (monomorphize->suffix_size < length)
-            monomorphize->suffix_size *= 2;
-        monomorphize->suffix_buffer = malloc(monomorphize->suffix_size * sizeof(char));
-    }
+    // Alloc suffix buffer
+    NecroArenaSnapshot snapshot      = necro_snapshot_arena_get(&monomorphize->snapshot_arena);
+    char*              suffix_buffer = necro_snapshot_arena_alloc(&monomorphize->snapshot_arena, length);
 
     // Write type strings
     size_t offset = 0;
     if (prefix->str[prefix_length - 1] == '>')
     {
         // Name has already been overloaded for a type class, instead append to type list.
-        offset = sprintf(monomorphize->suffix_buffer, "%s", prefix->str);
-        monomorphize->suffix_buffer[prefix_length - 1] = ',';
+        offset = sprintf(suffix_buffer, "%s", prefix->str);
+        suffix_buffer[prefix_length - 1] = ',';
         length -= 1;
     }
     else
     {
-        offset = sprintf(monomorphize->suffix_buffer, "%s<", prefix->str);
+        offset = sprintf(suffix_buffer, "%s<", prefix->str);
     }
-    offset        = necro_type_mangle_subs_recursive (monomorphize->suffix_buffer, offset, subs);
-    offset       += sprintf(monomorphize->suffix_buffer + offset, ">");
+    offset        = necro_type_mangle_subs_recursive (suffix_buffer, offset, subs);
+    offset       += sprintf(suffix_buffer + offset, ">");
     assert(offset == length);
 
-    return necro_intern_string(monomorphize->intern, monomorphize->suffix_buffer);
+    // Intern, clean up, return
+    NecroSymbol string_symbol = necro_intern_string(monomorphize->intern, suffix_buffer);
+    necro_snapshot_arena_rewind(&monomorphize->snapshot_arena, snapshot);
+    return string_symbol;
 }
 
 NecroInstSub* necro_type_create_instance_subs(NecroMonomorphize* monomorphize, NecroTypeClass* type_class, NecroInstSub* subs)
@@ -227,7 +219,11 @@ NecroAstSymbol* necro_ast_specialize_method(NecroMonomorphize* monomorphize, Nec
             if (necro_type_is_polymorphic(instance_method_ast_symbol->type))
             {
                 NecroInstSub* instance_subs = necro_type_create_instance_subs(monomorphize, type_class, subs);
-                return necro_ast_specialize(monomorphize, instance_method_ast_symbol, instance_subs);
+                // TODO / HACK / NOTE: This isn't playing nice with uvars. Take another look at this when that is sorted!
+                if (instance_subs == NULL)
+                    return instance_method_ast_symbol;
+                else
+                    return necro_ast_specialize(monomorphize, instance_method_ast_symbol, instance_subs);
             }
             else
             {
@@ -642,6 +638,7 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
     case NECRO_AST_TYPE_SIGNATURE:
     case NECRO_AST_TYPE_CLASS_CONTEXT:
     case NECRO_AST_FUNCTION_TYPE:
+    case NECRO_AST_TYPE_ATTRIBUTE:
         return ok_void();
     default:
         necro_unreachable(void);
@@ -1008,7 +1005,7 @@ void necro_monomorphize_type_go(NecroMonomorphize* monomorphize, NecroAst* ast)
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
-#define NECRO_MONOMORPHIZE_TEST_VERBOSE 1
+#define NECRO_MONOMORPHIZE_TEST_VERBOSE 0
 void necro_monomorphize_test_result(const char* test_name, const char* str, NECRO_RESULT_TYPE expected_result, const NECRO_RESULT_ERROR_TYPE* error_type)
 {
     // Set up
@@ -1031,7 +1028,6 @@ void necro_monomorphize_test_result(const char* test_name, const char* str, NECR
     necro_dependency_analyze(info, &intern, &ast);
     unwrap(void, necro_infer(info, &intern, &scoped_symtable, &base, &ast));
     NecroResult(void) result = necro_monomorphize(info, &intern, &scoped_symtable, &base, &ast);
-    // NecroResult(void) result = ok_void();
 
     // Assert
     if (result.type != expected_result)
@@ -1091,8 +1087,8 @@ void necro_monomorphize_test_suffix()
     NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create(&symtable);
     NecroBase           base            = necro_base_compile(&intern, &scoped_symtable);
 
-    NecroMonomorphize translate = necro_monomorphize_create(&intern, &scoped_symtable, &base, &base.ast);
-    NecroSymbol             prefix    = necro_intern_string(&intern, "superCool");
+    NecroMonomorphize   translate = necro_monomorphize_create(&intern, &scoped_symtable, &base, &base.ast);
+    NecroSymbol         prefix    = necro_intern_string(&intern, "superCool");
 
     NecroInstSub* subs =
         necro_create_inst_sub_manual(&base.ast.arena, NULL,
@@ -1131,7 +1127,18 @@ void necro_monomorphize_test_suffix()
 
 void necro_monomorphize_test()
 {
+    necro_announce_phase("Monomorphize");
     // necro_monomorphize_test_suffix();
+
+    {
+        const char* test_name   = "WhereGen";
+        const char* test_source = ""
+            "cat :: Maybe Int\n"
+            "cat = nothing where\n"
+            "  nothing = Nothing\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
+    }
 
     {
         const char* test_name   = "SimpleUserPoly";

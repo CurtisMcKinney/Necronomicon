@@ -24,8 +24,7 @@ struct NecroTypeClass;
 struct NecroTypeClassInstance;
 struct NecroInstanceList;
 struct NecroMachAstSymbol;
-struct NecroTypeAttribute;
-struct NecroAliasSet;
+struct NecroUsage;
 
 typedef enum
 {
@@ -34,6 +33,7 @@ typedef enum
     NECRO_TYPE_DONE
 } NECRO_TYPE_STATUS;
 
+// TODO: Figure some way of partitioning this data. We need to get the size of this down.
 ///////////////////////////////////////////////////////
 // NecroAstSymbol
 //------------------
@@ -59,8 +59,7 @@ typedef struct NecroAstSymbol
     struct NecroTypeClassInstance* type_class_instance;     // Class instance, if present. Resolved at inference phase.
     struct NecroInstanceList*      instance_list;           // List of type classes this symbol is an instance of. Resolved at inference phase.
     struct NecroMachAstSymbol*     mach_symbol;             // Resolved at necro_mach_translate.
-    struct NecroTypeAttribute*     type_attribute;          // Type Attribute. Resolves during necro_infer
-    struct NecroAliasSet*          alias_set;               // Alias Set. Resolved during alias analysis.
+    struct NecroUsage*             usage;                   // Conflicting usages (In the sharing sense) gathered during alias analysis phase.
     struct NecroMachineAST*        necro_machine_ast;       // NecroMachineAST that this symbol was compiled into. Generated at NecroMachine compilation phase.
 } NecroAstSymbol;
 

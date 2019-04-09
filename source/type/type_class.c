@@ -472,6 +472,7 @@ NecroResult(NecroType) necro_create_type_class(NecroInfer* infer, NecroAst* type
     NecroType* type_class_var    = necro_type_var_create(infer->arena, type_class_ast->type_class_declaration.tyvar->variable.ast_symbol);
     type_class_var->var.is_rigid = true;
     type_class_var->var.order    = NECRO_TYPE_ZERO_ORDER;
+    type_class_var->ownership    = NULL;
     type_class->type             = necro_type_con1_create(infer->arena, type_class->type_class_name, necro_type_list_create(infer->arena, type_class_var, NULL));
     type_class->context          = necro_try_map(NecroTypeClassContext, NecroType, necro_ast_to_context(infer, type_class_ast->type_class_declaration.context));
     data->type                   = type_class_var;
@@ -496,7 +497,9 @@ NecroResult(NecroType) necro_create_type_class(NecroInfer* infer, NecroAst* type
                 if (method_ast->type != NECRO_AST_TYPE_SIGNATURE)
                     continue;
 
-                NecroType* type_sig = necro_try(NecroType, necro_ast_to_type_sig_go(infer, method_ast->type_signature.type, NECRO_TYPE_ZERO_ORDER));
+                type_class_var->ownership = NULL;
+                NecroType* type_sig       = necro_try(NecroType, necro_ast_to_type_sig_go(infer, method_ast->type_signature.type, NECRO_TYPE_ZERO_ORDER, NECRO_TYPE_ATTRIBUTE_NONE));
+                type_class_var->ownership = NULL;
 
                 //---------------------------------
                 // Infer and check method type sig
@@ -557,10 +560,8 @@ NecroResult(NecroType) necro_create_type_class(NecroInfer* infer, NecroAst* type
             group_list = group_list->declaration_group_list.next;
         }
     }
-
-    // Generalize type class kind
-    // type_class_var->kind = necro_kind_gen(infer->arena, infer->base, type_class_var->kind);
     necro_kind_default_type_kinds(infer->arena, infer->base, type_class_var);
+    type_class_var->ownership = NULL;
     return ok(NecroType, NULL);
 }
 
@@ -616,7 +617,7 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
     instance->context                      = necro_try_map(NecroTypeClassContext, NecroType, necro_ast_to_context(infer, ast->type_class_instance.context));
     instance->dictionary_prototype         = NULL;
     instance->ast                          = ast;
-    instance->data_type                    = necro_try(NecroType, necro_ast_to_type_sig_go(infer, instance->ast->type_class_instance.inst, NECRO_TYPE_ZERO_ORDER));
+    instance->data_type                    = necro_try(NecroType, necro_ast_to_type_sig_go(infer, instance->ast->type_class_instance.inst, NECRO_TYPE_ZERO_ORDER, NECRO_TYPE_ATTRIBUTE_NONE));
     // instance->super_instances              = NULL;
     data->type_class_instance              = instance;
 
@@ -798,7 +799,7 @@ NecroTypeClassInstance* necro_get_type_class_instance(NecroAstSymbol* data_type_
     return NULL;
 }
 
-NecroResult(NecroType) necro_propogate_type_classes(NecroPagedArena* arena, NecroBase* base, NecroTypeClassContext* classes, NecroType* type, NecroScope* scope)
+NecroResult(NecroType) necro_propagate_type_classes(NecroPagedArena* arena, NecroBase* base, NecroTypeClassContext* classes, NecroType* type, NecroScope* scope)
 {
     if (classes == NULL)
         return ok(NecroType, NULL);
@@ -849,7 +850,7 @@ NecroResult(NecroType) necro_propogate_type_classes(NecroPagedArena* arena, Necr
             NecroType* current_arg = type->con.args;
             while (current_arg != NULL)
             {
-                necro_try(NecroType, necro_propogate_type_classes(arena, base, instance->context, current_arg->list.item, instance->ast->scope));
+                necro_try(NecroType, necro_propagate_type_classes(arena, base, instance->context, current_arg->list.item, instance->ast->scope));
                 current_arg = current_arg->list.next;
             }
             classes = classes->next;
@@ -858,13 +859,13 @@ NecroResult(NecroType) necro_propogate_type_classes(NecroPagedArena* arena, Necr
 
     case NECRO_TYPE_FUN:
         // TODO: Type classes for functions!!!
-        necro_try(NecroType, necro_propogate_type_classes(arena, base, classes, type->fun.type1, scope));
-        return necro_propogate_type_classes(arena, base, classes, type->fun.type2, scope);
+        necro_try(NecroType, necro_propagate_type_classes(arena, base, classes, type->fun.type1, scope));
+        return necro_propagate_type_classes(arena, base, classes, type->fun.type2, scope);
 
     case NECRO_TYPE_APP:
-        // necro_propogate_type_classes(infer, classes, type->app.type1, macro_type, error_preamble);
-        // necro_propogate_type_classes(infer, classes, type->app.type2, macro_type, error_preamble);
-        assert(false && "Compiler bug: TypeApp not implemented in necro_propogate_type_classes! (i.e. constraints of the form: Num (f a), or (c a), are not currently supported)");
+        // necro_propagate_type_classes(infer, classes, type->app.type1, macro_type, error_preamble);
+        // necro_propagate_type_classes(infer, classes, type->app.type2, macro_type, error_preamble);
+        assert(false && "Compiler bug: TypeApp not implemented in necro_propagate_type_classes! (i.e. constraints of the form: Num (f a), or (c a), are not currently supported)");
         return ok(NecroType, NULL);
 
     case NECRO_TYPE_NAT:

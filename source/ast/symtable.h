@@ -132,6 +132,7 @@ NecroID             necro_symtable_manual_new_symbol(NecroSymTable* symtable, Ne
 
 void                necro_scope_print(NecroScope* scope, size_t whitespace, NecroIntern* intern);
 bool                necro_scope_contains(NecroScope* scope, NecroSymbol symbol);
+bool                necro_scope_is_subscope_of(NecroScope* super_scope, NecroScope* maybe_sub_scope);
 void                necro_scope_insert_ast_symbol(NecroPagedArena* arena, NecroScope* scope, NecroAstSymbol* ast_symbol);
 NecroAstSymbol*     necro_scope_find_ast_symbol(NecroScope* scope, NecroSymbol symbol);
 NecroAstSymbol*     necro_scope_find_in_this_scope_ast_symbol(NecroScope* scope, NecroSymbol symbol);

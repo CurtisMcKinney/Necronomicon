@@ -68,16 +68,25 @@ typedef enum
     NECRO_AST_TYPE_SIGNATURE,
     NECRO_AST_FUNCTION_TYPE,
     NECRO_AST_DECLARATION_GROUP_LIST,
+    NECRO_AST_TYPE_ATTRIBUTE,
     // NECRO_AST_MODULE,
 } NECRO_AST_TYPE;
 
 //=====================================================
 // AST FunctionType
 //=====================================================
+typedef enum
+{
+    NECRO_ARROW_OWNERSHIP_SHARE,
+    NECRO_ARROW_OWNERSHIP_POLY,
+    NECRO_ARROW_OWNERSHIP_STEAL,
+} NECRO_ARROW_OWNERSHIP;
+
 typedef struct
 {
     NecroParseAstLocalPtr type;
     NecroParseAstLocalPtr next_on_arrow;
+    NECRO_ARROW_OWNERSHIP ownership;
 } NecroParseAstFunctionType;
 
 //=====================================================
@@ -481,6 +490,22 @@ typedef struct
 } NecroParseAstPatExpression;
 
 //=====================================================
+// AST Type Attribute
+//=====================================================
+typedef enum
+{
+    NECRO_TYPE_ATTRIBUTE_NONE,
+    NECRO_TYPE_ATTRIBUTE_STAR,
+    NECRO_TYPE_ATTRIBUTE_DOT
+} NECRO_TYPE_ATTRIBUTE_TYPE;
+
+typedef struct
+{
+    NecroParseAstLocalPtr     attributed_type;
+    NECRO_TYPE_ATTRIBUTE_TYPE type;
+} NecroParseAstTypeAttribute;
+
+//=====================================================
 // AST Variable
 //=====================================================
 typedef enum
@@ -624,6 +649,7 @@ typedef struct
         NecroParseAstTypeSignature        type_signature;
         NecroParseAstFunctionType         function_type;
         NecroParseAstPatExpression        pattern_expression;
+        NecroParseAstTypeAttribute        attribute;
     };
     NECRO_AST_TYPE type;
     NecroSourceLoc source_loc;

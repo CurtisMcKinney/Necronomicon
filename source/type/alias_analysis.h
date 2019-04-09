@@ -16,6 +16,22 @@
 #include "type.h"
 #include "necro/driver.h"
 
-NecroResult(void) necro_alias_analysis(NecroCompileInfo info, NecroIntern* intern, NecroScopedSymTable* scoped_symtable, struct NecroBase* base, NecroAstArena* ast_arena);
+typedef struct NecroUsage
+{
+    struct NecroUsage* next;
+    NecroSourceLoc     source_loc;
+    NecroSourceLoc     end_loc;
+} NecroUsage;
+
+typedef struct NecroFreeVars
+{
+    struct NecroFreeVars* next;
+    size_t                count;
+    NecroAstSymbol*       data;
+} NecroFreeVars;
+
+void necro_alias_analysis(NecroCompileInfo info, NecroAstArena* ast_arena);
+void necro_alias_analysis_test();
+bool necro_usage_is_unshared(NecroUsage* usage);
 
 #endif // NECRO_TYPE_ALIAS_ANALYSIS_H

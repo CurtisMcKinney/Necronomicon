@@ -150,9 +150,9 @@ void necro_intern_grow(NecroIntern* intern)
     free(old_entries);
 }
 
-// TODO: Optimize memory allocation
 NecroSymbol necro_intern_create_type_class_instance_symbol(NecroIntern* intern, NecroSymbol symbol, NecroSymbol type_class_name)
 {
+    NecroArenaSnapshot snapshot = necro_snapshot_arena_get(&intern->snapshot_arena);
     const char* string1 = symbol->str;
     const char* div1    = "<";
     const char* string2 = type_class_name->str;
@@ -161,7 +161,7 @@ NecroSymbol necro_intern_create_type_class_instance_symbol(NecroIntern* intern, 
     size_t      lend    = strlen(div1);
     size_t      len2    = strlen(string2);
     size_t      lend2   = strlen(div2);
-    char*       str     = emalloc((len1 + lend + len2 + lend2 + 1) * sizeof(char));
+    char*       str     = necro_snapshot_arena_alloc(&intern->snapshot_arena, (len1 + lend + len2 + lend2 + 1) * sizeof(char));
     // Copy str1
     for (size_t i = 0; i < len1; ++i)
         str[i] = string1[i];
@@ -176,50 +176,42 @@ NecroSymbol necro_intern_create_type_class_instance_symbol(NecroIntern* intern, 
         str[len1 + lend + len2 + i] = div2[i];
     str[len1 + lend + len2 + lend2]   = '\0';
     NecroSymbol new_symbol = necro_intern_string(intern, str);
-    free(str);
+    necro_snapshot_arena_rewind(&intern->snapshot_arena, snapshot);
     return new_symbol;
 }
 
-// TODO: Optimize memory allocation
 NecroSymbol necro_intern_get_type_class_member_symbol_from_instance_symbol(NecroIntern* intern, NecroSymbol symbol)
 {
+    NecroArenaSnapshot snapshot = necro_snapshot_arena_get(&intern->snapshot_arena);
     const char* string1 = symbol->str;
     size_t      len1    = 0;
     for (size_t i = 0; string1[i] != '<'; ++i)
         len1++;
-    char* str = emalloc((len1 + 1) * sizeof(char));
+    char* str = necro_snapshot_arena_alloc(&intern->snapshot_arena, (len1 + 1) * sizeof(char));
     // Copy str1
     for (size_t i = 0; i < len1; ++i)
         str[i] = string1[i];
     str[len1] = '\0';
     NecroSymbol new_symbol = necro_intern_string(intern, str);
-    free(str);
+    necro_snapshot_arena_rewind(&intern->snapshot_arena, snapshot);
     return new_symbol;
 }
 
-// NecroSymbol necro_intern_strip_instance_symbol_from_method(NecroIntern* intern, NecroSymbol symbol)
-// {
-//     size_t      length     = 0;
-//     const char* symbol_str = necro_intern_get_string(intern, symbol);
-//     const char* curr_str   = symbol_str;
-//     while (*curr_str != '\0' && *curr_str != '<')
-// }
-
-// TODO: Optimize memory allocation
 NecroSymbol necro_intern_concat_symbols(NecroIntern* intern, NecroSymbol symbol1, NecroSymbol symbol2)
 {
+    NecroArenaSnapshot snapshot = necro_snapshot_arena_get(&intern->snapshot_arena);
     const char* string1 = symbol1->str;
     const char* string2 = symbol2->str;
     size_t      len1    = symbol1->length;
     size_t      len2    = symbol2->length;
-    char*       str     = emalloc((len1 + len2 + 1) * sizeof(char));
+    char*       str     = necro_snapshot_arena_alloc(&intern->snapshot_arena, (len1 + len2 + 1) * sizeof(char));
     for (size_t i = 0; i < len1; ++i)
         str[i] = string1[i];
     for (size_t i = 0; i < len2; ++i)
         str[len1 + i] = string2[i];
     str[len1 + len2]   = '\0';
     NecroSymbol symbol = necro_intern_string(intern, str);
-    free(str);
+    necro_snapshot_arena_rewind(&intern->snapshot_arena, snapshot);
     return symbol;
 }
 

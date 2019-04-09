@@ -31,7 +31,7 @@ void                   necro_infer_destroy(NecroInfer* infer);
 NecroResult(void)      necro_infer(NecroCompileInfo info, NecroIntern* intern, NecroScopedSymTable* scoped_symtable, struct NecroBase* base, NecroAstArena* ast_arena);
 NecroResult(NecroType) necro_infer_go(NecroInfer* infer, NecroAst* ast);
 NecroResult(NecroType) necro_infer_type_sig(NecroInfer* infer, NecroAst* ast);
-NecroResult(NecroType) necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast, NECRO_TYPE_ORDER variable_type_order);
+NecroResult(NecroType) necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast, NECRO_TYPE_ORDER variable_type_order, NECRO_TYPE_ATTRIBUTE_TYPE attribute_type);
 void                   necro_test_infer();
 
 #endif // NECRO_INFER_H

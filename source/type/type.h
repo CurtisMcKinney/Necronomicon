@@ -18,7 +18,8 @@ struct NecroTypeClassContext;
 struct NecroScopedSymTable;
 struct NecroRenamer;
 struct NecroBase;
-// struct NecroTypeAttribute;
+struct NecroConstraint;
+struct NecroFreeVars;
 
 typedef enum
 {
@@ -91,14 +92,15 @@ typedef struct
 
 typedef struct
 {
-    NecroAstSymbol*            con_symbol;
-    struct NecroType*          args;
+    NecroAstSymbol*   con_symbol;
+    struct NecroType* args;
 } NecroTypeCon;
 
 typedef struct
 {
-    struct NecroType*          type1;
-    struct NecroType*          type2;
+    struct NecroType*     type1;
+    struct NecroType*     type2;
+    struct NecroFreeVars* free_vars;
 } NecroTypeFun;
 
 typedef struct
@@ -123,29 +125,24 @@ typedef struct
     NecroSymbol value;
 } NecroTypeSym;
 
-typedef enum
-{
-    NECRO_TYPE_UNIQUE,
-    NECRO_TYPE_NOT_UNIQUE,
-} NECRO_TYPE_UNIQUENESS_ATTRIBUTE;
-
 typedef struct NecroType
 {
     union
     {
-        NecroTypeVar     var;
-        NecroTypeApp     app;
-        NecroTypeCon     con;
-        NecroTypeFun     fun;
-        NecroTypeList    list;
-        NecroTypeForAll  for_all;
-        NecroTypeNat     nat;
-        NecroTypeSym     sym;
+        NecroTypeVar    var;
+        NecroTypeApp    app;
+        NecroTypeCon    con;
+        NecroTypeFun    fun;
+        NecroTypeList   list;
+        NecroTypeForAll for_all;
+        NecroTypeNat    nat;
+        NecroTypeSym    sym;
     };
-    NECRO_TYPE                      type;
-    bool                            pre_supplied;
-    NECRO_TYPE_UNIQUENESS_ATTRIBUTE uniqueness_attribute;
-    struct NecroType*               kind;
+    NECRO_TYPE              type;
+    bool                    pre_supplied;
+    struct NecroType*       kind;
+    struct NecroType*       ownership;
+    struct NecroConstraint* constraints;
 } NecroType;
 
 typedef struct NecroInstSub
@@ -185,6 +182,7 @@ size_t                 necro_type_hash(NecroType* type);
 size_t                 necro_type_list_count(NecroType* list);
 NecroType*             necro_type_strip_for_all(NecroType* type);
 NecroType*             necro_type_get_fully_applied_fun_type(NecroType* type);
+const NecroType*       necro_type_get_fully_applied_fun_type_const(const NecroType* type);
 NecroType*             necro_type_uncurry_app(NecroPagedArena* arena, struct NecroBase* base, NecroType* app);
 
 NecroType*             necro_type_alloc(NecroPagedArena* arena);
@@ -209,6 +207,14 @@ NecroType*             necro_type_con8_create(NecroPagedArena* arena,  NecroAstS
 NecroType*             necro_type_con9_create(NecroPagedArena* arena,  NecroAstSymbol* con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8, NecroType* arg9);
 NecroType*             necro_type_con10_create(NecroPagedArena* arena, NecroAstSymbol* con_symbol, NecroType* arg1, NecroType* arg2, NecroType* arg3, NecroType* arg4, NecroType* arg5, NecroType* arg6, NecroType* arg7, NecroType* arg8, NecroType* arg9, NecroType* arg10);
 NecroType*             necro_type_tuple_con_create(NecroPagedArena* arena, struct NecroBase* base, NecroType* types_list);
+
+
+NecroType*             necro_type_ownership_fresh_var(NecroPagedArena* arena, struct NecroBase* base);
+NecroResult(NecroType) necro_type_infer_and_unify_ownership_for_two_types(NecroPagedArena* arena, struct NecroBase* base, NecroType* type1, NecroType* type2, struct NecroScope* scope);
+NecroResult(NecroType) necro_type_ownership_infer_from_type(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope);
+NecroResult(NecroType) necro_type_ownership_infer_from_sig(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope);
+NecroResult(NecroType) necro_type_ownership_unify(NecroType* ownership1, NecroType* ownership2, struct NecroScope* scope);
+NecroResult(NecroType) necro_type_ownership_unify_with_info(NecroPagedArena* arena, struct NecroBase* base, NecroType* ownership1, NecroType* ownership2, struct NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 
 void                   necro_type_fprint(FILE* stream, const NecroType* type);
 void                   necro_type_print(const NecroType* type);

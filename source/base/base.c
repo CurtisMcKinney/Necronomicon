@@ -13,6 +13,7 @@
 #include "infer.h"
 #include "monomorphize.h"
 #include "mach/mach_ast.h"
+#include "alias_analysis.h"
 
 ///////////////////////////////////////////////////////
 // Create / Destroy
@@ -26,10 +27,20 @@ NecroBase necro_base_create(NecroIntern* intern)
         .higher_kind            = NULL,
         .kind_kind              = NULL,
         .star_kind              = NULL,
-        .unique_type_kind       = NULL,
-        .any_type_kind          = NULL,
         .nat_kind               = NULL,
         .sym_kind               = NULL,
+
+        // .attribute_kind         = NULL,
+        // .multiplicity_kind      = NULL,
+        // .multiplicity_one       = NULL,
+        // .multiplicity_omega     = NULL,
+        // .multiplicity_mul       = NULL,
+        // .multiplicity_add       = NULL,
+        // .multiplicity_lte       = NULL,
+
+        .ownership_kind         = NULL,
+        .ownership_share        = NULL,
+        .ownership_steal        = NULL,
 
         .tuple2_con             = NULL,
         .tuple3_con             = NULL,
@@ -130,7 +141,7 @@ NecroAst* necro_base_create_class_comp_sig(NecroPagedArena* arena, NecroIntern* 
                 necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR),
                 necro_ast_create_type_fn(arena,
                     necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR),
-                    necro_ast_create_conid(arena, intern, "Bool", NECRO_CON_TYPE_VAR))), NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
+                    necro_ast_create_conid(arena, intern, "Bool", NECRO_CON_TYPE_VAR), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
 }
 
 NecroAst* necro_base_create_class_bin_op_sig(NecroPagedArena* arena, NecroIntern* intern, const char* sig_name)
@@ -141,7 +152,7 @@ NecroAst* necro_base_create_class_bin_op_sig(NecroPagedArena* arena, NecroIntern
                 necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR),
                 necro_ast_create_type_fn(arena,
                     necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR),
-                    necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR))), NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
+                    necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
 }
 
 
@@ -151,7 +162,7 @@ NecroAst* necro_base_create_class_unary_op_sig(NecroPagedArena* arena, NecroInte
         necro_ast_create_fn_type_sig(arena, intern, sig_name, NULL,
             necro_ast_create_type_fn(arena,
                 necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR),
-                necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)), NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
+                necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
 }
 
 NecroAst* necro_base_make_poly_con1(NecroPagedArena* arena, NecroIntern* intern, const char* data_type_name)
@@ -176,14 +187,14 @@ NecroAst* necro_base_make_bin_math_ast(NecroPagedArena* arena, NecroIntern* inte
         necro_base_make_num_con(arena, intern, data_type_name, is_poly),
         necro_ast_create_type_fn(arena,
             necro_base_make_num_con(arena, intern, data_type_name, is_poly),
-            necro_base_make_num_con(arena, intern, data_type_name, is_poly)));
+            necro_base_make_num_con(arena, intern, data_type_name, is_poly), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE);
 }
 
 NecroAst* necro_base_make_unary_math_ast(NecroPagedArena* arena, NecroIntern* intern, const char* data_type_name, bool is_poly)
 {
     return necro_ast_create_type_fn(arena,
         necro_base_make_num_con(arena, intern, data_type_name, is_poly),
-        necro_base_make_num_con(arena, intern, data_type_name, is_poly));
+        necro_base_make_num_con(arena, intern, data_type_name, is_poly), NECRO_ARROW_OWNERSHIP_SHARE);
 }
 
 NecroAst* necro_base_make_num_context(NecroPagedArena* arena, NecroIntern* intern, const char* class_name, bool is_polymorphic)
@@ -202,7 +213,7 @@ NecroAst* necro_base_create_num_bin_op_sig(NecroPagedArena* arena, NecroIntern* 
                 necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR),
                 necro_ast_create_type_fn(arena,
                     necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR),
-                    necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR))), NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
+                    necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
 }
 
 NecroAst* necro_base_create_fractional_bin_op_sig(NecroPagedArena* arena, NecroIntern* intern, const char* sig_name)
@@ -213,7 +224,7 @@ NecroAst* necro_base_create_fractional_bin_op_sig(NecroPagedArena* arena, NecroI
                 necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR),
                 necro_ast_create_type_fn(arena,
                     necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR),
-                    necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR))), NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
+                    necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
 }
 
 NecroAst* necro_base_create_eq_comp_sig(NecroPagedArena* arena, NecroIntern* intern, const char* sig_name)
@@ -224,7 +235,7 @@ NecroAst* necro_base_create_eq_comp_sig(NecroPagedArena* arena, NecroIntern* int
                 necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR),
                 necro_ast_create_type_fn(arena,
                     necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR),
-                    necro_ast_create_conid(arena, intern, "Bool", NECRO_CON_TYPE_VAR))), NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
+                    necro_ast_create_conid(arena, intern, "Bool", NECRO_CON_TYPE_VAR), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
 }
 
 NecroAst* necro_base_create_ord_comp_sig(NecroPagedArena* arena, NecroIntern* intern, const char* sig_name)
@@ -235,7 +246,7 @@ NecroAst* necro_base_create_ord_comp_sig(NecroPagedArena* arena, NecroIntern* in
                 necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR),
                 necro_ast_create_type_fn(arena,
                     necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR),
-                    necro_ast_create_conid(arena, intern, "Bool", NECRO_CON_TYPE_VAR))), NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
+                    necro_ast_create_conid(arena, intern, "Bool", NECRO_CON_TYPE_VAR), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
 }
 
 NecroAst* necro_ast_create_prim_bin_op_method_ast(NecroPagedArena* arena, NecroIntern* intern, const char* name)
@@ -472,7 +483,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     NecroAst* from_int_sig      =
         necro_ast_create_fn_type_sig(arena, intern, "fromInt", NULL, necro_ast_create_type_fn(arena,
             necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR),
-            necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)), NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
+            necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
     NecroAst* num_method_list =
         necro_ast_create_decl(arena, add_method_sig,
             necro_ast_create_decl(arena, sub_method_sig,
@@ -489,7 +500,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     NecroAst* from_rational_sig =
         necro_ast_create_fn_type_sig(arena, intern, "fromRational", NULL, necro_ast_create_type_fn(arena,
             necro_ast_create_conid(arena, intern, "Float", NECRO_CON_TYPE_VAR),
-            necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)), NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
+            necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
     NecroAst* fractional_method_list =
         necro_ast_create_decl(arena, div_method_sig,
             necro_ast_create_decl(arena, recip_method_sig,
@@ -564,10 +575,10 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         NecroAst* map_method_sig =
             necro_ast_create_fn_type_sig(arena, intern, "map", NULL,
                 necro_ast_create_type_fn(arena,
-                    necro_ast_create_type_fn(arena, a_var, b_var),
+                    necro_ast_create_type_fn(arena, a_var, b_var, NECRO_ARROW_OWNERSHIP_SHARE),
                     necro_ast_create_type_fn(arena,
                         necro_ast_create_type_app(arena, f_var, a_var),
-                        necro_ast_create_type_app(arena, f_var, b_var))),
+                        necro_ast_create_type_app(arena, f_var, b_var), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE),
                     NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
         NecroAst* functor_method_list = necro_ast_create_decl(arena, map_method_sig, NULL);
         necro_append_top(arena, top, necro_ast_create_type_class(arena, intern, "Functor", "f", NULL, functor_method_list));
@@ -579,14 +590,14 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         NecroAst* b_var           = necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR);
         NecroAst* f_var           = necro_ast_create_var(arena, intern, "f", NECRO_VAR_TYPE_FREE_VAR);
         NecroAst* pure_method_sig =
-            necro_ast_create_fn_type_sig(arena, intern, "pure", NULL, necro_ast_create_type_fn(arena, a_var, necro_ast_create_type_app(arena, f_var, a_var)), NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
+            necro_ast_create_fn_type_sig(arena, intern, "pure", NULL, necro_ast_create_type_fn(arena, a_var, necro_ast_create_type_app(arena, f_var, a_var), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
         NecroAst* ap_method_sig  =
             necro_ast_create_fn_type_sig(arena, intern, "ap", NULL,
                 necro_ast_create_type_fn(arena,
-                    necro_ast_create_type_app(arena, f_var, necro_ast_create_type_fn(arena, a_var, b_var)),
+                    necro_ast_create_type_app(arena, f_var, necro_ast_create_type_fn(arena, a_var, b_var, NECRO_ARROW_OWNERSHIP_SHARE)),
                     necro_ast_create_type_fn(arena,
                         necro_ast_create_type_app(arena, f_var, a_var),
-                        necro_ast_create_type_app(arena, f_var, b_var))),
+                        necro_ast_create_type_app(arena, f_var, b_var), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE),
                     NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
         NecroAst* applicative_method_list = necro_ast_create_decl(arena, pure_method_sig, necro_ast_create_decl(arena, ap_method_sig, NULL));
         necro_append_top(arena, top, necro_ast_create_type_class(arena, intern, "Applicative", "f", necro_ast_create_context(arena, intern, "Functor", "f", NULL), applicative_method_list));
@@ -602,8 +613,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
                 necro_ast_create_type_fn(arena,
                     necro_ast_create_type_app(arena, m_var, a_var),
                     necro_ast_create_type_fn(arena,
-                        necro_ast_create_type_fn(arena, a_var, necro_ast_create_type_app(arena, m_var, b_var)),
-                        necro_ast_create_type_app(arena, m_var, b_var))),
+                        necro_ast_create_type_fn(arena, a_var, necro_ast_create_type_app(arena, m_var, b_var), NECRO_ARROW_OWNERSHIP_SHARE),
+                        necro_ast_create_type_app(arena, m_var, b_var), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE),
                     NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
         NecroAst* monad_method_list = necro_ast_create_decl(arena, bind_method_sig, NULL);
         necro_append_top(arena, top, necro_ast_create_type_class(arena, intern, "Monad", "m", necro_ast_create_context(arena, intern, "Applicative", "m", NULL), monad_method_list));
@@ -614,7 +625,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         NecroAst* a_var             = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
         NecroAst* append_method_sig =
             necro_ast_create_fn_type_sig(arena, intern, "append", NULL,
-                necro_ast_create_type_fn(arena, a_var, necro_ast_create_type_fn(arena, a_var, a_var)),
+                necro_ast_create_type_fn(arena, a_var, necro_ast_create_type_fn(arena, a_var, a_var, NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE),
                     NECRO_VAR_CLASS_SIG, NECRO_SIG_TYPE_CLASS);
         NecroAst* semigroup_method_list = necro_ast_create_decl(arena, append_method_sig, NULL);
         necro_append_top(arena, top, necro_ast_create_type_class(arena, intern, "Semigroup", "a", NULL, semigroup_method_list));
@@ -725,8 +736,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         b_var->variable.order = NECRO_TYPE_HIGHER_ORDER;
         NecroAst* op_sig      =
             necro_ast_create_fn_type_sig(arena, intern, "<|", NULL,
-                necro_ast_create_type_fn(arena, necro_ast_create_type_fn(arena, a_var, b_var),
-                    necro_ast_create_type_fn(arena, a_var, b_var)),
+                necro_ast_create_type_fn(arena, necro_ast_create_type_fn(arena, a_var, b_var, NECRO_ARROW_OWNERSHIP_SHARE),
+                    necro_ast_create_type_fn(arena, a_var, b_var, NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE),
                 NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
         NecroAst* f_var       = necro_ast_create_var(arena, intern, "f", NECRO_VAR_DECLARATION);
         NecroAst* x_var       = necro_ast_create_var(arena, intern, "x", NECRO_VAR_DECLARATION);
@@ -746,7 +757,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         NecroAst* op_sig      =
             necro_ast_create_fn_type_sig(arena, intern, "|>", NULL,
                 necro_ast_create_type_fn(arena, a_var,
-                    necro_ast_create_type_fn(arena, necro_ast_create_type_fn(arena, a_var, b_var), b_var)),
+                    necro_ast_create_type_fn(arena, necro_ast_create_type_fn(arena, a_var, b_var, NECRO_ARROW_OWNERSHIP_SHARE), b_var, NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE),
                 NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
         NecroAst* x_var       = necro_ast_create_var(arena, intern, "x", NECRO_VAR_DECLARATION);
         NecroAst* f_var       = necro_ast_create_var(arena, intern, "f", NECRO_VAR_DECLARATION);
@@ -767,9 +778,9 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         c_var->variable.order = NECRO_TYPE_HIGHER_ORDER;
         NecroAst* op_sig      =
             necro_ast_create_fn_type_sig(arena, intern, "<<", NULL,
-                necro_ast_create_type_fn(arena, necro_ast_create_type_fn(arena, b_var, c_var),
-                    necro_ast_create_type_fn(arena, necro_ast_create_type_fn(arena, a_var, b_var),
-                        necro_ast_create_type_fn(arena, a_var, c_var))),
+                necro_ast_create_type_fn(arena, necro_ast_create_type_fn(arena, b_var, c_var, NECRO_ARROW_OWNERSHIP_SHARE),
+                    necro_ast_create_type_fn(arena, necro_ast_create_type_fn(arena, a_var, b_var, NECRO_ARROW_OWNERSHIP_SHARE),
+                        necro_ast_create_type_fn(arena, a_var, c_var, NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE),
                 NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
         NecroAst* f_var       = necro_ast_create_var(arena, intern, "f", NECRO_VAR_DECLARATION);
         NecroAst* g_var       = necro_ast_create_var(arena, intern, "g", NECRO_VAR_DECLARATION);
@@ -795,9 +806,9 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         c_var->variable.order = NECRO_TYPE_HIGHER_ORDER;
         NecroAst* op_sig      =
             necro_ast_create_fn_type_sig(arena, intern, ">>", NULL,
-                necro_ast_create_type_fn(arena, necro_ast_create_type_fn(arena, a_var, b_var),
-                    necro_ast_create_type_fn(arena, necro_ast_create_type_fn(arena, b_var, c_var),
-                        necro_ast_create_type_fn(arena, a_var, c_var))),
+                necro_ast_create_type_fn(arena, necro_ast_create_type_fn(arena, a_var, b_var, NECRO_ARROW_OWNERSHIP_SHARE),
+                    necro_ast_create_type_fn(arena, necro_ast_create_type_fn(arena, b_var, c_var, NECRO_ARROW_OWNERSHIP_SHARE),
+                        necro_ast_create_type_fn(arena, a_var, c_var, NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE),
                 NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
         NecroAst* f_var       = necro_ast_create_var(arena, intern, "f", NECRO_VAR_DECLARATION);
         NecroAst* g_var       = necro_ast_create_var(arena, intern, "g", NECRO_VAR_DECLARATION);
@@ -813,29 +824,30 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         necro_append_top(arena, top, op_def_ast);
     }
 
-    // prev
-    {
-        NecroAst* a_var       = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
-        a_var->variable.order = NECRO_TYPE_ZERO_ORDER;
-        NecroAst* context     = necro_ast_create_context(arena, intern, "Default", "a", NULL);
-        NecroAst* fn_sig      =
-            necro_ast_create_fn_type_sig(arena, intern, "prev", context,
-                necro_ast_create_type_fn(arena, a_var, a_var),
-                NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
-        NecroAst* x_var       = necro_ast_create_var(arena, intern, "x", NECRO_VAR_DECLARATION);
-        NecroAst* fn_args     = necro_ast_create_apats(arena, x_var, NULL);
-        NecroAst* px_var      = necro_ast_create_var(arena, intern, "px", NECRO_VAR_DECLARATION);
-        NecroAst* cx_var      = necro_ast_create_var(arena, intern, "cx", NECRO_VAR_DECLARATION);
-        px_var->variable.initializer = necro_ast_create_var(arena, intern, "default", NECRO_VAR_VAR);
-        NecroAst* pat_assign  = necro_ast_create_pat_assignment(arena,
-            necro_ast_create_tuple(arena, necro_ast_create_list(arena, px_var, necro_ast_create_list(arena, cx_var, NULL))),
-            necro_ast_create_tuple(arena, necro_ast_create_list(arena, necro_ast_create_var(arena, intern, "x", NECRO_VAR_VAR), necro_ast_create_list(arena, necro_ast_create_var(arena, intern, "px", NECRO_VAR_VAR), NULL))));
-        NecroAst* fn_decl     = necro_ast_create_decl(arena, pat_assign, NULL);
-        NecroAst* fn_rhs_ast  = necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "cx", NECRO_VAR_VAR), fn_decl);
-        NecroAst* fn_def_ast  = necro_ast_create_apats_assignment(arena, intern, "prev", fn_args, fn_rhs_ast);
-        necro_append_top(arena, top, fn_sig);
-        necro_append_top(arena, top, fn_def_ast);
-    }
+    // TODO: Look into this. Looks like somewhere along the way we broke polymorphic pat assignments.
+    // // prev
+    // {
+    //     NecroAst* a_var       = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
+    //     a_var->variable.order = NECRO_TYPE_ZERO_ORDER;
+    //     NecroAst* context     = necro_ast_create_context(arena, intern, "Default", "a", NULL);
+    //     NecroAst* fn_sig      =
+    //         necro_ast_create_fn_type_sig(arena, intern, "prev", context,
+    //             necro_ast_create_type_fn(arena, a_var, a_var, NECRO_ARROW_OWNERSHIP_SHARE),
+    //             NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
+    //     NecroAst* x_var       = necro_ast_create_var(arena, intern, "x", NECRO_VAR_DECLARATION);
+    //     NecroAst* fn_args     = necro_ast_create_apats(arena, x_var, NULL);
+    //     NecroAst* px_var      = necro_ast_create_var(arena, intern, "px", NECRO_VAR_DECLARATION);
+    //     NecroAst* cx_var      = necro_ast_create_var(arena, intern, "cx", NECRO_VAR_DECLARATION);
+    //     px_var->variable.initializer = necro_ast_create_var(arena, intern, "default", NECRO_VAR_VAR);
+    //     NecroAst* pat_assign  = necro_ast_create_pat_assignment(arena,
+    //         necro_ast_create_tuple(arena, necro_ast_create_list(arena, px_var, necro_ast_create_list(arena, cx_var, NULL))),
+    //         necro_ast_create_tuple(arena, necro_ast_create_list(arena, necro_ast_create_var(arena, intern, "x", NECRO_VAR_VAR), necro_ast_create_list(arena, necro_ast_create_var(arena, intern, "px", NECRO_VAR_VAR), NULL))));
+    //     NecroAst* fn_decl     = necro_ast_create_decl(arena, pat_assign, NULL);
+    //     NecroAst* fn_rhs_ast  = necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "cx", NECRO_VAR_VAR), fn_decl);
+    //     NecroAst* fn_def_ast  = necro_ast_create_apats_assignment(arena, intern, "prev", fn_args, fn_rhs_ast);
+    //     necro_append_top(arena, top, fn_sig);
+    //     necro_append_top(arena, top, fn_def_ast);
+    // }
 
     // world value
     {
@@ -846,7 +858,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     // mouseX
     {
         necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "getMouseX", NULL,
-            necro_ast_create_type_fn(arena, necro_ast_create_conid(arena, intern, "World", NECRO_CON_TYPE_VAR), necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR)),
+            necro_ast_create_type_fn(arena, necro_ast_create_conid(arena, intern, "World", NECRO_CON_TYPE_VAR), necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR), NECRO_ARROW_OWNERSHIP_SHARE),
             NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
         necro_append_top(arena, top,
             necro_ast_create_apats_assignment(arena, intern, "getMouseX",
@@ -857,7 +869,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     // mouseY
     {
         necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "getMouseY", NULL,
-            necro_ast_create_type_fn(arena, necro_ast_create_conid(arena, intern, "World", NECRO_CON_TYPE_VAR), necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR)),
+            necro_ast_create_type_fn(arena, necro_ast_create_conid(arena, intern, "World", NECRO_CON_TYPE_VAR), necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR), NECRO_ARROW_OWNERSHIP_SHARE),
             NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
         necro_append_top(arena, top,
             necro_ast_create_apats_assignment(arena, intern, "getMouseY",
@@ -871,7 +883,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
             necro_ast_create_type_fn(arena, necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR),
                 necro_ast_create_type_app(arena,
                     necro_ast_create_conid(arena, intern, "Ptr", NECRO_CON_TYPE_VAR),
-                    necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR))
+                    necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)), NECRO_ARROW_OWNERSHIP_SHARE
                 ),
             NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
         necro_append_top(arena, top,
@@ -889,7 +901,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
                     necro_ast_create_type_app(arena,
                         necro_ast_create_conid(arena, intern, "Ptr", NECRO_CON_TYPE_VAR),
                         necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)),
-                    necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR))
+                    necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE
                 ),
             NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
         necro_append_top(arena, top,
@@ -911,7 +923,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
                             necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)),
                         necro_ast_create_type_app(arena,
                             necro_ast_create_conid(arena, intern, "Ptr", NECRO_CON_TYPE_VAR),
-                            necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR))))),
+                            necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE),
             NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
         necro_append_top(arena, top,
             necro_ast_create_apats_assignment(arena, intern, "unsafePoke",
@@ -931,7 +943,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
                     bool_conid,
                     necro_ast_create_type_fn(arena,
                         bool_conid,
-                        bool_conid)), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+                        bool_conid, NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
         necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "&&", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
         necro_append_top(arena, top,
             necro_ast_create_fn_type_sig(arena, intern, "||", NULL,
@@ -939,7 +951,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
                     bool_conid,
                     necro_ast_create_type_fn(arena,
                         bool_conid,
-                        bool_conid)), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+                        bool_conid, NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
         necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "||", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
     }
 
@@ -947,6 +959,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_build_scopes(info, scoped_symtable, &base.ast);
     unwrap(void, necro_rename(info, scoped_symtable, intern, &base.ast));
     necro_dependency_analyze(info, intern, &base.ast);
+    necro_alias_analysis(info, &base.ast); // NOTE: Consider merging alias_analysis into RENAME_VAR phase?
 
     // Cache useful symbols
     base.prim_undefined         = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "_primUndefined"));;
@@ -1022,7 +1035,7 @@ void necro_base_init_mach(NecroMachProgram* program, NecroBase* base)
     UNUSED(base);
 }
 
-#define NECRO_BASE_TEST_VERBOSE 1
+#define NECRO_BASE_TEST_VERBOSE 0
 
 void necro_base_test()
 {

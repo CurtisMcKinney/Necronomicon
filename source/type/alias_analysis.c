@@ -61,14 +61,14 @@ NecroAliasAnalysis necro_alias_analysis_create(NecroAstArena* ast_arena)
 {
     NecroPagedArena arena     = necro_paged_arena_create();
     NecroAliasSet*  alias_set = necro_alias_set_create(&arena, 512);
-    NecroAliasSet*  free_vars = necro_alias_set_create(&ast_arena->arena, 16);
+    // NecroAliasSet*  free_vars = necro_alias_set_create(&ast_arena->arena, 16);
     NecroAliasAnalysis alias_analysis = (NecroAliasAnalysis)
     {
         .arena       = &ast_arena->arena,
         .ast_arena   = ast_arena,
         .alias_arena = arena,
         .top_set     = alias_set,
-        .free_vars   = free_vars,
+        .free_vars   = NULL,
     };
     return alias_analysis;
 }
@@ -147,9 +147,16 @@ NecroAliasSet* necro_alias_set_create(NecroPagedArena* arena, size_t capacity)
     return set;
 }
 
+void necro_free_vars_print(NecroFreeVars* free_vars)
+{
+    printf("free_vars, count: %zu\n", free_vars->count);
+    for (size_t i = 0; i < free_vars->count; ++i)
+        printf("    %s\n", (&free_vars->data)[i]->name->str);
+}
+
 NecroFreeVars* necro_alias_set_to_free_vars(NecroAliasSet* set)
 {
-    NecroFreeVars* free_vars = necro_paged_arena_alloc(set->arena, sizeof(size_t) + (set->count * sizeof(NecroAstSymbol)));
+    NecroFreeVars* free_vars = necro_paged_arena_alloc(set->arena, sizeof(NecroFreeVars*) + sizeof(size_t) + (set->count * sizeof(NecroAstSymbol)));
     free_vars->next          = NULL;
     free_vars->count         = set->count;
     if (free_vars->count == 0)
@@ -165,12 +172,8 @@ NecroFreeVars* necro_alias_set_to_free_vars(NecroAliasSet* set)
         symbol_i++;
     }
     assert(symbol_i == set->count);
-    if (free_vars->count > 0)
-    {
-        printf("free_vars, count: %zu\n", free_vars->count);
-        for (size_t i = 0; i < free_vars->count; ++i)
-            printf("    %s\n", (&free_vars->data)[i]->name->str);
-    }
+    // if (free_vars->count > 1)
+    //     necro_free_vars_print(free_vars);
     return free_vars;
 }
 
@@ -251,6 +254,8 @@ void necro_alias_set_insert_symbol_without_usage(NecroAliasSet* set, NecroAstSym
 
 NecroAliasSet* necro_alias_set_merge_without_usage(NecroAliasSet* set1, NecroAliasSet* set2)
 {
+    if (set1 == NULL)
+        return NULL;
     for (size_t i = 0; i < set2->capacity; ++i)
     {
         NecroAstSymbol* symbol = set2->data[i].symbol;
@@ -361,11 +366,6 @@ void necro_alias_set_union_children_then_merge_into_parent(NecroAliasSet* parent
 ///////////////////////////////////////////////////////
 // Analysis Go
 ///////////////////////////////////////////////////////
-// TODO: Embed this in another pass? Perhaps RenameVar pass?
-// TODO: NecroAliasSet free_vars
-// TODO: NecroAliasSet delete
-// TODO: Fast memcpy based NecroAliasSet clone
-// TODO: Clone free_vars at NECRO_AST_APATS_ASSIGNMENT and NECRO_AST_LAMBDA
 NecroFreeVars* necro_alias_analysis_apats_free_var_delete(NecroAliasAnalysis* alias_analysis, NecroAliasSet* alias_set, NecroAst* ast)
 {
     if (ast == NULL)
@@ -402,7 +402,7 @@ void necro_alias_analysis_go(NecroAliasAnalysis* alias_analysis, NecroAliasSet* 
     case NECRO_AST_DECL:
     {
         NecroAliasSet* prev_free_vars = alias_analysis->free_vars;
-        alias_analysis->free_vars     = necro_alias_set_create(prev_free_vars->arena, 8);
+        alias_analysis->free_vars     = necro_alias_set_create(&alias_analysis->ast_arena->arena, 8);
         NecroAst* declaration_group = ast;
         while (declaration_group != NULL)
         {
@@ -490,6 +490,7 @@ void necro_alias_analysis_go(NecroAliasAnalysis* alias_analysis, NecroAliasSet* 
     // NOTE: Case works the same as if/then/else, but with a variable number of branches
     case NECRO_AST_CASE:
     {
+        necro_alias_analysis_go(alias_analysis, alias_set, ast->case_expression.expression);
         size_t    alt_count = 0;
         NecroAst* curr_alt  = ast->case_expression.alternatives;
         while (curr_alt != NULL)
@@ -508,7 +509,6 @@ void necro_alias_analysis_go(NecroAliasAnalysis* alias_analysis, NecroAliasSet* 
             alt_i++;
             curr_alt = curr_alt->list.next_item;
         }
-        necro_alias_analysis_go(alias_analysis, alias_set, ast->case_expression.expression);
         necro_alias_set_union_children_then_merge_into_parent(alias_set, alt_sets, alt_count);
         return;
     }
@@ -1039,6 +1039,7 @@ void necro_alias_analysis_test()
     //     necro_alias_analysis_test_case(test_name, test_source, name, shared_flag);
     // }
 
+/*
     {
         const char* test_name   = "Basic Test 0";
         const char* test_source = ""
@@ -1312,15 +1313,33 @@ void necro_alias_analysis_test()
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
         necro_ownership_test(test_name, test_source, expect_error_result, NULL);
     }
+*/
 
+    // // TODO: Get signature function ownership inference working
+    // {
+    //     const char* test_name   = "Free Var 1";
+    //     const char* test_source = ""
+    //         "freeVarTest :: *a -> *b -> *c -> *d -> *(a, b, c, d)\n"
+    //         "freeVarTest w x y z = (w, x, y, z)\n";
+    //     const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+    //     necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    // }
+
+    // TODO: Get signature function ownership inference working
     {
-        const char* test_name   = "Free Var 1";
+        const char* test_name   = "Free Var Error 1";
         const char* test_source = ""
-            "freeVarTest w x y z = (w, x, y, z)\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
-        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+            "freeVarTest :: *a -> *b -> *c -> *d -> *(a, b, c, d)\n"
+            "freeVarTest w x y z = (w, x, y, z)\n"
+            "partialApp = freeVarTest () () ()\n"
+            "val1 = partialApp ()\n"
+            "val2 = partialApp ()\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
+        necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
     }
 
+/*
     {
         const char* test_name   = "Free Var 2";
         const char* test_source = ""
@@ -1328,6 +1347,43 @@ void necro_alias_analysis_test()
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
         necro_ownership_test(test_name, test_source, expect_error_result, NULL);
     }
+
+    {
+        const char* test_name   = "Free Var 3";
+        const char* test_source = ""
+            "freeVarTest1 w x y z = sub w x y z where sub w' x' y' z' = (w', x', y', z')\n"
+            "freeVarTest2 a b c d = sub a b c d where sub a' b' c' d' = (a', b', c', d')\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Free Var 4";
+        const char* test_source = ""
+            "freeVarTest2 x y z = (sub1 x y z, sub2 x y z) where\n"
+            "  sub1 a b c = (a, b, c)\n"
+            "  sub2 d e f = (d, e, f)\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Free Var 5";
+        const char* test_source = ""
+            "top1 = 0\n"
+            "top2 x y = sub x y where sub x' y' = x' + y' + top1\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Free Var 6";
+        const char* test_source = ""
+            "freeVarTest = \\w x y z -> (w, x, y, z)\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+*/
 
     // // TODO: fromInt is shared currently...
     // {

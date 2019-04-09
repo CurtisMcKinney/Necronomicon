@@ -513,24 +513,31 @@ NecroResult(NecroType) necro_infer_lambda(NecroInfer* infer, NecroAst* ast)
 {
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_LAMBDA);
-    NecroAst*  apats  = ast->lambda.apats;
-    NecroType* f_type = NULL;
-    NecroType* f_head = NULL;
+    NecroFreeVars* free_vars = ast->lambda.free_vars;
+    NecroAst*      apats     = ast->lambda.apats;
+    NecroType*     f_type    = NULL;
+    NecroType*     f_head    = NULL;
     while (apats != NULL)
     {
         assert(apats->type == NECRO_AST_APATS);
+        assert(free_vars != NULL);
         NecroType* apat_type = necro_try(NecroType, necro_infer_apat(infer, apats->apats.apat));
         if (f_type == NULL)
         {
-            f_type = necro_type_fn_create(infer->arena, apat_type, NULL);
-            f_head = f_type;
+            f_type                = necro_type_fn_create(infer->arena, apat_type, NULL);
+            f_head                = f_type;
+            f_type->fun.free_vars = free_vars;
         }
         else
         {
-            f_type->fun.type2 = necro_type_fn_create(infer->arena, apat_type, NULL);
-            f_type = f_type->fun.type2;
+            f_type->fun.type2     = necro_type_fn_create(infer->arena, apat_type, NULL);
+            f_type                = f_type->fun.type2;
+            f_type->fun.free_vars = free_vars;
         }
-        apats = apats->apats.next_apat;
+        // if (free_vars->count > 1)
+        //     necro_free_vars_print(free_vars);
+        apats     = apats->apats.next_apat;
+        free_vars = free_vars->next;
     }
     f_type->fun.type2 = necro_try(NecroType, necro_infer_go(infer, ast->lambda.expression));
     ast->necro_type   = f_head;
@@ -546,7 +553,8 @@ NecroResult(NecroType) necro_infer_apats_assignment(NecroInfer* infer, NecroAst*
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_APATS_ASSIGNMENT);
 
-    NecroType* proxy_type   = ast->apats_assignment.ast_symbol->type;
+    NecroType*     proxy_type  = ast->apats_assignment.ast_symbol->type;
+    NecroFreeVars* free_vars   = ast->apats_assignment.free_vars;
 
     // Unify args (long winded version for better error messaging)
     NecroAst*  apats  = ast->apats_assignment.apats;
@@ -554,18 +562,24 @@ NecroResult(NecroType) necro_infer_apats_assignment(NecroInfer* infer, NecroAst*
     NecroType* f_head = NULL;
     while (apats != NULL)
     {
+        assert(free_vars != NULL);
         NecroType* apat_type = necro_try(NecroType, necro_infer_apat(infer, apats->apats.apat));
         if (f_type == NULL)
         {
-            f_type = necro_type_fn_create(infer->arena, apat_type, NULL);
-            f_head = f_type;
+            f_type                = necro_type_fn_create(infer->arena, apat_type, NULL);
+            f_head                = f_type;
+            f_type->fun.free_vars = free_vars;
         }
         else
         {
-            f_type->fun.type2 = necro_type_fn_create(infer->arena, apat_type, NULL);
-            f_type            = f_type->fun.type2;
+            f_type->fun.type2     = necro_type_fn_create(infer->arena, apat_type, NULL);
+            f_type                = f_type->fun.type2;
+            f_type->fun.free_vars = free_vars;
         }
-        apats = apats->apats.next_apat;
+        // if (free_vars->count > 1)
+        //     necro_free_vars_print(free_vars);
+        apats     = apats->apats.next_apat;
+        free_vars = free_vars->next;
     }
 
     // Unify rhs
@@ -777,6 +791,28 @@ NecroResult(NecroType) necro_infer_var_initializer(NecroInfer* infer, NecroAst* 
     return necro_type_unify_with_info(infer->arena, infer->base, ast->necro_type, init_type, ast->scope, ast->variable.initializer->source_loc, ast->variable.initializer->end_loc);
 }
 
+NecroResult(NecroType) necro_infer_var_uniqueness(NecroInfer* infer, NecroAst* ast)
+{
+    if (ast->variable.var_type != NECRO_VAR_VAR && ast->variable.var_type != NECRO_VAR_DECLARATION)
+        return ok(NecroType, NULL);
+    if (ast->necro_type->ownership == NULL)
+    {
+        if (!necro_usage_is_unshared(ast->variable.ast_symbol->usage))
+            ast->necro_type->ownership = infer->base->ownership_share->type;
+        else
+            ast->necro_type->ownership = necro_type_ownership_fresh_var(infer->arena, infer->base);
+        return ok(NecroType, NULL);
+    }
+    else if (!necro_usage_is_unshared(ast->variable.ast_symbol->usage))
+    {
+        return necro_type_ownership_unify_with_info(infer->arena, infer->base, infer->base->ownership_share->type, ast->necro_type->ownership, ast->scope, ast->source_loc, ast->end_loc);
+    }
+    else
+    {
+        return ok(NecroType, NULL);
+    }
+}
+
 NecroResult(NecroType) necro_infer_var(NecroInfer* infer, NecroAst* ast)
 {
     assert(ast != NULL);
@@ -813,23 +849,17 @@ NecroResult(NecroType) necro_infer_var(NecroInfer* infer, NecroAst* ast)
         assert(ast->variable.var_type == NECRO_VAR_DECLARATION);
         data->type            = necro_type_fresh_var(infer->arena);
         data->type->var.scope = ast->scope;
-        // data->type->var.scope = data->ast->scope;
         ast->necro_type       = data->type;
         ast->necro_type->kind = infer->base->star_kind->type;
         necro_try(NecroType, necro_infer_var_initializer(infer, ast));
-        if (ast->variable.var_type == NECRO_VAR_VAR || ast->variable.var_type == NECRO_VAR_DECLARATION)
-        {
-            if (necro_usage_is_unshared(ast->variable.ast_symbol->usage))
-                ast->necro_type->ownership = necro_type_ownership_fresh_var(infer->arena, infer->base);
-            else
-                ast->necro_type->ownership = infer->base->ownership_share->type;
-        }
+        necro_try(NecroType, necro_infer_var_uniqueness(infer, ast));
         return ok(NecroType, ast->necro_type);
     }
     else if (necro_type_is_bound_in_scope(data->type, ast->scope))
     {
         ast->necro_type = data->type;
         necro_try(NecroType, necro_infer_var_initializer(infer, ast));
+        necro_try(NecroType, necro_infer_var_uniqueness(infer, ast));
         return ok(NecroType, ast->necro_type);
     }
     else
@@ -837,21 +867,8 @@ NecroResult(NecroType) necro_infer_var(NecroInfer* infer, NecroAst* ast)
         ast->variable.inst_subs = NULL;
         NecroType* inst_type    = necro_try(NecroType, necro_type_instantiate_with_subs(infer->arena, infer->base, data->type, ast->scope, &ast->variable.inst_subs));
         ast->necro_type         = inst_type;
-        if (ast->variable.var_type == NECRO_VAR_VAR || ast->variable.var_type == NECRO_VAR_DECLARATION)
-        {
-            if (inst_type->ownership == NULL)
-            {
-                if (!necro_usage_is_unshared(ast->variable.ast_symbol->usage))
-                    inst_type->ownership = infer->base->ownership_share->type;
-                else
-                    inst_type->ownership = necro_type_ownership_fresh_var(infer->arena, infer->base);
-            }
-            else if (!necro_usage_is_unshared(ast->variable.ast_symbol->usage))
-            {
-                necro_try(NecroType, necro_type_ownership_unify(infer->base->ownership_share->type, inst_type->ownership, ast->scope));
-            }
-        }
         necro_try(NecroType, necro_infer_var_initializer(infer, ast));
+        necro_try(NecroType, necro_infer_var_uniqueness(infer, ast));
         return ok(NecroType, ast->necro_type);
     }
 }

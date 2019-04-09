@@ -454,7 +454,9 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
     case NECRO_AST_LAMBDA:
         necro_scoped_symtable_new_scope(scoped_symtable);
         necro_build_scopes_go(scoped_symtable, input_node->lambda.apats);
+        necro_scoped_symtable_new_scope(scoped_symtable);
         necro_build_scopes_go(scoped_symtable, input_node->lambda.expression);
+        necro_scoped_symtable_pop_scope(scoped_symtable);
         necro_scoped_symtable_pop_scope(scoped_symtable);
         break;
     case NECRO_AST_DO:
@@ -587,15 +589,7 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
         necro_build_scopes_go(scoped_symtable, input_node->type_class_instance.context);
         necro_build_scopes_go(scoped_symtable, input_node->type_class_instance.qtycls);
         necro_build_scopes_go(scoped_symtable, input_node->type_class_instance.inst);
-
-        // necro_scoped_symtable_new_scope(scoped_symtable);
         necro_build_scopes_go(scoped_symtable, input_node->type_class_instance.declarations);
-        // necro_scoped_symtable_pop_scope(scoped_symtable);
-
-        // TODO: Remove all dictionary cruft
-        // TODO: Get AST arena into here and use that instead of the scope arena!
-        // necro_create_dictionary_instance(&scoped_symtable->arena, scoped_symtable->global_table->intern, input_node);
-        // necro_build_scopes_go(scoped_symtable, input_node->type_class_instance.dictionary_instance);
         necro_scoped_symtable_pop_type_scope(scoped_symtable);
         break;
     case NECRO_AST_TYPE_SIGNATURE:

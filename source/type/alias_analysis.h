@@ -33,5 +33,6 @@ typedef struct NecroFreeVars
 void necro_alias_analysis(NecroCompileInfo info, NecroAstArena* ast_arena);
 void necro_alias_analysis_test();
 bool necro_usage_is_unshared(NecroUsage* usage);
+void necro_free_vars_print(NecroFreeVars* free_vars);
 
 #endif // NECRO_TYPE_ALIAS_ANALYSIS_H

@@ -1308,7 +1308,7 @@ void necro_type_append_to_foralls(NecroPagedArena* arena, NecroType** for_alls, 
     }
     NecroType* for_all    = necro_type_for_all_create(arena, type->var.var_symbol, NULL);
     for_all->kind         = NULL;
-    for_all->ownership    = type->ownership;
+    for_all->ownership    = NULL;
     for_all->pre_supplied = type->pre_supplied;
     if (*for_alls != NULL)
     {
@@ -1408,16 +1408,20 @@ NecroResult(NecroType) necro_type_generalize(NecroPagedArena* arena, struct Necr
     assert(type != NULL);
     assert(type->type != NECRO_TYPE_FOR);
     necro_try_map(void, NecroType, necro_kind_infer_default(arena, base, type, NULL_LOC, NULL_LOC));
-    NecroType* for_alls = NULL;
-    NecroType* gen_type = necro_type_gen_go(arena, type, scope, &for_alls);
+    NecroType* for_alls   = NULL;
+    NecroType* gen_type   = necro_type_gen_go(arena, type, scope, &for_alls);
+    NecroType* uniqueness = gen_type->ownership;
+    assert(uniqueness != NULL);
     if (for_alls != NULL)
     {
         NecroType* curr = for_alls;
         while (curr->for_all.type != NULL)
         {
-            curr = curr->for_all.type;
+            curr->ownership = uniqueness;
+            curr            = curr->for_all.type;
         }
         curr->for_all.type = gen_type;
+        curr->ownership    = uniqueness;
         return ok(NecroType, for_alls);
     }
     else
@@ -2772,6 +2776,15 @@ NecroType* necro_type_free_vars_to_ownership_type(NecroPagedArena* arena, NecroB
     return necro_type_uniqueness_list_to_ownership_type(arena, base, u_list);
 }
 
+bool necro_type_is_inhabited(NecroBase* base, const NecroType* type)
+{
+    type = necro_type_find_const(type);
+    const NecroType* kind = necro_type_find_const(type->kind);
+    assert(kind != NULL);
+    assert(kind->type != NECRO_TYPE_VAR);
+    return necro_type_get_fully_applied_fun_type_const(kind) == base->star_kind->type;
+}
+
 // Returns inferred ownership
 NecroResult(NecroType) necro_type_ownership_infer_from_type(NecroPagedArena* arena, NecroBase* base, NecroType* type, NecroScope* scope)
 {
@@ -2792,16 +2805,15 @@ NecroResult(NecroType) necro_type_ownership_infer_from_type(NecroPagedArena* are
     }
     case NECRO_TYPE_CON:
     {
-        // TODO: How to infer this!?
+        const bool is_inhabited = necro_type_is_inhabited(base, type);
+        if (!is_inhabited)
+            type->ownership = base->ownership_share->type;
         NecroType* args = type->con.args;
         type->ownership = necro_type_ownership_fresh_var(arena, base);
         while (args != NULL)
         {
             NecroType* arg_ownership = necro_try(NecroType, necro_type_ownership_infer_from_type(arena, base, args->list.item, scope));
-            NecroType* arg_kind      = necro_type_find(args->list.item->kind);
-            assert(arg_kind != NULL);
-            assert(arg_kind->type != NECRO_TYPE_VAR);
-            if (arg_kind == base->star_kind->type)
+            if (is_inhabited)
                 necro_try(NecroType, necro_type_ownership_unify(type->ownership, arg_ownership, scope));
             args = args->list.next;
         }
@@ -2809,13 +2821,16 @@ NecroResult(NecroType) necro_type_ownership_infer_from_type(NecroPagedArena* are
     }
     case NECRO_TYPE_APP:
     {
-        type->ownership       = necro_try(NecroType, necro_type_ownership_infer_from_type(arena, base, type->app.type1, scope));
+        const bool is_inhabited = necro_type_is_inhabited(base, type);
+        if (!is_inhabited)
+            type->ownership = base->ownership_share->type;
+        NecroType* ownership1 = necro_try(NecroType, necro_type_ownership_infer_from_type(arena, base, type->app.type1, scope));
         NecroType* ownership2 = necro_try(NecroType, necro_type_ownership_infer_from_type(arena, base, type->app.type2, scope));
-        NecroType* arg_kind   = necro_type_find(type->app.type2->kind);
-        assert(arg_kind != NULL);
-        assert(arg_kind->type != NECRO_TYPE_VAR);
-        if (arg_kind == base->star_kind->type)
+        if (is_inhabited)
+        {
+            type->ownership = ownership1;
             necro_try(NecroType, necro_type_ownership_unify(type->ownership, ownership2, scope));
+        }
         return ok(NecroType, type->ownership);
     }
     case NECRO_TYPE_FOR:
@@ -2849,14 +2864,14 @@ NecroResult(NecroType) necro_type_ownership_infer_from_sig_go(NecroPagedArena* a
     }
     case NECRO_TYPE_CON:
     {
+        const bool is_inhabited = necro_type_is_inhabited(base, type);
+        if (!is_inhabited)
+            type->ownership = base->ownership_share->type;
         NecroType* args = type->con.args;
         while (args != NULL)
         {
             NecroType* arg_ownership = necro_try(NecroType, necro_type_ownership_infer_from_sig_go(arena, base, args->list.item, scope, NULL));
-            NecroType* arg_kind      = necro_type_find(args->list.item->kind);
-            assert(arg_kind != NULL);
-            assert(arg_kind->type != NECRO_TYPE_VAR);
-            if (arg_kind == base->star_kind->type)
+            if (is_inhabited)
                 necro_try(NecroType, necro_type_ownership_unify(type->ownership, arg_ownership, scope));
             args = args->list.next;
         }
@@ -2864,14 +2879,16 @@ NecroResult(NecroType) necro_type_ownership_infer_from_sig_go(NecroPagedArena* a
     }
     case NECRO_TYPE_APP:
     {
+        const bool is_inhabited = necro_type_is_inhabited(base, type);
+        if (!is_inhabited)
+            type->ownership = base->ownership_share->type;
         NecroType* ownership1 = necro_try(NecroType, necro_type_ownership_infer_from_sig_go(arena, base, type->app.type1, scope, NULL));
-        necro_try(NecroType, necro_type_ownership_unify(type->ownership, ownership1, scope));
         NecroType* ownership2 = necro_try(NecroType, necro_type_ownership_infer_from_sig_go(arena, base, type->app.type2, scope, NULL));
-        NecroType* arg_kind   = necro_type_find(type->app.type2->kind);
-        assert(arg_kind != NULL);
-        assert(arg_kind->type != NECRO_TYPE_VAR);
-        if (arg_kind == base->star_kind->type)
+        if (is_inhabited)
+        {
+            type->ownership = ownership1;
             necro_try(NecroType, necro_type_ownership_unify(type->ownership, ownership2, scope));
+        }
         return ok(NecroType, type->ownership);
     }
     case NECRO_TYPE_FOR:

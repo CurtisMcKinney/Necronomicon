@@ -1039,7 +1039,6 @@ void necro_alias_analysis_test()
     //     necro_alias_analysis_test_case(test_name, test_source, name, shared_flag);
     // }
 
-/*
     {
         const char* test_name   = "Basic Test 0";
         const char* test_source = ""
@@ -1313,7 +1312,6 @@ void necro_alias_analysis_test()
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
         necro_ownership_test(test_name, test_source, expect_error_result, NULL);
     }
-*/
 
     // // TODO: Get signature function ownership inference working
     // {
@@ -1339,7 +1337,6 @@ void necro_alias_analysis_test()
         necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
     }
 
-/*
     {
         const char* test_name   = "Free Var 2";
         const char* test_source = ""
@@ -1383,7 +1380,6 @@ void necro_alias_analysis_test()
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
         necro_ownership_test(test_name, test_source, expect_error_result, NULL);
     }
-*/
 
     // // TODO: fromInt is shared currently...
     // {

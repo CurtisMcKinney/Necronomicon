@@ -103,6 +103,7 @@ NecroResult(NecroType) necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast
             NecroType* prev_type     = ast->variable.ast_symbol->type;
             NecroType* new_ownership = necro_ast_get_type_sig_ownership(infer, attribute_type);
             necro_try(NecroType, necro_type_ownership_unify_with_info(infer->arena, infer->base, prev_type->ownership, new_ownership, ast->scope, ast->source_loc, ast->end_loc));
+            // TODO:
             // if (symbol_type->var.order != prev_type->var.order)
             //     return necro_type_mismatched_order_error(prev_type->var.order, type_var->var.order, type_var, ast->source_loc, ast->end_loc);
             return ok(NecroType, ast->variable.ast_symbol->type);
@@ -155,7 +156,6 @@ NecroResult(NecroType) necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast
         NecroType* env_con_type = ast->constructor.conid->conid.ast_symbol->type;
         ast->necro_type         = necro_type_con_create(infer->arena, env_con_type->con.con_symbol, con_args);
         // necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, ast->necro_type, ast->source_loc, ast->end_loc));
-        // ast->necro_type->ownership = infer->base->ownership_share->type;
         ast->necro_type->ownership = necro_ast_get_type_sig_ownership(infer, attribute_type);
         return ok(NecroType, ast->necro_type);
     }
@@ -184,7 +184,6 @@ NecroResult(NecroType) necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast
             ast->necro_type->kind = NULL;
             // necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, ast->necro_type, ast->source_loc, ast->end_loc));
             // TODO: Look at this!
-            // ast->necro_type->ownership = infer->base->ownership_share->type;
             ast->necro_type->ownership = necro_ast_get_type_sig_ownership(infer, attribute_type);
             return ok(NecroType, ast->necro_type);
         }
@@ -192,7 +191,6 @@ NecroResult(NecroType) necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast
         {
             ast->necro_type = necro_type_app_create(infer->arena, left, right);
             // necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, ast->necro_type, ast->source_loc, ast->end_loc));
-            // ast->necro_type->ownership = infer->base->ownership_share->type;
             ast->necro_type->ownership = necro_ast_get_type_sig_ownership(infer, attribute_type);
             return ok(NecroType, ast->necro_type);
         }

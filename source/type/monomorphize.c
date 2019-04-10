@@ -10,6 +10,7 @@
 #include "infer.h"
 #include "result.h"
 #include "kind.h"
+#include "alias_analysis.h"
 
 /*
     TODO:
@@ -1026,6 +1027,7 @@ void necro_monomorphize_test_result(const char* test_name, const char* str, NECR
     necro_build_scopes(info, &scoped_symtable, &ast);
     unwrap(void, necro_rename(info, &scoped_symtable, &intern, &ast));
     necro_dependency_analyze(info, &intern, &ast);
+    necro_alias_analysis(info, &ast); // NOTE: Consider merging alias_analysis into RENAME_VAR phase?
     unwrap(void, necro_infer(info, &intern, &scoped_symtable, &base, &ast));
     NecroResult(void) result = necro_monomorphize(info, &intern, &scoped_symtable, &base, &ast);
 

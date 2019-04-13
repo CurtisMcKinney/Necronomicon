@@ -10,6 +10,8 @@
 #include "symtable.h"
 #include "core/core.h"
 
+NecroScope necro_global_scope = { 0 };
+
 // Constants
 #define NECRO_SYMTABLE_INITIAL_SIZE 512
 

@@ -75,18 +75,10 @@ typedef enum
 //=====================================================
 // AST FunctionType
 //=====================================================
-typedef enum
-{
-    NECRO_ARROW_OWNERSHIP_SHARE,
-    NECRO_ARROW_OWNERSHIP_POLY,
-    NECRO_ARROW_OWNERSHIP_STEAL,
-} NECRO_ARROW_OWNERSHIP;
-
 typedef struct
 {
     NecroParseAstLocalPtr type;
     NecroParseAstLocalPtr next_on_arrow;
-    NECRO_ARROW_OWNERSHIP ownership;
 } NecroParseAstFunctionType;
 
 //=====================================================
@@ -496,7 +488,8 @@ typedef enum
 {
     NECRO_TYPE_ATTRIBUTE_NONE,
     NECRO_TYPE_ATTRIBUTE_STAR,
-    NECRO_TYPE_ATTRIBUTE_DOT
+    NECRO_TYPE_ATTRIBUTE_DOT,
+    NECRO_TYPE_ATTRIBUTE_CONSTRUCTOR_DOT,
 } NECRO_TYPE_ATTRIBUTE_TYPE;
 
 typedef struct

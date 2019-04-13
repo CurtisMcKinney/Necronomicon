@@ -478,14 +478,13 @@ NecroParseAstLocalPtr necro_parse_ast_create_type_signature(NecroArena* arena, N
     return local_ptr;
 }
 
-NecroParseAstLocalPtr necro_parse_ast_create_function_type(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr lhs_ast, NecroParseAstLocalPtr rhs_ast, NECRO_ARROW_OWNERSHIP ownership)
+NecroParseAstLocalPtr necro_parse_ast_create_function_type(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr lhs_ast, NecroParseAstLocalPtr rhs_ast)
 {
     NecroParseAstLocalPtr local_ptr;
     NecroParseAst*        node        = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                        = NECRO_AST_FUNCTION_TYPE;
     node->function_type.type          = lhs_ast;
     node->function_type.next_on_arrow = rhs_ast;
-    node->function_type.ownership     = ownership;
     node->source_loc                  = source_loc;
     node->end_loc                     = end_loc;
     return local_ptr;
@@ -845,7 +844,6 @@ void necro_parse_ast_assert_eq_function_type(NecroParseAstArena* ast1, NecroPars
     assert(node2->type == NECRO_AST_FUNCTION_TYPE);
     necro_parse_ast_assert_eq_go(ast1, node1->function_type.type, ast2, node2->function_type.type);
     necro_parse_ast_assert_eq_go(ast1, node1->function_type.next_on_arrow, ast2, node2->function_type.next_on_arrow);
-    assert(node1->function_type.ownership == node2->function_type.ownership);
 }
 
 void necro_parse_ast_assert_eq_type_attribut(NecroParseAstArena* ast1, NecroParseAst* node1, NecroParseAstArena* ast2, NecroParseAst* node2)

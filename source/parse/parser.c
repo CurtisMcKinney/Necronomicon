@@ -3290,18 +3290,13 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_type(NecroParser* parser)
         return ok_NecroParseAstLocalPtr(null_local_ptr);
     }
     // Next Type after arrow
-    if (necro_parse_peek_token_type(parser) == NECRO_LEX_RIGHT_ARROW || necro_parse_peek_token_type(parser) == NECRO_LEX_POLY_ARROW || necro_parse_peek_token_type(parser) == NECRO_LEX_STEALING_ARROW)
+    if (necro_parse_peek_token_type(parser) == NECRO_LEX_RIGHT_ARROW)
     {
-        NECRO_ARROW_OWNERSHIP ownership = NECRO_ARROW_OWNERSHIP_SHARE;
-        if (necro_parse_peek_token_type(parser) == NECRO_LEX_POLY_ARROW)
-            ownership = NECRO_ARROW_OWNERSHIP_POLY;
-        else if (necro_parse_peek_token_type(parser) == NECRO_LEX_STEALING_ARROW)
-            ownership = NECRO_ARROW_OWNERSHIP_STEAL;
         necro_parse_consume_token(parser);
         NecroParseAstLocalPtr next_after_arrow_ptr = necro_try(NecroParseAstLocalPtr, necro_parse_type(parser));
         if (next_after_arrow_ptr == null_local_ptr)
             return necro_type_expected_type_error(source_loc, necro_parse_peek_token(parser)->end_loc);
-                NecroParseAstLocalPtr ptr = necro_parse_ast_create_function_type(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->end_loc, ty_ptr, next_after_arrow_ptr, ownership);
+                NecroParseAstLocalPtr ptr = necro_parse_ast_create_function_type(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->end_loc, ty_ptr, next_after_arrow_ptr);
         return ok_NecroParseAstLocalPtr(ptr);
     }
     else
@@ -3335,21 +3330,32 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_btype(NecroParser* parser)
     NecroParserSnapshot  snapshot = necro_parse_snapshot(parser);
 
     // *type
-    // if (ptr == null_local_ptr)
-    // {
-        if (necro_parse_peek_token_type(parser) == NECRO_LEX_MUL)
+    if (necro_parse_peek_token_type(parser) == NECRO_LEX_MUL)
+    {
+        NecroSourceLoc source_loc = necro_parse_peek_token(parser)->source_loc;
+        necro_parse_consume_token(parser);
+        NecroParseAstLocalPtr ptr = necro_try(NecroParseAstLocalPtr, necro_parse_btype(parser)); // TODO/NOTE: Or perhaps necro_parse_type
+        if (ptr != null_local_ptr)
         {
-            NecroSourceLoc source_loc = necro_parse_peek_token(parser)->source_loc;
-            necro_parse_consume_token(parser);
-            NecroParseAstLocalPtr ptr = necro_try(NecroParseAstLocalPtr, necro_parse_btype(parser)); // TODO/NOTE: Or perhaps necro_parse_type
-            if (ptr != null_local_ptr)
-            {
-                ptr = necro_parse_ast_create_type_attribute(&parser->ast.arena, source_loc, source_loc, ptr, NECRO_TYPE_ATTRIBUTE_STAR);
-                return ok(NecroParseAstLocalPtr, ptr);
-            }
-            necro_parse_restore(parser, snapshot);
+            ptr = necro_parse_ast_create_type_attribute(&parser->ast.arena, source_loc, source_loc, ptr, NECRO_TYPE_ATTRIBUTE_STAR);
+            return ok(NecroParseAstLocalPtr, ptr);
         }
-    // }
+        necro_parse_restore(parser, snapshot);
+    }
+
+    // .type
+    if (necro_parse_peek_token_type(parser) == NECRO_LEX_DOT)
+    {
+        NecroSourceLoc source_loc = necro_parse_peek_token(parser)->source_loc;
+        necro_parse_consume_token(parser);
+        NecroParseAstLocalPtr ptr = necro_try(NecroParseAstLocalPtr, necro_parse_btype(parser)); // TODO/NOTE: Or perhaps necro_parse_type
+        if (ptr != null_local_ptr)
+        {
+            ptr = necro_parse_ast_create_type_attribute(&parser->ast.arena, source_loc, source_loc, ptr, NECRO_TYPE_ATTRIBUTE_DOT);
+            return ok(NecroParseAstLocalPtr, ptr);
+        }
+        necro_parse_restore(parser, snapshot);
+    }
 
     NecroParseAstLocalPtr atype    = necro_try(NecroParseAstLocalPtr, necro_parse_atype(parser, NECRO_VAR_TYPE_FREE_VAR));
     NecroParseAstLocalPtr btype    = necro_try(NecroParseAstLocalPtr, necro_parse_btype_go(parser, atype));

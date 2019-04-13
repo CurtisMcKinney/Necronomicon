@@ -757,7 +757,6 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
     case NECRO_AST_FUNCTION_TYPE:
         reified_ast->function_type.type          = necro_reify_go(parse_ast_arena, ast->function_type.type, arena, intern);
         reified_ast->function_type.next_on_arrow = necro_reify_go(parse_ast_arena, ast->function_type.next_on_arrow, arena, intern);
-        reified_ast->function_type.ownership     = ast->function_type.ownership;
         break;
     case NECRO_AST_TYPE_ATTRIBUTE:
         reified_ast->attribute.attribute_type = necro_reify_go(parse_ast_arena, ast->attribute.attributed_type, arena, intern);
@@ -1009,12 +1008,11 @@ NecroAst* necro_ast_create_type_app(NecroPagedArena* arena, NecroAst* type1, Nec
     return ast;
 }
 
-NecroAst* necro_ast_create_type_fn(NecroPagedArena* arena, NecroAst* type1, NecroAst* type2, NECRO_ARROW_OWNERSHIP ownership)
+NecroAst* necro_ast_create_type_fn(NecroPagedArena* arena, NecroAst* type1, NecroAst* type2)
 {
     NecroAst* ast                    = necro_ast_alloc(arena, NECRO_AST_FUNCTION_TYPE);
     ast->function_type.type          = type1;
     ast->function_type.next_on_arrow = type2;
-    ast->function_type.ownership     = ownership;
     return ast;
 }
 
@@ -2229,8 +2227,7 @@ NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_g
     case NECRO_AST_FUNCTION_TYPE:
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_type_fn(arena,
             necro_ast_deep_copy_go(arena, declaration_group, ast->function_type.type),
-            necro_ast_deep_copy_go(arena, declaration_group, ast->function_type.next_on_arrow),
-            ast->function_type.ownership));
+            necro_ast_deep_copy_go(arena, declaration_group, ast->function_type.next_on_arrow)));
     default:
         assert(false);
         return NULL;

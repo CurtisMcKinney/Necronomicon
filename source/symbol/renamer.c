@@ -1485,8 +1485,8 @@ void necro_rename_test()
                             necro_ast_create_var_with_ast_symbol(&ast.arena,
                                 necro_ast_symbol_create(&ast.arena, clash_a, necro_intern_string(&intern, "a"), necro_intern_string(&intern, "Test"), NULL),
                                 NECRO_VAR_TYPE_FREE_VAR
-                            ), NECRO_ARROW_OWNERSHIP_SHARE
-                        ), NECRO_ARROW_OWNERSHIP_SHARE
+                            )
+                        )
                     )
                 ),
                 necro_ast_create_top_decl(&ast.arena,
@@ -1576,8 +1576,8 @@ void necro_rename_test()
                                 ),
                                 NECRO_CON_TYPE_VAR
                             )
-                        , NECRO_ARROW_OWNERSHIP_SHARE)
-                    , NECRO_ARROW_OWNERSHIP_SHARE)
+                        )
+                    )
                 ),
                 necro_ast_create_top_decl(&ast.arena,
                     necro_ast_create_apats_assignment_with_ast_symbol(&ast.arena,
@@ -1644,7 +1644,7 @@ void necro_rename_test()
                                     necro_ast_symbol_create(&ast.arena, clash_a, necro_intern_string(&intern, "a"), necro_intern_string(&intern, "Test"), NULL),
                                     NECRO_VAR_TYPE_FREE_VAR
                                 )
-                            , NECRO_ARROW_OWNERSHIP_SHARE)
+                            )
                         ),
                         NULL
                     )

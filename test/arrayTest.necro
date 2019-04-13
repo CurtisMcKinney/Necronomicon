@@ -938,6 +938,25 @@ maybe  :: .b -> .(.a -> .b) -> .Maybe a -> .b
 either :: .(.a -> .c) -> .(.b -> .c) -> .Either a b -> c
 (<<)   :: .(.b -> .c) -> .(.a -> .b) -> .a -> .c
 fst    :: .(a, b) -> .a
+(|>)   :: .a -> .(.a -> .b) -> .b
+
+fst :: .(a, b) -> .a
+fst (x, _) = x
+
+snd :: .(a, b) -> .b
+snd (_, y) = y
+
+-- Loop ?
+loopTest :: .Array n Float -> .Array n Float
+loopTest ia = snd <|
+  loop (x, a) = (0, ia) for i < length ia
+  in (x * 100, writeArray i x a)
+
+-- Accumulate?
+accumulateTest :: Float -> .Array n Float
+accumulateTest delta =
+    accumulate s = 0
+    in (s + delta, s * 1000)
 
 class Freeze a where
   freeze :: (a ~ a1) => *a -> a1

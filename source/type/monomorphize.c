@@ -33,6 +33,7 @@ typedef struct
     NecroAstArena*       ast_arena;
     NecroPagedArena*     arena;
     NecroSnapshotArena   snapshot_arena;
+    NecroConstraintEnv   con_env;
 } NecroMonomorphize;
 
 NecroMonomorphize necro_monomorphize_empty()
@@ -168,8 +169,8 @@ NecroInstSub* necro_type_create_instance_subs(NecroMonomorphize* monomorphize, N
                     // Create InstanceSubs
                     NecroTypeClassInstance* instance      = instance_list->data;
                     NecroInstSub*           instance_subs = NULL;
-                    NecroType*              instance_type = unwrap(NecroType, necro_type_instantiate_with_subs(monomorphize->arena, monomorphize->base, instance->data_type, NULL, &instance_subs));
-                    unwrap(NecroType, necro_type_unify(monomorphize->arena, monomorphize->base, instance_type, sub_type, NULL));
+                    NecroType*              instance_type = unwrap(NecroType, necro_type_instantiate_with_subs(monomorphize->arena, &monomorphize->con_env, monomorphize->base, instance->data_type, NULL, &instance_subs));
+                    unwrap(NecroType, necro_type_unify(monomorphize->arena, &monomorphize->con_env, monomorphize->base, instance_type, sub_type, NULL));
                     NecroInstSub*           new_subs      = necro_type_filter_and_deep_copy_subs(monomorphize->arena, subs, type_class->type_class_name, instance_type);
                     new_subs                              = necro_type_union_subs(new_subs, instance_subs);
                     if (new_subs != NULL)
@@ -303,7 +304,7 @@ NecroAstSymbol* necro_ast_specialize(NecroMonomorphize* monomorphize, NecroAstSy
     //--------------------
     // Specialize Ast
     //--------------------
-    specialized_ast_symbol->type = unwrap(NecroType, necro_type_replace_with_subs_deep_copy(monomorphize->arena, monomorphize->base, ast_symbol->type, subs));
+    specialized_ast_symbol->type = unwrap(NecroType, necro_type_replace_with_subs_deep_copy(monomorphize->arena, &monomorphize->con_env, monomorphize->base, ast_symbol->type, subs));
     unwrap(void, necro_monomorphize_go(monomorphize, specialized_ast_symbol->ast, subs));
 
     return specialized_ast_symbol;
@@ -738,11 +739,11 @@ NecroType* necro_specialize_type(NecroMonomorphize* monomorphize, NecroType* typ
             data_con->constructor.conid->conid.ast_symbol = new_data_con_symbol;
             data_con->constructor.arg_list                = NULL;
             // Specialize Type
-            NecroType*      data_con_type                 = unwrap(NecroType, necro_type_instantiate(monomorphize->arena, monomorphize->base, data_con->necro_type, NULL));
+            NecroType*      data_con_type                 = unwrap(NecroType, necro_type_instantiate(monomorphize->arena, &monomorphize->con_env, monomorphize->base, data_con->necro_type, NULL));
             NecroType*      data_con_result               = data_con_type;
             while (data_con_result->type == NECRO_TYPE_FUN)
                 data_con_result = data_con_result->fun.type2;
-            unwrap(NecroType, necro_type_unify(monomorphize->arena, monomorphize->base, data_con_result, type, NULL));
+            unwrap(NecroType, necro_type_unify(monomorphize->arena, &monomorphize->con_env, monomorphize->base, data_con_result, type, NULL));
             NecroType*      specialized_data_con_type     = necro_specialize_type(monomorphize, data_con_type);
             unwrap(void, necro_kind_infer_default_unify_with_star(monomorphize->arena, monomorphize->base, specialized_data_con_type, NULL, NULL_LOC, NULL_LOC));
             new_data_con_symbol->type                     = specialized_data_con_type;
@@ -1313,12 +1314,13 @@ void necro_monomorphize_test()
     }
 
     {
-        const char* test_name   = "No Monomorphism Restriction";
+        const char* test_name   = "Dont Generalize Let";
         const char* test_source = ""
             "data Alive = Alive\n"
             "data Dead  = Dead\n"
             "cat :: (Maybe Alive, Maybe Dead)\n"
             "cat = (alive, dead) where\n"
+            "  schroedingersMaybe :: Maybe a\n"
             "  schroedingersMaybe = Nothing\n"
             "  alive              = schroedingersMaybe\n"
             "  dead               = schroedingersMaybe\n";

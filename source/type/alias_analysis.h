@@ -16,6 +16,9 @@
 #include "type.h"
 #include "necro/driver.h"
 
+//--------------------
+// Sharing Analysis
+//--------------------
 typedef struct NecroUsage
 {
     struct NecroUsage* next;

@@ -13,7 +13,7 @@
 #include "result.h"
 #include "kind.h"
 
-#define NECRO_ALIAS_ANALYSIS_VERBOSE 0
+#define NECRO_ALIAS_ANALYSIS_VERBOSE 1
 
 typedef struct
 {
@@ -176,9 +176,9 @@ NecroFreeVars* necro_alias_set_to_free_vars(NecroAliasSet* set)
     }
     assert(symbol_i == set->count);
     // if (free_vars->count > 0)
-#if NECRO_ALIAS_ANALYSIS_VERBOSE
-        necro_free_vars_print(free_vars);
-#endif
+// #if NECRO_ALIAS_ANALYSIS_VERBOSE
+//         necro_free_vars_print(free_vars);
+// #endif
     return free_vars;
 }
 
@@ -405,6 +405,10 @@ void necro_alias_analysis_add_apats_to_free_vars(NecroAliasAnalysis* alias_analy
             assert(false);
             return;
         }
+    case NECRO_AST_WILDCARD:
+        // TODO: How to handle this!? This can cause issues with partial application of unique types!
+        // Need to force free_var usage somehow? But we're using NecroAstSymbols, and this has none!
+        return;
     case NECRO_AST_APATS:
         while (ast != NULL)
         {
@@ -433,7 +437,6 @@ void necro_alias_analysis_add_apats_to_free_vars(NecroAliasAnalysis* alias_analy
         return;
     case NECRO_AST_CONID:
     case NECRO_AST_CONSTANT:
-    case NECRO_AST_WILDCARD:
     case NECRO_AST_BIN_OP_SYM:
         return;
     default:
@@ -503,7 +506,6 @@ void necro_alias_analysis_go(NecroAliasAnalysis* alias_analysis, NecroAliasSet* 
             return;
         }
 
-    // TODO: Test this system with lambdas. Also kick it around a lot.
     case NECRO_AST_LAMBDA:
         necro_alias_analysis_go(alias_analysis, alias_set, ast->lambda.expression);
         necro_alias_analysis_add_apats_to_free_vars(alias_analysis, alias_set, ast->lambda.apats);
@@ -700,171 +702,6 @@ void necro_alias_set_print_sharing(NecroAliasSet* alias_set)
 }
 
 ///////////////////////////////////////////////////////
-// NecroConstraint
-// ------------------
-// Somewhat based on "OutsideIn(X)" paper.
-///////////////////////////////////////////////////////
-struct NecroConstraint;
-typedef enum
-{
-    NECRO_CONSTRAINT_AND,
-    NECRO_CONSTRAINT_EQL,
-    NECRO_CONSTRAINT_FOR,
-    NECRO_CONSTRAINT_UNI,
-} NECRO_CONSTRAINT_TYPE;
-
-typedef struct
-{
-    struct NecroConstraint* con1;
-    struct NecroConstraint* con2;
-} NecroConstraintAnd;
-
-typedef struct
-{
-    NecroType*      u1;
-    NecroType*      type1;
-    NecroSourceLoc  u1_source_loc;
-    NecroSourceLoc  u1_end_loc;
-    NecroType*      u2;
-    NecroType*      type2;
-    NecroAstSymbol* symbol2;
-    NecroSourceLoc  u2_source_loc;
-    NecroSourceLoc  u2_end_loc;
-} NecroConstraintUniquenessCoercion;
-
-typedef struct
-{
-    NecroType* type1;
-    NecroType* type2;
-} NecroConstraintEqual;
-
-typedef struct
-{
-    NecroType*              var;
-    struct NecroConstraint* con;
-} NecroConstraintForAll;
-
-typedef struct NecroConstraint
-{
-    union
-    {
-        NecroConstraintAnd                and;
-        NecroConstraintEqual              eql;
-        NecroConstraintUniquenessCoercion uni;
-        NecroConstraintForAll             for_all;
-    };
-    NECRO_CONSTRAINT_TYPE type;
-} NecroConstraint;
-
-NECRO_DECLARE_VECTOR(NecroConstraint*, NecroConstraint, constraint);
-
-typedef struct
-{
-    NecroPagedArena       arena;
-    NecroConstraintVector constraints;
-    struct NecroBase*     base;
-} NecroConstraintEnv;
-
-NecroConstraintEnv necro_constraint_env_empty()
-{
-    return (NecroConstraintEnv)
-    {
-        .arena       = necro_paged_arena_empty(),
-        .constraints = necro_empty_constraint_vector(),
-        .base        = NULL,
-    };
-}
-
-NecroConstraintEnv necro_constraint_env_create()
-{
-    return (NecroConstraintEnv)
-    {
-        .arena       = necro_paged_arena_create(),
-        .constraints = necro_create_constraint_vector(),
-        .base        = NULL,
-    };
-}
-
-void necro_constraint_env_destroy(NecroConstraintEnv* env)
-{
-    assert(env != NULL);
-    necro_paged_arena_destroy(&env->arena);
-    necro_destroy_constraint_vector(&env->constraints);
-    *env = necro_constraint_env_empty();
-}
-
-// Note: u1 <= u2
-NecroResult(void) necro_constraint_simplify_uniqueness_coercion(NecroConstraintEnv* env, NecroConstraint* con)
-{
-    assert(con->type == NECRO_CONSTRAINT_UNI);
-    if (con->uni.u1->type == NECRO_TYPE_VAR)
-    {
-        if (con->uni.u2->type == NECRO_TYPE_VAR)
-            return ok_void();
-        else if (con->uni.u2->type == NECRO_TYPE_CON && con->uni.u2->con.con_symbol == env->base->ownership_share)
-            return ok_void();
-        else if (con->uni.u2->type == NECRO_TYPE_CON && con->uni.u2->con.con_symbol == env->base->ownership_steal)
-            return ok_void(); // TODO: return error
-        necro_unreachable(void);
-    }
-    else if (con->uni.u1->type == NECRO_TYPE_CON && con->uni.u1->con.con_symbol == env->base->ownership_share)
-    {
-        if (con->uni.u2->type == NECRO_TYPE_VAR)
-            return ok_void(); // TODO: return error
-        else if (con->uni.u2->type == NECRO_TYPE_CON && con->uni.u2->con.con_symbol == env->base->ownership_share)
-            return ok_void();
-        else if (con->uni.u2->type == NECRO_TYPE_CON && con->uni.u2->con.con_symbol == env->base->ownership_steal)
-            return ok_void(); // TODO: return error
-        necro_unreachable(void);
-    }
-    else if (con->uni.u1->type == NECRO_TYPE_CON && con->uni.u1->con.con_symbol == env->base->ownership_steal)
-    {
-        if (con->uni.u2->type == NECRO_TYPE_VAR)
-            return ok_void();
-        else if (con->uni.u2->type == NECRO_TYPE_CON && con->uni.u2->con.con_symbol == env->base->ownership_share)
-            return ok_void();
-        else if (con->uni.u2->type == NECRO_TYPE_CON && con->uni.u2->con.con_symbol == env->base->ownership_steal)
-            return ok_void();
-        necro_unreachable(void);
-    }
-    necro_unreachable(void);
-}
-
-NecroResult(void) necro_constraint_simplify(NecroConstraintEnv* env)
-{
-    while (env->constraints.length > 0)
-    {
-        NecroConstraint* wanted = necro_pop_constraint_vector(&env->constraints);
-        switch (wanted->type)
-        {
-        case NECRO_CONSTRAINT_UNI: necro_try(void, necro_constraint_simplify_uniqueness_coercion(env, wanted)); break;
-        default:
-            necro_unreachable(void);
-        }
-    }
-    return ok_void();
-}
-
-NecroConstraint* necro_constraint_add_uniqueness_coercion(NecroConstraintEnv* env, NecroType* u1, NecroType* type1, NecroSourceLoc u1_source_loc, NecroSourceLoc u1_end_loc, NecroType* u2, NecroType* type2, NecroAstSymbol* symbol2, NecroSourceLoc u2_source_loc, NecroSourceLoc u2_end_loc)
-{
-    NecroConstraint* constraint   = necro_paged_arena_alloc(&env->arena, sizeof(NecroConstraint));
-    constraint->type              = NECRO_CONSTRAINT_UNI;
-    constraint->uni.u1            = u1;
-    constraint->uni.type1         = type1;
-    constraint->uni.u1_source_loc = u1_source_loc;
-    constraint->uni.u1_end_loc    = u1_end_loc;
-    constraint->uni.u2            = u2;
-    constraint->uni.type2         = type2;
-    constraint->uni.symbol2       = symbol2;
-    constraint->uni.u2_source_loc = u2_source_loc;
-    constraint->uni.u2_end_loc    = u2_end_loc;
-    necro_push_constraint_vector(&env->constraints, &constraint);
-    return constraint;
-}
-
-// TODO: Mark Free variables during alias (Sharing) analysis?
-
-///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
 void necro_alias_analysis_test_case(const char* test_name, const char* str, const char* name, const bool is_shared)
@@ -993,6 +830,30 @@ void necro_alias_analysis_test()
 {
     necro_announce_phase("Alias Analysis");
     printf("\n");
+
+    {
+        const char* test_name   = "Data Types 1";
+        const char* test_source = ""
+            "data Apply a b = Apply (a -> b) a\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Data Types 2";
+        const char* test_source = ""
+            "data LotsOfShit a b = LotsOfShit (Maybe a) (Maybe (b, b))\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Data Types 3";
+        const char* test_source = ""
+            "data EitherNor a b = ELeft a | ERight b | Nor\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
 
     {
         const char* test_name   = "Please Dont Crash";
@@ -1184,7 +1045,6 @@ void necro_alias_analysis_test()
         necro_ownership_test(test_name, test_source, expect_error_result, NULL);
     }
 
-    // TODO: fromInt is shared currently...
     {
         const char* test_name   = "Unique Test 1";
         const char* test_source = ""
@@ -1358,30 +1218,6 @@ void necro_alias_analysis_test()
     }
 
     {
-        const char* test_name   = "Data Types 1";
-        const char* test_source = ""
-            "data Apply a b = Apply (a -> b) a\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
-        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
-    }
-
-    {
-        const char* test_name   = "Data Types 2";
-        const char* test_source = ""
-            "data LotsOfShit a b = LotsOfShit (Maybe a) (Maybe (b, b))\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
-        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
-    }
-
-    {
-        const char* test_name   = "Data Types 3";
-        const char* test_source = ""
-            "data EitherNor a b = ELeft a | ERight b | Nor\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
-        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
-    }
-
-    {
         const char* test_name   = "Free Var 1";
         const char* test_source = ""
             "freeVarTest :: *a -> *b -> *c -> *d -> *(a, b, c, d)\n"
@@ -1390,7 +1226,6 @@ void necro_alias_analysis_test()
         necro_ownership_test(test_name, test_source, expect_error_result, NULL);
     }
 
-    // TODO: Type signature dot notation
     {
         const char* test_name   = "Free Var Error 1";
         const char* test_source = ""
@@ -1457,13 +1292,13 @@ void necro_alias_analysis_test()
         necro_ownership_test(test_name, test_source, expect_error_result, NULL);
     }
 
-    // {
-    //     const char* test_name   = "Function Test 2";
-    //     const char* test_source = ""
-    //         "frugal x y z w = ()\n";
-    //     const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
-    //     necro_ownership_test(test_name, test_source, expect_error_result, NULL);
-    // }
+    {
+        const char* test_name   = "Function Test 2";
+        const char* test_source = ""
+            "frugal x y z w = ()\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
 
     {
         const char* test_name   = "Function Test 3";
@@ -1473,7 +1308,207 @@ void necro_alias_analysis_test()
         necro_ownership_test(test_name, test_source, expect_error_result, NULL);
     }
 
-    // Apats TEst
+    {
+        const char* test_name   = "Function Test 2";
+        const char* test_source = ""
+            "frugal x y z w = ()\n"
+            "neverShare :: *()\n"
+            "neverShare = frugal 0 1 2 3\n"
+            "alwaysShare :: ()\n"
+            "alwaysShare = frugal Nothing () True False\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Unique FreeVar Error";
+        const char* test_source = ""
+            "neverShare :: *()\n"
+            "neverShare = ()\n"
+            "coughItUp _ = neverShare\n"
+            "one = coughItUp True\n"
+            "two = coughItUp False\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
+        necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "HKT 1";
+        const char* test_source = ""
+            "data AppMaybe m a = AppMaybe (m a)\n"
+            "appMaybe :: *AppMaybe m a -> m a\n"
+            "appMaybe (AppMaybe m) = m\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
+        necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "HKT 2";
+        const char* test_source = ""
+            "data AppMaybe m a = AppMaybe (m a)\n"
+            "appMaybe :: *AppMaybe m a -> *m a\n"
+            "appMaybe (AppMaybe m) = m\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Constraint Test 1";
+        const char* test_source = ""
+            "neverShare :: *Bool\n"
+            "neverShare   = True\n"
+            "frugal x y z = ()\n"
+            "notFrugal    = frugal () neverShare\n"
+            "bang         = notFrugal ()\n"
+            "pop          = notFrugal ()\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
+        necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Constraint Test 2";
+        const char* test_source = ""
+            "neverShare :: *Bool\n"
+            "neverShare   = True\n"
+            "alwaysShare :: ()\n"
+            "alwaysShare = ()\n"
+            "frugal x y z = ()\n"
+            "notFrugal    = frugal alwaysShare neverShare\n"
+            "bang         = notFrugal ()\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Class Test 1";
+        const char* test_source = ""
+            "class UClass a where\n"
+            "  fu :: *a -> *Maybe a\n"
+            "instance UClass Bool where\n"
+            "  fu b = Just b\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Class Test 2";
+        const char* test_source = ""
+            "class UClass a where\n"
+            "  fu :: *a -> *Maybe a\n"
+            "instance UClass Bool where\n"
+            "  fu b = Just b\n"
+            "ezGame :: (UClass a, UClass b) => *a -> *b -> *(Maybe a, Maybe b)\n"
+            "ezGame x y = (fu x, fu y)\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Class Test 3";
+        const char* test_source = ""
+            "class UClass a where\n"
+            "  fu :: *a -> Bool\n"
+            "instance UClass Bool where\n"
+            "  fu b = b\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
+        necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    // Seems like sharing isn't propagating correctly here!
+    {
+        const char* test_name   = "App";
+        const char* test_source = ""
+            "frugal x y z  = ()\n"
+            "true          = True\n"
+            "false         = False\n"
+            "partial       = frugal true false\n"
+            "appFrugal :: (a -> ()) -> a -> ()\n"
+            "appFrugal f x = f x\n"
+            "go1           = appFrugal partial ()\n"
+            "go2           = appFrugal partial ()\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Class Test 3";
+        const char* test_source = ""
+            "id' x = x\n"
+            "t = True\n"
+            "u = id' t\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Warp Pipe 1";
+        const char* test_source = ""
+            "w :: *()\n"
+            "w = ()\n"
+            "id' :: *a -> *a\n"
+            "id' x = x\n"
+            "w' = w |> id' |> id' |> id'\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Warp Pipe 2";
+        const char* test_source = ""
+            "w :: *()\n"
+            "w = ()\n"
+            "ignore :: *b -> *a -> *a\n"
+            "ignore y x = x\n"
+            "w' = w |> ignore () |> ignore True\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Bad Pipe";
+        const char* test_source = ""
+            "w :: *()\n"
+            "w = ()\n"
+            "badPipe :: *a -> (*a -> *b) -> *b\n"
+            "badPipe x f = f x\n"
+            "ignore :: *b -> *a -> *a\n"
+            "ignore y x = x\n"
+            "w' = badPipe w (ignore ())\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
+        necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "maybe Test Poly";
+        const char* test_source = ""
+            "maybe' :: .b -> .(.a -> .b) -> .Maybe a -> .b\n"
+            "maybe' y f mx =\n"
+            "  case mx of\n"
+            "    Just x  -> f x\n"
+            "    Nothing -> y";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "tuple Test Poly";
+        const char* test_source = ""
+            "fst' :: .(a, b) -> .a\n"
+            "fst' (x, _) = x\n"
+            "snd' :: .(a, b) -> .b\n"
+            "snd' (_, y) = y\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    // TODO: where / let declaration testing with simple assignment and apats assignment!
+    // TODO: Anon Dot support.
+    // TODO: Uniqueness Typed Base functions.
 
     // // TODO: fromInt is shared currently...
     // {

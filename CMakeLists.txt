@@ -146,6 +146,7 @@ set(project_HEADERS
     source/utility/math.h
     source/utility/hash_table.h
     source/utility/list.h
+    source/utility/dequeue.h
     source/utility/small_array.h
     source/utility/unicode_properties.h
     source/utility/result.h

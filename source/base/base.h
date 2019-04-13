@@ -27,21 +27,7 @@ typedef struct NecroBase
     NecroAstSymbol* nat_kind;
     NecroAstSymbol* sym_kind;
 
-    // // Attributes
-    // NecroAstSymbol* unique_type_attribute;
-    // NecroAstSymbol* non_unique_type_attribute;
-    // NecroAstSymbol* disjunction_type_attribute;
-    // NecroAstSymbol* conjunction_type_attribute;
-    // NecroAstSymbol* negation_type_attribute;
-
-    // // Multiplicities
-    // NecroAstSymbol* multiplicity_kind;
-    // NecroAstSymbol* multiplicity_one;
-    // NecroAstSymbol* multiplicity_omega;
-    // NecroAstSymbol* multiplicity_mul;
-    // NecroAstSymbol* multiplicity_add;
-    // NecroAstSymbol* multiplicity_lte;
-
+    // TODO: Change to uniqueness
     // Ownership
     NecroAstSymbol* ownership_kind;
     NecroAstSymbol* ownership_share;

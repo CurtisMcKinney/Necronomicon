@@ -14,6 +14,7 @@
 #include "renamer.h"
 #include "base.h"
 #include "alias_analysis.h"
+#include "infer.h"
 
 #define NECRO_TYPE_DEBUG 0
 #if NECRO_TYPE_DEBUG
@@ -30,12 +31,13 @@ NecroResult(NecroType) necro_type_unify_order(NecroType* type1, NecroType* type2
 
 NecroType* necro_type_fresh_uniqueness_var(NecroPagedArena* arena)
 {
-    NecroAstSymbol* var_symbol           = necro_ast_symbol_create(arena, NULL, NULL, NULL, NULL);
-    NecroType* attribute_type            = necro_paged_arena_alloc(arena, sizeof(NecroType));
-    attribute_type->pre_supplied         = false;
-    attribute_type->type                 = NECRO_TYPE_VAR;
-    attribute_type->kind                 = NULL;
-    attribute_type->var                  = (NecroTypeVar)
+    NecroAstSymbol* var_symbol = necro_ast_symbol_create(arena, NULL, NULL, NULL, NULL);
+    NecroType*      uvar       = necro_paged_arena_alloc(arena, sizeof(NecroType));
+    uvar->pre_supplied         = false;
+    uvar->type                 = NECRO_TYPE_VAR;
+    uvar->kind                 = NULL;
+    uvar->constraints          = NULL;
+    uvar->var                  = (NecroTypeVar)
     {
         .var_symbol  = var_symbol,
         .arity       = -1,
@@ -45,8 +47,8 @@ NecroType* necro_type_fresh_uniqueness_var(NecroPagedArena* arena)
         .scope       = NULL,
         .order       = NECRO_TYPE_ZERO_ORDER,
     };
-    var_symbol->type = attribute_type;
-    return attribute_type;
+    var_symbol->type = uvar;
+    return uvar;
 }
 
 NecroType* necro_type_alloc(NecroPagedArena* arena)
@@ -59,7 +61,7 @@ NecroType* necro_type_alloc(NecroPagedArena* arena)
     return type;
 }
 
-NecroType* necro_type_var_create(NecroPagedArena* arena, NecroAstSymbol* var_symbol)
+NecroType* necro_type_var_create(NecroPagedArena* arena, NecroAstSymbol* var_symbol, NecroScope* scope)
 {
     NecroType* type = necro_type_alloc(arena);
     type->type      = NECRO_TYPE_VAR;
@@ -71,7 +73,7 @@ NecroType* necro_type_var_create(NecroPagedArena* arena, NecroAstSymbol* var_sym
         .is_rigid   = false,
         .context    = NULL,
         .bound      = NULL,
-        .scope      = NULL,
+        .scope      = scope,
         .order      = NECRO_TYPE_POLY_ORDER,
     };
     return type;
@@ -182,7 +184,7 @@ NecroType* necro_type_deep_copy_go(NecroPagedArena* arena, NecroType* type)
     {
     case NECRO_TYPE_VAR:
     {
-        new_type               = necro_type_var_create(arena, type->var.var_symbol);
+        new_type               = necro_type_var_create(arena, type->var.var_symbol, type->var.scope);
         new_type->var.is_rigid = type->var.is_rigid;
         new_type->var.arity    = type->var.arity;
         new_type->var.order    = type->var.order;
@@ -289,10 +291,10 @@ NecroType* necro_type_uncurry_app(NecroPagedArena* arena, NecroBase* base, Necro
     return con;
 }
 
-NecroType* necro_type_fresh_var(NecroPagedArena* arena)
+NecroType* necro_type_fresh_var(NecroPagedArena* arena, NecroScope* scope)
 {
     NecroAstSymbol* ast_symbol = necro_ast_symbol_create(arena, NULL, NULL, NULL, NULL);
-    NecroType*      type_var   = necro_type_var_create(arena, ast_symbol);
+    NecroType*      type_var   = necro_type_var_create(arena, ast_symbol, scope);
     ast_symbol->type           = type_var;
     return type_var;
 }
@@ -338,6 +340,10 @@ bool necro_type_is_bound_in_scope(NecroType* type, NecroScope* scope)
 {
     if (type->type != NECRO_TYPE_VAR)
         return false;
+    if (type->var.scope == &necro_global_scope)
+        return true;
+    if (type->var.scope == NULL && scope == NULL)
+        return false;
     if (type->var.scope == NULL)
         return false;
     NecroScope* current_scope = scope;
@@ -356,6 +362,8 @@ size_t necro_type_bound_in_scope_distance(NecroType* type, NecroScope* scope)
     assert(type->type == NECRO_TYPE_VAR);
     if (type->var.scope == NULL)
         return 0;
+    if (type->var.scope == &necro_global_scope)
+        return SIZE_MAX;
     size_t      distance      = 0;
     NecroScope* current_scope = scope;
     while (current_scope != NULL)
@@ -709,18 +717,18 @@ NecroResult(NecroType) necro_type_occurs_flipped(NecroAstSymbol* type_var_symbol
     return result;
 }
 
-NecroResult(NecroType) necro_type_bind_var(NecroPagedArena* arena, NecroBase* base, NecroType* type_var_type, NecroType* type, NecroScope* scope)
+NecroResult(NecroType) necro_type_bind_var(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* type_var_type, NecroType* type, NecroScope* scope)
 {
     assert(type_var_type->type == NECRO_TYPE_VAR);
     type_var_type          = necro_type_find(type_var_type);
     NecroTypeVar* type_var = &type_var_type->var;
     necro_try(NecroType, necro_type_unify_order(type_var_type, type));
-    necro_try(NecroType, necro_propagate_type_classes(arena, base, type_var->context, type, scope));
+    necro_try(NecroType, necro_propagate_type_classes(arena, con_env, base, type_var->context, type, scope));
     type_var->bound = necro_type_find(type);
     return ok(NecroType, NULL);
 }
 
-NecroResult(NecroType) necro_unify_var(NecroPagedArena* arena, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope)
+NecroResult(NecroType) necro_unify_var(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope)
 {
     assert(type1 != NULL);
     assert(type1->type == NECRO_TYPE_VAR);
@@ -731,12 +739,12 @@ NecroResult(NecroType) necro_unify_var(NecroPagedArena* arena, NecroBase* base, 
     switch (type2->type)
     {
     case NECRO_TYPE_VAR:
-        if (type1->var.var_symbol == type2->var.var_symbol)  return necro_type_infer_and_unify_ownership_for_two_types(arena, base, type1, type2, scope);
+        if (type1->var.var_symbol == type2->var.var_symbol)  return necro_type_infer_and_unify_ownership_for_two_types(arena, con_env, base, type1, type2, scope);
         else if (type1->var.is_rigid && type2->var.is_rigid) return necro_type_rigid_type_variable_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs(type1->var.var_symbol, type2));
-        necro_try(NecroType, necro_type_infer_and_unify_ownership_for_two_types(arena, base, type1, type2, scope));
-        if (type1->var.is_rigid)                             return necro_type_bind_var(arena, base, type2, type1, scope);
-        else if (type2->var.is_rigid)                        return necro_type_bind_var(arena, base, type1, type2, scope);
+        necro_try(NecroType, necro_type_infer_and_unify_ownership_for_two_types(arena, con_env, base, type1, type2, scope));
+        if (type1->var.is_rigid)                             return necro_type_bind_var(arena, con_env, base, type2, type1, scope);
+        else if (type2->var.is_rigid)                        return necro_type_bind_var(arena, con_env, base, type1, type2, scope);
         const bool is_type1_bound_in_scope = necro_type_is_bound_in_scope(type1, scope);
         const bool is_type2_bound_in_scope = necro_type_is_bound_in_scope(type2, scope);
         if (is_type1_bound_in_scope && is_type2_bound_in_scope)
@@ -744,12 +752,12 @@ NecroResult(NecroType) necro_unify_var(NecroPagedArena* arena, NecroBase* base, 
             const size_t type1_distance = necro_type_bound_in_scope_distance(type1, scope);
             const size_t type2_distance = necro_type_bound_in_scope_distance(type2, scope);
             if (type1_distance >= type2_distance)
-                return necro_type_bind_var(arena, base, type2, type1, scope);
+                return necro_type_bind_var(arena, con_env, base, type2, type1, scope);
             else
-                return necro_type_bind_var(arena, base, type1, type2, scope);
+                return necro_type_bind_var(arena, con_env, base, type1, type2, scope);
         }
-        else if (is_type1_bound_in_scope)                    return necro_type_bind_var(arena, base, type2, type1, scope);
-        else                                                 return necro_type_bind_var(arena, base, type1, type2, scope);
+        else if (is_type1_bound_in_scope)                    return necro_type_bind_var(arena, con_env, base, type2, type1, scope);
+        else                                                 return necro_type_bind_var(arena, con_env, base, type1, type2, scope);
     case NECRO_TYPE_FUN:
     case NECRO_TYPE_CON:
     case NECRO_TYPE_APP:
@@ -758,8 +766,8 @@ NecroResult(NecroType) necro_unify_var(NecroPagedArena* arena, NecroBase* base, 
         if (type1->var.is_rigid)
             return necro_type_rigid_type_variable_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs(type1->var.var_symbol , type2));
-        necro_try(NecroType, necro_type_infer_and_unify_ownership_for_two_types(arena, base, type1, type2, scope));
-        necro_try(NecroType, necro_type_bind_var(arena, base, type1, type2, scope));
+        necro_try(NecroType, necro_type_infer_and_unify_ownership_for_two_types(arena, con_env, base, type1, type2, scope));
+        necro_try(NecroType, necro_type_bind_var(arena, con_env, base, type1, type2, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_FOR:  necro_unreachable(NecroType);
     case NECRO_TYPE_LIST: necro_unreachable(NecroType);
@@ -767,7 +775,7 @@ NecroResult(NecroType) necro_unify_var(NecroPagedArena* arena, NecroBase* base, 
     }
 }
 
-NecroResult(NecroType) necro_unify_app(NecroPagedArena* arena, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope)
+NecroResult(NecroType) necro_unify_app(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope)
 {
     assert(type1 != NULL);
     assert(type1->type == NECRO_TYPE_APP);
@@ -779,20 +787,20 @@ NecroResult(NecroType) necro_unify_app(NecroPagedArena* arena, NecroBase* base, 
         if (type2->var.is_rigid)
             return necro_type_rigid_type_variable_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs_flipped(type2->var.var_symbol, type1));
-        necro_try(NecroType, necro_type_infer_and_unify_ownership_for_two_types(arena, base, type1, type2, scope));
-        necro_try(NecroType, necro_type_bind_var(arena, base, type2, type1, scope));
+        necro_try(NecroType, necro_type_infer_and_unify_ownership_for_two_types(arena, con_env, base, type1, type2, scope));
+        necro_try(NecroType, necro_type_bind_var(arena, con_env, base, type2, type1, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_APP:
-        necro_try(NecroType, necro_type_unify(arena, base, type1->app.type2, type2->app.type2, scope));
-        necro_try(NecroType, necro_type_unify(arena, base, type1->app.type1, type2->app.type1, scope));
-        necro_try(NecroType, necro_type_infer_and_unify_ownership_for_two_types(arena, base, type1, type2, scope));
+        necro_try(NecroType, necro_type_unify(arena, con_env, base, type1->app.type2, type2->app.type2, scope));
+        necro_try(NecroType, necro_type_unify(arena, con_env, base, type1->app.type1, type2->app.type1, scope));
+        necro_try(NecroType, necro_type_infer_and_unify_ownership_for_two_types(arena, con_env, base, type1, type2, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_CON:
     {
         NecroType* uncurried_con = necro_type_curry_con(arena, base, type2);
         assert(uncurried_con != NULL);
-        necro_try(NecroType, necro_type_unify(arena, base, type1, uncurried_con, scope));
-        necro_try(NecroType, necro_type_infer_and_unify_ownership_for_two_types(arena, base, type1, type2, scope));
+        necro_try(NecroType, necro_type_unify(arena, con_env, base, type1, uncurried_con, scope));
+        necro_try(NecroType, necro_type_infer_and_unify_ownership_for_two_types(arena, con_env, base, type1, type2, scope));
         return ok(NecroType, NULL);
     }
     case NECRO_TYPE_FUN:
@@ -805,7 +813,7 @@ NecroResult(NecroType) necro_unify_app(NecroPagedArena* arena, NecroBase* base, 
     }
 }
 
-NecroResult(NecroType) necro_unify_fun(NecroPagedArena* arena, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope)
+NecroResult(NecroType) necro_unify_fun(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope)
 {
     assert(type1 != NULL);
     assert(type1->type == NECRO_TYPE_FUN);
@@ -817,13 +825,13 @@ NecroResult(NecroType) necro_unify_fun(NecroPagedArena* arena, NecroBase* base, 
         if (type2->var.is_rigid)
             return necro_type_rigid_type_variable_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs_flipped(type2->var.var_symbol, type1));
-        necro_try(NecroType, necro_type_infer_and_unify_ownership_for_two_types(arena, base, type1, type2, scope));
-        necro_try(NecroType, necro_type_bind_var(arena, base, type2, type1, scope));
+        necro_try(NecroType, necro_type_infer_and_unify_ownership_for_two_types(arena, con_env, base, type1, type2, scope));
+        necro_try(NecroType, necro_type_bind_var(arena, con_env, base, type2, type1, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_FUN:
-        necro_try(NecroType, necro_type_unify(arena, base, type1->fun.type2, type2->fun.type2, scope));
-        necro_try(NecroType, necro_type_unify(arena, base, type1->fun.type1, type2->fun.type1, scope));
-        necro_try(NecroType, necro_type_infer_and_unify_ownership_for_two_types(arena, base, type1, type2, scope));
+        necro_try(NecroType, necro_type_unify(arena, con_env, base, type1->fun.type2, type2->fun.type2, scope));
+        necro_try(NecroType, necro_type_unify(arena, con_env, base, type1->fun.type1, type2->fun.type1, scope));
+        necro_try(NecroType, necro_type_infer_and_unify_ownership_for_two_types(arena, con_env, base, type1, type2, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_APP:
     case NECRO_TYPE_CON:
@@ -835,7 +843,7 @@ NecroResult(NecroType) necro_unify_fun(NecroPagedArena* arena, NecroBase* base, 
     }
 }
 
-NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope)
+NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope)
 {
     assert(type1 != NULL);
     assert(type1->type == NECRO_TYPE_CON);
@@ -847,8 +855,8 @@ NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroBase* base, 
         if (type2->var.is_rigid)
             return necro_type_rigid_type_variable_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs_flipped(type2->var.var_symbol, type1));
-        necro_try(NecroType, necro_type_infer_and_unify_ownership_for_two_types(arena, base, type1, type2, scope));
-        necro_try(NecroType, necro_type_bind_var(arena, base, type2, type1, scope));
+        necro_try(NecroType, necro_type_infer_and_unify_ownership_for_two_types(arena, con_env, base, type1, type2, scope));
+        necro_try(NecroType, necro_type_bind_var(arena, con_env, base, type2, type1, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_CON:
         if (type1->con.con_symbol != type2->con.con_symbol)
@@ -871,12 +879,12 @@ NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroBase* base, 
                 //     return necro_type_mismatched_arity_error(original_type1, original_type2, NULL, NULL, NULL_LOC, NULL_LOC);
                 assert(type1->type == NECRO_TYPE_LIST);
                 assert(type2->type == NECRO_TYPE_LIST);
-                necro_try(NecroType, necro_type_unify(arena, base, type1->list.item, type2->list.item, scope));
-                necro_try(NecroType, necro_type_infer_and_unify_ownership_for_two_types(arena, base, type1->list.item, type2->list.item, scope));
+                necro_try(NecroType, necro_type_unify(arena, con_env, base, type1->list.item, type2->list.item, scope));
+                necro_try(NecroType, necro_type_infer_and_unify_ownership_for_two_types(arena, con_env, base, type1->list.item, type2->list.item, scope));
                 type1 = type1->list.next;
                 type2 = type2->list.next;
             }
-            necro_try(NecroType, necro_type_infer_and_unify_ownership_for_two_types(arena, base, original_type1, original_type2, scope));
+            necro_try(NecroType, necro_type_infer_and_unify_ownership_for_two_types(arena, con_env, base, original_type1, original_type2, scope));
             return ok(NecroType, NULL);
         }
     case NECRO_TYPE_APP:
@@ -887,7 +895,7 @@ NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroBase* base, 
         // if (uncurried_con == NULL)
         //     return necro_type_mismatched_arity_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
         // else
-        return necro_type_unify(arena, base, uncurried_con, type2, scope);
+        return necro_type_unify(arena, con_env, base, uncurried_con, type2, scope);
     }
     case NECRO_TYPE_NAT:
     case NECRO_TYPE_SYM:
@@ -899,7 +907,7 @@ NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroBase* base, 
     }
 }
 
-NecroResult(NecroType) necro_unify_nat(NecroPagedArena* arena, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope)
+NecroResult(NecroType) necro_unify_nat(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope)
 {
     assert(type1 != NULL);
     assert(type1->type == NECRO_TYPE_NAT);
@@ -911,7 +919,7 @@ NecroResult(NecroType) necro_unify_nat(NecroPagedArena* arena, NecroBase* base, 
         if (type2->var.is_rigid)
             return necro_type_rigid_type_variable_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs_flipped(type2->var.var_symbol, type1));
-        necro_try(NecroType, necro_type_bind_var(arena, base, type2, type1, scope));
+        necro_try(NecroType, necro_type_bind_var(arena, con_env, base, type2, type1, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_NAT:
         if (type1->nat.value != type2->nat.value)
@@ -928,7 +936,7 @@ NecroResult(NecroType) necro_unify_nat(NecroPagedArena* arena, NecroBase* base, 
     }
 }
 
-NecroResult(NecroType) necro_unify_sym(NecroPagedArena* arena, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope)
+NecroResult(NecroType) necro_unify_sym(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope)
 {
     assert(type1 != NULL);
     assert(type1->type == NECRO_TYPE_SYM);
@@ -940,7 +948,7 @@ NecroResult(NecroType) necro_unify_sym(NecroPagedArena* arena, NecroBase* base, 
         if (type2->var.is_rigid)
             return necro_type_rigid_type_variable_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
         necro_try(NecroType, necro_type_occurs_flipped(type2->var.var_symbol, type1));
-        necro_try(NecroType, necro_type_bind_var(arena, base, type2, type1, scope));
+        necro_try(NecroType, necro_type_bind_var(arena, con_env, base, type2, type1, scope));
         return ok(NecroType, NULL);
     case NECRO_TYPE_SYM:
         if (type1->sym.value != type2->sym.value)
@@ -958,7 +966,7 @@ NecroResult(NecroType) necro_unify_sym(NecroPagedArena* arena, NecroBase* base, 
 }
 
 // NOTE: Can only unify with a polymorphic type on the left side
-NecroResult(NecroType) necro_type_unify(NecroPagedArena* arena, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope)
+NecroResult(NecroType) necro_type_unify(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope)
 {
     assert(type1 != NULL);
     assert(type2 != NULL);
@@ -968,31 +976,31 @@ NecroResult(NecroType) necro_type_unify(NecroPagedArena* arena, NecroBase* base,
         return ok(NecroType, NULL);
     switch (type1->type)
     {
-    case NECRO_TYPE_VAR:  return necro_unify_var(arena, base, type1, type2, scope);
-    case NECRO_TYPE_APP:  return necro_unify_app(arena, base, type1, type2, scope);
-    case NECRO_TYPE_FUN:  return necro_unify_fun(arena, base, type1, type2, scope);
-    case NECRO_TYPE_CON:  return necro_unify_con(arena, base, type1, type2, scope);
-    case NECRO_TYPE_NAT:  return necro_unify_nat(arena, base, type1, type2, scope);
-    case NECRO_TYPE_SYM:  return necro_unify_sym(arena, base, type1, type2, scope);
+    case NECRO_TYPE_VAR:  return necro_unify_var(arena, con_env, base, type1, type2, scope);
+    case NECRO_TYPE_APP:  return necro_unify_app(arena, con_env, base, type1, type2, scope);
+    case NECRO_TYPE_FUN:  return necro_unify_fun(arena, con_env, base, type1, type2, scope);
+    case NECRO_TYPE_CON:  return necro_unify_con(arena, con_env, base, type1, type2, scope);
+    case NECRO_TYPE_NAT:  return necro_unify_nat(arena, con_env, base, type1, type2, scope);
+    case NECRO_TYPE_SYM:  return necro_unify_sym(arena, con_env, base, type1, type2, scope);
     case NECRO_TYPE_LIST: necro_unreachable(NecroType);
     case NECRO_TYPE_FOR:
         while (type1->type == NECRO_TYPE_FOR)
             type1 = type1->for_all.type;
-        necro_try(NecroType, necro_type_unify(arena, base, type1, type2, scope));
+        necro_try(NecroType, necro_type_unify(arena, con_env, base, type1, type2, scope));
         return ok(NecroType, NULL);
     default:
         necro_unreachable(NecroType);
     }
 }
 
-NecroResult(NecroType) necro_type_unify_with_info(NecroPagedArena* arena, struct NecroBase* base, NecroType* type1, NecroType* type2, struct NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+NecroResult(NecroType) necro_type_unify_with_info(NecroPagedArena* arena, NecroConstraintEnv* con_env, struct NecroBase* base, NecroType* type1, NecroType* type2, struct NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_type_unify_with_full_info(arena, base, type1, type2, scope, source_loc, end_loc, type1, type2);
+    return necro_type_unify_with_full_info(arena, con_env, base, type1, type2, scope, source_loc, end_loc, type1, type2);
 }
 
-NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroType* macro_type1, NecroType* macro_type2)
+NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroType* macro_type1, NecroType* macro_type2)
 {
-    NecroResult(NecroType) result = necro_type_unify(arena, base, type1, type2, scope);
+    NecroResult(NecroType) result = necro_type_unify(arena, con_env, base, type1, type2, scope);
     if (result.type == NECRO_RESULT_OK)
     {
         return result;
@@ -1064,8 +1072,7 @@ NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, N
 NecroInstSub* necro_create_inst_sub(NecroPagedArena* arena, NecroAstSymbol* var_to_replace, NecroScope* scope, NecroTypeClassContext* context, NecroInstSub* next)
 {
     NecroType* type_to_replace            = necro_type_find(var_to_replace->type);
-    NecroType* type_var                   = necro_type_fresh_var(arena);
-    type_var->var.scope                   = scope;
+    NecroType* type_var                   = necro_type_fresh_var(arena, scope);
     type_var->var.is_rigid                = false;
     type_var->var.var_symbol->name        = NULL;
     type_var->var.var_symbol->source_name = var_to_replace->source_name;
@@ -1095,8 +1102,43 @@ NecroInstSub* necro_create_inst_sub_manual(NecroPagedArena* arena, NecroAstSymbo
     return sub;
 }
 
-// TODO: instantiate ownership vars as well!
-NecroType* necro_type_replace_with_subs_deep_copy_go(NecroPagedArena* arena, NecroType* type, NecroInstSub* subs)
+NecroType* necro_type_maybe_sub_var(NecroType* type_to_maybe_sub, NecroInstSub* subs)
+{
+    // assert(type_to_maybe_sub->type == NECRO_TYPE_VAR);
+    if (type_to_maybe_sub->type != NECRO_TYPE_VAR)
+        return type_to_maybe_sub;
+    // TODO: Figure this out!
+    // assert(necro_type_find(type_to_maybe_sub->var.var_symbol->type) == type_to_maybe_sub);
+    NecroInstSub* curr_sub = subs;
+    while (curr_sub != NULL)
+    {
+        if (type_to_maybe_sub->var.var_symbol == curr_sub->var_to_replace || type_to_maybe_sub == subs->new_name ||
+           (type_to_maybe_sub->var.var_symbol->name != NULL && type_to_maybe_sub->var.var_symbol->name == curr_sub->var_to_replace->name))
+            return curr_sub->new_name;
+        curr_sub = curr_sub->next;
+    }
+    return type_to_maybe_sub;
+}
+
+NecroConstraintList* necro_type_constraint_replace_with_subs_deep_copy(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroConstraintList* constraints, NecroInstSub* subs)
+{
+    NecroConstraintList* new_list = NULL;
+    while (constraints != NULL)
+    {
+        switch (constraints->data->type)
+        {
+            case NECRO_CONSTRAINT_AND: assert(false); break;
+            case NECRO_CONSTRAINT_EQL: assert(false); break;
+            case NECRO_CONSTRAINT_FOR: assert(false); break;
+            case NECRO_CONSTRAINT_UNI: new_list = necro_constraint_append_uniqueness_coercion_and_queue_push_back(arena, con_env, necro_type_maybe_sub_var(constraints->data->uni.u1, subs), necro_type_maybe_sub_var(constraints->data->uni.u2, subs), new_list); break;
+            default:                   assert(false); break;
+        }
+        constraints = constraints->next;
+    }
+    return new_list;
+}
+
+NecroType* necro_type_replace_with_subs_deep_copy_go(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroType* type, NecroInstSub* subs)
 {
     if (type == NULL)
         return NULL;
@@ -1105,58 +1147,46 @@ NecroType* necro_type_replace_with_subs_deep_copy_go(NecroPagedArena* arena, Nec
     switch (type->type)
     {
     case NECRO_TYPE_VAR:
-        while (subs != NULL)
-        {
-            if (type->for_all.var_symbol == subs->var_to_replace ||
-               (type->for_all.var_symbol->name != NULL && type->for_all.var_symbol->name == subs->var_to_replace->name))
-            {
-                if (subs->new_name->ownership != NULL && subs->new_name->ownership->type == NECRO_TYPE_VAR)
-                    subs->new_name->ownership = necro_type_replace_with_subs_deep_copy_go(arena, subs->new_name->ownership, subs);
-                return subs->new_name;
-            }
-            subs = subs->next;
-        }
-        return type;
+        new_type = necro_type_maybe_sub_var(type, subs);
+        if (new_type == type)
+            return type;
+        break;
     case NECRO_TYPE_FOR:
     {
-        NecroInstSub* curr_sub = subs;
-        while (curr_sub != NULL)
-        {
-            if (type->for_all.var_symbol == curr_sub->var_to_replace ||
-               (type->for_all.var_symbol->name != NULL && type->for_all.var_symbol->name == curr_sub->var_to_replace->name))
-            {
-                new_type = necro_type_replace_with_subs_deep_copy_go(arena, type->for_all.type, subs);
-                break;
-            }
-            curr_sub = curr_sub->next;
-        }
-        new_type = necro_type_for_all_create(arena, type->for_all.var_symbol, necro_type_replace_with_subs_deep_copy_go(arena, type->for_all.type, subs));
+        NecroType* forall_var = necro_type_maybe_sub_var(type->for_all.var_symbol->type, subs);
+        if (forall_var != type->for_all.var_symbol->type)
+            new_type = necro_type_replace_with_subs_deep_copy_go(arena, con_env, type->for_all.type, subs);
+        else
+            new_type = necro_type_for_all_create(arena, type->for_all.var_symbol, necro_type_replace_with_subs_deep_copy_go(arena, con_env, type->for_all.type, subs));
         break;
     }
-    case NECRO_TYPE_APP:  new_type = necro_type_app_create(arena, necro_type_replace_with_subs_deep_copy_go(arena, type->app.type1, subs), necro_type_replace_with_subs_deep_copy_go(arena, type->app.type2, subs)); break;
-    case NECRO_TYPE_FUN:  new_type = necro_type_fn_create(arena, necro_type_replace_with_subs_deep_copy_go(arena, type->fun.type1, subs), necro_type_replace_with_subs_deep_copy_go(arena, type->fun.type2, subs)); break;
-    case NECRO_TYPE_CON:  new_type = necro_type_con_create(arena, type->con.con_symbol, necro_type_replace_with_subs_deep_copy_go(arena, type->con.args, subs)); break;
-    case NECRO_TYPE_LIST: new_type = necro_type_list_create(arena, necro_type_replace_with_subs_deep_copy_go(arena, type->list.item, subs), necro_type_replace_with_subs_deep_copy_go(arena, type->list.next, subs)); break;
+    case NECRO_TYPE_APP:  new_type = necro_type_app_create(arena, necro_type_replace_with_subs_deep_copy_go(arena, con_env, type->app.type1, subs), necro_type_replace_with_subs_deep_copy_go(arena, con_env, type->app.type2, subs)); break;
+    case NECRO_TYPE_FUN:  new_type = necro_type_fn_create(arena, necro_type_replace_with_subs_deep_copy_go(arena, con_env, type->fun.type1, subs), necro_type_replace_with_subs_deep_copy_go(arena, con_env, type->fun.type2, subs)); break;
+    case NECRO_TYPE_CON:  new_type = necro_type_con_create(arena, type->con.con_symbol, necro_type_replace_with_subs_deep_copy_go(arena, con_env, type->con.args, subs)); break;
+    case NECRO_TYPE_LIST: new_type = necro_type_list_create(arena, necro_type_replace_with_subs_deep_copy_go(arena, con_env, type->list.item, subs), necro_type_replace_with_subs_deep_copy_go(arena, con_env, type->list.next, subs)); break;
     case NECRO_TYPE_NAT:  new_type = necro_type_nat_create(arena, type->nat.value); break;
     case NECRO_TYPE_SYM:  new_type = necro_type_sym_create(arena, type->sym.value); break;
-
     default: assert(false); return NULL;
     }
     if (type->ownership != NULL)
     {
         if (type->ownership->type == NECRO_TYPE_VAR)
-            new_type->ownership = necro_type_replace_with_subs_deep_copy_go(arena, type->ownership, subs);
+        {
+            new_type->ownership       = necro_type_replace_with_subs_deep_copy_go(arena, con_env, type->ownership, subs);
+            new_type->ownership->kind = type->ownership->kind;
+        }
         else
             new_type->ownership = type->ownership;
     }
     // new_type->kind = type->kind;
-    new_type->kind = NULL;
+    new_type->kind        = NULL;
+    new_type->constraints = necro_type_constraint_replace_with_subs_deep_copy(arena, con_env, type->constraints, subs);
     return new_type;
 }
 
-NecroResult(NecroType) necro_type_replace_with_subs_deep_copy(NecroPagedArena* arena, NecroBase* base, NecroType* type, NecroInstSub* subs)
+NecroResult(NecroType) necro_type_replace_with_subs_deep_copy(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* type, NecroInstSub* subs)
 {
-    NecroType* new_type = necro_type_replace_with_subs_deep_copy_go(arena, type, subs);
+    NecroType* new_type = necro_type_replace_with_subs_deep_copy_go(arena, con_env, type, subs);
     if (new_type == NULL)
         return ok(NecroType, NULL);
     necro_try(NecroType, necro_kind_infer(arena, base, new_type, NULL_LOC, NULL_LOC));
@@ -1170,7 +1200,7 @@ NecroType* necro_type_replace_with_subs_go(NecroPagedArena* arena, NecroType* ty
         return type;
     type = necro_type_find(type);
     if (type->ownership != NULL && type->ownership->type == NECRO_TYPE_VAR)
-        type->ownership = necro_type_replace_with_subs_deep_copy_go(arena, type->ownership, subs);
+        type->ownership = necro_type_replace_with_subs_go(arena, type->ownership, subs);
     switch (type->type)
     {
     case NECRO_TYPE_VAR:
@@ -1179,7 +1209,7 @@ NecroType* necro_type_replace_with_subs_go(NecroPagedArena* arena, NecroType* ty
             if (type->for_all.var_symbol == subs->var_to_replace ||
                (type->for_all.var_symbol->name != NULL && type->for_all.var_symbol->name == subs->var_to_replace->name))
             {
-                subs->new_name->ownership = necro_type_replace_with_subs_deep_copy_go(arena, subs->new_name->ownership, subs);
+                subs->new_name->ownership = necro_type_replace_with_subs_go(arena, subs->new_name->ownership, subs);
                 return subs->new_name;
             }
             subs = subs->next;
@@ -1258,7 +1288,7 @@ NecroResult(NecroType) necro_type_replace_with_subs(NecroPagedArena* arena, Necr
     return ok(NecroType, new_type);
 }
 
-NecroResult(NecroType) necro_type_instantiate(NecroPagedArena* arena, NecroBase* base, NecroType* type, NecroScope* scope)
+NecroResult(NecroType) necro_type_instantiate(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* type, NecroScope* scope)
 {
     UNUSED(scope);
     assert(type != NULL);
@@ -1267,16 +1297,14 @@ NecroResult(NecroType) necro_type_instantiate(NecroPagedArena* arena, NecroBase*
     NecroInstSub* subs         = NULL;
     while (current_type->type == NECRO_TYPE_FOR)
     {
-        // subs         = necro_create_inst_sub(arena, current_type->for_all.var_symbol, current_type->for_all.var_symbol->type->var.context, subs);
         subs         = necro_create_inst_sub(arena, current_type->for_all.var_symbol, scope, current_type->for_all.var_symbol->type->var.context, subs);
         current_type = current_type->for_all.type;
     }
-    NecroType* result = necro_try(NecroType, necro_type_replace_with_subs_deep_copy(arena, base, current_type, subs));
-    // necro_try(NecroType, necro_type_ownership_infer_from_type(arena, base, result, scope));
+    NecroType* result = necro_try(NecroType, necro_type_replace_with_subs_deep_copy(arena, con_env, base, current_type, subs));
     return ok(NecroType, result);
 }
 
-NecroResult(NecroType) necro_type_instantiate_with_subs(NecroPagedArena* arena, NecroBase* base, NecroType* type, NecroScope* scope, NecroInstSub** subs)
+NecroResult(NecroType) necro_type_instantiate_with_subs(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* type, NecroScope* scope, NecroInstSub** subs)
 {
     UNUSED(scope);
     assert(type != NULL);
@@ -1288,8 +1316,7 @@ NecroResult(NecroType) necro_type_instantiate_with_subs(NecroPagedArena* arena, 
         *subs        = necro_create_inst_sub(arena, current_type->for_all.var_symbol, scope, current_type->for_all.var_symbol->type->var.context, *subs);
         current_type = current_type->for_all.type;
     }
-    NecroType* result = necro_try(NecroType, necro_type_replace_with_subs_deep_copy(arena, base, current_type, *subs));
-    // necro_try(NecroType, necro_type_ownership_infer_from_type(arena, base, result, scope));
+    NecroType* result = necro_try(NecroType, necro_type_replace_with_subs_deep_copy(arena, con_env, base, current_type, *subs));
     return ok(NecroType, result);
 }
 
@@ -1335,7 +1362,6 @@ NecroType* necro_type_gen_go(NecroPagedArena* arena, NecroType* type, NecroScope
     {
     case NECRO_TYPE_VAR:
     {
-        // TODO: Band around and make sure we can get by with only testing necro_type_find type, and not each successively bound var.
         if (type->var.is_rigid)
         {
             necro_type_append_to_foralls(arena, for_alls, type);
@@ -1403,8 +1429,9 @@ NecroType* necro_type_gen_go(NecroPagedArena* arena, NecroType* type, NecroScope
     }
 }
 
-NecroResult(NecroType) necro_type_generalize(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, struct NecroScope* scope)
+NecroResult(NecroType) necro_type_generalize(NecroPagedArena* arena, NecroConstraintEnv* con_env, struct NecroBase* base, NecroType* type, struct NecroScope* scope)
 {
+    UNUSED(con_env);
     assert(type != NULL);
     assert(type->type != NECRO_TYPE_FOR);
     necro_try_map(void, NecroType, necro_kind_infer_default(arena, base, type, NULL_LOC, NULL_LOC));
@@ -1505,7 +1532,8 @@ void necro_type_fprint_type_var(FILE* stream, const NecroAstSymbol* var_symbol)
     {
         size_t truncated_symbol_pointer = (size_t)var_symbol;
         truncated_symbol_pointer        = truncated_symbol_pointer & 8191;
-        if (var_symbol->type != NULL && var_symbol->type->kind != NULL && var_symbol->type->kind->type == NECRO_TYPE_CON && (strcmp(var_symbol->type->kind->con.con_symbol->source_name->str, "Ownership") == 0))
+        const NecroType* type_var       = necro_type_find(var_symbol->type);
+        if (type_var != NULL && type_var->kind != NULL && type_var->kind->type == NECRO_TYPE_CON && (strcmp(type_var->kind->con.con_symbol->source_name->str, "Ownership") == 0))
             fprintf(stream, "u%x", truncated_symbol_pointer);
         else
             fprintf(stream, "a%x", truncated_symbol_pointer);
@@ -1529,6 +1557,24 @@ void necro_type_fprint_ownership(FILE* stream, const NecroType* ownership)
     else
     {
         assert(false);
+    }
+}
+
+void necro_constraint_fprint(FILE* stream, const NecroConstraint* constraint)
+{
+    switch (constraint->type)
+    {
+    case NECRO_CONSTRAINT_AND: return;
+    case NECRO_CONSTRAINT_EQL: return;
+    case NECRO_CONSTRAINT_FOR: return;
+    case NECRO_CONSTRAINT_UNI:
+        necro_type_fprint_type_var(stream, constraint->uni.u1->var.var_symbol);
+        fprintf(stream, "<=");
+        necro_type_fprint_type_var(stream, constraint->uni.u2->var.var_symbol);
+        return;
+    default:
+        assert(false);
+        return;
     }
 }
 
@@ -1612,7 +1658,7 @@ void necro_type_fprint(FILE* stream, const NecroType* type)
         bool has_context = false;
         while (type->type == NECRO_TYPE_FOR)
         {
-            if (type->for_all.var_symbol->type->var.context != NULL)
+            if (type->for_all.var_symbol->type->var.context != NULL || type->for_all.var_symbol->type->constraints != NULL)
             {
                 has_context = true;
                 break;
@@ -1632,11 +1678,21 @@ void necro_type_fprint(FILE* stream, const NecroType* type)
                     if (count > 0)
                         fprintf(stream, ", ");
                     fprintf(stream, "%s ", context->class_symbol->source_name->str);
-                    if (type->for_all.var_symbol->source_name != NULL)
-                        fprintf(stream, "%s", type->for_all.var_symbol->source_name->str);
-                    else
-                        fprintf(stream, "t%p", type->for_all.var_symbol);
+                    necro_type_fprint_type_var(stream, type->for_all.var_symbol);
+                    // if (type->for_all.var_symbol->source_name != NULL)
+                    //     fprintf(stream, "%s", type->for_all.var_symbol->source_name->str);
+                    // else
+                    //     fprintf(stream, "t%p", type->for_all.var_symbol);
                     context = context->next;
+                    count++;
+                }
+                NecroConstraintList* constraints = type->for_all.var_symbol->type->constraints;
+                while (constraints != NULL)
+                {
+                    if (count > 0)
+                        fprintf(stream, ", ");
+                    necro_constraint_fprint(stream, constraints->data);
+                    constraints = constraints->next;
                     count++;
                 }
                 type = type->for_all.type;
@@ -2611,21 +2667,109 @@ NecroResult(NecroType) necro_type_unify_order(NecroType* type1, NecroType* type2
 
 
 ///////////////////////////////////////////////////////
-// Ownership
+// Uniqueness
 ///////////////////////////////////////////////////////
-NecroType* necro_type_ownership_fresh_var(NecroPagedArena* arena, NecroBase* base)
+NecroType* necro_type_ownership_fresh_var(NecroPagedArena* arena, NecroBase* base, NecroScope* scope)
 {
-    NecroType* type = necro_type_fresh_var(arena);
+    NecroType* type = necro_type_fresh_var(arena, scope);
     type->kind      = base->ownership_kind->type;
     return type;
 }
 
+NecroType* necro_type_uniqueness_list_to_ownership_type(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* uniqueness_list, NecroScope* scope)
+{
+    NecroConstraintList* constraints = NULL;
+    while (uniqueness_list != NULL)
+    {
+        assert(uniqueness_list->list.item != NULL);
+        NecroType* ownership_type = necro_type_find(uniqueness_list->list.item);
+        assert(ownership_type != NULL);
+        if (ownership_type->type == NECRO_TYPE_CON)
+        {
+            if (ownership_type->con.con_symbol == base->ownership_share)
+            {
+                uniqueness_list = uniqueness_list->list.next;
+                continue;
+            }
+            if (ownership_type->con.con_symbol == base->ownership_steal)
+                return base->ownership_steal->type;
+        }
+        constraints = necro_constraint_append_uniqueness_coercion_without_queue_push(arena, con_env, NULL, ownership_type, constraints);
+        uniqueness_list = uniqueness_list->list.next;
+    }
+    if (constraints == NULL)
+        return base->ownership_share->type;
+    if (constraints->next == NULL)
+        return constraints->data->uni.u2;
+    NecroType*           uvar     = necro_type_ownership_fresh_var(arena, base, scope);
+    NecroConstraintList* curr_con = constraints;
+    while (curr_con != NULL)
+    {
+        curr_con->data->uni.u1 = uvar;
+        necro_constraint_dequeue_push_back(&con_env->constraints, curr_con->data);
+        curr_con               = curr_con->next;
+    }
+    uvar->constraints = constraints;
+    return uvar;
+}
+
+NecroType* necro_type_add_uniqueness_type_to_uniqueness_list(NecroPagedArena* arena, NecroBase* base, NecroType* uniqueness_type, NecroType* uniqueness_list)
+{
+    uniqueness_type = necro_type_find(uniqueness_type);
+    if (uniqueness_type->type == NECRO_TYPE_CON)
+    {
+        if (uniqueness_type->con.con_symbol == base->ownership_share)
+            return uniqueness_list;
+        else if (uniqueness_type->con.con_symbol == base->ownership_steal)
+            return necro_type_list_create(arena, uniqueness_type, NULL);
+    }
+    NecroType* curr_uniqueness_list = uniqueness_list;
+    while (curr_uniqueness_list != NULL)
+    {
+        NecroType* uniqueness_type2 = necro_type_find(curr_uniqueness_list->list.item);
+        if (uniqueness_type2 == uniqueness_type)
+            return uniqueness_list;
+        else if (uniqueness_type2 == base->ownership_steal->type)
+            return uniqueness_list;
+        else if (uniqueness_type2->type == NECRO_TYPE_VAR && uniqueness_type->type == NECRO_TYPE_VAR && uniqueness_type2->var.var_symbol == uniqueness_type->var.var_symbol)
+            return uniqueness_list;
+        else if (uniqueness_type2->type == NECRO_TYPE_CON && uniqueness_type->type == NECRO_TYPE_CON && uniqueness_type2->con.con_symbol == uniqueness_type->con.con_symbol)
+            return uniqueness_list;
+        curr_uniqueness_list = curr_uniqueness_list->list.next;
+    }
+    return necro_type_list_create(arena, uniqueness_type, uniqueness_list);
+}
+
+NecroType* necro_type_free_vars_to_ownership_type(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroFreeVars* free_vars, NecroScope* scope)
+{
+    if (free_vars == NULL)
+        return necro_type_ownership_fresh_var(arena, base, scope);
+    NecroAstSymbol** data   = &free_vars->data;
+    NecroType*       u_list = NULL;
+    for (size_t i = 0; i < free_vars->count; ++i)
+    {
+        assert(data[i] != NULL);
+        NecroType* ownership_type = necro_type_find(data[i]->type->ownership);
+        u_list                    = necro_type_add_uniqueness_type_to_uniqueness_list(arena, base, ownership_type, u_list);
+    }
+    return necro_type_uniqueness_list_to_ownership_type(arena, con_env, base, u_list, scope);
+}
+
+bool necro_type_is_inhabited(NecroBase* base, const NecroType* type)
+{
+    type = necro_type_find_const(type);
+    const NecroType* kind = necro_type_find_const(type->kind);
+    assert(kind != NULL);
+    assert(kind->type != NECRO_TYPE_VAR);
+    return necro_type_get_fully_applied_fun_type_const(kind) == base->star_kind->type;
+}
+
 // Returns NULL
-NecroResult(NecroType) necro_type_ownership_unify_with_info(NecroPagedArena* arena, struct NecroBase* base, NecroType* ownership1, NecroType* ownership2, struct NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+NecroResult(NecroType) necro_type_ownership_unify_with_info(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* ownership1, NecroType* ownership2, NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     UNUSED(arena);
     UNUSED(base);
-    NecroResult(NecroType) result = necro_type_ownership_unify(ownership1, ownership2, scope);
+    NecroResult(NecroType) result = necro_type_ownership_unify(arena, con_env, ownership1, ownership2, scope);
     if (result.type == NECRO_RESULT_OK)
     {
         return result;
@@ -2656,9 +2800,78 @@ NecroResult(NecroType) necro_type_ownership_unify_with_info(NecroPagedArena* are
     return result;
 }
 
-// Returns NULL
-NecroResult(NecroType) necro_type_ownership_unify(NecroType* ownership1, NecroType* ownership2, NecroScope* scope)
+void necro_type_ownership_bind_uvar_to(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroType* uvar_to_bind, NecroType* utype_to_bind_to)
 {
+    assert(uvar_to_bind->type == NECRO_TYPE_VAR);
+    // Bind
+    uvar_to_bind->var.bound = utype_to_bind_to;
+    // Propagate
+    NecroConstraintList* constraints1    = uvar_to_bind->constraints;
+    NecroConstraintList* constraints2    = utype_to_bind_to->constraints;
+    NecroConstraintList* new_constraints = constraints2;
+    while (constraints1 != NULL)
+    {
+        bool new_constraint = true;
+        while (constraints2 != NULL)
+        {
+            if (constraints1->data->type == constraints2->data->type)
+            {
+                if (constraints1->data->type == NECRO_CONSTRAINT_UNI && (necro_type_find(constraints1->data->uni.u2) == necro_type_find(constraints2->data->uni.u2)))
+                {
+                    new_constraint = false;
+                    break;
+                }
+            }
+            constraints2 = constraints2->next;
+        }
+        if (new_constraint && constraints1->data->type == NECRO_CONSTRAINT_UNI)
+            new_constraints = necro_constraint_append_uniqueness_coercion_and_queue_push_back(arena, con_env, utype_to_bind_to, necro_type_find(constraints1->data->uni.u2), new_constraints);
+        constraints2 = utype_to_bind_to->constraints;
+        constraints1 = constraints1->next;
+    }
+    // At least currently, only uvars actually maintain constraints
+    if (utype_to_bind_to->type == NECRO_TYPE_VAR)
+        utype_to_bind_to->constraints = new_constraints;
+}
+
+void necro_type_ownership_bind_uvar_to_with_queue_push_front(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroType* uvar_to_bind, NecroType* utype_to_bind_to)
+{
+    assert(uvar_to_bind->type == NECRO_TYPE_VAR);
+    // Bind
+    uvar_to_bind->var.bound = utype_to_bind_to;
+    // Propagate
+    NecroConstraintList* constraints1    = uvar_to_bind->constraints;
+    NecroConstraintList* constraints2    = utype_to_bind_to->constraints;
+    NecroConstraintList* new_constraints = constraints2;
+    while (constraints1 != NULL)
+    {
+        bool new_constraint = true;
+        while (constraints2 != NULL)
+        {
+            if (constraints1->data->type == constraints2->data->type)
+            {
+                if (constraints1->data->type == NECRO_CONSTRAINT_UNI && (necro_type_find(constraints1->data->uni.u2) == necro_type_find(constraints2->data->uni.u2)))
+                {
+                    new_constraint = false;
+                    break;
+                }
+            }
+            constraints2 = constraints2->next;
+        }
+        if (new_constraint && constraints1->data->type == NECRO_CONSTRAINT_UNI)
+            new_constraints = necro_constraint_append_uniqueness_coercion_and_queue_push_front(arena, con_env, utype_to_bind_to, necro_type_find(constraints1->data->uni.u2), new_constraints);
+        constraints2 = utype_to_bind_to->constraints;
+        constraints1 = constraints1->next;
+    }
+    // At least currently, only uvars actually maintain constraints
+    if (utype_to_bind_to->type == NECRO_TYPE_VAR)
+        utype_to_bind_to->constraints = new_constraints;
+}
+
+// Returns NULL
+NecroResult(NecroType) necro_type_ownership_unify(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroType* ownership1, NecroType* ownership2, NecroScope* scope)
+{
+    UNUSED(con_env);
     ownership1 = necro_type_find(ownership1);
     ownership2 = necro_type_find(ownership2);
     if (ownership1 == ownership2)
@@ -2672,8 +2885,8 @@ NecroResult(NecroType) necro_type_ownership_unify(NecroType* ownership1, NecroTy
         case NECRO_TYPE_VAR:
             if (ownership1->var.var_symbol == ownership2->var.var_symbol)  return ok(NecroType, NULL);
             else if (ownership1->var.is_rigid && ownership2->var.is_rigid) return necro_type_rigid_type_variable_error(ownership1, ownership2, NULL, NULL, NULL_LOC, NULL_LOC); // TODO: Custom Ownership error messages!
-            else if (ownership1->var.is_rigid)                             { ownership2->var.bound = ownership1; return ok(NecroType, NULL); }
-            else if (ownership2->var.is_rigid)                             { ownership1->var.bound = ownership2; return ok(NecroType, NULL); }
+            else if (ownership1->var.is_rigid)                             { necro_type_ownership_bind_uvar_to(arena, con_env, ownership2, ownership1); return ok(NecroType, NULL); }
+            else if (ownership2->var.is_rigid)                             { necro_type_ownership_bind_uvar_to(arena, con_env, ownership1, ownership2); return ok(NecroType, NULL); }
             const bool is_type1_bound_in_scope = necro_type_is_bound_in_scope(ownership1, scope);
             const bool is_type2_bound_in_scope = necro_type_is_bound_in_scope(ownership2, scope);
             if (is_type1_bound_in_scope && is_type2_bound_in_scope)
@@ -2681,12 +2894,12 @@ NecroResult(NecroType) necro_type_ownership_unify(NecroType* ownership1, NecroTy
                 const size_t type1_distance = necro_type_bound_in_scope_distance(ownership1, scope);
                 const size_t type2_distance = necro_type_bound_in_scope_distance(ownership2, scope);
                 if (type1_distance >= type2_distance)
-                    ownership2->var.bound = ownership1;
+                    necro_type_ownership_bind_uvar_to(arena, con_env, ownership2, ownership1);
                 else
-                    ownership1->var.bound = ownership2;
+                    necro_type_ownership_bind_uvar_to(arena, con_env, ownership1, ownership2);
             }
-            else if (is_type1_bound_in_scope) ownership2->var.bound = ownership1;
-            else                              ownership1->var.bound = ownership2;
+            else if (is_type1_bound_in_scope || ownership2->constraints == NULL) necro_type_ownership_bind_uvar_to(arena, con_env, ownership2, ownership1);
+            else                                                                 necro_type_ownership_bind_uvar_to(arena, con_env, ownership1, ownership2);
             return ok(NecroType, NULL);
         case NECRO_TYPE_CON:
             if (ownership1->var.is_rigid)
@@ -2705,7 +2918,7 @@ NecroResult(NecroType) necro_type_ownership_unify(NecroType* ownership1, NecroTy
         case NECRO_TYPE_VAR:
             if (ownership2->var.is_rigid)
                 return necro_type_rigid_type_variable_error(ownership1, ownership2, NULL, NULL, NULL_LOC, NULL_LOC); // TODO: Custom Ownership error messages!
-            ownership2->var.bound = ownership1;
+            necro_type_ownership_bind_uvar_to(arena, con_env, ownership2, ownership1);
             return ok(NecroType, NULL);
         case NECRO_TYPE_CON:
             assert(ownership2->con.args == NULL);
@@ -2720,77 +2933,8 @@ NecroResult(NecroType) necro_type_ownership_unify(NecroType* ownership1, NecroTy
     }
 }
 
-NecroType* necro_type_uniqueness_list_to_ownership_type(NecroPagedArena* arena, NecroBase* base, NecroType* uniqueness_list)
-{
-    // NOTE: Shared uniqueness is dropped, so an empty list is shared.
-    NecroType* original_list = uniqueness_list;
-    if (uniqueness_list == NULL)
-        return base->ownership_share->type;
-    while (uniqueness_list != NULL)
-    {
-        assert(uniqueness_list->list.item != NULL);
-        NecroType* ownership_type = necro_type_find(uniqueness_list->list.item);
-        if (ownership_type == NULL)
-            continue;
-        if (ownership_type == base->ownership_steal->type)
-            return base->ownership_steal->type;
-        if (original_list->list.next == NULL)
-            return ownership_type;
-        uniqueness_list = uniqueness_list->list.next;
-    }
-    return necro_type_ownership_fresh_var(arena, base);
-}
-
-NecroType* necro_type_add_uniqueness_type_to_uniqueness_list(NecroPagedArena* arena, NecroBase* base, NecroType* uniqueness_type, NecroType* uniqueness_list)
-{
-    uniqueness_type = necro_type_find(uniqueness_type);
-    if (uniqueness_type == base->ownership_share->type)
-        return uniqueness_list;
-    else if (uniqueness_type == base->ownership_steal->type)
-        return necro_type_list_create(arena, uniqueness_type, NULL);
-    NecroType* curr_uniqueness_list = uniqueness_list;
-    while (curr_uniqueness_list != NULL)
-    {
-        NecroType* uniqueness_type2 = necro_type_find(curr_uniqueness_list->list.item);
-        if (uniqueness_type2 == uniqueness_type)
-            return uniqueness_list;
-        else if (uniqueness_type2 == base->ownership_steal->type)
-            return uniqueness_list;
-        else if (uniqueness_type2->type == NECRO_TYPE_VAR && uniqueness_type->type == NECRO_TYPE_VAR && uniqueness_type2->var.var_symbol == uniqueness_type->var.var_symbol)
-            return uniqueness_list;
-        else if (uniqueness_type2->type == NECRO_TYPE_CON && uniqueness_type->type == NECRO_TYPE_CON && uniqueness_type2->con.con_symbol == uniqueness_type->con.con_symbol)
-            return uniqueness_list;
-        curr_uniqueness_list = curr_uniqueness_list->list.next;
-    }
-    return necro_type_list_create(arena, uniqueness_type, uniqueness_list);
-}
-
-NecroType* necro_type_free_vars_to_ownership_type(NecroPagedArena* arena, NecroBase* base, NecroFreeVars* free_vars)
-{
-    if (free_vars == NULL)
-        return necro_type_ownership_fresh_var(arena, base);
-    NecroAstSymbol** data   = &free_vars->data;
-    NecroType*       u_list = NULL;
-    for (size_t i = 0; i < free_vars->count; ++i)
-    {
-        assert(data[i] != NULL);
-        NecroType* ownership_type = necro_type_find(data[i]->type->ownership);
-        u_list                    = necro_type_add_uniqueness_type_to_uniqueness_list(arena, base, ownership_type, u_list);
-    }
-    return necro_type_uniqueness_list_to_ownership_type(arena, base, u_list);
-}
-
-bool necro_type_is_inhabited(NecroBase* base, const NecroType* type)
-{
-    type = necro_type_find_const(type);
-    const NecroType* kind = necro_type_find_const(type->kind);
-    assert(kind != NULL);
-    assert(kind->type != NECRO_TYPE_VAR);
-    return necro_type_get_fully_applied_fun_type_const(kind) == base->star_kind->type;
-}
-
 // Returns inferred ownership
-NecroResult(NecroType) necro_type_ownership_infer_from_type(NecroPagedArena* arena, NecroBase* base, NecroType* type, NecroScope* scope)
+NecroResult(NecroType) necro_type_ownership_infer_from_type(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* type, NecroScope* scope)
 {
     type = necro_type_find(type);
     if (type->ownership != NULL)
@@ -2801,13 +2945,13 @@ NecroResult(NecroType) necro_type_ownership_infer_from_type(NecroPagedArena* are
         if (!necro_type_is_inhabited(base, type))
             type->ownership = base->ownership_share->type;
         else
-            type->ownership = necro_type_ownership_fresh_var(arena, base);
+            type->ownership = necro_type_ownership_fresh_var(arena, base, scope);
         return ok(NecroType, type->ownership);
     case NECRO_TYPE_FUN:
     {
-        necro_try(NecroType, necro_type_ownership_infer_from_type(arena, base, type->fun.type1, scope));
-        necro_try(NecroType, necro_type_ownership_infer_from_type(arena, base, type->fun.type2, scope));
-        type->ownership = necro_type_free_vars_to_ownership_type(arena, base, type->fun.free_vars);
+        necro_try(NecroType, necro_type_ownership_infer_from_type(arena, con_env, base, type->fun.type1, scope));
+        necro_try(NecroType, necro_type_ownership_infer_from_type(arena, con_env, base, type->fun.type2, scope));
+        type->ownership = necro_type_free_vars_to_ownership_type(arena, con_env, base, type->fun.free_vars, scope);
         return ok(NecroType, type->ownership);
     }
     case NECRO_TYPE_CON:
@@ -2815,21 +2959,21 @@ NecroResult(NecroType) necro_type_ownership_infer_from_type(NecroPagedArena* are
         if (!necro_type_is_inhabited(base, type))
             type->ownership = base->ownership_share->type;
         else
-            type->ownership = necro_type_ownership_fresh_var(arena, base);
+            type->ownership = necro_type_ownership_fresh_var(arena, base, scope);
         NecroType* args = type->con.args;
         while (args != NULL)
         {
-            NecroType* arg_ownership = necro_try(NecroType, necro_type_ownership_infer_from_type(arena, base, args->list.item, scope));
+            NecroType* arg_ownership = necro_try(NecroType, necro_type_ownership_infer_from_type(arena, con_env, base, args->list.item, scope));
             if (necro_type_is_inhabited(base, args->list.item))
-                necro_try(NecroType, necro_type_ownership_unify(type->ownership, arg_ownership, scope));
+                necro_try(NecroType, necro_type_ownership_unify(arena, con_env, type->ownership, arg_ownership, scope));
             args = args->list.next;
         }
         return ok(NecroType, type->ownership);
     }
     case NECRO_TYPE_APP:
     {
-        NecroType* ownership1 = necro_try(NecroType, necro_type_ownership_infer_from_type(arena, base, type->app.type1, scope));
-        NecroType* ownership2 = necro_try(NecroType, necro_type_ownership_infer_from_type(arena, base, type->app.type2, scope));
+        NecroType* ownership1 = necro_try(NecroType, necro_type_ownership_infer_from_type(arena, con_env, base, type->app.type1, scope));
+        NecroType* ownership2 = necro_try(NecroType, necro_type_ownership_infer_from_type(arena, con_env, base, type->app.type2, scope));
         if (!necro_type_is_inhabited(base, type))
         {
             type->ownership = base->ownership_share->type;
@@ -2838,12 +2982,12 @@ NecroResult(NecroType) necro_type_ownership_infer_from_type(NecroPagedArena* are
         {
             type->ownership = ownership1;
             if (necro_type_is_inhabited(base, type->app.type2))
-                necro_try(NecroType, necro_type_ownership_unify(type->ownership, ownership2, scope));
+                necro_try(NecroType, necro_type_ownership_unify(arena, con_env, type->ownership, ownership2, scope));
         }
         return ok(NecroType, type->ownership);
     }
     case NECRO_TYPE_FOR:
-        type->ownership = necro_try(NecroType, necro_type_ownership_infer_from_type(arena, base, type->for_all.type, scope));
+        type->ownership = necro_try(NecroType, necro_type_ownership_infer_from_type(arena, con_env, base, type->for_all.type, scope));
         return ok(NecroType, type->ownership);
     case NECRO_TYPE_NAT:
     case NECRO_TYPE_SYM:
@@ -2855,7 +2999,7 @@ NecroResult(NecroType) necro_type_ownership_infer_from_type(NecroPagedArena* are
 }
 
 // Returns inferred ownership
-NecroResult(NecroType) necro_type_ownership_infer_from_sig_go(NecroPagedArena* arena, NecroBase* base, NecroType* type, NecroScope* scope, NecroType* uniqueness_list)
+NecroResult(NecroType) necro_type_ownership_infer_from_sig_go(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* type, NecroScope* scope, NecroType* uniqueness_list)
 {
     type = necro_type_find(type);
     assert(type->ownership != NULL);
@@ -2867,10 +3011,26 @@ NecroResult(NecroType) necro_type_ownership_infer_from_sig_go(NecroPagedArena* a
         return ok(NecroType, type->ownership);
     case NECRO_TYPE_FUN:
     {
-        NecroType* domain_ownership    = necro_try(NecroType, necro_type_ownership_infer_from_sig_go(arena, base, type->fun.type1, scope, NULL));
+        NecroType* domain_ownership    = necro_try(NecroType, necro_type_ownership_infer_from_sig_go(arena, con_env, base, type->fun.type1, scope, NULL));
         NecroType* new_uniqueness_list = necro_type_add_uniqueness_type_to_uniqueness_list(arena, base, domain_ownership, uniqueness_list);
-        necro_try(NecroType, necro_type_ownership_infer_from_sig_go(arena, base, type->fun.type2, scope, new_uniqueness_list));
-        type->ownership = necro_type_uniqueness_list_to_ownership_type(arena, base, uniqueness_list);
+        necro_try(NecroType, necro_type_ownership_infer_from_sig_go(arena, con_env, base, type->fun.type2, scope, new_uniqueness_list));
+        if (type->ownership->type == NECRO_TYPE_CON && type->ownership->con.con_symbol == base->ownership_steal)
+        {
+            type->ownership = base->ownership_steal->type;
+        }
+        else if (type->ownership->type == NECRO_TYPE_CON && type->ownership->con.con_symbol == base->ownership_share)
+        {
+            type->ownership = necro_type_uniqueness_list_to_ownership_type(arena, con_env, base, uniqueness_list, scope);
+        }
+        else if (type->ownership->type == NECRO_TYPE_VAR)
+        {
+            uniqueness_list = necro_type_add_uniqueness_type_to_uniqueness_list(arena, base, type->ownership, uniqueness_list);
+            type->ownership = necro_type_uniqueness_list_to_ownership_type(arena, con_env, base, uniqueness_list, scope);
+        }
+        else
+        {
+            assert(false);
+        }
         return ok(NecroType, type->ownership);
     }
     case NECRO_TYPE_CON:
@@ -2880,17 +3040,17 @@ NecroResult(NecroType) necro_type_ownership_infer_from_sig_go(NecroPagedArena* a
         NecroType* args = type->con.args;
         while (args != NULL)
         {
-            NecroType* arg_ownership = necro_try(NecroType, necro_type_ownership_infer_from_sig_go(arena, base, args->list.item, scope, NULL));
+            NecroType* arg_ownership = necro_try(NecroType, necro_type_ownership_infer_from_sig_go(arena, con_env, base, args->list.item, scope, NULL));
             if (necro_type_is_inhabited(base, args->list.item))
-                necro_try(NecroType, necro_type_ownership_unify(type->ownership, arg_ownership, scope));
+                necro_try(NecroType, necro_type_ownership_unify(arena, con_env, type->ownership, arg_ownership, scope));
             args = args->list.next;
         }
         return ok(NecroType, type->ownership);
     }
     case NECRO_TYPE_APP:
     {
-        NecroType* ownership1 = necro_try(NecroType, necro_type_ownership_infer_from_sig_go(arena, base, type->app.type1, scope, NULL));
-        NecroType* ownership2 = necro_try(NecroType, necro_type_ownership_infer_from_sig_go(arena, base, type->app.type2, scope, NULL));
+        NecroType* ownership1 = necro_try(NecroType, necro_type_ownership_infer_from_sig_go(arena, con_env, base, type->app.type1, scope, NULL));
+        NecroType* ownership2 = necro_try(NecroType, necro_type_ownership_infer_from_sig_go(arena, con_env, base, type->app.type2, scope, NULL));
         if (!necro_type_is_inhabited(base, type))
         {
             type->ownership = base->ownership_share->type;
@@ -2899,12 +3059,12 @@ NecroResult(NecroType) necro_type_ownership_infer_from_sig_go(NecroPagedArena* a
         {
             type->ownership = ownership1;
             if (necro_type_is_inhabited(base, type->app.type2))
-                necro_try(NecroType, necro_type_ownership_unify(type->ownership, ownership2, scope));
+                necro_try(NecroType, necro_type_ownership_unify(arena, con_env, type->ownership, ownership2, scope));
         }
         return ok(NecroType, type->ownership);
     }
     case NECRO_TYPE_FOR:
-        type->ownership = necro_try(NecroType, necro_type_ownership_infer_from_sig_go(arena, base, type->for_all.type, scope, NULL));
+        type->ownership = necro_try(NecroType, necro_type_ownership_infer_from_sig_go(arena, con_env, base, type->for_all.type, scope, NULL));
         return ok(NecroType, type->ownership);
     case NECRO_TYPE_NAT:
     case NECRO_TYPE_SYM:
@@ -2915,20 +3075,16 @@ NecroResult(NecroType) necro_type_ownership_infer_from_sig_go(NecroPagedArena* a
     }
 }
 
-NecroResult(NecroType) necro_type_ownership_infer_from_sig(NecroPagedArena* arena, NecroBase* base, NecroType* type, NecroScope* scope)
+NecroResult(NecroType) necro_type_ownership_infer_from_sig(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* type, NecroScope* scope)
 {
-    return necro_type_ownership_infer_from_sig_go(arena, base, type, scope, NULL);
+    return necro_type_ownership_infer_from_sig_go(arena, con_env, base, type, scope, NULL);
 }
 
-// TODO: Check higher kinded types
-// TODO: Check that data constructors are being constructed properly
-// TODO: Check that union type data constructor are being constructed properly.
-// TODO: More intense sig inference/type checking?
 // TODO: Shared implementation...How?
-// TODO: Function / Free Var / Or Unification? or perhaps Constraint solving?
-NecroResult(NecroType) necro_type_infer_and_unify_ownership_for_two_types(NecroPagedArena* arena, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope)
+// TODO: Check Higher order function uniqueness inference in signatures, and that it matches inference from terms.
+NecroResult(NecroType) necro_type_infer_and_unify_ownership_for_two_types(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope)
 {
-    NecroType* ownership1 = necro_try(NecroType, necro_type_ownership_infer_from_type(arena, base, type1, scope));
-    NecroType* ownership2 = necro_try(NecroType, necro_type_ownership_infer_from_type(arena, base, type2, scope));
-    return necro_type_ownership_unify(ownership1, ownership2, scope);
+    NecroType* ownership1 = necro_try(NecroType, necro_type_ownership_infer_from_type(arena, con_env, base, type1, scope));
+    NecroType* ownership2 = necro_try(NecroType, necro_type_ownership_infer_from_type(arena, con_env, base, type2, scope));
+    return necro_type_ownership_unify(arena, con_env, ownership1, ownership2, scope);
 }

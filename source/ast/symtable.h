@@ -113,6 +113,8 @@ typedef struct NecroScopedSymTable
     NecroScope*      current_type_scope;
 } NecroScopedSymTable;
 
+extern NecroScope necro_global_scope;
+
 NecroScopedSymTable necro_scoped_symtable_empty();
 NecroScopedSymTable necro_scoped_symtable_create(NecroSymTable* global_table);
 void                necro_scoped_symtable_destroy(NecroScopedSymTable* table);

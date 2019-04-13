@@ -49,9 +49,9 @@ NecroAstSymbol* necro_kind_create_type_con(NecroPagedArena* arena, NecroSymbol n
     return ast_symbol;
 }
 
-NecroType* necro_kind_fresh_kind_var(NecroPagedArena* arena, NecroBase* base)
+NecroType* necro_kind_fresh_kind_var(NecroPagedArena* arena, NecroBase* base, NecroScope* scope)
 {
-    NecroType* kind_var   = necro_type_fresh_var(arena);
+    NecroType* kind_var   = necro_type_fresh_var(arena, scope);
     kind_var->kind        = base->kind_kind->type;
     return kind_var;
 }
@@ -300,11 +300,11 @@ NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase
         {
             if (ast_symbol->type == NULL)
             {
-                ast_symbol->type = necro_type_fresh_var(arena);
+                ast_symbol->type = necro_type_fresh_var(arena, NULL);
             }
             if (ast_symbol->type->kind == NULL)
             {
-                ast_symbol->type->kind = necro_type_fresh_var(arena);
+                ast_symbol->type->kind = necro_type_fresh_var(arena, NULL);
             }
             type->kind = ast_symbol->type->kind;
         }
@@ -312,7 +312,7 @@ NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase
         {
             if (type->kind == NULL)
             {
-                type->kind = necro_type_fresh_var(arena);
+                type->kind = necro_type_fresh_var(arena, NULL);
             }
         }
         return ok(NecroType, type->kind);
@@ -334,7 +334,7 @@ NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase
         NecroType* type2_kind  = necro_try(NecroType, necro_kind_infer(arena, base, type->app.type2, source_loc, end_loc));
         if (type->kind != NULL)
             return ok(NecroType, type->kind);
-        NecroType* result_kind = necro_type_fresh_var(arena);
+        NecroType* result_kind = necro_type_fresh_var(arena, NULL);
         NecroType* f_kind      = necro_type_fn_create(arena, type2_kind, result_kind);
         necro_try(NecroType, necro_kind_unify_with_info(type1_kind, f_kind, NULL, source_loc, end_loc));
         type->kind             = result_kind;
@@ -367,7 +367,7 @@ NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase
         }
         if (type->kind != NULL)
             return ok(NecroType, type->kind);
-        NecroType* result_kind = necro_type_fresh_var(arena);
+        NecroType* result_kind = necro_type_fresh_var(arena, NULL);
         if (args_kinds != NULL)
             args_kinds->fun.type2 = result_kind;
         else

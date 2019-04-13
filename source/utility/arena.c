@@ -37,7 +37,7 @@ NecroArena __necro_arena_create(size_t capacity)
 #if DEBUG_MEMORY
         arena.region = __emalloc(capacity, srcFile, srcLine);
 #else
-        arena.region = __emalloc(capcity);
+        arena.region = __emalloc(capacity);
 #endif // DEBUG_MEMORY
     }
     else

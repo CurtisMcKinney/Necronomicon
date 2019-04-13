@@ -863,7 +863,7 @@ void necro_parse_test()
                         necro_parse_ast_create_type_app(&ast.arena, zero_loc, zero_loc,
                             necro_parse_ast_create_conid(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "Maybe"), NECRO_CON_TYPE_VAR),
                             necro_parse_ast_create_conid(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "Int"), NECRO_CON_TYPE_VAR)),
-                        necro_parse_ast_create_conid(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "Int"), NECRO_CON_TYPE_VAR), NECRO_ARROW_OWNERSHIP_SHARE),
+                        necro_parse_ast_create_conid(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "Int"), NECRO_CON_TYPE_VAR)),
                     NECRO_SIG_DECLARATION),
 
                 null_local_ptr);
@@ -883,7 +883,7 @@ void necro_parse_test()
                         necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "a"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER)),
                     necro_parse_ast_create_function_type(&ast.arena, zero_loc, zero_loc,
                         necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "a"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
-                        necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "a"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER), NECRO_ARROW_OWNERSHIP_SHARE),
+                        necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "a"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER)),
                     NECRO_SIG_DECLARATION),
 
                 null_local_ptr);
@@ -900,7 +900,7 @@ void necro_parse_test()
                     null_local_ptr,
                     necro_parse_ast_create_function_type(&ast.arena, zero_loc, zero_loc,
                         necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "a"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_HIGHER_ORDER),
-                        necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "b"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER), NECRO_ARROW_OWNERSHIP_SHARE),
+                        necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "b"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER)),
                     NECRO_SIG_DECLARATION),
                 null_local_ptr);
         necro_parse_ast_test("TypeSignature3", "liftedTypeVars :: ^a -> b\n", &intern, &ast);
@@ -927,43 +927,11 @@ void necro_parse_test()
                         necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "a"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
                         necro_parse_ast_create_function_type(&ast.arena, zero_loc, zero_loc,
                             necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "b"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
-                            necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "b"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER), NECRO_ARROW_OWNERSHIP_SHARE), NECRO_ARROW_OWNERSHIP_SHARE),
+                            necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "b"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER))),
                     NECRO_SIG_DECLARATION),
 
                 null_local_ptr);
         necro_parse_ast_test("TypeSignature4", "typeSig4 :: (Num a, Show b) => a -> b -> b\n", &intern, &ast);
-    }
-
-    {
-        NecroIntern        intern = necro_intern_create();
-        NecroParseAstArena ast    = (NecroParseAstArena) { necro_arena_create(100 * sizeof(NecroParseAst)) };
-        ast.root                  =
-            necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
-                necro_parse_ast_create_type_signature(&ast.arena, zero_loc, zero_loc,
-                    necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "polyArrow"), NECRO_VAR_SIG, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
-                    null_local_ptr,
-                    necro_parse_ast_create_function_type(&ast.arena, zero_loc, zero_loc,
-                        necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "a"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
-                        necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "b"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER), NECRO_ARROW_OWNERSHIP_POLY),
-                    NECRO_SIG_DECLARATION),
-                null_local_ptr);
-        necro_parse_ast_test("TypeSignature5", "polyArrow :: a ->. b\n", &intern, &ast);
-    }
-
-    {
-        NecroIntern        intern = necro_intern_create();
-        NecroParseAstArena ast    = (NecroParseAstArena) { necro_arena_create(100 * sizeof(NecroParseAst)) };
-        ast.root                  =
-            necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
-                necro_parse_ast_create_type_signature(&ast.arena, zero_loc, zero_loc,
-                    necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "stealingArrow"), NECRO_VAR_SIG, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
-                    null_local_ptr,
-                    necro_parse_ast_create_function_type(&ast.arena, zero_loc, zero_loc,
-                        necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "a"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
-                        necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "b"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER), NECRO_ARROW_OWNERSHIP_STEAL),
-                    NECRO_SIG_DECLARATION),
-                null_local_ptr);
-        necro_parse_ast_test("TypeSignature6", "stealingArrow :: a ->! b\n", &intern, &ast);
     }
 
     {
@@ -978,7 +946,7 @@ void necro_parse_test()
                         necro_parse_ast_create_type_attribute(&ast.arena, zero_loc, zero_loc,
                             necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "a"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
                             NECRO_TYPE_ATTRIBUTE_STAR),
-                        necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "b"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER), NECRO_ARROW_OWNERSHIP_SHARE),
+                        necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "b"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER)),
                     NECRO_SIG_DECLARATION),
                 null_local_ptr);
         necro_parse_ast_test("Attribute1", "attr :: *a -> b\n", &intern, &ast);
@@ -998,7 +966,7 @@ void necro_parse_test()
                                 necro_parse_ast_create_conid(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "Maybe"), NECRO_CON_TYPE_VAR),
                                 necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "a"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER)),
                             NECRO_TYPE_ATTRIBUTE_STAR),
-                        necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "b"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER), NECRO_ARROW_OWNERSHIP_SHARE),
+                        necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "b"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER)),
                     NECRO_SIG_DECLARATION),
                 null_local_ptr);
         necro_parse_ast_test("Attribute2", "attr :: *Maybe a -> b\n", &intern, &ast);
@@ -1018,8 +986,7 @@ void necro_parse_test()
                             necro_parse_ast_create_type_app(&ast.arena, zero_loc, zero_loc,
                                 necro_parse_ast_create_conid(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "Maybe"), NECRO_CON_TYPE_VAR),
                                 necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "b"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER)),
-                            NECRO_TYPE_ATTRIBUTE_STAR),
-                        NECRO_ARROW_OWNERSHIP_SHARE),
+                            NECRO_TYPE_ATTRIBUTE_STAR)),
                     NECRO_SIG_DECLARATION),
                 null_local_ptr);
         necro_parse_ast_test("Attribute3", "attr :: a -> *Maybe b\n", &intern, &ast);
@@ -1038,8 +1005,7 @@ void necro_parse_test()
                             necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "a"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
                                 necro_parse_ast_create_type_app(&ast.arena, zero_loc, zero_loc,
                                     necro_parse_ast_create_conid(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "Maybe"), NECRO_CON_TYPE_VAR),
-                                    necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "b"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER)),
-                                NECRO_ARROW_OWNERSHIP_SHARE),
+                                    necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "b"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER))),
                             NECRO_TYPE_ATTRIBUTE_STAR),
                     NECRO_SIG_DECLARATION),
                 null_local_ptr);
@@ -1064,7 +1030,7 @@ void necro_parse_test()
                             null_local_ptr,
                             necro_parse_ast_create_function_type(&ast.arena, zero_loc, zero_loc,
                                 necro_parse_ast_create_conid(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "Int"), NECRO_CON_TYPE_VAR),
-                                necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "a"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER), NECRO_ARROW_OWNERSHIP_SHARE),
+                                necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "a"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER)),
                             NECRO_SIG_TYPE_CLASS),
                         null_local_ptr)),
 

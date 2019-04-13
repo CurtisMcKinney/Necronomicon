@@ -13,7 +13,7 @@
 
 struct NecroBase;
 
-NecroType*             necro_kind_fresh_kind_var(NecroPagedArena* arena, struct NecroBase* base);
+NecroType*             necro_kind_fresh_kind_var(NecroPagedArena* arena, struct NecroBase* base, struct NecroScope* scope);
 void                   necro_kind_init_kinds(struct NecroBase* base, struct NecroScopedSymTable* scoped_symtable, NecroIntern* intern);
 NecroResult(NecroType) necro_kind_unify_with_info(NecroType* kind1, NecroType* kind2, NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroType) necro_kind_unify(NecroType* kind1, NecroType* kind2, NecroScope* scope);

@@ -69,6 +69,7 @@ typedef enum
     NECRO_AST_FUNCTION_TYPE,
     NECRO_AST_DECLARATION_GROUP_LIST,
     NECRO_AST_TYPE_ATTRIBUTE,
+    NECRO_AST_FOR_LOOP,
     // NECRO_AST_MODULE,
 } NECRO_AST_TYPE;
 
@@ -482,6 +483,18 @@ typedef struct
 } NecroParseAstPatExpression;
 
 //=====================================================
+// AST ForLoop
+//=====================================================
+typedef struct
+{
+    NecroParseAstLocalPtr range_init;
+    NecroParseAstLocalPtr value_init;
+    NecroParseAstLocalPtr index_apat;
+    NecroParseAstLocalPtr value_apat;
+    NecroParseAstLocalPtr expression;
+} NecroParseAstForLoop;
+
+//=====================================================
 // AST Type Attribute
 //=====================================================
 typedef enum
@@ -643,6 +656,7 @@ typedef struct
         NecroParseAstFunctionType         function_type;
         NecroParseAstPatExpression        pattern_expression;
         NecroParseAstTypeAttribute        attribute;
+        NecroParseAstForLoop              for_loop;
     };
     NECRO_AST_TYPE type;
     NecroSourceLoc source_loc;

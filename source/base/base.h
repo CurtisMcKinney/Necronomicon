@@ -81,6 +81,8 @@ typedef struct NecroBase
     // NecroAstSymbol* apply_fn;
     NecroAstSymbol* ptr_type;
     NecroAstSymbol* array_type;
+    NecroAstSymbol* range_type;
+    NecroAstSymbol* index_type;
     NecroAstSymbol* maybe_type;
     NecroAstSymbol* prim_undefined;
 

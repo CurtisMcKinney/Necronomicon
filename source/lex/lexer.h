@@ -42,7 +42,8 @@ typedef enum
     NECRO_LEX_MODULE,
     NECRO_LEX_NEWTYPE,
     NECRO_LEX_TYPE,
-    NECRO_LEX_PAT,
+    NECRO_LEX_FOR,
+    NECRO_LEX_LOOP,
 
     // End of Keywords
     // NOTE: This must come after all of the keywords in this enum!

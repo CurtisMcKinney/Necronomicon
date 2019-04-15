@@ -1506,9 +1506,10 @@ void necro_alias_analysis_test()
         necro_ownership_test(test_name, test_source, expect_error_result, NULL);
     }
 
+    // TODO: Anon Dot support. Needs more testing.
+    // TODO: Reduce the amount of uvars/constraints floating around from apats.
     // TODO: where / let declaration testing with simple assignment and apats assignment!
-    // TODO: Anon Dot support.
-    // TODO: Uniqueness Typed Base functions.
+    // TODO: Uniqueness Typed Base functions (Or prehaps move stuff like that into a prelude library).
 
     // // TODO: fromInt is shared currently...
     // {

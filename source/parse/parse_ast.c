@@ -502,6 +502,21 @@ NecroParseAstLocalPtr necro_parse_ast_create_type_attribute(NecroArena* arena, N
     return local_ptr;
 }
 
+NecroParseAstLocalPtr necro_parse_ast_create_for_loop(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr range_init, NecroParseAstLocalPtr value_init, NecroParseAstLocalPtr index_apat, NecroParseAstLocalPtr value_apat, NecroParseAstLocalPtr expression)
+{
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*        node = necro_parse_ast_alloc(arena, &local_ptr);
+    node->type                 = NECRO_AST_FOR_LOOP;
+    node->for_loop.range_init  = range_init;
+    node->for_loop.value_init  = value_init;
+    node->for_loop.index_apat  = index_apat;
+    node->for_loop.value_apat  = value_apat;
+    node->for_loop.expression  = expression;
+    node->source_loc           = source_loc;
+    node->end_loc              = end_loc;
+    return local_ptr;
+}
+
 ///////////////////////////////////////////////////////
 // Assert Eq
 ///////////////////////////////////////////////////////

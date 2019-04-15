@@ -64,7 +64,8 @@ NecroIntern necro_intern_create()
     necro_intern_string(&intern, "module");
     necro_intern_string(&intern, "newtype");
     necro_intern_string(&intern, "type");
-    necro_intern_string(&intern, "pat");
+    necro_intern_string(&intern, "for");
+    necro_intern_string(&intern, "loop");
     return intern;
 }
 

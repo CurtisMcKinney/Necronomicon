@@ -3001,6 +3001,7 @@ NecroResult(NecroType) necro_type_ownership_infer_from_type(NecroPagedArena* are
 // Returns inferred ownership
 NecroResult(NecroType) necro_type_ownership_infer_from_sig_go(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* type, NecroScope* scope, NecroType* uniqueness_list)
 {
+    scope = NULL;
     type = necro_type_find(type);
     assert(type->ownership != NULL);
     switch (type->type)
@@ -3024,8 +3025,10 @@ NecroResult(NecroType) necro_type_ownership_infer_from_sig_go(NecroPagedArena* a
         }
         else if (type->ownership->type == NECRO_TYPE_VAR)
         {
-            uniqueness_list = necro_type_add_uniqueness_type_to_uniqueness_list(arena, base, type->ownership, uniqueness_list);
-            type->ownership = necro_type_uniqueness_list_to_ownership_type(arena, con_env, base, uniqueness_list, scope);
+            NecroType* uniqueness = necro_type_uniqueness_list_to_ownership_type(arena, con_env, base, uniqueness_list, scope);
+            if (uniqueness->type != NECRO_TYPE_CON || uniqueness->con.con_symbol != base->ownership_share)
+                type->ownership = uniqueness;
+            // uniqueness_list = necro_type_add_uniqueness_type_to_uniqueness_list(arena, base, type->ownership, uniqueness_list);
         }
         else
         {

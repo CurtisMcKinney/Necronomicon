@@ -83,7 +83,8 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
     case NECRO_LEX_MODULE:             return "MODULE";
     case NECRO_LEX_NEWTYPE:            return "NEWTYPE";
     case NECRO_LEX_TYPE:               return "TYPE";
-    case NECRO_LEX_PAT:                return "PAT";
+    case NECRO_LEX_FOR:                return "FOR";
+    case NECRO_LEX_LOOP:               return "LOOP";
     case NECRO_LEX_WHERE:              return "WHERE";
     default:                           return "UNRECOGNIZED TOKEN";
     }
@@ -1161,12 +1162,12 @@ void necro_lex_test()
 
     // Test 10
     {
-        const char* str    = "case class data deriving forall if else then import instance in module newtype type pat";
+        const char* str    = "case class data deriving forall if else then import instance in module newtype type for loop";
         NecroIntern intern = necro_intern_create();
         NecroLexer  lexer  = necro_lexer_create(str, strlen(str), &intern);
         unwrap(void, necro_lex_go(&lexer));
         // necro_print_lexer(&lexer);
-        assert(lexer.tokens.length == 16);
+        assert(lexer.tokens.length == 17);
         assert(lexer.tokens.data[0].token == NECRO_LEX_CASE);
         assert(lexer.tokens.data[1].token == NECRO_LEX_CLASS);
         assert(lexer.tokens.data[2].token == NECRO_LEX_DATA);
@@ -1181,8 +1182,9 @@ void necro_lex_test()
         assert(lexer.tokens.data[11].token == NECRO_LEX_MODULE);
         assert(lexer.tokens.data[12].token == NECRO_LEX_NEWTYPE);
         assert(lexer.tokens.data[13].token == NECRO_LEX_TYPE);
-        assert(lexer.tokens.data[14].token == NECRO_LEX_PAT);
-        assert(lexer.tokens.data[15].token == NECRO_LEX_END_OF_STREAM);
+        assert(lexer.tokens.data[14].token == NECRO_LEX_FOR);
+        assert(lexer.tokens.data[15].token == NECRO_LEX_LOOP);
+        assert(lexer.tokens.data[16].token == NECRO_LEX_END_OF_STREAM);
         printf("Lex keyword test: Passed\n");
         necro_lexer_full_destroy(&lexer);
         necro_intern_destroy(&intern);

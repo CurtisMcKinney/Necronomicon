@@ -30,14 +30,6 @@ NecroBase necro_base_create(NecroIntern* intern)
         .nat_kind               = NULL,
         .sym_kind               = NULL,
 
-        // .attribute_kind         = NULL,
-        // .multiplicity_kind      = NULL,
-        // .multiplicity_one       = NULL,
-        // .multiplicity_omega     = NULL,
-        // .multiplicity_mul       = NULL,
-        // .multiplicity_add       = NULL,
-        // .multiplicity_lte       = NULL,
-
         .ownership_kind         = NULL,
         .ownership_share        = NULL,
         .ownership_steal        = NULL,
@@ -90,6 +82,8 @@ NecroBase necro_base_create(NecroIntern* intern)
         // .dyn_state_type         = NULL,
         .ptr_type               = NULL,
         .array_type             = NULL,
+        .range_type             = NULL,
+        .index_type             = NULL,
         .maybe_type             = NULL,
 
         .mouse_x_fn             = NULL,
@@ -429,6 +423,22 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     NecroAst* array_con      = necro_ast_create_data_con(arena, intern, "Array", array_args);
     NecroAst* array_con_list = necro_ast_create_list(arena, array_con, NULL);
     necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, array_s_type, array_con_list));
+
+    // Range
+    NecroAst* range_n_type   = necro_ast_create_type_signature(arena, NECRO_SIG_TYPE_VAR, necro_ast_create_var(arena, intern, "n", NECRO_VAR_TYPE_VAR_DECLARATION), NULL, necro_ast_create_conid(arena, intern, "Nat", NECRO_CON_TYPE_VAR));
+    NecroAst* range_s_type   = necro_ast_create_simple_type(arena, intern, "Range", necro_ast_create_list(arena, range_n_type, necro_ast_create_var_list(arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION)));
+    NecroAst* range_args     = necro_ast_create_list(arena, necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), NULL);
+    NecroAst* range_con      = necro_ast_create_data_con(arena, intern, "Range", range_args);
+    NecroAst* range_con_list = necro_ast_create_list(arena, range_con, NULL);
+    necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, range_s_type, range_con_list));
+
+    // Index
+    NecroAst* index_n_type   = necro_ast_create_type_signature(arena, NECRO_SIG_TYPE_VAR, necro_ast_create_var(arena, intern, "n", NECRO_VAR_TYPE_VAR_DECLARATION), NULL, necro_ast_create_conid(arena, intern, "Nat", NECRO_CON_TYPE_VAR));
+    NecroAst* index_s_type   = necro_ast_create_simple_type(arena, intern, "Index", necro_ast_create_list(arena, index_n_type, NULL));
+    NecroAst* index_args     = necro_ast_create_list(arena, necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR), NULL);
+    NecroAst* index_con      = necro_ast_create_data_con(arena, intern, "Index", index_args);
+    NecroAst* index_con_list = necro_ast_create_list(arena, index_con, NULL);
+    necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, index_s_type, index_con_list));
 
     // NOTE: Removing with new function restriction in place for futhark style defunctionalization
     // // _Closure
@@ -1018,6 +1028,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     // base.dyn_state_type         = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "_DynState"));
     base.ptr_type               = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Ptr"));
     base.array_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Array"));
+    base.range_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Range"));
+    base.index_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Index"));
     base.maybe_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Maybe"));;
 
     // Runtime functions

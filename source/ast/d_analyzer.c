@@ -567,6 +567,13 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
         d_analyze_go(d_analyzer, ast->case_alternative.pat);
         d_analyze_go(d_analyzer, ast->case_alternative.body);
         break;
+    case NECRO_AST_FOR_LOOP:
+        d_analyze_go(d_analyzer, ast->for_loop.range_init);
+        d_analyze_go(d_analyzer, ast->for_loop.value_init);
+        d_analyze_go(d_analyzer, ast->for_loop.index_apat);
+        d_analyze_go(d_analyzer, ast->for_loop.value_apat);
+        d_analyze_go(d_analyzer, ast->for_loop.expression);
+        break;
     case NECRO_AST_TYPE_APP:
         d_analyze_go(d_analyzer, ast->type_app.ty);
         d_analyze_go(d_analyzer, ast->type_app.next_ty);

@@ -676,6 +676,13 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         reified_ast->case_alternative.body = necro_reify_go(parse_ast_arena, ast->case_alternative.body, arena, intern);
         reified_ast->case_alternative.pat  = necro_reify_go(parse_ast_arena, ast->case_alternative.pat, arena, intern);
         break;
+    case NECRO_AST_FOR_LOOP:
+        reified_ast->for_loop.range_init = necro_reify_go(parse_ast_arena, ast->for_loop.range_init, arena, intern);
+        reified_ast->for_loop.value_init = necro_reify_go(parse_ast_arena, ast->for_loop.value_init, arena, intern);
+        reified_ast->for_loop.index_apat = necro_reify_go(parse_ast_arena, ast->for_loop.index_apat, arena, intern);
+        reified_ast->for_loop.value_apat = necro_reify_go(parse_ast_arena, ast->for_loop.value_apat, arena, intern);
+        reified_ast->for_loop.expression = necro_reify_go(parse_ast_arena, ast->for_loop.expression, arena, intern);
+        break;
     case NECRO_AST_CONID:
         reified_ast->conid.con_type   = ast->conid.con_type;
         switch (ast->conid.con_type)
@@ -1501,6 +1508,17 @@ NecroAst* necro_ast_create_type_attribute(NecroPagedArena* arena, NecroAst* attr
     NecroAst* ast                 = necro_ast_alloc(arena, NECRO_AST_TYPE_ATTRIBUTE);
     ast->attribute.attribute_type = attributed_type;
     ast->attribute.type           = type;
+    return ast;
+}
+
+NecroAst* necro_ast_create_for_loop(NecroPagedArena* arena, NecroAst* range_init, NecroAst* value_init, NecroAst* index_apat, NecroAst* value_apat, NecroAst* expression)
+{
+    NecroAst* ast            = necro_ast_alloc(arena, NECRO_AST_FOR_LOOP);
+    ast->for_loop.range_init = range_init;
+    ast->for_loop.value_init = value_init;
+    ast->for_loop.index_apat = index_apat;
+    ast->for_loop.value_apat = value_apat;
+    ast->for_loop.expression = expression;
     return ast;
 }
 

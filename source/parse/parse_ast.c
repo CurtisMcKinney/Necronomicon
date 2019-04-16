@@ -740,6 +740,17 @@ void necro_parse_ast_assert_eq_case(NecroParseAstArena* ast1, NecroParseAst* nod
     necro_parse_ast_assert_eq_go(ast1, node1->case_expression.alternatives, ast2, node2->case_expression.alternatives);
 }
 
+void necro_parse_ast_assert_eq_for_loop(NecroParseAstArena* ast1, NecroParseAst* node1, NecroParseAstArena* ast2, NecroParseAst* node2)
+{
+    assert(node1->type == NECRO_AST_FOR_LOOP);
+    assert(node2->type == NECRO_AST_FOR_LOOP);
+    necro_parse_ast_assert_eq_go(ast1, node1->for_loop.range_init, ast2, node2->for_loop.range_init);
+    necro_parse_ast_assert_eq_go(ast1, node1->for_loop.value_init, ast2, node2->for_loop.value_init);
+    necro_parse_ast_assert_eq_go(ast1, node1->for_loop.index_apat, ast2, node2->for_loop.index_apat);
+    necro_parse_ast_assert_eq_go(ast1, node1->for_loop.value_apat, ast2, node2->for_loop.value_apat);
+    necro_parse_ast_assert_eq_go(ast1, node1->for_loop.expression, ast2, node2->for_loop.expression);
+}
+
 void necro_parse_ast_assert_eq_case_alternative(NecroParseAstArena* ast1, NecroParseAst* node1, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_CASE_ALTERNATIVE);
@@ -906,6 +917,7 @@ void necro_parse_ast_assert_eq_go(NecroParseAstArena* ast1, NecroParseAstLocalPt
     case NECRO_PAT_BIND_ASSIGNMENT:        necro_parse_ast_assert_eq_pat_bind_assignment(ast1, node1, ast2, node2); break;
     case NECRO_AST_ARITHMETIC_SEQUENCE:    necro_parse_ast_assert_eq_arithmetic_sequence(ast1, node1, ast2, node2); break;
     case NECRO_AST_CASE:                   necro_parse_ast_assert_eq_case(ast1, node1, ast2, node2); break;
+    case NECRO_AST_FOR_LOOP:               necro_parse_ast_assert_eq_for_loop(ast1, node1, ast2, node2); break;
     case NECRO_AST_CASE_ALTERNATIVE:       necro_parse_ast_assert_eq_case_alternative(ast1, node1, ast2, node2); break;
     case NECRO_AST_CONID:                  necro_parse_ast_assert_eq_conid(ast1, node1, ast2, node2); break;
     case NECRO_AST_TYPE_APP:               necro_parse_ast_assert_eq_type_app(ast1, node1, ast2, node2); break;

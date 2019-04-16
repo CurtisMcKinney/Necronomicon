@@ -280,6 +280,11 @@ NecroResult(NecroParseAstLocalPtr) necro_case_alternative_expected_pattern_error
     return necro_default_parse_error(NECRO_PARSE_CASE_ALTERNATIVE_EXPECTED_PATTERN, source_loc, end_loc);
 }
 
+NecroResult(NecroParseAstLocalPtr) necro_malformed_for_loop_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    return necro_default_parse_error(NECRO_PARSE_MALFORMED_FOR_LOOP, source_loc, end_loc);
+}
+
 NecroResult(NecroParseAstLocalPtr) necro_case_alternative_expected_arrow_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     return necro_default_parse_error(NECRO_PARSE_CASE_ALTERNATIVE_EXPECTED_ARROW, source_loc, end_loc);
@@ -1009,6 +1014,12 @@ void necro_print_case_alternative_expected_right_brace_error(NecroResultError* e
     necro_print_default_error_format("Malformed Case Expression", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
+void necro_print_malformed_for_loop_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char* explanation = "For Loop expressions take the form: for rangeInit valueInit loop index value -> expr";
+    necro_print_default_error_format("Malformed For Loop", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
+}
+
 void necro_print_fn_op_expected_accent_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Constructor Operators take the form: expr1 `Con` expr2";
@@ -1589,6 +1600,7 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_PARSE_CASE_ALTERNATIVE_EXPECTED_LEFT_BRACE:      necro_print_case_alternative_expected_left_brace_error(error, source_str, source_name); break;
     case NECRO_PARSE_CASE_ALTERNATIVE_EMPTY:                    necro_print_case_alternative_empty_error(error, source_str, source_name); break;
     case NECRO_PARSE_CASE_ALTERNATIVE_EXPECTED_RIGHT_BRACE:     necro_print_case_alternative_expected_right_brace_error(error, source_str, source_name); break;
+    case NECRO_PARSE_MALFORMED_FOR_LOOP:                        necro_print_malformed_for_loop_error(error, source_str, source_name); break;
     case NECRO_PARSE_FN_OP_EXPECTED_ACCENT:                     necro_print_fn_op_expected_accent_error(error, source_str, source_name); break;
     case NECRO_PARSE_DATA_EXPECTED_TYPE:                        necro_print_data_expected_type_error(error, source_str, source_name); break;
     case NECRO_PARSE_DATA_EXPECTED_ASSIGN:                      necro_print_data_expected_assign_error(error, source_str, source_name); break;

@@ -96,6 +96,7 @@ set(project_SOURCES
     source/type/alias_analysis.c
     source/type/derive.c
 
+    source/core/core_ast.c
     source/core/core.c
     source/core/defunctionalization.c
     source/core/closure_conversion.c
@@ -163,6 +164,7 @@ set(project_HEADERS
     source/type/alias_analysis.h
     source/type/derive.h
 
+    source/core/core_ast.h
     source/core/core.h
     source/core/defunctionalization.h
     source/core/closure_conversion.h

@@ -277,7 +277,6 @@ NecroResult(void) necro_compile_go(
     //=====================================================
     if (necro_jit_llvm(codegen_llvm) == NECRO_ERROR)
     {
-        // TODO: Error handling
         return ok_void();
     }
     if (info.compilation_phase == NECRO_PHASE_JIT)
@@ -285,7 +284,6 @@ NecroResult(void) necro_compile_go(
         return ok_void();
     }
 
-    // TODO: Error handling
     return ok_void();
 }
 

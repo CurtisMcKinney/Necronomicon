@@ -188,6 +188,18 @@ typedef struct
 } NecroAstCaseAlternative;
 
 //=====================================================
+// AST ForLoop
+//=====================================================
+typedef struct
+{
+    struct NecroAst* range_init;
+    struct NecroAst* value_init;
+    struct NecroAst* index_apat;
+    struct NecroAst* value_apat;
+    struct NecroAst* expression;
+} NecroAstForLoop;
+
+//=====================================================
 // AST Module
 //=====================================================
 
@@ -548,6 +560,7 @@ typedef struct NecroAst
         NecroAstPatExpression        pattern_expression;
         NecroAstDeclarationGroupList declaration_group_list;
         NecroAstTypeAttribute        attribute;
+        NecroAstForLoop              for_loop;
     };
     NECRO_AST_TYPE        type;
     // TODO: Replace NecroSourceLoc in NecroParseAst and NecroAst with const char* str
@@ -639,6 +652,7 @@ NecroAst* necro_ast_create_var_with_ast_symbol(NecroPagedArena* arena, NecroAstS
 NecroAst* necro_ast_create_var_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_VAR_TYPE var_type, struct NecroInstSub* inst_subs, NecroAst* initializer, NECRO_TYPE_ORDER order);
 NecroAst* necro_ast_create_conid_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_CON_TYPE con_type);
 NecroAst* necro_ast_create_type_attribute(NecroPagedArena* arena, NecroAst* attributed_type, NECRO_TYPE_ATTRIBUTE_TYPE type);
+NecroAst* necro_ast_create_for_loop(NecroPagedArena* arena, NecroAst* range_init, NecroAst* value_init, NecroAst* index_apat, NecroAst* value_apat, NecroAst* expression);
 
 // Declaration Groups
 NecroAst* necro_ast_create_declaration_group_list(NecroPagedArena* arena, NecroAst* declaration_group, NecroAst* prev);

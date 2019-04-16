@@ -522,6 +522,13 @@ void necro_alias_analysis_go(NecroAliasAnalysis* alias_analysis, NecroAliasSet* 
         necro_alias_analysis_add_apats_to_free_vars(alias_analysis, alias_set, ast->apats_assignment.apats);
         ast->apats_assignment.free_vars = necro_alias_analysis_apats_free_var_delete(alias_analysis, alias_set, ast->apats_assignment.apats);
         return;
+    case NECRO_AST_FOR_LOOP:
+        necro_alias_analysis_go(alias_analysis, alias_set, ast->for_loop.range_init);
+        necro_alias_analysis_go(alias_analysis, alias_set, ast->for_loop.value_init);
+        necro_alias_analysis_go(alias_analysis, alias_set, ast->for_loop.expression);
+        necro_alias_analysis_go(alias_analysis, alias_set, ast->for_loop.index_apat);
+        necro_alias_analysis_go(alias_analysis, alias_set, ast->for_loop.value_apat);
+        return;
     case NECRO_AST_PAT_ASSIGNMENT:
         necro_alias_analysis_go(alias_analysis, alias_set, ast->pat_assignment.rhs);
         necro_alias_analysis_go(alias_analysis, alias_set, ast->pat_assignment.pat);
@@ -542,7 +549,7 @@ void necro_alias_analysis_go(NecroAliasAnalysis* alias_analysis, NecroAliasSet* 
     //--------------------
     // Branching
     //--------------------
-    // Note: We're creating separate sets for then/else branches, unionin them, then merge the result of that into the parent set.
+    // Note: We're creating separate sets for then/else branches, unioning them, then merge the result of that into the parent set.
     // We do this because it allows us to use an identifier on each side of a branch without counting as aliasing.
     case NECRO_AST_IF_THEN_ELSE:
     {

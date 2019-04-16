@@ -54,19 +54,14 @@ snd (_, y) = y
 -- Loop ?
 loopTest :: .Array n Float
 loopTest = a' where
-
   (feed ~ 0, a') =
-    for range (feed, empty) loop i (x, a) ->
+    for each (feed, empty) loop i (x, a) ->
       (x * 100, writeArray i x a)
 
-range              :: Range n (Index n)
-slidingWindowRange :: Range m (Range n (Index n))
-wrangeRange        :: Int -> Range n (Index n)
-
-writeArray :: Index n -> *a -> *Array n a -> *Array n a
-
-range :: Range n (Index n)
-writeArray :: *a -> Index n -> *Array n a -> *Array n a
+each          :: Range n (Index n)
+slidingWindow :: Range m (Range n (Index n))
+offsetEach    :: Int -> Range n (Index n)
+writeArray    :: Index n -> *a -> *Array n a -> *Array n a
 
 class Freeze a where
   freeze :: (a ~ a1) => *a -> a1

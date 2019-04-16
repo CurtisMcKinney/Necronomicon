@@ -119,6 +119,8 @@ malformedList = [1, 2, 3
 malformedListType :: [[Int]
 malformedListType = [1, 2, 3]
 
+malformedForLoop = for every 0 loop i -> i
+
 malformedArray = {3, 1, 2
 
 topDec1 = x + y / z
@@ -128,4 +130,3 @@ topDec1 = x + y / z
     z = 30
 
 -- TODO: Fix comments breaking things for some reason?
-

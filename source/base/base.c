@@ -440,6 +440,20 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     NecroAst* index_con_list = necro_ast_create_list(arena, index_con, NULL);
     necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, index_s_type, index_con_list));
 
+    // each value
+    {
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "each", NULL,
+            necro_ast_create_type_app(arena,
+                necro_ast_create_type_app(arena,
+                    necro_ast_create_conid(arena, intern, "Range", NECRO_CON_TYPE_VAR),
+                    necro_ast_create_var(arena, intern, "n", NECRO_VAR_TYPE_FREE_VAR)),
+                necro_ast_create_type_app(arena,
+                    necro_ast_create_conid(arena, intern, "Index", NECRO_CON_TYPE_VAR),
+                    necro_ast_create_var(arena, intern, "n", NECRO_VAR_TYPE_FREE_VAR))),
+            NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "each", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
+    }
+
     // NOTE: Removing with new function restriction in place for futhark style defunctionalization
     // // _Closure
     // NecroAst* closure_s_type   = necro_ast_create_simple_type(arena, intern, "_Closure", necro_ast_create_var_list(arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));

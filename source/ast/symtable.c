@@ -522,7 +522,15 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
         necro_build_scopes_go(scoped_symtable, input_node->case_alternative.body);
         necro_scoped_symtable_pop_scope(scoped_symtable);
         break;
-
+    case NECRO_AST_FOR_LOOP:
+        necro_build_scopes_go(scoped_symtable, input_node->for_loop.range_init);
+        necro_build_scopes_go(scoped_symtable, input_node->for_loop.value_init);
+        necro_scoped_symtable_new_scope(scoped_symtable);
+        necro_build_scopes_go(scoped_symtable, input_node->for_loop.index_apat);
+        necro_build_scopes_go(scoped_symtable, input_node->for_loop.value_apat);
+        necro_build_scopes_go(scoped_symtable, input_node->for_loop.expression);
+        necro_scoped_symtable_pop_scope(scoped_symtable);
+        break;
     case NECRO_AST_CONID:
         switch (input_node->conid.con_type)
         {

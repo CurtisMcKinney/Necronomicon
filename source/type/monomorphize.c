@@ -619,6 +619,13 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
         necro_try(void, necro_monomorphize_go(monomorphize, ast->case_alternative.pat, subs));
         return necro_monomorphize_go(monomorphize, ast->case_alternative.body, subs);
 
+    case NECRO_AST_FOR_LOOP:
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->for_loop.range_init, subs));
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->for_loop.value_init, subs));
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->for_loop.index_apat, subs));
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->for_loop.value_apat, subs));
+        return necro_monomorphize_go(monomorphize, ast->for_loop.expression, subs);
+
     case NECRO_AST_TYPE_APP:
         necro_try(void, necro_monomorphize_go(monomorphize, ast->type_app.ty, subs));
         return necro_monomorphize_go(monomorphize, ast->type_app.next_ty, subs);
@@ -968,6 +975,13 @@ void necro_monomorphize_type_go(NecroMonomorphize* monomorphize, NecroAst* ast)
     case NECRO_AST_CASE_ALTERNATIVE:
         necro_monomorphize_type_go(monomorphize, ast->case_alternative.pat);
         necro_monomorphize_type_go(monomorphize, ast->case_alternative.body);
+        return;
+    case NECRO_AST_FOR_LOOP:
+        necro_monomorphize_type_go(monomorphize, ast->for_loop.range_init);
+        necro_monomorphize_type_go(monomorphize, ast->for_loop.value_init);
+        necro_monomorphize_type_go(monomorphize, ast->for_loop.index_apat);
+        necro_monomorphize_type_go(monomorphize, ast->for_loop.value_apat);
+        necro_monomorphize_type_go(monomorphize, ast->for_loop.expression);
         return;
     case NECRO_AST_TYPE_APP:
         necro_monomorphize_type_go(monomorphize, ast->type_app.ty);

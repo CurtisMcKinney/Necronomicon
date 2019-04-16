@@ -69,6 +69,7 @@ typedef enum
     NECRO_PARSE_CASE_ALTERNATIVE_EXPECTED_LEFT_BRACE,
     NECRO_PARSE_CASE_ALTERNATIVE_EMPTY,
     NECRO_PARSE_CASE_ALTERNATIVE_EXPECTED_RIGHT_BRACE,
+    NECRO_PARSE_MALFORMED_FOR_LOOP,
     NECRO_PARSE_FN_OP_EXPECTED_ACCENT,
     NECRO_PARSE_DATA_EXPECTED_TYPE,
     NECRO_PARSE_DATA_EXPECTED_ASSIGN,
@@ -377,6 +378,7 @@ NecroResult(NecroParseAstLocalPtr) necro_case_alternative_expected_of_error(Necr
 NecroResult(NecroParseAstLocalPtr) necro_case_alternative_expected_left_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroParseAstLocalPtr) necro_case_alternative_empty_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroParseAstLocalPtr) necro_case_alternative_expected_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroParseAstLocalPtr) necro_malformed_for_loop_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroParseAstLocalPtr) necro_fn_op_expected_accent_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroParseAstLocalPtr) necro_data_expected_type_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroParseAstLocalPtr) necro_data_expected_assign_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);

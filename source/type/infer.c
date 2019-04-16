@@ -1637,6 +1637,30 @@ NecroResult(NecroType) necro_infer_case(NecroInfer* infer, NecroAst* ast)
 }
 
 //=====================================================
+// For Loop
+//=====================================================
+NecroResult(NecroType) necro_infer_for_loop(NecroInfer* infer, NecroAst* ast)
+{
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_FOR_LOOP);
+    NecroType* range_init_type = necro_try(NecroType, necro_infer_go(infer, ast->for_loop.range_init));
+    NecroType* value_init_type = necro_try(NecroType, necro_infer_go(infer, ast->for_loop.value_init));
+    NecroType* index_apat_type = necro_try(NecroType, necro_infer_pattern(infer, ast->for_loop.index_apat));
+    NecroType* value_apat_type = necro_try(NecroType, necro_infer_pattern(infer, ast->for_loop.value_apat));
+    NecroType* expression_type = necro_try(NecroType, necro_infer_go(infer, ast->for_loop.expression));
+    NecroType* n_type          = necro_type_fresh_var(infer->arena, NULL);
+    NecroType* inner_type      = necro_type_fresh_var(infer->arena, NULL);
+    NecroType* range_inner     = necro_type_con2_create(infer->arena, infer->base->range_type, n_type, inner_type);
+    ast->necro_type            = expression_type;
+    unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, range_inner, ast->source_loc, ast->end_loc));
+    necro_try(NecroType, necro_type_unify_with_info(infer->arena, &infer->con_env, infer->base, range_inner, range_init_type, ast->scope, ast->source_loc, ast->end_loc));
+    necro_try(NecroType, necro_type_unify_with_info(infer->arena, &infer->con_env, infer->base, inner_type, index_apat_type, ast->scope, ast->source_loc, ast->end_loc));
+    necro_try(NecroType, necro_type_unify_with_info(infer->arena, &infer->con_env, infer->base, value_init_type, value_apat_type, ast->scope, ast->source_loc, ast->end_loc));
+    necro_try(NecroType, necro_type_unify_with_info(infer->arena, &infer->con_env, infer->base, value_apat_type, expression_type, ast->scope, ast->source_loc, ast->end_loc));
+    return ok(NecroType, ast->necro_type);
+}
+
+//=====================================================
 // RightHandSide
 //=====================================================
 NecroResult(NecroType) necro_infer_right_hand_side(NecroInfer* infer, NecroAst* ast)
@@ -1972,6 +1996,7 @@ NecroResult(NecroType) necro_infer_go(NecroInfer* infer, NecroAst* ast)
     case NECRO_AST_EXPRESSION_ARRAY:       return necro_infer_expression_array(infer, ast);
     case NECRO_AST_PAT_EXPRESSION:         return necro_infer_pat_expression(infer, ast);
     case NECRO_AST_CASE:                   return necro_infer_case(infer, ast);
+    case NECRO_AST_FOR_LOOP:               return necro_infer_for_loop(infer, ast);
     case NECRO_AST_ARITHMETIC_SEQUENCE:    return necro_infer_arithmetic_sequence(infer, ast);
     case NECRO_AST_DO:                     return necro_infer_do(infer, ast);
     case NECRO_AST_TYPE_SIGNATURE:         return necro_infer_type_sig(infer, ast);
@@ -4700,4 +4725,37 @@ void necro_test_infer()
 
         necro_infer_test_comparison("TypeClassInstanceAndExpression", test_code, &intern, &ast);
     }
+
+    {
+        const char* test_name   = "For Loop 1";
+        const char* test_source = ""
+            "tenTimes :: Range 10 (Index 10)\n"
+            "tenTimes = each\n"
+            "loopTenTimes = for tenTimes 0 loop i x -> x * 2\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "For Loop 2";
+        const char* test_source = ""
+            "tenTimes :: Range 10 (Index 10)\n"
+            "tenTimes = each\n"
+            "loopTenTimes = for tenTimes (True, False) loop i (x, y) -> (y, x)\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    // TODO: Parsing broke on initialization stuff for som reason...
+    // {
+    //     const char* test_name   = "For Loop 3";
+    //     const char* test_source = ""
+    //         "tenTimes :: Range 10 (Index 10)\n"
+    //         "tenTimes = each\n"
+    //         "loopTest = a1 where\n"
+    //         "  (feed ~ 0, a1) = for tenTimes (feed, 0) loop i (f, a) -> (f + 1, a)\n";
+    //     const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+    //     necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    // }
+
 }

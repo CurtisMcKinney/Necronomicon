@@ -13,7 +13,7 @@
 #include "result.h"
 #include "kind.h"
 
-#define NECRO_ALIAS_ANALYSIS_VERBOSE 1
+#define NECRO_ALIAS_ANALYSIS_VERBOSE 0
 
 typedef struct
 {

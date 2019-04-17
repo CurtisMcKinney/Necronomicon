@@ -6,6 +6,8 @@
 #include "core_ast.h"
 #include "core_create.h"
 #include "type.h"
+#include "monomorphize.h"
+#include "alias_analysis.h"
 
 #define NECRO_CORE_DEBUG 0
 #if NECRO_CORE_DEBUG
@@ -92,14 +94,6 @@ NecroCoreAst* necro_core_ast_create_app(NecroPagedArena* arena, NecroCoreAst* ex
     return ast;
 }
 
-NecroCoreAst* necro_core_ast_create_list(NecroPagedArena* arena, NecroCoreAst* item, NecroCoreAst* next)
-{
-    NecroCoreAst* ast = necro_core_ast_alloc(arena, NECRO_CORE_AST_LIST);
-    ast->list.item    = item;
-    ast->list.next    = next;
-    return ast;
-}
-
 NecroCoreAst* necro_core_ast_create_data_con(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroType* type)
 {
     NecroCoreAst* ast        = necro_core_ast_alloc(arena, NECRO_CORE_AST_DATA_CON);
@@ -108,7 +102,7 @@ NecroCoreAst* necro_core_ast_create_data_con(NecroPagedArena* arena, NecroCoreAs
     return ast;
 }
 
-NecroCoreAst* necro_core_ast_create_data_decl(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroCoreAst* con_list)
+NecroCoreAst* necro_core_ast_create_data_decl(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroCoreAstList* con_list)
 {
     NecroCoreAst* ast         = necro_core_ast_alloc(arena, NECRO_CORE_AST_DATA_DECL);
     ast->data_decl.ast_symbol = ast_symbol;
@@ -116,7 +110,7 @@ NecroCoreAst* necro_core_ast_create_data_decl(NecroPagedArena* arena, NecroCoreA
     return ast;
 }
 
-NecroCoreAst* necro_core_ast_create_case(NecroPagedArena* arena, NecroCoreAst* expr, NecroCoreAst* alts)
+NecroCoreAst* necro_core_ast_create_case(NecroPagedArena* arena, NecroCoreAst* expr, NecroCoreAstList* alts)
 {
     NecroCoreAst* ast   = necro_core_ast_alloc(arena, NECRO_CORE_AST_CASE);
     ast->case_expr.expr = expr;
@@ -124,12 +118,11 @@ NecroCoreAst* necro_core_ast_create_case(NecroPagedArena* arena, NecroCoreAst* e
     return ast;
 }
 
-NecroCoreAst* necro_core_ast_create_case_alt(NecroPagedArena* arena, NecroCoreAst* pat, NecroCoreAst* expr, NecroCoreAst* next)
+NecroCoreAst* necro_core_ast_create_case_alt(NecroPagedArena* arena, NecroCoreAst* pat, NecroCoreAst* expr)
 {
     NecroCoreAst* ast  = necro_core_ast_alloc(arena, NECRO_CORE_AST_CASE_ALT);
     ast->case_alt.pat  = pat;
     ast->case_alt.expr = expr;
-    ast->case_alt.next = next;
     return ast;
 }
 
@@ -181,34 +174,52 @@ void necro_core_ast_arena_destroy(NecroCoreAstArena* ast_arena)
 ///////////////////////////////////////////////////////
 typedef struct NecroCoreAstTransform
 {
-    NecroCoreAstArena              core_ast_arena;
-    NecroAstArena*                 ast_arena;
-    NecroIntern*                   intern;
-    NecroBase*                     base;
-    NECRO_CORE_AST_TRANSFORM_STATE transform_state;
+    NecroPagedArena*   arena;
+    NecroIntern*       intern;
+    NecroBase*         base;
+    NecroAstArena*     ast_arena;
+    NecroCoreAstArena* core_ast_arena;
 } NecroCoreAstTransform;
 
+NecroCoreAstTransform necro_core_ast_transform_empty()
+{
+    return (NecroCoreAstTransform)
+    {
+        .arena          = NULL,
+        .intern         = NULL,
+        .base           = NULL,
+        .ast_arena      = NULL,
+        .core_ast_arena = NULL,
+    };
+}
 
-// NecroTransformToCore necro_empty_core_transform();
-// void necro_construct_core_transform(
-//     NecroTransformToCore* core_transform,
-//     NecroCoreAST* core_ast,
-//     NecroAstArena* necro_ast,
-//     NecroIntern* intern,
-//     NecroPrimTypes* prim_types,
-//     NecroSymTable* symtable,
-//     NecroScopedSymTable* scoped_symtable);
-//
-// static inline void necro_destruct_core_transform(NecroTransformToCore* core_transform)
-// {
-//     // Ownership of CoreAST is passed out of NecroCoreTransform
-//     // if (core_transform->core_ast != NULL)
-//     //     necro_destroy_paged_arena(&core_transform->core_ast->arena);
-//     core_transform->core_ast = NULL;
-//     core_transform->necro_ast = NULL;
-//     core_transform->intern = NULL;
-//     core_transform->transform_state = NECRO_CORE_TRANSFORM_DONE;
-// }
+NecroCoreAstTransform necro_core_ast_transform_create(NecroIntern* intern, NecroBase* base, NecroAstArena* ast_arena, NecroCoreAstArena* core_ast_arena)
+{
+    necro_core_ast_arena_destroy(core_ast_arena);
+    *core_ast_arena = necro_core_ast_arena_create();
+    return (NecroCoreAstTransform)
+    {
+        .arena           = &core_ast_arena->arena,
+        .intern          = intern,
+        .base            = base,
+        .ast_arena       = ast_arena,
+        .core_ast_arena  = core_ast_arena,
+    };
+}
+
+void necro_ast_transform_destroy(NecroCoreAstTransform* core_ast_transform)
+{
+    *core_ast_transform = necro_core_ast_transform_empty();
+}
+
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_go(NecroCoreAstTransform* context, NecroAst* ast);
+NecroResult(void) necro_ast_transform_to_core(NecroCompileInfo info, NecroIntern* intern, NecroBase* base, NecroAstArena* ast_arena, NecroCoreAstArena* core_ast_arena)
+{
+    UNUSED(info);
+    NecroCoreAstTransform core_ast_transform = necro_core_ast_transform_create(intern, base, ast_arena, core_ast_arena);
+    core_ast_transform.core_ast_arena->root  = necro_try_map(NecroCoreAst, void, necro_ast_transform_to_core_go(&core_ast_transform, ast_arena->root));
+    return ok_void();
+}
 
 // static inline void print_tabs(uint32_t num_tabs)
 // {
@@ -441,39 +452,6 @@ typedef struct NecroCoreAstTransform
 //
 // NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core_transform, NecroAst* necro_ast_node);
 //
-// NecroCoreAST_Expression* necro_transform_bin_op(NecroTransformToCore* core_transform, NecroAst* necro_ast_node)
-// {
-//     assert(core_transform);
-//     assert(necro_ast_node);
-//     assert(necro_ast_node->type == NECRO_AST_BIN_OP);
-//     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
-//         return NULL;
-//
-//     // 1 + 2 --> (+) 1 2 --> ((+) 1) 2 --> App (App (+) 1) 2
-//     NecroAstBinOp* bin_op = &necro_ast_node->bin_op;
-//
-//     NecroCoreAST_Expression* inner_core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-//     inner_core_expr->expr_type = NECRO_CORE_EXPR_APP;
-//     inner_core_expr->app.persistent_slot = 0; // Curtis: Metadata for codegen (would really prefer a constructor...)
-//     NecroCoreAST_Application* inner_core_app = &inner_core_expr->app;
-//
-//     NecroCoreAST_Expression* var_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-//     var_expr->expr_type = NECRO_CORE_EXPR_VAR;
-//     // var_expr->var.symbol = bin_op->symbol; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
-//     // var_expr->var.id = bin_op->id; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
-//
-//     inner_core_app->expr1 = var_expr;
-//     inner_core_app->expr2 = necro_transform_to_core_impl(core_transform, bin_op->lhs);
-//
-//     NecroCoreAST_Expression* outer_core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-//     outer_core_expr->expr_type = NECRO_CORE_EXPR_APP;
-//     outer_core_expr->app.persistent_slot = 0; // Curtis: Metadata for codegen (would really prefer a constructor...)
-//     NecroCoreAST_Application* outer_core_app = &outer_core_expr->app;
-//     outer_core_app->expr1 = inner_core_expr;
-//     outer_core_app->expr2 = necro_transform_to_core_impl(core_transform, bin_op->rhs);
-//     return outer_core_expr;
-// }
-//
 // // TODO/Note from Curtis: Boolean literals in necrolang don't exist. They need to be excised from the compiler completely.
 // NecroCoreAST_Expression* necro_transform_if_then_else(NecroTransformToCore* core_transform, NecroAst* necro_ast_node)
 // {
@@ -512,26 +490,6 @@ typedef struct NecroCoreAstTransform
 //     true_alt->next = false_alt;
 //
 //     core_case->alts = true_alt;
-//     return core_expr;
-// }
-//
-// NecroCoreAST_Expression* necro_transform_simple_assignment(NecroTransformToCore* core_transform, NecroAst* necro_ast_node)
-// {
-//     assert(core_transform);
-//     assert(necro_ast_node);
-//     assert(necro_ast_node->type == NECRO_AST_SIMPLE_ASSIGNMENT);
-//     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
-//         return NULL;
-//
-//     NecroAstSimpleAssignment* simple_assignment = &necro_ast_node->simple_assignment;
-//     NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-//     core_expr->expr_type = NECRO_CORE_EXPR_BIND;
-//     NecroCoreAST_Bind* core_bind = &core_expr->bind;
-//     // core_bind->var.symbol = simple_assignment->variable_name; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
-//     // core_bind->var.id = simple_assignment->id; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
-//     core_bind->is_recursive = simple_assignment->is_recursive;
-//     core_bind->expr = necro_transform_to_core_impl(core_transform, simple_assignment->rhs);
-//     necro_symtable_get(core_transform->symtable, core_bind->var.id)->core_ast = core_expr;
 //     return core_expr;
 // }
 //
@@ -713,232 +671,6 @@ typedef struct NecroCoreAstTransform
 //     }
 // }
 //
-// NecroCoreAST_Expression* necro_transform_function_expression(NecroTransformToCore* core_transform, NecroAst* necro_ast_node)
-// {
-//     assert(core_transform);
-//     assert(necro_ast_node);
-//     assert(necro_ast_node->type == NECRO_AST_FUNCTION_EXPRESSION);
-//     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
-//         return NULL;
-//
-//     NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-//     core_expr->expr_type = NECRO_CORE_EXPR_APP;
-//     core_expr->app.expr1 = necro_transform_to_core_impl(core_transform, necro_ast_node->fexpression.aexp);
-//     core_expr->app.expr2 = necro_transform_to_core_impl(core_transform, necro_ast_node->fexpression.next_fexpression);
-//     core_expr->app.persistent_slot = 0; // Curtis: Metadata for codegen (would really prefer a constructor...)
-//     return core_expr;
-// }
-//
-// NecroCoreAST_Expression* necro_transform_constant(NecroTransformToCore* core_transform, NecroAst* necro_ast_node)
-// {
-//     assert(core_transform);
-//     assert(necro_ast_node);
-//     assert(necro_ast_node->type == NECRO_AST_CONSTANT);
-//     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
-//         return NULL;
-//
-//     NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-//     core_expr->expr_type = NECRO_CORE_EXPR_LIT;
-//     core_expr->lit = necro_ast_node->constant;
-//     return core_expr;
-// }
-//
-// NecroCoreAST_Expression* necro_transform_data_constructor(NecroTransformToCore* core_transform, NecroAst* necro_ast_node)
-// {
-//     assert(core_transform);
-//     assert(necro_ast_node);
-//     assert(necro_ast_node->type == NECRO_AST_CONSTRUCTOR);
-//     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
-//         return NULL;
-//
-//     NecroAstConstructor* ast_constructor = &necro_ast_node->constructor;
-//     NecroCoreAST_Expression* core_datacon_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-//     core_datacon_expr->expr_type = NECRO_CORE_EXPR_DATA_CON;
-//
-//     NecroCoreAST_DataCon* core_datacon = &core_datacon_expr->data_con;
-//     // core_datacon->condid.id = ast_constructor->conid->conid.id; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
-//     // core_datacon->condid.symbol = ast_constructor->conid->conid.symbol; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
-//     core_datacon->next = NULL;
-//     core_datacon->arg_list = NULL;
-//
-//     NecroCoreAST_Expression* current_core_arg = NULL;
-//     NecroAst* arg_list = ast_constructor->arg_list;
-//
-//     //---------------------------------------------------------------
-//     // Curtis: Note, with more complex types this simply breaks down.
-//     // Please look at this more closely and consider revising
-//     // (i.e. for Function types don't simply store the type in the constructor ,
-//     // and correctly handle Type Apps which currently simply break with an assert in necro_transform_to_core_impl).
-//     // It makes little sense to have a halfway house between NecroType and NecroCoreAST_Expression
-//     // Pick one and make the entire constructor reify into that
-//     while (arg_list)
-//     {
-//         NecroAst* ast_item = arg_list->list.item;
-//         NecroCoreAST_Expression* next_core_arg_data_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-//         switch (ast_item->type)
-//         {
-//         case NECRO_AST_VARIABLE:
-//             {
-//                 NecroCoreAST_Expression* next_core_arg = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-//                 next_core_arg->expr_type = NECRO_CORE_EXPR_VAR;
-//                 // next_core_arg->var.id = ast_item->variable.id; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
-//                 // next_core_arg->var.symbol = ast_item->variable.symbol; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
-//
-//                 next_core_arg_data_expr->expr_type  = NECRO_CORE_EXPR_LIST;
-//                 next_core_arg_data_expr->list.expr = next_core_arg;
-//                 next_core_arg_data_expr->list.next = NULL;
-//             }
-//             break;
-//
-//         case NECRO_AST_TYPE_APP:
-//             {
-//                 NecroAstTypeApp* type_app = &ast_item->type_app;
-//                 NecroCoreAST_Expression* next_core_arg = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-//                 next_core_arg->expr_type = NECRO_CORE_EXPR_APP;
-//                 next_core_arg->app.expr1 = necro_transform_to_core_impl(core_transform, type_app->ty);
-//                 next_core_arg->app.expr2 = necro_transform_to_core_impl(core_transform, type_app->next_ty);
-//                 next_core_arg->app.persistent_slot = 0; // Curtis: Metadata for codegen (would really prefer a constructor...)
-//                 next_core_arg_data_expr->expr_type = NECRO_CORE_EXPR_LIST;
-//                 next_core_arg_data_expr->list.expr = next_core_arg;
-//                 next_core_arg_data_expr->list.next = NULL;
-//             }
-//             break;
-//
-//         case NECRO_AST_CONSTRUCTOR:
-//             {
-//                 NecroCoreAST_Expression* next_core_arg = necro_transform_to_core_impl(core_transform, ast_item);
-//                 next_core_arg_data_expr->expr_type = NECRO_CORE_EXPR_LIST;
-//                 next_core_arg_data_expr->list.expr = next_core_arg;
-//                 next_core_arg_data_expr->list.next = NULL;
-//             }
-//             break;
-//
-//         case NECRO_AST_WILDCARD:
-//             next_core_arg_data_expr->expr_type = NECRO_CORE_EXPR_LIST;
-//             next_core_arg_data_expr->list.expr = NULL;
-//             next_core_arg_data_expr->list.next = NULL;
-//             break;
-//         case NECRO_AST_CONID:
-//             {
-//                 NecroCoreAST_Expression* next_core_arg = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-//                 next_core_arg->expr_type               = NECRO_CORE_EXPR_DATA_CON;
-//                 // next_core_arg->data_con.condid         = (NecroVar) { .id = ast_item->conid.id, .symbol = ast_item->conid.symbol }; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
-//                 next_core_arg->data_con.arg_list       = NULL;
-//                 next_core_arg->data_con.next           = NULL;
-//                 next_core_arg_data_expr->expr_type = NECRO_CORE_EXPR_LIST;
-//                 next_core_arg_data_expr->list.expr = next_core_arg;
-//                 next_core_arg_data_expr->list.next = NULL;
-//             }
-//             break;
-//         case NECRO_AST_FUNCTION_TYPE:
-//         {
-//             NecroAstFunctionType* type_fun = &ast_item->function_type;
-//             UNUSED(type_fun);
-//             NecroCoreAST_Expression* next_core_arg = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-//             next_core_arg->expr_type = NECRO_CORE_EXPR_TYPE;
-//             next_core_arg->type.type = ast_item->necro_type;
-//             // next_core_arg->lambda. = necro_transform_to_core_impl(core_transform, type_app->ty);
-//             // next_core_arg->app.expr2 = necro_transform_to_core_impl(core_transform, type_app->next_ty);
-//             // next_core_arg->app.persistent_slot = 0; // Curtis: Metadata for codegen (would really prefer a constructor...)
-//             next_core_arg_data_expr->expr_type = NECRO_CORE_EXPR_LIST;
-//             next_core_arg_data_expr->list.expr = next_core_arg;
-//             next_core_arg_data_expr->list.next = NULL;
-//             break;
-//         }
-//         default:
-//             assert(false && "Unexpected node type when transforming data constructor arg!");
-//         }
-//
-//         if (current_core_arg)
-//         {
-//             current_core_arg->list.next = next_core_arg_data_expr;
-//         }
-//         else
-//         {
-//             core_datacon->arg_list = next_core_arg_data_expr;
-//         }
-//
-//         current_core_arg = next_core_arg_data_expr;
-//         arg_list = arg_list->list.next_item;
-//     }
-//
-//     return core_datacon_expr;
-// }
-//
-// NecroCoreAST_Expression* necro_transform_data_decl(NecroTransformToCore* core_transform, NecroAst* necro_ast_node)
-// {
-//     assert(core_transform);
-//     assert(necro_ast_node);
-//     assert(necro_ast_node->type == NECRO_AST_DATA_DECLARATION);
-//     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
-//         return NULL;
-//
-//     NecroAstDataDeclaration* data_decl = &necro_ast_node->data_declaration;
-//     assert(data_decl->simpletype->type == NECRO_AST_SIMPLE_TYPE);
-//     NecroAstSimpleType* simple_type = &data_decl->simpletype->simple_type;
-//     assert(simple_type->type_con->type == NECRO_AST_CONID);
-//     // NecroAstConId* conid = &simple_type->type_con->conid;
-//
-//     NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-//     core_expr->expr_type = NECRO_CORE_EXPR_DATA_DECL;
-//     // core_expr->data_decl.data_id.id = conid->id; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
-//     // core_expr->data_decl.data_id.symbol = conid->symbol; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
-//     core_expr->data_decl.con_list = NULL;
-//
-//     NecroCoreAST_DataCon* current_core_data_con = NULL;
-//
-//     assert(data_decl->constructor_list->type == NECRO_AST_LIST_NODE);
-//     // NecroAST_ListNode_Reified* list_node = &data_decl->constructor_list->list;
-//     NecroAst* list_node = data_decl->constructor_list;
-//     assert(list_node);
-//     while (list_node)
-//     {
-//         assert(list_node->list.item->type == NECRO_AST_CONSTRUCTOR);
-//         // NecroAST_Constructor_Reified* con = list_node->list.item->constructor;
-//         // NecroASTNode* con = list_node->list.item;
-//
-//         NecroCoreAST_DataCon* next_core_data_con = NULL;
-//         switch (list_node->list.item->type)
-//         {
-//         case NECRO_AST_CONSTRUCTOR:
-//             next_core_data_con = &necro_transform_data_constructor(core_transform, list_node->list.item)->data_con;
-//             break;
-//         default:
-//             assert(false && "Unexpected type during data declaration core transformation!");
-//             break;
-//         }
-//
-//         if (core_expr->data_decl.con_list == NULL)
-//         {
-//             core_expr->data_decl.con_list = next_core_data_con;
-//         }
-//         else
-//         {
-//             current_core_data_con->next = next_core_data_con;
-//         }
-//
-//         current_core_data_con = next_core_data_con;
-//         list_node = list_node->list.next_item;
-//     }
-//
-//     return core_expr;
-// }
-//
-// NecroCoreAST_Expression* necro_transform_conid(NecroTransformToCore* core_transform, NecroAst* necro_ast_node)
-// {
-//     assert(core_transform);
-//     assert(necro_ast_node);
-//     assert(necro_ast_node->type == NECRO_AST_CONID);
-//     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
-//         return NULL;
-//
-//     NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-//     core_expr->expr_type = NECRO_CORE_EXPR_VAR;
-//     // core_expr->var.id = necro_ast_node->conid.id; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
-//     // core_expr->var.symbol = necro_ast_node->conid.symbol; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
-//     return core_expr;
-// }
-//
 // NecroCoreAST_Expression* necro_transform_top_decl(NecroTransformToCore* core_transform, NecroAst* necro_ast_node)
 // {
 //     assert(core_transform);
@@ -984,54 +716,6 @@ typedef struct NecroCoreAstTransform
 //     // return top_expression;
 // }
 //
-// NecroCoreAST_Expression* necro_transform_lambda(NecroTransformToCore* core_transform, NecroAst* necro_ast_node)
-// {
-//     assert(core_transform);
-//     assert(necro_ast_node);
-//     assert(necro_ast_node->type == NECRO_AST_LAMBDA);
-//     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
-//         return NULL;
-//
-//     NecroAstLambda* lambda = &necro_ast_node->lambda;
-//     NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-//     core_expr->expr_type = NECRO_CORE_EXPR_LAM;
-//     core_expr->necro_type = necro_ast_node->necro_type;
-//
-//     NecroCoreAST_Expression* last_lambda = NULL;
-//     NecroCoreAST_Expression* current_lambda = core_expr;
-//
-//     NecroAstApats* apats = &lambda->apats->apats;
-//     while (apats)
-//     {
-//         NecroAst* apat = apats->apat;
-//         UNUSED(apat);
-//         current_lambda->lambda.arg = necro_transform_to_core_impl(core_transform, apats->apat);
-//         current_lambda->lambda.expr = NULL;
-//         NecroType* type = necro_symtable_get(core_transform->symtable, current_lambda->lambda.arg->var.id)->type;
-//         UNUSED(type);
-//
-//         if (apats->next_apat)
-//         {
-//             last_lambda = current_lambda;
-//             current_lambda = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-//             current_lambda->expr_type = NECRO_CORE_EXPR_LAM;
-//             current_lambda->lambda.arg = NULL;
-//             current_lambda->lambda.expr = NULL;
-//         }
-//
-//         if (last_lambda)
-//         {
-//             last_lambda->lambda.expr = current_lambda;
-//         }
-//
-//         apats = apats->next_apat ? &apats->next_apat->apats : NULL;
-//     }
-//
-//     current_lambda->lambda.expr = necro_transform_to_core_impl(core_transform, lambda->expression);
-//     // necro_symtable_get(core_transform->symtable, current_lambda->lambda.arg->var.id)->core_ast = current_lambda->lambda.expr;
-//     return core_expr;
-// }
-//
 // NecroCoreAST_Expression* necro_transform_expression_list(NecroTransformToCore* core_transform, NecroAst* necro_ast_node)
 // {
 //     assert(core_transform);
@@ -1054,85 +738,6 @@ typedef struct NecroCoreAstTransform
 //     }
 //
 //     return core_expr;
-// }
-//
-// NecroCoreAST_Expression* necro_transform_tuple(NecroTransformToCore* core_transform, NecroAst* necro_ast_node)
-// {
-//     assert(core_transform);
-//     assert(necro_ast_node);
-//     assert(necro_ast_node->type == NECRO_AST_TUPLE);
-//     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
-//         return NULL;
-//
-//     NecroCoreAST_Expression* tuple_app_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-//     tuple_app_expr->expr_type = NECRO_CORE_EXPR_APP;
-//     tuple_app_expr->app.persistent_slot = 0; // Curtis: Metadata for codegen (would really prefer a constructor...)
-//
-//     NecroCoreAST_Expression* var_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-//     var_expr->expr_type = NECRO_CORE_EXPR_VAR;
-//
-//     NecroCoreAST_Expression* app_expr = tuple_app_expr;
-//     app_expr->app.expr1 = var_expr;
-//     int tuple_count = 0;
-//     //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-//     // Curtis: Hey, This is throwing a warning about mismatched types! Double check!!!!!!
-//     //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-//     NecroAstList* tuple_node = &necro_ast_node->tuple.expressions->list;
-//
-//     while (tuple_node)
-//     {
-//         app_expr->app.expr2 = necro_transform_to_core_impl(core_transform, tuple_node->item);
-//         tuple_node = &tuple_node->next_item->list;
-//         ++tuple_count;
-//
-//         if (tuple_node)
-//         {
-//             NecroCoreAST_Expression* prev_app_expr = app_expr;
-//             app_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-//             app_expr->expr_type = NECRO_CORE_EXPR_APP;
-//             app_expr->app.expr1 = prev_app_expr;
-//             app_expr->app.persistent_slot = 0; // Curtis: Metadata for codegen (would really prefer a constructor...)
-//         }
-//     }
-//
-//     assert(tuple_count > 1 && "[necro_transform_tuple] unhandled size of tuple!");
-//     assert(tuple_node == NULL);
-//
-//     switch (tuple_count)
-//     {
-//     case 2:
-//         var_expr->var = core_transform->constructors.twoTuple;
-//         break;
-//     case 3:
-//         var_expr->var = core_transform->constructors.threeTuple;
-//         break;
-//     case 4:
-//         var_expr->var = core_transform->constructors.fourTuple;
-//         break;
-//     case 5:
-//         var_expr->var = core_transform->constructors.fiveTuple;
-//         break;
-//     case 6:
-//         var_expr->var = core_transform->constructors.sixTuple;
-//         break;
-//     case 7:
-//         var_expr->var = core_transform->constructors.sevenTuple;
-//         break;
-//     case 8:
-//         var_expr->var = core_transform->constructors.eightTuple;
-//         break;
-//     case 9:
-//         var_expr->var = core_transform->constructors.nineTuple;
-//         break;
-//     case 10:
-//         var_expr->var = core_transform->constructors.tenTuple;
-//         break;
-//     default:
-//         assert(false && "[necro_transform_tuple] unhandled size of tuple!");
-//        break;
-//     }
-//
-//     return app_expr;
 // }
 //
 // NecroCoreAST_Expression* necro_transform_case(NecroTransformToCore* core_transform, NecroAst* necro_ast_node)
@@ -1224,118 +829,580 @@ typedef struct NecroCoreAstTransform
 //
 //     return core_expr;
 // }
-//
-// NecroCoreAST_Expression* necro_transform_variable(NecroTransformToCore* core_transform, NecroAst* necro_ast_node)
+
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_var(NecroCoreAstTransform* context, NecroAst* ast)
+{
+    assert(ast->type == NECRO_AST_VARIABLE);
+    NecroCoreAst* core_ast = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, ast->variable.ast_symbol));
+    core_ast->necro_type   = necro_type_deep_copy(context->arena, ast->necro_type);
+    return ok(NecroCoreAst, core_ast);
+}
+
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_con(NecroCoreAstTransform* context, NecroAst* ast)
+{
+    assert(ast->type == NECRO_AST_CONID);
+    NecroCoreAst* core_ast = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, ast->conid.ast_symbol));
+    core_ast->necro_type   = necro_type_deep_copy(context->arena, ast->necro_type);
+    return ok(NecroCoreAst, core_ast);
+}
+
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_lit(NecroCoreAstTransform* context, NecroAst* ast)
+{
+    assert(ast->type == NECRO_AST_CONSTANT);
+    // Technically this is a bit dubious since we're doing type punning...
+    NecroAstConstant constant;
+    constant.int_literal   = ast->constant.int_literal;
+    constant.type          = ast->constant.type;
+    NecroCoreAst* core_ast = necro_core_ast_create_lit(context->arena, constant);
+    core_ast->necro_type   = necro_type_deep_copy(context->arena, ast->necro_type);
+    return ok(NecroCoreAst, core_ast);
+}
+
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_app(NecroCoreAstTransform* context, NecroAst* ast)
+{
+    assert(ast->type == NECRO_AST_FUNCTION_EXPRESSION);
+    NecroCoreAst* expr1    = necro_try(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->fexpression.aexp));
+    NecroCoreAst* expr2    = necro_try(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->fexpression.next_fexpression));
+    NecroCoreAst* core_ast = necro_core_ast_create_app(context->arena,expr1, expr2);
+    core_ast->necro_type   = necro_type_deep_copy(context->arena, ast->necro_type);
+    // core_ast->app.persistent_slot = 0; // Curtis: Metadata for codegen (would really prefer a constructor...)
+    return ok(NecroCoreAst, core_ast);
+}
+
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_data_decl(NecroCoreAstTransform* context, NecroAst* ast)
+{
+    assert(ast->type == NECRO_AST_DATA_DECLARATION);
+    NecroCoreAst* core_ast  = necro_core_ast_create_data_decl(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, ast->data_declaration.simpletype->simple_type.type_con->conid.ast_symbol), NULL);
+    core_ast->necro_type    = core_ast->data_decl.ast_symbol->type;
+    NecroAst*     cons      = ast->data_declaration.constructor_list;
+    while (cons != NULL)
+    {
+        NecroCoreAst*  con_ast       = necro_core_ast_create_data_con(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, cons->list.item->constructor.conid->conid.ast_symbol), NULL);
+        con_ast->data_con.type       = con_ast->data_con.ast_symbol->type;
+        core_ast->data_decl.con_list = necro_append_core_ast_list(context->arena, con_ast, core_ast->data_decl.con_list);
+        cons = cons->list.next_item;
+    }
+    return ok(NecroCoreAst, core_ast);
+}
+
+// TODO: Filter out type signatures, class declarations, polymorphic values, etc
+bool necro_core_ast_should_filter(NecroAst* ast)
+{
+    UNUSED(ast);
+    return false;
+}
+
+// Going to do this the simple way for now...Flattening everything into singular Bind instead of using BindRecs for recursive groups
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_declaration_group_list(NecroCoreAstTransform* context, NecroAst* ast, NecroCoreAst* last_expr)
+{
+    if (ast == NULL)
+        return ok(NecroCoreAst, last_expr);
+    assert(ast->type == NECRO_AST_DECLARATION_GROUP_LIST);
+    NecroCoreAst* let_head = NULL;
+    NecroCoreAst* let_curr = NULL;
+    while (ast != NULL)
+    {
+        NecroAst* declaration_group = ast->declaration_group_list.declaration_group;
+        while (declaration_group != NULL)
+        {
+            if (!necro_core_ast_should_filter(declaration_group->declaration.declaration_impl))
+            {
+                NecroCoreAst* binder = necro_try(NecroCoreAst, necro_ast_transform_to_core_go(context, declaration_group->declaration.declaration_impl));
+                assert(binder->ast_type == NECRO_CORE_AST_DATA_CON || binder->ast_type == NECRO_CORE_AST_BIND || binder->ast_type == NECRO_CORE_AST_BIND_REC);
+                if (let_head == NULL)
+                {
+                    let_curr = necro_core_ast_create_let(context->arena, binder, NULL);
+                    let_head = let_curr;
+                }
+                else
+                {
+                    let_curr->let.expr = necro_core_ast_create_let(context->arena, binder, NULL);
+                    let_curr           = let_curr->let.expr;
+                }
+            }
+            declaration_group = declaration_group->declaration.next_declaration;
+        }
+        ast = ast->declaration_group_list.next;
+    }
+    if (let_head == NULL)
+        return ok(NecroCoreAst, NULL);
+    let_curr->let.expr = last_expr;
+    return ok(NecroCoreAst, let_head);
+}
+
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_let(NecroCoreAstTransform* context, NecroAst* ast)
+{
+    assert(ast->type == NECRO_AST_LET_EXPRESSION);
+    NecroCoreAst* expr_ast  = necro_try(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->let_expression.expression));
+    NecroCoreAst* binds_ast = necro_try(NecroCoreAst, necro_ast_transform_to_core_declaration_group_list(context, ast->let_expression.declarations, expr_ast));
+    return ok(NecroCoreAst, binds_ast);
+}
+
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_rhs(NecroCoreAstTransform* context, NecroAst* ast)
+{
+    assert(ast->type == NECRO_AST_RIGHT_HAND_SIDE);
+    NecroCoreAst* expr_ast  = necro_try(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->right_hand_side.expression));
+    NecroCoreAst* binds_ast = necro_try(NecroCoreAst, necro_ast_transform_to_core_declaration_group_list(context, ast->right_hand_side.declarations, expr_ast));
+    return ok(NecroCoreAst, binds_ast);
+}
+
+// TODO: Patterns in Lambda Apats
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_lambda_apats(NecroCoreAstTransform* context, NecroAst* ast, NecroCoreAst* lambda_expr)
+{
+    NecroCoreAst* lambda_head = NULL;
+    NecroCoreAst* lambda_curr = NULL;
+    NecroAst*     apats       = ast->lambda.apats;
+    while (apats != NULL)
+    {
+        if (apats->apats.apat->type == NECRO_AST_VARIABLE)
+        {
+            NecroCoreAst* var  = necro_try(NecroCoreAst, necro_ast_transform_to_core_go(context, apats->apats.apat));
+            if (lambda_head == NULL)
+            {
+                lambda_curr = necro_core_ast_create_lam(context->arena, var, NULL);
+                lambda_head = lambda_curr;
+            }
+            else
+            {
+                lambda_curr->lambda.expr = necro_core_ast_create_lam(context->arena, var, NULL);
+                lambda_curr = lambda_curr->lambda.expr;
+            }
+        }
+        else
+        {
+            // Note: We should float all case statements to being after all the lambdas and right before the lambda_expr.
+            assert(false && "TODO: lambda apat patterns aren't implemented yet.");
+        }
+        apats = apats->apats.next_apat;
+    }
+    lambda_curr->lambda.expr = lambda_expr;
+    return ok(NecroCoreAst, lambda_head);
+}
+
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_lambda(NecroCoreAstTransform* context, NecroAst* ast)
+{
+    assert(ast->type == NECRO_AST_LAMBDA);
+    NecroCoreAst* expr_ast = necro_try(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->lambda.expression));
+    return necro_ast_transform_to_core_lambda_apats(context, ast, expr_ast);
+}
+
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_apats_assignment(NecroCoreAstTransform* context, NecroAst* ast)
+{
+    assert(ast->type == NECRO_AST_APATS_ASSIGNMENT);
+    NecroCoreAst* rhs_ast    = necro_try(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->apats_assignment.rhs));
+    NecroCoreAst* lambda_ast = necro_try(NecroCoreAst, necro_ast_transform_to_core_lambda_apats(context, ast, rhs_ast));
+    NecroCoreAst* bind_ast   = necro_core_ast_create_bind(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, ast->apats_assignment.ast_symbol), lambda_ast);
+    return ok(NecroCoreAst, bind_ast);
+}
+
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_simple_assignment(NecroCoreAstTransform* context, NecroAst* ast)
+{
+    assert(ast->type == NECRO_AST_SIMPLE_ASSIGNMENT);
+    // TODO: How to handle initializers?
+    NecroCoreAst* expr_ast = necro_try(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->simple_assignment.rhs));
+    NecroCoreAst* bind_ast = necro_core_ast_create_bind(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, ast->simple_assignment.ast_symbol), expr_ast);
+    return ok(NecroCoreAst, bind_ast);
+}
+
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_bin_op(NecroCoreAstTransform* context, NecroAst* ast)
+{
+    assert(ast->type == NECRO_AST_BIN_OP);
+    // NOTE: 1 + 2 --> (+) 1 2 --> ((+) 1) 2 --> App (App (+) 1) 2
+    NecroCoreAst* op_ast    = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, ast->bin_op.ast_symbol));
+    NecroCoreAst* left_ast  = necro_try(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->bin_op.lhs));
+    NecroCoreAst* right_ast = necro_try(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->bin_op.lhs));
+    NecroCoreAst* inner_app = necro_core_ast_create_app(context->arena, op_ast, left_ast);
+    NecroCoreAst* outer_app = necro_core_ast_create_app(context->arena, inner_app, right_ast);
+    return ok(NecroCoreAst, outer_app);
+}
+
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_tuple(NecroCoreAstTransform* context, NecroAst* ast)
+{
+    assert(ast->type == NECRO_AST_TUPLE);
+    // Count args
+    NecroAst* args  = ast->tuple.expressions;
+    size_t    count = 0;
+    while (args != NULL)
+    {
+        count++;
+        args = args->list.next_item;
+    }
+    // Create Con var
+    NecroCoreAst* tuple_con = NULL;
+    switch (count)
+    {
+    case 2:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple2_con)); break;
+    case 3:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple3_con)); break;
+    case 4:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple4_con)); break;
+    case 5:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple5_con)); break;
+    case 6:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple6_con)); break;
+    case 7:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple7_con)); break;
+    case 8:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple8_con)); break;
+    case 9:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple9_con)); break;
+    case 10: tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple10_con)); break;
+    default: assert(false && "Unsupported tuple arity"); break;
+    }
+    // Apply args
+    NecroCoreAst* tuple_ast = tuple_con;
+    args                    = ast->tuple.expressions;
+    while (args != NULL)
+    {
+        NecroCoreAst* arg_ast = necro_try(NecroCoreAst, necro_ast_transform_to_core_go(context, args->list.item));
+        tuple_ast             = necro_core_ast_create_app(context->arena, tuple_ast, arg_ast);
+        args = args->list.next_item;
+    }
+    return ok(NecroCoreAst, tuple_ast);
+}
+
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_go(NecroCoreAstTransform* context, NecroAst* ast)
+{
+    UNUSED(context);
+    if (ast == NULL)
+        return ok(NecroCoreAst, NULL);
+    switch (ast->type)
+    {
+    case NECRO_AST_DECLARATION_GROUP_LIST: return necro_ast_transform_to_core_declaration_group_list(context, ast, NULL); // NOTE: Seems a little sketchy...
+    case NECRO_AST_VARIABLE:               return necro_ast_transform_to_core_var(context, ast);
+    case NECRO_AST_CONID:                  return necro_ast_transform_to_core_con(context, ast);
+    case NECRO_AST_CONSTANT:               return necro_ast_transform_to_core_lit(context, ast);
+    case NECRO_AST_FUNCTION_EXPRESSION:    return necro_ast_transform_to_core_app(context, ast);
+    case NECRO_AST_DATA_DECLARATION:       return necro_ast_transform_to_core_data_decl(context, ast);
+    case NECRO_AST_SIMPLE_ASSIGNMENT:      return necro_ast_transform_to_core_simple_assignment(context, ast);
+    case NECRO_AST_LET_EXPRESSION:         return necro_ast_transform_to_core_let(context, ast);
+    case NECRO_AST_RIGHT_HAND_SIDE:        return necro_ast_transform_to_core_rhs(context, ast);
+    case NECRO_AST_LAMBDA:                 return necro_ast_transform_to_core_lambda(context, ast);
+    case NECRO_AST_APATS_ASSIGNMENT:       return necro_ast_transform_to_core_apats_assignment(context, ast);
+    case NECRO_AST_BIN_OP:                 return necro_ast_transform_to_core_bin_op(context, ast);
+    case NECRO_AST_TUPLE:                  return necro_ast_transform_to_core_tuple(context, ast);
+
+    // case NECRO_AST_IF_THEN_ELSE:
+    //     return necro_transform_if_then_else(core_transform, necro_ast_node);
+
+    // case NECRO_AST_PAT_ASSIGNMENT:
+    //     return necro_transform_pat_assignment(core_transform, necro_ast_node);
+
+    // case NECRO_AST_CASE:
+    //     return necro_transform_case(core_transform, necro_ast_node);
+
+    // TODO
+    case NECRO_AST_PAT_EXPRESSION:
+    case NECRO_AST_EXPRESSION_ARRAY:
+    case NECRO_AST_ARITHMETIC_SEQUENCE:
+    case NECRO_AST_OP_LEFT_SECTION:
+    case NECRO_AST_OP_RIGHT_SECTION:
+    case NECRO_AST_TYPE_CLASS_INSTANCE:
+    case NECRO_AST_FOR_LOOP:
+        assert(false && "TODO");
+        return ok(NecroCoreAst, NULL);
+
+    // Not Implemented
+    case NECRO_AST_EXPRESSION_LIST:
+    case NECRO_AST_DO:
+    case NECRO_BIND_ASSIGNMENT:
+        assert(false && "Not currently implemented, nor planned to be implemented");
+        return ok(NecroCoreAst, NULL);
+
+    // Never Encounter
+    case NECRO_AST_WILDCARD:
+    case NECRO_AST_TOP_DECL:
+    case NECRO_AST_APATS:
+    case NECRO_AST_LIST_NODE:
+    case NECRO_AST_TYPE_APP:
+    case NECRO_AST_BIN_OP_SYM:
+    case NECRO_AST_CONSTRUCTOR:
+    case NECRO_AST_SIMPLE_TYPE:
+    case NECRO_AST_TYPE_CLASS_CONTEXT:
+    case NECRO_AST_TYPE_CLASS_DECLARATION:
+    case NECRO_AST_TYPE_SIGNATURE:
+    case NECRO_AST_FUNCTION_TYPE:
+    case NECRO_AST_DECL:
+    case NECRO_AST_TYPE_ATTRIBUTE:
+        assert(false && "Should never encounter this ast type");
+        return ok(NecroCoreAst, NULL);
+
+    default:
+        assert(false && "Unrecognized ast type");
+        return ok(NecroCoreAst, NULL);
+    }
+}
+
+///////////////////////////////////////////////////////
+// Pretty Printing
+///////////////////////////////////////////////////////
+#define NECRO_CORE_AST_INDENT 2
+
+void necro_core_ast_pretty_print_go(NecroCoreAst* ast, size_t depth);
+
+void necro_core_ast_pretty_print(NecroCoreAst* ast)
+{
+    necro_core_ast_pretty_print_go(ast, 0);
+    printf("\n");
+}
+
+// TODO: Refactor
+// void necro_core_ast_pretty_print_alts(NecroCoreAST_CaseAlt* alts, NecroSymTable* symtable, NecroIntern* intern, size_t depth)
 // {
-//     assert(core_transform);
-//     assert(necro_ast_node);
-//     assert(necro_ast_node->type == NECRO_AST_VARIABLE);
-//     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
-//         return NULL;
-//
-//     NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-//     core_expr->expr_type = NECRO_CORE_EXPR_VAR;
-//     // core_expr->var.id = necro_ast_node->variable.id; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
-//     // core_expr->var.symbol = necro_ast_node->variable.symbol; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
-//     return core_expr;
-// }
-//
-// NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core_transform, NecroAst* necro_ast_node)
-// {
-//     assert(necro_ast_node);
-//     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
-//         return NULL;
-//
-//     switch (necro_ast_node->type)
+//     while (alts != NULL)
 //     {
-//     case NECRO_AST_BIN_OP:
-//         return necro_transform_bin_op(core_transform, necro_ast_node);
-//
-//     case NECRO_AST_IF_THEN_ELSE:
-//         return necro_transform_if_then_else(core_transform, necro_ast_node);
-//
-//     case NECRO_AST_TOP_DECL:
-//         return necro_transform_top_decl(core_transform, necro_ast_node);
-//
-//     case NECRO_AST_SIMPLE_ASSIGNMENT:
-//         return necro_transform_simple_assignment(core_transform, necro_ast_node);
-//
-//     case NECRO_AST_APATS_ASSIGNMENT:
-//         return necro_transform_apats_assignment(core_transform, necro_ast_node);
-//
-//     case NECRO_AST_PAT_ASSIGNMENT:
-//         return necro_transform_pat_assignment(core_transform, necro_ast_node);
-//
-//     case NECRO_AST_RIGHT_HAND_SIDE:
-//         return necro_transform_right_hand_side(core_transform, necro_ast_node);
-//
-//     case NECRO_AST_LET_EXPRESSION:
-//         return necro_transform_let(core_transform, necro_ast_node);
-//
-//     case NECRO_AST_FUNCTION_EXPRESSION:
-//         return necro_transform_function_expression(core_transform, necro_ast_node);
-//
-//     case NECRO_AST_CONSTANT:
-//         return necro_transform_constant(core_transform, necro_ast_node);
-//
-//     case NECRO_AST_LAMBDA:
-//         return necro_transform_lambda(core_transform, necro_ast_node);
-//
-//     case NECRO_AST_EXPRESSION_LIST:
-//         return necro_transform_expression_list(core_transform, necro_ast_node);
-//
-//     case NECRO_AST_TUPLE:
-//         return necro_transform_tuple(core_transform, necro_ast_node);
-//
-//     case NECRO_AST_CASE:
-//         return necro_transform_case(core_transform, necro_ast_node);
-//
-//     case NECRO_AST_VARIABLE:
-//         return necro_transform_variable(core_transform, necro_ast_node);
-//
-//     case NECRO_AST_DATA_DECLARATION:
-//         return necro_transform_data_decl(core_transform, necro_ast_node);
-//
-//     case NECRO_AST_CONSTRUCTOR:
-//         return necro_transform_data_constructor(core_transform, necro_ast_node);
-//
-//     case NECRO_AST_CONID:
-//         return necro_transform_conid(core_transform, necro_ast_node);
-//
-//     case NECRO_AST_TYPE_SIGNATURE:
-//         // NOTE: Nothing to do here
-//         return NULL;
-//
-//     default:
-//         printf("necro_transform_to_core transforming AST type unimplemented!: %d\n", necro_ast_node->type);
-//         assert(false && "necro_transform_to_core transforming AST type unimplemented!\n");
-//         break;
+//         print_white_space(depth);
+//         if (alts->altCon == NULL)
+//             printf("_");
+//         else
+//             necro_core_ast_pretty_print_go(alts->altCon, symtable, intern, depth + NECRO_CORE_INDENT);
+//         printf(" -> ");
+//         necro_core_ast_pretty_print_go(alts->expr, symtable, intern, depth + NECRO_CORE_INDENT);
+//         if (alts->next != NULL)
+//             printf("\n");
+//         alts = alts->next;
 //     }
-//
-//     assert(false && "necro_transform_to_core transforming AST type unimplemented!\n");
-//     return NULL;
 // }
-//
-// void necro_transform_to_core(NecroTransformToCore* core_transform)
-// {
-//     assert(core_transform);
-//     assert(core_transform->necro_ast);
-//     assert(core_transform->necro_ast->root);
-//     core_transform->transform_state = NECRO_SUCCESS;
-//     core_transform->core_ast->root = necro_transform_to_core_impl(core_transform, core_transform->necro_ast->root);
-// }
-//
-// NecroCoreAST necro_empty_core_ast()
-// {
-//     return (NecroCoreAST)
-//     {
-//         .arena = necro_paged_arena_empty(),
-//         .root  = NULL,
-//     };
-// }
-//
-// void necro_destroy_core_ast(NecroCoreAST* ast)
-// {
-//     necro_paged_arena_destroy(&ast->arena);
-//     ast->root = NULL;
-// }
+
+void necro_core_ast_pretty_print_go(NecroCoreAst* ast, size_t depth)
+{
+    if (ast == NULL)
+        return;
+    switch (ast->ast_type)
+    {
+    case NECRO_CORE_AST_APP:
+    {
+        necro_core_ast_pretty_print_go(ast->app.expr1, depth);
+        printf(" ");
+        if (ast->app.expr2->ast_type == NECRO_CORE_AST_APP)
+            printf("(");
+        necro_core_ast_pretty_print_go(ast->app.expr2, depth);
+        if (ast->app.expr2->ast_type == NECRO_CORE_AST_APP)
+            printf(")");
+        return;
+    }
+    case NECRO_CORE_AST_BIND:
+    {
+        if (depth == 0)
+        {
+            printf("%s :: ", ast->bind.ast_symbol->name->str);
+            necro_type_print(ast->bind.ast_symbol->type);
+            // printf("\n    (arity = %d, isRecursive = %s)\n", info->arity, ast->list.expr->bind.is_recursive ? "true" : "false");
+            printf("\n");
+            print_white_space(depth);
+        }
+        printf("%s ", ast->bind.ast_symbol->name->str);
+        NecroCoreAst* lambdas = ast->bind.expr;
+        while (lambdas->ast_type == NECRO_CORE_AST_LAM)
+        {
+            printf("%s ", lambdas->lambda.arg->var.ast_symbol->name->str);
+            lambdas = lambdas->lambda.expr;
+        }
+        printf("= ");
+        necro_core_ast_pretty_print_go(lambdas, depth + NECRO_CORE_AST_INDENT);
+        return;
+    }
+    case NECRO_CORE_AST_LAM:
+    {
+        printf("\\%s -> ", ast->lambda.arg->var.ast_symbol->name->str);
+        necro_core_ast_pretty_print_go(ast->lambda.expr, depth);
+        return;
+    }
+    case NECRO_CORE_AST_CASE:
+    {
+        printf("case ");
+        necro_core_ast_pretty_print_go(ast->case_expr.expr, depth);
+        printf(" of\n");
+        // TODO: Refactor
+        // necro_core_ast_pretty_print_alts(ast->case_expr.alts, symtable, intern, depth);
+        return;
+    }
+    case NECRO_CORE_AST_LET:
+    {
+        // printf("\n");
+        // print_white_space(depth);
+        if (depth > 0)
+            printf("let ");
+        necro_core_ast_pretty_print_go(ast->let.bind, depth);
+        // printf("\n");
+        if (depth > 0)
+            printf(" in\n");
+        print_white_space(depth);
+        necro_core_ast_pretty_print_go(ast->let.expr, depth);
+        // printf("\n");
+        return;
+    }
+    case NECRO_CORE_AST_VAR:
+    {
+        printf("%s", ast->var.ast_symbol->name->str);
+        return;
+    }
+    case NECRO_CORE_AST_LIT:
+    {
+        switch (ast->lit.type)
+        {
+        case NECRO_AST_CONSTANT_INTEGER:         printf("%lld", ast->lit.int_literal);       return;
+        case NECRO_AST_CONSTANT_INTEGER_PATTERN: printf("%lld", ast->lit.int_literal);       return;
+        case NECRO_AST_CONSTANT_FLOAT:           printf("%f", ast->lit.float_literal);       return;
+        case NECRO_AST_CONSTANT_FLOAT_PATTERN:   printf("%f", ast->lit.float_literal);       return;
+        case NECRO_AST_CONSTANT_CHAR:            printf("%c", ast->lit.char_literal);        return;
+        case NECRO_AST_CONSTANT_STRING:          printf("%s", ast->lit.string_literal->str); return;
+        default:                                                                             return;
+        }
+        return;
+    }
+    case NECRO_CORE_AST_DATA_DECL:
+    {
+        printf("%s = ", ast->data_decl.ast_symbol->name->str);
+        NecroCoreAstList* cons = ast->data_decl.con_list;
+        while (cons != NULL)
+        {
+            necro_core_ast_pretty_print_go(cons->data, depth);
+            if (cons->next != NULL)
+                printf(" | ");
+            cons = cons->next;
+        }
+        return;
+    }
+    case NECRO_CORE_AST_DATA_CON:
+    {
+        printf("%s :: ", ast->data_con.ast_symbol->source_name->str);
+        necro_type_print(ast->data_con.type);
+        return;
+    }
+    // case NECRO_CORE_EXPR_LIST:
+    // {
+    //     while (ast != NULL)
+    //     {
+    //         if (ast->list.expr == NULL)
+    //         {
+    //             ast = ast->list.next;
+    //             continue;
+    //         }
+    //         print_white_space(depth);
+    //         necro_core_ast_pretty_print_go(ast->list.expr, depth);
+    //         if (ast->list.expr->expr_type == NECRO_CORE_EXPR_BIND)
+    //         {
+    //             NecroSymbolInfo* info = necro_symtable_get(symtable, ast->list.expr->bind.var.id);
+    //             printf("\n(arity = %d, isRecursive = %s, stateType = ", info->arity, ast->list.expr->bind.is_recursive ? "true" : "false");
+    //             switch (info->state_type)
+    //             {
+    //             case NECRO_STATE_POLY:
+    //                 printf(" Poly)");
+    //                 break;
+    //             case NECRO_STATE_CONSTANT:
+    //                 printf(" Constant)");
+    //                 break;
+    //             case NECRO_STATE_POINTWISE:
+    //                 printf(" Pointwise)");
+    //                 break;
+    //             case NECRO_STATE_STATEFUL:
+    //                 printf(" Stateful)");
+    //                 break;
+    //             }
+    //         }
+    //         if (ast->list.next != NULL)
+    //             printf("\n\n");
+    //         else
+    //             printf("\n");
+    //         ast = ast->list.next;
+    //     }
+    //     return;
+    // }
+    default:
+        assert(false && "Unimplemented AST type in necro_core_ast_pretty_print_go");
+        return;
+    }
+}
+
+#define NECRO_CORE_AST_VERBOSE 1
+void necro_core_test_result(const char* test_name, const char* str, NECRO_RESULT_TYPE expected_result, const NECRO_RESULT_ERROR_TYPE* error_type)
+{
+    // Set up
+    NecroIntern         intern          = necro_intern_create();
+    NecroSymTable       symtable        = necro_symtable_create(&intern);
+    NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create(&symtable);
+    NecroBase           base            = necro_base_compile(&intern, &scoped_symtable);
+
+    NecroLexTokenVector tokens          = necro_empty_lex_token_vector();
+    NecroParseAstArena  parse_ast       = necro_parse_ast_arena_empty();
+    NecroAstArena       ast             = necro_ast_arena_empty();
+    NecroCoreAstArena   core_ast        = necro_core_ast_arena_empty();
+    NecroCompileInfo    info            = necro_test_compile_info();
+
+    // Compile
+    unwrap(void, necro_lex(info, &intern, str, strlen(str), &tokens));
+    unwrap(void, necro_parse(info, &intern, &tokens, necro_intern_string(&intern, "Test"), &parse_ast));
+    ast = necro_reify(info, &intern, &parse_ast);
+    necro_build_scopes(info, &scoped_symtable, &ast);
+    unwrap(void, necro_rename(info, &scoped_symtable, &intern, &ast));
+    necro_dependency_analyze(info, &intern, &ast);
+    necro_alias_analysis(info, &ast); // NOTE: Consider merging alias_analysis into RENAME_VAR phase?
+    unwrap(void, necro_infer(info, &intern, &scoped_symtable, &base, &ast));
+    unwrap(void, necro_monomorphize(info, &intern, &scoped_symtable, &base, &ast));
+    NecroResult(void) result = necro_ast_transform_to_core(info, &intern, &base, &ast, &core_ast);
+
+    // Assert
+#if NECRO_CORE_AST_VERBOSE
+    // if (result.type == expected_result)
+    //     necro_scoped_symtable_print_top_scopes(&scoped_symtable);
+    // necro_ast_arena_print(&base.ast);
+    // necro_ast_arena_print(&ast);
+    printf("\n");
+    necro_core_ast_pretty_print(core_ast.root);
+    printf("\n");
+#endif
+    assert(result.type == expected_result);
+    bool passed = result.type == expected_result;
+    if (expected_result == NECRO_RESULT_ERROR)
+    {
+        assert(error_type != NULL);
+        if (result.error != NULL && error_type != NULL)
+        {
+            assert(result.error->type == *error_type);
+            passed &= result.error->type == *error_type;
+        }
+        else
+        {
+            passed = false;
+        }
+    }
+
+    const char* result_string = passed ? "Passed" : "Failed";
+    printf("Core %s test: %s\n", test_name, result_string);
+    fflush(stdout);
+
+    // Clean up
+#if NECRO_CORE_AST_VERBOSE
+    if (result.type == NECRO_RESULT_ERROR)
+        necro_result_error_print(result.error, str, "Test");
+    else if (result.error)
+        necro_result_error_destroy(result.type, result.error);
+#else
+    necro_result_error_destroy(result.type, result.error);
+#endif
+
+    necro_core_ast_arena_destroy(&core_ast);
+    necro_ast_arena_destroy(&ast);
+    necro_base_destroy(&base);
+    necro_parse_ast_arena_destroy(&parse_ast);
+    necro_destroy_lex_token_vector(&tokens);
+    necro_scoped_symtable_destroy(&scoped_symtable);
+    necro_symtable_destroy(&symtable);
+    necro_intern_destroy(&intern);
+}
+
+void necro_core_ast_test()
+{
+    necro_announce_phase("Core");
+
+    {
+        const char* test_name   = "Basic 1";
+        const char* test_source = ""
+            "x = 0\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_core_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Basic 2";
+        const char* test_source = ""
+            "f x y = x || y\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_core_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+}

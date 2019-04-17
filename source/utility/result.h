@@ -268,6 +268,8 @@ struct NecroInstSub;
 NECRO_DECLARE_PTR_RESULT(NecroInstSub);
 struct NecroConstraint;
 NECRO_DECLARE_PTR_RESULT(NecroConstraint);
+struct NecroCoreAst;
+NECRO_DECLARE_PTR_RESULT(NecroCoreAst);
 
 typedef struct
 {
@@ -297,6 +299,7 @@ typedef union
     NecroResult_NecroOccurrenceTrace  NecroOccurrenceTrace_result;
     NecroResult_NecroInstSub          NecroInstSub_result;
     NecroResult_NecroConstraint       NecroConstraint_result;
+    NecroResult_NecroCoreAst          NecroCoreAst_result;
 } NecroResultUnion;
 
 // TODO: If and when the compiler becomes threaded,

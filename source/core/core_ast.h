@@ -7,7 +7,6 @@
 #define CORE_AST_H 1
 
 #include <stdio.h>
-
 #include "ast.h"
 #include "infer.h"
 #include "base.h"
@@ -107,12 +106,16 @@ Core translation requires a large overhaul after all the changes in the frontend
         to names with DEPRECATED appended to the end, then to create a new batch of structs and functions upon which nothing downstream relies upon.
         Once you're done we can then work on retrofitting downstream phses to operate given the new reality.
 
+    * One last Error:
+        There is one last user facing error that can occur here: Incomplete case expressions. Thus we use NecroResult(NecroCoreAst) during transformation
+
 */
-struct NecroCoreAst;
 
 //--------------------
-// Types
+// NecroCoreAst
 //--------------------
+struct NecroCoreAst;
+NECRO_DECLARE_ARENA_LIST(struct NecroCoreAst*, CoreAst, core_ast);
 typedef struct NecroCoreAstLiteral
 {
     union
@@ -135,8 +138,10 @@ typedef struct NecroCoreAstBind
     NecroCoreAstSymbol*  ast_symbol;
     struct NecroCoreAst* expr;
     // bool                 is_recursive; // TODO / NOTE: Do we still need this?
+    // TODO: How to handle initializers?
 } NecroCoreAstBind;
 
+// TODO: Make recursive binds use this
 typedef struct NecroCoreAstBindRec
 {
     struct NecroCoreAst* binds;
@@ -170,20 +175,19 @@ typedef struct NecroCoreAstDataCon
 typedef struct NecroCoreAstDataDecl
 {
     NecroCoreAstSymbol*  ast_symbol;
-    struct NecroCoreAst* con_list;
+    NecroCoreAstList*    con_list;
 } NecroCoreAstDataDecl;
 
 typedef struct NecroCoreAstCaseAlt
 {
     struct NecroCoreAst* pat; // NULL if wild card
     struct NecroCoreAst* expr;
-    struct NecroCoreAst* next;
 } NecroCoreAstCaseAlt;
 
 typedef struct NecroCoreAstCase
 {
     struct NecroCoreAst* expr;
-    struct NecroCoreAst* alts;
+    NecroCoreAstList*    alts;
 } NecroCoreAstCase;
 
 typedef struct NecroCoreAstForLoop
@@ -195,11 +199,11 @@ typedef struct NecroCoreAstForLoop
     struct NecroCoreAst* expression;
 } NecroCoreAstForLoop;
 
-typedef struct NecroCoreAstList
-{
-    struct NecroCoreAst* item;
-    struct NecroCoreAst* next;
-} NecroCoreAstList;
+// typedef struct NecroCoreAstList
+// {
+//     struct NecroCoreAst* item;
+//     struct NecroCoreAst* next;
+// } NecroCoreAstList;
 
 typedef enum
 {
@@ -215,7 +219,6 @@ typedef enum
     NECRO_CORE_AST_FOR,
     NECRO_CORE_AST_DATA_DECL,
     NECRO_CORE_AST_DATA_CON,
-    NECRO_CORE_AST_LIST, // used for top decls not language lists
 } NECRO_CORE_AST_TYPE;
 
 typedef struct NecroCoreAst
@@ -234,19 +237,14 @@ typedef struct NecroCoreAst
         NecroCoreAstForLoop     for_loop;
         NecroCoreAstDataDecl    data_decl;
         NecroCoreAstDataCon     data_con;
-        NecroCoreAstList        list;
     };
     NECRO_CORE_AST_TYPE ast_type;
     NecroType*          necro_type;
 } NecroCoreAst;
 
-typedef enum
-{
-    NECRO_CORE_AST_TRANSFORMING,
-    NECRO_CORE_AST_TRANSFORM_ERROR,
-    NECRO_CORE_AST_TRANSFORM_DONE
-} NECRO_CORE_AST_TRANSFORM_STATE;
-
+//--------------------
+// NecroCoreAstArena
+//--------------------
 typedef struct NecroCoreAstArena
 {
     NecroPagedArena arena;
@@ -258,7 +256,7 @@ NecroCoreAstArena necro_core_ast_arena_create();
 void              necro_core_ast_arena_destroy(NecroCoreAstArena* ast_arena);
 
 //--------------------
-// Core Ast Creation
+// Core Ast
 //--------------------
 NecroCoreAst* necro_core_ast_create_lit(NecroPagedArena* arena, NecroAstConstant constant);
 NecroCoreAst* necro_core_ast_create_var(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol);
@@ -266,17 +264,18 @@ NecroCoreAst* necro_core_ast_create_bind(NecroPagedArena* arena, NecroCoreAstSym
 NecroCoreAst* necro_core_ast_create_let(NecroPagedArena* arena, NecroCoreAst* bind, NecroCoreAst* expr);
 NecroCoreAst* necro_core_ast_create_lam(NecroPagedArena* arena, NecroCoreAst* arg, NecroCoreAst* expr);
 NecroCoreAst* necro_core_ast_create_app(NecroPagedArena* arena, NecroCoreAst* expr1, NecroCoreAst* expr2);
-NecroCoreAst* necro_core_ast_create_list(NecroPagedArena* arena, NecroCoreAst* item, NecroCoreAst* next);
 NecroCoreAst* necro_core_ast_create_data_con(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroType* type);
-NecroCoreAst* necro_core_ast_create_data_decl(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroCoreAst* con_list);
-NecroCoreAst* necro_core_ast_create_case(NecroPagedArena* arena, NecroCoreAst* expr, NecroCoreAst* alts);
-NecroCoreAst* necro_core_ast_create_case_alt(NecroPagedArena* arena, NecroCoreAst* pat, NecroCoreAst* expr, NecroCoreAst* next);
+NecroCoreAst* necro_core_ast_create_data_decl(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroCoreAstList* con_list);
+NecroCoreAst* necro_core_ast_create_case(NecroPagedArena* arena, NecroCoreAst* expr, NecroCoreAstList* alts);
+NecroCoreAst* necro_core_ast_create_case_alt(NecroPagedArena* arena, NecroCoreAst* pat, NecroCoreAst* expr);
 NecroCoreAst* necro_core_ast_create_for_loop(NecroPagedArena* arena, NecroCoreAst* range_init, NecroCoreAst* value_init, NecroCoreAst* index_arg, NecroCoreAst* value_arg, NecroCoreAst* expression);
 // NecroCoreAst* necro_core_ast_deep_copy(NecroPagedArena* arena, NecroCoreAst* ast);
+void          necro_core_ast_pretty_print(NecroCoreAst* ast);
 
 //--------------------
 // Transformation
 //--------------------
-// NecroResult(NecroCoreAstArena) necro_ast_transform_to_core(NecroIntern* intern, NecroBase* base, NecroAstArena* ast_arena);
+NecroResult(void) necro_ast_transform_to_core(NecroCompileInfo info, NecroIntern* intern, NecroBase* base, NecroAstArena* ast_arena, NecroCoreAstArena* core_ast_arena);
+void              necro_core_ast_test();
 
-#endif // CORE_H
+#endif // CORE_AST_H

@@ -94,3 +94,31 @@ void necro_ast_symbol_print_type_and_kind(NecroAstSymbol* ast_symbol, size_t num
     }
     necro_type_print(ast_symbol->type->kind);
 }
+
+NecroCoreAstSymbol* necro_core_ast_symbol_create_from_ast_symbol(NecroPagedArena* core_ast_arena, NecroAstSymbol* ast_symbol)
+{
+    if (ast_symbol->core_ast_symbol != NULL)
+        return ast_symbol->core_ast_symbol;
+    NecroCoreAstSymbol* core_ast_symbol = necro_paged_arena_alloc(core_ast_arena, sizeof(NecroCoreAstSymbol));
+    core_ast_symbol->name               = ast_symbol->name;
+    core_ast_symbol->source_name        = ast_symbol->source_name;
+    core_ast_symbol->module_name        = ast_symbol->module_name;
+    core_ast_symbol->ast                = NULL;
+    core_ast_symbol->type               = necro_type_deep_copy(core_ast_arena, ast_symbol->type);
+    core_ast_symbol->con_num            = ast_symbol->con_num;
+    core_ast_symbol->is_enum            = ast_symbol->is_enum;
+    core_ast_symbol->is_recursive       = ast_symbol->is_recursive;
+    core_ast_symbol->mach_symbol        = NULL;
+    ast_symbol->core_ast_symbol         = core_ast_symbol;
+    return core_ast_symbol;
+}
+
+const char* necro_core_ast_symbol_most_qualified_name(NecroCoreAstSymbol* core_ast_symbol)
+{
+    if (core_ast_symbol->name != NULL && core_ast_symbol->name->str != NULL)
+        return core_ast_symbol->name->str;
+    else if (core_ast_symbol->source_name != NULL && core_ast_symbol->source_name->str != NULL)
+        return core_ast_symbol->source_name->str;
+    else
+        return "NULL AST_SYMBOL";
+}

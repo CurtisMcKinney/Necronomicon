@@ -26,6 +26,7 @@ struct NecroInstanceList;
 struct NecroMachAstSymbol;
 struct NecroUsage;
 struct NecroCoreAst;
+struct NecroCoreAstSymbol;
 
 typedef enum
 {
@@ -59,6 +60,7 @@ typedef struct NecroAstSymbol
     struct NecroTypeClass*         type_class;              // Type class, if present. Resolved at inference phase.
     struct NecroTypeClassInstance* type_class_instance;     // Class instance, if present. Resolved at inference phase.
     struct NecroInstanceList*      instance_list;           // List of type classes this symbol is an instance of. Resolved at inference phase.
+    struct NecroCoreAstSymbol*     core_ast_symbol;         // Resolved at necro_ast_transform_to_core
     struct NecroMachAstSymbol*     mach_symbol;             // Resolved at necro_mach_translate.
     struct NecroUsage*             usage;                   // Conflicting usages (In the sharing sense) gathered during alias analysis phase.
     struct NecroMachineAST*        necro_machine_ast;       // NecroMachineAST that this symbol was compiled into. Generated at NecroMachine compilation phase.
@@ -71,14 +73,18 @@ NecroAstSymbol* necro_ast_symbol_deep_copy(NecroPagedArena* arena, NecroAstSymbo
 
 typedef struct NecroCoreAstSymbol
 {
-    NecroSymbol          name;
-    NecroSymbol          source_name;
-    NecroSymbol          module_name;
-    struct NecroCoreAst* ast;
-    struct NecroType*    type;
-    size_t               con_num;
-    bool                 is_enum;
-    bool                 is_recursive;
+    NecroSymbol                name;
+    NecroSymbol                source_name;
+    NecroSymbol                module_name;
+    struct NecroCoreAst*       ast;
+    struct NecroType*          type;
+    size_t                     con_num;
+    bool                       is_enum;
+    bool                       is_recursive;
+    struct NecroMachAstSymbol* mach_symbol;
 } NecroCoreAstSymbol;
+
+NecroCoreAstSymbol* necro_core_ast_symbol_create_from_ast_symbol(NecroPagedArena* core_ast_arena, NecroAstSymbol* ast_symbol); // NOTE: This deep copies all information, and thus does not depend on any memory from the ast_symbol afterwards.
+const char*         necro_core_ast_symbol_most_qualified_name(NecroCoreAstSymbol* core_ast_symbol);
 
 #endif // NECRO_AST_SYMBOL_H

@@ -1067,7 +1067,7 @@ void necro_base_init_mach(NecroMachProgram* program, NecroBase* base)
     UNUSED(base);
 }
 
-#define NECRO_BASE_TEST_VERBOSE 1
+#define NECRO_BASE_TEST_VERBOSE 0
 
 void necro_base_test()
 {

@@ -30,7 +30,7 @@ static Necro##CAMEL_NAME##List* necro_cons_##SNAKE_NAME##_list(NecroPagedArena* 
     cell->data = data;                                                                                                                      \
     return cell;                                                                                                                            \
 }                                                                                                                                           \
-static Necro##CAMEL_NAME##List* necro_snoc_##SNAKE_NAME##_list(NecroPagedArena* arena, TABLE_DATA_TYPE data, Necro##CAMEL_NAME##List* head) \
+static Necro##CAMEL_NAME##List* necro_append_##SNAKE_NAME##_list(NecroPagedArena* arena, TABLE_DATA_TYPE data, Necro##CAMEL_NAME##List* head)\
 {                                                                                                                                           \
     Necro##CAMEL_NAME##List* cell = necro_paged_arena_alloc(arena, sizeof(Necro##CAMEL_NAME##List));                                        \
     cell->next = NULL;                                                                                                                      \
@@ -42,6 +42,7 @@ static Necro##CAMEL_NAME##List* necro_snoc_##SNAKE_NAME##_list(NecroPagedArena* 
             head = head->next;                                                                                                              \
         }                                                                                                                                   \
         head->next = cell;                                                                                                                  \
+        return head;                                                                                                                        \
     }                                                                                                                                       \
     return cell;                                                                                                                            \
 }                                                                                                                                           \

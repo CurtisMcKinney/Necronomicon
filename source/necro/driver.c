@@ -34,6 +34,7 @@
 #include "utility/unicode_properties.h"
 #include "type/monomorphize.h"
 #include "alias_analysis.h"
+#include "core_ast.h"
 
 #define NECRO_VERBOSITY 1
 
@@ -373,6 +374,7 @@ void necro_test(NECRO_TEST test)
     case NECRO_TEST_ALIAS:                necro_alias_analysis_test();       break;
     case NECRO_TEST_INFER:                necro_test_infer();                break;
     case NECRO_TEST_MONOMORPHIZE:         necro_monomorphize_test();         break;
+    case NECRO_TEST_CORE:                 necro_core_ast_test();             break;
     case NECRO_TEST_ARENA_CHAIN_TABLE:    necro_arena_chain_table_test();    break;
     case NECRO_TEST_BASE:                 necro_base_test();                 break;
     case NECRO_TEST_ALL:
@@ -385,7 +387,7 @@ void necro_test(NECRO_TEST test)
         necro_alias_analysis_test();
         necro_test_infer();
         necro_monomorphize_test();
-        // necro_arena_chain_table_test();
+        necro_core_ast_test();
         break;
     default: break;
     }

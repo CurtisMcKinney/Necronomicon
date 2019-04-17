@@ -885,11 +885,23 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_data_decl(NecroCoreAstTran
     return ok(NecroCoreAst, core_ast);
 }
 
-// TODO: Filter out type signatures, class declarations, polymorphic values, etc
+// Filter out type signatures, class declarations, polymorphic values, etc
 bool necro_core_ast_should_filter(NecroAst* ast)
 {
-    UNUSED(ast);
-    return false;
+    switch (ast->type)
+    {
+    case NECRO_AST_TYPE_CLASS_DECLARATION:
+    case NECRO_AST_TYPE_SIGNATURE:
+        return true;
+    case NECRO_AST_DATA_DECLARATION:
+        return false;
+    case NECRO_AST_APATS_ASSIGNMENT:
+    case NECRO_AST_SIMPLE_ASSIGNMENT:
+        return necro_type_is_polymorphic(ast->necro_type);
+    default:
+        assert(false);
+        return true;
+    }
 }
 
 // Going to do this the simple way for now...Flattening everything into singular Bind instead of using BindRecs for recursive groups
@@ -1010,7 +1022,7 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_bin_op(NecroCoreAstTransfo
     // NOTE: 1 + 2 --> (+) 1 2 --> ((+) 1) 2 --> App (App (+) 1) 2
     NecroCoreAst* op_ast    = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, ast->bin_op.ast_symbol));
     NecroCoreAst* left_ast  = necro_try(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->bin_op.lhs));
-    NecroCoreAst* right_ast = necro_try(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->bin_op.lhs));
+    NecroCoreAst* right_ast = necro_try(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->bin_op.rhs));
     NecroCoreAst* inner_app = necro_core_ast_create_app(context->arena, op_ast, left_ast);
     NecroCoreAst* outer_app = necro_core_ast_create_app(context->arena, inner_app, right_ast);
     return ok(NecroCoreAst, outer_app);
@@ -1054,6 +1066,19 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_tuple(NecroCoreAstTransfor
     return ok(NecroCoreAst, tuple_ast);
 }
 
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_for_loop(NecroCoreAstTransform* context, NecroAst* ast)
+{
+    assert(ast->type == NECRO_AST_FOR_LOOP);
+    NecroCoreAst* range_init = necro_try(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->for_loop.range_init));
+    NecroCoreAst* value_init = necro_try(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->for_loop.value_init));
+    // TODO: Handle Apats correctly!
+    NecroCoreAst* index_arg  = necro_try(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->for_loop.index_apat));
+    NecroCoreAst* value_arg  = necro_try(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->for_loop.value_apat));
+    NecroCoreAst* expression = necro_try(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->for_loop.expression));
+    NecroCoreAst* core_ast   = necro_core_ast_create_for_loop(context->arena, range_init, value_init, index_arg, value_arg, expression);
+    return ok(NecroCoreAst, core_ast);
+}
+
 NecroResult(NecroCoreAst) necro_ast_transform_to_core_go(NecroCoreAstTransform* context, NecroAst* ast)
 {
     UNUSED(context);
@@ -1074,24 +1099,18 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_go(NecroCoreAstTransform* 
     case NECRO_AST_APATS_ASSIGNMENT:       return necro_ast_transform_to_core_apats_assignment(context, ast);
     case NECRO_AST_BIN_OP:                 return necro_ast_transform_to_core_bin_op(context, ast);
     case NECRO_AST_TUPLE:                  return necro_ast_transform_to_core_tuple(context, ast);
-
-    // case NECRO_AST_IF_THEN_ELSE:
-    //     return necro_transform_if_then_else(core_transform, necro_ast_node);
-
-    // case NECRO_AST_PAT_ASSIGNMENT:
-    //     return necro_transform_pat_assignment(core_transform, necro_ast_node);
-
-    // case NECRO_AST_CASE:
-    //     return necro_transform_case(core_transform, necro_ast_node);
+    case NECRO_AST_FOR_LOOP:               return necro_ast_transform_to_core_for_loop(context, ast);
 
     // TODO
+    case NECRO_AST_CASE:           // return necro_transform_case(core_transform, necro_ast_node);
+    case NECRO_AST_IF_THEN_ELSE:   // return necro_transform_if_then_else(core_transform, necro_ast_node);
+    case NECRO_AST_PAT_ASSIGNMENT: // return necro_transform_pat_assignment(core_transform, necro_ast_node);
     case NECRO_AST_PAT_EXPRESSION:
     case NECRO_AST_EXPRESSION_ARRAY:
     case NECRO_AST_ARITHMETIC_SEQUENCE:
     case NECRO_AST_OP_LEFT_SECTION:
     case NECRO_AST_OP_RIGHT_SECTION:
     case NECRO_AST_TYPE_CLASS_INSTANCE:
-    case NECRO_AST_FOR_LOOP:
         assert(false && "TODO");
         return ok(NecroCoreAst, NULL);
 
@@ -1192,6 +1211,11 @@ void necro_core_ast_pretty_print_go(NecroCoreAst* ast, size_t depth)
             lambdas = lambdas->lambda.expr;
         }
         printf("= ");
+        if (depth == 0)
+        {
+            printf("\n");
+            print_white_space(NECRO_CORE_AST_INDENT);
+        }
         necro_core_ast_pretty_print_go(lambdas, depth + NECRO_CORE_AST_INDENT);
         return;
     }
@@ -1213,16 +1237,22 @@ void necro_core_ast_pretty_print_go(NecroCoreAst* ast, size_t depth)
     case NECRO_CORE_AST_LET:
     {
         // printf("\n");
-        print_white_space(depth);
+        // print_white_space(depth);
         if (depth > 0)
             printf("let ");
         necro_core_ast_pretty_print_go(ast->let.bind, depth);
         // printf("\n");
+        if (ast->let.expr == NULL)
+        {
+            printf("\n");
+            return;
+        }
         if (depth > 0)
             printf(" in\n");
+        else
+            printf("\n\n");
         print_white_space(depth);
         necro_core_ast_pretty_print_go(ast->let.expr, depth);
-        // printf("\n");
         return;
     }
     case NECRO_CORE_AST_VAR:
@@ -1261,8 +1291,34 @@ void necro_core_ast_pretty_print_go(NecroCoreAst* ast, size_t depth)
     case NECRO_CORE_AST_DATA_CON:
     {
         print_white_space(depth);
-        printf("%s :: ", ast->data_con.ast_symbol->source_name->str);
+        printf("%s :: ", ast->data_con.ast_symbol->name->str);
         necro_type_print(ast->data_con.type);
+        return;
+    }
+    case NECRO_CORE_AST_FOR:
+    {
+        printf("for ");
+        // Range Init
+        if (ast->for_loop.range_init->ast_type == NECRO_CORE_AST_APP)
+            printf("(");
+        necro_core_ast_pretty_print_go(ast->for_loop.range_init, depth);
+        if (ast->for_loop.range_init->ast_type == NECRO_CORE_AST_APP)
+            printf(")");
+        printf(" ");
+        // Value Init
+        if (ast->for_loop.value_init->ast_type == NECRO_CORE_AST_APP)
+            printf("(");
+        necro_core_ast_pretty_print_go(ast->for_loop.value_init, depth);
+        if (ast->for_loop.value_init->ast_type == NECRO_CORE_AST_APP)
+            printf(")");
+        // The rest
+        printf(" loop ");
+        necro_core_ast_pretty_print_go(ast->for_loop.index_arg, depth);
+        printf(" ");
+        necro_core_ast_pretty_print_go(ast->for_loop.value_arg, depth);
+        printf(" ->\n");
+        print_white_space(depth + NECRO_CORE_AST_INDENT);
+        necro_core_ast_pretty_print_go(ast->for_loop.expression, depth + NECRO_CORE_AST_INDENT);
         return;
     }
     // case NECRO_CORE_EXPR_LIST:
@@ -1345,7 +1401,7 @@ void necro_core_test_result(const char* test_name, const char* str, NECRO_RESULT
     // necro_ast_arena_print(&ast);
     printf("\n");
     necro_core_ast_pretty_print(core_ast.root);
-    printf("\n");
+    // printf("\n");
 #endif
     assert(result.type == expected_result);
     bool passed = result.type == expected_result;
@@ -1420,6 +1476,35 @@ void necro_core_ast_test()
         const char* test_name   = "Basic 4";
         const char* test_source = ""
             "data Polymorph a = Bear a | Wolf a | Hydra a a a\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_core_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Basic 5";
+        const char* test_source = ""
+            "f x y = (x, y)\n"
+            "z = f True () \n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_core_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Simple Loop";
+        const char* test_source = ""
+            "tenTimes :: Range 10 (Index 10)\n"
+            "tenTimes = each\n"
+            "addItUp :: Int\n"
+            "addItUp = for tenTimes 0 loop i x -> x + 1\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_core_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Let It Work, Please";
+        const char* test_source = ""
+            "z :: Float -> Float\n"
+            "z y = x + y where x = 100\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_core_test_result(test_name, test_source, expect_error_result, NULL);
     }

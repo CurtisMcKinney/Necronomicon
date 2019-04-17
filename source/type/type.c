@@ -465,9 +465,19 @@ bool necro_type_bind_var_to_type_if_instance_of_context(NecroPagedArena* arena, 
     return true;
 }
 
+bool necro_type_default_uvar(NecroBase* base, NecroType* type)
+{
+    if (type->kind->type != NECRO_TYPE_CON || type->kind->con.con_symbol != base->ownership_kind)
+        return false;
+    type->var.bound = base->ownership_share->type;
+    return true;
+}
+
 bool necro_type_default(NecroPagedArena* arena, NecroBase* base, NecroType* type)
 {
     assert(type->type == NECRO_TYPE_VAR);
+    if (necro_type_default_uvar(base, type))
+        return true;
     bool                   contains_fractional = false;
     bool                   contains_num        = false;
     bool                   contains_eq         = false;

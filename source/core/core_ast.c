@@ -880,7 +880,7 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_data_decl(NecroCoreAstTran
         NecroCoreAst*  con_ast       = necro_core_ast_create_data_con(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, cons->list.item->constructor.conid->conid.ast_symbol), NULL);
         con_ast->data_con.type       = con_ast->data_con.ast_symbol->type;
         core_ast->data_decl.con_list = necro_append_core_ast_list(context->arena, con_ast, core_ast->data_decl.con_list);
-        cons = cons->list.next_item;
+        cons                         = cons->list.next_item;
     }
     return ok(NecroCoreAst, core_ast);
 }
@@ -908,7 +908,7 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_declaration_group_list(Nec
             if (!necro_core_ast_should_filter(declaration_group->declaration.declaration_impl))
             {
                 NecroCoreAst* binder = necro_try(NecroCoreAst, necro_ast_transform_to_core_go(context, declaration_group->declaration.declaration_impl));
-                assert(binder->ast_type == NECRO_CORE_AST_DATA_CON || binder->ast_type == NECRO_CORE_AST_BIND || binder->ast_type == NECRO_CORE_AST_BIND_REC);
+                assert(binder->ast_type == NECRO_CORE_AST_DATA_DECL || binder->ast_type == NECRO_CORE_AST_BIND || binder->ast_type == NECRO_CORE_AST_BIND_REC);
                 if (let_head == NULL)
                 {
                     let_curr = necro_core_ast_create_let(context->arena, binder, NULL);
@@ -1213,7 +1213,7 @@ void necro_core_ast_pretty_print_go(NecroCoreAst* ast, size_t depth)
     case NECRO_CORE_AST_LET:
     {
         // printf("\n");
-        // print_white_space(depth);
+        print_white_space(depth);
         if (depth > 0)
             printf("let ");
         necro_core_ast_pretty_print_go(ast->let.bind, depth);
@@ -1246,19 +1246,21 @@ void necro_core_ast_pretty_print_go(NecroCoreAst* ast, size_t depth)
     }
     case NECRO_CORE_AST_DATA_DECL:
     {
-        printf("%s = ", ast->data_decl.ast_symbol->name->str);
+        printf("%s :: ", ast->data_decl.ast_symbol->name->str);
+        necro_type_print(ast->data_decl.ast_symbol->type->kind);
+        printf(" where\n");
         NecroCoreAstList* cons = ast->data_decl.con_list;
         while (cons != NULL)
         {
-            necro_core_ast_pretty_print_go(cons->data, depth);
-            if (cons->next != NULL)
-                printf(" | ");
+            necro_core_ast_pretty_print_go(cons->data, depth + NECRO_CORE_AST_INDENT);
+            printf("\n");
             cons = cons->next;
         }
         return;
     }
     case NECRO_CORE_AST_DATA_CON:
     {
+        print_white_space(depth);
         printf("%s :: ", ast->data_con.ast_symbol->source_name->str);
         necro_type_print(ast->data_con.type);
         return;
@@ -1388,6 +1390,7 @@ void necro_core_test_result(const char* test_name, const char* str, NECRO_RESULT
 void necro_core_ast_test()
 {
     necro_announce_phase("Core");
+    // TODO: Need to set up Base to translate into core...but where/how?
 
     {
         const char* test_name   = "Basic 1";
@@ -1401,6 +1404,22 @@ void necro_core_ast_test()
         const char* test_name   = "Basic 2";
         const char* test_source = ""
             "f x y = x || y\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_core_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Basic 3";
+        const char* test_source = ""
+            "data Jump = In | The | Fire\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_core_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Basic 4";
+        const char* test_source = ""
+            "data Polymorph a = Bear a | Wolf a | Hydra a a a\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_core_test_result(test_name, test_source, expect_error_result, NULL);
     }

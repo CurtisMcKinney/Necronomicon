@@ -35,13 +35,14 @@ static Necro##CAMEL_NAME##List* necro_append_##SNAKE_NAME##_list(NecroPagedArena
     Necro##CAMEL_NAME##List* cell = necro_paged_arena_alloc(arena, sizeof(Necro##CAMEL_NAME##List));                                        \
     cell->next = NULL;                                                                                                                      \
     cell->data = data;                                                                                                                      \
-    if (head != NULL)                                                                                                                       \
+    Necro##CAMEL_NAME##List* curr = head;                                                                                                   \
+    if (curr != NULL)                                                                                                                       \
     {                                                                                                                                       \
-        while (head->next != NULL)                                                                                                          \
+        while (curr->next != NULL)                                                                                                          \
         {                                                                                                                                   \
-            head = head->next;                                                                                                              \
+            curr = curr->next;                                                                                                              \
         }                                                                                                                                   \
-        head->next = cell;                                                                                                                  \
+        curr->next = cell;                                                                                                                  \
         return head;                                                                                                                        \
     }                                                                                                                                       \
     return cell;                                                                                                                            \

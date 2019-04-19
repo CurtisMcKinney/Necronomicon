@@ -95,6 +95,23 @@ void necro_ast_symbol_print_type_and_kind(NecroAstSymbol* ast_symbol, size_t num
     necro_type_print(ast_symbol->type->kind);
 }
 
+NecroCoreAstSymbol* necro_core_ast_symbol_create(NecroPagedArena* core_ast_arena, NecroSymbol name, NecroType* type)
+{
+    NecroCoreAstSymbol* core_ast_symbol = necro_paged_arena_alloc(core_ast_arena, sizeof(NecroCoreAstSymbol));
+    core_ast_symbol->name               = name;
+    core_ast_symbol->source_name        = name;
+    core_ast_symbol->module_name        = NULL;
+    core_ast_symbol->ast                = NULL;
+    core_ast_symbol->type               = necro_type_deep_copy(core_ast_arena, type);
+    core_ast_symbol->is_constructor     = false;
+    core_ast_symbol->con_num            = 0;
+    core_ast_symbol->is_enum            = false;
+    core_ast_symbol->is_recursive       = false;
+    core_ast_symbol->free_vars          = NULL;
+    core_ast_symbol->mach_symbol        = NULL;
+    return core_ast_symbol;
+}
+
 NecroCoreAstSymbol* necro_core_ast_symbol_create_from_ast_symbol(NecroPagedArena* core_ast_arena, NecroAstSymbol* ast_symbol)
 {
     if (ast_symbol->core_ast_symbol != NULL)

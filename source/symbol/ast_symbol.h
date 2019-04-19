@@ -87,6 +87,7 @@ typedef struct NecroCoreAstSymbol
     struct NecroMachAstSymbol* mach_symbol;
 } NecroCoreAstSymbol;
 
+NecroCoreAstSymbol* necro_core_ast_symbol_create(NecroPagedArena* core_ast_arena, NecroSymbol name, struct NecroType* type);
 NecroCoreAstSymbol* necro_core_ast_symbol_create_from_ast_symbol(NecroPagedArena* core_ast_arena, NecroAstSymbol* ast_symbol); // NOTE: This deep copies all information, and thus does not depend on any memory from the ast_symbol afterwards.
 NecroCoreAstSymbol* necro_core_ast_symbol_create_by_renaming(NecroPagedArena* core_ast_arena, NecroSymbol new_name, NecroCoreAstSymbol* ast_symbol); // NOTE: This deep copies all information, and thus does not depend on any memory from the ast_symbol afterwards.
 const char*         necro_core_ast_symbol_most_qualified_name(NecroCoreAstSymbol* core_ast_symbol);

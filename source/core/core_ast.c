@@ -408,6 +408,7 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_rhs(NecroCoreAstTransform*
     return ok(NecroCoreAst, binds_ast);
 }
 
+// TODO: Check for exhaustive case expressions!
 // TODO: Patterns in Lambda Apats
 NecroResult(NecroCoreAst) necro_ast_transform_to_core_lambda_apats(NecroCoreAstTransform* context, NecroAst* ast, NecroCoreAst* lambda_expr)
 {
@@ -445,7 +446,9 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_lambda(NecroCoreAstTransfo
 {
     assert(ast->type == NECRO_AST_LAMBDA);
     NecroCoreAst* expr_ast = necro_try(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->lambda.expression));
-    return necro_ast_transform_to_core_lambda_apats(context, ast, expr_ast);
+    NecroCoreAst* lam_ast  = necro_try(NecroCoreAst, necro_ast_transform_to_core_lambda_apats(context, ast, expr_ast));
+    lam_ast->necro_type    = necro_type_deep_copy(context->arena, ast->necro_type);
+    return ok(NecroCoreAst, lam_ast);
 }
 
 NecroResult(NecroCoreAst) necro_ast_transform_to_core_apats_assignment(NecroCoreAstTransform* context, NecroAst* ast)

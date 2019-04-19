@@ -14,33 +14,6 @@
 ///////////////////////////////////////////////////////
 // Types
 ///////////////////////////////////////////////////////
-// NECRO_DECLARE_ARENA_LIST(NecroVar, Var, var);
-//
-// typedef struct NecroLambdaLiftSymbolInfo
-// {
-//     NecroVar                          var;
-//     NecroVarList*                     free_vars;
-//     struct NecroLambdaLiftSymbolInfo* parent;
-//     NecroVar                          renamed_var;
-// } NecroLambdaLiftSymbolInfo;
-// NECRO_DECLARE_VECTOR(NecroLambdaLiftSymbolInfo, NecroLambdaLiftSymbol, lambda_lift_symbol);
-// NECRO_DECLARE_ARENA_CHAIN_TABLE(NecroVar, Var, var);
-//
-// typedef struct NecroLambdaLift
-// {
-//     NecroPagedArena             arena;
-//     NecroSnapshotArena          snapshot_arena;
-//     NecroLambdaLiftSymbolVector ll_symtable;
-//     NecroIntern*                intern;
-//     NecroSymTable*              symtable;
-//     NecroScopedSymTable*        scoped_symtable;
-//     NecroPrimTypes*             prim_types;
-//     NecroCoreAST_Expression*    lift_point;
-//     size_t                      num_anon_functions;
-//     NecroVarTable               lifted_env;
-// } NecroLambdaLift;
-
-NECRO_DECLARE_VECTOR(NecroCoreAstSymbol*, NecroCoreAstSymbol, core_ast_symbol);
 typedef struct NecroCoreScopeNode
 {
     NecroCoreAstSymbol* ast_symbol;
@@ -95,7 +68,6 @@ NecroLambdaLift necro_lambda_lift_empty()
         .clash_suffix       = 0,
         .scope              = NULL,
         .global_scope       = NULL,
-        // .free_vars          = necro_empty_core_ast_symbol_vector(),
     };
 }
 
@@ -114,7 +86,6 @@ NecroLambdaLift necro_lambda_lift_create(NecroPagedArena* ast_arena, NecroIntern
         .clash_suffix   = 0,
         .scope          = global_scope,
         .global_scope   = global_scope,
-        // .free_vars          = necro_create_core_ast_symbol_vector(),
     };
 }
 
@@ -122,7 +93,6 @@ void necro_lambda_lift_destroy(NecroLambdaLift* ll)
 {
     necro_paged_arena_destroy(&ll->ll_arena);
     necro_snapshot_arena_destroy(&ll->snapshot_arena);
-    // necro_destroy_core_ast_symbol_vector(&ll->free_vars);
     *ll = necro_lambda_lift_empty();
 }
 
@@ -137,7 +107,7 @@ void necro_core_lambda_lift(NecroCompileInfo info, NecroIntern* intern, NecroBas
 ///////////////////////////////////////////////////////
 // NecroCoreScope
 ///////////////////////////////////////////////////////
-#define NECRO_CORE_SCOPE_INITIAL_SIZE 4 // Change this to 8 from 4
+#define NECRO_CORE_SCOPE_INITIAL_SIZE 8
 
 NecroCoreScope* necro_core_scope_create(NecroPagedArena* arena, NecroCoreScope* parent)
 {
@@ -309,13 +279,6 @@ bool necro_core_lambda_lift_is_bind_fn(NecroCoreAst* ast)
 ///////////////////////////////////////////////////////
 // LambdaLift
 ///////////////////////////////////////////////////////
-void necro_core_lambda_lift_app(NecroLambdaLift* ll, NecroCoreAst* ast)
-{
-    assert(ast->ast_type == NECRO_CORE_AST_APP);
-    necro_core_lambda_lift_go(ll, ast->app.expr1);
-    necro_core_lambda_lift_go(ll, ast->app.expr2);
-}
-
 void necro_core_lambda_lift_for(NecroLambdaLift* ll, NecroCoreAst* ast)
 {
     assert(ast->ast_type == NECRO_CORE_AST_FOR);
@@ -379,7 +342,6 @@ void necro_core_lambda_lift_var(NecroLambdaLift* ll, NecroCoreAst* ast)
     }
 }
 
-// TODO: We're going to blow the stack if we recurse like this
 void necro_core_lambda_lift_let(NecroLambdaLift* ll, NecroCoreAst* ast)
 {
     assert(ast->ast_type == NECRO_CORE_AST_LET);
@@ -390,7 +352,6 @@ void necro_core_lambda_lift_let(NecroLambdaLift* ll, NecroCoreAst* ast)
             necro_core_lambda_lift_go(ll, ast);
             return;
         }
-        // NecroCoreAst* prev_lift_point = ll->lift_point;
         necro_core_lambda_lift_go(ll, ast->let.bind);
         if (necro_core_lambda_lift_is_bind_fn(ast->let.bind) && ll->scope->parent != NULL)
         {
@@ -430,6 +391,35 @@ void necro_core_lambda_lift_let(NecroLambdaLift* ll, NecroCoreAst* ast)
     }
 }
 
+// NOTE: This is only used for anonymous lambdas
+void necro_core_lambda_lift_lam(NecroLambdaLift* ll, NecroCoreAst* ast)
+{
+    assert(ast->ast_type == NECRO_CORE_AST_LAM);
+    // Create name, symbol, and var
+    NecroSymbol         anon_name   = necro_intern_unique_string(ll->intern, "anonymous", &ll->clash_suffix);
+    NecroCoreAstSymbol* anon_symbol = necro_core_ast_symbol_create(ll->ast_arena, anon_name, ast->necro_type);
+    NecroCoreAst*       anon_var    = necro_core_ast_create_var(ll->ast_arena, anon_symbol);
+    // In-place Swap ast with anon_var
+    NecroCoreAst        temp        = *anon_var;
+    *anon_var                       = *ast;
+    *ast                            = temp;
+    // Create bind and go deeper
+    NecroCoreAst*       anon_bind   = necro_core_ast_create_bind(ll->ast_arena, anon_symbol, anon_var);
+    necro_core_lambda_lift_go(ll, anon_bind);
+    necro_core_lambda_lift_go(ll, ast);
+}
+
+// NOTE: This is only used for bound lambdas
+void necro_core_lambda_lift_bound_lam(NecroLambdaLift* ll, NecroCoreAst* ast)
+{
+    assert(ast->ast_type == NECRO_CORE_AST_LAM);
+    necro_core_lambda_lift_pat(ll, ast->lambda.arg);
+    if (ast->lambda.expr->ast_type == NECRO_CORE_AST_LAM)
+        necro_core_lambda_lift_bound_lam(ll, ast->lambda.expr);
+    else
+        necro_core_lambda_lift_go(ll, ast->lambda.expr);
+}
+
 void necro_core_lambda_lift_bind(NecroLambdaLift* ll, NecroCoreAst* ast)
 {
     assert(ast->ast_type == NECRO_CORE_AST_BIND);
@@ -437,7 +427,10 @@ void necro_core_lambda_lift_bind(NecroLambdaLift* ll, NecroCoreAst* ast)
     {
         necro_core_scope_insert(&ll->ll_arena, ll->scope, ast->bind.ast_symbol);
         necro_core_lambda_lift_push_scope(ll);
-        necro_core_lambda_lift_go(ll, ast->bind.expr);
+        if (necro_core_lambda_lift_is_bind_fn(ast))
+            necro_core_lambda_lift_bound_lam(ll, ast->bind.expr);
+        else
+            necro_core_lambda_lift_go(ll, ast->bind.expr);
         assert(ll->scope->free_vars->count == 0);
         ast->bind.ast_symbol->free_vars = ll->scope->free_vars;
         necro_core_lambda_lift_pop_scope(ll);
@@ -452,7 +445,8 @@ void necro_core_lambda_lift_bind(NecroLambdaLift* ll, NecroCoreAst* ast)
     // Lift and insert into global scope
     necro_core_scope_insert(&ll->ll_arena, ll->global_scope, ast->bind.ast_symbol);
     necro_core_lambda_lift_push_scope(ll);
-    necro_core_lambda_lift_go(ll, ast->bind.expr);
+    // necro_core_lambda_lift_go(ll, ast->bind.expr);
+    necro_core_lambda_lift_bound_lam(ll, ast->bind.expr);
     // Lift named lambda
     NecroCoreAst* lifted_let      = necro_core_ast_create_let(ll->ast_arena, ast, NULL);
     NecroCoreAst* last_lifted_let = ll->lift_point;
@@ -481,13 +475,11 @@ void necro_core_lambda_lift_bind(NecroLambdaLift* ll, NecroCoreAst* ast)
     necro_core_lambda_lift_pop_scope(ll);
 }
 
-// TODO: Anonymous Lambdas
-// Lift anonymous lambdas at app?
-void necro_core_lambda_lift_lam(NecroLambdaLift* ll, NecroCoreAst* ast)
+void necro_core_lambda_lift_app(NecroLambdaLift* ll, NecroCoreAst* ast)
 {
-    assert(ast->ast_type == NECRO_CORE_AST_LAM);
-    necro_core_lambda_lift_pat(ll, ast->lambda.arg);
-    necro_core_lambda_lift_go(ll, ast->lambda.expr);
+    assert(ast->ast_type == NECRO_CORE_AST_APP);
+    necro_core_lambda_lift_go(ll, ast->app.expr1);
+    necro_core_lambda_lift_go(ll, ast->app.expr2);
 }
 
 ///////////////////////////////////////////////////////
@@ -568,12 +560,11 @@ void necro_core_lambda_lift_test_result(const char* test_name, const char* str)
     unwrap(void, necro_ast_transform_to_core(info, &intern, &base, &ast, &core_ast));
     necro_core_lambda_lift(info, &intern, &base, &core_ast);
 
-    // Assert
+    // Print
 #if NECRO_CORE_LAMBDA_LIFT_VERBOSE
     printf("\n");
     necro_core_ast_pretty_print(core_ast.root);
 #endif
-
     printf("Core %s test: Passed\n", test_name);
     fflush(stdout);
 
@@ -651,7 +642,6 @@ void necro_core_lambda_lift_test()
         necro_core_lambda_lift_test_result(test_name, test_source);
     }
 
-    // g and f are out of order here!
     {
         const char* test_name   = "Lift 5";
         const char* test_source = ""
@@ -663,558 +653,95 @@ void necro_core_lambda_lift_test()
         necro_core_lambda_lift_test_result(test_name, test_source);
     }
 
-    // TODO: Anonymous functions!
-    // TODO: Test higher order free_vars!
-    // TODO: Test nested higher order free_vars!
-    // TODO: Test recursive values!
-    // TODO: Test recursive values in nested functions!
+    {
+        const char* test_name   = "Higher Lift 1";
+        const char* test_source = ""
+            "top :: Int\n"
+            "top = app f 10\n"
+            "  where\n"
+            "    app g x = g x\n"
+            "    f y = y * 100\n";
+        necro_core_lambda_lift_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Higher Lift 2";
+        const char* test_source = ""
+            "top :: Int\n"
+            "top = app f 10\n"
+            "  where\n"
+            "    f y = y * 100\n"
+            "    app g x = g x + h x\n"
+            "      where\n"
+            "          h y = y - 100\n";
+        necro_core_lambda_lift_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Rec Lift 1";
+        const char* test_source = ""
+            "countItUp :: Float\n"
+            "countItUp = x where\n"
+            "  x ~ 0 = f x\n"
+            "  f y   = y + 10\n";
+        necro_core_lambda_lift_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Lambda 1";
+        const char* test_source = ""
+            "f = \\x y -> x || y\n";
+        necro_core_lambda_lift_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Lambda 2";
+        const char* test_source = ""
+            "f = (\\x -> x || True) False\n";
+        necro_core_lambda_lift_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Lambda 3";
+        const char* test_source = ""
+            "f = r where\n"
+            "  t = True\n"
+            "  r = (\\x -> x || t) False\n";
+        necro_core_lambda_lift_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Lambda 4";
+        const char* test_source = ""
+            "top :: Int\n"
+            "top = r\n"
+            "  where\n"
+            "    app g x = g x\n"
+            "    w       = 10\n"
+            "    r       = app (\\y -> y * w) 100\n";
+        necro_core_lambda_lift_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "In Case Of Emergency";
+        const char* test_source = ""
+            "inCaseOfEmergency b = breakGlass where\n"
+            "  breakGlass = case b of\n"
+            "    True  -> \\x -> x && b\n"
+            "    False -> \\y -> y || b\n";
+        necro_core_lambda_lift_test_result(test_name, test_source);
+    }
+
+    // // TODO: We need bind rec to properly handle this
+    // {
+    //     const char* test_name   = "Rec Lift 2";
+    //     const char* test_source = ""
+    //         "countItUp :: Float\n"
+    //         "countItUp = x where\n"
+    //         "  x ~ 0 = f y\n"
+    //         "  y ~ 0 = f x\n"
+    //         "  f z   = z + 10\n";
+    //     necro_core_lambda_lift_test_result(test_name, test_source);
+    // }
+
 }
-
-///////////////////////////////////////////////////////
-// Lambda Lifting
-///////////////////////////////////////////////////////
-// bool necro_bind_is_fn(NecroCoreAST_Expression* bind_ast)
-// {
-//     assert(bind_ast->expr_type == NECRO_CORE_EXPR_BIND);
-//     NecroCoreAST_Expression* bind_expr = bind_ast->bind.expr;
-//     return bind_expr->expr_type == NECRO_CORE_EXPR_LAM;
-// }
-//
-// bool necro_is_in_env(NecroVarList* env, NecroVar var)
-// {
-//     // while (env != NULL && env->data.id.id != var.id.id)
-//     while (env != NULL && env->data.symbol != var.symbol)
-//     {
-//         env = env->next;
-//     }
-//     return env != NULL;
-// }
-//
-// bool necro_is_free_var(NecroLambdaLift* ll, NecroVarList* env, NecroLambdaLiftSymbolInfo* outer, NecroVar var)
-// {
-//     if (necro_is_in_env(env, var))
-//         return false;
-//     NecroVar* lifted_env_result = necro_var_table_get(&ll->lifted_env, var.id.id);
-//     if (lifted_env_result != NULL && lifted_env_result->id.id != 0)
-//         return false;
-//     if (outer != NULL && necro_is_in_env(outer->free_vars, var))
-//         return false;
-//     // TODO: Fix this! Broken after symtable changes
-//     // NecroID found_id = necro_scope_find(ll->scoped_symtable->top_scope, var.symbol);
-//     // return found_id.id != var.id.id;
-//     return false;
-// }
-//
-// NecroVar necro_find_in_env(NecroVarList* env, NecroVar var)
-// {
-//     // while (env != NULL && env->data.id.id != var.id.id)
-//     while (env != NULL)
-//     {
-//         if (env->data.symbol != var.symbol)
-//             return env->data;
-//         env = env->next;
-//     }
-//     return (NecroVar) { 0, 0 };
-// }
-//
-// NecroVar necro_find_free_var(NecroLambdaLift*ll, NecroVarList* env, NecroLambdaLiftSymbolInfo* outer, NecroVar var)
-// {
-//     NecroVar result = necro_find_in_env(env, var);
-//     if (result.id.id != 0)
-//         return result;
-//     NecroVar* lifted_env_result = necro_var_table_get(&ll->lifted_env, var.id.id);
-//     if (lifted_env_result != NULL && lifted_env_result->id.id == var.id.id)
-//         return *lifted_env_result;
-//     result = (outer != NULL) ? necro_find_in_env(outer->free_vars, var) : (NecroVar) { 0, 0 };
-//     if (result.id.id != 0)
-//         return result;
-//     // TODO: FIX THIS!! broken after symtable changes
-//     // NecroID found_id = necro_scope_find(ll->scoped_symtable->top_scope, var.symbol);
-//     // return (NecroVar) { .id = found_id, .symbol = var.symbol };
-//     return (NecroVar) { 0 };
-// }
-//
-// NecroLambdaLiftSymbolInfo* necro_lambda_lift_symtable_get(NecroLambdaLift* ll, NecroVar var)
-// {
-//     assert(ll != NULL);
-//     assert(var.id.id != 0);
-//     while (var.id.id >= ll->ll_symtable.length)
-//     {
-//         NecroLambdaLiftSymbolInfo info = { var, NULL, NULL, (NecroVar) { 0, 0 } };
-//         necro_push_lambda_lift_symbol_vector(&ll->ll_symtable, &info);
-//     }
-//     return ll->ll_symtable.data + var.id.id;
-// }
-//
-// NecroCoreAST_CaseAlt* necro_lambda_lift_case_alt(NecroLambdaLift* ll, NecroCoreAST_CaseAlt* alts, NecroVarList* env, NecroLambdaLiftSymbolInfo* outer)
-// {
-//     assert(ll != NULL);
-//     if (alts == NULL)
-//         return NULL;
-//
-//     // Push Env
-//     NecroVarList*            new_env = env;
-//     NecroCoreAST_Expression* alt_con = necro_lambda_lift_pat_go(ll, alts->altCon, &new_env, outer);
-//     NecroCoreAST_Expression* expr    = necro_lambda_lift_go(ll, alts->expr, new_env, outer);
-//     // Pop Env
-//
-//     NecroCoreAST_CaseAlt*    next    = necro_lambda_lift_case_alt(ll, alts->next, env, outer);
-//     return necro_create_core_case_alt(&ll->arena, expr, alt_con, next);
-// }
-//
-// NecroCoreAST_Expression* necro_lambda_lift_case(NecroLambdaLift* ll, NecroCoreAST_Expression* in_ast, NecroVarList* env, NecroLambdaLiftSymbolInfo* outer)
-// {
-//     assert(ll != NULL);
-//     assert(in_ast != NULL);
-//     assert(in_ast->expr_type == NECRO_CORE_EXPR_CASE);
-//     NecroCoreAST_Expression* expr    = necro_lambda_lift_go(ll, in_ast->case_expr.expr, env, outer);
-//     NecroCoreAST_CaseAlt*    alts    = necro_lambda_lift_case_alt(ll, in_ast->case_expr.alts, env, outer);
-//     NecroCoreAST_Expression* out_ast = necro_create_core_case(&ll->arena, expr, alts);
-//     out_ast->necro_type              = in_ast->necro_type;
-//     out_ast->case_expr.type          = in_ast->case_expr.type;
-//     return out_ast;
-// }
-//
-// NecroCoreAST_Expression* necro_lambda_lift_list(NecroLambdaLift* ll, NecroCoreAST_Expression* in_ast, NecroVarList* env, NecroLambdaLiftSymbolInfo* outer)
-// {
-//     assert(ll != NULL);
-//     assert(in_ast != NULL);
-//     assert(in_ast->expr_type == NECRO_CORE_EXPR_LIST);
-//
-//     // if (in_ast->list.expr == NULL)
-//     //     return necro_lambda_lift_go(ll, in_ast->list.next, env, outer);
-//
-//     NecroCoreAST_Expression* initial_lift_point = ll->lift_point;
-//
-//     // NecroCoreAST_Expression* item_lift = NULL;
-//     NecroCoreAST_Expression* item = necro_lambda_lift_go(ll, in_ast->list.expr, env, outer);
-//     NecroCoreAST_Expression* next = necro_lambda_lift_go(ll, in_ast->list.next, env, outer);
-//
-//     // item_lift = ll->lift_point;
-//     // while (ll->lift_point != NULL)
-//     // {
-//     //     item_lift = necro_create_core_list(&ll->arena, ll->lift_point->list.expr, item_lift);
-//     //     ll->lift_point = ll->lift_point->list.next;
-//     // }
-//     // ll->lift_point = NULL;
-//
-//     NecroCoreAST_Expression* out_ast = necro_create_core_list(&ll->arena, item, next);
-//
-//     if (ll->lift_point != NULL && initial_lift_point == NULL && outer == NULL)
-//     {
-//         assert(ll->lift_point->expr_type == NECRO_CORE_EXPR_LIST);
-//         NecroCoreAST_Expression* tmp = ll->lift_point;
-//         while (tmp->list.next != NULL)
-//             tmp = tmp->list.next;
-//         tmp->list.next = out_ast;
-//         tmp = NULL;
-//         out_ast = ll->lift_point;
-//         // ll->lift_point = initial_lift_point;
-//         ll->lift_point = NULL;
-//     }
-//
-//     // NecroCoreAST_Expression* head = NULL;
-//     // if (in_ast->list.expr == NULL)
-//     //     head = necro_create_core_list(&ll->arena, NULL, NULL);
-//     // else
-//     //     head = necro_create_core_list(&ll->arena, necro_lambda_lift_go(ll, in_ast->list.expr, env, outer), NULL);
-//     // head->necro_type = in_ast->necro_type;
-//     // NecroCoreAST_Expression* curr = head;
-//     // in_ast = in_ast->list.next;
-//     // while (in_ast != NULL)
-//     // {
-//     //     if (in_ast->list.expr == NULL)
-//     //         curr->list.next = necro_create_core_list(&ll->arena, NULL, NULL);
-//     //     else
-//     //         curr->list.next = necro_create_core_list(&ll->arena, necro_lambda_lift_go(ll, in_ast->list.expr, env, outer), NULL);
-//     //     if (ll->lift_point != NULL)
-//     //     {
-//     //         assert(ll->lift_point->expr_type == NECRO_CORE_EXPR_LIST);
-//     //         NecroCoreAST_Expression* tmp = ll->lift_point;
-//     //         while (tmp->list.next != NULL)
-//     //             tmp = tmp->list.next;
-//     //         tmp->list.next  = curr->list.next;
-//     //         curr->list.next = ll->lift_point;
-//     //         curr = tmp->list.next;
-//     //         ll->lift_point = NULL;
-//     //     }
-//     //     else
-//     //     {
-//     //         curr = curr->list.next;
-//     //     }
-//     //     in_ast = in_ast->list.next;
-//     // }
-//
-//     return out_ast;
-// }
-//
-// NecroCoreAST_Expression* necro_lambda_lift_smash_lambda(NecroLambdaLift* ll, NecroCoreAST_Expression* in_ast, NecroVarList* env, NecroLambdaLiftSymbolInfo* outer)
-// {
-//     assert(ll != NULL);
-//     assert(in_ast != NULL);
-//     assert(in_ast->expr_type == NECRO_CORE_EXPR_LAM);
-//     NecroCoreAST_Expression* arg_ast  = necro_deep_copy_core_ast(&ll->arena, in_ast->lambda.arg);
-//     env                               = necro_cons_var_list(&ll->arena, arg_ast->var, env);
-//     NecroCoreAST_Expression* expr_ast =
-//         (in_ast->lambda.expr->expr_type == NECRO_CORE_EXPR_LAM) ?
-//         necro_lambda_lift_smash_lambda(ll, in_ast->lambda.expr, env, outer) :
-//         necro_lambda_lift_go(ll, in_ast->lambda.expr, env, outer);
-//     NecroCoreAST_Expression* out_ast  = necro_create_core_lam(&ll->arena, arg_ast, expr_ast);
-//     out_ast->necro_type               = in_ast->necro_type;
-//     return out_ast;
-// }
-//
-// NecroCoreAST_Expression* necro_lift_lambda_and_insert_into_env(NecroLambdaLift* ll, NecroCoreAST_Expression* ast_to_lift, NecroVar var)
-// {
-//     if (ll->lift_point == NULL)
-//     {
-//         ll->lift_point = necro_create_core_list(&ll->arena, ast_to_lift, ll->lift_point);
-//         necro_var_table_insert(&ll->lifted_env, var.id.id, &var);
-//         return ll->lift_point;
-//     }
-//     else
-//     {
-//         NecroCoreAST_Expression* tmp = ll->lift_point;
-//         while (tmp->list.next != NULL)
-//             tmp = tmp->list.next;
-//         tmp->list.next = necro_create_core_list(&ll->arena, ast_to_lift, NULL);
-//         necro_var_table_insert(&ll->lifted_env, var.id.id, &var);
-//         return tmp->list.next;
-//     }
-// }
-//
-// NecroCoreAST_Expression* necro_lambda_lift_lambda(NecroLambdaLift* ll, NecroCoreAST_Expression* in_ast, NecroVarList* env, NecroLambdaLiftSymbolInfo* outer)
-// {
-//     assert(ll != NULL);
-//     assert(in_ast != NULL);
-//     assert(in_ast->expr_type == NECRO_CORE_EXPR_LAM);
-//
-//     // Create anonymous function name
-//     ll->num_anon_functions++;
-//     NecroArenaSnapshot snapshot = necro_snapshot_arena_get(&ll->snapshot_arena);
-//
-//     char num_anon_func_buf[20] = { 0 };
-//     snprintf(num_anon_func_buf, 20, "%zu", ll->num_anon_functions);
-//     const char* num_anon_func_buf_ptr = (const char*) num_anon_func_buf;
-//
-//     const char*        fn_name  = necro_snapshot_arena_concat_strings(&ll->snapshot_arena, 2, (const char*[]) { "_anon_fn_", num_anon_func_buf_ptr });
-//     NecroSymbol        var_sym  = necro_intern_string(ll->intern, fn_name);
-//     NecroID            var_id   = necro_scoped_symtable_new_symbol_info(ll->scoped_symtable, ll->scoped_symtable->top_scope, necro_symtable_create_initial_symbol_info(var_sym, (NecroSourceLoc) { 0 }, NULL));
-//     NecroVar           fn_var   = (NecroVar) { .id = var_id, .symbol = var_sym };
-//     NecroSymbolInfo*   s_info   = necro_symtable_get(ll->symtable, var_id);
-//     s_info->type                = in_ast->necro_type;
-//
-//     // TODO: Function which does this AND inserts it into top level scope!!!
-//     NecroCoreAST_Expression* lambda_lift_point = necro_lift_lambda_and_insert_into_env(ll, NULL, fn_var);
-//     // NecroCoreAST_Expression* lambda_lift_point = ll->lift_point;
-//     // if (ll->lift_point == NULL)
-//     // {
-//     //     ll->lift_point = necro_create_core_list(&ll->arena, NULL, ll->lift_point);
-//     //     lambda_lift_point = ll->lift_point;
-//     // }
-//     // else
-//     // {
-//     //     NecroCoreAST_Expression* tmp = ll->lift_point;
-//     //     while (tmp->list.next != NULL)
-//     //         tmp = tmp->list.next;
-//     //     tmp->list.next = necro_create_core_list(&ll->arena, NULL, NULL);
-//     //     lambda_lift_point = tmp->list.next;
-//     // }
-//
-//     // Env and Outer
-//     NecroVarList*              prev_env   = env;
-//     NecroLambdaLiftSymbolInfo* prev_outer = outer;
-//     env                                   = NULL;
-//     outer                                 = necro_lambda_lift_symtable_get(ll, fn_var);
-//     outer->parent                         = prev_outer;
-//     ll->lift_point                        = necro_create_core_list(&ll->arena, NULL, ll->lift_point);
-//
-//     // Go deeper
-//     NecroCoreAST_Expression* arg_ast  = necro_deep_copy_core_ast(&ll->arena, in_ast->lambda.arg);
-//     env                               = necro_cons_var_list(&ll->arena, arg_ast->var, env);
-//     NecroCoreAST_Expression* expr_ast =
-//         (in_ast->lambda.expr->expr_type == NECRO_CORE_EXPR_LAM) ?
-//         necro_lambda_lift_smash_lambda(ll, in_ast->lambda.expr, env, outer) :
-//         necro_lambda_lift_go(ll, in_ast->lambda.expr, env, outer);
-//     expr_ast                          = necro_create_core_lam(&ll->arena, arg_ast, expr_ast);
-//     expr_ast->necro_type              = in_ast->necro_type;
-//
-//     // Lift
-//     NecroCoreAST_Expression*   bind_ast  = necro_create_core_bind(&ll->arena, expr_ast, fn_var);
-//     NecroLambdaLiftSymbolInfo* info      = outer;
-//     NecroVarList*              free_vars = necro_reverse_var_list(&ll->arena, info->free_vars);
-//     // TODO: Look at Types and arities to figure out what's going wrong.
-//     while (free_vars != NULL)
-//     // while (false)
-//     {
-//         NecroVar env_var = necro_find_free_var(ll, env, outer, free_vars->data);
-//         expr_ast     = necro_create_core_lam(&ll->arena, necro_create_core_var(&ll->arena, env_var), expr_ast);
-//         s_info->type = necro_type_fn_create(&ll->arena, necro_symtable_get(ll->symtable, free_vars->data.id)->type, s_info->type);
-//         // if (prev_outer != NULL && necro_is_free_var(ll, prev_env, prev_outer, free_vars->data))
-//         // {
-//         //     // prev_outer->free_vars = necro_cons_var_list(&ll->arena, free_vars->data, prev_outer->free_vars);
-//         //     prev_outer->free_vars = necro_cons_var_list(&ll->arena, necro_copy_var(ll, free_vars->data), prev_outer->free_vars);
-//         // }
-//         free_vars = free_vars->next;
-//     }
-//     bind_ast->bind.expr = expr_ast;
-//
-//     lambda_lift_point->list.expr = bind_ast;
-//
-//     // Apply free vars
-//     necro_snapshot_arena_rewind(&ll->snapshot_arena, snapshot);
-//     return necro_lambda_lift_go(ll, necro_create_core_var(&ll->arena, fn_var), prev_env, prev_outer);
-// }
-//
-// NecroCoreAST_Expression* necro_lambda_lift_bind(NecroLambdaLift* ll, NecroCoreAST_Expression* in_ast, NecroVarList* env, NecroLambdaLiftSymbolInfo* outer)
-// {
-//     assert(ll != NULL);
-//     assert(in_ast != NULL);
-//     assert(in_ast->expr_type == NECRO_CORE_EXPR_BIND);
-//
-//     // TODO: Nested lambdas messes up ordering at lift point!
-//     // TODO: Rename lifted functions to avoid name clashes!
-//
-//     // NecroVarList*              prev_env   = env;
-//     NecroLambdaLiftSymbolInfo* prev_outer = outer;
-//
-//     bool is_fn = necro_bind_is_fn(in_ast);
-//     if (is_fn)
-//     {
-//         env           = necro_cons_var_list(&ll->arena, in_ast->bind.var, NULL);
-//         outer         = necro_lambda_lift_symtable_get(ll, in_ast->bind.var);
-//         outer->parent = prev_outer;
-//     }
-//
-//     NecroCoreAST_Expression* expr_ast = is_fn ?
-//         necro_lambda_lift_smash_lambda(ll, in_ast->bind.expr, env, outer) :
-//         necro_lambda_lift_go(ll, in_ast->bind.expr, env, outer);
-//     NecroCoreAST_Expression* bind_ast = necro_create_core_bind(&ll->arena, expr_ast, in_ast->var);
-//     bind_ast->necro_type              = in_ast->necro_type;
-//     bind_ast->bind.is_recursive       = in_ast->bind.is_recursive;
-//
-//     if (is_fn)
-//     // if (false)
-//     {
-//         NecroLambdaLiftSymbolInfo* info      = outer;
-//         NecroSymbolInfo*           s_info    = necro_symtable_get(ll->symtable, info->var.id);
-//         NecroVarList*              free_vars = necro_reverse_var_list(&ll->arena, info->free_vars);
-//         while (free_vars != NULL)
-//         {
-//             NecroVar env_var = necro_find_free_var(ll, env, outer, free_vars->data);
-//             expr_ast     = necro_create_core_lam(&ll->arena, necro_create_core_var(&ll->arena, env_var), expr_ast);
-//             s_info->type = necro_type_fn_create(&ll->arena, necro_symtable_get(ll->symtable, free_vars->data.id)->type, s_info->type);
-//             // if (prev_outer != NULL && necro_is_free_var(ll, prev_env, prev_outer, free_vars->data))
-//             // {
-//             //     // prev_outer->free_vars = necro_cons_var_list(&ll->arena, free_vars->data, prev_outer->free_vars);
-//             //     prev_outer->free_vars = necro_cons_var_list(&ll->arena, necro_copy_var(ll, free_vars->data), prev_outer->free_vars);
-//             // }
-//             free_vars = free_vars->next;
-//         }
-//         bind_ast->bind.expr = expr_ast;
-//
-//     }
-//
-//     return bind_ast;
-// }
-//
-// NecroCoreAST_Expression* necro_lambda_lift_let(NecroLambdaLift* ll, NecroCoreAST_Expression* in_ast, NecroVarList* env, NecroLambdaLiftSymbolInfo* outer)
-// {
-//     assert(ll != NULL);
-//     assert(in_ast != NULL);
-//     assert(in_ast->expr_type == NECRO_CORE_EXPR_LET);
-//
-//     env                               = necro_cons_var_list(&ll->arena, in_ast->let.bind->bind.var, env);
-//     NecroCoreAST_Expression* bind_ast = necro_lambda_lift_go(ll, in_ast->let.bind, env, outer);
-//
-//     // NecroCoreAST_Expression* let_lift_point = NULL;
-//     if (necro_bind_is_fn(in_ast->let.bind))
-//         necro_lift_lambda_and_insert_into_env(ll, bind_ast, in_ast->let.bind->bind.var);
-//         // let_lift_point = necro_lift_lambda_and_insert_into_env(ll, bind_ast);
-//
-//     NecroCoreAST_Expression* expr_ast = necro_lambda_lift_go(ll, in_ast->let.expr, env, outer);
-//
-//     if (necro_bind_is_fn(in_ast->let.bind))
-//     {
-//         // Lift to top level
-//         // ll->lift_point = necro_create_core_list(&ll->arena, bind_ast, ll->lift_point);
-//         // let_lift_point->list.expr = bind_ast;
-//         return expr_ast;
-//     }
-//     else
-//     {
-//         NecroCoreAST_Expression* out_ast  = necro_create_core_let(&ll->arena, bind_ast, expr_ast);
-//         out_ast->necro_type               = in_ast->necro_type;
-//         return out_ast;
-//     }
-// }
-//
-// NecroCoreAST_Expression* necro_lambda_lift_var(NecroLambdaLift* ll, NecroCoreAST_Expression* in_ast, NecroVarList* env, NecroLambdaLiftSymbolInfo* outer)
-// {
-//     assert(ll != NULL);
-//     assert(in_ast != NULL);
-//     assert(in_ast->expr_type == NECRO_CORE_EXPR_VAR);
-//
-//     NecroVar var = necro_find_free_var(ll, env, outer, in_ast->var);
-//
-//     NecroCoreAST_Expression* out_ast = necro_create_core_var(&ll->arena, var);
-//     // Set var as free var if not bound
-//     out_ast->necro_type              = in_ast->necro_type;
-//     // if (necro_is_free_var(ll, env, outer, in_ast->var))
-//     if (var.id.id != in_ast->var.id.id)
-//     {
-//         // Logic for binding....
-//         // needs new ID!!!!
-//         assert(outer != NULL);
-//         out_ast->var = necro_copy_var(ll, in_ast->var);
-//         var          = out_ast->var;
-//         outer->free_vars = necro_cons_var_list(&ll->arena, out_ast->var, outer->free_vars);
-//     }
-//
-//     // Apply free vars to variable
-//     NecroLambdaLiftSymbolInfo* info = necro_lambda_lift_symtable_get(ll, in_ast->var);
-//     assert(info != NULL);
-//     NecroVarList* free_vars = info->free_vars;
-//     while (free_vars != NULL)
-//     {
-//         NecroVar env_var = necro_find_free_var(ll, env, outer, free_vars->data);// necro_create_core_var(&ll->arena, free_vars->data)
-//         if (env_var.id.id == 0)
-//         {
-//             // IT'S MISSING, DO SOMETHING!
-//             env_var = necro_copy_var(ll, free_vars->data);
-//             outer->free_vars = necro_cons_var_list(&ll->arena, env_var, outer->free_vars);
-//         }
-//         // out_ast                        = necro_create_core_app(&ll->arena, out_ast, necro_create_core_var(&ll->arena, free_vars->data));
-//         out_ast                        = necro_create_core_app(&ll->arena, out_ast, necro_create_core_var(&ll->arena, env_var));
-//         out_ast->app.exprB->necro_type = necro_symtable_get(ll->symtable, free_vars->data.id)->type;
-//         free_vars                      = free_vars->next;
-//     }
-//     return out_ast;
-// }
-//
-// ///////////////////////////////////////////////////////
-// // Lambda Lift Go
-// ///////////////////////////////////////////////////////
-// NecroCoreAST_Expression* necro_lambda_lift_go(NecroLambdaLift* ll, NecroCoreAST_Expression* in_ast, NecroVarList* env, NecroLambdaLiftSymbolInfo* outer)
-// {
-//     assert(ll != NULL);
-//     if (in_ast == NULL)
-//         return NULL;
-//     switch (in_ast->expr_type)
-//     {
-//     case NECRO_CORE_EXPR_VAR:       return necro_lambda_lift_var(ll, in_ast, env, outer);
-//     case NECRO_CORE_EXPR_LAM:       return necro_lambda_lift_lambda(ll, in_ast, env, outer);
-//     case NECRO_CORE_EXPR_LET:       return necro_lambda_lift_let(ll, in_ast, env, outer);
-//     case NECRO_CORE_EXPR_BIND:      return necro_lambda_lift_bind(ll, in_ast, env, outer);
-//     case NECRO_CORE_EXPR_LIST:      return necro_lambda_lift_list(ll, in_ast, env, outer);
-//     case NECRO_CORE_EXPR_CASE:      return necro_lambda_lift_case(ll, in_ast, env, outer);
-//     case NECRO_CORE_EXPR_APP:       return necro_lambda_lift_app(ll, in_ast, env, outer);
-//     case NECRO_CORE_EXPR_DATA_DECL: return necro_deep_copy_core_ast(&ll->arena, in_ast); // TODO: This is only correct if in default state, not in PAT state!
-//     case NECRO_CORE_EXPR_DATA_CON:  return necro_deep_copy_core_ast(&ll->arena, in_ast); // TODO: This is only correct if in default state, not in PAT state!
-//     case NECRO_CORE_EXPR_LIT:       return necro_deep_copy_core_ast(&ll->arena, in_ast);
-//     case NECRO_CORE_EXPR_TYPE:      return necro_deep_copy_core_ast(&ll->arena, in_ast);
-//     default:                        assert(false && "Unimplemented AST type in necro_lambda_lift_go"); return NULL;
-//     }
-// }
-//
-// ///////////////////////////////////////////////////////
-// // Lambda Lift Pat
-// ///////////////////////////////////////////////////////
-// NecroCoreAST_Expression* necro_lambda_lift_app_pat(NecroLambdaLift* ll, NecroCoreAST_Expression* in_ast, NecroVarList** env, NecroLambdaLiftSymbolInfo* outer)
-// {
-//     assert(ll != NULL);
-//     assert(in_ast != NULL);
-//     assert(in_ast->expr_type == NECRO_CORE_EXPR_APP);
-//     NecroCoreAST_Expression* expr_a  = necro_lambda_lift_pat_go(ll, in_ast->app.exprA, env, outer);
-//     NecroCoreAST_Expression* expr_b  = necro_lambda_lift_pat_go(ll, in_ast->app.exprB, env, outer);
-//     NecroCoreAST_Expression* out_ast = necro_create_core_app(&ll->arena, expr_a, expr_b);
-//     out_ast->necro_type              = in_ast->necro_type;
-//     out_ast->app.persistent_slot     = in_ast->app.persistent_slot;
-//     return out_ast;
-// }
-//
-// NecroCoreAST_Expression* necro_lambda_lift_data_con_pat(NecroLambdaLift* ll, NecroCoreAST_Expression* in_ast, NecroVarList** env, NecroLambdaLiftSymbolInfo* outer)
-// {
-//     assert(ll != NULL);
-//     assert(in_ast != NULL);
-//     assert(in_ast->expr_type == NECRO_CORE_EXPR_DATA_CON);
-//     // Go deeper
-//     if (in_ast->data_con.next != NULL)
-//     {
-//         NecroCoreAST_Expression con;
-//         con.expr_type                    = NECRO_CORE_EXPR_DATA_CON;
-//         con.data_con                     = *in_ast->data_con.next;
-//         NecroCoreAST_Expression* args    = necro_lambda_lift_app_pat(ll, in_ast->data_con.arg_list, env, outer);
-//         NecroCoreAST_DataCon*    next    = &necro_lambda_lift_app_pat(ll, &con, env, outer)->data_con;
-//         NecroCoreAST_Expression* out_ast = necro_create_core_data_con(&ll->arena, in_ast->data_con.condid, args, next);
-//         out_ast->necro_type              = in_ast->necro_type;
-//         return out_ast;
-//     }
-//     else
-//     {
-//         NecroCoreAST_Expression* out_ast = necro_create_core_data_con(&ll->arena, in_ast->data_con.condid, necro_lambda_lift_app_pat(ll, in_ast->data_con.arg_list, env, outer), NULL);
-//         out_ast->necro_type              = in_ast->necro_type;
-//         return out_ast;
-//     }
-// }
-//
-// NecroCoreAST_Expression* necro_lambda_lift_list_pat(NecroLambdaLift* ll, NecroCoreAST_Expression* in_ast, NecroVarList** env, NecroLambdaLiftSymbolInfo* outer)
-// {
-//     assert(ll != NULL);
-//     assert(in_ast != NULL);
-//     assert(in_ast->expr_type == NECRO_CORE_EXPR_LIST);
-//     NecroCoreAST_Expression* head = NULL;
-//     if (in_ast->list.expr == NULL)
-//         head = necro_create_core_list(&ll->arena, NULL, NULL);
-//     else
-//         head = necro_create_core_list(&ll->arena, necro_lambda_lift_pat_go(ll, in_ast->list.expr, env, outer), NULL);
-//     head->necro_type = in_ast->necro_type;
-//     NecroCoreAST_Expression* curr = head;
-//     in_ast = in_ast->list.next;
-//     while (in_ast != NULL)
-//     {
-//         if (in_ast->list.expr == NULL)
-//             curr->list.next = necro_create_core_list(&ll->arena, NULL, NULL);
-//         else
-//             curr->list.next = necro_create_core_list(&ll->arena, necro_lambda_lift_pat_go(ll, in_ast->list.expr, env, outer), NULL);
-//         curr   = curr->list.next;
-//         in_ast = in_ast->list.next;
-//     }
-//     return head;
-// }
-//
-// NecroCoreAST_Expression* necro_lambda_lift_var_pat(NecroLambdaLift* ll, NecroCoreAST_Expression* in_ast, NecroVarList** env)
-// {
-//     assert(ll != NULL);
-//     assert(in_ast != NULL);
-//     assert(in_ast->expr_type == NECRO_CORE_EXPR_VAR);
-//     NecroCoreAST_Expression* out_ast = necro_create_core_var(&ll->arena, in_ast->var);
-//     out_ast->necro_type              = in_ast->necro_type;
-//     *env                             = necro_cons_var_list(&ll->arena, in_ast->var, *env);
-//     return out_ast;
-// }
-//
-// NecroCoreAST_Expression* necro_lambda_lift_pat_go(NecroLambdaLift* ll, NecroCoreAST_Expression* in_ast, NecroVarList** env, NecroLambdaLiftSymbolInfo* outer)
-// {
-//     assert(ll != NULL);
-//     if (in_ast == NULL)
-//         return NULL;
-//     switch (in_ast->expr_type)
-//     {
-//     case NECRO_CORE_EXPR_VAR:       return necro_lambda_lift_var_pat(ll, in_ast, env);
-//     case NECRO_CORE_EXPR_LIST:      return necro_lambda_lift_list_pat(ll, in_ast, env, outer);
-//     case NECRO_CORE_EXPR_DATA_CON:  return necro_lambda_lift_data_con_pat(ll, in_ast, env, outer);
-//     case NECRO_CORE_EXPR_APP:       return necro_lambda_lift_app_pat(ll, in_ast, env, outer);
-//
-//     case NECRO_CORE_EXPR_BIND:      assert(false); return NULL;
-//     case NECRO_CORE_EXPR_LAM:       assert(false); return NULL;
-//     case NECRO_CORE_EXPR_LET:       assert(false); return NULL;
-//     case NECRO_CORE_EXPR_CASE:      assert(false); return NULL;
-//     case NECRO_CORE_EXPR_DATA_DECL: assert(false); return NULL;
-//
-//     case NECRO_CORE_EXPR_LIT:       return necro_deep_copy_core_ast(&ll->arena, in_ast);
-//     case NECRO_CORE_EXPR_TYPE:      return necro_deep_copy_core_ast(&ll->arena, in_ast);
-//     default:                        assert(false && "Unimplemented AST type in necro_lambda_lift_go"); return NULL;
-//     }
-// }
-

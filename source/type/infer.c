@@ -871,7 +871,7 @@ NecroResult(NecroType) necro_gen_pat_go(NecroInfer* infer, NecroAst* ast)
         // rec check
         if (ast->variable.is_recursive)
         {
-            necro_try(NecroType, necro_type_set_zero_order(ast->necro_type, &ast->source_loc, &ast->end_loc));
+            // necro_try(NecroType, necro_type_set_zero_order(ast->necro_type, &ast->source_loc, &ast->end_loc));
         }
         return ok(NecroType, ast->necro_type);
     }
@@ -1398,7 +1398,7 @@ NecroResult(NecroType) necro_infer_if_then_else(NecroInfer* infer, NecroAst* ast
     ast->necro_type = then_type;
     // if (!necro_type_is_zero_order(ast->necro_type))
     //     return necro_type_higher_order_branching_error(NULL, ast->necro_type, ast->if_then_else.then_expr->source_loc, ast->if_then_else.then_expr->end_loc);
-    necro_try(NecroType, necro_type_set_zero_order(ast->necro_type, &ast->if_then_else.then_expr->source_loc, &ast->if_then_else.then_expr->end_loc));
+    // necro_try(NecroType, necro_type_set_zero_order(ast->necro_type, &ast->if_then_else.then_expr->source_loc, &ast->if_then_else.then_expr->end_loc));
     return ok(NecroType, ast->necro_type);
 }
 
@@ -1632,7 +1632,7 @@ NecroResult(NecroType) necro_infer_case(NecroInfer* infer, NecroAst* ast)
     ast->necro_type = result_type;
     // if (!necro_type_is_zero_order(ast->necro_type))
     //     return necro_type_higher_order_branching_error(NULL, ast->necro_type, ast->case_expression.alternatives->list.item->case_alternative.body->source_loc, ast->case_expression.alternatives->list.item->case_alternative.body->end_loc);
-    necro_try(NecroType, necro_type_set_zero_order(ast->necro_type, &ast->case_expression.alternatives->list.item->case_alternative.body->source_loc, &ast->case_expression.alternatives->list.item->case_alternative.body->end_loc));
+    // necro_try(NecroType, necro_type_set_zero_order(ast->necro_type, &ast->case_expression.alternatives->list.item->case_alternative.body->source_loc, &ast->case_expression.alternatives->list.item->case_alternative.body->end_loc));
     return ok(NecroType, ast->necro_type);
 }
 
@@ -3003,74 +3003,74 @@ void necro_test_infer()
         necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
     }
 
-    {
-        const char* test_name   = "Lifted Type Restriction 1";
-        const char* test_source = ""
-            "eitherOr :: Int -> Int -> Int\n"
-            "eitherOr = if True then mul else sub\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_LIFTED_TYPE_RESTRICTION;
-        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
-    }
-
-    {
-        const char* test_name   = "Lifted Type Restriction 2";
-        const char* test_source = ""
-            "eitherOr :: Int -> Int -> Int\n"
-            "eitherOr =\n"
-            "  case Nothing of\n"
-            "    Nothing -> sub\n"
-            "    Just x  -> mul\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_LIFTED_TYPE_RESTRICTION;
-        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
-    }
-
-    {
-        const char* test_name   = "Lifted Type Restriction 3";
-        const char* test_source = ""
-            "polyNothing :: a -> Maybe a\n"
-            "polyNothing ~ Just = \\a -> polyNothing a\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_LIFTED_TYPE_RESTRICTION;
-        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
-    }
-
-    {
-        const char* test_name   = "Mismatched Type Order 1";
-        const char* test_source = ""
-            "data Pair a b = Pair a b\n"
-            "Pair (left ~ Just) _ = Pair left True\n"
-            "leftGo :: a -> Maybe a\n"
-            "leftGo = left\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_LIFTED_TYPE_RESTRICTION;
-        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
-    }
-
-    {
-        const char* test_name   = "Mismatched Type Order 2";
-        const char* test_source = ""
-            "zeroOrder :: a -> b -> b\n"
-            "zeroOrder _ x = x\n"
-            "chaos :: Int\n"
-            "chaos = zeroOrder mul 0\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_ORDER;
-        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
-    }
-
-    {
-        const char* test_name   = "Mismatched Type Order 3";
-        const char* test_source = ""
-            "disorder :: ^a -> ^a\n"
-            "disorder x = if True then x else x\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_ORDER;
-        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
-    }
-
     // TODO: Ripping this out for now, looking towards unrestricting functions in this manner.
+    // {
+    //     const char* test_name   = "Lifted Type Restriction 1";
+    //     const char* test_source = ""
+    //         "eitherOr :: Int -> Int -> Int\n"
+    //         "eitherOr = if True then mul else sub\n";
+    //     const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+    //     const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_LIFTED_TYPE_RESTRICTION;
+    //     necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    // }
+    //
+    // {
+    //     const char* test_name   = "Lifted Type Restriction 2";
+    //     const char* test_source = ""
+    //         "eitherOr :: Int -> Int -> Int\n"
+    //         "eitherOr =\n"
+    //         "  case Nothing of\n"
+    //         "    Nothing -> sub\n"
+    //         "    Just x  -> mul\n";
+    //     const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+    //     const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_LIFTED_TYPE_RESTRICTION;
+    //     necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    // }
+    //
+    // {
+    //     const char* test_name   = "Lifted Type Restriction 3";
+    //     const char* test_source = ""
+    //         "polyNothing :: a -> Maybe a\n"
+    //         "polyNothing ~ Just = \\a -> polyNothing a\n";
+    //     const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+    //     const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_LIFTED_TYPE_RESTRICTION;
+    //     necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    // }
+    //
+    // {
+    //     const char* test_name   = "Mismatched Type Order 1";
+    //     const char* test_source = ""
+    //         "data Pair a b = Pair a b\n"
+    //         "Pair (left ~ Just) _ = Pair left True\n"
+    //         "leftGo :: a -> Maybe a\n"
+    //         "leftGo = left\n";
+    //     const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+    //     const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_LIFTED_TYPE_RESTRICTION;
+    //     necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    // }
+
+    // {
+    //     const char* test_name   = "Mismatched Type Order 2";
+    //     const char* test_source = ""
+    //         "zeroOrder :: a -> b -> b\n"
+    //         "zeroOrder _ x = x\n"
+    //         "chaos :: Int\n"
+    //         "chaos = zeroOrder mul 0\n";
+    //     const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+    //     const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_ORDER;
+    //     necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    // }
+
+    // {
+    //     const char* test_name   = "Mismatched Type Order 3";
+    //     const char* test_source = ""
+    //         "disorder :: ^a -> ^a\n"
+    //         "disorder x = if True then x else x\n";
+    //     const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+    //     const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_ORDER;
+    //     necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    // }
+
     // {
     //     const char* test_name   = "Mismatched Type Order 4";
     //     const char* test_source = ""

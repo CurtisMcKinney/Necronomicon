@@ -55,7 +55,6 @@ typedef struct NecroBase
 
     NecroAstSymbol* poly_type;
     NecroAstSymbol* world_type;
-    NecroAstSymbol* world_value;
     NecroAstSymbol* unit_type;
     NecroAstSymbol* unit_con;
     // NecroAstSymbol* list_type;

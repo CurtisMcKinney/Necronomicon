@@ -199,12 +199,6 @@ typedef struct NecroCoreAstForLoop
     struct NecroCoreAst* expression;
 } NecroCoreAstForLoop;
 
-// typedef struct NecroCoreAstList
-// {
-//     struct NecroCoreAst* item;
-//     struct NecroCoreAst* next;
-// } NecroCoreAstList;
-
 typedef enum
 {
     NECRO_CORE_AST_VAR,

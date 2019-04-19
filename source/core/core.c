@@ -230,17 +230,18 @@ void necro_construct_core_transform(
     core_transform->prim_types = prim_types;
     core_transform->transform_state = NECRO_CORE_TRANSFORMING;
     core_transform->symtable = symtable;
+    UNUSED(scoped_symtable);
 
-    NecroCoreConstructors* constructors = &core_transform->constructors;
-    constructors->twoTuple =    necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,)");
-    constructors->threeTuple =  necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,)");
-    constructors->fourTuple =   necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,,)");
-    constructors->fiveTuple =   necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,,,)");
-    constructors->sixTuple =    necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,,,,)");
-    constructors->sevenTuple =  necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,,,,,)");
-    constructors->eightTuple =  necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,,,,,,)");
-    constructors->nineTuple =   necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,,,,,,,)");
-    constructors->tenTuple =    necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,,,,,,,,)");
+    // NecroCoreConstructors* constructors = &core_transform->constructors;
+    // constructors->twoTuple =    necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,)");
+    // constructors->threeTuple =  necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,)");
+    // constructors->fourTuple =   necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,,)");
+    // constructors->fiveTuple =   necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,,,)");
+    // constructors->sixTuple =    necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,,,,)");
+    // constructors->sevenTuple =  necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,,,,,)");
+    // constructors->eightTuple =  necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,,,,,,)");
+    // constructors->nineTuple =   necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,,,,,,,)");
+    // constructors->tenTuple =    necro_scoped_symtable_get_top_level_symbol_var(scoped_symtable, "(,,,,,,,,,)");
 }
 
 NecroCoreAST_Expression* necro_transform_to_core_impl(NecroTransformToCore* core_transform, NecroAst* necro_ast_node);

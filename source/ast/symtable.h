@@ -79,25 +79,23 @@ typedef struct NecroSymTable
 NecroSymTable    necro_symtable_empty();
 NecroSymTable    necro_symtable_create(NecroIntern* intern);
 void             necro_symtable_destroy(NecroSymTable* table);
-NecroID          necro_symtable_insert(NecroSymTable* table, NecroSymbolInfo info);
+// TODO: Remove this
 NecroSymbolInfo* necro_symtable_get(NecroSymTable* table, NecroID id);
 NecroSymbolInfo  necro_symtable_create_initial_symbol_info(NecroSymbol symbol, NecroSourceLoc source_loc, struct NecroScope* scope);
 
 //=====================================================
 // NecroScopedSymTable
 //=====================================================
-typedef struct NecroScopedHashtableNode
+typedef struct NecroScopeNode
 {
-    NecroSymbol              symbol;     // TODO: Remove
-    NecroID                  id;         // TODO: Remove
-    NecroAstSymbol*          ast_symbol;
+    NecroSymbol     symbol;
+    NecroAstSymbol* ast_symbol;
 } NecroScopeNode;
 
 typedef struct NecroScope
 {
     struct NecroScope* parent;
     NecroScopeNode*    buckets;
-    NecroScopeNode*    id_buckets;
     size_t             size;
     size_t             count;
     NecroSymbol        last_introduced_symbol;
@@ -129,8 +127,6 @@ void                necro_scoped_symtable_pop_type_scope(NecroScopedSymTable* ta
 void                necro_build_scopes(NecroCompileInfo info, NecroScopedSymTable* table, NecroAstArena* ast);
 void                necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input_node);
 NecroScope*         necro_scope_create(NecroPagedArena* arena, NecroScope* parent);
-NecroID             necro_scoped_symtable_new_symbol_info(NecroScopedSymTable* table, NecroScope* scope, NecroSymbolInfo info);
-NecroID             necro_symtable_manual_new_symbol(NecroSymTable* symtable, NecroSymbol symbol); // TODO: Remove!!!!!!!
 
 void                necro_scope_print(NecroScope* scope, size_t whitespace, NecroIntern* intern);
 bool                necro_scope_contains(NecroScope* scope, NecroSymbol symbol);
@@ -140,10 +136,6 @@ NecroAstSymbol*     necro_scope_find_ast_symbol(NecroScope* scope, NecroSymbol s
 NecroAstSymbol*     necro_scope_find_in_this_scope_ast_symbol(NecroScope* scope, NecroSymbol symbol);
 NecroAstSymbol*     necro_symtable_get_top_level_ast_symbol(NecroScopedSymTable* scoped_symtable, NecroSymbol symbol);
 NecroAstSymbol*     necro_symtable_get_type_ast_symbol(NecroScopedSymTable* scoped_symtable, NecroSymbol symbol);
-
-// TODO (Curtis, 2-7-18): Remove These two!
-NecroVar            necro_scoped_symtable_get_top_level_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name);
-NecroVar            necro_scoped_symtable_get_type_symbol_var(NecroScopedSymTable* scoped_symtable, const char* name);
 
 void                necro_scoped_symtable_print_top_scopes(NecroScopedSymTable* table);
 void                necro_scoped_symtable_print_type_scope(NecroScopedSymTable* table);

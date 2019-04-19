@@ -11,8 +11,9 @@
 #include <assert.h>
 #include <stdbool.h>
 
-#include "core.h"
+#include "core_ast.h"
 
-NecroCoreAST necro_lambda_lift(NecroCoreAST* in_ast, NecroIntern* intern, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types);
+void necro_core_lambda_lift(NecroCompileInfo info, NecroIntern* intern, NecroBase* base, NecroCoreAstArena* core_ast_arena);
+void necro_core_lambda_lift_test();
 
 #endif // CORE_LAMBDA_LIFT_H

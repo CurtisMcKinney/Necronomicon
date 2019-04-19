@@ -27,6 +27,7 @@ struct NecroMachAstSymbol;
 struct NecroUsage;
 struct NecroCoreAst;
 struct NecroCoreAstSymbol;
+struct NecroCoreScope;
 
 typedef enum
 {
@@ -78,13 +79,16 @@ typedef struct NecroCoreAstSymbol
     NecroSymbol                module_name;
     struct NecroCoreAst*       ast;
     struct NecroType*          type;
+    bool                       is_constructor;
     size_t                     con_num;
     bool                       is_enum;
     bool                       is_recursive;
+    struct NecroCoreScope*     free_vars;
     struct NecroMachAstSymbol* mach_symbol;
 } NecroCoreAstSymbol;
 
 NecroCoreAstSymbol* necro_core_ast_symbol_create_from_ast_symbol(NecroPagedArena* core_ast_arena, NecroAstSymbol* ast_symbol); // NOTE: This deep copies all information, and thus does not depend on any memory from the ast_symbol afterwards.
+NecroCoreAstSymbol* necro_core_ast_symbol_create_by_renaming(NecroPagedArena* core_ast_arena, NecroSymbol new_name, NecroCoreAstSymbol* ast_symbol); // NOTE: This deep copies all information, and thus does not depend on any memory from the ast_symbol afterwards.
 const char*         necro_core_ast_symbol_most_qualified_name(NecroCoreAstSymbol* core_ast_symbol);
 
 #endif // NECRO_AST_SYMBOL_H

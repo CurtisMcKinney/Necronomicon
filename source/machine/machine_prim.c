@@ -108,10 +108,15 @@ void necro_prim_fn_end(NecroMachineProgram* program, NecroMachineAST* fn_def, Ne
 
 void necro_create_prim_binop(NecroMachineProgram* program, const char* fn_name, NecroMachineType* type, NECRO_MACHINE_BINOP_TYPE op)
 {
-    NecroVar         binop_var      = necro_scoped_symtable_get_top_level_symbol_var(program->scoped_symtable, fn_name);
-    NecroMachineAST* binop_fn       = necro_prim_fn_begin(program, binop_var, type, (NecroMachineType*[]) { type, type }, 2);
-    NecroMachineAST* bin_op_result  = necro_build_binop(program, binop_fn, necro_create_param_reg(program, binop_fn, 0), necro_create_param_reg(program, binop_fn, 1), op);
-    necro_prim_fn_end(program, binop_fn, bin_op_result);
+    UNUSED(program);
+    UNUSED(fn_name);
+    UNUSED(type);
+    UNUSED(op);
+    // TODO / NOTE commented out because of API change
+    // NecroVar         binop_var      = necro_scoped_symtable_get_top_level_symbol_var(program->scoped_symtable, fn_name);
+    // NecroMachineAST* binop_fn       = necro_prim_fn_begin(program, binop_var, type, (NecroMachineType*[]) { type, type }, 2);
+    // NecroMachineAST* bin_op_result  = necro_build_binop(program, binop_fn, necro_create_param_reg(program, binop_fn, 0), necro_create_param_reg(program, binop_fn, 1), op);
+    // necro_prim_fn_end(program, binop_fn, bin_op_result);
 }
 
 void necro_create_prim_binops(NecroMachineProgram* program, NecroMachineType* type, const char** fn_names, NECRO_MACHINE_BINOP_TYPE* ops, size_t num_ops)
@@ -122,11 +127,16 @@ void necro_create_prim_binops(NecroMachineProgram* program, NecroMachineType* ty
 
 void necro_create_prim_cmp(NecroMachineProgram* program, const char* fn_name, NecroMachineType* type, NECRO_MACHINE_CMP_TYPE op)
 {
-    NecroVar         cmp_var    = necro_scoped_symtable_get_top_level_symbol_var(program->scoped_symtable, fn_name);
-    NecroMachineAST* cmp_fn     = necro_prim_fn_begin(program, cmp_var, program->necro_int_type, (NecroMachineType*[]) { type, type }, 2);
-    NecroMachineAST* cmp_result = necro_build_cmp(program, cmp_fn, op, necro_create_param_reg(program, cmp_fn, 0), necro_create_param_reg(program, cmp_fn, 1));
-    cmp_result                  = necro_build_zext(program, cmp_fn, cmp_result, cmp_fn->necro_machine_type->fn_type.return_type);
-    necro_prim_fn_end(program, cmp_fn, cmp_result);
+    UNUSED(program);
+    UNUSED(fn_name);
+    UNUSED(type);
+    UNUSED(op);
+    // TODO / NOTE commented out because of API change
+    // NecroVar         cmp_var    = necro_scoped_symtable_get_top_level_symbol_var(program->scoped_symtable, fn_name);
+    // NecroMachineAST* cmp_fn     = necro_prim_fn_begin(program, cmp_var, program->necro_int_type, (NecroMachineType*[]) { type, type }, 2);
+    // NecroMachineAST* cmp_result = necro_build_cmp(program, cmp_fn, op, necro_create_param_reg(program, cmp_fn, 0), necro_create_param_reg(program, cmp_fn, 1));
+    // cmp_result                  = necro_build_zext(program, cmp_fn, cmp_result, cmp_fn->necro_machine_type->fn_type.return_type);
+    // necro_prim_fn_end(program, cmp_fn, cmp_result);
 }
 
 void necro_create_prim_cmps(NecroMachineProgram* program, NecroMachineType* type, const char** fn_names, NECRO_MACHINE_CMP_TYPE* ops, size_t num_ops)
@@ -179,13 +189,13 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     UNUSED(_necro_debug_print_fn);
     program->runtime._necro_debug_print          = _necro_debug_print_var;
 
-    NecroVar          _necro_mouse_x_var     = necro_gen_var(program, NULL, "_necro_mouse_x", NECRO_NAME_UNIQUE);
-    NecroMachineType* _necro_mouse_x_fn_type = necro_create_machine_fn_type(&program->arena, program->necro_int_type, NULL, 0);
-    NecroMachineAST*  _necro_mouse_x_fn      = necro_create_machine_runtime_fn(program, _necro_mouse_x_var, _necro_mouse_x_fn_type, (NecroMachineFnPtr) _necro_mouse_x, NECRO_STATE_POINTWISE);
+    // NecroVar          _necro_mouse_x_var     = necro_gen_var(program, NULL, "_necro_mouse_x", NECRO_NAME_UNIQUE);
+    // NecroMachineType* _necro_mouse_x_fn_type = necro_create_machine_fn_type(&program->arena, program->necro_int_type, NULL, 0);
+    // NecroMachineAST*  _necro_mouse_x_fn      = necro_create_machine_runtime_fn(program, _necro_mouse_x_var, _necro_mouse_x_fn_type, (NecroMachineFnPtr) _necro_mouse_x, NECRO_STATE_POINTWISE);
 
-    NecroVar          _necro_mouse_y_var     = necro_gen_var(program, NULL, "_necro_mouse_y", NECRO_NAME_UNIQUE);
-    NecroMachineType* _necro_mouse_y_fn_type = necro_create_machine_fn_type(&program->arena, program->necro_int_type, NULL, 0);
-    NecroMachineAST*  _necro_mouse_y_fn      = necro_create_machine_runtime_fn(program, _necro_mouse_y_var, _necro_mouse_y_fn_type, (NecroMachineFnPtr) _necro_mouse_y, NECRO_STATE_POINTWISE);
+    // NecroVar          _necro_mouse_y_var     = necro_gen_var(program, NULL, "_necro_mouse_y", NECRO_NAME_UNIQUE);
+    // NecroMachineType* _necro_mouse_y_fn_type = necro_create_machine_fn_type(&program->arena, program->necro_int_type, NULL, 0);
+    // NecroMachineAST*  _necro_mouse_y_fn      = necro_create_machine_runtime_fn(program, _necro_mouse_y_var, _necro_mouse_y_fn_type, (NecroMachineFnPtr) _necro_mouse_y, NECRO_STATE_POINTWISE);
 
     //--------------------
     // New Copy GC
@@ -208,10 +218,10 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     UNUSED(_necro_copy_gc_collect_fn);
     program->runtime._necro_copy_gc_collect          = _necro_copy_gc_collect_var;
 
-    NecroVar          _necro_from_alloc_var     = necro_gen_var(program, NULL, "_necro_from_alloc", NECRO_NAME_UNIQUE);
-    NecroMachineType* _necro_from_alloc_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_ptr_type(&program->arena, necro_create_word_sized_int_type(program)), (NecroMachineType*[]) { necro_create_word_sized_uint_type(program) }, 1);
-    NecroMachineAST*  _necro_from_alloc_fn      = necro_create_machine_runtime_fn(program, _necro_from_alloc_var, _necro_from_alloc_fn_type, (NecroMachineFnPtr) _necro_from_alloc, NECRO_STATE_CONSTANT);
-    program->runtime._necro_from_alloc          = _necro_from_alloc_var;
+    // NecroVar          _necro_from_alloc_var     = necro_gen_var(program, NULL, "_necro_from_alloc", NECRO_NAME_UNIQUE);
+    // NecroMachineType* _necro_from_alloc_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_ptr_type(&program->arena, necro_create_word_sized_int_type(program)), (NecroMachineType*[]) { necro_create_word_sized_uint_type(program) }, 1);
+    // NecroMachineAST*  _necro_from_alloc_fn      = necro_create_machine_runtime_fn(program, _necro_from_alloc_var, _necro_from_alloc_fn_type, (NecroMachineFnPtr) _necro_from_alloc, NECRO_STATE_CONSTANT);
+    // program->runtime._necro_from_alloc          = _necro_from_alloc_var;
 
     NecroVar          _necro_flip_const_var     = necro_gen_var(program, NULL, "_necro_flip_const", NECRO_NAME_UNIQUE);
     NecroMachineType* _necro_flip_const_fn_type = necro_create_machine_fn_type(&program->arena, necro_create_machine_void_type(&program->arena), NULL, 0);
@@ -331,6 +341,8 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     necro_create_prim_con(program, array_struct->necro_machine_type, array_con, (NecroMachineType*[]) { program->necro_int_type, necro_create_machine_ptr_type(&program->arena, program->necro_poly_ptr_type) }, 2, 2, 0);
     necro_symtable_get(program->symtable, array_con.id)->arity = 2;
 
+    // TODO / NOTE: Commented out because of API changes
+    /*
     //--------------------
     // Prim Functions
     //--------------------
@@ -421,5 +433,6 @@ void necro_init_machine_prim(NecroMachineProgram* program)
     {
         // (_Poly* -> _Poly*) -> (_Poly* -> _Poly*) -> (_Poly* -> _Poly*)
     }
+    */
 
 }

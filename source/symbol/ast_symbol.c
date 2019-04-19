@@ -105,11 +105,30 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create_from_ast_symbol(NecroPagedArena
     core_ast_symbol->module_name        = ast_symbol->module_name;
     core_ast_symbol->ast                = NULL;
     core_ast_symbol->type               = necro_type_deep_copy(core_ast_arena, ast_symbol->type);
+    core_ast_symbol->is_constructor     = ast_symbol->is_constructor;
     core_ast_symbol->con_num            = ast_symbol->con_num;
     core_ast_symbol->is_enum            = ast_symbol->is_enum;
     core_ast_symbol->is_recursive       = ast_symbol->is_recursive;
+    core_ast_symbol->free_vars          = NULL;
     core_ast_symbol->mach_symbol        = NULL;
     ast_symbol->core_ast_symbol         = core_ast_symbol;
+    return core_ast_symbol;
+}
+
+NecroCoreAstSymbol* necro_core_ast_symbol_create_by_renaming(NecroPagedArena* core_ast_arena, NecroSymbol new_name, NecroCoreAstSymbol* ast_symbol)
+{
+    NecroCoreAstSymbol* core_ast_symbol = necro_paged_arena_alloc(core_ast_arena, sizeof(NecroCoreAstSymbol));
+    core_ast_symbol->name               = new_name;
+    core_ast_symbol->source_name        = ast_symbol->source_name;
+    core_ast_symbol->module_name        = ast_symbol->module_name;
+    core_ast_symbol->ast                = NULL;
+    core_ast_symbol->type               = necro_type_deep_copy(core_ast_arena, ast_symbol->type);
+    core_ast_symbol->is_constructor     = ast_symbol->is_constructor;
+    core_ast_symbol->con_num            = ast_symbol->con_num;
+    core_ast_symbol->is_enum            = ast_symbol->is_enum;
+    core_ast_symbol->is_recursive       = ast_symbol->is_recursive;
+    core_ast_symbol->free_vars          = NULL;
+    core_ast_symbol->mach_symbol        = NULL;
     return core_ast_symbol;
 }
 

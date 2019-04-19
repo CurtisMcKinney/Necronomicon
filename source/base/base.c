@@ -56,7 +56,6 @@ NecroBase necro_base_create(NecroIntern* intern)
 
         .poly_type              = NULL,
         .world_type             = NULL,
-        .world_value            = NULL,
         .unit_type              = NULL,
         .unit_con               = NULL,
         // .list_type              = NULL,
@@ -879,31 +878,23 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     //     necro_append_top(arena, top, fn_def_ast);
     // }
 
-    // world value
-    {
-        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "world", NULL, necro_ast_create_conid(arena, intern, "World", NECRO_CON_TYPE_VAR), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
-        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "world", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
-    }
-
     // mouseX
     {
-        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "getMouseX", NULL,
-            necro_ast_create_type_fn(arena, necro_ast_create_conid(arena, intern, "World", NECRO_CON_TYPE_VAR), necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR)),
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "mouseX", NULL,
+            necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR),
             NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
         necro_append_top(arena, top,
-            necro_ast_create_apats_assignment(arena, intern, "getMouseX",
-                necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "w", NECRO_VAR_DECLARATION), NULL),
+            necro_ast_create_simple_assignment(arena, intern, "mouseX",
                 necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
     }
 
     // mouseY
     {
-        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "getMouseY", NULL,
-            necro_ast_create_type_fn(arena, necro_ast_create_conid(arena, intern, "World", NECRO_CON_TYPE_VAR), necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR)),
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "mouseY", NULL,
+            necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR),
             NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
         necro_append_top(arena, top,
-            necro_ast_create_apats_assignment(arena, intern, "getMouseY",
-                necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "w", NECRO_VAR_DECLARATION), NULL),
+            necro_ast_create_simple_assignment(arena, intern, "mouseY",
                 necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
     }
 
@@ -1016,7 +1007,6 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 
     base.poly_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "_Poly"));
     base.world_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "World"));
-    base.world_value            = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "world"));
     base.unit_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "()"));
     base.unit_con               = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "()"));
     // base.list_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "[]"));
@@ -1047,8 +1037,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.maybe_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Maybe"));;
 
     // Runtime functions
-    base.mouse_x_fn             = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "getMouseX"));
-    base.mouse_y_fn             = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "getMouseY"));
+    base.mouse_x_fn             = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "mouseX"));
+    base.mouse_y_fn             = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "mouseY"));
     base.unsafe_malloc          = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "unsafeMalloc"));
     base.unsafe_peek            = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "unsafePeek"));
     base.unsafe_poke            = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "unsafePoke"));

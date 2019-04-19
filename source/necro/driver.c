@@ -91,15 +91,12 @@ NecroResult(void) necro_compile_go(
     size_t                input_string_length,
     NecroIntern*          intern,
     NecroBase*            base,
-    NecroSymTable*        symtable,
     NecroScopedSymTable*  scoped_symtable,
     NecroLexTokenVector*  lex_tokens,
     NecroParseAstArena*   parse_ast,
     NecroAstArena*        ast,
-    NecroInfer*           infer,
-    NecroTransformToCore* core_transform,
+    NecroCoreAstArena*    core_ast_arena,
     NecroCodeGenLLVM*     codegen_llvm,
-    NecroCoreAST*         ast_core,
     NecroMachineProgram*  machine)
 {
     if (info.compilation_phase == NECRO_PHASE_NONE)
@@ -170,43 +167,26 @@ NecroResult(void) necro_compile_go(
     if (necro_compile_end_phase(info, NECRO_PHASE_MONOMORPHIZE))
         return ok_void();
 
-    //=====================================================
+    //--------------------
     // Transform to Core
-    //=====================================================
-    if (info.compilation_phase != NECRO_PHASE_JIT && NECRO_VERBOSITY > 0)
-        necro_announce_phase("Core");
-    // necro_start_timer(timer);
-    ast_core->root = NULL;
-    necro_construct_core_transform(core_transform, ast_core, ast, intern, NULL, symtable, scoped_symtable);
-    necro_transform_to_core(core_transform);
-    // necro_stop_and_report_timer(timer, "core");
-    if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
-    {
-        printf("Failed to transform to core.");
-        //necro_print_error(&parser.error, input_string, "Transforming to Core");
+    //--------------------
+    necro_compile_begin_phase(info, NECRO_PHASE_TRANSFORM_TO_CORE);
+    necro_try(void, necro_ast_transform_to_core(info, intern, base, ast, core_ast_arena))
+    if (necro_compile_end_phase(info, NECRO_PHASE_TRANSFORM_TO_CORE))
         return ok_void();
-    }
-    if (info.compilation_phase == NECRO_PHASE_TRANSFORM_TO_CORE)
-    {
-        necro_print_core(ast_core, intern);
-        return ok_void();
-    }
 
-    //=====================================================
+    //--------------------
     // Lambda Lift
-    //=====================================================
-    if (info.compilation_phase != NECRO_PHASE_JIT && NECRO_VERBOSITY > 0)
-        necro_announce_phase("Lambda Lift");
-    // necro_start_timer(timer);
-    NecroCoreAST ll_core = necro_lambda_lift(ast_core, intern, symtable, scoped_symtable, NULL);
-    // necro_stop_and_report_timer(timer, "lambda_lift");
-    if (info.compilation_phase == NECRO_PHASE_LAMBDA_LIFT)
-    {
-        necro_core_pretty_print(&ll_core, symtable);
-        // necro_print_core(&cc_core, intern);
+    //--------------------
+    necro_compile_begin_phase(info, NECRO_PHASE_LAMBDA_LIFT);
+    necro_core_lambda_lift(info, intern, base, core_ast_arena);
+    if (necro_compile_end_phase(info, NECRO_PHASE_LAMBDA_LIFT))
         return ok_void();
-    }
 
+    UNUSED(codegen_llvm);
+    UNUSED(machine);
+
+    /*
     //=====================================================
     // Closure Conversion
     //=====================================================
@@ -284,6 +264,7 @@ NecroResult(void) necro_compile_go(
     {
         return ok_void();
     }
+    */
 
     return ok_void();
 }
@@ -304,9 +285,7 @@ void necro_compile(const char* file_name, const char* input_string, size_t input
     NecroLexTokenVector  lex_tokens      = necro_empty_lex_token_vector();
     NecroParseAstArena   parse_ast       = necro_parse_ast_arena_empty();
     NecroAstArena        ast             = necro_ast_arena_empty();
-    NecroInfer           infer           = necro_infer_empty();
-    NecroTransformToCore core_transform  = necro_empty_core_transform();
-    NecroCoreAST         ast_core        = necro_empty_core_ast();
+    NecroCoreAstArena    core_ast_arena  = necro_core_ast_arena_empty();
     NecroMachineProgram  machine         = necro_empty_machine_program();
     NecroCodeGenLLVM     codegen_llvm    = necro_empty_codegen_llvm();
 
@@ -321,15 +300,12 @@ void necro_compile(const char* file_name, const char* input_string, size_t input
         input_string_length,
         &intern,
         &base,
-        &symtable,
         &scoped_symtable,
         &lex_tokens,
         &parse_ast,
         &ast,
-        &infer,
-        &core_transform,
+        &core_ast_arena,
         &codegen_llvm,
-        &ast_core,
         &machine);
 
     //--------------------
@@ -348,9 +324,7 @@ void necro_compile(const char* file_name, const char* input_string, size_t input
     // Pass data
     necro_destroy_codegen_llvm(&codegen_llvm);
     necro_destroy_machine_program(&machine);
-    necro_destroy_core_ast(&ast_core);
-    necro_destruct_core_transform(&core_transform);
-    necro_infer_destroy(&infer);
+    necro_core_ast_arena_destroy(&core_ast_arena);
     necro_ast_arena_destroy(&ast);
     necro_parse_ast_arena_destroy(&parse_ast);
     necro_destroy_lex_token_vector(&lex_tokens);
@@ -375,6 +349,7 @@ void necro_test(NECRO_TEST test)
     case NECRO_TEST_INFER:                necro_test_infer();                break;
     case NECRO_TEST_MONOMORPHIZE:         necro_monomorphize_test();         break;
     case NECRO_TEST_CORE:                 necro_core_ast_test();             break;
+    case NECRO_TEST_LAMBDA_LIFT:          necro_core_lambda_lift_test();     break;
     case NECRO_TEST_ARENA_CHAIN_TABLE:    necro_arena_chain_table_test();    break;
     case NECRO_TEST_BASE:                 necro_base_test();                 break;
     case NECRO_TEST_ALL:
@@ -388,7 +363,9 @@ void necro_test(NECRO_TEST test)
         necro_test_infer();
         necro_monomorphize_test();
         necro_core_ast_test();
+        necro_core_lambda_lift_test();
         break;
-    default: break;
+    default:
+        break;
     }
 }

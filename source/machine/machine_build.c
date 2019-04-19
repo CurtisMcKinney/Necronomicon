@@ -32,11 +32,14 @@ NecroVar necro_gen_var(NecroMachineProgram* program, NecroMachineAST* necro_mach
         var_name = var_header;
     }
     NecroSymbol var_sym  = necro_intern_string(program->intern, var_name);
-    NecroID     var_id   = necro_symtable_manual_new_symbol(program->symtable, var_sym);
+    UNUSED(necro_machine_ast);
+    // TODO / NOTE: Commented out because of API change
+    // NecroID     var_id   = necro_symtable_manual_new_symbol(program->symtable, var_sym);
     // necro_symtable_get(program->symtable, var_id)->type           = type;
-    necro_symtable_get(program->symtable, var_id)->necro_machine_ast = necro_machine_ast;
+    // necro_symtable_get(program->symtable, var_id)->necro_machine_ast = necro_machine_ast;
     necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
-    return (NecroVar) { .id = var_id, .symbol = var_sym };
+    // return (NecroVar) { .id = var_id, .symbol = var_sym };
+    return (NecroVar) { .id = 0, .symbol = var_sym };
 }
 
 void necro_program_add_struct(NecroMachineProgram* program, NecroMachineAST* struct_ast)

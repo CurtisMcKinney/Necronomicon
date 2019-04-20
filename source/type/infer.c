@@ -1050,7 +1050,7 @@ NecroType* necro_infer_constant(NecroInfer* infer, NecroAst* ast)
     {
     case NECRO_AST_CONSTANT_FLOAT_PATTERN:
     {
-        ast->necro_type = infer->base->rational_type->type;
+        ast->necro_type = infer->base->float_type->type;
         return ast->necro_type;
         // Removing overloaded numeric literal patterns for now...
         // NecroType* new_name   = necro_new_name(infer->arena, ast->source_loc);

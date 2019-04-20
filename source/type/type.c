@@ -1300,7 +1300,6 @@ NecroResult(NecroType) necro_type_replace_with_subs(NecroPagedArena* arena, Necr
 
 NecroResult(NecroType) necro_type_instantiate(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* type, NecroScope* scope)
 {
-    UNUSED(scope);
     assert(type != NULL);
     type = necro_type_find(type);
     NecroType*    current_type = type;
@@ -1316,7 +1315,6 @@ NecroResult(NecroType) necro_type_instantiate(NecroPagedArena* arena, NecroConst
 
 NecroResult(NecroType) necro_type_instantiate_with_subs(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* type, NecroScope* scope, NecroInstSub** subs)
 {
-    UNUSED(scope);
     assert(type != NULL);
     type = necro_type_find(type);
     NecroType*    current_type = type;
@@ -2881,7 +2879,6 @@ void necro_type_ownership_bind_uvar_to_with_queue_push_front(NecroPagedArena* ar
 // Returns NULL
 NecroResult(NecroType) necro_type_ownership_unify(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroType* ownership1, NecroType* ownership2, NecroScope* scope)
 {
-    UNUSED(con_env);
     ownership1 = necro_type_find(ownership1);
     ownership2 = necro_type_find(ownership2);
     if (ownership1 == ownership2)

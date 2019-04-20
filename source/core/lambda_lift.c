@@ -6,8 +6,6 @@
 #include "lambda_lift.h"
 #include <stdio.h>
 #include "type.h"
-#include "core_create.h"
-#include "hash_table.h"
 #include "monomorphize.h"
 #include "alias_analysis.h"
 
@@ -33,7 +31,6 @@ typedef struct NecroLambdaLift
 {
     NecroPagedArena*         ast_arena;
     NecroPagedArena          ll_arena;
-    NecroSnapshotArena       snapshot_arena;
     NecroIntern*             intern;
     NecroBase*               base;
     NecroCoreAst*            lift_point;
@@ -61,7 +58,6 @@ NecroLambdaLift necro_lambda_lift_empty()
     {
         .ast_arena          = NULL,
         .ll_arena           = necro_paged_arena_empty(),
-        .snapshot_arena     = necro_snapshot_arena_empty(),
         .intern             = NULL,
         .base               = NULL,
         .lift_point         = NULL,
@@ -79,7 +75,6 @@ NecroLambdaLift necro_lambda_lift_create(NecroPagedArena* ast_arena, NecroIntern
     {
         .ast_arena      = ast_arena,
         .ll_arena       = ll_arena,
-        .snapshot_arena = necro_snapshot_arena_create(),
         .intern         = intern,
         .base           = base,
         .lift_point     = NULL,
@@ -92,7 +87,6 @@ NecroLambdaLift necro_lambda_lift_create(NecroPagedArena* ast_arena, NecroIntern
 void necro_lambda_lift_destroy(NecroLambdaLift* ll)
 {
     necro_paged_arena_destroy(&ll->ll_arena);
-    necro_snapshot_arena_destroy(&ll->snapshot_arena);
     *ll = necro_lambda_lift_empty();
 }
 

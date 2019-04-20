@@ -199,7 +199,8 @@ NecroType* necro_type_deep_copy_go(NecroPagedArena* arena, NecroType* type)
     case NECRO_TYPE_SYM:  new_type = necro_type_sym_create(arena, type->sym.value); break;
     default:              assert(false);
     }
-    new_type->kind = necro_type_find(type->kind);
+    new_type->kind      = necro_type_find(type->kind);
+    new_type->ownership = necro_type_deep_copy(arena, type->ownership);
     return new_type;
 }
 
@@ -571,6 +572,8 @@ NecroResult(void) necro_type_ambiguous_type_variable_check(NecroPagedArena* aren
     if (type == NULL)
         return ok_void();
     type = necro_type_find(type);
+    // Ambig check utypes
+    necro_try(void, necro_type_ambiguous_type_variable_check(arena, base, type->ownership, macro_type, source_loc, end_loc));
     switch (type->type)
     {
     case NECRO_TYPE_VAR:
@@ -2819,7 +2822,7 @@ void necro_type_ownership_bind_uvar_to(NecroPagedArena* arena, NecroConstraintEn
     NecroConstraintList* new_constraints = constraints2;
     while (constraints1 != NULL)
     {
-        bool new_constraint = true;
+        bool new_constraint = constraints2 != NULL;
         while (constraints2 != NULL)
         {
             if (constraints1->data->type == constraints2->data->type)
@@ -2853,7 +2856,7 @@ void necro_type_ownership_bind_uvar_to_with_queue_push_front(NecroPagedArena* ar
     NecroConstraintList* new_constraints = constraints2;
     while (constraints1 != NULL)
     {
-        bool new_constraint = true;
+        bool new_constraint = constraints2 != NULL;
         while (constraints2 != NULL)
         {
             if (constraints1->data->type == constraints2->data->type)

@@ -161,7 +161,7 @@ NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, s
 NecroResult(NecroType) necro_type_unify(NecroPagedArena* arena, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroType* type1, NecroType* type2, struct NecroScope* scope);
 NecroResult(NecroType) necro_type_occurs(NecroAstSymbol* var_symbol, NecroType* type);
 NecroResult(NecroType) necro_type_instantiate(NecroPagedArena* arenas, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroType* type, struct NecroScope* scope);
-NecroResult(NecroType) necro_type_replace_with_subs(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, NecroInstSub* subs);
+// NecroResult(NecroType) necro_type_replace_with_subs(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, NecroInstSub* subs);
 NecroResult(NecroType) necro_type_replace_with_subs_deep_copy(NecroPagedArena* arena, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroType* type, NecroInstSub* subs);
 NecroInstSub*          necro_type_union_subs(NecroInstSub* subs1, NecroInstSub* subs2);
 NecroInstSub*          necro_type_deep_copy_subs(NecroPagedArena* arena, NecroInstSub* subs);

@@ -1513,7 +1513,17 @@ void necro_alias_analysis_test()
         necro_ownership_test(test_name, test_source, expect_error_result, NULL);
     }
 
-    // TODO: Anon Dot support. Needs more testing.
+    {
+        const char* test_name   = "Unique Nested Fn";
+        const char* test_source = ""
+            "utest :: *Bool -> *Bool -> *(Bool, Bool)\n"
+            "utest b c = f True where\n"
+            "  f x = (b, c)\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    // TODO: Anon Dot needs more testing.
     // TODO: Reduce the amount of uvars/constraints floating around from apats.
     // TODO: where / let declaration testing with simple assignment and apats assignment!
     // TODO: Uniqueness Typed Base functions (Or prehaps move stuff like that into a prelude library).

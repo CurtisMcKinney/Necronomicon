@@ -8,6 +8,7 @@
 #include "type.h"
 #include "monomorphize.h"
 #include "alias_analysis.h"
+#include "core_infer.h"
 
 ///////////////////////////////////////////////////////
 // Types
@@ -439,7 +440,6 @@ void necro_core_lambda_lift_bind(NecroLambdaLift* ll, NecroCoreAst* ast)
     // Lift and insert into global scope
     necro_core_scope_insert(&ll->ll_arena, ll->global_scope, ast->bind.ast_symbol);
     necro_core_lambda_lift_push_scope(ll);
-    // necro_core_lambda_lift_go(ll, ast->bind.expr);
     necro_core_lambda_lift_bound_lam(ll, ast->bind.expr);
     // Lift named lambda
     NecroCoreAst* lifted_let      = necro_core_ast_create_let(ll->ast_arena, ast, NULL);
@@ -456,14 +456,16 @@ void necro_core_lambda_lift_bind(NecroLambdaLift* ll, NecroCoreAst* ast)
     }
     NecroCoreScope* free_vars       = ll->scope->free_vars;
     ast->bind.ast_symbol->free_vars = free_vars;
+    NecroType*      f_ownership     = ast->bind.ast_symbol->type->ownership;
     // Add Lambdas, starting from end
     for (int32_t i = free_vars->size - 1; i >= 0; i--)
     {
         NecroCoreAstSymbol* ast_symbol = free_vars->data[i].renamed_ast_symbol;
         if (ast_symbol == NULL)
             continue;
-        ast->bind.expr             = necro_core_ast_create_lam(ll->ast_arena, necro_core_ast_create_var(ll->ast_arena, ast_symbol), ast->bind.expr);
-        ast->bind.ast_symbol->type = necro_type_fn_create(ll->ast_arena, ast_symbol->type, ast->bind.ast_symbol->type);
+        ast->bind.expr                        = necro_core_ast_create_lam(ll->ast_arena, necro_core_ast_create_var(ll->ast_arena, ast_symbol), ast->bind.expr);
+        ast->bind.ast_symbol->type            = necro_type_fn_create(ll->ast_arena, ast_symbol->type, ast->bind.ast_symbol->type);
+        ast->bind.ast_symbol->type->ownership = f_ownership;
     }
     ast->necro_type = ast->bind.ast_symbol->type;
     necro_core_lambda_lift_pop_scope(ll);
@@ -553,6 +555,7 @@ void necro_core_lambda_lift_test_result(const char* test_name, const char* str)
     unwrap(void, necro_monomorphize(info, &intern, &scoped_symtable, &base, &ast));
     unwrap(void, necro_ast_transform_to_core(info, &intern, &base, &ast, &core_ast));
     necro_core_lambda_lift(info, &intern, &base, &core_ast);
+    unwrap(void, necro_core_infer(&intern, &base, &core_ast));
 
     // Print
 #if NECRO_CORE_LAMBDA_LIFT_VERBOSE
@@ -723,6 +726,24 @@ void necro_core_lambda_lift_test()
             "  breakGlass = case b of\n"
             "    True  -> \\x -> x && b\n"
             "    False -> \\y -> y || b\n";
+        necro_core_lambda_lift_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Lift Unique 1";
+        const char* test_source = ""
+            "utest :: *Bool -> *Bool\n"
+            "utest b = f True where\n"
+            "  f x = b\n";
+        necro_core_lambda_lift_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Lift Unique 2";
+        const char* test_source = ""
+            "utest :: *Bool -> *Bool -> *(Bool, Bool)\n"
+            "utest b c = f True where\n"
+            "  f x = (b, c)\n";
         necro_core_lambda_lift_test_result(test_name, test_source);
     }
 

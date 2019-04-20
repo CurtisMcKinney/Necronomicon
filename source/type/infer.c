@@ -128,7 +128,6 @@ NecroConstraintList* necro_constraint_append_uniqueness_coercion_without_queue_p
     constraint->uni.u1          = u1;
     constraint->uni.u2          = u2;
     constraint->uni.source_loc  = env->curr_loc;
-    // necro_constraint_dequeue_push_back(&env->constraints, constraint);
     return necro_cons_constraint_list(arena, constraint, next);
 }
 

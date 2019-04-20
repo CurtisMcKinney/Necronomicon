@@ -309,7 +309,7 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_data_decl(NecroCoreAstTran
     return ok(NecroCoreAst, core_ast);
 }
 
-// Filter out type signatures, class declarations, polymorphic values, etc
+// NOTE: Filters out type signatures, class declarations, polymorphic values, etc
 bool necro_core_ast_should_filter(NecroAst* ast)
 {
     switch (ast->type)
@@ -522,7 +522,7 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_tuple(NecroCoreAstTransfor
 NecroResult(NecroCoreAst) necro_ast_transform_to_core_array(NecroCoreAstTransform* context, NecroAst* ast)
 {
     // TODO: We need to be using some kind of Constructor here! Not the Array Type!!!!
-    // TODO: How to get correct type!
+    // TODO: How to get correct type!?
     NecroCoreAst* array_ast = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->array_type));
     array_ast->necro_type   = necro_type_deep_copy(context->arena, ast->necro_type);
     NecroAst*     args      = ast->expression_array.expressions;
@@ -676,12 +676,12 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_go(NecroCoreAstTransform* 
         assert(false && "TODO");
         return ok(NecroCoreAst, NULL);
 
-    // Not Implemented
+    // Not Implemented / Supported
     case NECRO_AST_ARITHMETIC_SEQUENCE:
     case NECRO_AST_EXPRESSION_LIST:
     case NECRO_AST_DO:
     case NECRO_BIND_ASSIGNMENT:
-        assert(false && "Not currently implemented, nor planned to be implemented");
+        assert(false && "Not currently implemented, nor planned to be supported");
         return ok(NecroCoreAst, NULL);
 
     // Never Encounter
@@ -929,17 +929,11 @@ void necro_core_test_result(const char* test_name, const char* str)
     unwrap(void, necro_ast_transform_to_core(info, &intern, &base, &ast, &core_ast));
     unwrap(void, necro_core_infer(&intern, &base, &core_ast));
 
-    // Assert
+    // Print
 #if NECRO_CORE_AST_VERBOSE
-    // if (result.type == expected_result)
-    //     necro_scoped_symtable_print_top_scopes(&scoped_symtable);
-    // necro_ast_arena_print(&base.ast);
-    // necro_ast_arena_print(&ast);
     printf("\n");
     necro_core_ast_pretty_print(core_ast.root);
-    // printf("\n");
 #endif
-
     printf("Core %s test: Passed\n", test_name);
     fflush(stdout);
 
@@ -954,7 +948,6 @@ void necro_core_test_result(const char* test_name, const char* str)
     necro_intern_destroy(&intern);
 }
 
-// TODO: necro_core_infer
 void necro_core_ast_test()
 {
     necro_announce_phase("Core");
@@ -965,8 +958,6 @@ void necro_core_ast_test()
             "x = True\n";
         necro_core_test_result(test_name, test_source);
     }
-
-/*
 
     {
         const char* test_name   = "Basic 2";
@@ -1029,17 +1020,18 @@ void necro_core_ast_test()
     {
         const char* test_name   = "Maybe Nothing";
         const char* test_source = ""
-            "m :: Maybe Bool\n"
+            "m :: *Maybe Bool\n"
             "m = Just False\n";
         necro_core_test_result(test_name, test_source);
     }
 
-    {
-        const char* test_name   = "Arrayed";
-        const char* test_source = ""
-            "a = { True, False, True, True }\n";
-        necro_core_test_result(test_name, test_source);
-    }
+    // TODO: How to correctl handle Arrays in Core?
+    // {
+    //     const char* test_name   = "Arrayed";
+    //     const char* test_source = ""
+    //         "a = { True, False, True, True }\n";
+    //     necro_core_test_result(test_name, test_source);
+    // }
 
     {
         const char* test_name   = "Case Closed";
@@ -1094,6 +1086,5 @@ void necro_core_ast_test()
             "unity = () + () - () * ()\n";
         necro_core_test_result(test_name, test_source);
     }
-*/
 
 }

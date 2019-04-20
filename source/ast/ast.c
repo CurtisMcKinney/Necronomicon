@@ -2016,7 +2016,9 @@ void necro_ast_assert_eq(NecroAst* ast1, NecroAst* ast2)
 ///////////////////////////////////////////////////////
 NecroAst* necro_ast_copy_basic_info(NecroPagedArena* arena, NecroAst* declaration_group, NecroAst* ast_to_copy, NecroAst* ast2)
 {
-    ast2->necro_type = necro_type_deep_copy(arena, ast_to_copy->necro_type);
+    UNUSED(arena);
+    // ast2->necro_type = necro_type_deep_copy(arena, ast_to_copy->necro_type);
+    ast2->necro_type = ast_to_copy->necro_type; // NOTE: Trying an experiment where we don't deep copy type here, but instead later when we replace with subs in monomorphize
     ast2->source_loc = ast_to_copy->source_loc;
     ast2->end_loc    = ast_to_copy->end_loc;
     ast2->scope      = NULL; // ???

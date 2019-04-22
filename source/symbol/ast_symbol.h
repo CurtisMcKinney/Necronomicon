@@ -13,6 +13,9 @@
 #include "intern.h"
 #include "list.h"
 
+//--------------------
+// Forward Declarations
+//--------------------
 struct NecroAst;
 struct NecroScope;
 struct NecroDeclarationGroup;
@@ -28,6 +31,7 @@ struct NecroUsage;
 struct NecroCoreAst;
 struct NecroCoreAstSymbol;
 struct NecroCoreScope;
+struct NecroStaticValue;
 
 typedef enum
 {
@@ -79,12 +83,14 @@ typedef struct NecroCoreAstSymbol
     NecroSymbol                module_name;
     struct NecroCoreAst*       ast;
     struct NecroType*          type;
-    bool                       is_constructor;
+    struct NecroCoreScope*     free_vars;
+    struct NecroStaticValue*   static_value;
+    size_t                     arity;
+    struct NecroMachAstSymbol* mach_symbol;
     size_t                     con_num;
+    bool                       is_constructor;
     bool                       is_enum;
     bool                       is_recursive;
-    struct NecroCoreScope*     free_vars;
-    struct NecroMachAstSymbol* mach_symbol;
 } NecroCoreAstSymbol;
 
 NecroCoreAstSymbol* necro_core_ast_symbol_create(NecroPagedArena* core_ast_arena, NecroSymbol name, struct NecroType* type);

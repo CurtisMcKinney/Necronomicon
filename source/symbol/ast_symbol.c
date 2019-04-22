@@ -108,7 +108,9 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create(NecroPagedArena* core_ast_arena
     core_ast_symbol->is_enum            = false;
     core_ast_symbol->is_recursive       = false;
     core_ast_symbol->free_vars          = NULL;
+    core_ast_symbol->static_value       = NULL;
     core_ast_symbol->mach_symbol        = NULL;
+    core_ast_symbol->arity              = 0;
     return core_ast_symbol;
 }
 
@@ -128,7 +130,9 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create_from_ast_symbol(NecroPagedArena
     core_ast_symbol->is_recursive       = ast_symbol->is_recursive;
     core_ast_symbol->free_vars          = NULL;
     core_ast_symbol->mach_symbol        = NULL;
+    core_ast_symbol->static_value       = NULL;
     ast_symbol->core_ast_symbol         = core_ast_symbol;
+    ast_symbol->core_ast_symbol         = 0;
     return core_ast_symbol;
 }
 
@@ -145,7 +149,9 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create_by_renaming(NecroPagedArena* co
     core_ast_symbol->is_enum            = ast_symbol->is_enum;
     core_ast_symbol->is_recursive       = ast_symbol->is_recursive;
     core_ast_symbol->free_vars          = NULL;
+    core_ast_symbol->static_value       = NULL;
     core_ast_symbol->mach_symbol        = NULL;
+    core_ast_symbol->arity              = ast_symbol->arity;
     return core_ast_symbol;
 }
 

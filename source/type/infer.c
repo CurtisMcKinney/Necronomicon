@@ -520,7 +520,6 @@ NecroResult(NecroType) necro_ty_vars_to_args(NecroInfer* infer, NecroAst* ty_var
     return ok(NecroType, head);
 }
 
-// TODO: Constructor arrow polymorphism?
 NecroResult(NecroType) necro_create_data_constructor(NecroInfer* infer, NecroAst* ast, NecroType* data_type, size_t con_num)
 {
     NecroType* con_head = NULL;
@@ -529,13 +528,9 @@ NecroResult(NecroType) necro_create_data_constructor(NecroInfer* infer, NecroAst
     size_t     count    = 0;
     if (args_ast != NULL)
         data_type->con.con_symbol->is_enum = false;
-    // TODO: Proper Constructor function ownership handling!
     while (args_ast != NULL)
     {
-        // NecroAst*  arg_ast = necro_ast_create_type_attribute(infer->arena, args_ast->list.item, NECRO_TYPE_ATTRIBUTE_DOT);
-        // NecroType* arg     = necro_try(NecroType, necro_ast_to_type_sig_go(infer, arg_ast, NECRO_TYPE_POLY_ORDER, NECRO_TYPE_ATTRIBUTE_NONE));
         NecroType* arg     = necro_try(NecroType, necro_ast_to_type_sig_go(infer, args_ast->list.item, NECRO_TYPE_POLY_ORDER, NECRO_TYPE_ATTRIBUTE_CONSTRUCTOR_DOT));
-        // arg->ownership     = data_type->ownership;
         if (con_args == NULL)
         {
             con_args            = necro_type_fn_create(infer->arena, arg, NULL);

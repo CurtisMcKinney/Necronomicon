@@ -22,6 +22,7 @@ NecroIntern necro_intern_empty()
         .entries        = NULL,
         .size           = 0,
         .count          = 0,
+        .clash_suffix   = 479881,
     };
 }
 
@@ -40,6 +41,7 @@ NecroIntern necro_intern_create()
         .entries        = entries,
         .size           = NECRO_INITIAL_INTERN_SIZE,
         .count          = 0,
+        .clash_suffix   = 479881,
     };
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -71,13 +73,11 @@ NecroIntern necro_intern_create()
 
 void necro_intern_destroy(NecroIntern* intern)
 {
-    intern->count      = 0;
-    intern->size       = 0;
     if (intern->entries != NULL)
         free(intern->entries);
-    intern->entries    = NULL;
     necro_paged_arena_destroy(&intern->arena);
     necro_snapshot_arena_destroy(&intern->snapshot_arena);
+    *intern = necro_intern_empty();
 }
 
 size_t necro_hash_string(const char* str, size_t* out_string_length)
@@ -281,7 +281,7 @@ NecroSymbol necro_intern_string(NecroIntern* intern, const char* str)
     return intern->entries[probe].data;
 }
 
-NecroSymbol necro_intern_unique_string(NecroIntern* intern, const char* str, size_t* clash_suffix)
+NecroSymbol necro_intern_unique_string(NecroIntern* intern, const char* str)
 {
     // Probe
     const size_t           str_len    = strlen(str);
@@ -289,10 +289,12 @@ NecroSymbol necro_intern_unique_string(NecroIntern* intern, const char* str, siz
     NecroArenaSnapshot     snapshot   = necro_snapshot_arena_get(&intern->snapshot_arena);
     char*                  unique_str = necro_snapshot_arena_alloc(&intern->snapshot_arena, buf_size);
     NecroInternProbeResult probe_result;
+    char                   itoa_buf[16];
     do
     {
-        *clash_suffix = *clash_suffix + 1;
-        snprintf(unique_str, buf_size, "_%s_%d", str, *clash_suffix);
+        itoa((uint32_t)intern->clash_suffix, itoa_buf, 36);
+        intern->clash_suffix++;
+        snprintf(unique_str, buf_size, "_%s_%s", str, itoa_buf);
         probe_result = necro_intern_prob(intern, unique_str);
     }
     while (probe_result.symbol != NULL);

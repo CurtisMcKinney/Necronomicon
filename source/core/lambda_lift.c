@@ -10,6 +10,12 @@
 #include "alias_analysis.h"
 #include "core_infer.h"
 
+// TODO: Can hot swap:
+//   * Global Values
+//   * hot swap "synth" function and "pattern" function at polys only. Old versions still kicking around.
+//   * How to make chained pattern hot swaps work!?
+//   * Recompile chunks of code
+
 ///////////////////////////////////////////////////////
 // Types
 ///////////////////////////////////////////////////////
@@ -35,7 +41,6 @@ typedef struct NecroLambdaLift
     NecroIntern*             intern;
     NecroBase*               base;
     NecroCoreAst*            lift_point;
-    size_t                   clash_suffix;
     NecroCoreScope*          scope;
     NecroCoreScope*          global_scope;
 } NecroLambdaLift;
@@ -62,7 +67,6 @@ NecroLambdaLift necro_lambda_lift_empty()
         .intern             = NULL,
         .base               = NULL,
         .lift_point         = NULL,
-        .clash_suffix       = 0,
         .scope              = NULL,
         .global_scope       = NULL,
     };
@@ -79,7 +83,6 @@ NecroLambdaLift necro_lambda_lift_create(NecroPagedArena* ast_arena, NecroIntern
         .intern         = intern,
         .base           = base,
         .lift_point     = NULL,
-        .clash_suffix   = 0,
         .scope          = global_scope,
         .global_scope   = global_scope,
     };
@@ -223,7 +226,7 @@ NecroCoreAstSymbol* necro_core_scope_find_renamed_in_this_scope(NecroCoreScope* 
 ///////////////////////////////////////////////////////
 NecroCoreAstSymbol* necro_core_lambda_lift_create_renamed_symbol(NecroLambdaLift* ll, NecroCoreAstSymbol* ast_symbol)
 {
-    NecroSymbol renamed_symbol = necro_intern_unique_string(ll->intern, ast_symbol->name->str, &ll->clash_suffix);
+    NecroSymbol renamed_symbol = necro_intern_unique_string(ll->intern, ast_symbol->name->str);
     return necro_core_ast_symbol_create_by_renaming(ll->ast_arena, renamed_symbol, ast_symbol);
 }
 
@@ -355,14 +358,18 @@ void necro_core_lambda_lift_let(NecroLambdaLift* ll, NecroCoreAst* ast)
         }
         else if (ll->lift_point != NULL && ll->scope->parent == NULL)
         {
+            // TODO: Somehow we tripped up lambda lift, FIXXX!
+            // TODO: Update to use necro_core_ast_swap
             // We're a top level ast node and at some point in bind we lifted a function.
             //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             // And now for some in place Ast surgery
             //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             // 1. Swap contents of ast node with lift_point node
+            // necro_core_ast_swap(ll->lift_point, ast);
             NecroCoreAst temp = *ll->lift_point;
             *ll->lift_point   = *ast;
             *ast              = temp;
+
             // 2. Find last lifted let
             NecroCoreAst* last_lifted_let = ast;
             assert(last_lifted_let->ast_type == NECRO_CORE_AST_LET);
@@ -391,7 +398,7 @@ void necro_core_lambda_lift_lam(NecroLambdaLift* ll, NecroCoreAst* ast)
 {
     assert(ast->ast_type == NECRO_CORE_AST_LAM);
     // Create name, symbol, and var
-    NecroSymbol         anon_name   = necro_intern_unique_string(ll->intern, "anonymous", &ll->clash_suffix);
+    NecroSymbol         anon_name   = necro_intern_unique_string(ll->intern, "anonymous");
     NecroCoreAstSymbol* anon_symbol = necro_core_ast_symbol_create(ll->ast_arena, anon_name, ast->necro_type);
     NecroCoreAst*       anon_var    = necro_core_ast_create_var(ll->ast_arena, anon_symbol);
     // In-place Swap ast with anon_var
@@ -708,18 +715,6 @@ void necro_core_lambda_lift_test()
     }
 
     {
-        const char* test_name   = "Lambda 4";
-        const char* test_source = ""
-            "top :: Int\n"
-            "top = r\n"
-            "  where\n"
-            "    app g x = g x\n"
-            "    w       = 10\n"
-            "    r       = app (\\y -> y * w) 100\n";
-        necro_core_lambda_lift_test_result(test_name, test_source);
-    }
-
-    {
         const char* test_name   = "In Case Of Emergency";
         const char* test_source = ""
             "inCaseOfEmergency b = breakGlass where\n"
@@ -744,6 +739,18 @@ void necro_core_lambda_lift_test()
             "utest :: *Bool -> *Bool -> *(Bool, Bool)\n"
             "utest b c = f True where\n"
             "  f x = (b, c)\n";
+        necro_core_lambda_lift_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Lambda 4";
+        const char* test_source = ""
+            "top :: Int\n"
+            "top = r\n"
+            "  where\n"
+            "    app g x = g x\n"
+            "    w       = 10\n"
+            "    r       = app (\\y -> y * w) 100\n";
         necro_core_lambda_lift_test_result(test_name, test_source);
     }
 

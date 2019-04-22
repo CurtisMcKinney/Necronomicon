@@ -55,6 +55,25 @@ NecroResult(NecroType) necro_core_infer_lit(NecroCoreInfer* infer, NecroCoreAst*
         ast->necro_type       = array_type;
         return ok(NecroType, array_type);
     }
+    case NECRO_AST_CONSTANT_ARRAY:
+    {
+        size_t            count        = 0;
+        NecroCoreAstList* elements     = ast->lit.array_literal_elements;
+        NecroType*        element_type = necro_type_fresh_var(infer->arena, NULL);
+        element_type->kind             = infer->base->star_kind->type;
+        while (elements != NULL)
+        {
+            count++;
+            NecroType* element_expr_type = necro_try(NecroType, necro_core_infer_go(infer, elements->data));
+            necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, element_type, element_expr_type, NULL, zero_loc, zero_loc));
+            elements = elements->next;
+        }
+        NecroType* arity_type = necro_type_nat_create(infer->arena, count);
+        arity_type->kind      = infer->base->nat_kind->type;
+        NecroType* array_type = necro_type_con2_create(infer->arena, infer->base->array_type, arity_type, element_type);
+        ast->necro_type       = array_type;
+        return ok(NecroType, array_type);
+    }
     case NECRO_AST_CONSTANT_TYPE_INT:
     default:
         assert(false);
@@ -126,7 +145,8 @@ NecroResult(NecroType) necro_core_infer_lam(NecroCoreInfer* infer, NecroCoreAst*
     assert(ast->ast_type == NECRO_CORE_AST_LAM);
     NecroType* arg_type  = necro_try(NecroType, necro_core_infer_go(infer, ast->lambda.arg));
     NecroType* expr_type = necro_try(NecroType, necro_core_infer_go(infer, ast->lambda.expr));
-    return ok(NecroType, necro_type_fn_create(infer->arena, arg_type, expr_type));
+    ast->necro_type      = necro_type_fn_create(infer->arena, arg_type, expr_type);
+    return ok(NecroType, ast->necro_type);
 }
 
 NecroResult(NecroType) necro_core_infer_bind(NecroCoreInfer* infer, NecroCoreAst* ast)
@@ -138,6 +158,7 @@ NecroResult(NecroType) necro_core_infer_bind(NecroCoreInfer* infer, NecroCoreAst
     return necro_type_unify(infer->arena, NULL, infer->base, ast->bind.ast_symbol->type, expr_type, NULL);
 }
 
+// TODO: Array Literals
 NecroResult(NecroType) necro_core_infer_let(NecroCoreInfer* infer, NecroCoreAst* ast)
 {
     assert(ast->ast_type == NECRO_CORE_AST_LET);

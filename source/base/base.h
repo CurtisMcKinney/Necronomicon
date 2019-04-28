@@ -16,6 +16,8 @@
 
 struct NecroMachProgram;
 
+#define NECRO_MAX_ENV_TYPES 16
+
 typedef struct NecroBase
 {
     NecroAstArena ast;
@@ -52,6 +54,9 @@ typedef struct NecroBase
     NecroAstSymbol* tuple8_type;
     NecroAstSymbol* tuple9_type;
     NecroAstSymbol* tuple10_type;
+
+    NecroAstSymbol* env_types[NECRO_MAX_ENV_TYPES];
+    NecroAstSymbol* env_cons[NECRO_MAX_ENV_TYPES];
 
     NecroAstSymbol* poly_type;
     NecroAstSymbol* world_type;
@@ -94,9 +99,13 @@ typedef struct NecroBase
 
 } NecroBase;
 
-NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_symtable);
-void      necro_base_init_mach(struct NecroMachProgram* program, NecroBase* base);
-void      necro_base_destroy(NecroBase* base);
-void      necro_base_test();
+NecroBase       necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_symtable);
+void            necro_base_init_mach(struct NecroMachProgram* program, NecroBase* base);
+void            necro_base_destroy(NecroBase* base);
+void            necro_base_test();
+NecroAstSymbol* necro_base_get_tuple_type(NecroBase* base, size_t num);
+NecroAstSymbol* necro_base_get_tuple_con(NecroBase* base, size_t num);
+NecroAstSymbol* necro_base_get_env_type(NecroBase* base, size_t num);
+NecroAstSymbol* necro_base_get_env_con(NecroBase* base, size_t num);
 
 #endif // NECRO_BASE_H

@@ -30,7 +30,8 @@ NecroMachAstSymbol* necro_mach_ast_symbol_gen(NecroMachProgram* program, NecroMa
     NecroSymbol name = NULL;
     if (mangle_type == NECRO_MANGLE_NAME)
     {
-        name = necro_intern_unique_string(program->intern, str);
+        // TODO: API Change, fix
+        // name = necro_intern_unique_string(program->intern, str);
     }
     else
     {

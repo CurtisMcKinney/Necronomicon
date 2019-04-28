@@ -590,6 +590,15 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     NecroAst* tuple_10_constructor = necro_ast_create_data_con(arena, intern, "(,,,,,,,,,)", necro_ast_create_var_list(arena, intern, 10, NECRO_VAR_TYPE_FREE_VAR));
     necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, tuple_10_s_type, necro_ast_create_list(arena, tuple_10_constructor, NULL)));
 
+    for (size_t i = 0; i < NECRO_MAX_ENV_TYPES; ++i)
+    {
+        char env_name[16] = "Env";
+        itoa(i, env_name + 3, 10);
+        NecroAst*   env_s_type      = necro_ast_create_simple_type(arena, intern, env_name, necro_ast_create_var_list(arena, intern, i, NECRO_VAR_TYPE_VAR_DECLARATION));
+        NecroAst*   env_constructor = necro_ast_create_data_con(arena, intern, env_name, necro_ast_create_var_list(arena, intern, i, NECRO_VAR_TYPE_FREE_VAR));
+        necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, env_s_type, necro_ast_create_list(arena, env_constructor, NULL)));
+    }
+
     // Functor
     {
         NecroAst* a_var          = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
@@ -965,7 +974,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
                     necro_ast_create_type_fn(arena,
                         bool_conid,
                         bool_conid)), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
-        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "&&", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
+        NecroAst* or_apats = necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "x", NECRO_VAR_DECLARATION), necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "y", NECRO_VAR_DECLARATION), NULL));
+        necro_append_top(arena, top, necro_ast_create_apats_assignment(arena, intern, "&&", or_apats, necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
         necro_append_top(arena, top,
             necro_ast_create_fn_type_sig(arena, intern, "||", NULL,
                 necro_ast_create_type_fn(arena,
@@ -973,7 +983,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
                     necro_ast_create_type_fn(arena,
                         bool_conid,
                         bool_conid)), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
-        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "||", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
+        NecroAst* and_apats = necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "x", NECRO_VAR_DECLARATION), necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "y", NECRO_VAR_DECLARATION), NULL));
+        necro_append_top(arena, top, necro_ast_create_apats_assignment(arena, intern, "||", and_apats, necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
     }
 
     // Compile, part I
@@ -1004,6 +1015,14 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.tuple8_type            = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "(,,,,,,,)"));
     base.tuple9_type            = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "(,,,,,,,,)"));
     base.tuple10_type           = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "(,,,,,,,,,)"));
+
+    for (size_t i = 0; i < NECRO_MAX_ENV_TYPES; ++i)
+    {
+        char env_name[16] = "Env";
+        itoa(i, env_name + 3, 10);
+        base.env_types[i] = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, env_name));
+        base.env_cons[i]  = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, env_name));
+    }
 
     base.poly_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "_Poly"));
     base.world_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "World"));
@@ -1049,6 +1068,56 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 
     // Finish
     return base;
+}
+
+NecroAstSymbol* necro_base_get_tuple_type(NecroBase* base, size_t num)
+{
+    switch (num)
+    {
+    case 2:  return base->tuple2_type;
+    case 3:  return base->tuple3_type;
+    case 4:  return base->tuple4_type;
+    case 5:  return base->tuple5_type;
+    case 6:  return base->tuple6_type;
+    case 7:  return base->tuple7_type;
+    case 8:  return base->tuple8_type;
+    case 9:  return base->tuple9_type;
+    case 10: return base->tuple10_type;
+    default:
+        assert(false && "Tuple arities above 10 are not supported");
+        return NULL;
+    }
+}
+
+NecroAstSymbol* necro_base_get_tuple_con(NecroBase* base, size_t num)
+{
+    switch (num)
+    {
+    case 2:  return base->tuple2_con;
+    case 3:  return base->tuple3_con;
+    case 4:  return base->tuple4_con;
+    case 5:  return base->tuple5_con;
+    case 6:  return base->tuple6_con;
+    case 7:  return base->tuple7_con;
+    case 8:  return base->tuple8_con;
+    case 9:  return base->tuple9_con;
+    case 10: return base->tuple10_con;
+    default:
+        assert(false && "Tuple arities above 10 are not supported");
+        return NULL;
+    }
+}
+
+NecroAstSymbol* necro_base_get_env_type(NecroBase* base, size_t num)
+{
+    assert((num < NECRO_MAX_ENV_TYPES) && "Unsupported Env arity");
+    return base->env_types[num];
+}
+
+NecroAstSymbol* necro_base_get_env_con(NecroBase* base, size_t num)
+{
+    assert((num < NECRO_MAX_ENV_TYPES) && "Unsupported Env arity");
+    return base->env_cons[num];
 }
 
 void necro_base_init_mach(NecroMachProgram* program, NecroBase* base)

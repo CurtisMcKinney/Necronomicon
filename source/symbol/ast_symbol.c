@@ -102,6 +102,7 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create(NecroPagedArena* core_ast_arena
     core_ast_symbol->source_name        = name;
     core_ast_symbol->module_name        = NULL;
     core_ast_symbol->ast                = NULL;
+    core_ast_symbol->inline_ast         = NULL;
     core_ast_symbol->type               = necro_type_deep_copy(core_ast_arena, type);
     core_ast_symbol->is_constructor     = false;
     core_ast_symbol->con_num            = 0;
@@ -123,6 +124,7 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create_from_ast_symbol(NecroPagedArena
     core_ast_symbol->source_name        = ast_symbol->source_name;
     core_ast_symbol->module_name        = ast_symbol->module_name;
     core_ast_symbol->ast                = NULL;
+    core_ast_symbol->inline_ast         = NULL;
     core_ast_symbol->type               = necro_type_deep_copy(core_ast_arena, ast_symbol->type);
     core_ast_symbol->is_constructor     = ast_symbol->is_constructor;
     core_ast_symbol->con_num            = ast_symbol->con_num;
@@ -131,8 +133,8 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create_from_ast_symbol(NecroPagedArena
     core_ast_symbol->free_vars          = NULL;
     core_ast_symbol->mach_symbol        = NULL;
     core_ast_symbol->static_value       = NULL;
+    core_ast_symbol->arity              = 0;
     ast_symbol->core_ast_symbol         = core_ast_symbol;
-    ast_symbol->core_ast_symbol         = 0;
     return core_ast_symbol;
 }
 
@@ -143,6 +145,7 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create_by_renaming(NecroPagedArena* co
     core_ast_symbol->source_name        = ast_symbol->source_name;
     core_ast_symbol->module_name        = ast_symbol->module_name;
     core_ast_symbol->ast                = NULL;
+    core_ast_symbol->inline_ast         = NULL;
     core_ast_symbol->type               = necro_type_deep_copy(core_ast_arena, ast_symbol->type);
     core_ast_symbol->is_constructor     = ast_symbol->is_constructor;
     core_ast_symbol->con_num            = ast_symbol->con_num;

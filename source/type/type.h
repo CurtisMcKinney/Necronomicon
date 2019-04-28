@@ -161,7 +161,6 @@ NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, s
 NecroResult(NecroType) necro_type_unify(NecroPagedArena* arena, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroType* type1, NecroType* type2, struct NecroScope* scope);
 NecroResult(NecroType) necro_type_occurs(NecroAstSymbol* var_symbol, NecroType* type);
 NecroResult(NecroType) necro_type_instantiate(NecroPagedArena* arenas, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroType* type, struct NecroScope* scope);
-// NecroResult(NecroType) necro_type_replace_with_subs(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, NecroInstSub* subs);
 NecroResult(NecroType) necro_type_replace_with_subs_deep_copy(NecroPagedArena* arena, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroType* type, NecroInstSub* subs);
 NecroInstSub*          necro_type_union_subs(NecroInstSub* subs1, NecroInstSub* subs2);
 NecroInstSub*          necro_type_deep_copy_subs(NecroPagedArena* arena, NecroInstSub* subs);
@@ -169,6 +168,7 @@ NecroInstSub*          necro_type_filter_and_deep_copy_subs(NecroPagedArena* are
 NecroResult(NecroType) necro_type_instantiate_with_subs(NecroPagedArena* arena, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroType* type, struct NecroScope* scope, NecroInstSub** subs);
 NecroResult(NecroType) necro_type_generalize(NecroPagedArena* arena, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroType* type, struct NecroScope* scope);
 NecroResult(NecroType) necro_type_set_zero_order(NecroType* type, const NecroSourceLoc* source_loc, const NecroSourceLoc* end_loc);
+bool                   necro_type_is_higher_order_function(const NecroType* type, int32_t arity);
 
 bool                   necro_type_exact_unify(NecroType* type1, NecroType* type2);
 NecroType*             necro_type_find(NecroType* type);

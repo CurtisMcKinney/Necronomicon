@@ -82,6 +82,7 @@ typedef struct NecroCoreAstSymbol
     NecroSymbol                source_name;
     NecroSymbol                module_name;
     struct NecroCoreAst*       ast;
+    struct NecroCoreAst*       inline_ast;
     struct NecroType*          type;
     struct NecroCoreScope*     free_vars;
     struct NecroStaticValue*   static_value;

@@ -296,6 +296,7 @@ NecroSymbol necro_intern_unique_string(NecroIntern* intern, const char* str)
         intern->clash_suffix++;
         snprintf(unique_str, buf_size, "_%s_%s", str, itoa_buf);
         probe_result = necro_intern_prob(intern, unique_str);
+        memset(itoa_buf, '\0', 16 * sizeof(char));
     }
     while (probe_result.symbol != NULL);
 

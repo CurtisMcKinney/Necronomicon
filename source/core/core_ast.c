@@ -23,6 +23,7 @@ inline NecroCoreAst* necro_core_ast_alloc(NecroPagedArena* arena, NECRO_CORE_AST
 {
     NecroCoreAst* ast = necro_paged_arena_alloc(arena, sizeof(NecroCoreAst));
     ast->ast_type     = ast_type;
+    ast->necro_type   = NULL;
     return ast;
 }
 
@@ -148,16 +149,38 @@ NecroCoreAst* necro_core_ast_create_for_loop(NecroPagedArena* arena, NecroCoreAs
     return ast;
 }
 
+NecroCoreAst* necro_core_ast_deep_copy(NecroPagedArena* arena, NecroCoreAst* ast)
+{
+    assert(arena != NULL);
+    if (ast == NULL)
+        return NULL;
+    NecroCoreAst* copy_ast = NULL;
+    switch (ast->ast_type)
+    {
+    // TODO: Finish
+    // case NECRO_CORE_AST_LIT:       copy_ast = necro_core_ast_create_lit(arena, ast->lit.con)
+    case NECRO_CORE_AST_DATA_DECL: assert(false && "TODO: FINISH"); copy_ast = necro_core_ast_create_data_decl(arena, ast->data_decl.ast_symbol, NULL); break; // TODO: Finish
+    case NECRO_CORE_AST_CASE:      assert(false && "TODO: FINISH"); copy_ast = necro_core_ast_create_case(arena, necro_core_ast_deep_copy(arena, ast->case_expr.expr), NULL); break; // TODO: Finish!
+    // case NECRO_CORE_AST_BIND_REC:
+    case NECRO_CORE_AST_BIND:      copy_ast = necro_core_ast_create_bind(arena, ast->bind.ast_symbol, necro_core_ast_deep_copy(arena, ast->bind.expr)); break;
+    case NECRO_CORE_AST_LET:       copy_ast = necro_core_ast_create_let(arena, necro_core_ast_deep_copy(arena, ast->let.bind), necro_core_ast_deep_copy(arena, ast->let.expr)); break;
+    case NECRO_CORE_AST_VAR:       copy_ast = necro_core_ast_create_var(arena, ast->var.ast_symbol); break;
+    case NECRO_CORE_AST_FOR:       copy_ast = necro_core_ast_create_for_loop(arena, necro_core_ast_deep_copy(arena, ast->for_loop.range_init), necro_core_ast_deep_copy(arena, ast->for_loop.value_init), necro_core_ast_deep_copy(arena, ast->for_loop.index_arg), necro_core_ast_deep_copy(arena, ast->for_loop.value_arg), necro_core_ast_deep_copy(arena, ast->for_loop.expression)); break;
+    case NECRO_CORE_AST_LAM:       copy_ast = necro_core_ast_create_lam(arena, necro_core_ast_deep_copy(arena, ast->lambda.arg), necro_core_ast_deep_copy(arena, ast->lambda.expr)); break;
+    case NECRO_CORE_AST_APP:       copy_ast = necro_core_ast_create_app(arena, necro_core_ast_deep_copy(arena, ast->app.expr1), necro_core_ast_deep_copy(arena, ast->app.expr2)); break;
+    case NECRO_CORE_AST_DATA_CON:  copy_ast = necro_core_ast_create_data_con(arena, ast->data_con.ast_symbol, necro_type_deep_copy(arena, ast->data_con.type)); break;
+    default:                       assert(false && "Unimplemented Ast in necro_core_ast_deep_copy"); return NULL;
+    }
+    copy_ast->necro_type = necro_type_deep_copy(arena, ast->necro_type);
+    return copy_ast;
+}
+
 void necro_core_ast_swap(NecroCoreAst* ast1, NecroCoreAst* ast2)
 {
     NecroCoreAst temp = *ast1;
     *ast1             = *ast2;
     *ast2             = temp;
 }
-
-// NecroCoreAst* necro_core_ast_deep_copy(NecroPagedArena* arena, NecroCoreAst* ast)
-// {
-// }
 
 ///////////////////////////////////////////////////////
 // NecroCoreAstArena
@@ -829,23 +852,32 @@ void necro_core_ast_pretty_print_go(NecroCoreAst* ast, size_t depth)
     }
     case NECRO_CORE_AST_LET:
     {
-        // printf("\n");
-        // print_white_space(depth);
-        if (depth > 0)
-            printf("let ");
-        necro_core_ast_pretty_print_go(ast->let.bind, depth);
-        // printf("\n");
-        if (ast->let.expr == NULL)
+        while (ast != NULL)
         {
-            printf("\n");
-            return;
+            if (ast->ast_type != NECRO_CORE_AST_LET)
+            {
+                necro_core_ast_pretty_print_go(ast, depth);
+                return;
+            }
+            // printf("\n");
+            // print_white_space(depth);
+            if (depth > 0)
+                printf("let ");
+            necro_core_ast_pretty_print_go(ast->let.bind, depth);
+            // printf("\n");
+            if (ast->let.expr == NULL)
+            {
+                printf("\n");
+                return;
+            }
+            if (depth > 0)
+                printf(" in\n");
+            else
+                printf("\n\n");
+            print_white_space(depth);
+            // necro_core_ast_pretty_print_go(ast->let.expr, depth);
+            ast = ast->let.expr;
         }
-        if (depth > 0)
-            printf(" in\n");
-        else
-            printf("\n\n");
-        print_white_space(depth);
-        necro_core_ast_pretty_print_go(ast->let.expr, depth);
         return;
     }
     case NECRO_CORE_AST_VAR:

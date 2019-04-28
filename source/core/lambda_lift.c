@@ -332,11 +332,9 @@ void necro_core_lambda_lift_var(NecroLambdaLift* ll, NecroCoreAst* ast)
         necro_core_lambda_lift_var(ll, free_var);
         // Apply
         NecroCoreAst* app_ast = necro_core_ast_create_app(ll->ast_arena, NULL, free_var);
-        // In place swap
-        NecroCoreAst  temp = *ast;
-        *ast               = *app_ast;
-        *app_ast           = temp;
-        ast->app.expr1     = app_ast;
+        // Swap
+        necro_core_ast_swap(ast, app_ast);
+        ast->app.expr1 = app_ast;
     }
 }
 
@@ -365,11 +363,7 @@ void necro_core_lambda_lift_let(NecroLambdaLift* ll, NecroCoreAst* ast)
             // And now for some in place Ast surgery
             //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             // 1. Swap contents of ast node with lift_point node
-            // necro_core_ast_swap(ll->lift_point, ast);
-            NecroCoreAst temp = *ll->lift_point;
-            *ll->lift_point   = *ast;
-            *ast              = temp;
-
+            necro_core_ast_swap(ll->lift_point, ast);
             // 2. Find last lifted let
             NecroCoreAst* last_lifted_let = ast;
             assert(last_lifted_let->ast_type == NECRO_CORE_AST_LET);

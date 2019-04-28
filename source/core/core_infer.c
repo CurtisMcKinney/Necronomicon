@@ -145,8 +145,7 @@ NecroResult(NecroType) necro_core_infer_lam(NecroCoreInfer* infer, NecroCoreAst*
     assert(ast->ast_type == NECRO_CORE_AST_LAM);
     NecroType* arg_type  = necro_try(NecroType, necro_core_infer_go(infer, ast->lambda.arg));
     NecroType* expr_type = necro_try(NecroType, necro_core_infer_go(infer, ast->lambda.expr));
-    ast->necro_type      = necro_type_fn_create(infer->arena, arg_type, expr_type);
-    return ok(NecroType, ast->necro_type);
+    return ok(NecroType, necro_type_fn_create(infer->arena, arg_type, expr_type));
 }
 
 NecroResult(NecroType) necro_core_infer_bind(NecroCoreInfer* infer, NecroCoreAst* ast)

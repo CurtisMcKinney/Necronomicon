@@ -1545,9 +1545,9 @@ void necro_type_fprint_type_var(FILE* stream, const NecroAstSymbol* var_symbol)
         truncated_symbol_pointer        = truncated_symbol_pointer & 8191;
         const NecroType* type_var       = necro_type_find(var_symbol->type);
         if (type_var != NULL && type_var->kind != NULL && type_var->kind->type == NECRO_TYPE_CON && (strcmp(type_var->kind->con.con_symbol->source_name->str, "Ownership") == 0))
-            fprintf(stream, "u%x", truncated_symbol_pointer);
+            fprintf(stream, "u%zu", truncated_symbol_pointer);
         else
-            fprintf(stream, "a%x", truncated_symbol_pointer);
+            fprintf(stream, "a%zu", truncated_symbol_pointer);
     }
 }
 

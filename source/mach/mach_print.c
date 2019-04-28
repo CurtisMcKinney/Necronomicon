@@ -293,7 +293,7 @@ void necro_mach_print_nalloc(NecroMachAst* ast, size_t depth)
     // else
         printf("%%%s = nalloc (", ast->nalloc.result_reg->value.reg_symbol->name->str);
     necro_mach_type_print_go(ast->nalloc.type_to_alloc, false);
-    printf(") %du16", ast->nalloc.slots_used);
+    printf(") %zuu16", ast->nalloc.slots_used);
 }
 
 void necro_mach_print_memcpy(NecroMachAst* ast, size_t depth)

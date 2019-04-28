@@ -292,7 +292,7 @@ NecroSymbol necro_intern_unique_string(NecroIntern* intern, const char* str, siz
     do
     {
         *clash_suffix = *clash_suffix + 1;
-        snprintf(unique_str, buf_size, "_%s_%d", str, *clash_suffix);
+        snprintf(unique_str, buf_size, "_%s_%zu", str, *clash_suffix);
         probe_result = necro_intern_prob(intern, unique_str);
     }
     while (probe_result.symbol != NULL);

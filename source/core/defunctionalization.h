@@ -11,7 +11,11 @@
 #include <assert.h>
 #include <stdbool.h>
 
-#include "core.h"
+#include "core_ast.h"
 #include "base.h"
+#include "driver.h"
+
+void necro_defunctionalize(NecroCompileInfo info, NecroIntern* intern, NecroBase* base, NecroCoreAstArena* core_ast_arena);
+void necro_defunctionalize_test();
 
 #endif // NECRO_CORE_DEFUNCTIONALIZATION_H

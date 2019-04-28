@@ -23,7 +23,6 @@
 #include "d_analyzer.h"
 #include "driver.h"
 #include "core/core.h"
-#include "core/closure_conversion.h"
 #include "core/lambda_lift.h"
 #include "core/defunctionalization.h"
 #include "core/state_analysis.h"
@@ -35,6 +34,7 @@
 #include "type/monomorphize.h"
 #include "alias_analysis.h"
 #include "core_ast.h"
+#include "defunctionalization.h"
 
 #define NECRO_VERBOSITY 1
 
@@ -54,7 +54,7 @@ const char* necro_compile_phase_string(NECRO_PHASE phase)
     case NECRO_PHASE_MONOMORPHIZE:         return "Monomorphize";
     case NECRO_PHASE_TRANSFORM_TO_CORE:    return "Core";
     case NECRO_PHASE_LAMBDA_LIFT:          return "LambdaLift";
-    case NECRO_PHASE_CLOSURE_CONVERSION:   return "ClosureConversion";
+    case NECRO_PHASE_DEFUNCTIONALIZATION:  return "Defunctionalization";
     case NECRO_PHASE_STATE_ANALYSIS:       return "StateAnalysis";
     case NECRO_PHASE_TRANSFORM_TO_MACHINE: return "NecroMachine";
     case NECRO_PHASE_CODEGEN:              return "CodeGen";
@@ -350,6 +350,7 @@ void necro_test(NECRO_TEST test)
     case NECRO_TEST_MONOMORPHIZE:         necro_monomorphize_test();         break;
     case NECRO_TEST_CORE:                 necro_core_ast_test();             break;
     case NECRO_TEST_LAMBDA_LIFT:          necro_core_lambda_lift_test();     break;
+    case NECRO_TEST_DEFUNCTIONALIZE:      necro_defunctionalize_test();      break;
     case NECRO_TEST_ARENA_CHAIN_TABLE:    necro_arena_chain_table_test();    break;
     case NECRO_TEST_BASE:                 necro_base_test();                 break;
     case NECRO_TEST_ALL:
@@ -364,6 +365,7 @@ void necro_test(NECRO_TEST test)
         necro_monomorphize_test();
         necro_core_ast_test();
         necro_core_lambda_lift_test();
+        necro_defunctionalize_test();
         break;
     default:
         break;

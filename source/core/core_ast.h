@@ -120,10 +120,11 @@ typedef struct NecroCoreAstLiteral
 {
     union
     {
-        double      float_literal;
-        int64_t     int_literal;
-        NecroSymbol string_literal;
-        uint32_t    char_literal;
+        double            float_literal;
+        int64_t           int_literal;
+        NecroSymbol       string_literal;
+        uint32_t          char_literal;
+        NecroCoreAstList* array_literal_elements;
     };
     NECRO_CONSTANT_TYPE type;
 } NecroCoreAstLiteral;
@@ -252,6 +253,7 @@ void              necro_core_ast_arena_destroy(NecroCoreAstArena* ast_arena);
 //--------------------
 // Core Ast
 //--------------------
+NecroCoreAst* necro_core_ast_alloc(NecroPagedArena* arena, NECRO_CORE_AST_TYPE ast_type);
 NecroCoreAst* necro_core_ast_create_lit(NecroPagedArena* arena, NecroAstConstant constant);
 NecroCoreAst* necro_core_ast_create_var(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol);
 NecroCoreAst* necro_core_ast_create_bind(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroCoreAst* expr);
@@ -263,8 +265,10 @@ NecroCoreAst* necro_core_ast_create_data_decl(NecroPagedArena* arena, NecroCoreA
 NecroCoreAst* necro_core_ast_create_case(NecroPagedArena* arena, NecroCoreAst* expr, NecroCoreAstList* alts);
 NecroCoreAst* necro_core_ast_create_case_alt(NecroPagedArena* arena, NecroCoreAst* pat, NecroCoreAst* expr);
 NecroCoreAst* necro_core_ast_create_for_loop(NecroPagedArena* arena, NecroCoreAst* range_init, NecroCoreAst* value_init, NecroCoreAst* index_arg, NecroCoreAst* value_arg, NecroCoreAst* expression);
-// NecroCoreAst* necro_core_ast_deep_copy(NecroPagedArena* arena, NecroCoreAst* ast);
+void          necro_core_ast_swap(NecroCoreAst* ast1, NecroCoreAst* ast2);
 void          necro_core_ast_pretty_print(NecroCoreAst* ast);
+// TODO: Finish deep copy
+NecroCoreAst* necro_core_ast_deep_copy(NecroPagedArena* arena, NecroCoreAst* ast);
 
 //--------------------
 // Transformation

@@ -302,6 +302,7 @@ NecroType* necro_type_fresh_var(NecroPagedArena* arena, NecroScope* scope)
 
 NecroType* necro_type_strip_for_all(NecroType* type)
 {
+    type = necro_type_find(type);
     while (type != NULL && type->type == NECRO_TYPE_FOR)
     {
         type = type->for_all.type;
@@ -2226,456 +2227,47 @@ NecroResult(NecroType) necro_type_unify_order(NecroType* type1, NecroType* type2
     }
 }
 
-///////////////////////////////////////////////////////
-// Uniqueness Attributes
-///////////////////////////////////////////////////////
-// NecroType* necro_type_uniqueness_attribute_alloc(NecroPagedArena* arena, NecroBase* base)
-// {
-//     NecroType* type            = necro_paged_arena_alloc(arena, sizeof(NecroType));
-//     type->pre_supplied         = false;
-//     type->kind                 = base->unique_type_attribute->type;
-//     type->uniqueness_attribute = NULL;
-//     return type;
-// }
-//
-// NecroType* necro_type_uniqueness_attribute_alloc_snapshot(NecroSnapshotArena* arena, NecroBase* base)
-// {
-//     NecroType* type            = necro_snapshot_arena_alloc(arena, sizeof(NecroType));
-//     type->pre_supplied         = false;
-//     type->kind                 = base->unique_type_attribute->type;
-//     type->uniqueness_attribute = NULL;
-//     return type;
-// }
-//
-// NecroType* necro_type_uniqueness_attribute_create_con(NecroPagedArena* arena, NecroBase* base, NecroAstSymbol* con_symbol, NecroType* args)
-// {
-//     NecroType* type = necro_type_uniqueness_attribute_alloc(arena, base);
-//     type->type      = NECRO_TYPE_CON;
-//     type->con       = (NecroTypeCon)
-//     {
-//         .con_symbol = con_symbol,
-//         .args       = args,
-//     };
-//     return type;
-// }
-//
-// NecroType* necro_type_uniqueness_attribute_create_con_snapshot(NecroSnapshotArena* arena, NecroBase* base, NecroAstSymbol* con_symbol, NecroType* args)
-// {
-//     NecroType* type = necro_type_uniqueness_attribute_alloc_snapshot(arena, base);
-//     type->type      = NECRO_TYPE_CON;
-//     type->con       = (NecroTypeCon)
-//     {
-//         .con_symbol = con_symbol,
-//         .args       = args,
-//     };
-//     return type;
-// }
-//
-// NecroType* necro_type_uniqueness_attribute_create_list(NecroPagedArena* arena, NecroBase* base, NecroType* item, NecroType* next)
-// {
-//     NecroType* type = necro_type_uniqueness_attribute_alloc(arena, base);
-//     type->type      = NECRO_TYPE_LIST;
-//     type->list      = (NecroTypeList)
-//     {
-//         .item = item,
-//         .next = next,
-//     };
-//     return type;
-// }
-//
-// NecroType* necro_type_uniqueness_attribute_create_list_snapshot(NecroSnapshotArena* arena, NecroBase* base, NecroType* item, NecroType* next)
-// {
-//     NecroType* type = necro_type_uniqueness_attribute_alloc_snapshot(arena, base);
-//     type->type      = NECRO_TYPE_LIST;
-//     type->list      = (NecroTypeList)
-//     {
-//         .item = item,
-//         .next = next,
-//     };
-//     return type;
-// }
-//
-// NecroType* necro_type_uniqueness_attribute_create_or(NecroPagedArena* arena, NecroBase* base, NecroType* left, NecroType* right)
-// {
-//     return necro_type_uniqueness_attribute_create_con(arena, base, base->disjunction_type_attribute, necro_type_uniqueness_attribute_create_list(arena, base, left, necro_type_uniqueness_attribute_create_list(arena, base, right, NULL)));
-// }
-//
-// NecroType* necro_type_uniqueness_attribute_create_or_snapshot(NecroSnapshotArena* arena, NecroBase* base, NecroType* left, NecroType* right)
-// {
-//     return necro_type_uniqueness_attribute_create_con_snapshot(arena, base, base->disjunction_type_attribute, necro_type_uniqueness_attribute_create_list_snapshot(arena, base, left, necro_type_uniqueness_attribute_create_list_snapshot(arena, base, right, NULL)));
-// }
-//
-// NecroType* necro_type_uniqueness_attribute_create_and(NecroPagedArena* arena, NecroBase* base, NecroType* left, NecroType* right)
-// {
-//     return necro_type_uniqueness_attribute_create_con(arena, base, base->conjunction_type_attribute, necro_type_uniqueness_attribute_create_list(arena, base, left, necro_type_uniqueness_attribute_create_list(arena, base, right, NULL)));
-// }
-//
-// NecroType* necro_type_uniqueness_attribute_create_and_snapshot(NecroSnapshotArena* arena, NecroBase* base, NecroType* left, NecroType* right)
-// {
-//     return necro_type_uniqueness_attribute_create_con_snapshot(arena, base, base->conjunction_type_attribute, necro_type_uniqueness_attribute_create_list_snapshot(arena, base, left, necro_type_uniqueness_attribute_create_list_snapshot(arena, base, right, NULL)));
-// }
-//
-// NecroType* necro_type_uniqueness_attribute_create_not(NecroPagedArena* arena, NecroBase* base, NecroType* attribute)
-// {
-//     return necro_type_uniqueness_attribute_create_con(arena, base, base->negation_type_attribute, necro_type_uniqueness_attribute_create_list(arena, base, attribute, NULL));
-// }
-//
-// NecroType* necro_type_uniqueness_attribute_create_not_snapshot(NecroSnapshotArena* arena, NecroBase* base, NecroType* attribute)
-// {
-//     return necro_type_uniqueness_attribute_create_con_snapshot(arena, base, base->negation_type_attribute, necro_type_uniqueness_attribute_create_list_snapshot(arena, base, attribute, NULL));
-// }
-//
-// NecroInstSub* necro_type_sub_create_manual_snapshot(NecroSnapshotArena* arena, NecroAstSymbol* var_to_replace, NecroType* new_type, NecroInstSub* next)
-// {
-//     NecroInstSub* sub   = necro_snapshot_arena_alloc(arena, sizeof(NecroInstSub));
-//     sub->var_to_replace = var_to_replace;
-//     sub->new_name       = new_type;
-//     sub->next           = next;
-//     return sub;
-// }
-//
-// NecroInstSub* necro_type_sub_append_manual_snapshot(NecroSnapshotArena* arena, NecroInstSub* prev, NecroAstSymbol* var_to_replace, NecroType* new_type)
-// {
-//     NecroInstSub* sub   = necro_snapshot_arena_alloc(arena, sizeof(NecroInstSub));
-//     sub->var_to_replace = var_to_replace;
-//     sub->new_name       = new_type;
-//     sub->next           = NULL;
-//     if (prev == NULL)
-//         return sub;
-//     NecroInstSub* last = prev;
-//     while (last->next != NULL)
-//         last = last->next;
-//     last->next = sub;
-//     return prev;
-// }
-//
-// NecroType* necro_type_uniqueness_attribute_sub_snapshot(NecroSnapshotArena* arena, NecroBase* base, NecroType* type, NecroInstSub* subs)
-// {
-//     if (type == NULL)
-//         return NULL;
-//     type = necro_type_find(type);
-//     if (subs == NULL)
-//         return type;
-//     switch (type->type)
-//     {
-//     case NECRO_TYPE_VAR:
-//         while (subs != NULL)
-//         {
-//             if (type->for_all.var_symbol == subs->var_to_replace ||
-//                (type->for_all.var_symbol->name != NULL && type->for_all.var_symbol->name == subs->var_to_replace->name))
-//             {
-//                 return subs->new_name;
-//             }
-//             subs = subs->next;
-//         }
-//         return type;
-//     case NECRO_TYPE_CON:
-//         return necro_type_uniqueness_attribute_create_con_snapshot(arena, base, type->con.con_symbol, necro_type_uniqueness_attribute_sub_snapshot(arena, base, type->con.args, subs));
-//     case NECRO_TYPE_LIST:
-//         return necro_type_uniqueness_attribute_create_list_snapshot(arena, base, necro_type_uniqueness_attribute_sub_snapshot(arena, base, type->list.item, subs), necro_type_uniqueness_attribute_sub_snapshot(arena, base, type->list.next, subs));
-//     default: assert(false);
-//         return NULL;
-//     }
-// }
-//
-// inline bool necro_type_uniqueness_attribute_is_unique(NecroBase* base, const NecroType* t)
-// {
-//     if (t->type != NECRO_TYPE_CON)
-//         return false;
-//     else
-//         return t->con.con_symbol == base->unique_type_attribute;
-// }
-//
-// inline bool necro_type_uniqueness_attribute_is_zero(NecroBase* base, const NecroType* t)
-// {
-//     return necro_type_uniqueness_attribute_is_unique(base, t);
-// }
-//
-//
-// inline bool necro_type_uniqueness_attribute_is_non_unique(NecroBase* base, const NecroType* t)
-// {
-//     if (t->type != NECRO_TYPE_CON)
-//         return false;
-//     else
-//         return t->con.con_symbol == base->non_unique_type_attribute;
-// }
-//
-// inline bool necro_type_uniqueness_attribute_is_one(NecroBase* base, const NecroType* t)
-// {
-//     return necro_type_uniqueness_attribute_is_non_unique(base, t);
-// }
-//
-// inline bool necro_type_uniqueness_attribute_is_negation(NecroBase* base, const NecroType* t)
-// {
-//     if (t->type != NECRO_TYPE_CON)
-//         return false;
-//     else
-//         return t->con.con_symbol == base->negation_type_attribute;
-// }
-//
-// inline bool necro_type_uniqueness_attribute_is_disjunction(NecroBase* base, const NecroType* t)
-// {
-//     if (t->type != NECRO_TYPE_CON)
-//         return false;
-//     else
-//         return t->con.con_symbol == base->disjunction_type_attribute;
-// }
-//
-// inline bool necro_type_uniqueness_attribute_is_conjunction(NecroBase* base, const NecroType* t)
-// {
-//     if (t->type != NECRO_TYPE_CON)
-//         return false;
-//     else
-//         return t->con.con_symbol == base->conjunction_type_attribute;
-// }
-//
-// inline NecroType* necro_type_uniqueness_attribute_one(NecroBase* base)
-// {
-//     return base->non_unique_type_attribute->type;
-// }
-//
-// inline NecroType* necro_type_uniqueness_attribute_zero(NecroBase* base)
-// {
-//     return base->unique_type_attribute->type;
-// }
-//
-// bool necro_type_uniqueness_attribute_equals(NecroBase* base, NecroType* left, NecroType* right)
-// {
-//     if (left == right)
-//         return true;
-//     else if (left->type != right->type)
-//         return false;
-//     else if (left->type == NECRO_TYPE_VAR)
-//         return left->var.var_symbol == right->var.var_symbol;
-//     assert(left->type == NECRO_TYPE_CON);
-//     if (left->con.con_symbol != right->con.con_symbol)
-//     {
-//         return false;
-//     }
-//     else if (necro_type_uniqueness_attribute_is_unique(base, left) || necro_type_uniqueness_attribute_is_non_unique(base, left))
-//     {
-//         return true;
-//     }
-//     else if (necro_type_uniqueness_attribute_is_negation(base, left))
-//     {
-//         return necro_type_uniqueness_attribute_equals(base, left->con.args->list.item, right->con.args->list.item);
-//     }
-//     else if (necro_type_uniqueness_attribute_is_disjunction(base, left))
-//     {
-//         return necro_type_uniqueness_attribute_equals(base, left->con.args->list.item, right->con.args->list.item) &&
-//                necro_type_uniqueness_attribute_equals(base, left->con.args->list.next->list.item, right->con.args->list.next->list.item);
-//     }
-//     else if (necro_type_uniqueness_attribute_is_conjunction(base, left))
-//     {
-//         return necro_type_uniqueness_attribute_equals(base, left->con.args->list.item, right->con.args->list.item) &&
-//                necro_type_uniqueness_attribute_equals(base, left->con.args->list.next->list.item, right->con.args->list.next->list.item);
-//     }
-//     else
-//     {
-//         assert(false);
-//         return false;
-//     }
-// }
-//
-// // TODO: Factoring?
-// // TODO: Loop detection?
-// // Judicious use of simplify?
-// // Simplificaiton based on boolean algebra laws
-// NecroType* necro_type_uniqueness_attribute_simplify(NecroSnapshotArena* arena, NecroBase* base, NecroType* t)
-// {
-//     while (true)
-//     {
-//         // Values
-//         if (t->type == NECRO_TYPE_VAR || necro_type_uniqueness_attribute_is_zero(base, t) || necro_type_uniqueness_attribute_is_one(base, t))
-//         {
-//             return t;
-//         }
-//         // Negation
-//         else if (necro_type_uniqueness_attribute_is_negation(base, t))
-//         {
-//             NecroType* inner = necro_type_uniqueness_attribute_simplify(arena, base, t->con.args->list.item);
-//             // Involution Law
-//             if (necro_type_uniqueness_attribute_is_negation(base, inner)) { t = inner->con.args->list.item; }
-//             // DeMorgan's Law
-//             else if (necro_type_uniqueness_attribute_is_disjunction(base, inner))
-//             {
-//                 t = necro_type_uniqueness_attribute_create_and_snapshot(arena, base, necro_type_uniqueness_attribute_create_not_snapshot(arena, base, inner->con.args->list.item), necro_type_uniqueness_attribute_create_not_snapshot(arena, base, inner->con.args->list.next->list.item));
-//             }
-//             else if (necro_type_uniqueness_attribute_is_conjunction(base, inner))
-//             {
-//                 t = necro_type_uniqueness_attribute_create_or_snapshot(arena, base, necro_type_uniqueness_attribute_create_not_snapshot(arena, base, inner->con.args->list.item), necro_type_uniqueness_attribute_create_not_snapshot(arena, base, inner->con.args->list.next->list.item));
-//             }
-//             else return t;
-//         }
-//         // Disjunction
-//         else if (necro_type_uniqueness_attribute_is_disjunction(base, t))
-//         {
-//             NecroType* left  = necro_type_uniqueness_attribute_simplify(arena, base, t->con.args->list.item);
-//             NecroType* right = necro_type_uniqueness_attribute_simplify(arena, base, t->con.args->list.next->list.item);
-//             // Idempotent Law
-//             if (necro_type_uniqueness_attribute_equals(base, left, right)) { t = left; }
-//             // Identity Law
-//             else if (necro_type_uniqueness_attribute_is_zero(base, left))  { t = right; }
-//             else if (necro_type_uniqueness_attribute_is_one(base, right))  { t = necro_type_uniqueness_attribute_one(base); }
-//             else if (necro_type_uniqueness_attribute_is_zero(base, right)) { t = left; }
-//             else if (necro_type_uniqueness_attribute_is_one(base, left))   { t = necro_type_uniqueness_attribute_one(base); }
-//             // Complement Law
-//             else if (necro_type_uniqueness_attribute_is_negation(base, right) && necro_type_uniqueness_attribute_equals(base, left, right->con.args->list.item)) { t = necro_type_uniqueness_attribute_one(base); }
-//             else if (necro_type_uniqueness_attribute_is_negation(base, left)  && necro_type_uniqueness_attribute_equals(base, right, left->con.args->list.item)) { t = necro_type_uniqueness_attribute_one(base); }
-//             else return t;
-//         }
-//         // Conjunction
-//         else if (necro_type_uniqueness_attribute_is_conjunction(base, t))
-//         {
-//             NecroType* left  = necro_type_uniqueness_attribute_simplify(arena, base, t->con.args->list.item);
-//             NecroType* right = necro_type_uniqueness_attribute_simplify(arena, base, t->con.args->list.next->list.item);
-//             // Idempotent Law
-//             if (necro_type_uniqueness_attribute_equals(base, left, right)) { t = left; }
-//             // Identity Law
-//             else if (necro_type_uniqueness_attribute_is_zero(base, left))  { t = necro_type_uniqueness_attribute_zero(base); }
-//             else if (necro_type_uniqueness_attribute_is_one(base, right))  { t = left; }
-//             else if (necro_type_uniqueness_attribute_is_zero(base, right)) { t = necro_type_uniqueness_attribute_zero(base); }
-//             else if (necro_type_uniqueness_attribute_is_one(base, left))   { t = right; }
-//             // Complement Law
-//             else if (necro_type_uniqueness_attribute_is_negation(base, right) && necro_type_uniqueness_attribute_equals(base, left, right->con.args->list.item)) { t = necro_type_uniqueness_attribute_zero(base); }
-//             else if (necro_type_uniqueness_attribute_is_negation(base, left)  && necro_type_uniqueness_attribute_equals(base, right, left->con.args->list.item)) { t = necro_type_uniqueness_attribute_zero(base); }
-//             else return t;
-//         }
-//         else
-//         {
-//             assert(false);
-//         }
-//     }
-// }
-//
-// // Note: Unique = 0, NonUnique = 1
-// NecroResult(NecroInstSub) necro_type_uniqueness_attribute_unify_0(NecroPagedArena* arena, NecroSnapshotArena* snapshot_arena, NecroBase* base, NecroType* t, NecroType* var_list)
-// {
-//     assert(t != NULL);
-//     if (var_list == NULL)
-//     {
-//         NecroType* simplified_t = necro_type_uniqueness_attribute_simplify(snapshot_arena, base, t);
-//         assert(simplified_t->type == NECRO_TYPE_CON);
-//         assert(simplified_t->con.con_symbol == base->unique_type_attribute || simplified_t->con.con_symbol == base->non_unique_type_attribute);
-//         if (necro_type_uniqueness_attribute_is_one(base, simplified_t))
-//             return ok(NecroInstSub, NULL); // uniquenessAttributeUnification Error
-//         else
-//             return ok(NecroInstSub, NULL);
-//     }
-//     else
-//     {
-//         assert(var_list->type == NECRO_TYPE_LIST);
-//         assert(var_list->list.item->type == NECRO_TYPE_VAR);
-//         NecroInstSub* sub0      = necro_create_inst_sub_manual(arena, var_list->list.item->var.var_symbol, base->unique_type_attribute->type, NULL);
-//         NecroType*    t0        = necro_type_uniqueness_attribute_simplify(snapshot_arena, base, necro_type_uniqueness_attribute_sub_snapshot(snapshot_arena, base, t, sub0));
-//         NecroInstSub* sub1      = necro_create_inst_sub_manual(arena, var_list->list.item->var.var_symbol, base->non_unique_type_attribute->type, NULL);
-//         NecroType*    t1        = necro_type_uniqueness_attribute_simplify(snapshot_arena, base, necro_type_uniqueness_attribute_sub_snapshot(snapshot_arena, base, t, sub1));
-//         NecroType*    x         = var_list->list.item;
-//
-//         // Go deeper
-//         NecroInstSub* result_sub = necro_try(NecroInstSub, necro_type_uniqueness_attribute_unify_0(arena, snapshot_arena, base, necro_type_uniqueness_attribute_create_and_snapshot(snapshot_arena, base, t0, t1), var_list->list.next));
-//         NecroType*    t0_prime   = necro_type_uniqueness_attribute_simplify(snapshot_arena, base, necro_type_uniqueness_attribute_sub_snapshot(snapshot_arena, base, t0, result_sub));
-//         NecroType*    t1_prime   = necro_type_uniqueness_attribute_simplify(snapshot_arena, base, necro_type_uniqueness_attribute_sub_snapshot(snapshot_arena, base, t1, result_sub));
-//
-//         // Look into Redundancy Laws to help simplify the form.
-//         // t0 || (x && !t1)
-//         NecroType* xsub_type =
-//             necro_type_uniqueness_attribute_simplify(snapshot_arena, base,
-//                 necro_type_uniqueness_attribute_create_or_snapshot(snapshot_arena, base,
-//                     t0_prime,
-//                     necro_type_uniqueness_attribute_create_and_snapshot(snapshot_arena, base,
-//                         x,
-//                         necro_type_uniqueness_attribute_create_not_snapshot(snapshot_arena, base, t1_prime))));
-//
-//         return ok(NecroInstSub, necro_create_inst_sub_manual(arena, var_list->list.item->var.var_symbol, xsub_type, result_sub));
-//     }
-// }
-//
-// NecroResult(NecroType) necro_type_uniqueness_attribute_bind_var(NecroType* var, NecroType* type)
-// {
-//     var  = necro_type_find(var);
-//     type = necro_type_find(type);
-//     assert(var->type == NECRO_TYPE_VAR);
-//     var->var.bound = necro_type_find(type);
-//     return ok(NecroType, type);
-// }
-//
-// // TODO: Alloc everything out of NecroSnapshotArena until the end
-// // TODO: Simplify function
-// // TODO: Collect variables!
-// // TODO: Simple early exits!
-// // TODO: Need to handle rigid type variables and all that...
-//
-// // Use subs to do a more traditional unify
-//
-// NecroResult(NecroType) necro_type_uniqueness_attribute_sub_var(NecroType* var, NecroType* type, NecroScope* scope)
-// {
-//     assert(var->type == NECRO_TYPE_VAR);
-//     if (type->type == NECRO_TYPE_VAR)
-//     {
-//         if (var->var.var_symbol == type->var.var_symbol)   return ok(NecroType, var);
-//         else if (var->var.is_rigid && type->var.is_rigid)  return necro_type_rigid_type_variable_error(var, type, NULL, NULL, NULL_LOC, NULL_LOC);
-//         else if (var->var.is_rigid)                        return necro_type_uniqueness_attribute_bind_var(type, var);
-//         else if (type->var.is_rigid)                       return necro_type_uniqueness_attribute_bind_var(var, type);
-//         else if (necro_type_is_bound_in_scope(var, scope)) return necro_type_uniqueness_attribute_bind_var(type, var);
-//         else                                               return necro_type_uniqueness_attribute_bind_var(var, type);
-//     }
-//     else
-//     {
-//         if (var->var.is_rigid)
-//             return necro_type_rigid_type_variable_error(var, type, NULL, NULL, NULL_LOC, NULL_LOC);
-//         return necro_type_uniqueness_attribute_bind_var(var, type);
-//     }
-// }
-//
-// // TODO / NOTE: Remove conjunction?
-// // Boolean algebra unification based on successive variable elimination
-// NecroResult(NecroType) necro_type_uniqueness_attribute_unify(NecroPagedArena* arena, NecroSnapshotArena* snapshot_arena, NecroBase* base, NecroScope* scope, NecroType* p, NecroType* q)
-// {
-//     p = necro_type_find(p);
-//     q = necro_type_find(q);
-//
-//     // Most common early exits
-//     if (p->type == NECRO_TYPE_VAR &&
-//        (q->type == NECRO_TYPE_VAR || necro_type_uniqueness_attribute_is_unique(base, q) || necro_type_uniqueness_attribute_is_non_unique(base, q)))
-//     {
-//         return necro_type_uniqueness_attribute_sub_var(p, q, scope);
-//     }
-//     else if (q->type == NECRO_TYPE_VAR &&
-//             (p->type == NECRO_TYPE_VAR || necro_type_uniqueness_attribute_is_unique(base, p) || necro_type_uniqueness_attribute_is_non_unique(base, p)))
-//     {
-//         return necro_type_uniqueness_attribute_sub_var(q, p, scope);
-//     }
-//     else if ((necro_type_uniqueness_attribute_is_unique(base, p) || necro_type_uniqueness_attribute_is_non_unique(base, p)) &&
-//              (necro_type_uniqueness_attribute_is_unique(base, q) || necro_type_uniqueness_attribute_is_non_unique(base, q)))
-//     {
-//         if (p->con.con_symbol == q->con.con_symbol)
-//             return ok(NecroType, p);
-//         else
-//             return ok(NecroType, p); // return ERROR!
-//     }
-//
-//     // Otherwise we've got something more complicated on our hands!
-//
-//     // unify t = (p && !q) || (!p && q) = 0
-//     NecroArenaSnapshot snapshot   = necro_snapshot_arena_get(snapshot_arena);
-//     NecroType*         temp_not_p = necro_type_uniqueness_attribute_create_not_snapshot(snapshot_arena, base, p);
-//     NecroType*         temp_not_q = necro_type_uniqueness_attribute_create_not_snapshot(snapshot_arena, base, q);
-//     NecroType*         temp_left  = necro_type_uniqueness_attribute_create_and_snapshot(snapshot_arena, base, p, temp_not_q);
-//     NecroType*         temp_right = necro_type_uniqueness_attribute_create_and_snapshot(snapshot_arena, base, temp_not_p, q);
-//     NecroType*         temp_t     = necro_type_uniqueness_attribute_create_or_snapshot(snapshot_arena, base, temp_left, temp_right);
-//     NecroType*         temp_vars  = NULL;
-//     // Unify0
-//     NecroInstSub*      subs       = necro_try_map(NecroInstSub, NecroType, necro_type_uniqueness_attribute_unify_0(arena, snapshot_arena, base, temp_t, temp_vars));
-//     // Apply Subs, deep copy into NecroPagedArena heap
-//
-//     // Deep copy sub types out, simplify, sub_var
-//     NecroType*         p_prime    = necro_type_deep_copy(arena, necro_type_uniqueness_attribute_simplify(snapshot_arena, base, necro_type_uniqueness_attribute_sub_snapshot(snapshot_arena, base, p, subs)));
-//
-//     necro_snapshot_arena_rewind(snapshot_arena, snapshot);
-//     return ok(NecroType, p_prime);
-// }
+bool necro_type_is_higher_order_function_go(const NecroType* type)
+{
+    type = necro_type_find_const(type);
+    switch (type->type)
+    {
+    case NECRO_TYPE_FUN: return true;
+    case NECRO_TYPE_VAR: return false;
+    case NECRO_TYPE_FOR: return necro_type_is_higher_order_function_go(type->for_all.type);
+    case NECRO_TYPE_APP: return necro_type_is_higher_order_function_go(type->app.type1) || necro_type_is_higher_order_function_go(type->app.type2);
+    case NECRO_TYPE_CON:
+    {
+        const NecroType* args = type->con.args;
+        while (args != NULL)
+        {
+            if (necro_type_is_higher_order_function_go(args->list.item))
+                return true;
+            args = args->list.next;
+        }
+        return false;
+    }
+    case NECRO_TYPE_NAT: return false;
+    case NECRO_TYPE_SYM: return false;
+    case NECRO_TYPE_LIST:
+    default:
+        assert(false);
+        return false;
+    }
+}
 
+bool necro_type_is_higher_order_function(const NecroType* type, int32_t arity)
+{
+    while (type->type == NECRO_TYPE_FUN && arity >= 0)
+    {
+        if (necro_type_is_higher_order_function_go(type->fun.type1))
+            return true;
+        arity--;
+        type = type->fun.type2;
+    }
+    // return necro_type_is_higher_order_function_go(type);
+    return false;
+}
 
 ///////////////////////////////////////////////////////
 // Uniqueness

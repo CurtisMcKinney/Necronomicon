@@ -168,7 +168,7 @@ NecroInstSub*          necro_type_filter_and_deep_copy_subs(NecroPagedArena* are
 NecroResult(NecroType) necro_type_instantiate_with_subs(NecroPagedArena* arena, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroType* type, struct NecroScope* scope, NecroInstSub** subs);
 NecroResult(NecroType) necro_type_generalize(NecroPagedArena* arena, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroType* type, struct NecroScope* scope);
 NecroResult(NecroType) necro_type_set_zero_order(NecroType* type, const NecroSourceLoc* source_loc, const NecroSourceLoc* end_loc);
-bool                   necro_type_is_higher_order_function(const NecroType* type, int32_t arity);
+bool                   necro_type_is_higher_order_function(const NecroType* type, size_t arity);
 
 bool                   necro_type_exact_unify(NecroType* type1, NecroType* type2);
 NecroType*             necro_type_find(NecroType* type);

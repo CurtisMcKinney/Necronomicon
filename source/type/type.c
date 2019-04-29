@@ -2256,7 +2256,7 @@ bool necro_type_is_higher_order_function_go(const NecroType* type)
     }
 }
 
-bool necro_type_is_higher_order_function(const NecroType* type, int32_t arity)
+bool necro_type_is_higher_order_function(const NecroType* type, size_t arity)
 {
     while (type->type == NECRO_TYPE_FUN && arity >= 0)
     {

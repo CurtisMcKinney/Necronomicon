@@ -547,6 +547,7 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         reified_ast->bin_op.type         = ast->bin_op.type;
         reified_ast->bin_op.inst_context = NULL;
         reified_ast->bin_op.inst_subs    = NULL;
+        reified_ast->bin_op.op_type      = NULL;
         break;
     case NECRO_AST_IF_THEN_ELSE:
         reified_ast->if_then_else.if_expr   = necro_reify_go(parse_ast_arena, ast->if_then_else.if_expr, arena, intern);
@@ -1268,7 +1269,7 @@ NecroAst* necro_ast_create_wildcard(NecroPagedArena* arena)
     return ast;
 }
 
-NecroAst* necro_ast_create_bin_op(NecroPagedArena* arena, NecroIntern* intern, const char* op_name, NecroAst* lhs, NecroAst* rhs)
+NecroAst* necro_ast_create_bin_op(NecroPagedArena* arena, NecroIntern* intern, const char* op_name, NecroAst* lhs, NecroAst* rhs, NecroType* op_type)
 {
     assert(op_name != NULL);
     assert(lhs != NULL);
@@ -1280,10 +1281,11 @@ NecroAst* necro_ast_create_bin_op(NecroPagedArena* arena, NecroIntern* intern, c
     ast->bin_op.rhs          = rhs;
     ast->bin_op.inst_context = NULL;
     ast->bin_op.inst_subs    = NULL;
+    ast->bin_op.op_type      = op_type;
     return ast;
 }
 
-NecroAst* necro_ast_create_bin_op_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* lhs, NecroAst* rhs)
+NecroAst* necro_ast_create_bin_op_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* lhs, NecroAst* rhs, NecroType* op_type)
 {
     assert(ast_symbol != NULL);
     assert(lhs != NULL);
@@ -1294,12 +1296,13 @@ NecroAst* necro_ast_create_bin_op_with_ast_symbol(NecroPagedArena* arena, NecroA
     ast->bin_op.rhs          = rhs;
     ast->bin_op.inst_context = NULL;
     ast->bin_op.inst_subs    = NULL;
+    ast->bin_op.op_type      = op_type;
     return ast;
 }
 
-NecroAst* necro_ast_create_bin_op_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* lhs, NecroAst* rhs, NecroInstSub* inst_subs)
+NecroAst* necro_ast_create_bin_op_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* lhs, NecroAst* rhs, NecroInstSub* inst_subs, NecroType* op_type)
 {
-    NecroAst* ast = necro_ast_create_bin_op_with_ast_symbol(arena, ast_symbol, lhs, rhs);
+    NecroAst* ast = necro_ast_create_bin_op_with_ast_symbol(arena, ast_symbol, lhs, rhs, op_type);
     ast->bin_op.inst_subs = inst_subs;
     return ast;
 }
@@ -2109,7 +2112,8 @@ NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_g
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_bin_op_full(arena, ast->bin_op.ast_symbol,
             necro_ast_deep_copy_go(arena, declaration_group, ast->bin_op.lhs),
             necro_ast_deep_copy_go(arena, declaration_group, ast->bin_op.rhs),
-            necro_type_deep_copy_subs(arena, ast->bin_op.inst_subs)));
+            necro_type_deep_copy_subs(arena, ast->bin_op.inst_subs),
+            ast->bin_op.op_type));
     case NECRO_AST_IF_THEN_ELSE:
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_if_then_else(arena,
             necro_ast_deep_copy_go(arena, declaration_group, ast->if_then_else.if_expr),

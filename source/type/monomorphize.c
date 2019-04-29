@@ -522,6 +522,7 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
 
     case NECRO_AST_BIN_OP:
     {
+        ast->bin_op.op_type          = necro_try_map(NecroType, void, necro_type_replace_with_subs_deep_copy(monomorphize->arena, &monomorphize->con_env, monomorphize->base, ast->bin_op.op_type, subs));
         ast->bin_op.inst_subs        = necro_type_union_subs(ast->bin_op.inst_subs, subs);
         const bool should_specialize = necro_try_map(bool, void, necro_ast_should_specialize(monomorphize->arena, monomorphize->base, ast->bin_op.ast_symbol, ast, ast->bin_op.inst_subs));
         if (should_specialize)

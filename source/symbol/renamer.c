@@ -1463,7 +1463,8 @@ void necro_rename_test()
             necro_ast_create_var_with_ast_symbol(&ast.arena,
                 necro_ast_symbol_create(&ast.arena, clash_z, necro_intern_string(&intern, "z"), necro_intern_string(&intern, "Test"), NULL),
                 NECRO_VAR_VAR
-            )
+            ),
+            necro_type_fresh_var(&ast.arena, NULL)
         );
 
         bin_op->bin_op.type = NECRO_BIN_OP_ADD;
@@ -1547,7 +1548,8 @@ void necro_rename_test()
             necro_ast_create_var_with_ast_symbol(&ast.arena,
                 necro_ast_symbol_create(&ast.arena, clash_z, necro_intern_string(&intern, "z"), necro_intern_string(&intern, "Test"), NULL),
                 NECRO_VAR_VAR
-            )
+            ),
+            necro_type_fresh_var(&ast.arena, NULL)
         );
 
         bin_op->bin_op.type = NECRO_BIN_OP_ADD;

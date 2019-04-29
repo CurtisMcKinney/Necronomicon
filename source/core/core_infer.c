@@ -89,6 +89,14 @@ NecroResult(NecroType) necro_core_infer_var(NecroCoreInfer* infer, NecroCoreAst*
         NecroType* type_var = necro_type_fresh_var(infer->arena, NULL);
         type_var->kind      = infer->base->star_kind->type;
         type_var->ownership = infer->base->ownership_share->type;
+        if (ast->necro_type == NULL)
+        {
+            ast->necro_type = type_var;
+        }
+        else
+        {
+            unwrap(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, ast->necro_type, type_var, NULL, zero_loc, zero_loc));
+        }
         return ok(NecroType, type_var);
     }
     else if (ast->var.ast_symbol->type->type == NECRO_TYPE_FOR)
@@ -97,6 +105,7 @@ NecroResult(NecroType) necro_core_infer_var(NecroCoreInfer* infer, NecroCoreAst*
         if (type->ownership == NULL)
             type->ownership = infer->base->ownership_share->type;
         necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, ast->var.ast_symbol->type, zero_loc, zero_loc));
+        unwrap(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, ast->necro_type, type, NULL, zero_loc, zero_loc));
         return ok(NecroType, type);
     }
     else

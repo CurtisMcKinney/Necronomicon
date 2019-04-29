@@ -23,6 +23,7 @@ typedef struct NecroCoreScopeNode
 {
     NecroCoreAstSymbol* ast_symbol;
     NecroCoreAstSymbol* renamed_ast_symbol;
+    NecroType*          necro_type;
 } NecroCoreScopeNode;
 
 typedef struct NecroCoreScope
@@ -53,7 +54,7 @@ void                necro_core_lambda_lift_pat(NecroLambdaLift* ll, NecroCoreAst
 NecroCoreScope*     necro_core_scope_create(NecroPagedArena* arena, NecroCoreScope* parent);
 bool                necro_core_scope_find_in_this_scope(NecroCoreScope* scope, NecroCoreAstSymbol* ast_symbol);
 NecroCoreAstSymbol* necro_core_scope_find_renamed_in_this_scope(NecroCoreScope* scope, NecroCoreAstSymbol* ast_symbol);
-void                necro_core_scope_insert(NecroPagedArena* arena, NecroCoreScope* scope, NecroCoreAstSymbol* ast_symbol);
+void                necro_core_scope_insert(NecroPagedArena* arena, NecroCoreScope* scope, NecroCoreAstSymbol* ast_symbol, NecroType* necro_type);
 
 //--------------------
 // NecroLambdaLift
@@ -116,7 +117,7 @@ NecroCoreScope* necro_core_scope_create(NecroPagedArena* arena, NecroCoreScope* 
     scope->size           = NECRO_CORE_SCOPE_INITIAL_SIZE;
     scope->count          = 0;
     for (size_t slot = 0; slot < scope->size; ++slot)
-        scope->data[slot] = (NecroCoreScopeNode) { .ast_symbol = NULL, .renamed_ast_symbol = NULL };
+        scope->data[slot] = (NecroCoreScopeNode) { .ast_symbol = NULL, .renamed_ast_symbol = NULL, .necro_type = NULL };
     return scope;
 }
 
@@ -137,6 +138,7 @@ inline void necro_core_scope_grow(NecroPagedArena* arena, NecroCoreScope* scope)
     {
         NecroCoreAstSymbol* ast_symbol         = prev_data[prev_slot].ast_symbol;
         NecroCoreAstSymbol* renamed_ast_symbol = prev_data[prev_slot].renamed_ast_symbol;
+        NecroType*          necro_type         = prev_data[prev_slot].necro_type;
         if (ast_symbol == NULL)
             continue;
         NecroSymbol symbol = ast_symbol->name;
@@ -148,12 +150,13 @@ inline void necro_core_scope_grow(NecroPagedArena* arena, NecroCoreScope* scope)
         }
         scope->data[slot].ast_symbol         = ast_symbol;
         scope->data[slot].renamed_ast_symbol = renamed_ast_symbol;
+        scope->data[slot].necro_type         = necro_type;
         scope->count++;
     }
     assert(scope->count == prev_count);
 }
 
-void necro_core_scope_insert(NecroPagedArena* arena, NecroCoreScope* scope, NecroCoreAstSymbol* ast_symbol)
+void necro_core_scope_insert(NecroPagedArena* arena, NecroCoreScope* scope, NecroCoreAstSymbol* ast_symbol, NecroType* necro_type)
 {
     assert(scope != NULL);
     assert(scope->data != NULL);
@@ -170,10 +173,11 @@ void necro_core_scope_insert(NecroPagedArena* arena, NecroCoreScope* scope, Necr
     }
     scope->data[slot].ast_symbol         = ast_symbol;
     scope->data[slot].renamed_ast_symbol = NULL;
+    scope->data[slot].necro_type         = necro_type;
     scope->count++;
 }
 
-void necro_core_scope_insert_with_renamed(NecroPagedArena* arena, NecroCoreScope* scope, NecroCoreAstSymbol* ast_symbol, NecroCoreAstSymbol* renamed_ast_symbol)
+void necro_core_scope_insert_with_renamed(NecroPagedArena* arena, NecroCoreScope* scope, NecroCoreAstSymbol* ast_symbol, NecroCoreAstSymbol* renamed_ast_symbol, NecroType* necro_type)
 {
     assert(scope != NULL);
     assert(scope->data != NULL);
@@ -190,6 +194,7 @@ void necro_core_scope_insert_with_renamed(NecroPagedArena* arena, NecroCoreScope
     }
     scope->data[slot].ast_symbol         = ast_symbol;
     scope->data[slot].renamed_ast_symbol = renamed_ast_symbol;
+    scope->data[slot].necro_type         = necro_type;
     scope->count++;
 }
 
@@ -242,11 +247,12 @@ void necro_core_lambda_lift_pop_scope(NecroLambdaLift* ll)
     for (size_t i = 0; i < ll->scope->free_vars->size; ++i)
     {
         NecroCoreAstSymbol* ast_symbol = ll->scope->free_vars->data[i].ast_symbol;
+        NecroType*          necro_type = ll->scope->free_vars->data[i].necro_type;
         if (ast_symbol == NULL || necro_core_scope_find_in_this_scope(ll->scope->parent, ast_symbol))
             continue;
         // Rename and insert
         NecroCoreAstSymbol* renamed = necro_core_lambda_lift_create_renamed_symbol(ll, ast_symbol);
-        necro_core_scope_insert_with_renamed(&ll->ll_arena, ll->scope->parent->free_vars, ast_symbol, renamed);
+        necro_core_scope_insert_with_renamed(&ll->ll_arena, ll->scope->parent->free_vars, ast_symbol, renamed, necro_type);
     }
     // Pop scope
     ll->scope = ll->scope->parent;
@@ -313,7 +319,7 @@ void necro_core_lambda_lift_var(NecroLambdaLift* ll, NecroCoreAst* ast)
         if (renamed == NULL)
         {
             renamed = necro_core_lambda_lift_create_renamed_symbol(ll, ast->var.ast_symbol);
-            necro_core_scope_insert_with_renamed(&ll->ll_arena, ll->scope->free_vars, ast->var.ast_symbol, renamed);
+            necro_core_scope_insert_with_renamed(&ll->ll_arena, ll->scope->free_vars, ast->var.ast_symbol, renamed, ast->necro_type);
         }
         ast->var.ast_symbol = renamed;
     }
@@ -328,7 +334,7 @@ void necro_core_lambda_lift_var(NecroLambdaLift* ll, NecroCoreAst* ast)
         NecroCoreAstSymbol* ast_symbol = free_vars->data[i].ast_symbol;
         if (ast_symbol == NULL)
             continue;
-        NecroCoreAst* free_var = necro_core_ast_create_var(ll->ast_arena, ast_symbol);
+        NecroCoreAst* free_var = necro_core_ast_create_var(ll->ast_arena, ast_symbol, free_vars->data[i].necro_type);
         necro_core_lambda_lift_var(ll, free_var);
         // Apply
         NecroCoreAst* app_ast = necro_core_ast_create_app(ll->ast_arena, NULL, free_var);
@@ -394,7 +400,7 @@ void necro_core_lambda_lift_lam(NecroLambdaLift* ll, NecroCoreAst* ast)
     // Create name, symbol, and var
     NecroSymbol         anon_name   = necro_intern_unique_string(ll->intern, "anonymous");
     NecroCoreAstSymbol* anon_symbol = necro_core_ast_symbol_create(ll->ast_arena, anon_name, ast->necro_type);
-    NecroCoreAst*       anon_var    = necro_core_ast_create_var(ll->ast_arena, anon_symbol);
+    NecroCoreAst*       anon_var    = necro_core_ast_create_var(ll->ast_arena, anon_symbol, anon_symbol->type);
     // In-place Swap ast with anon_var
     NecroCoreAst        temp        = *anon_var;
     *anon_var                       = *ast;
@@ -421,7 +427,7 @@ void necro_core_lambda_lift_bind(NecroLambdaLift* ll, NecroCoreAst* ast)
     assert(ast->ast_type == NECRO_CORE_AST_BIND);
     if (ll->scope->parent == NULL)
     {
-        necro_core_scope_insert(&ll->ll_arena, ll->scope, ast->bind.ast_symbol);
+        necro_core_scope_insert(&ll->ll_arena, ll->scope, ast->bind.ast_symbol, ast->bind.ast_symbol->type);
         necro_core_lambda_lift_push_scope(ll);
         if (necro_core_lambda_lift_is_bind_fn(ast))
             necro_core_lambda_lift_bound_lam(ll, ast->bind.expr);
@@ -434,12 +440,12 @@ void necro_core_lambda_lift_bind(NecroLambdaLift* ll, NecroCoreAst* ast)
     }
     else if (!necro_core_lambda_lift_is_bind_fn(ast))
     {
-        necro_core_scope_insert(&ll->ll_arena, ll->scope, ast->bind.ast_symbol);
+        necro_core_scope_insert(&ll->ll_arena, ll->scope, ast->bind.ast_symbol, ast->bind.ast_symbol->type);
         necro_core_lambda_lift_go(ll, ast->bind.expr);
         return;
     }
     // Lift and insert into global scope
-    necro_core_scope_insert(&ll->ll_arena, ll->global_scope, ast->bind.ast_symbol);
+    necro_core_scope_insert(&ll->ll_arena, ll->global_scope, ast->bind.ast_symbol, ast->bind.ast_symbol->type);
     necro_core_lambda_lift_push_scope(ll);
     necro_core_lambda_lift_bound_lam(ll, ast->bind.expr);
     // Lift named lambda
@@ -459,14 +465,14 @@ void necro_core_lambda_lift_bind(NecroLambdaLift* ll, NecroCoreAst* ast)
     ast->bind.ast_symbol->free_vars = free_vars;
     NecroType*      f_ownership     = ast->bind.ast_symbol->type->ownership;
     // Add Lambdas, starting from end
-    for (int32_t i = (int32_t) free_vars->size - 1; i >= 0; --i)
+    for (int32_t i = free_vars->size - 1; i >= 0; i--)
     {
         NecroCoreAstSymbol* ast_symbol = free_vars->data[i].renamed_ast_symbol;
         if (ast_symbol == NULL)
             continue;
-        ast->bind.expr                        = necro_core_ast_create_lam(ll->ast_arena, necro_core_ast_create_var(ll->ast_arena, ast_symbol), ast->bind.expr);
-        ast->bind.ast_symbol->type            = necro_type_fn_create(ll->ast_arena, ast_symbol->type, ast->bind.ast_symbol->type);
-        ast->bind.ast_symbol->type->ownership = f_ownership;
+        ast->bind.expr                         = necro_core_ast_create_lam(ll->ast_arena, necro_core_ast_create_var(ll->ast_arena, ast_symbol, ast_symbol->type), ast->bind.expr);
+        ast->bind.ast_symbol->type             = necro_type_fn_create(ll->ast_arena, ast_symbol->type, ast->bind.ast_symbol->type);
+        ast->bind.ast_symbol->type->ownership  = f_ownership;
     }
     ast->necro_type = ast->bind.ast_symbol->type;
     necro_core_lambda_lift_pop_scope(ll);
@@ -494,7 +500,7 @@ void necro_core_lambda_lift_pat(NecroLambdaLift* ll, NecroCoreAst* ast)
         return;
     case NECRO_CORE_AST_VAR:
         if (!ast->var.ast_symbol->is_constructor && ast->var.ast_symbol != ll->base->prim_undefined->core_ast_symbol)
-            necro_core_scope_insert(&ll->ll_arena, ll->scope, ast->var.ast_symbol);
+            necro_core_scope_insert(&ll->ll_arena, ll->scope, ast->var.ast_symbol, ast->necro_type);
         return;
     case NECRO_CORE_AST_LIT: return;
     default:                 assert(false && "Unimplemented Ast in necro_core_lambda_lift_pat");     return;

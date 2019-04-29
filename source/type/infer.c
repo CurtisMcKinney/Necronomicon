@@ -530,7 +530,8 @@ NecroResult(NecroType) necro_create_data_constructor(NecroInfer* infer, NecroAst
         data_type->con.con_symbol->is_enum = false;
     while (args_ast != NULL)
     {
-        NecroType* arg     = necro_try(NecroType, necro_ast_to_type_sig_go(infer, args_ast->list.item, NECRO_TYPE_POLY_ORDER, NECRO_TYPE_ATTRIBUTE_CONSTRUCTOR_DOT));
+        NecroType* arg = necro_try(NecroType, necro_ast_to_type_sig_go(infer, args_ast->list.item, NECRO_TYPE_POLY_ORDER, NECRO_TYPE_ATTRIBUTE_CONSTRUCTOR_DOT));
+        unwrap(NecroType, necro_type_unify_with_info(infer->arena, &infer->con_env, infer->base, data_type->ownership, arg->ownership, NULL, ast->source_loc, ast->end_loc));
         if (con_args == NULL)
         {
             con_args            = necro_type_fn_create(infer->arena, arg, NULL);
@@ -1426,7 +1427,8 @@ NecroResult(NecroType) necro_infer_bin_op(NecroInfer* infer, NecroAst* ast)
     // Unify lhs
     necro_try(NecroType, necro_type_unify_with_info(infer->arena, &infer->con_env, infer->base, left_type, x_type, ast->scope, ast->bin_op.lhs->source_loc, ast->bin_op.lhs->end_loc));
 
-    ast->necro_type = result_type;
+    ast->necro_type     = result_type;
+    ast->bin_op.op_type = op_type;
     return ok(NecroType, ast->necro_type);
 }
 
@@ -1545,6 +1547,7 @@ NecroResult(NecroType) necro_infer_apat(NecroInfer* infer, NecroAst* ast)
         NecroType* constructor_type  = ast->constructor.conid->conid.ast_symbol->type;
         assert(constructor_type != NULL);
         constructor_type             = necro_try(NecroType, necro_type_instantiate(infer->arena, &infer->con_env, infer->base, constructor_type, ast->scope));
+        ast->constructor.conid->necro_type = constructor_type;
         NecroType* pattern_type_head = NULL;
         NecroType* pattern_type      = NULL;
         NecroAst*  ast_args          = ast->constructor.arg_list;
@@ -4291,7 +4294,8 @@ void necro_test_infer()
             necro_ast_create_var_with_ast_symbol(&ast.arena,
                 necro_ast_symbol_create(&ast.arena, clash_z, necro_intern_string(&intern, "z"), necro_intern_string(&intern, "Test"), NULL),
                 NECRO_VAR_VAR
-            )
+            ),
+            necro_type_fresh_var(&ast.arena, NULL)
         );
 
         bin_op->bin_op.type = NECRO_BIN_OP_ADD;
@@ -4594,7 +4598,8 @@ void necro_test_infer()
                     NULL
                 ),
                 NECRO_CON_VAR
-            )
+            ),
+            necro_type_fresh_var(&ast.arena, NULL)
         );
 
         bin_op->bin_op.type = NECRO_BIN_OP_ADD;

@@ -75,6 +75,7 @@ typedef struct
 typedef struct
 {
     NecroCoreAstSymbol*          con_symbol;
+    NecroType*                   con_fn_type;
     struct NecroStaticValueList* args;
 } NecroStaticValueConstructor;
 
@@ -159,10 +160,11 @@ NecroStaticValue* necro_static_value_create_fun(NecroPagedArena* arena, NecroTyp
     return static_value;
 }
 
-NecroStaticValue* necro_static_value_create_con(NecroPagedArena* arena, NecroType* necro_type, NecroCoreAstSymbol* con_symbol, NecroStaticValueList* args)
+NecroStaticValue* necro_static_value_create_con(NecroPagedArena* arena, NecroType* necro_type, NecroCoreAstSymbol* con_symbol, NecroType* con_fn_type, NecroStaticValueList* args)
 {
     NecroStaticValue* static_value = necro_static_value_alloc(arena, NECRO_STATIC_VALUE_CON, necro_type);
     static_value->con.con_symbol   = con_symbol;
+    static_value->con.con_fn_type  = con_fn_type;
     static_value->con.args         = args;
     return static_value;
 }
@@ -434,21 +436,20 @@ NecroStaticValue* necro_defunctionalize_app_env(NecroDefunctionalizeContext* con
     }
     const int32_t arity           = (int32_t) fn_static_value->env.fn_symbol->arity;
     int32_t       difference      = arity - (app_count + free_var_count);
-    const bool    is_higher_order = necro_type_is_higher_order_function(fn_static_value->env.fn_type, arity);
+    // const bool    is_higher_order = necro_type_is_higher_order_function(fn_static_value->env.fn_type, arity);
     // Saturated
     if (difference == 0)
     {
-        if (!fn_static_value->env.fn_symbol->is_constructor && is_higher_order == true)
-        {
-            assert(false);
-            return NULL; // TODO: Inline
-        }
-        else
-        {
+        // if (!fn_static_value->env.fn_symbol->is_constructor && is_higher_order == true)
+        // {
+        //     assert(false);
+        //     return NULL; // TODO: Inline
+        // }
+        // else
+        // {
             // Saturated, First Order, Env
             NecroCoreAst* expr_ast  = necro_core_ast_create_var(context->arena, fn_static_value->env.fn_symbol, fn_static_value->env.fn_type);
             NecroCoreAst* pat_ast   = NULL;
-            // NecroType*    env_args  = fn_static_value->necro_type->con.args;
             NecroType*    env_args  = fn_static_value->necro_type->con.args;
             bool          is_env_fn = env_args != NULL;
             // Apply env vars
@@ -467,13 +468,22 @@ NecroStaticValue* necro_defunctionalize_app_env(NecroDefunctionalizeContext* con
                     env_args                           = env_args->list.next;
                 }
             }
+            // NOTE: Naive app iterations loads args on backwards
             // Apply App vars
-            NecroCoreAst* apps = app_ast;
+            NecroCoreAst* apps  = app_ast;
+            size_t        arg_i = 0;
             while (apps->ast_type == NECRO_CORE_AST_APP)
             {
+                // HACK: Lame!
+                NecroCoreAst* arg_app = app_ast;
+                for (size_t i = arg_i + 1; i < (size_t) app_count; ++i)
+                    arg_app = arg_app->app.expr1;
+                arg_app  = arg_app->app.expr2;
+                expr_ast = necro_core_ast_create_app(context->arena, expr_ast, arg_app);
                 // necro_defunctionalize_go(context, apps->app.expr2);
-                expr_ast = necro_core_ast_create_app(context->arena, expr_ast, apps->app.expr2);
+                // expr_ast = necro_core_ast_create_app(context->arena, expr_ast, apps->app.expr2);
                 apps     = apps->app.expr1;
+                arg_i++;
             }
             NecroStaticValue* expr_sv = necro_defunctionalize_go(context, expr_ast);
             if (is_env_fn)
@@ -488,7 +498,7 @@ NecroStaticValue* necro_defunctionalize_app_env(NecroDefunctionalizeContext* con
             }
             // return fn_static_value->env.expr_static_value;
             return expr_sv;
-        }
+        // }
     }
     // Undersaturated
     else if (difference > 0)
@@ -496,15 +506,13 @@ NecroStaticValue* necro_defunctionalize_app_env(NecroDefunctionalizeContext* con
         // Under Saturated, First Order, Env
         NecroCoreAst* expr_ast  = necro_core_ast_create_var(context->arena, fn_static_value->env.fn_symbol, fn_static_value->env.fn_type);
         NecroCoreAst* pat_ast   = NULL;
-        // NecroType*    env_args  = fn_static_value->necro_type->con.args;
         NecroType*    env_args  = fn_static_value->necro_type->con.args;
         bool          is_env_fn = env_args != NULL;
         // Apply env vars
         if (is_env_fn)
         {
             NecroType* env_mono_con = unwrap(NecroType, necro_type_instantiate(context->arena, NULL, context->base, fn_static_value->env.env_con_symbol->type, NULL));
-            // unwrap(void, necro_kind_infer_default_unify_with_star(context->arena, context->base, env_mono_con, NULL, zero_loc, zero_loc));
-            pat_ast = necro_core_ast_create_var(context->arena, fn_static_value->env.env_con_symbol, env_mono_con);
+            pat_ast                 = necro_core_ast_create_var(context->arena, fn_static_value->env.env_con_symbol, env_mono_con);
             while (env_args != NULL)
             {
                 NecroCoreAstSymbol* env_var_symbol = necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "free_var"), env_args->list.item);
@@ -564,12 +572,12 @@ NecroStaticValue* necro_defunctionalize_app_env(NecroDefunctionalizeContext* con
 NecroStaticValue* necro_defunctionalize_app_con(NecroDefunctionalizeContext* context, NecroCoreAst* app_ast, NecroCoreAst* var_ast, NecroStaticValue* fn_static_value)
 {
     // Fully Saturated, First Order, Fun, Constructor
-    NecroCoreAst*         apps            = app_ast;
-    NecroStaticValueList* arg_svs         = NULL;
-    NecroType*            arg_types       = NULL;
-    NecroType*           constructed_type = necro_type_con_create(context->arena, fn_static_value->fun.expr_static_value->necro_type->con.con_symbol, NULL);
-    constructed_type->kind                = context->base->star_kind->type;
-    NecroType*            con             = constructed_type;
+    NecroCoreAst*         apps             = app_ast;
+    NecroStaticValueList* arg_svs          = NULL;
+    NecroType*            arg_types        = NULL;
+    NecroType*            constructed_type = necro_type_con_create(context->arena, fn_static_value->fun.expr_static_value->necro_type->con.con_symbol, NULL);
+    constructed_type->kind                 = context->base->star_kind->type;
+    NecroType*            con              = constructed_type;
     while (apps->ast_type == NECRO_CORE_AST_APP)
     {
         arg_svs = necro_cons_static_value_list(context->arena, necro_defunctionalize_go(context, apps->app.expr2), arg_svs);
@@ -583,6 +591,7 @@ NecroStaticValue* necro_defunctionalize_app_con(NecroDefunctionalizeContext* con
         con->kind = context->base->star_kind->type;
         apps = apps->app.expr1;
     }
+    arg_svs = necro_reverse_static_value_list(context->arena, arg_svs);
     // TODO: How to handle something like: data TwoFnsOneVar a = LeftFn a | RightFn a -- Where each side gets a different Env types...
     // Also, Two Maybes with two different Env types.
     // These all stem from returning from funtions from case.
@@ -590,7 +599,7 @@ NecroStaticValue* necro_defunctionalize_app_con(NecroDefunctionalizeContext* con
     // TODO: uvars...
     constructed_type->con.args = arg_types;
     var_ast->necro_type        = con;
-    return necro_static_value_create_con(context->arena, constructed_type, fn_static_value->fun.expr_static_value->necro_type->con.con_symbol->core_ast_symbol, arg_svs);
+    return necro_static_value_create_con(context->arena, constructed_type, var_ast->var.ast_symbol, con, arg_svs);
 }
 
 NecroStaticValue* necro_defunctionalize_app_fun(NecroDefunctionalizeContext* context, NecroCoreAst* app_ast, NecroCoreAst* var_ast, NecroStaticValue* fn_static_value, const int32_t app_count)
@@ -672,13 +681,121 @@ NecroStaticValue* necro_defunctionalize_app(NecroDefunctionalizeContext* context
     }
 }
 
-// // TODO: Case with returning functions!!!!!!!!!!!!!!!
-// NecroStaticValue* necro_defunctionalize_case(NecroDefunctionalizeContext* context, NecroCoreAst* ast)
-// {
-//     assert(context != NULL);
-//     assert(ast->ast_type == NECRO_CORE_AST_CASE);
-//     return NULL;
-// }
+//--------------------
+// Case
+//--------------------
+typedef enum
+{
+    NECRO_CASE_ALT_ELIMINATE,
+    NECRO_CASE_ALT_KEEP,
+} NECRO_CASE_ALT_STATUS;
+NECRO_CASE_ALT_STATUS necro_defunctionalize_case_pat(NecroDefunctionalizeContext* context, NecroCoreAst* ast, NecroStaticValue* expr_sv)
+{
+    assert(ast != NULL);
+    switch (ast->ast_type)
+    {
+
+    case NECRO_CORE_AST_APP:
+        switch (expr_sv->type)
+        {
+        case NECRO_STATIC_VALUE_CON:
+        {
+            NecroCoreAst* var_ast = ast;
+            while (var_ast->ast_type == NECRO_CORE_AST_APP)
+                var_ast = var_ast->app.expr1;
+            if (var_ast->var.ast_symbol != expr_sv->con.con_symbol && !necro_type_exact_unify(ast->necro_type, expr_sv->necro_type))
+                return NECRO_CASE_ALT_ELIMINATE;
+            NecroStaticValueList* rev_con_args = expr_sv->con.args;
+            while (ast->ast_type == NECRO_CORE_AST_APP)
+            {
+                if (necro_defunctionalize_case_pat(context, ast->app.expr2, rev_con_args->data) == NECRO_CASE_ALT_ELIMINATE)
+                    return NECRO_CASE_ALT_ELIMINATE;
+                rev_con_args = rev_con_args->next;
+                ast          = ast->app.expr1;
+            }
+            assert(ast->ast_type == NECRO_CORE_AST_VAR);
+            if (var_ast->var.ast_symbol == expr_sv->con.con_symbol)
+                ast->necro_type = expr_sv->con.con_fn_type;
+            return NECRO_CASE_ALT_KEEP;
+        }
+
+        case NECRO_STATIC_VALUE_DYN:
+        {
+            NecroType*   arg_types = expr_sv->dyn.type->con.args;
+            const size_t arg_count = necro_type_list_count(arg_types);
+            size_t       arg_i     = 0;
+            while (ast->ast_type == NECRO_CORE_AST_APP)
+            {
+                // HACK: Kinda lame...
+                NecroType* arg_type = arg_types;
+                for (size_t i = arg_i + 1; i < arg_count; ++i)
+                    arg_type = arg_type->list.next;
+                arg_type = arg_type->list.item;
+                necro_defunctionalize_case_pat(context, ast->app.expr2, necro_static_value_create_dyn(context->arena, arg_type));
+                // rev_con_args = rev_con_args->next;
+                ast = ast->app.expr1;
+                arg_i++;
+            }
+            assert(ast->ast_type == NECRO_CORE_AST_VAR);
+            return NECRO_CASE_ALT_KEEP;
+        }
+        default:
+            assert(false);
+            return NECRO_CASE_ALT_KEEP;
+        }
+
+    case NECRO_CORE_AST_VAR:
+        if (ast->var.ast_symbol->is_constructor)
+        {
+            if (expr_sv->type == NECRO_STATIC_VALUE_CON && ast->var.ast_symbol != expr_sv->con.con_symbol && !necro_type_exact_unify(ast->necro_type, expr_sv->necro_type))
+                return NECRO_CASE_ALT_ELIMINATE;
+            ast->necro_type = expr_sv->necro_type;
+            return NECRO_CASE_ALT_KEEP;
+        }
+        ast->var.ast_symbol->static_value = expr_sv;
+        ast->var.ast_symbol->type         = expr_sv->necro_type;
+        ast->necro_type                   = expr_sv->necro_type;
+        return NECRO_CASE_ALT_KEEP;
+    case NECRO_CORE_AST_LIT: return NECRO_CASE_ALT_KEEP;
+    default:                 assert(false && "Unimplemented Ast in necro_defunctionalize_case_pat"); return NECRO_CASE_ALT_KEEP;
+    }
+}
+
+// TODO: Case with returning functions!!!!!!!!!!!!!!!
+NecroStaticValue* necro_defunctionalize_case(NecroDefunctionalizeContext* context, NecroCoreAst* ast)
+{
+    assert(ast->ast_type == NECRO_CORE_AST_CASE);
+    NecroStaticValue* expr_sv = necro_defunctionalize_go(context, ast->case_expr.expr);
+
+    if (expr_sv->type == NECRO_STATIC_VALUE_FUN)
+    {
+        assert(ast->case_expr.expr->ast_type == NECRO_CORE_AST_VAR);
+        expr_sv = necro_static_value_create_env_from_expr(context, ast->case_expr.expr, expr_sv->necro_type, expr_sv->fun.fn_symbol, expr_sv->fun.expr_static_value);
+    }
+
+    NecroCoreAstList* alts     = ast->case_expr.alts;
+    NecroStaticValue* case_sv  = NULL;
+    NecroCoreAstList* prev_alt = NULL;
+    while (alts != NULL)
+    {
+        if (necro_defunctionalize_case_pat(context, alts->data->case_alt.pat, expr_sv) == NECRO_CASE_ALT_ELIMINATE)
+        {
+            // TODO: Eliminate alt
+            if (prev_alt == NULL)
+                ast->case_expr.alts = alts->next;
+            else
+                prev_alt->next = alts->next;
+            alts = alts->next;
+            continue;
+        }
+        NecroStaticValue* alt_sv = necro_defunctionalize_go(context, alts->data->case_alt.expr);
+        // TOOD: What to do with this!?
+        case_sv  = alt_sv;
+        prev_alt = alts;
+        alts     = alts->next;
+    }
+    return case_sv;
+}
 
 // NOTE: Leave bound lambdas be.
 // App is where the magic happens: Inline functions which apply higher-order functions, pass in the higher order function as an Env constructor, unwrap and apply function at each call site
@@ -695,7 +812,7 @@ NecroStaticValue* necro_defunctionalize_go(NecroDefunctionalizeContext* context,
     case NECRO_CORE_AST_FOR:       return necro_defunctionalize_for(context, ast);
     case NECRO_CORE_AST_LAM:       return necro_defunctionalize_lam(context, ast);
     case NECRO_CORE_AST_APP:       return necro_defunctionalize_app(context, ast);
-    // case NECRO_CORE_AST_CASE:      necro_defunctionalize_case(ll, ast); return;
+    case NECRO_CORE_AST_CASE:      return necro_defunctionalize_case(context, ast);
     // case NECRO_CORE_AST_BIND_REC:
     case NECRO_CORE_AST_DATA_DECL: return necro_defunctionalize_data_decl(context, ast);
     case NECRO_CORE_AST_DATA_CON:  return necro_defunctionalize_data_con(context, ast);
@@ -768,6 +885,7 @@ void necro_defunctionalize_test()
 {
     necro_announce_phase("Defunctionalize");
 
+/*
     {
         const char* test_name   = "Identity 1";
         const char* test_source = ""
@@ -979,6 +1097,105 @@ void necro_defunctionalize_test()
             "and' b1 b2 = b1 && b2\n"
             "notQuite i i2 = wtfHof (add i) (wtfHof (sub i2) (and' False))\n"
             "almost = notQuite 100\n";
+        necro_defunctionalize_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case 1";
+        const char* test_source = ""
+            "trueOrFalse =\n"
+            "  case True of\n"
+            "    True  -> False\n"
+            "    False -> True\n";
+        necro_defunctionalize_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case 2";
+        const char* test_source = ""
+            "maybeNothing =\n"
+            "  case (Just False) of\n"
+            "    Nothing -> True\n"
+            "    Just b  -> b\n";
+        necro_defunctionalize_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case 2-2";
+        const char* test_source = ""
+            "maybeNothing =\n"
+            "  case Nothing of\n"
+            "    Nothing -> True\n"
+            "    Just b  -> b\n";
+        necro_defunctionalize_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case 3-1";
+        const char* test_source = ""
+            "maybeNothing =\n"
+            "  case (eq True, eq False) of\n"
+            "    (f, g) -> f\n"
+            "appNothing = maybeNothing True\n";
+        necro_defunctionalize_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case 3-2";
+        const char* test_source = ""
+            "maybeNothing =\n"
+            "  case Just (eq True) of\n"
+            "    Just f  -> f False\n"
+            "    Nothing -> True\n";
+        necro_defunctionalize_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case 4";
+        const char* test_source = ""
+            "rollEm' =\n"
+            "  case add of\n"
+            "    f -> f\n"
+            "useEm :: Int\n"
+            "useEm = rollEm' 100 200\n";
+        necro_defunctionalize_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case 5";
+        const char* test_source = ""
+            "countEm' :: Int -> Int -> Int -> Int -> Int -> Int\n"
+            "countEm' v w x y z = v + w * x - y + z\n"
+            "rollEm' =\n"
+            "  case (countEm' 1 2) of\n"
+            "    f -> f\n"
+            "useEm :: Int\n"
+            "useEm = rollEm' 3 4 5\n";
+        necro_defunctionalize_test_result(test_name, test_source);
+    }
+*/
+
+    {
+        const char* test_name   = "Case 6";
+        const char* test_source = ""
+            "data Either' a b = Left' a | Right' b\n"
+            "eitherOr b =\n"
+            "  case Left' (eq True) of\n"
+            "    Left'  l -> l b\n"
+            "    Right' r -> r ()\n"
+            "leftPlease = eitherOr True\n";
+        necro_defunctionalize_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case 7";
+        const char* test_source = ""
+            "data Either' a b = Left' a | Right' b\n"
+            "eitherOr =\n"
+            "  case Left' (eq True) of\n"
+            "    Left'  l -> l\n"
+            "    Right' r -> r\n"
+            "leftPlease = eitherOr True\n";
         necro_defunctionalize_test_result(test_name, test_source);
     }
 

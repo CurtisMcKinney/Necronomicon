@@ -904,11 +904,11 @@ NecroAst* necro_ast_create_list(NecroPagedArena* arena, NecroAst* item, NecroAst
     return ast;
 }
 
+char* var_names[27] ={ "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z" };
 NecroAst* necro_ast_create_var_list(NecroPagedArena* arena, NecroIntern* intern, size_t num_vars, NECRO_VAR_TYPE var_type)
 {
     NecroAst* var_head = NULL;
     NecroAst* curr_var = NULL;
-    static char* var_names[27] = { "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z" };
     size_t name_index = 0;
     assert(num_vars < 27);
     while (num_vars > 0)

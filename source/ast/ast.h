@@ -668,4 +668,6 @@ NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_g
 
 void      necro_ast_assert_eq(NecroAst* ast1, NecroAst* ast2);
 
+extern char* var_names[27];
+
 #endif // NECRO_AST_H

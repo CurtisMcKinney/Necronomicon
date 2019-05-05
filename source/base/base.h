@@ -17,6 +17,7 @@
 struct NecroMachProgram;
 
 #define NECRO_MAX_ENV_TYPES 16
+#define NECRO_MAX_BRANCH_TYPES 16
 
 typedef struct NecroBase
 {
@@ -55,8 +56,10 @@ typedef struct NecroBase
     NecroAstSymbol* tuple9_type;
     NecroAstSymbol* tuple10_type;
 
-    NecroAstSymbol* env_types[NECRO_MAX_ENV_TYPES];
-    NecroAstSymbol* env_cons[NECRO_MAX_ENV_TYPES];
+    NecroAstSymbol*  env_types[NECRO_MAX_ENV_TYPES];
+    NecroAstSymbol*  env_cons[NECRO_MAX_ENV_TYPES];
+    NecroAstSymbol*  branch_types[NECRO_MAX_BRANCH_TYPES];
+    NecroAstSymbol** branch_cons[NECRO_MAX_BRANCH_TYPES];
 
     NecroAstSymbol* poly_type;
     NecroAstSymbol* world_type;
@@ -81,8 +84,6 @@ typedef struct NecroBase
     NecroAstSymbol* event_type;
     NecroAstSymbol* pattern_type;
     NecroAstSymbol* closure_type;
-    // NecroAstSymbol* dyn_state_type;
-    // NecroAstSymbol* apply_fn;
     NecroAstSymbol* ptr_type;
     NecroAstSymbol* array_type;
     NecroAstSymbol* range_type;
@@ -107,5 +108,7 @@ NecroAstSymbol* necro_base_get_tuple_type(NecroBase* base, size_t num);
 NecroAstSymbol* necro_base_get_tuple_con(NecroBase* base, size_t num);
 NecroAstSymbol* necro_base_get_env_type(NecroBase* base, size_t num);
 NecroAstSymbol* necro_base_get_env_con(NecroBase* base, size_t num);
+NecroAstSymbol* necro_base_get_branch_type(NecroBase* base, size_t branch_size);
+NecroAstSymbol* necro_base_get_branch_con(NecroBase* base, size_t branch_size, size_t alternative);
 
 #endif // NECRO_BASE_H

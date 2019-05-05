@@ -780,7 +780,7 @@ NecroStaticValue* necro_defunctionalize_case(NecroDefunctionalizeContext* contex
     {
         if (necro_defunctionalize_case_pat(context, alts->data->case_alt.pat, expr_sv) == NECRO_CASE_ALT_ELIMINATE)
         {
-            // TODO: Eliminate alt
+            // TODO: Test Eliminate alt
             if (prev_alt == NULL)
                 ast->case_expr.alts = alts->next;
             else
@@ -789,6 +789,7 @@ NecroStaticValue* necro_defunctionalize_case(NecroDefunctionalizeContext* contex
             continue;
         }
         NecroStaticValue* alt_sv = necro_defunctionalize_go(context, alts->data->case_alt.expr);
+        // Branch Static Value?
         // TOOD: What to do with this!?
         case_sv  = alt_sv;
         prev_alt = alts;
@@ -797,8 +798,6 @@ NecroStaticValue* necro_defunctionalize_case(NecroDefunctionalizeContext* contex
     return case_sv;
 }
 
-// NOTE: Leave bound lambdas be.
-// App is where the magic happens: Inline functions which apply higher-order functions, pass in the higher order function as an Env constructor, unwrap and apply function at each call site
 NecroStaticValue* necro_defunctionalize_go(NecroDefunctionalizeContext* context, NecroCoreAst* ast)
 {
     if (ast == NULL)
@@ -1179,10 +1178,10 @@ void necro_defunctionalize_test()
         const char* test_name   = "Case 6";
         const char* test_source = ""
             "data Either' a b = Left' a | Right' b\n"
-            "eitherOr b =\n"
+            "eitherOr =\n"
             "  case Left' (eq True) of\n"
-            "    Left'  l -> l b\n"
-            "    Right' r -> r ()\n"
+            "    Left'  l -> l\n"
+            "    Right' r -> r\n"
             "leftPlease = eitherOr True\n";
         necro_defunctionalize_test_result(test_name, test_source);
     }
@@ -1191,10 +1190,10 @@ void necro_defunctionalize_test()
         const char* test_name   = "Case 7";
         const char* test_source = ""
             "data Either' a b = Left' a | Right' b\n"
-            "eitherOr =\n"
+            "eitherOr b =\n"
             "  case Left' (eq True) of\n"
-            "    Left'  l -> l\n"
-            "    Right' r -> r\n"
+            "    Left'  l -> l b\n"
+            "    Right' r -> r ()\n"
             "leftPlease = eitherOr True\n";
         necro_defunctionalize_test_result(test_name, test_source);
     }

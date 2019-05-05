@@ -453,30 +453,6 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "each", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
     }
 
-    // NOTE: Removing with new function restriction in place for futhark style defunctionalization
-    // // _Closure
-    // NecroAst* closure_s_type   = necro_ast_create_simple_type(arena, intern, "_Closure", necro_ast_create_var_list(arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
-    // NecroAst* closure_args     =
-    //     necro_ast_create_list(arena, necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR),
-    //         necro_ast_create_list(arena, necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR),
-    //             necro_ast_create_list(arena, necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), NULL)));
-    // NecroAst* closure_con      = necro_ast_create_data_con(arena, intern, "_Closure", closure_args);
-    // NecroAst* closure_con_list = necro_ast_create_list(arena, closure_con, NULL);
-    // necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, closure_s_type, closure_con_list));
-
-    // // _apply
-    // NecroAst* apply_type_ast  = necro_ast_create_type_fn(arena, necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "_Closure", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)), necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
-    // necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "_apply", NULL, apply_type_ast, NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
-    // necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "_apply", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
-
-    // // _DynState
-    // NecroAst* dyn_state_s_type           = necro_ast_create_simple_type(arena, intern, "_DynState", necro_ast_create_var_list(arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION));
-    // NecroAst* dyn_state_constructor      = necro_ast_create_data_con(arena, intern, "_DynState",
-    //     necro_ast_create_list(arena, necro_ast_create_conid(arena, intern, "_Poly", NECRO_CON_TYPE_VAR),
-    //         necro_ast_create_list(arena, necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR), NULL)));
-    // NecroAst* dyn_state_constructor_list = necro_ast_create_list(arena, dyn_state_constructor, NULL);
-    // necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, dyn_state_s_type, dyn_state_constructor_list));
-
     // Eq
     NecroAst* eq_method_sig  = necro_base_create_class_comp_sig(arena, intern, "eq");
     NecroAst* neq_method_sig = necro_base_create_class_comp_sig(arena, intern, "neq");
@@ -592,11 +568,27 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 
     for (size_t i = 0; i < NECRO_MAX_ENV_TYPES; ++i)
     {
-        char env_name[16] = "Env";
-        itoa((int32_t) i, env_name + 3, 10);
-        NecroAst*   env_s_type      = necro_ast_create_simple_type(arena, intern, env_name, necro_ast_create_var_list(arena, intern, i, NECRO_VAR_TYPE_VAR_DECLARATION));
-        NecroAst*   env_constructor = necro_ast_create_data_con(arena, intern, env_name, necro_ast_create_var_list(arena, intern, i, NECRO_VAR_TYPE_FREE_VAR));
+        char env_name[16] = "";
+        snprintf(env_name, 16, "Env%zu", i);
+        NecroAst* env_s_type      = necro_ast_create_simple_type(arena, intern, env_name, necro_ast_create_var_list(arena, intern, i, NECRO_VAR_TYPE_VAR_DECLARATION));
+        NecroAst* env_constructor = necro_ast_create_data_con(arena, intern, env_name, necro_ast_create_var_list(arena, intern, i, NECRO_VAR_TYPE_FREE_VAR));
         necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, env_s_type, necro_ast_create_list(arena, env_constructor, NULL)));
+    }
+
+    for (size_t i = 2; i < NECRO_MAX_BRANCH_TYPES; ++i)
+    {
+        char branch_fn_name[24] = "";
+        snprintf(branch_fn_name, 24, "BranchFn%zu", i);
+        NecroAst* branch_fn_s_type = necro_ast_create_simple_type(arena, intern, branch_fn_name, necro_ast_create_var_list(arena, intern, i, NECRO_VAR_TYPE_VAR_DECLARATION));
+        NecroAst* branch_fn_cons   = NULL;
+        for (size_t i2 = 0; i2 < i; ++i2)
+        {
+            snprintf(branch_fn_name, 24, "BranchFn%zuAlt%zu", i, i2);
+            NecroAst* branch_fn_con_var     = necro_ast_create_var(arena, intern, var_names[i2], NECRO_VAR_TYPE_FREE_VAR);
+            NecroAst* branch_fn_constructor = necro_ast_create_data_con(arena, intern, branch_fn_name, necro_ast_create_list(arena, branch_fn_con_var, NULL));
+            branch_fn_cons                  = necro_ast_create_list(arena, branch_fn_constructor, branch_fn_cons);
+        }
+        necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, branch_fn_s_type, branch_fn_cons));
     }
 
     // Functor
@@ -1018,10 +1010,23 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 
     for (size_t i = 0; i < NECRO_MAX_ENV_TYPES; ++i)
     {
-        char env_name[16] = "Env";
-        itoa((int32_t) i, env_name + 3, 10);
+        char env_name[16] = "";
+        snprintf(env_name, 16, "Env%zu", i);
         base.env_types[i] = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, env_name));
         base.env_cons[i]  = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, env_name));
+    }
+
+    for (size_t i = 2; i < NECRO_MAX_BRANCH_TYPES; ++i)
+    {
+        char branch_name[24] = "";
+        snprintf(branch_name, 24, "BranchFn%zu", i);
+        base.branch_types[i] = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, branch_name));
+        base.branch_cons[i]  = necro_paged_arena_alloc(arena, i * sizeof(NecroAstSymbol*));
+        for (size_t i2 = 0; i2 < i; ++i2)
+        {
+            snprintf(branch_name, 24, "BranchFn%zuAlt%zu", i, i2);
+            base.branch_cons[i][i2] = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, branch_name));
+        }
     }
 
     base.poly_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "_Poly"));
@@ -1046,9 +1051,6 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.prev_fn                = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "prev"));
     base.event_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Event"));
     base.pattern_type           = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Pattern"));
-    // base.closure_type           = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "_Closure"));
-    // base.apply_fn               = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "_apply"));
-    // base.dyn_state_type         = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "_DynState"));
     base.ptr_type               = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Ptr"));
     base.array_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Array"));
     base.range_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Range"));
@@ -1110,14 +1112,29 @@ NecroAstSymbol* necro_base_get_tuple_con(NecroBase* base, size_t num)
 
 NecroAstSymbol* necro_base_get_env_type(NecroBase* base, size_t num)
 {
-    assert((num < NECRO_MAX_ENV_TYPES) && "Unsupported Env arity");
+    assert((num < NECRO_MAX_ENV_TYPES) && "Unsupported Env arity!");
     return base->env_types[num];
 }
 
 NecroAstSymbol* necro_base_get_env_con(NecroBase* base, size_t num)
 {
-    assert((num < NECRO_MAX_ENV_TYPES) && "Unsupported Env arity");
+    assert((num < NECRO_MAX_ENV_TYPES) && "Unsupported Env arity!");
     return base->env_cons[num];
+}
+
+NecroAstSymbol* necro_base_get_branch_type(NecroBase* base, size_t branch_size)
+{
+    assert((branch_size >= 2) && "Unsupported Branch Function arity!");
+    assert((branch_size < NECRO_MAX_BRANCH_TYPES) && "Unsupported Branch Function arity!");
+    return base->branch_types[branch_size];
+}
+
+NecroAstSymbol* necro_base_get_branch_con(NecroBase* base, size_t branch_size, size_t alternative)
+{
+    assert((branch_size >= 2) && "Unsupported Branch Function arity!");
+    assert((branch_size < NECRO_MAX_BRANCH_TYPES) && "Unsupported Branch Function arity!");
+    assert((alternative < branch_size) && "Alternative too large for Branch Function arity!");
+    return base->branch_cons[branch_size][alternative];
 }
 
 void necro_base_init_mach(NecroMachProgram* program, NecroBase* base)
@@ -1126,7 +1143,7 @@ void necro_base_init_mach(NecroMachProgram* program, NecroBase* base)
     UNUSED(base);
 }
 
-#define NECRO_BASE_TEST_VERBOSE 0
+#define NECRO_BASE_TEST_VERBOSE 1
 
 void necro_base_test()
 {

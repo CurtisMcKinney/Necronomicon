@@ -76,3 +76,6 @@ necro.dir/
 # Builds
 build/*
 
+# NixOS Builds
+result
+result-*

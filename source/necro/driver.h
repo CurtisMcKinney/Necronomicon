@@ -71,7 +71,7 @@ typedef struct
     NECRO_OPT_LEVEL    opt_level;
 } NecroCompileInfo;
 
-static NecroCompileInfo necro_test_compile_info()
+static inline NecroCompileInfo necro_test_compile_info()
 {
     return (NecroCompileInfo)
     {

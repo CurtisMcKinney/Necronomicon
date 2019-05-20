@@ -8,6 +8,7 @@
 #include "intern.h"
 #include "type_class.h"
 #include "d_analyzer.h"
+#include "utility/math.h"
 
 NECRO_DECLARE_VECTOR(NecroAst*, NecroDeclarationGroup, declaration_group)
 
@@ -95,11 +96,11 @@ void d_analyze_var(NecroDependencyAnalyzer* d_analyzer, NecroAstSymbol* ast_symb
     {
         ast_symbol->declaration_group->declaration.info->current_group = w;
         d_analyze_go(d_analyzer, w->declaration.declaration_impl);
-        v->declaration.low_link = min(w->declaration.low_link, v->declaration.low_link);
+        v->declaration.low_link = MIN(w->declaration.low_link, v->declaration.low_link);
     }
     else if (w->declaration.on_stack)
     {
-        v->declaration.low_link = min(w->declaration.low_link, v->declaration.low_link);
+        v->declaration.low_link = MIN(w->declaration.low_link, v->declaration.low_link);
         if (w->declaration.info->current_group->declaration.declaration_impl->type == NECRO_AST_SIMPLE_ASSIGNMENT)
         {
             w->declaration.info->current_group->declaration.declaration_impl->simple_assignment.is_recursive = true;
@@ -347,7 +348,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
             assert(current_group->declaration.declaration_impl->type == NECRO_AST_SIMPLE_ASSIGNMENT);
             d_analyze_go(d_analyzer, current_group->declaration.declaration_impl->simple_assignment.initializer);
             d_analyze_go(d_analyzer, current_group->declaration.declaration_impl->simple_assignment.rhs);
-            initial_group->declaration.low_link = min(initial_group->declaration.low_link, current_group->declaration.low_link);
+            initial_group->declaration.low_link = MIN(initial_group->declaration.low_link, current_group->declaration.low_link);
             current_group = current_group->declaration.next_declaration;
         }
         current_group = initial_group;
@@ -380,7 +381,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
             assert(current_group->declaration.declaration_impl->type == NECRO_AST_APATS_ASSIGNMENT);
             d_analyze_go(d_analyzer, current_group->declaration.declaration_impl->apats_assignment.apats);
             d_analyze_go(d_analyzer, current_group->declaration.declaration_impl->apats_assignment.rhs);
-            initial_group->declaration.low_link = min(initial_group->declaration.low_link, current_group->declaration.low_link);
+            initial_group->declaration.low_link = MIN(initial_group->declaration.low_link, current_group->declaration.low_link);
             current_group = current_group->declaration.next_declaration;
         }
         current_group = initial_group;

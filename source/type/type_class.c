@@ -64,15 +64,15 @@ NecroType* necro_instantiate_method_sig(NecroInfer* infer, NecroAstSymbol* type_
 {
     a_data_type->ownership = NULL;
     NecroInstSub* subs = NULL;
-    NecroType*    type = unwrap(NecroType, necro_type_instantiate_with_subs(infer->arena, &infer->con_env, infer->base, a_method_type, NULL, &subs));
-    a_data_type        = unwrap(NecroType, necro_type_instantiate(infer->arena, &infer->con_env, infer->base, a_data_type, NULL));
+    NecroType*    type = unwrap_result(NecroType, necro_type_instantiate_with_subs(infer->arena, &infer->con_env, infer->base, a_method_type, NULL, &subs));
+    a_data_type        = unwrap_result(NecroType, necro_type_instantiate(infer->arena, &infer->con_env, infer->base, a_data_type, NULL));
     while (subs != NULL)
     {
         if (subs->var_to_replace->name == type_class_var->name)
         {
             unwrap(NecroType, necro_type_unify(infer->arena, &infer->con_env, infer->base, subs->new_name, a_data_type, NULL));
             unwrap(void, necro_kind_infer_default_unify_with_star(infer->arena, infer->base, type, NULL, NULL_LOC, NULL_LOC));
-            type = unwrap(NecroType, necro_type_generalize(infer->arena, &infer->con_env, infer->base, type, NULL));
+            type = unwrap_result(NecroType, necro_type_generalize(infer->arena, &infer->con_env, infer->base, type, NULL));
             unwrap(void, necro_kind_infer_default_unify_with_star(infer->arena, infer->base, type, NULL, NULL_LOC, NULL_LOC));
             return type;
         }
@@ -475,7 +475,7 @@ NecroResult(NecroType) necro_create_type_class(NecroInfer* infer, NecroAst* type
     type_class_var->var.order    = NECRO_TYPE_ZERO_ORDER;
     type_class_var->ownership    = NULL;
     type_class->type             = necro_type_con1_create(infer->arena, type_class->type_class_name, necro_type_list_create(infer->arena, type_class_var, NULL));
-    type_class->context          = necro_try_map(NecroTypeClassContext, NecroType, necro_ast_to_context(infer, type_class_ast->type_class_declaration.context));
+    type_class->context          = necro_try_map_result(NecroTypeClassContext, NecroType, necro_ast_to_context(infer, type_class_ast->type_class_declaration.context));
     data->type                   = type_class_var;
 
     type_class_var->var.context = necro_create_type_class_context(infer->arena, type_class, type_class->type_class_name, type_class->type_var, type_class->context);
@@ -499,20 +499,20 @@ NecroResult(NecroType) necro_create_type_class(NecroInfer* infer, NecroAst* type
                     continue;
 
                 type_class_var->ownership = NULL;
-                NecroType* type_sig       = necro_try(NecroType, necro_ast_to_type_sig_go(infer, method_ast->type_signature.type, NECRO_TYPE_ZERO_ORDER, NECRO_TYPE_ATTRIBUTE_NONE));
+                NecroType* type_sig       = necro_try_result(NecroType, necro_ast_to_type_sig_go(infer, method_ast->type_signature.type, NECRO_TYPE_ZERO_ORDER, NECRO_TYPE_ATTRIBUTE_NONE));
                 type_class_var->ownership = NULL;
 
                 //---------------------------------
                 // Infer and check method type sig
                 // NOTE: TypeClass's context should ALWAYS BE FIRST!
-                NecroTypeClassContext* method_context = necro_try_map(NecroTypeClassContext, NecroType, necro_ast_to_context(infer, method_ast->type_signature.context));
+                NecroTypeClassContext* method_context = necro_try_map_result(NecroTypeClassContext, NecroType, necro_ast_to_context(infer, method_ast->type_signature.context));
                 necro_try(NecroType, necro_constrain_class_variable_check(type_class->type_var, method_ast->type_signature.var->variable.ast_symbol, method_context));
                 NecroTypeClassContext* context = necro_union_contexts(infer->arena, class_context, method_context);
                 assert(context->type_class == class_context->type_class);
                 necro_try(NecroType, necro_ambiguous_type_class_check(method_ast->type_signature.var->variable.ast_symbol, context, type_sig));
                 necro_apply_constraints(infer->arena, type_sig, context);
                 type_sig->pre_supplied = true;
-                type_sig               = necro_try(NecroType, necro_type_generalize(infer->arena, &infer->con_env, infer->base, type_sig, NULL));
+                type_sig               = necro_try_result(NecroType, necro_type_generalize(infer->arena, &infer->con_env, infer->base, type_sig, NULL));
                 necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, type_sig, method_ast->source_loc, method_ast->end_loc));
                 // type_sig->kind         = necro_kind_gen(infer->arena, infer->base, type_sig->kind);
                 necro_try(NecroType, necro_kind_unify(type_sig->kind, infer->base->star_kind->type, NULL));
@@ -615,10 +615,10 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
     // instance->instance_name            = ast->type_class_instance.ast_symbol;
     instance->type_class_name              = type_class_name;
     instance->data_type_name               = data_type_name;
-    instance->context                      = necro_try_map(NecroTypeClassContext, NecroType, necro_ast_to_context(infer, ast->type_class_instance.context));
+    instance->context                      = necro_try_map_result(NecroTypeClassContext, NecroType, necro_ast_to_context(infer, ast->type_class_instance.context));
     instance->dictionary_prototype         = NULL;
     instance->ast                          = ast;
-    instance->data_type                    = necro_try(NecroType, necro_ast_to_type_sig_go(infer, instance->ast->type_class_instance.inst, NECRO_TYPE_ZERO_ORDER, NECRO_TYPE_ATTRIBUTE_NONE));
+    instance->data_type                    = necro_try_result(NecroType, necro_ast_to_type_sig_go(infer, instance->ast->type_class_instance.inst, NECRO_TYPE_ZERO_ORDER, NECRO_TYPE_ATTRIBUTE_NONE));
     // instance->super_instances              = NULL;
     data->type_class_instance              = instance;
 
@@ -633,7 +633,7 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
 
     // Apply constraints
     necro_apply_constraints(infer->arena, instance->data_type, instance->context);
-    instance->data_type = necro_try(NecroType, necro_type_generalize(infer->arena, &infer->con_env, infer->base, instance->data_type, NULL));
+    instance->data_type = necro_try_result(NecroType, necro_type_generalize(infer->arena, &infer->con_env, infer->base, instance->data_type, NULL));
 
     //--------------------------------
     // Dictionary Prototype
@@ -845,7 +845,7 @@ NecroResult(NecroType) necro_propagate_type_classes(NecroPagedArena* arena, Necr
                 return necro_type_not_an_instance_of_error_partial(classes->class_symbol, type);
             }
             // Would this method require a proper scope!?!?!
-            NecroType* instance_data_inst = necro_try(NecroType, necro_type_instantiate(arena, con_env, base, instance->data_type, instance->ast->scope));
+            NecroType* instance_data_inst = necro_try_result(NecroType, necro_type_instantiate(arena, con_env, base, instance->data_type, instance->ast->scope));
             necro_try(NecroType, necro_type_unify(arena, con_env, base, instance_data_inst, type, scope));
             // Propogating type classes
             NecroType* current_arg = type->con.args;

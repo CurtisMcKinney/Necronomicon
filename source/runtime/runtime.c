@@ -178,7 +178,7 @@ typedef struct
 
 NecroCopyGC copy_gc;
 
-inline NecroSpace* necro_alloc_space()
+static inline NecroSpace* necro_alloc_space()
 {
     NecroSpace* space = emalloc(sizeof(NecroSpace));
     memset(space->data, 0, NECRO_SPACE_SIZE);

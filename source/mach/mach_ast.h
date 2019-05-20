@@ -17,6 +17,7 @@
 #include "intern.h"
 #include "symtable.h"
 #include "base.h"
+#include "mach_type.h"
 
 ///////////////////////////////////////////////////////
 // NecroMach
@@ -269,12 +270,6 @@ typedef struct NecroMachFnDef
     struct NecroMachAst* _cont_block;
     struct NecroMachAst* _err_block;
 } NecroMachFnDef;
-
-typedef enum
-{
-    NECRO_MACH_CALL_LANG,
-    NECRO_MACH_CALL_C
-} NECRO_MACH_CALL_TYPE;
 
 typedef struct NecroMachCall
 {

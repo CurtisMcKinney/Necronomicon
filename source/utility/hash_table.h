@@ -73,9 +73,17 @@ static TABLE_DATA_TYPE* necro_##TABLE_SNAKE_NAME##_table_get(Necro##TABLE_CAMEL_
 {                                                                                                                                                           \
     return necro_arena_chain_table_get(&table->chain_table, key);                                                                                           \
 }                                                                                                                                                           \
-static void necro_##TABLE_SNAKE_NAME##_table_iterate(Necro##TABLE_CAMEL_NAME##Table* table, void (f)(TABLE_DATA_TYPE*, void*), void* extras)                \
+static inline void necro_##TABLE_SNAKE_NAME##_table_iterate(Necro##TABLE_CAMEL_NAME##Table* table, void (f)(TABLE_DATA_TYPE*, void*), void* extras)         \
 {                                                                                                                                                           \
-    necro_arena_chain_table_iterate(&table->chain_table, f, extras);                                                                                        \
+    for (size_t i = 0; i < table->chain_table.size; ++i)\
+    {\
+        NecroChainTableNode* curr = table->chain_table.buckets[i].next;\
+        while (curr != NULL)\
+        {\
+            f(((void*)(curr + 1)), extras);\
+            curr = curr->next;\
+        }\
+    }\
 }
 
 #endif // HASH_TABLE_H

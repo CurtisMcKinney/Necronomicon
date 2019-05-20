@@ -3,6 +3,9 @@
  * Proprietary and confidential
  */
 
+#include <stdint.h>
+#include <inttypes.h>
+
 #include "mach_print.h"
 #include "mach_ast.h"
 #include "utility.h"
@@ -79,13 +82,13 @@ void necro_mach_print_value(NecroMachAst* ast, NECRO_SHOULD_PRINT_VALUE_TYPE sho
         printf("%uu32", value.uint32_literal);
         return;
     case NECRO_MACH_VALUE_UINT64_LITERAL:
-        printf("%lluu64", value.uint64_literal);
+        printf("%" PRIu64 "", value.uint64_literal);
         return;
     case NECRO_MACH_VALUE_INT32_LITERAL:
         printf("%di32", value.int32_literal);
         return;
     case NECRO_MACH_VALUE_INT64_LITERAL:
-        printf("%lldi64", value.int64_literal);
+        printf("%" PRId64 "", value.int64_literal);
         return;
     case NECRO_MACH_VALUE_F32_LITERAL:
         printf("%ff32", value.f32_literal);

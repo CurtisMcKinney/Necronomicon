@@ -176,6 +176,9 @@ void necro_type_check(NecroMachineProgram* program, NecroMachineType* type1, Nec
             return;
         necro_type_check(program, type1->ptr_type.element_type, type2->ptr_type.element_type);
         return;
+    default:
+        assert(false && "Unhandled type");
+        break;
     }
 }
 

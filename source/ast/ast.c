@@ -38,11 +38,13 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
         {
         case NECRO_AST_CONSTANT_FLOAT_PATTERN:   // FALL THROUGH
             printf("pat_float: ");
+            // fall through
         case NECRO_AST_CONSTANT_FLOAT:
             printf("(%f)\n", ast->constant.double_literal);
             break;
         case NECRO_AST_CONSTANT_INTEGER_PATTERN: // FALL THROUGH
             printf("pat_int: ");
+            // fall through
         case NECRO_AST_CONSTANT_TYPE_INT:
         case NECRO_AST_CONSTANT_INTEGER:
 #if WIN32
@@ -60,6 +62,9 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
             break;
         case NECRO_AST_CONSTANT_CHAR:
             printf("(\'%c\')\n", ast->constant.char_literal);
+            break;
+        default:
+            assert(false && "NECRO_AST_CONSTANT type not handled");
             break;
         }
         break;
@@ -535,6 +540,9 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
             reified_ast->constant.pat_from_ast = NULL;
             reified_ast->constant.pat_eq_ast   = NULL;
             break;
+
+        default:
+            assert(false && "unhandled NECRO_AST_CONSTANT_TYPE case" && ast->constant.type);
         }
         break;
 
@@ -1397,6 +1405,9 @@ NecroAst* necro_ast_create_constant(NecroPagedArena* arena, NecroParseAstConstan
     case NECRO_AST_CONSTANT_STRING:
         ast->constant.symbol = constant.symbol;
         break;
+
+    default:
+        assert(false && "unhandled NECRO_AST_CONSTANT_TYPE" && constant.type);
     }
     return ast;
 }
@@ -1634,6 +1645,9 @@ void necro_ast_assert_eq_constant(NecroAst* ast1, NecroAst* ast2)
         assert(strcmp(str1, str2) == 0);
         break;
     }
+    default:
+        assert(false && "Unhandled constant type");
+        break;
     }
     UNUSED(ast1);
     UNUSED(ast2);
@@ -2053,6 +2067,8 @@ NecroAst* necro_ast_copy_basic_info(NecroPagedArena* arena, NecroAst* declaratio
     case NECRO_AST_DECL:
         ast2->declaration.declaration_group_list = declaration_group;
         break;
+    default:
+        assert(false && "Unhandled ast type");
     }
     return ast2;
 }

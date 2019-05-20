@@ -153,7 +153,7 @@ size_t necro_create_data_info(NecroMachineProgram* program, NecroType* type)
         NecroConstructorInfo info         = (NecroConstructorInfo) { .members_offset = program->copy_table.member_map.length, .num_members = 0, .size_in_bytes = sizeof(char*), .is_tagged_union = is_tagged_union, .is_machine_def = false };
         bool                 first_member = true;
         // TODO/NOTE: Removed this only because API changed, not because it's unused.
-        // NecroType*           con_inst     = unwrap(NecroType, necro_type_instantiate(&program->arena, program->infer->base, constructor_ast_list->list.item->necro_type, NULL));
+        // NecroType*           con_inst     = unwrap_result(NecroType, necro_type_instantiate(&program->arena, program->infer->base, constructor_ast_list->list.item->necro_type, NULL));
         NecroType*           con_inst     = NULL;
         NecroType*           con_spec     = type;
         NecroType*           con_inst_go  = con_inst;

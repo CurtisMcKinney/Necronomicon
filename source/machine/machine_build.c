@@ -3,11 +3,12 @@
  * Proprietary and confidential
  */
 
-#include "machine.h"
 #include <ctype.h>
+#include "machine.h"
 #include "machine_prim.h"
 #include "machine_case.h"
 #include "machine_print.h"
+#include "itoa.h"
 
 /*
     * https://www.microsoft.com/en-us/research/wp-content/uploads/1992/01/student.pdf
@@ -39,7 +40,7 @@ NecroVar necro_gen_var(NecroMachineProgram* program, NecroMachineAST* necro_mach
     // necro_symtable_get(program->symtable, var_id)->necro_machine_ast = necro_machine_ast;
     necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
     // return (NecroVar) { .id = var_id, .symbol = var_sym };
-    return (NecroVar) { .id = 0, .symbol = var_sym };
+    return (NecroVar) { .id = { 0 }, .symbol = var_sym };
 }
 
 void necro_program_add_struct(NecroMachineProgram* program, NecroMachineAST* struct_ast)
@@ -384,8 +385,11 @@ NecroMachineAST* necro_create_machine_initial_machine_def(NecroMachineProgram* p
     NecroMachineAST* ast                           = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
     ast->type                                      = NECRO_MACHINE_DEF;
     ast->machine_def.bind_name                     = bind_name;
-    char itoabuf[10];
-    char* machine_name                             = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 4, (const char*[]) { "_", bind_name.symbol->str, "Machine", itoa(bind_name.id.id, itoabuf, 10) });
+    const size_t itoabuf_len                       = 10;
+    char itoabuf[itoabuf_len];
+    char* itoa_result                              = necro_itoa(bind_name.id.id, itoabuf, itoabuf_len, 10);
+    assert(itoa_result != NULL);
+    char* machine_name                             = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 4, (const char*[]) { "_", bind_name.symbol->str, "Machine", itoa_result });
     machine_name[1]                                = (char) toupper(machine_name[1]);
     char* state_name                               = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { machine_name, "State" });
     ast->machine_def.machine_name                  = necro_gen_var(program, ast, machine_name, NECRO_NAME_UNIQUE);
@@ -861,16 +865,17 @@ NecroMachineAST* necro_build_cmp(NecroMachineProgram* program, NecroMachineAST* 
     assert(left->type == NECRO_MACHINE_VALUE);
     assert(right != NULL);
     assert(right->type == NECRO_MACHINE_VALUE);
-    assert(left->type == NECRO_MACHINE_TYPE_UINT1  ||
-           left->type == NECRO_MACHINE_TYPE_UINT8  ||
-           left->type == NECRO_MACHINE_TYPE_UINT16 ||
-           left->type == NECRO_MACHINE_TYPE_UINT32 ||
-           left->type == NECRO_MACHINE_TYPE_UINT64 ||
-           left->type == NECRO_MACHINE_TYPE_INT32  ||
-           left->type == NECRO_MACHINE_TYPE_INT64  ||
-           left->type == NECRO_MACHINE_TYPE_F32    ||
-           left->type == NECRO_MACHINE_TYPE_F64    ||
-           left->type == NECRO_MACHINE_TYPE_PTR);
+    // @curtis: These aren't the same enum type, I don't know what your intention is for the comparison
+    /* assert(left->type == NECRO_MACHINE_TYPE_UINT1  || */
+    /*        left->type == NECRO_MACHINE_TYPE_UINT8  || */
+    /*        left->type == NECRO_MACHINE_TYPE_UINT16 || */
+    /*        left->type == NECRO_MACHINE_TYPE_UINT32 || */
+    /*        left->type == NECRO_MACHINE_TYPE_UINT64 || */
+    /*        left->type == NECRO_MACHINE_TYPE_INT32  || */
+    /*        left->type == NECRO_MACHINE_TYPE_INT64  || */
+    /*        left->type == NECRO_MACHINE_TYPE_F32    || */
+    /*        left->type == NECRO_MACHINE_TYPE_F64    || */
+    /*        left->type == NECRO_MACHINE_TYPE_PTR); */
     assert(left->type == right->type);
     NecroMachineAST* cmp = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
     cmp->type         = NECRO_MACHINE_CMP;
@@ -946,7 +951,8 @@ NecroMachineAST* necro_build_select(NecroMachineProgram* program, NecroMachineAS
     assert(program != NULL);
     assert(fn_def != NULL);
     assert(fn_def->type == NECRO_MACHINE_FN_DEF);
-    assert(cmp_value->type == NECRO_MACHINE_TYPE_UINT1);
+    // @curtis: these are different enum types
+    // assert(cmp_value->type == NECRO_MACHINE_TYPE_UINT1);
     necro_type_check(program, left->necro_machine_type, right->necro_machine_type);
     NecroMachineAST* ast  = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
     ast->type             = NECRO_MACHINE_SELECT;

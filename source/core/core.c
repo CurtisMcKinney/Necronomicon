@@ -3,6 +3,9 @@
  * Proprietary and confidential
  */
 
+#include <stdint.h>
+#include <inttypes.h>
+
 #include "core.h"
 #include "core_create.h"
 #include "type.h"
@@ -55,12 +58,9 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
 
             case NECRO_AST_CONSTANT_INTEGER:
             case NECRO_AST_CONSTANT_INTEGER_PATTERN:
-    #if WIN32
-                printf("(%lli)\n", ast_node->lit.int_literal);
-    #else
-                printf("(%li)\n", ast_node->constant.int_literal);
-    #endif
+                printf("(%" PRId64 ")\n", ast_node->lit.int_literal);
                 break;
+
             case NECRO_AST_CONSTANT_STRING:
                 {
                     const char* string = ast_node->lit.symbol->str;
@@ -190,7 +190,6 @@ void necro_print_core_node(NecroCoreAST_Expression* ast_node, NecroIntern* inter
     }
 
     default:
-        printf("necro_print_core_node printing expression type unimplemented!: %s\n", core_ast_names[ast_node->expr_type]);
         assert(false && "necro_print_core_node printing expression type unimplemented!");
         break;
     }

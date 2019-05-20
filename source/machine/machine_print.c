@@ -3,6 +3,9 @@
  * Proprietary and confidential
  */
 
+#include <stdint.h>
+#include <inttypes.h>
+
 #include "machine_print.h"
 #include "machine.h"
 #include "machine_copy.h"
@@ -73,13 +76,13 @@ void necro_print_machine_value(NecroMachineProgram* program, NecroMachineAST* as
         printf("%uu32", value.uint32_literal);
         return;
     case NECRO_MACHINE_VALUE_UINT64_LITERAL:
-        printf("%lluu64", value.uint64_literal);
+        printf("%" PRIu64 "", value.uint64_literal);
         return;
     case NECRO_MACHINE_VALUE_INT32_LITERAL:
         printf("%di32", value.int32_literal);
         return;
     case NECRO_MACHINE_VALUE_INT64_LITERAL:
-        printf("%lldi64", value.int64_literal);
+        printf("%" PRId64 "", value.int64_literal);
         return;
     case NECRO_MACHINE_VALUE_F32_LITERAL:
         printf("%ff32", value.f32_literal);

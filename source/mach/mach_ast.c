@@ -584,16 +584,17 @@ NecroMachAst* necro_mach_build_cmp(NecroMachProgram* program, NecroMachAst* fn_d
     assert(left->type == NECRO_MACH_VALUE);
     assert(right != NULL);
     assert(right->type == NECRO_MACH_VALUE);
-    assert(left->type == NECRO_MACH_TYPE_UINT1  ||
-           left->type == NECRO_MACH_TYPE_UINT8  ||
-           left->type == NECRO_MACH_TYPE_UINT16 ||
-           left->type == NECRO_MACH_TYPE_UINT32 ||
-           left->type == NECRO_MACH_TYPE_UINT64 ||
-           left->type == NECRO_MACH_TYPE_INT32  ||
-           left->type == NECRO_MACH_TYPE_INT64  ||
-           left->type == NECRO_MACH_TYPE_F32    ||
-           left->type == NECRO_MACH_TYPE_F64    ||
-           left->type == NECRO_MACH_TYPE_PTR);
+    // @curtis: these aren't the same type
+    /* assert(left->type == NECRO_MACH_TYPE_UINT1  || */
+    /*        left->type == NECRO_MACH_TYPE_UINT8  || */
+    /*        left->type == NECRO_MACH_TYPE_UINT16 || */
+    /*        left->type == NECRO_MACH_TYPE_UINT32 || */
+    /*        left->type == NECRO_MACH_TYPE_UINT64 || */
+    /*        left->type == NECRO_MACH_TYPE_INT32  || */
+    /*        left->type == NECRO_MACH_TYPE_INT64  || */
+    /*        left->type == NECRO_MACH_TYPE_F32    || */
+    /*        left->type == NECRO_MACH_TYPE_F64    || */
+    /*        left->type == NECRO_MACH_TYPE_PTR); */
     assert(left->type == right->type);
     NecroMachAst* cmp = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
     cmp->type         = NECRO_MACH_CMP;

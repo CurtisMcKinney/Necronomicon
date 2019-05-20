@@ -548,6 +548,9 @@ void necro_parse_ast_assert_eq_constant(NecroParseAstArena* ast1, NecroParseAst*
         assert(strcmp(str1, str2) == 0);
         break;
     }
+    default:
+        assert(false && "Unhandled constant type");
+        break;
     }
     UNUSED(ast1);
     UNUSED(ast2);

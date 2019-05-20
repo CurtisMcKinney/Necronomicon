@@ -4,6 +4,7 @@
  */
 
 #include <ctype.h>
+#include <inttypes.h>
 #include "lexer.h"
 #include "unicode_properties.h"
 
@@ -691,14 +692,14 @@ NecroResult(void) necro_lex_go(NecroLexer* lexer)
             continue;
         if (necro_lex_comments(lexer))
             continue;
-        bool is_string = necro_try_map(bool, void, necro_lex_string(lexer));
+        bool is_string = necro_try_map_result(bool, void, necro_lex_string(lexer));
         if (is_string)
             continue;
         if (necro_lex_char(lexer))
             continue;
         if (necro_lex_identifier(lexer))
             continue;
-        bool is_num = necro_try_map(bool, void, necro_lex_number(lexer));
+        bool is_num = necro_try_map_result(bool, void, necro_lex_number(lexer));
         if (is_num)
             continue;
         if (necro_lex_multi_character_token(lexer))
@@ -732,7 +733,6 @@ NecroResult(void) necro_lex_fixup_layout(NecroLexer* lexer)
         size_t               m       = context_stack.data[stack_pos].indentation;
         while (stack_pos >= context_stack.capacity)
         {
-            (NecroLexLayoutContext){ .indentation = 1, .layout = NECRO_LEX_LAYOUT_LET };
             necro_push_lex_layout_context_vector(&context_stack, &initial_context_data);
         }
         if (type == NECRO_LEX_CONTROL_WHITE_MARKER)
@@ -911,7 +911,7 @@ void necro_lex_print_token(NecroLexer* lexer, size_t token_id)
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_INTEGER_LITERAL)
     {
-        printf("INT:        %lli\n", lexer->tokens.data[token_id].int_literal);
+        printf("INT:        %" PRId64 "\n", lexer->tokens.data[token_id].int_literal);
     }
     else if (lexer->tokens.data[token_id].token == NECRO_LEX_CONTROL_BRACE_MARKER_LET)
     {

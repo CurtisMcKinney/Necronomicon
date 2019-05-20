@@ -3,6 +3,7 @@
  * Proprietary and confidential
  */
 
+#include <stdbool.h>
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -15,7 +16,7 @@
 #include <unistd.h>
 #endif
 
- ///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
 process_error_code_t necro_compile_in_child_process(const char* command_line_arguments)
 {
     assert(command_line_arguments && command_line_arguments[0]);
@@ -110,8 +111,8 @@ NecroTimer* necro_timer_create()
         fprintf(stderr, "Could not allocate memory in necro_timer_create\n");
         necro_exit(1);
     }
-    *timer = (NecroTimer) { .start_time = 0, .end_time = 0 };
 #if _WIN32
+    *timer = (NecroTimer) { .start_time = 0, .end_time = 0 };
     QueryPerformanceFrequency(&timer->ticks_per_sec);
 #else
     // TODO
@@ -132,6 +133,7 @@ void necro_timer_start(NecroTimer* timer)
     QueryPerformanceCounter(&timer->start_time);
 #else
     // TODO
+    UNUSED(timer);
 #endif
 }
 
@@ -144,6 +146,8 @@ double necro_timer_stop(NecroTimer* timer)
     return time;
 #else
     // TODO
+    UNUSED(timer);
+    return 0.0;
 #endif
 }
 

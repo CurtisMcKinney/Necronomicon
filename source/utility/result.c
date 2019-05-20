@@ -32,7 +32,7 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_error_cons(NecroResultError* erro
     return (NecroResult(NecroParseAstLocalPtr)) { .error = error, .type = NECRO_RESULT_ERROR };
 }
 
-inline NecroResult(bool) necro_default_lex_error(NECRO_RESULT_ERROR_TYPE type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+static inline NecroResult(bool) necro_default_lex_error(NECRO_RESULT_ERROR_TYPE type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     necro_error_single_break_point();
     NecroResultError* error   = emalloc(sizeof(NecroResultError));
@@ -41,7 +41,7 @@ inline NecroResult(bool) necro_default_lex_error(NECRO_RESULT_ERROR_TYPE type, N
     return (NecroResult(bool)) { .error = error, .type = NECRO_RESULT_ERROR };
 }
 
-inline NecroResult(NecroParseAstLocalPtr) necro_default_parse_error(NECRO_RESULT_ERROR_TYPE type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+static inline NecroResult(NecroParseAstLocalPtr) necro_default_parse_error(NECRO_RESULT_ERROR_TYPE type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     necro_error_single_break_point();
     NecroResultError* error   = emalloc(sizeof(NecroResultError));
@@ -50,7 +50,7 @@ inline NecroResult(NecroParseAstLocalPtr) necro_default_parse_error(NECRO_RESULT
     return (NecroResult(NecroParseAstLocalPtr)) { .error = error, .type = NECRO_RESULT_ERROR };
 }
 
-inline NecroResult(NecroAst) necro_default_ast_error(NECRO_RESULT_ERROR_TYPE type, NecroAstSymbol* ast_symbol, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+static inline NecroResult(NecroAst) necro_default_ast_error(NECRO_RESULT_ERROR_TYPE type, NecroAstSymbol* ast_symbol, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     necro_error_single_break_point();
     NecroResultError* error       = emalloc(sizeof(NecroResultError));
@@ -64,7 +64,7 @@ inline NecroResult(NecroAst) necro_default_ast_error(NECRO_RESULT_ERROR_TYPE typ
     return (NecroResult(NecroAst)) { .error = error, .type = NECRO_RESULT_ERROR };
 }
 
-inline NecroResult(NecroAst) necro_default_ast_error2(NECRO_RESULT_ERROR_TYPE type, NecroAstSymbol* ast_symbol1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+static inline NecroResult(NecroAst) necro_default_ast_error2(NECRO_RESULT_ERROR_TYPE type, NecroAstSymbol* ast_symbol1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
 {
     necro_error_single_break_point();
     NecroResultError* error         = emalloc(sizeof(NecroResultError));
@@ -375,7 +375,7 @@ NecroResult(NecroAstSymbol) necro_not_in_scope_error(NecroAstSymbol* ast_symbol,
     return necro_error_map(NecroAst, NecroAstSymbol, necro_default_ast_error(NECRO_RENAME_NOT_IN_SCOPE, ast_symbol, source_loc, end_loc));
 }
 
-inline NecroResult(NecroType) necro_default_type_error1(NECRO_RESULT_ERROR_TYPE error_type, NecroAstSymbol* ast_symbol, const NecroType* type, const NecroType* macro_type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+static inline NecroResult(NecroType) necro_default_type_error1(NECRO_RESULT_ERROR_TYPE error_type, NecroAstSymbol* ast_symbol, const NecroType* type, const NecroType* macro_type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     necro_error_single_break_point();
     NecroResultError* error         = emalloc(sizeof(NecroResultError));
@@ -391,7 +391,7 @@ inline NecroResult(NecroType) necro_default_type_error1(NECRO_RESULT_ERROR_TYPE 
     return (NecroResult(NecroType)) { .error = error, .type = NECRO_RESULT_ERROR };
 }
 
-inline NecroResult(NecroType) necro_default_type_error2(NECRO_RESULT_ERROR_TYPE error_type, NecroType* type1, NecroType* type2, NecroType* macro_type1, NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+static inline NecroResult(NecroType) necro_default_type_error2(NECRO_RESULT_ERROR_TYPE error_type, NecroType* type1, NecroType* type2, NecroType* macro_type1, NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     necro_error_single_break_point();
     NecroResultError* error         = emalloc(sizeof(NecroResultError));
@@ -408,7 +408,7 @@ inline NecroResult(NecroType) necro_default_type_error2(NECRO_RESULT_ERROR_TYPE 
     return (NecroResult(NecroType)) { .error = error, .type = NECRO_RESULT_ERROR };
 }
 
-inline NecroResult(NecroType) necro_default_type_class_error(NECRO_RESULT_ERROR_TYPE error_type, NecroAstSymbol* type_class_symbol, NecroType* type1, NecroType* type2, NecroType* macro_type1, NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+static inline NecroResult(NecroType) necro_default_type_class_error(NECRO_RESULT_ERROR_TYPE error_type, NecroAstSymbol* type_class_symbol, NecroType* type1, NecroType* type2, NecroType* macro_type1, NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     necro_error_single_break_point();
     NecroResultError* error              = emalloc(sizeof(NecroResultError));
@@ -700,7 +700,7 @@ void necro_print_default_ast_error_2_format(
     const char* explanation2)
 {
     necro_print_error_header(error_name);
-    if (source_loc1.pos != -1)
+    if (source_loc1.pos != INVALID_LINE)
     {
         necro_print_line_at_source_loc(source_str, source_loc1, end_loc1);
     }
@@ -716,7 +716,7 @@ void necro_print_default_ast_error_2_format(
     }
     fprintf(stderr, NECRO_ERR_LEFT_CHAR " %s\n", explanation1);
     fprintf(stderr, NECRO_ERR_LEFT_CHAR " \n");
-    if (source_loc2.pos != -1)
+    if (source_loc2.pos != INVALID_LINE)
     {
         necro_print_line_at_source_loc(source_str, source_loc2, end_loc2);
     }
@@ -1461,7 +1461,7 @@ void necro_print_type_multiple_class_declarations_error(NecroResultError* error,
     fprintf(stderr, NECRO_ERR_LEFT_CHAR " Multiple declarations for the Class '%s'\n", class_symbol->source_name->str);
     fprintf(stderr, NECRO_ERR_LEFT_CHAR " Original declaration found here:\n");
 
-    if (source_loc2.pos != -1)
+    if (source_loc2.pos != INVALID_LINE)
     {
         necro_print_line_at_source_loc(source_str, source_loc2, end_loc2);
     }
@@ -1492,7 +1492,7 @@ void necro_print_type_multiple_instance_declarations_error(NecroResultError* err
     fprintf(stderr, NECRO_ERR_LEFT_CHAR " Original declaration found at: \n");
     fprintf(stderr, NECRO_ERR_LEFT_CHAR "\n");
 
-    if (source_loc2.pos != -1)
+    if (source_loc2.pos != INVALID_LINE)
     {
         necro_print_line_at_source_loc(source_str, source_loc2, end_loc2);
     }

@@ -3,13 +3,14 @@
  * Proprietary and confidential
  */
 
-#include "machine.h"
 #include <ctype.h>
+#include "machine.h"
 #include "machine_prim.h"
 #include "machine_case.h"
 #include "machine_print.h"
 #include "machine_build.h"
 #include "machine_copy.h"
+#include "itoa.h"
 
 /*
     * https://www.microsoft.com/en-us/research/wp-content/uploads/1992/01/student.pdf
@@ -183,13 +184,16 @@ void necro_core_to_machine_1_data_con(NecroMachineProgram* program, NecroCoreAST
 
         //--------------
         // Parameters
+        const size_t itoa_buff_len = 6;
         for (size_t i = 0; i < max_arg_count; ++i)
         {
             if (i < arg_count)
             {
-                char itoa_buff_2[6];
+                char itoa_buff_2[itoa_buff_len];
                 assert(i <= INT32_MAX);
-                char* value_name = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "param_", itoa((int32_t) i, itoa_buff_2, 10) });
+                char* itoa_result = necro_itoa((int32_t) i, itoa_buff_2, itoa_buff_len, 10);
+                assert(itoa_result);
+                char* value_name = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "param_", itoa_result });
                 UNUSED(value_name);
                 necro_build_store_into_slot(program, mk_fn_def, necro_create_param_reg(program, mk_fn_def, i), data_ptr, i + 1);
             }

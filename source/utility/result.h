@@ -313,9 +313,12 @@ void necro_assert_on_error(NECRO_RESULT_TYPE result_type, NecroResultError* erro
 // Macro API
 ///////////////////////////////////////////////////////
 #define NecroResult(TYPE) NecroResult_##TYPE
-#define necro_try(TYPE, EXPR) (global_result.TYPE##_result = EXPR).value; if (global_result.TYPE##_result.type != NECRO_RESULT_OK) return global_result.TYPE##_result;
-#define necro_try_map(TYPE, TYPE2, EXPR) (global_result.TYPE##_result = EXPR).value; if (global_result.TYPE##_result.type != NECRO_RESULT_OK) return global_result.TYPE2##_result;
-#define unwrap(TYPE, EXPR) (global_result.TYPE##_result = EXPR).value; necro_assert_on_error(global_result.TYPE##_result.type, global_result.TYPE##_result.error);
+#define necro_try(TYPE, EXPR) (global_result.TYPE##_result = EXPR); if (global_result.TYPE##_result.type != NECRO_RESULT_OK) return global_result.TYPE##_result;
+#define necro_try_result(TYPE, EXPR) (global_result.TYPE##_result = EXPR).value; if (global_result.TYPE##_result.type != NECRO_RESULT_OK) return global_result.TYPE##_result;
+#define necro_try_map(TYPE, TYPE2, EXPR) (global_result.TYPE##_result = EXPR); if (global_result.TYPE##_result.type != NECRO_RESULT_OK) return global_result.TYPE2##_result;
+#define necro_try_map_result(TYPE, TYPE2, EXPR) (global_result.TYPE##_result = EXPR).value; if (global_result.TYPE##_result.type != NECRO_RESULT_OK) return global_result.TYPE2##_result;
+#define unwrap(TYPE, EXPR) (global_result.TYPE##_result = EXPR); necro_assert_on_error(global_result.TYPE##_result.type, global_result.TYPE##_result.error);
+#define unwrap_result(TYPE, EXPR) (global_result.TYPE##_result = EXPR).value; necro_assert_on_error(global_result.TYPE##_result.type, global_result.TYPE##_result.error);
 #define assert_ok(TYPE, EXPR) (global_result.TYPE##_result = EXPR); necro_assert_on_error(global_result.TYPE##_result.type, global_result.TYPE##_result.error);
 #define necro_error_map(TYPE1, TYPE2, EXPR) (((NecroResultUnion) { .TYPE1##_result = EXPR }).TYPE2##_result);
 #define necro_unreachable(TYPE) assert(false); return global_result.TYPE##_result

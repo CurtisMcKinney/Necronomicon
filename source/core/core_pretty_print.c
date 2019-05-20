@@ -3,6 +3,9 @@
  * Proprietary and confidential
  */
 
+#include <stdint.h>
+#include <inttypes.h>
+
 #include "core_pretty_print.h"
 #include "machine/machine_type.h"
 
@@ -111,8 +114,8 @@ void necro_core_pretty_print_go(NecroCoreAST_Expression* ast, NecroSymTable* sym
     {
         switch (ast->lit.type)
         {
-        case NECRO_AST_CONSTANT_INTEGER:         printf("%lld", ast->lit.int_literal);  return;
-        case NECRO_AST_CONSTANT_INTEGER_PATTERN: printf("%lld", ast->lit.int_literal);  return;
+        case NECRO_AST_CONSTANT_INTEGER:         printf("%" PRId64 "", ast->lit.int_literal);  return;
+        case NECRO_AST_CONSTANT_INTEGER_PATTERN: printf("%" PRId64 "", ast->lit.int_literal);  return;
         case NECRO_AST_CONSTANT_FLOAT:           printf("%f", ast->lit.double_literal); return;
         case NECRO_AST_CONSTANT_FLOAT_PATTERN:   printf("%f", ast->lit.double_literal); return;
         case NECRO_AST_CONSTANT_CHAR:            printf("%c", ast->lit.char_literal);   return;

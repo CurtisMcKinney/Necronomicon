@@ -675,6 +675,7 @@ typedef struct
     NecroSymbol           module_name;
 } NecroParseAstArena;
 NecroParseAstArena  necro_parse_ast_arena_empty();
+NecroParseAstArena  necro_parse_ast_arena_create(size_t capacity);
 void                necro_parse_ast_arena_destroy(NecroParseAstArena* ast);
 NecroParseAst*      necro_parse_ast_get_node(NecroParseAstArena* ast, NecroParseAstLocalPtr local_ptr);
 NecroParseAst*      necro_parse_ast_get_root_node(NecroParseAstArena* ast);

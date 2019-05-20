@@ -30,7 +30,7 @@ include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
 if (CMAKE_COMPILER_IS_GNUCC)
-    set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wall -Wextra")
+    set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-function")
 endif()
 
 if (MSVC)
@@ -79,6 +79,7 @@ set(project_SOURCES
     source/parse/parse_ast.c
 
     source/utility/arena.c
+    source/utility/itoa.c
 	source/utility/utility.c
     source/utility/hash_table.c
     source/utility/unicode_properties.c

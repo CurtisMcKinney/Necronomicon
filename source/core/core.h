@@ -272,6 +272,7 @@ typedef struct NecroCoreAST_Expression
     NecroType*      necro_type;
 } NecroCoreAST_Expression;
 
+#if 0 // unused currently
 static const char* core_ast_names[] =
 {
     "NECRO_CORE_EXPR_VAR",
@@ -288,6 +289,7 @@ static const char* core_ast_names[] =
     "NECRO_CORE_EXPR_COUNT",
     "NECRO_CORE_EXPR_UNIMPLEMENTED"
 };
+#endif
 
 typedef enum
 {

@@ -7,6 +7,7 @@
 #include <assert.h>
 #include "ast_symbol.h"
 #include "type.h"
+#include "utility/math.h"
 
 NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name, NecroSymbol source_name, NecroSymbol module_name, struct NecroAst* ast)
 {
@@ -77,7 +78,7 @@ void necro_ast_symbol_print_type_and_kind(NecroAstSymbol* ast_symbol, size_t num
     print_white_space(num_white_spaces);
     printf("%s ", ast_symbol->name->str);
     size_t length = strlen(ast_symbol->name->str);
-    size_t offset = max(25, length) - length;
+    size_t offset = MAX(25, length) - length;
     for (size_t i = 0; i < offset; i++)
         printf(" ");
     printf(" :: ");

@@ -8,6 +8,7 @@
 #include "machine_build.h"
 #include "machine.h"
 #include "core/core_create.h"
+#include "utility/math.h"
 
 /*
     TODO:
@@ -214,7 +215,7 @@ NecroPatternMatrix necro_create_pattern_matrix_from_case(NecroMachineProgram* pr
         alts = alts->next;
     }
     // Create and fill in matrix
-    NecroPatternMatrix matrix    = necro_create_pattern_matrix(program, (NecroCon) { 0, 0 }, rows, columns);
+    NecroPatternMatrix matrix    = necro_create_pattern_matrix(program, (NecroCon) { NULL, { 0 } }, rows, columns);
     size_t             this_rows = 0;
     alts                         = ast->case_expr.alts;
     NecroMachineType*  expr_type = necro_make_ptr_if_boxed(program, necro_type_to_machine_type(program, ast->case_expr.expr->necro_type));
@@ -286,7 +287,8 @@ NecroPatternMatrix necro_specialize_matrix(NecroMachineProgram* program, NecroPa
     }
     assert(con_type->type == NECRO_TYPE_CON);
     size_t new_rows    = 0;
-    size_t new_columns = max(0, con_arity + (matrix->columns - 1));
+    size_t new_columns = con_arity + (matrix->columns - 1);
+    new_columns = new_columns == SIZE_MAX ? 0 : new_columns;
     for (size_t r = 0; r < matrix->rows; ++r)
     {
         NecroCoreAST_Expression* row_head = matrix->patterns[r][0];
@@ -310,7 +312,7 @@ NecroPatternMatrix necro_specialize_matrix(NecroMachineProgram* program, NecroPa
         }
     }
     NecroPatternMatrix specialized_matrix = necro_create_pattern_matrix(program, pattern_con, new_rows, new_columns);
-    size_t             column_diff        = ((size_t)max(0, 1 + (((int32_t)new_columns) - ((int32_t)matrix->columns))));
+    size_t             column_diff        = ((size_t)MAX(0, (1 + (((int32_t)new_columns) - ((int32_t)matrix->columns)))));
     size_t             new_r              = 0;
     for (size_t r = 0; r < matrix->rows; ++r)
     {
@@ -385,7 +387,8 @@ NecroPatternMatrix necro_specialize_matrix(NecroMachineProgram* program, NecroPa
 NecroPatternMatrix necro_specialize_lit_matrix(NecroMachineProgram* program, NecroPatternMatrix* matrix, NecroAstConstant lit)
 {
     size_t new_rows    = 0;
-    size_t new_columns = max(0, matrix->columns - 1);
+    size_t new_columns = matrix->columns - 1;
+    new_columns = new_columns == SIZE_MAX ? 0 : new_columns;
     for (size_t r = 0; r < matrix->rows; ++r)
     {
         NecroCoreAST_Expression* row_head = matrix->patterns[r][0];
@@ -426,9 +429,9 @@ NecroPatternMatrix necro_specialize_lit_matrix(NecroMachineProgram* program, Nec
             assert(false && "Pattern should be literal constant");
         }
     }
-    NecroPatternMatrix specialized_matrix = necro_create_pattern_matrix(program, (NecroCon) { 0, 0 }, new_rows, new_columns);
-    // size_t             column_diff        = 1; // ((size_t)max(0, 1 + (((int32_t)new_columns) - ((int32_t)matrix->columns))));
-    size_t             column_diff        = ((size_t)max(0, 1 + (((int32_t)new_columns) - ((int32_t)matrix->columns))));
+    NecroPatternMatrix specialized_matrix = necro_create_pattern_matrix(program, (NecroCon) { NULL, { 0 } }, new_rows, new_columns);
+    // size_t             column_diff        = 1; // ((size_t)MAX(0, 1 + (((int32_t)new_columns) - ((int32_t)matrix->columns))));
+    size_t             column_diff        = ((size_t)MAX(0, 1 + (((int32_t)new_columns) - ((int32_t)matrix->columns))));
     size_t             new_r              = 0;
     for (size_t r = 0; r < matrix->rows; ++r)
     {
@@ -774,6 +777,9 @@ void necro_decision_tree_to_machine(NecroMachineProgram* program, NecroDecisionT
         }
         break;
     }
+    default:
+        assert(false && "Unhandled tree node type");
+        break;
     }
 }
 
@@ -928,6 +934,9 @@ bool necro_tree_is_equal(NecroDecisionTree* tree1, NecroDecisionTree* tree2)
             case NECRO_AST_CONSTANT_STRING:
                 return true;
                 // return false;
+                break;
+            default:
+                assert(false && "Unhandled type");
                 break;
             }
         }
@@ -1142,7 +1151,7 @@ void necro_print_decision_tree_go(NecroMachineProgram* program, NecroDecisionTre
             {
             case NECRO_AST_CONSTANT_INTEGER:
             case NECRO_AST_CONSTANT_INTEGER_PATTERN:
-                printf("*%lld:\n", tree->tree_lit_switch.constants[i].int_literal);
+                printf("*%" PRId64 ":\n", tree->tree_lit_switch.constants[i].int_literal);
                 break;
             case NECRO_AST_CONSTANT_FLOAT:
             case NECRO_AST_CONSTANT_FLOAT_PATTERN:
@@ -1154,6 +1163,9 @@ void necro_print_decision_tree_go(NecroMachineProgram* program, NecroDecisionTre
                 break;
             case NECRO_AST_CONSTANT_STRING:
                 printf("*_:\n");
+                break;
+            default:
+                assert(false && "Unhandled constant type");
                 break;
             }
             necro_print_decision_tree_go(program, tree->tree_lit_switch.cases[i], depth + 4);

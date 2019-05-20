@@ -58,7 +58,7 @@ NecroSymbolInfo necro_symtable_create_initial_symbol_info(NecroSymbol symbol, Ne
     return (NecroSymbolInfo)
     {
         .name                    = symbol,
-        .id                      = 0,
+        .id                      = { 0 },
         .con_num                 = 0,
         .is_enum                 = false,
         .source_loc              = source_loc,
@@ -82,7 +82,7 @@ NecroSymbolInfo necro_symtable_create_initial_symbol_info(NecroSymbol symbol, Ne
     };
 }
 
-inline void necro_symtable_grow(NecroSymTable* table)
+static inline void necro_symtable_grow(NecroSymTable* table)
 {
     table->size *= 2;
     NecroSymbolInfo* new_data = realloc(table->data, table->size * sizeof(NecroSymbolInfo));

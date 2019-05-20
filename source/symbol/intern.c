@@ -7,6 +7,7 @@
 #include <assert.h>
 
 #include "intern.h"
+#include "itoa.h"
 
 // Constants
 #define NECRO_INITIAL_INTERN_SIZE    512
@@ -289,10 +290,12 @@ NecroSymbol necro_intern_unique_string(NecroIntern* intern, const char* str)
     NecroArenaSnapshot     snapshot   = necro_snapshot_arena_get(&intern->snapshot_arena);
     char*                  unique_str = necro_snapshot_arena_alloc(&intern->snapshot_arena, buf_size);
     NecroInternProbeResult probe_result;
-    char                   itoa_buf[16];
+    size_t                 itoa_buf_len = 16;
+    char                   itoa_buf[itoa_buf_len];
     do
     {
-        itoa((uint32_t)intern->clash_suffix, itoa_buf, 36);
+        char* itoa_result = necro_itoa((uint32_t)intern->clash_suffix, itoa_buf, itoa_buf_len, 36);
+        assert(itoa_result != NULL);
         intern->clash_suffix++;
         snprintf(unique_str, buf_size, "_%s_%s", str, itoa_buf);
         probe_result = necro_intern_prob(intern, unique_str);

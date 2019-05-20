@@ -84,8 +84,7 @@ void necro_poll_mouse()
     //         cout << "Exiting..." << endl;
     //         Continue = FALSE;
     //     }
-    //     break;
-    case MOUSE_EVENT:
+    //     break; case MOUSE_EVENT:
         mouse_x = input_record.Event.MouseEvent.dwMousePosition.X;
         mouse_y = input_record.Event.MouseEvent.dwMousePosition.Y;
         break;
@@ -98,4 +97,11 @@ void necro_poll_mouse()
 //=====================================================
 #include <unistd.h>
 
+void necro_init_mouse()
+{
+}
+
+void necro_poll_mouse()
+{
+}
 #endif

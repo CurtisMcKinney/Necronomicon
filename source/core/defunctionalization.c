@@ -197,7 +197,7 @@ NecroStaticValue* necro_static_value_create_env_from_expr(NecroDefunctionalizeCo
     }
     env_type                = necro_type_con_create(context->arena, env_type_symbol, env_type);
     unwrap(void, necro_kind_infer_default_unify_with_star(context->arena, context->base, env_type, NULL, zero_loc, zero_loc));
-    NecroType* env_mono_con = unwrap(NecroType, necro_type_instantiate(context->arena, NULL, context->base, env_con_symbol->type, NULL));
+    NecroType* env_mono_con = unwrap_result(NecroType, necro_type_instantiate(context->arena, NULL, context->base, env_con_symbol->type, NULL));
     *var_ast                = *necro_core_ast_create_var(context->arena, env_con_symbol, env_mono_con);
     return necro_static_value_create_env(context->arena, env_type, a_fn_type, env_con_symbol, fn_symbol, fn_expr_static_value, arg_static_values);
 }
@@ -455,7 +455,7 @@ NecroStaticValue* necro_defunctionalize_app_env(NecroDefunctionalizeContext* con
             // Apply env vars
             if (is_env_fn)
             {
-                NecroType* env_mono_con = unwrap(NecroType, necro_type_instantiate(context->arena, NULL, context->base, fn_static_value->env.env_con_symbol->type, NULL));
+                NecroType* env_mono_con = unwrap_result(NecroType, necro_type_instantiate(context->arena, NULL, context->base, fn_static_value->env.env_con_symbol->type, NULL));
                 pat_ast = necro_core_ast_create_var(context->arena, fn_static_value->env.env_con_symbol, env_mono_con);
                 while (env_args != NULL)
                 {
@@ -511,7 +511,7 @@ NecroStaticValue* necro_defunctionalize_app_env(NecroDefunctionalizeContext* con
         // Apply env vars
         if (is_env_fn)
         {
-            NecroType* env_mono_con = unwrap(NecroType, necro_type_instantiate(context->arena, NULL, context->base, fn_static_value->env.env_con_symbol->type, NULL));
+            NecroType* env_mono_con = unwrap_result(NecroType, necro_type_instantiate(context->arena, NULL, context->base, fn_static_value->env.env_con_symbol->type, NULL));
             pat_ast                 = necro_core_ast_create_var(context->arena, fn_static_value->env.env_con_symbol, env_mono_con);
             while (env_args != NULL)
             {

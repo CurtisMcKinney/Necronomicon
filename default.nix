@@ -1,8 +1,8 @@
 with import <nixpkgs> {};
 
 let
-  # stdenvCompiler = overrideCC stdenv clang_7;
-  stdenvCompiler = overrideCC stdenv gcc9;
+  stdenvCompiler = overrideCC stdenv clang_7;
+  # stdenvCompiler = overrideCC stdenv gcc9;
 in
   stdenvCompiler.mkDerivation {
     name = "necro";

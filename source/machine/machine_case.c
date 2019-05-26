@@ -583,7 +583,7 @@ NecroDecisionTree* necro_finish_compile_pattern_matrix(NecroMachineProgram* prog
         // TODO: CONVERT / FINISH! Needs to be converted to NecroAstSymbol system!!!!!!
         NecroCon pattern_con =
         {
-            .id = 0 // THIS IS TEMP HOLDER BS UNTIL SYSTEM IS CONVERTED
+            .id = { 0 } // THIS IS TEMP HOLDER BS UNTIL SYSTEM IS CONVERTED
             // .id     = data_cons->list.item->constructor.conid->conid.id,
             // .symbol = data_cons->list.item->constructor.conid->conid.symbol,
         };

@@ -94,7 +94,7 @@ NecroMachineAST* necro_get_closure_con(NecroMachineProgram* program, size_t clos
     // for (size_t c = 0; c < 2; ++c)
     // {
         // mk_fn_var                     = (c == 0) ? mk_fn_var : const_mk_fn_var;
-        mk_fn_var                     = mk_fn_var;
+        /* mk_fn_var                     = mk_fn_var; @curtis: not sure what you wanted, commented out for now */
 
         NecroMachineType*  mk_fn_type = necro_create_machine_fn_type(&program->arena, struct_ptr_type, elems, closure_arity);
         NecroMachineAST*   mk_fn_body = necro_create_machine_block(program, "entry", NULL);

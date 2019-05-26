@@ -28,7 +28,7 @@ NecroMachineType* necro_create_prim_type(NecroMachineProgram* program, NecroVar 
     // for (size_t c = 0; c < 2; ++c)
     // {
         // mk_fn_var                    = (c == 0) ? mk_fn_var : const_mk_fn_var;
-        mk_fn_var                    = mk_fn_var;
+        /* mk_fn_var                    = mk_fn_var; @curtis: not sure why you assigned this to itself, commented out for now */
         NecroMachineType* mk_fn_type = necro_create_machine_fn_type(&program->arena, struct_ptr_type, elems + 1, num_elems - 1);
         NecroMachineAST*  mk_fn_body = necro_create_machine_block(program, "entry", NULL);
         NecroMachineAST*  mk_fn_def  = necro_create_machine_fn(program, mk_fn_var, mk_fn_body, mk_fn_type);
@@ -67,7 +67,7 @@ void necro_create_prim_con(NecroMachineProgram* program, NecroMachineType* struc
     // for (size_t c = 0; c < 2; ++c)
     // {
         // mk_fn_var                    = (c == 0) ? mk_fn_var : const_mk_fn_var;
-        mk_fn_var                    = mk_fn_var;
+        /* mk_fn_var                    = mk_fn_var; @curtis: not sure what you wanted, commented out for now */
         NecroMachineType* mk_fn_type = necro_create_machine_fn_type(&program->arena, struct_ptr_type, elems, num_elems);
         NecroMachineAST*  mk_fn_body = necro_create_machine_block(program, "entry", NULL);
         NecroMachineAST*  mk_fn_def  = necro_create_machine_fn(program, mk_fn_var, mk_fn_body, mk_fn_type);

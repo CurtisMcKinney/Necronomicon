@@ -164,7 +164,7 @@ void necro_core_to_machine_1_data_con(NecroMachineProgram* program, NecroCoreAST
     // for (size_t c = 0; c < 2; ++c)
     // {
         // con_var                             = (c == 0) ? con_var : const_con_var;
-        con_var                             = con_var;
+        /* con_var                             = con_var; @curtis: not sure what you intended here, commented out for now */
         NecroMachineType**       parameters = necro_snapshot_arena_alloc(&program->snapshot_arena, arg_count * sizeof(NecroType*));
         NecroCoreAST_Expression* arg        = con->arg_list;
         for (size_t i = 0; i < arg_count; ++i)

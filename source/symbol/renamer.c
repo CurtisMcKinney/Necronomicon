@@ -1919,7 +1919,7 @@ void necro_rename_test()
 
     {
         puts("Rename {{{ child process parseTest:  starting...");
-        assert(NECRO_COMPILE_IN_CHILD_PROCESS("parseTest.txt", "rename") == 0);
+        assert(NECRO_COMPILE_IN_CHILD_PROCESS("parseTest.necro", "rename") == 0);
         puts("Rename }}} child process parseTest:  passed\n");
     }
 }

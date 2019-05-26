@@ -1339,7 +1339,7 @@ NecroParseAstLocalPtr necro_parse_variable(NecroParser* parser, NECRO_VAR_TYPE v
             break;
 
         default:
-            assert(false && "unhandled NECRO_LEX case" && sym_token_type);
+            break;
         }
     }
 
@@ -1875,7 +1875,7 @@ NecroParseAstLocalPtr necro_parse_constant(NecroParser* parser)
             return local_ptr;
         }
     default:
-        assert(false && "Unhandled token type");
+        break;
     }
     necro_parse_restore(parser, snapshot);
     return null_local_ptr;
@@ -2397,7 +2397,6 @@ NecroResult(NecroParseAstLocalPtr) parse_do_item(NecroParser* parser)
     } break;
 
     default:
-        assert(false && "Unhandled token type");
         break;
 
     } // switch (top_token_type)

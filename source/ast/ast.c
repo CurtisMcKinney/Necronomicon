@@ -2068,7 +2068,7 @@ NecroAst* necro_ast_copy_basic_info(NecroPagedArena* arena, NecroAst* declaratio
         ast2->declaration.declaration_group_list = declaration_group;
         break;
     default:
-        assert(false && "Unhandled ast type");
+        break;
     }
     return ast2;
 }

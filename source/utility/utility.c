@@ -10,10 +10,12 @@
 #include <ctype.h>
 #include "utility.h"
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(WIN32) || defined(_WIN64)
 #include <Windows.h>
 #else
+#include <sys/types.h>
 #include <unistd.h>
+#include <stdlib.h>
 #endif
 
 ///////////////////////////////////////////////////////
@@ -77,8 +79,9 @@ process_error_code_t necro_compile_in_child_process(const char* command_line_arg
     return exit_code;
 
 #else
-    assert(false && "necro_compile_file_in_child_process not implemented for this platform yet! Add the implementation here.");
-    return 1;
+    int exit_code = system(command_line_arguments);
+    assert((exit_code  == 0) && "necro_compile_file_in_child_process: child process returned a failed exit code!");
+    return exit_code;
 #endif
 }
 

@@ -3878,25 +3878,25 @@ void necro_test_infer()
 
     {
         puts("Infer {{{ child process inferTest:  starting...");
-        assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\inferTest.necro -infer") == 0);
+        assert(NECRO_COMPILE_IN_CHILD_PROCESS("inferTest.necro", "infer") == 0);
         puts("Infer }}} child process inferTest:  passed\n");
     }
 
     {
         puts("Infer {{{ child process typeClassTest:  starting...");
-        assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\typeClassTest.necro -infer") == 0);
+        assert(NECRO_COMPILE_IN_CHILD_PROCESS("typeClassTest.necro", "infer") == 0);
         puts("Infer }}} child process typeClassTest:  passed\n");
     }
 
     {
         puts("Infer {{{ child process typeClassTranslateTest:  starting...");
-        assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\typeClassTranslateTest.necro -infer") == 0);
+        assert(NECRO_COMPILE_IN_CHILD_PROCESS("typeClassTranslateTest.necro", "infer") == 0);
         puts("Infer }}} child process typeClassTranslateTest:  passed\n");
     }
 
     {
         puts("Infer {{{ child process pathologicalType:  starting...");
-        assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\pathologicalType.necro -infer") == 0);
+        assert(NECRO_COMPILE_IN_CHILD_PROCESS("pathologicalType.necro", "infer") == 0);
         puts("Infer }}} child process pathologicalType:  passed\n");
     }
 

@@ -1503,19 +1503,19 @@ void necro_lex_test()
 
     {
         puts("Lex {{{ child process test_lex1:  starting...");
-        assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\test_lex1.txt -lex") == 0);
+        assert(NECRO_COMPILE_IN_CHILD_PROCESS("test_lex1.txt", "lex") == 0);
         puts("Lex }}} child process test_lex1:  passed");
     }
 
     {
         puts("Lex {{{ child process test_lex2:  starting...");
-        assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\test_lex2.txt -lex") == 0);
+        assert(NECRO_COMPILE_IN_CHILD_PROCESS("test_lex2.txt", "lex") == 0);
         puts("Lex }}} child process test_lex2:  passed");
     }
 
     {
         puts("Lex {{{ child process unicodeTest.necro:  starting...");
-        assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\unicodeTest.necro -lex") == 0);
+        assert(NECRO_COMPILE_IN_CHILD_PROCESS("unicodeTest.necro", "lex") == 0);
         puts("Lex }}} child process unicodeTest.necro:  passed");
     }
 }

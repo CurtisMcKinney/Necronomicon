@@ -1100,19 +1100,19 @@ void necro_parse_test()
 
     {
         puts("Parse {{{ child process parse_test:  starting...");
-        assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\parse_test.necro -parse") == 0);
+        assert(NECRO_COMPILE_IN_CHILD_PROCESS("parse_test.necro", "parse") == 0);
         puts("Parse }}} child process parse_test:  passed\n");
     }
 
     {
         puts("Parse {{{ child process parseTest:  starting...");
-        assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\parseTest.necro -parse") == 0);
+        assert(NECRO_COMPILE_IN_CHILD_PROCESS("parseTest.necro", "parse") == 0);
         puts("Parse }}} child process parseTest:  passed\n");
     }
 
     {
         puts("Parse {{{ child process parseErrorTest:  starting...");
-        assert(necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\parseErrorTest.necro -parse") == 0);
+        assert(NECRO_COMPILE_IN_CHILD_PROCESS("parseErrorTest.necro", "parse") == 0);
         puts("Parse }}} child process parseErrorTest:  passed\n");
     }
 }

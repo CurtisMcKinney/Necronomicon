@@ -181,7 +181,7 @@ typedef struct
     size_t      length;
 } NecroStringSlice;
 
-inline inline uint32_t next_highest_pow_of_2(uint32_t x)
+inline uint32_t next_highest_pow_of_2(uint32_t x)
 {
     x--;
     x |= x >> 1;

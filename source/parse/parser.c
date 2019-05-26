@@ -2895,7 +2895,7 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_oppat(NecroParser* parser)
     }
 
     // Op
-    NecroParseAstLocalPtr op = necro_try_result(NecroParseAstLocalPtr, necro_parse_qconop(parser, NECRO_VAR_VAR));
+    NecroParseAstLocalPtr op = necro_try_result(NecroParseAstLocalPtr, necro_parse_qconop(parser, NECRO_CON_VAR));
     if (op == null_local_ptr)
     {
         necro_parse_restore_state(parser, prev_state);

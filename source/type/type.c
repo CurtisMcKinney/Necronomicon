@@ -2126,6 +2126,9 @@ NecroResult(NecroType) necro_type_set_zero_order(NecroType* type, const NecroSou
             if (!type->var.is_rigid)
                 type->var.order = NECRO_TYPE_ZERO_ORDER;
             return ok(NecroType, NULL);
+        default:
+            assert(false && "Unhandled type->var.order in necro_type_set_zero_order");
+            return ok(NecroType, NULL);
         }
     case NECRO_TYPE_FOR:
         switch (type->for_all.var_symbol->type->var.order)

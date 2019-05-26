@@ -1125,7 +1125,7 @@ void necro_transform_to_core(NecroTransformToCore* core_transform)
     assert(core_transform);
     assert(core_transform->necro_ast);
     assert(core_transform->necro_ast->root);
-    core_transform->transform_state = NECRO_SUCCESS;
+    core_transform->transform_state = NECRO_CORE_TRANSFORMING;
     core_transform->core_ast->root = necro_transform_to_core_impl(core_transform, core_transform->necro_ast->root);
 }
 

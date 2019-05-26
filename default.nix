@@ -1,23 +1,27 @@
 with import <nixpkgs> {};
 
-stdenv.mkDerivation {
-  name = "necro";
-  src = ./.;
+let
+  # stdenvCompiler = overrideCC stdenv clang_7;
+  stdenvCompiler = overrideCC stdenv gcc9;
+in
+  stdenvCompiler.mkDerivation {
+    name = "necro";
+    src = ./.;
 
-  buildInputs = [ llvm_7 ];
-  nativeBuildInputs = [ cmake ];
-  enableDebugging = true;
+    buildInputs = [ llvm_7 ];
+    nativeBuildInputs = [ cmake ];
+    enableDebugging = true;
 
-  installPhase = ''
-    mkdir -p $out/build
-    cp necro $out/build/
-  '';
+    installPhase = ''
+      mkdir -p $out/build
+      cp necro $out/build/
+      '';
 
-  meta = with stdenv.lib; {
-    description = "Necronomicon is a pure functional data flow language for music and audio DSP.";
-    homepage = https://github.com/CurtisMcKinney/Necronomicon;
-    maintainers = with maintainers; [ ChadMcKinney CurtisMcKinney ];
-    license = licenses.mit;
-    platforms = platforms.linux;
-  };
-}
+    meta = with stdenv.lib; {
+      description = "Necronomicon is a pure functional data flow language for music and audio DSP.";
+      homepage = https://github.com/CurtisMcKinney/Necronomicon;
+      maintainers = with maintainers; [ ChadMcKinney CurtisMcKinney ];
+      license = licenses.mit;
+      platforms = platforms.linux;
+    };
+  }

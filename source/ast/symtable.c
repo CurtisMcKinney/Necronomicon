@@ -195,7 +195,7 @@ void necro_scoped_symtable_pop_type_scope(NecroScopedSymTable* table)
     table->current_type_scope = table->current_type_scope->parent;
 }
 
-inline void necro_scope_grow(NecroScope* scope, NecroPagedArena* arena)
+static inline void necro_scope_grow(NecroScope* scope, NecroPagedArena* arena)
 {
     assert(scope != NULL);
     assert(scope->buckets != NULL);

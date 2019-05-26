@@ -121,7 +121,7 @@ NecroCoreScope* necro_core_scope_create(NecroPagedArena* arena, NecroCoreScope* 
     return scope;
 }
 
-inline void necro_core_scope_grow(NecroPagedArena* arena, NecroCoreScope* scope)
+static inline void necro_core_scope_grow(NecroPagedArena* arena, NecroCoreScope* scope)
 {
     assert(scope != NULL);
     assert(scope->data != NULL);

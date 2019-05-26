@@ -52,7 +52,14 @@ done
 
 echo >&2 "Running Necronomicon tests"
 
-./build/Debug/necro.exe -test all 2>&1
+# check windows build path first, then linux build path. this all needs some more general solution, but just getting things working for now
+NECRO_EXE=./build/Debug/necro.exe
+if test -f "$NECRO_EXE"; then
+    ./build/Debug/necro.exe -test all 2>&1
+else
+    ./result/build/necro -test all 2>&1
+fi
+
 result=$?
 if [ $result -eq 0 ]
 then

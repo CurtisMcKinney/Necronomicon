@@ -63,6 +63,8 @@ static inline void* __emalloc(const size_t a_size)
     return data;
 }
 
+#define NECRO_ITOA_BUF_LENGTH 16
+
 //=====================================================
 // Error Messaging
 //=====================================================
@@ -257,9 +259,9 @@ process_error_code_t necro_compile_in_child_process(const char* command_line_arg
 
 
 #if defined(_WIN32) || defined(WIN32) || defined(_WIN64)
-#define NECRO_COMPILE_IN_CHILD_PROCESS(TEST_FILE, COMPILER_PASS) (necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\" TEST_FILE " -" COMPILER_PASS)) 
+#define NECRO_COMPILE_IN_CHILD_PROCESS(TEST_FILE, COMPILER_PASS) (necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\" TEST_FILE " -" COMPILER_PASS))
 #elif defined(__unix)
-#define NECRO_COMPILE_IN_CHILD_PROCESS(TEST_FILE, COMPILER_PASS) (necro_compile_in_child_process("./result/build/necro ./test/" TEST_FILE " -" COMPILER_PASS)) 
+#define NECRO_COMPILE_IN_CHILD_PROCESS(TEST_FILE, COMPILER_PASS) (necro_compile_in_child_process("./result/build/necro ./test/" TEST_FILE " -" COMPILER_PASS))
 #endif
 
 ///////////////////////////////////////////////////////

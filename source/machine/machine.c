@@ -184,14 +184,14 @@ void necro_core_to_machine_1_data_con(NecroMachineProgram* program, NecroCoreAST
 
         //--------------
         // Parameters
-        const size_t itoa_buff_len = 6;
+        // const size_t itoa_buff_len = 6;
         for (size_t i = 0; i < max_arg_count; ++i)
         {
             if (i < arg_count)
             {
-                char itoa_buff_2[itoa_buff_len];
+                char itoa_buff_2[NECRO_ITOA_BUF_LENGTH];
                 assert(i <= INT32_MAX);
-                char* itoa_result = necro_itoa((int32_t) i, itoa_buff_2, itoa_buff_len, 10);
+                char* itoa_result = necro_itoa((int32_t) i, itoa_buff_2, NECRO_ITOA_BUF_LENGTH, 10);
                 assert(itoa_result);
                 char* value_name = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "param_", itoa_result });
                 UNUSED(value_name);

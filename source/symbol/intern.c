@@ -290,11 +290,10 @@ NecroSymbol necro_intern_unique_string(NecroIntern* intern, const char* str)
     NecroArenaSnapshot     snapshot   = necro_snapshot_arena_get(&intern->snapshot_arena);
     char*                  unique_str = necro_snapshot_arena_alloc(&intern->snapshot_arena, buf_size);
     NecroInternProbeResult probe_result;
-    size_t                 itoa_buf_len = 16;
-    char                   itoa_buf[itoa_buf_len];
+    char                   itoa_buf[NECRO_ITOA_BUF_LENGTH];
     do
     {
-        char* itoa_result = necro_itoa((uint32_t)intern->clash_suffix, itoa_buf, itoa_buf_len, 36);
+        char* itoa_result = necro_itoa((uint32_t)intern->clash_suffix, itoa_buf, NECRO_ITOA_BUF_LENGTH, 36);
         assert(itoa_result != NULL);
         intern->clash_suffix++;
         snprintf(unique_str, buf_size, "_%s_%s", str, itoa_buf);

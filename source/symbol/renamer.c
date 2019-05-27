@@ -61,10 +61,9 @@ void necro_prepend_module_name_to_name(NecroIntern* intern, NecroAstSymbol* ast_
 NecroSymbol necro_append_clash_suffix_to_name(NecroAstArena* ast_arena, NecroIntern* intern, const char* name)
 {
     ast_arena->clash_suffix++;
-    size_t itoa_buf_len = 16;
-    char itoa_buf[itoa_buf_len];
+    char itoa_buf[NECRO_ITOA_BUF_LENGTH];
     assert(ast_arena->clash_suffix <= UINT32_MAX);
-    char* itoa_buf_result = necro_itoa((uint32_t)ast_arena->clash_suffix, itoa_buf, itoa_buf_len, 36); 
+    char* itoa_buf_result = necro_itoa((uint32_t)ast_arena->clash_suffix, itoa_buf, NECRO_ITOA_BUF_LENGTH, 36);
     assert(itoa_buf_result != NULL);
     return necro_intern_string(intern, necro_snapshot_arena_concat_strings(&intern->snapshot_arena, 3u, (const char*[]) { name, "_", itoa_buf_result }));
 }

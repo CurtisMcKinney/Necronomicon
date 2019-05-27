@@ -385,9 +385,8 @@ NecroMachineAST* necro_create_machine_initial_machine_def(NecroMachineProgram* p
     NecroMachineAST* ast                           = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachineAST));
     ast->type                                      = NECRO_MACHINE_DEF;
     ast->machine_def.bind_name                     = bind_name;
-    const size_t itoabuf_len                       = 10;
-    char itoabuf[itoabuf_len];
-    char* itoa_result                              = necro_itoa(bind_name.id.id, itoabuf, itoabuf_len, 10);
+    char itoabuf[NECRO_ITOA_BUF_LENGTH];
+    char* itoa_result                              = necro_itoa(bind_name.id.id, itoabuf, NECRO_ITOA_BUF_LENGTH, 10);
     assert(itoa_result != NULL);
     char* machine_name                             = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 4, (const char*[]) { "_", bind_name.symbol->str, "Machine", itoa_result });
     machine_name[1]                                = (char) toupper(machine_name[1]);

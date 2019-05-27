@@ -9,6 +9,7 @@
 #include "symtable.h"
 #include "machine_copy.h"
 #include "../utility/itoa.h"
+#include "utility.h"
 
 /*
     TODO:
@@ -69,8 +70,7 @@ NecroMachineAST* necro_get_closure_con(NecroMachineProgram* program, size_t clos
     NecroArenaSnapshot snapshot         = necro_snapshot_arena_get(&program->snapshot_arena);
     NecroMachineType*  struct_ptr_type  = necro_create_machine_ptr_type(&program->arena, program->closure_type);
     assert(adjusted_closure_arity < INT32_MAX);
-    size_t             itoa_buf_len     = 10;
-    const char*        num_string       = necro_itoa((int32_t) adjusted_closure_arity, necro_snapshot_arena_alloc(&program->snapshot_arena, itoa_buf_len), itoa_buf_len, 10);
+    const char*        num_string       = necro_itoa((int32_t) adjusted_closure_arity, necro_snapshot_arena_alloc(&program->snapshot_arena, NECRO_ITOA_BUF_LENGTH), NECRO_ITOA_BUF_LENGTH, 10);
     assert(num_string != NULL);
     const char*        struct_name      = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_Closure", num_string });
     const char*        mk_fn_name       = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mkClosure", num_string });
@@ -199,8 +199,7 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
     //--------------------
     // apply MachineDef
     assert(adjusted_apply_arity <= INT32_MAX);
-    const size_t      itoa_buf_len               = 10;
-    const char*       num_string                 = necro_itoa((int32_t) adjusted_apply_arity, necro_snapshot_arena_alloc(&program->snapshot_arena, itoa_buf_len), itoa_buf_len, 10);
+    const char*       num_string                 = necro_itoa((int32_t) adjusted_apply_arity, necro_snapshot_arena_alloc(&program->snapshot_arena, NECRO_ITOA_BUF_LENGTH), NECRO_ITOA_BUF_LENGTH, 10);
     const char*       apply_machine_name         = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "apply", num_string });
     NecroVar          apply_machine_var          = necro_gen_var(program, NULL, apply_machine_name, NECRO_NAME_UNIQUE);
     NecroMachineAST*  apply_machine_def          = necro_create_machine_initial_machine_def(program, apply_machine_var, NULL, non_state_apply_fn_type, NULL);
@@ -296,17 +295,17 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
     assert(program->closure_defs.length > 0);
     for (size_t i = 0; i < program->closure_defs.length; ++i)
     {
-        char        itoa_buf1[itoa_buf_len];
-        char        itoa_buf2[itoa_buf_len];
+        char        itoa_buf1[NECRO_ITOA_BUF_LENGTH];
+        char        itoa_buf2[NECRO_ITOA_BUF_LENGTH];
         size_t      closure_def_fn_arity = program->closure_defs.data[i].fn_arity;
         size_t      closure_def_pargs    = program->closure_defs.data[i].num_pargs;
         // Non-stateful
         {
             assert(closure_def_fn_arity <= INT32_MAX);
             assert(closure_def_pargs <= INT32_MAX);
-            char* closure_def_fn_arity_str   = necro_itoa((int32_t) closure_def_fn_arity, itoa_buf1, itoa_buf_len, 10);
+            char* closure_def_fn_arity_str   = necro_itoa((int32_t) closure_def_fn_arity, itoa_buf1, NECRO_ITOA_BUF_LENGTH, 10);
             assert(closure_def_fn_arity_str != NULL);
-            char* closure_def_pargs_str      = necro_itoa((int32_t) closure_def_pargs, itoa_buf2, itoa_buf_len, 10);
+            char* closure_def_pargs_str      = necro_itoa((int32_t) closure_def_pargs, itoa_buf2, NECRO_ITOA_BUF_LENGTH, 10);
             assert(closure_def_pargs_str != NULL);
             const char* block_name           = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 5, (const char*[]) { "closure_arity_", closure_def_fn_arity_str, "_pargs_", closure_def_pargs_str, "_" });
             closure_arity_blocks[i]          = necro_append_block(program, apply_fn_def, block_name);
@@ -317,9 +316,9 @@ void necro_declare_apply_fn(NecroMachineProgram* program, size_t apply_arity)
         {
             assert(closure_def_fn_arity <= INT32_MAX);
             assert(closure_def_pargs <= INT32_MAX);
-            char* closure_def_fn_arity_str   = necro_itoa((int32_t) closure_def_fn_arity, itoa_buf1, itoa_buf_len, 10);
+            char* closure_def_fn_arity_str   = necro_itoa((int32_t) closure_def_fn_arity, itoa_buf1, NECRO_ITOA_BUF_LENGTH, 10);
             assert(closure_def_fn_arity_str != NULL);
-            char* closure_def_pargs_str      = necro_itoa((int32_t) closure_def_pargs, itoa_buf2, itoa_buf_len, 10);
+            char* closure_def_pargs_str      = necro_itoa((int32_t) closure_def_pargs, itoa_buf2, NECRO_ITOA_BUF_LENGTH, 10);
             assert(closure_def_pargs_str != NULL);
             const char* block_name           = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 5, (const char*[]) { "closure_arity_", closure_def_fn_arity_str, "_pargs_", closure_def_pargs_str, "_Stateful" });
             closure_arity_blocks[i + program->closure_defs.length] = necro_append_block(program, apply_fn_def, block_name);

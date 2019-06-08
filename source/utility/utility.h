@@ -259,7 +259,8 @@ process_error_code_t necro_compile_in_child_process(const char* command_line_arg
 #if defined(_WIN32) || defined(WIN32) || defined(_WIN64)
 #define NECRO_COMPILE_IN_CHILD_PROCESS(TEST_FILE, COMPILER_PASS) (necro_compile_in_child_process("build\\Debug\\necro.exe .\\test\\" TEST_FILE " -" COMPILER_PASS)) 
 #elif defined(__unix)
-#define NECRO_COMPILE_IN_CHILD_PROCESS(TEST_FILE, COMPILER_PASS) (necro_compile_in_child_process("./result/build/necro ./test/" TEST_FILE " -" COMPILER_PASS)) 
+#define valgrind(TEST_FILE, COMPILER_PASS) "valgrind --error-exitcode=" EXIT_MEMORY_LEAK_DETECTED_STR " --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all --track-origins=yes --verbose --log-file=.valgrind/valgrind-out-" TEST_FILE "-" COMPILER_PASS ".txt "
+#define NECRO_COMPILE_IN_CHILD_PROCESS(TEST_FILE, COMPILER_PASS) (necro_compile_in_child_process(valgrind(TEST_FILE, COMPILER_PASS) "./result/build/necro ./test/" TEST_FILE " -" COMPILER_PASS)) 
 #endif
 
 ///////////////////////////////////////////////////////

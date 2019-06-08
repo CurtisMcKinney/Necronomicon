@@ -7,6 +7,7 @@
 #define DEBUG_MEMORY_H 1
 
 static const int EXIT_MEMORY_LEAK_DETECTED = 255;
+#define EXIT_MEMORY_LEAK_DETECTED_STR "255"
 
 #if defined(_DEBUG)
 #define DEBUG_MEMORY 1

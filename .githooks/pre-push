@@ -57,7 +57,7 @@ NECRO_EXE=./build/Debug/necro.exe
 if test -f "$NECRO_EXE"; then
     ./build/Debug/necro.exe -test all 2>&1
 else
-    ./result/build/necro -test all 2>&1
+    valgrind --error-exitcode=255 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all --track-origins=yes --verbose --log-file=.valgrind/valgrind-out.txt ./result/build/necro -test all 2>&1
 fi
 
 result=$?

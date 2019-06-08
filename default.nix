@@ -8,7 +8,7 @@ in
     name = "necro";
     src = ./.;
 
-    buildInputs = [ llvm_7 ];
+    buildInputs = [ llvm_7 valgrind ];
     nativeBuildInputs = [ cmake ];
     enableDebugging = true;
 

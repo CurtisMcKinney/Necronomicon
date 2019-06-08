@@ -70,8 +70,9 @@ void necro_poll_mouse()
         return;
     if (ReadConsoleInput(h_in, &input_record, 1, &num_read) == 0)
         return;
-    switch (input_record.EventType)
-    {
+    // TODO: This got borked at some point? Fix
+    // switch (input_record.EventType)
+    // {
     // case KEY_EVENT:
     //     ++KeyEvents;
     //     SetConsoleCursorPosition(hOut,
@@ -85,10 +86,10 @@ void necro_poll_mouse()
     //         Continue = FALSE;
     //     }
     //     break; case MOUSE_EVENT:
-        mouse_x = input_record.Event.MouseEvent.dwMousePosition.X;
-        mouse_y = input_record.Event.MouseEvent.dwMousePosition.Y;
-        break;
-    }
+    //     mouse_x = input_record.Event.MouseEvent.dwMousePosition.X;
+    //     mouse_y = input_record.Event.MouseEvent.dwMousePosition.Y;
+    //     break;
+    // }
 }
 
 #else

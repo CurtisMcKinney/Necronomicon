@@ -1771,10 +1771,9 @@ size_t necro_type_mangled_string_length(const NecroType* type)
 
     case NECRO_TYPE_NAT:
     {
-        const size_t buffer_len = 16;
-        char buffer[buffer_len];
+        char buffer[NECRO_ITOA_BUF_LENGTH];
         assert(type->nat.value < INT32_MAX);
-        char* itoa_result = necro_itoa((int) type->nat.value, buffer, buffer_len, 10);
+        char* itoa_result = necro_itoa((int) type->nat.value, buffer, NECRO_ITOA_BUF_LENGTH, 10);
         assert(itoa_result != NULL);
         return strlen(buffer);
     }

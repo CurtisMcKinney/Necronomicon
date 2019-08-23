@@ -588,7 +588,6 @@ typedef struct NecroMachProgram
     NecroMachRuntime      runtime;
     NecroMachAstSymbol*   null_con;
     size_t                clash_suffix;
-
 } NecroMachProgram;
 
 ///////////////////////////////////////////////////////

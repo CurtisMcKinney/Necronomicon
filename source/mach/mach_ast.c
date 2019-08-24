@@ -497,6 +497,7 @@ void necro_mach_build_store(NecroMachProgram* program, NecroMachAst* fn_def, Nec
     assert(source_value->type == NECRO_MACH_VALUE);
     assert(dest_ptr->type == NECRO_MACH_VALUE);
     assert(dest_ptr->necro_machine_type->type == NECRO_MACH_TYPE_PTR);
+    necro_mach_type_check(program, source_value->necro_machine_type, dest_ptr->necro_machine_type->ptr_type.element_type);
     NecroMachAst* ast       = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
     ast->type               = NECRO_MACH_STORE;
     ast->store.store_type   = NECRO_MACH_STORE_PTR;
@@ -605,18 +606,18 @@ NecroMachAst* necro_mach_build_cmp(NecroMachProgram* program, NecroMachAst* fn_d
     assert(left->type == NECRO_MACH_VALUE);
     assert(right != NULL);
     assert(right->type == NECRO_MACH_VALUE);
-    // @curtis: these aren't the same type
-    /* assert(left->type == NECRO_MACH_TYPE_UINT1  || */
-    /*        left->type == NECRO_MACH_TYPE_UINT8  || */
-    /*        left->type == NECRO_MACH_TYPE_UINT16 || */
-    /*        left->type == NECRO_MACH_TYPE_UINT32 || */
-    /*        left->type == NECRO_MACH_TYPE_UINT64 || */
-    /*        left->type == NECRO_MACH_TYPE_INT32  || */
-    /*        left->type == NECRO_MACH_TYPE_INT64  || */
-    /*        left->type == NECRO_MACH_TYPE_F32    || */
-    /*        left->type == NECRO_MACH_TYPE_F64    || */
-    /*        left->type == NECRO_MACH_TYPE_PTR); */
-    assert(left->type == right->type);
+    assert(
+        left->necro_machine_type->type == NECRO_MACH_TYPE_UINT1  ||
+        left->necro_machine_type->type == NECRO_MACH_TYPE_UINT8  ||
+        left->necro_machine_type->type == NECRO_MACH_TYPE_UINT16 ||
+        left->necro_machine_type->type == NECRO_MACH_TYPE_UINT32 ||
+        left->necro_machine_type->type == NECRO_MACH_TYPE_UINT64 ||
+        left->necro_machine_type->type == NECRO_MACH_TYPE_INT32  ||
+        left->necro_machine_type->type == NECRO_MACH_TYPE_INT64  ||
+        left->necro_machine_type->type == NECRO_MACH_TYPE_F32    ||
+        left->necro_machine_type->type == NECRO_MACH_TYPE_F64    ||
+        left->necro_machine_type->type == NECRO_MACH_TYPE_PTR);
+    assert(left->necro_machine_type->type == right->necro_machine_type->type);
     NecroMachAst* cmp = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
     cmp->type         = NECRO_MACH_CMP;
     cmp->cmp.cmp_type = cmp_type;

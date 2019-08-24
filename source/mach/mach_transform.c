@@ -98,8 +98,8 @@ void necro_core_transform_to_mach_1_data_con_constructor(NecroMachProgram* progr
     NecroMachAst*  mk_fn_def  = necro_mach_create_fn(program, con_symbol, mk_fn_body, mk_fn_type);
     const size_t   slots_used = arg_count + 1;
     assert(slots_used <= UINT32_MAX);
-    NecroMachAst* data_ptr = necro_mach_value_create_param_reg(program, mk_fn_def, 0);
-    NecroMachAst* tag_ptr  = necro_mach_build_gep(program, mk_fn_def, data_ptr, (uint32_t[]) { 0, 0 }, 2, "tag");
+    NecroMachAst*  data_ptr   = necro_mach_value_create_param_reg(program, mk_fn_def, 0);
+    NecroMachAst*  tag_ptr    = necro_mach_build_gep(program, mk_fn_def, data_ptr, (uint32_t[]) { 0, 0 }, 2, "tag");
     necro_mach_build_store(program, mk_fn_def, necro_mach_value_create_word_uint(program, con_number), tag_ptr);
 
     //--------------

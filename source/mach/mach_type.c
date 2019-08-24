@@ -13,22 +13,31 @@
 
 NecroMachType* necro_mach_type_create_word_sized_uint(NecroMachProgram* program)
 {
+    if (program->necro_uint_type != NULL)
+        return program->necro_uint_type;
     NecroMachType* type = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachType));
     type->type          = (program->word_size == NECRO_WORD_4_BYTES) ? NECRO_MACH_TYPE_UINT32 : NECRO_MACH_TYPE_UINT64;
+    program->necro_uint_type = type;
     return type;
 }
 
 NecroMachType* necro_mach_type_create_word_sized_int(NecroMachProgram* program)
 {
+    if (program->necro_int_type != NULL)
+        return program->necro_int_type;
     NecroMachType* type = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachType));
     type->type          = (program->word_size == NECRO_WORD_4_BYTES) ? NECRO_MACH_TYPE_INT32 : NECRO_MACH_TYPE_INT64;
+    program->necro_int_type = type;
     return type;
 }
 
 NecroMachType* necro_mach_type_create_word_sized_float(NecroMachProgram* program)
 {
+    if (program->necro_float_type != NULL)
+        return program->necro_float_type;
     NecroMachType* type = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachType));
     type->type          = (program->word_size == NECRO_WORD_4_BYTES) ? NECRO_MACH_TYPE_F32 : NECRO_MACH_TYPE_F64;
+    program->necro_float_type = type;
     return type;
 }
 
@@ -305,9 +314,9 @@ NecroMachType* necro_mach_type_from_necro_type(NecroMachProgram* program, NecroT
     case NECRO_TYPE_CON:
         assert(type->con.args == NULL);
         assert(type->con.con_symbol != NULL);
-        assert(type->con.con_symbol->mach_symbol != NULL);
-        assert(type->con.con_symbol->mach_symbol->mach_type != NULL);
-        return type->con.con_symbol->mach_symbol->mach_type;
+        assert(type->con.con_symbol->core_ast_symbol->mach_symbol != NULL);
+        assert(type->con.con_symbol->core_ast_symbol->mach_symbol->mach_type != NULL);
+        return type->con.con_symbol->core_ast_symbol->mach_symbol->mach_type;
     default:
         assert(false);
         return NULL;

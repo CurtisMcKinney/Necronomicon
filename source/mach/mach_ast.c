@@ -22,8 +22,28 @@ NecroMachAstSymbol* necro_mach_ast_symbol_create(NecroPagedArena* arena, NecroSy
     symbol->mach_type          = NULL;
     symbol->necro_type         = NULL;
     symbol->state_type         = NECRO_STATE_POINTWISE;
+    symbol->is_enum            = false;
+    symbol->is_constructor     = false;
+    symbol->con_num            = 0;
     return symbol;
 }
+
+
+NecroMachAstSymbol* necro_mach_ast_symbol_create_from_core_ast_symbol(NecroPagedArena* arena, NecroCoreAstSymbol* core_ast_symbol)
+{
+    NecroMachAstSymbol* symbol   = necro_paged_arena_alloc(arena, sizeof(NecroMachAstSymbol));
+    symbol->name                 = core_ast_symbol->name;
+    symbol->ast                  = NULL;
+    symbol->mach_type            = NULL;
+    symbol->necro_type           = NULL;
+    symbol->state_type           = NECRO_STATE_POINTWISE;
+    symbol->is_enum              = core_ast_symbol->is_enum;
+    symbol->is_constructor       = core_ast_symbol->is_constructor;
+    symbol->con_num              = core_ast_symbol->con_num;
+    core_ast_symbol->mach_symbol = symbol;
+    return symbol;
+}
+
 
 NecroMachAstSymbol* necro_mach_ast_symbol_gen(NecroMachProgram* program, NecroMachAst* ast, const char* str, NECRO_MANGLE_TYPE mangle_type)
 {
@@ -32,6 +52,7 @@ NecroMachAstSymbol* necro_mach_ast_symbol_gen(NecroMachProgram* program, NecroMa
     {
         // TODO: API Change, fix
         // name = necro_intern_unique_string(program->intern, str);
+        name = necro_intern_unique_string(program->intern, str);
     }
     else
     {
@@ -245,7 +266,7 @@ NecroMachAst* necro_mach_value_create_word_float(NecroMachProgram* program, doub
 ///////////////////////////////////////////////////////
 NecroMachAst* necro_mach_block_create(NecroMachProgram* program, const char* name, NecroMachAst* next_block)
 {
-    NecroMachAst* ast       = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
+    NecroMachAst* ast          = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
     ast->type                  = NECRO_MACH_BLOCK;
     ast->block.symbol          = necro_mach_ast_symbol_gen(program, NULL, name, NECRO_MANGLE_NAME);
     ast->block.statements      = necro_paged_arena_alloc(&program->arena, 4 * sizeof(NecroMachAst*));
@@ -789,6 +810,7 @@ NecroMachAst* necro_mach_create_struct_def(NecroMachProgram* program, NecroMachA
     ast->type               = NECRO_MACH_STRUCT_DEF;
     ast->struct_def.symbol  = symbol;
     ast->necro_machine_type = necro_mach_type_create_struct(&program->arena, symbol, members, num_members);
+    symbol->mach_type       = ast->necro_machine_type;
     symbol->ast             = ast;
     necro_mach_program_add_struct(program, ast);
     return ast;
@@ -885,3 +907,147 @@ NecroMachAst* necro_mach_create_initial_machine_def(NecroMachProgram* program, N
     return ast;
 }
 
+
+///////////////////////////////////////////////////////
+// NecroMachProgram
+///////////////////////////////////////////////////////
+NecroMachRuntime necro_mach_runtime_empty()
+{
+    return (NecroMachRuntime)
+    {
+        ._necro_init_runtime   = NULL,
+        ._necro_update_runtime = NULL,
+        ._necro_error_exit     = NULL,
+        ._necro_sleep          = NULL,
+        ._necro_print          = NULL,
+        ._necro_debug_print    = NULL,
+        ._necro_alloc_region   = NULL,
+        ._necro_free_region    = NULL,
+    };
+}
+
+NecroMachRuntime necro_mach_runtime_create(NecroMachProgram* program)
+{
+    UNUSED(program);
+    return necro_mach_runtime_empty();
+}
+
+NecroMachProgram necro_mach_program_empty()
+{
+    return (NecroMachProgram)
+    {
+        .structs            = necro_empty_necro_mach_ast_vector(),
+        .functions          = necro_empty_necro_mach_ast_vector(),
+        .machine_defs       = necro_empty_necro_mach_ast_vector(),
+        .globals            = necro_empty_necro_mach_ast_vector(),
+        .necro_main         = NULL,
+        .word_size          = NECRO_WORD_4_BYTES,
+
+        .arena              = necro_paged_arena_empty(),
+        .snapshot_arena     = necro_snapshot_arena_empty(),
+        .base               = NULL,
+        .intern             = NULL,
+
+        .gen_vars           = 0,
+        .necro_uint_type    = NULL,
+        .necro_int_type     = NULL,
+        .necro_float_type   = NULL,
+        .necro_data_type    = NULL,
+        .mkIntFnValue       = NULL,
+        .mkFloatFnValue     = NULL,
+        .main_symbol        = NULL,
+        .program_main       = NULL,
+        .runtime            = necro_mach_runtime_empty(),
+        .null_con           = NULL,
+        .clash_suffix       = 0,
+    };
+}
+
+void necro_mach_program_init_base_and_runtime(NecroMachProgram* program);
+
+NecroMachProgram necro_mach_program_create(NecroIntern* intern, NecroBase* base)
+{
+    NecroMachProgram program =
+    {
+        .structs            = necro_create_necro_mach_ast_vector(),
+        .functions          = necro_create_necro_mach_ast_vector(),
+        .machine_defs       = necro_create_necro_mach_ast_vector(),
+        .globals            = necro_create_necro_mach_ast_vector(),
+        .necro_main         = NULL,
+        .word_size          = (sizeof(char*) == 4) ? NECRO_WORD_4_BYTES : NECRO_WORD_8_BYTES,
+
+        .arena              = necro_paged_arena_create(),
+        .snapshot_arena     = necro_snapshot_arena_create(),
+        .base               = base,
+        .intern             = intern,
+
+        .gen_vars           = 0,
+        .necro_uint_type    = NULL,
+        .necro_int_type     = NULL,
+        .necro_float_type   = NULL,
+        .necro_data_type    = NULL,
+        .mkIntFnValue       = NULL,
+        .mkFloatFnValue     = NULL,
+        .main_symbol        = NULL,
+        .program_main       = NULL,
+        .runtime            = necro_mach_runtime_empty(),
+        .null_con           = NULL,
+        .clash_suffix       = 0,
+    };
+    program.main_symbol      = necro_mach_ast_symbol_create(&program.arena, necro_intern_string(intern, "main"));
+    program.null_con         = necro_mach_ast_symbol_create(&program.arena, necro_intern_string(intern, "_NullPoly"));
+    program.necro_uint_type  = necro_mach_type_create_word_sized_uint(&program);
+    program.necro_int_type   = necro_mach_type_create_word_sized_int(&program);
+    program.necro_float_type = necro_mach_type_create_word_sized_float(&program);
+    program.runtime          = necro_mach_runtime_create(&program);
+    // TODO: INIT BASE / RUNTIME HERE
+    // necro_init_machine_prim(&program);
+    necro_mach_program_init_base_and_runtime(&program);
+    return program;
+}
+
+void necro_mach_program_destroy(NecroMachProgram* program)
+{
+    assert(program != NULL);
+    necro_paged_arena_destroy(&program->arena);
+    necro_snapshot_arena_destroy(&program->snapshot_arena);
+    necro_destroy_necro_mach_ast_vector(&program->structs);
+    necro_destroy_necro_mach_ast_vector(&program->globals);
+    necro_destroy_necro_mach_ast_vector(&program->functions);
+    necro_destroy_necro_mach_ast_vector(&program->machine_defs);
+    *program = necro_mach_program_empty();
+}
+
+void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
+{
+    assert(program != NULL);
+
+    // Int
+    {
+        NecroAstSymbol*     int_type_ast_symbol  = program->base->int_type;
+        NecroMachAstSymbol* int_type_mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, int_type_ast_symbol->core_ast_symbol);
+        int_type_mach_symbol->mach_type          = necro_mach_type_create_word_sized_int(program);
+        int_type_mach_symbol->is_primitive       = true;
+    }
+
+    // UInt
+    {
+        NecroAstSymbol*     uint_type_ast_symbol  = program->base->uint_type;
+        NecroMachAstSymbol* uint_type_mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, uint_type_ast_symbol->core_ast_symbol);
+        uint_type_mach_symbol->mach_type          = necro_mach_type_create_word_sized_uint(program);
+        uint_type_mach_symbol->is_primitive       = true;
+    }
+
+    // Float
+    {
+        NecroAstSymbol*     float_type_ast_symbol  = program->base->float_type;
+        NecroMachAstSymbol* float_type_mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, float_type_ast_symbol->core_ast_symbol);
+        float_type_mach_symbol->mach_type          = necro_mach_type_create_word_sized_float(program);
+        float_type_mach_symbol->is_primitive       = true;
+    }
+
+    // TODO: Char
+    // TODO: Audio
+    // TODO: Rational
+
+}

@@ -457,6 +457,8 @@ void necro_mach_print_cmp(NecroMachAst* ast, size_t depth)
 
 void necro_mach_print_ast_go(NecroMachAst* ast, size_t depth)
 {
+    if (ast == NULL)
+        return;
     switch (ast->type)
     {
     case NECRO_MACH_VALUE:

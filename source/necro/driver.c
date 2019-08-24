@@ -26,15 +26,15 @@
 #include "core/lambda_lift.h"
 #include "core/defunctionalization.h"
 #include "core/state_analysis.h"
-#include "machine/machine.h"
-#include "machine/machine_print.h"
-#include "codegen/codegen_llvm.h"
 #include "core/core_pretty_print.h"
 #include "utility/unicode_properties.h"
 #include "type/monomorphize.h"
 #include "alias_analysis.h"
 #include "core_ast.h"
 #include "defunctionalization.h"
+#include "mach_transform.h"
+
+// #include "codegen/codegen_llvm.h"
 
 #define NECRO_VERBOSITY 1
 
@@ -96,8 +96,8 @@ NecroResult(void) necro_compile_go(
     NecroParseAstArena*   parse_ast,
     NecroAstArena*        ast,
     NecroCoreAstArena*    core_ast_arena,
-    NecroCodeGenLLVM*     codegen_llvm,
-    NecroMachineProgram*  machine)
+    // NecroCodeGenLLVM*     codegen_llvm,
+    NecroMachProgram*     mach_program)
 {
     if (info.compilation_phase == NECRO_PHASE_NONE)
         return ok_void();
@@ -183,8 +183,8 @@ NecroResult(void) necro_compile_go(
     if (necro_compile_end_phase(info, NECRO_PHASE_LAMBDA_LIFT))
         return ok_void();
 
-    UNUSED(codegen_llvm);
-    UNUSED(machine);
+    UNUSED(mach_program);
+    // UNUSED(codegen_llvm);
 
     /*
     //=====================================================
@@ -286,8 +286,8 @@ void necro_compile(const char* file_name, const char* input_string, size_t input
     NecroParseAstArena   parse_ast       = necro_parse_ast_arena_empty();
     NecroAstArena        ast             = necro_ast_arena_empty();
     NecroCoreAstArena    core_ast_arena  = necro_core_ast_arena_empty();
-    NecroMachineProgram  machine         = necro_empty_machine_program();
-    NecroCodeGenLLVM     codegen_llvm    = necro_empty_codegen_llvm();
+    NecroMachProgram     mach_program    = necro_mach_program_empty();
+    // NecroCodeGenLLVM     codegen_llvm    = necro_empty_codegen_llvm();
 
     //--------------------
     // Compile
@@ -305,8 +305,8 @@ void necro_compile(const char* file_name, const char* input_string, size_t input
         &parse_ast,
         &ast,
         &core_ast_arena,
-        &codegen_llvm,
-        &machine);
+        // &codegen_llvm,
+        &mach_program);
 
     //--------------------
     // Error Handling
@@ -322,8 +322,8 @@ void necro_compile(const char* file_name, const char* input_string, size_t input
     necro_timer_destroy(timer);
 
     // Pass data
-    necro_destroy_codegen_llvm(&codegen_llvm);
-    necro_destroy_machine_program(&machine);
+    // necro_destroy_codegen_llvm(&codegen_llvm);
+    necro_mach_program_destroy(&mach_program);
     necro_core_ast_arena_destroy(&core_ast_arena);
     necro_ast_arena_destroy(&ast);
     necro_parse_ast_arena_destroy(&parse_ast);
@@ -353,6 +353,7 @@ void necro_test(NECRO_TEST test)
     case NECRO_TEST_DEFUNCTIONALIZE:      necro_defunctionalize_test();      break;
     case NECRO_TEST_ARENA_CHAIN_TABLE:    necro_arena_chain_table_test();    break;
     case NECRO_TEST_BASE:                 necro_base_test();                 break;
+    case NECRO_TEST_MACH:                 necro_mach_test();                 break;
     case NECRO_TEST_ALL:
         necro_test_unicode_properties();
         necro_intern_test();
@@ -366,6 +367,7 @@ void necro_test(NECRO_TEST test)
         necro_core_ast_test();
         necro_core_lambda_lift_test();
         necro_defunctionalize_test();
+        necro_mach_test();
         break;
     default:
         break;

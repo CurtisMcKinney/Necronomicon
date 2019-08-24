@@ -57,6 +57,10 @@ typedef struct NecroMachAstSymbol
     struct NecroMachType* mach_type;
     NecroType*            necro_type;
     NECRO_STATE_TYPE      state_type;
+    bool                  is_enum;
+    bool                  is_constructor;
+    bool                  con_num;
+    bool                  is_primitive;
 } NecroMachAstSymbol;
 
 
@@ -598,6 +602,7 @@ typedef struct NecroMachProgram
 // Utility
 //--------------------
 NecroMachAstSymbol* necro_mach_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name);
+NecroMachAstSymbol* necro_mach_ast_symbol_create_from_core_ast_symbol(NecroPagedArena* arena, NecroCoreAstSymbol* core_ast_symbol);
 NecroMachAstSymbol* necro_mach_ast_symbol_gen(NecroMachProgram* program, NecroMachAst* ast, const char* str, NECRO_MANGLE_TYPE mangle_type);
 
 //--------------------
@@ -680,9 +685,14 @@ NecroMachAst* necro_mach_create_initial_machine_def(NecroMachProgram* program, N
 //--------------------
 // Program
 //--------------------
-void          necro_mach_program_add_struct(NecroMachProgram* program, NecroMachAst* struct_ast);
-void          necro_mach_program_add_function(NecroMachProgram* program, NecroMachAst* function);
-void          necro_mach_program_add_machine_def(NecroMachProgram* program, NecroMachAst* machine_def);
-void          necro_mach_program_add_global(NecroMachProgram* program, NecroMachAst* global);
+
+NecroMachProgram necro_mach_program_empty();
+NecroMachProgram necro_mach_program_create(NecroIntern* intern, NecroBase* base);
+void             necro_mach_program_destroy(NecroMachProgram* program);
+
+void             necro_mach_program_add_struct(NecroMachProgram* program, NecroMachAst* struct_ast);
+void             necro_mach_program_add_function(NecroMachProgram* program, NecroMachAst* function);
+void             necro_mach_program_add_machine_def(NecroMachProgram* program, NecroMachAst* machine_def);
+void             necro_mach_program_add_global(NecroMachProgram* program, NecroMachAst* global);
 
 #endif // NECRO_MACH_H

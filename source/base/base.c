@@ -400,6 +400,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     // Simple Data Decls
     necro_base_create_simple_data_decl(arena, top, intern, "World");
     necro_base_create_simple_data_decl(arena, top, intern, "Int");
+    necro_base_create_simple_data_decl(arena, top, intern, "UInt");
     necro_base_create_simple_data_decl(arena, top, intern, "Float");
     necro_base_create_simple_data_decl(arena, top, intern, "Rational");
     necro_base_create_simple_data_decl(arena, top, intern, "Char");
@@ -515,6 +516,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 
     // Num instances
     necro_base_create_prim_num_instances(arena, top, intern, "Int", false, true, false);
+    necro_base_create_prim_num_instances(arena, top, intern, "UInt", false, true, false);
     necro_base_create_prim_num_instances(arena, top, intern, "Float", false, true, true);
     necro_base_create_prim_num_instances(arena, top, intern, "Audio", false, true, true);
     necro_base_create_prim_num_instances(arena, top, intern, "Rational", false, true, true);
@@ -1035,6 +1037,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.unit_con               = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "()"));
     // base.list_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "[]"));
     base.int_type               = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Int"));
+    base.uint_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "UInt"));
     base.float_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Float"));
     base.audio_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Audio"));
     base.rational_type          = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Rational"));

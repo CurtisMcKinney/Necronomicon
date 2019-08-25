@@ -1046,6 +1046,21 @@ void necro_mach_create_prim_binop(NecroMachProgram* program, const char* binop_n
     necro_mach_build_return(program, binop_fn_def, result);
 }
 
+void necro_mach_create_prim_cmp_op(NecroMachProgram* program, const char* binop_name, NecroMachType* param_type, NECRO_MACH_CMP_TYPE op)
+{
+    NecroAstSymbol*     ast_symbol      = necro_symtable_get_top_level_ast_symbol(program->base->scoped_symtable, necro_intern_string(program->intern, binop_name));
+    NecroCoreAstSymbol* core_ast_symbol = ast_symbol->core_ast_symbol;
+    NecroMachAstSymbol* binop_symbol    = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, core_ast_symbol);
+    NecroMachType*      binop_fn_type   = necro_mach_type_create_fn(&program->arena, program->necro_uint_type, (NecroMachType*[]) { param_type, param_type }, 2);
+    NecroMachAst*       binop_fn_block  = necro_mach_block_create(program, "entry", NULL);
+    NecroMachAst*       binop_fn_def    = necro_mach_create_fn(program, binop_symbol, binop_fn_block, binop_fn_type);
+    NecroMachAst*       param1          = necro_mach_value_create_param_reg(program, binop_fn_def, 0);
+    NecroMachAst*       param2          = necro_mach_value_create_param_reg(program, binop_fn_def, 1);
+    NecroMachAst*       result          = necro_mach_build_cmp(program, binop_fn_def, op, param1, param2);
+    result                              = necro_mach_build_zext(program, binop_fn_def, result, program->necro_uint_type);
+    necro_mach_build_return(program, binop_fn_def, result);
+}
+
 void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
 {
     assert(program != NULL);
@@ -1063,6 +1078,12 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         necro_mach_create_prim_binop(program, "mul<Int>", int_type_mach_symbol->mach_type, int_type_mach_symbol->mach_type, NECRO_MACH_BINOP_IMUL);
         // Need non-Rational Int division!
         // necro_mach_create_prim_binop(program, "div<Int>", int_type_mach_symbol->mach_type, int_type_mach_symbol->mach_type, NECRO_MACH_BINOP_IDIV);
+        necro_mach_create_prim_cmp_op(program, "eq<Int>",  int_type_mach_symbol->mach_type, NECRO_MACH_CMP_EQ);
+        necro_mach_create_prim_cmp_op(program, "neq<Int>", int_type_mach_symbol->mach_type, NECRO_MACH_CMP_NE);
+        necro_mach_create_prim_cmp_op(program, "gt<Int>",  int_type_mach_symbol->mach_type, NECRO_MACH_CMP_GT);
+        necro_mach_create_prim_cmp_op(program, "lt<Int>",  int_type_mach_symbol->mach_type, NECRO_MACH_CMP_LT);
+        necro_mach_create_prim_cmp_op(program, "gte<Int>", int_type_mach_symbol->mach_type, NECRO_MACH_CMP_GE);
+        necro_mach_create_prim_cmp_op(program, "lte<Int>", int_type_mach_symbol->mach_type, NECRO_MACH_CMP_LE);
     }
 
     // UInt
@@ -1077,6 +1098,12 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         necro_mach_create_prim_binop(program, "mul<UInt>", uint_type_mach_symbol->mach_type, uint_type_mach_symbol->mach_type, NECRO_MACH_BINOP_UMUL);
         // Need non-Rational Int division!
         // necro_mach_create_prim_binop(program, "div<UInt>", uint_type_mach_symbol->mach_type, uint_type_mach_symbol->mach_type, NECRO_MACH_BINOP_IDIV);
+        necro_mach_create_prim_cmp_op(program, "eq<UInt>",  uint_type_mach_symbol->mach_type, NECRO_MACH_CMP_EQ);
+        necro_mach_create_prim_cmp_op(program, "neq<UInt>", uint_type_mach_symbol->mach_type, NECRO_MACH_CMP_NE);
+        necro_mach_create_prim_cmp_op(program, "gt<UInt>",  uint_type_mach_symbol->mach_type, NECRO_MACH_CMP_GT);
+        necro_mach_create_prim_cmp_op(program, "lt<UInt>",  uint_type_mach_symbol->mach_type, NECRO_MACH_CMP_LT);
+        necro_mach_create_prim_cmp_op(program, "gte<UInt>", uint_type_mach_symbol->mach_type, NECRO_MACH_CMP_GE);
+        necro_mach_create_prim_cmp_op(program, "lte<UInt>", uint_type_mach_symbol->mach_type, NECRO_MACH_CMP_LE);
     }
 
     // Float
@@ -1089,6 +1116,12 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         necro_mach_create_prim_binop(program, "sub<Float>", float_type_mach_symbol->mach_type, float_type_mach_symbol->mach_type, NECRO_MACH_BINOP_FSUB);
         necro_mach_create_prim_binop(program, "mul<Float>", float_type_mach_symbol->mach_type, float_type_mach_symbol->mach_type, NECRO_MACH_BINOP_FMUL);
         necro_mach_create_prim_binop(program, "div<Float>", float_type_mach_symbol->mach_type, float_type_mach_symbol->mach_type, NECRO_MACH_BINOP_FDIV);
+        necro_mach_create_prim_cmp_op(program, "eq<UInt>",  float_type_mach_symbol->mach_type, NECRO_MACH_CMP_EQ);
+        necro_mach_create_prim_cmp_op(program, "neq<UInt>", float_type_mach_symbol->mach_type, NECRO_MACH_CMP_NE);
+        necro_mach_create_prim_cmp_op(program, "gt<UInt>",  float_type_mach_symbol->mach_type, NECRO_MACH_CMP_GT);
+        necro_mach_create_prim_cmp_op(program, "lt<UInt>",  float_type_mach_symbol->mach_type, NECRO_MACH_CMP_LT);
+        necro_mach_create_prim_cmp_op(program, "gte<UInt>", float_type_mach_symbol->mach_type, NECRO_MACH_CMP_GE);
+        necro_mach_create_prim_cmp_op(program, "lte<UInt>", float_type_mach_symbol->mach_type, NECRO_MACH_CMP_LE);
     }
 
     // Char

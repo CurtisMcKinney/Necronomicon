@@ -223,7 +223,8 @@ void necro_core_transform_to_mach_1_bind(NecroMachProgram* program, NecroCoreAst
     assert(program != NULL);
     assert(core_ast != NULL);
     assert(core_ast->ast_type == NECRO_CORE_AST_BIND);
-    UNUSED(outer);
+    if (outer != NULL)
+        assert(outer->type == NECRO_MACH_DEF);
 }
 
 void necro_core_transform_to_mach_1_bind_rec(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
@@ -231,7 +232,8 @@ void necro_core_transform_to_mach_1_bind_rec(NecroMachProgram* program, NecroCor
     assert(program != NULL);
     assert(core_ast != NULL);
     assert(core_ast->ast_type == NECRO_CORE_AST_BIND_REC);
-    UNUSED(outer);
+    if (outer != NULL)
+        assert(outer->type == NECRO_MACH_DEF);
 }
 
 void necro_core_transform_to_mach_1_app(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
@@ -239,7 +241,10 @@ void necro_core_transform_to_mach_1_app(NecroMachProgram* program, NecroCoreAst*
     assert(program != NULL);
     assert(core_ast != NULL);
     assert(core_ast->ast_type == NECRO_CORE_AST_APP);
-    UNUSED(outer);
+    if (outer != NULL)
+        assert(outer->type == NECRO_MACH_DEF);
+    necro_core_transform_to_mach_1_go(program, core_ast->app.expr1, outer);
+    necro_core_transform_to_mach_1_go(program, core_ast->app.expr2, outer);
 }
 
 void necro_core_transform_to_mach_1_lam(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
@@ -247,7 +252,10 @@ void necro_core_transform_to_mach_1_lam(NecroMachProgram* program, NecroCoreAst*
     assert(program != NULL);
     assert(core_ast != NULL);
     assert(core_ast->ast_type == NECRO_CORE_AST_LAM);
-    UNUSED(outer);
+    if (outer != NULL)
+        assert(outer->type == NECRO_MACH_DEF);
+    necro_core_transform_to_mach_1_go(program, core_ast->lambda.arg, outer);
+    necro_core_transform_to_mach_1_go(program, core_ast->lambda.expr, outer);
 }
 
 void necro_core_transform_to_mach_1_let(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
@@ -255,7 +263,10 @@ void necro_core_transform_to_mach_1_let(NecroMachProgram* program, NecroCoreAst*
     assert(program != NULL);
     assert(core_ast != NULL);
     assert(core_ast->ast_type == NECRO_CORE_AST_LET);
-    UNUSED(outer);
+    if (outer != NULL)
+        assert(outer->type == NECRO_MACH_DEF);
+    necro_core_transform_to_mach_1_go(program, core_ast->let.bind, outer);
+    necro_core_transform_to_mach_1_go(program, core_ast->let.expr, outer);
 }
 
 void necro_core_transform_to_mach_1_case(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
@@ -263,7 +274,8 @@ void necro_core_transform_to_mach_1_case(NecroMachProgram* program, NecroCoreAst
     assert(program != NULL);
     assert(core_ast != NULL);
     assert(core_ast->ast_type == NECRO_CORE_AST_CASE);
-    UNUSED(outer);
+    if (outer != NULL)
+        assert(outer->type == NECRO_MACH_DEF);
 }
 
 void necro_core_transform_to_mach_1_for(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
@@ -271,7 +283,9 @@ void necro_core_transform_to_mach_1_for(NecroMachProgram* program, NecroCoreAst*
     assert(program != NULL);
     assert(core_ast != NULL);
     assert(core_ast->ast_type == NECRO_CORE_AST_FOR);
-    UNUSED(outer);
+    if (outer != NULL)
+        assert(outer->type == NECRO_MACH_DEF);
+    // TODO: Finish!
 }
 
 void necro_core_transform_to_mach_1_go(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)

@@ -392,6 +392,10 @@ void necro_mach_print_binop(NecroMachAst* ast, size_t depth)
     case NECRO_MACH_BINOP_ISUB: printf("isub "); break;
     case NECRO_MACH_BINOP_IMUL: printf("imul "); break;
     case NECRO_MACH_BINOP_IDIV: printf("idiv "); break;
+    case NECRO_MACH_BINOP_UADD: printf("uadd "); break;
+    case NECRO_MACH_BINOP_USUB: printf("usub "); break;
+    case NECRO_MACH_BINOP_UMUL: printf("umul "); break;
+    case NECRO_MACH_BINOP_UDIV: printf("udiv "); break;
     case NECRO_MACH_BINOP_FADD: printf("fadd "); break;
     case NECRO_MACH_BINOP_FSUB: printf("fsub "); break;
     case NECRO_MACH_BINOP_FMUL: printf("fmul "); break;

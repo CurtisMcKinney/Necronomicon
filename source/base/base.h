@@ -99,6 +99,8 @@ typedef struct NecroBase
     NecroAstSymbol* unsafe_peek;
     NecroAstSymbol* unsafe_poke;
 
+    NecroScopedSymTable* scoped_symtable;
+
 } NecroBase;
 
 NecroBase       necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_symtable);

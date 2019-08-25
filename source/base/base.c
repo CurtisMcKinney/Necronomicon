@@ -1067,6 +1067,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.unsafe_peek            = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "unsafePeek"));
     base.unsafe_poke            = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "unsafePoke"));
 
+    base.scoped_symtable        = scoped_symtable;
+
     // Compile, part II
     unwrap(void, necro_infer(info, intern, scoped_symtable, &base, &base.ast));
     unwrap(void, necro_monomorphize(info, intern, scoped_symtable, &base, &base.ast));

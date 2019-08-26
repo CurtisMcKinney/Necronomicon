@@ -19,6 +19,7 @@
         * Pattern Literals
         * do statements
         * Prune pass after to cull all unneeded stuff and put it in a direct form to make Chad's job for Core translation easier?
+
 */
 
 ///////////////////////////////////////////////////////
@@ -1197,7 +1198,7 @@ void necro_monomorphize_test()
             "polyNothing = Nothing\n"
             "concreteNothing :: Maybe Int\n"
             "concreteNothing = polyNothing\n"
-            "concreteNothing2 :: Maybe Audio\n"
+            "concreteNothing2 :: Maybe Float\n"
             "concreteNothing2 = polyNothing\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
@@ -1208,7 +1209,7 @@ void necro_monomorphize_test()
         const char* test_source = ""
             "polyNothing :: Maybe a\n"
             "polyNothing = Nothing\n"
-            "concreteTuple :: (Maybe Bool, Maybe Audio)\n"
+            "concreteTuple :: (Maybe Bool, Maybe Float)\n"
             "concreteTuple = (polyNothing, polyNothing)\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
@@ -1237,7 +1238,7 @@ void necro_monomorphize_test()
     {
         const char* test_name   = "Method2";
         const char* test_source = ""
-            "unreal :: Audio\n"
+            "unreal :: Float\n"
             "unreal = 10 * 440 / 3\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
@@ -1266,7 +1267,7 @@ void necro_monomorphize_test()
     {
         const char* test_name   = "Right Section";
         const char* test_source = ""
-            "right :: Rational -> Rational \n"
+            "right :: Float -> Float \n"
             "right = (*33.3)\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
@@ -1279,7 +1280,7 @@ void necro_monomorphize_test()
             "numbernomicon x y = x + y * 1000\n"
             "atTheIntOfMadness :: Int\n"
             "atTheIntOfMadness = numbernomicon 0 300\n"
-            "audioOutOfSpace :: Audio\n"
+            "audioOutOfSpace :: Float\n"
             "audioOutOfSpace = numbernomicon 10 99\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
@@ -1305,7 +1306,7 @@ void necro_monomorphize_test()
         const char* test_source = ""
             "doubleTrouble :: (Num a, Num b) => a -> b -> (a, b)\n"
             "doubleTrouble x y = (x - 1000, y + 1000)\n"
-            "doubleEdge :: (Rational, Float)\n"
+            "doubleEdge :: (Float, Float)\n"
             "doubleEdge = doubleTrouble 22 33\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
@@ -1316,7 +1317,7 @@ void necro_monomorphize_test()
         const char* test_source = ""
             "halfTrouble :: Num a => a -> Int -> (a, Int)\n"
             "halfTrouble x y = (x - 1000, y + 1000)\n"
-            "halfEdge :: (Audio, Int)\n"
+            "halfEdge :: (Float, Int)\n"
             "halfEdge = halfTrouble 22.2 33\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
@@ -1329,7 +1330,7 @@ void necro_monomorphize_test()
             "deep x = x / x\n"
             "shallow :: (Fractional a, Fractional b) => a -> b -> (a, b)\n"
             "shallow y z = (deep y, deep z)\n"
-            "top :: (Rational, Float)\n"
+            "top :: (Float, Float)\n"
             "top = shallow 22.2 33.3\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
@@ -1405,7 +1406,7 @@ void necro_monomorphize_test()
     {
         const char* test_name   = "Polymorphic methods 1";
         const char* test_source = ""
-            "audioPat :: Pattern Audio\n"
+            "audioPat :: Pattern Float\n"
             "audioPat = 3.3 / 4 * 22.2\n"
             "floatPat :: Pattern Float\n"
             "floatPat = 3.3 / 4 * 22.2\n";
@@ -1438,7 +1439,7 @@ void necro_monomorphize_test()
         const char* test_source = ""
             "const :: a -> b -> a\n"
             "const x y = x\n"
-            "amb :: Audio\n"
+            "amb :: Float\n"
             "amb = const 22 33.0\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
@@ -1554,7 +1555,7 @@ void necro_monomorphize_test()
         const char* test_name   = "Pattern Assignment 1";
         const char* test_source = ""
             "(left, right) = (1, 2.0)\n"
-            "leftPlus :: Rational -> Rational\n"
+            "leftPlus :: Float -> Float\n"
             "leftPlus x = left\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
@@ -1581,8 +1582,8 @@ void necro_monomorphize_test()
             "  (left, right) = (1, 2.0)\n"
             "intFloat :: (Int, Float)\n"
             "intFloat = leftRight\n"
-            "rationalAudio :: (Rational, Audio)\n"
-            "rationalAudio = leftRight\n";
+            "rationalFloat :: (Float, Float)\n"
+            "rationalFloat = leftRight\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
@@ -1601,7 +1602,7 @@ void necro_monomorphize_test()
     {
         const char* test_name   = "Recursive Value 1";
         const char* test_source = ""
-            "coolOsc :: Audio\n"
+            "coolOsc :: Float\n"
             "coolOsc ~ 0 = coolOsc + 1\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
@@ -1614,8 +1615,8 @@ void necro_monomorphize_test()
             "coolOsc ~ default = coolOsc + 1\n"
             "coolInt :: Int\n"
             "coolInt = coolOsc\n"
-            "coolAudio :: Audio\n"
-            "coolAudio = coolOsc\n";
+            "coolFloat :: Float\n"
+            "coolFloat = coolOsc\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
@@ -1644,9 +1645,9 @@ void necro_monomorphize_test()
             "  checkOutMyCollection :: Num a => a -> c a -> c a\n"
             "instance NumCollection (Array n) where\n"
             "  checkOutMyCollection x c = c\n"
-            "rationals1 :: Array 1 Rational\n"
+            "rationals1 :: Array 1 Float\n"
             "rationals1 = checkOutMyCollection 22 {33}\n"
-            "rationals2 :: Array 2 Rational\n"
+            "rationals2 :: Array 2 Float\n"
             "rationals2 = checkOutMyCollection 22 {33, 44}\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
@@ -1657,7 +1658,7 @@ void necro_monomorphize_test()
         const char* test_source = ""
             "pipe :: a -> (a -> b) -> b\n"
             "pipe x f = f x\n"
-            "dopeSmoker :: Audio\n"
+            "dopeSmoker :: Float\n"
             "dopeSmoker = pipe 100 (mul 100)\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
@@ -1701,7 +1702,7 @@ void necro_monomorphize_test()
     //     const char* test_source = ""
     //         "data Wrapper a = Wrapper a\n"
     //         "Wrapper (wrappedOsc ~ default) = Wrapper (wrappedOsc + 1)\n"
-    //         "plusOne :: Audio\n"
+    //         "plusOne :: Float\n"
     //         "plusOne = wrappedOsc + 1\n";
     //     const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
     //     necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
@@ -1883,7 +1884,7 @@ Thoughts on Futhark style Defunctionalization:
         * All non-top level demand values are left in tact
         * Recursive non-top level demand values work as normal values
 
-    noisey :: Audio
+    noisey :: Float
     noisey = poly coolSynth (play coolPat)
       where
         a       = ...
@@ -2197,6 +2198,25 @@ Thoughts on Futhark style Defunctionalization:
         pat _ = ...more intense translation...
 
     * Attribute propagation ensures that we can't have nested demand types and other weirdness.
+
+    ///////////////////////////////////////////////////////
+    // New Pattern Translation Ideas, Aug 2019
+    ///////////////////////////////////////////////////////
+        * if overloaded to take either Bool or Pattern Bool
+        * Then you can use a much more naive translation of Patterns, i.e. Pattern is simply defined as: Pattern a = Pattern (Time -> a)
+        * With the possibility of some kind of Static constructor to make sure it doesn't vary over time on top of varying over time as a pattern!?!?!?
+
+    data PVal a    = PVal Time a | PRest Time | PConst a | PInterval | PEnd
+    data Pattern a = Pattern (Time -> PVal a)
+    seq     :: Int -> Pattern a -> Pattern a
+    rswitch :: Int -> Pattern a -> Pattern a
+    switch  :: Pattern Int -> Pattern a -> Pattern a
+    tempo   :: Tempo -> Pattern a -> Pattern a
+    poly    :: Num a => (a -> a) -> Pattern a -> a
+    mouse   :: Pattern (Int, Int)
+    pmemo   :: Pattern a -> Pattern a
+    every   :: Int -> (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+    rev     :: Pattern a -> Pattern a
 
 
 */

@@ -79,8 +79,9 @@ void necro_core_transform_to_mach_1_data_con_constructor(NecroMachProgram* progr
     NecroArenaSnapshot  snapshot        = necro_snapshot_arena_get(&program->snapshot_arena);
     NecroMachType*      struct_ptr_type = necro_mach_type_create_ptr(&program->arena, struct_type);
     NecroMachType*      con_ptr_type    = necro_mach_type_create_ptr(&program->arena, con_struct_type);
-    const char*         con_name        = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", core_ast->data_con.ast_symbol->name->str });
-    NecroMachAstSymbol* con_symbol      = necro_mach_ast_symbol_create(&program->arena, necro_intern_string(program->intern, con_name));
+    // const char*         con_name        = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", core_ast->data_con.ast_symbol->name->str });
+    NecroMachAstSymbol* con_symbol      = necro_mach_ast_symbol_gen(program, NULL, necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", core_ast->data_con.ast_symbol->name->str }), NECRO_MANGLE_NAME);
+    // NecroMachAstSymbol* con_symbol      = necro_mach_ast_symbol_create(&program->arena, con_name);
     NecroType*          con_type        = necro_type_strip_for_all(core_ast->data_con.type);
     assert(con_type != NULL && (con_type->type == NECRO_TYPE_CON || con_type->type == NECRO_TYPE_FUN));
     const size_t        arg_count       = necro_type_arity(con_type);
@@ -225,6 +226,65 @@ void necro_core_transform_to_mach_1_bind(NecroMachProgram* program, NecroCoreAst
     assert(core_ast->ast_type == NECRO_CORE_AST_BIND);
     if (outer != NULL)
         assert(outer->type == NECRO_MACH_DEF);
+
+    if (core_ast->bind.ast_symbol->is_primitive)
+        return;
+
+    NecroArenaSnapshot snapshot = necro_snapshot_arena_get(&program->snapshot_arena);
+
+    //---------------
+    // Create initial MachineDef
+    NecroMachAst* machine_def = necro_mach_create_initial_machine_def(program, necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, core_ast->bind.ast_symbol), outer, necro_mach_type_from_necro_type(program, core_ast->bind.ast_symbol->type), core_ast->bind.ast_symbol->type);
+    // machine_def->machine_def.is_recursive = core_ast->bind.is_recursive; // TODO: Use bind_rec for recursive nodes!
+
+    //---------------
+    // Count and assign arg names
+    size_t num_args = necro_core_ast_num_args(core_ast);
+    if (num_args > 0)
+    {
+        machine_def->machine_def.num_arg_names = num_args;
+        machine_def->machine_def.arg_names     = necro_paged_arena_alloc(&program->arena, num_args * sizeof(NecroMachAstSymbol));
+        num_args                               = 0;
+        NecroCoreAst* lambdas                  = core_ast->bind.expr;
+        while (lambdas->ast_type == NECRO_CORE_AST_LAM)
+        {
+            machine_def->machine_def.arg_names[num_args] = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, lambdas->lambda.arg->var.ast_symbol);
+            num_args++;
+            lambdas = lambdas->lambda.expr;
+        }
+    }
+
+    //---------------
+    // go deeper
+    necro_core_transform_to_mach_1_go(program, core_ast->bind.expr, machine_def);
+
+    //---------------
+    // declare mk_fn and init_fn
+    if (outer == NULL)
+    {
+        // mk_fn
+        {
+            NecroMachAstSymbol* mk_fn_symbol = necro_mach_ast_symbol_gen(program, NULL, necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", machine_def->machine_def.machine_name->name->str + 1 }), NECRO_MANGLE_NAME);
+            NecroMachType*      mk_fn_type   = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_void(&program->arena), NULL, 0);
+            NecroMachAst*       mk_fn_body   = necro_mach_block_create(program, "entry", NULL);
+            NecroMachAst*       mk_fn_def    = necro_mach_create_fn(program, mk_fn_symbol, mk_fn_body, mk_fn_type);
+            program->functions.length--; // HACK: Don't want the mk function in the functions list, instead it belongs to the machine
+            machine_def->machine_def.mk_fn   = mk_fn_def;
+        }
+
+        // TODO: init_fn needs to take NecroMachDef persistent memory pointer as first argument once it is completely resolved!
+        // init_fn
+        {
+            NecroMachAstSymbol* init_fn_symbol = necro_mach_ast_symbol_gen(program, NULL, necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_init", machine_def->machine_def.machine_name->name->str + 1 }), NECRO_MANGLE_NAME);
+            NecroMachType*      init_fn_type   = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_void(&program->arena), (NecroMachType*[]) { program->necro_uint_type }, 1);
+            NecroMachAst*       init_fn_body   = necro_mach_block_create(program, "entry", NULL);
+            NecroMachAst*       init_fn_def    = necro_mach_create_fn(program, init_fn_symbol, init_fn_body, init_fn_type);
+            program->functions.length--; // HACK: Don't want the mk function in the functions list, instead it belongs to the machine
+            machine_def->machine_def.mk_fn     = init_fn_def;
+        }
+    }
+
+    necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
 }
 
 void necro_core_transform_to_mach_1_bind_rec(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
@@ -314,6 +374,7 @@ void necro_core_transform_to_mach(NecroCompileInfo info, NecroIntern* intern, Ne
 {
     *program = necro_mach_program_create(intern, base);
 
+    //---------------
     // Pass 1
     NecroCoreAst* top = core_ast_arena->root;
     while (top != NULL && top->ast_type == NECRO_CORE_AST_LET)
@@ -323,6 +384,16 @@ void necro_core_transform_to_mach(NecroCompileInfo info, NecroIntern* intern, Ne
     }
     if (top != NULL)
         necro_core_transform_to_mach_1_go(program, top, NULL);
+
+    //---------------
+    // Construct main
+    // TODO: Move to necro_mach_construct_main
+    NecroAstSymbol* ast_symbol = necro_symtable_get_top_level_ast_symbol(program->base->scoped_symtable, necro_intern_string(program->intern, "main"));
+    if (ast_symbol != NULL)
+    {
+        // TODO: Handle no main in program
+        program->program_main = ast_symbol->core_ast_symbol->mach_symbol->ast;
+    }
 
     if (info.compilation_phase == NECRO_PHASE_TRANSFORM_TO_MACHINE && info.verbosity > 0)
         necro_mach_print_program(program);
@@ -413,7 +484,6 @@ void necro_mach_test()
             "data DoubleUp = DoubleUp TwoInts TwoInts\n";
         necro_mach_test_string(test_name, test_source);
     }
-*/
 
     {
         const char* test_name   = "Data 3";
@@ -423,9 +493,16 @@ void necro_mach_test()
             "data TwoOrFour = Two TwoInts | Four DoubleUp DoubleUp\n";
         necro_mach_test_string(test_name, test_source);
     }
-
-/*
 */
+
+    {
+        const char* test_name   = "Bind 1";
+        const char* test_source = ""
+            "data TwoInts = TwoInts Int Int\n"
+            "twoForOne :: Int -> TwoInts\n"
+            "twoForOne i = TwoInts i i\n";
+        necro_mach_test_string(test_name, test_source);
+    }
 
     // // TODO: This isn't monomorphizing!?!?!?!
     // {

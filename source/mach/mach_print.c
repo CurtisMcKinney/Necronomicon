@@ -411,6 +411,31 @@ void necro_mach_print_binop(NecroMachAst* ast, size_t depth)
     necro_mach_print_value(ast->binop.right, NECRO_PRINT_VALUE_TYPE);
 }
 
+void necro_mach_print_uop(NecroMachAst* ast, size_t depth)
+{
+    assert(ast->type == NECRO_MACH_UOP);
+    print_white_space(depth);
+    printf("%%%s = ", ast->uop.result->value.reg_symbol->name->str);
+    switch (ast->uop.uop_type)
+    {
+    case NECRO_MACH_UOP_IABS: printf("iabs "); break;
+    case NECRO_MACH_UOP_ISGN: printf("isgn "); break;
+    case NECRO_MACH_UOP_UABS: printf("uabs "); break;
+    case NECRO_MACH_UOP_USGN: printf("usgn "); break;
+    case NECRO_MACH_UOP_FABS: printf("fabs "); break;
+    case NECRO_MACH_UOP_FSGN: printf("fsgn "); break;
+    case NECRO_MACH_UOP_ITOI: printf("itoi "); break;
+    case NECRO_MACH_UOP_ITOU: printf("itou "); break;
+    case NECRO_MACH_UOP_ITOF: printf("itof "); break;
+    case NECRO_MACH_UOP_UTOI: printf("utoi "); break;
+    case NECRO_MACH_UOP_FTRI: printf("ftri "); break;
+    case NECRO_MACH_UOP_FRNI: printf("frni "); break;
+    case NECRO_MACH_UOP_FTOF: printf("ftof "); break;
+    default: assert(false); break;
+    }
+    necro_mach_print_value(ast->uop.param, NECRO_PRINT_VALUE_TYPE);
+}
+
 void necro_mach_print_phi(NecroMachAst* ast, size_t depth)
 {
     assert(ast->type == NECRO_MACH_PHI);
@@ -514,6 +539,9 @@ void necro_mach_print_ast_go(NecroMachAst* ast, size_t depth)
         return;
     case NECRO_MACH_BINOP:
         necro_mach_print_binop(ast, depth);
+        return;
+    case NECRO_MACH_UOP:
+        necro_mach_print_uop(ast, depth);
         return;
     case NECRO_MACH_PHI:
         necro_mach_print_phi(ast, depth);

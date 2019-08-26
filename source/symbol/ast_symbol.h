@@ -61,6 +61,7 @@ typedef struct NecroAstSymbol
     NECRO_TYPE_STATUS              type_status;             // Type checking status of the symbol. Useful for detecting recursion in the ast.
     bool                           is_constructor;          // Whether or not the symbol is a constructor (HACK?)
     bool                           is_recursive;            // Whether or not symbol is recursive. Create an enum for this?
+    bool                           is_primitive;            // Whether or not a symbol is primitive.
     struct NecroTypeClass*         method_type_class;       // Type class for a class method, if present. Resolved at inference phase.
     struct NecroTypeClass*         type_class;              // Type class, if present. Resolved at inference phase.
     struct NecroTypeClassInstance* type_class_instance;     // Class instance, if present. Resolved at inference phase.
@@ -92,6 +93,7 @@ typedef struct NecroCoreAstSymbol
     bool                       is_constructor;
     bool                       is_enum;
     bool                       is_recursive;
+    bool                       is_primitive;
 } NecroCoreAstSymbol;
 
 NecroCoreAstSymbol* necro_core_ast_symbol_create(NecroPagedArena* core_ast_arena, NecroSymbol name, struct NecroType* type);

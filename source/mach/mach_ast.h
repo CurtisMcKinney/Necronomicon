@@ -231,8 +231,7 @@ typedef struct NecroMachDef
     bool                  is_persistent_slot_set;
 
     // args
-    NecroSymbol*          arg_names;
-    NecroType**           arg_types;
+    NecroMachAstSymbol**  arg_names;
     size_t                num_arg_names;
 
     // Region members
@@ -428,6 +427,35 @@ typedef struct NecroMachBinOp
 
 typedef enum
 {
+    NECRO_MACH_UOP_IABS,
+    NECRO_MACH_UOP_UABS,
+    NECRO_MACH_UOP_FABS,
+
+    NECRO_MACH_UOP_ISGN,
+    NECRO_MACH_UOP_USGN,
+    NECRO_MACH_UOP_FSGN,
+
+    NECRO_MACH_UOP_ITOI,
+    NECRO_MACH_UOP_ITOU,
+    NECRO_MACH_UOP_ITOF,
+
+    NECRO_MACH_UOP_UTOI,
+
+    NECRO_MACH_UOP_FTRI,
+    NECRO_MACH_UOP_FRNI,
+    NECRO_MACH_UOP_FTOF,
+
+} NECRO_MACH_UOP_TYPE;
+
+typedef struct NecroMachUOp
+{
+    struct NecroMachAst* param;
+    struct NecroMachAst* result;
+    NECRO_MACH_UOP_TYPE  uop_type;
+} NecroMachUOp;
+
+typedef enum
+{
     NECRO_MACH_CMP_EQ,
     NECRO_MACH_CMP_NE,
     NECRO_MACH_CMP_GT,
@@ -467,7 +495,6 @@ typedef struct NecroMachSelect
     struct NecroMachAst* result;
 } NecroMachSelect;
 
-
 //--------------------
 // Phi
 //--------------------
@@ -503,6 +530,7 @@ typedef enum
     NECRO_MACH_ZEXT,
     NECRO_MACH_GEP,
     NECRO_MACH_BINOP,
+    NECRO_MACH_UOP,
     NECRO_MACH_CMP,
     NECRO_MACH_PHI,
     NECRO_MACH_MEMCPY, // TODO: Maybe remove
@@ -535,6 +563,7 @@ typedef struct NecroMachAst
         NecroMachNAlloc        nalloc;
         NecroMachAlloca        alloca;
         NecroMachBinOp         binop;
+        NecroMachUOp           uop;
         NecroMachCmp           cmp;
         NecroMachPhi           phi;
         NecroMachMemCpy        memcpy;
@@ -664,6 +693,7 @@ NecroMachAst* necro_mach_build_load(NecroMachProgram* program, NecroMachAst* fn_
 //--------------------
 NecroMachAst* necro_mach_build_call(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* fn_value_ast, NecroMachAst** a_parameters, size_t num_parameters, NECRO_MACH_CALL_TYPE call_type, const char* dest_name);
 NecroMachAst* necro_mach_build_binop(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* left, NecroMachAst* right, NECRO_MACH_BINOP_TYPE op_type);
+NecroMachAst* necro_mach_build_uop(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* param, NECRO_MACH_UOP_TYPE op_type);
 
 //--------------------
 // Branching

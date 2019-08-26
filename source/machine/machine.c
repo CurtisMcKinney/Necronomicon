@@ -300,7 +300,6 @@ void necro_core_to_machine_1_bind(NecroMachineProgram* program, NecroCoreAST_Exp
     //---------------
     // Count and assign arg names
     size_t                   num_args = 0;
-
     {
         NecroCoreAST_Expression* lambdas = core_ast->bind.expr;
         while (lambdas->expr_type == NECRO_CORE_EXPR_LAM)

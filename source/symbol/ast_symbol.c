@@ -24,6 +24,7 @@ NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name
         .con_num                 = 0,
         .is_enum                 = true,
         .is_constructor          = false,
+        .is_primitive            = false,
         .type_status             = NECRO_TYPE_UNCHECKED,
         .is_recursive            = false,
         .instance_list           = NULL,
@@ -50,6 +51,7 @@ NecroAstSymbol* necro_ast_symbol_deep_copy(NecroPagedArena* arena, NecroAstSymbo
         .type                    = necro_type_deep_copy(arena, ast_symbol->type),
         .con_num                 = ast_symbol->con_num,
         .is_constructor          = ast_symbol->is_constructor,
+        .is_primitive            = ast_symbol->is_primitive,
         .type_status             = ast_symbol->type_status,
         .is_recursive            = ast_symbol->is_recursive,
         .instance_list           = NULL,
@@ -106,6 +108,7 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create(NecroPagedArena* core_ast_arena
     core_ast_symbol->inline_ast         = NULL;
     core_ast_symbol->type               = necro_type_deep_copy(core_ast_arena, type);
     core_ast_symbol->is_constructor     = false;
+    core_ast_symbol->is_primitive       = false;
     core_ast_symbol->con_num            = 0;
     core_ast_symbol->is_enum            = false;
     core_ast_symbol->is_recursive       = false;
@@ -128,6 +131,7 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create_from_ast_symbol(NecroPagedArena
     core_ast_symbol->inline_ast         = NULL;
     core_ast_symbol->type               = necro_type_deep_copy(core_ast_arena, ast_symbol->type);
     core_ast_symbol->is_constructor     = ast_symbol->is_constructor;
+    core_ast_symbol->is_primitive       = ast_symbol->is_primitive;
     core_ast_symbol->con_num            = ast_symbol->con_num;
     core_ast_symbol->is_enum            = ast_symbol->is_enum;
     core_ast_symbol->is_recursive       = ast_symbol->is_recursive;
@@ -149,6 +153,7 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create_by_renaming(NecroPagedArena* co
     core_ast_symbol->inline_ast         = NULL;
     core_ast_symbol->type               = necro_type_deep_copy(core_ast_arena, ast_symbol->type);
     core_ast_symbol->is_constructor     = ast_symbol->is_constructor;
+    core_ast_symbol->is_primitive       = ast_symbol->is_primitive;
     core_ast_symbol->con_num            = ast_symbol->con_num;
     core_ast_symbol->is_enum            = ast_symbol->is_enum;
     core_ast_symbol->is_recursive       = ast_symbol->is_recursive;

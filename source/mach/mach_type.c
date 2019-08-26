@@ -202,6 +202,11 @@ NecroMachType* necro_mach_type_make_ptr_if_boxed(NecroMachProgram* program, Necr
 ///////////////////////////////////////////////////////
 void necro_mach_type_print_go(NecroMachType* type, bool is_recursive)
 {
+    if (type == NULL)
+    {
+        printf("NULL");
+        return;
+    }
     switch (type->type)
     {
     case NECRO_MACH_TYPE_VOID:

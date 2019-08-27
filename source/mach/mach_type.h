@@ -102,6 +102,7 @@ NecroMachType* necro_mach_type_make_ptr_if_boxed(struct NecroMachProgram* progra
 void           necro_mach_type_print(NecroMachType* type);
 void           necro_mach_type_print_go(NecroMachType* type, bool is_recursive);
 NecroMachType* necro_mach_type_from_necro_type(struct NecroMachProgram* program, NecroType* type);
+size_t         necro_mach_type_calculate_num_slots(NecroMachType* type);
 // NecroMachType* necro_core_ast_to_machine_type(struct NecroMachProgram* program, NecroCoreAST_Expression* core_ast);
 // NecroType*     necro_core_ast_to_necro_type(struct NecroMachProgram* program, NecroCoreAST_Expression* ast);
 // NecroMachType* necro_core_pattern_type_to_machine_type(struct NecroMachProgram* program, NecroCoreAST_Expression* ast);

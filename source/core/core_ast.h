@@ -16,6 +16,9 @@
 // TODO / NOTE for Chad!!! (2-23-19)
 ///////////////////////////////////////////////////////
 
+    TODO
+        * BIND_REC
+
 Core translation requires a large overhaul after all the changes in the frontend:
 
 
@@ -145,7 +148,8 @@ typedef struct NecroCoreAstBind
 // TODO: Make recursive binds use this
 typedef struct NecroCoreAstBindRec
 {
-    struct NecroCoreAst* binds;
+    // struct NecroCoreAst* binds;
+    struct NecroCoreAstList* binds;
 } NecroCoreAstBindRec;
 
 typedef struct NecroCoreAstApplication

@@ -48,6 +48,19 @@ struct NecroMachType;
 
 
 //--------------------
+// Slot
+//--------------------
+typedef struct NecroMachSlot
+{
+    size_t                slot_num;
+    struct NecroMachType* necro_machine_type;
+    struct NecroMachDef*  machine_def;
+    struct NecroMachAst*  slot_ast;
+    // NECRO_STATE_TYPE      state_type;
+} NecroMachSlot;
+
+
+//--------------------
 // NecroMachAstSymbol
 //--------------------
 typedef struct NecroMachAstSymbol
@@ -61,6 +74,7 @@ typedef struct NecroMachAstSymbol
     bool                  is_constructor;
     bool                  con_num;
     bool                  is_primitive;
+    NecroMachSlot         slot;
 } NecroMachAstSymbol;
 
 
@@ -110,20 +124,6 @@ typedef struct NecroMachValue
     };
     NECRO_MACH_VALUE_TYPE value_type;
 } NecroMachValue;
-
-
-//--------------------
-// Slot
-//--------------------
-typedef struct NecroMachSlot
-{
-    size_t                slot_num;
-    NECRO_STATE_TYPE      state_type;
-    struct NecroMachType* necro_machine_type;
-    struct NecroMachDef*  machine_def;
-    struct NecroMachAst*  slot_ast;
-} NecroSlot;
-
 
 //--------------------
 // Switch
@@ -235,7 +235,7 @@ typedef struct NecroMachDef
     size_t                num_arg_names;
 
     // Region members
-    NecroSlot*            members;
+    NecroMachSlot*        members;
     size_t                num_members;
     size_t                members_size;
 
@@ -673,7 +673,7 @@ void          necro_mach_block_move_to(NecroMachProgram* program, NecroMachAst* 
 //--------------------
 // Memory
 //--------------------
-// NecroMachAst* necro_mach_build_nalloc(NecroMachProgram* program, NecroMachAst* fn_def, struct NecroMachType* type, uint32_t a_slots_used);
+NecroMachAst* necro_mach_build_nalloc(NecroMachProgram* program, NecroMachAst* fn_def, struct NecroMachType* type, uint32_t a_slots_used);
 // NecroMachAst* necro_mach_build_alloca(NecroMachProgram* program, NecroMachAst* fn_def, size_t num_slots);
 NecroMachAst* necro_mach_build_gep(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* source_value, uint32_t* a_indices, size_t num_indices, const char* dest_name);
 NecroMachAst* necro_mach_build_non_const_gep(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* source_value, NecroMachAst** a_indices, size_t num_indices, const char* dest_name, struct NecroMachType* result_type);

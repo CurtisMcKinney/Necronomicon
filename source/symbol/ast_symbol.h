@@ -40,6 +40,14 @@ typedef enum
     NECRO_TYPE_DONE
 } NECRO_TYPE_STATUS;
 
+typedef enum
+{
+    NECRO_STATE_CONSTANT  = 0,
+    NECRO_STATE_POLY      = 1,
+    NECRO_STATE_POINTWISE = 2,
+    NECRO_STATE_STATEFUL  = 3,
+} NECRO_STATE_TYPE; // Used for state analysis and in necromachine
+
 // TODO: Figure some way of partitioning this data. We need to get the size of this down.
 ///////////////////////////////////////////////////////
 // NecroAstSymbol
@@ -94,6 +102,8 @@ typedef struct NecroCoreAstSymbol
     bool                       is_enum;
     bool                       is_recursive;
     bool                       is_primitive;
+    NECRO_STATE_TYPE           state_type;
+    struct NecroCoreAstSymbol* outer;
 } NecroCoreAstSymbol;
 
 NecroCoreAstSymbol* necro_core_ast_symbol_create(NecroPagedArena* core_ast_arena, NecroSymbol name, struct NecroType* type);

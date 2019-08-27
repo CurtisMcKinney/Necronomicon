@@ -12,6 +12,7 @@
 #include "core/defunctionalization.h"
 #include "infer.h"
 #include <ctype.h>
+#include "core/state_analysis.h"
 
 void                necro_core_transform_to_mach_1_go(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer);
 void                necro_core_transform_to_mach_2_go(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer);
@@ -81,6 +82,7 @@ void necro_core_transform_to_mach_1_data_con_constructor(NecroMachProgram* progr
     NecroMachType*      con_ptr_type    = necro_mach_type_create_ptr(&program->arena, con_struct_type);
     // const char*         con_name        = necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", core_ast->data_con.ast_symbol->name->str });
     NecroMachAstSymbol* con_symbol      = necro_mach_ast_symbol_gen(program, NULL, necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_mk", core_ast->data_con.ast_symbol->name->str }), NECRO_MANGLE_NAME);
+    core_ast->data_con.ast_symbol->mach_symbol = con_symbol;
     // NecroMachAstSymbol* con_symbol      = necro_mach_ast_symbol_create(&program->arena, con_name);
     NecroType*          con_type        = necro_type_strip_for_all(core_ast->data_con.type);
     assert(con_type != NULL && (con_type->type == NECRO_TYPE_CON || con_type->type == NECRO_TYPE_FUN));
@@ -121,7 +123,13 @@ void necro_core_transform_to_mach_1_data_con_constructor(NecroMachProgram* progr
         NecroMachAst* cast_ptr = necro_mach_build_bit_cast(program, mk_fn_def, data_ptr, necro_mach_type_create_ptr(&program->arena, struct_type));
         necro_mach_build_return(program, mk_fn_def, cast_ptr);
     }
-    con_symbol->ast = mk_fn_def->fn_def.fn_value;
+    con_symbol->ast                            = mk_fn_def->fn_def.fn_value;
+    con_symbol->state_type                     = NECRO_STATE_POLY;
+    con_symbol->is_enum                        = false;
+    con_symbol->is_constructor                 = true;
+    con_symbol->is_primitive                   = false;
+    con_symbol->con_num                        = con_number;
+    core_ast->data_con.ast_symbol->mach_symbol = con_symbol;
     necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
 }
 
@@ -272,7 +280,6 @@ void necro_core_transform_to_mach_1_bind(NecroMachProgram* program, NecroCoreAst
             machine_def->machine_def.mk_fn   = mk_fn_def;
         }
 
-        // TODO: init_fn needs to take NecroMachDef persistent memory pointer as first argument once it is completely resolved!
         // init_fn
         {
             NecroMachAstSymbol* init_fn_symbol = necro_mach_ast_symbol_gen(program, NULL, necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "_init", machine_def->machine_def.machine_name->name->str + 1 }), NECRO_MANGLE_NAME);
@@ -280,7 +287,7 @@ void necro_core_transform_to_mach_1_bind(NecroMachProgram* program, NecroCoreAst
             NecroMachAst*       init_fn_body   = necro_mach_block_create(program, "entry", NULL);
             NecroMachAst*       init_fn_def    = necro_mach_create_fn(program, init_fn_symbol, init_fn_body, init_fn_type);
             program->functions.length--; // HACK: Don't want the mk function in the functions list, instead it belongs to the machine
-            machine_def->machine_def.mk_fn     = init_fn_def;
+            machine_def->machine_def.init_fn   = init_fn_def;
         }
     }
 
@@ -336,6 +343,7 @@ void necro_core_transform_to_mach_1_case(NecroMachProgram* program, NecroCoreAst
     assert(core_ast->ast_type == NECRO_CORE_AST_CASE);
     if (outer != NULL)
         assert(outer->type == NECRO_MACH_DEF);
+    assert(false && "TODO: Finish!");
 }
 
 void necro_core_transform_to_mach_1_for(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
@@ -345,7 +353,7 @@ void necro_core_transform_to_mach_1_for(NecroMachProgram* program, NecroCoreAst*
     assert(core_ast->ast_type == NECRO_CORE_AST_FOR);
     if (outer != NULL)
         assert(outer->type == NECRO_MACH_DEF);
-    // TODO: Finish!
+    assert(false && "TODO: Finish!");
 }
 
 void necro_core_transform_to_mach_1_go(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
@@ -370,6 +378,349 @@ void necro_core_transform_to_mach_1_go(NecroMachProgram* program, NecroCoreAst* 
     }
 }
 
+
+///////////////////////////////////////////////////////
+// Pass 2
+///////////////////////////////////////////////////////
+void necro_core_transform_to_mach_2_let(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
+{
+    assert(program != NULL);
+    assert(core_ast != NULL);
+    assert(core_ast->ast_type == NECRO_CORE_AST_LET);
+    if (outer != NULL)
+        assert(outer->type == NECRO_MACH_DEF);
+    necro_core_transform_to_mach_2_go(program, core_ast->let.bind, outer);
+    necro_core_transform_to_mach_2_go(program, core_ast->let.expr, outer);
+}
+
+void necro_core_transform_to_mach_2_lam(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
+{
+    assert(program != NULL);
+    assert(core_ast != NULL);
+    assert(core_ast->ast_type == NECRO_CORE_AST_LAM);
+    if (outer != NULL)
+        assert(outer->type == NECRO_MACH_DEF);
+    necro_core_transform_to_mach_2_go(program, core_ast->lambda.arg, outer);
+    necro_core_transform_to_mach_2_go(program, core_ast->lambda.expr, outer);
+}
+
+void necro_core_transform_to_mach_2_case(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
+{
+    assert(program != NULL);
+    assert(core_ast != NULL);
+    assert(core_ast->ast_type == NECRO_AST_CASE);
+    if (outer != NULL)
+        assert(outer->type == NECRO_MACH_DEF);
+    assert(false && "TODO: Finish");
+}
+
+void necro_core_transform_to_mach_2_for(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
+{
+    assert(program != NULL);
+    assert(core_ast != NULL);
+    assert(core_ast->ast_type == NECRO_CORE_AST_FOR);
+    if (outer != NULL)
+        assert(outer->type == NECRO_MACH_DEF);
+    assert(false && "TODO: Finish!");
+}
+
+bool necro_mach_is_var_machine_arg(NecroMachAst* mach_ast, NecroSymbol var_name)
+{
+    for (size_t i = 0; i < mach_ast->machine_def.num_arg_names; i++)
+    {
+        if (mach_ast->machine_def.arg_names[i]->name == var_name)
+            return true;
+    }
+    return false;
+}
+
+NecroMachSlot necro_mach_add_member(NecroMachProgram* program, NecroMachDef* machine_def, NecroMachType* new_member, NecroMachAst* member_ast)
+{
+    assert(program != NULL);
+    assert(machine_def != NULL);
+    if (machine_def->num_members >= machine_def->members_size)
+    {
+        NecroMachSlot* old_members = machine_def->members;
+        machine_def->members       = necro_paged_arena_alloc(&program->arena, machine_def->members_size * 2 * sizeof(NecroMachSlot));
+        memcpy(machine_def->members, old_members, machine_def->members_size * sizeof(NecroMachSlot));
+        machine_def->members_size *= 2;
+    }
+    NecroMachSlot slot                             = (NecroMachSlot) { .necro_machine_type = new_member, .slot_num = machine_def->num_members, .slot_ast = member_ast, .machine_def = machine_def };
+    machine_def->members[machine_def->num_members] = slot;
+    machine_def->num_members++;
+    return slot;
+}
+
+void necro_mach_remove_only_self_recursive_member(NecroMachProgram* program, NecroMachAst* ast)
+{
+    assert(program != NULL);
+    assert(ast->type == NECRO_MACH_DEF);
+    // TODO / NOTE: Does comparing the element type likes this work? Shouldn't this use a structural equality, not a pointer equality?
+    if (ast->machine_def.num_arg_names == 0 || ast->machine_def.num_members != 1 || ast->machine_def.members[0].necro_machine_type->ptr_type.element_type != ast->necro_machine_type)
+        return;
+    ast->machine_def.num_members = 0;
+}
+
+void necro_mach_calculate_statefulness(NecroMachProgram* program, NecroMachAst* ast)
+{
+    assert(program != NULL);
+    assert(ast->type == NECRO_MACH_DEF);
+    ast->machine_def.state_type = ast->machine_def.machine_name->state_type;
+    if (ast->machine_def.state_type == NECRO_STATE_POLY)
+    {
+        if (ast->machine_def.num_arg_names > 0)
+            ast->machine_def.state_type = NECRO_STATE_POINTWISE;
+        else
+            ast->machine_def.state_type = NECRO_STATE_CONSTANT;
+    }
+    if (ast->machine_def.update_fn != NULL)
+    {
+        ast->machine_def.update_fn->fn_def.state_type = ast->machine_def.state_type;
+    }
+}
+
+void necro_core_transform_to_mach_2_bind(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
+{
+    assert(program != NULL);
+    assert(core_ast != NULL);
+    assert(core_ast->ast_type == NECRO_CORE_AST_BIND);
+    if (outer != NULL)
+        assert(outer->type == NECRO_MACH_DEF);
+
+    if (core_ast->bind.ast_symbol->is_primitive)
+        return;
+
+    //--------------------
+    // Retrieve machine_def
+    NecroMachAst* machine_def = core_ast->bind.ast_symbol->mach_symbol->ast;
+    assert(machine_def != NULL);
+    assert(machine_def->type == NECRO_MACH_DEF);
+
+    //--------------------
+    // Go deeper
+    if (outer != NULL)
+    {
+        necro_core_transform_to_mach_2_go(program, core_ast->bind.expr, outer);
+        necro_mach_calculate_statefulness(program, machine_def);
+        return;
+    }
+    machine_def->necro_machine_type = necro_mach_type_create_struct(&program->arena, machine_def->machine_def.machine_name, NULL, 0);
+    necro_core_transform_to_mach_2_go(program, core_ast->bind.expr, machine_def);
+
+    //--------------------
+    // Calculate statefulness
+    necro_mach_remove_only_self_recursive_member(program, machine_def);
+    necro_mach_calculate_statefulness(program, machine_def);
+
+    //--------------------
+    // Calculate machine type
+    const bool      is_machine_fn        = machine_def->machine_def.num_arg_names > 0;
+    const size_t    num_machine_members  = machine_def->machine_def.num_members;
+    NecroMachType** machine_type_members = necro_paged_arena_alloc(&program->arena, num_machine_members * sizeof(NecroMachType*));
+    for (size_t i = 0; i < machine_def->machine_def.num_members; ++i)
+        machine_type_members[i] = machine_def->machine_def.members[i].necro_machine_type;
+    machine_def->necro_machine_type->struct_type.members     = machine_type_members;
+    machine_def->necro_machine_type->struct_type.num_members = num_machine_members;
+
+    //--------------------
+    // Add global state
+    // if (outer == NULL && !is_machine_fn && machine_def->machine_def.state_type == NECRO_STATE_STATEFUL)
+    if (outer == NULL && !is_machine_fn && machine_def->machine_def.num_members > 0)
+    {
+        NecroMachAst* global_state            = necro_mach_value_create_global(program, machine_def->machine_def.state_name, necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_ptr(&program->arena, machine_def->necro_machine_type)));
+        machine_def->machine_def.global_state = global_state;
+        necro_mach_program_add_global(program, global_state);
+    }
+
+    //--------------------
+    // Add global value
+    if (outer == NULL && !is_machine_fn)
+    {
+        NecroMachAst* global_value = NULL;
+        if (necro_mach_type_is_unboxed(program, machine_def->machine_def.value_type))
+            global_value = necro_mach_value_create_global(program, machine_def->machine_def.machine_name, necro_mach_type_create_ptr(&program->arena, machine_def->machine_def.value_type));
+        else
+            global_value = necro_mach_value_create_global(program, machine_def->machine_def.machine_name, necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_ptr(&program->arena, machine_def->machine_def.value_type)));
+        machine_def->machine_def.global_value = global_value;
+        necro_mach_program_add_global(program, global_value);
+    }
+
+    // if (machine_def->machine_def.state_type < NECRO_STATE_STATEFUL)
+    if (machine_def->machine_def.num_members == 0)
+    {
+        machine_def->machine_def.mk_fn   = NULL;
+        machine_def->machine_def.init_fn = NULL;
+    }
+
+    //--------------------
+    // Define mk_fn and init_fn
+    // TODO: Initializers
+    if (machine_def->machine_def.mk_fn != NULL)
+    {
+        NecroMachType* machine_ptr_type = necro_mach_type_create_ptr(&program->arena, machine_def->necro_machine_type);
+
+        //--------------------
+        // init_fn
+        {
+            machine_def->machine_def.init_fn->necro_machine_type->fn_type.parameters[0] = machine_ptr_type;
+            NecroMachAst* data_ptr = necro_mach_value_create_param_reg(program, machine_def->machine_def.init_fn, 0);
+            // gep and init
+            for (size_t i = 0; i < machine_def->machine_def.num_members; ++i)
+            {
+                NecroMachSlot slot = machine_def->machine_def.members[i];
+                if (slot.slot_ast->type == NECRO_MACH_DEF && slot.slot_ast->machine_def.init_fn != NULL)
+                {
+                    assert(i <= UINT32_MAX);
+                    NecroMachAst* member = necro_mach_build_gep(program, machine_def->machine_def.init_fn, data_ptr, (uint32_t[]) { 0, (uint32_t) i }, 2, "member");
+                    necro_mach_build_call(program, machine_def->machine_def.init_fn, slot.slot_ast->machine_def.init_fn->fn_def.fn_value, (NecroMachAst*[]) { member }, 1, NECRO_LANG_CALL, "");
+                }
+            }
+            necro_mach_build_return_void(program, machine_def->machine_def.init_fn);
+        }
+
+        //--------------------
+        // mk_fn
+        {
+            // TODO: Double check how we're doing slot calculations!
+            machine_def->machine_def.mk_fn->necro_machine_type->fn_type.return_type = machine_ptr_type;
+            const size_t  num_slots = necro_mach_type_calculate_num_slots(machine_def->necro_machine_type);
+            NecroMachAst* data_ptr  = necro_mach_build_nalloc(program, machine_def->machine_def.mk_fn, machine_def->necro_machine_type, num_slots);
+            necro_mach_build_call(program, machine_def->machine_def.mk_fn, machine_def->machine_def.init_fn->fn_def.fn_value, (NecroMachAst*[]) { data_ptr }, 1, NECRO_LANG_CALL, "");
+            necro_mach_build_return(program, machine_def->machine_def.mk_fn, data_ptr);
+        }
+    }
+}
+
+void necro_core_transform_to_mach_2_bind_rec(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
+{
+    assert(program != NULL);
+    assert(core_ast != NULL);
+    assert(core_ast->ast_type == NECRO_CORE_AST_BIND_REC);
+    if (outer != NULL)
+        assert(outer->type == NECRO_MACH_DEF);
+    assert(false && "TODO: Finish!");
+}
+
+// TODO: Need to handl Nullary constructors in Sum Unions here!
+void necro_core_transform_to_mach_2_var(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
+{
+    assert(program != NULL);
+    assert(core_ast != NULL);
+    assert(core_ast->ast_type == NECRO_CORE_AST_VAR);
+    if (outer != NULL)
+        assert(outer->type == NECRO_MACH_DEF);
+    NecroMachAstSymbol* mach_symbol = core_ast->var.ast_symbol->mach_symbol;
+    if (mach_symbol->is_enum)
+        return;
+    NecroMachAst* machine_ast = mach_symbol->ast;
+    if (machine_ast == NULL)
+    {
+        // Lambda args are NULL at first...better way to differentiate!?
+        // TODO / NEW NOTE: Is this still true?
+        // If so why not simply fill them in during pass 1?
+        // assert(false);
+        return;
+    }
+    // TODO / NOTE: We should also handle constructors here, as constructors will also create slots for memory!!!!!!!!!!!
+    if (machine_ast->type == NECRO_MACH_DEF)
+    {
+        // if (machine_ast->machine_def.state_type != NECRO_STATE_STATEFUL)
+        if (machine_ast->machine_def.num_members == 0)
+            return;
+        if (necro_mach_is_var_machine_arg(outer, core_ast->var.ast_symbol->name))
+            return;
+        if (machine_ast->machine_def.outer == NULL)
+            return;
+        if (machine_ast->machine_def.is_persistent_slot_set)
+            return;
+        machine_ast->machine_def.is_persistent_slot_set = true;
+        mach_symbol->slot = necro_mach_type_is_unboxed(program, machine_ast->machine_def.value_type)
+            ? necro_mach_add_member(program, &outer->machine_def, machine_ast->machine_def.value_type, machine_ast)
+            : necro_mach_add_member(program, &outer->machine_def, necro_mach_type_create_ptr(&program->arena, machine_ast->machine_def.value_type), machine_ast);
+    }
+    else if (mach_symbol->is_constructor)
+    {
+        assert(mach_symbol->ast->necro_machine_type->type == NECRO_MACH_TYPE_FN);
+        assert(mach_symbol->ast->necro_machine_type->fn_type.num_parameters == 1);
+        assert(mach_symbol->ast->necro_machine_type->fn_type.parameters[0]->type == NECRO_MACH_TYPE_PTR);
+        NecroMachType* con_type = mach_symbol->ast->necro_machine_type->fn_type.parameters[0]->ptr_type.element_type;
+        // mach_symbol->slot            = necro_mach_add_member(program, &outer->machine_def, con_type, mach_symbol->ast);
+        necro_mach_add_member(program, &outer->machine_def, con_type, mach_symbol->ast);
+    }
+}
+
+void necro_core_transform_to_mach_2_app(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
+{
+    assert(program != NULL);
+    assert(core_ast != NULL);
+    assert(core_ast->ast_type == NECRO_CORE_AST_APP);
+    if (outer != NULL)
+        assert(outer->type == NECRO_MACH_DEF);
+
+    NecroCoreAst* function  = core_ast;
+    size_t        arg_count = 0;
+    while (function->ast_type == NECRO_CORE_AST_APP)
+    {
+        necro_core_transform_to_mach_2_go(program, function->app.expr2, outer);
+        arg_count++;
+        function = function->app.expr1;
+    }
+    assert(function->ast_type == NECRO_CORE_AST_VAR);
+    NecroMachAstSymbol* symbol        = function->var.ast_symbol->mach_symbol;
+    assert(symbol != NULL);
+    NecroMachAst*       fn_value      = symbol->ast;
+    assert(fn_value != NULL);
+    NecroMachType*      fn_type       = NULL;
+    if (fn_value->type == NECRO_MACH_DEF)
+    {
+        fn_type = fn_value->machine_def.fn_type;
+        // if (fn_value->machine_def.state_type == NECRO_STATE_STATEFUL)
+        if (fn_value->machine_def.num_members > 0)
+            symbol->slot = necro_mach_add_member(program, &outer->machine_def, fn_value->necro_machine_type, fn_value);
+    }
+    else if (symbol->is_constructor)
+    {
+        assert(fn_value->necro_machine_type->type == NECRO_MACH_TYPE_FN);
+        assert(fn_value->necro_machine_type->fn_type.num_parameters > 1);
+        assert(fn_value->necro_machine_type->fn_type.parameters[0]->type == NECRO_MACH_TYPE_PTR);
+        fn_type                 = fn_value->necro_machine_type;
+        NecroMachType* con_type = fn_value->necro_machine_type->fn_type.parameters[0]->ptr_type.element_type;
+        necro_mach_add_member(program, &outer->machine_def, con_type, fn_value);
+        // symbol->slot            = necro_mach_add_member(program, &outer->machine_def, con_type, fn_value);
+    }
+    else
+    {
+        fn_type = fn_value->necro_machine_type;
+    }
+    assert(fn_type->type == NECRO_MACH_TYPE_FN);
+    if (symbol->is_constructor)
+        assert(fn_type->fn_type.num_parameters == (arg_count + 1));
+    else
+        assert(fn_type->fn_type.num_parameters == arg_count);
+}
+
+void necro_core_transform_to_mach_2_go(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
+{
+    assert(program != NULL);
+    assert(core_ast != NULL);
+    switch (core_ast->ast_type)
+    {
+    case NECRO_CORE_AST_VAR:       necro_core_transform_to_mach_2_var(program, core_ast, outer); return;
+    case NECRO_CORE_AST_BIND:      necro_core_transform_to_mach_2_bind(program, core_ast, outer); return;
+    case NECRO_CORE_AST_BIND_REC:  necro_core_transform_to_mach_2_bind_rec(program, core_ast, outer); return;
+    case NECRO_CORE_AST_APP:       necro_core_transform_to_mach_2_app(program, core_ast, outer); return;
+    case NECRO_CORE_AST_FOR:       necro_core_transform_to_mach_2_for(program, core_ast, outer); return;
+    case NECRO_CORE_AST_LAM:       necro_core_transform_to_mach_2_lam(program, core_ast, outer); return;
+    case NECRO_CORE_AST_LET:       necro_core_transform_to_mach_2_let(program, core_ast, outer); return;
+    case NECRO_CORE_AST_CASE:      necro_core_transform_to_mach_2_case(program, core_ast, outer); return;
+    case NECRO_CORE_AST_CASE_ALT:  assert(false && "found NECRO_CORE_AST_CASE_ALT in necro_core_transform_to_mach_2_go"); return;
+    case NECRO_CORE_AST_LIT:       return;
+    case NECRO_CORE_AST_DATA_DECL: return;
+    case NECRO_CORE_AST_DATA_CON:  return;
+    default:                       assert(false && "Unimplemented AST type in necro_core_transform_to_mach_2_go"); return;
+    }
+}
+
 void necro_core_transform_to_mach(NecroCompileInfo info, NecroIntern* intern, NecroBase* base, NecroCoreAstArena* core_ast_arena, NecroMachProgram* program)
 {
     *program = necro_mach_program_create(intern, base);
@@ -384,6 +735,17 @@ void necro_core_transform_to_mach(NecroCompileInfo info, NecroIntern* intern, Ne
     }
     if (top != NULL)
         necro_core_transform_to_mach_1_go(program, top, NULL);
+
+    //---------------
+    // Pass 2
+    top = core_ast_arena->root;
+    while (top != NULL && top->ast_type == NECRO_CORE_AST_LET)
+    {
+        necro_core_transform_to_mach_2_go(program, top->let.bind, NULL);
+        top = top->let.expr;
+    }
+    if (top != NULL)
+        necro_core_transform_to_mach_2_go(program, top, NULL);
 
     //---------------
     // Construct main
@@ -433,6 +795,7 @@ void necro_mach_test_string(const char* test_name, const char* str)
     unwrap(void, necro_core_infer(&intern, &base, &core_ast));
     necro_core_lambda_lift(info, &intern, &base, &core_ast);
     // TODO: defunctionalization here!
+    necro_core_state_analysis(info, &intern, &base, &core_ast);
     necro_core_transform_to_mach(info, &intern, &base, &core_ast, &mach_program);
 
     // Print
@@ -493,7 +856,7 @@ void necro_mach_test()
             "data TwoOrFour = Two TwoInts | Four DoubleUp DoubleUp\n";
         necro_mach_test_string(test_name, test_source);
     }
-*/
+
 
     {
         const char* test_name   = "Bind 1";
@@ -501,6 +864,40 @@ void necro_mach_test()
             "data TwoInts = TwoInts Int Int\n"
             "twoForOne :: Int -> TwoInts\n"
             "twoForOne i = TwoInts i i\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Bind 2";
+        const char* test_source = ""
+            "data TwoInts   = TwoInts Int Int\n"
+            "data DoubleUp  = DoubleUp TwoInts TwoInts\n"
+            "doubleDown :: Int -> DoubleUp\n"
+            "doubleDown i = DoubleUp (TwoInts i i) (TwoInts i i)\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Bind 3";
+        const char* test_source = ""
+            "data TwoOrNone = None | TwoInts Int Int \n"
+            "nope :: Int -> TwoOrNone\n"
+            "nope i = None\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Bind 4";
+        const char* test_source = ""
+            "data TwoInts  = TwoInts Int Int\n"
+            "data DoubleUp = DoubleUp TwoInts TwoInts\n"
+            "data Quad     = Quad DoubleUp DoubleUp\n"
+            "doubleDown :: Int -> DoubleUp\n"
+            "doubleDown i = DoubleUp (TwoInts i i) (TwoInts i i)\n"
+            "fourForOne :: Quad\n"
+            "fourForOne = Quad (doubleDown 100) (doubleDown 200)\n";
         necro_mach_test_string(test_name, test_source);
     }
 

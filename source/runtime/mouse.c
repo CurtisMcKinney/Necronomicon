@@ -27,6 +27,18 @@ int _necro_mouse_y()
     return mouse_y;
 }
 
+int _necro_get_mouse_x(unsigned int _dummy)
+{
+    UNUSED(_dummy);
+    return mouse_x;
+}
+
+int _necro_get_mouse_y(unsigned int _dummy)
+{
+    UNUSED(_dummy);
+    return mouse_y;
+}
+
 #ifdef _WIN32
 //=====================================================
 // Windows

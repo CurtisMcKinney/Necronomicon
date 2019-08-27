@@ -361,12 +361,14 @@ void necro_mach_print_machine_def(NecroMachAst* ast, size_t depth)
     printf("type: ");
     necro_mach_type_print_go(ast->necro_machine_type, true);
     printf("\n");
-    if (ast->machine_def.init_fn != NULL && (ast->machine_def.state_type == NECRO_STATE_STATEFUL || ast->machine_def.state_type == NECRO_STATE_CONSTANT))
+    // if (ast->machine_def.init_fn != NULL && (ast->machine_def.state_type == NECRO_STATE_STATEFUL || ast->machine_def.state_type == NECRO_STATE_CONSTANT))
+    if (ast->machine_def.init_fn != NULL)
     {
         printf("\n");
         necro_mach_print_fn(ast->machine_def.init_fn, depth + 4);
     }
-    if (ast->machine_def.mk_fn != NULL && (ast->machine_def.state_type == NECRO_STATE_STATEFUL || ast->machine_def.state_type == NECRO_STATE_CONSTANT))
+    // if (ast->machine_def.mk_fn != NULL && (ast->machine_def.state_type == NECRO_STATE_STATEFUL || ast->machine_def.state_type == NECRO_STATE_CONSTANT))
+    if (ast->machine_def.mk_fn != NULL)
     {
         printf("\n");
         necro_mach_print_fn(ast->machine_def.mk_fn, depth + 4);

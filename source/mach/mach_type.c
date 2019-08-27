@@ -151,6 +151,9 @@ NecroMachType* necro_mach_type_create_ptr(NecroPagedArena* arena, NecroMachType*
     return type;
 }
 
+///////////////////////////////////////////////////////
+// Utility
+///////////////////////////////////////////////////////
 void necro_mach_type_check(NecroMachProgram* program, NecroMachType* type1, NecroMachType* type2)
 {
     assert(type1 != NULL);
@@ -195,6 +198,41 @@ NecroMachType* necro_mach_type_make_ptr_if_boxed(NecroMachProgram* program, Necr
         return type;
     else
         return necro_mach_type_create_ptr(&program->arena, type);
+}
+
+size_t necro_mach_type_calculate_num_slots(NecroMachType* type)
+{
+    assert(type != NULL);
+    switch (type->type)
+    {
+    case NECRO_MACH_TYPE_VOID:   assert(false); return 0;
+    case NECRO_MACH_TYPE_UINT1:  /* FALLTHROUGH */
+    case NECRO_MACH_TYPE_UINT8:  /* FALLTHROUGH */
+    case NECRO_MACH_TYPE_UINT16: /* FALLTHROUGH */
+    case NECRO_MACH_TYPE_UINT32: /* FALLTHROUGH */
+    case NECRO_MACH_TYPE_UINT64: /* FALLTHROUGH */
+    case NECRO_MACH_TYPE_INT32:  /* FALLTHROUGH */
+    case NECRO_MACH_TYPE_INT64:  /* FALLTHROUGH */
+    case NECRO_MACH_TYPE_F32:    /* FALLTHROUGH */
+    case NECRO_MACH_TYPE_F64:    /* FALLTHROUGH */
+    case NECRO_MACH_TYPE_CHAR:   /* FALLTHROUGH */
+    case NECRO_MACH_TYPE_PTR:    return 1;
+    case NECRO_MACH_TYPE_STRUCT:
+    {
+        size_t slots = 0;
+        for (size_t i = 0; i < type->struct_type.num_members; ++i)
+        {
+            slots += necro_mach_type_calculate_num_slots(type->struct_type.members[i]);
+        }
+        return slots;
+    }
+    case NECRO_MACH_TYPE_FN:
+        assert(false);
+        return 0;
+    default:
+        assert(false);
+        return 0;
+    }
 }
 
 ///////////////////////////////////////////////////////

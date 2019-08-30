@@ -1,4 +1,0 @@
-data Book = Pages
-class Fail a where result :: a -> Int
-x :: Fail a => a
-x = Pages

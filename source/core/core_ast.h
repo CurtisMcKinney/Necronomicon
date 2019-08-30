@@ -135,6 +135,7 @@ typedef struct NecroCoreAstLiteral
 typedef struct NecroCoreAstVar
 {
     NecroCoreAstSymbol* ast_symbol;
+    size_t              persistent_slot;
 } NecroCoreAstVar;
 
 typedef struct NecroCoreAstBind
@@ -148,7 +149,6 @@ typedef struct NecroCoreAstBind
 // TODO: Make recursive binds use this
 typedef struct NecroCoreAstBindRec
 {
-    // struct NecroCoreAst* binds;
     struct NecroCoreAstList* binds;
 } NecroCoreAstBindRec;
 
@@ -156,7 +156,7 @@ typedef struct NecroCoreAstApplication
 {
     struct NecroCoreAst* expr1;
     struct NecroCoreAst* expr2;
-    // uint32_t             persistent_slot; // TODO / NOTE: Do we still need this? Curtis: Metadata for codegen
+    size_t               persistent_slot; // Curtis: Metadata for codegen
 } NecroCoreAstApplication;
 
 typedef struct NecroCoreAstLambda
@@ -264,6 +264,7 @@ NecroCoreAst* necro_core_ast_create_var(NecroPagedArena* arena, NecroCoreAstSymb
 NecroCoreAst* necro_core_ast_create_bind(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroCoreAst* expr);
 NecroCoreAst* necro_core_ast_create_let(NecroPagedArena* arena, NecroCoreAst* bind, NecroCoreAst* expr);
 NecroCoreAst* necro_core_ast_create_lam(NecroPagedArena* arena, NecroCoreAst* arg, NecroCoreAst* expr);
+// NecroCoreAst* necro_core_ast_create_app(NecroPagedArena* arena, NecroCoreAst* expr1, NecroCoreAst* expr2, NecroType* necro_type);
 NecroCoreAst* necro_core_ast_create_app(NecroPagedArena* arena, NecroCoreAst* expr1, NecroCoreAst* expr2);
 NecroCoreAst* necro_core_ast_create_data_con(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroType* type, NecroType* data_type_type);
 NecroCoreAst* necro_core_ast_create_data_decl(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroCoreAstList* con_list);

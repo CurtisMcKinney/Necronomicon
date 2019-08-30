@@ -100,6 +100,7 @@ typedef struct NecroBase
     NecroAstSymbol* unsafe_malloc;
     NecroAstSymbol* unsafe_peek;
     NecroAstSymbol* unsafe_poke;
+    NecroAstSymbol* print_int;
 
     NecroScopedSymTable* scoped_symtable;
 

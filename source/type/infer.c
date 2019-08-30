@@ -1510,6 +1510,7 @@ NecroResult(NecroType) necro_infer_apat(NecroInfer* infer, NecroAst* ast)
     {
         NecroType* wildcard_type = necro_type_fresh_var(infer->arena, ast->scope);
         wildcard_type->kind      = infer->base->star_kind->type;
+        ast->necro_type          = wildcard_type;
         return ok(NecroType, wildcard_type);
     }
 

@@ -1009,6 +1009,21 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
                 necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
     }
 
+    // printInt
+    {
+        necro_append_top(arena, top,
+            necro_ast_create_fn_type_sig(arena, intern, "printInt", NULL,
+                necro_ast_create_type_fn(arena,
+                    necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR),
+                    necro_ast_create_type_fn(arena,
+                        necro_ast_create_type_attribute(arena, necro_ast_create_conid(arena, intern, "World", NECRO_CON_TYPE_VAR), NECRO_TYPE_ATTRIBUTE_STAR),
+                        necro_ast_create_type_attribute(arena, necro_ast_create_conid(arena, intern, "World", NECRO_CON_TYPE_VAR), NECRO_TYPE_ATTRIBUTE_STAR))),
+                NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top,
+            necro_ast_create_simple_assignment(arena, intern, "printInt",
+                necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
+    }
+
     // plusPtr??
 
     // && / ||
@@ -1124,6 +1139,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.unsafe_malloc          = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "unsafeMalloc"));
     base.unsafe_peek            = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "unsafePeek"));
     base.unsafe_poke            = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "unsafePoke"));
+    base.print_int              = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "printInt"));
 
     base.scoped_symtable        = scoped_symtable;
 

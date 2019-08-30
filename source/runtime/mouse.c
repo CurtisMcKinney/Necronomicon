@@ -30,12 +30,14 @@ int _necro_mouse_y()
 int _necro_get_mouse_x(unsigned int _dummy)
 {
     UNUSED(_dummy);
+    necro_poll_mouse();
     return mouse_x;
 }
 
 int _necro_get_mouse_y(unsigned int _dummy)
 {
     UNUSED(_dummy);
+    necro_poll_mouse();
     return mouse_y;
 }
 
@@ -68,7 +70,8 @@ void necro_init_mouse()
 
 void necro_poll_mouse()
 {
-    necro_init_mouse();
+    // necro_init_mouse();
+    assert(mouse_initialized);
     size_t runtime_tick = necro_get_runtime_tick();
     if (current_tick == runtime_tick)
         return;

@@ -450,6 +450,42 @@ NecroMachAst* necro_mach_build_bit_cast(NecroMachProgram* program, NecroMachAst*
     return ast->bit_cast.to_value;
 }
 
+NecroMachAst* necro_mach_build_up_cast(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* value, NecroMachType* to_type)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACH_FN_DEF);
+    if (necro_mach_type_is_eq(value->necro_machine_type, to_type))
+        return value;
+    NecroMachType* from_type = value->necro_machine_type;
+    assert(from_type->type == NECRO_MACH_TYPE_PTR);
+    assert(to_type->type == NECRO_MACH_TYPE_PTR);
+    NecroMachType* from_type_struct = from_type->ptr_type.element_type;
+    NecroMachType* to_type_struct   = to_type->ptr_type.element_type;
+    assert(from_type_struct->type == NECRO_MACH_TYPE_STRUCT);
+    assert(to_type_struct->type == NECRO_MACH_TYPE_STRUCT);
+    assert(from_type_struct->struct_type.sum_type_symbol == to_type_struct->struct_type.symbol);
+    return necro_mach_build_bit_cast(program, fn_def, value, to_type);
+}
+
+NecroMachAst* necro_mach_build_down_cast(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* value, NecroMachType* to_type)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACH_FN_DEF);
+    if (necro_mach_type_is_eq(value->necro_machine_type, to_type))
+        return value;
+    NecroMachType* from_type = value->necro_machine_type;
+    assert(from_type->type == NECRO_MACH_TYPE_PTR);
+    assert(to_type->type == NECRO_MACH_TYPE_PTR);
+    NecroMachType* from_type_struct = from_type->ptr_type.element_type;
+    NecroMachType* to_type_struct   = to_type->ptr_type.element_type;
+    assert(from_type_struct->type == NECRO_MACH_TYPE_STRUCT);
+    assert(to_type_struct->type == NECRO_MACH_TYPE_STRUCT);
+    assert(from_type_struct->struct_type.symbol == to_type_struct->struct_type.sum_type_symbol);
+    return necro_mach_build_bit_cast(program, fn_def, value, to_type);
+}
+
 NecroMachAst* necro_mach_build_maybe_bit_cast(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* value, NecroMachType* to_type)
 {
     assert(program != NULL);
@@ -949,16 +985,21 @@ NecroMachAst* necro_mach_build_uop(NecroMachProgram* program, NecroMachAst* fn_d
 ///////////////////////////////////////////////////////
 // Defs
 ///////////////////////////////////////////////////////
-NecroMachAst* necro_mach_create_struct_def(NecroMachProgram* program, NecroMachAstSymbol* symbol, NecroMachType** members, size_t num_members)
+NecroMachAst* necro_mach_create_struct_def_with_sum_type(NecroMachProgram* program, NecroMachAstSymbol* symbol, struct NecroMachType** members, size_t num_members, NecroMachAstSymbol* sum_type_symbol)
 {
     NecroMachAst* ast       = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
     ast->type               = NECRO_MACH_STRUCT_DEF;
     ast->struct_def.symbol  = symbol;
-    ast->necro_machine_type = necro_mach_type_create_struct(&program->arena, symbol, members, num_members);
+    ast->necro_machine_type = necro_mach_type_create_struct_with_sum_type(&program->arena, symbol, members, num_members, sum_type_symbol);
     symbol->mach_type       = ast->necro_machine_type;
     symbol->ast             = ast;
     necro_mach_program_add_struct(program, ast);
     return ast;
+}
+
+NecroMachAst* necro_mach_create_struct_def(NecroMachProgram* program, NecroMachAstSymbol* symbol, NecroMachType** members, size_t num_members)
+{
+    return necro_mach_create_struct_def_with_sum_type(program, symbol, members, num_members, NULL);
 }
 
 NecroMachAst* necro_mach_create_fn(NecroMachProgram* program, NecroMachAstSymbol* symbol, NecroMachAst* call_body, NecroMachType* necro_machine_type)

@@ -191,16 +191,22 @@ NecroMachType* necro_mach_type_create_void(NecroMachProgram* program)
     return type;
 }
 
-NecroMachType* necro_mach_type_create_struct(NecroPagedArena* arena, struct NecroMachAstSymbol* symbol, NecroMachType** a_members, size_t num_members)
+NecroMachType* necro_mach_type_create_struct_with_sum_type(NecroPagedArena* arena, NecroMachAstSymbol* symbol, NecroMachType** a_members, size_t num_members, NecroMachAstSymbol* sum_type_symbol)
 {
-    NecroMachType* type           = necro_paged_arena_alloc(arena, sizeof(NecroMachType));
-    type->type                    = NECRO_MACH_TYPE_STRUCT;
-    type->struct_type.symbol      = symbol;
-    NecroMachType** members       = necro_paged_arena_alloc(arena, num_members * sizeof(NecroMachType*));
+    NecroMachType* type               = necro_paged_arena_alloc(arena, sizeof(NecroMachType));
+    type->type                        = NECRO_MACH_TYPE_STRUCT;
+    type->struct_type.symbol          = symbol;
+    type->struct_type.sum_type_symbol = sum_type_symbol;
+    NecroMachType** members           = necro_paged_arena_alloc(arena, num_members * sizeof(NecroMachType*));
     memcpy(members, a_members, num_members * sizeof(NecroMachType*)); // This isn't a deep copy...is that ok?
-    type->struct_type.members     = members;
-    type->struct_type.num_members = num_members;
+    type->struct_type.members         = members;
+    type->struct_type.num_members     = num_members;
     return type;
+}
+
+NecroMachType* necro_mach_type_create_struct(NecroPagedArena* arena, NecroMachAstSymbol* symbol, NecroMachType** a_members, size_t num_members)
+{
+    return necro_mach_type_create_struct_with_sum_type(arena, symbol, a_members, num_members, NULL);
 }
 
 NecroMachType* necro_mach_type_create_fn(NecroPagedArena* arena, NecroMachType* return_type, NecroMachType** a_parameters, size_t num_parameters)

@@ -30,7 +30,7 @@
 ///////////////////////////////////////////////////////
 // Pass 1
 ///////////////////////////////////////////////////////
-NecroMachAst* necro_core_transform_to_mach_1_data_con_dummy_type(NecroMachProgram* program, NecroMachAstSymbol* mach_ast_symbol, size_t max_arg_count)
+NecroMachAst* necro_core_transform_to_mach_1_data_con_sum_type(NecroMachProgram* program, NecroMachAstSymbol* mach_ast_symbol, size_t max_arg_count)
 {
     NecroArenaSnapshot snapshot = necro_snapshot_arena_get(&program->snapshot_arena);
     NecroMachType**    members  = necro_snapshot_arena_alloc(&program->snapshot_arena, (1 + max_arg_count) * sizeof(NecroMachType*));
@@ -44,7 +44,7 @@ NecroMachAst* necro_core_transform_to_mach_1_data_con_dummy_type(NecroMachProgra
     return struct_def;
 }
 
-NecroMachAst* necro_core_transform_to_mach_1_data_con_type(NecroMachProgram* program, NecroMachAstSymbol* mach_ast_symbol, NecroCoreAst* core_ast)
+NecroMachAst* necro_core_transform_to_mach_1_data_con_type(NecroMachProgram* program, NecroMachAstSymbol* mach_ast_symbol, NecroCoreAst* core_ast, NecroMachAstSymbol* sum_type_symbol)
 {
     NecroArenaSnapshot snapshot = necro_snapshot_arena_get(&program->snapshot_arena);
     assert(core_ast->ast_type == NECRO_CORE_AST_DATA_CON);
@@ -59,7 +59,7 @@ NecroMachAst* necro_core_transform_to_mach_1_data_con_type(NecroMachProgram* pro
         members[i] = necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, con_type->fun.type1));
         con_type   = con_type->fun.type2;
     }
-    NecroMachAst* struct_def = necro_mach_create_struct_def(program, mach_ast_symbol, members, arg_count + 1);
+    NecroMachAst* struct_def = necro_mach_create_struct_def_with_sum_type(program, mach_ast_symbol, members, arg_count + 1, sum_type_symbol);
     necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
     return struct_def;
 }
@@ -115,7 +115,7 @@ void necro_core_transform_to_mach_1_data_con_constructor(NecroMachProgram* progr
     }
     else
     {
-        NecroMachAst* cast_ptr = necro_mach_build_bit_cast(program, mk_fn_def, data_ptr, necro_mach_type_create_ptr(&program->arena, struct_type));
+        NecroMachAst* cast_ptr = necro_mach_build_up_cast(program, mk_fn_def, data_ptr, necro_mach_type_create_ptr(&program->arena, struct_type));
         necro_mach_build_return(program, mk_fn_def, cast_ptr);
     }
     con_symbol->ast                            = mk_fn_def->fn_def.fn_value;
@@ -202,19 +202,19 @@ void necro_core_transform_to_mach_1_data_decl(NecroMachProgram* program, NecroCo
     const bool   is_sum_type = core_ast->data_decl.con_list->next != NULL;
     if (is_sum_type)
     {
-        struct_def = necro_core_transform_to_mach_1_data_con_dummy_type(program, core_ast->data_decl.ast_symbol->mach_symbol, max_arg_count);
+        struct_def = necro_core_transform_to_mach_1_data_con_sum_type(program, core_ast->data_decl.ast_symbol->mach_symbol, max_arg_count);
         cons       = core_ast->data_decl.con_list;
         while (cons != NULL)
         {
             cons->data->data_con.ast_symbol->mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, cons->data->data_con.ast_symbol);
-            necro_core_transform_to_mach_1_data_con_type(program, cons->data->data_con.ast_symbol->mach_symbol, cons->data);
+            necro_core_transform_to_mach_1_data_con_type(program, cons->data->data_con.ast_symbol->mach_symbol, cons->data, struct_def->struct_def.symbol);
             cons = cons->next;
         }
     }
     else
     {
         core_ast->data_decl.con_list->data->data_con.ast_symbol->mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, core_ast->data_con.ast_symbol);
-        struct_def                                                           = necro_core_transform_to_mach_1_data_con_type(program, core_ast->data_decl.ast_symbol->mach_symbol, core_ast->data_decl.con_list->data);
+        struct_def                                                           = necro_core_transform_to_mach_1_data_con_type(program, core_ast->data_decl.ast_symbol->mach_symbol, core_ast->data_decl.con_list->data, NULL);
     }
 
     //--------------
@@ -1391,6 +1391,17 @@ void necro_mach_test()
             "    Some i -> printInt i w\n";
         necro_mach_test_string(test_name, test_source);
     }
+*/
+
+/*
+    TODO: Test other node type:
+    case x of
+      NonSumCon -> 0
+
+    or
+
+    case x of
+      y -> y + 1
 */
 
     {

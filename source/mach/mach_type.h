@@ -47,6 +47,7 @@ typedef struct NecroMachStructType
     struct NecroMachAstSymbol* symbol;
     struct NecroMachType**     members;
     size_t                     num_members;
+    struct NecroMachAstSymbol* sum_type_symbol;
 } NecroMachStructType;
 
 typedef struct NecroMachPtrType
@@ -108,6 +109,7 @@ NecroMachType*     necro_mach_type_create_f64(struct NecroMachProgram* program);
 NecroMachType*     necro_mach_type_create_char(struct NecroMachProgram* program);
 NecroMachType*     necro_mach_type_create_void(struct NecroMachProgram* program);
 NecroMachType*     necro_mach_type_create_struct(NecroPagedArena* arena, struct NecroMachAstSymbol* symbol, NecroMachType** a_members, size_t num_members);
+NecroMachType*     necro_mach_type_create_struct_with_sum_type(NecroPagedArena* arena, struct NecroMachAstSymbol* symbol, NecroMachType** a_members, size_t num_members, struct NecroMachAstSymbol* sum_type_symbol);
 NecroMachType*     necro_mach_type_create_fn(NecroPagedArena* arena, NecroMachType* return_type, NecroMachType** a_parameters, size_t num_parameters);
 NecroMachType*     necro_mach_type_create_ptr(NecroPagedArena* arena, NecroMachType* element_type);
 NecroMachTypeCache necro_mach_type_cache_empty();

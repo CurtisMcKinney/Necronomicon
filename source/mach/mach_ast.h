@@ -606,6 +606,8 @@ NecroMachAst* necro_mach_build_nalloc(NecroMachProgram* program, NecroMachAst* f
 NecroMachAst* necro_mach_build_gep(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* source_value, uint32_t* a_indices, size_t num_indices, const char* dest_name);
 NecroMachAst* necro_mach_build_non_const_gep(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* source_value, NecroMachAst** a_indices, size_t num_indices, const char* dest_name, struct NecroMachType* result_type);
 NecroMachAst* necro_mach_build_bit_cast(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* value, struct NecroMachType* to_type);
+NecroMachAst* necro_mach_build_up_cast(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* value, struct NecroMachType* to_type);
+NecroMachAst* necro_mach_build_down_cast(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* value, struct NecroMachType* to_type);
 NecroMachAst* necro_mach_build_maybe_bit_cast(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* value, struct NecroMachType* to_type);
 NecroMachAst* necro_mach_build_zext(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* value, struct NecroMachType* to_type);
 void          necro_mach_build_memcpy(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* dest, NecroMachAst* source, NecroMachAst* num_bytes);
@@ -643,6 +645,7 @@ NecroMachSwitchTerminator* necro_mach_build_switch(NecroMachProgram* program, Ne
 // Defs
 //--------------------
 NecroMachAst* necro_mach_create_struct_def(NecroMachProgram* program, NecroMachAstSymbol* symbol, struct NecroMachType** members, size_t num_members);
+NecroMachAst* necro_mach_create_struct_def_with_sum_type(NecroMachProgram* program, NecroMachAstSymbol* symbol, struct NecroMachType** members, size_t num_members, NecroMachAstSymbol* sum_type_symbol);
 NecroMachAst* necro_mach_create_fn(NecroMachProgram* program, NecroMachAstSymbol* symbol, NecroMachAst* call_body, struct NecroMachType* necro_machine_type);
 NecroMachAst* necro_mach_create_runtime_fn(NecroMachProgram* program, NecroMachAstSymbol* symbol, struct NecroMachType* necro_machine_type, NecroMachFnPtr runtime_fn_addr, NECRO_STATE_TYPE state_type);
 NecroMachAst* necro_mach_create_initial_machine_def(NecroMachProgram* program, NecroMachAstSymbol* symbol, NecroMachAst* outer, struct NecroMachType* value_type, NecroType* necro_value_type);

@@ -448,7 +448,7 @@ NecroAstArena necro_reify(NecroCompileInfo info, NecroIntern* intern, NecroParse
 {
     NecroAstArena ast_arena = necro_ast_arena_create(ast->module_name);
     ast_arena.root          = necro_reify_go(ast, ast->root, &ast_arena.arena, intern);
-    if (info.compilation_phase == NECRO_PHASE_REIFY && info.verbosity > 0)
+    if (info.verbosity > 1 || (info.compilation_phase == NECRO_PHASE_REIFY && info.verbosity > 0))
         necro_ast_print(ast_arena.root);
     return ast_arena;
 }

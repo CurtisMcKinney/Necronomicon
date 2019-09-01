@@ -275,7 +275,7 @@ NecroResult(void) necro_ast_transform_to_core(NecroCompileInfo info, NecroIntern
         final_base_let = final_base_let->let.expr;
     final_base_let->let.expr = necro_try_map_result(NecroCoreAst, void, necro_ast_transform_to_core_go(&core_ast_transform, ast_arena->root));
     // Cleanup
-    if (info.compilation_phase == NECRO_PHASE_TRANSFORM_TO_CORE && info.verbosity > 0)
+    if (info.verbosity > 1 || (info.compilation_phase == NECRO_PHASE_TRANSFORM_TO_CORE && info.verbosity > 0))
         necro_core_ast_pretty_print(core_ast_transform.core_ast_arena->root);
     necro_ast_transform_destroy(&core_ast_transform);
     return ok_void();
@@ -733,6 +733,88 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_case(NecroCoreAstTransform
     return ok(NecroCoreAst, case_ast);
 }
 
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_if_then_else(NecroCoreAstTransform* context, NecroAst* ast)
+{
+    assert(ast->type == NECRO_AST_IF_THEN_ELSE);
+
+    // If
+    NecroAst* if_expr = ast->if_then_else.if_expr;
+    assert(if_expr != NULL);
+    NecroCoreAst* core_if_expr = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, if_expr));
+    assert(core_if_expr != NULL);
+    core_if_expr->necro_type = necro_type_deep_copy(context->arena, if_expr->necro_type);
+    assert(core_if_expr->necro_type != NULL);
+
+
+    NecroCoreAstList* alts = NULL;
+
+    // Then
+    {
+        NecroAst* then_expr = ast->if_then_else.then_expr;
+        assert(then_expr != NULL);
+        NecroCoreAst* core_then_expr = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, then_expr));
+        assert(core_then_expr != NULL);
+        core_then_expr->necro_type = necro_type_deep_copy(context->arena, then_expr->necro_type);
+        assert(core_then_expr->necro_type != NULL);
+
+        NecroType* bool_type = context->base->bool_type->type;
+        assert(bool_type != NULL);
+        NecroType* true_type = bool_type;
+        assert(true_type != NULL);
+        NecroCoreAstSymbol* true_symbol = necro_core_ast_symbol_create(context->arena, necro_intern_string(context->intern, "Necro.Base.True"), true_type);
+        assert(true_symbol  != NULL);
+        NecroCoreAst* true_core = necro_core_ast_create_var(context->arena, true_symbol, necro_type_deep_copy(context->arena, true_type));
+        assert(true_core != NULL);
+        assert(true_core->necro_type != NULL);
+
+        NecroCoreAst* alt_pat = true_core;
+        NecroCoreAst* alt_ast = necro_core_ast_create_case_alt(context->arena, alt_pat, core_then_expr);
+        assert(alt_ast != NULL);
+        alt_ast->necro_type = necro_type_deep_copy(context->arena, core_then_expr->necro_type);
+        assert(alt_ast->necro_type != NULL);
+        assert(alt_ast->case_alt.pat != NULL);
+        alts = necro_append_core_ast_list(context->arena, alt_ast, alts);
+        assert(alts != NULL);
+    }
+
+    // Else
+    {
+        NecroAst* else_expr = ast->if_then_else.else_expr;
+        assert(else_expr != NULL);
+        NecroCoreAst* core_else_expr = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, else_expr));
+        assert(core_else_expr != NULL);
+        core_else_expr->necro_type = necro_type_deep_copy(context->arena, else_expr->necro_type);
+        assert(core_else_expr->necro_type != NULL);
+
+        NecroType* bool_type = context->base->bool_type->type;
+        assert(bool_type != NULL);
+        NecroType* false_type = bool_type;
+        assert(false_type != NULL);
+        NecroCoreAstSymbol* false_symbol = necro_core_ast_symbol_create(context->arena, necro_intern_string(context->intern, "Necro.Base.False"), false_type);
+        assert(false_symbol != NULL);
+        NecroCoreAst* false_core = necro_core_ast_create_var(context->arena, false_symbol, necro_type_deep_copy(context->arena, false_type));
+        assert(false_core != NULL);
+        assert(false_core->necro_type != NULL);
+
+        NecroCoreAst* alt_pat = false_core;
+        NecroCoreAst* alt_ast = necro_core_ast_create_case_alt(context->arena, alt_pat, core_else_expr);
+        assert(alt_ast != NULL);
+        alt_ast->necro_type = necro_type_deep_copy(context->arena, core_else_expr->necro_type);
+        assert(alt_ast->necro_type != NULL);
+        assert(alt_ast->case_alt.pat != NULL);
+        alts = necro_append_core_ast_list(context->arena, alt_ast, alts);
+        assert(alts != NULL);
+    }
+
+    assert(alts != NULL);
+    // TODO: Check for incomplete case statements
+    NecroCoreAst* case_ast = necro_core_ast_create_case(context->arena, core_if_expr, alts);
+    assert(case_ast != NULL);
+    case_ast->necro_type = necro_type_deep_copy(context->arena, ast->necro_type);
+    assert(case_ast->necro_type != NULL);
+    return ok(NecroCoreAst, case_ast);
+} 
+
 //--------------------
 // Go
 //--------------------
@@ -740,6 +822,7 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_go(NecroCoreAstTransform* 
 {
     if (ast == NULL)
         return ok(NecroCoreAst, NULL);
+    
     switch (ast->type)
     {
     case NECRO_AST_DECLARATION_GROUP_LIST: return necro_ast_transform_to_core_declaration_group_list(context, ast, NULL); // NOTE: Seems a little sketchy...
@@ -760,7 +843,7 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_go(NecroCoreAstTransform* 
     case NECRO_AST_CASE:                   return necro_ast_transform_to_core_case(context, ast);
 
     // TODO
-    case NECRO_AST_IF_THEN_ELSE:   // return necro_transform_if_then_else(core_transform, necro_ast_node);
+    case NECRO_AST_IF_THEN_ELSE:           return necro_ast_transform_to_core_if_then_else(context, ast);
     case NECRO_AST_PAT_ASSIGNMENT: // return necro_transform_pat_assignment(core_transform, necro_ast_node);
     case NECRO_AST_PAT_EXPRESSION:
     case NECRO_AST_OP_LEFT_SECTION:
@@ -918,7 +1001,8 @@ void necro_core_ast_pretty_print_go(NecroCoreAst* ast, size_t depth)
             else
                 printf("\n\n");
             print_white_space(depth);
-            // necro_core_ast_pretty_print_go(ast->let.expr, depth);
+            assert(ast->let.expr && "ast->let.expr is null!");
+            /* necro_core_ast_pretty_print_go(ast->let.expr, depth); */
             ast = ast->let.expr;
         }
         return;
@@ -1048,7 +1132,9 @@ void necro_core_test_result(const char* test_name, const char* str)
     // Print
 #if NECRO_CORE_AST_VERBOSE
     printf("\n");
+    printf("=======================================================================\n");
     necro_core_ast_pretty_print(core_ast.root);
+    printf("=======================================================================\n");
 #endif
     printf("Core %s test: Passed\n", test_name);
     fflush(stdout);
@@ -1202,4 +1288,18 @@ void necro_core_ast_test()
         necro_core_test_result(test_name, test_source);
     }
 
+    {
+        const char* test_name   = "If then else doom";
+        const char* test_source = ""
+            "ifTest :: Bool -> Int\n"
+            "ifTest t = if t then 1 else 0\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    /* { */
+    /*     const char* test_name   = "If then else final doom forever"; */
+    /*     const char* test_source = "" */
+    /*         "ifTest = if False then (Just True) else Nothing\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
 }

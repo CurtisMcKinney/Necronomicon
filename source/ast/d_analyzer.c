@@ -615,6 +615,6 @@ void necro_dependency_analyze(NecroCompileInfo info, NecroIntern* intern, NecroA
         .arena  = &ast_arena->arena,
     };
     d_analyze_go(&d_analyzer, ast_arena->root);
-    if (info.compilation_phase == NECRO_PHASE_DEPENDENCY_ANALYSIS && info.verbosity > 0)
+    if (info.verbosity > 1 || (info.compilation_phase == NECRO_PHASE_DEPENDENCY_ANALYSIS && info.verbosity > 0))
         necro_ast_arena_print(ast_arena);
 }

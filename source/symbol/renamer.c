@@ -790,7 +790,7 @@ NecroResult(void) necro_rename(NecroCompileInfo info, NecroScopedSymTable* scope
     renamer.state = NECRO_RENAME_NORMAL;
     necro_try_map(NecroAstSymbol, void, necro_rename_var(&renamer, ast_arena->root));
 
-    if (info.compilation_phase == NECRO_PHASE_RENAME && info.verbosity > 0)
+    if (info.verbosity > 1 || (info.compilation_phase == NECRO_PHASE_RENAME && info.verbosity > 0))
         necro_ast_arena_print(ast_arena);
     return ok_void();
 }

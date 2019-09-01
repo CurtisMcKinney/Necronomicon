@@ -2023,7 +2023,7 @@ NecroResult(void) necro_infer(NecroCompileInfo info, NecroIntern* intern, NecroS
             return result2;
         }
         necro_infer_destroy(&infer);
-        if (info.compilation_phase == NECRO_PHASE_INFER && info.verbosity > 0)
+        if (info.verbosity > 1 || (info.compilation_phase == NECRO_PHASE_INFER && info.verbosity > 0))
             necro_ast_arena_print(ast_arena);
         return ok_void();
     }

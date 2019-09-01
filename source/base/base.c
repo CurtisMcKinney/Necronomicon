@@ -266,6 +266,23 @@ NecroAst* necro_ast_create_prim_unary_op_method_ast(NecroPagedArena* arena, Necr
             NULL));
 }
 
+NecroAst* necro_ast_create_reciprocal(NecroPagedArena* arena, NecroIntern* intern, const char* name)
+{
+    return necro_ast_create_apats_assignment(arena, intern, name,
+        necro_ast_create_apats(arena,
+            necro_ast_create_var(arena, intern, "x", NECRO_VAR_DECLARATION),
+            NULL),
+        necro_ast_create_rhs(arena,
+            necro_ast_create_fexpr(arena,
+                necro_ast_create_fexpr(arena,
+                    necro_ast_create_var(arena, intern, "div", NECRO_VAR_VAR),
+                    necro_ast_create_fexpr(arena,
+                        necro_ast_create_var(arena, intern, "fromInt", NECRO_VAR_VAR),
+                        necro_ast_create_constant(arena, (NecroParseAstConstant) { .type = NECRO_AST_CONSTANT_INTEGER, .int_literal = 1 }))),
+                necro_ast_create_var(arena, intern, "x", NECRO_VAR_VAR)),
+            NULL));
+}
+
 void necro_base_create_prim_num_instances(NecroPagedArena* arena, NecroAst* top, NecroIntern* intern, const char* data_type_name, bool is_poly, bool is_num, bool is_fractional)
 {
     //--------------
@@ -288,7 +305,7 @@ void necro_base_create_prim_num_instances(NecroPagedArena* arena, NecroAst* top,
     {
         NecroAst* fractional_method_list =
             necro_ast_create_decl(arena, necro_ast_create_prim_bin_op_method_ast(arena, intern, "div"),
-                necro_ast_create_decl(arena, necro_ast_create_prim_unary_op_method_ast(arena, intern, "recip"),
+                necro_ast_create_decl(arena, necro_ast_create_reciprocal(arena, intern, "recip"),
                     necro_ast_create_decl(arena, necro_ast_create_prim_unary_op_method_ast(arena, intern, "fromRational"), NULL)));
         necro_append_top(arena, top, necro_ast_create_instance(arena, intern, "Fractional", necro_base_make_num_con(arena, intern, data_type_name, is_poly), necro_base_make_num_context(arena, intern, "Fractional", is_poly), fractional_method_list));
     }
@@ -400,10 +417,13 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     // Simple Data Decls
     necro_base_create_simple_data_decl(arena, top, intern, "World");
     necro_base_create_simple_data_decl(arena, top, intern, "Int");
+    necro_base_create_simple_data_decl(arena, top, intern, "UInt");
     necro_base_create_simple_data_decl(arena, top, intern, "Float");
-    necro_base_create_simple_data_decl(arena, top, intern, "Rational");
     necro_base_create_simple_data_decl(arena, top, intern, "Char");
-    necro_base_create_simple_data_decl(arena, top, intern, "Audio"); // TODO: Change to data Audio = AKr Double | AMono (Array 2048 Double) | AStereo (Array 2048 Double) (Array 2048 Double) | AQuad (Array 2048 Double) (Array 2048 Double) (Array 2048 Double) (Array 2048 Double)
+
+    // TODO: Finish!
+    // necro_base_create_simple_data_decl(arena, top, intern, "Rational");
+    // necro_base_create_simple_data_decl(arena, top, intern, "Audio"); // TODO: Change to data Audio = AKr Double | AMono (Array 2048 Double) | AStereo (Array 2048 Double) (Array 2048 Double) | AQuad (Array 2048 Double) (Array 2048 Double) (Array 2048 Double) (Array 2048 Double)
 
     // Simple Poly Data Decls
     necro_base_create_simple_poly_data_decl(arena, top, intern, "Pattern");
@@ -515,11 +535,14 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 
     // Num instances
     necro_base_create_prim_num_instances(arena, top, intern, "Int", false, true, false);
+    necro_base_create_prim_num_instances(arena, top, intern, "UInt", false, true, false);
     necro_base_create_prim_num_instances(arena, top, intern, "Float", false, true, true);
-    necro_base_create_prim_num_instances(arena, top, intern, "Audio", false, true, true);
-    necro_base_create_prim_num_instances(arena, top, intern, "Rational", false, true, true);
     necro_base_create_prim_num_instances(arena, top, intern, "Pattern", true, true, true);
     necro_base_create_prim_num_instances(arena, top, intern, "Bool", false, false, false);
+
+    // TODO: Finish!
+    // necro_base_create_prim_num_instances(arena, top, intern, "Audio", false, true, true);
+    // necro_base_create_prim_num_instances(arena, top, intern, "Rational", false, true, true);
 
     // (,)
     NecroAst* tuple_2_s_type      = necro_ast_create_simple_type(arena, intern, "(,)", necro_ast_create_var_list(arena, intern, 2, NECRO_VAR_TYPE_VAR_DECLARATION));
@@ -1035,9 +1058,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.unit_con               = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "()"));
     // base.list_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "[]"));
     base.int_type               = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Int"));
+    base.uint_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "UInt"));
     base.float_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Float"));
-    base.audio_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Audio"));
-    base.rational_type          = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Rational"));
     base.char_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Char"));
     base.bool_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Bool"));
     base.num_type_class         = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Num"));
@@ -1057,12 +1079,18 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.index_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Index"));
     base.maybe_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Maybe"));;
 
+    // TODO: Finish
+    // base.rational_type          = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Rational"));
+    // base.audio_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Audio"));
+
     // Runtime functions
     base.mouse_x_fn             = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "mouseX"));
     base.mouse_y_fn             = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "mouseY"));
     base.unsafe_malloc          = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "unsafeMalloc"));
     base.unsafe_peek            = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "unsafePeek"));
     base.unsafe_poke            = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "unsafePoke"));
+
+    base.scoped_symtable        = scoped_symtable;
 
     // Compile, part II
     unwrap(void, necro_infer(info, intern, scoped_symtable, &base, &base.ast));

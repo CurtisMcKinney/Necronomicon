@@ -67,6 +67,7 @@ typedef struct NecroBase
     NecroAstSymbol* unit_con;
     // NecroAstSymbol* list_type;
     NecroAstSymbol* int_type;
+    NecroAstSymbol* uint_type;
     NecroAstSymbol* float_type;
     NecroAstSymbol* audio_type;
     NecroAstSymbol* rational_type;
@@ -97,6 +98,8 @@ typedef struct NecroBase
     NecroAstSymbol* unsafe_malloc;
     NecroAstSymbol* unsafe_peek;
     NecroAstSymbol* unsafe_poke;
+
+    NecroScopedSymTable* scoped_symtable;
 
 } NecroBase;
 

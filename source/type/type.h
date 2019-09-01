@@ -177,6 +177,7 @@ bool                   necro_type_is_bound_in_scope(NecroType* type, struct Necr
 NecroResult(bool)      necro_type_is_unambiguous_polymorphic(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, const NecroType* macro_type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(void)      necro_type_ambiguous_type_variable_check(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, const NecroType* macro_type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 bool                   necro_type_is_polymorphic(const NecroType* type);
+bool                   necro_type_is_polymorphic_ignoring_ownership(const struct NecroBase* base, const NecroType* type);
 bool                   necro_type_is_copy_type(const NecroType* type);
 size_t                 necro_type_arity(NecroType* type);
 size_t                 necro_type_hash(NecroType* type);

@@ -436,6 +436,22 @@ bool necro_type_is_polymorphic(const NecroType* type)
     }
 }
 
+bool necro_type_is_polymorphic_ignoring_ownership(const NecroBase* base, const NecroType* type)
+{
+    if (type->type == NECRO_TYPE_FOR)
+    {
+        NecroType* var_kind = type->for_all.var_symbol->type->kind;
+        if (var_kind->type != NECRO_TYPE_CON || var_kind->con.con_symbol != base->ownership_kind)
+            return true;
+        else
+            return necro_type_is_polymorphic_ignoring_ownership(base, type->for_all.type);
+    }
+    else
+    {
+        return necro_type_is_polymorphic(type);
+    }
+}
+
 bool necro_type_is_copy_type(const NecroType* type)
 {
     type = necro_type_find_const(type);

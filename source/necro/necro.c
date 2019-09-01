@@ -83,6 +83,10 @@ int main(int32_t argc, char** argv)
         {
             necro_test(NECRO_TEST_DEFUNCTIONALIZE);
         }
+        else if (strcmp(argv[2], "machine") == 0 || strcmp(argv[2], "mach") == 0)
+        {
+            necro_test(NECRO_TEST_MACH);
+        }
     }
     else if (argc == 2 || argc == 3 || argc == 4)
     {
@@ -164,7 +168,7 @@ int main(int32_t argc, char** argv)
         {
             necro_compile(file_name, str, length, NECRO_PHASE_STATE_ANALYSIS, NECRO_OPT_OFF);
         }
-        else if (argc > 2 && strcmp(argv[2], "-machine") == 0)
+        else if ((argc > 2 && strcmp(argv[2], "-machine") == 0) || (argc > 2 && strcmp(argv[2], "-mach") == 0))
         {
             necro_compile(file_name, str, length, NECRO_PHASE_TRANSFORM_TO_MACHINE, NECRO_OPT_OFF);
         }

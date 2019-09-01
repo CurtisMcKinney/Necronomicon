@@ -183,6 +183,19 @@ NecroCoreAst* necro_core_ast_deep_copy(NecroPagedArena* arena, NecroCoreAst* ast
     return copy_ast;
 }
 
+size_t necro_core_ast_num_args(NecroCoreAst* bind_ast)
+{
+    assert(bind_ast->ast_type == NECRO_CORE_AST_BIND || bind_ast->ast_type == NECRO_CORE_AST_BIND_REC);
+    size_t        num_args = 0;
+    NecroCoreAst* lambdas  = (bind_ast->ast_type == NECRO_CORE_AST_BIND) ? bind_ast->bind.expr : NULL; // TODO: Finish with bind_rec
+    while (lambdas->ast_type == NECRO_CORE_AST_LAM)
+    {
+        num_args++;
+        lambdas = lambdas->lambda.expr;
+    }
+    return num_args;
+}
+
 void necro_core_ast_swap(NecroCoreAst* ast1, NecroCoreAst* ast2)
 {
     NecroCoreAst temp = *ast1;

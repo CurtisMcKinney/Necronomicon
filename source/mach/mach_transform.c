@@ -1391,18 +1391,6 @@ void necro_mach_test()
             "    Some i -> printInt i w\n";
         necro_mach_test_string(test_name, test_source);
     }
-*/
-
-/*
-    TODO: Test other node type:
-    case x of
-      NonSumCon -> 0
-
-    or
-
-    case x of
-      y -> y + 1
-*/
 
     {
         const char* test_name   = "Case 5";
@@ -1416,6 +1404,26 @@ void necro_mach_test()
             "    Some (TwoOfAKind i1 i2) -> printInt i2 (printInt i1 w)\n";
         necro_mach_test_string(test_name, test_source);
     }
+*/
+
+    {
+        const char* test_name   = "Case 6";
+        const char* test_source = ""
+            "data TwoOfAKind = TwoOfAKind Int Int\n"
+            "main w =\n"
+            "  case TwoOfAKind 6 7 of\n"
+            "    TwoOfAKind i1 i2 -> printInt i2 (printInt i1 w)\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+/*
+    TODO: Test other node type:
+    case x of
+      SumCon -> 0
+    or
+    case x of
+      y -> y + 1
+*/
 
     // TODO: Case is getting dropped in core ast's?!?!
     // // TODO: This isn't monomorphizing!?!?!?!

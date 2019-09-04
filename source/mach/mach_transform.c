@@ -17,13 +17,11 @@
 
 /*
     TODO:
-        * phi type checking!
-        * Single statement blocks seems broken?!!?!?
         * Finish up case
         * Polymorphic type handling and resolution (Plus perhaps type uniqueing)
-        * Simple type check system for NecroMachAst
         * For loops
         * Stateful machines / BindRec?
+        * Runtime considerations
         * Codegen
 */
 
@@ -1350,16 +1348,6 @@ void necro_mach_test()
     }
 
     {
-        const char* test_name   = "Case 1";
-        const char* test_source = ""
-            "main w =\n"
-            "  case False of\n"
-            "    True  -> printInt 0 w\n"
-            "    _     -> printInt 1 w\n";
-        necro_mach_test_string(test_name, test_source);
-    }
-
-    {
         const char* test_name   = "Case 2";
         const char* test_source = ""
             "data SomeOrNone = Some Int | None\n"
@@ -1392,6 +1380,7 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
+
     {
         const char* test_name   = "Case 5";
         const char* test_source = ""
@@ -1404,7 +1393,6 @@ void necro_mach_test()
             "    Some (TwoOfAKind i1 i2) -> printInt i2 (printInt i1 w)\n";
         necro_mach_test_string(test_name, test_source);
     }
-*/
 
     {
         const char* test_name   = "Case 6";
@@ -1416,13 +1404,110 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
+    {
+        const char* test_name   = "Case 7";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            "main w =\n"
+            "  case 0 of\n"
+            "    i -> printInt i w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case 8";
+        const char* test_source = ""
+            "data Inner = SomeInner Int | NoInner\n"
+            "data Outer = SomeOuter Inner | NoOuter\n"
+            "main :: *World -> *World\n"
+            "main w =\n"
+            "  case SomeOuter (SomeInner 6) of\n"
+            "    NoOuter -> w\n"
+            "    SomeOuter NoInner -> w\n"
+            "    SomeOuter (SomeInner i) -> printInt i w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case 9";
+        const char* test_source = ""
+            "data TwoForOne = One Int | Two Int Int\n"
+            "main :: *World -> *World\n"
+            "main w =\n"
+            "  case One 666 of\n"
+            "    One x -> printInt x w\n"
+            "    Two y z -> printInt z (printInt y w)\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case 10";
+        const char* test_source = ""
+            "data TwoForOne = One Int | Two Int Int\n"
+            "data MaybeTwoForOne = JustTwoForOne TwoForOne | NoneForOne\n"
+            "main :: *World -> *World\n"
+            "main w =\n"
+            "  case NoneForOne of\n"
+            "    NoneForOne -> w\n"
+            "    JustTwoForOne (One x) -> printInt x w\n"
+            "    JustTwoForOne (Two y z) -> printInt z (printInt y w)\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    // TODO: Looks like it's checking the wrong tag here!
+    {
+        const char* test_name   = "Case 11";
+        const char* test_source = ""
+            "data OneOrZero    = One Int | Zero\n"
+            "data MoreThanZero = MoreThanZero OneOrZero OneOrZero\n"
+            "main :: *World -> *World\n"
+            "main w =\n"
+            "  case MoreThanZero Zero Zero of\n"
+            "    MoreThanZero (One i1)  (One i2) -> printInt i2 (printInt i1 w)\n"
+            "    MoreThanZero Zero      (One i3) -> printInt i3 w\n"
+            "    MoreThanZero (One i4)  Zero     -> printInt i4 w\n"
+            "    MoreThanZero Zero      Zero     -> w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Case 12";
+        const char* test_source = ""
+            "data TwoForOne  = One Int | Two Int Int\n"
+            "data FourForOne = MoreThanZero TwoForOne TwoForOne | Zero\n"
+            "main :: *World -> *World\n"
+            "main w =\n"
+            "  case Zero of\n"
+            "    Zero -> w\n"
+            "    MoreThanZero (One i1)     (One i2)      -> printInt i2 (printInt i1 w)\n"
+            "    MoreThanZero (Two i3 i4)  (One i5)      -> printInt i5 (printInt i4 (printInt i3 w))\n"
+            "    MoreThanZero (One i6)     (Two i7  i8)  -> printInt i8 (printInt i7 (printInt i6 w))\n"
+            "    MoreThanZero (Two i9 i10) (Two i11 i12) -> printInt i12 (printInt i11 (printInt i10 (printInt i9 w)))\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
 /*
-    TODO: Test other node type:
+
+    {
+        const char* test_name   = "Case 1";
+        const char* test_source = ""
+            "main w =\n"
+            "  case False of\n"
+            "    True  -> printInt 0 w\n"
+            "    _     -> printInt 1 w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+*/
+
+/*
+    TODO: Test other node types:
     case x of
-      SumCon -> 0
-    or
-    case x of
-      y -> y + 1
+      0 -> 100
+      1 -> 200
+
 */
 
     // TODO: Case is getting dropped in core ast's?!?!

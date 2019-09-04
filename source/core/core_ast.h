@@ -125,6 +125,7 @@ typedef struct NecroCoreAstLiteral
     {
         double            float_literal;
         int64_t           int_literal;
+        uint64_t          uint_literal;
         NecroSymbol       string_literal;
         uint32_t          char_literal;
         NecroCoreAstList* array_literal_elements;

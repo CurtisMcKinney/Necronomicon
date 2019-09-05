@@ -17,12 +17,12 @@
 
 /*
     TODO:
-        * Finish up case
         * Polymorphic type handling and resolution (Plus perhaps type uniqueing)
         * For loops
         * Stateful machines / BindRec?
         * Runtime considerations
         * Codegen
+        * Finish up case (literals)
 */
 
 ///////////////////////////////////////////////////////
@@ -355,7 +355,9 @@ void necro_core_transform_to_mach_1_var(NecroMachProgram* program, NecroCoreAst*
     assert(core_ast->ast_type == NECRO_CORE_AST_VAR);
     if (outer != NULL)
         assert(outer->type == NECRO_MACH_DEF);
-    core_ast->var.ast_symbol->mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, core_ast->var.ast_symbol);
+    // core_ast->var.ast_symbol->mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, core_ast->var.ast_symbol);
+    NecroCoreAstSymbol* specialized_core_symbol = necro_mach_ast_symbol_get_specialized(&program->symtable, core_ast->var.ast_symbol, core_ast->necro_type);
+    core_ast->var.ast_symbol->mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, specialized_core_symbol);
 }
 
 void necro_core_transform_to_mach_1_go(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
@@ -601,7 +603,10 @@ void necro_core_transform_to_mach_2_var(NecroMachProgram* program, NecroCoreAst*
     assert(core_ast->ast_type == NECRO_CORE_AST_VAR);
     if (outer != NULL)
         assert(outer->type == NECRO_MACH_DEF);
-    NecroMachAstSymbol* mach_symbol = core_ast->var.ast_symbol->mach_symbol;
+    // NecroMachAstSymbol* mach_symbol = core_ast->var.ast_symbol->mach_symbol;
+    // NecroMachAstSymbol* mach_symbol = core_ast->var.ast_symbol->mach_symbol;
+    NecroCoreAstSymbol* ast_symbol  = necro_mach_ast_symbol_get_specialized(&program->symtable, core_ast->var.ast_symbol, core_ast->necro_type);
+    NecroMachAstSymbol* mach_symbol = ast_symbol->mach_symbol;
     if (mach_symbol->is_enum)
         return;
     NecroMachAst* machine_ast = mach_symbol->ast;
@@ -619,7 +624,7 @@ void necro_core_transform_to_mach_2_var(NecroMachProgram* program, NecroCoreAst*
         // if (machine_ast->machine_def.num_members == 0)
         if (machine_ast->machine_def.state_type != NECRO_STATE_STATEFUL || machine_ast->machine_def.num_members == 0) // Add member if either?
             return;
-        if (necro_mach_is_var_machine_arg(outer, core_ast->var.ast_symbol->name))
+        if (necro_mach_is_var_machine_arg(outer, ast_symbol->name))
             return;
         if (machine_ast->machine_def.outer == NULL)
             return;
@@ -656,11 +661,13 @@ void necro_core_transform_to_mach_2_app(NecroMachProgram* program, NecroCoreAst*
         function = function->app.expr1;
     }
     assert(function->ast_type == NECRO_CORE_AST_VAR);
-    NecroMachAstSymbol* symbol        = function->var.ast_symbol->mach_symbol;
+    NecroCoreAstSymbol* ast_symbol = necro_mach_ast_symbol_get_specialized(&program->symtable, function->var.ast_symbol, function->necro_type);
+    NecroMachAstSymbol* symbol     = ast_symbol->mach_symbol;
+    // NecroMachAstSymbol* symbol     = function->var.ast_symbol->mach_symbol;
     assert(symbol != NULL);
-    NecroMachAst*       fn_value      = symbol->ast;
+    NecroMachAst*       fn_value   = symbol->ast;
     assert(fn_value != NULL);
-    NecroMachType*      fn_type       = NULL;
+    NecroMachType*      fn_type    = NULL;
     if (fn_value->type == NECRO_MACH_DEF)
     {
         fn_type = fn_value->machine_def.fn_type;
@@ -768,7 +775,9 @@ NecroMachAst* necro_core_transform_to_mach_3_var(NecroMachProgram* program, Necr
     assert(core_ast->ast_type == NECRO_CORE_AST_VAR);
     assert(outer != NULL);
     assert(outer->type == NECRO_MACH_DEF);
-    NecroMachAstSymbol* symbol = core_ast->var.ast_symbol->mach_symbol;
+    NecroCoreAstSymbol* ast_symbol = necro_mach_ast_symbol_get_specialized(&program->symtable, core_ast->var.ast_symbol, core_ast->necro_type);
+    NecroMachAstSymbol* symbol     = ast_symbol->mach_symbol;
+    // NecroMachAstSymbol* symbol = core_ast->var.ast_symbol->mach_symbol;
     // //--------------------
     // //  NULL
     // if (core_ast->var.id.id == program->null_con.id.id)
@@ -785,7 +794,7 @@ NecroMachAst* necro_core_transform_to_mach_3_var(NecroMachProgram* program, Necr
     // Constructor
     else if (symbol->is_constructor)// && symbol->arity == 0) // NOTE: Not checking arity as theoretically that should already be caught be lambda lifting, etc
     {
-        NecroMachAst* value_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, necro_mach_value_create_param_reg(program, outer->machine_def.update_fn, 0), (uint32_t[]) { 0, core_ast->var.persistent_slot }, 2, "prs");
+        NecroMachAst* value_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, necro_mach_value_create_param_reg(program, outer->machine_def.update_fn, 0), (uint32_t[]) { 0, core_ast->var.persistent_slot }, 2, "state");
         return necro_mach_build_call(program, outer->machine_def.update_fn, symbol->ast, (NecroMachAst*[]) { value_ptr }, 1, NECRO_MACH_CALL_LANG, "con");
     }
     //--------------------
@@ -850,7 +859,9 @@ NecroMachAst* necro_core_transform_to_mach_3_app(NecroMachProgram* program, Necr
     //--------------------
     assert(function->ast_type == NECRO_CORE_AST_VAR);
     NECRO_MACH_CALL_TYPE call_type  = NECRO_MACH_CALL_LANG;
-    NecroMachAst*        fn_value   = function->var.ast_symbol->mach_symbol->ast;
+    NecroCoreAstSymbol*  ast_symbol = necro_mach_ast_symbol_get_specialized(&program->symtable, function->var.ast_symbol, function->necro_type);
+    NecroMachAst*        fn_value   = ast_symbol->mach_symbol->ast;
+    // NecroMachAst*        fn_value   = function->var.ast_symbol->mach_symbol->ast;
     bool                 uses_state = false;
     assert(fn_value != NULL);
     if (fn_value->type == NECRO_MACH_DEF)
@@ -859,7 +870,7 @@ NecroMachAst* necro_core_transform_to_mach_3_app(NecroMachProgram* program, Necr
         // uses_state  = machine_def->machine_def.state_type == NECRO_STATE_STATEFUL;
         uses_state  = fn_value->machine_def.num_members > 0;
     }
-    else if (function->var.ast_symbol->mach_symbol->is_constructor)
+    else if (ast_symbol->mach_symbol->is_constructor)
     {
         uses_state = true;
         // fn_value = fn_value->fn_def.fn_value; // TODO: Don't believe we need this!?!?!?
@@ -1454,7 +1465,6 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
-    // TODO: Looks like it's checking the wrong tag here!
     {
         const char* test_name   = "Case 11";
         const char* test_source = ""
@@ -1462,15 +1472,13 @@ void necro_mach_test()
             "data MoreThanZero = MoreThanZero OneOrZero OneOrZero\n"
             "main :: *World -> *World\n"
             "main w =\n"
-            "  case MoreThanZero Zero Zero of\n"
+            "  case MoreThanZero (One 0) Zero of\n"
             "    MoreThanZero (One i1)  (One i2) -> printInt i2 (printInt i1 w)\n"
             "    MoreThanZero Zero      (One i3) -> printInt i3 w\n"
             "    MoreThanZero (One i4)  Zero     -> printInt i4 w\n"
             "    MoreThanZero Zero      Zero     -> w\n";
         necro_mach_test_string(test_name, test_source);
     }
-
-*/
 
     {
         const char* test_name   = "Case 12";
@@ -1488,7 +1496,89 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
+    {
+        const char* test_name   = "Case 13";
+        const char* test_source = ""
+            "data OneOrZero    = One Int | Zero\n"
+            "data MoreThanZero = MoreThanZero OneOrZero OneOrZero\n"
+            "oneUp :: MoreThanZero -> MoreThanZero\n"
+            "oneUp m =\n"
+            "  case m of\n"
+            "    MoreThanZero (One i1)  (One i2) -> m\n"
+            "    MoreThanZero Zero      (One i3) -> MoreThanZero (One i3) (One i3)\n"
+            "    MoreThanZero (One i4)  Zero     -> MoreThanZero (One i4) (One i4)\n"
+            "    MoreThanZero Zero      Zero     -> m\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Poly 1";
+        const char* test_source = ""
+            "nothingFromSomething :: Maybe Int -> Maybe Int\n"
+            "nothingFromSomething m = m\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Poly 2";
+        const char* test_source = ""
+            "nothingFromSomething :: Maybe (Maybe Int) -> Maybe (Maybe Int)\n"
+            "nothingFromSomething m = m\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Poly 3";
+        const char* test_source = ""
+            "nothingFromSomething :: (Maybe Float, Maybe Int) -> (Maybe Float, Maybe Int)\n"
+            "nothingFromSomething m = m\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Poly 4";
+        const char* test_source = ""
+            "nothingFromSomething :: Int -> Maybe Int\n"
+            "nothingFromSomething i = Just i\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Poly 5";
+        const char* test_source = ""
+            "nothingFromSomething :: Int -> (Maybe Float, Maybe Int)\n"
+            "nothingFromSomething i = (Nothing, Just i)\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
 /*
+
+    {
+        const char* test_name   = "Poly 3";
+        const char* test_source = ""
+            "somethingFromNothing :: Maybe Int -> Int\n"
+            "somethingFromNothing m =\n"
+            "  case m of\n"
+            "    Nothing -> 0\n"
+            "    Just i  -> i\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
 
     {
         const char* test_name   = "Case 1";

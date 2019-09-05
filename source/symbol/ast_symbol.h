@@ -97,6 +97,7 @@ typedef struct NecroCoreAstSymbol
     struct NecroStaticValue*   static_value;
     size_t                     arity;
     struct NecroMachAstSymbol* mach_symbol;
+    struct NecroMachAstSymbol* _mach_symbol;
     size_t                     con_num;
     bool                       is_constructor;
     bool                       is_enum;

@@ -73,22 +73,32 @@ typedef struct NecroMachType
     NECRO_MACH_TYPE_TYPE type;
 } NecroMachType;
 
+typedef struct NecroMachTypeCacheBucket
+{
+    size_t              hash;
+    NecroType*          necro_type;
+    NecroMachType*      mach_type;
+} NecroMachTypeCacheBucket;
+
 typedef struct NecroMachTypeCache
 {
-    NecroMachType* uint1_type;
-    NecroMachType* uint8_type;
-    NecroMachType* uint16_type;
-    NecroMachType* uint32_type;
-    NecroMachType* uint64_type;
-    NecroMachType* int32_type;
-    NecroMachType* int64_type;
-    NecroMachType* f32_type;
-    NecroMachType* f64_type;
-    NecroMachType* char_type;
-    NecroMachType* void_type;
-    NecroMachType* word_uint_type;
-    NecroMachType* word_int_type;
-    NecroMachType* word_float_type;
+    NecroMachType*            uint1_type;
+    NecroMachType*            uint8_type;
+    NecroMachType*            uint16_type;
+    NecroMachType*            uint32_type;
+    NecroMachType*            uint64_type;
+    NecroMachType*            int32_type;
+    NecroMachType*            int64_type;
+    NecroMachType*            f32_type;
+    NecroMachType*            f64_type;
+    NecroMachType*            char_type;
+    NecroMachType*            void_type;
+    NecroMachType*            word_uint_type;
+    NecroMachType*            word_int_type;
+    NecroMachType*            word_float_type;
+    NecroMachTypeCacheBucket* buckets;
+    size_t                    count;
+    size_t                    capacity;
 } NecroMachTypeCache;
 
 //--------------------
@@ -114,6 +124,7 @@ NecroMachType*     necro_mach_type_create_fn(NecroPagedArena* arena, NecroMachTy
 NecroMachType*     necro_mach_type_create_ptr(NecroPagedArena* arena, NecroMachType* element_type);
 NecroMachTypeCache necro_mach_type_cache_empty();
 NecroMachTypeCache necro_mach_type_cache_create(struct NecroMachProgram* program);
+void               necro_mach_type_cache_destroy(NecroMachTypeCache* cache);
 
 //--------------------
 // Type Check
@@ -133,5 +144,7 @@ void           necro_mach_type_print(NecroMachType* type);
 void           necro_mach_type_print_go(NecroMachType* type, bool is_recursive);
 NecroMachType* necro_mach_type_from_necro_type(struct NecroMachProgram* program, NecroType* type);
 size_t         necro_mach_type_calculate_num_slots(NecroMachType* type);
+bool           necro_mach_type_is_sum_type(NecroMachType* type);
+NecroMachType* necro_mach_type_get_sum_type(NecroMachType* type);
 
 #endif // NECRO_MACH_TYPE_H

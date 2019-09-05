@@ -136,6 +136,7 @@ typedef struct NecroType
     struct NecroType*           kind;
     struct NecroType*           ownership;
     struct NecroConstraintList* constraints;
+    size_t                      hash;
 } NecroType;
 
 typedef struct NecroInstSub

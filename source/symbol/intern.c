@@ -8,6 +8,7 @@
 
 #include "intern.h"
 #include "itoa.h"
+#include "type.h"
 
 // Constants
 #define NECRO_INITIAL_INTERN_SIZE    512
@@ -361,6 +362,58 @@ NecroSymbol necro_intern_string_slice(NecroIntern* intern, NecroStringSlice slic
     // Increase count and return symbol
     intern->count += 1;
     return intern->entries[probe].data;
+}
+
+size_t necro_type_mangle_subs_recursive(char* suffix_buffer, size_t offset, const NecroInstSub* sub)
+{
+    if (sub == NULL)
+        return offset;
+    offset = necro_type_mangle_subs_recursive(suffix_buffer, offset, sub->next);
+    if (sub->next != NULL)
+        offset += sprintf(suffix_buffer + offset, ",");
+    offset = necro_type_mangled_sprintf(suffix_buffer, offset, sub->new_name);
+    return offset;
+}
+
+NecroSymbol necro_intern_append_suffix_from_subs(NecroIntern* intern, NecroSymbol prefix, const NecroInstSub* subs)
+{
+    // Count length
+    const size_t        prefix_length = strlen(prefix->str);
+    size_t              length        = 2 + prefix_length;
+    const NecroInstSub* curr_sub = subs;
+    while (curr_sub != NULL)
+    {
+        length += necro_type_mangled_string_length(curr_sub->new_name);
+        if (curr_sub->next != NULL)
+            length += 1;
+        curr_sub = curr_sub->next;
+    }
+
+    // Alloc suffix buffer
+    NecroArenaSnapshot snapshot      = necro_snapshot_arena_get(&intern->snapshot_arena);
+    char*              suffix_buffer = necro_snapshot_arena_alloc(&intern->snapshot_arena, length);
+
+    // Write type strings
+    size_t offset = 0;
+    if (prefix->str[prefix_length - 1] == '>')
+    {
+        // Name has already been overloaded for a type class, instead append to type list.
+        offset = sprintf(suffix_buffer, "%s", prefix->str);
+        suffix_buffer[prefix_length - 1] = ',';
+        length -= 1;
+    }
+    else
+    {
+        offset = sprintf(suffix_buffer, "%s<", prefix->str);
+    }
+    offset        = necro_type_mangle_subs_recursive (suffix_buffer, offset, subs);
+    offset       += sprintf(suffix_buffer + offset, ">");
+    assert(offset == length);
+
+    // Intern, clean up, return
+    NecroSymbol string_symbol = necro_intern_string(intern, suffix_buffer);
+    necro_snapshot_arena_rewind(&intern->snapshot_arena, snapshot);
+    return string_symbol;
 }
 
 void necro_intern_print(NecroIntern* intern)

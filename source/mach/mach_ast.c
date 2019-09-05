@@ -98,11 +98,6 @@ void necro_mach_program_add_machine_def(NecroMachProgram* program, NecroMachAst*
 }
 
 ///////////////////////////////////////////////////////
-// Forward Declarations
-///////////////////////////////////////////////////////
-
-
-///////////////////////////////////////////////////////
 // Ast construction
 ///////////////////////////////////////////////////////
 NecroMachAst* necro_mach_value_create(NecroMachProgram* program, NecroMachValue value, NecroMachType* necro_machine_type)
@@ -1099,7 +1094,7 @@ NecroMachAst* necro_mach_create_initial_machine_def(NecroMachProgram* program, N
 
 
 ///////////////////////////////////////////////////////
-// NecroMachProgram
+// NecroMachRuntime
 ///////////////////////////////////////////////////////
 NecroMachRuntime necro_mach_runtime_empty()
 {
@@ -1116,12 +1111,161 @@ NecroMachRuntime necro_mach_runtime_empty()
     };
 }
 
-NecroMachRuntime necro_mach_runtime_create(NecroMachProgram* program)
+///////////////////////////////////////////////////////
+// NecroMachAstSymbolTable
+///////////////////////////////////////////////////////
+NecroMachAstSymbolTable necro_mach_ast_symbol_table_empty()
 {
-    UNUSED(program);
-    return necro_mach_runtime_empty();
+    return (NecroMachAstSymbolTable)
+    {
+        .buckets  = NULL,
+        .count    = 0,
+        .capacity = 0,
+    };
 }
 
+NecroMachAstSymbolTable necro_mach_ast_symbol_table_create()
+{
+    const size_t initial_capacity = 512;
+    NecroMachAstSymbolTable symtable =
+    {
+        .buckets  = emalloc(initial_capacity * sizeof(NecroMachAstSymbolBucket)),
+        .count    = 0,
+        .capacity = initial_capacity,
+    };
+    for (size_t i = 0; i < symtable.capacity; ++i)
+        symtable.buckets[i] = (NecroMachAstSymbolBucket){ .hash = 0, .core_symbol = NULL, .type = NULL, .specialized_core_symbol = NULL };
+    return symtable;
+}
+
+void necro_mach_ast_symbol_table_destroy(NecroMachAstSymbolTable* symtable)
+{
+    assert(symtable != NULL);
+    free(symtable->buckets);
+    *symtable = necro_mach_ast_symbol_table_empty();
+}
+
+void necro_mach_ast_symbol_table_grow(NecroMachAstSymbolTable* symtable)
+{
+    assert(symtable != NULL);
+    assert(symtable->count > 0);
+    assert(symtable->capacity >= symtable->count);
+    assert(symtable->buckets != NULL);
+    const size_t              old_count    = symtable->count;
+    const size_t              old_capacity = symtable->capacity;
+    NecroMachAstSymbolBucket* old_buckets  = symtable->buckets;
+    symtable->count                        = 0;
+    symtable->capacity                     = old_capacity * 2;
+    symtable->buckets                      = emalloc(symtable->capacity * sizeof(NecroMachAstSymbolBucket));
+    for (size_t i = 0; i < symtable->capacity; ++i)
+        symtable->buckets[i] = (NecroMachAstSymbolBucket){ .hash = 0, .core_symbol = NULL, .type = NULL, .specialized_core_symbol = NULL };
+    for (size_t i = 0; i < old_capacity; ++i)
+    {
+        const NecroMachAstSymbolBucket* bucket = old_buckets + i;
+        if (bucket->core_symbol == NULL)
+            continue;
+        size_t bucket_index = bucket->hash & (symtable->capacity - 1);
+        while (true)
+        {
+            if (symtable->buckets[bucket_index].core_symbol == NULL)
+            {
+                symtable->buckets[bucket_index] = *bucket;
+                symtable->count++;
+                break;
+            }
+            bucket_index = (bucket_index + 1) & (symtable->capacity - 1);
+        }
+    }
+    assert(symtable->count == old_count);
+    assert(symtable->count > 0);
+    assert(symtable->capacity >= symtable->count);
+    free(old_buckets);
+}
+
+void necro_mach_ast_symbol_insert_specialized(NecroMachAstSymbolTable* symtable, NecroCoreAstSymbol* core_symbol, NecroType* type, NecroCoreAstSymbol* specialized_core_symbol)
+{
+    assert(core_symbol != NULL);
+    assert(type != NULL);
+    assert(specialized_core_symbol != NULL);
+    // assert(core_symbol->is_constructor);
+    // assert(specialized_core_symbol->is_constructor);
+    type = necro_type_strip_for_all(necro_type_find(type));
+    // Grow
+    if ((symtable->count * 2) >= symtable->capacity)
+        necro_mach_ast_symbol_table_grow(symtable);
+    // Hash
+    size_t hash         = core_symbol->name->hash ^ necro_type_hash(type);
+    size_t bucket_index = hash & (symtable->capacity - 1);
+    // Find
+    while (true)
+    {
+        NecroMachAstSymbolBucket* bucket = symtable->buckets + bucket_index;
+        if (bucket->hash == hash && bucket->specialized_core_symbol != NULL && bucket->core_symbol == core_symbol && necro_type_exact_unify(type, bucket->type))
+        {
+            // Found
+            assert(false);
+            return;
+        }
+        else if (bucket->specialized_core_symbol == NULL)
+        {
+            // Create
+            bucket->hash                    = hash;
+            bucket->core_symbol             = core_symbol;
+            bucket->type                    = type;
+            bucket->specialized_core_symbol = specialized_core_symbol;
+            symtable->count++;
+            return;
+        }
+        bucket_index = (bucket_index + 1) & (symtable->capacity - 1);
+    }
+    assert(false);
+}
+
+NecroCoreAstSymbol* necro_mach_ast_symbol_get_specialized(NecroMachAstSymbolTable* symtable, NecroCoreAstSymbol* core_symbol, NecroType* type)
+{
+    assert(core_symbol != NULL);
+    assert(type != NULL);
+    type = necro_type_strip_for_all(necro_type_find(type));
+    // Grow
+    if ((symtable->count * 2) >= symtable->capacity)
+        necro_mach_ast_symbol_table_grow(symtable);
+    // if (!core_symbol->is_constructor || core_symbol->type == type)
+    // Hash
+    size_t hash         = core_symbol->name->hash ^ necro_type_hash(type);
+    size_t bucket_index = hash & (symtable->capacity - 1);
+    // Find
+    while (true)
+    {
+        NecroMachAstSymbolBucket* bucket = symtable->buckets + bucket_index;
+        if (bucket->hash == hash && bucket->specialized_core_symbol != NULL && bucket->core_symbol == core_symbol && necro_type_exact_unify(type, bucket->type))
+        {
+            // Found
+            return bucket->specialized_core_symbol;
+        }
+        else if (bucket->specialized_core_symbol == NULL)
+        {
+            if (necro_type_exact_unify(necro_type_strip_for_all(necro_type_find(core_symbol->type)), type))
+            {
+                bucket->hash                    = hash;
+                bucket->core_symbol             = core_symbol;
+                bucket->type                    = type;
+                bucket->specialized_core_symbol = core_symbol;
+                symtable->count++;
+                return core_symbol;
+            }
+            else
+            {
+                return NULL;
+            }
+        }
+        bucket_index = (bucket_index + 1) & (symtable->capacity - 1);
+    }
+    assert(false);
+}
+
+///////////////////////////////////////////////////////
+// NecroMachProgram
+///////////////////////////////////////////////////////
 NecroMachProgram necro_mach_program_empty()
 {
     return (NecroMachProgram)
@@ -1139,11 +1283,9 @@ NecroMachProgram necro_mach_program_empty()
         .intern             = NULL,
 
         .type_cache         = necro_mach_type_cache_empty(),
-
-        .main_symbol        = NULL,
-        .program_main       = NULL,
+        .symtable           = necro_mach_ast_symbol_table_empty(),
         .runtime            = necro_mach_runtime_empty(),
-        .null_con           = NULL,
+        .program_main       = NULL,
         .clash_suffix       = 0,
     };
 }
@@ -1167,17 +1309,12 @@ NecroMachProgram necro_mach_program_create(NecroIntern* intern, NecroBase* base)
         .intern             = intern,
 
         .type_cache         = necro_mach_type_cache_empty(),
-
-        .main_symbol        = NULL,
-        .program_main       = NULL,
+        .symtable           = necro_mach_ast_symbol_table_create(),
         .runtime            = necro_mach_runtime_empty(),
-        .null_con           = NULL,
+        .program_main       = NULL,
         .clash_suffix       = 0,
     };
-    program.main_symbol = necro_mach_ast_symbol_create(&program.arena, necro_intern_string(intern, "main"));
-    program.null_con    = necro_mach_ast_symbol_create(&program.arena, necro_intern_string(intern, "_NullPoly"));
-    program.type_cache  = necro_mach_type_cache_create(&program),
-    program.runtime     = necro_mach_runtime_create(&program);
+    program.type_cache = necro_mach_type_cache_create(&program),
     necro_mach_program_init_base_and_runtime(&program);
     return program;
 }
@@ -1191,6 +1328,8 @@ void necro_mach_program_destroy(NecroMachProgram* program)
     necro_destroy_necro_mach_ast_vector(&program->globals);
     necro_destroy_necro_mach_ast_vector(&program->functions);
     necro_destroy_necro_mach_ast_vector(&program->machine_defs);
+    necro_mach_type_cache_destroy(&program->type_cache);
+    necro_mach_ast_symbol_table_destroy(&program->symtable);
     *program = necro_mach_program_empty();
 }
 

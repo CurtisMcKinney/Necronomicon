@@ -72,6 +72,26 @@ typedef struct NecroMachAstSymbol
     bool                  is_primitive;
 } NecroMachAstSymbol;
 
+
+//--------------------
+// NecroMachAstSymbolTable
+//--------------------
+typedef struct NecroMachAstSymbolBucket
+{
+    size_t              hash;
+    NecroCoreAstSymbol* core_symbol;
+    NecroType*          type;
+    NecroCoreAstSymbol* specialized_core_symbol;
+} NecroMachAstSymbolBucket;
+
+typedef struct NecroMachAstSymbolTable
+{
+    NecroMachAstSymbolBucket* buckets;
+    size_t                    count;
+    size_t                    capacity;
+} NecroMachAstSymbolTable;
+
+
 //--------------------
 // Value
 //--------------------
@@ -535,27 +555,27 @@ typedef enum
 typedef struct NecroMachProgram
 {
     // Program info
-    NecroMachAstVector    structs;
-    NecroMachAstVector    functions;
-    NecroMachAstVector    machine_defs;
-    NecroMachAstVector    globals;
-    NecroMachAst*         necro_main;
-    NECRO_WORD_SIZE       word_size;
+    NecroMachAstVector      structs;
+    NecroMachAstVector      functions;
+    NecroMachAstVector      machine_defs;
+    NecroMachAstVector      globals;
+    NecroMachAst*           necro_main;
+    NECRO_WORD_SIZE         word_size;
 
     // Useful structs
-    NecroPagedArena       arena;
-    NecroSnapshotArena    snapshot_arena;
-    NecroBase*            base;
-    NecroIntern*          intern;
+    NecroPagedArena         arena;
+    NecroSnapshotArena      snapshot_arena;
+    NecroBase*              base;
+    NecroIntern*            intern;
 
     // Cached data
-    NecroMachTypeCache    type_cache;
-    NecroMachAstSymbol*   main_symbol;
-    NecroMachAst*         program_main;
-    NecroMachRuntime      runtime;
-    NecroMachAstSymbol*   null_con;
-    size_t                clash_suffix;
+    NecroMachTypeCache      type_cache;
+    NecroMachAstSymbolTable symtable;
+    NecroMachRuntime        runtime;
+    NecroMachAst*           program_main;
+    size_t                  clash_suffix;
 } NecroMachProgram;
+
 
 ///////////////////////////////////////////////////////
 // Ast Creation
@@ -567,6 +587,8 @@ typedef struct NecroMachProgram
 NecroMachAstSymbol* necro_mach_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name);
 NecroMachAstSymbol* necro_mach_ast_symbol_create_from_core_ast_symbol(NecroPagedArena* arena, NecroCoreAstSymbol* core_ast_symbol);
 NecroMachAstSymbol* necro_mach_ast_symbol_gen(NecroMachProgram* program, NecroMachAst* ast, const char* str, NECRO_MANGLE_TYPE mangle_type);
+void                necro_mach_ast_symbol_insert_specialized(NecroMachAstSymbolTable* symtable, NecroCoreAstSymbol* core_symbol, NecroType* type, NecroCoreAstSymbol* specialized_core_symbol);
+NecroCoreAstSymbol* necro_mach_ast_symbol_get_specialized(NecroMachAstSymbolTable* symtable, NecroCoreAstSymbol* core_symbol, NecroType* type);
 
 //--------------------
 // Values

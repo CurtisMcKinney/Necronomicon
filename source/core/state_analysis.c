@@ -6,6 +6,8 @@
 #include "state_analysis.h"
 #include <stdio.h>
 #include "type.h"
+#include "kind.h"
+#include "core_infer.h"
 
 /*
 ///////////////////////////////////////////////////////
@@ -265,20 +267,59 @@ NECRO_STATE_TYPE necro_state_analysis_go(NecroStateAnalysis* sa, NecroCoreAST_Ex
 ///////////////////////////////////////////////////////
 // New API
 ///////////////////////////////////////////////////////
+
+typedef struct NecroCoreAstSymbolBucket
+{
+    size_t              hash;
+    NecroCoreAstSymbol* core_symbol;
+    NecroType*          type;
+    NecroCoreAstSymbol* specialized_core_symbol;
+} NecroCoreAstSymbolBucket;
+
+typedef struct NecroCoreAstSymbolTable
+{
+    NecroCoreAstSymbolBucket* buckets;
+    size_t                    count;
+    size_t                    capacity;
+} NecroCoreAstSymbolTable;
+
 typedef struct NecroStateAnalysis
 {
-    NecroIntern*          intern;
-    NecroBase*            base;
+    NecroIntern*            intern;
+    NecroBase*              base;
+    NecroCoreAstSymbolTable symtable;
+    NecroPagedArena*        arena;
+    NecroSnapshotArena      snapshot_arena;
+    NecroCoreAst*           new_lets_head;
+    NecroCoreAst*           new_lets_tail;
 } NecroStateAnalysis;
 
-NECRO_STATE_TYPE necro_state_analysis_go(NecroStateAnalysis* sa, NecroCoreAst* ast, NecroCoreAstSymbol* outer);
+//--------------------
+// Forward declarations
+//--------------------
+NECRO_STATE_TYPE        necro_state_analysis_go(NecroStateAnalysis* sa, NecroCoreAst* ast, NecroCoreAstSymbol* outer);
+NECRO_STATE_TYPE        necro_state_analysis_pat_go(NecroStateAnalysis* sa, NecroCoreAst* ast, NecroCoreAstSymbol* outer);
+NecroCoreAstSymbolTable necro_core_ast_symbol_table_create();
+void                    necro_core_ast_symbol_table_destroy(NecroCoreAstSymbolTable* symtable);
+NecroCoreAstSymbol*     necro_core_ast_symbol_get_specialized(NecroCoreAstSymbolTable* symtable, NecroCoreAstSymbol* core_symbol, NecroType* type);
+NecroType*              necro_core_ast_type_specialize(NecroStateAnalysis* sa, NecroType* type);
+NecroCoreAstSymbol*     necro_core_ast_symbol_get_or_insert_specialized(NecroStateAnalysis* sa, NecroCoreAstSymbol* core_symbol, NecroType* type, NecroType** out_type_to_set);
+
+//--------------------
+// Analyze
+//--------------------
 void necro_core_state_analysis(NecroCompileInfo info, NecroIntern* intern, NecroBase* base, NecroCoreAstArena* core_ast_arena)
 {
     UNUSED(info);
     NecroStateAnalysis sa = (NecroStateAnalysis)
     {
-        .intern          = intern,
-        .base            = base,
+        .intern         = intern,
+        .base           = base,
+        .arena          = &core_ast_arena->arena,
+        .new_lets_head  = NULL,
+        .new_lets_tail  = NULL,
+        .snapshot_arena = necro_snapshot_arena_create(),
+        .symtable       = necro_core_ast_symbol_table_create(),
     };
 
     // TODO: Where is the best place for this!?
@@ -287,6 +328,30 @@ void necro_core_state_analysis(NecroCompileInfo info, NecroIntern* intern, Necro
 
     // Go
     necro_state_analysis_go(&sa, core_ast_arena->root, NULL);
+
+    // Append new top level lets
+    if (sa.new_lets_head != NULL)
+    {
+        NecroCoreAst* top = core_ast_arena->root;
+        assert(top != NULL);
+        assert(top->ast_type == NECRO_CORE_AST_LET);
+        assert(sa.new_lets_tail->let.expr == NULL);
+        while (top->let.expr != NULL && top->let.expr->ast_type == NECRO_CORE_AST_LET && top->let.expr->let.bind->ast_type == NECRO_CORE_AST_DATA_DECL)
+        {
+            top = top->let.expr;
+        }
+        NecroCoreAst* next         = top->let.expr;
+        top->let.expr              = sa.new_lets_head;
+        sa.new_lets_tail->let.expr = next;
+    }
+
+    // Finish
+    necro_core_ast_pretty_print(core_ast_arena->root);
+    necro_core_infer(intern, base, core_ast_arena); // TODO: Remove after some testing
+
+    // Cleanup
+    necro_snapshot_arena_destroy(&sa.snapshot_arena);
+    necro_core_ast_symbol_table_destroy(&sa.symtable);
 }
 
 ///////////////////////////////////////////////////////
@@ -324,12 +389,24 @@ NECRO_STATE_TYPE necro_state_analysis_var(NecroStateAnalysis* sa, NecroCoreAst* 
     assert(sa != NULL);
     assert(ast != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_VAR);
-    NecroCoreAstSymbol* symbol = ast->var.ast_symbol;
-    if (symbol->is_constructor)
-        symbol->state_type = NECRO_STATE_POLY;
-    if (symbol->state_type == NECRO_STATE_STATEFUL && symbol->arity == 0) // NOTE: This assumes arity has been filled in by previous pass
+    ast->var.ast_symbol = necro_core_ast_symbol_get_or_insert_specialized(sa, ast->var.ast_symbol, ast->necro_type, &ast->necro_type);
+    if (ast->var.ast_symbol->is_constructor)
+        ast->var.ast_symbol->state_type = NECRO_STATE_POLY;
+    if (ast->var.ast_symbol->state_type == NECRO_STATE_STATEFUL && ast->var.ast_symbol->arity == 0) // NOTE: This assumes arity has been filled in by previous pass
         return NECRO_STATE_POINTWISE;
-    return symbol->state_type;
+    return ast->var.ast_symbol->state_type;
+}
+
+NECRO_STATE_TYPE necro_state_analysis_var_pat(NecroStateAnalysis* sa, NecroCoreAst* ast, NecroCoreAstSymbol* outer)
+{
+    // TODO / NOTE: Should pat state types be inherited from the expression they are destructuring!?!?!?!
+    UNUSED(outer);
+    assert(sa != NULL);
+    assert(ast != NULL);
+    assert(ast->ast_type == NECRO_CORE_AST_VAR);
+    ast->var.ast_symbol = necro_core_ast_symbol_get_or_insert_specialized(sa, ast->var.ast_symbol, ast->necro_type, &ast->necro_type);
+    ast->var.ast_symbol->state_type = NECRO_STATE_POLY;
+    return ast->var.ast_symbol->state_type;
 }
 
 NECRO_STATE_TYPE necro_state_analysis_lam(NecroStateAnalysis* sa, NecroCoreAst* ast, NecroCoreAstSymbol* outer)
@@ -337,7 +414,10 @@ NECRO_STATE_TYPE necro_state_analysis_lam(NecroStateAnalysis* sa, NecroCoreAst* 
     assert(sa != NULL);
     assert(ast != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_LAM);
+    NecroCoreAst* arg                           = ast->lambda.arg;
+    arg->var.ast_symbol                         = necro_core_ast_symbol_get_or_insert_specialized(sa, arg->var.ast_symbol, arg->necro_type, &ast->necro_type);
     ast->lambda.arg->var.ast_symbol->state_type = NECRO_STATE_POLY;
+    ast->necro_type                             = necro_core_ast_type_specialize(sa, ast->necro_type);
     return necro_state_analysis_go(sa, ast->lambda.expr, outer);
 }
 
@@ -346,6 +426,7 @@ NECRO_STATE_TYPE necro_state_analysis_let(NecroStateAnalysis* sa, NecroCoreAst* 
     assert(sa != NULL);
     assert(ast != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_LET);
+    ast->necro_type = necro_core_ast_type_specialize(sa, ast->necro_type);
     necro_state_analysis_go(sa, ast->let.bind, outer);
     if (ast->let.expr == NULL)
         return NECRO_STATE_CONSTANT;
@@ -359,6 +440,8 @@ NECRO_STATE_TYPE necro_state_analysis_case(NecroStateAnalysis* sa, NecroCoreAst*
     assert(ast != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_CASE);
 
+    ast->necro_type = necro_core_ast_type_specialize(sa, ast->necro_type);
+
     // Expr
     NECRO_STATE_TYPE state_type = necro_state_analysis_go(sa, ast->case_expr.expr, outer);
 
@@ -366,7 +449,7 @@ NECRO_STATE_TYPE necro_state_analysis_case(NecroStateAnalysis* sa, NecroCoreAst*
     NecroCoreAstList* alts = ast->case_expr.alts;
     while (alts != NULL)
     {
-        // TODO: Set all pat symbols to NECRO_STATE_POLY!?!?!?!?!?!?!?
+        necro_state_analysis_pat_go(sa, alts->data->case_alt.pat, outer);
         state_type = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, alts->data->case_alt.expr, outer));
         alts       = alts->next;
     }
@@ -379,8 +462,10 @@ NECRO_STATE_TYPE necro_state_analysis_bind(NecroStateAnalysis* sa, NecroCoreAst*
     assert(sa != NULL);
     assert(ast != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_BIND);
-    NecroCoreAstSymbol* symbol = ast->bind.ast_symbol;
-    symbol->outer              = outer;
+    ast->necro_type             = necro_core_ast_type_specialize(sa, ast->necro_type);
+    NecroCoreAstSymbol* symbol  = ast->bind.ast_symbol;
+    symbol->type                = necro_core_ast_type_specialize(sa, symbol->type);
+    symbol->outer               = outer;
     NECRO_STATE_TYPE state_type = necro_state_analysis_go(sa, ast->bind.expr, symbol);
     if (symbol->is_recursive)
         necro_set_outer_rec_stateful(symbol);
@@ -394,6 +479,8 @@ NECRO_STATE_TYPE necro_state_analysis_bind_rec(NecroStateAnalysis* sa, NecroCore
     assert(ast != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_BIND_REC);
 
+    assert(false && "TODO");
+
     // TODO / NOTE: This is probably wrong, as we'll need to propagate statefulness changes and handle outers amongst all of these...
 
     // Binds
@@ -401,7 +488,6 @@ NECRO_STATE_TYPE necro_state_analysis_bind_rec(NecroStateAnalysis* sa, NecroCore
     NecroCoreAstList* binds      = ast->bind_rec.binds;
     while (binds != NULL)
     {
-        // TODO: Set all pat symbols to NECRO_STATE_POLY!?!?!?!?!?!?!?
         state_type = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, binds->data->bind.expr, outer));
         binds      = binds->next;
     }
@@ -415,9 +501,13 @@ NECRO_STATE_TYPE necro_state_analysis_for(NecroStateAnalysis* sa, NecroCoreAst* 
     assert(sa != NULL);
     assert(ast != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_FOR);
-    UNUSED(outer);
-    assert(false && "TODO");
-    return NECRO_STATE_CONSTANT;
+    ast->necro_type             = necro_core_ast_type_specialize(sa, ast->necro_type);
+    NECRO_STATE_TYPE state_type = necro_state_analysis_go(sa, ast->for_loop.range_init, outer);
+    state_type                  = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, ast->for_loop.value_init, outer));
+    state_type                  = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_pat_go(sa, ast->for_loop.index_arg, outer));
+    state_type                  = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_pat_go(sa, ast->for_loop.value_arg, outer));
+    state_type                  = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, ast->for_loop.expression, outer));
+    return state_type;
 }
 
 NECRO_STATE_TYPE necro_state_analysis_app(NecroStateAnalysis* sa, NecroCoreAst* ast, NecroCoreAstSymbol* outer)
@@ -429,6 +519,7 @@ NECRO_STATE_TYPE necro_state_analysis_app(NecroStateAnalysis* sa, NecroCoreAst* 
     NECRO_STATE_TYPE args_state_type = NECRO_STATE_CONSTANT;
     while (app->ast_type == NECRO_CORE_AST_APP)
     {
+        app->necro_type = necro_core_ast_type_specialize(sa, app->necro_type);
         args_state_type = necro_state_analysis_merge_state_types(args_state_type, necro_state_analysis_go(sa, app->app.expr2, outer));
         app             = app->app.expr1;
     }
@@ -437,6 +528,44 @@ NECRO_STATE_TYPE necro_state_analysis_app(NecroStateAnalysis* sa, NecroCoreAst* 
         return args_state_type;
     else
         return necro_state_analysis_merge_state_types(fn_state_type, args_state_type);
+}
+
+NECRO_STATE_TYPE necro_state_analysis_app_pat(NecroStateAnalysis* sa, NecroCoreAst* ast, NecroCoreAstSymbol* outer)
+{
+    assert(sa != NULL);
+    assert(ast != NULL);
+    assert(ast->ast_type == NECRO_CORE_AST_APP);
+    NecroCoreAst*    app             = ast;
+    NECRO_STATE_TYPE args_state_type = NECRO_STATE_POLY;
+    while (app->ast_type == NECRO_CORE_AST_APP)
+    {
+        app->necro_type = necro_core_ast_type_specialize(sa, app->necro_type);
+        args_state_type = necro_state_analysis_merge_state_types(args_state_type, necro_state_analysis_pat_go(sa, app->app.expr2, outer));
+        app             = app->app.expr1;
+    }
+    NECRO_STATE_TYPE fn_state_type = necro_state_analysis_pat_go(sa, app, outer);
+    if (fn_state_type == NECRO_STATE_POLY)
+        return args_state_type;
+    else
+        return necro_state_analysis_merge_state_types(fn_state_type, args_state_type);
+}
+
+NECRO_STATE_TYPE necro_state_analysis_lit(NecroStateAnalysis* sa, NecroCoreAst* ast, NecroCoreAstSymbol* outer)
+{
+    assert(sa != NULL);
+    assert(ast != NULL);
+    assert(ast->ast_type == NECRO_CORE_AST_LIT);
+    if (ast->lit.type != NECRO_AST_CONSTANT_ARRAY)
+        return NECRO_STATE_CONSTANT;
+    NECRO_STATE_TYPE  state_type = NECRO_STATE_CONSTANT;
+    ast->necro_type              = necro_core_ast_type_specialize(sa, ast->necro_type);
+    NecroCoreAstList* elements   = ast->lit.array_literal_elements;
+    while (elements != NULL)
+    {
+        state_type = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_pat_go(sa, elements->data, outer));
+        elements   = elements->next;
+    }
+    return state_type;
 }
 
 ///////////////////////////////////////////////////////
@@ -456,9 +585,396 @@ NECRO_STATE_TYPE necro_state_analysis_go(NecroStateAnalysis* sa, NecroCoreAst* a
     case NECRO_CORE_AST_BIND:      return necro_state_analysis_bind(sa, ast, outer);
     case NECRO_CORE_AST_BIND_REC:  return necro_state_analysis_bind_rec(sa, ast, outer);
     case NECRO_CORE_AST_FOR:       return necro_state_analysis_for(sa, ast, outer);
-    case NECRO_CORE_AST_LIT:       return NECRO_STATE_CONSTANT;
+    case NECRO_CORE_AST_LIT:       return necro_state_analysis_lit(sa, ast, outer);
     case NECRO_CORE_AST_DATA_DECL: return NECRO_STATE_CONSTANT;
     case NECRO_CORE_AST_DATA_CON:  return NECRO_STATE_CONSTANT;
-    default:                        assert(false && "Unimplemented AST type in necro_state_analysis_go"); return NECRO_STATE_CONSTANT;
+    default:                       assert(false && "Unimplemented AST type in necro_state_analysis_go"); return NECRO_STATE_CONSTANT;
+    }
+}
+
+NECRO_STATE_TYPE necro_state_analysis_pat_go(NecroStateAnalysis* sa, NecroCoreAst* ast, NecroCoreAstSymbol* outer)
+{
+    assert(sa != NULL);
+    assert(ast != NULL);
+    switch (ast->ast_type)
+    {
+    case NECRO_CORE_AST_VAR: return necro_state_analysis_var_pat(sa, ast, outer);
+    case NECRO_CORE_AST_APP: return necro_state_analysis_app_pat(sa, ast, outer);
+    case NECRO_CORE_AST_LIT: return NECRO_STATE_POLY;
+    default:
+        assert(false && "necro_state_analysis_pat_go");
+        return NECRO_STATE_POLY;
+    }
+}
+
+///////////////////////////////////////////////////////
+// NecroCoreAstSymbolTable
+///////////////////////////////////////////////////////
+NecroCoreAstSymbolTable necro_core_ast_symbol_table_empty()
+{
+    return (NecroCoreAstSymbolTable)
+    {
+        .buckets  = NULL,
+        .count    = 0,
+        .capacity = 0,
+    };
+}
+
+NecroCoreAstSymbolTable necro_core_ast_symbol_table_create()
+{
+    const size_t initial_capacity = 512;
+    NecroCoreAstSymbolTable symtable =
+    {
+        .buckets  = emalloc(initial_capacity * sizeof(NecroCoreAstSymbolBucket)),
+        .count    = 0,
+        .capacity = initial_capacity,
+    };
+    for (size_t i = 0; i < symtable.capacity; ++i)
+        symtable.buckets[i] = (NecroCoreAstSymbolBucket){ .hash = 0, .core_symbol = NULL, .type = NULL, .specialized_core_symbol = NULL };
+    return symtable;
+}
+
+void necro_core_ast_symbol_table_destroy(NecroCoreAstSymbolTable* symtable)
+{
+    assert(symtable != NULL);
+    free(symtable->buckets);
+    *symtable = necro_core_ast_symbol_table_empty();
+}
+
+void necro_core_ast_symbol_table_grow(NecroCoreAstSymbolTable* symtable)
+{
+    assert(symtable != NULL);
+    assert(symtable->count > 0);
+    assert(symtable->capacity >= symtable->count);
+    assert(symtable->buckets != NULL);
+    const size_t              old_count    = symtable->count;
+    const size_t              old_capacity = symtable->capacity;
+    NecroCoreAstSymbolBucket* old_buckets  = symtable->buckets;
+    symtable->count                        = 0;
+    symtable->capacity                     = old_capacity * 2;
+    symtable->buckets                      = emalloc(symtable->capacity * sizeof(NecroCoreAstSymbolBucket));
+    for (size_t i = 0; i < symtable->capacity; ++i)
+        symtable->buckets[i] = (NecroCoreAstSymbolBucket){ .hash = 0, .core_symbol = NULL, .type = NULL, .specialized_core_symbol = NULL };
+    for (size_t i = 0; i < old_capacity; ++i)
+    {
+        const NecroCoreAstSymbolBucket* bucket = old_buckets + i;
+        if (bucket->core_symbol == NULL)
+            continue;
+        size_t bucket_index = bucket->hash & (symtable->capacity - 1);
+        while (true)
+        {
+            if (symtable->buckets[bucket_index].core_symbol == NULL)
+            {
+                symtable->buckets[bucket_index] = *bucket;
+                symtable->count++;
+                break;
+            }
+            bucket_index = (bucket_index + 1) & (symtable->capacity - 1);
+        }
+    }
+    assert(symtable->count == old_count);
+    assert(symtable->count > 0);
+    assert(symtable->capacity >= symtable->count);
+    free(old_buckets);
+}
+
+
+void necro_core_ast_symbol_insert_specialized(NecroCoreAstSymbolTable* symtable, NecroCoreAstSymbol* core_symbol, NecroType* type, NecroCoreAstSymbol* specialized_core_symbol)
+{
+    assert(core_symbol != NULL);
+    assert(type != NULL);
+    assert(specialized_core_symbol != NULL);
+    // Grow
+    if ((symtable->count * 2) >= symtable->capacity)
+        necro_core_ast_symbol_table_grow(symtable);
+    // Hash
+    type                = necro_type_strip_for_all(necro_type_find(type));
+    size_t hash         = core_symbol->name->hash ^ necro_type_hash(type);
+    size_t bucket_index = hash & (symtable->capacity - 1);
+    // Find
+    while (true)
+    {
+        NecroCoreAstSymbolBucket* bucket = symtable->buckets + bucket_index;
+        if (bucket->hash == hash && bucket->specialized_core_symbol != NULL && bucket->core_symbol == core_symbol && necro_type_exact_unify(type, bucket->type))
+        {
+            // Found
+            return;
+        }
+        else if (bucket->specialized_core_symbol == NULL)
+        {
+            // Insert
+            bucket->hash                    = hash;
+            bucket->core_symbol             = core_symbol;
+            bucket->type                    = type;
+            bucket->specialized_core_symbol = specialized_core_symbol;
+            symtable->count++;
+            return;
+        }
+        bucket_index = (bucket_index + 1) & (symtable->capacity - 1);
+    }
+    assert(false);
+}
+
+NecroCoreAstSymbol* necro_core_ast_symbol_get_specialized(NecroCoreAstSymbolTable* symtable, NecroCoreAstSymbol* core_symbol, NecroType* type)
+{
+    assert(core_symbol != NULL);
+    assert(type != NULL);
+    // Hash
+    type                = necro_type_strip_for_all(necro_type_find(type));
+    size_t hash         = core_symbol->name->hash ^ necro_type_hash(type);
+    size_t bucket_index = hash & (symtable->capacity - 1);
+    // Find
+    while (true)
+    {
+        NecroCoreAstSymbolBucket* bucket = symtable->buckets + bucket_index;
+        if (bucket->hash == hash && bucket->specialized_core_symbol != NULL && bucket->core_symbol == core_symbol && necro_type_exact_unify(type, bucket->type))
+        {
+            // Found
+            return bucket->specialized_core_symbol;
+        }
+        else if (bucket->specialized_core_symbol == NULL)
+        {
+            // Not found
+            return NULL;
+        }
+        bucket_index = (bucket_index + 1) & (symtable->capacity - 1);
+    }
+    assert(false);
+}
+
+NecroCoreAstSymbol* necro_core_ast_symbol_get_or_insert_specialized(NecroStateAnalysis* sa, NecroCoreAstSymbol* core_symbol, NecroType* type, NecroType** out_type_to_set)
+{
+    if (core_symbol == sa->base->prim_undefined->core_ast_symbol)
+    {
+        *out_type_to_set = necro_core_ast_type_specialize(sa, type);
+        return core_symbol;
+    }
+    NecroType* specialized_type = necro_core_ast_type_specialize(sa, type);
+    if (type == specialized_type)
+        return core_symbol;
+    NecroCoreAstSymbol* specialized_symbol = necro_core_ast_symbol_get_specialized(&sa->symtable, core_symbol, type);
+    if (specialized_symbol != NULL)
+    {
+        *out_type_to_set = specialized_symbol->type;
+        return specialized_symbol;
+    }
+    else
+    {
+        core_symbol->type = necro_core_ast_type_specialize(sa, core_symbol->type);
+        necro_core_ast_symbol_insert_specialized(&sa->symtable, core_symbol, type, core_symbol);
+        necro_core_ast_symbol_insert_specialized(&sa->symtable, core_symbol, core_symbol->type, core_symbol);
+        *out_type_to_set = core_symbol->type;
+        return core_symbol;
+    }
+}
+
+///////////////////////////////////////////////////////
+// Specialize types
+///////////////////////////////////////////////////////
+NecroCoreAst* necro_core_ast_add_new_top_let(NecroStateAnalysis* sa, NecroCoreAst* data_decl_ast)
+{
+    if (sa->new_lets_head == NULL)
+    {
+        sa->new_lets_head = necro_core_ast_create_let(sa->arena, data_decl_ast, NULL);
+        sa->new_lets_tail = sa->new_lets_head;
+    }
+    else
+    {
+        sa->new_lets_tail->let.expr = necro_core_ast_create_let(sa->arena, data_decl_ast, NULL);
+        sa->new_lets_tail = sa->new_lets_tail->let.expr;
+    }
+    return sa->new_lets_tail;
+}
+
+NecroType* necro_core_ast_type_specialize(NecroStateAnalysis* sa, NecroType* type)
+{
+    if (type == NULL)
+        return type;
+    type = necro_type_find(type);
+    switch (type->type)
+    {
+
+    case NECRO_TYPE_CON:
+    {
+        //--------------------
+        // Monotype early exit
+        //--------------------
+        if (type->con.args == NULL)
+            return type;
+        NecroArenaSnapshot snapshot = necro_snapshot_arena_get(&sa->snapshot_arena);
+
+        //--------------------
+        // Primitively polymoprhic types Early exit
+        if (type->con.con_symbol == sa->base->array_type)
+        {
+            NecroType* con_args = necro_core_ast_type_specialize(sa, type->con.args);
+            if (con_args == type->con.args)
+                return type;
+            NecroType* new_type = necro_type_con_create(sa->arena, type->con.con_symbol, con_args);
+            new_type->kind      = type->kind;
+            new_type->ownership = type->ownership;
+            return new_type;
+        }
+        else if (type->con.con_symbol == sa->base->index_type)
+        {
+            return sa->base->uint_type->type;
+        }
+        // else if (type->con.con_symbol == sa->base->range_type)
+        // {
+        //     return type;
+        // }
+
+        //--------------------
+        // Check to see if we've specialized this type befor
+        NecroCoreAstSymbol* maybe_specialized_symbol = necro_core_ast_symbol_get_specialized(&sa->symtable, type->con.con_symbol->core_ast_symbol, type);
+        if (maybe_specialized_symbol != NULL)
+        {
+            NecroType* new_type = necro_type_deep_copy(sa->arena, maybe_specialized_symbol->type);
+            new_type->ownership = type->ownership;
+            return new_type;
+        }
+
+        //--------------------
+        // Create Specialized Name
+        const size_t      specialized_type_name_length = necro_type_mangled_string_length(type);
+        char*             specialized_type_name_buffer = necro_snapshot_arena_alloc(&sa->snapshot_arena, specialized_type_name_length * sizeof(char));
+        necro_type_mangled_sprintf(specialized_type_name_buffer, 0, type);
+        const NecroSymbol specialized_type_source_name = necro_intern_string(sa->intern, specialized_type_name_buffer);
+
+        //--------------------
+        // Create specialized type suffix
+        char* specialized_type_suffix_buffer = specialized_type_name_buffer;
+        while (*specialized_type_suffix_buffer != '<')
+            specialized_type_suffix_buffer++;
+        NecroSymbol specialized_type_suffix_symbol = necro_intern_string(sa->intern, specialized_type_suffix_buffer);
+
+        //--------------------
+        // Create Specialized Symbol and Type
+        NecroAstSymbol* ast_symbol           = necro_ast_symbol_create(sa->arena, specialized_type_source_name, specialized_type_source_name, type->con.con_symbol->module_name, NULL);
+        ast_symbol->type                     = necro_type_con_create(sa->arena, ast_symbol, NULL);
+        ast_symbol->type->kind               = sa->base->star_kind->type;
+        NecroCoreAstSymbol* core_symbol      = necro_core_ast_symbol_create_from_ast_symbol(sa->arena, ast_symbol);
+        NecroType*          specialized_type = ast_symbol->type;
+        necro_core_ast_symbol_insert_specialized(&sa->symtable, type->con.con_symbol->core_ast_symbol, type, core_symbol);
+
+        //--------------------
+        // Specialize args
+        NecroType* con_args = type->con.args;
+        while (con_args != NULL)
+        {
+            necro_core_ast_type_specialize(sa, con_args->list.item);
+            con_args = con_args->list.next;
+        }
+
+        //--------------------
+        // Specialize Data Declaration and Data Cons
+        NecroCoreAst*       poly_decl   = type->con.con_symbol->core_ast_symbol->ast;
+        NecroCoreAstList*   poly_cons   = poly_decl->data_decl.con_list;
+        NecroCoreAstList*   data_cons   = NULL;
+        while (poly_cons != NULL)
+        {
+            //--------------------
+            // Poly data_con data
+            NecroCoreAst*       poly_con        = poly_cons->data;
+            NecroCoreAstSymbol* poly_con_symbol = poly_con->data_con.ast_symbol;
+            NecroType*          poly_con_type   = poly_con->data_con.type;
+
+            //--------------------
+            // Specialize data_con name and symbol
+            NecroSymbol         new_con_name    = necro_intern_concat_symbols(sa->intern, poly_con->data_con.ast_symbol->name, specialized_type_suffix_symbol);
+            NecroAstSymbol*     con_ast_symbol  = necro_ast_symbol_create(sa->arena, new_con_name, new_con_name, ast_symbol->module_name, NULL);
+            con_ast_symbol->is_constructor      = poly_con_symbol->is_constructor;
+            con_ast_symbol->is_enum             = poly_con_symbol->is_enum;
+            con_ast_symbol->is_primitive        = poly_con_symbol->is_primitive;
+            con_ast_symbol->is_recursive        = poly_con_symbol->is_recursive;
+            con_ast_symbol->con_num             = poly_con_symbol->con_num;
+            NecroCoreAstSymbol* con_core_symbol = necro_core_ast_symbol_create_from_ast_symbol(sa->arena, con_ast_symbol);
+
+            //--------------------
+            // Specialize data_con type
+            NecroType* data_con_type   = unwrap_result(NecroType, necro_type_instantiate(sa->arena, NULL, sa->base, poly_con_type, NULL));
+            NecroType* data_con_result = data_con_type;
+            while (data_con_result->type == NECRO_TYPE_FUN)
+                data_con_result = data_con_result->fun.type2;
+            unwrap(NecroType, necro_type_unify(sa->arena, NULL, sa->base, data_con_result, type, NULL));
+            // TODO: Is this necessary?
+            // unwrap(void, necro_kind_infer_default_unify_with_star(monomorphize->arena, monomorphize->base, specialized_data_con_type, NULL, NULL_LOC, NULL_LOC));
+            NecroType* specialized_data_con_type = necro_core_ast_type_specialize(sa, data_con_type); // Specialize and cache data_con_type
+            unwrap(void, necro_kind_infer_default_unify_with_star(sa->arena, sa->base, specialized_data_con_type, NULL, NULL_LOC, NULL_LOC));
+            con_ast_symbol->type  = specialized_data_con_type;
+            con_core_symbol->type = specialized_data_con_type;
+
+            //--------------------
+            // Append, the move to next data_con
+            necro_core_ast_symbol_insert_specialized(&sa->symtable, poly_con_symbol, data_con_type, con_core_symbol);
+            NecroCoreAst* data_con = necro_core_ast_create_data_con(sa->arena, con_core_symbol, specialized_data_con_type, specialized_type);
+            data_cons              = necro_append_core_ast_list(sa->arena, data_con, data_cons);
+            poly_cons              = poly_cons->next;
+        }
+
+        //--------------------
+        // Create data declaration
+        NecroCoreAst* data_decl = necro_core_ast_create_data_decl(sa->arena, core_symbol, data_cons);
+        necro_core_ast_add_new_top_let(sa, data_decl);
+
+        //--------------------
+        // Clean up and return
+        necro_snapshot_arena_rewind(&sa->snapshot_arena, snapshot);
+        NecroType* new_type = necro_type_deep_copy(sa->arena, specialized_type);
+        new_type->ownership = type->ownership;
+        return new_type;
+        // return specialized_type;
+    }
+
+    case NECRO_TYPE_FUN:
+    {
+        NecroType* type1 = necro_core_ast_type_specialize(sa, type->fun.type1);
+        NecroType* type2 = necro_core_ast_type_specialize(sa, type->fun.type2);
+        if (type1 == type->fun.type1 && type2 == type->fun.type2)
+        {
+            return type;
+        }
+        else
+        {
+            NecroType* new_type = necro_type_fn_create(sa->arena, type1, type2);
+            new_type->kind      = type->kind;
+            new_type->ownership = type->ownership;
+            return new_type;
+        }
+    }
+
+    case NECRO_TYPE_APP:
+        return necro_core_ast_type_specialize(sa, necro_type_uncurry_app(sa->arena, sa->base, type));
+
+    case NECRO_TYPE_LIST:
+    {
+        NecroType* item = necro_core_ast_type_specialize(sa, type->list.item);
+        NecroType* next = necro_core_ast_type_specialize(sa, type->list.next);
+        if (item == type->list.item && next == type->list.next)
+        {
+            return type;
+        }
+        else
+        {
+            NecroType* new_type = necro_type_list_create(sa->arena, item, next);
+            new_type->kind      = type->kind;
+            new_type->ownership = type->ownership;
+            return new_type;
+        }
+    }
+
+    // Ignore
+    case NECRO_TYPE_VAR:
+        return type;
+    case NECRO_TYPE_FOR:
+        return type;
+    case NECRO_TYPE_NAT:
+        return type;
+    case NECRO_TYPE_SYM:
+        return type;
+
+    default:
+        assert(false);
+        return NULL;
     }
 }

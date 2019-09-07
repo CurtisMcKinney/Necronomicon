@@ -288,8 +288,8 @@ void necro_core_lambda_lift_for(NecroLambdaLift* ll, NecroCoreAst* ast)
     assert(ast->ast_type == NECRO_CORE_AST_FOR);
     necro_core_lambda_lift_go(ll, ast->for_loop.range_init);
     necro_core_lambda_lift_go(ll, ast->for_loop.value_init);
-    necro_core_lambda_lift_go(ll, ast->for_loop.index_arg);
-    necro_core_lambda_lift_go(ll, ast->for_loop.value_arg);
+    necro_core_lambda_lift_pat(ll, ast->for_loop.index_arg);
+    necro_core_lambda_lift_pat(ll, ast->for_loop.value_arg);
     necro_core_lambda_lift_go(ll, ast->for_loop.expression);
 }
 

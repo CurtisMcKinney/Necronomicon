@@ -51,6 +51,16 @@ fst (x, _) = x
 snd :: .(a, b) -> .b
 snd (_, y) = y
 
+class Freeze a where
+  freeze :: (a ~ a1) => *a -> a1
+
+death :: .a -> .b -> c -> d -> ()
+death :: forall u v w x a b. (w<=u, x<=u, x<=v) => u:a -> w:(v:b -> x:(c -> d -> ()))
+
+-- TODO: Shared implementation?
+-- TODO: (Later): newtype implementation
+--
+
 -- Loop ?
 loopTest :: .Array n Float
 loopTest = a' where
@@ -60,14 +70,23 @@ loopTest = a' where
 
 each          :: Range n (Index n)
 slidingWindow :: Range m (Range n (Index n))
-offsetEach    :: Int -> Range n (Index n)
+offsetRange   :: Int -> Range n (Index n) -> Range n (Index n)
 writeArray    :: Index n -> *a -> *Array n a -> *Array n a
 
-class Freeze a where
-  freeze :: (a ~ a1) => *a -> a1
 
-death :: .a -> .b -> c -> d -> ()
-death :: forall u v w x a b. (w<=u, x<=u, x<=v) => u:a -> w:(v:b -> x:(c -> d -> ()))
+-- New, non-poly Range API
+each          :: Range n
+slidingWindow :: Index n -> Range m -> Range m
+offsetRange   :: UInt -> Range n -> Range n
+writeArray    :: Index n -> *a -> *Array n a -> *Array n a
 
--- TODO: Shared implementation?
--- TODO: (Later): newtype implementation
+data Range n = Range UInt UInt UInt --Start, Increment, End (Or perhaps, trim amount)
+
+each :: Range n
+each = Range 0 1 0
+
+accumulate :: Array n Float -> Float
+accumulate a =
+  for each 0 loop i x ->
+    x + (index a i)
+

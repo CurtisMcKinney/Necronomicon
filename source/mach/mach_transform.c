@@ -355,9 +355,24 @@ void necro_core_transform_to_mach_1_var(NecroMachProgram* program, NecroCoreAst*
     assert(core_ast->ast_type == NECRO_CORE_AST_VAR);
     if (outer != NULL)
         assert(outer->type == NECRO_MACH_DEF);
-    // core_ast->var.ast_symbol->mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, core_ast->var.ast_symbol);
-    NecroCoreAstSymbol* specialized_core_symbol = necro_mach_ast_symbol_get_specialized(&program->symtable, core_ast->var.ast_symbol, core_ast->necro_type);
-    core_ast->var.ast_symbol->mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, specialized_core_symbol);
+    core_ast->var.ast_symbol->mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, core_ast->var.ast_symbol);
+}
+
+void necro_core_transform_to_mach_1_lit(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
+{
+    assert(program != NULL);
+    assert(core_ast != NULL);
+    assert(core_ast->ast_type == NECRO_CORE_AST_LIT);
+    if (outer != NULL)
+        assert(outer->type == NECRO_MACH_DEF);
+    if (core_ast->lit.type != NECRO_AST_CONSTANT_ARRAY)
+        return;
+    NecroCoreAstList* elements = core_ast->lit.array_literal_elements;
+    while (elements != NULL)
+    {
+        necro_core_transform_to_mach_1_go(program, elements->data, outer);
+        elements = elements->next;
+    }
 }
 
 void necro_core_transform_to_mach_1_go(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
@@ -366,7 +381,7 @@ void necro_core_transform_to_mach_1_go(NecroMachProgram* program, NecroCoreAst* 
     assert(core_ast != NULL);
     switch (core_ast->ast_type)
     {
-    case NECRO_CORE_AST_LIT:       return;
+    case NECRO_CORE_AST_LIT:       necro_core_transform_to_mach_1_lit(program, core_ast, outer);return;
     case NECRO_CORE_AST_VAR:       necro_core_transform_to_mach_1_var(program, core_ast, outer); return;
     case NECRO_CORE_AST_BIND:      necro_core_transform_to_mach_1_bind(program, core_ast, outer); return;
     case NECRO_CORE_AST_BIND_REC:  necro_core_transform_to_mach_1_bind_rec(program, core_ast, outer); return;
@@ -563,7 +578,7 @@ void necro_core_transform_to_mach_2_bind(NecroMachProgram* program, NecroCoreAst
             for (size_t i = 0; i < machine_def->machine_def.num_members; ++i)
             {
                 NecroMachSlot slot = machine_def->machine_def.members[i];
-                if (slot.slot_ast->type == NECRO_MACH_DEF && slot.slot_ast->machine_def.init_fn != NULL)
+                if (slot.slot_ast != NULL && slot.slot_ast->type == NECRO_MACH_DEF && slot.slot_ast->machine_def.init_fn != NULL)
                 {
                     assert(i <= UINT32_MAX);
                     NecroMachAst* member = necro_mach_build_gep(program, machine_def->machine_def.init_fn, data_ptr, (uint32_t[]) { 0, (uint32_t) i }, 2, "member");
@@ -603,9 +618,7 @@ void necro_core_transform_to_mach_2_var(NecroMachProgram* program, NecroCoreAst*
     assert(core_ast->ast_type == NECRO_CORE_AST_VAR);
     if (outer != NULL)
         assert(outer->type == NECRO_MACH_DEF);
-    // NecroMachAstSymbol* mach_symbol = core_ast->var.ast_symbol->mach_symbol;
-    // NecroMachAstSymbol* mach_symbol = core_ast->var.ast_symbol->mach_symbol;
-    NecroCoreAstSymbol* ast_symbol  = necro_mach_ast_symbol_get_specialized(&program->symtable, core_ast->var.ast_symbol, core_ast->necro_type);
+    NecroCoreAstSymbol* ast_symbol  = core_ast->var.ast_symbol;
     NecroMachAstSymbol* mach_symbol = ast_symbol->mach_symbol;
     if (mach_symbol->is_enum)
         return;
@@ -661,9 +674,8 @@ void necro_core_transform_to_mach_2_app(NecroMachProgram* program, NecroCoreAst*
         function = function->app.expr1;
     }
     assert(function->ast_type == NECRO_CORE_AST_VAR);
-    NecroCoreAstSymbol* ast_symbol = necro_mach_ast_symbol_get_specialized(&program->symtable, function->var.ast_symbol, function->necro_type);
+    NecroCoreAstSymbol* ast_symbol = function->var.ast_symbol;
     NecroMachAstSymbol* symbol     = ast_symbol->mach_symbol;
-    // NecroMachAstSymbol* symbol     = function->var.ast_symbol->mach_symbol;
     assert(symbol != NULL);
     NecroMachAst*       fn_value   = symbol->ast;
     assert(fn_value != NULL);
@@ -694,6 +706,25 @@ void necro_core_transform_to_mach_2_app(NecroMachProgram* program, NecroCoreAst*
         assert(fn_type->fn_type.num_parameters == arg_count);
 }
 
+void necro_core_transform_to_mach_2_lit(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
+{
+    assert(program != NULL);
+    assert(core_ast != NULL);
+    assert(core_ast->ast_type == NECRO_CORE_AST_LIT);
+    if (outer != NULL)
+        assert(outer->type == NECRO_MACH_DEF);
+    if (core_ast->lit.type != NECRO_AST_CONSTANT_ARRAY)
+        return;
+    NecroMachType* array_mach_type = necro_mach_type_from_necro_type(program, core_ast->necro_type);
+    core_ast->lit.persistent_slot  = necro_mach_add_member(program, &outer->machine_def, array_mach_type, NULL).slot_num;
+    NecroCoreAstList* elements = core_ast->lit.array_literal_elements;
+    while (elements != NULL)
+    {
+        necro_core_transform_to_mach_2_go(program, elements->data, outer);
+        elements = elements->next;
+    }
+}
+
 void necro_core_transform_to_mach_2_go(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
 {
     assert(program != NULL);
@@ -709,7 +740,7 @@ void necro_core_transform_to_mach_2_go(NecroMachProgram* program, NecroCoreAst* 
     case NECRO_CORE_AST_LET:       necro_core_transform_to_mach_2_let(program, core_ast, outer); return;
     case NECRO_CORE_AST_CASE:      necro_core_transform_to_mach_2_case(program, core_ast, outer); return;
     case NECRO_CORE_AST_CASE_ALT:  assert(false && "found NECRO_CORE_AST_CASE_ALT in necro_core_transform_to_mach_2_go"); return;
-    case NECRO_CORE_AST_LIT:       return;
+    case NECRO_CORE_AST_LIT:       necro_core_transform_to_mach_2_lit(program, core_ast, outer); return;
     case NECRO_CORE_AST_DATA_DECL: return;
     case NECRO_CORE_AST_DATA_CON:  return;
     default:                       assert(false && "Unimplemented AST type in necro_core_transform_to_mach_2_go"); return;
@@ -731,8 +762,22 @@ NecroMachAst* necro_core_transform_to_mach_3_lit(NecroMachProgram* program, Necr
     case NECRO_AST_CONSTANT_INTEGER: return necro_mach_value_create_word_int(program, core_ast->lit.int_literal);
     case NECRO_AST_CONSTANT_FLOAT:   return necro_mach_value_create_word_float(program, core_ast->lit.float_literal);
     case NECRO_AST_CONSTANT_CHAR:    return necro_mach_value_create_word_uint(program, core_ast->lit.char_literal);
+    case NECRO_AST_CONSTANT_ARRAY:   /* CONTINUE BELOW */ break;
     default:                         return NULL;
     }
+    // NECRO_AST_CONSTANT_ARRAY
+    NecroMachAst*     value_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, necro_mach_value_create_param_reg(program, outer->machine_def.update_fn, 0), (uint32_t[]) { 0, core_ast->lit.persistent_slot }, 2, "state");
+    NecroCoreAstList* elements  = core_ast->lit.array_literal_elements;
+    size_t            i         = 0;
+    while (elements != NULL)
+    {
+        NecroMachAst* element_value = necro_core_transform_to_mach_3_go(program, elements->data, outer);
+        NecroMachAst* element_ptr   = necro_mach_build_gep(program, outer->machine_def.update_fn, value_ptr, (uint32_t[]) { 0, i }, 2, "elem");
+        necro_mach_build_store(program, outer->machine_def.update_fn, element_value, element_ptr);
+        elements                    = elements->next;
+        i++;
+    }
+    return value_ptr;
 }
 
 NecroMachAst* necro_core_transform_to_mach_3_let(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
@@ -775,9 +820,8 @@ NecroMachAst* necro_core_transform_to_mach_3_var(NecroMachProgram* program, Necr
     assert(core_ast->ast_type == NECRO_CORE_AST_VAR);
     assert(outer != NULL);
     assert(outer->type == NECRO_MACH_DEF);
-    NecroCoreAstSymbol* ast_symbol = necro_mach_ast_symbol_get_specialized(&program->symtable, core_ast->var.ast_symbol, core_ast->necro_type);
+    NecroCoreAstSymbol* ast_symbol = core_ast->var.ast_symbol;
     NecroMachAstSymbol* symbol     = ast_symbol->mach_symbol;
-    // NecroMachAstSymbol* symbol = core_ast->var.ast_symbol->mach_symbol;
     // //--------------------
     // //  NULL
     // if (core_ast->var.id.id == program->null_con.id.id)
@@ -859,16 +903,15 @@ NecroMachAst* necro_core_transform_to_mach_3_app(NecroMachProgram* program, Necr
     //--------------------
     assert(function->ast_type == NECRO_CORE_AST_VAR);
     NECRO_MACH_CALL_TYPE call_type  = NECRO_MACH_CALL_LANG;
-    NecroCoreAstSymbol*  ast_symbol = necro_mach_ast_symbol_get_specialized(&program->symtable, function->var.ast_symbol, function->necro_type);
+    NecroCoreAstSymbol*  ast_symbol = function->var.ast_symbol;
     NecroMachAst*        fn_value   = ast_symbol->mach_symbol->ast;
-    // NecroMachAst*        fn_value   = function->var.ast_symbol->mach_symbol->ast;
     bool                 uses_state = false;
     assert(fn_value != NULL);
     if (fn_value->type == NECRO_MACH_DEF)
     {
-        fn_value    = fn_value->machine_def.update_fn->fn_def.fn_value;
         // uses_state  = machine_def->machine_def.state_type == NECRO_STATE_STATEFUL;
-        uses_state  = fn_value->machine_def.num_members > 0;
+        uses_state = fn_value->machine_def.num_members > 0;
+        fn_value   = fn_value->machine_def.update_fn->fn_def.fn_value;
     }
     else if (ast_symbol->mach_symbol->is_constructor)
     {
@@ -1553,8 +1596,6 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Poly 5";
         const char* test_source = ""
@@ -1565,10 +1606,8 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
-/*
-
     {
-        const char* test_name   = "Poly 3";
+        const char* test_name   = "Poly Case 1";
         const char* test_source = ""
             "somethingFromNothing :: Maybe Int -> Int\n"
             "somethingFromNothing m =\n"
@@ -1576,9 +1615,114 @@ void necro_mach_test()
             "    Nothing -> 0\n"
             "    Just i  -> i\n"
             "main :: *World -> *World\n"
+            "main w = printInt (somethingFromNothing Nothing) w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+
+    {
+        const char* test_name   = "Poly Case 2";
+        const char* test_source = ""
+            "somethingFromNothing :: Maybe Int -> *World -> *World\n"
+            "somethingFromNothing m w =\n"
+            "  case m of\n"
+            "    Nothing -> printInt 0 w\n"
+            "    Just i  -> printInt i w\n"
+            "main :: *World -> *World\n"
+            "main w = somethingFromNothing Nothing w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Poly Case 3";
+        const char* test_source = ""
+            "somethingFromNothing :: Maybe Int -> (Int, Float)\n"
+            "somethingFromNothing m =\n"
+            "  case m of\n"
+            "    Nothing -> (0, 0)\n"
+            "    Just i  -> (i, fromInt i)\n"
+            "main :: *World -> *World\n"
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);
     }
+
+    {
+        const char* test_name   = "Array 1";
+        const char* test_source = ""
+            "arrayed :: Array 2 Float -> Array 2 Float\n"
+            "arrayed x = x\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Array 2";
+        const char* test_source = ""
+            "arrayed :: Maybe (Array 2 Float) -> Maybe (Array 2 Float)\n"
+            "arrayed x = x\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Array 2";
+        const char* test_source = ""
+            "arrayed :: Array 2 Float\n"
+            "arrayed = { 0, 1 }\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Array 3";
+        const char* test_source = ""
+            "arrayed :: Array 2 (Maybe Float)\n"
+            "arrayed = { Nothing, Just 1 }\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Array 4";
+        const char* test_source = ""
+            "justMaybe :: Float -> Maybe Float\n"
+            "justMaybe f = Just f\n"
+            "arrayed :: Array 2 (Maybe Float)\n"
+            "arrayed = { justMaybe 666, Just 1 }\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Index 1";
+        const char* test_source = ""
+            "iiCaptain :: Index 666 -> Index 666\n"
+            "iiCaptain i = i\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "For Loop 1";
+        const char* test_source = ""
+            "tenTimes :: Range 10\n"
+            "tenTimes = each\n"
+            "loopTenTimes :: Int\n"
+            "loopTenTimes = for tenTimes 0 loop i x -> x * 2\n";
+            "main :: *World -> *World\n"
+            "main w = printInt loopTenTimes w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+/*
 
     {
         const char* test_name   = "Case 1";

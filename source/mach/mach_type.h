@@ -39,6 +39,7 @@ typedef enum
     NECRO_MACH_TYPE_STRUCT,
     NECRO_MACH_TYPE_FN,
     NECRO_MACH_TYPE_PTR,
+    NECRO_MACH_TYPE_ARRAY,
     NECRO_MACH_TYPE_VOID,
 } NECRO_MACH_TYPE_TYPE;
 
@@ -55,6 +56,12 @@ typedef struct NecroMachPtrType
     struct NecroMachType* element_type;
 } NecroMachPtrType;
 
+typedef struct NecroMachArrayType
+{
+    struct NecroMachType* element_type;
+    size_t                element_count;
+} NecroMachArrayType;
+
 typedef struct NecroMachFnType
 {
     struct NecroMachType*  return_type;
@@ -69,6 +76,7 @@ typedef struct NecroMachType
         NecroMachStructType struct_type;
         NecroMachPtrType    ptr_type;
         NecroMachFnType     fn_type;
+        NecroMachArrayType  array_type;
     };
     NECRO_MACH_TYPE_TYPE type;
 } NecroMachType;
@@ -122,6 +130,7 @@ NecroMachType*     necro_mach_type_create_struct(NecroPagedArena* arena, struct 
 NecroMachType*     necro_mach_type_create_struct_with_sum_type(NecroPagedArena* arena, struct NecroMachAstSymbol* symbol, NecroMachType** a_members, size_t num_members, struct NecroMachAstSymbol* sum_type_symbol);
 NecroMachType*     necro_mach_type_create_fn(NecroPagedArena* arena, NecroMachType* return_type, NecroMachType** a_parameters, size_t num_parameters);
 NecroMachType*     necro_mach_type_create_ptr(NecroPagedArena* arena, NecroMachType* element_type);
+NecroMachType*     necro_mach_type_create_array(NecroPagedArena* arena, NecroMachType* element_type, size_t element_count);
 NecroMachTypeCache necro_mach_type_cache_empty();
 NecroMachTypeCache necro_mach_type_cache_create(struct NecroMachProgram* program);
 void               necro_mach_type_cache_destroy(NecroMachTypeCache* cache);

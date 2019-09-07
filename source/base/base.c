@@ -447,8 +447,16 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 
     // Range
     NecroAst* range_n_type   = necro_ast_create_type_signature(arena, NECRO_SIG_TYPE_VAR, necro_ast_create_var(arena, intern, "n", NECRO_VAR_TYPE_VAR_DECLARATION), NULL, necro_ast_create_conid(arena, intern, "Nat", NECRO_CON_TYPE_VAR));
-    NecroAst* range_s_type   = necro_ast_create_simple_type(arena, intern, "Range", necro_ast_create_list(arena, range_n_type, necro_ast_create_var_list(arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION)));
-    NecroAst* range_args     = necro_ast_create_list(arena, necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), NULL);
+    // NecroAst* range_s_type   = necro_ast_create_simple_type(arena, intern, "Range", necro_ast_create_list(arena, range_n_type, necro_ast_create_var_list(arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION)));
+    NecroAst* range_s_type   = necro_ast_create_simple_type(arena, intern, "Range", necro_ast_create_list(arena, range_n_type, NULL));
+    NecroAst* range_args     =
+        necro_ast_create_list(arena,
+            necro_ast_create_conid(arena, intern, "UInt", NECRO_CON_TYPE_VAR),
+            necro_ast_create_list(arena,
+                necro_ast_create_conid(arena, intern, "UInt", NECRO_CON_TYPE_VAR),
+                necro_ast_create_list(arena,
+                    necro_ast_create_conid(arena, intern, "UInt", NECRO_CON_TYPE_VAR),
+                    NULL)));
     NecroAst* range_con      = necro_ast_create_data_con(arena, intern, "Range", range_args);
     NecroAst* range_con_list = necro_ast_create_list(arena, range_con, NULL);
     necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, range_s_type, range_con_list));
@@ -465,14 +473,20 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     {
         necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "each", NULL,
             necro_ast_create_type_app(arena,
-                necro_ast_create_type_app(arena,
-                    necro_ast_create_conid(arena, intern, "Range", NECRO_CON_TYPE_VAR),
-                    necro_ast_create_var(arena, intern, "n", NECRO_VAR_TYPE_FREE_VAR)),
-                necro_ast_create_type_app(arena,
-                    necro_ast_create_conid(arena, intern, "Index", NECRO_CON_TYPE_VAR),
-                    necro_ast_create_var(arena, intern, "n", NECRO_VAR_TYPE_FREE_VAR))),
+                necro_ast_create_conid(arena, intern, "Range", NECRO_CON_TYPE_VAR),
+                necro_ast_create_var(arena, intern, "n", NECRO_VAR_TYPE_FREE_VAR)),
             NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
-        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "each", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
+        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "each",
+            necro_ast_create_rhs(arena,
+                // necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR),
+                necro_ast_create_fexpr(arena,
+                    necro_ast_create_fexpr(arena,
+                        necro_ast_create_fexpr(arena,
+                            necro_ast_create_conid(arena, intern, "Range", NECRO_CON_VAR),
+                            necro_ast_create_fexpr(arena, necro_ast_create_var(arena, intern, "fromInt", NECRO_VAR_VAR), necro_ast_create_constant(arena, (NecroParseAstConstant) { .type = NECRO_AST_CONSTANT_INTEGER, .int_literal = 0 }))),
+                        necro_ast_create_fexpr(arena, necro_ast_create_var(arena, intern, "fromInt", NECRO_VAR_VAR), necro_ast_create_constant(arena, (NecroParseAstConstant) { .type = NECRO_AST_CONSTANT_INTEGER, .int_literal = 1 }))),
+                    necro_ast_create_fexpr(arena, necro_ast_create_var(arena, intern, "fromInt", NECRO_VAR_VAR), necro_ast_create_constant(arena, (NecroParseAstConstant) { .type = NECRO_AST_CONSTANT_INTEGER, .int_literal = 0 }))),
+                NULL)));
     }
 
     // Eq

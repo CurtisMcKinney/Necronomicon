@@ -72,26 +72,6 @@ typedef struct NecroMachAstSymbol
     bool                  is_primitive;
 } NecroMachAstSymbol;
 
-
-//--------------------
-// NecroMachAstSymbolTable
-//--------------------
-typedef struct NecroMachAstSymbolBucket
-{
-    size_t              hash;
-    NecroCoreAstSymbol* core_symbol;
-    NecroType*          type;
-    NecroCoreAstSymbol* specialized_core_symbol;
-} NecroMachAstSymbolBucket;
-
-typedef struct NecroMachAstSymbolTable
-{
-    NecroMachAstSymbolBucket* buckets;
-    size_t                    count;
-    size_t                    capacity;
-} NecroMachAstSymbolTable;
-
-
 //--------------------
 // Value
 //--------------------
@@ -570,7 +550,6 @@ typedef struct NecroMachProgram
 
     // Cached data
     NecroMachTypeCache      type_cache;
-    NecroMachAstSymbolTable symtable;
     NecroMachRuntime        runtime;
     NecroMachAst*           program_main;
     size_t                  clash_suffix;
@@ -587,8 +566,6 @@ typedef struct NecroMachProgram
 NecroMachAstSymbol* necro_mach_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name);
 NecroMachAstSymbol* necro_mach_ast_symbol_create_from_core_ast_symbol(NecroPagedArena* arena, NecroCoreAstSymbol* core_ast_symbol);
 NecroMachAstSymbol* necro_mach_ast_symbol_gen(NecroMachProgram* program, NecroMachAst* ast, const char* str, NECRO_MANGLE_TYPE mangle_type);
-void                necro_mach_ast_symbol_insert_specialized(NecroMachAstSymbolTable* symtable, NecroCoreAstSymbol* core_symbol, NecroType* type, NecroCoreAstSymbol* specialized_core_symbol);
-NecroCoreAstSymbol* necro_mach_ast_symbol_get_specialized(NecroMachAstSymbolTable* symtable, NecroCoreAstSymbol* core_symbol, NecroType* type);
 
 //--------------------
 // Values

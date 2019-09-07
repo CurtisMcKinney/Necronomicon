@@ -133,152 +133,18 @@ NecroMachType* _necro_mach_type_from_necro_type_fn(NecroMachProgram* program, Ne
     return function_type;
 }
 
-NecroType* necro_mach_type_specialize_necro_type(NecroMachProgram* program, NecroType* type)
-{
-    if (type == NULL)
-        return type;
-    type = necro_type_find(type);
-    switch (type->type)
-    {
-
-    case NECRO_TYPE_CON:
-    {
-        //--------------------
-        // Monotype early exit
-        //--------------------
-        if (type->con.args == NULL)
-            return type;
-        NecroArenaSnapshot snapshot = necro_snapshot_arena_get(&program->snapshot_arena);
-
-        //--------------------
-        // Check to see if we've specialized this type befor
-        NecroCoreAstSymbol* maybe_specialized_symbol = necro_mach_ast_symbol_get_specialized(&program->symtable, type->con.con_symbol->core_ast_symbol, type);
-        if (maybe_specialized_symbol != NULL)
-            return maybe_specialized_symbol->type;
-
-        //--------------------
-        // Create Specialized Name
-        const size_t      specialized_type_name_length = necro_type_mangled_string_length(type);
-        char*             specialized_type_name_buffer = necro_snapshot_arena_alloc(&program->snapshot_arena, specialized_type_name_length * sizeof(char));
-        necro_type_mangled_sprintf(specialized_type_name_buffer, 0, type);
-        const NecroSymbol specialized_type_source_name = necro_intern_string(program->intern, specialized_type_name_buffer);
-
-        //--------------------
-        // Create specialized type suffix
-        char* specialized_type_suffix_buffer = specialized_type_name_buffer;
-        while (*specialized_type_suffix_buffer != '<')
-            specialized_type_suffix_buffer++;
-        NecroSymbol specialized_type_suffix_symbol = necro_intern_string(program->intern, specialized_type_suffix_buffer);
-
-        //--------------------
-        // Create Specialized Symbol and Type
-        NecroAstSymbol* ast_symbol           = necro_ast_symbol_create(&program->arena, specialized_type_source_name, specialized_type_source_name, type->con.con_symbol->module_name, NULL);
-        ast_symbol->type                     = necro_type_con_create(&program->arena, ast_symbol, NULL);
-        ast_symbol->type->kind               = program->base->star_kind->type;
-        NecroCoreAstSymbol* core_symbol      = necro_core_ast_symbol_create_from_ast_symbol(&program->arena, ast_symbol);
-        NecroType*          specialized_type = ast_symbol->type;
-        necro_mach_ast_symbol_insert_specialized(&program->symtable, type->con.con_symbol->core_ast_symbol, type, core_symbol);
-
-        //--------------------
-        // Specialize args
-        NecroType* con_args = type->con.args;
-        while (con_args != NULL)
-        {
-            necro_mach_type_specialize_necro_type(program, con_args->list.item);
-            con_args = con_args->list.next;
-        }
-
-        //--------------------
-        // Specialize Data Declaration and Data Cons
-        NecroCoreAst*       poly_decl   = type->con.con_symbol->core_ast_symbol->ast;
-        NecroCoreAstList*   poly_cons   = poly_decl->data_decl.con_list;
-        NecroCoreAstList*   data_cons   = NULL;
-        while (poly_cons != NULL)
-        {
-            //--------------------
-            // Poly data_con data
-            NecroCoreAst*       poly_con        = poly_cons->data;
-            NecroCoreAstSymbol* poly_con_symbol = poly_con->data_con.ast_symbol;
-            NecroType*          poly_con_type   = poly_con->data_con.type;
-
-            //--------------------
-            // Specialize data_con name and symbol
-            NecroSymbol         new_con_name    = necro_intern_concat_symbols(program->intern, poly_con->data_con.ast_symbol->name, specialized_type_suffix_symbol);
-            NecroAstSymbol*     con_ast_symbol  = necro_ast_symbol_create(&program->arena, new_con_name, new_con_name, ast_symbol->module_name, NULL);
-            con_ast_symbol->is_constructor      = poly_con_symbol->is_constructor;
-            con_ast_symbol->is_enum             = poly_con_symbol->is_enum;
-            con_ast_symbol->is_primitive        = poly_con_symbol->is_primitive;
-            con_ast_symbol->is_recursive        = poly_con_symbol->is_recursive;
-            con_ast_symbol->con_num             = poly_con_symbol->con_num;
-            NecroCoreAstSymbol* con_core_symbol = necro_core_ast_symbol_create_from_ast_symbol(&program->arena, con_ast_symbol);
-
-            //--------------------
-            // Specialize data_con type
-            NecroType* data_con_type   = unwrap_result(NecroType, necro_type_instantiate(&program->arena, NULL, program->base, poly_con_type, NULL));
-            NecroType* data_con_result = data_con_type;
-            while (data_con_result->type == NECRO_TYPE_FUN)
-                data_con_result = data_con_result->fun.type2;
-            unwrap(NecroType, necro_type_unify(&program->arena, NULL, program->base, data_con_result, type, NULL));
-            // TODO: Is this necessary?
-            // unwrap(void, necro_kind_infer_default_unify_with_star(monomorphize->arena, monomorphize->base, specialized_data_con_type, NULL, NULL_LOC, NULL_LOC));
-            NecroType* specialized_data_con_type = necro_mach_type_specialize_necro_type(program, data_con_type); // Specialize and cache data_con_type
-            unwrap(void, necro_kind_infer_default_unify_with_star(&program->arena, program->base, specialized_data_con_type, NULL, NULL_LOC, NULL_LOC));
-            con_ast_symbol->type  = specialized_data_con_type;
-            con_core_symbol->type = specialized_data_con_type;
-
-            //--------------------
-            // Append, the move to next data_con
-            necro_mach_ast_symbol_insert_specialized(&program->symtable, poly_con_symbol, data_con_type, con_core_symbol);
-            NecroCoreAst* data_con = necro_core_ast_create_data_con(&program->arena, con_core_symbol, specialized_data_con_type, specialized_type);
-            data_cons              = necro_append_core_ast_list(&program->arena, data_con, data_cons);
-            poly_cons              = poly_cons->next;
-        }
-
-        //--------------------
-        // Transform to Mach
-        NecroCoreAst* data_decl = necro_core_ast_create_data_decl(&program->arena, core_symbol, data_cons);
-        necro_core_transform_to_mach_1_go(program, data_decl, NULL);
-
-        //--------------------
-        // Clean up and return
-        necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
-        return specialized_type;
-    }
-
-    case NECRO_TYPE_FUN:
-    {
-        NecroType* type1 = necro_mach_type_specialize_necro_type(program, type->fun.type1);
-        NecroType* type2 = necro_mach_type_specialize_necro_type(program, type->fun.type2);
-        if (type1 == type->fun.type1 && type2 == type->fun.type2)
-            return type;
-        else
-            return necro_type_fn_create(&program->arena, type1, type2);
-    }
-
-    case NECRO_TYPE_APP:
-        return necro_mach_type_specialize_necro_type(program, necro_type_uncurry_app(&program->arena, program->base, type));
-
-    // Ignore
-    case NECRO_TYPE_VAR:
-        return type;
-    case NECRO_TYPE_FOR:
-        return type;
-    case NECRO_TYPE_NAT:
-        return type;
-    case NECRO_TYPE_SYM:
-        return type;
-
-    case NECRO_TYPE_LIST: /* FALL THROUGH */
-    default:
-        assert(false);
-        return NULL;
-    }
-}
-
 NecroMachType* _necro_mach_type_from_necro_type_poly_con(NecroMachProgram* program, NecroType* type)
 {
-    NecroType* specialized_type = necro_mach_type_specialize_necro_type(program, type);
-    return _necro_mach_type_cache_get(program, specialized_type);
+    // Handle Primitively polymorphic types
+    if (type->con.con_symbol == program->base->array_type)
+    {
+        size_t         element_count      = type->con.args->list.item->nat.value;
+        NecroType*     element_necro_type = type->con.args->list.next->list.item;
+        NecroMachType* element_mach_type  = necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, element_necro_type));
+        return necro_mach_type_create_array(&program->arena, element_mach_type, element_count);
+    }
+    assert(false);
+    return NULL;
 }
 
 NecroMachType* _necro_mach_type_from_necro_type(NecroMachProgram* program, NecroType* type)
@@ -536,6 +402,17 @@ NecroMachType* necro_mach_type_create_ptr(NecroPagedArena* arena, NecroMachType*
     return type;
 }
 
+NecroMachType* necro_mach_type_create_array(NecroPagedArena* arena, NecroMachType* element_type, size_t element_count)
+{
+    assert(element_type != NULL);
+    assert(element_count > 0);
+    NecroMachType* type            = necro_paged_arena_alloc(arena, sizeof(NecroMachType));
+    type->type                     = NECRO_MACH_TYPE_ARRAY;
+    type->array_type.element_type  = element_type;
+    type->array_type.element_count = element_count;
+    return type;
+}
+
 ///////////////////////////////////////////////////////
 // Utility
 ///////////////////////////////////////////////////////
@@ -576,6 +453,11 @@ size_t necro_mach_type_calculate_num_slots(NecroMachType* type)
     case NECRO_MACH_TYPE_F64:    /* FALLTHROUGH */
     case NECRO_MACH_TYPE_CHAR:   /* FALLTHROUGH */
     case NECRO_MACH_TYPE_PTR:    return 1;
+    case NECRO_MACH_TYPE_ARRAY:
+    {
+        size_t element_slots = necro_mach_type_calculate_num_slots(type->array_type.element_type);
+        return element_slots * type->array_type.element_count;
+    }
     case NECRO_MACH_TYPE_STRUCT:
     {
         size_t slots = 0;
@@ -658,6 +540,11 @@ void necro_mach_type_print_go(NecroMachType* type, bool is_recursive)
         necro_mach_type_print_go(type->ptr_type.element_type, false);
         printf("*");
         return;
+    case NECRO_MACH_TYPE_ARRAY:
+        printf("[%d x ", type->array_type.element_count);
+        necro_mach_type_print_go(type->array_type.element_type, false);
+        printf("]");
+        return;
     case NECRO_MACH_TYPE_STRUCT:
         if (is_recursive)
         {
@@ -709,6 +596,10 @@ void necro_mach_type_check(NecroMachProgram* program, NecroMachType* type1, Necr
     case NECRO_MACH_TYPE_PTR:
         necro_mach_type_check(program, type1->ptr_type.element_type, type2->ptr_type.element_type);
         return;
+    case NECRO_MACH_TYPE_ARRAY:
+        assert(type1->array_type.element_count == type2->array_type.element_count);
+        necro_mach_type_check(program, type1->array_type.element_type, type2->array_type.element_type);
+        return;
     default:
         return;
     }
@@ -738,6 +629,8 @@ bool necro_mach_type_is_eq(NecroMachType* type1, NecroMachType* type2)
         return necro_mach_type_is_eq(type1->fn_type.return_type, type2->fn_type.return_type);
     case NECRO_MACH_TYPE_PTR:
         return necro_mach_type_is_eq(type1->ptr_type.element_type, type2->ptr_type.element_type);
+    case NECRO_MACH_TYPE_ARRAY:
+        return type1->array_type.element_count == type2->array_type.element_count && necro_mach_type_is_eq(type1->array_type.element_type, type2->array_type.element_type);
     default:
         return true;
     }
@@ -892,6 +785,16 @@ void necro_mach_ast_type_check_gep(NecroMachProgram* program, NecroMachAst* ast)
             assert(index < (uint32_t) necro_machine_type->struct_type.num_members);
             necro_machine_type = necro_machine_type->struct_type.members[index];
         }
+        else if (necro_machine_type->type == NECRO_MACH_TYPE_ARRAY)
+        {
+            NecroMachAst* index_ast = ast->gep.indices[i];
+            necro_mach_ast_type_check(program, index_ast);
+            assert(index_ast->type == NECRO_MACH_VALUE);
+            assert(index_ast->value.value_type == NECRO_MACH_VALUE_UINT32_LITERAL);
+            const size_t index = index_ast->value.uint32_literal;
+            assert(index < necro_machine_type->array_type.element_count);
+            necro_machine_type = necro_machine_type->array_type.element_type;
+        }
         else if (necro_machine_type->type == NECRO_MACH_TYPE_PTR)
         {
             assert(i == 0); // NOTE: Can only deref the first type!
@@ -899,7 +802,7 @@ void necro_mach_ast_type_check_gep(NecroMachProgram* program, NecroMachAst* ast)
         }
         else
         {
-            assert(necro_machine_type->type == NECRO_MACH_TYPE_STRUCT || necro_machine_type->type == NECRO_MACH_TYPE_PTR);
+            assert(false && "gep type error");
         }
     }
 }

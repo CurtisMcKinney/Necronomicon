@@ -1648,12 +1648,15 @@ NecroResult(NecroType) necro_infer_for_loop(NecroInfer* infer, NecroAst* ast)
     NecroType* value_apat_type = necro_try_result(NecroType, necro_infer_pattern(infer, ast->for_loop.value_apat));
     NecroType* expression_type = necro_try_result(NecroType, necro_infer_go(infer, ast->for_loop.expression));
     NecroType* n_type          = necro_type_fresh_var(infer->arena, NULL);
-    NecroType* inner_type      = necro_type_fresh_var(infer->arena, NULL);
-    NecroType* range_inner     = necro_type_con2_create(infer->arena, infer->base->range_type, n_type, inner_type);
+    // NecroType* inner_type      = necro_type_fresh_var(infer->arena, NULL);
+    // NecroType* range_inner     = necro_type_con2_create(infer->arena, infer->base->range_type, n_type, inner_type);
+    NecroType* range_type      = necro_type_con1_create(infer->arena, infer->base->range_type, n_type);
+    NecroType* index_type      = necro_type_con1_create(infer->arena, infer->base->index_type, n_type);
     ast->necro_type            = expression_type;
-    unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, range_inner, ast->source_loc, ast->end_loc));
-    necro_try(NecroType, necro_type_unify_with_info(infer->arena, &infer->con_env, infer->base, range_inner, range_init_type, ast->scope, ast->source_loc, ast->end_loc));
-    necro_try(NecroType, necro_type_unify_with_info(infer->arena, &infer->con_env, infer->base, inner_type, index_apat_type, ast->scope, ast->source_loc, ast->end_loc));
+    unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, range_type, ast->source_loc, ast->end_loc));
+    unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, index_type, ast->source_loc, ast->end_loc));
+    necro_try(NecroType, necro_type_unify_with_info(infer->arena, &infer->con_env, infer->base, range_type, range_init_type, ast->scope, ast->source_loc, ast->end_loc));
+    necro_try(NecroType, necro_type_unify_with_info(infer->arena, &infer->con_env, infer->base, index_type, index_apat_type, ast->scope, ast->source_loc, ast->end_loc));
     necro_try(NecroType, necro_type_unify_with_info(infer->arena, &infer->con_env, infer->base, value_init_type, value_apat_type, ast->scope, ast->source_loc, ast->end_loc));
     necro_try(NecroType, necro_type_unify_with_info(infer->arena, &infer->con_env, infer->base, value_apat_type, expression_type, ast->scope, ast->source_loc, ast->end_loc));
     return ok(NecroType, ast->necro_type);
@@ -4730,22 +4733,36 @@ void necro_test_infer()
     {
         const char* test_name   = "For Loop 1";
         const char* test_source = ""
-            "tenTimes :: Range 10 (Index 10)\n"
+            "tenTimes :: Range 10\n"
             "tenTimes = each\n"
             "loopTenTimes = for tenTimes 0 loop i x -> x * 2\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
     {
         const char* test_name   = "For Loop 2";
         const char* test_source = ""
-            "tenTimes :: Range 10 (Index 10)\n"
+            "tenTimes :: Range 10\n"
             "tenTimes = each\n"
             "loopTenTimes = for tenTimes (True, False) loop i (x, y) -> (y, x)\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
     }
+
+/*
+    {
+        const char* test_name   = "For Loop 3";
+        const char* test_source = ""
+            "lotsOfStuff :: Array 3 Float\n"
+            "lotsOfStuff = { 1, 2, 3 }\n"
+            "loopTenTimes =\n"
+            "  for (range lotsOfStuff) 0 loop i _ ->\n"
+            "    index lotsOfStuff i\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+*/
 
     // TODO: Parsing broke on initialization stuff for som reason...
     // {

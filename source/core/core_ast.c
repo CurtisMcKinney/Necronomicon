@@ -33,8 +33,9 @@ inline NecroCoreAst* necro_core_ast_alloc(NecroPagedArena* arena, NECRO_CORE_AST
 
 NecroCoreAst* necro_core_ast_create_lit(NecroPagedArena* arena, NecroAstConstant constant)
 {
-    NecroCoreAst* ast = necro_core_ast_alloc(arena, NECRO_CORE_AST_LIT);
-    ast->lit.type     = constant.type;
+    NecroCoreAst* ast        = necro_core_ast_alloc(arena, NECRO_CORE_AST_LIT);
+    ast->lit.type            = constant.type;
+    ast->lit.persistent_slot = 0;
     switch (constant.type)
     {
     case NECRO_AST_CONSTANT_FLOAT_PATTERN:
@@ -68,6 +69,7 @@ NecroCoreAst* necro_core_ast_create_array_lit(NecroPagedArena* arena, NecroCoreA
     NecroCoreAst* ast               = necro_core_ast_alloc(arena, NECRO_CORE_AST_LIT);
     ast->lit.type                   = NECRO_AST_CONSTANT_ARRAY;
     ast->lit.array_literal_elements = elements;
+    ast->lit.persistent_slot        = 0;
     return ast;
 }
 
@@ -158,9 +160,10 @@ NecroCoreAst* necro_core_ast_create_case_alt(NecroPagedArena* arena, NecroCoreAs
     return ast;
 }
 
-NecroCoreAst* necro_core_ast_create_for_loop(NecroPagedArena* arena, NecroCoreAst* range_init, NecroCoreAst* value_init, NecroCoreAst* index_arg, NecroCoreAst* value_arg, NecroCoreAst* expression)
+NecroCoreAst* necro_core_ast_create_for_loop(NecroPagedArena* arena, size_t max_loops, NecroCoreAst* range_init, NecroCoreAst* value_init, NecroCoreAst* index_arg, NecroCoreAst* value_arg, NecroCoreAst* expression)
 {
     NecroCoreAst* ast  = necro_core_ast_alloc(arena, NECRO_CORE_AST_FOR);
+    ast->for_loop.max_loops  = max_loops;
     ast->for_loop.range_init = range_init;
     ast->for_loop.value_init = value_init;
     ast->for_loop.index_arg  = index_arg;
@@ -185,7 +188,7 @@ NecroCoreAst* necro_core_ast_deep_copy(NecroPagedArena* arena, NecroCoreAst* ast
     case NECRO_CORE_AST_BIND:      copy_ast = necro_core_ast_create_bind(arena, ast->bind.ast_symbol, necro_core_ast_deep_copy(arena, ast->bind.expr)); break;
     case NECRO_CORE_AST_LET:       copy_ast = necro_core_ast_create_let(arena, necro_core_ast_deep_copy(arena, ast->let.bind), necro_core_ast_deep_copy(arena, ast->let.expr)); break;
     case NECRO_CORE_AST_VAR:       copy_ast = necro_core_ast_create_var(arena, ast->var.ast_symbol, necro_type_deep_copy(arena, ast->necro_type)); break;
-    case NECRO_CORE_AST_FOR:       copy_ast = necro_core_ast_create_for_loop(arena, necro_core_ast_deep_copy(arena, ast->for_loop.range_init), necro_core_ast_deep_copy(arena, ast->for_loop.value_init), necro_core_ast_deep_copy(arena, ast->for_loop.index_arg), necro_core_ast_deep_copy(arena, ast->for_loop.value_arg), necro_core_ast_deep_copy(arena, ast->for_loop.expression)); break;
+    case NECRO_CORE_AST_FOR:       copy_ast = necro_core_ast_create_for_loop(arena, ast->for_loop.max_loops, necro_core_ast_deep_copy(arena, ast->for_loop.range_init), necro_core_ast_deep_copy(arena, ast->for_loop.value_init), necro_core_ast_deep_copy(arena, ast->for_loop.index_arg), necro_core_ast_deep_copy(arena, ast->for_loop.value_arg), necro_core_ast_deep_copy(arena, ast->for_loop.expression)); break;
     case NECRO_CORE_AST_LAM:       copy_ast = necro_core_ast_create_lam(arena, necro_core_ast_deep_copy(arena, ast->lambda.arg), necro_core_ast_deep_copy(arena, ast->lambda.expr)); break;
     // case NECRO_CORE_AST_APP:       copy_ast = necro_core_ast_create_app(arena, necro_core_ast_deep_copy(arena, ast->app.expr1), necro_core_ast_deep_copy(arena, ast->app.expr2), necro_type_deep_copy(arena, ast->necro_type)); break;
     case NECRO_CORE_AST_APP:       copy_ast = necro_core_ast_create_app(arena, necro_core_ast_deep_copy(arena, ast->app.expr1), necro_core_ast_deep_copy(arena, ast->app.expr2)); break;
@@ -664,7 +667,12 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_for_loop(NecroCoreAstTrans
     NecroCoreAst* index_arg  = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->for_loop.index_apat));
     NecroCoreAst* value_arg  = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->for_loop.value_apat));
     NecroCoreAst* expression = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->for_loop.expression));
-    NecroCoreAst* core_ast   = necro_core_ast_create_for_loop(context->arena, range_init, value_init, index_arg, value_arg, expression);
+    assert(range_init->necro_type->type == NECRO_TYPE_CON);
+    assert(range_init->necro_type->con.con_symbol == context->base->range_type);
+    assert(range_init->necro_type->con.args != NULL);
+    assert(range_init->necro_type->con.args->list.item->type == NECRO_TYPE_NAT);
+    const size_t  max_loops  = range_init->necro_type->con.args->list.item->nat.value;
+    NecroCoreAst* core_ast   = necro_core_ast_create_for_loop(context->arena, max_loops, range_init, value_init, index_arg, value_arg, expression);
     return ok(NecroCoreAst, core_ast);
 }
 

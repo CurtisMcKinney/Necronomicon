@@ -131,11 +131,13 @@ NecroResult(NecroType) necro_core_infer_for(NecroCoreInfer* infer, NecroCoreAst*
     NecroType* value_arg_type  = necro_try_result(NecroType, necro_core_infer_go(infer, ast->for_loop.value_arg));
     NecroType* expression_type = necro_try_result(NecroType, necro_core_infer_go(infer, ast->for_loop.expression));
     NecroType* n_type          = necro_type_fresh_var(infer->arena, NULL);
-    NecroType* inner_type      = necro_type_fresh_var(infer->arena, NULL);
-    NecroType* range_inner     = necro_type_con2_create(infer->arena, infer->base->range_type, n_type, inner_type);
-    unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, range_inner, zero_loc, zero_loc));
-    necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, range_inner, range_init_type, NULL, zero_loc, zero_loc));
-    necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, inner_type, index_arg_type, NULL, zero_loc, zero_loc));
+    // NecroType* inner_type      = necro_type_fresh_var(infer->arena, NULL);
+    NecroType* range_type      = necro_type_con1_create(infer->arena, infer->base->range_type, n_type);
+    NecroType* index_type      = necro_type_con1_create(infer->arena, infer->base->index_type, n_type);
+    unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, range_type, zero_loc, zero_loc));
+    unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, index_type, zero_loc, zero_loc));
+    necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, range_type, range_init_type, NULL, zero_loc, zero_loc));
+    necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, index_type, index_arg_type, NULL, zero_loc, zero_loc));
     necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, value_init_type, value_arg_type, NULL, zero_loc, zero_loc));
     necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, value_arg_type, expression_type, NULL, zero_loc, zero_loc));
     ast->necro_type       = expression_type;

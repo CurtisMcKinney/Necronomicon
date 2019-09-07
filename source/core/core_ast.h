@@ -131,6 +131,7 @@ typedef struct NecroCoreAstLiteral
         NecroCoreAstList* array_literal_elements;
     };
     NECRO_CONSTANT_TYPE type;
+    size_t              persistent_slot;
 } NecroCoreAstLiteral;
 
 typedef struct NecroCoreAstVar
@@ -199,6 +200,7 @@ typedef struct NecroCoreAstCase
 
 typedef struct NecroCoreAstForLoop
 {
+    size_t               max_loops;
     struct NecroCoreAst* range_init;
     struct NecroCoreAst* value_init;
     struct NecroCoreAst* index_arg;
@@ -271,7 +273,7 @@ NecroCoreAst* necro_core_ast_create_data_con(NecroPagedArena* arena, NecroCoreAs
 NecroCoreAst* necro_core_ast_create_data_decl(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroCoreAstList* con_list);
 NecroCoreAst* necro_core_ast_create_case(NecroPagedArena* arena, NecroCoreAst* expr, NecroCoreAstList* alts);
 NecroCoreAst* necro_core_ast_create_case_alt(NecroPagedArena* arena, NecroCoreAst* pat, NecroCoreAst* expr);
-NecroCoreAst* necro_core_ast_create_for_loop(NecroPagedArena* arena, NecroCoreAst* range_init, NecroCoreAst* value_init, NecroCoreAst* index_arg, NecroCoreAst* value_arg, NecroCoreAst* expression);
+NecroCoreAst* necro_core_ast_create_for_loop(NecroPagedArena* arena, size_t max_loops, NecroCoreAst* range_init, NecroCoreAst* value_init, NecroCoreAst* index_arg, NecroCoreAst* value_arg, NecroCoreAst* expression);
 void          necro_core_ast_swap(NecroCoreAst* ast1, NecroCoreAst* ast2);
 void          necro_core_ast_pretty_print(NecroCoreAst* ast);
 // TODO: Finish deep copy

@@ -173,10 +173,11 @@ NecroPattern* necro_pattern_create(NecroMachProgram* program, NecroPattern* pare
     }
     case NECRO_CORE_AST_APP:
     {
-        NecroCoreAst*  unwrapped = necro_core_ast_unwrap_apps(pat_ast);
-        assert(unwrapped->var.ast_symbol->mach_symbol != NULL);
-        NecroMachType* con_type  = unwrapped->var.ast_symbol->mach_symbol->mach_type->fn_type.parameters[0];
-        NecroPattern*  pat       = necro_pattern_alloc(program, parent, slot, NULL, con_type, pat_ast, NECRO_PATTERN_APP);
+        NecroCoreAst*       unwrapped  = necro_core_ast_unwrap_apps(pat_ast);
+        NecroCoreAstSymbol* ast_symbol = unwrapped->var.ast_symbol;
+        assert(ast_symbol->mach_symbol != NULL);
+        NecroMachType*      con_type   = ast_symbol->mach_symbol->mach_type->fn_type.parameters[0];
+        NecroPattern*       pat        = necro_pattern_alloc(program, parent, slot, NULL, con_type, pat_ast, NECRO_PATTERN_APP);
         return pat;
     }
     case NECRO_CORE_AST_LIT:
@@ -249,37 +250,37 @@ NecroDecisionTree* necro_decision_tree_create_lit_switch(NecroMachProgram* progr
 
 bool necro_decision_tree_is_branchless(NecroDecisionTree* tree)
 {
-    switch (tree->type)
-    {
-    case NECRO_DECISION_TREE_LEAF: return true;
-    case NECRO_DECISION_TREE_SWITCH:
-    {
-        assert(tree->tree_switch.num_cases > 0);
-        if (tree->tree_switch.num_cases > 1)
-            return false;
-        else
-            return necro_decision_tree_is_branchless(tree->tree_switch.cases[0]);
-    }
-    case NECRO_DECISION_TREE_LIT_SWITCH:
-    {
-        assert(tree->tree_switch.num_cases > 0);
-        if (tree->tree_lit_switch.num_cases > 1)
-            return false;
-        else
-            return necro_decision_tree_is_branchless(tree->tree_lit_switch.cases[0]);
-    }
-    default:
-        assert(false);
+switch (tree->type)
+{
+case NECRO_DECISION_TREE_LEAF: return true;
+case NECRO_DECISION_TREE_SWITCH:
+{
+    assert(tree->tree_switch.num_cases > 0);
+    if (tree->tree_switch.num_cases > 1)
         return false;
-    }
+    else
+        return necro_decision_tree_is_branchless(tree->tree_switch.cases[0]);
+}
+case NECRO_DECISION_TREE_LIT_SWITCH:
+{
+    assert(tree->tree_switch.num_cases > 0);
+    if (tree->tree_lit_switch.num_cases > 1)
+        return false;
+    else
+        return necro_decision_tree_is_branchless(tree->tree_lit_switch.cases[0]);
+}
+default:
+    assert(false);
+    return false;
+}
 }
 
 NecroDecisionTree* necro_pattern_matrix_compile(NecroMachProgram* program, NecroPatternMatrix* matrix, NecroCoreAst* top_case_ast);
 
 NecroPatternMatrix necro_pattern_matrix_create(NecroMachProgram* program, size_t rows, size_t columns)
 {
-    NecroPattern***       patterns    = necro_paged_arena_alloc(&program->arena, rows * sizeof(NecroPattern*));
-    NecroCoreAst**        expressions = necro_paged_arena_alloc(&program->arena, rows * sizeof(NecroCoreAst*));
+    NecroPattern*** patterns = necro_paged_arena_alloc(&program->arena, rows * sizeof(NecroPattern*));
+    NecroCoreAst** expressions = necro_paged_arena_alloc(&program->arena, rows * sizeof(NecroCoreAst*));
     for (size_t r = 0; r < rows; ++r)
     {
         patterns[r] = necro_paged_arena_alloc(&program->arena, columns * sizeof(NecroCoreAst*));
@@ -291,11 +292,11 @@ NecroPatternMatrix necro_pattern_matrix_create(NecroMachProgram* program, size_t
     }
     return (NecroPatternMatrix)
     {
-        .rows           = rows,
-        .columns        = columns,
-        .patterns       = patterns,
-        .expressions    = expressions,
-        .bindings       = NULL,
+        .rows = rows,
+            .columns = columns,
+            .patterns = patterns,
+            .expressions = expressions,
+            .bindings = NULL,
     };
 }
 
@@ -307,19 +308,19 @@ NecroPatternMatrix necro_pattern_matrix_create_from_case(NecroMachProgram* progr
     assert(ast->case_expr.alts != NULL);
     assert(ast->case_expr.expr->necro_type != NULL);
 
-    NecroPattern*     case_expr_pattern = necro_pattern_create_top(program, ast->case_expr.expr, outer);
-    size_t            rows              = 0;
-    size_t            columns           = 1;
-    NecroCoreAstList* alts              = ast->case_expr.alts;
+    NecroPattern* case_expr_pattern = necro_pattern_create_top(program, ast->case_expr.expr, outer);
+    size_t            rows = 0;
+    size_t            columns = 1;
+    NecroCoreAstList* alts = ast->case_expr.alts;
     while (alts != NULL)
     {
         rows++;
         alts = alts->next;
     }
     // Create and fill in matrix
-    NecroPatternMatrix matrix      = necro_pattern_matrix_create(program, rows, columns);
-    size_t             this_rows   = 0;
-    alts                           = ast->case_expr.alts;
+    NecroPatternMatrix matrix = necro_pattern_matrix_create(program, rows, columns);
+    size_t             this_rows = 0;
+    alts = ast->case_expr.alts;
     while (alts != NULL)
     {
         NecroCoreAst* alt = alts->data;
@@ -336,17 +337,25 @@ NecroPatternMatrix necro_pattern_matrix_create_from_case(NecroMachProgram* progr
 
 NecroPatternMatrix necro_pattern_matrix_specialize(NecroMachProgram* program, NecroPatternMatrix* matrix, NecroCoreAstSymbol* pattern_symbol, NecroType* data_con_necro_type)
 {
-    size_t con_arity   = necro_type_arity(data_con_necro_type);
-    size_t new_rows    = 0;
+    size_t con_arity = necro_type_arity(data_con_necro_type);
+    size_t new_rows = 0;
     size_t new_columns = con_arity + (matrix->columns - 1);
-    new_columns        = (new_columns == SIZE_MAX) ? 0 : new_columns;
+    new_columns = (new_columns == SIZE_MAX) ? 0 : new_columns;
     for (size_t r = 0; r < matrix->rows; ++r)
     {
         NecroPattern* row_head = matrix->patterns[r][0];
         assert(row_head != NULL);
-        if (row_head->pattern_type == NECRO_PATTERN_WILDCARD || row_head->pattern_type == NECRO_PATTERN_VAR ||
-           ((row_head->pattern_type == NECRO_PATTERN_CON || NECRO_PATTERN_APP == NECRO_PATTERN_APP) && necro_core_ast_unwrap_apps(row_head->pat_ast)->var.ast_symbol == pattern_symbol))
+        if (row_head->pattern_type == NECRO_PATTERN_WILDCARD || row_head->pattern_type == NECRO_PATTERN_VAR)
+        {
             new_rows++;
+        }
+        else if (row_head->pattern_type == NECRO_PATTERN_CON || NECRO_PATTERN_APP == NECRO_PATTERN_APP)
+        {
+            NecroCoreAst*       unwrapped  = necro_core_ast_unwrap_apps(row_head->pat_ast);
+            NecroCoreAstSymbol* ast_symbol = unwrapped->var.ast_symbol;
+            if (ast_symbol == pattern_symbol)
+                new_rows++;
+        }
     }
     NecroPatternMatrix specialized_matrix = necro_pattern_matrix_create(program, new_rows, new_columns);
     size_t             column_diff        = ((size_t)MAX(0, (1 + (((int32_t)new_columns) - ((int32_t)matrix->columns)))));
@@ -375,9 +384,10 @@ NecroPatternMatrix necro_pattern_matrix_specialize(NecroMachProgram* program, Ne
         // Con / App
         else if (row_head->pattern_type == NECRO_PATTERN_APP || row_head->pattern_type == NECRO_PATTERN_CON)
         {
-            NecroCoreAst* unwrapped = necro_core_ast_unwrap_apps(row_head->pat_ast);
-            assert(unwrapped->var.ast_symbol->is_constructor);
-            if (unwrapped->var.ast_symbol != pattern_symbol) // Delete other constructors
+            NecroCoreAst*       unwrapped  = necro_core_ast_unwrap_apps(row_head->pat_ast);
+            NecroCoreAstSymbol* ast_symbol = unwrapped->var.ast_symbol;
+            assert(ast_symbol->is_constructor);
+            if (ast_symbol != pattern_symbol) // Delete other constructors
                 continue;
             NecroCoreAst* apps = row_head->pat_ast;
             for (size_t c_d_rev = 0; c_d_rev < column_diff; ++c_d_rev)

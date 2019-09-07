@@ -43,6 +43,8 @@ endif()
 
 add_definitions(${CMAKE_C_FLAGS})
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 set(INCLUDE_DIR
     source
     source/lex

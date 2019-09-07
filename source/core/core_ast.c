@@ -1309,10 +1309,19 @@ void necro_core_ast_test()
         necro_core_test_result(test_name, test_source);
     }
 
-    /* { */
-    /*     const char* test_name   = "If then else final doom forever"; */
-    /*     const char* test_source = "" */
-    /*         "ifTest = if False then (Just True) else Nothing\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
+    {
+        const char* test_name   = "If then else final doom forever";
+        const char* test_source = ""
+            "ifTest :: Bool -> Maybe Bool\n"
+            "ifTest t = if t then (Just True) else Nothing\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "If then If Then else then doom then doom";
+        const char* test_source = ""
+            "ifTest :: Bool -> Bool\n"
+            "ifTest t = if t then (if False then True else False) else (if False then True else False)\n";
+        necro_core_test_result(test_name, test_source);
+    }
 }

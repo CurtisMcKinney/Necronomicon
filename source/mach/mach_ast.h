@@ -596,6 +596,7 @@ void          necro_mach_block_add_statement(NecroMachProgram* program, NecroMac
 NecroMachAst* necro_mach_block_append(NecroMachProgram* program, NecroMachAst* fn_def, const char* block_name);
 NecroMachAst* necro_mach_block_insert_before(NecroMachProgram* program, NecroMachAst* fn_def, const char* block_name, NecroMachAst* block_to_precede);
 void          necro_mach_block_move_to(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* block);
+NecroMachAst* necro_mach_block_get_current(NecroMachAst* fn_def);
 
 //--------------------
 // Memory

@@ -346,7 +346,7 @@ void necro_core_state_analysis(NecroCompileInfo info, NecroIntern* intern, Necro
     }
 
     // Finish
-    necro_core_ast_pretty_print(core_ast_arena->root);
+    // necro_core_ast_pretty_print(core_ast_arena->root);
     necro_core_infer(intern, base, core_ast_arena); // TODO: Remove after some testing
 
     // Cleanup

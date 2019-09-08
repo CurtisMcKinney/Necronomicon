@@ -308,10 +308,10 @@ NecroPatternMatrix necro_pattern_matrix_create_from_case(NecroMachProgram* progr
     assert(ast->case_expr.alts != NULL);
     assert(ast->case_expr.expr->necro_type != NULL);
 
-    NecroPattern* case_expr_pattern = necro_pattern_create_top(program, ast->case_expr.expr, outer);
-    size_t            rows = 0;
-    size_t            columns = 1;
-    NecroCoreAstList* alts = ast->case_expr.alts;
+    NecroPattern*     case_expr_pattern = necro_pattern_create_top(program, ast->case_expr.expr, outer);
+    size_t            rows              = 0;
+    size_t            columns           = 1;
+    NecroCoreAstList* alts              = ast->case_expr.alts;
     while (alts != NULL)
     {
         rows++;
@@ -971,7 +971,8 @@ NecroMachAst* necro_decision_tree_to_mach(NecroMachProgram* program, NecroDecisi
         if (result_phi != NULL)
         {
             // Multiple cases
-            NecroMachAst* curr_block = outer->machine_def.update_fn->fn_def._curr_block;
+            // NecroMachAst* curr_block = outer->machine_def.update_fn->fn_def._curr_block;
+            NecroMachAst* curr_block = necro_mach_block_get_current(outer->machine_def.update_fn);
             necro_mach_add_incoming_to_phi(program, result_phi, curr_block, leaf_value);
             necro_mach_build_break(program, outer->machine_def.update_fn, term_case_block);
             return NULL;
@@ -1134,7 +1135,8 @@ NecroMachAst* necro_core_transform_to_mach_3_case(NecroMachProgram* program, Nec
     if (!necro_decision_tree_is_branchless(tree))
     {
         // Branching
-        NecroMachAst* current_block = outer->machine_def.update_fn->fn_def._curr_block;
+        // NecroMachAst* current_block = outer->machine_def.update_fn->fn_def._curr_block;
+        NecroMachAst* current_block = necro_mach_block_get_current(outer->machine_def.update_fn);
         NecroMachAst* next_block    = current_block->block.next_block;
 
         // End block
@@ -1143,7 +1145,7 @@ NecroMachAst* necro_core_transform_to_mach_3_case(NecroMachProgram* program, Nec
         NecroMachType* result_type      = necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, ast->case_expr.alts->data->case_alt.expr->necro_type));
         NecroMachAst*  case_result      = necro_mach_build_phi(program, outer->machine_def.update_fn, result_type, NULL);
         // HACK
-        NecroMachAst*  result_phi       = outer->machine_def.update_fn->fn_def._curr_block->block.statements[outer->machine_def.update_fn->fn_def._curr_block->block.num_statements - 1];
+        NecroMachAst*  result_phi       = necro_mach_block_get_current(outer->machine_def.update_fn)->block.statements[necro_mach_block_get_current(outer->machine_def.update_fn)->block.num_statements - 1];
 
         // Error block
         NecroMachAst* err_block = outer->machine_def.update_fn->fn_def._err_block;
@@ -1167,7 +1169,7 @@ NecroMachAst* necro_core_transform_to_mach_3_case(NecroMachProgram* program, Nec
     else
     {
         // Branchless
-        NecroMachAst*  current_block = outer->machine_def.update_fn->fn_def._curr_block;
+        NecroMachAst*  current_block = necro_mach_block_get_current(outer->machine_def.update_fn);
         NecroBlockEnv* env           = necro_block_env_create(&program->arena, current_block, NULL);
         NecroMachAst*  case_result   = necro_decision_tree_to_mach(program, tree, NULL, NULL, NULL, outer, env);
         return case_result;

@@ -353,6 +353,11 @@ void necro_mach_block_move_to(NecroMachProgram* program, NecroMachAst* fn_def, N
     assert(false);
 }
 
+NecroMachAst* necro_mach_block_get_current(NecroMachAst* fn_def)
+{
+    return fn_def->fn_def._curr_block;
+}
+
 ///////////////////////////////////////////////////////
 // Memory
 ///////////////////////////////////////////////////////

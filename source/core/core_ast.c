@@ -746,6 +746,84 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_case(NecroCoreAstTransform
     return ok(NecroCoreAst, case_ast);
 }
 
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_left_section(NecroCoreAstTransform* context, NecroAst* ast)
+{
+    assert(ast->type == NECRO_AST_OP_LEFT_SECTION);
+    assert(ast->op_left_section.op_necro_type->type == NECRO_TYPE_FUN);
+    assert(ast->op_left_section.op_necro_type->fun.type2->type == NECRO_TYPE_FUN);
+
+    // NOTE: (9 +) --> (\lambda_arg -> (App (App (bin_op) 9) lambda_arg ))
+
+    NecroType* lam_arg_type = necro_type_deep_copy(context->arena, ast->op_left_section.op_necro_type->fun.type2->fun.type1);
+    unwrap(NecroType, necro_kind_infer(context->arena, context->base, lam_arg_type, zero_loc, zero_loc));
+
+    NecroCoreAstSymbol* lam_arg_symbol = necro_core_ast_symbol_create(context->arena, necro_intern_string(context->intern, "left_section_arg"), lam_arg_type);
+    assert(lam_arg_symbol != NULL);
+
+    NecroCoreAst* lam_arg = necro_core_ast_create_var(context->arena, lam_arg_symbol, lam_arg_type);
+
+    NecroCoreAst* op_ast = necro_core_ast_create_var(
+        context->arena, 
+        necro_core_ast_symbol_create_from_ast_symbol(
+            context->arena,
+            ast->op_left_section.ast_symbol
+        ),
+        ast->op_left_section.op_necro_type
+    );
+
+    NecroCoreAst* left_ast = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->op_left_section.left));
+
+    NecroCoreAst* inner_app = necro_core_ast_create_app(context->arena, op_ast, left_ast);
+    inner_app->necro_type = ast->necro_type;
+
+    NecroCoreAst* outer_app = necro_core_ast_create_app(context->arena, inner_app, lam_arg);
+    outer_app->necro_type = ast->op_left_section.op_necro_type;
+
+    NecroCoreAst* lam_ast  = necro_core_ast_create_lam(context->arena, lam_arg, outer_app);
+    lam_ast->necro_type    = necro_type_deep_copy(context->arena, ast->necro_type);
+
+    return ok(NecroCoreAst, lam_ast);
+}
+
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_right_section(NecroCoreAstTransform* context, NecroAst* ast)
+{
+    // TYPE NEEDS TO BE GRABBED SLIGHTLY DIFFERENT!
+    assert(ast->type == NECRO_AST_OP_RIGHT_SECTION);
+    assert(ast->op_right_section.op_necro_type->type == NECRO_TYPE_FUN);
+
+    // NOTE: (+ 9) --> (\lambda_arg -> (App (App (bin_op) lambda_arg) 9 ))
+
+    NecroType* lam_arg_type = necro_type_deep_copy(context->arena, ast->op_right_section.op_necro_type->fun.type1);
+    unwrap(NecroType, necro_kind_infer(context->arena, context->base, lam_arg_type, zero_loc, zero_loc));
+
+    NecroCoreAstSymbol* lam_arg_symbol = necro_core_ast_symbol_create(context->arena, necro_intern_string(context->intern, "right_section_arg"), lam_arg_type);
+    assert(lam_arg_symbol != NULL);
+
+    NecroCoreAst* lam_arg = necro_core_ast_create_var(context->arena, lam_arg_symbol, lam_arg_type);
+
+    NecroCoreAst* op_ast = necro_core_ast_create_var(
+        context->arena, 
+        necro_core_ast_symbol_create_from_ast_symbol(
+            context->arena,
+            ast->op_right_section.ast_symbol
+        ),
+        ast->op_right_section.op_necro_type
+    );
+
+    NecroCoreAst* right_ast = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->op_right_section.right));
+
+    NecroCoreAst* inner_app = necro_core_ast_create_app(context->arena, op_ast, lam_arg);
+    inner_app->necro_type = ast->necro_type;
+
+    NecroCoreAst* outer_app = necro_core_ast_create_app(context->arena, inner_app, right_ast);
+    outer_app->necro_type = ast->op_right_section.op_necro_type;
+
+    NecroCoreAst* lam_ast  = necro_core_ast_create_lam(context->arena, lam_arg, outer_app);
+    lam_ast->necro_type    = necro_type_deep_copy(context->arena, ast->necro_type);
+
+    return ok(NecroCoreAst, lam_ast);
+}
+
 NecroResult(NecroCoreAst) necro_ast_transform_to_core_if_then_else(NecroCoreAstTransform* context, NecroAst* ast)
 {
     assert(ast->type == NECRO_AST_IF_THEN_ELSE);
@@ -854,13 +932,13 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_go(NecroCoreAstTransform* 
     case NECRO_AST_FOR_LOOP:               return necro_ast_transform_to_core_for_loop(context, ast);
     case NECRO_AST_EXPRESSION_ARRAY:       return necro_ast_transform_to_core_array(context, ast);
     case NECRO_AST_CASE:                   return necro_ast_transform_to_core_case(context, ast);
+    case NECRO_AST_OP_LEFT_SECTION:        return necro_ast_transform_to_core_left_section(context, ast);
+    case NECRO_AST_OP_RIGHT_SECTION:       return necro_ast_transform_to_core_right_section(context, ast);
+    case NECRO_AST_IF_THEN_ELSE:           return necro_ast_transform_to_core_if_then_else(context, ast);
 
     // TODO
-    case NECRO_AST_IF_THEN_ELSE:           return necro_ast_transform_to_core_if_then_else(context, ast);
     case NECRO_AST_PAT_ASSIGNMENT: // return necro_transform_pat_assignment(core_transform, necro_ast_node);
     case NECRO_AST_PAT_EXPRESSION:
-    case NECRO_AST_OP_LEFT_SECTION:
-    case NECRO_AST_OP_RIGHT_SECTION:
         assert(false && "TODO");
         return ok(NecroCoreAst, NULL);
 
@@ -1322,6 +1400,46 @@ void necro_core_ast_test()
         const char* test_source = ""
             "ifTest :: Bool -> Bool\n"
             "ifTest t = if t then (if False then True else False) else (if False then True else False)\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Lambda Curry";
+        const char* test_source = ""
+            "lambdaCurry :: Int -> Int\n"
+            "lambdaCurry = \\a -> a + 1\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Left Section";
+        const char* test_source = ""
+            "leftSection :: Int -> Int\n"
+            "leftSection = (2 +)\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Maybe Left Section";
+        const char* test_source = ""
+            "maybeLeftSection :: Maybe (Int -> Int)\n"
+            "maybeLeftSection = Just (2 +)\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Right Section";
+        const char* test_source = ""
+            "rightSection :: Int -> Int\n"
+            "rightSection  = (+ 2)\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Maybe Right Section";
+        const char* test_source = ""
+            "maybeRightSection :: Maybe (Int -> Int)\n"
+            "maybeRightSection = Just (+ 2)\n";
         necro_core_test_result(test_name, test_source);
     }
 }

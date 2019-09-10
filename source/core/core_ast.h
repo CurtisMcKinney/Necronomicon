@@ -131,13 +131,11 @@ typedef struct NecroCoreAstLiteral
         NecroCoreAstList* array_literal_elements;
     };
     NECRO_CONSTANT_TYPE type;
-    size_t              persistent_slot;
 } NecroCoreAstLiteral;
 
 typedef struct NecroCoreAstVar
 {
     NecroCoreAstSymbol* ast_symbol;
-    size_t              persistent_slot;
 } NecroCoreAstVar;
 
 typedef struct NecroCoreAstBind
@@ -158,7 +156,6 @@ typedef struct NecroCoreAstApplication
 {
     struct NecroCoreAst* expr1;
     struct NecroCoreAst* expr2;
-    size_t               persistent_slot; // Curtis: Metadata for codegen
 } NecroCoreAstApplication;
 
 typedef struct NecroCoreAstLambda
@@ -206,7 +203,6 @@ typedef struct NecroCoreAstForLoop
     struct NecroCoreAst* value_arg;
     struct NecroCoreAst* expression;
     size_t               max_loops;
-    size_t               persistent_slot;
 } NecroCoreAstForLoop;
 
 typedef enum
@@ -244,6 +240,7 @@ typedef struct NecroCoreAst
     };
     NECRO_CORE_AST_TYPE ast_type;
     NecroType*          necro_type;
+    size_t              persistent_slot;
 } NecroCoreAst;
 
 //--------------------
@@ -268,7 +265,6 @@ NecroCoreAst* necro_core_ast_create_var(NecroPagedArena* arena, NecroCoreAstSymb
 NecroCoreAst* necro_core_ast_create_bind(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroCoreAst* expr);
 NecroCoreAst* necro_core_ast_create_let(NecroPagedArena* arena, NecroCoreAst* bind, NecroCoreAst* expr);
 NecroCoreAst* necro_core_ast_create_lam(NecroPagedArena* arena, NecroCoreAst* arg, NecroCoreAst* expr);
-// NecroCoreAst* necro_core_ast_create_app(NecroPagedArena* arena, NecroCoreAst* expr1, NecroCoreAst* expr2, NecroType* necro_type);
 NecroCoreAst* necro_core_ast_create_app(NecroPagedArena* arena, NecroCoreAst* expr1, NecroCoreAst* expr2);
 NecroCoreAst* necro_core_ast_create_data_con(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroType* type, NecroType* data_type_type);
 NecroCoreAst* necro_core_ast_create_data_decl(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroCoreAstList* con_list);

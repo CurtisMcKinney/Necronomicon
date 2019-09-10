@@ -25,9 +25,10 @@
 ///////////////////////////////////////////////////////
 inline NecroCoreAst* necro_core_ast_alloc(NecroPagedArena* arena, NECRO_CORE_AST_TYPE ast_type)
 {
-    NecroCoreAst* ast = necro_paged_arena_alloc(arena, sizeof(NecroCoreAst));
-    ast->ast_type     = ast_type;
-    ast->necro_type   = NULL;
+    NecroCoreAst* ast    = necro_paged_arena_alloc(arena, sizeof(NecroCoreAst));
+    ast->ast_type        = ast_type;
+    ast->necro_type      = NULL;
+    ast->persistent_slot = 0xFFFFFFFF;
     return ast;
 }
 
@@ -35,7 +36,6 @@ NecroCoreAst* necro_core_ast_create_lit(NecroPagedArena* arena, NecroAstConstant
 {
     NecroCoreAst* ast        = necro_core_ast_alloc(arena, NECRO_CORE_AST_LIT);
     ast->lit.type            = constant.type;
-    ast->lit.persistent_slot = 0;
     switch (constant.type)
     {
     case NECRO_AST_CONSTANT_FLOAT_PATTERN:
@@ -69,7 +69,6 @@ NecroCoreAst* necro_core_ast_create_array_lit(NecroPagedArena* arena, NecroCoreA
     NecroCoreAst* ast               = necro_core_ast_alloc(arena, NECRO_CORE_AST_LIT);
     ast->lit.type                   = NECRO_AST_CONSTANT_ARRAY;
     ast->lit.array_literal_elements = elements;
-    ast->lit.persistent_slot        = 0;
     return ast;
 }
 
@@ -79,7 +78,6 @@ NecroCoreAst* necro_core_ast_create_var(NecroPagedArena* arena, NecroCoreAstSymb
     assert(necro_type->kind != NULL);
     NecroCoreAst* ast        = necro_core_ast_alloc(arena, NECRO_CORE_AST_VAR);
     ast->var.ast_symbol      = ast_symbol;
-    ast->var.persistent_slot = 0;
     ast->necro_type          = necro_type;
     return ast;
 }
@@ -116,7 +114,6 @@ NecroCoreAst* necro_core_ast_create_app(NecroPagedArena* arena, NecroCoreAst* ex
     NecroCoreAst* ast        = necro_core_ast_alloc(arena, NECRO_CORE_AST_APP);
     ast->app.expr1           = expr1;
     ast->app.expr2           = expr2;
-    ast->app.persistent_slot = 0;
     // ast->necro_type          = necro_type;
     return ast;
 }
@@ -169,7 +166,6 @@ NecroCoreAst* necro_core_ast_create_for_loop(NecroPagedArena* arena, size_t max_
     ast->for_loop.value_arg       = value_arg;
     ast->for_loop.expression      = expression;
     ast->for_loop.max_loops       = max_loops;
-    ast->for_loop.persistent_slot = 0;
     return ast;
 }
 
@@ -372,7 +368,6 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_app(NecroCoreAstTransform*
     // assert(expr2->necro_type != NULL);
     NecroCoreAst* core_ast = necro_core_ast_create_app(context->arena,expr1, expr2);
     core_ast->necro_type   = necro_type_deep_copy(context->arena, ast->necro_type);
-    // core_ast->app.persistent_slot = 0; // Curtis: Metadata for codegen (would really prefer a constructor...)
     return ok(NecroCoreAst, core_ast);
 }
 

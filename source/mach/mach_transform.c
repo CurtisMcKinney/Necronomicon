@@ -649,7 +649,7 @@ void necro_core_transform_to_mach_2_var(NecroMachProgram* program, NecroCoreAst*
         if (machine_ast->machine_def.is_persistent_slot_set)
             return;
         machine_ast->machine_def.is_persistent_slot_set = true;
-        core_ast->var.persistent_slot = necro_mach_type_is_unboxed(program, machine_ast->machine_def.value_type)
+        core_ast->persistent_slot = necro_mach_type_is_unboxed(program, machine_ast->machine_def.value_type)
             ? necro_mach_add_member(program, &outer->machine_def, machine_ast->machine_def.value_type, machine_ast).slot_num
             : necro_mach_add_member(program, &outer->machine_def, necro_mach_type_create_ptr(&program->arena, machine_ast->machine_def.value_type), machine_ast).slot_num;
     }
@@ -659,7 +659,7 @@ void necro_core_transform_to_mach_2_var(NecroMachProgram* program, NecroCoreAst*
         assert(mach_symbol->ast->necro_machine_type->fn_type.num_parameters == 1);
         assert(mach_symbol->ast->necro_machine_type->fn_type.parameters[0]->type == NECRO_MACH_TYPE_PTR);
         NecroMachType* con_type = mach_symbol->ast->necro_machine_type->fn_type.parameters[0]->ptr_type.element_type;
-        core_ast->var.persistent_slot = necro_mach_add_member(program, &outer->machine_def, con_type, mach_symbol->ast).slot_num;
+        core_ast->persistent_slot = necro_mach_add_member(program, &outer->machine_def, con_type, mach_symbol->ast).slot_num;
     }
 }
 
@@ -689,7 +689,7 @@ void necro_core_transform_to_mach_2_app(NecroMachProgram* program, NecroCoreAst*
     {
         fn_type = fn_value->machine_def.fn_type;
         if (fn_value->machine_def.num_members > 0)
-            core_ast->app.persistent_slot = necro_mach_add_member(program, &outer->machine_def, fn_value->necro_machine_type, fn_value).slot_num;
+            core_ast->persistent_slot = necro_mach_add_member(program, &outer->machine_def, fn_value->necro_machine_type, fn_value).slot_num;
     }
     else if (symbol->is_constructor)
     {
@@ -698,7 +698,7 @@ void necro_core_transform_to_mach_2_app(NecroMachProgram* program, NecroCoreAst*
         assert(fn_value->necro_machine_type->fn_type.parameters[0]->type == NECRO_MACH_TYPE_PTR);
         fn_type                 = fn_value->necro_machine_type;
         NecroMachType* con_type = fn_value->necro_machine_type->fn_type.parameters[0]->ptr_type.element_type;
-        core_ast->app.persistent_slot = necro_mach_add_member(program, &outer->machine_def, con_type, fn_value).slot_num;
+        core_ast->persistent_slot = necro_mach_add_member(program, &outer->machine_def, con_type, fn_value).slot_num;
     }
     else
     {
@@ -721,7 +721,7 @@ void necro_core_transform_to_mach_2_lit(NecroMachProgram* program, NecroCoreAst*
     if (core_ast->lit.type != NECRO_AST_CONSTANT_ARRAY)
         return;
     NecroMachType* array_mach_type = necro_mach_type_from_necro_type(program, core_ast->necro_type);
-    core_ast->lit.persistent_slot  = necro_mach_add_member(program, &outer->machine_def, array_mach_type, NULL).slot_num;
+    core_ast->persistent_slot  = necro_mach_add_member(program, &outer->machine_def, array_mach_type, NULL).slot_num;
     NecroCoreAstList* elements = core_ast->lit.array_literal_elements;
     while (elements != NULL)
     {
@@ -765,7 +765,7 @@ void necro_core_transform_to_mach_2_for(NecroMachProgram* program, NecroCoreAst*
     // Calculate For loop state type
     if (for_num_members == 0)
     {
-        core_ast->for_loop.persistent_slot = 0xFFFFFFFF;
+        core_ast->persistent_slot = 0xFFFFFFFF;
         return;
     }
     NecroMachType**     for_member_types = necro_paged_arena_alloc(&program->arena, for_num_members * sizeof(NecroMachType*));
@@ -774,7 +774,7 @@ void necro_core_transform_to_mach_2_for(NecroMachProgram* program, NecroCoreAst*
     NecroMachAstSymbol* for_state_symbol = necro_mach_ast_symbol_gen(program, NULL, "LoopState", NECRO_MANGLE_NAME);
     NecroMachType*      for_state_type   = necro_mach_create_struct_def(program, for_state_symbol, for_member_types, for_num_members)->necro_machine_type;
     NecroMachType*      for_array_type   = necro_mach_type_create_array(&program->arena, for_state_type, core_ast->for_loop.max_loops);
-    core_ast->for_loop.persistent_slot   = necro_mach_add_member(program, &outer->machine_def, for_array_type, NULL).slot_num;
+    core_ast->persistent_slot   = necro_mach_add_member(program, &outer->machine_def, for_array_type, NULL).slot_num;
 }
 
 void necro_core_transform_to_mach_2_go(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
@@ -821,7 +821,7 @@ NecroMachAst* necro_core_transform_to_mach_3_lit(NecroMachProgram* program, Necr
     default:                         assert(false); return NULL;
     }
     // NECRO_AST_CONSTANT_ARRAY
-    NecroMachAst*     value_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, necro_mach_value_get_state_ptr(outer->machine_def.update_fn), (uint32_t[]) { 0, core_ast->lit.persistent_slot }, 2, "state");
+    NecroMachAst*     value_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, necro_mach_value_get_state_ptr(outer->machine_def.update_fn), (uint32_t[]) { 0, core_ast->persistent_slot }, 2, "state");
     NecroCoreAstList* elements  = core_ast->lit.array_literal_elements;
     size_t            i         = 0;
     while (elements != NULL)
@@ -893,7 +893,7 @@ NecroMachAst* necro_core_transform_to_mach_3_var(NecroMachProgram* program, Necr
     // Constructor
     else if (symbol->is_constructor)// && symbol->arity == 0) // NOTE: Not checking arity as theoretically that should already be caught be lambda lifting, etc
     {
-        NecroMachAst* value_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, necro_mach_value_get_state_ptr(outer->machine_def.update_fn), (uint32_t[]) { 0, core_ast->var.persistent_slot }, 2, "state");
+        NecroMachAst* value_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, necro_mach_value_get_state_ptr(outer->machine_def.update_fn), (uint32_t[]) { 0, core_ast->persistent_slot }, 2, "state");
         return necro_mach_build_call(program, outer->machine_def.update_fn, symbol->ast, (NecroMachAst*[]) { value_ptr }, 1, NECRO_MACH_CALL_LANG, "con");
     }
     //--------------------
@@ -908,8 +908,8 @@ NecroMachAst* necro_core_transform_to_mach_3_var(NecroMachProgram* program, Necr
     {
         // TODO / NOTE: This system probably needs to be updated to do a full deep copy of object instead of a shallow copy, otherwise the innards will get stomped on with the next call to update_fn
         // const size_t   slot_num  = symbol->slot.slot_num;
-        NecroMachType* slot_type = outer->necro_machine_type->struct_type.members[core_ast->var.persistent_slot];
-        NecroMachAst*  value_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, necro_mach_value_get_state_ptr(outer->machine_def.update_fn), (uint32_t[]) { 0, core_ast->var.persistent_slot }, 2, "prs");
+        NecroMachType* slot_type = outer->necro_machine_type->struct_type.members[core_ast->persistent_slot];
+        NecroMachAst*  value_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, necro_mach_value_get_state_ptr(outer->machine_def.update_fn), (uint32_t[]) { 0, core_ast->persistent_slot }, 2, "prs");
         if (necro_mach_type_is_unboxed(program, slot_type) || slot_type->type == NECRO_MACH_TYPE_PTR)
             return necro_mach_build_load(program, outer->machine_def.update_fn, value_ptr, "val");
         else
@@ -947,7 +947,7 @@ NecroMachAst* necro_core_transform_to_mach_3_app(NecroMachProgram* program, Necr
     //--------------------
     NecroCoreAst* function        = core_ast;
     size_t        arg_count       = 0;
-    size_t        persistent_slot = core_ast->app.persistent_slot;
+    size_t        persistent_slot = core_ast->persistent_slot;
     while (function->ast_type == NECRO_CORE_AST_APP)
     {
         arg_count++;
@@ -1128,8 +1128,8 @@ NecroMachAst* necro_core_transform_to_mach_3_for(NecroMachProgram* program, Necr
     NecroMachAst*  max_index         = necro_mach_value_create_word_uint(program, core_ast->for_loop.max_loops);
     NecroMachAst*  end_index         = necro_mach_build_binop(program, outer->machine_def.update_fn, max_index, trim_value, NECRO_MACH_BINOP_USUB);
     NecroMachAst*  current_state_ptr = necro_mach_value_get_state_ptr(outer->machine_def.update_fn);
-    NecroMachAst*  for_state_array   = (core_ast->for_loop.persistent_slot == 0xFFFFFFFF) ? NULL : necro_mach_build_gep(program, outer->machine_def.update_fn, current_state_ptr, (uint32_t[]) { 0, core_ast->for_loop.persistent_slot }, 2, "for_state_array");
-    NecroMachType* for_state_type    = (core_ast->for_loop.persistent_slot == 0xFFFFFFFF) ? NULL : necro_mach_type_create_ptr(&program->arena, for_state_array->necro_machine_type->ptr_type.element_type->array_type.element_type);
+    NecroMachAst*  for_state_array   = (core_ast->persistent_slot == 0xFFFFFFFF) ? NULL : necro_mach_build_gep(program, outer->machine_def.update_fn, current_state_ptr, (uint32_t[]) { 0, core_ast->persistent_slot }, 2, "for_state_array");
+    NecroMachType* for_state_type    = (core_ast->persistent_slot == 0xFFFFFFFF) ? NULL : necro_mach_type_create_ptr(&program->arena, for_state_array->necro_machine_type->ptr_type.element_type->array_type.element_type);
     necro_mach_build_break(program, outer->machine_def.update_fn, loop_block);
 
     //--------------------
@@ -1139,7 +1139,7 @@ NecroMachAst* necro_core_transform_to_mach_3_for(NecroMachProgram* program, Necr
     NecroMachAst*  index_phi                                       = necro_mach_block_get_current(outer->machine_def.update_fn)->block.statements[necro_mach_block_get_current(outer->machine_def.update_fn)->block.num_statements - 1]; // HACK HACK HACK HACK
     NecroMachAst*  value_value                                     = necro_mach_build_phi(program, outer->machine_def.update_fn, init_value->necro_machine_type, NULL);
     NecroMachAst*  value_phi                                       = necro_mach_block_get_current(outer->machine_def.update_fn)->block.statements[necro_mach_block_get_current(outer->machine_def.update_fn)->block.num_statements - 1]; // HACK HACK HACK HACK
-    if (core_ast->for_loop.persistent_slot != 0xFFFFFFFF)
+    if (core_ast->persistent_slot != 0xFFFFFFFF)
         necro_mach_value_put_state_ptr(outer->machine_def.update_fn, necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, for_state_array, (NecroMachAst* []) { necro_mach_value_create_word_uint(program, 0), index_value }, 2, "loop_state", for_state_type));
     // Index
     core_ast->for_loop.index_arg->var.ast_symbol->mach_symbol->ast = index_value;

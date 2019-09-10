@@ -67,7 +67,7 @@ const char* necro_compile_phase_string(NECRO_PHASE phase)
 
 void necro_compile_begin_phase(NecroCompileInfo compile_info, NECRO_PHASE phase)
 {
-    // if (compile_info.compilation_phase == phase && compile_info.verbosity > 0)
+    // if (info.verbosity > 1 || (compile_info.compilation_phase == phase && compile_info.verbosity > 0))
     //     necro_announce_phase(necro_phase_string(phase));
     UNUSED(phase);
     if (compile_info.compilation_phase != NECRO_PHASE_JIT && compile_info.verbosity > 1)

@@ -769,7 +769,7 @@ NecroResult(void) necro_parse(NecroCompileInfo info, NecroIntern* intern, NecroL
         return necro_parse_error(look_ahead_token->source_loc, look_ahead_token->end_loc);
     }
     *out_ast = parser.ast;
-    if (info.compilation_phase == NECRO_PHASE_PARSE && info.verbosity > 0)
+    if (info.verbosity > 1 || (info.compilation_phase == NECRO_PHASE_PARSE && info.verbosity > 0))
     {
         necro_parse_ast_print(out_ast);
     }

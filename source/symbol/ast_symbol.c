@@ -118,7 +118,7 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create(NecroPagedArena* core_ast_arena
     core_ast_symbol->_mach_symbol       = NULL;
     core_ast_symbol->arity              = 0;
     core_ast_symbol->state_type         = NECRO_STATE_CONSTANT;
-    core_ast_symbol->outer              = NULL;
+    core_ast_symbol->arity              = 0;
     return core_ast_symbol;
 }
 
@@ -169,7 +169,7 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create_by_renaming(NecroPagedArena* co
     core_ast_symbol->_mach_symbol       = NULL;
     core_ast_symbol->arity              = ast_symbol->arity;
     core_ast_symbol->state_type         = ast_symbol->state_type;
-    core_ast_symbol->outer              = ast_symbol->outer;
+    core_ast_symbol->arity              = ast_symbol->arity;
     return core_ast_symbol;
 }
 

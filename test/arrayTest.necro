@@ -73,9 +73,6 @@ each          :: Range n
 slidingWindow :: Index n -> Range m -> Range m
 offsetRange   :: UInt -> Range n -> Range n
 writeArray    :: Index n -> *a -> *Array n a -> *Array n a
-index         :: Index n -> Array n a -> a
-
-data Range n = Range UInt UInt UInt --Start, Increment, End (Or perhaps, trim amount)
 
 each :: Range n
 each = Range 0 1 0

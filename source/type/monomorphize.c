@@ -88,7 +88,7 @@ NecroResult(void) necro_monomorphize(NecroCompileInfo info, NecroIntern* intern,
         // TODO: Fully specialize types at the end of core instead of before core.
         // necro_monomorphize_type_go(&monomorphize, ast_arena->root);
         necro_monomorphize_destroy(&monomorphize);
-        if (info.compilation_phase == NECRO_PHASE_MONOMORPHIZE && info.verbosity > 0)
+        if (info.verbosity > 1 || (info.compilation_phase == NECRO_PHASE_MONOMORPHIZE && info.verbosity > 0))
             necro_ast_arena_print(ast_arena);
         return ok_void();
     }

@@ -873,7 +873,7 @@ NecroResult(void) necro_lex(NecroCompileInfo info, NecroIntern* intern, const ch
         lex_result = necro_lex_fixup_layout(&lexer);
         if (lex_result.type == NECRO_RESULT_OK)
         {
-            if (info.compilation_phase == NECRO_PHASE_LEX && info.verbosity > 0)
+            if (info.verbosity > 1 || (info.compilation_phase == NECRO_PHASE_LEX && info.verbosity > 0))
                 necro_lex_print(&lexer);
         }
     }

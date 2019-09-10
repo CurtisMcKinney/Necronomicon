@@ -605,6 +605,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     NecroAst* tuple_10_constructor = necro_ast_create_data_con(arena, intern, "(,,,,,,,,,)", necro_ast_create_var_list(arena, intern, 10, NECRO_VAR_TYPE_FREE_VAR));
     necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, tuple_10_s_type, necro_ast_create_list(arena, tuple_10_constructor, NULL)));
 
+/*
     for (size_t i = 0; i < NECRO_MAX_ENV_TYPES; ++i)
     {
         char env_name[16] = "";
@@ -613,7 +614,9 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         NecroAst* env_constructor = necro_ast_create_data_con(arena, intern, env_name, necro_ast_create_var_list(arena, intern, i, NECRO_VAR_TYPE_FREE_VAR));
         necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, env_s_type, necro_ast_create_list(arena, env_constructor, NULL)));
     }
+*/
 
+/*
     for (size_t i = 2; i < NECRO_MAX_BRANCH_TYPES; ++i)
     {
         char branch_fn_name[24] = "";
@@ -629,6 +632,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         }
         necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, branch_fn_s_type, branch_fn_cons));
     }
+*/
 
     // Functor
     {

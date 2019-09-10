@@ -130,17 +130,19 @@ NecroResult(NecroType) necro_core_infer_for(NecroCoreInfer* infer, NecroCoreAst*
     NecroType* index_arg_type  = necro_try_result(NecroType, necro_core_infer_go(infer, ast->for_loop.index_arg));
     NecroType* value_arg_type  = necro_try_result(NecroType, necro_core_infer_go(infer, ast->for_loop.value_arg));
     NecroType* expression_type = necro_try_result(NecroType, necro_core_infer_go(infer, ast->for_loop.expression));
-    NecroType* n_type          = necro_type_fresh_var(infer->arena, NULL);
-    // NecroType* inner_type      = necro_type_fresh_var(infer->arena, NULL);
-    NecroType* range_type      = necro_type_con1_create(infer->arena, infer->base->range_type, n_type);
-    NecroType* index_type      = necro_type_con1_create(infer->arena, infer->base->index_type, n_type);
-    unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, range_type, zero_loc, zero_loc));
-    unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, index_type, zero_loc, zero_loc));
-    necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, range_type, range_init_type, NULL, zero_loc, zero_loc));
-    necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, index_type, index_arg_type, NULL, zero_loc, zero_loc));
+    // TODO: How to handle type inference with range / index after monomophization of types?
+    UNUSED(range_init_type);
+    UNUSED(index_arg_type);
+    // NecroType* n_type          = necro_type_fresh_var(infer->arena, NULL);
+    // NecroType* range_type      = necro_type_con1_create(infer->arena, infer->base->range_type, n_type);
+    // NecroType* index_type      = necro_type_con1_create(infer->arena, infer->base->index_type, n_type);
+    // unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, range_type, zero_loc, zero_loc));
+    // unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, index_type, zero_loc, zero_loc));
+    // necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, range_type, range_init_type, NULL, zero_loc, zero_loc));
+    // necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, index_type, index_arg_type, NULL, zero_loc, zero_loc));
     necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, value_init_type, value_arg_type, NULL, zero_loc, zero_loc));
     necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, value_arg_type, expression_type, NULL, zero_loc, zero_loc));
-    ast->necro_type       = expression_type;
+    ast->necro_type = expression_type;
     assert(ast->necro_type != NULL);
     return ok(NecroType, expression_type);
 }
@@ -213,7 +215,7 @@ NecroResult(NecroType) necro_core_infer_case(NecroCoreInfer* infer, NecroCoreAst
         necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, body_type, zero_loc, zero_loc));
         necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, result_type, body_type, NULL, zero_loc, zero_loc));
         assert(alt->case_alt.expr->necro_type != NULL);
-        assert(alt->case_alt.expr->necro_type->kind != NULL);
+        necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, result_type, body_type, NULL, zero_loc, zero_loc));
         alts = alts->next;
     }
     ast->necro_type = result_type;

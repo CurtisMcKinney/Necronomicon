@@ -288,6 +288,7 @@ NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase
 {
 
     type = necro_type_find(type);
+    assert(type != NULL && "NULL type found in necro_kind_infer!");
     switch (type->type)
     {
 

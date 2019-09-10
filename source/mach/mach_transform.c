@@ -716,8 +716,8 @@ void necro_core_transform_to_mach_2_lit(NecroMachProgram* program, NecroCoreAst*
     assert(program != NULL);
     assert(core_ast != NULL);
     assert(core_ast->ast_type == NECRO_CORE_AST_LIT);
-    if (outer != NULL)
-        assert(outer->type == NECRO_MACH_DEF);
+    assert(outer != NULL);
+    assert(outer->type == NECRO_MACH_DEF);
     if (core_ast->lit.type != NECRO_AST_CONSTANT_ARRAY)
         return;
     NecroMachType* array_mach_type = necro_mach_type_from_necro_type(program, core_ast->necro_type);
@@ -735,8 +735,9 @@ void necro_core_transform_to_mach_2_for(NecroMachProgram* program, NecroCoreAst*
     assert(program != NULL);
     assert(core_ast != NULL);
     assert(core_ast->ast_type == NECRO_CORE_AST_FOR);
-    if (outer != NULL)
-        assert(outer->type == NECRO_MACH_DEF);
+    assert(outer != NULL);
+    assert(outer->type == NECRO_MACH_DEF);
+
     //!!!!!!!!!!!!!
     // NOTE: Expects that the args are single arguments. If these are patterns in core then core needs to transform them to have a case statement added to the expression portion of the for loop!
     //!!!!!!!!!!!!!
@@ -1105,8 +1106,8 @@ NecroMachAst* necro_core_transform_to_mach_3_for(NecroMachProgram* program, Necr
     assert(program != NULL);
     assert(core_ast != NULL);
     assert(core_ast->ast_type == NECRO_CORE_AST_FOR);
-    if (outer != NULL)
-        assert(outer->type == NECRO_MACH_DEF);
+    assert(outer != NULL);
+    assert(outer->type == NECRO_MACH_DEF);
 
     //--------------------
     // Blocks
@@ -1412,6 +1413,9 @@ void necro_mach_test()
     necro_announce_phase("Mach");
 
 /*
+
+*/
+
     {
         const char* test_name   = "Basic 1";
         const char* test_source = ""
@@ -1749,6 +1753,149 @@ void necro_mach_test()
     }
 
     {
+        const char* test_name   = "Case Lit 1";
+        const char* test_source = ""
+            "main w =\n"
+            "  case 0 of\n"
+            "    0 -> printInt 0 w\n"
+            "    1 -> printInt 1 w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case Lit 2";
+        const char* test_source = ""
+            "main w =\n"
+            "  case False of\n"
+            "    False -> printInt 0 w\n"
+            "    True  -> printInt 1 w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case Lit 3";
+        const char* test_source = ""
+            "basketCase :: Int -> *World -> *World\n"
+            "basketCase i w =\n"
+            "  case i of\n"
+            "    0 -> printInt 0 w\n"
+            "    1 -> printInt 1 w\n"
+            "main :: *World -> *World\n"
+            "main w = basketCase 0 w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case Lit 4";
+        const char* test_source = ""
+            "basketCase :: Int -> *World -> *World\n"
+            "basketCase i w =\n"
+            "  case i of\n"
+            "    0 -> printInt 666 w\n"
+            "    u -> printInt u w\n"
+            "main :: *World -> *World\n"
+            "main w = basketCase 0 w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case Lit 5";
+        const char* test_source = ""
+            "basketCase :: Int -> *World -> *World\n"
+            "basketCase i w =\n"
+            "  case i of\n"
+            "    u -> printInt u w\n"
+            "main :: *World -> *World\n"
+            "main w = basketCase 0 w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case Lit 5";
+        const char* test_source = ""
+            "basketCase :: Maybe Int -> *World -> *World\n"
+            "basketCase m w =\n"
+            "  case m of\n"
+            "    Nothing -> printInt 100 w\n"
+            "    Just 0  -> printInt 200 w\n"
+            "    Just -1 -> printInt 300 w\n"
+            "    Just i  -> printInt i w\n"
+            "main :: *World -> *World\n"
+            "main w = basketCase Nothing w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case Lit 6";
+        const char* test_source = ""
+            "basketCase :: Maybe Int -> *World -> *World\n"
+            "basketCase m w =\n"
+            "  case m of\n"
+            "    Nothing -> printInt 100 w\n"
+            "    Just 0  -> printInt 200 w\n"
+            "    Just -1 -> printInt 300 w\n"
+            "    Just _  -> printInt 400 w\n"
+            "main :: *World -> *World\n"
+            "main w = basketCase Nothing w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case Lit 7";
+        const char* test_source = ""
+            "basketCase :: Int -> *World -> *World\n"
+            "basketCase i w =\n"
+            "  case gt i 0 of\n"
+            "    True -> printInt 666 w\n"
+            "    _    -> printInt 777 w\n"
+            "main :: *World -> *World\n"
+            "main w = basketCase 0 w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case Lit 8";
+        const char* test_source = ""
+            "basketCase :: Int -> *World -> *World\n"
+            "basketCase i w =\n"
+            "  case gt i 0 of\n"
+            "    True  -> printInt 666 w\n"
+            "    False -> printInt 777 w\n"
+            "main :: *World -> *World\n"
+            "main w = basketCase 0 w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case Lit 9";
+        const char* test_source = ""
+            "basketCase :: Int -> *World -> *World\n"
+            "basketCase i w =\n"
+            "  case Just (gt i 0) of\n"
+            "    Nothing    -> printInt 0 w\n"
+            "    Just True  -> printInt 666 w\n"
+            "    Just False -> printInt 777 w\n"
+            "main :: *World -> *World\n"
+            "main w = basketCase 0 w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case Lit 10";
+        const char* test_source = ""
+            "basketCase :: Int -> *World -> *World\n"
+            "basketCase i w =\n"
+            "  case Just (gt i 0) of\n"
+            "    Nothing    -> printInt 0 w\n"
+            "    Just False -> printInt 777 w\n"
+            "    Just _     -> printInt 666 w\n"
+            "main :: *World -> *World\n"
+            "main w = basketCase 0 w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+
+    {
         const char* test_name   = "Array 1";
         const char* test_source = ""
             "arrayed :: Array 2 Float -> Array 2 Float\n"
@@ -1923,151 +2070,8 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
-    {
-        const char* test_name   = "Case Lit 1";
-        const char* test_source = ""
-            "main w =\n"
-            "  case 0 of\n"
-            "    0 -> printInt 0 w\n"
-            "    1 -> printInt 1 w\n";
-        necro_mach_test_string(test_name, test_source);
-    }
+/*
 
-    {
-        const char* test_name   = "Case Lit 2";
-        const char* test_source = ""
-            "main w =\n"
-            "  case False of\n"
-            "    False -> printInt 0 w\n"
-            "    True  -> printInt 1 w\n";
-        necro_mach_test_string(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Case Lit 3";
-        const char* test_source = ""
-            "basketCase :: Int -> *World -> *World\n"
-            "basketCase i w =\n"
-            "  case i of\n"
-            "    0 -> printInt 0 w\n"
-            "    1 -> printInt 1 w\n"
-            "main :: *World -> *World\n"
-            "main w = basketCase 0 w\n";
-        necro_mach_test_string(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Case Lit 4";
-        const char* test_source = ""
-            "basketCase :: Int -> *World -> *World\n"
-            "basketCase i w =\n"
-            "  case i of\n"
-            "    0 -> printInt 666 w\n"
-            "    u -> printInt u w\n"
-            "main :: *World -> *World\n"
-            "main w = basketCase 0 w\n";
-        necro_mach_test_string(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Case Lit 5";
-        const char* test_source = ""
-            "basketCase :: Int -> *World -> *World\n"
-            "basketCase i w =\n"
-            "  case i of\n"
-            "    u -> printInt u w\n"
-            "main :: *World -> *World\n"
-            "main w = basketCase 0 w\n";
-        necro_mach_test_string(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Case Lit 5";
-        const char* test_source = ""
-            "basketCase :: Maybe Int -> *World -> *World\n"
-            "basketCase m w =\n"
-            "  case m of\n"
-            "    Nothing -> printInt 100 w\n"
-            "    Just 0  -> printInt 200 w\n"
-            "    Just -1 -> printInt 300 w\n"
-            "    Just i  -> printInt i w\n"
-            "main :: *World -> *World\n"
-            "main w = basketCase Nothing w\n";
-        necro_mach_test_string(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Case Lit 6";
-        const char* test_source = ""
-            "basketCase :: Maybe Int -> *World -> *World\n"
-            "basketCase m w =\n"
-            "  case m of\n"
-            "    Nothing -> printInt 100 w\n"
-            "    Just 0  -> printInt 200 w\n"
-            "    Just -1 -> printInt 300 w\n"
-            "    Just _  -> printInt 400 w\n"
-            "main :: *World -> *World\n"
-            "main w = basketCase Nothing w\n";
-        necro_mach_test_string(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Case Lit 7";
-        const char* test_source = ""
-            "basketCase :: Int -> *World -> *World\n"
-            "basketCase i w =\n"
-            "  case gt i 0 of\n"
-            "    True -> printInt 666 w\n"
-            "    _    -> printInt 777 w\n"
-            "main :: *World -> *World\n"
-            "main w = basketCase 0 w\n";
-        necro_mach_test_string(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Case Lit 8";
-        const char* test_source = ""
-            "basketCase :: Int -> *World -> *World\n"
-            "basketCase i w =\n"
-            "  case gt i 0 of\n"
-            "    True  -> printInt 666 w\n"
-            "    False -> printInt 777 w\n"
-            "main :: *World -> *World\n"
-            "main w = basketCase 0 w\n";
-        necro_mach_test_string(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Case Lit 9";
-        const char* test_source = ""
-            "basketCase :: Int -> *World -> *World\n"
-            "basketCase i w =\n"
-            "  case Just (gt i 0) of\n"
-            "    Nothing    -> printInt 0 w\n"
-            "    Just True  -> printInt 666 w\n"
-            "    Just False -> printInt 777 w\n"
-            "main :: *World -> *World\n"
-            "main w = basketCase 0 w\n";
-        necro_mach_test_string(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Case Lit 10";
-        const char* test_source = ""
-            "basketCase :: Int -> *World -> *World\n"
-            "basketCase i w =\n"
-            "  case Just (gt i 0) of\n"
-            "    Nothing    -> printInt 0 w\n"
-            "    Just False -> printInt 777 w\n"
-            "    Just _     -> printInt 666 w\n"
-            "main :: *World -> *World\n"
-            "main w = basketCase 0 w\n";
-        necro_mach_test_string(test_name, test_source);
-    }
-
-*/
-
-// TODO: Should probably merge before we make even more changes to necro.c
 // TODO: Perhaps use persence of initializers to flag the starting point for recursion?
 // TODO: Then during state_analysis we crawl ast and percolate the NECRO_STATE_STATEFUL types up from there?
     {
@@ -2079,8 +2083,6 @@ void necro_mach_test()
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);
     }
-
-/*
 
 */
 

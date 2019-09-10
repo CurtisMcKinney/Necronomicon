@@ -200,12 +200,12 @@ typedef struct NecroMachBlock
 //--------------------
 // Machine
 //--------------------
-typedef enum
-{
-    NECRO_MACH_GLOBAL,
-    NECRO_MACH_LOCAL,
-    NECRO_MACH_FN,
-} NECRO_MACH_DEF_TYPE;
+// typedef enum
+// {
+//     NECRO_MACH_GLOBAL,
+//     // NECRO_MACH_LOCAL,
+//     NECRO_MACH_FN,
+// } NECRO_MACH_DEF_TYPE;
 
 typedef struct NecroMachDef
 {
@@ -237,7 +237,7 @@ typedef struct NecroMachDef
     struct NecroMachAst*  global_value; // If global
     struct NecroMachAst*  global_state; // If global
 
-    NECRO_MACH_DEF_TYPE   def_type;
+    // NECRO_MACH_DEF_TYPE   def_type;
 } NecroMachDef;
 
 
@@ -260,6 +260,7 @@ typedef struct NecroMachFnDef
     struct NecroMachAst* fn_value;
     NecroMachFnPtr       runtime_fn_addr;
     NECRO_STATE_TYPE     state_type;
+    struct NecroMachAst* state_ptr;
     //-------------------
     // compile time data
     struct NecroMachAst* _curr_block;
@@ -629,15 +630,15 @@ NecroMachAst* necro_mach_build_uop(NecroMachProgram* program, NecroMachAst* fn_d
 //--------------------
 // Branching
 //--------------------
-void          necro_mach_build_return_void(NecroMachProgram* program, NecroMachAst* fn_def);
-void          necro_mach_build_return(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* return_value);
-void          necro_mach_build_break(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* block_to_jump_to);
-void          necro_mach_build_cond_break(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* cond, NecroMachAst* true_block, NecroMachAst* false_block);
-NecroMachAst* necro_mach_build_cmp(NecroMachProgram* program, NecroMachAst* fn_def, NECRO_MACH_CMP_TYPE cmp_type, NecroMachAst* left, NecroMachAst* right);
-NecroMachAst* necro_mach_build_phi(NecroMachProgram* program, NecroMachAst* fn_def, struct NecroMachType* type, NecroMachPhiList* values);
-void          necro_mach_add_incoming_to_phi(NecroMachProgram* program, NecroMachAst* phi, NecroMachAst* block, NecroMachAst* value);
-void          necro_mach_build_unreachable(NecroMachProgram* program, NecroMachAst* fn_def);
-void          necro_mach_add_case_to_switch(NecroMachProgram* program, NecroMachSwitchTerminator* switch_term, NecroMachAst* block, size_t value);
+void                       necro_mach_build_return_void(NecroMachProgram* program, NecroMachAst* fn_def);
+void                       necro_mach_build_return(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* return_value);
+void                       necro_mach_build_break(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* block_to_jump_to);
+void                       necro_mach_build_cond_break(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* cond, NecroMachAst* true_block, NecroMachAst* false_block);
+NecroMachAst*              necro_mach_build_cmp(NecroMachProgram* program, NecroMachAst* fn_def, NECRO_MACH_CMP_TYPE cmp_type, NecroMachAst* left, NecroMachAst* right);
+NecroMachAst*              necro_mach_build_phi(NecroMachProgram* program, NecroMachAst* fn_def, struct NecroMachType* type, NecroMachPhiList* values);
+void                       necro_mach_add_incoming_to_phi(NecroMachProgram* program, NecroMachAst* phi, NecroMachAst* block, NecroMachAst* value);
+void                       necro_mach_build_unreachable(NecroMachProgram* program, NecroMachAst* fn_def);
+void                       necro_mach_add_case_to_switch(NecroMachProgram* program, NecroMachSwitchTerminator* switch_term, NecroMachAst* block, size_t value);
 NecroMachSwitchTerminator* necro_mach_build_switch(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* choice_val, NecroMachSwitchList* values, NecroMachAst* else_block);
 // NecroMachAst* necro_build_select(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* cmp_value, NecroMachAst* left, NecroMachAst* right);
 

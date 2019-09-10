@@ -200,12 +200,13 @@ typedef struct NecroCoreAstCase
 
 typedef struct NecroCoreAstForLoop
 {
-    size_t               max_loops;
     struct NecroCoreAst* range_init;
     struct NecroCoreAst* value_init;
     struct NecroCoreAst* index_arg;
     struct NecroCoreAst* value_arg;
     struct NecroCoreAst* expression;
+    size_t               max_loops;
+    size_t               persistent_slot;
 } NecroCoreAstForLoop;
 
 typedef enum

@@ -162,13 +162,14 @@ NecroCoreAst* necro_core_ast_create_case_alt(NecroPagedArena* arena, NecroCoreAs
 
 NecroCoreAst* necro_core_ast_create_for_loop(NecroPagedArena* arena, size_t max_loops, NecroCoreAst* range_init, NecroCoreAst* value_init, NecroCoreAst* index_arg, NecroCoreAst* value_arg, NecroCoreAst* expression)
 {
-    NecroCoreAst* ast  = necro_core_ast_alloc(arena, NECRO_CORE_AST_FOR);
-    ast->for_loop.max_loops  = max_loops;
-    ast->for_loop.range_init = range_init;
-    ast->for_loop.value_init = value_init;
-    ast->for_loop.index_arg  = index_arg;
-    ast->for_loop.value_arg  = value_arg;
-    ast->for_loop.expression = expression;
+    NecroCoreAst* ast             = necro_core_ast_alloc(arena, NECRO_CORE_AST_FOR);
+    ast->for_loop.range_init      = range_init;
+    ast->for_loop.value_init      = value_init;
+    ast->for_loop.index_arg       = index_arg;
+    ast->for_loop.value_arg       = value_arg;
+    ast->for_loop.expression      = expression;
+    ast->for_loop.max_loops       = max_loops;
+    ast->for_loop.persistent_slot = 0;
     return ast;
 }
 
@@ -1151,7 +1152,7 @@ void necro_core_ast_test()
     {
         const char* test_name   = "Simple Loop";
         const char* test_source = ""
-            "tenTimes :: Range 10 (Index 10)\n"
+            "tenTimes :: Range 10\n"
             "tenTimes = each\n"
             "addItUp :: Int\n"
             "addItUp = for tenTimes 0 loop i x -> x + 1\n";

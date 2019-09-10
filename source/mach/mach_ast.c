@@ -1015,6 +1015,7 @@ NecroMachAst* necro_mach_create_fn(NecroMachProgram* program, NecroMachAstSymbol
     ast->necro_machine_type             = necro_machine_type;
     // ast->fn_def.state_type              = NECRO_STATE_CONSTANT; // TODO / NOTE: Is this correct1?!?!?!!?!?!?!?
     ast->fn_def.state_type              = symbol->state_type; // TODO / NOTE: Is this correct1?!?!?!!?!?!?!?
+    ast->fn_def.state_ptr               = (necro_machine_type->fn_type.num_parameters > 0) ? necro_mach_value_create_param_reg(program, ast, 0) : NULL;
     ast->fn_def._curr_block             = call_body;
     ast->fn_def._init_block             = NULL;
     ast->fn_def._cont_block             = NULL;
@@ -1027,21 +1028,22 @@ NecroMachAst* necro_mach_create_fn(NecroMachProgram* program, NecroMachAstSymbol
 
 NecroMachAst* necro_mach_create_runtime_fn(NecroMachProgram* program, NecroMachAstSymbol* symbol, NecroMachType* necro_machine_type, NecroMachFnPtr runtime_fn_addr, NECRO_STATE_TYPE state_type)
 {
-    NecroMachAst* ast                   = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
-    ast->type                           = NECRO_MACH_FN_DEF;
-    ast->fn_def.symbol                  = symbol;
-    ast->fn_def.fn_type                 = NECRO_MACH_FN_RUNTIME;
-    ast->fn_def.call_body               = NULL;
-    ast->fn_def.fn_value                = necro_mach_value_create_global(program, symbol, necro_machine_type);
-    ast->necro_machine_type             = necro_machine_type;
-    ast->fn_def.runtime_fn_addr         = runtime_fn_addr;
-    ast->fn_def.state_type              = state_type;
-    ast->fn_def._curr_block             = NULL;;
-    ast->fn_def._init_block             = NULL;
-    ast->fn_def._cont_block             = NULL;
-    ast->fn_def._err_block              = NULL;
-    symbol->ast                         = ast;
-    symbol->is_primitive                = true;
+    NecroMachAst* ast           = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
+    ast->type                   = NECRO_MACH_FN_DEF;
+    ast->fn_def.symbol          = symbol;
+    ast->fn_def.fn_type         = NECRO_MACH_FN_RUNTIME;
+    ast->fn_def.call_body       = NULL;
+    ast->fn_def.fn_value        = necro_mach_value_create_global(program, symbol, necro_machine_type);
+    ast->necro_machine_type     = necro_machine_type;
+    ast->fn_def.runtime_fn_addr = runtime_fn_addr;
+    ast->fn_def.state_type      = state_type;
+    ast->fn_def.state_ptr       = NULL;
+    ast->fn_def._curr_block     = NULL;;
+    ast->fn_def._init_block     = NULL;
+    ast->fn_def._cont_block     = NULL;
+    ast->fn_def._err_block      = NULL;
+    symbol->ast                 = ast;
+    symbol->is_primitive        = true;
     necro_mach_program_add_function(program, ast);
     return ast;
 }

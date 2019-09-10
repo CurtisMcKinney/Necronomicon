@@ -68,17 +68,12 @@ loopTest = a' where
     for each (feed, empty) loop i (x, a) ->
       (x * 100, writeArray i x a)
 
-each          :: Range n (Index n)
-slidingWindow :: Range m (Range n (Index n))
-offsetRange   :: Int -> Range n (Index n) -> Range n (Index n)
-writeArray    :: Index n -> *a -> *Array n a -> *Array n a
-
-
 -- New, non-poly Range API
 each          :: Range n
 slidingWindow :: Index n -> Range m -> Range m
 offsetRange   :: UInt -> Range n -> Range n
 writeArray    :: Index n -> *a -> *Array n a -> *Array n a
+index         :: Index n -> Array n a -> a
 
 data Range n = Range UInt UInt UInt --Start, Increment, End (Or perhaps, trim amount)
 
@@ -88,5 +83,19 @@ each = Range 0 1 0
 accumulate :: Array n Float -> Float
 accumulate a =
   for each 0 loop i x ->
-    x + (index a i)
+    x + (index i a)
+
+test :: Int
+test a =
+  for each 0 loop i x ->
+    x + 1
+
+coolArray :: Array 2 (Maybe Float)
+coolArray = { Just 666, Just 1 }
+
+printInt :: Int -> *World -> *World
+putChar :: Char -> *World -> *World
+
+main :: *World -> *World
+main w = printInt 0 w
 

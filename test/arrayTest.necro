@@ -96,3 +96,35 @@ putChar :: Char -> *World -> *World
 main :: *World -> *World
 main w = printInt 0 w
 
+delayTest :: Int
+delayTest = z where
+    x ~ (Just 0, Just 0) =
+        case y of
+            (yl, Just yr) -> (yl, Just yr + 1)
+    y ~ (Just 0, Just 0) =
+        case x of
+            (xl, Just xr) -> (Just xr + 1, xl)
+
+loopTest :: Array n Float
+loopTest = a' where
+  (feed ~ 0, a') =
+    for each (feed, empty) loop i (x, a) ->
+      (x * 100, writeArray i x a)
+
+
+counter :: Maybe Int
+counter = x where
+  x ~ Nothing =
+    case x of
+      Nothing -> Just 0
+      Just i  -> Just (i + 1)
+
+-- Deep copy functions should NOT call deeper deep copy functions, but instead rely solely on case statements
+-- This is way it loads all leaves into registers (or onto the stack) and then overwrites the memory
+-- Then we can simply call deepCopy on bind expr
+copyTest :: ((Int, Int), (Int, Int))
+copyTest = x where
+    x ~ (Nothing, Just 1) =
+        case x of
+            (l, r) -> (r, l)
+

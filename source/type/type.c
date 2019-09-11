@@ -1518,6 +1518,7 @@ bool necro_print_tuple_sig(FILE* stream, const NecroType* type)
 
     if (con_string[0] != '(' && con_string[0] != '[')
         return false;
+
     const NecroType* current_element = type->con.args;
 
     // Unit
@@ -1536,6 +1537,9 @@ bool necro_print_tuple_sig(FILE* stream, const NecroType* type)
         fprintf(stream, "]");
         return true;
     }
+
+    if (type->con.args == NULL)
+        return false;
 
     fprintf(stream, "(");
     while (current_element != NULL)

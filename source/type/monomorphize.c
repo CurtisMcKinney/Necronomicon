@@ -2148,23 +2148,21 @@ Thoughts on Futhark style Defunctionalization:
     * Attribute propagation ensures that we can't have nested demand types and other weirdness.
 
     ///////////////////////////////////////////////////////
-    // New Pattern Translation Ideas, Aug 2019
+    // New Sequence Translation Ideas, Aug 2019
     ///////////////////////////////////////////////////////
-        * if overloaded to take either Bool or Pattern Bool
-        * Then you can use a much more naive translation of Patterns, i.e. Pattern is simply defined as: Pattern a = Pattern (Time -> a)
+        * Patterns now called: Sequences, or Seq
+        * if/case/initializers overloaded to take either Bool or Seq Bool
+        * Then you can use a much more naive translation of Sequences, i.e. Seq is simply defined as: data Seq a = Seq (Time -> a)
         * With the possibility of some kind of Static constructor to make sure it doesn't vary over time on top of varying over time as a pattern!?!?!?
 
-    data PVal a    = PVal Time a | PRest Time | PConst a | PInterval | PEnd
-    data Pattern a = Pattern (Time -> PVal a)
-    seq     :: Int -> Pattern a -> Pattern a
-    rswitch :: Int -> Pattern a -> Pattern a
-    switch  :: Pattern Int -> Pattern a -> Pattern a
-    tempo   :: Tempo -> Pattern a -> Pattern a
-    poly    :: Num a => (a -> a) -> Pattern a -> a
-    mouse   :: Pattern (Int, Int)
-    pmemo   :: Pattern a -> Pattern a
-    every   :: Int -> (Pattern a -> Pattern a) -> Pattern a -> Pattern a
-    rev     :: Pattern a -> Pattern a
-
+    data SVal a = SVal Time a | SRest Time | SConst a | SInterval | SEnd
+    data Seq a = Seq (Time -> SVal a)
+    repeat  :: Int -> Seq a -> Seq a
+    tempo   :: Tempo -> Seq a -> Seq a
+    poly    :: Num a => (a -> a) -> Seq a -> a
+    mouse   :: Seq (Int, Int)
+    pmemo   :: Seq a -> Seq a
+    every   :: Int -> (Seq a -> Seq a) -> Seq a -> Seq a
+    rev     :: Seq a -> Seq a
 
 */

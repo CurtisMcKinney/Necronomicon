@@ -561,7 +561,9 @@ NecroStaticValue* necro_defunctionalize_app_env(NecroDefunctionalizeContext* con
         temp_symbol->type->kind         = context->base->star_kind->type;
         NecroCoreAst*       ast2        = necro_core_ast_create_var(context->arena, temp_symbol, temp_symbol->type);
         necro_core_ast_swap(ast1, ast2);
-        NecroCoreAst*       new_bind    = necro_core_ast_create_bind(context->arena, temp_symbol, ast2);
+        // TODO: Handle initializer
+        NecroCoreAst*       init_ast    = NULL;
+        NecroCoreAst*       new_bind    = necro_core_ast_create_bind(context->arena, temp_symbol, ast2, init_ast);
         NecroCoreAst*       ast3        = necro_core_ast_create_let(context->arena, new_bind, NULL);
         necro_core_ast_swap(app_ast, ast3);
         app_ast->let.expr               = ast3;
@@ -652,7 +654,9 @@ NecroStaticValue* necro_defunctionalize_app_fun(NecroDefunctionalizeContext* con
         temp_symbol->type->kind         = context->base->star_kind->type;
         NecroCoreAst*       ast2        = necro_core_ast_create_var(context->arena, temp_symbol, temp_symbol->type);
         necro_core_ast_swap(ast1, ast2);
-        NecroCoreAst*       new_bind    = necro_core_ast_create_bind(context->arena, temp_symbol, ast2);
+        // TODO: Handle initializer!
+        NecroCoreAst*       init_ast    = NULL;
+        NecroCoreAst*       new_bind    = necro_core_ast_create_bind(context->arena, temp_symbol, ast2, init_ast);
         NecroCoreAst*       ast3        = necro_core_ast_create_let(context->arena, new_bind, NULL);
         necro_core_ast_swap(app_ast, ast3);
         app_ast->let.expr               = ast3;

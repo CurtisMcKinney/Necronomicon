@@ -406,7 +406,7 @@ void necro_core_lambda_lift_lam(NecroLambdaLift* ll, NecroCoreAst* ast)
     *anon_var                       = *ast;
     *ast                            = temp;
     // Create bind and go deeper
-    NecroCoreAst*       anon_bind   = necro_core_ast_create_bind(ll->ast_arena, anon_symbol, anon_var);
+    NecroCoreAst*       anon_bind   = necro_core_ast_create_bind(ll->ast_arena, anon_symbol, anon_var, NULL);
     necro_core_lambda_lift_go(ll, anon_bind);
     necro_core_lambda_lift_go(ll, ast);
 }

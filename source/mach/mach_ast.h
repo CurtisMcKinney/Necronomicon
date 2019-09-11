@@ -222,7 +222,6 @@ typedef struct NecroMachDef
     NecroType*            necro_value_type;
     struct NecroMachType* value_type;
     struct NecroMachType* fn_type;
-    bool                  is_persistent_slot_set;
 
     // args
     NecroMachAstSymbol**  arg_names;

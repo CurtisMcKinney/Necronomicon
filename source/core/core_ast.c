@@ -82,11 +82,13 @@ NecroCoreAst* necro_core_ast_create_var(NecroPagedArena* arena, NecroCoreAstSymb
     return ast;
 }
 
-NecroCoreAst* necro_core_ast_create_bind(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroCoreAst* expr)
+NecroCoreAst* necro_core_ast_create_bind(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroCoreAst* expr, NecroCoreAst* initializer)
 {
-    NecroCoreAst* ast    = necro_core_ast_alloc(arena, NECRO_CORE_AST_BIND);
-    ast->bind.ast_symbol = ast_symbol;
-    ast->bind.expr       = expr;
+    NecroCoreAst* ast     = necro_core_ast_alloc(arena, NECRO_CORE_AST_BIND);
+    ast->bind.ast_symbol  = ast_symbol;
+    ast->bind.expr        = expr;
+    ast->bind.initializer = initializer;
+    ast_symbol->ast       = ast;
     return ast;
 }
 
@@ -182,7 +184,7 @@ NecroCoreAst* necro_core_ast_deep_copy(NecroPagedArena* arena, NecroCoreAst* ast
     case NECRO_CORE_AST_DATA_DECL: assert(false && "TODO: FINISH"); copy_ast = necro_core_ast_create_data_decl(arena, ast->data_decl.ast_symbol, NULL); break; // TODO: Finish
     case NECRO_CORE_AST_CASE:      assert(false && "TODO: FINISH"); copy_ast = necro_core_ast_create_case(arena, necro_core_ast_deep_copy(arena, ast->case_expr.expr), NULL); break; // TODO: Finish!
     // case NECRO_CORE_AST_BIND_REC:
-    case NECRO_CORE_AST_BIND:      copy_ast = necro_core_ast_create_bind(arena, ast->bind.ast_symbol, necro_core_ast_deep_copy(arena, ast->bind.expr)); break;
+    case NECRO_CORE_AST_BIND:      copy_ast = necro_core_ast_create_bind(arena, ast->bind.ast_symbol, necro_core_ast_deep_copy(arena, ast->bind.expr), necro_core_ast_deep_copy(arena, ast->bind.initializer)); break;
     case NECRO_CORE_AST_LET:       copy_ast = necro_core_ast_create_let(arena, necro_core_ast_deep_copy(arena, ast->let.bind), necro_core_ast_deep_copy(arena, ast->let.expr)); break;
     case NECRO_CORE_AST_VAR:       copy_ast = necro_core_ast_create_var(arena, ast->var.ast_symbol, necro_type_deep_copy(arena, ast->necro_type)); break;
     case NECRO_CORE_AST_FOR:       copy_ast = necro_core_ast_create_for_loop(arena, ast->for_loop.max_loops, necro_core_ast_deep_copy(arena, ast->for_loop.range_init), necro_core_ast_deep_copy(arena, ast->for_loop.value_init), necro_core_ast_deep_copy(arena, ast->for_loop.index_arg), necro_core_ast_deep_copy(arena, ast->for_loop.value_arg), necro_core_ast_deep_copy(arena, ast->for_loop.expression)); break;
@@ -537,7 +539,7 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_apats_assignment(NecroCore
     assert(ast->type == NECRO_AST_APATS_ASSIGNMENT);
     NecroCoreAst* rhs_ast    = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->apats_assignment.rhs));
     NecroCoreAst* lambda_ast = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_lambda_apats(context, ast, rhs_ast));
-    NecroCoreAst* bind_ast   = necro_core_ast_create_bind(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, ast->apats_assignment.ast_symbol), lambda_ast);
+    NecroCoreAst* bind_ast   = necro_core_ast_create_bind(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, ast->apats_assignment.ast_symbol), lambda_ast, NULL);
     return ok(NecroCoreAst, bind_ast);
 }
 
@@ -546,7 +548,12 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_simple_assignment(NecroCor
     assert(ast->type == NECRO_AST_SIMPLE_ASSIGNMENT);
     // TODO: How to handle initializers?
     NecroCoreAst* expr_ast = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->simple_assignment.rhs));
-    NecroCoreAst* bind_ast = necro_core_ast_create_bind(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, ast->simple_assignment.ast_symbol), expr_ast);
+    NecroCoreAst* init_ast = NULL;
+    if (ast->simple_assignment.initializer != NULL)
+    {
+        init_ast = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->simple_assignment.initializer));
+    }
+    NecroCoreAst* bind_ast = necro_core_ast_create_bind(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, ast->simple_assignment.ast_symbol), expr_ast, init_ast);
     return ok(NecroCoreAst, bind_ast);
 }
 
@@ -1015,10 +1022,10 @@ void necro_core_ast_pretty_print_go(NecroCoreAst* ast, size_t depth)
     {
         necro_core_ast_pretty_print_go(ast->app.expr1, depth);
         printf(" ");
-        if (ast->app.expr2->ast_type == NECRO_CORE_AST_APP)
+        if (ast->app.expr2->ast_type == NECRO_CORE_AST_APP || ast->app.expr2->ast_type == NECRO_CORE_AST_LAM)
             printf("(");
         necro_core_ast_pretty_print_go(ast->app.expr2, depth);
-        if (ast->app.expr2->ast_type == NECRO_CORE_AST_APP)
+        if (ast->app.expr2->ast_type == NECRO_CORE_AST_APP || ast->app.expr2->ast_type == NECRO_CORE_AST_LAM)
             printf(")");
         return;
     }

@@ -1070,7 +1070,6 @@ NecroMachAst* necro_mach_create_initial_machine_def(NecroMachProgram* program, N
     ast->machine_def.state_type                    = symbol->state_type;
     ast->machine_def.machine_name->state_type      = symbol->state_type;
     ast->machine_def.state_name->state_type        = symbol->state_type;
-    ast->machine_def.is_persistent_slot_set        = false;
     ast->machine_def.outer                         = outer;
     ast->necro_machine_type                        = NULL;
     if (value_type->type == NECRO_MACH_TYPE_FN)

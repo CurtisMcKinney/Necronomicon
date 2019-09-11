@@ -24,7 +24,7 @@ NecroIntern necro_intern_empty()
         .entries        = NULL,
         .size           = 0,
         .count          = 0,
-        .clash_suffix   = 479881,
+        .clash_suffix   = 0,
     };
 }
 
@@ -43,7 +43,7 @@ NecroIntern necro_intern_create()
         .entries        = entries,
         .size           = NECRO_INITIAL_INTERN_SIZE,
         .count          = 0,
-        .clash_suffix   = 479881,
+        .clash_suffix   = 0,
     };
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -297,7 +297,7 @@ NecroSymbol necro_intern_unique_string(NecroIntern* intern, const char* str)
         char* itoa_result = necro_itoa((uint32_t)intern->clash_suffix, itoa_buf, NECRO_ITOA_BUF_LENGTH, 36);
         assert(itoa_result != NULL);
         intern->clash_suffix++;
-        snprintf(unique_str, buf_size, "_%s_%s", str, itoa_buf);
+        snprintf(unique_str, buf_size, "%s_%s", str, itoa_buf);
         probe_result = necro_intern_prob(intern, unique_str);
         memset(itoa_buf, '\0', 16 * sizeof(char));
     }

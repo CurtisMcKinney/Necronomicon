@@ -304,6 +304,7 @@ void                    necro_core_ast_symbol_table_destroy(NecroCoreAstSymbolTa
 NecroCoreAstSymbol*     necro_core_ast_symbol_get_specialized(NecroCoreAstSymbolTable* symtable, NecroCoreAstSymbol* core_symbol, NecroType* type);
 NecroType*              necro_core_ast_type_specialize(NecroStateAnalysis* sa, NecroType* type);
 NecroCoreAstSymbol*     necro_core_ast_symbol_get_or_insert_specialized(NecroStateAnalysis* sa, NecroCoreAstSymbol* core_symbol, NecroType* type, NecroType** out_type_to_set);
+void                    necro_core_ast_create_deep_copy_fns(NecroStateAnalysis* context, NecroCoreAst* top);
 
 //--------------------
 // Analyze
@@ -345,9 +346,12 @@ void necro_core_state_analysis(NecroCompileInfo info, NecroIntern* intern, Necro
         sa.new_lets_tail->let.expr = next;
     }
 
+    // Create deep_copy fns
+    necro_core_ast_create_deep_copy_fns(&sa, core_ast_arena->root);
+
     // Finish
-    // necro_core_ast_pretty_print(core_ast_arena->root);
     unwrap(void, necro_core_infer(intern, base, core_ast_arena)); // TODO: Remove after some testing
+    necro_core_ast_pretty_print(core_ast_arena->root);
 
     // Cleanup
     necro_snapshot_arena_destroy(&sa.snapshot_arena);
@@ -390,6 +394,8 @@ NECRO_STATE_TYPE necro_state_analysis_var(NecroStateAnalysis* sa, NecroCoreAst* 
     assert(ast != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_VAR);
     ast->var.ast_symbol = necro_core_ast_symbol_get_or_insert_specialized(sa, ast->var.ast_symbol, ast->necro_type, &ast->necro_type);
+    if (ast->var.ast_symbol->ast != NULL && ast->var.ast_symbol->ast->ast_type == NECRO_CORE_AST_BIND && ast->var.ast_symbol->ast->bind.initializer != NULL)
+        ast->var.ast_symbol->state_type = NECRO_STATE_STATEFUL;
     if (ast->var.ast_symbol->is_constructor)
         ast->var.ast_symbol->state_type = NECRO_STATE_POLY;
     if (ast->var.ast_symbol->state_type == NECRO_STATE_STATEFUL && ast->var.ast_symbol->arity == 0) // NOTE: This assumes arity has been filled in by previous pass
@@ -466,10 +472,16 @@ NECRO_STATE_TYPE necro_state_analysis_bind(NecroStateAnalysis* sa, NecroCoreAst*
     NecroCoreAstSymbol* symbol  = ast->bind.ast_symbol;
     symbol->type                = necro_core_ast_type_specialize(sa, symbol->type);
     symbol->outer               = outer;
-    NECRO_STATE_TYPE state_type = necro_state_analysis_go(sa, ast->bind.expr, symbol);
-    if (symbol->is_recursive)
+    if (ast->bind.initializer != NULL)
+    {
+        symbol->state_type = NECRO_STATE_STATEFUL;
+        necro_state_analysis_go(sa, ast->bind.initializer, symbol);
         necro_set_outer_rec_stateful(symbol);
-    symbol->state_type = necro_state_analysis_merge_state_types(symbol->state_type, state_type);
+    }
+    symbol->state_type = necro_state_analysis_merge_state_types(symbol->state_type, necro_state_analysis_go(sa, ast->bind.expr, symbol));
+    // if (symbol->is_recursive)
+    //     necro_set_outer_rec_stateful(symbol);
+    // symbol->state_type = necro_state_analysis_merge_state_types(symbol->state_type, state_type);
     return symbol->state_type;
 }
 
@@ -978,3 +990,144 @@ NecroType* necro_core_ast_type_specialize(NecroStateAnalysis* sa, NecroType* typ
         return NULL;
     }
 }
+
+
+///////////////////////////////////////////////////////
+// Deep copy
+///////////////////////////////////////////////////////
+NecroCoreAst* necro_core_ast_create_deep_copy(NecroStateAnalysis* context, NecroCoreAst* ast)
+{
+    assert(ast->ast_type == NECRO_CORE_AST_DATA_DECL);
+
+    //--------------------
+    // Ignore primitives and polymorphic types
+    // if (ast->data_decl.ast_symbol->is_primitive || necro_type_is_polymorphic_ignoring_ownership(context->base, ast->data_decl.ast_symbol->type))
+    if (ast->data_decl.ast_symbol->is_primitive)
+        return NULL;
+
+    if (ast->data_decl.ast_symbol == context->base->array_type->core_ast_symbol)
+        return NULL; // TODO: Finish!
+
+    //--------------------
+    // is_enum (accurate calculation. coming into this pass is_enum seems spotty. perhaps move this earlier on?)
+    bool              is_enum   = true;
+    NecroCoreAstList* data_cons = ast->data_decl.con_list;
+    while (data_cons && is_enum)
+    {
+        NecroType* con_type  = necro_type_strip_for_all(necro_type_find(data_cons->data->data_con.type));
+        if (necro_type_is_polymorphic_ignoring_ownership(context->base, con_type))
+            return NULL;
+        is_enum              = con_type->type == NECRO_TYPE_CON;
+        data_cons            = data_cons->next;
+    }
+    ast->data_decl.ast_symbol->is_enum = is_enum;
+    if (is_enum)
+        return NULL;
+
+    // TODO: How to handle arrays!?!?!?!?!
+
+    //--------------------
+    // Alts
+    NecroCoreAstList* alts      = NULL;
+    data_cons                   = ast->data_decl.con_list;
+    while (data_cons != NULL)
+    {
+        //--------------------
+        // DataCon
+        NecroType*    con_type  = necro_type_strip_for_all(necro_type_find(data_cons->data->data_con.type));
+        NecroCoreAst* pat       = necro_core_ast_create_var(context->arena, data_cons->data->data_con.ast_symbol, con_type);
+        NecroCoreAst* expr      = necro_core_ast_create_var(context->arena, data_cons->data->data_con.ast_symbol, con_type);
+        NecroType*    con_args  = con_type;
+        while (con_args->type == NECRO_TYPE_FUN)
+        {
+            //--------------------
+            // Args
+            NecroType*          con_arg_type        = necro_type_find(con_args->fun.type1);
+            assert(con_arg_type->type == NECRO_TYPE_CON);
+            NecroCoreAstSymbol* con_arg_symbol      = con_arg_type->con.con_symbol->core_ast_symbol;
+            NecroSymbol         con_arg_name        = necro_intern_unique_string(context->intern, "p");
+            NecroCoreAstSymbol* con_arg_pat_symbol  = necro_core_ast_symbol_create(context->arena, con_arg_name, con_arg_type);
+            NecroCoreAst*       con_arg_pat_ast     = necro_core_ast_create_var(context->arena, con_arg_pat_symbol, con_arg_type);
+            pat                                     = necro_core_ast_create_app(context->arena, pat, con_arg_pat_ast);
+            if (con_arg_symbol->is_primitive || con_arg_symbol->is_enum)
+            {
+                expr = necro_core_ast_create_app(context->arena, expr, con_arg_pat_ast);
+            }
+            else
+            {
+                // assert(con_arg_symbol->deep_copy_fn != NULL);
+                if (con_arg_symbol->deep_copy_fn == NULL)
+                    return NULL; // NOTE: This is likely NULL because we're skipping out on implementing array deep copying for now. Replace with assert when we've finish that.
+                NecroCoreAst* con_arg_copy_fn_var = necro_core_ast_create_var(context->arena, con_arg_symbol->deep_copy_fn, con_arg_symbol->deep_copy_fn->type);
+                NecroCoreAst* copy_con_arg        = necro_core_ast_create_app(context->arena, con_arg_copy_fn_var, con_arg_pat_ast);
+                expr                              = necro_core_ast_create_app(context->arena, expr, copy_con_arg);
+            }
+            con_args = necro_type_find(con_args->fun.type2);
+        }
+        //--------------------
+        // Alts
+        NecroCoreAst* alt = necro_core_ast_create_case_alt(context->arena, pat, expr);
+        alts              = necro_cons_core_ast_list(context->arena, alt, alts);
+        data_cons         = data_cons->next;
+    }
+
+    //--------------------
+    // Arg
+    NecroSymbol         arg_name   = necro_intern_unique_string(context->intern, "x");
+    NecroCoreAstSymbol* arg_symbol = necro_core_ast_symbol_create(context->arena, arg_name, ast->data_decl.ast_symbol->type);
+    NecroCoreAst*       arg_ast    = necro_core_ast_create_var(context->arena, arg_symbol, ast->data_decl.ast_symbol->type);
+
+    //--------------------
+    // Case
+    NecroCoreAst* case_ast = necro_core_ast_create_case(context->arena, arg_ast, alts);
+
+    //--------------------
+    // Lambda
+    NecroCoreAst* lambda_ast = necro_core_ast_create_lam(context->arena, arg_ast, case_ast);
+
+    //--------------------
+    // Deep Copy fn
+    NecroType*          deep_copy_type      = necro_type_fn_create(context->arena, ast->data_decl.ast_symbol->type, ast->data_decl.ast_symbol->type);
+    unwrap(NecroType, necro_kind_infer(context->arena, context->base, deep_copy_type, zero_loc, zero_loc));
+    NecroSymbol         deep_copy_name      = necro_intern_unique_string(context->intern, "deepCopy");
+    NecroCoreAstSymbol* deep_copy_symbol    = necro_core_ast_symbol_create(context->arena, deep_copy_name, deep_copy_type);
+    NecroCoreAst*       deep_copy_ast       = necro_core_ast_create_bind(context->arena, deep_copy_symbol, lambda_ast, NULL);
+    deep_copy_ast->necro_type               = deep_copy_type;
+    deep_copy_symbol->ast                   = deep_copy_ast;
+    deep_copy_symbol->type                  = deep_copy_type;
+    ast->data_decl.ast_symbol->deep_copy_fn = deep_copy_symbol;
+    return deep_copy_ast;
+}
+
+void necro_core_ast_create_deep_copy_fns(NecroStateAnalysis* context, NecroCoreAst* top)
+{
+    assert(top != NULL);
+    assert(top->ast_type == NECRO_CORE_AST_LET);
+    NecroCoreAst* copy_head = NULL;
+    NecroCoreAst* copy_tail = NULL;
+    NecroCoreAst* curr      = top;
+    while (curr->let.expr != NULL && curr->let.expr->ast_type == NECRO_CORE_AST_LET && curr->let.expr->let.bind->ast_type == NECRO_CORE_AST_DATA_DECL)
+    {
+        NecroCoreAst* deep_copy_fn = necro_core_ast_create_deep_copy(context, curr->let.expr->let.bind);
+        if (deep_copy_fn != NULL)
+        {
+            if (copy_head == NULL)
+            {
+                copy_head = necro_core_ast_create_let(context->arena, deep_copy_fn, NULL);
+                copy_tail = copy_head;
+            }
+            else
+            {
+                copy_tail->let.expr = necro_core_ast_create_let(context->arena, deep_copy_fn, NULL);
+                copy_tail           = copy_tail->let.expr;
+            }
+        }
+        curr = curr->let.expr;
+    }
+    if (copy_tail != NULL)
+    {
+        copy_tail->let.expr = curr->let.expr;
+        curr->let.expr      = copy_head;
+    }
+}
+

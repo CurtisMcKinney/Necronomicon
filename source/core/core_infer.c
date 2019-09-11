@@ -180,6 +180,12 @@ NecroResult(NecroType) necro_core_infer_bind(NecroCoreInfer* infer, NecroCoreAst
     NecroType* expr_type = necro_try_result(NecroType, necro_core_infer_go(infer, ast->bind.expr));
     necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, expr_type, zero_loc, zero_loc));
     necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, ast->bind.ast_symbol->type, zero_loc, zero_loc));
+    if (ast->bind.initializer != NULL)
+    {
+        NecroType* init_type = necro_try_result(NecroType, necro_core_infer_go(infer, ast->bind.initializer));
+        necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, init_type, zero_loc, zero_loc));
+        necro_try(NecroType, necro_type_unify(infer->arena, NULL, infer->base, expr_type, init_type, NULL));
+    }
     assert(ast->bind.ast_symbol->type != NULL);
     return necro_type_unify(infer->arena, NULL, infer->base, ast->bind.ast_symbol->type, expr_type, NULL);
 }

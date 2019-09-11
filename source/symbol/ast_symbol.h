@@ -105,6 +105,7 @@ typedef struct NecroCoreAstSymbol
     bool                       is_primitive;
     NECRO_STATE_TYPE           state_type;
     struct NecroCoreAstSymbol* outer;
+    struct NecroCoreAstSymbol* deep_copy_fn;
 } NecroCoreAstSymbol;
 
 NecroCoreAstSymbol* necro_core_ast_symbol_create(NecroPagedArena* core_ast_arena, NecroSymbol name, struct NecroType* type);

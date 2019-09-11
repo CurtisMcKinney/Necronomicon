@@ -142,6 +142,7 @@ typedef struct NecroCoreAstBind
 {
     NecroCoreAstSymbol*  ast_symbol;
     struct NecroCoreAst* expr;
+    struct NecroCoreAst* initializer;
     // bool                 is_recursive; // TODO / NOTE: Do we still need this?
     // TODO: How to handle initializers?
 } NecroCoreAstBind;
@@ -262,7 +263,7 @@ void              necro_core_ast_arena_destroy(NecroCoreAstArena* ast_arena);
 NecroCoreAst* necro_core_ast_alloc(NecroPagedArena* arena, NECRO_CORE_AST_TYPE ast_type);
 NecroCoreAst* necro_core_ast_create_lit(NecroPagedArena* arena, NecroAstConstant constant);
 NecroCoreAst* necro_core_ast_create_var(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroType* necro_type);
-NecroCoreAst* necro_core_ast_create_bind(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroCoreAst* expr);
+NecroCoreAst* necro_core_ast_create_bind(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroCoreAst* expr, NecroCoreAst* initializer);
 NecroCoreAst* necro_core_ast_create_let(NecroPagedArena* arena, NecroCoreAst* bind, NecroCoreAst* expr);
 NecroCoreAst* necro_core_ast_create_lam(NecroPagedArena* arena, NecroCoreAst* arg, NecroCoreAst* expr);
 NecroCoreAst* necro_core_ast_create_app(NecroPagedArena* arena, NecroCoreAst* expr1, NecroCoreAst* expr2);

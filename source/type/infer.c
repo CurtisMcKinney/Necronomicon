@@ -1648,8 +1648,6 @@ NecroResult(NecroType) necro_infer_for_loop(NecroInfer* infer, NecroAst* ast)
     NecroType* value_apat_type = necro_try_result(NecroType, necro_infer_pattern(infer, ast->for_loop.value_apat));
     NecroType* expression_type = necro_try_result(NecroType, necro_infer_go(infer, ast->for_loop.expression));
     NecroType* n_type          = necro_type_fresh_var(infer->arena, NULL);
-    // NecroType* inner_type      = necro_type_fresh_var(infer->arena, NULL);
-    // NecroType* range_inner     = necro_type_con2_create(infer->arena, infer->base->range_type, n_type, inner_type);
     NecroType* range_type      = necro_type_con1_create(infer->arena, infer->base->range_type, n_type);
     NecroType* index_type      = necro_type_con1_create(infer->arena, infer->base->index_type, n_type);
     ast->necro_type            = expression_type;

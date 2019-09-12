@@ -316,6 +316,15 @@ NecroResult(void) necro_ast_transform_to_core(NecroCompileInfo info, NecroIntern
 //     return NULL;
 // }
 
+
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_pat_assignment(NecroCoreAstTransform* context, NecroAst* ast)
+{
+    assert(ast->type == NECRO_AST_PAT_ASSIGNMENT);
+    UNUSED(context);
+    NecroCoreAst* core_ast = NULL;
+    return ok(NecroCoreAst, core_ast);
+}
+
 NecroResult(NecroCoreAst) necro_ast_transform_to_core_var(NecroCoreAstTransform* context, NecroAst* ast)
 {
     assert(ast->type == NECRO_AST_VARIABLE);
@@ -390,6 +399,8 @@ bool necro_core_ast_should_filter(NecroAst* ast)
         return necro_type_is_polymorphic(ast->simple_assignment.ast_symbol->type) || necro_type_is_polymorphic(ast->simple_assignment.ast_symbol->type->ownership);
         // return necro_type_is_polymorphic(ast->necro_type) || necro_type_is_polymorphic(ast->necro_type->ownership);
         // return necro_type_is_polymorphic(ast->necro_type) || necro_type_is_polymorphic(ast->necro_type->ownership);
+    case NECRO_AST_PAT_ASSIGNMENT:
+        return necro_type_is_polymorphic(ast->pat_assignment.pat->necro_type) || necro_type_is_polymorphic(ast->pat_assignment.pat->necro_type->ownership);
     default:
         assert(false);
         return true;
@@ -787,7 +798,6 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_left_section(NecroCoreAstT
 
 NecroResult(NecroCoreAst) necro_ast_transform_to_core_right_section(NecroCoreAstTransform* context, NecroAst* ast)
 {
-    // TYPE NEEDS TO BE GRABBED SLIGHTLY DIFFERENT!
     assert(ast->type == NECRO_AST_OP_RIGHT_SECTION);
     assert(ast->op_right_section.op_necro_type->type == NECRO_TYPE_FUN);
 
@@ -935,9 +945,9 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_go(NecroCoreAstTransform* 
     case NECRO_AST_OP_LEFT_SECTION:        return necro_ast_transform_to_core_left_section(context, ast);
     case NECRO_AST_OP_RIGHT_SECTION:       return necro_ast_transform_to_core_right_section(context, ast);
     case NECRO_AST_IF_THEN_ELSE:           return necro_ast_transform_to_core_if_then_else(context, ast);
+    case NECRO_AST_PAT_ASSIGNMENT:         return necro_ast_transform_to_core_pat_assignment(context, ast);
 
     // TODO
-    case NECRO_AST_PAT_ASSIGNMENT: // return necro_transform_pat_assignment(core_transform, necro_ast_node);
     case NECRO_AST_PAT_EXPRESSION:
         assert(false && "TODO");
         return ok(NecroCoreAst, NULL);
@@ -1440,6 +1450,13 @@ void necro_core_ast_test()
         const char* test_source = ""
             "maybeRightSection :: Maybe (Int -> Int)\n"
             "maybeRightSection = Just (+ 2)\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Pat Assignment";
+        const char* test_source = ""
+            "(l, r) = (True, False)\n";
         necro_core_test_result(test_name, test_source);
     }
 }

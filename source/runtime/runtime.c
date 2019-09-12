@@ -42,7 +42,7 @@ void necro_report_gc_statistics();
 extern DLLEXPORT void _necro_print(int value)
 {
 #if NECRO_DEBUG_GC
-    necro_report_gc_statistics();
+    // necro_report_gc_statistics();
     printf("necro: %d                      \n", value);
 #else
     printf("necro: %d                      \r", value);
@@ -52,6 +52,12 @@ extern DLLEXPORT void _necro_print(int value)
 extern DLLEXPORT void _necro_debug_print(int value)
 {
     printf("debug: %d\n", value);
+}
+
+extern DLLEXPORT unsigned int _necro_print_int(int value, unsigned int world)
+{
+    printf("necro: %d\n", value);
+    return world;
 }
 
 extern DLLEXPORT void _necro_sleep(uint32_t milliseconds)
@@ -89,6 +95,7 @@ size_t necro_get_runtime_tick()
 extern DLLEXPORT void _necro_init_runtime()
 {
     runtime_tick = 0;
+    necro_init_mouse();
 }
 
 extern DLLEXPORT void _necro_update_runtime()

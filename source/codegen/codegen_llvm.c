@@ -12,9 +12,11 @@
 #include <llvm-c/Transforms/Scalar.h>
 #include <llvm-c/TargetMachine.h>
 #include <llvm-c/Transforms/PassManagerBuilder.h>
-#include "symtable.h"
-#include "runtime/runtime.h"
 
+// #include "symtable.h"
+// #include "runtime/runtime.h"
+
+/*
 ///////////////////////////////////////////////////////
 // Create / Destroy
 ///////////////////////////////////////////////////////
@@ -1031,4 +1033,461 @@ NECRO_RETURN_CODE necro_jit_llvm(NecroCodeGenLLVM* codegen)
     LLVMDisposeExecutionEngine(engine);
     necro_copy_gc_cleanup();
     return NECRO_SUCCESS;
+}
+*/
+
+
+///////////////////////////////////////////////////////
+// NecroLLVM
+///////////////////////////////////////////////////////
+typedef struct NecroLLVMSymbol
+{
+    LLVMTypeRef       type;
+    LLVMValueRef      value;
+    LLVMBasicBlockRef block;
+} NecroLLVMSymbol;
+
+NecroLLVMSymbol* necro_llvm_get_symbol(NecroPagedArena* arena, NecroMachAstSymbol* mach_symbol)
+{
+    if (mach_symbol->codegen_symbol == NULL)
+    {
+        NecroLLVMSymbol* llvm_symbol = necro_paged_arena_alloc(arena, sizeof(NecroLLVMSymbol));
+        llvm_symbol->type            = NULL;
+        llvm_symbol->value           = NULL;
+        llvm_symbol->block           = NULL;
+        mach_symbol->codegen_symbol  = (void*) llvm_symbol;
+    }
+    return (NecroLLVMSymbol*) mach_symbol->codegen_symbol;
+}
+
+NecroLLVM necro_llvm_empty()
+{
+    return (NecroLLVM)
+    {
+        .arena            = necro_paged_arena_empty(),
+        .snapshot_arena   = necro_snapshot_arena_empty(),
+        .intern           = NULL,
+        .base             = NULL,
+        .context          = NULL,
+        .builder          = NULL,
+        .mod              = NULL,
+        .target           = NULL,
+        .fn_pass_manager  = NULL,
+        .mod_pass_manager = NULL,
+        .should_optimize  = false,
+    };
+}
+
+NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, bool should_optimize)
+{
+    LLVMInitializeNativeTarget();
+
+    LLVMContextRef       context          = LLVMContextCreate();
+    LLVMModuleRef        mod              = LLVMModuleCreateWithNameInContext("necro", context);
+
+    // LLVMTargetDataRef  target           = LLVMCreateTargetData(LLVMGetTarget(mod));
+    // Target info
+    // TODO: Dispose of what needs to be disposed!
+    const char*          target_triple    = LLVMGetDefaultTargetTriple();
+    const char*          target_cpu       = LLVMGetHostCPUName();
+    const char*          target_features  = LLVMGetHostCPUFeatures();
+    LLVMTargetRef        target           = NULL;
+    char*                target_error;
+    if (LLVMGetTargetFromTriple(target_triple, &target, &target_error))
+    {
+        fprintf(stderr, "necro error: %s\n", target_error);
+        LLVMDisposeMessage(target_error);
+        necro_exit(1);
+    }
+    // LLVMCodeGenOptLevel  opt_level        = should_optimize ? LLVMCodeGenLevelAggressive : LLVMCodeGenLevelNone;
+    LLVMCodeGenOptLevel  opt_level        = should_optimize ? LLVMCodeGenLevelDefault : LLVMCodeGenLevelNone;
+    LLVMTargetMachineRef target_machine   = LLVMCreateTargetMachine(target, target_triple, target_cpu, target_features, opt_level, LLVMRelocDefault, LLVMCodeModelJITDefault);
+    LLVMTargetDataRef    target_data      = LLVMCreateTargetDataLayout(target_machine);
+
+    LLVMSetTarget(mod, target_triple);
+    LLVMSetModuleDataLayout(mod, target_data);
+
+    LLVMPassManagerRef fn_pass_manager  = LLVMCreateFunctionPassManagerForModule(mod);
+    LLVMPassManagerRef mod_pass_manager = LLVMCreatePassManager();
+
+    if (should_optimize)
+    {
+        LLVMInitializeFunctionPassManager(fn_pass_manager);
+        LLVMAddDeadStoreEliminationPass(fn_pass_manager);
+        LLVMAddAggressiveDCEPass(fn_pass_manager);
+        LLVMAddInstructionCombiningPass(fn_pass_manager);
+        LLVMAddCFGSimplificationPass(fn_pass_manager);
+        LLVMAddTailCallEliminationPass(fn_pass_manager);
+        LLVMAddCFGSimplificationPass(fn_pass_manager);
+        LLVMAddDeadStoreEliminationPass(fn_pass_manager);
+        LLVMAddAggressiveDCEPass(fn_pass_manager);
+        LLVMAddInstructionCombiningPass(fn_pass_manager);
+        LLVMFinalizeFunctionPassManager(fn_pass_manager);
+        LLVMAddFunctionAttrsPass(mod_pass_manager);
+        LLVMAddGlobalOptimizerPass(mod_pass_manager);
+        LLVMPassManagerBuilderRef pass_manager_builder = LLVMPassManagerBuilderCreate();
+        LLVMPassManagerBuilderSetOptLevel(pass_manager_builder, 0);
+        // LLVMPassManagerBuilderUseInlinerWithThreshold(pass_manager_builder, 0);
+        // LLVMPassManagerBuilderSetOptLevel(pass_manager_builder, opt_level);
+        LLVMPassManagerBuilderUseInlinerWithThreshold(pass_manager_builder, 40);
+        LLVMPassManagerBuilderPopulateFunctionPassManager(pass_manager_builder, fn_pass_manager);
+        LLVMPassManagerBuilderPopulateModulePassManager(pass_manager_builder, mod_pass_manager);
+    }
+    else
+    {
+        LLVMInitializeFunctionPassManager(fn_pass_manager);
+        LLVMAddCFGSimplificationPass(fn_pass_manager);
+        LLVMAddTailCallEliminationPass(fn_pass_manager);
+        LLVMFinalizeFunctionPassManager(fn_pass_manager);
+        LLVMPassManagerBuilderRef pass_manager_builder = LLVMPassManagerBuilderCreate();
+        LLVMPassManagerBuilderSetOptLevel(pass_manager_builder, 0);
+        LLVMPassManagerBuilderPopulateFunctionPassManager(pass_manager_builder, fn_pass_manager);
+        LLVMPassManagerBuilderPopulateModulePassManager(pass_manager_builder, mod_pass_manager);
+    }
+    return (NecroLLVM)
+    {
+        .arena            = necro_paged_arena_create(),
+        .snapshot_arena   = necro_snapshot_arena_create(),
+        .intern           = intern,
+        .base             = base,
+        .context          = context,
+        .builder          = LLVMCreateBuilderInContext(context),
+        .mod              = mod,
+        .target           = target_data,
+        .fn_pass_manager  = fn_pass_manager,
+        .mod_pass_manager = mod_pass_manager,
+        .should_optimize  = should_optimize,
+        .program          = NULL,
+    };
+}
+
+void necro_llvm_destroy(NecroLLVM* context)
+{
+    assert(context != NULL);
+    if (context->context != NULL)
+        LLVMContextDispose(context->context);
+    if (context->builder != NULL)
+        LLVMDisposeBuilder(context->builder);
+    necro_paged_arena_destroy(&context->arena);
+    necro_snapshot_arena_destroy(&context->snapshot_arena);
+    *context = necro_llvm_empty();
+}
+
+
+///////////////////////////////////////////////////////
+// Utility
+///////////////////////////////////////////////////////
+void necro_llvm_print_codegen(NecroLLVM* context)
+{
+    fflush(stdout);
+    fflush(stderr);
+    LLVMDumpModule(context->mod);
+}
+
+void necro_llvm_verify_and_dump(NecroLLVM* context)
+{
+    char* error = NULL;
+    // necro_print_codegen_llvm(codegen);
+    LLVMVerifyModule(context->mod, LLVMAbortProcessAction, &error);
+    if (strlen(error) != 0)
+    {
+        LLVMDumpModule(context->mod);
+        fprintf(stderr, "LLVM error: %s\n", error);
+        LLVMDisposeMessage(error);
+        // return NECRO_ERROR;
+        return;
+    }
+    LLVMDisposeMessage(error);
+    // return NECRO_SUCCESS;
+    return;
+}
+
+LLVMTypeRef necro_llvm_type_from_mach_type(NecroLLVM* context, NecroMachType* mach_type)
+{
+    assert(mach_type != NULL);
+    switch (mach_type->type)
+    {
+    case NECRO_MACH_TYPE_UINT1:  return LLVMInt1TypeInContext(context->context);
+    case NECRO_MACH_TYPE_UINT8:  return LLVMInt8TypeInContext(context->context);
+    case NECRO_MACH_TYPE_UINT16: return LLVMInt16TypeInContext(context->context);
+    case NECRO_MACH_TYPE_UINT32: return LLVMInt32TypeInContext(context->context);
+    case NECRO_MACH_TYPE_UINT64: return LLVMInt64TypeInContext(context->context);
+    case NECRO_MACH_TYPE_INT32:  return LLVMInt32TypeInContext(context->context);
+    case NECRO_MACH_TYPE_INT64:  return LLVMInt64TypeInContext(context->context);
+    case NECRO_MACH_TYPE_F32:    return LLVMFloatTypeInContext(context->context);
+    case NECRO_MACH_TYPE_F64:    return LLVMDoubleTypeInContext(context->context);
+    case NECRO_MACH_TYPE_VOID:   return LLVMVoidTypeInContext(context->context);
+    case NECRO_MACH_TYPE_PTR:    return LLVMPointerType(necro_llvm_type_from_mach_type(context, mach_type->ptr_type.element_type), 0);
+    case NECRO_MACH_TYPE_ARRAY:  return LLVMArrayType(necro_llvm_type_from_mach_type(context, mach_type->array_type.element_type), mach_type->array_type.element_count);
+    case NECRO_MACH_TYPE_STRUCT:
+    {
+        NecroLLVMSymbol* llvm_symbol = necro_llvm_get_symbol(&context->arena, mach_type->struct_type.symbol);
+        if (llvm_symbol->type == NULL)
+        {
+            LLVMTypeRef  struct_type = LLVMStructCreateNamed(context->context, mach_type->struct_type.symbol->name->str);
+            llvm_symbol->type        = struct_type;
+            LLVMTypeRef* elements    = necro_paged_arena_alloc(&context->arena, mach_type->struct_type.num_members * sizeof(LLVMTypeRef));
+            for (size_t i = 0; i < mach_type->struct_type.num_members; ++i)
+            {
+                elements[i] = necro_llvm_type_from_mach_type(context, mach_type->struct_type.members[i]);
+            }
+            const size_t num_members = mach_type->struct_type.num_members;
+            LLVMStructSetBody(struct_type, elements, num_members, false);
+        }
+        return llvm_symbol->type;
+    }
+    case NECRO_MACH_TYPE_FN:
+    {
+        LLVMTypeRef  return_type = necro_llvm_type_from_mach_type(context, mach_type->fn_type.return_type);
+        LLVMTypeRef* parameters  = necro_paged_arena_alloc(&context->arena, mach_type->fn_type.num_parameters * sizeof(LLVMTypeRef));
+        for (size_t i = 0; i < mach_type->fn_type.num_parameters; ++i)
+        {
+            parameters[i] = necro_llvm_type_from_mach_type(context, mach_type->fn_type.parameters[i]);
+        }
+        const size_t num_parameters = mach_type->fn_type.num_parameters;
+        return LLVMFunctionType(return_type, parameters, num_parameters, false);
+    }
+    default:
+        assert(false);
+        return NULL;
+    }
+}
+
+bool necro_llvm_type_is_unboxed(NecroLLVM* context, LLVMTypeRef type)
+{
+    return type == necro_llvm_type_from_mach_type(context, context->program->type_cache.word_int_type)
+        || type == necro_llvm_type_from_mach_type(context, context->program->type_cache.word_uint_type)
+        || type == necro_llvm_type_from_mach_type(context, context->program->type_cache.word_float_type);
+}
+
+
+///////////////////////////////////////////////////////
+// Codegen
+///////////////////////////////////////////////////////
+LLVMValueRef necro_llvm_codegen_value(NecroLLVM* context, NecroMachAst* ast)
+{
+    assert(context != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_MACH_VALUE);
+    switch (ast->value.value_type)
+    {
+    case NECRO_MACH_VALUE_GLOBAL:           return necro_llvm_get_symbol(&context->arena, ast->value.global_symbol)->value;
+    case NECRO_MACH_VALUE_REG:              return necro_llvm_get_symbol(&context->arena, ast->value.reg_symbol)->value;
+    case NECRO_MACH_VALUE_PARAM:            return LLVMGetParam(necro_llvm_get_symbol(&context->arena, ast->value.param_reg.fn_symbol)->value, ast->value.param_reg.param_num);
+    case NECRO_MACH_VALUE_UINT1_LITERAL:    return LLVMConstInt(LLVMInt1TypeInContext(context->context),  ast->value.uint1_literal,  false);
+    case NECRO_MACH_VALUE_UINT8_LITERAL:    return LLVMConstInt(LLVMInt8TypeInContext(context->context),  ast->value.uint8_literal,  false);
+    case NECRO_MACH_VALUE_UINT16_LITERAL:   return LLVMConstInt(LLVMInt16TypeInContext(context->context), ast->value.uint16_literal, false);
+    case NECRO_MACH_VALUE_UINT32_LITERAL:   return LLVMConstInt(LLVMInt32TypeInContext(context->context), ast->value.uint32_literal, false);
+    case NECRO_MACH_VALUE_UINT64_LITERAL:   return LLVMConstInt(LLVMInt64TypeInContext(context->context), ast->value.uint64_literal, false);
+    case NECRO_MACH_VALUE_INT32_LITERAL:    return LLVMConstInt(LLVMInt32TypeInContext(context->context), ast->value.int32_literal,  true);
+    case NECRO_MACH_VALUE_INT64_LITERAL:    return LLVMConstInt(LLVMInt64TypeInContext(context->context), ast->value.int64_literal,  true);
+    case NECRO_MACH_VALUE_F32_LITERAL:      return LLVMConstReal(LLVMFloatTypeInContext(context->context), ast->value.f32_literal);
+    case NECRO_MACH_VALUE_F64_LITERAL:      return LLVMConstReal(LLVMDoubleTypeInContext(context->context), ast->value.f64_literal);
+    case NECRO_MACH_VALUE_NULL_PTR_LITERAL: return LLVMConstPointerNull(necro_llvm_type_from_mach_type(context, ast->necro_machine_type));
+    default:                 assert(false); return NULL;
+    }
+}
+
+LLVMValueRef necro_llvm_codegen_store(NecroLLVM* context, NecroMachAst* ast)
+{
+    assert(context != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_MACH_STORE);
+    LLVMValueRef source_value = necro_llvm_codegen_value(context, ast->store.source_value);
+    LLVMValueRef dest_ptr     = necro_llvm_codegen_value(context, ast->store.dest_ptr);
+    return LLVMBuildStore(context->builder, source_value, dest_ptr);
+}
+
+LLVMValueRef necro_llvm_codegen_load(NecroLLVM* context, NecroMachAst* ast)
+{
+    assert(context != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_MACH_LOAD);
+    LLVMValueRef source_ptr = necro_llvm_codegen_value(context, ast->load.source_ptr);
+    const char*  dest_name  = ast->load.dest_value->value.reg_symbol->name->str;
+    LLVMValueRef result     =  LLVMBuildLoad(context->builder, source_ptr, dest_name);
+    necro_llvm_get_symbol(&context->arena, ast->load.dest_value->value.reg_symbol)->value = result;
+    return result;
+}
+
+LLVMValueRef necro_llvm_codegen_zext(NecroLLVM* context, NecroMachAst* ast)
+{
+    assert(context != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_MACH_ZEXT);
+    LLVMValueRef     value  = LLVMBuildZExt(context->builder, necro_llvm_codegen_value(context, ast->zext.from_value), necro_llvm_type_from_mach_type(context, ast->zext.to_value->necro_machine_type), "zxt");
+    NecroLLVMSymbol* symbol = necro_llvm_get_symbol(&context->arena, ast->zext.to_value->value.reg_symbol);
+    symbol->type            = LLVMTypeOf(value);
+    symbol->value           = value;
+    return value;
+}
+
+LLVMValueRef necro_llvm_codegen_gep(NecroLLVM* context, NecroMachAst* ast)
+{
+    assert(context != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_MACH_GEP);
+    const char*   name    = ast->gep.dest_value->value.reg_symbol->name->str;
+    LLVMValueRef  ptr     = necro_llvm_codegen_value(context, ast->gep.source_value);
+    LLVMValueRef* indices = necro_paged_arena_alloc(&context->arena, ast->gep.num_indices * sizeof(LLVMValueRef));
+    for (size_t i = 0; i < ast->gep.num_indices; ++i)
+    {
+        indices[i] = necro_llvm_codegen_value(context, ast->gep.indices[i]);
+    }
+    LLVMValueRef     value  = LLVMBuildGEP(context->builder, ptr, indices, ast->gep.num_indices, name);
+    NecroLLVMSymbol* symbol = necro_llvm_get_symbol(&context->arena, ast->gep.dest_value->value.reg_symbol);
+    symbol->type            = necro_llvm_type_from_mach_type(context, ast->gep.dest_value->necro_machine_type);
+    symbol->value           = value;
+    return value;
+}
+
+LLVMValueRef necro_llvm_codegen_binop(NecroLLVM* context, NecroMachAst* ast)
+{
+    assert(context != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_MACH_BINOP);
+    const char*  name  = ast->binop.result->value.reg_symbol->name->str;
+    LLVMValueRef value = NULL;
+    LLVMValueRef left  = necro_llvm_codegen_value(context, ast->binop.left);
+    LLVMValueRef right = necro_llvm_codegen_value(context, ast->binop.right);
+    switch (ast->binop.binop_type)
+    {
+    case NECRO_MACH_BINOP_IADD: value = LLVMBuildAdd(context->builder, left, right, name);  break;
+    case NECRO_MACH_BINOP_ISUB: value = LLVMBuildSub(context->builder, left, right, name);  break;
+    case NECRO_MACH_BINOP_IMUL: value = LLVMBuildMul(context->builder, left, right, name);  break;
+    // case NECRO_MACHINE_BINOP_IDIV: value = LLVMBuildMul(codegen->builder, left, right, name); break;
+    case NECRO_MACH_BINOP_UADD: value = LLVMBuildAdd(context->builder, left, right, name);  break;
+    case NECRO_MACH_BINOP_USUB: value = LLVMBuildSub(context->builder, left, right, name);  break;
+    case NECRO_MACH_BINOP_UMUL: value = LLVMBuildMul(context->builder, left, right, name);  break;
+    // case NECRO_MACHINE_BINOP_IDIV: value = LLVMBuildMul(codegen->builder, left, right, name); break;
+    case NECRO_MACH_BINOP_FADD: value = LLVMBuildFAdd(context->builder, left, right, name); break;
+    case NECRO_MACH_BINOP_FSUB: value = LLVMBuildFSub(context->builder, left, right, name); break;
+    case NECRO_MACH_BINOP_FMUL: value = LLVMBuildFMul(context->builder, left, right, name); break;
+    case NECRO_MACH_BINOP_FDIV: value = LLVMBuildFDiv(context->builder, left, right, name); break;
+    case NECRO_MACH_BINOP_OR:   value = LLVMBuildOr(context->builder, left, right, name);   break;
+    case NECRO_MACH_BINOP_AND:  value = LLVMBuildAnd(context->builder, left, right, name);  break;
+    case NECRO_MACH_BINOP_SHL:  value = LLVMBuildShl(context->builder, left, right, name);  break;
+    case NECRO_MACH_BINOP_SHR:  value = LLVMBuildLShr(context->builder, left, right, name); break;
+    default: assert(false); break;
+    }
+    NecroLLVMSymbol* symbol = necro_llvm_get_symbol(&context->arena, ast->binop.result->value.reg_symbol);
+    symbol->type            = necro_llvm_type_from_mach_type(context, ast->binop.result->necro_machine_type);
+    symbol->value           = value;
+    return value;
+}
+
+LLVMValueRef necro_llvm_codegen_cmp(NecroLLVM* context, NecroMachAst* ast)
+{
+    assert(context != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_MACH_CMP);
+    const char*  name  = ast->cmp.result->value.reg_symbol->name->str;
+    LLVMValueRef left  = necro_llvm_codegen_value(context, ast->cmp.left);
+    LLVMValueRef right = necro_llvm_codegen_value(context, ast->cmp.right);
+    LLVMValueRef value = NULL;
+    if (ast->cmp.left->necro_machine_type->type == NECRO_MACH_TYPE_UINT1  ||
+        ast->cmp.left->necro_machine_type->type == NECRO_MACH_TYPE_UINT8  ||
+        ast->cmp.left->necro_machine_type->type == NECRO_MACH_TYPE_UINT16 ||
+        ast->cmp.left->necro_machine_type->type == NECRO_MACH_TYPE_UINT32 ||
+        ast->cmp.left->necro_machine_type->type == NECRO_MACH_TYPE_UINT64 ||
+        ast->cmp.left->necro_machine_type->type == NECRO_MACH_TYPE_PTR)
+    {
+        switch (ast->cmp.cmp_type)
+        {
+        case NECRO_MACH_CMP_EQ: value = LLVMBuildICmp(context->builder, LLVMIntEQ,  left, right, name); break;
+        case NECRO_MACH_CMP_NE: value = LLVMBuildICmp(context->builder, LLVMIntNE,  left, right, name); break;
+        case NECRO_MACH_CMP_GT: value = LLVMBuildICmp(context->builder, LLVMIntUGT, left, right, name); break;
+        case NECRO_MACH_CMP_GE: value = LLVMBuildICmp(context->builder, LLVMIntUGE, left, right, name); break;
+        case NECRO_MACH_CMP_LT: value = LLVMBuildICmp(context->builder, LLVMIntULT, left, right, name); break;
+        case NECRO_MACH_CMP_LE: value = LLVMBuildICmp(context->builder, LLVMIntULE, left, right, name); break;
+        default: assert(false); break;
+        }
+    }
+    else if (ast->cmp.left->necro_machine_type->type == NECRO_MACH_TYPE_INT32 ||
+             ast->cmp.left->necro_machine_type->type == NECRO_MACH_TYPE_INT64)
+    {
+        switch (ast->cmp.cmp_type)
+        {
+        case NECRO_MACH_CMP_EQ: value = LLVMBuildICmp(context->builder, LLVMIntEQ,  left, right, name); break;
+        case NECRO_MACH_CMP_NE: value = LLVMBuildICmp(context->builder, LLVMIntNE,  left, right, name); break;
+        case NECRO_MACH_CMP_GT: value = LLVMBuildICmp(context->builder, LLVMIntSGT, left, right, name); break;
+        case NECRO_MACH_CMP_GE: value = LLVMBuildICmp(context->builder, LLVMIntSGE, left, right, name); break;
+        case NECRO_MACH_CMP_LT: value = LLVMBuildICmp(context->builder, LLVMIntSLT, left, right, name); break;
+        case NECRO_MACH_CMP_LE: value = LLVMBuildICmp(context->builder, LLVMIntSLE, left, right, name); break;
+        default: assert(false); break;
+        }
+    }
+    else if (ast->cmp.left->necro_machine_type->type == NECRO_MACH_TYPE_F32 ||
+             ast->cmp.left->necro_machine_type->type == NECRO_MACH_TYPE_F64)
+    {
+        switch (ast->cmp.cmp_type)
+        {
+        case NECRO_MACH_CMP_EQ: value = LLVMBuildFCmp(context->builder, LLVMRealUEQ,  left, right, name); break;
+        case NECRO_MACH_CMP_NE: value = LLVMBuildFCmp(context->builder, LLVMRealUNE,  left, right, name); break;
+        case NECRO_MACH_CMP_GT: value = LLVMBuildFCmp(context->builder, LLVMRealUGT, left, right, name); break;
+        case NECRO_MACH_CMP_GE: value = LLVMBuildFCmp(context->builder, LLVMRealUGE, left, right, name); break;
+        case NECRO_MACH_CMP_LT: value = LLVMBuildFCmp(context->builder, LLVMRealULT, left, right, name); break;
+        case NECRO_MACH_CMP_LE: value = LLVMBuildFCmp(context->builder, LLVMRealULE, left, right, name); break;
+        default: assert(false); break;
+        }
+    }
+    else
+    {
+        assert(false);
+    }
+    NecroLLVMSymbol* symbol = necro_llvm_get_symbol(&context->arena, ast->cmp.result->value.reg_symbol);
+    symbol->type            = necro_llvm_type_from_mach_type(context, ast->cmp.result->necro_machine_type);
+    symbol->value           = value;
+    return value;
+}
+
+LLVMValueRef necro_llvm_codegen_phi(NecroLLVM* context, NecroMachAst* ast)
+{
+    assert(context != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_MACH_PHI);
+    LLVMTypeRef       phi_type  = necro_llvm_type_from_mach_type(context, ast->phi.result->necro_machine_type);
+    LLVMValueRef      phi_value = LLVMBuildPhi(context->builder, phi_type, ast->phi.result->value.reg_symbol->name->str);
+    NecroMachPhiList* values    = ast->phi.values;
+    while (values != NULL)
+    {
+        LLVMValueRef      leaf_value = necro_llvm_codegen_value(context, values->data.value);
+        LLVMBasicBlockRef block      = necro_llvm_get_symbol(&context->arena, values->data.block->block.symbol)->block;
+        LLVMAddIncoming(phi_value, &leaf_value, &block, 1);
+        values = values->next;
+    }
+    NecroLLVMSymbol* symbol = necro_llvm_get_symbol(&context->arena, ast->phi.result->value.reg_symbol);
+    symbol->type            = phi_type;
+    symbol->value           = phi_value;
+    return phi_value;
+}
+
+LLVMValueRef necro_llvm_codegen_block_statement(NecroLLVM* codegen, NecroMachAst* ast)
+{
+    assert(codegen != NULL);
+    assert(ast != NULL);
+    switch (ast->type)
+    {
+    case NECRO_MACH_VALUE:    return necro_llvm_codegen_value(codegen, ast);
+    case NECRO_MACH_ZEXT:     return necro_llvm_codegen_zext(codegen, ast);
+    case NECRO_MACH_GEP:      return necro_llvm_codegen_gep(codegen, ast);
+    case NECRO_MACH_CMP:      return necro_llvm_codegen_cmp(codegen, ast);
+    case NECRO_MACH_PHI:      return necro_llvm_codegen_phi(codegen, ast);
+    case NECRO_MACH_BINOP:    return necro_llvm_codegen_binop(codegen, ast);
+    case NECRO_MACH_STORE:    return necro_llvm_codegen_store(codegen, ast);
+    case NECRO_MACH_LOAD:     return necro_llvm_codegen_load(codegen, ast);
+
+    // TODO;
+    // case NECRO_MACH_NALLOC:   return necro_llvm_codegen_nalloc(codegen, ast);
+    // case NECRO_MACH_BIT_CAST: return necro_llvm_codegen_bitcast(codegen, ast);
+    // case NECRO_MACH_CALL:     return necro_llvm_codegen_call(codegen, ast);
+
+    // Not currently supported
+    // case NECRO_MACH_MEMCPY:   return necro_llvm_codegen_memcpy(codegen, ast);
+    // case NECRO_MACH_MEMSET:   return necro_llvm_codegen_memset(codegen, ast);
+    // case NECRO_MACH_ALLOCA:   return necro_codegen_alloca(codegen, ast);
+    // case NECRO_MACH_SELECT:   return necro_codegen_select(codegen, ast);
+
+    default:                     assert(false); return NULL;
+    }
 }

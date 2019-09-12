@@ -73,6 +73,8 @@ typedef struct NecroBase
     NecroAstSymbol* rational_type;
     NecroAstSymbol* char_type;
     NecroAstSymbol* bool_type;
+    NecroAstSymbol* true_con;
+    NecroAstSymbol* false_con;
     NecroAstSymbol* num_type_class;
     NecroAstSymbol* fractional_type_class;
     NecroAstSymbol* eq_type_class;
@@ -98,6 +100,7 @@ typedef struct NecroBase
     NecroAstSymbol* unsafe_malloc;
     NecroAstSymbol* unsafe_peek;
     NecroAstSymbol* unsafe_poke;
+    NecroAstSymbol* print_int;
 
     NecroScopedSymTable* scoped_symtable;
 

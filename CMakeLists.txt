@@ -126,6 +126,7 @@ set(project_SOURCES
     source/mach/mach_type.c
     source/mach/mach_print.c
     source/mach/mach_transform.c
+    source/mach/mach_case.c
 
     source/codegen/codegen_llvm.c
     )
@@ -196,6 +197,7 @@ set(project_HEADERS
     source/mach/mach_type.h
     source/mach/mach_print.h
     source/mach/mach_transform.h
+    source/mach/mach_case.h
 
     source/codegen/codegen_llvm.h
     )

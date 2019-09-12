@@ -71,7 +71,7 @@ typedef struct
 {
     NecroPatternPath*          path;
     struct NecroDecisionTree** cases;
-    NecroAstConstant* constants;
+    NecroAstConstant*          constants;
     size_t                     num_cases;
 } NecroDecisionTreeLitSwitch;
 

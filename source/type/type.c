@@ -38,6 +38,7 @@ NecroType* necro_type_fresh_uniqueness_var(NecroPagedArena* arena)
     uvar->type                 = NECRO_TYPE_VAR;
     uvar->kind                 = NULL;
     uvar->constraints          = NULL;
+    uvar->hash                 = 0;
     uvar->var                  = (NecroTypeVar)
     {
         .var_symbol  = var_symbol,
@@ -59,6 +60,7 @@ NecroType* necro_type_alloc(NecroPagedArena* arena)
     type->kind         = NULL;
     type->constraints  = NULL,
     type->ownership    = NULL;
+    type->hash         = 0;
     return type;
 }
 
@@ -1516,6 +1518,7 @@ bool necro_print_tuple_sig(FILE* stream, const NecroType* type)
 
     if (con_string[0] != '(' && con_string[0] != '[')
         return false;
+
     const NecroType* current_element = type->con.args;
 
     // Unit
@@ -1534,6 +1537,9 @@ bool necro_print_tuple_sig(FILE* stream, const NecroType* type)
         fprintf(stream, "]");
         return true;
     }
+
+    if (type->con.args == NULL)
+        return false;
 
     fprintf(stream, "(");
     while (current_element != NULL)
@@ -1862,6 +1868,7 @@ size_t necro_type_mangled_sprintf(char* buffer, size_t offset, const NecroType* 
     }
 }
 
+
 //=====================================================
 // Prim Types
 //=====================================================
@@ -2020,6 +2027,8 @@ size_t necro_type_hash(NecroType* type)
     if (type == NULL)
         return 0;
     type = necro_type_find(type);
+    if (type->hash != 0)
+        return type->hash;
     size_t h = 0;
     switch (type->type)
     {
@@ -2068,6 +2077,7 @@ size_t necro_type_hash(NecroType* type)
         assert(false && "Unrecognized tree type in necro_type_hash");
         break;
     }
+    type->hash = h;
     return h;
 }
 
@@ -2075,11 +2085,9 @@ bool necro_type_exact_unify(NecroType* type1, NecroType* type2)
 {
     type1 = necro_type_find(type1);
     type2 = necro_type_find(type2);
-    if (type1 == NULL && type2 == NULL)
+    if (type1 == type2)
         return true;
-    if (type1 == NULL || type2 == NULL)
-        return false;
-    if (type1->type != type2->type)
+    if (type1 == NULL || type2 == NULL || (type1->type != type2->type))
         return false;
     switch (type1->type)
     {

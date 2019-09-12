@@ -288,8 +288,8 @@ void necro_core_lambda_lift_for(NecroLambdaLift* ll, NecroCoreAst* ast)
     assert(ast->ast_type == NECRO_CORE_AST_FOR);
     necro_core_lambda_lift_go(ll, ast->for_loop.range_init);
     necro_core_lambda_lift_go(ll, ast->for_loop.value_init);
-    necro_core_lambda_lift_go(ll, ast->for_loop.index_arg);
-    necro_core_lambda_lift_go(ll, ast->for_loop.value_arg);
+    necro_core_lambda_lift_pat(ll, ast->for_loop.index_arg);
+    necro_core_lambda_lift_pat(ll, ast->for_loop.value_arg);
     necro_core_lambda_lift_go(ll, ast->for_loop.expression);
 }
 
@@ -406,7 +406,7 @@ void necro_core_lambda_lift_lam(NecroLambdaLift* ll, NecroCoreAst* ast)
     *anon_var                       = *ast;
     *ast                            = temp;
     // Create bind and go deeper
-    NecroCoreAst*       anon_bind   = necro_core_ast_create_bind(ll->ast_arena, anon_symbol, anon_var);
+    NecroCoreAst*       anon_bind   = necro_core_ast_create_bind(ll->ast_arena, anon_symbol, anon_var, NULL);
     necro_core_lambda_lift_go(ll, anon_bind);
     necro_core_lambda_lift_go(ll, ast);
 }

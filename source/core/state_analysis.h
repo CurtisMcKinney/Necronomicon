@@ -11,8 +11,8 @@
 #include <assert.h>
 #include <stdbool.h>
 
-#include "core.h"
+#include "core/core_ast.h"
 
-void necro_state_analysis(NecroCoreAST* in_ast, NecroIntern* intern, NecroSymTable* symtable, NecroScopedSymTable* scoped_symtable, NecroPrimTypes* prim_types);
+void necro_core_state_analysis(NecroCompileInfo info, NecroIntern* intern, NecroBase* base, NecroCoreAstArena* core_ast_arena);
 
 #endif // CORE_STATE_ANALYSIS_H

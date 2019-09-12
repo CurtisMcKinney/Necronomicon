@@ -55,6 +55,7 @@ typedef enum
 
 void necro_mach_print_value(NecroMachAst* ast, NECRO_SHOULD_PRINT_VALUE_TYPE should_print_value_type)
 {
+    assert(ast->type == NECRO_MACH_VALUE);
     NecroMachValue value = ast->value;
     switch (value.value_type)
     {
@@ -201,26 +202,26 @@ void necro_mach_print_store(NecroMachAst* ast, size_t depth)
     UNUSED(depth);
     assert(ast->type == NECRO_MACH_STORE);
     printf("store ");
-    switch (ast->store.store_type)
-    {
-    case NECRO_MACH_STORE_TAG:
+    // switch (ast->store.store_type)
+    // {
+    // case NECRO_MACH_STORE_TAG:
+    //     necro_mach_print_value(ast->store.source_value, NECRO_PRINT_VALUE_TYPE);
+    //     printf(" ");
+    //     necro_mach_print_value(ast->store.dest_ptr, NECRO_PRINT_VALUE_TYPE);
+    //     printf(" (tag)");
+    //     return;
+    // case NECRO_MACH_STORE_PTR:
         necro_mach_print_value(ast->store.source_value, NECRO_PRINT_VALUE_TYPE);
         printf(" ");
         necro_mach_print_value(ast->store.dest_ptr, NECRO_PRINT_VALUE_TYPE);
-        printf(" (tag)");
-        return;
-    case NECRO_MACH_STORE_PTR:
-        necro_mach_print_value(ast->store.source_value, NECRO_PRINT_VALUE_TYPE);
-        printf(" ");
-        necro_mach_print_value(ast->store.dest_ptr, NECRO_PRINT_VALUE_TYPE);
-        return;
-    case NECRO_MACH_STORE_SLOT:
-        necro_mach_print_value(ast->store.source_value, NECRO_PRINT_VALUE_TYPE);
-        printf(" ");
-        necro_mach_print_value(ast->store.store_slot.dest_ptr, NECRO_PRINT_VALUE_TYPE);
-        printf(" (slot %zu)", ast->store.store_slot.dest_slot);
-        return;
-    }
+        // return;
+    // case NECRO_MACH_STORE_SLOT:
+    //     necro_mach_print_value(ast->store.source_value, NECRO_PRINT_VALUE_TYPE);
+    //     printf(" ");
+    //     necro_mach_print_value(ast->store.store_slot.dest_ptr, NECRO_PRINT_VALUE_TYPE);
+    //     printf(" (slot %zu)", ast->store.store_slot.dest_slot);
+    //     return;
+    // }
 }
 
 void necro_mach_print_load(NecroMachAst* ast, size_t depth)
@@ -228,25 +229,25 @@ void necro_mach_print_load(NecroMachAst* ast, size_t depth)
     UNUSED(depth);
     assert(ast->type == NECRO_MACH_LOAD);
     printf("%%%s = load ", ast->load.dest_value->value.reg_symbol->name->str);
-    switch (ast->load.load_type)
-    {
-    case NECRO_MACH_LOAD_TAG:
+    // switch (ast->load.load_type)
+    // {
+    // case NECRO_MACH_LOAD_TAG:
+    //     necro_mach_print_value(ast->load.source_ptr, NECRO_PRINT_VALUE_TYPE);
+    //     printf(" (tag)");
+    //     return;
+    // case NECRO_MACH_LOAD_PTR:
         necro_mach_print_value(ast->load.source_ptr, NECRO_PRINT_VALUE_TYPE);
-        printf(" (tag)");
-        return;
-    case NECRO_MACH_LOAD_PTR:
-        necro_mach_print_value(ast->load.source_ptr, NECRO_PRINT_VALUE_TYPE);
-        return;
-    case NECRO_MACH_LOAD_SLOT:
-        necro_mach_print_value(ast->load.load_slot.source_ptr, NECRO_PRINT_VALUE_TYPE);
-        printf(" (slot %zu)", ast->load.load_slot.source_slot);
-        return;
+    //     return;
+    // case NECRO_MACH_LOAD_SLOT:
+    //     necro_mach_print_value(ast->load.load_slot.source_ptr, NECRO_PRINT_VALUE_TYPE);
+    //     printf(" (slot %zu)", ast->load.load_slot.source_slot);
+    //     return;
     // case NECRO_MACH_LOAD_GLOBAL:
     //     necro_mach_print_value(ast->load.source_global, NECRO_PRINT_VALUE_TYPE);
     //     // printf(" ");
     //     // printf(" (global))", ast->load.load_slot.source_slot);
     //     return;
-    }
+    // }
 }
 
 void necro_mach_print_bit_cast(NecroMachAst* ast, size_t depth)
@@ -296,7 +297,7 @@ void necro_mach_print_nalloc(NecroMachAst* ast, size_t depth)
     // else
         printf("%%%s = nalloc (", ast->nalloc.result_reg->value.reg_symbol->name->str);
     necro_mach_type_print_go(ast->nalloc.type_to_alloc, false);
-    printf(") %zuu16", ast->nalloc.slots_used);
+    printf("), slots: %zu", ast->nalloc.slots_used);
 }
 
 void necro_mach_print_memcpy(NecroMachAst* ast, size_t depth)
@@ -361,12 +362,14 @@ void necro_mach_print_machine_def(NecroMachAst* ast, size_t depth)
     printf("type: ");
     necro_mach_type_print_go(ast->necro_machine_type, true);
     printf("\n");
-    if (ast->machine_def.init_fn != NULL && (ast->machine_def.state_type == NECRO_STATE_STATEFUL || ast->machine_def.state_type == NECRO_STATE_CONSTANT))
+    // if (ast->machine_def.init_fn != NULL && (ast->machine_def.state_type == NECRO_STATE_STATEFUL || ast->machine_def.state_type == NECRO_STATE_CONSTANT))
+    if (ast->machine_def.init_fn != NULL)
     {
         printf("\n");
         necro_mach_print_fn(ast->machine_def.init_fn, depth + 4);
     }
-    if (ast->machine_def.mk_fn != NULL && (ast->machine_def.state_type == NECRO_STATE_STATEFUL || ast->machine_def.state_type == NECRO_STATE_CONSTANT))
+    // if (ast->machine_def.mk_fn != NULL && (ast->machine_def.state_type == NECRO_STATE_STATEFUL || ast->machine_def.state_type == NECRO_STATE_CONSTANT))
+    if (ast->machine_def.mk_fn != NULL)
     {
         printf("\n");
         necro_mach_print_fn(ast->machine_def.mk_fn, depth + 4);
@@ -444,7 +447,9 @@ void necro_mach_print_phi(NecroMachAst* ast, size_t depth)
     NecroMachPhiList* values = ast->phi.values;
     while (values != NULL)
     {
-        printf("%s: %%%s", values->data.block->block.symbol->name->str, values->data.value->value.reg_symbol->name->str);
+        // printf("%s: ", values->data.block->block.symbol->name->str, values->data.value->value.reg_symbol->name->str);
+        printf("%s: ", values->data.block->block.symbol->name->str);
+        necro_mach_print_value(values->data.value, NECRO_PRINT_VALUE_TYPE);
         if (values->next == NULL)
             printf("]");
         else

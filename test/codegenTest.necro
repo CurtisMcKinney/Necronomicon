@@ -144,7 +144,8 @@ main = 100
 -- mouseX = inputMouseX world
 
 -- maybeInt :: Maybe (Maybe Int) -> Int
--- maybeInt mi = case mi of
+-- maybeInt mi =
+--   case mi of
 --     Just (Just _) -> 0
 --     Just Nothing  -> 1
 --     Nothing       -> 2

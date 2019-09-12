@@ -27,6 +27,8 @@
 //       to make the distinction clear that these are interned strings
 //=====================================================
 
+struct NecroInstSub;
+
 typedef enum
 {
     NECRO_MANGLE_NAME,
@@ -62,6 +64,8 @@ typedef struct NecroIntern
 NecroIntern necro_intern_empty();
 NecroIntern necro_intern_create();
 void        necro_intern_destroy(NecroIntern* intern);
+void        necro_intern_test();
+
 NecroSymbol necro_intern_string(NecroIntern* intern, const char* str);
 NecroSymbol necro_intern_unique_string(NecroIntern* intern, const char* str);
 NecroSymbol necro_intern_string_slice(NecroIntern* intern, NecroStringSlice slice);
@@ -70,6 +74,6 @@ NecroSymbol necro_intern_concat_symbols(NecroIntern* intern, NecroSymbol symbol1
 NecroSymbol necro_intern_create_type_class_instance_symbol(NecroIntern* intern, NecroSymbol symbol, NecroSymbol type_class_name);
 NecroSymbol necro_intern_get_type_class_member_symbol_from_instance_symbol(NecroIntern* intern, NecroSymbol symbol);
 void        necro_intern_print(NecroIntern* intern);
-void        necro_intern_test();
+NecroSymbol necro_intern_append_suffix_from_subs(NecroIntern* intern, NecroSymbol prefix, const struct NecroInstSub* subs);
 
 #endif // NECRO_INTERN_H

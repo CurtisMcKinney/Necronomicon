@@ -51,18 +51,6 @@ fst (x, _) = x
 snd :: .(a, b) -> .b
 snd (_, y) = y
 
--- Loop ?
-loopTest :: .Array n Float
-loopTest = a' where
-  (feed ~ 0, a') =
-    for each (feed, empty) loop i (x, a) ->
-      (x * 100, writeArray i x a)
-
-each          :: Range n (Index n)
-slidingWindow :: Range m (Range n (Index n))
-offsetEach    :: Int -> Range n (Index n)
-writeArray    :: Index n -> *a -> *Array n a -> *Array n a
-
 class Freeze a where
   freeze :: (a ~ a1) => *a -> a1
 
@@ -71,3 +59,63 @@ death :: forall u v w x a b. (w<=u, x<=u, x<=v) => u:a -> w:(v:b -> x:(c -> d ->
 
 -- TODO: Shared implementation?
 -- TODO: (Later): newtype implementation
+--
+
+-- Loop ?
+loopTest :: .Array n Float
+loopTest = a' where
+  (feed ~ 0, a') =
+    for each (feed, empty) loop i (x, a) ->
+      (x * 100, writeArray i x a)
+
+-- New, non-poly Range API
+each          :: Range n
+slidingWindow :: Index n -> Range m -> Range m
+offsetRange   :: UInt -> Range n -> Range n
+writeArray    :: Index n -> *a -> *Array n a -> *Array n a
+
+each :: Range n
+each = Range 0 1 0
+
+accumulate :: Array n Float -> Float
+accumulate a =
+  for each 0 loop i x ->
+    x + (index i a)
+
+test :: Int
+test a =
+  for each 0 loop i x ->
+    x + 1
+
+coolArray :: Array 2 (Maybe Float)
+coolArray = { Just 666, Just 1 }
+
+printInt :: Int -> *World -> *World
+putChar :: Char -> *World -> *World
+
+main :: *World -> *World
+main w = printInt 0 w
+
+delayTest :: Int
+delayTest = z where
+    x ~ (Just 0, Just 0) =
+        case y of
+            (yl, Just yr) -> (yl, Just yr + 1)
+    y ~ (Just 0, Just 0) =
+        case x of
+            (xl, Just xr) -> (Just xr + 1, xl)
+
+loopTest :: Array n Float
+loopTest = a' where
+  (feed ~ 0, a') =
+    for each (feed, empty) loop i (x, a) ->
+      (x * 100, writeArray i x a)
+
+
+counter :: Maybe Int
+counter = x where
+  x ~ Nothing =
+    case x of
+      Nothing -> Just 0
+      Just i  -> Just (i + 1)
+

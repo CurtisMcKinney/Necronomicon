@@ -16,6 +16,9 @@
 // TODO / NOTE for Chad!!! (2-23-19)
 ///////////////////////////////////////////////////////
 
+    TODO
+        * BIND_REC
+
 Core translation requires a large overhaul after all the changes in the frontend:
 
 
@@ -122,6 +125,7 @@ typedef struct NecroCoreAstLiteral
     {
         double            float_literal;
         int64_t           int_literal;
+        uint64_t          uint_literal;
         NecroSymbol       string_literal;
         uint32_t          char_literal;
         NecroCoreAstList* array_literal_elements;
@@ -138,6 +142,7 @@ typedef struct NecroCoreAstBind
 {
     NecroCoreAstSymbol*  ast_symbol;
     struct NecroCoreAst* expr;
+    struct NecroCoreAst* initializer;
     // bool                 is_recursive; // TODO / NOTE: Do we still need this?
     // TODO: How to handle initializers?
 } NecroCoreAstBind;
@@ -145,14 +150,13 @@ typedef struct NecroCoreAstBind
 // TODO: Make recursive binds use this
 typedef struct NecroCoreAstBindRec
 {
-    struct NecroCoreAst* binds;
+    struct NecroCoreAstList* binds;
 } NecroCoreAstBindRec;
 
 typedef struct NecroCoreAstApplication
 {
     struct NecroCoreAst* expr1;
     struct NecroCoreAst* expr2;
-    // uint32_t             persistent_slot; // TODO / NOTE: Do we still need this? Curtis: Metadata for codegen
 } NecroCoreAstApplication;
 
 typedef struct NecroCoreAstLambda
@@ -199,6 +203,7 @@ typedef struct NecroCoreAstForLoop
     struct NecroCoreAst* index_arg;
     struct NecroCoreAst* value_arg;
     struct NecroCoreAst* expression;
+    size_t               max_loops;
 } NecroCoreAstForLoop;
 
 typedef enum
@@ -236,6 +241,7 @@ typedef struct NecroCoreAst
     };
     NECRO_CORE_AST_TYPE ast_type;
     NecroType*          necro_type;
+    size_t              persistent_slot;
 } NecroCoreAst;
 
 //--------------------
@@ -257,7 +263,7 @@ void              necro_core_ast_arena_destroy(NecroCoreAstArena* ast_arena);
 NecroCoreAst* necro_core_ast_alloc(NecroPagedArena* arena, NECRO_CORE_AST_TYPE ast_type);
 NecroCoreAst* necro_core_ast_create_lit(NecroPagedArena* arena, NecroAstConstant constant);
 NecroCoreAst* necro_core_ast_create_var(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroType* necro_type);
-NecroCoreAst* necro_core_ast_create_bind(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroCoreAst* expr);
+NecroCoreAst* necro_core_ast_create_bind(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroCoreAst* expr, NecroCoreAst* initializer);
 NecroCoreAst* necro_core_ast_create_let(NecroPagedArena* arena, NecroCoreAst* bind, NecroCoreAst* expr);
 NecroCoreAst* necro_core_ast_create_lam(NecroPagedArena* arena, NecroCoreAst* arg, NecroCoreAst* expr);
 NecroCoreAst* necro_core_ast_create_app(NecroPagedArena* arena, NecroCoreAst* expr1, NecroCoreAst* expr2);
@@ -265,7 +271,7 @@ NecroCoreAst* necro_core_ast_create_data_con(NecroPagedArena* arena, NecroCoreAs
 NecroCoreAst* necro_core_ast_create_data_decl(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroCoreAstList* con_list);
 NecroCoreAst* necro_core_ast_create_case(NecroPagedArena* arena, NecroCoreAst* expr, NecroCoreAstList* alts);
 NecroCoreAst* necro_core_ast_create_case_alt(NecroPagedArena* arena, NecroCoreAst* pat, NecroCoreAst* expr);
-NecroCoreAst* necro_core_ast_create_for_loop(NecroPagedArena* arena, NecroCoreAst* range_init, NecroCoreAst* value_init, NecroCoreAst* index_arg, NecroCoreAst* value_arg, NecroCoreAst* expression);
+NecroCoreAst* necro_core_ast_create_for_loop(NecroPagedArena* arena, size_t max_loops, NecroCoreAst* range_init, NecroCoreAst* value_init, NecroCoreAst* index_arg, NecroCoreAst* value_arg, NecroCoreAst* expression);
 void          necro_core_ast_swap(NecroCoreAst* ast1, NecroCoreAst* ast2);
 void          necro_core_ast_pretty_print(NecroCoreAst* ast);
 // TODO: Finish deep copy

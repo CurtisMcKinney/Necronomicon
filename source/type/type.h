@@ -22,14 +22,6 @@ struct NecroConstraint;
 struct NecroFreeVars;
 struct NecroConstraintEnv;
 
-typedef enum
-{
-    NECRO_STATE_CONSTANT  = 0,
-    NECRO_STATE_POLY      = 1,
-    NECRO_STATE_POINTWISE = 2,
-    NECRO_STATE_STATEFUL  = 3,
-} NECRO_STATE_TYPE; // Used for state analysis and in necromachine
-
 // TODO: Remove!
 //=====================================================
 //  Var / Con
@@ -144,6 +136,7 @@ typedef struct NecroType
     struct NecroType*           kind;
     struct NecroType*           ownership;
     struct NecroConstraintList* constraints;
+    size_t                      hash;
 } NecroType;
 
 typedef struct NecroInstSub

@@ -33,8 +33,7 @@
 #include "core_ast.h"
 #include "defunctionalization.h"
 #include "mach_transform.h"
-
-// #include "codegen/codegen_llvm.h"
+#include "codegen/codegen_llvm.h"
 
 #define NECRO_VERBOSITY 1
 
@@ -183,56 +182,25 @@ NecroResult(void) necro_compile_go(
     if (necro_compile_end_phase(info, NECRO_PHASE_LAMBDA_LIFT))
         return ok_void();
 
-    UNUSED(mach_program);
+    //--------------------
+    // StateAnalysis
+    //--------------------
+    necro_compile_begin_phase(info, NECRO_PHASE_STATE_ANALYSIS);
+    necro_core_state_analysis(info, intern, base, core_ast_arena);
+    if (necro_compile_end_phase(info, NECRO_PHASE_STATE_ANALYSIS))
+        return ok_void();
+
+    //--------------------
+    // MachTransform
+    //--------------------
+    necro_compile_begin_phase(info, NECRO_PHASE_TRANSFORM_TO_MACHINE);
+    necro_core_transform_to_mach(info, intern, base, core_ast_arena, mach_program);
+    if (necro_compile_end_phase(info, NECRO_PHASE_TRANSFORM_TO_MACHINE))
+        return ok_void();
+
     // UNUSED(codegen_llvm);
 
     /*
-    //=====================================================
-    // Closure Conversion
-    //=====================================================
-    if (info.compilation_phase != NECRO_PHASE_JIT && NECRO_VERBOSITY > 0)
-        necro_announce_phase("Closure Conversion");
-    // necro_start_timer(timer);
-    NecroClosureDefVector closure_defs;
-    NecroCoreAST          cc_core = necro_closure_conversion(&ll_core, intern, symtable, scoped_symtable, base, &closure_defs);
-    // necro_stop_and_report_timer(timer, "closure_conversion");
-    if (info.compilation_phase == NECRO_PHASE_CLOSURE_CONVERSION)
-    {
-        necro_core_pretty_print(&cc_core, symtable);
-        // necro_print_core(&cc_core, intern);
-        return ok_void();
-    }
-
-    //=====================================================
-    // State Analysis
-    //=====================================================
-    if (info.compilation_phase != NECRO_PHASE_JIT && NECRO_VERBOSITY > 0)
-        necro_announce_phase("State Analysis");
-    // necro_start_timer(timer);
-    necro_state_analysis(&cc_core, intern, symtable, scoped_symtable, NULL);
-    // necro_stop_and_report_timer(timer, "state_analysis");
-    if (info.compilation_phase == NECRO_PHASE_STATE_ANALYSIS)
-    {
-        necro_core_pretty_print(&cc_core, symtable);
-        // necro_print_core(&cc_core, intern);
-        return ok_void();
-    }
-
-    //=====================================================
-    // Transform to Machine
-    //=====================================================
-    if (info.compilation_phase != NECRO_PHASE_JIT && NECRO_VERBOSITY > 0)
-        necro_announce_phase("Machine");
-    // necro_start_timer(timer);
-    *machine = necro_core_to_machine(&cc_core, symtable, scoped_symtable, NULL, infer, closure_defs);
-    // necro_stop_and_report_timer(timer, "machine");
-    if (info.compilation_phase == NECRO_PHASE_TRANSFORM_TO_MACHINE)
-    {
-        puts("");
-        necro_print_machine_program(machine);
-        return ok_void();
-    }
-
     //=====================================================
     // Codegen
     //=====================================================
@@ -287,7 +255,7 @@ void necro_compile(const char* file_name, const char* input_string, size_t input
     NecroAstArena        ast             = necro_ast_arena_empty();
     NecroCoreAstArena    core_ast_arena  = necro_core_ast_arena_empty();
     NecroMachProgram     mach_program    = necro_mach_program_empty();
-    // NecroCodeGenLLVM     codegen_llvm    = necro_empty_codegen_llvm();
+    NecroLLVM            llvm            = necro_llvm_empty();
 
     //--------------------
     // Compile
@@ -322,7 +290,7 @@ void necro_compile(const char* file_name, const char* input_string, size_t input
     necro_timer_destroy(timer);
 
     // Pass data
-    // necro_destroy_codegen_llvm(&codegen_llvm);
+    necro_llvm_destroy(&llvm);
     necro_mach_program_destroy(&mach_program);
     necro_core_ast_arena_destroy(&core_ast_arena);
     necro_ast_arena_destroy(&ast);

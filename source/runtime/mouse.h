@@ -25,6 +25,12 @@
 extern DLLEXPORT int _necro_mouse_x();
 extern DLLEXPORT int _necro_mouse_y();
 
+//--------------------
+// NEW API
+//--------------------
+extern DLLEXPORT int _necro_get_mouse_x(unsigned int _dummy);
+extern DLLEXPORT int _necro_get_mouse_y(unsigned int _dummy);
+
 ///////////////////////////////////////////////////////
 // Utility functions
 ///////////////////////////////////////////////////////

@@ -468,6 +468,7 @@ typedef enum
     NECRO_MACH_UOP,
     NECRO_MACH_CMP,
     NECRO_MACH_PHI,
+
     NECRO_MACH_MEMCPY, // TODO: Maybe remove
     NECRO_MACH_MEMSET, // TODO: Maybe remove
     // NECRO_MACH_ALLOCA, // TODO: Maybe remove

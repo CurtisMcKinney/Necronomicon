@@ -17,7 +17,6 @@
         * Handle top better
         * Find better/faster algorithm for block env
         * Get rid of find check in env cache?
-        * Test statefulness!
 */
 
 //=====================================================

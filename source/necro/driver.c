@@ -33,8 +33,7 @@
 #include "core_ast.h"
 #include "defunctionalization.h"
 #include "mach_transform.h"
-
-// #include "codegen/codegen_llvm.h"
+#include "codegen/codegen_llvm.h"
 
 #define NECRO_VERBOSITY 1
 
@@ -256,7 +255,7 @@ void necro_compile(const char* file_name, const char* input_string, size_t input
     NecroAstArena        ast             = necro_ast_arena_empty();
     NecroCoreAstArena    core_ast_arena  = necro_core_ast_arena_empty();
     NecroMachProgram     mach_program    = necro_mach_program_empty();
-    // NecroCodeGenLLVM     codegen_llvm    = necro_empty_codegen_llvm();
+    NecroLLVM            llvm            = necro_llvm_empty();
 
     //--------------------
     // Compile
@@ -291,7 +290,7 @@ void necro_compile(const char* file_name, const char* input_string, size_t input
     necro_timer_destroy(timer);
 
     // Pass data
-    // necro_destroy_codegen_llvm(&codegen_llvm);
+    necro_llvm_destroy(&llvm);
     necro_mach_program_destroy(&mach_program);
     necro_core_ast_arena_destroy(&core_ast_arena);
     necro_ast_arena_destroy(&ast);

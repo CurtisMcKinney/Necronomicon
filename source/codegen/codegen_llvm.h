@@ -16,9 +16,12 @@
 #include "utility.h"
 #include "arena.h"
 #include "intern.h"
+#include "mach_ast.h"
+
+/*
+#include "machine/machine.h"
 #include "type/prim.h"
 #include "core/core.h"
-#include "machine/machine.h"
 
 struct NecroSymTable;
 
@@ -75,5 +78,45 @@ void              necro_destroy_codegen_llvm(NecroCodeGenLLVM* codegen);
 NECRO_RETURN_CODE necro_codegen_llvm(NecroCodeGenLLVM* codegen, NecroMachineProgram* program);
 NECRO_RETURN_CODE necro_jit_llvm(NecroCodeGenLLVM* codegen);
 void              necro_print_codegen_llvm(NecroCodeGenLLVM* codegen);
+*/
+
+
+///////////////////////////////////////////////////////
+// NecroLLVM
+///////////////////////////////////////////////////////
+typedef struct NecroLLVM
+{
+    NecroPagedArena           arena;
+    NecroSnapshotArena        snapshot_arena;
+    NecroIntern*              intern;
+    NecroBase*                base;
+    NecroMachProgram*         program;
+
+    LLVMContextRef            context;
+    LLVMModuleRef             mod;
+    LLVMBuilderRef            builder;
+    LLVMTargetDataRef         target;
+    LLVMPassManagerRef        fn_pass_manager;
+    LLVMPassManagerRef        mod_pass_manager;
+
+    // LLVMValueRef              memcpy_fn;
+    // LLVMValueRef              memset_fn;
+    // LLVMTypeRef               word_int_type;
+    // LLVMTypeRef               word_uint_type;
+    // LLVMTypeRef               word_float_type;
+    // NecroRuntimeMappingVector runtime_mapping;
+    // NecroMemberVector*        member_map;
+    // NecroDataMapVector*       data_map;
+    bool                      should_optimize;
+} NecroLLVM;
+
+NecroLLVM necro_llvm_empty();
+NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, bool should_optimize);
+void      necro_llvm_destroy(NecroLLVM* codegen);
+void      necro_llvm_codegen(NecroLLVM* codegen, NecroMachProgram* program);
+void      necro_llvm_jit(NecroLLVM* codegen);
+void      necro_llvm_print(NecroLLVM* codegen);
+void      necro_llvm_test();
+
 
 #endif // TYPE_CODEGEN_LLVM_H

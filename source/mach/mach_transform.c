@@ -17,6 +17,7 @@
 
 /*
     TODO:
+        * llvm codegen
         * deepcopy arrays
         * defunctionalization
         * bind_rec (for mutual recursion)

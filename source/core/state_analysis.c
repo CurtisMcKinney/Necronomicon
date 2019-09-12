@@ -1005,6 +1005,7 @@ NecroCoreAst* necro_core_ast_create_deep_copy(NecroStateAnalysis* context, Necro
     if (ast->data_decl.ast_symbol->is_primitive)
         return NULL;
 
+    // TODO: How to handle arrays!?!?!?!?!
     if (ast->data_decl.ast_symbol == context->base->array_type->core_ast_symbol)
         return NULL; // TODO: Finish!
 
@@ -1023,8 +1024,6 @@ NecroCoreAst* necro_core_ast_create_deep_copy(NecroStateAnalysis* context, Necro
     ast->data_decl.ast_symbol->is_enum = is_enum;
     if (is_enum)
         return NULL;
-
-    // TODO: How to handle arrays!?!?!?!?!
 
     //--------------------
     // Alts

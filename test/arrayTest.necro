@@ -119,12 +119,3 @@ counter = x where
       Nothing -> Just 0
       Just i  -> Just (i + 1)
 
--- Deep copy functions should NOT call deeper deep copy functions, but instead rely solely on case statements
--- This is way it loads all leaves into registers (or onto the stack) and then overwrites the memory
--- Then we can simply call deepCopy on bind expr
-copyTest :: ((Int, Int), (Int, Int))
-copyTest = x where
-    x ~ (Nothing, Just 1) =
-        case x of
-            (l, r) -> (r, l)
-

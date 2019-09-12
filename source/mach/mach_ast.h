@@ -70,6 +70,7 @@ typedef struct NecroMachAstSymbol
     bool                  is_constructor;
     bool                  con_num;
     bool                  is_primitive;
+    void*                 codegen_symbol;
 } NecroMachAstSymbol;
 
 //--------------------

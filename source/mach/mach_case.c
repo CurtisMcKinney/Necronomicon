@@ -1072,9 +1072,10 @@ NecroMachAst* necro_core_transform_to_mach_3_case(NecroMachProgram* program, Nec
 
     NecroPatternMatrix matrix          = necro_pattern_matrix_create_from_case(program, ast, outer);
     NecroDecisionTree* tree            = necro_pattern_matrix_compile(program, &matrix, ast);
-    necro_decision_tree_print(program, tree);
-    tree                               = necro_decision_tree_maximal_sharing(tree);
-    necro_decision_tree_print(program, tree);
+    // TODO: Maximal sharing? Or not maximal sharing? Is it really that beneficial? Cost/Benefit analysis needed...
+    // necro_decision_tree_print(program, tree);
+    // tree                               = necro_decision_tree_maximal_sharing(tree);
+    // necro_decision_tree_print(program, tree);
 
     if (!necro_decision_tree_is_branchless(tree))
     {
@@ -1097,7 +1098,7 @@ NecroMachAst* necro_core_transform_to_mach_3_case(NecroMachProgram* program, Nec
             NecroMachAst* next_error_block = term_case_block->block.next_block;
             err_block = (next_error_block == NULL) ? necro_mach_block_append(program, outer->machine_def.update_fn, "error") : necro_mach_block_insert_before(program, outer->machine_def.update_fn, "error", next_error_block);
             necro_mach_block_move_to(program, outer->machine_def.update_fn, err_block);
-            necro_mach_build_call(program, outer->machine_def.update_fn, program->runtime._necro_error_exit->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint32(program, 1) }, 1, NECRO_MACH_CALL_C, "");
+            necro_mach_build_call(program, outer->machine_def.update_fn, program->runtime.necro_error_exit->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint32(program, 1) }, 1, NECRO_MACH_CALL_C, "");
             necro_mach_build_unreachable(program, outer->machine_def.update_fn);
             outer->machine_def.update_fn->fn_def._err_block = err_block;
         }

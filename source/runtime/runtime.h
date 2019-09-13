@@ -23,13 +23,13 @@ typedef struct NecroConstructorInfo NecroConstructorInfo;
 ///////////////////////////////////////////////////////
 // Necro Runtime
 ///////////////////////////////////////////////////////
-extern DLLEXPORT void         _necro_init_runtime();
-extern DLLEXPORT void         _necro_update_runtime();
-extern DLLEXPORT void         _necro_error_exit(uint32_t error_code);
-extern DLLEXPORT void         _necro_sleep(uint32_t milliseconds);
-extern DLLEXPORT void         _necro_print(int value);
-extern DLLEXPORT void         _necro_debug_print(int value);
-extern DLLEXPORT unsigned int _necro_print_int(int value, unsigned int world);
+extern DLLEXPORT void         necro_runtime_init();
+extern DLLEXPORT void         necro_runtime_update();
+extern DLLEXPORT void         necro_runtime_error_exit(uint32_t error_code);
+extern DLLEXPORT void         necro_runtime_sleep(uint32_t milliseconds);
+extern DLLEXPORT void         necro_runtime_print(int value);
+extern DLLEXPORT void         necro_runtime_debug_print(int value);
+extern DLLEXPORT unsigned int necro_runtime_print_int(int value, unsigned int world);
 
 //-------------------------
 // new copying collector
@@ -45,7 +45,7 @@ extern DLLEXPORT void     _necro_flip_const();
 ///////////////////////////////////////////////////////
 // Utility functions
 ///////////////////////////////////////////////////////
-size_t necro_get_runtime_tick();
+size_t necro_runtime_get_tick();
 void   necro_copy_gc_init();
 void   necro_copy_gc_cleanup();
 

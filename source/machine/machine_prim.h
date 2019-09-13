@@ -13,6 +13,6 @@
 
 #include "machine.h"
 
-void necro_init_machine_prim(NecroMachineProgram* program);
+// void necro_init_machine_prim(NecroMachineProgram* program);
 
 #endif // NECRO_MACHINE_PRIM_H

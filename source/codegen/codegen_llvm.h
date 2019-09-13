@@ -3,8 +3,8 @@
  * Proprietary and confidential
  */
 
-#ifndef TYPE_CODEGEN_LLVM_H
-#define TYPE_CODEGEN_LLVM_H 1
+#ifndef NECRO_LLVM_H
+#define NECRO_LLVM_H 1
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -99,24 +99,14 @@ typedef struct NecroLLVM
     LLVMPassManagerRef        fn_pass_manager;
     LLVMPassManagerRef        mod_pass_manager;
 
-    // LLVMValueRef              memcpy_fn;
-    // LLVMValueRef              memset_fn;
-    // LLVMTypeRef               word_int_type;
-    // LLVMTypeRef               word_uint_type;
-    // LLVMTypeRef               word_float_type;
-    // NecroRuntimeMappingVector runtime_mapping;
-    // NecroMemberVector*        member_map;
-    // NecroDataMapVector*       data_map;
     bool                      should_optimize;
 } NecroLLVM;
 
 NecroLLVM necro_llvm_empty();
-NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, bool should_optimize);
 void      necro_llvm_destroy(NecroLLVM* codegen);
-void      necro_llvm_codegen(NecroLLVM* codegen, NecroMachProgram* program);
-void      necro_llvm_jit(NecroLLVM* codegen);
-void      necro_llvm_print(NecroLLVM* codegen);
+void      necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroLLVM* codegen);
+void      necro_llvm_jit(NecroCompileInfo info, NecroLLVM* codegen);
 void      necro_llvm_test();
+void      necro_llvm_test_jit();
 
-
-#endif // TYPE_CODEGEN_LLVM_H
+#endif // NECRO_LLVM_H

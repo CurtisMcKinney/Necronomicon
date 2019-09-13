@@ -70,9 +70,11 @@ void necro_init_mouse()
 
 void necro_poll_mouse()
 {
+    if (true)
+        return;
     // necro_init_mouse();
     assert(mouse_initialized);
-    size_t runtime_tick = necro_get_runtime_tick();
+    size_t runtime_tick = necro_runtime_get_tick();
     if (current_tick == runtime_tick)
         return;
     current_tick = runtime_tick;

@@ -123,7 +123,7 @@ NecroMachineProgram necro_create_initial_machine_program(NecroIntern* intern, Ne
     program.necro_uint_type  = necro_create_word_sized_uint_type(&program);
     program.necro_int_type   = necro_create_word_sized_int_type(&program);
     program.necro_float_type = necro_create_word_sized_float_type(&program);
-    necro_init_machine_prim(&program);
+    // necro_init_machine_prim(&program);
     return program;
 }
 

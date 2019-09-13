@@ -288,17 +288,17 @@ void necro_mach_print_gep(NecroMachAst* ast, size_t depth)
     necro_mach_print_value(ast->gep.source_value, depth);
 }
 
-void necro_mach_print_nalloc(NecroMachAst* ast, size_t depth)
-{
-    UNUSED(depth);
-    assert(ast->type == NECRO_MACH_NALLOC);
-    // if (ast->nalloc.is_constant)
-    //     printf("%%%s = alloc_const (", necro_intern_get_string(ast->nalloc.result_reg->value.reg_symbol->name));
-    // else
-        printf("%%%s = nalloc (", ast->nalloc.result_reg->value.reg_symbol->name->str);
-    necro_mach_type_print_go(ast->nalloc.type_to_alloc, false);
-    printf("), slots: %zu", ast->nalloc.slots_used);
-}
+// void necro_mach_print_nalloc(NecroMachAst* ast, size_t depth)
+// {
+//     UNUSED(depth);
+//     assert(ast->type == NECRO_MACH_NALLOC);
+//     // if (ast->nalloc.is_constant)
+//     //     printf("%%%s = alloc_const (", necro_intern_get_string(ast->nalloc.result_reg->value.reg_symbol->name));
+//     // else
+//         printf("%%%s = nalloc (", ast->nalloc.result_reg->value.reg_symbol->name->str);
+//     necro_mach_type_print_go(ast->nalloc.type_to_alloc, false);
+//     printf("), slots: %zu", ast->nalloc.slots_used);
+// }
 
 void necro_mach_print_memcpy(NecroMachAst* ast, size_t depth)
 {
@@ -515,10 +515,10 @@ void necro_mach_print_ast_go(NecroMachAst* ast, size_t depth)
         print_white_space(depth);
         necro_mach_print_zext(ast, depth);
         return;
-    case NECRO_MACH_NALLOC:
-        print_white_space(depth);
-        necro_mach_print_nalloc(ast, depth);
-        return;
+    // case NECRO_MACH_NALLOC:
+    //     print_white_space(depth);
+    //     necro_mach_print_nalloc(ast, depth);
+    //     return;
     case NECRO_MACH_CALL:
         print_white_space(depth);
         necro_mach_print_call(ast, depth);

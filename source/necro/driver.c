@@ -95,8 +95,8 @@ NecroResult(void) necro_compile_go(
     NecroParseAstArena*   parse_ast,
     NecroAstArena*        ast,
     NecroCoreAstArena*    core_ast_arena,
-    // NecroCodeGenLLVM*     codegen_llvm,
-    NecroMachProgram*     mach_program)
+    NecroMachProgram*     mach_program,
+    NecroLLVM*            llvm)
 {
     if (info.compilation_phase == NECRO_PHASE_NONE)
         return ok_void();
@@ -198,41 +198,21 @@ NecroResult(void) necro_compile_go(
     if (necro_compile_end_phase(info, NECRO_PHASE_TRANSFORM_TO_MACHINE))
         return ok_void();
 
-    // UNUSED(codegen_llvm);
-
-    /*
-    //=====================================================
+    //--------------------
     // Codegen
-    //=====================================================
-    if (info.compilation_phase != NECRO_PHASE_JIT && NECRO_VERBOSITY > 0)
-        necro_announce_phase("CodeGen");
-    // necro_start_timer(timer);
-    *codegen_llvm = necro_create_codegen_llvm(intern, symtable, NULL, info.opt_level);
-    if (necro_codegen_llvm(codegen_llvm, machine) != NECRO_SUCCESS)
-    {
-        // TODO: Error handling
+    //--------------------
+    necro_compile_begin_phase(info, NECRO_PHASE_CODEGEN);
+    necro_llvm_codegen(info, mach_program, llvm);
+    if (necro_compile_end_phase(info, NECRO_PHASE_CODEGEN))
         return ok_void();
-    }
-    // necro_stop_and_report_timer(timer, "codegen");
-    if (info.compilation_phase == NECRO_PHASE_CODEGEN)
-    {
-        necro_print_machine_program(machine);
-        necro_print_codegen_llvm(codegen_llvm);
-        return ok_void();
-    }
 
-    //=====================================================
+    //--------------------
     // JIT
-    //=====================================================
-    if (necro_jit_llvm(codegen_llvm) == NECRO_ERROR)
-    {
+    //--------------------
+    necro_compile_begin_phase(info, NECRO_PHASE_JIT);
+    necro_llvm_jit(info, llvm);
+    if (necro_compile_end_phase(info, NECRO_PHASE_JIT))
         return ok_void();
-    }
-    if (info.compilation_phase == NECRO_PHASE_JIT)
-    {
-        return ok_void();
-    }
-    */
 
     return ok_void();
 }
@@ -273,8 +253,8 @@ void necro_compile(const char* file_name, const char* input_string, size_t input
         &parse_ast,
         &ast,
         &core_ast_arena,
-        // &codegen_llvm,
-        &mach_program);
+        &mach_program,
+        &llvm);
 
     //--------------------
     // Error Handling
@@ -322,6 +302,8 @@ void necro_test(NECRO_TEST test)
     case NECRO_TEST_ARENA_CHAIN_TABLE:    necro_arena_chain_table_test();    break;
     case NECRO_TEST_BASE:                 necro_base_test();                 break;
     case NECRO_TEST_MACH:                 necro_mach_test();                 break;
+    case NECRO_TEST_LLVM:                 necro_llvm_test();                 break;
+    case NECRO_TEST_JIT:                  necro_llvm_test_jit();             break;
     case NECRO_TEST_ALL:
         necro_test_unicode_properties();
         necro_intern_test();
@@ -336,6 +318,7 @@ void necro_test(NECRO_TEST test)
         necro_core_lambda_lift_test();
         necro_defunctionalize_test();
         necro_mach_test();
+        necro_llvm_test();
         break;
     default:
         break;

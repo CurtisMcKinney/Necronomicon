@@ -324,8 +324,9 @@ void necro_core_state_analysis(NecroCompileInfo info, NecroIntern* intern, Necro
     };
 
     // TODO: Where is the best place for this!?
-    base->mouse_x_fn->core_ast_symbol->state_type = NECRO_STATE_POINTWISE;
-    base->mouse_y_fn->core_ast_symbol->state_type = NECRO_STATE_POINTWISE;
+    // TODO: Put back!
+    // base->mouse_x_fn->core_ast_symbol->state_type = NECRO_STATE_POINTWISE;
+    // base->mouse_y_fn->core_ast_symbol->state_type = NECRO_STATE_POINTWISE;
 
     // Go
     necro_state_analysis_go(&sa, core_ast_arena->root, NULL);
@@ -351,7 +352,7 @@ void necro_core_state_analysis(NecroCompileInfo info, NecroIntern* intern, Necro
 
     // Finish
     unwrap(void, necro_core_infer(intern, base, core_ast_arena)); // TODO: Remove after some testing
-    necro_core_ast_pretty_print(core_ast_arena->root);
+    // necro_core_ast_pretty_print(core_ast_arena->root);
 
     // Cleanup
     necro_snapshot_arena_destroy(&sa.snapshot_arena);

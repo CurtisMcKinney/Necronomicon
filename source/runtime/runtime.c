@@ -39,7 +39,7 @@ void necro_report_gc_statistics();
 ///////////////////////////////////////////////////////
 // Runtime functions
 ///////////////////////////////////////////////////////
-extern DLLEXPORT void _necro_print(int value)
+extern DLLEXPORT void necro_runtime_print(int value)
 {
 #if NECRO_DEBUG_GC
     // necro_report_gc_statistics();
@@ -49,19 +49,21 @@ extern DLLEXPORT void _necro_print(int value)
 #endif
 }
 
-extern DLLEXPORT void _necro_debug_print(int value)
+extern DLLEXPORT void necro_runtime_debug_print(int value)
 {
     printf("debug: %d\n", value);
 }
 
-extern DLLEXPORT unsigned int _necro_print_int(int value, unsigned int world)
+extern DLLEXPORT unsigned int necro_runtime_print_int(int value, unsigned int world)
 {
-    printf("necro: %d\n", value);
+    // printf("necro: %d\n", value);
+    printf("necro: %d                      \r", value);
     return world;
 }
 
-extern DLLEXPORT void _necro_sleep(uint32_t milliseconds)
+extern DLLEXPORT void necro_runtime_sleep(uint32_t milliseconds)
 {
+    // printf("necro_runtime_sleep: %u\n", milliseconds);
 #ifdef _WIN32
     Sleep(milliseconds);
 #else
@@ -69,7 +71,7 @@ extern DLLEXPORT void _necro_sleep(uint32_t milliseconds)
 #endif
 }
 
-extern DLLEXPORT void _necro_error_exit(uint32_t error_code)
+extern DLLEXPORT void necro_runtime_error_exit(uint32_t error_code)
 {
     switch (error_code)
     {
@@ -87,19 +89,21 @@ extern DLLEXPORT void _necro_error_exit(uint32_t error_code)
 }
 
 size_t runtime_tick = 0;
-size_t necro_get_runtime_tick()
+size_t necro_runtime_get_tick()
 {
     return runtime_tick;
 }
 
-extern DLLEXPORT void _necro_init_runtime()
+extern DLLEXPORT void necro_runtime_init()
 {
+    // printf("necro_runtime_init\n");
     runtime_tick = 0;
-    necro_init_mouse();
+    // necro_init_mouse();
 }
 
-extern DLLEXPORT void _necro_update_runtime()
+extern DLLEXPORT void necro_runtime_update()
 {
+    // printf("necro_runtime_update\n");
     runtime_tick++;
 }
 

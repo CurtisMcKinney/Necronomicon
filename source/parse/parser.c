@@ -95,28 +95,28 @@ typedef struct
     size_t ast_size;
 } NecroParserSnapshot;
 
-inline NecroParserSnapshot necro_parse_snapshot(NecroParser* parser)
+static inline NecroParserSnapshot necro_parse_snapshot(NecroParser* parser)
 {
     return (NecroParserSnapshot) { parser->current_token, parser->ast.arena.size };
 }
 
-inline void necro_parse_restore(NecroParser* parser, NecroParserSnapshot snapshot)
+static inline void necro_parse_restore(NecroParser* parser, NecroParserSnapshot snapshot)
 {
     parser->current_token = snapshot.current_token;
     parser->ast.arena.size = snapshot.ast_size;
 }
 
-inline NecroLexToken* necro_parse_peek_token(NecroParser* parser)
+static inline NecroLexToken* necro_parse_peek_token(NecroParser* parser)
 {
     return parser->tokens + parser->current_token;
 }
 
-inline NECRO_LEX_TOKEN_TYPE necro_parse_peek_token_type(NecroParser* parser)
+static inline NECRO_LEX_TOKEN_TYPE necro_parse_peek_token_type(NecroParser* parser)
 {
     return necro_parse_peek_token(parser)->token;
 }
 
-inline void necro_parse_consume_token(NecroParser* parser)
+static inline void necro_parse_consume_token(NecroParser* parser)
 {
     ++parser->current_token;
 }

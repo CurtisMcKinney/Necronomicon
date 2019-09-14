@@ -217,6 +217,10 @@ NecroResult(NecroType) necro_core_infer_case(NecroCoreInfer* infer, NecroCoreAst
         NecroType*    pat_type  = (alt->case_alt.pat == NULL) ? necro_type_fresh_var(infer->arena, NULL) : necro_try_result(NecroType, necro_core_infer_go(infer, alt->case_alt.pat));
         necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, pat_type, zero_loc, zero_loc));
         necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, expression_type, pat_type, NULL, zero_loc, zero_loc));
+        if (alt->case_alt.expr == NULL)
+            break;
+        if (alt->case_alt.expr->ast_type == NECRO_CORE_AST_LET && alt->case_alt.expr->necro_type == NULL)
+            break;
         NecroType*    body_type = necro_try_result(NecroType, necro_core_infer_go(infer, alt->case_alt.expr));
         necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, body_type, zero_loc, zero_loc));
         necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, result_type, body_type, NULL, zero_loc, zero_loc));

@@ -7,6 +7,7 @@
 #include <inttypes.h>
 #include "lexer.h"
 #include "unicode_properties.h"
+#include "../utility/result.h"
 
 void necro_lex_print(NecroLexer* lexer);
 const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)

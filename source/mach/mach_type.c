@@ -541,7 +541,7 @@ void necro_mach_type_print_go(NecroMachType* type, bool is_recursive)
         printf("*");
         return;
     case NECRO_MACH_TYPE_ARRAY:
-        printf("[%d x ", type->array_type.element_count);
+        printf("[%zu x ", type->array_type.element_count);
         necro_mach_type_print_go(type->array_type.element_type, false);
         printf("]");
         return;

@@ -258,7 +258,7 @@ void necro_core_lambda_lift_pop_scope(NecroLambdaLift* ll)
     ll->scope = ll->scope->parent;
 }
 
-inline bool necro_core_lambda_lift_is_free_var(NecroLambdaLift* ll, NecroCoreAstSymbol* ast_symbol)
+static inline bool necro_core_lambda_lift_is_free_var(NecroLambdaLift* ll, NecroCoreAstSymbol* ast_symbol)
 {
     return !(necro_core_scope_find_in_this_scope(ll->scope, ast_symbol) || necro_core_scope_find_in_this_scope(ll->global_scope, ast_symbol));
 }

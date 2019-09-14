@@ -13,6 +13,7 @@
 #include "d_analyzer.h"
 #include "driver.h"
 #include "itoa.h"
+#include "utility/result.h"
 
 typedef enum
 {

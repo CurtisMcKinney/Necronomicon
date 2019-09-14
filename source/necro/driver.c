@@ -27,6 +27,7 @@
 #include "core/defunctionalization.h"
 #include "core/state_analysis.h"
 #include "core/core_pretty_print.h"
+#include "utility/result.h"
 #include "utility/unicode_properties.h"
 #include "type/monomorphize.h"
 #include "alias_analysis.h"

@@ -15,6 +15,7 @@ in
     debugVersion = true;
     enableDebugging = true;
     enableDebugInfo = true;
+    hardeningDisable = [ "all" ];
 
     preConfigure = ''
       export NIX_CFLAGS_COMPILE="$NIX_CFLAGS_COMPILE -fdebug-prefix-map=/build/Necronomicon=."

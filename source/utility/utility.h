@@ -183,7 +183,7 @@ typedef struct
     size_t      length;
 } NecroStringSlice;
 
-inline uint32_t next_highest_pow_of_2(uint32_t x)
+static inline uint32_t next_highest_pow_of_2(uint32_t x)
 {
     x--;
     x |= x >> 1;
@@ -213,7 +213,7 @@ static inline uint32_t log2_32(uint32_t value)
     return tab32[(uint32_t)(value * 0x07C4ACDD) >> 27];
 }
 
-inline size_t necro_hash(size_t input)
+static inline size_t necro_hash(size_t input)
 {
     return (size_t)(input * 37);
 }

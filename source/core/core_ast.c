@@ -309,34 +309,21 @@ NecroResult(void) necro_ast_transform_to_core(NecroCompileInfo info, NecroIntern
     return ok_void();
 }
 
-// NecroCoreAST_Expression* necro_transform_pat_assignment(NecroTransformToCore* core_transform, NecroAst* necro_ast_node)
-// {
-//     assert(false && "[necro_transform_pat_assignment] Not implemented yet, soon TM!");
-//     assert(core_transform);
-//     assert(necro_ast_node);
-//     assert(necro_ast_node->type == NECRO_AST_PAT_ASSIGNMENT);
-//     if (core_transform->transform_state != NECRO_CORE_TRANSFORMING)
-//         return NULL;
-//
-//     // NecroAstApatsAssignment* apats_assignment = &necro_ast_node->apats_assignment; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
-//     NecroCoreAST_Expression* core_expr = necro_paged_arena_alloc(&core_transform->core_ast->arena, sizeof(NecroCoreAST_Expression));
-//     core_expr->expr_type = NECRO_CORE_EXPR_BIND;
-//     NecroCoreAST_Bind* core_bind = &core_expr->bind;
-//     // core_bind->var.symbol = apats_assignment->variable_name; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
-//     // core_bind->var.id = apats_assignment->id; // TODO: CONVERT / FINISH! Core system needs to be converted to NecroAstSymbol system!!!!!!
-//     core_bind->is_recursive = false;
-//
-//     //necro_ast_node->pat_assignment.pat->pattern_expression.expressions->
-//
-//     return NULL;
-// }
-
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_pat(NecroCoreAstTransform* context, NecroAst* ast);
 
 NecroResult(NecroCoreAst) necro_ast_transform_to_core_pat_assignment(NecroCoreAstTransform* context, NecroAst* ast)
 {
     assert(ast->type == NECRO_AST_PAT_ASSIGNMENT);
-    UNUSED(context);
-    NecroCoreAst* core_ast = NULL;
+    NecroCoreAst* rhs_core = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->pat_assignment.rhs));
+    rhs_core->necro_type = ast->pat_assignment.rhs->necro_type;
+    NecroCoreAst* alt_pat  = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_pat(context, ast->pat_assignment.pat));
+    alt_pat->necro_type = ast->pat_assignment.pat->necro_type;
+    NecroCoreAst* alt_expr = NULL;
+    NecroCoreAst* alt_ast  = necro_core_ast_create_case_alt(context->arena, alt_pat, alt_expr);
+    alt_ast->necro_type = ast->pat_assignment.pat->necro_type;
+    NecroCoreAstList* alts = necro_append_core_ast_list(context->arena, alt_ast, NULL);
+    NecroCoreAst* core_ast = necro_core_ast_create_case(context->arena, rhs_core, alts);
+    core_ast->necro_type = ast->necro_type;
     return ok(NecroCoreAst, core_ast);
 }
 
@@ -431,8 +418,8 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_declaration_group_list(Nec
     if (ast == NULL)
         return ok(NecroCoreAst, last_expr);
     assert(ast->type == NECRO_AST_DECLARATION_GROUP_LIST);
-    NecroCoreAst* let_head = NULL;
-    NecroCoreAst* let_curr = NULL;
+    NecroCoreAst* ast_chain_head = NULL;
+    NecroCoreAst* ast_chain_curr = NULL;
     while (ast != NULL)
     {
         NecroAst* declaration_group = ast->declaration_group_list.declaration_group;
@@ -448,15 +435,15 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_declaration_group_list(Nec
                     NecroCoreAst* instance_curr = instance_declarations;
                     while (instance_curr->let.expr !=  NULL)
                         instance_curr = instance_curr->let.expr;
-                    if (let_head == NULL)
+                    if (ast_chain_head == NULL)
                     {
-                        let_head = instance_declarations;
-                        let_curr = instance_curr;
+                        ast_chain_head = instance_declarations;
+                        ast_chain_curr = instance_curr;
                     }
                     else
                     {
-                        let_curr->let.expr = instance_declarations;
-                        let_curr           = instance_curr;
+                        ast_chain_curr->let.expr = instance_declarations;
+                        ast_chain_curr           = instance_curr;
                     }
                 }
             }
@@ -464,26 +451,85 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_declaration_group_list(Nec
             else if (!necro_core_ast_should_filter(declaration_group->declaration.declaration_impl))
             {
                 NecroCoreAst* binder = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, declaration_group->declaration.declaration_impl));
-                assert(binder->ast_type == NECRO_CORE_AST_DATA_DECL || binder->ast_type == NECRO_CORE_AST_BIND || binder->ast_type == NECRO_CORE_AST_BIND_REC);
-                if (let_head == NULL)
+
+                assert(
+                    binder->ast_type == NECRO_CORE_AST_DATA_DECL ||
+                    binder->ast_type == NECRO_CORE_AST_BIND ||
+                    binder->ast_type == NECRO_CORE_AST_BIND_REC ||
+                    binder->ast_type == NECRO_CORE_AST_CASE
+                );
+
+
+                NecroCoreAst* ast_chain_next = NULL;
+                switch(binder->ast_type)
                 {
-                    let_curr = necro_core_ast_create_let(context->arena, binder, NULL);
-                    let_head = let_curr;
+                    case NECRO_CORE_AST_DATA_DECL:
+                    case NECRO_CORE_AST_BIND:
+                    case NECRO_CORE_AST_BIND_REC:
+                    case NECRO_CORE_AST_LET:
+                        ast_chain_next = necro_core_ast_create_let(context->arena, binder, NULL);
+                        break;
+                    case NECRO_CORE_AST_CASE:
+                        ast_chain_next = binder;
+                        break;
+                    default:
+                        assert(false && "binder->ast_type not supported!");
+                }
+
+                assert(ast_chain_next != NULL);
+
+                if (ast_chain_head == NULL)
+                {
+                    ast_chain_head = ast_chain_next;
+                    ast_chain_curr = ast_chain_next;
                 }
                 else
                 {
-                    let_curr->let.expr = necro_core_ast_create_let(context->arena, binder, NULL);
-                    let_curr           = let_curr->let.expr;
+                    switch(ast_chain_curr->ast_type)
+                    {
+                        case NECRO_CORE_AST_LET:
+                            ast_chain_curr->let.expr = ast_chain_next;
+                            break;
+                        case NECRO_CORE_AST_CASE:
+                            assert(ast_chain_curr->case_expr.alts != NULL);
+                            assert(ast_chain_curr->case_expr.alts->data != NULL);
+                            assert(ast_chain_curr->case_expr.alts->data->ast_type == NECRO_CORE_AST_CASE_ALT);
+                            assert(ast_chain_curr->case_expr.alts->data->case_alt.expr == NULL);
+                            ast_chain_curr->case_expr.alts->data->case_alt.expr = ast_chain_next;
+                            break;
+                        default:
+                            assert(false && "ast_chain_curr->type not supported!");
+                    }
+                    ast_chain_curr = ast_chain_next;
                 }
             }
+
             declaration_group = declaration_group->declaration.next_declaration;
         }
         ast = ast->declaration_group_list.next;
     }
-    if (let_head == NULL)
+
+    if (ast_chain_head == NULL)
         return ok(NecroCoreAst, NULL);
-    let_curr->let.expr = last_expr;
-    return ok(NecroCoreAst, let_head);
+
+    switch(ast_chain_curr->ast_type)
+    {
+        case NECRO_CORE_AST_LET:
+            ast_chain_curr->let.expr = last_expr;
+            break;
+        case NECRO_CORE_AST_CASE:
+            assert(ast_chain_curr->case_expr.alts != NULL);
+            assert(ast_chain_curr->case_expr.alts->data != NULL);
+            assert(ast_chain_curr->case_expr.alts->data->ast_type == NECRO_CORE_AST_CASE_ALT);
+            assert(ast_chain_curr->case_expr.alts->data->case_alt.expr == NULL);
+            ast_chain_curr->case_expr.alts->data->case_alt.expr = last_expr;
+            break;
+        default:
+            assert(false && "ast_chain_curr->type not supported!");
+    }
+
+    assert(ast_chain_head != NULL);
+    return ok(NecroCoreAst, ast_chain_head );
 }
 
 NecroResult(NecroCoreAst) necro_ast_transform_to_core_let(NecroCoreAstTransform* context, NecroAst* ast)
@@ -694,7 +740,6 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_for_loop(NecroCoreAstTrans
 //--------------------
 // Case / Patterns
 //--------------------
-NecroResult(NecroCoreAst) necro_ast_transform_to_core_pat(NecroCoreAstTransform* context, NecroAst* ast);
 NecroResult(NecroCoreAst) necro_ast_transform_to_core_tuple_pat(NecroCoreAstTransform* context, NecroAst* ast)
 {
     assert(ast->type == NECRO_AST_TUPLE);
@@ -1022,6 +1067,77 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_go(NecroCoreAstTransform* 
 // Pretty Printing
 ///////////////////////////////////////////////////////
 #define NECRO_CORE_AST_INDENT 2
+void necro_core_ast_pretty_print_go(NecroCoreAst* ast, size_t depth);
+void necro_core_ast_pretty_print_top_level_go(NecroCoreAst* ast)
+{
+    if (ast == NULL)
+        return;
+    switch (ast->ast_type)
+    {
+    case NECRO_CORE_AST_CASE:
+    {
+        printf("case \n");
+        print_white_space(NECRO_CORE_AST_INDENT);
+        print_white_space(NECRO_CORE_AST_INDENT);
+        necro_core_ast_pretty_print_go(ast->case_expr.expr, 2 + NECRO_CORE_AST_INDENT);
+        printf("\n");
+        print_white_space(NECRO_CORE_AST_INDENT);
+        printf(" of\n");
+        NecroCoreAstList* alts = ast->case_expr.alts;
+        assert(alts != NULL);
+        while (alts != NULL)
+        {
+            print_white_space(2 + NECRO_CORE_AST_INDENT);
+            if (alts->data->case_alt.pat == NULL)
+                printf("_");
+            else
+                necro_core_ast_pretty_print_go(alts->data->case_alt.pat, 2 + NECRO_CORE_AST_INDENT);
+            printf(" -> ");
+            printf("\n");
+            printf("\n");
+            necro_core_ast_pretty_print_top_level_go(alts->data->case_alt.expr);
+            alts = alts->next;
+        }
+        return;
+    }
+    case NECRO_CORE_AST_LET:
+    {
+        while (ast != NULL)
+        {
+            if (ast->ast_type != NECRO_CORE_AST_LET)
+            {
+                if (ast->ast_type == NECRO_CORE_AST_CASE)
+                {
+                    necro_core_ast_pretty_print_top_level_go(ast);
+                }
+                else
+                {
+                    necro_core_ast_pretty_print_go(ast, 0);
+                }
+                return;
+            }
+            // printf("\n");
+            // print_white_space(depth);
+            necro_core_ast_pretty_print_go(ast->let.bind, 0);
+            // printf("\n");
+            if (ast->let.expr == NULL)
+            {
+                printf("\n");
+                return;
+            }
+            printf("\n\n");
+            assert(ast->let.expr && "ast->let.expr is null!");
+            /* necro_core_ast_pretty_print_go(ast->let.expr, depth); */
+            ast = ast->let.expr;
+        }
+        return;
+    }
+    default:
+        assert(false && "Unimplemented AST type in necro_core_ast_pretty_print_top_levl_go");
+        return;
+    }
+}
+
 void necro_core_ast_pretty_print_go(NecroCoreAst* ast, size_t depth)
 {
     if (ast == NULL)
@@ -1231,7 +1347,7 @@ void necro_core_ast_pretty_print_go(NecroCoreAst* ast, size_t depth)
 
 void necro_core_ast_pretty_print(NecroCoreAst* ast)
 {
-    necro_core_ast_pretty_print_go(ast, 0);
+    necro_core_ast_pretty_print_top_level_go(ast);
     printf("\n");
 }
 
@@ -1287,209 +1403,253 @@ void necro_core_test_result(const char* test_name, const char* str)
 void necro_core_ast_test()
 {
     necro_announce_phase("Core");
-
-    {
-        const char* test_name   = "Basic 1";
-        const char* test_source = ""
-            "x = True\n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Basic 2";
-        const char* test_source = ""
-            "f x y = x || y\n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Basic 3";
-        const char* test_source = ""
-            "data Jump = In | The | Fire\n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Basic 4";
-        const char* test_source = ""
-            "data Polymorph a = Bear a | Wolf a | Hydra a a a\n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Basic 5";
-        const char* test_source = ""
-            "f x y = (x, y)\n"
-            "z = f True () \n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Simple Loop";
-        const char* test_source = ""
-            "tenTimes :: Range 10\n"
-            "tenTimes = each\n"
-            "addItUp :: Int\n"
-            "addItUp = for tenTimes 0 loop i x -> x + 1\n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Let It Work, Please";
-        const char* test_source = ""
-            "z :: Float -> Float\n"
-            "z y = x + y where x = 100\n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Let There be Lets";
-        const char* test_source = ""
-            "doStuff :: Float -> Float\n"
-            "doStuff w = let x = 99 in w + x * y / z\n"
-            "  where\n"
-            "    y = 100\n"
-            "    z = 200\n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Maybe Nothing";
-        const char* test_source = ""
-            "m :: *Maybe Bool\n"
-            "m = Just False\n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Case Closed";
-        const char* test_source = ""
-            "caseTest x =\n"
-            "  case x of\n"
-            "    True  -> False\n"
-            "    _     -> True\n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Case Open";
-        const char* test_source = ""
-            "caseTest x =\n"
-            "  case x of\n"
-            "    True  -> False\n"
-            "    y     -> y\n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Justified";
-        const char* test_source = ""
-            "caseTest t =\n"
-            "  case t of\n"
-            "    Just (Just x) -> x\n"
-            "    _             -> ()\n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Tuples Are Terrifying";
-        const char* test_source = ""
-            "caseTest t =\n"
-            "  case t of\n"
-            "    (x, y) -> x && y\n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Unit isnt a Number, Silly";
-        const char* test_source = ""
-            "instance Num () where\n"
-            "  add a b = ()\n"
-            "  sub a b = ()\n"
-            "  mul a b = ()\n"
-            "  abs a = ()\n"
-            "  signum a = ()\n"
-            "  fromInt a = ()\n\n"
-            "unity :: ()\n"
-            "unity = () + () - () * ()\n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Arrayed";
-        const char* test_source = ""
-            "a = { True, False, True, True }\n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "If then else doom";
-        const char* test_source = ""
-            "ifTest :: Bool -> Int\n"
-            "ifTest t = if t then 1 else 0\n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "If then else final doom forever";
-        const char* test_source = ""
-            "ifTest :: Bool -> Maybe Bool\n"
-            "ifTest t = if t then (Just True) else Nothing\n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "If then If Then else then doom then doom";
-        const char* test_source = ""
-            "ifTest :: Bool -> Bool\n"
-            "ifTest t = if t then (if False then True else False) else (if False then True else False)\n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Lambda Curry";
-        const char* test_source = ""
-            "lambdaCurry :: Int -> Int\n"
-            "lambdaCurry = \\a -> a + 1\n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Left Section";
-        const char* test_source = ""
-            "leftSection :: Int -> Int\n"
-            "leftSection = (2 +)\n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Maybe Left Section";
-        const char* test_source = ""
-            "maybeLeftSection :: Maybe (Int -> Int)\n"
-            "maybeLeftSection = Just (2 +)\n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Right Section";
-        const char* test_source = ""
-            "rightSection :: Int -> Int\n"
-            "rightSection  = (+ 2)\n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Maybe Right Section";
-        const char* test_source = ""
-            "maybeRightSection :: Maybe (Int -> Int)\n"
-            "maybeRightSection = Just (+ 2)\n";
-        necro_core_test_result(test_name, test_source);
-    }
+    /*  */
+    /* { */
+    /*     const char* test_name   = "Basic 1"; */
+    /*     const char* test_source = "" */
+    /*         "x = True\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+    /*  */
+    /* { */
+    /*     const char* test_name   = "Basic 2"; */
+    /*     const char* test_source = "" */
+    /*         "f x y = x || y\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+    /*  */
+    /* { */
+    /*     const char* test_name   = "Basic 3"; */
+    /*     const char* test_source = "" */
+    /*         "data Jump = In | The | Fire\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+    /*  */
+    /* { */
+    /*     const char* test_name   = "Basic 4"; */
+    /*     const char* test_source = "" */
+    /*         "data Polymorph a = Bear a | Wolf a | Hydra a a a\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+    /*  */
+    /* { */
+    /*     const char* test_name   = "Basic 5"; */
+    /*     const char* test_source = "" */
+    /*         "f x y = (x, y)\n" */
+    /*         "z = f True () \n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+    /*  */
+    /* { */
+    /*     const char* test_name   = "Simple Loop"; */
+    /*     const char* test_source = "" */
+    /*         "tenTimes :: Range 10\n" */
+    /*         "tenTimes = each\n" */
+    /*         "addItUp :: Int\n" */
+    /*         "addItUp = for tenTimes 0 loop i x -> x + 1\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+    /*  */
+    /* { */
+    /*     const char* test_name   = "Let It Work, Please"; */
+    /*     const char* test_source = "" */
+    /*         "z :: Float -> Float\n" */
+    /*         "z y = x + y where x = 100\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+    /*  */
+    /* { */
+    /*     const char* test_name   = "Let There be Lets"; */
+    /*     const char* test_source = "" */
+    /*         "doStuff :: Float -> Float\n" */
+    /*         "doStuff w = let x = 99 in w + x * y / z\n" */
+    /*         "  where\n" */
+    /*         "    y = 100\n" */
+    /*         "    z = 200\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+    /*  */
+    /* { */
+    /*     const char* test_name   = "Maybe Nothing"; */
+    /*     const char* test_source = "" */
+    /*         "m :: *Maybe Bool\n" */
+    /*         "m = Just False\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+    /*  */
+    /* { */
+    /*     const char* test_name   = "Case Closed"; */
+    /*     const char* test_source = "" */
+    /*         "caseTest x =\n" */
+    /*         "  case x of\n" */
+    /*         "    True  -> False\n" */
+    /*         "    _     -> True\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+    /*  */
+    /* { */
+    /*     const char* test_name   = "Case Open"; */
+    /*     const char* test_source = "" */
+    /*         "caseTest x =\n" */
+    /*         "  case x of\n" */
+    /*         "    True  -> False\n" */
+    /*         "    y     -> y\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+    /*  */
+    /* { */
+    /*     const char* test_name   = "Justified"; */
+    /*     const char* test_source = "" */
+    /*         "caseTest t =\n" */
+    /*         "  case t of\n" */
+    /*         "    Just (Just x) -> x\n" */
+    /*         "    _             -> ()\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+    /*  */
+    /* { */
+    /*     const char* test_name   = "Tuples Are Terrifying"; */
+    /*     const char* test_source = "" */
+    /*         "caseTest t =\n" */
+    /*         "  case t of\n" */
+    /*         "    (x, y) -> x && y\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+    /*  */
+    /* { */
+    /*     const char* test_name   = "Unit isnt a Number, Silly"; */
+    /*     const char* test_source = "" */
+    /*         "instance Num () where\n" */
+    /*         "  add a b = ()\n" */
+    /*         "  sub a b = ()\n" */
+    /*         "  mul a b = ()\n" */
+    /*         "  abs a = ()\n" */
+    /*         "  signum a = ()\n" */
+    /*         "  fromInt a = ()\n\n" */
+    /*         "unity :: ()\n" */
+    /*         "unity = () + () - () * ()\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+    /*  */
+    /* { */
+    /*     const char* test_name   = "Arrayed"; */
+    /*     const char* test_source = "" */
+    /*         "a = { True, False, True, True }\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+    /*  */
+    /* { */
+    /*     const char* test_name   = "If then else doom"; */
+    /*     const char* test_source = "" */
+    /*         "ifTest :: Bool -> Int\n" */
+    /*         "ifTest t = if t then 1 else 0\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+    /*  */
+    /* { */
+    /*     const char* test_name   = "If then else final doom forever"; */
+    /*     const char* test_source = "" */
+    /*         "ifTest :: Bool -> Maybe Bool\n" */
+    /*         "ifTest t = if t then (Just True) else Nothing\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+    /*  */
+    /* { */
+    /*     const char* test_name   = "If then If Then else then doom then doom"; */
+    /*     const char* test_source = "" */
+    /*         "ifTest :: Bool -> Bool\n" */
+    /*         "ifTest t = if t then (if False then True else False) else (if False then True else False)\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+    /*  */
+    /* { */
+    /*     const char* test_name   = "Lambda Curry"; */
+    /*     const char* test_source = "" */
+    /*         "lambdaCurry :: Int -> Int\n" */
+    /*         "lambdaCurry = \\a -> a + 1\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+    /*  */
+    /* { */
+    /*     const char* test_name   = "Left Section"; */
+    /*     const char* test_source = "" */
+    /*         "leftSection :: Int -> Int\n" */
+    /*         "leftSection = (2 +)\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+    /*  */
+    /* { */
+    /*     const char* test_name   = "Maybe Left Section"; */
+    /*     const char* test_source = "" */
+    /*         "maybeLeftSection :: Maybe (Int -> Int)\n" */
+    /*         "maybeLeftSection = Just (2 +)\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+    /*  */
+    /* { */
+    /*     const char* test_name   = "Right Section"; */
+    /*     const char* test_source = "" */
+    /*         "rightSection :: Int -> Int\n" */
+    /*         "rightSection  = (+ 2)\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+    /*  */
+    /* { */
+    /*     const char* test_name   = "Maybe Right Section"; */
+    /*     const char* test_source = "" */
+    /*         "maybeRightSection :: Maybe (Int -> Int)\n" */
+    /*         "maybeRightSection = Just (+ 2)\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
 
     {
         const char* test_name   = "Pat Assignment";
         const char* test_source = ""
             "(l, r) = (True, False)\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Last Pat Assignment";
+        const char* test_source = ""
+            "a :: Int\n"
+            "a = 11\n"
+            "(l, r) = (True, False)\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Penultimate Pat Assignment";
+        const char* test_source = ""
+            "(l, r) = (True, False)\n"
+            "a :: Int\n"
+            "a = 11\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Mixed Pat Assignments";
+        const char* test_source = ""
+            "(l, r) = (True, False)\n"
+            "a :: Int\n"
+            "a = 11\n"
+            "(e, w) = (True, False)\n"
+            "(s, n) = (True, False)\n"
+            "b :: Int\n"
+            "b = 13\n"
+            "(u, d) = (True, False)\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Nested Pat Assignment";
+        const char* test_source = ""
+            "(l, r) = (n, s)\n"
+            "   where\n"
+            "       (s, n) = (w, e)\n"
+            "       t = True\n"
+            "       f = False\n"
+            "       (e, w) = (t, f)\n";
         necro_core_test_result(test_name, test_source);
     }
 }

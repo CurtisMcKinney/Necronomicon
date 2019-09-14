@@ -290,7 +290,7 @@ void necro_destroy_copy_buffer(NecroCopyBuffer* necro_copy_buffer)
      necro_copy_buffer->count    = 0;
 }
 
-inline void necro_create_new_copy_job(size_t data_id, NecroValue* from_value, NecroValue** to_value)
+static inline void necro_create_new_copy_job(size_t data_id, NecroValue* from_value, NecroValue** to_value)
 {
     if (copy_buffer.count + 1 >= copy_buffer.capacity)
     {
@@ -301,12 +301,12 @@ inline void necro_create_new_copy_job(size_t data_id, NecroValue* from_value, Ne
     copy_buffer.count++;
 }
 
-// inline NecroValue* necro_block_to_value(NecroBlock* block)
+// static inline NecroValue* necro_block_to_value(NecroBlock* block)
 // {
 //     return (NecroValue*)(block + 1);
 // }
 
-// inline NecroBlock* necro_value_to_block(NecroValue* value)
+// static inline NecroBlock* necro_value_to_block(NecroValue* value)
 // {
 //     return ((NecroBlock*)value) - 1;
 // }

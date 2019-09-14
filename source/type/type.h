@@ -38,12 +38,12 @@ typedef struct
     NecroID     id;
 } NecroCon;
 
-inline NecroCon necro_var_to_con(NecroVar var)
+static inline NecroCon necro_var_to_con(NecroVar var)
 {
     return (NecroCon) { .symbol = var.symbol, .id = var.id };
 }
 
-inline NecroVar necro_con_to_var(NecroCon con)
+static inline NecroVar necro_con_to_var(NecroCon con)
 {
     return (NecroVar) { .symbol = con.symbol, .id = con.id };
 }

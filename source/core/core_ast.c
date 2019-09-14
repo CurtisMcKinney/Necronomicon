@@ -311,6 +311,7 @@ NecroResult(void) necro_ast_transform_to_core(NecroCompileInfo info, NecroIntern
 
 NecroResult(NecroCoreAst) necro_ast_transform_to_core_pat(NecroCoreAstTransform* context, NecroAst* ast);
 
+// TODO: (Chad) -> add bind rec support and mutually recursive pattern assignment support
 NecroResult(NecroCoreAst) necro_ast_transform_to_core_pat_assignment(NecroCoreAstTransform* context, NecroAst* ast)
 {
     assert(ast->type == NECRO_AST_PAT_ASSIGNMENT);
@@ -1650,6 +1651,14 @@ void necro_core_ast_test()
             "       t = True\n"
             "       f = False\n"
             "       (e, w) = (t, f)\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Data Pat Assignment";
+        const char* test_source = ""
+            "data Book n = Pages n\n"
+            "(Pages numPages) = Pages 666\n";
         necro_core_test_result(test_name, test_source);
     }
 }

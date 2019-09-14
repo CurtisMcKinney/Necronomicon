@@ -1349,7 +1349,7 @@ void necro_mach_construct_main(NecroMachProgram* program)
 
     //--------------------
     // Clean up / Loop
-    necro_mach_build_call(program, necro_main_fn, program->runtime.necro_sleep->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint32(program, 50) }, 1, NECRO_MACH_CALL_C, "");
+    necro_mach_build_call(program, necro_main_fn, program->runtime.necro_sleep->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint32(program, 20) }, 1, NECRO_MACH_CALL_C, "");
     necro_mach_build_break(program, necro_main_fn, necro_main_loop);
     // necro_mach_build_return_void(program, necro_main_fn);
     program->necro_main = necro_main_fn;

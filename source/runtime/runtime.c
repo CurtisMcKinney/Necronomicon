@@ -98,13 +98,14 @@ extern DLLEXPORT void necro_runtime_init()
 {
     // printf("necro_runtime_init\n");
     runtime_tick = 0;
-    // necro_init_mouse();
+    necro_init_mouse();
 }
 
 extern DLLEXPORT void necro_runtime_update()
 {
     // printf("necro_runtime_update\n");
     runtime_tick++;
+    necro_poll_mouse();
 }
 
 ///////////////////////////////////////////////////////

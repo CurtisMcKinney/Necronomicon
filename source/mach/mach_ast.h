@@ -525,6 +525,8 @@ typedef struct NecroMachRuntime
     NecroMachAstSymbol* necro_debug_print;
     NecroMachAstSymbol* necro_print_int;
     NecroMachAstSymbol* necro_alloc;
+    NecroMachAstSymbol* necro_runtime_get_mouse_x;
+    NecroMachAstSymbol* necro_runtime_get_mouse_y;
     // NecroMachAstSymbol* _necro_alloc_region;
     // NecroMachAstSymbol* _necro_free_region;
     // NOTE: Don't forget to add mappings to codegen_llvm.h when you add new runtime symbols

@@ -17,27 +17,27 @@ int mouse_y = 0;
 
 int _necro_mouse_x()
 {
-    necro_poll_mouse();
+    // necro_poll_mouse();
     return mouse_x;
 }
 
 int _necro_mouse_y()
 {
-    necro_poll_mouse();
+    // necro_poll_mouse();
     return mouse_y;
 }
 
-int _necro_get_mouse_x(unsigned int _dummy)
+int necro_runtime_get_mouse_x(unsigned int _dummy)
 {
     UNUSED(_dummy);
-    necro_poll_mouse();
+    // necro_poll_mouse();
     return mouse_x;
 }
 
-int _necro_get_mouse_y(unsigned int _dummy)
+int necro_runtime_get_mouse_y(unsigned int _dummy)
 {
     UNUSED(_dummy);
-    necro_poll_mouse();
+    // necro_poll_mouse();
     return mouse_y;
 }
 
@@ -53,7 +53,7 @@ int _necro_get_mouse_y(unsigned int _dummy)
 HANDLE       h_in;
 HANDLE       h_out;
 DWORD        num_read;
-INPUT_RECORD input_record;
+INPUT_RECORD input_record[32];
 COORD        mouse_coord;
 bool         mouse_initialized = false;
 size_t       current_tick      = 0;
@@ -62,51 +62,53 @@ void necro_init_mouse()
 {
     if (mouse_initialized)
         return;
-    // window = GetConsoleWindow();
     mouse_initialized = true;
     h_in              = GetStdHandle(STD_INPUT_HANDLE);
     h_out             = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD fdwMode = ENABLE_EXTENDED_FLAGS;
+    SetConsoleMode(h_in, fdwMode);
+    fdwMode       = ENABLE_MOUSE_INPUT;
+    SetConsoleMode(h_in, fdwMode);
 }
 
 void necro_poll_mouse()
 {
-    if (true)
-        return;
-    // necro_init_mouse();
     assert(mouse_initialized);
-    size_t runtime_tick = necro_runtime_get_tick();
-    if (current_tick == runtime_tick)
-        return;
-    current_tick = runtime_tick;
-    // CONSOLE_SCREEN_BUFFER_INFO screen_info;
-    // GetConsoleScreenBufferInfo(window, &screen_info);
-    DWORD  num_waiting = 0;
+    DWORD num_waiting = 0;
     if (GetNumberOfConsoleInputEvents(h_in, &num_waiting) == 0)
         return;
-    if (num_waiting == 0)
+    if (ReadConsoleInput(h_in, input_record, 32, &num_read) == 0)
         return;
-    if (ReadConsoleInput(h_in, &input_record, 1, &num_read) == 0)
-        return;
-    // TODO: This got borked at some point? Fix
-    // switch (input_record.EventType)
-    // {
-    // case KEY_EVENT:
-    //     ++KeyEvents;
-    //     SetConsoleCursorPosition(hOut,
-    //         KeyWhere);
-    //     cout << KeyEvents << flush;
-    //     if (InRec.Event.KeyEvent.uChar.AsciiChar == 'x')
-    //     {
-    //         SetConsoleCursorPosition(hOut,
-    //             EndWhere);
-    //         cout << "Exiting..." << endl;
-    //         Continue = FALSE;
-    //     }
-    //     break; case MOUSE_EVENT:
-    //     mouse_x = input_record.Event.MouseEvent.dwMousePosition.X;
-    //     mouse_y = input_record.Event.MouseEvent.dwMousePosition.Y;
-    //     break;
-    // }
+    for (DWORD i = 0; i < num_read; ++i)
+    {
+        switch (input_record[i].EventType)
+        {
+        case KEY_EVENT:
+            // printf("KEY_EVENT: %d\n", i);
+            if (input_record[i].Event.KeyEvent.uChar.AsciiChar == 'x')
+            {
+                printf("And so it ends...\n");
+                necro_exit(0);
+            };
+            break;
+        case MOUSE_EVENT:
+            // printf("MOUSE_EVENT: %d\n", i);
+            mouse_x = input_record[i].Event.MouseEvent.dwMousePosition.X;
+            mouse_y = input_record[i].Event.MouseEvent.dwMousePosition.Y;
+            break;
+        case WINDOW_BUFFER_SIZE_EVENT:
+            // printf("WINDOW_BUFFER_SIZE_EVENT: %d\n", i);
+            break;
+        case FOCUS_EVENT:
+            // printf("FOCUS_EVENT: %d\n", i);
+            break;
+        case MENU_EVENT:
+            // printf("MENU_EVENT: %d\n", i);
+            break;
+        default:
+            break;
+        }
+    };
 }
 
 #else

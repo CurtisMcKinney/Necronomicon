@@ -1365,27 +1365,27 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
     //--------------------
 
     // TODO: Put back
-    // // _getMouseX
-    // {
-    //     NecroAstSymbol*     ast_symbol            = program->base->mouse_x_fn;
-    //     ast_symbol->is_primitive                  = true;
-    //     ast_symbol->core_ast_symbol->is_primitive = true;
-    //     NecroMachAstSymbol* mach_symbol           = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
-    //     mach_symbol->is_primitive                 = true;
-    //     NecroMachType*      fn_type               = necro_mach_type_create_fn(&program->arena, program->type_cache.word_int_type, (NecroMachType*[]){program->type_cache.word_uint_type}, 1);
-    //     necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) _necro_get_mouse_x, NECRO_STATE_POINTWISE);
-    // }
+    // getMouseX
+    {
+        NecroAstSymbol*     ast_symbol             = program->base->mouse_x_fn;
+        ast_symbol->is_primitive                   = true;
+        ast_symbol->core_ast_symbol->is_primitive  = true;
+        NecroMachAstSymbol* mach_symbol            = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
+        mach_symbol->is_primitive                  = true;
+        NecroMachType*      fn_type                = necro_mach_type_create_fn(&program->arena, program->type_cache.word_int_type, (NecroMachType*[]){program->type_cache.word_uint_type}, 1);
+        program->runtime.necro_runtime_get_mouse_x = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_get_mouse_x, NECRO_STATE_POINTWISE)->fn_def.symbol;
+    }
 
-    // // _getMouseY
-    // {
-    //     NecroAstSymbol*     ast_symbol            = program->base->mouse_y_fn;
-    //     ast_symbol->is_primitive                  = true;
-    //     ast_symbol->core_ast_symbol->is_primitive = true;
-    //     NecroMachAstSymbol* mach_symbol           = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
-    //     mach_symbol->is_primitive                 = true;
-    //     NecroMachType*      fn_type               = necro_mach_type_create_fn(&program->arena, program->type_cache.word_int_type, (NecroMachType*[]){program->type_cache.word_uint_type}, 1);
-    //     necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) _necro_get_mouse_y, NECRO_STATE_POINTWISE);
-    // }
+    // getMouseY
+    {
+        NecroAstSymbol*     ast_symbol             = program->base->mouse_y_fn;
+        ast_symbol->is_primitive                   = true;
+        ast_symbol->core_ast_symbol->is_primitive  = true;
+        NecroMachAstSymbol* mach_symbol            = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
+        mach_symbol->is_primitive                  = true;
+        NecroMachType*      fn_type                = necro_mach_type_create_fn(&program->arena, program->type_cache.word_int_type, (NecroMachType*[]){program->type_cache.word_uint_type}, 1);
+        program->runtime.necro_runtime_get_mouse_y = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_get_mouse_y, NECRO_STATE_POINTWISE)->fn_def.symbol;
+    }
 
     // necro_runtime_init
     {

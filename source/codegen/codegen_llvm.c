@@ -1905,6 +1905,8 @@ void necro_llvm_jit(NecroCompileInfo info, NecroLLVM* context)
     necro_llvm_map_runtime_symbol(context, engine, context->program->runtime.necro_debug_print);
     necro_llvm_map_runtime_symbol(context, engine, context->program->runtime.necro_print_int);
     necro_llvm_map_runtime_symbol(context, engine, context->program->runtime.necro_alloc);
+    necro_llvm_map_runtime_symbol(context, engine, context->program->runtime.necro_runtime_get_mouse_x);
+    necro_llvm_map_runtime_symbol(context, engine, context->program->runtime.necro_runtime_get_mouse_y);
 
 #ifdef _WIN32
     // system("cls");
@@ -2226,8 +2228,6 @@ void necro_llvm_test_jit()
         necro_llvm_jit_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Rec 6";
         const char* test_source = ""
@@ -2235,6 +2235,16 @@ void necro_llvm_test_jit()
             "counter ~ 0 = add counter 1\n"
             "main :: *World -> *World\n"
             "main w = printInt counter w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Rec 6";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            "main w = printInt mouseX w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 

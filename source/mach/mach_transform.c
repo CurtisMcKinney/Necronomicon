@@ -1267,6 +1267,7 @@ void necro_mach_construct_main(NecroMachProgram* program)
     NecroMachAst*       necro_main_fn     = necro_mach_create_fn(program, necro_main_symbol, necro_main_entry, necro_main_type);
     program->functions.length--; // Hack...
     NecroMachAst*       necro_main_loop   = necro_mach_block_append(program, necro_main_fn, "loop");
+    NecroMachAst*       necro_main_done   = necro_mach_block_append(program, necro_main_fn, "done");
 
     //--------------------
     // entry
@@ -1351,8 +1352,12 @@ void necro_mach_construct_main(NecroMachProgram* program)
     //--------------------
     // Clean up / Loop
     necro_mach_build_call(program, necro_main_fn, program->runtime.necro_sleep->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint32(program, 20) }, 1, NECRO_MACH_CALL_C, "");
-    necro_mach_build_break(program, necro_main_fn, necro_main_loop);
-    // necro_mach_build_return_void(program, necro_main_fn);
+    NecroMachAst* is_done     = necro_mach_build_call(program, necro_main_fn, program->runtime.necro_runtime_is_done->ast->fn_def.fn_value, NULL, 0, NECRO_MACH_CALL_C, "is_done");
+    NecroMachAst* is_done_cmp = necro_mach_build_cmp(program, necro_main_fn, NECRO_MACH_CMP_GT, is_done, necro_mach_value_create_word_uint(program, 0));
+    necro_mach_build_cond_break(program, necro_main_fn, is_done_cmp, necro_main_done, necro_main_loop);
+    necro_mach_block_move_to(program, necro_main_fn, necro_main_done);
+    necro_mach_build_return_void(program, necro_main_fn);
+    // necro_mach_build_break(program, necro_main_fn, necro_main_loop);
     program->necro_main = necro_main_fn;
 
 }

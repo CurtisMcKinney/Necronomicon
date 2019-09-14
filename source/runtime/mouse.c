@@ -56,7 +56,6 @@ DWORD        num_read;
 INPUT_RECORD input_record[32];
 COORD        mouse_coord;
 bool         mouse_initialized = false;
-size_t       current_tick      = 0;
 
 void necro_init_mouse()
 {

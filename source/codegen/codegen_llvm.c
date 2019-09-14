@@ -1859,11 +1859,7 @@ void necro_llvm_map_runtime_symbol(NecroLLVM* context, LLVMExecutionEngineRef en
     NecroLLVMSymbol* llvm_symbol = necro_llvm_symbol_get(&context->arena, mach_symbol);
     if (llvm_symbol->value == NULL || LLVMIsNull(llvm_symbol->value) || !LLVMIsAFunction(llvm_symbol->value))
         return;
-    // LLVMAddSymbol(mach_symbol->name->str, mach_symbol->ast->fn_def.runtime_fn_addr);
-    // void* addr = LLVMSearchForAddressOfSymbol(mach_symbol->name->str);
-    // UNUSED(addr);
     LLVMAddGlobalMapping(engine, llvm_symbol->value, (void*) mach_symbol->ast->fn_def.runtime_fn_addr);
-    // LLVMDumpValue(llvm_symbol->value);
 }
 
 ///////////////////////////////////////////////////////
@@ -1872,15 +1868,6 @@ void necro_llvm_map_runtime_symbol(NecroLLVM* context, LLVMExecutionEngineRef en
 void necro_llvm_jit(NecroCompileInfo info, NecroLLVM* context)
 {
     UNUSED(info);
-
-    // LLVMLoadLibraryPermanently("./necro_runtime.dll");
-
-    // LLVMInitializeNativeTarget();
-    // // LLVMInitializeNativeTargetMC();
-    // // LLVMInitializeNativeTargetInfo();
-    // LLVMInitializeNativeAsmParser();
-    // LLVMInitializeNativeAsmPrinter();
-    // LLVMInitializeNativeDisassembler();
 
     LLVMLinkInMCJIT();
     LLVMInitializeNativeAsmPrinter();
@@ -1907,9 +1894,10 @@ void necro_llvm_jit(NecroCompileInfo info, NecroLLVM* context)
     necro_llvm_map_runtime_symbol(context, engine, context->program->runtime.necro_alloc);
     necro_llvm_map_runtime_symbol(context, engine, context->program->runtime.necro_runtime_get_mouse_x);
     necro_llvm_map_runtime_symbol(context, engine, context->program->runtime.necro_runtime_get_mouse_y);
+    necro_llvm_map_runtime_symbol(context, engine, context->program->runtime.necro_runtime_is_done);
 
 #ifdef _WIN32
-    // system("cls");
+    system("cls");
 #endif
 
     puts("\n\n");
@@ -1929,16 +1917,6 @@ void necro_llvm_jit(NecroCompileInfo info, NecroLLVM* context)
     void(*fun)() = (void(*)())((size_t)LLVMGetFunctionAddress(engine, "necro_main"));
     assert(fun != NULL);
     (*fun)();
-
-    // void(*fun)() = (void(*)())((size_t)LLVMGetFunctionAddress(engine, "necro_init_runtime"));
-    // assert(fun != NULL);
-    // (*fun)();
-
-    // void(*fun)(uint32_t) = (void(*)(uint32_t))((size_t)LLVMGetFunctionAddress(engine, "necro_sleep"));
-    // assert(fun != NULL);
-    // (*fun)(0);
-
-    // LLVMRunFunctionAsMain(engine, context->program->necro_main->fn_def.symbol->codegen_symbol->value, 0, 0, NULL);
 
     LLVMDisposeExecutionEngine(engine);
 

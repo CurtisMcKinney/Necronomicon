@@ -1389,17 +1389,17 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
 
     // necro_runtime_init
     {
-        NecroMachAstSymbol* mach_symbol      = necro_mach_ast_symbol_gen(program, NULL, "necro_runtime_init", NECRO_DONT_MANGLE);
-        mach_symbol->is_primitive            = true;
-        NecroMachType*      fn_type          = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_void(program), NULL, 0);
+        NecroMachAstSymbol* mach_symbol     = necro_mach_ast_symbol_gen(program, NULL, "necro_runtime_init", NECRO_DONT_MANGLE);
+        mach_symbol->is_primitive           = true;
+        NecroMachType*      fn_type         = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_void(program), NULL, 0);
         program->runtime.necro_init_runtime = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_init, NECRO_STATE_POINTWISE)->fn_def.symbol;
     }
 
     // necro_runtime_update
     {
-        NecroMachAstSymbol* mach_symbol        = necro_mach_ast_symbol_gen(program, NULL, "necro_runtime_update", NECRO_DONT_MANGLE);
-        mach_symbol->is_primitive              = true;
-        NecroMachType*      fn_type            = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_void(program), NULL, 0);
+        NecroMachAstSymbol* mach_symbol       = necro_mach_ast_symbol_gen(program, NULL, "necro_runtime_update", NECRO_DONT_MANGLE);
+        mach_symbol->is_primitive             = true;
+        NecroMachType*      fn_type           = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_void(program), NULL, 0);
         program->runtime.necro_update_runtime = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_update, NECRO_STATE_POINTWISE)->fn_def.symbol;
     }
 
@@ -1408,10 +1408,10 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         NecroMachAstSymbol* mach_symbol = necro_mach_ast_symbol_gen(program, NULL, "necro_runtime_sleep", NECRO_DONT_MANGLE);
         mach_symbol->is_primitive       = true;
         NecroMachType*      fn_type     = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_void(program), (NecroMachType*[]) { necro_mach_type_create_uint32(program) }, 1);
-        program->runtime.necro_sleep   = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_sleep, NECRO_STATE_POINTWISE)->fn_def.symbol;
+        program->runtime.necro_sleep    = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_sleep, NECRO_STATE_POINTWISE)->fn_def.symbol;
     }
 
-    // _necro_print_int
+    // necro_runtime_print_int
     {
         NecroAstSymbol*     ast_symbol            = program->base->print_int;
         ast_symbol->is_primitive                  = true;
@@ -1419,23 +1419,31 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         NecroMachAstSymbol* mach_symbol           = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
         mach_symbol->is_primitive                 = true;
         NecroMachType*      fn_type               = necro_mach_type_create_fn(&program->arena, program->type_cache.word_uint_type, (NecroMachType*[]) { program->type_cache.word_int_type, program->type_cache.word_uint_type }, 2);
-        program->runtime.necro_print_int         = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_print_int, NECRO_STATE_POINTWISE)->fn_def.symbol;
+        program->runtime.necro_print_int          = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_print_int, NECRO_STATE_POINTWISE)->fn_def.symbol;
     }
 
     // necro_runtime_error_exit
     {
-        NecroMachAstSymbol* mach_symbol    = necro_mach_ast_symbol_gen(program, NULL, "necro_runtime_error_exit", NECRO_DONT_MANGLE);
-        mach_symbol->is_primitive          = true;
-        NecroMachType*      fn_type        = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_void(program), (NecroMachType*[]) { necro_mach_type_create_uint32(program) }, 1);
+        NecroMachAstSymbol* mach_symbol   = necro_mach_ast_symbol_gen(program, NULL, "necro_runtime_error_exit", NECRO_DONT_MANGLE);
+        mach_symbol->is_primitive         = true;
+        NecroMachType*      fn_type       = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_void(program), (NecroMachType*[]) { necro_mach_type_create_uint32(program) }, 1);
         program->runtime.necro_error_exit = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_error_exit, NECRO_STATE_POINTWISE)->fn_def.symbol;
     }
 
-    // _necro_alloc
+    // malloc
     {
         NecroMachAstSymbol* mach_symbol = necro_mach_ast_symbol_gen(program, NULL, "malloc", NECRO_DONT_MANGLE);
         mach_symbol->is_primitive       = true;
         NecroMachType*      fn_type     = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_uint8(program)), (NecroMachType*[]) { necro_mach_type_create_word_sized_uint(program) }, 1);
-        program->runtime.necro_alloc   = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) malloc, NECRO_STATE_POINTWISE)->fn_def.symbol;
+        program->runtime.necro_alloc    = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) malloc, NECRO_STATE_POINTWISE)->fn_def.symbol;
+    }
+
+    // necro_runtime_is_done
+    {
+        NecroMachAstSymbol* mach_symbol        = necro_mach_ast_symbol_gen(program, NULL, "necro_runtime_is_done", NECRO_DONT_MANGLE);
+        mach_symbol->is_primitive              = true;
+        NecroMachType*      fn_type            = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_word_sized_uint(program), NULL, 0);
+        program->runtime.necro_runtime_is_done = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_is_done, NECRO_STATE_POINTWISE)->fn_def.symbol;
     }
 
     // TODO: Audio

@@ -527,9 +527,8 @@ typedef struct NecroMachRuntime
     NecroMachAstSymbol* necro_alloc;
     NecroMachAstSymbol* necro_runtime_get_mouse_x;
     NecroMachAstSymbol* necro_runtime_get_mouse_y;
-    // NecroMachAstSymbol* _necro_alloc_region;
-    // NecroMachAstSymbol* _necro_free_region;
-    // NOTE: Don't forget to add mappings to codegen_llvm.h when you add new runtime symbols
+    NecroMachAstSymbol* necro_runtime_is_done;
+    // NOTE: Don't forget to add mappings to mach_ast.c and codegen_llvm.c when you add new runtime symbols
 } NecroMachRuntime;
 
 typedef enum

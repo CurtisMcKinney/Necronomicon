@@ -10,7 +10,6 @@
 #include "infer.h"
 #include "symtable.h"
 #include "kind.h"
-#include "type/prim.h"
 #include "type/derive.h"
 #include "base.h"
 

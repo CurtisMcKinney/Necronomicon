@@ -57,7 +57,6 @@ set(INCLUDE_DIR
     source/symbol
     source/parse
     source/core
-    source/machine
     source/mach
     source/codegen
     )
@@ -92,35 +91,20 @@ set(project_SOURCES
     source/utility/result.c
 
     source/runtime/runtime.c
-    source/runtime/mouse.c
 
     source/type/type.c
     source/type/kind.c
     source/type/infer.c
-    source/type/prim.c
     source/type/type_class.c
     source/type/monomorphize.c
     source/type/alias_analysis.c
     source/type/derive.c
 
     source/core/core_ast.c
-    source/core/core.c
     source/core/defunctionalization.c
-    source/core/closure_conversion.c
     source/core/lambda_lift.c
     source/core/state_analysis.c
-    source/core/core_pretty_print.c
-    source/core/core_create.c
     source/core/core_infer.c
-
-    source/machine/machine.c
-    source/machine/machine_type.c
-    source/machine/machine_print.c
-    source/machine/machine_prim.c
-    source/machine/machine_case.c
-    source/machine/machine_build.c
-    source/machine/machine_copy.c
-    source/machine/machine_closure.c
 
     source/mach/mach_ast.c
     source/mach/mach_type.c
@@ -163,35 +147,20 @@ set(project_HEADERS
     source/utility/result.h
 
     source/runtime/runtime.h
-    source/runtime/mouse.h
 
     source/type/type.h
     source/type/kind.h
     source/type/infer.h
-    source/type/prim.h
     source/type/type_class.h
     source/type/monomorphize.h
     source/type/alias_analysis.h
     source/type/derive.h
 
     source/core/core_ast.h
-    source/core/core.h
     source/core/defunctionalization.h
-    source/core/closure_conversion.h
     source/core/lambda_lift.h
     source/core/state_analysis.h
-    source/core/core_pretty_print.h
-    source/core/core_create.h
     source/core/core_infer.h
-
-    source/machine/machine.h
-    source/machine/machine_type.h
-    source/machine/machine_print.h
-    source/machine/machine_prim.h
-    source/machine/machine_case.h
-    source/machine/machine_build.h
-    source/machine/machine_copy.h
-    source/machine/machine_closure.h
 
     source/mach/mach_ast.h
     source/mach/mach_type.h

@@ -8,7 +8,6 @@
 #include "type.h"
 #include "type_class.h"
 #include "symtable.h"
-#include "core/core.h"
 
 NecroScope necro_global_scope = { 0 };
 
@@ -58,7 +57,6 @@ NecroSymbolInfo necro_symtable_create_initial_symbol_info(NecroSymbol symbol, Ne
     return (NecroSymbolInfo)
     {
         .name                    = symbol,
-        .id                      = { 0 },
         .con_num                 = 0,
         .is_enum                 = false,
         .source_loc              = source_loc,
@@ -95,32 +93,6 @@ static inline void necro_symtable_grow(NecroSymTable* table)
     }
     table->data = new_data;
     assert(table->data != NULL);
-}
-
-// NecroID necro_symtable_insert(NecroSymTable* table, NecroSymbolInfo info)
-// {
-//     if (table->count >= table->size)
-//         necro_symtable_grow(table);
-//     assert(table->count < table->size);
-//     assert(table->count < UINT32_MAX);
-//     info.id.id = (uint32_t) table->count;
-//     table->data[table->count] = info;
-//     table->count++;
-//     return (NecroID) { ((uint32_t) (table->count - 1)) };
-// }
-
-// TODO: Remove!
-NecroSymbolInfo* necro_symtable_get(NecroSymTable* table, NecroID id)
-{
-    if (id.id < table->count)
-    {
-        return table->data + id.id;
-    }
-    else
-    {
-        // assert(false);
-        return NULL;
-    }
 }
 
 //=====================================================

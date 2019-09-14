@@ -11,7 +11,6 @@
 #include <assert.h>
 #include <stdbool.h>
 
-#include "core/core.h"
 #include "type.h"
 
 struct NecroMachProgram;

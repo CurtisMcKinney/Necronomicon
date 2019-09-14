@@ -29,11 +29,6 @@ static inline void necro_exit(int code)
     exit(code);
 }
 
-typedef struct
-{
-    uint32_t id;
-} NecroID;
-
 #if DEBUG_MEMORY
 #define emalloc(A_SIZE) __emalloc(A_SIZE, __FILE__, __LINE__)
 #else

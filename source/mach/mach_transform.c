@@ -17,6 +17,7 @@
 
 /*
     TODO:
+        * llvm allocator?
         * llvm codegen
         * deepcopy arrays
         * defunctionalization

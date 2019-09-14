@@ -1403,204 +1403,204 @@ void necro_core_test_result(const char* test_name, const char* str)
 void necro_core_ast_test()
 {
     necro_announce_phase("Core");
-    /*  */
-    /* { */
-    /*     const char* test_name   = "Basic 1"; */
-    /*     const char* test_source = "" */
-    /*         "x = True\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
-    /*  */
-    /* { */
-    /*     const char* test_name   = "Basic 2"; */
-    /*     const char* test_source = "" */
-    /*         "f x y = x || y\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
-    /*  */
-    /* { */
-    /*     const char* test_name   = "Basic 3"; */
-    /*     const char* test_source = "" */
-    /*         "data Jump = In | The | Fire\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
-    /*  */
-    /* { */
-    /*     const char* test_name   = "Basic 4"; */
-    /*     const char* test_source = "" */
-    /*         "data Polymorph a = Bear a | Wolf a | Hydra a a a\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
-    /*  */
-    /* { */
-    /*     const char* test_name   = "Basic 5"; */
-    /*     const char* test_source = "" */
-    /*         "f x y = (x, y)\n" */
-    /*         "z = f True () \n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
-    /*  */
-    /* { */
-    /*     const char* test_name   = "Simple Loop"; */
-    /*     const char* test_source = "" */
-    /*         "tenTimes :: Range 10\n" */
-    /*         "tenTimes = each\n" */
-    /*         "addItUp :: Int\n" */
-    /*         "addItUp = for tenTimes 0 loop i x -> x + 1\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
-    /*  */
-    /* { */
-    /*     const char* test_name   = "Let It Work, Please"; */
-    /*     const char* test_source = "" */
-    /*         "z :: Float -> Float\n" */
-    /*         "z y = x + y where x = 100\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
-    /*  */
-    /* { */
-    /*     const char* test_name   = "Let There be Lets"; */
-    /*     const char* test_source = "" */
-    /*         "doStuff :: Float -> Float\n" */
-    /*         "doStuff w = let x = 99 in w + x * y / z\n" */
-    /*         "  where\n" */
-    /*         "    y = 100\n" */
-    /*         "    z = 200\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
-    /*  */
-    /* { */
-    /*     const char* test_name   = "Maybe Nothing"; */
-    /*     const char* test_source = "" */
-    /*         "m :: *Maybe Bool\n" */
-    /*         "m = Just False\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
-    /*  */
-    /* { */
-    /*     const char* test_name   = "Case Closed"; */
-    /*     const char* test_source = "" */
-    /*         "caseTest x =\n" */
-    /*         "  case x of\n" */
-    /*         "    True  -> False\n" */
-    /*         "    _     -> True\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
-    /*  */
-    /* { */
-    /*     const char* test_name   = "Case Open"; */
-    /*     const char* test_source = "" */
-    /*         "caseTest x =\n" */
-    /*         "  case x of\n" */
-    /*         "    True  -> False\n" */
-    /*         "    y     -> y\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
-    /*  */
-    /* { */
-    /*     const char* test_name   = "Justified"; */
-    /*     const char* test_source = "" */
-    /*         "caseTest t =\n" */
-    /*         "  case t of\n" */
-    /*         "    Just (Just x) -> x\n" */
-    /*         "    _             -> ()\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
-    /*  */
-    /* { */
-    /*     const char* test_name   = "Tuples Are Terrifying"; */
-    /*     const char* test_source = "" */
-    /*         "caseTest t =\n" */
-    /*         "  case t of\n" */
-    /*         "    (x, y) -> x && y\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
-    /*  */
-    /* { */
-    /*     const char* test_name   = "Unit isnt a Number, Silly"; */
-    /*     const char* test_source = "" */
-    /*         "instance Num () where\n" */
-    /*         "  add a b = ()\n" */
-    /*         "  sub a b = ()\n" */
-    /*         "  mul a b = ()\n" */
-    /*         "  abs a = ()\n" */
-    /*         "  signum a = ()\n" */
-    /*         "  fromInt a = ()\n\n" */
-    /*         "unity :: ()\n" */
-    /*         "unity = () + () - () * ()\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
-    /*  */
-    /* { */
-    /*     const char* test_name   = "Arrayed"; */
-    /*     const char* test_source = "" */
-    /*         "a = { True, False, True, True }\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
-    /*  */
-    /* { */
-    /*     const char* test_name   = "If then else doom"; */
-    /*     const char* test_source = "" */
-    /*         "ifTest :: Bool -> Int\n" */
-    /*         "ifTest t = if t then 1 else 0\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
-    /*  */
-    /* { */
-    /*     const char* test_name   = "If then else final doom forever"; */
-    /*     const char* test_source = "" */
-    /*         "ifTest :: Bool -> Maybe Bool\n" */
-    /*         "ifTest t = if t then (Just True) else Nothing\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
-    /*  */
-    /* { */
-    /*     const char* test_name   = "If then If Then else then doom then doom"; */
-    /*     const char* test_source = "" */
-    /*         "ifTest :: Bool -> Bool\n" */
-    /*         "ifTest t = if t then (if False then True else False) else (if False then True else False)\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
-    /*  */
-    /* { */
-    /*     const char* test_name   = "Lambda Curry"; */
-    /*     const char* test_source = "" */
-    /*         "lambdaCurry :: Int -> Int\n" */
-    /*         "lambdaCurry = \\a -> a + 1\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
-    /*  */
-    /* { */
-    /*     const char* test_name   = "Left Section"; */
-    /*     const char* test_source = "" */
-    /*         "leftSection :: Int -> Int\n" */
-    /*         "leftSection = (2 +)\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
-    /*  */
-    /* { */
-    /*     const char* test_name   = "Maybe Left Section"; */
-    /*     const char* test_source = "" */
-    /*         "maybeLeftSection :: Maybe (Int -> Int)\n" */
-    /*         "maybeLeftSection = Just (2 +)\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
-    /*  */
-    /* { */
-    /*     const char* test_name   = "Right Section"; */
-    /*     const char* test_source = "" */
-    /*         "rightSection :: Int -> Int\n" */
-    /*         "rightSection  = (+ 2)\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
-    /*  */
-    /* { */
-    /*     const char* test_name   = "Maybe Right Section"; */
-    /*     const char* test_source = "" */
-    /*         "maybeRightSection :: Maybe (Int -> Int)\n" */
-    /*         "maybeRightSection = Just (+ 2)\n"; */
-    /*     necro_core_test_result(test_name, test_source); */
-    /* } */
+
+    {
+        const char* test_name   = "Basic 1";
+        const char* test_source = ""
+            "x = True\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Basic 2";
+        const char* test_source = ""
+            "f x y = x || y\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Basic 3";
+        const char* test_source = ""
+            "data Jump = In | The | Fire\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Basic 4";
+        const char* test_source = ""
+            "data Polymorph a = Bear a | Wolf a | Hydra a a a\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Basic 5";
+        const char* test_source = ""
+            "f x y = (x, y)\n"
+            "z = f True () \n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Simple Loop";
+        const char* test_source = ""
+            "tenTimes :: Range 10\n"
+            "tenTimes = each\n"
+            "addItUp :: Int\n"
+            "addItUp = for tenTimes 0 loop i x -> x + 1\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Let It Work, Please";
+        const char* test_source = ""
+            "z :: Float -> Float\n"
+            "z y = x + y where x = 100\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Let There be Lets";
+        const char* test_source = ""
+            "doStuff :: Float -> Float\n"
+            "doStuff w = let x = 99 in w + x * y / z\n"
+            "  where\n"
+            "    y = 100\n"
+            "    z = 200\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Maybe Nothing";
+        const char* test_source = ""
+            "m :: *Maybe Bool\n"
+            "m = Just False\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case Closed";
+        const char* test_source = ""
+            "caseTest x =\n"
+            "  case x of\n"
+            "    True  -> False\n"
+            "    _     -> True\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Case Open";
+        const char* test_source = ""
+            "caseTest x =\n"
+            "  case x of\n"
+            "    True  -> False\n"
+            "    y     -> y\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Justified";
+        const char* test_source = ""
+            "caseTest t =\n"
+            "  case t of\n"
+            "    Just (Just x) -> x\n"
+            "    _             -> ()\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Tuples Are Terrifying";
+        const char* test_source = ""
+            "caseTest t =\n"
+            "  case t of\n"
+            "    (x, y) -> x && y\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Unit isnt a Number, Silly";
+        const char* test_source = ""
+            "instance Num () where\n"
+            "  add a b = ()\n"
+            "  sub a b = ()\n"
+            "  mul a b = ()\n"
+            "  abs a = ()\n"
+            "  signum a = ()\n"
+            "  fromInt a = ()\n\n"
+            "unity :: ()\n"
+            "unity = () + () - () * ()\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Arrayed";
+        const char* test_source = ""
+            "a = { True, False, True, True }\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "If then else doom";
+        const char* test_source = ""
+            "ifTest :: Bool -> Int\n"
+            "ifTest t = if t then 1 else 0\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "If then else final doom forever";
+        const char* test_source = ""
+            "ifTest :: Bool -> Maybe Bool\n"
+            "ifTest t = if t then (Just True) else Nothing\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "If then If Then else then doom then doom";
+        const char* test_source = ""
+            "ifTest :: Bool -> Bool\n"
+            "ifTest t = if t then (if False then True else False) else (if False then True else False)\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Lambda Curry";
+        const char* test_source = ""
+            "lambdaCurry :: Int -> Int\n"
+            "lambdaCurry = \\a -> a + 1\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Left Section";
+        const char* test_source = ""
+            "leftSection :: Int -> Int\n"
+            "leftSection = (2 +)\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Maybe Left Section";
+        const char* test_source = ""
+            "maybeLeftSection :: Maybe (Int -> Int)\n"
+            "maybeLeftSection = Just (2 +)\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Right Section";
+        const char* test_source = ""
+            "rightSection :: Int -> Int\n"
+            "rightSection  = (+ 2)\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Maybe Right Section";
+        const char* test_source = ""
+            "maybeRightSection :: Maybe (Int -> Int)\n"
+            "maybeRightSection = Just (+ 2)\n";
+        necro_core_test_result(test_name, test_source);
+    }
 
     {
         const char* test_name   = "Pat Assignment";

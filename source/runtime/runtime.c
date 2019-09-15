@@ -48,7 +48,7 @@ extern DLLEXPORT int necro_runtime_get_mouse_y(unsigned int _dummy)
 
 extern DLLEXPORT void necro_runtime_print(int value)
 {
-    printf("necro: %d                      \r", value);
+    printf("%d\n", value);
 }
 
 extern DLLEXPORT void necro_runtime_debug_print(int value)
@@ -58,7 +58,7 @@ extern DLLEXPORT void necro_runtime_debug_print(int value)
 
 extern DLLEXPORT unsigned int necro_runtime_print_int(int value, unsigned int world)
 {
-    printf("necro: %d                      \r", value);
+    printf("%d                                \r", value);
     return world;
 }
 
@@ -87,6 +87,7 @@ extern DLLEXPORT void necro_runtime_error_exit(uint32_t error_code)
     }
     necro_exit(error_code);
 }
+
 
 ///////////////////////////////////////////////////////
 // Runtime Windows
@@ -126,7 +127,7 @@ extern DLLEXPORT void necro_runtime_update()
     DWORD num_waiting = 0;
     if (GetNumberOfConsoleInputEvents(h_in, &num_waiting) == 0)
         return;
-    if (ReadConsoleInput(h_in, input_record, 32, &num_read) == 0)
+    if (num_waiting == 0 || ReadConsoleInput(h_in, input_record, 32, &num_read) == 0)
         return;
     for (DWORD i = 0; i < num_read; ++i)
     {
@@ -175,7 +176,6 @@ extern DLLEXPORT void necro_runtime_shutdown()
 
 
 #else
-
 ///////////////////////////////////////////////////////
 // Runtime Unix
 ///////////////////////////////////////////////////////
@@ -185,6 +185,7 @@ extern DLLEXPORT void necro_runtime_init()
 {
     if (necro_runtime_state != NECRO_RUNTIME_UNINITIALIZED)
         return;
+    necro_runtime_state = NECRO_RUNTIME_RUNNING;
 }
 
 extern DLLEXPORT void necro_runtime_update()
@@ -202,6 +203,7 @@ extern DLLEXPORT void necro_runtime_shutdown()
 {
     if (necro_runtime_state != NECRO_RUNTIME_IS_DONE)
         return;
+    necro_runtime_state = NECRO_RUNTIME_SHUTDOWN;
 }
 
 #endif

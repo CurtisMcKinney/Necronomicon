@@ -1177,6 +1177,8 @@ void necro_llvm_destroy(NecroLLVM* context)
         LLVMContextDispose(context->context);
     if (context->builder != NULL)
         LLVMDisposeBuilder(context->builder);
+    if (context->mod != NULL)
+        LLVMDisposeModule(context->mod);
     necro_paged_arena_destroy(&context->arena);
     necro_snapshot_arena_destroy(&context->snapshot_arena);
     *context = necro_llvm_empty();
@@ -1708,7 +1710,7 @@ void necro_llvm_codegen_function(NecroLLVM* context, NecroMachAst* ast)
         necro_llvm_codegen_terminator(context, blocks->block.terminator);
         blocks = blocks->block.next_block;
     }
-    // if (context->should_optimize)
+    if (context->should_optimize)
         LLVMRunFunctionPassManager(context->fn_pass_manager, fn_value);
 }
 

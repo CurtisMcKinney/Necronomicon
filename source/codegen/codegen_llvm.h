@@ -95,6 +95,7 @@ typedef struct NecroLLVM
     LLVMContextRef            context;
     LLVMModuleRef             mod;
     LLVMBuilderRef            builder;
+    LLVMTargetMachineRef      target_machine;
     LLVMTargetDataRef         target;
     LLVMPassManagerRef        fn_pass_manager;
     LLVMPassManagerRef        mod_pass_manager;

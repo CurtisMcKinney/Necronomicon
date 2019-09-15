@@ -1081,6 +1081,7 @@ NecroLLVM necro_llvm_empty()
         .builder          = NULL,
         .mod              = NULL,
         .target           = NULL,
+        .target_machine   = NULL,
         .fn_pass_manager  = NULL,
         .mod_pass_manager = NULL,
         .should_optimize  = false,
@@ -1101,7 +1102,7 @@ NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgr
     const char*          target_cpu       = LLVMGetHostCPUName();
     const char*          target_features  = LLVMGetHostCPUFeatures();
     LLVMTargetRef        target           = NULL;
-    char*                target_error;
+    char*                target_error     = NULL;
     if (LLVMGetTargetFromTriple(target_triple, &target, &target_error))
     {
         fprintf(stderr, "necro error: %s\n", target_error);
@@ -1141,17 +1142,19 @@ NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgr
         LLVMPassManagerBuilderUseInlinerWithThreshold(pass_manager_builder, 40);
         LLVMPassManagerBuilderPopulateFunctionPassManager(pass_manager_builder, fn_pass_manager);
         LLVMPassManagerBuilderPopulateModulePassManager(pass_manager_builder, mod_pass_manager);
+        LLVMPassManagerBuilderDispose(pass_manager_builder);
     }
     else
     {
         LLVMInitializeFunctionPassManager(fn_pass_manager);
-        LLVMAddCFGSimplificationPass(fn_pass_manager);
+        // LLVMAddCFGSimplificationPass(fn_pass_manager);
         // LLVMAddTailCallEliminationPass(fn_pass_manager);
         LLVMFinalizeFunctionPassManager(fn_pass_manager);
         LLVMPassManagerBuilderRef pass_manager_builder = LLVMPassManagerBuilderCreate();
         LLVMPassManagerBuilderSetOptLevel(pass_manager_builder, 0);
         LLVMPassManagerBuilderPopulateFunctionPassManager(pass_manager_builder, fn_pass_manager);
         LLVMPassManagerBuilderPopulateModulePassManager(pass_manager_builder, mod_pass_manager);
+        LLVMPassManagerBuilderDispose(pass_manager_builder);
     }
     return (NecroLLVM)
     {
@@ -1163,6 +1166,7 @@ NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgr
         .builder          = LLVMCreateBuilderInContext(context),
         .mod              = mod,
         .target           = target_data,
+        .target_machine   = target_machine,
         .fn_pass_manager  = fn_pass_manager,
         .mod_pass_manager = mod_pass_manager,
         .should_optimize  = should_optimize,
@@ -1173,12 +1177,20 @@ NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgr
 void necro_llvm_destroy(NecroLLVM* context)
 {
     assert(context != NULL);
-    if (context->context != NULL)
-        LLVMContextDispose(context->context);
+    if (context->mod_pass_manager != NULL)
+        LLVMDisposePassManager(context->mod_pass_manager);
+    if (context->fn_pass_manager != NULL)
+        LLVMDisposePassManager(context->fn_pass_manager);
+    if (context->target != NULL)
+        LLVMDisposeTargetData(context->target);
+    if (context->target_machine != NULL)
+        LLVMDisposeTargetMachine(context->target_machine);
     if (context->builder != NULL)
         LLVMDisposeBuilder(context->builder);
     if (context->mod != NULL)
         LLVMDisposeModule(context->mod);
+    if (context->context != NULL)
+        LLVMContextDispose(context->context);
     necro_paged_arena_destroy(&context->arena);
     necro_snapshot_arena_destroy(&context->snapshot_arena);
     *context = necro_llvm_empty();

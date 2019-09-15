@@ -1889,7 +1889,7 @@ void necro_llvm_jit(NecroCompileInfo info, NecroLLVM* context)
 
     LLVMExecutionEngineRef engine;
     char* error = NULL;
-    if (LLVMCreateJITCompilerForModule(&engine, context->mod, 0, &error) != 0)
+    if (LLVMCreateMCJITCompilerForModule(&engine, context->mod, NULL, 0, &error) != 0)
     {
         fprintf(stderr, "necro error: %s\n", error);
         LLVMDisposeMessage(error);
@@ -2187,8 +2187,6 @@ void necro_llvm_test()
         necro_llvm_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Main 0";
         const char* test_source = ""
@@ -2196,6 +2194,8 @@ void necro_llvm_test()
             "main w = w\n";
         necro_llvm_test_string(test_name, test_source);
     }
+
+*/
 
 }
 

@@ -8,7 +8,6 @@
 #include "symtable.h"
 #include "derive.h"
 #include "type_class.h"
-#include "prim.h"
 #include "type.h"
 #include "arena.h"
 

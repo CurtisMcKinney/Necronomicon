@@ -59,6 +59,7 @@ typedef struct NecroMachSlot
 //--------------------
 // NecroMachAstSymbol
 //--------------------
+struct NecroLLVMSymbol; // TODO: Place holder. Replace with void* for better flexibility after testing is done
 typedef struct NecroMachAstSymbol
 {
     NecroSymbol           name;
@@ -70,7 +71,7 @@ typedef struct NecroMachAstSymbol
     bool                  is_constructor;
     bool                  con_num;
     bool                  is_primitive;
-    void*                 codegen_symbol;
+    struct NecroLLVMSymbol* codegen_symbol;
 } NecroMachAstSymbol;
 
 //--------------------
@@ -132,7 +133,7 @@ NECRO_DECLARE_ARENA_LIST(NecroMachSwitchData, MachSwitch, mach_switch);
 
 typedef struct NecroMachSwitchTerminator
 {
-    NecroMachSwitchList*    values;
+    NecroMachSwitchList* values;
     struct NecroMachAst* else_block;
     struct NecroMachAst* choice_val;
 } NecroMachSwitchTerminator;
@@ -460,7 +461,6 @@ typedef enum
     NECRO_MACH_CALL,
     NECRO_MACH_LOAD,
     NECRO_MACH_STORE,
-    NECRO_MACH_NALLOC,
     NECRO_MACH_BIT_CAST,
     NECRO_MACH_ZEXT,
     NECRO_MACH_GEP,
@@ -473,6 +473,7 @@ typedef enum
     NECRO_MACH_MEMSET, // TODO: Maybe remove
     // NECRO_MACH_ALLOCA, // TODO: Maybe remove
     // NECRO_MACH_SELECT, // TODO: Maybe remove
+    // NECRO_MACH_NALLOC,
 
     // Defs
     NECRO_MACH_STRUCT_DEF,
@@ -495,7 +496,7 @@ typedef struct NecroMachAst
         NecroMachGetElementPtr gep;
         NecroMachBitCast       bit_cast;
         NecroMachZExt          zext;
-        NecroMachNAlloc        nalloc;
+        // NecroMachNAlloc        nalloc;
         NecroMachAlloca        alloca;
         NecroMachBinOp         binop;
         NecroMachUOp           uop;
@@ -516,15 +517,18 @@ typedef struct NecroMachAst
 NECRO_DECLARE_VECTOR(NecroMachAst*, NecroMachAst, necro_mach_ast);
 typedef struct NecroMachRuntime
 {
-    NecroMachAstSymbol* _necro_init_runtime;
-    NecroMachAstSymbol* _necro_update_runtime;
-    NecroMachAstSymbol* _necro_error_exit;
-    NecroMachAstSymbol* _necro_sleep;
-    NecroMachAstSymbol* _necro_print;
-    NecroMachAstSymbol* _necro_debug_print;
-    NecroMachAstSymbol* _necro_print_int;
-    // NecroMachAstSymbol* _necro_alloc_region;
-    // NecroMachAstSymbol* _necro_free_region;
+    NecroMachAstSymbol* necro_init_runtime;
+    NecroMachAstSymbol* necro_update_runtime;
+    NecroMachAstSymbol* necro_error_exit;
+    NecroMachAstSymbol* necro_sleep;
+    NecroMachAstSymbol* necro_print;
+    NecroMachAstSymbol* necro_debug_print;
+    NecroMachAstSymbol* necro_print_int;
+    NecroMachAstSymbol* necro_alloc;
+    NecroMachAstSymbol* necro_runtime_get_mouse_x;
+    NecroMachAstSymbol* necro_runtime_get_mouse_y;
+    NecroMachAstSymbol* necro_runtime_is_done;
+    // NOTE: Don't forget to add mappings to mach_ast.c and codegen_llvm.c when you add new runtime symbols
 } NecroMachRuntime;
 
 typedef enum
@@ -552,9 +556,9 @@ typedef struct NecroMachProgram
 
     // Cached data
     NecroMachTypeCache      type_cache;
-    NecroMachRuntime        runtime;
     NecroMachAst*           program_main;
     size_t                  clash_suffix;
+    NecroMachRuntime        runtime;
 } NecroMachProgram;
 
 
@@ -603,7 +607,7 @@ NecroMachAst* necro_mach_block_get_current(NecroMachAst* fn_def);
 //--------------------
 // Memory
 //--------------------
-NecroMachAst* necro_mach_build_nalloc(NecroMachProgram* program, NecroMachAst* fn_def, struct NecroMachType* type, uint32_t a_slots_used);
+NecroMachAst* necro_mach_build_nalloc(NecroMachProgram* program, NecroMachAst* fn_def, struct NecroMachType* type);
 // NecroMachAst* necro_mach_build_alloca(NecroMachProgram* program, NecroMachAst* fn_def, size_t num_slots);
 NecroMachAst* necro_mach_build_gep(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* source_value, uint32_t* a_indices, size_t num_indices, const char* dest_name);
 NecroMachAst* necro_mach_build_non_const_gep(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* source_value, NecroMachAst** a_indices, size_t num_indices, const char* dest_name, struct NecroMachType* result_type);

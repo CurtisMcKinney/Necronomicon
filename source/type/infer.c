@@ -8,7 +8,6 @@
 #include <signal.h>
 #include <stdarg.h>
 #include "symtable.h"
-#include "prim.h"
 #include "type_class.h"
 #include "kind.h"
 #include "infer.h"

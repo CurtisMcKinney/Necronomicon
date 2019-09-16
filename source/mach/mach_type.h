@@ -11,7 +11,6 @@
 #include <assert.h>
 #include <stdbool.h>
 
-#include "core/core.h"
 #include "type.h"
 
 struct NecroMachProgram;
@@ -152,8 +151,9 @@ NecroMachType* necro_mach_type_make_ptr_if_boxed(struct NecroMachProgram* progra
 void           necro_mach_type_print(NecroMachType* type);
 void           necro_mach_type_print_go(NecroMachType* type, bool is_recursive);
 NecroMachType* necro_mach_type_from_necro_type(struct NecroMachProgram* program, NecroType* type);
-size_t         necro_mach_type_calculate_num_slots(NecroMachType* type);
 bool           necro_mach_type_is_sum_type(NecroMachType* type);
 NecroMachType* necro_mach_type_get_sum_type(NecroMachType* type);
+size_t         necro_mach_type_calculate_size_in_bytes(struct NecroMachProgram* program, NecroMachType* type);
+size_t         necro_mach_word_size_in_bytes(struct NecroMachProgram* program);
 
 #endif // NECRO_MACH_TYPE_H

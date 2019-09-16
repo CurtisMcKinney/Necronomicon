@@ -924,25 +924,25 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 
     // getMouseX
     {
-        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "_getMouseX", NULL,
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "getMouseX", NULL,
             necro_ast_create_type_fn(arena,
                 necro_ast_create_conid(arena, intern, "()", NECRO_CON_TYPE_VAR),
                 necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR)),
             NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
         necro_append_top(arena, top,
-            necro_ast_create_simple_assignment(arena, intern, "_getMouseX",
+            necro_ast_create_simple_assignment(arena, intern, "getMouseX",
                 necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
     }
 
     // getMouseY
     {
-        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "_getMouseY", NULL,
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "getMouseY", NULL,
             necro_ast_create_type_fn(arena,
                 necro_ast_create_conid(arena, intern, "()", NECRO_CON_TYPE_VAR),
                 necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR)),
             NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
         necro_append_top(arena, top,
-            necro_ast_create_simple_assignment(arena, intern, "_getMouseY",
+            necro_ast_create_simple_assignment(arena, intern, "getMouseY",
                 necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
     }
     // mouseX
@@ -954,7 +954,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
             necro_ast_create_simple_assignment(arena, intern, "mouseX",
                 necro_ast_create_rhs(arena,
                     necro_ast_create_fexpr(arena,
-                        necro_ast_create_var(arena, intern, "_getMouseX", NECRO_VAR_VAR),
+                        necro_ast_create_var(arena, intern, "getMouseX", NECRO_VAR_VAR),
                         necro_ast_create_conid(arena, intern, "()", NECRO_CON_VAR)),
                     NULL)));
     }
@@ -968,7 +968,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
             necro_ast_create_simple_assignment(arena, intern, "mouseY",
                 necro_ast_create_rhs(arena,
                     necro_ast_create_fexpr(arena,
-                        necro_ast_create_var(arena, intern, "_getMouseY", NECRO_VAR_VAR),
+                        necro_ast_create_var(arena, intern, "getMouseY", NECRO_VAR_VAR),
                         necro_ast_create_conid(arena, intern, "()", NECRO_CON_VAR)),
                     NULL)));
     }
@@ -1152,8 +1152,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     // base.audio_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Audio"));
 
     // Runtime functions
-    base.mouse_x_fn             = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "_getMouseX"));
-    base.mouse_y_fn             = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "_getMouseY"));
+    base.mouse_x_fn             = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "getMouseX"));
+    base.mouse_y_fn             = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "getMouseY"));
     base.unsafe_malloc          = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "unsafeMalloc"));
     base.unsafe_peek            = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "unsafePeek"));
     base.unsafe_poke            = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "unsafePoke"));

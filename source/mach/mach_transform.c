@@ -17,6 +17,7 @@
 
 /*
     TODO:
+        * llvm allocator?
         * llvm codegen
         * deepcopy arrays
         * defunctionalization
@@ -579,11 +580,12 @@ void necro_core_transform_to_mach_2_bind(NecroMachProgram* program, NecroCoreAst
     // Add global value
     if (outer == NULL && !is_machine_fn)
     {
-        NecroMachAst* global_value = NULL;
+        NecroMachAst*       global_value  = NULL;
+        NecroMachAstSymbol* global_symbol = necro_mach_ast_symbol_gen(program, NULL, necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char* []) { "global", machine_def->machine_def.machine_name->name->str + 1 }), NECRO_MANGLE_NAME);
         if (necro_mach_type_is_unboxed(program, machine_def->machine_def.value_type))
-            global_value = necro_mach_value_create_global(program, machine_def->machine_def.machine_name, necro_mach_type_create_ptr(&program->arena, machine_def->machine_def.value_type));
+            global_value = necro_mach_value_create_global(program, global_symbol, necro_mach_type_create_ptr(&program->arena, machine_def->machine_def.value_type));
         else
-            global_value = necro_mach_value_create_global(program, machine_def->machine_def.machine_name, necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_ptr(&program->arena, machine_def->machine_def.value_type)));
+            global_value = necro_mach_value_create_global(program, global_symbol, necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_ptr(&program->arena, machine_def->machine_def.value_type)));
         machine_def->machine_def.global_value = global_value;
         necro_mach_program_add_global(program, global_value);
     }
@@ -618,16 +620,14 @@ void necro_core_transform_to_mach_2_bind(NecroMachProgram* program, NecroCoreAst
                     necro_mach_build_call(program, machine_def->machine_def.init_fn, slot.slot_ast->machine_def.init_fn->fn_def.fn_value, (NecroMachAst*[]) { member }, 1, NECRO_MACH_CALL_LANG, "");
                 }
             }
-            // TODO: Add return in 3_bind!
-            // necro_mach_build_return_void(program, machine_def->machine_def.init_fn);
+            // NOTE: The return_void is added during necro_core_transform_to_mach_3_bind
         }
 
         //--------------------
         // mk_fn
         {
             machine_def->machine_def.mk_fn->necro_machine_type->fn_type.return_type = machine_ptr_type;
-            const size_t  num_slots = necro_mach_type_calculate_num_slots(machine_def->necro_machine_type);
-            NecroMachAst* data_ptr  = necro_mach_build_nalloc(program, machine_def->machine_def.mk_fn, machine_def->necro_machine_type, num_slots);
+            NecroMachAst* data_ptr = necro_mach_build_nalloc(program, machine_def->machine_def.mk_fn, machine_def->necro_machine_type);
             necro_mach_build_call(program, machine_def->machine_def.mk_fn, machine_def->machine_def.init_fn->fn_def.fn_value, (NecroMachAst*[]) { data_ptr }, 1, NECRO_MACH_CALL_LANG, "");
             necro_mach_build_return(program, machine_def->machine_def.mk_fn, data_ptr);
         }
@@ -1261,17 +1261,18 @@ void necro_mach_construct_main(NecroMachProgram* program)
 
     //--------------------
     // Declare NecroMain
-    NecroMachAstSymbol* necro_main_symbol = necro_mach_ast_symbol_gen(program, NULL, "_necro_main", NECRO_MANGLE_NAME);
+    NecroMachAstSymbol* necro_main_symbol = necro_mach_ast_symbol_gen(program, NULL, "necro_main", NECRO_DONT_MANGLE);
     NecroMachType*      necro_main_type   = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_void(program), NULL, 0);
     NecroMachAst*       necro_main_entry  = necro_mach_block_create(program, "entry", NULL);
     NecroMachAst*       necro_main_fn     = necro_mach_create_fn(program, necro_main_symbol, necro_main_entry, necro_main_type);
     program->functions.length--; // Hack...
     NecroMachAst*       necro_main_loop   = necro_mach_block_append(program, necro_main_fn, "loop");
+    NecroMachAst*       necro_main_done   = necro_mach_block_append(program, necro_main_fn, "done");
 
     //--------------------
     // entry
     necro_mach_build_break(program, necro_main_fn, necro_main_loop);
-    necro_mach_build_call(program, necro_main_fn, program->runtime._necro_init_runtime->ast->fn_def.fn_value, NULL, 0, NECRO_MACH_CALL_C, "");
+    necro_mach_build_call(program, necro_main_fn, program->runtime.necro_init_runtime->ast->fn_def.fn_value, NULL, 0, NECRO_MACH_CALL_C, "");
 
     //--------------------
     // Create states
@@ -1290,6 +1291,8 @@ void necro_mach_construct_main(NecroMachProgram* program)
     // Call constants
     for (size_t i = 0; i < program->machine_defs.length; ++i)
     {
+        if (true)
+            continue;
         if (program->machine_defs.data[i]->machine_def.state_type > NECRO_STATE_CONSTANT || program->machine_defs.data[i]->machine_def.num_arg_names != 0)
             continue;
         if (program->machine_defs.data[i]->machine_def.num_members > 0)
@@ -1308,7 +1311,7 @@ void necro_mach_construct_main(NecroMachProgram* program)
     //--------------------
     // loop
     necro_mach_block_move_to(program, necro_main_fn, necro_main_loop);
-    necro_mach_build_call(program, necro_main_fn, program->runtime._necro_update_runtime->ast->fn_def.fn_value, NULL, 0, NECRO_MACH_CALL_C, "");
+    necro_mach_build_call(program, necro_main_fn, program->runtime.necro_update_runtime->ast->fn_def.fn_value, NULL, 0, NECRO_MACH_CALL_C, "");
     for (size_t i = 0; i < program->machine_defs.length; ++i)
     {
         if (program->machine_defs.data[i]->machine_def.state_type == NECRO_STATE_CONSTANT || program->machine_defs.data[i]->machine_def.num_arg_names != 0)
@@ -1329,6 +1332,7 @@ void necro_mach_construct_main(NecroMachProgram* program)
     //--------------------
     // Call Main
     if (program->program_main != NULL)
+    // if (false)
     {
         // NOTE: Main needs to be of type World -> World, which translates to fn main(u32) -> u32
         NecroMachAst* world_value = necro_mach_value_create_word_uint(program, 0);
@@ -1347,9 +1351,15 @@ void necro_mach_construct_main(NecroMachProgram* program)
 
     //--------------------
     // Clean up / Loop
-    necro_mach_build_call(program, necro_main_fn, program->runtime._necro_sleep->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint32(program, 10) }, 1, NECRO_MACH_CALL_C, "");
-    necro_mach_build_break(program, necro_main_fn, necro_main_loop);
+    necro_mach_build_call(program, necro_main_fn, program->runtime.necro_sleep->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint32(program, 20) }, 1, NECRO_MACH_CALL_C, "");
+    NecroMachAst* is_done     = necro_mach_build_call(program, necro_main_fn, program->runtime.necro_runtime_is_done->ast->fn_def.fn_value, NULL, 0, NECRO_MACH_CALL_C, "is_done");
+    NecroMachAst* is_done_cmp = necro_mach_build_cmp(program, necro_main_fn, NECRO_MACH_CMP_GT, is_done, necro_mach_value_create_word_uint(program, 0));
+    necro_mach_build_cond_break(program, necro_main_fn, is_done_cmp, necro_main_done, necro_main_loop);
+    necro_mach_block_move_to(program, necro_main_fn, necro_main_done);
+    necro_mach_build_return_void(program, necro_main_fn);
+    // necro_mach_build_break(program, necro_main_fn, necro_main_loop);
     program->necro_main = necro_main_fn;
+
 }
 
 ///////////////////////////////////////////////////////
@@ -1599,7 +1609,6 @@ void necro_mach_test()
             "    Some i -> printInt i w\n";
         necro_mach_test_string(test_name, test_source);
     }
-
 
     {
         const char* test_name   = "Case 5";
@@ -2250,6 +2259,7 @@ void necro_mach_test()
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);
     }
+
 
 /*
 

@@ -436,7 +436,12 @@ NecroMachType* necro_mach_type_make_ptr_if_boxed(NecroMachProgram* program, Necr
         return necro_mach_type_create_ptr(&program->arena, type);
 }
 
-size_t necro_mach_type_calculate_num_slots(NecroMachType* type)
+size_t necro_mach_word_size_in_bytes(NecroMachProgram* program)
+{
+    return (program->word_size == NECRO_WORD_4_BYTES) ? 4 : 8;
+}
+
+size_t necro_mach_type_calculate_size_in_bytes_go(NecroMachType* type, size_t word_size_in_bytes)
 {
     assert(type != NULL);
     switch (type->type)
@@ -452,20 +457,20 @@ size_t necro_mach_type_calculate_num_slots(NecroMachType* type)
     case NECRO_MACH_TYPE_F32:    /* FALLTHROUGH */
     case NECRO_MACH_TYPE_F64:    /* FALLTHROUGH */
     case NECRO_MACH_TYPE_CHAR:   /* FALLTHROUGH */
-    case NECRO_MACH_TYPE_PTR:    return 1;
+    case NECRO_MACH_TYPE_PTR:    return word_size_in_bytes;
     case NECRO_MACH_TYPE_ARRAY:
     {
-        size_t element_slots = necro_mach_type_calculate_num_slots(type->array_type.element_type);
-        return element_slots * type->array_type.element_count;
+        size_t element_size = necro_mach_type_calculate_size_in_bytes_go(type->array_type.element_type, word_size_in_bytes);
+        return element_size * type->array_type.element_count;
     }
     case NECRO_MACH_TYPE_STRUCT:
     {
-        size_t slots = 0;
+        size_t struct_size = 0;
         for (size_t i = 0; i < type->struct_type.num_members; ++i)
         {
-            slots += necro_mach_type_calculate_num_slots(type->struct_type.members[i]);
+            struct_size += necro_mach_type_calculate_size_in_bytes_go(type->struct_type.members[i], word_size_in_bytes);
         }
-        return slots;
+        return struct_size;
     }
     case NECRO_MACH_TYPE_FN:
         assert(false);
@@ -474,6 +479,11 @@ size_t necro_mach_type_calculate_num_slots(NecroMachType* type)
         assert(false);
         return 0;
     }
+}
+
+size_t necro_mach_type_calculate_size_in_bytes(NecroMachProgram* program, NecroMachType* type)
+{
+    return necro_mach_type_calculate_size_in_bytes_go(type, necro_mach_word_size_in_bytes(program));
 }
 
 bool necro_mach_type_is_sum_type(NecroMachType* type)
@@ -714,16 +724,16 @@ void necro_mach_ast_type_check_store(NecroMachProgram* program, NecroMachAst* as
     necro_mach_type_check(program, source_value->necro_machine_type, dest_ptr->necro_machine_type->ptr_type.element_type);
 }
 
-void necro_mach_ast_type_check_nalloc(NecroMachProgram* program, NecroMachAst* ast)
-{
-    assert(program != NULL);
-    assert(ast->type == NECRO_MACH_NALLOC);
-    assert(ast->nalloc.type_to_alloc != NULL);
-    assert(ast->nalloc.slots_used > 0);
-    necro_mach_ast_type_check(program, ast->nalloc.result_reg);
-    assert(ast->nalloc.result_reg->necro_machine_type->type == NECRO_MACH_TYPE_PTR);
-    necro_mach_type_check(program, ast->nalloc.type_to_alloc, ast->nalloc.result_reg->necro_machine_type->ptr_type.element_type);
-}
+// void necro_mach_ast_type_check_nalloc(NecroMachProgram* program, NecroMachAst* ast)
+// {
+//     assert(program != NULL);
+//     assert(ast->type == NECRO_MACH_NALLOC);
+//     assert(ast->nalloc.type_to_alloc != NULL);
+//     assert(ast->nalloc.slots_used > 0);
+//     necro_mach_ast_type_check(program, ast->nalloc.result_reg);
+//     assert(ast->nalloc.result_reg->necro_machine_type->type == NECRO_MACH_TYPE_PTR);
+//     necro_mach_type_check(program, ast->nalloc.type_to_alloc, ast->nalloc.result_reg->necro_machine_type->ptr_type.element_type);
+// }
 
 void necro_mach_ast_type_check_bit_cast(NecroMachProgram* program, NecroMachAst* ast)
 {
@@ -1050,7 +1060,7 @@ void necro_mach_ast_type_check(NecroMachProgram* program, NecroMachAst* ast)
     case NECRO_MACH_CALL:       necro_mach_ast_type_check_call(program, ast);       return;
     case NECRO_MACH_LOAD:       necro_mach_ast_type_check_load(program, ast);       return;
     case NECRO_MACH_STORE:      necro_mach_ast_type_check_store(program, ast);      return;
-    case NECRO_MACH_NALLOC:     necro_mach_ast_type_check_nalloc(program, ast);     return;
+    // case NECRO_MACH_NALLOC:     necro_mach_ast_type_check_nalloc(program, ast);     return;
     case NECRO_MACH_BIT_CAST:   necro_mach_ast_type_check_bit_cast(program, ast);   return;
     case NECRO_MACH_ZEXT:       necro_mach_ast_type_check_zext(program, ast);       return;
     case NECRO_MACH_GEP:        necro_mach_ast_type_check_gep(program, ast);        return;

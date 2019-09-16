@@ -16,8 +16,6 @@
 #include "arena.h"
 #include "type.h"
 
-#define NECRO_SYMTABLE_NULL_ID      ((NecroID) {0})
-
 // TODO: Clean up LOTS of shit in this.
 
 //=====================================================
@@ -44,7 +42,6 @@ struct NecroDeclarationGroup;
 typedef struct
 {
     NecroSymbol                     name;
-    NecroID                         id;
     size_t                          con_num;
     bool                            is_enum;
     NecroSourceLoc                  source_loc;
@@ -79,8 +76,6 @@ typedef struct NecroSymTable
 NecroSymTable    necro_symtable_empty();
 NecroSymTable    necro_symtable_create(NecroIntern* intern);
 void             necro_symtable_destroy(NecroSymTable* table);
-// TODO: Remove this
-NecroSymbolInfo* necro_symtable_get(NecroSymTable* table, NecroID id);
 NecroSymbolInfo  necro_symtable_create_initial_symbol_info(NecroSymbol symbol, NecroSourceLoc source_loc, struct NecroScope* scope);
 
 //=====================================================

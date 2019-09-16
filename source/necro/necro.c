@@ -87,6 +87,18 @@ int main(int32_t argc, char** argv)
         {
             necro_test(NECRO_TEST_MACH);
         }
+        else if (strcmp(argv[2], "machine") == 0 || strcmp(argv[2], "mach") == 0)
+        {
+            necro_test(NECRO_TEST_MACH);
+        }
+        else if (strcmp(argv[2], "llvm") == 0)
+        {
+            necro_test(NECRO_TEST_LLVM);
+        }
+        else if (strcmp(argv[2], "jit") == 0)
+        {
+            necro_test(NECRO_TEST_JIT);
+        }
     }
     else if (argc == 2 || argc == 3 || argc == 4)
     {

@@ -84,23 +84,33 @@ void              necro_print_codegen_llvm(NecroCodeGenLLVM* codegen);
 ///////////////////////////////////////////////////////
 // NecroLLVM
 ///////////////////////////////////////////////////////
+typedef struct NecroDelayedPhiNodeValue
+{
+    NecroSymbol       value_name;
+    LLVMBasicBlockRef block;
+    LLVMValueRef      phi_node;
+} NecroDelayedPhiNodeValue;
+NECRO_DECLARE_VECTOR(NecroDelayedPhiNodeValue, NecroDelayedPhiNodeValue, delayed_phi_node_value)
+
 typedef struct NecroLLVM
 {
-    NecroPagedArena           arena;
-    NecroSnapshotArena        snapshot_arena;
-    NecroIntern*              intern;
-    NecroBase*                base;
-    NecroMachProgram*         program;
+    NecroPagedArena                arena;
+    NecroSnapshotArena             snapshot_arena;
+    NecroIntern*                   intern;
+    NecroBase*                     base;
+    NecroMachProgram*              program;
 
-    LLVMContextRef            context;
-    LLVMModuleRef             mod;
-    LLVMBuilderRef            builder;
-    LLVMTargetMachineRef      target_machine;
-    LLVMTargetDataRef         target;
-    LLVMPassManagerRef        fn_pass_manager;
-    LLVMPassManagerRef        mod_pass_manager;
+    LLVMContextRef                 context;
+    LLVMModuleRef                  mod;
+    LLVMBuilderRef                 builder;
+    LLVMTargetMachineRef           target_machine;
+    LLVMTargetDataRef              target;
+    LLVMPassManagerRef             fn_pass_manager;
+    LLVMPassManagerRef             mod_pass_manager;
+    LLVMExecutionEngineRef         engine;
 
-    bool                      should_optimize;
+    bool                           should_optimize;
+    NecroDelayedPhiNodeValueVector delayed_phi_node_values;
 } NecroLLVM;
 
 NecroLLVM necro_llvm_empty();

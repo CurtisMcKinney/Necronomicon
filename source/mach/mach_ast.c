@@ -370,7 +370,7 @@ NecroMachAst* necro_mach_build_nalloc(NecroMachProgram* program, NecroMachAst* f
     assert(fn_def != NULL);
     assert(fn_def->type == NECRO_MACH_FN_DEF);
     NecroMachAst* alloc_size = necro_mach_value_create_word_uint(program, necro_mach_type_calculate_size_in_bytes(program, type));
-    NecroMachAst* void_ptr   = necro_mach_build_call(program, fn_def, program->runtime.necro_alloc->ast->fn_def.fn_value, (NecroMachAst*[]) { alloc_size }, 1, NECRO_MACH_CALL_C, "void_ptr");
+    NecroMachAst* void_ptr   = necro_mach_build_call(program, fn_def, program->runtime.necro_runtime_alloc->ast->fn_def.fn_value, (NecroMachAst*[]) { alloc_size }, 1, NECRO_MACH_CALL_C, "void_ptr");
     NecroMachAst* data_ptr   = necro_mach_build_bit_cast(program, fn_def, void_ptr, necro_mach_type_create_ptr(&program->arena, type));
     return data_ptr;
 }
@@ -1104,15 +1104,18 @@ NecroMachRuntime necro_mach_runtime_empty()
 {
     return (NecroMachRuntime)
     {
-        .necro_init_runtime   = NULL,
-        .necro_update_runtime = NULL,
-        .necro_error_exit     = NULL,
-        .necro_sleep          = NULL,
-        .necro_print          = NULL,
-        .necro_debug_print    = NULL,
-        .necro_alloc          = NULL,
-        // ._necro_alloc_region   = NULL,
-        // ._necro_free_region    = NULL,
+        .necro_init_runtime        = NULL,
+        .necro_update_runtime      = NULL,
+        .necro_error_exit          = NULL,
+        .necro_sleep               = NULL,
+        .necro_print               = NULL,
+        .necro_debug_print         = NULL,
+        .necro_print_int           = NULL,
+        .necro_runtime_get_mouse_x = NULL,
+        .necro_runtime_get_mouse_y = NULL,
+        .necro_runtime_is_done     = NULL,
+        .necro_runtime_alloc       = NULL,
+        .necro_runtime_free        = NULL,
     };
 }
 
@@ -1433,20 +1436,28 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         program->runtime.necro_error_exit = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_error_exit, NECRO_STATE_POINTWISE)->fn_def.symbol;
     }
 
-    // malloc
-    {
-        NecroMachAstSymbol* mach_symbol = necro_mach_ast_symbol_gen(program, NULL, "malloc", NECRO_DONT_MANGLE);
-        mach_symbol->is_primitive       = true;
-        NecroMachType*      fn_type     = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_uint8(program)), (NecroMachType*[]) { necro_mach_type_create_word_sized_uint(program) }, 1);
-        program->runtime.necro_alloc    = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) malloc, NECRO_STATE_POINTWISE)->fn_def.symbol;
-    }
-
     // necro_runtime_is_done
     {
         NecroMachAstSymbol* mach_symbol        = necro_mach_ast_symbol_gen(program, NULL, "necro_runtime_is_done", NECRO_DONT_MANGLE);
         mach_symbol->is_primitive              = true;
         NecroMachType*      fn_type            = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_word_sized_uint(program), NULL, 0);
         program->runtime.necro_runtime_is_done = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_is_done, NECRO_STATE_POINTWISE)->fn_def.symbol;
+    }
+
+    // necro_runtime_alloc
+    {
+        NecroMachAstSymbol* mach_symbol      = necro_mach_ast_symbol_gen(program, NULL, "necro_runtime_alloc", NECRO_DONT_MANGLE);
+        mach_symbol->is_primitive            = true;
+        NecroMachType*      fn_type          = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_uint8(program)), (NecroMachType*[]) { necro_mach_type_create_word_sized_uint(program) }, 1);
+        program->runtime.necro_runtime_alloc = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_alloc, NECRO_STATE_POINTWISE)->fn_def.symbol;
+    }
+
+    // necro_runtime_free
+    {
+        NecroMachAstSymbol* mach_symbol     = necro_mach_ast_symbol_gen(program, NULL, "necro_runtime_free", NECRO_DONT_MANGLE);
+        mach_symbol->is_primitive           = true;
+        NecroMachType*      fn_type         = necro_mach_type_create_fn(&program->arena, program->type_cache.void_type, (NecroMachType*[]) { necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_uint8(program)) }, 1);
+        program->runtime.necro_runtime_free = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_free, NECRO_STATE_POINTWISE)->fn_def.symbol;
     }
 
     // TODO: Audio

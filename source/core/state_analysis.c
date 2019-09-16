@@ -324,7 +324,6 @@ void necro_core_state_analysis(NecroCompileInfo info, NecroIntern* intern, Necro
     };
 
     // TODO: Where is the best place for this!?
-    // TODO: Put back!
     base->mouse_x_fn->core_ast_symbol->state_type = NECRO_STATE_POINTWISE;
     base->mouse_y_fn->core_ast_symbol->state_type = NECRO_STATE_POINTWISE;
 

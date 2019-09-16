@@ -1333,7 +1333,7 @@ void necro_llvm_codegen_delayed_phi_node(NecroLLVM* context, NecroLLVMSymbol* va
             LLVMValueRef      phi_value              = context->delayed_phi_node_values.data[i].phi_node;
             LLVMAddIncoming(phi_value, &leaf_value, &block, 1);
             // Swap with end and Pop off
-            context->delayed_phi_node_values.data[i] = context->delayed_phi_node_values.data[context->delayed_phi_node_values.capacity - 1];
+            context->delayed_phi_node_values.data[i] = context->delayed_phi_node_values.data[context->delayed_phi_node_values.length - 1];
             necro_pop_delayed_phi_node_value_vector(&context->delayed_phi_node_values);
         }
         else
@@ -1828,7 +1828,7 @@ LLVMValueRef necro_llvm_codegen_call(NecroLLVM* context, NecroMachAst* ast)
     }
     assert(num_params <= UINT32_MAX);
     LLVMValueRef result = LLVMBuildCall(context->builder, fn_value, params, (uint32_t) num_params, result_name);
-    LLVMSetTailCall(result, false);
+    // LLVMSetTailCall(result, false);
     if (ast->call.call_type == NECRO_MACH_CALL_C)
         LLVMSetInstructionCallConv(result, LLVMCCallConv);
     else
@@ -1944,6 +1944,7 @@ void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroL
     }
     // codegen main
     necro_llvm_codegen_function(context, program->necro_main);
+    // assert(context->delayed_phi_node_values.length == 0);
     if (context->should_optimize)
         LLVMRunPassManager(context->mod_pass_manager, context->mod);
     // verify and print
@@ -2539,8 +2540,6 @@ void necro_llvm_test()
         necro_llvm_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "For Loop 1.5";
         const char* test_source = ""
@@ -2550,6 +2549,180 @@ void necro_llvm_test()
             "loopTenTimes = for tenTimes mouseX loop i x -> mul x 2\n"
             "main :: *World -> *World\n"
             "main w = printInt loopTenTimes w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "For Loop 2";
+        const char* test_source = ""
+            "tenTimes :: Range 10\n"
+            "tenTimes = each\n"
+            "loopTenTimes :: Int\n"
+            "loopTenTimes =\n"
+            "  for tenTimes 0 loop i1 x1 ->\n"
+            "    for tenTimes x1 loop i2 x2 ->\n"
+            "      add x1 1\n"
+            "main :: *World -> *World\n"
+            "main w = printInt loopTenTimes w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "For Loop 3";
+        const char* test_source = ""
+            "tenTimes :: Range 10\n"
+            "tenTimes = each\n"
+            "loopTenTimes :: (Int, Int)\n"
+            "loopTenTimes = (for tenTimes 0 loop i x -> mul x 2, for tenTimes 0 loop i x -> add x 2)\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "For Loop 4";
+        const char* test_source = ""
+            "tenTimes :: Range 10\n"
+            "tenTimes = each\n"
+            "loopTenTimes :: Maybe Int -> Int\n"
+            "loopTenTimes m =\n"
+            "  case m of\n"
+            "    Nothing -> for tenTimes 0 loop i x -> add x 1\n"
+            "    Just y  -> for tenTimes 0 loop i x -> add x y\n"
+            "main :: *World -> *World\n"
+            "main w = printInt (loopTenTimes (Just mouseX)) w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "For Loop 5";
+        const char* test_source = ""
+            "tenTimes :: Range 10\n"
+            "tenTimes = each\n"
+            "loopTenTimes :: Maybe UInt -> Maybe UInt\n"
+            "loopTenTimes m =\n"
+            "  for tenTimes m loop i x ->\n"
+            "    case x of\n"
+            "      Nothing -> Just 0\n"
+            "      Just x  -> Just (add x 1)\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "For Loop 6";
+        const char* test_source = ""
+            "tenTimes :: Range 10\n"
+            "tenTimes = each\n"
+            "loopTenTimes :: Maybe UInt\n"
+            "loopTenTimes =\n"
+            "  for tenTimes Nothing loop i x ->\n"
+            "    Just 0\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "For Loop 3.5";
+        const char* test_source = ""
+            "tenTimes :: Range 10\n"
+            "tenTimes = each\n"
+            "loopTenTimes :: (Maybe Int, Maybe Int)\n"
+            "loopTenTimes = (for tenTimes Nothing loop i x -> Just 0, for tenTimes Nothing loop i y -> Nothing)\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "For Loop 2.5";
+        const char* test_source = ""
+            "tenTimes :: Range 10\n"
+            "tenTimes = each\n"
+            "twentyTimes :: Range 20\n"
+            "twentyTimes = each\n"
+            "loopTenTimes :: Maybe (Int, Int)\n"
+            "loopTenTimes =\n"
+            "  for tenTimes Nothing loop i1 x1 ->\n"
+            "    for twentyTimes x1 loop i2 x2 ->\n"
+            "      Just (1, 666)\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Deep Copy Test 1";
+        const char* test_source = ""
+            "maybeZero :: Maybe Int -> Int\n"
+            "maybeZero m = 0\n"
+            "main :: *World -> *World\n"
+            "main w = printInt (maybeZero Nothing) w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Deep Copy Test 3";
+        const char* test_source = ""
+            "maybeZero :: ((Int, Int), (Float, Float)) -> Int\n"
+            "maybeZero m = 0\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Rec 1";
+        const char* test_source = ""
+            "counter :: Int\n"
+            "counter = let x ~ 0 = add x 1 in x\n"
+            "main :: *World -> *World\n"
+            "main w = printInt counter w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Rec 2";
+        const char* test_source = ""
+            "counter :: Maybe Int\n"
+            "counter = x where\n"
+            "  x ~ Nothing = x\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Rec 3";
+        const char* test_source = ""
+            "counter :: Maybe Int\n"
+            "counter = x where\n"
+            "  x ~ Nothing =\n"
+            "    case x of\n"
+            "      Nothing -> Just 0\n"
+            "      Just i  -> Just (add i 1)\n"
+            "main :: *World -> *World\n"
+            "main w =\n"
+            "  case counter of\n"
+            "    Nothing -> w\n"
+            "    Just i  -> printInt i w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Rec 1.5";
+        const char* test_source = ""
+            "counter :: Int\n"
+            "counter =\n"
+            "  case (gt mouseX 50) of\n"
+            "    True  -> let x ~ 0 = (add x 1) in x\n"
+            "    False -> let y ~ 0 = (sub y 1) in y\n"
+            "main :: *World -> *World\n"
+            "main w = printInt counter w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -2777,8 +2950,6 @@ void necro_llvm_test_jit()
         necro_llvm_jit_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "For Loop 1";
         const char* test_source = ""
@@ -2788,6 +2959,97 @@ void necro_llvm_test_jit()
             "loopTenTimes = for tenTimes mouseX loop i x -> mul x 2\n"
             "main :: *World -> *World\n"
             "main w = printInt loopTenTimes w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "For Loop 2";
+        const char* test_source = ""
+            "tenTimes :: Range 10\n"
+            "tenTimes = each\n"
+            "loopTenTimes :: Int\n"
+            "loopTenTimes =\n"
+            "  for tenTimes 0 loop i1 x1 ->\n"
+            "    for tenTimes x1 loop i2 x2 ->\n"
+            "      add x2 mouseX\n"
+            "main :: *World -> *World\n"
+            "main w = printInt loopTenTimes w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "For Loop 4";
+        const char* test_source = ""
+            "tenTimes :: Range 10\n"
+            "tenTimes = each\n"
+            "loopTenTimes :: Maybe Int -> Int\n"
+            "loopTenTimes m =\n"
+            "  case m of\n"
+            "    Nothing -> for tenTimes 0 loop i x -> add x 1\n"
+            "    Just y  -> for tenTimes 0 loop i x -> add x y\n"
+            "main :: *World -> *World\n"
+            "main w = printInt (loopTenTimes (Just mouseX)) w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "For Loop 5";
+        const char* test_source = ""
+            "tenTimes :: Range 10\n"
+            "tenTimes = each\n"
+            "loopTenTimes :: Maybe Int -> Maybe Int\n"
+            "loopTenTimes m =\n"
+            "  for tenTimes m loop i x ->\n"
+            "    case x of\n"
+            "      Nothing -> Just 0\n"
+            "      Just x  -> Just (add x 1)\n"
+            "main :: *World -> *World\n"
+            "main w =\n"
+            "  case loopTenTimes (Just mouseX) of\n"
+            "    Nothing -> w\n"
+            "    Just i  -> printInt i w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Rec 1";
+        const char* test_source = ""
+            "counter :: Int\n"
+            "counter = let x ~ 0 = add x 1 in x\n"
+            "main :: *World -> *World\n"
+            "main w = printInt counter w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Rec 3";
+        const char* test_source = ""
+            "counter :: Maybe Int\n"
+            "counter = x where\n"
+            "  x ~ Nothing =\n"
+            "    case x of\n"
+            "      Nothing -> Just 0\n"
+            "      Just i  -> Just (add i 1)\n"
+            "main :: *World -> *World\n"
+            "main w =\n"
+            "  case counter of\n"
+            "    Nothing -> w\n"
+            "    Just i  -> printInt i w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Rec 1.5";
+        const char* test_source = ""
+            "counter :: Int\n"
+            "counter =\n"
+            "  case (gt mouseX 50) of\n"
+            "    True  -> let x ~ 0 = add x 1 in x\n"
+            "    False -> let y ~ 0 = sub y 1 in y\n"
+            "main :: *World -> *World\n"
+            "main w = printInt counter w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 

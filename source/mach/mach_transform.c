@@ -18,6 +18,7 @@
 /*
     TODO:
         * Exhaustive Case expression / Redundant Case Expression
+        * Think more deeply on deep copying, perhaps instead double buffer recursive bindings, and ping pong back and forth between buffers. This is only wasteful if there's a partially recursive value or very long expressions of which only part ends up in the recursive binding's value.
         * Fix word size assertion bug (checks for UINT32 should do it differently)
         * llvm allocator?
         * llvm codegen
@@ -1210,12 +1211,13 @@ NecroMachAst* necro_core_transform_to_mach_3_for(NecroMachProgram* program, Necr
     // Value
     core_ast->for_loop.value_arg->var.ast_symbol->mach_symbol->ast = value_value;
     NecroMachAst* expression_value                                 = necro_core_transform_to_mach_3_go(program, core_ast->for_loop.expression, outer);
+    NecroMachAst* curr_loop_block                                  = necro_mach_block_get_current(outer->machine_def.update_fn);
     necro_mach_add_incoming_to_phi(program, value_phi, current_block, init_value);
-    necro_mach_add_incoming_to_phi(program, value_phi, loop_block, expression_value);
+    necro_mach_add_incoming_to_phi(program, value_phi, curr_loop_block, expression_value);
     // Test and Jump
     NecroMachAst* loop_index                                       = necro_mach_build_binop(program, outer->machine_def.update_fn, index_value, increment_value, NECRO_MACH_BINOP_UADD);
     NecroMachAst* is_less_than_value                               = necro_mach_build_cmp(program, outer->machine_def.update_fn, NECRO_MACH_CMP_LT, loop_index, end_index);
-    necro_mach_add_incoming_to_phi(program, index_phi, loop_block, loop_index);
+    necro_mach_add_incoming_to_phi(program, index_phi, curr_loop_block, loop_index);
     NecroMachAst* next_block                                       = necro_mach_block_append(program, outer->machine_def.update_fn, "next");
     necro_mach_build_cond_break(program, outer->machine_def.update_fn, is_less_than_value, loop_block, next_block);
 
@@ -1499,8 +1501,6 @@ void necro_mach_test()
     necro_announce_phase("Mach");
 
 /*
-
-*/
 
     {
         const char* test_name   = "Basic 1";
@@ -2126,7 +2126,7 @@ void necro_mach_test()
     }
 
     {
-        const char* test_name   = "For Loop 3";
+        const char* test_name   = "For Loop 3.5";
         const char* test_source = ""
             "tenTimes :: Range 10\n"
             "tenTimes = each\n"
@@ -2138,7 +2138,7 @@ void necro_mach_test()
     }
 
     {
-        const char* test_name   = "For Loop 2";
+        const char* test_name   = "For Loop 2.5";
         const char* test_source = ""
             "tenTimes :: Range 10\n"
             "tenTimes = each\n"
@@ -2229,6 +2229,23 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
+*/
+
+    {
+        const char* test_name   = "Rec 1.5";
+        const char* test_source = ""
+            "counter :: Int\n"
+            "counter =\n"
+            "  case (gt mouseX 50) of\n"
+            "    True  -> let x ~ 0 = (add x 1) in x\n"
+            "    False -> let y ~ 0 = (sub y 1) in y\n"
+            "main :: *World -> *World\n"
+            "main w = printInt counter w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+/*
+
     {
         const char* test_name   = "Rec 4";
         const char* test_source = ""
@@ -2275,8 +2292,6 @@ void necro_mach_test()
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);
     }
-
-/*
 
 */
 

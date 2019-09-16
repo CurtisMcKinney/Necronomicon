@@ -17,6 +17,8 @@
 
 /*
     TODO:
+        * Exhaustive Case expression / Redundant Case Expression
+        * Fix word size assertion bug (checks for UINT32 should do it differently)
         * llvm allocator?
         * llvm codegen
         * deepcopy arrays

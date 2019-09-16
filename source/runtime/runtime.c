@@ -88,6 +88,17 @@ extern DLLEXPORT void necro_runtime_error_exit(uint32_t error_code)
     necro_exit(error_code);
 }
 
+// Different Allocators basedon size: Slab Allocator => Buddy => OS
+extern DLLEXPORT uint8_t* necro_alloc(unsigned int size)
+{
+    return malloc(size);
+}
+
+extern DLLEXPORT void necro_free(uint8_t* data)
+{
+    free(data);
+}
+
 
 ///////////////////////////////////////////////////////
 // Runtime Windows

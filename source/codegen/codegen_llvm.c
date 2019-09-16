@@ -2187,15 +2187,15 @@ void necro_llvm_test()
         necro_llvm_test_string(test_name, test_source);
     }
 
+*/
+
     {
         const char* test_name   = "Main 0";
         const char* test_source = ""
             "main :: *World -> *World\n"
-            "main w = w\n";
+            "main w = printInt mouseX w\n";
         necro_llvm_test_string(test_name, test_source);
     }
-
-*/
 
 }
 

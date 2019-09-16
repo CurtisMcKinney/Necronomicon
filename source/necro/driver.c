@@ -180,6 +180,11 @@ NecroResult(void) necro_compile_go(
         return ok_void();
 
     //--------------------
+    // Defunctionalization
+    //--------------------
+    // TODO:
+
+    //--------------------
     // StateAnalysis
     //--------------------
     necro_compile_begin_phase(info, NECRO_PHASE_STATE_ANALYSIS);

@@ -737,7 +737,10 @@ struct NecroMachSwitchTerminator* necro_mach_build_switch(NecroMachProgram* prog
     assert(fn_def != NULL);
     assert(fn_def->type == NECRO_MACH_FN_DEF);
     assert(choice_val != NULL);
-    assert(choice_val->necro_machine_type->type == NECRO_MACH_TYPE_UINT32);
+    if (program->word_size == NECRO_WORD_4_BYTES)
+        assert(choice_val->necro_machine_type->type == NECRO_MACH_TYPE_UINT32);
+    else
+        assert(choice_val->necro_machine_type->type == NECRO_MACH_TYPE_UINT64);
     fn_def->fn_def._curr_block->block.terminator                               = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachTerminator));
     fn_def->fn_def._curr_block->block.terminator->type                         = NECRO_MACH_TERM_SWITCH;
     fn_def->fn_def._curr_block->block.terminator->switch_terminator.choice_val = choice_val;

@@ -28,5 +28,7 @@ extern DLLEXPORT void         necro_runtime_debug_print(int value);
 extern DLLEXPORT unsigned int necro_runtime_print_int(int value, unsigned int world);
 extern DLLEXPORT int          necro_runtime_get_mouse_x(unsigned int _dummy);
 extern DLLEXPORT int          necro_runtime_get_mouse_y(unsigned int _dummy);
+extern DLLEXPORT uint8_t*     necro_alloc(unsigned int size);
+extern DLLEXPORT void         necro_free(uint8_t* data);
 
 #endif // RUNTIME_H

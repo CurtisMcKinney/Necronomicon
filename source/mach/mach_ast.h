@@ -51,6 +51,7 @@ struct NecroMachType;
 typedef struct NecroMachSlot
 {
     size_t                slot_num;
+    bool                  is_rec_slot;
     struct NecroMachType* necro_machine_type;
     struct NecroMachDef*  machine_def;
     struct NecroMachAst*  slot_ast;
@@ -202,13 +203,6 @@ typedef struct NecroMachBlock
 //--------------------
 // Machine
 //--------------------
-// typedef enum
-// {
-//     NECRO_MACH_GLOBAL,
-//     // NECRO_MACH_LOCAL,
-//     NECRO_MACH_FN,
-// } NECRO_MACH_DEF_TYPE;
-
 typedef struct NecroMachDef
 {
     NecroMachAstSymbol*   symbol;
@@ -229,16 +223,24 @@ typedef struct NecroMachDef
     NecroMachAstSymbol**  arg_names;
     size_t                num_arg_names;
 
-    // Region members
+    // State members
     NecroMachSlot*        members;
     size_t                num_members;
     size_t                members_size;
 
-    // cache if and where slots have been loaded!?
-    struct NecroMachAst*  global_value; // If global
-    struct NecroMachAst*  global_state; // If global
+    // Recursive State Members
+    // NecroMachSlot*        rec_members;
+    // size_t                rec_num_members;
+    // size_t                rec_members_size;
+    // bool                  is_in_rec_binding;
+    // struct NecroMachAst*  rec_state_array;
+    // struct NecroMachAst*  rec_state_value;
+    // size_t                rec_state_flag_slot;
+    // struct NecroMachAst*  rec_state_flag;
 
-    // NECRO_MACH_DEF_TYPE   def_type;
+    struct NecroMachAst*  global_value;
+    struct NecroMachAst*  global_state;
+
 } NecroMachDef;
 
 
@@ -473,7 +475,6 @@ typedef enum
     NECRO_MACH_MEMSET, // TODO: Maybe remove
     // NECRO_MACH_ALLOCA, // TODO: Maybe remove
     // NECRO_MACH_SELECT, // TODO: Maybe remove
-    // NECRO_MACH_NALLOC,
 
     // Defs
     NECRO_MACH_STRUCT_DEF,
@@ -496,7 +497,6 @@ typedef struct NecroMachAst
         NecroMachGetElementPtr gep;
         NecroMachBitCast       bit_cast;
         NecroMachZExt          zext;
-        // NecroMachNAlloc        nalloc;
         NecroMachAlloca        alloca;
         NecroMachBinOp         binop;
         NecroMachUOp           uop;

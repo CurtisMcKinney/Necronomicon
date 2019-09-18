@@ -83,6 +83,10 @@ int main(int32_t argc, char** argv)
         {
             necro_test(NECRO_TEST_DEFUNCTIONALIZE);
         }
+        else if (strcmp(argv[2], "sa") == 0)
+        {
+            necro_test(NECRO_TEST_STATE_ANALYSIS);
+        }
         else if (strcmp(argv[2], "machine") == 0 || strcmp(argv[2], "mach") == 0)
         {
             necro_test(NECRO_TEST_MACH);

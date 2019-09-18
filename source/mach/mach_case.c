@@ -917,6 +917,7 @@ NecroMachAst* necro_decision_tree_to_mach(NecroMachProgram* program, NecroDecisi
     case NECRO_DECISION_TREE_LEAF:
     {
         necro_decision_tree_pattern_to_mach(program, tree->tree_leaf.pattern, outer, tree->bindings, env);
+        // necro_core_transform_handle_rec_state_flag(program, outer);
         NecroMachAst* leaf_value = necro_core_transform_to_mach_3_go(program, tree->tree_leaf.expression, outer);
         if (result_phi != NULL)
         {
@@ -938,11 +939,13 @@ NecroMachAst* necro_decision_tree_to_mach(NecroMachProgram* program, NecroDecisi
         assert(tree->tree_switch.pattern->value_ast != NULL);
         if (tree->tree_switch.num_cases > 1)
         {
+            // NecroMachAst*              outer_rec_state_flag = outer->machine_def.rec_state_flag;
             NecroMachAst*              tag_ptr      = necro_mach_build_gep(program, outer->machine_def.update_fn, tree->tree_switch.pattern->value_ast, (uint32_t[]) { 0, 0 }, 2, "tag_ptr");
             NecroMachAst*              tag          = necro_mach_build_load(program, outer->machine_def.update_fn, tag_ptr, "tag");
             NecroMachSwitchTerminator* switch_value = necro_mach_build_switch(program, outer->machine_def.update_fn, tag, NULL, error_block);
             for (size_t i = 0; i < tree->tree_switch.num_cases; ++i)
             {
+                // outer->machine_def.rec_state_flag = NULL;
                 if (tree->tree_switch.cases[i]->block != NULL)
                 {
                     necro_mach_add_case_to_switch(program, switch_value, tree->tree_switch.cases[i]->block, i);
@@ -958,6 +961,7 @@ NecroMachAst* necro_decision_tree_to_mach(NecroMachProgram* program, NecroDecisi
                     tree->tree_switch.cases[i]->block = case_block;
                 }
             }
+            // outer->machine_def.rec_state_flag = outer_rec_state_flag;
             return NULL;
         }
         else
@@ -976,10 +980,12 @@ NecroMachAst* necro_decision_tree_to_mach(NecroMachProgram* program, NecroDecisi
                     Bit casting uint, int, and float into uint to do a straight up bit comparison.
                     This is fine for uint and int, doing this with float can lead to "fun".
             */
+            // NecroMachAst*              outer_rec_state_flag = outer->machine_def.rec_state_flag;
             NecroMachAst*              value        = necro_mach_build_maybe_bit_cast(program, outer->machine_def.update_fn, tree->tree_lit_switch.pattern->value_ast, program->type_cache.word_uint_type);
             NecroMachSwitchTerminator* switch_value = necro_mach_build_switch(program, outer->machine_def.update_fn, value, NULL, error_block);
             for (size_t i = 0; i < tree->tree_lit_switch.num_cases; ++i)
             {
+                // outer->machine_def.rec_state_flag = NULL;
                 if (tree->tree_lit_switch.constants[i].type == NECRO_AST_CONSTANT_STRING)
                 {
                     // NOTE: WTF is up with using this to represent Wildcards / vars!?!?!
@@ -1014,6 +1020,7 @@ NecroMachAst* necro_decision_tree_to_mach(NecroMachProgram* program, NecroDecisi
                     tree->tree_lit_switch.cases[i]->block = case_block;
                 }
             }
+            // outer->machine_def.rec_state_flag = outer_rec_state_flag;
         }
         else
         {

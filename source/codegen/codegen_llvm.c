@@ -2663,6 +2663,8 @@ void necro_llvm_test()
         necro_llvm_test_string(test_name, test_source);
     }
 
+*/
+
     {
         const char* test_name   = "Deep Copy Test 3";
         const char* test_source = ""
@@ -2673,6 +2675,7 @@ void necro_llvm_test()
         necro_llvm_test_string(test_name, test_source);
     }
 
+/*
     {
         const char* test_name   = "Rec 1";
         const char* test_source = ""
@@ -2711,8 +2714,6 @@ void necro_llvm_test()
         necro_llvm_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Rec 1.5";
         const char* test_source = ""
@@ -2725,6 +2726,8 @@ void necro_llvm_test()
             "main w = printInt counter w\n";
         necro_llvm_test_string(test_name, test_source);
     }
+
+*/
 
 }
 
@@ -2992,6 +2995,8 @@ void necro_llvm_test_jit()
         necro_llvm_jit_string(test_name, test_source);
     }
 
+*/
+
     {
         const char* test_name   = "For Loop 5";
         const char* test_source = ""
@@ -3010,6 +3015,8 @@ void necro_llvm_test_jit()
             "    Just i  -> printInt i w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
+
+/*
 
     {
         const char* test_name   = "Rec 1";
@@ -3038,8 +3045,6 @@ void necro_llvm_test_jit()
         necro_llvm_jit_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Rec 1.5";
         const char* test_source = ""
@@ -3052,8 +3057,6 @@ void necro_llvm_test_jit()
             "main w = printInt counter w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
-
-/*
 
     {
         const char* test_name   = "Mouse 1";

@@ -15,10 +15,16 @@
 #include "core/state_analysis.h"
 #include "mach_case.h"
 
+
 /*
     TODO:
+        * Think more deeply on deep copying, perhaps instead Use scheme similat to for loops:
+            - Don't do anything if an unboxed value
+            - double buffer recursive bindings
+            - ping pong back and forth between buffers.
+            - This is only wasteful if there's a partially recursive value or very long expressions of which only a small portion ends up in the recursive binding's value.
+        * Test stateful for loops which need initializers and stateful recursive shit in for loops which need initializers
         * Exhaustive Case expression / Redundant Case Expression
-        * Think more deeply on deep copying, perhaps instead double buffer recursive bindings, and ping pong back and forth between buffers. This is only wasteful if there's a partially recursive value or very long expressions of which only part ends up in the recursive binding's value.
         * Fix word size assertion bug (checks for UINT32 should do it differently)
         * llvm allocator?
         * llvm codegen
@@ -49,6 +55,18 @@ void necro_mach_value_put_state_ptr(NecroMachAst* fn_def, NecroMachAst* state_pt
     // assert(state_ptr != NULL);
     fn_def->fn_def.state_ptr = state_ptr;
 }
+
+// NecroMachAst* necro_mach_rec_state_array_gep(NecroMachProgram* program, NecroMachAst* value, NecroMachAst* outer)
+// {
+//     if (!outer->machine_def.is_in_rec_binding)
+//         return value;
+//     assert(value->necro_machine_type->type == NECRO_MACH_TYPE_PTR);
+//     assert(value->necro_machine_type->ptr_type.element_type->type == NECRO_MACH_TYPE_ARRAY);
+//     assert(outer->machine_def.rec_state_flag != NULL);
+//     assert(outer->machine_def.rec_state_flag->necro_machine_type == program->type_cache.word_uint_type);
+//     NecroMachType* indexed_type = necro_mach_type_create_ptr(&program->arena, value->necro_machine_type->ptr_type.element_type->array_type.element_type);
+//     return necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, value, (NecroMachAst*[]) { necro_mach_value_create_word_uint(program, 0), outer->machine_def.rec_state_flag }, 2, "rec_value_ptr", indexed_type);
+// }
 
 
 ///////////////////////////////////////////////////////
@@ -295,14 +313,15 @@ void necro_core_transform_to_mach_1_bind(NecroMachProgram* program, NecroCoreAst
     if (core_ast->bind.initializer != NULL)
     {
         necro_core_transform_to_mach_1_go(program, core_ast->bind.initializer, machine_def);
-        NecroCoreAstSymbol* deep_copy_fn = necro_type_strip_for_all(necro_type_find(core_ast->bind.ast_symbol->type))->con.con_symbol->core_ast_symbol->deep_copy_fn;
-        if (deep_copy_fn != NULL)
-        {
-            NecroCoreAst* deep_copy_fn_var = necro_core_ast_create_var(&program->arena, deep_copy_fn, deep_copy_fn->type);
-            NecroCoreAst* deep_copy_result = necro_core_ast_create_app(&program->arena, deep_copy_fn_var, core_ast->bind.expr);
-            deep_copy_result->necro_type   = core_ast->bind.expr->necro_type;
-            core_ast->bind.expr            = deep_copy_result;
-        }
+        // TODO: Perhaps remove and replace with double buffered memory solution instead
+        // NecroCoreAstSymbol* deep_copy_fn = necro_type_strip_for_all(necro_type_find(core_ast->bind.ast_symbol->type))->con.con_symbol->core_ast_symbol->deep_copy_fn;
+        // if (deep_copy_fn != NULL)
+        // {
+        //     NecroCoreAst* deep_copy_fn_var = necro_core_ast_create_var(&program->arena, deep_copy_fn, deep_copy_fn->type);
+        //     NecroCoreAst* deep_copy_result = necro_core_ast_create_app(&program->arena, deep_copy_fn_var, core_ast->bind.expr);
+        //     deep_copy_result->necro_type   = core_ast->bind.expr->necro_type;
+        //     core_ast->bind.expr            = deep_copy_result;
+        // }
     }
     necro_core_transform_to_mach_1_go(program, core_ast->bind.expr, machine_def);
 
@@ -475,7 +494,7 @@ bool necro_mach_is_var_machine_arg(NecroMachAst* mach_ast, NecroSymbol var_name)
     return false;
 }
 
-NecroMachSlot necro_mach_add_member(NecroMachProgram* program, NecroMachDef* machine_def, NecroMachType* new_member, NecroMachAst* member_ast)
+NecroMachSlot necro_mach_add_member_non_recursive(NecroMachProgram* program, NecroMachDef* machine_def, NecroMachType* new_member, NecroMachAst* member_ast)
 {
     assert(program != NULL);
     assert(machine_def != NULL);
@@ -486,10 +505,34 @@ NecroMachSlot necro_mach_add_member(NecroMachProgram* program, NecroMachDef* mac
         memcpy(machine_def->members, old_members, machine_def->members_size * sizeof(NecroMachSlot));
         machine_def->members_size *= 2;
     }
-    NecroMachSlot slot                             = (NecroMachSlot) { .necro_machine_type = new_member, .slot_num = machine_def->num_members, .slot_ast = member_ast, .machine_def = machine_def };
+    NecroMachSlot slot                             = (NecroMachSlot) { .necro_machine_type = new_member, .slot_num = machine_def->num_members, .slot_ast = member_ast, .machine_def = machine_def, .is_rec_slot = false };
     machine_def->members[machine_def->num_members] = slot;
     machine_def->num_members++;
     return slot;
+}
+
+// TODO: Remove
+NecroMachSlot necro_mach_add_member(NecroMachProgram* program, NecroMachDef* machine_def, NecroMachType* new_member, NecroMachAst* member_ast)
+{
+    assert(program != NULL);
+    assert(machine_def != NULL);
+    // if (machine_def->is_in_rec_binding)
+    //     new_member = necro_mach_type_create_array(&program->arena, new_member, 2);
+    return necro_mach_add_member_non_recursive(program, machine_def, new_member, member_ast);
+    // else
+    // {
+    //     if (machine_def->rec_num_members >= machine_def->rec_members_size)
+    //     {
+    //         NecroMachSlot* old_members = machine_def->rec_members;
+    //         machine_def->rec_members   = necro_paged_arena_alloc(&program->arena, machine_def->rec_members_size * 2 * sizeof(NecroMachSlot));
+    //         memcpy(machine_def->rec_members, old_members, machine_def->rec_members_size * sizeof(NecroMachSlot));
+    //         machine_def->rec_members_size *= 2;
+    //     }
+    //     NecroMachSlot slot                                     = (NecroMachSlot) { .necro_machine_type = new_member, .slot_num = machine_def->rec_num_members, .slot_ast = member_ast, .machine_def = machine_def, .is_rec_slot = true };
+    //     machine_def->rec_members[machine_def->rec_num_members] = slot;
+    //     machine_def->rec_num_members++;
+    //     return slot;
+    // }
 }
 
 void necro_mach_remove_only_self_recursive_member(NecroMachProgram* program, NecroMachAst* ast)
@@ -519,22 +562,87 @@ void necro_mach_calculate_statefulness(NecroMachProgram* program, NecroMachAst* 
     }
 }
 
-void necro_core_transform_to_mach_2_initializer(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
+void necro_core_transform_to_mach_2_initializer_and_bound_expression(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
 {
     assert(core_ast->ast_type == NECRO_CORE_AST_BIND);
+
+    //--------------------
+    // Non-recursive (early exit)
     if (core_ast->bind.initializer == NULL)
+    {
+        necro_core_transform_to_mach_2_go(program, core_ast->bind.expr, outer);
         return;
+    }
+
     assert(outer != NULL);
-    // if (outer != core_ast->bind.ast_symbol->mach_symbol->ast)
-    // {
-        // Local Binding, create persistent slot
-        NecroMachType* persistent_type = necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, core_ast->bind.initializer->necro_type));
-        core_ast->persistent_slot      = necro_mach_add_member(program, &outer->machine_def, persistent_type, NULL).slot_num;
-    // }
+    // const bool     was_in_rec_binding    = outer->machine_def.is_in_rec_binding;
+    // Initializer
+    // outer->machine_def.is_in_rec_binding = false; // Use normal bindings for intializers
     necro_core_transform_to_mach_2_go(program, core_ast->bind.initializer, outer);
+    // Persistent ptr slot
+    NecroMachType* persistent_type       = necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, core_ast->bind.initializer->necro_type));
+    core_ast->persistent_slot            = necro_mach_add_member_non_recursive(program, &outer->machine_def, persistent_type, NULL).slot_num;
+    //--------------------
+    // Unboxed types don't need to be double buffered (early exit)
+    if (persistent_type->type != NECRO_MACH_TYPE_PTR)
+    {
+        // outer->machine_def.is_in_rec_binding = was_in_rec_binding;
+        necro_core_transform_to_mach_2_go(program, core_ast->bind.expr, outer);
+        return;
+    }
+
+    //--------------------
+    // Double Buffer recursive state
+    //--------------------
+
+    // // Swap out old members
+    // size_t         old_members_size     = outer->machine_def.members_size;
+    // NecroMachSlot* old_members          = outer->machine_def.members;
+    // size_t         old_num_members      = outer->machine_def.num_members;
+
+    // outer->machine_def.members_size     = 4;
+    // outer->machine_def.members          = necro_paged_arena_alloc(&program->arena, outer->machine_def.members_size * sizeof(NecroMachSlot));
+    // outer->machine_def.num_members      = 0;
+
+    // Buffer flag
+    // outer->machine_def.rec_state_flag_slot = necro_mach_add_member_non_recursive(program, &outer->machine_def, program->type_cache.word_uint_type, NULL).slot_num;
+    // necro_mach_add_member_non_recursive(program, &outer->machine_def, program->type_cache.word_uint_type, NULL).slot_num;
+    // Expr
+    // const size_t pre_expr_num_members    = outer->machine_def.num_members;
+    // outer->machine_def.is_in_rec_binding = true;
+    necro_core_transform_to_mach_2_go(program, core_ast->bind.expr, outer);
+    // outer->machine_def.is_in_rec_binding = was_in_rec_binding;
+    // const size_t post_expr_num_members   = outer->machine_def.num_members;
+    // const bool   has_rec_state           = post_expr_num_members > pre_expr_num_members;
+    // if (!has_rec_state)
+    //     return;
+
+    // // Swap in old members
+    // // NecroMachSlot* rec_members          = outer->machine_def.members;
+    // // size_t         rec_num_members      = outer->machine_def.num_members;
+    // outer->machine_def.members_size     = old_members_size;
+    // outer->machine_def.members          = old_members;
+    // outer->machine_def.num_members      = old_num_members;
+
+    //--------------------
+    // No state is used, so we don't need rec state (early exit)
+    // if (rec_num_members == 0)
+    //     return;
+
+    // //--------------------
+    // // Calculate Rec state type
+    // NecroMachType**     rec_member_types = necro_paged_arena_alloc(&program->arena, rec_num_members * sizeof(NecroMachType*));
+    // for (size_t i = 0; i < rec_num_members; ++i)
+    //     rec_member_types[i] = rec_members[i].necro_machine_type;
+    // NecroMachAstSymbol* rec_state_symbol = necro_mach_ast_symbol_gen(program, NULL, "RecState", NECRO_MANGLE_NAME);
+    // NecroMachType*      rec_state_type   = necro_mach_create_struct_def(program, rec_state_symbol, rec_member_types, rec_num_members)->necro_machine_type;
+    // NecroMachType*      rec_array_type   = necro_mach_type_create_array(&program->arena, rec_state_type, 2);
+    // necro_mach_add_member(program, &outer->machine_def, program->type_cache.word_uint_type, NULL).slot_num;
+    // necro_mach_add_member(program, &outer->machine_def, rec_array_type, NULL).slot_num;
+
+    // outer->machine_def.members[core_ast->persistent_slot].has_rec_state = true;
 }
 
-// TODO: Global value initializers / state
 void necro_core_transform_to_mach_2_bind(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
 {
     assert(program != NULL);
@@ -556,14 +664,12 @@ void necro_core_transform_to_mach_2_bind(NecroMachProgram* program, NecroCoreAst
     // Go deeper
     if (outer != NULL)
     {
-        necro_core_transform_to_mach_2_initializer(program, core_ast, outer);
-        necro_core_transform_to_mach_2_go(program, core_ast->bind.expr, outer);
+        necro_core_transform_to_mach_2_initializer_and_bound_expression(program, core_ast, outer);
         necro_mach_calculate_statefulness(program, machine_def);
         return;
     }
     machine_def->necro_machine_type = necro_mach_type_create_struct(&program->arena, machine_def->machine_def.machine_name, NULL, 0);
-    necro_core_transform_to_mach_2_initializer(program, core_ast, machine_def);
-    necro_core_transform_to_mach_2_go(program, core_ast->bind.expr, machine_def);
+    necro_core_transform_to_mach_2_initializer_and_bound_expression(program, core_ast, machine_def);
 
     //--------------------
     // Calculate statefulness
@@ -571,8 +677,7 @@ void necro_core_transform_to_mach_2_bind(NecroMachProgram* program, NecroCoreAst
     necro_mach_calculate_statefulness(program, machine_def);
 
     //--------------------
-    // Calculate machine type
-    const bool      is_machine_fn        = machine_def->machine_def.num_arg_names > 0;
+    // Create State type
     const size_t    num_machine_members  = machine_def->machine_def.num_members;
     NecroMachType** machine_type_members = necro_paged_arena_alloc(&program->arena, num_machine_members * sizeof(NecroMachType*));
     for (size_t i = 0; i < machine_def->machine_def.num_members; ++i)
@@ -582,6 +687,7 @@ void necro_core_transform_to_mach_2_bind(NecroMachProgram* program, NecroCoreAst
 
     //--------------------
     // Add global value
+    const bool is_machine_fn = machine_def->machine_def.num_arg_names > 0;
     if (outer == NULL && !is_machine_fn)
     {
         NecroMachAst*       global_value  = NULL;
@@ -610,6 +716,7 @@ void necro_core_transform_to_mach_2_bind(NecroMachProgram* program, NecroCoreAst
 
         //--------------------
         // init_fn
+        // TODO: Make sure to init for state arrays and rec state arrays correctly! Right now we're not handling them at all!
         {
             machine_def->machine_def.init_fn->necro_machine_type->fn_type.parameters[0] = machine_ptr_type;
             NecroMachAst* data_ptr = necro_mach_value_create_param_reg(program, machine_def->machine_def.init_fn, 0);
@@ -667,21 +774,6 @@ void necro_core_transform_to_mach_2_var(NecroMachProgram* program, NecroCoreAst*
     }
     if (machine_ast->type == NECRO_MACH_DEF)
     {
-        // NOTE: Handle this at bind instead of at var!!!!
-        // // if (machine_ast->machine_def.state_type != NECRO_STATE_STATEFUL)
-        // // if (machine_ast->machine_def.num_members == 0)
-        // if (machine_ast->machine_def.state_type != NECRO_STATE_STATEFUL || machine_ast->machine_def.num_members == 0) // Add member if either?
-        //     return;
-        // if (necro_mach_is_var_machine_arg(outer, ast_symbol->name))
-        //     return;
-        // if (machine_ast->machine_def.outer == NULL)
-        //     return;
-        // if (machine_ast->machine_def.is_persistent_slot_set)
-        //     return;
-        // machine_ast->machine_def.is_persistent_slot_set = true;
-        // core_ast->persistent_slot = necro_mach_type_is_unboxed(program, machine_ast->machine_def.value_type)
-        //     ? necro_mach_add_member(program, &outer->machine_def, machine_ast->machine_def.value_type, machine_ast).slot_num
-        //     : necro_mach_add_member(program, &outer->machine_def, necro_mach_type_create_ptr(&program->arena, machine_ast->machine_def.value_type), machine_ast).slot_num;
         return;
     }
     else if (mach_symbol->is_constructor)
@@ -806,7 +898,7 @@ void necro_core_transform_to_mach_2_for(NecroMachProgram* program, NecroCoreAst*
     NecroMachAstSymbol* for_state_symbol = necro_mach_ast_symbol_gen(program, NULL, "LoopState", NECRO_MANGLE_NAME);
     NecroMachType*      for_state_type   = necro_mach_create_struct_def(program, for_state_symbol, for_member_types, for_num_members)->necro_machine_type;
     NecroMachType*      for_array_type   = necro_mach_type_create_array(&program->arena, for_state_type, core_ast->for_loop.max_loops);
-    core_ast->persistent_slot            = necro_mach_add_member(program, &outer->machine_def, for_array_type, NULL).slot_num;
+    core_ast->persistent_slot            = necro_mach_add_member_non_recursive(program, &outer->machine_def, for_array_type, NULL).slot_num;
 }
 
 void necro_core_transform_to_mach_2_go(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
@@ -1040,6 +1132,7 @@ NecroMachAst* necro_core_transform_to_mach_3_app(NecroMachProgram* program, Necr
     return result;
 }
 
+// TODO: Handle rec_state arrays!
 void necro_core_transform_to_mach_3_initializer(NecroMachProgram* program, NecroCoreAst* bind_ast, NecroMachAst* outer)
 {
     if (bind_ast->bind.initializer == NULL)
@@ -1047,6 +1140,8 @@ void necro_core_transform_to_mach_3_initializer(NecroMachProgram* program, Necro
     assert(outer != NULL);
     assert(outer->machine_def.init_fn != NULL);
     // HACK: Swap init_fn with upate_fn
+    // bool was_in_rec_binding              = outer->machine_def.is_in_rec_binding;
+    // outer->machine_def.is_in_rec_binding = false;
     necro_mach_value_put_state_ptr(outer->machine_def.init_fn, necro_mach_value_create_param_reg(program, outer->machine_def.init_fn, 0));
     NecroMachAst* update_fn         = outer->machine_def.update_fn;
     outer->machine_def.update_fn    = outer->machine_def.init_fn;
@@ -1066,7 +1161,74 @@ void necro_core_transform_to_mach_3_initializer(NecroMachProgram* program, Necro
         // Global Binding, Store result in global variable
         necro_mach_build_store(program, outer->machine_def.init_fn, initialized_value, outer->machine_def.global_value);
     }
-    outer->machine_def.update_fn = update_fn;
+    outer->machine_def.update_fn         = update_fn;
+    // outer->machine_def.is_in_rec_binding = was_in_rec_binding;
+}
+
+typedef enum { NECRO_MACH_IS_TOP, NECRO_MACH_IS_NOT_TOP } NECRO_MACH_TOP_TYPE;
+
+// void necro_core_transform_handle_rec_state_flag(NecroMachProgram* program, NecroMachAst* outer)
+// {
+//     if (!outer->machine_def.is_in_rec_binding || outer->machine_def.rec_state_flag != NULL)
+//         return;
+//     NecroMachAst* current_state_ptr   = necro_mach_value_get_state_ptr(outer->machine_def.update_fn);
+//     NecroMachAst* rec_state_flag_ptr  = necro_mach_build_gep(program, outer->machine_def.update_fn, current_state_ptr, (uint32_t[]) { 0, outer->machine_def.rec_state_flag_slot }, 2, "rec_state_flag_pr");
+//     NecroMachAst* rec_state_flag      = necro_mach_build_load(program, outer->machine_def.update_fn, rec_state_flag_ptr, "rec_state_flag");
+//     NecroMachAst* flipped_flag        = necro_mach_build_binop(program, outer->machine_def.update_fn, necro_mach_value_create_word_uint(program, 1), rec_state_flag, NECRO_MACH_BINOP_USUB);
+//     necro_mach_build_store(program, outer->machine_def.update_fn, flipped_flag, rec_state_flag_ptr);
+//     outer->machine_def.rec_state_flag = rec_state_flag;
+// }
+
+NecroMachAst* necro_core_transform_to_mach_3_bind_expr(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer, NECRO_MACH_TOP_TYPE top_type)
+{
+    assert(program != NULL);
+    assert(core_ast != NULL);
+    assert(core_ast->ast_type == NECRO_CORE_AST_BIND);
+    assert(outer != NULL);
+    assert(outer->type == NECRO_MACH_DEF);
+
+    NecroMachAst* current_state_ptr      = necro_mach_value_get_state_ptr(outer->machine_def.update_fn);
+    const size_t  persistent_slot        = core_ast->persistent_slot;
+    const bool    is_recursive           = persistent_slot != 0xFFFFFFFF;
+    // const bool    uses_rec_state         = is_recursive && (outer->machine_def.rec_state_flag_slot != 0xFFFFFFFF);
+    // const bool    uses_rec_state         = is_recursive && !necro_mach_type_is_unboxed(program, necro_mach_type_from_necro_type(program, core_ast->bind.expr->necro_type));
+    // const bool    was_in_rec_bind        = outer->machine_def.is_in_rec_binding;
+    // NecroMachAst* current_rec_state_flag = outer->machine_def.rec_state_flag;
+
+    // // Double up on necro_add_member, test for is_in_rec_bind, do special gep, buffer_flags don't double up, for state structs don't double up
+    // if (uses_rec_state)
+    // {
+    //     outer->machine_def.is_in_rec_binding = true;
+    //     const size_t rec_state_flag_slot = persistent_slot + 1;
+    //     // necro_core_transform_handle_rec_state_flag(program, outer);
+    //     // if (outer->machine_def.rec_state_flag == NULL)
+    //     // {
+    //         NecroMachAst* rec_state_flag_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, current_state_ptr, (uint32_t[]) { 0, rec_state_flag_slot }, 2, "rec_state_flag_pr");
+    //         NecroMachAst* rec_state_flag     = necro_mach_build_load(program, outer->machine_def.update_fn, rec_state_flag_ptr, "rec_state_flag");
+    //         NecroMachAst* flipped_flag       = necro_mach_build_binop(program, outer->machine_def.update_fn, necro_mach_value_create_word_uint(program, 1), rec_state_flag, NECRO_MACH_BINOP_USUB);
+    //         necro_mach_build_store(program, outer->machine_def.update_fn, flipped_flag, rec_state_flag_ptr);
+    //         outer->machine_def.rec_state_flag = rec_state_flag;
+    //         // TODO: Handle case lazy rec_state_flag shit...
+    //     // }
+    // }
+
+    NecroMachAst* result_value = necro_core_transform_to_mach_3_go(program, core_ast->bind.expr, outer);
+
+    // TODO: Also need to test if we're a global or not...
+    if (is_recursive && top_type == NECRO_MACH_IS_NOT_TOP)
+    {
+        // // Replace state_ptr
+        // if (uses_rec_state)
+        //     necro_mach_value_put_state_ptr(outer->machine_def.update_fn, current_state_ptr);
+        // Store Result
+        const size_t  result_slot = core_ast->persistent_slot;
+        NecroMachAst* result_ptr  = necro_mach_build_gep(program, outer->machine_def.update_fn, current_state_ptr, (uint32_t[]) { 0, result_slot }, 2, "result_ptr");
+        necro_mach_build_store(program, outer->machine_def.update_fn, result_value, result_ptr);
+    }
+
+    // outer->machine_def.is_in_rec_binding = was_in_rec_bind;
+    // outer->machine_def.rec_state_flag    = current_rec_state_flag;
+    return result_value;
 }
 
 NecroMachAst* necro_core_transform_to_mach_3_bind(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
@@ -1091,29 +1253,15 @@ NecroMachAst* necro_core_transform_to_mach_3_bind(NecroMachProgram* program, Nec
     // Local bindings (early exit)
     if (outer != NULL)
     {
-        NecroMachAst* return_value = necro_core_transform_to_mach_3_go(program, core_ast->bind.expr, outer);
-        // if (machine_def->machine_def.state_type == NECRO_STATE_STATEFUL)
-        if (core_ast->bind.initializer != NULL)
-        {
-            // Initialize
-            necro_core_transform_to_mach_3_initializer(program, core_ast, outer);
-            // Store
-            const size_t  slot     = core_ast->persistent_slot;
-            NecroMachAst* param0   = necro_mach_value_get_state_ptr(outer->machine_def.update_fn);
-            NecroMachAst* slot_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, param0, (uint32_t[]) { 0, slot }, 2, "persistent_ptr");
-            necro_mach_build_store(program, machine_def->machine_def.outer->machine_def.update_fn, return_value, slot_ptr);
-            symbol->ast = return_value;
-        }
-        else
-        {
-            symbol->ast = return_value;
-        }
+        necro_core_transform_to_mach_3_initializer(program, core_ast, outer);
+        NecroMachAst* return_value   = necro_core_transform_to_mach_3_bind_expr(program, core_ast, outer, NECRO_MACH_IS_NOT_TOP);
+        symbol->ast                  = return_value;
         return return_value;
     }
     necro_core_transform_to_mach_3_initializer(program, core_ast, machine_def);
 
     //--------------------
-    // Start function
+    // Global Bindings, create update type
     NecroArenaSnapshot  snapshot          = necro_snapshot_arena_get(&program->snapshot_arena);
     bool                uses_state        = machine_def->machine_def.num_members > 0;
     NecroMachAstSymbol* update_symbol     = necro_mach_ast_symbol_gen(program, NULL, necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char*[]) { "update", machine_def->machine_def.machine_name->name->str + 1 }), NECRO_MANGLE_NAME);
@@ -1141,9 +1289,14 @@ NecroMachAst* necro_core_transform_to_mach_3_bind(NecroMachProgram* program, Nec
         machine_def->machine_def.arg_names[i]->ast = necro_mach_value_create_param_reg(program, update_fn_def, i + (uses_state ? 1 : 0));
     }
 
+    // //--------------------
+    // // Rec State array
+    // machine_def->machine_def.rec_state_array = necro_mach_build_gep(program, machine_def->machine_def.update_fn, necro_mach_value_create_param_reg(program, machine_def->machine_def.update_fn, 0), (uint32_t[]) { 0, machine_def->machine_def.num_members }, 2, "rec_state_array");
+
     //--------------------
     // Go deeper
-    NecroMachAst* result = necro_core_transform_to_mach_3_go(program, core_ast->bind.expr, machine_def);
+    // NecroMachAst* result = necro_core_transform_to_mach_3_go(program, core_ast->bind.expr, machine_def);
+    NecroMachAst* result = necro_core_transform_to_mach_3_bind_expr(program, core_ast, machine_def, NECRO_MACH_IS_TOP);
 
     //--------------------
     // Finish function
@@ -1261,6 +1414,7 @@ void necro_mach_construct_main(NecroMachProgram* program)
     if (main_symbol != NULL)
     {
         // TODO: Handle no main in program
+        assert(main_symbol->core_ast_symbol != NULL);
         program->program_main = main_symbol->core_ast_symbol->mach_symbol->ast;
     }
 
@@ -1503,16 +1657,28 @@ void necro_mach_test()
 /*
 
     {
+        const char* test_name   = "Basic 0";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
         const char* test_name   = "Basic 1";
         const char* test_source = ""
-            "x = True\n";
+            "x = True\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
         necro_mach_test_string(test_name, test_source);
     }
 
     {
         const char* test_name   = "Data 1";
         const char* test_source = ""
-            "data TwoInts = TwoInts Int Int\n";
+            "data TwoInts = TwoInts Int Int\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
         necro_mach_test_string(test_name, test_source);
     }
 
@@ -1520,7 +1686,9 @@ void necro_mach_test()
         const char* test_name   = "Data 2";
         const char* test_source = ""
             "data TwoInts  = TwoInts Int Int\n"
-            "data DoubleUp = DoubleUp TwoInts TwoInts\n";
+            "data DoubleUp = DoubleUp TwoInts TwoInts\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
         necro_mach_test_string(test_name, test_source);
     }
 
@@ -1529,17 +1697,20 @@ void necro_mach_test()
         const char* test_source = ""
             "data TwoInts   = TwoInts Int Int\n"
             "data DoubleUp  = DoubleUp TwoInts TwoInts\n"
-            "data TwoOrFour = Two TwoInts | Four DoubleUp DoubleUp\n";
+            "data TwoOrFour = Two TwoInts | Four DoubleUp DoubleUp\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
         necro_mach_test_string(test_name, test_source);
     }
-
 
     {
         const char* test_name   = "Bind 1";
         const char* test_source = ""
             "data TwoInts = TwoInts Int Int\n"
             "twoForOne :: Int -> TwoInts\n"
-            "twoForOne i = TwoInts i i\n";
+            "twoForOne i = TwoInts i i\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
         necro_mach_test_string(test_name, test_source);
     }
 
@@ -1549,7 +1720,9 @@ void necro_mach_test()
             "data TwoInts   = TwoInts Int Int\n"
             "data DoubleUp  = DoubleUp TwoInts TwoInts\n"
             "doubleDown :: Int -> DoubleUp\n"
-            "doubleDown i = DoubleUp (TwoInts i i) (TwoInts i i)\n";
+            "doubleDown i = DoubleUp (TwoInts i i) (TwoInts i i)\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
         necro_mach_test_string(test_name, test_source);
     }
 
@@ -1558,7 +1731,9 @@ void necro_mach_test()
         const char* test_source = ""
             "data TwoOrNone = None | TwoInts Int Int \n"
             "nope :: Int -> TwoOrNone\n"
-            "nope i = None\n";
+            "nope i = None\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
         necro_mach_test_string(test_name, test_source);
     }
 
@@ -2218,18 +2393,48 @@ void necro_mach_test()
     {
         const char* test_name   = "Rec 3";
         const char* test_source = ""
-            "counter :: Maybe Int\n"
+            "counter :: (Int, Int)\n"
             "counter = x where\n"
-            "  x ~ Nothing =\n"
+            "  x ~ (0, 1) =\n"
             "    case x of\n"
-            "      Nothing -> Just 0\n"
-            "      Just i  -> Just (add i 1)\n"
+            "      (l, r) -> (r, l)\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);
     }
 
 */
+
+    {
+        const char* test_name   = "Rec 3.1";
+        const char* test_source = ""
+            "counter :: ((Int, Int), (Int, Int))\n"
+            "counter = x where\n"
+            "  x ~ ((0, 1), (2, 3)) =\n"
+            "    case (gt mouseX 50, x) of\n"
+            "      (True,  ((x, y), r)) -> (r, (y, x))\n"
+            "      (False, ((z, w), r)) -> ((w, z), r)\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+/*
+
+    {
+        const char* test_name   = "Rec 3.2";
+        const char* test_source = ""
+            "counter :: Maybe Int\n"
+            "counter = x where\n"
+            "  x ~ Nothing =\n"
+            "    case x of\n"
+            "      Nothing -> Just 0\n"
+            "      Just 0  -> Nothing\n"
+            "      Just i  -> Just (add i 1)\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
 
     {
         const char* test_name   = "Rec 1.5";
@@ -2244,7 +2449,18 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
-/*
+    {
+        const char* test_name   = "Rec 1.6";
+        const char* test_source = ""
+            "counter :: (Int, Int)\n"
+            "counter =\n"
+            "  case (gt mouseX 50) of\n"
+            "    True  -> let x ~ 0 = add x 1 in (x, x)\n"
+            "    False -> let y ~ 0 = sub y 1 in (y, y)\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
 
     {
         const char* test_name   = "Rec 4";
@@ -2265,6 +2481,22 @@ void necro_mach_test()
             "counter = x where\n"
             "  x ~ (0, 1, 2, 3) = x\n"
             "  y ~ (3, 2, 1, 0) = y\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Rec 5.5";
+        const char* test_source = ""
+            "counter :: (Int, Int)\n"
+            "counter = x where\n"
+            "  x ~ (0, 1) =\n"
+            "    case x of\n"
+            "      (xl, xr) -> (xr, xl)\n"
+            "  y ~ (2, 3) =\n"
+            "    case y of\n"
+            "      (yl, yr) -> (yr, yl)\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);

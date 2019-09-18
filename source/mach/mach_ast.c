@@ -18,7 +18,7 @@
 ///////////////////////////////////////////////////////
 NecroMachSlot necro_mach_slot_empty()
 {
-    return (NecroMachSlot) { .slot_num = 0, .necro_machine_type = NULL, .machine_def = NULL, .slot_ast = NULL };
+    return (NecroMachSlot) { .slot_num = 0, .necro_machine_type = NULL, .machine_def = NULL, .slot_ast = NULL, .is_rec_slot = false };
 }
 
 NecroMachAstSymbol* necro_mach_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name)
@@ -1085,12 +1085,20 @@ NecroMachAst* necro_mach_create_initial_machine_def(NecroMachProgram* program, N
         ast->machine_def.fn_type          = NULL;
         ast->machine_def.necro_value_type = necro_value_type;
     }
-    const size_t initial_members_size  = 4;
-    ast->machine_def.members           = necro_paged_arena_alloc(&program->arena, initial_members_size * sizeof(NecroMachSlot));
-    ast->machine_def.num_members       = 0;
-    ast->machine_def.members_size      = initial_members_size;
-    symbol->ast                        = ast;
-    ast->machine_def.machine_name->ast = ast;
+    const size_t initial_members_size    = 4;
+    ast->machine_def.members             = necro_paged_arena_alloc(&program->arena, initial_members_size * sizeof(NecroMachSlot));
+    ast->machine_def.num_members         = 0;
+    ast->machine_def.members_size        = initial_members_size;
+    // ast->machine_def.rec_members         = necro_paged_arena_alloc(&program->arena, initial_members_size * sizeof(NecroMachSlot));
+    // ast->machine_def.rec_num_members     = 0;
+    // ast->machine_def.rec_members_size    = initial_members_size;
+    // ast->machine_def.is_in_rec_binding   = false;
+    // ast->machine_def.rec_state_array     = NULL;
+    // ast->machine_def.rec_state_flag      = NULL;
+    // ast->machine_def.rec_state_flag_slot = 0xFFFFFFFF;
+    // ast->machine_def.rec_state_value     = NULL;
+    symbol->ast                          = ast;
+    ast->machine_def.machine_name->ast   = ast;
     if (outer == 0)
         necro_mach_program_add_machine_def(program, ast);
     necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);

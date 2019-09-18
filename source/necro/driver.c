@@ -303,6 +303,7 @@ void necro_test(NECRO_TEST test)
     case NECRO_TEST_DEFUNCTIONALIZE:      necro_defunctionalize_test();      break;
     case NECRO_TEST_ARENA_CHAIN_TABLE:    necro_arena_chain_table_test();    break;
     case NECRO_TEST_BASE:                 necro_base_test();                 break;
+    case NECRO_TEST_STATE_ANALYSIS:       necro_state_analysis_test();       break;
     case NECRO_TEST_MACH:                 necro_mach_test();                 break;
     case NECRO_TEST_LLVM:                 necro_llvm_test();                 break;
     case NECRO_TEST_JIT:                  necro_llvm_test_jit();             break;
@@ -319,6 +320,7 @@ void necro_test(NECRO_TEST test)
         necro_core_ast_test();
         necro_core_lambda_lift_test();
         necro_defunctionalize_test();
+        necro_state_analysis_test();
         necro_mach_test();
         necro_llvm_test();
         break;

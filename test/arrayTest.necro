@@ -69,10 +69,31 @@ loopTest = a' where
       (x * 100, writeArray i x a)
 
 -- New, non-poly Range API
-each          :: Range n
-slidingWindow :: Index n -> Range m -> Range m
-offsetRange   :: UInt -> Range n -> Range n
-writeArray    :: Index n -> *a -> *Array n a -> *Array n a
+each               :: Range n
+slidingWindow      :: Index n -> Range m -> Range m
+offsetRange        :: UInt -> Range n -> Range n
+_unsafeUninitArray :: *Array n a
+freezeArray        :: *Array n (Shared a) -> Array n a
+readArray          :: Index n -> Array n a -> a
+readArray'         :: Index n -> *Array n (Shared a) -> *(Array n (Shared a), Shared a)
+writeArray         :: Index n -> *a -> *Array n a -> *Array n a
+
+map :: (a -> b) -> Array n a -> Array n b
+map f a =
+    freezeArray <|
+        for each _unsafeUninitArray loop i b ->
+            let aVal = readArray i a
+                bVal = Shared (f aVal)
+            in writeArray i bVal b
+
+mapU :: (*a -> *b) -> *Array n a -> *Array n b
+mapU f arrayA =
+  for each _unsafeUninitArray loop i arrayB ->
+    let
+      valA = readArray i arrayA
+      valB = f valA
+    in
+      writeArray i valB arrayB
 
 each :: Range n
 each = Range 0 1 0

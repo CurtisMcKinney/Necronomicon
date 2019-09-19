@@ -18,7 +18,7 @@
 
 /*
     TODO:
-        * Benchmark test
+        * Array empty, array indexing, array writing
         * Make World have Pointwise state_type!
         * Handle deep_copy_fn with arrays!
         * For loop initializer handling!

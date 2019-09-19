@@ -1,5 +1,6 @@
--- Old System: One million stateful calculations at 100 ticks per second
--- New System: 0% cpu for One million stateful calculations at 100 ticks per second
+-- Old System: 100% cpu for One million stateful functions at 100 ticks per second
+-- New System: 0%   cpu for One million stateful functions at 100 ticks per second
+--             9%   cpu for 10 million stateful functions at 100 ticks per second
 tick :: Int -> Int
 tick delta = feed where
     feed ~ 0 = add delta feed
@@ -23,10 +24,14 @@ oneHundredThousandTimes :: Int -> Int
 oneHundredThousandTimes n =
     (add (tenThousandTimes n) (add (tenThousandTimes n) (add (tenThousandTimes n) (add (tenThousandTimes n) (add (tenThousandTimes n)
     (add (tenThousandTimes n) (add (tenThousandTimes n) (add (tenThousandTimes n) (add (tenThousandTimes n) (tenThousandTimes n))))))))))
-oneMillionTimes :: Int
-oneMillionTimes =
-    (add (oneHundredThousandTimes 1) (add (oneHundredThousandTimes 1) (add (oneHundredThousandTimes 1) (add (oneHundredThousandTimes 1) (add (oneHundredThousandTimes 1)
-    (add (oneHundredThousandTimes 1) (add (oneHundredThousandTimes 1) (add (oneHundredThousandTimes 1) (add (oneHundredThousandTimes 1) (oneHundredThousandTimes 1))))))))))
+oneMillionTimes :: Int -> Int
+oneMillionTimes n =
+    (add (oneHundredThousandTimes n) (add (oneHundredThousandTimes n) (add (oneHundredThousandTimes n) (add (oneHundredThousandTimes n) (add (oneHundredThousandTimes n)
+    (add (oneHundredThousandTimes n) (add (oneHundredThousandTimes n) (add (oneHundredThousandTimes n) (add (oneHundredThousandTimes n) (oneHundredThousandTimes n))))))))))
+tenMillionTimes :: Int -> Int
+tenMillionTimes n =
+    (add (oneMillionTimes n) (add (oneMillionTimes n) (add (oneMillionTimes n) (add (oneMillionTimes n) (add (oneMillionTimes n)
+    (add (oneMillionTimes n) (add (oneMillionTimes n) (add (oneMillionTimes n) (add (oneMillionTimes n) (oneMillionTimes n))))))))))
 main :: *World -> *World
-main w = printInt oneMillionTimes w
+main w = printInt (tenMillionTimes 1) w
 

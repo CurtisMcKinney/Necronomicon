@@ -97,7 +97,7 @@ void necro_alias_analysis(NecroCompileInfo info, NecroAstArena* ast_arena)
 {
     NecroAliasAnalysis alias_analysis = necro_alias_analysis_create(ast_arena);
     necro_alias_analysis_impl(&alias_analysis);
-    if (info.verbosity > 0)
+    if (info.compilation_phase == NECRO_PHASE_DEPENDENCY_ANALYSIS && info.verbosity > 0)
         necro_alias_set_print_sharing(alias_analysis.top_set);
     necro_alias_analysis_destroy(&alias_analysis);
 }

@@ -877,41 +877,10 @@ NecroCoreAst* necro_core_ast_create_deep_copy(NecroStateAnalysis* context, Necro
     deep_copy_ast->necro_type               = deep_copy_type;
     deep_copy_symbol->ast                   = deep_copy_ast;
     deep_copy_symbol->type                  = deep_copy_type;
+    deep_copy_symbol->is_deep_copy_fn       = true;
     ast->data_decl.ast_symbol->deep_copy_fn = deep_copy_symbol;
     return deep_copy_ast;
 }
-
-// void necro_core_ast_create_deep_copy_fns(NecroStateAnalysis* context, NecroCoreAst* top)
-// {
-//     assert(top != NULL);
-//     assert(top->ast_type == NECRO_CORE_AST_LET);
-//     NecroCoreAst* copy_head = NULL;
-//     NecroCoreAst* copy_tail = NULL;
-//     NecroCoreAst* curr      = top;
-//     while (curr->let.expr != NULL && curr->let.expr->ast_type == NECRO_CORE_AST_LET && curr->let.expr->let.bind->ast_type == NECRO_CORE_AST_DATA_DECL)
-//     {
-//         NecroCoreAst* deep_copy_fn = necro_core_ast_create_deep_copy(context, curr->let.expr->let.bind);
-//         if (deep_copy_fn != NULL)
-//         {
-//             if (copy_head == NULL)
-//             {
-//                 copy_head = necro_core_ast_create_let(context->arena, deep_copy_fn, NULL);
-//                 copy_tail = copy_head;
-//             }
-//             else
-//             {
-//                 copy_tail->let.expr = necro_core_ast_create_let(context->arena, deep_copy_fn, NULL);
-//                 copy_tail           = copy_tail->let.expr;
-//             }
-//         }
-//         curr = curr->let.expr;
-//     }
-//     if (copy_tail != NULL)
-//     {
-//         copy_tail->let.expr = curr->let.expr;
-//         curr->let.expr      = copy_head;
-//     }
-// }
 
 
 ///////////////////////////////////////////////////////

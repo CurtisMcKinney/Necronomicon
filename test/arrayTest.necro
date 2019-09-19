@@ -121,34 +121,8 @@ counter = x where
 
 feedTest :: ((Int, Int), (Int, Int))
 feedTest = x where
-    x ~ ((0, 1), (2, 3)) =
-        case (gt mouseX 50, x) of
-            (True,  ((x, y), r)) -> (r, (y, x))
-            (False, ((z, w), r)) -> ((w, z), r)
-
--- Bind based flag
-~                                       -> !I0_0(!I0_1(0, 1), !I0_2(2, 3))
-0 True  &I0_0(&I0_1(0, 1), &I0_2(2, 3)) -> !T0_0(&I0_2(2, 3), !T0_1(1, 0))
-1 False &T0_0(&I0_2(2, 3), &T0_1(1, 0)) -> !F1_0(!F1_1(3, 2), &T0_1(1, 0))
-0 True  &F1_0(&F1_1(3, 2), &T0_1(1, 0)) -> !T0_0(&T0_1(1, 0), !T0_1(2, 3)) -- BOOM! T0_1 Referenced and Overwritten
-
--- Bind+Case based flag
-~                                       -> !I0_0(!I0_1(0, 1), !I0_2(2, 3))
-0 True  &I0_0(&I0_1(0, 1), &I0_2(2, 3)) -> !T0_0(&I0_2(2, 3), !T0_1(1, 0))
-0 False &T0_0(&I0_2(2, 3), &T0_1(1, 0)) -> !F0_0(!F0_1(3, 2), &T0_1(1, 0))
-1 True  &F0_0(&F0_1(3, 2), &T0_1(1, 0)) -> !T1_0(&T0_1(1, 0), !T1_1(2, 3))
-
-1 False &T1_0(&T0_1(1, 0), &T1_1(2, 3)) -> !F1_0(!F1_1(0, 1), &T1_1(2, 3))
-0 True  &F1_0(&F1_1(0, 1), &T1_1(2, 3)) -> !T0_0(&T1_1(2, 3), !T0_1(1, 0))
-1 True  &T0_0(&T1_1(2, 3), &T0_1(1, 0)) -> !T1_0(&T0_1(1, 0), !T1_1(3, 2))
-
--- State 3.0
--- Deep Copy on recursive Load from var
--- Generate deep copy functions NecroMach, ignore for unboxed types.
--- Create deep copy functions on demand and associate with Type HashMap
--- Cache result so you only need to perform deep copy once
--- Supports partial recursion without excess deep copying
--- Supports ping-ponging
--- Only requires 2x memory for loaded recursive values
--- Still requires function calls and branching
+  x ~ ((0, 1), (2, 3)) =
+    case (gt mouseX 50, x) of
+      (True,  ((x, y), r)) -> (r, (y, x))
+      (False, ((z, w), r)) -> ((w, z), r)
 

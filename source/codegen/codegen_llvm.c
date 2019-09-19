@@ -2995,8 +2995,6 @@ void necro_llvm_test_jit()
         necro_llvm_jit_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "For Loop 5";
         const char* test_source = ""
@@ -3015,8 +3013,6 @@ void necro_llvm_test_jit()
             "    Just i  -> printInt i w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
-
-/*
 
     {
         const char* test_name   = "Rec 1";
@@ -3046,7 +3042,7 @@ void necro_llvm_test_jit()
     }
 
     {
-        const char* test_name   = "Rec 1.5";
+        const char* test_name   = "Rec 1.1";
         const char* test_source = ""
             "counter :: Int\n"
             "counter =\n"
@@ -3058,6 +3054,28 @@ void necro_llvm_test_jit()
         necro_llvm_jit_string(test_name, test_source);
     }
 
+*/
+
+    {
+        const char* test_name   = "Rec 5.5";
+        const char* test_source = ""
+            "counter :: (Int, Int)\n"
+            "counter = x where\n"
+            "  x ~ (0, 1) =\n"
+            "    case x of\n"
+            "      (xl, xr) -> (xr, xl)\n"
+            "  y ~ (2, 3) =\n"
+            "    case y of\n"
+            "      (yl, yr) -> (yr, yl)\n"
+            "main :: *World -> *World\n"
+            "main w =\n"
+            "  case counter of\n"
+            "    (xl, _) -> printInt xl w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+/*
+
     {
         const char* test_name   = "Mouse 1";
         const char* test_source = ""
@@ -3065,6 +3083,31 @@ void necro_llvm_test_jit()
             "main w = printInt mouseX w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
+
+// TODO / NOTE: This should parse but isn't?
+    {
+        const char* test_name   = "Rec 1.2";
+        const char* test_source = ""
+            "counter :: (Int, Int)\n"
+            "counter =\n"
+            "  case gt mouseX 50 of\n"
+            "    True ->\n"
+            "        let x ~ (0, 1) =\n"
+            "            case x of\n"
+            "               (xa, xd) -> (add xa xd, xd)\n"
+            "        in x\n"
+            "    False ->\n"
+            "        let y ~ (0, 1) =\n"
+            "            case y of\n"
+            "               (ya, yd) -> (sub ya yd, yd)\n"
+            "        in y\n"
+            "main :: *World -> *World\n"
+            "main w =\n"
+            "  case counter of\n"
+            "    (cval, _) -> printInt cval w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
 
 */
 

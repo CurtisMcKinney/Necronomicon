@@ -18,7 +18,7 @@
 ///////////////////////////////////////////////////////
 NecroMachSlot necro_mach_slot_empty()
 {
-    return (NecroMachSlot) { .slot_num = 0, .necro_machine_type = NULL, .machine_def = NULL, .slot_ast = NULL, .is_rec_slot = false };
+    return (NecroMachSlot) { .slot_num = 0, .necro_machine_type = NULL, .machine_def = NULL, .slot_ast = NULL, .const_init_value = NULL };
 }
 
 NecroMachAstSymbol* necro_mach_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name)
@@ -34,6 +34,7 @@ NecroMachAstSymbol* necro_mach_ast_symbol_create(NecroPagedArena* arena, NecroSy
     symbol->is_primitive       = false;
     symbol->con_num            = 0;
     symbol->codegen_symbol     = NULL;
+    symbol->is_deep_copy_fn    = false;
     return symbol;
 }
 
@@ -53,6 +54,7 @@ NecroMachAstSymbol* necro_mach_ast_symbol_create_from_core_ast_symbol(NecroPaged
     symbol->is_primitive         = core_ast_symbol->is_primitive;
     symbol->con_num              = core_ast_symbol->con_num;
     symbol->codegen_symbol       = NULL;
+    symbol->is_deep_copy_fn      = core_ast_symbol->is_deep_copy_fn;
     core_ast_symbol->mach_symbol = symbol;
     return symbol;
 }

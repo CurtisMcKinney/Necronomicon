@@ -95,17 +95,17 @@ typedef struct NecroCoreAstSymbol
     struct NecroType*          type;
     struct NecroCoreScope*     free_vars;
     struct NecroStaticValue*   static_value;
-    size_t                     arity;
     struct NecroMachAstSymbol* mach_symbol;
-    struct NecroMachAstSymbol* _mach_symbol;
+    struct NecroCoreAstSymbol* outer;
+    struct NecroCoreAstSymbol* deep_copy_fn;
+    size_t                     arity;
     size_t                     con_num;
+    NECRO_STATE_TYPE           state_type;
     bool                       is_constructor;
     bool                       is_enum;
     bool                       is_recursive;
     bool                       is_primitive;
-    NECRO_STATE_TYPE           state_type;
-    struct NecroCoreAstSymbol* outer;
-    struct NecroCoreAstSymbol* deep_copy_fn;
+    bool                       is_deep_copy_fn;
 } NecroCoreAstSymbol;
 
 NecroCoreAstSymbol* necro_core_ast_symbol_create(NecroPagedArena* core_ast_arena, NecroSymbol name, struct NecroType* type);

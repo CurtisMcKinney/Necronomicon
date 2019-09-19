@@ -51,10 +51,10 @@ struct NecroMachType;
 typedef struct NecroMachSlot
 {
     size_t                slot_num;
-    bool                  is_rec_slot;
     struct NecroMachType* necro_machine_type;
     struct NecroMachDef*  machine_def;
     struct NecroMachAst*  slot_ast;
+    struct NecroMachAst*  const_init_value;
 } NecroMachSlot;
 
 //--------------------
@@ -63,16 +63,17 @@ typedef struct NecroMachSlot
 struct NecroLLVMSymbol; // TODO: Place holder. Replace with void* for better flexibility after testing is done
 typedef struct NecroMachAstSymbol
 {
-    NecroSymbol           name;
-    struct NecroMachAst*  ast;
-    struct NecroMachType* mach_type;
-    NecroType*            necro_type;
-    NECRO_STATE_TYPE      state_type;
-    bool                  is_enum;
-    bool                  is_constructor;
-    bool                  con_num;
-    bool                  is_primitive;
+    NecroSymbol             name;
+    struct NecroMachAst*    ast;
+    struct NecroMachType*   mach_type;
+    NecroType*              necro_type;
     struct NecroLLVMSymbol* codegen_symbol;
+    NECRO_STATE_TYPE        state_type;
+    bool                    is_enum;
+    bool                    is_constructor;
+    bool                    con_num;
+    bool                    is_primitive;
+    bool                    is_deep_copy_fn;
 } NecroMachAstSymbol;
 
 //--------------------

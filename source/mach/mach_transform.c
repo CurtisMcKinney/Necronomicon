@@ -18,22 +18,16 @@
 
 /*
     TODO:
-        * TODO: Make World have Pointwise state_type!
-        * How to initialize deep_copy_fn buffer flags?
-        * For loop state handling!
+        * Benchmark test
+        * Make World have Pointwise state_type!
+        * Handle deep_copy_fn with arrays!
+        * For loop initializer handling!
         * Test stateful for loops which need initializers and stateful recursive shit in for loops which need initializers
         * Exhaustive Case expression / Redundant Case Expression
-        * Fix word size assertion bug (checks for UINT32 should do it differently)
         * llvm allocator?
         * llvm codegen
         * wildcard flag in NecroCoreAstVar
-        * deepcopy arrays
-        * defunctionalization
         * bind_rec (for mutual recursion)
-        * Two buffers with tick tock buffering scheme?
-        * Runtime considerations
-        * Codegen
-        * Finish up case (literals)
         * Somehow we have a memory leak?
         * Defunctionalization
 */
@@ -498,9 +492,10 @@ void necro_mach_remove_only_self_recursive_member(NecroMachProgram* program, Nec
 {
     assert(program != NULL);
     assert(ast->type == NECRO_MACH_DEF);
-    if (ast->machine_def.num_arg_names == 0 || ast->machine_def.num_members != 1 || !necro_mach_type_is_eq(ast->machine_def.members[0].necro_machine_type->ptr_type.element_type, ast->necro_machine_type))
-        return;
-    ast->machine_def.num_members = 0;
+    // TODO:  eexamine this
+    // if (ast->machine_def.num_arg_names == 0 || ast->machine_def.num_members != 1 || !necro_mach_type_is_eq(ast->machine_def.members[0].necro_machine_type->ptr_type.element_type, ast->necro_machine_type))
+    //     return;
+    // ast->machine_def.num_members = 0;
 }
 
 void necro_mach_calculate_statefulness(NecroMachProgram* program, NecroMachAst* ast)
@@ -1396,7 +1391,7 @@ void necro_mach_construct_main(NecroMachProgram* program)
 
     //--------------------
     // Loop Or Finish
-    necro_mach_build_call(program, necro_main_fn, program->runtime.necro_sleep->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint32(program, 20) }, 1, NECRO_MACH_CALL_C, "");
+    necro_mach_build_call(program, necro_main_fn, program->runtime.necro_sleep->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint32(program, 10) }, 1, NECRO_MACH_CALL_C, "");
     NecroMachAst* is_done     = necro_mach_build_call(program, necro_main_fn, program->runtime.necro_runtime_is_done->ast->fn_def.fn_value, NULL, 0, NECRO_MACH_CALL_C, "is_done");
     NecroMachAst* is_done_cmp = necro_mach_build_cmp(program, necro_main_fn, NECRO_MACH_CMP_GT, is_done, necro_mach_value_create_word_uint(program, 0));
     necro_mach_build_cond_break(program, necro_main_fn, is_done_cmp, necro_main_done, necro_main_loop);

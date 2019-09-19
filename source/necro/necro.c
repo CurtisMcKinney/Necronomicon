@@ -188,7 +188,7 @@ int main(int32_t argc, char** argv)
         {
             necro_compile(file_name, str, length, NECRO_PHASE_TRANSFORM_TO_MACHINE, NECRO_OPT_OFF);
         }
-        else if (argc > 2 && strcmp(argv[2], "-codegen") == 0)
+        else if (argc > 2 && strcmp(argv[2], "-llvm") == 0)
         {
             if (argc > 3 &&  strcmp(argv[3], "-opt") == 0)
                 necro_compile(file_name, str, length, NECRO_PHASE_CODEGEN, NECRO_OPT_ON);

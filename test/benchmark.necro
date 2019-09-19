@@ -1,0 +1,32 @@
+-- Old System: One million stateful calculations at 100 ticks per second
+-- New System: 0% cpu for One million stateful calculations at 100 ticks per second
+tick :: Int -> Int
+tick delta = feed where
+    feed ~ 0 = add delta feed
+tenTimes :: Int -> Int
+tenTimes n =
+    (add (tick n) (add (tick n) (add (tick n) (add (tick n) (add (tick n)
+    (add (tick n) (add (tick n) (add (tick n) (add (tick n) (tick n))))))))))
+oneHundredTimes :: Int -> Int
+oneHundredTimes n =
+    (add (tenTimes n) (add (tenTimes n) (add (tenTimes n) (add (tenTimes n) (add (tenTimes n)
+    (add (tenTimes n) (add (tenTimes n) (add (tenTimes n) (add (tenTimes n) (tenTimes n))))))))))
+oneThousandTimes :: Int -> Int
+oneThousandTimes n =
+    (add (oneHundredTimes n) (add (oneHundredTimes n) (add (oneHundredTimes n) (add (oneHundredTimes n) (add (oneHundredTimes n)
+    (add (oneHundredTimes n) (add (oneHundredTimes n) (add (oneHundredTimes n) (add (oneHundredTimes n) (oneHundredTimes n))))))))))
+tenThousandTimes :: Int -> Int
+tenThousandTimes n =
+    (add (oneThousandTimes n) (add (oneThousandTimes n) (add (oneThousandTimes n) (add (oneThousandTimes n) (add (oneThousandTimes n)
+    (add (oneThousandTimes n) (add (oneThousandTimes n) (add (oneThousandTimes n) (add (oneThousandTimes n) (oneThousandTimes n))))))))))
+oneHundredThousandTimes :: Int -> Int
+oneHundredThousandTimes n =
+    (add (tenThousandTimes n) (add (tenThousandTimes n) (add (tenThousandTimes n) (add (tenThousandTimes n) (add (tenThousandTimes n)
+    (add (tenThousandTimes n) (add (tenThousandTimes n) (add (tenThousandTimes n) (add (tenThousandTimes n) (tenThousandTimes n))))))))))
+oneMillionTimes :: Int
+oneMillionTimes =
+    (add (oneHundredThousandTimes 1) (add (oneHundredThousandTimes 1) (add (oneHundredThousandTimes 1) (add (oneHundredThousandTimes 1) (add (oneHundredThousandTimes 1)
+    (add (oneHundredThousandTimes 1) (add (oneHundredThousandTimes 1) (add (oneHundredThousandTimes 1) (add (oneHundredThousandTimes 1) (oneHundredThousandTimes 1))))))))))
+main :: *World -> *World
+main w = printInt oneMillionTimes w
+

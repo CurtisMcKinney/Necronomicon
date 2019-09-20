@@ -74,8 +74,8 @@ slidingWindow      :: Index n -> Range m -> Range m
 offsetRange        :: UInt -> Range n -> Range n
 _unsafeUninitArray :: *Array n a
 freezeArray        :: *Array n (Shared a) -> Array n a
-readArray          :: Index n -> Array n a -> a
 readArray'         :: Index n -> *Array n (Shared a) -> *(Array n (Shared a), Shared a)
+readArray          :: Index n -> Array n a -> a
 writeArray         :: Index n -> *a -> *Array n a -> *Array n a
 freezeShared       :: *Shared a -> a
 
@@ -87,7 +87,7 @@ map f a =
                 bVal = Shared (f aVal)
             in writeArray i bVal b
 
-mapU :: (*a -> *b) -> *Array n a -> *Array n b
+mapU :: (a -> b) -> *Array n (Shared a) -> *Array n (Shared b)
 mapU f arrayA =
   for each _unsafeUninitArray loop i arrayB ->
     let
@@ -147,4 +147,23 @@ feedTest = x where
     case (gt mouseX 50, x) of
       (True,  ((x, y), r)) -> (r, (y, x))
       (False, ((z, w), r)) -> ((w, z), r)
+
+----------------------------
+-- Sequence Thoughts
+----------------------------
+data SValue a = SValue Time a | SRest Time | SConstant a | SInterval | SEnd
+data Seq a    = Seq (Time -> SValue a)
+
+runSeq :: Seq a -> Time -> SValue a
+runSeq s t =
+  case s of
+    Seq f = f t
+
+coolPat :: Seq Float
+coolPat = Seq <| \t ->
+  case t of
+     0   -> runSeq seqA
+     0.5 -> runSeq seqB
+
+poly1 :: (Audio -> Audio) -> Seq Float -> Audio
 

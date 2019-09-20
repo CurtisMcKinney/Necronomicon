@@ -1194,57 +1194,6 @@ void necro_mach_program_destroy(NecroMachProgram* program)
     *program = necro_mach_program_empty();
 }
 
-void necro_mach_create_prim_binop(NecroMachProgram* program, const char* binop_name, NecroMachType* param_type, NecroMachType* result_type, NECRO_PRIMOP_TYPE op)
-{
-    NecroAstSymbol*     ast_symbol      = necro_symtable_get_top_level_ast_symbol(program->base->scoped_symtable, necro_intern_string(program->intern, binop_name));
-    NecroCoreAstSymbol* core_ast_symbol = ast_symbol->core_ast_symbol;
-    NecroMachAstSymbol* binop_symbol    = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, core_ast_symbol);
-    NecroMachType*      binop_fn_type   = necro_mach_type_create_fn(&program->arena, result_type, (NecroMachType*[]) { param_type, param_type }, 2);
-    NecroMachAst*       binop_fn_block  = necro_mach_block_create(program, "entry", NULL);
-    NecroMachAst*       binop_fn_def    = necro_mach_create_fn(program, binop_symbol, binop_fn_block, binop_fn_type);
-    NecroMachAst*       param1          = necro_mach_value_create_param_reg(program, binop_fn_def, 0);
-    NecroMachAst*       param2          = necro_mach_value_create_param_reg(program, binop_fn_def, 1);
-    NecroMachAst*       result          = necro_mach_build_binop(program, binop_fn_def, param1, param2, op);
-    ast_symbol->is_primitive            = true;
-    core_ast_symbol->is_primitive       = true;
-    binop_symbol->is_primitive          = true;
-    necro_mach_build_return(program, binop_fn_def, result);
-}
-
-void necro_mach_create_prim_uop(NecroMachProgram* program, const char* uop_name, NecroMachType* param_type, NecroMachType* result_type, NECRO_PRIMOP_TYPE op)
-{
-    NecroAstSymbol*     ast_symbol      = necro_symtable_get_top_level_ast_symbol(program->base->scoped_symtable, necro_intern_string(program->intern, uop_name));
-    NecroCoreAstSymbol* core_ast_symbol = ast_symbol->core_ast_symbol;
-    NecroMachAstSymbol* uop_symbol      = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, core_ast_symbol);
-    NecroMachType*      uop_fn_type     = necro_mach_type_create_fn(&program->arena, result_type, (NecroMachType*[]) { param_type }, 1);
-    NecroMachAst*       uop_fn_block    = necro_mach_block_create(program, "entry", NULL);
-    NecroMachAst*       uop_fn_def      = necro_mach_create_fn(program, uop_symbol, uop_fn_block, uop_fn_type);
-    NecroMachAst*       param1          = necro_mach_value_create_param_reg(program, uop_fn_def, 0);
-    NecroMachAst*       result          = necro_mach_build_uop(program, uop_fn_def, param1, op);
-    ast_symbol->is_primitive            = true;
-    core_ast_symbol->is_primitive       = true;
-    uop_symbol->is_primitive            = true;
-    necro_mach_build_return(program, uop_fn_def, result);
-}
-
-void necro_mach_create_prim_cmp_op(NecroMachProgram* program, const char* binop_name, NecroMachType* param_type, NECRO_PRIMOP_TYPE op)
-{
-    NecroAstSymbol*     ast_symbol      = necro_symtable_get_top_level_ast_symbol(program->base->scoped_symtable, necro_intern_string(program->intern, binop_name));
-    NecroCoreAstSymbol* core_ast_symbol = ast_symbol->core_ast_symbol;
-    NecroMachAstSymbol* binop_symbol    = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, core_ast_symbol);
-    NecroMachType*      binop_fn_type   = necro_mach_type_create_fn(&program->arena, program->type_cache.word_uint_type, (NecroMachType*[]) { param_type, param_type }, 2);
-    NecroMachAst*       binop_fn_block  = necro_mach_block_create(program, "entry", NULL);
-    NecroMachAst*       binop_fn_def    = necro_mach_create_fn(program, binop_symbol, binop_fn_block, binop_fn_type);
-    NecroMachAst*       param1          = necro_mach_value_create_param_reg(program, binop_fn_def, 0);
-    NecroMachAst*       param2          = necro_mach_value_create_param_reg(program, binop_fn_def, 1);
-    NecroMachAst*       result          = necro_mach_build_cmp(program, binop_fn_def, op, param1, param2);
-    result                              = necro_mach_build_zext(program, binop_fn_def, result, program->type_cache.word_uint_type);
-    ast_symbol->is_primitive            = true;
-    core_ast_symbol->is_primitive       = true;
-    binop_symbol->is_primitive          = true;
-    necro_mach_build_return(program, binop_fn_def, result);
-}
-
 void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
 {
     assert(program != NULL);
@@ -1260,20 +1209,6 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         NecroMachAstSymbol* int_type_mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, int_type_ast_symbol->core_ast_symbol);
         int_type_mach_symbol->mach_type          = necro_mach_type_create_word_sized_int(program);
         int_type_mach_symbol->is_primitive       = true;
-        // necro_mach_create_prim_binop(program,  "add<Int>",     int_type_mach_symbol->mach_type, int_type_mach_symbol->mach_type, NECRO_PRIMOP_BINOP_IADD);
-        // necro_mach_create_prim_binop(program,  "sub<Int>",     int_type_mach_symbol->mach_type, int_type_mach_symbol->mach_type, NECRO_PRIMOP_BINOP_ISUB);
-        // necro_mach_create_prim_binop(program,  "mul<Int>",     int_type_mach_symbol->mach_type, int_type_mach_symbol->mach_type, NECRO_PRIMOP_BINOP_IMUL);
-        // necro_mach_create_prim_uop(program,    "abs<Int>",     int_type_mach_symbol->mach_type, int_type_mach_symbol->mach_type, NECRO_PRIMOP_UOP_IABS);
-        // necro_mach_create_prim_uop(program,    "signum<Int>",  int_type_mach_symbol->mach_type, int_type_mach_symbol->mach_type, NECRO_PRIMOP_UOP_ISGN);
-        // necro_mach_create_prim_uop(program,    "fromInt<Int>", int_type_mach_symbol->mach_type, int_type_mach_symbol->mach_type, NECRO_PRIMOP_UOP_ITOI);
-        // // Need non-Rational Int division!
-        // // necro_mach_create_prim_binop(program, "div<Int>",   int_type_mach_symbol->mach_type, int_type_mach_symbol->mach_type, NECRO_PRIMOP_BINOP_IDIV);
-        // necro_mach_create_prim_cmp_op(program, "eq<Int>",      int_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_EQ);
-        // necro_mach_create_prim_cmp_op(program, "neq<Int>",     int_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_NE);
-        // necro_mach_create_prim_cmp_op(program, "gt<Int>",      int_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_GT);
-        // necro_mach_create_prim_cmp_op(program, "lt<Int>",      int_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_LT);
-        // necro_mach_create_prim_cmp_op(program, "gte<Int>",     int_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_GE);
-        // necro_mach_create_prim_cmp_op(program, "lte<Int>",     int_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_LE);
     }
 
     // UInt
@@ -1284,20 +1219,6 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         NecroMachAstSymbol* uint_type_mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, uint_type_ast_symbol->core_ast_symbol);
         uint_type_mach_symbol->mach_type          = necro_mach_type_create_word_sized_uint(program);
         uint_type_mach_symbol->is_primitive       = true;
-        // necro_mach_create_prim_binop(program,  "add<UInt>",     uint_type_mach_symbol->mach_type, uint_type_mach_symbol->mach_type, NECRO_PRIMOP_BINOP_UADD);
-        // necro_mach_create_prim_binop(program,  "sub<UInt>",     uint_type_mach_symbol->mach_type, uint_type_mach_symbol->mach_type, NECRO_PRIMOP_BINOP_USUB);
-        // necro_mach_create_prim_binop(program,  "mul<UInt>",     uint_type_mach_symbol->mach_type, uint_type_mach_symbol->mach_type, NECRO_PRIMOP_BINOP_UMUL);
-        // necro_mach_create_prim_uop(program,    "abs<UInt>",     uint_type_mach_symbol->mach_type, uint_type_mach_symbol->mach_type, NECRO_PRIMOP_UOP_UABS);
-        // necro_mach_create_prim_uop(program,    "signum<UInt>",  uint_type_mach_symbol->mach_type, uint_type_mach_symbol->mach_type, NECRO_PRIMOP_UOP_USGN);
-        // necro_mach_create_prim_uop(program,    "fromInt<UInt>", program->type_cache.word_int_type,          uint_type_mach_symbol->mach_type, NECRO_PRIMOP_UOP_ITOU);
-        // // Need non-Rational Int division!
-        // // necro_mach_create_prim_binop(program, "div<UInt>",   uint_type_mach_symbol->mach_type, uint_type_mach_symbol->mach_type, NECRO_PRIMOP_BINOP_IDIV);
-        // necro_mach_create_prim_cmp_op(program, "eq<UInt>",      uint_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_EQ);
-        // necro_mach_create_prim_cmp_op(program, "neq<UInt>",     uint_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_NE);
-        // necro_mach_create_prim_cmp_op(program, "gt<UInt>",      uint_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_GT);
-        // necro_mach_create_prim_cmp_op(program, "lt<UInt>",      uint_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_LT);
-        // necro_mach_create_prim_cmp_op(program, "gte<UInt>",     uint_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_GE);
-        // necro_mach_create_prim_cmp_op(program, "lte<UInt>",     uint_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_LE);
     }
 
     // Float
@@ -1307,20 +1228,6 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         NecroMachAstSymbol* float_type_mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, float_type_ast_symbol->core_ast_symbol);
         float_type_mach_symbol->mach_type          = necro_mach_type_create_word_sized_float(program);
         float_type_mach_symbol->is_primitive       = true;
-        // necro_mach_create_prim_binop(program,  "add<Float>",          float_type_mach_symbol->mach_type, float_type_mach_symbol->mach_type, NECRO_PRIMOP_BINOP_FADD);
-        // necro_mach_create_prim_binop(program,  "sub<Float>",          float_type_mach_symbol->mach_type, float_type_mach_symbol->mach_type, NECRO_PRIMOP_BINOP_FSUB);
-        // necro_mach_create_prim_binop(program,  "mul<Float>",          float_type_mach_symbol->mach_type, float_type_mach_symbol->mach_type, NECRO_PRIMOP_BINOP_FMUL);
-        // necro_mach_create_prim_binop(program,  "div<Float>",          float_type_mach_symbol->mach_type, float_type_mach_symbol->mach_type, NECRO_PRIMOP_BINOP_FDIV);
-        // necro_mach_create_prim_uop(program,    "abs<Float>",          float_type_mach_symbol->mach_type, float_type_mach_symbol->mach_type, NECRO_PRIMOP_UOP_FABS);
-        // necro_mach_create_prim_uop(program,    "signum<Float>",       float_type_mach_symbol->mach_type, float_type_mach_symbol->mach_type, NECRO_PRIMOP_UOP_FSGN);
-        // necro_mach_create_prim_uop(program,    "fromInt<Float>",      program->type_cache.word_int_type,           float_type_mach_symbol->mach_type, NECRO_PRIMOP_UOP_ITOF);
-        // necro_mach_create_prim_uop(program,    "fromRational<Float>", float_type_mach_symbol->mach_type, float_type_mach_symbol->mach_type, NECRO_PRIMOP_UOP_FTOF);
-        // necro_mach_create_prim_cmp_op(program, "eq<Float>",           float_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_EQ);
-        // necro_mach_create_prim_cmp_op(program, "neq<Float>",          float_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_NE);
-        // necro_mach_create_prim_cmp_op(program, "gt<Float>",           float_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_GT);
-        // necro_mach_create_prim_cmp_op(program, "lt<Float>",           float_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_LT);
-        // necro_mach_create_prim_cmp_op(program, "gte<Float>",          float_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_GE);
-        // necro_mach_create_prim_cmp_op(program, "lte<Float>",          float_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_LE);
     }
 
     // Char
@@ -1346,12 +1253,6 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         NecroMachAstSymbol* unit_con_mach_symbol  = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, unit_con_ast_symbol->core_ast_symbol);
         unit_con_mach_symbol->is_primitive        = true;
         unit_con_mach_symbol->is_enum             = true;
-        // necro_mach_create_prim_cmp_op(program, "eq<()>",  unit_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_EQ);
-        // necro_mach_create_prim_cmp_op(program, "neq<()>", unit_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_NE);
-        // necro_mach_create_prim_cmp_op(program, "gt<()>",  unit_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_GT);
-        // necro_mach_create_prim_cmp_op(program, "lt<()>",  unit_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_LT);
-        // necro_mach_create_prim_cmp_op(program, "gte<()>", unit_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_GE);
-        // necro_mach_create_prim_cmp_op(program, "lte<()>", unit_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_LE);
     }
 
     // Bool
@@ -1373,14 +1274,6 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         NecroMachAstSymbol* false_con_mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, false_con_ast_symbol->core_ast_symbol);
         false_con_mach_symbol->is_primitive       = true;
         false_con_mach_symbol->is_enum            = true;
-        // necro_mach_create_prim_cmp_op(program, "eq<Bool>",  bool_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_EQ);
-        // necro_mach_create_prim_cmp_op(program, "neq<Bool>", bool_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_NE);
-        // necro_mach_create_prim_cmp_op(program, "gt<Bool>",  bool_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_GT);
-        // necro_mach_create_prim_cmp_op(program, "lt<Bool>",  bool_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_LT);
-        // necro_mach_create_prim_cmp_op(program, "gte<Bool>", bool_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_GE);
-        // necro_mach_create_prim_cmp_op(program, "lte<Bool>", bool_type_mach_symbol->mach_type, NECRO_PRIMOP_CMP_LE);
-        // necro_mach_create_prim_binop(program,  "&&",        bool_type_mach_symbol->mach_type, bool_type_mach_symbol->mach_type, NECRO_PRIMOP_BINOP_AND);
-        // necro_mach_create_prim_binop(program,  "||",        bool_type_mach_symbol->mach_type, bool_type_mach_symbol->mach_type, NECRO_PRIMOP_BINOP_OR);
     }
 
     //--------------------

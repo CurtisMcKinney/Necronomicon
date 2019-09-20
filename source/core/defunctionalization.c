@@ -832,7 +832,7 @@ NecroStaticValue* necro_defunctionalize_go(NecroDefunctionalizeContext* context,
     }
 }
 
-void necro_defunctionalize(NecroCompileInfo info, NecroIntern* intern, NecroBase* base, NecroCoreAstArena* core_ast_arena)
+void necro_core_defunctionalize(NecroCompileInfo info, NecroIntern* intern, NecroBase* base, NecroCoreAstArena* core_ast_arena)
 {
     UNUSED(info);
     NecroDefunctionalizeContext context = necro_defunctionalize_context_create(intern, base, core_ast_arena);
@@ -869,7 +869,7 @@ void necro_defunctionalize_test_result(const char* test_name, const char* str)
     unwrap(void, necro_monomorphize(info, &intern, &scoped_symtable, &base, &ast));
     unwrap(void, necro_ast_transform_to_core(info, &intern, &base, &ast, &core_ast));
     necro_core_lambda_lift(info, &intern, &base, &core_ast);
-    necro_defunctionalize(info, &intern, &base, &core_ast);
+    necro_core_defunctionalize(info, &intern, &base, &core_ast);
     unwrap(void, necro_core_infer(&intern, &base, &core_ast));
 
     // Print
@@ -893,9 +893,11 @@ void necro_defunctionalize_test_result(const char* test_name, const char* str)
 
 // TODO: Test unique types
 // TODO: Test Recursive values!
-void necro_defunctionalize_test()
+void necro_core_defunctionalize_test()
 {
     necro_announce_phase("Defunctionalize");
+
+/*
 
     {
         const char* test_name   = "Identity 1";
@@ -942,8 +944,6 @@ void necro_defunctionalize_test()
             "x = f True False\n";
         necro_defunctionalize_test_result(test_name, test_source);
     }
-
-/*
 
     {
         const char* test_name   = "Oversaturate 1";
@@ -1187,6 +1187,18 @@ void necro_defunctionalize_test()
         necro_defunctionalize_test_result(test_name, test_source);
     }
 */
+
+    {
+        const char* test_name   = "Double Up";
+        const char* test_source = ""
+            "data TwoInts   = TwoInts Int Int\n"
+            "data DoubleUp  = DoubleUp TwoInts TwoInts\n"
+            "doubleDown :: Int -> DoubleUp\n"
+            "doubleDown i = DoubleUp (TwoInts i i) (TwoInts i i)\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_defunctionalize_test_result(test_name, test_source);
+    }
 
 // TODO: FIX, looks like this never got cleaned up or something broke things.
 /*

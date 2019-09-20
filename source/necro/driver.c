@@ -182,7 +182,10 @@ NecroResult(void) necro_compile_go(
     //--------------------
     // Defunctionalization
     //--------------------
-    // TODO:
+    necro_compile_begin_phase(info, NECRO_PHASE_DEFUNCTIONALIZATION);
+    necro_core_defunctionalize(info, intern, base, core_ast_arena);
+    if (necro_compile_end_phase(info, NECRO_PHASE_DEFUNCTIONALIZATION))
+        return ok_void();
 
     //--------------------
     // StateAnalysis
@@ -300,7 +303,7 @@ void necro_test(NECRO_TEST test)
     case NECRO_TEST_MONOMORPHIZE:         necro_monomorphize_test();         break;
     case NECRO_TEST_CORE:                 necro_core_ast_test();             break;
     case NECRO_TEST_LAMBDA_LIFT:          necro_core_lambda_lift_test();     break;
-    case NECRO_TEST_DEFUNCTIONALIZE:      necro_defunctionalize_test();      break;
+    case NECRO_TEST_DEFUNCTIONALIZE:      necro_core_defunctionalize_test(); break;
     case NECRO_TEST_ARENA_CHAIN_TABLE:    necro_arena_chain_table_test();    break;
     case NECRO_TEST_BASE:                 necro_base_test();                 break;
     case NECRO_TEST_STATE_ANALYSIS:       necro_state_analysis_test();       break;
@@ -319,7 +322,7 @@ void necro_test(NECRO_TEST test)
         necro_monomorphize_test();
         necro_core_ast_test();
         necro_core_lambda_lift_test();
-        necro_defunctionalize_test();
+        necro_core_defunctionalize_test();
         necro_state_analysis_test();
         necro_mach_test();
         necro_llvm_test();

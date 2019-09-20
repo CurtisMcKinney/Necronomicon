@@ -18,8 +18,7 @@
 
 /*
     TODO:
-        * Primops not prim functions!
-        * Array empty, array indexing, array writing
+        * Array empty + ops
         * Handle deep_copy_fn with arrays!
         * For loop initializer handling!
         * Test stateful for loops which need initializers and stateful recursive shit in for loops which need initializers
@@ -1579,7 +1578,7 @@ void necro_mach_test_string(const char* test_name, const char* str)
     unwrap(void, necro_ast_transform_to_core(info, &intern, &base, &ast, &core_ast));
     unwrap(void, necro_core_infer(&intern, &base, &core_ast));
     necro_core_lambda_lift(info, &intern, &base, &core_ast);
-    // necro_defunctionalize(info, &intern, &base, &core_ast);
+    necro_core_defunctionalize(info, &intern, &base, &core_ast);
     necro_core_state_analysis(info, &intern, &base, &core_ast);
     necro_core_transform_to_mach(info, &intern, &base, &core_ast, &mach_program);
 
@@ -1672,6 +1671,8 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
+*/
+
     {
         const char* test_name   = "Bind 2";
         const char* test_source = ""
@@ -1683,6 +1684,8 @@ void necro_mach_test()
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);
     }
+
+/*
 
     {
         const char* test_name   = "Bind 3";
@@ -2479,8 +2482,6 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "PrimOp 1";
         const char* test_source = ""
@@ -2684,8 +2685,6 @@ void necro_mach_test()
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);
     }
-
-/*
 
     {
         const char* test_name   = "Undersaturate 1";

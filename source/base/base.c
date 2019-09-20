@@ -347,6 +347,18 @@ void necro_base_create_prim_num_instances(NecroPagedArena* arena, NecroAst* top,
     }
 }
 
+void necro_base_setup_primitive(NecroScopedSymTable* scoped_symtable, NecroIntern* intern, const char* prim_name, NecroAstSymbol** symbol_to_cache, NECRO_PRIMOP_TYPE primop_type)
+{
+    NecroAstSymbol* symbol = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, prim_name));
+    assert(symbol != NULL);
+    symbol->is_primitive   = true;
+    symbol->primop_type    = primop_type;
+    if (symbol_to_cache != NULL)
+    {
+        *symbol_to_cache = symbol;
+    }
+}
+
 NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_symtable)
 {
     NecroCompileInfo info  = (NecroCompileInfo) { .verbosity = 0, .timer = NULL, .opt_level = NECRO_OPT_OFF, .compilation_phase = NECRO_PHASE_JIT };
@@ -605,7 +617,6 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     NecroAst* tuple_10_constructor = necro_ast_create_data_con(arena, intern, "(,,,,,,,,,)", necro_ast_create_var_list(arena, intern, 10, NECRO_VAR_TYPE_FREE_VAR));
     necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, tuple_10_s_type, necro_ast_create_list(arena, tuple_10_constructor, NULL)));
 
-/*
     for (size_t i = 0; i < NECRO_MAX_ENV_TYPES; ++i)
     {
         char env_name[16] = "";
@@ -614,9 +625,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         NecroAst* env_constructor = necro_ast_create_data_con(arena, intern, env_name, necro_ast_create_var_list(arena, intern, i, NECRO_VAR_TYPE_FREE_VAR));
         necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, env_s_type, necro_ast_create_list(arena, env_constructor, NULL)));
     }
-*/
 
-/*
     for (size_t i = 2; i < NECRO_MAX_BRANCH_TYPES; ++i)
     {
         char branch_fn_name[24] = "";
@@ -632,7 +641,6 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         }
         necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, branch_fn_s_type, branch_fn_cons));
     }
-*/
 
     // Functor
     {
@@ -930,7 +938,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
                 necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR)),
             NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
         necro_append_top(arena, top,
-            necro_ast_create_simple_assignment(arena, intern, "getMouseX",
+            necro_ast_create_apats_assignment(arena, intern, "getMouseX",
+                necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "_dummy", NECRO_VAR_DECLARATION), NULL),
                 necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
     }
 
@@ -942,7 +951,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
                 necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR)),
             NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
         necro_append_top(arena, top,
-            necro_ast_create_simple_assignment(arena, intern, "getMouseY",
+            necro_ast_create_apats_assignment(arena, intern, "getMouseY",
+                necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "_dummy", NECRO_VAR_DECLARATION), NULL),
                 necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
     }
     // mouseX
@@ -973,59 +983,59 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
                     NULL)));
     }
 
-    // unsafeMalloc
-    {
-        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "unsafeMalloc", NULL,
-            necro_ast_create_type_fn(arena, necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR),
-                necro_ast_create_type_app(arena,
-                    necro_ast_create_conid(arena, intern, "Ptr", NECRO_CON_TYPE_VAR),
-                    necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR))
-                ),
-            NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
-        necro_append_top(arena, top,
-            necro_ast_create_apats_assignment(arena, intern, "unsafeMalloc",
-                necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "size", NECRO_VAR_DECLARATION), NULL),
-                necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
-    }
+    // // unsafeMalloc
+    // {
+    //     necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "unsafeMalloc", NULL,
+    //         necro_ast_create_type_fn(arena, necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR),
+    //             necro_ast_create_type_app(arena,
+    //                 necro_ast_create_conid(arena, intern, "Ptr", NECRO_CON_TYPE_VAR),
+    //                 necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR))
+    //             ),
+    //         NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+    //     necro_append_top(arena, top,
+    //         necro_ast_create_apats_assignment(arena, intern, "unsafeMalloc",
+    //             necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "size", NECRO_VAR_DECLARATION), NULL),
+    //             necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
+    // }
 
-    // unsafePeek
-    {
-        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "unsafePeek", NULL,
-            necro_ast_create_type_fn(arena,
-                necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR),
-                necro_ast_create_type_fn(arena,
-                    necro_ast_create_type_app(arena,
-                        necro_ast_create_conid(arena, intern, "Ptr", NECRO_CON_TYPE_VAR),
-                        necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)),
-                    necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR))
-                ),
-            NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
-        necro_append_top(arena, top,
-            necro_ast_create_apats_assignment(arena, intern, "unsafePeek",
-                necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "index", NECRO_VAR_DECLARATION), necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "ptr", NECRO_VAR_DECLARATION), NULL)),
-                necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
-    }
+    // // unsafePeek
+    // {
+    //     necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "unsafePeek", NULL,
+    //         necro_ast_create_type_fn(arena,
+    //             necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR),
+    //             necro_ast_create_type_fn(arena,
+    //                 necro_ast_create_type_app(arena,
+    //                     necro_ast_create_conid(arena, intern, "Ptr", NECRO_CON_TYPE_VAR),
+    //                     necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)),
+    //                 necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR))
+    //             ),
+    //         NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+    //     necro_append_top(arena, top,
+    //         necro_ast_create_apats_assignment(arena, intern, "unsafePeek",
+    //             necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "index", NECRO_VAR_DECLARATION), necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "ptr", NECRO_VAR_DECLARATION), NULL)),
+    //             necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
+    // }
 
-    // unsafePoke
-    {
-        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "unsafePoke", NULL,
-            necro_ast_create_type_fn(arena,
-                necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR),
-                necro_ast_create_type_fn(arena,
-                    necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR),
-                    necro_ast_create_type_fn(arena,
-                        necro_ast_create_type_app(arena,
-                            necro_ast_create_conid(arena, intern, "Ptr", NECRO_CON_TYPE_VAR),
-                            necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)),
-                        necro_ast_create_type_app(arena,
-                            necro_ast_create_conid(arena, intern, "Ptr", NECRO_CON_TYPE_VAR),
-                            necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR))))),
-            NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
-        necro_append_top(arena, top,
-            necro_ast_create_apats_assignment(arena, intern, "unsafePoke",
-                necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "index", NECRO_VAR_DECLARATION), necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "value", NECRO_VAR_DECLARATION), necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "ptr", NECRO_VAR_DECLARATION), NULL))),
-                necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
-    }
+    // // unsafePoke
+    // {
+    //     necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "unsafePoke", NULL,
+    //         necro_ast_create_type_fn(arena,
+    //             necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR),
+    //             necro_ast_create_type_fn(arena,
+    //                 necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR),
+    //                 necro_ast_create_type_fn(arena,
+    //                     necro_ast_create_type_app(arena,
+    //                         necro_ast_create_conid(arena, intern, "Ptr", NECRO_CON_TYPE_VAR),
+    //                         necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR)),
+    //                     necro_ast_create_type_app(arena,
+    //                         necro_ast_create_conid(arena, intern, "Ptr", NECRO_CON_TYPE_VAR),
+    //                         necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR))))),
+    //         NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+    //     necro_append_top(arena, top,
+    //         necro_ast_create_apats_assignment(arena, intern, "unsafePoke",
+    //             necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "index", NECRO_VAR_DECLARATION), necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "value", NECRO_VAR_DECLARATION), necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "ptr", NECRO_VAR_DECLARATION), NULL))),
+    //             necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
+    // }
 
     // printInt
     {
@@ -1068,12 +1078,14 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         necro_append_top(arena, top, necro_ast_create_apats_assignment(arena, intern, "||", and_apats, necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
     }
 
+    //--------------------
     // Compile, part I
     necro_build_scopes(info, scoped_symtable, &base.ast);
     unwrap(void, necro_rename(info, scoped_symtable, intern, &base.ast));
     necro_dependency_analyze(info, intern, &base.ast);
     necro_alias_analysis(info, &base.ast); // NOTE: Consider merging alias_analysis into RENAME_VAR phase?
 
+    //--------------------
     // Cache useful symbols
     base.prim_undefined         = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "_primUndefined"));;
 
@@ -1118,6 +1130,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         }
     }
 
+    //--------------------
+    // Cache symbols
     base.poly_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "_Poly"));
     base.world_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "World"));
     base.unit_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "()"));
@@ -1151,17 +1165,84 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     // base.rational_type          = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Rational"));
     // base.audio_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Audio"));
 
-    // Runtime functions
-    base.mouse_x_fn             = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "getMouseX"));
-    base.mouse_y_fn             = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "getMouseY"));
-    base.unsafe_malloc          = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "unsafeMalloc"));
-    base.unsafe_peek            = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "unsafePeek"));
-    base.unsafe_poke            = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "unsafePoke"));
-    base.print_int              = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "printInt"));
+    //--------------------
+    // Primitives
+    base.prim_undefined->is_primitive = true;
+    base.unit_type->is_primitive      = true;
+    base.unit_con->is_primitive       = true;
+    base.int_type->is_primitive       = true;
+    base.uint_type->is_primitive      = true;
+    base.float_type->is_primitive     = true;
+    base.char_type->is_primitive      = true;
+    base.bool_type->is_primitive      = true;
+    base.true_con->is_primitive       = true;
+    base.false_con->is_primitive      = true;
+    necro_base_setup_primitive(scoped_symtable, intern, "getMouseX",    &base.mouse_x_fn, NECRO_PRIMOP_PRIM_FN);
+    necro_base_setup_primitive(scoped_symtable, intern, "getMouseY",    &base.mouse_y_fn, NECRO_PRIMOP_PRIM_FN);
+    necro_base_setup_primitive(scoped_symtable, intern, "printInt",     &base.print_int,  NECRO_PRIMOP_PRIM_FN);
+    // Int
+    necro_base_setup_primitive(scoped_symtable, intern, "add<Int>",     NULL, NECRO_PRIMOP_BINOP_IADD);
+    necro_base_setup_primitive(scoped_symtable, intern, "sub<Int>",     NULL, NECRO_PRIMOP_BINOP_ISUB);
+    necro_base_setup_primitive(scoped_symtable, intern, "mul<Int>",     NULL, NECRO_PRIMOP_BINOP_IMUL);
+    necro_base_setup_primitive(scoped_symtable, intern, "abs<Int>",     NULL, NECRO_PRIMOP_UOP_IABS);
+    necro_base_setup_primitive(scoped_symtable, intern, "signum<Int>",  NULL, NECRO_PRIMOP_UOP_ISGN);
+    necro_base_setup_primitive(scoped_symtable, intern, "fromInt<Int>", NULL, NECRO_PRIMOP_UOP_ITOI);
+    // necro_base_setup_primitive(scoped_symtable, intern, "div<Int>",   NULL, NECRO_PRIMOP_BINOP_IDIV); // Need non-Fractional Int division!
+    necro_base_setup_primitive(scoped_symtable, intern, "eq<Int>",      NULL, NECRO_PRIMOP_CMP_EQ);
+    necro_base_setup_primitive(scoped_symtable, intern, "neq<Int>",     NULL, NECRO_PRIMOP_CMP_NE);
+    necro_base_setup_primitive(scoped_symtable, intern, "gt<Int>",      NULL, NECRO_PRIMOP_CMP_GT);
+    necro_base_setup_primitive(scoped_symtable, intern, "lt<Int>",      NULL, NECRO_PRIMOP_CMP_LT);
+    necro_base_setup_primitive(scoped_symtable, intern, "gte<Int>",     NULL, NECRO_PRIMOP_CMP_GE);
+    necro_base_setup_primitive(scoped_symtable, intern, "lte<Int>",     NULL, NECRO_PRIMOP_CMP_LE);
+    // UInt
+    necro_base_setup_primitive(scoped_symtable, intern, "add<UInt>",     NULL, NECRO_PRIMOP_BINOP_UADD);
+    necro_base_setup_primitive(scoped_symtable, intern, "sub<UInt>",     NULL, NECRO_PRIMOP_BINOP_USUB);
+    necro_base_setup_primitive(scoped_symtable, intern, "mul<UInt>",     NULL, NECRO_PRIMOP_BINOP_UMUL);
+    necro_base_setup_primitive(scoped_symtable, intern, "abs<UInt>",     NULL, NECRO_PRIMOP_UOP_UABS);
+    necro_base_setup_primitive(scoped_symtable, intern, "signum<UInt>",  NULL, NECRO_PRIMOP_UOP_USGN);
+    necro_base_setup_primitive(scoped_symtable, intern, "fromInt<UInt>", NULL, NECRO_PRIMOP_UOP_ITOU);
+    // necro_base_setup_primitive(scoped_symtable, intern, "div<UInt>", NULL, NECRO_PRIMOP_BINOP_IDIV); // Need non-Fractional Int division!
+    necro_base_setup_primitive(scoped_symtable, intern, "eq<UInt>",      NULL, NECRO_PRIMOP_CMP_EQ);
+    necro_base_setup_primitive(scoped_symtable, intern, "neq<UInt>",     NULL, NECRO_PRIMOP_CMP_NE);
+    necro_base_setup_primitive(scoped_symtable, intern, "gt<UInt>",      NULL, NECRO_PRIMOP_CMP_GT);
+    necro_base_setup_primitive(scoped_symtable, intern, "lt<UInt>",      NULL, NECRO_PRIMOP_CMP_LT);
+    necro_base_setup_primitive(scoped_symtable, intern, "gte<UInt>",     NULL, NECRO_PRIMOP_CMP_GE);
+    necro_base_setup_primitive(scoped_symtable, intern, "lte<UInt>",     NULL, NECRO_PRIMOP_CMP_LE);
+    // Float
+    necro_base_setup_primitive(scoped_symtable, intern, "add<Float>",          NULL, NECRO_PRIMOP_BINOP_FADD);
+    necro_base_setup_primitive(scoped_symtable, intern, "sub<Float>",          NULL, NECRO_PRIMOP_BINOP_FSUB);
+    necro_base_setup_primitive(scoped_symtable, intern, "mul<Float>",          NULL, NECRO_PRIMOP_BINOP_FMUL);
+    necro_base_setup_primitive(scoped_symtable, intern, "div<Float>",          NULL, NECRO_PRIMOP_BINOP_FDIV);
+    necro_base_setup_primitive(scoped_symtable, intern, "abs<Float>",          NULL, NECRO_PRIMOP_UOP_FABS);
+    necro_base_setup_primitive(scoped_symtable, intern, "signum<Float>",       NULL, NECRO_PRIMOP_UOP_FSGN);
+    necro_base_setup_primitive(scoped_symtable, intern, "fromInt<Float>",      NULL, NECRO_PRIMOP_UOP_ITOF);
+    necro_base_setup_primitive(scoped_symtable, intern, "fromRational<Float>", NULL, NECRO_PRIMOP_UOP_FTOF);
+    necro_base_setup_primitive(scoped_symtable, intern, "eq<Float>",           NULL, NECRO_PRIMOP_CMP_EQ);
+    necro_base_setup_primitive(scoped_symtable, intern, "neq<Float>",          NULL, NECRO_PRIMOP_CMP_NE);
+    necro_base_setup_primitive(scoped_symtable, intern, "gt<Float>",           NULL, NECRO_PRIMOP_CMP_GT);
+    necro_base_setup_primitive(scoped_symtable, intern, "lt<Float>",           NULL, NECRO_PRIMOP_CMP_LT);
+    necro_base_setup_primitive(scoped_symtable, intern, "gte<Float>",          NULL, NECRO_PRIMOP_CMP_GE);
+    necro_base_setup_primitive(scoped_symtable, intern, "lte<Float>",          NULL, NECRO_PRIMOP_CMP_LE);
+    // ()
+    necro_base_setup_primitive(scoped_symtable, intern, "eq<()>",  NULL, NECRO_PRIMOP_CMP_EQ);
+    necro_base_setup_primitive(scoped_symtable, intern, "neq<()>", NULL, NECRO_PRIMOP_CMP_NE);
+    necro_base_setup_primitive(scoped_symtable, intern, "gt<()>",  NULL, NECRO_PRIMOP_CMP_GT);
+    necro_base_setup_primitive(scoped_symtable, intern, "lt<()>",  NULL, NECRO_PRIMOP_CMP_LT);
+    necro_base_setup_primitive(scoped_symtable, intern, "gte<()>", NULL, NECRO_PRIMOP_CMP_GE);
+    necro_base_setup_primitive(scoped_symtable, intern, "lte<()>", NULL, NECRO_PRIMOP_CMP_LE);
+    // Bool
+    necro_base_setup_primitive(scoped_symtable, intern, "eq<Bool>",  NULL, NECRO_PRIMOP_CMP_EQ);
+    necro_base_setup_primitive(scoped_symtable, intern, "neq<Bool>", NULL, NECRO_PRIMOP_CMP_NE);
+    necro_base_setup_primitive(scoped_symtable, intern, "gt<Bool>",  NULL, NECRO_PRIMOP_CMP_GT);
+    necro_base_setup_primitive(scoped_symtable, intern, "lt<Bool>",  NULL, NECRO_PRIMOP_CMP_LT);
+    necro_base_setup_primitive(scoped_symtable, intern, "gte<Bool>", NULL, NECRO_PRIMOP_CMP_GE);
+    necro_base_setup_primitive(scoped_symtable, intern, "lte<Bool>", NULL, NECRO_PRIMOP_CMP_LE);
+    necro_base_setup_primitive(scoped_symtable, intern,  "&&",       NULL, NECRO_PRIMOP_BINOP_AND);
+    necro_base_setup_primitive(scoped_symtable, intern,  "||",       NULL, NECRO_PRIMOP_BINOP_OR);
 
-    base.scoped_symtable        = scoped_symtable;
-
+    //--------------------
     // Compile, part II
+    base.scoped_symtable = scoped_symtable;
     unwrap(void, necro_infer(info, intern, scoped_symtable, &base, &base.ast));
     unwrap(void, necro_monomorphize(info, intern, scoped_symtable, &base, &base.ast));
 
@@ -1209,6 +1290,7 @@ NecroAstSymbol* necro_base_get_tuple_con(NecroBase* base, size_t num)
 
 NecroAstSymbol* necro_base_get_env_type(NecroBase* base, size_t num)
 {
+    // TODO: Refactor to create env types dynamically, caching arities instead of blowing up at certain amounts?
     assert((num < NECRO_MAX_ENV_TYPES) && "Unsupported Env arity!");
     return base->env_types[num];
 }

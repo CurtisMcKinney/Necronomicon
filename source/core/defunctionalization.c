@@ -18,6 +18,7 @@
     - If we could obviate the need for using lifted type in recursive value check we could nix lifted types entirely.
 
     TODO
+        - Refactor Env to dynamically generate arities as required!
         - transform: MyCoolIntFn (Int -> Int) ==> MyCoolIntFn_aa1 a
         - inline all HOF: myCoolHOF :: (Int -> Int) -> Int ==> INLINED with (Int -> Int) ==> CoolFnEnv_aa2
 
@@ -210,6 +211,14 @@ NecroStaticValue* necro_defunctionalize_var(NecroDefunctionalizeContext* context
 {
     assert(context != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_VAR);
+    // // Primitives
+    // if (ast->var.ast_symbol->is_primitive)
+    // {
+    //     if (ast->necro_type->type == NECRO_TYPE_FUN)
+    //         return necro_static_value_create_fun(context->arena, ast->necro_type, ast->var.ast_symbol->static_value->fun.fn_symbol, necro_static_value_create_dyn(context->arena, necro_type_get_fully_applied_fun_type(ast->necro_type)));
+    //     else
+    //         return necro_static_value_create_dyn(context->arena, ast->necro_type);
+    // }
     // _primUndefined
     if (ast->var.ast_symbol == context->base->prim_undefined->core_ast_symbol)
     {
@@ -222,7 +231,7 @@ NecroStaticValue* necro_defunctionalize_var(NecroDefunctionalizeContext* context
         *ast = *necro_core_ast_deep_copy(context->arena, ast->var.ast_symbol->inline_ast);
         return necro_defunctionalize_go(context, ast);
     }
-    // Handle Constructors
+    // Constructors
     // else if (ast->var.ast_symbol->static_value->necro_type->type == NECRO_TYPE_FOR ||
     //         (ast->var.ast_symbol->static_value->necro_type->ownership != NULL && (ast->var.ast_symbol->static_value->necro_type->ownership->type == NECRO_TYPE_FOR || ast->var.ast_symbol->static_value->necro_type->ownership->type == NECRO_TYPE_VAR)))
     else if (ast->var.ast_symbol->is_constructor)
@@ -612,7 +621,7 @@ NecroStaticValue* necro_defunctionalize_app_fun(NecroDefunctionalizeContext* con
     // Saturated
     if (difference == 0)
     {
-        if (!var_ast->var.ast_symbol->is_constructor && is_higher_order == true)
+        if (!var_ast->var.ast_symbol->is_constructor && is_higher_order)
         {
             assert(false);
             return NULL; // TODO: Inline
@@ -888,7 +897,6 @@ void necro_defunctionalize_test()
 {
     necro_announce_phase("Defunctionalize");
 
-/*
     {
         const char* test_name   = "Identity 1";
         const char* test_source = ""
@@ -934,6 +942,8 @@ void necro_defunctionalize_test()
             "x = f True False\n";
         necro_defunctionalize_test_result(test_name, test_source);
     }
+
+/*
 
     {
         const char* test_name   = "Oversaturate 1";

@@ -1,6 +1,8 @@
--- Old System: 100% cpu for One million stateful functions at 100 ticks per second
--- New System: 0%   cpu for One million stateful functions at 100 ticks per second
---             9%   cpu for 10 million stateful functions at 100 ticks per second
+-- Tested on dev machine, specs:
+-- Old System: ~100% cpu for   1 million stateful functions at 100 ticks per second
+-- New System: ~0%   cpu for   1 million stateful functions at 100 ticks per second
+--             ~0%   cpu for  10 million stateful functions at 100 ticks per second!?!?
+--             ~9%   cpu for 100 million stateful functions at 100 ticks per second!?!?
 tick :: Int -> Int
 tick delta = feed where
     feed ~ 0 = add delta feed
@@ -32,6 +34,13 @@ tenMillionTimes :: Int -> Int
 tenMillionTimes n =
     (add (oneMillionTimes n) (add (oneMillionTimes n) (add (oneMillionTimes n) (add (oneMillionTimes n) (add (oneMillionTimes n)
     (add (oneMillionTimes n) (add (oneMillionTimes n) (add (oneMillionTimes n) (add (oneMillionTimes n) (oneMillionTimes n))))))))))
+oneHundredMillionTimes :: Int -> Int
+oneHundredMillionTimes n =
+    (add (tenMillionTimes n) (add (tenMillionTimes n) (add (tenMillionTimes n) (add (tenMillionTimes n) (add (tenMillionTimes n)
+    (add (tenMillionTimes n) (add (tenMillionTimes n) (add (tenMillionTimes n) (add (tenMillionTimes n) (tenMillionTimes n))))))))))
+go :: Int
+go = oneHundredMillionTimes 1
 main :: *World -> *World
-main w = printInt (tenMillionTimes 1) w
+main w = w
+-- main w = printInt (oneHundredMillionTimes 1) w
 

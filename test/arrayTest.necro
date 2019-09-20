@@ -77,6 +77,7 @@ freezeArray        :: *Array n (Shared a) -> Array n a
 readArray          :: Index n -> Array n a -> a
 readArray'         :: Index n -> *Array n (Shared a) -> *(Array n (Shared a), Shared a)
 writeArray         :: Index n -> *a -> *Array n a -> *Array n a
+freezeShared       :: *Shared a -> a
 
 map :: (a -> b) -> Array n a -> Array n b
 map f a =

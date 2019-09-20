@@ -30,13 +30,6 @@
 // * Machines retain state in these regions across multiple calls to main
 ///////////////////////////////////////////////////////
 
-/*
-    TODO / NOTES / Thoughts:
-        * Region structs instead of completely inlined type data?
-        * Then regions stack into eachother.
-        * Type monomorphization / caching / uniquing.
-*/
-
 //--------------------
 // Forward Declarations
 //--------------------
@@ -69,6 +62,7 @@ typedef struct NecroMachAstSymbol
     NecroType*              necro_type;
     struct NecroLLVMSymbol* codegen_symbol;
     NECRO_STATE_TYPE        state_type;
+    NECRO_PRIMOP_TYPE       primop_type;
     bool                    is_enum;
     bool                    is_constructor;
     bool                    con_num;
@@ -335,80 +329,80 @@ typedef struct NecroMachAlloca
     struct NecroMachAst* result;
 } NecroMachAlloca;
 
-typedef enum
-{
-    NECRO_MACH_BINOP_IADD,
-    NECRO_MACH_BINOP_ISUB,
-    NECRO_MACH_BINOP_IMUL,
-    NECRO_MACH_BINOP_IDIV,
-
-    NECRO_MACH_BINOP_UADD,
-    NECRO_MACH_BINOP_USUB,
-    NECRO_MACH_BINOP_UMUL,
-    NECRO_MACH_BINOP_UDIV,
-
-    NECRO_MACH_BINOP_FADD,
-    NECRO_MACH_BINOP_FSUB,
-    NECRO_MACH_BINOP_FMUL,
-    NECRO_MACH_BINOP_FDIV,
-    NECRO_MACH_BINOP_AND,
-    NECRO_MACH_BINOP_OR,
-    NECRO_MACH_BINOP_SHL,
-    NECRO_MACH_BINOP_SHR,
-} NECRO_MACH_BINOP_TYPE;
+// typedef enum
+// {
+//     NECRO_MACH_BINOP_IADD,
+//     NECRO_MACH_BINOP_ISUB,
+//     NECRO_MACH_BINOP_IMUL,
+//     NECRO_MACH_BINOP_IDIV,
+//
+//     NECRO_MACH_BINOP_UADD,
+//     NECRO_MACH_BINOP_USUB,
+//     NECRO_MACH_BINOP_UMUL,
+//     NECRO_MACH_BINOP_UDIV,
+//
+//     NECRO_MACH_BINOP_FADD,
+//     NECRO_MACH_BINOP_FSUB,
+//     NECRO_MACH_BINOP_FMUL,
+//     NECRO_MACH_BINOP_FDIV,
+//     NECRO_MACH_BINOP_AND,
+//     NECRO_MACH_BINOP_OR,
+//     NECRO_MACH_BINOP_SHL,
+//     NECRO_MACH_BINOP_SHR,
+// } NECRO_MACH_BINOP_TYPE;
 
 typedef struct NecroMachBinOp
 {
-    struct NecroMachAst*  left;
-    struct NecroMachAst*  right;
-    struct NecroMachAst*  result;
-    NECRO_MACH_BINOP_TYPE binop_type;
+    struct NecroMachAst* left;
+    struct NecroMachAst* right;
+    struct NecroMachAst* result;
+    NECRO_PRIMOP_TYPE    binop_type;
 } NecroMachBinOp;
 
-typedef enum
-{
-    NECRO_MACH_UOP_IABS,
-    NECRO_MACH_UOP_UABS,
-    NECRO_MACH_UOP_FABS,
-
-    NECRO_MACH_UOP_ISGN,
-    NECRO_MACH_UOP_USGN,
-    NECRO_MACH_UOP_FSGN,
-
-    NECRO_MACH_UOP_ITOI,
-    NECRO_MACH_UOP_ITOU,
-    NECRO_MACH_UOP_ITOF,
-
-    NECRO_MACH_UOP_UTOI,
-
-    NECRO_MACH_UOP_FTRI,
-    NECRO_MACH_UOP_FRNI,
-    NECRO_MACH_UOP_FTOF,
-} NECRO_MACH_UOP_TYPE;
+// typedef enum
+// {
+//     NECRO_MACH_UOP_IABS,
+//     NECRO_MACH_UOP_UABS,
+//     NECRO_MACH_UOP_FABS,
+//
+//     NECRO_MACH_UOP_ISGN,
+//     NECRO_MACH_UOP_USGN,
+//     NECRO_MACH_UOP_FSGN,
+//
+//     NECRO_MACH_UOP_ITOI,
+//     NECRO_MACH_UOP_ITOU,
+//     NECRO_MACH_UOP_ITOF,
+//
+//     NECRO_MACH_UOP_UTOI,
+//
+//     NECRO_MACH_UOP_FTRI,
+//     NECRO_MACH_UOP_FRNI,
+//     NECRO_MACH_UOP_FTOF,
+// } NECRO_MACH_UOP_TYPE;
 
 typedef struct NecroMachUOp
 {
     struct NecroMachAst* param;
     struct NecroMachAst* result;
-    NECRO_MACH_UOP_TYPE  uop_type;
+    NECRO_PRIMOP_TYPE   uop_type;
 } NecroMachUOp;
 
-typedef enum
-{
-    NECRO_MACH_CMP_EQ,
-    NECRO_MACH_CMP_NE,
-    NECRO_MACH_CMP_GT,
-    NECRO_MACH_CMP_GE,
-    NECRO_MACH_CMP_LT,
-    NECRO_MACH_CMP_LE,
-} NECRO_MACH_CMP_TYPE;
+// typedef enum
+// {
+//     NECRO_MACH_CMP_EQ,
+//     NECRO_MACH_CMP_NE,
+//     NECRO_MACH_CMP_GT,
+//     NECRO_MACH_CMP_GE,
+//     NECRO_MACH_CMP_LT,
+//     NECRO_MACH_CMP_LE,
+// } NECRO_MACH_CMP_TYPE;
 
 typedef struct NecroMachCmp
 {
     struct NecroMachAst* left;
     struct NecroMachAst* right;
     struct NecroMachAst* result;
-    NECRO_MACH_CMP_TYPE  cmp_type;
+    NECRO_PRIMOP_TYPE    cmp_type;
 } NecroMachCmp;
 
 
@@ -631,8 +625,8 @@ NecroMachAst* necro_mach_build_load(NecroMachProgram* program, NecroMachAst* fn_
 // Functions
 //--------------------
 NecroMachAst* necro_mach_build_call(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* fn_value_ast, NecroMachAst** a_parameters, size_t num_parameters, NECRO_MACH_CALL_TYPE call_type, const char* dest_name);
-NecroMachAst* necro_mach_build_binop(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* left, NecroMachAst* right, NECRO_MACH_BINOP_TYPE op_type);
-NecroMachAst* necro_mach_build_uop(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* param, NECRO_MACH_UOP_TYPE op_type);
+NecroMachAst* necro_mach_build_binop(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* left, NecroMachAst* right, NECRO_PRIMOP_TYPE op_type);
+NecroMachAst* necro_mach_build_uop(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* param, NECRO_PRIMOP_TYPE op_type);
 
 //--------------------
 // Branching
@@ -641,7 +635,7 @@ void                       necro_mach_build_return_void(NecroMachProgram* progra
 void                       necro_mach_build_return(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* return_value);
 void                       necro_mach_build_break(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* block_to_jump_to);
 void                       necro_mach_build_cond_break(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* cond, NecroMachAst* true_block, NecroMachAst* false_block);
-NecroMachAst*              necro_mach_build_cmp(NecroMachProgram* program, NecroMachAst* fn_def, NECRO_MACH_CMP_TYPE cmp_type, NecroMachAst* left, NecroMachAst* right);
+NecroMachAst*              necro_mach_build_cmp(NecroMachProgram* program, NecroMachAst* fn_def, NECRO_PRIMOP_TYPE cmp_type, NecroMachAst* left, NecroMachAst* right);
 NecroMachAst*              necro_mach_build_phi(NecroMachProgram* program, NecroMachAst* fn_def, struct NecroMachType* type, NecroMachPhiList* values);
 void                       necro_mach_add_incoming_to_phi(NecroMachProgram* program, NecroMachAst* phi, NecroMachAst* block, NecroMachAst* value);
 void                       necro_mach_build_unreachable(NecroMachProgram* program, NecroMachAst* fn_def);

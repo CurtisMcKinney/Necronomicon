@@ -830,10 +830,10 @@ void necro_mach_ast_type_check_binop(NecroMachProgram* program, NecroMachAst* as
     necro_mach_type_check(program, left->necro_machine_type, right->necro_machine_type);
     switch (ast->binop.binop_type)
     {
-    case NECRO_MACH_BINOP_IADD: /* FALL THROUGH */
-    case NECRO_MACH_BINOP_ISUB: /* FALL THROUGH */
-    case NECRO_MACH_BINOP_IMUL: /* FALL THROUGH */
-    case NECRO_MACH_BINOP_IDIV:
+    case NECRO_PRIMOP_BINOP_IADD: /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_ISUB: /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_IMUL: /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_IDIV:
     {
         necro_mach_type_check(program, left->necro_machine_type, program->type_cache.word_int_type);
         necro_mach_type_check(program, right->necro_machine_type, program->type_cache.word_int_type);
@@ -841,14 +841,14 @@ void necro_mach_ast_type_check_binop(NecroMachProgram* program, NecroMachAst* as
         necro_mach_type_check(program, ast->necro_machine_type, program->type_cache.word_int_type);
         break;
     }
-    case NECRO_MACH_BINOP_UADD: /* FALL THROUGH */
-    case NECRO_MACH_BINOP_USUB: /* FALL THROUGH */
-    case NECRO_MACH_BINOP_UMUL: /* FALL THROUGH */
-    case NECRO_MACH_BINOP_UDIV: /* FALL THROUGH */
-    case NECRO_MACH_BINOP_OR:   /* FALL THROUGH */
-    case NECRO_MACH_BINOP_AND:  /* FALL THROUGH */
-    case NECRO_MACH_BINOP_SHL:  /* FALL THROUGH */
-    case NECRO_MACH_BINOP_SHR:  /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_UADD: /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_USUB: /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_UMUL: /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_UDIV: /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_OR:   /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_AND:  /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_SHL:  /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_SHR:  /* FALL THROUGH */
     {
         necro_mach_type_check(program, left->necro_machine_type, program->type_cache.word_uint_type);
         necro_mach_type_check(program, right->necro_machine_type, program->type_cache.word_uint_type);
@@ -856,10 +856,10 @@ void necro_mach_ast_type_check_binop(NecroMachProgram* program, NecroMachAst* as
         necro_mach_type_check(program, ast->necro_machine_type, program->type_cache.word_uint_type);
         break;
     }
-    case NECRO_MACH_BINOP_FADD: /* FALL THROUGH */
-    case NECRO_MACH_BINOP_FSUB: /* FALL THROUGH */
-    case NECRO_MACH_BINOP_FMUL: /* FALL THROUGH */
-    case NECRO_MACH_BINOP_FDIV:
+    case NECRO_PRIMOP_BINOP_FADD: /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FSUB: /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FMUL: /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FDIV:
     {
         necro_mach_type_check(program, left->necro_machine_type, program->type_cache.word_float_type);
         necro_mach_type_check(program, right->necro_machine_type, program->type_cache.word_float_type);
@@ -886,59 +886,59 @@ void necro_mach_ast_type_check_uop(NecroMachProgram* program, NecroMachAst* ast)
     assert(result->type == NECRO_MACH_VALUE);
     switch (ast->uop.uop_type)
     {
-    case NECRO_MACH_UOP_ITOI: /* FALL THROUGH */
-    case NECRO_MACH_UOP_IABS: /* FALL THROUGH */
-    case NECRO_MACH_UOP_ISGN:
+    case NECRO_PRIMOP_UOP_ITOI: /* FALL THROUGH */
+    case NECRO_PRIMOP_UOP_IABS: /* FALL THROUGH */
+    case NECRO_PRIMOP_UOP_ISGN:
     {
         necro_mach_type_check(program, param->necro_machine_type, program->type_cache.word_int_type);
         necro_mach_type_check(program, result->necro_machine_type, program->type_cache.word_int_type);
         break;
     }
-    case NECRO_MACH_UOP_UABS: /* FALL THROUGH */
-    case NECRO_MACH_UOP_USGN:
+    case NECRO_PRIMOP_UOP_UABS: /* FALL THROUGH */
+    case NECRO_PRIMOP_UOP_USGN:
     {
         necro_mach_type_check(program, param->necro_machine_type, program->type_cache.word_uint_type);
         necro_mach_type_check(program, result->necro_machine_type, program->type_cache.word_uint_type);
         break;
     }
-    case NECRO_MACH_UOP_FABS: /* FALL THROUGH */
-    case NECRO_MACH_UOP_FSGN:
+    case NECRO_PRIMOP_UOP_FABS: /* FALL THROUGH */
+    case NECRO_PRIMOP_UOP_FSGN:
     {
         necro_mach_type_check(program, param->necro_machine_type, program->type_cache.word_float_type);
         necro_mach_type_check(program, result->necro_machine_type, program->type_cache.word_float_type);
         break;
     }
-    case NECRO_MACH_UOP_ITOU:
+    case NECRO_PRIMOP_UOP_ITOU:
     {
         necro_mach_type_check(program, param->necro_machine_type, program->type_cache.word_int_type);
         necro_mach_type_check(program, result->necro_machine_type, program->type_cache.word_uint_type);
         break;
     }
-    case NECRO_MACH_UOP_ITOF:
+    case NECRO_PRIMOP_UOP_ITOF:
     {
         necro_mach_type_check(program, param->necro_machine_type, program->type_cache.word_int_type);
         necro_mach_type_check(program, result->necro_machine_type, program->type_cache.word_float_type);
         break;
     }
-    case NECRO_MACH_UOP_UTOI:
+    case NECRO_PRIMOP_UOP_UTOI:
     {
         necro_mach_type_check(program, param->necro_machine_type, program->type_cache.word_uint_type);
         necro_mach_type_check(program, result->necro_machine_type, program->type_cache.word_int_type);
         break;
     }
-    case NECRO_MACH_UOP_FTRI:
+    case NECRO_PRIMOP_UOP_FTRI:
     {
         necro_mach_type_check(program, param->necro_machine_type, program->type_cache.word_float_type);
         necro_mach_type_check(program, result->necro_machine_type, program->type_cache.word_int_type);
         break;
     }
-    case NECRO_MACH_UOP_FRNI:
+    case NECRO_PRIMOP_UOP_FRNI:
     {
         necro_mach_type_check(program, param->necro_machine_type, program->type_cache.word_float_type);
         necro_mach_type_check(program, result->necro_machine_type, program->type_cache.word_int_type);
         break;
     }
-    case NECRO_MACH_UOP_FTOF:
+    case NECRO_PRIMOP_UOP_FTOF:
     {
         necro_mach_type_check(program, param->necro_machine_type, program->type_cache.word_float_type);
         necro_mach_type_check(program, result->necro_machine_type, program->type_cache.word_float_type);

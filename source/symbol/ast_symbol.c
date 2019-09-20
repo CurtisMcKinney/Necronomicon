@@ -33,6 +33,7 @@ NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name
         .type_class_instance     = NULL,
         .necro_machine_ast       = NULL,
         .usage                   = NULL,
+        .primop_type             = NECRO_PRIMOP_NONE,
     };
     return ast_symbol;
 }
@@ -60,6 +61,7 @@ NecroAstSymbol* necro_ast_symbol_deep_copy(NecroPagedArena* arena, NecroAstSymbo
         .type_class_instance     = NULL,
         .necro_machine_ast       = NULL,
         .usage                   = ast_symbol->usage,
+        .primop_type             = NECRO_PRIMOP_NONE,
     };
     return new_symbol;
 }
@@ -120,6 +122,7 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create(NecroPagedArena* core_ast_arena
     core_ast_symbol->arity              = 0;
     core_ast_symbol->deep_copy_fn       = NULL;
     core_ast_symbol->is_deep_copy_fn    = false;
+    core_ast_symbol->primop_type        = NECRO_PRIMOP_NONE;
     return core_ast_symbol;
 }
 
@@ -148,6 +151,7 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create_from_ast_symbol(NecroPagedArena
     core_ast_symbol->outer              = NULL;
     core_ast_symbol->deep_copy_fn       = NULL;
     core_ast_symbol->is_deep_copy_fn    = false;
+    core_ast_symbol->primop_type        = ast_symbol->primop_type = ast_symbol->primop_type;
     return core_ast_symbol;
 }
 
@@ -173,6 +177,7 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create_by_renaming(NecroPagedArena* co
     core_ast_symbol->arity              = ast_symbol->arity;
     core_ast_symbol->deep_copy_fn       = NULL;
     core_ast_symbol->is_deep_copy_fn    = false;
+    core_ast_symbol->primop_type        = ast_symbol->primop_type;
     return core_ast_symbol;
 }
 

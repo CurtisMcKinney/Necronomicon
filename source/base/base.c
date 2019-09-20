@@ -1237,8 +1237,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "lt<Bool>",  NULL, NECRO_PRIMOP_CMP_LT);
     necro_base_setup_primitive(scoped_symtable, intern, "gte<Bool>", NULL, NECRO_PRIMOP_CMP_GE);
     necro_base_setup_primitive(scoped_symtable, intern, "lte<Bool>", NULL, NECRO_PRIMOP_CMP_LE);
-    necro_base_setup_primitive(scoped_symtable, intern,  "&&",       NULL, NECRO_PRIMOP_BINOP_AND);
-    necro_base_setup_primitive(scoped_symtable, intern,  "||",       NULL, NECRO_PRIMOP_BINOP_OR);
+    necro_base_setup_primitive(scoped_symtable, intern, "&&",        NULL, NECRO_PRIMOP_BINOP_AND);
+    necro_base_setup_primitive(scoped_symtable, intern, "||",        NULL, NECRO_PRIMOP_BINOP_OR);
 
     //--------------------
     // Compile, part II

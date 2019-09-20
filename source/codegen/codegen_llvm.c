@@ -950,8 +950,8 @@ void necro_llvm_map_runtime_symbol(NecroLLVM* context, LLVMExecutionEngineRef en
 ///////////////////////////////////////////////////////
 void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroLLVM* context)
 {
-    // *context = necro_llvm_create(program->intern, program->base, program, info.opt_level > 0);
-    *context = necro_llvm_create(program->intern, program->base, program, true);
+    *context = necro_llvm_create(program->intern, program->base, program, info.opt_level > 0);
+    // *context = necro_llvm_create(program->intern, program->base, program, true);
 
     // Declare structs
     for (size_t i = 0; i < program->structs.length; ++i)
@@ -1807,6 +1807,210 @@ void necro_llvm_test()
             "    case (gt mouseX 50, x) of\n"
             "      (True,  ((x, y), r)) -> (r, (y, x))\n"
             "      (False, ((z, w), r)) -> ((w, z), r)\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "PrimOp 1";
+        const char* test_source = ""
+            "iopviously :: Int\n"
+            "iopviously = add 1 0\n"
+            "uopviously :: UInt\n"
+            "uopviously = add 1 0\n"
+            "fopviously :: Float\n"
+            "fopviously = add 1 0\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "PrimOp 2";
+        const char* test_source = ""
+            "iopviously :: Int\n"
+            "iopviously = sub 1 0\n"
+            "uopviously :: UInt\n"
+            "uopviously = sub 1 0\n"
+            "fopviously :: Float\n"
+            "fopviously = sub 1 0\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "PrimOp 3";
+        const char* test_source = ""
+            "iopviously :: Int\n"
+            "iopviously = mul 1 0\n"
+            "uopviously :: UInt\n"
+            "uopviously = mul 1 0\n"
+            "fopviously :: Float\n"
+            "fopviously = mul 1 0\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "PrimOp 4";
+        const char* test_source = ""
+            "iopviously :: Int\n"
+            "iopviously = abs 1 \n"
+            "uopviously :: UInt\n"
+            "uopviously = abs 1 \n"
+            "fopviously :: Float\n"
+            "fopviously = abs 1.0 \n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "PrimOp 5";
+        const char* test_source = ""
+            "iopviously :: Int\n"
+            "iopviously = signum 100 \n"
+            "uopviously :: UInt\n"
+            "uopviously = signum 100 \n"
+            "fopviously :: Float\n"
+            "fopviously = signum 100.0 \n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "PrimOp 6";
+        const char* test_source = ""
+            "iopviously :: Int\n"
+            "iopviously = fromInt 1 \n"
+            "uopviously :: UInt\n"
+            "uopviously = fromInt 1 \n"
+            "fopviously :: Float\n"
+            "fopviously = fromInt 1 \n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "PrimOp 7";
+        const char* test_source = ""
+            "iopviously :: Int -> Bool\n"
+            "iopviously x = eq x x\n"
+            "uopviously :: UInt -> Bool\n"
+            "uopviously x = eq x x\n"
+            "fopviously :: Float -> Bool\n"
+            "fopviously x = eq x x\n"
+            "nopviously :: () -> Bool\n"
+            "nopviously x = eq x x\n"
+            "bopviously :: Bool -> Bool\n"
+            "bopviously x = eq x x\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "PrimOp 8";
+        const char* test_source = ""
+            "iopviously :: Int -> Bool\n"
+            "iopviously x = neq x x\n"
+            "uopviously :: UInt -> Bool\n"
+            "uopviously x = neq x x\n"
+            "fopviously :: Float -> Bool\n"
+            "fopviously x = neq x x\n"
+            "nopviously :: () -> Bool\n"
+            "nopviously x = neq x x\n"
+            "bopviously :: Bool -> Bool\n"
+            "bopviously x = neq x x\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "PrimOp 9";
+        const char* test_source = ""
+            "iopviously :: Int -> Bool\n"
+            "iopviously x = lt x x\n"
+            "uopviously :: UInt -> Bool\n"
+            "uopviously x = lt x x\n"
+            "fopviously :: Float -> Bool\n"
+            "fopviously x = lt x x\n"
+            "nopviously :: () -> Bool\n"
+            "nopviously x = lt x x\n"
+            "bopviously :: Bool -> Bool\n"
+            "bopviously x = lt x x\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "PrimOp 10";
+        const char* test_source = ""
+            "iopviously :: Int -> Bool\n"
+            "iopviously x = gt x x\n"
+            "uopviously :: UInt -> Bool\n"
+            "uopviously x = gt x x\n"
+            "fopviously :: Float -> Bool\n"
+            "fopviously x = gt x x\n"
+            "nopviously :: () -> Bool\n"
+            "nopviously x = gt x x\n"
+            "bopviously :: Bool -> Bool\n"
+            "bopviously x = gt x x\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "PrimOp 11";
+        const char* test_source = ""
+            "iopviously :: Int -> Bool\n"
+            "iopviously x = gte x x\n"
+            "uopviously :: UInt -> Bool\n"
+            "uopviously x = gte x x\n"
+            "fopviously :: Float -> Bool\n"
+            "fopviously x = gte x x\n"
+            "nopviously :: () -> Bool\n"
+            "nopviously x = gte x x\n"
+            "bopviously :: Bool -> Bool\n"
+            "bopviously x = gte x x\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "PrimOp 12";
+        const char* test_source = ""
+            "iopviously :: Int -> Bool\n"
+            "iopviously x = lte x x\n"
+            "uopviously :: UInt -> Bool\n"
+            "uopviously x = lte x x\n"
+            "fopviously :: Float -> Bool\n"
+            "fopviously x = lte x x\n"
+            "nopviously :: () -> Bool\n"
+            "nopviously x = lte x x\n"
+            "bopviously :: Bool -> Bool\n"
+            "bopviously x = lte x x\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "PrimOp 13";
+        const char* test_source = ""
+            "andviously :: Bool\n"
+            "andviously = True && False\n"
+            "orviously :: Bool\n"
+            "orviously = True || False\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_llvm_test_string(test_name, test_source);

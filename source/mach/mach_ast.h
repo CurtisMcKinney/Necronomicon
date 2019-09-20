@@ -223,16 +223,6 @@ typedef struct NecroMachDef
     size_t                num_members;
     size_t                members_size;
 
-    // Recursive State Members
-    // NecroMachSlot*        rec_members;
-    // size_t                rec_num_members;
-    // size_t                rec_members_size;
-    // bool                  is_in_rec_binding;
-    // struct NecroMachAst*  rec_state_array;
-    // struct NecroMachAst*  rec_state_value;
-    // size_t                rec_state_flag_slot;
-    // struct NecroMachAst*  rec_state_flag;
-
     struct NecroMachAst*  global_value;
     struct NecroMachAst*  global_state;
 
@@ -329,28 +319,6 @@ typedef struct NecroMachAlloca
     struct NecroMachAst* result;
 } NecroMachAlloca;
 
-// typedef enum
-// {
-//     NECRO_MACH_BINOP_IADD,
-//     NECRO_MACH_BINOP_ISUB,
-//     NECRO_MACH_BINOP_IMUL,
-//     NECRO_MACH_BINOP_IDIV,
-//
-//     NECRO_MACH_BINOP_UADD,
-//     NECRO_MACH_BINOP_USUB,
-//     NECRO_MACH_BINOP_UMUL,
-//     NECRO_MACH_BINOP_UDIV,
-//
-//     NECRO_MACH_BINOP_FADD,
-//     NECRO_MACH_BINOP_FSUB,
-//     NECRO_MACH_BINOP_FMUL,
-//     NECRO_MACH_BINOP_FDIV,
-//     NECRO_MACH_BINOP_AND,
-//     NECRO_MACH_BINOP_OR,
-//     NECRO_MACH_BINOP_SHL,
-//     NECRO_MACH_BINOP_SHR,
-// } NECRO_MACH_BINOP_TYPE;
-
 typedef struct NecroMachBinOp
 {
     struct NecroMachAst* left;
@@ -359,43 +327,12 @@ typedef struct NecroMachBinOp
     NECRO_PRIMOP_TYPE    binop_type;
 } NecroMachBinOp;
 
-// typedef enum
-// {
-//     NECRO_MACH_UOP_IABS,
-//     NECRO_MACH_UOP_UABS,
-//     NECRO_MACH_UOP_FABS,
-//
-//     NECRO_MACH_UOP_ISGN,
-//     NECRO_MACH_UOP_USGN,
-//     NECRO_MACH_UOP_FSGN,
-//
-//     NECRO_MACH_UOP_ITOI,
-//     NECRO_MACH_UOP_ITOU,
-//     NECRO_MACH_UOP_ITOF,
-//
-//     NECRO_MACH_UOP_UTOI,
-//
-//     NECRO_MACH_UOP_FTRI,
-//     NECRO_MACH_UOP_FRNI,
-//     NECRO_MACH_UOP_FTOF,
-// } NECRO_MACH_UOP_TYPE;
-
 typedef struct NecroMachUOp
 {
     struct NecroMachAst* param;
     struct NecroMachAst* result;
     NECRO_PRIMOP_TYPE   uop_type;
 } NecroMachUOp;
-
-// typedef enum
-// {
-//     NECRO_MACH_CMP_EQ,
-//     NECRO_MACH_CMP_NE,
-//     NECRO_MACH_CMP_GT,
-//     NECRO_MACH_CMP_GE,
-//     NECRO_MACH_CMP_LT,
-//     NECRO_MACH_CMP_LE,
-// } NECRO_MACH_CMP_TYPE;
 
 typedef struct NecroMachCmp
 {

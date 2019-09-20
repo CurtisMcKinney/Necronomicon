@@ -1097,14 +1097,6 @@ NecroMachAst* necro_mach_create_initial_machine_def(NecroMachProgram* program, N
     ast->machine_def.members             = necro_paged_arena_alloc(&program->arena, initial_members_size * sizeof(NecroMachSlot));
     ast->machine_def.num_members         = 0;
     ast->machine_def.members_size        = initial_members_size;
-    // ast->machine_def.rec_members         = necro_paged_arena_alloc(&program->arena, initial_members_size * sizeof(NecroMachSlot));
-    // ast->machine_def.rec_num_members     = 0;
-    // ast->machine_def.rec_members_size    = initial_members_size;
-    // ast->machine_def.is_in_rec_binding   = false;
-    // ast->machine_def.rec_state_array     = NULL;
-    // ast->machine_def.rec_state_flag      = NULL;
-    // ast->machine_def.rec_state_flag_slot = 0xFFFFFFFF;
-    // ast->machine_def.rec_state_value     = NULL;
     symbol->ast                          = ast;
     ast->machine_def.machine_name->ast   = ast;
     if (outer == 0)

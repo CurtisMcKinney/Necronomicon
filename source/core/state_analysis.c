@@ -11,6 +11,7 @@
 #include "monomorphize.h"
 #include "lambda_lift.h"
 #include "alias_analysis.h"
+#include "defunctionalization.h"
 
 typedef struct NecroCoreAstSymbolBucket
 {
@@ -94,12 +95,11 @@ void necro_core_state_analysis(NecroCompileInfo info, NecroIntern* intern, Necro
         sa.new_lets_tail->let.expr = next;
     }
 
-    // Create deep_copy fns
-    // necro_core_ast_create_deep_copy_fns(&sa, core_ast_arena->root);
-
     // Finish
     unwrap(void, necro_core_infer(intern, base, core_ast_arena)); // TODO: Remove after some testing
-    // necro_core_ast_pretty_print(core_ast_arena->root);
+
+    if ((info.compilation_phase == NECRO_PHASE_STATE_ANALYSIS && info.verbosity > 0) || info.verbosity > 1)
+        necro_core_ast_pretty_print(core_ast_arena->root);
 
     // Cleanup
     necro_snapshot_arena_destroy(&sa.snapshot_arena);
@@ -919,7 +919,7 @@ void necro_state_analysis_test_string(const char* test_name, const char* str)
     unwrap(void, necro_ast_transform_to_core(info, &intern, &base, &ast, &core_ast));
     unwrap(void, necro_core_infer(&intern, &base, &core_ast));
     necro_core_lambda_lift(info, &intern, &base, &core_ast);
-    // TODO: defunctionalization here!
+    necro_core_defunctionalize(info, &intern, &base, &core_ast);
     necro_core_state_analysis(info, &intern, &base, &core_ast);
 
     //--------------------
@@ -999,8 +999,6 @@ void necro_state_analysis_test()
         necro_state_analysis_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Rec 3.2";
         const char* test_source = ""
@@ -1015,8 +1013,6 @@ void necro_state_analysis_test()
             "main w = w\n";
         necro_state_analysis_test_string(test_name, test_source);
     }
-
-/*
 
     {
         const char* test_name   = "Rec 1.5";
@@ -1106,6 +1102,22 @@ void necro_state_analysis_test()
             "main w = w\n";
         necro_state_analysis_test_string(test_name, test_source);
     }
+
+*/
+
+    {
+        const char* test_name   = "Double Up";
+        const char* test_source = ""
+            "data TwoInts   = TwoInts Int Int\n"
+            "data DoubleUp  = DoubleUp TwoInts TwoInts\n"
+            "doubleDown :: Int -> DoubleUp\n"
+            "doubleDown i = DoubleUp (TwoInts i i) (TwoInts i i)\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_state_analysis_test_string(test_name, test_source);
+    }
+
+/*
 
 */
 

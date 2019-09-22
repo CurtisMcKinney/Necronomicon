@@ -159,11 +159,13 @@ runSeq s t =
   case s of
     Seq f = f t
 
+-- NOTE / IDEA: Generate binary search tree of cases for sequences to find right time case.
 coolPat :: Seq Float
-coolPat = Seq <| \t ->
-  case t of
-     0   -> runSeq seqA
-     0.5 -> runSeq seqB
+coolPat = Seq go where
+  go t =
+    case t of
+       0   -> runSeq seqA t
+       0.5 -> runSeq seqB t
 
 poly1 :: (Audio -> Audio) -> Seq Float -> Audio
 

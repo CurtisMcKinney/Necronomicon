@@ -1563,6 +1563,7 @@ void necro_mach_test_string(const char* test_name, const char* str)
     NecroCoreAstArena   core_ast        = necro_core_ast_arena_empty();
     NecroMachProgram    mach_program    = necro_mach_program_empty();
     NecroCompileInfo    info            = necro_test_compile_info();
+    info.verbosity = 2;
 
     //--------------------
     // Compile
@@ -1671,8 +1672,6 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Bind 2";
         const char* test_source = ""
@@ -1684,8 +1683,6 @@ void necro_mach_test()
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);
     }
-
-/*
 
     {
         const char* test_name   = "Bind 3";
@@ -2685,6 +2682,20 @@ void necro_mach_test()
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);
     }
+
+*/
+
+    {
+        const char* test_name   = "Op 1";
+        const char* test_source = ""
+            "x :: Int\n"
+            "x = 1 + 2\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+/*
 
     {
         const char* test_name   = "Undersaturate 1";

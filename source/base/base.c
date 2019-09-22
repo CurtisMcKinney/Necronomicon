@@ -626,21 +626,21 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, env_s_type, necro_ast_create_list(arena, env_constructor, NULL)));
     }
 
-    for (size_t i = 2; i < NECRO_MAX_BRANCH_TYPES; ++i)
-    {
-        char branch_fn_name[24] = "";
-        snprintf(branch_fn_name, 24, "BranchFn%zu", i);
-        NecroAst* branch_fn_s_type = necro_ast_create_simple_type(arena, intern, branch_fn_name, necro_ast_create_var_list(arena, intern, i, NECRO_VAR_TYPE_VAR_DECLARATION));
-        NecroAst* branch_fn_cons   = NULL;
-        for (size_t i2 = 0; i2 < i; ++i2)
-        {
-            snprintf(branch_fn_name, 24, "BranchFn%zuAlt%zu", i, i2);
-            NecroAst* branch_fn_con_var     = necro_ast_create_var(arena, intern, var_names[i2], NECRO_VAR_TYPE_FREE_VAR);
-            NecroAst* branch_fn_constructor = necro_ast_create_data_con(arena, intern, branch_fn_name, necro_ast_create_list(arena, branch_fn_con_var, NULL));
-            branch_fn_cons                  = necro_ast_create_list(arena, branch_fn_constructor, branch_fn_cons);
-        }
-        necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, branch_fn_s_type, branch_fn_cons));
-    }
+    // for (size_t i = 2; i < NECRO_MAX_BRANCH_TYPES; ++i)
+    // {
+    //     char branch_fn_name[24] = "";
+    //     snprintf(branch_fn_name, 24, "BranchFn%zu", i);
+    //     NecroAst* branch_fn_s_type = necro_ast_create_simple_type(arena, intern, branch_fn_name, necro_ast_create_var_list(arena, intern, i, NECRO_VAR_TYPE_VAR_DECLARATION));
+    //     NecroAst* branch_fn_cons   = NULL;
+    //     for (size_t i2 = 0; i2 < i; ++i2)
+    //     {
+    //         snprintf(branch_fn_name, 24, "BranchFn%zuAlt%zu", i, i2);
+    //         NecroAst* branch_fn_con_var     = necro_ast_create_var(arena, intern, var_names[i2], NECRO_VAR_TYPE_FREE_VAR);
+    //         NecroAst* branch_fn_constructor = necro_ast_create_data_con(arena, intern, branch_fn_name, necro_ast_create_list(arena, branch_fn_con_var, NULL));
+    //         branch_fn_cons                  = necro_ast_create_list(arena, branch_fn_constructor, branch_fn_cons);
+    //     }
+    //     necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, branch_fn_s_type, branch_fn_cons));
+    // }
 
     // Functor
     {
@@ -1048,8 +1048,9 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
                         necro_ast_create_type_attribute(arena, necro_ast_create_conid(arena, intern, "World", NECRO_CON_TYPE_VAR), NECRO_TYPE_ATTRIBUTE_STAR))),
                 NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
         necro_append_top(arena, top,
-            necro_ast_create_simple_assignment(arena, intern, "printInt",
-                necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
+            necro_ast_create_apats_assignment(arena, intern, "printInt",
+                necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "x", NECRO_VAR_DECLARATION), necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "w", NECRO_VAR_DECLARATION), NULL)),
+                necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "w", NECRO_VAR_VAR), NULL)));
     }
 
     // plusPtr??
@@ -1117,18 +1118,18 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         base.env_cons[i]  = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, env_name));
     }
 
-    for (size_t i = 2; i < NECRO_MAX_BRANCH_TYPES; ++i)
-    {
-        char branch_name[24] = "";
-        snprintf(branch_name, 24, "BranchFn%zu", i);
-        base.branch_types[i] = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, branch_name));
-        base.branch_cons[i]  = necro_paged_arena_alloc(arena, i * sizeof(NecroAstSymbol*));
-        for (size_t i2 = 0; i2 < i; ++i2)
-        {
-            snprintf(branch_name, 24, "BranchFn%zuAlt%zu", i, i2);
-            base.branch_cons[i][i2] = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, branch_name));
-        }
-    }
+    // for (size_t i = 2; i < NECRO_MAX_BRANCH_TYPES; ++i)
+    // {
+    //     char branch_name[24] = "";
+    //     snprintf(branch_name, 24, "BranchFn%zu", i);
+    //     base.branch_types[i] = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, branch_name));
+    //     base.branch_cons[i]  = necro_paged_arena_alloc(arena, i * sizeof(NecroAstSymbol*));
+    //     for (size_t i2 = 0; i2 < i; ++i2)
+    //     {
+    //         snprintf(branch_name, 24, "BranchFn%zuAlt%zu", i, i2);
+    //         base.branch_cons[i][i2] = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, branch_name));
+    //     }
+    // }
 
     //--------------------
     // Cache symbols

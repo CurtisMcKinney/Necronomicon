@@ -18,6 +18,13 @@
     - If we could obviate the need for using lifted type in recursive value check we could nix lifted types entirely.
 
     TODO
+
+        - Case really needs to be looked at again, this seems to fundamentally mishandle monomorphic and polymorphic types!
+        - Type vars which resolve to functions and are used in multiple places will need to have a sum type environment wrapped around the actual fn env type used!
+        - Test unique types
+        - Test Recursive values!
+        - Arrays!
+
         - Refactor Env to dynamically generate arities as required!
         - transform: MyCoolIntFn (Int -> Int) ==> MyCoolIntFn_aa1 a
         - inline all HOF: myCoolHOF :: (Int -> Int) -> Int ==> INLINED with (Int -> Int) ==> CoolFnEnv_aa2
@@ -211,14 +218,6 @@ NecroStaticValue* necro_defunctionalize_var(NecroDefunctionalizeContext* context
 {
     assert(context != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_VAR);
-    // // Primitives
-    // if (ast->var.ast_symbol->is_primitive)
-    // {
-    //     if (ast->necro_type->type == NECRO_TYPE_FUN)
-    //         return necro_static_value_create_fun(context->arena, ast->necro_type, ast->var.ast_symbol->static_value->fun.fn_symbol, necro_static_value_create_dyn(context->arena, necro_type_get_fully_applied_fun_type(ast->necro_type)));
-    //     else
-    //         return necro_static_value_create_dyn(context->arena, ast->necro_type);
-    // }
     // _primUndefined
     if (ast->var.ast_symbol == context->base->prim_undefined->core_ast_symbol)
     {
@@ -253,14 +252,7 @@ NecroStaticValue* necro_defunctionalize_data_con(NecroDefunctionalizeContext* co
 {
     assert(context != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_DATA_CON);
-    NecroType* con_type = ast->data_con.type;
-    while (con_type->type == NECRO_TYPE_FOR)
-        con_type = con_type->for_all.type;
-    while (con_type->type == NECRO_TYPE_FUN)
-    {
-        ast->data_con.ast_symbol->arity++;
-        con_type = con_type->fun.type2;
-    }
+    ast->data_con.ast_symbol->arity = necro_type_arity(necro_type_find(ast->data_con.type));
     if (ast->data_con.ast_symbol->arity > 0)
         ast->data_con.ast_symbol->static_value = necro_static_value_create_fun(context->arena, ast->data_con.ast_symbol->type, ast->data_con.ast_symbol, necro_static_value_create_dyn(context->arena, ast->data_con.data_type_type));
     else
@@ -270,6 +262,9 @@ NecroStaticValue* necro_defunctionalize_data_con(NecroDefunctionalizeContext* co
 
 NecroStaticValue* necro_defunctionalize_data_decl(NecroDefunctionalizeContext* context, NecroCoreAst* ast)
 {
+    // HACK / TODO / NOTE: Removing data_decl defunctionalization for now as it needs more consideration/work and currently its borking things down stream!
+    // if (true)
+    //     return NULL;
     assert(context != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_DATA_DECL);
     NecroCoreAstList* data_cons = ast->data_decl.con_list;
@@ -303,9 +298,19 @@ NecroStaticValue* necro_defunctionalize_lit(NecroDefunctionalizeContext* context
         return necro_static_value_create_dyn(context->arena, array_type);
     }
     case NECRO_AST_CONSTANT_ARRAY:
+    {
         // TODO: Finish
-        assert(false);
-        return NULL;
+        NecroCoreAstList* elements = ast->lit.array_literal_elements;
+        while (elements != NULL)
+        {
+            necro_defunctionalize_go(context, elements->data);
+            elements = elements->next;
+        }
+        return necro_static_value_create_dyn(context->arena, ast->necro_type);
+        // // TODO: Finish
+        // assert(false);
+        // return NULL;
+    }
     case NECRO_AST_CONSTANT_TYPE_INT:
     default:
         assert(false);
@@ -319,13 +324,12 @@ NecroStaticValue* necro_defunctionalize_for(NecroDefunctionalizeContext* context
     assert(ast->ast_type == NECRO_CORE_AST_FOR);
     NecroStaticValue* range_init_static_value = necro_defunctionalize_go(context, ast->for_loop.range_init);
     NecroStaticValue* value_init_static_value = necro_defunctionalize_go(context, ast->for_loop.value_init);
-    NecroStaticValue* index_arg_static_value  = necro_defunctionalize_go(context, ast->for_loop.index_arg);
-    NecroStaticValue* value_arg_static_value  = necro_defunctionalize_go(context, ast->for_loop.value_arg);
+    // NOTE: This assumes that these have floated cases from here to the expression!
+    ast->for_loop.index_arg->var.ast_symbol->static_value = necro_static_value_create_dyn(context->arena, ast->for_loop.index_arg->necro_type);
+    ast->for_loop.value_arg->var.ast_symbol->static_value = necro_static_value_create_dyn(context->arena, ast->for_loop.value_arg->necro_type);
     NecroStaticValue* expression_static_value = necro_defunctionalize_go(context, ast->for_loop.expression);
     UNUSED(range_init_static_value);
     UNUSED(value_init_static_value);
-    UNUSED(index_arg_static_value);
-    UNUSED(value_arg_static_value);
     return expression_static_value;
 }
 
@@ -341,7 +345,7 @@ NecroStaticValue* necro_defunctionalize_let(NecroDefunctionalizeContext* context
             return necro_defunctionalize_go(context, ast);
         }
         // Inline single var assignments, then move onto Let expr
-        else if (ast->let.bind->ast_type == NECRO_CORE_AST_BIND && ast->let.bind->bind.expr->ast_type == NECRO_CORE_AST_VAR && ast->let.bind->bind.expr->var.ast_symbol != context->base->prim_undefined->core_ast_symbol && ast->let.expr != NULL)
+        else if (ast->let.bind->ast_type == NECRO_CORE_AST_BIND && ast->let.bind->bind.expr->ast_type == NECRO_CORE_AST_VAR && ast->let.bind->bind.initializer == NULL && ast->let.bind->bind.expr->var.ast_symbol != context->base->prim_undefined->core_ast_symbol && ast->let.expr != NULL)
         {
             ast->let.bind->bind.ast_symbol->inline_ast = ast->let.bind->bind.expr;
             *ast = *ast->let.expr;
@@ -377,6 +381,12 @@ NecroStaticValue* necro_defunctionalize_bind(NecroDefunctionalizeContext* contex
         else
             ast->bind.ast_symbol->static_value = necro_static_value_create_dyn(context->arena, ast->bind.ast_symbol->type);
         return ast->bind.ast_symbol->static_value;
+    }
+
+    // If we're a recursive value, set to dyn
+    if (ast->bind.initializer != NULL)
+    {
+        ast->bind.ast_symbol->static_value = necro_static_value_create_dyn(context->arena, ast->bind.expr->necro_type);
     }
 
     // Defunctionalize expr
@@ -580,15 +590,19 @@ NecroStaticValue* necro_defunctionalize_app_env(NecroDefunctionalizeContext* con
     }
 }
 
+// TODO: This needs to be rexamined ALOT
 NecroStaticValue* necro_defunctionalize_app_con(NecroDefunctionalizeContext* context, NecroCoreAst* app_ast, NecroCoreAst* var_ast, NecroStaticValue* fn_static_value)
 {
+    UNUSED(fn_static_value);
     // Fully Saturated, First Order, Fun, Constructor
     NecroCoreAst*         apps             = app_ast;
     NecroStaticValueList* arg_svs          = NULL;
     NecroType*            arg_types        = NULL;
-    NecroType*            constructed_type = necro_type_con_create(context->arena, fn_static_value->fun.expr_static_value->necro_type->con.con_symbol, NULL);
-    constructed_type->kind                 = context->base->star_kind->type;
-    NecroType*            con              = constructed_type;
+    // NecroType*            constructed_type = necro_type_con_create(context->arena, fn_static_value->fun.expr_static_value->necro_type->con.con_symbol, NULL);
+    // NecroType*            constructed_type = necro_type_con_create(context->arena, fn_static_value->fun.expr_static_value->necro_type->con.con_symbol, NULL);
+    // constructed_type->kind                 = context->base->star_kind->type;
+    NecroType*            con              = necro_type_find(app_ast->necro_type);
+    NecroType*            constructed_type = con;
     while (apps->ast_type == NECRO_CORE_AST_APP)
     {
         arg_svs = necro_cons_static_value_list(context->arena, necro_defunctionalize_go(context, apps->app.expr2), arg_svs);
@@ -597,7 +611,7 @@ NecroStaticValue* necro_defunctionalize_app_con(NecroDefunctionalizeContext* con
             assert(apps->app.expr2->ast_type == NECRO_CORE_AST_VAR);
             arg_svs->data = necro_static_value_create_env_from_expr(context, apps->app.expr2, arg_svs->data->necro_type, arg_svs->data->fun.fn_symbol, arg_svs->data->fun.expr_static_value);
         }
-        arg_types = necro_type_list_create(context->arena, arg_svs->data->necro_type, arg_types);
+        arg_types = necro_type_list_create(context->arena, arg_svs->data->necro_type, arg_types); // TODO / NOTE: This is NOT how things work, con fns don't map 1:1 onto type vars!!!!
         con       = necro_type_fn_create(context->arena, arg_svs->data->necro_type, con);
         con->kind = context->base->star_kind->type;
         apps = apps->app.expr1;
@@ -608,7 +622,7 @@ NecroStaticValue* necro_defunctionalize_app_con(NecroDefunctionalizeContext* con
     // These all stem from returning from funtions from case.
     // Thus we do the branch trick to all inner Envs, but then we need to open them up and apply Branch1_1 and Branch1_2 to each contained Env, necessitates copying data though.
     // TODO: uvars...
-    constructed_type->con.args = arg_types;
+    // constructed_type->con.args = arg_types;
     var_ast->necro_type        = con;
     return necro_static_value_create_con(context->arena, constructed_type, var_ast->var.ast_symbol, con, arg_svs);
 }
@@ -694,6 +708,7 @@ NecroStaticValue* necro_defunctionalize_app(NecroDefunctionalizeContext* context
     }
 }
 
+// TODO: Case really needs to be looked at again, this seems to fundamentally mishandle monomorphic and polymorphic types!
 //--------------------
 // Case
 //--------------------
@@ -718,12 +733,13 @@ NECRO_CASE_ALT_STATUS necro_defunctionalize_case_pat(NecroDefunctionalizeContext
                 var_ast = var_ast->app.expr1;
             if (var_ast->var.ast_symbol != expr_sv->con.con_symbol && !necro_type_exact_unify(ast->necro_type, expr_sv->necro_type))
                 return NECRO_CASE_ALT_ELIMINATE;
-            NecroStaticValueList* rev_con_args = expr_sv->con.args;
+            // NecroStaticValueList* rev_con_args = expr_sv->con.args;
             while (ast->ast_type == NECRO_CORE_AST_APP)
             {
-                if (necro_defunctionalize_case_pat(context, ast->app.expr2, rev_con_args->data) == NECRO_CASE_ALT_ELIMINATE)
+                // if (necro_defunctionalize_case_pat(context, ast->app.expr2, rev_con_args->data) == NECRO_CASE_ALT_ELIMINATE)
+                if (necro_defunctionalize_case_pat(context, ast->app.expr2, necro_static_value_create_dyn(context->arena, ast->app.expr2->necro_type)) == NECRO_CASE_ALT_ELIMINATE)
                     return NECRO_CASE_ALT_ELIMINATE;
-                rev_con_args = rev_con_args->next;
+                // rev_con_args = rev_con_args->next;
                 ast          = ast->app.expr1;
             }
             assert(ast->ast_type == NECRO_CORE_AST_VAR);
@@ -734,20 +750,21 @@ NECRO_CASE_ALT_STATUS necro_defunctionalize_case_pat(NecroDefunctionalizeContext
 
         case NECRO_STATIC_VALUE_DYN:
         {
-            NecroType*   arg_types = expr_sv->dyn.type->con.args;
-            const size_t arg_count = necro_type_list_count(arg_types);
-            size_t       arg_i     = 0;
+            // NecroType*   arg_types = expr_sv->dyn.type->con.args;
+            // const size_t arg_count = necro_type_list_count(arg_types);
+            // size_t       arg_i     = 0;
             while (ast->ast_type == NECRO_CORE_AST_APP)
             {
                 // HACK: Kinda lame...
-                NecroType* arg_type = arg_types;
-                for (size_t i = arg_i + 1; i < arg_count; ++i)
-                    arg_type = arg_type->list.next;
-                arg_type = arg_type->list.item;
-                necro_defunctionalize_case_pat(context, ast->app.expr2, necro_static_value_create_dyn(context->arena, arg_type));
+                // NecroType* arg_type = arg_types;
+                // for (size_t i = arg_i + 1; i < arg_count; ++i)
+                //     arg_type = arg_type->list.next;
+                // arg_type = arg_type->list.item;
+                // necro_defunctionalize_case_pat(context, ast->app.expr2, necro_static_value_create_dyn(context->arena, arg_type));
+                necro_defunctionalize_case_pat(context, ast->app.expr2, necro_static_value_create_dyn(context->arena, ast->app.expr2->necro_type));
                 // rev_con_args = rev_con_args->next;
                 ast = ast->app.expr1;
-                arg_i++;
+                // arg_i++;
             }
             assert(ast->ast_type == NECRO_CORE_AST_VAR);
             return NECRO_CASE_ALT_KEEP;
@@ -891,8 +908,6 @@ void necro_defunctionalize_test_result(const char* test_name, const char* str)
     necro_intern_destroy(&intern);
 }
 
-// TODO: Test unique types
-// TODO: Test Recursive values!
 void necro_core_defunctionalize_test()
 {
     necro_announce_phase("Defunctionalize");

@@ -19,6 +19,7 @@
 #include "core_infer.h"
 #include "monomorphize.h"
 #include "lambda_lift.h"
+#include "defunctionalization.h"
 #include "state_analysis.h"
 #include "mach_transform.h"
 #include "mach_print.h"
@@ -1110,7 +1111,7 @@ void necro_llvm_test_string_go(const char* test_name, const char* str, bool shou
     unwrap(void, necro_ast_transform_to_core(info, &intern, &base, &ast, &core_ast));
     unwrap(void, necro_core_infer(&intern, &base, &core_ast));
     necro_core_lambda_lift(info, &intern, &base, &core_ast);
-    // TODO: defunctionalization here!
+    necro_core_defunctionalize(info, &intern, &base, &core_ast);
     necro_core_state_analysis(info, &intern, &base, &core_ast);
     necro_core_transform_to_mach(info, &intern, &base, &core_ast, &mach_program);
     necro_llvm_codegen(info, &mach_program, &llvm);

@@ -141,6 +141,23 @@ NecroPattern* necro_pattern_alloc(NecroMachProgram* program, NecroPattern* paren
     return pat;
 }
 
+NecroPattern* necro_pattern_create_top(NecroMachProgram* program, NecroCoreAst* pat_ast, NecroMachAst* outer)
+{
+    NecroMachAst*  value      = necro_core_transform_to_mach_3_go(program, pat_ast, outer);
+    NecroMachType* value_type = necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, pat_ast->necro_type));
+    return necro_pattern_alloc(program, NULL, 0, value, value_type, pat_ast, NECRO_PATTERN_TOP);
+}
+
+NecroPattern* necro_pattern_create_wildcard(NecroMachProgram* program, NecroPattern* parent, NecroCoreAst* var_ast)
+{
+    return necro_pattern_alloc(program, parent, 0, NULL, NULL, var_ast, NECRO_PATTERN_WILDCARD);
+}
+
+NecroPattern* necro_pattern_copy(NecroMachProgram* program, NecroPattern* pattern)
+{
+    return necro_pattern_alloc(program, pattern->parent, pattern->parent_slot, pattern->value_ast, pattern->value_type, pattern->pat_ast, pattern->pattern_type);
+}
+
 NecroPattern* necro_pattern_create(NecroMachProgram* program, NecroPattern* parent, NecroCoreAst* pat_ast, const size_t slot)
 {
     assert(pat_ast != NULL);
@@ -148,7 +165,10 @@ NecroPattern* necro_pattern_create(NecroMachProgram* program, NecroPattern* pare
     {
     case NECRO_CORE_AST_VAR:
     {
-
+        if (pat_ast->var.is_wildcard)
+        {
+            return necro_pattern_create_wildcard(program, parent, pat_ast);
+        }
         pat_ast->var.ast_symbol->mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, pat_ast->var.ast_symbol);
         NecroMachAstSymbol* symbol = pat_ast->var.ast_symbol->mach_symbol;
         if (symbol->is_enum)
@@ -187,23 +207,6 @@ NecroPattern* necro_pattern_create(NecroMachProgram* program, NecroPattern* pare
         assert(false);
         return NULL;
     }
-}
-
-NecroPattern* necro_pattern_create_top(NecroMachProgram* program, NecroCoreAst* pat_ast, NecroMachAst* outer)
-{
-    NecroMachAst*  value      = necro_core_transform_to_mach_3_go(program, pat_ast, outer);
-    NecroMachType* value_type = necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, pat_ast->necro_type));
-    return necro_pattern_alloc(program, NULL, 0, value, value_type, pat_ast, NECRO_PATTERN_TOP);
-}
-
-NecroPattern* necro_pattern_create_wildcard(NecroMachProgram* program, NecroPattern* parent)
-{
-    return necro_pattern_alloc(program, parent, 0, NULL, NULL, NULL, NECRO_PATTERN_WILDCARD);
-}
-
-NecroPattern* necro_pattern_copy(NecroMachProgram* program, NecroPattern* pattern)
-{
-    return necro_pattern_alloc(program, pattern->parent, pattern->parent_slot, pattern->value_ast, pattern->value_type, pattern->pat_ast, pattern->pattern_type);
 }
 
 NecroDecisionTree* necro_decision_tree_create_leaf(NecroMachProgram* program, NecroPattern* pattern, NecroCoreAst* leaf_expression, NecroPatternList* bindings)

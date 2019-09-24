@@ -21,6 +21,7 @@
         * New wildcard scheme
         * Stateful unboxed types
 
+        * New types
         * Rational type
         * apats on for loops
         * Unboxed Tuples / Types

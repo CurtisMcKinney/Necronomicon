@@ -166,6 +166,25 @@ NecroLLVM necro_llvm_empty()
     };
 }
 
+void necro_llvm_create_target_data(LLVMCodeGenOptLevel opt_level, LLVMTargetMachineRef* target_machine, LLVMTargetDataRef* target_data)
+{
+    const char*          target_triple    = LLVMGetDefaultTargetTriple();
+    const char*          target_cpu       = LLVMGetHostCPUName();
+    const char*          target_features  = LLVMGetHostCPUFeatures();
+    LLVMTargetRef        target           = NULL;
+    char*                target_error     = NULL;
+    if (LLVMGetTargetFromTriple(target_triple, &target, &target_error))
+    {
+        fprintf(stderr, "necro error: %s\n", target_error);
+        LLVMDisposeMessage(target_error);
+        necro_exit(1);
+        assert(false);
+    }
+    *target_machine = LLVMCreateTargetMachine(target, target_triple, target_cpu, target_features, opt_level, LLVMRelocDefault, LLVMCodeModelJITDefault);
+    *target_data    = LLVMCreateTargetDataLayout(*target_machine);
+
+}
+
 NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgram* program, bool should_optimize)
 {
     LLVMInitializeNativeTarget();
@@ -173,26 +192,6 @@ NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgr
     LLVMContextRef         context          = LLVMContextCreate();
     LLVMModuleRef          mod              = LLVMModuleCreateWithNameInContext("necro", context);
     LLVMExecutionEngineRef engine           = NULL;
-
-    // // LLVMTargetDataRef  target           = LLVMCreateTargetData(LLVMGetTarget(mod));
-    // // Target info
-    // // TODO: Dispose of what needs to be disposed!
-    // const char*          target_triple    = LLVMGetDefaultTargetTriple();
-    // const char*          target_cpu       = LLVMGetHostCPUName();
-    // const char*          target_features  = LLVMGetHostCPUFeatures();
-    // LLVMTargetRef        target           = NULL;
-    // char*                target_error     = NULL;
-    // if (LLVMGetTargetFromTriple(target_triple, &target, &target_error))
-    // {
-    //     fprintf(stderr, "necro error: %s\n", target_error);
-    //     LLVMDisposeMessage(target_error);
-    //     necro_exit(1);
-    //     assert(false);
-    // }
-    // // LLVMCodeGenOptLevel  opt_level        = should_optimize ? LLVMCodeGenLevelAggressive : LLVMCodeGenLevelNone;
-    // LLVMCodeGenOptLevel  opt_level        = should_optimize ? LLVMCodeGenLevelDefault : LLVMCodeGenLevelNone;
-    // LLVMTargetMachineRef target_machine   = LLVMCreateTargetMachine(target, target_triple, target_cpu, target_features, opt_level, LLVMRelocDefault, LLVMCodeModelJITDefault);
-    // LLVMTargetDataRef    target_data      = LLVMCreateTargetDataLayout(target_machine);
 
     // LLVMSetTarget(mod, target_triple);
     // LLVMSetModuleDataLayout(mod, target_data);
@@ -1120,6 +1119,24 @@ void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroL
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_is_done);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_alloc);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_free);
+
+
+    // Write assembly to file
+    /*
+    {
+        LLVMTargetMachineRef target_machine     = NULL;
+        LLVMTargetDataRef    target_data        = NULL;
+        char*                emit_to_file_error = NULL;
+        necro_llvm_create_target_data(context->should_optimize, &target_machine, &target_data);
+        if (LLVMTargetMachineEmitToFile(target_machine, context->mod, "./necro.asm", LLVMAssemblyFile, &emit_to_file_error) != 0)
+        {
+            fprintf(stderr, "LLVMTargetMachineEmitToFile error: %s\n", emit_to_file_error);
+            LLVMDisposeMessage(emit_to_file_error);
+            exit(1);
+            return;
+        }
+    }
+    */
 
 }
 

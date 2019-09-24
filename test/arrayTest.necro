@@ -24,7 +24,8 @@ App :: forall u v w x y a b. (u<=x, u<=v, u<=w, y<=x) => x:(v:a -> w:b) -> v:a y
 App :: .(.a -> .b) -> .a -> App .a .b
 
 -- APIs
-updateSinOscState :: Float -> *SinOscState -> *(SinOscState, Shared Float)
+accumulateAudio1 :: Default s => (F64 -> s -> (#s, F64#)) -> Audio -> Audio
+accumulateAudio1 :: Default s => (F64 -> F64 -> s ->(#s, F64#)) -> Audio -> Audio -> Audio
 
 -- Array
 newArray     :: .a -> .Array n a

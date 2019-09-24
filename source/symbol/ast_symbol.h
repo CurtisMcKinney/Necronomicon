@@ -53,6 +53,8 @@ typedef enum
     NECRO_PRIMOP_NONE    = 0,
     NECRO_PRIMOP_PRIM_FN = 1,
 
+    NECRO_PRIMOP_UNBOXED_CON,
+
     NECRO_PRIMOP_BINOP_IADD,
     NECRO_PRIMOP_BINOP_ISUB,
     NECRO_PRIMOP_BINOP_IMUL,
@@ -127,6 +129,7 @@ typedef struct NecroAstSymbol
     bool                           is_constructor;          // Whether or not the symbol is a constructor (HACK?)
     bool                           is_recursive;            // Whether or not symbol is recursive. Create an enum for this?
     bool                           is_primitive;            // Whether or not a symbol is primitive.
+    bool                           is_unboxed;
 } NecroAstSymbol;
 
 NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name, NecroSymbol source_name, NecroSymbol module_name, struct NecroAst* ast);
@@ -155,6 +158,7 @@ typedef struct NecroCoreAstSymbol
     bool                       is_enum;
     bool                       is_recursive;
     bool                       is_primitive;
+    bool                       is_unboxed;
     bool                       is_deep_copy_fn;
 } NecroCoreAstSymbol;
 

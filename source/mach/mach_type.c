@@ -420,7 +420,8 @@ bool necro_mach_type_is_unboxed(struct NecroMachProgram* program, NecroMachType*
 {
     return type->type == program->type_cache.word_int_type->type
         || type->type == program->type_cache.word_float_type->type
-        || type->type == program->type_cache.word_uint_type->type;
+        || type->type == program->type_cache.word_uint_type->type
+        || (type->type == NECRO_MACH_TYPE_STRUCT && type->struct_type.symbol->is_unboxed);
 }
 
 bool necro_mach_type_is_word_uint(struct NecroMachProgram* program, NecroMachType* type)
@@ -662,6 +663,7 @@ void necro_mach_ast_type_check_value(NecroMachProgram* program, NecroMachAst* as
     case NECRO_MACH_VALUE_F32_LITERAL:    necro_mach_type_check(program, program->type_cache.f32_type, ast->necro_machine_type);    return;
     case NECRO_MACH_VALUE_F64_LITERAL:    necro_mach_type_check(program, program->type_cache.f64_type, ast->necro_machine_type);    return;
     case NECRO_MACH_VALUE_VOID:           necro_mach_type_check(program, program->type_cache.void_type, ast->necro_machine_type);   return;
+    case NECRO_MACH_VALUE_UNDEFINED:      return;
     default: return;
     }
 }
@@ -816,6 +818,57 @@ void necro_mach_ast_type_check_gep(NecroMachProgram* program, NecroMachAst* ast)
             assert(false && "gep type error");
         }
     }
+}
+
+void necro_mach_ast_type_check_insert_value(NecroMachProgram* program, NecroMachAst* ast)
+{
+    NecroMachAst* aggregate_value = ast->insert_value.aggregate_value;
+    NecroMachAst* inserted_value  = ast->insert_value.inserted_value;
+    size_t        index           = ast->insert_value.index;
+    NecroMachAst* dest_value      = ast->insert_value.dest_value;
+    assert(program != NULL);
+    assert(aggregate_value->type == NECRO_MACH_VALUE);
+    assert(aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_STRUCT ||
+           aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_ARRAY);
+    assert(inserted_value->type == NECRO_MACH_VALUE);
+    if (aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_STRUCT)
+    {
+        assert(index < aggregate_value->necro_machine_type->struct_type.num_members);
+        assert(necro_mach_type_is_eq(aggregate_value->necro_machine_type, dest_value->necro_machine_type));
+        assert(necro_mach_type_is_eq(aggregate_value->necro_machine_type->struct_type.members[index], inserted_value->necro_machine_type));
+    }
+    else
+    {
+        assert(index < aggregate_value->necro_machine_type->array_type.element_count);
+        assert(necro_mach_type_is_eq(aggregate_value->necro_machine_type, dest_value->necro_machine_type));
+        assert(necro_mach_type_is_eq(aggregate_value->necro_machine_type->array_type.element_type, inserted_value->necro_machine_type));
+    }
+    necro_mach_ast_type_check(program, ast->insert_value.aggregate_value);
+    necro_mach_ast_type_check(program, ast->insert_value.inserted_value);
+    necro_mach_ast_type_check(program, ast->insert_value.dest_value);
+}
+
+void necro_mach_ast_type_check_extract_value(NecroMachProgram* program, NecroMachAst* ast)
+{
+    NecroMachAst* aggregate_value = ast->extract_value.aggregate_value;
+    size_t        index           = ast->extract_value.index;
+    NecroMachAst* dest_value      = ast->extract_value.dest_value;
+    assert(program != NULL);
+    assert(aggregate_value->type == NECRO_MACH_VALUE);
+    assert(aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_STRUCT ||
+           aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_ARRAY);
+    if (aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_STRUCT)
+    {
+        assert(index < aggregate_value->necro_machine_type->struct_type.num_members);
+        assert(necro_mach_type_is_eq(aggregate_value->necro_machine_type->struct_type.members[index], dest_value->necro_machine_type));
+    }
+    else
+    {
+        assert(index < aggregate_value->necro_machine_type->array_type.element_count);
+        assert(necro_mach_type_is_eq(aggregate_value->necro_machine_type->array_type.element_type, dest_value->necro_machine_type));
+    }
+    necro_mach_ast_type_check(program, ast->extract_value.aggregate_value);
+    necro_mach_ast_type_check(program, ast->extract_value.dest_value);
 }
 
 void necro_mach_ast_type_check_binop(NecroMachProgram* program, NecroMachAst* ast)
@@ -1055,24 +1108,25 @@ void necro_mach_ast_type_check(NecroMachProgram* program, NecroMachAst* ast)
     assert(ast != NULL);
     switch(ast->type)
     {
-    case NECRO_MACH_VALUE:      necro_mach_ast_type_check_value(program, ast);      return;
-    case NECRO_MACH_BLOCK:      necro_mach_ast_type_check_block(program, ast);      return;
-    case NECRO_MACH_CALL:       necro_mach_ast_type_check_call(program, ast);       return;
-    case NECRO_MACH_LOAD:       necro_mach_ast_type_check_load(program, ast);       return;
-    case NECRO_MACH_STORE:      necro_mach_ast_type_check_store(program, ast);      return;
-    // case NECRO_MACH_NALLOC:     necro_mach_ast_type_check_nalloc(program, ast);     return;
-    case NECRO_MACH_BIT_CAST:   necro_mach_ast_type_check_bit_cast(program, ast);   return;
-    case NECRO_MACH_ZEXT:       necro_mach_ast_type_check_zext(program, ast);       return;
-    case NECRO_MACH_GEP:        necro_mach_ast_type_check_gep(program, ast);        return;
-    case NECRO_MACH_BINOP:      necro_mach_ast_type_check_binop(program, ast);      return;
-    case NECRO_MACH_UOP:        necro_mach_ast_type_check_uop(program, ast);        return;
-    case NECRO_MACH_CMP:        necro_mach_ast_type_check_cmp(program, ast);        return;
-    case NECRO_MACH_PHI:        necro_mach_ast_type_check_phi(program, ast);        return;
-    case NECRO_MACH_MEMCPY:     necro_mach_ast_type_check_memcpy(program, ast);     return;
-    case NECRO_MACH_MEMSET:     necro_mach_ast_type_check_memset(program, ast);     return;
-    case NECRO_MACH_STRUCT_DEF: necro_mach_ast_type_check_struct_def(program, ast); return;
-    case NECRO_MACH_FN_DEF:     necro_mach_ast_type_check_fn_def(program, ast);     return;
-    case NECRO_MACH_DEF:        necro_mach_ast_type_check_mach_def(program, ast);   return;
+    case NECRO_MACH_VALUE:         necro_mach_ast_type_check_value(program, ast);         return;
+    case NECRO_MACH_BLOCK:         necro_mach_ast_type_check_block(program, ast);         return;
+    case NECRO_MACH_CALL:          necro_mach_ast_type_check_call(program, ast);          return;
+    case NECRO_MACH_LOAD:          necro_mach_ast_type_check_load(program, ast);          return;
+    case NECRO_MACH_STORE:         necro_mach_ast_type_check_store(program, ast);         return;
+    case NECRO_MACH_BIT_CAST:      necro_mach_ast_type_check_bit_cast(program, ast);      return;
+    case NECRO_MACH_ZEXT:          necro_mach_ast_type_check_zext(program, ast);          return;
+    case NECRO_MACH_GEP:           necro_mach_ast_type_check_gep(program, ast);           return;
+    case NECRO_MACH_EXTRACT_VALUE: necro_mach_ast_type_check_extract_value(program, ast); return;
+    case NECRO_MACH_INSERT_VALUE:  necro_mach_ast_type_check_insert_value(program, ast);  return;
+    case NECRO_MACH_BINOP:         necro_mach_ast_type_check_binop(program, ast);         return;
+    case NECRO_MACH_UOP:           necro_mach_ast_type_check_uop(program, ast);           return;
+    case NECRO_MACH_CMP:           necro_mach_ast_type_check_cmp(program, ast);           return;
+    case NECRO_MACH_PHI:           necro_mach_ast_type_check_phi(program, ast);           return;
+    case NECRO_MACH_MEMCPY:        necro_mach_ast_type_check_memcpy(program, ast);        return;
+    case NECRO_MACH_MEMSET:        necro_mach_ast_type_check_memset(program, ast);        return;
+    case NECRO_MACH_STRUCT_DEF:    necro_mach_ast_type_check_struct_def(program, ast);    return;
+    case NECRO_MACH_FN_DEF:        necro_mach_ast_type_check_fn_def(program, ast);        return;
+    case NECRO_MACH_DEF:           necro_mach_ast_type_check_mach_def(program, ast);      return;
     default:
         assert(false && "Unrecognized ast type in necro_mach_ast_type_check");
         return;

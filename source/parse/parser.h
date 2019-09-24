@@ -466,6 +466,7 @@ typedef struct
 typedef struct
 {
     NecroParseAstLocalPtr expressions; // NecroAST_ListNode of expressions
+    bool                  is_unboxed;
 } NecroParseAstTuple;
 
 //=====================================================

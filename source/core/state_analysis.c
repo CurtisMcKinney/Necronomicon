@@ -611,6 +611,13 @@ NecroType* necro_core_ast_type_specialize(NecroStateAnalysis* sa, NecroType* typ
         //--------------------
         // Create Specialized Symbol and Type
         NecroAstSymbol* ast_symbol           = necro_ast_symbol_create(sa->arena, specialized_type_source_name, specialized_type_source_name, type->con.con_symbol->module_name, NULL);
+        ast_symbol->is_constructor           = type->con.con_symbol->is_constructor;
+        ast_symbol->is_enum                  = type->con.con_symbol->is_enum;
+        ast_symbol->is_primitive             = type->con.con_symbol->is_primitive;
+        ast_symbol->is_recursive             = type->con.con_symbol->is_recursive;
+        ast_symbol->con_num                  = type->con.con_symbol->con_num;
+        ast_symbol->is_unboxed               = type->con.con_symbol->is_unboxed;
+        ast_symbol->primop_type              = type->con.con_symbol->primop_type;
         ast_symbol->type                     = necro_type_con_create(sa->arena, ast_symbol, NULL);
         ast_symbol->type->kind               = sa->base->star_kind->type;
         NecroCoreAstSymbol* core_symbol      = necro_core_ast_symbol_create_from_ast_symbol(sa->arena, ast_symbol);
@@ -648,6 +655,8 @@ NecroType* necro_core_ast_type_specialize(NecroStateAnalysis* sa, NecroType* typ
             con_ast_symbol->is_primitive        = poly_con_symbol->is_primitive;
             con_ast_symbol->is_recursive        = poly_con_symbol->is_recursive;
             con_ast_symbol->con_num             = poly_con_symbol->con_num;
+            con_ast_symbol->is_unboxed          = poly_con_symbol->is_unboxed;
+            con_ast_symbol->primop_type         = poly_con_symbol->primop_type;
             NecroCoreAstSymbol* con_core_symbol = necro_core_ast_symbol_create_from_ast_symbol(sa->arena, con_ast_symbol);
 
             //--------------------
@@ -1103,8 +1112,6 @@ void necro_state_analysis_test()
         necro_state_analysis_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Double Up";
         const char* test_source = ""
@@ -1116,6 +1123,19 @@ void necro_state_analysis_test()
             "main w = w\n";
         necro_state_analysis_test_string(test_name, test_source);
     }
+
+*/
+
+    {
+        const char* test_name   = "Unboxed Type Function Parameter";
+        const char* test_source = ""
+            "dropIt :: (#Int, Bool, Float#) -> Int\n"
+            "dropIt x = 0\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_state_analysis_test_string(test_name, test_source);
+    }
+
 
 /*
 

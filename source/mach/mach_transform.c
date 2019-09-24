@@ -18,6 +18,27 @@
 
 /*
     TODO:
+
+        * Unboxed Types using:
+            - ExtractValue
+            - InsertValue
+            - UndefValue (LLVMGetUndef)
+
+        * Unboxed Types as function parameters
+        * Unboxed Type constructors (use undef and InsertValue or perhaps
+        * Unboxed Types as intermediate values
+        * Unboxed Types embedded in other types
+        * Unboxed Types as case evaluees
+        * Unboxed Types embedded in other types in case expressions
+        * Unboxed Types as return values
+        * Unboxed Types which contain unboxed types!
+        * Stateful unboxed types
+
+        * apats on for loops
+        * Unboxed Tuples / Types
+        * Look into PortAudio / Jack / Custom Audio Output system
+        * Defunctionalization
+        * newtypes
         * Array empty + ops
         * Handle deep_copy_fn with arrays!
         * For loop initializer handling!
@@ -68,18 +89,20 @@ NecroMachAst* necro_core_transform_to_mach_1_data_con_type(NecroMachProgram* pro
 {
     NecroArenaSnapshot snapshot = necro_snapshot_arena_get(&program->snapshot_arena);
     assert(core_ast->ast_type == NECRO_CORE_AST_DATA_CON);
-    NecroType*      con_type  = necro_type_strip_for_all(core_ast->data_con.type);
+    NecroType*      con_type    = necro_type_strip_for_all(core_ast->data_con.type);
     assert(con_type->type == NECRO_TYPE_CON || con_type->type == NECRO_TYPE_FUN);
-    const size_t    arg_count = necro_type_arity(con_type);
-    NecroMachType** members   = necro_snapshot_arena_alloc(&program->snapshot_arena, (1 + arg_count) * sizeof(NecroMachType*));
-    members[0]                = program->type_cache.word_uint_type;
-    for (size_t i = 1; i < arg_count + 1; ++i)
+    const size_t    arg_count   = necro_type_arity(con_type);
+    const size_t    tag_offset  = mach_ast_symbol->is_unboxed ? 0 : 1;
+    NecroMachType** members     = necro_snapshot_arena_alloc(&program->snapshot_arena, (tag_offset + arg_count) * sizeof(NecroMachType*));
+    if (mach_ast_symbol->is_unboxed)
+        members[0] = program->type_cache.word_uint_type;
+    for (size_t i = tag_offset; i < arg_count + tag_offset; ++i)
     {
         assert(con_type->type == NECRO_TYPE_FUN);
         members[i] = necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, con_type->fun.type1));
         con_type   = con_type->fun.type2;
     }
-    NecroMachAst* struct_def = necro_mach_create_struct_def_with_sum_type(program, mach_ast_symbol, members, arg_count + 1, sum_type_symbol);
+    NecroMachAst* struct_def = necro_mach_create_struct_def_with_sum_type(program, mach_ast_symbol, members, arg_count + tag_offset, sum_type_symbol);
     necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
     return struct_def;
 }
@@ -218,8 +241,8 @@ void necro_core_transform_to_mach_1_data_decl(NecroMachProgram* program, NecroCo
 
     //--------------
     // Create struct_defs
-    NecroMachAst* struct_def = NULL;
-    const bool   is_sum_type = core_ast->data_decl.con_list->next != NULL;
+    NecroMachAst* struct_def  = NULL;
+    const bool    is_sum_type = core_ast->data_decl.con_list->next != NULL;
     if (is_sum_type)
     {
         struct_def = necro_core_transform_to_mach_1_data_con_sum_type(program, core_ast->data_decl.ast_symbol->mach_symbol, max_arg_count);
@@ -239,17 +262,61 @@ void necro_core_transform_to_mach_1_data_decl(NecroMachProgram* program, NecroCo
 
     //--------------
     // Create constructor fn_defs
-    cons = core_ast->data_decl.con_list;
-    size_t con_number = 0;
-    while (cons != NULL)
+    if (!core_ast->data_decl.ast_symbol->is_unboxed)
     {
-        necro_core_transform_to_mach_1_data_con_constructor(program, cons->data, struct_def->necro_machine_type, cons->data->data_con.ast_symbol->mach_symbol->mach_type, con_number);
-        con_number++;
-        cons = cons->next;
+        cons = core_ast->data_decl.con_list;
+        size_t con_number = 0;
+        while (cons != NULL)
+        {
+            necro_core_transform_to_mach_1_data_con_constructor(program, cons->data, struct_def->necro_machine_type, cons->data->data_con.ast_symbol->mach_symbol->mach_type, con_number);
+            con_number++;
+            cons = cons->next;
+        }
     }
 
     necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
 }
+
+// // TODO: During monomorphization make sure that the is_unboxed flag gets carried over!
+// size_t necro_transform_to_mach_1_args_count_type(NecroMachProgram* program, NecroType* type)
+// {
+//     type = necro_type_find(type);
+//     assert(type->type == NECRO_TYPE_CON);
+//     if (type->con.con_symbol->is_unboxed == false)
+//         return 1;
+//     NecroCoreAstSymbol* symbol = type->con.con_symbol->core_ast_symbol;
+//     assert(symbol != NULL);
+//     NecroCoreAst*       data_decl = symbol->ast;
+//     assert(data_decl->ast_type == NECRO_CORE_AST_DATA_DECL);
+//     assert(data_decl->data_decl.con_list != NULL);
+//     NecroCoreAst*       data_con  = data_decl->data_decl.con_list->data;
+//     assert(data_decl->ast_type == NECRO_CORE_AST_DATA_CON);
+//     NecroType* data_con_type = necro_type_find(data_con->data_con.type);
+//     size_t     num_elements  = 0;
+//     while (data_con_type->type == NECRO_TYPE_FUN)
+//     {
+//         num_elements += necro_transform_to_mach_1_args_count_type(program, data_con_type->fun.type1);
+//         data_con_type = necro_type_find(data_con_type->fun.type2);
+//     }
+//     assert(data_con_type->type == NECRO_TYPE_CON);
+//     return num_elements;
+// }
+//
+// size_t necro_transform_to_mach_1_args_count(NecroMachProgram* program, NecroCoreAst* lambdas)
+// {
+//     size_t num_args = 0;
+//     while (lambdas->ast_type == NECRO_CORE_AST_LAM)
+//     {
+//         num_args += necro_transform_to_mach_1_args_count_type(program, lambdas->lambda.arg->necro_type);
+//         lambdas = lambdas->lambda.expr;
+//     }
+//     return num_args;
+// }
+//
+// // size_t necro_transform_to_mach_1_args(NecroMachProgram* program, NecroCoreAst* arg, size_t num_args, NecroMachAst* outer)
+// // {
+// //     return num_args;
+// // }
 
 void necro_core_transform_to_mach_1_bind(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
 {
@@ -671,14 +738,14 @@ void necro_core_transform_to_mach_2_var(NecroMachProgram* program, NecroCoreAst*
     NecroCoreAstSymbol* ast_symbol  = core_ast->var.ast_symbol;
     NecroMachAstSymbol* mach_symbol = ast_symbol->mach_symbol;
     if (mach_symbol->is_enum || ast_symbol->is_primitive)
-        return;
-    NecroMachAst* machine_ast = mach_symbol->ast;
-    if (machine_ast == NULL)
     {
-        // This is likely an argument or a pattern variable, ignore
         return;
     }
-    if (machine_ast->type == NECRO_MACH_DEF)
+    else if (mach_symbol->ast == NULL)
+    {
+        return; // This is likely an argument or a pattern variable, ignore
+    }
+    else if (mach_symbol->ast->type == NECRO_MACH_DEF)
     {
         return;
     }
@@ -978,7 +1045,7 @@ NecroMachAst* necro_core_transform_to_mach_3_var(NecroMachProgram* program, Necr
     }
 }
 
-NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, NecroCoreAst* primop_var_ast, NecroCoreAst* app_ast, NecroMachAst* outer)
+NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, NecroCoreAst* primop_var_ast, NecroCoreAst* app_ast, size_t arg_count, NecroMachAst* outer)
 {
     assert(program != NULL);
     assert(primop_var_ast != NULL);
@@ -1008,6 +1075,7 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     case NECRO_PRIMOP_BINOP_SHR:
     {
         assert(app_ast->app.expr1->ast_type == NECRO_CORE_AST_APP);
+        assert(arg_count == 2);
         NecroMachAst* left  = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr2, outer);
         NecroMachAst* right = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
         return necro_mach_build_binop(program, outer->machine_def.update_fn, left, right, primop_type);
@@ -1026,6 +1094,7 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     case NECRO_PRIMOP_UOP_FRNI:
     case NECRO_PRIMOP_UOP_FTOF:
     {
+        assert(arg_count == 1);
         NecroMachAst* param = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
         return necro_mach_build_uop(program, outer->machine_def.update_fn, param, primop_type);
     }
@@ -1036,12 +1105,31 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     case NECRO_PRIMOP_CMP_LT:
     case NECRO_PRIMOP_CMP_LE:
     {
+        assert(arg_count == 2);
         assert(app_ast->app.expr1->ast_type == NECRO_CORE_AST_APP);
         NecroMachAst* left   = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr2, outer);
         NecroMachAst* right  = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
         NecroMachAst* result = necro_mach_build_cmp(program, outer->machine_def.update_fn, primop_type, left, right);
         return necro_mach_build_zext(program, outer->machine_def.update_fn, result, program->type_cache.word_uint_type);
     }
+
+    case NECRO_PRIMOP_UNBOXED_CON:
+    {
+        // NecroArenaSnapshot snapshot  = necro_snapshot_arena_get(&program->snapshot_arena);
+        // NecroMachAst**     args      = necro_snapshot_arena_alloc(&program->snapshot_arena, arg_count * sizeof(NecroMachAst*));
+        size_t             arg_index = arg_count - 1;
+        NecroMachAst*      con       = necro_mach_value_create_undefined(program, necro_mach_type_from_necro_type(program, app_ast->necro_type));
+        while (app_ast->ast_type == NECRO_CORE_AST_APP)
+        {
+            // args[arg_index] = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
+            NecroMachAst* member = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
+            con                  = necro_mach_build_insert_value(program, outer->machine_def.update_fn, con, member, arg_index, "unboxed_con");
+            app_ast              = app_ast->app.expr1;
+            arg_index--;
+        }
+        return con;
+    }
+
     default:
         assert(false);
         return NULL;
@@ -1075,7 +1163,7 @@ NecroMachAst* necro_core_transform_to_mach_3_app(NecroMachProgram* program, Necr
     NecroMachAst*        fn_value   = ast_symbol->mach_symbol->ast;
     bool                 uses_state = false;
     if (ast_symbol->primop_type > NECRO_PRIMOP_PRIM_FN) //PRIM_OP Early Exit!
-        return necro_core_transform_to_mach_3_primop(program, function, core_ast, outer);
+        return necro_core_transform_to_mach_3_primop(program, function, core_ast, arg_count, outer);
     assert(fn_value != NULL);
     if (fn_value->type == NECRO_MACH_DEF)
     {
@@ -1563,7 +1651,7 @@ void necro_mach_test_string(const char* test_name, const char* str)
     NecroCoreAstArena   core_ast        = necro_core_ast_arena_empty();
     NecroMachProgram    mach_program    = necro_mach_program_empty();
     NecroCompileInfo    info            = necro_test_compile_info();
-    info.verbosity = 2;
+    // info.verbosity = 2;
 
     //--------------------
     // Compile
@@ -2683,8 +2771,6 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Op 1";
         const char* test_source = ""
@@ -2694,6 +2780,38 @@ void necro_mach_test()
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);
     }
+
+    {
+        const char* test_name   = "Unboxed Type Function Parameter";
+        const char* test_source = ""
+            "dropIt :: (#Int, Bool, Float#) -> (#Int, Bool, Float#)\n"
+            "dropIt x = x\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Unboxed Type Con";
+        const char* test_source = ""
+            "bopIt :: Int -> (#Int, Bool, Maybe Float#)\n"
+            "bopIt i = (#i, False, Nothing#)\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    // {
+    //     const char* test_name   = "Unboxed Type Constructor";
+    //     const char* test_source = ""
+    //         "constructIt :: Int\n"
+    //         "constructIt = 0 where x = (#True, Just ()#)\n";
+    //         "main :: *World -> *World\n"
+    //         "main w = w\n";
+    //     necro_mach_test_string(test_name, test_source);
+    // }
 
 /*
 

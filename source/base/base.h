@@ -16,6 +16,7 @@
 
 struct NecroMachProgram;
 
+#define NECRO_MAX_UNBOXED_TUPLE_TYPES 8
 #define NECRO_MAX_ENV_TYPES 16
 #define NECRO_MAX_BRANCH_TYPES 16
 
@@ -56,6 +57,8 @@ typedef struct NecroBase
     NecroAstSymbol* tuple9_type;
     NecroAstSymbol* tuple10_type;
 
+    NecroAstSymbol*  unboxed_tuple_types[NECRO_MAX_UNBOXED_TUPLE_TYPES];
+    NecroAstSymbol*  unboxed_tuple_cons[NECRO_MAX_UNBOXED_TUPLE_TYPES];
     NecroAstSymbol*  env_types[NECRO_MAX_ENV_TYPES];
     NecroAstSymbol*  env_cons[NECRO_MAX_ENV_TYPES];
     NecroAstSymbol*  branch_types[NECRO_MAX_BRANCH_TYPES];
@@ -112,9 +115,10 @@ void            necro_base_destroy(NecroBase* base);
 void            necro_base_test();
 NecroAstSymbol* necro_base_get_tuple_type(NecroBase* base, size_t num);
 NecroAstSymbol* necro_base_get_tuple_con(NecroBase* base, size_t num);
+NecroAstSymbol* necro_base_get_unboxed_tuple_type(NecroBase* base, size_t num);
+NecroAstSymbol* necro_base_get_unboxed_tuple_con(NecroBase* base, size_t num);
 NecroAstSymbol* necro_base_get_env_type(NecroBase* base, size_t num);
 NecroAstSymbol* necro_base_get_env_con(NecroBase* base, size_t num);
 NecroAstSymbol* necro_base_get_branch_type(NecroBase* base, size_t branch_size);
 NecroAstSymbol* necro_base_get_branch_con(NecroBase* base, size_t branch_size, size_t alternative);
-
 #endif // NECRO_BASE_H

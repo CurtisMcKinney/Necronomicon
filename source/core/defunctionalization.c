@@ -601,7 +601,7 @@ NecroStaticValue* necro_defunctionalize_app_con(NecroDefunctionalizeContext* con
     // NecroType*            constructed_type = necro_type_con_create(context->arena, fn_static_value->fun.expr_static_value->necro_type->con.con_symbol, NULL);
     // NecroType*            constructed_type = necro_type_con_create(context->arena, fn_static_value->fun.expr_static_value->necro_type->con.con_symbol, NULL);
     // constructed_type->kind                 = context->base->star_kind->type;
-    NecroType*            con              = necro_type_find(app_ast->necro_type);
+    NecroType*            con              = necro_type_find(necro_type_get_fully_applied_fun_type(var_ast->necro_type));
     NecroType*            constructed_type = con;
     while (apps->ast_type == NECRO_CORE_AST_APP)
     {
@@ -637,8 +637,12 @@ NecroStaticValue* necro_defunctionalize_app_fun(NecroDefunctionalizeContext* con
     {
         if (!var_ast->var.ast_symbol->is_constructor && is_higher_order)
         {
+            // Is this the right direction?!?!?!
+            // deep_copy into
+            // *var_ast = *necro_core_ast_deep_copy(context->arena, ast->var.ast_symbol->inline_ast);
+            // return necro_defunctionalize_go(context, ast);
             assert(false);
-            return NULL; // TODO: Inline
+            return NULL;
         }
         else if (var_ast->var.ast_symbol->is_constructor)
         {
@@ -1201,7 +1205,6 @@ void necro_core_defunctionalize_test()
             "useEm = rollEm' 3 4 5\n";
         necro_defunctionalize_test_result(test_name, test_source);
     }
-*/
 
     {
         const char* test_name   = "Double Up";
@@ -1215,8 +1218,38 @@ void necro_core_defunctionalize_test()
         necro_defunctionalize_test_result(test_name, test_source);
     }
 
-// TODO: FIX, looks like this never got cleaned up or something broke things.
+*/
+
+    {
+        const char* test_name   = "Pat Assignment 1";
+        const char* test_source = ""
+            "unboxedTuple :: (#Bool, Int#)\n"
+            "unboxedTuple = (#True, 0#)\n";
+        necro_defunctionalize_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Unboxed Tuple 6";
+        const char* test_source = ""
+            "data TripleThreat a = TripleThreat (#a, a, a#)\n"
+            "tripleThreat :: TripleThreat (Maybe Bool)\n"
+            "tripleThreat = TripleThreat (#Nothing, Nothing, Just True#)\n";
+        necro_defunctionalize_test_result(test_name, test_source);
+    }
+
 /*
+
+    // Inline with subs!
+    {
+        const char* test_name   = "Saturated HOF 1";
+        const char* test_source = ""
+            "intOp :: (Int -> Int -> Int) -> Int -> Int\n"
+            "intOp f i = f i i\n"
+            "addResult = intOp add 1\n";
+        necro_defunctionalize_test_result(test_name, test_source);
+    }
+
+// TODO: FIX, looks like this never got cleaned up or something broke things.
     {
         const char* test_name   = "Case 6";
         const char* test_source = ""

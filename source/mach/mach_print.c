@@ -100,6 +100,9 @@ void necro_mach_print_value(NecroMachAst* ast, NECRO_SHOULD_PRINT_VALUE_TYPE sho
     case NECRO_MACH_VALUE_NULL_PTR_LITERAL:
         printf("null");
         break;
+    case NECRO_MACH_VALUE_UNDEFINED:
+        printf("undef");
+        break;
     default:
         assert(false);
         break;
@@ -274,6 +277,7 @@ void necro_mach_print_zext(NecroMachAst* ast, size_t depth)
 
 void necro_mach_print_gep(NecroMachAst* ast, size_t depth)
 {
+    UNUSED(depth);
     assert(ast->type == NECRO_MACH_GEP);
     printf("%%%s = gep", ast->gep.dest_value->value.reg_symbol->name->str);
     for (size_t i = 0; i < ast->gep.num_indices; ++i)
@@ -285,7 +289,27 @@ void necro_mach_print_gep(NecroMachAst* ast, size_t depth)
             printf(",");
     }
     printf(", ");
-    necro_mach_print_value(ast->gep.source_value, depth);
+    necro_mach_print_value(ast->gep.source_value, NECRO_PRINT_VALUE_TYPE);
+}
+
+void necro_mach_print_insert_value(NecroMachAst* ast, size_t depth)
+{
+    UNUSED(depth);
+    assert(ast->type == NECRO_MACH_INSERT_VALUE);
+    printf("%%%s = insert ", ast->insert_value.dest_value->value.reg_symbol->name->str);
+    necro_mach_print_value(ast->insert_value.aggregate_value, NECRO_PRINT_VALUE_TYPE);
+    printf(", ");
+    necro_mach_print_value(ast->insert_value.inserted_value, NECRO_PRINT_VALUE_TYPE);
+    printf(", %zu", ast->insert_value.index);
+}
+
+void necro_mach_print_extract_value(NecroMachAst* ast, size_t depth)
+{
+    UNUSED(depth);
+    assert(ast->type == NECRO_MACH_EXTRACT_VALUE);
+    printf("%%%s = extract ", ast->extract_value.dest_value->value.reg_symbol->name->str);
+    necro_mach_print_value(ast->extract_value.aggregate_value, NECRO_PRINT_VALUE_TYPE);
+    printf(", %zu", ast->extract_value.index);
 }
 
 // void necro_mach_print_nalloc(NecroMachAst* ast, size_t depth)
@@ -541,6 +565,14 @@ void necro_mach_print_ast_go(NecroMachAst* ast, size_t depth)
     case NECRO_MACH_GEP:
         print_white_space(depth);
         necro_mach_print_gep(ast, depth);
+        return;
+    case NECRO_MACH_EXTRACT_VALUE:
+        print_white_space(depth);
+        necro_mach_print_extract_value(ast, depth);
+        return;
+    case NECRO_MACH_INSERT_VALUE:
+        print_white_space(depth);
+        necro_mach_print_insert_value(ast, depth);
         return;
     case NECRO_MACH_BINOP:
         necro_mach_print_binop(ast, depth);

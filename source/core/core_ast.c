@@ -610,23 +610,13 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_tuple(NecroCoreAstTransfor
     NecroType* mono_tuple_con = necro_core_ast_create_mono_tuple_con(context, ast);
 
     // Create Con var
-    NecroCoreAst* tuple_con = NULL;
-    switch (count)
-    {
-    case 2:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple2_con), mono_tuple_con); break;
-    case 3:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple3_con), mono_tuple_con); break;
-    case 4:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple4_con), mono_tuple_con); break;
-    case 5:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple5_con), mono_tuple_con); break;
-    case 6:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple6_con), mono_tuple_con); break;
-    case 7:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple7_con), mono_tuple_con); break;
-    case 8:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple8_con), mono_tuple_con); break;
-    case 9:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple9_con), mono_tuple_con); break;
-    case 10: tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple10_con), mono_tuple_con); break;
-    default: assert(false && "Unsupported tuple arity"); break;
-    }
+    NecroCoreAst* tuple_con = !ast->tuple.is_unboxed ?
+        necro_core_ast_create_var(context->arena, necro_base_get_tuple_con(context->base, count)->core_ast_symbol, mono_tuple_con) :
+        necro_core_ast_create_var(context->arena, necro_base_get_unboxed_tuple_con(context->base, count)->core_ast_symbol, mono_tuple_con);
     // Apply args
     NecroCoreAst* tuple_ast  = tuple_con;
     args                     = ast->tuple.expressions;
+    // TODO: Finish creating intermediate types for each app!
     // NecroType*    tuple_type = ast->
     while (args != NULL)
     {
@@ -697,23 +687,13 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_tuple_pat(NecroCoreAstTran
     }
     NecroType* mono_tuple_con = necro_core_ast_create_mono_tuple_con(context, ast);
     // Create Con var
-    NecroCoreAst* tuple_con = NULL;
-    switch (count)
-    {
-    case 2:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple2_con), mono_tuple_con); break;
-    case 3:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple3_con), mono_tuple_con); break;
-    case 4:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple4_con), mono_tuple_con); break;
-    case 5:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple5_con), mono_tuple_con); break;
-    case 6:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple6_con), mono_tuple_con); break;
-    case 7:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple7_con), mono_tuple_con); break;
-    case 8:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple8_con), mono_tuple_con); break;
-    case 9:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple9_con), mono_tuple_con); break;
-    case 10: tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple10_con), mono_tuple_con); break;
-    default: assert(false && "Unsupported tuple arity"); break;
-    }
+    NecroCoreAst* tuple_con = !ast->tuple.is_unboxed ?
+        necro_core_ast_create_var(context->arena, necro_base_get_tuple_con(context->base, count)->core_ast_symbol, mono_tuple_con) :
+        necro_core_ast_create_var(context->arena, necro_base_get_unboxed_tuple_con(context->base, count)->core_ast_symbol, mono_tuple_con);
     // Apply args
     NecroCoreAst* tuple_ast = tuple_con;
     args                    = ast->tuple.expressions;
+    // TODO: Finish creating intermediate types for each app!
     while (args != NULL)
     {
         NecroCoreAst* arg_ast = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_pat(context, args->list.item));

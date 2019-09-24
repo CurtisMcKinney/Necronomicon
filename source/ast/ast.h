@@ -394,6 +394,7 @@ typedef struct
 typedef struct
 {
     struct NecroAst* expressions; // NecroAST_ListNode of expressions
+    bool             is_unboxed;
 } NecroAstTuple;
 
 //=====================================================
@@ -641,6 +642,8 @@ NecroAst* necro_ast_create_expression_list(NecroPagedArena* arena, NecroAst* exp
 NecroAst* necro_ast_create_expression_array(NecroPagedArena* arena, NecroAst* expressions);
 NecroAst* necro_ast_create_pat_expression(NecroPagedArena* arena, NecroAst* expressions);
 NecroAst* necro_ast_create_tuple(NecroPagedArena* arena, NecroAst* expressions);
+NecroAst* necro_ast_create_unboxed_tuple(NecroPagedArena* arena, NecroAst* expressions);
+NecroAst* necro_ast_create_tuple_full(NecroPagedArena* arena, NecroAst* expressions, bool is_unboxed);
 NecroAst* necro_ast_create_arithmetic_sequence(NecroPagedArena* arena, NECRO_ARITHMETIC_SEQUENCE_TYPE sequence_type, NecroAst* from, NecroAst* then, NecroAst* to);
 NecroAst* necro_ast_create_case(NecroPagedArena* arena, NecroAst* alternatives, NecroAst* expression);
 NecroAst* necro_ast_create_case_alternative(NecroPagedArena* arena, NecroAst* pat, NecroAst* body);

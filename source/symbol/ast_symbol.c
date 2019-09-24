@@ -27,6 +27,7 @@ NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name
         .is_primitive            = false,
         .type_status             = NECRO_TYPE_UNCHECKED,
         .is_recursive            = false,
+        .is_unboxed              = false,
         .instance_list           = NULL,
         .method_type_class       = NULL,
         .type_class              = NULL,
@@ -55,6 +56,7 @@ NecroAstSymbol* necro_ast_symbol_deep_copy(NecroPagedArena* arena, NecroAstSymbo
         .is_primitive            = ast_symbol->is_primitive,
         .type_status             = ast_symbol->type_status,
         .is_recursive            = ast_symbol->is_recursive,
+        .is_unboxed              = ast_symbol->is_unboxed,
         .instance_list           = NULL,
         .method_type_class       = NULL,
         .type_class              = NULL,
@@ -114,6 +116,7 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create(NecroPagedArena* core_ast_arena
     core_ast_symbol->con_num            = 0;
     core_ast_symbol->is_enum            = false;
     core_ast_symbol->is_recursive       = false;
+    core_ast_symbol->is_unboxed         = false;
     core_ast_symbol->free_vars          = NULL;
     core_ast_symbol->static_value       = NULL;
     core_ast_symbol->mach_symbol        = NULL;
@@ -142,6 +145,7 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create_from_ast_symbol(NecroPagedArena
     core_ast_symbol->con_num            = ast_symbol->con_num;
     core_ast_symbol->is_enum            = ast_symbol->is_enum;
     core_ast_symbol->is_recursive       = ast_symbol->is_recursive;
+    core_ast_symbol->is_unboxed         = ast_symbol->is_unboxed;
     core_ast_symbol->free_vars          = NULL;
     core_ast_symbol->mach_symbol        = NULL;
     core_ast_symbol->static_value       = NULL;
@@ -169,6 +173,7 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create_by_renaming(NecroPagedArena* co
     core_ast_symbol->con_num            = ast_symbol->con_num;
     core_ast_symbol->is_enum            = ast_symbol->is_enum;
     core_ast_symbol->is_recursive       = ast_symbol->is_recursive;
+    core_ast_symbol->is_unboxed         = ast_symbol->is_unboxed;
     core_ast_symbol->free_vars          = NULL;
     core_ast_symbol->static_value       = NULL;
     core_ast_symbol->mach_symbol        = NULL;

@@ -1099,6 +1099,29 @@ void necro_parse_test()
     }
 
     {
+        NecroIntern        intern = necro_intern_create();
+        NecroParseAstArena ast    = necro_parse_ast_arena_create(100 * sizeof(NecroParseAst));
+        ast.root                  =
+            necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
+                necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "unboxedTuple"),
+                    necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
+
+                        necro_parse_ast_create_unboxed_tuple(&ast.arena, zero_loc, zero_loc,
+                            necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
+                                necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 3, .type = NECRO_AST_CONSTANT_INTEGER }),
+                                necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
+                                    necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 2, .type = NECRO_AST_CONSTANT_INTEGER }),
+                                    necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
+                                        necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 1, .type = NECRO_AST_CONSTANT_INTEGER }),
+                                        null_local_ptr)))),
+
+                        null_local_ptr),
+                    null_local_ptr),
+                null_local_ptr);
+        necro_parse_ast_test("Unboxed Tuple test", "unboxedTuple = (#3, 2, 1#)\n", &intern, &ast);
+    }
+
+    {
         puts("Parse {{{ child process parse_test:  starting...");
         assert(NECRO_COMPILE_IN_CHILD_PROCESS("parse_test.necro", "parse") == 0);
         puts("Parse }}} child process parse_test:  passed\n");
@@ -1115,4 +1138,5 @@ void necro_parse_test()
         assert(NECRO_COMPILE_IN_CHILD_PROCESS("parseErrorTest.necro", "parse") == 0);
         puts("Parse }}} child process parseErrorTest:  passed\n");
     }
+
 }

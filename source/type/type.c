@@ -1515,7 +1515,9 @@ bool necro_print_tuple_sig(FILE* stream, const NecroType* type)
     NecroSymbol con_symbol = type->con.con_symbol->source_name;
     const char* con_string = type->con.con_symbol->source_name->str;
 
-    if (con_string[0] != '(' && con_string[0] != '[')
+    const bool is_unboxed_tuple = strncmp(con_string, "(#,#)", 5) == 0;
+
+    if (con_string[0] != '(' && con_string[0] != '[' && !is_unboxed_tuple)
         return false;
 
     const NecroType* current_element = type->con.args;
@@ -1540,7 +1542,10 @@ bool necro_print_tuple_sig(FILE* stream, const NecroType* type)
     if (type->con.args == NULL)
         return false;
 
-    fprintf(stream, "(");
+    if (is_unboxed_tuple)
+        fprintf(stream, "(#");
+    else
+        fprintf(stream, "(");
     while (current_element != NULL)
     {
         necro_type_fprint(stream, current_element->list.item);
@@ -1548,7 +1553,10 @@ bool necro_print_tuple_sig(FILE* stream, const NecroType* type)
             fprintf(stream, ",");
         current_element = current_element->list.next;
     }
-    fprintf(stream, ")");
+    if (is_unboxed_tuple)
+        fprintf(stream, "#)");
+    else
+        fprintf(stream, ")");
     return true;
 }
 
@@ -1897,6 +1905,20 @@ NecroType* necro_type_tuple_con_create(NecroPagedArena* arena, NecroBase* base, 
         assert(false && "Tuple size too large");
         break;
     }
+    return necro_type_con_create(arena, con_symbol, types_list);
+}
+
+NecroType* necro_type_unboxed_tuple_con_create(NecroPagedArena* arena, NecroBase* base, NecroType* types_list)
+{
+    size_t     tuple_count  = 0;
+    NecroType* current_type = types_list;
+    while (current_type != NULL)
+    {
+        assert(current_type->type == NECRO_TYPE_LIST);
+        tuple_count++;
+        current_type = current_type->list.next;
+    }
+    NecroAstSymbol* con_symbol = necro_base_get_unboxed_tuple_type(base, tuple_count);
     return necro_type_con_create(arena, con_symbol, types_list);
 }
 

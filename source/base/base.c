@@ -617,6 +617,15 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     NecroAst* tuple_10_constructor = necro_ast_create_data_con(arena, intern, "(,,,,,,,,,)", necro_ast_create_var_list(arena, intern, 10, NECRO_VAR_TYPE_FREE_VAR));
     necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, tuple_10_s_type, necro_ast_create_list(arena, tuple_10_constructor, NULL)));
 
+    for (size_t i = 2; i <= NECRO_MAX_UNBOXED_TUPLE_TYPES; ++i)
+    {
+        char name[16] = "";
+        snprintf(name, 16, "(#,#)%zu", i);
+        NecroAst* unboxed_tuple_s_type      = necro_ast_create_simple_type(arena, intern, name, necro_ast_create_var_list(arena, intern, i, NECRO_VAR_TYPE_VAR_DECLARATION));
+        NecroAst* unboxed_tuple_constructor = necro_ast_create_data_con(arena, intern, name, necro_ast_create_var_list(arena, intern, i, NECRO_VAR_TYPE_FREE_VAR));
+        necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, unboxed_tuple_s_type, necro_ast_create_list(arena, unboxed_tuple_constructor, NULL)));
+    }
+
     for (size_t i = 0; i < NECRO_MAX_ENV_TYPES; ++i)
     {
         char env_name[16] = "";
@@ -1110,6 +1119,18 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.tuple9_type            = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "(,,,,,,,,)"));
     base.tuple10_type           = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "(,,,,,,,,,)"));
 
+    for (size_t i = 2; i <= NECRO_MAX_UNBOXED_TUPLE_TYPES; ++i)
+    {
+        char name[16] = "";
+        snprintf(name, 16, "(#,#)%zu", i);
+        base.unboxed_tuple_types[i]              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, name));
+        base.unboxed_tuple_cons[i]               = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, name));
+        base.unboxed_tuple_types[i]->is_unboxed  = true;
+        base.unboxed_tuple_types[i]->primop_type = NECRO_PRIMOP_UNBOXED_CON;
+        base.unboxed_tuple_cons[i]->is_unboxed   = true;
+        base.unboxed_tuple_cons[i]->primop_type  = NECRO_PRIMOP_UNBOXED_CON;
+    }
+
     for (size_t i = 0; i < NECRO_MAX_ENV_TYPES; ++i)
     {
         char env_name[16] = "";
@@ -1287,6 +1308,20 @@ NecroAstSymbol* necro_base_get_tuple_con(NecroBase* base, size_t num)
         assert(false && "Tuple arities above 10 are not supported");
         return NULL;
     }
+}
+
+// TODO: Instead of asserting this should be a user facing error!
+// TODO: Dynamically create different arities!
+NecroAstSymbol* necro_base_get_unboxed_tuple_type(NecroBase* base, size_t num)
+{
+    assert((num < NECRO_MAX_UNBOXED_TUPLE_TYPES) && "Unsupported Unboxed Tuple arity!");
+    return base->unboxed_tuple_types[num];
+}
+
+NecroAstSymbol* necro_base_get_unboxed_tuple_con(NecroBase* base, size_t num)
+{
+    assert((num < NECRO_MAX_UNBOXED_TUPLE_TYPES) && "Unsupported Unboxed Tuple arity!");
+    return base->unboxed_tuple_cons[num];
 }
 
 NecroAstSymbol* necro_base_get_env_type(NecroBase* base, size_t num)

@@ -63,10 +63,11 @@ typedef struct NecroMachAstSymbol
     struct NecroLLVMSymbol* codegen_symbol;
     NECRO_STATE_TYPE        state_type;
     NECRO_PRIMOP_TYPE       primop_type;
+    size_t                  con_num;
     bool                    is_enum;
     bool                    is_constructor;
-    bool                    con_num;
     bool                    is_primitive;
+    bool                    is_unboxed;
     bool                    is_deep_copy_fn;
 } NecroMachAstSymbol;
 
@@ -76,6 +77,7 @@ typedef struct NecroMachAstSymbol
 typedef enum
 {
     NECRO_MACH_VALUE_VOID,
+    NECRO_MACH_VALUE_UNDEFINED,
     NECRO_MACH_VALUE_REG,
     NECRO_MACH_VALUE_PARAM,
     NECRO_MACH_VALUE_GLOBAL,
@@ -294,6 +296,21 @@ typedef struct NecroMachGetElementPtr
     struct NecroMachAst*  dest_value;
 } NecroMachGetElementPtr;
 
+typedef struct NecroMachInsertValue
+{
+    struct NecroMachAst*  aggregate_value;
+    struct NecroMachAst*  inserted_value;
+    size_t                index;
+    struct NecroMachAst*  dest_value;
+} NecroMachInsertValue;
+
+typedef struct NecroMachExtractValue
+{
+    struct NecroMachAst*  aggregate_value;
+    size_t                index;
+    struct NecroMachAst*  dest_value;
+} NecroMachExtractValue;
+
 typedef struct NecroMachBitCast
 {
     struct NecroMachAst* from_value;
@@ -398,6 +415,8 @@ typedef enum
     NECRO_MACH_BIT_CAST,
     NECRO_MACH_ZEXT,
     NECRO_MACH_GEP,
+    NECRO_MACH_INSERT_VALUE,
+    NECRO_MACH_EXTRACT_VALUE,
     NECRO_MACH_BINOP,
     NECRO_MACH_UOP,
     NECRO_MACH_CMP,
@@ -427,6 +446,8 @@ typedef struct NecroMachAst
         NecroMachFnDef         fn_def;
         NecroMachStructDef     struct_def;
         NecroMachGetElementPtr gep;
+        NecroMachInsertValue   insert_value;
+        NecroMachExtractValue  extract_value;
         NecroMachBitCast       bit_cast;
         NecroMachZExt          zext;
         NecroMachAlloca        alloca;
@@ -509,6 +530,7 @@ NecroMachAstSymbol* necro_mach_ast_symbol_gen(NecroMachProgram* program, NecroMa
 //--------------------
 // Values
 //--------------------
+// NecroMachAst* necro_mach_value_create_tuple(NecroMachProgram* program, NecroMachAst** values, size_t num_values);
 NecroMachAst* necro_mach_value_create(NecroMachProgram* program, NecroMachValue value, struct NecroMachType* necro_machine_type);
 NecroMachAst* necro_mach_value_create_reg(NecroMachProgram* program, struct NecroMachType* necro_machine_type, const char* reg_name);
 NecroMachAst* necro_mach_value_create_global(NecroMachProgram* program, NecroMachAstSymbol* symbol, struct NecroMachType* necro_machine_type);
@@ -526,6 +548,7 @@ NecroMachAst* necro_mach_value_create_null(NecroMachProgram* program, struct Nec
 NecroMachAst* necro_mach_value_create_word_uint(NecroMachProgram* program, uint64_t int_literal);
 NecroMachAst* necro_mach_value_create_word_int(NecroMachProgram* program, int64_t int_literal);
 NecroMachAst* necro_mach_value_create_word_float(NecroMachProgram* program, double float_literal);
+NecroMachAst* necro_mach_value_create_undefined(NecroMachProgram* program, struct NecroMachType* necro_machine_type);
 
 //--------------------
 // Blocks
@@ -543,6 +566,8 @@ NecroMachAst* necro_mach_block_get_current(NecroMachAst* fn_def);
 NecroMachAst* necro_mach_build_nalloc(NecroMachProgram* program, NecroMachAst* fn_def, struct NecroMachType* type);
 // NecroMachAst* necro_mach_build_alloca(NecroMachProgram* program, NecroMachAst* fn_def, size_t num_slots);
 NecroMachAst* necro_mach_build_gep(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* source_value, uint32_t* a_indices, size_t num_indices, const char* dest_name);
+NecroMachAst* necro_mach_build_insert_value(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* aggregate_value, NecroMachAst* inserted_value, size_t index, const char* dest_name);
+NecroMachAst* necro_mach_build_extract_value(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* aggregate_value, size_t index, const char* dest_name);
 NecroMachAst* necro_mach_build_non_const_gep(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* source_value, NecroMachAst** a_indices, size_t num_indices, const char* dest_name, struct NecroMachType* result_type);
 NecroMachAst* necro_mach_build_bit_cast(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* value, struct NecroMachType* to_type);
 NecroMachAst* necro_mach_build_up_cast(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* value, struct NecroMachType* to_type);

@@ -129,10 +129,9 @@ delayTest = z where
 
 loopTest :: Array n Float
 loopTest = a' where
-  (feed ~ 0, a') =
-    for each (feed, empty) loop i (x, a) ->
-      (x * 100, writeArray i x a)
-
+  (#feed ~ 0, a'#) =
+    for each (#feed, empty#) loop i (#x, a#) ->
+      (#x * 100, writeArray i x a#)
 
 counter :: Maybe Int
 counter = x where

@@ -29,13 +29,14 @@ NecroMachAstSymbol* necro_mach_ast_symbol_create(NecroPagedArena* arena, NecroSy
     symbol->mach_type          = NULL;
     symbol->necro_type         = NULL;
     symbol->state_type         = NECRO_STATE_CONSTANT;
+    symbol->con_num            = 0;
     symbol->is_enum            = false;
     symbol->is_constructor     = false;
     symbol->is_primitive       = false;
-    symbol->con_num            = 0;
-    symbol->codegen_symbol     = NULL;
+    symbol->is_unboxed         = false;
     symbol->is_deep_copy_fn    = false;
     symbol->primop_type        = NECRO_PRIMOP_NONE;
+    symbol->codegen_symbol     = NULL;
     return symbol;
 }
 
@@ -49,14 +50,15 @@ NecroMachAstSymbol* necro_mach_ast_symbol_create_from_core_ast_symbol(NecroPaged
     symbol->mach_type            = NULL;
     symbol->necro_type           = core_ast_symbol->type;
     symbol->state_type           = core_ast_symbol->state_type;
+    symbol->con_num              = core_ast_symbol->con_num;
     // symbol->is_enum              = core_ast_symbol->is_enum;
-    symbol->is_enum              = false;
+    symbol->is_enum              = false; // HACK: CoreAstSymbol is_enum seems to be coming in wrong for some reason, track this down.
     symbol->is_constructor       = core_ast_symbol->is_constructor;
     symbol->is_primitive         = core_ast_symbol->is_primitive;
-    symbol->con_num              = core_ast_symbol->con_num;
-    symbol->codegen_symbol       = NULL;
+    symbol->is_unboxed           = core_ast_symbol->is_unboxed;
     symbol->is_deep_copy_fn      = core_ast_symbol->is_deep_copy_fn;
     symbol->primop_type          = core_ast_symbol->primop_type;
+    symbol->codegen_symbol       = NULL;
     core_ast_symbol->mach_symbol = symbol;
     return symbol;
 }
@@ -121,6 +123,22 @@ NecroMachAst* necro_mach_value_create(NecroMachProgram* program, NecroMachValue 
         break;
     }
     return ast;
+}
+
+// NecroMachAst* necro_mach_value_create_tuple(NecroMachProgram* program, NecroMachAst** values, size_t num_values)
+// {
+//     NecroMachAst* ast           = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
+//     ast->type                   = NECRO_MACH_VALUE;
+//     ast->value.value_type       = NECRO_MACH_VALUE_TUPLE;
+//     ast->necro_machine_type     = NULL;
+//     ast->value.tuple.values     = values;
+//     ast->value.tuple.num_values = num_values;
+//     return ast;
+// }
+
+NecroMachAst* necro_mach_value_create_undefined(NecroMachProgram* program, struct NecroMachType* necro_machine_type)
+{
+    return necro_mach_value_create(program, (NecroMachValue) { .value_type = NECRO_MACH_VALUE_UNDEFINED }, necro_machine_type);
 }
 
 NecroMachAst* necro_mach_value_create_reg(NecroMachProgram* program, NecroMachType* necro_machine_type, const char* reg_name)
@@ -436,6 +454,63 @@ NecroMachAst* necro_mach_build_non_const_gep(NecroMachProgram* program, NecroMac
     ast->necro_machine_type = result_type;
     necro_mach_block_add_statement(program, fn_def->fn_def._curr_block, ast);
     return ast->gep.dest_value;
+}
+
+NecroMachAst* necro_mach_build_insert_value(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* aggregate_value, NecroMachAst* inserted_value, size_t index, const char* dest_name)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACH_FN_DEF);
+    assert(aggregate_value->type == NECRO_MACH_VALUE);
+    assert(aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_STRUCT ||
+           aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_ARRAY);
+    assert(inserted_value->type == NECRO_MACH_VALUE);
+    if (aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_STRUCT)
+    {
+        assert(index < aggregate_value->necro_machine_type->struct_type.num_members);
+        assert(necro_mach_type_is_eq(aggregate_value->necro_machine_type->struct_type.members[index], inserted_value->necro_machine_type));
+    }
+    else
+    {
+        assert(index < aggregate_value->necro_machine_type->array_type.element_count);
+        assert(necro_mach_type_is_eq(aggregate_value->necro_machine_type->array_type.element_type, inserted_value->necro_machine_type));
+    }
+    NecroMachAst*  ast                = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
+    ast->type                         = NECRO_MACH_INSERT_VALUE;
+    ast->insert_value.aggregate_value = aggregate_value;
+    ast->insert_value.index           = index;
+    ast->insert_value.inserted_value  = inserted_value;
+    ast->insert_value.dest_value      = necro_mach_value_create_reg(program, aggregate_value->necro_machine_type, dest_name);
+    necro_mach_block_add_statement(program, fn_def->fn_def._curr_block, ast);
+    return ast->insert_value.dest_value;
+}
+
+NecroMachAst* necro_mach_build_extract_value(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* aggregate_value, size_t index, const char* dest_name)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACH_FN_DEF);
+    assert(aggregate_value->type == NECRO_MACH_VALUE);
+    assert(aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_STRUCT ||
+           aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_ARRAY);
+    NecroMachAst*  ast            = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
+    ast->type                     = NECRO_MACH_EXTRACT_VALUE;
+    NecroMachType* extracted_type = NULL;
+    if (aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_STRUCT)
+    {
+        assert(index < aggregate_value->necro_machine_type->struct_type.num_members);
+        extracted_type = aggregate_value->necro_machine_type->struct_type.members[index];
+    }
+    else
+    {
+        assert(index < aggregate_value->necro_machine_type->array_type.element_count);
+        extracted_type = aggregate_value->necro_machine_type->array_type.element_type;
+    }
+    ast->extract_value.aggregate_value = aggregate_value;
+    ast->extract_value.index           = index;
+    ast->extract_value.dest_value      = necro_mach_value_create_reg(program, extracted_type, dest_name);
+    necro_mach_block_add_statement(program, fn_def->fn_def._curr_block, ast);
+    return ast->extract_value.dest_value;
 }
 
 NecroMachAst* necro_mach_build_bit_cast(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* value, NecroMachType* to_type)

@@ -1158,7 +1158,10 @@ NecroResult(NecroType) necro_infer_tuple(NecroInfer* infer, NecroAst* ast)
         }
         current_expression = current_expression->list.next_item;
     }
-    ast->necro_type = necro_type_tuple_con_create(infer->arena, infer->base, types_head);
+    if (ast->tuple.is_unboxed)
+        ast->necro_type = necro_type_unboxed_tuple_con_create(infer->arena, infer->base, types_head);
+    else
+        ast->necro_type = necro_type_tuple_con_create(infer->arena, infer->base, types_head);
     necro_try_map(void, NecroType, necro_kind_infer_default_unify_with_star(infer->arena, infer->base, ast->necro_type, ast->scope, ast->simple_type.type_con->source_loc, ast->simple_type.type_con->end_loc));
     return ok(NecroType, ast->necro_type);
 }
@@ -1186,7 +1189,10 @@ NecroResult(NecroType) necro_infer_tuple_pattern(NecroInfer* infer, NecroAst* as
         }
         current_expression = current_expression->list.next_item;
     }
-    ast->necro_type = necro_type_tuple_con_create(infer->arena, infer->base, types_head);
+    if (ast->tuple.is_unboxed)
+        ast->necro_type = necro_type_unboxed_tuple_con_create(infer->arena, infer->base, types_head);
+    else
+        ast->necro_type = necro_type_tuple_con_create(infer->arena, infer->base, types_head);
     necro_try_map(void, NecroType, necro_kind_infer_default_unify_with_star(infer->arena, infer->base, ast->necro_type, ast->scope, ast->simple_type.type_con->source_loc, ast->simple_type.type_con->end_loc));
     return ok(NecroType, ast->necro_type);
 }
@@ -1214,7 +1220,10 @@ NecroResult(NecroType) necro_infer_tuple_type(NecroInfer* infer, NecroAst* ast, 
         }
         current_expression = current_expression->list.next_item;
     }
-    ast->necro_type = necro_type_tuple_con_create(infer->arena, infer->base, types_head);
+    if (ast->tuple.is_unboxed)
+        ast->necro_type = necro_type_unboxed_tuple_con_create(infer->arena, infer->base, types_head);
+    else
+        ast->necro_type = necro_type_tuple_con_create(infer->arena, infer->base, types_head);
     // necro_try_map(void, NecroType, necro_kind_infer_default_unify_with_star(infer->arena, infer->base, ast->necro_type, ast->scope, ast->simple_type.type_con->source_loc, ast->simple_type.type_con->end_loc));
     // ast->necro_type->ownership = infer->base->ownership_share->type;
     ast->necro_type->ownership = necro_ast_get_type_sig_ownership(infer, attribute_type, ast->scope);
@@ -3877,6 +3886,8 @@ void necro_test_infer()
         necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
     }
 
+// TODO: Put back
+/*
     {
         puts("Infer {{{ child process inferTest:  starting...");
         assert(NECRO_COMPILE_IN_CHILD_PROCESS("inferTest.necro", "infer") == 0);
@@ -3900,6 +3911,7 @@ void necro_test_infer()
         assert(NECRO_COMPILE_IN_CHILD_PROCESS("pathologicalType.necro", "infer") == 0);
         puts("Infer }}} child process pathologicalType:  passed\n");
     }
+*/
 
     {
         NecroIntern   intern = necro_intern_create();
@@ -4746,6 +4758,143 @@ void necro_test_infer()
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
     }
+
+    {
+        const char* test_name   = "Unboxed Tuple 1";
+        const char* test_source = ""
+            "unboxedTuple = (#True, False#)\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Unboxed Tuple 2";
+        const char* test_source = ""
+            "unboxedTuple :: (#Bool, Int#)\n"
+            "unboxedTuple = (#True, 0#)\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Unboxed Tuple 3";
+        const char* test_source = ""
+            "unboxedTuple :: (Bool, Int)\n"
+            "unboxedTuple = (#True, 0#)\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Unboxed Tuple 4";
+        const char* test_source = ""
+            "unboxedTuple :: (#Bool, Int, Float#)\n"
+            "unboxedTuple = (#True, 0#)\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
+        necro_infer_test_result(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Unboxed Tuple 5";
+        const char* test_source = ""
+            "unboxedTuple :: (#Bool, Int, Maybe ()#) -> Bool\n"
+            "unboxedTuple (#b, _, _#) = b\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Unboxed Tuple 6";
+        const char* test_source = ""
+            "data TripleThreat a = TripleThreat (#a, a, a#)\n"
+            "tripleThreat :: TripleThreat (Maybe Bool)\n"
+            "tripleThreat = TripleThreat (#Nothing, Nothing, Just True#)\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Pat Assignment 1";
+        const char* test_source = ""
+            "justNothing :: Float\n"
+            "justNothing = x where\n"
+            "  Just x = Nothing\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Pat Assignment 2";
+        const char* test_source = ""
+            "justNothing :: Float\n"
+            "justNothing = x where\n"
+            "  Just (x ~ 0.0) = Just (x + 1)\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Pat Assignment 3";
+        const char* test_source = ""
+            "unboxedTuple :: Int\n"
+            "unboxedTuple = x where\n"
+            "  Just (x, acc) = Just (0, 1)\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Pat Assignment 4";
+        const char* test_source = ""
+            "unboxedTuple :: Int\n"
+            "unboxedTuple = x where\n"
+            "  Just (#x, acc#) = Just (#0, 1#)\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Pat Assignment 5";
+        const char* test_source = ""
+            "unboxedTuple :: Int\n"
+            "unboxedTuple = x where\n"
+            "  (x, acc) = (0, 1)\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Pat Assignment 6";
+        const char* test_source = ""
+            "unboxedTuple :: Int\n"
+            "unboxedTuple = x where\n"
+            "  (#x, acc#) = (#0, 1#)\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Pat Assignment 7";
+        const char* test_source = ""
+            "unboxedTuple :: Bool\n"
+            "unboxedTuple = x where\n"
+            "  (#x, (acc ~ 0)#) = (#True, acc + 1#)\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    }
+
+    // TODO: Parsing needs to be extended with better oppat support if we want this
+    // {
+    //     const char* test_name   = "Pat Assignment 8";
+    //     const char* test_source = ""
+    //         "unboxedTuple :: Int\n"
+    //         "unboxedTuple = acc where\n"
+    //         "  (#x, acc ~ 0#) = (#True, acc + 1#)\n";
+    //     const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+    //     necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
+    // }
 
 /*
     {

@@ -13,81 +13,83 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
 {
     switch(token)
     {
-    case NECRO_LEX_ADD:                return "ADD";
-    case NECRO_LEX_SUB:                return "SUB";
-    case NECRO_LEX_MUL:                return "MUL";
-    case NECRO_LEX_DIV:                return "DIV";
-    case NECRO_LEX_MOD:                return "MOD";
-    case NECRO_LEX_GT:                 return "GT";
-    case NECRO_LEX_LT:                 return "LT";
-    case NECRO_LEX_GTE:                return "GTE";
-    case NECRO_LEX_LTE:                return "LTE";
-    case NECRO_LEX_COLON:              return "COLON";
-    case NECRO_LEX_SEMI_COLON:         return "SEMI_COLON";
-    case NECRO_LEX_INTEGER_LITERAL:    return "INT";
-    case NECRO_LEX_FLOAT_LITERAL:      return "FLOAT";
-    case NECRO_LEX_IDENTIFIER:         return "IDENTIFIER";
-    case NECRO_LEX_LEFT_ARROW:         return "LEFT_ARROW";
-    case NECRO_LEX_RIGHT_ARROW:        return "RIGHT_ARROW";
-    case NECRO_LEX_FAT_RIGHT_ARROW:    return "FAT_RIGHT_ARROW";
-    case NECRO_LEX_LEFT_BRACKET:       return "LEFT_BRACKET";
-    case NECRO_LEX_RIGHT_BRACKET:      return "RIGHT_BRACKET";
-    case NECRO_LEX_LEFT_PAREN:         return "LEFT_PAREN";
-    case NECRO_LEX_RIGHT_PAREN:        return "RIGHT_PAREN";
-    case NECRO_LEX_LEFT_BRACE:         return "LEFT_BRACE";
-    case NECRO_LEX_RIGHT_BRACE:        return "RIGHT_BRACE";
-    case NECRO_LEX_COMMA:              return "COMMA";
-    case NECRO_LEX_UNDER_SCORE:        return "UNDER_SCORE";
-    case NECRO_LEX_EQUALS:             return "EQUALS";
-    case NECRO_LEX_NOT_EQUALS:         return "NOT_EQUALS";
-    case NECRO_LEX_ASSIGN:             return "ASSIGN";
-    case NECRO_LEX_QUESTION_MARK:      return "QUESTION_MARK";
-    case NECRO_LEX_EXCLAMATION:        return "EXCLAMATION";
-    case NECRO_LEX_HASH:               return "HASH";
-    case NECRO_LEX_DOUBLE_COLON:       return "DOUBLE_COLON";
-    case NECRO_LEX_LEFT_SHIFT:         return "LEFT_SHIFT";
-    case NECRO_LEX_RIGHT_SHIFT:        return "RIGHT_SHIFT";
-    case NECRO_LEX_PIPE:               return "PIPE";
-    case NECRO_LEX_FORWARD_PIPE:       return "FORWARD_PIPE";
-    case NECRO_LEX_BACK_PIPE:          return "BACK_PIPE";
-    case NECRO_LEX_DOT:                return "DOT";
-    case NECRO_LEX_DOUBLE_DOT:         return "DOUBLE_DOT";
-    case NECRO_LEX_AMPERSAND:          return "AMPERSAND";
-    case NECRO_LEX_AT:                 return "AT";
-    case NECRO_LEX_DOLLAR:             return "DOLLAR";
-    case NECRO_LEX_CARET:              return "CARET";
-    case NECRO_LEX_BACK_SLASH:         return "BACK_SLASH";
-    case NECRO_LEX_TILDE:              return "TILDE";
-    case NECRO_LEX_AND:                return "AND";
-    case NECRO_LEX_OR:                 return "OR";
-    case NECRO_LEX_BIND_RIGHT:         return "BIND_RIGHT";
-    case NECRO_LEX_BIND_LEFT:          return "BIND_LEFT";
-    case NECRO_LEX_UNIT:               return "UNIT";
-    case NECRO_LEX_DOUBLE_EXCLAMATION: return "DOUBLE_EXCLAMATION";
-    case NECRO_LEX_APPEND:             return "APPEND";
-    case NECRO_LEX_ACCENT:             return "ACCENT";
-    case NECRO_LEX_END_OF_STREAM:      return "END OF STREAM";
-    case NECRO_LEX_CASE:               return "CASE";
-    case NECRO_LEX_OF:                 return "OF";
-    case NECRO_LEX_CLASS:              return "CLASS";
-    case NECRO_LEX_DATA:               return "DATA";
-    case NECRO_LEX_DERIVING:           return "DERIVING";
-    case NECRO_LEX_FORALL:             return "FORALL";
-    case NECRO_LEX_DO:                 return "DO,";
-    case NECRO_LEX_IF:                 return "IF";
-    case NECRO_LEX_ELSE:               return "ELSE";
-    case NECRO_LEX_THEN:               return "THEN";
-    case NECRO_LEX_IMPORT:             return "IMPORT";
-    case NECRO_LEX_INSTANCE:           return "INSTANCE";
-    case NECRO_LEX_LET:                return "LET";
-    case NECRO_LEX_IN:                 return "IN";
-    case NECRO_LEX_MODULE:             return "MODULE";
-    case NECRO_LEX_NEWTYPE:            return "NEWTYPE";
-    case NECRO_LEX_TYPE:               return "TYPE";
-    case NECRO_LEX_FOR:                return "FOR";
-    case NECRO_LEX_LOOP:               return "LOOP";
-    case NECRO_LEX_WHERE:              return "WHERE";
-    default:                           return "UNRECOGNIZED TOKEN";
+    case NECRO_LEX_ADD:                 return "ADD";
+    case NECRO_LEX_SUB:                 return "SUB";
+    case NECRO_LEX_MUL:                 return "MUL";
+    case NECRO_LEX_DIV:                 return "DIV";
+    case NECRO_LEX_MOD:                 return "MOD";
+    case NECRO_LEX_GT:                  return "GT";
+    case NECRO_LEX_LT:                  return "LT";
+    case NECRO_LEX_GTE:                 return "GTE";
+    case NECRO_LEX_LTE:                 return "LTE";
+    case NECRO_LEX_COLON:               return "COLON";
+    case NECRO_LEX_SEMI_COLON:          return "SEMI_COLON";
+    case NECRO_LEX_INTEGER_LITERAL:     return "INT";
+    case NECRO_LEX_FLOAT_LITERAL:       return "FLOAT";
+    case NECRO_LEX_IDENTIFIER:          return "IDENTIFIER";
+    case NECRO_LEX_LEFT_ARROW:          return "LEFT_ARROW";
+    case NECRO_LEX_RIGHT_ARROW:         return "RIGHT_ARROW";
+    case NECRO_LEX_FAT_RIGHT_ARROW:     return "FAT_RIGHT_ARROW";
+    case NECRO_LEX_LEFT_BRACKET:        return "LEFT_BRACKET";
+    case NECRO_LEX_RIGHT_BRACKET:       return "RIGHT_BRACKET";
+    case NECRO_LEX_LEFT_PAREN:          return "LEFT_PAREN";
+    case NECRO_LEX_RIGHT_PAREN:         return "RIGHT_PAREN";
+    case NECRO_LEX_UNBOXED_LEFT_PAREN:  return "UNBOXED LEFT_PAREN";
+    case NECRO_LEX_UNBOXED_RIGHT_PAREN: return "UNBOXED RIGHT_PAREN";
+    case NECRO_LEX_LEFT_BRACE:          return "LEFT_BRACE";
+    case NECRO_LEX_RIGHT_BRACE:         return "RIGHT_BRACE";
+    case NECRO_LEX_COMMA:               return "COMMA";
+    case NECRO_LEX_UNDER_SCORE:         return "UNDER_SCORE";
+    case NECRO_LEX_EQUALS:              return "EQUALS";
+    case NECRO_LEX_NOT_EQUALS:          return "NOT_EQUALS";
+    case NECRO_LEX_ASSIGN:              return "ASSIGN";
+    case NECRO_LEX_QUESTION_MARK:       return "QUESTION_MARK";
+    case NECRO_LEX_EXCLAMATION:         return "EXCLAMATION";
+    case NECRO_LEX_HASH:                return "HASH";
+    case NECRO_LEX_DOUBLE_COLON:        return "DOUBLE_COLON";
+    case NECRO_LEX_LEFT_SHIFT:          return "LEFT_SHIFT";
+    case NECRO_LEX_RIGHT_SHIFT:         return "RIGHT_SHIFT";
+    case NECRO_LEX_PIPE:                return "PIPE";
+    case NECRO_LEX_FORWARD_PIPE:        return "FORWARD_PIPE";
+    case NECRO_LEX_BACK_PIPE:           return "BACK_PIPE";
+    case NECRO_LEX_DOT:                 return "DOT";
+    case NECRO_LEX_DOUBLE_DOT:          return "DOUBLE_DOT";
+    case NECRO_LEX_AMPERSAND:           return "AMPERSAND";
+    case NECRO_LEX_AT:                  return "AT";
+    case NECRO_LEX_DOLLAR:              return "DOLLAR";
+    case NECRO_LEX_CARET:               return "CARET";
+    case NECRO_LEX_BACK_SLASH:          return "BACK_SLASH";
+    case NECRO_LEX_TILDE:               return "TILDE";
+    case NECRO_LEX_AND:                 return "AND";
+    case NECRO_LEX_OR:                  return "OR";
+    case NECRO_LEX_BIND_RIGHT:          return "BIND_RIGHT";
+    case NECRO_LEX_BIND_LEFT:           return "BIND_LEFT";
+    case NECRO_LEX_UNIT:                return "UNIT";
+    case NECRO_LEX_DOUBLE_EXCLAMATION:  return "DOUBLE_EXCLAMATION";
+    case NECRO_LEX_APPEND:              return "APPEND";
+    case NECRO_LEX_ACCENT:              return "ACCENT";
+    case NECRO_LEX_END_OF_STREAM:       return "END OF STREAM";
+    case NECRO_LEX_CASE:                return "CASE";
+    case NECRO_LEX_OF:                  return "OF";
+    case NECRO_LEX_CLASS:               return "CLASS";
+    case NECRO_LEX_DATA:                return "DATA";
+    case NECRO_LEX_DERIVING:            return "DERIVING";
+    case NECRO_LEX_FORALL:              return "FORALL";
+    case NECRO_LEX_DO:                  return "DO,";
+    case NECRO_LEX_IF:                  return "IF";
+    case NECRO_LEX_ELSE:                return "ELSE";
+    case NECRO_LEX_THEN:                return "THEN";
+    case NECRO_LEX_IMPORT:              return "IMPORT";
+    case NECRO_LEX_INSTANCE:            return "INSTANCE";
+    case NECRO_LEX_LET:                 return "LET";
+    case NECRO_LEX_IN:                  return "IN";
+    case NECRO_LEX_MODULE:              return "MODULE";
+    case NECRO_LEX_NEWTYPE:             return "NEWTYPE";
+    case NECRO_LEX_TYPE:                return "TYPE";
+    case NECRO_LEX_FOR:                 return "FOR";
+    case NECRO_LEX_LOOP:                return "LOOP";
+    case NECRO_LEX_WHERE:               return "WHERE";
+    default:                            return "UNRECOGNIZED TOKEN";
     }
 }
 
@@ -587,25 +589,27 @@ bool necro_lex_token_with_pattern(NecroLexer* lexer, const char* pattern, NECRO_
 
 bool necro_lex_multi_character_token(NecroLexer* lexer)
 {
-    return necro_lex_token_with_pattern(lexer, ">>=", NECRO_LEX_BIND_RIGHT)         ||
-           necro_lex_token_with_pattern(lexer, "=<<", NECRO_LEX_BIND_LEFT)          ||
-           necro_lex_token_with_pattern(lexer, "==",  NECRO_LEX_EQUALS)             ||
-           necro_lex_token_with_pattern(lexer, "/=",  NECRO_LEX_NOT_EQUALS)         ||
-           necro_lex_token_with_pattern(lexer, "<=",  NECRO_LEX_LTE)                ||
-           necro_lex_token_with_pattern(lexer, ">=",  NECRO_LEX_GTE)                ||
-           necro_lex_token_with_pattern(lexer, "::",  NECRO_LEX_DOUBLE_COLON)       ||
-           necro_lex_token_with_pattern(lexer, ">>",  NECRO_LEX_RIGHT_SHIFT)        ||
-           necro_lex_token_with_pattern(lexer, "<<",  NECRO_LEX_LEFT_SHIFT)         ||
-           necro_lex_token_with_pattern(lexer, "<|",  NECRO_LEX_FORWARD_PIPE)       ||
-           necro_lex_token_with_pattern(lexer, "|>",  NECRO_LEX_BACK_PIPE)          ||
-           necro_lex_token_with_pattern(lexer, "&&",  NECRO_LEX_AND)                ||
-           necro_lex_token_with_pattern(lexer, "||",  NECRO_LEX_OR)                 ||
-           necro_lex_token_with_pattern(lexer, "()",  NECRO_LEX_UNIT)               ||
-           necro_lex_token_with_pattern(lexer, "<>",  NECRO_LEX_APPEND)             ||
-           necro_lex_token_with_pattern(lexer, "!!",  NECRO_LEX_DOUBLE_EXCLAMATION) ||
-           necro_lex_token_with_pattern(lexer, "<-",  NECRO_LEX_LEFT_ARROW)         ||
-           necro_lex_token_with_pattern(lexer, "->",  NECRO_LEX_RIGHT_ARROW)        ||
-           necro_lex_token_with_pattern(lexer, "=>",  NECRO_LEX_FAT_RIGHT_ARROW)    ||
+    return necro_lex_token_with_pattern(lexer, ">>=", NECRO_LEX_BIND_RIGHT)          ||
+           necro_lex_token_with_pattern(lexer, "=<<", NECRO_LEX_BIND_LEFT)           ||
+           necro_lex_token_with_pattern(lexer, "==",  NECRO_LEX_EQUALS)              ||
+           necro_lex_token_with_pattern(lexer, "/=",  NECRO_LEX_NOT_EQUALS)          ||
+           necro_lex_token_with_pattern(lexer, "<=",  NECRO_LEX_LTE)                 ||
+           necro_lex_token_with_pattern(lexer, ">=",  NECRO_LEX_GTE)                 ||
+           necro_lex_token_with_pattern(lexer, "::",  NECRO_LEX_DOUBLE_COLON)        ||
+           necro_lex_token_with_pattern(lexer, ">>",  NECRO_LEX_RIGHT_SHIFT)         ||
+           necro_lex_token_with_pattern(lexer, "<<",  NECRO_LEX_LEFT_SHIFT)          ||
+           necro_lex_token_with_pattern(lexer, "<|",  NECRO_LEX_FORWARD_PIPE)        ||
+           necro_lex_token_with_pattern(lexer, "|>",  NECRO_LEX_BACK_PIPE)           ||
+           necro_lex_token_with_pattern(lexer, "&&",  NECRO_LEX_AND)                 ||
+           necro_lex_token_with_pattern(lexer, "||",  NECRO_LEX_OR)                  ||
+           necro_lex_token_with_pattern(lexer, "()",  NECRO_LEX_UNIT)                ||
+           necro_lex_token_with_pattern(lexer, "<>",  NECRO_LEX_APPEND)              ||
+           necro_lex_token_with_pattern(lexer, "!!",  NECRO_LEX_DOUBLE_EXCLAMATION)  ||
+           necro_lex_token_with_pattern(lexer, "<-",  NECRO_LEX_LEFT_ARROW)          ||
+           necro_lex_token_with_pattern(lexer, "->",  NECRO_LEX_RIGHT_ARROW)         ||
+           necro_lex_token_with_pattern(lexer, "=>",  NECRO_LEX_FAT_RIGHT_ARROW)     ||
+           necro_lex_token_with_pattern(lexer, "(#",  NECRO_LEX_UNBOXED_LEFT_PAREN)  ||
+           necro_lex_token_with_pattern(lexer, "#)",  NECRO_LEX_UNBOXED_RIGHT_PAREN) ||
            necro_lex_token_with_pattern(lexer, "..",  NECRO_LEX_DOUBLE_DOT);
 }
 
@@ -1497,6 +1501,26 @@ void necro_lex_test()
         // necro_print_lexer(&lexer);
         printf("Lex mixed braces error test: Passed\n");
         free(result.error);
+        necro_lexer_full_destroy(&lexer);
+        necro_intern_destroy(&intern);
+    }
+
+    // Unboxed Tuple Test
+    {
+        const char* str    = "(#0, 1, 2#)";
+        NecroIntern intern = necro_intern_create();
+        NecroLexer  lexer  = necro_lexer_create(str, strlen(str), &intern);
+        unwrap(void, necro_lex_go(&lexer));
+        // necro_lex_print(&lexer);
+        assert(lexer.tokens.length == 8);
+        assert(lexer.tokens.data[0].token == NECRO_LEX_UNBOXED_LEFT_PAREN);
+        assert(lexer.tokens.data[1].token == NECRO_LEX_INTEGER_LITERAL);
+        assert(lexer.tokens.data[2].token == NECRO_LEX_COMMA);
+        assert(lexer.tokens.data[3].token == NECRO_LEX_INTEGER_LITERAL);
+        assert(lexer.tokens.data[4].token == NECRO_LEX_COMMA);
+        assert(lexer.tokens.data[5].token == NECRO_LEX_INTEGER_LITERAL);
+        assert(lexer.tokens.data[6].token == NECRO_LEX_UNBOXED_RIGHT_PAREN);
+        printf("Unboxed Tuple Test: Passed\n");
         necro_lexer_full_destroy(&lexer);
         necro_intern_destroy(&intern);
     }

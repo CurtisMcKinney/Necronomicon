@@ -105,6 +105,7 @@ set(project_SOURCES
     source/core/lambda_lift.c
     source/core/state_analysis.c
     source/core/core_infer.c
+    source/core/core_simplify.c
 
     source/mach/mach_ast.c
     source/mach/mach_type.c
@@ -161,6 +162,7 @@ set(project_HEADERS
     source/core/lambda_lift.h
     source/core/state_analysis.h
     source/core/core_infer.h
+    source/core/core_simplify.h
 
     source/mach/mach_ast.h
     source/mach/mach_type.h

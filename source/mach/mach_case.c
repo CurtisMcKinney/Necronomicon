@@ -772,6 +772,10 @@ void necro_pattern_var_to_mach(NecroMachProgram* program, NecroPattern* pattern,
     {
         var_ast->var.ast_symbol->mach_symbol->ast = parent_value;
     }
+    else if (necro_mach_type_is_unboxed(program, parent->value_type))
+    {
+        var_ast->var.ast_symbol->mach_symbol->ast = necro_mach_build_extract_value(program, outer->machine_def.update_fn, parent_value, pattern->parent_slot, "value");
+    }
     else
     {
         NecroMachAst* slot_ptr                    = necro_mach_build_gep(program, outer->machine_def.update_fn, parent_value, (uint32_t[]) { 0, pattern->parent_slot + 1 }, 2, "value_ptr");
@@ -840,6 +844,11 @@ void necro_decision_tree_pattern_to_mach(NecroMachProgram* program, NecroPattern
         NecroPattern* parent = pattern->parent;
         assert(parent != NULL);
         assert(parent->value_ast != NULL);
+        // // Unboxed Value Types
+        // if (pattern->value_type->type == NECRO_MACH_TYPE_STRUCT && pattern->value_type->struct_type.symbol->is_unboxed)
+        // {
+        //     pattern->value_ast = parent->value_ast;
+        // }
         // Sum type
         if (necro_mach_type_is_sum_type(pattern->value_type))
         {
@@ -851,6 +860,11 @@ void necro_decision_tree_pattern_to_mach(NecroMachProgram* program, NecroPattern
                 if (parent->pattern_type == NECRO_PATTERN_TOP)
                 {
                     cached_value       = parent->value_ast;
+                    pattern->value_ast = necro_mach_build_down_cast(program, outer->machine_def.update_fn, cached_value, pattern->value_type);
+                }
+                else if (necro_mach_type_is_unboxed(program, parent->value_type))
+                {
+                    pattern->value_ast = necro_mach_build_extract_value(program, outer->machine_def.update_fn, parent->value_ast, pattern->parent_slot, "value");
                     pattern->value_ast = necro_mach_build_down_cast(program, outer->machine_def.update_fn, cached_value, pattern->value_type);
                 }
                 else
@@ -873,16 +887,21 @@ void necro_decision_tree_pattern_to_mach(NecroMachProgram* program, NecroPattern
         {
             if (parent->pattern_type == NECRO_PATTERN_TOP)
             {
-                assert(pattern->value_ast == NULL);
                 pattern->value_ast = parent->value_ast;
+            }
+            else if (necro_mach_type_is_unboxed(program, parent->value_type))
+            {
+                assert(pattern->value_ast == NULL);
+                pattern->value_ast = necro_mach_build_extract_value(program, outer->machine_def.update_fn, parent->value_ast, pattern->parent_slot, "value");
+                necro_block_env_cache_value(&program->arena, env, pattern->parent->value_ast, pattern->parent_slot, pattern->value_type, pattern->value_ast);
             }
             else
             {
                 assert(pattern->value_ast == NULL);
                 NecroMachAst* slot_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, parent->value_ast, (uint32_t[]) { 0, pattern->parent_slot + 1 }, 2, "slot_ptr");
                 pattern->value_ast     = necro_mach_build_load(program, outer->machine_def.update_fn, slot_ptr, "value");
+                necro_block_env_cache_value(&program->arena, env, pattern->parent->value_ast, pattern->parent_slot, pattern->value_type, pattern->value_ast);
             }
-            necro_block_env_cache_value(&program->arena, env, pattern->parent->value_ast, pattern->parent_slot, pattern->value_type, pattern->value_ast);
         }
     }
     else

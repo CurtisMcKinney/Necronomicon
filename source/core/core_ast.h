@@ -136,6 +136,7 @@ typedef struct NecroCoreAstLiteral
 typedef struct NecroCoreAstVar
 {
     NecroCoreAstSymbol* ast_symbol;
+    bool                is_wildcard;
 } NecroCoreAstVar;
 
 typedef struct NecroCoreAstBind

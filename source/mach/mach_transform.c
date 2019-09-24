@@ -18,22 +18,10 @@
 
 /*
     TODO:
-
-        * Unboxed Types using:
-            - ExtractValue
-            - InsertValue
-            - UndefValue (LLVMGetUndef)
-
-        * Unboxed Types as function parameters
-        * Unboxed Type constructors (use undef and InsertValue or perhaps
-        * Unboxed Types as intermediate values
-        * Unboxed Types embedded in other types
-        * Unboxed Types as case evaluees
-        * Unboxed Types embedded in other types in case expressions
-        * Unboxed Types as return values
-        * Unboxed Types which contain unboxed types!
+        * New wildcard scheme
         * Stateful unboxed types
 
+        * Rational type
         * apats on for loops
         * Unboxed Tuples / Types
         * Look into PortAudio / Jack / Custom Audio Output system
@@ -94,7 +82,7 @@ NecroMachAst* necro_core_transform_to_mach_1_data_con_type(NecroMachProgram* pro
     const size_t    arg_count   = necro_type_arity(con_type);
     const size_t    tag_offset  = mach_ast_symbol->is_unboxed ? 0 : 1;
     NecroMachType** members     = necro_snapshot_arena_alloc(&program->snapshot_arena, (tag_offset + arg_count) * sizeof(NecroMachType*));
-    if (mach_ast_symbol->is_unboxed)
+    if (!mach_ast_symbol->is_unboxed)
         members[0] = program->type_cache.word_uint_type;
     for (size_t i = tag_offset; i < arg_count + tag_offset; ++i)
     {
@@ -2791,15 +2779,125 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
-*/
-
     {
-        const char* test_name   = "Unboxed Type Con";
+        const char* test_name   = "Unboxed Type Con 1";
         const char* test_source = ""
             "bopIt :: Int -> (#Int, Bool, Maybe Float#)\n"
             "bopIt i = (#i, False, Nothing#)\n"
             "main :: *World -> *World\n"
             "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Unboxed Type Con 2";
+        const char* test_source = ""
+            "bopIt :: Int -> (#Int, Bool, (#(), Maybe Float#)#)\n"
+            "bopIt i = (#i, False, (#(), Nothing#)#)\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Unboxed Embedded";
+        const char* test_source = ""
+            "stopIt :: Maybe (#Int, Bool#)\n"
+            "stopIt = Just (#0, False#)\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Unboxed Case 1";
+        const char* test_source = ""
+            "stopIt :: Int\n"
+            "stopIt =\n"
+            "  case (#0, False#) of\n"
+            "    (#i, b#) -> i\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Unboxed Case 2";
+        const char* test_source = ""
+            "muddyTheWaters :: Int -> Int\n"
+            "muddyTheWaters i =\n"
+            "  case (#i, False#) of\n"
+            "    (#i2, b#) -> i2\n"
+            "main :: *World -> *World\n"
+            "main w = printInt (muddyTheWaters 22) w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Unboxed Case 3";
+        const char* test_source = ""
+            "manInTheBox :: (#Int, Int#)\n"
+            "manInTheBox = (#666, 777#)\n"
+            "main :: *World -> *World\n"
+            "main w =\n"
+            "  case manInTheBox of\n"
+            "    (#x, y#) -> printInt y (printInt x w)\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Unboxed Case 4";
+        const char* test_source = ""
+            "muddyTheWaters :: Int -> (#Int, Int, Maybe ()#)\n"
+            "muddyTheWaters i = (#i, i, Nothing#)\n"
+            "main :: *World -> *World\n"
+            "main w =\n"
+            "  case muddyTheWaters 333 of\n"
+            "    (#x, y, _#) -> printInt x (printInt y w)\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Unboxed Case 5";
+        const char* test_source = ""
+            "muddyTheWaters :: Int -> (#Bool, (#Bool, Int#)#)\n"
+            "muddyTheWaters i = (#True, (#False, i * 2#)#)\n"
+            "main :: *World -> *World\n"
+            "main w =\n"
+            "  case muddyTheWaters 333 of\n"
+            "    (#_, (#_, i#)#) -> printInt i w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Unboxed Case 6";
+        const char* test_source = ""
+            "muddyTheWaters :: Int -> Maybe (#Bool, Int#)\n"
+            "muddyTheWaters i = Just (#False, i * 2#)\n"
+            "main :: *World -> *World\n"
+            "main w =\n"
+            "  case muddyTheWaters 333 of\n"
+            "    Just (#_, i#) -> printInt i w\n"
+            "    _             -> w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Unboxed Case 7";
+        const char* test_source = ""
+            "tenTimes :: Range 10\n"
+            "tenTimes = each\n"
+            "forWhat :: Int -> (#Int, Int#)\n"
+            "forWhat x =\n"
+            "  for tenTimes (#x, 1#) loop i w ->\n"
+            "    case w of\n"
+            "        (#xi, yi#) -> (#xi * yi, yi + 1#)\n"
+            "main :: *World -> *World\n"
+            "main w =\n"
+            "  case forWhat 33 of\n"
+            "    (#x, _#) -> printInt x w\n";
         necro_mach_test_string(test_name, test_source);
     }
 

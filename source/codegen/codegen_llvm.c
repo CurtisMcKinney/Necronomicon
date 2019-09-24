@@ -10,6 +10,8 @@
 #include <llvm-c/Analysis.h>
 #include <llvm-c/Transforms/IPO.h>
 #include <llvm-c/Transforms/Scalar.h>
+#include <llvm-c/Transforms/Vectorize.h>
+#include <llvm-c/Transforms/Utils.h>
 #include <llvm-c/TargetMachine.h>
 #include <llvm-c/Transforms/PassManagerBuilder.h>
 #include <llvm-c/Support.h>
@@ -218,26 +220,69 @@ NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgr
 
     if (should_optimize)
     {
-        // LLVMInitializeFunctionPassManager(fn_pass_manager);
         // LLVMAddDeadStoreEliminationPass(fn_pass_manager);
         // LLVMAddAggressiveDCEPass(fn_pass_manager);
-        LLVMAddInstructionCombiningPass(fn_pass_manager);
-        LLVMAddCFGSimplificationPass(fn_pass_manager);
         // LLVMAddTailCallEliminationPass(fn_pass_manager);
-        // LLVMAddCFGSimplificationPass(fn_pass_manager);
-        LLVMAddDeadStoreEliminationPass(fn_pass_manager);
         // LLVMAddAggressiveDCEPass(fn_pass_manager);
-        LLVMAddConstantPropagationPass(fn_pass_manager);
+        // LLVMAddAggressiveInstCombinerPass(mod_pass_manager);
+
+        // fn_pass_manager
+        LLVMInitializeFunctionPassManager(fn_pass_manager);
         LLVMAddInstructionCombiningPass(fn_pass_manager);
-        // LLVMFinalizeFunctionPassManager(fn_pass_manager);
+        LLVMAddConstantPropagationPass(fn_pass_manager);
+        LLVMAddMergedLoadStoreMotionPass(fn_pass_manager);
+        LLVMAddInstructionCombiningPass(fn_pass_manager);
+        LLVMAddScalarizerPass(fn_pass_manager);
+        LLVMAddScalarReplAggregatesPass(fn_pass_manager);
+        LLVMAddScalarReplAggregatesPassSSA(fn_pass_manager);
+        LLVMAddScalarizerPass(fn_pass_manager);
+        LLVMAddReassociatePass(fn_pass_manager);
+        LLVMAddInstructionCombiningPass(fn_pass_manager);
+        LLVMAddMergedLoadStoreMotionPass(fn_pass_manager);
+        LLVMAddConstantPropagationPass(fn_pass_manager);
+        LLVMAddLoopVectorizePass(fn_pass_manager);
+        LLVMAddSLPVectorizePass(fn_pass_manager);
+        LLVMAddPromoteMemoryToRegisterPass(fn_pass_manager);
+        LLVMAddInstructionCombiningPass(fn_pass_manager);
+        LLVMFinalizeFunctionPassManager(fn_pass_manager);
+
+        // mod_pass_manager
+        LLVMAddTypeBasedAliasAnalysisPass(mod_pass_manager);
+        LLVMAddInstructionCombiningPass(mod_pass_manager);
+        LLVMAddCFGSimplificationPass(mod_pass_manager);
+        LLVMAddConstantPropagationPass(mod_pass_manager);
+        LLVMAddMergedLoadStoreMotionPass(mod_pass_manager);
+        LLVMAddInstructionCombiningPass(mod_pass_manager);
         LLVMAddArgumentPromotionPass(mod_pass_manager);
         LLVMAddFunctionAttrsPass(mod_pass_manager);
+        LLVMAddScalarizerPass(mod_pass_manager);
+        LLVMAddScalarReplAggregatesPass(mod_pass_manager);
+        LLVMAddScalarReplAggregatesPassSSA(mod_pass_manager);
+        LLVMAddScalarizerPass(mod_pass_manager);
+        LLVMAddInstructionCombiningPass(mod_pass_manager);
+        LLVMAddMergedLoadStoreMotionPass(mod_pass_manager);
+        LLVMAddNewGVNPass(mod_pass_manager);
+        // LLVMAddGVNPass(mod_pass_manager);
+        LLVMAddSCCPPass(mod_pass_manager);
+        LLVMAddConstantPropagationPass(mod_pass_manager);
+        LLVMAddLoopVectorizePass(mod_pass_manager);
+        LLVMAddSLPVectorizePass(mod_pass_manager);
+        LLVMAddPromoteMemoryToRegisterPass(fn_pass_manager);
+        LLVMAddInstructionCombiningPass(mod_pass_manager);
+        LLVMAddIPConstantPropagationPass(mod_pass_manager);
+        LLVMAddGlobalOptimizerPass(mod_pass_manager);
+        LLVMAddGlobalDCEPass(mod_pass_manager);
+        LLVMAddDeadStoreEliminationPass(mod_pass_manager);
+        LLVMAddAggressiveDCEPass(mod_pass_manager);
+        LLVMAddBitTrackingDCEPass(mod_pass_manager);
+        LLVMAddInstructionCombiningPass(mod_pass_manager);
+
         // LLVMAddGlobalOptimizerPass(mod_pass_manager);
         LLVMPassManagerBuilderRef pass_manager_builder = LLVMPassManagerBuilderCreate();
         LLVMPassManagerBuilderSetOptLevel(pass_manager_builder, 0);
         // LLVMPassManagerBuilderUseInlinerWithThreshold(pass_manager_builder, 1);
         // LLVMPassManagerBuilderSetOptLevel(pass_manager_builder, opt_level);
-        LLVMPassManagerBuilderUseInlinerWithThreshold(pass_manager_builder, 40);
+        LLVMPassManagerBuilderUseInlinerWithThreshold(pass_manager_builder, 100);
         LLVMPassManagerBuilderPopulateFunctionPassManager(pass_manager_builder, fn_pass_manager);
         LLVMPassManagerBuilderPopulateModulePassManager(pass_manager_builder, mod_pass_manager);
         LLVMPassManagerBuilderDispose(pass_manager_builder);
@@ -531,6 +576,21 @@ LLVMValueRef necro_llvm_codegen_insert_value(NecroLLVM* context, NecroMachAst* a
     return value;
 }
 
+LLVMValueRef necro_llvm_codegen_extract_value(NecroLLVM* context, NecroMachAst* ast)
+{
+    assert(context != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_MACH_EXTRACT_VALUE);
+    const char*      name            = ast->extract_value.dest_value->value.reg_symbol->name->str;
+    LLVMValueRef     aggregate_value = necro_llvm_codegen_value(context, ast->extract_value.aggregate_value);
+    LLVMValueRef     value           = LLVMBuildExtractValue(context->builder, aggregate_value, ast->extract_value.index, name);
+    NecroLLVMSymbol* symbol          = necro_llvm_symbol_get(&context->arena, ast->extract_value.dest_value->value.reg_symbol);
+    symbol->type                     = necro_llvm_type_from_mach_type(context, ast->extract_value.dest_value->necro_machine_type);
+    symbol->value                    = value;
+    necro_llvm_codegen_delayed_phi_node(context, symbol);
+    return value;
+}
+
 LLVMValueRef necro_llvm_codegen_binop(NecroLLVM* context, NecroMachAst* ast)
 {
     assert(context != NULL);
@@ -808,7 +868,7 @@ LLVMValueRef necro_llvm_codegen_block_statement(NecroLLVM* codegen, NecroMachAst
     case NECRO_MACH_ZEXT:          return necro_llvm_codegen_zext(codegen, ast);
     case NECRO_MACH_GEP:           return necro_llvm_codegen_gep(codegen, ast);
     case NECRO_MACH_INSERT_VALUE:  return necro_llvm_codegen_insert_value(codegen, ast);
-    // case NECRO_MACH_EXTRACT_VALUE: return necro_llvm_codegen_extract_value(codegen, ast);
+    case NECRO_MACH_EXTRACT_VALUE: return necro_llvm_codegen_extract_value(codegen, ast);
     case NECRO_MACH_CMP:           return necro_llvm_codegen_cmp(codegen, ast);
     case NECRO_MACH_PHI:           return necro_llvm_codegen_phi(codegen, ast);
     case NECRO_MACH_STORE:         return necro_llvm_codegen_store(codegen, ast);
@@ -890,8 +950,8 @@ void necro_llvm_codegen_function(NecroLLVM* context, NecroMachAst* ast)
         necro_llvm_codegen_terminator(context, blocks->block.terminator);
         blocks = blocks->block.next_block;
     }
-    // if (context->should_optimize)
-    //     LLVMRunFunctionPassManager(context->fn_pass_manager, fn_value);
+    if (context->should_optimize)
+        LLVMRunFunctionPassManager(context->fn_pass_manager, fn_value);
 }
 
 LLVMValueRef necro_llvm_codegen_call(NecroLLVM* context, NecroMachAst* ast)
@@ -2044,15 +2104,127 @@ void necro_llvm_test()
         necro_llvm_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Unboxed Type Con";
         const char* test_source = ""
             "bopIt :: Int -> (#Int, Bool, Maybe Float#)\n"
             "bopIt i = (#i, False, Nothing#)\n"
+            "gotIt :: (#Int, Bool, Maybe Float#)\n"
+            "gotIt = bopIt 440\n"
             "main :: *World -> *World\n"
             "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Unboxed Type Con 2";
+        const char* test_source = ""
+            "bopIt :: Int -> (#Int, Bool, (#(), Maybe Float#)#)\n"
+            "bopIt i = (#i, False, (#(), Nothing#)#)\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Unboxed Embedded";
+        const char* test_source = ""
+            "stopIt :: Maybe (#Int, Float#)\n"
+            "stopIt = Just (#333, 44.4#)\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Unboxed Case 1";
+        const char* test_source = ""
+            "stopIt :: Int\n"
+            "stopIt =\n"
+            "  case (#0, False#) of\n"
+            "    (#i, b#) -> i\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Unboxed Case 2";
+        const char* test_source = ""
+            "muddyTheWaters :: Int -> Int\n"
+            "muddyTheWaters i =\n"
+            "  case (#i, False#) of\n"
+            "    (#i2, b#) -> i2\n"
+            "main :: *World -> *World\n"
+            "main w = printInt (muddyTheWaters 22) w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Unboxed Case 3";
+        const char* test_source = ""
+            "manInTheBox :: (#Int, Int#)\n"
+            "manInTheBox = (#666, 777#)\n"
+            "main :: *World -> *World\n"
+            "main w =\n"
+            "  case manInTheBox of\n"
+            "    (#x, y#) -> printInt y (printInt x w)\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Unboxed Case 4";
+        const char* test_source = ""
+            "muddyTheWaters :: Int -> (#Int, Int, Maybe ()#)\n"
+            "muddyTheWaters i = (#i, i * 2, Nothing#)\n"
+            "main :: *World -> *World\n"
+            "main w =\n"
+            "  case muddyTheWaters 333 of\n"
+            "    (#x, y, _#) -> printInt x (printInt y w)\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Unboxed Case 5";
+        const char* test_source = ""
+            "muddyTheWaters :: Int -> (#Bool, (#Bool, Int#)#)\n"
+            "muddyTheWaters i = (#True, (#False, i * 2#)#)\n"
+            "main :: *World -> *World\n"
+            "main w =\n"
+            "  case muddyTheWaters 333 of\n"
+            "    (#_, (#_, i#)#) -> printInt i w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Unboxed Case 6";
+        const char* test_source = ""
+            "muddyTheWaters :: Int -> Maybe (#Bool, Int#)\n"
+            "muddyTheWaters i = Just (#False, i * 2#)\n"
+            "main :: *World -> *World\n"
+            "main w =\n"
+            "  case muddyTheWaters 333 of\n"
+            "    Just (#_, i#) -> printInt i w\n"
+            "    _             -> w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Unboxed Case 7";
+        const char* test_source = ""
+            "tenTimes :: Range 10\n"
+            "tenTimes = each\n"
+            "forWhat :: Int -> (#Int, Int#)\n"
+            "forWhat x =\n"
+            "  for tenTimes (#x, 1#) loop i w ->\n"
+            "    case w of\n"
+            "        (#xi, yi#) -> (#xi * yi, yi + 1#)\n"
+            "main :: *World -> *World\n"
+            "main w =\n"
+            "  case forWhat 33 of\n"
+            "    (#x, _#) -> printInt x w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -2385,8 +2557,6 @@ void necro_llvm_test_jit()
         necro_llvm_jit_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Rec 5.5";
         const char* test_source = ""
@@ -2402,6 +2572,20 @@ void necro_llvm_test_jit()
             "main w =\n"
             "  case counter of\n"
             "    (xl, _) -> printInt xl w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Unboxed Case 4";
+        const char* test_source = ""
+            "muddyTheWaters :: Int -> (#Int, Int, Maybe ()#)\n"
+            "muddyTheWaters i = (#i, i * 2, Nothing#)\n"
+            "main :: *World -> *World\n"
+            "main w =\n"
+            "  case muddyTheWaters 333 of\n"
+            "    (#x, y, _#) -> printInt x (printInt y w)\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 

@@ -78,6 +78,7 @@ NecroCoreAst* necro_core_ast_create_var(NecroPagedArena* arena, NecroCoreAstSymb
     assert(necro_type->kind != NULL);
     NecroCoreAst* ast        = necro_core_ast_alloc(arena, NECRO_CORE_AST_VAR);
     ast->var.ast_symbol      = ast_symbol;
+    ast->var.is_wildcard     = false;
     ast->necro_type          = necro_type;
     return ast;
 }
@@ -709,15 +710,15 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_pat(NecroCoreAstTransform*
         return ok(NecroCoreAst, NULL);
     switch (ast->type)
     {
-    // case NECRO_AST_WILDCARD:   return ok(NecroCoreAst, NULL); // TODO: How to handle wildcards? Perhaps simply introduce an unsed variable name?
     case NECRO_AST_VARIABLE:   return necro_ast_transform_to_core_var(context, ast);
     case NECRO_AST_CONID:      return necro_ast_transform_to_core_con(context, ast);
     case NECRO_AST_CONSTANT:   return necro_ast_transform_to_core_lit(context, ast);
     case NECRO_AST_TUPLE:      return necro_ast_transform_to_core_tuple_pat(context, ast);
     case NECRO_AST_WILDCARD:
     {
-        NecroType*    wildcard_type = necro_type_deep_copy(context->arena, ast->necro_type);
-        NecroCoreAst* wildcard_ast  = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "_wildcard"), wildcard_type), wildcard_type);
+        NecroType*    wildcard_type   = necro_type_deep_copy(context->arena, ast->necro_type);
+        NecroCoreAst* wildcard_ast    = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "wildcard"), wildcard_type), wildcard_type);
+        wildcard_ast->var.is_wildcard = true;
         return ok(NecroCoreAst, wildcard_ast); // NOTE, from Curtis: Wild cards represented as NULL causes issues, instead we're going to compile them as anonymous variables
     }
     case NECRO_AST_CONSTRUCTOR:

@@ -1120,7 +1120,6 @@ void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroL
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_alloc);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_free);
 
-
     // Write assembly to file
     /*
     {

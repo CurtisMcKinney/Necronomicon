@@ -97,6 +97,11 @@ typedef struct NecroBase
     NecroAstSymbol* maybe_type;
     NecroAstSymbol* prim_undefined;
 
+    NecroAstSymbol* pipe_forward;
+    NecroAstSymbol* pipe_back;
+    NecroAstSymbol* compose_forward;
+    NecroAstSymbol* compose_back;
+
     // Runtime functions
     NecroAstSymbol* mouse_x_fn;
     NecroAstSymbol* mouse_y_fn;

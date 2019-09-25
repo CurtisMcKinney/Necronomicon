@@ -54,7 +54,6 @@ NecroBase necro_base_create(NecroIntern* intern)
         .tuple9_type            = NULL,
         .tuple10_type           = NULL,
 
-        .poly_type              = NULL,
         .world_type             = NULL,
         .unit_type              = NULL,
         .unit_con               = NULL,
@@ -79,13 +78,16 @@ NecroBase necro_base_create(NecroIntern* intern)
         .event_type             = NULL,
         .pattern_type           = NULL,
         .closure_type           = NULL,
-        // .apply_fn               = NULL,
-        // .dyn_state_type         = NULL,
         .ptr_type               = NULL,
         .array_type             = NULL,
         .range_type             = NULL,
         .index_type             = NULL,
         .maybe_type             = NULL,
+
+        .pipe_forward           = NULL,
+        .pipe_back              = NULL,
+        .compose_forward        = NULL,
+        .compose_back           = NULL,
 
         .mouse_x_fn             = NULL,
         .mouse_y_fn             = NULL,
@@ -368,17 +370,20 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 
     necro_kind_init_kinds(&base, scoped_symtable, intern);
 
-    // _Poly
-    NecroAst* poly_s_type            = necro_ast_create_simple_type(arena, intern, "_Poly", NULL);
-    NecroAst* poly_null              = necro_ast_create_data_con(arena, intern, "_NullPoly", NULL);
-    NecroAst* poly_constructor_list  = necro_ast_create_list(arena, poly_null, NULL);
-    NecroAst* poly_data_decl         = necro_ast_create_data_declaration(arena, intern, poly_s_type, poly_constructor_list);
-    top                              = necro_ast_create_top_decl(arena, poly_data_decl, NULL);
-    base.ast.root                    = top;
+    // // _Poly
+    // NecroAst* poly_s_type            = necro_ast_create_simple_type(arena, intern, "_Poly", NULL);
+    // NecroAst* poly_null              = necro_ast_create_data_con(arena, intern, "_NullPoly", NULL);
+    // NecroAst* poly_constructor_list  = necro_ast_create_list(arena, poly_null, NULL);
+    // NecroAst* poly_data_decl         = necro_ast_create_data_declaration(arena, intern, poly_s_type, poly_constructor_list);
+    // top                              = necro_ast_create_top_decl(arena, poly_data_decl, NULL);
+    // base.ast.root                    = top;
 
     // _primUndefined
     // necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "_primUndefined", NULL, necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
-    necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "_primUndefined", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
+    // necro_append_top(arena, top, );
+    NecroAst* prim_undefined_ast     = necro_ast_create_simple_assignment(arena, intern, "_primUndefined", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL));
+    top                              = necro_ast_create_top_decl(arena, prim_undefined_ast, NULL);
+    base.ast.root                    = top;
 
     // ()
     NecroAst* unit_s_type            = necro_ast_create_simple_type(arena, intern, "()", NULL);
@@ -914,6 +919,24 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         necro_append_top(arena, top, op_def_ast);
     }
 
+    // id :: .a -> .a
+    {
+        NecroAst* a_var       = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
+        a_var->variable.order = NECRO_TYPE_HIGHER_ORDER;
+        NecroAst* sig         =
+            necro_ast_create_fn_type_sig(arena, intern, "id", NULL,
+                necro_ast_create_type_fn(arena,
+                    necro_ast_create_type_attribute(arena, a_var, NECRO_TYPE_ATTRIBUTE_DOT),
+                    necro_ast_create_type_attribute(arena, a_var, NECRO_TYPE_ATTRIBUTE_DOT)),
+                NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
+        NecroAst* x_var    = necro_ast_create_var(arena, intern, "x", NECRO_VAR_DECLARATION);
+        NecroAst* args     = necro_ast_create_apats(arena, x_var, NULL);
+        NecroAst* rhs_ast  = necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "x", NECRO_VAR_VAR), NULL);
+        NecroAst* def_ast  = necro_ast_create_apats_assignment(arena, intern, "id", args, rhs_ast);
+        necro_append_top(arena, top, sig);
+        necro_append_top(arena, top, def_ast);
+    }
+
     // TODO: Look into this. Looks like somewhere along the way we broke polymorphic pat assignments.
     // // prev
     // {
@@ -1154,7 +1177,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 
     //--------------------
     // Cache symbols
-    base.poly_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "_Poly"));
+    // base.poly_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "_Poly"));
     base.world_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "World"));
     base.unit_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "()"));
     base.unit_con               = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "()"));
@@ -1183,6 +1206,11 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.index_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Index"));
     base.maybe_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Maybe"));;
 
+    base.pipe_forward           = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "|>"));;
+    base.pipe_back              = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "<|"));;
+    base.compose_forward        = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, ">>"));;
+    base.compose_back           = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "<<"));;
+
     // TODO: Finish
     // base.rational_type          = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Rational"));
     // base.audio_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Audio"));
@@ -1199,6 +1227,9 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.bool_type->is_primitive      = true;
     base.true_con->is_primitive       = true;
     base.false_con->is_primitive      = true;
+    base.ptr_type->is_primitive       = true;
+    base.array_type->is_primitive     = true;
+    base.index_type->is_primitive     = true;
     necro_base_setup_primitive(scoped_symtable, intern, "getMouseX",    &base.mouse_x_fn, NECRO_PRIMOP_PRIM_FN);
     necro_base_setup_primitive(scoped_symtable, intern, "getMouseY",    &base.mouse_y_fn, NECRO_PRIMOP_PRIM_FN);
     necro_base_setup_primitive(scoped_symtable, intern, "printInt",     &base.print_int,  NECRO_PRIMOP_PRIM_FN);

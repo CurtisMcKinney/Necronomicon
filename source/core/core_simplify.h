@@ -20,4 +20,7 @@ NECRO_DECLARE_ARENA_LIST(NecroCoreAstSymbolSub, CoreAstSymbolSub, core_ast_symbo
 NecroCoreAst* necro_core_ast_duplicate_with_subs(NecroPagedArena* arena, NecroCoreAst* ast, NecroCoreAstSymbolSubList* subs);
 // NecroCoreAst* necro_core_ast_inline(NecroPagedArena* arena, NecroCoreAst* ast, NecroCoreAst** inlined_arg_values, size_t num_inlined_arg_values);
 
+void necro_core_ast_pre_simplify(NecroCompileInfo info, NecroIntern* intern, NecroBase* base, NecroCoreAstArena* core_ast_arena);
+void necro_core_ast_pre_simplify_test();
+
 #endif // CORE_INLINE_H

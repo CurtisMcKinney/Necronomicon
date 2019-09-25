@@ -577,6 +577,26 @@ NecroResult(NecroType) necro_create_data_constructor(NecroInfer* infer, NecroAst
     return ok(NecroType, ast->necro_type);
 }
 
+// Set is_wrapper flag, type must be of this general shape: data Wrapper a = Wrapper a (or monomorphic equivalant)
+void necro_infer_set_is_wrapper_type(NecroAst* ast)
+{
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_DATA_DECLARATION);
+    NecroAstSymbol* symbol = ast->data_declaration.ast_symbol;
+    if (symbol->is_primitive)
+        return;
+    if (ast->data_declaration.constructor_list->list.next_item != NULL)
+        return;
+    NecroAst* data_con = ast->data_declaration.constructor_list->list.item;
+    if (data_con->type == NECRO_AST_CONID)
+        return;
+    assert(data_con->type == NECRO_AST_CONSTRUCTOR);
+    if (data_con->constructor.arg_list == NULL || data_con->constructor.arg_list->list.next_item != NULL)
+        return;
+    symbol->is_wrapper                                        = true;
+    data_con->constructor.conid->conid.ast_symbol->is_wrapper = true;
+}
+
 NecroResult(NecroType) necro_infer_simple_type(NecroInfer* infer, NecroAst* ast)
 {
     assert(ast != NULL);
@@ -1884,6 +1904,7 @@ NecroResult(NecroType) necro_infer_declaration(NecroInfer* infer, NecroAst* decl
                 con_num++;
             }
             ast->data_declaration.simpletype->simple_type.type_con->conid.ast_symbol->con_num = con_num;
+            necro_infer_set_is_wrapper_type(ast);
             break;
         }
         case NECRO_AST_TYPE_SIGNATURE:

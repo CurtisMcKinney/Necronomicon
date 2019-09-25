@@ -21,6 +21,8 @@
         * New wildcard scheme
         * Stateful unboxed types
 
+        * Buchla digital oscillator design
+        * Don't use wavetables for maximum oversampling fidelity?
         * New types
         * Rational type
         * apats on for loops
@@ -2883,8 +2885,6 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Unboxed Case 7";
         const char* test_source = ""
@@ -2899,6 +2899,18 @@ void necro_mach_test()
             "main w =\n"
             "  case forWhat 33 of\n"
             "    (#x, _#) -> printInt x w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Wrapper 1";
+        const char* test_source = ""
+            "data ABraveNewType a = ABraveNewType a\n"
+            "data AMonoNewType = AMonoNewType Int\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
         necro_mach_test_string(test_name, test_source);
     }
 

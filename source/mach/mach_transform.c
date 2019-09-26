@@ -8,6 +8,7 @@
 #include "alias_analysis.h"
 #include "type/monomorphize.h"
 #include "core/core_infer.h"
+#include "core/core_simplify.h"
 #include "core/lambda_lift.h"
 #include "core/defunctionalization.h"
 #include "infer.h"
@@ -1087,7 +1088,7 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     {
         assert(arg_count == 1);
         NecroMachAst* param = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
-        return necro_mach_build_uop(program, outer->machine_def.update_fn, param, primop_type);
+        return necro_mach_build_uop(program, outer->machine_def.update_fn, param, necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, app_ast->necro_type)), primop_type);
     }
     case NECRO_PRIMOP_CMP_EQ:
     case NECRO_PRIMOP_CMP_NE:
@@ -1657,6 +1658,7 @@ void necro_mach_test_string(const char* test_name, const char* str)
     unwrap(void, necro_monomorphize(info, &intern, &scoped_symtable, &base, &ast));
     unwrap(void, necro_ast_transform_to_core(info, &intern, &base, &ast, &core_ast));
     unwrap(void, necro_core_infer(&intern, &base, &core_ast));
+    necro_core_ast_pre_simplify(info, &intern, &base, &core_ast);
     necro_core_lambda_lift(info, &intern, &base, &core_ast);
     necro_core_defunctionalize(info, &intern, &base, &core_ast);
     necro_core_state_analysis(info, &intern, &base, &core_ast);
@@ -2902,23 +2904,81 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
-*/
-
     {
-        const char* test_name   = "Wrapper 1";
+        const char* test_name   = "I64 1";
         const char* test_source = ""
-            "data ABraveNewType a = ABraveNewType a\n"
-            "data AMonoNewType = AMonoNewType Int\n"
+            "commodore64 :: I64 -> I64\n"
+            "commodore64 x = x * 2\n";
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);
     }
 
+    {
+        const char* test_name   = "I64 2";
+        const char* test_source = ""
+            "commodore64 :: Int -> I64\n"
+            "commodore64 x = fromInt x * 2\n";
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "F64 1";
+        const char* test_source = ""
+            "commodore64 :: F64 -> F64\n"
+            "commodore64 x = x * 2 * 3.0\n";
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "F64 2";
+        const char* test_source = ""
+            "commodore64 :: Float -> F64\n"
+            "commodore64 x = fromRational x * 2 * 3.0\n";
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Struct64 1";
+        const char* test_source = ""
+            "data Commodore64 = Commodore64 I64 I64\n"
+            "commodore64 :: Commodore64 -> Commodore64\n"
+            "commodore64 c =\n"
+            "  case c of\n"
+            "    Commodore64 x y -> let z = x * y in Commodore64 z z\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Struct64 2";
+        const char* test_source = ""
+            "data Commodore64 = Commodore64 F64 F64\n"
+            "commodore64 :: Commodore64 -> Commodore64\n"
+            "commodore64 c =\n"
+            "  case c of\n"
+            "    Commodore64 x y -> let z = x * y in Commodore64 z z\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    // TODO: Test I64 and F64 stored in Structs!
+
     // {
-    //     const char* test_name   = "Unboxed Type Constructor";
+    //     const char* test_name   = "Wrapper 1";
     //     const char* test_source = ""
-    //         "constructIt :: Int\n"
-    //         "constructIt = 0 where x = (#True, Just ()#)\n";
+    //         "data ABraveNewType a = ABraveNewType a\n"
+    //         "data AMonoNewType = AMonoNewType Int\n"
     //         "main :: *World -> *World\n"
     //         "main w = w\n";
     //     necro_mach_test_string(test_name, test_source);

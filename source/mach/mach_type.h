@@ -140,6 +140,9 @@ void               necro_mach_type_cache_destroy(NecroMachTypeCache* cache);
 bool necro_mach_type_is_eq(NecroMachType* type1, NecroMachType* type2);
 void necro_mach_type_check(struct NecroMachProgram* program, NecroMachType* type1, NecroMachType* type2);
 void necro_mach_ast_type_check(struct NecroMachProgram* program, struct NecroMachAst* ast);
+void necro_mach_type_check_is_int_type(NecroMachType* type1);
+void necro_mach_type_check_is_uint_type(NecroMachType* type1);
+void necro_mach_type_check_is_float_type(NecroMachType* type1);
 void necro_mach_program_verify(struct NecroMachProgram* program);
 
 //--------------------
@@ -155,5 +158,6 @@ bool           necro_mach_type_is_sum_type(NecroMachType* type);
 NecroMachType* necro_mach_type_get_sum_type(NecroMachType* type);
 size_t         necro_mach_type_calculate_size_in_bytes(struct NecroMachProgram* program, NecroMachType* type);
 size_t         necro_mach_word_size_in_bytes(struct NecroMachProgram* program);
+
 
 #endif // NECRO_MACH_TYPE_H

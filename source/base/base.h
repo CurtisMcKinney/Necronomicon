@@ -64,14 +64,15 @@ typedef struct NecroBase
     NecroAstSymbol*  branch_types[NECRO_MAX_BRANCH_TYPES];
     NecroAstSymbol** branch_cons[NECRO_MAX_BRANCH_TYPES];
 
-    NecroAstSymbol* poly_type;
     NecroAstSymbol* world_type;
     NecroAstSymbol* unit_type;
     NecroAstSymbol* unit_con;
     // NecroAstSymbol* list_type;
     NecroAstSymbol* int_type;
+    NecroAstSymbol* int64_type;
     NecroAstSymbol* uint_type;
     NecroAstSymbol* float_type;
+    NecroAstSymbol* float64_type;
     NecroAstSymbol* audio_type;
     NecroAstSymbol* rational_type;
     NecroAstSymbol* char_type;

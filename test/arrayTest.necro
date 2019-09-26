@@ -80,6 +80,9 @@ readArray          :: Index n -> Array n a -> a
 writeArray         :: Index n -> *a -> *Array n a -> *Array n a
 freezeShared       :: *Shared a -> a
 
+-- data (BlockSize :: Nat) =
+data Audio = Audio (Array ? F64)
+
 map :: (a -> b) -> Array n a -> Array n b
 map f a =
     freezeArray <|
@@ -161,8 +164,8 @@ runSeq s t =
 
 -- NOTE / IDEA: Generate binary search tree of cases for sequences to find right time case.
 coolPat :: Seq Float
-coolPat = Seq go where
-  go t =
+coolPat = Seq <|
+  \t ->
     case t of
        0   -> runSeq seqA t
        0.5 -> runSeq seqB t

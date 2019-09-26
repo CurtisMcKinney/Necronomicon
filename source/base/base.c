@@ -439,6 +439,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_create_simple_data_decl(arena, top, intern, "UInt");
     necro_base_create_simple_data_decl(arena, top, intern, "Float");
     necro_base_create_simple_data_decl(arena, top, intern, "Char");
+    necro_base_create_simple_data_decl(arena, top, intern, "F64");
+    necro_base_create_simple_data_decl(arena, top, intern, "I64");
 
     // TODO: Finish!
     // necro_base_create_simple_data_decl(arena, top, intern, "Rational");
@@ -572,6 +574,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_create_prim_num_instances(arena, top, intern, "Float", false, true, true);
     necro_base_create_prim_num_instances(arena, top, intern, "Pattern", true, true, true);
     necro_base_create_prim_num_instances(arena, top, intern, "Bool", false, false, false);
+    necro_base_create_prim_num_instances(arena, top, intern, "I64", false, true, false);
+    necro_base_create_prim_num_instances(arena, top, intern, "F64", false, true, true);
 
     // TODO: Finish!
     // necro_base_create_prim_num_instances(arena, top, intern, "Audio", false, true, true);
@@ -1177,7 +1181,6 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 
     //--------------------
     // Cache symbols
-    // base.poly_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "_Poly"));
     base.world_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "World"));
     base.unit_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "()"));
     base.unit_con               = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "()"));
@@ -1185,6 +1188,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.int_type               = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Int"));
     base.uint_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "UInt"));
     base.float_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Float"));
+    base.int64_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "I64"));
+    base.float64_type           = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "F64"));
     base.char_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Char"));
     base.bool_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Bool"));
     base.true_con               = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "True"));
@@ -1221,8 +1226,10 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.unit_type->is_primitive      = true;
     base.unit_con->is_primitive       = true;
     base.int_type->is_primitive       = true;
+    base.int64_type->is_primitive     = true;
     base.uint_type->is_primitive      = true;
     base.float_type->is_primitive     = true;
+    base.float64_type->is_primitive   = true;
     base.char_type->is_primitive      = true;
     base.bool_type->is_primitive      = true;
     base.true_con->is_primitive       = true;
@@ -1247,6 +1254,20 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "lt<Int>",      NULL, NECRO_PRIMOP_CMP_LT);
     necro_base_setup_primitive(scoped_symtable, intern, "gte<Int>",     NULL, NECRO_PRIMOP_CMP_GE);
     necro_base_setup_primitive(scoped_symtable, intern, "lte<Int>",     NULL, NECRO_PRIMOP_CMP_LE);
+    // I64
+    necro_base_setup_primitive(scoped_symtable, intern, "add<I64>",     NULL, NECRO_PRIMOP_BINOP_IADD);
+    necro_base_setup_primitive(scoped_symtable, intern, "sub<I64>",     NULL, NECRO_PRIMOP_BINOP_ISUB);
+    necro_base_setup_primitive(scoped_symtable, intern, "mul<I64>",     NULL, NECRO_PRIMOP_BINOP_IMUL);
+    necro_base_setup_primitive(scoped_symtable, intern, "abs<I64>",     NULL, NECRO_PRIMOP_UOP_IABS);
+    necro_base_setup_primitive(scoped_symtable, intern, "signum<I64>",  NULL, NECRO_PRIMOP_UOP_ISGN);
+    necro_base_setup_primitive(scoped_symtable, intern, "fromInt<I64>", NULL, NECRO_PRIMOP_UOP_ITOI);
+    // necro_base_setup_primitive(scoped_symtable, intern, "div<Int>",   NULL, NECRO_PRIMOP_BINOP_IDIV); // Need non-Fractional Int division!
+    necro_base_setup_primitive(scoped_symtable, intern, "eq<I64>",      NULL, NECRO_PRIMOP_CMP_EQ);
+    necro_base_setup_primitive(scoped_symtable, intern, "neq<I64>",     NULL, NECRO_PRIMOP_CMP_NE);
+    necro_base_setup_primitive(scoped_symtable, intern, "gt<I64>",      NULL, NECRO_PRIMOP_CMP_GT);
+    necro_base_setup_primitive(scoped_symtable, intern, "lt<I64>",      NULL, NECRO_PRIMOP_CMP_LT);
+    necro_base_setup_primitive(scoped_symtable, intern, "gte<I64>",     NULL, NECRO_PRIMOP_CMP_GE);
+    necro_base_setup_primitive(scoped_symtable, intern, "lte<I64>",     NULL, NECRO_PRIMOP_CMP_LE);
     // UInt
     necro_base_setup_primitive(scoped_symtable, intern, "add<UInt>",     NULL, NECRO_PRIMOP_BINOP_UADD);
     necro_base_setup_primitive(scoped_symtable, intern, "sub<UInt>",     NULL, NECRO_PRIMOP_BINOP_USUB);
@@ -1276,6 +1297,21 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "lt<Float>",           NULL, NECRO_PRIMOP_CMP_LT);
     necro_base_setup_primitive(scoped_symtable, intern, "gte<Float>",          NULL, NECRO_PRIMOP_CMP_GE);
     necro_base_setup_primitive(scoped_symtable, intern, "lte<Float>",          NULL, NECRO_PRIMOP_CMP_LE);
+    // F64
+    necro_base_setup_primitive(scoped_symtable, intern, "add<F64>",          NULL, NECRO_PRIMOP_BINOP_FADD);
+    necro_base_setup_primitive(scoped_symtable, intern, "sub<F64>",          NULL, NECRO_PRIMOP_BINOP_FSUB);
+    necro_base_setup_primitive(scoped_symtable, intern, "mul<F64>",          NULL, NECRO_PRIMOP_BINOP_FMUL);
+    necro_base_setup_primitive(scoped_symtable, intern, "div<F64>",          NULL, NECRO_PRIMOP_BINOP_FDIV);
+    necro_base_setup_primitive(scoped_symtable, intern, "abs<F64>",          NULL, NECRO_PRIMOP_UOP_FABS);
+    necro_base_setup_primitive(scoped_symtable, intern, "signum<F64>",       NULL, NECRO_PRIMOP_UOP_FSGN);
+    necro_base_setup_primitive(scoped_symtable, intern, "fromInt<F64>",      NULL, NECRO_PRIMOP_UOP_ITOF);
+    necro_base_setup_primitive(scoped_symtable, intern, "fromRational<F64>", NULL, NECRO_PRIMOP_UOP_FTOF);
+    necro_base_setup_primitive(scoped_symtable, intern, "eq<F64>",           NULL, NECRO_PRIMOP_CMP_EQ);
+    necro_base_setup_primitive(scoped_symtable, intern, "neq<F64>",          NULL, NECRO_PRIMOP_CMP_NE);
+    necro_base_setup_primitive(scoped_symtable, intern, "gt<F64>",           NULL, NECRO_PRIMOP_CMP_GT);
+    necro_base_setup_primitive(scoped_symtable, intern, "lt<F64>",           NULL, NECRO_PRIMOP_CMP_LT);
+    necro_base_setup_primitive(scoped_symtable, intern, "gte<F64>",          NULL, NECRO_PRIMOP_CMP_GE);
+    necro_base_setup_primitive(scoped_symtable, intern, "lte<F64>",          NULL, NECRO_PRIMOP_CMP_LE);
     // ()
     necro_base_setup_primitive(scoped_symtable, intern, "eq<()>",  NULL, NECRO_PRIMOP_CMP_EQ);
     necro_base_setup_primitive(scoped_symtable, intern, "neq<()>", NULL, NECRO_PRIMOP_CMP_NE);

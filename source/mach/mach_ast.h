@@ -588,7 +588,7 @@ NecroMachAst* necro_mach_build_load(NecroMachProgram* program, NecroMachAst* fn_
 //--------------------
 NecroMachAst* necro_mach_build_call(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* fn_value_ast, NecroMachAst** a_parameters, size_t num_parameters, NECRO_MACH_CALL_TYPE call_type, const char* dest_name);
 NecroMachAst* necro_mach_build_binop(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* left, NecroMachAst* right, NECRO_PRIMOP_TYPE op_type);
-NecroMachAst* necro_mach_build_uop(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* param, NECRO_PRIMOP_TYPE op_type);
+NecroMachAst* necro_mach_build_uop(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* param, NecroMachType* result_type, NECRO_PRIMOP_TYPE op_type);
 
 //--------------------
 // Branching

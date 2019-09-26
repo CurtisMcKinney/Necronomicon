@@ -17,18 +17,30 @@
 #define DLLEXPORT
 #endif
 
+//--------------------
+// Runtime Management
 extern DLLEXPORT void         necro_runtime_init();
 extern DLLEXPORT void         necro_runtime_update();
 extern DLLEXPORT unsigned int necro_runtime_is_done();
 extern DLLEXPORT void         necro_runtime_shutdown();
 extern DLLEXPORT void         necro_runtime_error_exit(uint32_t error_code);
 extern DLLEXPORT void         necro_runtime_sleep(uint32_t milliseconds);
+
+//--------------------
+// IO
 extern DLLEXPORT void         necro_runtime_print(int value);
 extern DLLEXPORT void         necro_runtime_debug_print(int value);
 extern DLLEXPORT unsigned int necro_runtime_print_int(int value, unsigned int world);
 extern DLLEXPORT int          necro_runtime_get_mouse_x(unsigned int _dummy);
 extern DLLEXPORT int          necro_runtime_get_mouse_y(unsigned int _dummy);
+
+//--------------------
+// Memory
 extern DLLEXPORT uint8_t*     necro_runtime_alloc(unsigned int size);
 extern DLLEXPORT void         necro_runtime_free(uint8_t* data);
+
+//--------------------
+// Misc
+extern DLLEXPORT int64_t      necro_runtime_gcd(int64_t x, int64_t y);
 
 #endif // RUNTIME_H

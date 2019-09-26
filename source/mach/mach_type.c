@@ -421,6 +421,10 @@ bool necro_mach_type_is_unboxed(struct NecroMachProgram* program, NecroMachType*
     return type->type == program->type_cache.word_int_type->type
         || type->type == program->type_cache.word_float_type->type
         || type->type == program->type_cache.word_uint_type->type
+        || type->type == program->type_cache.int32_type->type
+        || type->type == program->type_cache.f32_type->type
+        || type->type == program->type_cache.int64_type->type
+        || type->type == program->type_cache.f64_type->type
         || (type->type == NECRO_MACH_TYPE_STRUCT && type->struct_type.symbol->is_unboxed);
 }
 
@@ -442,22 +446,23 @@ size_t necro_mach_word_size_in_bytes(NecroMachProgram* program)
     return (program->word_size == NECRO_WORD_4_BYTES) ? 4 : 8;
 }
 
+// TODO: Take into account Padding?
 size_t necro_mach_type_calculate_size_in_bytes_go(NecroMachType* type, size_t word_size_in_bytes)
 {
     assert(type != NULL);
     switch (type->type)
     {
-    case NECRO_MACH_TYPE_VOID:   assert(false); return 0;
-    case NECRO_MACH_TYPE_UINT1:  /* FALLTHROUGH */
-    case NECRO_MACH_TYPE_UINT8:  /* FALLTHROUGH */
-    case NECRO_MACH_TYPE_UINT16: /* FALLTHROUGH */
-    case NECRO_MACH_TYPE_UINT32: /* FALLTHROUGH */
-    case NECRO_MACH_TYPE_UINT64: /* FALLTHROUGH */
-    case NECRO_MACH_TYPE_INT32:  /* FALLTHROUGH */
-    case NECRO_MACH_TYPE_INT64:  /* FALLTHROUGH */
-    case NECRO_MACH_TYPE_F32:    /* FALLTHROUGH */
-    case NECRO_MACH_TYPE_F64:    /* FALLTHROUGH */
-    case NECRO_MACH_TYPE_CHAR:   /* FALLTHROUGH */
+    case NECRO_MACH_TYPE_VOID:   assert(false && "void type cannot be a struct member"); return 0;
+    case NECRO_MACH_TYPE_CHAR:   assert(false && "Struct members cannot be smaller than word sized"); return 1;
+    case NECRO_MACH_TYPE_UINT1:  assert(false && "Struct members cannot be smaller than word sized"); return 1;
+    case NECRO_MACH_TYPE_UINT8:  assert(false && "Struct members cannot be smaller than word sized"); return 1;
+    case NECRO_MACH_TYPE_UINT16: assert(false && "Struct members cannot be smaller than word sized"); return 2;
+    case NECRO_MACH_TYPE_UINT32: return 4;
+    case NECRO_MACH_TYPE_UINT64: return 8;
+    case NECRO_MACH_TYPE_INT32:  return 4;
+    case NECRO_MACH_TYPE_INT64:  return 8;
+    case NECRO_MACH_TYPE_F32:    return 4;
+    case NECRO_MACH_TYPE_F64:    return 8;
     case NECRO_MACH_TYPE_PTR:    return word_size_in_bytes;
     case NECRO_MACH_TYPE_ARRAY:
     {
@@ -614,6 +619,33 @@ void necro_mach_type_check(NecroMachProgram* program, NecroMachType* type1, Necr
     default:
         return;
     }
+}
+
+void necro_mach_type_check_is_int_type(NecroMachType* type1)
+{
+    assert(
+        type1->type == NECRO_MACH_TYPE_INT32 ||
+        type1->type == NECRO_MACH_TYPE_INT64
+    );
+}
+
+void necro_mach_type_check_is_uint_type(NecroMachType* type1)
+{
+    assert(
+        type1->type == NECRO_MACH_TYPE_UINT1  ||
+        type1->type == NECRO_MACH_TYPE_UINT8  ||
+        type1->type == NECRO_MACH_TYPE_UINT16 ||
+        type1->type == NECRO_MACH_TYPE_UINT32 ||
+        type1->type == NECRO_MACH_TYPE_UINT64
+    );
+}
+
+void necro_mach_type_check_is_float_type(NecroMachType* type1)
+{
+    assert(
+        type1->type == NECRO_MACH_TYPE_F32 ||
+        type1->type == NECRO_MACH_TYPE_F64
+    );
 }
 
 // NOTE: Based off of structural equality, not pointer equality
@@ -888,10 +920,10 @@ void necro_mach_ast_type_check_binop(NecroMachProgram* program, NecroMachAst* as
     case NECRO_PRIMOP_BINOP_IMUL: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_IDIV:
     {
-        necro_mach_type_check(program, left->necro_machine_type, program->type_cache.word_int_type);
-        necro_mach_type_check(program, right->necro_machine_type, program->type_cache.word_int_type);
-        necro_mach_type_check(program, result->necro_machine_type, program->type_cache.word_int_type);
-        necro_mach_type_check(program, ast->necro_machine_type, program->type_cache.word_int_type);
+        necro_mach_type_check_is_int_type(left->necro_machine_type);
+        necro_mach_type_check_is_int_type(right->necro_machine_type);
+        necro_mach_type_check_is_int_type(result->necro_machine_type);
+        necro_mach_type_check_is_int_type(ast->necro_machine_type);
         break;
     }
     case NECRO_PRIMOP_BINOP_UADD: /* FALL THROUGH */
@@ -903,10 +935,10 @@ void necro_mach_ast_type_check_binop(NecroMachProgram* program, NecroMachAst* as
     case NECRO_PRIMOP_BINOP_SHL:  /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_SHR:  /* FALL THROUGH */
     {
-        necro_mach_type_check(program, left->necro_machine_type, program->type_cache.word_uint_type);
-        necro_mach_type_check(program, right->necro_machine_type, program->type_cache.word_uint_type);
-        necro_mach_type_check(program, result->necro_machine_type, program->type_cache.word_uint_type);
-        necro_mach_type_check(program, ast->necro_machine_type, program->type_cache.word_uint_type);
+        necro_mach_type_check_is_uint_type(left->necro_machine_type);
+        necro_mach_type_check_is_uint_type(right->necro_machine_type);
+        necro_mach_type_check_is_uint_type(result->necro_machine_type);
+        necro_mach_type_check_is_uint_type(ast->necro_machine_type);
         break;
     }
     case NECRO_PRIMOP_BINOP_FADD: /* FALL THROUGH */
@@ -914,10 +946,10 @@ void necro_mach_ast_type_check_binop(NecroMachProgram* program, NecroMachAst* as
     case NECRO_PRIMOP_BINOP_FMUL: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_FDIV:
     {
-        necro_mach_type_check(program, left->necro_machine_type, program->type_cache.word_float_type);
-        necro_mach_type_check(program, right->necro_machine_type, program->type_cache.word_float_type);
-        necro_mach_type_check(program, result->necro_machine_type, program->type_cache.word_float_type);
-        necro_mach_type_check(program, ast->necro_machine_type, program->type_cache.word_float_type);
+        necro_mach_type_check_is_float_type(left->necro_machine_type);
+        necro_mach_type_check_is_float_type(right->necro_machine_type);
+        necro_mach_type_check_is_float_type(result->necro_machine_type);
+        necro_mach_type_check_is_float_type(ast->necro_machine_type);
         break;
     }
     default:
@@ -943,58 +975,58 @@ void necro_mach_ast_type_check_uop(NecroMachProgram* program, NecroMachAst* ast)
     case NECRO_PRIMOP_UOP_IABS: /* FALL THROUGH */
     case NECRO_PRIMOP_UOP_ISGN:
     {
-        necro_mach_type_check(program, param->necro_machine_type, program->type_cache.word_int_type);
-        necro_mach_type_check(program, result->necro_machine_type, program->type_cache.word_int_type);
+        necro_mach_type_check_is_int_type(param->necro_machine_type);
+        necro_mach_type_check_is_int_type(result->necro_machine_type);
         break;
     }
     case NECRO_PRIMOP_UOP_UABS: /* FALL THROUGH */
     case NECRO_PRIMOP_UOP_USGN:
     {
-        necro_mach_type_check(program, param->necro_machine_type, program->type_cache.word_uint_type);
-        necro_mach_type_check(program, result->necro_machine_type, program->type_cache.word_uint_type);
+        necro_mach_type_check_is_uint_type(param->necro_machine_type);
+        necro_mach_type_check_is_uint_type(result->necro_machine_type);
         break;
     }
     case NECRO_PRIMOP_UOP_FABS: /* FALL THROUGH */
     case NECRO_PRIMOP_UOP_FSGN:
     {
-        necro_mach_type_check(program, param->necro_machine_type, program->type_cache.word_float_type);
-        necro_mach_type_check(program, result->necro_machine_type, program->type_cache.word_float_type);
+        necro_mach_type_check_is_float_type(param->necro_machine_type);
+        necro_mach_type_check_is_float_type(result->necro_machine_type);
         break;
     }
     case NECRO_PRIMOP_UOP_ITOU:
     {
-        necro_mach_type_check(program, param->necro_machine_type, program->type_cache.word_int_type);
-        necro_mach_type_check(program, result->necro_machine_type, program->type_cache.word_uint_type);
+        necro_mach_type_check_is_int_type(param->necro_machine_type);
+        necro_mach_type_check_is_uint_type(result->necro_machine_type);
         break;
     }
     case NECRO_PRIMOP_UOP_ITOF:
     {
-        necro_mach_type_check(program, param->necro_machine_type, program->type_cache.word_int_type);
-        necro_mach_type_check(program, result->necro_machine_type, program->type_cache.word_float_type);
+        necro_mach_type_check_is_int_type(param->necro_machine_type);
+        necro_mach_type_check_is_float_type(result->necro_machine_type);
         break;
     }
     case NECRO_PRIMOP_UOP_UTOI:
     {
-        necro_mach_type_check(program, param->necro_machine_type, program->type_cache.word_uint_type);
-        necro_mach_type_check(program, result->necro_machine_type, program->type_cache.word_int_type);
+        necro_mach_type_check_is_uint_type(param->necro_machine_type);
+        necro_mach_type_check_is_int_type(result->necro_machine_type);
         break;
     }
     case NECRO_PRIMOP_UOP_FTRI:
     {
-        necro_mach_type_check(program, param->necro_machine_type, program->type_cache.word_float_type);
-        necro_mach_type_check(program, result->necro_machine_type, program->type_cache.word_int_type);
+        necro_mach_type_check_is_float_type(param->necro_machine_type);
+        necro_mach_type_check_is_int_type(result->necro_machine_type);
         break;
     }
     case NECRO_PRIMOP_UOP_FRNI:
     {
-        necro_mach_type_check(program, param->necro_machine_type, program->type_cache.word_float_type);
-        necro_mach_type_check(program, result->necro_machine_type, program->type_cache.word_int_type);
+        necro_mach_type_check_is_float_type(param->necro_machine_type);
+        necro_mach_type_check_is_int_type(result->necro_machine_type);
         break;
     }
     case NECRO_PRIMOP_UOP_FTOF:
     {
-        necro_mach_type_check(program, param->necro_machine_type, program->type_cache.word_float_type);
-        necro_mach_type_check(program, result->necro_machine_type, program->type_cache.word_float_type);
+        necro_mach_type_check_is_float_type(param->necro_machine_type);
+        necro_mach_type_check_is_float_type(result->necro_machine_type);
         break;
     }
     default:
@@ -1132,6 +1164,7 @@ void necro_mach_ast_type_check(NecroMachProgram* program, NecroMachAst* ast)
         return;
     }
 }
+
 
 // TODO: Register block path verification
 void necro_mach_program_verify(NecroMachProgram* program)

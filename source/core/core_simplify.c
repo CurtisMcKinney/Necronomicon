@@ -751,6 +751,8 @@ void necro_core_ast_pre_simplify_test()
         necro_core_ast_pre_simplfy_test(test_name, test_source);
     }
 
+*/
+
     {
         const char* test_name   = "Unwrap 10";
         const char* test_source = ""
@@ -761,8 +763,6 @@ void necro_core_ast_pre_simplify_test()
             "x = Seq' (\\t -> SVal' True)\n";
         necro_core_ast_pre_simplfy_test(test_name, test_source);
     }
-
-*/
 
     // TODO: Filter wrapper type data declarations
     // TODO: Need to unwrap data declaration types!

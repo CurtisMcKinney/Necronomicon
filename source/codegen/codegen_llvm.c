@@ -20,6 +20,7 @@
 #include "core_ast.h"
 #include "core_infer.h"
 #include "monomorphize.h"
+#include "core_simplify.h"
 #include "lambda_lift.h"
 #include "defunctionalization.h"
 #include "state_analysis.h"
@@ -628,6 +629,7 @@ LLVMValueRef necro_llvm_codegen_binop(NecroLLVM* context, NecroMachAst* ast)
     return value;
 }
 
+// TODO: FINISH!
 LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
 {
     assert(context != NULL);
@@ -647,15 +649,38 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
     case NECRO_PRIMOP_UOP_USGN: value = param; break; // TODO
     case NECRO_PRIMOP_UOP_FSGN: value = param; break; // TODO
 
-    case NECRO_PRIMOP_UOP_ITOI: value = param; break;
     case NECRO_PRIMOP_UOP_ITOU: value = param; break; // TODO
     case NECRO_PRIMOP_UOP_ITOF: value = LLVMBuildSIToFP(context->builder, param, result_type, name); break;
+    case NECRO_PRIMOP_UOP_ITOI:
+    {
+        const size_t param_size  = necro_mach_type_calculate_size_in_bytes(context->program, ast->uop.param->necro_machine_type);
+        const size_t result_size = necro_mach_type_calculate_size_in_bytes(context->program, ast->uop.result->necro_machine_type);
+        if (param_size < result_size)
+            value = LLVMBuildSExt(context->builder, param, result_type, name);
+        else if (param_size > result_size)
+            value = LLVMBuildTrunc(context->builder, param, result_type, name);
+        else
+            value = param;
+        break;
+    }
 
     case NECRO_PRIMOP_UOP_UTOI: value = param; break; // TODO
 
     case NECRO_PRIMOP_UOP_FTRI: value = LLVMBuildFPToSI(context->builder, param, result_type, name); break; // TODO: Finish
     case NECRO_PRIMOP_UOP_FRNI: value = LLVMBuildFPToSI(context->builder, param, result_type, name); break;
-    case NECRO_PRIMOP_UOP_FTOF: value = param; break; // TODO
+    case NECRO_PRIMOP_UOP_FTOF:
+    {
+        const size_t param_size  = necro_mach_type_calculate_size_in_bytes(context->program, ast->uop.param->necro_machine_type);
+        const size_t result_size = necro_mach_type_calculate_size_in_bytes(context->program, ast->uop.result->necro_machine_type);
+        if (param_size < result_size)
+            value = LLVMBuildFPExt(context->builder, param, result_type, name);
+        else if (param_size > result_size)
+            value = LLVMBuildFPTrunc(context->builder, param, result_type, name);
+        else
+            value = param;
+        break;
+    }
+
     default:
         assert(false);
         break;
@@ -1029,8 +1054,8 @@ void necro_llvm_map_runtime_symbol(NecroLLVM* context, LLVMExecutionEngineRef en
 ///////////////////////////////////////////////////////
 void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroLLVM* context)
 {
-    // *context = necro_llvm_create(program->intern, program->base, program, info.opt_level > 0);
-    *context = necro_llvm_create(program->intern, program->base, program, true);
+    *context = necro_llvm_create(program->intern, program->base, program, info.opt_level > 0);
+    // *context = necro_llvm_create(program->intern, program->base, program, true);
 
     // Declare structs
     for (size_t i = 0; i < program->structs.length; ++i)
@@ -1205,6 +1230,7 @@ void necro_llvm_test_string_go(const char* test_name, const char* str, bool shou
     unwrap(void, necro_monomorphize(info, &intern, &scoped_symtable, &base, &ast));
     unwrap(void, necro_ast_transform_to_core(info, &intern, &base, &ast, &core_ast));
     unwrap(void, necro_core_infer(&intern, &base, &core_ast));
+    necro_core_ast_pre_simplify(info, &intern, &base, &core_ast);
     necro_core_lambda_lift(info, &intern, &base, &core_ast);
     necro_core_defunctionalize(info, &intern, &base, &core_ast);
     necro_core_state_analysis(info, &intern, &base, &core_ast);
@@ -2225,8 +2251,6 @@ void necro_llvm_test()
         necro_llvm_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Unboxed Case 7";
         const char* test_source = ""
@@ -2241,6 +2265,74 @@ void necro_llvm_test()
             "main w =\n"
             "  case forWhat 33 of\n"
             "    (#x, _#) -> printInt x w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "I64 1";
+        const char* test_source = ""
+            "commodore64 :: I64 -> I64\n"
+            "commodore64 x = x * 2\n";
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "I64 2";
+        const char* test_source = ""
+            "commodore64 :: Int -> I64\n"
+            "commodore64 x = fromInt x * 2\n";
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "F64 1";
+        const char* test_source = ""
+            "commodore64 :: F64 -> F64\n"
+            "commodore64 x = x * 2 * 3.0\n";
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "F64 2";
+        const char* test_source = ""
+            "commodore64 :: Float -> F64\n"
+            "commodore64 x = fromRational x * 2 * 3.0\n";
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Struct64 1";
+        const char* test_source = ""
+            "data Commodore64 = Commodore64 I64 I64\n"
+            "commodore64 :: Commodore64 -> Commodore64\n"
+            "commodore64 c =\n"
+            "  case c of\n"
+            "    Commodore64 x y -> let z = x * y in Commodore64 z z\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Struct64 2";
+        const char* test_source = ""
+            "data Commodore64 = Commodore64 F64 F64\n"
+            "commodore64 :: Commodore64 -> Commodore64\n"
+            "commodore64 c =\n"
+            "  case c of\n"
+            "    Commodore64 x y -> let z = x * y in Commodore64 z z\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 

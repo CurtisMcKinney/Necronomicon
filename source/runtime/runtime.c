@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 #include "runtime.h"
 #include "utility.h"
 
@@ -99,6 +100,34 @@ extern DLLEXPORT void necro_runtime_free(uint8_t* data)
     free(data);
 }
 
+// Quick and easy binary gcd algorithm
+extern DLLEXPORT int64_t necro_runtime_gcd(int64_t x, int64_t y)
+{
+    uint64_t a = x;
+    uint64_t b = x;
+    if (x == 0)
+        return y;
+    uint64_t d = 0;
+    while (((a | b) & 1) == 0) // a and b are even
+    {
+        a >>= 1;
+        b >>= 1;
+        d++;
+    }
+    while (a != b)
+    {
+        if ((a & 1) == 0) // a is even
+            a >>= 1;
+        else if ((b & 1) == 0) // b is even
+            b >>= 1;
+        else if (a > b)
+            a = (a - b) >> 1;
+        else
+            b = (b - a) >> 1;
+    }
+    int64_t gcd = a << d;
+    return (x < 0) ? -gcd : gcd;
+}
 
 ///////////////////////////////////////////////////////
 // Runtime Windows

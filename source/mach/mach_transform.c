@@ -19,7 +19,17 @@
 
 /*
     TODO:
-        * New wildcard scheme
+        * Constant for loop range optimization!
+        * fma
+        * fastFloor
+        * recipSampleRate
+        * BlockRate
+        * Real type class
+        * Audio type class
+        * BlockSize :: Nat <--- Need to handle this when we compile ranges which use it
+        * Mono type
+        * Add Num as super class to Audio!
+
         * Stateful unboxed types
 
         * Buchla digital oscillator design
@@ -1633,8 +1643,7 @@ void necro_mach_test_string(const char* test_name, const char* str)
     //--------------------
     // Set up
     NecroIntern         intern          = necro_intern_create();
-    NecroSymTable       symtable        = necro_symtable_create(&intern);
-    NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create(&symtable);
+    NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create();
     NecroBase           base            = necro_base_compile(&intern, &scoped_symtable);
 
     NecroLexTokenVector tokens          = necro_empty_lex_token_vector();
@@ -1643,7 +1652,7 @@ void necro_mach_test_string(const char* test_name, const char* str)
     NecroCoreAstArena   core_ast        = necro_core_ast_arena_empty();
     NecroMachProgram    mach_program    = necro_mach_program_empty();
     NecroCompileInfo    info            = necro_test_compile_info();
-    // info.verbosity = 2;
+    info.verbosity = 2;
 
     //--------------------
     // Compile
@@ -1684,7 +1693,6 @@ void necro_mach_test_string(const char* test_name, const char* str)
     necro_parse_ast_arena_destroy(&parse_ast);
     necro_destroy_lex_token_vector(&tokens);
     necro_scoped_symtable_destroy(&scoped_symtable);
-    necro_symtable_destroy(&symtable);
     necro_intern_destroy(&intern);
 }
 
@@ -2957,8 +2965,6 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Struct64 2";
         const char* test_source = ""
@@ -2967,6 +2973,67 @@ void necro_mach_test()
             "commodore64 c =\n"
             "  case c of\n"
             "    Commodore64 x y -> let z = x * y in Commodore64 z z\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Nat Test";
+        const char* test_source = ""
+            "data Naturally (n :: Nat) = Naturally Int Int\n"
+            "unnatural :: Naturally 0\n"
+            "unnatural = Naturally 3 4\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Nat Test";
+        const char* test_source = ""
+            "data Naturally (n :: Nat) = Naturally Int Int\n"
+            "unnatural :: Naturally BlockSize\n"
+            "unnatural = Naturally 3 4\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Mono Test";
+        const char* test_source = ""
+            "instance Audio Mono where\n"
+            "  pureAudio c = Mono c\n"
+            "instance Audio Stereo where\n"
+            "  pureAudio c = Stereo (#c, c#)\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Simplify Case 1";
+        const char* test_source = ""
+            "goAway :: Int\n"
+            "goAway =\n"
+            "  case 666 of\n"
+            "    i -> i\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Unwrap Case 2";
+        const char* test_source = ""
+            "stereo' :: Mono -> Mono -> Stereo\n"
+            "stereo' ml mr =\n"
+            "  case ml of\n"
+            "    Mono l -> case mr of\n"
+            "      Mono r -> Stereo (#l, r#)\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);

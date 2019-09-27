@@ -238,8 +238,7 @@ void necro_compile(const char* file_name, const char* input_string, size_t input
     // Global data
     //--------------------
     NecroIntern          intern          = necro_intern_create();
-    NecroSymTable        symtable        = necro_symtable_create(&intern);
-    NecroScopedSymTable  scoped_symtable = necro_scoped_symtable_create(&symtable);
+    NecroScopedSymTable  scoped_symtable = necro_scoped_symtable_create();
     NecroBase            base            = necro_base_compile(&intern, &scoped_symtable);
 
     //--------------------
@@ -295,7 +294,6 @@ void necro_compile(const char* file_name, const char* input_string, size_t input
     // Global data
     necro_base_destroy(&base);
     necro_scoped_symtable_destroy(&scoped_symtable);
-    necro_symtable_destroy(&symtable);
     necro_intern_destroy(&intern);
 }
 

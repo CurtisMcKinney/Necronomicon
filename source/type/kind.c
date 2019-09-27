@@ -347,9 +347,9 @@ NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase
         assert(con_symbol != NULL);
         assert(con_symbol->type != NULL);
         assert(con_symbol->type->kind != NULL);
-        NecroType* args            = type->con.args;
-        NecroType* args_kinds      = NULL;
-        NecroType* args_head       = NULL;
+        NecroType* args       = type->con.args;
+        NecroType* args_kinds = NULL;
+        NecroType* args_head  = NULL;
         while (args != NULL)
         {
             NecroType* arg_kind = necro_try_result(NecroType, necro_kind_infer(arena, base, args->list.item, source_loc, end_loc));

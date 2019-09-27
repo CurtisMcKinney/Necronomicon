@@ -1058,12 +1058,14 @@ NecroMachAst* necro_mach_build_uop(NecroMachProgram* program, NecroMachAst* fn_d
         ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "fop");
         break;
     }
-    // {
-    //     necro_mach_type_check(program, param->necro_machine_type, program->type_cache.word_float_type);
-    //     ast->necro_machine_type = program->type_cache.word_float_type;
-    //     ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "fop");
-    //     break;
-    // }
+    case NECRO_PRIMOP_UOP_FFLR:
+    {
+        necro_mach_type_check_is_float_type(param->necro_machine_type);
+        necro_mach_type_check_is_float_type(result_type);
+        ast->necro_machine_type = result_type;
+        ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "fop");
+        break;
+    }
     default:
         assert(false);
     }

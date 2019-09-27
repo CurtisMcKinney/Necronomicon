@@ -88,10 +88,10 @@ typedef struct NecroBase
     NecroAstSymbol* monad_type_class;
     NecroAstSymbol* default_type_class;
     NecroAstSymbol* prev_fn;
-    NecroAstSymbol* event_type;
-    NecroAstSymbol* pattern_type;
-    NecroAstSymbol* closure_type;
-    NecroAstSymbol* ptr_type;
+    // NecroAstSymbol* event_type;
+    // NecroAstSymbol* closure_type;
+    // NecroAstSymbol* pattern_type;
+    // NecroAstSymbol* ptr_type;
     NecroAstSymbol* array_type;
     NecroAstSymbol* range_type;
     NecroAstSymbol* index_type;

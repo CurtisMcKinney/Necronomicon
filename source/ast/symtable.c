@@ -11,90 +11,6 @@
 
 NecroScope necro_global_scope = { 0 };
 
-// Constants
-#define NECRO_SYMTABLE_INITIAL_SIZE 512
-
-NecroSymTable necro_symtable_empty()
-{
-    return (NecroSymTable)
-    {
-        NULL,
-        0,
-        0,
-        NULL,
-    };
-}
-
-NecroSymTable necro_symtable_create(NecroIntern* intern)
-{
-    NecroSymbolInfo* data = calloc(NECRO_SYMTABLE_INITIAL_SIZE, sizeof(NecroSymbolInfo));
-    if (data == NULL)
-    {
-        fprintf(stderr, "Malloc returned null while allocating data in necro_create_symtable()\n");
-        necro_exit(1);
-    }
-    return (NecroSymTable)
-    {
-        data,
-        NECRO_SYMTABLE_INITIAL_SIZE,
-        1,
-        intern,
-    };
-}
-
-void necro_symtable_destroy(NecroSymTable* table)
-{
-    if (table == NULL || table->data == NULL)
-        return;
-    free(table->data);
-    table->data  = NULL;
-    table->size  = 0;
-    table->count = 0;
-}
-
-NecroSymbolInfo necro_symtable_create_initial_symbol_info(NecroSymbol symbol, NecroSourceLoc source_loc, NecroScope* scope)
-{
-    return (NecroSymbolInfo)
-    {
-        .name                    = symbol,
-        .con_num                 = 0,
-        .is_enum                 = false,
-        .source_loc              = source_loc,
-        .scope                   = scope,
-        .ast                     = NULL,
-        .core_ast                = NULL,
-        .declaration_group       = NULL,
-        .optional_type_signature = NULL,
-        .type                    = NULL,
-        .closure_type            = NULL,
-        .type_status             = NECRO_TYPE_UNCHECKED,
-        .method_type_class       = NULL,
-        .type_class              = NULL,
-        .type_class_instance     = NULL,
-        .persistent_slot         = 0,
-        .is_constructor          = false,
-        .is_recursive            = false,
-        .arity                   = -1,
-        .necro_machine_ast       = NULL,
-        .state_type              = NECRO_STATE_CONSTANT,
-    };
-}
-
-static inline void necro_symtable_grow(NecroSymTable* table)
-{
-    table->size *= 2;
-    NecroSymbolInfo* new_data = realloc(table->data, table->size * sizeof(NecroSymbolInfo));
-    if (new_data == NULL)
-    {
-        if (table->data != NULL)
-            free(table->data);
-        fprintf(stderr, "Malloc returned NULL in necro_symtable_grow!\n");
-        necro_exit(1);
-    }
-    table->data = new_data;
-    assert(table->data != NULL);
-}
-
 //=====================================================
 // NecroScopedSymTable
 //=====================================================
@@ -118,7 +34,6 @@ NecroScopedSymTable necro_scoped_symtable_empty()
     return (NecroScopedSymTable)
     {
         .arena               = necro_paged_arena_empty(),
-        .global_table        = NULL,
         .top_scope           = NULL,
         .current_scope       = NULL,
         .top_type_scope      = NULL,
@@ -126,7 +41,7 @@ NecroScopedSymTable necro_scoped_symtable_empty()
     };
 }
 
-NecroScopedSymTable necro_scoped_symtable_create(NecroSymTable* global_table)
+NecroScopedSymTable necro_scoped_symtable_create()
 {
     NecroPagedArena  arena       = necro_paged_arena_create();
     NecroScope*      top_scope   = necro_scope_create(&arena, NULL);
@@ -134,7 +49,6 @@ NecroScopedSymTable necro_scoped_symtable_create(NecroSymTable* global_table)
     return (NecroScopedSymTable)
     {
         .arena               = arena,
-        .global_table        = global_table,
         .top_scope           = top_scope,
         .current_scope       = top_scope,
         .top_type_scope      = type_scope,
@@ -180,7 +94,6 @@ static inline void necro_scope_grow(NecroScope* scope, NecroPagedArena* arena)
     scope->count                 = 0;
     for (size_t bucket = 0; bucket < scope->size; ++bucket)
         scope->buckets[bucket] = (NecroScopeNode) { .symbol = NULL, .ast_symbol = NULL };
-        // scope->buckets[bucket] = (NecroScopeNode) { .id = NECRO_SYMTABLE_NULL_ID, .symbol = NULL, .ast_symbol = NULL };
     for (size_t bucket = 0; bucket < prev_size; ++bucket)
     {
         NecroSymbol symbol = prev_buckets[bucket].symbol;
@@ -189,7 +102,6 @@ static inline void necro_scope_grow(NecroScope* scope, NecroPagedArena* arena)
         necro_scope_insert_ast_symbol(arena, scope, prev_buckets[bucket].ast_symbol);
     }
     assert(scope->count == prev_count);
-    // Leak prev_buckets since we're using an arena (which will free it later) and we care more about speed than memory conservation during this point
 }
 
 void necro_scope_insert_ast_symbol(NecroPagedArena* arena, NecroScope* scope, NecroAstSymbol* ast_symbol)
@@ -201,7 +113,6 @@ void necro_scope_insert_ast_symbol(NecroPagedArena* arena, NecroScope* scope, Ne
     if (scope->count >= scope->size / 2)
         necro_scope_grow(scope, arena);
     size_t bucket = symbol->hash & (scope->size - 1);
-    // while (scope->buckets[bucket].id.id != NECRO_SYMTABLE_NULL_ID.id)
     while (scope->buckets[bucket].symbol != NULL)
     {
         if (scope->buckets[bucket].symbol == symbol)
@@ -534,10 +445,9 @@ void necro_build_scopes(NecroCompileInfo info, NecroScopedSymTable* table, Necro
         necro_ast_arena_print(ast);
 }
 
-void necro_scope_print(NecroScope* scope, size_t whitespace, NecroIntern* intern)
+void necro_scope_print(NecroScope* scope, size_t whitespace)
 {
     assert(scope != NULL);
-    assert(intern != NULL);
 
     // print_white_space(whitespace);
     // printf("NecroScope\n");
@@ -575,15 +485,15 @@ void necro_scope_print(NecroScope* scope, size_t whitespace, NecroIntern* intern
 
 void necro_scoped_symtable_print_type_scope(NecroScopedSymTable* table)
 {
-    necro_scope_print(table->top_type_scope, 0, table->global_table->intern);
+    necro_scope_print(table->top_type_scope, 0);
 }
 
 void necro_scoped_symtable_print_top_scopes(NecroScopedSymTable* table)
 {
     printf("Types:\n");
-    necro_scope_print(table->top_type_scope, 0, table->global_table->intern);
+    necro_scope_print(table->top_type_scope, 0);
     printf("\nExpressions:\n");
-    necro_scope_print(table->top_scope, 0, table->global_table->intern);
+    necro_scope_print(table->top_scope, 0);
 }
 
 void necro_scoped_symtable_print(NecroScopedSymTable* table)
@@ -594,7 +504,7 @@ void necro_scoped_symtable_print(NecroScopedSymTable* table)
     NecroScope* current_scope = table->current_scope;
     while (current_scope != NULL)
     {
-        necro_scope_print(current_scope, 8, table->global_table->intern);
+        necro_scope_print(current_scope, 8);
         current_scope = current_scope->parent;
     }
     printf("}\n");
@@ -608,12 +518,8 @@ void necro_scoped_symtable_test()
     necro_announce_phase("NecroScopedSymTable");
 
     NecroIntern         intern          = necro_intern_create();
-    NecroSymTable       symtable        = necro_symtable_create(&intern);
-    NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create(&symtable);
-
+    NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create();
     NecroScope*         top_scope       = scoped_symtable.current_scope;
-    // necro_scoped_symtable_print(&scoped_symtable);
-    // printf("\n");
 
     // Push Test
     necro_scoped_symtable_new_scope(&scoped_symtable);
@@ -629,7 +535,6 @@ void necro_scoped_symtable_test()
     else
         printf("Pop test:       FAILED\n");
 
-    necro_symtable_destroy(&symtable);
     necro_intern_destroy(&intern);
 }
 

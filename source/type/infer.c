@@ -1357,21 +1357,24 @@ NecroResult(NecroType) necro_infer_expression_list_pattern(NecroInfer* infer, Ne
 //=====================================================
 NecroResult(NecroType) necro_infer_pat_expression(NecroInfer* infer, NecroAst* ast)
 {
+    assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_PAT_EXPRESSION);
-    NecroAst* current_cell = ast->pattern_expression.expressions;
-    NecroType* pat_type    = necro_type_fresh_var(infer->arena, NULL);
-    pat_type->kind         = necro_type_fresh_var(infer->arena, NULL);
-    pat_type               = necro_type_con1_create(infer->arena, infer->base->pattern_type, pat_type);
-    necro_try_map(void, NecroType, necro_kind_infer_default_unify_with_star(infer->arena, infer->base, pat_type, ast->scope, ast->source_loc, ast->end_loc));
-    while (current_cell != NULL)
-    {
-        NecroType* item_type = necro_try_result(NecroType, necro_infer_go(infer, current_cell->list.item));
-        necro_try(NecroType, necro_type_unify(infer->arena, &infer->con_env, infer->base, pat_type, item_type, ast->scope));
-        current_cell = current_cell->list.next_item;
-    }
-    ast->necro_type = pat_type;
-    return ok(NecroType, ast->necro_type);
+    assert(false && "Refactor");
+    return ok(NecroType, NULL);
+    // NecroAst* current_cell = ast->pattern_expression.expressions;
+    // NecroType* pat_type    = necro_type_fresh_var(infer->arena, NULL);
+    // pat_type->kind         = necro_type_fresh_var(infer->arena, NULL);
+    // pat_type               = necro_type_con1_create(infer->arena, infer->base->pattern_type, pat_type);
+    // necro_try_map(void, NecroType, necro_kind_infer_default_unify_with_star(infer->arena, infer->base, pat_type, ast->scope, ast->source_loc, ast->end_loc));
+    // while (current_cell != NULL)
+    // {
+    //     NecroType* item_type = necro_try_result(NecroType, necro_infer_go(infer, current_cell->list.item));
+    //     necro_try(NecroType, necro_type_unify(infer->arena, &infer->con_env, infer->base, pat_type, item_type, ast->scope));
+    //     current_cell = current_cell->list.next_item;
+    // }
+    // ast->necro_type = pat_type;
+    // return ok(NecroType, ast->necro_type);
 }
 
 //=====================================================
@@ -2072,8 +2075,7 @@ void necro_infer_test_impl(const char* test_name, const char* str, NECRO_RESULT_
 {
     // Set up
     NecroIntern         intern          = necro_intern_create();
-    NecroSymTable       symtable        = necro_symtable_create(&intern);
-    NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create(&symtable);
+    NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create();
     NecroBase           base            = necro_base_compile(&intern, &scoped_symtable);
 
     NecroLexTokenVector tokens          = necro_empty_lex_token_vector();
@@ -2150,7 +2152,6 @@ void necro_infer_test_impl(const char* test_name, const char* str, NECRO_RESULT_
     necro_parse_ast_arena_destroy(&parse_ast);
     necro_destroy_lex_token_vector(&tokens);
     necro_scoped_symtable_destroy(&scoped_symtable);
-    necro_symtable_destroy(&symtable);
     necro_intern_destroy(&intern);
 }
 

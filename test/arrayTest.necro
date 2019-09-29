@@ -250,7 +250,16 @@ sawOsc freq = accumulateAudio1 accumulateSaw freq
 mouseAudio :: Audio a => a
 mouseAudio = fromInt mouseX
 
+instance Num Channel where
+  fromInt i = BlockRate (fromInt i)
+  add x y   = mapChannel2 add x y
+
 instance Num Mono where
-  fromInt i             = Mono (BlockRate (fromInt i))
-  add (Mono x) (Mono y) = Mono (mapChannel2 add x y)
+  fromInt i             = Mono (fromInt i)
+  add (Mono x) (Mono y) = Mono (add x y)
+
+instance Num Stereo where
+    fromInt i                          = let c = fromInt i in Stereo c c
+    add (Stereo xl xr ) (Stereo yl yr) = Stereo (add xl yl) (add xr yr)
+
 

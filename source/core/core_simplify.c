@@ -50,6 +50,7 @@ typedef struct NecroCorePreSimplify
 
 NecroCoreAst* necro_core_ast_pre_simplify_go(NecroCorePreSimplify* context, NecroCoreAst* ast);
 NecroType*    necro_type_inline_wrapper_types(NecroPagedArena* arena, NecroBase* base, NecroType* type);
+NecroCoreAst* necro_core_ast_pre_simplify_pat(NecroCorePreSimplify* context, NecroCoreAst* ast);
 
 NecroCoreAst* necro_core_ast_pre_simplify_inline_wrapper_types(NecroCorePreSimplify* context, NecroCoreAst* ast)
 {
@@ -83,31 +84,43 @@ NecroCoreAst* necro_core_ast_pre_simplify_var(NecroCorePreSimplify* context, Nec
     }
 }
 
+NecroCoreAstList* necro_core_ast_pre_simplify_lit_array_elements(NecroCorePreSimplify* context, NecroCoreAstList* element)
+{
+    if (element == NULL)
+        return NULL;
+    NecroCoreAst*     data = necro_core_ast_pre_simplify_go(context, element->data);
+    NecroCoreAstList* next = necro_core_ast_pre_simplify_lit_array_elements(context, element->next);
+    if (data == element->data && next == element->next)
+        return element;
+    return necro_cons_core_ast_list(context->arena, data, next);
+}
+
 NecroCoreAst* necro_core_ast_pre_simplify_lit(NecroCorePreSimplify* context, NecroCoreAst* ast)
 {
     assert(context != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_LIT);
     if (ast->lit.type != NECRO_AST_CONSTANT_ARRAY)
         return necro_core_ast_pre_simplify_inline_wrapper_types(context, ast);
-
-    // TODO:
-
-    // size_t            count        = 0;
-    // NecroCoreAstList* elements     = ast->lit.array_literal_elements;
-    // while (elements != NULL)
-    // {
-    //     count++;
-    //     NecroType* element_expr_type = necro_try_result(NecroType, necro_core_infer_go(infer, elements->data));
-    //     necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, element_type, element_expr_type, NULL, zero_loc, zero_loc));
-    //     elements = elements->next;
-    // }
-    // NecroType* arity_type = necro_type_nat_create(infer->arena, count);
-    // arity_type->kind      = infer->base->nat_kind->type;
-    // NecroType* array_type = necro_type_con2_create(infer->arena, infer->base->array_type, arity_type, element_type);
-    // ast->necro_type       = array_type;
-    // assert(ast->necro_type != NULL);
-
+    // TODO: Test
+    NecroCoreAstList* elements = necro_core_ast_pre_simplify_lit_array_elements(context, ast->lit.array_literal_elements);
+    if (elements == ast->lit.array_literal_elements)
+        return necro_core_ast_pre_simplify_inline_wrapper_types(context, ast);
+    NecroCoreAstLiteral lit    = ast->lit;
+    lit.array_literal_elements = elements;
+    ast                        = necro_core_ast_alloc(context->arena, NECRO_CORE_AST_LIT);
+    ast->lit                   = lit;
     return necro_core_ast_pre_simplify_inline_wrapper_types(context, ast);
+}
+
+NecroCoreAstList* necro_core_ast_pre_simplify_pat_lit_array_elements(NecroCorePreSimplify* context, NecroCoreAstList* element)
+{
+    if (element == NULL)
+        return NULL;
+    NecroCoreAst*     data = necro_core_ast_pre_simplify_pat(context, element->data);
+    NecroCoreAstList* next = necro_core_ast_pre_simplify_pat_lit_array_elements(context, element->next);
+    if (data == element->data && next == element->next)
+        return element;
+    return necro_cons_core_ast_list(context->arena, data, next);
 }
 
 NecroCoreAst* necro_core_ast_pre_simplify_pat(NecroCorePreSimplify* context, NecroCoreAst* ast)
@@ -127,9 +140,26 @@ NecroCoreAst* necro_core_ast_pre_simplify_pat(NecroCorePreSimplify* context, Nec
         case NECRO_CORE_AST_LIT:
         {
             if (ast->lit.type != NECRO_AST_CONSTANT_ARRAY)
+            {
                 ast = necro_core_ast_pre_simplify_inline_wrapper_types(context, ast);
+            }
             else
-                assert(false && "TODO");
+            {
+                // TODO: Test
+                NecroCoreAstList* elements = necro_core_ast_pre_simplify_pat_lit_array_elements(context, ast->lit.array_literal_elements);
+                if (elements == ast->lit.array_literal_elements)
+                {
+                    ast = necro_core_ast_pre_simplify_inline_wrapper_types(context, ast);
+                }
+                else
+                {
+                    NecroCoreAstLiteral lit    = ast->lit;
+                    lit.array_literal_elements = elements;
+                    ast                        = necro_core_ast_alloc(context->arena, NECRO_CORE_AST_LIT);
+                    ast->lit                   = lit;
+                    ast                        = necro_core_ast_pre_simplify_inline_wrapper_types(context, ast);
+                }
+            }
             break;
         }
         case NECRO_CORE_AST_APP:
@@ -985,8 +1015,6 @@ void necro_core_ast_pre_simplify_test()
         necro_core_ast_pre_simplfy_test(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Simplify Case 5";
         const char* test_source = ""
@@ -998,6 +1026,32 @@ void necro_core_ast_pre_simplify_test()
             "    DoubleDown o -> o\n"
             "unitTest :: OneUp\n"
             "unitTest = goAway ()\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_core_ast_pre_simplfy_test(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Simplify Array 1";
+        const char* test_source = ""
+            "data OneUp      = OneUp UInt\n"
+            "data DoubleDown = DoubleDown OneUp\n"
+            "oneUp :: Array 3 OneUp\n"
+            "oneUp = { OneUp 0, OneUp 2, OneUp 4 }\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_core_ast_pre_simplfy_test(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Simplify Array 2";
+        const char* test_source = ""
+            "data OneUp      = OneUp UInt\n"
+            "data DoubleDown = DoubleDown OneUp\n"
+            "oneUp :: Array 3 DoubleDown\n"
+            "oneUp = { DoubleDown (OneUp 0), DoubleDown (OneUp 2), DoubleDown (OneUp 4) }\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_core_ast_pre_simplfy_test(test_name, test_source);

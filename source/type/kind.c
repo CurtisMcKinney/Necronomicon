@@ -80,37 +80,6 @@ void necro_kind_init_kinds(NecroBase* base, NecroScopedSymTable* scoped_symtable
     base->sym_kind         = necro_kind_create_kind_ast_symbol(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Sym"), necro_intern_string(intern, "Sym"), base_name, base->kind_kind->type);
     necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->sym_kind);
 
-    // base->unique_type_attribute = necro_kind_create_type_attribute(&base->ast.arena, necro_intern_string(intern, "Necro.Base.UniqueAttribute"), necro_intern_string(intern, "UniqueAttribute"), base_name, base->attribute_kind->type);
-    // necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->unique_type_attribute);
-
-    // base->non_unique_type_attribute = necro_kind_create_type_attribute(&base->ast.arena, necro_intern_string(intern, "Necro.Base.NonUniqueAttribute"), necro_intern_string(intern, "NonUniqueAttribute"), base_name, base->attribute_kind->type);
-    // necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->non_unique_type_attribute);
-
-    // base->conjunction_type_attribute = necro_kind_create_type_attribute(&base->ast.arena, necro_intern_string(intern, "Necro.Base.ConjunctionAttribute"), necro_intern_string(intern, "ConjunctionAttribute"), base_name, necro_type_fn_create(&base->ast.arena, base->attribute_kind->type, necro_type_fn_create(&base->ast.arena, base->attribute_kind->type, base->attribute_kind->type)));
-    // necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->conjunction_type_attribute);
-
-    // base->disjunction_type_attribute = necro_kind_create_type_attribute(&base->ast.arena, necro_intern_string(intern, "Necro.Base.DisjunctionAttribute"), necro_intern_string(intern, "DisjunctionAttribute"), base_name, necro_type_fn_create(&base->ast.arena, base->attribute_kind->type, necro_type_fn_create(&base->ast.arena, base->attribute_kind->type, base->attribute_kind->type)));
-    // necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->disjunction_type_attribute);
-
-    // base->negation_type_attribute = necro_kind_create_type_attribute(&base->ast.arena, necro_intern_string(intern, "Necro.Base.NegationAttribute"), necro_intern_string(intern, "NegationAttribute"), base_name, necro_type_fn_create(&base->ast.arena, base->attribute_kind->type, base->attribute_kind->type));
-    // necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->negation_type_attribute);
-
-    // // Multiplicities
-    // base->multiplicity_kind = necro_kind_create_type_attribute(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Multiplicity"), necro_intern_string(intern, "Multiplicity"), base_name, base->kind_kind->type);
-    // necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->multiplicity_kind);
-
-    // base->multiplicity_one = necro_kind_create_type_attribute(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Multiplicity.One"), necro_intern_string(intern, "Multiplicity.One"), base_name, base->multiplicity_kind->type);
-    // necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->multiplicity_one);
-
-    // base->multiplicity_omega = necro_kind_create_type_attribute(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Multiplicity.Omega"), necro_intern_string(intern, "Multiplicity.Omega"), base_name, base->multiplicity_kind->type);
-    // necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->multiplicity_omega);
-
-    // base->multiplicity_add = necro_kind_create_type_attribute(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Multiplicity.Add"), necro_intern_string(intern, "Multiplicity.Add"), base_name, necro_type_fn_create(&base->ast.arena, base->multiplicity_kind->type, necro_type_fn_create(&base->ast.arena, base->multiplicity_kind->type, base->multiplicity_kind->type)));
-    // necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->multiplicity_add);
-
-    // base->multiplicity_mul = necro_kind_create_type_attribute(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Multiplicity.Mul"), necro_intern_string(intern, "Multiplicity.Mul"), base_name, necro_type_fn_create(&base->ast.arena, base->multiplicity_kind->type, necro_type_fn_create(&base->ast.arena, base->multiplicity_kind->type, base->multiplicity_kind->type)));
-    // necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->multiplicity_mul);
-
     // Ownership
     base->ownership_kind = necro_kind_create_kind_ast_symbol(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Ownership"), necro_intern_string(intern, "Ownership"), base_name, base->kind_kind->type);
     necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->ownership_kind);

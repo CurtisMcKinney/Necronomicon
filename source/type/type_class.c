@@ -77,7 +77,8 @@ NecroType* necro_instantiate_method_sig(NecroInfer* infer, NecroAstSymbol* type_
         }
         subs = subs->next;
     }
-    assert(false);
+    // TODO: method not part of class error?!
+    assert(false && "TODO: method not part of class error");
     return NULL;
 }
 

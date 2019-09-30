@@ -173,11 +173,18 @@ poly1 :: (Audio -> Audio) -> Seq Float -> Audio
 ----------------------------
 -- Audio DSP API
 ----------------------------
+
+class Copy a where
 data (BlockSize :: Nat) = -- (primitive)
+
 unsafeEmptyArray :: () -> *Array n a
 readArray        :: Index n -> Array n a -> a
+writeArray       :: Index n -> *a -> *Array n a -> *Array n a
+freezeArray      :: *Array n (Share a) -> Array n a
+
 writeF64         :: Index n -> *Array n F64 -> F64 -> *Array n F64
-freezeAudio      :: *Array BlockSize F64 -> Array BlockSize F64
+freezeF64        :: *Array BlockSize F64 -> Array BlockSize F64
+
 fma              :: F64 -> F64 -> F64 -> F64
 fastFloor        :: F64 -> F64
 recipBlockSize   :: F64

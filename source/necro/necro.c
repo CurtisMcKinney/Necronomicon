@@ -9,6 +9,7 @@
 #include "driver.h"
 #include "necro.h"
 #include "unicode_properties.h"
+#include "base.h"
 
 //=====================================================
 // Main
@@ -17,6 +18,7 @@ int main(int32_t argc, char** argv)
 {
     ENABLE_AUTO_MEM_CHECK();
 
+    necro_base_global_init();
     if (argc == 3 && strcmp(argv[2], "-unicode_p") == 0)
     {
         necro_unicode_property_parse(argv[1]);
@@ -219,6 +221,7 @@ int main(int32_t argc, char** argv)
     {
         fprintf(stderr, "Incorrect necro usage. Should be: necro filename\n");
     }
+    necro_base_global_cleanup();
 
     SCOPED_MEM_CHECK();
     MEM_CHECK();

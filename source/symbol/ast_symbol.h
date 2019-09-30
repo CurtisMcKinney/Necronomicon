@@ -96,8 +96,10 @@ typedef enum
     NECRO_PRIMOP_CMP_LT,
     NECRO_PRIMOP_CMP_LE,
 
-    // TODO:
-    // Array primops
+    NECRO_PRIMOP_ARRAY_EMPTY,
+    NECRO_PRIMOP_ARRAY_READ,
+    NECRO_PRIMOP_ARRAY_WRITE,
+
 } NECRO_PRIMOP_TYPE;
 
 

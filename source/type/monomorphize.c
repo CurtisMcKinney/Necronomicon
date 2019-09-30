@@ -1078,14 +1078,14 @@ void necro_monomorphize_test_suffix()
     NecroSymbol suffix_symbol2 = necro_intern_append_suffix_from_subs(&intern, prefix, subs2);
     printf("suffix2: %s\n", suffix_symbol2->str);
 
-    NecroInstSub* subs3 =
-        necro_create_inst_sub_manual(&base.ast.arena, NULL,
-            necro_type_fn_create(&base.ast.arena,
-                necro_type_con_create(&base.ast.arena, base.maybe_type, necro_type_list_create(&base.ast.arena, base.int_type->type, NULL)),
-                necro_type_con_create(&base.ast.arena, base.maybe_type, necro_type_list_create(&base.ast.arena, base.float_type->type, NULL))),
-            NULL);
-    NecroSymbol suffix_symbol3 = necro_intern_append_suffix_from_subs(&intern, prefix, subs3);
-    printf("suffix3: %s\n", suffix_symbol3->str);
+    // NecroInstSub* subs3 =
+    //     necro_create_inst_sub_manual(&base.ast.arena, NULL,
+    //         necro_type_fn_create(&base.ast.arena,
+    //             necro_type_con_create(&base.ast.arena, base.maybe_type, necro_type_list_create(&base.ast.arena, base.int_type->type, NULL)),
+    //             necro_type_con_create(&base.ast.arena, base.maybe_type, necro_type_list_create(&base.ast.arena, base.float_type->type, NULL))),
+    //         NULL);
+    // NecroSymbol suffix_symbol3 = necro_intern_append_suffix_from_subs(&intern, prefix, subs3);
+    // printf("suffix3: %s\n", suffix_symbol3->str);
 
     NecroInstSub* subs4 =
         necro_create_inst_sub_manual(&base.ast.arena, NULL,

@@ -95,8 +95,11 @@ NecroResult(NecroAstSymbol) necro_create_name(NecroAstArena* ast_arena, NecroInt
     NecroAstSymbol* out_ast_symbol = necro_scope_find_in_this_scope_ast_symbol(scope, ast_symbol->source_name);
     if (out_ast_symbol != NULL)
     {
-        assert(out_ast_symbol->ast != NULL);
-        return necro_multiple_definitions_error(ast_symbol, source_loc, end_loc, out_ast_symbol, out_ast_symbol->ast->source_loc, out_ast_symbol->ast->end_loc);
+        // assert(out_ast_symbol->ast != NULL);
+        if (out_ast_symbol->ast != NULL)
+            return necro_multiple_definitions_error(ast_symbol, source_loc, end_loc, out_ast_symbol, out_ast_symbol->ast->source_loc, out_ast_symbol->ast->end_loc);
+        else
+            return necro_multiple_definitions_error(ast_symbol, source_loc, end_loc, out_ast_symbol, zero_loc, zero_loc);
     }
     else
     {

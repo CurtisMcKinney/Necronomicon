@@ -754,7 +754,7 @@ NecroResult(NecroType) necro_type_bind_var(NecroPagedArena* arena, NecroConstrai
     assert(type_var_type->type == NECRO_TYPE_VAR);
     type_var_type          = necro_type_find(type_var_type);
     NecroTypeVar* type_var = &type_var_type->var;
-    necro_try(NecroType, necro_type_unify_order(type_var_type, type));
+    // necro_try(NecroType, necro_type_unify_order(type_var_type, type));
     necro_try(NecroType, necro_propagate_type_classes(arena, con_env, base, type_var->context, type, scope));
     type_var->bound = necro_type_find(type);
     return ok(NecroType, NULL);
@@ -923,11 +923,11 @@ NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroConstraintEn
     {
         // necro_try(NecroType, necro_kind_unify(type1->kind, type2->kind, scope));
         NecroType* uncurried_con = necro_type_curry_con(arena, base, type1);
-        assert(uncurried_con != NULL);
-        // if (uncurried_con == NULL)
-        //     return necro_type_mismatched_arity_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
-        // else
-        return necro_type_unify(arena, con_env, base, uncurried_con, type2, scope);
+        // assert(uncurried_con != NULL);
+        if (uncurried_con == NULL)
+            return necro_type_mismatched_arity_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
+        else
+            return necro_type_unify(arena, con_env, base, uncurried_con, type2, scope);
     }
     case NECRO_TYPE_NAT:
     case NECRO_TYPE_SYM:
@@ -2612,12 +2612,13 @@ NecroResult(NecroType) necro_type_ownership_infer_from_type(NecroPagedArena* are
             type->ownership = base->ownership_share->type;
         else
             type->ownership = necro_type_ownership_fresh_var(arena, base, scope);
-        NecroType* args = type->con.args;
+        NecroType* ownership = type->con.con_symbol == base->share_type ? base->ownership_share->type : type->ownership;
+        NecroType* args      = type->con.args;
         while (args != NULL)
         {
             NecroType* arg_ownership = necro_try_result(NecroType, necro_type_ownership_infer_from_type(arena, con_env, base, args->list.item, scope));
             if (necro_type_is_inhabited(base, args->list.item))
-                necro_try(NecroType, necro_type_ownership_unify(arena, con_env, type->ownership, arg_ownership, scope));
+                necro_try(NecroType, necro_type_ownership_unify(arena, con_env, ownership, arg_ownership, scope));
             args = args->list.next;
         }
         return ok(NecroType, type->ownership);
@@ -2692,12 +2693,13 @@ NecroResult(NecroType) necro_type_ownership_infer_from_sig_go(NecroPagedArena* a
     {
         if (!necro_type_is_inhabited(base, type))
             type->ownership = base->ownership_share->type;
-        NecroType* args = type->con.args;
+        NecroType* ownership = type->con.con_symbol == base->share_type ? base->ownership_share->type : type->ownership;
+        NecroType* args      = type->con.args;
         while (args != NULL)
         {
             NecroType* arg_ownership = necro_try_result(NecroType, necro_type_ownership_infer_from_sig_go(arena, con_env, base, args->list.item, scope, NULL));
             if (necro_type_is_inhabited(base, args->list.item))
-                necro_try(NecroType, necro_type_ownership_unify(arena, con_env, type->ownership, arg_ownership, scope));
+                necro_try(NecroType, necro_type_ownership_unify(arena, con_env, ownership, arg_ownership, scope));
             args = args->list.next;
         }
         return ok(NecroType, type->ownership);

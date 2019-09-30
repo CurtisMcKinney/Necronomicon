@@ -397,7 +397,7 @@ NecroCoreAst* necro_core_ast_inline_pipe_forward(NecroCorePreSimplify* context, 
 {
     assert(context != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_APP);
-    if (fn->ast_type == NECRO_CORE_AST_VAR)
+    if (fn->ast_type == NECRO_CORE_AST_VAR && !fn->var.ast_symbol->is_constructor && fn->var.ast_symbol->ast != NULL)
     {
         fn = fn->var.ast_symbol->ast;
         if (fn->ast_type != NECRO_CORE_AST_BIND)
@@ -426,7 +426,7 @@ NecroCoreAst* necro_core_ast_inline_pipe_back(NecroCorePreSimplify* context, Nec
 {
     assert(context != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_APP);
-    if (fn->ast_type == NECRO_CORE_AST_VAR)
+    if (fn->ast_type == NECRO_CORE_AST_VAR && !fn->var.ast_symbol->is_constructor && fn->var.ast_symbol->ast != NULL)
     {
         fn = fn->var.ast_symbol->ast;
         if (fn->ast_type != NECRO_CORE_AST_BIND)
@@ -557,13 +557,18 @@ NecroType* necro_type_inline_wrapper_types(NecroPagedArena* arena, NecroBase* ba
             assert(data_decl->ast_type == NECRO_CORE_AST_DATA_DECL);
             NecroCoreAst* data_con  = data_decl->data_decl.con_list->data;
             assert(data_con->ast_type == NECRO_CORE_AST_DATA_CON);
-            NecroType*    data_con_type = data_con->data_con.type;
+            NecroType* data_con_type = data_con->data_con.type;
             NecroType* data_con_inst = unwrap_result(NecroType, necro_type_instantiate(arena, NULL, base, data_con_type, NULL));
             NecroType* arg_type      = necro_type_fresh_var(arena, NULL);
             NecroType* this_con      = necro_type_fn_create(arena, arg_type, type);
             unwrap(NecroType, necro_kind_infer(arena, base, this_con, NULL_LOC, NULL_LOC));
             unwrap(NecroType, necro_type_unify(arena, NULL, base, data_con_inst, this_con, NULL));
-            return necro_type_deep_copy(arena, necro_type_find(arg_type));
+            return necro_type_inline_wrapper_types(arena, base, necro_type_deep_copy(arena, necro_type_find(arg_type)));
+        }
+        else if (type->con.con_symbol == base->share_type)
+        {
+            // Unwrap Share type (Magic...)
+            return necro_type_inline_wrapper_types(arena, base, necro_type_deep_copy(arena, necro_type_find(type->con.args->list.item)));
         }
         NecroType* args = necro_type_inline_wrapper_types(arena, base, type->con.args);
         if (args == type->con.args)
@@ -691,8 +696,6 @@ void necro_core_ast_pre_simplify_test()
     necro_announce_phase("Pre-Simplify");
 
 /*
-
-*/
 
     {
         const char* test_name   = "Identity 1";
@@ -1131,6 +1134,8 @@ void necro_core_ast_pre_simplify_test()
         necro_core_ast_pre_simplfy_test(test_name, test_source);
     }
 
+*/
+
     {
         const char* test_name   = "Inline lambda";
         const char* test_source = ""
@@ -1138,6 +1143,16 @@ void necro_core_ast_pre_simplify_test()
             "x = (\\ff xx -> ff xx) Just 0\n";
         necro_core_ast_pre_simplfy_test(test_name, test_source);
     }
+
+    // {
+    //     const char* test_name   = "Map Audio";
+    //     const char* test_source = ""
+    //         "x :: Mono\n"
+    //         "x = mapAudio id
+    //     necro_core_ast_pre_simplfy_test(test_name, test_source);
+    // }
+
+/*
 
     // TODO: Finish!
     // {
@@ -1147,8 +1162,6 @@ void necro_core_ast_pre_simplify_test()
     //         "instance Num Time' where\n";
     //     necro_core_ast_pre_simplfy_test(test_name, test_source);
     // }
-
-/*
 
 */
 

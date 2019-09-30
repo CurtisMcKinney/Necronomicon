@@ -1,0 +1,231 @@
+--------------------
+-- Necro.Base
+--------------------
+
+data Maybe a = Just a | Nothing
+
+id :: .a -> .a
+id x = x
+
+fst :: .(a, b) -> .a
+fst t =
+  case t of
+    (x, _) -> x
+
+snd :: .(a, b) -> .b
+snd t =
+  case t of
+    (_, y) -> y
+
+-- TODO: Fold into Ord class
+min :: Ord a => a -> a -> a
+min x y =
+  case lt x y of
+    True -> x
+    _    -> y
+
+--------------------
+-- Seq
+--------------------
+data SeqValue a = SeqValue Float a | SeqRest Float | SeqConst a | SeqInterval | SeqEnd
+data Seq a      = Seq (Float -> SeqValue a)
+
+instance Functor SeqValue where
+  map f s =
+    case s of
+      SeqValue t x -> SeqValue t (f x)
+      SeqConst x   -> SeqConst (f x)
+      SeqRest t    -> SeqRest t
+      SeqInterval  -> SeqInterval
+      SeqEnd       -> SeqEnd
+
+instance Applicative SeqValue where
+  pure x   = SeqConst x
+  ap fs xs =
+    case fs of
+      SeqValue ft ff ->
+        case xs of
+          SeqValue xt xx -> SeqValue (min ft xt) (ff xx)
+          SeqConst xx    -> SeqValue ft (ff xx)
+          SeqRest xt     -> SeqRest (min ft xt)
+          SeqInterval    -> SeqInterval
+          SeqEnd         -> SeqEnd
+      SeqConst ff ->
+        case xs of
+          SeqValue xt xx -> SeqValue xt (ff xx)
+          SeqConst xx    -> SeqConst (ff xx)
+          SeqRest xt     -> SeqRest xt
+          SeqInterval    -> SeqInterval
+          SeqEnd         -> SeqEnd
+      SeqRest ft ->
+        case xs of
+          SeqValue xt xf -> SeqRest (min ft xt)
+          SeqConst xx    -> SeqRest ft
+          SeqRest xt     -> SeqRest (min ft xt)
+          SeqInterval    -> SeqInterval
+          SeqEnd         -> SeqEnd
+      SeqInterval -> SeqInterval
+      SeqEnd      -> SeqEnd
+
+runSeq :: Seq a -> Float -> SeqValue a
+runSeq s time =
+  case s of
+    Seq stepFunc -> stepFunc time
+
+instance Functor Seq where
+  map f s = Seq (\t -> map f (runSeq s t))
+
+instance Applicative Seq where
+  pure x   = Seq (\t -> pure x)
+  ap fs xs = Seq (\t -> ap (runSeq fs t) (runSeq xs t))
+
+-- -- TODO: Look into this!
+-- seqTest :: Seq Int
+-- seqTest = pure 44
+
+--------------------
+-- Audio
+--------------------
+data Channel   = BlockRate F64 | AudioRate (Array BlockSize F64)
+data Mono      = Mono Channel
+data Stereo    = Stereo (#Channel, Channel#)
+data Quad      = Quad Channel Channel Channel Channel
+data Ambisonic = Ambisonic Channel Channel Channel Channel
+
+-- TODO: Finish then use outAudioBlock :: UInt -> Array BlockSize F64 -> *World -> *World
+
+outChannel :: UInt -> Channel -> *World -> *World
+outChannel n c w =
+  case c of
+    BlockRate _ -> w
+    AudioRate b -> outAudioBlock n b w
+
+stereo :: Mono -> Mono -> Stereo
+stereo ml mr =
+  case ml of
+    Mono l ->
+      case mr of
+        Mono r -> Stereo (#l, r#)
+
+-- TODO: Finish
+mapChannel :: (F64 -> F64) -> Channel -> Channel
+mapChannel f c =
+  case c of
+    BlockRate x -> BlockRate (f x)
+    AudioRate b -> c
+
+-- TODO: Finish
+mapChannel2 :: (F64 -> F64 -> F64) -> Channel -> Channel -> Channel
+mapChannel2 f cx cy =
+  case cx of
+    BlockRate x ->
+      case cy of
+        BlockRate y -> BlockRate (f x y)
+        AudioRate y -> cx
+    AudioRate x -> cx
+
+class Audio a where
+  pureAudio :: Channel -> a
+  outAudio  :: UInt -> a -> *World -> *World
+  mapAudio  :: (Channel -> Channel) -> a -> a
+  mapAudio2 :: (Channel -> Channel -> Channel) -> a -> a -> a
+
+instance Audio Mono where
+  pureAudio c  = Mono c
+  outAudio n m w =
+    case m of
+      Mono c -> outChannel n c w
+  mapAudio f m =
+    case m of
+      Mono c -> Mono (f c)
+  mapAudio2 f mx my =
+    case mx of
+      Mono cx ->
+        case my of
+          Mono cy -> Mono (f cx cy)
+
+instance Audio Stereo where
+  pureAudio c  = Stereo (#c, c#)
+  outAudio n s w =
+    case s of
+      Stereo (#l, r#) -> outChannel (add n 1) r (outChannel n l w)
+  mapAudio f s =
+    case s of
+      Stereo (#l, r#) -> Stereo (#f l, f r#)
+  mapAudio2 f sx sy =
+    case sx of
+      Stereo (#lx, rx#) ->
+        case sy of
+          Stereo (#ly, ry#) -> Stereo (#f lx ly, f rx ry#)
+
+instance Num Channel where
+  fromInt i = BlockRate (fromInt i)
+  add l r   = mapChannel2 add l r
+  sub l r   = mapChannel2 sub l r
+  mul l r   = mapChannel2 mul l r
+  signum c  = mapChannel signum c
+  abs c     = mapChannel abs c
+
+instance Num Mono where
+  fromInt i = Mono (fromInt i)
+  add l r   = mapAudio2 add l r
+  sub l r   = mapAudio2 sub l r
+  mul l r   = mapAudio2 mul l r
+  signum c  = mapAudio signum c
+  abs c     = mapAudio abs c
+
+instance Num Stereo where
+  fromInt i = let c = fromInt i in Stereo (#c, c#)
+  add l r   = mapAudio2 add l r
+  sub l r   = mapAudio2 sub l r
+  mul l r   = mapAudio2 mul l r
+  signum c  = mapAudio signum c
+  abs c     = mapAudio abs c
+
+instance Fractional Channel where
+  fromRational r = BlockRate (fromRational r)
+  div l r        = mapChannel2 div l r
+  recip c        = mapChannel recip c
+
+instance Fractional Mono where
+  fromRational r = Mono (fromRational r)
+  div l r        = mapAudio2 div l r
+  recip c        = mapAudio recip c
+
+instance Fractional Stereo where
+  fromRational r = let c = fromRational r in Stereo (#c, c#)
+  div l r        = mapAudio2 div l r
+  recip c        = mapAudio recip c
+
+-- Throw into type class?
+panStereo :: Mono -> Mono -> Stereo
+panStereo amount input =
+  case input of
+    Mono inputChannel ->
+      case amount of
+        Mono amountChannel ->
+          Stereo (#inputChannel * amountChannel, inputChannel * (1 - amountChannel)#)
+
+-- TODO: Move to test
+coolAudio :: Stereo
+coolAudio = panStereo 0.25 (440 * 33)
+
+-- writeF64 :: Index n -> a -> *Array n (Share a) -> *Array n (Share a)
+-- writeF64 i x a = a
+
+sharingIsCaring :: Share Int -> Int
+sharingIsCaring s =
+  case s of
+    Share x -> x
+
+sharingIsCaring' :: *Share Int -> Int
+sharingIsCaring' s =
+  case s of
+    Share x -> x
+
+
+-- unsafeEmptyArray :: () -> *Array n a
+-- readArray        :: Index n -> Array n a -> a
+-- writeArray       :: Index n -> *a -> *Array n a -> *Array n a
+-- freezeArray      :: *Array n (Share a) -> Array n a
+

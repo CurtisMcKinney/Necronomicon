@@ -243,7 +243,8 @@ NecroResult(NecroType) necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast
         if (ast->variable.ast_symbol->type != NULL && ast->variable.ast_symbol->type->var.var_symbol == ast->variable.ast_symbol)
         {
             NecroType* prev_type     = ast->variable.ast_symbol->type;
-            NecroType* new_ownership = necro_ast_get_type_sig_ownership(infer, attribute_type, ast->scope);
+            NecroType* new_ownership = (prev_type->kind == NULL || necro_type_find_const(prev_type->kind)->type == NECRO_TYPE_VAR ||
+                !necro_type_is_inhabited(infer->base, prev_type)) ? necro_type_fresh_var(infer->arena, NULL) : necro_ast_get_type_sig_ownership(infer, attribute_type, ast->scope);
             necro_try(NecroType, necro_type_ownership_unify_with_info(infer->arena, &infer->con_env, infer->base, prev_type->ownership, new_ownership, ast->scope, ast->source_loc, ast->end_loc));
             // TODO:
             // if (symbol_type->var.order != prev_type->var.order)
@@ -283,12 +284,13 @@ NecroResult(NecroType) necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast
 
     case NECRO_AST_CONSTRUCTOR:
     {
-        NecroType* con_args = NULL;
-        NecroAst*  arg_list = ast->constructor.arg_list;
-        size_t arity = 0;
+        NecroType*                con_args           = NULL;
+        NecroAst*                 arg_list           = ast->constructor.arg_list;
+        size_t                    arity              = 0;
+        NECRO_TYPE_ATTRIBUTE_TYPE arg_attribute_type = (ast->constructor.conid->conid.ast_symbol == infer->base->share_type) ? NECRO_TYPE_ATTRIBUTE_NONE : attribute_type;
         while (arg_list != NULL)
         {
-            NecroType* arg_type = necro_try_result(NecroType, necro_ast_to_type_sig_go(infer, arg_list->list.item, variable_type_order, attribute_type));
+            NecroType* arg_type = necro_try_result(NecroType, necro_ast_to_type_sig_go(infer, arg_list->list.item, variable_type_order, arg_attribute_type));
             // necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, arg_type, arg_list->list.item->source_loc, arg_list->list.item->end_loc));
             if (con_args == NULL)
                 con_args = necro_type_list_create(infer->arena, arg_type, NULL);

@@ -14,8 +14,6 @@
 
 // TODO: Proxy type?
 
-struct NecroMachProgram;
-
 #define NECRO_MAX_UNBOXED_TUPLE_TYPES 8
 #define NECRO_MAX_ENV_TYPES 16
 #define NECRO_MAX_BRANCH_TYPES 16
@@ -36,6 +34,7 @@ typedef struct NecroBase
     NecroAstSymbol* ownership_kind;
     NecroAstSymbol* ownership_share;
     NecroAstSymbol* ownership_steal;
+    NecroAstSymbol* share_type;
 
     NecroAstSymbol* tuple2_con;
     NecroAstSymbol* tuple3_con;
@@ -73,7 +72,7 @@ typedef struct NecroBase
     NecroAstSymbol* uint_type;
     NecroAstSymbol* float_type;
     NecroAstSymbol* float64_type;
-    NecroAstSymbol* audio_type;
+    // NecroAstSymbol* audio_type;
     NecroAstSymbol* rational_type;
     NecroAstSymbol* char_type;
     NecroAstSymbol* bool_type;
@@ -95,7 +94,7 @@ typedef struct NecroBase
     NecroAstSymbol* array_type;
     NecroAstSymbol* range_type;
     NecroAstSymbol* index_type;
-    NecroAstSymbol* maybe_type;
+    // NecroAstSymbol* maybe_type;
     NecroAstSymbol* prim_undefined;
 
     NecroAstSymbol* pipe_forward;
@@ -106,9 +105,9 @@ typedef struct NecroBase
     // Runtime functions
     NecroAstSymbol* mouse_x_fn;
     NecroAstSymbol* mouse_y_fn;
-    NecroAstSymbol* unsafe_malloc;
-    NecroAstSymbol* unsafe_peek;
-    NecroAstSymbol* unsafe_poke;
+    // NecroAstSymbol* unsafe_malloc;
+    // NecroAstSymbol* unsafe_peek;
+    // NecroAstSymbol* unsafe_poke;
     NecroAstSymbol* print_int;
 
     NecroScopedSymTable* scoped_symtable;
@@ -116,8 +115,9 @@ typedef struct NecroBase
 } NecroBase;
 
 NecroBase       necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_symtable);
-void            necro_base_init_mach(struct NecroMachProgram* program, NecroBase* base);
 void            necro_base_destroy(NecroBase* base);
+void            necro_base_global_init();
+void            necro_base_global_cleanup();
 void            necro_base_test();
 NecroAstSymbol* necro_base_get_tuple_type(NecroBase* base, size_t num);
 NecroAstSymbol* necro_base_get_tuple_con(NecroBase* base, size_t num);

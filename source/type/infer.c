@@ -309,7 +309,14 @@ NecroResult(NecroType) necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast
     case NECRO_AST_TYPE_APP:
     {
         NecroType* left   = necro_try_result(NecroType, necro_ast_to_type_sig_go(infer, ast->type_app.ty, variable_type_order, attribute_type));
-        NecroType* right  = necro_try_result(NecroType, necro_ast_to_type_sig_go(infer, ast->type_app.next_ty, variable_type_order, attribute_type));
+
+        // Handle Share type
+        NecroAst*  left_fn = ast->type_app.ty;
+        while (left_fn->type == NECRO_AST_TYPE_APP)
+            left_fn = left_fn->type_app.ty;
+        NECRO_TYPE_ATTRIBUTE_TYPE arg_attribute_type = (left_fn->type == NECRO_AST_CONID && left_fn->conid.ast_symbol == infer->base->share_type) ? NECRO_TYPE_ATTRIBUTE_NONE : attribute_type;
+
+        NecroType* right  = necro_try_result(NecroType, necro_ast_to_type_sig_go(infer, ast->type_app.next_ty, variable_type_order, arg_attribute_type));
         // necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, left, ast->type_app.ty->source_loc, ast->type_app.ty->end_loc));
         // necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, right, ast->type_app.next_ty->source_loc, ast->type_app.next_ty->end_loc));
 
@@ -971,7 +978,11 @@ NecroResult(NecroType) necro_infer_var_initializer(NecroInfer* infer, NecroAst* 
 
 NecroResult(NecroType) necro_infer_ast_symbol_uniqueness(NecroInfer* infer, NecroAstSymbol* ast_symbol, NecroType* prev_uniqueness, NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    if (prev_uniqueness == NULL)
+    if (ast_symbol == infer->base->prim_undefined)
+    {
+        return ok(NecroType, necro_type_ownership_fresh_var(infer->arena, infer->base, scope));
+    }
+    else if (prev_uniqueness == NULL)
     {
         if (!necro_usage_is_unshared(ast_symbol->usage))
         {

@@ -762,6 +762,33 @@ void necro_core_transform_to_mach_2_var(NecroMachProgram* program, NecroCoreAst*
     }
 }
 
+void necro_core_transform_to_mach_2_primop(NecroMachProgram* program, NecroCoreAst* primop_var_ast, NecroCoreAst* app_ast, size_t arg_count, NecroMachAst* outer)
+{
+    assert(program != NULL);
+    assert(primop_var_ast != NULL);
+    assert(primop_var_ast->ast_type == NECRO_CORE_AST_VAR);
+    assert(app_ast != NULL);
+    assert(app_ast->ast_type == NECRO_CORE_AST_APP);
+    assert(outer != NULL);
+    assert(outer->type == NECRO_MACH_DEF);
+    UNUSED(arg_count);
+    const NECRO_PRIMOP_TYPE primop_type = primop_var_ast->var.ast_symbol->primop_type;
+    switch (primop_type)
+    {
+
+    case NECRO_PRIMOP_ARRAY_EMPTY:
+    {
+        NecroMachType* array_type       = necro_mach_type_from_necro_type(program, app_ast->necro_type);
+        primop_var_ast->persistent_slot = necro_mach_add_member(program, &outer->machine_def, array_type, NULL).slot_num;
+        return;
+    }
+
+    default:
+        return;
+    }
+
+}
+
 void necro_core_transform_to_mach_2_app(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
 {
     assert(program != NULL);
@@ -783,8 +810,11 @@ void necro_core_transform_to_mach_2_app(NecroMachProgram* program, NecroCoreAst*
     assert(symbol != NULL);
     NecroMachAst*       fn_value   = symbol->ast;
     NecroMachType*      fn_type    = NULL;
-    if (symbol->primop_type >  NECRO_PRIMOP_PRIM_FN)
+    if (symbol->primop_type > NECRO_PRIMOP_PRIM_FN)
+    {
+        necro_core_transform_to_mach_2_primop(program, function, core_ast, arg_count, outer);
         return;
+    }
     assert(fn_value != NULL);
     if (fn_value->type == NECRO_MACH_DEF)
     {
@@ -1117,19 +1147,57 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
 
     case NECRO_PRIMOP_UNBOXED_CON:
     {
-        // NecroArenaSnapshot snapshot  = necro_snapshot_arena_get(&program->snapshot_arena);
-        // NecroMachAst**     args      = necro_snapshot_arena_alloc(&program->snapshot_arena, arg_count * sizeof(NecroMachAst*));
         size_t             arg_index = arg_count - 1;
         NecroMachAst*      con       = necro_mach_value_create_undefined(program, necro_mach_type_from_necro_type(program, app_ast->necro_type));
         while (app_ast->ast_type == NECRO_CORE_AST_APP)
         {
-            // args[arg_index] = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
             NecroMachAst* member = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
             con                  = necro_mach_build_insert_value(program, outer->machine_def.update_fn, con, member, arg_index, "unboxed_con");
             app_ast              = app_ast->app.expr1;
             arg_index--;
         }
         return con;
+    }
+
+    case NECRO_PRIMOP_ARRAY_EMPTY:
+    {
+        assert(arg_count == 1);
+        NecroMachAst* state_ptr = necro_mach_value_get_state_ptr(outer->machine_def.update_fn);
+        NecroMachAst* array_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, state_ptr, (uint32_t[]) { 0, primop_var_ast->persistent_slot }, 2, "empty_array_ptr");
+        return array_ptr;
+    }
+
+    case NECRO_PRIMOP_ARRAY_FREEZE:
+    {
+        assert(arg_count == 1);
+        NecroMachAst* array_value = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
+        return array_value;
+    }
+
+    case NECRO_PRIMOP_ARRAY_READ:
+    {
+        assert(arg_count == 2);
+        assert(app_ast->app.expr1->ast_type == NECRO_CORE_AST_APP);
+        NecroMachAst*  index_value   = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr2, outer);
+        NecroMachAst*  array_value   = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
+        NecroMachType* elem_ptr_type = necro_mach_type_create_ptr(&program->arena, array_value->necro_machine_type->ptr_type.element_type->array_type.element_type);
+        NecroMachAst*  elem_ptr      = necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, array_value, (NecroMachAst*[]) { necro_mach_value_create_word_uint(program, 0), index_value }, 2, "elem_ptr", elem_ptr_type);
+        NecroMachAst*  elem_value    = necro_mach_build_load(program, outer->machine_def.update_fn, elem_ptr, "elem_value");
+        return elem_value;
+    }
+
+    case NECRO_PRIMOP_ARRAY_WRITE:
+    {
+        assert(arg_count == 3);
+        assert(app_ast->app.expr1->ast_type == NECRO_CORE_AST_APP);
+        assert(app_ast->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_APP);
+        NecroMachAst*  index_value   = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr1->app.expr2, outer);
+        NecroMachAst*  source_value  = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr2, outer);
+        NecroMachAst*  array_value   = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
+        NecroMachType* elem_ptr_type = necro_mach_type_create_ptr(&program->arena, array_value->necro_machine_type->ptr_type.element_type->array_type.element_type);
+        NecroMachAst*  elem_ptr      = necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, array_value, (NecroMachAst*[]) { necro_mach_value_create_word_uint(program, 0), index_value }, 2, "elem_ptr", elem_ptr_type);
+        necro_mach_build_store(program, outer->machine_def.update_fn, source_value, elem_ptr);
+        return array_value;
     }
 
     default:
@@ -3024,8 +3092,6 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Unwrap Case 2";
         const char* test_source = ""
@@ -3034,6 +3100,62 @@ void necro_mach_test()
             "  case ml of\n"
             "    Mono l -> case mr of\n"
             "      Mono r -> Stereo (#l, r#)\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Array 1";
+        const char* test_source = ""
+            "nothingInThere :: *Array 4 (Share Int)\n"
+            "nothingInThere = unsafeEmptyArray ()\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Array 2";
+        const char* test_source = ""
+            "nothingInThere :: Array 4 Int\n"
+            "nothingInThere = freezeArray (unsafeEmptyArray ())\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Array 3";
+        const char* test_source = ""
+            "somethingInThere :: Index 3 -> Array 3 (Maybe Int) -> Maybe Int\n"
+            "somethingInThere i a = readArray i a\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Array 4";
+        const char* test_source = ""
+            "somethingInThere :: Array 22 Int -> Int\n"
+            "somethingInThere a =\n"
+            "  for each 0 loop i x ->\n"
+            "    x + readArray i a\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Array 5";
+        const char* test_source = ""
+            "somethingInThere :: Array 33 Int\n"
+            "somethingInThere =\n"
+            "  freezeArray (for each (unsafeEmptyArray ()) loop i a ->\n"
+            "    writeArray i (Share 22) a)\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);

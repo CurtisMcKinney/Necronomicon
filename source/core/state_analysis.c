@@ -11,6 +11,7 @@
 #include "monomorphize.h"
 #include "lambda_lift.h"
 #include "alias_analysis.h"
+#include "core_simplify.h"
 #include "defunctionalization.h"
 
 typedef struct NecroCoreAstSymbolBucket
@@ -926,6 +927,7 @@ void necro_state_analysis_test_string(const char* test_name, const char* str)
     unwrap(void, necro_monomorphize(info, &intern, &scoped_symtable, &base, &ast));
     unwrap(void, necro_ast_transform_to_core(info, &intern, &base, &ast, &core_ast));
     unwrap(void, necro_core_infer(&intern, &base, &core_ast));
+    necro_core_ast_pre_simplify(info, &intern, &base, &core_ast);
     necro_core_lambda_lift(info, &intern, &base, &core_ast);
     necro_core_defunctionalize(info, &intern, &base, &core_ast);
     necro_core_state_analysis(info, &intern, &base, &core_ast);
@@ -1122,8 +1124,6 @@ void necro_state_analysis_test()
         necro_state_analysis_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Unboxed Type Function Parameter";
         const char* test_source = ""
@@ -1134,6 +1134,17 @@ void necro_state_analysis_test()
         necro_state_analysis_test_string(test_name, test_source);
     }
 
+*/
+
+    {
+        const char* test_name   = "Emptiness";
+        const char* test_source = ""
+            "nothingInThere :: *Array 4 (Share Int)\n"
+            "nothingInThere = unsafeEmptyArray ()\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_state_analysis_test_string(test_name, test_source);
+    }
 
 /*
 

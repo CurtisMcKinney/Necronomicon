@@ -2328,8 +2328,6 @@ void necro_llvm_test()
         necro_llvm_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Struct64 2";
         const char* test_source = ""
@@ -2338,6 +2336,20 @@ void necro_llvm_test()
             "commodore64 c =\n"
             "  case c of\n"
             "    Commodore64 x y -> let z = x * y in Commodore64 z z\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Array 5";
+        const char* test_source = ""
+            "somethingInThere :: Array 33 Int\n"
+            "somethingInThere =\n"
+            "  freezeArray (for each (unsafeEmptyArray ()) loop i a ->\n"
+            "    writeArray i (Share 22) a)\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_llvm_test_string(test_name, test_source);

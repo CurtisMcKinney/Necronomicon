@@ -96,6 +96,7 @@ typedef struct NecroBase
     NecroAstSymbol* index_type;
     // NecroAstSymbol* maybe_type;
     NecroAstSymbol* prim_undefined;
+    NecroAstSymbol* block_size_type;
 
     NecroAstSymbol* pipe_forward;
     NecroAstSymbol* pipe_back;

@@ -80,8 +80,9 @@ NecroCoreAst* necro_core_ast_pre_simplify_var(NecroCorePreSimplify* context, Nec
     }
     else
     {
-        ast                       = necro_core_ast_pre_simplify_inline_wrapper_types(context, ast);
-        ast->var.ast_symbol->type = ast->necro_type;
+        ast = necro_core_ast_pre_simplify_inline_wrapper_types(context, ast);
+        if (!ast->var.ast_symbol->is_constructor && !ast->var.ast_symbol->is_primitive)
+            ast->var.ast_symbol->type = ast->necro_type;
         return ast;
     }
 }
@@ -136,8 +137,9 @@ NecroCoreAst* necro_core_ast_pre_simplify_pat(NecroCorePreSimplify* context, Nec
         switch (ast->ast_type)
         {
         case NECRO_CORE_AST_VAR:
-            ast                       = necro_core_ast_pre_simplify_inline_wrapper_types(context, ast);
-            ast->var.ast_symbol->type = ast->necro_type;
+            ast = necro_core_ast_pre_simplify_inline_wrapper_types(context, ast);
+            if (!ast->var.ast_symbol->is_constructor && !ast->var.ast_symbol->is_primitive)
+                ast->var.ast_symbol->type = ast->necro_type;
             break;
         case NECRO_CORE_AST_LIT:
         {
@@ -564,6 +566,7 @@ NecroType* necro_type_inline_wrapper_types(NecroPagedArena* arena, NecroBase* ba
             unwrap(NecroType, necro_kind_infer(arena, base, this_con, NULL_LOC, NULL_LOC));
             unwrap(NecroType, necro_type_unify(arena, NULL, base, data_con_inst, this_con, NULL));
             return necro_type_inline_wrapper_types(arena, base, necro_type_deep_copy(arena, necro_type_find(arg_type)));
+            // return necro_type_deep_copy(arena, necro_type_find(arg_type));
         }
         else if (type->con.con_symbol == base->share_type)
         {
@@ -946,22 +949,6 @@ void necro_core_ast_pre_simplify_test()
     }
 
     {
-        const char* test_name   = "Mono Test";
-        const char* test_source = ""
-            "instance Audio Mono where\n"
-            "  pureAudio c = Mono c\n"
-            "instance Audio Stereo where\n"
-            "  pureAudio c = Stereo (#c, c#)\n"
-            "coolMono :: Mono\n"
-            "coolMono = pureAudio (BlockRate 1.0)\n"
-            "coolStereo :: Stereo\n"
-            "coolStereo = pureAudio (BlockRate 1.0)\n"
-            "main :: *World -> *World\n"
-            "main w = w\n";
-        necro_core_ast_pre_simplfy_test(test_name, test_source);
-    }
-
-    {
         const char* test_name   = "Unwrap Case 1";
         const char* test_source = ""
             "x :: Channel\n"
@@ -1134,13 +1121,97 @@ void necro_core_ast_pre_simplify_test()
         necro_core_ast_pre_simplfy_test(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Inline lambda";
         const char* test_source = ""
             "x :: Maybe Int\n"
             "x = (\\ff xx -> ff xx) Just 0\n";
+        necro_core_ast_pre_simplfy_test(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Maybe Maybe";
+        const char* test_source = ""
+            "hateBearStare :: Maybe (Maybe Bool) -> Bool\n"
+            "hateBearStare m =\n"
+            "  case m of\n"
+            "    Just (Just x) -> x\n"
+            "    _             -> False\n";
+        necro_core_ast_pre_simplfy_test(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Panic";
+        const char* test_source = ""
+            "panic :: Stereo\n"
+            "panic = panStereo 0.25 (440 * 33)\n";
+        necro_core_ast_pre_simplfy_test(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Sharing Is Caring";
+        const char* test_source = ""
+            "sharingIsCaring2 :: *Share a -> a\n"
+            "sharingIsCaring2 s =\n"
+            "  case s of\n"
+            "    Share x -> x\n"
+            "\n"
+            "careBearStare :: *Maybe (Share Bool) -> Bool\n"
+            "careBearStare m =\n"
+            "  case m of\n"
+            "    Nothing -> False\n"
+            "    Just s  -> sharingIsCaring2 s\n";
+        necro_core_ast_pre_simplfy_test(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "FreezeFrame";
+        const char* test_source = ""
+            "thawFrame :: *Array 4 (Share Int)\n"
+            "thawFrame = unsafeEmptyArray ()\n"
+            "\n"
+            "freezeFrame :: Array 4 Int\n"
+            "freezeFrame = freezeArray thawFrame\n";
+        necro_core_ast_pre_simplfy_test(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Reading Rainbow";
+        const char* test_source = ""
+            "readingRainbow :: Array 4 Mono -> Mono\n"
+            "readingRainbow a =\n"
+            "  for each 0 loop i x ->\n"
+            "    readArray i a + x\n";
+        necro_core_ast_pre_simplfy_test(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Decomposing";
+        const char* test_source = ""
+            "composition :: *Array 4 (Share Int)\n"
+            "composition =\n"
+            "  for each (unsafeEmptyArray ()) loop i a ->\n"
+            "    writeArray i (Share 0) a\n";
+        necro_core_ast_pre_simplfy_test(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Bifurcated";
+        const char* test_source = ""
+            "bifurcated :: Array 16 F64\n"
+            "bifurcated = freezeArray a\n"
+            "  where\n"
+            "    emptyA = unsafeEmptyArray ()\n"
+            "    a      =\n"
+            "      case True of\n"
+            "        True ->\n"
+            "          for each emptyA loop i a' ->\n"
+            "            writeArray i (Share 33) a'\n"
+            "        False ->\n"
+            "          for each emptyA loop i a' ->\n"
+            "            writeArray i (Share 22) a'\n";
         necro_core_ast_pre_simplfy_test(test_name, test_source);
     }
 
@@ -1152,8 +1223,6 @@ void necro_core_ast_pre_simplify_test()
     //     necro_core_ast_pre_simplfy_test(test_name, test_source);
     // }
 
-/*
-
     // TODO: Finish!
     // {
     //     const char* test_name   = "Unwrap 11";
@@ -1162,6 +1231,8 @@ void necro_core_ast_pre_simplify_test()
     //         "instance Num Time' where\n";
     //     necro_core_ast_pre_simplfy_test(test_name, test_source);
     // }
+
+/*
 
 */
 

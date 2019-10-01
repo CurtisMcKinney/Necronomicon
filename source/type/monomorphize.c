@@ -227,6 +227,13 @@ NecroAstSymbol* necro_ast_specialize(NecroMonomorphize* monomorphize, NecroAstSy
     // Deep Copy Ast
     //--------------------
     specialized_ast_symbol                        = necro_ast_symbol_create(monomorphize->arena, specialized_name, specialized_name, monomorphize->ast_arena->module_name, NULL);
+    specialized_ast_symbol->is_constructor        = ast_symbol->is_constructor;
+    specialized_ast_symbol->is_wrapper            = ast_symbol->is_wrapper;
+    specialized_ast_symbol->is_enum               = ast_symbol->is_enum;
+    specialized_ast_symbol->is_primitive          = ast_symbol->is_primitive;
+    specialized_ast_symbol->is_recursive          = ast_symbol->is_recursive;
+    specialized_ast_symbol->is_unboxed            = ast_symbol->is_unboxed;
+    specialized_ast_symbol->primop_type           = ast_symbol->primop_type;
     specialized_ast_symbol->declaration_group     = new_declaration;
     specialized_ast_symbol->ast                   = necro_ast_deep_copy_go(monomorphize->arena, new_declaration, ast_symbol->ast);
     new_declaration->declaration.declaration_impl = specialized_ast_symbol->ast;

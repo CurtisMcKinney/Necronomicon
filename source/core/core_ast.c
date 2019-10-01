@@ -665,8 +665,14 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_for_loop(NecroCoreAstTrans
     assert(range_init->necro_type->type == NECRO_TYPE_CON);
     assert(range_init->necro_type->con.con_symbol == context->base->range_type);
     assert(range_init->necro_type->con.args != NULL);
-    assert(range_init->necro_type->con.args->list.item->type == NECRO_TYPE_NAT);
-    const size_t  max_loops  = range_init->necro_type->con.args->list.item->nat.value;
+    size_t max_loops = 0;
+    NecroType* n = range_init->necro_type->con.args->list.item;
+    if (n->type == NECRO_TYPE_NAT)
+        max_loops = n->nat.value;
+    else if (n->type == NECRO_TYPE_CON && n->con.con_symbol == context->base->block_size_type)
+        max_loops = 512; // TODO: Feed block size into here
+    else
+        assert(false);
     NecroCoreAst* core_ast   = necro_core_ast_create_for_loop(context->arena, max_loops, range_init, value_init, index_arg, value_arg, expression);
     return ok(NecroCoreAst, core_ast);
 }

@@ -867,10 +867,7 @@ NecroMachAst* necro_mach_build_call(NecroMachProgram* program, NecroMachAst* fn_
     assert(program != NULL);
     assert(fn_def != NULL);
     assert(fn_def->type == NECRO_MACH_FN_DEF);
-    // type_check
     NecroMachType* fn_value_type = fn_value_ast->necro_machine_type;
-    // if (fn_value_type->type == NECRO_MACH_TYPE_PTR && fn_value_type->ptr_type.element_type->type == NECRO_MACH_TYPE_FN)
-    //     fn_value_type = fn_value_type->ptr_type.element_type;
     assert(fn_value_ast->type == NECRO_MACH_VALUE);
     assert(fn_value_type->type == NECRO_MACH_TYPE_FN);
     assert(fn_value_type->fn_type.num_parameters == num_parameters);
@@ -896,6 +893,37 @@ NecroMachAst* necro_mach_build_call(NecroMachProgram* program, NecroMachAst* fn_
     assert(ast->call.result_reg->type == NECRO_MACH_VALUE);
     assert(ast->call.result_reg->value.value_type == NECRO_MACH_VALUE_REG || ast->call.result_reg->value.value_type == NECRO_MACH_VALUE_VOID);
     return ast->call.result_reg;
+}
+
+NecroMachAst* necro_mach_build_call_intrinsic(NecroMachProgram* program, NecroMachAst* fn_def, NECRO_PRIMOP_TYPE intrinsic, NecroMachType* intrinsic_type, NecroMachAst** a_parameters, size_t num_parameters, const char* dest_name)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACH_FN_DEF);
+    assert(intrinsic_type->type == NECRO_MACH_TYPE_FN);
+    assert(intrinsic_type->fn_type.num_parameters == num_parameters);
+    for (size_t i = 0; i < num_parameters; i++)
+    {
+        necro_mach_type_check(program, intrinsic_type->fn_type.parameters[i], a_parameters[i]->necro_machine_type);
+    }
+    NecroMachAst* ast                  = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
+    ast->type                          = NECRO_MACH_CALLI;
+    ast->call_intrinsic.intrinsic      = intrinsic;
+    ast->call_intrinsic.intrinsic_type = intrinsic_type;
+    NecroMachAst** parameters          = necro_paged_arena_alloc(&program->arena, num_parameters * sizeof(NecroMachAst*));
+    memcpy(parameters, a_parameters, num_parameters * sizeof(NecroMachAst*));
+    ast->call_intrinsic.parameters     = parameters;
+    ast->call_intrinsic.num_parameters = num_parameters;
+    if (intrinsic_type->fn_type.return_type->type == NECRO_MACH_TYPE_VOID)
+        ast->call_intrinsic.result_reg = necro_mach_value_create(program, (NecroMachValue) { .value_type = NECRO_MACH_VALUE_VOID }, intrinsic_type->fn_type.return_type);
+    else
+        ast->call_intrinsic.result_reg = necro_mach_value_create_reg(program, intrinsic_type->fn_type.return_type, dest_name);
+    ast->necro_machine_type = intrinsic_type->fn_type.return_type;
+
+    necro_mach_block_add_statement(program, fn_def->fn_def._curr_block, ast);
+    assert(ast->call_intrinsic.result_reg->type == NECRO_MACH_VALUE);
+    assert(ast->call_intrinsic.result_reg->value.value_type == NECRO_MACH_VALUE_REG || ast->call_intrinsic.result_reg->value.value_type == NECRO_MACH_VALUE_VOID);
+    return ast->call_intrinsic.result_reg;
 }
 
 NecroMachAst* necro_mach_build_binop(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* left, NecroMachAst* right, NECRO_PRIMOP_TYPE op_type)
@@ -1474,6 +1502,36 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         mach_symbol->is_primitive           = true;
         NecroMachType*      fn_type         = necro_mach_type_create_fn(&program->arena, program->type_cache.void_type, (NecroMachType*[]) { necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_uint8(program)) }, 1);
         program->runtime.necro_runtime_free = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_free, NECRO_STATE_POINTWISE)->fn_def.symbol;
+    }
+
+    // outAudioBlock
+    {
+        NecroAstSymbol*     ast_symbol                 = program->base->out_audio_block;
+        ast_symbol->is_primitive                       = true;
+        ast_symbol->core_ast_symbol->is_primitive      = true;
+        NecroMachAstSymbol* mach_symbol                = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
+        mach_symbol->is_primitive                      = true;
+        NecroMachType*      audio_block_type           = necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_array(&program->arena, program->type_cache.f64_type, necro_runtime_get_block_size()));
+        NecroMachType*      fn_type                    = necro_mach_type_create_fn(&program->arena, program->type_cache.word_uint_type, (NecroMachType*[]) { program->type_cache.word_uint_type, audio_block_type, program->type_cache.word_uint_type }, 3);
+        program->runtime.necro_runtime_out_audio_block = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_out_audio_block, NECRO_STATE_STATEFUL)->fn_def.symbol;
+    }
+
+    // fast_floor
+    {
+        NecroAstSymbol*     ast_symbol            = program->base->fast_floor;
+        ast_symbol->is_primitive                  = true;
+        ast_symbol->core_ast_symbol->is_primitive = true;
+        NecroMachAstSymbol* mach_symbol           = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
+        mach_symbol->is_primitive                 = true;
+    }
+
+    // fma
+    {
+        NecroAstSymbol*     ast_symbol            = program->base->fma;
+        ast_symbol->is_primitive                  = true;
+        ast_symbol->core_ast_symbol->is_primitive = true;
+        NecroMachAstSymbol* mach_symbol           = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
+        mach_symbol->is_primitive                 = true;
     }
 
     // TODO: Audio

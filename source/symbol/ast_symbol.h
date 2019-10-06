@@ -52,8 +52,10 @@ typedef enum
 {
     NECRO_PRIMOP_NONE    = 0,
     NECRO_PRIMOP_PRIM_FN = 1,
+    NECRO_PRIMOP_PRIM_VAL,
 
     NECRO_PRIMOP_UNBOXED_CON,
+    NECRO_PRIMOP_PROJ,
 
     NECRO_PRIMOP_UOP_IABS,
     NECRO_PRIMOP_UOP_UABS,
@@ -87,8 +89,6 @@ typedef enum
     NECRO_PRIMOP_BINOP_SHL,
     NECRO_PRIMOP_BINOP_SHR,
 
-    NECRO_PRIMOP_TRIOP_FMA, // TODO!
-
     NECRO_PRIMOP_CMP_EQ,
     NECRO_PRIMOP_CMP_NE,
     NECRO_PRIMOP_CMP_GT,
@@ -100,6 +100,8 @@ typedef enum
     NECRO_PRIMOP_ARRAY_FREEZE,
     NECRO_PRIMOP_ARRAY_READ,
     NECRO_PRIMOP_ARRAY_WRITE,
+
+    NECRO_PRIMOP_INTR_FMA,
 
 } NECRO_PRIMOP_TYPE;
 
@@ -168,6 +170,7 @@ typedef struct NecroCoreAstSymbol
     bool                       is_unboxed;
     bool                       is_wrapper;
     bool                       is_deep_copy_fn;
+    bool                       is_wildcard;
 } NecroCoreAstSymbol;
 
 NecroCoreAstSymbol* necro_core_ast_symbol_create(NecroPagedArena* core_ast_arena, NecroSymbol name, struct NecroType* type);

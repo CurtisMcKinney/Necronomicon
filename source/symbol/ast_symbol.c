@@ -128,6 +128,7 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create(NecroPagedArena* core_ast_arena
     core_ast_symbol->arity              = 0;
     core_ast_symbol->deep_copy_fn       = NULL;
     core_ast_symbol->is_deep_copy_fn    = false;
+    core_ast_symbol->is_wildcard        = false;
     core_ast_symbol->primop_type        = NECRO_PRIMOP_NONE;
     return core_ast_symbol;
 }
@@ -159,6 +160,7 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create_from_ast_symbol(NecroPagedArena
     core_ast_symbol->outer              = NULL;
     core_ast_symbol->deep_copy_fn       = NULL;
     core_ast_symbol->is_deep_copy_fn    = false;
+    core_ast_symbol->is_wildcard        = false;
     core_ast_symbol->primop_type        = ast_symbol->primop_type = ast_symbol->primop_type;
     return core_ast_symbol;
 }
@@ -187,6 +189,7 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create_by_renaming(NecroPagedArena* co
     core_ast_symbol->arity              = ast_symbol->arity;
     core_ast_symbol->deep_copy_fn       = NULL;
     core_ast_symbol->is_deep_copy_fn    = false;
+    core_ast_symbol->is_wildcard        = ast_symbol->is_wildcard;
     core_ast_symbol->primop_type        = ast_symbol->primop_type;
     return core_ast_symbol;
 }

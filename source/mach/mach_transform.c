@@ -15,6 +15,7 @@
 #include <ctype.h>
 #include "core/state_analysis.h"
 #include "mach_case.h"
+#include "runtime.h"
 
 
 /*
@@ -1027,11 +1028,27 @@ NecroMachAst* necro_core_transform_to_mach_3_var(NecroMachProgram* program, Necr
     // Primitive
     else if (symbol->is_primitive)
     {
-        assert(symbol->ast != NULL);
-        if (symbol->ast->type == NECRO_MACH_FN_DEF)
+        if (symbol->primop_type == NECRO_PRIMOP_PRIM_VAL)
+        {
+            // TODO: Better place to put this!?
+            if (symbol == program->base->sample_rate->core_ast_symbol->mach_symbol)
+                return necro_mach_value_create_word_uint(program, necro_runtime_get_sample_rate());
+            else if (symbol == program->base->recip_sample_rate->core_ast_symbol->mach_symbol)
+                return necro_mach_value_create_f64(program, 1.0 / ((double)necro_runtime_get_sample_rate()));
+            else
+                assert(false);
+            return NULL;
+        }
+        else if (symbol->ast->type == NECRO_MACH_FN_DEF)
+        {
+            assert(symbol->ast != NULL);
             return symbol->ast->fn_def.fn_value;
+        }
         else
+        {
+            assert(symbol->ast != NULL);
             return symbol->ast;
+        }
     }
     //--------------------
     // Constructor
@@ -1089,6 +1106,25 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     const NECRO_PRIMOP_TYPE primop_type = primop_var_ast->var.ast_symbol->primop_type;
     switch (primop_type)
     {
+    case NECRO_PRIMOP_UOP_IABS:
+    case NECRO_PRIMOP_UOP_UABS:
+    case NECRO_PRIMOP_UOP_FABS:
+    case NECRO_PRIMOP_UOP_ISGN:
+    case NECRO_PRIMOP_UOP_USGN:
+    case NECRO_PRIMOP_UOP_FSGN:
+    case NECRO_PRIMOP_UOP_ITOI:
+    case NECRO_PRIMOP_UOP_ITOU:
+    case NECRO_PRIMOP_UOP_ITOF:
+    case NECRO_PRIMOP_UOP_UTOI:
+    case NECRO_PRIMOP_UOP_FTRI:
+    case NECRO_PRIMOP_UOP_FRNI:
+    case NECRO_PRIMOP_UOP_FTOF:
+    case NECRO_PRIMOP_UOP_FFLR:
+    {
+        assert(arg_count == 1);
+        NecroMachAst* param = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
+        return necro_mach_build_uop(program, outer->machine_def.update_fn, param, necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, app_ast->necro_type)), primop_type);
+    }
     case NECRO_PRIMOP_BINOP_IADD:
     case NECRO_PRIMOP_BINOP_ISUB:
     case NECRO_PRIMOP_BINOP_IMUL:
@@ -1111,24 +1147,6 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         NecroMachAst* left  = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr2, outer);
         NecroMachAst* right = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
         return necro_mach_build_binop(program, outer->machine_def.update_fn, left, right, primop_type);
-    }
-    case NECRO_PRIMOP_UOP_IABS:
-    case NECRO_PRIMOP_UOP_UABS:
-    case NECRO_PRIMOP_UOP_FABS:
-    case NECRO_PRIMOP_UOP_ISGN:
-    case NECRO_PRIMOP_UOP_USGN:
-    case NECRO_PRIMOP_UOP_FSGN:
-    case NECRO_PRIMOP_UOP_ITOI:
-    case NECRO_PRIMOP_UOP_ITOU:
-    case NECRO_PRIMOP_UOP_ITOF:
-    case NECRO_PRIMOP_UOP_UTOI:
-    case NECRO_PRIMOP_UOP_FTRI:
-    case NECRO_PRIMOP_UOP_FRNI:
-    case NECRO_PRIMOP_UOP_FTOF:
-    {
-        assert(arg_count == 1);
-        NecroMachAst* param = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
-        return necro_mach_build_uop(program, outer->machine_def.update_fn, param, necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, app_ast->necro_type)), primop_type);
     }
     case NECRO_PRIMOP_CMP_EQ:
     case NECRO_PRIMOP_CMP_NE:
@@ -1157,6 +1175,25 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
             arg_index--;
         }
         return con;
+    }
+
+    case NECRO_PRIMOP_PROJ:
+    {
+        assert(arg_count == 2);
+        assert(app_ast->app.expr1->ast_type == NECRO_CORE_AST_APP);
+        NecroMachAst* con_value   = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr2, outer);
+        NecroCoreAst* index_value = app_ast->app.expr2;
+        assert(index_value->ast_type == NECRO_CORE_AST_LIT);
+        assert(index_value->lit.type == NECRO_AST_CONSTANT_INTEGER);
+        if (necro_mach_type_is_unboxed)
+        {
+            return necro_mach_build_extract_value(program, outer->machine_def.update_fn, con_value, (size_t) index_value->lit.int_literal, "proj");
+        }
+        else
+        {
+            NecroMachAst* slot_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, con_value, (uint32_t[]) { 0, (uint32_t) (index_value->lit.int_literal + 1) }, 2, "slot_ptr");
+            return necro_mach_build_load(program, outer->machine_def.update_fn, slot_ptr, "proj");
+        }
     }
 
     case NECRO_PRIMOP_ARRAY_EMPTY:
@@ -1198,6 +1235,24 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         NecroMachAst*  elem_ptr      = necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, array_value, (NecroMachAst*[]) { necro_mach_value_create_word_uint(program, 0), index_value }, 2, "elem_ptr", elem_ptr_type);
         necro_mach_build_store(program, outer->machine_def.update_fn, source_value, elem_ptr);
         return array_value;
+    }
+
+    case NECRO_PRIMOP_INTR_FMA:
+    {
+        NecroArenaSnapshot snapshot  = necro_snapshot_arena_get(&program->snapshot_arena);
+        NecroMachAst**     args      = necro_snapshot_arena_alloc(&program->snapshot_arena, arg_count * sizeof(NecroMachAst*));
+        size_t             arg_index = arg_count - 1;
+        NecroCoreAst*      function  = app_ast;
+        while (function->ast_type == NECRO_CORE_AST_APP)
+        {
+            args[arg_index] = necro_core_transform_to_mach_3_go(program, function->app.expr2, outer);
+            function        = function->app.expr1;
+            arg_index--;
+        }
+        NecroMachType*     call_type = necro_mach_type_from_necro_type(program, function->necro_type);
+        NecroMachAst*      result    = necro_mach_build_call_intrinsic(program, outer->machine_def.update_fn, primop_type, call_type, args, arg_count, "intr");
+        necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
+        return result;
     }
 
     default:
@@ -1720,7 +1775,7 @@ void necro_mach_test_string(const char* test_name, const char* str)
     NecroCoreAstArena   core_ast        = necro_core_ast_arena_empty();
     NecroMachProgram    mach_program    = necro_mach_program_empty();
     NecroCompileInfo    info            = necro_test_compile_info();
-    info.verbosity = 2;
+    // info.verbosity = 2;
 
     //--------------------
     // Compile
@@ -3069,18 +3124,6 @@ void necro_mach_test()
     }
 
     {
-        const char* test_name   = "Mono Test";
-        const char* test_source = ""
-            "instance Audio Mono where\n"
-            "  pureAudio c = Mono c\n"
-            "instance Audio Stereo where\n"
-            "  pureAudio c = Stereo (#c, c#)\n"
-            "main :: *World -> *World\n"
-            "main w = w\n";
-        necro_mach_test_string(test_name, test_source);
-    }
-
-    {
         const char* test_name   = "Simplify Case 1";
         const char* test_source = ""
             "goAway :: Int\n"
@@ -3147,8 +3190,6 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Array 5";
         const char* test_source = ""
@@ -3161,7 +3202,23 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
+*/
+
+    // TODO: |> isn't getting filtered out somewhow!?!?!
+
+    {
+        const char* test_name   = "Audio 1";
+        const char* test_source = ""
+            "coolSaw :: Mono\n"
+            "coolSaw = sawOsc 440\n"
+            "main :: *World -> *World\n"
+            "main w = outAudio 0 coolSaw w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
     // TODO: Test I64 and F64 stored in Structs!
+
+/*
 
     // {
     //     const char* test_name   = "Wrapper 1";
@@ -3172,8 +3229,6 @@ void necro_mach_test()
     //         "main w = w\n";
     //     necro_mach_test_string(test_name, test_source);
     // }
-
-/*
 
     {
         const char* test_name   = "Undersaturate 1";

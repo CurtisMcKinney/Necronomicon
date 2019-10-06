@@ -441,6 +441,7 @@ bool necro_llvm_type_is_unboxed(NecroLLVM* context, LLVMTypeRef type)
 // Forward Declarations
 ///////////////////////////////////////////////////////
 LLVMValueRef necro_llvm_codegen_call(NecroLLVM* context, NecroMachAst* ast);
+LLVMValueRef necro_llvm_codegen_call_intrinsic(NecroLLVM* context, NecroMachAst* ast);
 
 
 ///////////////////////////////////////////////////////
@@ -687,8 +688,19 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
             value = param;
         break;
     }
-    // case NECRO_PRIMOP_UOP_FFLR:
-    //     value = LLVMBuildIntrin
+    case NECRO_PRIMOP_UOP_FFLR:
+    {
+        param                              = LLVMBuildFSub(context->builder, param, LLVMConstReal(LLVMDoubleTypeInContext(context->context), 0.5), "ffloor_sub");
+        NecroLLVMSymbol* fast_floor_symbol = necro_llvm_symbol_get(&context->arena, context->base->fast_floor->core_ast_symbol->mach_symbol);
+        if (fast_floor_symbol->value == NULL)
+        {
+            fast_floor_symbol->type  = LLVMFunctionType(LLVMDoubleTypeInContext(context->context), (LLVMTypeRef[]) { LLVMDoubleTypeInContext(context->context) }, 1, false);
+            fast_floor_symbol->value = LLVMAddFunction(context->mod, "llvm.nearbyint.f64", fast_floor_symbol->type);
+        }
+        value = LLVMBuildCall(context->builder, fast_floor_symbol->value, (LLVMValueRef[]) { param }, 1, name);
+        LLVMSetInstructionCallConv(value, LLVMGetFunctionCallConv(fast_floor_symbol->value));
+        break;
+    }
 
     default:
         assert(false);
@@ -910,6 +922,7 @@ LLVMValueRef necro_llvm_codegen_block_statement(NecroLLVM* codegen, NecroMachAst
     case NECRO_MACH_BINOP:         return necro_llvm_codegen_binop(codegen, ast);
     case NECRO_MACH_UOP:           return necro_llvm_codegen_uop(codegen, ast);
     case NECRO_MACH_CALL:          return necro_llvm_codegen_call(codegen, ast);
+    case NECRO_MACH_CALLI:         return necro_llvm_codegen_call_intrinsic(codegen, ast);
 
     // Not currently supported
     // case NECRO_MACH_NALLOC:   return necro_llvm_codegen_nalloc(codegen, ast);
@@ -1021,6 +1034,60 @@ LLVMValueRef necro_llvm_codegen_call(NecroLLVM* context, NecroMachAst* ast)
     if (!is_void)
     {
         NecroLLVMSymbol* symbol = necro_llvm_symbol_get(&context->arena, ast->call.result_reg->value.reg_symbol);
+        symbol->type            = LLVMTypeOf(result);
+        symbol->value           = result;
+        necro_llvm_codegen_delayed_phi_node(context, symbol);
+    }
+    // necro_snapshot_arena_rewind(&context->snapshot_arena, snapshot);
+    return result;
+}
+
+LLVMValueRef necro_llvm_codegen_call_intrinsic(NecroLLVM* context, NecroMachAst* ast)
+{
+    assert(context != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_MACH_CALLI);
+    // NecroArenaSnapshot snapshot    = necro_snapshot_arena_get(&context->snapshot_arena);
+    bool               is_void     = ast->call_intrinsic.result_reg->value.value_type == NECRO_MACH_VALUE_VOID;
+    const char*        result_name = NULL;
+    if (!is_void)
+        result_name = ast->call_intrinsic.result_reg->value.reg_symbol->name->str;
+    else
+        result_name = "";
+
+    LLVMValueRef fn_value = NULL;
+    LLVMTypeRef  fn_type  = NULL;
+    switch (ast->call_intrinsic.intrinsic)
+    {
+    case NECRO_PRIMOP_INTR_FMA:
+    {
+        NecroLLVMSymbol* fma_symbol = necro_llvm_symbol_get(&context->arena, context->base->fma->core_ast_symbol->mach_symbol);
+        if (fma_symbol->value == NULL)
+        {
+            fma_symbol->type  = LLVMFunctionType(LLVMDoubleTypeInContext(context->context), (LLVMTypeRef[]) { LLVMDoubleTypeInContext(context->context), LLVMDoubleTypeInContext(context->context), LLVMDoubleTypeInContext(context->context) }, 3, false);
+            fma_symbol->value = LLVMAddFunction(context->mod, "llvm.fmuladd.f64", fma_symbol->type);
+        }
+        fn_value = fma_symbol->value;
+        fn_type  = fma_symbol->type;
+        break;
+    }
+    }
+    size_t        num_params  = ast->call_intrinsic.num_parameters;
+    // // LLVMValueRef* params      = necro_snapshot_arena_alloc(&context->snapshot_arena, num_params * sizeof(LLVMValueRef));
+    // // LLVMTypeRef*  param_types = necro_snapshot_arena_alloc(&context->snapshot_arena, num_params * sizeof(LLVMTypeRef));
+    LLVMValueRef* params      = necro_paged_arena_alloc(&context->arena, num_params * sizeof(LLVMValueRef));
+    LLVMTypeRef*  param_types = necro_paged_arena_alloc(&context->arena, num_params * sizeof(LLVMTypeRef));
+    LLVMGetParamTypes(fn_type, param_types);
+    for (size_t i = 0; i < num_params; ++i)
+    {
+        params[i] = necro_llvm_codegen_value(context, ast->call_intrinsic.parameters[i]);
+    }
+    assert(num_params <= UINT32_MAX);
+    LLVMValueRef result = LLVMBuildCall(context->builder, fn_value, params, (uint32_t) num_params, result_name);
+    LLVMSetInstructionCallConv(result, LLVMFastCallConv);
+    if (!is_void)
+    {
+        NecroLLVMSymbol* symbol = necro_llvm_symbol_get(&context->arena, ast->call_intrinsic.result_reg->value.reg_symbol);
         symbol->type            = LLVMTypeOf(result);
         symbol->value           = result;
         necro_llvm_codegen_delayed_phi_node(context, symbol);
@@ -1153,6 +1220,7 @@ void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroL
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_is_done);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_alloc);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_free);
+    necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_out_audio_block);
 
     // Write assembly to file
     /*
@@ -2341,8 +2409,6 @@ void necro_llvm_test()
         necro_llvm_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Array 5";
         const char* test_source = ""
@@ -2352,6 +2418,18 @@ void necro_llvm_test()
             "    writeArray i (Share 22) a)\n"
             "main :: *World -> *World\n"
             "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Audio 1";
+        const char* test_source = ""
+            "coolSaw :: Mono\n"
+            "coolSaw = sawOsc 440\n"
+            "main :: *World -> *World\n"
+            "main w = outAudio 0 coolSaw w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -2702,8 +2780,6 @@ void necro_llvm_test_jit()
         necro_llvm_jit_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Unboxed Case 4";
         const char* test_source = ""
@@ -2713,6 +2789,18 @@ void necro_llvm_test_jit()
             "main w =\n"
             "  case muddyTheWaters 333 of\n"
             "    (#x, y, _#) -> printInt x (printInt y w)\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Audio 1";
+        const char* test_source = ""
+            "coolSaw :: Mono\n"
+            "coolSaw = sawOsc 440\n"
+            "main :: *World -> *World\n"
+            "main w = outAudio 0 coolSaw w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 

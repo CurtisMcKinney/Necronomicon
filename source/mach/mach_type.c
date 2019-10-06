@@ -8,6 +8,7 @@
 #include "core_ast.h"
 #include "mach_transform.h"
 #include "kind.h"
+#include "runtime.h"
 #include <ctype.h>
 
 ///////////////////////////////////////////////////////
@@ -138,7 +139,14 @@ NecroMachType* _necro_mach_type_from_necro_type_poly_con(NecroMachProgram* progr
     // Handle Primitively polymorphic types
     if (type->con.con_symbol == program->base->array_type)
     {
-        size_t         element_count      = type->con.args->list.item->nat.value;
+        NecroType* n             = type->con.args->list.item;
+        size_t     element_count = 0; //type->con.args->list.item->nat.value;
+        if (n->type == NECRO_TYPE_NAT)
+            element_count = n->nat.value;
+        else if (n->type == NECRO_TYPE_CON && n->con.con_symbol == program->base->block_size_type)
+            element_count = necro_runtime_get_block_size();
+        else
+            assert(false);
         NecroType*     element_necro_type = type->con.args->list.next->list.item;
         NecroMachType* element_mach_type  = necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, element_necro_type));
         return necro_mach_type_create_array(&program->arena, element_mach_type, element_count);
@@ -731,6 +739,20 @@ void necro_mach_ast_type_check_call(NecroMachProgram* program, NecroMachAst* ast
     }
 }
 
+void necro_mach_ast_type_check_call_intrinsic(NecroMachProgram* program, NecroMachAst* ast)
+{
+    assert(program != NULL);
+    assert(ast->type == NECRO_MACH_CALLI);
+    NecroMachType* fn_value_type = ast->call_intrinsic.intrinsic_type;
+    assert(fn_value_type->type == NECRO_MACH_TYPE_FN);
+    assert(fn_value_type->fn_type.num_parameters == ast->call_intrinsic.num_parameters);
+    for (size_t i = 0; i < ast->call_intrinsic.num_parameters; i++)
+    {
+        necro_mach_ast_type_check(program, ast->call_intrinsic.parameters[i]);
+        necro_mach_type_check(program, fn_value_type->fn_type.parameters[i], ast->call_intrinsic.parameters[i]->necro_machine_type);
+    }
+}
+
 void necro_mach_ast_type_check_load(NecroMachProgram* program, NecroMachAst* ast)
 {
     assert(program != NULL);
@@ -1029,6 +1051,12 @@ void necro_mach_ast_type_check_uop(NecroMachProgram* program, NecroMachAst* ast)
         necro_mach_type_check_is_float_type(result->necro_machine_type);
         break;
     }
+    case NECRO_PRIMOP_UOP_FFLR:
+    {
+        necro_mach_type_is_eq(program->type_cache.f64_type, param->necro_machine_type);
+        necro_mach_type_is_eq(program->type_cache.f64_type, result->necro_machine_type);
+        break;
+    }
     default:
         assert(false);
     }
@@ -1140,25 +1168,26 @@ void necro_mach_ast_type_check(NecroMachProgram* program, NecroMachAst* ast)
     assert(ast != NULL);
     switch(ast->type)
     {
-    case NECRO_MACH_VALUE:         necro_mach_ast_type_check_value(program, ast);         return;
-    case NECRO_MACH_BLOCK:         necro_mach_ast_type_check_block(program, ast);         return;
-    case NECRO_MACH_CALL:          necro_mach_ast_type_check_call(program, ast);          return;
-    case NECRO_MACH_LOAD:          necro_mach_ast_type_check_load(program, ast);          return;
-    case NECRO_MACH_STORE:         necro_mach_ast_type_check_store(program, ast);         return;
-    case NECRO_MACH_BIT_CAST:      necro_mach_ast_type_check_bit_cast(program, ast);      return;
-    case NECRO_MACH_ZEXT:          necro_mach_ast_type_check_zext(program, ast);          return;
-    case NECRO_MACH_GEP:           necro_mach_ast_type_check_gep(program, ast);           return;
-    case NECRO_MACH_EXTRACT_VALUE: necro_mach_ast_type_check_extract_value(program, ast); return;
-    case NECRO_MACH_INSERT_VALUE:  necro_mach_ast_type_check_insert_value(program, ast);  return;
-    case NECRO_MACH_BINOP:         necro_mach_ast_type_check_binop(program, ast);         return;
-    case NECRO_MACH_UOP:           necro_mach_ast_type_check_uop(program, ast);           return;
-    case NECRO_MACH_CMP:           necro_mach_ast_type_check_cmp(program, ast);           return;
-    case NECRO_MACH_PHI:           necro_mach_ast_type_check_phi(program, ast);           return;
-    case NECRO_MACH_MEMCPY:        necro_mach_ast_type_check_memcpy(program, ast);        return;
-    case NECRO_MACH_MEMSET:        necro_mach_ast_type_check_memset(program, ast);        return;
-    case NECRO_MACH_STRUCT_DEF:    necro_mach_ast_type_check_struct_def(program, ast);    return;
-    case NECRO_MACH_FN_DEF:        necro_mach_ast_type_check_fn_def(program, ast);        return;
-    case NECRO_MACH_DEF:           necro_mach_ast_type_check_mach_def(program, ast);      return;
+    case NECRO_MACH_VALUE:         necro_mach_ast_type_check_value(program, ast);          return;
+    case NECRO_MACH_BLOCK:         necro_mach_ast_type_check_block(program, ast);          return;
+    case NECRO_MACH_CALL:          necro_mach_ast_type_check_call(program, ast);           return;
+    case NECRO_MACH_CALLI:         necro_mach_ast_type_check_call_intrinsic(program, ast); return;
+    case NECRO_MACH_LOAD:          necro_mach_ast_type_check_load(program, ast);           return;
+    case NECRO_MACH_STORE:         necro_mach_ast_type_check_store(program, ast);          return;
+    case NECRO_MACH_BIT_CAST:      necro_mach_ast_type_check_bit_cast(program, ast);       return;
+    case NECRO_MACH_ZEXT:          necro_mach_ast_type_check_zext(program, ast);           return;
+    case NECRO_MACH_GEP:           necro_mach_ast_type_check_gep(program, ast);            return;
+    case NECRO_MACH_EXTRACT_VALUE: necro_mach_ast_type_check_extract_value(program, ast);  return;
+    case NECRO_MACH_INSERT_VALUE:  necro_mach_ast_type_check_insert_value(program, ast);   return;
+    case NECRO_MACH_BINOP:         necro_mach_ast_type_check_binop(program, ast);          return;
+    case NECRO_MACH_UOP:           necro_mach_ast_type_check_uop(program, ast);            return;
+    case NECRO_MACH_CMP:           necro_mach_ast_type_check_cmp(program, ast);            return;
+    case NECRO_MACH_PHI:           necro_mach_ast_type_check_phi(program, ast);            return;
+    case NECRO_MACH_MEMCPY:        necro_mach_ast_type_check_memcpy(program, ast);         return;
+    case NECRO_MACH_MEMSET:        necro_mach_ast_type_check_memset(program, ast);         return;
+    case NECRO_MACH_STRUCT_DEF:    necro_mach_ast_type_check_struct_def(program, ast);     return;
+    case NECRO_MACH_FN_DEF:        necro_mach_ast_type_check_fn_def(program, ast);         return;
+    case NECRO_MACH_DEF:           necro_mach_ast_type_check_mach_def(program, ast);       return;
     default:
         assert(false && "Unrecognized ast type in necro_mach_ast_type_check");
         return;

@@ -154,6 +154,7 @@ NecroType*             necro_type_get_fully_applied_fun_type(NecroType* type);
 const NecroType*       necro_type_get_fully_applied_fun_type_const(const NecroType* type);
 NecroType*             necro_type_uncurry_app(NecroPagedArena* arena, struct NecroBase* base, NecroType* app);
 bool                   necro_type_is_inhabited(struct NecroBase* base, const NecroType* type);
+void                   necro_type_assert_no_rigid_variables(const NecroType* type);
 
 NecroType*             necro_type_alloc(NecroPagedArena* arena);
 NecroType*             necro_type_fresh_var(NecroPagedArena* arena, struct NecroScope* scope);

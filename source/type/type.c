@@ -1106,8 +1106,10 @@ NecroInstSub* necro_create_inst_sub(NecroPagedArena* arena, NecroAstSymbol* var_
     NecroType* type_to_replace            = necro_type_find(var_to_replace->type);
     NecroType* type_var                   = necro_type_fresh_var(arena, scope);
     type_var->var.is_rigid                = false;
-    type_var->var.var_symbol->name        = NULL;
+    // type_var->var.var_symbol->name        = NULL;
+    type_var->var.var_symbol->name        = var_to_replace->name; // Experiment...attempting to keep the same "name" after sub
     type_var->var.var_symbol->source_name = var_to_replace->source_name;
+    type_var->var.var_symbol->module_name = var_to_replace->module_name;
     type_var->kind                        = type_to_replace->kind;
     type_var->ownership                   = type_to_replace->ownership;
     type_var->var.order                   = type_to_replace->var.order;
@@ -1144,8 +1146,12 @@ NecroType* necro_type_maybe_sub_var(NecroType* type_to_maybe_sub, NecroInstSub* 
     NecroInstSub* curr_sub = subs;
     while (curr_sub != NULL)
     {
+        // TODO: Bang around source_name comparison here...is that too lax?
+        //       Figure out a more reliable solution for this!
         if (type_to_maybe_sub->var.var_symbol == curr_sub->var_to_replace || type_to_maybe_sub == subs->new_name ||
-           (type_to_maybe_sub->var.var_symbol->name != NULL && type_to_maybe_sub->var.var_symbol->name == curr_sub->var_to_replace->name))
+           (type_to_maybe_sub->var.var_symbol->name != NULL && type_to_maybe_sub->var.var_symbol->name == curr_sub->var_to_replace->name)
+           // || (type_to_maybe_sub->var.var_symbol->source_name != NULL && type_to_maybe_sub->var.var_symbol->source_name == curr_sub->var_to_replace->source_name)
+            )
             return curr_sub->new_name;
         curr_sub = curr_sub->next;
     }
@@ -2040,6 +2046,52 @@ size_t necro_type_arity(NecroType* type)
     case NECRO_TYPE_NAT:  assert(false); return 0;
     case NECRO_TYPE_SYM:  assert(false); return 0;
     default:              assert(false); return 0;
+    }
+}
+
+void necro_type_assert_no_rigid_variables(const NecroType* type)
+{
+    if (type == NULL)
+        return;
+    type = necro_type_find_const(type);
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR:
+        assert(!type->var.is_rigid);
+        return;
+    case NECRO_TYPE_APP:
+        necro_type_assert_no_rigid_variables(type->app.type1);
+        necro_type_assert_no_rigid_variables(type->app.type2);
+        return;
+    case NECRO_TYPE_FUN:
+        necro_type_assert_no_rigid_variables(type->fun.type1) ;
+        necro_type_assert_no_rigid_variables(type->fun.type2);
+        return;
+    case NECRO_TYPE_CON:
+    {
+        NecroType* args = type->con.args;
+        while (args != NULL)
+        {
+            necro_type_assert_no_rigid_variables(args->list.item);
+            args = args->list.next;
+        }
+        return;
+    }
+    case NECRO_TYPE_FOR:
+    {
+        assert(false);
+        return;
+    }
+    case NECRO_TYPE_NAT:
+        return;
+    case NECRO_TYPE_SYM:
+        return;
+    case NECRO_TYPE_LIST:
+        assert(false && "Only used in TYPE_CON case");
+        return;
+    default:
+        assert(false && "Unrecognized type in necro_type_assert_no_rigid_variables");
+        return;
     }
 }
 

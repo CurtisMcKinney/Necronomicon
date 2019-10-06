@@ -200,6 +200,29 @@ void necro_mach_print_call(NecroMachAst* ast, size_t depth)
     printf(")");
 }
 
+void necro_mach_print_call_intrinsic(NecroMachAst* ast, size_t depth)
+{
+    UNUSED(depth);
+    assert(ast->type == NECRO_MACH_CALLI);
+    if (ast->call_intrinsic.result_reg->value.value_type == NECRO_MACH_VALUE_VOID)
+        printf("call ");
+    else
+        printf("%%%s = call ", ast->call_intrinsic.result_reg->value.reg_symbol->name->str);
+    switch (ast->call_intrinsic.intrinsic)
+    {
+    case NECRO_PRIMOP_INTR_FMA: printf("fma "); break;
+    default:                    assert(false); break;
+    }
+    printf("(");
+    for (size_t i = 0; i < ast->call_intrinsic.num_parameters; ++i)
+    {
+        necro_mach_print_value(ast->call_intrinsic.parameters[i], NECRO_DONT_PRINT_VALUE_TYPE);
+        if (i < ast->call_intrinsic.num_parameters - 1)
+            printf(", ");
+    }
+    printf(")");
+}
+
 void necro_mach_print_store(NecroMachAst* ast, size_t depth)
 {
     UNUSED(depth);
@@ -458,6 +481,7 @@ void necro_mach_print_uop(NecroMachAst* ast, size_t depth)
     case NECRO_PRIMOP_UOP_FTRI: printf("ftri "); break;
     case NECRO_PRIMOP_UOP_FRNI: printf("frni "); break;
     case NECRO_PRIMOP_UOP_FTOF: printf("ftof "); break;
+    case NECRO_PRIMOP_UOP_FFLR: printf("fflr "); break;
     default: assert(false); break;
     }
     necro_mach_print_value(ast->uop.param, NECRO_PRINT_VALUE_TYPE);
@@ -539,13 +563,13 @@ void necro_mach_print_ast_go(NecroMachAst* ast, size_t depth)
         print_white_space(depth);
         necro_mach_print_zext(ast, depth);
         return;
-    // case NECRO_MACH_NALLOC:
-    //     print_white_space(depth);
-    //     necro_mach_print_nalloc(ast, depth);
-    //     return;
     case NECRO_MACH_CALL:
         print_white_space(depth);
         necro_mach_print_call(ast, depth);
+        return;
+    case NECRO_MACH_CALLI:
+        print_white_space(depth);
+        necro_mach_print_call_intrinsic(ast, depth);
         return;
     case NECRO_MACH_STRUCT_DEF:
         print_white_space(depth);

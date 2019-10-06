@@ -81,7 +81,7 @@ int main(int32_t argc, char** argv)
         {
             necro_test(NECRO_TEST_PRE_SIMPLIFY);
         }
-        else if (strcmp(argv[2], "lift") == 0)
+        else if (strcmp(argv[2], "lift") == 0 || strcmp(argv[2], "ll") == 0)
         {
             necro_test(NECRO_TEST_LAMBDA_LIFT);
         }

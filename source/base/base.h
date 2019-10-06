@@ -96,7 +96,10 @@ typedef struct NecroBase
     NecroAstSymbol* index_type;
     // NecroAstSymbol* maybe_type;
     NecroAstSymbol* prim_undefined;
+    NecroAstSymbol* proj_fn;
     NecroAstSymbol* block_size_type;
+    NecroAstSymbol* sample_rate;
+    NecroAstSymbol* recip_sample_rate;
 
     NecroAstSymbol* pipe_forward;
     NecroAstSymbol* pipe_back;
@@ -110,6 +113,9 @@ typedef struct NecroBase
     // NecroAstSymbol* unsafe_peek;
     // NecroAstSymbol* unsafe_poke;
     NecroAstSymbol* print_int;
+    NecroAstSymbol* out_audio_block;
+    NecroAstSymbol* fast_floor;
+    NecroAstSymbol* fma;
 
     NecroScopedSymTable* scoped_symtable;
 

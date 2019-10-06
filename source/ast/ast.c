@@ -2280,6 +2280,13 @@ NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_g
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_type_fn(arena,
             necro_ast_deep_copy_go(arena, declaration_group, ast->function_type.type),
             necro_ast_deep_copy_go(arena, declaration_group, ast->function_type.next_on_arrow)));
+    case NECRO_AST_FOR_LOOP:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_for_loop(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->for_loop.range_init),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->for_loop.value_init),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->for_loop.index_apat),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->for_loop.value_apat),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->for_loop.expression)));
     default:
         assert(false);
         return NULL;

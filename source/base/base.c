@@ -568,7 +568,6 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 
     // TODO: Finish!
     // necro_base_create_simple_data_decl(arena, top, intern, "Rational");
-    // necro_base_create_simple_data_decl(arena, top, intern, "Audio"); // TODO: Change to data Audio = AKr Double | AMono (Array 2048 Double) | AStereo (Array 2048 Double) (Array 2048 Double) | AQuad (Array 2048 Double) (Array 2048 Double) (Array 2048 Double) (Array 2048 Double)
 
     // Simple Poly Data Decls
     // necro_base_create_simple_poly_data_decl(arena, top, intern, "Pattern");
@@ -699,7 +698,6 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_create_prim_num_instances(arena, top, intern, "F64", false, true, true);
 
     // TODO: Finish!
-    // necro_base_create_prim_num_instances(arena, top, intern, "Audio", false, true, true);
     // necro_base_create_prim_num_instances(arena, top, intern, "Rational", false, true, true);
 
     // (,)
@@ -1088,6 +1086,22 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     //     necro_append_top(arena, top, fn_def_ast);
     // }
 
+    // _project :: a -> UInt -> b, primitive data structure projection
+    {
+        necro_append_top(arena, top,
+            necro_ast_create_fn_type_sig(arena, intern, "_project", NULL,
+                necro_ast_create_type_fn(arena,
+                    necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR),
+                    necro_ast_create_type_fn(arena,
+                        necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR),
+                        necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR))),
+                NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top,
+            necro_ast_create_apats_assignment(arena, intern, "_project",
+                necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "con", NECRO_VAR_DECLARATION), necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "slot", NECRO_VAR_DECLARATION), NULL)),
+                necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
+    }
+
     // getMouseX
     {
         necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "getMouseX", NULL,
@@ -1113,6 +1127,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
                 necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "_dummy", NECRO_VAR_DECLARATION), NULL),
                 necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
     }
+
     // mouseX
     {
         necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "mouseX", NULL,
@@ -1139,6 +1154,26 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
                         necro_ast_create_var(arena, intern, "getMouseY", NECRO_VAR_VAR),
                         necro_ast_create_conid(arena, intern, "()", NECRO_CON_VAR)),
                     NULL)));
+    }
+
+    // sampleRate
+    {
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "sampleRate", NULL,
+            necro_ast_create_conid(arena, intern, "UInt", NECRO_CON_TYPE_VAR),
+            NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top,
+            necro_ast_create_simple_assignment(arena, intern, "sampleRate",
+                necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
+    }
+
+    // recipSampleRate
+    {
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "recipSampleRate", NULL,
+            necro_ast_create_conid(arena, intern, "F64", NECRO_CON_TYPE_VAR),
+            NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top,
+            necro_ast_create_simple_assignment(arena, intern, "recipSampleRate",
+                necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
     }
 
     // unsafeEmptyArray :: () -> *Array n a
@@ -1450,7 +1485,6 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 
     // TODO: Finish
     // base.rational_type          = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Rational"));
-    // base.audio_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Audio"));
 
     //--------------------
     // Primitives
@@ -1468,13 +1502,17 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.false_con->is_primitive      = true;
     base.array_type->is_primitive     = true;
     base.index_type->is_primitive     = true;
-    necro_base_setup_primitive(scoped_symtable, intern, "getMouseX",        &base.mouse_x_fn, NECRO_PRIMOP_PRIM_FN);
-    necro_base_setup_primitive(scoped_symtable, intern, "getMouseY",        &base.mouse_y_fn, NECRO_PRIMOP_PRIM_FN);
-    necro_base_setup_primitive(scoped_symtable, intern, "printInt",         &base.print_int,  NECRO_PRIMOP_PRIM_FN);
-    necro_base_setup_primitive(scoped_symtable, intern, "outAudioBlock",    NULL,             NECRO_PRIMOP_PRIM_FN);
-    necro_base_setup_primitive(scoped_symtable, intern, "fastFloor",        NULL,             NECRO_PRIMOP_UOP_FFLR); // TODO: Make these prim_fns instead!?!?!?
-    necro_base_setup_primitive(scoped_symtable, intern, "fma",              NULL,             NECRO_PRIMOP_TRIOP_FMA);
-
+    // Runtime Functions/Values
+    necro_base_setup_primitive(scoped_symtable, intern, "getMouseX",        &base.mouse_x_fn,        NECRO_PRIMOP_PRIM_FN);
+    necro_base_setup_primitive(scoped_symtable, intern, "getMouseY",        &base.mouse_y_fn,        NECRO_PRIMOP_PRIM_FN);
+    necro_base_setup_primitive(scoped_symtable, intern, "sampleRate",       &base.sample_rate,       NECRO_PRIMOP_PRIM_VAL);
+    necro_base_setup_primitive(scoped_symtable, intern, "recipSampleRate",  &base.recip_sample_rate, NECRO_PRIMOP_PRIM_VAL);
+    necro_base_setup_primitive(scoped_symtable, intern, "printInt",         &base.print_int,         NECRO_PRIMOP_PRIM_FN);
+    necro_base_setup_primitive(scoped_symtable, intern, "outAudioBlock",    &base.out_audio_block,   NECRO_PRIMOP_PRIM_FN);
+    // Misc
+    necro_base_setup_primitive(scoped_symtable, intern, "_project",         &base.proj_fn,           NECRO_PRIMOP_PROJ);
+    // Intrinsics
+    necro_base_setup_primitive(scoped_symtable, intern, "fma",              &base.fma,               NECRO_PRIMOP_INTR_FMA);
     // Array
     necro_base_setup_primitive(scoped_symtable, intern, "unsafeEmptyArray", NULL, NECRO_PRIMOP_ARRAY_EMPTY);
     necro_base_setup_primitive(scoped_symtable, intern, "freezeArray",      NULL, NECRO_PRIMOP_ARRAY_FREEZE);
@@ -1538,6 +1576,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "lt<Float>",           NULL, NECRO_PRIMOP_CMP_LT);
     necro_base_setup_primitive(scoped_symtable, intern, "gte<Float>",          NULL, NECRO_PRIMOP_CMP_GE);
     necro_base_setup_primitive(scoped_symtable, intern, "lte<Float>",          NULL, NECRO_PRIMOP_CMP_LE);
+    necro_base_setup_primitive(scoped_symtable, intern, "fastFloor",           &base.fast_floor, NECRO_PRIMOP_UOP_FFLR);
     // F64
     necro_base_setup_primitive(scoped_symtable, intern, "add<F64>",          NULL, NECRO_PRIMOP_BINOP_FADD);
     necro_base_setup_primitive(scoped_symtable, intern, "sub<F64>",          NULL, NECRO_PRIMOP_BINOP_FSUB);

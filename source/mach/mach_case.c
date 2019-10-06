@@ -165,7 +165,7 @@ NecroPattern* necro_pattern_create(NecroMachProgram* program, NecroPattern* pare
     {
     case NECRO_CORE_AST_VAR:
     {
-        if (pat_ast->var.is_wildcard)
+        if (pat_ast->var.ast_symbol->is_wildcard)
         {
             return necro_pattern_create_wildcard(program, parent, pat_ast);
         }
@@ -775,7 +775,8 @@ void necro_pattern_var_to_mach(NecroMachProgram* program, NecroPattern* pattern,
     {
         var_ast->var.ast_symbol->mach_symbol->ast = parent_value;
     }
-    else if (necro_mach_type_is_unboxed(program, parent->value_type))
+    // else if (necro_mach_type_is_unboxed(program, parent->value_type))
+    else if (necro_mach_type_is_unboxed(program, parent_value->necro_machine_type))
     {
         var_ast->var.ast_symbol->mach_symbol->ast = necro_mach_build_extract_value(program, outer->machine_def.update_fn, parent_value, pattern->parent_slot, "value");
     }

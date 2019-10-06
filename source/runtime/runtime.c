@@ -47,6 +47,19 @@ extern DLLEXPORT int necro_runtime_get_mouse_y(unsigned int _dummy)
     return mouse_y;
 }
 
+extern DLLEXPORT unsigned int necro_runtime_get_sample_rate()
+{
+    // TODO!
+    return 44100;
+}
+
+
+extern DLLEXPORT unsigned int necro_runtime_get_block_size()
+{
+    // TODO!
+    return 1024;
+}
+
 extern DLLEXPORT void necro_runtime_print(int value)
 {
     printf("%d\n", value);
@@ -214,6 +227,14 @@ extern DLLEXPORT void necro_runtime_shutdown()
     SetConsoleMode(h_in, original_fdw_mode);
 }
 
+extern DLLEXPORT unsigned int necro_runtime_out_audio_block(unsigned int channel_num, double* audio_block, unsigned int world)
+{
+    UNUSED(channel_num);
+    UNUSED(audio_block);
+    // printf("[%f]\n", audio_block[0]);
+    printf("out_audio_block[%d]", channel_num);
+    return world;
+}
 
 #else
 ///////////////////////////////////////////////////////
@@ -244,6 +265,14 @@ extern DLLEXPORT void necro_runtime_shutdown()
     if (necro_runtime_state != NECRO_RUNTIME_IS_DONE)
         return;
     necro_runtime_state = NECRO_RUNTIME_SHUTDOWN;
+}
+
+extern DLLEXPORT unsigned int necro_runtime_out_audio_block(unsigned int channel_num, double* audio_block, unsigned int world)
+{
+    UNUSED(channel_num);
+    UNUSED(audio_block);
+    // TODO:!
+    return world;
 }
 
 #endif

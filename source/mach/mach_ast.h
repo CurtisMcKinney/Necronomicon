@@ -268,6 +268,15 @@ typedef struct NecroMachCall
     NECRO_MACH_CALL_TYPE  call_type;
 } NecroMachCall;
 
+typedef struct NecroMachCallIntrinsic
+{
+    NECRO_PRIMOP_TYPE     intrinsic;
+    NecroMachType*        intrinsic_type;
+    struct NecroMachAst** parameters;
+    size_t                num_parameters;
+    struct NecroMachAst*  result_reg;
+} NecroMachCallIntrinsic;
+
 
 //--------------------
 // Load / Store
@@ -410,6 +419,7 @@ typedef enum
 
     // ops
     NECRO_MACH_CALL,
+    NECRO_MACH_CALLI,
     NECRO_MACH_LOAD,
     NECRO_MACH_STORE,
     NECRO_MACH_BIT_CAST,
@@ -417,10 +427,11 @@ typedef enum
     NECRO_MACH_GEP,
     NECRO_MACH_INSERT_VALUE,
     NECRO_MACH_EXTRACT_VALUE,
-    NECRO_MACH_BINOP,
     NECRO_MACH_UOP,
+    NECRO_MACH_BINOP,
     NECRO_MACH_CMP,
     NECRO_MACH_PHI,
+
 
     NECRO_MACH_MEMCPY, // TODO: Maybe remove
     NECRO_MACH_MEMSET, // TODO: Maybe remove
@@ -439,6 +450,7 @@ typedef struct NecroMachAst
     {
         NecroMachValue         value;
         NecroMachCall          call;
+        NecroMachCallIntrinsic call_intrinsic;
         NecroMachLoad          load;
         NecroMachStore         store;
         NecroMachBlock         block;
@@ -482,6 +494,7 @@ typedef struct NecroMachRuntime
     NecroMachAstSymbol* necro_runtime_is_done;
     NecroMachAstSymbol* necro_runtime_alloc;
     NecroMachAstSymbol* necro_runtime_free;
+    NecroMachAstSymbol* necro_runtime_out_audio_block;
     // NOTE: Don't forget to add mappings to mach_ast.c and codegen_llvm.c when you add new runtime symbols
 } NecroMachRuntime;
 
@@ -587,6 +600,7 @@ NecroMachAst* necro_mach_build_load(NecroMachProgram* program, NecroMachAst* fn_
 // Functions
 //--------------------
 NecroMachAst* necro_mach_build_call(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* fn_value_ast, NecroMachAst** a_parameters, size_t num_parameters, NECRO_MACH_CALL_TYPE call_type, const char* dest_name);
+NecroMachAst* necro_mach_build_call_intrinsic(NecroMachProgram* program, NecroMachAst* fn_def, NECRO_PRIMOP_TYPE intrinsic, NecroMachType* intrinsic_type, NecroMachAst** a_parameters, size_t num_parameters, const char* dest_name);
 NecroMachAst* necro_mach_build_binop(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* left, NecroMachAst* right, NECRO_PRIMOP_TYPE op_type);
 NecroMachAst* necro_mach_build_uop(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* param, NecroMachType* result_type, NECRO_PRIMOP_TYPE op_type);
 

@@ -76,7 +76,7 @@ void necro_monomorphize_destroy(NecroMonomorphize* monomorphize)
 // Forward Declarations
 ///////////////////////////////////////////////////////
 NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAst* ast, NecroInstSub* subs);
-void              necro_monomorphize_type_go(NecroMonomorphize* monomorphize, NecroAst* ast);
+// void              necro_monomorphize_type_go(NecroMonomorphize* monomorphize, NecroAst* ast);
 NecroAstSymbol*   necro_ast_specialize(NecroMonomorphize* monomorphize, NecroAstSymbol* ast_symbol, NecroInstSub* subs);
 
 NecroResult(void) necro_monomorphize(NecroCompileInfo info, NecroIntern* intern, NecroScopedSymTable* scoped_symtable, NecroBase* base, NecroAstArena* ast_arena)
@@ -761,225 +761,225 @@ NecroType* necro_specialize_type(NecroMonomorphize* monomorphize, NecroType* typ
     }
 }
 
-///////////////////////////////////////////////////////
-// Monomorphize Type Go
-///////////////////////////////////////////////////////
-void necro_monomorphize_type_go(NecroMonomorphize* monomorphize, NecroAst* ast)
-{
-    if (ast == NULL)
-        return;
-    NecroType* original_type = ast->necro_type;
-    ast->necro_type          = necro_specialize_type(monomorphize, ast->necro_type);
-    switch (ast->type)
-    {
-
-    //=====================================================
-    // Declaration type things
-    //=====================================================
-    case NECRO_AST_DECLARATION_GROUP_LIST:
-    {
-        NecroAst* group_list = ast;
-        while (group_list != NULL)
-        {
-            necro_monomorphize_type_go(monomorphize, group_list->declaration_group_list.declaration_group);
-            group_list = group_list->declaration_group_list.next;
-        }
-        return;
-    }
-
-    case NECRO_AST_DECL:
-    {
-        NecroAst* declaration_group = ast;
-        while (declaration_group != NULL)
-        {
-            necro_monomorphize_type_go(monomorphize, declaration_group->declaration.declaration_impl);
-            declaration_group = declaration_group->declaration.next_declaration;
-        }
-        return;
-    }
-
-    //=====================================================
-    // Assignment type things
-    //=====================================================
-    case NECRO_AST_SIMPLE_ASSIGNMENT:
-        ast->simple_assignment.ast_symbol->type = necro_specialize_type(monomorphize, ast->simple_assignment.ast_symbol->type);
-        necro_monomorphize_type_go(monomorphize, ast->simple_assignment.initializer);
-        necro_monomorphize_type_go(monomorphize, ast->simple_assignment.rhs);
-        return;
-
-    case NECRO_AST_APATS_ASSIGNMENT:
-        ast->apats_assignment.ast_symbol->type = necro_specialize_type(monomorphize, ast->apats_assignment.ast_symbol->type);
-        necro_monomorphize_type_go(monomorphize, ast->apats_assignment.apats);
-        necro_monomorphize_type_go(monomorphize, ast->apats_assignment.rhs);
-        return;
-
-    case NECRO_BIND_ASSIGNMENT:
-        ast->bind_assignment.ast_symbol->type = necro_specialize_type(monomorphize, ast->bind_assignment.ast_symbol->type);
-        necro_monomorphize_type_go(monomorphize, ast->bind_assignment.expression);
-        return;
-
-    case NECRO_AST_VARIABLE:
-        switch (ast->variable.var_type)
-        {
-        case NECRO_VAR_DECLARATION:
-            if (ast->variable.ast_symbol != NULL)
-                ast->variable.ast_symbol->type = necro_specialize_type(monomorphize, ast->variable.ast_symbol->type);
-            if (ast->variable.initializer != NULL)
-                necro_monomorphize_type_go(monomorphize, ast->variable.initializer);
-            return;
-        case NECRO_VAR_VAR:                  return;
-        case NECRO_VAR_SIG:                  return;
-        case NECRO_VAR_TYPE_VAR_DECLARATION: return;
-        case NECRO_VAR_TYPE_FREE_VAR:        return;
-        case NECRO_VAR_CLASS_SIG:            return;
-        default:
-            assert(false);
-            return;
-        }
-
-    case NECRO_AST_CONID:
-        if (necro_type_find(ast->necro_type) != necro_type_find(original_type))
-        {
-            // Specialize Type
-            NecroType* curr_type = ast->necro_type;
-            while (curr_type->type == NECRO_TYPE_FUN)
-                curr_type = necro_type_find(curr_type->fun.type2);
-            assert(curr_type->type == NECRO_TYPE_CON);
-            //--------------------
-            // Create specialized type suffix
-            //--------------------
-            // TODO: Name's should use fully qualified name, not source name!
-            const char* specialized_type_suffix_buffer = curr_type->con.con_symbol->name->str;
-            while (*specialized_type_suffix_buffer != '<')
-                specialized_type_suffix_buffer++;
-            NecroSymbol     specialized_type_suffix_symbol = necro_intern_string(monomorphize->intern, specialized_type_suffix_buffer);
-            NecroSymbol     specialized_type_con_name      = necro_intern_concat_symbols(monomorphize->intern, ast->conid.ast_symbol->source_name, specialized_type_suffix_symbol);
-            NecroAstSymbol* specialized_type_con_symbol    = necro_scope_find_ast_symbol(monomorphize->scoped_symtable->top_scope, specialized_type_con_name);
-            ast->conid.ast_symbol                          = specialized_type_con_symbol;
-            assert(specialized_type_con_symbol != NULL);
-        }
-        return;
-
-    case NECRO_AST_TYPE_CLASS_INSTANCE:
-        necro_monomorphize_type_go(monomorphize, ast->type_class_instance.declarations);
-        return;
-    case NECRO_AST_PAT_ASSIGNMENT:
-        necro_monomorphize_type_go(monomorphize, ast->pat_assignment.pat);
-        necro_monomorphize_type_go(monomorphize, ast->pat_assignment.rhs);
-        return;
-    case NECRO_AST_BIN_OP:
-        necro_monomorphize_type_go(monomorphize, ast->bin_op.lhs);
-        necro_monomorphize_type_go(monomorphize, ast->bin_op.rhs);
-        return;
-    case NECRO_AST_OP_LEFT_SECTION:
-        necro_monomorphize_type_go(monomorphize, ast->op_left_section.left);
-        return;
-    case NECRO_AST_OP_RIGHT_SECTION:
-        necro_monomorphize_type_go(monomorphize, ast->op_right_section.right);
-        return;
-    case NECRO_AST_IF_THEN_ELSE:
-        necro_monomorphize_type_go(monomorphize, ast->if_then_else.if_expr);
-        necro_monomorphize_type_go(monomorphize, ast->if_then_else.then_expr);
-        necro_monomorphize_type_go(monomorphize, ast->if_then_else.else_expr);
-        return;
-    case NECRO_AST_RIGHT_HAND_SIDE:
-        necro_monomorphize_type_go(monomorphize, ast->right_hand_side.declarations);
-        necro_monomorphize_type_go(monomorphize, ast->right_hand_side.expression);
-        return;
-    case NECRO_AST_LET_EXPRESSION:
-        necro_monomorphize_type_go(monomorphize, ast->let_expression.declarations);
-        necro_monomorphize_type_go(monomorphize, ast->let_expression.expression);
-        return;
-    case NECRO_AST_FUNCTION_EXPRESSION:
-        necro_monomorphize_type_go(monomorphize, ast->fexpression.next_fexpression);
-        necro_monomorphize_type_go(monomorphize, ast->fexpression.aexp);
-        return;
-    case NECRO_AST_APATS:
-        necro_monomorphize_type_go(monomorphize, ast->apats.apat);
-        necro_monomorphize_type_go(monomorphize, ast->apats.next_apat);
-        return;
-    case NECRO_AST_WILDCARD:
-        return;
-    case NECRO_AST_LAMBDA:
-        necro_monomorphize_type_go(monomorphize, ast->lambda.apats);
-        necro_monomorphize_type_go(monomorphize, ast->lambda.expression);
-        return;
-    case NECRO_AST_DO:
-        assert(false && "Not Implemented");
-        return;
-    case NECRO_AST_LIST_NODE:
-        necro_monomorphize_type_go(monomorphize, ast->list.item);
-        necro_monomorphize_type_go(monomorphize, ast->list.next_item);
-        return;
-    case NECRO_AST_EXPRESSION_LIST:
-        necro_monomorphize_type_go(monomorphize, ast->expression_list.expressions);
-        return;
-    case NECRO_AST_EXPRESSION_ARRAY:
-        necro_monomorphize_type_go(monomorphize, ast->expression_array.expressions);
-        return;
-    case NECRO_AST_PAT_EXPRESSION:
-        necro_monomorphize_type_go(monomorphize, ast->pattern_expression.expressions);
-        return;
-    case NECRO_AST_TUPLE:
-        necro_monomorphize_type_go(monomorphize, ast->tuple.expressions);
-        return;
-    case NECRO_PAT_BIND_ASSIGNMENT:
-        necro_monomorphize_type_go(monomorphize, ast->pat_bind_assignment.pat);
-        necro_monomorphize_type_go(monomorphize, ast->pat_bind_assignment.expression);
-        return;
-    case NECRO_AST_ARITHMETIC_SEQUENCE:
-        necro_monomorphize_type_go(monomorphize, ast->arithmetic_sequence.from);
-        necro_monomorphize_type_go(monomorphize, ast->arithmetic_sequence.then);
-        necro_monomorphize_type_go(monomorphize, ast->arithmetic_sequence.to);
-        return;
-    case NECRO_AST_CASE:
-        necro_monomorphize_type_go(monomorphize, ast->case_expression.expression);
-        necro_monomorphize_type_go(monomorphize, ast->case_expression.alternatives);
-        return;
-    case NECRO_AST_CASE_ALTERNATIVE:
-        necro_monomorphize_type_go(monomorphize, ast->case_alternative.pat);
-        necro_monomorphize_type_go(monomorphize, ast->case_alternative.body);
-        return;
-    case NECRO_AST_FOR_LOOP:
-        necro_monomorphize_type_go(monomorphize, ast->for_loop.range_init);
-        necro_monomorphize_type_go(monomorphize, ast->for_loop.value_init);
-        necro_monomorphize_type_go(monomorphize, ast->for_loop.index_apat);
-        necro_monomorphize_type_go(monomorphize, ast->for_loop.value_apat);
-        necro_monomorphize_type_go(monomorphize, ast->for_loop.expression);
-        return;
-    case NECRO_AST_TYPE_APP:
-        necro_monomorphize_type_go(monomorphize, ast->type_app.ty);
-        necro_monomorphize_type_go(monomorphize, ast->type_app.next_ty);
-        return;
-    case NECRO_AST_BIN_OP_SYM:
-        necro_monomorphize_type_go(monomorphize, ast->bin_op_sym.left);
-        necro_monomorphize_type_go(monomorphize, ast->bin_op_sym.op);
-        necro_monomorphize_type_go(monomorphize, ast->bin_op_sym.right);
-        return;
-    case NECRO_AST_CONSTRUCTOR:
-        necro_monomorphize_type_go(monomorphize, ast->constructor.conid);
-        necro_monomorphize_type_go(monomorphize, ast->constructor.arg_list);
-        return;
-    case NECRO_AST_SIMPLE_TYPE:
-        necro_monomorphize_type_go(monomorphize, ast->simple_type.type_con);
-        necro_monomorphize_type_go(monomorphize, ast->simple_type.type_var_list);
-        return;
-
-    case NECRO_AST_TOP_DECL:
-    case NECRO_AST_UNDEFINED:
-    case NECRO_AST_CONSTANT:
-    case NECRO_AST_UN_OP:
-    case NECRO_AST_DATA_DECLARATION:
-    case NECRO_AST_TYPE_CLASS_DECLARATION:
-    case NECRO_AST_TYPE_SIGNATURE:
-    case NECRO_AST_TYPE_CLASS_CONTEXT:
-    case NECRO_AST_FUNCTION_TYPE:
-        return;
-    default:
-        assert(false);
-        return;
-    }
-}
+// ///////////////////////////////////////////////////////
+// // Monomorphize Type Go
+// ///////////////////////////////////////////////////////
+// void necro_monomorphize_type_go(NecroMonomorphize* monomorphize, NecroAst* ast)
+// {
+//     if (ast == NULL)
+//         return;
+//     NecroType* original_type = ast->necro_type;
+//     ast->necro_type          = necro_specialize_type(monomorphize, ast->necro_type);
+//     switch (ast->type)
+//     {
+//
+//     //=====================================================
+//     // Declaration type things
+//     //=====================================================
+//     case NECRO_AST_DECLARATION_GROUP_LIST:
+//     {
+//         NecroAst* group_list = ast;
+//         while (group_list != NULL)
+//         {
+//             necro_monomorphize_type_go(monomorphize, group_list->declaration_group_list.declaration_group);
+//             group_list = group_list->declaration_group_list.next;
+//         }
+//         return;
+//     }
+//
+//     case NECRO_AST_DECL:
+//     {
+//         NecroAst* declaration_group = ast;
+//         while (declaration_group != NULL)
+//         {
+//             necro_monomorphize_type_go(monomorphize, declaration_group->declaration.declaration_impl);
+//             declaration_group = declaration_group->declaration.next_declaration;
+//         }
+//         return;
+//     }
+//
+//     //=====================================================
+//     // Assignment type things
+//     //=====================================================
+//     case NECRO_AST_SIMPLE_ASSIGNMENT:
+//         ast->simple_assignment.ast_symbol->type = necro_specialize_type(monomorphize, ast->simple_assignment.ast_symbol->type);
+//         necro_monomorphize_type_go(monomorphize, ast->simple_assignment.initializer);
+//         necro_monomorphize_type_go(monomorphize, ast->simple_assignment.rhs);
+//         return;
+//
+//     case NECRO_AST_APATS_ASSIGNMENT:
+//         ast->apats_assignment.ast_symbol->type = necro_specialize_type(monomorphize, ast->apats_assignment.ast_symbol->type);
+//         necro_monomorphize_type_go(monomorphize, ast->apats_assignment.apats);
+//         necro_monomorphize_type_go(monomorphize, ast->apats_assignment.rhs);
+//         return;
+//
+//     case NECRO_BIND_ASSIGNMENT:
+//         ast->bind_assignment.ast_symbol->type = necro_specialize_type(monomorphize, ast->bind_assignment.ast_symbol->type);
+//         necro_monomorphize_type_go(monomorphize, ast->bind_assignment.expression);
+//         return;
+//
+//     case NECRO_AST_VARIABLE:
+//         switch (ast->variable.var_type)
+//         {
+//         case NECRO_VAR_DECLARATION:
+//             if (ast->variable.ast_symbol != NULL)
+//                 ast->variable.ast_symbol->type = necro_specialize_type(monomorphize, ast->variable.ast_symbol->type);
+//             if (ast->variable.initializer != NULL)
+//                 necro_monomorphize_type_go(monomorphize, ast->variable.initializer);
+//             return;
+//         case NECRO_VAR_VAR:                  return;
+//         case NECRO_VAR_SIG:                  return;
+//         case NECRO_VAR_TYPE_VAR_DECLARATION: return;
+//         case NECRO_VAR_TYPE_FREE_VAR:        return;
+//         case NECRO_VAR_CLASS_SIG:            return;
+//         default:
+//             assert(false);
+//             return;
+//         }
+//
+//     case NECRO_AST_CONID:
+//         if (necro_type_find(ast->necro_type) != necro_type_find(original_type))
+//         {
+//             // Specialize Type
+//             NecroType* curr_type = ast->necro_type;
+//             while (curr_type->type == NECRO_TYPE_FUN)
+//                 curr_type = necro_type_find(curr_type->fun.type2);
+//             assert(curr_type->type == NECRO_TYPE_CON);
+//             //--------------------
+//             // Create specialized type suffix
+//             //--------------------
+//             // TODO: Name's should use fully qualified name, not source name!
+//             const char* specialized_type_suffix_buffer = curr_type->con.con_symbol->name->str;
+//             while (*specialized_type_suffix_buffer != '<')
+//                 specialized_type_suffix_buffer++;
+//             NecroSymbol     specialized_type_suffix_symbol = necro_intern_string(monomorphize->intern, specialized_type_suffix_buffer);
+//             NecroSymbol     specialized_type_con_name      = necro_intern_concat_symbols(monomorphize->intern, ast->conid.ast_symbol->source_name, specialized_type_suffix_symbol);
+//             NecroAstSymbol* specialized_type_con_symbol    = necro_scope_find_ast_symbol(monomorphize->scoped_symtable->top_scope, specialized_type_con_name);
+//             ast->conid.ast_symbol                          = specialized_type_con_symbol;
+//             assert(specialized_type_con_symbol != NULL);
+//         }
+//         return;
+//
+//     case NECRO_AST_TYPE_CLASS_INSTANCE:
+//         necro_monomorphize_type_go(monomorphize, ast->type_class_instance.declarations);
+//         return;
+//     case NECRO_AST_PAT_ASSIGNMENT:
+//         necro_monomorphize_type_go(monomorphize, ast->pat_assignment.pat);
+//         necro_monomorphize_type_go(monomorphize, ast->pat_assignment.rhs);
+//         return;
+//     case NECRO_AST_BIN_OP:
+//         necro_monomorphize_type_go(monomorphize, ast->bin_op.lhs);
+//         necro_monomorphize_type_go(monomorphize, ast->bin_op.rhs);
+//         return;
+//     case NECRO_AST_OP_LEFT_SECTION:
+//         necro_monomorphize_type_go(monomorphize, ast->op_left_section.left);
+//         return;
+//     case NECRO_AST_OP_RIGHT_SECTION:
+//         necro_monomorphize_type_go(monomorphize, ast->op_right_section.right);
+//         return;
+//     case NECRO_AST_IF_THEN_ELSE:
+//         necro_monomorphize_type_go(monomorphize, ast->if_then_else.if_expr);
+//         necro_monomorphize_type_go(monomorphize, ast->if_then_else.then_expr);
+//         necro_monomorphize_type_go(monomorphize, ast->if_then_else.else_expr);
+//         return;
+//     case NECRO_AST_RIGHT_HAND_SIDE:
+//         necro_monomorphize_type_go(monomorphize, ast->right_hand_side.declarations);
+//         necro_monomorphize_type_go(monomorphize, ast->right_hand_side.expression);
+//         return;
+//     case NECRO_AST_LET_EXPRESSION:
+//         necro_monomorphize_type_go(monomorphize, ast->let_expression.declarations);
+//         necro_monomorphize_type_go(monomorphize, ast->let_expression.expression);
+//         return;
+//     case NECRO_AST_FUNCTION_EXPRESSION:
+//         necro_monomorphize_type_go(monomorphize, ast->fexpression.next_fexpression);
+//         necro_monomorphize_type_go(monomorphize, ast->fexpression.aexp);
+//         return;
+//     case NECRO_AST_APATS:
+//         necro_monomorphize_type_go(monomorphize, ast->apats.apat);
+//         necro_monomorphize_type_go(monomorphize, ast->apats.next_apat);
+//         return;
+//     case NECRO_AST_WILDCARD:
+//         return;
+//     case NECRO_AST_LAMBDA:
+//         necro_monomorphize_type_go(monomorphize, ast->lambda.apats);
+//         necro_monomorphize_type_go(monomorphize, ast->lambda.expression);
+//         return;
+//     case NECRO_AST_DO:
+//         assert(false && "Not Implemented");
+//         return;
+//     case NECRO_AST_LIST_NODE:
+//         necro_monomorphize_type_go(monomorphize, ast->list.item);
+//         necro_monomorphize_type_go(monomorphize, ast->list.next_item);
+//         return;
+//     case NECRO_AST_EXPRESSION_LIST:
+//         necro_monomorphize_type_go(monomorphize, ast->expression_list.expressions);
+//         return;
+//     case NECRO_AST_EXPRESSION_ARRAY:
+//         necro_monomorphize_type_go(monomorphize, ast->expression_array.expressions);
+//         return;
+//     case NECRO_AST_PAT_EXPRESSION:
+//         necro_monomorphize_type_go(monomorphize, ast->pattern_expression.expressions);
+//         return;
+//     case NECRO_AST_TUPLE:
+//         necro_monomorphize_type_go(monomorphize, ast->tuple.expressions);
+//         return;
+//     case NECRO_PAT_BIND_ASSIGNMENT:
+//         necro_monomorphize_type_go(monomorphize, ast->pat_bind_assignment.pat);
+//         necro_monomorphize_type_go(monomorphize, ast->pat_bind_assignment.expression);
+//         return;
+//     case NECRO_AST_ARITHMETIC_SEQUENCE:
+//         necro_monomorphize_type_go(monomorphize, ast->arithmetic_sequence.from);
+//         necro_monomorphize_type_go(monomorphize, ast->arithmetic_sequence.then);
+//         necro_monomorphize_type_go(monomorphize, ast->arithmetic_sequence.to);
+//         return;
+//     case NECRO_AST_CASE:
+//         necro_monomorphize_type_go(monomorphize, ast->case_expression.expression);
+//         necro_monomorphize_type_go(monomorphize, ast->case_expression.alternatives);
+//         return;
+//     case NECRO_AST_CASE_ALTERNATIVE:
+//         necro_monomorphize_type_go(monomorphize, ast->case_alternative.pat);
+//         necro_monomorphize_type_go(monomorphize, ast->case_alternative.body);
+//         return;
+//     case NECRO_AST_FOR_LOOP:
+//         necro_monomorphize_type_go(monomorphize, ast->for_loop.range_init);
+//         necro_monomorphize_type_go(monomorphize, ast->for_loop.value_init);
+//         necro_monomorphize_type_go(monomorphize, ast->for_loop.index_apat);
+//         necro_monomorphize_type_go(monomorphize, ast->for_loop.value_apat);
+//         necro_monomorphize_type_go(monomorphize, ast->for_loop.expression);
+//         return;
+//     case NECRO_AST_TYPE_APP:
+//         necro_monomorphize_type_go(monomorphize, ast->type_app.ty);
+//         necro_monomorphize_type_go(monomorphize, ast->type_app.next_ty);
+//         return;
+//     case NECRO_AST_BIN_OP_SYM:
+//         necro_monomorphize_type_go(monomorphize, ast->bin_op_sym.left);
+//         necro_monomorphize_type_go(monomorphize, ast->bin_op_sym.op);
+//         necro_monomorphize_type_go(monomorphize, ast->bin_op_sym.right);
+//         return;
+//     case NECRO_AST_CONSTRUCTOR:
+//         necro_monomorphize_type_go(monomorphize, ast->constructor.conid);
+//         necro_monomorphize_type_go(monomorphize, ast->constructor.arg_list);
+//         return;
+//     case NECRO_AST_SIMPLE_TYPE:
+//         necro_monomorphize_type_go(monomorphize, ast->simple_type.type_con);
+//         necro_monomorphize_type_go(monomorphize, ast->simple_type.type_var_list);
+//         return;
+//
+//     case NECRO_AST_TOP_DECL:
+//     case NECRO_AST_UNDEFINED:
+//     case NECRO_AST_CONSTANT:
+//     case NECRO_AST_UN_OP:
+//     case NECRO_AST_DATA_DECLARATION:
+//     case NECRO_AST_TYPE_CLASS_DECLARATION:
+//     case NECRO_AST_TYPE_SIGNATURE:
+//     case NECRO_AST_TYPE_CLASS_CONTEXT:
+//     case NECRO_AST_FUNCTION_TYPE:
+//         return;
+//     default:
+//         assert(false);
+//         return;
+//     }
+// }
 
 
 ///////////////////////////////////////////////////////

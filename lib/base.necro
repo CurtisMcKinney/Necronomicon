@@ -2,8 +2,6 @@
 -- Necro.Base
 --------------------
 
-data Maybe a = Just a | Nothing
-
 id :: .a -> .a
 id x = x
 
@@ -24,10 +22,47 @@ min x y =
     True -> x
     _    -> y
 
--- --------------------
--- -- Seq
--- --------------------
--- data SeqValue a = SeqValue Float a | SeqRest Float | SeqConst a | SeqInterval | SeqEnd
+-- TODO: map3, etc
+class FunctorN f where
+  map2 :: (a -> b -> c) -> f a -> f b -> f c
+
+
+--------------------
+-- Maybe
+--------------------
+data Maybe a = Just a | Nothing
+
+instance Functor Maybe where
+  map f m =
+    case m of
+      Just x  -> Just (f x)
+      Nothing -> Nothing
+
+instance FunctorN Maybe where
+  map2 f mx my =
+    case mx of
+      Nothing -> Nothing
+      Just x  ->
+        case my of
+          Nothing -> Nothing
+          Just y  ->
+            Just (f x y)
+
+instance Applicative Maybe where
+  pure x   = Just x
+  ap mf mx =
+    case mf of
+      Nothing -> Nothing
+      Just f  ->
+        case mx of
+          Nothing -> Nothing
+          Just x  -> Just (f x)
+
+
+--------------------
+-- Seq
+--------------------
+data SeqValue a = SeqValue Float a | SeqRest Float | SeqConst a | SeqInterval | SeqEnd
 -- data Seq a      = Seq (Float -> SeqValue a)
 --
 -- instance Functor SeqValue where
@@ -38,6 +73,33 @@ min x y =
 --       SeqRest t    -> SeqRest t
 --       SeqInterval  -> SeqInterval
 --       SeqEnd       -> SeqEnd
+--
+-- instance FunctorN SeqValue where
+--   map2 f sx sy =
+--     case sx of
+--       SeqValue tx x ->
+--         case sy of
+--           SeqValue ty y -> SeqValue (min tx ty) (f x y)
+--           SeqConst y    -> SeqConst (f x y)
+--           SeqRest ty    -> SeqRest (min tx ty)
+--           SeqInterval   -> SeqInterval
+--           SeqEnd        -> SeqEnd
+--       SeqConst x     ->
+--         case sy of
+--           SeqValue ty y -> SeqValue ty (f x y)
+--           SeqConst y    -> SeqConst (f x y)
+--           SeqRest ty    -> SeqRest ty
+--           SeqInterval   -> SeqInterval
+--           SeqEnd        -> SeqEnd
+--       SeqRest tx     ->
+--         case sy of
+--           SeqValue ty y -> SeqRest (min tx ty)
+--           SeqConst y    -> SeqRest tx
+--           SeqRest ty    -> SeqRest (min tx ty)
+--           SeqInterval   -> SeqInterval
+--           SeqEnd        -> SeqEnd
+--       SeqInterval    -> SeqInterval
+--       SeqEnd         -> SeqEnd
 --
 -- instance Applicative SeqValue where
 --   pure x   = SeqConst x
@@ -67,6 +129,19 @@ min x y =
 --       SeqInterval -> SeqInterval
 --       SeqEnd      -> SeqEnd
 --
+-- instance Num a => Num (SeqValue a) where
+--   fromInt i = pure (fromInt i)
+--   add x y   = map2 add x y
+--   sub x y   = map2 sub x y
+--   mul x y   = map2 mul x y
+--   signum x  = map signum x
+--   abs x     = map abs x
+--
+-- instance Fractional a => Fractional (SeqValue a) where
+--   fromRational r = pure (fromRational r)
+--   div x y        = map2 div x y
+--   recip x        = map recip x
+--
 -- runSeq :: Seq a -> Float -> SeqValue a
 -- runSeq s time =
 --   case s of
@@ -78,21 +153,183 @@ min x y =
 -- instance Applicative Seq where
 --   pure x   = Seq (\t -> pure x)
 --   ap fs xs = Seq (\t -> ap (runSeq fs t) (runSeq xs t))
+--
+-- instance FunctorN Seq where
+--   map2 f sx sy = Seq (\t -> map2 f (runSeq sx t) (runSeq sy t))
+--
+-- instance Num a => Num (Seq a) where
+--   fromInt i = pure (fromInt i)
+--   add x y   = map2 add x y
+--   sub x y   = map2 sub x y
+--   mul x y   = map2 mul x y
+--   signum x  = map signum x
+--   abs x     = map abs x
+--
+-- instance Fractional a => Fractional (Seq a) where
+--   fromRational r = pure (fromRational r)
+--   div x y        = map2 div x y
+--   recip x        = map recip x
+
+
+--------------------
+-- Channel
+--------------------
+data Channel   = BlockRate F64 | AudioRate (Array BlockSize F64)
+
+outChannel :: UInt -> Channel -> *World -> *World
+outChannel n c w =
+  case c of
+    BlockRate _ -> w
+    AudioRate b -> outAudioBlock n b w
+
+mapChannel :: (F64 -> F64) -> Channel -> Channel
+mapChannel f c =
+  case c of
+    BlockRate x -> BlockRate (f x)
+    AudioRate b ->
+      let wa =
+            for each (unsafeEmptyArray ()) loop i a ->
+              writeArray i (Share (f (readArray i b))) a
+      in AudioRate (freezeArray wa)
+
+-- TODO: Look into alias analysis here!
+-- We should be able to float the call to unsafeEmptyArray out of the for loop
+mapChannel2 :: (F64 -> F64 -> F64) -> Channel -> Channel -> Channel
+mapChannel2 f cx cy =
+  case cx of
+    BlockRate x ->
+      case cy of
+        BlockRate y ->
+          BlockRate (f x y)
+        AudioRate y ->
+          AudioRate (freezeArray (for each (unsafeEmptyArray ()) loop i a ->
+            writeArray i (Share (f x (readArray i y))) a))
+    AudioRate x ->
+      case cy of
+        BlockRate y ->
+          AudioRate (freezeArray (for each (unsafeEmptyArray ()) loop i a ->
+            writeArray i (Share (f (readArray i x) y)) a))
+        AudioRate y ->
+          AudioRate (freezeArray (for each (unsafeEmptyArray ()) loop i a ->
+            writeArray i (Share (f (readArray i x) (readArray i y))) a))
+
+accumulateChannel1 :: Default s => (F64 -> s -> (#s, F64#)) -> Channel -> Channel
+accumulateChannel1 f input1 =
+  case output of
+    (#_, o#) -> AudioRate (freezeArray o)
+  where
+    output =
+      case input1 of
+        BlockRate input1Val ->
+          for each (#Share default, unsafeEmptyArray ()#) loop i accu ->
+            case accu of
+              (#Share s, o#) ->
+                case f input1Val s of
+                  (#s', x#) -> (#Share s', writeArray i (Share x) o#)
+        AudioRate input1Buffer ->
+          for each (#Share default, unsafeEmptyArray()#) loop i accu ->
+            case accu of
+              (#Share s, o#) ->
+                case f (readArray i input1Buffer) s of
+                  (#s', x#) -> (#Share s', writeArray i (Share x) o#)
+
 
 --------------------
 -- Audio
 --------------------
-data Channel   = BlockRate F64 | AudioRate (Array BlockSize F64)
 data Mono      = Mono Channel
 data Stereo    = Stereo (#Channel, Channel#)
 data Quad      = Quad Channel Channel Channel Channel
 data Ambisonic = Ambisonic Channel Channel Channel Channel
 
--- outChannel :: UInt -> Channel -> *World -> *World
--- outChannel n c w =
---   case c of
---     BlockRate _ -> w
---     AudioRate b -> outAudioBlock n b w
+class Audio a where
+  pureAudio :: Channel -> a
+  mapAudio  :: (Channel -> Channel) -> a -> a
+  mapAudio2 :: (Channel -> Channel -> Channel) -> a -> a -> a
+  outAudio  :: UInt -> a -> *World -> *World
+
+instance Audio Mono where
+  pureAudio c    = Mono c
+  outAudio n m w =
+    case m of
+      Mono c -> outChannel n c w
+  mapAudio f m =
+    case m of
+      Mono c -> Mono (f c)
+  mapAudio2 f mx my =
+    case mx of
+      Mono cx ->
+        case my of
+          Mono cy -> Mono (f cx cy)
+
+instance Audio Stereo where
+  pureAudio c    = Stereo (#c, c#)
+  outAudio n s w =
+    case s of
+      Stereo (#l, r#) ->
+        outChannel (add n 1) r (outChannel n l w)
+  mapAudio f s =
+    case s of
+      Stereo (#l, r#) ->
+        Stereo (#f l, f r#)
+  mapAudio2 f sx sy =
+    case sx of
+      Stereo (#lx, rx#) ->
+        case sy of
+          Stereo (#ly, ry#) -> Stereo (#f lx ly, f rx ry#)
+
+instance Num Channel where
+  fromInt i = BlockRate (fromInt i)
+  add l r   = mapChannel2 add l r
+  sub l r   = mapChannel2 sub l r
+  mul l r   = mapChannel2 mul l r
+  signum c  = mapChannel signum c
+  abs c     = mapChannel abs c
+
+instance Num Mono where
+  fromInt i = Mono (fromInt i)
+  add l r   = mapAudio2 add l r
+  sub l r   = mapAudio2 sub l r
+  mul l r   = mapAudio2 mul l r
+  signum c  = mapAudio signum c
+  abs c     = mapAudio abs c
+
+instance Num Stereo where
+  fromInt i = let c = fromInt i in Stereo (#c, c#)
+  add l r   = mapAudio2 add l r
+  sub l r   = mapAudio2 sub l r
+  mul l r   = mapAudio2 mul l r
+  signum c  = mapAudio signum c
+  abs c     = mapAudio abs c
+
+instance Fractional Channel where
+  fromRational r = BlockRate (fromRational r)
+  div l r        = mapChannel2 div l r
+  recip c        = mapChannel recip c
+
+instance Fractional Mono where
+  fromRational r = Mono (fromRational r)
+  div l r        = mapAudio2 div l r
+  recip c        = mapAudio recip c
+
+instance Fractional Stereo where
+  fromRational r = let c = fromRational r in Stereo (#c, c#)
+  div l r        = mapAudio2 div l r
+  recip c        = mapAudio recip c
+
+accumulateAudio1 :: (Default s, Audio a) => (F64 -> s -> (#s, F64#)) -> a -> a
+accumulateAudio1 f a = mapAudio (accumulateChannel1 f) a
+
+accumulateSaw :: F64 -> F64 -> (#F64, F64#)
+accumulateSaw freq acc =
+  (#acc3, out#)
+  where
+    acc2 = fma freq recipSampleRate acc
+    acc3 = acc2 - fastFloor acc2
+    out  = fma 2.0 acc3 (-1.0)
+
+sawOsc :: Audio a => a -> a
+sawOsc freq = accumulateAudio1 accumulateSaw freq
 
 stereo :: Mono -> Mono -> Stereo
 stereo ml mr =
@@ -101,111 +338,53 @@ stereo ml mr =
       case mr of
         Mono r -> Stereo (#l, r#)
 
--- mapChannel :: (F64 -> F64) -> Channel -> Channel
--- mapChannel f c =
---   case c of
---     BlockRate x -> BlockRate (f x)
---     AudioRate b ->
---       let wa =
---             for each (unsafeEmptyArray ()) loop i a ->
---               writeArray i (Share (f (readArray i b))) a
---       in AudioRate (freezeArray wa)
---
--- -- TODO: Finish
--- mapChannel2 :: (F64 -> F64 -> F64) -> Channel -> Channel -> Channel
--- mapChannel2 f cx cy =
---   case cx of
---     BlockRate x ->
---       case cy of
---         BlockRate y -> BlockRate (f x y)
---         AudioRate y -> cx
---     AudioRate x -> cx
---
--- class Audio a where
---   pureAudio :: Channel -> a
---   outAudio  :: UInt -> a -> *World -> *World
---   mapAudio  :: (Channel -> Channel) -> a -> a
---   mapAudio2 :: (Channel -> Channel -> Channel) -> a -> a -> a
---
--- instance Audio Mono where
---   pureAudio c    = Mono c
---   outAudio n m w =
---     case m of
---       Mono c -> outChannel n c w
---   mapAudio f m =
---     case m of
---       Mono c -> Mono (f c)
---   mapAudio2 f mx my =
---     case mx of
---       Mono cx ->
---         case my of
---           Mono cy -> Mono (f cx cy)
---
--- instance Audio Stereo where
---   pureAudio c    = Stereo (#c, c#)
---   outAudio n s w =
---     case s of
---       Stereo (#l, r#) -> outChannel (add n 1) r (outChannel n l w)
---   mapAudio f s =
---     case s of
---       Stereo (#l, r#) -> Stereo (#f l, f r#)
---   mapAudio2 f sx sy =
---     case sx of
---       Stereo (#lx, rx#) ->
---         case sy of
---           Stereo (#ly, ry#) -> Stereo (#f lx ly, f rx ry#)
---
--- instance Num Channel where
---   fromInt i = BlockRate (fromInt i)
---   add l r   = mapChannel2 add l r
---   sub l r   = mapChannel2 sub l r
---   mul l r   = mapChannel2 mul l r
---   signum c  = mapChannel signum c
---   abs c     = mapChannel abs c
---
--- instance Num Mono where
---   fromInt i = Mono (fromInt i)
---   add l r   = mapAudio2 add l r
---   sub l r   = mapAudio2 sub l r
---   mul l r   = mapAudio2 mul l r
---   signum c  = mapAudio signum c
---   abs c     = mapAudio abs c
---
--- instance Num Stereo where
---   fromInt i = let c = fromInt i in Stereo (#c, c#)
---   add l r   = mapAudio2 add l r
---   sub l r   = mapAudio2 sub l r
---   mul l r   = mapAudio2 mul l r
---   signum c  = mapAudio signum c
---   abs c     = mapAudio abs c
---
--- instance Fractional Channel where
---   fromRational r = BlockRate (fromRational r)
---   div l r        = mapChannel2 div l r
---   recip c        = mapChannel recip c
---
--- instance Fractional Mono where
---   fromRational r = Mono (fromRational r)
---   div l r        = mapAudio2 div l r
---   recip c        = mapAudio recip c
---
--- instance Fractional Stereo where
---   fromRational r = let c = fromRational r in Stereo (#c, c#)
---   div l r        = mapAudio2 div l r
---   recip c        = mapAudio recip c
---
--- -- Throw into type class?
--- panStereo :: Mono -> Mono -> Stereo
--- panStereo amount input =
---   case input of
---     Mono inputChannel ->
---       case amount of
---         Mono amountChannel ->
---           Stereo (#inputChannel * amountChannel, inputChannel * (1 - amountChannel)#)
+-- Throw into type class?
+pan :: Mono -> Mono -> Stereo
+pan amount input =
+  case input of
+    Mono inputChannel ->
+      case amount of
+        Mono amountChannel ->
+          Stereo (#inputChannel * amountChannel, inputChannel * (1 - amountChannel)#)
 
--- -- TODO: Look into this!
--- seqTest :: Seq Int
--- seqTest = pure 44
+-- TODO: Move tests into one of the test function
+-- mapChannelTest1 :: Channel -> Channel
+-- mapChannelTest1 c = mapChannel (add 1) c
+
+-- mapChannelTest2 :: Channel -> Channel
+-- mapChannelTest2 c = mapChannel2 add c c
+
+-- mapAudioTest :: Stereo -> Stereo
+-- mapAudioTest x = x * 4 |> add 22
+
+-- maybeAudioTest :: Maybe Stereo -> Maybe Stereo
+-- maybeAudioTest x = map signum (map abs x)
+
+-- maybeAudioTest2 :: Maybe Stereo -> Maybe Stereo
+-- maybeAudioTest2 x = map2 add x x
+
+-- maybeAudioTest3 :: Maybe Stereo -> Maybe Stereo
+-- maybeAudioTest3 x = map (add 22) x
+
+-- sawTest :: Mono -> Stereo
+-- sawTest f = f + 440 |> sawOsc |> mul 0.1 |> pan 0.25
+
+-- sawTest2 :: Mono
+-- sawTest2 = sawOsc (fromInt mouseX * 440)
+
+-- sawTest3 :: Stereo
+-- sawTest3 = sawOsc 440
 
 -- TODO: Defunctionalization
+-- TODO: Rational Type
+-- TODO: Stateful Unboxed types
+-- TODO: Stateful Pattern assignment
+-- TODO: toSIMDAudio :: Array BlockSize F64 -> Array SIMDBlockSize SIMDF64
+
+-- seqTest :: Seq Float
+-- seqTest = 44 * 33 / 0.5
+
+-- Yes, this insanity is possible...
+-- seqTestDeeper :: Seq (Seq Float)
+-- seqTestDeeper = 44 * 33 / 0.5
 

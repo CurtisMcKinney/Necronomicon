@@ -58,10 +58,6 @@ class Freeze a where
 death :: .a -> .b -> c -> d -> ()
 death :: forall u v w x a b. (w<=u, x<=u, x<=v) => u:a -> w:(v:b -> x:(c -> d -> ()))
 
--- TODO: Shared implementation?
--- TODO: (Later): newtype implementation
---
-
 -- Loop ?
 loopTest :: .Array n Float
 loopTest = a' where
@@ -234,7 +230,6 @@ accumulateChannel1 f input1 =
           for each (#default, emptyO#) loop i (#s, o#) ->
             case f i1 s of
               (#s', a#) -> (#s', writeAudio i a o#)
-
         AudioRate input1Buffer ->
           for each (#default, emptyO#) loop i (#s, o#) ->
             case f (readArray i input1Buffer) s of

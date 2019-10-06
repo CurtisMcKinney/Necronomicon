@@ -62,9 +62,9 @@ void necro_apply_constraints(NecroPagedArena* arena, NecroType* type, NecroTypeC
 NecroType* necro_instantiate_method_sig(NecroInfer* infer, NecroAstSymbol* type_class_var, NecroType* a_method_type, NecroType* a_data_type)
 {
     a_data_type->ownership = NULL;
-    NecroInstSub* subs = NULL;
-    NecroType*    type = unwrap_result(NecroType, necro_type_instantiate_with_subs(infer->arena, &infer->con_env, infer->base, a_method_type, NULL, &subs));
-    a_data_type        = unwrap_result(NecroType, necro_type_instantiate(infer->arena, &infer->con_env, infer->base, a_data_type, NULL));
+    NecroInstSub* subs     = NULL;
+    NecroType*    type     = unwrap_result(NecroType, necro_type_instantiate_with_subs(infer->arena, &infer->con_env, infer->base, a_method_type, NULL, &subs));
+    a_data_type            = unwrap_result(NecroType, necro_type_instantiate(infer->arena, &infer->con_env, infer->base, a_data_type, NULL));
     while (subs != NULL)
     {
         if (subs->var_to_replace->name == type_class_var->name)

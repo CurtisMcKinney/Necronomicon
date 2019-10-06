@@ -898,7 +898,7 @@ NecroCoreAst* necro_core_ast_create_deep_copy(NecroStateAnalysis* context, Necro
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
-#define NECRO_SA_TEST_VERBOSE 1
+#define NECRO_SA_TEST_VERBOSE 0
 void necro_state_analysis_test_string(const char* test_name, const char* str)
 {
 
@@ -958,6 +958,8 @@ void necro_state_analysis_test()
     necro_announce_phase("State Analysis");
 
 /*
+
+*/
 
     {
         const char* test_name   = "Rec 1";
@@ -1133,8 +1135,6 @@ void necro_state_analysis_test()
             "main w = w\n";
         necro_state_analysis_test_string(test_name, test_source);
     }
-
-*/
 
     {
         const char* test_name   = "Emptiness";

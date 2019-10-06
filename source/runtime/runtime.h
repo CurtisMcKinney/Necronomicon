@@ -33,6 +33,9 @@ extern DLLEXPORT void         necro_runtime_debug_print(int value);
 extern DLLEXPORT unsigned int necro_runtime_print_int(int value, unsigned int world);
 extern DLLEXPORT int          necro_runtime_get_mouse_x(unsigned int _dummy);
 extern DLLEXPORT int          necro_runtime_get_mouse_y(unsigned int _dummy);
+extern DLLEXPORT unsigned int necro_runtime_get_sample_rate();
+extern DLLEXPORT unsigned int necro_runtime_get_block_size();
+extern DLLEXPORT unsigned int necro_runtime_out_audio_block(unsigned int channel_num, double* audio_block, unsigned int world);
 
 //--------------------
 // Memory

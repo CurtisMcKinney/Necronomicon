@@ -181,17 +181,75 @@ extern DLLEXPORT void necro_runtime_shutdown()
 ///////////////////////////////////////////////////////
 #include <unistd.h>
 
+#include <X11/Xos.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/Xatom.h>
+#include <X11/Xresource.h>
+
+static Window root;
+static Display* display = NULL;
+
+static int catchFalseAlarm()
+{
+  return 0;
+}   
+
 extern DLLEXPORT void necro_runtime_init()
 {
     if (necro_runtime_state != NECRO_RUNTIME_UNINITIALIZED)
         return;
+
+    XSetWindowAttributes attribs;
+    assert(display == NULL);
+
+    if (!(display = XOpenDisplay(0)))
+    {
+        fprintf (stderr, "Couldn't connect to %s\n", XDisplayName (0));
+        necro_exit(EXIT_FAILURE);
+    }
+
+    attribs.override_redirect = true;
+    XSetErrorHandler((XErrorHandler)catchFalseAlarm);
+    XSync(display, 0);
+
     necro_runtime_state = NECRO_RUNTIME_RUNNING;
+}
+
+static void query_pointer(Display *d)
+{
+  static bool once;
+  int i = 0;
+  int x = 0, y = 0;
+  unsigned m;
+  Window w;
+
+  if (once == false)
+  {
+    once = true;
+    root = DefaultRootWindow(d);
+  }
+
+  if (!XQueryPointer(d, root, &root, &w, &x, &y, &i, &i, &m)) {
+    for (i = 0; i < ScreenCount(d); ++i)
+    {
+      if (root == RootWindow(d, i))
+      {
+        break;
+      } 
+    }
+  }
+
+  fprintf(stdout, "X: %d Y: %d\n", x, y);
 }
 
 extern DLLEXPORT void necro_runtime_update()
 {
     if (necro_runtime_state != NECRO_RUNTIME_RUNNING)
         return;
+
+    assert(display != NULL);
+    query_pointer(display);
 }
 
 extern DLLEXPORT unsigned int necro_runtime_is_done()
@@ -203,6 +261,7 @@ extern DLLEXPORT void necro_runtime_shutdown()
 {
     if (necro_runtime_state != NECRO_RUNTIME_IS_DONE)
         return;
+    printf("And so it ends...\n");
     necro_runtime_state = NECRO_RUNTIME_SHUTDOWN;
 }
 

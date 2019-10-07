@@ -6,19 +6,22 @@ let
   stdenvCompiler = overrideCC stdenv clang_7;
   # stdenvCompiler = overrideCC stdenv gcc9;
 in
-  stdenvCompiler.mkDerivation {
+  stdenvCompiler.mkDerivation rec {
     name = "necro";
     src = ./.;
 
     buildInputs = [ llvm_7 valgrind bear ];
+    propagatedBuildInputs = with pkgs; [ xorg.xlibsWrapper ];
     nativeBuildInputs = [ bear cmake ];
     debugVersion = true;
     enableDebugging = true;
     enableDebugInfo = true;
+    enableSharedExecutables = false;
     hardeningDisable = [ "all" ];
 
     preConfigure = ''
-      export NIX_CFLAGS_COMPILE="$NIX_CFLAGS_COMPILE -fdebug-prefix-map=/build/Necronomicon=."
+      export LDFLAGS="-lX11"
+      export NIX_CFLAGS_COMPILE="$NIX_CFLAGS_COMPILE -fdebug-prefix-map=/build/Necronomicon=." LD=$CC
       '';
 
     configureFlags = [

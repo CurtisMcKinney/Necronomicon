@@ -183,6 +183,8 @@ NecroResult(NecroType) necro_core_infer_bind(NecroCoreInfer* infer, NecroCoreAst
 {
     assert(ast->ast_type == NECRO_CORE_AST_BIND);
     NecroType* expr_type = necro_try_result(NecroType, necro_core_infer_go(infer, ast->bind.expr));
+    assert(ast->bind.expr->necro_type != NULL);
+    assert(expr_type != NULL);
     necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, expr_type, zero_loc, zero_loc));
     necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, ast->bind.ast_symbol->type, zero_loc, zero_loc));
     if (ast->bind.initializer != NULL)
@@ -192,22 +194,38 @@ NecroResult(NecroType) necro_core_infer_bind(NecroCoreInfer* infer, NecroCoreAst
         necro_try(NecroType, necro_type_unify(infer->arena, NULL, infer->base, expr_type, init_type, NULL));
     }
     assert(ast->bind.ast_symbol->type != NULL);
-    return necro_type_unify(infer->arena, NULL, infer->base, ast->bind.ast_symbol->type, expr_type, NULL);
+    necro_try_result(NecroType, necro_type_unify(infer->arena, NULL, infer->base, ast->bind.ast_symbol->type, expr_type, NULL));
+    ast->necro_type = ast->bind.ast_symbol->type;
+    assert(ast->necro_type != NULL);
+    return ok(NecroType, ast->necro_type);
 }
 
 // TODO: Array Literals
+// TODO: Non-Recursive style
 NecroResult(NecroType) necro_core_infer_let(NecroCoreInfer* infer, NecroCoreAst* ast)
 {
+    if (ast == NULL)
+        return ok(NecroType, NULL);
     assert(ast->ast_type == NECRO_CORE_AST_LET);
-    while (ast != NULL)
-    {
-        if (ast->ast_type != NECRO_CORE_AST_LET)
-            return necro_core_infer_go(infer, ast);
-        necro_try(NecroType, necro_core_infer_go(infer, ast->let.bind));
-        ast = ast->let.expr;
-    }
-    return ok(NecroType, NULL);
+    necro_try(NecroType, necro_core_infer_go(infer, ast->let.bind));
+    ast->necro_type = necro_try_result(NecroType, necro_core_infer_go(infer, ast->let.expr));
+    // if (ast->let.expr != NULL)
+    //     assert(ast->necro_type != NULL);
+    return ok(NecroType, ast->necro_type);
 }
+
+// NecroResult(NecroType) necro_core_infer_let(NecroCoreInfer* infer, NecroCoreAst* ast)
+// {
+//     assert(ast->ast_type == NECRO_CORE_AST_LET);
+//     while (ast != NULL)
+//     {
+//         if (ast->ast_type != NECRO_CORE_AST_LET)
+//             return necro_core_infer_go(infer, ast);
+//         necro_try(NecroType, necro_core_infer_go(infer, ast->let.bind));
+//         ast = ast->let.expr;
+//     }
+//     return ok(NecroType, NULL);
+// }
 
 NecroResult(NecroType) necro_core_infer_case(NecroCoreInfer* infer, NecroCoreAst* ast)
 {

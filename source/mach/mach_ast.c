@@ -8,6 +8,7 @@
 #include "runtime/mouse.h"
 #include "runtime/runtime.h"
 #include <ctype.h>
+#include <math.h>
 
 /*
     * https://www.microsoft.com/en-us/research/wp-content/uploads/1992/01/student.pdf
@@ -1472,6 +1473,18 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         program->runtime.necro_print_int          = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_print_int, NECRO_STATE_POINTWISE)->fn_def.symbol;
     }
 
+    // necro_runtime_print_f64
+    {
+        NecroAstSymbol*     ast_symbol            = program->base->print_f64;
+        ast_symbol->is_primitive                  = true;
+        ast_symbol->core_ast_symbol->is_primitive = true;
+        NecroMachAstSymbol* mach_symbol           = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
+        mach_symbol->is_primitive                 = true;
+        NecroMachType*      fn_type               = necro_mach_type_create_fn(&program->arena, program->type_cache.word_uint_type, (NecroMachType*[]) { program->type_cache.f64_type, program->type_cache.word_uint_type }, 2);
+        // program->runtime.necro_print_int          = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_print_int, NECRO_STATE_POINTWISE)->fn_def.symbol;
+        necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_print_f64, NECRO_STATE_POINTWISE);
+    }
+
     // necro_runtime_error_exit
     {
         NecroMachAstSymbol* mach_symbol   = necro_mach_ast_symbol_gen(program, NULL, "necro_runtime_error_exit", NECRO_DONT_MANGLE);
@@ -1532,6 +1545,17 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         ast_symbol->core_ast_symbol->is_primitive = true;
         NecroMachAstSymbol* mach_symbol           = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
         mach_symbol->is_primitive                 = true;
+    }
+
+    // floor
+    {
+        NecroAstSymbol*     ast_symbol            = program->base->floor;
+        ast_symbol->is_primitive                  = true;
+        ast_symbol->core_ast_symbol->is_primitive = true;
+        NecroMachAstSymbol* mach_symbol           = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
+        mach_symbol->is_primitive                 = true;
+        NecroMachType*      fn_type               = necro_mach_type_create_fn(&program->arena, program->type_cache.f64_type, (NecroMachType*[]) { program->type_cache.f64_type }, 1);
+        necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) floor, NECRO_STATE_POINTWISE)->fn_def.symbol;
     }
 
     // TODO: Audio

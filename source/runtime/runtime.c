@@ -76,6 +76,12 @@ extern DLLEXPORT unsigned int necro_runtime_print_int(int value, unsigned int wo
     return world;
 }
 
+extern DLLEXPORT unsigned int necro_runtime_print_f64(double value, unsigned int world)
+{
+    printf("%.17g                                \r", value);
+    return world;
+}
+
 extern DLLEXPORT void necro_runtime_sleep(uint32_t milliseconds)
 {
 #ifdef _WIN32
@@ -229,10 +235,7 @@ extern DLLEXPORT void necro_runtime_shutdown()
 
 extern DLLEXPORT unsigned int necro_runtime_out_audio_block(unsigned int channel_num, double* audio_block, unsigned int world)
 {
-    UNUSED(channel_num);
-    UNUSED(audio_block);
-    // printf("[%f]\n", audio_block[0]);
-    printf("out_audio_block[%d]", channel_num);
+    printf("channel[%d] = { %.17g, %.17g, %.17g, %.17g, ... }\n", channel_num, audio_block[0], audio_block[1], audio_block[2], audio_block[3]);
     return world;
 }
 

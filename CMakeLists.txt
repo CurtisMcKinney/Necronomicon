@@ -19,6 +19,8 @@
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 project(necro)
 
+include(CheckFunctionExists)
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_BUILD_TYPE Debug)
 
@@ -139,7 +141,7 @@ set(project_HEADERS
     source/utility/arena.h
     source/utility/debug_memory.h
     source/utility/utility.h
-    source/utility/math.h
+    source/utility/math_utility.h
     source/utility/hash_table.h
     source/utility/list.h
     source/utility/dequeue.h
@@ -179,10 +181,7 @@ ADD_EXECUTABLE(necro ${project_HEADERS} ${project_SOURCES})
 # that we wish to use
 # llvm_map_components_to_libnames(llvm_libs support core irreader analysis target ScalarOpts native passes mcjit)
 llvm_map_components_to_libnames(llvm_libs core native passes ScalarOpts analysis mcjit target)
-
 TARGET_LINK_LIBRARIES(necro ${llvm_libs})
-
-
 
 execute_process (
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}

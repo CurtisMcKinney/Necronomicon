@@ -4,9 +4,10 @@
  */
 
 #include "codegen_llvm.h"
-#include <stdarg.h>
+#include <math.h>
 #include <ctype.h>
 #include <stdio.h>
+
 #include <llvm-c/Analysis.h>
 #include <llvm-c/Transforms/IPO.h>
 #include <llvm-c/Transforms/Scalar.h>
@@ -15,6 +16,7 @@
 #include <llvm-c/TargetMachine.h>
 #include <llvm-c/Transforms/PassManagerBuilder.h>
 #include <llvm-c/Support.h>
+#include <llvm-c/ExecutionEngine.h>
 
 #include "alias_analysis.h"
 #include "core_ast.h"
@@ -153,6 +155,19 @@ NecroLLVMSymbol* necro_llvm_symbol_get(NecroPagedArena* arena, NecroMachAstSymbo
     return (NecroLLVMSymbol*) mach_symbol->codegen_symbol;
 }
 
+LLVMValueRef necro_llvm_intrinsic_get(NecroLLVM* context, NecroMachAstSymbol* mach_symbol, const char* intrinsic_name, LLVMTypeRef fn_type)
+{
+    NecroLLVMSymbol* symbol = necro_llvm_symbol_get(&context->arena, mach_symbol);
+    if (symbol->value == NULL)
+    {
+        symbol->type  = fn_type;
+        symbol->value = LLVMAddFunction(context->mod, intrinsic_name, symbol->type);
+        // LLVMSetFunctionCallConv(symbol->value, LLVMFastCallConv);
+        // LLVMSetFunctionCallConv(symbol->value, LLVMCCallConv);
+    }
+    return symbol->value;
+}
+
 NecroLLVM necro_llvm_empty()
 {
     return (NecroLLVM)
@@ -174,13 +189,25 @@ NecroLLVM necro_llvm_empty()
     };
 }
 
-void necro_llvm_create_target_data(LLVMCodeGenOptLevel opt_level, LLVMTargetMachineRef* target_machine, LLVMTargetDataRef* target_data)
+NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgram* program, bool should_optimize)
 {
-    const char*          target_triple    = LLVMGetDefaultTargetTriple();
-    const char*          target_cpu       = LLVMGetHostCPUName();
-    const char*          target_features  = LLVMGetHostCPUFeatures();
-    LLVMTargetRef        target           = NULL;
-    char*                target_error     = NULL;
+    LLVMLinkInMCJIT();
+    LLVMInitializeNativeTarget();
+    LLVMInitializeNativeAsmPrinter();
+    LLVMInitializeNativeAsmParser();
+
+    // Context/Mod/Engine
+    LLVMContextRef         context          = LLVMContextCreate();
+    LLVMModuleRef          mod              = LLVMModuleCreateWithNameInContext("necro", context);
+    LLVMExecutionEngineRef engine           = NULL;
+    LLVMCodeGenOptLevel    opt_level        = should_optimize ? LLVMCodeGenLevelAggressive : LLVMCodeGenLevelNone;
+
+    // Machine
+    const char*   target_triple    = LLVMGetDefaultTargetTriple();
+    const char*   target_cpu       = LLVMGetHostCPUName();
+    const char*   target_features  = LLVMGetHostCPUFeatures();
+    LLVMTargetRef target           = NULL;
+    char*         target_error     = NULL;
     if (LLVMGetTargetFromTriple(target_triple, &target, &target_error))
     {
         fprintf(stderr, "necro error: %s\n", target_error);
@@ -188,39 +215,10 @@ void necro_llvm_create_target_data(LLVMCodeGenOptLevel opt_level, LLVMTargetMach
         necro_exit(1);
         assert(false);
     }
-    *target_machine = LLVMCreateTargetMachine(target, target_triple, target_cpu, target_features, opt_level, LLVMRelocDefault, LLVMCodeModelJITDefault);
-    *target_data    = LLVMCreateTargetDataLayout(*target_machine);
-
-}
-
-NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgram* program, bool should_optimize)
-{
-    LLVMInitializeNativeTarget();
-
-    LLVMContextRef         context          = LLVMContextCreate();
-    LLVMModuleRef          mod              = LLVMModuleCreateWithNameInContext("necro", context);
-    LLVMExecutionEngineRef engine           = NULL;
-
-    // LLVMSetTarget(mod, target_triple);
-    // LLVMSetModuleDataLayout(mod, target_data);
-
-    //--------------------
-    // Set up JIT
-    LLVMLinkInMCJIT();
-    LLVMInitializeNativeAsmPrinter();
-    // LLVMInitializeNativeAsmParser();
-
-    char* error = NULL;
-    if (LLVMCreateMCJITCompilerForModule(&engine, mod, NULL, 0, &error) != 0)
-    {
-        fprintf(stderr, "necro error: %s\n", error);
-        LLVMDisposeMessage(error);
-        assert(false);
-    }
-    LLVMDisposeMessage(error);
-
-    // LLVMSetTarget(mod, LLVMGetExe
-    // LLVMSetModuleDataLayout(mod, target_data);
+    LLVMTargetMachineRef target_machine = LLVMCreateTargetMachine(target, target_triple, target_cpu, target_features, opt_level, LLVMRelocDefault, LLVMCodeModelJITDefault);
+    LLVMTargetDataRef    target_data    = LLVMCreateTargetDataLayout(target_machine);
+    LLVMSetTarget(mod, target_triple);
+    LLVMSetModuleDataLayout(mod, target_data);
 
     LLVMPassManagerRef fn_pass_manager  = LLVMCreateFunctionPassManagerForModule(mod);
     LLVMPassManagerRef mod_pass_manager = LLVMCreatePassManager();
@@ -234,6 +232,8 @@ NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgr
         // LLVMAddAggressiveInstCombinerPass(mod_pass_manager);
 
         // fn_pass_manager
+        LLVMAddSimplifyLibCallsPass(fn_pass_manager);
+        LLVMAddPartiallyInlineLibCallsPass(fn_pass_manager);
         LLVMInitializeFunctionPassManager(fn_pass_manager);
         LLVMAddInstructionCombiningPass(fn_pass_manager);
         LLVMAddConstantPropagationPass(fn_pass_manager);
@@ -296,10 +296,11 @@ NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgr
     }
     else
     {
-        // LLVMInitializeFunctionPassManager(fn_pass_manager);
-        // LLVMAddCFGSimplificationPass(fn_pass_manager);
-        // LLVMAddTailCallEliminationPass(fn_pass_manager);
-        // LLVMFinalizeFunctionPassManager(fn_pass_manager);
+        // fn_pass_manager
+        LLVMInitializeFunctionPassManager(fn_pass_manager);
+        LLVMAddSimplifyLibCallsPass(fn_pass_manager);
+        LLVMAddPartiallyInlineLibCallsPass(fn_pass_manager);
+        LLVMFinalizeFunctionPassManager(fn_pass_manager);
         LLVMPassManagerBuilderRef pass_manager_builder = LLVMPassManagerBuilderCreate();
         LLVMPassManagerBuilderSetOptLevel(pass_manager_builder, 0);
         LLVMPassManagerBuilderPopulateFunctionPassManager(pass_manager_builder, fn_pass_manager);
@@ -315,14 +316,15 @@ NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgr
         .context                 = context,
         .builder                 = LLVMCreateBuilderInContext(context),
         .mod                     = mod,
-        // .target                  = target_data,
-        // .target_machine          = target_machine,
+        .target                  = target_data,
+        .target_machine          = target_machine,
         .fn_pass_manager         = fn_pass_manager,
         .mod_pass_manager        = mod_pass_manager,
         .should_optimize         = should_optimize,
         .engine                  = engine,
         .program                 = program,
         .delayed_phi_node_values = necro_create_delayed_phi_node_value_vector(),
+        .opt_level               = opt_level,
     };
 }
 
@@ -333,10 +335,10 @@ void necro_llvm_destroy(NecroLLVM* context)
         LLVMDisposePassManager(context->mod_pass_manager);
     if (context->fn_pass_manager != NULL)
         LLVMDisposePassManager(context->fn_pass_manager);
-    // if (context->target != NULL)
-    //     LLVMDisposeTargetData(context->target);
-    // if (context->target_machine != NULL)
-    //     LLVMDisposeTargetMachine(context->target_machine);
+    if (context->target != NULL)
+        LLVMDisposeTargetData(context->target);
+    if (context->target_machine != NULL)
+        LLVMDisposeTargetMachine(context->target_machine);
     // if (context->mod != NULL)
     //     LLVMDisposeModule(context->mod);
     if (context->engine != NULL)
@@ -690,15 +692,20 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
     }
     case NECRO_PRIMOP_UOP_FFLR:
     {
-        param                              = LLVMBuildFSub(context->builder, param, LLVMConstReal(LLVMDoubleTypeInContext(context->context), 0.5), "ffloor_sub");
-        NecroLLVMSymbol* fast_floor_symbol = necro_llvm_symbol_get(&context->arena, context->base->fast_floor->core_ast_symbol->mach_symbol);
-        if (fast_floor_symbol->value == NULL)
-        {
-            fast_floor_symbol->type  = LLVMFunctionType(LLVMDoubleTypeInContext(context->context), (LLVMTypeRef[]) { LLVMDoubleTypeInContext(context->context) }, 1, false);
-            fast_floor_symbol->value = LLVMAddFunction(context->mod, "llvm.nearbyint.f64", fast_floor_symbol->type);
-        }
-        value = LLVMBuildCall(context->builder, fast_floor_symbol->value, (LLVMValueRef[]) { param }, 1, name);
-        LLVMSetInstructionCallConv(value, LLVMGetFunctionCallConv(fast_floor_symbol->value));
+        //--------------------
+        // Floor magic
+        // based somewhat on: http://blog.frama-c.com/index.php?post/2013/05/04/nearbyintf3
+        // This involves a lot of magic and should only be used when speed is absolutely paramount
+        // Add then Subtract: 2^52
+        // IEEE754 double arithmetic will cause this to round
+        // This reduces the precision of the double to integer values
+        // Need some adjustments to value to create a floor and not a round
+        // Works for values in the range 0-... (TODO:
+        const double round_magic = pow(2, 52);
+        param                    = LLVMBuildFAdd(context->builder, param, LLVMConstReal(LLVMDoubleTypeInContext(context->context), 0.5), "fflr_add");
+        value                    = LLVMBuildFAdd(context->builder, param, LLVMConstReal(LLVMDoubleTypeInContext(context->context), round_magic), "round_add");
+        value                    = LLVMBuildFAdd(context->builder, value, LLVMConstReal(LLVMDoubleTypeInContext(context->context), -round_magic), "round_sub");
+        value                    = LLVMBuildFSub(context->builder, value, LLVMConstReal(LLVMDoubleTypeInContext(context->context), 1.0), "fflr_result");
         break;
     }
 
@@ -941,12 +948,9 @@ void necro_llvm_declare_function(NecroLLVM* context, NecroMachAst* ast)
     LLVMTypeRef      fn_type       = necro_llvm_type_from_mach_type(context, ast->necro_machine_type);
     LLVMValueRef     fn_value      = LLVMAddFunction(context->mod, ast->fn_def.symbol->name->str, fn_type);
     NecroLLVMSymbol* fn_def_symbol = necro_llvm_symbol_get(&context->arena, ast->fn_def.symbol);
-    // NecroLLVMSymbol* fn_val_symbol = necro_llvm_symbol_get(&context->arena, ast->fn_def.fn_value->value.global_symbol);
     fn_def_symbol->type            = fn_type;
     fn_def_symbol->value           = fn_value;
     ast->fn_def.fn_value->value.global_symbol->codegen_symbol = fn_def_symbol;
-    // fn_val_symbol->type            = fn_type;
-    // fn_val_symbol->value           = fn_value;
 }
 
 void necro_llvm_codegen_function(NecroLLVM* context, NecroMachAst* ast)
@@ -961,10 +965,6 @@ void necro_llvm_codegen_function(NecroLLVM* context, NecroMachAst* ast)
 
     if (ast->fn_def.fn_type == NECRO_MACH_FN_RUNTIME)
     {
-        // LLVMAVR
-        // LLVMAddAttributeAtIndex(fn_value, (LLVMAttributeIndex) LLVMAttributeFunctionIndex, LLVMCreateEnumAttribute(context->context, LLVMGetEnumAttributeKindForName("noinline", 8), 0));
-        // LLVMAddAttributeAtIndex(fn_value, (LLVMAttributeIndex) LLVMAttributeFunctionIndex, LLVMCreateEnumAttribute(context->context, LLVMGetEnumAttributeKindForName("optnone", 7), 0));
-        // LLVMAddAttributeAtIndex(fn_value, (LLVMAttributeIndex) LLVMAttributeFunctionIndex, LLVMCreateEnumAttribute(context->context, LLVMGetEnumAttributeKindForName("nodiscard", 9), 0));
         LLVMSetFunctionCallConv(fn_value, LLVMCCallConv);
         LLVMSetLinkage(fn_value, LLVMExternalLinkage);
         return;
@@ -1005,28 +1005,21 @@ LLVMValueRef necro_llvm_codegen_call(NecroLLVM* context, NecroMachAst* ast)
     assert(context != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_MACH_CALL);
-    // NecroArenaSnapshot snapshot    = necro_snapshot_arena_get(&context->snapshot_arena);
-    bool               is_void     = ast->call.result_reg->value.value_type == NECRO_MACH_VALUE_VOID;
-    const char*        result_name = NULL;
+    bool        is_void     = ast->call.result_reg->value.value_type == NECRO_MACH_VALUE_VOID;
+    const char* result_name = NULL;
     if (!is_void)
         result_name = ast->call.result_reg->value.reg_symbol->name->str;
     else
         result_name = "";
     LLVMValueRef  fn_value    = necro_llvm_codegen_value(context, ast->call.fn_value);
     size_t        num_params  = ast->call.num_parameters;
-    // LLVMValueRef* params      = necro_snapshot_arena_alloc(&context->snapshot_arena, num_params * sizeof(LLVMValueRef));
-    // LLVMTypeRef*  param_types = necro_snapshot_arena_alloc(&context->snapshot_arena, num_params * sizeof(LLVMTypeRef));
     LLVMValueRef* params      = necro_paged_arena_alloc(&context->arena, num_params * sizeof(LLVMValueRef));
-    LLVMTypeRef*  param_types = necro_paged_arena_alloc(&context->arena, num_params * sizeof(LLVMTypeRef));
-    LLVMTypeRef   fn_value_ty = LLVMGetElementType(LLVMTypeOf(fn_value));
-    LLVMGetParamTypes(fn_value_ty, param_types);
     for (size_t i = 0; i < num_params; ++i)
     {
         params[i] = necro_llvm_codegen_value(context, ast->call.parameters[i]);
     }
     assert(num_params <= UINT32_MAX);
     LLVMValueRef result = LLVMBuildCall(context->builder, fn_value, params, (uint32_t) num_params, result_name);
-    // LLVMSetTailCall(result, false);
     if (ast->call.call_type == NECRO_MACH_CALL_C)
         LLVMSetInstructionCallConv(result, LLVMCCallConv);
     else
@@ -1038,7 +1031,6 @@ LLVMValueRef necro_llvm_codegen_call(NecroLLVM* context, NecroMachAst* ast)
         symbol->value           = result;
         necro_llvm_codegen_delayed_phi_node(context, symbol);
     }
-    // necro_snapshot_arena_rewind(&context->snapshot_arena, snapshot);
     return result;
 }
 
@@ -1047,9 +1039,8 @@ LLVMValueRef necro_llvm_codegen_call_intrinsic(NecroLLVM* context, NecroMachAst*
     assert(context != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_MACH_CALLI);
-    // NecroArenaSnapshot snapshot    = necro_snapshot_arena_get(&context->snapshot_arena);
-    bool               is_void     = ast->call_intrinsic.result_reg->value.value_type == NECRO_MACH_VALUE_VOID;
-    const char*        result_name = NULL;
+    bool        is_void     = ast->call_intrinsic.result_reg->value.value_type == NECRO_MACH_VALUE_VOID;
+    const char* result_name = NULL;
     if (!is_void)
         result_name = ast->call_intrinsic.result_reg->value.reg_symbol->name->str;
     else
@@ -1060,31 +1051,25 @@ LLVMValueRef necro_llvm_codegen_call_intrinsic(NecroLLVM* context, NecroMachAst*
     switch (ast->call_intrinsic.intrinsic)
     {
     case NECRO_PRIMOP_INTR_FMA:
-    {
-        NecroLLVMSymbol* fma_symbol = necro_llvm_symbol_get(&context->arena, context->base->fma->core_ast_symbol->mach_symbol);
-        if (fma_symbol->value == NULL)
-        {
-            fma_symbol->type  = LLVMFunctionType(LLVMDoubleTypeInContext(context->context), (LLVMTypeRef[]) { LLVMDoubleTypeInContext(context->context), LLVMDoubleTypeInContext(context->context), LLVMDoubleTypeInContext(context->context) }, 3, false);
-            fma_symbol->value = LLVMAddFunction(context->mod, "llvm.fmuladd.f64", fma_symbol->type);
-        }
-        fn_value = fma_symbol->value;
-        fn_type  = fma_symbol->type;
+        fn_type  = LLVMFunctionType(LLVMDoubleTypeInContext(context->context), (LLVMTypeRef[]) { LLVMDoubleTypeInContext(context->context), LLVMDoubleTypeInContext(context->context), LLVMDoubleTypeInContext(context->context) }, 3, false);
+        fn_value = necro_llvm_intrinsic_get(context, context->base->fma->core_ast_symbol->mach_symbol, "llvm.fmuladd.f64", fn_type);
         break;
-    }
+    // case NECRO_PRIMOP_INTR_FLR:
+    // {
+    //     fn_type  = LLVMFunctionType(LLVMDoubleTypeInContext(context->context), (LLVMTypeRef[]) { LLVMDoubleTypeInContext(context->context) }, 1, false);
+    //     fn_value = necro_llvm_intrinsic_get(context, context->base->floor->core_ast_symbol->mach_symbol, "llvm.floor.f64", fn_type);
+    //     break;
+    // }
     }
     size_t        num_params  = ast->call_intrinsic.num_parameters;
-    // // LLVMValueRef* params      = necro_snapshot_arena_alloc(&context->snapshot_arena, num_params * sizeof(LLVMValueRef));
-    // // LLVMTypeRef*  param_types = necro_snapshot_arena_alloc(&context->snapshot_arena, num_params * sizeof(LLVMTypeRef));
     LLVMValueRef* params      = necro_paged_arena_alloc(&context->arena, num_params * sizeof(LLVMValueRef));
-    LLVMTypeRef*  param_types = necro_paged_arena_alloc(&context->arena, num_params * sizeof(LLVMTypeRef));
-    LLVMGetParamTypes(fn_type, param_types);
     for (size_t i = 0; i < num_params; ++i)
     {
         params[i] = necro_llvm_codegen_value(context, ast->call_intrinsic.parameters[i]);
     }
-    assert(num_params <= UINT32_MAX);
-    LLVMValueRef result = LLVMBuildCall(context->builder, fn_value, params, (uint32_t) num_params, result_name);
-    LLVMSetInstructionCallConv(result, LLVMFastCallConv);
+    LLVMValueRef result = LLVMBuildCall(context->builder, fn_value, params, num_params, result_name);
+    LLVMSetInstructionCallConv(result, LLVMGetFunctionCallConv(fn_value));
+    // LLVMSetInstructionCallConv(result, LLVMFastCallConv);
     if (!is_void)
     {
         NecroLLVMSymbol* symbol = necro_llvm_symbol_get(&context->arena, ast->call_intrinsic.result_reg->value.reg_symbol);
@@ -1092,7 +1077,6 @@ LLVMValueRef necro_llvm_codegen_call_intrinsic(NecroLLVM* context, NecroMachAst*
         symbol->value           = result;
         necro_llvm_codegen_delayed_phi_node(context, symbol);
     }
-    // necro_snapshot_arena_rewind(&context->snapshot_arena, snapshot);
     return result;
 }
 
@@ -1114,24 +1098,13 @@ void necro_codegen_global(NecroLLVM* context, NecroMachAst* ast)
     LLVMSetGlobalConstant(global_value, false);
 }
 
-void necro_llvm_map_runtime_symbol(NecroLLVM* context, LLVMExecutionEngineRef engine, NecroMachAstSymbol* mach_symbol)
-{
-    if (mach_symbol == NULL)
-        return;
-    NecroLLVMSymbol* llvm_symbol = necro_llvm_symbol_get(&context->arena, mach_symbol);
-    if (llvm_symbol->value == NULL || LLVMIsNull(llvm_symbol->value) || !LLVMIsAFunction(llvm_symbol->value))
-        return;
-    LLVMAddGlobalMapping(engine, llvm_symbol->value, (void*) mach_symbol->ast->fn_def.runtime_fn_addr);
-}
-
-
 ///////////////////////////////////////////////////////
 // Necro Codegen Go
 ///////////////////////////////////////////////////////
 void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroLLVM* context)
 {
-    *context = necro_llvm_create(program->intern, program->base, program, info.opt_level > 0);
-    // *context = necro_llvm_create(program->intern, program->base, program, true);
+    // *context = necro_llvm_create(program->intern, program->base, program, info.opt_level > 0);
+    *context = necro_llvm_create(program->intern, program->base, program, true);
 
     // Declare structs
     for (size_t i = 0; i < program->structs.length; ++i)
@@ -1206,6 +1179,64 @@ void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroL
         necro_llvm_print(context);
     }
 
+}
+
+///////////////////////////////////////////////////////
+// Necro JIT
+///////////////////////////////////////////////////////
+void necro_fatal_error_handler(const char* error)
+{
+    printf("necro fatal error: %s", error);
+    exit(1);
+}
+
+void necro_llvm_map_runtime_symbol(NecroLLVM* context, LLVMExecutionEngineRef engine, NecroMachAstSymbol* mach_symbol)
+{
+    if (mach_symbol == NULL)
+        return;
+    NecroLLVMSymbol* llvm_symbol = necro_llvm_symbol_get(&context->arena, mach_symbol);
+    if (llvm_symbol->value == NULL || LLVMIsNull(llvm_symbol->value) || !LLVMIsAFunction(llvm_symbol->value))
+        return;
+    LLVMAddGlobalMapping(engine, llvm_symbol->value, (void*) mach_symbol->ast->fn_def.runtime_fn_addr);
+}
+
+void necro_llvm_map_intrinsic(NecroLLVM* context, LLVMExecutionEngineRef engine, NecroMachAstSymbol* mach_symbol, void* fn_addr)
+{
+    if (mach_symbol == NULL)
+        return;
+    NecroLLVMSymbol* llvm_symbol = necro_llvm_symbol_get(&context->arena, mach_symbol);
+    if (llvm_symbol->value == NULL || LLVMIsNull(llvm_symbol->value) || !LLVMIsAFunction(llvm_symbol->value))
+        return;
+    LLVMAddGlobalMapping(engine, llvm_symbol->value, fn_addr);
+}
+
+void necro_llvm_jit(NecroCompileInfo info, NecroLLVM* context)
+{
+    UNUSED(info);
+
+    //--------------------
+    // Set up JIT
+    char* error = NULL;
+    struct LLVMMCJITCompilerOptions options;
+    LLVMInitializeMCJITCompilerOptions(&options, sizeof(options));
+    options.OptLevel       = context->opt_level;
+    options.EnableFastISel = false;
+    if (LLVMCreateMCJITCompilerForModule(&context->engine, context->mod, &options, sizeof(options), &error) != 0)
+    {
+        fprintf(stderr, "necro error: %s\n", error);
+        LLVMDisposeMessage(error);
+        assert(false);
+    }
+    LLVMDisposeMessage(error);
+
+    // if (LLVMCreateExecutionEngineForModule(&context->engine, context->mod, &error) != 0)
+    // {
+    //     fprintf(stderr, "necro error: %s\n", error);
+    //     LLVMDisposeMessage(error);
+    //     assert(false);
+    // }
+    // LLVMDisposeMessage(error);
+
     //--------------------
     // Map runtime functions
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_init_runtime);
@@ -1215,38 +1246,14 @@ void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroL
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_print);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_debug_print);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_print_int);
+    necro_llvm_map_runtime_symbol(context, context->engine, context->base->print_f64->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_get_mouse_x);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_get_mouse_y);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_is_done);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_alloc);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_free);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_out_audio_block);
-
-    // Write assembly to file
-    /*
-    {
-        LLVMTargetMachineRef target_machine     = NULL;
-        LLVMTargetDataRef    target_data        = NULL;
-        char*                emit_to_file_error = NULL;
-        necro_llvm_create_target_data(context->should_optimize, &target_machine, &target_data);
-        if (LLVMTargetMachineEmitToFile(target_machine, context->mod, "./necro.asm", LLVMAssemblyFile, &emit_to_file_error) != 0)
-        {
-            fprintf(stderr, "LLVMTargetMachineEmitToFile error: %s\n", emit_to_file_error);
-            LLVMDisposeMessage(emit_to_file_error);
-            exit(1);
-            return;
-        }
-    }
-    */
-
-}
-
-///////////////////////////////////////////////////////
-// Necro JIT
-///////////////////////////////////////////////////////
-void necro_llvm_jit(NecroCompileInfo info, NecroLLVM* context)
-{
-    UNUSED(info);
+    necro_llvm_map_runtime_symbol(context, context->engine, context->base->floor->core_ast_symbol->mach_symbol);
 
 #ifdef _WIN32
     system("cls");
@@ -1264,19 +1271,50 @@ void necro_llvm_jit(NecroCompileInfo info, NecroLLVM* context)
     puts("    and SeppukuZombie (Chad McKinney)");
     puts("\n");
 
-    void(*fun)() = (void(*)())((size_t)LLVMGetFunctionAddress(context->engine, "necro_main"));
-    assert(fun != NULL);
-    (*fun)();
+    LLVMInstallFatalErrorHandler(necro_fatal_error_handler);
 
-    // return NECRO_SUCCESS;
+    // Get Main fn ptr
+    NecroLLVMSymbol* necro_main_symbol = necro_llvm_symbol_get(&context->arena, context->program->necro_main->fn_def.symbol);
+    assert(necro_main_symbol != NULL);
+    LLVMSetFunctionCallConv(necro_main_symbol->value, LLVMCCallConv);
+    int (*necro_main)() = (int(*)())(LLVMGetPointerToGlobal(context->engine, necro_main_symbol->value));
+    assert(necro_main != NULL);
+
+    // Go!
+    int necro_exit_code = necro_main();
+    if (necro_exit_code)
+    {
+        fprintf(stderr, "necro exited with error code: %d\n", necro_exit_code);
+    }
+
 }
 
+
+///////////////////////////////////////////////////////
+// Necro Compile
+///////////////////////////////////////////////////////
+void necro_llvm_compile(NecroCompileInfo info, NecroLLVM* context)
+{
+    UNUSED(info);
+    char* emit_error = NULL;
+    char* output_location = "./build/necro_test.asm";
+    if (LLVMTargetMachineEmitToFile(context->target_machine, context->mod, output_location, LLVMAssemblyFile, &emit_error) != 0)
+    // char* output_location = "./build/necro_test.o";
+    // if (LLVMTargetMachineEmitToFile(context->target_machine, context->mod, output_location, LLVMObjectFile, &emit_error) != 0)
+    {
+        fprintf(stderr, "LLVMTargetMachineEmitToFile error: %s\n", emit_error);
+        LLVMDisposeMessage(emit_error);
+        exit(1);
+        return;
+    }
+    printf("Program compiled and written to: %s\n", output_location);
+}
 
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
 #define NECRO_LLVM_TEST_VERBOSE 1
-void necro_llvm_test_string_go(const char* test_name, const char* str, bool should_jit)
+void necro_llvm_test_string_go(const char* test_name, const char* str, NECRO_PHASE phase)
 {
 
     //--------------------
@@ -1309,16 +1347,19 @@ void necro_llvm_test_string_go(const char* test_name, const char* str, bool shou
     necro_core_ast_pre_simplify(info, &intern, &base, &core_ast);
     necro_core_lambda_lift(info, &intern, &base, &core_ast);
     necro_core_defunctionalize(info, &intern, &base, &core_ast);
+    necro_core_infer(&intern, &base, &core_ast);
     necro_core_state_analysis(info, &intern, &base, &core_ast);
     necro_core_transform_to_mach(info, &intern, &base, &core_ast, &mach_program);
     necro_llvm_codegen(info, &mach_program, &llvm);
-    if (should_jit)
+    if (phase == NECRO_PHASE_JIT)
         necro_llvm_jit(info, &llvm);
+    else if (phase == NECRO_PHASE_COMPILE)
+        necro_llvm_compile(info, &llvm);
 
     //--------------------
     // Print
 #if NECRO_LLVM_TEST_VERBOSE
-    if (!should_jit)
+    if (phase == NECRO_PHASE_CODEGEN)
         necro_llvm_print(&llvm);
 #endif
     printf("NecroLLVM %s test: Passed\n", test_name);
@@ -1339,12 +1380,17 @@ void necro_llvm_test_string_go(const char* test_name, const char* str, bool shou
 
 void necro_llvm_test_string(const char* test_name, const char* str)
 {
-    necro_llvm_test_string_go(test_name, str, false);
+    necro_llvm_test_string_go(test_name, str, NECRO_PHASE_CODEGEN);
 }
 
 void necro_llvm_jit_string(const char* test_name, const char* str)
 {
-    necro_llvm_test_string_go(test_name, str, true);
+    necro_llvm_test_string_go(test_name, str, NECRO_PHASE_JIT);
+}
+
+void necro_llvm_compile_string(const char* test_name, const char* str)
+{
+    necro_llvm_test_string_go(test_name, str, NECRO_PHASE_COMPILE);
 }
 
 void necro_llvm_test()
@@ -1410,7 +1456,7 @@ void necro_llvm_test()
         const char* test_name   = "Main 1";
         const char* test_source = ""
             "main :: *World -> *World\n"
-            "main w = printInt (add 1 2) w\n";
+            "main w = print (add 1 2) w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1418,7 +1464,7 @@ void necro_llvm_test()
         const char* test_name   = "Main 2";
         const char* test_source = ""
             "main :: *World -> *World\n"
-            "main w = printInt mouseY (printInt mouseX w)\n";
+            "main w = print mouseY (print mouseX w)\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1432,7 +1478,7 @@ void necro_llvm_test()
             "rune :: DoubleUp\n"
             "rune = doubleDown mouseX\n"
             "main :: *World -> *World\n"
-            "main w = printInt 0 w where\n"
+            "main w = print 0 w where\n"
             "  x = doubleDown 666\n";
         necro_llvm_test_string(test_name, test_source);
     }
@@ -1443,8 +1489,8 @@ void necro_llvm_test()
             "data SomeOrNone = Some Int | None\n"
             "main w =\n"
             "  case None of\n"
-            "    None -> printInt 0 w\n"
-            "    _    -> printInt 1 w\n";
+            "    None -> print 0 w\n"
+            "    _    -> print 1 w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1454,8 +1500,8 @@ void necro_llvm_test()
             "data SomeOrNone = Some Int | None\n"
             "main w =\n"
             "  case None of\n"
-            "    None   -> printInt 0 w\n"
-            "    Some _ -> printInt 1 w\n";
+            "    None   -> print 0 w\n"
+            "    Some _ -> print 1 w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1465,8 +1511,8 @@ void necro_llvm_test()
             "data SomeOrNone = Some Int | None\n"
             "main w =\n"
             "  case Some 666 of\n"
-            "    None   -> printInt 0 w\n"
-            "    Some i -> printInt i w\n";
+            "    None   -> print 0 w\n"
+            "    Some i -> print i w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1479,7 +1525,7 @@ void necro_llvm_test()
             "main w =\n"
             "  case Some (TwoOfAKind 6 7) of\n"
             "    None -> w\n"
-            "    Some (TwoOfAKind i1 i2) -> printInt i2 (printInt i1 w)\n";
+            "    Some (TwoOfAKind i1 i2) -> print i2 (print i1 w)\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1489,7 +1535,7 @@ void necro_llvm_test()
             "data TwoOfAKind = TwoOfAKind Int Int\n"
             "main w =\n"
             "  case TwoOfAKind 6 7 of\n"
-            "    TwoOfAKind i1 i2 -> printInt i2 (printInt i1 w)\n";
+            "    TwoOfAKind i1 i2 -> print i2 (print i1 w)\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1499,7 +1545,7 @@ void necro_llvm_test()
             "main :: *World -> *World\n"
             "main w =\n"
             "  case 0 of\n"
-            "    i -> printInt i w\n";
+            "    i -> print i w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1513,7 +1559,7 @@ void necro_llvm_test()
             "  case SomeOuter (SomeInner 6) of\n"
             "    NoOuter -> w\n"
             "    SomeOuter NoInner -> w\n"
-            "    SomeOuter (SomeInner i) -> printInt i w\n";
+            "    SomeOuter (SomeInner i) -> print i w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1524,8 +1570,8 @@ void necro_llvm_test()
             "main :: *World -> *World\n"
             "main w =\n"
             "  case One 666 of\n"
-            "    One x -> printInt x w\n"
-            "    Two y z -> printInt z (printInt y w)\n";
+            "    One x -> print x w\n"
+            "    Two y z -> print z (print y w)\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1538,8 +1584,8 @@ void necro_llvm_test()
             "main w =\n"
             "  case JustTwoForOne (One mouseX) of\n"
             "    NoneForOne              -> w\n"
-            "    JustTwoForOne (One x)   -> printInt x w\n"
-            "    JustTwoForOne (Two y z) -> printInt z (printInt y w)\n";
+            "    JustTwoForOne (One x)   -> print x w\n"
+            "    JustTwoForOne (Two y z) -> print z (print y w)\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1551,9 +1597,9 @@ void necro_llvm_test()
             "main :: *World -> *World\n"
             "main w =\n"
             "  case MoreThanZero (One 0) Zero of\n"
-            "    MoreThanZero (One i1)  (One i2) -> printInt i2 (printInt i1 w)\n"
-            "    MoreThanZero Zero      (One i3) -> printInt i3 w\n"
-            "    MoreThanZero (One i4)  Zero     -> printInt i4 w\n"
+            "    MoreThanZero (One i1)  (One i2) -> print i2 (print i1 w)\n"
+            "    MoreThanZero Zero      (One i3) -> print i3 w\n"
+            "    MoreThanZero (One i4)  Zero     -> print i4 w\n"
             "    MoreThanZero Zero      Zero     -> w\n";
         necro_llvm_test_string(test_name, test_source);
     }
@@ -1567,10 +1613,10 @@ void necro_llvm_test()
             "main w =\n"
             "  case Zero of\n"
             "    Zero -> w\n"
-            "    MoreThanZero (One i1)     (One i2)      -> printInt i2 (printInt i1 w)\n"
-            "    MoreThanZero (Two i3 i4)  (One i5)      -> printInt i5 (printInt i4 (printInt i3 w))\n"
-            "    MoreThanZero (One i6)     (Two i7  i8)  -> printInt i8 (printInt i7 (printInt i6 w))\n"
-            "    MoreThanZero (Two i9 i10) (Two i11 i12) -> printInt i12 (printInt i11 (printInt i10 (printInt i9 w)))\n";
+            "    MoreThanZero (One i1)     (One i2)      -> print i2 (print i1 w)\n"
+            "    MoreThanZero (Two i3 i4)  (One i5)      -> print i5 (print i4 (print i3 w))\n"
+            "    MoreThanZero (One i6)     (Two i7  i8)  -> print i8 (print i7 (print i6 w))\n"
+            "    MoreThanZero (Two i9 i10) (Two i11 i12) -> print i12 (print i11 (print i10 (print i9 w)))\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1619,8 +1665,8 @@ void necro_llvm_test()
             "main :: *World -> *World\n"
             "main w =\n"
             "  case nothingFromSomething 22 of\n"
-            "    (_, Just i) -> printInt i w\n"
-            "    _           -> printInt -1 w\n";
+            "    (_, Just i) -> print i w\n"
+            "    _           -> print -1 w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1629,8 +1675,8 @@ void necro_llvm_test()
         const char* test_source = ""
             "main w =\n"
             "  case 0 of\n"
-            "    0 -> printInt 0 w\n"
-            "    1 -> printInt 1 w\n";
+            "    0 -> print 0 w\n"
+            "    1 -> print 1 w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1639,8 +1685,8 @@ void necro_llvm_test()
         const char* test_source = ""
             "main w =\n"
             "  case False of\n"
-            "    False -> printInt 0 w\n"
-            "    True  -> printInt 1 w\n";
+            "    False -> print 0 w\n"
+            "    True  -> print 1 w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1650,8 +1696,8 @@ void necro_llvm_test()
             "basketCase :: Int -> *World -> *World\n"
             "basketCase i w =\n"
             "  case i of\n"
-            "    0 -> printInt 666 w\n"
-            "    u -> printInt u w\n"
+            "    0 -> print 666 w\n"
+            "    u -> print u w\n"
             "main :: *World -> *World\n"
             "main w = basketCase 0 w\n";
         necro_llvm_test_string(test_name, test_source);
@@ -1663,7 +1709,7 @@ void necro_llvm_test()
             "basketCase :: Int -> *World -> *World\n"
             "basketCase i w =\n"
             "  case i of\n"
-            "    u -> printInt u w\n"
+            "    u -> print u w\n"
             "main :: *World -> *World\n"
             "main w = basketCase 0 w\n";
         necro_llvm_test_string(test_name, test_source);
@@ -1675,10 +1721,10 @@ void necro_llvm_test()
             "basketCase :: Maybe Int -> *World -> *World\n"
             "basketCase m w =\n"
             "  case m of\n"
-            "    Nothing -> printInt 100 w\n"
-            "    Just 0  -> printInt 200 w\n"
-            "    Just -1 -> printInt 300 w\n"
-            "    Just _  -> printInt 400 w\n"
+            "    Nothing -> print 100 w\n"
+            "    Just 0  -> print 200 w\n"
+            "    Just -1 -> print 300 w\n"
+            "    Just _  -> print 400 w\n"
             "main :: *World -> *World\n"
             "main w = basketCase (Just -1) w\n";
         necro_llvm_test_string(test_name, test_source);
@@ -1690,8 +1736,8 @@ void necro_llvm_test()
             "basketCase :: Int -> *World -> *World\n"
             "basketCase i w =\n"
             "  case gt i 0 of\n"
-            "    True -> printInt 666 w\n"
-            "    _    -> printInt 777 w\n"
+            "    True -> print 666 w\n"
+            "    _    -> print 777 w\n"
             "main :: *World -> *World\n"
             "main w = basketCase 0 w\n";
         necro_llvm_test_string(test_name, test_source);
@@ -1703,9 +1749,9 @@ void necro_llvm_test()
             "basketCase :: Int -> *World -> *World\n"
             "basketCase i w =\n"
             "  case Just (gt i 0) of\n"
-            "    Nothing    -> printInt 0 w\n"
-            "    Just True  -> printInt 666 w\n"
-            "    Just False -> printInt 777 w\n"
+            "    Nothing    -> print 0 w\n"
+            "    Just True  -> print 666 w\n"
+            "    Just False -> print 777 w\n"
             "main :: *World -> *World\n"
             "main w = basketCase 0 w\n";
         necro_llvm_test_string(test_name, test_source);
@@ -1717,9 +1763,9 @@ void necro_llvm_test()
             "basketCase :: Int -> *World -> *World\n"
             "basketCase i w =\n"
             "  case Just (gt i 0) of\n"
-            "    Nothing    -> printInt 0 w\n"
-            "    Just False -> printInt 777 w\n"
-            "    Just _     -> printInt 666 w\n"
+            "    Nothing    -> print 0 w\n"
+            "    Just False -> print 777 w\n"
+            "    Just _     -> print 666 w\n"
             "main :: *World -> *World\n"
             "main w = basketCase 0 w\n";
         necro_llvm_test_string(test_name, test_source);
@@ -1793,7 +1839,7 @@ void necro_llvm_test()
             "tenTimes :: Range 10\n"
             "tenTimes = each\n"
             "main :: *World -> *World\n"
-            "main w = printInt 0 w\n";
+            "main w = print 0 w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1805,7 +1851,7 @@ void necro_llvm_test()
             "loopTenTimes :: Int\n"
             "loopTenTimes = for tenTimes 0 loop i x -> add x 1\n"
             "main :: *World -> *World\n"
-            "main w = printInt loopTenTimes w\n";
+            "main w = print loopTenTimes w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1817,7 +1863,7 @@ void necro_llvm_test()
             "loopTenTimes :: Int\n"
             "loopTenTimes = for tenTimes mouseX loop i x -> mul x 2\n"
             "main :: *World -> *World\n"
-            "main w = printInt loopTenTimes w\n";
+            "main w = print loopTenTimes w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1832,7 +1878,7 @@ void necro_llvm_test()
             "    for tenTimes x1 loop i2 x2 ->\n"
             "      add x1 1\n"
             "main :: *World -> *World\n"
-            "main w = printInt loopTenTimes w\n";
+            "main w = print loopTenTimes w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1859,7 +1905,7 @@ void necro_llvm_test()
             "    Nothing -> for tenTimes 0 loop i x -> add x 1\n"
             "    Just y  -> for tenTimes 0 loop i x -> add x y\n"
             "main :: *World -> *World\n"
-            "main w = printInt (loopTenTimes (Just mouseX)) w\n";
+            "main w = print (loopTenTimes (Just mouseX)) w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1928,7 +1974,7 @@ void necro_llvm_test()
             "maybeZero :: Maybe Int -> Int\n"
             "maybeZero m = 0\n"
             "main :: *World -> *World\n"
-            "main w = printInt (maybeZero Nothing) w\n";
+            "main w = print (maybeZero Nothing) w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1948,7 +1994,7 @@ void necro_llvm_test()
             "counter :: Int\n"
             "counter = let x ~ 0 = add x 1 in x\n"
             "main :: *World -> *World\n"
-            "main w = printInt counter w\n";
+            "main w = print counter w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1976,7 +2022,7 @@ void necro_llvm_test()
             "main w =\n"
             "  case counter of\n"
             "    Nothing -> w\n"
-            "    Just i  -> printInt i w\n";
+            "    Just i  -> print i w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -1989,7 +2035,7 @@ void necro_llvm_test()
             "    True  -> let x ~ 0 = (add x 1) in x\n"
             "    False -> let y ~ 0 = (sub y 1) in y\n"
             "main :: *World -> *World\n"
-            "main w = printInt counter w\n";
+            "main w = print counter w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -2273,7 +2319,7 @@ void necro_llvm_test()
             "  case (#i, False#) of\n"
             "    (#i2, b#) -> i2\n"
             "main :: *World -> *World\n"
-            "main w = printInt (muddyTheWaters 22) w\n";
+            "main w = print (muddyTheWaters 22) w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -2285,7 +2331,7 @@ void necro_llvm_test()
             "main :: *World -> *World\n"
             "main w =\n"
             "  case manInTheBox of\n"
-            "    (#x, y#) -> printInt y (printInt x w)\n";
+            "    (#x, y#) -> print y (print x w)\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -2297,7 +2343,7 @@ void necro_llvm_test()
             "main :: *World -> *World\n"
             "main w =\n"
             "  case muddyTheWaters 333 of\n"
-            "    (#x, y, _#) -> printInt x (printInt y w)\n";
+            "    (#x, y, _#) -> print x (print y w)\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -2309,7 +2355,7 @@ void necro_llvm_test()
             "main :: *World -> *World\n"
             "main w =\n"
             "  case muddyTheWaters 333 of\n"
-            "    (#_, (#_, i#)#) -> printInt i w\n";
+            "    (#_, (#_, i#)#) -> print i w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -2321,7 +2367,7 @@ void necro_llvm_test()
             "main :: *World -> *World\n"
             "main w =\n"
             "  case muddyTheWaters 333 of\n"
-            "    Just (#_, i#) -> printInt i w\n"
+            "    Just (#_, i#) -> print i w\n"
             "    _             -> w\n";
         necro_llvm_test_string(test_name, test_source);
     }
@@ -2339,7 +2385,7 @@ void necro_llvm_test()
             "main :: *World -> *World\n"
             "main w =\n"
             "  case forWhat 33 of\n"
-            "    (#x, _#) -> printInt x w\n";
+            "    (#x, _#) -> print x w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -2421,8 +2467,6 @@ void necro_llvm_test()
         necro_llvm_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Audio 1";
         const char* test_source = ""
@@ -2430,6 +2474,26 @@ void necro_llvm_test()
             "coolSaw = sawOsc 440\n"
             "main :: *World -> *World\n"
             "main w = outAudio 0 coolSaw w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Main 1";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            "main w = print (1 + 2) w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "AudioOut 1";
+        const char* test_source = ""
+            "sawTest :: Mono\n"
+            "sawTest = sawOsc 0.1\n"
+            "main :: *World -> *World\n"
+            "main w = print 333 w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -2456,7 +2520,7 @@ void necro_llvm_test_jit()
         const char* test_name   = "Main 1";
         const char* test_source = ""
             "main :: *World -> *World\n"
-            "main w = printInt (add 1 2) w\n";
+            "main w = print (add 1 2) w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 
@@ -2466,7 +2530,7 @@ void necro_llvm_test_jit()
             "counter :: Int\n"
             "counter ~ 0 = add counter 1\n"
             "main :: *World -> *World\n"
-            "main w = printInt counter w\n";
+            "main w = print counter w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 
@@ -2485,8 +2549,8 @@ void necro_llvm_test_jit()
             "data SomeOrNone = Some Int | None\n"
             "main w =\n"
             "  case None of\n"
-            "    None -> printInt 0 w\n"
-            "    _    -> printInt 1 w\n";
+            "    None -> print 0 w\n"
+            "    _    -> print 1 w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 
@@ -2497,8 +2561,8 @@ void necro_llvm_test_jit()
             "main :: *World -> *World\n"
             "main w =\n"
             "  case One 666 of\n"
-            "    One x   -> printInt x w\n"
-            "    Two y z -> printInt z (printInt y w)\n";
+            "    One x   -> print x w\n"
+            "    Two y z -> print z (print y w)\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 
@@ -2511,8 +2575,8 @@ void necro_llvm_test_jit()
             "main w =\n"
             "  case JustTwoForOne (One mouseX) of\n"
             "    NoneForOne              -> w\n"
-            "    JustTwoForOne (One x)   -> printInt x w\n"
-            "    JustTwoForOne (Two y z) -> printInt z (printInt y w)\n";
+            "    JustTwoForOne (One x)   -> print x w\n"
+            "    JustTwoForOne (Two y z) -> print z (print y w)\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 
@@ -2524,9 +2588,9 @@ void necro_llvm_test_jit()
             "main :: *World -> *World\n"
             "main w =\n"
             "  case MoreThanZero (One 3) Zero of\n"
-            "    MoreThanZero (One i1)  (One i2) -> printInt i2 (printInt i1 w)\n"
-            "    MoreThanZero Zero      (One i3) -> printInt i3 w\n"
-            "    MoreThanZero (One i4)  Zero     -> printInt (mul i4 11) w\n"
+            "    MoreThanZero (One i1)  (One i2) -> print i2 (print i1 w)\n"
+            "    MoreThanZero Zero      (One i3) -> print i3 w\n"
+            "    MoreThanZero (One i4)  Zero     -> print (mul i4 11) w\n"
             "    MoreThanZero Zero      Zero     -> w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
@@ -2540,10 +2604,10 @@ void necro_llvm_test_jit()
             "main w =\n"
             "  case MoreThanZero (Two 1 2) (Two 3 4) of\n"
             "    Zero                                    -> w\n"
-            "    MoreThanZero (One i1)     (One i2)      -> printInt i2 (printInt i1 w)\n"
-            "    MoreThanZero (Two i3 i4)  (One i5)      -> printInt i5 (printInt i4 (printInt i3 w))\n"
-            "    MoreThanZero (One i6)     (Two i7  i8)  -> printInt i8 (printInt i7 (printInt i6 w))\n"
-            "    MoreThanZero (Two i9 i10) (Two i11 i12) -> printInt (add i9 (add i10 (add i11 i12))) w\n";
+            "    MoreThanZero (One i1)     (One i2)      -> print i2 (print i1 w)\n"
+            "    MoreThanZero (Two i3 i4)  (One i5)      -> print i5 (print i4 (print i3 w))\n"
+            "    MoreThanZero (One i6)     (Two i7  i8)  -> print i8 (print i7 (print i6 w))\n"
+            "    MoreThanZero (Two i9 i10) (Two i11 i12) -> print (add i9 (add i10 (add i11 i12))) w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 
@@ -2555,8 +2619,8 @@ void necro_llvm_test_jit()
             "main :: *World -> *World\n"
             "main w =\n"
             "  case nothingFromSomething 22 of\n"
-            "    (_, Just i) -> printInt i w\n"
-            "    _           -> printInt -1 w\n";
+            "    (_, Just i) -> print i w\n"
+            "    _           -> print -1 w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 
@@ -2565,8 +2629,8 @@ void necro_llvm_test_jit()
         const char* test_source = ""
             "main w =\n"
             "  case 0 of\n"
-            "    0 -> printInt 0 w\n"
-            "    1 -> printInt 1 w\n";
+            "    0 -> print 0 w\n"
+            "    1 -> print 1 w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 
@@ -2575,8 +2639,8 @@ void necro_llvm_test_jit()
         const char* test_source = ""
             "main w =\n"
             "  case False of\n"
-            "    False -> printInt 0 w\n"
-            "    True  -> printInt 1 w\n";
+            "    False -> print 0 w\n"
+            "    True  -> print 1 w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 
@@ -2586,8 +2650,8 @@ void necro_llvm_test_jit()
             "basketCase :: Int -> *World -> *World\n"
             "basketCase i w =\n"
             "  case i of\n"
-            "    0 -> printInt 666 w\n"
-            "    u -> printInt u w\n"
+            "    0 -> print 666 w\n"
+            "    u -> print u w\n"
             "main :: *World -> *World\n"
             "main w = basketCase mouseX w\n";
         necro_llvm_jit_string(test_name, test_source);
@@ -2599,7 +2663,7 @@ void necro_llvm_test_jit()
             "basketCase :: Int -> *World -> *World\n"
             "basketCase i w =\n"
             "  case i of\n"
-            "    u -> printInt u w\n"
+            "    u -> print u w\n"
             "main :: *World -> *World\n"
             "main w = basketCase 0 w\n";
         necro_llvm_jit_string(test_name, test_source);
@@ -2611,10 +2675,10 @@ void necro_llvm_test_jit()
             "basketCase :: Maybe Int -> *World -> *World\n"
             "basketCase m w =\n"
             "  case m of\n"
-            "    Nothing -> printInt 100 w\n"
-            "    Just 0  -> printInt 200 w\n"
-            "    Just -1 -> printInt 300 w\n"
-            "    Just i  -> printInt i w\n"
+            "    Nothing -> print 100 w\n"
+            "    Just 0  -> print 200 w\n"
+            "    Just -1 -> print 300 w\n"
+            "    Just i  -> print i w\n"
             "main :: *World -> *World\n"
             "main w = basketCase (Just -22) w\n";
         necro_llvm_jit_string(test_name, test_source);
@@ -2626,8 +2690,8 @@ void necro_llvm_test_jit()
             "basketCase :: Int -> *World -> *World\n"
             "basketCase i w =\n"
             "  case gt i 50 of\n"
-            "    True -> printInt 666 w\n"
-            "    _    -> printInt 777 w\n"
+            "    True -> print 666 w\n"
+            "    _    -> print 777 w\n"
             "main :: *World -> *World\n"
             "main w = basketCase mouseX w\n";
         necro_llvm_jit_string(test_name, test_source);
@@ -2639,9 +2703,9 @@ void necro_llvm_test_jit()
             "basketCase :: Int -> *World -> *World\n"
             "basketCase i w =\n"
             "  case Just (gt i 50) of\n"
-            "    Nothing    -> printInt 0 w\n"
-            "    Just True  -> printInt 666 w\n"
-            "    Just False -> printInt 777 w\n"
+            "    Nothing    -> print 0 w\n"
+            "    Just True  -> print 666 w\n"
+            "    Just False -> print 777 w\n"
             "main :: *World -> *World\n"
             "main w = basketCase mouseX w\n";
         necro_llvm_jit_string(test_name, test_source);
@@ -2653,9 +2717,9 @@ void necro_llvm_test_jit()
             "basketCase :: Int -> *World -> *World\n"
             "basketCase i w =\n"
             "  case Just (gt i 50) of\n"
-            "    Nothing    -> printInt 0 w\n"
-            "    Just False -> printInt 777 w\n"
-            "    Just _     -> printInt 666 w\n"
+            "    Nothing    -> print 0 w\n"
+            "    Just False -> print 777 w\n"
+            "    Just _     -> print 666 w\n"
             "main :: *World -> *World\n"
             "main w = basketCase mouseX w\n";
         necro_llvm_jit_string(test_name, test_source);
@@ -2669,7 +2733,7 @@ void necro_llvm_test_jit()
             "loopTenTimes :: Int\n"
             "loopTenTimes = for tenTimes mouseX loop i x -> mul x 2\n"
             "main :: *World -> *World\n"
-            "main w = printInt loopTenTimes w\n";
+            "main w = print loopTenTimes w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 
@@ -2684,7 +2748,7 @@ void necro_llvm_test_jit()
             "    for tenTimes x1 loop i2 x2 ->\n"
             "      add x2 mouseX\n"
             "main :: *World -> *World\n"
-            "main w = printInt loopTenTimes w\n";
+            "main w = print loopTenTimes w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 
@@ -2699,7 +2763,7 @@ void necro_llvm_test_jit()
             "    Nothing -> for tenTimes 0 loop i x -> add x 1\n"
             "    Just y  -> for tenTimes 0 loop i x -> add x y\n"
             "main :: *World -> *World\n"
-            "main w = printInt (loopTenTimes (Just mouseX)) w\n";
+            "main w = print (loopTenTimes (Just mouseX)) w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 
@@ -2718,7 +2782,7 @@ void necro_llvm_test_jit()
             "main w =\n"
             "  case loopTenTimes (Just mouseX) of\n"
             "    Nothing -> w\n"
-            "    Just i  -> printInt i w\n";
+            "    Just i  -> print i w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 
@@ -2728,7 +2792,7 @@ void necro_llvm_test_jit()
             "counter :: Int\n"
             "counter = let x ~ 0 = add x 1 in x\n"
             "main :: *World -> *World\n"
-            "main w = printInt counter w\n";
+            "main w = print counter w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 
@@ -2745,7 +2809,7 @@ void necro_llvm_test_jit()
             "main w =\n"
             "  case counter of\n"
             "    Nothing -> w\n"
-            "    Just i  -> printInt i w\n";
+            "    Just i  -> print i w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 
@@ -2758,7 +2822,7 @@ void necro_llvm_test_jit()
             "    True  -> let x ~ 0 = add x 1 in x\n"
             "    False -> let y ~ 0 = sub y 1 in y\n"
             "main :: *World -> *World\n"
-            "main w = printInt counter w\n";
+            "main w = print counter w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 
@@ -2776,7 +2840,7 @@ void necro_llvm_test_jit()
             "main :: *World -> *World\n"
             "main w =\n"
             "  case counter of\n"
-            "    (xl, _) -> printInt xl w\n";
+            "    (xl, _) -> print xl w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 
@@ -2788,11 +2852,9 @@ void necro_llvm_test_jit()
             "main :: *World -> *World\n"
             "main w =\n"
             "  case muddyTheWaters 333 of\n"
-            "    (#x, y, _#) -> printInt x (printInt y w)\n";
+            "    (#x, y, _#) -> print x (print y w)\n";
         necro_llvm_jit_string(test_name, test_source);
     }
-
-*/
 
     {
         const char* test_name   = "Audio 1";
@@ -2804,13 +2866,70 @@ void necro_llvm_test_jit()
         necro_llvm_jit_string(test_name, test_source);
     }
 
+    {
+        const char* test_name   = "Main 1";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            "main w = print 666 w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Floored 1";
+        const char* test_source = ""
+            "floored :: F64\n"
+            "floored ~ 0 = floored + 0.05\n"
+            "main :: *World -> *World\n"
+            "main w = print (fastFloor floored) w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Floored 2";
+        const char* test_source = ""
+            "fcounter :: F64\n"
+            "fcounter ~ 0 = x\n"
+            "  where\n"
+            "    acc = fcounter + 0.00514123123\n"
+            "    x   = acc - fastFloor acc\n"
+            "main :: *World -> *World\n"
+            "main w = print fcounter w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Floored 3";
+        const char* test_source = ""
+            "sawAccTest :: F64\n"
+            "sawAccTest ~ 0 =\n"
+            "  case sawOut of\n"
+            "    (#acc, _#) -> acc\n"
+            "  where\n"
+            "    sawOut = accumulateSaw 10.0 sawAccTest\n"
+            "main :: *World -> *World\n"
+            "main w = print sawAccTest w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "AudioOut 1";
+        const char* test_source = ""
+            "sawTest :: Mono\n"
+            "sawTest = sawOsc (fromInt mouseX * 10)\n"
+            "main :: *World -> *World\n"
+            "main w = outAudio 0 sawTest w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
 /*
 
     {
         const char* test_name   = "Mouse 1";
         const char* test_source = ""
             "main :: *World -> *World\n"
-            "main w = printInt mouseX w\n";
+            "main w = print mouseX w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 
@@ -2834,11 +2953,62 @@ void necro_llvm_test_jit()
             "main :: *World -> *World\n"
             "main w =\n"
             "  case counter of\n"
-            "    (cval, _) -> printInt cval w\n";
+            "    (cval, _) -> print cval w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 
 
 */
+
+}
+
+void necro_llvm_test_compile()
+{
+/*
+
+    {
+        const char* test_name   = "Main 1";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            // "main w = print 666 w\n";
+            "main w = w\n";
+        necro_llvm_compile_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Floored 1";
+        const char* test_source = ""
+            "floored :: F64\n"
+            "floored ~ 0 = floored + 0.01\n"
+            "main :: *World -> *World\n"
+            "main w = print (fastFloor floored) w\n";
+        necro_llvm_compile_string(test_name, test_source);
+    }
+
+    // defunc null type here!? Why?
+    {
+        const char* test_name   = "Floored 2";
+        const char* test_source = ""
+            "fcounter :: F64\n"
+            "fcounter ~ 0 = x\n"
+            "  where\n"
+            "    acc = fcounter + 0.0514123123\n"
+            "    x   = acc - fastFloor acc\n"
+            "main :: *World -> *World\n"
+            "main w = print fcounter w\n";
+        necro_llvm_compile_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "AudioOut 1";
+        const char* test_source = ""
+            "sawTest :: Mono\n"
+            "sawTest = sawOsc 0.1\n"
+            "main :: *World -> *World\n"
+            "main w = print 333 w\n";
+        necro_llvm_compile_string(test_name, test_source);
+    }
 
 }

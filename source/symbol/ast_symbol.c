@@ -7,7 +7,7 @@
 #include <assert.h>
 #include "ast_symbol.h"
 #include "type.h"
-#include "utility/math.h"
+#include "utility/math_utility.h"
 
 NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name, NecroSymbol source_name, NecroSymbol module_name, struct NecroAst* ast)
 {

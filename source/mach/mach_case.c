@@ -5,7 +5,7 @@
 
 #include "mach_case.h"
 #include "symtable.h"
-#include "utility/math.h"
+#include "utility/math_utility.h"
 #include "mach_type.h"
 #include "mach_transform.h"
 

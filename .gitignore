@@ -85,3 +85,6 @@ result-*
 
 # Clang compile commands (for vim plugins)
 compile_commands.json
+
+# Assembly
+*.asm

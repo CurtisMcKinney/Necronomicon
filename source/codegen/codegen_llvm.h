@@ -45,6 +45,7 @@ typedef struct NecroLLVM
     LLVMPassManagerRef             fn_pass_manager;
     LLVMPassManagerRef             mod_pass_manager;
     LLVMExecutionEngineRef         engine;
+    LLVMCodeGenOptLevel            opt_level;
 
     bool                           should_optimize;
     NecroDelayedPhiNodeValueVector delayed_phi_node_values;
@@ -54,7 +55,9 @@ NecroLLVM necro_llvm_empty();
 void      necro_llvm_destroy(NecroLLVM* codegen);
 void      necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroLLVM* codegen);
 void      necro_llvm_jit(NecroCompileInfo info, NecroLLVM* codegen);
+void      necro_llvm_compile(NecroCompileInfo info, NecroLLVM* codegen);
 void      necro_llvm_test();
 void      necro_llvm_test_jit();
+void      necro_llvm_test_compile();
 
 #endif // NECRO_LLVM_H

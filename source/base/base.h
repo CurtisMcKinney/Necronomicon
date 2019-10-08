@@ -113,9 +113,11 @@ typedef struct NecroBase
     // NecroAstSymbol* unsafe_peek;
     // NecroAstSymbol* unsafe_poke;
     NecroAstSymbol* print_int;
+    NecroAstSymbol* print_f64;
     NecroAstSymbol* out_audio_block;
     NecroAstSymbol* fast_floor;
     NecroAstSymbol* fma;
+    NecroAstSymbol* floor;
 
     NecroScopedSymTable* scoped_symtable;
 

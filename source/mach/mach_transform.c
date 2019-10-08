@@ -1238,6 +1238,7 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     }
 
     case NECRO_PRIMOP_INTR_FMA:
+    // case NECRO_PRIMOP_INTR_FLR:
     {
         NecroArenaSnapshot snapshot  = necro_snapshot_arena_get(&program->snapshot_arena);
         NecroMachAst**     args      = necro_snapshot_arena_alloc(&program->snapshot_arena, arg_count * sizeof(NecroMachAst*));
@@ -1505,6 +1506,9 @@ NecroMachAst* necro_core_transform_to_mach_3_for(NecroMachProgram* program, Necr
     // Current Block
     necro_mach_block_move_to(program, outer->machine_def.update_fn, current_block);
     NecroMachAst*  range_value       = necro_core_transform_to_mach_3_go(program, core_ast->for_loop.range_init, outer);
+    // TODO: Finish!
+    // if (core_ast->for_loop.range_init->ast_type == NECRO_CORE_AST_VAR)
+
     NecroMachAst*  init_value        = necro_core_transform_to_mach_3_go(program, core_ast->for_loop.value_init, outer);
     NecroMachAst*  init_index_ptr    = necro_mach_build_gep(program, outer->machine_def.update_fn, range_value, (uint32_t[]) { 0, 1 }, 2, "init_index_ptr");
     NecroMachAst*  init_index_value  = necro_mach_build_load(program, outer->machine_def.update_fn, init_index_ptr, "init_index");
@@ -1590,8 +1594,8 @@ void necro_mach_construct_main(NecroMachProgram* program)
 
     //--------------------
     // Declare NecroMain
-    NecroMachAstSymbol* necro_main_symbol = necro_mach_ast_symbol_gen(program, NULL, "necro_main", NECRO_DONT_MANGLE);
-    NecroMachType*      necro_main_type   = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_void(program), NULL, 0);
+    NecroMachAstSymbol* necro_main_symbol = necro_mach_ast_symbol_gen(program, NULL, "main", NECRO_DONT_MANGLE);
+    NecroMachType*      necro_main_type   = necro_mach_type_create_fn(&program->arena, program->type_cache.word_int_type, NULL, 0);
     NecroMachAst*       necro_main_entry  = necro_mach_block_create(program, "entry", NULL);
     NecroMachAst*       necro_main_fn     = necro_mach_create_fn(program, necro_main_symbol, necro_main_entry, necro_main_type);
     program->functions.length--; // Hack...
@@ -1693,13 +1697,7 @@ void necro_mach_construct_main(NecroMachProgram* program)
         NecroMachAst* data_ptr = necro_mach_build_bit_cast(program, necro_main_fn, program->machine_defs.data[i]->machine_def.global_state, necro_mach_type_create_ptr(&program->arena, program->type_cache.uint8_type));
         necro_mach_build_call(program, necro_main_fn, program->runtime.necro_runtime_free->ast->fn_def.fn_value, (NecroMachAst* []) { data_ptr }, 1, NECRO_MACH_CALL_C, "");
     }
-    // if (program->program_main->machine_def.global_state != NULL)
-    // {
-    //     // Destroy state
-    //     NecroMachAst* data_ptr = necro_mach_build_bit_cast(program, necro_main_fn, program->program_main->machine_def.global_state, necro_mach_type_create_ptr(&program->arena, program->type_cache.uint8_type));
-    //     necro_mach_build_call(program, necro_main_fn, program->runtime.necro_runtime_free->ast->fn_def.fn_value, (NecroMachAst* []) { data_ptr }, 1, NECRO_MACH_CALL_C, "");
-    // }
-    necro_mach_build_return_void(program, necro_main_fn);
+    necro_mach_build_return(program, necro_main_fn, necro_mach_value_create_word_int(program, 0));
     program->necro_main = necro_main_fn;
 
 }
@@ -1793,6 +1791,7 @@ void necro_mach_test_string(const char* test_name, const char* str)
     necro_core_ast_pre_simplify(info, &intern, &base, &core_ast);
     necro_core_lambda_lift(info, &intern, &base, &core_ast);
     necro_core_defunctionalize(info, &intern, &base, &core_ast);
+    necro_core_infer(&intern, &base, &core_ast);
     necro_core_state_analysis(info, &intern, &base, &core_ast);
     necro_core_transform_to_mach(info, &intern, &base, &core_ast, &mach_program);
 

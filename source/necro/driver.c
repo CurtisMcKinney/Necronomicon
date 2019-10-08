@@ -57,6 +57,7 @@ const char* necro_compile_phase_string(NECRO_PHASE phase)
     case NECRO_PHASE_TRANSFORM_TO_MACHINE: return "NecroMachine";
     case NECRO_PHASE_CODEGEN:              return "CodeGen";
     case NECRO_PHASE_JIT:                  return "JIT";
+    case NECRO_PHASE_COMPILE:              return "Compile";
     default:
         assert(false);
         return NULL;
@@ -221,13 +222,26 @@ NecroResult(void) necro_compile_go(
     if (necro_compile_end_phase(info, NECRO_PHASE_CODEGEN))
         return ok_void();
 
-    //--------------------
-    // JIT
-    //--------------------
-    necro_compile_begin_phase(info, NECRO_PHASE_JIT);
-    necro_llvm_jit(info, llvm);
-    if (necro_compile_end_phase(info, NECRO_PHASE_JIT))
-        return ok_void();
+    if (info.compilation_phase == NECRO_PHASE_JIT)
+    {
+        //--------------------
+        // JIT
+        //--------------------
+        necro_compile_begin_phase(info, NECRO_PHASE_JIT);
+        necro_llvm_jit(info, llvm);
+        if (necro_compile_end_phase(info, NECRO_PHASE_JIT))
+            return ok_void();
+    }
+    else if (info.compilation_phase == NECRO_PHASE_COMPILE)
+    {
+        //--------------------
+        // Compile
+        //--------------------
+        necro_compile_begin_phase(info, NECRO_PHASE_COMPILE);
+        necro_llvm_jit(info, llvm);
+        if (necro_compile_end_phase(info, NECRO_PHASE_COMPILE))
+            return ok_void();
+    }
 
     return ok_void();
 }
@@ -319,6 +333,7 @@ void necro_test(NECRO_TEST test)
     case NECRO_TEST_MACH:                 necro_mach_test();                  break;
     case NECRO_TEST_LLVM:                 necro_llvm_test();                  break;
     case NECRO_TEST_JIT:                  necro_llvm_test_jit();              break;
+    case NECRO_TEST_COMPILE:              necro_llvm_test_compile();          break;
     case NECRO_TEST_ALL:
         necro_test_unicode_properties();
         necro_intern_test();

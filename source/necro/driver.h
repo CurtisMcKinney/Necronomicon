@@ -29,6 +29,7 @@ typedef enum
     NECRO_TEST_MACH,
     NECRO_TEST_LLVM,
     NECRO_TEST_JIT,
+    NECRO_TEST_COMPILE,
     NECRO_TEST_ARENA_CHAIN_TABLE,
     NECRO_TEST_UNICODE,
     NECRO_TEST_BASE,
@@ -59,7 +60,8 @@ typedef enum
     NECRO_PHASE_STATE_ANALYSIS        = 16384,
     NECRO_PHASE_TRANSFORM_TO_MACHINE  = 32768,
     NECRO_PHASE_CODEGEN               = 65536,
-    NECRO_PHASE_JIT                   = 131072
+    NECRO_PHASE_JIT                   = 131072,
+    NECRO_PHASE_COMPILE               = 262144
 } NECRO_PHASE;
 
 typedef enum

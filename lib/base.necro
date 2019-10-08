@@ -172,6 +172,18 @@ data SeqValue a = SeqValue Float a | SeqRest Float | SeqConst a | SeqInterval | 
 
 
 --------------------
+-- Print
+--------------------
+class Print a where
+  print :: a -> *World -> *World
+
+instance Print Int where
+  print x w = printInt x w
+
+instance Print F64 where
+  print x w = printF64 x w
+
+--------------------
 -- Channel
 --------------------
 data Channel   = BlockRate F64 | AudioRate (Array BlockSize F64)
@@ -227,7 +239,7 @@ accumulateChannel1 f input1 =
                 case f input1Val s of
                   (#s', x#) -> (#Share s', writeArray i (Share x) o#)
         AudioRate input1Buffer ->
-          for each (#Share default, unsafeEmptyArray()#) loop i accu ->
+          for each (#Share default, unsafeEmptyArray ()#) loop i accu ->
             case accu of
               (#Share s, o#) ->
                 case f (readArray i input1Buffer) s of
@@ -331,21 +343,35 @@ accumulateSaw freq acc =
 sawOsc :: Audio a => a -> a
 sawOsc freq = accumulateAudio1 accumulateSaw freq
 
-stereo :: Mono -> Mono -> Stereo
-stereo ml mr =
-  case ml of
-    Mono l ->
-      case mr of
-        Mono r -> Stereo (#l, r#)
+-- intrinsicTest :: F64 -> F64
+-- intrinsicTest x = fastFloor x
 
--- Throw into type class?
-pan :: Mono -> Mono -> Stereo
-pan amount input =
-  case input of
-    Mono inputChannel ->
-      case amount of
-        Mono amountChannel ->
-          Stereo (#inputChannel * amountChannel, inputChannel * (1 - amountChannel)#)
+-- intrinsicValue :: F64
+-- intrinsicValue = fastFloor (fromInt mouseX)
+
+-- myCoolSaw :: Mono
+-- myCoolSaw = sawOsc 440
+
+-- stereo :: Mono -> Mono -> Stereo
+-- stereo ml mr =
+--   case ml of
+--     Mono l ->
+--       case mr of
+--         Mono r -> Stereo (#l, r#)
+--
+-- -- Throw into type class?
+-- pan :: Mono -> Mono -> Stereo
+-- pan amount input =
+--   case input of
+--     Mono inputChannel ->
+--       case amount of
+--         Mono amountChannel ->
+--           Stereo (#inputChannel * amountChannel, inputChannel * (1 - amountChannel)#)
+--
+
+-- readArray   :: Index n -> Array n a -> a
+-- writeArray  :: Index n  -> *a -> *Array n a -> *Array n a
+-- freezeArray :: *Array n (Share a) -> Array n a
 
 -- TODO: Move tests into one of the test function
 -- mapChannelTest1 :: Channel -> Channel
@@ -372,7 +398,7 @@ pan amount input =
 -- sawTest2 :: Mono
 -- sawTest2 = sawOsc (fromInt mouseX * 440)
 
--- sawTest3 :: Stereo
+-- sawTest3 :: Mono
 -- sawTest3 = sawOsc 440
 
 -- TODO: Defunctionalization

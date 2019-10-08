@@ -489,7 +489,7 @@ NecroStaticValue* necro_defunctionalize_bind(NecroDefunctionalizeContext* contex
     // If we're a recursive value, set to dyn
     if (ast->bind.initializer != NULL)
     {
-        ast->bind.ast_symbol->static_value = necro_static_value_create_dyn(context->arena, ast->bind.expr->necro_type);
+        ast->bind.ast_symbol->static_value = necro_static_value_create_dyn(context->arena, ast->bind.initializer->necro_type);
     }
 
     // Defunctionalize expr

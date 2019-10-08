@@ -8,7 +8,7 @@
 #include "intern.h"
 #include "type_class.h"
 #include "d_analyzer.h"
-#include "utility/math.h"
+#include "utility/math_utility.h"
 
 NECRO_DECLARE_VECTOR(NecroAst*, NecroDeclarationGroup, declaration_group)
 

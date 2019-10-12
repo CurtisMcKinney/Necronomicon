@@ -9,6 +9,7 @@
 #include "monomorphize.h"
 #include "alias_analysis.h"
 #include "core_infer.h"
+#include "core_simplify.h"
 
 // TODO: Can hot swap:
 //   * Global Values
@@ -161,6 +162,7 @@ void necro_core_scope_insert(NecroPagedArena* arena, NecroCoreScope* scope, Necr
     assert(scope != NULL);
     assert(scope->data != NULL);
     assert(scope->count < scope->size);
+    assert(necro_type != NULL);
     NecroSymbol symbol = ast_symbol->name;
     if (scope->count >= (scope->size / 2))
         necro_core_scope_grow(arena, scope);
@@ -204,10 +206,12 @@ bool necro_core_scope_find_in_this_scope(NecroCoreScope* scope, NecroCoreAstSymb
     assert(scope->data != NULL);
     assert(scope->count < scope->size);
     NecroSymbol symbol = ast_symbol->name;
-    for (size_t slot = symbol->hash & (scope->size - 1); scope->data[slot].ast_symbol != NULL; slot = (slot + 1) & (scope->size - 1))
+    size_t slot = symbol->hash & (scope->size - 1);
+    while (scope->data[slot].ast_symbol != NULL)
     {
         if (scope->data[slot].ast_symbol->name == symbol)
             return true;
+        slot = (slot + 1) & (scope->size - 1);
     }
     return false;
 }
@@ -351,6 +355,7 @@ void necro_core_lambda_lift_let(NecroLambdaLift* ll, NecroCoreAst* ast)
     {
         if (ast->ast_type != NECRO_CORE_AST_LET)
         {
+            // TODO: What if we need to hoist from here? doesn't this break things?
             necro_core_lambda_lift_go(ll, ast);
             return;
         }
@@ -362,11 +367,10 @@ void necro_core_lambda_lift_let(NecroLambdaLift* ll, NecroCoreAst* ast)
         }
         else if (ll->lift_point != NULL && ll->scope->parent == NULL)
         {
-            // TODO: Somehow we tripped up lambda lift, FIXXX!
-            // TODO: Update to use necro_core_ast_swap
+            // TODO: Somehow we tripped up lambda lift, FIXXX! (This was an older note...Is this still the case? double check.)
             // We're a top level ast node and at some point in bind we lifted a function.
             //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            // And now for some in place Ast surgery
+            // And now for some in place gnarly Ast surgery
             //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             // 1. Swap contents of ast node with lift_point node
             necro_core_ast_swap(ll->lift_point, ast);
@@ -510,7 +514,6 @@ void necro_core_lambda_lift_pat(NecroLambdaLift* ll, NecroCoreAst* ast)
 ///////////////////////////////////////////////////////
 // LambdaLift Go
 ///////////////////////////////////////////////////////
-// TODO: Simple Rewrite rules for |>, >>, and map
 void necro_core_lambda_lift_go(NecroLambdaLift* ll, NecroCoreAst* ast)
 {
     if (ast == NULL)
@@ -535,13 +538,12 @@ void necro_core_lambda_lift_go(NecroLambdaLift* ll, NecroCoreAst* ast)
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
-#define NECRO_CORE_LAMBDA_LIFT_VERBOSE 1
+#define NECRO_CORE_LAMBDA_LIFT_VERBOSE 0
 void necro_core_lambda_lift_test_result(const char* test_name, const char* str)
 {
     // Set up
     NecroIntern         intern          = necro_intern_create();
-    NecroSymTable       symtable        = necro_symtable_create(&intern);
-    NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create(&symtable);
+    NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create();
     NecroBase           base            = necro_base_compile(&intern, &scoped_symtable);
 
     NecroLexTokenVector tokens          = necro_empty_lex_token_vector();
@@ -561,6 +563,7 @@ void necro_core_lambda_lift_test_result(const char* test_name, const char* str)
     unwrap(void, necro_infer(info, &intern, &scoped_symtable, &base, &ast));
     unwrap(void, necro_monomorphize(info, &intern, &scoped_symtable, &base, &ast));
     unwrap(void, necro_ast_transform_to_core(info, &intern, &base, &ast, &core_ast));
+    necro_core_ast_pre_simplify(info, &intern, &base, &core_ast);
     necro_core_lambda_lift(info, &intern, &base, &core_ast);
     unwrap(void, necro_core_infer(&intern, &base, &core_ast));
 
@@ -579,7 +582,6 @@ void necro_core_lambda_lift_test_result(const char* test_name, const char* str)
     necro_parse_ast_arena_destroy(&parse_ast);
     necro_destroy_lex_token_vector(&tokens);
     necro_scoped_symtable_destroy(&scoped_symtable);
-    necro_symtable_destroy(&symtable);
     necro_intern_destroy(&intern);
 }
 

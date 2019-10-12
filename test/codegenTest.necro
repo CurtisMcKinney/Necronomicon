@@ -73,15 +73,15 @@
 -- addTwo' :: Int -> Int -> Int
 -- addTwo' x = addTwo x
 
-adder :: Int -> Int
-adder x = x + 1
-
-adder' :: Int -> Int
-adder' = \x -> x + 1
-
-main :: Int
-main = 100
-
+-- adder :: Int -> Int
+-- adder x = x + 1
+--
+-- adder' :: Int -> Int
+-- adder' = \x -> x + 1
+--
+-- main :: Int
+-- main = 100
+--
 -- mouseX :: Int
 -- mouseX = getMouseX world
 --
@@ -335,35 +335,6 @@ main = 100
 --     Blue  -> 2
 -- main :: Int
 -- main = colorCode Blue + colorCode Green
-
--- -- One million stateful calculations at 100 ticks per second
--- integrate :: Int -> Int
--- integrate delta = feed where
---     feed = delta + delay 0 feed
--- tenTimes :: Int -> Int
--- tenTimes n =
---     integrate n + integrate n + integrate n + integrate n + integrate n +
---     integrate n + integrate n + integrate n + integrate n + integrate n
--- oneHundredTimes :: Int -> Int
--- oneHundredTimes n =
---     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
---     tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
--- oneThousandTimes :: Int -> Int
--- oneThousandTimes n =
---     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
---     oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
--- tenThousandTimes :: Int -> Int
--- tenThousandTimes n =
---     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
---     oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
--- oneHundredThousandTimes :: Int -> Int
--- oneHundredThousandTimes n =
---     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n +
---     tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
--- main :: Int
--- main =
---     oneHundredThousandTimes 1 + oneHundredThousandTimes 1
-
 
 -- z :: Int
 -- z = integrate 20
@@ -752,3 +723,36 @@ main = 100
 -- lopsidedTest :: Lopsided
 -- lopsidedTest = Light ()
 --
+
+-- Old System: One million stateful calculations at 100 ticks per second
+integrate :: Int -> Int
+integrate delta = feed where
+    feed ~ 0 = delta + feed
+tenTimes :: Int -> Int
+tenTimes n =
+    integrate n + integrate n + integrate n + integrate n + integrate n +
+    integrate n + integrate n + integrate n + integrate n + integrate n
+oneHundredTimes :: Int -> Int
+oneHundredTimes n =
+    tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n +
+    tenTimes n + tenTimes n + tenTimes n + tenTimes n + tenTimes n
+oneThousandTimes :: Int -> Int
+oneThousandTimes n =
+    oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n +
+    oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n + oneHundredTimes n
+tenThousandTimes :: Int -> Int
+tenThousandTimes n =
+    oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n +
+    oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n + oneThousandTimes n
+oneHundredThousandTimes :: Int -> Int
+oneHundredThousandTimes n =
+    tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n +
+    tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n + tenThousandTimes n
+oneMillionTimes :: Int
+oneMillionTimes =
+    oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 +
+    oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1 + oneHundredThousandTimes 1
+main :: *World -> *World
+main w = w
+
+

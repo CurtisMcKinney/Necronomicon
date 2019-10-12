@@ -662,6 +662,7 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         break;
     case NECRO_AST_TUPLE:
         reified_ast->tuple.expressions = necro_reify_go(parse_ast_arena, ast->tuple.expressions, arena, intern);
+        reified_ast->tuple.is_unboxed  = ast->tuple.is_unboxed;
         break;
     case NECRO_BIND_ASSIGNMENT:
         reified_ast->bind_assignment.expression    = necro_reify_go(parse_ast_arena, ast->bind_assignment.expression, arena, intern);
@@ -1484,11 +1485,22 @@ NecroAst* necro_ast_create_pat_expression(NecroPagedArena* arena, NecroAst* expr
     return ast;
 }
 
-NecroAst* necro_ast_create_tuple(NecroPagedArena* arena, NecroAst* expressions)
+NecroAst* necro_ast_create_tuple_full(NecroPagedArena* arena, NecroAst* expressions, bool is_unboxed)
 {
     NecroAst* ast          = necro_ast_alloc(arena, NECRO_AST_TUPLE);
     ast->tuple.expressions = expressions;
+    ast->tuple.is_unboxed  = is_unboxed;
     return ast;
+}
+
+NecroAst* necro_ast_create_tuple(NecroPagedArena* arena, NecroAst* expressions)
+{
+    return necro_ast_create_tuple_full(arena, expressions, false);
+}
+
+NecroAst* necro_ast_create_unboxed_tuple(NecroPagedArena* arena, NecroAst* expressions)
+{
+    return necro_ast_create_tuple_full(arena, expressions, true);
 }
 
 NecroAst* necro_ast_create_arithmetic_sequence(NecroPagedArena* arena, NECRO_ARITHMETIC_SEQUENCE_TYPE sequence_type, NecroAst* from, NecroAst* then, NecroAst* to)
@@ -2195,8 +2207,8 @@ NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_g
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_pat_expression(arena,
             necro_ast_deep_copy_go(arena, declaration_group, ast->pattern_expression.expressions)));
     case NECRO_AST_TUPLE:
-        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_tuple(arena,
-            necro_ast_deep_copy_go(arena, declaration_group, ast->tuple.expressions)));
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_tuple_full(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->tuple.expressions), ast->tuple.is_unboxed));
     case NECRO_BIND_ASSIGNMENT:
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_bind_assignment(arena, ast->bind_assignment.ast_symbol,
             necro_ast_deep_copy_go(arena, declaration_group, ast->bind_assignment.expression)));
@@ -2268,6 +2280,13 @@ NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_g
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_type_fn(arena,
             necro_ast_deep_copy_go(arena, declaration_group, ast->function_type.type),
             necro_ast_deep_copy_go(arena, declaration_group, ast->function_type.next_on_arrow)));
+    case NECRO_AST_FOR_LOOP:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_for_loop(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->for_loop.range_init),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->for_loop.value_init),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->for_loop.index_apat),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->for_loop.value_apat),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->for_loop.expression)));
     default:
         assert(false);
         return NULL;

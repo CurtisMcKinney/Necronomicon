@@ -7,7 +7,7 @@
 #include <assert.h>
 #include "ast_symbol.h"
 #include "type.h"
-#include "utility/math.h"
+#include "utility/math_utility.h"
 
 NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name, NecroSymbol source_name, NecroSymbol module_name, struct NecroAst* ast)
 {
@@ -27,12 +27,15 @@ NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name
         .is_primitive            = false,
         .type_status             = NECRO_TYPE_UNCHECKED,
         .is_recursive            = false,
+        .is_unboxed              = false,
+        .is_wrapper              = false,
         .instance_list           = NULL,
         .method_type_class       = NULL,
         .type_class              = NULL,
         .type_class_instance     = NULL,
         .necro_machine_ast       = NULL,
         .usage                   = NULL,
+        .primop_type             = NECRO_PRIMOP_NONE,
     };
     return ast_symbol;
 }
@@ -54,12 +57,15 @@ NecroAstSymbol* necro_ast_symbol_deep_copy(NecroPagedArena* arena, NecroAstSymbo
         .is_primitive            = ast_symbol->is_primitive,
         .type_status             = ast_symbol->type_status,
         .is_recursive            = ast_symbol->is_recursive,
+        .is_unboxed              = ast_symbol->is_unboxed,
+        .is_wrapper              = false,
         .instance_list           = NULL,
         .method_type_class       = NULL,
         .type_class              = NULL,
         .type_class_instance     = NULL,
         .necro_machine_ast       = NULL,
         .usage                   = ast_symbol->usage,
+        .primop_type             = NECRO_PRIMOP_NONE,
     };
     return new_symbol;
 }
@@ -112,14 +118,18 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create(NecroPagedArena* core_ast_arena
     core_ast_symbol->con_num            = 0;
     core_ast_symbol->is_enum            = false;
     core_ast_symbol->is_recursive       = false;
+    core_ast_symbol->is_unboxed         = false;
+    core_ast_symbol->is_wrapper         = false;
     core_ast_symbol->free_vars          = NULL;
     core_ast_symbol->static_value       = NULL;
     core_ast_symbol->mach_symbol        = NULL;
-    core_ast_symbol->_mach_symbol       = NULL;
     core_ast_symbol->arity              = 0;
     core_ast_symbol->state_type         = NECRO_STATE_CONSTANT;
     core_ast_symbol->arity              = 0;
     core_ast_symbol->deep_copy_fn       = NULL;
+    core_ast_symbol->is_deep_copy_fn    = false;
+    core_ast_symbol->is_wildcard        = false;
+    core_ast_symbol->primop_type        = NECRO_PRIMOP_NONE;
     return core_ast_symbol;
 }
 
@@ -139,15 +149,19 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create_from_ast_symbol(NecroPagedArena
     core_ast_symbol->con_num            = ast_symbol->con_num;
     core_ast_symbol->is_enum            = ast_symbol->is_enum;
     core_ast_symbol->is_recursive       = ast_symbol->is_recursive;
+    core_ast_symbol->is_unboxed         = ast_symbol->is_unboxed;
+    core_ast_symbol->is_wrapper         = ast_symbol->is_wrapper;
     core_ast_symbol->free_vars          = NULL;
     core_ast_symbol->mach_symbol        = NULL;
-    core_ast_symbol->_mach_symbol       = NULL;
     core_ast_symbol->static_value       = NULL;
     core_ast_symbol->arity              = 0;
     ast_symbol->core_ast_symbol         = core_ast_symbol;
     core_ast_symbol->state_type         = NECRO_STATE_CONSTANT;
     core_ast_symbol->outer              = NULL;
     core_ast_symbol->deep_copy_fn       = NULL;
+    core_ast_symbol->is_deep_copy_fn    = false;
+    core_ast_symbol->is_wildcard        = false;
+    core_ast_symbol->primop_type        = ast_symbol->primop_type = ast_symbol->primop_type;
     return core_ast_symbol;
 }
 
@@ -165,14 +179,18 @@ NecroCoreAstSymbol* necro_core_ast_symbol_create_by_renaming(NecroPagedArena* co
     core_ast_symbol->con_num            = ast_symbol->con_num;
     core_ast_symbol->is_enum            = ast_symbol->is_enum;
     core_ast_symbol->is_recursive       = ast_symbol->is_recursive;
+    core_ast_symbol->is_unboxed         = ast_symbol->is_unboxed;
+    core_ast_symbol->is_wrapper         = ast_symbol->is_wrapper;
     core_ast_symbol->free_vars          = NULL;
     core_ast_symbol->static_value       = NULL;
     core_ast_symbol->mach_symbol        = NULL;
-    core_ast_symbol->_mach_symbol       = NULL;
     core_ast_symbol->arity              = ast_symbol->arity;
     core_ast_symbol->state_type         = ast_symbol->state_type;
     core_ast_symbol->arity              = ast_symbol->arity;
     core_ast_symbol->deep_copy_fn       = NULL;
+    core_ast_symbol->is_deep_copy_fn    = false;
+    core_ast_symbol->is_wildcard        = ast_symbol->is_wildcard;
+    core_ast_symbol->primop_type        = ast_symbol->primop_type;
     return core_ast_symbol;
 }
 

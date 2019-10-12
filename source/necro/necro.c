@@ -9,6 +9,7 @@
 #include "driver.h"
 #include "necro.h"
 #include "unicode_properties.h"
+#include "base.h"
 
 //=====================================================
 // Main
@@ -17,6 +18,7 @@ int main(int32_t argc, char** argv)
 {
     ENABLE_AUTO_MEM_CHECK();
 
+    necro_base_global_init();
     if (argc == 3 && strcmp(argv[2], "-unicode_p") == 0)
     {
         necro_unicode_property_parse(argv[1]);
@@ -75,13 +77,21 @@ int main(int32_t argc, char** argv)
         {
             necro_test(NECRO_TEST_CORE);
         }
-        else if (strcmp(argv[2], "lift") == 0)
+        else if (strcmp(argv[2], "psimpl") == 0)
+        {
+            necro_test(NECRO_TEST_PRE_SIMPLIFY);
+        }
+        else if (strcmp(argv[2], "lift") == 0 || strcmp(argv[2], "ll") == 0)
         {
             necro_test(NECRO_TEST_LAMBDA_LIFT);
         }
         else if (strcmp(argv[2], "defunc") == 0)
         {
             necro_test(NECRO_TEST_DEFUNCTIONALIZE);
+        }
+        else if (strcmp(argv[2], "sa") == 0)
+        {
+            necro_test(NECRO_TEST_STATE_ANALYSIS);
         }
         else if (strcmp(argv[2], "machine") == 0 || strcmp(argv[2], "mach") == 0)
         {
@@ -98,6 +108,10 @@ int main(int32_t argc, char** argv)
         else if (strcmp(argv[2], "jit") == 0)
         {
             necro_test(NECRO_TEST_JIT);
+        }
+        else if (strcmp(argv[2], "compile") == 0)
+        {
+            necro_test(NECRO_TEST_COMPILE);
         }
     }
     else if (argc == 2 || argc == 3 || argc == 4)
@@ -184,7 +198,7 @@ int main(int32_t argc, char** argv)
         {
             necro_compile(file_name, str, length, NECRO_PHASE_TRANSFORM_TO_MACHINE, NECRO_OPT_OFF);
         }
-        else if (argc > 2 && strcmp(argv[2], "-codegen") == 0)
+        else if (argc > 2 && strcmp(argv[2], "-llvm") == 0)
         {
             if (argc > 3 &&  strcmp(argv[3], "-opt") == 0)
                 necro_compile(file_name, str, length, NECRO_PHASE_CODEGEN, NECRO_OPT_ON);
@@ -197,6 +211,13 @@ int main(int32_t argc, char** argv)
                 necro_compile(file_name, str, length, NECRO_PHASE_JIT, NECRO_OPT_ON);
             else
                 necro_compile(file_name, str, length, NECRO_PHASE_JIT, NECRO_OPT_OFF);
+        }
+        else if (argc > 2 && strcmp(argv[2], "-compile") == 0)
+        {
+            if (argc > 3 &&  strcmp(argv[3], "-opt") == 0)
+                necro_compile(file_name, str, length, NECRO_PHASE_COMPILE, NECRO_OPT_ON);
+            else
+                necro_compile(file_name, str, length, NECRO_PHASE_COMPILE, NECRO_OPT_OFF);
         }
         else
         {
@@ -211,6 +232,7 @@ int main(int32_t argc, char** argv)
     {
         fprintf(stderr, "Incorrect necro usage. Should be: necro filename\n");
     }
+    necro_base_global_cleanup();
 
     SCOPED_MEM_CHECK();
     MEM_CHECK();

@@ -115,6 +115,8 @@ typedef enum
     NECRO_KIND_MISMATCHED_ARITY,
     NECRO_KIND_RIGID_KIND_VARIABLE,
 
+    NECRO_RUNTIME_AUDIO_ERROR,
+
 } NECRO_RESULT_ERROR_TYPE;
 
 typedef struct
@@ -185,6 +187,11 @@ typedef struct
     NecroSourceLoc    end_loc;
 } NecroMismatchedOrderErrorData;
 
+typedef struct
+{
+    const char* error_message;
+} NecroRuntimeAudioErrorData;
+
 typedef struct NecroResultError
 {
     union
@@ -196,6 +203,7 @@ typedef struct NecroResultError
         NecroDefaultTypeErrorData2     default_type_error_data2;
         NecroDefaultTypeClassErrorData default_type_class_error_data;
         NecroMismatchedOrderErrorData  mismatched_order_error_data;
+        NecroRuntimeAudioErrorData     runtime_audio_error_data;
         NecroErrorCons                 error_cons;
     };
     NECRO_RESULT_ERROR_TYPE type;
@@ -438,6 +446,9 @@ NecroResult(NecroType)             necro_type_not_a_visible_method_error(NecroAs
 NecroResult(NecroType)             necro_kind_mismatched_kind_error(struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroType)             necro_kind_mismatched_arity_error(struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroType)             necro_kind_rigid_kind_variable_error(struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+
+// Audio
+NecroResult(void)                  necro_runtime_audio_error(const char* error_message);
 
 void                               necro_result_error_print(NecroResultError* error, const char* source_str, const char* source_name);
 void                               necro_result_error_destroy(NECRO_RESULT_TYPE result_type, NecroResultError* error);

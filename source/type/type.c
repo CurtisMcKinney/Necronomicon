@@ -754,7 +754,7 @@ NecroResult(NecroType) necro_type_bind_var(NecroPagedArena* arena, NecroConstrai
     assert(type_var_type->type == NECRO_TYPE_VAR);
     type_var_type          = necro_type_find(type_var_type);
     NecroTypeVar* type_var = &type_var_type->var;
-    necro_try(NecroType, necro_type_unify_order(type_var_type, type));
+    // necro_try(NecroType, necro_type_unify_order(type_var_type, type));
     necro_try(NecroType, necro_propagate_type_classes(arena, con_env, base, type_var->context, type, scope));
     type_var->bound = necro_type_find(type);
     return ok(NecroType, NULL);
@@ -923,11 +923,11 @@ NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroConstraintEn
     {
         // necro_try(NecroType, necro_kind_unify(type1->kind, type2->kind, scope));
         NecroType* uncurried_con = necro_type_curry_con(arena, base, type1);
-        assert(uncurried_con != NULL);
-        // if (uncurried_con == NULL)
-        //     return necro_type_mismatched_arity_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
-        // else
-        return necro_type_unify(arena, con_env, base, uncurried_con, type2, scope);
+        // assert(uncurried_con != NULL);
+        if (uncurried_con == NULL)
+            return necro_type_mismatched_arity_error(type1, type2, NULL, NULL, NULL_LOC, NULL_LOC);
+        else
+            return necro_type_unify(arena, con_env, base, uncurried_con, type2, scope);
     }
     case NECRO_TYPE_NAT:
     case NECRO_TYPE_SYM:
@@ -1106,8 +1106,10 @@ NecroInstSub* necro_create_inst_sub(NecroPagedArena* arena, NecroAstSymbol* var_
     NecroType* type_to_replace            = necro_type_find(var_to_replace->type);
     NecroType* type_var                   = necro_type_fresh_var(arena, scope);
     type_var->var.is_rigid                = false;
-    type_var->var.var_symbol->name        = NULL;
+    // type_var->var.var_symbol->name        = NULL;
+    type_var->var.var_symbol->name        = var_to_replace->name; // Experiment...attempting to keep the same "name" after sub
     type_var->var.var_symbol->source_name = var_to_replace->source_name;
+    type_var->var.var_symbol->module_name = var_to_replace->module_name;
     type_var->kind                        = type_to_replace->kind;
     type_var->ownership                   = type_to_replace->ownership;
     type_var->var.order                   = type_to_replace->var.order;
@@ -1144,8 +1146,12 @@ NecroType* necro_type_maybe_sub_var(NecroType* type_to_maybe_sub, NecroInstSub* 
     NecroInstSub* curr_sub = subs;
     while (curr_sub != NULL)
     {
+        // TODO: Bang around source_name comparison here...is that too lax?
+        //       Figure out a more reliable solution for this!
         if (type_to_maybe_sub->var.var_symbol == curr_sub->var_to_replace || type_to_maybe_sub == subs->new_name ||
-           (type_to_maybe_sub->var.var_symbol->name != NULL && type_to_maybe_sub->var.var_symbol->name == curr_sub->var_to_replace->name))
+           (type_to_maybe_sub->var.var_symbol->name != NULL && type_to_maybe_sub->var.var_symbol->name == curr_sub->var_to_replace->name)
+           // || (type_to_maybe_sub->var.var_symbol->source_name != NULL && type_to_maybe_sub->var.var_symbol->source_name == curr_sub->var_to_replace->source_name)
+            )
             return curr_sub->new_name;
         curr_sub = curr_sub->next;
     }
@@ -1515,7 +1521,9 @@ bool necro_print_tuple_sig(FILE* stream, const NecroType* type)
     NecroSymbol con_symbol = type->con.con_symbol->source_name;
     const char* con_string = type->con.con_symbol->source_name->str;
 
-    if (con_string[0] != '(' && con_string[0] != '[')
+    const bool is_unboxed_tuple = strncmp(con_string, "(#,#)", 5) == 0;
+
+    if (con_string[0] != '(' && con_string[0] != '[' && !is_unboxed_tuple)
         return false;
 
     const NecroType* current_element = type->con.args;
@@ -1540,7 +1548,10 @@ bool necro_print_tuple_sig(FILE* stream, const NecroType* type)
     if (type->con.args == NULL)
         return false;
 
-    fprintf(stream, "(");
+    if (is_unboxed_tuple)
+        fprintf(stream, "(#");
+    else
+        fprintf(stream, "(");
     while (current_element != NULL)
     {
         necro_type_fprint(stream, current_element->list.item);
@@ -1548,7 +1559,10 @@ bool necro_print_tuple_sig(FILE* stream, const NecroType* type)
             fprintf(stream, ",");
         current_element = current_element->list.next;
     }
-    fprintf(stream, ")");
+    if (is_unboxed_tuple)
+        fprintf(stream, "#)");
+    else
+        fprintf(stream, ")");
     return true;
 }
 
@@ -1900,6 +1914,20 @@ NecroType* necro_type_tuple_con_create(NecroPagedArena* arena, NecroBase* base, 
     return necro_type_con_create(arena, con_symbol, types_list);
 }
 
+NecroType* necro_type_unboxed_tuple_con_create(NecroPagedArena* arena, NecroBase* base, NecroType* types_list)
+{
+    size_t     tuple_count  = 0;
+    NecroType* current_type = types_list;
+    while (current_type != NULL)
+    {
+        assert(current_type->type == NECRO_TYPE_LIST);
+        tuple_count++;
+        current_type = current_type->list.next;
+    }
+    NecroAstSymbol* con_symbol = necro_base_get_unboxed_tuple_type(base, tuple_count);
+    return necro_type_con_create(arena, con_symbol, types_list);
+}
+
 NecroType* necro_type_con1_create(NecroPagedArena* arena, NecroAstSymbol* con, NecroType* arg1)
 {
     NecroType* lst1 = necro_type_list_create(arena, arg1, NULL);
@@ -2018,6 +2046,52 @@ size_t necro_type_arity(NecroType* type)
     case NECRO_TYPE_NAT:  assert(false); return 0;
     case NECRO_TYPE_SYM:  assert(false); return 0;
     default:              assert(false); return 0;
+    }
+}
+
+void necro_type_assert_no_rigid_variables(const NecroType* type)
+{
+    if (type == NULL)
+        return;
+    type = necro_type_find_const(type);
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR:
+        assert(!type->var.is_rigid);
+        return;
+    case NECRO_TYPE_APP:
+        necro_type_assert_no_rigid_variables(type->app.type1);
+        necro_type_assert_no_rigid_variables(type->app.type2);
+        return;
+    case NECRO_TYPE_FUN:
+        necro_type_assert_no_rigid_variables(type->fun.type1) ;
+        necro_type_assert_no_rigid_variables(type->fun.type2);
+        return;
+    case NECRO_TYPE_CON:
+    {
+        NecroType* args = type->con.args;
+        while (args != NULL)
+        {
+            necro_type_assert_no_rigid_variables(args->list.item);
+            args = args->list.next;
+        }
+        return;
+    }
+    case NECRO_TYPE_FOR:
+    {
+        assert(false);
+        return;
+    }
+    case NECRO_TYPE_NAT:
+        return;
+    case NECRO_TYPE_SYM:
+        return;
+    case NECRO_TYPE_LIST:
+        assert(false && "Only used in TYPE_CON case");
+        return;
+    default:
+        assert(false && "Unrecognized type in necro_type_assert_no_rigid_variables");
+        return;
     }
 }
 
@@ -2590,12 +2664,13 @@ NecroResult(NecroType) necro_type_ownership_infer_from_type(NecroPagedArena* are
             type->ownership = base->ownership_share->type;
         else
             type->ownership = necro_type_ownership_fresh_var(arena, base, scope);
-        NecroType* args = type->con.args;
+        NecroType* ownership = type->con.con_symbol == base->share_type ? base->ownership_share->type : type->ownership;
+        NecroType* args      = type->con.args;
         while (args != NULL)
         {
             NecroType* arg_ownership = necro_try_result(NecroType, necro_type_ownership_infer_from_type(arena, con_env, base, args->list.item, scope));
             if (necro_type_is_inhabited(base, args->list.item))
-                necro_try(NecroType, necro_type_ownership_unify(arena, con_env, type->ownership, arg_ownership, scope));
+                necro_try(NecroType, necro_type_ownership_unify(arena, con_env, ownership, arg_ownership, scope));
             args = args->list.next;
         }
         return ok(NecroType, type->ownership);
@@ -2670,12 +2745,13 @@ NecroResult(NecroType) necro_type_ownership_infer_from_sig_go(NecroPagedArena* a
     {
         if (!necro_type_is_inhabited(base, type))
             type->ownership = base->ownership_share->type;
-        NecroType* args = type->con.args;
+        NecroType* ownership = type->con.con_symbol == base->share_type ? base->ownership_share->type : type->ownership;
+        NecroType* args      = type->con.args;
         while (args != NULL)
         {
             NecroType* arg_ownership = necro_try_result(NecroType, necro_type_ownership_infer_from_sig_go(arena, con_env, base, args->list.item, scope, NULL));
             if (necro_type_is_inhabited(base, args->list.item))
-                necro_try(NecroType, necro_type_ownership_unify(arena, con_env, type->ownership, arg_ownership, scope));
+                necro_try(NecroType, necro_type_ownership_unify(arena, con_env, ownership, arg_ownership, scope));
             args = args->list.next;
         }
         return ok(NecroType, type->ownership);
@@ -2717,6 +2793,11 @@ NecroResult(NecroType) necro_type_ownership_infer_from_sig(NecroPagedArena* aren
 // TODO: Check Higher order function uniqueness inference in signatures, and that it matches inference from terms.
 NecroResult(NecroType) necro_type_infer_and_unify_ownership_for_two_types(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope)
 {
+    if (con_env == NULL)
+    {
+        // HACK / NOTE / TODO: No con_env, likely inferring types during necro_core_infer. We should probably check ownership types to make sure that we don't break things, however for now we're sweeping things under the rug...
+        return ok(NecroType, type1->ownership);
+    }
     NecroType* ownership1 = necro_try_result(NecroType, necro_type_ownership_infer_from_type(arena, con_env, base, type1, scope));
     NecroType* ownership2 = necro_try_result(NecroType, necro_type_ownership_infer_from_type(arena, con_env, base, type2, scope));
     return necro_type_ownership_unify(arena, con_env, ownership1, ownership2, scope);

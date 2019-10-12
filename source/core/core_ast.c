@@ -12,6 +12,7 @@
 #include "monomorphize.h"
 #include "alias_analysis.h"
 #include "kind.h"
+#include "runtime.h"
 
 #define NECRO_CORE_DEBUG 0
 #if NECRO_CORE_DEBUG
@@ -171,6 +172,19 @@ NecroCoreAst* necro_core_ast_create_for_loop(NecroPagedArena* arena, size_t max_
     return ast;
 }
 
+NecroCoreAst* necro_core_ast_deep_copy_lit(NecroPagedArena* arena, NecroCoreAst* ast)
+{
+    if (ast->lit.type != NECRO_AST_CONSTANT_ARRAY)
+    {
+        NecroCoreAst* new_ast = necro_core_ast_alloc(arena, NECRO_CORE_AST_LIT);
+        new_ast->lit          = ast->lit;
+        new_ast->necro_type   = ast->necro_type;
+        return new_ast;
+    }
+    assert(false && "TODO: Finish!");
+    return NULL;
+}
+
 NecroCoreAst* necro_core_ast_deep_copy(NecroPagedArena* arena, NecroCoreAst* ast)
 {
     assert(arena != NULL);
@@ -180,7 +194,7 @@ NecroCoreAst* necro_core_ast_deep_copy(NecroPagedArena* arena, NecroCoreAst* ast
     switch (ast->ast_type)
     {
     // TODO: Finish
-    // case NECRO_CORE_AST_LIT:       copy_ast = necro_core_ast_create_lit(arena, ast->lit.con)
+    case NECRO_CORE_AST_LIT:       copy_ast = necro_core_ast_deep_copy_lit(arena, ast); break;
     case NECRO_CORE_AST_DATA_DECL: assert(false && "TODO: FINISH"); copy_ast = necro_core_ast_create_data_decl(arena, ast->data_decl.ast_symbol, NULL); break; // TODO: Finish
     case NECRO_CORE_AST_CASE:      assert(false && "TODO: FINISH"); copy_ast = necro_core_ast_create_case(arena, necro_core_ast_deep_copy(arena, ast->case_expr.expr), NULL); break; // TODO: Finish!
     // case NECRO_CORE_AST_BIND_REC:
@@ -189,7 +203,6 @@ NecroCoreAst* necro_core_ast_deep_copy(NecroPagedArena* arena, NecroCoreAst* ast
     case NECRO_CORE_AST_VAR:       copy_ast = necro_core_ast_create_var(arena, ast->var.ast_symbol, necro_type_deep_copy(arena, ast->necro_type)); break;
     case NECRO_CORE_AST_FOR:       copy_ast = necro_core_ast_create_for_loop(arena, ast->for_loop.max_loops, necro_core_ast_deep_copy(arena, ast->for_loop.range_init), necro_core_ast_deep_copy(arena, ast->for_loop.value_init), necro_core_ast_deep_copy(arena, ast->for_loop.index_arg), necro_core_ast_deep_copy(arena, ast->for_loop.value_arg), necro_core_ast_deep_copy(arena, ast->for_loop.expression)); break;
     case NECRO_CORE_AST_LAM:       copy_ast = necro_core_ast_create_lam(arena, necro_core_ast_deep_copy(arena, ast->lambda.arg), necro_core_ast_deep_copy(arena, ast->lambda.expr)); break;
-    // case NECRO_CORE_AST_APP:       copy_ast = necro_core_ast_create_app(arena, necro_core_ast_deep_copy(arena, ast->app.expr1), necro_core_ast_deep_copy(arena, ast->app.expr2), necro_type_deep_copy(arena, ast->necro_type)); break;
     case NECRO_CORE_AST_APP:       copy_ast = necro_core_ast_create_app(arena, necro_core_ast_deep_copy(arena, ast->app.expr1), necro_core_ast_deep_copy(arena, ast->app.expr2)); break;
     case NECRO_CORE_AST_DATA_CON:  copy_ast = necro_core_ast_create_data_con(arena, ast->data_con.ast_symbol, necro_type_deep_copy(arena, ast->data_con.type), necro_type_deep_copy(arena, ast->data_con.data_type_type)); break;
     default:                       assert(false && "Unimplemented Ast in necro_core_ast_deep_copy"); return NULL;
@@ -398,9 +411,10 @@ bool necro_core_ast_should_filter(NecroAst* ast)
     case NECRO_AST_DATA_DECLARATION:
         return false;
     case NECRO_AST_APATS_ASSIGNMENT:
-        return necro_type_is_polymorphic(ast->apats_assignment.ast_symbol->type) || necro_type_is_polymorphic(ast->apats_assignment.ast_symbol->type->ownership);
+        // return necro_type_is_polymorphic(ast->apats_assignment.ast_symbol->type) || necro_type_is_polymorphic(ast->apats_assignment.ast_symbol->type->ownership);
+        return necro_type_is_polymorphic(ast->apats_assignment.ast_symbol->type);
     case NECRO_AST_SIMPLE_ASSIGNMENT:
-        return necro_type_is_polymorphic(ast->simple_assignment.ast_symbol->type) || necro_type_is_polymorphic(ast->simple_assignment.ast_symbol->type->ownership);
+        return necro_type_is_polymorphic(ast->simple_assignment.ast_symbol->type);
         // return necro_type_is_polymorphic(ast->necro_type) || necro_type_is_polymorphic(ast->necro_type->ownership);
         // return necro_type_is_polymorphic(ast->necro_type) || necro_type_is_polymorphic(ast->necro_type->ownership);
     case NECRO_AST_PAT_ASSIGNMENT:
@@ -668,23 +682,13 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_tuple(NecroCoreAstTransfor
     NecroType* mono_tuple_con = necro_core_ast_create_mono_tuple_con(context, ast);
 
     // Create Con var
-    NecroCoreAst* tuple_con = NULL;
-    switch (count)
-    {
-    case 2:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple2_con), mono_tuple_con); break;
-    case 3:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple3_con), mono_tuple_con); break;
-    case 4:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple4_con), mono_tuple_con); break;
-    case 5:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple5_con), mono_tuple_con); break;
-    case 6:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple6_con), mono_tuple_con); break;
-    case 7:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple7_con), mono_tuple_con); break;
-    case 8:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple8_con), mono_tuple_con); break;
-    case 9:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple9_con), mono_tuple_con); break;
-    case 10: tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple10_con), mono_tuple_con); break;
-    default: assert(false && "Unsupported tuple arity"); break;
-    }
+    NecroCoreAst* tuple_con = !ast->tuple.is_unboxed ?
+        necro_core_ast_create_var(context->arena, necro_base_get_tuple_con(context->base, count)->core_ast_symbol, mono_tuple_con) :
+        necro_core_ast_create_var(context->arena, necro_base_get_unboxed_tuple_con(context->base, count)->core_ast_symbol, mono_tuple_con);
     // Apply args
     NecroCoreAst* tuple_ast  = tuple_con;
     args                     = ast->tuple.expressions;
+    // TODO: Finish creating intermediate types for each app!
     // NecroType*    tuple_type = ast->
     while (args != NULL)
     {
@@ -732,8 +736,14 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_for_loop(NecroCoreAstTrans
     assert(range_init->necro_type->type == NECRO_TYPE_CON);
     assert(range_init->necro_type->con.con_symbol == context->base->range_type);
     assert(range_init->necro_type->con.args != NULL);
-    assert(range_init->necro_type->con.args->list.item->type == NECRO_TYPE_NAT);
-    const size_t  max_loops  = range_init->necro_type->con.args->list.item->nat.value;
+    size_t max_loops = 0;
+    NecroType* n = range_init->necro_type->con.args->list.item;
+    if (n->type == NECRO_TYPE_NAT)
+        max_loops = n->nat.value;
+    else if (n->type == NECRO_TYPE_CON && n->con.con_symbol == context->base->block_size_type)
+        max_loops = necro_runtime_get_block_size();
+    else
+        assert(false);
     NecroCoreAst* core_ast   = necro_core_ast_create_for_loop(context->arena, max_loops, range_init, value_init, index_arg, value_arg, expression);
     return ok(NecroCoreAst, core_ast);
 }
@@ -754,23 +764,13 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_tuple_pat(NecroCoreAstTran
     }
     NecroType* mono_tuple_con = necro_core_ast_create_mono_tuple_con(context, ast);
     // Create Con var
-    NecroCoreAst* tuple_con = NULL;
-    switch (count)
-    {
-    case 2:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple2_con), mono_tuple_con); break;
-    case 3:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple3_con), mono_tuple_con); break;
-    case 4:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple4_con), mono_tuple_con); break;
-    case 5:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple5_con), mono_tuple_con); break;
-    case 6:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple6_con), mono_tuple_con); break;
-    case 7:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple7_con), mono_tuple_con); break;
-    case 8:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple8_con), mono_tuple_con); break;
-    case 9:  tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple9_con), mono_tuple_con); break;
-    case 10: tuple_con = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create_from_ast_symbol(context->arena, context->base->tuple10_con), mono_tuple_con); break;
-    default: assert(false && "Unsupported tuple arity"); break;
-    }
+    NecroCoreAst* tuple_con = !ast->tuple.is_unboxed ?
+        necro_core_ast_create_var(context->arena, necro_base_get_tuple_con(context->base, count)->core_ast_symbol, mono_tuple_con) :
+        necro_core_ast_create_var(context->arena, necro_base_get_unboxed_tuple_con(context->base, count)->core_ast_symbol, mono_tuple_con);
     // Apply args
     NecroCoreAst* tuple_ast = tuple_con;
     args                    = ast->tuple.expressions;
+    // TODO: Finish creating intermediate types for each app!
     while (args != NULL)
     {
         NecroCoreAst* arg_ast = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_pat(context, args->list.item));
@@ -786,15 +786,15 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_pat(NecroCoreAstTransform*
         return ok(NecroCoreAst, NULL);
     switch (ast->type)
     {
-    // case NECRO_AST_WILDCARD:   return ok(NecroCoreAst, NULL); // TODO: How to handle wildcards? Perhaps simply introduce an unsed variable name?
     case NECRO_AST_VARIABLE:   return necro_ast_transform_to_core_var(context, ast);
     case NECRO_AST_CONID:      return necro_ast_transform_to_core_con(context, ast);
     case NECRO_AST_CONSTANT:   return necro_ast_transform_to_core_lit(context, ast);
     case NECRO_AST_TUPLE:      return necro_ast_transform_to_core_tuple_pat(context, ast);
     case NECRO_AST_WILDCARD:
     {
-        NecroType*    wildcard_type = necro_type_deep_copy(context->arena, ast->necro_type);
-        NecroCoreAst* wildcard_ast  = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "_wildcard"), wildcard_type), wildcard_type);
+        NecroType*    wildcard_type               = necro_type_deep_copy(context->arena, ast->necro_type);
+        NecroCoreAst* wildcard_ast                = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "wildcard"), wildcard_type), wildcard_type);
+        wildcard_ast->var.ast_symbol->is_wildcard = true;
         return ok(NecroCoreAst, wildcard_ast); // NOTE, from Curtis: Wild cards represented as NULL causes issues, instead we're going to compile them as anonymous variables
     }
     case NECRO_AST_CONSTRUCTOR:
@@ -1352,13 +1352,12 @@ void necro_core_ast_pretty_print(NecroCoreAst* ast)
     printf("\n");
 }
 
-#define NECRO_CORE_AST_VERBOSE 1
+#define NECRO_CORE_AST_VERBOSE 0
 void necro_core_test_result(const char* test_name, const char* str)
 {
     // Set up
     NecroIntern         intern          = necro_intern_create();
-    NecroSymTable       symtable        = necro_symtable_create(&intern);
-    NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create(&symtable);
+    NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create();
     NecroBase           base            = necro_base_compile(&intern, &scoped_symtable);
 
     NecroLexTokenVector tokens          = necro_empty_lex_token_vector();
@@ -1397,7 +1396,6 @@ void necro_core_test_result(const char* test_name, const char* str)
     necro_parse_ast_arena_destroy(&parse_ast);
     necro_destroy_lex_token_vector(&tokens);
     necro_scoped_symtable_destroy(&scoped_symtable);
-    necro_symtable_destroy(&symtable);
     necro_intern_destroy(&intern);
 }
 

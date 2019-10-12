@@ -21,6 +21,7 @@
 #include "utility/hash_table.h"
 #include "d_analyzer.h"
 #include "driver.h"
+#include "core/core_simplify.h"
 #include "core/lambda_lift.h"
 #include "core/defunctionalization.h"
 #include "core/state_analysis.h"
@@ -50,12 +51,14 @@ const char* necro_compile_phase_string(NECRO_PHASE phase)
     case NECRO_PHASE_INFER:                return "Infer";
     case NECRO_PHASE_MONOMORPHIZE:         return "Monomorphize";
     case NECRO_PHASE_TRANSFORM_TO_CORE:    return "Core";
+    case NECRO_PHASE_PRE_SIMPLIFY:         return "PreSimplify";
     case NECRO_PHASE_LAMBDA_LIFT:          return "LambdaLift";
     case NECRO_PHASE_DEFUNCTIONALIZATION:  return "Defunctionalization";
     case NECRO_PHASE_STATE_ANALYSIS:       return "StateAnalysis";
     case NECRO_PHASE_TRANSFORM_TO_MACHINE: return "NecroMachine";
     case NECRO_PHASE_CODEGEN:              return "CodeGen";
     case NECRO_PHASE_JIT:                  return "JIT";
+    case NECRO_PHASE_COMPILE:              return "Compile";
     default:
         assert(false);
         return NULL;
@@ -173,11 +176,27 @@ NecroResult(void) necro_compile_go(
         return ok_void();
 
     //--------------------
+    // Pre-Simplify
+    //--------------------
+    necro_compile_begin_phase(info, NECRO_PHASE_PRE_SIMPLIFY);
+    necro_core_ast_pre_simplify(info, intern, base, core_ast_arena);
+    if (necro_compile_end_phase(info, NECRO_PHASE_PRE_SIMPLIFY))
+        return ok_void();
+
+    //--------------------
     // Lambda Lift
     //--------------------
     necro_compile_begin_phase(info, NECRO_PHASE_LAMBDA_LIFT);
     necro_core_lambda_lift(info, intern, base, core_ast_arena);
     if (necro_compile_end_phase(info, NECRO_PHASE_LAMBDA_LIFT))
+        return ok_void();
+
+    //--------------------
+    // Defunctionalization
+    //--------------------
+    necro_compile_begin_phase(info, NECRO_PHASE_DEFUNCTIONALIZATION);
+    necro_core_defunctionalize(info, intern, base, core_ast_arena);
+    if (necro_compile_end_phase(info, NECRO_PHASE_DEFUNCTIONALIZATION))
         return ok_void();
 
     //--------------------
@@ -204,13 +223,26 @@ NecroResult(void) necro_compile_go(
     if (necro_compile_end_phase(info, NECRO_PHASE_CODEGEN))
         return ok_void();
 
-    //--------------------
-    // JIT
-    //--------------------
-    necro_compile_begin_phase(info, NECRO_PHASE_JIT);
-    necro_llvm_jit(info, llvm);
-    if (necro_compile_end_phase(info, NECRO_PHASE_JIT))
-        return ok_void();
+    if (info.compilation_phase == NECRO_PHASE_JIT)
+    {
+        //--------------------
+        // JIT
+        //--------------------
+        necro_compile_begin_phase(info, NECRO_PHASE_JIT);
+        necro_llvm_jit(info, llvm);
+        if (necro_compile_end_phase(info, NECRO_PHASE_JIT))
+            return ok_void();
+    }
+    else if (info.compilation_phase == NECRO_PHASE_COMPILE)
+    {
+        //--------------------
+        // Compile
+        //--------------------
+        necro_compile_begin_phase(info, NECRO_PHASE_COMPILE);
+        necro_llvm_jit(info, llvm);
+        if (necro_compile_end_phase(info, NECRO_PHASE_COMPILE))
+            return ok_void();
+    }
 
     return ok_void();
 }
@@ -221,8 +253,7 @@ void necro_compile(const char* file_name, const char* input_string, size_t input
     // Global data
     //--------------------
     NecroIntern          intern          = necro_intern_create();
-    NecroSymTable        symtable        = necro_symtable_create(&intern);
-    NecroScopedSymTable  scoped_symtable = necro_scoped_symtable_create(&symtable);
+    NecroScopedSymTable  scoped_symtable = necro_scoped_symtable_create();
     NecroBase            base            = necro_base_compile(&intern, &scoped_symtable);
 
     //--------------------
@@ -239,7 +270,7 @@ void necro_compile(const char* file_name, const char* input_string, size_t input
     // Compile
     //--------------------
     struct NecroTimer* timer  = necro_timer_create();
-    NecroCompileInfo   info   = { .verbosity = 0, .timer = timer, .compilation_phase = compilation_phase, .opt_level = opt_level };
+    NecroCompileInfo   info   = { .verbosity = 1, .timer = timer, .compilation_phase = compilation_phase, .opt_level = opt_level };
     NecroResult(void)  result = necro_compile_go(
         info,
         input_string,
@@ -278,7 +309,6 @@ void necro_compile(const char* file_name, const char* input_string, size_t input
     // Global data
     necro_base_destroy(&base);
     necro_scoped_symtable_destroy(&scoped_symtable);
-    necro_symtable_destroy(&symtable);
     necro_intern_destroy(&intern);
 }
 
@@ -286,22 +316,25 @@ void necro_test(NECRO_TEST test)
 {
     switch (test)
     {
-    case NECRO_TEST_UNICODE:              necro_test_unicode_properties();   break;
-    case NECRO_TEST_LEXER:                necro_lex_test();                  break;
-    case NECRO_TEST_PARSER:               necro_parse_test ();               break;
-    case NECRO_TEST_INTERN:               necro_intern_test();               break;
-    case NECRO_TEST_RENAME:               necro_rename_test();               break;
-    case NECRO_TEST_ALIAS:                necro_alias_analysis_test();       break;
-    case NECRO_TEST_INFER:                necro_test_infer();                break;
-    case NECRO_TEST_MONOMORPHIZE:         necro_monomorphize_test();         break;
-    case NECRO_TEST_CORE:                 necro_core_ast_test();             break;
-    case NECRO_TEST_LAMBDA_LIFT:          necro_core_lambda_lift_test();     break;
-    case NECRO_TEST_DEFUNCTIONALIZE:      necro_defunctionalize_test();      break;
-    case NECRO_TEST_ARENA_CHAIN_TABLE:    necro_arena_chain_table_test();    break;
-    case NECRO_TEST_BASE:                 necro_base_test();                 break;
-    case NECRO_TEST_MACH:                 necro_mach_test();                 break;
-    case NECRO_TEST_LLVM:                 necro_llvm_test();                 break;
-    case NECRO_TEST_JIT:                  necro_llvm_test_jit();             break;
+    case NECRO_TEST_UNICODE:              necro_test_unicode_properties();    break;
+    case NECRO_TEST_LEXER:                necro_lex_test();                   break;
+    case NECRO_TEST_PARSER:               necro_parse_test ();                break;
+    case NECRO_TEST_INTERN:               necro_intern_test();                break;
+    case NECRO_TEST_RENAME:               necro_rename_test();                break;
+    case NECRO_TEST_ALIAS:                necro_alias_analysis_test();        break;
+    case NECRO_TEST_INFER:                necro_test_infer();                 break;
+    case NECRO_TEST_MONOMORPHIZE:         necro_monomorphize_test();          break;
+    case NECRO_TEST_CORE:                 necro_core_ast_test();              break;
+    case NECRO_TEST_PRE_SIMPLIFY:         necro_core_ast_pre_simplify_test(); break;
+    case NECRO_TEST_LAMBDA_LIFT:          necro_core_lambda_lift_test();      break;
+    case NECRO_TEST_DEFUNCTIONALIZE:      necro_core_defunctionalize_test();  break;
+    case NECRO_TEST_ARENA_CHAIN_TABLE:    necro_arena_chain_table_test();     break;
+    case NECRO_TEST_BASE:                 necro_base_test();                  break;
+    case NECRO_TEST_STATE_ANALYSIS:       necro_state_analysis_test();        break;
+    case NECRO_TEST_MACH:                 necro_mach_test();                  break;
+    case NECRO_TEST_LLVM:                 necro_llvm_test();                  break;
+    case NECRO_TEST_JIT:                  necro_llvm_test_jit();              break;
+    case NECRO_TEST_COMPILE:              necro_llvm_test_compile();          break;
     case NECRO_TEST_ALL:
         necro_test_unicode_properties();
         necro_intern_test();
@@ -313,8 +346,10 @@ void necro_test(NECRO_TEST test)
         necro_test_infer();
         necro_monomorphize_test();
         necro_core_ast_test();
+        necro_core_ast_pre_simplify_test();
         necro_core_lambda_lift_test();
-        necro_defunctionalize_test();
+        necro_core_defunctionalize_test();
+        necro_state_analysis_test();
         necro_mach_test();
         necro_llvm_test();
         break;

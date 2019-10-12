@@ -1,0 +1,46 @@
+-- Tested on dev machine, specs:
+-- Old System: ~100% cpu for   1 million stateful functions at 100 ticks per second
+-- New System: ~0%   cpu for   1 million stateful functions at 100 ticks per second
+--             ~0%   cpu for  10 million stateful functions at 100 ticks per second!?!?
+--             ~9%   cpu for 100 million stateful functions at 100 ticks per second!?!?
+tick :: Int -> Int
+tick delta = feed where
+    feed ~ 0 = add delta feed
+tenTimes :: Int -> Int
+tenTimes n =
+    (add (tick n) (add (tick n) (add (tick n) (add (tick n) (add (tick n)
+    (add (tick n) (add (tick n) (add (tick n) (add (tick n) (tick n))))))))))
+oneHundredTimes :: Int -> Int
+oneHundredTimes n =
+    (add (tenTimes n) (add (tenTimes n) (add (tenTimes n) (add (tenTimes n) (add (tenTimes n)
+    (add (tenTimes n) (add (tenTimes n) (add (tenTimes n) (add (tenTimes n) (tenTimes n))))))))))
+oneThousandTimes :: Int -> Int
+oneThousandTimes n =
+    (add (oneHundredTimes n) (add (oneHundredTimes n) (add (oneHundredTimes n) (add (oneHundredTimes n) (add (oneHundredTimes n)
+    (add (oneHundredTimes n) (add (oneHundredTimes n) (add (oneHundredTimes n) (add (oneHundredTimes n) (oneHundredTimes n))))))))))
+tenThousandTimes :: Int -> Int
+tenThousandTimes n =
+    (add (oneThousandTimes n) (add (oneThousandTimes n) (add (oneThousandTimes n) (add (oneThousandTimes n) (add (oneThousandTimes n)
+    (add (oneThousandTimes n) (add (oneThousandTimes n) (add (oneThousandTimes n) (add (oneThousandTimes n) (oneThousandTimes n))))))))))
+oneHundredThousandTimes :: Int -> Int
+oneHundredThousandTimes n =
+    (add (tenThousandTimes n) (add (tenThousandTimes n) (add (tenThousandTimes n) (add (tenThousandTimes n) (add (tenThousandTimes n)
+    (add (tenThousandTimes n) (add (tenThousandTimes n) (add (tenThousandTimes n) (add (tenThousandTimes n) (tenThousandTimes n))))))))))
+oneMillionTimes :: Int -> Int
+oneMillionTimes n =
+    (add (oneHundredThousandTimes n) (add (oneHundredThousandTimes n) (add (oneHundredThousandTimes n) (add (oneHundredThousandTimes n) (add (oneHundredThousandTimes n)
+    (add (oneHundredThousandTimes n) (add (oneHundredThousandTimes n) (add (oneHundredThousandTimes n) (add (oneHundredThousandTimes n) (oneHundredThousandTimes n))))))))))
+tenMillionTimes :: Int -> Int
+tenMillionTimes n =
+    (add (oneMillionTimes n) (add (oneMillionTimes n) (add (oneMillionTimes n) (add (oneMillionTimes n) (add (oneMillionTimes n)
+    (add (oneMillionTimes n) (add (oneMillionTimes n) (add (oneMillionTimes n) (add (oneMillionTimes n) (oneMillionTimes n))))))))))
+oneHundredMillionTimes :: Int -> Int
+oneHundredMillionTimes n =
+    (add (tenMillionTimes n) (add (tenMillionTimes n) (add (tenMillionTimes n) (add (tenMillionTimes n) (add (tenMillionTimes n)
+    (add (tenMillionTimes n) (add (tenMillionTimes n) (add (tenMillionTimes n) (add (tenMillionTimes n) (tenMillionTimes n))))))))))
+go :: Int
+go = oneHundredMillionTimes 1
+main :: *World -> *World
+main w = w
+-- main w = printInt (oneHundredMillionTimes 1) w
+

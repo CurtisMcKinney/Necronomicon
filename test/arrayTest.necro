@@ -24,7 +24,8 @@ App :: forall u v w x y a b. (u<=x, u<=v, u<=w, y<=x) => x:(v:a -> w:b) -> v:a y
 App :: .(.a -> .b) -> .a -> App .a .b
 
 -- APIs
-updateSinOscState :: Float -> *SinOscState -> *(SinOscState, Shared Float)
+accumulateAudio1 :: Default s => (F64 -> s -> (#s, F64#)) -> Audio -> Audio
+accumulateAudio1 :: Default s => (F64 -> F64 -> s ->(#s, F64#)) -> Audio -> Audio -> Audio
 
 -- Array
 newArray     :: .a -> .Array n a
@@ -57,10 +58,6 @@ class Freeze a where
 death :: .a -> .b -> c -> d -> ()
 death :: forall u v w x a b. (w<=u, x<=u, x<=v) => u:a -> w:(v:b -> x:(c -> d -> ()))
 
--- TODO: Shared implementation?
--- TODO: (Later): newtype implementation
---
-
 -- Loop ?
 loopTest :: .Array n Float
 loopTest = a' where
@@ -69,10 +66,32 @@ loopTest = a' where
       (x * 100, writeArray i x a)
 
 -- New, non-poly Range API
-each          :: Range n
-slidingWindow :: Index n -> Range m -> Range m
-offsetRange   :: UInt -> Range n -> Range n
-writeArray    :: Index n -> *a -> *Array n a -> *Array n a
+each               :: Range n
+slidingWindow      :: Index n -> Range m -> Range m
+offsetRange        :: UInt -> Range n -> Range n
+_unsafeUninitArray :: *Array n a
+freezeArray        :: *Array n (Shared a) -> Array n a
+readArray'         :: Index n -> *Array n (Shared a) -> *(Array n (Shared a), Shared a)
+readArray          :: Index n -> Array n a -> a
+writeArray         :: Index n -> *a -> *Array n a -> *Array n a
+freezeShared       :: *Shared a -> a
+
+map :: (a -> b) -> Array n a -> Array n b
+map f a =
+    freezeArray <|
+        for each _unsafeUninitArray loop i b ->
+            let aVal = readArray i a
+                bVal = Shared (f aVal)
+            in writeArray i bVal b
+
+mapU :: (a -> b) -> *Array n (Shared a) -> *Array n (Shared b)
+mapU f arrayA =
+  for each _unsafeUninitArray loop i arrayB ->
+    let
+      valA = readArray i arrayA
+      valB = f valA
+    in
+      writeArray i valB arrayB
 
 each :: Range n
 each = Range 0 1 0
@@ -107,10 +126,9 @@ delayTest = z where
 
 loopTest :: Array n Float
 loopTest = a' where
-  (feed ~ 0, a') =
-    for each (feed, empty) loop i (x, a) ->
-      (x * 100, writeArray i x a)
-
+  (#feed ~ 0, a'#) =
+    for each (#feed, empty#) loop i (#x, a#) ->
+      (#x * 100, writeArray i x a#)
 
 counter :: Maybe Int
 counter = x where
@@ -118,4 +136,132 @@ counter = x where
     case x of
       Nothing -> Just 0
       Just i  -> Just (i + 1)
+
+feedTest :: ((Int, Int), (Int, Int))
+feedTest = x where
+  x ~ ((0, 1), (2, 3)) =
+    case (gt mouseX 50, x) of
+      (True,  ((x, y), r)) -> (r, (y, x))
+      (False, ((z, w), r)) -> ((w, z), r)
+
+----------------------------
+-- Sequence Thoughts
+----------------------------
+data SValue a = SValue Time a | SRest Time | SConstant a | SInterval | SEnd
+data Seq a    = Seq (Time -> SValue a)
+
+runSeq :: Seq a -> Time -> SValue a
+runSeq s t =
+  case s of
+    Seq f = f t
+
+-- NOTE / IDEA: Generate binary search tree of cases for sequences to find right time case.
+coolPat :: Seq Float
+coolPat = Seq <|
+  \t ->
+    case t of
+       0   -> runSeq seqA t
+       0.5 -> runSeq seqB t
+
+poly1 :: (Audio -> Audio) -> Seq Float -> Audio
+
+
+----------------------------
+-- Audio DSP API
+----------------------------
+
+class Copy a where
+data (BlockSize :: Nat) = -- (primitive)
+
+unsafeEmptyArray :: () -> *Array n a
+readArray        :: Index n -> Array n a -> a
+writeArray       :: Index n -> *a -> *Array n a -> *Array n a
+freezeArray      :: *Array n (Share a) -> Array n a
+
+writeF64         :: Index n -> *Array n F64 -> F64 -> *Array n F64
+freezeF64        :: *Array BlockSize F64 -> Array BlockSize F64
+
+fma              :: F64 -> F64 -> F64 -> F64
+fastFloor        :: F64 -> F64
+recipBlockSize   :: F64
+panStereo        :: Audio a => Float -> a -> Stereo
+outChannel       :: Int -> Channel -> *World -> *World
+-- Make Audio default to Mono
+
+data Channel   = BlockRate F64 | AudioRate (Array BlockSize F64)
+data Mono      = Mono Channel
+data Stereo    = Stereo (#Channel, Channel#)
+data Quad      = Quad (#Channel, Channel, Channel, Channel#)
+data Ambisonic = Ambisonic Channel Channel Channel Channel
+
+-- Remember to add Num as super class to Audio!
+class Num a => Audio a where
+  pureAudio :: Channel -> a
+  mapAudio  :: (Channel -> Channel) -> a -> a
+  outAudio  :: Int -> a -> *World -> *World
+  poly      :: (a -> a) -> Seq Float -> a
+  panStereo :: Float -> a -> Stereo
+
+instance Audio Mono where
+  pureAudio c = Mono c
+  mapAudio  f (Mono c) = Mono (f c)
+  outAudio i (Mono c) w = outChannel i c w
+
+instance Audio Stereo where
+  pureAudio c = Stereo (#c, c#)
+  mapAudio f (Stereo (#l, r#))   = Stereo (#f l, f r#)
+  outAudio i (Stereo (#l, r#)) w = outChannel (i + 1) r (outChannel i l w)
+
+stereo :: Mono -> Mono -> Stereo
+stereo (Mono l) (Mono r) = Stereo (#l, r#)
+
+-- Can't currently support audio accumulator feedback loops without pattern assignment
+mapChannel  :: (F64 -> F64) -> Channel -> Channel
+mapChannel2 :: (F64 -> F64 -> F64) -> Channel -> Channel -> Channel
+
+accumulateChannel1 :: Default s => (F64 -> s -> (#s, F64#)) -> Channel -> Channel
+accumulateChannel1 f input1 =
+  AudioRate (freezeAudio output)
+  where
+    emptyO = unsafeEmptyArray ()
+    output =
+      case input1 of
+        BlockRate input1Val ->
+          for each (#default, emptyO#) loop i (#s, o#) ->
+            case f i1 s of
+              (#s', a#) -> (#s', writeAudio i a o#)
+        AudioRate input1Buffer ->
+          for each (#default, emptyO#) loop i (#s, o#) ->
+            case f (readArray i input1Buffer) s of
+              (#s', a#) -> (#s', writeAudio i a o#)
+
+accumulateAudio1 :: (Audio a, Default s) => (F64 -> s -> (#s, F64#)) -> a -> a
+accumulateAudio1 f a = mapAudio (accumulateChannel1 f) a
+
+accumulateSaw :: F64 -> F64 -> (#F64, F64#)
+accumulateSaw freq acc =
+  (#acc3, out#)
+  where
+    acc2 = fma freq recipSampleRate acc
+    acc3 = acc2 - fastFloor acc2
+    out  = fma 2.0 acc3 (-1.0)
+
+sawOsc :: Audio a => a -> a
+sawOsc freq = accumulateAudio1 accumulateSaw freq
+
+mouseAudio :: Audio a => a
+mouseAudio = fromInt mouseX
+
+instance Num Channel where
+  fromInt i = BlockRate (fromInt i)
+  add x y   = mapChannel2 add x y
+
+instance Num Mono where
+  fromInt i             = Mono (fromInt i)
+  add (Mono x) (Mono y) = Mono (add x y)
+
+instance Num Stereo where
+    fromInt i                          = let c = fromInt i in Stereo c c
+    add (Stereo xl xr ) (Stereo yl yr) = Stereo (add xl yl) (add xr yr)
+
 

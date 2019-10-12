@@ -11,7 +11,7 @@
 #include "type.h"
 
 // Constants
-#define NECRO_INITIAL_INTERN_SIZE    512
+#define NECRO_INITIAL_INTERN_SIZE    4096
 #define NECRO_INTERN_HASH_MAGIC      5381
 #define NECRO_INTERN_HASH_MULTIPLIER 33
 
@@ -113,7 +113,7 @@ bool necro_intern_contains_symbol(NecroIntern* intern, NecroSymbol symbol)
 {
     if (symbol == NULL)
         return false;
-    for (size_t probe = symbol->hash % intern->size; intern->entries[probe].data != NULL; probe = (probe + 1) % intern->size)
+    for (size_t probe = (symbol->hash & (intern->size - 1)); intern->entries[probe].data != NULL; probe = (probe + 1) & (intern->size - 1))
     {
         if (intern->entries[probe].data == symbol)
             return true;
@@ -139,10 +139,10 @@ void necro_intern_grow(NecroIntern* intern)
         if (old_entries[i].data != NULL)
         {
             size_t hash  = old_entries[i].hash;
-            size_t probe = hash % intern->size;
+            size_t probe = hash & (intern->size - 1);
             while (intern->entries[probe].data != NULL)
             {
-                probe = (probe + 1) % intern->size;
+                probe = (probe + 1) & (intern->size - 1);
             }
             assert(intern->entries[probe].data == NULL);
             intern->entries[probe] = old_entries[i];
@@ -242,7 +242,7 @@ NecroInternProbeResult necro_intern_prob(NecroIntern* intern, const char* str)
     // Do linear probe
     size_t length = 0;
     size_t hash   = necro_hash_string(str, &length);
-    size_t probe  = hash % intern->size;
+    size_t probe  = hash & (intern->size - 1);
     while (intern->entries[probe].data != NULL)
     {
         if (intern->entries[probe].hash == hash)
@@ -251,7 +251,7 @@ NecroInternProbeResult necro_intern_prob(NecroIntern* intern, const char* str)
             if (str_at_probe != NULL && strcmp(str_at_probe, str) == 0)
                 return (NecroInternProbeResult) { .hash = hash, .length = length, .probe = probe, .symbol = intern->entries[probe].data };
         }
-        probe = (probe + 1) % intern->size;
+        probe = (probe + 1) & (intern->size - 1);
     }
 
     // Assert that this entry is in fact empty
@@ -335,7 +335,7 @@ NecroSymbol necro_intern_string_slice(NecroIntern* intern, NecroStringSlice slic
 
     // Do Linear probe
     size_t hash  = necro_hash_string_slice(slice);
-    size_t probe = hash % intern->size;
+    size_t probe = hash & (intern->size - 1);
     while (intern->entries[probe].data != NULL)
     {
         if (intern->entries[probe].hash == hash)
@@ -344,7 +344,7 @@ NecroSymbol necro_intern_string_slice(NecroIntern* intern, NecroStringSlice slic
             if (str_at_probe != NULL && strncmp(str_at_probe, slice.data, slice.length) == 0)
                 return intern->entries[probe].data;
         }
-        probe = (probe + 1) % intern->size;
+        probe = (probe + 1) & (intern->size - 1);
     }
 
     // Assert that this is in fact en empty entry

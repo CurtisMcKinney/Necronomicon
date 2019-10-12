@@ -284,6 +284,19 @@ NecroParseAstLocalPtr necro_parse_ast_create_tuple(NecroArena* arena, NecroSourc
     NecroParseAst*        node = necro_parse_ast_alloc(arena, &local_ptr);
     node->type                 = NECRO_AST_TUPLE;
     node->tuple.expressions    = expressions_ast;
+    node->tuple.is_unboxed     = false;
+    node->source_loc           = source_loc;
+    node->end_loc              = end_loc;
+    return local_ptr;
+}
+
+NecroParseAstLocalPtr necro_parse_ast_create_unboxed_tuple(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr expressions_ast)
+{
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*        node = necro_parse_ast_alloc(arena, &local_ptr);
+    node->type                 = NECRO_AST_TUPLE;
+    node->tuple.expressions    = expressions_ast;
+    node->tuple.is_unboxed     = true;
     node->source_loc           = source_loc;
     node->end_loc              = end_loc;
     return local_ptr;
@@ -708,6 +721,7 @@ void necro_parse_ast_assert_eq_tuple(NecroParseAstArena* ast1, NecroParseAst* no
     assert(node1->type == NECRO_AST_TUPLE);
     assert(node2->type == NECRO_AST_TUPLE);
     necro_parse_ast_assert_eq_go(ast1, node1->tuple.expressions, ast2, node2->tuple.expressions);
+    assert(node1->tuple.is_unboxed == node2->tuple.is_unboxed);
 }
 
 void necro_parse_ast_assert_eq_bind_assignment(NecroParseAstArena* ast1, NecroParseAst* node1, NecroParseAstArena* ast2, NecroParseAst* node2)

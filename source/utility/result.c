@@ -592,6 +592,22 @@ NecroResult(NecroType) necro_type_mismatched_order_error(size_t expected_order, 
     return (NecroResult(NecroType)) { .error = error, .type = NECRO_RESULT_ERROR };
 }
 
+
+///////////////////////////////////////////////////////
+// Audio Error
+///////////////////////////////////////////////////////
+NecroResult(void) necro_runtime_audio_error(const char* error_message)
+{
+    necro_error_single_break_point();
+    NecroResultError* error         = emalloc(sizeof(NecroResultError));
+    error->type                     = NECRO_RUNTIME_AUDIO_ERROR;
+    error->runtime_audio_error_data = (NecroRuntimeAudioErrorData)
+    {
+        .error_message = error_message
+    };
+    return (NecroResult(void)) { .error = error, .type = NECRO_RESULT_ERROR };
+}
+
 ///////////////////////////////////////////////////////
 // Printing
 ///////////////////////////////////////////////////////
@@ -1545,6 +1561,14 @@ void necro_print_ambiguous_type_var(NecroResultError* error, const char* source_
     UNUSED(source_name);
 }
 
+void necro_print_runtime_audio_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    UNUSED(source_str);
+    UNUSED(source_name);
+    necro_print_error_header("Audio");
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " %s\n", error->runtime_audio_error_data.error_message);
+}
+
 // NOTE:
 // Basic assumption is that and error will be freed after it is printed.
 // Thus nested errors either need to call into necro_result_error_print
@@ -1642,6 +1666,8 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_TYPE_AMBIGUOUS_TYPE_VAR:                         necro_print_ambiguous_type_var(error, source_str, source_name); break;
 
     case NECRO_KIND_MISMATCHED_KIND:                            necro_print_mismatched_kind_error(error, source_str, source_name); break;
+
+    case NECRO_RUNTIME_AUDIO_ERROR:                             necro_print_runtime_audio_error(error, source_str, source_name); break;
 
     default:
         assert(false && "[necro_result_error_print] Unknown error type");

@@ -14,5 +14,6 @@
 #include "core/core_ast.h"
 
 void necro_core_state_analysis(NecroCompileInfo info, NecroIntern* intern, NecroBase* base, NecroCoreAstArena* core_ast_arena);
+void necro_state_analysis_test();
 
 #endif // CORE_STATE_ANALYSIS_H

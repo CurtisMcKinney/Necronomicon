@@ -10,7 +10,7 @@ static const int EXIT_MEMORY_LEAK_DETECTED = 255;
 #define EXIT_MEMORY_LEAK_DETECTED_STR "255"
 
 #if defined(_DEBUG)
-#define DEBUG_MEMORY 1
+#define DEBUG_MEMORY 0
 #define FULL_DEBUG_MEMORY 0 // includes default windows allocations and detects leaks on empty main :(
 #endif
 

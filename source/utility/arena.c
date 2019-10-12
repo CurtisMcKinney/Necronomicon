@@ -8,7 +8,7 @@
 #include <assert.h>
 #include <string.h>
 #include "arena.h"
-#include "math.h"
+#include "math_utility.h"
 #include "utility.h"
 
 // #define ARENA_DEBUG_PRINT 1

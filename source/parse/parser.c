@@ -1753,18 +1753,22 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_initializer(NecroParser* parser)
         return ok_NecroParseAstLocalPtr(null_local_ptr);
     necro_parse_consume_token(parser);
 
-    // Constant Con
-    NecroParseAstLocalPtr local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_const_con(parser));
+    NecroParseAstLocalPtr local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_function_expression(parser));
     if (local_ptr != null_local_ptr)
-        return ok_NecroParseAstLocalPtr(local_ptr);
+        return ok(NecroParseAstLocalPtr, local_ptr);
 
-    // default
-    if (necro_parse_peek_token_type(parser) == NECRO_LEX_IDENTIFIER && necro_parse_peek_token(parser)->symbol == necro_intern_string(parser->intern, "default"))
-    {
-        local_ptr = necro_parse_variable(parser, NECRO_VAR_VAR);
-        if (local_ptr != null_local_ptr)
-            return ok_NecroParseAstLocalPtr(local_ptr);
-    }
+    // // Constant Con
+    // NecroParseAstLocalPtr local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_const_con(parser));
+    // if (local_ptr != null_local_ptr)
+    //     return ok_NecroParseAstLocalPtr(local_ptr);
+
+    // // default
+    // if (necro_parse_peek_token_type(parser) == NECRO_LEX_IDENTIFIER && necro_parse_peek_token(parser)->symbol == necro_intern_string(parser->intern, "default"))
+    // {
+    //     local_ptr = necro_parse_variable(parser, NECRO_VAR_VAR);
+    //     if (local_ptr != null_local_ptr)
+    //         return ok_NecroParseAstLocalPtr(local_ptr);
+    // }
 
     // Not an initializer
     necro_parse_restore(parser, snapshot);

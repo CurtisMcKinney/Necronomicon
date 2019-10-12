@@ -661,13 +661,23 @@ void necro_core_transform_to_mach_2_bind(NecroMachProgram* program, NecroCoreAst
     if (outer == NULL && !is_machine_fn)
     {
         NecroMachAst*       global_value  = NULL;
-        NecroMachAstSymbol* global_symbol = necro_mach_ast_symbol_gen(program, NULL, necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char* []) { "global", machine_def->machine_def.machine_name->name->str + 1 }), NECRO_MANGLE_NAME);
+        NecroMachAstSymbol* global_symbol = necro_mach_ast_symbol_gen(program, NULL, necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char* []) { "global", machine_def->machine_def.machine_name->name->str }), NECRO_MANGLE_NAME);
         if (necro_mach_type_is_unboxed(program, machine_def->machine_def.value_type))
             global_value = necro_mach_value_create_global(program, global_symbol, necro_mach_type_create_ptr(&program->arena, machine_def->machine_def.value_type));
         else
             global_value = necro_mach_value_create_global(program, global_symbol, necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_ptr(&program->arena, machine_def->machine_def.value_type)));
         machine_def->machine_def.global_value = global_value;
         necro_mach_program_add_global(program, global_value);
+
+        //--------------------
+        // Add global state
+        if (machine_def->machine_def.num_members > 0)
+        {
+            NecroMachAstSymbol* global_state_symbol = necro_mach_ast_symbol_gen(program, NULL, necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char* []) { "state", machine_def->machine_def.machine_name->name->str }), NECRO_MANGLE_NAME);
+            NecroMachAst*       global_state        = necro_mach_value_create_global(program, global_state_symbol, necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_ptr(&program->arena, machine_def->necro_machine_type)));
+            machine_def->machine_def.global_state   = global_state;
+            necro_mach_program_add_global(program, global_state);
+        }
     }
 
     // if (machine_def->machine_def.state_type < NECRO_STATE_STATEFUL)
@@ -1580,6 +1590,7 @@ NecroMachAst* necro_core_transform_to_mach_3_go(NecroMachProgram* program, Necro
 ///////////////////////////////////////////////////////
 // Construct Main
 ///////////////////////////////////////////////////////
+/*
 void necro_mach_construct_main(NecroMachProgram* program)
 {
     //--------------------
@@ -1699,6 +1710,150 @@ void necro_mach_construct_main(NecroMachProgram* program)
     }
     necro_mach_build_return(program, necro_main_fn, necro_mach_value_create_word_int(program, 0));
     program->necro_main = necro_main_fn;
+}
+*/
+
+void necro_mach_construct_main(NecroMachProgram* program)
+{
+
+    //--------------------
+    // Get Program Main
+    NecroAstSymbol* main_symbol = necro_symtable_get_top_level_ast_symbol(program->base->scoped_symtable, necro_intern_string(program->intern, "main"));
+    if (main_symbol != NULL)
+    {
+        // TODO: Handle no main in program
+        assert(main_symbol->core_ast_symbol != NULL);
+        program->program_main = main_symbol->core_ast_symbol->mach_symbol->ast;
+    }
+
+    //--------------------
+    // necro_init
+    //--------------------
+    {
+        NecroMachAstSymbol* necro_init_symbol = necro_mach_ast_symbol_gen(program, NULL, "necro_init", NECRO_DONT_MANGLE);
+        NecroMachType*      necro_init_type   = necro_mach_type_create_fn(&program->arena, program->type_cache.word_int_type, NULL, 0);
+        NecroMachAst*       necro_init_entry  = necro_mach_block_create(program, "entry", NULL);
+        NecroMachAst*       necro_init_fn     = necro_mach_create_fn(program, necro_init_symbol, necro_init_entry, necro_init_type);
+        program->necro_init                   = necro_init_fn;
+        program->functions.length--; // Hack...
+
+        //--------------------
+        // Create states
+        for (size_t i = 0; i < program->machine_defs.length; ++i)
+        {
+            if (program->machine_defs.data[i]->machine_def.num_members == 0 || program->machine_defs.data[i]->machine_def.num_arg_names != 0)
+                continue;
+            NecroMachAst* result = necro_mach_build_call(program, necro_init_fn, program->machine_defs.data[i]->machine_def.mk_fn->fn_def.fn_value, NULL, 0, NECRO_MACH_CALL_LANG, "state");
+            necro_mach_build_store(program, necro_init_fn, result, program->machine_defs.data[i]->machine_def.global_state);
+        }
+        if (program->program_main != NULL && program->program_main->machine_def.num_members > 0)
+        {
+            if (program->program_main->machine_def.global_state == NULL)
+            {
+                NecroMachAstSymbol* global_state_symbol         = necro_mach_ast_symbol_gen(program, NULL, necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char* []) { "state", program->program_main->machine_def.machine_name->name->str }), NECRO_MANGLE_NAME);
+                NecroMachAst*       global_state                = necro_mach_value_create_global(program, global_state_symbol, necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_ptr(&program->arena, program->program_main->necro_machine_type)));
+                program->program_main->machine_def.global_state = global_state;
+                necro_mach_program_add_global(program, global_state);
+            }
+            NecroMachAst* result = necro_mach_build_call(program, necro_init_fn, program->program_main->machine_def.mk_fn->fn_def.fn_value, NULL, 0, NECRO_MACH_CALL_LANG, "main_state");
+            necro_mach_build_store(program, necro_init_fn, result, program->program_main->machine_def.global_state);
+        }
+
+        //--------------------
+        // Call constants
+        for (size_t i = 0; i < program->machine_defs.length; ++i)
+        {
+            if (program->machine_defs.data[i]->machine_def.state_type > NECRO_STATE_CONSTANT || program->machine_defs.data[i]->machine_def.num_arg_names != 0)
+                continue;
+            if (program->machine_defs.data[i]->machine_def.num_members > 0)
+            {
+                NecroMachAst* state  = necro_mach_build_load(program, necro_init_fn, program->machine_defs.data[i]->machine_def.global_state, "state");
+                NecroMachAst* result = necro_mach_build_call(program, necro_init_fn, program->machine_defs.data[i]->machine_def.update_fn->fn_def.fn_value, (NecroMachAst*[]) { state }, 1, NECRO_MACH_CALL_LANG, "constant_result");
+                necro_mach_build_store(program, necro_init_fn, result, program->machine_defs.data[i]->machine_def.global_value);
+            }
+            else
+            {
+                NecroMachAst* result = necro_mach_build_call(program, necro_init_fn, program->machine_defs.data[i]->machine_def.update_fn->fn_def.fn_value, NULL, 0, NECRO_MACH_CALL_LANG, "constant_result");
+                necro_mach_build_store(program, necro_init_fn, result, program->machine_defs.data[i]->machine_def.global_value);
+            }
+        }
+        necro_mach_build_return(program, necro_init_fn, necro_mach_value_create_word_int(program, 0));
+    }
+
+    //--------------------
+    // NecroMain
+    //--------------------
+    {
+        NecroMachAstSymbol* necro_main_symbol = necro_mach_ast_symbol_gen(program, NULL, "necro_main", NECRO_DONT_MANGLE);
+        NecroMachType*      necro_main_type   = necro_mach_type_create_fn(&program->arena, program->type_cache.word_int_type, NULL, 0);
+        NecroMachAst*       necro_main_entry  = necro_mach_block_create(program, "entry", NULL);
+        NecroMachAst*       necro_main_fn     = necro_mach_create_fn(program, necro_main_symbol, necro_main_entry, necro_main_type);
+        program->necro_main                   = necro_main_fn;
+        program->functions.length--; // Hack...
+
+        //--------------------
+        // Call global update functions
+        for (size_t i = 0; i < program->machine_defs.length; ++i)
+        {
+            if (program->machine_defs.data[i]->machine_def.state_type == NECRO_STATE_CONSTANT || program->machine_defs.data[i]->machine_def.num_arg_names != 0)
+                continue;
+            if (program->machine_defs.data[i]->machine_def.num_members > 0)
+            {
+                NecroMachAst* state  = necro_mach_build_load(program, necro_main_fn, program->machine_defs.data[i]->machine_def.global_state, "state");
+                NecroMachAst* result = necro_mach_build_call(program, necro_main_fn, program->machine_defs.data[i]->machine_def.update_fn->fn_def.fn_value, (NecroMachAst*[]) { state }, 1, NECRO_MACH_CALL_LANG, "stateful_result");
+                necro_mach_build_store(program, necro_main_fn, result, program->machine_defs.data[i]->machine_def.global_value);
+            }
+            else
+            {
+                NecroMachAst* result = necro_mach_build_call(program, necro_main_fn, program->machine_defs.data[i]->machine_def.update_fn->fn_def.fn_value, NULL, 0, NECRO_MACH_CALL_LANG, "pointwise_result");
+                necro_mach_build_store(program, necro_main_fn, result, program->machine_defs.data[i]->machine_def.global_value);
+            }
+        }
+
+        //--------------------
+        // Call main update function
+        if (program->program_main != NULL)
+        {
+            // NOTE: Main is of type World -> World, which translates to fn main(u32) -> u32
+            NecroMachAst* world_value = necro_mach_value_create_word_uint(program, 0);
+            if (program->program_main->machine_def.num_members > 0)
+            {
+                NecroMachAst* state  = necro_mach_build_load(program, necro_main_fn, program->program_main->machine_def.global_state, "state");
+                NecroMachAst* result = necro_mach_build_call(program, necro_main_fn, program->program_main->machine_def.update_fn->fn_def.fn_value, (NecroMachAst*[]) { state, world_value }, 2, NECRO_MACH_CALL_LANG, "main_result");
+                UNUSED(result);
+            }
+            else
+            {
+                NecroMachAst* result = necro_mach_build_call(program, necro_main_fn, program->program_main->machine_def.update_fn->fn_def.fn_value, (NecroMachAst*[]) { world_value }, 1, NECRO_MACH_CALL_LANG, "main_result");
+                UNUSED(result);
+            }
+        }
+        necro_mach_build_return(program, necro_main_fn, necro_mach_value_create_word_int(program, 0));
+    }
+
+
+    //--------------------
+    // necro_shutdown
+    //--------------------
+    {
+        NecroMachAstSymbol* necro_shutdown_symbol = necro_mach_ast_symbol_gen(program, NULL, "necro_shutdown", NECRO_DONT_MANGLE);
+        NecroMachType*      necro_shutdown_type   = necro_mach_type_create_fn(&program->arena, program->type_cache.word_int_type, NULL, 0);
+        NecroMachAst*       necro_shutdown_entry  = necro_mach_block_create(program, "entry", NULL);
+        NecroMachAst*       necro_shutdown_fn     = necro_mach_create_fn(program, necro_shutdown_symbol, necro_shutdown_entry, necro_shutdown_type);
+        program->necro_shutdown                   = necro_shutdown_fn;
+        program->functions.length--; // Hack...
+        // Entry
+        for (size_t i = 0; i < program->machine_defs.length; ++i)
+        {
+            if (program->machine_defs.data[i]->machine_def.global_state == NULL)
+                continue;
+            // Destroy state
+            NecroMachAst* state    = necro_mach_build_load(program, necro_shutdown_fn, program->machine_defs.data[i]->machine_def.global_state, "state");
+            NecroMachAst* data_ptr = necro_mach_build_bit_cast(program, necro_shutdown_fn, state, necro_mach_type_create_ptr(&program->arena, program->type_cache.uint8_type));
+            necro_mach_build_call(program, necro_shutdown_fn, program->runtime.necro_runtime_free->ast->fn_def.fn_value, (NecroMachAst* []) { data_ptr }, 1, NECRO_MACH_CALL_C, "");
+        }
+        necro_mach_build_return(program, necro_shutdown_fn, necro_mach_value_create_word_int(program, 0));
+    }
 
 }
 
@@ -1757,7 +1912,7 @@ void necro_core_transform_to_mach(NecroCompileInfo info, NecroIntern* intern, Ne
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
-#define NECRO_MACH_TEST_VERBOSE 1
+#define NECRO_MACH_TEST_VERBOSE 0
 void necro_mach_test_string(const char* test_name, const char* str)
 {
 
@@ -1824,6 +1979,8 @@ void necro_mach_test()
     necro_announce_phase("Mach");
 
 /*
+
+*/
 
     {
         const char* test_name   = "Basic 0";
@@ -3201,15 +3358,13 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
-*/
-
     // TODO: |> isn't getting filtered out somewhow!?!?!
 
     {
         const char* test_name   = "Audio 1";
         const char* test_source = ""
             "coolSaw :: Mono\n"
-            "coolSaw = sawOsc 440\n"
+            "coolSaw = saw 440\n"
             "main :: *World -> *World\n"
             "main w = outAudio 0 coolSaw w\n";
         necro_mach_test_string(test_name, test_source);

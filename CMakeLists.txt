@@ -9,9 +9,14 @@
 # Step 3: Install LLVM
 #     - Once LLVM is built you should install it somewhere (In VS build using the INSTALL solution).
 #     - Make note of where.
-# Step 4:
+# Step 4: Build Port Audio
+#     - Consult: http://www.portaudio.com/
+#     - Tested with PortAudio 19
+#     - Make note of where the include directory and static library is.
+# Step 5:
 #     - Generate project files for Necronomicon using cmake-gui
 #     - When configuring/generating project files for Necronomicon with cmake-gui set LLVM_DIR to point to where you installed LLVM: <LLVM_Install_Folder>\lib\cmake\llvm
+#     - Configure the portaudio_include and portaudio_lib variables.
 # Necronomicon should now be a functional project you can build
 # This cmake file was cobbled together by consulting this: https://llvm.org/docs/CMake.html
 # =============================================================================
@@ -30,6 +35,9 @@ message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
+
+set(PORTAUDIO_INCLUDE "./portaudio/include/" CACHE PATH "portaudio include files")
+set(PORTAUDIO_LIB "./portaudio/build/Debug/portaudio_static.lib" CACHE FILEPATH "portaudio static library")
 
 if (CMAKE_COMPILER_IS_GNUCC)
     set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-function -Wno-multistatement-macros")
@@ -61,6 +69,7 @@ set(INCLUDE_DIR
     source/core
     source/mach
     source/codegen
+	${PORTAUDIO_INCLUDE}
     )
 
 include_directories(${INCLUDE_DIR})
@@ -93,6 +102,7 @@ set(project_SOURCES
     source/utility/result.c
 
     source/runtime/runtime.c
+    source/runtime/runtime_audio.c
 
     source/type/type.c
     source/type/kind.c
@@ -150,6 +160,7 @@ set(project_HEADERS
     source/utility/result.h
 
     source/runtime/runtime.h
+    source/runtime/runtime_audio.h
 
     source/type/type.h
     source/type/kind.h
@@ -181,7 +192,7 @@ ADD_EXECUTABLE(necro ${project_HEADERS} ${project_SOURCES})
 # that we wish to use
 # llvm_map_components_to_libnames(llvm_libs support core irreader analysis target ScalarOpts native passes mcjit)
 llvm_map_components_to_libnames(llvm_libs core native passes ScalarOpts analysis mcjit target)
-TARGET_LINK_LIBRARIES(necro ${llvm_libs})
+TARGET_LINK_LIBRARIES(necro ${llvm_libs} ${PORTAUDIO_LIB})
 
 execute_process (
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}

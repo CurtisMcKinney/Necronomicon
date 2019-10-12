@@ -771,9 +771,10 @@ NecroCoreAst* necro_core_ast_maybe_deep_copy(NecroStateAnalysis* context, NecroC
     assert(type->type == NECRO_TYPE_CON);
     if (type->con.con_symbol == context->base->array_type)
     {
-        // TODO: Special array handling
-        assert(false && "TODO");
-        return NULL;
+        // TODO: Special array handling, finish! right now we're simply not copying arrays!
+        // assert(false && "TODO");
+        // return NULL;
+        return ast_to_deep_copy;
     }
     NecroCoreAstSymbol* deep_copy_fn_symbol = type->con.con_symbol->core_ast_symbol->deep_copy_fn;
     if (deep_copy_fn_symbol == NULL)

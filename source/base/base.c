@@ -1731,7 +1731,7 @@ NecroAstSymbol* necro_base_get_branch_con(NecroBase* base, size_t branch_size, s
     return base->branch_cons[branch_size][alternative];
 }
 
-#define NECRO_BASE_TEST_VERBOSE 1
+#define NECRO_BASE_TEST_VERBOSE 0
 
 void necro_base_test()
 {

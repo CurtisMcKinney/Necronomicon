@@ -1092,7 +1092,7 @@ void necro_core_defunctionalize(NecroCompileInfo info, NecroIntern* intern, Necr
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
-#define NECRO_CORE_LAMBDA_LIFT_VERBOSE 0
+#define NECRO_CORE_DEFUNCTIONALIZE_VERBOSE 0
 void necro_defunctionalize_test_result(const char* test_name, const char* str)
 {
     // Set up
@@ -1123,7 +1123,7 @@ void necro_defunctionalize_test_result(const char* test_name, const char* str)
     unwrap(void, necro_core_infer(&intern, &base, &core_ast));
 
     // Print
-#if NECRO_CORE_LAMBDA_LIFT_VERBOSE
+#if NECRO_CORE_DEFUNCTIONALIZE_VERBOSE
     printf("\n");
     necro_core_ast_pretty_print(core_ast.root);
 #endif

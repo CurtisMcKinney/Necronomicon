@@ -662,6 +662,7 @@ void necro_mach_print_program(NecroMachProgram* program)
     {
         necro_mach_print_ast_go(program->machine_defs.data[i], 0);
     }
+    necro_mach_print_ast_go(program->necro_init, 0);
     necro_mach_print_ast_go(program->necro_main, 0);
-    // necro_print_data_info(program);
+    necro_mach_print_ast_go(program->necro_shutdown, 0);
 }

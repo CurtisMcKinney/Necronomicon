@@ -1256,7 +1256,9 @@ NecroMachProgram necro_mach_program_empty()
         .functions          = necro_empty_necro_mach_ast_vector(),
         .machine_defs       = necro_empty_necro_mach_ast_vector(),
         .globals            = necro_empty_necro_mach_ast_vector(),
+        .necro_init         = NULL,
         .necro_main         = NULL,
+        .necro_shutdown     = NULL,
         .word_size          = NECRO_WORD_4_BYTES,
 
         .arena              = necro_paged_arena_empty(),
@@ -1281,7 +1283,9 @@ NecroMachProgram necro_mach_program_create(NecroIntern* intern, NecroBase* base)
         .functions          = necro_create_necro_mach_ast_vector(),
         .machine_defs       = necro_create_necro_mach_ast_vector(),
         .globals            = necro_create_necro_mach_ast_vector(),
+        .necro_init         = NULL,
         .necro_main         = NULL,
+        .necro_shutdown     = NULL,
         .word_size          = (sizeof(char*) == 4) ? NECRO_WORD_4_BYTES : NECRO_WORD_8_BYTES,
 
         .arena              = necro_paged_arena_create(),
@@ -1481,7 +1485,6 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         NecroMachAstSymbol* mach_symbol           = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
         mach_symbol->is_primitive                 = true;
         NecroMachType*      fn_type               = necro_mach_type_create_fn(&program->arena, program->type_cache.word_uint_type, (NecroMachType*[]) { program->type_cache.f64_type, program->type_cache.word_uint_type }, 2);
-        // program->runtime.necro_print_int          = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_print_int, NECRO_STATE_POINTWISE)->fn_def.symbol;
         necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_print_f64, NECRO_STATE_POINTWISE);
     }
 
@@ -1557,8 +1560,5 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         NecroMachType*      fn_type               = necro_mach_type_create_fn(&program->arena, program->type_cache.f64_type, (NecroMachType*[]) { program->type_cache.f64_type }, 1);
         necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) floor, NECRO_STATE_POINTWISE)->fn_def.symbol;
     }
-
-    // TODO: Audio
-    // TODO: Rational
 
 }

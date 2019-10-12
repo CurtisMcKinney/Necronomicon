@@ -26,6 +26,38 @@ min x y =
 class FunctorN f where
   map2 :: (a -> b -> c) -> f a -> f b -> f c
 
+-- class Default a where
+--   default :: !a
+
+-- instance (Default a, Default b) => Default (a, b) where
+--   default = (default, default)
+
+instance Default a => Default (Maybe a) where
+  default = Just default
+
+arrayFrom :: a -> Array n a
+arrayFrom x = freezeArray xa
+  where
+    xa =
+      let
+        sx = Share x
+      in
+        for each (unsafeEmptyArray ()) loop i a ->
+          writeArray i (Share x) a
+
+instance Default a => Default (Array n a) where
+  default = arrayFrom default
+
+-- defaulted :: Array 4 (Maybe Int)
+-- defaulted = default
+
+-- coolInit :: Array 4 Int
+-- coolInit ~ (freezeArray (unsafeEmptyArray ())) = coolInit
+
+-- coolInit2 :: (#Maybe Int, Float#)
+-- coolInit2 = x
+--   where
+--     x ~ (#Just 0, default#) = x
 
 --------------------
 -- Maybe
@@ -225,25 +257,98 @@ mapChannel2 f cx cy =
           AudioRate (freezeArray (for each (unsafeEmptyArray ()) loop i a ->
             writeArray i (Share (f (readArray i x) (readArray i y))) a))
 
+-- TODO: Test
 accumulateChannel1 :: Default s => (F64 -> s -> (#s, F64#)) -> Channel -> Channel
 accumulateChannel1 f input1 =
   case output of
-    (#_, o#) -> AudioRate (freezeArray o)
+    (_, o) -> AudioRate o
   where
-    output =
-      case input1 of
-        BlockRate input1Val ->
-          for each (#Share default, unsafeEmptyArray ()#) loop i accu ->
-            case accu of
-              (#Share s, o#) ->
-                case f input1Val s of
-                  (#s', x#) -> (#Share s', writeArray i (Share x) o#)
-        AudioRate input1Buffer ->
-          for each (#Share default, unsafeEmptyArray ()#) loop i accu ->
-            case accu of
-              (#Share s, o#) ->
-                case f (readArray i input1Buffer) s of
-                  (#s', x#) -> (#Share s', writeArray i (Share x) o#)
+    output ~ (default, freezeArray (unsafeEmptyArray ())) =
+      case output of
+        (state, _) ->
+          let output' =
+                case input1 of
+                  BlockRate input1Val ->
+                    for each (#Share state, unsafeEmptyArray ()#) loop i accu ->
+                      case accu of
+                        (#Share s, o#) ->
+                          case f input1Val s of
+                            (#s', x#) -> (#Share s', writeArray i (Share x) o#)
+                  AudioRate input1Buffer ->
+                    for each (#Share state, unsafeEmptyArray ()#) loop i accu ->
+                      case accu of
+                        (#Share s, o#) ->
+                          case f (readArray i input1Buffer) s of
+                            (#s', x#) -> (#Share s', writeArray i (Share x) o#)
+          in case output' of
+               (#Share state', o'#) -> (state', freezeArray o')
+
+-- -- Ugly, but and inefficient, it works
+-- accumulateChannel2 :: Default s => (F64 -> F64 -> s -> (#s, F64#)) -> Channel -> Channel -> Channel
+-- accumulateChannel2 f input1 input2 =
+--   case output of
+--     (_, o) -> AudioRate o
+--   where
+--     output ~ (default, freezeArray (unsafeEmptyArray ())) =
+--       case output of
+--         (state, _) ->
+--           let output' =
+--                 case input1 of
+--                   BlockRate input1Val ->
+--                     case input2 of
+--                       BlockRate input2Val ->
+--                         for each (#Share state, unsafeEmptyArray ()#) loop i accu ->
+--                           case accu of
+--                             (#Share s, o#) ->
+--                               case f input1Val input2Val s of
+--                                 (#s', x#) -> (#Share s', writeArray i (Share x) o#)
+--                       AudioRate input2Buffer ->
+--                         for each (#Share state, unsafeEmptyArray ()#) loop i accu ->
+--                           case accu of
+--                             (#Share s, o#) ->
+--                               case f input1Val (readArray i input2Buffer) s of
+--                                 (#s', x#) -> (#Share s', writeArray i (Share x) o#)
+--                   AudioRate input1Buffer ->
+--                     case input2 of
+--                       BlockRate input2Val ->
+--                         for each (#Share state, unsafeEmptyArray ()#) loop i accu ->
+--                           case accu of
+--                             (#Share s, o#) ->
+--                               case f (readArray i input1Buffer) input2Val s of
+--                                 (#s', x#) -> (#Share s', writeArray i (Share x) o#)
+--                       AudioRate input2Buffer ->
+--                         for each (#Share state, unsafeEmptyArray ()#) loop i accu ->
+--                           case accu of
+--                             (#Share s, o#) ->
+--                               case f (readArray i input1Buffer) (readArray i input2Buffer) s of
+--                                 (#s', x#) -> (#Share s', writeArray i (Share x) o#)
+--           in case output' of
+--                (#Share state', o'#) -> (state', freezeArray o')
+
+-- -- The goal, but not all features currently supported
+-- accumulateChannel2 :: Default s => (F64 -> F64 -> s -> (#s, F64#)) -> Channel -> Channel -> Channel
+-- accumulateChannel2 f input1 input2 =
+--   AudioRate (freezeArray output)
+--   where
+--     emptyO                      = unsafeEmptyArray ()
+--     (#state ~ default, output#) =
+--       case (#input1, input2#) of
+--         (#BlockRate input1Val, BlockRate input2Value#) ->
+--           for each (#state, emptyO#) loop i (#Share s, o#) ->
+--             case f input1Val input2Val s of
+--               (#s', x#) -> (#Share s', writeArray i (Share x) o#)
+--         (#BlockRate input1Val, AudioRate input2Buffer#) ->
+--           for each (#state, emptyO#) loop i (#Share s, o#) ->
+--             case f input1Val (readArray i input2Buffer) s of
+--               (#s', x#) -> (#Share s', writeArray i (Share x) o#)
+--         (#AudioRate input1Buffer, BlockRate input2Val#)->
+--           for each (#state, emptyO#) loop i (#Share s, o#) ->
+--             case f (readArray i input1Buffer) input2Val s of
+--               (#s', x#) -> (#Share s', writeArray i (Share x) o#)
+--         (#AudioRate input1Buffer, AudioRate input2Buffer#)->
+--           for each (#state, emptyO#) loop i (#Share s, o#) ->
+--             case f (readArray i input1Buffer) (readArray i input2Buffer) s of
+--               (#s', x#) -> (#Share s', writeArray i (Share x) o#)
 
 
 --------------------
@@ -290,6 +395,9 @@ instance Audio Stereo where
         case sy of
           Stereo (#ly, ry#) -> Stereo (#f lx ly, f rx ry#)
 
+accumulateAudio1 :: (Default s, Audio a) => (F64 -> s -> (#s, F64#)) -> a -> a
+accumulateAudio1 f a = mapAudio (accumulateChannel1 f) a
+
 instance Num Channel where
   fromInt i = BlockRate (fromInt i)
   add l r   = mapChannel2 add l r
@@ -329,8 +437,22 @@ instance Fractional Stereo where
   div l r        = mapAudio2 div l r
   recip c        = mapAudio recip c
 
-accumulateAudio1 :: (Default s, Audio a) => (F64 -> s -> (#s, F64#)) -> a -> a
-accumulateAudio1 f a = mapAudio (accumulateChannel1 f) a
+stereo :: Mono -> Mono -> Stereo
+stereo ml mr =
+  case ml of
+    Mono l ->
+      case mr of
+        Mono r -> Stereo (#l, r#)
+
+-- Throw into type class?
+-- TODO: Equal power panning
+pan :: Mono -> Mono -> Stereo
+pan amount input =
+  case input of
+    Mono inputChannel ->
+      case amount of
+        Mono amountChannel ->
+          Stereo (#inputChannel * (1 - amountChannel), inputChannel * amountChannel#)
 
 accumulateSaw :: F64 -> F64 -> (#F64, F64#)
 accumulateSaw freq acc =
@@ -338,79 +460,26 @@ accumulateSaw freq acc =
   where
     acc2 = fma freq recipSampleRate acc
     acc3 = acc2 - fastFloor acc2
-    out  = fma 2.0 acc3 (-1.0)
+    out  = fma acc3 2.0 (-1.0)
 
-sawOsc :: Audio a => a -> a
-sawOsc freq = accumulateAudio1 accumulateSaw freq
+saw :: Audio a => a -> a
+saw freq = accumulateAudio1 accumulateSaw freq
 
--- intrinsicTest :: F64 -> F64
--- intrinsicTest x = fastFloor x
-
--- intrinsicValue :: F64
--- intrinsicValue = fastFloor (fromInt mouseX)
-
--- myCoolSaw :: Mono
--- myCoolSaw = sawOsc 440
-
--- stereo :: Mono -> Mono -> Stereo
--- stereo ml mr =
---   case ml of
---     Mono l ->
---       case mr of
---         Mono r -> Stereo (#l, r#)
+-- TODO:
+-- accumulatePulse :: F64 -> F64 -> F64 -> (#F64, F64#)
+-- accumulatePulse width freq acc =
+--   (#acc3, out#)
+--   where
+--     acc2 = fma freq recipSampleRate acc
+--     acc3 = acc2 - fastFloor acc2
+--     out  = fma (fromInt (boolToInt (acc3 > width))) 2.0 (-1.0)
 --
--- -- Throw into type class?
--- pan :: Mono -> Mono -> Stereo
--- pan amount input =
---   case input of
---     Mono inputChannel ->
---       case amount of
---         Mono amountChannel ->
---           Stereo (#inputChannel * amountChannel, inputChannel * (1 - amountChannel)#)
---
-
--- readArray   :: Index n -> Array n a -> a
--- writeArray  :: Index n  -> *a -> *Array n a -> *Array n a
--- freezeArray :: *Array n (Share a) -> Array n a
-
--- TODO: Move tests into one of the test function
--- mapChannelTest1 :: Channel -> Channel
--- mapChannelTest1 c = mapChannel (add 1) c
-
--- mapChannelTest2 :: Channel -> Channel
--- mapChannelTest2 c = mapChannel2 add c c
-
--- mapAudioTest :: Stereo -> Stereo
--- mapAudioTest x = x * 4 |> add 22
-
--- maybeAudioTest :: Maybe Stereo -> Maybe Stereo
--- maybeAudioTest x = map signum (map abs x)
-
--- maybeAudioTest2 :: Maybe Stereo -> Maybe Stereo
--- maybeAudioTest2 x = map2 add x x
-
--- maybeAudioTest3 :: Maybe Stereo -> Maybe Stereo
--- maybeAudioTest3 x = map (add 22) x
-
--- sawTest :: Mono -> Stereo
--- sawTest f = f + 440 |> sawOsc |> mul 0.1 |> pan 0.25
-
--- sawTest2 :: Mono
--- sawTest2 = sawOsc (fromInt mouseX * 440)
-
--- sawTest3 :: Mono
--- sawTest3 = sawOsc 440
+-- pulse :: Audio a => a -> a
+-- pulse freq = accumulateAudio2 accumulatePulse freq
 
 -- TODO: Defunctionalization
 -- TODO: Rational Type
 -- TODO: Stateful Unboxed types
 -- TODO: Stateful Pattern assignment
 -- TODO: toSIMDAudio :: Array BlockSize F64 -> Array SIMDBlockSize SIMDF64
-
--- seqTest :: Seq Float
--- seqTest = 44 * 33 / 0.5
-
--- Yes, this insanity is possible...
--- seqTestDeeper :: Seq (Seq Float)
--- seqTestDeeper = 44 * 33 / 0.5
 

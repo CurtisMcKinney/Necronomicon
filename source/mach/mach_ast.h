@@ -512,7 +512,9 @@ typedef struct NecroMachProgram
     NecroMachAstVector      functions;
     NecroMachAstVector      machine_defs;
     NecroMachAstVector      globals;
+    NecroMachAst*           necro_init;
     NecroMachAst*           necro_main;
+    NecroMachAst*           necro_shutdown;
     NECRO_WORD_SIZE         word_size;
 
     // Useful structs

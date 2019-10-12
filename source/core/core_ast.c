@@ -414,9 +414,10 @@ bool necro_core_ast_should_filter(NecroAst* ast)
     case NECRO_AST_DATA_DECLARATION:
         return false;
     case NECRO_AST_APATS_ASSIGNMENT:
-        return necro_type_is_polymorphic(ast->apats_assignment.ast_symbol->type) || necro_type_is_polymorphic(ast->apats_assignment.ast_symbol->type->ownership);
+        // return necro_type_is_polymorphic(ast->apats_assignment.ast_symbol->type) || necro_type_is_polymorphic(ast->apats_assignment.ast_symbol->type->ownership);
+        return necro_type_is_polymorphic(ast->apats_assignment.ast_symbol->type);
     case NECRO_AST_SIMPLE_ASSIGNMENT:
-        return necro_type_is_polymorphic(ast->simple_assignment.ast_symbol->type) || necro_type_is_polymorphic(ast->simple_assignment.ast_symbol->type->ownership);
+        return necro_type_is_polymorphic(ast->simple_assignment.ast_symbol->type);
         // return necro_type_is_polymorphic(ast->necro_type) || necro_type_is_polymorphic(ast->necro_type->ownership);
         // return necro_type_is_polymorphic(ast->necro_type) || necro_type_is_polymorphic(ast->necro_type->ownership);
     default:
@@ -1224,7 +1225,7 @@ void necro_core_ast_pretty_print(NecroCoreAst* ast)
     printf("\n");
 }
 
-#define NECRO_CORE_AST_VERBOSE 1
+#define NECRO_CORE_AST_VERBOSE 0
 void necro_core_test_result(const char* test_name, const char* str)
 {
     // Set up

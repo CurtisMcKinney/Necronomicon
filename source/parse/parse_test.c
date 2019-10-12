@@ -112,7 +112,8 @@ void necro_parse_test()
     necro_parse_ast_test_error("MalformedType", "malformedTypeFn :: Int -> !!\n", NECRO_PARSE_TYPE_EXPECTED_TYPE);
     necro_parse_ast_test_error("MalformedTypeClss", "class MalformedClass a where\n  x :: a -> a\n  !!\n", NECRO_PARSE_CLASS_EXPECTED_RIGHT_BRACE);
     necro_parse_ast_test_error("MalformedClassInstance", "instance MalformedInstance Int where\n  x y = y\n  !!\n", NECRO_PARSE_INSTANCE_EXPECTED_RIGHT_BRACE);
-    necro_parse_ast_test_error("InitialValueError", "malformedInit ~ (Just 0 = 0\n", NECRO_PARSE_CONST_CON_MISSING_RIGHT_PAREN);
+    // necro_parse_ast_test_error("InitialValueError", "malformedInit ~ (Just 0 = 0\n", NECRO_PARSE_CONST_CON_MISSING_RIGHT_PAREN);
+    necro_parse_ast_test_error("InitialValueError", "malformedInit ~ (Just 0 = 0\n", NECRO_PARSE_PAREN_EXPRESSION_MISSING_PAREN);
     necro_parse_ast_test_error("MalformedForLoop", "malformedForLoop =\n  for x loop -> x\n", NECRO_PARSE_MALFORMED_FOR_LOOP);
 
 

@@ -28,6 +28,7 @@
 #include "state_analysis.h"
 #include "mach_transform.h"
 #include "mach_print.h"
+#include "runtime.h"
 
 /*
 
@@ -232,8 +233,8 @@ NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgr
         // LLVMAddAggressiveInstCombinerPass(mod_pass_manager);
 
         // fn_pass_manager
-        LLVMAddSimplifyLibCallsPass(fn_pass_manager);
-        LLVMAddPartiallyInlineLibCallsPass(fn_pass_manager);
+        // LLVMAddSimplifyLibCallsPass(fn_pass_manager);
+        // LLVMAddPartiallyInlineLibCallsPass(fn_pass_manager);
         LLVMInitializeFunctionPassManager(fn_pass_manager);
         LLVMAddInstructionCombiningPass(fn_pass_manager);
         LLVMAddConstantPropagationPass(fn_pass_manager);
@@ -272,16 +273,16 @@ NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgr
         // LLVMAddGVNPass(mod_pass_manager);
         LLVMAddSCCPPass(mod_pass_manager);
         LLVMAddConstantPropagationPass(mod_pass_manager);
-        LLVMAddLoopVectorizePass(mod_pass_manager);
-        LLVMAddSLPVectorizePass(mod_pass_manager);
+        // LLVMAddLoopVectorizePass(mod_pass_manager);
+        // LLVMAddSLPVectorizePass(mod_pass_manager);
         LLVMAddPromoteMemoryToRegisterPass(fn_pass_manager);
         LLVMAddInstructionCombiningPass(mod_pass_manager);
         LLVMAddIPConstantPropagationPass(mod_pass_manager);
         LLVMAddGlobalOptimizerPass(mod_pass_manager);
         LLVMAddGlobalDCEPass(mod_pass_manager);
         LLVMAddDeadStoreEliminationPass(mod_pass_manager);
-        LLVMAddAggressiveDCEPass(mod_pass_manager);
-        LLVMAddBitTrackingDCEPass(mod_pass_manager);
+        // LLVMAddAggressiveDCEPass(mod_pass_manager);
+        // LLVMAddBitTrackingDCEPass(mod_pass_manager);
         LLVMAddInstructionCombiningPass(mod_pass_manager);
 
         // LLVMAddGlobalOptimizerPass(mod_pass_manager);
@@ -298,8 +299,8 @@ NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgr
     {
         // fn_pass_manager
         LLVMInitializeFunctionPassManager(fn_pass_manager);
-        LLVMAddSimplifyLibCallsPass(fn_pass_manager);
-        LLVMAddPartiallyInlineLibCallsPass(fn_pass_manager);
+        // LLVMAddSimplifyLibCallsPass(fn_pass_manager);
+        // LLVMAddPartiallyInlineLibCallsPass(fn_pass_manager);
         LLVMFinalizeFunctionPassManager(fn_pass_manager);
         LLVMPassManagerBuilderRef pass_manager_builder = LLVMPassManagerBuilderCreate();
         LLVMPassManagerBuilderSetOptLevel(pass_manager_builder, 0);
@@ -996,8 +997,8 @@ void necro_llvm_codegen_function(NecroLLVM* context, NecroMachAst* ast)
         necro_llvm_codegen_terminator(context, blocks->block.terminator);
         blocks = blocks->block.next_block;
     }
-    if (context->should_optimize)
-        LLVMRunFunctionPassManager(context->fn_pass_manager, fn_value);
+    // if (context->should_optimize)
+    //     LLVMRunFunctionPassManager(context->fn_pass_manager, fn_value);
 }
 
 LLVMValueRef necro_llvm_codegen_call(NecroLLVM* context, NecroMachAst* ast)
@@ -1103,8 +1104,8 @@ void necro_codegen_global(NecroLLVM* context, NecroMachAst* ast)
 ///////////////////////////////////////////////////////
 void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroLLVM* context)
 {
-    // *context = necro_llvm_create(program->intern, program->base, program, info.opt_level > 0);
-    *context = necro_llvm_create(program->intern, program->base, program, true);
+    *context = necro_llvm_create(program->intern, program->base, program, info.opt_level > 0);
+    // *context = necro_llvm_create(program->intern, program->base, program, true);
 
     // Declare structs
     for (size_t i = 0; i < program->structs.length; ++i)
@@ -1144,7 +1145,9 @@ void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroL
         necro_llvm_declare_function(context, program->machine_defs.data[i]->machine_def.update_fn);
     }
     // Declare main_fn
+    necro_llvm_declare_function(context, program->necro_init);
     necro_llvm_declare_function(context, program->necro_main);
+    necro_llvm_declare_function(context, program->necro_shutdown);
     // codegen functions
     for (size_t i = 0; i < program->functions.length; ++i)
     {
@@ -1168,7 +1171,9 @@ void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroL
         necro_llvm_codegen_function(context, program->machine_defs.data[i]->machine_def.update_fn);
     }
     // codegen main
+    necro_llvm_codegen_function(context, program->necro_init);
     necro_llvm_codegen_function(context, program->necro_main);
+    necro_llvm_codegen_function(context, program->necro_shutdown);
     // assert(context->delayed_phi_node_values.length == 0);
     if (context->should_optimize)
         LLVMRunPassManager(context->mod_pass_manager, context->mod);
@@ -1208,6 +1213,16 @@ void necro_llvm_map_intrinsic(NecroLLVM* context, LLVMExecutionEngineRef engine,
     if (llvm_symbol->value == NULL || LLVMIsNull(llvm_symbol->value) || !LLVMIsAFunction(llvm_symbol->value))
         return;
     LLVMAddGlobalMapping(engine, llvm_symbol->value, fn_addr);
+}
+
+NecroLangCallback* necro_llvm_get_lang_call(NecroLLVM* context, NecroMachAstSymbol* mach_symbol)
+{
+    NecroLLVMSymbol*   llvm_symbol = necro_llvm_symbol_get(&context->arena, mach_symbol);
+    assert(llvm_symbol != NULL);
+    LLVMSetFunctionCallConv(llvm_symbol->value, LLVMCCallConv);
+    NecroLangCallback* necro_fn    = (NecroLangCallback*)(LLVMGetPointerToGlobal(context->engine, llvm_symbol->value));
+    assert(necro_fn != NULL);
+    return necro_fn;
 }
 
 void necro_llvm_jit(NecroCompileInfo info, NecroLLVM* context)
@@ -1273,20 +1288,14 @@ void necro_llvm_jit(NecroCompileInfo info, NecroLLVM* context)
 
     LLVMInstallFatalErrorHandler(necro_fatal_error_handler);
 
-    // Get Main fn ptr
-    NecroLLVMSymbol* necro_main_symbol = necro_llvm_symbol_get(&context->arena, context->program->necro_main->fn_def.symbol);
-    assert(necro_main_symbol != NULL);
-    LLVMSetFunctionCallConv(necro_main_symbol->value, LLVMCCallConv);
-    int (*necro_main)() = (int(*)())(LLVMGetPointerToGlobal(context->engine, necro_main_symbol->value));
-    assert(necro_main != NULL);
+    NecroLangCallback* necro_init     = necro_llvm_get_lang_call(context, context->program->necro_init->fn_def.symbol);
+    NecroLangCallback* necro_main     = necro_llvm_get_lang_call(context, context->program->necro_main->fn_def.symbol);
+    NecroLangCallback* necro_shutdown = necro_llvm_get_lang_call(context, context->program->necro_shutdown->fn_def.symbol);
 
-    // Go!
-    int necro_exit_code = necro_main();
-    if (necro_exit_code)
-    {
-        fprintf(stderr, "necro exited with error code: %d\n", necro_exit_code);
-    }
-
+    // TODO: When to call necro_runtime_audio_init? Putting it here for now..
+    unwrap(void, necro_runtime_audio_init());
+    unwrap(void, necro_runtime_audio_start(necro_init, necro_main, necro_shutdown));
+    unwrap(void, necro_runtime_audio_shutdown());
 }
 
 
@@ -1313,7 +1322,7 @@ void necro_llvm_compile(NecroCompileInfo info, NecroLLVM* context)
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
-#define NECRO_LLVM_TEST_VERBOSE 1
+#define NECRO_LLVM_TEST_VERBOSE 0
 void necro_llvm_test_string_go(const char* test_name, const char* str, NECRO_PHASE phase)
 {
 
@@ -1330,6 +1339,8 @@ void necro_llvm_test_string_go(const char* test_name, const char* str, NECRO_PHA
     NecroMachProgram    mach_program    = necro_mach_program_empty();
     NecroLLVM           llvm            = necro_llvm_empty();
     NecroCompileInfo    info            = necro_test_compile_info();
+    if (phase == NECRO_PHASE_JIT || phase == NECRO_PHASE_COMPILE)
+        info.opt_level = 1;
 
     //--------------------
     // Compile
@@ -1395,8 +1406,11 @@ void necro_llvm_compile_string(const char* test_name, const char* str)
 
 void necro_llvm_test()
 {
+    necro_announce_phase("LLVM");
 
 /*
+
+*/
 
     {
         const char* test_name   = "Data 1";
@@ -2471,7 +2485,7 @@ void necro_llvm_test()
         const char* test_name   = "Audio 1";
         const char* test_source = ""
             "coolSaw :: Mono\n"
-            "coolSaw = sawOsc 440\n"
+            "coolSaw = saw 440\n"
             "main :: *World -> *World\n"
             "main w = outAudio 0 coolSaw w\n";
         necro_llvm_test_string(test_name, test_source);
@@ -2485,15 +2499,13 @@ void necro_llvm_test()
         necro_llvm_test_string(test_name, test_source);
     }
 
-*/
-
     {
-        const char* test_name   = "AudioOut 1";
+        const char* test_name   = "Audio 1";
         const char* test_source = ""
-            "sawTest :: Mono\n"
-            "sawTest = sawOsc 0.1\n"
+            "coolSaw :: Mono\n"
+            "coolSaw = saw 440\n"
             "main :: *World -> *World\n"
-            "main w = print 333 w\n";
+            "main w = outAudio 0 coolSaw w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -2911,19 +2923,67 @@ void necro_llvm_test_jit()
         necro_llvm_jit_string(test_name, test_source);
     }
 
-*/
-
     {
-        const char* test_name   = "AudioOut 1";
+        const char* test_name   = "AudioOut 2";
         const char* test_source = ""
-            "sawTest :: Mono\n"
-            "sawTest = sawOsc (fromInt mouseX * 10)\n"
+            "sawTest :: Stereo\n"
+            "sawTest = pan (fromInt mouseX / 150) (sawOsc 440)\n"
             "main :: *World -> *World\n"
             "main w = outAudio 0 sawTest w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 
+    {
+        const char* test_name   = "Audio 1";
+        const char* test_source = ""
+            "coolSaw :: Mono\n"
+            "coolSaw = saw (saw 0.05 * 3980 + 4000) * 0.25\n"
+            "stereoSaw :: Stereo\n"
+            "stereoSaw = stereo coolSaw coolSaw\n"
+            "main :: *World -> *World\n"
+            "main w = outAudio 0 stereoSaw w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Audio 2";
+        const char* test_source = ""
+            "coolSaw :: Mono\n"
+            "coolSaw = saw (saw 0.1 * 750 + 1000 + saw (saw 0.22 * 10 + 15) * (saw 0.15 * 60 + 240)) * 0.25\n"
+            "stereoSaw :: Stereo\n"
+            "stereoSaw = stereo coolSaw coolSaw\n"
+            "main :: *World -> *World\n"
+            "main w = outAudio 0 stereoSaw w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
 /*
+
+    {
+        const char* test_name   = "Audio 3";
+        const char* test_source = ""
+            "coolSaw :: Mono\n"
+            "coolSaw = (saw 300 + saw (saw 0.05 * 1940 + 2000)) * 0.125\n"
+            "stereoSaw :: Stereo\n"
+            "stereoSaw = stereo coolSaw coolSaw\n"
+            "main :: *World -> *World\n"
+            "main w = outAudio 0 stereoSaw w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Audio 4";
+        const char* test_source = ""
+            "coolSaw :: Mono\n"
+            "coolSaw = saw (fromInt mouseX * 4) * 0.25\n"
+            "stereoSaw :: Stereo\n"
+            "stereoSaw = stereo coolSaw coolSaw\n"
+            "main :: *World -> *World\n"
+            "main w = outAudio 0 stereoSaw w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
 
     {
         const char* test_name   = "Mouse 1";
@@ -3002,12 +3062,12 @@ void necro_llvm_test_compile()
 */
 
     {
-        const char* test_name   = "AudioOut 1";
+        const char* test_name   = "Audio 1";
         const char* test_source = ""
-            "sawTest :: Mono\n"
-            "sawTest = sawOsc 0.1\n"
+            "coolSaw :: Mono\n"
+            "coolSaw = saw 440\n"
             "main :: *World -> *World\n"
-            "main w = print 333 w\n";
+            "main w = outAudio 0 coolSaw w\n";
         necro_llvm_compile_string(test_name, test_source);
     }
 

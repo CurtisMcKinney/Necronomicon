@@ -838,7 +838,7 @@ void necro_core_transform_to_mach_2_app(NecroMachProgram* program, NecroCoreAst*
                 NecroMachAst* const_init_value    = necro_mach_value_create_word_uint(program, 0);
                 core_ast->persistent_slot         = necro_mach_add_member_full(program, &outer->machine_def, program->type_cache.word_uint_type, NULL, const_init_value).slot_num; // TODO: Initialize double_buffer_flag! How?
                 NecroMachType* double_buffer_type = necro_mach_type_create_array(&program->arena, fn_value->necro_machine_type, 2);
-                necro_mach_add_member(program, &outer->machine_def, double_buffer_type, NULL).slot_num;
+                necro_mach_add_member(program, &outer->machine_def, double_buffer_type, NULL);
             }
             else
             {
@@ -1195,7 +1195,7 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         NecroCoreAst* index_value = app_ast->app.expr2;
         assert(index_value->ast_type == NECRO_CORE_AST_LIT);
         assert(index_value->lit.type == NECRO_AST_CONSTANT_INTEGER);
-        if (necro_mach_type_is_unboxed)
+        if (necro_mach_type_is_unboxed(program, con_value->necro_machine_type))
         {
             return necro_mach_build_extract_value(program, outer->machine_def.update_fn, con_value, (size_t) index_value->lit.int_literal, "proj");
         }
@@ -3195,7 +3195,7 @@ void necro_mach_test()
         const char* test_name   = "I64 1";
         const char* test_source = ""
             "commodore64 :: I64 -> I64\n"
-            "commodore64 x = x * 2\n";
+            "commodore64 x = x * 2\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);
@@ -3205,7 +3205,7 @@ void necro_mach_test()
         const char* test_name   = "I64 2";
         const char* test_source = ""
             "commodore64 :: Int -> I64\n"
-            "commodore64 x = fromInt x * 2\n";
+            "commodore64 x = fromInt x * 2\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);
@@ -3215,7 +3215,7 @@ void necro_mach_test()
         const char* test_name   = "F64 1";
         const char* test_source = ""
             "commodore64 :: F64 -> F64\n"
-            "commodore64 x = x * 2 * 3.0\n";
+            "commodore64 x = x * 2 * 3.0\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);
@@ -3225,7 +3225,7 @@ void necro_mach_test()
         const char* test_name   = "F64 2";
         const char* test_source = ""
             "commodore64 :: Float -> F64\n"
-            "commodore64 x = fromRational x * 2 * 3.0\n";
+            "commodore64 x = fromRational x * 2 * 3.0\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);

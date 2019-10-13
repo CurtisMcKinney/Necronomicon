@@ -1061,6 +1061,7 @@ LLVMValueRef necro_llvm_codegen_call_intrinsic(NecroLLVM* context, NecroMachAst*
     //     fn_value = necro_llvm_intrinsic_get(context, context->base->floor->core_ast_symbol->mach_symbol, "llvm.floor.f64", fn_type);
     //     break;
     // }
+        default: /* @Curtis: not sure if this should be handled? */ break;
     }
     size_t        num_params  = ast->call_intrinsic.num_parameters;
     LLVMValueRef* params      = necro_paged_arena_alloc(&context->arena, num_params * sizeof(LLVMValueRef));
@@ -2407,7 +2408,7 @@ void necro_llvm_test()
         const char* test_name   = "I64 1";
         const char* test_source = ""
             "commodore64 :: I64 -> I64\n"
-            "commodore64 x = x * 2\n";
+            "commodore64 x = x * 2\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_llvm_test_string(test_name, test_source);
@@ -2417,7 +2418,7 @@ void necro_llvm_test()
         const char* test_name   = "I64 2";
         const char* test_source = ""
             "commodore64 :: Int -> I64\n"
-            "commodore64 x = fromInt x * 2\n";
+            "commodore64 x = fromInt x * 2\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_llvm_test_string(test_name, test_source);
@@ -2427,7 +2428,7 @@ void necro_llvm_test()
         const char* test_name   = "F64 1";
         const char* test_source = ""
             "commodore64 :: F64 -> F64\n"
-            "commodore64 x = x * 2 * 3.0\n";
+            "commodore64 x = x * 2 * 3.0\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_llvm_test_string(test_name, test_source);
@@ -2437,7 +2438,7 @@ void necro_llvm_test()
         const char* test_name   = "F64 2";
         const char* test_source = ""
             "commodore64 :: Float -> F64\n"
-            "commodore64 x = fromRational x * 2 * 3.0\n";
+            "commodore64 x = fromRational x * 2 * 3.0\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_llvm_test_string(test_name, test_source);

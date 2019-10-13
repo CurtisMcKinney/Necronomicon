@@ -1558,7 +1558,7 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         NecroMachAstSymbol* mach_symbol           = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
         mach_symbol->is_primitive                 = true;
         NecroMachType*      fn_type               = necro_mach_type_create_fn(&program->arena, program->type_cache.f64_type, (NecroMachType*[]) { program->type_cache.f64_type }, 1);
-        necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) floor, NECRO_STATE_POINTWISE)->fn_def.symbol;
+        necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) floor, NECRO_STATE_POINTWISE);
     }
 
 }

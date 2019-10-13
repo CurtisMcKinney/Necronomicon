@@ -519,6 +519,7 @@ void necro_mach_print_cmp(NecroMachAst* ast, size_t depth)
     case NECRO_PRIMOP_CMP_GE: printf("ge "); break;
     case NECRO_PRIMOP_CMP_LT: printf("lt "); break;
     case NECRO_PRIMOP_CMP_LE: printf("le "); break;
+    default: assert(false && "cmp not handled in case"); break;
     }
     necro_mach_print_value(ast->cmp.left, NECRO_PRINT_VALUE_TYPE);
     printf(" ");

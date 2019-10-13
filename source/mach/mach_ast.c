@@ -406,7 +406,7 @@ NecroMachAst* necro_mach_build_gep(NecroMachProgram* program, NecroMachAst* fn_d
     assert(source_value->type == NECRO_MACH_VALUE);
     NecroMachAst** indices = necro_paged_arena_alloc(&program->arena, num_indices * sizeof(NecroMachAst*));
     for (size_t i = 0; i < num_indices; ++i)
-        indices[i] = necro_mach_value_create_uint32(program, a_indices[i]);
+        indices[i] = necro_mach_value_create_word_uint(program, a_indices[i]);
     // type check gep
     NecroMachType* necro_machine_type = source_value->necro_machine_type;
     for (size_t i = 0; i < num_indices; ++i)

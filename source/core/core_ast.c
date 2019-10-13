@@ -551,7 +551,10 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_let(NecroCoreAstTransform*
 {
     assert(ast->type == NECRO_AST_LET_EXPRESSION);
     NecroCoreAst* expr_ast  = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->let_expression.expression));
+    assert(expr_ast->necro_type != NULL);
     NecroCoreAst* binds_ast = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_declaration_group_list(context, ast->let_expression.declarations, expr_ast));
+    binds_ast->necro_type    = necro_type_deep_copy(context->arena, ast->necro_type);
+    assert(binds_ast->necro_type != NULL);
     return ok(NecroCoreAst, binds_ast);
 }
 
@@ -559,7 +562,10 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_rhs(NecroCoreAstTransform*
 {
     assert(ast->type == NECRO_AST_RIGHT_HAND_SIDE);
     NecroCoreAst* expr_ast  = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->right_hand_side.expression));
+    assert(expr_ast->necro_type != NULL);
     NecroCoreAst* binds_ast = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_declaration_group_list(context, ast->right_hand_side.declarations, expr_ast));
+    binds_ast->necro_type    = necro_type_deep_copy(context->arena, ast->necro_type);
+    assert(binds_ast->necro_type != NULL);
     return ok(NecroCoreAst, binds_ast);
 }
 
@@ -638,6 +644,8 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_bin_op(NecroCoreAstTransfo
     NecroCoreAst* right_ast = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->bin_op.rhs));
     NecroCoreAst* inner_app = necro_core_ast_create_app(context->arena, op_ast, left_ast);
     NecroCoreAst* outer_app = necro_core_ast_create_app(context->arena, inner_app, right_ast);
+    outer_app->necro_type   = necro_type_deep_copy(context->arena, ast->necro_type);
+    assert(outer_app->necro_type != NULL);
     return ok(NecroCoreAst, outer_app);
 }
 
@@ -696,6 +704,9 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_tuple(NecroCoreAstTransfor
         tuple_ast             = necro_core_ast_create_app(context->arena, tuple_ast, arg_ast);
         args = args->list.next_item;
     }
+
+    tuple_ast->necro_type = necro_type_deep_copy(context->arena, ast->necro_type);
+    assert(tuple_ast->necro_type != NULL);
     return ok(NecroCoreAst, tuple_ast);
 }
 
@@ -721,6 +732,8 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_array(NecroCoreAstTransfor
         ast_elements = ast_elements->list.next_item;
     }
     NecroCoreAst* core_array_ast = necro_core_ast_create_array_lit(context->arena, elements_head);
+    core_array_ast->necro_type = necro_type_deep_copy(context->arena, ast->necro_type);
+    assert(core_array_ast->necro_type != NULL);
     return ok(NecroCoreAst, core_array_ast);
 }
 
@@ -744,7 +757,9 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_for_loop(NecroCoreAstTrans
         max_loops = necro_runtime_get_block_size();
     else
         assert(false);
-    NecroCoreAst* core_ast   = necro_core_ast_create_for_loop(context->arena, max_loops, range_init, value_init, index_arg, value_arg, expression);
+    NecroCoreAst* core_ast = necro_core_ast_create_for_loop(context->arena, max_loops, range_init, value_init, index_arg, value_arg, expression);
+    core_ast->necro_type = necro_type_deep_copy(context->arena, ast->necro_type);
+    assert(core_ast->necro_type != NULL);
     return ok(NecroCoreAst, core_ast);
 }
 
@@ -826,6 +841,7 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_case(NecroCoreAstTransform
     {
         NecroCoreAst* alt_pat  = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_pat(context, ast_alts->list.item->case_alternative.pat));
         NecroCoreAst* alt_expr = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast_alts->list.item->case_alternative.body));
+        assert(alt_expr->necro_type != NULL);
         NecroCoreAst* alt_ast  = necro_core_ast_create_case_alt(context->arena, alt_pat, alt_expr);
         alts                   = necro_append_core_ast_list(context->arena, alt_ast, alts);
         ast_alts = ast_alts->list.next_item;
@@ -833,6 +849,8 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_case(NecroCoreAstTransform
     assert(alts != NULL);
     // TODO: Check for incomplete case statements
     NecroCoreAst* case_ast = necro_core_ast_create_case(context->arena, expr_ast, alts);
+    case_ast->necro_type = necro_type_deep_copy(context->arena, ast->necro_type);
+    assert(case_ast->necro_type != NULL);
     return ok(NecroCoreAst, case_ast);
 }
 
@@ -1657,6 +1675,20 @@ void necro_core_ast_test()
         const char* test_source = ""
             "data Book n = Pages n\n"
             "(Pages numPages) = Pages 666\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Rec 3.1";
+        const char* test_source = ""
+            "counter :: ((Int, Int), (Int, Int))\n"
+            "counter = x where\n"
+            "  x ~ ((0, 1), (2, 3)) =\n"
+            "    case (gt mouseX 50, x) of\n"
+            "      (True,  ((x, y), r)) -> (r, (y, x))\n"
+            "      (False, ((z, w), r)) -> ((w, z), r)\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
         necro_core_test_result(test_name, test_source);
     }
 }

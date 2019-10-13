@@ -10,7 +10,7 @@ in
     name = "necro";
     src = ./.;
 
-    buildInputs = [ llvm_7 valgrind bear ];
+    buildInputs = [ llvm_7 valgrind bear portaudio ];
     propagatedBuildInputs = with pkgs; [ xorg.xlibsWrapper ];
     nativeBuildInputs = [ bear cmake ];
     debugVersion = true;
@@ -20,7 +20,7 @@ in
     hardeningDisable = [ "all" ];
 
     preConfigure = ''
-      export LDFLAGS="-lX11"
+      export LDFLAGS="-lX11 -lportaudio"
       export NIX_CFLAGS_COMPILE="$NIX_CFLAGS_COMPILE -fdebug-prefix-map=/build/Necronomicon=." LD=$CC
       '';
 

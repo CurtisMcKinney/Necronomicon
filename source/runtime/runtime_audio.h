@@ -13,6 +13,6 @@
 
 struct NecroDownsample;
 struct NecroDownsample* necro_downsample_create(const double freq_cutoff, const double sample_rate);
-void                    necro_downsample(struct NecroDownsample* downsample, const size_t block_size, const size_t oversample_mul, double* input_buffer, float* output_buffer);
+void                    necro_downsample(struct NecroDownsample* downsample, const size_t output_channel, const size_t num_output_channels, const size_t block_size, const size_t oversample_mul, double* input_buffer, float* output_buffer);
 
 #endif // RUNTIME_AUDIO_H

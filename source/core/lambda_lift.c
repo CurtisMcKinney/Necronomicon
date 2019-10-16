@@ -98,10 +98,13 @@ void necro_lambda_lift_destroy(NecroLambdaLift* ll)
 
 void necro_core_lambda_lift(NecroCompileInfo info, NecroIntern* intern, NecroBase* base, NecroCoreAstArena* core_ast_arena)
 {
-    UNUSED(info);
     NecroLambdaLift ll = necro_lambda_lift_create(&core_ast_arena->arena, intern, base);
     necro_core_lambda_lift_go(&ll, core_ast_arena->root);
     necro_lambda_lift_destroy(&ll);
+    if ((info.compilation_phase == NECRO_PHASE_LAMBDA_LIFT && info.verbosity > 0) || info.verbosity > 1)
+    {
+        necro_core_ast_pretty_print(core_ast_arena->root);
+    }
 }
 
 ///////////////////////////////////////////////////////

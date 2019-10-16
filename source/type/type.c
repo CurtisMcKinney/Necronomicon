@@ -502,6 +502,7 @@ bool necro_type_default(NecroPagedArena* arena, NecroBase* base, NecroType* type
     bool                   contains_num        = false;
     bool                   contains_eq         = false;
     bool                   contains_ord        = false;
+    bool                   contains_audio      = false;
     // bool                   contains_show       = false;
     NecroTypeClassContext* context             = type->var.context;
     while (context != NULL)
@@ -510,10 +511,16 @@ bool necro_type_default(NecroPagedArena* arena, NecroBase* base, NecroType* type
         contains_fractional = contains_fractional || context->class_symbol == base->fractional_type_class;
         contains_eq         = contains_eq || context->class_symbol == base->eq_type_class;
         contains_ord        = contains_ord || context->class_symbol == base->ord_type_class;
+        contains_audio      = contains_audio || context->class_symbol == base->audio_type_class;
         // contains_show       = contains_show || context->class_symbol == base->s;
         context             = context->next;
     }
-    if (contains_fractional)
+    if (contains_audio)
+    {
+        if (necro_type_bind_var_to_type_if_instance_of_context(arena, type, base->mono_type, type->var.context))
+            return true;
+    }
+    else if (contains_fractional)
     {
         if (necro_type_bind_var_to_type_if_instance_of_context(arena, type, base->float_type, type->var.context))
             return true;
@@ -1022,6 +1029,34 @@ NecroResult(NecroType) necro_type_unify(NecroPagedArena* arena, NecroConstraintE
         return ok(NecroType, NULL);
     default:
         necro_unreachable(NecroType);
+    }
+}
+
+// TODO: Extend to cover more types
+void necro_type_unify_con_uninhabited_args(NecroPagedArena* arena, struct NecroBase* base, NecroType* type1, NecroType* type2)
+{
+    if (type1 == NULL || type2 == NULL)
+        return;
+    type1 = necro_type_find(type1);
+    type2 = necro_type_find(type2);
+    if (type1->type != NECRO_TYPE_CON || type2->type != NECRO_TYPE_CON)
+        return;
+    if (type1->con.con_symbol != type2->con.con_symbol)
+        return;
+    NecroType* con_args1 = type1->con.args;
+    NecroType* con_args2 = type2->con.args;
+    while (con_args1 != NULL)
+    {
+        assert(con_args1->type == NECRO_TYPE_LIST);
+        assert(con_args2->type == NECRO_TYPE_LIST);
+        NecroType* con_arg1 = necro_type_find(con_args1->list.item);
+        NecroType* con_arg2 = necro_type_find(con_args2->list.item);
+        if (con_arg1->kind->type != NECRO_TYPE_CON || con_arg1->kind->con.con_symbol != base->star_kind)
+        {
+            unwrap(NecroType, necro_type_unify(arena, NULL, base, con_arg1, con_arg2, NULL));
+        }
+        con_args1 = con_args1->list.next;
+        con_args2 = con_args2->list.next;
     }
 }
 

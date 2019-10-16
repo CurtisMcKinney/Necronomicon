@@ -48,6 +48,7 @@ arrayFrom x = freezeArray xa
 instance Default a => Default (Array n a) where
   default = arrayFrom default
 
+-- This is getting tripped up in lambda_lift
 -- defaulted :: Array 4 (Maybe Int)
 -- defaulted = default
 
@@ -95,112 +96,112 @@ instance Applicative Maybe where
 -- Seq
 --------------------
 data SeqValue a = SeqValue Float a | SeqRest Float | SeqConst a | SeqInterval | SeqEnd
--- data Seq a      = Seq (Float -> SeqValue a)
---
--- instance Functor SeqValue where
---   map f s =
---     case s of
---       SeqValue t x -> SeqValue t (f x)
---       SeqConst x   -> SeqConst (f x)
---       SeqRest t    -> SeqRest t
---       SeqInterval  -> SeqInterval
---       SeqEnd       -> SeqEnd
---
--- instance FunctorN SeqValue where
---   map2 f sx sy =
---     case sx of
---       SeqValue tx x ->
---         case sy of
---           SeqValue ty y -> SeqValue (min tx ty) (f x y)
---           SeqConst y    -> SeqConst (f x y)
---           SeqRest ty    -> SeqRest (min tx ty)
---           SeqInterval   -> SeqInterval
---           SeqEnd        -> SeqEnd
---       SeqConst x     ->
---         case sy of
---           SeqValue ty y -> SeqValue ty (f x y)
---           SeqConst y    -> SeqConst (f x y)
---           SeqRest ty    -> SeqRest ty
---           SeqInterval   -> SeqInterval
---           SeqEnd        -> SeqEnd
---       SeqRest tx     ->
---         case sy of
---           SeqValue ty y -> SeqRest (min tx ty)
---           SeqConst y    -> SeqRest tx
---           SeqRest ty    -> SeqRest (min tx ty)
---           SeqInterval   -> SeqInterval
---           SeqEnd        -> SeqEnd
---       SeqInterval    -> SeqInterval
---       SeqEnd         -> SeqEnd
---
--- instance Applicative SeqValue where
---   pure x   = SeqConst x
---   ap fs xs =
---     case fs of
---       SeqValue ft ff ->
---         case xs of
---           SeqValue xt xx -> SeqValue (min ft xt) (ff xx)
---           SeqConst xx    -> SeqValue ft (ff xx)
---           SeqRest xt     -> SeqRest (min ft xt)
---           SeqInterval    -> SeqInterval
---           SeqEnd         -> SeqEnd
---       SeqConst ff ->
---         case xs of
---           SeqValue xt xx -> SeqValue xt (ff xx)
---           SeqConst xx    -> SeqConst (ff xx)
---           SeqRest xt     -> SeqRest xt
---           SeqInterval    -> SeqInterval
---           SeqEnd         -> SeqEnd
---       SeqRest ft ->
---         case xs of
---           SeqValue xt xf -> SeqRest (min ft xt)
---           SeqConst xx    -> SeqRest ft
---           SeqRest xt     -> SeqRest (min ft xt)
---           SeqInterval    -> SeqInterval
---           SeqEnd         -> SeqEnd
---       SeqInterval -> SeqInterval
---       SeqEnd      -> SeqEnd
---
--- instance Num a => Num (SeqValue a) where
---   fromInt i = pure (fromInt i)
---   add x y   = map2 add x y
---   sub x y   = map2 sub x y
---   mul x y   = map2 mul x y
---   signum x  = map signum x
---   abs x     = map abs x
---
--- instance Fractional a => Fractional (SeqValue a) where
---   fromRational r = pure (fromRational r)
---   div x y        = map2 div x y
---   recip x        = map recip x
---
--- runSeq :: Seq a -> Float -> SeqValue a
--- runSeq s time =
---   case s of
---     Seq stepFunc -> stepFunc time
---
--- instance Functor Seq where
---   map f s = Seq (\t -> map f (runSeq s t))
---
--- instance Applicative Seq where
---   pure x   = Seq (\t -> pure x)
---   ap fs xs = Seq (\t -> ap (runSeq fs t) (runSeq xs t))
---
--- instance FunctorN Seq where
---   map2 f sx sy = Seq (\t -> map2 f (runSeq sx t) (runSeq sy t))
---
--- instance Num a => Num (Seq a) where
---   fromInt i = pure (fromInt i)
---   add x y   = map2 add x y
---   sub x y   = map2 sub x y
---   mul x y   = map2 mul x y
---   signum x  = map signum x
---   abs x     = map abs x
---
--- instance Fractional a => Fractional (Seq a) where
---   fromRational r = pure (fromRational r)
---   div x y        = map2 div x y
---   recip x        = map recip x
+data Seq a      = Seq (Float -> SeqValue a)
+
+instance Functor SeqValue where
+  map f s =
+    case s of
+      SeqValue t x -> SeqValue t (f x)
+      SeqConst x   -> SeqConst (f x)
+      SeqRest t    -> SeqRest t
+      SeqInterval  -> SeqInterval
+      SeqEnd       -> SeqEnd
+
+instance FunctorN SeqValue where
+  map2 f sx sy =
+    case sx of
+      SeqValue tx x ->
+        case sy of
+          SeqValue ty y -> SeqValue (min tx ty) (f x y)
+          SeqConst y    -> SeqConst (f x y)
+          SeqRest ty    -> SeqRest (min tx ty)
+          SeqInterval   -> SeqInterval
+          SeqEnd        -> SeqEnd
+      SeqConst x     ->
+        case sy of
+          SeqValue ty y -> SeqValue ty (f x y)
+          SeqConst y    -> SeqConst (f x y)
+          SeqRest ty    -> SeqRest ty
+          SeqInterval   -> SeqInterval
+          SeqEnd        -> SeqEnd
+      SeqRest tx     ->
+        case sy of
+          SeqValue ty y -> SeqRest (min tx ty)
+          SeqConst y    -> SeqRest tx
+          SeqRest ty    -> SeqRest (min tx ty)
+          SeqInterval   -> SeqInterval
+          SeqEnd        -> SeqEnd
+      SeqInterval    -> SeqInterval
+      SeqEnd         -> SeqEnd
+
+instance Applicative SeqValue where
+  pure x   = SeqConst x
+  ap fs xs =
+    case fs of
+      SeqValue ft ff ->
+        case xs of
+          SeqValue xt xx -> SeqValue (min ft xt) (ff xx)
+          SeqConst xx    -> SeqValue ft (ff xx)
+          SeqRest xt     -> SeqRest (min ft xt)
+          SeqInterval    -> SeqInterval
+          SeqEnd         -> SeqEnd
+      SeqConst ff ->
+        case xs of
+          SeqValue xt xx -> SeqValue xt (ff xx)
+          SeqConst xx    -> SeqConst (ff xx)
+          SeqRest xt     -> SeqRest xt
+          SeqInterval    -> SeqInterval
+          SeqEnd         -> SeqEnd
+      SeqRest ft ->
+        case xs of
+          SeqValue xt xf -> SeqRest (min ft xt)
+          SeqConst xx    -> SeqRest ft
+          SeqRest xt     -> SeqRest (min ft xt)
+          SeqInterval    -> SeqInterval
+          SeqEnd         -> SeqEnd
+      SeqInterval -> SeqInterval
+      SeqEnd      -> SeqEnd
+
+instance Num a => Num (SeqValue a) where
+  fromInt i = pure (fromInt i)
+  add x y   = map2 add x y
+  sub x y   = map2 sub x y
+  mul x y   = map2 mul x y
+  signum x  = map signum x
+  abs x     = map abs x
+
+instance Fractional a => Fractional (SeqValue a) where
+  fromRational r = pure (fromRational r)
+  div x y        = map2 div x y
+  recip x        = map recip x
+
+runSeq :: Seq a -> Float -> SeqValue a
+runSeq s time =
+  case s of
+    Seq stepFunc -> stepFunc time
+
+instance Functor Seq where
+  map f s = Seq (\t -> map f (runSeq s t))
+
+instance Applicative Seq where
+  pure x   = Seq (\t -> pure x)
+  ap fs xs = Seq (\t -> ap (runSeq fs t) (runSeq xs t))
+
+instance FunctorN Seq where
+  map2 f sx sy = Seq (\t -> map2 f (runSeq sx t) (runSeq sy t))
+
+instance Num a => Num (Seq a) where
+  fromInt i = pure (fromInt i)
+  add x y   = map2 add x y
+  sub x y   = map2 sub x y
+  mul x y   = map2 mul x y
+  signum x  = map signum x
+  abs x     = map abs x
+
+instance Fractional a => Fractional (Seq a) where
+  fromRational r = pure (fromRational r)
+  div x y        = map2 div x y
+  recip x        = map recip x
 
 
 --------------------
@@ -257,7 +258,6 @@ mapChannel2 f cx cy =
           AudioRate (freezeArray (for each (unsafeEmptyArray ()) loop i a ->
             writeArray i (Share (f (readArray i x) (readArray i y))) a))
 
--- TODO: Test
 accumulateChannel1 :: Default s => (F64 -> s -> (#s, F64#)) -> Channel -> Channel
 accumulateChannel1 f input1 =
   case output of
@@ -350,6 +350,14 @@ accumulateChannel1 f input1 =
 --             case f (readArray i input1Buffer) (readArray i input2Buffer) s of
 --               (#s', x#) -> (#Share s', writeArray i (Share x) o#)
 
+instance Num Channel where
+  fromInt i = BlockRate (fromInt i)
+  add l r   = mapChannel2 add l r
+  sub l r   = mapChannel2 sub l r
+  mul l r   = mapChannel2 mul l r
+  signum c  = mapChannel signum c
+  abs c     = mapChannel abs c
+
 
 --------------------
 -- Audio
@@ -359,11 +367,14 @@ data Stereo    = Stereo (#Channel, Channel#)
 data Quad      = Quad Channel Channel Channel Channel
 data Ambisonic = Ambisonic Channel Channel Channel Channel
 
+-- TODO: Equal power panning
 class Audio a where
-  pureAudio :: Channel -> a
-  mapAudio  :: (Channel -> Channel) -> a -> a
-  mapAudio2 :: (Channel -> Channel -> Channel) -> a -> a -> a
-  outAudio  :: UInt -> a -> *World -> *World
+  pureAudio        :: Channel -> a
+  mapAudio         :: (Channel -> Channel) -> a -> a
+  mapAudio2        :: (Channel -> Channel -> Channel) -> a -> a -> a
+  accumulateAudio1 :: Default s => (F64 -> s -> (#s, F64#)) -> a -> a
+  pan              :: Mono -> a -> Stereo
+  outAudio         :: UInt -> a -> *World -> *World
 
 instance Audio Mono where
   pureAudio c    = Mono c
@@ -378,6 +389,15 @@ instance Audio Mono where
       Mono cx ->
         case my of
           Mono cy -> Mono (f cx cy)
+  accumulateAudio1 f m =
+    case m of
+      Mono c -> Mono (accumulateChannel1 f c)
+  pan amount input =
+    case input of
+      Mono inputChannel ->
+        case amount of
+          Mono amountChannel ->
+            Stereo (#mul inputChannel (sub 1 amountChannel), mul inputChannel amountChannel#)
 
 instance Audio Stereo where
   pureAudio c    = Stereo (#c, c#)
@@ -394,17 +414,19 @@ instance Audio Stereo where
       Stereo (#lx, rx#) ->
         case sy of
           Stereo (#ly, ry#) -> Stereo (#f lx ly, f rx ry#)
+  accumulateAudio1 f s =
+    case s of
+      Stereo (#l, r#) ->
+        Stereo (#accumulateChannel1 f l, accumulateChannel1 f r#)
+  pan amount input =
+    case input of
+      Stereo (#inputChannelL, inputChannelR#) ->
+        case amount of
+          Mono amountChannel ->
+            Stereo (#mul inputChannelL (sub 1 amountChannel), mul inputChannelR amountChannel#)
 
-accumulateAudio1 :: (Default s, Audio a) => (F64 -> s -> (#s, F64#)) -> a -> a
-accumulateAudio1 f a = mapAudio (accumulateChannel1 f) a
-
-instance Num Channel where
-  fromInt i = BlockRate (fromInt i)
-  add l r   = mapChannel2 add l r
-  sub l r   = mapChannel2 sub l r
-  mul l r   = mapChannel2 mul l r
-  signum c  = mapChannel signum c
-  abs c     = mapChannel abs c
+-- accumulateAudio1 :: (Default s, Audio a) => (F64 -> s -> (#s, F64#)) -> a -> a
+-- accumulateAudio1 f a = mapAudio (accumulateChannel1 f) a
 
 instance Num Mono where
   fromInt i = Mono (fromInt i)
@@ -444,16 +466,6 @@ stereo ml mr =
       case mr of
         Mono r -> Stereo (#l, r#)
 
--- Throw into type class?
--- TODO: Equal power panning
-pan :: Mono -> Mono -> Stereo
-pan amount input =
-  case input of
-    Mono inputChannel ->
-      case amount of
-        Mono amountChannel ->
-          Stereo (#inputChannel * (1 - amountChannel), inputChannel * amountChannel#)
-
 accumulateSaw :: F64 -> F64 -> (#F64, F64#)
 accumulateSaw freq acc =
   (#acc3, out#)
@@ -462,8 +474,11 @@ accumulateSaw freq acc =
     acc3 = acc2 - fastFloor acc2
     out  = fma acc3 2.0 (-1.0)
 
-saw :: Audio a => a -> a
+saw :: (Audio a) => a -> a
 saw freq = accumulateAudio1 accumulateSaw freq
+
+-- stereoSaw4Lyfe :: Stereo
+-- stereoSaw4Lyfe = saw 440
 
 -- TODO:
 -- accumulatePulse :: F64 -> F64 -> F64 -> (#F64, F64#)
@@ -477,6 +492,8 @@ saw freq = accumulateAudio1 accumulateSaw freq
 -- pulse :: Audio a => a -> a
 -- pulse freq = accumulateAudio2 accumulatePulse freq
 
+-- TODO: Seq
+-- TODO: while loops
 -- TODO: Defunctionalization
 -- TODO: Rational Type
 -- TODO: Stateful Unboxed types

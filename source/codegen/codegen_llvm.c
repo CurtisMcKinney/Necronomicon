@@ -1342,6 +1342,7 @@ void necro_llvm_test_string_go(const char* test_name, const char* str, NECRO_PHA
     NecroCompileInfo    info            = necro_test_compile_info();
     if (phase == NECRO_PHASE_JIT || phase == NECRO_PHASE_COMPILE)
         info.opt_level = 1;
+    // info.verbosity = 2;
 
     //--------------------
     // Compile
@@ -1358,8 +1359,9 @@ void necro_llvm_test_string_go(const char* test_name, const char* str, NECRO_PHA
     unwrap(void, necro_core_infer(&intern, &base, &core_ast));
     necro_core_ast_pre_simplify(info, &intern, &base, &core_ast);
     necro_core_lambda_lift(info, &intern, &base, &core_ast);
+    unwrap(void, necro_core_infer(&intern, &base, &core_ast));
     necro_core_defunctionalize(info, &intern, &base, &core_ast);
-    necro_core_infer(&intern, &base, &core_ast);
+    unwrap(void, necro_core_infer(&intern, &base, &core_ast));
     necro_core_state_analysis(info, &intern, &base, &core_ast);
     necro_core_transform_to_mach(info, &intern, &base, &core_ast, &mach_program);
     necro_llvm_codegen(info, &mach_program, &llvm);
@@ -2946,8 +2948,8 @@ void necro_llvm_test_jit()
         necro_llvm_jit_string(test_name, test_source);
     }
 
-*/
 
+*/
     {
         const char* test_name   = "Audio 2";
         const char* test_source = ""
@@ -2971,6 +2973,16 @@ void necro_llvm_test_jit()
             "stereoSaw = stereo coolSaw coolSaw\n"
             "main :: *World -> *World\n"
             "main w = outAudio 0 stereoSaw w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Audio 4 - Stereo Pan";
+        const char* test_source = ""
+            "coolSaw :: Stereo\n"
+            "coolSaw = pan (fromInt mouseX / 150) (stereo (saw 440) (saw 880))\n"
+            "main :: *World -> *World\n"
+            "main w = outAudio 0 coolSaw w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 

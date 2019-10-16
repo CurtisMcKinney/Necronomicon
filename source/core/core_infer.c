@@ -114,12 +114,11 @@ NecroResult(NecroType) necro_core_infer_var(NecroCoreInfer* infer, NecroCoreAst*
         {
             type = ast->var.ast_symbol->type;
         }
-        // if (type->ownership == NULL)
-        //     type->ownership = infer->base->ownership_share->type;
         // For now we're simply turning off ownership inference in core...
         ast->necro_type->ownership = infer->base->ownership_share->type;
         type->ownership            = infer->base->ownership_share->type;
         necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, type, zero_loc, zero_loc));
+        necro_type_unify_con_uninhabited_args(infer->arena, infer->base, ast->necro_type, type);
         // unwrap(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, ast->necro_type, type, NULL, zero_loc, zero_loc));
         ast->necro_type = type; // For now we're simply forcing the ast to take the type instead of unifying...
         necro_type_assert_no_rigid_variables(type);
@@ -195,6 +194,7 @@ NecroResult(NecroType) necro_core_infer_bind(NecroCoreInfer* infer, NecroCoreAst
     }
     assert(ast->bind.ast_symbol->type != NULL);
     necro_try_result(NecroType, necro_type_unify(infer->arena, NULL, infer->base, ast->bind.ast_symbol->type, expr_type, NULL));
+    necro_type_unify_con_uninhabited_args(infer->arena, infer->base, ast->necro_type, ast->bind.ast_symbol->type);
     ast->necro_type = ast->bind.ast_symbol->type;
     assert(ast->necro_type != NULL);
     return ok(NecroType, ast->necro_type);

@@ -86,6 +86,8 @@ typedef struct NecroBase
     NecroAstSymbol* applicative_type_class;
     NecroAstSymbol* monad_type_class;
     NecroAstSymbol* default_type_class;
+    NecroAstSymbol* audio_type_class;
+    NecroAstSymbol* mono_type;
     NecroAstSymbol* prev_fn;
     // NecroAstSymbol* event_type;
     // NecroAstSymbol* closure_type;
@@ -123,17 +125,18 @@ typedef struct NecroBase
 
 } NecroBase;
 
-NecroBase       necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_symtable);
-void            necro_base_destroy(NecroBase* base);
-void            necro_base_global_init();
-void            necro_base_global_cleanup();
-void            necro_base_test();
-NecroAstSymbol* necro_base_get_tuple_type(NecroBase* base, size_t num);
-NecroAstSymbol* necro_base_get_tuple_con(NecroBase* base, size_t num);
-NecroAstSymbol* necro_base_get_unboxed_tuple_type(NecroBase* base, size_t num);
-NecroAstSymbol* necro_base_get_unboxed_tuple_con(NecroBase* base, size_t num);
-NecroAstSymbol* necro_base_get_env_type(NecroBase* base, size_t num);
-NecroAstSymbol* necro_base_get_env_con(NecroBase* base, size_t num);
-NecroAstSymbol* necro_base_get_branch_type(NecroBase* base, size_t branch_size);
-NecroAstSymbol* necro_base_get_branch_con(NecroBase* base, size_t branch_size, size_t alternative);
+NecroBase           necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_symtable);
+void                necro_base_destroy(NecroBase* base);
+void                necro_base_global_init();
+void                necro_base_global_cleanup();
+void                necro_base_test();
+NecroAstSymbol*     necro_base_get_tuple_type(NecroBase* base, size_t num);
+NecroAstSymbol*     necro_base_get_tuple_con(NecroBase* base, size_t num);
+NecroAstSymbol*     necro_base_get_unboxed_tuple_type(NecroBase* base, size_t num);
+NecroAstSymbol*     necro_base_get_unboxed_tuple_con(NecroBase* base, size_t num);
+NecroAstSymbol*     necro_base_get_env_type(NecroBase* base, size_t num);
+NecroAstSymbol*     necro_base_get_env_con(NecroBase* base, size_t num);
+NecroAstSymbol*     necro_base_get_branch_type(NecroBase* base, size_t branch_size);
+NecroAstSymbol*     necro_base_get_branch_con(NecroBase* base, size_t branch_size, size_t alternative);
+NecroCoreAstSymbol* necro_base_get_proj_symbol(NecroPagedArena* arena, NecroBase* base);
 #endif // NECRO_BASE_H

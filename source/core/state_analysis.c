@@ -899,7 +899,6 @@ NecroCoreAst* necro_core_ast_create_deep_copy(NecroStateAnalysis* context, Necro
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
-#define NECRO_SA_TEST_VERBOSE 0
 void necro_state_analysis_test_string(const char* test_name, const char* str)
 {
 
@@ -914,6 +913,8 @@ void necro_state_analysis_test_string(const char* test_name, const char* str)
     NecroAstArena       ast             = necro_ast_arena_empty();
     NecroCoreAstArena   core_ast        = necro_core_ast_arena_empty();
     NecroCompileInfo    info            = necro_test_compile_info();
+    info.verbosity                      = 1;
+    info.compilation_phase              = NECRO_PHASE_STATE_ANALYSIS;
 
     //--------------------
     // Compile
@@ -931,16 +932,12 @@ void necro_state_analysis_test_string(const char* test_name, const char* str)
     necro_core_ast_pre_simplify(info, &intern, &base, &core_ast);
     necro_core_lambda_lift(info, &intern, &base, &core_ast);
     necro_core_defunctionalize(info, &intern, &base, &core_ast);
+    unwrap(void, necro_core_infer(&intern, &base, &core_ast));
     necro_core_state_analysis(info, &intern, &base, &core_ast);
 
     //--------------------
     // Print
-#if NECRO_SA_TEST_VERBOSE
-    printf("\n");
-    necro_core_ast_pretty_print(core_ast.root);
-#endif
     printf("State Analysis %s test: Passed\n", test_name);
-    fflush(stdout);
 
     //--------------------
     // Clean up
@@ -959,8 +956,6 @@ void necro_state_analysis_test()
     necro_announce_phase("State Analysis");
 
 /*
-
-*/
 
     {
         const char* test_name   = "Rec 1";
@@ -1144,6 +1139,73 @@ void necro_state_analysis_test()
             "nothingInThere = unsafeEmptyArray ()\n"
             "main :: *World -> *World\n"
             "main w = w\n";
+        necro_state_analysis_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Mono?";
+        const char* test_source = ""
+            "ambigAudio = saw 440\n"
+            "main :: *World -> *World\n"
+            "main w = outAudio 0 ambigAudio w\n";
+        necro_state_analysis_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Seq 1";
+        const char* test_source = ""
+            "seqTest1 :: Seq Bool\n"
+            "seqTest1 = pure True\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_state_analysis_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Seq 2";
+        const char* test_source = ""
+            "seqTest1 :: Seq Bool\n"
+            "seqTest1 = pure True\n"
+            "seqGo :: SeqValue Bool\n"
+            "seqGo = runSeq seqTest1 0\n";
+        necro_state_analysis_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Seq 3";
+        const char* test_source = ""
+            "seqTest :: Seq Int\n"
+            "seqTest = pure 0\n"
+            "coolSeq :: Seq Int\n"
+            "coolSeq = map (add 666) seqTest\n"
+            "seqGo :: SeqValue Int\n"
+            "seqGo = runSeq seqTest 0\n";
+        necro_state_analysis_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "HOF Fun 1";
+        const char* test_source = ""
+            "doubleUpInt :: (Int -> Int) -> Int -> Int\n"
+            "doubleUpInt f x = f x + f x\n"
+            "doubleDownInt :: (Int -> Int -> Int) -> Int -> Int\n"
+            "doubleDownInt f x = f x x + f x x\n"
+            "integrity :: Int -> Int\n"
+            "integrity i = doubleUpInt (doubleDownInt add) i\n";
+        necro_state_analysis_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "HOF Fun 2";
+        const char* test_source = ""
+            "doubleUpInt :: (Int -> Int) -> Int -> Int\n"
+            "doubleUpInt f x = f x + f x\n"
+            "doubleDownInt :: (Int -> Int) -> Int -> Int\n"
+            "doubleDownInt f x = f x + f x\n"
+            "integrity :: Int -> Int\n"
+            "integrity i = doubleUpInt (doubleDownInt (add mouseX)) i\n";
         necro_state_analysis_test_string(test_name, test_source);
     }
 

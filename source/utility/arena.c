@@ -172,10 +172,7 @@ void necro_paged_arena_destroy(NecroPagedArena* arena)
         free(current_page);
         current_page = next_page;
     }
-    arena->pages = NULL;
-    arena->data  = NULL;
-    arena->size  = 0;
-    arena->count = 0;
+    *arena = necro_paged_arena_empty();
 }
 
 //=====================================================
@@ -244,7 +241,7 @@ void* necro_snapshot_arena_alloc(NecroSnapshotArena* arena, size_t alloc_size)
         else
         {
             const size_t new_size = arena->curr_page->size * 2;
-            TRACE_ARENA("allocating new snapshot arena page of size: %d\n", arena->size);
+            TRACE_ARENA("allocating new snapshot arena page of size: %d\n", arena->curr_page->size);
 // #if DEBUG_MEMORY
 //          NecroArenaPage* page = __emalloc(sizeof(NecroArenaPage) + arena->size, srcFile, srcLine);
 // #else

@@ -1498,6 +1498,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.applicative_type_class = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Applicative"));
     base.monad_type_class       = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Monad"));
     base.default_type_class     = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Default"));
+    base.audio_type_class       = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Audio"));
+    base.mono_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Mono"));
     base.prev_fn                = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "prev"));
     // base.event_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Event"));
     // base.pattern_type           = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Pattern"));
@@ -1729,6 +1731,16 @@ NecroAstSymbol* necro_base_get_branch_con(NecroBase* base, size_t branch_size, s
     assert((branch_size < NECRO_MAX_BRANCH_TYPES) && "Unsupported Branch Function arity!");
     assert((alternative < branch_size) && "Alternative too large for Branch Function arity!");
     return base->branch_cons[branch_size][alternative];
+}
+
+NecroCoreAstSymbol* necro_base_get_proj_symbol(NecroPagedArena* arena, NecroBase* base)
+{
+    if (base->proj_fn->core_ast_symbol == NULL)
+    {
+        base->proj_fn->core_ast_symbol        = necro_core_ast_symbol_create_from_ast_symbol(arena, base->proj_fn);
+        base->proj_fn->core_ast_symbol->arity = 2;
+    }
+    return base->proj_fn->core_ast_symbol;
 }
 
 #define NECRO_BASE_TEST_VERBOSE 0

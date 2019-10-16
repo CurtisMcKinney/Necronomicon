@@ -23,7 +23,7 @@ typedef struct
 
 typedef struct NecroAliasSet
 {
-    NecroPagedArena*   arena;
+    NecroPagedArena*   alias_arena;
     NecroAliasSetData* data;
     size_t             count;
     size_t             capacity;
@@ -33,7 +33,7 @@ typedef struct
 {
     NecroAstArena*   ast_arena;
     NecroPagedArena* arena;
-    NecroPagedArena  alias_arena;
+    // NecroPagedArena  alias_arena;
     NecroAliasSet*   top_set;
     NecroAliasSet*   free_vars;
 } NecroAliasAnalysis;
@@ -52,7 +52,7 @@ NecroAliasAnalysis necro_alias_analysis_empty()
     {
         .arena       = NULL,
         .ast_arena   = NULL,
-        .alias_arena = necro_paged_arena_empty(),
+        // .alias_arena = necro_paged_arena_empty(),
         .top_set     = NULL,
         .free_vars   = NULL,
     };
@@ -61,14 +61,15 @@ NecroAliasAnalysis necro_alias_analysis_empty()
 
 NecroAliasAnalysis necro_alias_analysis_create(NecroAstArena* ast_arena)
 {
-    NecroPagedArena arena     = necro_paged_arena_create();
-    NecroAliasSet*  alias_set = necro_alias_set_create(&arena, 512);
+    // NecroPagedArena alias_arena = necro_paged_arena_create();
+    NecroPagedArena* alias_arena = &ast_arena->arena;
+    NecroAliasSet*   alias_set   = necro_alias_set_create(alias_arena, 512);
     // NecroAliasSet*  free_vars = necro_alias_set_create(&ast_arena->arena, 16);
     NecroAliasAnalysis alias_analysis = (NecroAliasAnalysis)
     {
         .arena       = &ast_arena->arena,
         .ast_arena   = ast_arena,
-        .alias_arena = arena,
+        // .alias_arena = alias_arena,
         .top_set     = alias_set,
         .free_vars   = NULL,
     };
@@ -78,7 +79,7 @@ NecroAliasAnalysis necro_alias_analysis_create(NecroAstArena* ast_arena)
 void necro_alias_analysis_destroy(NecroAliasAnalysis* alias_analysis)
 {
     assert(alias_analysis != NULL);
-    necro_paged_arena_destroy(&alias_analysis->alias_arena);
+    // necro_paged_arena_destroy(&alias_analysis->alias_arena);
     *alias_analysis = necro_alias_analysis_empty();
 }
 
@@ -134,16 +135,16 @@ bool necro_usage_is_unshared(NecroUsage* usage)
 // NecroAliasSet
 ///////////////////////////////////////////////////////
 static NecroAstSymbol NECRO_ALIAS_SET_TOMBSTONE = {0};
-NecroAliasSet* necro_alias_set_create(NecroPagedArena* arena, size_t capacity)
+NecroAliasSet* necro_alias_set_create(NecroPagedArena* alias_arena, size_t capacity)
 {
-    NecroAliasSetData* data = necro_paged_arena_alloc(arena, capacity * sizeof(NecroAliasSetData));
+    NecroAliasSetData* data = necro_paged_arena_alloc(alias_arena, capacity * sizeof(NecroAliasSetData));
     for (size_t i = 0; i < capacity; ++i)
     {
         data[i].symbol = NULL;
         data[i].usage  = NULL;
     }
-    NecroAliasSet* set = necro_paged_arena_alloc(arena, sizeof(NecroAliasSet));
-    set->arena         = arena;
+    NecroAliasSet* set = necro_paged_arena_alloc(alias_arena, sizeof(NecroAliasSet));
+    set->alias_arena   = alias_arena;
     set->data          = data;
     set->capacity      = capacity;
     set->count         = 0;
@@ -159,7 +160,7 @@ void necro_free_vars_print(NecroFreeVars* free_vars)
 
 NecroFreeVars* necro_alias_set_to_free_vars(NecroAliasSet* set)
 {
-    NecroFreeVars* free_vars = necro_paged_arena_alloc(set->arena, sizeof(NecroFreeVars*) + sizeof(size_t) + (set->count * sizeof(NecroAstSymbol)));
+    NecroFreeVars* free_vars = necro_paged_arena_alloc(set->alias_arena, sizeof(NecroFreeVars*) + sizeof(size_t) + (set->count * sizeof(NecroAstSymbol)));
     free_vars->next          = NULL;
     free_vars->count         = set->count;
     if (free_vars->count == 0)
@@ -187,8 +188,9 @@ void necro_alias_set_grow(NecroAliasSet* set)
     NecroAliasSetData* old_data     = set->data;
     size_t             old_capacity = set->capacity;
     size_t             old_count    = set->count;
+    const size_t       data_size    = sizeof(NecroAliasSetData);
     set->capacity                  *= 2;
-    set->data                       = necro_paged_arena_alloc(set->arena, set->capacity * sizeof(NecroAliasSetData));
+    set->data                       = necro_paged_arena_alloc(set->alias_arena, set->capacity * data_size);
     set->count                      = 0;
     for (size_t i = 0; i < set->capacity; ++i)
     {
@@ -321,7 +323,7 @@ void necro_alias_set_union_children_then_merge_into_parent(NecroAliasSet* parent
                 capacity = children[i]->capacity;
         }
         assert(capacity > 0);
-        set = necro_alias_set_create(children[0]->arena, capacity * 2);
+        set = necro_alias_set_create(children[0]->alias_arena, capacity * 2);
         // Merge
         for (size_t set_i = 0; set_i < children_count; ++set_i)
         {
@@ -468,9 +470,10 @@ void necro_alias_analysis_go(NecroAliasAnalysis* alias_analysis, NecroAliasSet* 
     }
     case NECRO_AST_DECL:
     {
-        NecroAliasSet* prev_free_vars = alias_analysis->free_vars;
-        alias_analysis->free_vars     = necro_alias_set_create(&alias_analysis->ast_arena->arena, 8);
-        NecroAst* declaration_group = ast;
+        NecroAliasSet* prev_free_vars    = alias_analysis->free_vars;
+        // alias_analysis->free_vars        = necro_alias_set_create(&alias_analysis->alias_arena, 8);
+        alias_analysis->free_vars        = necro_alias_set_create(alias_analysis->arena, 8);
+        NecroAst*      declaration_group = ast;
         while (declaration_group != NULL)
         {
             necro_alias_analysis_go(alias_analysis, alias_set, declaration_group->declaration.declaration_impl);
@@ -555,8 +558,8 @@ void necro_alias_analysis_go(NecroAliasAnalysis* alias_analysis, NecroAliasSet* 
     {
 
         necro_alias_analysis_go(alias_analysis, alias_set, ast->if_then_else.if_expr);
-        NecroAliasSet* then_set = necro_alias_set_create(&alias_analysis->alias_arena, NECRO_ALIAS_SET_INITIAL_CAPACITY);
-        NecroAliasSet* else_set = necro_alias_set_create(&alias_analysis->alias_arena, NECRO_ALIAS_SET_INITIAL_CAPACITY);
+        NecroAliasSet* then_set = necro_alias_set_create(alias_analysis->arena, NECRO_ALIAS_SET_INITIAL_CAPACITY);
+        NecroAliasSet* else_set = necro_alias_set_create(alias_analysis->arena, NECRO_ALIAS_SET_INITIAL_CAPACITY);
         necro_alias_analysis_go(alias_analysis, then_set, ast->if_then_else.then_expr);
         necro_alias_analysis_go(alias_analysis, else_set, ast->if_then_else.else_expr);
         necro_alias_set_union_children_then_merge_into_parent(alias_set, (NecroAliasSet*[2]) { then_set, else_set }, 2);
@@ -573,9 +576,11 @@ void necro_alias_analysis_go(NecroAliasAnalysis* alias_analysis, NecroAliasSet* 
             alt_count++;
             curr_alt = curr_alt->list.next_item;
         }
-        NecroAliasSet** alt_sets = necro_paged_arena_alloc(&alias_analysis->alias_arena, alt_count * sizeof(NecroAliasSet*));
+        // NecroAliasSet** alt_sets = necro_paged_arena_alloc(&alias_analysis->alias_arena, alt_count * sizeof(NecroAliasSet*));
+        NecroAliasSet** alt_sets = necro_paged_arena_alloc(alias_analysis->arena, alt_count * sizeof(NecroAliasSet*));
         for (size_t i = 0; i < alt_count; ++i)
-            alt_sets[i] = necro_alias_set_create(&alias_analysis->alias_arena, NECRO_ALIAS_SET_INITIAL_CAPACITY);
+            alt_sets[i] = necro_alias_set_create(alias_analysis->arena, NECRO_ALIAS_SET_INITIAL_CAPACITY);
+            // alt_sets[i] = necro_alias_set_create(&alias_analysis->alias_arena, NECRO_ALIAS_SET_INITIAL_CAPACITY);
         curr_alt     = ast->case_expression.alternatives;
         size_t alt_i = 0;
         while (curr_alt != NULL)

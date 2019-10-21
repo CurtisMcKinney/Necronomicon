@@ -413,6 +413,24 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
         puts(")");
         break;
 
+
+    case NECRO_AST_FOR_LOOP:
+        puts("(for)");
+        necro_ast_print_go(ast->for_loop.range_init, depth + 1);
+        necro_ast_print_go(ast->for_loop.value_init, depth + 1);
+        necro_ast_print_go(ast->for_loop.index_apat, depth + 1);
+        necro_ast_print_go(ast->for_loop.value_apat, depth + 1);
+        necro_ast_print_go(ast->for_loop.expression, depth + 1);
+        break;
+
+    case NECRO_AST_WHILE_LOOP:
+        puts("(while)");
+        necro_ast_print_go(ast->while_loop.value_apat, depth + 1);
+        necro_ast_print_go(ast->while_loop.value_init, depth + 1);
+        necro_ast_print_go(ast->while_loop.while_expression, depth + 1);
+        necro_ast_print_go(ast->while_loop.do_expression, depth + 1);
+        break;
+
     default:
         puts("(Undefined)");
         break;
@@ -692,6 +710,12 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         reified_ast->for_loop.index_apat = necro_reify_go(parse_ast_arena, ast->for_loop.index_apat, arena, intern);
         reified_ast->for_loop.value_apat = necro_reify_go(parse_ast_arena, ast->for_loop.value_apat, arena, intern);
         reified_ast->for_loop.expression = necro_reify_go(parse_ast_arena, ast->for_loop.expression, arena, intern);
+        break;
+    case NECRO_AST_WHILE_LOOP:
+        reified_ast->while_loop.value_init       = necro_reify_go(parse_ast_arena, ast->while_loop.value_init, arena, intern);
+        reified_ast->while_loop.value_apat       = necro_reify_go(parse_ast_arena, ast->while_loop.value_apat, arena, intern);
+        reified_ast->while_loop.while_expression = necro_reify_go(parse_ast_arena, ast->while_loop.while_expression, arena, intern);
+        reified_ast->while_loop.do_expression    = necro_reify_go(parse_ast_arena, ast->while_loop.do_expression, arena, intern);
         break;
     case NECRO_AST_CONID:
         reified_ast->conid.con_type   = ast->conid.con_type;
@@ -1548,6 +1572,16 @@ NecroAst* necro_ast_create_for_loop(NecroPagedArena* arena, NecroAst* range_init
     return ast;
 }
 
+NecroAst* necro_ast_create_while_loop(NecroPagedArena* arena, NecroAst* value_init, NecroAst* value_apat, NecroAst* while_expression, NecroAst* do_expression)
+{
+    NecroAst* ast                    = necro_ast_alloc(arena, NECRO_AST_WHILE_LOOP);
+    ast->while_loop.value_init       = value_init;
+    ast->while_loop.value_apat       = value_apat;
+    ast->while_loop.while_expression = while_expression;
+    ast->while_loop.do_expression    = do_expression;
+    return ast;
+}
+
 NecroAst* necro_ast_create_declaration_group_list(NecroPagedArena* arena, NecroAst* declaration_group, NecroAst* prev)
 {
     if (declaration_group != NULL)
@@ -2287,6 +2321,12 @@ NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_g
             necro_ast_deep_copy_go(arena, declaration_group, ast->for_loop.index_apat),
             necro_ast_deep_copy_go(arena, declaration_group, ast->for_loop.value_apat),
             necro_ast_deep_copy_go(arena, declaration_group, ast->for_loop.expression)));
+    case NECRO_AST_WHILE_LOOP:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_while_loop(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->while_loop.value_init),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->while_loop.value_apat),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->while_loop.while_expression),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->while_loop.do_expression)));
     default:
         assert(false);
         return NULL;

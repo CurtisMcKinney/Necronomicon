@@ -493,6 +493,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
     case NECRO_AST_UN_OP:
         break;
     case NECRO_AST_BIN_OP:
+        d_analyze_var(d_analyzer, ast->bin_op.ast_symbol);
         d_analyze_go(d_analyzer, ast->bin_op.lhs);
         d_analyze_go(d_analyzer, ast->bin_op.rhs);
         break;
@@ -575,13 +576,19 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
         d_analyze_go(d_analyzer, ast->for_loop.value_apat);
         d_analyze_go(d_analyzer, ast->for_loop.expression);
         break;
+    case NECRO_AST_WHILE_LOOP:
+        d_analyze_go(d_analyzer, ast->while_loop.value_init);
+        d_analyze_go(d_analyzer, ast->while_loop.value_apat);
+        d_analyze_go(d_analyzer, ast->while_loop.while_expression);
+        d_analyze_go(d_analyzer, ast->while_loop.do_expression);
+        break;
     case NECRO_AST_TYPE_APP:
         d_analyze_go(d_analyzer, ast->type_app.ty);
         d_analyze_go(d_analyzer, ast->type_app.next_ty);
         break;
     case NECRO_AST_BIN_OP_SYM:
-        d_analyze_go(d_analyzer, ast->bin_op_sym.left);
         d_analyze_go(d_analyzer, ast->bin_op_sym.op);
+        d_analyze_go(d_analyzer, ast->bin_op_sym.left);
         d_analyze_go(d_analyzer, ast->bin_op_sym.right);
         break;
     case NECRO_AST_CONSTRUCTOR:

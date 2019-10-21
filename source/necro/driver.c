@@ -196,6 +196,7 @@ NecroResult(void) necro_compile_go(
     //--------------------
     necro_compile_begin_phase(info, NECRO_PHASE_DEFUNCTIONALIZATION);
     necro_core_defunctionalize(info, intern, base, core_ast_arena);
+    necro_core_ast_pre_simplify(info, intern, base, core_ast_arena);
     if (necro_compile_end_phase(info, NECRO_PHASE_DEFUNCTIONALIZATION))
         return ok_void();
 

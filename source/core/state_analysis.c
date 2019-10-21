@@ -260,17 +260,24 @@ NECRO_STATE_TYPE necro_state_analysis_bind_rec(NecroStateAnalysis* sa, NecroCore
 
 }
 
-NECRO_STATE_TYPE necro_state_analysis_for(NecroStateAnalysis* sa, NecroCoreAst* ast, NecroCoreAstSymbol* outer)
+NECRO_STATE_TYPE necro_state_analysis_loop(NecroStateAnalysis* sa, NecroCoreAst* ast, NecroCoreAstSymbol* outer)
 {
     assert(sa != NULL);
     assert(ast != NULL);
-    assert(ast->ast_type == NECRO_CORE_AST_FOR);
+    assert(ast->ast_type == NECRO_CORE_AST_LOOP);
     ast->necro_type             = necro_core_ast_type_specialize(sa, ast->necro_type);
-    NECRO_STATE_TYPE state_type = necro_state_analysis_go(sa, ast->for_loop.range_init, outer);
-    state_type                  = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, ast->for_loop.value_init, outer));
-    state_type                  = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_pat_go(sa, ast->for_loop.index_arg, outer));
-    state_type                  = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_pat_go(sa, ast->for_loop.value_arg, outer));
-    state_type                  = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, ast->for_loop.expression, outer));
+    NECRO_STATE_TYPE state_type = necro_state_analysis_pat_go(sa, ast->loop.value_pat, outer);
+    state_type                  = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, ast->loop.value_init, outer));
+    state_type                  = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, ast->loop.do_expression, outer));
+    if (ast->loop.loop_type == NECRO_LOOP_FOR)
+    {
+        state_type = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_pat_go(sa, ast->loop.for_loop.index_pat, outer));
+        state_type = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, ast->loop.for_loop.range_init, outer));
+    }
+    else
+    {
+        state_type = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, ast->loop.while_loop.while_expression, outer));
+    }
     return state_type;
 }
 
@@ -348,7 +355,7 @@ NECRO_STATE_TYPE necro_state_analysis_go(NecroStateAnalysis* sa, NecroCoreAst* a
     case NECRO_CORE_AST_CASE:      return necro_state_analysis_case(sa, ast, outer);
     case NECRO_CORE_AST_BIND:      return necro_state_analysis_bind(sa, ast, outer);
     case NECRO_CORE_AST_BIND_REC:  return necro_state_analysis_bind_rec(sa, ast, outer);
-    case NECRO_CORE_AST_FOR:       return necro_state_analysis_for(sa, ast, outer);
+    case NECRO_CORE_AST_LOOP:      return necro_state_analysis_loop(sa, ast, outer);
     case NECRO_CORE_AST_LIT:       return necro_state_analysis_lit(sa, ast, outer);
     case NECRO_CORE_AST_DATA_DECL: return NECRO_STATE_CONSTANT;
     case NECRO_CORE_AST_DATA_CON:  return NECRO_STATE_CONSTANT;
@@ -1195,8 +1202,6 @@ void necro_state_analysis_test()
         necro_state_analysis_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "HOF Fun 2";
         const char* test_source = ""
@@ -1206,6 +1211,18 @@ void necro_state_analysis_test()
             "doubleDownInt f x = f x + f x\n"
             "integrity :: Int -> Int\n"
             "integrity i = doubleUpInt (doubleDownInt (add mouseX)) i\n";
+        necro_state_analysis_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Seq 7";
+        const char* test_source = ""
+            "coolSeq :: Seq Int\n"
+            "coolSeq = 666 * 22 + 3 * 4 - 256 * 10\n"
+            "seqGo :: SeqValue Int\n"
+            "seqGo = runSeq coolSeq 0\n";
         necro_state_analysis_test_string(test_name, test_source);
     }
 

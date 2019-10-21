@@ -200,6 +200,17 @@ typedef struct
 } NecroAstForLoop;
 
 //=====================================================
+// AST While
+//=====================================================
+typedef struct
+{
+    struct NecroAst* value_init;
+    struct NecroAst* value_apat;
+    struct NecroAst* while_expression;
+    struct NecroAst* do_expression;
+} NecroAstWhileLoop;
+
+//=====================================================
 // AST Module
 //=====================================================
 
@@ -564,6 +575,7 @@ typedef struct NecroAst
         NecroAstDeclarationGroupList declaration_group_list;
         NecroAstTypeAttribute        attribute;
         NecroAstForLoop              for_loop;
+        NecroAstWhileLoop            while_loop;
     };
     NECRO_AST_TYPE        type;
     // TODO: Replace NecroSourceLoc in NecroParseAst and NecroAst with const char* str
@@ -658,6 +670,7 @@ NecroAst* necro_ast_create_var_full(NecroPagedArena* arena, NecroAstSymbol* ast_
 NecroAst* necro_ast_create_conid_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_CON_TYPE con_type);
 NecroAst* necro_ast_create_type_attribute(NecroPagedArena* arena, NecroAst* attributed_type, NECRO_TYPE_ATTRIBUTE_TYPE type);
 NecroAst* necro_ast_create_for_loop(NecroPagedArena* arena, NecroAst* range_init, NecroAst* value_init, NecroAst* index_apat, NecroAst* value_apat, NecroAst* expression);
+NecroAst* necro_ast_create_while_loop(NecroPagedArena* arena, NecroAst* value_init, NecroAst* value_apat, NecroAst* until, NecroAst* expression);
 
 // Declaration Groups
 NecroAst* necro_ast_create_declaration_group_list(NecroPagedArena* arena, NecroAst* declaration_group, NecroAst* prev);

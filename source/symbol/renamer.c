@@ -363,6 +363,12 @@ NecroResult(NecroAstSymbol) necro_rename_declare(NecroRenamer* renamer, NecroAst
         necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->for_loop.value_apat));
         necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->for_loop.expression));
         break;
+    case NECRO_AST_WHILE_LOOP:
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->while_loop.value_init));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->while_loop.value_apat));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->while_loop.while_expression));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->while_loop.do_expression));
+        break;
     case NECRO_AST_CASE_ALTERNATIVE:
         necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->case_alternative.pat));
         necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->case_alternative.body));
@@ -648,6 +654,12 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->for_loop.index_apat));
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->for_loop.value_apat));
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->for_loop.expression));
+        break;
+    case NECRO_AST_WHILE_LOOP:
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->while_loop.value_init));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->while_loop.value_apat));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->while_loop.while_expression));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->while_loop.do_expression));
         break;
     case NECRO_AST_CASE_ALTERNATIVE:
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->case_alternative.pat));

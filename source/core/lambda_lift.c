@@ -290,14 +290,21 @@ bool necro_core_lambda_lift_is_bind_fn(NecroCoreAst* ast)
 ///////////////////////////////////////////////////////
 // LambdaLift
 ///////////////////////////////////////////////////////
-void necro_core_lambda_lift_for(NecroLambdaLift* ll, NecroCoreAst* ast)
+void necro_core_lambda_lift_loop(NecroLambdaLift* ll, NecroCoreAst* ast)
 {
-    assert(ast->ast_type == NECRO_CORE_AST_FOR);
-    necro_core_lambda_lift_go(ll, ast->for_loop.range_init);
-    necro_core_lambda_lift_go(ll, ast->for_loop.value_init);
-    necro_core_lambda_lift_pat(ll, ast->for_loop.index_arg);
-    necro_core_lambda_lift_pat(ll, ast->for_loop.value_arg);
-    necro_core_lambda_lift_go(ll, ast->for_loop.expression);
+    assert(ast->ast_type == NECRO_CORE_AST_LOOP);
+    necro_core_lambda_lift_pat(ll, ast->loop.value_pat);
+    necro_core_lambda_lift_go(ll, ast->loop.value_init);
+    if (ast->loop.loop_type == NECRO_LOOP_FOR)
+    {
+        necro_core_lambda_lift_pat(ll, ast->loop.for_loop.index_pat);
+        necro_core_lambda_lift_go(ll, ast->loop.for_loop.range_init);
+    }
+    else
+    {
+        necro_core_lambda_lift_go(ll, ast->loop.while_loop.while_expression);
+    }
+    necro_core_lambda_lift_go(ll, ast->loop.do_expression);
 }
 
 void necro_core_lambda_lift_case(NecroLambdaLift* ll, NecroCoreAst* ast)
@@ -440,7 +447,7 @@ void necro_core_lambda_lift_bind(NecroLambdaLift* ll, NecroCoreAst* ast)
             necro_core_lambda_lift_bound_lam(ll, ast->bind.expr);
         else
             necro_core_lambda_lift_go(ll, ast->bind.expr);
-        assert(ll->scope->free_vars->count == 0);
+        // assert(ll->scope->free_vars->count == 0);
         ast->bind.ast_symbol->free_vars = ll->scope->free_vars;
         necro_core_lambda_lift_pop_scope(ll);
         return;
@@ -525,7 +532,7 @@ void necro_core_lambda_lift_go(NecroLambdaLift* ll, NecroCoreAst* ast)
     {
     case NECRO_CORE_AST_VAR:       necro_core_lambda_lift_var(ll, ast);  return;
     case NECRO_CORE_AST_APP:       necro_core_lambda_lift_app(ll, ast);  return;
-    case NECRO_CORE_AST_FOR:       necro_core_lambda_lift_for(ll, ast);  return;
+    case NECRO_CORE_AST_LOOP:      necro_core_lambda_lift_loop(ll, ast);  return;
     case NECRO_CORE_AST_CASE:      necro_core_lambda_lift_case(ll, ast); return;
     case NECRO_CORE_AST_LET:       necro_core_lambda_lift_let(ll, ast);  return;
     case NECRO_CORE_AST_BIND:      necro_core_lambda_lift_bind(ll, ast); return;

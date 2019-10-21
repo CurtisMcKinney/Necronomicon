@@ -44,6 +44,9 @@ typedef enum
     NECRO_LEX_TYPE,
     NECRO_LEX_FOR,
     NECRO_LEX_LOOP,
+    NECRO_LEX_WHILE,
+    NECRO_LEX_UNTIL,
+    NECRO_LEX_RANGE,
 
     // End of Keywords
     // NOTE: This must come after all of the keywords in this enum!

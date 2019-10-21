@@ -26,29 +26,32 @@ min x y =
 class FunctorN f where
   map2 :: (a -> b -> c) -> f a -> f b -> f c
 
+class Enum a where
+  toEnum   :: Int -> a
+  fromEnum :: a -> Int
+
 -- class Default a where
 --   default :: !a
 
 -- instance (Default a, Default b) => Default (a, b) where
 --   default = (default, default)
 
+-- TODO: Test this
 instance Default a => Default (Maybe a) where
   default = Just default
 
 arrayFrom :: a -> Array n a
-arrayFrom x = freezeArray xa
+arrayFrom x =
+  freezeArray xa
   where
     xa =
-      let
-        sx = Share x
-      in
-        for each (unsafeEmptyArray ()) loop i a ->
-          writeArray i (Share x) a
+      loop a = unsafeEmptyArray () for i <- each do
+        writeArray i (Share x) a
 
-instance Default a => Default (Array n a) where
-  default = arrayFrom default
+-- instance Default a => Default (Array n a) where
+--   default = arrayFrom default
 
--- This is getting tripped up in lambda_lift
+-- -- This is getting tripped up in lambda_lift
 -- defaulted :: Array 4 (Maybe Int)
 -- defaulted = default
 
@@ -95,75 +98,69 @@ instance Applicative Maybe where
 --------------------
 -- Seq
 --------------------
-data SeqValue a = SeqValue Float a | SeqRest Float | SeqConst a | SeqInterval | SeqEnd
+
+data SeqNil     = SeqEnd | SeqBlockEnd | SeqLoopEnd | SeqRest
+data SeqValue a = SeqValue Float a | SeqNil Float SeqNil
 data Seq a      = Seq (Float -> SeqValue a)
+
+-- midiIn :: Int -> Seq Int
+
+instance Enum SeqNil where
+  toEnum n =
+    case n of
+      0 -> SeqEnd
+      1 -> SeqBlockEnd
+      2 -> SeqLoopEnd
+      _ -> SeqRest
+  fromEnum s =
+    case s of
+      SeqEnd      -> 0
+      SeqBlockEnd -> 1
+      SeqLoopEnd  -> 2
+      SeqRest     -> 3
+
+instance Semigroup SeqNil where
+  append x y =
+    case lt (fromEnum x) (fromEnum y) of
+      True -> x
+      _    -> y
+
+instance Monoid SeqNil where
+  mempty = SeqRest
 
 instance Functor SeqValue where
   map f s =
     case s of
       SeqValue t x -> SeqValue t (f x)
-      SeqConst x   -> SeqConst (f x)
-      SeqRest t    -> SeqRest t
-      SeqInterval  -> SeqInterval
-      SeqEnd       -> SeqEnd
+      SeqNil   t n -> SeqNil   t n
 
 instance FunctorN SeqValue where
-  map2 f sx sy =
-    case sx of
-      SeqValue tx x ->
-        case sy of
-          SeqValue ty y -> SeqValue (min tx ty) (f x y)
-          SeqConst y    -> SeqConst (f x y)
-          SeqRest ty    -> SeqRest (min tx ty)
-          SeqInterval   -> SeqInterval
-          SeqEnd        -> SeqEnd
-      SeqConst x     ->
-        case sy of
-          SeqValue ty y -> SeqValue ty (f x y)
-          SeqConst y    -> SeqConst (f x y)
-          SeqRest ty    -> SeqRest ty
-          SeqInterval   -> SeqInterval
-          SeqEnd        -> SeqEnd
-      SeqRest tx     ->
-        case sy of
-          SeqValue ty y -> SeqRest (min tx ty)
-          SeqConst y    -> SeqRest tx
-          SeqRest ty    -> SeqRest (min tx ty)
-          SeqInterval   -> SeqInterval
-          SeqEnd        -> SeqEnd
-      SeqInterval    -> SeqInterval
-      SeqEnd         -> SeqEnd
+  map2 f xs ys =
+    case xs of
+      SeqValue xt xv ->
+        case ys of
+          SeqValue yt yv -> SeqValue (min xt yt) (f xv yv)
+          SeqNil   yt yn -> SeqNil (min xt yt) yn
+      SeqNil xt xn ->
+        case ys of
+          SeqValue yt _  -> SeqNil (min xt yt) xn
+          SeqNil   yt yn -> SeqNil (min xt yt) (xn <> yn)
 
 instance Applicative SeqValue where
-  pure x   = SeqConst x
+  pure x   = SeqValue 0 x
   ap fs xs =
     case fs of
-      SeqValue ft ff ->
+      SeqValue ft fv ->
         case xs of
-          SeqValue xt xx -> SeqValue (min ft xt) (ff xx)
-          SeqConst xx    -> SeqValue ft (ff xx)
-          SeqRest xt     -> SeqRest (min ft xt)
-          SeqInterval    -> SeqInterval
-          SeqEnd         -> SeqEnd
-      SeqConst ff ->
+          SeqValue xt xv -> SeqValue (min ft xt) (fv xv)
+          SeqNil   xt xn -> SeqNil (min ft xt) xn
+      SeqNil ft fn ->
         case xs of
-          SeqValue xt xx -> SeqValue xt (ff xx)
-          SeqConst xx    -> SeqConst (ff xx)
-          SeqRest xt     -> SeqRest xt
-          SeqInterval    -> SeqInterval
-          SeqEnd         -> SeqEnd
-      SeqRest ft ->
-        case xs of
-          SeqValue xt xf -> SeqRest (min ft xt)
-          SeqConst xx    -> SeqRest ft
-          SeqRest xt     -> SeqRest (min ft xt)
-          SeqInterval    -> SeqInterval
-          SeqEnd         -> SeqEnd
-      SeqInterval -> SeqInterval
-      SeqEnd      -> SeqEnd
+          SeqValue xt _  -> SeqNil (min ft xt) fn
+          SeqNil   xt xn -> SeqNil (min ft xt) (fn <> xn)
 
 instance Num a => Num (SeqValue a) where
-  fromInt i = pure (fromInt i)
+  fromInt i = SeqValue 0 (fromInt i)
   add x y   = map2 add x y
   sub x y   = map2 sub x y
   mul x y   = map2 mul x y
@@ -171,7 +168,7 @@ instance Num a => Num (SeqValue a) where
   abs x     = map abs x
 
 instance Fractional a => Fractional (SeqValue a) where
-  fromRational r = pure (fromRational r)
+  fromRational r = SeqValue 0 (fromRational r)
   div x y        = map2 div x y
   recip x        = map recip x
 
@@ -184,25 +181,30 @@ instance Functor Seq where
   map f s = Seq (\t -> map f (runSeq s t))
 
 instance Applicative Seq where
-  pure x   = Seq (\t -> pure x)
+  pure x   = Seq (\_ -> SeqValue 0 x)
   ap fs xs = Seq (\t -> ap (runSeq fs t) (runSeq xs t))
 
 instance FunctorN Seq where
   map2 f sx sy = Seq (\t -> map2 f (runSeq sx t) (runSeq sy t))
 
 instance Num a => Num (Seq a) where
-  fromInt i = pure (fromInt i)
-  add x y   = map2 add x y
-  sub x y   = map2 sub x y
-  mul x y   = map2 mul x y
-  signum x  = map signum x
-  abs x     = map abs x
+  fromInt i = Seq (\_ -> SeqValue 0 (fromInt i))
+  add x y   = Seq (\t -> map2 add (runSeq x t) (runSeq y t))
+  sub x y   = Seq (\t -> map2 sub (runSeq x t) (runSeq y t))
+  mul x y   = Seq (\t -> map2 mul (runSeq x t) (runSeq y t))
+  signum x  = Seq (\t -> map signum (runSeq x t))
+  abs x     = Seq (\t -> map abs (runSeq x t))
 
 instance Fractional a => Fractional (Seq a) where
-  fromRational r = pure (fromRational r)
-  div x y        = map2 div x y
-  recip x        = map recip x
+  fromRational r = Seq (\_ -> SeqValue 0 (fromRational r))
+  div x y        = Seq (\t -> map2 div (runSeq x t) (runSeq y t))
+  recip x        = Seq (\t -> map recip (runSeq x t))
 
+rest :: Seq Int
+rest = Seq (\_ -> SeqNil 1 SeqRest)
+
+-- class Foldable f where
+--   fold :: (b -> a -> b) -> b -> f a -> b
 
 --------------------
 -- Print
@@ -216,10 +218,11 @@ instance Print Int where
 instance Print F64 where
   print x w = printF64 x w
 
+
 --------------------
 -- Channel
 --------------------
-data Channel   = BlockRate F64 | AudioRate (Array BlockSize F64)
+data Channel = BlockRate F64 | AudioRate (Array BlockSize F64)
 
 outChannel :: UInt -> Channel -> *World -> *World
 outChannel n c w =
@@ -232,10 +235,10 @@ mapChannel f c =
   case c of
     BlockRate x -> BlockRate (f x)
     AudioRate b ->
-      let wa =
-            for each (unsafeEmptyArray ()) loop i a ->
-              writeArray i (Share (f (readArray i b))) a
-      in AudioRate (freezeArray wa)
+      AudioRate
+      <| freezeArray
+      <| loop a = unsafeEmptyArray () for i <- each do
+        writeArray i (Share (f (readArray i b))) a
 
 -- TODO: Look into alias analysis here!
 -- We should be able to float the call to unsafeEmptyArray out of the for loop
@@ -247,17 +250,24 @@ mapChannel2 f cx cy =
         BlockRate y ->
           BlockRate (f x y)
         AudioRate y ->
-          AudioRate (freezeArray (for each (unsafeEmptyArray ()) loop i a ->
-            writeArray i (Share (f x (readArray i y))) a))
+          AudioRate
+          <| freezeArray
+          <| loop a = unsafeEmptyArray () for i <- each do
+            writeArray i (Share (f x (readArray i y))) a
     AudioRate x ->
       case cy of
         BlockRate y ->
-          AudioRate (freezeArray (for each (unsafeEmptyArray ()) loop i a ->
-            writeArray i (Share (f (readArray i x) y)) a))
+          AudioRate
+          <| freezeArray
+          <| loop a = unsafeEmptyArray () for i <- each do
+            writeArray i (Share (f (readArray i x) y)) a
         AudioRate y ->
-          AudioRate (freezeArray (for each (unsafeEmptyArray ()) loop i a ->
-            writeArray i (Share (f (readArray i x) (readArray i y))) a))
+          AudioRate
+          <| freezeArray
+          <| loop a = unsafeEmptyArray () for i <- each do
+            writeArray i (Share (f (readArray i x) (readArray i y))) a
 
+-- TODO: Stateful unboxed tuple types!
 accumulateChannel1 :: Default s => (F64 -> s -> (#s, F64#)) -> Channel -> Channel
 accumulateChannel1 f input1 =
   case output of
@@ -266,22 +276,19 @@ accumulateChannel1 f input1 =
     output ~ (default, freezeArray (unsafeEmptyArray ())) =
       case output of
         (state, _) ->
-          let output' =
+          let (#Share state', o'#) =
                 case input1 of
                   BlockRate input1Val ->
-                    for each (#Share state, unsafeEmptyArray ()#) loop i accu ->
-                      case accu of
-                        (#Share s, o#) ->
-                          case f input1Val s of
-                            (#s', x#) -> (#Share s', writeArray i (Share x) o#)
+                    loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
+                      case f input1Val s of
+                        (#s', x#) ->
+                          (#Share s', writeArray i (Share x) o#)
                   AudioRate input1Buffer ->
-                    for each (#Share state, unsafeEmptyArray ()#) loop i accu ->
-                      case accu of
-                        (#Share s, o#) ->
-                          case f (readArray i input1Buffer) s of
-                            (#s', x#) -> (#Share s', writeArray i (Share x) o#)
-          in case output' of
-               (#Share state', o'#) -> (state', freezeArray o')
+                    loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
+                      case f (readArray i input1Buffer) s of
+                        (#s', x#) ->
+                          (#Share s', writeArray i (Share x) o#)
+          in (state', freezeArray o')
 
 -- -- Ugly, but and inefficient, it works
 -- accumulateChannel2 :: Default s => (F64 -> F64 -> s -> (#s, F64#)) -> Channel -> Channel -> Channel
@@ -297,31 +304,23 @@ accumulateChannel1 f input1 =
 --                   BlockRate input1Val ->
 --                     case input2 of
 --                       BlockRate input2Val ->
---                         for each (#Share state, unsafeEmptyArray ()#) loop i accu ->
---                           case accu of
---                             (#Share s, o#) ->
---                               case f input1Val input2Val s of
---                                 (#s', x#) -> (#Share s', writeArray i (Share x) o#)
+--                         loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
+--                           case f input1Val input2Val s of
+--                             (#s', x#) -> (#Share s', writeArray i (Share x) o#)
 --                       AudioRate input2Buffer ->
---                         for each (#Share state, unsafeEmptyArray ()#) loop i accu ->
---                           case accu of
---                             (#Share s, o#) ->
---                               case f input1Val (readArray i input2Buffer) s of
---                                 (#s', x#) -> (#Share s', writeArray i (Share x) o#)
+--                         loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
+--                           case f input1Val (readArray i input2Buffer) s of
+--                             (#s', x#) -> (#Share s', writeArray i (Share x) o#)
 --                   AudioRate input1Buffer ->
 --                     case input2 of
 --                       BlockRate input2Val ->
---                         for each (#Share state, unsafeEmptyArray ()#) loop i accu ->
---                           case accu of
---                             (#Share s, o#) ->
---                               case f (readArray i input1Buffer) input2Val s of
---                                 (#s', x#) -> (#Share s', writeArray i (Share x) o#)
+--                         loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
+--                           case f (readArray i input1Buffer) input2Val s of
+--                             (#s', x#) -> (#Share s', writeArray i (Share x) o#)
 --                       AudioRate input2Buffer ->
---                         for each (#Share state, unsafeEmptyArray ()#) loop i accu ->
---                           case accu of
---                             (#Share s, o#) ->
---                               case f (readArray i input1Buffer) (readArray i input2Buffer) s of
---                                 (#s', x#) -> (#Share s', writeArray i (Share x) o#)
+--                         loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
+--                           case f (readArray i input1Buffer) (readArray i input2Buffer) s of
+--                             (#s', x#) -> (#Share s', writeArray i (Share x) o#)
 --           in case output' of
 --                (#Share state', o'#) -> (state', freezeArray o')
 
@@ -334,19 +333,19 @@ accumulateChannel1 f input1 =
 --     (#state ~ default, output#) =
 --       case (#input1, input2#) of
 --         (#BlockRate input1Val, BlockRate input2Value#) ->
---           for each (#state, emptyO#) loop i (#Share s, o#) ->
+--           loop (#Share s, o#) = (#state, emptyO#) for i <- each do
 --             case f input1Val input2Val s of
 --               (#s', x#) -> (#Share s', writeArray i (Share x) o#)
 --         (#BlockRate input1Val, AudioRate input2Buffer#) ->
---           for each (#state, emptyO#) loop i (#Share s, o#) ->
+--           loop (#Share s, o#) = (#state, emptyO#) for i <- each do
 --             case f input1Val (readArray i input2Buffer) s of
 --               (#s', x#) -> (#Share s', writeArray i (Share x) o#)
 --         (#AudioRate input1Buffer, BlockRate input2Val#)->
---           for each (#state, emptyO#) loop i (#Share s, o#) ->
+--           loop (#Share s, o#) = (#state, emptyO#) for i <- each do
 --             case f (readArray i input1Buffer) input2Val s of
 --               (#s', x#) -> (#Share s', writeArray i (Share x) o#)
 --         (#AudioRate input1Buffer, AudioRate input2Buffer#)->
---           for each (#state, emptyO#) loop i (#Share s, o#) ->
+--           loop (#Share s, o#) = (#state, emptyO#) for i <- each do
 --             case f (readArray i input1Buffer) (readArray i input2Buffer) s of
 --               (#s', x#) -> (#Share s', writeArray i (Share x) o#)
 
@@ -477,6 +476,55 @@ accumulateSaw freq acc =
 saw :: (Audio a) => a -> a
 saw freq = accumulateAudio1 accumulateSaw freq
 
+-- coolSeq :: Seq Float
+-- coolSeq = 77.7 - 666 * 22 + fromInt mouseX * 4 - 256 * 10 + 33.3
+
+-- seqGo :: SeqValue Float
+-- seqGo = runSeq coolSeq 0
+
+whileTest1 :: Int
+whileTest1 =
+  loop x = 0 while x < 50 do
+    x + 1
+
+whileTest2 :: Int
+whileTest2 =
+  loop x = 0 while x < 50 do
+    loop x' = x + 10 while x' < 50 do
+      x' + 1
+
+-- TODO: Bang patterns in loops around a bit more
+whileTest3 :: (Int, Int)
+whileTest3 =
+  loop (x, y) = (100, 200) while x + y < 1000 do
+    (x - 1, y + 2)
+
+-- -- Lambda lift error???
+-- whileTest3 :: Int
+-- whileTest3 = fst <|
+--   loop (x, y) = (100, 200) while (x + y) < 1000 do
+--     (x - 1, y + 2)
+
+-- poly :: Audio a => (a -> a) -> Seq Float -> a
+-- poly f (Seq s) = out
+--   where
+--     (children ~ default, currTime ~ 0, tick ~ 1) =
+--       loop (c, t, tick') = (children, currTime, tick + 1) while t > tick' do
+--         case s t of
+--           SeqNil   t' _   -> (c, t + t', tick')
+--           SeqValue t' arg -> (dynAppend (f (fromRational arg)) c, t + t', tick')
+
+-- Add Bool to Audio which flags that it has ended!
+
+-- patAssignTest :: Int
+-- patAssignTest = x
+--   where
+--     (#x, t#) = (#666, True#)
+
+-- coolSeq :: Seq Float
+-- coolSeq = [_ 2 [3 3.5] 4]
+-- -- Get rid of rest type? Simply extend the timing?
+
 -- stereoSaw4Lyfe :: Stereo
 -- stereoSaw4Lyfe = saw 440
 
@@ -492,6 +540,7 @@ saw freq = accumulateAudio1 accumulateSaw freq
 -- pulse :: Audio a => a -> a
 -- pulse freq = accumulateAudio2 accumulatePulse freq
 
+-- TODO: Seq notation
 -- TODO: Seq
 -- TODO: while loops
 -- TODO: Defunctionalization

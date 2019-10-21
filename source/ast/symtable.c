@@ -345,6 +345,14 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
         necro_build_scopes_go(scoped_symtable, input_node->for_loop.expression);
         necro_scoped_symtable_pop_scope(scoped_symtable);
         break;
+    case NECRO_AST_WHILE_LOOP:
+        necro_build_scopes_go(scoped_symtable, input_node->while_loop.value_init);
+        necro_scoped_symtable_new_scope(scoped_symtable);
+        necro_build_scopes_go(scoped_symtable, input_node->while_loop.value_apat);
+        necro_build_scopes_go(scoped_symtable, input_node->while_loop.while_expression);
+        necro_build_scopes_go(scoped_symtable, input_node->while_loop.do_expression);
+        necro_scoped_symtable_pop_scope(scoped_symtable);
+        break;
     case NECRO_AST_CONID:
         switch (input_node->conid.con_type)
         {

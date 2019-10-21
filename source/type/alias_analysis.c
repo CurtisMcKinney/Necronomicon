@@ -532,6 +532,12 @@ void necro_alias_analysis_go(NecroAliasAnalysis* alias_analysis, NecroAliasSet* 
         necro_alias_analysis_go(alias_analysis, alias_set, ast->for_loop.index_apat);
         necro_alias_analysis_go(alias_analysis, alias_set, ast->for_loop.value_apat);
         return;
+    case NECRO_AST_WHILE_LOOP:
+        necro_alias_analysis_go(alias_analysis, alias_set, ast->while_loop.value_init);
+        necro_alias_analysis_go(alias_analysis, alias_set, ast->while_loop.while_expression);
+        necro_alias_analysis_go(alias_analysis, alias_set, ast->while_loop.do_expression);
+        necro_alias_analysis_go(alias_analysis, alias_set, ast->while_loop.value_apat);
+        return;
     case NECRO_AST_PAT_ASSIGNMENT:
         necro_alias_analysis_go(alias_analysis, alias_set, ast->pat_assignment.rhs);
         necro_alias_analysis_go(alias_analysis, alias_set, ast->pat_assignment.pat);

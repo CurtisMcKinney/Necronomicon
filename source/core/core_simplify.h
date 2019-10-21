@@ -18,8 +18,16 @@ typedef struct NecroCoreAstSymbolSub
 } NecroCoreAstSymbolSub;
 NECRO_DECLARE_ARENA_LIST(NecroCoreAstSymbolSub, CoreAstSymbolSub, core_ast_symbol_sub);
 
+typedef struct NecroCorePreSimplify
+{
+    NecroPagedArena* arena;
+    NecroIntern*     intern;
+    NecroBase*       base;
+} NecroCorePreSimplify;
+
 NecroCoreAst* necro_core_ast_duplicate_with_subs(NecroPagedArena* arena, NecroIntern* intern, NecroCoreAst* ast, NecroCoreAstSymbolSubList* subs);
 void          necro_core_ast_pre_simplify(NecroCompileInfo info, NecroIntern* intern, NecroBase* base, NecroCoreAstArena* core_ast_arena);
+NecroCoreAst* necro_core_ast_pre_simplify_go(NecroCorePreSimplify* context, NecroCoreAst* ast);
 void          necro_core_ast_pre_simplify_test();
 
 #endif // CORE_INLINE_H

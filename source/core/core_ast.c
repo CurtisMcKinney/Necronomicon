@@ -76,7 +76,7 @@ NecroCoreAst* necro_core_ast_create_array_lit(NecroPagedArena* arena, NecroCoreA
 NecroCoreAst* necro_core_ast_create_var(NecroPagedArena* arena, NecroCoreAstSymbol* ast_symbol, NecroType* necro_type)
 {
     assert(necro_type != NULL);
-    assert(necro_type->kind != NULL);
+    // assert(necro_type->kind != NULL);
     NecroCoreAst* ast        = necro_core_ast_alloc(arena, NECRO_CORE_AST_VAR);
     ast->var.ast_symbol      = ast_symbol;
     ast->necro_type          = necro_type;
@@ -162,13 +162,32 @@ NecroCoreAst* necro_core_ast_create_case_alt(NecroPagedArena* arena, NecroCoreAs
 
 NecroCoreAst* necro_core_ast_create_for_loop(NecroPagedArena* arena, size_t max_loops, NecroCoreAst* range_init, NecroCoreAst* value_init, NecroCoreAst* index_arg, NecroCoreAst* value_arg, NecroCoreAst* expression)
 {
-    NecroCoreAst* ast             = necro_core_ast_alloc(arena, NECRO_CORE_AST_FOR);
-    ast->for_loop.range_init      = range_init;
-    ast->for_loop.value_init      = value_init;
-    ast->for_loop.index_arg       = index_arg;
-    ast->for_loop.value_arg       = value_arg;
-    ast->for_loop.expression      = expression;
-    ast->for_loop.max_loops       = max_loops;
+    // ast->for_loop.range_init = range_init;
+    // ast->for_loop.value_init = value_init;
+    // ast->for_loop.index_arg  = index_arg;
+    // ast->for_loop.value_arg  = value_arg;
+    // ast->for_loop.expression = expression;
+    // ast->for_loop.max_loops  = max_loops;
+
+    NecroCoreAst* ast             = necro_core_ast_alloc(arena, NECRO_CORE_AST_LOOP);
+    ast->loop.value_pat           = value_arg;
+    ast->loop.value_init          = value_init;
+    ast->loop.for_loop.index_pat  = index_arg;
+    ast->loop.for_loop.range_init = range_init;
+    ast->loop.for_loop.max_loops  = max_loops;
+    ast->loop.do_expression       = expression;
+    ast->loop.loop_type           = NECRO_LOOP_FOR;
+    return ast;
+}
+
+NecroCoreAst* necro_core_ast_create_while_loop(NecroPagedArena* arena, NecroCoreAst* value_pat, NecroCoreAst* value_init, NecroCoreAst* while_expression, NecroCoreAst* do_expression)
+{
+    NecroCoreAst* ast                     = necro_core_ast_alloc(arena, NECRO_CORE_AST_LOOP);
+    ast->loop.value_pat                   = value_pat;
+    ast->loop.value_init                  = value_init;
+    ast->loop.while_loop.while_expression = while_expression;
+    ast->loop.do_expression               = do_expression;
+    ast->loop.loop_type                   = NECRO_LOOP_WHILE;
     return ast;
 }
 
@@ -201,10 +220,16 @@ NecroCoreAst* necro_core_ast_deep_copy(NecroPagedArena* arena, NecroCoreAst* ast
     case NECRO_CORE_AST_BIND:      copy_ast = necro_core_ast_create_bind(arena, ast->bind.ast_symbol, necro_core_ast_deep_copy(arena, ast->bind.expr), necro_core_ast_deep_copy(arena, ast->bind.initializer)); break;
     case NECRO_CORE_AST_LET:       copy_ast = necro_core_ast_create_let(arena, necro_core_ast_deep_copy(arena, ast->let.bind), necro_core_ast_deep_copy(arena, ast->let.expr)); break;
     case NECRO_CORE_AST_VAR:       copy_ast = necro_core_ast_create_var(arena, ast->var.ast_symbol, necro_type_deep_copy(arena, ast->necro_type)); break;
-    case NECRO_CORE_AST_FOR:       copy_ast = necro_core_ast_create_for_loop(arena, ast->for_loop.max_loops, necro_core_ast_deep_copy(arena, ast->for_loop.range_init), necro_core_ast_deep_copy(arena, ast->for_loop.value_init), necro_core_ast_deep_copy(arena, ast->for_loop.index_arg), necro_core_ast_deep_copy(arena, ast->for_loop.value_arg), necro_core_ast_deep_copy(arena, ast->for_loop.expression)); break;
     case NECRO_CORE_AST_LAM:       copy_ast = necro_core_ast_create_lam(arena, necro_core_ast_deep_copy(arena, ast->lambda.arg), necro_core_ast_deep_copy(arena, ast->lambda.expr)); break;
     case NECRO_CORE_AST_APP:       copy_ast = necro_core_ast_create_app(arena, necro_core_ast_deep_copy(arena, ast->app.expr1), necro_core_ast_deep_copy(arena, ast->app.expr2)); break;
     case NECRO_CORE_AST_DATA_CON:  copy_ast = necro_core_ast_create_data_con(arena, ast->data_con.ast_symbol, necro_type_deep_copy(arena, ast->data_con.type), necro_type_deep_copy(arena, ast->data_con.data_type_type)); break;
+    case NECRO_CORE_AST_LOOP:
+        if (ast->loop.loop_type == NECRO_LOOP_FOR)
+            copy_ast = necro_core_ast_create_for_loop(arena, ast->loop.for_loop.max_loops, necro_core_ast_deep_copy(arena, ast->loop.for_loop.range_init), necro_core_ast_deep_copy(arena, ast->loop.value_init), necro_core_ast_deep_copy(arena, ast->loop.for_loop.index_pat), necro_core_ast_deep_copy(arena, ast->loop.value_pat), necro_core_ast_deep_copy(arena, ast->loop.do_expression));
+        else
+            copy_ast = necro_core_ast_create_while_loop(arena, necro_core_ast_deep_copy(arena, ast->loop.value_pat), necro_core_ast_deep_copy(arena, ast->loop.value_init), necro_core_ast_deep_copy(arena, ast->loop.while_loop.while_expression), necro_core_ast_deep_copy(arena, ast->loop.do_expression));
+        break;
+
     default:                       assert(false && "Unimplemented Ast in necro_core_ast_deep_copy"); return NULL;
     }
     copy_ast->necro_type = necro_type_deep_copy(arena, ast->necro_type);
@@ -578,7 +603,7 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_lambda_apats(NecroCoreAstT
     NecroAst*     apats       = ast->lambda.apats;
     while (apats != NULL)
     {
-        if (apats->apats.apat->type == NECRO_AST_VARIABLE)
+        if (apats->apats.apat->type == NECRO_AST_VARIABLE || apats->apats.apat->type == NECRO_AST_WILDCARD)
         {
             NecroCoreAst* var  = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, apats->apats.apat));
             if (lambda_head == NULL)
@@ -742,7 +767,6 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_for_loop(NecroCoreAstTrans
     assert(ast->type == NECRO_AST_FOR_LOOP);
     NecroCoreAst* range_init = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->for_loop.range_init));
     NecroCoreAst* value_init = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->for_loop.value_init));
-    // TODO: Handle Apats correctly!
     NecroCoreAst* index_arg  = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->for_loop.index_apat));
     NecroCoreAst* value_arg  = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->for_loop.value_apat));
     NecroCoreAst* expression = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->for_loop.expression));
@@ -757,8 +781,49 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_for_loop(NecroCoreAstTrans
         max_loops = necro_runtime_get_block_size();
     else
         assert(false);
+    if (value_arg->ast_type != NECRO_CORE_AST_VAR)
+    {
+        // Desugar pattern to case statement
+        NecroCoreAstSymbol* new_value_sym     = necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "val"), value_arg->necro_type);
+        NecroCoreAst*       new_value_pat     = necro_core_ast_create_var(context->arena, new_value_sym, value_arg->necro_type);
+        NecroCoreAst*       new_value_pat_var = necro_core_ast_create_var(context->arena, new_value_sym, value_arg->necro_type);
+        NecroCoreAst*       expr_case_alt     = necro_core_ast_create_case_alt(context->arena, value_arg, expression);
+        NecroCoreAst*       new_expression    = necro_core_ast_create_case(context->arena, new_value_pat_var, necro_cons_core_ast_list(context->arena, expr_case_alt, NULL));
+        value_arg                             = new_value_pat;
+        expression                            = new_expression;
+    }
     NecroCoreAst* core_ast = necro_core_ast_create_for_loop(context->arena, max_loops, range_init, value_init, index_arg, value_arg, expression);
-    core_ast->necro_type = necro_type_deep_copy(context->arena, ast->necro_type);
+    core_ast->necro_type   = necro_type_deep_copy(context->arena, ast->necro_type);
+    assert(core_ast->necro_type != NULL);
+    return ok(NecroCoreAst, core_ast);
+}
+
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_while_loop(NecroCoreAstTransform* context, NecroAst* ast)
+{
+    assert(ast->type == NECRO_AST_WHILE_LOOP);
+    NecroCoreAst* value_pat         = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->while_loop.value_apat));
+    NecroCoreAst* value_init        = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->while_loop.value_init));
+    NecroCoreAst* while_expression  = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->while_loop.while_expression));
+    NecroCoreAst* do_expression     = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->while_loop.do_expression));
+    if (value_pat->ast_type != NECRO_CORE_AST_VAR)
+    {
+        // Desugar pattern to case statement
+        NecroCoreAstSymbol* new_value_sym          = necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "pval"), value_pat->necro_type);
+        NecroCoreAst*       new_value_pat          = necro_core_ast_create_var(context->arena, new_value_sym, value_pat->necro_type);
+        // Test case
+        NecroCoreAst*       test_new_value_pat_var = necro_core_ast_create_var(context->arena, new_value_sym, value_pat->necro_type);
+        NecroCoreAst*       test_case_alt          = necro_core_ast_create_case_alt(context->arena, necro_core_ast_deep_copy(context->arena, value_pat), while_expression);
+        NecroCoreAst*       new_while_expression   = necro_core_ast_create_case(context->arena, test_new_value_pat_var, necro_cons_core_ast_list(context->arena, test_case_alt, NULL));
+        // Expr case
+        // NecroCoreAst*       expr_new_value_pat_var = necro_core_ast_create_var(context->arena, new_value_sym, value_pat->necro_type);
+        // NecroCoreAst*       expr_case_alt          = necro_core_ast_create_case_alt(context->arena, value_pat, do_expression);
+        // NecroCoreAst*       new_do_expression      = necro_core_ast_create_case(context->arena, expr_new_value_pat_var, necro_cons_core_ast_list(context->arena, expr_case_alt, NULL));
+        value_pat                                  = new_value_pat;
+        while_expression                           = new_while_expression;
+        // do_expression                              = new_do_expression;
+    }
+    NecroCoreAst* core_ast = necro_core_ast_create_while_loop(context->arena, value_pat, value_init, while_expression, do_expression);
+    core_ast->necro_type   = necro_type_deep_copy(context->arena, ast->necro_type);
     assert(core_ast->necro_type != NULL);
     return ok(NecroCoreAst, core_ast);
 }
@@ -795,6 +860,15 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_tuple_pat(NecroCoreAstTran
     return ok(NecroCoreAst, tuple_ast);
 }
 
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_wildcard(NecroCoreAstTransform* context, NecroAst* ast)
+{
+    assert(ast->type == NECRO_AST_WILDCARD);
+    NecroType*    wildcard_type               = necro_type_deep_copy(context->arena, ast->necro_type);
+    NecroCoreAst* wildcard_ast                = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "wildcard"), wildcard_type), wildcard_type);
+    wildcard_ast->var.ast_symbol->is_wildcard = true;
+    return ok(NecroCoreAst, wildcard_ast); // NOTE, from Curtis: Wild cards represented as NULL causes issues, instead we're going to compile them as anonymous variables
+}
+
 NecroResult(NecroCoreAst) necro_ast_transform_to_core_pat(NecroCoreAstTransform* context, NecroAst* ast)
 {
     if (ast == NULL)
@@ -805,13 +879,7 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_pat(NecroCoreAstTransform*
     case NECRO_AST_CONID:      return necro_ast_transform_to_core_con(context, ast);
     case NECRO_AST_CONSTANT:   return necro_ast_transform_to_core_lit(context, ast);
     case NECRO_AST_TUPLE:      return necro_ast_transform_to_core_tuple_pat(context, ast);
-    case NECRO_AST_WILDCARD:
-    {
-        NecroType*    wildcard_type               = necro_type_deep_copy(context->arena, ast->necro_type);
-        NecroCoreAst* wildcard_ast                = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "wildcard"), wildcard_type), wildcard_type);
-        wildcard_ast->var.ast_symbol->is_wildcard = true;
-        return ok(NecroCoreAst, wildcard_ast); // NOTE, from Curtis: Wild cards represented as NULL causes issues, instead we're going to compile them as anonymous variables
-    }
+    case NECRO_AST_WILDCARD:   return necro_ast_transform_to_core_wildcard(context, ast);
     case NECRO_AST_CONSTRUCTOR:
     {
         NecroCoreAst* con_ast = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_pat(context, ast->constructor.conid));
@@ -1037,12 +1105,14 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_go(NecroCoreAstTransform* 
     case NECRO_AST_BIN_OP:                 return necro_ast_transform_to_core_bin_op(context, ast);
     case NECRO_AST_TUPLE:                  return necro_ast_transform_to_core_tuple(context, ast);
     case NECRO_AST_FOR_LOOP:               return necro_ast_transform_to_core_for_loop(context, ast);
+    case NECRO_AST_WHILE_LOOP:             return necro_ast_transform_to_core_while_loop(context, ast);
     case NECRO_AST_EXPRESSION_ARRAY:       return necro_ast_transform_to_core_array(context, ast);
     case NECRO_AST_CASE:                   return necro_ast_transform_to_core_case(context, ast);
     case NECRO_AST_OP_LEFT_SECTION:        return necro_ast_transform_to_core_left_section(context, ast);
     case NECRO_AST_OP_RIGHT_SECTION:       return necro_ast_transform_to_core_right_section(context, ast);
     case NECRO_AST_IF_THEN_ELSE:           return necro_ast_transform_to_core_if_then_else(context, ast);
     case NECRO_AST_PAT_ASSIGNMENT:         return necro_ast_transform_to_core_pat_assignment(context, ast);
+    case NECRO_AST_WILDCARD:               return necro_ast_transform_to_core_wildcard(context, ast);
 
     // TODO
     case NECRO_AST_PAT_EXPRESSION:
@@ -1059,7 +1129,6 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_go(NecroCoreAstTransform* 
 
     // Never Encounter
     case NECRO_AST_TYPE_CLASS_INSTANCE:
-    case NECRO_AST_WILDCARD:
     case NECRO_AST_TOP_DECL:
     case NECRO_AST_APATS:
     case NECRO_AST_LIST_NODE:
@@ -1332,32 +1401,27 @@ void necro_core_ast_pretty_print_go(NecroCoreAst* ast, size_t depth)
         necro_type_print(ast->data_con.type);
         return;
     }
-    case NECRO_CORE_AST_FOR:
-    {
-        printf("for ");
-        // Range Init
-        if (ast->for_loop.range_init->ast_type == NECRO_CORE_AST_APP)
-            printf("(");
-        necro_core_ast_pretty_print_go(ast->for_loop.range_init, depth);
-        if (ast->for_loop.range_init->ast_type == NECRO_CORE_AST_APP)
-            printf(")");
-        printf(" ");
-        // Value Init
-        if (ast->for_loop.value_init->ast_type == NECRO_CORE_AST_APP)
-            printf("(");
-        necro_core_ast_pretty_print_go(ast->for_loop.value_init, depth);
-        if (ast->for_loop.value_init->ast_type == NECRO_CORE_AST_APP)
-            printf(")");
-        // The rest
-        printf(" loop ");
-        necro_core_ast_pretty_print_go(ast->for_loop.index_arg, depth);
-        printf(" ");
-        necro_core_ast_pretty_print_go(ast->for_loop.value_arg, depth);
-        printf(" ->\n");
+    case NECRO_CORE_AST_LOOP:
+        printf("loop ");
+        necro_core_ast_pretty_print_go(ast->loop.value_pat, depth);
+        printf(" = ");
+        necro_core_ast_pretty_print_go(ast->loop.value_init, depth);
+        if (ast->loop.loop_type == NECRO_LOOP_FOR)
+        {
+            printf(" for ");
+            necro_core_ast_pretty_print_go(ast->loop.for_loop.index_pat, depth);
+            printf(" <- ");
+            necro_core_ast_pretty_print_go(ast->loop.for_loop.range_init, depth);
+        }
+        else
+        {
+            printf(" while ");
+            necro_core_ast_pretty_print_go(ast->loop.while_loop.while_expression, depth);
+        }
+        printf(" do");
         print_white_space(depth + NECRO_CORE_AST_INDENT);
-        necro_core_ast_pretty_print_go(ast->for_loop.expression, depth + NECRO_CORE_AST_INDENT);
+        necro_core_ast_pretty_print_go(ast->loop.do_expression, depth + NECRO_CORE_AST_INDENT);
         return;
-    }
     default:
         assert(false && "Unimplemented AST type in necro_core_ast_pretty_print_go");
         return;

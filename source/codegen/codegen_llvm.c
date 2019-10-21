@@ -1342,7 +1342,7 @@ void necro_llvm_test_string_go(const char* test_name, const char* str, NECRO_PHA
     NecroCompileInfo    info            = necro_test_compile_info();
     if (phase == NECRO_PHASE_JIT || phase == NECRO_PHASE_COMPILE)
         info.opt_level = 1;
-    // info.verbosity = 2;
+    info.verbosity = 2;
 
     //--------------------
     // Compile
@@ -1362,6 +1362,7 @@ void necro_llvm_test_string_go(const char* test_name, const char* str, NECRO_PHA
     unwrap(void, necro_core_infer(&intern, &base, &core_ast));
     necro_core_defunctionalize(info, &intern, &base, &core_ast);
     unwrap(void, necro_core_infer(&intern, &base, &core_ast));
+    necro_core_ast_pre_simplify(info, &intern, &base, &core_ast);
     necro_core_state_analysis(info, &intern, &base, &core_ast);
     necro_core_transform_to_mach(info, &intern, &base, &core_ast, &mach_program);
     necro_llvm_codegen(info, &mach_program, &llvm);
@@ -1412,8 +1413,6 @@ void necro_llvm_test()
     necro_announce_phase("LLVM");
 
 /*
-
-*/
 
     {
         const char* test_name   = "Data 1";
@@ -2509,6 +2508,20 @@ void necro_llvm_test()
             "coolSaw = saw 440\n"
             "main :: *World -> *World\n"
             "main w = outAudio 0 coolSaw w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Seq 7";
+        const char* test_source = ""
+            "coolSeq :: Seq Int\n"
+            "coolSeq = 666 * 22 + 3 * 4 - 256 * 10\n"
+            "seqGo :: SeqValue Int\n"
+            "seqGo = runSeq coolSeq 0\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 

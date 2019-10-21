@@ -898,6 +898,16 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_append_top(arena, top, necro_base_create_ord_comp_sig(arena, intern, ">="));
     necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, ">=", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "gte", NECRO_VAR_VAR), NULL)));
 
+    // <>
+    {
+        NecroAst* a_var  = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
+        NecroAst* op_sig =
+            necro_ast_create_fn_type_sig(arena, intern, "<>", necro_ast_create_context(arena, intern, "Semigroup", "a", NULL),
+                necro_ast_create_type_fn(arena, a_var, necro_ast_create_type_fn(arena, a_var, a_var)), NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
+        necro_append_top(arena, top, op_sig);
+        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "<>", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "append", NECRO_VAR_VAR), NULL)));
+    }
+
     // // >>=
     // {
     //     NecroAst* a_var       = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
@@ -1042,24 +1052,6 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         necro_append_top(arena, top, op_sig);
         necro_append_top(arena, top, op_def_ast);
     }
-
-    // // id :: .a -> .a
-    // {
-    //     NecroAst* a_var       = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
-    //     a_var->variable.order = NECRO_TYPE_HIGHER_ORDER;
-    //     NecroAst* sig         =
-    //         necro_ast_create_fn_type_sig(arena, intern, "id", NULL,
-    //             necro_ast_create_type_fn(arena,
-    //                 necro_ast_create_type_attribute(arena, a_var, NECRO_TYPE_ATTRIBUTE_DOT),
-    //                 necro_ast_create_type_attribute(arena, a_var, NECRO_TYPE_ATTRIBUTE_DOT)),
-    //             NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
-    //     NecroAst* x_var    = necro_ast_create_var(arena, intern, "x", NECRO_VAR_DECLARATION);
-    //     NecroAst* args     = necro_ast_create_apats(arena, x_var, NULL);
-    //     NecroAst* rhs_ast  = necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "x", NECRO_VAR_VAR), NULL);
-    //     NecroAst* def_ast  = necro_ast_create_apats_assignment(arena, intern, "id", args, rhs_ast);
-    //     necro_append_top(arena, top, sig);
-    //     necro_append_top(arena, top, def_ast);
-    // }
 
     // TODO: Look into this. Looks like somewhere along the way we broke polymorphic pat assignments.
     // // prev
@@ -1383,8 +1375,6 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
                 necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
     }
 
-    // plusPtr??
-
     // && / ||
     // NOTE: && and || turn into NecroMach binops 'and' and 'or', thus use _primUndefined.
     {
@@ -1396,8 +1386,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
                     necro_ast_create_type_fn(arena,
                         bool_conid,
                         bool_conid)), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
-        NecroAst* or_apats = necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "x", NECRO_VAR_DECLARATION), necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "y", NECRO_VAR_DECLARATION), NULL));
-        necro_append_top(arena, top, necro_ast_create_apats_assignment(arena, intern, "&&", or_apats, necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
+        NecroAst* and_apats = necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "x", NECRO_VAR_DECLARATION), necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "y", NECRO_VAR_DECLARATION), NULL));
+        necro_append_top(arena, top, necro_ast_create_apats_assignment(arena, intern, "&&", and_apats, necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
         necro_append_top(arena, top,
             necro_ast_create_fn_type_sig(arena, intern, "||", NULL,
                 necro_ast_create_type_fn(arena,
@@ -1405,8 +1395,9 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
                     necro_ast_create_type_fn(arena,
                         bool_conid,
                         bool_conid)), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
-        NecroAst* and_apats = necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "x", NECRO_VAR_DECLARATION), necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "y", NECRO_VAR_DECLARATION), NULL));
-        necro_append_top(arena, top, necro_ast_create_apats_assignment(arena, intern, "||", and_apats, necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
+        NecroAst* or_apats = necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "x", NECRO_VAR_DECLARATION), necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "y", NECRO_VAR_DECLARATION), NULL));
+        necro_append_top(arena, top, necro_ast_create_apats_assignment(arena, intern, "||", or_apats, necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "_primUndefined", NECRO_VAR_VAR), NULL)));
+
     }
 
     //--------------------

@@ -530,6 +530,20 @@ NecroParseAstLocalPtr necro_parse_ast_create_for_loop(NecroArena* arena, NecroSo
     return local_ptr;
 }
 
+NecroParseAstLocalPtr necro_parse_ast_create_while_loop(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr value_init, NecroParseAstLocalPtr value_apat, NecroParseAstLocalPtr while_expression, NecroParseAstLocalPtr do_expression)
+{
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*        node        = necro_parse_ast_alloc(arena, &local_ptr);
+    node->type                        = NECRO_AST_WHILE_LOOP;
+    node->while_loop.value_init       = value_init;
+    node->while_loop.value_apat       = value_apat;
+    node->while_loop.while_expression = while_expression;
+    node->while_loop.do_expression    = do_expression;
+    node->source_loc                  = source_loc;
+    node->end_loc                     = end_loc;
+    return local_ptr;
+}
+
 ///////////////////////////////////////////////////////
 // Assert Eq
 ///////////////////////////////////////////////////////

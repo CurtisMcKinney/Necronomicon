@@ -5,6 +5,9 @@
 id :: .a -> .a
 id x = x
 
+flip :: .(.a -> .b -> .c) -> .b -> .a -> .c
+flip f y x = f x y
+
 fst :: .(a, b) -> .a
 fst t =
   case t of
@@ -36,10 +39,6 @@ class Enum a where
 -- instance (Default a, Default b) => Default (a, b) where
 --   default = (default, default)
 
--- TODO: Test this
-instance Default a => Default (Maybe a) where
-  default = Just default
-
 arrayFrom :: a -> Array n a
 arrayFrom x =
   freezeArray xa
@@ -47,6 +46,34 @@ arrayFrom x =
     xa =
       loop a = unsafeEmptyArray () for i <- each do
         writeArray i (Share x) a
+
+--------------------
+-- Prim Instances
+--------------------
+
+instance Semigroup Int where
+  append x y = x + y
+
+instance Monoid Int where
+  mempty = 0
+
+instance Semigroup UInt where
+  append x y = x + y
+
+instance Monoid UInt where
+  mempty = 0
+
+instance Semigroup Float where
+  append x y = x + y
+
+instance Monoid Float where
+  mempty = 0
+
+instance Semigroup F64 where
+  append x y = x + y
+
+instance Monoid F64 where
+  mempty = 0
 
 -- instance Default a => Default (Array n a) where
 --   default = arrayFrom default
@@ -67,6 +94,10 @@ arrayFrom x =
 -- Maybe
 --------------------
 data Maybe a = Just a | Nothing
+
+-- TODO: Test this
+instance Default a => Default (Maybe a) where
+  default = Just default
 
 instance Functor Maybe where
   map f m =
@@ -147,7 +178,7 @@ instance FunctorN SeqValue where
           SeqNil   yt yn -> SeqNil (min xt yt) (xn <> yn)
 
 instance Applicative SeqValue where
-  pure x   = SeqValue 0 x
+  pure x   = SeqValue 1 x
   ap fs xs =
     case fs of
       SeqValue ft fv ->
@@ -160,7 +191,7 @@ instance Applicative SeqValue where
           SeqNil   xt xn -> SeqNil (min ft xt) (fn <> xn)
 
 instance Num a => Num (SeqValue a) where
-  fromInt i = SeqValue 0 (fromInt i)
+  fromInt i = SeqValue 1 (fromInt i)
   add x y   = map2 add x y
   sub x y   = map2 sub x y
   mul x y   = map2 mul x y
@@ -168,7 +199,7 @@ instance Num a => Num (SeqValue a) where
   abs x     = map abs x
 
 instance Fractional a => Fractional (SeqValue a) where
-  fromRational r = SeqValue 0 (fromRational r)
+  fromRational r = SeqValue 1 (fromRational r)
   div x y        = map2 div x y
   recip x        = map recip x
 
@@ -181,14 +212,14 @@ instance Functor Seq where
   map f s = Seq (\t -> map f (runSeq s t))
 
 instance Applicative Seq where
-  pure x   = Seq (\_ -> SeqValue 0 x)
+  pure x   = Seq (\_ -> SeqValue 1 x)
   ap fs xs = Seq (\t -> ap (runSeq fs t) (runSeq xs t))
 
 instance FunctorN Seq where
   map2 f sx sy = Seq (\t -> map2 f (runSeq sx t) (runSeq sy t))
 
 instance Num a => Num (Seq a) where
-  fromInt i = Seq (\_ -> SeqValue 0 (fromInt i))
+  fromInt i = Seq (\_ -> SeqValue 1 (fromInt i))
   add x y   = Seq (\t -> map2 add (runSeq x t) (runSeq y t))
   sub x y   = Seq (\t -> map2 sub (runSeq x t) (runSeq y t))
   mul x y   = Seq (\t -> map2 mul (runSeq x t) (runSeq y t))
@@ -196,15 +227,13 @@ instance Num a => Num (Seq a) where
   abs x     = Seq (\t -> map abs (runSeq x t))
 
 instance Fractional a => Fractional (Seq a) where
-  fromRational r = Seq (\_ -> SeqValue 0 (fromRational r))
+  fromRational r = Seq (\_ -> SeqValue 1 (fromRational r))
   div x y        = Seq (\t -> map2 div (runSeq x t) (runSeq y t))
   recip x        = Seq (\t -> map recip (runSeq x t))
 
 rest :: Seq Int
 rest = Seq (\_ -> SeqNil 1 SeqRest)
 
--- class Foldable f where
---   fold :: (b -> a -> b) -> b -> f a -> b
 
 --------------------
 -- Print
@@ -458,6 +487,18 @@ instance Fractional Stereo where
   div l r        = mapAudio2 div l r
   recip c        = mapAudio recip c
 
+instance Semigroup Mono where
+  append x y = x + y
+
+instance Monoid Mono where
+  mempty = 0
+
+instance Semigroup Stereo where
+  append x y = x + y
+
+instance Monoid Stereo where
+  mempty = 0
+
 stereo :: Mono -> Mono -> Stereo
 stereo ml mr =
   case ml of
@@ -476,34 +517,90 @@ accumulateSaw freq acc =
 saw :: (Audio a) => a -> a
 saw freq = accumulateAudio1 accumulateSaw freq
 
--- coolSeq :: Seq Float
--- coolSeq = 77.7 - 666 * 22 + fromInt mouseX * 4 - 256 * 10 + 33.3
+-- statefulWhile :: Mono
+-- statefulWhile = snd <|
+--   loop (i, x) = (0, 0) while i < 20 do
+--     (i + 1, x + saw 440)
 
--- seqGo :: SeqValue Float
--- seqGo = runSeq coolSeq 0
+class Foldable f where
+  fold  :: Monoid m => f m -> m
+  foldl :: Monoid b => (b -> a -> b) -> b -> f a -> b
+  foldp :: Monoid b => (b -> a -> b) -> f a -> b
 
-whileTest1 :: Int
-whileTest1 =
-  loop x = 0 while x < 50 do
-    x + 1
+-- TODO: Desugar seq literals
+-- TODO: Replace Default with Monoid?
+-- TODO: Handle Constant, End, etc
+-- TODO: Need partial recursive values to get rid of monoid here
 
-whileTest2 :: Int
-whileTest2 =
-  loop x = 0 while x < 50 do
-    loop x' = x + 10 while x' < 50 do
-      x' + 1
+instance Foldable Seq where
+  fold s =
+    case out of
+      (#_, _, accOut#) -> accOut
+    where
+      out ~ (#0, 0, mempty#) =
+        case out of
+          (#tick', time', _#) ->
+            loop (#tick, time, acc#) = (#tick' + 1, time', mempty#) while time < tick do
+              case runSeq s time of
+                SeqNil   t _ -> (#tick, time + t, acc#)
+                SeqValue t x -> (#tick, time + t, acc <> x#)
 
--- TODO: Bang patterns in loops around a bit more
-whileTest3 :: (Int, Int)
-whileTest3 =
-  loop (x, y) = (100, 200) while x + y < 1000 do
-    (x - 1, y + 2)
+  foldl f init s =
+    case out of
+      (#_, _, accOut#) -> accOut
+    where
+      out ~ (#0, 0, mempty#) =
+        case out of
+          (#tick', time', _#) ->
+            loop (#tick, time, acc#) = (#tick' + 1, time', init#) while time < tick do
+              case runSeq s time of
+                SeqNil   t _ -> (#tick, time + t, acc#)
+                SeqValue t x -> (#tick, time + t, f acc x#)
 
--- -- Lambda lift error???
--- whileTest3 :: Int
--- whileTest3 = fst <|
---   loop (x, y) = (100, 200) while (x + y) < 1000 do
---     (x - 1, y + 2)
+  foldp f s =
+    case out of
+      (#_, _, accOut#) -> accOut
+    where
+      out ~ (#0, 0, mempty#) =
+        case out of
+          (#tick', time', init#) ->
+            loop (#tick, time, acc#) = (#tick' + 1, time', init#) while time < tick do
+              case runSeq s time of
+                SeqNil   t _ -> (#tick, time + t, acc#)
+                SeqValue t x -> (#tick, time + t, f acc x#)
+
+seqOne :: Seq Int
+seqOne = 1
+
+foldSeqTest :: Int
+-- foldSeqTest = fold 0 + foldl sub 0 44 * foldp mul 33
+foldSeqTest = fold seqOne + foldl sub 0 seqOne * foldp mul seqOne
+
+-- foldPrint :: *World -> *World
+-- foldPrint w = foldl (flip printInt) w 33
+
+-- instance Default World where
+--   default = World
+
+-- instance Print a => Print (Seq a) where
+--   print s w =
+--     case out of
+--       (#_, _, wout#) -> wout
+--     where
+--       out ~ (#Share 0, Share 0, _#) =
+--         case out of
+--           (#Share tick', time', _#) ->
+--             loop (#Share tick, Share time, w'#) = (#Share (tick' + 1), time', w#) while time < tick do
+--               case runSeq s time of
+--                 SeqNil   t _ -> (#Share tick, Share (time + t), w'#)
+--                 SeqValue t x -> (#Share tick, Share (time + t), print x w'#)
+
+-- printSeqTest :: *World -> *World
+-- printSeqTest w = print seqOne w
+
+-- -- TODO: UInt64
+-- -- TODO: Rational
+-- data Rational = Rational (#Bool, UInt, UInt#)
 
 -- poly :: Audio a => (a -> a) -> Seq Float -> a
 -- poly f (Seq s) = out
@@ -516,17 +613,8 @@ whileTest3 =
 
 -- Add Bool to Audio which flags that it has ended!
 
--- patAssignTest :: Int
--- patAssignTest = x
---   where
---     (#x, t#) = (#666, True#)
-
--- coolSeq :: Seq Float
--- coolSeq = [_ 2 [3 3.5] 4]
--- -- Get rid of rest type? Simply extend the timing?
-
--- stereoSaw4Lyfe :: Stereo
--- stereoSaw4Lyfe = saw 440
+-- flipTest2 :: Maybe Int
+-- flipTest2 = map (flip add 33) Nothing
 
 -- TODO:
 -- accumulatePulse :: F64 -> F64 -> F64 -> (#F64, F64#)

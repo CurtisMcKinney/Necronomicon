@@ -117,6 +117,90 @@ NecroCoreAst* necro_core_ast_duplicate_with_subs_lam(NecroPagedArena* arena, Nec
     // new_ast->necro_type->ownership      = ast->necro_type->ownership;
     return new_ast;
 }
+NecroCoreAst* necro_core_ast_duplicate_with_subs_pat(NecroPagedArena* arena, NecroIntern* intern, NecroCoreAst* ast, NecroCoreAstSymbolSubList** subs)
+{
+    if (ast == NULL)
+        return NULL;
+    switch (ast->ast_type)
+    {
+    case NECRO_CORE_AST_APP:
+    {
+        NecroCoreAst* expr1        = necro_core_ast_duplicate_with_subs_pat(arena, intern, ast->app.expr1, subs);
+        NecroCoreAst* expr2        = necro_core_ast_duplicate_with_subs_pat(arena, intern, ast->app.expr2, subs);
+        NecroCoreAst* app          = necro_core_ast_create_app(arena, expr1, expr2);
+        NecroType*    expr1_type   = necro_type_strip_for_all(necro_type_find(expr1->necro_type));
+        assert(expr1_type->type == NECRO_TYPE_FUN);
+        app->necro_type            = necro_type_deep_copy(arena, expr1_type->fun.type2);
+        return app;
+    }
+    case NECRO_CORE_AST_VAR:
+    {
+        if (ast->var.ast_symbol->is_constructor)
+        {
+            return ast;
+        }
+        else
+        {
+            *subs = necro_core_ast_symbol_list_create_var_sub(arena, intern, ast->var.ast_symbol, *subs);
+            return (*subs)->data.new_ast;
+        }
+    }
+    case NECRO_CORE_AST_LIT:
+    {
+        if (ast->lit.type != NECRO_AST_CONSTANT_ARRAY)
+            return necro_core_ast_deep_copy(arena, ast);
+        assert(false && "TODO");
+        return NULL;
+    }
+    default:
+        assert(false && "impossible");
+        return NULL;
+    }
+}
+
+NecroCoreAst* necro_core_ast_duplicate_with_subs_case(NecroPagedArena* arena, NecroIntern* intern, NecroCoreAst* ast, NecroCoreAstSymbolSubList* subs)
+{
+    assert(ast->ast_type == NECRO_CORE_AST_CASE);
+    NecroCoreAst*     expr     = necro_core_ast_duplicate_with_subs(arena, intern, ast->case_expr.expr, subs);
+    NecroCoreAstList* old_alts = ast->case_expr.alts;
+    NecroCoreAstList* new_alts = NULL;
+    while (old_alts != NULL)
+    {
+        NecroCoreAstSymbolSubList* alt_subs = subs;
+        NecroCoreAst*              alt_pat  = necro_core_ast_duplicate_with_subs_pat(arena, intern, old_alts->data->case_alt.pat, &alt_subs);
+        NecroCoreAst*              alt_expr = necro_core_ast_duplicate_with_subs(arena, intern, old_alts->data->case_alt.expr, alt_subs);
+        NecroCoreAst*              new_alt  = necro_core_ast_create_case_alt(arena, alt_pat, alt_expr);
+        new_alt->necro_type                 = old_alts->data->necro_type;
+        new_alts                            = necro_append_core_ast_list(arena, new_alt, new_alts);
+        old_alts                            = old_alts->next;
+    }
+    NecroCoreAst* new_ast = necro_core_ast_create_case(arena, expr, new_alts);
+    new_ast->necro_type   = new_alts->data->case_alt.expr->necro_type;
+    return new_ast;
+}
+
+NecroCoreAst* necro_core_ast_duplicate_with_subs_case_single_with_subs_out(NecroPagedArena* arena, NecroIntern* intern, NecroCoreAst* ast, NecroCoreAstSymbolSubList** subs_ref)
+{
+    assert(ast->ast_type == NECRO_CORE_AST_CASE);
+    NecroCoreAstSymbolSubList* subs     = *subs_ref;
+    NecroCoreAst*              expr     = necro_core_ast_duplicate_with_subs(arena, intern, ast->case_expr.expr, subs);
+    NecroCoreAstList*          old_alts = ast->case_expr.alts;
+    NecroCoreAstList*          new_alts = NULL;
+    while (old_alts != NULL)
+    {
+        NecroCoreAstSymbolSubList* alt_subs = subs;
+        NecroCoreAst*              alt_pat  = necro_core_ast_duplicate_with_subs_pat(arena, intern, old_alts->data->case_alt.pat, &alt_subs);
+        NecroCoreAst*              alt_expr = necro_core_ast_duplicate_with_subs(arena, intern, old_alts->data->case_alt.expr, alt_subs);
+        NecroCoreAst*              new_alt  = necro_core_ast_create_case_alt(arena, alt_pat, alt_expr);
+        new_alt->necro_type                 = old_alts->data->necro_type;
+        new_alts                            = necro_append_core_ast_list(arena, new_alt, new_alts);
+        old_alts                            = old_alts->next;
+        *subs_ref                           = alt_subs;
+    }
+    NecroCoreAst* new_ast = necro_core_ast_create_case(arena, expr, new_alts);
+    new_ast->necro_type   = new_alts->data->case_alt.expr->necro_type;
+    return new_ast;
+}
 
 NecroCoreAst* necro_core_ast_duplicate_with_subs_loop(NecroPagedArena* arena, NecroIntern* intern, NecroCoreAst* ast, NecroCoreAstSymbolSubList* subs)
 {
@@ -137,10 +221,15 @@ NecroCoreAst* necro_core_ast_duplicate_with_subs_loop(NecroPagedArena* arena, Ne
     }
     else
     {
-        NecroCoreAst*              while_expression = necro_core_ast_duplicate_with_subs(arena, intern, ast->loop.while_loop.while_expression, new_subs_1);
-        NecroCoreAst*              do_expression    = necro_core_ast_duplicate_with_subs(arena, intern, ast->loop.do_expression, new_subs_1);
-        NecroCoreAst*              while_loop       = necro_core_ast_create_while_loop(arena, value_pat, value_init, while_expression, do_expression);
-        while_loop->necro_type                      = ast->necro_type;
+        // HACK HACK HACK HACK: Getting subs out here in a hackish way...
+        NecroCoreAst* while_expression = NULL;
+        if (ast->loop.while_loop.while_expression->ast_type == NECRO_CORE_AST_CASE)
+            while_expression = necro_core_ast_duplicate_with_subs_case_single_with_subs_out(arena, intern, ast->loop.while_loop.while_expression, &new_subs_1);
+        else
+            while_expression = necro_core_ast_duplicate_with_subs(arena, intern, ast->loop.while_loop.while_expression, new_subs_1);
+        NecroCoreAst* do_expression = necro_core_ast_duplicate_with_subs(arena, intern, ast->loop.do_expression, new_subs_1);
+        NecroCoreAst* while_loop    = necro_core_ast_create_while_loop(arena, value_pat, value_init, while_expression, do_expression);
+        while_loop->necro_type      = ast->necro_type;
         return while_loop;
     }
 }
@@ -204,68 +293,6 @@ NecroCoreAst* necro_core_ast_duplicate_with_subs_let(NecroPagedArena* arena, Nec
         assert(false);
     }
     return NULL;
-}
-
-NecroCoreAst* necro_core_ast_duplicate_with_subs_pat(NecroPagedArena* arena, NecroIntern* intern, NecroCoreAst* ast, NecroCoreAstSymbolSubList** subs)
-{
-    if (ast == NULL)
-        return NULL;
-    switch (ast->ast_type)
-    {
-    case NECRO_CORE_AST_APP:
-    {
-        NecroCoreAst* expr1        = necro_core_ast_duplicate_with_subs_pat(arena, intern, ast->app.expr1, subs);
-        NecroCoreAst* expr2        = necro_core_ast_duplicate_with_subs_pat(arena, intern, ast->app.expr2, subs);
-        NecroCoreAst* app          = necro_core_ast_create_app(arena, expr1, expr2);
-        NecroType*    expr1_type   = necro_type_strip_for_all(necro_type_find(expr1->necro_type));
-        assert(expr1_type->type == NECRO_TYPE_FUN);
-        app->necro_type            = necro_type_deep_copy(arena, expr1_type->fun.type2);
-        return app;
-    }
-    case NECRO_CORE_AST_VAR:
-    {
-        if (ast->var.ast_symbol->is_constructor)
-        {
-            return ast;
-        }
-        else
-        {
-            *subs = necro_core_ast_symbol_list_create_var_sub(arena, intern, ast->var.ast_symbol, *subs);
-            return (*subs)->data.new_ast;
-        }
-    }
-    case NECRO_CORE_AST_LIT:
-    {
-        if (ast->lit.type != NECRO_AST_CONSTANT_ARRAY)
-            return necro_core_ast_deep_copy(arena, ast);
-        assert(false && "TODO");
-        return NULL;
-    }
-    default:
-        assert(false && "impossible");
-        return NULL;
-    }
-}
-
-NecroCoreAst* necro_core_ast_duplicate_with_subs_case(NecroPagedArena* arena, NecroIntern* intern, NecroCoreAst* ast, NecroCoreAstSymbolSubList* subs)
-{
-    assert(ast->ast_type == NECRO_CORE_AST_CASE);
-    NecroCoreAst*     expr     = necro_core_ast_duplicate_with_subs(arena, intern, ast->case_expr.expr, subs);
-    NecroCoreAstList* old_alts = ast->case_expr.alts;
-    NecroCoreAstList* new_alts = NULL;
-    while (old_alts != NULL)
-    {
-        NecroCoreAstSymbolSubList* alt_subs = subs;
-        NecroCoreAst*              alt_pat  = necro_core_ast_duplicate_with_subs_pat(arena, intern, old_alts->data->case_alt.pat, &alt_subs);
-        NecroCoreAst*              alt_expr = necro_core_ast_duplicate_with_subs(arena, intern, old_alts->data->case_alt.expr, alt_subs);
-        NecroCoreAst*              new_alt  = necro_core_ast_create_case_alt(arena, alt_pat, alt_expr);
-        new_alt->necro_type                 = old_alts->data->necro_type;
-        new_alts                            = necro_append_core_ast_list(arena, new_alt, new_alts);
-        old_alts                            = old_alts->next;
-    }
-    NecroCoreAst* new_ast = necro_core_ast_create_case(arena, expr, new_alts);
-    new_ast->necro_type   = new_alts->data->case_alt.expr->necro_type;
-    return new_ast;
 }
 
 NecroCoreAst* necro_core_ast_duplicate_with_subs(NecroPagedArena* arena, NecroIntern* intern, NecroCoreAst* ast, NecroCoreAstSymbolSubList* subs)

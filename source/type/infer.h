@@ -76,6 +76,9 @@ NecroConstraintList* necro_constraint_append_uniqueness_coercion_without_queue_p
 NecroConstraintList* necro_constraint_append_uniqueness_coercion_and_queue_push_back(NecroPagedArena* arena, NecroConstraintEnv* env, NecroType* u1, NecroType* u2, NecroConstraintList* next);
 NecroConstraintList* necro_constraint_append_uniqueness_coercion_and_queue_push_front(NecroPagedArena* arena, NecroConstraintEnv* env, NecroType* u1, NecroType* u2, NecroConstraintList* next);
 NecroResult(void)    necro_constraint_simplify(NecroPagedArena* arena, NecroConstraintEnv* env, struct NecroBase* base);
+NecroConstraintEnv   necro_constraint_env_empty();
+NecroConstraintEnv   necro_constraint_env_create();
+void                 necro_constraint_env_destroy(NecroConstraintEnv* env);
 
 //--------------------
 // Infer

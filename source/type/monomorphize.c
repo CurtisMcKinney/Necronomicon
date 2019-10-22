@@ -47,6 +47,7 @@ NecroMonomorphize necro_monomorphize_empty()
         .scoped_symtable = NULL,
         .base            = NULL,
         .ast_arena       = NULL,
+        .con_env         = necro_constraint_env_empty(),
     };
     return monomorphize;
 }
@@ -61,6 +62,7 @@ NecroMonomorphize necro_monomorphize_create(NecroIntern* intern, NecroScopedSymT
         .scoped_symtable = scoped_symtable,
         .base            = base,
         .ast_arena       = ast_arena,
+        .con_env         = necro_constraint_env_create(),
     };
     return monomorphize;
 }
@@ -69,6 +71,7 @@ void necro_monomorphize_destroy(NecroMonomorphize* monomorphize)
 {
     assert(monomorphize != NULL);
     necro_snapshot_arena_destroy(&monomorphize->snapshot_arena);
+    necro_constraint_env_destroy(&monomorphize->con_env);
     *monomorphize = necro_monomorphize_empty();
 }
 

@@ -312,6 +312,7 @@ void          necro_core_ast_pretty_print(NecroCoreAst* ast);
 // TODO: Finish deep copy
 NecroCoreAst* necro_core_ast_deep_copy(NecroPagedArena* arena, NecroCoreAst* ast);
 size_t        necro_core_ast_num_args(NecroCoreAst* bind_ast);
+size_t        necro_nat_to_size_t(NecroBase* base, NecroType* n);
 
 //--------------------
 // Transformation

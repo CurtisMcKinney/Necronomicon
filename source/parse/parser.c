@@ -720,6 +720,7 @@ static inline NecroResult(NecroParseAstLocalPtr) necro_parse_expression(NecroPar
 // Forward declarations
 //=====================================================
 typedef NecroResult(NecroParseAstLocalPtr) (*NecroParseFunc)(NecroParser* parser);
+NecroResult(NecroParseAstLocalPtr) necro_parse_pat(NecroParser* parser);
 NecroResult(NecroParseAstLocalPtr) necro_parse_top_declarations(NecroParser* parser);
 NecroResult(NecroParseAstLocalPtr) necro_parse_declaration(NecroParser* parser);
 NecroResult(NecroParseAstLocalPtr) necro_parse_declarations(NecroParser* parser);
@@ -1762,6 +1763,7 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_initializer(NecroParser* parser)
     necro_parse_consume_token(parser);
 
     NecroParseAstLocalPtr local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_function_expression(parser));
+    // NecroParseAstLocalPtr local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_pat(parser));
     if (local_ptr != null_local_ptr)
         return ok(NecroParseAstLocalPtr, local_ptr);
 
@@ -3057,7 +3059,7 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_loop(NecroParser* parser)
         return ok(NecroParseAstLocalPtr, for_local_ptr);
     }
     // While
-    else
+    else if (loop_token_type == NECRO_LEX_WHILE)
     {
         // while_expression
         NecroParseAstLocalPtr until_expression = necro_try_result(NecroParseAstLocalPtr, necro_parse_expression(parser));
@@ -3087,6 +3089,10 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_loop(NecroParser* parser)
         // Finish
         NecroParseAstLocalPtr while_local_ptr = necro_parse_ast_create_while_loop(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->end_loc, value_init, value_apat, until_expression, expression);
         return ok(NecroParseAstLocalPtr, while_local_ptr);
+    }
+    else
+    {
+        return necro_malformed_for_loop_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
     }
 }
 

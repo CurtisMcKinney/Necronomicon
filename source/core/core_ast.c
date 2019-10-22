@@ -47,6 +47,10 @@ NecroCoreAst* necro_core_ast_create_lit(NecroPagedArena* arena, NecroAstConstant
     case NECRO_AST_CONSTANT_INTEGER:
         ast->lit.int_literal = constant.int_literal;
         break;
+    case NECRO_AST_CONSTANT_UNSIGNED_INTEGER_PATTERN:
+    case NECRO_AST_CONSTANT_UNSIGNED_INTEGER:
+        ast->lit.uint_literal = constant.uint_literal;
+        break;
     case NECRO_AST_CONSTANT_STRING:
         ast->lit.string_literal = constant.symbol;
         break;
@@ -762,31 +766,35 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_array(NecroCoreAstTransfor
     return ok(NecroCoreAst, core_array_ast);
 }
 
+size_t necro_nat_to_size_t(NecroBase* base, NecroType* n)
+{
+    n = necro_type_find(n);
+    if (n->type == NECRO_TYPE_NAT)
+        return n->nat.value;
+    else if (n->type == NECRO_TYPE_CON && n->con.con_symbol == base->block_size_type)
+        return necro_runtime_get_block_size();
+    assert(false);
+    return 0;
+}
+
 NecroResult(NecroCoreAst) necro_ast_transform_to_core_for_loop(NecroCoreAstTransform* context, NecroAst* ast)
 {
     assert(ast->type == NECRO_AST_FOR_LOOP);
     NecroCoreAst* range_init = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->for_loop.range_init));
     NecroCoreAst* value_init = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->for_loop.value_init));
-    NecroCoreAst* index_arg  = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->for_loop.index_apat));
-    NecroCoreAst* value_arg  = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->for_loop.value_apat));
+    NecroCoreAst* index_arg  = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_pat(context, ast->for_loop.index_apat));
+    NecroCoreAst* value_arg  = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_pat(context, ast->for_loop.value_apat));
     NecroCoreAst* expression = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->for_loop.expression));
     assert(range_init->necro_type->type == NECRO_TYPE_CON);
     assert(range_init->necro_type->con.con_symbol == context->base->range_type);
     assert(range_init->necro_type->con.args != NULL);
-    size_t max_loops = 0;
-    NecroType* n = range_init->necro_type->con.args->list.item;
-    if (n->type == NECRO_TYPE_NAT)
-        max_loops = n->nat.value;
-    else if (n->type == NECRO_TYPE_CON && n->con.con_symbol == context->base->block_size_type)
-        max_loops = necro_runtime_get_block_size();
-    else
-        assert(false);
+    const size_t  max_loops  = necro_nat_to_size_t(context->base, range_init->necro_type->con.args->list.item);
     if (value_arg->ast_type != NECRO_CORE_AST_VAR)
     {
         // Desugar pattern to case statement
-        NecroCoreAstSymbol* new_value_sym     = necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "val"), value_arg->necro_type);
-        NecroCoreAst*       new_value_pat     = necro_core_ast_create_var(context->arena, new_value_sym, value_arg->necro_type);
-        NecroCoreAst*       new_value_pat_var = necro_core_ast_create_var(context->arena, new_value_sym, value_arg->necro_type);
+        NecroCoreAstSymbol* new_value_sym     = necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "pval"), ast->necro_type);
+        NecroCoreAst*       new_value_pat     = necro_core_ast_create_var(context->arena, new_value_sym, ast->necro_type);
+        NecroCoreAst*       new_value_pat_var = necro_core_ast_create_var(context->arena, new_value_sym, ast->necro_type);
         NecroCoreAst*       expr_case_alt     = necro_core_ast_create_case_alt(context->arena, value_arg, expression);
         NecroCoreAst*       new_expression    = necro_core_ast_create_case(context->arena, new_value_pat_var, necro_cons_core_ast_list(context->arena, expr_case_alt, NULL));
         value_arg                             = new_value_pat;
@@ -801,17 +809,17 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_for_loop(NecroCoreAstTrans
 NecroResult(NecroCoreAst) necro_ast_transform_to_core_while_loop(NecroCoreAstTransform* context, NecroAst* ast)
 {
     assert(ast->type == NECRO_AST_WHILE_LOOP);
-    NecroCoreAst* value_pat         = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->while_loop.value_apat));
+    NecroCoreAst* value_pat         = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_pat(context, ast->while_loop.value_apat));
     NecroCoreAst* value_init        = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->while_loop.value_init));
     NecroCoreAst* while_expression  = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->while_loop.while_expression));
     NecroCoreAst* do_expression     = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->while_loop.do_expression));
     if (value_pat->ast_type != NECRO_CORE_AST_VAR)
     {
         // Desugar pattern to case statement
-        NecroCoreAstSymbol* new_value_sym          = necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "pval"), value_pat->necro_type);
-        NecroCoreAst*       new_value_pat          = necro_core_ast_create_var(context->arena, new_value_sym, value_pat->necro_type);
+        NecroCoreAstSymbol* new_value_sym          = necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "pval"), ast->necro_type);
+        NecroCoreAst*       new_value_pat          = necro_core_ast_create_var(context->arena, new_value_sym, ast->necro_type);
         // Test case
-        NecroCoreAst*       test_new_value_pat_var = necro_core_ast_create_var(context->arena, new_value_sym, value_pat->necro_type);
+        NecroCoreAst*       test_new_value_pat_var = necro_core_ast_create_var(context->arena, new_value_sym, ast->necro_type);
         NecroCoreAst*       test_case_alt          = necro_core_ast_create_case_alt(context->arena, necro_core_ast_deep_copy(context->arena, value_pat), while_expression);
         NecroCoreAst*       new_while_expression   = necro_core_ast_create_case(context->arena, test_new_value_pat_var, necro_cons_core_ast_list(context->arena, test_case_alt, NULL));
         // Expr case
@@ -1527,7 +1535,8 @@ void necro_core_ast_test()
             "tenTimes :: Range 10\n"
             "tenTimes = each\n"
             "addItUp :: Int\n"
-            "addItUp = for tenTimes 0 loop i x -> x + 1\n";
+            "addItUp = loop x = 0 for i <- tenTimes do\n"
+            "  x + 1\n";
         necro_core_test_result(test_name, test_source);
     }
 

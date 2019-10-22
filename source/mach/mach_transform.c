@@ -999,6 +999,8 @@ NecroMachAst* necro_core_transform_to_mach_3_lit(NecroMachProgram* program, Necr
     case NECRO_AST_CONSTANT_INTEGER: return necro_mach_value_create_word_int(program, core_ast->lit.int_literal);
     case NECRO_AST_CONSTANT_FLOAT_PATTERN:
     case NECRO_AST_CONSTANT_FLOAT:   return necro_mach_value_create_word_float(program, core_ast->lit.float_literal);
+    case NECRO_AST_CONSTANT_UNSIGNED_INTEGER_PATTERN:
+    case NECRO_AST_CONSTANT_UNSIGNED_INTEGER: return necro_mach_value_create_word_uint(program, core_ast->lit.uint_literal);
     case NECRO_AST_CONSTANT_CHAR_PATTERN:
     case NECRO_AST_CONSTANT_CHAR:    return necro_mach_value_create_word_uint(program, core_ast->lit.char_literal);
     case NECRO_AST_CONSTANT_ARRAY:   /* CONTINUE BELOW */ break;
@@ -3437,8 +3439,6 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
-    // TODO: |> isn't getting filtered out somewhow!?!?!
-
     {
         const char* test_name   = "Audio 1";
         const char* test_source = ""
@@ -3448,8 +3448,6 @@ void necro_mach_test()
             "main w = outAudio 0 coolSaw w\n";
         necro_mach_test_string(test_name, test_source);
     }
-
-*/
 
     {
         const char* test_name   = "Seq 7";
@@ -3463,26 +3461,48 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
-    // TODO: Test I64 and F64 stored in Structs!
-
-/*
-
-    // {
-    //     const char* test_name   = "Wrapper 1";
-    //     const char* test_source = ""
-    //         "data ABraveNewType a = ABraveNewType a\n"
-    //         "data AMonoNewType = AMonoNewType Int\n"
-    //         "main :: *World -> *World\n"
-    //         "main w = w\n";
-    //     necro_mach_test_string(test_name, test_source);
-    // }
-
     {
-        const char* test_name   = "Undersaturate 1";
+        const char* test_name   = "While 1";
         const char* test_source = ""
-            "x = eq True \n";
+            "whileTest1 :: Int\n"
+            "whileTest1 =\n"
+            "  loop x = 0 while x < 50 do\n"
+            "    x + 1\n";
         necro_mach_test_string(test_name, test_source);
     }
+
+    {
+        const char* test_name   = "While 2";
+        const char* test_source = ""
+            "whileTest2::Int\n"
+            "whileTest2 =\n"
+            "  loop x = 0 while x < 50 do\n"
+            "    loop x' = x + 10 while x' < 50 do\n"
+            "      x' + 1\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "While 3";
+        const char* test_source = ""
+          "whileTest3 :: (#Int, Int#)\n"
+          "whileTest3 =\n"
+          "  loop (#x, y#) = (#100, 200#) while x + y < 1000 do\n"
+          "    (#x - 1, y + 2#)\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Flip Test";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            "main w = flip printInt w 0 |> printInt 666\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+/*
 
 */
 

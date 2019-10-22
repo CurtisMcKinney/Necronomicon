@@ -4805,7 +4805,8 @@ void necro_test_infer()
         const char* test_source = ""
             "tenTimes :: Range 10\n"
             "tenTimes = each\n"
-            "loopTenTimes = for tenTimes 0 loop i x -> x * 2\n";
+            "loopTenTimes = loop x = 0 for i <- tenTimes do\n"
+            "  x * 2\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
     }
@@ -4815,7 +4816,8 @@ void necro_test_infer()
         const char* test_source = ""
             "tenTimes :: Range 10\n"
             "tenTimes = each\n"
-            "loopTenTimes = for tenTimes (True, False) loop i (x, y) -> (y, x)\n";
+            "loopTenTimes = loop (x, y) = (True, False) for i <- tenTimes do\n"
+            "  (y, x)\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_infer_test_result(test_name, test_source, expect_error_result, NULL);
     }

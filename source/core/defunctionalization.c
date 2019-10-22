@@ -507,15 +507,16 @@ NecroStaticValue* necro_defunctionalize_loop(NecroDefunctionalizeContext* contex
 {
     assert(context != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_LOOP);
-    ast->loop.value_pat->var.ast_symbol->static_value = necro_static_value_create_dyn(context->arena, ast->loop.value_pat->necro_type);
+    // ast->loop.value_pat->var.ast_symbol->static_value = necro_static_value_create_dyn(context->arena, ast->necro_type);
     NecroStaticValue* value_init_static_value         = necro_defunctionalize_go(context, ast->loop.value_init);
-    UNUSED(value_init_static_value);
+    ast->loop.value_pat->var.ast_symbol->static_value = value_init_static_value;
+    // UNUSED(value_init_static_value);
     // NOTE: This assumes that these have floated cases from here to the expression!
     if (ast->loop.loop_type == NECRO_LOOP_FOR)
     {
         NecroStaticValue* range_init_static_value                  = necro_defunctionalize_go(context, ast->loop.for_loop.range_init);
-        ast->loop.for_loop.index_pat->var.ast_symbol->static_value = necro_static_value_create_dyn(context->arena, ast->loop.for_loop.index_pat->necro_type);
-        UNUSED(range_init_static_value);
+        ast->loop.for_loop.index_pat->var.ast_symbol->static_value = range_init_static_value;
+        // UNUSED(range_init_static_value);
     }
     else
     {
@@ -1106,6 +1107,7 @@ NecroStaticValue* necro_defunctionalize_app(NecroDefunctionalizeContext* context
 //--------------------
 // Case
 //--------------------
+// TODO: Remove Keep / Eliminate system entirely!
 typedef enum
 {
     NECRO_CASE_ALT_ELIMINATE,
@@ -1125,21 +1127,33 @@ NECRO_CASE_ALT_STATUS necro_defunctionalize_case_pat(NecroDefunctionalizeContext
             NecroCoreAst* var_ast = ast;
             while (var_ast->ast_type == NECRO_CORE_AST_APP)
                 var_ast = var_ast->app.expr1;
-            if (var_ast->var.ast_symbol != expr_sv->con.con_symbol && !necro_type_exact_unify(ast->necro_type, expr_sv->necro_type))
-                return NECRO_CASE_ALT_ELIMINATE;
-            // NecroStaticValueList* rev_con_args = expr_sv->con.args;
-            while (ast->ast_type == NECRO_CORE_AST_APP)
+            if (var_ast->var.ast_symbol != expr_sv->con.con_symbol)
             {
-                // if (necro_defunctionalize_case_pat(context, ast->app.expr2, rev_con_args->data) == NECRO_CASE_ALT_ELIMINATE)
-                if (necro_defunctionalize_case_pat(context, ast->app.expr2, necro_static_value_create_dyn(context->arena, ast->app.expr2->necro_type)) == NECRO_CASE_ALT_ELIMINATE)
-                    return NECRO_CASE_ALT_ELIMINATE;
-                // rev_con_args = rev_con_args->next;
-                ast          = ast->app.expr1;
+                // Different constructor
+                while (ast->ast_type == NECRO_CORE_AST_APP)
+                {
+                    if (necro_defunctionalize_case_pat(context, ast->app.expr2, necro_static_value_create_dyn(context->arena, ast->app.expr2->necro_type)) == NECRO_CASE_ALT_ELIMINATE)
+                        return NECRO_CASE_ALT_ELIMINATE;
+                    ast = ast->app.expr1;
+                }
+                assert(ast->ast_type == NECRO_CORE_AST_VAR);
+                return NECRO_CASE_ALT_KEEP;
             }
-            assert(ast->ast_type == NECRO_CORE_AST_VAR);
-            if (var_ast->var.ast_symbol == expr_sv->con.con_symbol)
+            else
+            {
+                // Matching Constructor
+                NecroStaticValueList* rev_con_args = necro_reverse_static_value_list(context->arena, expr_sv->con.args); // TODO: A Better way
+                while (ast->ast_type == NECRO_CORE_AST_APP)
+                {
+                    if (necro_defunctionalize_case_pat(context, ast->app.expr2, rev_con_args->data) == NECRO_CASE_ALT_ELIMINATE)
+                        return NECRO_CASE_ALT_ELIMINATE;
+                    rev_con_args = rev_con_args->next;
+                    ast = ast->app.expr1;
+                }
+                assert(ast->ast_type == NECRO_CORE_AST_VAR);
                 ast->necro_type = expr_sv->con.con_fn_type;
-            return NECRO_CASE_ALT_KEEP;
+                return NECRO_CASE_ALT_KEEP;
+            }
         }
 
         case NECRO_STATIC_VALUE_DYN:

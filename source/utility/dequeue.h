@@ -37,6 +37,7 @@ static Necro##CAMEL_NAME##Dequeue necro_##SNAKE_NAME##_dequeue_empty()\
 }\
 static Necro##CAMEL_NAME##Dequeue necro_##SNAKE_NAME##_dequeue_create(size_t initial_capacity)\
 {\
+    assert(initial_capacity > 0);\
     Necro##CAMEL_NAME##Dequeue dequeue;\
     dequeue.capacity = initial_capacity;\
     dequeue.count    = 0;\

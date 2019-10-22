@@ -268,15 +268,17 @@ NECRO_STATE_TYPE necro_state_analysis_loop(NecroStateAnalysis* sa, NecroCoreAst*
     ast->necro_type             = necro_core_ast_type_specialize(sa, ast->necro_type);
     NECRO_STATE_TYPE state_type = necro_state_analysis_pat_go(sa, ast->loop.value_pat, outer);
     state_type                  = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, ast->loop.value_init, outer));
-    state_type                  = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, ast->loop.do_expression, outer));
     if (ast->loop.loop_type == NECRO_LOOP_FOR)
     {
         state_type = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_pat_go(sa, ast->loop.for_loop.index_pat, outer));
         state_type = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, ast->loop.for_loop.range_init, outer));
+        state_type = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, ast->loop.do_expression, outer));
     }
     else
     {
-        state_type = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, ast->loop.while_loop.while_expression, outer));
+        state_type              = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, ast->loop.while_loop.while_expression, outer));
+        state_type              = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, ast->loop.do_expression, outer));
+        ast->loop.do_expression = necro_core_ast_maybe_deep_copy(sa, ast->loop.do_expression);
     }
     return state_type;
 }
@@ -764,12 +766,9 @@ NecroType* necro_core_ast_type_specialize(NecroStateAnalysis* sa, NecroType* typ
 // TODO: Handle Arrays
 // TODO: Handle Ping-ponging
 // TODO: Don't deep copy Unique/Owned types, only shared types
-// TODO: Test Append to top-level lets
-// TODO: Perhaps create ping-pong wrapper in mach so that we don't require branching, just the simple load/sub/store combo?
-// TODO: NecroMachMetaData ?
-// TODO: Strip out other state based system
 // NOTE: For arrays simply inline directly the array copying logic, that way we don't have to worry about how to "cache" the array copy functions"
 
+NecroCoreAst* necro_core_ast_create_deep_copy_array(NecroStateAnalysis* context, NecroCoreAst* ast_to_deep_copy);
 NecroCoreAst* necro_core_ast_create_deep_copy(NecroStateAnalysis* context, NecroCoreAst* ast);
 NecroCoreAst* necro_core_ast_maybe_deep_copy(NecroStateAnalysis* context, NecroCoreAst* ast_to_deep_copy)
 {
@@ -778,10 +777,7 @@ NecroCoreAst* necro_core_ast_maybe_deep_copy(NecroStateAnalysis* context, NecroC
     assert(type->type == NECRO_TYPE_CON);
     if (type->con.con_symbol == context->base->array_type)
     {
-        // TODO: Special array handling, finish! right now we're simply not copying arrays!
-        // assert(false && "TODO");
-        // return NULL;
-        return ast_to_deep_copy;
+        return necro_core_ast_create_deep_copy_array(context, ast_to_deep_copy);
     }
     NecroCoreAstSymbol* deep_copy_fn_symbol = type->con.con_symbol->core_ast_symbol->deep_copy_fn;
     if (deep_copy_fn_symbol == NULL)
@@ -803,10 +799,52 @@ NecroCoreAst* necro_core_ast_maybe_deep_copy(NecroStateAnalysis* context, NecroC
     else
     {
         // Normal type
-        // TODO: Create ping pong wrapper here!?
         NecroCoreAst* deep_copy_fn_var = necro_core_ast_create_var(context->arena, deep_copy_fn_symbol, deep_copy_fn_symbol->type);
         return necro_core_ast_create_app(context->arena, deep_copy_fn_var, ast_to_deep_copy);
     }
+}
+
+NecroCoreAst* necro_core_ast_create_deep_copy_array(NecroStateAnalysis* context, NecroCoreAst* ast_to_deep_copy)
+{
+    UNUSED(context);
+    // TODO: Finish!
+    return ast_to_deep_copy;
+/*
+    assert(ast_to_deep_copy != NULL);
+    NecroType* type    = necro_type_find(ast_to_deep_copy->necro_type);
+    assert(type->type == NECRO_TYPE_CON);
+    assert(type->con.con_symbol == context->base->array_type);
+    assert(type->con.args != NULL);
+    NecroType* array_n = type->con.args->list.item;
+    size_t              max_loops  = necro_nat_to_size_t(context->base, array_n);
+    NecroCoreAst*       zero_ast   = necro_core_ast_create_lit(context->arena, (NecroAstConstant) { .uint_literal = 0, .type = NECRO_AST_CONSTANT_UNSIGNED_INTEGER });
+    NecroCoreAst*       range_ast  = necro_core_ast_create_app(context->arena, necro_core_ast_create_app(context->arena, necro_core_ast_create_app(context->arena, necro_core_ast_create_var(context->arena, context->base->range_con->core_ast_symbol, necro_type_con1_create(context->arena, context->base->range_type, array_n)), zero_ast), zero_ast), zero_ast);
+    NecroCoreAst*       emptyArray = necro_core_ast_create_app(context->arena, necro_core_ast_create_var(context->arena, context->base->unsafe_empty_array->core_ast_symbol, type), necro_core_ast_create_var(context->arena, context->base->unit_con->core_ast_symbol , context->base->unit_type->type));
+    NecroType*          i_type     = context->base->uint_type->type;
+    // NecroType*          i_type     = necro_type_con1_create(context->arena, context->base->index_type, array_n);
+    NecroCoreAstSymbol* i_symbol   = necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "i"), i_type);
+    NecroCoreAstSymbol* a_symbol   = necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "a"), type);
+    NecroCoreAst*       index_pat  = necro_core_ast_create_var(context->arena, i_symbol, i_type);
+    NecroCoreAst*       value_pat  = necro_core_ast_create_var(context->arena, a_symbol, type);
+    NecroCoreAst*       read_ast   =
+        necro_core_ast_create_app(context->arena,
+            necro_core_ast_create_app(context->arena,
+                necro_core_ast_create_var(context->arena, context->base->read_array->core_ast_symbol, necro_type_fresh_var(context->arena, NULL)),
+                necro_core_ast_create_var(context->arena, i_symbol, i_type)),
+            ast_to_deep_copy);
+    read_ast->necro_type    = type->con.args->list.next->list.item;
+    NecroCoreAst* deep_copy = necro_core_ast_maybe_deep_copy(context, read_ast);
+    NecroCoreAst* write_ast =
+        necro_core_ast_create_app(context->arena,
+            necro_core_ast_create_app(context->arena,
+                necro_core_ast_create_app(context->arena,
+                    necro_core_ast_create_var(context->arena, context->base->write_array->core_ast_symbol, necro_type_fresh_var(context->arena, NULL)),
+                    necro_core_ast_create_var(context->arena, i_symbol, context->base->unit_type->type)),
+                deep_copy),
+            necro_core_ast_create_var(context->arena, a_symbol, context->base->unit_type->type));
+    NecroCoreAst* copy_loop = necro_core_ast_create_for_loop(context->arena, max_loops, range_ast, emptyArray, index_pat, value_pat, write_ast);
+    return copy_loop;
+*/
 }
 
 NecroCoreAst* necro_core_ast_create_deep_copy(NecroStateAnalysis* context, NecroCoreAst* ast)
@@ -821,7 +859,7 @@ NecroCoreAst* necro_core_ast_create_deep_copy(NecroStateAnalysis* context, Necro
 
     // TODO: How to handle arrays!?!?!?!?!
     if (ast->data_decl.ast_symbol == context->base->array_type->core_ast_symbol)
-        return NULL; // TODO: Finish!
+        return necro_core_ast_create_deep_copy_array(context, ast);
 
     //--------------------
     // is_enum (accurate calculation. coming into this pass is_enum seems spotty. perhaps move this earlier on?)

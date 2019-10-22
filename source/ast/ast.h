@@ -232,6 +232,7 @@ typedef struct
     {
         double      double_literal;
         int64_t     int_literal;
+        uint64_t    uint_literal;
         NecroSymbol symbol;
         uint32_t    char_literal;
     };

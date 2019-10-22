@@ -95,7 +95,11 @@ typedef struct NecroBase
     // NecroAstSymbol* ptr_type;
     NecroAstSymbol* array_type;
     NecroAstSymbol* range_type;
+    NecroAstSymbol* range_con;
     NecroAstSymbol* index_type;
+    NecroAstSymbol* unsafe_empty_array;
+    NecroAstSymbol* read_array;
+    NecroAstSymbol* write_array;
     // NecroAstSymbol* maybe_type;
     NecroAstSymbol* prim_undefined;
     NecroAstSymbol* proj_fn;

@@ -1868,4 +1868,15 @@ void necro_core_ast_test()
             "       subGrid (GridXY x y) = x - y\n";
         necro_core_test_result(test_name, test_source);
     }
+
+    {
+        const char* test_name   = "Lambda Nested Apats 4 tuple args and data";
+        const char* test_source = ""
+            "data Grid = GridXY Int Int\n"
+            "mathPairs :: (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> Int\n"
+            "mathPairs = \\(a, b) (c, d) (e, f) (g, h) -> a + b - c + d - e + f - (subGrid (GridXY h g))\n"
+            "   where\n"
+            "       subGrid (GridXY x y) = x - y\n";
+        necro_core_test_result(test_name, test_source);
+    }
 }

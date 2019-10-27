@@ -570,12 +570,14 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_rhs(NecroCoreAstTransform*
 }
 
 // TODO: Check for exhaustive case expressions!
-// TODO: Patterns in Lambda Apats
 NecroResult(NecroCoreAst) necro_ast_transform_to_core_lambda_apats(NecroCoreAstTransform* context, NecroAst* ast, NecroCoreAst* lambda_expr)
 {
-    NecroCoreAst* lambda_head = NULL;
-    NecroCoreAst* lambda_curr = NULL;
-    NecroAst*     apats       = ast->lambda.apats;
+    NecroCoreAst* lambda_head     = NULL;
+    NecroCoreAst* lambda_curr     = NULL;
+    NecroAst*     apats           = ast->lambda.apats;
+    uint32_t      apat_index      = 0;
+    NecroCoreAst* apat_cases_head = NULL;
+    NecroCoreAst* apat_cases_tail = NULL;
     while (apats != NULL)
     {
         if (apats->apats.apat->type == NECRO_AST_VARIABLE)
@@ -594,12 +596,96 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_lambda_apats(NecroCoreAstT
         }
         else
         {
-            // Note: We should float all case statements to being after all the lambdas and right before the lambda_expr.
-            assert(false && "TODO: lambda apat patterns aren't implemented yet.");
+            NecroCoreAst* apat_variable = NULL;
+            { // Generate variable placeholder for the apat argument, used for case destructuring
+                static const size_t max_apat_arg_name_size = 32;
+                char apat_arg_name_buff[max_apat_arg_name_size] = { 0 };
+                int print_result = snprintf(apat_arg_name_buff, max_apat_arg_name_size, "_arg_%u_", apat_index);
+                assert(print_result >= 0 && print_result < (int) max_apat_arg_name_size);
+                NecroType* apat_arg_type = necro_type_deep_copy(context->arena, apats->apats.apat->necro_type);
+                NecroCoreAstSymbol* apat_symbol = necro_core_ast_symbol_create(
+                    context->arena,
+                    necro_intern_string(
+                        context->intern,
+                        apat_arg_name_buff
+                    ),
+                    apat_arg_type
+                );
+                assert(apat_symbol != NULL);
+
+                apat_variable = necro_core_ast_create_var(
+                    context->arena,
+                    apat_symbol,
+                    apat_arg_type
+                );
+
+                assert(apat_variable != NULL);
+                assert(apat_variable->necro_type != NULL);
+
+            }
+
+            { // Create lambda using the variable as the argument name
+                if (lambda_head == NULL)
+                {
+                    lambda_curr = necro_core_ast_create_lam(context->arena, apat_variable, NULL);
+                    lambda_head = lambda_curr;
+                }
+                else
+                {
+                    lambda_curr->lambda.expr = necro_core_ast_create_lam(context->arena, apat_variable, NULL);
+                    lambda_curr = lambda_curr->lambda.expr;
+                }
+            }
+
+            { // build the case expression on the apat argument, referencing the variable now bound to the lambda argument
+
+                // @Curtis: How do I figure this out?
+                // TODO: Add error handling for data types with multiple constructors
+                /* if (apats->apats.apat->type == NECRO_AST_CONSTRUCTOR) */
+                /* { */
+                /*     // Get base type here, find number of constructors some how, throw error if more than one! */
+                /* } */
+
+                NecroCoreAst* alt_pat  = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_pat(context, apats->apats.apat));
+                NecroCoreAst* alt_expr = NULL;
+                NecroCoreAst* alt_ast  = necro_core_ast_create_case_alt(context->arena, alt_pat, alt_expr);
+                NecroCoreAstList* alts = NULL;
+                alts                   = necro_append_core_ast_list(context->arena, alt_ast, alts);
+                assert(alts != NULL);
+                NecroCoreAst* case_ast = necro_core_ast_create_case(context->arena, apat_variable, alts);
+                if (apat_cases_tail != NULL)
+                {
+                    apat_cases_tail->case_expr.alts->data->case_alt.expr = case_ast;
+                }
+
+                apat_cases_tail = case_ast;
+
+                if (apat_cases_head == NULL)
+                {
+                    apat_cases_head = apat_cases_tail;
+                }
+
+                // @Curtis: is this right?
+                case_ast->necro_type = necro_type_deep_copy(context->arena, lambda_expr->necro_type);
+            }
         }
         apats = apats->apats.next_apat;
+        assert(apat_index < UINT32_MAX);
+        ++apat_index;
     }
-    lambda_curr->lambda.expr = lambda_expr;
+
+    assert(lambda_curr != NULL);
+    if (apat_cases_tail != NULL)
+    { // Float case statements to be after all the lambdas, with the final case expression being the final expression for the whole apats expression
+        assert(apat_cases_head != NULL);
+        lambda_curr->lambda.expr = apat_cases_head;
+        apat_cases_tail->case_expr.alts->data->case_alt.expr = lambda_expr;
+    }
+    else
+    {
+        lambda_curr->lambda.expr = lambda_expr;
+    }
+
     return ok(NecroCoreAst, lambda_head);
 }
 
@@ -1689,6 +1775,87 @@ void necro_core_ast_test()
             "      (False, ((z, w), r)) -> ((w, z), r)\n"
             "main :: *World -> *World\n"
             "main w = w\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Bind Rec";
+        const char* test_source = ""
+            "a :: Int\n"
+            "a = b\n"
+            "   where\n"
+            "       b ~ 0 = c + 1\n"
+            "       c ~ 1 = b - 2\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Apats Tuple arg";
+        const char* test_source = ""
+            "addPair :: (Int, Int) -> Int\n"
+            "addPair (a, b) = a + b\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+
+    {
+        const char* test_name   = "Apats 2 Tuple args";
+        const char* test_source = ""
+            "addPairs :: (Int, Int) -> (Int, Int) -> Int\n"
+            "addPairs (a, b) (c, d) = a + b + c + d\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+
+    {
+        const char* test_name   = "Apats 4 tuple args";
+        const char* test_source = ""
+            "concatPairs :: (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> Int\n"
+            "concatPairs (a, b) (c, d) (e, f) (g, h) = a + b - c + d - e + f - g + h\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    // @Curtis: This throws an assert in inference (pre-core) about a kind mismatch, what's up with that?
+    /* { */
+    /*     const char* test_name   = "Apats 4 tuple args to 8 tuple"; */
+    /*     const char* test_source = "" */
+    /*         "concatPairs :: (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int, Int, Int, Int, Int, Int, Int)\n" */
+    /*         "concatPairs (a, b) (c, d) (e, f) (g, h) = (a, b, c, d, e, f ,g, h)\n"; */
+    /*     necro_core_test_result(test_name, test_source); */
+    /* } */
+
+    {
+        const char* test_name   = "Apats 2 tuple args around var";
+        const char* test_source = ""
+            "addPairs :: (Int, Int) -> Int -> (Int, Int) -> Int\n"
+            "addPairs (a, b) c (d, e) = a + b + c + d + e\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Apats with data type";
+        const char* test_source = ""
+            "data Grid = GridXY Int Int\n"
+            "addPairs :: (Int, Int) -> Grid -> (Int, Int) -> Int\n"
+            "addPairs (a, b) (GridXY c d) (e, f) = a + b + c + d + e + f\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    { // NOTE! This shouldn't compile because of a non-exhaustive pattern. @Curtis: Should it fail even earlier, say in the AST parser?
+        const char* test_name   = "Apats with data type and multi constructor";
+        const char* test_source = ""
+            "data Book = Pages Int\n"
+            "addPairs :: (Int, Int) -> Book -> (Int, Int) -> Bool -> Int\n"
+            "addPairs (a, b) (Pages c) (d, e) True = a + b + c + d + e\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Apats with data enum type";
+        const char* test_source = ""
+            "data Universe = Infinite\n"
+            "addPairs :: (Int, Int) -> Universe -> (Int, Int) -> Int\n"
+            "addPairs (a, b) Infinite (c, d) = a + b + c + d\n";
         necro_core_test_result(test_name, test_source);
     }
 }

@@ -575,7 +575,6 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_lambda_apats(NecroCoreAstT
     NecroCoreAst* lambda_head     = NULL;
     NecroCoreAst* lambda_curr     = NULL;
     NecroAst*     apats           = ast->lambda.apats;
-    uint32_t      apat_index      = 0;
     NecroCoreAst* apat_cases_head = NULL;
     NecroCoreAst* apat_cases_tail = NULL;
     while (apats != NULL)
@@ -598,17 +597,10 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_lambda_apats(NecroCoreAstT
         {
             NecroCoreAst* apat_variable = NULL;
             { // Generate variable placeholder for the apat argument, used for case destructuring
-                static const size_t max_apat_arg_name_size = 32;
-                char apat_arg_name_buff[max_apat_arg_name_size] = { 0 };
-                int print_result = snprintf(apat_arg_name_buff, max_apat_arg_name_size, "_arg_%u_", apat_index);
-                assert(print_result >= 0 && print_result < (int) max_apat_arg_name_size);
                 NecroType* apat_arg_type = necro_type_deep_copy(context->arena, apats->apats.apat->necro_type);
                 NecroCoreAstSymbol* apat_symbol = necro_core_ast_symbol_create(
                     context->arena,
-                    necro_intern_string(
-                        context->intern,
-                        apat_arg_name_buff
-                    ),
+                    necro_intern_unique_string(context->intern, "_apatsArg"),
                     apat_arg_type
                 );
                 assert(apat_symbol != NULL);
@@ -665,13 +657,10 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_lambda_apats(NecroCoreAstT
                     apat_cases_head = apat_cases_tail;
                 }
 
-                // @Curtis: is this right?
                 case_ast->necro_type = necro_type_deep_copy(context->arena, lambda_expr->necro_type);
             }
         }
         apats = apats->apats.next_apat;
-        assert(apat_index < UINT32_MAX);
-        ++apat_index;
     }
 
     assert(lambda_curr != NULL);
@@ -1856,6 +1845,27 @@ void necro_core_ast_test()
             "data Universe = Infinite\n"
             "addPairs :: (Int, Int) -> Universe -> (Int, Int) -> Int\n"
             "addPairs (a, b) Infinite (c, d) = a + b + c + d\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Nested Apats 4 tuple args";
+        const char* test_source = ""
+            "mathPairs :: (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> Int\n"
+            "mathPairs (a, b) (c, d) (e, f) g = a + b - c + d - e + f - (mulTuple  g)\n"
+            "   where\n"
+            "       mulTuple (x, y) = x * y\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Nested Apats 4 tuple args and data";
+        const char* test_source = ""
+            "data Grid = GridXY Int Int\n"
+            "mathPairs :: (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> Int\n"
+            "mathPairs (a, b) (c, d) (e, f) (g, h) = a + b - c + d - e + f - (subGrid (GridXY h g))\n"
+            "   where\n"
+            "       subGrid (GridXY x y) = x - y\n";
         necro_core_test_result(test_name, test_source);
     }
 }

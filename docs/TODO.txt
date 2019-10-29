@@ -1,3 +1,58 @@
+
+=================================================================================================================
+-- Chad To Do 10/20/2019
+non-sum type destructuring of apats in function -> for example
+
+myCoolFunc :: (Int, Int) -> Int
+myCoolFunc (a, b) = a + b
+
+desugars to
+
+myCoolFunc arg =
+  case arg of
+    (a, b) -> a + b
+
+
+myCoolFunc2 :: (Int, Int) -> (Float, Float) -> Int
+myCoolFunc2 (a, b) (c, d) = a + b / c + d
+
+desguars to
+
+myCoolFunc2 :: (Int, Int) -> (Float, Float) -> Int
+myCoolFunc2 arg1 arg2 =
+  case arg1 of
+    (a, b) -> case arg2 of
+        (c, d) -> a + b / c + d
+
+(NOT SUPPORTED FOR NOW)
+
+myUnCoolFunc :: Bool
+myUnCoolFunc True = False
+
+
+=================================================================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+Translate to core:
+	* Typeclasses don't use dictionaries
+	* Instead deep copy every version of the AST for the instances, modified/name mangled to use the types (recursive)
+	* Make everything concrete types in core (no polymorphism), don't need big/small lambda stuff
+	* Don't have to worry about .forall or lambdas etc..
+	* Should make typing core simpler
+
+
+
 -- Chad To Do 2/24/2019
 
 CORE TRANSLATION

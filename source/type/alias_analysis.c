@@ -733,7 +733,6 @@ void necro_alias_analysis_test_case(const char* test_name, const char* str, cons
     NecroParseAstArena  parse_ast       = necro_parse_ast_arena_empty();
     NecroAstArena       ast             = necro_ast_arena_empty();
     NecroCompileInfo    info            = necro_test_compile_info();
-    NecroAliasAnalysis  alias_analysis  = necro_alias_analysis_create(&ast);
 
     // Compile
     unwrap(void, necro_lex(info, &intern, str, strlen(str), &tokens));
@@ -742,6 +741,7 @@ void necro_alias_analysis_test_case(const char* test_name, const char* str, cons
     necro_build_scopes(info, &scoped_symtable, &ast);
     unwrap(void, necro_rename(info, &scoped_symtable, &intern, &ast));
     necro_dependency_analyze(info, &intern, &ast);
+    NecroAliasAnalysis  alias_analysis = necro_alias_analysis_create(&ast);
     necro_alias_analysis_impl(&alias_analysis);
 
     // Test
@@ -1518,10 +1518,10 @@ void necro_alias_analysis_test()
     {
         const char* test_name   = "tuple Test Poly";
         const char* test_source = ""
-            "fst' :: .(a, b) -> .a\n"
-            "fst' (x, _) = x\n"
-            "snd' :: .(a, b) -> .b\n"
-            "snd' (_, y) = y\n";
+            "fstU :: .(a, b) -> .a\n"
+            "fstU (x, _) = x\n"
+            "sndU :: .(a, b) -> .b\n"
+            "sndU (_, y) = y\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
         necro_ownership_test(test_name, test_source, expect_error_result, NULL);
     }

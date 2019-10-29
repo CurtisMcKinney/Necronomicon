@@ -1260,7 +1260,7 @@ void necro_state_analysis_test()
             "coolSeq :: Seq Int\n"
             "coolSeq = 666 * 22 + 3 * 4 - 256 * 10\n"
             "seqGo :: SeqValue Int\n"
-            "seqGo = runSeq coolSeq 0\n";
+            "seqGo = runSeq coolSeq ()\n";
         necro_state_analysis_test_string(test_name, test_source);
     }
 

@@ -53,23 +53,38 @@ extern DLLEXPORT int necro_runtime_get_mouse_y(unsigned int _dummy)
 
 extern DLLEXPORT void necro_runtime_print(int value)
 {
-    printf("%d\n", value);
+    printf("%d", value);
 }
 
 extern DLLEXPORT void necro_runtime_debug_print(int value)
 {
-    printf("debug: %d\n", value);
+    printf("debug: %d", value);
 }
 
 extern DLLEXPORT unsigned int necro_runtime_print_int(int value, unsigned int world)
 {
-    printf("%d                                \r", value);
+    printf("%d", value);
+    return world;
+}
+
+extern DLLEXPORT unsigned int necro_runtime_print_i64(int64_t value, unsigned int world)
+{
+    printf("%I64d", value);
     return world;
 }
 
 extern DLLEXPORT unsigned int necro_runtime_print_f64(double value, unsigned int world)
 {
-    printf("%.17g                                \r", value);
+    printf("%.17g", value);
+    return world;
+}
+
+extern DLLEXPORT unsigned int necro_runtime_print_char(unsigned int value, unsigned int world)
+{
+    if (value < 256)
+        putchar(value);
+    else
+        printf("%d", value);
     return world;
 }
 
@@ -96,7 +111,7 @@ extern DLLEXPORT void necro_runtime_error_exit(uint32_t error_code)
     necro_exit(error_code);
 }
 
-// TODO: Different Allocators basedon size: Slab Allocator => Buddy => OS
+// TODO: Different Allocators based on size: Slab Allocator => Buddy => OS
 extern DLLEXPORT uint8_t* necro_runtime_alloc(unsigned int size)
 {
     return malloc(size);

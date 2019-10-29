@@ -334,8 +334,8 @@ NecroResult(NecroAstSymbol) necro_rename_declare(NecroRenamer* renamer, NecroAst
     case NECRO_AST_EXPRESSION_ARRAY:
         necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->expression_array.expressions));
         break;
-    case NECRO_AST_PAT_EXPRESSION:
-        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->pattern_expression.expressions));
+    case NECRO_AST_SEQ_EXPRESSION:
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->sequence_expression.expressions));
         break;
     case NECRO_AST_TUPLE:
         necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->tuple.expressions));
@@ -625,8 +625,8 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
     case NECRO_AST_EXPRESSION_ARRAY:
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->expression_array.expressions));
         break;
-    case NECRO_AST_PAT_EXPRESSION:
-        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->pattern_expression.expressions));
+    case NECRO_AST_SEQ_EXPRESSION:
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->sequence_expression.expressions));
         break;
     case NECRO_AST_TUPLE:
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->tuple.expressions));

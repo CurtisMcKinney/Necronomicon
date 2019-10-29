@@ -543,8 +543,8 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
     case NECRO_AST_EXPRESSION_ARRAY:
         d_analyze_go(d_analyzer, ast->expression_array.expressions);
         break;
-    case NECRO_AST_PAT_EXPRESSION:
-        d_analyze_go(d_analyzer, ast->pattern_expression.expressions);
+    case NECRO_AST_SEQ_EXPRESSION:
+        d_analyze_go(d_analyzer, ast->sequence_expression.expressions);
         break;
     case NECRO_AST_TUPLE:
         d_analyze_go(d_analyzer, ast->tuple.expressions);

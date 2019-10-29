@@ -649,8 +649,8 @@ void necro_alias_analysis_go(NecroAliasAnalysis* alias_analysis, NecroAliasSet* 
     case NECRO_AST_EXPRESSION_ARRAY:
         necro_alias_analysis_go(alias_analysis, alias_set, ast->expression_array.expressions);
         return;
-    case NECRO_AST_PAT_EXPRESSION:
-        necro_alias_analysis_go(alias_analysis, alias_set, ast->pattern_expression.expressions);
+    case NECRO_AST_SEQ_EXPRESSION:
+        necro_alias_analysis_go(alias_analysis, alias_set, ast->sequence_expression.expressions);
         return;
     case NECRO_AST_TUPLE:
         necro_alias_analysis_go(alias_analysis, alias_set, ast->tuple.expressions);

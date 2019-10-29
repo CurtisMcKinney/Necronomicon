@@ -114,7 +114,7 @@ void necro_parse_test()
     necro_parse_ast_test_error("MalformedClassInstance", "instance MalformedInstance Int where\n  x y = y\n  !!\n", NECRO_PARSE_INSTANCE_EXPECTED_RIGHT_BRACE);
     // necro_parse_ast_test_error("InitialValueError", "malformedInit ~ (Just 0 = 0\n", NECRO_PARSE_CONST_CON_MISSING_RIGHT_PAREN);
     necro_parse_ast_test_error("InitialValueError", "malformedInit ~ (Just 0 = 0\n", NECRO_PARSE_PAREN_EXPRESSION_MISSING_PAREN);
-    necro_parse_ast_test_error("MalformedForLoop", "malformedForLoop =\n  for x loop -> x\n", NECRO_PARSE_MALFORMED_FOR_LOOP);
+    necro_parse_ast_test_error("MalformedForLoop", "malformedForLoop =\n  loop x <- 0 for i <- each do x\n", NECRO_PARSE_MALFORMED_FOR_LOOP);
 
 
     // TODO: This should proc a parse error!
@@ -478,10 +478,10 @@ void necro_parse_test()
         NecroParseAstArena ast    = necro_parse_ast_arena_create(100 * sizeof(NecroParseAst));
         ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
-                necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "patIsATerribleName"),
+                necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "coolSeq"),
                     necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
 
-                        necro_parse_ast_create_pat_expr(&ast.arena, zero_loc, zero_loc,
+                        necro_parse_ast_create_seq_expr(&ast.arena, zero_loc, zero_loc,
                             necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
                                 necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER }),
                                 necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
@@ -490,12 +490,12 @@ void necro_parse_test()
                                         necro_parse_ast_create_wildcard(&ast.arena, zero_loc, zero_loc),
                                         necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
                                             necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 3, .type = NECRO_AST_CONSTANT_INTEGER }),
-                                            null_local_ptr))))),
+                                            null_local_ptr)))), NECRO_SEQUENCE_SEQUENCE),
 
                         null_local_ptr),
                     null_local_ptr),
                 null_local_ptr);
-        necro_parse_ast_test("Pat", "patIsATerribleName = [0 1 _ 3]\n", &intern, &ast);
+        necro_parse_ast_test("Seq", "coolSeq = [0 1 _ 3]\n", &intern, &ast);
     }
 
     {
@@ -753,7 +753,7 @@ void necro_parse_test()
                         null_local_ptr),
                     null_local_ptr),
                 null_local_ptr);
-        necro_parse_ast_test("forLoopTest", "forLoopTest =\n  for each 0 loop i x -> x + 1\n", &intern, &ast);
+        necro_parse_ast_test("forLoopTest", "forLoopTest =\n  loop x = 0 for i <- each do\n    x + 1\n", &intern, &ast);
     }
 
     {

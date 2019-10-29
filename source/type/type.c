@@ -1939,7 +1939,7 @@ NecroType* necro_type_tuple_con_create(NecroPagedArena* arena, NecroBase* base, 
     case 5:  con_symbol = base->tuple5_type;  break;
     case 6:  con_symbol = base->tuple6_type;  break;
     case 7:  con_symbol = base->tuple7_type;  break;
-    case 8:  con_symbol = base->tuple7_type;  break;
+    case 8:  con_symbol = base->tuple8_type;  break;
     case 9:  con_symbol = base->tuple9_type;  break;
     case 10: con_symbol = base->tuple10_type; break;
     default:

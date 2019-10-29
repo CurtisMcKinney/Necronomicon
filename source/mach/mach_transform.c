@@ -1169,14 +1169,17 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     case NECRO_PRIMOP_BINOP_ISUB:
     case NECRO_PRIMOP_BINOP_IMUL:
     case NECRO_PRIMOP_BINOP_IDIV:
+    case NECRO_PRIMOP_BINOP_IREM:
     case NECRO_PRIMOP_BINOP_UADD:
     case NECRO_PRIMOP_BINOP_USUB:
     case NECRO_PRIMOP_BINOP_UMUL:
     case NECRO_PRIMOP_BINOP_UDIV:
+    case NECRO_PRIMOP_BINOP_UREM:
     case NECRO_PRIMOP_BINOP_FADD:
     case NECRO_PRIMOP_BINOP_FSUB:
     case NECRO_PRIMOP_BINOP_FMUL:
     case NECRO_PRIMOP_BINOP_FDIV:
+    case NECRO_PRIMOP_BINOP_FREM:
     case NECRO_PRIMOP_BINOP_AND:
     case NECRO_PRIMOP_BINOP_OR:
     case NECRO_PRIMOP_BINOP_SHL:
@@ -3450,18 +3453,6 @@ void necro_mach_test()
     }
 
     {
-        const char* test_name   = "Seq 7";
-        const char* test_source = ""
-            "coolSeq :: Seq Int\n"
-            "coolSeq = 666 * 22 + 3 * 4 - 256 * 10\n"
-            "seqGo :: SeqValue Int\n"
-            "seqGo = runSeq coolSeq 0\n"
-            "main :: *World -> *World\n"
-            "main w = w\n";
-        necro_mach_test_string(test_name, test_source);
-    }
-
-    {
         const char* test_name   = "While 1";
         const char* test_source = ""
             "whileTest1 :: Int\n"
@@ -3492,8 +3483,6 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Flip Test";
         const char* test_source = ""
@@ -3502,7 +3491,49 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
+    {
+        const char* test_name   = "Print Char";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            "main w = printLn 'x' w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Print Rational";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            "main w = printLn (Rational (#1, 4#)) w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+
+*/
+    {
+        const char* test_name   = "Seq 7";
+        const char* test_source = ""
+            "coolSeq :: Seq Int\n"
+            "coolSeq = 666 * 22 + 3 * 4 - 256 * 10\n"
+            "seqGo :: SeqValue Int\n"
+            "seqGo = runSeq coolSeq ()\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
 /*
+
+    {
+        const char* test_name   = "Seq 8";
+        const char* test_source = ""
+            "coolSeq :: Seq Int\n"
+            "coolSeq = 666 * 22 + 3 * 4 - 256 * 10\n"
+            "seqGo :: SeqValue Int\n"
+            "seqGo = runSeq (coolSeq + coolSeq) ()\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
 
 */
 

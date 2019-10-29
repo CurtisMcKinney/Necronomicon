@@ -40,7 +40,7 @@ NecroCoreAst* necro_core_ast_duplicate_with_subs_app(NecroPagedArena* arena, Nec
     NecroCoreAst* expr2        = necro_core_ast_duplicate_with_subs(arena, intern, ast->app.expr2, subs);
     NecroCoreAst* app          = necro_core_ast_create_app(arena, expr1, expr2);
     NecroType*    expr1_type   = necro_type_strip_for_all(necro_type_find(expr1->necro_type)); // strip uvar foralls...
-    assert(expr1_type->type == NECRO_TYPE_FUN);
+    // assert(expr1_type->type == NECRO_TYPE_FUN);
     app->necro_type            = necro_type_deep_copy(arena, expr1_type->fun.type2);
     return app;
 }
@@ -576,13 +576,29 @@ NecroCoreAst* necro_core_ast_eta_expansion(NecroCorePreSimplify* context, NecroC
         return bind_ast;
     NecroCoreAstSymbol* arg_symbol   = necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "eta"), bind_type->fun.type1);
     NecroCoreAst*       lam_arg_var  = necro_core_ast_create_var(context->arena, arg_symbol, arg_symbol->type);
-    NecroCoreAst*       expr_arg_var = necro_core_ast_create_var(context->arena, arg_symbol, arg_symbol->type);
+    NecroCoreAst*       expr_arg_var = NULL;
+
+    // Unit type -> wild card optimization
+    NecroType* arg_type = necro_type_strip_for_all(necro_type_find(bind_type->fun.type1));
+    if (arg_type->type == NECRO_TYPE_CON && arg_type->con.con_symbol == context->base->unit_type)
+    {
+        arg_symbol->is_wildcard = true;
+        expr_arg_var            = necro_core_ast_create_var(context->arena, context->base->unit_con->core_ast_symbol, arg_symbol->type);
+    }
+    else
+    {
+        expr_arg_var = necro_core_ast_create_var(context->arena, arg_symbol, arg_symbol->type);
+    }
+
     NecroCoreAst*       new_expr     = necro_core_ast_create_app(context->arena, bind_ast->bind.expr, expr_arg_var);
     NecroCoreAst*       lam_ast      = necro_core_ast_create_lam(context->arena, lam_arg_var, new_expr);
     NecroCoreAst*       new_ast      = necro_core_ast_create_bind(context->arena, bind_ast->bind.ast_symbol, lam_ast, bind_ast->bind.initializer);
     new_ast->necro_type              = bind_ast->necro_type;
     // new_ast                          = necro_core_ast_pre_simplify_inline_wrapper_types(context, new_ast);
     new_ast->bind.ast_symbol->ast    = new_ast;
+
+    // NecroCoreAst* const_ast = necro_ast_inline_app_const_1(context, lam_arg_var, )
+
     return new_ast;
 }
 
@@ -676,6 +692,13 @@ NecroCoreAst* necro_core_ast_pre_simplify_let(NecroCorePreSimplify* context, Nec
         ast->let.bind->bind.ast_symbol->inline_ast = ast->let.bind->bind.expr;
         return ast->let.expr;
     }
+
+    // Only remove AFTER lambda lift?
+    // Rewrite let f _ = ... in expr ==> expr
+    // if (ast->let.bind->ast_type == NECRO_CORE_AST_BIND && ast->let.bind->bind.expr->ast_type == NECRO_CORE_AST_LAM && ast->let.bind->bind.expr->lambda.expr->ast_type != NECRO_CORE_AST_LAM && ast->let.bind->bind.expr->lambda.arg->var.ast_symbol->is_wildcard)
+    // {
+    //     return ast->let.expr;
+    // }
 
     NecroCoreAst* bind = necro_core_ast_pre_simplify_go(context, ast->let.bind);
     NecroCoreAst* expr = necro_core_ast_pre_simplify_go(context, ast->let.expr);
@@ -820,9 +843,9 @@ NecroCoreAst* necro_ast_inline_app_const_1(NecroCorePreSimplify* context, NecroC
         return ast;
     NecroCoreAst* arg1 = fn->lambda.arg;
     NecroCoreAst* expr = fn->lambda.expr;
-    // if (expr->ast_type == NECRO_CORE_AST_LAM)
-    //     return ast;
     if (!arg1->var.ast_symbol->is_wildcard)
+        return ast;
+    if (expr->ast_type == NECRO_CORE_AST_LAM)
         return ast;
     NecroCoreAstSymbolSubList* subs     = necro_core_ast_symbol_list_create_sub(context->arena, arg1->var.ast_symbol, param, NULL);
     NecroCoreAst*              new_expr = necro_core_ast_duplicate_with_subs(context->arena, context->intern, expr, subs);
@@ -855,10 +878,28 @@ NecroCoreAst* necro_ast_inline_app_const_2_1(NecroCorePreSimplify* context, Necr
     return necro_core_ast_pre_simplify_inline_wrapper_types(context, left);
 }
 
-// Rewrite: \x -> \_ -> expr ==> expr
-NecroCoreAst* necro_ast_inline_app_const_2_2(NecroCorePreSimplify* context, NecroCoreAst* ast, NecroCoreAst* fn, NecroCoreAst* left, NecroCoreAst* right)
+NecroCoreAst* necro_core_ast_create_let_bind(NecroPagedArena* arena, NecroCoreAstSymbol* bound_symbol, NecroCoreAst* bound_expr, NecroCoreAst* in_expr)
 {
-    UNUSED(right);
+    NecroCoreAst*       bind_ast = necro_core_ast_create_bind(arena, bound_symbol, bound_expr, NULL);
+    bind_ast->necro_type         = bound_expr->necro_type;
+    NecroCoreAst*       let_ast  = necro_core_ast_create_let(arena, bind_ast, in_expr);
+    let_ast->necro_type = in_expr->necro_type;
+    return let_ast;
+}
+
+bool necro_core_ast_can_inline_arg_without_let(const NecroCoreAst* arg_ast)
+{
+    if (arg_ast->ast_type == NECRO_CORE_AST_LIT)
+        return arg_ast->lit.type != NECRO_AST_CONSTANT_ARRAY;
+    else
+        return arg_ast->ast_type == NECRO_CORE_AST_VAR;
+
+}
+
+// Rewrite: \x -> \_ -> expr ==> expr
+NecroCoreAst* necro_ast_inline_app_const_2_2(NecroCorePreSimplify* context, NecroCoreAst* ast, NecroCoreAst* fn, NecroCoreAst* x, NecroCoreAst* y)
+{
+    UNUSED(y);
     assert(ast->ast_type == NECRO_CORE_AST_APP);
     if (fn->ast_type == NECRO_CORE_AST_VAR && !fn->var.ast_symbol->is_constructor && fn->var.ast_symbol->ast != NULL)
     {
@@ -879,8 +920,55 @@ NecroCoreAst* necro_ast_inline_app_const_2_2(NecroCorePreSimplify* context, Necr
     //     return ast;
     if (!arg2->var.ast_symbol->is_wildcard)
         return ast;
-    NecroCoreAstSymbolSubList* subs     = necro_core_ast_symbol_list_create_sub(context->arena, arg1->var.ast_symbol, left, NULL);
+    NecroCoreAst* new_arg1 = x;
+    if (!necro_core_ast_can_inline_arg_without_let(x))
+        new_arg1 = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "constArg1"), x->necro_type), x->necro_type);
+    NecroCoreAstSymbolSubList* subs     = necro_core_ast_symbol_list_create_sub(context->arena, arg1->var.ast_symbol, new_arg1, NULL);
     NecroCoreAst*              new_expr = necro_core_ast_duplicate_with_subs(context->arena, context->intern, expr, subs);
+    if (!necro_core_ast_can_inline_arg_without_let(x))
+        new_expr = necro_core_ast_create_let_bind(context->arena, new_arg1->var.ast_symbol, x, new_expr);
+    return necro_core_ast_pre_simplify_inline_wrapper_types(context, new_expr);
+}
+
+// Rewrite: \x y _ -> expr ==> expr
+NecroCoreAst* necro_ast_inline_app_const_3(NecroCorePreSimplify* context, NecroCoreAst* ast, NecroCoreAst* fn, NecroCoreAst* x, NecroCoreAst* y, NecroCoreAst* z)
+{
+    UNUSED(z);
+    assert(ast->ast_type == NECRO_CORE_AST_APP);
+    if (fn->ast_type == NECRO_CORE_AST_VAR && !fn->var.ast_symbol->is_constructor && fn->var.ast_symbol->ast != NULL)
+    {
+        fn      = fn->var.ast_symbol->ast;
+        if (fn->ast_type != NECRO_CORE_AST_BIND)
+            return ast;
+        fn = fn->bind.expr;
+    }
+    if (fn->ast_type != NECRO_CORE_AST_LAM)
+        return ast;
+    NecroCoreAst* arg1 = fn->lambda.arg;
+    NecroCoreAst* fn2  = fn->lambda.expr;
+    if (fn2->ast_type != NECRO_CORE_AST_LAM)
+        return ast;
+    NecroCoreAst* arg2 = fn2->lambda.arg;
+    NecroCoreAst* fn3  = fn2->lambda.expr;
+    if (fn3->ast_type != NECRO_CORE_AST_LAM)
+        return ast;
+    NecroCoreAst* arg3 = fn3->lambda.arg;
+    NecroCoreAst* expr = fn3->lambda.expr;
+    if (!arg3->var.ast_symbol->is_wildcard)
+        return ast;
+    NecroCoreAst* new_arg1 = x;
+    if (!necro_core_ast_can_inline_arg_without_let(x))
+        new_arg1 = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "constArg1"), x->necro_type), x->necro_type);
+    NecroCoreAst* new_arg2 = y;
+    if (!necro_core_ast_can_inline_arg_without_let(y))
+        new_arg2 = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "constArg2"), y->necro_type), y->necro_type);
+    NecroCoreAstSymbolSubList* subs     = necro_core_ast_symbol_list_create_sub(context->arena, arg1->var.ast_symbol, new_arg1, NULL);
+    subs = necro_core_ast_symbol_list_create_sub(context->arena, arg2->var.ast_symbol, new_arg2, subs);
+    NecroCoreAst*              new_expr = necro_core_ast_duplicate_with_subs(context->arena, context->intern, expr, subs);
+    if (!necro_core_ast_can_inline_arg_without_let(y))
+        new_expr = necro_core_ast_create_let_bind(context->arena, new_arg2->var.ast_symbol, y, new_expr);
+    if (!necro_core_ast_can_inline_arg_without_let(x))
+        new_expr = necro_core_ast_create_let_bind(context->arena, new_arg1->var.ast_symbol, x, new_expr);
     return necro_core_ast_pre_simplify_inline_wrapper_types(context, new_expr);
 }
 
@@ -942,6 +1030,19 @@ NecroCoreAst* necro_core_ast_pre_simplify_app(NecroCorePreSimplify* context, Nec
         inlined               = necro_ast_inline_app_const_2_2(context, ast, fn, left, right);
         if (inlined != ast) return inlined;
         inlined               = necro_ast_inline_wrapper_proj(context, ast, fn, left, right);
+        if (inlined != ast) return inlined;
+    }
+
+    // rewrite \x y z -> ...
+    else if (ast->app.expr1->ast_type == NECRO_CORE_AST_APP &&
+            (ast->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_APP) &&
+            (ast->app.expr1->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_VAR || ast->app.expr1->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_LAM))
+    {
+        NecroCoreAst* fn = ast->app.expr1->app.expr1->app.expr1;
+        NecroCoreAst* x  = ast->app.expr1->app.expr1->app.expr2;
+        NecroCoreAst* y  = ast->app.expr1->app.expr2;
+        NecroCoreAst* z  = ast->app.expr2;
+        NecroCoreAst* inlined = necro_ast_inline_app_const_3(context, ast, fn, x, y, z);
         if (inlined != ast) return inlined;
     }
 
@@ -1377,34 +1478,10 @@ void necro_core_ast_pre_simplify_test()
     }
 
     {
-        const char* test_name   = "Unwrap 9";
-        const char* test_source = ""
-            "data Time'   = Time' Float\n"
-            "data SVal' a = SVal' a | SEnd'\n"
-            "data Seq'  a = Seq' (Time' -> SVal' a)\n"
-            "x :: Seq' Bool\n"
-            "x = Seq' go\n"
-            "  where\n"
-            "    go t = SVal' True\n";
-        necro_core_ast_pre_simplfy_test(test_name, test_source);
-    }
-
-    {
         const char* test_name   = "This will likely fail";
         const char* test_source = ""
             "main :: *World -> *World\n"
             "main w = w |> printInt 0 |> printInt 1 |> printInt 2\n";
-        necro_core_ast_pre_simplfy_test(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Unwrap 10";
-        const char* test_source = ""
-            "data Time'   = Time' Float\n"
-            "data SVal' a = SVal' Time' a | SEnd'\n"
-            "data Seq'  a = Seq' (Time' -> SVal' a)\n"
-            "x :: Seq' Bool\n"
-            "x = Seq' <| \\t -> SVal' t True\n";
         necro_core_ast_pre_simplfy_test(test_name, test_source);
     }
 
@@ -1640,7 +1717,7 @@ void necro_core_ast_pre_simplify_test()
         const char* test_source = ""
             "readingRainbow :: Array 4 Mono -> Mono\n"
             "readingRainbow a =\n"
-            "  for each 0 loop i x ->\n"
+            "  loop x = 0 for i <- each do\n"
             "    readArray i a + x\n";
         necro_core_ast_pre_simplfy_test(test_name, test_source);
     }
@@ -1650,7 +1727,7 @@ void necro_core_ast_pre_simplify_test()
         const char* test_source = ""
             "composition :: *Array 4 (Share Int)\n"
             "composition =\n"
-            "  for each (unsafeEmptyArray ()) loop i a ->\n"
+            "  loop a = unsafeEmptyArray () for i <- each do\n"
             "    writeArray i (Share 0) a\n";
         necro_core_ast_pre_simplfy_test(test_name, test_source);
     }
@@ -1665,10 +1742,10 @@ void necro_core_ast_pre_simplify_test()
             "    a      =\n"
             "      case True of\n"
             "        True ->\n"
-            "          for each emptyA loop i a' ->\n"
+            "          loop a' = emptyA for i <- each do\n"
             "            writeArray i (Share 33) a'\n"
             "        False ->\n"
-            "          for each emptyA loop i a' ->\n"
+            "          loop a' = emptyA for i <- each do\n"
             "            writeArray i (Share 22) a'\n";
         necro_core_ast_pre_simplfy_test(test_name, test_source);
     }
@@ -1678,8 +1755,8 @@ void necro_core_ast_pre_simplify_test()
         const char* test_source = ""
             "somethingInThere :: Array 33 Int\n"
             "somethingInThere =\n"
-            "  freezeArray (for each (unsafeEmptyArray ()) loop i a ->\n"
-            "    writeArray i (Share 22) a)\n"
+            "  freezeArray <| loop a = unsafeEmptyArray () for i <- each do\n"
+            "    writeArray i (Share 22) a\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_core_ast_pre_simplfy_test(test_name, test_source);

@@ -1368,26 +1368,24 @@ NecroResult(NecroType) necro_infer_expression_list_pattern(NecroInfer* infer, Ne
 //=====================================================
 // Pat Expression
 //=====================================================
-NecroResult(NecroType) necro_infer_pat_expression(NecroInfer* infer, NecroAst* ast)
+NecroResult(NecroType) necro_infer_seq_expression(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
     assert(ast != NULL);
-    assert(ast->type == NECRO_AST_PAT_EXPRESSION);
-    assert(false && "Refactor");
-    return ok(NecroType, NULL);
-    // NecroAst* current_cell = ast->pattern_expression.expressions;
-    // NecroType* pat_type    = necro_type_fresh_var(infer->arena, NULL);
-    // pat_type->kind         = necro_type_fresh_var(infer->arena, NULL);
-    // pat_type               = necro_type_con1_create(infer->arena, infer->base->pattern_type, pat_type);
-    // necro_try_map(void, NecroType, necro_kind_infer_default_unify_with_star(infer->arena, infer->base, pat_type, ast->scope, ast->source_loc, ast->end_loc));
-    // while (current_cell != NULL)
-    // {
-    //     NecroType* item_type = necro_try_result(NecroType, necro_infer_go(infer, current_cell->list.item));
-    //     necro_try(NecroType, necro_type_unify(infer->arena, &infer->con_env, infer->base, pat_type, item_type, ast->scope));
-    //     current_cell = current_cell->list.next_item;
-    // }
-    // ast->necro_type = pat_type;
-    // return ok(NecroType, ast->necro_type);
+    assert(ast->type == NECRO_AST_SEQ_EXPRESSION);
+    NecroAst*  expressions = ast->sequence_expression.expressions;
+    NecroType* seq_type    = necro_type_fresh_var(infer->arena, NULL);
+    seq_type->kind         = necro_type_fresh_var(infer->arena, NULL);
+    seq_type               = necro_type_con1_create(infer->arena, infer->base->seq_type, seq_type);
+    necro_try_map(void, NecroType, necro_kind_infer_default_unify_with_star(infer->arena, infer->base, seq_type, ast->scope, ast->source_loc, ast->end_loc));
+    while (expressions != NULL)
+    {
+        NecroType* item_type = necro_try_result(NecroType, necro_infer_go(infer, expressions->list.item));
+        necro_try(NecroType, necro_type_unify(infer->arena, &infer->con_env, infer->base, seq_type, item_type, ast->scope));
+        expressions = expressions->list.next_item;
+    }
+    ast->necro_type = seq_type;
+    return ok(NecroType, ast->necro_type);
 }
 
 //=====================================================
@@ -2064,7 +2062,7 @@ NecroResult(NecroType) necro_infer_go(NecroInfer* infer, NecroAst* ast)
     case NECRO_AST_TUPLE:                  return necro_infer_tuple(infer, ast);
     case NECRO_AST_EXPRESSION_LIST:        return necro_infer_expression_list(infer, ast);
     case NECRO_AST_EXPRESSION_ARRAY:       return necro_infer_expression_array(infer, ast);
-    case NECRO_AST_PAT_EXPRESSION:         return necro_infer_pat_expression(infer, ast);
+    case NECRO_AST_SEQ_EXPRESSION:         return necro_infer_seq_expression(infer, ast);
     case NECRO_AST_CASE:                   return necro_infer_case(infer, ast);
     case NECRO_AST_FOR_LOOP:               return necro_infer_for_loop(infer, ast);
     case NECRO_AST_WHILE_LOOP:             return necro_infer_while_loop(infer, ast);

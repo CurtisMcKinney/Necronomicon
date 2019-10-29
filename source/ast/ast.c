@@ -212,9 +212,9 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
         necro_ast_print_go(ast->do_statement.statement_list, depth + 1);
         break;
 
-    case NECRO_AST_PAT_EXPRESSION:
-        puts("(pat)");
-        necro_ast_print_go(ast->pattern_expression.expressions, depth + 1);
+    case NECRO_AST_SEQ_EXPRESSION:
+        puts("(seq)");
+        necro_ast_print_go(ast->sequence_expression.expressions, depth + 1);
         break;
 
     case NECRO_AST_EXPRESSION_LIST:
@@ -665,8 +665,9 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         reified_ast->do_statement.statement_list = necro_reify_go(parse_ast_arena, ast->do_statement.statement_list, arena, intern);
         reified_ast->do_statement.monad_var      = NULL;
         break;
-    case NECRO_AST_PAT_EXPRESSION:
-        reified_ast->pattern_expression.expressions = necro_reify_go(parse_ast_arena, ast->pattern_expression.expressions, arena, intern);
+    case NECRO_AST_SEQ_EXPRESSION:
+        reified_ast->sequence_expression.expressions   = necro_reify_go(parse_ast_arena, ast->sequence_expression.expressions, arena, intern);
+        reified_ast->sequence_expression.sequence_type = ast->sequence_expression.sequence_type;
         break;
     case NECRO_AST_LIST_NODE:
         reified_ast->list.item      = necro_reify_go(parse_ast_arena, ast->list.item, arena, intern);
@@ -1502,10 +1503,11 @@ NecroAst* necro_ast_create_expression_array(NecroPagedArena* arena, NecroAst* ex
     return ast;
 }
 
-NecroAst* necro_ast_create_pat_expression(NecroPagedArena* arena, NecroAst* expressions)
+NecroAst* necro_ast_create_seq_expression(NecroPagedArena* arena, NecroAst* expressions, NECRO_SEQUENCE_TYPE sequence_type)
 {
-    NecroAst* ast                       = necro_ast_alloc(arena, NECRO_AST_PAT_EXPRESSION);
-    ast->pattern_expression.expressions = expressions;
+    NecroAst* ast                          = necro_ast_alloc(arena, NECRO_AST_SEQ_EXPRESSION);
+    ast->sequence_expression.expressions   = expressions;
+    ast->sequence_expression.sequence_type = sequence_type;
     return ast;
 }
 
@@ -1824,11 +1826,12 @@ void necro_ast_assert_eq_do(NecroAst* ast1, NecroAst* ast2)
     necro_ast_assert_eq_go(ast1->do_statement.statement_list, ast2->do_statement.statement_list);
 }
 
-void necro_ast_assert_eq_pat_expression(NecroAst* ast1, NecroAst* ast2)
+void necro_ast_assert_eq_seq_expression(NecroAst* ast1, NecroAst* ast2)
 {
-    assert(ast1->type == NECRO_AST_PAT_EXPRESSION);
-    assert(ast2->type == NECRO_AST_PAT_EXPRESSION);
-    necro_ast_assert_eq_go(ast1->pattern_expression.expressions, ast2->pattern_expression.expressions);
+    assert(ast1->type == NECRO_AST_SEQ_EXPRESSION);
+    assert(ast2->type == NECRO_AST_SEQ_EXPRESSION);
+    assert(ast1->sequence_expression.sequence_type == ast2->sequence_expression.sequence_type);
+    necro_ast_assert_eq_go(ast1->sequence_expression.expressions, ast2->sequence_expression.expressions);
 }
 
 void necro_ast_assert_eq_list(NecroAst* ast1, NecroAst* ast2)
@@ -2039,7 +2042,7 @@ void necro_ast_assert_eq_go(NecroAst* ast1, NecroAst* ast2)
     case NECRO_AST_WILDCARD:               break;
     case NECRO_AST_LAMBDA:                 necro_ast_assert_eq_lambda(ast1, ast2); break;
     case NECRO_AST_DO:                     necro_ast_assert_eq_do(ast1, ast2); break;
-    case NECRO_AST_PAT_EXPRESSION:         necro_ast_assert_eq_pat_expression(ast1, ast2); break;
+    case NECRO_AST_SEQ_EXPRESSION:         necro_ast_assert_eq_seq_expression(ast1, ast2); break;
     case NECRO_AST_LIST_NODE:              necro_ast_assert_eq_list(ast1, ast2); break;
     case NECRO_AST_EXPRESSION_LIST:        necro_ast_assert_eq_expression_list(ast1, ast2); break;
     case NECRO_AST_EXPRESSION_ARRAY:       necro_ast_assert_eq_expression_array(ast1, ast2); break;
@@ -2237,9 +2240,9 @@ NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_g
     case NECRO_AST_EXPRESSION_ARRAY:
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_expression_array(arena,
             necro_ast_deep_copy_go(arena, declaration_group, ast->expression_array.expressions)));
-    case NECRO_AST_PAT_EXPRESSION:
-        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_pat_expression(arena,
-            necro_ast_deep_copy_go(arena, declaration_group, ast->pattern_expression.expressions)));
+    case NECRO_AST_SEQ_EXPRESSION:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_seq_expression(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->sequence_expression.expressions), ast->sequence_expression.sequence_type));
     case NECRO_AST_TUPLE:
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_tuple_full(arena,
             necro_ast_deep_copy_go(arena, declaration_group, ast->tuple.expressions), ast->tuple.is_unboxed));

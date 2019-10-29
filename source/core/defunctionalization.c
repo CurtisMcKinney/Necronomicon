@@ -376,10 +376,16 @@ NecroStaticValue* necro_defunctionalize_let(NecroDefunctionalizeContext* context
             return sv;
         }
         // HOF binding, prune from ast
-        if (ast->let.bind->ast_type == NECRO_CORE_AST_BIND && !ast->let.bind->bind.ast_symbol->is_constructor && necro_type_is_higher_order_function(ast->let.bind->bind.ast_symbol->type, ast->let.bind->bind.ast_symbol->arity))
+        else if (ast->let.bind->ast_type == NECRO_CORE_AST_BIND && !ast->let.bind->bind.ast_symbol->is_constructor && necro_type_is_higher_order_function(ast->let.bind->bind.ast_symbol->type, ast->let.bind->bind.ast_symbol->arity))
         {
             necro_defunctionalize_go(context, ast->let.bind);
             *ast = *ast->let.expr; // Prune from ast
+        }
+        // Rewrite let f _ = ... in expr ==> expr
+        else if (ast->let.bind->ast_type == NECRO_CORE_AST_BIND && ast->let.bind->bind.expr->ast_type == NECRO_CORE_AST_LAM && ast->let.bind->bind.expr->lambda.expr->ast_type != NECRO_CORE_AST_LAM && ast->let.bind->bind.expr->lambda.arg->var.ast_symbol->is_wildcard)
+        {
+            necro_defunctionalize_go(context, ast->let.bind);
+            *ast = *ast->let.expr;
         }
         // Normal Let Ast
         else
@@ -2034,15 +2040,27 @@ void necro_core_defunctionalize_test()
         necro_defunctionalize_test_result(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Seq 7";
         const char* test_source = ""
             "coolSeq :: Seq Float\n"
             "coolSeq = 77.7 - 666 * 22 + fromInt mouseX * 4 - 256 * 10 + 33.3\n"
             "seqGo :: SeqValue Float\n"
-            "seqGo = runSeq coolSeq 0\n";
+            "seqGo = runSeq coolSeq ()\n";
+        necro_defunctionalize_test_result(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Seq 8";
+        const char* test_source = ""
+            "coolSeq :: Seq Int\n"
+            "coolSeq = 666 * 22 + 3 * 4 - 256 * 10\n"
+            "seqGo :: SeqValue Int\n"
+            "seqGo = runSeq (coolSeq + coolSeq) ()\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
         necro_defunctionalize_test_result(test_name, test_source);
     }
 

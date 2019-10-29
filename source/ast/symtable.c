@@ -306,8 +306,8 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
     case NECRO_AST_EXPRESSION_ARRAY:
         necro_build_scopes_go(scoped_symtable, input_node->expression_array.expressions);
         break;
-    case NECRO_AST_PAT_EXPRESSION:
-        necro_build_scopes_go(scoped_symtable, input_node->pattern_expression.expressions);
+    case NECRO_AST_SEQ_EXPRESSION:
+        necro_build_scopes_go(scoped_symtable, input_node->sequence_expression.expressions);
         break;
     case NECRO_AST_TUPLE:
         necro_build_scopes_go(scoped_symtable, input_node->tuple.expressions);

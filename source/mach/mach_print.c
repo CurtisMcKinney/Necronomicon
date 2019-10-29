@@ -442,14 +442,17 @@ void necro_mach_print_binop(NecroMachAst* ast, size_t depth)
     case NECRO_PRIMOP_BINOP_ISUB: printf("isub "); break;
     case NECRO_PRIMOP_BINOP_IMUL: printf("imul "); break;
     case NECRO_PRIMOP_BINOP_IDIV: printf("idiv "); break;
+    case NECRO_PRIMOP_BINOP_IREM: printf("irem "); break;
     case NECRO_PRIMOP_BINOP_UADD: printf("uadd "); break;
     case NECRO_PRIMOP_BINOP_USUB: printf("usub "); break;
     case NECRO_PRIMOP_BINOP_UMUL: printf("umul "); break;
     case NECRO_PRIMOP_BINOP_UDIV: printf("udiv "); break;
+    case NECRO_PRIMOP_BINOP_UREM: printf("urem "); break;
     case NECRO_PRIMOP_BINOP_FADD: printf("fadd "); break;
     case NECRO_PRIMOP_BINOP_FSUB: printf("fsub "); break;
     case NECRO_PRIMOP_BINOP_FMUL: printf("fmul "); break;
     case NECRO_PRIMOP_BINOP_FDIV: printf("fdiv "); break;
+    case NECRO_PRIMOP_BINOP_FREM: printf("frem "); break;
     case NECRO_PRIMOP_BINOP_OR:   printf("or ");   break;
     case NECRO_PRIMOP_BINOP_AND:  printf("and ");  break;
     case NECRO_PRIMOP_BINOP_SHL:  printf("shl ");  break;

@@ -44,7 +44,7 @@ typedef enum
     NECRO_AST_WILDCARD,
     NECRO_AST_LAMBDA,
     NECRO_AST_DO,
-    NECRO_AST_PAT_EXPRESSION,
+    NECRO_AST_SEQ_EXPRESSION,
     NECRO_AST_LIST_NODE,
     NECRO_AST_EXPRESSION_LIST,
     NECRO_AST_EXPRESSION_ARRAY,
@@ -483,10 +483,17 @@ typedef struct
 //=====================================================
 // AST Pattern Expression
 //=====================================================
+typedef enum
+{
+    NECRO_SEQUENCE_SEQUENCE,
+    NECRO_SEQUENCE_TUPLE,
+    NECRO_SEQUENCE_INTERLEAVE,
+} NECRO_SEQUENCE_TYPE;
 typedef struct
 {
     NecroParseAstLocalPtr expressions; // NecroAST_ListNode of expressions
-} NecroParseAstPatExpression;
+    NECRO_SEQUENCE_TYPE   sequence_type;
+} NecroParseAstSeqExpression;
 
 //=====================================================
 // AST ForLoop
@@ -671,7 +678,7 @@ typedef struct
         NecroParseAstTypeClassInstance    type_class_instance;
         NecroParseAstTypeSignature        type_signature;
         NecroParseAstFunctionType         function_type;
-        NecroParseAstPatExpression        pattern_expression;
+        NecroParseAstSeqExpression        sequence_expression;
         NecroParseAstTypeAttribute        attribute;
         NecroParseAstForLoop              for_loop;
         NecroParseAstWhileLoop            while_loop;

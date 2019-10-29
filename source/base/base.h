@@ -66,13 +66,13 @@ typedef struct NecroBase
     NecroAstSymbol* world_type;
     NecroAstSymbol* unit_type;
     NecroAstSymbol* unit_con;
+    NecroAstSymbol* seq_type;
     // NecroAstSymbol* list_type;
     NecroAstSymbol* int_type;
     NecroAstSymbol* int64_type;
     NecroAstSymbol* uint_type;
     NecroAstSymbol* float_type;
     NecroAstSymbol* float64_type;
-    // NecroAstSymbol* audio_type;
     NecroAstSymbol* rational_type;
     NecroAstSymbol* char_type;
     NecroAstSymbol* bool_type;
@@ -89,9 +89,6 @@ typedef struct NecroBase
     NecroAstSymbol* audio_type_class;
     NecroAstSymbol* mono_type;
     NecroAstSymbol* prev_fn;
-    // NecroAstSymbol* event_type;
-    // NecroAstSymbol* closure_type;
-    // NecroAstSymbol* pattern_type;
     // NecroAstSymbol* ptr_type;
     NecroAstSymbol* array_type;
     NecroAstSymbol* range_type;
@@ -100,7 +97,6 @@ typedef struct NecroBase
     NecroAstSymbol* unsafe_empty_array;
     NecroAstSymbol* read_array;
     NecroAstSymbol* write_array;
-    // NecroAstSymbol* maybe_type;
     NecroAstSymbol* prim_undefined;
     NecroAstSymbol* proj_fn;
     NecroAstSymbol* block_size_type;
@@ -119,7 +115,9 @@ typedef struct NecroBase
     // NecroAstSymbol* unsafe_peek;
     // NecroAstSymbol* unsafe_poke;
     NecroAstSymbol* print_int;
+    NecroAstSymbol* print_i64;
     NecroAstSymbol* print_f64;
+    NecroAstSymbol* print_char;
     NecroAstSymbol* out_audio_block;
     NecroAstSymbol* fast_floor;
     NecroAstSymbol* fma;

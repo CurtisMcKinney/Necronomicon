@@ -419,12 +419,13 @@ typedef struct
 } NecroAstDo;
 
 //=====================================================
-// AST Pat
+// AST Seq
 //=====================================================
 typedef struct
 {
-    struct NecroAst* expressions; // NecroAST_ListNode of expressions
-} NecroAstPatExpression;
+    struct NecroAst*     expressions; // NecroAST_ListNode of expressions
+    NECRO_SEQUENCE_TYPE sequence_type;
+} NecroAstSeqExpression;
 
 //=====================================================
 // AST Variable
@@ -572,7 +573,7 @@ typedef struct NecroAst
         NecroAstTypeClassInstance    type_class_instance;
         NecroAstTypeSignature        type_signature;
         NecroAstFunctionType         function_type;
-        NecroAstPatExpression        pattern_expression;
+        NecroAstSeqExpression        sequence_expression;
         NecroAstDeclarationGroupList declaration_group_list;
         NecroAstTypeAttribute        attribute;
         NecroAstForLoop              for_loop;
@@ -653,7 +654,7 @@ NecroAst* necro_ast_create_pat_assignment(NecroPagedArena* arena, NecroAst* pat,
 NecroAst* necro_ast_create_pat_bind_assignment(NecroPagedArena* arena, NecroAst* pat, NecroAst* expression);
 NecroAst* necro_ast_create_expression_list(NecroPagedArena* arena, NecroAst* expressions);
 NecroAst* necro_ast_create_expression_array(NecroPagedArena* arena, NecroAst* expressions);
-NecroAst* necro_ast_create_pat_expression(NecroPagedArena* arena, NecroAst* expressions);
+NecroAst* necro_ast_create_seq_expression(NecroPagedArena* arena, NecroAst* expressions, NECRO_SEQUENCE_TYPE sequence_type);
 NecroAst* necro_ast_create_tuple(NecroPagedArena* arena, NecroAst* expressions);
 NecroAst* necro_ast_create_unboxed_tuple(NecroPagedArena* arena, NecroAst* expressions);
 NecroAst* necro_ast_create_tuple_full(NecroPagedArena* arena, NecroAst* expressions, bool is_unboxed);

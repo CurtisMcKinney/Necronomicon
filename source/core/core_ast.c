@@ -1123,7 +1123,7 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_go(NecroCoreAstTransform* 
     case NECRO_AST_WILDCARD:               return necro_ast_transform_to_core_wildcard(context, ast);
 
     // TODO
-    case NECRO_AST_PAT_EXPRESSION:
+    case NECRO_AST_SEQ_EXPRESSION:
         assert(false && "TODO");
         return ok(NecroCoreAst, NULL);
 

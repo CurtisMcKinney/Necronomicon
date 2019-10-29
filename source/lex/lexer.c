@@ -425,12 +425,25 @@ bool necro_lex_char(NecroLexer* lexer)
 {
     NecroSourceLoc char_loc    = lexer->loc;
     uint32_t       code_point1 = necro_lex_next_char(lexer);
-    uint32_t       code_point2 = necro_lex_next_char(lexer);
-    uint32_t       code_point3 = necro_lex_next_char(lexer);
-    if (code_point1 != '\''           ||
-        necro_is_control(code_point2) ||
-        code_point3 != '\'')
+    if (code_point1 != '\'')
         return necro_lex_rewind(lexer);
+    uint32_t   code_point2 = necro_lex_next_char(lexer);
+    uint32_t   code_point3 = necro_lex_next_char(lexer);
+    if (code_point2 == '\\')
+    {
+        // Control characters
+        if (code_point3 == '0')
+            code_point2 = '\0';
+        else if (code_point3 == 'n')
+            code_point2 = '\n';
+        else
+            return necro_lex_rewind(lexer);
+        // code_point2 = code_point3;
+        code_point3 = necro_lex_next_char(lexer);
+    }
+    if (code_point3 != '\'')
+        return necro_lex_rewind(lexer);
+    // necro_is_control(code_point2) ||
     NecroLexToken token = (NecroLexToken) { .source_loc = char_loc, .end_loc = lexer->loc, . token = NECRO_LEX_CHAR_LITERAL };
     token.char_literal  = code_point2;
     necro_push_lex_token_vector(&lexer->tokens, &token);

@@ -233,14 +233,15 @@ NecroParseAstLocalPtr necro_parse_ast_create_do(NecroArena* arena, NecroSourceLo
     return local_ptr;
 }
 
-NecroParseAstLocalPtr necro_parse_ast_create_pat_expr(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr expressions_ast)
+NecroParseAstLocalPtr necro_parse_ast_create_seq_expr(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr expressions_ast, NECRO_SEQUENCE_TYPE sequence_type)
 {
     NecroParseAstLocalPtr local_ptr;
-    NecroParseAst*        node           = necro_parse_ast_alloc(arena, &local_ptr);
-    node->type                           = NECRO_AST_PAT_EXPRESSION;
-    node->pattern_expression.expressions = expressions_ast;
-    node->source_loc                     = source_loc;
-    node->end_loc                        = end_loc;
+    NecroParseAst*        node              = necro_parse_ast_alloc(arena, &local_ptr);
+    node->type                              = NECRO_AST_SEQ_EXPRESSION;
+    node->sequence_expression.expressions   = expressions_ast;
+    node->sequence_expression.sequence_type = sequence_type;
+    node->source_loc                        = source_loc;
+    node->end_loc                           = end_loc;
     return local_ptr;
 }
 
@@ -701,11 +702,12 @@ void necro_parse_ast_assert_eq_do(NecroParseAstArena* ast1, NecroParseAst* node1
     necro_parse_ast_assert_eq_go(ast1, node1->do_statement.statement_list, ast2, node2->do_statement.statement_list);
 }
 
-void necro_parse_ast_assert_eq_pat_expression(NecroParseAstArena* ast1, NecroParseAst* node1, NecroParseAstArena* ast2, NecroParseAst* node2)
+void necro_parse_ast_assert_eq_seq_expression(NecroParseAstArena* ast1, NecroParseAst* node1, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
-    assert(node1->type == NECRO_AST_PAT_EXPRESSION);
-    assert(node2->type == NECRO_AST_PAT_EXPRESSION);
-    necro_parse_ast_assert_eq_go(ast1, node1->pattern_expression.expressions, ast2, node2->pattern_expression.expressions);
+    assert(node1->type == NECRO_AST_SEQ_EXPRESSION);
+    assert(node2->type == NECRO_AST_SEQ_EXPRESSION);
+    assert(node1->sequence_expression.sequence_type == node2->sequence_expression.sequence_type);
+    necro_parse_ast_assert_eq_go(ast1, node1->sequence_expression.expressions, ast2, node2->sequence_expression.expressions);
 }
 
 void necro_parse_ast_assert_eq_list(NecroParseAstArena* ast1, NecroParseAst* node1, NecroParseAstArena* ast2, NecroParseAst* node2)
@@ -939,7 +941,7 @@ void necro_parse_ast_assert_eq_go(NecroParseAstArena* ast1, NecroParseAstLocalPt
     case NECRO_AST_WILDCARD:               break;
     case NECRO_AST_LAMBDA:                 necro_parse_ast_assert_eq_lambda(ast1, node1, ast2, node2); break;
     case NECRO_AST_DO:                     necro_parse_ast_assert_eq_do(ast1, node1, ast2, node2); break;
-    case NECRO_AST_PAT_EXPRESSION:         necro_parse_ast_assert_eq_pat_expression(ast1, node1, ast2, node2); break;
+    case NECRO_AST_SEQ_EXPRESSION:         necro_parse_ast_assert_eq_seq_expression(ast1, node1, ast2, node2); break;
     case NECRO_AST_LIST_NODE:              necro_parse_ast_assert_eq_list(ast1, node1, ast2, node2); break;
     case NECRO_AST_EXPRESSION_LIST:        necro_parse_ast_assert_eq_expression_list(ast1, node1, ast2, node2); break;
     case NECRO_AST_EXPRESSION_ARRAY:       necro_parse_ast_assert_eq_expression_array(ast1, node1, ast2, node2); break;

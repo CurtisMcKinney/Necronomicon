@@ -556,8 +556,8 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
     case NECRO_AST_EXPRESSION_ARRAY:
         return necro_monomorphize_go(monomorphize, ast->expression_array.expressions, subs);
 
-    case NECRO_AST_PAT_EXPRESSION:
-        return necro_monomorphize_go(monomorphize, ast->pattern_expression.expressions, subs);
+    case NECRO_AST_SEQ_EXPRESSION:
+        return necro_monomorphize_go(monomorphize, ast->sequence_expression.expressions, subs);
 
     case NECRO_AST_TUPLE:
         return necro_monomorphize_go(monomorphize, ast->tuple.expressions, subs);

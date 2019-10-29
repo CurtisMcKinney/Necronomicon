@@ -944,6 +944,7 @@ void necro_mach_ast_type_check_binop(NecroMachProgram* program, NecroMachAst* as
     case NECRO_PRIMOP_BINOP_ISUB: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_IMUL: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_IDIV:
+    case NECRO_PRIMOP_BINOP_IREM:
     {
         necro_mach_type_check_is_int_type(left->necro_machine_type);
         necro_mach_type_check_is_int_type(right->necro_machine_type);
@@ -955,6 +956,7 @@ void necro_mach_ast_type_check_binop(NecroMachProgram* program, NecroMachAst* as
     case NECRO_PRIMOP_BINOP_USUB: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_UMUL: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_UDIV: /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_UREM: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_OR:   /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_AND:  /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_SHL:  /* FALL THROUGH */
@@ -970,6 +972,7 @@ void necro_mach_ast_type_check_binop(NecroMachProgram* program, NecroMachAst* as
     case NECRO_PRIMOP_BINOP_FSUB: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_FMUL: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_FDIV:
+    case NECRO_PRIMOP_BINOP_FREM:
     {
         necro_mach_type_check_is_float_type(left->necro_machine_type);
         necro_mach_type_check_is_float_type(right->necro_machine_type);

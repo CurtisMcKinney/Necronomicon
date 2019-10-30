@@ -166,13 +166,6 @@ NecroCoreAst* necro_core_ast_create_case_alt(NecroPagedArena* arena, NecroCoreAs
 
 NecroCoreAst* necro_core_ast_create_for_loop(NecroPagedArena* arena, size_t max_loops, NecroCoreAst* range_init, NecroCoreAst* value_init, NecroCoreAst* index_arg, NecroCoreAst* value_arg, NecroCoreAst* expression)
 {
-    // ast->for_loop.range_init = range_init;
-    // ast->for_loop.value_init = value_init;
-    // ast->for_loop.index_arg  = index_arg;
-    // ast->for_loop.value_arg  = value_arg;
-    // ast->for_loop.expression = expression;
-    // ast->for_loop.max_loops  = max_loops;
-
     NecroCoreAst* ast             = necro_core_ast_alloc(arena, NECRO_CORE_AST_LOOP);
     ast->loop.value_pat           = value_arg;
     ast->loop.value_init          = value_init;
@@ -1110,9 +1103,7 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_if_then_else(NecroCoreAstT
         assert(bool_type != NULL);
         NecroType* true_type = bool_type;
         assert(true_type != NULL);
-        NecroCoreAstSymbol* true_symbol = necro_core_ast_symbol_create(context->arena, necro_intern_string(context->intern, "Necro.Base.True"), true_type);
-        assert(true_symbol  != NULL);
-        NecroCoreAst* true_core = necro_core_ast_create_var(context->arena, true_symbol, necro_type_deep_copy(context->arena, true_type));
+        NecroCoreAst* true_core = necro_core_ast_create_var(context->arena, context->base->true_con->core_ast_symbol, necro_type_deep_copy(context->arena, true_type));
         assert(true_core != NULL);
         assert(true_core->necro_type != NULL);
 
@@ -1122,7 +1113,7 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_if_then_else(NecroCoreAstT
         alt_ast->necro_type = necro_type_deep_copy(context->arena, core_then_expr->necro_type);
         assert(alt_ast->necro_type != NULL);
         assert(alt_ast->case_alt.pat != NULL);
-        alts = necro_append_core_ast_list(context->arena, alt_ast, alts);
+        alts = necro_cons_core_ast_list(context->arena, alt_ast, alts);
         assert(alts != NULL);
     }
 
@@ -1139,9 +1130,7 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_if_then_else(NecroCoreAstT
         assert(bool_type != NULL);
         NecroType* false_type = bool_type;
         assert(false_type != NULL);
-        NecroCoreAstSymbol* false_symbol = necro_core_ast_symbol_create(context->arena, necro_intern_string(context->intern, "Necro.Base.False"), false_type);
-        assert(false_symbol != NULL);
-        NecroCoreAst* false_core = necro_core_ast_create_var(context->arena, false_symbol, necro_type_deep_copy(context->arena, false_type));
+        NecroCoreAst* false_core = necro_core_ast_create_var(context->arena, context->base->false_con->core_ast_symbol, necro_type_deep_copy(context->arena, false_type));
         assert(false_core != NULL);
         assert(false_core->necro_type != NULL);
 
@@ -1151,7 +1140,7 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_if_then_else(NecroCoreAstT
         alt_ast->necro_type = necro_type_deep_copy(context->arena, core_else_expr->necro_type);
         assert(alt_ast->necro_type != NULL);
         assert(alt_ast->case_alt.pat != NULL);
-        alts = necro_append_core_ast_list(context->arena, alt_ast, alts);
+        alts = necro_cons_core_ast_list(context->arena, alt_ast, alts);
         assert(alts != NULL);
     }
 
@@ -1162,6 +1151,115 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_if_then_else(NecroCoreAstT
     case_ast->necro_type = necro_type_deep_copy(context->arena, ast->necro_type);
     assert(case_ast->necro_type != NULL);
     return ok(NecroCoreAst, case_ast);
+}
+
+//--------------------
+// Sequence Expressions
+//--------------------
+// TODO: Make sure to tell Chad that nodes cannot be shared across AST tree, since mutation can occur!
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_seq_expression(NecroCoreAstTransform* context, NecroAst* ast)
+{
+    assert(context != NULL);
+    assert(ast->type == NECRO_AST_SEQ_EXPRESSION);
+    //--------------------
+    // Create types and count expressions
+    NecroType* seq_type       = necro_type_strip_for_all(necro_type_find(ast->necro_type));
+    assert(seq_type->type == NECRO_TYPE_CON);
+    NecroType* element_type   = necro_type_find(seq_type->con.args->list.item);
+    assert(seq_type->type == NECRO_TYPE_CON);
+    NecroType* seq_value_type = necro_type_con1_create(context->arena, context->base->seq_value_type, element_type);
+    unwrap(NecroType, necro_kind_infer(context->arena, context->base, seq_value_type, ast->source_loc, ast->end_loc));
+    size_t    num_expressions = 0;
+    NecroAst* seq_expressions = ast->sequence_expression.expressions;
+    while (seq_expressions != NULL)
+    {
+        num_expressions++;
+        seq_expressions = seq_expressions->list.next_item;
+    }
+    //--------------------
+    // Create Initializer
+    NecroType*    acc_type           = necro_type_con2_create(context->arena, necro_base_get_unboxed_tuple_type(context->base, 2), context->base->int_type->type, seq_value_type);
+    unwrap(NecroType, necro_kind_infer(context->arena, context->base, acc_type, ast->source_loc, ast->end_loc));
+    NecroType*    init_tuple_fn_type = necro_type_fn_create(context->arena, context->base->int_type->type, necro_type_fn_create(context->arena, seq_value_type, acc_type));
+    NecroCoreAst* init_tuple_ast     = necro_core_ast_create_var(context->arena, necro_base_get_unboxed_tuple_con(context->base, 2)->core_ast_symbol, init_tuple_fn_type);
+    init_tuple_ast                   = necro_core_ast_create_app(context->arena, init_tuple_ast, necro_core_ast_create_lit(context->arena, (NecroAstConstant) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER }));
+    init_tuple_ast->necro_type       = init_tuple_fn_type->fun.type2;
+    init_tuple_ast                   = necro_core_ast_create_app(context->arena, init_tuple_ast, necro_core_ast_create_var(context->arena, context->base->prim_undefined->core_ast_symbol, seq_value_type));
+    init_tuple_ast->necro_type       = init_tuple_fn_type->fun.type2->fun.type2;
+    NecroCoreAstSymbol* acc_var_sym  = necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "seqAcc"), acc_type);
+    //--------------------
+    // Create Case
+    NecroType*    proj_0_type   = necro_type_fn_create(context->arena, acc_type, necro_type_fn_create(context->arena, context->base->int_type->type, context->base->int_type->type));
+    NecroCoreAst* case_proj_ast = necro_core_ast_create_var(context->arena, necro_base_get_proj_symbol(context->arena, context->base), proj_0_type);
+    case_proj_ast               = necro_core_ast_create_app(context->arena, case_proj_ast, necro_core_ast_create_var(context->arena, acc_var_sym, acc_type));
+    case_proj_ast->necro_type   = proj_0_type->fun.type2;
+    case_proj_ast               = necro_core_ast_create_app(context->arena, case_proj_ast, necro_core_ast_create_lit(context->arena, (NecroAstConstant) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER }));
+    case_proj_ast->necro_type   = proj_0_type->fun.type2->fun.type2;
+    NecroCoreAstList* case_alts = NULL;
+    seq_expressions             = ast->sequence_expression.expressions;
+    size_t expression_index     = 0;
+    while (seq_expressions != NULL)
+    {
+        NecroCoreAst* expression_ast = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, seq_expressions->list.item));
+        if (expression_ast->ast_type == NECRO_CORE_AST_VAR && expression_ast->var.ast_symbol->is_wildcard)
+        {
+            // TODO: Wildcard
+            expression_ast = NULL;
+            assert(false);
+        }
+        else
+        {
+            // Normal Value
+            NecroType*    run_seq_type = necro_type_find(ast->sequence_expression.run_seq_symbol->type);
+            NecroCoreAst* run_seq_ast  = necro_core_ast_create_var(context->arena, ast->sequence_expression.run_seq_symbol->core_ast_symbol, run_seq_type);
+            expression_ast             = necro_core_ast_create_app(context->arena, run_seq_ast, expression_ast);
+            expression_ast->necro_type = run_seq_type->fun.type2;
+            expression_ast             = necro_core_ast_create_app(context->arena, expression_ast, necro_core_ast_create_var(context->arena, context->base->unit_con->core_ast_symbol, context->base->unit_type->type));
+            expression_ast->necro_type = run_seq_type->fun.type2->fun.type2;
+        }
+        NecroCoreAst* pat_ast  = necro_core_ast_create_lit(context->arena, (NecroAstConstant) { .int_literal = expression_index, .type = NECRO_AST_CONSTANT_INTEGER });
+        pat_ast->necro_type    = context->base->int_type->type;
+        case_alts              = necro_cons_core_ast_list(context->arena, necro_core_ast_create_case_alt(context->arena, pat_ast, expression_ast), case_alts);
+        seq_expressions        = seq_expressions->list.next_item;
+        expression_index++;
+    }
+    NecroCoreAst*     case_ast  = necro_core_ast_create_case(context->arena, case_proj_ast, case_alts);
+    //--------------------
+    // Create bind
+    NecroCoreAst* proj_ast     = necro_core_ast_create_var(context->arena, necro_base_get_proj_symbol(context->arena, context->base), proj_0_type);
+    proj_ast                   = necro_core_ast_create_app(context->arena, proj_ast, necro_core_ast_create_var(context->arena, acc_var_sym, acc_type));
+    proj_ast->necro_type       = proj_0_type->fun.type2;
+    proj_ast                   = necro_core_ast_create_app(context->arena, proj_ast, necro_core_ast_create_lit(context->arena, (NecroAstConstant) { .int_literal = 0, .type = NECRO_AST_CONSTANT_INTEGER }));
+    proj_ast->necro_type       = proj_0_type->fun.type2->fun.type2;
+    NecroCoreAst* tick_fn_var  = necro_core_ast_create_var(context->arena, ast->sequence_expression.tick_symbol->core_ast_symbol, necro_type_find(ast->sequence_expression.tick_symbol->core_ast_symbol->type));
+    NecroCoreAst* tick_ast     = necro_core_ast_create_app(context->arena, tick_fn_var, proj_ast);
+    tick_ast->necro_type       = tick_fn_var->necro_type->fun.type2;
+    tick_ast                   = necro_core_ast_create_app(context->arena, tick_ast, necro_core_ast_create_lit(context->arena, (NecroAstConstant) { .int_literal = num_expressions, .type = NECRO_AST_CONSTANT_INTEGER }));
+    tick_ast->necro_type       = tick_fn_var->necro_type->fun.type2->fun.type2;
+    tick_ast                   = necro_core_ast_create_app(context->arena, tick_ast, case_ast);
+    tick_ast->necro_type       = tick_fn_var->necro_type->fun.type2->fun.type2->fun.type2;
+    NecroCoreAst* acc_bind_ast = necro_core_ast_create_bind(context->arena, acc_var_sym, tick_ast, init_tuple_ast);
+    //--------------------
+    // Create let/in
+    NecroType*    proj_1_type = necro_type_fn_create(context->arena, acc_type, necro_type_fn_create(context->arena, context->base->int_type->type, seq_value_type));
+    NecroCoreAst* in_expr_ast = necro_core_ast_create_var(context->arena, necro_base_get_proj_symbol(context->arena, context->base), proj_1_type);
+    in_expr_ast               = necro_core_ast_create_app(context->arena, in_expr_ast, necro_core_ast_create_var(context->arena, acc_var_sym, acc_var_sym->type));
+    in_expr_ast->necro_type   = proj_1_type->fun.type2;
+    in_expr_ast               = necro_core_ast_create_app(context->arena, in_expr_ast, necro_core_ast_create_lit(context->arena, (NecroAstConstant) { .int_literal = 1, .type = NECRO_AST_CONSTANT_INTEGER }));
+    in_expr_ast->necro_type   = proj_1_type->fun.type2->fun.type2;
+    NecroCoreAst* let_ast     = necro_core_ast_create_let(context->arena, acc_bind_ast, in_expr_ast);
+    let_ast->necro_type       = seq_value_type;
+    //--------------------
+    // Create Seq
+    NecroType*    lam_type                   = necro_type_fn_create(context->arena, context->base->unit_type->type, seq_value_type);
+    NecroCoreAst* lam_arg_ast                = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "wildcard"), context->base->unit_type->type), context->base->unit_type->type);
+    lam_arg_ast->var.ast_symbol->is_wildcard = true;
+    NecroCoreAst* lam_ast                    = necro_core_ast_create_lam(context->arena, lam_arg_ast, let_ast);
+    NecroType*    seq_con_type               = necro_type_fn_create(context->arena, lam_type, seq_type);
+    NecroCoreAst* seq_ast                    = necro_core_ast_create_var(context->arena, context->base->seq_con->core_ast_symbol, seq_con_type);
+    seq_ast                                  = necro_core_ast_create_app(context->arena, seq_ast, lam_ast);
+    seq_ast->necro_type                      = seq_type;
+    return ok(NecroCoreAst, seq_ast);
 }
 
 //--------------------
@@ -1196,11 +1294,7 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_go(NecroCoreAstTransform* 
     case NECRO_AST_IF_THEN_ELSE:           return necro_ast_transform_to_core_if_then_else(context, ast);
     case NECRO_AST_PAT_ASSIGNMENT:         return necro_ast_transform_to_core_pat_assignment(context, ast);
     case NECRO_AST_WILDCARD:               return necro_ast_transform_to_core_wildcard(context, ast);
-
-    // TODO
-    case NECRO_AST_SEQ_EXPRESSION:
-        assert(false && "TODO");
-        return ok(NecroCoreAst, NULL);
+    case NECRO_AST_SEQ_EXPRESSION:         return necro_ast_transform_to_core_seq_expression(context, ast);
 
     // Not Implemented / Supported
     case NECRO_AST_ARITHMETIC_SEQUENCE:
@@ -1517,7 +1611,7 @@ void necro_core_ast_pretty_print(NecroCoreAst* ast)
     printf("\n");
 }
 
-#define NECRO_CORE_AST_VERBOSE 0
+#define NECRO_CORE_AST_VERBOSE 1
 void necro_core_test_result(const char* test_name, const char* str)
 {
     // Set up
@@ -1574,6 +1668,9 @@ void necro_core_ast_test()
             "x = True\n";
         necro_core_test_result(test_name, test_source);
     }
+
+    if (true)
+        return;
 
     {
         const char* test_name   = "Basic 2";

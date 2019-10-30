@@ -79,6 +79,7 @@ NecroLambdaLift necro_lambda_lift_create(NecroPagedArena* ast_arena, NecroIntern
 {
     NecroPagedArena ll_arena     = necro_paged_arena_create();
     NecroCoreScope* global_scope = necro_core_scope_create(&ll_arena, NULL);
+    necro_core_scope_insert(ast_arena, global_scope, necro_base_get_proj_symbol(ast_arena, base), necro_type_fresh_var(ast_arena, NULL));
     return (NecroLambdaLift)
     {
         .ast_arena      = ast_arena,

@@ -3508,7 +3508,6 @@ void necro_mach_test()
     }
 
 
-*/
     {
         const char* test_name   = "Seq 7";
         const char* test_source = ""
@@ -3518,6 +3517,32 @@ void necro_mach_test()
             "seqGo = runSeq coolSeq ()\n"
             "main :: *World -> *World\n"
             "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "If then else doom";
+        const char* test_source = ""
+            "ifTest :: Bool -> Int\n"
+            "ifTest t = if t then 1 else 0\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "If then else final doom forever";
+        const char* test_source = ""
+            "ifTest :: Bool -> Maybe Bool\n"
+            "ifTest t = if t then (Just True) else Nothing\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "If then If Then else then doom then doom";
+        const char* test_source = ""
+            "ifTest :: Bool -> Bool\n"
+            "ifTest t = if t then (if False then True else False) else (if False then True else False)\n";
         necro_mach_test_string(test_name, test_source);
     }
 

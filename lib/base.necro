@@ -9,9 +9,7 @@ flip :: .(.a -> .b -> .c) -> .b -> .a -> .c
 flip f y x = f x y
 
 fst :: .(a, b) -> .a
-fst t =
-  case t of
-    (x, _) -> x
+fst (x, _) = x
 
 snd :: .(a, b) -> .b
 snd t =
@@ -31,9 +29,10 @@ snd' t =
 -- TODO: Fold into Ord class
 min :: Ord a => a -> a -> a
 min x y =
-  case lt x y of
-    True -> x
-    _    -> y
+  if lt x y then
+    x
+  else
+    y
 
 -- TODO: map3, etc
 class FunctorN f where
@@ -121,11 +120,9 @@ instance Monoid F64 where
 data Rational = Rational (#Int, Int#)
 
 gcd :: Int -> Int -> Int
-gcd x y = d
-  where
-    (#d, _#) =
-      loop (#a, b#) = (#abs x, abs y#) while b > 0 do
-        (#b, remInt a b#)
+gcd x y =
+  fst' <| loop (#a, b#) = (#abs x, abs y#) while b > 0 do
+    (#b, remInt a b#)
 
 reduce :: Int -> Int -> Rational
 reduce x y =
@@ -139,85 +136,29 @@ rational x y = reduce x y
 -- rational x y = reduce (x * signum y) (abs y)
 
 numerator :: Rational -> Int
-numerator r =
-  case r of
-    Rational (#n, _#) -> n
+numerator (Rational (#n, _#)) = n
 
 denominator :: Rational -> Int
-denominator r =
-  case r of
-    Rational (#_, d#) -> d
+denominator (Rational (#_, d#)) = d
 
 instance Eq Rational where
-  eq x y =
-    case x of
-      Rational (#xn, xd#) ->
-        case y of
-          Rational (#yn, yd#) ->
-            eq (xn * yd) (yn * xd)
-  neq x y =
-    case x of
-      Rational (#xn, xd#) ->
-        case y of
-          Rational (#yn, yd#) ->
-            neq (xn * yd) (yn * xd)
+  eq  (Rational (#xn, xd#)) (Rational (#yn, yd#)) = eq (xn * yd) (yn * xd)
+  neq (Rational (#xn, xd#)) (Rational (#yn, yd#)) = neq (xn * yd) (yn * xd)
 
 instance Ord Rational where
-  lt x y =
-    case x of
-      Rational (#xn, xd#) ->
-        case y of
-          Rational (#yn, yd#) ->
-            lt (xn * yd) (yn * xd)
-  lte x y =
-    case x of
-      Rational (#xn, xd#) ->
-        case y of
-          Rational (#yn, yd#) ->
-            lte (xn * yd) (yn * xd)
-  gt x y =
-    case x of
-      Rational (#xn, xd#) ->
-        case y of
-          Rational (#yn, yd#) ->
-            gt (xn * yd) (yn * xd)
-  gte x y =
-    case x of
-      Rational (#xn, xd#) ->
-        case y of
-          Rational (#yn, yd#) ->
-            gte (xn * yd) (yn * xd)
+  lt  (Rational (#xn, xd#)) (Rational (#yn, yd#)) = lt  (xn * yd) (yn * xd)
+  lte (Rational (#xn, xd#)) (Rational (#yn, yd#)) = lte (xn * yd) (yn * xd)
+  gt  (Rational (#xn, xd#)) (Rational (#yn, yd#)) = gt  (xn * yd) (yn * xd)
+  gte (Rational (#xn, xd#)) (Rational (#yn, yd#)) = gte (xn * yd) (yn * xd)
 
 -- TODO: Rational math looks off...
 instance Num Rational where
-  add x y =
-    case x of
-      Rational (#xn, xd#) ->
-        case y of
-          Rational (#yn, yd#) ->
-            reduce (xn * yd + yn * xd) (xd * yd)
-  sub x y =
-    case x of
-      Rational (#xn, xd#) ->
-        case y of
-          Rational (#yn, yd#) ->
-            reduce (xn * yd - yn * xd) (xd * yd)
-  mul x y =
-    case x of
-      Rational (#xn, xd#) ->
-        case y of
-          Rational (#yn, yd#) ->
-            reduce (xn * yn) (xd * yd)
-  abs x =
-    case x of
-      Rational (#xn, xd#) ->
-        Rational (#abs xn, xd#)
-  signum x =
-    case x of
-      Rational (#xn, _#) ->
-        Rational (#signum xn, 1#)
-  fromInt x =
-    Rational (#fromInt x, 1#)
+  add (Rational (#xn, xd#)) (Rational (#yn, yd#)) = reduce (xn * yd + yn * xd) (xd * yd)
+  sub (Rational (#xn, xd#)) (Rational (#yn, yd#)) = reduce (xn * yd - yn * xd) (xd * yd)
+  mul (Rational (#xn, xd#)) (Rational (#yn, yd#)) = reduce (xn * yn) (xd * yd)
+  abs (Rational (#xn, xd#))                       = Rational (#abs xn, xd#)
+  signum (Rational (#xn, _#))                     = Rational (#signum xn, 1#)
+  fromInt x                                       = Rational (#fromInt x, 1#)
 
 -- -- TODO: Switch fromRational to use Rational type!
 -- instance Fractional Rational where
@@ -282,6 +223,15 @@ nothing = Nothing
 instance Default (Maybe a) where
   default = nothing
 
+instance Semigroup (Maybe a) where
+  append x y =
+    case x of
+      Nothing -> y
+      _       -> x
+
+instance Monoid (Maybe a) where
+  mempty = nothing
+
 instance Functor Maybe where
   map f m =
     case m of
@@ -344,42 +294,38 @@ instance Enum SeqControl where
 
 instance Semigroup SeqControl where
   append x y =
-    case lt (fromEnum x) (fromEnum y) of
-      True -> x
-      _    -> y
+    if lt (fromEnum x) (fromEnum y) then
+      x
+    else
+      y
 
 instance Monoid SeqControl where
-  mempty = SeqLoopEnd
+  mempty = SeqPure
 
--- instance Semigroup (SeqValue a) where
---   append xs ys =
---     case xs of
---       SeqValue t x ->
+instance Semigroup (SeqValue a) where
+  append (SeqValue (#xt, xc, xv#)) (SeqValue (#yt, yc, yv#)) =
+    SeqValue (#min xt yt, append xc yc, append xv yv#)
+
+instance Monoid (SeqValue a) where
+  mempty = SeqValue (#1, SeqPure, nothing#)
 
 instance Default (SeqValue a) where
   default = SeqValue (#1, SeqPure, nothing#)
 
 instance Functor SeqValue where
-  map f s =
-    case s of
-      SeqValue (#t, c, x#) -> SeqValue (#t, c, map f x#)
+  map f (SeqValue (#t, c, x#)) =
+    SeqValue (#t, c, map f x#)
+
+-- TODO: Take SeqControl into account when merging times!
 
 instance FunctorN SeqValue where
-  map2 f xs ys =
-    case xs of
-      SeqValue (#xt, xc, xv#) ->
-        case ys of
-          SeqValue (#yt, yc, yv#) ->
-            SeqValue (#min xt yt, xc <> yc, map2 f xv yv#)
+  map2 f (SeqValue (#xt, xc, xv#)) (SeqValue (#yt, yc, yv#)) =
+    SeqValue (#min xt yt, xc <> yc, map2 f xv yv#)
 
 instance Applicative SeqValue where
-  pure x   = SeqValue (#1, SeqPure, Just x#)
-  ap fs xs =
-    case fs of
-      SeqValue (#ft, fc, fv#) ->
-        case xs of
-          SeqValue (#xt, xc, xv#) ->
-            SeqValue (#min xt ft, fc <> xc, ap fv xv#)
+  pure x = SeqValue (#1, SeqPure, Just x#)
+  ap (SeqValue (#ft, fc, fv#)) (SeqValue (#xt, xc, xv#)) =
+    SeqValue (#min xt ft, fc <> xc, ap fv xv#)
 
 instance Num a => Num (SeqValue a) where
   fromInt i = SeqValue (#1, SeqPure, Just (fromInt i)#)
@@ -395,23 +341,20 @@ instance Fractional a => Fractional (SeqValue a) where
   recip x        = map recip x
 
 runSeq :: Seq a -> () -> SeqValue a
-runSeq s _ =
-  case s of
-    Seq stepFunc ->
-      stepFunc ()
+runSeq (Seq stepFunc) _ = stepFunc ()
 
 instance Functor Seq where
   map f s = Seq (\_ -> map f (runSeq s ()))
 
 instance Applicative Seq where
-  pure x   = Seq (\_ -> SeqValue (#1, SeqNormal, Just x#))
+  pure x   = Seq (\_ -> SeqValue (#1, SeqPure, Just x#))
   ap fs xs = Seq (\_ -> ap (runSeq fs ()) (runSeq xs ()))
 
 instance FunctorN Seq where
   map2 f sx sy = Seq (\_ -> map2 f (runSeq sx ()) (runSeq sy ()))
 
 instance Num a => Num (Seq a) where
-  fromInt i = Seq (\_ -> SeqValue (#1, SeqNormal, Just (fromInt i)#))
+  fromInt i = Seq (\_ -> SeqValue (#1, SeqPure, Just (fromInt i)#))
   add x y   = Seq (\_ -> map2 add (runSeq x ()) (runSeq y ()))
   sub x y   = Seq (\_ -> map2 sub (runSeq x ()) (runSeq y ()))
   mul x y   = Seq (\_ -> map2 mul (runSeq x ()) (runSeq y ()))
@@ -419,13 +362,19 @@ instance Num a => Num (Seq a) where
   abs x     = Seq (\_ -> map abs (runSeq x ()))
 
 instance Fractional a => Fractional (Seq a) where
-  fromRational r = Seq (\_ -> SeqValue (#1, SeqNormal, Just (fromRational r)#))
+  fromRational r = Seq (\_ -> SeqValue (#1, SeqPure, Just (fromRational r)#))
   div x y        = Seq (\_ -> map2 div (runSeq x ()) (runSeq y ()))
   recip x        = Seq (\_ -> map recip (runSeq x ()))
 
-rest :: Seq a
-rest = Seq (\_ -> SeqValue (#1, SeqPure, nothing#))
+instance Semigroup (Seq a) where
+  append (Seq xf) (Seq yf) =
+    Seq (\_ -> append (xf ()) (yf ()))
 
+restSeqValue :: SeqValue a
+restSeqValue = SeqValue (#1, SeqPure, nothing#)
+
+rest :: Seq a
+rest = Seq (\_ -> restSeqValue)
 
 --------------------
 -- Print
@@ -446,10 +395,8 @@ instance Print Char where
   print x w = printChar x w
 
 instance Print Rational where
-  print r w =
-    case r of
-      Rational (#n, d#) ->
-        print '(' w |> print n |> print ' ' |> print '%' |> print ' ' |> print d |> print ')'
+  print (Rational (#n, d#)) w =
+    print '(' w |> print n |> print ' ' |> print '%' |> print ' ' |> print d |> print ')'
 
 -- -- TODO: Tick delta
 -- -- TODO: Seq literals
@@ -509,62 +456,52 @@ mapChannel2 f cx cy =
           <| loop a = unsafeEmptyArray () for i <- each do
             writeArray i (Share (f (readArray i x) (readArray i y))) a
 
+-- TODO: Partially recursive values
 -- TODO: Stateful unboxed tuple types!
+
 accumulateChannel1 :: Default s => (F64 -> s -> (#s, F64#)) -> Channel -> Channel
 accumulateChannel1 f input1 =
-  case output of
-    (_, o) -> AudioRate o
+  case out of
+    (_, a) ->
+      AudioRate a
   where
-    output ~ (default, freezeArray (unsafeEmptyArray ())) =
-      case output of
+    out ~ (default, freezeArray (unsafeEmptyArray ())) =
+      case out of
         (state, _) ->
-          let (#Share state', o'#) =
-                case input1 of
-                  BlockRate input1Val ->
-                    loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
-                      case f input1Val s of
-                        (#s', x#) ->
-                          (#Share s', writeArray i (Share x) o#)
-                  AudioRate input1Buffer ->
-                    loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
-                      case f (readArray i input1Buffer) s of
-                        (#s', x#) ->
-                          (#Share s', writeArray i (Share x) o#)
-          in (state', freezeArray o')
+          let
+            out' =
+              case input1 of
+                BlockRate input1Val ->
+                  loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
+                    case f input1Val s of
+                      (#s', x#) ->
+                        (#Share s', writeArray i (Share x) o#)
+                AudioRate input1Buffer ->
+                  loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
+                    case f (readArray i input1Buffer) s of
+                      (#s', x#) ->
+                        (#Share s', writeArray i (Share x) o#)
+          in
+            case out' of
+              (#Share state', o'#) ->
+                (state', freezeArray o')
 
--- -- Ugly, but and inefficient, it works
--- accumulateChannel2 :: Default s => (F64 -> F64 -> s -> (#s, F64#)) -> Channel -> Channel -> Channel
--- accumulateChannel2 f input1 input2 =
---   case output of
---     (_, o) -> AudioRate o
+-- accumulateChannel1 :: Default s => (F64 -> s -> (#s, F64#)) -> Channel -> Channel
+-- accumulateChannel1 f input1 =
+--   AudioRate (freezeArray o)
 --   where
---     output ~ (default, freezeArray (unsafeEmptyArray ())) =
---       case output of
---         (state, _) ->
---           let output' =
---                 case input1 of
---                   BlockRate input1Val ->
---                     case input2 of
---                       BlockRate input2Val ->
---                         loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
---                           case f input1Val input2Val s of
---                             (#s', x#) -> (#Share s', writeArray i (Share x) o#)
---                       AudioRate input2Buffer ->
---                         loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
---                           case f input1Val (readArray i input2Buffer) s of
---                             (#s', x#) -> (#Share s', writeArray i (Share x) o#)
---                   AudioRate input1Buffer ->
---                     case input2 of
---                       BlockRate input2Val ->
---                         loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
---                           case f (readArray i input1Buffer) input2Val s of
---                             (#s', x#) -> (#Share s', writeArray i (Share x) o#)
---                       AudioRate input2Buffer ->
---                         loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
---                           case f (readArray i input1Buffer) (readArray i input2Buffer) s of
---                             (#s', x#) -> (#Share s', writeArray i (Share x) o#)
---           in case output' of
---                (#Share state', o'#) -> (state', freezeArray o')
+--     (#Share (state ~ default), o#) =
+--       case input1 of
+--         BlockRate input1Val ->
+--           loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
+--             case f input1Val s of
+--               (#s', x#) ->
+--                 (#Share s', writeArray i (Share x) o#)
+--         AudioRate input1Buffer ->
+--           loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
+--             case f (readArray i input1Buffer) s of
+--               (#s', x#) ->
+--                 (#Share s', writeArray i (Share x) o#)
 
 -- -- The goal, but not all features currently supported
 -- accumulateChannel2 :: Default s => (F64 -> F64 -> s -> (#s, F64#)) -> Channel -> Channel -> Channel
@@ -572,7 +509,7 @@ accumulateChannel1 f input1 =
 --   AudioRate (freezeArray output)
 --   where
 --     emptyO                      = unsafeEmptyArray ()
---     (#state ~ default, output#) =
+--     (#Share (state ~ default), output#) =
 --       case (#input1, input2#) of
 --         (#BlockRate input1Val, BlockRate input2Value#) ->
 --           loop (#Share s, o#) = (#state, emptyO#) for i <- each do
@@ -618,53 +555,20 @@ class Audio a where
   outAudio         :: UInt -> a -> *World -> *World
 
 instance Audio Mono where
-  pureAudio c    = Mono c
-  outAudio n m w =
-    case m of
-      Mono c -> outChannel n c w
-  mapAudio f m =
-    case m of
-      Mono c -> Mono (f c)
-  mapAudio2 f mx my =
-    case mx of
-      Mono cx ->
-        case my of
-          Mono cy -> Mono (f cx cy)
-  accumulateAudio1 f m =
-    case m of
-      Mono c -> Mono (accumulateChannel1 f c)
-  pan amount input =
-    case input of
-      Mono inputChannel ->
-        case amount of
-          Mono amountChannel ->
-            Stereo (#mul inputChannel (sub 1 amountChannel), mul inputChannel amountChannel#)
+  pureAudio c                     = Mono c
+  outAudio  n (Mono c)  w         = outChannel n c w
+  mapAudio  f (Mono c)            = Mono (f c)
+  mapAudio2 f (Mono cx) (Mono cy) = Mono (f cx cy)
+  accumulateAudio1 f (Mono c)     = Mono (accumulateChannel1 f c)
+  pan (Mono amount) (Mono input)  = Stereo (#mul input (sub 1 amount), mul input amount#)
 
 instance Audio Stereo where
-  pureAudio c    = Stereo (#c, c#)
-  outAudio n s w =
-    case s of
-      Stereo (#l, r#) ->
-        outChannel (add n 1) r (outChannel n l w)
-  mapAudio f s =
-    case s of
-      Stereo (#l, r#) ->
-        Stereo (#f l, f r#)
-  mapAudio2 f sx sy =
-    case sx of
-      Stereo (#lx, rx#) ->
-        case sy of
-          Stereo (#ly, ry#) -> Stereo (#f lx ly, f rx ry#)
-  accumulateAudio1 f s =
-    case s of
-      Stereo (#l, r#) ->
-        Stereo (#accumulateChannel1 f l, accumulateChannel1 f r#)
-  pan amount input =
-    case input of
-      Stereo (#inputChannelL, inputChannelR#) ->
-        case amount of
-          Mono amountChannel ->
-            Stereo (#mul inputChannelL (sub 1 amountChannel), mul inputChannelR amountChannel#)
+  pureAudio c                                         = Stereo (#c, c#)
+  outAudio  n (Stereo (#l, r#)) w                     = outChannel (add n 1) r (outChannel n l w)
+  mapAudio  f (Stereo (#l, r#))                       = Stereo (#f l, f r#)
+  mapAudio2 f (Stereo (#lx, rx#)) (Stereo (#ly, ry#)) = Stereo (#f lx ly, f rx ry#)
+  accumulateAudio1 f (Stereo (#l, r#))                = Stereo (#accumulateChannel1 f l, accumulateChannel1 f r#)
+  pan (Mono amount) (Stereo (#l, r#))                 = Stereo (#mul l (sub 1 amount), mul r amount#)
 
 -- accumulateAudio1 :: (Default s, Audio a) => (F64 -> s -> (#s, F64#)) -> a -> a
 -- accumulateAudio1 f a = mapAudio (accumulateChannel1 f) a
@@ -713,11 +617,7 @@ instance Monoid Stereo where
   mempty = 0
 
 stereo :: Mono -> Mono -> Stereo
-stereo ml mr =
-  case ml of
-    Mono l ->
-      case mr of
-        Mono r -> Stereo (#l, r#)
+stereo (Mono l) (Mono r) = Stereo (#l, r#)
 
 accumulateSaw :: F64 -> F64 -> (#F64, F64#)
 accumulateSaw freq acc =
@@ -729,6 +629,9 @@ accumulateSaw freq acc =
 
 saw :: (Audio a) => a -> a
 saw freq = accumulateAudio1 accumulateSaw freq
+
+sawTest :: Mono
+sawTest = saw 440
 
 -- statefulWhile :: Mono
 -- statefulWhile = snd <|
@@ -745,7 +648,7 @@ saw freq = accumulateAudio1 accumulateSaw freq
 -- TODO: Handle Constant, End, etc
 -- TODO: Need partial recursive values to get rid of monoid here
 
--- Switch to case expressions!
+-- -- Switch to case expressions!
 -- Looks like we have a nested case statement bug going on here, probably happening in mach_transform.c or mach_case.c???
 -- instance Foldable Seq where
 --   fold s = out
@@ -771,25 +674,22 @@ saw freq = accumulateAudio1 accumulateSaw freq
 --                 SeqNil   t _ -> (#tick, time + t, acc#)
 --                 SeqValue t x -> (#tick, time + t, f acc x#)
 --   foldp f s =
---     case out of
---       (#_, _, accOut#) -> accOut
+--     acc'
 --     where
---       out ~ (#0, 0, mempty#) =
---         case out of
---           (#tick', time', init#) ->
---             loop (#tick, time, acc#) = (#tick' + 1, time', init#) while time < tick do
---               case runSeq s () of
---                 SeqNil   t _ -> (#tick, time + t, acc#)
---                 SeqValue t x -> (#tick, time + t, f acc x#)
-
+--       (#tick' ~ 0, time' ~ 0, acc' ~ mempty#) =
+--         loop (#tick, time, acc#) = (#tick' + 1, time', acc'#) while time < tick do
+--           case runSeq s () of
+--             SeqValue (#t, _, Just x#) -> (#tick, time + t, f acc x#)
+--             SeqValue (#t, _, _#)      -> (#tick, time + t, acc#)
+--
 -- Seq laws:
 -- Should expect to not be called again until the duration amount has passed
 
--- seqOne :: Seq Int
--- seqOne = x + y
---   where
---     x = 1 * 2
---     y = 3 + 4
+seqOne :: Seq Int
+seqOne = x + y
+  where
+    x = 1 * 2
+    y = 3 + 4
 
 -- foldSeqTest1 :: Int
 -- foldSeqTest1 = fold seqOne
@@ -810,25 +710,36 @@ saw freq = accumulateAudio1 accumulateSaw freq
 --     SeqNormal -> True
 --     _         -> False
 
+-- -- TODO: prevTime needs 0.0 and not 0 literal for some reason?
 -- -- TODO: If statements seem to cause issues with loops and nested case statments?!?!!?
 -- instance Print a => Print (Seq a) where
 --   print seq w = wout
 --     where
---       tick ~ 0       = tick + 0.00390625
---       (#_, _, wout#) =
---         loop (#Share cont, Share time, w'#) = (#Share True, Share 0, w#) while cont do
---           let
---             nextValueTime ~ 0 = nextValueTime + time
---           in
---             case nextValueTime < tick of
---               False -> (#Share False, Share 0, w'#)
---               True  ->
---                 case runSeq seq () of
---                   SeqValue (#t, c, Nothing#) -> (#Share (seqControlIsNormal c), Share t, w'#)
---                   SeqValue (#t, c, Just x#)  -> (#Share (seqControlIsNormal c), Share t, print ' ' (print ',' (print x w'))#)
+--       tick ~ 0                         = tick + 0.00390625
+--       (#Share (prevTime ~ 0.0), wout#) =
+--         loop (#Share time, w'#) = (#Share prevTime, w#) while time < tick do
+--           case runSeq seq () of
+--             SeqValue (#t, _, Just x#) -> (#Share (time + t), print ' ' (print ',' (print x w'))#)
+--             SeqValue (#t, _, _#)      -> (#Share (time + t), w'#)
 
--- TODO: Loop Syntax
--- TODO: Sequence Syntax
+-- -- TODO: prevTime needs 0.0 and not 0 literal for some reason?
+-- -- TODO: If statements seem to cause issues with loops and nested case statments?!?!!?
+-- print seq w =
+--   let
+--     tick ~ 0 = tick + 0.00390625
+--   in
+--     let
+--       pvar =
+--         case pvar of
+--           (#Share (prevTime ~ 0.0), wout#) ->
+--             loop (#Share time, w'#) = (#Share prevTime, w#) while time < tick do
+--               case runSeq seq () of
+--                 SeqValue (#t, _, Just x#) -> (#Share (time + t), print ' ' (print ',' (print x w'))#)
+--                 SeqValue (#t, _, _#)      -> (#Share (time + t), w'#)
+--     in
+--       case pvar of
+--         (#Share prevTime, wout#) ->
+--           wout
 
 -- printSeqTest :: *World -> *World
 -- printSeqTest w = print seqOne w
@@ -839,9 +750,10 @@ saw freq = accumulateAudio1 accumulateSaw freq
 
 seqLoopEndIfLastSlot :: Int -> Int -> SeqControl
 seqLoopEndIfLastSlot slot maxSlot =
-  case (slot + 1) < maxSlot of
-    True -> SeqNormal
-    _    -> SeqLoopEnd
+  if (slot + 1) < maxSlot then
+    SeqNormal
+  else
+    SeqLoopEnd
 
 slotTick :: Int -> Int -> SeqControl -> SeqValue a -> (#Int, SeqValue a#)
 slotTick slot maxSlot controlIfNotNormal sv =
@@ -850,270 +762,65 @@ slotTick slot maxSlot controlIfNotNormal sv =
     SeqValue (#t, _,         v#) -> (#remInt (slot + 1) maxSlot, SeqValue (#t, controlIfNotNormal, v#)#)
 
 warpSeqValueSpeed :: Float -> SeqValue a -> SeqValue a
-warpSeqValueSpeed speed sv =
-  case sv of
-    SeqValue (#t, c, v#) ->
-      (SeqValue (#t * speed, c, v#))
+warpSeqValueSpeed speed (SeqValue (#t, c, v#)) =
+  SeqValue (#t * speed, c, v#)
 
-seqTick :: Int -> Int -> Seq a -> (#Int, SeqValue a#)
-seqTick slot maxSlot s =
-  slotTick slot maxSlot (seqLoopEndIfLastSlot slot maxSlot) (runSeq s ())
+seqTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
+seqTick slot maxSlot sv =
+  slotTick slot maxSlot (seqLoopEndIfLastSlot slot maxSlot) sv
 
-tupleTick :: Int -> Int -> Seq a -> (#Int, SeqValue a#)
-tupleTick slot maxSlot s =
-  slotTick slot maxSlot (seqLoopEndIfLastSlot slot maxSlot) (warpSeqValueSpeed (recip (fromInt maxSlot)) (runSeq s ()))
+tupleTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
+tupleTick slot maxSlot sv =
+  slotTick slot maxSlot (seqLoopEndIfLastSlot slot maxSlot) (warpSeqValueSpeed (recip (fromInt maxSlot)) sv)
 
-interleaveTick :: Int -> Int -> Seq a -> (#Int, SeqValue a#)
-interleaveTick slot maxSlot s =
-  slotTick slot maxSlot SeqLoopEnd (runSeq s ())
+interleaveTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
+interleaveTick slot maxSlot sv =
+  slotTick slot maxSlot SeqLoopEnd sv
 
--- seqTickTest :: SeqValue Int
--- seqTickTest = sv
---   where
---     (#_, sv#)  = seqTick 0 2 55
---     (#_, sv'#) = seqTick 0 2 666
-
--- -- TODO: Test, mach crash (could be stateful unboxed tuple related, or unboxed tuples in unboxed tuples?)
--- tupleTickTest :: SeqValue Int
--- tupleTickTest = sv1
---   where
---     (#_, sv1#) = tupleTick 0 2 55
---     (#_, sv2#) = tupleTick 0 2 66
-
--- interleaveTickTest :: SeqValue Int
--- interleaveTickTest = sv1
---   where
---     (#_, sv1#) = interleaveTick 0 2 55
---     (#_, sv2#) = interleaveTick 0 2 66
-
--- Desugar constants into direct values instead of seq ticks!
--- 0 -> (#1, SeqValue (#1, SeqNormal, Just 333#)#)
-
--- handMadeHemiola :: Seq Int
--- handMadeHemiola = Seq <| \_ ->
---   let
---     out ~ (#0, default#) =
---       case fst' out of
---         0 -> seqTick 0 4 333
---         1 -> seqTick 1 4 666
---         2 -> seqTick 2 4 555
---         _ -> seqTick 3 4 111
---   in
---     snd' out
---
 -- handMadeHemiola2 :: Seq Int
 -- handMadeHemiola2 = Seq <| \_ ->
 --   let
 --     out ~ (#0, default#) =
---       case fst' out of
---         0 -> seqTick 0 2 100
---         _ -> seqTick 1 2 handMadeHemiola
+--       seqTick (fst' out) 3 <|
+--         case fst' out of
+--           0 -> runSeq 100 ()
+--           1 -> runSeq handMadeHemiola ()
+--           _ -> runSeq 33 ()
 --   in
 --     snd' out
---
--- handMadeGo :: SeqValue Int
--- handMadeGo = runSeq handMadeHemiola2 ()
 
--- tupleTickResult :: Float -> Int -> Int -> Float -> SeqValue a -> (#Int, SeqValue a#)
--- tupleTickResult slotTime slot maxSlot sv =
---   case slotTime >= 1 of
---     False ->
---       let slotTime' = slotTime - 1 in
---       case slotTime' >= 1 of
---         True  ->
---           (#slotTime', (#remInt (slot + 1) maxSlot, SeqValue (#tupleDur, seqLoopEndIfLastSlot slot maxSlot, Nothing#)#)#)
---         False ->
---           (#slotTime', (#slot, SeqValue (#slotTime', SeqNormal, Nothing#)#)#)
---     True  ->
---       case sv of
---         SeqValue (#t, c, v#) ->
---           let slotTime' = slotTime + t in
---           case slotTime' >= 1 of
---             True  ->
---               (#slotTime', (#remInt (slot + 1) maxSlot, SeqValue (#(1 - slotTime) * tupleDur, seqLoopEndIfLastSlot slot maxSlot, v#)#)#)
---             False ->
---               (#slotTime', (#slot, SeqValue (#t * tupleDur, SeqNormal, v#)#)#)
+-- -- Simplification is getting out of hand, current setup is n^2 which is....bad.
+-- seqTest :: Seq Float
+-- seqTest =
+--   [x 100 200 <300 x> [400:500]]
 --   where
---     tupleDur =
---       recip (fromInt maxSlot) in
+--     x = <30 40 <50 60 70> 80> + 3
 
--- tupleTick :: Int -> Int -> Seq a -> (#Int, SeqValue a#)
--- tupleTick slot maxSlot s =
---   case acc of
---     (#_, out#) ->
---       out
+-- partiallyRecursiveTest :: Int
+-- partiallyRecursiveTest = out
 --   where
---     acc ~ (#0, (#0, default#)#) =
---       case acc of
---         (#slotTime, _#) ->
---           tupleTickResult slotTime slot maxSlot <|
---             case slotTime >= 1
---               True  -> default
---               False -> runSeq s ()
-
-            --   let slotTime' = slotTime - 1 in
-            --   case slotTime' >= 1 of
-            --     True  ->
-            --       (#slotTime', (#remInt (slot + 1) maxSlot, SeqValue (#tupleDur, seqLoopEndIfLastSlot slot maxSlot, Nothing#)#)#)
-            --     False ->
-            --       (#slotTime', (#slot, SeqValue (#slotTime', SeqNormal, Nothing#)#)#)
-            -- True  ->
-            --   case runSeq s () of
-            --     SeqValue (#t, c, v#) ->
-            --       let slotTime' = slotTime + t in
-            --       case slotTime' >= 1 of
-            --         True  ->
-            --           (#slotTime', (#remInt (slot + 1) maxSlot, SeqValue (#(1 - slotTime) * tupleDur, seqLoopEndIfLastSlot slot maxSlot, v#)#)#)
-            --         False ->
-            --           (#slotTime', (#slot, SeqValue (#t * tupleDur, SeqNormal, v#)#)#)
-
---     -- slot ~ 7 = remInt (slot + 1) 8
--- -- TODO: How to handle non constants in slots?
--- handMadeHemiola :: Seq Int
--- handMadeHemiola = Seq <| \_ ->
---   let
---     out ~ (#0, 0, default#) =
---       case out of
---         (#slot, slotTime, _#) ->
---           let
---             SeqValue (#t, c, v#) =
---               case slot of
---                 0 -> SeqValue 0.5 100
---                 _ -> SeqValue 0.5 150
---           in
-
--- -- TODO: How to handle non constants in slots?
--- handMadeHemiola :: Seq Int
--- handMadeHemiola = Seq <| \_ ->
---   let
---     slot ~ 7 = remInt (slot + 1) 8
---     case slot of
---       0 -> SeqValue 0.5 100
---       1 -> SeqValue 0.5 150
---       2 -> SeqValue 1 200
---       3 -> SeqValue 1 300
---       4 -> SeqNil 0.25 SeqRest
---       5 -> SeqValue 0.25 425
---       6 -> SeqValue 0.25 450
---       _ -> SeqValue 0.25 475
-
--- TODO: Replace SeqConstant!?!?!?
--- interleaveTick :: Int -> Int -> Seq a -> (#Int, SeqValue a#)
--- interleaveTick slot maxSlot s =
---   snd' acc
---   where
---     acc ~ (#0, (#0, default#)#) =
---       let slotTime = fst' acc in
---       case slotTime >= 1 of
---         False ->
---           let slotTime' = slotTime - 1 in
---           case slotTime' >= 1 of
---             True  ->
---               (#slotTime', (#remInt (slot + 1) maxSlot, SeqValue (#1, SeqLoopEnd, Nothing#)#)#)
---             False ->
---               (#slotTime', (#slot, SeqValue (#slotTime', SeqNormal, Nothing#)#)#)
---         True  ->
---           case runSeq s () of
---             SeqValue (#t, c, v#) ->
---               let slotTime' = slotTime + t in
---               case slotTime' >= 1 of
---                 True  ->
---                   (#slotTime', (#remInt (slot + 1) maxSlot, SeqValue (#1 - slotTime, SeqLoopEnd, v#)#)#)
---                 False ->
---                   (#slotTime', (#slot, SeqValue (#t, SeqNormal, v#)#)#)
-
--- data Seq a = Seq (Rational -> SeqValue (#Rational, SeqControl, Maybe a#))
--- Take in in time return time?
-
--- maybeLoopEndSeq :: Int -> Int -> SeqControl -> SeqControl
--- maybeLoopendSeq slotNum slotCount control =
---   case control of
---     SeqNormal -> SeqNormal
---     _         ->
---       case (slotNum + 1) >= slotCount of
---         True  -> SeqLoopEnd
---         False -> SeqNormal
-
--- -- TODO: delta bleed times
--- seqTick :: Int -> Int -> Float -> Seq a -> SeqValue a
--- seqTick slotNum slotCount delta s =
---   case runSeq s delta of
---     SeqValue (#t, c, v#) ->
---       SeqValue (#t, maybeLoopEndSeq slotNum slotCount c, v#)
-
--- maybeLoopEndTuple :: Float -> Float -> Int -> Int -> SeqControl -> SeqControl
--- maybeLoopEndTuple dur maxDur slotNum slotCount control =
---   case control of
---     SeqEnd      -> SeqEnd
---     SeqBlockEnd -> SeqBlockEnd
---     _           ->
---       case (slotNum + 1) >= slotCount && dur >= maxDur of
---         True  -> SeqLoopEnd
---         False -> SeqLoopNormal
-
--- calcTupleTime :: Int -> Int -> Float -> (#Float, Float, Float#)
--- calcTupleTime slotNum slotCount time = (#tupleMul, slotTime, maxDur#)
---   where
---     tupleMul = recip (fromInt slotCount)
---     slotTime = floor time + frem (time * tupleMul - slotNum) 1
---     maxDur   = ceil slotTime - slotTime
-
--- tupleTick :: Int -> Int -> Float -> Seq a -> SeqValue a
--- tupleTick slotNum slotCount slotDelta s =
---   case calcTupleTime slotNum slotCount time of
---     (#tupleMul, slotTime, maxDur#) ->
---       case runSeq s slotTime of
---         SeqValue (#dur, control, value#) ->
---           SeqValue (#min dur maxDur / tupleMul, maybeLoopEndTuple dur maxDur slotNum slotCount control, value#)
-
--- calcTupleLiteralTime :: Int -> Float -> (#Float, Float, Float#)
--- calcTupleLiteralTime time = (#tupleMul, slotTime, maxDur#)
---   where
---     tupleMul = recip (fromInt slotCount)
---     slotTime = floor time + frem (time * tupleMul - slotNum) 1
---     maxDur   = ceil slotTime - slotTime
-
--- Deltas I believe are better, but we have to figure out how to handle bleed times from slot to slot
--- seq, tuple, interleave take delta, calculate time, then derive slot time, then derive slotDelta
-
--- calcInterleaveTime :: Int -> Int -> Float -> (#Float, Float#)
--- calcInterleaveTime slotNum slotCount time = (#slotTime, maxDur#)
---   where
---     tupleMul = recip (fromInt slotCount)
---     slotTime = floor time + frem (time - slotNum) 1
---     maxDur   = ceil slotTime - slotTime
-
--- interleaveTick :: Int -> Int -> Float -> Seq a -> SeqValue a
--- interleaveTick slotNum slotCount time s =
---   case calcInterleaveTime slotNum slotCount time of
---     (#slotTime, maxDur#) ->
---       case runSeq s slotTime of
---         SeqValue (#dur, control, value#) ->
---           SeqValue (#min dur maxDur, maybeLoopEndTuple dur maxDur 0 0 control, value#)
-
--- Seq Laws: Sequences should strive to be reversible and reentrant
-
--- <666 777 888 999> ==>
--- 0 ... 0.25 ... 0.5 ... 0.75 ... ==> 0 ... 0 ... 0 ... 0 ...
--- 1 ... 1.25 ... 1.5 ... 1.75 ... ==> 1 ... 1 ... 1 ... 1 ...
-
--- <<666 0> <777 1> <888 2> <999 3>> ==>
--- 0 ... 0.125 ... 0.25 ... 0.375 ... 0.5 ... 0.625 ... 0.75 ... 0.875 ... ==> 0 ... 0.5 ... 0 ... 0.5 ... 0 ... 0.5 ... 0 ... 0.5 ...
--- 1 ... 1.125 ... 1.25 ... 1.375 ... 1.5 ... 1.625 ... 1.75 ... 1.875 ... ==> 1 ... 1.5 ... 1 ... 1.5 ... 1 ... 1.5 ... 1 ... 1.5 ...
-
--- drop off boundary Pure values?
+--     (feed ~ 0, out) = (feed + 1, 200)
 
 -- seqTest :: Seq Float
 -- seqTest =
 --   [0 _ 1 2]
 
+-- seqTestGo :: SeqValue Float
+-- seqTestGo = runSeq seqTest ()
+
 -- tupleTest :: Seq Float
 -- tupleTest =
 --   <0 _ 1 2>
 
+-- tupleTestGo :: SeqValue Float
+-- tupleTestGo = runSeq tupleTest ()
+
 -- interleaveTest :: Seq Float
 -- interleaveTest =
 --   [0:_:1:2]
+
+-- interleaveTestGo :: SeqValue Float
+-- interleaveTestGo = runSeq interleaveTest ()
 
 -- -- Seq + Seq
 -- seqTest1 :: Seq Float
@@ -1130,6 +837,14 @@ interleaveTick slot maxSlot s =
 -- seqTest3 =
 --   [0 _ 1 [2:3:4]]
 
+-- proceduralBeat :: Seq Float
+-- proceduralBeat = Seq <| \_ ->
+--   let
+--     tick ~ 0 = tick + 1
+--     value    = tick * 100 + fromInt mouseY * fromInt mouseX
+--   in
+--     SeqValue (#2, SeqNormal, Just value#)
+
 -- coolBeat :: Seq Float
 -- coolBeat =
 --   [
@@ -1140,7 +855,10 @@ interleaveTick slot maxSlot s =
 --   where
 --     x = <0 5 <1 2> 1>
 --     y = 3
---     z = fromInt mouseX
+--     z = fromInt mouseX * 100
+
+-- coolBeatGo :: SeqValue Float
+-- coolBeatGo = runSeq coolBeat ()
 
 -- seqTest3 :: Seq Float
 -- seqTest3 =
@@ -1182,27 +900,6 @@ interleaveTick slot maxSlot s =
 
 -- sequenceTick ::
 
--- -- TODO: How to handle non constants in slots?
--- handMadeHemiola :: Seq Int
--- handMadeHemiola = Seq <| \_ ->
---   let
---     slot ~ 7 = remInt (slot + 1) 8
---   in
---     case slot of
---       0 -> SeqValue 0.5 100
---       1 -> SeqValue 0.5 150
---       2 -> SeqValue 1 200
---       3 -> SeqValue 1 300
---       4 -> SeqNil 0.25 SeqRest
---       5 -> SeqValue 0.25 425
---       6 -> SeqValue 0.25 450
---       _ -> SeqValue 0.25 475
-
--- handMadeHemiola :: Seq Int
--- handMadeHemiola =
---   <[100 150] 200 300 [_ 425 450 475]> |> map (d2f slendro)
-
---TODO: Make sure that seq combinators that take multiple seq inputs (map2, ap, etc) only demands the inputs after the duration for each specific input
 
 -- printBeat :: *World -> *World
 -- printBeat w = print handMadeHemiola w
@@ -1218,10 +915,6 @@ interleaveTick slot maxSlot s =
 --           SeqNil   t' _   -> (c, t + t', tick')
 --           SeqValue t' arg -> (dynAppend (f (fromRational arg)) c, t + t', tick')
 
--- Add Bool to Audio which flags that it has ended!
-
--- flipTest2 :: Maybe Int
--- flipTest2 = map (flip add 33) Nothing
 
 -- TODO:
 -- accumulatePulse :: F64 -> F64 -> F64 -> (#F64, F64#)
@@ -1235,18 +928,17 @@ interleaveTick slot maxSlot s =
 -- pulse :: Audio a => a -> a
 -- pulse freq = accumulateAudio2 accumulatePulse freq
 
--- TODO: Seq notation
--- TODO: Seq
--- TODO: while loops
+-- TODO: Make sure that seq combinators that take multiple seq inputs (map2, ap, etc) only demands the inputs after the duration for each specific input
+-- TODO: Add Flag to Audio which flags that it has ended!
+-- TODO: Sequence Literals
+-- TODO: Partially recursive values
 -- TODO: Defunctionalization
 -- TODO: Rational Type
 -- TODO: Stateful Unboxed types
 -- TODO: Stateful Pattern assignment
 -- TODO: toSIMDAudio :: Array BlockSize F64 -> Array SIMDBlockSize SIMDF64
-
 -- TODO: Conal Elliot automatic differentiation
 -- TODO: Get changes from Chad for apat desugaring
 -- TODO: Throw this into a test
--- concatPairs :: (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int) -> (Int, Int, Int, Int, Int, Int, Int, Int)
--- concatPairs (a, b) (c, d) (e, f) (g, h) = (a, b, c, d, e, f,g, h)
+-- TODO: 64-bit issue Chad was having
 

@@ -52,7 +52,7 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 endif()
 
 if (MSVC)
-    set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} /W4 /wd4201 /wd4204 /WX")
+    set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} /W4 /we4061 /we4062 /wd4201 /wd4204 /WX")
 endif()
 
 add_definitions(${CMAKE_C_FLAGS})

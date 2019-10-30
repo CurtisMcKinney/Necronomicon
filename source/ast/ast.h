@@ -423,8 +423,14 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    struct NecroAst*     expressions; // NecroAST_ListNode of expressions
-    NECRO_SEQUENCE_TYPE sequence_type;
+    struct NecroAst*     expressions;
+    NECRO_SEQUENCE_TYPE  sequence_type;
+    //--------------------
+    // META DATA / HACK: Caching monomorphized symbols for use during desugaring
+    NecroAstSymbol*      tick_symbol;
+    struct NecroInstSub* tick_inst_subs;
+    NecroAstSymbol*      run_seq_symbol;
+    struct NecroInstSub* run_seq_inst_subs;
 } NecroAstSeqExpression;
 
 //=====================================================

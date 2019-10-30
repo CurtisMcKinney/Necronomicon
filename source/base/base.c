@@ -566,6 +566,22 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_create_simple_data_decl(arena, top, intern, "F64");
     necro_base_create_simple_data_decl(arena, top, intern, "I64");
 
+    // _project :: a -> UInt -> b, primitive data structure projection
+    {
+        necro_append_top(arena, top,
+            necro_ast_create_fn_type_sig(arena, intern, "_project", NULL,
+                necro_ast_create_type_fn(arena,
+                    necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR),
+                    necro_ast_create_type_fn(arena,
+                        necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR),
+                        necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR))),
+                NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top,
+            necro_ast_create_apats_assignment(arena, intern, "_project",
+                necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "con", NECRO_VAR_DECLARATION), necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "slot", NECRO_VAR_DECLARATION), NULL)),
+                necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "primUndefined", NECRO_VAR_VAR), NULL)));
+    }
+
     // TODO: Finish!
     // necro_base_create_simple_data_decl(arena, top, intern, "Rational");
 
@@ -1078,22 +1094,6 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     //     necro_append_top(arena, top, fn_def_ast);
     // }
 
-    // _project :: a -> UInt -> b, primitive data structure projection
-    {
-        necro_append_top(arena, top,
-            necro_ast_create_fn_type_sig(arena, intern, "_project", NULL,
-                necro_ast_create_type_fn(arena,
-                    necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR),
-                    necro_ast_create_type_fn(arena,
-                        necro_ast_create_conid(arena, intern, "Int", NECRO_CON_TYPE_VAR),
-                        necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR))),
-                NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
-        necro_append_top(arena, top,
-            necro_ast_create_apats_assignment(arena, intern, "_project",
-                necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "con", NECRO_VAR_DECLARATION), necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "slot", NECRO_VAR_DECLARATION), NULL)),
-                necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "primUndefined", NECRO_VAR_VAR), NULL)));
-    }
-
     // getMouseX
     {
         necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "getMouseX", NULL,
@@ -1586,6 +1586,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.unit_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "()"));
     base.unit_con               = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "()"));
     base.seq_type               = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Seq"));
+    base.seq_con                = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "Seq"));
+    base.seq_value_type         = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "SeqValue"));
     base.share_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Share"));
     // base.list_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "[]"));
     base.int_type               = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Int"));
@@ -1622,6 +1624,11 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.pipe_back              = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "<|"));;
     base.compose_forward        = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, ">>"));;
     base.compose_back           = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "<<"));;
+    base.from_int               = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "fromInt"));;
+    base.run_seq                = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "runSeq"));;
+    base.seq_tick               = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "seqTick"));;
+    base.tuple_tick             = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "tupleTick"));;
+    base.interleave_tick        = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "interleaveTick"));;
 
     //--------------------
     // Primitives

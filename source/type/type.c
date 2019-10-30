@@ -2824,14 +2824,14 @@ NecroResult(NecroType) necro_type_ownership_infer_from_sig(NecroPagedArena* aren
     return necro_type_ownership_infer_from_sig_go(arena, con_env, base, type, scope, NULL);
 }
 
-// TODO: Shared implementation...How?
 // TODO: Check Higher order function uniqueness inference in signatures, and that it matches inference from terms.
 NecroResult(NecroType) necro_type_infer_and_unify_ownership_for_two_types(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope)
 {
     if (con_env == NULL)
     {
         // HACK / NOTE / TODO: No con_env, likely inferring types during necro_core_infer. We should probably check ownership types to make sure that we don't break things, however for now we're sweeping things under the rug...
-        return ok(NecroType, type1->ownership);
+        // return ok(NecroType, type1->ownership);
+        return ok(NecroType, base->share_type->type);
     }
     NecroType* ownership1 = necro_try_result(NecroType, necro_type_ownership_infer_from_type(arena, con_env, base, type1, scope));
     NecroType* ownership2 = necro_try_result(NecroType, necro_type_ownership_infer_from_type(arena, con_env, base, type2, scope));

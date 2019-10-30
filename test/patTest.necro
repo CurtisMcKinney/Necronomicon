@@ -106,5 +106,5 @@ coolBeat =
   where
     x = [0 _ [1 2] 1]
     y = 3
-    z = pure mouseX / 100
+    z = pure mouseX * 100
 

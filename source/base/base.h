@@ -67,6 +67,8 @@ typedef struct NecroBase
     NecroAstSymbol* unit_type;
     NecroAstSymbol* unit_con;
     NecroAstSymbol* seq_type;
+    NecroAstSymbol* seq_con;
+    NecroAstSymbol* seq_value_type;
     // NecroAstSymbol* list_type;
     NecroAstSymbol* int_type;
     NecroAstSymbol* int64_type;
@@ -107,6 +109,11 @@ typedef struct NecroBase
     NecroAstSymbol* pipe_back;
     NecroAstSymbol* compose_forward;
     NecroAstSymbol* compose_back;
+    NecroAstSymbol* from_int;
+    NecroAstSymbol* run_seq;
+    NecroAstSymbol* seq_tick;
+    NecroAstSymbol* tuple_tick;
+    NecroAstSymbol* interleave_tick;
 
     // Runtime functions
     NecroAstSymbol* mouse_x_fn;

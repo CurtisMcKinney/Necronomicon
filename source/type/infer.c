@@ -1373,10 +1373,11 @@ NecroResult(NecroType) necro_infer_seq_expression(NecroInfer* infer, NecroAst* a
     assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_SEQ_EXPRESSION);
-    NecroAst*  expressions = ast->sequence_expression.expressions;
-    NecroType* seq_type    = necro_type_fresh_var(infer->arena, NULL);
-    seq_type->kind         = necro_type_fresh_var(infer->arena, NULL);
-    seq_type               = necro_type_con1_create(infer->arena, infer->base->seq_type, seq_type);
+    // Infer types
+    NecroAst*  expressions    = ast->sequence_expression.expressions;
+    NecroType* element_type   = necro_type_fresh_var(infer->arena, NULL);
+    element_type->kind        = necro_type_fresh_var(infer->arena, NULL);
+    NecroType* seq_type       = necro_type_con1_create(infer->arena, infer->base->seq_type, element_type);
     necro_try_map(void, NecroType, necro_kind_infer_default_unify_with_star(infer->arena, infer->base, seq_type, ast->scope, ast->source_loc, ast->end_loc));
     while (expressions != NULL)
     {
@@ -1384,6 +1385,24 @@ NecroResult(NecroType) necro_infer_seq_expression(NecroInfer* infer, NecroAst* a
         necro_try(NecroType, necro_type_unify(infer->arena, &infer->con_env, infer->base, seq_type, item_type, ast->scope));
         expressions = expressions->list.next_item;
     }
+    // Tick / Run
+    switch (ast->sequence_expression.sequence_type)
+    {
+    case NECRO_SEQUENCE_SEQUENCE:   ast->sequence_expression.tick_symbol = infer->base->seq_tick;        break;
+    case NECRO_SEQUENCE_TUPLE:      ast->sequence_expression.tick_symbol = infer->base->tuple_tick;      break;
+    case NECRO_SEQUENCE_INTERLEAVE: ast->sequence_expression.tick_symbol = infer->base->interleave_tick; break;
+    }
+    assert(ast->sequence_expression.tick_symbol->type != NULL);
+    ast->sequence_expression.run_seq_symbol    = infer->base->run_seq;
+    ast->sequence_expression.tick_inst_subs    = NULL;
+    NecroType* inst_tick_type                  = necro_try_result(NecroType, necro_type_instantiate_with_subs(infer->arena, &infer->con_env, infer->base, ast->sequence_expression.tick_symbol->type, ast->scope, &ast->sequence_expression.tick_inst_subs));
+    necro_try(NecroType, necro_type_unify(infer->arena, &infer->con_env, infer->base, inst_tick_type->fun.type2->fun.type2->fun.type1->con.args->list.item, element_type, ast->scope));
+    necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, inst_tick_type, ast->source_loc, ast->end_loc));
+    ast->sequence_expression.run_seq_inst_subs = NULL;
+    NecroType* run_seq_inst_type               = necro_try_result(NecroType, necro_type_instantiate_with_subs(infer->arena, &infer->con_env, infer->base, ast->sequence_expression.run_seq_symbol->type, ast->scope, &ast->sequence_expression.run_seq_inst_subs));
+    necro_try(NecroType, necro_type_unify(infer->arena, &infer->con_env, infer->base, run_seq_inst_type->fun.type1, seq_type, ast->scope));
+    necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, run_seq_inst_type, ast->source_loc, ast->end_loc));
+    // Finish up
     ast->necro_type = seq_type;
     return ok(NecroType, ast->necro_type);
 }

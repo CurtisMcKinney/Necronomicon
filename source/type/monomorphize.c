@@ -305,7 +305,8 @@ NecroResult(void) necro_rec_check_pat_assignment(NecroBase* base, NecroAst* ast)
         }
         if (ast->variable.initializer != NULL && !ast->variable.is_recursive)
         {
-            return necro_type_non_recursive_initialized_value_error(ast->simple_assignment.ast_symbol, ast->necro_type, ast->source_loc, ast->end_loc);
+            // TODO: This is being thrown when it shouldn't!
+            // return necro_type_non_recursive_initialized_value_error(ast->simple_assignment.ast_symbol, ast->necro_type, ast->source_loc, ast->end_loc);
         }
         return ok_void();
     case NECRO_AST_CONSTANT:
@@ -528,8 +529,23 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
         return necro_monomorphize_go(monomorphize, ast->let_expression.expression, subs);
 
     case NECRO_AST_FUNCTION_EXPRESSION:
+    {
+        // HACK / Quick / Dirty fromInt<Int>, fromInt<Float> optimizations
+        NecroType* f_type = necro_type_strip_for_all(necro_type_find(ast->fexpression.aexp->necro_type));
+        if (ast->fexpression.aexp->type == NECRO_AST_VARIABLE && ast->fexpression.aexp->variable.ast_symbol == monomorphize->base->from_int && f_type->type == NECRO_TYPE_FUN && necro_type_find(ast->necro_type)->type == NECRO_TYPE_CON && necro_type_find(ast->necro_type)->con.con_symbol == monomorphize->base->int_type)
+        {
+            *ast = *ast->fexpression.next_fexpression;
+            return necro_monomorphize_go(monomorphize, ast, subs);
+        }
+        else if (ast->fexpression.aexp->type == NECRO_AST_VARIABLE && ast->fexpression.aexp->variable.ast_symbol == monomorphize->base->from_int && f_type->type == NECRO_TYPE_FUN && necro_type_find(ast->necro_type)->type == NECRO_TYPE_CON && necro_type_find(ast->necro_type)->con.con_symbol == monomorphize->base->float_type && ast->fexpression.next_fexpression->type == NECRO_AST_CONSTANT)
+        {
+            *ast            = *necro_ast_create_constant(monomorphize->arena, (NecroParseAstConstant) { .double_literal = (double) ast->fexpression.next_fexpression->constant.int_literal, .type = NECRO_AST_CONSTANT_FLOAT });
+            ast->necro_type = monomorphize->base->float_type->type;
+            return necro_monomorphize_go(monomorphize, ast, subs);
+        }
         necro_try(void, necro_monomorphize_go(monomorphize, ast->fexpression.next_fexpression, subs));
         return necro_monomorphize_go(monomorphize, ast->fexpression.aexp, subs);
+    }
 
     case NECRO_AST_APATS:
         necro_try(void, necro_monomorphize_go(monomorphize, ast->apats.apat, subs));
@@ -557,7 +573,13 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
         return necro_monomorphize_go(monomorphize, ast->expression_array.expressions, subs);
 
     case NECRO_AST_SEQ_EXPRESSION:
+    {
+        ast->sequence_expression.tick_inst_subs    = necro_type_union_subs(ast->sequence_expression.tick_inst_subs, subs);
+        ast->sequence_expression.tick_symbol       = necro_ast_specialize(monomorphize, ast->sequence_expression.tick_symbol, ast->sequence_expression.tick_inst_subs);
+        ast->sequence_expression.run_seq_inst_subs = necro_type_union_subs(ast->sequence_expression.run_seq_inst_subs, subs);
+        ast->sequence_expression.run_seq_symbol    = necro_ast_specialize(monomorphize, ast->sequence_expression.run_seq_symbol, ast->sequence_expression.run_seq_inst_subs);
         return necro_monomorphize_go(monomorphize, ast->sequence_expression.expressions, subs);
+    }
 
     case NECRO_AST_TUPLE:
         return necro_monomorphize_go(monomorphize, ast->tuple.expressions, subs);
@@ -627,148 +649,148 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
     }
 }
 
-///////////////////////////////////////////////////////
-// Specialize Type
-///////////////////////////////////////////////////////
-// NOTE: Should we be doing in this in core before NecroMach translation instead?
-NecroType* necro_specialize_type(NecroMonomorphize* monomorphize, NecroType* type)
-{
-    if (type == NULL || necro_type_is_polymorphic(type))
-        return type;
-    type = necro_type_find(type);
-    switch (type->type)
-    {
-
-    case NECRO_TYPE_CON:
-    {
-
-        //--------------------
-        // If there's no args, we don't need to be specialized
-        //--------------------
-        if (type->con.args == NULL)
-            return type;
-
-        //--------------------
-        // Create Name and Lookup (probably a faster way of doing this, such as hashing types directly, instead of their names?)
-        //--------------------
-        // TODO: Name's should use fully qualified name, not source name!
-        NecroArenaSnapshot snapshot                     = necro_snapshot_arena_get(&monomorphize->snapshot_arena);
-        const size_t       specialized_type_name_length = necro_type_mangled_string_length(type);
-        char*              specialized_type_name_buffer = necro_snapshot_arena_alloc(&monomorphize->snapshot_arena, specialized_type_name_length * sizeof(char));
-        necro_type_mangled_sprintf(specialized_type_name_buffer, 0, type);
-        const NecroSymbol  specialized_type_source_name = necro_intern_string(monomorphize->intern, specialized_type_name_buffer);
-        NecroAstSymbol*    specialized_type_ast_symbol  = necro_scope_find_ast_symbol(monomorphize->scoped_symtable->top_type_scope, specialized_type_source_name);
-        if (specialized_type_ast_symbol != NULL)
-        {
-            assert(specialized_type_ast_symbol->type != NULL);
-            assert(specialized_type_ast_symbol->type->type == NECRO_TYPE_CON);
-            assert(specialized_type_ast_symbol->type->con.args == NULL);
-            return specialized_type_ast_symbol->type;
-        }
-
-        //--------------------
-        // Create Specialized Type's NecroAstSymbol
-        //--------------------
-        // const NecroSymbol specialized_type_name = necro_intern_concat_symbols(monomorphize->intern, monomorphize->ast_arena->module_name, specialized_type_source_name);
-        specialized_type_ast_symbol             = necro_ast_symbol_create(monomorphize->arena, specialized_type_source_name, specialized_type_source_name, monomorphize->ast_arena->module_name, NULL);
-        specialized_type_ast_symbol->type       = necro_type_con_create(monomorphize->arena, specialized_type_ast_symbol, NULL);
-        specialized_type_ast_symbol->type->kind = monomorphize->base->star_kind->type;
-        necro_scope_insert_ast_symbol(monomorphize->arena, monomorphize->scoped_symtable->top_type_scope, specialized_type_ast_symbol);
-
-        //--------------------
-        // Specialize args
-        //--------------------
-        NecroType* args = type->con.args;
-        while (args != NULL)
-        {
-            necro_specialize_type(monomorphize, args->list.item);
-            args = args->list.next;
-        }
-
-        //--------------------
-        // New Declaration in old DeclarationGroupList
-        //--------------------
-        NecroAstSymbol* original_type_ast_symbol            = type->con.con_symbol;
-        NecroAst*       declaration_group                   = original_type_ast_symbol->ast->data_declaration.declaration_group;
-        NecroAst*       new_declaration                     = necro_ast_create_decl(monomorphize->arena, original_type_ast_symbol->ast, declaration_group->declaration.next_declaration);
-        declaration_group->declaration.next_declaration     = new_declaration;
-        new_declaration->declaration.declaration_group_list = declaration_group->declaration.declaration_group_list;
-        new_declaration->declaration.declaration_impl       = NULL; // Removing dummy argument
-
-        //--------------------
-        // Create specialized type suffix
-        //--------------------
-        char* specialized_type_suffix_buffer = specialized_type_name_buffer;
-        while (*specialized_type_suffix_buffer != '<')
-            specialized_type_suffix_buffer++;
-        NecroSymbol specialized_type_suffix_symbol = necro_intern_string(monomorphize->intern, specialized_type_suffix_buffer);
-
-        //--------------------
-        // Specialize Data Declaration
-        //--------------------
-        NecroAst* specialized_type_ast       = necro_ast_deep_copy_go(monomorphize->arena, new_declaration, original_type_ast_symbol->ast);
-        NecroAst* specialized_type_data_cons = specialized_type_ast->data_declaration.constructor_list;
-        while (specialized_type_data_cons != NULL)
-        {
-            // New AstSymbol
-            NecroAst*       data_con                      = specialized_type_data_cons->list.item;
-            NecroAstSymbol* old_data_con_symbol           = data_con->constructor.conid->conid.ast_symbol;
-            NecroSymbol     new_data_con_source_name      = necro_intern_concat_symbols(monomorphize->intern, old_data_con_symbol->source_name, specialized_type_suffix_symbol);
-            // NecroSymbol     new_data_con_name             = necro_intern_concat_symbols(monomorphize->intern, monomorphize->ast_arena->module_name, new_data_con_source_name);
-            NecroAstSymbol* new_data_con_symbol           = necro_ast_symbol_create(monomorphize->arena, new_data_con_source_name, new_data_con_source_name, monomorphize->ast_arena->module_name, data_con);
-            data_con->constructor.conid->conid.ast_symbol = new_data_con_symbol;
-            data_con->constructor.arg_list                = NULL;
-            // Specialize Type
-            NecroType*      data_con_type                 = unwrap_result(NecroType, necro_type_instantiate(monomorphize->arena, &monomorphize->con_env, monomorphize->base, data_con->necro_type, NULL));
-            NecroType*      data_con_result               = data_con_type;
-            while (data_con_result->type == NECRO_TYPE_FUN)
-                data_con_result = data_con_result->fun.type2;
-            unwrap(NecroType, necro_type_unify(monomorphize->arena, &monomorphize->con_env, monomorphize->base, data_con_result, type, NULL));
-            NecroType*      specialized_data_con_type     = necro_specialize_type(monomorphize, data_con_type);
-            unwrap(void, necro_kind_infer_default_unify_with_star(monomorphize->arena, monomorphize->base, specialized_data_con_type, NULL, NULL_LOC, NULL_LOC));
-            new_data_con_symbol->type                     = specialized_data_con_type;
-            data_con->necro_type                          = specialized_data_con_type;
-            necro_scope_insert_ast_symbol(monomorphize->arena, monomorphize->scoped_symtable->top_scope, new_data_con_symbol);
-            specialized_type_data_cons                    = specialized_type_data_cons->list.next_item;
-        }
-        specialized_type_ast->data_declaration.simpletype->simple_type.type_var_list = NULL;
-
-        //--------------------
-        // Clean up and return
-        //--------------------
-        necro_snapshot_arena_rewind(&monomorphize->snapshot_arena, snapshot);
-        return specialized_type_ast_symbol->type;
-    }
-
-    case NECRO_TYPE_FUN:
-    {
-        NecroType* type1 = necro_specialize_type(monomorphize, type->fun.type1);
-        NecroType* type2 = necro_specialize_type(monomorphize, type->fun.type2);
-        if (type1 == type->fun.type1 && type2 == type->fun.type2)
-            return type;
-        else
-            return necro_type_fn_create(monomorphize->arena, type1, type2);
-    }
-
-    case NECRO_TYPE_APP:
-        return necro_specialize_type(monomorphize, necro_type_uncurry_app(monomorphize->arena, monomorphize->base, type));
-
-    // Ignore
-    case NECRO_TYPE_VAR:
-        return type;
-    case NECRO_TYPE_FOR:
-        return type;
-    case NECRO_TYPE_NAT:
-        return type;
-    case NECRO_TYPE_SYM:
-        return type;
-
-    case NECRO_TYPE_LIST: /* FALL THROUGH */
-    default:
-        assert(false);
-        return NULL;
-    }
-}
+// ///////////////////////////////////////////////////////
+// // Specialize Type
+// ///////////////////////////////////////////////////////
+// // NOTE: Should we be doing in this in core before NecroMach translation instead?
+// NecroType* necro_specialize_type(NecroMonomorphize* monomorphize, NecroType* type)
+// {
+//     if (type == NULL || necro_type_is_polymorphic(type))
+//         return type;
+//     type = necro_type_find(type);
+//     switch (type->type)
+//     {
+//
+//     case NECRO_TYPE_CON:
+//     {
+//
+//         //--------------------
+//         // If there's no args, we don't need to be specialized
+//         //--------------------
+//         if (type->con.args == NULL)
+//             return type;
+//
+//         //--------------------
+//         // Create Name and Lookup (probably a faster way of doing this, such as hashing types directly, instead of their names?)
+//         //--------------------
+//         // TODO: Name's should use fully qualified name, not source name!
+//         NecroArenaSnapshot snapshot                     = necro_snapshot_arena_get(&monomorphize->snapshot_arena);
+//         const size_t       specialized_type_name_length = necro_type_mangled_string_length(type);
+//         char*              specialized_type_name_buffer = necro_snapshot_arena_alloc(&monomorphize->snapshot_arena, specialized_type_name_length * sizeof(char));
+//         necro_type_mangled_sprintf(specialized_type_name_buffer, 0, type);
+//         const NecroSymbol  specialized_type_source_name = necro_intern_string(monomorphize->intern, specialized_type_name_buffer);
+//         NecroAstSymbol*    specialized_type_ast_symbol  = necro_scope_find_ast_symbol(monomorphize->scoped_symtable->top_type_scope, specialized_type_source_name);
+//         if (specialized_type_ast_symbol != NULL)
+//         {
+//             assert(specialized_type_ast_symbol->type != NULL);
+//             assert(specialized_type_ast_symbol->type->type == NECRO_TYPE_CON);
+//             assert(specialized_type_ast_symbol->type->con.args == NULL);
+//             return specialized_type_ast_symbol->type;
+//         }
+//
+//         //--------------------
+//         // Create Specialized Type's NecroAstSymbol
+//         //--------------------
+//         // const NecroSymbol specialized_type_name = necro_intern_concat_symbols(monomorphize->intern, monomorphize->ast_arena->module_name, specialized_type_source_name);
+//         specialized_type_ast_symbol             = necro_ast_symbol_create(monomorphize->arena, specialized_type_source_name, specialized_type_source_name, monomorphize->ast_arena->module_name, NULL);
+//         specialized_type_ast_symbol->type       = necro_type_con_create(monomorphize->arena, specialized_type_ast_symbol, NULL);
+//         specialized_type_ast_symbol->type->kind = monomorphize->base->star_kind->type;
+//         necro_scope_insert_ast_symbol(monomorphize->arena, monomorphize->scoped_symtable->top_type_scope, specialized_type_ast_symbol);
+//
+//         //--------------------
+//         // Specialize args
+//         //--------------------
+//         NecroType* args = type->con.args;
+//         while (args != NULL)
+//         {
+//             necro_specialize_type(monomorphize, args->list.item);
+//             args = args->list.next;
+//         }
+//
+//         //--------------------
+//         // New Declaration in old DeclarationGroupList
+//         //--------------------
+//         NecroAstSymbol* original_type_ast_symbol            = type->con.con_symbol;
+//         NecroAst*       declaration_group                   = original_type_ast_symbol->ast->data_declaration.declaration_group;
+//         NecroAst*       new_declaration                     = necro_ast_create_decl(monomorphize->arena, original_type_ast_symbol->ast, declaration_group->declaration.next_declaration);
+//         declaration_group->declaration.next_declaration     = new_declaration;
+//         new_declaration->declaration.declaration_group_list = declaration_group->declaration.declaration_group_list;
+//         new_declaration->declaration.declaration_impl       = NULL; // Removing dummy argument
+//
+//         //--------------------
+//         // Create specialized type suffix
+//         //--------------------
+//         char* specialized_type_suffix_buffer = specialized_type_name_buffer;
+//         while (*specialized_type_suffix_buffer != '<')
+//             specialized_type_suffix_buffer++;
+//         NecroSymbol specialized_type_suffix_symbol = necro_intern_string(monomorphize->intern, specialized_type_suffix_buffer);
+//
+//         //--------------------
+//         // Specialize Data Declaration
+//         //--------------------
+//         NecroAst* specialized_type_ast       = necro_ast_deep_copy_go(monomorphize->arena, new_declaration, original_type_ast_symbol->ast);
+//         NecroAst* specialized_type_data_cons = specialized_type_ast->data_declaration.constructor_list;
+//         while (specialized_type_data_cons != NULL)
+//         {
+//             // New AstSymbol
+//             NecroAst*       data_con                      = specialized_type_data_cons->list.item;
+//             NecroAstSymbol* old_data_con_symbol           = data_con->constructor.conid->conid.ast_symbol;
+//             NecroSymbol     new_data_con_source_name      = necro_intern_concat_symbols(monomorphize->intern, old_data_con_symbol->source_name, specialized_type_suffix_symbol);
+//             // NecroSymbol     new_data_con_name             = necro_intern_concat_symbols(monomorphize->intern, monomorphize->ast_arena->module_name, new_data_con_source_name);
+//             NecroAstSymbol* new_data_con_symbol           = necro_ast_symbol_create(monomorphize->arena, new_data_con_source_name, new_data_con_source_name, monomorphize->ast_arena->module_name, data_con);
+//             data_con->constructor.conid->conid.ast_symbol = new_data_con_symbol;
+//             data_con->constructor.arg_list                = NULL;
+//             // Specialize Type
+//             NecroType*      data_con_type                 = unwrap_result(NecroType, necro_type_instantiate(monomorphize->arena, &monomorphize->con_env, monomorphize->base, data_con->necro_type, NULL));
+//             NecroType*      data_con_result               = data_con_type;
+//             while (data_con_result->type == NECRO_TYPE_FUN)
+//                 data_con_result = data_con_result->fun.type2;
+//             unwrap(NecroType, necro_type_unify(monomorphize->arena, &monomorphize->con_env, monomorphize->base, data_con_result, type, NULL));
+//             NecroType*      specialized_data_con_type     = necro_specialize_type(monomorphize, data_con_type);
+//             unwrap(void, necro_kind_infer_default_unify_with_star(monomorphize->arena, monomorphize->base, specialized_data_con_type, NULL, NULL_LOC, NULL_LOC));
+//             new_data_con_symbol->type                     = specialized_data_con_type;
+//             data_con->necro_type                          = specialized_data_con_type;
+//             necro_scope_insert_ast_symbol(monomorphize->arena, monomorphize->scoped_symtable->top_scope, new_data_con_symbol);
+//             specialized_type_data_cons                    = specialized_type_data_cons->list.next_item;
+//         }
+//         specialized_type_ast->data_declaration.simpletype->simple_type.type_var_list = NULL;
+//
+//         //--------------------
+//         // Clean up and return
+//         //--------------------
+//         necro_snapshot_arena_rewind(&monomorphize->snapshot_arena, snapshot);
+//         return specialized_type_ast_symbol->type;
+//     }
+//
+//     case NECRO_TYPE_FUN:
+//     {
+//         NecroType* type1 = necro_specialize_type(monomorphize, type->fun.type1);
+//         NecroType* type2 = necro_specialize_type(monomorphize, type->fun.type2);
+//         if (type1 == type->fun.type1 && type2 == type->fun.type2)
+//             return type;
+//         else
+//             return necro_type_fn_create(monomorphize->arena, type1, type2);
+//     }
+//
+//     case NECRO_TYPE_APP:
+//         return necro_specialize_type(monomorphize, necro_type_uncurry_app(monomorphize->arena, monomorphize->base, type));
+//
+//     // Ignore
+//     case NECRO_TYPE_VAR:
+//         return type;
+//     case NECRO_TYPE_FOR:
+//         return type;
+//     case NECRO_TYPE_NAT:
+//         return type;
+//     case NECRO_TYPE_SYM:
+//         return type;
+//
+//     case NECRO_TYPE_LIST: /* FALL THROUGH */
+//     default:
+//         assert(false);
+//         return NULL;
+//     }
+// }
 
 ///////////////////////////////////////////////////////
 // Testing

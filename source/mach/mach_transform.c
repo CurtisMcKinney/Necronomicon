@@ -1068,7 +1068,19 @@ NecroMachAst* necro_core_transform_to_mach_3_var(NecroMachProgram* program, Necr
     // Primitive
     else if (symbol->is_primitive)
     {
-        if (symbol->primop_type == NECRO_PRIMOP_PRIM_VAL)
+        if (ast_symbol == program->base->prim_undefined->core_ast_symbol)
+        {
+            NecroMachType* mach_type = necro_mach_type_from_necro_type(program, core_ast->necro_type);
+            if (necro_mach_type_is_unboxed(program, mach_type))
+            {
+                return necro_mach_value_create_undefined(program, mach_type);
+            }
+            else
+            {
+                return necro_mach_value_create_null(program, necro_mach_type_create_ptr(&program->arena, mach_type));
+            }
+        }
+        else if (symbol->primop_type == NECRO_PRIMOP_PRIM_VAL)
         {
             // TODO: Better place to put this!?
             if (symbol == program->base->sample_rate->core_ast_symbol->mach_symbol)
@@ -2022,7 +2034,7 @@ void necro_mach_test_string(const char* test_name, const char* str)
     ast = necro_reify(info, &intern, &parse_ast);
     necro_build_scopes(info, &scoped_symtable, &ast);
     unwrap(void, necro_rename(info, &scoped_symtable, &intern, &ast));
-    necro_dependency_analyze(info, &intern, &ast);
+    necro_dependency_analyze(info, &intern, &base, &ast);
     necro_alias_analysis(info, &ast); // NOTE: Consider merging alias_analysis into RENAME_VAR phase?
     unwrap(void, necro_infer(info, &intern, &scoped_symtable, &base, &ast));
     unwrap(void, necro_monomorphize(info, &intern, &scoped_symtable, &base, &ast));
@@ -3536,13 +3548,21 @@ void necro_mach_test()
         necro_mach_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "If then If Then else then doom then doom";
         const char* test_source = ""
             "ifTest :: Bool -> Bool\n"
             "ifTest t = if t then (if False then True else False) else (if False then True else False)\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Print Seq";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            "main w = print [11 22 _ <4 5 6>] w\n";
         necro_mach_test_string(test_name, test_source);
     }
 

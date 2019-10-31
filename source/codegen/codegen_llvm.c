@@ -1348,7 +1348,7 @@ void necro_llvm_test_string_go(const char* test_name, const char* str, NECRO_PHA
     NecroCompileInfo    info            = necro_test_compile_info();
     if (phase == NECRO_PHASE_JIT || phase == NECRO_PHASE_COMPILE)
         info.opt_level = 1;
-    info.verbosity = 2;
+    // info.verbosity = 2;
 
     //--------------------
     // Compile
@@ -1357,7 +1357,7 @@ void necro_llvm_test_string_go(const char* test_name, const char* str, NECRO_PHA
     ast = necro_reify(info, &intern, &parse_ast);
     necro_build_scopes(info, &scoped_symtable, &ast);
     unwrap(void, necro_rename(info, &scoped_symtable, &intern, &ast));
-    necro_dependency_analyze(info, &intern, &ast);
+    necro_dependency_analyze(info, &intern, &base, &ast);
     necro_alias_analysis(info, &ast); // NOTE: Consider merging alias_analysis into RENAME_VAR phase?
     unwrap(void, necro_infer(info, &intern, &scoped_symtable, &base, &ast));
     unwrap(void, necro_monomorphize(info, &intern, &scoped_symtable, &base, &ast));
@@ -2557,8 +2557,6 @@ void necro_llvm_test()
         necro_llvm_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "If then If Then else then doom then doom";
         const char* test_source = ""
@@ -2566,6 +2564,16 @@ void necro_llvm_test()
             "ifTest t = if t then (if False then True else False) else (if False then True else False)\n"
             "main :: *World -> *World\n"
             "main w = w\n";
+        necro_llvm_test_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Print Seq";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            "main w = print [11 22 _ <4 5 6>] w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -3033,13 +3041,21 @@ void necro_llvm_test_jit()
         necro_llvm_jit_string(test_name, test_source);
     }
 
-
-*/
     {
         const char* test_name   = "Print Rational 2";
         const char* test_source = ""
             "main :: *World -> *World\n"
             "main w = printLn (mouseX % 4) (print '=' (print mouseX w))\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Print Seq";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            "main w = print [11 <22 25> _ <4 5 6>] w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 

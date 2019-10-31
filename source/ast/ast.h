@@ -593,7 +593,7 @@ typedef struct NecroAst
     struct NecroType*     necro_type;
 } NecroAst;
 
-typedef struct
+typedef struct NecroAstArena
 {
     NecroPagedArena    arena;
     NecroAst*          root;

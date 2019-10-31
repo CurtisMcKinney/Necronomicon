@@ -1219,7 +1219,7 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_seq_expression(NecroCoreAs
         }
         NecroCoreAst* pat_ast  = necro_core_ast_create_lit(context->arena, (NecroAstConstant) { .int_literal = expression_index, .type = NECRO_AST_CONSTANT_INTEGER });
         pat_ast->necro_type    = context->base->int_type->type;
-        case_alts              = necro_cons_core_ast_list(context->arena, necro_core_ast_create_case_alt(context->arena, pat_ast, expression_ast), case_alts);
+        case_alts              = necro_append_core_ast_list(context->arena, necro_core_ast_create_case_alt(context->arena, pat_ast, expression_ast), case_alts);
         seq_expressions        = seq_expressions->list.next_item;
         expression_index++;
     }
@@ -1611,7 +1611,7 @@ void necro_core_ast_pretty_print(NecroCoreAst* ast)
     printf("\n");
 }
 
-#define NECRO_CORE_AST_VERBOSE 1
+#define NECRO_CORE_AST_VERBOSE 0
 void necro_core_test_result(const char* test_name, const char* str)
 {
     // Set up
@@ -1631,7 +1631,7 @@ void necro_core_test_result(const char* test_name, const char* str)
     ast = necro_reify(info, &intern, &parse_ast);
     necro_build_scopes(info, &scoped_symtable, &ast);
     unwrap(void, necro_rename(info, &scoped_symtable, &intern, &ast));
-    necro_dependency_analyze(info, &intern, &ast);
+    necro_dependency_analyze(info, &intern, &base, &ast);
     necro_alias_analysis(info, &ast); // NOTE: Consider merging alias_analysis into RENAME_VAR phase?
     unwrap(void, necro_infer(info, &intern, &scoped_symtable, &base, &ast));
     unwrap(void, necro_monomorphize(info, &intern, &scoped_symtable, &base, &ast));
@@ -1668,9 +1668,6 @@ void necro_core_ast_test()
             "x = True\n";
         necro_core_test_result(test_name, test_source);
     }
-
-    if (true)
-        return;
 
     {
         const char* test_name   = "Basic 2";

@@ -740,7 +740,7 @@ void necro_alias_analysis_test_case(const char* test_name, const char* str, cons
     ast = necro_reify(info, &intern, &parse_ast);
     necro_build_scopes(info, &scoped_symtable, &ast);
     unwrap(void, necro_rename(info, &scoped_symtable, &intern, &ast));
-    necro_dependency_analyze(info, &intern, &ast);
+    necro_dependency_analyze(info, &intern, &base, &ast);
     NecroAliasAnalysis  alias_analysis = necro_alias_analysis_create(&ast);
     necro_alias_analysis_impl(&alias_analysis);
 
@@ -786,7 +786,7 @@ void necro_ownership_test(const char* test_name, const char* str, NECRO_RESULT_T
     ast = necro_reify(info, &intern, &parse_ast);
     necro_build_scopes(info, &scoped_symtable, &ast);
     unwrap(void, necro_rename(info, &scoped_symtable, &intern, &ast));
-    necro_dependency_analyze(info, &intern, &ast);
+    necro_dependency_analyze(info, &intern, &base, &ast);
     info.verbosity = NECRO_ALIAS_ANALYSIS_VERBOSE;
     necro_alias_analysis(info, &ast); // NOTE: Consider merging alias_analysis into RENAME_VAR phase?
     info.verbosity = 0;

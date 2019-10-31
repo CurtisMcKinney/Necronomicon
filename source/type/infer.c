@@ -2145,7 +2145,7 @@ void necro_infer_test_impl(const char* test_name, const char* str, NECRO_RESULT_
     ast = necro_reify(info, &intern, &parse_ast);
     necro_build_scopes(info, &scoped_symtable, &ast);
     unwrap(void, necro_rename(info, &scoped_symtable, &intern, &ast));
-    necro_dependency_analyze(info, &intern, &ast);
+    necro_dependency_analyze(info, &intern, &base, &ast);
     necro_alias_analysis(info, &ast); // NOTE: Consider merging alias_analysis into RENAME_VAR phase?
     NecroResult(void) result = necro_infer(info, &intern, &scoped_symtable, &base, &ast);
 

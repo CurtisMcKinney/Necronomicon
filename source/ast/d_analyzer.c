@@ -9,6 +9,7 @@
 #include "type_class.h"
 #include "d_analyzer.h"
 #include "utility/math_utility.h"
+#include "base.h"
 
 NECRO_DECLARE_VECTOR(NecroAst*, NecroDeclarationGroup, declaration_group)
 
@@ -25,6 +26,7 @@ typedef struct
     NecroAst*        current_declaration_group;
     NecroPagedArena* arena;
     NecroIntern*     intern;
+    NecroBase*       base;
 } NecroDependencyAnalyzer;
 
 NecroDeclarationsInfo* necro_declaration_info_create(NecroPagedArena* arena)
@@ -544,6 +546,8 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
         d_analyze_go(d_analyzer, ast->expression_array.expressions);
         break;
     case NECRO_AST_SEQ_EXPRESSION:
+        d_analyze_var(d_analyzer, d_analyzer->base->seq_tick);
+        d_analyze_var(d_analyzer, d_analyzer->base->run_seq);
         d_analyze_go(d_analyzer, ast->sequence_expression.expressions);
         break;
     case NECRO_AST_TUPLE:
@@ -614,12 +618,13 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
     }
 }
 
-void necro_dependency_analyze(NecroCompileInfo info, NecroIntern* intern, NecroAstArena* ast_arena)
+void necro_dependency_analyze(NecroCompileInfo info, NecroIntern* intern, NecroBase* base, NecroAstArena* ast_arena)
 {
     NecroDependencyAnalyzer d_analyzer =
     {
         .intern = intern,
         .arena  = &ast_arena->arena,
+        .base   = base,
     };
     d_analyze_go(&d_analyzer, ast_arena->root);
     if (info.verbosity > 1 || (info.compilation_phase == NECRO_PHASE_DEPENDENCY_ANALYSIS && info.verbosity > 0))

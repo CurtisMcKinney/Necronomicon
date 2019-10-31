@@ -146,7 +146,7 @@ NecroResult(void) necro_compile_go(
     // Dependency Analyze
     //--------------------
     necro_compile_begin_phase(info, NECRO_PHASE_DEPENDENCY_ANALYSIS);
-    necro_dependency_analyze(info, intern, ast);
+    necro_dependency_analyze(info, intern, base, ast);
     necro_alias_analysis(info, ast); // NOTE: Consider merging alias_analysis into RENAME_VAR phase?
     if (necro_compile_end_phase(info, NECRO_PHASE_DEPENDENCY_ANALYSIS))
         return ok_void();

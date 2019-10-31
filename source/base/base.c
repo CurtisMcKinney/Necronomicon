@@ -1520,8 +1520,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_append_top_decl(top, file_top); // Append contents of base.necro
     necro_build_scopes(info, scoped_symtable, &base.ast);
     unwrap(void, necro_rename(info, scoped_symtable, intern, &base.ast));
-    necro_dependency_analyze(info, intern, &base.ast);
-    necro_alias_analysis(info, &base.ast); // NOTE: Consider merging alias_analysis into RENAME_VAR phase?
+
 
     //--------------------
     // Cache useful symbols
@@ -1761,6 +1760,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 
     //--------------------
     // Compile, part II
+    necro_dependency_analyze(info, intern, &base, &base.ast);
+    necro_alias_analysis(info, &base.ast); // NOTE: Consider merging alias_analysis into RENAME_VAR phase?
     base.scoped_symtable = scoped_symtable;
     unwrap(void, necro_infer(info, intern, scoped_symtable, &base, &base.ast));
     unwrap(void, necro_monomorphize(info, intern, scoped_symtable, &base, &base.ast));

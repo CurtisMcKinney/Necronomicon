@@ -12,6 +12,8 @@
 #include "symtable.h"
 #include "ast.h"
 
-void necro_dependency_analyze(NecroCompileInfo info, NecroIntern* intern, NecroAstArena* ast_arena);
+struct NecroBase;
+
+void necro_dependency_analyze(NecroCompileInfo info, NecroIntern* intern, struct NecroBase* base, NecroAstArena* ast_arena);
 
 #endif // D_ANALYZER_H

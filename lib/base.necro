@@ -29,7 +29,7 @@ snd' t =
 -- TODO: Fold into Ord class
 min :: Ord a => a -> a -> a
 min x y =
-  if lt x y then
+  if x < y then
     x
   else
     y
@@ -182,13 +182,6 @@ instance Semigroup Rational where
 instance Monoid Rational where
   mempty = 0
 
--- ltTest :: Float -> Float
--- ltTest x =
---   if x < 33 + 1 then
---     66
---   else
---     0
-
 -- rationalTest :: Rational
 -- rationalTest = 33 * 44 + 23 - (1 % 4)
 
@@ -268,10 +261,6 @@ maybe defaultValue f m =
 --------------------
 -- Seq
 --------------------
-
--- data SeqNil     = SeqEnd | SeqBlockEnd | SeqLoopEnd | SeqRest
--- data SeqValue a = SeqValue Float a | SeqNil Float SeqNil
-
 data SeqControl = SeqEnd | SeqBlockEnd | SeqNormal | SeqLoopEnd | SeqPure
 data SeqValue a = SeqValue (#Float, SeqControl, Maybe a#)
 data Seq a      = Seq (() -> SeqValue a)
@@ -347,14 +336,14 @@ instance Functor Seq where
   map f s = Seq (\_ -> map f (runSeq s ()))
 
 instance Applicative Seq where
-  pure x   = Seq (\_ -> SeqValue (#1, SeqPure, Just x#))
+  pure x   = Seq (\_ -> pure x)
   ap fs xs = Seq (\_ -> ap (runSeq fs ()) (runSeq xs ()))
 
 instance FunctorN Seq where
   map2 f sx sy = Seq (\_ -> map2 f (runSeq sx ()) (runSeq sy ()))
 
 instance Num a => Num (Seq a) where
-  fromInt i = Seq (\_ -> SeqValue (#1, SeqPure, Just (fromInt i)#))
+  fromInt i = Seq (\_ -> pure (fromInt i))
   add x y   = Seq (\_ -> map2 add (runSeq x ()) (runSeq y ()))
   sub x y   = Seq (\_ -> map2 sub (runSeq x ()) (runSeq y ()))
   mul x y   = Seq (\_ -> map2 mul (runSeq x ()) (runSeq y ()))
@@ -362,7 +351,7 @@ instance Num a => Num (Seq a) where
   abs x     = Seq (\_ -> map abs (runSeq x ()))
 
 instance Fractional a => Fractional (Seq a) where
-  fromRational r = Seq (\_ -> SeqValue (#1, SeqPure, Just (fromRational r)#))
+  fromRational r = Seq (\_ -> pure (fromRational r))
   div x y        = Seq (\_ -> map2 div (runSeq x ()) (runSeq y ()))
   recip x        = Seq (\_ -> map recip (runSeq x ()))
 
@@ -371,10 +360,12 @@ instance Semigroup (Seq a) where
     Seq (\_ -> append (xf ()) (yf ()))
 
 restSeqValue :: SeqValue a
-restSeqValue = SeqValue (#1, SeqPure, nothing#)
+restSeqValue =
+  SeqValue (#1, SeqPure, nothing#)
 
 rest :: Seq a
-rest = Seq (\_ -> restSeqValue)
+rest =
+  Seq (\_ -> restSeqValue)
 
 --------------------
 -- Print
@@ -405,7 +396,8 @@ instance Print Rational where
 -- TODO: Print Seq
 
 printLn :: Print a => a -> *World -> *World
-printLn x w = print '\n' (print x w)
+printLn x w =
+  print '\n' (print x w)
 
 
 --------------------
@@ -617,7 +609,8 @@ instance Monoid Stereo where
   mempty = 0
 
 stereo :: Mono -> Mono -> Stereo
-stereo (Mono l) (Mono r) = Stereo (#l, r#)
+stereo (Mono l) (Mono r) =
+  Stereo (#l, r#)
 
 accumulateSaw :: F64 -> F64 -> (#F64, F64#)
 accumulateSaw freq acc =
@@ -628,15 +621,8 @@ accumulateSaw freq acc =
     out  = fma acc3 2.0 (-1.0)
 
 saw :: (Audio a) => a -> a
-saw freq = accumulateAudio1 accumulateSaw freq
-
-sawTest :: Mono
-sawTest = saw 440
-
--- statefulWhile :: Mono
--- statefulWhile = snd <|
---   loop (i, x) = (0, 0) while i < 20 do
---     (i + 1, x + saw 440)
+saw freq =
+  accumulateAudio1 accumulateSaw freq
 
 -- class Foldable f where
 --   fold  :: Monoid m => f m -> m
@@ -685,11 +671,11 @@ sawTest = saw 440
 -- Seq laws:
 -- Should expect to not be called again until the duration amount has passed
 
-seqOne :: Seq Int
-seqOne = x + y
-  where
-    x = 1 * 2
-    y = 3 + 4
+-- seqOne :: Seq Int
+-- seqOne = x + y
+--   where
+--     x = 1 * 2
+--     y = 3 + 4
 
 -- foldSeqTest1 :: Int
 -- foldSeqTest1 = fold seqOne
@@ -701,65 +687,41 @@ seqOne = x + y
 -- foldPrint :: *World -> *World
 -- foldPrint w = foldl (flip printInt) w 33
 
--- instance Default World where
---   default = World
+instance Print a => Print (Seq a) where
+  print s w = wout
+    where
+      tick ~ 0       = tick + 0.003
+      (#_, _, wout#) =
+        loop (#Share cont, Share time, w'#) = (#Share True, Share 0, w#) while cont do
+          let nextValueTime ~ 0 = nextValueTime + time in
+            if nextValueTime >= tick then
+              (#Share False, Share 0, w'#)
+            else
+              case runSeq s () of
+                SeqValue (#t, _, Just x#) ->
+                  (#Share True, Share t, print ' ' (print ',' (print x w'))#)
+                SeqValue (#t, _, _#) ->
+                  (#Share True, Share t, w'#)
 
--- seqControlIsNormal :: SeqControl -> Bool
--- seqControlIsNormal sc =
---   case sc of
---     SeqNormal -> True
---     _         -> False
-
--- -- TODO: prevTime needs 0.0 and not 0 literal for some reason?
--- -- TODO: If statements seem to cause issues with loops and nested case statments?!?!!?
--- instance Print a => Print (Seq a) where
---   print seq w = wout
---     where
---       tick ~ 0                         = tick + 0.00390625
---       (#Share (prevTime ~ 0.0), wout#) =
---         loop (#Share time, w'#) = (#Share prevTime, w#) while time < tick do
---           case runSeq seq () of
---             SeqValue (#t, _, Just x#) -> (#Share (time + t), print ' ' (print ',' (print x w'))#)
---             SeqValue (#t, _, _#)      -> (#Share (time + t), w'#)
-
--- -- TODO: prevTime needs 0.0 and not 0 literal for some reason?
--- -- TODO: If statements seem to cause issues with loops and nested case statments?!?!!?
--- print seq w =
---   let
---     tick ~ 0 = tick + 0.00390625
---   in
---     let
---       pvar =
---         case pvar of
---           (#Share (prevTime ~ 0.0), wout#) ->
---             loop (#Share time, w'#) = (#Share prevTime, w#) while time < tick do
---               case runSeq seq () of
---                 SeqValue (#t, _, Just x#) -> (#Share (time + t), print ' ' (print ',' (print x w'))#)
---                 SeqValue (#t, _, _#)      -> (#Share (time + t), w'#)
---     in
---       case pvar of
---         (#Share prevTime, wout#) ->
---           wout
-
--- printSeqTest :: *World -> *World
--- printSeqTest w = print seqOne w
-
--- <> => Sequence
--- [] => Tuple
--- {} => Interleave
-
+-- TODO: Literal Case expressions are returning the wrong values!
 seqLoopEndIfLastSlot :: Int -> Int -> SeqControl
 seqLoopEndIfLastSlot slot maxSlot =
-  if (slot + 1) < maxSlot then
-    SeqNormal
-  else
-    SeqLoopEnd
+  SeqNormal
+  -- if (slot + 1) < maxSlot then
+  --   SeqNormal
+  -- else
+  --   SeqLoopEnd
 
+-- Combining nested case statements with case literals seems to break...
 slotTick :: Int -> Int -> SeqControl -> SeqValue a -> (#Int, SeqValue a#)
 slotTick slot maxSlot controlIfNotNormal sv =
   case sv of
-    SeqValue (#t, SeqNormal, v#) -> (#slot, sv#)
-    SeqValue (#t, _,         v#) -> (#remInt (slot + 1) maxSlot, SeqValue (#t, controlIfNotNormal, v#)#)
+    SeqValue (#t, c, v#) ->
+      case c of
+        SeqNormal -> (#slot, sv#)
+        _         -> (#remInt (slot + 1) maxSlot, SeqValue (#t, SeqNormal, v#)#)
+
+        -- _         -> (#remInt (slot + 1) maxSlot, SeqValue (#t, controlIfNotNormal, v#)#)
 
 warpSeqValueSpeed :: Float -> SeqValue a -> SeqValue a
 warpSeqValueSpeed speed (SeqValue (#t, c, v#)) =
@@ -767,46 +729,27 @@ warpSeqValueSpeed speed (SeqValue (#t, c, v#)) =
 
 seqTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
 seqTick slot maxSlot sv =
-  slotTick slot maxSlot (seqLoopEndIfLastSlot slot maxSlot) sv
+  slotTick slot maxSlot SeqNormal sv
 
 tupleTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
 tupleTick slot maxSlot sv =
-  slotTick slot maxSlot (seqLoopEndIfLastSlot slot maxSlot) (warpSeqValueSpeed (recip (fromInt maxSlot)) sv)
+  slotTick slot maxSlot SeqNormal (warpSeqValueSpeed (recip (fromInt maxSlot)) sv)
 
 interleaveTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
 interleaveTick slot maxSlot sv =
-  slotTick slot maxSlot SeqLoopEnd sv
+  slotTick slot maxSlot SeqNormal sv
 
--- handMadeHemiola2 :: Seq Int
--- handMadeHemiola2 = Seq <| \_ ->
---   let
---     out ~ (#0, default#) =
---       seqTick (fst' out) 3 <|
---         case fst' out of
---           0 -> runSeq 100 ()
---           1 -> runSeq handMadeHemiola ()
---           _ -> runSeq 33 ()
---   in
---     snd' out
-
--- -- Simplification is getting out of hand, current setup is n^2 which is....bad.
--- seqTest :: Seq Float
--- seqTest =
---   [x 100 200 <300 x> [400:500]]
---   where
---     x = <30 40 <50 60 70> 80> + 3
-
--- partiallyRecursiveTest :: Int
--- partiallyRecursiveTest = out
---   where
---     (feed ~ 0, out) = (feed + 1, 200)
+-- <> => Sequence
+-- [] => Tuple
+-- {} => Interleave
 
 -- seqTest :: Seq Float
 -- seqTest =
 --   [0 _ 1 2]
 
 -- seqTestGo :: SeqValue Float
--- seqTestGo = runSeq seqTest ()
+-- seqTestGo =
+--   runSeq seqTest ()
 
 -- tupleTest :: Seq Float
 -- tupleTest =
@@ -827,10 +770,16 @@ interleaveTick slot maxSlot sv =
 -- seqTest1 =
 --   [0 _ 1 [2 3 4]]
 
+-- seqTest1Go :: SeqValue Float
+-- seqTest1Go = runSeq seqTest1 ()
+
 -- -- Seq + Tuple
 -- seqTest2 :: Seq Float
 -- seqTest2 =
---   [0 _ 1 <2 3 4>]
+--   [0 _ 1 <2 _ 4>]
+
+-- seqTest2Go :: SeqValue Float
+-- seqTest2Go = runSeq seqTest2 ()
 
 -- -- Seq + Interleave
 -- seqTest3 :: Seq Float
@@ -844,6 +793,13 @@ interleaveTick slot maxSlot sv =
 --     value    = tick * 100 + fromInt mouseY * fromInt mouseX
 --   in
 --     SeqValue (#2, SeqNormal, Just value#)
+
+-- -- Simplification is getting out of hand, current setup is n^2 which is....bad.
+-- seqTest :: Seq Float
+-- seqTest =
+--   [x 100 200 <300 x> [400:500]]
+--   where
+--     x = <30 40 <50 60 70> 80> + 3
 
 -- coolBeat :: Seq Float
 -- coolBeat =
@@ -897,12 +853,6 @@ interleaveTick slot maxSlot sv =
 --   where
 --     x = [1 _ <2:0:[3|4]> _]
 --     y = [<_:4> <_:_:5> <_:6>]
-
--- sequenceTick ::
-
-
--- printBeat :: *World -> *World
--- printBeat w = print handMadeHemiola w
 
 -- properFraction :: (Fractional a, Integral b) -> a -> (b, b)
 

@@ -1966,7 +1966,7 @@ void necro_core_defunctionalize_test()
             "seqTest :: Seq Bool\n"
             "seqTest = pure True\n"
             "seqGo :: SeqValue Bool\n"
-            "seqGo = runSeq seqTest 0\n";
+            "seqGo = runSeq seqTest ()\n";
         necro_defunctionalize_test_result(test_name, test_source);
     }
 
@@ -1978,7 +1978,7 @@ void necro_core_defunctionalize_test()
             "coolSeq :: Seq Int\n"
             "coolSeq = map (add 1) seqTest\n"
             "seqGo :: SeqValue Int\n"
-            "seqGo = runSeq seqTest 0\n";
+            "seqGo = runSeq seqTest ()\n";
         necro_defunctionalize_test_result(test_name, test_source);
     }
 
@@ -2014,7 +2014,7 @@ void necro_core_defunctionalize_test()
             "coolSeq :: Seq Int\n"
             "coolSeq = map (add 1) seqTest\n"
             "seqGo :: SeqValue Int\n"
-            "seqGo = runSeq coolSeq 0\n";
+            "seqGo = runSeq coolSeq ()\n";
         necro_defunctionalize_test_result(test_name, test_source);
     }
 
@@ -2026,7 +2026,7 @@ void necro_core_defunctionalize_test()
             "coolSeq :: Seq Int\n"
             "coolSeq = map2 add seqTest seqTest\n"
             "seqGo :: SeqValue Int\n"
-            "seqGo = runSeq coolSeq 666\n";
+            "seqGo = runSeq coolSeq ()\n";
         necro_defunctionalize_test_result(test_name, test_source);
     }
 
@@ -2034,9 +2034,9 @@ void necro_core_defunctionalize_test()
         const char* test_name   = "Seq 6";
         const char* test_source = ""
             "coolSeq :: Seq Int\n"
-            "coolSeq = 666 * 22\n"
+            "coolSeq = 666 * 22 + 33\n"
             "seqGo :: SeqValue Int\n"
-            "seqGo = runSeq coolSeq 0\n";
+            "seqGo = runSeq coolSeq ()\n";
         necro_defunctionalize_test_result(test_name, test_source);
     }
 
@@ -2062,13 +2062,21 @@ void necro_core_defunctionalize_test()
         necro_defunctionalize_test_result(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Print Seq";
         const char* test_source = ""
             "main :: *World -> *World\n"
             "main w = print [11 22 _ <4 5 6>] w\n";
+        necro_defunctionalize_test_result(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Print Seq 2";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            "main w = print ([11 12 13] + [<21 22> <23 24 25> 26]) w\n";
         necro_defunctionalize_test_result(test_name, test_source);
     }
 

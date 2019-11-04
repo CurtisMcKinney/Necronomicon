@@ -1201,26 +1201,16 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_seq_expression(NecroCoreAs
     while (seq_expressions != NULL)
     {
         NecroCoreAst* expression_ast = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, seq_expressions->list.item));
-        if (expression_ast->ast_type == NECRO_CORE_AST_VAR && expression_ast->var.ast_symbol->is_wildcard)
-        {
-            // TODO: Wildcard
-            expression_ast = NULL;
-            assert(false);
-        }
-        else
-        {
-            // Normal Value
-            NecroType*    run_seq_type = necro_type_find(ast->sequence_expression.run_seq_symbol->type);
-            NecroCoreAst* run_seq_ast  = necro_core_ast_create_var(context->arena, ast->sequence_expression.run_seq_symbol->core_ast_symbol, run_seq_type);
-            expression_ast             = necro_core_ast_create_app(context->arena, run_seq_ast, expression_ast);
-            expression_ast->necro_type = run_seq_type->fun.type2;
-            expression_ast             = necro_core_ast_create_app(context->arena, expression_ast, necro_core_ast_create_var(context->arena, context->base->unit_con->core_ast_symbol, context->base->unit_type->type));
-            expression_ast->necro_type = run_seq_type->fun.type2->fun.type2;
-        }
-        NecroCoreAst* pat_ast  = necro_core_ast_create_lit(context->arena, (NecroAstConstant) { .int_literal = expression_index, .type = NECRO_AST_CONSTANT_INTEGER });
-        pat_ast->necro_type    = context->base->int_type->type;
-        case_alts              = necro_append_core_ast_list(context->arena, necro_core_ast_create_case_alt(context->arena, pat_ast, expression_ast), case_alts);
-        seq_expressions        = seq_expressions->list.next_item;
+        NecroType*    run_seq_type   = necro_type_find(ast->sequence_expression.run_seq_symbol->type);
+        NecroCoreAst* run_seq_ast    = necro_core_ast_create_var(context->arena, ast->sequence_expression.run_seq_symbol->core_ast_symbol, run_seq_type);
+        expression_ast               = necro_core_ast_create_app(context->arena, run_seq_ast, expression_ast);
+        expression_ast->necro_type   = run_seq_type->fun.type2;
+        expression_ast               = necro_core_ast_create_app(context->arena, expression_ast, necro_core_ast_create_var(context->arena, context->base->unit_con->core_ast_symbol, context->base->unit_type->type));
+        expression_ast->necro_type   = run_seq_type->fun.type2->fun.type2;
+        NecroCoreAst* pat_ast        = necro_core_ast_create_lit(context->arena, (NecroAstConstant) { .int_literal = expression_index, .type = NECRO_AST_CONSTANT_INTEGER });
+        pat_ast->necro_type          = context->base->int_type->type;
+        case_alts                    = necro_append_core_ast_list(context->arena, necro_core_ast_create_case_alt(context->arena, pat_ast, expression_ast), case_alts);
+        seq_expressions              = seq_expressions->list.next_item;
         expression_index++;
     }
     NecroCoreAst*     case_ast  = necro_core_ast_create_case(context->arena, case_proj_ast, case_alts);

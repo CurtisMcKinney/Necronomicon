@@ -34,9 +34,21 @@ min x y =
   else
     y
 
+-- TODO: Fold into Ord class
+max :: Ord a => a -> a -> a
+max x y =
+  if x > y then
+    x
+  else
+    y
+
 -- TODO: map3, etc
 class FunctorN f where
   map2 :: (a -> b -> c) -> f a -> f b -> f c
+
+class Applicative f => Alternative f where
+  empty       :: f a
+  alternative :: f a -> f a -> f a
 
 class Enum a where
   toEnum   :: Int -> a
@@ -251,6 +263,13 @@ instance Applicative Maybe where
           Nothing -> nothing
           Just x  -> Just (f x)
 
+instance Alternative Maybe where
+  empty           = nothing
+  alternative x y =
+    case x of
+      Nothing -> y
+      _       -> x
+
 maybe :: b -> (a -> b) -> Maybe a -> b
 maybe defaultValue f m =
   case m of
@@ -262,8 +281,17 @@ maybe defaultValue f m =
 -- Seq
 --------------------
 data SeqControl = SeqEnd | SeqBlockEnd | SeqNormal | SeqLoopEnd | SeqPure
-data SeqValue a = SeqValue (#Float, SeqControl, Maybe a#)
+data SeqValue a = SeqValue (#Rational, SeqControl, Maybe a#)
 data Seq a      = Seq (() -> SeqValue a)
+
+mergeSeqValueTimes :: Rational -> SeqControl -> Rational -> SeqControl -> Rational
+mergeSeqValueTimes xt xc yt yc =
+  case xc of
+    SeqPure -> yt
+    _ ->
+      case yc of
+        SeqPure -> xt
+        _       -> min xt yt
 
 instance Enum SeqControl where
   toEnum n =
@@ -291,30 +319,49 @@ instance Semigroup SeqControl where
 instance Monoid SeqControl where
   mempty = SeqPure
 
-instance Semigroup (SeqValue a) where
-  append (SeqValue (#xt, xc, xv#)) (SeqValue (#yt, yc, yv#)) =
-    SeqValue (#min xt yt, append xc yc, append xv yv#)
+seqControlFromEnumAlt :: SeqControl -> Int
+seqControlFromEnumAlt s =
+  case s of
+    SeqNormal   -> 0
+    SeqLoopEnd  -> 1
+    SeqPure     -> 2
+    SeqBlockEnd -> 3
+    SeqEnd      -> 4
 
-instance Monoid (SeqValue a) where
-  mempty = SeqValue (#1, SeqPure, nothing#)
-
-instance Default (SeqValue a) where
-  default = SeqValue (#1, SeqPure, nothing#)
+seqControlAlternative :: SeqControl -> SeqControl -> SeqControl
+seqControlAlternative x y =
+  if lt (seqControlFromEnumAlt x) (seqControlFromEnumAlt y) then
+    x
+  else
+    y
 
 instance Functor SeqValue where
   map f (SeqValue (#t, c, x#)) =
     SeqValue (#t, c, map f x#)
 
--- TODO: Take SeqControl into account when merging times!
-
 instance FunctorN SeqValue where
   map2 f (SeqValue (#xt, xc, xv#)) (SeqValue (#yt, yc, yv#)) =
-    SeqValue (#min xt yt, xc <> yc, map2 f xv yv#)
+    SeqValue (#mergeSeqValueTimes xt xc yt yc, xc <> yc, map2 f xv yv#)
 
 instance Applicative SeqValue where
   pure x = SeqValue (#1, SeqPure, Just x#)
   ap (SeqValue (#ft, fc, fv#)) (SeqValue (#xt, xc, xv#)) =
-    SeqValue (#min xt ft, fc <> xc, ap fv xv#)
+    SeqValue (#mergeSeqValueTimes xt xc ft fc, fc <> xc, ap fv xv#)
+
+instance Semigroup (SeqValue a) where
+  append (SeqValue (#xt, xc, xv#)) (SeqValue (#yt, yc, yv#)) =
+    SeqValue (#mergeSeqValueTimes xt xc yt yc, append xc yc, append xv yv#)
+
+instance Monoid (SeqValue a) where
+  mempty = SeqValue (#1, SeqPure, nothing#)
+
+instance Alternative SeqValue where
+  empty = SeqValue (#1, SeqEnd, nothing#)
+  alternative (SeqValue (#xt, xc, xv#)) (SeqValue (#yt, yc, yv#)) =
+    SeqValue (#mergeSeqValueTimes xt xc yt yc, seqControlAlternative xc yc, alternative xv yv#)
+
+instance Default (SeqValue a) where
+  default = SeqValue (#1, SeqPure, nothing#)
 
 instance Num a => Num (SeqValue a) where
   fromInt i = SeqValue (#1, SeqPure, Just (fromInt i)#)
@@ -332,6 +379,51 @@ instance Fractional a => Fractional (SeqValue a) where
 runSeq :: Seq a -> () -> SeqValue a
 runSeq (Seq stepFunc) _ = stepFunc ()
 
+runSeq2 :: Seq a -> Seq b -> (#SeqValue a, SeqValue b#)
+runSeq2 sx sy =
+  acc
+  where
+    acc ~ (#SeqValue (#0, SeqNormal, Nothing#), SeqValue (#0, SeqNormal, Nothing#)#) =
+      case acc of
+        (#SeqValue (#xt, xc, xv#), SeqValue (#yt, yc, yv#)#) ->
+          let
+            t = min xt yt
+            x = if t >= xt then runSeq sx () else SeqValue (#xt - t, xc, xv#)
+            y = if t >= yt then runSeq sy () else SeqValue (#yt - t, yc, yv#)
+          in
+            (#x, y#)
+
+runSeqOnLeft :: Seq a -> Seq b -> (#SeqValue a, SeqValue b#)
+runSeqOnLeft sx sy =
+  acc
+  where
+    acc ~ (#SeqValue (#0, SeqNormal, Nothing#), SeqValue (#0, SeqNormal, Nothing#)#) =
+      case acc of
+        (#SeqValue (#xt, xc, xv#), SeqValue (#yt, yc, yv#)#) ->
+          let
+            t = min xt yt
+            x = if t >= xt then runSeq sx () else SeqValue (#xt - t, xc, xv#)
+            y = if t >= yt then runSeq sy () else SeqValue (#yt - t, yc, yv#)
+          in
+            (#x, y#)
+
+runSeqOnRight :: Seq a -> Seq b -> (#SeqValue a, SeqValue b#)
+runSeqOnRight sx sy =
+  acc
+  where
+    acc ~ (#SeqValue (#0, SeqNormal, Nothing#), SeqValue (#0, SeqNormal, Nothing#)#) =
+      case acc of
+        (#SeqValue (#xt, xc, xv#), SeqValue (#yt, yc, yv#)#) ->
+          let
+            t = min xt yt
+            x = if t >= xt then runSeq sx () else SeqValue (#xt - t, xc, xv#)
+            y = if t >= yt then runSeq sy () else SeqValue (#yt - t, yc, yv#)
+          in
+            (#x, y#)
+
+-- TODO: runSeqLeft (loop right till latest value)
+-- TODO: runSeqRight (loop left till latest value)
+
 instance Functor Seq where
   map f s = Seq (\_ -> map f (runSeq s ()))
 
@@ -340,24 +432,67 @@ instance Applicative Seq where
   ap fs xs = Seq (\_ -> ap (runSeq fs ()) (runSeq xs ()))
 
 instance FunctorN Seq where
-  map2 f sx sy = Seq (\_ -> map2 f (runSeq sx ()) (runSeq sy ()))
+  map2 f sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in map2 f x y)
 
 instance Num a => Num (Seq a) where
   fromInt i = Seq (\_ -> pure (fromInt i))
-  add x y   = Seq (\_ -> map2 add (runSeq x ()) (runSeq y ()))
-  sub x y   = Seq (\_ -> map2 sub (runSeq x ()) (runSeq y ()))
-  mul x y   = Seq (\_ -> map2 mul (runSeq x ()) (runSeq y ()))
+  add sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in map2 add x y)
+  sub sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in map2 sub x y)
+  mul sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in map2 mul x y)
   signum x  = Seq (\_ -> map signum (runSeq x ()))
   abs x     = Seq (\_ -> map abs (runSeq x ()))
 
 instance Fractional a => Fractional (Seq a) where
   fromRational r = Seq (\_ -> pure (fromRational r))
-  div x y        = Seq (\_ -> map2 div (runSeq x ()) (runSeq y ()))
+  div sx sy      = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in map2 div x y)
   recip x        = Seq (\_ -> map recip (runSeq x ()))
 
 instance Semigroup (Seq a) where
-  append (Seq xf) (Seq yf) =
-    Seq (\_ -> append (xf ()) (yf ()))
+  append sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in append x y)
+
+instance Alternative Seq where
+  empty             = Seq (\_ -> SeqValue (#1, SeqPure, nothing#))
+  alternative sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in alternative x y)
+
+-- TODO:
+--  +|  |+   +
+--  -|  |-   -
+--  *|  |*   *
+--  /|  |/   /
+-- <-|  |<- |<-|
+-- ->|  |-> |->|
+
+-- leftOnRight :: Seq a -> Seq b -> Seq a
+-- leftOnLeft  :: Seq a -> Seq b -> Seq a
+-- leftOnBoth  :: Seq a -> Seq b -> Seq a
+
+-- rightOnRight :: Seq a -> Seq b -> Seq b
+-- rightOnLeft  :: Seq a -> Seq b -> Seq b
+-- rightOnBoth  :: Seq a -> Seq b -> Seq b
+
+-- opTest :: Seq Int
+-- opTest = [1 2 3 <4 5>] +| [0 _ <0 0> 0]
+-- opTest = [1 2 3 <4 5>] |+ [0 _ <0 0> 0]
+-- opTest = [1 2 3 <4 5>] -| [0 _ <0 0> 0]
+-- opTest = [1 2 3 <4 5>] |- [0 _ <0 0> 0]
+-- opTest = [1 2 3 <4 5>] *| [0 _ <0 0> 0]
+-- opTest = [1 2 3 <4 5>] |* [0 _ <0 0> 0]
+-- opTest = [1 2 3 <4 5>] /| [0 _ <0 0> 0]
+-- opTest = [1 2 3 <4 5>] |/ [0 _ <0 0> 0]
+-- opTest = [1 2 3 <4 5>] <-| [0 _ <0 0> 0]
+-- opTest = [1 2 3 <4 5>] ->| [0 _ <0 0> 0]
+-- opTest = [1 2 3 <4 5>] |<- [0 _ <0 0> 0]
+-- opTest = [1 2 3 <4 5>] |-> [0 _ <0 0> 0]
+-- opTest = [1 2 3 <4 5>] |<-| [0 _ <0 0> 0]
+-- opTest = [1 2 3 <4 5>] |->| [0 _ <0 0> 0]
+
+addSeqOnLeft :: Num a => Seq a -> Seq a -> Seq a
+addSeqOnLeft ls rs = Seq (\_ -> let (#l, r#) = runSeqOnLeft ls rs in map2 add l r)
+
+addSeqOnRight :: Num a => Seq a -> Seq a -> Seq a
+addSeqOnRight ls rs = Seq (\_ -> let (#l, r#) = runSeqOnRight ls rs in map2 add l r)
+
+-- polymorphic seq literals broken? get (seqTick, etc) at monomorphization instead of infer?
 
 restSeqValue :: SeqValue a
 restSeqValue =
@@ -366,6 +501,69 @@ restSeqValue =
 rest :: Seq a
 rest =
   Seq (\_ -> restSeqValue)
+
+seqValueDurationMul :: Rational -> SeqValue a -> SeqValue a
+seqValueDurationMul speed (SeqValue (#t, c, v#)) =
+  SeqValue (#t * speed, c, v#)
+
+recipRational :: Rational -> Rational
+recipRational (Rational (#n, d#)) = d % n
+
+seqSpeed :: Rational -> Seq a -> Seq a
+seqSpeed speed seq = Seq (\_ -> seqValueDurationMul (recipRational speed) (runSeq seq ()))
+
+bpm :: Int -> Rational
+bpm tempoInBPM = tempoInBPM % 60
+
+toSeq :: SeqValue a -> Seq a
+toSeq sv = Seq (\_ -> sv)
+
+altTest :: SeqValue Int
+altTest = runSeq (alternative [0 1 _ 3] [_ 2 55 _]) ()
+-- TODO, This crashes:
+-- altTest = runSeq (alternative [0 1 _ 3] [_ <2 9> 55 _]) ()
+
+-- TODO: Fix NULL pointer in desugaring recursively bound svs in sequence literals
+-- myRecSeq :: Seq Int
+-- myRecSeq = Seq <| \_ ->
+--   let
+--     x ~ default = runSeq <1 2 (toSeq x)> ()
+--   in
+--     x
+
+seqLoopEndIfLastSlot :: Int -> Int -> SeqControl
+seqLoopEndIfLastSlot slot maxSlot =
+  if (slot + 1) < maxSlot then
+    SeqNormal
+  else
+    SeqLoopEnd
+
+-- Combining nested case statements with case literals seems to break...
+slotTick :: Int -> Int -> SeqControl -> SeqValue a -> (#Int, SeqValue a#)
+slotTick slot maxSlot controlIfNotNormal sv =
+  case sv of
+    SeqValue (#t, c, v#) ->
+      case c of
+        SeqNormal -> (#slot, sv#)
+        _         -> (#remInt (slot + 1) maxSlot, SeqValue (#t, controlIfNotNormal, v#)#)
+
+seqTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
+seqTick slot maxSlot sv =
+  slotTick slot maxSlot (seqLoopEndIfLastSlot slot maxSlot) sv
+
+tupleTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
+tupleTick slot maxSlot sv =
+  slotTick slot maxSlot (seqLoopEndIfLastSlot slot maxSlot) (seqValueDurationMul (1 % maxSlot) sv)
+
+interleaveTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
+interleaveTick slot maxSlot sv =
+  slotTick slot maxSlot SeqLoopEnd sv
+
+-- <> => Sequence
+-- [] => Tuple
+-- {} => Interleave
+
+
 
 --------------------
 -- Print
@@ -388,6 +586,8 @@ instance Print Char where
 instance Print Rational where
   print (Rational (#n, d#)) w =
     print '(' w |> print n |> print ' ' |> print '%' |> print ' ' |> print d |> print ')'
+
+-- TODO: Look at Rational, Look at Seq Printing
 
 -- -- TODO: Tick delta
 -- -- TODO: Seq literals
@@ -624,11 +824,19 @@ saw :: (Audio a) => a -> a
 saw freq =
   accumulateAudio1 accumulateSaw freq
 
+blocksPerSecond :: Rational
+blocksPerSecond = 48000 % 64
+
+blockDelta :: Rational
+blockDelta = recipRational blocksPerSecond
+
+
 -- class Foldable f where
 --   fold  :: Monoid m => f m -> m
 --   foldl :: (b -> a -> b) -> b -> f a -> b
 --   foldp :: (b -> a -> b) -> f a -> b
 
+-- TODO: "Constant" type enforcement for Default / Monoid
 -- TODO: Desugar seq literals
 -- TODO: Replace Default with Monoid?
 -- TODO: Handle Constant, End, etc
@@ -687,10 +895,12 @@ saw freq =
 -- foldPrint :: *World -> *World
 -- foldPrint w = foldl (flip printInt) w 33
 
+-- TODO: Test Rationals!
+-- TODO: Print Time stamp?
 instance Print a => Print (Seq a) where
   print s w = wout
     where
-      tick ~ 0       = tick + 0.003
+      tick ~ 0       = tick + blockDelta
       (#_, _, wout#) =
         loop (#Share cont, Share time, w'#) = (#Share True, Share 0, w#) while cont do
           let nextValueTime ~ 0 = nextValueTime + time in
@@ -703,53 +913,25 @@ instance Print a => Print (Seq a) where
                 SeqValue (#t, _, _#) ->
                   (#Share True, Share t, w'#)
 
--- TODO: Literal Case expressions are returning the wrong values!
-seqLoopEndIfLastSlot :: Int -> Int -> SeqControl
-seqLoopEndIfLastSlot slot maxSlot =
-  SeqNormal
-  -- if (slot + 1) < maxSlot then
-  --   SeqNormal
-  -- else
-  --   SeqLoopEnd
-
--- Combining nested case statements with case literals seems to break...
-slotTick :: Int -> Int -> SeqControl -> SeqValue a -> (#Int, SeqValue a#)
-slotTick slot maxSlot controlIfNotNormal sv =
-  case sv of
-    SeqValue (#t, c, v#) ->
-      case c of
-        SeqNormal -> (#slot, sv#)
-        _         -> (#remInt (slot + 1) maxSlot, SeqValue (#t, SeqNormal, v#)#)
-
-        -- _         -> (#remInt (slot + 1) maxSlot, SeqValue (#t, controlIfNotNormal, v#)#)
-
-warpSeqValueSpeed :: Float -> SeqValue a -> SeqValue a
-warpSeqValueSpeed speed (SeqValue (#t, c, v#)) =
-  SeqValue (#t * speed, c, v#)
-
-seqTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
-seqTick slot maxSlot sv =
-  slotTick slot maxSlot SeqNormal sv
-
-tupleTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
-tupleTick slot maxSlot sv =
-  slotTick slot maxSlot SeqNormal (warpSeqValueSpeed (recip (fromInt maxSlot)) sv)
-
-interleaveTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
-interleaveTick slot maxSlot sv =
-  slotTick slot maxSlot SeqNormal sv
-
--- <> => Sequence
--- [] => Tuple
--- {} => Interleave
-
--- seqTest :: Seq Float
+-- -- TODO: Float / Int mix up in types somewhere along the way!?!?!
+-- -- seqTest :: Seq Float
+-- seqTest :: Seq Int
 -- seqTest =
---   [0 _ 1 2]
+--   [0 _ 1 2] + [<3 4> _ <5 6> <7 8 9>]
 
--- seqTestGo :: SeqValue Float
+-- -- seqTestGo :: SeqValue Float
 -- seqTestGo =
 --   runSeq seqTest ()
+
+-- TODO: Throw in test somewhere, replace >> with .> in all tests
+-- composeTest :: Int -> Int
+-- composeTest = add 1 <. add 2
+
+doubleTrouble :: SeqValue Int
+doubleTrouble =
+  runSeq (2 * <33 44 <0 _ 1 2>>) ()
+
+-- TODO: Perhaps function caching is getting off, need more accurate check for HOF caching!
 
 -- tupleTest :: Seq Float
 -- tupleTest =
@@ -878,17 +1060,15 @@ interleaveTick slot maxSlot sv =
 -- pulse :: Audio a => a -> a
 -- pulse freq = accumulateAudio2 accumulatePulse freq
 
+-- TODO: Rational Time for Sequences!
+-- TODO: Use List type syntax for Sequences?
 -- TODO: Make sure that seq combinators that take multiple seq inputs (map2, ap, etc) only demands the inputs after the duration for each specific input
 -- TODO: Add Flag to Audio which flags that it has ended!
--- TODO: Sequence Literals
 -- TODO: Partially recursive values
--- TODO: Defunctionalization
--- TODO: Rational Type
--- TODO: Stateful Unboxed types
+-- TODO: Defunctionalization of function on data structures
 -- TODO: Stateful Pattern assignment
 -- TODO: toSIMDAudio :: Array BlockSize F64 -> Array SIMDBlockSize SIMDF64
 -- TODO: Conal Elliot automatic differentiation
--- TODO: Get changes from Chad for apat desugaring
--- TODO: Throw this into a test
 -- TODO: 64-bit issue Chad was having
+-- TODO: Mod wrap (print beat) art, creates cool patterns
 

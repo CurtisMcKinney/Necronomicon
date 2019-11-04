@@ -3049,25 +3049,85 @@ void necro_llvm_test_jit()
         necro_llvm_jit_string(test_name, test_source);
     }
 
+    {
+        const char* test_name   = "Print Rational 3";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            "main w = printLn ((1 % 2) + (1 % 4) + (1 % 4)) w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Print Rational 4";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            "main w = printLn ((3 % 4) * (1 % 2) * (1 % 3)) w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Print Rational 5";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            "main w = printLn ((2 % 3) - ((1 % 4) * (1 % 2))) w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Print Rational 6";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            "main w = printLn (max (1 % 256) (42 % 32)) w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Print Rational 7";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            "main w = printLn ((10 % 1) - (20 % 2)) w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Print Rational 8";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            "main w = printLn ((10 % 1) - (20 % 1)) w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Print Seq 1";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            "main w = print [11 <22 25> _ <4 5 [333:444:555:666]>] w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Print Seq 2";
+        const char* test_source = ""
+            "twoAgainstFour :: Seq Int\n"
+            "twoAgainstFour = <2 3> + <4 5 6 7>\n"
+            "main :: *World -> *World\n"
+            "main w = print twoAgainstFour w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
 */
 
     {
-        const char* test_name   = "Print Seq";
+        const char* test_name   = "Print Seq 2";
         const char* test_source = ""
+            "twoAgainstThree :: Seq Int\n"
+            "twoAgainstThree = <2 3> + <4 5 6>\n"
             "main :: *World -> *World\n"
-            "main w = print [11 <22 25> _ <4 5 6>] w\n";
+            "main w = print twoAgainstThree w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 
 /*
-
-    {
-        const char* test_name   = "Print Beat 1";
-        const char* test_source = ""
-            "main :: *World -> *World\n"
-            "main w = printBeat w\n";
-        necro_llvm_jit_string(test_name, test_source);
-    }
 
     {
         const char* test_name   = "Audio 3";

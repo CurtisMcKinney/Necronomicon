@@ -613,8 +613,8 @@ bool necro_lex_multi_character_token(NecroLexer* lexer)
            necro_lex_token_with_pattern(lexer, "<=",  NECRO_LEX_LTE)                 ||
            necro_lex_token_with_pattern(lexer, ">=",  NECRO_LEX_GTE)                 ||
            necro_lex_token_with_pattern(lexer, "::",  NECRO_LEX_DOUBLE_COLON)        ||
-           necro_lex_token_with_pattern(lexer, ">>",  NECRO_LEX_RIGHT_SHIFT)         ||
-           necro_lex_token_with_pattern(lexer, "<<",  NECRO_LEX_LEFT_SHIFT)          ||
+           necro_lex_token_with_pattern(lexer, ".>",  NECRO_LEX_RIGHT_SHIFT)         ||
+           necro_lex_token_with_pattern(lexer, "<.",  NECRO_LEX_LEFT_SHIFT)          ||
            necro_lex_token_with_pattern(lexer, "<|",  NECRO_LEX_FORWARD_PIPE)        ||
            necro_lex_token_with_pattern(lexer, "|>",  NECRO_LEX_BACK_PIPE)           ||
            necro_lex_token_with_pattern(lexer, "&&",  NECRO_LEX_AND)                 ||

@@ -1062,7 +1062,7 @@ NecroMachAst* necro_core_transform_to_mach_3_var(NecroMachProgram* program, Necr
     // Enum
     if (symbol->is_enum) // if (symbol->is_constructor && info->arity == 0 && info->is_enum) // NOTE: Only using the flag for now. Make sure this is accurate
     {
-        return necro_mach_value_create_word_uint(program, symbol->con_num);
+        return necro_mach_value_create_word_uint(program, ast_symbol->con_num);
     }
     //--------------------
     // Primitive

@@ -125,60 +125,47 @@ const char* necro_bin_op_name(NECRO_BIN_OP_TYPE type)
 {
     switch (type)
     {
-    case NECRO_BIN_OP_ADD:
-        return "(+)";
-    case NECRO_BIN_OP_SUB:
-        return "(-)";
-    case NECRO_BIN_OP_MUL:
-        return "(*)";
-    case NECRO_BIN_OP_DIV:
-        return "(/)";
-    case NECRO_BIN_OP_MOD:
-        return "(%)";
-    case NECRO_BIN_OP_GT:
-        return "(>)";
-    case NECRO_BIN_OP_LT:
-        return "(<)";
-    case NECRO_BIN_OP_GTE:
-        return "(>=)";
-    case NECRO_BIN_OP_LTE:
-        return "(<=)";
-    case NECRO_BIN_OP_COLON:
-        return "(:)";
-    case NECRO_BIN_OP_DOUBLE_COLON:
-        return "(::)";
-    case NECRO_BIN_OP_LEFT_SHIFT:
-        return "(<<)";
-    case NECRO_BIN_OP_RIGHT_SHIFT:
-        return "(>>)";
-    case NECRO_BIN_OP_PIPE:
-        return "(|)";
-    case NECRO_BIN_OP_FORWARD_PIPE:
-        return "(|>)";
-    case NECRO_BIN_OP_BACK_PIPE:
-        return "(<|)";
-    case NECRO_BIN_OP_EQUALS:
-        return "(=)";
-    case NECRO_BIN_OP_NOT_EQUALS:
-        return "(/=)";
-    case NECRO_BIN_OP_AND:
-        return "(&&)";
-    case NECRO_BIN_OP_OR:
-        return "(||)";
-    case NECRO_BIN_OP_DOT:
-        return "(.)";
-    case NECRO_BIN_OP_DOLLAR:
-        return "($)";
-    case NECRO_BIN_OP_BIND_RIGHT:
-        return "(>>=)";
-    case NECRO_BIN_OP_BIND_LEFT:
-        return "(=<<)";
-    case NECRO_BIN_OP_DOUBLE_EXCLAMATION:
-        return "(!!)";
-    case NECRO_BIN_OP_APPEND:
-        return "(++)";
-    case NECRO_BIN_OP_FBY:
-        return "(-->)";
+    case NECRO_BIN_OP_ADD:                return "(+)";
+    case NECRO_BIN_OP_SUB:                return "(-)";
+    case NECRO_BIN_OP_MUL:                return "(*)";
+    case NECRO_BIN_OP_DIV:                return "(/)";
+    case NECRO_BIN_OP_MOD:                return "(%)";
+    case NECRO_BIN_OP_GT:                 return "(>)";
+    case NECRO_BIN_OP_LT:                 return "(<)";
+    case NECRO_BIN_OP_GTE:                return "(>=)";
+    case NECRO_BIN_OP_LTE:                return "(<=)";
+    case NECRO_BIN_OP_COLON:              return "(:)";
+    case NECRO_BIN_OP_DOUBLE_COLON:       return "(::)";
+    case NECRO_BIN_OP_LEFT_SHIFT:         return "(<.)";
+    case NECRO_BIN_OP_RIGHT_SHIFT:        return "(.>)";
+    case NECRO_BIN_OP_PIPE:               return "(|)";
+    case NECRO_BIN_OP_FORWARD_PIPE:       return "(|>)";
+    case NECRO_BIN_OP_BACK_PIPE:          return "(<|)";
+    case NECRO_BIN_OP_EQUALS:             return "(=)";
+    case NECRO_BIN_OP_NOT_EQUALS:         return "(/=)";
+    case NECRO_BIN_OP_AND:                return "(&&)";
+    case NECRO_BIN_OP_OR:                 return "(||)";
+    case NECRO_BIN_OP_DOT:                return "(.)";
+    case NECRO_BIN_OP_DOLLAR:             return "($)";
+    case NECRO_BIN_OP_BIND_RIGHT:         return "(>>=)";
+    case NECRO_BIN_OP_BIND_LEFT:          return "(=<<)";
+    case NECRO_BIN_OP_DOUBLE_EXCLAMATION: return "(!!)";
+    case NECRO_BIN_OP_APPEND:             return "(++)";
+    case NECRO_LEX_ADD_ON_LEFT:           return "(@+)";
+    case NECRO_LEX_ADD_ON_RIGHT:          return "(+@)";
+    case NECRO_LEX_SUB_ON_LEFT:           return "(@-)";
+    case NECRO_LEX_SUB_ON_RIGHT:          return "(-@)";
+    case NECRO_LEX_MUL_ON_LEFT:           return "(@*)";
+    case NECRO_LEX_MUL_ON_RIGHT:          return "(*@)";
+    case NECRO_LEX_DIV_ON_LEFT:           return "(@/)";
+    case NECRO_LEX_DIV_ON_RIGHT:          return "(/@)";
+    case NECRO_LEX_CONST_LEFT_ON_LEFT:    return "(@<)";
+    case NECRO_LEX_CONST_LEFT_ON_RIGHT:   return "(<@)";
+    case NECRO_LEX_CONST_RIGHT_ON_LEFT:   return "(@>)";
+    case NECRO_LEX_CONST_RIGHT_ON_RIGHT:  return "(>@)";
+    case NECRO_LEX_CONST_LEFT_ON_BOTH:    return "(@<@)";
+    case NECRO_LEX_CONST_RIGHT_ON_BOTH:   return "(@>@)";
+    case NECRO_BIN_OP_FBY:                return "(-->)";
     default:
         assert(false);
         return "(Undefined Binary Operator)";
@@ -673,7 +660,7 @@ static const NecroParseBinOpBehavior bin_op_behaviors[NECRO_BIN_OP_COUNT + 1] = 
     { 6, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_SUB
     { 7, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_MUL
     { 7, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_DIV
-    { 7, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_MOD
+    { 9, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_MOD
     { 4, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_GT
     { 4, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_LT
     { 4, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_GTE
@@ -695,6 +682,20 @@ static const NecroParseBinOpBehavior bin_op_behaviors[NECRO_BIN_OP_COUNT + 1] = 
     { 1, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_BIND_LEFT
     { 9, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_DOUBLE_EXCLAMATION
     { 5, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_APPEND
+    { 6, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_ADD_ON_LEFT,
+    { 6, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_ADD_ON_RIGHT,
+    { 6, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_SUB_ON_LEFT,
+    { 6, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_SUB_ON_RIGHT,
+    { 7, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_MUL_ON_LEFT,
+    { 7, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_MUL_ON_RIGHT,
+    { 7, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_DIV_ON_LEFT,
+    { 7, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_DIV_ON_RIGHT,
+    { 8, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_CONST_LEFT_ON_LEFT,
+    { 8, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_CONST_LEFT_ON_RIGHT,
+    { 8, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_CONST_RIGHT_ON_LEFT,
+    { 8, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_CONST_RIGHT_ON_RIGHT,
+    { 8, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_CONST_LEFT_ON_BOTH,
+    { 8, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_CONST_RIGHT_ON_BOTH,
 	// { 1, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_FBY
     { 0, NECRO_BIN_OP_ASSOC_NONE }   // NECRO_BIN_OP_UNDEFINED
 };
@@ -2078,60 +2079,47 @@ NECRO_BIN_OP_TYPE necro_token_to_bin_op_type(NECRO_LEX_TOKEN_TYPE token_type)
 {
     switch(token_type)
     {
-    case NECRO_LEX_ADD:
-        return NECRO_BIN_OP_ADD;
-    case NECRO_LEX_SUB:
-        return NECRO_BIN_OP_SUB;
-    case NECRO_LEX_MUL:
-        return NECRO_BIN_OP_MUL;
-    case NECRO_LEX_DIV:
-        return NECRO_BIN_OP_DIV;
-    case NECRO_LEX_MOD:
-        return NECRO_BIN_OP_MOD;
-    case NECRO_LEX_GT:
-        return NECRO_BIN_OP_GT;
-    case NECRO_LEX_LT:
-        return NECRO_BIN_OP_LT;
-    case NECRO_LEX_GTE:
-        return NECRO_BIN_OP_GTE;
-    case NECRO_LEX_LTE:
-        return NECRO_BIN_OP_LTE;
-    case NECRO_LEX_COLON:
-        return NECRO_BIN_OP_COLON;
-    case NECRO_LEX_DOUBLE_COLON:
-        return NECRO_BIN_OP_DOUBLE_COLON;
-    case NECRO_LEX_LEFT_SHIFT:
-        return NECRO_BIN_OP_LEFT_SHIFT;
-    case NECRO_LEX_RIGHT_SHIFT:
-        return NECRO_BIN_OP_RIGHT_SHIFT;
-    case NECRO_LEX_PIPE:
-        return NECRO_BIN_OP_PIPE;
-    case NECRO_LEX_FORWARD_PIPE:
-        return NECRO_BIN_OP_FORWARD_PIPE;
-    case NECRO_LEX_BACK_PIPE:
-        return NECRO_BIN_OP_BACK_PIPE;
-    case NECRO_LEX_EQUALS:
-        return NECRO_BIN_OP_EQUALS;
-    case NECRO_LEX_NOT_EQUALS:
-        return NECRO_BIN_OP_NOT_EQUALS;
-    case NECRO_LEX_AND:
-        return NECRO_BIN_OP_AND;
-    case NECRO_LEX_OR:
-        return NECRO_BIN_OP_OR;
-    case NECRO_LEX_DOT:
-        return NECRO_BIN_OP_DOT;
-    case NECRO_LEX_DOLLAR:
-        return NECRO_BIN_OP_DOLLAR;
-    case NECRO_LEX_BIND_RIGHT:
-        return NECRO_BIN_OP_BIND_RIGHT;
-    case NECRO_LEX_BIND_LEFT:
-        return NECRO_BIN_OP_BIND_LEFT;
-    case NECRO_LEX_DOUBLE_EXCLAMATION:
-        return NECRO_BIN_OP_DOUBLE_EXCLAMATION;
-    case NECRO_LEX_APPEND:
-        return NECRO_BIN_OP_APPEND;
-    default:
-        return NECRO_BIN_OP_UNDEFINED;
+    case NECRO_LEX_ADD:                  return NECRO_BIN_OP_ADD;
+    case NECRO_LEX_SUB:                  return NECRO_BIN_OP_SUB;
+    case NECRO_LEX_MUL:                  return NECRO_BIN_OP_MUL;
+    case NECRO_LEX_DIV:                  return NECRO_BIN_OP_DIV;
+    case NECRO_LEX_MOD:                  return NECRO_BIN_OP_MOD;
+    case NECRO_LEX_GT:                   return NECRO_BIN_OP_GT;
+    case NECRO_LEX_LT:                   return NECRO_BIN_OP_LT;
+    case NECRO_LEX_GTE:                  return NECRO_BIN_OP_GTE;
+    case NECRO_LEX_LTE:                  return NECRO_BIN_OP_LTE;
+    case NECRO_LEX_COLON:                return NECRO_BIN_OP_COLON;
+    case NECRO_LEX_DOUBLE_COLON:         return NECRO_BIN_OP_DOUBLE_COLON;
+    case NECRO_LEX_LEFT_SHIFT:           return NECRO_BIN_OP_LEFT_SHIFT;
+    case NECRO_LEX_RIGHT_SHIFT:          return NECRO_BIN_OP_RIGHT_SHIFT;
+    case NECRO_LEX_PIPE:                 return NECRO_BIN_OP_PIPE;
+    case NECRO_LEX_FORWARD_PIPE:         return NECRO_BIN_OP_FORWARD_PIPE;
+    case NECRO_LEX_BACK_PIPE:            return NECRO_BIN_OP_BACK_PIPE;
+    case NECRO_LEX_EQUALS:               return NECRO_BIN_OP_EQUALS;
+    case NECRO_LEX_NOT_EQUALS:           return NECRO_BIN_OP_NOT_EQUALS;
+    case NECRO_LEX_AND:                  return NECRO_BIN_OP_AND;
+    case NECRO_LEX_OR:                   return NECRO_BIN_OP_OR;
+    case NECRO_LEX_DOT:                  return NECRO_BIN_OP_DOT;
+    case NECRO_LEX_DOLLAR:               return NECRO_BIN_OP_DOLLAR;
+    case NECRO_LEX_BIND_RIGHT:           return NECRO_BIN_OP_BIND_RIGHT;
+    case NECRO_LEX_BIND_LEFT:            return NECRO_BIN_OP_BIND_LEFT;
+    case NECRO_LEX_DOUBLE_EXCLAMATION:   return NECRO_BIN_OP_DOUBLE_EXCLAMATION;
+    case NECRO_LEX_APPEND:               return NECRO_BIN_OP_APPEND;
+    case NECRO_LEX_ADD_ON_LEFT:          return NECRO_BIN_OP_ADD_ON_LEFT;
+    case NECRO_LEX_ADD_ON_RIGHT:         return NECRO_BIN_OP_ADD_ON_RIGHT;
+    case NECRO_LEX_SUB_ON_LEFT:          return NECRO_BIN_OP_SUB_ON_LEFT;
+    case NECRO_LEX_SUB_ON_RIGHT:         return NECRO_BIN_OP_SUB_ON_RIGHT;
+    case NECRO_LEX_MUL_ON_LEFT:          return NECRO_BIN_OP_MUL_ON_LEFT;
+    case NECRO_LEX_MUL_ON_RIGHT:         return NECRO_BIN_OP_MUL_ON_RIGHT;
+    case NECRO_LEX_DIV_ON_LEFT:          return NECRO_BIN_OP_DIV_ON_LEFT;
+    case NECRO_LEX_DIV_ON_RIGHT:         return NECRO_BIN_OP_DIV_ON_RIGHT;
+    case NECRO_LEX_CONST_LEFT_ON_LEFT:   return NECRO_BIN_OP_CONST_LEFT_ON_LEFT;
+    case NECRO_LEX_CONST_LEFT_ON_RIGHT:  return NECRO_BIN_OP_CONST_LEFT_ON_RIGHT;
+    case NECRO_LEX_CONST_RIGHT_ON_LEFT:  return NECRO_BIN_OP_CONST_RIGHT_ON_LEFT;
+    case NECRO_LEX_CONST_RIGHT_ON_RIGHT: return NECRO_BIN_OP_CONST_RIGHT_ON_RIGHT;
+    case NECRO_LEX_CONST_LEFT_ON_BOTH:   return NECRO_BIN_OP_CONST_LEFT_ON_BOTH;
+    case NECRO_LEX_CONST_RIGHT_ON_BOTH:  return NECRO_BIN_OP_CONST_RIGHT_ON_BOTH;
+    default:                             return NECRO_BIN_OP_UNDEFINED;
     }
 }
 

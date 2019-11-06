@@ -924,6 +924,110 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "<>", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "append", NECRO_VAR_VAR), NULL)));
     }
 
+    // @+
+    {
+        NecroAst* seq_type = necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "Seq", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "@+", necro_ast_create_context(arena, intern, "Num", "a", NULL), necro_ast_create_type_fn(arena, seq_type, necro_ast_create_type_fn(arena, seq_type, seq_type)), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "@+", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "addSeqOnLeft", NECRO_VAR_VAR), NULL)));
+    }
+
+    // +@
+    {
+        NecroAst* seq_type = necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "Seq", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "+@", necro_ast_create_context(arena, intern, "Num", "a", NULL), necro_ast_create_type_fn(arena, seq_type, necro_ast_create_type_fn(arena, seq_type, seq_type)), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "+@", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "addSeqOnRight", NECRO_VAR_VAR), NULL)));
+    }
+
+    // @-
+    {
+        NecroAst* seq_type = necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "Seq", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "@-", necro_ast_create_context(arena, intern, "Num", "a", NULL), necro_ast_create_type_fn(arena, seq_type, necro_ast_create_type_fn(arena, seq_type, seq_type)), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "@-", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "subSeqOnLeft", NECRO_VAR_VAR), NULL)));
+    }
+
+    // -@
+    {
+        NecroAst* seq_type = necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "Seq", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "-@", necro_ast_create_context(arena, intern, "Num", "a", NULL), necro_ast_create_type_fn(arena, seq_type, necro_ast_create_type_fn(arena, seq_type, seq_type)), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "-@", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "subSeqOnRight", NECRO_VAR_VAR), NULL)));
+    }
+
+    // @*
+    {
+        NecroAst* seq_type = necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "Seq", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "@*", necro_ast_create_context(arena, intern, "Num", "a", NULL), necro_ast_create_type_fn(arena, seq_type, necro_ast_create_type_fn(arena, seq_type, seq_type)), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "@*", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "mulSeqOnLeft", NECRO_VAR_VAR), NULL)));
+    }
+
+    // *@
+    {
+        NecroAst* seq_type = necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "Seq", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "*@", necro_ast_create_context(arena, intern, "Num", "a", NULL), necro_ast_create_type_fn(arena, seq_type, necro_ast_create_type_fn(arena, seq_type, seq_type)), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "*@", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "mulSeqOnRight", NECRO_VAR_VAR), NULL)));
+    }
+
+    // @/
+    {
+        NecroAst* seq_type = necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "Seq", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "@/", necro_ast_create_context(arena, intern, "Fractional", "a", NULL), necro_ast_create_type_fn(arena, seq_type, necro_ast_create_type_fn(arena, seq_type, seq_type)), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "@/", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "divSeqOnLeft", NECRO_VAR_VAR), NULL)));
+    }
+
+    // /@
+    {
+        NecroAst* seq_type = necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "Seq", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "/@", necro_ast_create_context(arena, intern, "Fractional", "a", NULL), necro_ast_create_type_fn(arena, seq_type, necro_ast_create_type_fn(arena, seq_type, seq_type)), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "/@", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "divSeqOnRight", NECRO_VAR_VAR), NULL)));
+    }
+
+    // @<
+    {
+        NecroAst* seq_type_a = necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "Seq", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
+        NecroAst* seq_type_b = necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "Seq", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR));
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "@<", NULL, necro_ast_create_type_fn(arena, seq_type_a, necro_ast_create_type_fn(arena, seq_type_b, seq_type_a)), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "@<", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "leftConstSeqOnLeft", NECRO_VAR_VAR), NULL)));
+    }
+
+    // <@
+    {
+        NecroAst* seq_type_a = necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "Seq", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
+        NecroAst* seq_type_b = necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "Seq", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR));
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "<@", NULL, necro_ast_create_type_fn(arena, seq_type_a, necro_ast_create_type_fn(arena, seq_type_b, seq_type_a)), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "<@", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "leftConstSeqOnRight", NECRO_VAR_VAR), NULL)));
+    }
+
+    // @>
+    {
+        NecroAst* seq_type_a = necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "Seq", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
+        NecroAst* seq_type_b = necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "Seq", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR));
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "@>", NULL, necro_ast_create_type_fn(arena, seq_type_a, necro_ast_create_type_fn(arena, seq_type_b, seq_type_b)), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "@>", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "rightConstSeqOnLeft", NECRO_VAR_VAR), NULL)));
+    }
+
+    // >@
+    {
+        NecroAst* seq_type_a = necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "Seq", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
+        NecroAst* seq_type_b = necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "Seq", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR));
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, ">@", NULL, necro_ast_create_type_fn(arena, seq_type_a, necro_ast_create_type_fn(arena, seq_type_b, seq_type_b)), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, ">@", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "rightConstSeqOnRight", NECRO_VAR_VAR), NULL)));
+    }
+
+    // @<@
+    {
+        NecroAst* seq_type_a = necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "Seq", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
+        NecroAst* seq_type_b = necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "Seq", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR));
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "@<@", NULL, necro_ast_create_type_fn(arena, seq_type_a, necro_ast_create_type_fn(arena, seq_type_b, seq_type_a)), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "@<@", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "leftConstSeqOnBoth", NECRO_VAR_VAR), NULL)));
+    }
+
+    // @>@
+    {
+        NecroAst* seq_type_a = necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "Seq", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR));
+        NecroAst* seq_type_b = necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "Seq", NECRO_CON_TYPE_VAR), necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR));
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "@>@", NULL, necro_ast_create_type_fn(arena, seq_type_a, necro_ast_create_type_fn(arena, seq_type_b, seq_type_b)), NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "@>@", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "rightConstSeqOnBoth", NECRO_VAR_VAR), NULL)));
+    }
+
     // // >>=
     // {
     //     NecroAst* a_var       = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);

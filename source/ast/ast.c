@@ -2241,8 +2241,13 @@ NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_g
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_expression_array(arena,
             necro_ast_deep_copy_go(arena, declaration_group, ast->expression_array.expressions)));
     case NECRO_AST_SEQ_EXPRESSION:
-        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_seq_expression(arena,
+    {
+        NecroAst* copied_ast = necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_seq_expression(arena,
             necro_ast_deep_copy_go(arena, declaration_group, ast->sequence_expression.expressions), ast->sequence_expression.sequence_type));
+        copied_ast->sequence_expression.tick_inst_subs    = necro_type_deep_copy_subs(arena, ast->sequence_expression.tick_inst_subs);
+        copied_ast->sequence_expression.run_seq_inst_subs = necro_type_deep_copy_subs(arena, ast->sequence_expression.run_seq_inst_subs);
+        return copied_ast;
+    }
     case NECRO_AST_TUPLE:
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_tuple_full(arena,
             necro_ast_deep_copy_go(arena, declaration_group, ast->tuple.expressions), ast->tuple.is_unboxed));

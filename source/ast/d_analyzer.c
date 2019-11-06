@@ -547,6 +547,8 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
         break;
     case NECRO_AST_SEQ_EXPRESSION:
         d_analyze_var(d_analyzer, d_analyzer->base->seq_tick);
+        d_analyze_var(d_analyzer, d_analyzer->base->tuple_tick);
+        d_analyze_var(d_analyzer, d_analyzer->base->interleave_tick);
         d_analyze_var(d_analyzer, d_analyzer->base->run_seq);
         d_analyze_go(d_analyzer, ast->sequence_expression.expressions);
         break;

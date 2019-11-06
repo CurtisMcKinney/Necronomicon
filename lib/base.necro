@@ -388,41 +388,44 @@ runSeq2 sx sy =
         (#SeqValue (#xt, xc, xv#), SeqValue (#yt, yc, yv#)#) ->
           let
             t = min xt yt
-            x = if t >= xt then runSeq sx () else SeqValue (#xt - t, xc, xv#)
-            y = if t >= yt then runSeq sy () else SeqValue (#yt - t, yc, yv#)
+            x = if xt <= t then runSeq sx () else SeqValue (#xt - t, xc, xv#)
+            y = if yt <= t then runSeq sy () else SeqValue (#yt - t, yc, yv#)
           in
             (#x, y#)
+
+seqValueDuration :: SeqValue a -> Rational
+seqValueDuration (SeqValue (#t, _, _#)) = t
+
+seqValueControl :: SeqValue a -> SeqControl
+seqValueControl (SeqValue (#_, c, _#)) = c
 
 runSeqOnLeft :: Seq a -> Seq b -> (#SeqValue a, SeqValue b#)
-runSeqOnLeft sx sy =
+runSeqOnLeft ls rs =
   acc
   where
     acc ~ (#SeqValue (#0, SeqNormal, Nothing#), SeqValue (#0, SeqNormal, Nothing#)#) =
       case acc of
-        (#SeqValue (#xt, xc, xv#), SeqValue (#yt, yc, yv#)#) ->
+        (#SeqValue (#lt, lc, _#), SeqValue (#rt, rc, rv#)#) ->
           let
-            t = min xt yt
-            x = if t >= xt then runSeq sx () else SeqValue (#xt - t, xc, xv#)
-            y = if t >= yt then runSeq sy () else SeqValue (#yt - t, yc, yv#)
+            t = min lt rt
+            l = if lt <= t then runSeq ls () else SeqValue (#lt - t, lc, nothing#)
+            r = if rt <= t then runSeq rs () else SeqValue (#rt - t, rc, rv#)
           in
-            (#x, y#)
+            (#l, r#)
 
 runSeqOnRight :: Seq a -> Seq b -> (#SeqValue a, SeqValue b#)
-runSeqOnRight sx sy =
+runSeqOnRight ls rs =
   acc
   where
     acc ~ (#SeqValue (#0, SeqNormal, Nothing#), SeqValue (#0, SeqNormal, Nothing#)#) =
       case acc of
-        (#SeqValue (#xt, xc, xv#), SeqValue (#yt, yc, yv#)#) ->
+        (#SeqValue (#lt, lc, lv#), SeqValue (#rt, rc, _#)#) ->
           let
-            t = min xt yt
-            x = if t >= xt then runSeq sx () else SeqValue (#xt - t, xc, xv#)
-            y = if t >= yt then runSeq sy () else SeqValue (#yt - t, yc, yv#)
+            t = min lt rt
+            l = if lt <= t then runSeq ls () else SeqValue (#lt - t, lc, lv#)
+            r = if rt <= t then runSeq rs () else SeqValue (#rt - t, rc, nothing#)
           in
-            (#x, y#)
-
--- TODO: runSeqLeft (loop right till latest value)
--- TODO: runSeqRight (loop left till latest value)
+          (#l, r#)
 
 instance Functor Seq where
   map f s = Seq (\_ -> map f (runSeq s ()))
@@ -454,37 +457,19 @@ instance Alternative Seq where
   empty             = Seq (\_ -> SeqValue (#1, SeqPure, nothing#))
   alternative sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in alternative x y)
 
--- TODO:
---  +|  |+   +
---  -|  |-   -
---  *|  |*   *
---  /|  |/   /
--- <-|  |<- |<-|
--- ->|  |-> |->|
+-- Biased BinOps
+-- +@  @+  +
+-- -@  @-  -
+-- *@  @*  *
+-- /@  @/  /
+-- <@  @< @<@
+-- >@  @> @>@
 
--- leftOnRight :: Seq a -> Seq b -> Seq a
--- leftOnLeft  :: Seq a -> Seq b -> Seq a
--- leftOnBoth  :: Seq a -> Seq b -> Seq a
+leftConst :: a -> b -> a
+leftConst x _ = x
 
--- rightOnRight :: Seq a -> Seq b -> Seq b
--- rightOnLeft  :: Seq a -> Seq b -> Seq b
--- rightOnBoth  :: Seq a -> Seq b -> Seq b
-
--- opTest :: Seq Int
--- opTest = [1 2 3 <4 5>] +| [0 _ <0 0> 0]
--- opTest = [1 2 3 <4 5>] |+ [0 _ <0 0> 0]
--- opTest = [1 2 3 <4 5>] -| [0 _ <0 0> 0]
--- opTest = [1 2 3 <4 5>] |- [0 _ <0 0> 0]
--- opTest = [1 2 3 <4 5>] *| [0 _ <0 0> 0]
--- opTest = [1 2 3 <4 5>] |* [0 _ <0 0> 0]
--- opTest = [1 2 3 <4 5>] /| [0 _ <0 0> 0]
--- opTest = [1 2 3 <4 5>] |/ [0 _ <0 0> 0]
--- opTest = [1 2 3 <4 5>] <-| [0 _ <0 0> 0]
--- opTest = [1 2 3 <4 5>] ->| [0 _ <0 0> 0]
--- opTest = [1 2 3 <4 5>] |<- [0 _ <0 0> 0]
--- opTest = [1 2 3 <4 5>] |-> [0 _ <0 0> 0]
--- opTest = [1 2 3 <4 5>] |<-| [0 _ <0 0> 0]
--- opTest = [1 2 3 <4 5>] |->| [0 _ <0 0> 0]
+rightConst :: a -> b -> b
+rightConst _ y = y
 
 addSeqOnLeft :: Num a => Seq a -> Seq a -> Seq a
 addSeqOnLeft ls rs = Seq (\_ -> let (#l, r#) = runSeqOnLeft ls rs in map2 add l r)
@@ -492,7 +477,49 @@ addSeqOnLeft ls rs = Seq (\_ -> let (#l, r#) = runSeqOnLeft ls rs in map2 add l 
 addSeqOnRight :: Num a => Seq a -> Seq a -> Seq a
 addSeqOnRight ls rs = Seq (\_ -> let (#l, r#) = runSeqOnRight ls rs in map2 add l r)
 
--- polymorphic seq literals broken? get (seqTick, etc) at monomorphization instead of infer?
+subSeqOnLeft :: Num a => Seq a -> Seq a -> Seq a
+subSeqOnLeft ls rs = Seq (\_ -> let (#l, r#) = runSeqOnLeft ls rs in map2 sub l r)
+
+subSeqOnRight :: Num a => Seq a -> Seq a -> Seq a
+subSeqOnRight ls rs = Seq (\_ -> let (#l, r#) = runSeqOnRight ls rs in map2 sub l r)
+
+mulSeqOnLeft :: Num a => Seq a -> Seq a -> Seq a
+mulSeqOnLeft ls rs = Seq (\_ -> let (#l, r#) = runSeqOnLeft ls rs in map2 mul l r)
+
+mulSeqOnRight :: Num a => Seq a -> Seq a -> Seq a
+mulSeqOnRight ls rs = Seq (\_ -> let (#l, r#) = runSeqOnRight ls rs in map2 mul l r)
+
+divSeqOnLeft :: Fractional a => Seq a -> Seq a -> Seq a
+divSeqOnLeft ls rs = Seq (\_ -> let (#l, r#) = runSeqOnLeft ls rs in map2 div l r)
+
+divSeqOnRight :: Fractional a => Seq a -> Seq a -> Seq a
+divSeqOnRight ls rs = Seq (\_ -> let (#l, r#) = runSeqOnRight ls rs in map2 div l r)
+
+leftConstSeqOnLeft :: Seq a -> Seq b -> Seq a
+leftConstSeqOnLeft ls _ = ls
+
+leftConstSeqOnRight :: Seq a -> Seq b -> Seq a
+leftConstSeqOnRight ls rs = Seq (\_ -> let (#l, r#) = runSeqOnRight ls rs in map2 leftConst l r)
+
+rightConstSeqOnLeft :: Seq a -> Seq b -> Seq b
+rightConstSeqOnLeft ls rs = Seq (\_ -> let (#l, r#) = runSeqOnLeft ls rs in map2 rightConst l r)
+
+rightConstSeqOnRight :: Seq a -> Seq b -> Seq b
+rightConstSeqOnRight _ rs = rs
+
+leftConstSeqOnBoth :: Seq a -> Seq b -> Seq a
+leftConstSeqOnBoth ls rs = Seq (\_ -> let (#l, r#) = runSeq2 ls rs in map2 leftConst l r)
+
+rightConstSeqOnBoth :: Seq a -> Seq b -> Seq b
+rightConstSeqOnBoth ls rs = Seq (\_ -> let (#l, r#) = runSeq2 ls rs in map2 rightConst l r)
+
+addSeqOnLeftTest :: SeqValue Int
+addSeqOnLeftTest = runSeq ([1 2] +@ 2 *@ [1 2 _ 5] @- <3 4 5> @> fromInt mouseX) ()
+
+-- addSeqOnRightTest :: SeqValue Int
+-- addSeqOnRightTest = runSeq (rightConstSeqOnLeft 1 2) ()
+
+-- TODO: polymorphic seq literals broken? get (seqTick, etc) at monomorphization instead of infer? (Perhaps due to defaulting!)
 
 restSeqValue :: SeqValue a
 restSeqValue =
@@ -519,17 +546,14 @@ toSeq :: SeqValue a -> Seq a
 toSeq sv = Seq (\_ -> sv)
 
 altTest :: SeqValue Int
-altTest = runSeq (alternative [0 1 _ 3] [_ 2 55 _]) ()
--- TODO, This crashes:
--- altTest = runSeq (alternative [0 1 _ 3] [_ <2 9> 55 _]) ()
+altTest = runSeq (alternative [0 1 _ 3] [_ <2 9> 55 _]) ()
 
--- TODO: Fix NULL pointer in desugaring recursively bound svs in sequence literals
+seqLoop :: (Seq a -> Seq a) -> Seq a
+seqLoop sf = Seq (\_ -> let x ~ default = runSeq (sf (toSeq x)) () in x)
+
 -- myRecSeq :: Seq Int
--- myRecSeq = Seq <| \_ ->
---   let
---     x ~ default = runSeq <1 2 (toSeq x)> ()
---   in
---     x
+-- myRecSeq = seqLoop <| \x ->
+--   [1 2 <(x * 4) _ 4>]
 
 seqLoopEndIfLastSlot :: Int -> Int -> SeqControl
 seqLoopEndIfLastSlot slot maxSlot =
@@ -587,13 +611,45 @@ instance Print Rational where
   print (Rational (#n, d#)) w =
     print '(' w |> print n |> print ' ' |> print '%' |> print ' ' |> print d |> print ')'
 
--- TODO: Look at Rational, Look at Seq Printing
+instance Print a => Print (Maybe a) where
+  print mx w =
+    case mx of
+      Nothing -> print '_' w
+      Just x  -> print x w
 
--- -- TODO: Tick delta
--- -- TODO: Seq literals
+instance Print a => Print (SeqValue a) where
+  print (SeqValue (#t, _, v#)) w =
+    print '(' w
+    |> print t
+    |> print ':'
+    |> print v
+    |> print ')'
 
+printBarOnLoop :: SeqControl -> *World -> *World
+printBarOnLoop c w =
+  case c of
+    SeqLoopEnd -> print '|' w |> print ' '
+    _          -> w
+
+instance Print a => Print (Seq a) where
+  print s w = wout
+    where
+      tick ~ 0       = tick + blockDelta
+      (#_, _, wout#) =
+        loop (#Share cont, Share time, w'#) = (#Share True, Share 0, w#) while cont do
+          let nextValueTime ~ 0 = nextValueTime + time in
+            if nextValueTime >= tick then
+              (#Share False, Share 0, w'#)
+            else
+              case runSeq s () of
+                SeqValue (#t, c, Just x#) ->
+                  (#Share True, Share t, print x w' |> print ' ' |> printBarOnLoop c#)
+                SeqValue (#t, c, _#) ->
+                  (#Share True, Share t, printBarOnLoop c w'#)
+
+
+-- TODO: Tick delta
 -- TODO: Print Array
--- TODO: Print Seq
 
 printLn :: Print a => a -> *World -> *World
 printLn x w =
@@ -894,24 +950,6 @@ blockDelta = recipRational blocksPerSecond
 
 -- foldPrint :: *World -> *World
 -- foldPrint w = foldl (flip printInt) w 33
-
--- TODO: Test Rationals!
--- TODO: Print Time stamp?
-instance Print a => Print (Seq a) where
-  print s w = wout
-    where
-      tick ~ 0       = tick + blockDelta
-      (#_, _, wout#) =
-        loop (#Share cont, Share time, w'#) = (#Share True, Share 0, w#) while cont do
-          let nextValueTime ~ 0 = nextValueTime + time in
-            if nextValueTime >= tick then
-              (#Share False, Share 0, w'#)
-            else
-              case runSeq s () of
-                SeqValue (#t, _, Just x#) ->
-                  (#Share True, Share t, print ' ' (print ',' (print x w'))#)
-                SeqValue (#t, _, _#) ->
-                  (#Share True, Share t, w'#)
 
 -- -- TODO: Float / Int mix up in types somewhere along the way!?!?!
 -- -- seqTest :: Seq Float

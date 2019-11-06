@@ -3115,13 +3115,43 @@ void necro_llvm_test_jit()
         necro_llvm_jit_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Print Seq 2";
         const char* test_source = ""
             "twoAgainstThree :: Seq Int\n"
             "twoAgainstThree = <2 3> + <4 5 6>\n"
+            "main :: *World -> *World\n"
+            "main w = print twoAgainstThree w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Print Seq 3";
+        const char* test_source = ""
+            "twoAgainstThree :: Seq Int\n"
+            "twoAgainstThree = <2 3> @+ <4 5 6>\n"
+            "main :: *World -> *World\n"
+            "main w = print twoAgainstThree w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Print Seq 4";
+        const char* test_source = ""
+            "twoAgainstThree :: Seq Int\n"
+            "twoAgainstThree = <2 3> +@ <4 5 6>\n"
+            "main :: *World -> *World\n"
+            "main w = print twoAgainstThree w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+*/
+
+    {
+        const char* test_name   = "Print Seq 5";
+        const char* test_source = ""
+            "twoAgainstThree :: Seq Int\n"
+            "twoAgainstThree = fromInt mouseX <@ [<0 1> <4 _ 6>]\n"
             "main :: *World -> *World\n"
             "main w = print twoAgainstThree w\n";
         necro_llvm_jit_string(test_name, test_source);

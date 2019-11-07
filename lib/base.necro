@@ -513,8 +513,14 @@ leftConstSeqOnBoth ls rs = Seq (\_ -> let (#l, r#) = runSeq2 ls rs in map2 leftC
 rightConstSeqOnBoth :: Seq a -> Seq b -> Seq b
 rightConstSeqOnBoth ls rs = Seq (\_ -> let (#l, r#) = runSeq2 ls rs in map2 rightConst l r)
 
-addSeqOnLeftTest :: SeqValue Int
-addSeqOnLeftTest = runSeq ([1 2] +@ 2 *@ [1 2 _ 5] @- <3 4 5> @> fromInt mouseX) ()
+-- TODO: Switch @ for : ?
+
+-- addSeqOnLeftTest :: Seq Int
+-- addSeqOnLeftTest =
+--   [1 2] +@ 2 *@ [1 2 _ 5] @- <3 4 5> @> fromInt mouseX
+
+-- mouseBeat :: Seq Float
+-- mouseBeat = fromInt mouseX <@ coolBeat
 
 -- addSeqOnRightTest :: SeqValue Int
 -- addSeqOnRightTest = runSeq (rightConstSeqOnLeft 1 2) ()
@@ -647,13 +653,12 @@ instance Print a => Print (Seq a) where
                 SeqValue (#t, c, _#) ->
                   (#Share True, Share t, printBarOnLoop c w'#)
 
-
--- TODO: Tick delta
--- TODO: Print Array
-
 printLn :: Print a => a -> *World -> *World
 printLn x w =
   print '\n' (print x w)
+
+-- TODO: Tick delta
+-- TODO: Print Array
 
 
 --------------------
@@ -703,9 +708,6 @@ mapChannel2 f cx cy =
           <| freezeArray
           <| loop a = unsafeEmptyArray () for i <- each do
             writeArray i (Share (f (readArray i x) (readArray i y))) a
-
--- TODO: Partially recursive values
--- TODO: Stateful unboxed tuple types!
 
 accumulateChannel1 :: Default s => (F64 -> s -> (#s, F64#)) -> Channel -> Channel
 accumulateChannel1 f input1 =
@@ -965,6 +967,9 @@ blockDelta = recipRational blocksPerSecond
 -- composeTest :: Int -> Int
 -- composeTest = add 1 <. add 2
 
+notAnInt :: Seq Float
+notAnInt = 2 / 3
+
 doubleTrouble :: SeqValue Int
 doubleTrouble =
   runSeq (2 * <33 44 <0 _ 1 2>>) ()
@@ -1033,47 +1038,6 @@ doubleTrouble =
 --     y = 3
 --     z = fromInt mouseX * 100
 
--- coolBeatGo :: SeqValue Float
--- coolBeatGo = runSeq coolBeat ()
-
--- seqTest3 :: Seq Float
--- seqTest3 =
---   [c d [2:y]]
-
--- seqTest4 :: Seq Float
--- seqTest4 =
---   [0 _ 1 [x:y:4]]
---   where
---     x = <1 2 3>
---     y = <4 5 6 7>
-
--- longTuple :: Seq Float
--- longTuple =
---   [0 1 _ [twentyOneSecondsOfRest:3]]
---
--- mixNMatch :: Seq Float
--- mixNMatch =
---   [x y (x + y) 1]
---   where
---     x = [1:2:3:4]
---     y = [3:2:1]
---
--- mixNMatch2 :: Seq Float
--- mixNMatch2 =
---   [0 _ 1 [x:y:mixNMatch]]
---   where
---     x = <1:[2|4]:3>
---     y = [<4:5> | <6:7:8>]
---
--- -- <|> => Merge
--- -- <|> ==> alternative operator?
---
--- mergedBeat :: Seq Float
--- mergedBeat = x <|> y
---   where
---     x = [1 _ <2:0:[3|4]> _]
---     y = [<_:4> <_:_:5> <_:6>]
-
 -- properFraction :: (Fractional a, Integral b) -> a -> (b, b)
 
 -- poly :: Audio a => (a -> a) -> Seq Float -> a
@@ -1098,6 +1062,8 @@ doubleTrouble =
 -- pulse :: Audio a => a -> a
 -- pulse freq = accumulateAudio2 accumulatePulse freq
 
+-- TODO: Partially recursive values
+-- TODO: Stateful unboxed tuple types!
 -- TODO: Rational Time for Sequences!
 -- TODO: Use List type syntax for Sequences?
 -- TODO: Make sure that seq combinators that take multiple seq inputs (map2, ap, etc) only demands the inputs after the duration for each specific input

@@ -689,6 +689,7 @@ NecroAst* necro_ast_declaration_group_list_append(NecroPagedArena* arena, NecroA
 
 NecroAst* necro_ast_deep_copy(NecroPagedArena* arena, NecroAst* ast);
 NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_group, NecroAst* ast);
+NecroAst* necro_ast_deep_copy_with_new_names(NecroPagedArena* arena, NecroIntern* intern, struct NecroScope* scope, NecroAst* declaration_group, NecroAst* ast);
 
 void      necro_ast_assert_eq(NecroAst* ast1, NecroAst* ast2);
 

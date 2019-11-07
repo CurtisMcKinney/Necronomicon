@@ -74,16 +74,23 @@ NecroSymbol necro_append_clash_suffix_to_name(NecroAstArena* ast_arena, NecroInt
 // It will the prepend the module name, making the name unique across the whole project.
 NecroAstSymbol* necro_get_unique_name(NecroAstArena* ast_arena, NecroIntern* intern, NECRO_NAMESPACE_TYPE namespace_type, NECRO_MANGLE_TYPE mangle_type, NecroAstSymbol* ast_symbol)
 {
-    NecroScope* namespace_scope = (namespace_type == NECRO_VALUE_NAMESPACE) ? ast_arena->module_names : ast_arena->module_type_names;
+    UNUSED(ast_arena);
+    UNUSED(namespace_type);
+    // NecroScope* namespace_scope = (namespace_type == NECRO_VALUE_NAMESPACE) ? ast_arena->module_names : ast_arena->module_type_names;
     necro_prepend_module_name_to_name(intern, ast_symbol);
-    while (necro_scope_contains(namespace_scope, ast_symbol->name) || mangle_type == NECRO_MANGLE_NAME)
+    // if (necro_scope_contains(namespace_scope, ast_symbol->name) || mangle_type == NECRO_MANGLE_NAME)
+    if (mangle_type == NECRO_MANGLE_NAME)
     {
-        NecroArenaSnapshot snapshot = necro_snapshot_arena_get(&intern->snapshot_arena);
-        mangle_type = NECRO_DONT_MANGLE; // Toggling this simply ensures that we keep mangling until the name is unique.
-        ast_symbol->name = necro_append_clash_suffix_to_name(ast_arena, intern, ast_symbol->name->str);
-        necro_snapshot_arena_rewind(&intern->snapshot_arena, snapshot);
+        ast_symbol->name = necro_intern_unique_string(intern, ast_symbol->name->str);
     }
-    necro_scope_insert_ast_symbol(&ast_arena->arena, namespace_scope, ast_symbol);
+    // while (necro_scope_contains(namespace_scope, ast_symbol->name) || mangle_type == NECRO_MANGLE_NAME)
+    // {
+    //     NecroArenaSnapshot snapshot = necro_snapshot_arena_get(&intern->snapshot_arena);
+    //     mangle_type = NECRO_DONT_MANGLE; // Toggling this simply ensures that we keep mangling until the name is unique.
+    //     ast_symbol->name = necro_append_clash_suffix_to_name(ast_arena, intern, ast_symbol->name->str);
+    //     necro_snapshot_arena_rewind(&intern->snapshot_arena, snapshot);
+    // }
+    // necro_scope_insert_ast_symbol(&ast_arena->arena, namespace_scope, ast_symbol);
     return ast_symbol;
 }
 

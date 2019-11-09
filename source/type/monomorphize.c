@@ -592,10 +592,16 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
     case NECRO_AST_SEQ_EXPRESSION:
     {
         necro_try(void, necro_type_ambiguous_type_variable_check(monomorphize->arena, monomorphize->base, ast->necro_type, ast->necro_type, ast->source_loc, ast->end_loc));
-        ast->sequence_expression.tick_inst_subs    = necro_type_union_subs(ast->sequence_expression.tick_inst_subs, subs);
-        ast->sequence_expression.tick_symbol       = necro_ast_specialize(monomorphize, ast->sequence_expression.tick_symbol, ast->sequence_expression.tick_inst_subs);
+        // tick
+        ast->sequence_expression.tick_inst_subs = necro_type_union_subs(ast->sequence_expression.tick_inst_subs, subs);
+        const bool should_specialize_tick       = necro_try_map_result(bool, void, necro_ast_should_specialize(monomorphize->arena, monomorphize->base, ast->sequence_expression.tick_symbol, ast, ast->sequence_expression.tick_inst_subs));
+        if (should_specialize_tick)
+            ast->sequence_expression.tick_symbol = necro_ast_specialize(monomorphize, ast->sequence_expression.tick_symbol, ast->sequence_expression.tick_inst_subs);
+        // run
         ast->sequence_expression.run_seq_inst_subs = necro_type_union_subs(ast->sequence_expression.run_seq_inst_subs, subs);
-        ast->sequence_expression.run_seq_symbol    = necro_ast_specialize(monomorphize, ast->sequence_expression.run_seq_symbol, ast->sequence_expression.run_seq_inst_subs);
+        const bool should_specialize_run           = necro_try_map_result(bool, void, necro_ast_should_specialize(monomorphize->arena, monomorphize->base, ast->sequence_expression.run_seq_symbol, ast, ast->sequence_expression.run_seq_inst_subs));
+        if (should_specialize_run)
+            ast->sequence_expression.run_seq_symbol = necro_ast_specialize(monomorphize, ast->sequence_expression.run_seq_symbol, ast->sequence_expression.run_seq_inst_subs);
         return necro_monomorphize_go(monomorphize, ast->sequence_expression.expressions, subs);
     }
 

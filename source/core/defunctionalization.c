@@ -1426,9 +1426,7 @@ void necro_defunctionalize_test_result(const char* test_name, const char* str)
     necro_alias_analysis(info, &ast); // NOTE: Consider merging alias_analysis into RENAME_VAR phase?
     unwrap(void, necro_infer(info, &intern, &scoped_symtable, &base, &ast));
     unwrap(void, necro_monomorphize(info, &intern, &scoped_symtable, &base, &ast));
-    necro_ast_print(base.ast.root);
     unwrap(void, necro_ast_transform_to_core(info, &intern, &base, &ast, &core_ast));
-    necro_core_ast_pretty_print(core_ast.root);
     unwrap(void, necro_core_infer(&intern, &base, &core_ast));
     necro_core_ast_pre_simplify(info, &intern, &base, &core_ast);
     necro_core_lambda_lift(info, &intern, &base, &core_ast);

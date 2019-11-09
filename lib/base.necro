@@ -163,7 +163,6 @@ instance Ord Rational where
   gt  (Rational (#xn, xd#)) (Rational (#yn, yd#)) = gt  (xn * yd) (yn * xd)
   gte (Rational (#xn, xd#)) (Rational (#yn, yd#)) = gte (xn * yd) (yn * xd)
 
--- TODO: Rational math looks off...
 instance Num Rational where
   add (Rational (#xn, xd#)) (Rational (#yn, yd#)) = reduce (xn * yd + yn * xd) (xd * yd)
   sub (Rational (#xn, xd#)) (Rational (#yn, yd#)) = reduce (xn * yd - yn * xd) (xd * yd)
@@ -201,14 +200,10 @@ instance Monoid Rational where
 -- threeHalves = 3 % 2
 
 
---------------------
+------------------
 -- Array
---------------------
-  -- TODO: This is failing in lambda lift for some reason
--- instance Print a => Print (Array n a) where
---   print a w =
---     loop w' = w for i <- each do
---       print (readArray i a) w'
+------------------
+-- TODO: This is failing in lambda lift for some reason
 
 -- nums :: Array 3 Int
 -- nums = {0, 1, 2}
@@ -451,11 +446,16 @@ instance Fractional a => Fractional (Seq a) where
   recip x        = Seq (\_ -> map recip (runSeq x ()))
 
 instance Semigroup (Seq a) where
-  append sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in append x y)
+  append sx sy = [sx sy]
+
+instance Monoid (Seq a) where
+  mempty = Seq (\_ -> SeqValue (#1, SeqPure, nothing#))
 
 instance Alternative Seq where
   empty             = Seq (\_ -> SeqValue (#1, SeqPure, nothing#))
   alternative sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in alternative x y)
+
+-- TODO: <|>
 
 -- Biased BinOps
 -- +@  @+  +
@@ -513,8 +513,6 @@ leftConstSeqOnBoth ls rs = Seq (\_ -> let (#l, r#) = runSeq2 ls rs in map2 leftC
 rightConstSeqOnBoth :: Seq a -> Seq b -> Seq b
 rightConstSeqOnBoth ls rs = Seq (\_ -> let (#l, r#) = runSeq2 ls rs in map2 rightConst l r)
 
--- TODO: Switch @ for : ?
-
 -- addSeqOnLeftTest :: Seq Int
 -- addSeqOnLeftTest =
 --   [1 2] +@ 2 *@ [1 2 _ 5] @- <3 4 5> @> fromInt mouseX
@@ -524,8 +522,6 @@ rightConstSeqOnBoth ls rs = Seq (\_ -> let (#l, r#) = runSeq2 ls rs in map2 righ
 
 -- addSeqOnRightTest :: SeqValue Int
 -- addSeqOnRightTest = runSeq (rightConstSeqOnLeft 1 2) ()
-
--- TODO: polymorphic seq literals broken? get (seqTick, etc) at monomorphization instead of infer? (Perhaps due to defaulting!)
 
 restSeqValue :: SeqValue a
 restSeqValue =
@@ -623,6 +619,11 @@ instance Print a => Print (Maybe a) where
       Nothing -> print '_' w
       Just x  -> print x w
 
+instance Print a => Print (Array n a) where
+  print a w =
+    loop w' = w for i <- each do
+      print (readArray i a) w'
+
 instance Print a => Print (SeqValue a) where
   print (SeqValue (#t, _, v#)) w =
     print '(' w
@@ -657,24 +658,48 @@ printLn :: Print a => a -> *World -> *World
 printLn x w =
   print '\n' (print x w)
 
--- TODO: Tick delta
--- TODO: Print Array
+-- TODO: Kind Error
+-- printArray :: *World -> *World
+-- printArray w = print {'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd'} w
+
+
+----------------------
+-- StreamState
+----------------------
+data StreamState = StreamRunning | StreamEnd
+
+instance Semigroup StreamState where
+  append x y =
+    case x of
+      StreamEnd -> StreamEnd
+      _         -> y
+
+instance Monoid StreamState where
+  mempty = StreamRunning
 
 
 --------------------
 -- Channel
 --------------------
-data Channel = BlockRate F64 | AudioRate (Array BlockSize F64)
+data Channel = ChannelEnd | BlockRate F64 | AudioRate (Array BlockSize F64)
+
+channelState :: Channel -> StreamState
+channelState c =
+  case c of
+    ChannelEnd -> StreamEnd
+    _          -> StreamRunning
 
 outChannel :: UInt -> Channel -> *World -> *World
 outChannel n c w =
   case c of
+    ChannelEnd  -> w
     BlockRate _ -> w
     AudioRate b -> outAudioBlock n b w
 
 mapChannel :: (F64 -> F64) -> Channel -> Channel
 mapChannel f c =
   case c of
+    ChannelEnd  -> ChannelEnd
     BlockRate x -> BlockRate (f x)
     AudioRate b ->
       AudioRate
@@ -687,8 +712,10 @@ mapChannel f c =
 mapChannel2 :: (F64 -> F64 -> F64) -> Channel -> Channel -> Channel
 mapChannel2 f cx cy =
   case cx of
+    ChannelEnd  -> ChannelEnd
     BlockRate x ->
       case cy of
+        ChannelEnd  -> ChannelEnd
         BlockRate y ->
           BlockRate (f x y)
         AudioRate y ->
@@ -698,6 +725,7 @@ mapChannel2 f cx cy =
             writeArray i (Share (f x (readArray i y))) a
     AudioRate x ->
       case cy of
+        ChannelEnd  -> ChannelEnd
         BlockRate y ->
           AudioRate
           <| freezeArray
@@ -712,15 +740,15 @@ mapChannel2 f cx cy =
 accumulateChannel1 :: Default s => (F64 -> s -> (#s, F64#)) -> Channel -> Channel
 accumulateChannel1 f input1 =
   case out of
-    (_, a) ->
-      AudioRate a
+    (_, a) -> AudioRate a
   where
     out ~ (default, freezeArray (unsafeEmptyArray ())) =
       case out of
         (state, _) ->
           let
-            out' =
+            (#Share state', o'#) =
               case input1 of
+                ChannelEnd          -> (#Share state, unsafeEmptyArray ()#)
                 BlockRate input1Val ->
                   loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
                     case f input1Val s of
@@ -732,9 +760,36 @@ accumulateChannel1 f input1 =
                       (#s', x#) ->
                         (#Share s', writeArray i (Share x) o#)
           in
-            case out' of
-              (#Share state', o'#) ->
-                (state', freezeArray o')
+            (state', freezeArray o')
+
+accumulateChannelAndMaybeEnd1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> StreamState) -> Channel -> Channel
+accumulateChannelAndMaybeEnd1 f streamStateFunc input1 =
+  case out of
+    (s, a) ->
+      case streamStateFunc s of
+        StreamEnd -> ChannelEnd
+        _         -> AudioRate a
+  where
+    out ~ (default, freezeArray (unsafeEmptyArray ())) =
+      case out of
+        (state, _) ->
+          let
+            (#Share state', o'#) =
+              case input1 of
+                ChannelEnd          -> (#Share state, unsafeEmptyArray ()#)
+                BlockRate input1Val ->
+                  loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
+                    case f input1Val s of
+                      (#s', x#) ->
+                        (#Share s', writeArray i (Share x) o#)
+                AudioRate input1Buffer ->
+                  loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
+                    case f (readArray i input1Buffer) s of
+                      (#s', x#) ->
+                        (#Share s', writeArray i (Share x) o#)
+          in
+            (state', freezeArray o')
+
 
 -- accumulateChannel1 :: Default s => (F64 -> s -> (#s, F64#)) -> Channel -> Channel
 -- accumulateChannel1 f input1 =
@@ -790,27 +845,31 @@ instance Num Channel where
 --------------------
 -- Audio
 --------------------
-data Mono      = Mono Channel
-data Stereo    = Stereo (#Channel, Channel#)
-data Quad      = Quad Channel Channel Channel Channel
-data Ambisonic = Ambisonic Channel Channel Channel Channel
+data Mono        = Mono Channel
+data Stereo      = Stereo (#Channel, Channel#)
+data Quad        = Quad Channel Channel Channel Channel
+data Ambisonic   = Ambisonic Channel Channel Channel Channel
 
 -- TODO: Equal power panning
 class Audio a where
-  pureAudio        :: Channel -> a
-  mapAudio         :: (Channel -> Channel) -> a -> a
-  mapAudio2        :: (Channel -> Channel -> Channel) -> a -> a -> a
-  accumulateAudio1 :: Default s => (F64 -> s -> (#s, F64#)) -> a -> a
-  pan              :: Mono -> a -> Stereo
-  outAudio         :: UInt -> a -> *World -> *World
+  pureAudio                   :: Channel -> a
+  mapAudio                    :: (Channel -> Channel) -> a -> a
+  mapAudio2                   :: (Channel -> Channel -> Channel) -> a -> a -> a
+  accumulateAudio1            :: Default s => (F64 -> s -> (#s, F64#)) -> a -> a
+  accumulateAudioAndMaybeEnd1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> StreamState) -> a -> a
+  pan                         :: Mono -> a -> Stereo
+  outAudio                    :: UInt -> a -> *World -> *World
+  audioState                  :: a -> StreamState
 
 instance Audio Mono where
-  pureAudio c                     = Mono c
-  outAudio  n (Mono c)  w         = outChannel n c w
-  mapAudio  f (Mono c)            = Mono (f c)
-  mapAudio2 f (Mono cx) (Mono cy) = Mono (f cx cy)
-  accumulateAudio1 f (Mono c)     = Mono (accumulateChannel1 f c)
-  pan (Mono amount) (Mono input)  = Stereo (#mul input (sub 1 amount), mul input amount#)
+  pureAudio c                               = Mono c
+  outAudio  n (Mono c)  w                   = outChannel n c w
+  mapAudio  f (Mono c)                      = Mono (f c)
+  mapAudio2 f (Mono cx) (Mono cy)           = Mono (f cx cy)
+  accumulateAudio1 f (Mono c)               = Mono (accumulateChannel1 f c)
+  accumulateAudioAndMaybeEnd1 f sf (Mono c) = Mono (accumulateChannelAndMaybeEnd1 f sf c)
+  pan (Mono amount) (Mono input)            = Stereo (#mul input (sub 1 amount), mul input amount#)
+  audioState (Mono c)                       = channelState c
 
 instance Audio Stereo where
   pureAudio c                                         = Stereo (#c, c#)
@@ -818,7 +877,9 @@ instance Audio Stereo where
   mapAudio  f (Stereo (#l, r#))                       = Stereo (#f l, f r#)
   mapAudio2 f (Stereo (#lx, rx#)) (Stereo (#ly, ry#)) = Stereo (#f lx ly, f rx ry#)
   accumulateAudio1 f (Stereo (#l, r#))                = Stereo (#accumulateChannel1 f l, accumulateChannel1 f r#)
+  accumulateAudioAndMaybeEnd1 f sf (Stereo (#l, r#))  = Stereo (#accumulateChannelAndMaybeEnd1 f sf l, accumulateChannelAndMaybeEnd1 f sf r#)
   pan (Mono amount) (Stereo (#l, r#))                 = Stereo (#mul l (sub 1 amount), mul r amount#)
+  audioState (Stereo (#l, r#))                        = channelState l <> channelState r
 
 -- accumulateAudio1 :: (Default s, Audio a) => (F64 -> s -> (#s, F64#)) -> a -> a
 -- accumulateAudio1 f a = mapAudio (accumulateChannel1 f) a
@@ -882,23 +943,41 @@ saw :: (Audio a) => a -> a
 saw freq =
   accumulateAudio1 accumulateSaw freq
 
+-- TODO: Replace with llvm instruction!
+select :: Bool -> a -> a -> a
+select c t f = if c then t else f
+
+accumulatePerc :: (#F64, F64, F64, F64#) -> F64 -> F64 -> (#F64, F64#)
+accumulatePerc (#attackTime, recipAttackTime, recipDecayTime, curve#) input state =
+  (#state', out#)
+  where
+    state'      = state + recipSampleRate
+    attackDelta = state' * recipAttackTime
+    decayDelta  = 1 - ((state' - attackTime) * recipDecayTime)
+    out         = select (state' <= attackTime) attackDelta decayDelta * input
+
+percStreamState :: F64 -> StreamState
+percStreamState state = if state < 1 then StreamRunning else StreamEnd
+
+perc :: (Audio a) => F64 -> F64 -> F64 -> a -> a
+perc attackTime decayTime curve input =
+  accumulateAudioAndMaybeEnd1 (accumulatePerc (#attackTime, recip attackTime, recip decayTime, curve#)) percStreamState input
+
+-- Hitting a case assert in mach transform, perhaps due to new monomorphization deep copy scheme?
+coolSynth :: Mono
+coolSynth =
+  saw 440 |> perc 0.1 10 (-3)
+
 blocksPerSecond :: Rational
 blocksPerSecond = 48000 % 64
 
 blockDelta :: Rational
 blockDelta = recipRational blocksPerSecond
 
-
 -- class Foldable f where
 --   fold  :: Monoid m => f m -> m
 --   foldl :: (b -> a -> b) -> b -> f a -> b
 --   foldp :: (b -> a -> b) -> f a -> b
-
--- TODO: "Constant" type enforcement for Default / Monoid
--- TODO: Desugar seq literals
--- TODO: Replace Default with Monoid?
--- TODO: Handle Constant, End, etc
--- TODO: Need partial recursive values to get rid of monoid here
 
 -- -- Switch to case expressions!
 -- Looks like we have a nested case statement bug going on here, probably happening in mach_transform.c or mach_case.c???
@@ -953,28 +1032,33 @@ blockDelta = recipRational blocksPerSecond
 -- foldPrint :: *World -> *World
 -- foldPrint w = foldl (flip printInt) w 33
 
--- -- TODO: Float / Int mix up in types somewhere along the way!?!?!
--- -- seqTest :: Seq Float
--- seqTest :: Seq Int
+-- seqTest :: Seq Float
+-- -- seqTest :: Seq Int
 -- seqTest =
 --   [0 _ 1 2] + [<3 4> _ <5 6> <7 8 9>]
 
--- -- seqTestGo :: SeqValue Float
+-- seqTestGo :: SeqValue Float
 -- seqTestGo =
 --   runSeq seqTest ()
 
--- TODO: Throw in test somewhere, replace >> with .> in all tests
--- composeTest :: Int -> Int
--- composeTest = add 1 <. add 2
+-- notAnInt :: Seq Float
+-- notAnInt = 2 / 3
 
-notAnInt :: Seq Float
-notAnInt = 2 / 3
+-- doubleTrouble :: SeqValue Int
+-- doubleTrouble =
+--   runSeq (2 * <33 44 <0 _ 1 2>>) ()
 
-doubleTrouble :: SeqValue Int
-doubleTrouble =
-  runSeq (2 * <33 44 <0 _ 1 2>>) ()
+-- appendSeq :: Seq a -> Seq a -> Seq a
+-- appendSeq x y = [x y]
 
--- TODO: Perhaps function caching is getting off, need more accurate check for HOF caching!
+-- appendGo :: SeqValue Rational
+-- appendGo = runSeq (appendSeq 1 2) ()
+
+-- poly :: Audio a => (a -> b) -> Seq a -> b
+-- poly = primUndefined
+
+-- myCoolSynth :: Mono
+-- myCoolSynth = poly (saw .> perc 0.1 10 (-1)) [440 220 _ <110 55 _ 330>]
 
 -- tupleTest :: Seq Float
 -- tupleTest =
@@ -1062,12 +1146,25 @@ doubleTrouble =
 -- pulse :: Audio a => a -> a
 -- pulse freq = accumulateAudio2 accumulatePulse freq
 
+-- TODO: Throw in test somewhere, replace >> with .> in all tests
+-- composeTest :: Int -> Int
+-- composeTest = add 1 <. add 2
+
+-- TODO: Add Flag to Audio which flags that it has ended!
+-- TODO: Shit to make poly work?
+-- TODO: Zip for seq or more general zip?
+
+-- TODO: Perhaps function caching is getting off, need more accurate check for HOF caching!
+-- TODO: "Constant" type enforcement for Default / Monoid
+-- TODO: Desugar seq literals
+-- TODO: Replace Default with Monoid?
+-- TODO: Handle Constant, End, etc
+-- TODO: Need partial recursive values to get rid of monoid here
 -- TODO: Partially recursive values
 -- TODO: Stateful unboxed tuple types!
 -- TODO: Rational Time for Sequences!
 -- TODO: Use List type syntax for Sequences?
 -- TODO: Make sure that seq combinators that take multiple seq inputs (map2, ap, etc) only demands the inputs after the duration for each specific input
--- TODO: Add Flag to Audio which flags that it has ended!
 -- TODO: Partially recursive values
 -- TODO: Defunctionalization of function on data structures
 -- TODO: Stateful Pattern assignment

@@ -2356,7 +2356,7 @@ NecroAstSymbol* necro_ast_deep_copy_with_new_names_declare_var(NecroPagedArena* 
         return new_symbol; // Already declared? Probably the original top level during monomorphization ast...
     new_symbol                 = necro_ast_symbol_deep_copy(arena, ast_symbol);
     new_symbol->source_name    = new_symbol->name;
-    new_symbol->name           = necro_intern_unique_string(intern, new_symbol->name->str);
+    new_symbol->name           = necro_intern_unique_string(intern, ast_symbol->source_name->str);
     necro_scope_insert_ast_symbol(arena, scope, new_symbol);
     return new_symbol;
 }
@@ -2599,7 +2599,9 @@ NecroAst* necro_ast_deep_copy_with_new_names_go(NecroPagedArena* arena, NecroInt
         NecroAst* copied_ast = necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_seq_expression(arena,
             necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->sequence_expression.expressions), ast->sequence_expression.sequence_type));
         copied_ast->sequence_expression.tick_inst_subs    = necro_type_deep_copy_subs(arena, ast->sequence_expression.tick_inst_subs);
+        copied_ast->sequence_expression.tick_symbol       = ast->sequence_expression.tick_symbol;
         copied_ast->sequence_expression.run_seq_inst_subs = necro_type_deep_copy_subs(arena, ast->sequence_expression.run_seq_inst_subs);
+        copied_ast->sequence_expression.run_seq_symbol    = ast->sequence_expression.run_seq_symbol;
         return copied_ast;
     }
     case NECRO_AST_TUPLE:

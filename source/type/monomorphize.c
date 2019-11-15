@@ -124,7 +124,7 @@ NecroInstSub* necro_type_create_instance_subs(NecroMonomorphize* monomorphize, N
                     NecroType*              instance_type = unwrap_result(NecroType, necro_type_instantiate_with_subs(monomorphize->arena, &monomorphize->con_env, monomorphize->base, instance->data_type, NULL, &instance_subs));
                     unwrap(NecroType, necro_type_unify(monomorphize->arena, &monomorphize->con_env, monomorphize->base, instance_type, sub_type, NULL));
                     NecroInstSub*           new_subs      = necro_type_filter_and_deep_copy_subs(monomorphize->arena, subs, type_class->type_class_name, instance_type);
-                    new_subs                              = necro_type_union_subs(new_subs, instance_subs);
+                    new_subs                              = necro_type_union_subs(monomorphize->arena, new_subs, instance_subs);
                     if (new_subs != NULL)
                     {
                         NecroInstSub* curr_new_sub = new_subs;
@@ -294,9 +294,14 @@ NecroAstSymbol* necro_ast_specialize(NecroMonomorphize* monomorphize, NecroAstSy
 */
 NecroResult(bool) necro_ast_should_specialize(NecroPagedArena* arena, NecroBase* base, NecroAstSymbol* ast_symbol, NecroAst* ast, NecroInstSub* inst_subs)
 {
-    const bool is_symbol_poly    = necro_try_result(bool, necro_type_is_unambiguous_polymorphic(arena, base, ast_symbol->type, ast_symbol->type, ast->source_loc, ast->end_loc));
+    const bool is_symbol_poly = necro_try_result(bool, necro_type_is_unambiguous_polymorphic(arena, base, ast_symbol->type, ast_symbol->type, ast->source_loc, ast->end_loc));
+    // if (strcmp(ast_symbol->name->str, "Necro.Base.mutRefTakeElement") == 0)
+    // {
+    //     printf("mutRefTakeElement!\n");
+    // }
     const bool is_ast_poly       = necro_try_result(bool, necro_type_is_unambiguous_polymorphic(arena, base, ast->necro_type, ast->necro_type, ast->source_loc, ast->end_loc));
     bool       should_specialize = is_symbol_poly && !is_ast_poly;
+    // bool       should_specialize = is_symbol_poly && (inst_subs != NULL);
     NecroInstSub* curr_sub    = inst_subs;
     while (curr_sub != NULL)
     {
@@ -453,7 +458,7 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
         {
         case NECRO_VAR_VAR:
         {
-            ast->variable.inst_subs      = necro_type_union_subs(ast->variable.inst_subs, subs);
+            ast->variable.inst_subs      = necro_type_union_subs(monomorphize->arena, ast->variable.inst_subs, subs);
             const bool should_specialize = necro_try_map_result(bool, void, necro_ast_should_specialize(monomorphize->arena, monomorphize->base, ast->variable.ast_symbol, ast, ast->variable.inst_subs));
             if (!should_specialize)
                 return ok_void();
@@ -500,7 +505,7 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
     case NECRO_AST_BIN_OP:
     {
         ast->bin_op.op_type          = necro_try_map_result(NecroType, void, necro_type_replace_with_subs_deep_copy(monomorphize->arena, &monomorphize->con_env, monomorphize->base, ast->bin_op.op_type, subs));
-        ast->bin_op.inst_subs        = necro_type_union_subs(ast->bin_op.inst_subs, subs);
+        ast->bin_op.inst_subs        = necro_type_union_subs(monomorphize->arena, ast->bin_op.inst_subs, subs);
         const bool should_specialize = necro_try_map_result(bool, void, necro_ast_should_specialize(monomorphize->arena, monomorphize->base, ast->bin_op.ast_symbol, ast, ast->bin_op.inst_subs));
         if (should_specialize)
         {
@@ -512,7 +517,7 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
 
     case NECRO_AST_OP_LEFT_SECTION:
     {
-        ast->op_left_section.inst_subs = necro_type_union_subs(ast->op_left_section.inst_subs, subs);
+        ast->op_left_section.inst_subs = necro_type_union_subs(monomorphize->arena, ast->op_left_section.inst_subs, subs);
         const bool should_specialize   = necro_try_map_result(bool, void, necro_ast_should_specialize(monomorphize->arena, monomorphize->base, ast->op_left_section.ast_symbol, ast, ast->op_left_section.inst_subs));
         if (should_specialize)
         {
@@ -523,7 +528,7 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
 
     case NECRO_AST_OP_RIGHT_SECTION:
     {
-        ast->op_right_section.inst_subs = necro_type_union_subs(ast->op_right_section.inst_subs, subs);
+        ast->op_right_section.inst_subs = necro_type_union_subs(monomorphize->arena, ast->op_right_section.inst_subs, subs);
         const bool should_specialize    = necro_try_map_result(bool, void, necro_ast_should_specialize(monomorphize->arena, monomorphize->base, ast->op_right_section.ast_symbol, ast, ast->op_right_section.inst_subs));
         if (should_specialize)
         {
@@ -560,8 +565,8 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
             ast->necro_type = monomorphize->base->float_type->type;
             return necro_monomorphize_go(monomorphize, ast, subs);
         }
-        necro_try(void, necro_monomorphize_go(monomorphize, ast->fexpression.next_fexpression, subs));
-        return necro_monomorphize_go(monomorphize, ast->fexpression.aexp, subs);
+        necro_try(void, necro_monomorphize_go(monomorphize, ast->fexpression.aexp, subs));
+        return necro_monomorphize_go(monomorphize, ast->fexpression.next_fexpression, subs);
     }
 
     case NECRO_AST_APATS:
@@ -593,12 +598,12 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
     {
         necro_try(void, necro_type_ambiguous_type_variable_check(monomorphize->arena, monomorphize->base, ast->necro_type, ast->necro_type, ast->source_loc, ast->end_loc));
         // tick
-        ast->sequence_expression.tick_inst_subs = necro_type_union_subs(ast->sequence_expression.tick_inst_subs, subs);
+        ast->sequence_expression.tick_inst_subs = necro_type_union_subs(monomorphize->arena, ast->sequence_expression.tick_inst_subs, subs);
         const bool should_specialize_tick       = necro_try_map_result(bool, void, necro_ast_should_specialize(monomorphize->arena, monomorphize->base, ast->sequence_expression.tick_symbol, ast, ast->sequence_expression.tick_inst_subs));
         if (should_specialize_tick)
             ast->sequence_expression.tick_symbol = necro_ast_specialize(monomorphize, ast->sequence_expression.tick_symbol, ast->sequence_expression.tick_inst_subs);
         // run
-        ast->sequence_expression.run_seq_inst_subs = necro_type_union_subs(ast->sequence_expression.run_seq_inst_subs, subs);
+        ast->sequence_expression.run_seq_inst_subs = necro_type_union_subs(monomorphize->arena, ast->sequence_expression.run_seq_inst_subs, subs);
         const bool should_specialize_run           = necro_try_map_result(bool, void, necro_ast_should_specialize(monomorphize->arena, monomorphize->base, ast->sequence_expression.run_seq_symbol, ast, ast->sequence_expression.run_seq_inst_subs));
         if (should_specialize_run)
             ast->sequence_expression.run_seq_symbol = necro_ast_specialize(monomorphize, ast->sequence_expression.run_seq_symbol, ast->sequence_expression.run_seq_inst_subs);

@@ -665,7 +665,9 @@ NecroInstSub* necro_type_filter_and_deep_copy_subs(NecroPagedArena* arena, Necro
     }
 }
 
-NecroInstSub* necro_type_union_subs(NecroInstSub* subs1, NecroInstSub* subs2)
+NecroType* necro_type_replace_with_subs_go(NecroPagedArena* arena, NecroType* type, NecroInstSub* subs);
+
+NecroInstSub* necro_type_union_subs(NecroPagedArena* arena, NecroInstSub* subs1, NecroInstSub* subs2)
 {
     if (subs1 == NULL)
         return NULL;
@@ -692,9 +694,13 @@ NecroInstSub* necro_type_union_subs(NecroInstSub* subs1, NecroInstSub* subs2)
             // subs1->next = necro_type_union_subs(subs1->next, subs2);
             // return subs1;
         }
+        else
+        {
+            subs1->new_name = necro_type_replace_with_subs_go(arena, subs1->new_name, subs2);
+        }
         curr_sub2 = curr_sub2->next;
     }
-    subs1->next = necro_type_union_subs(subs1->next, subs2);
+    subs1->next = necro_type_union_subs(arena, subs1->next, subs2);
     return subs1;
     // return necro_type_union_subs(subs1->next, subs2);
 }

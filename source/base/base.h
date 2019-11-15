@@ -91,7 +91,7 @@ typedef struct NecroBase
     NecroAstSymbol* audio_type_class;
     NecroAstSymbol* mono_type;
     NecroAstSymbol* prev_fn;
-    // NecroAstSymbol* ptr_type;
+    NecroAstSymbol* ptr_type;
     NecroAstSymbol* array_type;
     NecroAstSymbol* range_type;
     NecroAstSymbol* range_con;
@@ -118,9 +118,10 @@ typedef struct NecroBase
     // Runtime functions
     NecroAstSymbol* mouse_x_fn;
     NecroAstSymbol* mouse_y_fn;
-    // NecroAstSymbol* unsafe_malloc;
+    NecroAstSymbol* ptr_malloc;
     // NecroAstSymbol* unsafe_peek;
     // NecroAstSymbol* unsafe_poke;
+    // NecroAstSymbol* unsafe_free;
     NecroAstSymbol* print_int;
     NecroAstSymbol* print_i64;
     NecroAstSymbol* print_f64;

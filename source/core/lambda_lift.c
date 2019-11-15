@@ -477,6 +477,7 @@ void necro_core_lambda_lift_bind(NecroLambdaLift* ll, NecroCoreAst* ast)
             necro_core_scope_print(ll->scope);
             printf("\nParent Scope:\n");
             necro_core_scope_print(ll->scope->parent);
+            printf("Lambda Lift fatal error at: %s\n", ast->bind.ast_symbol->name->str);
             assert(ll->scope->free_vars->count == 0);
         }
         ast->bind.ast_symbol->free_vars = ll->scope->free_vars;

@@ -1601,7 +1601,7 @@ void necro_core_ast_pretty_print(NecroCoreAst* ast)
     printf("\n");
 }
 
-#define NECRO_CORE_AST_VERBOSE 0
+#define NECRO_CORE_AST_VERBOSE 1
 void necro_core_test_result(const char* test_name, const char* str)
 {
     // Set up
@@ -1651,6 +1651,19 @@ void necro_core_test_result(const char* test_name, const char* str)
 void necro_core_ast_test()
 {
     necro_announce_phase("Core");
+
+    {
+        const char* test_name   = "Poly 0";
+        const char* test_source = ""
+            "myCoolSynth :: Mono\n"
+            "myCoolSynth = poly (fromInt .> saw) [440 220 _ <110 55 _ 330>]\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_core_test_result(test_name, test_source);
+    }
+
+    if (true)
+        return;
 
     {
         const char* test_name   = "Basic 1";

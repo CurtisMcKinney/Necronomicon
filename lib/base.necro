@@ -42,6 +42,19 @@ max x y =
   else
     y
 
+uncurry :: (a -> b -> c) -> (a, b) -> c
+uncurry f (x, y) = f x y
+
+uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
+uncurry3 f (x, y, z) = f x y z
+
+uncurry' :: (a -> b -> c) -> (#a, b#) -> c
+uncurry' f (#x, y#) = f x y
+
+uncurry3' :: (a -> b -> c -> d) -> (#a, b, c#) -> d
+uncurry3' f (#x, y, z#) = f x y z
+
+
 -- TODO: map3, etc
 class FunctorN f where
   map2 :: (a -> b -> c) -> f a -> f b -> f c
@@ -59,14 +72,6 @@ class Enum a where
 
 -- instance (Default a, Default b) => Default (a, b) where
 --   default = (default, default)
-
-arrayFrom :: a -> Array n a
-arrayFrom x =
-  freezeArray xa
-  where
-    xa =
-      loop a = unsafeEmptyArray () for i <- each do
-        writeArray i (Share x) a
 
 --------------------
 -- Prim Instances
@@ -95,13 +100,6 @@ instance Semigroup F64 where
 
 instance Monoid F64 where
   mempty = 0
-
--- instance Default a => Default (Array n a) where
---   default = arrayFrom default
-
--- -- This is getting tripped up in lambda_lift
--- defaulted :: Array 4 (Maybe Int)
--- defaulted = default
 
 -- coolInit :: Array 4 Int
 -- coolInit ~ (freezeArray (unsafeEmptyArray ())) = coolInit
@@ -197,19 +195,7 @@ instance Monoid Rational where
 -- rationalTest = 33 * 44 + 23 - (1 % 4)
 
 -- threeHalves :: Rational
--- threeHalves = 3 % 2
-
-
-------------------
--- Array
-------------------
--- TODO: This is failing in lambda lift for some reason
-
--- nums :: Array 3 Int
--- nums = {0, 1, 2}
-
--- stringTest :: *World -> *World
--- stringTest w = print nums w
+-- threeHalves = 3 // 2
 
 
 --------------------
@@ -270,6 +256,35 @@ maybe defaultValue f m =
   case m of
     Nothing -> defaultValue
     Just x  -> f x
+
+fromMaybe :: .a -> .Maybe a -> .a
+fromMaybe defaultValue m =
+  case m of
+    Nothing -> defaultValue
+    Just x  -> x
+
+--------------------
+-- Array
+--------------------
+-- nums :: Array 3 Char
+-- nums = "abc"
+
+-- stringTest :: *World -> *World
+-- stringTest w = print nums w
+
+instance Default a => Default (Array n a) where
+  default = arrayFrom default
+
+arrayFrom :: a -> Array n a
+arrayFrom x =
+  freezeArray xa
+  where
+    xa =
+      loop a = unsafeEmptyArray () for i <- each do
+        writeArray i (Share x) a
+
+defaulted :: Array 4 (Maybe Int)
+defaulted = default
 
 
 --------------------
@@ -513,9 +528,9 @@ leftConstSeqOnBoth ls rs = Seq (\_ -> let (#l, r#) = runSeq2 ls rs in map2 leftC
 rightConstSeqOnBoth :: Seq a -> Seq b -> Seq b
 rightConstSeqOnBoth ls rs = Seq (\_ -> let (#l, r#) = runSeq2 ls rs in map2 rightConst l r)
 
--- addSeqOnLeftTest :: Seq Int
--- addSeqOnLeftTest =
---   [1 2] +@ 2 *@ [1 2 _ 5] @- <3 4 5> @> fromInt mouseX
+addSeqOnLeftTest :: Seq Int
+addSeqOnLeftTest =
+  [1 _ <2 3>] @+ [4 <5 6> <7 8 9>] *@ [1 2 _ 5] @- <3 4 5> @> fromInt mouseX
 
 -- mouseBeat :: Seq Float
 -- mouseBeat = fromInt mouseX <@ coolBeat
@@ -676,6 +691,12 @@ instance Semigroup StreamState where
 
 instance Monoid StreamState where
   mempty = StreamRunning
+
+streamStateIsRunning :: StreamState -> Bool
+streamStateIsRunning ss =
+  case ss of
+    StreamRunning -> True
+    StreamEnd     -> False
 
 
 --------------------
@@ -847,8 +868,8 @@ instance Num Channel where
 --------------------
 data Mono        = Mono Channel
 data Stereo      = Stereo (#Channel, Channel#)
-data Quad        = Quad Channel Channel Channel Channel
-data Ambisonic   = Ambisonic Channel Channel Channel Channel
+data Quad        = Quad (#Channel, Channel, Channel, Channel#)
+data Ambisonic   = Ambisonic (#Channel, Channel, Channel, Channel#)
 
 -- TODO: Equal power panning
 class Audio a where
@@ -1054,11 +1075,336 @@ blockDelta = recipRational blocksPerSecond
 -- appendGo :: SeqValue Rational
 -- appendGo = runSeq (appendSeq 1 2) ()
 
--- poly :: Audio a => (a -> b) -> Seq a -> b
--- poly = primUndefined
+-- poly :: (Fractional a, Audio a) => (a -> a) -> Seq Float -> a
+-- poly f s =
+--   case runSeq (map (fromRational .> f) s) () of
+--     SeqValue (#_, _, Just x#) -> x
+--     _                         -> pureAudio 0
+
+-- coolSaw :: Int -> Mono
+-- coolSaw f = fromInt f |> saw |> perc 0.1 10 (-1)
 
 -- myCoolSynth :: Mono
--- myCoolSynth = poly (saw .> perc 0.1 10 (-1)) [440 220 _ <110 55 _ 330>]
+-- myCoolSynth = poly coolSaw [440 220 _ <110 55 _ 330>]
+
+--------------------
+-- Ptr
+--------------------
+-- TODO: Implement in NecroMach
+-- TODO: Mark as primitive
+ptrMalloc :: UInt -> *Ptr a
+ptrMalloc capacity = primUndefined
+
+ptrRealloc :: UInt -> *Ptr a -> *Ptr a
+ptrRealloc capacity = primUndefined
+
+-- ptrFree :: *Ptr a -> *()
+-- ptrFree ptr = primUndefined
+
+-- unsafePtrPeek :: UInt -> *Ptr (Share a) -> *(#Share a, Ptr (Share a)#)
+-- unsafePtrPeek index ptr = primUndefined
+
+unsafePtrPoke :: UInt -> *a -> *Ptr a -> *Ptr a
+unsafePtrPoke index value ptr = primUndefined
+
+-- TODO: Something weird in monomorphization here
+unsafePtrSwapElement :: UInt -> *a -> *Ptr a -> *(#a, Ptr a#)
+unsafePtrSwapElement index element ptr = primUndefined
+
+-- unsafeCastPtr :: *Ptr a -> *Ptr b
+-- unsafeCastPtr = primUndefined
+
+
+----------------------
+-- MutRef: Something of a hack to allow for recursively owned types...
+----------------------
+-- data MutRef a = MutRef (Ptr (Maybe a))
+
+-- mkEmptyRef :: () -> *Ptr (Maybe a)
+-- mkEmptyRef _ = unsafePtrPoke 0 Nothing (ptrMalloc 1)
+
+-- mkFullRef :: *a -> *Ptr (Maybe a)
+-- mkFullRef x = (unsafePtrPoke 0 (Just x) (ptrMalloc 1))
+
+mutRefGetOrMake :: *Maybe a -> *Ptr (Maybe a)
+mutRefGetOrMake x = primUndefined
+
+-- TODO: Something weird in monomorphization here
+mutRefTakeElement :: *Ptr (Maybe a) -> *(#Maybe a, Ptr (Maybe a)#)
+mutRefTakeElement ptr0 =
+  case unsafePtrSwapElement 0 Nothing ptr0 of
+    (#x, ptr1#) ->
+      (#x, ptr1#)
+
+mutRefPutElement :: *a -> *Ptr (Maybe a) -> *Ptr (Maybe a)
+mutRefPutElement x ptr =
+  unsafePtrPoke 0 (Just x) ptr
+
+
+----------------------
+-- DynArray
+----------------------
+
+data DynTier     a = DynTier (#Share UInt, Share UInt, Share UInt, Ptr a#)
+data DynArray    a = DynArray (#DynTier a, DynTier a#)
+data DynTierIndex  = DynTierLow | DynTierHigh
+data DynArrayIndex = DynArrayIndex (#DynTierIndex, UInt#)
+
+dynArrayIndexEmpty :: DynArrayIndex
+dynArrayIndexEmpty = DynArrayIndex (#DynTierLow, 0#)
+
+dynTierEmpty :: UInt -> *DynTier a
+dynTierEmpty capacity =
+  DynTier (#Share capacity, Share 0, Share 0, ptrMalloc capacity#)
+
+dynArrayEmpty :: UInt -> *DynArray a
+dynArrayEmpty capacity =
+  DynArray (#dynTierEmpty 0, dynTierEmpty capacity#)
+
+dynTierPop :: *DynTier a -> *(#Maybe a, DynTier a#)
+dynTierPop (DynTier (#Share capacity, Share count, Share highWaterMark, ptr#)) =
+  if count > 0 then
+    case unsafePtrSwapElement (count - 1) primUndefined ptr of
+      (#element, ptr'#) ->
+        (#Just element, DynTier (#Share capacity, Share (count - 1), Share (highWaterMark - 1), ptr'#)#)
+  else
+    (#Nothing, DynTier (#Share capacity, Share count, Share highWaterMark, ptr#)#)
+
+dynTierSwapToEndAndDelete :: UInt -> *DynTier a -> *DynTier a
+dynTierSwapToEndAndDelete index (DynTier (#Share capacity, Share count, Share highWaterMark, ptr#))=
+  if index >= capacity then
+    DynTier (#Share capacity, Share count, Share highWaterMark, ptr#)
+  else
+    case unsafePtrSwapElement index primUndefined ptr of
+      (#indexElement, ptr2#) ->
+        case unsafePtrSwapElement (count - 1) indexElement ptr2 of
+          (#endElement, ptr3#) ->
+            DynTier (#Share capacity, Share (count - 1), Share highWaterMark, unsafePtrPoke index endElement ptr3#)
+
+-- NOTE: This assumes that the tier is correctly sized!
+dynTierAppend :: *a -> *DynTier a -> *DynTier a
+dynTierAppend element (DynTier (#Share capacity, Share count, Share highWaterMark, ptr#)) =
+  DynTier (#Share capacity, Share (count + 1), Share (highWaterMark + 1), unsafePtrPoke count element ptr#)
+
+dynArrayPromoteElement :: *DynArray a -> *DynArray a
+dynArrayPromoteElement (DynArray (#low, high#)) =
+  case dynTierPop low of
+    (#Nothing,      low'#) -> DynArray (#low', high#)
+    (#Just element, low'#) -> DynArray (#low', dynTierAppend element high#)
+
+-- NOTE: This assumes that the low tier has been completely moved to the high tier
+dynArrayResize :: *DynArray a -> *DynArray a
+dynArrayResize (DynArray (#DynTier (#Share lcap, Share lcount, Share lhwm, lowPtr#), DynTier (#Share highCapacity, Share highCount, Share hhwm, highPtr#)#)) =
+  if highCount < highCapacity then
+    DynArray (#DynTier (#Share lcap, Share lcount, Share lhwm, lowPtr#), DynTier (#Share highCapacity, Share highCount, Share hhwm, highPtr#)#)
+  else
+    let
+      newCap  = highCapacity * 2
+      newLow  = DynTier (#Share highCapacity, Share highCount, Share hhwm, highPtr#)
+      newHigh = DynTier (#Share newCap, Share 0, Share 0, ptrRealloc newCap lowPtr#)
+    in
+      DynArray (#newLow, newHigh#)
+
+dynArrayAppend :: *a -> *DynArray a -> *DynArray a
+dynArrayAppend element a =
+  case dynArrayResize (dynArrayPromoteElement a) of
+    DynArray (#low, high#) ->
+      DynArray (#low, dynTierAppend element high#)
+
+dynTierModifyElement :: UInt -> (*a -> *a) -> *DynTier a -> *DynTier a
+dynTierModifyElement index f (DynTier (#capacity, Share count, highWaterMark, ptr0#)) =
+  if index >= count then
+    DynTier (#capacity, Share count, highWaterMark, ptr0#)
+  else
+    case unsafePtrSwapElement index primUndefined ptr0 of
+      (#element, ptr1#) ->
+        DynTier (#capacity, Share count, highWaterMark, unsafePtrPoke index (f element) ptr1#)
+
+dynArrayModifyElement :: DynArrayIndex -> (*a -> *a) -> *DynArray a -> *DynArray a
+dynArrayModifyElement index f (DynArray (#low, high#)) =
+  case index of
+    DynArrayIndex (#DynTierLow,  index'#) -> DynArray (#dynTierModifyElement index' f low, high#)
+    DynArrayIndex (#DynTierHigh, index'#) -> DynArray (#low, dynTierModifyElement index' f high#)
+
+dynTierWithElement :: UInt -> (*a -> *(#Share b, a#)) -> *DynTier a -> *(#Share (Maybe b), DynTier a#)
+dynTierWithElement index f (DynTier (#capacity, Share count, highWaterMark, ptr0#)) =
+  if index >= count then
+    (#Share Nothing, DynTier (#capacity, Share count, highWaterMark, ptr0#)#)
+  else
+    case unsafePtrSwapElement index primUndefined ptr0 of
+      (#element0, ptr1#) ->
+        case f element0 of
+          (#Share result, element1#) ->
+            (#Share (Just result), DynTier (#capacity, Share count, highWaterMark, unsafePtrPoke index element1 ptr1#)#)
+
+dynArrayWithElement :: DynArrayIndex -> (*a -> *(#Share b, a#)) -> *DynArray a -> *(#Share (Maybe b), DynArray a#)
+dynArrayWithElement index f (DynArray (#low, high#)) =
+  case index of
+    DynArrayIndex (#DynTierLow,  index'#) ->
+      case dynTierWithElement index' f low of
+        (#result, low'#) ->  (#result, DynArray (#low', high#)#)
+    DynArrayIndex (#DynTierHigh, index'#) ->
+      case dynTierWithElement index' f high of
+        (#result, high'#) -> (#result, DynArray (#low, high'#)#)
+
+dynArrayDelete :: DynArrayIndex -> *DynArray a -> *DynArray a
+dynArrayDelete index (DynArray (#low, high#)) =
+  case index of
+    DynArrayIndex (#DynTierLow,  index'#) -> DynArray (#dynTierSwapToEndAndDelete index' low, high#)
+    DynArrayIndex (#DynTierHigh, index'#) -> DynArray (#low, dynTierSwapToEndAndDelete index' high#)
+
+dynArrayEmplaceOrAppend :: (*a -> *a) -> (() -> *a) -> *DynArray a -> *DynArray a
+dynArrayEmplaceOrAppend emplaceInit appendMk (DynArray (#low, DynTier (#highCapacity, Share highCount, Share highWaterMark, highPtr#)#)) =
+  if highCount < highWaterMark then
+    DynArray (#low, dynTierModifyElement (highCount + 1) emplaceInit <| DynTier (#highCapacity, Share (highCount + 1), Share highWaterMark, highPtr#)#)
+  else
+    DynArray (#low, dynTierAppend (appendMk ()) <| DynTier (#highCapacity, Share highCount, Share highWaterMark, highPtr#)#)
+
+data DynArrayIterator a = DynArrayIterator (#Share DynArrayIndex, DynArray a#)
+
+dynArrayIterator :: *DynArray a -> *DynArrayIterator a
+dynArrayIterator a = DynArrayIterator (#Share dynArrayIndexEmpty, a#)
+
+dynArrayIteratorEnd :: *DynArrayIterator a -> *DynArray a
+dynArrayIteratorEnd (DynArrayIterator (#_, array#)) = array
+
+dynArrayIteratorEmplaceOrAppend :: (*a -> *a) -> (() -> *a) -> *DynArrayIterator a -> *DynArrayIterator a
+dynArrayIteratorEmplaceOrAppend emplaceInit appendMk (DynArrayIterator (#_, array#)) =
+  DynArrayIterator (#Share dynArrayIndexEmpty, dynArrayEmplaceOrAppend emplaceInit appendMk array#)
+
+dynArrayIteratorWithElement :: (*a -> *(#Share b, a#)) -> *DynArrayIterator a -> *(#Share (Maybe b), DynArrayIterator a#)
+dynArrayIteratorWithElement f (DynArrayIterator (#Share index, array#)) =
+  case dynArrayWithElement index f array of
+    (#result, array'#) ->
+      (#result, DynArrayIterator (#Share index, array'#)#)
+
+dynArrayIteratorNext :: *DynArrayIterator a -> *DynArrayIterator a
+dynArrayIteratorNext (DynArrayIterator (#Share index, DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)) =
+  case index of
+    DynArrayIndex (#DynTierLow, index'#) ->
+      if index' < lcount then
+        DynArrayIterator (#Share (DynArrayIndex (#DynTierLow, index' + 1#)), DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
+      else
+        DynArrayIterator (#Share (DynArrayIndex (#DynTierHigh, 0#)), DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
+    DynArrayIndex (#DynTierHigh, index'#) ->
+      DynArrayIterator (#Share (DynArrayIndex (#DynTierHigh, index' + 1#)), DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
+
+-- Handle case where you delete last low, but highs are still available
+dynArrayIteratorFree :: *DynArrayIterator a -> *DynArrayIterator a
+dynArrayIteratorFree (DynArrayIterator (#Share index, array#)) =
+  case dynArrayDelete index array of
+    DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#) ->
+      case index of
+        DynArrayIndex (#DynTierLow, _#) ->
+          if lcount > 0 then
+            DynArrayIterator (#Share index, DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
+          else
+            DynArrayIterator (#Share (DynArrayIndex (#DynTierHigh, 0#)), DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
+        _ ->
+          DynArrayIterator (#Share index, DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
+
+
+--------------------
+-- PolyThunks
+--------------------
+-- TODO: Need to figure out copying scheme for thunk arguments...
+-- TODO: Take into account timing offset!
+-- Create closure consisting of: InitFn Ptr, UpdateFn Ptr, State Object, Argument to Apply
+-- Thunk mk function!
+data PolyThunk  a b = PolyThunk (#(), (), (), a#)
+
+polyThunkAlloc :: (a -> b) -> a -> () -> *PolyThunk (Share a) (Share b)
+polyThunkAlloc f x _ = primUndefined
+  where
+    _ = f x
+
+polyThunkInit :: *PolyThunk (Share a) (Share b) -> *PolyThunk (Share a) (Share b)
+polyThunkInit t = t
+
+polyThunkEval :: *PolyThunk (Share a) (Share b) -> *(#Share b, PolyThunk (Share a) (Share b)#)
+polyThunkEval t = primUndefined
+
+
+----------------------
+-- Poly
+----------------------
+
+class Monoid p => Poly p where
+  isRunning :: p -> Bool
+
+instance Poly Mono where
+  isRunning m = streamStateIsRunning (audioState m)
+
+instance Poly Stereo where
+  isRunning s = streamStateIsRunning (audioState s)
+
+poly :: Poly p => (a -> p) -> Seq a -> p
+poly f s =
+  case mutRefTakeElement (mutRefGetOrMake Nothing) of
+    (#maybeThunks, ref1#) ->
+      let
+        tick ~ 0                      = tick + blockDelta
+        (#_, _, Share acc', thunks'#) =
+          loop (#Share cont, Share time, Share acc, thunks#) = (#Share True, Share 0, Share mempty, dynArrayIterator (fromMaybe (dynArrayEmpty 8) maybeThunks)#) while cont do
+            let nextValueTime ~ 0 = nextValueTime + time in
+              if nextValueTime < tick then
+                -- Add Thunks
+                case runSeq s () of
+                  SeqValue (#t, _, Just x#) ->
+                    (#Share True, Share t, Share acc, dynArrayIteratorEmplaceOrAppend polyThunkInit (polyThunkAlloc f x) thunks#)
+                  SeqValue (#t, _, _#) ->
+                    (#Share True, Share t, Share acc, thunks#)
+              else
+                -- Eval Thunks
+                case dynArrayIteratorWithElement polyThunkEval thunks of
+                  (#Share (Just evalResult), thunks1#) ->
+                    if isRunning evalResult then
+                      (#Share True, Share 0, Share (append acc evalResult), dynArrayIteratorNext thunks1#)
+                    else
+                      (#Share True, Share 0, Share acc, dynArrayIteratorFree thunks1#)
+                  (#Share Nothing, thunks1#) ->
+                    (#Share False, Share 0, Share acc, thunks1#)
+      in
+        case mutRefPutElement (dynArrayIteratorEnd thunks') ref1 of
+          _ -> acc'
+
+-- poly :: Poly p => (a -> p) -> Seq a -> p
+-- poly f s =
+--   acc'
+--   where
+--     tick ~ 0                = tick + blockDelta
+--     (#_, _, Share acc', _#) =
+--       loop (#Share cont, Share time, Share acc, thunks#) = (#Share True, Share 0, Share mempty, unsafeGetOrMakePolyThunks ()#) while cont do
+--         let nextValueTime ~ 0 = nextValueTime + time in
+--           if nextValueTime < tick then
+--             -- Add Thunks
+--             case runSeq s () of
+--               SeqValue (#t, _, Just x#) ->
+--                 (#Share True, Share t, Share acc, addPolyThunk f x thunks#)
+--               SeqValue (#t, _, _#) ->
+--                 (#Share True, Share t, Share acc, thunks#)
+--           else
+--             -- Eval Thunks
+--             case evalPolyThunk thunks of
+--               (#Share evalResult, thunks1#) ->
+--                 if isRunning evalResult then
+--                   case nextPolyThunk thunks1 of
+--                     (#cont', thunks2#) -> (#cont', Share 0, Share (append acc evalResult), thunks2#)
+--                 else
+--                   case freePolyThunk thunks1 of
+--                     (#cont', thunks2#) -> (#cont', Share 0, Share acc, thunks2#)
+
+-- myCoolSynth :: Mono
+-- myCoolSynth = poly (fromInt .> saw) [440 220 _ <110 55 _ 330>]
+
+myCoolSynth2 :: Mono
+myCoolSynth2 = poly (fromInt .> saw) [440 220 _ <110 55 _ 330>] + poly (fromInt .> saw) [1 2 3]
+
+-- poly2 :: Poly p => (a -> b -> p) -> Seq a -> Seq b -> p
+-- poly2 f x y = poly (uncurry' f) <| map2 (\x' y' -> (#x', y'#)) x y
+
+-- coolMultiSaw :: Mono
+-- coolMultiSaw = poly2 multiSaw freq filterFreq
 
 -- tupleTest :: Seq Float
 -- tupleTest =
@@ -1124,16 +1470,6 @@ blockDelta = recipRational blocksPerSecond
 
 -- properFraction :: (Fractional a, Integral b) -> a -> (b, b)
 
--- poly :: Audio a => (a -> a) -> Seq Float -> a
--- poly f (Seq s) = out
---   where
---     (children ~ default, currTime ~ 0, tick ~ 1) =
---       loop (c, t, tick') = (children, currTime, tick + 1) while t > tick' do
---         case s t of
---           SeqNil   t' _   -> (c, t + t', tick')
---           SeqValue t' arg -> (dynAppend (f (fromRational arg)) c, t + t', tick')
-
-
 -- TODO:
 -- accumulatePulse :: F64 -> F64 -> F64 -> (#F64, F64#)
 -- accumulatePulse width freq acc =
@@ -1150,10 +1486,14 @@ blockDelta = recipRational blocksPerSecond
 -- composeTest :: Int -> Int
 -- composeTest = add 1 <. add 2
 
+-- TODO: %  -> mod operator
+-- TODO: // -> Rational operator
+
 -- TODO: Add Flag to Audio which flags that it has ended!
 -- TODO: Shit to make poly work?
 -- TODO: Zip for seq or more general zip?
 
+-- TODO: Inline compose operators! .> and <.
 -- TODO: Perhaps function caching is getting off, need more accurate check for HOF caching!
 -- TODO: "Constant" type enforcement for Default / Monoid
 -- TODO: Desugar seq literals

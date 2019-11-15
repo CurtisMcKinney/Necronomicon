@@ -491,6 +491,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
     case NECRO_AST_UNDEFINED:
         break;
     case NECRO_AST_CONSTANT:
+        d_analyze_var(d_analyzer, d_analyzer->base->num_type_class);
         break;
     case NECRO_AST_UN_OP:
         break;

@@ -2070,8 +2070,6 @@ void necro_core_defunctionalize_test()
         necro_defunctionalize_test_result(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Print Seq 2";
         const char* test_source = ""
@@ -2079,6 +2077,19 @@ void necro_core_defunctionalize_test()
             "main w = print ([11 12 13] + [<21 22> <23 24 25> 26]) w\n";
         necro_defunctionalize_test_result(test_name, test_source);
     }
+
+*/
+
+    {
+        const char* test_name   = "Poly 0";
+        const char* test_source = ""
+            "myCoolSynth :: Mono\n"
+            "myCoolSynth = poly (fromInt .> saw) [440 220 _ <110 55 _ 330>]\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_defunctionalize_test_result(test_name, test_source);
+    }
+
 
 /*
 

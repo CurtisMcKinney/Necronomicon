@@ -2599,9 +2599,11 @@ NecroAst* necro_ast_deep_copy_with_new_names_go(NecroPagedArena* arena, NecroInt
         NecroAst* copied_ast = necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_seq_expression(arena,
             necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->sequence_expression.expressions), ast->sequence_expression.sequence_type));
         copied_ast->sequence_expression.tick_inst_subs    = necro_type_deep_copy_subs(arena, ast->sequence_expression.tick_inst_subs);
-        copied_ast->sequence_expression.tick_symbol       = ast->sequence_expression.tick_symbol;
+        copied_ast->sequence_expression.tick_symbol       = necro_ast_deep_copy_with_new_names_lookup_var(scope, ast->sequence_expression.tick_symbol);
+        // copied_ast->sequence_expression.tick_symbol       = ast->sequence_expression.tick_symbol;
         copied_ast->sequence_expression.run_seq_inst_subs = necro_type_deep_copy_subs(arena, ast->sequence_expression.run_seq_inst_subs);
-        copied_ast->sequence_expression.run_seq_symbol    = ast->sequence_expression.run_seq_symbol;
+        copied_ast->sequence_expression.run_seq_symbol    = necro_ast_deep_copy_with_new_names_lookup_var(scope, ast->sequence_expression.run_seq_symbol);
+        // copied_ast->sequence_expression.run_seq_symbol    = ast->sequence_expression.run_seq_symbol;
         return copied_ast;
     }
     case NECRO_AST_TUPLE:
@@ -2664,6 +2666,5 @@ NecroAst* necro_ast_deep_copy_with_new_names_go(NecroPagedArena* arena, NecroInt
 NecroAst* necro_ast_deep_copy_with_new_names(NecroPagedArena* arena, NecroIntern* intern, NecroScope* scope, NecroAst* declaration_group, NecroAst* ast)
 {
     // TODO: Switch to different allocation / deallocation scheme?
-    // NecroScope* scope = necro_scope_create(arena, NULL);
     return necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast);
 }

@@ -1075,18 +1075,6 @@ blockDelta = recipRational blocksPerSecond
 -- appendGo :: SeqValue Rational
 -- appendGo = runSeq (appendSeq 1 2) ()
 
--- poly :: (Fractional a, Audio a) => (a -> a) -> Seq Float -> a
--- poly f s =
---   case runSeq (map (fromRational .> f) s) () of
---     SeqValue (#_, _, Just x#) -> x
---     _                         -> pureAudio 0
-
--- coolSaw :: Int -> Mono
--- coolSaw f = fromInt f |> saw |> perc 0.1 10 (-1)
-
--- myCoolSynth :: Mono
--- myCoolSynth = poly coolSaw [440 220 _ <110 55 _ 330>]
-
 --------------------
 -- Ptr
 --------------------
@@ -1118,27 +1106,24 @@ unsafePtrSwapElement index element ptr = primUndefined
 ----------------------
 -- MutRef: Something of a hack to allow for recursively owned types...
 ----------------------
--- data MutRef a = MutRef (Ptr (Maybe a))
+data MutRef a = MutRef (Ptr (Maybe a))
 
--- mkEmptyRef :: () -> *Ptr (Maybe a)
--- mkEmptyRef _ = unsafePtrPoke 0 Nothing (ptrMalloc 1)
+-- HACK / NOTE: mutRef expects the first argument to be CONSTANT (Need to support this concept in the type system...)
+mutRef :: *Maybe a -> *Ptr (Maybe a)
+mutRef x =
+  primUndefined
 
--- mkFullRef :: *a -> *Ptr (Maybe a)
--- mkFullRef x = (unsafePtrPoke 0 (Just x) (ptrMalloc 1))
+mutRefTake :: (() -> *a) -> *(#a, MutRef a#)
+mutRefTake mkFn =
+  case unsafePtrSwapElement 0 Nothing (mutRef Nothing) of
+    (#mx, ptr1#) ->
+      case mx of
+        Just x  -> (#x, MutRef ptr1#)
+        Nothing -> (#mkFn (), MutRef ptr1#)
 
-mutRefGetOrMake :: *Maybe a -> *Ptr (Maybe a)
-mutRefGetOrMake x = primUndefined
-
--- TODO: Something weird in monomorphization here
-mutRefTakeElement :: *Ptr (Maybe a) -> *(#Maybe a, Ptr (Maybe a)#)
-mutRefTakeElement ptr0 =
-  case unsafePtrSwapElement 0 Nothing ptr0 of
-    (#x, ptr1#) ->
-      (#x, ptr1#)
-
-mutRefPutElement :: *a -> *Ptr (Maybe a) -> *Ptr (Maybe a)
-mutRefPutElement x ptr =
-  unsafePtrPoke 0 (Just x) ptr
+mutRefPut :: *a -> *MutRef a -> *MutRef a
+mutRefPut x (MutRef ptr) =
+  MutRef (unsafePtrPoke 0 (Just x) ptr)
 
 
 ----------------------
@@ -1307,6 +1292,7 @@ dynArrayIteratorFree (DynArrayIterator (#Share index, array#)) =
 --------------------
 -- PolyThunks
 --------------------
+-- TODO: Seq function?
 -- TODO: Need to figure out copying scheme for thunk arguments...
 -- TODO: Take into account timing offset!
 -- Create closure consisting of: InitFn Ptr, UpdateFn Ptr, State Object, Argument to Apply
@@ -1314,12 +1300,14 @@ dynArrayIteratorFree (DynArrayIterator (#Share index, array#)) =
 data PolyThunk  a b = PolyThunk (#(), (), (), a#)
 
 polyThunkAlloc :: (a -> b) -> a -> () -> *PolyThunk (Share a) (Share b)
-polyThunkAlloc f x _ = primUndefined
-  where
-    _ = f x
+polyThunkAlloc f x u =
+  let
+    dummy = f x
+  in
+    primUndefined
 
 polyThunkInit :: *PolyThunk (Share a) (Share b) -> *PolyThunk (Share a) (Share b)
-polyThunkInit t = t
+polyThunkInit t = primUndefined
 
 polyThunkEval :: *PolyThunk (Share a) (Share b) -> *(#Share b, PolyThunk (Share a) (Share b)#)
 polyThunkEval t = primUndefined
@@ -1340,23 +1328,23 @@ instance Poly Stereo where
 
 poly :: Poly p => (a -> p) -> Seq a -> p
 poly f s =
-  case mutRefTakeElement (mutRefGetOrMake Nothing) of
-    (#maybeThunks, ref1#) ->
+  case mutRefTake (\_ -> dynArrayEmpty 8) of
+    (#thunks0, mref#) ->
       let
         tick ~ 0                      = tick + blockDelta
-        (#_, _, Share acc', thunks'#) =
-          loop (#Share cont, Share time, Share acc, thunks#) = (#Share True, Share 0, Share mempty, dynArrayIterator (fromMaybe (dynArrayEmpty 8) maybeThunks)#) while cont do
+        (#_, _, Share acc', thunks2#) =
+          loop (#Share cont, Share time, Share acc, thunks1#) = (#Share True, Share 0, Share mempty, dynArrayIterator thunks0#) while cont do
             let nextValueTime ~ 0 = nextValueTime + time in
               if nextValueTime < tick then
                 -- Add Thunks
                 case runSeq s () of
                   SeqValue (#t, _, Just x#) ->
-                    (#Share True, Share t, Share acc, dynArrayIteratorEmplaceOrAppend polyThunkInit (polyThunkAlloc f x) thunks#)
+                    (#Share True, Share t, Share acc, dynArrayIteratorEmplaceOrAppend polyThunkInit (polyThunkAlloc f x) thunks1#)
                   SeqValue (#t, _, _#) ->
-                    (#Share True, Share t, Share acc, thunks#)
+                    (#Share True, Share t, Share acc, thunks1#)
               else
                 -- Eval Thunks
-                case dynArrayIteratorWithElement polyThunkEval thunks of
+                case dynArrayIteratorWithElement polyThunkEval thunks1 of
                   (#Share (Just evalResult), thunks1#) ->
                     if isRunning evalResult then
                       (#Share True, Share 0, Share (append acc evalResult), dynArrayIteratorNext thunks1#)
@@ -1365,40 +1353,15 @@ poly f s =
                   (#Share Nothing, thunks1#) ->
                     (#Share False, Share 0, Share acc, thunks1#)
       in
-        case mutRefPutElement (dynArrayIteratorEnd thunks') ref1 of
+        case mutRefPut (dynArrayIteratorEnd thunks2) mref of
           _ -> acc'
-
--- poly :: Poly p => (a -> p) -> Seq a -> p
--- poly f s =
---   acc'
---   where
---     tick ~ 0                = tick + blockDelta
---     (#_, _, Share acc', _#) =
---       loop (#Share cont, Share time, Share acc, thunks#) = (#Share True, Share 0, Share mempty, unsafeGetOrMakePolyThunks ()#) while cont do
---         let nextValueTime ~ 0 = nextValueTime + time in
---           if nextValueTime < tick then
---             -- Add Thunks
---             case runSeq s () of
---               SeqValue (#t, _, Just x#) ->
---                 (#Share True, Share t, Share acc, addPolyThunk f x thunks#)
---               SeqValue (#t, _, _#) ->
---                 (#Share True, Share t, Share acc, thunks#)
---           else
---             -- Eval Thunks
---             case evalPolyThunk thunks of
---               (#Share evalResult, thunks1#) ->
---                 if isRunning evalResult then
---                   case nextPolyThunk thunks1 of
---                     (#cont', thunks2#) -> (#cont', Share 0, Share (append acc evalResult), thunks2#)
---                 else
---                   case freePolyThunk thunks1 of
---                     (#cont', thunks2#) -> (#cont', Share 0, Share acc, thunks2#)
 
 -- myCoolSynth :: Mono
 -- myCoolSynth = poly (fromInt .> saw) [440 220 _ <110 55 _ 330>]
 
 myCoolSynth2 :: Mono
-myCoolSynth2 = poly (fromInt .> saw) [440 220 _ <110 55 _ 330>] + poly (fromInt .> saw) [1 2 3]
+myCoolSynth2 =
+  poly (fromInt .> saw) [440 220 _ <110 55 _ 330>] + poly (fromInt .> saw) [1 2 3]
 
 -- poly2 :: Poly p => (a -> b -> p) -> Seq a -> Seq b -> p
 -- poly2 f x y = poly (uncurry' f) <| map2 (\x' y' -> (#x', y'#)) x y
@@ -1493,6 +1456,7 @@ myCoolSynth2 = poly (fromInt .> saw) [440 220 _ <110 55 _ 330>] + poly (fromInt 
 -- TODO: Shit to make poly work?
 -- TODO: Zip for seq or more general zip?
 
+-- TODO: Concept of Constant Values somehow being worked into the type system for things like default and mutRef
 -- TODO: Inline compose operators! .> and <.
 -- TODO: Perhaps function caching is getting off, need more accurate check for HOF caching!
 -- TODO: "Constant" type enforcement for Default / Monoid

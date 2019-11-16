@@ -1537,6 +1537,14 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         program->runtime.necro_runtime_alloc = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_alloc, NECRO_STATE_POINTWISE)->fn_def.symbol;
     }
 
+    // necro_runtime_realloc
+    {
+        NecroMachAstSymbol* mach_symbol        = necro_mach_ast_symbol_gen(program, NULL, "necro_runtime_realloc", NECRO_DONT_MANGLE);
+        mach_symbol->is_primitive              = true;
+        NecroMachType*      fn_type            = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_uint8(program)), (NecroMachType*[]) { necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_uint8(program)), necro_mach_type_create_word_sized_uint(program) }, 2);
+        program->runtime.necro_runtime_realloc = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_realloc, NECRO_STATE_POINTWISE)->fn_def.symbol;
+    }
+
     // necro_runtime_free
     {
         NecroMachAstSymbol* mach_symbol     = necro_mach_ast_symbol_gen(program, NULL, "necro_runtime_free", NECRO_DONT_MANGLE);

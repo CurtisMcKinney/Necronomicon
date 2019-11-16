@@ -294,14 +294,9 @@ NecroAstSymbol* necro_ast_specialize(NecroMonomorphize* monomorphize, NecroAstSy
 */
 NecroResult(bool) necro_ast_should_specialize(NecroPagedArena* arena, NecroBase* base, NecroAstSymbol* ast_symbol, NecroAst* ast, NecroInstSub* inst_subs)
 {
-    const bool is_symbol_poly = necro_try_result(bool, necro_type_is_unambiguous_polymorphic(arena, base, ast_symbol->type, ast_symbol->type, ast->source_loc, ast->end_loc));
-    // if (strcmp(ast_symbol->name->str, "Necro.Base.mutRefTakeElement") == 0)
-    // {
-    //     printf("mutRefTakeElement!\n");
-    // }
+    const bool is_symbol_poly    = necro_try_result(bool, necro_type_is_unambiguous_polymorphic(arena, base, ast_symbol->type, ast_symbol->type, ast->source_loc, ast->end_loc));
     const bool is_ast_poly       = necro_try_result(bool, necro_type_is_unambiguous_polymorphic(arena, base, ast->necro_type, ast->necro_type, ast->source_loc, ast->end_loc));
     bool       should_specialize = is_symbol_poly && !is_ast_poly;
-    // bool       should_specialize = is_symbol_poly && (inst_subs != NULL);
     NecroInstSub* curr_sub    = inst_subs;
     while (curr_sub != NULL)
     {

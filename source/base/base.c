@@ -1779,7 +1779,12 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "unsafePtrPoke",        NULL, NECRO_PRIMOP_PTR_POKE);
     necro_base_setup_primitive(scoped_symtable, intern, "unsafePtrSwapElement", NULL, NECRO_PRIMOP_PTR_SWAP);
 
-    necro_base_setup_primitive(scoped_symtable, intern, "mutRefGetOrMake", NULL, NECRO_PRIMOP_MREF_GET);
+    necro_base_setup_primitive(scoped_symtable, intern, "mutRef", NULL, NECRO_PRIMOP_MREF);
+
+    // PolyThunk
+    necro_base_setup_primitive(scoped_symtable, intern, "polyThunkAlloc", NULL, NECRO_PRIMOP_PTHUNK_ALLOC);
+    necro_base_setup_primitive(scoped_symtable, intern, "polyThunkInit",  NULL, NECRO_PRIMOP_PTHUNK_INIT);
+    necro_base_setup_primitive(scoped_symtable, intern, "polyThunkEval",  NULL, NECRO_PRIMOP_PTHUNK_EVAL);
 
     // Int
     necro_base_setup_primitive(scoped_symtable, intern, "add<Int>",     NULL, NECRO_PRIMOP_BINOP_IADD);

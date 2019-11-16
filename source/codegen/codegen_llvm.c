@@ -1273,6 +1273,7 @@ void necro_llvm_jit(NecroCompileInfo info, NecroLLVM* context)
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_get_mouse_y);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_is_done);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_alloc);
+    necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_realloc);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_free);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_out_audio_block);
     necro_llvm_map_runtime_symbol(context, context->engine, context->base->floor->core_ast_symbol->mach_symbol);

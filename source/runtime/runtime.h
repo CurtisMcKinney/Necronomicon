@@ -52,6 +52,7 @@ extern DLLEXPORT unsigned int necro_runtime_out_audio_block(unsigned int channel
 //--------------------
 // Memory
 extern DLLEXPORT uint8_t*     necro_runtime_alloc(unsigned int size);
+extern DLLEXPORT uint8_t*     necro_runtime_realloc(uint8_t* ptr, unsigned int size);
 extern DLLEXPORT void         necro_runtime_free(uint8_t* data);
 
 //--------------------

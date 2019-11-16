@@ -151,6 +151,12 @@ NecroMachType* _necro_mach_type_from_necro_type_poly_con(NecroMachProgram* progr
         NecroMachType* element_mach_type  = necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, element_necro_type));
         return necro_mach_type_create_array(&program->arena, element_mach_type, element_count);
     }
+    else if (type->con.con_symbol == program->base->ptr_type)
+    {
+        NecroType*     element_necro_type = type->con.args->list.item;
+        NecroMachType* element_mach_type  = necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, element_necro_type));
+        return necro_mach_type_create_ptr(&program->arena, element_mach_type);
+    }
     assert(false);
     return NULL;
 }

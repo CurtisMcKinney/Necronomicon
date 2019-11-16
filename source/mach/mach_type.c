@@ -442,6 +442,11 @@ bool necro_mach_type_is_unboxed(struct NecroMachProgram* program, NecroMachType*
         || (type->type == NECRO_MACH_TYPE_STRUCT && type->struct_type.symbol->is_unboxed);
 }
 
+bool necro_mach_type_is_unboxed_or_ptr(struct NecroMachProgram* program, NecroMachType* type)
+{
+    return necro_mach_type_is_unboxed(program, type) || type->type == NECRO_MACH_TYPE_PTR;
+}
+
 bool necro_mach_type_is_word_uint(struct NecroMachProgram* program, NecroMachType* type)
 {
     return type->type == program->type_cache.word_uint_type->type;
@@ -449,7 +454,7 @@ bool necro_mach_type_is_word_uint(struct NecroMachProgram* program, NecroMachTyp
 
 NecroMachType* necro_mach_type_make_ptr_if_boxed(NecroMachProgram* program, NecroMachType* type)
 {
-    if (necro_mach_type_is_unboxed(program, type))
+    if (necro_mach_type_is_unboxed_or_ptr(program, type))
         return type;
     else
         return necro_mach_type_create_ptr(&program->arena, type);

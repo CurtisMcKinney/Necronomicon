@@ -469,12 +469,12 @@ NecroMachAst* necro_mach_build_insert_value(NecroMachProgram* program, NecroMach
     if (aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_STRUCT)
     {
         assert(index < aggregate_value->necro_machine_type->struct_type.num_members);
-        assert(necro_mach_type_is_eq(aggregate_value->necro_machine_type->struct_type.members[index], inserted_value->necro_machine_type));
+        necro_mach_type_check(program, aggregate_value->necro_machine_type->struct_type.members[index], inserted_value->necro_machine_type);
     }
     else
     {
         assert(index < aggregate_value->necro_machine_type->array_type.element_count);
-        assert(necro_mach_type_is_eq(aggregate_value->necro_machine_type->array_type.element_type, inserted_value->necro_machine_type));
+        necro_mach_type_check(program, aggregate_value->necro_machine_type->array_type.element_type, inserted_value->necro_machine_type);
     }
     NecroMachAst*  ast                = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
     ast->type                         = NECRO_MACH_INSERT_VALUE;
@@ -1202,9 +1202,9 @@ NecroMachAst* necro_mach_create_initial_machine_def(NecroMachProgram* program, N
     {
         ast->machine_def.fn_type = value_type;
         // TODO: Why unbox result pointer types?
-        if (value_type->fn_type.return_type->type == NECRO_MACH_TYPE_PTR)
-            ast->machine_def.value_type = value_type->fn_type.return_type->ptr_type.element_type;
-        else
+        // if (value_type->fn_type.return_type->type == NECRO_MACH_TYPE_PTR)
+        //     ast->machine_def.value_type = value_type->fn_type.return_type->ptr_type.element_type;
+        // else
             ast->machine_def.value_type = value_type->fn_type.return_type;
     }
     else

@@ -1095,7 +1095,6 @@ ptrRealloc capacity = primUndefined
 unsafePtrPoke :: UInt -> *a -> *Ptr a -> *Ptr a
 unsafePtrPoke index value ptr = primUndefined
 
--- TODO: Something weird in monomorphization here
 unsafePtrSwapElement :: UInt -> *a -> *Ptr a -> *(#a, Ptr a#)
 unsafePtrSwapElement index element ptr = primUndefined
 
@@ -1106,24 +1105,24 @@ unsafePtrSwapElement index element ptr = primUndefined
 ----------------------
 -- MutRef: Something of a hack to allow for recursively owned types...
 ----------------------
-data MutRef a = MutRef (Ptr (Maybe a))
+-- data MutRef a = MutRef (Ptr (Maybe a))
 
 -- HACK / NOTE: mutRef expects the first argument to be CONSTANT (Need to support this concept in the type system...)
 mutRef :: *Maybe a -> *Ptr (Maybe a)
 mutRef x =
   primUndefined
 
-mutRefTake :: (() -> *a) -> *(#a, MutRef a#)
+mutRefTake :: (() -> *a) -> *(#a, Ptr (Maybe a)#)
 mutRefTake mkFn =
   case unsafePtrSwapElement 0 Nothing (mutRef Nothing) of
     (#mx, ptr1#) ->
       case mx of
-        Just x  -> (#x, MutRef ptr1#)
-        Nothing -> (#mkFn (), MutRef ptr1#)
+        Just x  -> (#x, ptr1#)
+        Nothing -> (#mkFn (), ptr1#)
 
-mutRefPut :: *a -> *MutRef a -> *MutRef a
-mutRefPut x (MutRef ptr) =
-  MutRef (unsafePtrPoke 0 (Just x) ptr)
+mutRefPut :: *a -> *Ptr (Maybe a) -> *Ptr (Maybe a)
+mutRefPut x ptr =
+  unsafePtrPoke 0 (Just x) ptr
 
 
 ----------------------
@@ -1206,10 +1205,10 @@ dynTierModifyElement index f (DynTier (#capacity, Share count, highWaterMark, pt
         DynTier (#capacity, Share count, highWaterMark, unsafePtrPoke index (f element) ptr1#)
 
 dynArrayModifyElement :: DynArrayIndex -> (*a -> *a) -> *DynArray a -> *DynArray a
-dynArrayModifyElement index f (DynArray (#low, high#)) =
-  case index of
-    DynArrayIndex (#DynTierLow,  index'#) -> DynArray (#dynTierModifyElement index' f low, high#)
-    DynArrayIndex (#DynTierHigh, index'#) -> DynArray (#low, dynTierModifyElement index' f high#)
+dynArrayModifyElement (DynArrayIndex (#tier, index#)) f (DynArray (#low, high#)) =
+  case tier of
+    DynTierLow  -> DynArray (#dynTierModifyElement index f low, high#)
+    DynTierHigh -> DynArray (#low, dynTierModifyElement index f high#)
 
 dynTierWithElement :: UInt -> (*a -> *(#Share b, a#)) -> *DynTier a -> *(#Share (Maybe b), DynTier a#)
 dynTierWithElement index f (DynTier (#capacity, Share count, highWaterMark, ptr0#)) =
@@ -1223,20 +1222,29 @@ dynTierWithElement index f (DynTier (#capacity, Share count, highWaterMark, ptr0
             (#Share (Just result), DynTier (#capacity, Share count, highWaterMark, unsafePtrPoke index element1 ptr1#)#)
 
 dynArrayWithElement :: DynArrayIndex -> (*a -> *(#Share b, a#)) -> *DynArray a -> *(#Share (Maybe b), DynArray a#)
-dynArrayWithElement index f (DynArray (#low, high#)) =
-  case index of
-    DynArrayIndex (#DynTierLow,  index'#) ->
-      case dynTierWithElement index' f low of
-        (#result, low'#) ->  (#result, DynArray (#low', high#)#)
-    DynArrayIndex (#DynTierHigh, index'#) ->
-      case dynTierWithElement index' f high of
-        (#result, high'#) -> (#result, DynArray (#low, high'#)#)
+dynArrayWithElement (DynArrayIndex (#tier, index#)) f (DynArray (#low, high#)) =
+  case tier of
+    DynTierLow ->
+      case dynTierWithElement index f low of
+        (#result, low'#) ->
+          (#result, DynArray (#low', high#)#)
+    DynTierHigh ->
+      case dynTierWithElement index f high of
+        (#result, high'#) ->
+          (#result, DynArray (#low, high'#)#)
 
 dynArrayDelete :: DynArrayIndex -> *DynArray a -> *DynArray a
-dynArrayDelete index (DynArray (#low, high#)) =
-  case index of
-    DynArrayIndex (#DynTierLow,  index'#) -> DynArray (#dynTierSwapToEndAndDelete index' low, high#)
-    DynArrayIndex (#DynTierHigh, index'#) -> DynArray (#low, dynTierSwapToEndAndDelete index' high#)
+dynArrayDelete (DynArrayIndex (#tier, index#)) (DynArray (#low, high#)) =
+  case tier of
+    DynTierLow  -> DynArray (#dynTierSwapToEndAndDelete index low, high#)
+    DynTierHigh -> DynArray (#low, dynTierSwapToEndAndDelete index high#)
+
+-- TODO: Nested case literals seem broken!
+-- dynArrayDelete :: DynArrayIndex -> *DynArray a -> *DynArray a
+-- dynArrayDelete index (DynArray (#low, high#)) =
+--   case index of
+--     DynArrayIndex (#DynTierLow,  index'#) -> DynArray (#dynTierSwapToEndAndDelete index' low, high#)
+--     DynArrayIndex (#DynTierHigh, index'#) -> DynArray (#low, dynTierSwapToEndAndDelete index' high#)
 
 dynArrayEmplaceOrAppend :: (*a -> *a) -> (() -> *a) -> *DynArray a -> *DynArray a
 dynArrayEmplaceOrAppend emplaceInit appendMk (DynArray (#low, DynTier (#highCapacity, Share highCount, Share highWaterMark, highPtr#)#)) =
@@ -1264,15 +1272,15 @@ dynArrayIteratorWithElement f (DynArrayIterator (#Share index, array#)) =
       (#result, DynArrayIterator (#Share index, array'#)#)
 
 dynArrayIteratorNext :: *DynArrayIterator a -> *DynArrayIterator a
-dynArrayIteratorNext (DynArrayIterator (#Share index, DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)) =
-  case index of
-    DynArrayIndex (#DynTierLow, index'#) ->
-      if index' < lcount then
-        DynArrayIterator (#Share (DynArrayIndex (#DynTierLow, index' + 1#)), DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
+dynArrayIteratorNext (DynArrayIterator (#Share (DynArrayIndex (#tier, index#)), DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)) =
+  case tier of
+    DynTierLow ->
+      if index < lcount then
+        DynArrayIterator (#Share (DynArrayIndex (#DynTierLow, index + 1#)), DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
       else
         DynArrayIterator (#Share (DynArrayIndex (#DynTierHigh, 0#)), DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
-    DynArrayIndex (#DynTierHigh, index'#) ->
-      DynArrayIterator (#Share (DynArrayIndex (#DynTierHigh, index' + 1#)), DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
+    DynTierHigh ->
+      DynArrayIterator (#Share (DynArrayIndex (#DynTierHigh, index + 1#)), DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
 
 -- Handle case where you delete last low, but highs are still available
 dynArrayIteratorFree :: *DynArrayIterator a -> *DynArrayIterator a
@@ -1280,13 +1288,15 @@ dynArrayIteratorFree (DynArrayIterator (#Share index, array#)) =
   case dynArrayDelete index array of
     DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#) ->
       case index of
-        DynArrayIndex (#DynTierLow, _#) ->
-          if lcount > 0 then
-            DynArrayIterator (#Share index, DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
-          else
-            DynArrayIterator (#Share (DynArrayIndex (#DynTierHigh, 0#)), DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
-        _ ->
-          DynArrayIterator (#Share index, DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
+        DynArrayIndex (#tier, _#) ->
+          case tier of
+            DynTierLow ->
+              if lcount > 0 then
+                DynArrayIterator (#Share index, DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
+              else
+                DynArrayIterator (#Share (DynArrayIndex (#DynTierHigh, 0#)), DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
+            _ ->
+              DynArrayIterator (#Share index, DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
 
 
 --------------------
@@ -1295,9 +1305,9 @@ dynArrayIteratorFree (DynArrayIterator (#Share index, array#)) =
 -- TODO: Seq function?
 -- TODO: Need to figure out copying scheme for thunk arguments...
 -- TODO: Take into account timing offset!
--- Create closure consisting of: InitFn Ptr, UpdateFn Ptr, State Object, Argument to Apply
+-- Create closure consisting of: InitFn Ptr, UpdateFn Ptr, Update State Object, Deep Copy State Object, Argument to Apply
 -- Thunk mk function!
-data PolyThunk  a b = PolyThunk (#(), (), (), a#)
+data PolyThunk  a b = PolyThunk () () () () a
 
 polyThunkAlloc :: (a -> b) -> a -> () -> *PolyThunk (Share a) (Share b)
 polyThunkAlloc f x u =
@@ -1306,8 +1316,8 @@ polyThunkAlloc f x u =
   in
     primUndefined
 
-polyThunkInit :: *PolyThunk (Share a) (Share b) -> *PolyThunk (Share a) (Share b)
-polyThunkInit t = primUndefined
+polyThunkInit :: a -> *PolyThunk (Share a) (Share b) -> *PolyThunk (Share a) (Share b)
+polyThunkInit x t = primUndefined
 
 polyThunkEval :: *PolyThunk (Share a) (Share b) -> *(#Share b, PolyThunk (Share a) (Share b)#)
 polyThunkEval t = primUndefined
@@ -1339,7 +1349,7 @@ poly f s =
                 -- Add Thunks
                 case runSeq s () of
                   SeqValue (#t, _, Just x#) ->
-                    (#Share True, Share t, Share acc, dynArrayIteratorEmplaceOrAppend polyThunkInit (polyThunkAlloc f x) thunks1#)
+                    (#Share True, Share t, Share acc, dynArrayIteratorEmplaceOrAppend (polyThunkInit x) (polyThunkAlloc f x) thunks1#)
                   SeqValue (#t, _, _#) ->
                     (#Share True, Share t, Share acc, thunks1#)
               else

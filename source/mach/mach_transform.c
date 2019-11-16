@@ -629,7 +629,7 @@ void necro_core_transform_to_mach_2_bind(NecroMachProgram* program, NecroCoreAst
     {
         NecroMachAst*       global_value  = NULL;
         NecroMachAstSymbol* global_symbol = necro_mach_ast_symbol_gen(program, NULL, necro_snapshot_arena_concat_strings(&program->snapshot_arena, 2, (const char* []) { "global", machine_def->machine_def.machine_name->name->str }), NECRO_MANGLE_NAME);
-        if (necro_mach_type_is_unboxed(program, machine_def->machine_def.value_type))
+        if (necro_mach_type_is_unboxed_or_ptr(program, machine_def->machine_def.value_type))
             global_value = necro_mach_value_create_global(program, global_symbol, necro_mach_type_create_ptr(&program->arena, machine_def->machine_def.value_type));
         else
             global_value = necro_mach_value_create_global(program, global_symbol, necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_ptr(&program->arena, machine_def->machine_def.value_type)));
@@ -1041,7 +1041,11 @@ NecroMachAst* necro_core_transform_to_mach_3_var(NecroMachProgram* program, Necr
         if (ast_symbol == program->base->prim_undefined->core_ast_symbol)
         {
             NecroMachType* mach_type = necro_mach_type_from_necro_type(program, core_ast->necro_type);
-            if (necro_mach_type_is_unboxed(program, mach_type))
+            if (mach_type->type == NECRO_MACH_TYPE_PTR)
+            {
+                return necro_mach_value_create_null(program, mach_type);
+            }
+            else if (necro_mach_type_is_unboxed(program, mach_type))
             {
                 return necro_mach_value_create_undefined(program, mach_type);
             }
@@ -1311,11 +1315,11 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     case NECRO_PRIMOP_PTR_POKE:
     {
         assert(arg_count == 3);
-        NecroMachType* mach_type     = necro_mach_type_from_necro_type(program, app_ast->necro_type);
         NecroMachAst*  index_value   = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr1->app.expr2, outer);
         NecroMachAst*  source_value  = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr2, outer);
         NecroMachAst*  ptr_value     = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
-        NecroMachAst*  elem_ptr      = necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, ptr_value, (NecroMachAst*[]) { necro_mach_value_create_word_uint(program, 0), index_value }, 2, "elem_ptr", mach_type);
+        NecroMachType* elem_ptr_type = necro_mach_type_create_ptr(&program->arena, source_value->necro_machine_type);
+        NecroMachAst*  elem_ptr      = necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, ptr_value, (NecroMachAst*[]) { necro_mach_value_create_word_uint(program, 0), index_value }, 2, "elem_ptr", elem_ptr_type);
         necro_mach_build_store(program, outer->machine_def.update_fn, source_value, elem_ptr);
         return ptr_value;
     }
@@ -1326,8 +1330,8 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         NecroMachAst*  index_value   = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr1->app.expr2, outer);
         NecroMachAst*  source_value  = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr2, outer);
         NecroMachAst*  ptr_value     = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
-        NecroMachType* mach_type     = source_value->necro_machine_type;
-        NecroMachAst*  elem_ptr      = necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, ptr_value, (NecroMachAst*[]) { necro_mach_value_create_word_uint(program, 0), index_value }, 2, "elem_ptr", mach_type);
+        NecroMachType* elem_ptr_type = necro_mach_type_create_ptr(&program->arena, source_value->necro_machine_type);
+        NecroMachAst*  elem_ptr      = necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, ptr_value, (NecroMachAst*[]) { necro_mach_value_create_word_uint(program, 0), index_value }, 2, "elem_ptr", elem_ptr_type);
         NecroMachAst*  prev_value    = necro_mach_build_load(program, outer->machine_def.update_fn, elem_ptr, "prev");
         necro_mach_build_store(program, outer->machine_def.update_fn, source_value, elem_ptr);
         NecroMachType* return_type   = necro_mach_type_from_necro_type(program, app_ast->necro_type);
@@ -1335,7 +1339,7 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         assert(return_type->struct_type.symbol->is_unboxed);
         NecroMachAst*  con           = necro_mach_value_create_undefined(program, return_type);
         con                          = necro_mach_build_insert_value(program, outer->machine_def.update_fn, con, prev_value, 0, "unboxed_con");
-        con                          = necro_mach_build_insert_value(program, outer->machine_def.update_fn, con, ptr_value, 0, "unboxed_con");
+        con                          = necro_mach_build_insert_value(program, outer->machine_def.update_fn, con, ptr_value, 1, "unboxed_con");
         return con;
     }
 

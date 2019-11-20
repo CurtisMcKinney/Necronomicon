@@ -71,8 +71,6 @@ NecroIntern necro_intern_create()
     necro_intern_string(&intern, "for");
     necro_intern_string(&intern, "loop");
     necro_intern_string(&intern, "while");
-    necro_intern_string(&intern, "until");
-    necro_intern_string(&intern, "range");
     return intern;
 }
 

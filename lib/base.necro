@@ -758,6 +758,20 @@ mapChannel2 f cx cy =
           <| loop a = unsafeEmptyArray () for i <- each do
             writeArray i (Share (f (readArray i x) (readArray i y))) a
 
+-- audioSampleOffset :: UInt
+-- audioSampleOffset = 0
+
+-- offsetRange :: UInt -> Range n
+-- offsetRange offset = Range 0 1
+
+offsetInitArray :: Num a => () -> *Array BlockSize (Share a)
+offsetInitArray u =
+  loop a = unsafeEmptyArray () for i <- each do
+    writeArray i (Share 0) a
+
+initArrayTest :: Array BlockSize F64
+initArrayTest = freezeArray <| offsetInitializedEmptyArray ()
+
 accumulateChannel1 :: Default s => (F64 -> s -> (#s, F64#)) -> Channel -> Channel
 accumulateChannel1 f input1 =
   case out of
@@ -1282,7 +1296,6 @@ dynArrayIteratorNext (DynArrayIterator (#Share (DynArrayIndex (#tier, index#)), 
     DynTierHigh ->
       DynArrayIterator (#Share (DynArrayIndex (#DynTierHigh, index + 1#)), DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
 
--- Handle case where you delete last low, but highs are still available
 dynArrayIteratorFree :: *DynArrayIterator a -> *DynArrayIterator a
 dynArrayIteratorFree (DynArrayIterator (#Share index, array#)) =
   case dynArrayDelete index array of
@@ -1295,7 +1308,7 @@ dynArrayIteratorFree (DynArrayIterator (#Share index, array#)) =
                 DynArrayIterator (#Share index, DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
               else
                 DynArrayIterator (#Share (DynArrayIndex (#DynTierHigh, 0#)), DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
-            _ ->
+            DynTierHigh ->
               DynArrayIterator (#Share index, DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
 
 
@@ -1304,23 +1317,25 @@ dynArrayIteratorFree (DynArrayIterator (#Share index, array#)) =
 --------------------
 -- TODO: Seq function?
 -- TODO: Need to figure out copying scheme for thunk arguments...
--- TODO: Take into account timing offset!
--- Create closure consisting of: InitFn Ptr, UpdateFn Ptr, Update State Object, Deep Copy State Object, Argument to Apply
+-- Create closure consisting of: Update State Object, Deep Copy State Object, Argument to Apply
 -- Thunk mk function!
-data PolyThunk  a b = PolyThunk () () () () a
+data PolyThunkState = PolyThunkAlloc | PolyThunkInit | PolyThunkEval
+data PolyThunk a    = PolyThunk (#(), (), a, PolyThunkState#)
 
-polyThunkAlloc :: (a -> b) -> a -> () -> *PolyThunk (Share a) (Share b)
-polyThunkAlloc f x u =
+polyThunkAlloc :: a -> () -> *PolyThunk (Share a)
+polyThunkAlloc x u =
+  primUndefined
+
+polyThunkInit :: a -> *PolyThunk (Share a) -> *PolyThunk (Share a)
+polyThunkInit x t =
+  primUndefined
+
+polyThunkEval :: (a -> b) -> *PolyThunk (Share a) -> *(#Share b, PolyThunk (Share a)#)
+polyThunkEval f t =
   let
-    dummy = f x
+    dummy = f primUndefined
   in
     primUndefined
-
-polyThunkInit :: a -> *PolyThunk (Share a) (Share b) -> *PolyThunk (Share a) (Share b)
-polyThunkInit x t = primUndefined
-
-polyThunkEval :: *PolyThunk (Share a) (Share b) -> *(#Share b, PolyThunk (Share a) (Share b)#)
-polyThunkEval t = primUndefined
 
 
 ----------------------
@@ -1336,7 +1351,8 @@ instance Poly Mono where
 instance Poly Stereo where
   isRunning s = streamStateIsRunning (audioState s)
 
-poly :: Poly p => (a -> p) -> Seq a -> p
+-- TODO: Take into account timing offset!
+poly :: Poly b => (a -> b) -> Seq a -> b
 poly f s =
   case mutRefTake (\_ -> dynArrayEmpty 8) of
     (#thunks0, mref#) ->
@@ -1349,12 +1365,12 @@ poly f s =
                 -- Add Thunks
                 case runSeq s () of
                   SeqValue (#t, _, Just x#) ->
-                    (#Share True, Share t, Share acc, dynArrayIteratorEmplaceOrAppend (polyThunkInit x) (polyThunkAlloc f x) thunks1#)
+                    (#Share True, Share t, Share acc, dynArrayIteratorEmplaceOrAppend (polyThunkInit x) (polyThunkAlloc x) thunks1#)
                   SeqValue (#t, _, _#) ->
                     (#Share True, Share t, Share acc, thunks1#)
               else
                 -- Eval Thunks
-                case dynArrayIteratorWithElement polyThunkEval thunks1 of
+                case dynArrayIteratorWithElement (polyThunkEval f) thunks1 of
                   (#Share (Just evalResult), thunks1#) ->
                     if isRunning evalResult then
                       (#Share True, Share 0, Share (append acc evalResult), dynArrayIteratorNext thunks1#)
@@ -1369,11 +1385,18 @@ poly f s =
 -- myCoolSynth :: Mono
 -- myCoolSynth = poly (fromInt .> saw) [440 220 _ <110 55 _ 330>]
 
+-- TODO: fromInt bug
 myCoolSynth2 :: Mono
 myCoolSynth2 =
-  poly (fromInt .> saw) [440 220 _ <110 55 _ 330>] + poly (fromInt .> saw) [1 2 3]
+  let offset  = 20 in
+  let offset2 = 40 in
+  poly (\i -> saw (fromInt (offset + offset2 + i))) [440 220 _ <110 55 _ 330>]
 
--- poly2 :: Poly p => (a -> b -> p) -> Seq a -> Seq b -> p
+-- + poly (fromInt .> saw) [1 2 3]
+
+-- data FFT a = FFT
+
+-- poly2 :: Poly c => (a -> b -> c) -> Seq a -> Seq b -> c
 -- poly2 f x y = poly (uncurry' f) <| map2 (\x' y' -> (#x', y'#)) x y
 
 -- coolMultiSaw :: Mono

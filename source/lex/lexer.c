@@ -104,8 +104,6 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
     case NECRO_LEX_FOR:                 return "FOR";
     case NECRO_LEX_LOOP:                return "LOOP";
     case NECRO_LEX_WHILE:               return "WHILE";
-    case NECRO_LEX_UNTIL:               return "UNTIL";
-    case NECRO_LEX_RANGE:               return "RANGE";
     case NECRO_LEX_WHERE:               return "WHERE";
     default:                            return "UNRECOGNIZED TOKEN";
     }

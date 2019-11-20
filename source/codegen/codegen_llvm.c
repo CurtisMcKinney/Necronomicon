@@ -833,6 +833,10 @@ LLVMValueRef necro_llvm_codegen_bitcast(NecroLLVM* context, NecroMachAst* ast)
     {
         to_value = value;
     }
+    else if (ast->bit_cast.from_value->necro_machine_type == context->program->type_cache.word_uint_type && ast->bit_cast.to_value->necro_machine_type->type == NECRO_MACH_TYPE_PTR)
+    {
+        to_value = LLVMBuildIntToPtr(context->builder, value, to_type, "uint_to_ptr");
+    }
     // // Float -> Ptr
     // else if (value_type == codegen->word_float_type)
     // {

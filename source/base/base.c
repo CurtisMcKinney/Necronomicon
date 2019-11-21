@@ -1776,15 +1776,17 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     // Ptr
     necro_base_setup_primitive(scoped_symtable, intern, "ptrMalloc",            NULL, NECRO_PRIMOP_PTR_ALLOC);
     necro_base_setup_primitive(scoped_symtable, intern, "ptrRealloc",           NULL, NECRO_PRIMOP_PTR_REALLOC);
+    necro_base_setup_primitive(scoped_symtable, intern, "ptrFree",              NULL, NECRO_PRIMOP_PTR_FREE);
     necro_base_setup_primitive(scoped_symtable, intern, "unsafePtrPoke",        NULL, NECRO_PRIMOP_PTR_POKE);
     necro_base_setup_primitive(scoped_symtable, intern, "unsafePtrSwapElement", NULL, NECRO_PRIMOP_PTR_SWAP);
 
     necro_base_setup_primitive(scoped_symtable, intern, "mutRef", NULL, NECRO_PRIMOP_MREF);
 
     // PolyThunk
-    necro_base_setup_primitive(scoped_symtable, intern, "polyThunkAlloc", NULL, NECRO_PRIMOP_PTHUNK_ALLOC);
-    necro_base_setup_primitive(scoped_symtable, intern, "polyThunkInit",  NULL, NECRO_PRIMOP_PTHUNK_INIT);
+    // necro_base_setup_primitive(scoped_symtable, intern, "polyThunkAlloc", NULL, NECRO_PRIMOP_PTHUNK_ALLOC);
+    // necro_base_setup_primitive(scoped_symtable, intern, "polyThunkInit",  NULL, NECRO_PRIMOP_PTHUNK_INIT);
     necro_base_setup_primitive(scoped_symtable, intern, "polyThunkEval",  NULL, NECRO_PRIMOP_PTHUNK_EVAL);
+    necro_base_setup_primitive(scoped_symtable, intern, "dynDeepCopy",    NULL, NECRO_PRIMOP_DYN_DEEP_COPY);
 
     // Int
     necro_base_setup_primitive(scoped_symtable, intern, "add<Int>",     NULL, NECRO_PRIMOP_BINOP_IADD);

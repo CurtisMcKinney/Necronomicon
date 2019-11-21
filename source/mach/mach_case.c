@@ -131,6 +131,8 @@ NecroCoreAst* necro_core_ast_unwrap_apps(NecroCoreAst* ast)
 NecroPattern* necro_pattern_alloc(NecroMachProgram* program, NecroPattern* parent, size_t parent_slot, NecroMachAst* value_ast, NecroMachType* value_type, NecroCoreAst* pat_ast, NECRO_PATTERN_TYPE pattern_type)
 {
     assert(pat_ast != NULL);
+    if (value_ast != NULL && value_type != NULL)
+        necro_mach_type_check(program, value_ast->necro_machine_type, value_type);
     NecroPattern* pat = necro_paged_arena_alloc(&program->arena, sizeof(NecroPattern));
     pat->parent       = parent;
     pat->parent_slot  = parent_slot;
@@ -866,7 +868,8 @@ void necro_decision_tree_pattern_to_mach(NecroMachProgram* program, NecroPattern
                     cached_value       = parent->value_ast;
                     pattern->value_ast = necro_mach_build_down_cast(program, outer->machine_def.update_fn, cached_value, pattern->value_type);
                 }
-                else if (necro_mach_type_is_unboxed(program, parent->value_type))
+                // else if (necro_mach_type_is_unboxed(program, parent->value_type))
+                else if (necro_mach_type_is_unboxed(program, parent->value_ast->necro_machine_type))
                 {
                     pattern->value_ast = necro_mach_build_extract_value(program, outer->machine_def.update_fn, parent->value_ast, pattern->parent_slot, "value");
                     pattern->value_ast = necro_mach_build_down_cast(program, outer->machine_def.update_fn, cached_value, pattern->value_type);
@@ -893,7 +896,8 @@ void necro_decision_tree_pattern_to_mach(NecroMachProgram* program, NecroPattern
             {
                 pattern->value_ast = parent->value_ast;
             }
-            else if (necro_mach_type_is_unboxed(program, parent->value_type))
+            // else if (necro_mach_type_is_unboxed(program, parent->value_type))
+            else if (necro_mach_type_is_unboxed(program, parent->value_ast->necro_machine_type))
             {
                 assert(pattern->value_ast == NULL);
                 pattern->value_ast = necro_mach_build_extract_value(program, outer->machine_def.update_fn, parent->value_ast, pattern->parent_slot, "value");

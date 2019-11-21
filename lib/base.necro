@@ -286,7 +286,6 @@ arrayFrom x =
 defaulted :: Array 4 (Maybe Int)
 defaulted = default
 
-
 --------------------
 -- Seq
 --------------------
@@ -447,164 +446,6 @@ instance Applicative Seq where
 instance FunctorN Seq where
   map2 f sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in map2 f x y)
 
-instance Num a => Num (Seq a) where
-  fromInt i = Seq (\_ -> pure (fromInt i))
-  add sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in map2 add x y)
-  sub sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in map2 sub x y)
-  mul sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in map2 mul x y)
-  signum x  = Seq (\_ -> map signum (runSeq x ()))
-  abs x     = Seq (\_ -> map abs (runSeq x ()))
-
-instance Fractional a => Fractional (Seq a) where
-  fromRational r = Seq (\_ -> pure (fromRational r))
-  div sx sy      = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in map2 div x y)
-  recip x        = Seq (\_ -> map recip (runSeq x ()))
-
-instance Semigroup (Seq a) where
-  append sx sy = [sx sy]
-
-instance Monoid (Seq a) where
-  mempty = Seq (\_ -> SeqValue (#1, SeqPure, nothing#))
-
-instance Alternative Seq where
-  empty             = Seq (\_ -> SeqValue (#1, SeqPure, nothing#))
-  alternative sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in alternative x y)
-
--- TODO: <|>
-
--- Biased BinOps
--- +@  @+  +
--- -@  @-  -
--- *@  @*  *
--- /@  @/  /
--- <@  @< @<@
--- >@  @> @>@
-
-leftConst :: a -> b -> a
-leftConst x _ = x
-
-rightConst :: a -> b -> b
-rightConst _ y = y
-
-addSeqOnLeft :: Num a => Seq a -> Seq a -> Seq a
-addSeqOnLeft ls rs = Seq (\_ -> let (#l, r#) = runSeqOnLeft ls rs in map2 add l r)
-
-addSeqOnRight :: Num a => Seq a -> Seq a -> Seq a
-addSeqOnRight ls rs = Seq (\_ -> let (#l, r#) = runSeqOnRight ls rs in map2 add l r)
-
-subSeqOnLeft :: Num a => Seq a -> Seq a -> Seq a
-subSeqOnLeft ls rs = Seq (\_ -> let (#l, r#) = runSeqOnLeft ls rs in map2 sub l r)
-
-subSeqOnRight :: Num a => Seq a -> Seq a -> Seq a
-subSeqOnRight ls rs = Seq (\_ -> let (#l, r#) = runSeqOnRight ls rs in map2 sub l r)
-
-mulSeqOnLeft :: Num a => Seq a -> Seq a -> Seq a
-mulSeqOnLeft ls rs = Seq (\_ -> let (#l, r#) = runSeqOnLeft ls rs in map2 mul l r)
-
-mulSeqOnRight :: Num a => Seq a -> Seq a -> Seq a
-mulSeqOnRight ls rs = Seq (\_ -> let (#l, r#) = runSeqOnRight ls rs in map2 mul l r)
-
-divSeqOnLeft :: Fractional a => Seq a -> Seq a -> Seq a
-divSeqOnLeft ls rs = Seq (\_ -> let (#l, r#) = runSeqOnLeft ls rs in map2 div l r)
-
-divSeqOnRight :: Fractional a => Seq a -> Seq a -> Seq a
-divSeqOnRight ls rs = Seq (\_ -> let (#l, r#) = runSeqOnRight ls rs in map2 div l r)
-
-leftConstSeqOnLeft :: Seq a -> Seq b -> Seq a
-leftConstSeqOnLeft ls _ = ls
-
-leftConstSeqOnRight :: Seq a -> Seq b -> Seq a
-leftConstSeqOnRight ls rs = Seq (\_ -> let (#l, r#) = runSeqOnRight ls rs in map2 leftConst l r)
-
-rightConstSeqOnLeft :: Seq a -> Seq b -> Seq b
-rightConstSeqOnLeft ls rs = Seq (\_ -> let (#l, r#) = runSeqOnLeft ls rs in map2 rightConst l r)
-
-rightConstSeqOnRight :: Seq a -> Seq b -> Seq b
-rightConstSeqOnRight _ rs = rs
-
-leftConstSeqOnBoth :: Seq a -> Seq b -> Seq a
-leftConstSeqOnBoth ls rs = Seq (\_ -> let (#l, r#) = runSeq2 ls rs in map2 leftConst l r)
-
-rightConstSeqOnBoth :: Seq a -> Seq b -> Seq b
-rightConstSeqOnBoth ls rs = Seq (\_ -> let (#l, r#) = runSeq2 ls rs in map2 rightConst l r)
-
-addSeqOnLeftTest :: Seq Int
-addSeqOnLeftTest =
-  [1 _ <2 3>] @+ [4 <5 6> <7 8 9>] *@ [1 2 _ 5] @- <3 4 5> @> fromInt mouseX
-
--- mouseBeat :: Seq Float
--- mouseBeat = fromInt mouseX <@ coolBeat
-
--- addSeqOnRightTest :: SeqValue Int
--- addSeqOnRightTest = runSeq (rightConstSeqOnLeft 1 2) ()
-
-restSeqValue :: SeqValue a
-restSeqValue =
-  SeqValue (#1, SeqPure, nothing#)
-
-rest :: Seq a
-rest =
-  Seq (\_ -> restSeqValue)
-
-seqValueDurationMul :: Rational -> SeqValue a -> SeqValue a
-seqValueDurationMul speed (SeqValue (#t, c, v#)) =
-  SeqValue (#t * speed, c, v#)
-
-recipRational :: Rational -> Rational
-recipRational (Rational (#n, d#)) = d % n
-
-seqSpeed :: Rational -> Seq a -> Seq a
-seqSpeed speed seq = Seq (\_ -> seqValueDurationMul (recipRational speed) (runSeq seq ()))
-
-bpm :: Int -> Rational
-bpm tempoInBPM = tempoInBPM % 60
-
-toSeq :: SeqValue a -> Seq a
-toSeq sv = Seq (\_ -> sv)
-
-altTest :: SeqValue Int
-altTest = runSeq (alternative [0 1 _ 3] [_ <2 9> 55 _]) ()
-
-seqLoop :: (Seq a -> Seq a) -> Seq a
-seqLoop sf = Seq (\_ -> let x ~ default = runSeq (sf (toSeq x)) () in x)
-
--- myRecSeq :: Seq Int
--- myRecSeq = seqLoop <| \x ->
---   [1 2 <(x * 4) _ 4>]
-
-seqLoopEndIfLastSlot :: Int -> Int -> SeqControl
-seqLoopEndIfLastSlot slot maxSlot =
-  if (slot + 1) < maxSlot then
-    SeqNormal
-  else
-    SeqLoopEnd
-
--- Combining nested case statements with case literals seems to break...
-slotTick :: Int -> Int -> SeqControl -> SeqValue a -> (#Int, SeqValue a#)
-slotTick slot maxSlot controlIfNotNormal sv =
-  case sv of
-    SeqValue (#t, c, v#) ->
-      case c of
-        SeqNormal -> (#slot, sv#)
-        _         -> (#remInt (slot + 1) maxSlot, SeqValue (#t, controlIfNotNormal, v#)#)
-
-seqTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
-seqTick slot maxSlot sv =
-  slotTick slot maxSlot (seqLoopEndIfLastSlot slot maxSlot) sv
-
-tupleTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
-tupleTick slot maxSlot sv =
-  slotTick slot maxSlot (seqLoopEndIfLastSlot slot maxSlot) (seqValueDurationMul (1 % maxSlot) sv)
-
-interleaveTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
-interleaveTick slot maxSlot sv =
-  slotTick slot maxSlot SeqLoopEnd sv
-
--- <> => Sequence
--- [] => Tuple
--- {} => Interleave
-
-
 
 --------------------
 -- Print
@@ -764,13 +605,13 @@ mapChannel2 f cx cy =
 -- offsetRange :: UInt -> Range n
 -- offsetRange offset = Range 0 1
 
-offsetInitArray :: Num a => () -> *Array BlockSize (Share a)
-offsetInitArray u =
-  loop a = unsafeEmptyArray () for i <- each do
-    writeArray i (Share 0) a
+-- offsetInitArray :: Num a => () -> *Array BlockSize (Share a)
+-- offsetInitArray u =
+--   loop a = unsafeEmptyArray () for i <- each do
+--     writeArray i (Share 0) a
 
-initArrayTest :: Array BlockSize F64
-initArrayTest = freezeArray <| offsetInitializedEmptyArray ()
+-- initArrayTest :: Array BlockSize F64
+-- initArrayTest = freezeArray <| offsetInitArray ()
 
 accumulateChannel1 :: Default s => (F64 -> s -> (#s, F64#)) -> Channel -> Channel
 accumulateChannel1 f input1 =
@@ -1100,8 +941,8 @@ ptrMalloc capacity = primUndefined
 ptrRealloc :: UInt -> *Ptr a -> *Ptr a
 ptrRealloc capacity = primUndefined
 
--- ptrFree :: *Ptr a -> *()
--- ptrFree ptr = primUndefined
+ptrFree :: *Ptr a -> *()
+ptrFree ptr = primUndefined
 
 -- unsafePtrPeek :: UInt -> *Ptr (Share a) -> *(#Share a, Ptr (Share a)#)
 -- unsafePtrPeek index ptr = primUndefined
@@ -1317,18 +1158,24 @@ dynArrayIteratorFree (DynArrayIterator (#Share index, array#)) =
 --------------------
 -- TODO: Seq function?
 -- TODO: Need to figure out copying scheme for thunk arguments...
--- Create closure consisting of: Update State Object, Deep Copy State Object, Argument to Apply
--- Thunk mk function!
 data PolyThunkState = PolyThunkAlloc | PolyThunkInit | PolyThunkEval
-data PolyThunk a    = PolyThunk (#(), (), a, PolyThunkState#)
+data PolyThunk a    = PolyThunk (#Ptr (), Ptr (), a, PolyThunkState#)
+
+dynDeepCopy :: a -> *Ptr () -> *(#Ptr (), Share a#)
+dynDeepCopy x copyState =
+  primUndefined
 
 polyThunkAlloc :: a -> () -> *PolyThunk (Share a)
 polyThunkAlloc x u =
-  primUndefined
+  case dynDeepCopy x primUndefined of
+    (#copyState, x'#) ->
+      PolyThunk (#primUndefined, copyState, x', PolyThunkAlloc#)
 
 polyThunkInit :: a -> *PolyThunk (Share a) -> *PolyThunk (Share a)
-polyThunkInit x t =
-  primUndefined
+polyThunkInit x (PolyThunk (#updateState, copyState, _, _#))  =
+  case dynDeepCopy x copyState of
+    (#copyState', x'#) ->
+      PolyThunk (#updateState, copyState', x', PolyThunkInit#)
 
 polyThunkEval :: (a -> b) -> *PolyThunk (Share a) -> *(#Share b, PolyThunk (Share a)#)
 polyThunkEval f t =
@@ -1358,39 +1205,200 @@ poly f s =
     (#thunks0, mref#) ->
       let
         tick ~ 0                      = tick + blockDelta
-        (#_, _, Share acc', thunks2#) =
+        (#_, _, Share acc', thunks4#) =
           loop (#Share cont, Share time, Share acc, thunks1#) = (#Share True, Share 0, Share mempty, dynArrayIterator thunks0#) while cont do
             let nextValueTime ~ 0 = nextValueTime + time in
               if nextValueTime < tick then
-                -- Add Thunks
                 case runSeq s () of
                   SeqValue (#t, _, Just x#) ->
                     (#Share True, Share t, Share acc, dynArrayIteratorEmplaceOrAppend (polyThunkInit x) (polyThunkAlloc x) thunks1#)
                   SeqValue (#t, _, _#) ->
                     (#Share True, Share t, Share acc, thunks1#)
               else
-                -- Eval Thunks
                 case dynArrayIteratorWithElement (polyThunkEval f) thunks1 of
-                  (#Share (Just evalResult), thunks1#) ->
-                    if isRunning evalResult then
-                      (#Share True, Share 0, Share (append acc evalResult), dynArrayIteratorNext thunks1#)
-                    else
-                      (#Share True, Share 0, Share acc, dynArrayIteratorFree thunks1#)
-                  (#Share Nothing, thunks1#) ->
-                    (#Share False, Share 0, Share acc, thunks1#)
+                  (#Share maybeEvalResult, thunks2#) ->
+                    case maybeEvalResult of
+                      Just evalResult ->
+                        if isRunning evalResult then
+                          (#Share True, Share 0, Share (append acc evalResult), dynArrayIteratorNext thunks2#)
+                        else
+                          (#Share True, Share 0, Share acc, dynArrayIteratorFree thunks2#)
+                      _ ->
+                        (#Share False, Share 0, Share acc, thunks2#)
       in
-        case mutRefPut (dynArrayIteratorEnd thunks2) mref of
+        case mutRefPut (dynArrayIteratorEnd thunks4) mref of
           _ -> acc'
 
--- myCoolSynth :: Mono
--- myCoolSynth = poly (fromInt .> saw) [440 220 _ <110 55 _ 330>]
+----------------------
+-- Seq continued
+----------------------
 
--- TODO: fromInt bug
-myCoolSynth2 :: Mono
-myCoolSynth2 =
-  let offset  = 20 in
-  let offset2 = 40 in
-  poly (\i -> saw (fromInt (offset + offset2 + i))) [440 220 _ <110 55 _ 330>]
+instance Num a => Num (Seq a) where
+  fromInt i = Seq (\_ -> pure (fromInt i))
+  add sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in map2 add x y)
+  sub sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in map2 sub x y)
+  mul sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in map2 mul x y)
+  signum x  = Seq (\_ -> map signum (runSeq x ()))
+  abs x     = Seq (\_ -> map abs (runSeq x ()))
+
+instance Fractional a => Fractional (Seq a) where
+  fromRational r = Seq (\_ -> pure (fromRational r))
+  div sx sy      = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in map2 div x y)
+  recip x        = Seq (\_ -> map recip (runSeq x ()))
+
+instance Semigroup (Seq a) where
+  append sx sy = [sx sy]
+
+instance Monoid (Seq a) where
+  mempty = Seq (\_ -> SeqValue (#1, SeqPure, nothing#))
+
+instance Alternative Seq where
+  empty             = Seq (\_ -> SeqValue (#1, SeqPure, nothing#))
+  alternative sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in alternative x y)
+
+-- TODO: <|>
+
+-- Biased BinOps
+-- +@  @+  +
+-- -@  @-  -
+-- *@  @*  *
+-- /@  @/  /
+-- <@  @< @<@
+-- >@  @> @>@
+
+leftConst :: a -> b -> a
+leftConst x _ = x
+
+rightConst :: a -> b -> b
+rightConst _ y = y
+
+addSeqOnLeft :: Num a => Seq a -> Seq a -> Seq a
+addSeqOnLeft ls rs = Seq (\_ -> let (#l, r#) = runSeqOnLeft ls rs in map2 add l r)
+
+addSeqOnRight :: Num a => Seq a -> Seq a -> Seq a
+addSeqOnRight ls rs = Seq (\_ -> let (#l, r#) = runSeqOnRight ls rs in map2 add l r)
+
+subSeqOnLeft :: Num a => Seq a -> Seq a -> Seq a
+subSeqOnLeft ls rs = Seq (\_ -> let (#l, r#) = runSeqOnLeft ls rs in map2 sub l r)
+
+subSeqOnRight :: Num a => Seq a -> Seq a -> Seq a
+subSeqOnRight ls rs = Seq (\_ -> let (#l, r#) = runSeqOnRight ls rs in map2 sub l r)
+
+mulSeqOnLeft :: Num a => Seq a -> Seq a -> Seq a
+mulSeqOnLeft ls rs = Seq (\_ -> let (#l, r#) = runSeqOnLeft ls rs in map2 mul l r)
+
+mulSeqOnRight :: Num a => Seq a -> Seq a -> Seq a
+mulSeqOnRight ls rs = Seq (\_ -> let (#l, r#) = runSeqOnRight ls rs in map2 mul l r)
+
+divSeqOnLeft :: Fractional a => Seq a -> Seq a -> Seq a
+divSeqOnLeft ls rs = Seq (\_ -> let (#l, r#) = runSeqOnLeft ls rs in map2 div l r)
+
+divSeqOnRight :: Fractional a => Seq a -> Seq a -> Seq a
+divSeqOnRight ls rs = Seq (\_ -> let (#l, r#) = runSeqOnRight ls rs in map2 div l r)
+
+leftConstSeqOnLeft :: Seq a -> Seq b -> Seq a
+leftConstSeqOnLeft ls _ = ls
+
+leftConstSeqOnRight :: Seq a -> Seq b -> Seq a
+leftConstSeqOnRight ls rs = Seq (\_ -> let (#l, r#) = runSeqOnRight ls rs in map2 leftConst l r)
+
+rightConstSeqOnLeft :: Seq a -> Seq b -> Seq b
+rightConstSeqOnLeft ls rs = Seq (\_ -> let (#l, r#) = runSeqOnLeft ls rs in map2 rightConst l r)
+
+rightConstSeqOnRight :: Seq a -> Seq b -> Seq b
+rightConstSeqOnRight _ rs = rs
+
+leftConstSeqOnBoth :: Seq a -> Seq b -> Seq a
+leftConstSeqOnBoth ls rs = Seq (\_ -> let (#l, r#) = runSeq2 ls rs in map2 leftConst l r)
+
+rightConstSeqOnBoth :: Seq a -> Seq b -> Seq b
+rightConstSeqOnBoth ls rs = Seq (\_ -> let (#l, r#) = runSeq2 ls rs in map2 rightConst l r)
+
+-- addSeqOnLeftTest :: Seq Int
+-- addSeqOnLeftTest =
+--   [1 _ <2 3>] @+ [4 <5 6> <7 8 9>] *@ [1 2 _ 5] @- <3 4 5> @> fromInt mouseX
+
+-- mouseBeat :: Seq Float
+-- mouseBeat = fromInt mouseX <@ coolBeat
+
+-- addSeqOnRightTest :: SeqValue Int
+-- addSeqOnRightTest = runSeq (rightConstSeqOnLeft 1 2) ()
+
+restSeqValue :: SeqValue a
+restSeqValue =
+  SeqValue (#1, SeqPure, nothing#)
+
+rest :: Seq a
+rest =
+  Seq (\_ -> restSeqValue)
+
+seqValueDurationMul :: Rational -> SeqValue a -> SeqValue a
+seqValueDurationMul speed (SeqValue (#t, c, v#)) =
+  SeqValue (#t * speed, c, v#)
+
+recipRational :: Rational -> Rational
+recipRational (Rational (#n, d#)) = d % n
+
+seqSpeed :: Rational -> Seq a -> Seq a
+seqSpeed speed seq = Seq (\_ -> seqValueDurationMul (recipRational speed) (runSeq seq ()))
+
+bpm :: Int -> Rational
+bpm tempoInBPM = tempoInBPM % 60
+
+toSeq :: SeqValue a -> Seq a
+toSeq sv = Seq (\_ -> sv)
+
+-- altTest :: SeqValue Int
+-- altTest = runSeq (alternative [0 1 _ 3] [_ <2 9> 55 _]) ()
+
+-- seqLoop :: (Seq a -> Seq a) -> Seq a
+-- seqLoop sf = Seq (\_ -> let x ~ default = runSeq (sf (toSeq x)) () in x)
+
+-- myRecSeq :: Seq Int
+-- myRecSeq = seqLoop <| \x ->
+--   [1 2 <(x * 4) _ 4>]
+
+seqLoopEndIfLastSlot :: Int -> Int -> SeqControl
+seqLoopEndIfLastSlot slot maxSlot =
+  if (slot + 1) < maxSlot then
+    SeqNormal
+  else
+    SeqLoopEnd
+
+-- Combining nested case statements with case literals seems to break...
+slotTick :: Int -> Int -> SeqControl -> SeqValue a -> (#Int, SeqValue a#)
+slotTick slot maxSlot controlIfNotNormal sv =
+  case sv of
+    SeqValue (#t, c, v#) ->
+      case c of
+        SeqNormal -> (#slot, sv#)
+        _         -> (#remInt (slot + 1) maxSlot, SeqValue (#t, controlIfNotNormal, v#)#)
+
+seqTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
+seqTick slot maxSlot sv =
+  slotTick slot maxSlot (seqLoopEndIfLastSlot slot maxSlot) sv
+
+tupleTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
+tupleTick slot maxSlot sv =
+  slotTick slot maxSlot (seqLoopEndIfLastSlot slot maxSlot) (seqValueDurationMul (1 % maxSlot) sv)
+
+interleaveTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
+interleaveTick slot maxSlot sv =
+  slotTick slot maxSlot SeqLoopEnd sv
+
+-- <> => Sequence
+-- [] => Tuple
+-- {} => Interleave
+
+-- myCoolSynth :: Mono
+-- myCoolSynth = poly (saw .> perc 0.1 3 1) [440 220 _ <110 55 _ 330>]
+
+-- -- TODO: fromInt bug
+-- myCoolSynth2 :: Mono
+-- myCoolSynth2 =
+--   let offset  = 20 in
+--   let offset2 = 40 in
+--   poly (\i -> saw (fromInt (offset + offset2 + i))) [440 220 _ <110 55 _ 330>]
 
 -- + poly (fromInt .> saw) [1 2 3]
 

@@ -234,6 +234,10 @@ NECRO_STATE_TYPE necro_state_analysis_bind(NecroStateAnalysis* sa, NecroCoreAst*
     {
         symbol->state_type = necro_state_analysis_merge_state_types(symbol->state_type, necro_state_analysis_go(sa, ast->bind.expr, symbol));
     }
+    if (ast->bind.ast_symbol->primop_type == NECRO_PRIMOP_DYN_DEEP_COPY)
+    {
+        necro_core_ast_maybe_deep_copy(sa, ast->bind.expr->lambda.arg);
+    }
     return symbol->state_type;
 }
 
@@ -978,6 +982,7 @@ void necro_state_analysis_test_string(const char* test_name, const char* str)
     necro_core_lambda_lift(info, &intern, &base, &core_ast);
     necro_core_defunctionalize(info, &intern, &base, &core_ast);
     unwrap(void, necro_core_infer(&intern, &base, &core_ast));
+    necro_core_ast_pre_simplify(info, &intern, &base, &core_ast);
     necro_core_state_analysis(info, &intern, &base, &core_ast);
 
     //--------------------
@@ -1252,8 +1257,6 @@ void necro_state_analysis_test()
         necro_state_analysis_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Seq 7";
         const char* test_source = ""
@@ -1263,6 +1266,19 @@ void necro_state_analysis_test()
             "seqGo = runSeq coolSeq ()\n";
         necro_state_analysis_test_string(test_name, test_source);
     }
+
+*/
+
+    {
+        const char* test_name   = "Poly 0";
+        const char* test_source = ""
+            "myCoolSynth :: Mono\n"
+            "myCoolSynth = poly saw [440 220 _ <110 55 _ 330>]\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_state_analysis_test_string(test_name, test_source);
+    }
+
 
 /*
 

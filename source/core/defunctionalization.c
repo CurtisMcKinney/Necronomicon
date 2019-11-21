@@ -2084,7 +2084,7 @@ void necro_core_defunctionalize_test()
         const char* test_name   = "Poly 0";
         const char* test_source = ""
             "myCoolSynth :: Mono\n"
-            "myCoolSynth = poly (fromInt .> saw) [440 220 _ <110 55 _ 330>]\n"
+            "myCoolSynth = poly saw [440 220 _ <110 55 _ 330>]\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_defunctionalize_test_result(test_name, test_source);

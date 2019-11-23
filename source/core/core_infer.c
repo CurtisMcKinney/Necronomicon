@@ -135,17 +135,20 @@ NecroResult(NecroType) necro_core_infer_loop(NecroCoreInfer* infer, NecroCoreAst
     {
         NecroType* index_pat_type  = necro_try_result(NecroType, necro_core_infer_go(infer, ast->loop.for_loop.index_pat));
         NecroType* range_init_type = necro_try_result(NecroType, necro_core_infer_go(infer, ast->loop.for_loop.range_init));
-        // TODO: How to handle type inference with range / index after monomophization of types?
-        // UNUSED(range_init_type);
-        UNUSED(index_pat_type);
-        // NecroType* n_type          = necro_type_fresh_var(infer->arena, NULL);
-        // NecroType* range_type      = necro_type_con1_create(infer->arena, infer->base->range_type, n_type);
-        // NecroType* index_type      = necro_type_con1_create(infer->arena, infer->base->index_type, n_type);
-        unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, range_init_type, zero_loc, zero_loc));
-        // unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, range_type, zero_loc, zero_loc));
-        // unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, index_type, zero_loc, zero_loc));
-        // necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, range_type, range_init_type, NULL, zero_loc, zero_loc));
-        // necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, index_type, index_arg_type, NULL, zero_loc, zero_loc));
+        index_pat_type             = necro_type_strip_for_all(necro_type_find(index_pat_type));
+        range_init_type            = necro_type_strip_for_all(necro_type_find(range_init_type));
+        if (index_pat_type->type == NECRO_TYPE_CON && index_pat_type->con.args != NULL)
+        {
+            // Pre Type Monomorphization
+            NecroType* n_type     = necro_type_fresh_var(infer->arena, NULL);
+            NecroType* range_type = necro_type_con1_create(infer->arena, infer->base->range_type, n_type);
+            NecroType* index_type = necro_type_con1_create(infer->arena, infer->base->index_type, n_type);
+            unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, range_init_type, zero_loc, zero_loc));
+            unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, range_type, zero_loc, zero_loc));
+            unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, index_type, zero_loc, zero_loc));
+            necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, range_type, range_init_type, NULL, zero_loc, zero_loc));
+            necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, index_type, index_pat_type, NULL, zero_loc, zero_loc));
+        }
     }
     else
     {

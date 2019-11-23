@@ -1121,21 +1121,40 @@ NecroMachAst* necro_core_transform_to_mach_3_var(NecroMachProgram* program, Necr
     }
 }
 
-NecroMachAst* necro_core_transform_to_mach_3_poly_eval(NecroMachProgram* program, NecroCoreAst* app_ast, NecroMachAst* outer)
+NecroMachAst* necro_core_transform_to_mach_3_poly_eval(NecroMachProgram* program, NecroCoreAst* app_ast, size_t app_arg_count, NecroMachAst* outer)
 {
-    NecroCoreAst*       eval_fn             = app_ast->app.expr1->app.expr1;
-    NecroMachAst*       env                 = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr2, outer);
+    NecroCoreAst*       eval_fn             = NULL;
+    NecroMachAst*       env                 = NULL;
     NecroMachAst*       thunk               = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
     NecroMachAstSymbol* poly_fn_mach_symbol = NULL;
-    assert(eval_fn->ast_type == NECRO_CORE_AST_VAR);
-    assert(eval_fn->var.ast_symbol->ast != NULL);
-    assert(eval_fn->var.ast_symbol->ast->ast_type == NECRO_CORE_AST_BIND);
-    assert(eval_fn->var.ast_symbol->ast->bind.expr->ast_type == NECRO_CORE_AST_LAM);
-    assert(eval_fn->var.ast_symbol->ast->bind.expr->lambda.expr->ast_type == NECRO_CORE_AST_LAM);
-    assert(eval_fn->var.ast_symbol->ast->bind.expr->lambda.expr->lambda.expr->ast_type == NECRO_CORE_AST_LET);
-    assert(eval_fn->var.ast_symbol->ast->bind.expr->lambda.expr->lambda.expr->let.bind->ast_type == NECRO_CORE_AST_BIND);
-    assert(eval_fn->var.ast_symbol->ast->bind.expr->lambda.expr->lambda.expr->let.bind->bind.expr->ast_type == NECRO_CORE_AST_APP);
-    NecroCoreAst* bound_ast     = eval_fn->var.ast_symbol->ast->bind.expr->lambda.expr->lambda.expr->let.bind->bind.expr;
+    NecroCoreAst*       bound_ast           = NULL;
+    if (app_arg_count > 1)
+    {
+        eval_fn = app_ast->app.expr1->app.expr1;
+        env     = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr2, outer);
+        assert(eval_fn->ast_type == NECRO_CORE_AST_VAR);
+        assert(eval_fn->var.ast_symbol->ast != NULL);
+        assert(eval_fn->var.ast_symbol->ast->ast_type == NECRO_CORE_AST_BIND);
+        assert(eval_fn->var.ast_symbol->ast->bind.expr->ast_type == NECRO_CORE_AST_LAM);
+        assert(eval_fn->var.ast_symbol->ast->bind.expr->lambda.expr->ast_type == NECRO_CORE_AST_LAM);
+        assert(eval_fn->var.ast_symbol->ast->bind.expr->lambda.expr->lambda.expr->ast_type == NECRO_CORE_AST_LET);
+        assert(eval_fn->var.ast_symbol->ast->bind.expr->lambda.expr->lambda.expr->let.bind->ast_type == NECRO_CORE_AST_BIND);
+        assert(eval_fn->var.ast_symbol->ast->bind.expr->lambda.expr->lambda.expr->let.bind->bind.expr->ast_type == NECRO_CORE_AST_APP);
+        bound_ast = eval_fn->var.ast_symbol->ast->bind.expr->lambda.expr->lambda.expr->let.bind->bind.expr;
+    }
+    else
+    {
+        eval_fn = app_ast->app.expr1;
+        env     = NULL;
+        assert(eval_fn->ast_type == NECRO_CORE_AST_VAR);
+        assert(eval_fn->var.ast_symbol->ast != NULL);
+        assert(eval_fn->var.ast_symbol->ast->ast_type == NECRO_CORE_AST_BIND);
+        assert(eval_fn->var.ast_symbol->ast->bind.expr->ast_type == NECRO_CORE_AST_LAM);
+        assert(eval_fn->var.ast_symbol->ast->bind.expr->lambda.expr->ast_type == NECRO_CORE_AST_LET);
+        assert(eval_fn->var.ast_symbol->ast->bind.expr->lambda.expr->let.bind->ast_type == NECRO_CORE_AST_BIND);
+        assert(eval_fn->var.ast_symbol->ast->bind.expr->lambda.expr->let.bind->bind.expr->ast_type == NECRO_CORE_AST_APP);
+        bound_ast = eval_fn->var.ast_symbol->ast->bind.expr->lambda.expr->let.bind->bind.expr;
+    }
     NecroCoreAst* poly_fn_var   = bound_ast;
     size_t        poly_fn_arity = 0;
     while (poly_fn_var->ast_type == NECRO_CORE_AST_APP)
@@ -1153,10 +1172,20 @@ NecroMachAst* necro_core_transform_to_mach_3_poly_eval(NecroMachProgram* program
     // NecroMachAst*      copy_state      = necro_mach_build_extract_value(program, outer->machine_def.update_fn, thunk, 1, "copy_state");
     NecroMachAst*      update_arg      = necro_mach_build_extract_value(program, outer->machine_def.update_fn, thunk, 2, "update_arg");
     NecroMachAst*      thunk_state     = necro_mach_build_extract_value(program, outer->machine_def.update_fn, thunk, 3, "thunk_state");
+    NecroMachAst*      thunk_offset    = necro_mach_build_extract_value(program, outer->machine_def.update_fn, thunk, 4, "thunk_offset");
     NecroArenaSnapshot snapshot        = necro_snapshot_arena_get(&program->snapshot_arena);
     NecroMachAst**     args            = necro_snapshot_arena_alloc(&program->snapshot_arena, arg_count * sizeof(NecroMachAst*));
     args[arg_count - 1]                = update_arg;
-    // TODO: Tick offset
+    //--------------------
+    // Set audioSampleOffset
+    NecroMachAst*     sample_offset    = program->base->audio_sample_offset->core_ast_symbol->mach_symbol->ast;
+    assert(sample_offset != NULL);
+    assert(sample_offset->type == NECRO_MACH_DEF);
+    sample_offset                      = sample_offset->machine_def.global_value;
+    NecroMachAst*     prev_offset      = necro_mach_build_load(program, outer->machine_def.update_fn, sample_offset, "prev_offset");
+    thunk_offset                       = necro_mach_build_uop(program, outer->machine_def.update_fn, thunk_offset, program->type_cache.word_int_type, NECRO_PRIMOP_UOP_FTRI);
+    thunk_offset                       = necro_mach_build_uop(program, outer->machine_def.update_fn, thunk_offset, program->type_cache.word_uint_type, NECRO_PRIMOP_UOP_ITOU);
+    necro_mach_build_store(program, outer->machine_def.update_fn, thunk_offset, sample_offset);
     //--------------------
     // State
     if (is_stateful)
@@ -1164,8 +1193,6 @@ NecroMachAst* necro_core_transform_to_mach_3_poly_eval(NecroMachProgram* program
         // Current Block
         NecroMachType*             state_type    = poly_fn_machine->machine_def.update_fn->fn_def.fn_value->necro_machine_type->fn_type.parameters[0];
         NecroMachAst*              update_state  = necro_mach_build_bit_cast(program, outer->machine_def.update_fn, thunk_slot_0, state_type);
-        // args[0] = update_state;
-        // UNUSED(thunk_state);
         NecroMachAst*              current_block = necro_mach_block_get_current(outer->machine_def.update_fn);
         NecroMachAst*              alloc_block   = necro_mach_block_append(program, outer->machine_def.update_fn, "alloc");
         NecroMachAst*              init_block    = necro_mach_block_append(program, outer->machine_def.update_fn, "init");
@@ -1211,12 +1238,56 @@ NecroMachAst* necro_core_transform_to_mach_3_poly_eval(NecroMachProgram* program
             args[i + is_stateful]      = necro_mach_build_load(program, outer->machine_def.update_fn, free_var_ptr, "free_var");
         }
     }
+    //--------------------
+    // Call
     NecroMachAst*  eval_result = necro_mach_build_call(program, outer->machine_def.update_fn, poly_fn_machine->machine_def.update_fn->fn_def.fn_value, args, arg_count, NECRO_MACH_CALL_LANG, "poly_fn");
     NecroMachType* result_type = necro_mach_type_from_necro_type(program, app_ast->necro_type);
     NecroMachAst*  result      = necro_mach_value_create_undefined(program, result_type);
     result                     = necro_mach_build_insert_value(program, outer->machine_def.update_fn, result, eval_result, 0, "result");
     result                     = necro_mach_build_insert_value(program, outer->machine_def.update_fn, result, thunk, 1, "result");
+    //--------------------
+    // Restore audioSampleOffset
+    necro_mach_build_store(program, outer->machine_def.update_fn, prev_offset, sample_offset);
+    thunk                      = necro_mach_build_insert_value(program, outer->machine_def.update_fn, thunk, necro_mach_value_create_word_float(program, 0.0), 4, "thunk");
     necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
+    return result;
+}
+
+NecroMachAst* necro_core_transform_to_mach_3_dyn_deep_copy(NecroMachProgram* program, NecroCoreAst* app_ast, size_t arg_count, NecroMachAst* outer, NECRO_PRIMOP_TYPE primop_type)
+{
+    NecroType*     value_necro_type = necro_type_strip_for_all(necro_type_find(app_ast->app.expr2->necro_type));
+    assert(value_necro_type->type == NECRO_TYPE_CON);
+    NecroMachAst*  deep_copy_fn     = value_necro_type->con.con_symbol->core_ast_symbol->deep_copy_fn->mach_symbol->ast;
+    NecroMachAst*  value_to_copy    = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
+    NecroMachType* result_type      = necro_mach_type_from_necro_type(program, app_ast->necro_type);
+    assert(deep_copy_fn != NULL);
+    assert(deep_copy_fn->type == NECRO_MACH_DEF);
+    assert(result_type->type == NECRO_MACH_TYPE_STRUCT);
+    if (deep_copy_fn->machine_def.num_members == 0)
+    {
+        // Not Stateful
+        NecroMachAst* result = necro_mach_value_create_undefined(program, result_type);
+        result               = necro_mach_build_insert_value(program, outer->machine_def.update_fn, result, necro_mach_value_create_null(program, result_type->struct_type.members[0]), 0, "result");
+        result               = necro_mach_build_insert_value(program, outer->machine_def.update_fn, result, value_to_copy, 1, "result");
+        return result;
+    }
+    // Stateful
+    NecroMachAst* copy_state = NULL;
+    if (primop_type == NECRO_PRIMOP_DYN_DCOPY_INTO)
+    {
+        assert(arg_count == 2);
+        copy_state = necro_mach_build_bit_cast(program, outer->machine_def.update_fn, necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr2, outer), deep_copy_fn->machine_def.update_fn->fn_def.fn_value->necro_machine_type->fn_type.parameters[0]);
+    }
+    else
+    {
+        assert(arg_count == 1);
+        copy_state = necro_mach_build_call(program, outer->machine_def.update_fn, deep_copy_fn->machine_def.mk_fn->fn_def.fn_value, NULL, 0, NECRO_MACH_CALL_LANG, "deep_copy_mk");
+    }
+    NecroMachAst* deep_copy_value = necro_mach_build_call(program, outer->machine_def.update_fn, deep_copy_fn->machine_def.update_fn->fn_def.fn_value, (NecroMachAst*[]) { copy_state, value_to_copy }, 2, NECRO_MACH_CALL_LANG, "deep_copy");
+    copy_state                    = necro_mach_build_bit_cast(program, outer->machine_def.update_fn, copy_state, result_type->struct_type.members[0]);
+    NecroMachAst* result          = necro_mach_value_create_undefined(program, result_type);
+    result                        = necro_mach_build_insert_value(program, outer->machine_def.update_fn, result, copy_state, 0, "result");
+    result                        = necro_mach_build_insert_value(program, outer->machine_def.update_fn, result, deep_copy_value, 1, "result");
     return result;
 }
 
@@ -1390,7 +1461,7 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         assert(arg_count == 1);
         NecroMachType* mach_type    = necro_mach_type_from_necro_type(program, app_ast->necro_type);
         NecroMachAst*  object_count = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
-        NecroMachAst*  object_size  = necro_mach_value_create_word_uint(program, necro_mach_type_calculate_size_in_bytes(program, mach_type));
+        NecroMachAst*  object_size  = necro_mach_value_create_word_uint(program, necro_mach_type_calculate_size_in_bytes(program, mach_type->ptr_type.element_type));
         NecroMachAst*  alloc_size   = necro_mach_build_binop(program, outer->machine_def.update_fn, object_count, object_size, NECRO_PRIMOP_BINOP_UMUL);
         NecroMachAst*  void_ptr     = necro_mach_build_call(program, outer->machine_def.update_fn, program->runtime.necro_runtime_alloc->ast->fn_def.fn_value, (NecroMachAst*[]) { alloc_size }, 1, NECRO_MACH_CALL_C, "void_ptr");
         NecroMachAst*  data_ptr     = necro_mach_build_bit_cast(program, outer->machine_def.update_fn, void_ptr, mach_type);
@@ -1405,7 +1476,7 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         NecroMachType* mach_type     = necro_mach_type_from_necro_type(program, app_ast->necro_type);
         NecroMachType* uint_ptr_type = necro_mach_type_create_ptr(&program->arena, program->type_cache.uint8_type);
         NecroMachAst*  uint8_ptr_val = necro_mach_build_bit_cast(program, outer->machine_def.update_fn, ptr_value, uint_ptr_type);
-        NecroMachAst*  object_size   = necro_mach_value_create_word_uint(program, necro_mach_type_calculate_size_in_bytes(program, mach_type));
+        NecroMachAst*  object_size   = necro_mach_value_create_word_uint(program, necro_mach_type_calculate_size_in_bytes(program, mach_type->ptr_type.element_type));
         NecroMachAst*  alloc_size    = necro_mach_build_binop(program, outer->machine_def.update_fn, object_count, object_size, NECRO_PRIMOP_BINOP_UMUL);
         NecroMachAst*  void_ptr      = necro_mach_build_call(program, outer->machine_def.update_fn, program->runtime.necro_runtime_alloc->ast->fn_def.fn_value, (NecroMachAst*[]) { uint8_ptr_val, alloc_size }, 1, NECRO_MACH_CALL_C, "void_ptr");
         NecroMachAst*  data_ptr      = necro_mach_build_bit_cast(program, outer->machine_def.update_fn, void_ptr, mach_type);
@@ -1482,16 +1553,13 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         }
     }
 
-    case NECRO_PRIMOP_DYN_DEEP_COPY:
-    {
-        // TODO
-        NecroMachType* result_type = necro_mach_type_from_necro_type(program, app_ast->necro_type);
-        return necro_mach_value_create_undefined(program, result_type);
-    }
+    case NECRO_PRIMOP_DYN_DCOPY:
+    case NECRO_PRIMOP_DYN_DCOPY_INTO:
+        return necro_core_transform_to_mach_3_dyn_deep_copy(program, app_ast, arg_count, outer, primop_type);
 
     case NECRO_PRIMOP_PTHUNK_EVAL:
     {
-        return necro_core_transform_to_mach_3_poly_eval(program, app_ast, outer);
+        return necro_core_transform_to_mach_3_poly_eval(program, app_ast, arg_count, outer);
     }
 
     default:

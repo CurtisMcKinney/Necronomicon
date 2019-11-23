@@ -234,7 +234,7 @@ NECRO_STATE_TYPE necro_state_analysis_bind(NecroStateAnalysis* sa, NecroCoreAst*
     {
         symbol->state_type = necro_state_analysis_merge_state_types(symbol->state_type, necro_state_analysis_go(sa, ast->bind.expr, symbol));
     }
-    if (ast->bind.ast_symbol->primop_type == NECRO_PRIMOP_DYN_DEEP_COPY)
+    if (ast->bind.ast_symbol->primop_type == NECRO_PRIMOP_DYN_DCOPY || ast->bind.ast_symbol->primop_type == NECRO_PRIMOP_DYN_DCOPY_INTO)
     {
         necro_core_ast_maybe_deep_copy(sa, ast->bind.expr->lambda.arg);
     }

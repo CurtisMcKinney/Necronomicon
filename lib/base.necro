@@ -599,20 +599,33 @@ mapChannel2 f cx cy =
           <| loop a = unsafeEmptyArray () for i <- each do
             writeArray i (Share (f (readArray i x) (readArray i y))) a
 
--- audioSampleOffset :: UInt
--- audioSampleOffset = 0
+-- data ProxyNat (n :: Nat) = ProxyNat
 
--- offsetRange :: UInt -> Range n
--- offsetRange offset = Range 0 1
+-- natValue :: ProxyNat n -> UInt
+-- natValue p = primUndefined
 
--- offsetInitArray :: Num a => () -> *Array BlockSize (Share a)
--- offsetInitArray u =
---   loop a = unsafeEmptyArray () for i <- each do
---     writeArray i (Share 0) a
+-- range :: UInt -> UInt -> UInt -> Proxy n -> Range n
+-- range startOffset increment endOffset p = Range startOffset increment (natValue p - endOffset)
 
--- initArrayTest :: Array BlockSize F64
--- initArrayTest = freezeArray <| offsetInitArray ()
+-- withRangeOf :: f n -> g n -> f n
+-- withRangeOf x _ = x
 
+audioBlockSize :: UInt
+audioBlockSize = 32 * 64
+
+audioBlockSizeF :: Float
+audioBlockSizeF = 32 * 64
+
+audioSampleOffset :: UInt
+audioSampleOffset = 0
+
+audioInitArray :: () -> *Array BlockSize (Share F64)
+audioInitArray u =
+  loop a = unsafeEmptyArray () for i <- Range audioSampleOffset 1 (audioBlockSize - audioSampleOffset) do
+    writeArray i (Share 0.0) a
+
+-- TODO: Handle nested audioSampleOffset
+-- TODO: Finish with this and port change to maybeEnd version
 accumulateChannel1 :: Default s => (F64 -> s -> (#s, F64#)) -> Channel -> Channel
 accumulateChannel1 f input1 =
   case out of
@@ -622,16 +635,17 @@ accumulateChannel1 f input1 =
       case out of
         (state, _) ->
           let
+            offsetToEndRange     = Range audioSampleOffset 1 0
             (#Share state', o'#) =
               case input1 of
                 ChannelEnd          -> (#Share state, unsafeEmptyArray ()#)
                 BlockRate input1Val ->
-                  loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
+                  loop (#Share s, o#) = (#Share state, audioInitArray ()#) for i <- offsetToEndRange do
                     case f input1Val s of
                       (#s', x#) ->
                         (#Share s', writeArray i (Share x) o#)
                 AudioRate input1Buffer ->
-                  loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
+                  loop (#Share s, o#) = (#Share state, audioInitArray ()#) for i <- offsetToEndRange do
                     case f (readArray i input1Buffer) s of
                       (#s', x#) ->
                         (#Share s', writeArray i (Share x) o#)
@@ -1138,44 +1152,49 @@ dynArrayIteratorNext (DynArrayIterator (#Share (DynArrayIndex (#tier, index#)), 
       DynArrayIterator (#Share (DynArrayIndex (#DynTierHigh, index + 1#)), DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
 
 dynArrayIteratorFree :: *DynArrayIterator a -> *DynArrayIterator a
-dynArrayIteratorFree (DynArrayIterator (#Share index, array#)) =
-  case dynArrayDelete index array of
-    DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#) ->
-      case index of
-        DynArrayIndex (#tier, _#) ->
-          case tier of
-            DynTierLow ->
-              if lcount > 0 then
-                DynArrayIterator (#Share index, DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
-              else
-                DynArrayIterator (#Share (DynArrayIndex (#DynTierHigh, 0#)), DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
-            DynTierHigh ->
-              DynArrayIterator (#Share index, DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
+dynArrayIteratorFree iter =
+  case iter of
+    DynArrayIterator (#Share index, array#) ->
+      case dynArrayDelete index array of
+        DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#) ->
+          case index of
+            DynArrayIndex (#tier, _#) ->
+              case tier of
+                DynTierLow ->
+                  if lcount > 0 then
+                    DynArrayIterator (#Share index, DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
+                  else
+                    DynArrayIterator (#Share (DynArrayIndex (#DynTierHigh, 0#)), DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
+                DynTierHigh ->
+                  DynArrayIterator (#Share index, DynArray (#DynTier (#lcap, Share lcount, lhwm, lptr#), DynTier (#hcap, Share hcount, hhwm, hptr#)#)#)
 
 
 --------------------
 -- PolyThunks
 --------------------
--- TODO: Seq function?
--- TODO: Need to figure out copying scheme for thunk arguments...
 data PolyThunkState = PolyThunkAlloc | PolyThunkInit | PolyThunkEval
-data PolyThunk a    = PolyThunk (#Ptr (), Ptr (), a, PolyThunkState#)
+data PolyThunk a    = PolyThunk (#Ptr (), Ptr (), a, PolyThunkState, Share Float#)
+-- UpdateState, CopyState, Arg, ThunkState, SampleOffset
 
-dynDeepCopy :: a -> *Ptr () -> *(#Ptr (), Share a#)
-dynDeepCopy x copyState =
+dynDeepCopy :: a -> *(#Ptr (), Share a#)
+dynDeepCopy x =
   primUndefined
 
-polyThunkAlloc :: a -> () -> *PolyThunk (Share a)
-polyThunkAlloc x u =
-  case dynDeepCopy x primUndefined of
-    (#copyState, x'#) ->
-      PolyThunk (#primUndefined, copyState, x', PolyThunkAlloc#)
+dynDeepCopyInto :: *Ptr () -> a -> *(#Ptr (), Share a#)
+dynDeepCopyInto copyState x =
+  primUndefined
 
-polyThunkInit :: a -> *PolyThunk (Share a) -> *PolyThunk (Share a)
-polyThunkInit x (PolyThunk (#updateState, copyState, _, _#))  =
-  case dynDeepCopy x copyState of
+polyThunkAlloc :: a -> Float -> () -> *PolyThunk (Share a)
+polyThunkAlloc x sampleOffset u =
+  case dynDeepCopy x of
+    (#copyState, x'#) ->
+      PolyThunk (#primUndefined, copyState, x', PolyThunkAlloc, Share sampleOffset#)
+
+polyThunkInit :: a -> Float -> *PolyThunk (Share a) -> *PolyThunk (Share a)
+polyThunkInit x sampleOffset (PolyThunk (#updateState, copyState, _, _, _#))  =
+  case dynDeepCopyInto copyState x of
     (#copyState', x'#) ->
-      PolyThunk (#updateState, copyState', x', PolyThunkInit#)
+      PolyThunk (#updateState, copyState', x', PolyThunkInit, Share sampleOffset#)
 
 polyThunkEval :: (a -> b) -> *PolyThunk (Share a) -> *(#Share b, PolyThunk (Share a)#)
 polyThunkEval f t =
@@ -1198,7 +1217,12 @@ instance Poly Mono where
 instance Poly Stereo where
   isRunning s = streamStateIsRunning (audioState s)
 
--- TODO: Take into account timing offset!
+calculateAudioSampleOffset :: Rational -> Rational -> Float
+calculateAudioSampleOffset valueTime tickTime =
+  (fromInt n / fromInt d) * audioBlockSizeF
+  where
+    Rational (#n, d#) = valueTime - tickTime
+
 poly :: Poly b => (a -> b) -> Seq a -> b
 poly f s =
   case mutRefTake (\_ -> dynArrayEmpty 8) of
@@ -1211,7 +1235,7 @@ poly f s =
               if nextValueTime < tick then
                 case runSeq s () of
                   SeqValue (#t, _, Just x#) ->
-                    (#Share True, Share t, Share acc, dynArrayIteratorEmplaceOrAppend (polyThunkInit x) (polyThunkAlloc x) thunks1#)
+                    (#Share True, Share t, Share acc, dynArrayIteratorEmplaceOrAppend (polyThunkInit x (calculateAudioSampleOffset nextValueTime tick)) (polyThunkAlloc x (calculateAudioSampleOffset nextValueTime tick)) thunks1#)
                   SeqValue (#t, _, _#) ->
                     (#Share True, Share t, Share acc, thunks1#)
               else
@@ -1390,8 +1414,10 @@ interleaveTick slot maxSlot sv =
 -- [] => Tuple
 -- {} => Interleave
 
--- myCoolSynth :: Mono
--- myCoolSynth = poly (saw .> perc 0.1 3 1) [440 220 _ <110 55 _ 330>]
+-- TODO: Both of these error out in mach_transform.c in different ways...
+percSynth :: Mono
+percSynth = poly (saw .> perc 0.1 3 1) [440 220 _ <110 55 _ 330>]
+-- percSynth = poly (\f -> saw f |> perc 0.1 3 1) [440 220 _ <110 55 _ 330>]
 
 -- -- TODO: fromInt bug
 -- myCoolSynth2 :: Mono
@@ -1486,10 +1512,6 @@ interleaveTick slot maxSlot sv =
 -- pulse :: Audio a => a -> a
 -- pulse freq = accumulateAudio2 accumulatePulse freq
 
--- TODO: Throw in test somewhere, replace >> with .> in all tests
--- composeTest :: Int -> Int
--- composeTest = add 1 <. add 2
-
 -- TODO: %  -> mod operator
 -- TODO: // -> Rational operator
 
@@ -1497,6 +1519,9 @@ interleaveTick slot maxSlot sv =
 -- TODO: Shit to make poly work?
 -- TODO: Zip for seq or more general zip?
 
+-- TODO: Dynamic Array size + Dynamic for loops?
+-- TODO: apats + alias analysis causing strange behavior and Ownership type errors?!!?!?!
+-- TODO: Nested case literals seem broken!
 -- TODO: Concept of Constant Values somehow being worked into the type system for things like default and mutRef
 -- TODO: Inline compose operators! .> and <.
 -- TODO: Perhaps function caching is getting off, need more accurate check for HOF caching!

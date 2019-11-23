@@ -130,6 +130,7 @@ typedef struct NecroBase
     NecroAstSymbol* fast_floor;
     NecroAstSymbol* fma;
     NecroAstSymbol* floor;
+    NecroAstSymbol* audio_sample_offset;
 
     NecroScopedSymTable* scoped_symtable;
 

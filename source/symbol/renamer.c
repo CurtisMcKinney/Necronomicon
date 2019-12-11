@@ -296,7 +296,8 @@ NecroResult(NecroAstSymbol) necro_rename_declare(NecroRenamer* renamer, NecroAst
         case NECRO_VAR_TYPE_FREE_VAR:
         {
             NecroAstSymbol* var_ast_symbol = ast->variable.ast_symbol;
-            if ((ast->variable.ast_symbol = necro_scope_find_ast_symbol(ast->scope, ast->variable.ast_symbol->source_name)) == NULL)
+            ast->variable.ast_symbol       = necro_scope_find_ast_symbol(ast->scope, ast->variable.ast_symbol->source_name);
+            if (ast->variable.ast_symbol == NULL)
             {
                 if (renamer->state == NECRO_RENAME_NORMAL)
                 {

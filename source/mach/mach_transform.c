@@ -1128,6 +1128,7 @@ NecroMachAst* necro_core_transform_to_mach_3_poly_eval(NecroMachProgram* program
     NecroMachAst*       thunk               = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
     NecroMachAstSymbol* poly_fn_mach_symbol = NULL;
     NecroCoreAst*       bound_ast           = NULL;
+    assert(app_arg_count == 1 || app_arg_count == 2);
     if (app_arg_count > 1)
     {
         eval_fn = app_ast->app.expr1->app.expr1;
@@ -1230,14 +1231,15 @@ NecroMachAst* necro_core_transform_to_mach_3_poly_eval(NecroMachProgram* program
         // Unwrapped Env
         args[1] = env;
     }
-    else if (poly_fn_arity > 2)
-    {
-        for (size_t i = 0; i < poly_fn_arity - 1; ++i)
-        {
-            NecroMachAst* free_var_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, env, (uint32_t[]) { 0, i + 1 }, 2, "free_var_ptr");
-            args[i + is_stateful]      = necro_mach_build_load(program, outer->machine_def.update_fn, free_var_ptr, "free_var");
-        }
-    }
+    assert(poly_fn_arity == 1 || poly_fn_arity == 2);
+    // else if (poly_fn_arity > 2)
+    // {
+    //     for (size_t i = 0; i < poly_fn_arity - 1; ++i)
+    //     {
+    //         NecroMachAst* free_var_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, env, (uint32_t[]) { 0, i + 1 }, 2, "free_var_ptr");
+    //         args[i + is_stateful]      = necro_mach_build_load(program, outer->machine_def.update_fn, free_var_ptr, "free_var");
+    //     }
+    // }
     //--------------------
     // Call
     NecroMachAst*  eval_result = necro_mach_build_call(program, outer->machine_def.update_fn, poly_fn_machine->machine_def.update_fn->fn_def.fn_value, args, arg_count, NECRO_MACH_CALL_LANG, "poly_fn");

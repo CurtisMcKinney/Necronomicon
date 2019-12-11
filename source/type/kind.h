@@ -23,4 +23,9 @@ NecroResult(void)      necro_kind_infer_default_unify_with_star(NecroPagedArena*
 NecroResult(void)      necro_kind_infer_default_unify_with_kind(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, NecroType* kind, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(void)      necro_kind_infer_default(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 
+bool                   necro_kind_is_type(const struct NecroBase* base, const NecroType* type_with_kind_to_check);
+bool                   necro_kind_is_ownership(const struct NecroBase* base, const NecroType* type_with_kind_to_check);
+bool                   necro_kind_is_nat(const struct NecroBase* base, const NecroType* type_with_kind_to_check);
+bool                   necro_kind_is_kind(const struct NecroBase* base, const NecroType* type_with_kind_to_check);
+
 #endif // KIND_H

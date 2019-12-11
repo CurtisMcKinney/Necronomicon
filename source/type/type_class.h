@@ -14,21 +14,12 @@
 #include "utility/list.h"
 #include "type.h"
 
-typedef NecroAst NecroAst;
-struct  NecroTypeClass;
-struct  NecroInfer;
-struct  NecroBase;
+struct NecroTypeClass;
+struct NecroInfer;
+struct NecroBase;
 struct NecroConstraintEnv;
-
-// TODO: Move more of this shit into the .c file.
-
-typedef struct NecroTypeClassContext
-{
-    NecroAstSymbol*               class_symbol; // TODO: Using this system this COULD be a TypeVar? Store NecroTypeClass in here?
-    NecroAstSymbol*               var_symbol;
-    struct NecroTypeClass*        type_class;
-    struct NecroTypeClassContext* next;
-} NecroTypeClassContext;
+struct NecroConstraint;
+struct NecroConstraintList;
 
 // TODO: Replace with NecroArenaList?
 typedef struct NecroTypeClassMember
@@ -39,14 +30,14 @@ typedef struct NecroTypeClassMember
 
 typedef struct NecroTypeClass
 {
-    NecroAst*              ast;
-    NecroType*             type;
-    NecroAstSymbol*        type_class_name;
-    NecroAstSymbol*        type_var;
-    NecroTypeClassMember*  members;
-    NecroTypeClassContext* context;
-    size_t                 dependency_flag;
-    NecroSymbol            dictionary_name;
+    NecroAst*                   ast;
+    NecroType*                  type;
+    NecroAstSymbol*             type_class_name;
+    NecroAstSymbol*             type_var;
+    NecroTypeClassMember*       members;
+    size_t                      dependency_flag;
+    NecroSymbol                 dictionary_name;
+    struct NecroConstraintList* super_classes;
 } NecroTypeClass;
 
 typedef struct NecroDictionaryPrototype
@@ -63,7 +54,6 @@ typedef struct NecroTypeClassInstance
     NecroAst*                 ast;
     NecroAstSymbol*           data_type_name;
     NecroAstSymbol*           type_class_name;
-    NecroTypeClassContext*    context;
     NecroDictionaryPrototype* dictionary_prototype;
     NecroType*                data_type;
     NecroSymbol               dictionary_instance_name;
@@ -71,17 +61,17 @@ typedef struct NecroTypeClassInstance
 
 void                               necro_print_type_classes(struct NecroInfer* infer);
 
-bool                               necro_context_and_super_classes_contain_class(NecroTypeClassContext* context, NecroTypeClassContext* type_class);
-NecroTypeClassContext*             necro_union_contexts(NecroPagedArena* arena, NecroTypeClassContext* context1, NecroTypeClassContext* context2);
-NecroResult(NecroType)             necro_ambiguous_type_class_check(NecroAstSymbol* type_sig_name, NecroTypeClassContext* context, NecroType* type);
-NecroResult(NecroTypeClassContext) necro_ast_to_context(struct NecroInfer* infer, NecroAst* context_ast);
-void                               necro_apply_constraints(NecroPagedArena* arena, NecroType* type, NecroTypeClassContext* context);
-NecroTypeClassContext*             necro_create_type_class_context(NecroPagedArena* arena, NecroTypeClass* type_class, NecroAstSymbol* type_class_name, NecroAstSymbol* type_var, NecroTypeClassContext* next);
-NecroResult(NecroType)             necro_propagate_type_classes(NecroPagedArena* arena, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroTypeClassContext* classes, NecroType* type, NecroScope* scope);
-
 NecroResult(NecroType)             necro_create_type_class(struct NecroInfer* infer, NecroAst* type_class_ast);
 NecroResult(NecroType)             necro_create_type_class_instance(struct NecroInfer* infer, NecroAst* instance_ast);
 
-// TODO: Do we even need NecroTypeClassContext? Shouldn't we simply apply the constraints directly onto the TypeVar's themselves? Seems like we're confusing Syntax with Inference.
+struct NecroConstraintList*        necro_constraint_list_union(NecroPagedArena* arena, struct NecroConstraintList* constraints1, struct NecroConstraintList* constraints2);
+NecroResult(NecroConstraintList)   necro_constraint_list_from_ast(struct NecroInfer* infer, NecroAst* constraints_ast);
+NecroResult(NecroType)             necro_constraint_ambiguous_type_class_check(NecroAstSymbol* type_sig_name, struct NecroConstraintList* constraints, NecroType* type);
+NecroResult(NecroType)             necro_constraint_class_variable_check(NecroTypeClass* type_class, NecroAstSymbol* type_var, NecroAstSymbol* type_sig_symbol, struct NecroConstraintList* constraints);
+void                               necro_constraint_list_apply(NecroPagedArena* arena, NecroType* type, struct NecroConstraintList* constraints);
+NecroResult(NecroType)             necro_constraint_list_kinds_check(NecroPagedArena* arena, struct NecroBase* base, struct NecroConstraintList* constraints, NecroScope* scope);
+
+bool                               necro_constraint_find_with_super_classes(struct NecroConstraintList* constraints_to_check, NecroType* original_object_type, struct NecroConstraint* constraint_to_find);
+NecroResult(void)                  necro_constraint_simplify_class_constraint(NecroPagedArena* arena, struct NecroConstraintEnv* con_env, struct NecroBase* base, struct NecroConstraint* constraint);
 
 #endif // TYPE_CLASS_H

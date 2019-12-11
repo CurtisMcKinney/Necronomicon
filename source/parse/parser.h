@@ -286,6 +286,7 @@ typedef enum
     NECRO_BIN_OP_SUB,
     NECRO_BIN_OP_MUL,
     NECRO_BIN_OP_DIV,
+    NECRO_BIN_OP_DOUBLE_DIV,
     NECRO_BIN_OP_MOD,
     NECRO_BIN_OP_GT,
     NECRO_BIN_OP_LT,
@@ -537,6 +538,7 @@ typedef struct
 //=====================================================
 typedef enum
 {
+    NECRO_TYPE_ATTRIBUTE_VOID,
     NECRO_TYPE_ATTRIBUTE_NONE,
     NECRO_TYPE_ATTRIBUTE_STAR,
     NECRO_TYPE_ATTRIBUTE_DOT,

@@ -21,8 +21,11 @@ NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name
         .optional_type_signature = NULL,
         .declaration_group       = NULL,
         .type                    = NULL,
+        .sig_type_var_ulist      = NULL,
         .con_num                 = 0,
         .is_enum                 = true,
+        .is_top_level            = false,
+        .is_class_head_var       = false,
         .is_constructor          = false,
         .is_primitive            = false,
         .type_status             = NECRO_TYPE_UNCHECKED,
@@ -35,6 +38,7 @@ NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name
         .type_class_instance     = NULL,
         .necro_machine_ast       = NULL,
         .usage                   = NULL,
+        .constraints             = NULL,
         .primop_type             = NECRO_PRIMOP_NONE,
     };
     return ast_symbol;
@@ -52,7 +56,11 @@ NecroAstSymbol* necro_ast_symbol_deep_copy(NecroPagedArena* arena, NecroAstSymbo
         .optional_type_signature = NULL,
         .declaration_group       = NULL,
         .type                    = necro_type_deep_copy(arena, ast_symbol->type),
+        .sig_type_var_ulist      = NULL,
         .con_num                 = ast_symbol->con_num,
+        .is_enum                 = ast_symbol->is_enum,
+        .is_top_level            = ast_symbol->is_top_level,
+        .is_class_head_var       = ast_symbol->is_class_head_var,
         .is_constructor          = ast_symbol->is_constructor,
         .is_primitive            = ast_symbol->is_primitive,
         .type_status             = ast_symbol->type_status,
@@ -65,6 +73,8 @@ NecroAstSymbol* necro_ast_symbol_deep_copy(NecroPagedArena* arena, NecroAstSymbo
         .type_class_instance     = NULL,
         .necro_machine_ast       = NULL,
         .usage                   = ast_symbol->usage,
+        // .constraints             = necro_type_constraint_replace_with_subs_deep_copy_without_con_env(arena, ast_symbol->constraints,
+        .constraints             = NULL,
         .primop_type             = NECRO_PRIMOP_NONE,
     };
     return new_symbol;

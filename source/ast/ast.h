@@ -19,7 +19,7 @@ struct NecroAst;
 struct NecroDeclarationsInfo;
 struct NecroTypeClassContext;
 struct NecroInstSub;
-struct NecroFreeVars;
+struct NecroFreeVarList;
 
 /*
     TODO (Curtis 2-13-19):
@@ -345,13 +345,13 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    struct NecroAst*      apats;
-    struct NecroAst*      rhs;
-    struct NecroAst*      declaration_group;
-    bool                  is_recursive;
-    NecroAstSymbol*       ast_symbol;
-    struct NecroAst*      optional_type_signature;
-    struct NecroFreeVars* free_vars;
+    struct NecroAst*         apats;
+    struct NecroAst*         rhs;
+    struct NecroAst*         declaration_group;
+    bool                     is_recursive;
+    NecroAstSymbol*          ast_symbol;
+    struct NecroAst*         optional_type_signature;
+    // struct NecroFreeVarList* free_vars;
 } NecroAstApatsAssignment;
 
 //=====================================================
@@ -370,9 +370,9 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    struct NecroAst*      apats;
-    struct NecroAst*      expression;
-    struct NecroFreeVars* free_vars;
+    struct NecroAst*         apats;
+    struct NecroAst*         expression;
+    // struct NecroFreeVarList* free_vars;
 } NecroAstLambda;
 
 //=====================================================

@@ -26,16 +26,27 @@ typedef struct NecroUsage
     NecroSourceLoc     end_loc;
 } NecroUsage;
 
-typedef struct NecroFreeVars
+typedef struct NecroFreeVar
 {
-    struct NecroFreeVars* next;
-    size_t                count;
-    NecroAstSymbol*       data;
-} NecroFreeVars;
+    NecroAstSymbol* symbol;
+    // NecroType*      full_type;
+    NecroType*      ownership_type;
+    NecroSourceLoc  source_loc;
+    NecroSourceLoc  end_loc;
+} NecroFreeVar;
+
+NECRO_DECLARE_ARENA_LIST(NecroFreeVar, FreeVar, free_var);
+
+typedef struct NecroFScope
+{
+    struct NecroFScope* parent;
+    NecroScope*         scope;
+    NecroFreeVarList*   free_vars;
+    bool                is_loop_scope;
+} NecroFScope;
 
 void necro_alias_analysis(NecroCompileInfo info, NecroAstArena* ast_arena);
 void necro_alias_analysis_test();
 bool necro_usage_is_unshared(NecroUsage* usage);
-void necro_free_vars_print(NecroFreeVars* free_vars);
 
 #endif // NECRO_TYPE_ALIAS_ANALYSIS_H

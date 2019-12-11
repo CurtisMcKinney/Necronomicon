@@ -109,7 +109,7 @@ NecroInstSub* necro_type_create_instance_subs(NecroMonomorphize* monomorphize, N
     while (curr_sub != NULL)
     {
         NecroType* sub_type = necro_type_find(curr_sub->new_name);
-        if (curr_sub->var_to_replace == type_class->type_var)
+        if (curr_sub->var_to_replace->source_name == type_class->type_var->source_name && curr_sub->var_to_replace->is_class_head_var)
         {
             // Find Instance
             assert(sub_type->type == NECRO_TYPE_CON);
@@ -121,10 +121,10 @@ NecroInstSub* necro_type_create_instance_subs(NecroMonomorphize* monomorphize, N
                     // Create InstanceSubs
                     NecroTypeClassInstance* instance      = instance_list->data;
                     NecroInstSub*           instance_subs = NULL;
-                    NecroType*              instance_type = unwrap_result(NecroType, necro_type_instantiate_with_subs(monomorphize->arena, &monomorphize->con_env, monomorphize->base, instance->data_type, NULL, &instance_subs));
+                    NecroType*              instance_type = unwrap_result(NecroType, necro_type_instantiate_with_subs(monomorphize->arena, &monomorphize->con_env, monomorphize->base, instance->data_type, NULL, &instance_subs, zero_loc, zero_loc));
                     unwrap(NecroType, necro_type_unify(monomorphize->arena, &monomorphize->con_env, monomorphize->base, instance_type, sub_type, NULL));
                     NecroInstSub*           new_subs      = necro_type_filter_and_deep_copy_subs(monomorphize->arena, subs, type_class->type_class_name, instance_type);
-                    new_subs                              = necro_type_union_subs(monomorphize->arena, new_subs, instance_subs);
+                    new_subs                              = necro_type_union_subs(monomorphize->arena, monomorphize->base, new_subs, instance_subs);
                     if (new_subs != NULL)
                     {
                         NecroInstSub* curr_new_sub = new_subs;
@@ -163,9 +163,12 @@ NecroAstSymbol* necro_ast_specialize_method(NecroMonomorphize* monomorphize, Nec
     NecroInstSub*   curr_sub       = subs;
     while (curr_sub != NULL)
     {
-        if (curr_sub->var_to_replace->name == type_class_var->name)
+        // TODO: Figure out system for this...fuuuuck.
+        // if (curr_sub->var_to_replace->name == type_class_var->name)
+        if (curr_sub->var_to_replace->source_name == type_class_var->source_name && curr_sub->var_to_replace->is_class_head_var)
         {
             NecroType* sub_con = necro_type_find(curr_sub->new_name);
+            necro_type_collapse_app_cons(monomorphize->arena, monomorphize->base, sub_con);
             assert(sub_con->type == NECRO_TYPE_CON);
             NecroSymbol     instance_method_name       = necro_intern_create_type_class_instance_symbol(monomorphize->intern, ast_symbol->source_name, sub_con->con.con_symbol->source_name);
             NecroAstSymbol* instance_method_ast_symbol = necro_scope_find_ast_symbol(monomorphize->scoped_symtable->top_scope, instance_method_name);
@@ -201,6 +204,17 @@ NecroAstSymbol* necro_ast_specialize(NecroMonomorphize* monomorphize, NecroAstSy
     // TODO: Assert sub size == for_all size
     if (ast_symbol->method_type_class)
         return necro_ast_specialize_method(monomorphize, ast_symbol, subs);
+
+    //--------------------
+    // HACK: This really shouldn't be necessary here. Perhaps the better solution is to unify TypeApp and TypeCon
+    // Collapse TypeApps -> TypeCons
+    //--------------------
+    NecroInstSub* curr_sub = subs;
+    while (curr_sub != NULL)
+    {
+        necro_type_collapse_app_cons(monomorphize->arena, monomorphize->base, curr_sub->new_name);
+        curr_sub = curr_sub->next;
+    }
 
     //--------------------
     // Find specialized ast
@@ -422,7 +436,7 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
         ast->simple_assignment.ast_symbol->type = necro_try_map_result(NecroType, void, necro_type_replace_with_subs_deep_copy(monomorphize->arena, &monomorphize->con_env, monomorphize->base, ast->simple_assignment.ast_symbol->type, subs));
         if (ast->simple_assignment.initializer != NULL)
         {
-            necro_try_map(NecroType, void, necro_type_set_zero_order(ast->necro_type, &ast->source_loc, &ast->end_loc));
+            // necro_try_map(NecroType, void, necro_type_set_zero_order(ast->necro_type, &ast->source_loc, &ast->end_loc));
         }
         if (ast->simple_assignment.initializer != NULL && !ast->simple_assignment.is_recursive)
         {
@@ -453,7 +467,7 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
         {
         case NECRO_VAR_VAR:
         {
-            ast->variable.inst_subs      = necro_type_union_subs(monomorphize->arena, ast->variable.inst_subs, subs);
+            ast->variable.inst_subs      = necro_type_union_subs(monomorphize->arena, monomorphize->base, ast->variable.inst_subs, subs);
             const bool should_specialize = necro_try_map_result(bool, void, necro_ast_should_specialize(monomorphize->arena, monomorphize->base, ast->variable.ast_symbol, ast, ast->variable.inst_subs));
             if (!should_specialize)
                 return ok_void();
@@ -500,7 +514,7 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
     case NECRO_AST_BIN_OP:
     {
         ast->bin_op.op_type          = necro_try_map_result(NecroType, void, necro_type_replace_with_subs_deep_copy(monomorphize->arena, &monomorphize->con_env, monomorphize->base, ast->bin_op.op_type, subs));
-        ast->bin_op.inst_subs        = necro_type_union_subs(monomorphize->arena, ast->bin_op.inst_subs, subs);
+        ast->bin_op.inst_subs        = necro_type_union_subs(monomorphize->arena, monomorphize->base, ast->bin_op.inst_subs, subs);
         const bool should_specialize = necro_try_map_result(bool, void, necro_ast_should_specialize(monomorphize->arena, monomorphize->base, ast->bin_op.ast_symbol, ast, ast->bin_op.inst_subs));
         if (should_specialize)
         {
@@ -512,7 +526,7 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
 
     case NECRO_AST_OP_LEFT_SECTION:
     {
-        ast->op_left_section.inst_subs = necro_type_union_subs(monomorphize->arena, ast->op_left_section.inst_subs, subs);
+        ast->op_left_section.inst_subs = necro_type_union_subs(monomorphize->arena, monomorphize->base, ast->op_left_section.inst_subs, subs);
         const bool should_specialize   = necro_try_map_result(bool, void, necro_ast_should_specialize(monomorphize->arena, monomorphize->base, ast->op_left_section.ast_symbol, ast, ast->op_left_section.inst_subs));
         if (should_specialize)
         {
@@ -523,7 +537,7 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
 
     case NECRO_AST_OP_RIGHT_SECTION:
     {
-        ast->op_right_section.inst_subs = necro_type_union_subs(monomorphize->arena, ast->op_right_section.inst_subs, subs);
+        ast->op_right_section.inst_subs = necro_type_union_subs(monomorphize->arena, monomorphize->base, ast->op_right_section.inst_subs, subs);
         const bool should_specialize    = necro_try_map_result(bool, void, necro_ast_should_specialize(monomorphize->arena, monomorphize->base, ast->op_right_section.ast_symbol, ast, ast->op_right_section.inst_subs));
         if (should_specialize)
         {
@@ -593,12 +607,12 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
     {
         necro_try(void, necro_type_ambiguous_type_variable_check(monomorphize->arena, monomorphize->base, ast->necro_type, ast->necro_type, ast->source_loc, ast->end_loc));
         // tick
-        ast->sequence_expression.tick_inst_subs = necro_type_union_subs(monomorphize->arena, ast->sequence_expression.tick_inst_subs, subs);
+        ast->sequence_expression.tick_inst_subs = necro_type_union_subs(monomorphize->arena, monomorphize->base, ast->sequence_expression.tick_inst_subs, subs);
         const bool should_specialize_tick       = necro_try_map_result(bool, void, necro_ast_should_specialize(monomorphize->arena, monomorphize->base, ast->sequence_expression.tick_symbol, ast, ast->sequence_expression.tick_inst_subs));
         if (should_specialize_tick)
             ast->sequence_expression.tick_symbol = necro_ast_specialize(monomorphize, ast->sequence_expression.tick_symbol, ast->sequence_expression.tick_inst_subs);
         // run
-        ast->sequence_expression.run_seq_inst_subs = necro_type_union_subs(monomorphize->arena, ast->sequence_expression.run_seq_inst_subs, subs);
+        ast->sequence_expression.run_seq_inst_subs = necro_type_union_subs(monomorphize->arena, monomorphize->base, ast->sequence_expression.run_seq_inst_subs, subs);
         const bool should_specialize_run           = necro_try_map_result(bool, void, necro_ast_should_specialize(monomorphize->arena, monomorphize->base, ast->sequence_expression.run_seq_symbol, ast, ast->sequence_expression.run_seq_inst_subs));
         if (should_specialize_run)
             ast->sequence_expression.run_seq_symbol = necro_ast_specialize(monomorphize, ast->sequence_expression.run_seq_symbol, ast->sequence_expression.run_seq_inst_subs);
@@ -892,50 +906,50 @@ void necro_monomorphize_test_result(const char* test_name, const char* str, NECR
     necro_intern_destroy(&intern);
 }
 
-void necro_monomorphize_test_suffix()
-{
-    // Set up
-    NecroIntern         intern          = necro_intern_create();
-    NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create();
-    NecroBase           base            = necro_base_compile(&intern, &scoped_symtable);
-
-    // NecroMonomorphize   translate = necro_monomorphize_create(&intern, &scoped_symtable, &base, &base.ast);
-    NecroSymbol         prefix    = necro_intern_string(&intern, "superCool");
-
-    NecroInstSub* subs =
-        necro_create_inst_sub_manual(&base.ast.arena, NULL,
-            base.unit_type->type,
-                necro_create_inst_sub_manual(&base.ast.arena, NULL,
-                    base.unit_type->type, NULL));
-    NecroSymbol suffix_symbol = necro_intern_append_suffix_from_subs(&intern, prefix, subs);
-    printf("suffix1: %s\n", suffix_symbol->str);
-
-
-    NecroInstSub* subs2 =
-        necro_create_inst_sub_manual(&base.ast.arena, NULL,
-            base.mouse_x_fn->type,
-                necro_create_inst_sub_manual(&base.ast.arena, NULL,
-                    base.unit_type->type, NULL));
-    NecroSymbol suffix_symbol2 = necro_intern_append_suffix_from_subs(&intern, prefix, subs2);
-    printf("suffix2: %s\n", suffix_symbol2->str);
-
-    // NecroInstSub* subs3 =
-    //     necro_create_inst_sub_manual(&base.ast.arena, NULL,
-    //         necro_type_fn_create(&base.ast.arena,
-    //             necro_type_con_create(&base.ast.arena, base.maybe_type, necro_type_list_create(&base.ast.arena, base.int_type->type, NULL)),
-    //             necro_type_con_create(&base.ast.arena, base.maybe_type, necro_type_list_create(&base.ast.arena, base.float_type->type, NULL))),
-    //         NULL);
-    // NecroSymbol suffix_symbol3 = necro_intern_append_suffix_from_subs(&intern, prefix, subs3);
-    // printf("suffix3: %s\n", suffix_symbol3->str);
-
-    NecroInstSub* subs4 =
-        necro_create_inst_sub_manual(&base.ast.arena, NULL,
-            necro_type_con_create(&base.ast.arena, base.tuple2_type, necro_type_list_create(&base.ast.arena, base.int_type->type, necro_type_list_create(&base.ast.arena, base.float_type->type, NULL))),
-            NULL);
-    NecroSymbol suffix_symbol4 = necro_intern_append_suffix_from_subs(&intern, prefix, subs4);
-    printf("suffix4: %s\n", suffix_symbol4->str);
-
-}
+// void necro_monomorphize_test_suffix()
+// {
+//     // Set up
+//     NecroIntern         intern          = necro_intern_create();
+//     NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create();
+//     NecroBase           base            = necro_base_compile(&intern, &scoped_symtable);
+//
+//     // NecroMonomorphize   translate = necro_monomorphize_create(&intern, &scoped_symtable, &base, &base.ast);
+//     NecroSymbol         prefix    = necro_intern_string(&intern, "superCool");
+//
+//     NecroInstSub* subs =
+//         necro_create_inst_sub_manual(&base.ast.arena, NULL,
+//             base.unit_type->type,
+//                 necro_create_inst_sub_manual(&base.ast.arena, NULL,
+//                     base.unit_type->type, NULL));
+//     NecroSymbol suffix_symbol = necro_intern_append_suffix_from_subs(&intern, prefix, subs);
+//     printf("suffix1: %s\n", suffix_symbol->str);
+//
+//
+//     NecroInstSub* subs2 =
+//         necro_create_inst_sub_manual(&base.ast.arena, NULL,
+//             base.mouse_x_fn->type,
+//                 necro_create_inst_sub_manual(&base.ast.arena, NULL,
+//                     base.unit_type->type, NULL));
+//     NecroSymbol suffix_symbol2 = necro_intern_append_suffix_from_subs(&intern, prefix, subs2);
+//     printf("suffix2: %s\n", suffix_symbol2->str);
+//
+//     // NecroInstSub* subs3 =
+//     //     necro_create_inst_sub_manual(&base.ast.arena, NULL,
+//     //         necro_type_fn_create(&base.ast.arena,
+//     //             necro_type_con_create(&base.ast.arena, base.maybe_type, necro_type_list_create(&base.ast.arena, base.int_type->type, NULL)),
+//     //             necro_type_con_create(&base.ast.arena, base.maybe_type, necro_type_list_create(&base.ast.arena, base.float_type->type, NULL))),
+//     //         NULL);
+//     // NecroSymbol suffix_symbol3 = necro_intern_append_suffix_from_subs(&intern, prefix, subs3);
+//     // printf("suffix3: %s\n", suffix_symbol3->str);
+//
+//     NecroInstSub* subs4 =
+//         necro_create_inst_sub_manual(&base.ast.arena, NULL,
+//             necro_type_con_create(&base.ast.arena, base.tuple2_type, necro_type_list_create(&base.ast.arena, base.int_type->type, necro_type_list_create(&base.ast.arena, base.float_type->type, NULL))),
+//             NULL);
+//     NecroSymbol suffix_symbol4 = necro_intern_append_suffix_from_subs(&intern, prefix, subs4);
+//     printf("suffix4: %s\n", suffix_symbol4->str);
+//
+// }
 
 void necro_monomorphize_test()
 {

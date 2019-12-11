@@ -32,6 +32,7 @@ struct NecroCoreAst;
 struct NecroCoreAstSymbol;
 struct NecroCoreScope;
 struct NecroStaticValue;
+struct NecroConstraintList;
 
 typedef enum
 {
@@ -137,6 +138,7 @@ typedef struct NecroAstSymbol
     struct NecroAst*               optional_type_signature; // Type signature of the symbol in NecroAst form, if present. Resolved after reification phase.
     struct NecroAst*               declaration_group;       // Declaration group of the symbol, if present. Resolved after d_analysis phase.
     struct NecroType*              type;                    // Type of the symbol, if present. Resolved after inference phase.
+    struct NecroType*              sig_type_var_ulist;      // List of uniqueness types for the specified type variable that were generated during the creation of a type signature.
     struct NecroTypeClass*         method_type_class;       // Type class for a class method, if present. Resolved at inference phase.
     struct NecroTypeClass*         type_class;              // Type class, if present. Resolved at inference phase.
     struct NecroTypeClassInstance* type_class_instance;     // Class instance, if present. Resolved at inference phase.
@@ -144,10 +146,13 @@ typedef struct NecroAstSymbol
     struct NecroCoreAstSymbol*     core_ast_symbol;         // Resolved at necro_ast_transform_to_core
     struct NecroMachAstSymbol*     mach_symbol;             // Resolved at necro_mach_translate.
     struct NecroUsage*             usage;                   // Conflicting usages (In the sharing sense) gathered during alias analysis phase.
+    struct NecroConstraintList*    constraints;             // List of constraints placed on this type variable
     struct NecroMachineAST*        necro_machine_ast;       // NecroMachineAST that this symbol was compiled into. Generated at NecroMachine compilation phase.
     size_t                         con_num;                 // Constructor Number, if present. This is the order in the constructor list of a data object a constructor sits at. Resolved after inference phase and used in code generation phase.
     NECRO_TYPE_STATUS              type_status;             // Type checking status of the symbol. Useful for detecting recursion in the ast.
     NECRO_PRIMOP_TYPE              primop_type;             // Defines a primop for this symbol, set in base.c
+    bool                           is_top_level;            // Whether this is a local binding or a global top level binding
+    bool                           is_class_head_var;       // Used for instancing class signatures
     bool                           is_enum;                 // Whether or not this type is an enum type. Resolved in necro_infer.
     bool                           is_constructor;          // Whether or not the symbol is a constructor (HACK?)
     bool                           is_recursive;            // Whether or not symbol is recursive. Create an enum for this?

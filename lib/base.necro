@@ -54,7 +54,6 @@ uncurry' f (#x, y#) = f x y
 uncurry3' :: (a -> b -> c -> d) -> (#a, b, c#) -> d
 uncurry3' f (#x, y, z#) = f x y z
 
-
 -- TODO: map3, etc
 class FunctorN f where
   map2 :: (a -> b -> c) -> f a -> f b -> f c
@@ -72,6 +71,19 @@ class Enum a where
 
 -- instance (Default a, Default b) => Default (a, b) where
 --   default = (default, default)
+
+mouseX :: Int
+mouseX = getMouseX ()
+
+mouseY :: Int
+mouseY = getMouseY ()
+
+sampleRate :: UInt
+sampleRate = primUndefined
+
+recipSampleRate :: F64
+recipSampleRate = primUndefined
+
 
 --------------------
 -- Prim Instances
@@ -101,14 +113,6 @@ instance Semigroup F64 where
 instance Monoid F64 where
   mempty = 0
 
--- coolInit :: Array 4 Int
--- coolInit ~ (freezeArray (unsafeEmptyArray ())) = coolInit
-
--- coolInit2 :: (#Maybe Int, Float#)
--- coolInit2 = x
---   where
---     x ~ (#Just 0, default#) = x
-
 -- class Num a => Integral a where
 --   quot :: a -> a -> Maybe a
 --   rem :: a -> a -> Maybe a
@@ -121,12 +125,41 @@ instance Monoid F64 where
 --   div  x y = if y == 0 then Nothing else primUndefined
 --   mod  x y = if y == 0 then Nothing else primUndefined
 
+--------------------
+-- Int
+--------------------
+quotInt :: Int -> Int -> Int
+quotInt x y = primUndefined
+
+remInt :: Int -> Int -> Int
+remInt x y = primUndefined
+
+quotI64 :: I64 -> I64 -> I64
+quotI64 x y = primUndefined
+
+remI64 :: I64 -> I64 -> I64
+remI64 x y = primUndefined
+
+
+--------------------
+-- Float
+--------------------
+fastFloor :: F64 -> F64
+fastFloor x = primUndefined
+
+floor :: F64 -> F64
+floor x = primUndefined
+
+fma :: F64 -> F64 -> F64 -> F64
+fma x y z = primUndefined
+
 
 --------------------
 -- Rational
 --------------------
 -- TODO: I64 on 32-bit breaks during JIT due to not linking against ___divdi3 and the like
 -- TODO: Proper Fraction
+-- TODO: More efficient gcd algorithm
 data Rational = Rational (#Int, Int#)
 
 gcd :: Int -> Int -> Int
@@ -192,7 +225,7 @@ instance Monoid Rational where
   mempty = 0
 
 -- rationalTest :: Rational
--- rationalTest = 33 * 44 + 23 - (1 % 4)
+-- rationalTest = 33 * 44 + 23 - (1 // 4)
 
 -- threeHalves :: Rational
 -- threeHalves = 3 // 2
@@ -263,14 +296,21 @@ fromMaybe defaultValue m =
     Nothing -> defaultValue
     Just x  -> x
 
+
 --------------------
 -- Array
 --------------------
--- nums :: Array 3 Char
--- nums = "abc"
+unsafeEmptyArray :: () -> *Array n a
+unsafeEmptyArray u = primUndefined
 
--- stringTest :: *World -> *World
--- stringTest w = print nums w
+freezeArray :: *Array n (Share a) -> Array n a
+freezeArray a = primUndefined
+
+readArray :: Index n -> Array n a -> a
+readArray i a = primUndefined
+
+writeArray :: Index n -> *a -> *Array n a -> *Array n a
+writeArray i x a = primUndefined
 
 instance Default a => Default (Array n a) where
   default = arrayFrom default
@@ -285,6 +325,7 @@ arrayFrom x =
 
 defaulted :: Array 4 (Maybe Int)
 defaulted = default
+
 
 --------------------
 -- Seq
@@ -453,6 +494,18 @@ instance FunctorN Seq where
 class Print a where
   print :: a -> *World -> *World
 
+printInt :: Int -> *World -> *World
+printInt i w = w
+
+printI64 :: I64 -> *World -> *World
+printI64 i w = w
+
+printF64 :: F64 -> *World -> *World
+printF64 f w = w
+
+printChar :: Char -> *World -> *World
+printChar c w = w
+
 instance Print Int where
   print x w = printInt x w
 
@@ -467,7 +520,7 @@ instance Print Char where
 
 instance Print Rational where
   print (Rational (#n, d#)) w =
-    print '(' w |> print n |> print ' ' |> print '%' |> print ' ' |> print d |> print ')'
+    print '(' w |> print n |> print ' ' |> print '/' |> print '/' |> print ' ' |> print d |> print ')'
 
 instance Print a => Print (Maybe a) where
   print mx w =
@@ -518,26 +571,16 @@ printLn x w =
 -- printArray :: *World -> *World
 -- printArray w = print {'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd'} w
 
+trace :: Print a => a -> b -> b
+trace x y =
+  case print x primUndefined of
+    _ -> y
 
-----------------------
--- StreamState
-----------------------
-data StreamState = StreamRunning | StreamEnd
+traceLn :: Print a => a -> b -> b
+traceLn x y =
+  case printLn x primUndefined of
+    _ -> y
 
-instance Semigroup StreamState where
-  append x y =
-    case x of
-      StreamEnd -> StreamEnd
-      _         -> y
-
-instance Monoid StreamState where
-  mempty = StreamRunning
-
-streamStateIsRunning :: StreamState -> Bool
-streamStateIsRunning ss =
-  case ss of
-    StreamRunning -> True
-    StreamEnd     -> False
 
 
 --------------------
@@ -545,11 +588,8 @@ streamStateIsRunning ss =
 --------------------
 data Channel = ChannelEnd | BlockRate F64 | AudioRate (Array BlockSize F64)
 
-channelState :: Channel -> StreamState
-channelState c =
-  case c of
-    ChannelEnd -> StreamEnd
-    _          -> StreamRunning
+outAudioBlock :: UInt -> Array BlockSize F64 -> *World -> *World
+outAudioBlock c a w = primUndefined
 
 outChannel :: UInt -> Channel -> *World -> *World
 outChannel n c w =
@@ -557,6 +597,11 @@ outChannel n c w =
     ChannelEnd  -> w
     BlockRate _ -> w
     AudioRate b -> outAudioBlock n b w
+
+audioInitArray :: () -> *Array BlockSize (Share F64)
+audioInitArray u =
+  loop a = unsafeEmptyArray () for i <- Range audioSampleOffset 1 (audioBlockSize - audioSampleOffset) do
+    writeArray i (Share 0.0) a
 
 mapChannel :: (F64 -> F64) -> Channel -> Channel
 mapChannel f c =
@@ -566,11 +611,10 @@ mapChannel f c =
     AudioRate b ->
       AudioRate
       <| freezeArray
-      <| loop a = unsafeEmptyArray () for i <- each do
+      <| loop a = audioInitArray () for i <- each do
         writeArray i (Share (f (readArray i b))) a
 
--- TODO: Look into alias analysis here!
--- We should be able to float the call to unsafeEmptyArray out of the for loop
+-- Loop constructs capturing owned/unique free_vars should be a type error!
 mapChannel2 :: (F64 -> F64 -> F64) -> Channel -> Channel -> Channel
 mapChannel2 f cx cy =
   case cx of
@@ -583,7 +627,7 @@ mapChannel2 f cx cy =
         AudioRate y ->
           AudioRate
           <| freezeArray
-          <| loop a = unsafeEmptyArray () for i <- each do
+          <| loop a = ia for i <- each do
             writeArray i (Share (f x (readArray i y))) a
     AudioRate x ->
       case cy of
@@ -591,13 +635,15 @@ mapChannel2 f cx cy =
         BlockRate y ->
           AudioRate
           <| freezeArray
-          <| loop a = unsafeEmptyArray () for i <- each do
+          <| loop a = ia for i <- each do
             writeArray i (Share (f (readArray i x) y)) a
         AudioRate y ->
           AudioRate
           <| freezeArray
-          <| loop a = unsafeEmptyArray () for i <- each do
+          <| loop a = ia for i <- each do
             writeArray i (Share (f (readArray i x) (readArray i y))) a
+  where
+    ia = audioInitArray ()
 
 -- data ProxyNat (n :: Nat) = ProxyNat
 
@@ -619,109 +665,71 @@ audioBlockSizeF = 32 * 64
 audioSampleOffset :: UInt
 audioSampleOffset = 0
 
-audioInitArray :: () -> *Array BlockSize (Share F64)
-audioInitArray u =
-  loop a = unsafeEmptyArray () for i <- Range audioSampleOffset 1 (audioBlockSize - audioSampleOffset) do
-    writeArray i (Share 0.0) a
-
--- TODO: Handle nested audioSampleOffset
+-- TODO: Replace freezeArray (unsafeEmptyArray ()) with primUndefined???
+-- TODO: Handle input1 Ending!
 -- TODO: Finish with this and port change to maybeEnd version
 accumulateChannel1 :: Default s => (F64 -> s -> (#s, F64#)) -> Channel -> Channel
 accumulateChannel1 f input1 =
-  case out of
-    (_, a) -> AudioRate a
+  case input1 of
+    ChannelEnd -> ChannelEnd
+    _          ->
+      case out of
+        (_, a) -> AudioRate a
   where
-    out ~ (default, freezeArray (unsafeEmptyArray ())) =
+    offsetToEndRange = Range audioSampleOffset 1 0
+    ia               = audioInitArray ()
+    out ~ (default, primUndefined) =
       case out of
         (state, _) ->
           let
-            offsetToEndRange     = Range audioSampleOffset 1 0
             (#Share state', o'#) =
               case input1 of
-                ChannelEnd          -> (#Share state, unsafeEmptyArray ()#)
+                ChannelEnd          -> (#Share state, ia#)
                 BlockRate input1Val ->
-                  loop (#Share s, o#) = (#Share state, audioInitArray ()#) for i <- offsetToEndRange do
+                  loop (#Share s, o#) = (#Share state, ia#) for i <- offsetToEndRange do
                     case f input1Val s of
                       (#s', x#) ->
                         (#Share s', writeArray i (Share x) o#)
                 AudioRate input1Buffer ->
-                  loop (#Share s, o#) = (#Share state, audioInitArray ()#) for i <- offsetToEndRange do
+                  loop (#Share s, o#) = (#Share state, ia#) for i <- offsetToEndRange do
                     case f (readArray i input1Buffer) s of
                       (#s', x#) ->
                         (#Share s', writeArray i (Share x) o#)
           in
             (state', freezeArray o')
 
-accumulateChannelAndMaybeEnd1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> StreamState) -> Channel -> Channel
-accumulateChannelAndMaybeEnd1 f streamStateFunc input1 =
-  case out of
-    (s, a) ->
-      case streamStateFunc s of
-        StreamEnd -> ChannelEnd
-        _         -> AudioRate a
+-- TODO: Replace freezeArray (unsafeEmptyArray ()) with primUndefined???
+accumulateChannelAndMaybeEnd1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Channel -> Channel
+accumulateChannelAndMaybeEnd1 f isRunningFunc input1 =
+  case input1 of
+    ChannelEnd -> ChannelEnd
+    _          ->
+      case out of
+        (s, a) ->
+          case isRunningFunc s of
+            False -> ChannelEnd
+            _     -> AudioRate a
   where
-    out ~ (default, freezeArray (unsafeEmptyArray ())) =
+    ia = audioInitArray ()
+    out ~ (default, primUndefined) =
       case out of
         (state, _) ->
           let
             (#Share state', o'#) =
               case input1 of
-                ChannelEnd          -> (#Share state, unsafeEmptyArray ()#)
+                ChannelEnd          -> (#Share state, ia#)
                 BlockRate input1Val ->
-                  loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
+                  loop (#Share s, o#) = (#Share state, ia#) for i <- each do
                     case f input1Val s of
                       (#s', x#) ->
                         (#Share s', writeArray i (Share x) o#)
                 AudioRate input1Buffer ->
-                  loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
+                  loop (#Share s, o#) = (#Share state, ia#) for i <- each do
                     case f (readArray i input1Buffer) s of
                       (#s', x#) ->
                         (#Share s', writeArray i (Share x) o#)
           in
             (state', freezeArray o')
-
-
--- accumulateChannel1 :: Default s => (F64 -> s -> (#s, F64#)) -> Channel -> Channel
--- accumulateChannel1 f input1 =
---   AudioRate (freezeArray o)
---   where
---     (#Share (state ~ default), o#) =
---       case input1 of
---         BlockRate input1Val ->
---           loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
---             case f input1Val s of
---               (#s', x#) ->
---                 (#Share s', writeArray i (Share x) o#)
---         AudioRate input1Buffer ->
---           loop (#Share s, o#) = (#Share state, unsafeEmptyArray ()#) for i <- each do
---             case f (readArray i input1Buffer) s of
---               (#s', x#) ->
---                 (#Share s', writeArray i (Share x) o#)
-
--- -- The goal, but not all features currently supported
--- accumulateChannel2 :: Default s => (F64 -> F64 -> s -> (#s, F64#)) -> Channel -> Channel -> Channel
--- accumulateChannel2 f input1 input2 =
---   AudioRate (freezeArray output)
---   where
---     emptyO                      = unsafeEmptyArray ()
---     (#Share (state ~ default), output#) =
---       case (#input1, input2#) of
---         (#BlockRate input1Val, BlockRate input2Value#) ->
---           loop (#Share s, o#) = (#state, emptyO#) for i <- each do
---             case f input1Val input2Val s of
---               (#s', x#) -> (#Share s', writeArray i (Share x) o#)
---         (#BlockRate input1Val, AudioRate input2Buffer#) ->
---           loop (#Share s, o#) = (#state, emptyO#) for i <- each do
---             case f input1Val (readArray i input2Buffer) s of
---               (#s', x#) -> (#Share s', writeArray i (Share x) o#)
---         (#AudioRate input1Buffer, BlockRate input2Val#)->
---           loop (#Share s, o#) = (#state, emptyO#) for i <- each do
---             case f (readArray i input1Buffer) input2Val s of
---               (#s', x#) -> (#Share s', writeArray i (Share x) o#)
---         (#AudioRate input1Buffer, AudioRate input2Buffer#)->
---           loop (#Share s, o#) = (#state, emptyO#) for i <- each do
---             case f (readArray i input1Buffer) (readArray i input2Buffer) s of
---               (#s', x#) -> (#Share s', writeArray i (Share x) o#)
 
 instance Num Channel where
   fromInt i = BlockRate (fromInt i)
@@ -733,91 +741,154 @@ instance Num Channel where
 
 
 --------------------
--- Audio
+-- Complex
 --------------------
-data Mono        = Mono Channel
-data Stereo      = Stereo (#Channel, Channel#)
-data Quad        = Quad (#Channel, Channel, Channel, Channel#)
-data Ambisonic   = Ambisonic (#Channel, Channel, Channel, Channel#)
+data Complex = Complex (#F64, F64#)
+
+-- TODO: Finish
+
+realPart :: Complex -> F64
+realPart (Complex (#r, _#)) = r
+
+imagPart :: Complex -> F64
+imagPart (Complex (#_, i#)) = i
+
+mkPolar :: F64 -> F64 -> Complex
+mkPolar r theta = primUndefined
+
+cis :: F64 -> F64 -> Complex
+cis r theta = primUndefined
+
+polar :: Complex -> (F64, F64)
+polar z = primUndefined
+
+magnitude :: Complex -> F64
+magnitude z = primUndefined
+
+phase :: Complex -> F64
+phase z = primUndefined
+
+instance Num Complex where
+  fromInt z                                     = Complex (#fromInt z, 0#)
+  add (Complex (#rx, ix#)) (Complex (#ry, iy#)) = Complex (#rx + ry, ix + iy#)
+  sub (Complex (#rx, ix#)) (Complex (#ry, iy#)) = Complex (#rx - ry, ix - iy#)
+  mul (Complex (#rx, ix#)) (Complex (#ry, iy#)) = Complex (#rx * ry - ix * iy, rx * iy + ix * ry#)
+  abs z                                         = Complex (#magnitude z, 0#)
+  signum z                                      =
+    case z of
+      Complex (#r, i#) ->
+        if r == 0 && i == 0 then 0 else
+          let m = magnitude z in
+            Complex (#r / m, i / m#)
+
+
+--------------------
+-- FFT
+--------------------
+-- https://www.dspguide.com/ch12/1.htm
+-- FFT bins are represented as complex numbers wherein phase is encoded as the angle of a 2D vector and amplitude is encoded as the magnitude of the 2D vector.
+data FFT f n  = FFT (f (Array n Complex))
+
+
+--------------------
+-- AudioFormat
+--------------------
+data Mono a      = Mono a
+data Stereo a    = Stereo (#a, a#)
+data Quad a      = Quad (#a, a, a, a#)
+data Ambisonic a = Ambisonic (#a, a, a, a#)
+
+data Audio f     = Audio (f Channel)
 
 -- TODO: Equal power panning
-class Audio a where
-  pureAudio                   :: Channel -> a
-  mapAudio                    :: (Channel -> Channel) -> a -> a
-  mapAudio2                   :: (Channel -> Channel -> Channel) -> a -> a -> a
-  accumulateAudio1            :: Default s => (F64 -> s -> (#s, F64#)) -> a -> a
-  accumulateAudioAndMaybeEnd1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> StreamState) -> a -> a
-  pan                         :: Mono -> a -> Stereo
-  outAudio                    :: UInt -> a -> *World -> *World
-  audioState                  :: a -> StreamState
+class AudioFormat f where
+  accumulate1       :: Default s => (F64 -> s -> (#s, F64#)) -> Audio f -> Audio f
+  accumulateFinite1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio f -> Audio f
+  pan               :: Audio Mono -> Audio f -> Audio Stereo
+  outAudio          :: UInt -> Audio f -> *World -> *World
 
-instance Audio Mono where
-  pureAudio c                               = Mono c
-  outAudio  n (Mono c)  w                   = outChannel n c w
-  mapAudio  f (Mono c)                      = Mono (f c)
-  mapAudio2 f (Mono cx) (Mono cy)           = Mono (f cx cy)
-  accumulateAudio1 f (Mono c)               = Mono (accumulateChannel1 f c)
-  accumulateAudioAndMaybeEnd1 f sf (Mono c) = Mono (accumulateChannelAndMaybeEnd1 f sf c)
-  pan (Mono amount) (Mono input)            = Stereo (#mul input (sub 1 amount), mul input amount#)
-  audioState (Mono c)                       = channelState c
+instance Functor Mono where
+  map f (Mono x) = Mono (f x)
 
-instance Audio Stereo where
-  pureAudio c                                         = Stereo (#c, c#)
-  outAudio  n (Stereo (#l, r#)) w                     = outChannel (add n 1) r (outChannel n l w)
-  mapAudio  f (Stereo (#l, r#))                       = Stereo (#f l, f r#)
-  mapAudio2 f (Stereo (#lx, rx#)) (Stereo (#ly, ry#)) = Stereo (#f lx ly, f rx ry#)
-  accumulateAudio1 f (Stereo (#l, r#))                = Stereo (#accumulateChannel1 f l, accumulateChannel1 f r#)
-  accumulateAudioAndMaybeEnd1 f sf (Stereo (#l, r#))  = Stereo (#accumulateChannelAndMaybeEnd1 f sf l, accumulateChannelAndMaybeEnd1 f sf r#)
-  pan (Mono amount) (Stereo (#l, r#))                 = Stereo (#mul l (sub 1 amount), mul r amount#)
-  audioState (Stereo (#l, r#))                        = channelState l <> channelState r
+instance FunctorN Mono where
+  map2 f (Mono x) (Mono y) = Mono (f x y)
 
--- accumulateAudio1 :: (Default s, Audio a) => (F64 -> s -> (#s, F64#)) -> a -> a
--- accumulateAudio1 f a = mapAudio (accumulateChannel1 f) a
+instance Applicative Mono where
+  pure x               = Mono x
+  ap (Mono f) (Mono x) = Mono (f x)
 
-instance Num Mono where
+instance AudioFormat Mono where
+  outAudio  n (Audio (Mono c))  w                = outChannel n c w
+  accumulate1 f (Audio (Mono c))                 = Audio <| Mono (accumulateChannel1 f c)
+  accumulateFinite1 f sf (Audio (Mono c))        = Audio <| Mono (accumulateChannelAndMaybeEnd1 f sf c)
+  pan (Audio (Mono amount)) (Audio (Mono input)) = Audio <| Stereo (#mul input (sub 1 amount), mul input amount#)
+
+instance Functor Stereo where
+  map f (Stereo (#x, y#)) = Stereo (#f x, f y#)
+
+instance FunctorN Stereo where
+  map2 f (Stereo (#x1, x2#)) (Stereo (#y1, y2#)) = Stereo (#f x1 y1, f x2 y2#)
+
+instance Applicative Stereo where
+  pure x                                     = Stereo (#x, x#)
+  ap (Stereo (#f1, f2#)) (Stereo (#x1, x2#)) = Stereo (#f1 x2, f2 x2#)
+
+instance AudioFormat Stereo where
+  outAudio  n (Audio (Stereo (#l, r#))) w             = outChannel (add n 1) r (outChannel n l w)
+  accumulate1 f (Audio (Stereo (#l, r#)))             = Audio <| Stereo (#accumulateChannel1 f l, accumulateChannel1 f r#)
+  accumulateFinite1 f sf (Audio (Stereo (#l, r#)))    = Audio <| Stereo (#accumulateChannelAndMaybeEnd1 f sf l, accumulateChannelAndMaybeEnd1 f sf r#)
+  pan (Audio (Mono amount)) (Audio (Stereo (#l, r#))) = Audio <| Stereo (#mul l (sub 1 amount), mul r amount#)
+
+instance Num a => Num (Mono a) where
   fromInt i = Mono (fromInt i)
-  add l r   = mapAudio2 add l r
-  sub l r   = mapAudio2 sub l r
-  mul l r   = mapAudio2 mul l r
-  signum c  = mapAudio signum c
-  abs c     = mapAudio abs c
+  add l r   = map2 add l r
+  sub l r   = map2 sub l r
+  mul l r   = map2 mul l r
+  signum c  = map signum c
+  abs c     = map abs c
 
-instance Num Stereo where
+instance Num a => Num (Stereo a) where
   fromInt i = let c = fromInt i in Stereo (#c, c#)
-  add l r   = mapAudio2 add l r
-  sub l r   = mapAudio2 sub l r
-  mul l r   = mapAudio2 mul l r
-  signum c  = mapAudio signum c
-  abs c     = mapAudio abs c
+  add l r   = map2 add l r
+  sub l r   = map2 sub l r
+  mul l r   = map2 mul l r
+  signum c  = map signum c
+  abs c     = map abs c
 
 instance Fractional Channel where
   fromRational r = BlockRate (fromRational r)
   div l r        = mapChannel2 div l r
   recip c        = mapChannel recip c
 
-instance Fractional Mono where
+instance Fractional a => Fractional (Mono a) where
   fromRational r = Mono (fromRational r)
-  div l r        = mapAudio2 div l r
-  recip c        = mapAudio recip c
+  div l r        = map2 div l r
+  recip c        = map recip c
 
-instance Fractional Stereo where
+instance Fractional a => Fractional (Stereo a) where
   fromRational r = let c = fromRational r in Stereo (#c, c#)
-  div l r        = mapAudio2 div l r
-  recip c        = mapAudio recip c
+  div l r        = map2 div l r
+  recip c        = map recip c
 
-instance Semigroup Mono where
+instance Semigroup Channel where
   append x y = x + y
 
-instance Monoid Mono where
+instance Monoid Channel where
   mempty = 0
 
-instance Semigroup Stereo where
-  append x y = x + y
+instance Semigroup a => Semigroup (Mono a) where
+  append x y = map2 append x y
 
-instance Monoid Stereo where
-  mempty = 0
+instance Monoid a => Monoid (Mono a) where
+  mempty = Mono mempty
 
-stereo :: Mono -> Mono -> Stereo
+instance Semigroup a => Semigroup (Stereo a) where
+  append x y = map2 append x y
+
+instance Monoid a => Monoid (Stereo a) where
+  mempty = let c = mempty in Stereo (#c, c#)
+
+stereo :: Mono a -> Mono a -> Stereo a
 stereo (Mono l) (Mono r) =
   Stereo (#l, r#)
 
@@ -829,9 +900,10 @@ accumulateSaw freq acc =
     acc3 = acc2 - fastFloor acc2
     out  = fma acc3 2.0 (-1.0)
 
-saw :: (Audio a) => a -> a
+-- Switch things such that Audio is a container type, and change back to Channel data structure
+saw :: AudioFormat f => Audio f -> Audio f
 saw freq =
-  accumulateAudio1 accumulateSaw freq
+  accumulate1 accumulateSaw freq
 
 -- TODO: Replace with llvm instruction!
 select :: Bool -> a -> a -> a
@@ -846,20 +918,19 @@ accumulatePerc (#attackTime, recipAttackTime, recipDecayTime, curve#) input stat
     decayDelta  = 1 - ((state' - attackTime) * recipDecayTime)
     out         = select (state' <= attackTime) attackDelta decayDelta * input
 
-percStreamState :: F64 -> StreamState
-percStreamState state = if state < 1 then StreamRunning else StreamEnd
+percIsRunning :: F64 -> Bool
+percIsRunning state = if state < 1 then True else False
 
-perc :: (Audio a) => F64 -> F64 -> F64 -> a -> a
+perc :: AudioFormat f => F64 -> F64 -> F64 -> Audio f -> Audio f
 perc attackTime decayTime curve input =
-  accumulateAudioAndMaybeEnd1 (accumulatePerc (#attackTime, recip attackTime, recip decayTime, curve#)) percStreamState input
+  accumulateFinite1 (accumulatePerc (#attackTime, recip attackTime, recip decayTime, curve#)) percIsRunning input
 
--- Hitting a case assert in mach transform, perhaps due to new monomorphization deep copy scheme?
-coolSynth :: Mono
+coolSynth :: Audio Mono
 coolSynth =
   saw 440 |> perc 0.1 10 (-3)
 
 blocksPerSecond :: Rational
-blocksPerSecond = 48000 % 64
+blocksPerSecond = 48000 // 64
 
 blockDelta :: Rational
 blockDelta = recipRational blocksPerSecond
@@ -947,8 +1018,6 @@ blockDelta = recipRational blocksPerSecond
 --------------------
 -- Ptr
 --------------------
--- TODO: Implement in NecroMach
--- TODO: Mark as primitive
 ptrMalloc :: UInt -> *Ptr a
 ptrMalloc capacity = primUndefined
 
@@ -1196,26 +1265,47 @@ polyThunkInit x sampleOffset (PolyThunk (#updateState, copyState, _, _, _#))  =
     (#copyState', x'#) ->
       PolyThunk (#updateState, copyState', x', PolyThunkInit, Share sampleOffset#)
 
+polyThunkEvalGo :: (a -> b) -> a -> b
+polyThunkEvalGo f x =
+  case f x of
+    result ->
+      result
+
 polyThunkEval :: (a -> b) -> *PolyThunk (Share a) -> *(#Share b, PolyThunk (Share a)#)
 polyThunkEval f t =
   let
-    dummy = f primUndefined
+    dummy = polyThunkEvalGo f primUndefined
   in
     primUndefined
-
 
 ----------------------
 -- Poly
 ----------------------
+class Finite a where
+  isRunning :: a -> Bool
 
-class Monoid p => Poly p where
-  isRunning :: p -> Bool
+instance Finite Channel where
+  isRunning c =
+    case c of
+      ChannelEnd -> True
+      _          -> False
 
-instance Poly Mono where
-  isRunning m = streamStateIsRunning (audioState m)
+instance Finite a => Finite (Mono a) where
+  isRunning (Mono x) = isRunning x
 
-instance Poly Stereo where
-  isRunning s = streamStateIsRunning (audioState s)
+instance Finite a => Finite (Stereo a) where
+  isRunning (Stereo (#l, r#)) = isRunning l && isRunning r
+
+-- TODO: Finish
+-- instance AudioFormat f => Finite (Audio f) where
+--   isRunning (Audio cs) = mapChannels
+
+class (Monoid p, Finite p) => Poly p where
+
+instance Poly Channel where
+instance Poly (Mono a) where
+instance Poly (Stereo a) where
+instance Poly (Audio f) where
 
 calculateAudioSampleOffset :: Rational -> Rational -> Float
 calculateAudioSampleOffset valueTime tickTime =
@@ -1361,13 +1451,13 @@ seqValueDurationMul speed (SeqValue (#t, c, v#)) =
   SeqValue (#t * speed, c, v#)
 
 recipRational :: Rational -> Rational
-recipRational (Rational (#n, d#)) = d % n
+recipRational (Rational (#n, d#)) = d // n
 
 seqSpeed :: Rational -> Seq a -> Seq a
 seqSpeed speed seq = Seq (\_ -> seqValueDurationMul (recipRational speed) (runSeq seq ()))
 
 bpm :: Int -> Rational
-bpm tempoInBPM = tempoInBPM % 60
+bpm tempoInBPM = tempoInBPM // 60
 
 toSeq :: SeqValue a -> Seq a
 toSeq sv = Seq (\_ -> sv)
@@ -1404,7 +1494,7 @@ seqTick slot maxSlot sv =
 
 tupleTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
 tupleTick slot maxSlot sv =
-  slotTick slot maxSlot (seqLoopEndIfLastSlot slot maxSlot) (seqValueDurationMul (1 % maxSlot) sv)
+  slotTick slot maxSlot (seqLoopEndIfLastSlot slot maxSlot) (seqValueDurationMul (1 // maxSlot) sv)
 
 interleaveTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
 interleaveTick slot maxSlot sv =
@@ -1414,17 +1504,25 @@ interleaveTick slot maxSlot sv =
 -- [] => Tuple
 -- {} => Interleave
 
--- TODO: Both of these error out in mach_transform.c in different ways...
-percSynth :: Mono
-percSynth = poly (saw .> perc 0.1 3 1) [440 220 _ <110 55 _ 330>]
+-- percSaw :: Audio Mono -> Audio Mono
+-- percSaw freq = saw freq |> perc 0.1 3 1
+
+-- TODO: Test new poly scheme
+percSynth :: Audio Mono -> Audio Mono -> Audio Mono
+-- percSynth = poly percSaw [440 220 _ <110 55 _ 330>]
+percSynth = poly (saw .> perc 0.1 3 1 .> mul 0.1) [440 220 _ <110 55 _ 330>]
 -- percSynth = poly (\f -> saw f |> perc 0.1 3 1) [440 220 _ <110 55 _ 330>]
 
--- -- TODO: fromInt bug
--- myCoolSynth2 :: Mono
+panTest :: Audio Mono
+panTest = saw 440 |> pan 0.25
+
+-- myCoolSynth2 :: Audio Mono
 -- myCoolSynth2 =
---   let offset  = 20 in
---   let offset2 = 40 in
---   poly (\i -> saw (fromInt (offset + offset2 + i))) [440 220 _ <110 55 _ 330>]
+--   poly (\f -> saw (offset + offset2 + f)) [440 220 _ <110 55 _ 330>]
+--   where
+--     offset  = myLocalSawThing 220
+--     offset2 = 40
+
 
 -- + poly (fromInt .> saw) [1 2 3]
 
@@ -1433,7 +1531,7 @@ percSynth = poly (saw .> perc 0.1 3 1) [440 220 _ <110 55 _ 330>]
 -- poly2 :: Poly c => (a -> b -> c) -> Seq a -> Seq b -> c
 -- poly2 f x y = poly (uncurry' f) <| map2 (\x' y' -> (#x', y'#)) x y
 
--- coolMultiSaw :: Mono
+-- coolMultiSaw :: Audio Mono
 -- coolMultiSaw = poly2 multiSaw freq filterFreq
 
 -- tupleTest :: Seq Float
@@ -1509,37 +1607,35 @@ percSynth = poly (saw .> perc 0.1 3 1) [440 220 _ <110 55 _ 330>]
 --     acc3 = acc2 - fastFloor acc2
 --     out  = fma (fromInt (boolToInt (acc3 > width))) 2.0 (-1.0)
 --
--- pulse :: Audio a => a -> a
+-- pulse :: AudioFormat f => Audio f -> Audio f
 -- pulse freq = accumulateAudio2 accumulatePulse freq
 
--- TODO: %  -> mod operator
--- TODO: // -> Rational operator
+-- Sound ideas
+--     * Percussive simulations
+--     * Strange attractors in FFT?
+--     * Cool FFT effects we used: Convolution with voices, Long time stretching
 
--- TODO: Add Flag to Audio which flags that it has ended!
--- TODO: Shit to make poly work?
--- TODO: Zip for seq or more general zip?
+-- TODO: mod (%) function
 
--- TODO: Dynamic Array size + Dynamic for loops?
--- TODO: apats + alias analysis causing strange behavior and Ownership type errors?!!?!?!
+-- TODO: Write to log file, perhaps class Log a similar to class Print a
+-- TODO: endAfterTick IO combinator: endAfterTick :: *World -> *World
+-- TODO: Some complex number support
+-- TODO: Heterogenous data structures?
+-- TODO: No attribute propagation in type signatures?
+-- TODO: Immutable and Mutable (Unique) FFT API
+-- TODO: FFT generated signals, pure FFT
+-- TODO: Writing audio files
 -- TODO: Nested case literals seem broken!
+
 -- TODO: Concept of Constant Values somehow being worked into the type system for things like default and mutRef
 -- TODO: Inline compose operators! .> and <.
 -- TODO: Perhaps function caching is getting off, need more accurate check for HOF caching!
--- TODO: "Constant" type enforcement for Default / Monoid
--- TODO: Desugar seq literals
 -- TODO: Replace Default with Monoid?
--- TODO: Handle Constant, End, etc
 -- TODO: Need partial recursive values to get rid of monoid here
 -- TODO: Partially recursive values
--- TODO: Stateful unboxed tuple types!
--- TODO: Rational Time for Sequences!
 -- TODO: Use List type syntax for Sequences?
--- TODO: Make sure that seq combinators that take multiple seq inputs (map2, ap, etc) only demands the inputs after the duration for each specific input
 -- TODO: Partially recursive values
 -- TODO: Defunctionalization of function on data structures
 -- TODO: Stateful Pattern assignment
--- TODO: toSIMDAudio :: Array BlockSize F64 -> Array SIMDBlockSize SIMDF64
--- TODO: Conal Elliot automatic differentiation
 -- TODO: 64-bit issue Chad was having
--- TODO: Mod wrap (print beat) art, creates cool patterns
 

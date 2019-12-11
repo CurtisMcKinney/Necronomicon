@@ -340,12 +340,12 @@ NecroCoreAst* necro_core_ast_duplicate_with_subs(NecroPagedArena* arena, NecroIn
         * Inline forwardN, i.e. forward2 x y = f x y ==> f x y, forward3 x y z = f x y z ==> f x y z
 */
 
-NecroType*    necro_type_inline_wrapper_types(NecroPagedArena* arena, NecroBase* base, NecroType* type);
+NecroType*    necro_type_inline_wrapper_types(NecroPagedArena* arena, NecroBase* base, NecroIntern* intern, NecroType* type);
 NecroCoreAst* necro_core_ast_pre_simplify_pat(NecroCorePreSimplify* context, NecroCoreAst* ast);
 
 NecroCoreAst* necro_core_ast_pre_simplify_inline_wrapper_types(NecroCorePreSimplify* context, NecroCoreAst* ast)
 {
-    ast->necro_type = necro_type_inline_wrapper_types(context->arena, context->base, ast->necro_type);
+    ast->necro_type = necro_type_inline_wrapper_types(context->arena, context->base, context->intern, ast->necro_type);
     return ast;
 }
 
@@ -360,7 +360,7 @@ NecroCoreAst* necro_core_ast_pre_simplify_var(NecroCorePreSimplify* context, Nec
     else if (ast->var.ast_symbol->is_constructor && ast->var.ast_symbol->is_wrapper)
     {
         // Replace wrapper type cons with 'id' lambda
-        NecroType*          unwrapped_con_type = necro_type_inline_wrapper_types(context->arena, context->base, ast->necro_type);
+        NecroType*          unwrapped_con_type = necro_type_inline_wrapper_types(context->arena, context->base, context->intern, ast->necro_type);
         assert(unwrapped_con_type->type == NECRO_TYPE_FUN);
         NecroType*          arg_type           = unwrapped_con_type->fun.type1;
         NecroCoreAstSymbol* new_symbol         = necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "x"), arg_type);
@@ -609,7 +609,7 @@ NecroCoreAst* necro_core_ast_pre_simplify_bind(NecroCorePreSimplify* context, Ne
     NecroCoreAst* eta_expansion_ast = necro_core_ast_eta_expansion(context, ast);
     if (eta_expansion_ast != ast)
         return eta_expansion_ast;
-    ast->bind.ast_symbol->type = necro_type_inline_wrapper_types(context->arena, context->base, ast->bind.ast_symbol->type);
+    ast->bind.ast_symbol->type = necro_type_inline_wrapper_types(context->arena, context->base, context->intern, ast->bind.ast_symbol->type);
     NecroCoreAst* expr         = necro_core_ast_pre_simplify_go(context, ast->bind.expr);
     NecroCoreAst* initializer  = necro_core_ast_pre_simplify_go(context, ast->bind.initializer);
     if (expr == ast->bind.expr && initializer == ast->bind.initializer)
@@ -676,7 +676,9 @@ NecroCoreAst* necro_core_ast_pre_simplify_let(NecroCorePreSimplify* context, Nec
     assert(ast->ast_type == NECRO_CORE_AST_LET);
     if (ast->let.bind->ast_type == NECRO_CORE_AST_DATA_DECL && ast->let.bind->data_decl.ast_symbol->is_wrapper)
     {
-        return necro_core_ast_pre_simplify_go(context, ast->let.expr);
+        // return necro_core_ast_pre_simplify_go(context, ast->let.expr);
+        *ast = *necro_core_ast_pre_simplify_go(context, ast->let.expr);
+        return ast;
     }
 
     // Rewrite let x = expr in x ==> exp
@@ -704,9 +706,13 @@ NecroCoreAst* necro_core_ast_pre_simplify_let(NecroCorePreSimplify* context, Nec
     NecroCoreAst* expr = necro_core_ast_pre_simplify_go(context, ast->let.expr);
     if (bind == ast->let.bind && expr == ast->let.expr)
         return necro_core_ast_pre_simplify_inline_wrapper_types(context, ast);
-    NecroCoreAst* new_ast = necro_core_ast_create_let(context->arena, bind, expr);
-    new_ast->necro_type   = expr == NULL ? NULL : expr->necro_type;
-    return necro_core_ast_pre_simplify_inline_wrapper_types(context, new_ast);
+    ast->let.bind      = bind;
+    ast->let.expr      = expr;
+    // NOTE: Playing with mutating lets. Naively returning a new let is O(n!) scaling, whereas mutating it brings it closer to O(n)
+    // NecroCoreAst* new_ast = necro_core_ast_create_let(context->arena, bind, expr);
+    // new_ast->necro_type   = expr == NULL ? NULL : expr->necro_type;
+    // return necro_core_ast_pre_simplify_inline_wrapper_types(context, new_ast);
+    return necro_core_ast_pre_simplify_inline_wrapper_types(context, ast);
 }
 
 void necro_core_ast_pre_simplify_data_con(NecroCorePreSimplify* context, NecroCoreAst* ast)
@@ -714,8 +720,8 @@ void necro_core_ast_pre_simplify_data_con(NecroCorePreSimplify* context, NecroCo
     assert(context != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_DATA_CON);
     assert(!ast->data_decl.ast_symbol->is_wrapper);
-    ast->data_con.ast_symbol->type = necro_type_inline_wrapper_types(context->arena, context->base, ast->data_con.ast_symbol->type);
-    ast->data_con.type             = necro_type_inline_wrapper_types(context->arena, context->base, ast->data_con.type);
+    ast->data_con.ast_symbol->type = necro_type_inline_wrapper_types(context->arena, context->base, context->intern, ast->data_con.ast_symbol->type);
+    ast->data_con.type             = necro_type_inline_wrapper_types(context->arena, context->base, context->intern, ast->data_con.type);
 }
 
 NecroCoreAst* necro_core_ast_pre_simplify_data_decl(NecroCorePreSimplify* context, NecroCoreAst* ast)
@@ -1090,7 +1096,7 @@ NecroCoreAst* necro_core_ast_pre_simplify_go(NecroCorePreSimplify* context, Necr
     return ast;
 }
 
-NecroType* necro_type_inline_wrapper_types(NecroPagedArena* arena, NecroBase* base, NecroType* type)
+NecroType* necro_type_inline_wrapper_types(NecroPagedArena* arena, NecroBase* base, NecroIntern* intern, NecroType* type)
 {
     type = necro_type_find(type);
     if (type == NULL)
@@ -1107,20 +1113,20 @@ NecroType* necro_type_inline_wrapper_types(NecroPagedArena* arena, NecroBase* ba
             NecroCoreAst* data_con  = data_decl->data_decl.con_list->data;
             assert(data_con->ast_type == NECRO_CORE_AST_DATA_CON);
             NecroType* data_con_type = data_con->data_con.type;
-            NecroType* data_con_inst = unwrap_result(NecroType, necro_type_instantiate(arena, NULL, base, data_con_type, NULL));
+            NecroType* data_con_inst = unwrap_result(NecroType, necro_type_instantiate(arena, NULL, base, data_con_type, NULL, zero_loc, zero_loc));
             NecroType* arg_type      = necro_type_fresh_var(arena, NULL);
             NecroType* this_con      = necro_type_fn_create(arena, arg_type, type);
             unwrap(NecroType, necro_kind_infer(arena, base, this_con, NULL_LOC, NULL_LOC));
             unwrap(NecroType, necro_type_unify(arena, NULL, base, data_con_inst, this_con, NULL));
-            return necro_type_inline_wrapper_types(arena, base, necro_type_deep_copy(arena, necro_type_find(arg_type)));
+            return necro_type_inline_wrapper_types(arena, base, intern, necro_type_deep_copy(arena, necro_type_find(arg_type)));
             // return necro_type_deep_copy(arena, necro_type_find(arg_type));
         }
         else if (type->con.con_symbol == base->share_type)
         {
             // Unwrap Share type (Magic...)
-            return necro_type_inline_wrapper_types(arena, base, necro_type_deep_copy(arena, necro_type_find(type->con.args->list.item)));
+            return necro_type_inline_wrapper_types(arena, base, intern, necro_type_deep_copy(arena, necro_type_find(type->con.args->list.item)));
         }
-        NecroType* args = necro_type_inline_wrapper_types(arena, base, type->con.args);
+        NecroType* args = necro_type_inline_wrapper_types(arena, base, intern, type->con.args);
         if (args == type->con.args)
             return type;
         NecroType* new_type = necro_type_con_create(arena, type->con.con_symbol, args);
@@ -1139,11 +1145,11 @@ NecroType* necro_type_inline_wrapper_types(NecroPagedArena* arena, NecroBase* ba
         if (type_fn->type == NECRO_TYPE_CON)
         {
             NecroType* type_con = necro_type_uncurry_app(arena, base, type);
-            return necro_type_inline_wrapper_types(arena, base, type_con);
+            return necro_type_inline_wrapper_types(arena, base, intern, type_con);
         }
 
-        NecroType* type1 = necro_type_inline_wrapper_types(arena, base, type->app.type1);
-        NecroType* type2 = necro_type_inline_wrapper_types(arena, base, type->app.type2);
+        NecroType* type1 = necro_type_inline_wrapper_types(arena, base, intern, type->app.type1);
+        NecroType* type2 = necro_type_inline_wrapper_types(arena, base, intern, type->app.type2);
         if (type1 == type->app.type1 && type2 == type->app.type2)
             return type;
         NecroType* new_type = necro_type_app_create(arena, type1, type2);
@@ -1153,8 +1159,8 @@ NecroType* necro_type_inline_wrapper_types(NecroPagedArena* arena, NecroBase* ba
     }
     case NECRO_TYPE_FUN:
     {
-        NecroType* type1 = necro_type_inline_wrapper_types(arena, base, type->fun.type1);
-        NecroType* type2 = necro_type_inline_wrapper_types(arena, base, type->fun.type2);
+        NecroType* type1 = necro_type_inline_wrapper_types(arena, base, intern, type->fun.type1);
+        NecroType* type2 = necro_type_inline_wrapper_types(arena, base, intern, type->fun.type2);
         if (type1 == type->fun.type1 && type2 == type->fun.type2)
             return type;
         NecroType* new_type = necro_type_fn_create(arena, type1, type2);
@@ -1164,8 +1170,8 @@ NecroType* necro_type_inline_wrapper_types(NecroPagedArena* arena, NecroBase* ba
     }
     case NECRO_TYPE_LIST:
     {
-        NecroType* type1 = necro_type_inline_wrapper_types(arena, base, type->list.item);
-        NecroType* type2 = necro_type_inline_wrapper_types(arena, base, type->list.next);
+        NecroType* type1 = necro_type_inline_wrapper_types(arena, base, intern, type->list.item);
+        NecroType* type2 = necro_type_inline_wrapper_types(arena, base, intern, type->list.next);
         if (type1 == type->list.item && type2 == type->list.next)
             return type;
         NecroType* new_type = necro_type_list_create(arena, type1, type2);
@@ -1175,7 +1181,7 @@ NecroType* necro_type_inline_wrapper_types(NecroPagedArena* arena, NecroBase* ba
     }
     case NECRO_TYPE_FOR:
     {
-        NecroType* inner_type = necro_type_inline_wrapper_types(arena, base, type->for_all.type);
+        NecroType* inner_type = necro_type_inline_wrapper_types(arena, base, intern, type->for_all.type);
         if (inner_type == type->for_all.type)
             return type;
         NecroType* new_type = necro_type_for_all_create(arena, type->for_all.var_symbol, inner_type);

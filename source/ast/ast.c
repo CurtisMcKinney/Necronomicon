@@ -608,7 +608,6 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         reified_ast->apats_assignment.declaration_group = NULL;
         reified_ast->apats_assignment.ast_symbol        = necro_ast_symbol_create(arena, ast->apats_assignment.variable_name, ast->apats_assignment.variable_name, parse_ast_arena->module_name, reified_ast);
         reified_ast->apats_assignment.is_recursive      = false;
-        reified_ast->apats_assignment.free_vars         = NULL;
         break;
     case NECRO_AST_PAT_ASSIGNMENT:
         reified_ast->pat_assignment.pat                      = necro_reify_go(parse_ast_arena, ast->pat_assignment.pat, arena, intern);
@@ -659,7 +658,6 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
     case NECRO_AST_LAMBDA:
         reified_ast->lambda.apats      = necro_reify_go(parse_ast_arena, ast->lambda.apats, arena, intern);
         reified_ast->lambda.expression = necro_reify_go(parse_ast_arena, ast->lambda.expression, arena, intern);
-        reified_ast->lambda.free_vars  = NULL;
         break;
     case NECRO_AST_DO:
         reified_ast->do_statement.statement_list = necro_reify_go(parse_ast_arena, ast->do_statement.statement_list, arena, intern);
@@ -1255,7 +1253,6 @@ NecroAst* necro_ast_create_apats_assignment(NecroPagedArena* arena, NecroIntern*
     ast->apats_assignment.is_recursive            = false;
     ast->apats_assignment.ast_symbol              = necro_ast_symbol_create(arena, variable_symbol, variable_symbol, NULL, ast);
     ast->apats_assignment.optional_type_signature = NULL;
-    ast->apats_assignment.free_vars               = NULL;
     return ast;
 }
 
@@ -1272,7 +1269,6 @@ NecroAst* necro_ast_create_apats_assignment_with_ast_symbol(NecroPagedArena* are
     ast->apats_assignment.is_recursive            = false;
 	ast->apats_assignment.ast_symbol              = ast_symbol;
 	ast->apats_assignment.optional_type_signature = NULL;
-    ast->apats_assignment.free_vars               = NULL;
 	return ast;
 }
 
@@ -1284,7 +1280,6 @@ NecroAst* necro_ast_create_lambda(NecroPagedArena* arena, NecroAst* apats, Necro
     NecroAst* ast          = necro_ast_alloc(arena, NECRO_AST_LAMBDA);
     ast->lambda.apats      = apats;
     ast->lambda.expression = expr_ast;
-    ast->lambda.free_vars  = NULL;
     return ast;
 }
 
@@ -1661,9 +1656,9 @@ void necro_ast_assert_ast_symbol_name_eq(NecroAstSymbol* ast_symbol1, NecroAstSy
 {
     assert(ast_symbol1 != NULL);
     assert(ast_symbol2 != NULL);
-		assert(strcmp(ast_symbol1->source_name->str, ast_symbol2->source_name->str) == 0);
-		assert(strcmp(ast_symbol1->name->str, ast_symbol2->name->str) == 0);
-		assert(strcmp(ast_symbol1->module_name->str, ast_symbol2->module_name->str) == 0);
+	assert(strcmp(ast_symbol1->source_name->str, ast_symbol2->source_name->str) == 0);
+	// assert(strcmp(ast_symbol1->name->str, ast_symbol2->name->str) == 0);
+	assert(strcmp(ast_symbol1->module_name->str, ast_symbol2->module_name->str) == 0);
 }
 
 void necro_ast_assert_eq_constant(NecroAst* ast1, NecroAst* ast2)

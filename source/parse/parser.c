@@ -129,6 +129,7 @@ const char* necro_bin_op_name(NECRO_BIN_OP_TYPE type)
     case NECRO_BIN_OP_SUB:                return "(-)";
     case NECRO_BIN_OP_MUL:                return "(*)";
     case NECRO_BIN_OP_DIV:                return "(/)";
+    case NECRO_BIN_OP_DOUBLE_DIV:         return "(//)";
     case NECRO_BIN_OP_MOD:                return "(%)";
     case NECRO_BIN_OP_GT:                 return "(>)";
     case NECRO_BIN_OP_LT:                 return "(<)";
@@ -660,6 +661,7 @@ static const NecroParseBinOpBehavior bin_op_behaviors[NECRO_BIN_OP_COUNT + 1] = 
     { 6, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_SUB
     { 7, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_MUL
     { 7, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_DIV
+    { 9, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_DOUBLE_DIV
     { 9, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_MOD
     { 4, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_GT
     { 4, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_LT
@@ -1309,6 +1311,7 @@ NecroParseAstLocalPtr necro_parse_variable(NecroParser* parser, NECRO_VAR_TYPE v
         case NECRO_LEX_SUB:
         case NECRO_LEX_MUL:
         case NECRO_LEX_DIV:
+        case NECRO_LEX_DOUBLE_DIV:
         case NECRO_LEX_MOD:
         case NECRO_LEX_GT:
         case NECRO_LEX_LT:
@@ -2083,6 +2086,7 @@ NECRO_BIN_OP_TYPE necro_token_to_bin_op_type(NECRO_LEX_TOKEN_TYPE token_type)
     case NECRO_LEX_SUB:                  return NECRO_BIN_OP_SUB;
     case NECRO_LEX_MUL:                  return NECRO_BIN_OP_MUL;
     case NECRO_LEX_DIV:                  return NECRO_BIN_OP_DIV;
+    case NECRO_LEX_DOUBLE_DIV:           return NECRO_BIN_OP_DOUBLE_DIV;
     case NECRO_LEX_MOD:                  return NECRO_BIN_OP_MOD;
     case NECRO_LEX_GT:                   return NECRO_BIN_OP_GT;
     case NECRO_LEX_LT:                   return NECRO_BIN_OP_LT;

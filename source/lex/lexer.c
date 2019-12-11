@@ -19,6 +19,7 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
     case NECRO_LEX_MUL:                 return "MUL";
     case NECRO_LEX_DIV:                 return "DIV";
     case NECRO_LEX_MOD:                 return "MOD";
+    case NECRO_LEX_DOUBLE_DIV:          return "NECRO_LEX_DOUBLE_DIV";
     case NECRO_LEX_GT:                  return "GT";
     case NECRO_LEX_LT:                  return "LT";
     case NECRO_LEX_GTE:                 return "GTE";
@@ -653,6 +654,7 @@ bool necro_lex_multi_character_token(NecroLexer* lexer)
            necro_lex_token_with_pattern(lexer, "<@",  NECRO_LEX_CONST_LEFT_ON_RIGHT) ||
            necro_lex_token_with_pattern(lexer, "@>",  NECRO_LEX_CONST_RIGHT_ON_LEFT) ||
            necro_lex_token_with_pattern(lexer, ">@",  NECRO_LEX_CONST_RIGHT_ON_RIGHT)||
+           necro_lex_token_with_pattern(lexer, "//",  NECRO_LEX_DOUBLE_DIV)          ||
            necro_lex_token_with_pattern(lexer, "..",  NECRO_LEX_DOUBLE_DOT);
 }
 

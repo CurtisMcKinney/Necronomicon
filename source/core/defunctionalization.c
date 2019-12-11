@@ -277,7 +277,7 @@ NecroStaticValue* necro_static_value_create_env_from_expr(NecroDefunctionalizeCo
         arg_static_values                  = necro_cons_static_value_list(context->arena, arg_static_value, arg_static_values);
         apps                               = apps->app.expr1;
     }
-    NecroType*            env_mono_con = unwrap_result(NecroType, necro_type_instantiate(context->arena, NULL, context->base, env_con_symbol->type, NULL));
+    NecroType*            env_mono_con = unwrap_result(NecroType, necro_type_instantiate(context->arena, NULL, context->base, env_con_symbol->type, NULL, zero_loc, zero_loc));
     NecroStaticValueList* arg_svs      = arg_static_values;
     NecroType*            env_con_fn   = env_mono_con;
     while (app_count > 0)
@@ -801,7 +801,7 @@ NecroStaticValue* necro_defunctionalize_app_con(NecroDefunctionalizeContext* con
     NecroStaticValueList* arg_svs          = NULL;
     //--------------------
     // Go Deeper
-    NecroType* con_fn_type = unwrap_result(NecroType, necro_type_instantiate(context->arena, NULL, context->base, var_ast->var.ast_symbol->type, NULL));
+    NecroType* con_fn_type = unwrap_result(NecroType, necro_type_instantiate(context->arena, NULL, context->base, var_ast->var.ast_symbol->type, NULL, zero_loc, zero_loc));
     while (apps->ast_type == NECRO_CORE_AST_APP)
     {
         // applied_

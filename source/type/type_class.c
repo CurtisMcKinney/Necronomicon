@@ -723,10 +723,10 @@ void necro_constraint_list_apply(NecroPagedArena* arena, NecroType* type, NecroC
         NecroType* constrained_type = NULL;
         switch (constraints->data->type)
         {
-        case NECRO_CONSTRAINT_EQL:   constrained_type = constraints->data->eql.type1; break;
-        case NECRO_CONSTRAINT_UNI:   constrained_type = constraints->data->uni.u1;    break;
-        case NECRO_CONSTRAINT_CLASS: constrained_type = constraints->data->cls.type1; break;
-        default:                     assert(false);                                   break;
+        case NECRO_CONSTRAINT_EQUAL:       constrained_type = constraints->data->equal.type1;    break;
+        case NECRO_CONSTRAINT_UCONSTRAINT: constrained_type = constraints->data->uconstraint.u1; break;
+        case NECRO_CONSTRAINT_CLASS:       constrained_type = constraints->data->cls.type1;      break;
+        default: assert(false); break;
         }
         while (constrained_type->type == NECRO_TYPE_APP)
             constrained_type = constrained_type->app.type1;
@@ -739,54 +739,6 @@ void necro_constraint_list_apply(NecroPagedArena* arena, NecroType* type, NecroC
         constraints = constraints->next;
     }
 }
-
-// void necro_constraint_list_apply(NecroPagedArena* arena, NecroType* type, NecroConstraintList* constraints)
-// {
-//     type = necro_type_find(type);
-//     if (type == NULL) return;
-//     if (constraints == NULL) return;
-//     // Take into account TypeApp!
-//     switch (type->type)
-//     {
-//     case NECRO_TYPE_VAR:
-//     {
-//         while (constraints != NULL)
-//         {
-//             if (constraints->data->type == NECRO_CONSTRAINT_CLASS)
-//             {
-//                 NecroType* type_var = constraints->data->cls.type1;
-//                 while (type_var->type == NECRO_TYPE_APP)
-//                     type_var = type_var->app.type1;
-//                 assert(type_var->type == NECRO_TYPE_VAR);
-//                 if (type->var.var_symbol->name == type_var->var.var_symbol->name)
-//                 {
-//                     bool                 is_new_constraint    = true;
-//                     NecroConstraintList* curr_new_constraints = type->var.constraints;
-//                     while (curr_new_constraints != NULL)
-//                     {
-//                         if (necro_constraint_is_equivalant(constraints->data, curr_new_constraints->data))
-//                         {
-//                             is_new_constraint = false;
-//                             break;
-//                         }
-//                         curr_new_constraints = curr_new_constraints->next;
-//                     }
-//                     if (is_new_constraint)
-//                         type->var.constraints = necro_cons_constraint_list(arena, constraints->data, type->var.constraints);
-//                 }
-//             }
-//             constraints = constraints->next;
-//         }
-//         break;
-//     }
-//     case NECRO_TYPE_APP:  necro_constraint_list_apply(arena, type->app.type1, constraints); necro_constraint_list_apply(arena, type->app.type2, constraints); break;
-//     case NECRO_TYPE_FUN:  necro_constraint_list_apply(arena, type->fun.type1, constraints); necro_constraint_list_apply(arena, type->fun.type2, constraints); break;
-//     case NECRO_TYPE_CON:  necro_constraint_list_apply(arena, type->con.args,  constraints); break;
-//     case NECRO_TYPE_LIST: necro_constraint_list_apply(arena, type->list.item, constraints); necro_constraint_list_apply(arena, type->list.next, constraints); break;
-//     case NECRO_TYPE_FOR:  assert(false); break;
-//     default:              assert(false); break;
-//     }
-// }
 
 NecroResult(NecroType) necro_constraint_list_kinds_check(NecroPagedArena* arena, NecroBase* base, NecroConstraintList* constraints, NecroScope* scope)
 {

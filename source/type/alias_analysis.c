@@ -758,12 +758,12 @@ void necro_alias_analysis_test()
     {
         const char* test_name   = "Ok Closure";
         const char* test_source = ""
-            "okClosure :: *(Share Bool, Share Bool) -> Bool\n"
+            "okClosure :: *(Bool, Bool) -> Bool\n"
             "okClosure t = f True\n"
             "  where\n"
             "    f b =\n"
             "      case t of\n"
-            "        (Share l, Share r) ->\n"
+            "        (l, r) ->\n"
             "          b && l && r\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_ownership_test(test_name, test_source, expect_error_result, NULL);
@@ -772,12 +772,12 @@ void necro_alias_analysis_test()
     {
         const char* test_name   = "Bad Closure 1";
         const char* test_source = ""
-            "badClosure :: *(Share Bool, Share Bool) -> Bool\n"
+            "badClosure :: *(Bool, Bool) -> Bool\n"
             "badClosure t = f True && f False\n"
             "  where\n"
             "    f b =\n"
             "      case t of\n"
-            "        (Share l, Share r) ->\n"
+            "        (l, r) ->\n"
             "          b && l && r\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
@@ -787,13 +787,13 @@ void necro_alias_analysis_test()
     {
         const char* test_name   = "Bad Closure 2";
         const char* test_source = ""
-            "badClosure :: *(Share Bool, Share Bool) -> Bool\n"
+            "badClosure :: *(Bool, Bool) -> Bool\n"
             "badClosure t = f' True && f' False\n"
             "  where\n"
             "    f'     = f t\n"
             "    f t' b =\n"
             "      case t' of\n"
-            "        (Share l, Share r) ->\n"
+            "        (l, r) ->\n"
             "          b && l && r\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
@@ -803,10 +803,10 @@ void necro_alias_analysis_test()
     {
         const char* test_name   = "Bad Loop 1";
         const char* test_source = ""
-            "badLoop :: *Array 4 (Share Int) -> Index 4 -> *Array 4 (Share Int)\n"
+            "badLoop :: *Array 4 Int -> Index 4 -> *Array 4 Int\n"
             "badLoop a index =\n"
             "  loop a' = unsafeEmptyArray () while True do\n"
-            "    writeArray index (Share 0) a\n";
+            "    writeArray index 0 a\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
         necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
@@ -815,10 +815,10 @@ void necro_alias_analysis_test()
     {
         const char* test_name   = "Bad Loop 2";
         const char* test_source = ""
-            "badLoop :: *Array 4 (Share Int) -> *Array 4 (Share Int)\n"
+            "badLoop :: *Array 4 Int -> *Array 4 Int\n"
             "badLoop a =\n"
             "  loop a1 = unsafeEmptyArray () for i <- each do\n"
-            "    writeArray i (Share 0) a\n";
+            "    writeArray i 0 a\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
         necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
@@ -827,7 +827,7 @@ void necro_alias_analysis_test()
     {
         const char* test_name   = "Unique Test 6";
         const char* test_source = ""
-            "dontShare :: *Maybe Int -> *Maybe Int\n"
+            "dontShare :: Maybe *Int -> Maybe *Int\n"
             "dontShare x = x\n"
             "pwned x y = dontShare (dontShare x)\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
@@ -851,7 +851,7 @@ void necro_alias_analysis_test()
     {
         const char* test_name   = "Unique Nested Fn";
         const char* test_source = ""
-            "utest :: *Bool -> *Bool -> *(Bool, Bool)\n"
+            "utest :: *Bool -> *Bool -> (*Bool, *Bool)\n"
             "utest b c = f True where\n"
             "  f x = (b, c)\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
@@ -1168,7 +1168,7 @@ void necro_alias_analysis_test()
         const char* test_name   = "Mismatched Sig 2";
         const char* test_source = ""
             "data Pair a b = Pair a b\n"
-            "dontShare :: *a -> a -> b -> *Pair a b\n"
+            "dontShare :: *a -> a -> b -> Pair *a b\n"
             "dontShare x y z = Pair x z\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
@@ -1220,7 +1220,7 @@ void necro_alias_analysis_test()
     {
         const char* test_name   = "Dup 2";
         const char* test_source = ""
-            "dup :: *a -> *(a, a)\n"
+            "dup :: *a -> (*a, *a)\n"
             "dup x = (x, x)\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
@@ -1260,7 +1260,7 @@ void necro_alias_analysis_test()
     {
         const char* test_name   = "Free Var 1";
         const char* test_source = ""
-            "freeVarTest :: *a -> *b -> *c -> *d -> *(a, b, c, d)\n"
+            "freeVarTest :: *a -> *b -> *c -> *d -> (*a, *b, *c, *d)\n"
             "freeVarTest w x y z = (w, x, y, z)\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
         necro_ownership_test(test_name, test_source, expect_error_result, NULL);
@@ -1269,7 +1269,7 @@ void necro_alias_analysis_test()
     {
         const char* test_name   = "Free Var Error 1";
         const char* test_source = ""
-            "freeVarTest :: *a -> *b -> *c -> *d -> *(a, b, c, d)\n"
+            "freeVarTest :: *a -> *b -> *c -> *d -> (*a, *b, *c, *d)\n"
             "freeVarTest w x y z = (w, x, y, z)\n"
             "partialApp = freeVarTest () () ()\n"
             "val1 = partialApp ()\n"
@@ -1366,8 +1366,8 @@ void necro_alias_analysis_test()
             "neverShare :: *()\n"
             "neverShare = ()\n"
             "coughItUp _ = neverShare\n"
-            "one = coughItUp True\n"
-            "two = coughItUp False\n";
+            "one' = coughItUp True\n"
+            "two  = coughItUp False\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
         necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
@@ -1377,8 +1377,8 @@ void necro_alias_analysis_test()
         const char* test_name   = "HKT 1";
         const char* test_source = ""
             "data AppMaybe m a = AppMaybe (m a)\n"
-            "appMaybe :: *AppMaybe m a -> m a\n"
-            "appMaybe (AppMaybe m) = m\n";
+            "appMaybe :: AppMaybe m *a -> m a\n"
+            "appMaybe (AppMaybe x) = x\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
         necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
@@ -1388,8 +1388,8 @@ void necro_alias_analysis_test()
         const char* test_name   = "HKT 2";
         const char* test_source = ""
             "data AppMaybe m a = AppMaybe (m a)\n"
-            "appMaybe :: *AppMaybe m a -> *m a\n"
-            "appMaybe (AppMaybe m) = m\n";
+            "appMaybe :: AppMaybe m *a -> *m a\n"
+            "appMaybe (AppMaybe x) = x\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
         necro_ownership_test(test_name, test_source, expect_error_result, NULL);
     }
@@ -1423,10 +1423,10 @@ void necro_alias_analysis_test()
         const char* test_name   = "Class Test 2";
         const char* test_source = ""
             "class UClass a where\n"
-            "  fu :: *a -> *Maybe a\n"
+            "  fu :: *a -> Maybe *a\n"
             "instance UClass Bool where\n"
             "  fu b = Just b\n"
-            "ezGame :: (UClass a, UClass b) => *a -> *b -> *(Maybe a, Maybe b)\n"
+            "ezGame :: (UClass a, UClass b) => *a -> *b -> (Maybe *a, Maybe *b)\n"
             "ezGame x y = (fu x, fu y)\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_ownership_test(test_name, test_source, expect_error_result, NULL);
@@ -1512,7 +1512,7 @@ void necro_alias_analysis_test()
     {
         const char* test_name   = "maybe Test Poly";
         const char* test_source = ""
-            "maybe' :: .b -> .(.a -> .b) -> .Maybe a -> .b\n"
+            "maybe' :: .b -> .(.a -> .b) -> Maybe .a -> .b\n"
             "maybe' y f mx =\n"
             "  case mx of\n"
             "    Just x  -> f x\n"
@@ -1524,9 +1524,9 @@ void necro_alias_analysis_test()
     {
         const char* test_name   = "tuple Test Poly";
         const char* test_source = ""
-            "fstU :: .(a, b) -> .a\n"
+            "fstU :: (.a, .b) -> .a\n"
             "fstU (x, _) = x\n"
-            "sndU :: .(a, b) -> .b\n"
+            "sndU :: (.a, .b) -> .b\n"
             "sndU (_, y) = y\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
         necro_ownership_test(test_name, test_source, expect_error_result, NULL);

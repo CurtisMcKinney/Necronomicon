@@ -1133,7 +1133,7 @@ void necro_lex_test()
 
     // Test 7
     {
-        const char* str    = "+ - * / % > < >= <= :: << >> | |> <| == /= && || >>= =<< !! <>";
+        const char* str    = "+ - * / % > < >= <= :: <. .> | |> <| == /= && || >>= =<< !! <>";
         NecroIntern intern = necro_intern_create();
         NecroLexer  lexer  = necro_lexer_create(str, strlen(str), &intern);
         unwrap(void, necro_lex_go(&lexer));
@@ -1587,4 +1587,5 @@ void necro_lex_test()
         assert(NECRO_COMPILE_IN_CHILD_PROCESS("unicodeTest.necro", "lex") == 0);
         puts("Lex }}} child process unicodeTest.necro:  passed");
     }
+
 }

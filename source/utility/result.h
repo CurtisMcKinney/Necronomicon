@@ -112,7 +112,6 @@ typedef enum
 
     NECRO_CONSTRAINT_MALFORMED_CONSTRAINT,
 
-    // NOTE (Curtis 2-26-19): New restrictions for Region based memory management
     NECRO_TYPE_RECURSIVE_FUNCTION,
     NECRO_TYPE_RECURSIVE_DATA_TYPE,
     NECRO_TYPE_LIFTED_TYPE_RESTRICTION,

@@ -117,7 +117,7 @@ NecroResult(NecroAstSymbol) necro_create_name(NecroAstArena* ast_arena, NecroInt
     }
 }
 
-NecroResult(NecroAstSymbol) necro_find_name(NecroScope* scope, NecroSymbol source_name, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+NecroResult(NecroAstSymbol) necro_find_name(NecroPagedArena* arena, NecroScope* scope, NecroSymbol source_name, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     assert(source_name != NULL);
     NecroAstSymbol* out_ast_symbol = necro_scope_find_ast_symbol(scope, source_name);
@@ -127,7 +127,8 @@ NecroResult(NecroAstSymbol) necro_find_name(NecroScope* scope, NecroSymbol sourc
     }
     else
     {
-        return necro_not_in_scope_error(NULL, source_loc, end_loc);
+        NecroAstSymbol* missing_name_symbol = necro_ast_symbol_create(arena, source_name, source_name, NULL, NULL);
+        return necro_not_in_scope_error(missing_name_symbol, source_loc, end_loc);
         // return necro_not_in_scope_error(ast_symbol, source_loc, end_loc);
     }
 }
@@ -508,7 +509,7 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
     case NECRO_AST_UN_OP:
         break;
     case NECRO_AST_BIN_OP:
-        ast->bin_op.ast_symbol = necro_try_result(NecroAstSymbol, necro_find_name(ast->scope, ast->bin_op.ast_symbol->source_name, ast->source_loc, ast->end_loc));
+        ast->bin_op.ast_symbol = necro_try_result(NecroAstSymbol, necro_find_name(&renamer->ast_arena->arena, ast->scope, ast->bin_op.ast_symbol->source_name, ast->source_loc, ast->end_loc));
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->bin_op.lhs));
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->bin_op.rhs));
         break;
@@ -588,10 +589,10 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
         switch (ast->variable.var_type)
         {
         case NECRO_VAR_VAR:
-            ast->variable.ast_symbol = necro_try_result(NecroAstSymbol, necro_find_name(ast->scope, ast->variable.ast_symbol->source_name, ast->source_loc, ast->end_loc));
+            ast->variable.ast_symbol = necro_try_result(NecroAstSymbol, necro_find_name(&renamer->ast_arena->arena, ast->scope, ast->variable.ast_symbol->source_name, ast->source_loc, ast->end_loc));
             break;
         case NECRO_VAR_SIG:
-            ast->variable.ast_symbol = necro_try_result(NecroAstSymbol, necro_find_name(ast->scope, ast->variable.ast_symbol->source_name, ast->source_loc, ast->end_loc));
+            ast->variable.ast_symbol = necro_try_result(NecroAstSymbol, necro_find_name(&renamer->ast_arena->arena, ast->scope, ast->variable.ast_symbol->source_name, ast->source_loc, ast->end_loc));
             if (ast->variable.ast_symbol->optional_type_signature != NULL)
                 return necro_duplicate_type_signatures_error(ast->variable.ast_symbol, renamer->current_type_sig_ast->source_loc, renamer->current_type_sig_ast->end_loc, ast->variable.ast_symbol, ast->variable.ast_symbol->optional_type_signature->source_loc, ast->variable.ast_symbol->optional_type_signature->end_loc);
             else
@@ -678,10 +679,10 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
         switch (ast->conid.con_type)
         {
         case NECRO_CON_VAR:
-            ast->conid.ast_symbol = necro_try_result(NecroAstSymbol, necro_find_name(ast->scope, ast->conid.ast_symbol->source_name, ast->source_loc, ast->end_loc));
+            ast->conid.ast_symbol = necro_try_result(NecroAstSymbol, necro_find_name(&renamer->ast_arena->arena, ast->scope, ast->conid.ast_symbol->source_name, ast->source_loc, ast->end_loc));
             break;
         case NECRO_CON_TYPE_VAR:
-            ast->conid.ast_symbol = necro_try_result(NecroAstSymbol, necro_find_name(renamer->scoped_symtable->top_type_scope, ast->conid.ast_symbol->source_name, ast->source_loc, ast->end_loc));
+            ast->conid.ast_symbol = necro_try_result(NecroAstSymbol, necro_find_name(&renamer->ast_arena->arena, renamer->scoped_symtable->top_type_scope, ast->conid.ast_symbol->source_name, ast->source_loc, ast->end_loc));
             break;
         case NECRO_CON_TYPE_DECLARATION: break; //try_find_name(renamer, ast, renamer->scoped_symtable->top_type_scope, &ast->conid.id, ast->conid.symbol); break;
         case NECRO_CON_DATA_DECLARATION: break;
@@ -699,10 +700,10 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
         break;
     case NECRO_AST_OP_LEFT_SECTION:
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->op_left_section.left));
-        ast->op_left_section.ast_symbol = necro_try_result(NecroAstSymbol, necro_find_name(ast->scope, ast->op_left_section.ast_symbol->source_name, ast->source_loc, ast->end_loc));
+        ast->op_left_section.ast_symbol = necro_try_result(NecroAstSymbol, necro_find_name(&renamer->ast_arena->arena, ast->scope, ast->op_left_section.ast_symbol->source_name, ast->source_loc, ast->end_loc));
         break;
     case NECRO_AST_OP_RIGHT_SECTION:
-        ast->op_right_section.ast_symbol = necro_try_result(NecroAstSymbol, necro_find_name(ast->scope, ast->op_right_section.ast_symbol->source_name, ast->source_loc, ast->end_loc));
+        ast->op_right_section.ast_symbol = necro_try_result(NecroAstSymbol, necro_find_name(&renamer->ast_arena->arena, ast->scope, ast->op_right_section.ast_symbol->source_name, ast->source_loc, ast->end_loc));
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->op_right_section.right));
         break;
 

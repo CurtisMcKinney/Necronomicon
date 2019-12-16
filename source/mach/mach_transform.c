@@ -1324,6 +1324,7 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         NecroMachAst* param = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
         return necro_mach_build_uop(program, outer->machine_def.update_fn, param, necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, app_ast->necro_type)), primop_type);
     }
+
     case NECRO_PRIMOP_BINOP_IADD:
     case NECRO_PRIMOP_BINOP_ISUB:
     case NECRO_PRIMOP_BINOP_IMUL:
@@ -1341,6 +1342,7 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     case NECRO_PRIMOP_BINOP_FREM:
     case NECRO_PRIMOP_BINOP_AND:
     case NECRO_PRIMOP_BINOP_OR:
+    case NECRO_PRIMOP_BINOP_XOR:
     case NECRO_PRIMOP_BINOP_SHL:
     case NECRO_PRIMOP_BINOP_SHR:
     {
@@ -1350,6 +1352,7 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         NecroMachAst* right = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
         return necro_mach_build_binop(program, outer->machine_def.update_fn, left, right, primop_type);
     }
+
     case NECRO_PRIMOP_CMP_EQ:
     case NECRO_PRIMOP_CMP_NE:
     case NECRO_PRIMOP_CMP_GT:
@@ -1439,6 +1442,15 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         return array_value;
     }
 
+    case NECRO_PRIMOP_INTR_BREV:
+    {
+        assert(arg_count == 1);
+        NecroMachAst*  arg       = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
+        NecroMachType* call_type = necro_mach_type_from_necro_type(program, app_ast->app.expr1->necro_type);
+        NecroMachAst*  result    = necro_mach_build_call_intrinsic(program, outer->machine_def.update_fn, primop_type, call_type, (NecroMachAst*[]) { arg }, 1, "brev_result");
+        return result;
+    }
+
     case NECRO_PRIMOP_INTR_FMA:
     // case NECRO_PRIMOP_INTR_FLR:
     {
@@ -1453,7 +1465,7 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
             arg_index--;
         }
         NecroMachType*     call_type = necro_mach_type_from_necro_type(program, function->necro_type);
-        NecroMachAst*      result    = necro_mach_build_call_intrinsic(program, outer->machine_def.update_fn, primop_type, call_type, args, arg_count, "intr");
+        NecroMachAst*      result    = necro_mach_build_call_intrinsic(program, outer->machine_def.update_fn, primop_type, call_type, args, arg_count, "fma_result");
         necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
         return result;
     }

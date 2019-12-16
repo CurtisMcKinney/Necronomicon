@@ -21,11 +21,12 @@
 // Constraints
 //--------------------
 struct NecroConstraint;
-typedef enum
+typedef enum NECRO_CONSTRAINT_TYPE
 {
     // NECRO_CONSTRAINT_AND,
-    NECRO_CONSTRAINT_EQL,
-    NECRO_CONSTRAINT_UNI,
+    NECRO_CONSTRAINT_EQUAL,
+    NECRO_CONSTRAINT_UCONSTRAINT,
+    NECRO_CONSTRAINT_UCOERCE,
     NECRO_CONSTRAINT_CLASS,
 } NECRO_CONSTRAINT_TYPE;
 
@@ -37,9 +38,14 @@ typedef enum
 
 typedef struct
 {
-    NecroType*     u1;
-    NecroType*     u2;
-    NecroSourceLoc source_loc;
+    NecroType* u1;
+    NecroType* u2;
+} NecroConstraintUniquenessConstraint;
+
+typedef struct
+{
+    NecroType* type1;
+    NecroType* u2;
 } NecroConstraintUniquenessCoercion;
 
 typedef struct
@@ -59,9 +65,10 @@ typedef struct NecroConstraint
     union
     {
         // NecroConstraintAnd                and;
-        NecroConstraintEqual              eql;
-        NecroConstraintUniquenessCoercion uni;
-        NecroConstraintClass              cls;
+        NecroConstraintEqual                equal;
+        NecroConstraintUniquenessConstraint uconstraint;
+        NecroConstraintUniquenessCoercion   ucoerce;
+        NecroConstraintClass                cls;
     };
     NECRO_CONSTRAINT_TYPE type;
     NecroSourceLoc        source_loc;
@@ -73,16 +80,15 @@ NECRO_DECLARE_DEQUEUE(struct NecroConstraint*, Constraint, constraint);
 typedef struct NecroConstraintEnv
 {
     NecroConstraintDequeue constraints;
-    NecroSourceLoc         curr_loc;
+    NecroSourceLoc         source_loc;
+    NecroSourceLoc         end_loc;
 } NecroConstraintEnv;
 bool                 necro_constraint_is_equivalant(NecroConstraint* con1, NecroConstraint* con2);
 bool                 necro_constraint_is_equal(NecroConstraint* con1, NecroConstraint* con2);
-NecroConstraintList* necro_constraint_append_constraint_with_new_subject_and_queue_push_back(NecroPagedArena* arena, NecroConstraintEnv* env, NecroConstraint* con, NecroType* subject, NecroConstraintList* next);
-NecroConstraintList* necro_constraint_append_constraint_with_new_subject(NecroPagedArena* arena, NecroConstraint* con, NecroType* subject, NecroConstraintList* next);
-NecroConstraint*     necro_constraint_with_new_object(NecroPagedArena* arena, NecroConstraint* con, NecroType* object);
-NecroConstraintList* necro_constraint_append_uniqueness_coercion_without_queue_push(NecroPagedArena* arena, NecroType* u1, NecroType* u2, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroConstraintList* next);
-NecroConstraintList* necro_constraint_append_uniqueness_coercion_and_queue_push_back(NecroPagedArena* arena, NecroConstraintEnv* env, NecroType* u1, NecroType* u2, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroConstraintList* next);
-NecroConstraintList* necro_constraint_append_uniqueness_coercion_and_queue_push_front(NecroPagedArena* arena, NecroConstraintEnv* env, NecroType* u1, NecroType* u2, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroConstraintList* next);
+NecroConstraintList* necro_constraint_append_uniqueness_constraint_and_queue_push_back(NecroPagedArena* arena, NecroConstraintEnv* env, NecroType* u1, NecroType* u2, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroConstraintList* next);
+void                 necro_constraint_push_back_uniqueness_constraint(NecroPagedArena* arena, NecroConstraintEnv* env, struct NecroBase* base, struct NecroIntern* intern, NecroType* u1, NecroType* u2, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+void                 necro_constraint_push_back_uniqueness_coercion(NecroPagedArena* arena, NecroConstraintEnv* env, struct NecroBase* base, struct NecroIntern* intern, NecroType* type1, NecroType* u2, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+void                 necro_constraint_push_back_uniqueness_constraint_or_coercion(NecroPagedArena* arena, NecroConstraintEnv* env, struct NecroBase* base, struct NecroIntern* intern, NecroType* type1, NecroType* u2, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NECRO_CONSTRAINT_TYPE constraint_type);
 NecroConstraintList* necro_constraint_append_class_constraint_and_queue_push_back(NecroPagedArena* arena, NecroConstraintEnv* env, NecroTypeClass* type_class, NecroType* type1, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroConstraintList* next);
 NecroConstraintList* necro_constraint_append_class_constraint(NecroPagedArena* arena, NecroTypeClass* type_class, NecroType* type1, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroConstraintList* next);
 NecroResult(void)    necro_constraint_simplify(NecroPagedArena* arena, NecroConstraintEnv* env, struct NecroBase* base, struct NecroIntern* intern);

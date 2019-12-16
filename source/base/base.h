@@ -34,7 +34,7 @@ typedef struct NecroBase
     NecroAstSymbol* ownership_kind;
     NecroAstSymbol* ownership_share;
     NecroAstSymbol* ownership_steal;
-    NecroAstSymbol* share_type;
+    // NecroAstSymbol* share_type;
 
     NecroAstSymbol* tuple2_con;
     NecroAstSymbol* tuple3_con;
@@ -80,8 +80,15 @@ typedef struct NecroBase
     NecroAstSymbol* bool_type;
     NecroAstSymbol* true_con;
     NecroAstSymbol* false_con;
+    // NecroAstSymbol* fractional_type_class;
+    NecroAstSymbol* semi_ring_class;
+    NecroAstSymbol* ring_class;
+    NecroAstSymbol* division_ring_class;
+    NecroAstSymbol* euclidean_ring_class;
+    NecroAstSymbol* field_class;
     NecroAstSymbol* num_type_class;
-    NecroAstSymbol* fractional_type_class;
+    NecroAstSymbol* integral_class;
+    NecroAstSymbol* floating_class;
     NecroAstSymbol* eq_type_class;
     NecroAstSymbol* ord_type_class;
     NecroAstSymbol* functor_type_class;

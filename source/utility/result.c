@@ -1116,8 +1116,12 @@ void necro_print_duplicate_type_signatures_error(NecroResultError* error, const 
 
 void necro_print_not_in_scope_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
-    const char* explanation = "Could not find an identifier with this name in scope.";
-    necro_print_default_error_format("Name Not In Scope", error->default_ast_error_data.source_loc, error->default_ast_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_error_header("Name Not In Scope");
+    necro_print_line_at_source_loc(source_str, error->default_ast_error_data.source_loc, error->default_ast_error_data.end_loc);
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Could not find an identifier with this name in scope:\n");
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR "     %s\n", error->default_ast_error_data.ast_symbol->source_name->str);
+    fprintf(stderr, "\n");
+    UNUSED(source_name);
 }
 
 void necro_print_uninitialized_recursive_value_error(NecroResultError* error, const char* source_str, const char* source_name)

@@ -628,8 +628,9 @@ LLVMValueRef necro_llvm_codegen_binop(NecroLLVM* context, NecroMachAst* ast)
     case NECRO_PRIMOP_BINOP_FMUL: value = LLVMBuildFMul(context->builder, left, right, name); break;
     case NECRO_PRIMOP_BINOP_FDIV: value = LLVMBuildFDiv(context->builder, left, right, name); break;
     case NECRO_PRIMOP_BINOP_FREM: value = LLVMBuildFRem(context->builder, left, right, name); break;
-    case NECRO_PRIMOP_BINOP_OR:   value = LLVMBuildOr(context->builder, left, right, name);   break;
     case NECRO_PRIMOP_BINOP_AND:  value = LLVMBuildAnd(context->builder, left, right, name);  break;
+    case NECRO_PRIMOP_BINOP_OR:   value = LLVMBuildOr(context->builder, left, right, name);   break;
+    case NECRO_PRIMOP_BINOP_XOR:  value = LLVMBuildXor(context->builder, left, right, name);  break;
     case NECRO_PRIMOP_BINOP_SHL:  value = LLVMBuildShl(context->builder, left, right, name);  break;
     case NECRO_PRIMOP_BINOP_SHR:  value = LLVMBuildLShr(context->builder, left, right, name); break;
     default:
@@ -695,6 +696,7 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
             value = param;
         break;
     }
+    // case NECRO_PRIMOP_UOP_BREV: value = LLVMBi; break; // TODO
     case NECRO_PRIMOP_UOP_FFLR:
     {
         //--------------------
@@ -1054,7 +1056,6 @@ LLVMValueRef necro_llvm_codegen_call_intrinsic(NecroLLVM* context, NecroMachAst*
         result_name = ast->call_intrinsic.result_reg->value.reg_symbol->name->str;
     else
         result_name = "";
-
     LLVMValueRef fn_value = NULL;
     LLVMTypeRef  fn_type  = NULL;
     switch (ast->call_intrinsic.intrinsic)
@@ -1063,6 +1064,18 @@ LLVMValueRef necro_llvm_codegen_call_intrinsic(NecroLLVM* context, NecroMachAst*
         fn_type  = LLVMFunctionType(LLVMDoubleTypeInContext(context->context), (LLVMTypeRef[]) { LLVMDoubleTypeInContext(context->context), LLVMDoubleTypeInContext(context->context), LLVMDoubleTypeInContext(context->context) }, 3, false);
         fn_value = necro_llvm_intrinsic_get(context, context->base->fma->core_ast_symbol->mach_symbol, "llvm.fmuladd.f64", fn_type);
         break;
+    case NECRO_PRIMOP_INTR_BREV:
+    {
+        LLVMTypeRef arg_type = necro_llvm_type_from_mach_type(context, ast->necro_machine_type);
+        fn_type              = LLVMFunctionType(arg_type, (LLVMTypeRef[]) { arg_type }, 1, false);
+        if (arg_type == LLVMInt32TypeInContext(context->context))
+            fn_value = necro_llvm_intrinsic_get(context, context->base->fma->core_ast_symbol->mach_symbol, "llvm.bitreverse.i32", fn_type);
+        else if (arg_type == LLVMInt64TypeInContext(context->context))
+            fn_value = necro_llvm_intrinsic_get(context, context->base->fma->core_ast_symbol->mach_symbol, "llvm.bitreverse.i64", fn_type);
+        else
+            assert(false); // Only 32/64-bit ints supported currently
+        break;
+    }
     // case NECRO_PRIMOP_INTR_FLR:
     // {
     //     fn_type  = LLVMFunctionType(LLVMDoubleTypeInContext(context->context), (LLVMTypeRef[]) { LLVMDoubleTypeInContext(context->context) }, 1, false);

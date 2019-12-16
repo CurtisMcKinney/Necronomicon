@@ -487,7 +487,7 @@ void necro_parse_test()
                                 necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
                                     necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 1, .type = NECRO_AST_CONSTANT_INTEGER }),
                                     necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
-                                        necro_parse_ast_create_wildcard(&ast.arena, zero_loc, zero_loc),
+                                        necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "rest"), NECRO_VAR_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
                                         necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
                                             necro_parse_ast_create_constant(&ast.arena, zero_loc, zero_loc, (NecroParseAstConstant) { .int_literal = 3, .type = NECRO_AST_CONSTANT_INTEGER }),
                                             null_local_ptr)))), NECRO_SEQUENCE_SEQUENCE),

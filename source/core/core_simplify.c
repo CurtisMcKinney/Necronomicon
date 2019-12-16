@@ -1121,11 +1121,11 @@ NecroType* necro_type_inline_wrapper_types(NecroPagedArena* arena, NecroBase* ba
             return necro_type_inline_wrapper_types(arena, base, intern, necro_type_deep_copy(arena, necro_type_find(arg_type)));
             // return necro_type_deep_copy(arena, necro_type_find(arg_type));
         }
-        else if (type->con.con_symbol == base->share_type)
-        {
-            // Unwrap Share type (Magic...)
-            return necro_type_inline_wrapper_types(arena, base, intern, necro_type_deep_copy(arena, necro_type_find(type->con.args->list.item)));
-        }
+        // else if (type->con.con_symbol == base->share_type)
+        // {
+        //     // Unwrap Share type (Magic...)
+        //     return necro_type_inline_wrapper_types(arena, base, intern, necro_type_deep_copy(arena, necro_type_find(type->con.args->list.item)));
+        // }
         NecroType* args = necro_type_inline_wrapper_types(arena, base, intern, type->con.args);
         if (args == type->con.args)
             return type;

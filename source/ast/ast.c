@@ -495,7 +495,7 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
 
         case NECRO_AST_CONSTANT_FLOAT:
         {
-            NecroAst* from_ast               = necro_ast_create_var(arena, intern, "fromRational", NECRO_VAR_VAR);
+            NecroAst* from_ast               = necro_ast_create_var(arena, intern, "fromFloat", NECRO_VAR_VAR);
             from_ast->source_loc             = reified_ast->source_loc;
             from_ast->end_loc                = reified_ast->end_loc;
             NecroAst* new_ast                = necro_ast_alloc(arena, ast->type);

@@ -3840,8 +3840,8 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_btype(NecroParser* parser)
         necro_parse_restore(parser, snapshot);
     }
 
-    NecroParseAstLocalPtr atype    = necro_try_result(NecroParseAstLocalPtr, necro_parse_atype(parser, NECRO_VAR_TYPE_FREE_VAR));
-    NecroParseAstLocalPtr btype    = necro_try_result(NecroParseAstLocalPtr, necro_parse_btype_go(parser, atype));
+    NecroParseAstLocalPtr atype = necro_try_result(NecroParseAstLocalPtr, necro_parse_atype(parser, NECRO_VAR_TYPE_FREE_VAR));
+    NecroParseAstLocalPtr btype = necro_try_result(NecroParseAstLocalPtr, necro_parse_btype_go(parser, atype));
     if (btype == null_local_ptr)
     {
         necro_parse_restore(parser, snapshot);
@@ -3855,31 +3855,59 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_atype(NecroParser* parser, NECRO_
     NecroParserSnapshot   snapshot = necro_parse_snapshot(parser);
     NecroParseAstLocalPtr ptr      = null_local_ptr;
 
+    // *type
+    if (necro_parse_peek_token_type(parser) == NECRO_LEX_MUL)
+    {
+        NecroSourceLoc source_loc = necro_parse_peek_token(parser)->source_loc;
+        necro_parse_consume_token(parser);
+        ptr                       = necro_try_result(NecroParseAstLocalPtr, necro_parse_type(parser)); // TODO/NOTE: Or perhaps necro_parse_type
+        if (ptr != null_local_ptr)
+        {
+            ptr = necro_parse_ast_create_type_attribute(&parser->ast.arena, source_loc, source_loc, ptr, NECRO_TYPE_ATTRIBUTE_STAR);
+            return ok(NecroParseAstLocalPtr, ptr);
+        }
+        necro_parse_restore(parser, snapshot);
+    }
+
+    // .type
+    if (necro_parse_peek_token_type(parser) == NECRO_LEX_DOT)
+    {
+        NecroSourceLoc source_loc = necro_parse_peek_token(parser)->source_loc;
+        necro_parse_consume_token(parser);
+        ptr                       = necro_try_result(NecroParseAstLocalPtr, necro_parse_type(parser)); // TODO/NOTE: Or perhaps necro_parse_type
+        if (ptr != null_local_ptr)
+        {
+            ptr = necro_parse_ast_create_type_attribute(&parser->ast.arena, source_loc, source_loc, ptr, NECRO_TYPE_ATTRIBUTE_DOT);
+            return ok(NecroParseAstLocalPtr, ptr);
+        }
+        necro_parse_restore(parser, snapshot);
+    }
+
     // tycon
     ptr = necro_parse_tycon(parser, NECRO_CON_TYPE_VAR);
 
     // tyvar
     if (ptr == null_local_ptr)
     {
-        // ^tyvar
-        if (necro_parse_peek_token_type(parser) == NECRO_LEX_CARET)
-        {
-            necro_parse_consume_token(parser); // consume ^
+        // // ^tyvar
+        // if (necro_parse_peek_token_type(parser) == NECRO_LEX_CARET)
+        // {
+        //     necro_parse_consume_token(parser); // consume ^
+        //     ptr = necro_parse_tyvar(parser, tyvar_var_type);
+        //     if (ptr != null_local_ptr)
+        //     {
+        //         NecroParseAst* ast_node  = necro_parse_ast_get_node(&parser->ast, ptr);
+        //         ast_node->variable.order = NECRO_TYPE_HIGHER_ORDER;
+        //     }
+        //     else
+        //     {
+        //         necro_parse_restore(parser, snapshot);
+        //     }
+        // }
+        // else
+        // {
             ptr = necro_parse_tyvar(parser, tyvar_var_type);
-            if (ptr != null_local_ptr)
-            {
-                NecroParseAst* ast_node  = necro_parse_ast_get_node(&parser->ast, ptr);
-                ast_node->variable.order = NECRO_TYPE_HIGHER_ORDER;
-            }
-            else
-            {
-                necro_parse_restore(parser, snapshot);
-            }
-        }
-        else
-        {
-            ptr = necro_parse_tyvar(parser, tyvar_var_type);
-        }
+        // }
     }
 
     // Int literal

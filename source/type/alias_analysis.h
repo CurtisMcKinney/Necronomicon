@@ -29,7 +29,6 @@ typedef struct NecroUsage
 typedef struct NecroFreeVar
 {
     NecroAstSymbol* symbol;
-    // NecroType*      full_type;
     NecroType*      ownership_type;
     NecroSourceLoc  source_loc;
     NecroSourceLoc  end_loc;

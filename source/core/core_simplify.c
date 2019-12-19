@@ -1113,7 +1113,7 @@ NecroType* necro_type_inline_wrapper_types(NecroPagedArena* arena, NecroBase* ba
             NecroCoreAst* data_con  = data_decl->data_decl.con_list->data;
             assert(data_con->ast_type == NECRO_CORE_AST_DATA_CON);
             NecroType* data_con_type = data_con->data_con.type;
-            NecroType* data_con_inst = unwrap_result(NecroType, necro_type_instantiate(arena, NULL, base, data_con_type, NULL, zero_loc, zero_loc));
+            NecroType* data_con_inst = necro_type_instantiate(arena, NULL, base, data_con_type, NULL, zero_loc, zero_loc);
             NecroType* arg_type      = necro_type_fresh_var(arena, NULL);
             NecroType* this_con      = necro_type_fn_create(arena, arg_type, type);
             unwrap(NecroType, necro_kind_infer(arena, base, this_con, NULL_LOC, NULL_LOC));

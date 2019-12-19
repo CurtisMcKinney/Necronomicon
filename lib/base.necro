@@ -2,11 +2,17 @@
 -- Necro.Base
 --------------------
 
+flip :: .(.a -> .b -> .c) -> .b -> .a -> .c
+flip f y x = f x y
+
 id :: .a -> .a
 id x = x
 
-flip :: .(.a -> .b -> .c) -> .b -> .a -> .c
-flip f y x = f x y
+-- -- TODO: Move into tests!
+-- data ETest1 a   = ETest1 (Maybe a)
+-- data ETest2 a   = ETest2 (Bool, Maybe a)
+-- data ETest3 a   = ETest3 (Maybe (Bool, Maybe a))
+-- data HTest  a b = HTest (Maybe a) (Maybe b) (Either a b)
 
 fst :: (.a, .b) -> .a
 fst (x, _) = x
@@ -69,7 +75,7 @@ recipSampleRate = primUndefined
 data Bool = False | True
 
 -- TODO: primitive for not
-not :: Bool -> Bool
+not :: .Bool -> .Bool
 not b =
   case b of
     True -> False
@@ -634,17 +640,31 @@ instance Alternative Maybe where
       Nothing -> y
       _       -> x
 
+-- This are wrong, wtf is going on? Is it parsing wrong? Is it inferring wrong?
 maybe :: .b -> .(.a -> .b) -> Maybe .a -> .b
 maybe defaultValue f m =
   case m of
     Nothing -> defaultValue
     Just x  -> f x
 
+-- This are wrong, wtf is going on? Is it parsing wrong? Is it inferring wrong?
 fromMaybe :: .a -> Maybe .a -> .a
 fromMaybe defaultValue m =
   case m of
     Nothing -> defaultValue
     Just x  -> x
+
+
+--------------------
+-- Either
+--------------------
+data Either a b = Left a | Right b
+
+either :: .(.a -> .c) -> .(.b -> .c) -> Either .a .b -> .c
+either lf rf e =
+  case e of
+    Left  lx -> lf lx
+    Right rx -> rf rx
 
 
 --------------------
@@ -1444,10 +1464,10 @@ data FFT f k = FFT (f (Array k Complex))
 -- FFT size is required to be a power of 2 and a multiple of the current BlockSize
 -- TODO: Define a set of BlockSize multiple values? BlockSize2, BlockSize4, etc?
 
--- bitRevFFTArray :: Array BlockSize F64 -> *Array BlockSize Complex
--- bitRevFFTArray a =
---   loop a' = unsafeEmptyArray () for i <- each do
---     writeArray i (Complex (#readArray (unsafeUIntToIndex (bitReverse (unsafeIndexToUInt i))) a, 0#)) a'
+bitRevFFTArray :: Array BlockSize F64 -> *Array BlockSize Complex
+bitRevFFTArray a =
+  loop a' = unsafeEmptyArray () for i <- each do
+    writeArray i (Complex (#readArray (unsafeUIntToIndex (bitReverse (unsafeIndexToUInt i))) a, 0#)) a'
 
 -- -- NOTE: bitReverse Cooley-Tukey FFT algorithm
 -- -- TODO: Finish!
@@ -1707,7 +1727,7 @@ ptrMalloc :: UInt -> Ptr *a
 ptrMalloc capacity = primUndefined
 
 ptrRealloc :: UInt -> Ptr *a -> Ptr *a
-ptrRealloc capacity = primUndefined
+ptrRealloc capacity ptr = primUndefined
 
 ptrFree :: Ptr a -> *()
 ptrFree ptr = primUndefined
@@ -1718,7 +1738,7 @@ ptrFree ptr = primUndefined
 unsafePtrPoke :: UInt -> *a -> Ptr *a -> Ptr *a
 unsafePtrPoke index value ptr = primUndefined
 
-unsafePtrSwapElement :: UInt -> a -> Ptr *a -> (#*a, Ptr *a#)
+unsafePtrSwapElement :: UInt -> *a -> Ptr *a -> (#*a, Ptr *a#)
 unsafePtrSwapElement index element ptr = primUndefined
 
 -- unsafeCastPtr :: *Ptr a -> *Ptr b
@@ -1933,10 +1953,14 @@ dynArrayIteratorFree iter =
 --    * In data constructors monomorphic types are always shared in uniqueness (TODO: Allow users to put anon dots on Monomorphic types so that they share uniqueness with the other type!)
 --    * No uniqueness notation is allowed in data constructors
 --    * Propagation behavior is enforced by the type of the data constructor function!
+-- TODO: |> type: the fn should be polymorphic in its uniqueness! Same with flip...looks like anon uvar inference is wrong on functions?
+-- TODO: PolyThunk weird constraint bug?
+-- TODO: HKT + uniqueness typing...
 -- TODO: Constants are losing their for alls at some point!?!?!?
 -- TODO: Int con for infer constant type?
 -- TODO: Constants should be instantiated?
 -- TODO: make fromInt and fromFloat variable in Uniqueness?
+-- TODO: NatMul
 data PolyThunkState = PolyThunkAlloc | PolyThunkInit | PolyThunkEval
 data PolyThunk t a  = PolyThunk (#Ptr t, Ptr t, a, PolyThunkState, Float#)
 -- UpdateState, CopyState, Arg, ThunkState, SampleOffset
@@ -2140,11 +2164,16 @@ panTest = saw 440 |> pan 0.25
 -- pulse :: AudioFormat f => Audio f -> Audio f
 -- pulse freq = accumulateAudio2 accumulatePulse freq
 
+-- TODO / One Day... We need ~ constraints for this to work...
+-- class Freeze a where
+--   freeze :: (Freeze b, a ~ b) => *a -> b
+
 -- Sound ideas
 --     * Percussive simulations
 --     * Strange attractors in FFT?
 --     * Cool FFT effects we used: Convolution with voices, Long time stretching
 
+-- TODO: Put Uniqueness unify AFTER type unify for better error messages?
 -- TODO: type sig coerce constraint!
 -- TODO: Put constant check on initializers, not in type signatures. It doesn't need to be in the type system to be checked! Then we can nix Default for Monoid?
 -- TODO: FFT generated signals, pure FFT

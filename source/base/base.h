@@ -71,12 +71,15 @@ typedef struct NecroBase
     NecroAstSymbol* seq_value_type;
     // NecroAstSymbol* list_type;
     NecroAstSymbol* int_type;
+    NecroAstSymbol* int_con;
     NecroAstSymbol* int64_type;
     NecroAstSymbol* uint_type;
     NecroAstSymbol* float_type;
+    NecroAstSymbol* float_con;
     NecroAstSymbol* float64_type;
     NecroAstSymbol* rational_type;
     NecroAstSymbol* char_type;
+    NecroAstSymbol* char_con;
     NecroAstSymbol* bool_type;
     NecroAstSymbol* true_con;
     NecroAstSymbol* false_con;

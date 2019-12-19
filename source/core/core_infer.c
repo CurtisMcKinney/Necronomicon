@@ -108,7 +108,7 @@ NecroResult(NecroType) necro_core_infer_var(NecroCoreInfer* infer, NecroCoreAst*
         NecroType* type = NULL;
         if (ast->var.ast_symbol->type->type == NECRO_TYPE_FOR)
         {
-            type = necro_try_result(NecroType, necro_type_instantiate(infer->arena, NULL, infer->base, ast->var.ast_symbol->type, NULL, zero_loc, zero_loc));
+            type = necro_type_instantiate(infer->arena, NULL, infer->base, ast->var.ast_symbol->type, NULL, zero_loc, zero_loc);
         }
         else
         {

@@ -45,16 +45,16 @@ typedef enum
 
 typedef struct
 {
-    NecroAstSymbol*             var_symbol;
-    struct NecroType*           bound;
-    struct NecroScope*          scope;
-    bool                        is_rigid;
+    NecroAstSymbol*    var_symbol;
+    struct NecroType*  bound;
+    struct NecroScope* scope;
+    bool               is_rigid;
 } NecroTypeVar;
 
 typedef struct
 {
-    struct NecroType*          type1;
-    struct NecroType*          type2;
+    struct NecroType* type1;
+    struct NecroType* type2;
 } NecroTypeApp;
 
 typedef struct
@@ -79,6 +79,7 @@ typedef struct
 {
     NecroAstSymbol*   var_symbol;
     struct NecroType* type;
+    bool              is_normalized;
 } NecroTypeForAll;
 
 typedef struct
@@ -127,12 +128,12 @@ NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, s
 NecroResult(NecroType) necro_type_unify(NecroPagedArena* arena, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroType* type1, NecroType* type2, struct NecroScope* scope);
 void                   necro_type_unify_con_uninhabited_args(NecroPagedArena* arena, struct NecroBase* base, NecroType* type1, NecroType* type2);
 NecroResult(NecroType) necro_type_occurs(NecroAstSymbol* var_symbol, NecroType* type);
-NecroResult(NecroType) necro_type_instantiate(NecroPagedArena* arenas, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroType* type, struct NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
-NecroResult(NecroType) necro_type_replace_with_subs_deep_copy(NecroPagedArena* arena, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroType* type, NecroInstSub* subs);
+NecroType*             necro_type_instantiate(NecroPagedArena* arenas, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroType* type, struct NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroType*             necro_type_replace_with_subs_deep_copy(NecroPagedArena* arena, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroType* type, NecroInstSub* subs);
 NecroInstSub*          necro_type_union_subs(NecroPagedArena* arena, struct NecroBase* base, NecroInstSub* subs1, NecroInstSub* subs2);
 NecroInstSub*          necro_type_deep_copy_subs(NecroPagedArena* arena, NecroInstSub* subs);
 NecroInstSub*          necro_type_filter_and_deep_copy_subs(NecroPagedArena* arena, NecroInstSub* subs, NecroAstSymbol* var_to_replace, NecroType* new_name);
-NecroResult(NecroType) necro_type_instantiate_with_subs(NecroPagedArena* arena, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroType* type, struct NecroScope* scope, NecroInstSub** subs, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroType*             necro_type_instantiate_with_subs(NecroPagedArena* arena, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroType* type, struct NecroScope* scope, NecroInstSub** subs, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroType) necro_type_generalize(NecroPagedArena* arena, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroIntern* intern, NecroType* type, struct NecroScope* scope);
 bool                   necro_type_is_higher_order_function(const NecroType* type, size_t arity);
 
@@ -183,6 +184,7 @@ NecroType*             necro_type_unboxed_tuple_con_create(NecroPagedArena* aren
 NecroType*             necro_type_ownership_fresh_var(NecroPagedArena* arena, struct NecroBase* base, struct NecroScope* scope);
 NecroResult(NecroType) necro_type_infer_and_unify_ownership_for_two_types(NecroPagedArena* arena, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroType* type1, NecroType* type2, struct NecroScope* scope);
 NecroResult(NecroType) necro_uniqueness_propagate(NecroPagedArena* arena, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroIntern* intern, NecroType* type, struct NecroScope* scope, struct NecroFreeVarList* free_vars, const bool force_propagation, NecroSourceLoc source_loc, NecroSourceLoc end_loc, enum NECRO_CONSTRAINT_TYPE uniqueness_coercion_type);
+NecroResult(NecroType) necro_uniqueness_propagate_data_con(NecroPagedArena* arena, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroIntern* intern, NecroType* type, struct NecroScope* scope, struct NecroFreeVarList* free_vars, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroAstSymbol* data_type_symbol, NecroType* data_type_uvar);
 NecroResult(NecroType) necro_type_ownership_unify(NecroPagedArena* arena, struct NecroConstraintEnv* con_env, NecroType* ownership1, NecroType* ownership2, struct NecroScope* scope);
 NecroResult(NecroType) necro_type_ownership_unify_with_info(NecroPagedArena* arena, struct NecroConstraintEnv* con_env, struct NecroBase* base, NecroType* ownership1, NecroType* ownership2, struct NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(void)      necro_type_ownership_bind_uvar(NecroType* uvar_to_bind, NecroType* utype_to_bind_to, NecroSourceLoc source_loc, NecroSourceLoc end_loc);

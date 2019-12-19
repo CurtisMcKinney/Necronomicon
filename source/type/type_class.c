@@ -36,14 +36,15 @@ NecroType* necro_instantiate_method_sig(NecroInfer* infer, NecroType* a_method_t
 {
     a_data_type->ownership = NULL;
     NecroInstSub* subs     = NULL;
-    NecroType*    type     = unwrap_result(NecroType, necro_type_instantiate_with_subs(infer->arena, &infer->con_env, infer->base, a_method_type, NULL, &subs, source_loc, end_loc));
-    a_data_type            = unwrap_result(NecroType, necro_type_instantiate(infer->arena, &infer->con_env, infer->base, a_data_type, NULL, source_loc, end_loc));
+    NecroType*    type     = necro_type_instantiate_with_subs(infer->arena, &infer->con_env, infer->base, a_method_type, NULL, &subs, source_loc, end_loc);
+    a_data_type            = necro_type_instantiate(infer->arena, &infer->con_env, infer->base, a_data_type, NULL, source_loc, end_loc);
     while (subs != NULL)
     {
         if (subs->var_to_replace->is_class_head_var)
         {
             unwrap(NecroType, necro_type_unify(infer->arena, &infer->con_env, infer->base, subs->new_name, a_data_type, NULL));
             unwrap(void, necro_kind_infer_default_unify_with_star(infer->arena, infer->base, type, NULL, NULL_LOC, NULL_LOC));
+            unwrap(NecroType, necro_uniqueness_propagate(infer->arena, &infer->con_env, infer->base, infer->intern, type, NULL, NULL, true, source_loc, end_loc, NECRO_CONSTRAINT_UCOERCE));
             type = unwrap_result(NecroType, necro_type_generalize(infer->arena, &infer->con_env, infer->base, infer->intern, type, NULL));
             unwrap(void, necro_kind_infer_default_unify_with_star(infer->arena, infer->base, type, NULL, NULL_LOC, NULL_LOC));
             return type;
@@ -227,6 +228,7 @@ NecroResult(NecroType) necro_create_type_class(NecroInfer* infer, NecroAst* type
                 necro_try(NecroType, necro_kind_unify(type_sig->kind, infer->base->star_kind->type, NULL));
                 method_ast->type_signature.var->variable.ast_symbol->type              = type_sig;
                 method_ast->type_signature.var->variable.ast_symbol->method_type_class = type_class;
+                necro_try(NecroType, necro_uniqueness_propagate(infer->arena, &infer->con_env, infer->base, infer->intern, type_sig, method_ast->scope, NULL, true, method_ast->source_loc, method_ast->end_loc, NECRO_CONSTRAINT_UCOERCE));
 
                 // Add Class constraint
                 necro_try(NecroType, necro_constraint_class_variable_check(type_class, type_class->type_var, method_ast->type_signature.var->variable.ast_symbol, method_cons));
@@ -846,7 +848,7 @@ NecroResult(void) necro_constraint_simplify_class_constraint(NecroPagedArena* ar
         {
             return necro_error_map(NecroType, void, necro_type_not_an_instance_of_error(type_class->type_class_name, type, NULL, type, NULL, constraint->source_loc, constraint->end_loc));
         }
-        NecroType* instance_data_inst = necro_try_map_result(NecroType, void, necro_type_instantiate(arena, con_env, base, instance->data_type, instance->ast->scope, constraint->source_loc, constraint->end_loc));
+        NecroType* instance_data_inst = necro_type_instantiate(arena, con_env, base, instance->data_type, instance->ast->scope, constraint->source_loc, constraint->end_loc);
         necro_try_map(NecroType, void, necro_type_unify_with_full_info(arena, con_env, base, instance_data_inst, type, NULL, constraint->source_loc, constraint->end_loc, instance_data_inst, type));
         return ok_void();
     }

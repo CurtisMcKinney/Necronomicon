@@ -45,7 +45,7 @@ typedef struct
 typedef struct
 {
     NecroType* type1;
-    NecroType* u2;
+    NecroType* type2;
 } NecroConstraintUniquenessCoercion;
 
 typedef struct

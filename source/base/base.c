@@ -59,10 +59,13 @@ NecroBase necro_base_create()
         .unit_con               = NULL,
         // .list_type              = NULL,
         .int_type               = NULL,
+        .int_con                = NULL,
         .float_type             = NULL,
+        .float_con              = NULL,
         // .audio_type             = NULL,
         .rational_type          = NULL,
         .char_type              = NULL,
+        .char_con               = NULL,
         .bool_type              = NULL,
         .true_con               = NULL,
         .false_con              = NULL,
@@ -1370,11 +1373,14 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     // base.list_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "[]"));
     // Int con for infer constant?
     base.int_type               = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Int"));
+    base.int_con                = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "Int"));
     base.uint_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "UInt"));
     base.float_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Float"));
+    base.float_con              = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "Float"));
     base.int64_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "I64"));
     base.float64_type           = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "F64"));
     base.char_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Char"));
+    base.char_con               = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "Char"));
     base.bool_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Bool"));
     base.true_con               = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "True"));
     base.false_con              = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "False"));

@@ -705,7 +705,7 @@ void necro_ownership_test(const char* test_name, const char* str, NECRO_RESULT_T
     }
 
 #if NECRO_ALIAS_ANALYSIS_VERBOSE
-    // necro_scoped_symtable_print_top_scopes(&scoped_symtable);
+    necro_scoped_symtable_print_top_scopes(&scoped_symtable);
 #endif
 
     bool passed = result.type == expected_result;
@@ -1193,9 +1193,8 @@ void necro_alias_analysis_test()
             "nid :: a -> a\n"
             "nid x = x\n"
             "dup x y = (uid x, nid y)\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
-        necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -1374,6 +1373,42 @@ void necro_alias_analysis_test()
     }
 
     {
+        const char* test_name   = "Class Test 1";
+        const char* test_source = ""
+            "class UClass a where\n"
+            "  fu :: *a -> Maybe *a\n"
+            "instance UClass Bool where\n"
+            "  fu b = Just b\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Class Test 2";
+        const char* test_source = ""
+            "class UClass a where\n"
+            "  fu :: *a -> Maybe *a\n"
+            "instance UClass Bool where\n"
+            "  fu b = Just b\n"
+            "ezGame :: (UClass a, UClass b) => *a -> *b -> (Maybe *a, Maybe *b)\n"
+            "ezGame x y = (fu x, fu y)\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Class Test 3";
+        const char* test_source = ""
+            "class UClass a where\n"
+            "  fu :: *a -> Bool\n"
+            "instance UClass Bool where\n"
+            "  fu b = b\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
+        necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
         const char* test_name   = "HKT 1";
         const char* test_source = ""
             "data AppMaybe m a = AppMaybe (m a)\n"
@@ -1406,42 +1441,6 @@ void necro_alias_analysis_test()
             "bang         = notFrugal ()\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
         necro_ownership_test(test_name, test_source, expect_error_result, NULL);
-    }
-
-    {
-        const char* test_name   = "Class Test 1";
-        const char* test_source = ""
-            "class UClass a where\n"
-            "  fu :: *a -> *Maybe a\n"
-            "instance UClass Bool where\n"
-            "  fu b = Just b\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
-        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
-    }
-
-    {
-        const char* test_name   = "Class Test 2";
-        const char* test_source = ""
-            "class UClass a where\n"
-            "  fu :: *a -> Maybe *a\n"
-            "instance UClass Bool where\n"
-            "  fu b = Just b\n"
-            "ezGame :: (UClass a, UClass b) => *a -> *b -> (Maybe *a, Maybe *b)\n"
-            "ezGame x y = (fu x, fu y)\n";
-        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
-        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
-    }
-
-    {
-        const char* test_name   = "Class Test 3";
-        const char* test_source = ""
-            "class UClass a where\n"
-            "  fu :: *a -> Bool\n"
-            "instance UClass Bool where\n"
-            "  fu b = b\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
-        necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
     }
 
     // Seems like sharing isn't propagating correctly here!

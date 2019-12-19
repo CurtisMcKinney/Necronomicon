@@ -295,10 +295,11 @@ NecroSymbol necro_intern_unique_string(NecroIntern* intern, const char* str)
     char                   itoa_buf[NECRO_ITOA_BUF_LENGTH];
     do
     {
-        char* itoa_result = necro_itoa((uint32_t)intern->clash_suffix, itoa_buf, NECRO_ITOA_BUF_LENGTH, 36);
+        char* itoa_result = necro_itoa((uint32_t)intern->clash_suffix, itoa_buf, NECRO_ITOA_BUF_LENGTH, 24);
+        // char* itoa_result = necro_itoa((uint32_t)intern->clash_suffix, itoa_buf, NECRO_ITOA_BUF_LENGTH, 10);
         assert(itoa_result != NULL);
         intern->clash_suffix++;
-        snprintf(unique_str, buf_size, "%s_%s", str, itoa_buf);
+        snprintf(unique_str, buf_size, "%s%s", str, itoa_buf);
         probe_result = necro_intern_prob(intern, unique_str);
         memset(itoa_buf, '\0', 16 * sizeof(char));
     }

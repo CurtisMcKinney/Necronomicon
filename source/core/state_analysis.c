@@ -675,7 +675,7 @@ NecroType* necro_core_ast_type_specialize(NecroStateAnalysis* sa, NecroType* typ
 
             //--------------------
             // Specialize data_con type
-            NecroType* data_con_type   = unwrap_result(NecroType, necro_type_instantiate(sa->arena, NULL, sa->base, poly_con_type, NULL, zero_loc, zero_loc));
+            NecroType* data_con_type   = necro_type_instantiate(sa->arena, NULL, sa->base, poly_con_type, NULL, zero_loc, zero_loc);
             NecroType* data_con_result = data_con_type;
             while (data_con_result->type == NECRO_TYPE_FUN)
                 data_con_result = data_con_result->fun.type2;

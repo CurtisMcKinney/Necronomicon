@@ -2,17 +2,19 @@
 -- Necro.Base
 --------------------
 
+-- -- TODO: Move into tests!
+-- data HKT  t a   = HKT  (t a)
+-- data HKT2 t a b = HKT2 (t a b)
+-- data ETest1 a   = ETest1 (Maybe a)
+-- data ETest2 a   = ETest2 (Bool, Maybe a)
+-- data ETest3 a   = ETest3 (Maybe (Bool, Maybe a))
+-- data HTest  a b = HTest (Maybe a) (Maybe b) (Either a b)
+
 flip :: .(.a -> .b -> .c) -> .b -> .a -> .c
 flip f y x = f x y
 
 id :: .a -> .a
 id x = x
-
--- -- TODO: Move into tests!
--- data ETest1 a   = ETest1 (Maybe a)
--- data ETest2 a   = ETest2 (Bool, Maybe a)
--- data ETest3 a   = ETest3 (Maybe (Bool, Maybe a))
--- data HTest  a b = HTest (Maybe a) (Maybe b) (Either a b)
 
 fst :: (.a, .b) -> .a
 fst (x, _) = x
@@ -94,6 +96,9 @@ class Semigroup m => Monoid m where
 
 class Functor f where
   map :: (a -> b) -> f a -> f b
+
+class UFunctor f where
+  umap :: .(.a -> .b) -> f .a -> f .b
 
 class FunctorN f where
   map2 :: (a -> b -> c) -> f a -> f b -> f c
@@ -612,6 +617,12 @@ instance Functor Maybe where
     case m of
       Just x  -> Just (f x)
       Nothing -> nothing
+
+instance UFunctor Maybe where
+  umap f m =
+    case m of
+      Just x  -> Just (f x)
+      Nothing -> Nothing
 
 instance FunctorN Maybe where
   map2 f mx my =
@@ -1425,7 +1436,7 @@ instance Num Complex where
             Complex (#r / m, i / m#)
 
 -- TODO: Finish
--- instance Floating Channel where
+-- instance Floating Complex where
 --   fromFloat f = BlockRate (fromFloat f)
 
 --------------------
@@ -1772,7 +1783,6 @@ mutRefPut x ptr =
 -- DynArray
 ----------------------
 
--- TODO: Are monomorphic types broken with new uniqueness system!?!?!?!?
 data DynTier     a = DynTier (#UInt, UInt, UInt, Ptr a#)
 data DynArray    a = DynArray (#DynTier a, DynTier a#)
 data DynTierIndex  = DynTierLow | DynTierHigh
@@ -1950,17 +1960,10 @@ dynArrayIteratorFree iter =
 -- NOTE on Propagation:
 --    * All Type variables are propagating
 --    * In data constructors type variables are always polymorphic in uniqueness
---    * In data constructors monomorphic types are always shared in uniqueness (TODO: Allow users to put anon dots on Monomorphic types so that they share uniqueness with the other type!)
---    * No uniqueness notation is allowed in data constructors
+--    * In data constructors monomorphic types are always shared in uniqueness (TODO: Allow users to put anon dots on Monomorphic types so that they share uniqueness with the declared type!)
+--    * No uniqueness notation is allowed in data constructors (except for in the future anon dots on type apps and monomorphic types!)
+--    * Higher Kinded Types do not have uniqueness types and do not propagate uniqueness, instead Type Applications have uniqueness types associated with them and are propagating!
 --    * Propagation behavior is enforced by the type of the data constructor function!
--- TODO: |> type: the fn should be polymorphic in its uniqueness! Same with flip...looks like anon uvar inference is wrong on functions?
--- TODO: PolyThunk weird constraint bug?
--- TODO: HKT + uniqueness typing...
--- TODO: Constants are losing their for alls at some point!?!?!?
--- TODO: Int con for infer constant type?
--- TODO: Constants should be instantiated?
--- TODO: make fromInt and fromFloat variable in Uniqueness?
--- TODO: NatMul
 data PolyThunkState = PolyThunkAlloc | PolyThunkInit | PolyThunkEval
 data PolyThunk t a  = PolyThunk (#Ptr t, Ptr t, a, PolyThunkState, Float#)
 -- UpdateState, CopyState, Arg, ThunkState, SampleOffset
@@ -2173,6 +2176,7 @@ panTest = saw 440 |> pan 0.25
 --     * Strange attractors in FFT?
 --     * Cool FFT effects we used: Convolution with voices, Long time stretching
 
+-- TODO: NatMul
 -- TODO: Put Uniqueness unify AFTER type unify for better error messages?
 -- TODO: type sig coerce constraint!
 -- TODO: Put constant check on initializers, not in type signatures. It doesn't need to be in the type system to be checked! Then we can nix Default for Monoid?

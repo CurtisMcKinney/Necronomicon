@@ -222,13 +222,20 @@ NecroResult(NecroType) necro_create_type_class(NecroInfer* infer, NecroAst* type
                 // NOTE: TypeClass's context should ALWAYS BE FIRST!
                 NecroConstraintList* method_cons = necro_try_map_result(NecroConstraintList, NecroType, necro_constraint_list_from_ast(infer, method_ast->type_signature.context));
 
+                necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, type_sig, method_ast->source_loc, method_ast->end_loc));
+                necro_try(NecroType, necro_kind_unify(type_sig->kind, infer->base->star_kind->type, NULL));
+                necro_try(NecroType, necro_uniqueness_propagate(infer->arena, &infer->con_env, infer->base, infer->intern, type_sig, method_ast->scope, NULL, true, method_ast->source_loc, method_ast->end_loc, NECRO_CONSTRAINT_UCOERCE));
+
                 type_sig->pre_supplied = true;
                 type_sig               = necro_try_result(NecroType, necro_type_generalize(infer->arena, &infer->con_env, infer->base, infer->intern, type_sig, NULL));
                 necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, type_sig, method_ast->source_loc, method_ast->end_loc));
                 necro_try(NecroType, necro_kind_unify(type_sig->kind, infer->base->star_kind->type, NULL));
                 method_ast->type_signature.var->variable.ast_symbol->type              = type_sig;
                 method_ast->type_signature.var->variable.ast_symbol->method_type_class = type_class;
-                necro_try(NecroType, necro_uniqueness_propagate(infer->arena, &infer->con_env, infer->base, infer->intern, type_sig, method_ast->scope, NULL, true, method_ast->source_loc, method_ast->end_loc, NECRO_CONSTRAINT_UCOERCE));
+
+                // printf("%s :: ", method_ast->type_signature.var->variable.ast_symbol->source_name->str);
+                // necro_type_print(type_sig);
+                // puts("");
 
                 // Add Class constraint
                 necro_try(NecroType, necro_constraint_class_variable_check(type_class, type_class->type_var, method_ast->type_signature.var->variable.ast_symbol, method_cons));
@@ -413,6 +420,10 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
                 NecroType* inst_method_type                                                    = necro_instantiate_method_sig(infer, method_type, instance->data_type, method_ast->source_loc, method_ast->end_loc);
                 instance->dictionary_prototype->instance_member_ast_symbol->type               = inst_method_type;
                 instance->dictionary_prototype->instance_member_ast_symbol->type->pre_supplied = true;
+
+                // printf("%s :: ", instance->dictionary_prototype->instance_member_ast_symbol->source_name->str);
+                // necro_type_print(inst_method_type);
+                // puts("");
 
                 //--------------------------------
                 // next

@@ -88,10 +88,11 @@ bool                 necro_constraint_is_equal(NecroConstraint* con1, NecroConst
 NecroConstraintList* necro_constraint_append_uniqueness_constraint_and_queue_push_back(NecroPagedArena* arena, NecroConstraintEnv* env, NecroType* u1, NecroType* u2, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroConstraintList* next);
 void                 necro_constraint_push_back_uniqueness_constraint(NecroPagedArena* arena, NecroConstraintEnv* env, struct NecroBase* base, struct NecroIntern* intern, NecroType* u1, NecroType* u2, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 void                 necro_constraint_push_back_uniqueness_coercion(NecroPagedArena* arena, NecroConstraintEnv* env, struct NecroBase* base, struct NecroIntern* intern, NecroType* type1, NecroType* u2, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
-void                 necro_constraint_push_back_uniqueness_constraint_or_coercion(NecroPagedArena* arena, NecroConstraintEnv* env, struct NecroBase* base, struct NecroIntern* intern, NecroType* type1, NecroType* u2, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NECRO_CONSTRAINT_TYPE constraint_type);
 NecroConstraintList* necro_constraint_append_class_constraint_and_queue_push_back(NecroPagedArena* arena, NecroConstraintEnv* env, NecroTypeClass* type_class, NecroType* type1, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroConstraintList* next);
 NecroConstraintList* necro_constraint_append_class_constraint(NecroPagedArena* arena, NecroTypeClass* type_class, NecroType* type1, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroConstraintList* next);
 NecroResult(void)    necro_constraint_simplify(NecroPagedArena* arena, NecroConstraintEnv* env, struct NecroBase* base, struct NecroIntern* intern);
+NecroResult(void)    necro_constraint_simplify_uniqueness_coerce(NecroPagedArena* arena, NecroConstraintEnv* con_env, struct NecroBase* base, struct NecroIntern* intern, NecroConstraint* con);
+// NecroResult(void)    necro_constraint_simplify_uniqueness_coerce_2(NecroPagedArena* arena, NecroConstraintEnv* con_env, struct NecroBase* base, struct NecroIntern* intern, NecroConstraint* con);
 NecroConstraintEnv   necro_constraint_env_empty();
 NecroConstraintEnv   necro_constraint_env_create();
 void                 necro_constraint_env_destroy(NecroConstraintEnv* env);

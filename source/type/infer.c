@@ -130,8 +130,11 @@ NecroResult(void) necro_constraint_simplify_uniqueness_constraint(NecroPagedAren
     {
         if (u2->type == NECRO_TYPE_VAR)
         {
-            necro_type_name_if_anon_type(base, intern, u1);
-            necro_type_name_if_anon_type(base, intern, u2);
+            if (intern != NULL)
+            {
+                necro_type_name_if_anon_type(base, intern, u1);
+                necro_type_name_if_anon_type(base, intern, u2);
+            }
             if (!necro_constraint_list_contains_constraints(u1->var.var_symbol->constraints, con))
                 u1->var.var_symbol->constraints = necro_cons_constraint_list(arena, con, u1->var.var_symbol->constraints);
             return ok_void();
@@ -161,6 +164,7 @@ NecroResult(void) necro_constraint_simplify_uniqueness_constraint(NecroPagedAren
 
 NecroResult(void) necro_constraint_simplify_uniqueness_coerce(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroIntern* intern, NecroConstraint* con)
 {
+    UNUSED(intern);
     assert(con->type == NECRO_CONSTRAINT_UCOERCE);
     NecroType* t1 = necro_type_find(con->ucoerce.type1);
     NecroType* u1 = necro_type_find(t1->ownership);
@@ -177,14 +181,6 @@ NecroResult(void) necro_constraint_simplify_uniqueness_coerce(NecroPagedArena* a
         if (u2->type == NECRO_TYPE_VAR)
         {
             t1->ownership = necro_type_ownership_fresh_var(arena, base, NULL);
-            // necro_constraint_push_back_uniqueness_coercion(arena, con_env, base, intern, t1, t2, con->source_loc, con->end_loc);
-            // NecroConstraint* constraint = necro_paged_arena_alloc(arena, sizeof(NecroConstraint));
-            // constraint->type = NECRO_CONSTRAINT_UCOERCE;
-            // constraint->ucoerce.type1 = type1;
-            // constraint->ucoerce.type2 = type2;
-            // constraint->source_loc = source_loc;
-            // constraint->end_loc = end_loc;
-            // return ok_void();
             return necro_constraint_simplify_uniqueness_coerce(arena, con_env, base, intern, con);
         }
         else if (necro_type_is_ownership_share(base, u2))
@@ -202,16 +198,13 @@ NecroResult(void) necro_constraint_simplify_uniqueness_coerce(NecroPagedArena* a
     {
         if (u2->type == NECRO_TYPE_VAR)
         {
-            // necro_constraint_push_back_uniqueness_constraint(arena, con_env, base, intern, u1, u2, con->source_loc, con->end_loc);
+            // Add constraint
             con->type           = NECRO_CONSTRAINT_UCONSTRAINT;
             con->uconstraint.u1 = u1;
             con->uconstraint.u2 = u2;
-            // necro_type_name_if_anon_type(base, intern, u1);
-            // necro_type_name_if_anon_type(base, intern, u2);
-            // if (!necro_constraint_list_contains_constraints(u1->var.var_symbol->constraints, con))
-            //     u1->var.var_symbol->constraints = necro_cons_constraint_list(arena, con, u1->var.var_symbol->constraints);
-            // return ok_void();
             return necro_constraint_simplify_uniqueness_constraint(arena, base, intern, con);
+            // necro_constraint_dequeue_push_back(&con_env->constraints, con);
+            // return ok_void();
         }
         else if (necro_type_is_ownership_share(base, u2))
         {
@@ -237,6 +230,93 @@ NecroResult(void) necro_constraint_simplify_uniqueness_coerce(NecroPagedArena* a
     }
     necro_unreachable(void);
 }
+
+// NecroResult(void) necro_constraint_simplify_uniqueness_coerce_2(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroIntern* intern, NecroConstraint* con)
+// {
+//     UNUSED(intern);
+//     assert(con->type == NECRO_CONSTRAINT_UCOERCE);
+//     NecroType* t1 = necro_type_find(con->ucoerce.type1);
+//     NecroType* u1 = necro_type_find(t1->ownership);
+//     NecroType* t2 = necro_type_find(con->ucoerce.type2);
+//     NecroType* u2 = necro_type_find(t2->ownership);
+//     assert(u1 != NULL);
+//     assert(u2 != NULL);
+//     assert(necro_kind_is_ownership(base, u1));
+//     assert(necro_kind_is_ownership(base, u2));
+//     if (u1 == u2)
+//         return ok_void();
+//     if (necro_type_is_ownership_share(base, u1))
+//     {
+//         if (u2->type == NECRO_TYPE_VAR)
+//         {
+//             // t1->ownership = necro_type_ownership_fresh_var(arena, base, NULL);
+//             // return necro_constraint_simplify_uniqueness_coerce(arena, con_env, base, intern, con);
+//             // Mutate into Type var and then add constraint
+//             u1->type                 = NECRO_TYPE_VAR;
+//             u1->var.bound            = NULL;
+//             u1->var.is_rigid         = false;
+//             u1->var.scope            = NULL;
+//             u1->var.var_symbol       = necro_ast_symbol_create(arena, necro_intern_unique_string(intern, "q"), NULL, NULL, NULL);
+//             u1->var.var_symbol->type = u1;
+//             con->type                = NECRO_CONSTRAINT_UCONSTRAINT;
+//             con->uconstraint.u1      = u1;
+//             con->uconstraint.u2      = u2;
+//             necro_constraint_dequeue_push_back(&con_env->constraints, con);
+//             return ok_void();
+//         }
+//         else if (necro_type_is_ownership_share(base, u2))
+//         {
+//             return ok_void();
+//         }
+//         else if (necro_type_is_ownership_owned(base, u2))
+//         {
+//             // t1->ownership = u2;
+//             u1->type                 = NECRO_TYPE_VAR;
+//             u1->var.bound            = u2;
+//             u1->var.is_rigid         = false;
+//             u1->var.scope            = NULL;
+//             u1->var.var_symbol       = necro_ast_symbol_create(arena, necro_intern_unique_string(intern, "q"), NULL, NULL, NULL);
+//             u1->var.var_symbol->type = u1;
+//             return ok_void();
+//         }
+//         necro_unreachable(void);
+//     }
+//     else if (u1->type == NECRO_TYPE_VAR)
+//     {
+//         if (u2->type == NECRO_TYPE_VAR)
+//         {
+//             // return necro_constraint_simplify_uniqueness_constraint(arena, base, intern, con);
+//             // Add constraint
+//             con->type           = NECRO_CONSTRAINT_UCONSTRAINT;
+//             con->uconstraint.u1 = u1;
+//             con->uconstraint.u2 = u2;
+//             necro_constraint_dequeue_push_back(&con_env->constraints, con);
+//             return ok_void();
+//         }
+//         else if (necro_type_is_ownership_share(base, u2))
+//         {
+//             return ok_void();
+//         }
+//         else if (necro_type_is_ownership_owned(base, u2))
+//         {
+//             // return necro_type_ownership_bind_uvar(u1, u2, con->source_loc, con->end_loc);
+//             u1->var.bound = u2;
+//             return ok_void();
+//         }
+//         necro_unreachable(void);
+//     }
+//     else if (necro_type_is_ownership_owned(base, u1))
+//     {
+//         if (u2->type == NECRO_TYPE_VAR)
+//             return ok_void();
+//         else if (necro_type_is_ownership_share(base, u2))
+//             return ok_void();
+//         else if (necro_type_is_ownership_owned(base, u2))
+//             return ok_void();
+//         necro_unreachable(void);
+//     }
+//     necro_unreachable(void);
+// }
 
 NecroResult(void) necro_constraint_simplify(NecroPagedArena* arena, NecroConstraintEnv* env, NecroBase* base, NecroIntern* intern)
 {
@@ -304,14 +384,6 @@ void necro_constraint_push_back_uniqueness_coercion(NecroPagedArena* arena, Necr
     constraint->source_loc      = source_loc;
     constraint->end_loc         = end_loc;
     necro_constraint_dequeue_push_back(&env->constraints, constraint);
-}
-
-void necro_constraint_push_back_uniqueness_constraint_or_coercion(NecroPagedArena* arena, NecroConstraintEnv* env, struct NecroBase* base, struct NecroIntern* intern, NecroType* type1, NecroType* type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NECRO_CONSTRAINT_TYPE constraint_type)
-{
-    if (constraint_type == NECRO_CONSTRAINT_UCONSTRAINT)
-        necro_constraint_push_back_uniqueness_constraint(arena, env, base, intern, type1->ownership, type2->ownership, source_loc, end_loc);
-    else
-        necro_constraint_push_back_uniqueness_coercion(arena, env, base, intern, type1, type2, source_loc, end_loc);
 }
 
 NecroConstraintList* necro_constraint_append_class_constraint_and_queue_push_back(NecroPagedArena* arena, NecroConstraintEnv* env, NecroTypeClass* type_class, NecroType* type1, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroConstraintList* next)
@@ -593,7 +665,6 @@ NecroResult(NecroType) necro_infer_type_sig(NecroInfer* infer, NecroAst* ast)
     NecroConstraintList* constraints = necro_try_map_result(NecroConstraintList, NecroType, necro_constraint_list_from_ast(infer, ast->type_signature.context));
 
     necro_try_map(void, NecroType, necro_kind_infer_default_unify_with_star(infer->arena, infer->base, type_sig, ast->scope, ast->type_signature.type->source_loc, ast->type_signature.type->end_loc));
-    // necro_try(NecroType, necro_type_ownership_infer_from_sig(infer->arena, &infer->con_env, infer->base, infer->intern, type_sig, NULL, ast->source_loc, ast->end_loc));
     necro_try(NecroType, necro_uniqueness_propagate(infer->arena, &infer->con_env, infer->base, infer->intern, type_sig, ast->scope, NULL, true, ast->source_loc, ast->end_loc, NECRO_CONSTRAINT_UCOERCE));
 
     necro_try(NecroType, necro_constraint_list_kinds_check(infer->arena, infer->base, constraints, ast->scope));
@@ -978,8 +1049,6 @@ NecroResult(NecroType) necro_infer_lambda(NecroInfer* infer, NecroAst* ast)
     f_type->fun.type2 = necro_try_result(NecroType, necro_infer_go(infer, ast->lambda.expression));
     ast->necro_type   = f_head;
     necro_try_map(void, NecroType, necro_kind_infer_default_unify_with_star(infer->arena, infer->base, ast->necro_type, ast->scope, ast->simple_type.type_con->source_loc, ast->simple_type.type_con->end_loc));
-    // necro_try(NecroType, necro_type_ownership_infer_from_type(infer->arena, &infer->con_env, infer->base, ast->necro_type, ast->scope));
-    // necro_infer_add_constraints_to_fn_apats(infer, f_scope->free_vars, ast->necro_type, ast->lambda.apats);
     necro_try(NecroType, necro_uniqueness_propagate(infer->arena, &infer->con_env, infer->base, infer->intern, ast->necro_type, ast->scope, f_scope->free_vars, true, ast->source_loc, ast->end_loc, NECRO_CONSTRAINT_UCONSTRAINT));
     necro_infer_f_scope_pop(infer);
     return ok(NecroType, ast->necro_type);
@@ -1033,8 +1102,6 @@ NecroResult(NecroType) necro_infer_apats_assignment(NecroInfer* infer, NecroAst*
     // Unify rhs
     necro_try(NecroType, necro_type_unify_with_info(infer->arena, &infer->con_env, infer->base, rhs_proxy, rhs, ast->scope, ast->apats_assignment.rhs->source_loc, ast->apats_assignment.rhs->end_loc));
     ast->necro_type = necro_type_find(f_head);
-    // necro_try(NecroType, necro_type_ownership_infer_from_type(infer->arena, &infer->con_env, infer->base, ast->necro_type, ast->scope));
-    // necro_infer_add_constraints_to_fn_apats(infer, f_scope->free_vars, ast->necro_type, ast->apats_assignment.apats);
     necro_try(NecroType, necro_uniqueness_propagate(infer->arena, &infer->con_env, infer->base, infer->intern, ast->necro_type, ast->scope, f_scope->free_vars, true, ast->source_loc, ast->end_loc, NECRO_CONSTRAINT_UCONSTRAINT));
     necro_infer_f_scope_pop(infer);
     return ok(NecroType, ast->necro_type);

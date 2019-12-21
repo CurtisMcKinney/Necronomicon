@@ -13,7 +13,7 @@
 #include "result.h"
 #include "kind.h"
 
-#define NECRO_ALIAS_ANALYSIS_VERBOSE 1
+#define NECRO_ALIAS_ANALYSIS_VERBOSE 0
 
 typedef struct
 {
@@ -756,6 +756,47 @@ void necro_alias_analysis_test()
     // TODO: Custom error for uniqueness coercions
 
     {
+        const char* test_name   = "HKT 1";
+        const char* test_source = ""
+            "data App m a = App (m a)\n"
+            "appMaybe :: App m *a -> m *a\n"
+            "appMaybe (App x) = x\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "HKT 3";
+        const char* test_source = ""
+            "data App m a = App (m a)\n"
+            "appMaybe :: App (App Maybe) *Int -> Maybe *Int\n"
+            "appMaybe (App (App x)) = x\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "HKT 2";
+        const char* test_source = ""
+            "data App m a = App (m a)\n"
+            "appMaybe :: App Maybe *Int -> Maybe *Int\n"
+            "appMaybe (App x) = x\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "HKT 4";
+        const char* test_source = ""
+            "data AppMaybe m a = AppMaybe (m a)\n"
+            "appMaybe :: AppMaybe m *a -> m a\n"
+            "appMaybe (AppMaybe x) = x\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
+        necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
         const char* test_name   = "Ok Closure";
         const char* test_source = ""
             "okClosure :: *(Bool, Bool) -> Bool\n"
@@ -1406,27 +1447,6 @@ void necro_alias_analysis_test()
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
         necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
-    }
-
-    {
-        const char* test_name   = "HKT 1";
-        const char* test_source = ""
-            "data AppMaybe m a = AppMaybe (m a)\n"
-            "appMaybe :: AppMaybe m *a -> m a\n"
-            "appMaybe (AppMaybe x) = x\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
-        necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
-    }
-
-    {
-        const char* test_name   = "HKT 2";
-        const char* test_source = ""
-            "data AppMaybe m a = AppMaybe (m a)\n"
-            "appMaybe :: AppMaybe m *a -> *m a\n"
-            "appMaybe (AppMaybe x) = x\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
-        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
     }
 
     {

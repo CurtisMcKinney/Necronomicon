@@ -13,7 +13,7 @@
 #include "result.h"
 #include "kind.h"
 
-#define NECRO_ALIAS_ANALYSIS_VERBOSE 1
+#define NECRO_ALIAS_ANALYSIS_VERBOSE 0
 
 typedef struct
 {
@@ -705,7 +705,7 @@ void necro_ownership_test(const char* test_name, const char* str, NECRO_RESULT_T
     }
 
 #if NECRO_ALIAS_ANALYSIS_VERBOSE
-    necro_scoped_symtable_print_top_scopes(&scoped_symtable);
+    // necro_scoped_symtable_print_top_scopes(&scoped_symtable);
 #endif
 
     bool passed = result.type == expected_result;

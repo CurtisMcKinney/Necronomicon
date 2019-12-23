@@ -33,6 +33,7 @@
 #include "defunctionalization.h"
 #include "mach_transform.h"
 #include "codegen/codegen_llvm.h"
+#include "core/core_infer.h"
 
 #define NECRO_VERBOSITY 1
 
@@ -182,6 +183,11 @@ NecroResult(void) necro_compile_go(
     necro_core_ast_pre_simplify(info, intern, base, core_ast_arena);
     if (necro_compile_end_phase(info, NECRO_PHASE_PRE_SIMPLIFY))
         return ok_void();
+
+    //--------------------
+    // Core Infer
+    //--------------------
+    unwrap(void, necro_core_infer(intern, base, core_ast_arena));
 
     //--------------------
     // Lambda Lift

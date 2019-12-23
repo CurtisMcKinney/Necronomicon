@@ -1210,8 +1210,11 @@ NecroResult(NecroType) necro_type_unify_with_info(NecroPagedArena* arena, NecroC
 // TODO: Refactor! Replace with context struct which holds useful info for error messages!
 NecroResult(NecroType) necro_type_unify_with_full_info(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroType* type1, NecroType* type2, NecroScope* scope, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroType* macro_type1, NecroType* macro_type2)
 {
-    con_env->source_loc = source_loc;
-    con_env->end_loc    = end_loc;
+    if (con_env != NULL)
+    {
+        con_env->source_loc = source_loc;
+        con_env->end_loc    = end_loc;
+    }
     NecroResult(NecroType) result = necro_type_unify(arena, con_env, base, type1, type2, scope);
     if (result.type == NECRO_RESULT_OK)
     {

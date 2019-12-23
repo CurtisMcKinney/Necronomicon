@@ -1411,9 +1411,12 @@ NecroType* necro_infer_constant(NecroInfer* infer, NecroAst* ast)
     {
         NecroType* arity_type = necro_type_nat_create(infer->arena, strlen(ast->constant.symbol->str) + 1);
         arity_type->kind      = infer->base->nat_kind->type;
-        NecroType* array_type = necro_type_con2_create(infer->arena, infer->base->array_type, arity_type, infer->base->char_type->type);
+        NecroType* char_type  = necro_type_con_create(infer->arena, infer->base->char_type, NULL);
+        char_type->ownership  = infer->base->ownership_share->type;
+        NecroType* array_type = necro_type_con2_create(infer->arena, infer->base->array_type, arity_type, char_type);
         ast->necro_type       = array_type;
         unwrap(void, necro_kind_infer_default_unify_with_star(infer->arena, infer->base, ast->necro_type, ast->scope, ast->source_loc, ast->end_loc));
+        ast->necro_type->ownership = infer->base->ownership_share->type;
         return ast->necro_type;
     }
     case NECRO_AST_CONSTANT_TYPE_INT:

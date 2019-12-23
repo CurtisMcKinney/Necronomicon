@@ -1655,15 +1655,15 @@ void necro_core_ast_test()
     {
         const char* test_name   = "Poly 0";
         const char* test_source = ""
-            "myCoolSynth :: Mono\n"
+            "myCoolSynth :: Audio Mono\n"
             "myCoolSynth = poly (fromInt .> saw) [440 220 _ <110 55 _ 330>]\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_core_test_result(test_name, test_source);
     }
 
-    if (true)
-        return;
+    // if (true)
+    //     return;
 
     {
         const char* test_name   = "Basic 1";
@@ -1775,21 +1775,6 @@ void necro_core_ast_test()
             "caseTest t =\n"
             "  case t of\n"
             "    (x, y) -> x && y\n";
-        necro_core_test_result(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Unit isnt a Number, Silly";
-        const char* test_source = ""
-            "instance Num () where\n"
-            "  add a b = ()\n"
-            "  sub a b = ()\n"
-            "  mul a b = ()\n"
-            "  abs a = ()\n"
-            "  signum a = ()\n"
-            "  fromInt a = ()\n\n"
-            "unity :: ()\n"
-            "unity = () + () - () * ()\n";
         necro_core_test_result(test_name, test_source);
     }
 

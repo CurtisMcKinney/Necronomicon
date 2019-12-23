@@ -439,7 +439,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
         d_analyze_go(d_analyzer, ast->type_class_instance.qtycls);
         necro_strong_connect1(ast->type_class_instance.declaration_group);
         d_analyze_go(d_analyzer, ast->type_class_instance.context);
-        // d_analyze_go(d_analyzer, ast->type_class_instance.inst);
+        d_analyze_go(d_analyzer, ast->type_class_instance.inst);
         d_analyze_go(d_analyzer, ast->type_class_instance.declarations);
         necro_strong_connect2(d_analyzer->arena, ast->type_class_instance.declaration_group);
         break;

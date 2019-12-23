@@ -1,9 +1,4 @@
 --------------------
--- Necro.Base
---------------------
-
-data Bool         = False | True
-data Maybe a      = Just a | Nothing
 
 -- -- TODO: Move into tests!
 -- data ETest1 a     = ETest1 (Maybe a)
@@ -77,6 +72,12 @@ sampleRate = primUndefined
 
 recipSampleRate :: F64
 recipSampleRate = primUndefined
+
+
+----------------------
+-- Bool
+----------------------
+data Bool = False | True
 
 -- TODO: primitive for not
 not :: .Bool -> .Bool
@@ -570,6 +571,7 @@ instance Default Rational where
 --------------------
 -- Maybe
 --------------------
+data Maybe a = Just a | Nothing
 
 nothing :: Maybe a
 nothing = Nothing
@@ -1443,18 +1445,6 @@ instance Num Complex where
 --------------------
 -- Index
 --------------------
-
--- -- TODO: Hide Index constructor outside of base.necro for safety
--- -- TODO: Way to reify Nats into UInts!
--- -- TODO: Use Max to restrict UInt to range?
--- instance Bits (Index n) where
---   bitAnd        (Index x) (Index y) = Index (bitAnd x y)
---   bitOr         (Index x) (Index y) = Index (bitOr x y)
---   bitXor        (Index x) (Index y) = Index (bitXor x y)
---   bitShiftLeft  (Index x) y         = Index (bitShiftLeft x y)
---   bitShiftRight (Index x) y         = Index (bitShiftRight x y)
---   bitReverse    (Index x)           = Index (bitReverse x)
-
 -- -- TODO: Hide Index constructor outside of base.necro for safety
 -- -- TODO: Way to reify Nats into UInts!
 -- -- TODO: Use Max to restrict UInt to range?
@@ -1651,10 +1641,6 @@ percIsRunning state = if state < 1 then True else False
 perc :: AudioFormat f => F64 -> F64 -> F64 -> Audio f -> Audio f
 perc attackTime decayTime curve input =
   accumulateFinite1 (accumulatePerc (#attackTime, recip attackTime, recip decayTime, curve#)) percIsRunning input
-
-coolSynth :: Audio Mono
-coolSynth =
-  saw 440 |> perc 0.1 10 (-3)
 
 blocksPerSecond :: Rational
 blocksPerSecond = 48000 // 64
@@ -2069,8 +2055,9 @@ poly f s =
 -- [] => Tuple
 -- {} => Interleave
 
--- percSaw :: Audio Mono -> Audio Mono
--- percSaw freq = saw freq |> perc 0.1 3 1
+coolSynth :: Audio Mono
+coolSynth =
+  saw 440 |> perc 0.1 10 (-3)
 
 -- TODO: Test new poly scheme
 percSynth :: Audio Mono
@@ -2090,8 +2077,6 @@ panTest = saw 440 |> pan 0.25
 
 
 -- + poly (fromInt .> saw) [1 2 3]
-
--- data FFT a = FFT
 
 -- poly2 :: Poly c => (a -> b -> c) -> Seq a -> Seq b -> c
 -- poly2 f x y = poly (uncurry' f) <| map2 (\x' y' -> (#x', y'#)) x y
@@ -2184,14 +2169,12 @@ panTest = saw 440 |> pan 0.25
 --     * Strange attractors in FFT?
 --     * Cool FFT effects we used: Convolution with voices, Long time stretching
 
--- TODO: Ownership => Uniqueness
--- TODO: Print anon dot notation for uvar types
+-- TODO: rem!?
 -- TODO: NatMul
 -- TODO: Put Uniqueness unify AFTER type unify for better error messages?
 -- TODO: type sig coerce constraint!
 -- TODO: Put constant check on initializers, not in type signatures. It doesn't need to be in the type system to be checked! Then we can nix Default for Monoid?
 -- TODO: FFT generated signals, pure FFT
--- TODO: Heterogenous data structures?
 -- TODO: Compiler breaks down when a Non-Type kinded type is used in a class declaration!
 -- TODO: Write to log file, perhaps class Log a similar to class Print a
 -- TODO: endAfterTick IO combinator: endAfterTick :: *World -> *World

@@ -542,10 +542,8 @@ NecroResult(NecroType) necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast
             return ok(NecroType, ast->necro_type);
         }
 
-    // Constructors need some more dots, me thinks...
     case NECRO_AST_FUNCTION_TYPE:
     {
-        // NECRO_TYPE_ATTRIBUTE_TYPE attr = (attribute_type == NECRO_TYPE_ATTRIBUTE_CONSTRUCTOR_DOT) ? NECRO_TYPE_ATTRIBUTE_CONSTRUCTOR_DOT : NECRO_TYPE_ATTRIBUTE_NONE;
         NECRO_TYPE_ATTRIBUTE_TYPE arg_attribute_type = necro_type_attribute_get_arg_attribute(attribute_type);
         NecroType* left                              = necro_try_result(NecroType, necro_ast_to_type_sig_go(infer, ast->function_type.type, arg_attribute_type));
         NecroType* right                             = necro_try_result(NecroType, necro_ast_to_type_sig_go(infer, ast->function_type.next_on_arrow, arg_attribute_type));
@@ -566,7 +564,6 @@ NecroResult(NecroType) necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast
         NecroType*                con_args           = NULL;
         NecroAst*                 arg_list           = ast->constructor.arg_list;
         size_t                    arity              = 0;
-        // NECRO_TYPE_ATTRIBUTE_TYPE arg_attribute_type = (ast->constructor.conid->conid.ast_symbol == infer->base->share_type) ? NECRO_TYPE_ATTRIBUTE_NONE : attribute_type;
         NECRO_TYPE_ATTRIBUTE_TYPE arg_attribute_type = necro_type_attribute_get_arg_attribute(attribute_type);
         while (arg_list != NULL)
         {
@@ -779,7 +776,6 @@ NecroResult(NecroType) necro_ty_vars_to_args(NecroInfer* infer, NecroAst* ty_var
                 ty_vars->list.item->variable.ast_symbol->type            = necro_type_var_create(infer->arena, ty_vars->list.item->variable.ast_symbol, NULL);
                 ty_vars->list.item->variable.ast_symbol->type->kind      = necro_kind_fresh_kind_var(infer->arena, infer->base, ty_vars->list.item->scope);
                 ty_vars->list.item->variable.ast_symbol->type->ownership = necro_type_ownership_fresh_var(infer->arena, infer->base, NULL);
-                // ty_vars->list.item->variable.ast_symbol->type->ownership = type_uvar;
             }
             tyvar_type = ty_vars->list.item->variable.ast_symbol->type;
         }
@@ -811,9 +807,6 @@ NecroResult(NecroType) necro_ty_vars_to_args(NecroInfer* infer, NecroAst* ty_var
 // TODO: Different uvars for each argument!
 NecroResult(NecroType) necro_create_data_constructor(NecroInfer* infer, NecroAst* ast, NecroType* data_type, size_t con_num)
 {
-    // data_type            = necro_type_deep_copy(infer->arena, data_type);
-    // data_type->ownership = necro_type_ownership_fresh_var(infer->arena, infer->base, NULL);
-    // data_type->ownership = infer->base->ownership_share->type;
     if (data_type->ownership == NULL)
         data_type->ownership = necro_type_ownership_fresh_var(infer->arena, infer->base, NULL);
     NecroType* con_head  = NULL;
@@ -825,9 +818,6 @@ NecroResult(NecroType) necro_create_data_constructor(NecroInfer* infer, NecroAst
     while (args_ast != NULL)
     {
         NecroType* arg = necro_try_result(NecroType, necro_ast_to_type_sig_go(infer, args_ast->list.item, NECRO_TYPE_ATTRIBUTE_CONSTRUCTOR));
-        // TODO: Finish!
-        // necro_constraint_push_back_uniqueness_coercion(infer->arena, &infer->con_env, infer->base, infer->intern, data_type->ownership, arg->ownership, ast->source_loc, ast->end_loc);
-        // unwrap(NecroType, necro_type_unify_with_info(infer->arena, &infer->con_env, infer->base, data_type->ownership, arg->ownership, NULL, ast->source_loc, ast->end_loc));
         if (con_args == NULL)
         {
             con_args            = necro_type_fn_create(infer->arena, arg, NULL);

@@ -455,6 +455,17 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     block_size_symbol->type->pre_supplied = true;
     necro_scope_insert_ast_symbol(arena, scoped_symtable->top_type_scope, block_size_symbol);
 
+    /*
+        HACK: NatMul :: (Nat -> Nat -> Nat)  data type
+        Uses a simple interpreter and simple Hindley-Milner type unification instead of full blown dependent typing!
+        // TODO: Create interpreter for Nat + BlockSize + NatMul!
+    */
+    NecroAstSymbol* nat_mul_symbol     = necro_ast_symbol_create(arena, necro_intern_string(intern, "Necro.Base.NatMul"), necro_intern_string(intern, "NatMul"), necro_intern_string(intern, "Necro.Base"), NULL);
+    nat_mul_symbol->type               = necro_type_con_create(arena, nat_mul_symbol, NULL);
+    nat_mul_symbol->type->kind         = necro_type_fn_create(arena, base.nat_kind->type, necro_type_fn_create(arena, base.nat_kind->type, base.nat_kind->type));
+    nat_mul_symbol->type->pre_supplied = true;
+    necro_scope_insert_ast_symbol(arena, scoped_symtable->top_type_scope, nat_mul_symbol);
+
     // primUndefined
     top = necro_ast_create_top_decl(arena, necro_ast_create_fn_type_sig(arena, intern, "primUndefined", NULL,
         necro_ast_create_type_attribute(arena, necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), NECRO_TYPE_ATTRIBUTE_DOT),

@@ -2,13 +2,17 @@
 -- Necro.Base
 --------------------
 
+data Bool         = False | True
+data Maybe a      = Just a | Nothing
+
 -- -- TODO: Move into tests!
--- data HKT  t a   = HKT  (t a)
--- data HKT2 t a b = HKT2 (t a b)
--- data ETest1 a   = ETest1 (Maybe a)
--- data ETest2 a   = ETest2 (Bool, Maybe a)
--- data ETest3 a   = ETest3 (Maybe (Bool, Maybe a))
--- data HTest  a b = HTest (Maybe a) (Maybe b) (Either a b)
+-- data ETest1 a     = ETest1 (Maybe a)
+-- data ETest2 a     = ETest2 (Bool, Maybe a)
+-- data ETest3 a     = ETest3 (Maybe (Bool, Maybe a))
+-- data T3feri a b c = T3feri (a, a) (b, b) (c, c)
+-- data HKT  t a     = HKT  (t a)
+-- data HTest  a b   = HTest (Maybe a) (Maybe b) (Either a b)
+-- data HKT2 t a b   = HKT2 (t a b)
 
 flip :: .(.a -> .b -> .c) -> .b -> .a -> .c
 flip f y x = f x y
@@ -73,8 +77,6 @@ sampleRate = primUndefined
 
 recipSampleRate :: F64
 recipSampleRate = primUndefined
-
-data Bool = False | True
 
 -- TODO: primitive for not
 not :: .Bool -> .Bool
@@ -568,7 +570,6 @@ instance Default Rational where
 --------------------
 -- Maybe
 --------------------
-data Maybe a = Just a | Nothing
 
 nothing :: Maybe a
 nothing = Nothing
@@ -1469,16 +1470,24 @@ unsafeIndexToUInt (Index x) = x
 --------------------
 -- https://www.dspguide.com/ch12/1.htm
 -- FFT bins are represented as complex numbers wherein phase is encoded as the angle of a 2D vector and amplitude is encoded as the magnitude of the 2D vector.
-data FFT f k = FFT (f (Array k Complex))
+data FFT f k   = FFT (f (Array (NatMul BlockSize k) Complex))
+data FFTWindow = FFTWindow (Array BlockSize F64)
 
+-- TODO: Nat Interpreter
 -- TODO: FFT windowing!
 -- FFT size is required to be a power of 2 and a multiple of the current BlockSize
 -- TODO: Define a set of BlockSize multiple values? BlockSize2, BlockSize4, etc?
 
-bitRevFFTArray :: Array BlockSize F64 -> *Array BlockSize Complex
-bitRevFFTArray a =
-  loop a' = unsafeEmptyArray () for i <- each do
-    writeArray i (Complex (#readArray (unsafeUIntToIndex (bitReverse (unsafeIndexToUInt i))) a, 0#)) a'
+-- bitRevFFTArray :: Array BlockSize F64 -> Array BlockSize F64 -> *Array (NatMul BlockSize k) Complex
+-- bitRevFFTArray audioBuffer windowBuffer =
+--   loop a' = unsafeEmptyArray () for i <- each do
+--     let
+--       revi   = unsafeUIntToIndex (bitReverse (unsafeIndexToUInt i))
+--       sample = readArray revi windowBuffer
+--       winval = readArray i audioBuffer
+--       c      = Complex (#sample * winval, 0#)
+--     in
+--       writeArray i c a'
 
 -- -- NOTE: bitReverse Cooley-Tukey FFT algorithm
 -- -- TODO: Finish!
@@ -1521,7 +1530,6 @@ data Mono a      = Mono a
 data Stereo a    = Stereo (#a, a#)
 data Quad a      = Quad (#a, a, a, a#)
 data Ambisonic a = Ambisonic (#a, a, a, a#)
-
 data Audio f     = Audio (f Channel)
 
 -- TODO: Equal power panning
@@ -2176,6 +2184,8 @@ panTest = saw 440 |> pan 0.25
 --     * Strange attractors in FFT?
 --     * Cool FFT effects we used: Convolution with voices, Long time stretching
 
+-- TODO: Ownership => Uniqueness
+-- TODO: Print anon dot notation for uvar types
 -- TODO: NatMul
 -- TODO: Put Uniqueness unify AFTER type unify for better error messages?
 -- TODO: type sig coerce constraint!

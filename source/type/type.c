@@ -1499,7 +1499,6 @@ NecroType* necro_type_instantiate(NecroPagedArena* arena, NecroConstraintEnv* co
     }
     // Instantiate Type
     NecroType* result = necro_type_replace_with_subs_deep_copy(arena, con_env, base, current_type, subs);
-    unwrap(NecroType, necro_uniqueness_propagate(arena, con_env, base, NULL, result, scope, NULL, true, con_env->source_loc, con_env->end_loc, NECRO_CONSTRAINT_UCOERCE));
     return result;
 }
 
@@ -1529,7 +1528,6 @@ NecroType* necro_type_instantiate_with_subs(NecroPagedArena* arena, NecroConstra
     }
     // Instantiate Type
     NecroType* result = necro_type_replace_with_subs_deep_copy(arena, con_env, base, current_type, *subs);
-    unwrap(NecroType, necro_uniqueness_propagate(arena, con_env, base, NULL, result, scope, NULL, true, con_env->source_loc, con_env->end_loc, NECRO_CONSTRAINT_UCOERCE));
     return result;
 }
 
@@ -1685,11 +1683,14 @@ void necro_type_normalize_type_var_names(NecroIntern* intern, NecroBase* base, N
         // LOOP until unique name found
         const bool is_uvar = necro_kind_is_ownership(base, type->var.var_symbol->type);
         const bool is_kvar = necro_kind_is_kind(base, type->var.var_symbol->type);
+        const bool is_hvar = !necro_kind_is_type(base, type->var.var_symbol->type);
         char* curr_name = "u\0";
         if (is_uvar)
             curr_name[0] = 'u';
         else if (is_kvar)
             curr_name[0] = 'k';
+        else if (is_hvar)
+            curr_name[0] = 'f';
         else
             curr_name[0] = 'a';
         curr_name[1] = '\0';
@@ -1724,6 +1725,8 @@ void necro_type_normalize_type_var_names(NecroIntern* intern, NecroBase* base, N
                                 curr_name[0] = 'u';
                             else if (is_kvar)
                                 curr_name[0] = 'k';
+                            else if (is_hvar)
+                                curr_name[0] = 'f';
                             else
                                 curr_name[0] = 'a';
                         }
@@ -1791,6 +1794,55 @@ NecroResult(NecroType) necro_type_generalize(NecroPagedArena* arena, NecroConstr
 //=====================================================
 // Printing
 //=====================================================
+#define NECRO_PRINT_VERBOSE_UTYPES 0
+bool necro_type_lame_hack_is_shared(const NecroType* type)
+{
+    static const char* share_name = "Shared";
+    const NecroType* utype = necro_type_find_const(necro_type_find_const(type)->ownership);
+    return utype == NULL || (utype->type == NECRO_TYPE_CON && strcmp(utype->con.con_symbol->source_name->str, share_name) == 0);
+}
+
+bool necro_type_should_print_utype(const NecroType* type)
+{
+    static const char* unique_name = "Unique";
+    const NecroType*   utype       = necro_type_find_const(type->ownership);
+    if (necro_type_lame_hack_is_shared(type))
+        return false;
+    switch (type->type)
+    {
+    case NECRO_TYPE_VAR: return true;
+    case NECRO_TYPE_FUN: return utype->type == NECRO_TYPE_CON && strcmp(utype->con.con_symbol->source_name->str, unique_name) == 0;
+    case NECRO_TYPE_APP:
+    {
+        bool should_print_utype = true;
+        while (type->type == NECRO_TYPE_APP)
+        {
+            should_print_utype = should_print_utype && necro_type_lame_hack_is_shared(type->app.type2);
+            type = necro_type_find_const(type->app.type1);
+        }
+        return should_print_utype;
+    }
+    case NECRO_TYPE_CON:
+    {
+        bool             should_print = true;
+        const NecroType* args         = necro_type_find_const(type->con.args);
+        while (args != NULL)
+        {
+            should_print = should_print && necro_type_lame_hack_is_shared(args->list.item);
+            args         = necro_type_find_const(args->list.next);
+        }
+        return should_print;
+    }
+    case NECRO_TYPE_FOR:  return false;
+    case NECRO_TYPE_NAT:  return false;
+    case NECRO_TYPE_SYM:  return false;
+    case NECRO_TYPE_LIST:
+    default:
+        assert(false);
+        return false;
+    }
+}
+
 void necro_type_print(const NecroType* type)
 {
     necro_type_fprint(stdout, type);
@@ -1799,7 +1851,10 @@ void necro_type_print(const NecroType* type)
 bool necro_is_simple_type(const NecroType* type)
 {
     assert(type != NULL);
-    return (type->type == NECRO_TYPE_VAR || type->type == NECRO_TYPE_NAT || type->type == NECRO_TYPE_SYM || (type->type == NECRO_TYPE_CON && necro_type_list_count(type->con.args) == 0)) && (type->ownership == NULL || type->ownership->type != NECRO_TYPE_VAR);
+    // const bool should_print_utype = !necro_type_should_print_utype(type);
+    // return (type->type == NECRO_TYPE_VAR || type->type == NECRO_TYPE_NAT || type->type == NECRO_TYPE_SYM || (type->type == NECRO_TYPE_CON && necro_type_list_count(type->con.args) == 0)) && (type->ownership == NULL || type->ownership->type != NECRO_TYPE_VAR);
+    // return (type->type == NECRO_TYPE_VAR || type->type == NECRO_TYPE_NAT || type->type == NECRO_TYPE_SYM || (type->type == NECRO_TYPE_CON && necro_type_list_count(type->con.args) == 0)) && should_print_utype;
+    return (type->type == NECRO_TYPE_VAR || type->type == NECRO_TYPE_NAT || type->type == NECRO_TYPE_SYM || (type->type == NECRO_TYPE_CON && necro_type_list_count(type->con.args) == 0));
 }
 
 void necro_print_type_sig_go_maybe_with_parens(FILE* stream, const NecroType* type)
@@ -1851,7 +1906,7 @@ bool necro_print_tuple_sig(FILE* stream, const NecroType* type)
     {
         necro_type_fprint(stream, current_element->list.item);
         if (current_element->list.next != NULL)
-            fprintf(stream, ",");
+            fprintf(stream, ", ");
         current_element = current_element->list.next;
     }
     if (is_unboxed_tuple)
@@ -1880,13 +1935,16 @@ void necro_type_fprint_type_var(FILE* stream, const NecroAstSymbol* var_symbol)
     }
 }
 
-void necro_type_fprint_ownership(FILE* stream, const NecroType* ownership)
+void necro_type_fprint_ownership(FILE* stream, const NecroType* type)
 {
-    ownership = necro_type_find_const(ownership);
+    if (!necro_type_should_print_utype(type))
+        return;
+    const NecroType* ownership = necro_type_find_const(type->ownership);
     if (ownership->type == NECRO_TYPE_VAR)
     {
-        necro_type_fprint_type_var(stream, ownership->var.var_symbol);
-        fprintf(stream, ":");
+        // necro_type_fprint_type_var(stream, ownership->var.var_symbol);
+        // fprintf(stream, ":");
+        fprintf(stream, ".");
     }
     else if (ownership->type == NECRO_TYPE_CON)
     {
@@ -1907,9 +1965,9 @@ void necro_constraint_fprint(FILE* stream, const NecroConstraint* constraint)
     // case NECRO_CONSTRAINT_AND: return;
     // case NECRO_CONSTRAINT_FOR: return;
     case NECRO_CONSTRAINT_UCONSTRAINT:
-        necro_type_fprint_type_var(stream, constraint->uconstraint.u1->var.var_symbol);
-        fprintf(stream, "<=");
-        necro_type_fprint_type_var(stream, constraint->uconstraint.u2->var.var_symbol);
+        // necro_type_fprint_type_var(stream, constraint->uconstraint.u1->var.var_symbol);
+        // fprintf(stream, "<=");
+        // necro_type_fprint_type_var(stream, constraint->uconstraint.u2->var.var_symbol);
         return;
     case NECRO_CONSTRAINT_CLASS:
         fprintf(stream, constraint->cls.type_class->type_class_name->source_name->str);
@@ -1930,7 +1988,7 @@ void necro_type_fprint(FILE* stream, const NecroType* type)
     type = necro_type_find_const(type);
     // if (type->ownership != NULL && type->type != NECRO_TYPE_FUN)
     if (type->ownership != NULL)
-        necro_type_fprint_ownership(stream, type->ownership);
+        necro_type_fprint_ownership(stream, type);
     switch (type->type)
     {
     case NECRO_TYPE_VAR:
@@ -1945,8 +2003,9 @@ void necro_type_fprint(FILE* stream, const NecroType* type)
 
     case NECRO_TYPE_FUN:
     {
-        const bool is_not_shared = type->ownership != NULL && (type->ownership->type == NECRO_TYPE_VAR || (type->ownership->type == NECRO_TYPE_CON && (strcmp(type->ownership->con.con_symbol->source_name->str, "Shared") != 0)));
-        if (is_not_shared)
+        const bool should_print_utype = necro_type_should_print_utype(type);
+        // const bool is_not_shared = type->ownership != NULL && (type->ownership->type == NECRO_TYPE_VAR || (type->ownership->type == NECRO_TYPE_CON && (strcmp(type->ownership->con.con_symbol->source_name->str, "Shared") != 0)));
+        if (should_print_utype)
             fprintf(stream, "(");
         if (type->fun.type1->type == NECRO_TYPE_FUN)
             fprintf(stream, "(");
@@ -1955,7 +2014,7 @@ void necro_type_fprint(FILE* stream, const NecroType* type)
             fprintf(stream, ")");
         fprintf(stream, " -> ");
         necro_type_fprint(stream, type->fun.type2);
-        if (is_not_shared)
+        if (should_print_utype)
             fprintf(stream, ")");
         break;
     }
@@ -1984,30 +2043,39 @@ void necro_type_fprint(FILE* stream, const NecroType* type)
         break;
 
     case NECRO_TYPE_FOR:
-        fprintf(stream, "forall ");
+        // fprintf(stream, "forall ");
 
-        // Print quantified type vars
+        // // Print quantified type vars
+        // static const char* ukind = "Uniqueness";
         const NecroType* for_all_head = type;
-        while (type->for_all.type->type == NECRO_TYPE_FOR)
-        {
-            necro_type_fprint_type_var(stream, type->for_all.var_symbol);
-            fprintf(stream, " ");
-            type = type->for_all.type;
-        }
-        necro_type_fprint_type_var(stream, type->for_all.var_symbol);
-        fprintf(stream, ". ");
-        type = type->for_all.type;
+        // while (type->for_all.type->type == NECRO_TYPE_FOR)
+        // {
+        //     if (!(necro_type_find_const(necro_type_find_const(type->for_all.var_symbol->type)->kind)->type == NECRO_TYPE_CON && strcmp(type->for_all.var_symbol->type->kind->con.con_symbol->source_name->str, ukind) == 0))
+        //     {
+        //         necro_type_fprint_type_var(stream, type->for_all.var_symbol);
+        //         fprintf(stream, " ");
+        //     }
+        //     type = type->for_all.type;
+        // }
+        // if (!(necro_type_find_const(necro_type_find_const(type->for_all.var_symbol->type)->kind)->type == NECRO_TYPE_CON && strcmp(type->for_all.var_symbol->type->kind->con.con_symbol->source_name->str, ukind) == 0))
+        //     necro_type_fprint_type_var(stream, type->for_all.var_symbol);
+        // fprintf(stream, ". ");
+        // type = type->for_all.type;
 
         // Print context
-        type             = for_all_head;
+        // type             = for_all_head;
         bool has_context = false;
         while (type->type == NECRO_TYPE_FOR)
         {
-            // if (type->for_all.var_symbol->type->var.context != NULL || type->for_all.var_symbol->type->constraints != NULL)
-            if (type->for_all.var_symbol->type->var.var_symbol->constraints != NULL)
+            NecroConstraintList* constraints = type->for_all.var_symbol->type->var.var_symbol->constraints;
+            while(constraints != NULL)
             {
-                has_context = true;
-                break;
+                if (constraints->data->type == NECRO_CONSTRAINT_CLASS)
+                {
+                    has_context = true;
+                    break;
+                }
+                constraints = constraints->next;
             }
             type = type->for_all.type;
         }
@@ -2021,11 +2089,14 @@ void necro_type_fprint(FILE* stream, const NecroType* type)
                 NecroConstraintList* constraints = type->for_all.var_symbol->type->var.var_symbol->constraints;
                 while (constraints != NULL)
                 {
-                    if (count > 0)
-                        fprintf(stream, ", ");
-                    necro_constraint_fprint(stream, constraints->data);
+                    if (constraints->data->type == NECRO_CONSTRAINT_CLASS)
+                    {
+                        if (count > 0)
+                            fprintf(stream, ", ");
+                        necro_constraint_fprint(stream, constraints->data);
+                        count++;
+                    }
                     constraints = constraints->next;
-                    count++;
                 }
                 type = type->for_all.type;
             }
@@ -2736,8 +2807,6 @@ NecroResult(NecroType) necro_type_infer_and_unify_ownership_for_two_types(NecroP
     {
         NecroType* ownership1 = necro_try_result(NecroType, necro_uniqueness_propagate(arena, con_env, base, NULL, type1, scope, NULL, false, con_env->source_loc, con_env->end_loc, NECRO_CONSTRAINT_UCONSTRAINT));
         NecroType* ownership2 = necro_try_result(NecroType, necro_uniqueness_propagate(arena, con_env, base, NULL, type2, scope, NULL, false, con_env->source_loc, con_env->end_loc, NECRO_CONSTRAINT_UCONSTRAINT));
-        // NecroType* ownership1 = necro_try_result(NecroType, necro_uniqueness_propagate(arena, con_env, base, NULL, type1, scope, NULL, false, con_env->source_loc, con_env->end_loc, NECRO_CONSTRAINT_UCOERCE));
-        // NecroType* ownership2 = necro_try_result(NecroType, necro_uniqueness_propagate(arena, con_env, base, NULL, type2, scope, NULL, false, con_env->source_loc, con_env->end_loc, NECRO_CONSTRAINT_UCOERCE));
         return necro_type_ownership_unify(arena, con_env, ownership1, ownership2, scope);
     }
 }
@@ -2755,23 +2824,6 @@ NecroResult(void) necro_constraint_push_back_uniqueness_constraint_or_coercion(N
         necro_constraint_push_back_uniqueness_coercion(arena, env, base, intern, type1, type2, source_loc, end_loc);
         return ok_void();
     }
-    // assert(type1 != NULL);
-    // assert(type2 != NULL);
-    // assert(type1->ownership != NULL);
-    // if (intern != NULL)
-    // {
-    //     necro_type_name_if_anon_type(base, intern, type1);
-    //     necro_type_name_if_anon_type(base, intern, type1->ownership);
-    //     necro_type_name_if_anon_type(base, intern, type2);
-    //     necro_type_name_if_anon_type(base, intern, type2->ownership);
-    // }
-    // NecroConstraint* constraint = necro_paged_arena_alloc(arena, sizeof(NecroConstraint));
-    // constraint->type            = NECRO_CONSTRAINT_UCOERCE;
-    // constraint->ucoerce.type1   = type1;
-    // constraint->ucoerce.type2   = type2;
-    // constraint->source_loc      = source_loc;
-    // constraint->end_loc         = end_loc;
-    // return necro_constraint_simplify_uniqueness_coerce_2(arena, env, base, intern, constraint);
 }
 
 NecroResult(NecroType) necro_uniqueness_propagate(NecroPagedArena* arena, NecroConstraintEnv* con_env, NecroBase* base, NecroIntern* intern, NecroType* type, NecroScope* scope, NecroFreeVarList* free_vars, bool force_propagation, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NECRO_CONSTRAINT_TYPE uniqueness_coercion_type)
@@ -2792,7 +2844,7 @@ NecroResult(NecroType) necro_uniqueness_propagate(NecroPagedArena* arena, NecroC
     if (type->type == NECRO_TYPE_APP && necro_type_is_type_app_type_con(type))
     {
         *type = *necro_type_uncurry_app(arena, base, type);
-        force_propagation = true;
+        // force_propagation = true;
     }
 
     if (type->has_propagated && !force_propagation)
@@ -2967,7 +3019,6 @@ NecroResult(NecroType) necro_uniqueness_propagate_data_con(NecroPagedArena* aren
         }
         else
         {
-            // TODO: Look at this!
             if (!necro_type_is_inhabited(base, type))
                 type->ownership = base->ownership_share->type;
             else

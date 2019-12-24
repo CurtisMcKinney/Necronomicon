@@ -569,6 +569,71 @@ instance Default Rational where
 
 
 --------------------
+-- Complex
+--------------------
+data Complex = Complex (#F64, F64#)
+
+-- TODO: Finish
+
+realPart :: Complex -> F64
+realPart (Complex (#r, _#)) = r
+
+imagPart :: Complex -> F64
+imagPart (Complex (#_, i#)) = i
+
+mkPolar :: F64 -> F64 -> Complex
+mkPolar r theta = primUndefined
+
+cis :: F64 -> F64 -> Complex
+cis r theta = primUndefined
+
+polar :: Complex -> (F64, F64)
+polar z = primUndefined
+
+magnitude :: Complex -> F64
+magnitude z = primUndefined
+
+phase :: Complex -> F64
+phase z = primUndefined
+
+instance Eq Complex where
+  eq  (Complex (#rx, ix#)) (Complex (#ry, iy#)) = rx == ry && ix == iy
+  neq (Complex (#rx, ix#)) (Complex (#ry, iy#)) = rx /= ry || ix /= iy
+
+instance Semiring Complex where
+  zero                                          = Complex (#0, 0#)
+  one                                           = Complex (#1, 0#)
+  add (Complex (#rx, ix#)) (Complex (#ry, iy#)) = Complex (#rx + ry, ix + iy#)
+  mul (Complex (#rx, ix#)) (Complex (#ry, iy#)) = Complex (#rx * ry - ix * iy, rx * iy + ix * ry#)
+
+instance Ring Complex where
+  sub (Complex (#rx, ix#)) (Complex (#ry, iy#)) = Complex (#rx - ry, ix - iy#)
+  fromInt z                                     = Complex (#fromInt z, 0#)
+
+-- TODO: Finish
+-- instance EuclideanRing Complex where
+--   div x y = mapChannel2 div x y
+--   rem x y = mapChannel2 rem x y
+
+-- TODO: Finish
+-- instance DivisionRing Channel where
+--   recip x = map recip x
+
+instance Num Complex where
+  abs z    = Complex (#magnitude z, 0#)
+  signum z =
+    case z of
+      Complex (#r, i#) ->
+        if r == 0 && i == 0 then 0 else
+          let m = magnitude z in
+            Complex (#r / m, i / m#)
+
+-- TODO: Finish
+-- instance Floating Complex where
+--   fromFloat f = BlockRate (fromFloat f)
+
+
+--------------------
 -- Maybe
 --------------------
 data Maybe a = Just a | Nothing
@@ -721,6 +786,418 @@ instance Foldable (Array n) where
     loop x = init for i <- each do
       f x (readArray i a)
 
+
+--------------------
+-- Index
+--------------------
+-- -- TODO: Hide Index constructor outside of base.necro for safety
+-- -- TODO: Way to reify Nats into UInts!
+-- -- TODO: Use Max to restrict UInt to range?
+unsafeUIntToIndex :: UInt -> Index n
+unsafeUIntToIndex x = Index x
+
+unsafeIndexToUInt :: Index n -> UInt
+unsafeIndexToUInt (Index x) = x
+
+
+--------------------
+-- Channel
+--------------------
+data Channel = ChannelEnd | BlockRate F64 | AudioRate (Array BlockSize F64)
+
+outAudioBlock :: UInt -> Array BlockSize F64 -> *World -> *World
+outAudioBlock c a w = primUndefined
+
+outChannel :: UInt -> Channel -> *World -> *World
+outChannel n c w =
+  case c of
+    ChannelEnd  -> w
+    BlockRate _ -> w
+    AudioRate b -> outAudioBlock n b w
+
+audioInitArray :: () -> *Array BlockSize F64
+audioInitArray u =
+  loop a = unsafeEmptyArray () for i <- Range audioSampleOffset 1 (audioBlockSize - audioSampleOffset) do
+    writeArray i 0.0 a
+
+mapChannel :: (F64 -> F64) -> Channel -> Channel
+mapChannel f c =
+  case c of
+    ChannelEnd  -> ChannelEnd
+    BlockRate x -> BlockRate (f x)
+    AudioRate b ->
+      AudioRate
+      <| freezeArray
+      <| loop a = audioInitArray () for i <- each do
+        writeArray i (f (readArray i b)) a
+
+-- Loop constructs capturing owned/unique free_vars should be a type error!
+mapChannel2 :: (F64 -> F64 -> F64) -> Channel -> Channel -> Channel
+mapChannel2 f cx cy =
+  case cx of
+    ChannelEnd  -> ChannelEnd
+    BlockRate x ->
+      case cy of
+        ChannelEnd  -> ChannelEnd
+        BlockRate y ->
+          BlockRate (f x y)
+        AudioRate y ->
+          AudioRate
+          <| freezeArray
+          <| loop a = ia for i <- each do
+            writeArray i (f x (readArray i y)) a
+    AudioRate x ->
+      case cy of
+        ChannelEnd  -> ChannelEnd
+        BlockRate y ->
+          AudioRate
+          <| freezeArray
+          <| loop a = ia for i <- each do
+            writeArray i (f (readArray i x) y) a
+        AudioRate y ->
+          AudioRate
+          <| freezeArray
+          <| loop a = ia for i <- each do
+            writeArray i (f (readArray i x) (readArray i y)) a
+  where
+    ia = audioInitArray ()
+
+-- data ProxyNat (n :: Nat) = ProxyNat
+
+-- natValue :: ProxyNat n -> UInt
+-- natValue p = primUndefined
+
+-- range :: UInt -> UInt -> UInt -> Proxy n -> Range n
+-- range startOffset increment endOffset p = Range startOffset increment (natValue p - endOffset)
+
+-- withRangeOf :: f n -> g n -> f n
+-- withRangeOf x _ = x
+
+audioBlockSize :: UInt
+audioBlockSize = 32 * 64
+
+audioBlockSizeF :: Float
+audioBlockSizeF = 32 * 64
+
+audioSampleOffset :: UInt
+audioSampleOffset = 0
+
+-- TODO: Replace freezeArray (unsafeEmptyArray ()) with primUndefined???
+-- TODO: Handle input1 Ending!
+-- TODO: Finish with this and port change to maybeEnd version
+accumulateChannel1 :: Default s => (F64 -> s -> (#s, F64#)) -> Channel -> Channel
+accumulateChannel1 f input1 =
+  case input1 of
+    ChannelEnd -> ChannelEnd
+    _          ->
+      case out of
+        (_, a) -> AudioRate a
+  where
+    offsetToEndRange = Range audioSampleOffset 1 0
+    ia               = audioInitArray ()
+    out ~ (default, primUndefined) =
+      case out of
+        (state, _) ->
+          let
+            (#state', o'#) =
+              case input1 of
+                ChannelEnd          -> (#state, ia#)
+                BlockRate input1Val ->
+                  loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                    case f input1Val s of
+                      (#s', x#) ->
+                        (#s', writeArray i x o#)
+                AudioRate input1Buffer ->
+                  loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                    case f (readArray i input1Buffer) s of
+                      (#s', x#) ->
+                        (#s', writeArray i x o#)
+          in
+            (state', freezeArray o')
+
+-- TODO: Replace freezeArray (unsafeEmptyArray ()) with primUndefined???
+accumulateChannelAndMaybeEnd1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Channel -> Channel
+accumulateChannelAndMaybeEnd1 f isRunningFunc input1 =
+  case input1 of
+    ChannelEnd -> ChannelEnd
+    _          ->
+      case out of
+        (s, a) ->
+          case isRunningFunc s of
+            False -> ChannelEnd
+            _     -> AudioRate a
+  where
+    ia = audioInitArray ()
+    out ~ (default, primUndefined) =
+      case out of
+        (state, _) ->
+          let
+            (#state', o'#) =
+              case input1 of
+                ChannelEnd          -> (#state, ia#)
+                BlockRate input1Val ->
+                  loop (#s, o#) = (#state, ia#) for i <- each do
+                    case f input1Val s of
+                      (#s', x#) ->
+                        (#s', writeArray i x o#)
+                AudioRate input1Buffer ->
+                  loop (#s, o#) = (#state, ia#) for i <- each do
+                    case f (readArray i input1Buffer) s of
+                      (#s', x#) ->
+                        (#s', writeArray i x o#)
+          in
+            (state', freezeArray o')
+
+instance Eq Channel where
+  eq x y =
+    case x of
+      ChannelEnd ->
+        case y of
+          ChannelEnd -> True
+          _          -> False
+
+      BlockRate xv ->
+        case y of
+          BlockRate yv -> xv == yv
+          _            -> False
+
+      AudioRate xa ->
+        case y of
+          AudioRate ya ->
+            loop cond = True for i <- each do
+              cond && readArray i xa == readArray i ya
+          _ -> False
+
+  neq x y = not (eq x y)
+
+instance Semiring Channel where
+  zero    = BlockRate 0
+  one     = BlockRate 1
+  add x y = mapChannel2 add x y
+  mul x y = mapChannel2 mul x y
+
+instance Ring Channel where
+  sub x y   = mapChannel2 sub x y
+  fromInt i = BlockRate (fromInt 0)
+
+instance EuclideanRing Channel where
+  div x y = mapChannel2 div x y
+  rem x y = mapChannel2 rem x y
+
+instance DivisionRing Channel where
+  recip x = mapChannel recip x
+
+instance Num Channel where
+  signum x  = mapChannel signum x
+  abs x     = mapChannel abs x
+
+instance Field Channel where
+
+instance Floating Channel where
+  fromFloat f = BlockRate (fromFloat f)
+
+instance Semigroup Channel where
+  append x y = x + y
+
+instance Monoid Channel where
+  mempty = 0
+
+instance Default Channel where
+  default = 0
+
+
+--------------------
+-- FFT
+--------------------
+-- https://www.dspguide.com/ch12/1.htm
+-- FFT bins are represented as complex numbers wherein phase is encoded as the angle of a 2D vector and amplitude is encoded as the magnitude of the 2D vector.
+data FFT f k   = FFT (f (Array (NatMul BlockSize k) Complex))
+data FFTWindow = FFTWindow (Array BlockSize F64)
+
+-- TODO: Nat Interpreter
+-- TODO: FFT windowing!
+-- FFT size is required to be a power of 2 and a multiple of the current BlockSize
+-- TODO: Define a set of BlockSize multiple values? BlockSize2, BlockSize4, etc?
+
+-- bitRevFFTArray :: Array BlockSize F64 -> Array BlockSize F64 -> *Array (NatMul BlockSize k) Complex
+-- bitRevFFTArray audioBuffer windowBuffer =
+--   loop a' = unsafeEmptyArray () for i <- each do
+--     let
+--       revi   = unsafeUIntToIndex (bitReverse (unsafeIndexToUInt i))
+--       sample = readArray revi windowBuffer
+--       winval = readArray i audioBuffer
+--       c      = Complex (#sample * winval, 0#)
+--     in
+--       writeArray i c a'
+
+-- -- NOTE: bitReverse Cooley-Tukey FFT algorithm
+-- -- TODO: Finish!
+-- -- TODO: Compute log2n somehow
+-- -- TODO: Windowing function!
+-- -- TODO: readArrayU
+-- fftChannel :: Array BlockSize F64 -> Array BlockSize Complex
+-- fftChannel a =
+--   freezeArray <| snd' <|
+--     loop (#i, a0#) = (#0, bitRevFFTArray a#) while i < log2n do
+--       let
+--         m1              = bitShiftLeft  1  i
+--         m2              = bitShiftRight m1 1
+--         wm              = 0 -- Compute somehow
+--         (#_, _, aout1#) =
+--           loop (#j, w, a1#) = (#0, 1, a0#) while j < m2 do
+--             let
+--               (#_, aout0#) =
+--                 loop (#k, a2#) = (#j, a1#) while k < audioBlockSize do
+--                   let
+--                     ki        = unsafeUIntToIndex k
+--                     km2i      = unsafeUIntToIndex (k + m2)
+--                     (#t, a1#) = readArrayU km2i a0
+--                     (#u, a2#) = readArrayU ki a1
+--                     t'        = t * w
+--                   in
+--                     (#k + 1, writeArray km2i (u - t') (writeArray ki (u + t') a2)#)
+--             in
+--               (#j + 1, w * wm, aout0#)
+--       in
+--         (#i + 1, aout1#)
+--   where
+--     log2n = 1 -- Compute somehow
+
+
+--------------------
+-- AudioFormat
+--------------------
+data Mono a      = Mono a
+data Stereo a    = Stereo (#a, a#)
+data Quad a      = Quad (#a, a, a, a#)
+data Ambisonic a = Ambisonic (#a, a, a, a#)
+data Audio f     = Audio (f Channel)
+
+-- TODO: Equal power panning
+class (Functor f, FunctorN f, Applicative f, Foldable f) => AudioFormat f where
+  accumulate1       :: Default s => (F64 -> s -> (#s, F64#)) -> Audio f -> Audio f
+  accumulateFinite1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio f -> Audio f
+  pan               :: Audio Mono -> Audio f -> Audio Stereo
+  outAudio          :: UInt -> Audio f -> *World -> *World
+
+instance Functor Mono where
+  map f (Mono x) = Mono (f x)
+
+instance FunctorN Mono where
+  map2 f (Mono x) (Mono y) = Mono (f x y)
+
+instance Applicative Mono where
+  pure x               = Mono x
+  ap (Mono f) (Mono x) = Mono (f x)
+
+instance Foldable Mono where
+  fold (Mono x)      = x
+  foldl f i (Mono x) = f i x
+
+instance AudioFormat Mono where
+  outAudio  n (Audio (Mono c))  w                = outChannel n c w
+  accumulate1 f (Audio (Mono c))                 = Audio (Mono (accumulateChannel1 f c))
+  accumulateFinite1 f sf (Audio (Mono c))        = Audio (Mono (accumulateChannelAndMaybeEnd1 f sf c))
+  pan (Audio (Mono amount)) (Audio (Mono input)) = Audio (Stereo (#mul input (sub 1 amount), mul input amount#))
+
+instance Functor Stereo where
+  map f (Stereo (#x, y#)) = Stereo (#f x, f y#)
+
+instance FunctorN Stereo where
+  map2 f (Stereo (#x1, x2#)) (Stereo (#y1, y2#)) = Stereo (#f x1 y1, f x2 y2#)
+
+instance Applicative Stereo where
+  pure x                                     = Stereo (#x, x#)
+  ap (Stereo (#f1, f2#)) (Stereo (#x1, x2#)) = Stereo (#f1 x2, f2 x2#)
+
+instance Foldable Stereo where
+  fold (Stereo (#l, r#))      = l <> r
+  foldl f i (Stereo (#l, r#)) = f (f i l) r
+
+instance AudioFormat Stereo where
+  outAudio  n (Audio (Stereo (#l, r#))) w             = outChannel (add n 1) r (outChannel n l w)
+  accumulate1 f (Audio (Stereo (#l, r#)))             = Audio (Stereo (#accumulateChannel1 f l, accumulateChannel1 f r#))
+  accumulateFinite1 f sf (Audio (Stereo (#l, r#)))    = Audio (Stereo (#accumulateChannelAndMaybeEnd1 f sf l, accumulateChannelAndMaybeEnd1 f sf r#))
+  pan (Audio (Mono amount)) (Audio (Stereo (#l, r#))) = Audio (Stereo (#mul l (sub 1 amount), mul r amount#))
+
+
+instance AudioFormat f => Eq (Audio f) where
+  eq  (Audio x) (Audio y) = foldl (\cond x -> cond && x) True  (map2 eq x y)
+  neq (Audio x) (Audio y) = foldl (\cond x -> cond || x) False (map2 neq x y)
+
+instance AudioFormat f => Semiring (Audio f) where
+  zero                    = Audio (pure 0)
+  one                     = Audio (pure 1)
+  add (Audio x) (Audio y) = Audio (map2 add x y)
+  mul (Audio x) (Audio y) = Audio (map2 mul x y)
+
+instance AudioFormat f => Ring (Audio f) where
+  fromInt i               = Audio (pure (fromInt i))
+  sub (Audio x) (Audio y) = Audio (map2 sub x y)
+
+instance AudioFormat f => EuclideanRing (Audio f) where
+  div (Audio x) (Audio y) = Audio (map2 div x y)
+  rem (Audio x) (Audio y) = Audio (map2 rem x y)
+
+instance AudioFormat f => DivisionRing (Audio f) where
+  recip (Audio cs) = Audio (map recip cs)
+
+instance AudioFormat f => Num (Audio f) where
+  signum (Audio c) = Audio (map signum c)
+  abs    (Audio c) = Audio (map abs c)
+
+instance AudioFormat f => Field (Audio f) where
+
+instance AudioFormat f => Floating (Audio f) where
+  fromFloat f = Audio (pure (fromFloat f))
+
+instance AudioFormat f => Semigroup (Audio f) where
+  append (Audio x) (Audio y) = Audio (map2 append x y)
+
+instance AudioFormat f => Monoid (Audio f) where
+  mempty = Audio (pure mempty)
+
+stereo :: Audio Mono -> Audio Mono -> Audio Stereo
+stereo (Audio (Mono l)) (Audio (Mono r)) =
+  Audio (Stereo (#l, r#))
+
+accumulateSaw :: F64 -> F64 -> (#F64, F64#)
+accumulateSaw freq acc =
+  (#acc3, out#)
+  where
+    acc2 = fma freq recipSampleRate acc
+    acc3 = acc2 - fastFloor acc2
+    out  = fma acc3 2.0 (-1.0)
+
+saw :: AudioFormat f => Audio f -> Audio f
+saw freq =
+  accumulate1 accumulateSaw freq
+
+-- TODO: Replace with llvm instruction!
+select :: Bool -> a -> a -> a
+select c t f = if c then t else f
+
+accumulatePerc :: (#F64, F64, F64, F64#) -> F64 -> F64 -> (#F64, F64#)
+accumulatePerc (#attackTime, recipAttackTime, recipDecayTime, curve#) input state =
+  (#state', out#)
+  where
+    state'      = state + recipSampleRate
+    attackDelta = state' * recipAttackTime
+    decayDelta  = 1 - ((state' - attackTime) * recipDecayTime)
+    out         = select (state' <= attackTime) attackDelta decayDelta * input
+
+percIsRunning :: F64 -> Bool
+percIsRunning state = if state < 1 then True else False
+
+perc :: AudioFormat f => F64 -> F64 -> F64 -> Audio f -> Audio f
+perc attackTime decayTime curve input =
+  accumulateFinite1 (accumulatePerc (#attackTime, recip attackTime, recip decayTime, curve#)) percIsRunning input
+
+blocksPerSecond :: Rational
+blocksPerSecond = 48000 // 64
+
+blockDelta :: Rational
+blockDelta = recipRational blocksPerSecond
 
 --------------------
 -- Seq
@@ -1172,481 +1649,7 @@ traceLn x y =
     _ -> y
 
 
---------------------
--- Channel
---------------------
-data Channel = ChannelEnd | BlockRate F64 | AudioRate (Array BlockSize F64)
 
-outAudioBlock :: UInt -> Array BlockSize F64 -> *World -> *World
-outAudioBlock c a w = primUndefined
-
-outChannel :: UInt -> Channel -> *World -> *World
-outChannel n c w =
-  case c of
-    ChannelEnd  -> w
-    BlockRate _ -> w
-    AudioRate b -> outAudioBlock n b w
-
-audioInitArray :: () -> *Array BlockSize F64
-audioInitArray u =
-  loop a = unsafeEmptyArray () for i <- Range audioSampleOffset 1 (audioBlockSize - audioSampleOffset) do
-    writeArray i 0.0 a
-
-mapChannel :: (F64 -> F64) -> Channel -> Channel
-mapChannel f c =
-  case c of
-    ChannelEnd  -> ChannelEnd
-    BlockRate x -> BlockRate (f x)
-    AudioRate b ->
-      AudioRate
-      <| freezeArray
-      <| loop a = audioInitArray () for i <- each do
-        writeArray i (f (readArray i b)) a
-
--- Loop constructs capturing owned/unique free_vars should be a type error!
-mapChannel2 :: (F64 -> F64 -> F64) -> Channel -> Channel -> Channel
-mapChannel2 f cx cy =
-  case cx of
-    ChannelEnd  -> ChannelEnd
-    BlockRate x ->
-      case cy of
-        ChannelEnd  -> ChannelEnd
-        BlockRate y ->
-          BlockRate (f x y)
-        AudioRate y ->
-          AudioRate
-          <| freezeArray
-          <| loop a = ia for i <- each do
-            writeArray i (f x (readArray i y)) a
-    AudioRate x ->
-      case cy of
-        ChannelEnd  -> ChannelEnd
-        BlockRate y ->
-          AudioRate
-          <| freezeArray
-          <| loop a = ia for i <- each do
-            writeArray i (f (readArray i x) y) a
-        AudioRate y ->
-          AudioRate
-          <| freezeArray
-          <| loop a = ia for i <- each do
-            writeArray i (f (readArray i x) (readArray i y)) a
-  where
-    ia = audioInitArray ()
-
--- data ProxyNat (n :: Nat) = ProxyNat
-
--- natValue :: ProxyNat n -> UInt
--- natValue p = primUndefined
-
--- range :: UInt -> UInt -> UInt -> Proxy n -> Range n
--- range startOffset increment endOffset p = Range startOffset increment (natValue p - endOffset)
-
--- withRangeOf :: f n -> g n -> f n
--- withRangeOf x _ = x
-
-audioBlockSize :: UInt
-audioBlockSize = 32 * 64
-
-audioBlockSizeF :: Float
-audioBlockSizeF = 32 * 64
-
-audioSampleOffset :: UInt
-audioSampleOffset = 0
-
--- TODO: Replace freezeArray (unsafeEmptyArray ()) with primUndefined???
--- TODO: Handle input1 Ending!
--- TODO: Finish with this and port change to maybeEnd version
-accumulateChannel1 :: Default s => (F64 -> s -> (#s, F64#)) -> Channel -> Channel
-accumulateChannel1 f input1 =
-  case input1 of
-    ChannelEnd -> ChannelEnd
-    _          ->
-      case out of
-        (_, a) -> AudioRate a
-  where
-    offsetToEndRange = Range audioSampleOffset 1 0
-    ia               = audioInitArray ()
-    out ~ (default, primUndefined) =
-      case out of
-        (state, _) ->
-          let
-            (#state', o'#) =
-              case input1 of
-                ChannelEnd          -> (#state, ia#)
-                BlockRate input1Val ->
-                  loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
-                    case f input1Val s of
-                      (#s', x#) ->
-                        (#s', writeArray i x o#)
-                AudioRate input1Buffer ->
-                  loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
-                    case f (readArray i input1Buffer) s of
-                      (#s', x#) ->
-                        (#s', writeArray i x o#)
-          in
-            (state', freezeArray o')
-
--- TODO: Replace freezeArray (unsafeEmptyArray ()) with primUndefined???
-accumulateChannelAndMaybeEnd1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Channel -> Channel
-accumulateChannelAndMaybeEnd1 f isRunningFunc input1 =
-  case input1 of
-    ChannelEnd -> ChannelEnd
-    _          ->
-      case out of
-        (s, a) ->
-          case isRunningFunc s of
-            False -> ChannelEnd
-            _     -> AudioRate a
-  where
-    ia = audioInitArray ()
-    out ~ (default, primUndefined) =
-      case out of
-        (state, _) ->
-          let
-            (#state', o'#) =
-              case input1 of
-                ChannelEnd          -> (#state, ia#)
-                BlockRate input1Val ->
-                  loop (#s, o#) = (#state, ia#) for i <- each do
-                    case f input1Val s of
-                      (#s', x#) ->
-                        (#s', writeArray i x o#)
-                AudioRate input1Buffer ->
-                  loop (#s, o#) = (#state, ia#) for i <- each do
-                    case f (readArray i input1Buffer) s of
-                      (#s', x#) ->
-                        (#s', writeArray i x o#)
-          in
-            (state', freezeArray o')
-
-instance Eq Channel where
-  eq x y =
-    case x of
-      ChannelEnd ->
-        case y of
-          ChannelEnd -> True
-          _          -> False
-
-      BlockRate xv ->
-        case y of
-          BlockRate yv -> xv == yv
-          _            -> False
-
-      AudioRate xa ->
-        case y of
-          AudioRate ya ->
-            loop cond = True for i <- each do
-              cond && readArray i xa == readArray i ya
-          _ -> False
-
-  neq x y = not (eq x y)
-
-instance Semiring Channel where
-  zero    = BlockRate 0
-  one     = BlockRate 1
-  add x y = mapChannel2 add x y
-  mul x y = mapChannel2 mul x y
-
-instance Ring Channel where
-  sub x y   = mapChannel2 sub x y
-  fromInt i = BlockRate (fromInt 0)
-
-instance EuclideanRing Channel where
-  div x y = mapChannel2 div x y
-  rem x y = mapChannel2 rem x y
-
-instance DivisionRing Channel where
-  recip x = mapChannel recip x
-
-instance Num Channel where
-  signum x  = mapChannel signum x
-  abs x     = mapChannel abs x
-
-instance Field Channel where
-
-instance Floating Channel where
-  fromFloat f = BlockRate (fromFloat f)
-
-instance Semigroup Channel where
-  append x y = x + y
-
-instance Monoid Channel where
-  mempty = 0
-
-instance Default Channel where
-  default = 0
-
-
---------------------
--- Complex
---------------------
-data Complex = Complex (#F64, F64#)
-
--- TODO: Finish
-
-realPart :: Complex -> F64
-realPart (Complex (#r, _#)) = r
-
-imagPart :: Complex -> F64
-imagPart (Complex (#_, i#)) = i
-
-mkPolar :: F64 -> F64 -> Complex
-mkPolar r theta = primUndefined
-
-cis :: F64 -> F64 -> Complex
-cis r theta = primUndefined
-
-polar :: Complex -> (F64, F64)
-polar z = primUndefined
-
-magnitude :: Complex -> F64
-magnitude z = primUndefined
-
-phase :: Complex -> F64
-phase z = primUndefined
-
-instance Eq Complex where
-  eq  (Complex (#rx, ix#)) (Complex (#ry, iy#)) = rx == ry && ix == iy
-  neq (Complex (#rx, ix#)) (Complex (#ry, iy#)) = rx /= ry || ix /= iy
-
-instance Semiring Complex where
-  zero                                          = Complex (#0, 0#)
-  one                                           = Complex (#1, 0#)
-  add (Complex (#rx, ix#)) (Complex (#ry, iy#)) = Complex (#rx + ry, ix + iy#)
-  mul (Complex (#rx, ix#)) (Complex (#ry, iy#)) = Complex (#rx * ry - ix * iy, rx * iy + ix * ry#)
-
-instance Ring Complex where
-  sub (Complex (#rx, ix#)) (Complex (#ry, iy#)) = Complex (#rx - ry, ix - iy#)
-  fromInt z                                     = Complex (#fromInt z, 0#)
-
--- TODO: Finish
--- instance EuclideanRing Complex where
---   div x y = mapChannel2 div x y
---   rem x y = mapChannel2 rem x y
-
--- TODO: Finish
--- instance DivisionRing Channel where
---   recip x = map recip x
-
-instance Num Complex where
-  abs z    = Complex (#magnitude z, 0#)
-  signum z =
-    case z of
-      Complex (#r, i#) ->
-        if r == 0 && i == 0 then 0 else
-          let m = magnitude z in
-            Complex (#r / m, i / m#)
-
--- TODO: Finish
--- instance Floating Complex where
---   fromFloat f = BlockRate (fromFloat f)
-
---------------------
--- Index
---------------------
--- -- TODO: Hide Index constructor outside of base.necro for safety
--- -- TODO: Way to reify Nats into UInts!
--- -- TODO: Use Max to restrict UInt to range?
-unsafeUIntToIndex :: UInt -> Index n
-unsafeUIntToIndex x = Index x
-
-unsafeIndexToUInt :: Index n -> UInt
-unsafeIndexToUInt (Index x) = x
-
-
---------------------
--- FFT
---------------------
--- https://www.dspguide.com/ch12/1.htm
--- FFT bins are represented as complex numbers wherein phase is encoded as the angle of a 2D vector and amplitude is encoded as the magnitude of the 2D vector.
-data FFT f k   = FFT (f (Array (NatMul BlockSize k) Complex))
-data FFTWindow = FFTWindow (Array BlockSize F64)
-
--- TODO: Nat Interpreter
--- TODO: FFT windowing!
--- FFT size is required to be a power of 2 and a multiple of the current BlockSize
--- TODO: Define a set of BlockSize multiple values? BlockSize2, BlockSize4, etc?
-
--- bitRevFFTArray :: Array BlockSize F64 -> Array BlockSize F64 -> *Array (NatMul BlockSize k) Complex
--- bitRevFFTArray audioBuffer windowBuffer =
---   loop a' = unsafeEmptyArray () for i <- each do
---     let
---       revi   = unsafeUIntToIndex (bitReverse (unsafeIndexToUInt i))
---       sample = readArray revi windowBuffer
---       winval = readArray i audioBuffer
---       c      = Complex (#sample * winval, 0#)
---     in
---       writeArray i c a'
-
--- -- NOTE: bitReverse Cooley-Tukey FFT algorithm
--- -- TODO: Finish!
--- -- TODO: Compute log2n somehow
--- -- TODO: Windowing function!
--- -- TODO: readArrayU
--- fftChannel :: Array BlockSize F64 -> Array BlockSize Complex
--- fftChannel a =
---   freezeArray <| snd' <|
---     loop (#i, a0#) = (#0, bitRevFFTArray a#) while i < log2n do
---       let
---         m1              = bitShiftLeft  1  i
---         m2              = bitShiftRight m1 1
---         wm              = 0 -- Compute somehow
---         (#_, _, aout1#) =
---           loop (#j, w, a1#) = (#0, 1, a0#) while j < m2 do
---             let
---               (#_, aout0#) =
---                 loop (#k, a2#) = (#j, a1#) while k < audioBlockSize do
---                   let
---                     ki        = unsafeUIntToIndex k
---                     km2i      = unsafeUIntToIndex (k + m2)
---                     (#t, a1#) = readArrayU km2i a0
---                     (#u, a2#) = readArrayU ki a1
---                     t'        = t * w
---                   in
---                     (#k + 1, writeArray km2i (u - t') (writeArray ki (u + t') a2)#)
---             in
---               (#j + 1, w * wm, aout0#)
---       in
---         (#i + 1, aout1#)
---   where
---     log2n = 1 -- Compute somehow
-
-
---------------------
--- AudioFormat
---------------------
-data Mono a      = Mono a
-data Stereo a    = Stereo (#a, a#)
-data Quad a      = Quad (#a, a, a, a#)
-data Ambisonic a = Ambisonic (#a, a, a, a#)
-data Audio f     = Audio (f Channel)
-
--- TODO: Equal power panning
-class (Functor f, FunctorN f, Applicative f, Foldable f) => AudioFormat f where
-  accumulate1       :: Default s => (F64 -> s -> (#s, F64#)) -> Audio f -> Audio f
-  accumulateFinite1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio f -> Audio f
-  pan               :: Audio Mono -> Audio f -> Audio Stereo
-  outAudio          :: UInt -> Audio f -> *World -> *World
-
-instance Functor Mono where
-  map f (Mono x) = Mono (f x)
-
-instance FunctorN Mono where
-  map2 f (Mono x) (Mono y) = Mono (f x y)
-
-instance Applicative Mono where
-  pure x               = Mono x
-  ap (Mono f) (Mono x) = Mono (f x)
-
-instance Foldable Mono where
-  fold (Mono x)      = x
-  foldl f i (Mono x) = f i x
-
-instance AudioFormat Mono where
-  outAudio  n (Audio (Mono c))  w                = outChannel n c w
-  accumulate1 f (Audio (Mono c))                 = Audio (Mono (accumulateChannel1 f c))
-  accumulateFinite1 f sf (Audio (Mono c))        = Audio (Mono (accumulateChannelAndMaybeEnd1 f sf c))
-  pan (Audio (Mono amount)) (Audio (Mono input)) = Audio (Stereo (#mul input (sub 1 amount), mul input amount#))
-
-instance Functor Stereo where
-  map f (Stereo (#x, y#)) = Stereo (#f x, f y#)
-
-instance FunctorN Stereo where
-  map2 f (Stereo (#x1, x2#)) (Stereo (#y1, y2#)) = Stereo (#f x1 y1, f x2 y2#)
-
-instance Applicative Stereo where
-  pure x                                     = Stereo (#x, x#)
-  ap (Stereo (#f1, f2#)) (Stereo (#x1, x2#)) = Stereo (#f1 x2, f2 x2#)
-
-instance Foldable Stereo where
-  fold (Stereo (#l, r#))      = l <> r
-  foldl f i (Stereo (#l, r#)) = f (f i l) r
-
-instance AudioFormat Stereo where
-  outAudio  n (Audio (Stereo (#l, r#))) w             = outChannel (add n 1) r (outChannel n l w)
-  accumulate1 f (Audio (Stereo (#l, r#)))             = Audio (Stereo (#accumulateChannel1 f l, accumulateChannel1 f r#))
-  accumulateFinite1 f sf (Audio (Stereo (#l, r#)))    = Audio (Stereo (#accumulateChannelAndMaybeEnd1 f sf l, accumulateChannelAndMaybeEnd1 f sf r#))
-  pan (Audio (Mono amount)) (Audio (Stereo (#l, r#))) = Audio (Stereo (#mul l (sub 1 amount), mul r amount#))
-
-
-instance AudioFormat f => Eq (Audio f) where
-  eq  (Audio x) (Audio y) = foldl (\cond x -> cond && x) True  (map2 eq x y)
-  neq (Audio x) (Audio y) = foldl (\cond x -> cond || x) False (map2 neq x y)
-
-instance AudioFormat f => Semiring (Audio f) where
-  zero                    = Audio (pure 0)
-  one                     = Audio (pure 1)
-  add (Audio x) (Audio y) = Audio (map2 add x y)
-  mul (Audio x) (Audio y) = Audio (map2 mul x y)
-
-instance AudioFormat f => Ring (Audio f) where
-  fromInt i               = Audio (pure (fromInt i))
-  sub (Audio x) (Audio y) = Audio (map2 sub x y)
-
-instance AudioFormat f => EuclideanRing (Audio f) where
-  div (Audio x) (Audio y) = Audio (map2 div x y)
-  rem (Audio x) (Audio y) = Audio (map2 rem x y)
-
-instance AudioFormat f => DivisionRing (Audio f) where
-  recip (Audio cs) = Audio (map recip cs)
-
-instance AudioFormat f => Num (Audio f) where
-  signum (Audio c) = Audio (map signum c)
-  abs    (Audio c) = Audio (map abs c)
-
-instance AudioFormat f => Field (Audio f) where
-
-instance AudioFormat f => Floating (Audio f) where
-  fromFloat f = Audio (pure (fromFloat f))
-
-instance AudioFormat f => Semigroup (Audio f) where
-  append (Audio x) (Audio y) = Audio (map2 append x y)
-
-instance AudioFormat f => Monoid (Audio f) where
-  mempty = Audio (pure mempty)
-
-stereo :: Audio Mono -> Audio Mono -> Audio Stereo
-stereo (Audio (Mono l)) (Audio (Mono r)) =
-  Audio (Stereo (#l, r#))
-
-accumulateSaw :: F64 -> F64 -> (#F64, F64#)
-accumulateSaw freq acc =
-  (#acc3, out#)
-  where
-    acc2 = fma freq recipSampleRate acc
-    acc3 = acc2 - fastFloor acc2
-    out  = fma acc3 2.0 (-1.0)
-
-saw :: AudioFormat f => Audio f -> Audio f
-saw freq =
-  accumulate1 accumulateSaw freq
-
--- TODO: Replace with llvm instruction!
-select :: Bool -> a -> a -> a
-select c t f = if c then t else f
-
-accumulatePerc :: (#F64, F64, F64, F64#) -> F64 -> F64 -> (#F64, F64#)
-accumulatePerc (#attackTime, recipAttackTime, recipDecayTime, curve#) input state =
-  (#state', out#)
-  where
-    state'      = state + recipSampleRate
-    attackDelta = state' * recipAttackTime
-    decayDelta  = 1 - ((state' - attackTime) * recipDecayTime)
-    out         = select (state' <= attackTime) attackDelta decayDelta * input
-
-percIsRunning :: F64 -> Bool
-percIsRunning state = if state < 1 then True else False
-
-perc :: AudioFormat f => F64 -> F64 -> F64 -> Audio f -> Audio f
-perc attackTime decayTime curve input =
-  accumulateFinite1 (accumulatePerc (#attackTime, recip attackTime, recip decayTime, curve#)) percIsRunning input
-
-blocksPerSecond :: Rational
-blocksPerSecond = 48000 // 64
-
-blockDelta :: Rational
-blockDelta = recipRational blocksPerSecond
 
   -- foldp :: (b -> a -> b) -> f a -> b
 
@@ -2055,6 +2058,7 @@ poly f s =
 -- [] => Tuple
 -- {} => Interleave
 
+-- TODO: saw is breaking lambda lifting right now? fix!
 coolSynth :: Audio Mono
 coolSynth =
   saw 440 |> perc 0.1 10 (-3)

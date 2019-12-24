@@ -3711,7 +3711,7 @@ void necro_mach_test()
     {
         const char* test_name   = "Poly 0";
         const char* test_source = ""
-            "myCoolSynth :: Mono\n"
+            "myCoolSynth :: Audio Mono\n"
             "myCoolSynth = poly saw [440 220 _ <110 55 _ 330>]\n"
             "main :: *World -> *World\n"
             "main w = w\n";

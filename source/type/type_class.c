@@ -416,6 +416,10 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
 
                 //--------------------------------
                 // Assemble types for overloaded methods
+                // if (strcmp("accumulate1", instance->dictionary_prototype->type_class_member_ast_symbol->source_name->str) == 0 && strcmp("Mono", instance->data_type_name->source_name->str) == 0)
+                // {
+                //     printf("found it!\n");
+                // }
                 NecroType* method_type                                                         = instance->dictionary_prototype->type_class_member_ast_symbol->type;
                 NecroType* inst_method_type                                                    = necro_instantiate_method_sig(infer, method_type, instance->data_type, method_ast->source_loc, method_ast->end_loc);
                 instance->dictionary_prototype->instance_member_ast_symbol->type               = inst_method_type;

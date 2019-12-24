@@ -962,7 +962,7 @@ void necro_state_analysis_test_string(const char* test_name, const char* str)
     NecroAstArena       ast             = necro_ast_arena_empty();
     NecroCoreAstArena   core_ast        = necro_core_ast_arena_empty();
     NecroCompileInfo    info            = necro_test_compile_info();
-    info.verbosity                      = 1;
+    info.verbosity                      = 0;
     info.compilation_phase              = NECRO_PHASE_STATE_ANALYSIS;
 
     //--------------------
@@ -1006,6 +1006,8 @@ void necro_state_analysis_test()
     necro_announce_phase("State Analysis");
 
 /*
+
+*/
 
     {
         const char* test_name   = "Rec 1";
@@ -1185,7 +1187,7 @@ void necro_state_analysis_test()
     {
         const char* test_name   = "Emptiness";
         const char* test_source = ""
-            "nothingInThere :: *Array 4 (Share Int)\n"
+            "nothingInThere :: *Array 4 Int\n"
             "nothingInThere = unsafeEmptyArray ()\n"
             "main :: *World -> *World\n"
             "main w = w\n";
@@ -1217,7 +1219,7 @@ void necro_state_analysis_test()
             "seqTest1 :: Seq Bool\n"
             "seqTest1 = pure True\n"
             "seqGo :: SeqValue Bool\n"
-            "seqGo = runSeq seqTest1 0\n";
+            "seqGo = runSeq seqTest1 ()\n";
         necro_state_analysis_test_string(test_name, test_source);
     }
 
@@ -1229,7 +1231,7 @@ void necro_state_analysis_test()
             "coolSeq :: Seq Int\n"
             "coolSeq = map (add 666) seqTest\n"
             "seqGo :: SeqValue Int\n"
-            "seqGo = runSeq seqTest 0\n";
+            "seqGo = runSeq seqTest ()\n";
         necro_state_analysis_test_string(test_name, test_source);
     }
 
@@ -1267,12 +1269,10 @@ void necro_state_analysis_test()
         necro_state_analysis_test_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Poly 0";
         const char* test_source = ""
-            "myCoolSynth :: Mono\n"
+            "myCoolSynth :: Audio Mono\n"
             "myCoolSynth = poly saw [440 220 _ <110 55 _ 330>]\n"
             "main :: *World -> *World\n"
             "main w = w\n";

@@ -1252,6 +1252,7 @@ void necro_core_ast_pre_simplfy_test(const char* test_name, const char* str)
     unwrap(void, necro_infer(info, &intern, &scoped_symtable, &base, &ast));
     unwrap(void, necro_monomorphize(info, &intern, &scoped_symtable, &base, &ast));
     unwrap(void, necro_ast_transform_to_core(info, &intern, &base, &ast, &core_ast));
+    unwrap(void, necro_core_infer(&intern, &base, &core_ast));
     necro_core_ast_pre_simplify(info, &intern, &base, &core_ast);
 
     // Print

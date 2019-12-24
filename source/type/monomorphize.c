@@ -120,10 +120,15 @@ NecroInstSub* necro_type_create_instance_subs(NecroMonomorphize* monomorphize, N
                 {
                     // Create InstanceSubs
                     NecroTypeClassInstance* instance      = instance_list->data;
+                    // if (strcmp("AudioFormat", instance->type_class_name->source_name->str) == 0 && strcmp("Mono", instance->data_type_name->source_name->str) == 0)
+                    // {
+                    //     printf("found it!\n");
+                    // }
                     NecroInstSub*           instance_subs = NULL;
                     NecroType*              instance_type = necro_type_instantiate_with_subs(monomorphize->arena, &monomorphize->con_env, monomorphize->base, instance->data_type, NULL, &instance_subs, zero_loc, zero_loc);
                     unwrap(NecroType, necro_type_unify(monomorphize->arena, &monomorphize->con_env, monomorphize->base, instance_type, sub_type, NULL));
-                    NecroInstSub*           new_subs      = necro_type_filter_and_deep_copy_subs(monomorphize->arena, subs, type_class->type_class_name, instance_type);
+                    NecroInstSub*           new_subs      = necro_type_filter_and_deep_copy_subs(monomorphize->arena, subs, curr_sub->var_to_replace, instance_type);
+                    // NecroInstSub*           new_subs      = necro_type_filter_and_deep_copy_subs(monomorphize->arena, subs, type_class->type_class_name, instance_type);
                     new_subs                              = necro_type_union_subs(monomorphize->arena, monomorphize->base, new_subs, instance_subs);
                     if (new_subs != NULL)
                     {
@@ -133,12 +138,14 @@ NecroInstSub* necro_type_create_instance_subs(NecroMonomorphize* monomorphize, N
                             curr_new_sub = curr_new_sub->next;
                         }
                         curr_new_sub->next = instance_subs;
-                        new_subs = necro_type_filter_and_deep_copy_subs(monomorphize->arena, new_subs, type_class->type_var, instance_type);
+                        // new_subs = necro_type_filter_and_deep_copy_subs(monomorphize->arena, new_subs, type_class->type_var, instance_type);
+                        new_subs = necro_type_filter_and_deep_copy_subs(monomorphize->arena, new_subs, curr_sub->var_to_replace, instance_type);
                         return new_subs;
                     }
                     else
                     {
-                        instance_subs = necro_type_filter_and_deep_copy_subs(monomorphize->arena, instance_subs, type_class->type_class_name, instance_type);
+                        // instance_subs = necro_type_filter_and_deep_copy_subs(monomorphize->arena, instance_subs, type_class->type_class_name, instance_type);
+                        instance_subs = necro_type_filter_and_deep_copy_subs(monomorphize->arena, instance_subs, curr_sub->var_to_replace, instance_type);
                         return instance_subs;
                     }
                 }
@@ -467,6 +474,10 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
         {
         case NECRO_VAR_VAR:
         {
+            // if (strcmp(ast->variable.ast_symbol->source_name->str, "accumulate1") == 0)
+            // {
+            //     printf("accumulate1");
+            // }
             ast->variable.inst_subs      = necro_type_union_subs(monomorphize->arena, monomorphize->base, ast->variable.inst_subs, subs);
             const bool should_specialize = necro_try_map_result(bool, void, necro_ast_should_specialize(monomorphize->arena, monomorphize->base, ast->variable.ast_symbol, ast, ast->variable.inst_subs));
             if (!should_specialize)

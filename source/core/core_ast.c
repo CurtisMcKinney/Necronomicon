@@ -422,8 +422,9 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_data_decl(NecroCoreAstTran
 }
 
 // NOTE: Filters out type signatures, class declarations, polymorphic values, etc
-bool necro_core_ast_should_filter(NecroAst* ast)
+bool necro_core_ast_should_filter(NecroBase* base, NecroAst* ast)
 {
+    UNUSED(base);
     switch (ast->type)
     {
     case NECRO_AST_TYPE_CLASS_INSTANCE:
@@ -434,13 +435,17 @@ bool necro_core_ast_should_filter(NecroAst* ast)
         return false;
     case NECRO_AST_APATS_ASSIGNMENT:
         // return necro_type_is_polymorphic(ast->apats_assignment.ast_symbol->type) || necro_type_is_polymorphic(ast->apats_assignment.ast_symbol->type->ownership);
+        // return necro_type_is_polymorphic_ignoring_ownership(base, ast->apats_assignment.ast_symbol->type);
         return necro_type_is_polymorphic(ast->apats_assignment.ast_symbol->type);
     case NECRO_AST_SIMPLE_ASSIGNMENT:
         return necro_type_is_polymorphic(ast->simple_assignment.ast_symbol->type);
+        // return necro_type_is_polymorphic_ignoring_ownership(base, ast->simple_assignment.ast_symbol->type);
         // return necro_type_is_polymorphic(ast->necro_type) || necro_type_is_polymorphic(ast->necro_type->ownership);
         // return necro_type_is_polymorphic(ast->necro_type) || necro_type_is_polymorphic(ast->necro_type->ownership);
     case NECRO_AST_PAT_ASSIGNMENT:
-        return necro_type_is_polymorphic(ast->pat_assignment.pat->necro_type) || necro_type_is_polymorphic(ast->pat_assignment.pat->necro_type->ownership);
+        return necro_type_is_polymorphic(ast->pat_assignment.pat->necro_type);
+        // return necro_type_is_polymorphic_ignoring_ownership(base, ast->pat_assignment.pat->necro_type);
+        // return necro_type_is_polymorphic_ignoring_ownership(base, ast->pat_assignment.pat->necro_type) || necro_type_is_polymorphic(ast->pat_assignment.pat->necro_type->ownership);
     default:
         assert(false);
         return true;
@@ -465,6 +470,11 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_declaration_group_list(Nec
             // Instance Declarations
             if (declaration_group->declaration.declaration_impl->type == NECRO_AST_TYPE_CLASS_INSTANCE && declaration_group->declaration.declaration_impl->type_class_instance.declarations != NULL)
             {
+                // if ((strcmp("AudioFormat", declaration_group->declaration.declaration_impl->type_class_instance.ast_symbol->type_class_instance->type_class_name->source_name->str) == 0) &&
+                //     (strcmp("Mono", declaration_group->declaration.declaration_impl->type_class_instance.ast_symbol->type_class_instance->data_type_name->source_name->str) == 0))
+                // {
+                //     printf("%s %s\n", declaration_group->declaration.declaration_impl->type_class_instance.ast_symbol->type_class_instance->type_class_name->source_name->str, declaration_group->declaration.declaration_impl->type_class_instance.ast_symbol->type_class_instance->data_type_name->source_name->str);
+                // }
                 NecroCoreAst* instance_declarations = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_declaration_group_list(context, declaration_group->declaration.declaration_impl->type_class_instance.declarations, NULL));
                 if (instance_declarations != NULL)
                 {
@@ -485,7 +495,7 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_declaration_group_list(Nec
                 }
             }
             // Normal Declarations
-            else if (!necro_core_ast_should_filter(declaration_group->declaration.declaration_impl))
+            else if (!necro_core_ast_should_filter(context->base, declaration_group->declaration.declaration_impl))
             {
                 NecroCoreAst* binder = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, declaration_group->declaration.declaration_impl));
 
@@ -1601,7 +1611,7 @@ void necro_core_ast_pretty_print(NecroCoreAst* ast)
     printf("\n");
 }
 
-#define NECRO_CORE_AST_VERBOSE 1
+#define NECRO_CORE_AST_VERBOSE 0
 void necro_core_test_result(const char* test_name, const char* str)
 {
     // Set up

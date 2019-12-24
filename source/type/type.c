@@ -1286,7 +1286,7 @@ NecroInstSub* necro_create_inst_sub(NecroPagedArena* arena, NecroAstSymbol* var_
     type_var->var.is_rigid                = false;
     assert(var_to_replace->name != NULL);
     type_var->var.var_symbol->name        = var_to_replace->name; // Experiment...attempting to keep the same "name" after sub
-    type_var->var.var_symbol->source_name = type_var->var.var_symbol->source_name;
+    type_var->var.var_symbol->source_name = var_to_replace->source_name;
     // type_var->var.var_symbol->source_name = type_var->var.var_symbol->source_name;
     // type_var->var.var_symbol->source_name = type_var->var.var_symbol->name;
     type_var->var.var_symbol->module_name = var_to_replace->module_name;
@@ -1931,7 +1931,7 @@ void necro_type_fprint_type_var(FILE* stream, const NecroAstSymbol* var_symbol)
         size_t truncated_symbol_pointer = (size_t)var_symbol;
         truncated_symbol_pointer        = truncated_symbol_pointer & 8191;
         const NecroType* type_var       = necro_type_find(var_symbol->type);
-        if (type_var != NULL && type_var->kind != NULL && type_var->kind->type == NECRO_TYPE_CON && (strcmp(type_var->kind->con.con_symbol->source_name->str, "Ownership") == 0))
+        if (type_var != NULL && type_var->kind != NULL && type_var->kind->type == NECRO_TYPE_CON && (strcmp(type_var->kind->con.con_symbol->source_name->str, "Uniqueness") == 0))
             fprintf(stream, "u%zu", truncated_symbol_pointer);
         else
             fprintf(stream, "a%zu", truncated_symbol_pointer);

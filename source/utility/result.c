@@ -1024,7 +1024,7 @@ void necro_print_case_alternative_expected_right_brace_error(NecroResultError* e
 
 void necro_print_malformed_for_loop_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
-    const char* explanation = "For Loop expressions take the form: for rangeInit valueInit loop index value -> expr";
+    const char* explanation = "For Loop expressions take the form: loop valueInit = value for index <- rangeInit do expr";
     necro_print_default_error_format("Malformed For Loop", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 

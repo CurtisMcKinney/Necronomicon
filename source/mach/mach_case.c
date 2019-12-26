@@ -741,6 +741,8 @@ void necro_pattern_var_to_mach(NecroMachProgram* program, NecroPattern* pattern,
     if (pattern->parent->value_ast == NULL)
         necro_decision_tree_pattern_to_mach(program, pattern->parent, outer, NULL, env);
 
+    // TODO: Figure out env shit with this?
+    // TODO: Minimal bug example?
     // //--------------------
     // // Find cached pattern
     // NecroMachAst*  cache_p_val  = pattern->parent->value_ast;

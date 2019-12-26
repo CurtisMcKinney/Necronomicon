@@ -235,9 +235,10 @@ NecroAstSymbol* necro_ast_specialize(NecroMonomorphize* monomorphize, NecroAstSy
     // Find DeclarationGroupList, Make new DeclarationGroup
     //--------------------
     NecroAst* declaration_group = ast_symbol->declaration_group;
-
     assert(declaration_group != NULL);
     assert(declaration_group->type == NECRO_AST_DECL);
+    while (declaration_group->declaration.next_declaration != NULL) // Append
+        declaration_group = declaration_group->declaration.next_declaration;
     NecroAst* new_declaration                           = necro_ast_create_decl(monomorphize->arena, ast_symbol->ast, declaration_group->declaration.next_declaration);
     declaration_group->declaration.next_declaration     = new_declaration;
     new_declaration->declaration.declaration_group_list = declaration_group->declaration.declaration_group_list;

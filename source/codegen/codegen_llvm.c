@@ -369,10 +369,13 @@ void necro_llvm_print(NecroLLVM* context)
 void necro_llvm_verify_and_dump(NecroLLVM* context)
 {
     char* error = NULL;
-    LLVMVerifyModule(context->mod, LLVMAbortProcessAction, &error);
+    // LLVMVerifyModule(context->mod, LLVMAbortProcessAction, &error);
+    LLVMVerifyModule(context->mod, LLVMPrintMessageAction, &error);
     if (strlen(error) != 0)
     {
         LLVMDumpModule(context->mod);
+        // necro_llvm_print(context);
+        fprintf(stderr, "\n\n");
         fprintf(stderr, "LLVM error: %s\n", error);
         LLVMDisposeMessage(error);
         // return NECRO_ERROR;
@@ -1370,22 +1373,22 @@ void necro_llvm_test_string_go(const char* test_name, const char* str, NECRO_PHA
 
     //--------------------
     // Compile
-    unwrap(void, necro_lex(info, &intern, str, strlen(str), &tokens));
-    unwrap(void, necro_parse(info, &intern, &tokens, necro_intern_string(&intern, "Test"), &parse_ast));
+    unwrap_or_print_error(void, necro_lex(info, &intern, str, strlen(str), &tokens), str, "Test");
+    unwrap_or_print_error(void, necro_parse(info, &intern, &tokens, necro_intern_string(&intern, "Test"), &parse_ast), str, "Test");
     ast = necro_reify(info, &intern, &parse_ast);
     necro_build_scopes(info, &scoped_symtable, &ast);
-    unwrap(void, necro_rename(info, &scoped_symtable, &intern, &ast));
+    unwrap_or_print_error(void, necro_rename(info, &scoped_symtable, &intern, &ast), str, "Test");
     necro_dependency_analyze(info, &intern, &base, &ast);
     necro_alias_analysis(info, &ast); // NOTE: Consider merging alias_analysis into RENAME_VAR phase?
-    unwrap(void, necro_infer(info, &intern, &scoped_symtable, &base, &ast));
-    unwrap(void, necro_monomorphize(info, &intern, &scoped_symtable, &base, &ast));
-    unwrap(void, necro_ast_transform_to_core(info, &intern, &base, &ast, &core_ast));
-    unwrap(void, necro_core_infer(&intern, &base, &core_ast));
+    unwrap_or_print_error(void, necro_infer(info, &intern, &scoped_symtable, &base, &ast), str, "Test");
+    unwrap_or_print_error(void, necro_monomorphize(info, &intern, &scoped_symtable, &base, &ast), str, "Test");
+    unwrap_or_print_error(void, necro_ast_transform_to_core(info, &intern, &base, &ast, &core_ast), str, "Test");
+    unwrap_or_print_error(void, necro_core_infer(&intern, &base, &core_ast), str, "Test");
     necro_core_ast_pre_simplify(info, &intern, &base, &core_ast);
     necro_core_lambda_lift(info, &intern, &base, &core_ast);
-    unwrap(void, necro_core_infer(&intern, &base, &core_ast));
+    unwrap_or_print_error(void, necro_core_infer(&intern, &base, &core_ast), str, "Test");
     necro_core_defunctionalize(info, &intern, &base, &core_ast);
-    unwrap(void, necro_core_infer(&intern, &base, &core_ast));
+    unwrap_or_print_error(void, necro_core_infer(&intern, &base, &core_ast), str, "Test");
     necro_core_ast_pre_simplify(info, &intern, &base, &core_ast);
     necro_core_state_analysis(info, &intern, &base, &core_ast);
     necro_core_transform_to_mach(info, &intern, &base, &core_ast, &mach_program);
@@ -1437,6 +1440,8 @@ void necro_llvm_test()
     necro_announce_phase("LLVM");
 
 /*
+
+*/
 
     {
         const char* test_name   = "Data 1";
@@ -1889,7 +1894,9 @@ void necro_llvm_test()
             "tenTimes :: Range 10\n"
             "tenTimes = each\n"
             "loopTenTimes :: Int\n"
-            "loopTenTimes = for tenTimes 0 loop i x -> add x 1\n"
+            "loopTenTimes =\n"
+            "  loop x = 0 for i <- tenTimes do\n"
+            "    add x 1\n"
             "main :: *World -> *World\n"
             "main w = print loopTenTimes w\n";
         necro_llvm_test_string(test_name, test_source);
@@ -1901,7 +1908,9 @@ void necro_llvm_test()
             "tenTimes :: Range 10\n"
             "tenTimes = each\n"
             "loopTenTimes :: Int\n"
-            "loopTenTimes = for tenTimes mouseX loop i x -> mul x 2\n"
+            "loopTenTimes =\n"
+            "  loop x = mouseX for i <- tenTimes do\n"
+            "    mul x 2\n"
             "main :: *World -> *World\n"
             "main w = print loopTenTimes w\n";
         necro_llvm_test_string(test_name, test_source);
@@ -1914,25 +1923,25 @@ void necro_llvm_test()
             "tenTimes = each\n"
             "loopTenTimes :: Int\n"
             "loopTenTimes =\n"
-            "  for tenTimes 0 loop i1 x1 ->\n"
-            "    for tenTimes x1 loop i2 x2 ->\n"
+            "  loop x1 = 0 for i1 <- tenTimes do\n"
+            "    loop x2 = x1 for i2 <- tenTimes do\n"
             "      add x1 1\n"
             "main :: *World -> *World\n"
             "main w = print loopTenTimes w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
-    {
-        const char* test_name   = "For Loop 3";
-        const char* test_source = ""
-            "tenTimes :: Range 10\n"
-            "tenTimes = each\n"
-            "loopTenTimes :: (Int, Int)\n"
-            "loopTenTimes = (for tenTimes 0 loop i x -> mul x 2, for tenTimes 0 loop i x -> add x 2)\n"
-            "main :: *World -> *World\n"
-            "main w = w\n";
-        necro_llvm_test_string(test_name, test_source);
-    }
+    // {
+    //     const char* test_name   = "For Loop 3";
+    //     const char* test_source = ""
+    //         "tenTimes :: Range 10\n"
+    //         "tenTimes = each\n"
+    //         "loopTenTimes :: (Int, Int)\n"
+    //         "loopTenTimes = (for tenTimes 0 loop i x -> mul x 2, for tenTimes 0 loop i x -> add x 2)\n"
+    //         "main :: *World -> *World\n"
+    //         "main w = w\n";
+    //     necro_llvm_test_string(test_name, test_source);
+    // }
 
     {
         const char* test_name   = "For Loop 4";
@@ -1942,8 +1951,12 @@ void necro_llvm_test()
             "loopTenTimes :: Maybe Int -> Int\n"
             "loopTenTimes m =\n"
             "  case m of\n"
-            "    Nothing -> for tenTimes 0 loop i x -> add x 1\n"
-            "    Just y  -> for tenTimes 0 loop i x -> add x y\n"
+            "    Nothing ->\n"
+            "      loop x = 0 for i <- tenTimes do\n"
+            "        add x 1\n"
+            "    Just y  ->\n"
+            "      loop x = 0 for i <- tenTimes do\n"
+            "        add x y\n"
             "main :: *World -> *World\n"
             "main w = print (loopTenTimes (Just mouseX)) w\n";
         necro_llvm_test_string(test_name, test_source);
@@ -1956,7 +1969,7 @@ void necro_llvm_test()
             "tenTimes = each\n"
             "loopTenTimes :: Maybe UInt -> Maybe UInt\n"
             "loopTenTimes m =\n"
-            "  for tenTimes m loop i x ->\n"
+            "  loop x = m for i <- tenTimes do\n"
             "    case x of\n"
             "      Nothing -> Just 0\n"
             "      Just x  -> Just (add x 1)\n"
@@ -1972,24 +1985,24 @@ void necro_llvm_test()
             "tenTimes = each\n"
             "loopTenTimes :: Maybe UInt\n"
             "loopTenTimes =\n"
-            "  for tenTimes Nothing loop i x ->\n"
+            "  loop x = Nothing for i <- tenTimes do\n"
             "    Just 0\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
-    {
-        const char* test_name   = "For Loop 3.5";
-        const char* test_source = ""
-            "tenTimes :: Range 10\n"
-            "tenTimes = each\n"
-            "loopTenTimes :: (Maybe Int, Maybe Int)\n"
-            "loopTenTimes = (for tenTimes Nothing loop i x -> Just 0, for tenTimes Nothing loop i y -> Nothing)\n"
-            "main :: *World -> *World\n"
-            "main w = w\n";
-        necro_llvm_test_string(test_name, test_source);
-    }
+    // {
+    //     const char* test_name   = "For Loop 3.5";
+    //     const char* test_source = ""
+    //         "tenTimes :: Range 10\n"
+    //         "tenTimes = each\n"
+    //         "loopTenTimes :: (Maybe Int, Maybe Int)\n"
+    //         "loopTenTimes = (for tenTimes Nothing loop i x -> Just 0, for tenTimes Nothing loop i y -> Nothing)\n"
+    //         "main :: *World -> *World\n"
+    //         "main w = w\n";
+    //     necro_llvm_test_string(test_name, test_source);
+    // }
 
     {
         const char* test_name   = "For Loop 2.5";
@@ -2000,8 +2013,8 @@ void necro_llvm_test()
             "twentyTimes = each\n"
             "loopTenTimes :: Maybe (Int, Int)\n"
             "loopTenTimes =\n"
-            "  for tenTimes Nothing loop i1 x1 ->\n"
-            "    for twentyTimes x1 loop i2 x2 ->\n"
+            "  loop x1 = Nothing for i1 <- tenTimes do\n"
+            "    loop x2 = x1 for i2 <- twentyTimes do\n"
             "      Just (1, 666)\n"
             "main :: *World -> *World\n"
             "main w = w\n";
@@ -2419,7 +2432,7 @@ void necro_llvm_test()
             "tenTimes = each\n"
             "forWhat :: Int -> (#Int, Int#)\n"
             "forWhat x =\n"
-            "  for tenTimes (#x, 1#) loop i w ->\n"
+            "  loop w = (#x, 1#) for i <- tenTimes do\n"
             "    case w of\n"
             "        (#xi, yi#) -> (#xi * yi, yi + 1#)\n"
             "main :: *World -> *World\n"
@@ -2463,7 +2476,7 @@ void necro_llvm_test()
         const char* test_name   = "F64 2";
         const char* test_source = ""
             "commodore64 :: Float -> F64\n"
-            "commodore64 x = fromRational x * 2 * 3.0\n"
+            "commodore64 x = fromFloat x * 2 * 3.0\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_llvm_test_string(test_name, test_source);
@@ -2500,8 +2513,8 @@ void necro_llvm_test()
         const char* test_source = ""
             "somethingInThere :: Array 33 Int\n"
             "somethingInThere =\n"
-            "  freezeArray (for each (unsafeEmptyArray ()) loop i a ->\n"
-            "    writeArray i (Share 22) a)\n"
+            "  freezeArray <| loop a =  unsafeEmptyArray () for i <- each do\n"
+            "    writeArray i 22 a\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_llvm_test_string(test_name, test_source);
@@ -2510,7 +2523,7 @@ void necro_llvm_test()
     {
         const char* test_name   = "Audio 1";
         const char* test_source = ""
-            "coolSaw :: Mono\n"
+            "coolSaw :: Audio Mono\n"
             "coolSaw = saw 440\n"
             "main :: *World -> *World\n"
             "main w = outAudio 0 coolSaw w\n";
@@ -2528,7 +2541,7 @@ void necro_llvm_test()
     {
         const char* test_name   = "Audio 1";
         const char* test_source = ""
-            "coolSaw :: Mono\n"
+            "coolSaw :: Audio Mono\n"
             "coolSaw = saw 440\n"
             "main :: *World -> *World\n"
             "main w = outAudio 0 coolSaw w\n";
@@ -2584,8 +2597,6 @@ void necro_llvm_test()
             "main w = w\n";
         necro_llvm_test_string(test_name, test_source);
     }
-
-*/
 
     {
         const char* test_name   = "Print Seq";
@@ -2829,7 +2840,9 @@ void necro_llvm_test_jit()
             "tenTimes :: Range 10\n"
             "tenTimes = each\n"
             "loopTenTimes :: Int\n"
-            "loopTenTimes = for tenTimes mouseX loop i x -> mul x 2\n"
+            "loopTenTimes =\n"
+            "  loop x = mouseX for i <- tenTimes do\n"
+            "    mul x 2\n"
             "main :: *World -> *World\n"
             "main w = print loopTenTimes w\n";
         necro_llvm_jit_string(test_name, test_source);
@@ -2842,8 +2855,8 @@ void necro_llvm_test_jit()
             "tenTimes = each\n"
             "loopTenTimes :: Int\n"
             "loopTenTimes =\n"
-            "  for tenTimes 0 loop i1 x1 ->\n"
-            "    for tenTimes x1 loop i2 x2 ->\n"
+            "  loop x1 = 0 for i1 = tenTimes do\n"
+            "    loop x2 = x1 for i2 <- tenTimes do\n"
             "      add x2 mouseX\n"
             "main :: *World -> *World\n"
             "main w = print loopTenTimes w\n";
@@ -2858,8 +2871,12 @@ void necro_llvm_test_jit()
             "loopTenTimes :: Maybe Int -> Int\n"
             "loopTenTimes m =\n"
             "  case m of\n"
-            "    Nothing -> for tenTimes 0 loop i x -> add x 1\n"
-            "    Just y  -> for tenTimes 0 loop i x -> add x y\n"
+            "    Nothing ->\n
+            "      loop x = 0 for i <- tenTimes do\n"
+            "        add x 1\n"
+            "    Just y  ->\n"
+            "      loop x = 0 for i <- tenTimes do\n"
+            "        add x y\n"
             "main :: *World -> *World\n"
             "main w = print (loopTenTimes (Just mouseX)) w\n";
         necro_llvm_jit_string(test_name, test_source);
@@ -2872,7 +2889,7 @@ void necro_llvm_test_jit()
             "tenTimes = each\n"
             "loopTenTimes :: Maybe Int -> Maybe Int\n"
             "loopTenTimes m =\n"
-            "  for tenTimes m loop i x ->\n"
+            "  loop x = m for i <- tenTimes do\n"
             "    case x of\n"
             "      Nothing -> Just 0\n"
             "      Just x  -> Just (add x 1)\n"
@@ -2957,7 +2974,7 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "Audio 1";
         const char* test_source = ""
-            "coolSaw :: Mono\n"
+            "coolSaw :: Audio Mono\n"
             "coolSaw = sawOsc 440\n"
             "main :: *World -> *World\n"
             "main w = outAudio 0 coolSaw w\n";
@@ -3022,7 +3039,7 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "Audio 1";
         const char* test_source = ""
-            "coolSaw :: Mono\n"
+            "coolSaw :: Audio Mono\n"
             "coolSaw = saw (saw 0.05 * 3980 + 4000) * 0.25\n"
             "stereoSaw :: Stereo\n"
             "stereoSaw = stereo coolSaw coolSaw\n"
@@ -3034,7 +3051,7 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "Audio 2";
         const char* test_source = ""
-            "coolSaw :: Mono\n"
+            "coolSaw :: Audio Mono\n"
             "coolSaw = saw (saw 0.1 * 750 + 1000 + saw (saw 0.22 * 10 + 15) * (saw 0.15 * 60 + 240)) * 0.25\n"
             "stereoSaw :: Stereo\n"
             "stereoSaw = stereo coolSaw coolSaw\n"
@@ -3180,7 +3197,7 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "Audio 3";
         const char* test_source = ""
-            "coolSaw :: Mono\n"
+            "coolSaw :: Audio Mono\n"
             "coolSaw = (saw 300 + saw (saw 0.05 * 1940 + 2000)) * 0.125\n"
             "stereoSaw :: Stereo\n"
             "stereoSaw = stereo coolSaw coolSaw\n"
@@ -3202,7 +3219,7 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "Audio 4";
         const char* test_source = ""
-            "coolSaw :: Mono\n"
+            "coolSaw :: Audio Mono\n"
             "coolSaw = saw (fromInt mouseX * 4) * 0.25\n"
             "stereoSaw :: Stereo\n"
             "stereoSaw = stereo coolSaw coolSaw\n"
@@ -3289,7 +3306,7 @@ void necro_llvm_test_compile()
     {
         const char* test_name   = "Audio 1";
         const char* test_source = ""
-            "coolSaw :: Mono\n"
+            "coolSaw :: Audio Mono\n"
             "coolSaw = saw 440\n"
             "main :: *World -> *World\n"
             "main w = outAudio 0 coolSaw w\n";

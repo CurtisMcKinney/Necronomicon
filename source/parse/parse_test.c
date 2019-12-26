@@ -22,7 +22,7 @@ void necro_parse_ast_test_error(const char* test_name, const char* str, NECRO_RE
     NecroCompileInfo    info   = necro_test_compile_info();
 
     // Compile
-    unwrap(void, necro_lex(info, &intern, str, strlen(str), &tokens));
+    unwrap_or_print_error(void, necro_lex(info, &intern, str, strlen(str), &tokens), str, "Test");
     NecroResult(void) result = necro_parse(info, &intern, &tokens, necro_intern_string(&intern, "Test"), &ast);
     assert(result.type == NECRO_RESULT_ERROR);
     assert(result.error->type == error_type);
@@ -44,8 +44,8 @@ void necro_parse_ast_test(const char* test_name, const char* str, NecroIntern* i
     NecroCompileInfo    info   = necro_test_compile_info();
 
     // Compile
-    unwrap(void, necro_lex(info, &intern, str, strlen(str), &tokens));
-    unwrap(void, necro_parse(info, &intern, &tokens, necro_intern_string(&intern, "Test"), &ast));
+    unwrap_or_print_error(void, necro_lex(info, &intern, str, strlen(str), &tokens), str, "Test");
+    unwrap_or_print_error(void, necro_parse(info, &intern, &tokens, necro_intern_string(&intern, "Test"), &ast), str, "Test");
 
     // necro_parse_ast_print(&ast);
 

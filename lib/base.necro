@@ -2025,35 +2025,35 @@ calculateAudioSampleOffset valueTime tickTime =
   where
     Rational (#n, d#) = valueTime - tickTime
 
--- poly :: Poly b => (a -> b) -> Seq a -> b
--- poly f s =
---   case mutRefTake (\_ -> dynArrayEmpty 8) of
---     (#thunks0, mref#) ->
---       let
---         tick ~ 0                = tick + blockDelta
---         (#_, _, acc', thunks4#) =
---           loop (#cont, time, acc, thunks1#) = (#True, 0, mempty, dynArrayIterator thunks0#) while cont do
---             let nextValueTime ~ 0 = nextValueTime + time in
---               if nextValueTime < tick then
---                 case runSeq s () of
---                   SeqValue (#t, _, Just x#) ->
---                     (#True, t, acc, dynArrayIteratorEmplaceOrAppend (polyThunkInit x (calculateAudioSampleOffset nextValueTime tick)) (polyThunkAlloc x (calculateAudioSampleOffset nextValueTime tick)) thunks1#)
---                   SeqValue (#t, _, _#) ->
---                     (#True, t, acc, thunks1#)
---               else
---                 case dynArrayIteratorWithElement (polyThunkEval f) thunks1 of
---                   (#maybeEvalResult, thunks2#) ->
---                     case maybeEvalResult of
---                       Just evalResult ->
---                         if isRunning evalResult then
---                           (#True, 0, append acc evalResult, dynArrayIteratorNext thunks2#)
---                         else
---                           (#True, 0, acc, dynArrayIteratorFree thunks2#)
---                       _ ->
---                         (#False, 0, acc, thunks2#)
---       in
---         case mutRefPut (dynArrayIteratorEnd thunks4) mref of
---           _ -> acc'
+poly :: Poly b => (a -> b) -> Seq a -> b
+poly f s =
+  case mutRefTake (\_ -> dynArrayEmpty 8) of
+    (#thunks0, mref#) ->
+      let
+        tick ~ 0                = tick + blockDelta
+        (#_, _, acc', thunks4#) =
+          loop (#cont, time, acc, thunks1#) = (#True, 0, mempty, dynArrayIterator thunks0#) while cont do
+            let nextValueTime ~ 0 = nextValueTime + time in
+              if nextValueTime < tick then
+                case runSeq s () of
+                  SeqValue (#t, _, Just x#) ->
+                    (#True, t, acc, dynArrayIteratorEmplaceOrAppend (polyThunkInit x (calculateAudioSampleOffset nextValueTime tick)) (polyThunkAlloc x (calculateAudioSampleOffset nextValueTime tick)) thunks1#)
+                  SeqValue (#t, _, _#) ->
+                    (#True, t, acc, thunks1#)
+              else
+                case dynArrayIteratorWithElement (polyThunkEval f) thunks1 of
+                  (#maybeEvalResult, thunks2#) ->
+                    case maybeEvalResult of
+                      Just evalResult ->
+                        if isRunning evalResult then
+                          (#True, 0, append acc evalResult, dynArrayIteratorNext thunks2#)
+                        else
+                          (#True, 0, acc, dynArrayIteratorFree thunks2#)
+                      _ ->
+                        (#False, 0, acc, thunks2#)
+      in
+        case mutRefPut (dynArrayIteratorEnd thunks4) mref of
+          _ -> acc'
 
 -- <> => Sequence
 -- [] => Tuple
@@ -2062,19 +2062,19 @@ calculateAudioSampleOffset valueTime tickTime =
 sawTest :: Audio Mono
 sawTest = saw 440
 
--- -- TODO: saw is breaking lambda lifting right now? fix!
--- coolSynth :: Audio Mono
--- coolSynth =
---   saw 440 |> perc 0.1 10 (-3)
+-- TODO: saw is breaking lambda lifting right now? fix!
+coolSynth :: Audio Mono
+coolSynth =
+  saw 440 |> perc 0.1 10 (-3)
 
--- -- TODO: Test new poly scheme
--- percSynth :: Audio Mono
--- percSynth = poly (saw .> perc 0.1 3 1 .> mul 0.1) [440 220 _ <110 55 _ 330>]
--- -- percSynth = poly percSaw [440 220 _ <110 55 _ 330>]
--- -- percSynth = poly (\f -> saw f |> perc 0.1 3 1) [440 220 _ <110 55 _ 330>]
+-- TODO: Test new poly scheme
+percSynth :: Audio Mono
+percSynth = poly (saw .> perc 0.1 3 1 .> mul 0.1) [440 220 _ <110 55 _ 330>]
+-- percSynth = poly percSaw [440 220 _ <110 55 _ 330>]
+-- percSynth = poly (\f -> saw f |> perc 0.1 3 1) [440 220 _ <110 55 _ 330>]
 
--- panTest :: Audio Stereo
--- panTest = saw 440 |> pan 0.25
+panTest :: Audio Stereo
+panTest = saw 440 |> pan 0.25
 
 -- myCoolSynth2 :: Audio Mono
 -- myCoolSynth2 =

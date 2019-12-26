@@ -2554,7 +2554,7 @@ void necro_llvm_test()
             "coolSeq :: Seq Int\n"
             "coolSeq = 666 * 22 + 3 * 4 - 256 * 10\n"
             "seqGo :: SeqValue Int\n"
-            "seqGo = runSeq coolSeq 0\n"
+            "seqGo = runSeq coolSeq ()\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_llvm_test_string(test_name, test_source);

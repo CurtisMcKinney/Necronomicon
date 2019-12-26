@@ -2151,7 +2151,7 @@ void necro_core_transform_to_mach(NecroCompileInfo info, NecroIntern* intern, Ne
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
-#define NECRO_MACH_TEST_VERBOSE 1
+#define NECRO_MACH_TEST_VERBOSE 0
 void necro_mach_test_string(const char* test_name, const char* str)
 {
 
@@ -2229,8 +2229,6 @@ void necro_mach_test()
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);
     }
-
-    if (true) return;
 
     {
         const char* test_name   = "Basic 1";

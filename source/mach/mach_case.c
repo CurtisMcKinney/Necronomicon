@@ -745,24 +745,27 @@ void necro_pattern_var_to_mach(NecroMachProgram* program, NecroPattern* pattern,
     // TODO: Minimal bug example?
     // //--------------------
     // // Find cached pattern
-    // NecroMachAst*  cache_p_val  = pattern->parent->value_ast;
-    // size_t         cache_p_slot = pattern->parent_slot;
-    // NecroMachType* cache_type   = pattern->value_type;
-    // NecroMachAst*  cached_value = necro_block_env_find(env, cache_p_val, cache_p_slot, cache_type);
-    // if (cached_value != NULL)
-    // {
-    //     if (pattern->pat_ast->var.ast_symbol->mach_symbol == NULL)
-    //         pattern->pat_ast->var.ast_symbol->mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, pattern->pat_ast->var.ast_symbol);
-    //     if (pattern->pat_ast->var.ast_symbol->mach_symbol->ast == NULL)
-    //     {
-    //         pattern->pat_ast->var.ast_symbol->mach_symbol->ast       = cached_value;
-    //         pattern->pat_ast->var.ast_symbol->mach_symbol->mach_type = pattern->pat_ast->var.ast_symbol->mach_symbol->ast->necro_machine_type;
-    //         pattern->value_ast                                       = pattern->pat_ast->var.ast_symbol->mach_symbol->ast;
-    //         pattern->value_type                                      = pattern->pat_ast->var.ast_symbol->mach_symbol->mach_type;
-    //     }
-    //     return;
-    // }
-    // assert(pattern->value_ast == NULL);
+    NecroMachAst*  cache_p_val  = pattern->parent->value_ast;
+    size_t         cache_p_slot = pattern->parent_slot;
+    NecroMachType* cache_type   = pattern->value_type;
+    NecroMachAst*  cached_value = necro_block_env_find(env, cache_p_val, cache_p_slot, cache_type);
+    if (cached_value != NULL)
+    {
+        if (pattern->pat_ast->var.ast_symbol->mach_symbol == NULL)
+            pattern->pat_ast->var.ast_symbol->mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, pattern->pat_ast->var.ast_symbol);
+
+        // if (pattern->pat_ast->var.ast_symbol->mach_symbol->ast != NULL)
+        //     printf("Repeat!\n");
+        // if (pattern->pat_ast->var.ast_symbol->mach_symbol->ast == NULL)
+        // {
+            pattern->pat_ast->var.ast_symbol->mach_symbol->ast       = cached_value;
+            pattern->pat_ast->var.ast_symbol->mach_symbol->mach_type = pattern->pat_ast->var.ast_symbol->mach_symbol->ast->necro_machine_type;
+            pattern->value_ast                                       = pattern->pat_ast->var.ast_symbol->mach_symbol->ast;
+            pattern->value_type                                      = pattern->pat_ast->var.ast_symbol->mach_symbol->mach_type;
+        // }
+        return;
+    }
+    assert(pattern->value_ast == NULL);
 
     // Redo without env caching and just use pattern->pat_ast->var.ast_symbol->mach_symbol && pattern->pat_ast->var.ast_symbol->mach_symbol->ast to check for previously created pattern variables?
 
@@ -777,8 +780,9 @@ void necro_pattern_var_to_mach(NecroMachProgram* program, NecroPattern* pattern,
     if (var_ast->var.ast_symbol->mach_symbol == NULL)
         var_ast->var.ast_symbol->mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, var_ast->var.ast_symbol);
 
-    if (var_ast->var.ast_symbol->mach_symbol->ast != NULL)
-        return;
+    // if (var_ast->var.ast_symbol->mach_symbol->ast != NULL)
+    //     printf("Repeat!\n");
+    // return;
 
     NecroMachAst* parent_value = pattern->parent->value_ast;
     if (parent->pattern_type == NECRO_PATTERN_TOP)

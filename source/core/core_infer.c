@@ -42,11 +42,17 @@ NecroResult(NecroType) necro_core_infer_lit(NecroCoreInfer* infer, NecroCoreAst*
     switch (ast->lit.type)
     {
     case NECRO_AST_CONSTANT_FLOAT:
-    case NECRO_AST_CONSTANT_FLOAT_PATTERN:   return ok(NecroType, infer->base->float_type->type);
+    case NECRO_AST_CONSTANT_FLOAT_PATTERN:
+        ast->necro_type = infer->base->float_type->type;
+        return ok(NecroType, ast->necro_type);
     case NECRO_AST_CONSTANT_INTEGER:
-    case NECRO_AST_CONSTANT_INTEGER_PATTERN: return ok(NecroType, infer->base->int_type->type);
+    case NECRO_AST_CONSTANT_INTEGER_PATTERN:
+        ast->necro_type = infer->base->int_type->type;
+        return ok(NecroType, ast->necro_type);
     case NECRO_AST_CONSTANT_CHAR:
-    case NECRO_AST_CONSTANT_CHAR_PATTERN:    return ok(NecroType, infer->base->char_type->type);
+    case NECRO_AST_CONSTANT_CHAR_PATTERN:
+        ast->necro_type = infer->base->char_type->type;
+        return ok(NecroType, ast->necro_type);
     case NECRO_AST_CONSTANT_STRING:
     {
         NecroType* arity_type = necro_type_nat_create(infer->arena, strlen(ast->lit.string_literal->str) + 1);

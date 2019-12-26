@@ -1737,19 +1737,18 @@ void necro_core_defunctionalize_test()
         necro_defunctionalize_test_result(test_name, test_source);
     }
 
-    // TODO: pre_simplification NULL type bug. Fix!
-    // {
-    //     const char* test_name   = "Case 5";
-    //     const char* test_source = ""
-    //         "countEm' :: Int -> Int -> Int -> Int -> Int -> Int\n"
-    //         "countEm' v w x y z = v + w * x - y + z\n"
-    //         "rollEm' =\n"
-    //         "  case (countEm' 1 2) of\n"
-    //         "    f -> f\n"
-    //         "useEm :: Int\n"
-    //         "useEm = rollEm' 3 4 5\n";
-    //     necro_defunctionalize_test_result(test_name, test_source);
-    // }
+    {
+        const char* test_name   = "Case 5";
+        const char* test_source = ""
+            "countEm' :: Int -> Int -> Int -> Int -> Int -> Int\n"
+            "countEm' v w x y z = v + w * x - y + z\n"
+            "rollEm' =\n"
+            "  case (countEm' 1 2) of\n"
+            "    f -> f\n"
+            "useEm :: Int\n"
+            "useEm = rollEm' 3 4 5\n";
+        necro_defunctionalize_test_result(test_name, test_source);
+    }
 
     {
         const char* test_name   = "Double Up";

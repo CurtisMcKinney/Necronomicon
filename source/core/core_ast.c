@@ -470,11 +470,6 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_declaration_group_list(Nec
             // Instance Declarations
             if (declaration_group->declaration.declaration_impl->type == NECRO_AST_TYPE_CLASS_INSTANCE && declaration_group->declaration.declaration_impl->type_class_instance.declarations != NULL)
             {
-                // if ((strcmp("AudioFormat", declaration_group->declaration.declaration_impl->type_class_instance.ast_symbol->type_class_instance->type_class_name->source_name->str) == 0) &&
-                //     (strcmp("Mono", declaration_group->declaration.declaration_impl->type_class_instance.ast_symbol->type_class_instance->data_type_name->source_name->str) == 0))
-                // {
-                //     printf("%s %s\n", declaration_group->declaration.declaration_impl->type_class_instance.ast_symbol->type_class_instance->type_class_name->source_name->str, declaration_group->declaration.declaration_impl->type_class_instance.ast_symbol->type_class_instance->data_type_name->source_name->str);
-                // }
                 NecroCoreAst* instance_declarations = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_declaration_group_list(context, declaration_group->declaration.declaration_impl->type_class_instance.declarations, NULL));
                 if (instance_declarations != NULL)
                 {

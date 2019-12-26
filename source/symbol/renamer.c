@@ -744,18 +744,34 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
         break;
 
     case NECRO_AST_TYPE_CLASS_INSTANCE:
+    {
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_class_instance.context));
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_class_instance.qtycls));
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_class_instance.inst));
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_class_instance.declarations));
-        ast->type_class_instance.ast_symbol = necro_ast_symbol_create(&renamer->ast_arena->arena, NULL, NULL, renamer->ast_arena->module_name, ast);
-        ast->type_class_instance.ast_symbol->ast = ast;
+        NecroAstSymbol* type_class_name = ast->type_class_instance.qtycls->conid.ast_symbol;
+        NecroAstSymbol* data_type_name  = NULL;
+        if (ast->type_class_instance.inst->type == NECRO_AST_CONID)
+            data_type_name = ast->type_class_instance.inst->conid.ast_symbol;
+        else if (ast->type_class_instance.inst->type == NECRO_AST_CONSTRUCTOR)
+            data_type_name = ast->type_class_instance.inst->constructor.conid->conid.ast_symbol;
+        else
+            assert(false);
+        NecroSymbol instance_source_name    = necro_intern_create_type_class_instance_symbol(renamer->intern, type_class_name->source_name, data_type_name->source_name);
+        NecroSymbol instance_name           = necro_intern_concat_symbols(renamer->intern, renamer->ast_arena->module_name, instance_source_name);
+        ast->type_class_instance.ast_symbol = necro_ast_symbol_create(&renamer->ast_arena->arena, instance_name, instance_source_name, renamer->ast_arena->module_name, ast);
+        if (necro_scope_find_in_this_scope_ast_symbol(ast->scope, ast->type_class_instance.ast_symbol->source_name) == NULL)
+        {
+            ast->type_class_instance.ast_symbol      = necro_try_result(NecroAstSymbol, necro_create_name(renamer->ast_arena, renamer->intern, NECRO_TYPE_NAMESPACE, NECRO_DONT_MANGLE, ast->scope, ast->type_class_instance.ast_symbol, ast->source_loc, ast->end_loc));
+            ast->type_class_instance.ast_symbol->ast = ast;
+        }
         if (ast->type_class_instance.ast_symbol->declaration_group == NULL)
         {
             ast->type_class_instance.ast_symbol->declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
             ast->type_class_instance.declaration_group             = ast->type_class_instance.ast_symbol->declaration_group;
         }
         break;
+    }
 
     case NECRO_AST_TYPE_SIGNATURE:
         // TODO / HACK: Hack with global state. Type signatures are precarious and are being abused by primitives.

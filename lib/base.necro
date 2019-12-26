@@ -1370,12 +1370,12 @@ runSeqOnRight ls rs =
           in
           (#l, r#)
 
-instance Functor Seq where
-  map f s = Seq (\_ -> map f (runSeq s ()))
-
 instance Applicative Seq where
   pure x   = Seq (\_ -> pure x)
   ap fs xs = Seq (\_ -> ap (runSeq fs ()) (runSeq xs ()))
+
+instance Functor Seq where
+  map f s = Seq (\_ -> map f (runSeq s ()))
 
 instance FunctorN Seq where
   map2 f sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in map2 f x y)

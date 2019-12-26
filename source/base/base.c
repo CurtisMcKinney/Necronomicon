@@ -1599,9 +1599,10 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 
     //--------------------
     // Compile, part II
-    necro_dependency_analyze(info, intern, &base, &base.ast);
-    necro_alias_analysis(info, &base.ast); // NOTE: Consider merging alias_analysis into RENAME_VAR phase?
     base.scoped_symtable = scoped_symtable;
+    necro_dependency_analyze(info, intern, &base, &base.ast);
+    // necro_ast_arena_print(&base.ast);
+    necro_alias_analysis(info, &base.ast); // NOTE: Consider merging alias_analysis into RENAME_VAR phase?
     unwrap_or_print_error(void, necro_infer(info, intern, scoped_symtable, &base, &base.ast), necro_base_lib_string, base_source_name);
     unwrap_or_print_error(void, necro_monomorphize(info, intern, scoped_symtable, &base, &base.ast), necro_base_lib_string, base_source_name);
 

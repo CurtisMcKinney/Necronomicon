@@ -3532,11 +3532,11 @@ void necro_mach_test()
     {
         const char* test_name   = "Unwrap Case 2";
         const char* test_source = ""
-            "stereo' :: Mono -> Mono -> Stereo\n"
-            "stereo' ml mr =\n"
+            "stereo' :: Audio Mono -> Audio Mono -> Audio Stereo\n"
+            "stereo' (Audio ml) (Audio mr) =\n"
             "  case ml of\n"
             "    Mono l -> case mr of\n"
-            "      Mono r -> Stereo (#l, r#)\n"
+            "      Mono r -> Audio (Stereo (#l, r#))\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);
@@ -3599,7 +3599,7 @@ void necro_mach_test()
     {
         const char* test_name   = "Audio 1";
         const char* test_source = ""
-            "coolSaw :: Mono\n"
+            "coolSaw :: Audio Mono\n"
             "coolSaw = saw 440\n"
             "main :: *World -> *World\n"
             "main w = outAudio 0 coolSaw w\n";

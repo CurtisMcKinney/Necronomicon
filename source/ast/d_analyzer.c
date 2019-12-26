@@ -23,10 +23,11 @@ typedef struct NecroDeclarationsInfo
 
 typedef struct
 {
-    NecroAst*        current_declaration_group;
-    NecroPagedArena* arena;
-    NecroIntern*     intern;
-    NecroBase*       base;
+    NecroAst*            current_declaration_group;
+    NecroPagedArena*     arena;
+    NecroIntern*         intern;
+    NecroBase*           base;
+    NecroScopedSymTable* scoped_symtable;
 } NecroDependencyAnalyzer;
 
 NecroDeclarationsInfo* necro_declaration_info_create(NecroPagedArena* arena)
@@ -423,8 +424,8 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
         if (ast->type_class_declaration.declaration_group->declaration.index != -1) return;
         assert(ast->type_class_declaration.declaration_group != NULL);
         assert(ast->type_class_declaration.declaration_group->declaration.next_declaration == NULL);
-        d_analyze_go(d_analyzer, ast->type_class_declaration.context);
         necro_strong_connect1(ast->type_class_declaration.declaration_group);
+        d_analyze_go(d_analyzer, ast->type_class_declaration.context);
         // d_analyze_go(d_analyzer, ast->type_class_declaration.tycls);
         // d_analyze_go(d_analyzer, ast->type_class_declaration.tyvar);
         d_analyze_go(d_analyzer, ast->type_class_declaration.declarations);
@@ -436,8 +437,38 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
         if (ast->type_class_instance.declaration_group->declaration.index != -1) return;
         assert(ast->type_class_instance.declaration_group != NULL);
         assert(ast->type_class_instance.declaration_group->declaration.next_declaration == NULL);
-        d_analyze_go(d_analyzer, ast->type_class_instance.qtycls);
         necro_strong_connect1(ast->type_class_instance.declaration_group);
+        d_analyze_go(d_analyzer, ast->type_class_instance.qtycls);
+        // Super class instances!
+        NecroAst* super_classes = ast->type_class_instance.qtycls->conid.ast_symbol->ast->type_class_declaration.context;
+        if (super_classes != NULL)
+        {
+            NecroSymbol data_type_name  = NULL;
+            if (ast->type_class_instance.inst->type == NECRO_AST_CONID)
+                data_type_name = ast->type_class_instance.inst->conid.ast_symbol->source_name;
+            else if (ast->type_class_instance.inst->type == NECRO_AST_CONSTRUCTOR)
+                data_type_name = ast->type_class_instance.inst->constructor.conid->conid.ast_symbol->source_name;
+            if (super_classes->type != NECRO_AST_LIST_NODE)
+            {
+                NecroSymbol     type_class_name                 = super_classes->type_class_context.conid->conid.ast_symbol->source_name;
+                NecroSymbol     super_class_instance_symbol     = necro_intern_create_type_class_instance_symbol(d_analyzer->intern, type_class_name, data_type_name);
+                NecroAstSymbol* super_class_instance_ast_symbol = necro_scope_find_ast_symbol(d_analyzer->scoped_symtable->top_type_scope, super_class_instance_symbol);
+                if (super_class_instance_ast_symbol != NULL)
+                    d_analyze_var(d_analyzer, super_class_instance_ast_symbol);
+            }
+            else
+            {
+                while (super_classes != NULL)
+                {
+                    NecroSymbol     type_class_name                 = super_classes->list.item->type_class_context.conid->conid.ast_symbol->source_name;
+                    NecroSymbol     super_class_instance_symbol     = necro_intern_create_type_class_instance_symbol(d_analyzer->intern, type_class_name, data_type_name);
+                    NecroAstSymbol* super_class_instance_ast_symbol = necro_scope_find_ast_symbol(d_analyzer->scoped_symtable->top_type_scope, super_class_instance_symbol);
+                    if (super_class_instance_ast_symbol != NULL)
+                        d_analyze_var(d_analyzer, super_class_instance_ast_symbol);
+                    super_classes = super_classes->list.next_item;
+                }
+            }
+        }
         d_analyze_go(d_analyzer, ast->type_class_instance.context);
         d_analyze_go(d_analyzer, ast->type_class_instance.inst);
         d_analyze_go(d_analyzer, ast->type_class_instance.declarations);
@@ -629,9 +660,10 @@ void necro_dependency_analyze(NecroCompileInfo info, NecroIntern* intern, NecroB
 {
     NecroDependencyAnalyzer d_analyzer =
     {
-        .intern = intern,
-        .arena  = &ast_arena->arena,
-        .base   = base,
+        .intern          = intern,
+        .arena           = &ast_arena->arena,
+        .base            = base,
+        .scoped_symtable = base->scoped_symtable,
     };
     d_analyze_go(&d_analyzer, ast_arena->root);
     if (info.verbosity > 1 || (info.compilation_phase == NECRO_PHASE_DEPENDENCY_ANALYSIS && info.verbosity > 0))

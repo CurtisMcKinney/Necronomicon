@@ -120,10 +120,6 @@ NecroInstSub* necro_type_create_instance_subs(NecroMonomorphize* monomorphize, N
                 {
                     // Create InstanceSubs
                     NecroTypeClassInstance* instance      = instance_list->data;
-                    // if (strcmp("AudioFormat", instance->type_class_name->source_name->str) == 0 && strcmp("Mono", instance->data_type_name->source_name->str) == 0)
-                    // {
-                    //     printf("found it!\n");
-                    // }
                     NecroInstSub*           instance_subs = NULL;
                     NecroType*              instance_type = necro_type_instantiate_with_subs(monomorphize->arena, &monomorphize->con_env, monomorphize->base, instance->data_type, NULL, &instance_subs, zero_loc, zero_loc);
                     unwrap(NecroType, necro_type_unify(monomorphize->arena, &monomorphize->con_env, monomorphize->base, instance_type, sub_type, NULL));
@@ -474,10 +470,6 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
         {
         case NECRO_VAR_VAR:
         {
-            // if (strcmp(ast->variable.ast_symbol->source_name->str, "accumulate1") == 0)
-            // {
-            //     printf("accumulate1");
-            // }
             ast->variable.inst_subs      = necro_type_union_subs(monomorphize->arena, monomorphize->base, ast->variable.inst_subs, subs);
             const bool should_specialize = necro_try_map_result(bool, void, necro_ast_should_specialize(monomorphize->arena, monomorphize->base, ast->variable.ast_symbol, ast, ast->variable.inst_subs));
             if (!should_specialize)

@@ -753,8 +753,6 @@ void necro_pattern_var_to_mach(NecroMachProgram* program, NecroPattern* pattern,
         if (pattern->pat_ast->var.ast_symbol->mach_symbol == NULL)
             pattern->pat_ast->var.ast_symbol->mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, pattern->pat_ast->var.ast_symbol);
 
-        // if (pattern->pat_ast->var.ast_symbol->mach_symbol->ast != NULL)
-        //     printf("Repeat!\n");
         // if (pattern->pat_ast->var.ast_symbol->mach_symbol->ast == NULL)
         // {
             pattern->pat_ast->var.ast_symbol->mach_symbol->ast       = cached_value;
@@ -778,7 +776,6 @@ void necro_pattern_var_to_mach(NecroMachProgram* program, NecroPattern* pattern,
         var_ast->var.ast_symbol->mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, var_ast->var.ast_symbol);
 
     // if (var_ast->var.ast_symbol->mach_symbol->ast != NULL)
-    //     printf("Repeat!\n");
     // return;
 
     NecroMachAst* parent_value = pattern->parent->value_ast;

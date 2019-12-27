@@ -580,10 +580,7 @@ NecroCoreAst* necro_core_ast_pre_simplify_case(NecroCorePreSimplify* context, Ne
 NecroCoreAst* necro_core_ast_eta_expansion(NecroCorePreSimplify* context, NecroCoreAst* bind_ast)
 {
     if (bind_ast->necro_type == NULL)
-    {
-        // printf("Null type...\n");
         return bind_ast;
-    }
     NecroType* bind_type = necro_type_strip_for_all(necro_type_find(bind_ast->necro_type));
     if (bind_ast->necro_type->type != NECRO_TYPE_FUN)
         return bind_ast;

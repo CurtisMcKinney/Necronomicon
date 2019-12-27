@@ -1063,7 +1063,7 @@ bitRevFFTArray audioBuffer (FFTWindow windowBuffer) =
 -- -- TODO: Compute log2n somehow
 -- -- TODO: Windowing function!
 -- -- TODO: readArrayU
--- fftChannel :: Array BlockSize F64 -> Array BlockSize Complex
+-- fftChannel :: Array BlockSize F64 -> Array (NatMul BlockSize (NatMax k 1)) Complex
 -- fftChannel a =
 --   freezeArray <| snd' <|
 --     loop (#i, a0#) = (#0, bitRevFFTArray a#) while i < log2n do

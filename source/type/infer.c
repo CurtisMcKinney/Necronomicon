@@ -676,10 +676,6 @@ NecroResult(NecroType) necro_infer_type_sig(NecroInfer* infer, NecroAst* ast)
     ast->necro_type                                    = type_sig;
     necro_constraint_list_apply(infer->arena, type_sig, constraints);
 
-    // printf("%s :: ", ast->type_signature.var->variable.ast_symbol->source_name->str);
-    // necro_type_print(type_sig);
-    // puts("");
-
     return ok(NecroType, ast->necro_type);
 }
 

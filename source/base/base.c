@@ -1553,7 +1553,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "bitXor<UInt>",        NULL, NECRO_PRIMOP_BINOP_XOR);
     necro_base_setup_primitive(scoped_symtable, intern, "bitShiftLeft<UInt>",  NULL, NECRO_PRIMOP_BINOP_SHL);
     necro_base_setup_primitive(scoped_symtable, intern, "bitShiftRight<UInt>", NULL, NECRO_PRIMOP_BINOP_SHR);
-    necro_base_setup_primitive(scoped_symtable, intern, "bitReverse<UInt>",    NULL, NECRO_PRIMOP_INTR_BREV);
+    necro_base_setup_primitive(scoped_symtable, intern, "bitReverse<UInt>",    &base.bit_reverse_uint, NECRO_PRIMOP_INTR_BREV);
 
 
     // Float

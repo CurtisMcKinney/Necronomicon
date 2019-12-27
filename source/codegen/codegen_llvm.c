@@ -1072,9 +1072,9 @@ LLVMValueRef necro_llvm_codegen_call_intrinsic(NecroLLVM* context, NecroMachAst*
         LLVMTypeRef arg_type = necro_llvm_type_from_mach_type(context, ast->necro_machine_type);
         fn_type              = LLVMFunctionType(arg_type, (LLVMTypeRef[]) { arg_type }, 1, false);
         if (arg_type == LLVMInt32TypeInContext(context->context))
-            fn_value = necro_llvm_intrinsic_get(context, context->base->fma->core_ast_symbol->mach_symbol, "llvm.bitreverse.i32", fn_type);
+            fn_value = necro_llvm_intrinsic_get(context, context->base->bit_reverse_uint->core_ast_symbol->mach_symbol, "llvm.bitreverse.i32", fn_type);
         else if (arg_type == LLVMInt64TypeInContext(context->context))
-            fn_value = necro_llvm_intrinsic_get(context, context->base->fma->core_ast_symbol->mach_symbol, "llvm.bitreverse.i64", fn_type);
+            fn_value = necro_llvm_intrinsic_get(context, context->base->bit_reverse_uint->core_ast_symbol->mach_symbol, "llvm.bitreverse.i64", fn_type);
         else
             assert(false); // Only 32/64-bit ints supported currently
         break;

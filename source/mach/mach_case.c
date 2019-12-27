@@ -741,8 +741,7 @@ void necro_pattern_var_to_mach(NecroMachProgram* program, NecroPattern* pattern,
     if (pattern->parent->value_ast == NULL)
         necro_decision_tree_pattern_to_mach(program, pattern->parent, outer, NULL, env);
 
-    // TODO: Figure out env shit with this?
-    // TODO: Minimal bug example?
+    // TODO: Test
     // //--------------------
     // // Find cached pattern
     NecroMachAst*  cache_p_val  = pattern->parent->value_ast;
@@ -766,8 +765,6 @@ void necro_pattern_var_to_mach(NecroMachProgram* program, NecroPattern* pattern,
         return;
     }
     assert(pattern->value_ast == NULL);
-
-    // Redo without env caching and just use pattern->pat_ast->var.ast_symbol->mach_symbol && pattern->pat_ast->var.ast_symbol->mach_symbol->ast to check for previously created pattern variables?
 
     //--------------------
     // Load and cache pattern

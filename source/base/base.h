@@ -106,12 +106,15 @@ typedef struct NecroBase
     NecroAstSymbol* range_type;
     NecroAstSymbol* range_con;
     NecroAstSymbol* index_type;
+    NecroAstSymbol* index_con;
     NecroAstSymbol* unsafe_empty_array;
     NecroAstSymbol* read_array;
     NecroAstSymbol* write_array;
     NecroAstSymbol* prim_undefined;
     NecroAstSymbol* proj_fn;
     NecroAstSymbol* block_size_type;
+    NecroAstSymbol* nat_mul_type;
+    NecroAstSymbol* nat_max_type;
     NecroAstSymbol* sample_rate;
     NecroAstSymbol* recip_sample_rate;
 

@@ -689,7 +689,8 @@ bool necro_lex_identifier(NecroLexer* lexer)
     necro_lex_commit(lexer);
 
     // If the identifier is a layout keyword, update indentation levels and add left brace
-    if (lex_token.token <= NECRO_LEX_DO)
+    if (lex_token.token <= NECRO_LEX_OF)
+    // if (lex_token.token <= NECRO_LEX_DO)
     {
         necro_lex_gobble_up_whitespace_and_comments(lexer);
         necro_lex_commit(lexer);
@@ -705,7 +706,7 @@ bool necro_lex_identifier(NecroLexer* lexer)
             case NECRO_LEX_LET:   brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_LET;   break;
             case NECRO_LEX_WHERE: brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_WHERE; break;
             case NECRO_LEX_OF:    brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_OF;    break;
-            case NECRO_LEX_DO:    brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_DO;    break;
+            // case NECRO_LEX_DO:    brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_DO;    break;
             default:              return necro_lex_rewind(lexer);
             }
             NecroLexToken token = (NecroLexToken)

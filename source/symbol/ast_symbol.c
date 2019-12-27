@@ -66,7 +66,7 @@ NecroAstSymbol* necro_ast_symbol_deep_copy(NecroPagedArena* arena, NecroAstSymbo
         .type_status             = ast_symbol->type_status,
         .is_recursive            = ast_symbol->is_recursive,
         .is_unboxed              = ast_symbol->is_unboxed,
-        .is_wrapper              = false,
+        .is_wrapper              = ast_symbol->is_wrapper,
         .instance_list           = NULL,
         .method_type_class       = NULL,
         .type_class              = NULL,

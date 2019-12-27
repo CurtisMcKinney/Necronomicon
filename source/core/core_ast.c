@@ -13,6 +13,7 @@
 #include "alias_analysis.h"
 #include "kind.h"
 #include "runtime.h"
+#include "math_utility.h"
 
 #define NECRO_CORE_DEBUG 0
 #if NECRO_CORE_DEBUG
@@ -839,6 +840,7 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_array(NecroCoreAstTransfor
     return ok(NecroCoreAst, core_array_ast);
 }
 
+// Simple interpreter for Natural Numbers and operations on Natural Numbers
 size_t necro_nat_to_size_t(NecroBase* base, NecroType* n)
 {
     n = necro_type_find(n);
@@ -846,6 +848,22 @@ size_t necro_nat_to_size_t(NecroBase* base, NecroType* n)
         return n->nat.value;
     else if (n->type == NECRO_TYPE_CON && n->con.con_symbol == base->block_size_type)
         return necro_runtime_get_block_size();
+    else if (n->type == NECRO_TYPE_CON && n->con.con_symbol == base->nat_mul_type)
+    {
+        assert(n->con.args != NULL);
+        assert(n->con.args->list.next != NULL);
+        NecroType* arg1 = n->con.args->list.item;
+        NecroType* arg2 = n->con.args->list.next->list.item;
+        return necro_nat_to_size_t(base, arg1) * necro_nat_to_size_t(base, arg2);
+    }
+    else if (n->type == NECRO_TYPE_CON && n->con.con_symbol == base->nat_max_type)
+    {
+        assert(n->con.args != NULL);
+        assert(n->con.args->list.next != NULL);
+        NecroType* arg1 = n->con.args->list.item;
+        NecroType* arg2 = n->con.args->list.next->list.item;
+        return MAX(necro_nat_to_size_t(base, arg1), necro_nat_to_size_t(base, arg2));
+    }
     assert(false);
     return 0;
 }

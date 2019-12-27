@@ -794,10 +794,16 @@ instance Foldable (Array n) where
 -- -- TODO: Way to reify Nats into UInts!
 -- -- TODO: Use Max to restrict UInt to range?
 unsafeUIntToIndex :: UInt -> Index n
-unsafeUIntToIndex x = Index x
+unsafeUIntToIndex i = Index i
 
 unsafeIndexToUInt :: Index n -> UInt
-unsafeIndexToUInt (Index x) = x
+unsafeIndexToUInt (Index i) = i
+
+bitReverseIndex :: Index n -> Index n
+bitReverseIndex (Index i) = Index (bitReverse i)
+
+toIndexMultiple :: Index n -> Index (NatMul n (NatMax k 1))
+toIndexMultiple (Index i) = Index i
 
 
 --------------------
@@ -1012,24 +1018,19 @@ instance Default Channel where
 --------------------
 -- https://www.dspguide.com/ch12/1.htm
 -- FFT bins are represented as complex numbers wherein phase is encoded as the angle of a 2D vector and amplitude is encoded as the magnitude of the 2D vector.
--- data FFT f k   = FFT (f (Array (NatMul BlockSize k) Complex))
--- data FFTWindow = FFTWindow (Array BlockSize F64)
-
--- TODO: Nat Interpreter
+data FFT f k   = FFT (f (Array (NatMul BlockSize (NatMax k 1)) Complex))
+data FFTWindow = FFTWindow (Array BlockSize F64)
 -- TODO: FFT windowing!
--- FFT size is required to be a power of 2 and a multiple of the current BlockSize
--- TODO: Define a set of BlockSize multiple values? BlockSize2, BlockSize4, etc?
 
--- bitRevFFTArray :: Array BlockSize F64 -> Array BlockSize F64 -> *Array (NatMul BlockSize k) Complex
--- bitRevFFTArray audioBuffer windowBuffer =
---   loop a' = unsafeEmptyArray () for i <- each do
---     let
---       revi   = unsafeUIntToIndex (bitReverse (unsafeIndexToUInt i))
---       sample = readArray revi windowBuffer
---       winval = readArray i audioBuffer
---       c      = Complex (#sample * winval, 0#)
---     in
---       writeArray i c a'
+bitRevFFTArray :: Array BlockSize F64 -> Array BlockSize F64 -> *Array (NatMul BlockSize (NatMax k 1)) Complex
+bitRevFFTArray audioBuffer windowBuffer =
+  loop a' = unsafeEmptyArray () for i <- each do
+    let
+      sample = readArray (bitReverseIndex i) windowBuffer
+      winval = readArray i audioBuffer
+      c      = Complex (#sample * winval, 0#)
+    in
+      writeArray (toIndexMultiple i) c a'
 
 -- -- NOTE: bitReverse Cooley-Tukey FFT algorithm
 -- -- TODO: Finish!

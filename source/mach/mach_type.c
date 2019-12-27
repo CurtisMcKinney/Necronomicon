@@ -139,14 +139,8 @@ NecroMachType* _necro_mach_type_from_necro_type_poly_con(NecroMachProgram* progr
     // Handle Primitively polymorphic types
     if (type->con.con_symbol == program->base->array_type)
     {
-        NecroType* n             = type->con.args->list.item;
-        size_t     element_count = 0; //type->con.args->list.item->nat.value;
-        if (n->type == NECRO_TYPE_NAT)
-            element_count = n->nat.value;
-        else if (n->type == NECRO_TYPE_CON && n->con.con_symbol == program->base->block_size_type)
-            element_count = necro_runtime_get_block_size();
-        else
-            assert(false);
+        NecroType*     n                  = type->con.args->list.item;
+        size_t         element_count      = necro_nat_to_size_t(program->base, n);
         NecroType*     element_necro_type = type->con.args->list.next->list.item;
         NecroMachType* element_mach_type  = necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, element_necro_type));
         return necro_mach_type_create_array(&program->arena, element_mach_type, element_count);

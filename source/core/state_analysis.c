@@ -292,6 +292,11 @@ NECRO_STATE_TYPE necro_state_analysis_app(NecroStateAnalysis* sa, NecroCoreAst* 
     assert(sa != NULL);
     assert(ast != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_APP);
+    if (ast->app.expr1->ast_type == NECRO_CORE_AST_VAR && ast->app.expr1->var.ast_symbol == sa->base->index_con->core_ast_symbol)
+    {
+        *ast = *ast->app.expr2;
+        return necro_state_analysis_go(sa, ast, outer);
+    }
     NecroCoreAst*    app             = ast;
     NECRO_STATE_TYPE args_state_type = NECRO_STATE_CONSTANT;
     while (app->ast_type == NECRO_CORE_AST_APP)
@@ -312,6 +317,11 @@ NECRO_STATE_TYPE necro_state_analysis_app_pat(NecroStateAnalysis* sa, NecroCoreA
     assert(sa != NULL);
     assert(ast != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_APP);
+    if (ast->app.expr1->ast_type == NECRO_CORE_AST_VAR && ast->app.expr1->var.ast_symbol == sa->base->index_con->core_ast_symbol)
+    {
+        *ast = *ast->app.expr2;
+        return necro_state_analysis_go(sa, ast, outer);
+    }
     NecroCoreAst*    app             = ast;
     NECRO_STATE_TYPE args_state_type = NECRO_STATE_POLY;
     while (app->ast_type == NECRO_CORE_AST_APP)
@@ -596,6 +606,10 @@ NecroType* necro_core_ast_type_specialize(NecroStateAnalysis* sa, NecroType* typ
         else if (type->con.con_symbol == sa->base->index_type)
         {
             return sa->base->uint_type->type;
+        }
+        else if (type->con.con_symbol == sa->base->block_size_type || type->con.con_symbol == sa->base->nat_mul_type || type->con.con_symbol == sa->base->nat_max_type)
+        {
+            return type;
         }
 
         //--------------------

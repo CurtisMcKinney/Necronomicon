@@ -796,8 +796,8 @@ instance Foldable (Array n) where
 unsafeUIntToIndex :: UInt -> Index n
 unsafeUIntToIndex i = Index i
 
-unsafeIndexToUInt :: Index n -> UInt
-unsafeIndexToUInt (Index i) = i
+indexToUInt :: Index n -> UInt
+indexToUInt (Index i) = i
 
 bitReverseIndex :: Index n -> Index n
 bitReverseIndex (Index i) = Index (bitReverse i)
@@ -888,7 +888,6 @@ audioBlockSizeF = 32 * 64
 audioSampleOffset :: UInt
 audioSampleOffset = 0
 
--- TODO: This is causing an "Instruction does not dominate all uses" error...
 -- TODO: Replace freezeArray (unsafeEmptyArray ()) with primUndefined???
 -- TODO: Handle input1 Ending!
 -- TODO: Finish with this and port change to maybeEnd version
@@ -1022,12 +1021,39 @@ data FFT f k   = FFT (f (Array (NatMul BlockSize (NatMax k 1)) Complex))
 data FFTWindow = FFTWindow (Array BlockSize F64)
 -- TODO: FFT windowing!
 
-bitRevFFTArray :: Array BlockSize F64 -> Array BlockSize F64 -> *Array (NatMul BlockSize (NatMax k 1)) Complex
-bitRevFFTArray audioBuffer windowBuffer =
+-- TODO: Create
+uintToInt :: UInt -> Int
+uintToInt x = primUndefined
+
+cosine :: Floating a => a -> a
+cosine x = primUndefined
+
+fromUInt :: Ring a => UInt -> a
+fromUInt x = fromInt (uintToInt x)
+
+pi :: Floating a => a
+pi = 3.141592654
+
+tau :: Floating a => a
+tau = 2 * pi
+
+hanning :: FFTWindow
+hanning =
+  FFTWindow <| freezeArray <| loop a = unsafeEmptyArray () for i <- each do
+    writeArray i (0.5 - 0.5 * cosine (tau * fromUInt (indexToUInt i + 1) / fromUInt sampleRate)) a
+
+hamming :: FFTWindow
+hamming =
+  FFTWindow <| freezeArray <| loop a = unsafeEmptyArray () for i <- each do
+    writeArray i (0.54 - 0.46 * cosine (tau * fromUInt (indexToUInt i + 1) / fromUInt sampleRate)) a
+
+-- TODO: Look more into this...
+bitRevFFTArray :: Array BlockSize F64 -> FFTWindow -> *Array (NatMul BlockSize (NatMax k 1)) Complex
+bitRevFFTArray audioBuffer (FFTWindow windowBuffer) =
   loop a' = unsafeEmptyArray () for i <- each do
     let
-      sample = readArray (bitReverseIndex i) windowBuffer
-      winval = readArray i audioBuffer
+      sample = readArray (bitReverseIndex i) audioBuffer
+      winval = readArray i windowBuffer
       c      = Complex (#sample * winval, 0#)
     in
       writeArray (toIndexMultiple i) c a'
@@ -1051,8 +1077,8 @@ bitRevFFTArray audioBuffer windowBuffer =
 --               (#_, aout0#) =
 --                 loop (#k, a2#) = (#j, a1#) while k < audioBlockSize do
 --                   let
---                     ki        = unsafeUIntToIndex k
---                     km2i      = unsafeUIntToIndex (k + m2)
+--                     ki        = indexToUInt k
+--                     km2i      = indexToUInt (k + m2)
 --                     (#t, a1#) = readArrayU km2i a0
 --                     (#u, a2#) = readArrayU ki a1
 --                     t'        = t * w
@@ -1200,6 +1226,7 @@ blocksPerSecond = 48000 // 64
 
 blockDelta :: Rational
 blockDelta = recipRational blocksPerSecond
+
 
 --------------------
 -- Seq
@@ -1650,9 +1677,6 @@ traceLn x y =
   case printLn x primUndefined of
     _ -> y
 
-
-
-
   -- foldp :: (b -> a -> b) -> f a -> b
 
 -- -- Switch to case expressions!
@@ -1729,6 +1753,7 @@ traceLn x y =
 
 -- appendGo :: SeqValue Rational
 -- appendGo = runSeq (appendSeq 1 2) ()
+
 
 --------------------
 -- Ptr
@@ -2173,23 +2198,17 @@ panTest = saw 440 |> pan 0.25
 -- class Freeze a where
 --   freeze :: (Freeze b, a ~ b) => *a -> b
 
--- Sound ideas
---     * Percussive simulations
---     * Strange attractors in FFT?
---     * Cool FFT effects we used: Convolution with voices, Long time stretching
-
 -- TODO: Out of order monomorphic instances (i.e. 'instance Ring Complex' textually appearing before 'instance Ring F64') can cause erroneous 'Not An Instance' errors. Maybe need a better dep analysis story to make this work since we don't figure this out until inference which is at that point too late to fix.
--- TODO: rem!?
--- TODO: NatMul
+-- TODO: Write to log file, perhaps class Log a similar to class Print a
+-- TODO: Some complex number support
+-- TODO: 64-bit issue Chad was having
+
 -- TODO: Put Uniqueness unify AFTER type unify for better error messages?
 -- TODO: type sig coerce constraint!
 -- TODO: Put constant check on initializers, not in type signatures. It doesn't need to be in the type system to be checked! Then we can nix Default for Monoid?
 -- TODO: FFT generated signals, pure FFT
 -- TODO: Compiler breaks down when a Non-Type kinded type is used in a class declaration!
--- TODO: Write to log file, perhaps class Log a similar to class Print a
 -- TODO: endAfterTick IO combinator: endAfterTick :: *World -> *World
--- TODO: Some complex number support
--- TODO: No attribute propagation in type signatures?
 -- TODO: Immutable and Mutable (Unique) FFT API
 -- TODO: Writing audio files
 -- TODO: Nested case literals seem broken!
@@ -2204,5 +2223,9 @@ panTest = saw 440 |> pan 0.25
 -- TODO: Partially recursive values
 -- TODO: Defunctionalization of function on data structures
 -- TODO: Stateful Pattern assignment
--- TODO: 64-bit issue Chad was having
+
+-- Sound ideas
+--     * Percussive simulations
+--     * Strange attractors in FFT?
+--     * Cool FFT effects we used: Convolution with voices, Long time stretching
 

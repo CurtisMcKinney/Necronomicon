@@ -1038,7 +1038,6 @@ NecroMachAst* necro_mach_build_uop(NecroMachProgram* program, NecroMachAst* fn_d
         ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "uop");
         break;
     }
-    case NECRO_PRIMOP_UOP_FABS: /* FALL THROUGH */
     case NECRO_PRIMOP_UOP_FSGN:
     {
         necro_mach_type_check_is_float_type(param->necro_machine_type);

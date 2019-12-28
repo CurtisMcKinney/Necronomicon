@@ -145,6 +145,24 @@ typedef struct NecroBase
     NecroAstSymbol* bit_reverse_uint;
     NecroAstSymbol* floor;
     NecroAstSymbol* audio_sample_offset;
+    NecroAstSymbol* abs_float;
+    NecroAstSymbol* sine_float;
+    NecroAstSymbol* cosine_float;
+    NecroAstSymbol* exp_float;
+    NecroAstSymbol* exp2_float;
+    NecroAstSymbol* log_float;
+    NecroAstSymbol* log10_float;
+    NecroAstSymbol* log2_float;
+    NecroAstSymbol* pow_float;
+    NecroAstSymbol* abs_f64;
+    NecroAstSymbol* sine_f64;
+    NecroAstSymbol* cosine_f64;
+    NecroAstSymbol* exp_f64;
+    NecroAstSymbol* exp2_f64;
+    NecroAstSymbol* log_f64;
+    NecroAstSymbol* log10_f64;
+    NecroAstSymbol* log2_f64;
+    NecroAstSymbol* pow_f64;
 
     NecroScopedSymTable* scoped_symtable;
 

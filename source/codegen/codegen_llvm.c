@@ -660,15 +660,38 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
     // TODO: Implement Abs and sign
     switch (ast->uop.uop_type)
     {
-    case NECRO_PRIMOP_UOP_IABS: value = param; break; // TODO
-    case NECRO_PRIMOP_UOP_FABS: value = param; break; // TODO
     case NECRO_PRIMOP_UOP_UABS: value = param; break;
+    case NECRO_PRIMOP_UOP_IABS:
+    {
+        // Note: This assume's Two's complement representation for negative integers!
+        // In 32-bit, this looks like:
+        // abs x = if x >= 0 then (x XOR 0x0) - 0 else (x XOR 0xFFFFFFFF) - 1
+        LLVMTypeRef  arg_type  = necro_llvm_type_from_mach_type(context, ast->uop.param->necro_machine_type);
+        LLVMValueRef xor_mask  = NULL;
+        LLVMValueRef sub_value = NULL;
+        value                  = param;
+        if (arg_type == LLVMInt32TypeInContext(context->context))
+        {
+            xor_mask  = LLVMBuildAShr(context->builder, value, LLVMConstInt(LLVMInt32TypeInContext(context->context), 31, false), "xor_mask");
+            sub_value = LLVMBuildLShr(context->builder, value, LLVMConstInt(LLVMInt32TypeInContext(context->context), 31, false), "sub_value");
+        }
+        else if (arg_type == LLVMInt64TypeInContext(context->context))
+        {
+            xor_mask  = LLVMBuildAShr(context->builder, value, LLVMConstInt(LLVMInt64TypeInContext(context->context), 63, false), "xor_mask");
+            sub_value = LLVMBuildLShr(context->builder, value, LLVMConstInt(LLVMInt32TypeInContext(context->context), 63, false), "sub_value");
+        }
+        else
+            assert(false && "Only 32-bit and 64-bit Ints supported");
+        value = LLVMBuildXor(context->builder, value, xor_mask, "xor_result");
+        value = LLVMBuildSub(context->builder, value, sub_value, "abs_result");
+        break;
+    }
 
     case NECRO_PRIMOP_UOP_ISGN: value = param; break; // TODO
     case NECRO_PRIMOP_UOP_USGN: value = param; break; // TODO
     case NECRO_PRIMOP_UOP_FSGN: value = param; break; // TODO
 
-    case NECRO_PRIMOP_UOP_ITOU: value = param; break; // TODO
+    case NECRO_PRIMOP_UOP_ITOU: value = param; break; // TODO: Different bit sizes?
     case NECRO_PRIMOP_UOP_ITOF: value = LLVMBuildSIToFP(context->builder, param, result_type, name); break;
     case NECRO_PRIMOP_UOP_ITOI:
     {
@@ -683,7 +706,7 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
         break;
     }
 
-    case NECRO_PRIMOP_UOP_UTOI: value = param; break; // TODO
+    case NECRO_PRIMOP_UOP_UTOI: value = param; break; // TODO: Different bit sizes?
 
     case NECRO_PRIMOP_UOP_FTRI: value = LLVMBuildFPToSI(context->builder, param, result_type, name); break; // TODO: Finish
     case NECRO_PRIMOP_UOP_FRNI: value = LLVMBuildFPToSI(context->builder, param, result_type, name); break;
@@ -1048,6 +1071,26 @@ LLVMValueRef necro_llvm_codegen_call(NecroLLVM* context, NecroMachAst* ast)
     return result;
 }
 
+void necro_llvm_set_intrinsic_uop_type_and_value(NecroLLVM* context, NecroMachType* arg_mach_type, NecroAstSymbol* symbol_32, NecroAstSymbol* symbol_64, const char* name_32, const char* name_64, LLVMTypeRef cmp_type_32, LLVMTypeRef* fn_type, LLVMValueRef* fn_value)
+{
+    LLVMTypeRef arg_type = necro_llvm_type_from_mach_type(context, arg_mach_type);
+    *fn_type = LLVMFunctionType(arg_type, (LLVMTypeRef[]) { arg_type }, 1, false);
+    if (arg_type == cmp_type_32)
+        *fn_value = necro_llvm_intrinsic_get(context, symbol_32->core_ast_symbol->mach_symbol, name_32, *fn_type);
+    else
+        *fn_value = necro_llvm_intrinsic_get(context, symbol_64->core_ast_symbol->mach_symbol, name_64, *fn_type);
+}
+
+void necro_llvm_set_intrinsic_binop_type_and_value(NecroLLVM* context, NecroMachType* arg_mach_type, NecroAstSymbol* symbol_32, NecroAstSymbol* symbol_64, const char* name_32, const char* name_64, LLVMTypeRef cmp_type_32, LLVMTypeRef* fn_type, LLVMValueRef* fn_value)
+{
+    LLVMTypeRef arg_type = necro_llvm_type_from_mach_type(context, arg_mach_type);
+    *fn_type = LLVMFunctionType(arg_type, (LLVMTypeRef[]) { arg_type, arg_type }, 2, false);
+    if (arg_type == cmp_type_32)
+        *fn_value = necro_llvm_intrinsic_get(context, symbol_32->core_ast_symbol->mach_symbol, name_32, *fn_type);
+    else
+        *fn_value = necro_llvm_intrinsic_get(context, symbol_64->core_ast_symbol->mach_symbol, name_64, *fn_type);
+}
+
 LLVMValueRef necro_llvm_codegen_call_intrinsic(NecroLLVM* context, NecroMachAst* ast)
 {
     assert(context != NULL);
@@ -1059,8 +1102,10 @@ LLVMValueRef necro_llvm_codegen_call_intrinsic(NecroLLVM* context, NecroMachAst*
         result_name = ast->call_intrinsic.result_reg->value.reg_symbol->name->str;
     else
         result_name = "";
-    LLVMValueRef fn_value = NULL;
-    LLVMTypeRef  fn_type  = NULL;
+    LLVMValueRef fn_value   = NULL;
+    LLVMTypeRef  fn_type    = NULL;
+    LLVMTypeRef  int32_type = LLVMInt32TypeInContext(context->context);
+    LLVMTypeRef  f32_type   = LLVMFloatTypeInContext(context->context);
     switch (ast->call_intrinsic.intrinsic)
     {
     case NECRO_PRIMOP_INTR_FMA:
@@ -1068,24 +1113,44 @@ LLVMValueRef necro_llvm_codegen_call_intrinsic(NecroLLVM* context, NecroMachAst*
         fn_value = necro_llvm_intrinsic_get(context, context->base->fma->core_ast_symbol->mach_symbol, "llvm.fmuladd.f64", fn_type);
         break;
     case NECRO_PRIMOP_INTR_BREV:
-    {
-        LLVMTypeRef arg_type = necro_llvm_type_from_mach_type(context, ast->necro_machine_type);
-        fn_type              = LLVMFunctionType(arg_type, (LLVMTypeRef[]) { arg_type }, 1, false);
-        if (arg_type == LLVMInt32TypeInContext(context->context))
-            fn_value = necro_llvm_intrinsic_get(context, context->base->bit_reverse_uint->core_ast_symbol->mach_symbol, "llvm.bitreverse.i32", fn_type);
-        else if (arg_type == LLVMInt64TypeInContext(context->context))
-            fn_value = necro_llvm_intrinsic_get(context, context->base->bit_reverse_uint->core_ast_symbol->mach_symbol, "llvm.bitreverse.i64", fn_type);
-        else
-            assert(false); // Only 32/64-bit ints supported currently
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->bit_reverse_uint, context->base->bit_reverse_uint, "llvm.bitreverse.i32", "llvm.bitreverse.i64", int32_type, &fn_type, &fn_value);
         break;
-    }
+    case NECRO_PRIMOP_INTR_FABS:
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->abs_float, context->base->abs_f64, "llvm.fabs.f32", "llvm.fabs.f64", f32_type, &fn_type, &fn_value);
+        break;
+    case NECRO_PRIMOP_INTR_SIN:
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->sine_float, context->base->sine_f64, "llvm.sin.f32", "llvm.sin.f64", f32_type, &fn_type, &fn_value);
+        break;
+    case NECRO_PRIMOP_INTR_COS:
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->cosine_float, context->base->cosine_f64, "llvm.cos.f32", "llvm.cos.f64", f32_type, &fn_type, &fn_value);
+        break;
+    case NECRO_PRIMOP_INTR_EXP:
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->exp_float, context->base->exp_f64, "llvm.exp.f32", "llvm.exp.f64", f32_type, &fn_type, &fn_value);
+        break;
+    case NECRO_PRIMOP_INTR_EXP2:
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->exp2_float, context->base->exp2_f64, "llvm.exp2.f32", "llvm.exp2.f64", f32_type, &fn_type, &fn_value);
+        break;
+    case NECRO_PRIMOP_INTR_LOG:
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->log_float, context->base->log_f64, "llvm.log.f32", "llvm.log.f64", f32_type, &fn_type, &fn_value);
+        break;
+    case NECRO_PRIMOP_INTR_LOG10:
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->log10_float, context->base->log10_f64, "llvm.log10.f32", "llvm.log10.f64", f32_type, &fn_type, &fn_value);
+        break;
+    case NECRO_PRIMOP_INTR_LOG2:
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->log2_float, context->base->log2_f64, "llvm.log2.f32", "llvm.log2.f64", f32_type, &fn_type, &fn_value);
+        break;
+    case NECRO_PRIMOP_INTR_POW:
+        necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->pow_float, context->base->pow_f64, "llvm.pow.f32", "llvm.pow.f64", f32_type, &fn_type, &fn_value);
+        break;
     // case NECRO_PRIMOP_INTR_FLR:
     // {
     //     fn_type  = LLVMFunctionType(LLVMDoubleTypeInContext(context->context), (LLVMTypeRef[]) { LLVMDoubleTypeInContext(context->context) }, 1, false);
     //     fn_value = necro_llvm_intrinsic_get(context, context->base->floor->core_ast_symbol->mach_symbol, "llvm.floor.f64", fn_type);
     //     break;
     // }
-        default: /* @Curtis: not sure if this should be handled? */ break;
+    default:
+        assert(false);
+        break;
     }
     size_t        num_params  = ast->call_intrinsic.num_parameters;
     LLVMValueRef* params      = necro_paged_arena_alloc(&context->arena, num_params * sizeof(LLVMValueRef));

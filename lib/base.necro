@@ -163,6 +163,7 @@ class Ring a => EuclideanRing a where
 
 class (EuclideanRing a, DivisionRing a) => Field a where
 
+-- TODO: Look at abs and signum!
 class (Eq a, Ring a) => Num a where
   abs    :: a -> a
   signum :: a -> a
@@ -173,7 +174,17 @@ class (Num a, EuclideanRing a) => Integral a where
 class (Num a, Field a) => Floating a where
   fromFloat :: Float -> a
 
-  -- sin       :: a -> a
+-- TODO: Finish!
+class Floating a => Trig a where
+  sine   :: a -> a
+  cosine :: a -> a
+  exp    :: a -> a
+  exp2   :: a -> a
+  log    :: a -> a
+  log10  :: a -> a
+  log2   :: a -> a
+  pow    :: a -> a -> a
+
   -- atan      :: a -> a
   -- floor'    :: Integral b => a -> b
   -- ceil'     :: Integral b => a -> b
@@ -415,6 +426,16 @@ instance Field Float where
 instance Floating Float where
   fromFloat x = x
 
+instance Trig Float where
+  sine   x = primUndefined
+  cosine x = primUndefined
+  exp    x = primUndefined
+  exp2   x = primUndefined
+  log    x = primUndefined
+  log10  x = primUndefined
+  log2   x = primUndefined
+  pow  x y = primUndefined
+
 instance Semigroup Float where
   append x y = x + y
 
@@ -464,6 +485,16 @@ instance Field F64 where
 
 instance Floating F64 where
   fromFloat x = primUndefined
+
+instance Trig F64 where
+  sine   x = primUndefined
+  cosine x = primUndefined
+  exp    x = primUndefined
+  exp2   x = primUndefined
+  log    x = primUndefined
+  log10  x = primUndefined
+  log2   x = primUndefined
+  pow  x y = primUndefined
 
 instance Semigroup F64 where
   append x y = x + y
@@ -1021,18 +1052,14 @@ data FFT f k   = FFT (f (Array (NatMul BlockSize (NatMax k 1)) Complex))
 data FFTWindow = FFTWindow (Array BlockSize F64)
 -- TODO: FFT windowing!
 
--- TODO: Create
 uintToInt :: UInt -> Int
 uintToInt x = primUndefined
-
-cosine :: Floating a => a -> a
-cosine x = primUndefined
 
 fromUInt :: Ring a => UInt -> a
 fromUInt x = fromInt (uintToInt x)
 
 pi :: Floating a => a
-pi = 3.141592654
+pi = 3.141592653589793238
 
 tau :: Floating a => a
 tau = 2 * pi
@@ -1048,6 +1075,7 @@ hamming =
     writeArray i (0.54 - 0.46 * cosine (tau * fromUInt (indexToUInt i + 1) / fromUInt sampleRate)) a
 
 -- TODO: Look more into this...
+-- TODO: Shift right after bit reverse?
 bitRevFFTArray :: Array BlockSize F64 -> FFTWindow -> *Array (NatMul BlockSize (NatMax k 1)) Complex
 bitRevFFTArray audioBuffer (FFTWindow windowBuffer) =
   loop a' = unsafeEmptyArray () for i <- each do

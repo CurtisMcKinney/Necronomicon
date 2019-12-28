@@ -210,8 +210,18 @@ void necro_mach_print_call_intrinsic(NecroMachAst* ast, size_t depth)
         printf("%%%s = call ", ast->call_intrinsic.result_reg->value.reg_symbol->name->str);
     switch (ast->call_intrinsic.intrinsic)
     {
-    case NECRO_PRIMOP_INTR_FMA: printf("fma "); break;
-    default:                    assert(false); break;
+    case NECRO_PRIMOP_INTR_FMA:   printf("fma ");   break;
+    case NECRO_PRIMOP_INTR_BREV:  printf("brev ");  break;
+    case NECRO_PRIMOP_INTR_FABS:  printf("fabs ");  break;
+    case NECRO_PRIMOP_INTR_SIN:   printf("sin ");   break;
+    case NECRO_PRIMOP_INTR_COS:   printf("cos ");   break;
+    case NECRO_PRIMOP_INTR_EXP:   printf("exp ");   break;
+    case NECRO_PRIMOP_INTR_EXP2:  printf("exp2 ");  break;
+    case NECRO_PRIMOP_INTR_LOG:   printf("log ");   break;
+    case NECRO_PRIMOP_INTR_LOG10: printf("log10 "); break;
+    case NECRO_PRIMOP_INTR_LOG2:  printf("log2 ");  break;
+    case NECRO_PRIMOP_INTR_POW:   printf("pow ");   break;
+    default:                      assert(false);    break;
     }
     printf("(");
     for (size_t i = 0; i < ast->call_intrinsic.num_parameters; ++i)
@@ -475,7 +485,6 @@ void necro_mach_print_uop(NecroMachAst* ast, size_t depth)
     case NECRO_PRIMOP_UOP_ISGN: printf("isgn "); break;
     case NECRO_PRIMOP_UOP_UABS: printf("uabs "); break;
     case NECRO_PRIMOP_UOP_USGN: printf("usgn "); break;
-    case NECRO_PRIMOP_UOP_FABS: printf("fabs "); break;
     case NECRO_PRIMOP_UOP_FSGN: printf("fsgn "); break;
     case NECRO_PRIMOP_UOP_ITOI: printf("itoi "); break;
     case NECRO_PRIMOP_UOP_ITOU: printf("itou "); break;

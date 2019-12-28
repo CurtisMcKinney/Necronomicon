@@ -1307,7 +1307,6 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     {
     case NECRO_PRIMOP_UOP_IABS:
     case NECRO_PRIMOP_UOP_UABS:
-    case NECRO_PRIMOP_UOP_FABS:
     case NECRO_PRIMOP_UOP_ISGN:
     case NECRO_PRIMOP_UOP_USGN:
     case NECRO_PRIMOP_UOP_FSGN:
@@ -1442,12 +1441,31 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         return array_value;
     }
 
+    case NECRO_PRIMOP_INTR_FABS:
+    case NECRO_PRIMOP_INTR_SIN:
+    case NECRO_PRIMOP_INTR_COS:
+    case NECRO_PRIMOP_INTR_EXP:
+    case NECRO_PRIMOP_INTR_EXP2:
+    case NECRO_PRIMOP_INTR_LOG:
+    case NECRO_PRIMOP_INTR_LOG10:
+    case NECRO_PRIMOP_INTR_LOG2:
     case NECRO_PRIMOP_INTR_BREV:
     {
         assert(arg_count == 1);
         NecroMachAst*  arg       = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
         NecroMachType* call_type = necro_mach_type_from_necro_type(program, app_ast->app.expr1->necro_type);
-        NecroMachAst*  result    = necro_mach_build_call_intrinsic(program, outer->machine_def.update_fn, primop_type, call_type, (NecroMachAst*[]) { arg }, 1, "brev_result");
+        NecroMachAst*  result    = necro_mach_build_call_intrinsic(program, outer->machine_def.update_fn, primop_type, call_type, (NecroMachAst*[]) { arg }, 1, "intr_result");
+        return result;
+    }
+
+    case NECRO_PRIMOP_INTR_POW:
+    {
+        assert(arg_count == 2);
+        assert(app_ast->app.expr1->ast_type == NECRO_CORE_AST_APP);
+        NecroMachAst*  x_value   = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr2, outer);
+        NecroMachAst*  y_value   = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
+        NecroMachType* call_type = necro_mach_type_from_necro_type(program, app_ast->app.expr1->app.expr1->necro_type);
+        NecroMachAst*  result    = necro_mach_build_call_intrinsic(program, outer->machine_def.update_fn, primop_type, call_type, (NecroMachAst*[]) {x_value, y_value}, 2, "intr_result");
         return result;
     }
 

@@ -1019,7 +1019,6 @@ void necro_mach_ast_type_check_uop(NecroMachProgram* program, NecroMachAst* ast)
         necro_mach_type_check_is_uint_type(result->necro_machine_type);
         break;
     }
-    case NECRO_PRIMOP_UOP_FABS: /* FALL THROUGH */
     case NECRO_PRIMOP_UOP_FSGN:
     {
         necro_mach_type_check_is_float_type(param->necro_machine_type);

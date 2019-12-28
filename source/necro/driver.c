@@ -33,6 +33,7 @@
 #include "defunctionalization.h"
 #include "mach_transform.h"
 #include "codegen/codegen_llvm.h"
+#include "core/core_infer.h"
 
 #define NECRO_VERBOSITY 1
 
@@ -146,7 +147,7 @@ NecroResult(void) necro_compile_go(
     // Dependency Analyze
     //--------------------
     necro_compile_begin_phase(info, NECRO_PHASE_DEPENDENCY_ANALYSIS);
-    necro_dependency_analyze(info, intern, ast);
+    necro_dependency_analyze(info, intern, base, ast);
     necro_alias_analysis(info, ast); // NOTE: Consider merging alias_analysis into RENAME_VAR phase?
     if (necro_compile_end_phase(info, NECRO_PHASE_DEPENDENCY_ANALYSIS))
         return ok_void();
@@ -184,6 +185,11 @@ NecroResult(void) necro_compile_go(
         return ok_void();
 
     //--------------------
+    // Core Infer
+    //--------------------
+    unwrap(void, necro_core_infer(intern, base, core_ast_arena));
+
+    //--------------------
     // Lambda Lift
     //--------------------
     necro_compile_begin_phase(info, NECRO_PHASE_LAMBDA_LIFT);
@@ -196,6 +202,7 @@ NecroResult(void) necro_compile_go(
     //--------------------
     necro_compile_begin_phase(info, NECRO_PHASE_DEFUNCTIONALIZATION);
     necro_core_defunctionalize(info, intern, base, core_ast_arena);
+    necro_core_ast_pre_simplify(info, intern, base, core_ast_arena);
     if (necro_compile_end_phase(info, NECRO_PHASE_DEFUNCTIONALIZATION))
         return ok_void();
 

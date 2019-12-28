@@ -56,6 +56,7 @@ NecroCoreScope*     necro_core_scope_create(NecroPagedArena* arena, NecroCoreSco
 bool                necro_core_scope_find_in_this_scope(NecroCoreScope* scope, NecroCoreAstSymbol* ast_symbol);
 NecroCoreAstSymbol* necro_core_scope_find_renamed_in_this_scope(NecroCoreScope* scope, NecroCoreAstSymbol* ast_symbol);
 void                necro_core_scope_insert(NecroPagedArena* arena, NecroCoreScope* scope, NecroCoreAstSymbol* ast_symbol, NecroType* necro_type);
+void                necro_core_scope_print(NecroCoreScope* scope);
 
 //--------------------
 // NecroLambdaLift
@@ -78,6 +79,7 @@ NecroLambdaLift necro_lambda_lift_create(NecroPagedArena* ast_arena, NecroIntern
 {
     NecroPagedArena ll_arena     = necro_paged_arena_create();
     NecroCoreScope* global_scope = necro_core_scope_create(&ll_arena, NULL);
+    necro_core_scope_insert(ast_arena, global_scope, necro_base_get_proj_symbol(ast_arena, base), necro_type_fresh_var(ast_arena, NULL));
     return (NecroLambdaLift)
     {
         .ast_arena      = ast_arena,
@@ -98,10 +100,13 @@ void necro_lambda_lift_destroy(NecroLambdaLift* ll)
 
 void necro_core_lambda_lift(NecroCompileInfo info, NecroIntern* intern, NecroBase* base, NecroCoreAstArena* core_ast_arena)
 {
-    UNUSED(info);
     NecroLambdaLift ll = necro_lambda_lift_create(&core_ast_arena->arena, intern, base);
     necro_core_lambda_lift_go(&ll, core_ast_arena->root);
     necro_lambda_lift_destroy(&ll);
+    if ((info.compilation_phase == NECRO_PHASE_LAMBDA_LIFT && info.verbosity > 0) || info.verbosity > 1)
+    {
+        necro_core_ast_pretty_print(core_ast_arena->root);
+    }
 }
 
 ///////////////////////////////////////////////////////
@@ -230,6 +235,26 @@ NecroCoreAstSymbol* necro_core_scope_find_renamed_in_this_scope(NecroCoreScope* 
     return NULL;
 }
 
+void necro_core_scope_print(NecroCoreScope* scope)
+{
+    printf("NecroCoreScope\n{\n");
+    for (size_t i = 0; i < scope->size; ++i)
+    {
+        NecroCoreAstSymbol* ast_symbol         = scope->data[i].ast_symbol;
+        NecroCoreAstSymbol* renamed_ast_symbol = scope->data[i].renamed_ast_symbol;
+        NecroType*          necro_type         = scope->data[i].necro_type;
+        if (ast_symbol == NULL)
+            continue;
+        if (renamed_ast_symbol != NULL)
+            printf("  %s => %s :: ", ast_symbol->name->str, renamed_ast_symbol->name->str);
+        else
+            printf("  %s => NULL :: ", ast_symbol->name->str);
+        necro_type_print(necro_type);
+        printf("\n");
+    }
+    printf("}\n");
+}
+
 ///////////////////////////////////////////////////////
 // Utility
 ///////////////////////////////////////////////////////
@@ -287,14 +312,21 @@ bool necro_core_lambda_lift_is_bind_fn(NecroCoreAst* ast)
 ///////////////////////////////////////////////////////
 // LambdaLift
 ///////////////////////////////////////////////////////
-void necro_core_lambda_lift_for(NecroLambdaLift* ll, NecroCoreAst* ast)
+void necro_core_lambda_lift_loop(NecroLambdaLift* ll, NecroCoreAst* ast)
 {
-    assert(ast->ast_type == NECRO_CORE_AST_FOR);
-    necro_core_lambda_lift_go(ll, ast->for_loop.range_init);
-    necro_core_lambda_lift_go(ll, ast->for_loop.value_init);
-    necro_core_lambda_lift_pat(ll, ast->for_loop.index_arg);
-    necro_core_lambda_lift_pat(ll, ast->for_loop.value_arg);
-    necro_core_lambda_lift_go(ll, ast->for_loop.expression);
+    assert(ast->ast_type == NECRO_CORE_AST_LOOP);
+    necro_core_lambda_lift_pat(ll, ast->loop.value_pat);
+    necro_core_lambda_lift_go(ll, ast->loop.value_init);
+    if (ast->loop.loop_type == NECRO_LOOP_FOR)
+    {
+        necro_core_lambda_lift_pat(ll, ast->loop.for_loop.index_pat);
+        necro_core_lambda_lift_go(ll, ast->loop.for_loop.range_init);
+    }
+    else
+    {
+        necro_core_lambda_lift_go(ll, ast->loop.while_loop.while_expression);
+    }
+    necro_core_lambda_lift_go(ll, ast->loop.do_expression);
 }
 
 void necro_core_lambda_lift_case(NecroLambdaLift* ll, NecroCoreAst* ast)
@@ -437,7 +469,17 @@ void necro_core_lambda_lift_bind(NecroLambdaLift* ll, NecroCoreAst* ast)
             necro_core_lambda_lift_bound_lam(ll, ast->bind.expr);
         else
             necro_core_lambda_lift_go(ll, ast->bind.expr);
-        assert(ll->scope->free_vars->count == 0);
+        if (ll->scope->free_vars->count > 0)
+        {
+            printf("Free Vars:\n");
+            necro_core_scope_print(ll->scope->free_vars);
+            printf("\nLocal Scope:\n");
+            necro_core_scope_print(ll->scope);
+            printf("\nParent Scope:\n");
+            necro_core_scope_print(ll->scope->parent);
+            printf("Lambda Lift fatal error at: %s\n", ast->bind.ast_symbol->name->str);
+            assert(ll->scope->free_vars->count == 0);
+        }
         ast->bind.ast_symbol->free_vars = ll->scope->free_vars;
         necro_core_lambda_lift_pop_scope(ll);
         return;
@@ -489,6 +531,19 @@ void necro_core_lambda_lift_app(NecroLambdaLift* ll, NecroCoreAst* ast)
     necro_core_lambda_lift_go(ll, ast->app.expr2);
 }
 
+void necro_core_lambda_lift_lit(NecroLambdaLift* ll, NecroCoreAst* ast)
+{
+    assert(ast->ast_type == NECRO_CORE_AST_LIT);
+    if (ast->lit.type != NECRO_AST_CONSTANT_ARRAY)
+        return;
+    NecroCoreAstList* elements = ast->lit.array_literal_elements;
+    while (elements != NULL)
+    {
+        necro_core_lambda_lift_go(ll, elements->data);
+        elements = elements->next;
+    }
+}
+
 ///////////////////////////////////////////////////////
 // LambdaLift Pat
 ///////////////////////////////////////////////////////
@@ -520,9 +575,10 @@ void necro_core_lambda_lift_go(NecroLambdaLift* ll, NecroCoreAst* ast)
         return;
     switch (ast->ast_type)
     {
+    case NECRO_CORE_AST_LIT:       necro_core_lambda_lift_lit(ll, ast);  return;
     case NECRO_CORE_AST_VAR:       necro_core_lambda_lift_var(ll, ast);  return;
     case NECRO_CORE_AST_APP:       necro_core_lambda_lift_app(ll, ast);  return;
-    case NECRO_CORE_AST_FOR:       necro_core_lambda_lift_for(ll, ast);  return;
+    case NECRO_CORE_AST_LOOP:      necro_core_lambda_lift_loop(ll, ast);  return;
     case NECRO_CORE_AST_CASE:      necro_core_lambda_lift_case(ll, ast); return;
     case NECRO_CORE_AST_LET:       necro_core_lambda_lift_let(ll, ast);  return;
     case NECRO_CORE_AST_BIND:      necro_core_lambda_lift_bind(ll, ast); return;
@@ -530,7 +586,6 @@ void necro_core_lambda_lift_go(NecroLambdaLift* ll, NecroCoreAst* ast)
     // case NECRO_CORE_AST_BIND_REC:
     case NECRO_CORE_AST_DATA_DECL: return;
     case NECRO_CORE_AST_DATA_CON:  return;
-    case NECRO_CORE_AST_LIT:       return;
     default:                       assert(false && "Unimplemented Ast in necro_core_lambda_lift_go"); return;
     }
 }
@@ -558,11 +613,12 @@ void necro_core_lambda_lift_test_result(const char* test_name, const char* str)
     ast = necro_reify(info, &intern, &parse_ast);
     necro_build_scopes(info, &scoped_symtable, &ast);
     unwrap(void, necro_rename(info, &scoped_symtable, &intern, &ast));
-    necro_dependency_analyze(info, &intern, &ast);
+    necro_dependency_analyze(info, &intern, &base, &ast);
     necro_alias_analysis(info, &ast); // NOTE: Consider merging alias_analysis into RENAME_VAR phase?
     unwrap(void, necro_infer(info, &intern, &scoped_symtable, &base, &ast));
     unwrap(void, necro_monomorphize(info, &intern, &scoped_symtable, &base, &ast));
     unwrap(void, necro_ast_transform_to_core(info, &intern, &base, &ast, &core_ast));
+    unwrap(void, necro_core_infer(&intern, &base, &core_ast));
     necro_core_ast_pre_simplify(info, &intern, &base, &core_ast);
     necro_core_lambda_lift(info, &intern, &base, &core_ast);
     unwrap(void, necro_core_infer(&intern, &base, &core_ast));
@@ -738,7 +794,7 @@ void necro_core_lambda_lift_test()
     {
         const char* test_name   = "Lift Unique 2";
         const char* test_source = ""
-            "utest :: *Bool -> *Bool -> *(Bool, Bool)\n"
+            "utest :: *Bool -> *Bool -> (*Bool, *Bool)\n"
             "utest b c = f True where\n"
             "  f x = (b, c)\n";
         necro_core_lambda_lift_test_result(test_name, test_source);

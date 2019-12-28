@@ -42,11 +42,17 @@ NecroResult(NecroType) necro_core_infer_lit(NecroCoreInfer* infer, NecroCoreAst*
     switch (ast->lit.type)
     {
     case NECRO_AST_CONSTANT_FLOAT:
-    case NECRO_AST_CONSTANT_FLOAT_PATTERN:   return ok(NecroType, infer->base->float_type->type);
+    case NECRO_AST_CONSTANT_FLOAT_PATTERN:
+        ast->necro_type = infer->base->float_type->type;
+        return ok(NecroType, ast->necro_type);
     case NECRO_AST_CONSTANT_INTEGER:
-    case NECRO_AST_CONSTANT_INTEGER_PATTERN: return ok(NecroType, infer->base->int_type->type);
+    case NECRO_AST_CONSTANT_INTEGER_PATTERN:
+        ast->necro_type = infer->base->int_type->type;
+        return ok(NecroType, ast->necro_type);
     case NECRO_AST_CONSTANT_CHAR:
-    case NECRO_AST_CONSTANT_CHAR_PATTERN:    return ok(NecroType, infer->base->char_type->type);
+    case NECRO_AST_CONSTANT_CHAR_PATTERN:
+        ast->necro_type = infer->base->char_type->type;
+        return ok(NecroType, ast->necro_type);
     case NECRO_AST_CONSTANT_STRING:
     {
         NecroType* arity_type = necro_type_nat_create(infer->arena, strlen(ast->lit.string_literal->str) + 1);
@@ -108,18 +114,17 @@ NecroResult(NecroType) necro_core_infer_var(NecroCoreInfer* infer, NecroCoreAst*
         NecroType* type = NULL;
         if (ast->var.ast_symbol->type->type == NECRO_TYPE_FOR)
         {
-            type = necro_try_result(NecroType, necro_type_instantiate(infer->arena, NULL, infer->base, ast->var.ast_symbol->type, NULL));
+            type = necro_type_instantiate(infer->arena, NULL, infer->base, ast->var.ast_symbol->type, NULL, zero_loc, zero_loc);
         }
         else
         {
             type = ast->var.ast_symbol->type;
         }
-        // if (type->ownership == NULL)
-        //     type->ownership = infer->base->ownership_share->type;
         // For now we're simply turning off ownership inference in core...
         ast->necro_type->ownership = infer->base->ownership_share->type;
         type->ownership            = infer->base->ownership_share->type;
         necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, type, zero_loc, zero_loc));
+        necro_type_unify_con_uninhabited_args(infer->arena, infer->base, ast->necro_type, type);
         // unwrap(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, ast->necro_type, type, NULL, zero_loc, zero_loc));
         ast->necro_type = type; // For now we're simply forcing the ast to take the type instead of unifying...
         necro_type_assert_no_rigid_variables(type);
@@ -127,29 +132,42 @@ NecroResult(NecroType) necro_core_infer_var(NecroCoreInfer* infer, NecroCoreAst*
     }
 }
 
-NecroResult(NecroType) necro_core_infer_for(NecroCoreInfer* infer, NecroCoreAst* ast)
+NecroResult(NecroType) necro_core_infer_loop(NecroCoreInfer* infer, NecroCoreAst* ast)
 {
-    assert(ast->ast_type == NECRO_CORE_AST_FOR);
-    NecroType* range_init_type = necro_try_result(NecroType, necro_core_infer_go(infer, ast->for_loop.range_init));
-    NecroType* value_init_type = necro_try_result(NecroType, necro_core_infer_go(infer, ast->for_loop.value_init));
-    NecroType* index_arg_type  = necro_try_result(NecroType, necro_core_infer_go(infer, ast->for_loop.index_arg));
-    NecroType* value_arg_type  = necro_try_result(NecroType, necro_core_infer_go(infer, ast->for_loop.value_arg));
-    NecroType* expression_type = necro_try_result(NecroType, necro_core_infer_go(infer, ast->for_loop.expression));
-    // TODO: How to handle type inference with range / index after monomophization of types?
-    UNUSED(range_init_type);
-    UNUSED(index_arg_type);
-    // NecroType* n_type          = necro_type_fresh_var(infer->arena, NULL);
-    // NecroType* range_type      = necro_type_con1_create(infer->arena, infer->base->range_type, n_type);
-    // NecroType* index_type      = necro_type_con1_create(infer->arena, infer->base->index_type, n_type);
-    // unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, range_type, zero_loc, zero_loc));
-    // unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, index_type, zero_loc, zero_loc));
-    // necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, range_type, range_init_type, NULL, zero_loc, zero_loc));
-    // necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, index_type, index_arg_type, NULL, zero_loc, zero_loc));
-    necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, value_init_type, value_arg_type, NULL, zero_loc, zero_loc));
-    necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, value_arg_type, expression_type, NULL, zero_loc, zero_loc));
-    ast->necro_type = expression_type;
+    assert(ast->ast_type == NECRO_CORE_AST_LOOP);
+    NecroType* value_pat_type  = necro_try_result(NecroType, necro_core_infer_go(infer, ast->loop.value_pat));
+    NecroType* value_init_type = necro_try_result(NecroType, necro_core_infer_go(infer, ast->loop.value_init));
+    if (ast->loop.loop_type == NECRO_LOOP_FOR)
+    {
+        NecroType* index_pat_type  = necro_try_result(NecroType, necro_core_infer_go(infer, ast->loop.for_loop.index_pat));
+        NecroType* range_init_type = necro_try_result(NecroType, necro_core_infer_go(infer, ast->loop.for_loop.range_init));
+        index_pat_type             = necro_type_strip_for_all(necro_type_find(index_pat_type));
+        range_init_type            = necro_type_strip_for_all(necro_type_find(range_init_type));
+        if (index_pat_type->type == NECRO_TYPE_CON && index_pat_type->con.args != NULL)
+        {
+            // Pre Type Monomorphization
+            NecroType* n_type     = necro_type_fresh_var(infer->arena, NULL);
+            NecroType* range_type = necro_type_con1_create(infer->arena, infer->base->range_type, n_type);
+            NecroType* index_type = necro_type_con1_create(infer->arena, infer->base->index_type, n_type);
+            unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, range_init_type, zero_loc, zero_loc));
+            unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, range_type, zero_loc, zero_loc));
+            unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, index_type, zero_loc, zero_loc));
+            necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, range_type, range_init_type, NULL, zero_loc, zero_loc));
+            necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, index_type, index_pat_type, NULL, zero_loc, zero_loc));
+        }
+    }
+    else
+    {
+        NecroType* while_expression_type = necro_try_result(NecroType, necro_core_infer_go(infer, ast->loop.while_loop.while_expression));
+        necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, infer->base->bool_type->type, while_expression_type, NULL, zero_loc, zero_loc));
+    }
+    NecroType* do_expression_type = necro_try_result(NecroType, necro_core_infer_go(infer, ast->loop.do_expression));
+    unwrap(NecroType, necro_kind_infer(infer->arena, infer->base, value_init_type, zero_loc, zero_loc));
+    necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, value_init_type, value_pat_type, NULL, zero_loc, zero_loc));
+    necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, value_init_type, do_expression_type, NULL, zero_loc, zero_loc));
+    ast->necro_type = necro_type_find(do_expression_type);
     assert(ast->necro_type != NULL);
-    return ok(NecroType, expression_type);
+    return ok(NecroType, do_expression_type);
 }
 
 NecroResult(NecroType) necro_core_infer_app(NecroCoreInfer* infer, NecroCoreAst* ast)
@@ -182,6 +200,11 @@ NecroResult(NecroType) necro_core_infer_lam(NecroCoreInfer* infer, NecroCoreAst*
 NecroResult(NecroType) necro_core_infer_bind(NecroCoreInfer* infer, NecroCoreAst* ast)
 {
     assert(ast->ast_type == NECRO_CORE_AST_BIND);
+    if (ast->bind.initializer != NULL)
+    {
+        ast->bind.initializer->necro_type = necro_try_result(NecroType, necro_core_infer_go(infer, ast->bind.initializer));
+        necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, ast->bind.initializer->necro_type, zero_loc, zero_loc));
+    }
     NecroType* expr_type = necro_try_result(NecroType, necro_core_infer_go(infer, ast->bind.expr));
     assert(ast->bind.expr->necro_type != NULL);
     assert(expr_type != NULL);
@@ -189,12 +212,11 @@ NecroResult(NecroType) necro_core_infer_bind(NecroCoreInfer* infer, NecroCoreAst
     necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, ast->bind.ast_symbol->type, zero_loc, zero_loc));
     if (ast->bind.initializer != NULL)
     {
-        NecroType* init_type = necro_try_result(NecroType, necro_core_infer_go(infer, ast->bind.initializer));
-        necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, init_type, zero_loc, zero_loc));
-        necro_try(NecroType, necro_type_unify(infer->arena, NULL, infer->base, expr_type, init_type, NULL));
+        necro_try(NecroType, necro_type_unify(infer->arena, NULL, infer->base, expr_type, ast->bind.initializer->necro_type, NULL));
     }
     assert(ast->bind.ast_symbol->type != NULL);
     necro_try_result(NecroType, necro_type_unify(infer->arena, NULL, infer->base, ast->bind.ast_symbol->type, expr_type, NULL));
+    necro_type_unify_con_uninhabited_args(infer->arena, infer->base, ast->necro_type, ast->bind.ast_symbol->type);
     ast->necro_type = ast->bind.ast_symbol->type;
     assert(ast->necro_type != NULL);
     return ok(NecroType, ast->necro_type);
@@ -268,7 +290,7 @@ NecroResult(NecroType) necro_core_infer_go(NecroCoreInfer* infer, NecroCoreAst* 
     case NECRO_CORE_AST_APP:       return necro_core_infer_app(infer, ast);
     case NECRO_CORE_AST_LAM:       return necro_core_infer_lam(infer, ast);
     case NECRO_CORE_AST_CASE:      return necro_core_infer_case(infer, ast);
-    case NECRO_CORE_AST_FOR:       return necro_core_infer_for(infer, ast);
+    case NECRO_CORE_AST_LOOP:      return necro_core_infer_loop(infer, ast);
     case NECRO_CORE_AST_LET:       return necro_core_infer_let(infer, ast);
     case NECRO_CORE_AST_BIND:      return necro_core_infer_bind(infer, ast);
     // // case NECRO_CORE_AST_BIND_REC:
@@ -284,3 +306,54 @@ NecroResult(void) necro_core_infer(NecroIntern* intern, NecroBase* base, NecroCo
     return necro_error_map(NecroType, void, necro_core_infer_go(&infer, core_ast_arena->root));
 }
 
+
+///////////////////////////////////////////////////////
+// Hash
+///////////////////////////////////////////////////////
+size_t necro_core_ast_hash(NecroCoreAst* ast)
+{
+    if (ast == NULL)
+        return 0;
+    switch (ast->ast_type)
+    {
+    case NECRO_CORE_AST_VAR:       return 6803 ^ ast->var.ast_symbol->name->hash;
+    case NECRO_CORE_AST_CASE_ALT:  return 4229 ^ necro_core_ast_hash(ast->case_alt.pat) ^ necro_core_ast_hash(ast->case_alt.expr);
+    case NECRO_CORE_AST_APP:       return 6967 ^ necro_core_ast_hash(ast->app.expr1) ^ necro_core_ast_hash(ast->app.expr2);
+    case NECRO_CORE_AST_LAM:       return 1747 ^ necro_core_ast_hash(ast->lambda.arg) ^ necro_core_ast_hash(ast->lambda.expr);
+    case NECRO_CORE_AST_BIND:      return 2381 ^ ast->bind.ast_symbol->name->hash ^ necro_core_ast_hash(ast->bind.expr) ^ necro_core_ast_hash(ast->bind.initializer);
+    case NECRO_CORE_AST_LET:       return 7873 ^ necro_core_ast_hash(ast->let.bind) ^ necro_core_ast_hash(ast->let.expr);
+    case NECRO_CORE_AST_LOOP:
+        if (ast->loop.loop_type == NECRO_LOOP_FOR)
+            return 7529 ^ ast->loop.for_loop.max_loops ^ necro_core_ast_hash(ast->loop.for_loop.range_init) ^ necro_core_ast_hash(ast->loop.value_init) ^ necro_core_ast_hash(ast->loop.for_loop.index_pat) ^ necro_core_ast_hash(ast->loop.value_pat) ^ necro_core_ast_hash(ast->loop.do_expression);
+        else
+            return 7531 ^ necro_core_ast_hash(ast->loop.while_loop.while_expression) ^ necro_core_ast_hash(ast->loop.value_init) ^ necro_core_ast_hash(ast->loop.value_pat) ^ necro_core_ast_hash(ast->loop.do_expression);
+    case NECRO_CORE_AST_CASE:
+    {
+        size_t            hash = 6367 ^ necro_core_ast_hash(ast->case_expr.expr);
+        NecroCoreAstList* alts = ast->case_expr.alts;
+        while (alts != NULL)
+        {
+            hash = hash ^ necro_core_ast_hash(alts->data);
+            alts = alts->next;
+        }
+        return hash;
+    }
+    case NECRO_CORE_AST_LIT:
+    {
+        if (ast->lit.type != NECRO_AST_CONSTANT_ARRAY)
+            return 5333 ^ (size_t)ast->lit.uint_literal;
+        size_t            hash     = 5449;
+        NecroCoreAstList* elements = ast->lit.array_literal_elements;
+        while (elements != NULL)
+        {
+            hash     = hash ^ necro_core_ast_hash(elements->data);
+            elements = elements->next;
+        }
+        return hash;
+    }
+    case NECRO_CORE_AST_BIND_REC:
+    case NECRO_CORE_AST_DATA_DECL:
+    case NECRO_CORE_AST_DATA_CON:
+    default:                       assert(false && "Unimplemented Ast in necro_core_ast_hash"); return 0;
+    }
+}

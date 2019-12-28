@@ -19,6 +19,7 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
     case NECRO_LEX_MUL:                 return "MUL";
     case NECRO_LEX_DIV:                 return "DIV";
     case NECRO_LEX_MOD:                 return "MOD";
+    case NECRO_LEX_DOUBLE_DIV:          return "NECRO_LEX_DOUBLE_DIV";
     case NECRO_LEX_GT:                  return "GT";
     case NECRO_LEX_LT:                  return "LT";
     case NECRO_LEX_GTE:                 return "GTE";
@@ -68,6 +69,20 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
     case NECRO_LEX_UNIT:                return "UNIT";
     case NECRO_LEX_DOUBLE_EXCLAMATION:  return "DOUBLE_EXCLAMATION";
     case NECRO_LEX_APPEND:              return "APPEND";
+    case NECRO_LEX_ADD_ON_LEFT:         return "ADD ON LEFT";
+    case NECRO_LEX_ADD_ON_RIGHT:        return "ADD ON RIGHT";
+    case NECRO_LEX_SUB_ON_LEFT:         return "SUB ON LEFT";
+    case NECRO_LEX_SUB_ON_RIGHT:        return "SUB ON RIGHT";
+    case NECRO_LEX_MUL_ON_LEFT:         return "MUL ON LEFT";
+    case NECRO_LEX_MUL_ON_RIGHT:        return "MUL ON RIGHT";
+    case NECRO_LEX_DIV_ON_LEFT:         return "DIV ON LEFT";
+    case NECRO_LEX_DIV_ON_RIGHT:        return "DIV ON RIGHT";
+    case NECRO_LEX_CONST_LEFT_ON_LEFT:  return "CONST LEFT ON LEFT";
+    case NECRO_LEX_CONST_LEFT_ON_RIGHT: return "CONST LEFT ON RIGHT";
+    case NECRO_LEX_CONST_RIGHT_ON_LEFT: return "CONST RIGHT ON RIGHT";
+    case NECRO_LEX_CONST_RIGHT_ON_RIGHT:return "CONST RIGHT ON RIGHT";
+    case NECRO_LEX_CONST_LEFT_ON_BOTH:  return "CONST LEFT ON BOTH";
+    case NECRO_LEX_CONST_RIGHT_ON_BOTH: return "CONST RIGHT ON BOTH";
     case NECRO_LEX_ACCENT:              return "ACCENT";
     case NECRO_LEX_END_OF_STREAM:       return "END OF STREAM";
     case NECRO_LEX_CASE:                return "CASE";
@@ -89,6 +104,7 @@ const char* necro_lex_token_type_string(NECRO_LEX_TOKEN_TYPE token)
     case NECRO_LEX_TYPE:                return "TYPE";
     case NECRO_LEX_FOR:                 return "FOR";
     case NECRO_LEX_LOOP:                return "LOOP";
+    case NECRO_LEX_WHILE:               return "WHILE";
     case NECRO_LEX_WHERE:               return "WHERE";
     default:                            return "UNRECOGNIZED TOKEN";
     }
@@ -422,12 +438,25 @@ bool necro_lex_char(NecroLexer* lexer)
 {
     NecroSourceLoc char_loc    = lexer->loc;
     uint32_t       code_point1 = necro_lex_next_char(lexer);
-    uint32_t       code_point2 = necro_lex_next_char(lexer);
-    uint32_t       code_point3 = necro_lex_next_char(lexer);
-    if (code_point1 != '\''           ||
-        necro_is_control(code_point2) ||
-        code_point3 != '\'')
+    if (code_point1 != '\'')
         return necro_lex_rewind(lexer);
+    uint32_t   code_point2 = necro_lex_next_char(lexer);
+    uint32_t   code_point3 = necro_lex_next_char(lexer);
+    if (code_point2 == '\\')
+    {
+        // Control characters
+        if (code_point3 == '0')
+            code_point2 = '\0';
+        else if (code_point3 == 'n')
+            code_point2 = '\n';
+        else
+            return necro_lex_rewind(lexer);
+        // code_point2 = code_point3;
+        code_point3 = necro_lex_next_char(lexer);
+    }
+    if (code_point3 != '\'')
+        return necro_lex_rewind(lexer);
+    // necro_is_control(code_point2) ||
     NecroLexToken token = (NecroLexToken) { .source_loc = char_loc, .end_loc = lexer->loc, . token = NECRO_LEX_CHAR_LITERAL };
     token.char_literal  = code_point2;
     necro_push_lex_token_vector(&lexer->tokens, &token);
@@ -597,8 +626,8 @@ bool necro_lex_multi_character_token(NecroLexer* lexer)
            necro_lex_token_with_pattern(lexer, "<=",  NECRO_LEX_LTE)                 ||
            necro_lex_token_with_pattern(lexer, ">=",  NECRO_LEX_GTE)                 ||
            necro_lex_token_with_pattern(lexer, "::",  NECRO_LEX_DOUBLE_COLON)        ||
-           necro_lex_token_with_pattern(lexer, ">>",  NECRO_LEX_RIGHT_SHIFT)         ||
-           necro_lex_token_with_pattern(lexer, "<<",  NECRO_LEX_LEFT_SHIFT)          ||
+           necro_lex_token_with_pattern(lexer, ".>",  NECRO_LEX_RIGHT_SHIFT)         ||
+           necro_lex_token_with_pattern(lexer, "<.",  NECRO_LEX_LEFT_SHIFT)          ||
            necro_lex_token_with_pattern(lexer, "<|",  NECRO_LEX_FORWARD_PIPE)        ||
            necro_lex_token_with_pattern(lexer, "|>",  NECRO_LEX_BACK_PIPE)           ||
            necro_lex_token_with_pattern(lexer, "&&",  NECRO_LEX_AND)                 ||
@@ -611,6 +640,21 @@ bool necro_lex_multi_character_token(NecroLexer* lexer)
            necro_lex_token_with_pattern(lexer, "=>",  NECRO_LEX_FAT_RIGHT_ARROW)     ||
            necro_lex_token_with_pattern(lexer, "(#",  NECRO_LEX_UNBOXED_LEFT_PAREN)  ||
            necro_lex_token_with_pattern(lexer, "#)",  NECRO_LEX_UNBOXED_RIGHT_PAREN) ||
+           necro_lex_token_with_pattern(lexer, "@+",  NECRO_LEX_ADD_ON_LEFT)         ||
+           necro_lex_token_with_pattern(lexer, "+@",  NECRO_LEX_ADD_ON_RIGHT)        ||
+           necro_lex_token_with_pattern(lexer, "@-",  NECRO_LEX_SUB_ON_LEFT)         ||
+           necro_lex_token_with_pattern(lexer, "-@",  NECRO_LEX_SUB_ON_RIGHT)        ||
+           necro_lex_token_with_pattern(lexer, "@*",  NECRO_LEX_MUL_ON_LEFT)         ||
+           necro_lex_token_with_pattern(lexer, "*@",  NECRO_LEX_MUL_ON_RIGHT)        ||
+           necro_lex_token_with_pattern(lexer, "@/",  NECRO_LEX_DIV_ON_LEFT)         ||
+           necro_lex_token_with_pattern(lexer, "/@",  NECRO_LEX_DIV_ON_RIGHT)        ||
+           necro_lex_token_with_pattern(lexer, "@<@", NECRO_LEX_CONST_LEFT_ON_BOTH)  ||
+           necro_lex_token_with_pattern(lexer, "@>@", NECRO_LEX_CONST_RIGHT_ON_BOTH) ||
+           necro_lex_token_with_pattern(lexer, "@<",  NECRO_LEX_CONST_LEFT_ON_LEFT)  ||
+           necro_lex_token_with_pattern(lexer, "<@",  NECRO_LEX_CONST_LEFT_ON_RIGHT) ||
+           necro_lex_token_with_pattern(lexer, "@>",  NECRO_LEX_CONST_RIGHT_ON_LEFT) ||
+           necro_lex_token_with_pattern(lexer, ">@",  NECRO_LEX_CONST_RIGHT_ON_RIGHT)||
+           necro_lex_token_with_pattern(lexer, "//",  NECRO_LEX_DOUBLE_DIV)          ||
            necro_lex_token_with_pattern(lexer, "..",  NECRO_LEX_DOUBLE_DOT);
 }
 
@@ -645,7 +689,8 @@ bool necro_lex_identifier(NecroLexer* lexer)
     necro_lex_commit(lexer);
 
     // If the identifier is a layout keyword, update indentation levels and add left brace
-    if (lex_token.token <= NECRO_LEX_DO)
+    if (lex_token.token <= NECRO_LEX_OF)
+    // if (lex_token.token <= NECRO_LEX_DO)
     {
         necro_lex_gobble_up_whitespace_and_comments(lexer);
         necro_lex_commit(lexer);
@@ -661,7 +706,7 @@ bool necro_lex_identifier(NecroLexer* lexer)
             case NECRO_LEX_LET:   brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_LET;   break;
             case NECRO_LEX_WHERE: brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_WHERE; break;
             case NECRO_LEX_OF:    brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_OF;    break;
-            case NECRO_LEX_DO:    brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_DO;    break;
+            // case NECRO_LEX_DO:    brace_type = NECRO_LEX_CONTROL_BRACE_MARKER_DO;    break;
             default:              return necro_lex_rewind(lexer);
             }
             NecroLexToken token = (NecroLexToken)
@@ -1089,7 +1134,7 @@ void necro_lex_test()
 
     // Test 7
     {
-        const char* str    = "+ - * / % > < >= <= :: << >> | |> <| == /= && || >>= =<< !! <>";
+        const char* str    = "+ - * / % > < >= <= :: <. .> | |> <| == /= && || >>= =<< !! <>";
         NecroIntern intern = necro_intern_create();
         NecroLexer  lexer  = necro_lexer_create(str, strlen(str), &intern);
         unwrap(void, necro_lex_go(&lexer));
@@ -1543,4 +1588,5 @@ void necro_lex_test()
         assert(NECRO_COMPILE_IN_CHILD_PROCESS("unicodeTest.necro", "lex") == 0);
         puts("Lex }}} child process unicodeTest.necro:  passed");
     }
+
 }

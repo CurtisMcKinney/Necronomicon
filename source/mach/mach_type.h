@@ -149,6 +149,7 @@ void necro_mach_program_verify(struct NecroMachProgram* program);
 // Utility
 //--------------------
 bool           necro_mach_type_is_unboxed(struct NecroMachProgram* program, NecroMachType* type);
+bool           necro_mach_type_is_unboxed_or_ptr(struct NecroMachProgram* program, NecroMachType* type);
 bool           necro_mach_type_is_word_uint(struct NecroMachProgram* program, NecroMachType* type);
 NecroMachType* necro_mach_type_make_ptr_if_boxed(struct NecroMachProgram* program, NecroMachType* type);
 void           necro_mach_type_print(NecroMachType* type);

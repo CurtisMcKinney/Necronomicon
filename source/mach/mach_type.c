@@ -139,17 +139,17 @@ NecroMachType* _necro_mach_type_from_necro_type_poly_con(NecroMachProgram* progr
     // Handle Primitively polymorphic types
     if (type->con.con_symbol == program->base->array_type)
     {
-        NecroType* n             = type->con.args->list.item;
-        size_t     element_count = 0; //type->con.args->list.item->nat.value;
-        if (n->type == NECRO_TYPE_NAT)
-            element_count = n->nat.value;
-        else if (n->type == NECRO_TYPE_CON && n->con.con_symbol == program->base->block_size_type)
-            element_count = necro_runtime_get_block_size();
-        else
-            assert(false);
+        NecroType*     n                  = type->con.args->list.item;
+        size_t         element_count      = necro_nat_to_size_t(program->base, n);
         NecroType*     element_necro_type = type->con.args->list.next->list.item;
         NecroMachType* element_mach_type  = necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, element_necro_type));
         return necro_mach_type_create_array(&program->arena, element_mach_type, element_count);
+    }
+    else if (type->con.con_symbol == program->base->ptr_type)
+    {
+        NecroType*     element_necro_type = type->con.args->list.item;
+        NecroMachType* element_mach_type  = necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, element_necro_type));
+        return necro_mach_type_create_ptr(&program->arena, element_mach_type);
     }
     assert(false);
     return NULL;
@@ -436,6 +436,11 @@ bool necro_mach_type_is_unboxed(struct NecroMachProgram* program, NecroMachType*
         || (type->type == NECRO_MACH_TYPE_STRUCT && type->struct_type.symbol->is_unboxed);
 }
 
+bool necro_mach_type_is_unboxed_or_ptr(struct NecroMachProgram* program, NecroMachType* type)
+{
+    return necro_mach_type_is_unboxed(program, type) || type->type == NECRO_MACH_TYPE_PTR;
+}
+
 bool necro_mach_type_is_word_uint(struct NecroMachProgram* program, NecroMachType* type)
 {
     return type->type == program->type_cache.word_uint_type->type;
@@ -443,7 +448,7 @@ bool necro_mach_type_is_word_uint(struct NecroMachProgram* program, NecroMachTyp
 
 NecroMachType* necro_mach_type_make_ptr_if_boxed(NecroMachProgram* program, NecroMachType* type)
 {
-    if (necro_mach_type_is_unboxed(program, type))
+    if (necro_mach_type_is_unboxed_or_ptr(program, type))
         return type;
     else
         return necro_mach_type_create_ptr(&program->arena, type);
@@ -944,6 +949,7 @@ void necro_mach_ast_type_check_binop(NecroMachProgram* program, NecroMachAst* as
     case NECRO_PRIMOP_BINOP_ISUB: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_IMUL: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_IDIV:
+    case NECRO_PRIMOP_BINOP_IREM:
     {
         necro_mach_type_check_is_int_type(left->necro_machine_type);
         necro_mach_type_check_is_int_type(right->necro_machine_type);
@@ -955,6 +961,7 @@ void necro_mach_ast_type_check_binop(NecroMachProgram* program, NecroMachAst* as
     case NECRO_PRIMOP_BINOP_USUB: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_UMUL: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_UDIV: /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_UREM: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_OR:   /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_AND:  /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_SHL:  /* FALL THROUGH */
@@ -970,6 +977,7 @@ void necro_mach_ast_type_check_binop(NecroMachProgram* program, NecroMachAst* as
     case NECRO_PRIMOP_BINOP_FSUB: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_FMUL: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_FDIV:
+    case NECRO_PRIMOP_BINOP_FREM:
     {
         necro_mach_type_check_is_float_type(left->necro_machine_type);
         necro_mach_type_check_is_float_type(right->necro_machine_type);
@@ -1011,7 +1019,6 @@ void necro_mach_ast_type_check_uop(NecroMachProgram* program, NecroMachAst* ast)
         necro_mach_type_check_is_uint_type(result->necro_machine_type);
         break;
     }
-    case NECRO_PRIMOP_UOP_FABS: /* FALL THROUGH */
     case NECRO_PRIMOP_UOP_FSGN:
     {
         necro_mach_type_check_is_float_type(param->necro_machine_type);

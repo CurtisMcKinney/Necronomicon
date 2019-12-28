@@ -212,9 +212,9 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
         necro_ast_print_go(ast->do_statement.statement_list, depth + 1);
         break;
 
-    case NECRO_AST_PAT_EXPRESSION:
-        puts("(pat)");
-        necro_ast_print_go(ast->pattern_expression.expressions, depth + 1);
+    case NECRO_AST_SEQ_EXPRESSION:
+        puts("(seq)");
+        necro_ast_print_go(ast->sequence_expression.expressions, depth + 1);
         break;
 
     case NECRO_AST_EXPRESSION_LIST:
@@ -413,6 +413,24 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
         puts(")");
         break;
 
+
+    case NECRO_AST_FOR_LOOP:
+        puts("(for)");
+        necro_ast_print_go(ast->for_loop.range_init, depth + 1);
+        necro_ast_print_go(ast->for_loop.value_init, depth + 1);
+        necro_ast_print_go(ast->for_loop.index_apat, depth + 1);
+        necro_ast_print_go(ast->for_loop.value_apat, depth + 1);
+        necro_ast_print_go(ast->for_loop.expression, depth + 1);
+        break;
+
+    case NECRO_AST_WHILE_LOOP:
+        puts("(while)");
+        necro_ast_print_go(ast->while_loop.value_apat, depth + 1);
+        necro_ast_print_go(ast->while_loop.value_init, depth + 1);
+        necro_ast_print_go(ast->while_loop.while_expression, depth + 1);
+        necro_ast_print_go(ast->while_loop.do_expression, depth + 1);
+        break;
+
     default:
         puts("(Undefined)");
         break;
@@ -477,7 +495,7 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
 
         case NECRO_AST_CONSTANT_FLOAT:
         {
-            NecroAst* from_ast               = necro_ast_create_var(arena, intern, "fromRational", NECRO_VAR_VAR);
+            NecroAst* from_ast               = necro_ast_create_var(arena, intern, "fromFloat", NECRO_VAR_VAR);
             from_ast->source_loc             = reified_ast->source_loc;
             from_ast->end_loc                = reified_ast->end_loc;
             NecroAst* new_ast                = necro_ast_alloc(arena, ast->type);
@@ -590,7 +608,6 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         reified_ast->apats_assignment.declaration_group = NULL;
         reified_ast->apats_assignment.ast_symbol        = necro_ast_symbol_create(arena, ast->apats_assignment.variable_name, ast->apats_assignment.variable_name, parse_ast_arena->module_name, reified_ast);
         reified_ast->apats_assignment.is_recursive      = false;
-        reified_ast->apats_assignment.free_vars         = NULL;
         break;
     case NECRO_AST_PAT_ASSIGNMENT:
         reified_ast->pat_assignment.pat                      = necro_reify_go(parse_ast_arena, ast->pat_assignment.pat, arena, intern);
@@ -641,14 +658,14 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
     case NECRO_AST_LAMBDA:
         reified_ast->lambda.apats      = necro_reify_go(parse_ast_arena, ast->lambda.apats, arena, intern);
         reified_ast->lambda.expression = necro_reify_go(parse_ast_arena, ast->lambda.expression, arena, intern);
-        reified_ast->lambda.free_vars  = NULL;
         break;
     case NECRO_AST_DO:
         reified_ast->do_statement.statement_list = necro_reify_go(parse_ast_arena, ast->do_statement.statement_list, arena, intern);
         reified_ast->do_statement.monad_var      = NULL;
         break;
-    case NECRO_AST_PAT_EXPRESSION:
-        reified_ast->pattern_expression.expressions = necro_reify_go(parse_ast_arena, ast->pattern_expression.expressions, arena, intern);
+    case NECRO_AST_SEQ_EXPRESSION:
+        reified_ast->sequence_expression.expressions   = necro_reify_go(parse_ast_arena, ast->sequence_expression.expressions, arena, intern);
+        reified_ast->sequence_expression.sequence_type = ast->sequence_expression.sequence_type;
         break;
     case NECRO_AST_LIST_NODE:
         reified_ast->list.item      = necro_reify_go(parse_ast_arena, ast->list.item, arena, intern);
@@ -692,6 +709,12 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         reified_ast->for_loop.index_apat = necro_reify_go(parse_ast_arena, ast->for_loop.index_apat, arena, intern);
         reified_ast->for_loop.value_apat = necro_reify_go(parse_ast_arena, ast->for_loop.value_apat, arena, intern);
         reified_ast->for_loop.expression = necro_reify_go(parse_ast_arena, ast->for_loop.expression, arena, intern);
+        break;
+    case NECRO_AST_WHILE_LOOP:
+        reified_ast->while_loop.value_init       = necro_reify_go(parse_ast_arena, ast->while_loop.value_init, arena, intern);
+        reified_ast->while_loop.value_apat       = necro_reify_go(parse_ast_arena, ast->while_loop.value_apat, arena, intern);
+        reified_ast->while_loop.while_expression = necro_reify_go(parse_ast_arena, ast->while_loop.while_expression, arena, intern);
+        reified_ast->while_loop.do_expression    = necro_reify_go(parse_ast_arena, ast->while_loop.do_expression, arena, intern);
         break;
     case NECRO_AST_CONID:
         reified_ast->conid.con_type   = ast->conid.con_type;
@@ -1230,7 +1253,6 @@ NecroAst* necro_ast_create_apats_assignment(NecroPagedArena* arena, NecroIntern*
     ast->apats_assignment.is_recursive            = false;
     ast->apats_assignment.ast_symbol              = necro_ast_symbol_create(arena, variable_symbol, variable_symbol, NULL, ast);
     ast->apats_assignment.optional_type_signature = NULL;
-    ast->apats_assignment.free_vars               = NULL;
     return ast;
 }
 
@@ -1247,7 +1269,6 @@ NecroAst* necro_ast_create_apats_assignment_with_ast_symbol(NecroPagedArena* are
     ast->apats_assignment.is_recursive            = false;
 	ast->apats_assignment.ast_symbol              = ast_symbol;
 	ast->apats_assignment.optional_type_signature = NULL;
-    ast->apats_assignment.free_vars               = NULL;
 	return ast;
 }
 
@@ -1259,7 +1280,6 @@ NecroAst* necro_ast_create_lambda(NecroPagedArena* arena, NecroAst* apats, Necro
     NecroAst* ast          = necro_ast_alloc(arena, NECRO_AST_LAMBDA);
     ast->lambda.apats      = apats;
     ast->lambda.expression = expr_ast;
-    ast->lambda.free_vars  = NULL;
     return ast;
 }
 
@@ -1478,10 +1498,11 @@ NecroAst* necro_ast_create_expression_array(NecroPagedArena* arena, NecroAst* ex
     return ast;
 }
 
-NecroAst* necro_ast_create_pat_expression(NecroPagedArena* arena, NecroAst* expressions)
+NecroAst* necro_ast_create_seq_expression(NecroPagedArena* arena, NecroAst* expressions, NECRO_SEQUENCE_TYPE sequence_type)
 {
-    NecroAst* ast                       = necro_ast_alloc(arena, NECRO_AST_PAT_EXPRESSION);
-    ast->pattern_expression.expressions = expressions;
+    NecroAst* ast                          = necro_ast_alloc(arena, NECRO_AST_SEQ_EXPRESSION);
+    ast->sequence_expression.expressions   = expressions;
+    ast->sequence_expression.sequence_type = sequence_type;
     return ast;
 }
 
@@ -1545,6 +1566,16 @@ NecroAst* necro_ast_create_for_loop(NecroPagedArena* arena, NecroAst* range_init
     ast->for_loop.index_apat = index_apat;
     ast->for_loop.value_apat = value_apat;
     ast->for_loop.expression = expression;
+    return ast;
+}
+
+NecroAst* necro_ast_create_while_loop(NecroPagedArena* arena, NecroAst* value_init, NecroAst* value_apat, NecroAst* while_expression, NecroAst* do_expression)
+{
+    NecroAst* ast                    = necro_ast_alloc(arena, NECRO_AST_WHILE_LOOP);
+    ast->while_loop.value_init       = value_init;
+    ast->while_loop.value_apat       = value_apat;
+    ast->while_loop.while_expression = while_expression;
+    ast->while_loop.do_expression    = do_expression;
     return ast;
 }
 
@@ -1625,9 +1656,9 @@ void necro_ast_assert_ast_symbol_name_eq(NecroAstSymbol* ast_symbol1, NecroAstSy
 {
     assert(ast_symbol1 != NULL);
     assert(ast_symbol2 != NULL);
-		assert(strcmp(ast_symbol1->source_name->str, ast_symbol2->source_name->str) == 0);
-		assert(strcmp(ast_symbol1->name->str, ast_symbol2->name->str) == 0);
-		assert(strcmp(ast_symbol1->module_name->str, ast_symbol2->module_name->str) == 0);
+	assert(strcmp(ast_symbol1->source_name->str, ast_symbol2->source_name->str) == 0);
+	// assert(strcmp(ast_symbol1->name->str, ast_symbol2->name->str) == 0);
+	assert(strcmp(ast_symbol1->module_name->str, ast_symbol2->module_name->str) == 0);
 }
 
 void necro_ast_assert_eq_constant(NecroAst* ast1, NecroAst* ast2)
@@ -1790,11 +1821,12 @@ void necro_ast_assert_eq_do(NecroAst* ast1, NecroAst* ast2)
     necro_ast_assert_eq_go(ast1->do_statement.statement_list, ast2->do_statement.statement_list);
 }
 
-void necro_ast_assert_eq_pat_expression(NecroAst* ast1, NecroAst* ast2)
+void necro_ast_assert_eq_seq_expression(NecroAst* ast1, NecroAst* ast2)
 {
-    assert(ast1->type == NECRO_AST_PAT_EXPRESSION);
-    assert(ast2->type == NECRO_AST_PAT_EXPRESSION);
-    necro_ast_assert_eq_go(ast1->pattern_expression.expressions, ast2->pattern_expression.expressions);
+    assert(ast1->type == NECRO_AST_SEQ_EXPRESSION);
+    assert(ast2->type == NECRO_AST_SEQ_EXPRESSION);
+    assert(ast1->sequence_expression.sequence_type == ast2->sequence_expression.sequence_type);
+    necro_ast_assert_eq_go(ast1->sequence_expression.expressions, ast2->sequence_expression.expressions);
 }
 
 void necro_ast_assert_eq_list(NecroAst* ast1, NecroAst* ast2)
@@ -2005,7 +2037,7 @@ void necro_ast_assert_eq_go(NecroAst* ast1, NecroAst* ast2)
     case NECRO_AST_WILDCARD:               break;
     case NECRO_AST_LAMBDA:                 necro_ast_assert_eq_lambda(ast1, ast2); break;
     case NECRO_AST_DO:                     necro_ast_assert_eq_do(ast1, ast2); break;
-    case NECRO_AST_PAT_EXPRESSION:         necro_ast_assert_eq_pat_expression(ast1, ast2); break;
+    case NECRO_AST_SEQ_EXPRESSION:         necro_ast_assert_eq_seq_expression(ast1, ast2); break;
     case NECRO_AST_LIST_NODE:              necro_ast_assert_eq_list(ast1, ast2); break;
     case NECRO_AST_EXPRESSION_LIST:        necro_ast_assert_eq_expression_list(ast1, ast2); break;
     case NECRO_AST_EXPRESSION_ARRAY:       necro_ast_assert_eq_expression_array(ast1, ast2); break;
@@ -2203,9 +2235,14 @@ NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_g
     case NECRO_AST_EXPRESSION_ARRAY:
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_expression_array(arena,
             necro_ast_deep_copy_go(arena, declaration_group, ast->expression_array.expressions)));
-    case NECRO_AST_PAT_EXPRESSION:
-        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_pat_expression(arena,
-            necro_ast_deep_copy_go(arena, declaration_group, ast->pattern_expression.expressions)));
+    case NECRO_AST_SEQ_EXPRESSION:
+    {
+        NecroAst* copied_ast = necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_seq_expression(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->sequence_expression.expressions), ast->sequence_expression.sequence_type));
+        copied_ast->sequence_expression.tick_inst_subs    = necro_type_deep_copy_subs(arena, ast->sequence_expression.tick_inst_subs);
+        copied_ast->sequence_expression.run_seq_inst_subs = necro_type_deep_copy_subs(arena, ast->sequence_expression.run_seq_inst_subs);
+        return copied_ast;
+    }
     case NECRO_AST_TUPLE:
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_tuple_full(arena,
             necro_ast_deep_copy_go(arena, declaration_group, ast->tuple.expressions), ast->tuple.is_unboxed));
@@ -2287,6 +2324,12 @@ NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_g
             necro_ast_deep_copy_go(arena, declaration_group, ast->for_loop.index_apat),
             necro_ast_deep_copy_go(arena, declaration_group, ast->for_loop.value_apat),
             necro_ast_deep_copy_go(arena, declaration_group, ast->for_loop.expression)));
+    case NECRO_AST_WHILE_LOOP:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_while_loop(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->while_loop.value_init),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->while_loop.value_apat),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->while_loop.while_expression),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->while_loop.do_expression)));
     default:
         assert(false);
         return NULL;
@@ -2298,3 +2341,325 @@ NecroAst* necro_ast_deep_copy(NecroPagedArena* arena, NecroAst* ast)
     return necro_ast_deep_copy_go(arena, NULL, ast);
 }
 
+///////////////////////////////////////////////////////
+// Deep Copy with new names
+///////////////////////////////////////////////////////
+NecroAstSymbol* necro_ast_deep_copy_with_new_names_declare_var(NecroPagedArena* arena, NecroIntern* intern, NecroScope* scope, NecroAstSymbol* ast_symbol)
+{
+    NecroAstSymbol* new_symbol = necro_scope_find_ast_symbol(scope, ast_symbol->name);
+    if (new_symbol != NULL)
+        return new_symbol; // Already declared? Probably the original top level during monomorphization ast...
+    new_symbol                 = necro_ast_symbol_deep_copy(arena, ast_symbol);
+    new_symbol->source_name    = new_symbol->name;
+    new_symbol->name           = necro_intern_unique_string(intern, ast_symbol->source_name->str);
+    necro_scope_insert_ast_symbol(arena, scope, new_symbol);
+    return new_symbol;
+}
+
+NecroAstSymbol* necro_ast_deep_copy_with_new_names_lookup_var(NecroScope* scope, NecroAstSymbol* ast_symbol)
+{
+    NecroAstSymbol* new_symbol = necro_scope_find_ast_symbol(scope, ast_symbol->name);
+    if (new_symbol != NULL)
+        return new_symbol;
+    else
+        return ast_symbol;
+}
+
+NecroAst* necro_ast_deep_copy_with_new_names_go(NecroPagedArena* arena, NecroIntern* intern, NecroScope* scope, NecroAst* declaration_group, NecroAst* ast)
+{
+    if (ast == NULL)
+        return NULL;
+    switch (ast->type)
+    {
+    case NECRO_AST_TOP_DECL:
+    {
+        NecroAst* copy_head = necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_top_decl(arena, necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->top_declaration.declaration), NULL));
+        NecroAst* copy_curr = copy_head;
+        ast                 = ast->top_declaration.next_top_decl;
+        while (ast != NULL)
+        {
+            copy_curr->top_declaration.next_top_decl = necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_top_decl(arena, necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->top_declaration.declaration), NULL));
+            copy_curr                                = copy_curr->top_declaration.next_top_decl;
+            ast                                      = ast->top_declaration.next_top_decl;
+        }
+        return copy_head;
+    }
+    case NECRO_AST_DECL:
+    {
+        NecroAst* copy_head                     = necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_decl(arena, NULL, NULL));
+        NecroAst* copy_curr                     = copy_head;
+        copy_curr->declaration.declaration_impl = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, copy_curr, ast->declaration.declaration_impl);
+        ast                                     = ast->declaration.next_declaration;
+        while (ast != NULL)
+        {
+            copy_curr->declaration.next_declaration = necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_decl(arena, NULL, NULL));
+            copy_curr                               = copy_curr->declaration.next_declaration;
+            copy_curr->declaration.declaration_impl = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, copy_curr, ast->declaration.declaration_impl);
+            ast                                     = ast->declaration.next_declaration;
+        }
+        return copy_head;
+    }
+    case NECRO_AST_DECLARATION_GROUP_LIST:
+    {
+        NecroAst* copy_head                                 = necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_declaration_group_list(arena, NULL, NULL));
+        NecroAst* copy_curr                                 = copy_head;
+        copy_curr->declaration_group_list.declaration_group = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, copy_curr, ast->declaration_group_list.declaration_group);
+        ast                                                 = ast->declaration_group_list.next;
+        while (ast != NULL)
+        {
+            copy_curr->declaration_group_list.next              = necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_declaration_group_list(arena, NULL, NULL));
+            copy_curr                                           = copy_curr->declaration_group_list.next;
+            copy_curr->declaration_group_list.declaration_group = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, copy_curr, ast->declaration_group_list.declaration_group);
+            ast                                                 = ast->declaration_group_list.next;
+        }
+        return copy_head;
+    }
+
+    // Named things
+    case NECRO_AST_VARIABLE:
+        switch (ast->variable.var_type)
+        {
+        case NECRO_VAR_VAR:
+        {
+            NecroAstSymbol* ast_symbol = necro_ast_deep_copy_with_new_names_lookup_var(scope, ast->variable.ast_symbol);
+            return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_var_full(arena,
+                ast_symbol,
+                ast->variable.var_type, necro_type_deep_copy_subs(arena, ast->variable.inst_subs),
+                necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->variable.initializer), ast->variable.order));
+        }
+        case NECRO_VAR_DECLARATION:
+        {
+            // TODO: Figure out when to Mangle and when not to mangle....
+            NecroAstSymbol* ast_symbol = necro_ast_deep_copy_with_new_names_declare_var(arena, intern, scope, ast->variable.ast_symbol);
+            return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_var_full(arena,
+                ast_symbol,
+                ast->variable.var_type, necro_type_deep_copy_subs(arena, ast->variable.inst_subs),
+                necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->variable.initializer), ast->variable.order));
+        }
+        case NECRO_VAR_TYPE_VAR_DECLARATION:
+        case NECRO_VAR_SIG:
+        case NECRO_VAR_CLASS_SIG:
+        case NECRO_VAR_TYPE_FREE_VAR:
+        default:
+            assert(false);
+            return NULL;
+        }
+
+    // TODO
+    case NECRO_AST_SIMPLE_ASSIGNMENT:
+    {
+        // TODO: Figure out when to Mangle and when not to mangle....
+        NecroAstSymbol* ast_symbol           = necro_ast_deep_copy_with_new_names_declare_var(arena, intern, scope, ast->simple_assignment.ast_symbol);
+        NecroAst*       init_ast             = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->simple_assignment.initializer);
+        NecroAst*       rhs_ast              = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->simple_assignment.rhs);
+        NecroAst*       copy                 = necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_simple_assignment_with_ast_symbol(arena, ast_symbol, init_ast, rhs_ast));
+        copy->simple_assignment.is_recursive = ast->simple_assignment.is_recursive;
+        return copy;
+    }
+
+    // TODO
+    case NECRO_AST_APATS_ASSIGNMENT:
+    {
+        // TODO: Figure out when to Mangle and when not to mangle....
+        NecroAstSymbol* ast_symbol = necro_ast_deep_copy_with_new_names_declare_var(arena, intern, scope, ast->apats_assignment.ast_symbol);
+        NecroAst*       apats_ast  = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->apats_assignment.apats);
+        NecroAst*       rhs_ast    = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->apats_assignment.rhs);
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_apats_assignment_with_ast_symbol(arena, ast_symbol, apats_ast, rhs_ast));
+    }
+
+    case NECRO_BIND_ASSIGNMENT:
+    {
+        NecroAstSymbol* ast_symbol = necro_ast_deep_copy_with_new_names_declare_var(arena, intern, scope, ast->bind_assignment.ast_symbol);
+        NecroAst*       expr_ast   = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->bind_assignment.expression);
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_bind_assignment(arena, ast_symbol, expr_ast));
+    }
+
+    case NECRO_AST_BIN_OP:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_bin_op_full(arena, necro_ast_deep_copy_with_new_names_lookup_var(scope, ast->bin_op.ast_symbol),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->bin_op.lhs),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->bin_op.rhs),
+            necro_type_deep_copy_subs(arena, ast->bin_op.inst_subs),
+            ast->bin_op.op_type));
+
+    case NECRO_AST_OP_LEFT_SECTION:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_left_section_full(arena, necro_ast_deep_copy_with_new_names_lookup_var(scope, ast->op_left_section.ast_symbol),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->op_left_section.left),
+            necro_type_deep_copy_subs(arena, ast->op_left_section.inst_subs)));
+
+    case NECRO_AST_OP_RIGHT_SECTION:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_right_section_full(arena, necro_ast_deep_copy_with_new_names_lookup_var(scope, ast->op_right_section.ast_symbol),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->op_right_section.right),
+            necro_type_deep_copy_subs(arena, ast->op_right_section.inst_subs)));
+
+    case NECRO_AST_PAT_ASSIGNMENT:
+    {
+        NecroAst* pat_ast = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->pat_assignment.pat);
+        NecroAst* rhs_ast = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->pat_assignment.rhs);
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_pat_assignment(arena, pat_ast, rhs_ast));
+    }
+
+    case NECRO_PAT_BIND_ASSIGNMENT:
+    {
+        NecroAst* pat_ast = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->pat_bind_assignment.pat);
+        NecroAst* rhs_ast = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->pat_bind_assignment.expression);
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_pat_bind_assignment(arena, pat_ast, rhs_ast));
+    }
+
+    case NECRO_AST_RIGHT_HAND_SIDE:
+    {
+        NecroAst* decl_ast = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->right_hand_side.declarations);
+        NecroAst* expr_ast = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->right_hand_side.expression);
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_rhs(arena, expr_ast, decl_ast));
+    }
+
+    case NECRO_AST_CASE:
+    {
+        NecroAst* expr_ast = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->case_expression.expression);
+        NecroAst* alts_ast = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->case_expression.alternatives);
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_case(arena, alts_ast, expr_ast));
+    }
+
+    case NECRO_AST_CASE_ALTERNATIVE:
+    {
+        NecroAst* pat_ast  = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->case_alternative.pat);
+        NecroAst* body_ast = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->case_alternative.body);
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_case_alternative(arena, pat_ast, body_ast));
+    }
+
+    case NECRO_AST_LET_EXPRESSION:
+    {
+        NecroAst* decl_ast = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->let_expression.declarations);
+        NecroAst* expr_ast = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->let_expression.expression);
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_let(arena, expr_ast, decl_ast));
+    }
+
+    case NECRO_AST_FOR_LOOP:
+    {
+        NecroAst* range_init_ast = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->for_loop.range_init);
+        NecroAst* value_init_ast = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->for_loop.value_init);
+        NecroAst* index_apat_ast = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->for_loop.index_apat);
+        NecroAst* value_apat_ast = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->for_loop.value_apat);
+        NecroAst* expression_ast = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->for_loop.expression);
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_for_loop(arena, range_init_ast, value_init_ast, index_apat_ast, value_apat_ast, expression_ast));
+    }
+
+    case NECRO_AST_WHILE_LOOP:
+    {
+        NecroAst* value_init_ast = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->while_loop.value_init);
+        NecroAst* value_apat_ast = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->while_loop.value_apat);
+        NecroAst* while_expr_ast = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->while_loop.while_expression);
+        NecroAst* do_expr_ast    = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->while_loop.do_expression);
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_while_loop(arena, value_init_ast, value_apat_ast, while_expr_ast, do_expr_ast));
+    }
+    case NECRO_AST_LAMBDA:
+    {
+        NecroAst* apats = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->lambda.apats);
+        NecroAst* expr  = necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->lambda.expression);
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_lambda(arena, apats, expr));
+    }
+
+    // DONE
+    case NECRO_AST_CONSTANT:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_constant(arena, (NecroParseAstConstant) { .type = ast->constant.type, .int_literal = ast->constant.int_literal }));
+    case NECRO_AST_IF_THEN_ELSE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_if_then_else(arena,
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->if_then_else.if_expr),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->if_then_else.then_expr),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->if_then_else.else_expr)));
+    case NECRO_AST_FUNCTION_EXPRESSION:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_fexpr(arena,
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->fexpression.aexp),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->fexpression.next_fexpression)));
+    case NECRO_AST_APATS:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_apats(arena,
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->apats.apat),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->apats.next_apat)));
+    case NECRO_AST_WILDCARD:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_wildcard(arena));
+    case NECRO_AST_DO:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_do(arena,
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->do_statement.statement_list)));
+    case NECRO_AST_LIST_NODE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_list(arena,
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->list.item),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->list.next_item)));
+    case NECRO_AST_EXPRESSION_LIST:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_expression_list(arena,
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->expression_list.expressions)));
+    case NECRO_AST_EXPRESSION_ARRAY:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_expression_array(arena,
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->expression_array.expressions)));
+    case NECRO_AST_SEQ_EXPRESSION:
+    {
+        NecroAst* copied_ast = necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_seq_expression(arena,
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->sequence_expression.expressions), ast->sequence_expression.sequence_type));
+        copied_ast->sequence_expression.tick_inst_subs    = necro_type_deep_copy_subs(arena, ast->sequence_expression.tick_inst_subs);
+        copied_ast->sequence_expression.tick_symbol       = necro_ast_deep_copy_with_new_names_lookup_var(scope, ast->sequence_expression.tick_symbol);
+        // copied_ast->sequence_expression.tick_symbol       = ast->sequence_expression.tick_symbol;
+        copied_ast->sequence_expression.run_seq_inst_subs = necro_type_deep_copy_subs(arena, ast->sequence_expression.run_seq_inst_subs);
+        copied_ast->sequence_expression.run_seq_symbol    = necro_ast_deep_copy_with_new_names_lookup_var(scope, ast->sequence_expression.run_seq_symbol);
+        // copied_ast->sequence_expression.run_seq_symbol    = ast->sequence_expression.run_seq_symbol;
+        return copied_ast;
+    }
+    case NECRO_AST_TUPLE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_tuple_full(arena,
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->tuple.expressions), ast->tuple.is_unboxed));
+    case NECRO_AST_ARITHMETIC_SEQUENCE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_arithmetic_sequence(arena, ast->arithmetic_sequence.type,
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->arithmetic_sequence.from),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->arithmetic_sequence.then),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->arithmetic_sequence.to)));
+    case NECRO_AST_CONID:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_conid_with_ast_symbol(arena, ast->conid.ast_symbol, ast->conid.con_type));
+    case NECRO_AST_TYPE_APP:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_type_app(arena,
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->type_app.ty),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->type_app.next_ty)));
+    case NECRO_AST_CONSTRUCTOR:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_constructor(arena,
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->constructor.conid),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->constructor.arg_list)));
+    case NECRO_AST_SIMPLE_TYPE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_simple_type_with_type_con(arena,
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->simple_type.type_con),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->simple_type.type_var_list)));
+    case NECRO_AST_DATA_DECLARATION:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_data_declaration_with_ast_symbol(arena, ast->data_declaration.ast_symbol,
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->data_declaration.simpletype),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->data_declaration.constructor_list)));
+    case NECRO_AST_TYPE_CLASS_DECLARATION:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_type_class_full(arena, ast->type_class_declaration.ast_symbol,
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->type_class_declaration.tycls),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->type_class_declaration.tycls),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->type_class_declaration.context),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->type_class_declaration.declarations)));
+    case NECRO_AST_TYPE_CLASS_INSTANCE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_instance_full(arena, ast->type_class_instance.ast_symbol,
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->type_class_instance.qtycls),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->type_class_instance.inst),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->type_class_instance.context),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->type_class_instance.declarations)));
+    case NECRO_AST_TYPE_SIGNATURE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_type_signature(arena, ast->type_signature.sig_type,
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->type_signature.var),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->type_signature.context),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->type_signature.type)));
+    case NECRO_AST_TYPE_CLASS_CONTEXT:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_context_full(arena,
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->type_class_context.conid),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->type_class_context.varid)));
+    case NECRO_AST_FUNCTION_TYPE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_type_fn(arena,
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->function_type.type),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->function_type.next_on_arrow)));
+    default:
+        assert(false);
+        return NULL;
+    }
+}
+
+NecroAst* necro_ast_deep_copy_with_new_names(NecroPagedArena* arena, NecroIntern* intern, NecroScope* scope, NecroAst* declaration_group, NecroAst* ast)
+{
+    // TODO: Switch to different allocation / deallocation scheme?
+    return necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast);
+}

@@ -249,11 +249,11 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
         switch (input_node->variable.var_type)
         {
         case NECRO_VAR_VAR:                  break;
-        case NECRO_VAR_DECLARATION:          break;
         case NECRO_VAR_TYPE_FREE_VAR:        input_node->scope = scoped_symtable->current_type_scope; break;
         case NECRO_VAR_TYPE_VAR_DECLARATION: input_node->scope = scoped_symtable->current_type_scope; break;
         case NECRO_VAR_SIG:                  break;
         case NECRO_VAR_CLASS_SIG:            break;
+        case NECRO_VAR_DECLARATION:          input_node->variable.ast_symbol->is_top_level = scoped_symtable->current_scope == NULL; break;
         }
         if (input_node->variable.initializer != NULL)
         {
@@ -306,8 +306,8 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
     case NECRO_AST_EXPRESSION_ARRAY:
         necro_build_scopes_go(scoped_symtable, input_node->expression_array.expressions);
         break;
-    case NECRO_AST_PAT_EXPRESSION:
-        necro_build_scopes_go(scoped_symtable, input_node->pattern_expression.expressions);
+    case NECRO_AST_SEQ_EXPRESSION:
+        necro_build_scopes_go(scoped_symtable, input_node->sequence_expression.expressions);
         break;
     case NECRO_AST_TUPLE:
         necro_build_scopes_go(scoped_symtable, input_node->tuple.expressions);
@@ -343,6 +343,14 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
         necro_build_scopes_go(scoped_symtable, input_node->for_loop.index_apat);
         necro_build_scopes_go(scoped_symtable, input_node->for_loop.value_apat);
         necro_build_scopes_go(scoped_symtable, input_node->for_loop.expression);
+        necro_scoped_symtable_pop_scope(scoped_symtable);
+        break;
+    case NECRO_AST_WHILE_LOOP:
+        necro_build_scopes_go(scoped_symtable, input_node->while_loop.value_init);
+        necro_scoped_symtable_new_scope(scoped_symtable);
+        necro_build_scopes_go(scoped_symtable, input_node->while_loop.value_apat);
+        necro_build_scopes_go(scoped_symtable, input_node->while_loop.while_expression);
+        necro_build_scopes_go(scoped_symtable, input_node->while_loop.do_expression);
         necro_scoped_symtable_pop_scope(scoped_symtable);
         break;
     case NECRO_AST_CONID:
@@ -401,11 +409,15 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
         necro_build_scopes_go(scoped_symtable, input_node->type_class_declaration.context);
         necro_build_scopes_go(scoped_symtable, input_node->type_class_declaration.tycls);
         necro_build_scopes_go(scoped_symtable, input_node->type_class_declaration.tyvar);
+        necro_scoped_symtable_pop_type_scope(scoped_symtable);
+
+        // necro_scoped_symtable_new_type_scope(scoped_symtable);
         necro_build_scopes_go(scoped_symtable, input_node->type_class_declaration.declarations);
+        // necro_scoped_symtable_pop_type_scope(scoped_symtable);
         // TODO: Get AST arena into here and use that instead of the scope arena!
         // necro_create_dictionary_data_declaration(&scoped_symtable->arena, scoped_symtable->global_table->intern, input_node);
         // necro_build_scopes_go(scoped_symtable, input_node->type_class_declaration.dictionary_data_declaration);
-        necro_scoped_symtable_pop_type_scope(scoped_symtable);
+        // necro_scoped_symtable_pop_type_scope(scoped_symtable);
         break;
     case NECRO_AST_TYPE_CLASS_INSTANCE:
         input_node->scope = scoped_symtable->current_type_scope;
@@ -413,8 +425,11 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
         necro_build_scopes_go(scoped_symtable, input_node->type_class_instance.context);
         necro_build_scopes_go(scoped_symtable, input_node->type_class_instance.qtycls);
         necro_build_scopes_go(scoped_symtable, input_node->type_class_instance.inst);
-        necro_build_scopes_go(scoped_symtable, input_node->type_class_instance.declarations);
         necro_scoped_symtable_pop_type_scope(scoped_symtable);
+        // necro_scoped_symtable_new_type_scope(scoped_symtable);
+        necro_build_scopes_go(scoped_symtable, input_node->type_class_instance.declarations);
+        // necro_scoped_symtable_pop_type_scope(scoped_symtable);
+        // necro_scoped_symtable_pop_type_scope(scoped_symtable);
         break;
     case NECRO_AST_TYPE_SIGNATURE:
         input_node->scope = scoped_symtable->current_type_scope;

@@ -23,7 +23,7 @@ typedef struct
 
 typedef struct NecroAliasSet
 {
-    NecroPagedArena*   arena;
+    NecroPagedArena*   alias_arena;
     NecroAliasSetData* data;
     size_t             count;
     size_t             capacity;
@@ -33,9 +33,9 @@ typedef struct
 {
     NecroAstArena*   ast_arena;
     NecroPagedArena* arena;
-    NecroPagedArena  alias_arena;
+    // NecroPagedArena  alias_arena;
     NecroAliasSet*   top_set;
-    NecroAliasSet*   free_vars;
+    // NecroAliasSet*   free_vars;
 } NecroAliasAnalysis;
 
 //--------------------
@@ -52,25 +52,27 @@ NecroAliasAnalysis necro_alias_analysis_empty()
     {
         .arena       = NULL,
         .ast_arena   = NULL,
-        .alias_arena = necro_paged_arena_empty(),
+        // .alias_arena = necro_paged_arena_empty(),
         .top_set     = NULL,
-        .free_vars   = NULL,
+        // .free_vars   = NULL,
     };
     return alias_analysis;
 }
 
 NecroAliasAnalysis necro_alias_analysis_create(NecroAstArena* ast_arena)
 {
-    NecroPagedArena arena     = necro_paged_arena_create();
-    NecroAliasSet*  alias_set = necro_alias_set_create(&arena, 512);
+    // NecroPagedArena alias_arena = necro_paged_arena_create();
+    NecroPagedArena* alias_arena = &ast_arena->arena;
+    NecroAliasSet*   alias_set   = necro_alias_set_create(alias_arena, 512);
     // NecroAliasSet*  free_vars = necro_alias_set_create(&ast_arena->arena, 16);
     NecroAliasAnalysis alias_analysis = (NecroAliasAnalysis)
     {
         .arena       = &ast_arena->arena,
         .ast_arena   = ast_arena,
-        .alias_arena = arena,
+        // .alias_arena = alias_arena,
         .top_set     = alias_set,
-        .free_vars   = NULL,
+        // .free_vars   = alias_set,
+        // .free_vars   = NULL,
     };
     return alias_analysis;
 }
@@ -78,19 +80,19 @@ NecroAliasAnalysis necro_alias_analysis_create(NecroAstArena* ast_arena)
 void necro_alias_analysis_destroy(NecroAliasAnalysis* alias_analysis)
 {
     assert(alias_analysis != NULL);
-    necro_paged_arena_destroy(&alias_analysis->alias_arena);
+    // necro_paged_arena_destroy(&alias_analysis->alias_arena);
     *alias_analysis = necro_alias_analysis_empty();
 }
 
 void necro_alias_analysis_impl(NecroAliasAnalysis* alias_analysis)
 {
     necro_alias_analysis_go(alias_analysis, alias_analysis->top_set, alias_analysis->ast_arena->root);
-    for (size_t i = 0; i < alias_analysis->top_set->capacity; ++i)
-    {
-        if (alias_analysis->top_set->data[i].symbol == NULL)
-            continue;
-        alias_analysis->top_set->data[i].symbol->usage = alias_analysis->top_set->data[i].usage;
-    }
+    // for (size_t i = 0; i < alias_analysis->top_set->capacity; ++i)
+    // {
+    //     if (alias_analysis->top_set->data[i].symbol == NULL)
+    //         continue;
+    //     alias_analysis->top_set->data[i].symbol->usage = alias_analysis->top_set->data[i].usage;
+    // }
 }
 
 void necro_alias_analysis(NecroCompileInfo info, NecroAstArena* ast_arena)
@@ -134,52 +136,20 @@ bool necro_usage_is_unshared(NecroUsage* usage)
 // NecroAliasSet
 ///////////////////////////////////////////////////////
 static NecroAstSymbol NECRO_ALIAS_SET_TOMBSTONE = {0};
-NecroAliasSet* necro_alias_set_create(NecroPagedArena* arena, size_t capacity)
+NecroAliasSet* necro_alias_set_create(NecroPagedArena* alias_arena, size_t capacity)
 {
-    NecroAliasSetData* data = necro_paged_arena_alloc(arena, capacity * sizeof(NecroAliasSetData));
+    NecroAliasSetData* data = necro_paged_arena_alloc(alias_arena, capacity * sizeof(NecroAliasSetData));
     for (size_t i = 0; i < capacity; ++i)
     {
         data[i].symbol = NULL;
         data[i].usage  = NULL;
     }
-    NecroAliasSet* set = necro_paged_arena_alloc(arena, sizeof(NecroAliasSet));
-    set->arena         = arena;
+    NecroAliasSet* set = necro_paged_arena_alloc(alias_arena, sizeof(NecroAliasSet));
+    set->alias_arena   = alias_arena;
     set->data          = data;
     set->capacity      = capacity;
     set->count         = 0;
     return set;
-}
-
-void necro_free_vars_print(NecroFreeVars* free_vars)
-{
-    printf("free_vars, count: %zu\n", free_vars->count);
-    for (size_t i = 0; i < free_vars->count; ++i)
-        printf("    %s\n", (&free_vars->data)[i]->name->str);
-}
-
-NecroFreeVars* necro_alias_set_to_free_vars(NecroAliasSet* set)
-{
-    NecroFreeVars* free_vars = necro_paged_arena_alloc(set->arena, sizeof(NecroFreeVars*) + sizeof(size_t) + (set->count * sizeof(NecroAstSymbol)));
-    free_vars->next          = NULL;
-    free_vars->count         = set->count;
-    if (free_vars->count == 0)
-        return free_vars;
-    NecroAstSymbol** data      = &free_vars->data;
-    size_t           symbol_i  = 0;
-    for (size_t i = 0; i < set->capacity; ++i)
-    {
-        NecroAstSymbol* symbol = set->data[i].symbol;
-        if (symbol == NULL || symbol == &NECRO_ALIAS_SET_TOMBSTONE)
-            continue;
-        data[symbol_i] = symbol;
-        symbol_i++;
-    }
-    assert(symbol_i == set->count);
-    // if (free_vars->count > 0)
-// #if NECRO_ALIAS_ANALYSIS_VERBOSE
-//         necro_free_vars_print(free_vars);
-// #endif
-    return free_vars;
 }
 
 void necro_alias_set_grow(NecroAliasSet* set)
@@ -187,8 +157,9 @@ void necro_alias_set_grow(NecroAliasSet* set)
     NecroAliasSetData* old_data     = set->data;
     size_t             old_capacity = set->capacity;
     size_t             old_count    = set->count;
+    const size_t       data_size    = sizeof(NecroAliasSetData);
     set->capacity                  *= 2;
-    set->data                       = necro_paged_arena_alloc(set->arena, set->capacity * sizeof(NecroAliasSetData));
+    set->data                       = necro_paged_arena_alloc(set->alias_arena, set->capacity * data_size);
     set->count                      = 0;
     for (size_t i = 0; i < set->capacity; ++i)
     {
@@ -257,6 +228,19 @@ void necro_alias_set_insert_symbol_without_usage(NecroAliasSet* set, NecroAstSym
     set->count++;
 }
 
+bool necro_alias_set_contains_symbol(NecroAliasSet* set, NecroAstSymbol* symbol)
+{
+    assert(symbol != NULL);
+    size_t hash = necro_hash((size_t)symbol) & (set->capacity - 1);
+    while (set->data[hash].symbol != NULL && set->data[hash].symbol != &NECRO_ALIAS_SET_TOMBSTONE)
+    {
+        if (set->data[hash].symbol == symbol)
+            return true;
+        hash = (hash + 1) & (set->capacity - 1);
+    }
+    return false;
+}
+
 NecroAliasSet* necro_alias_set_merge_without_usage(NecroAliasSet* set1, NecroAliasSet* set2)
 {
     if (set1 == NULL)
@@ -288,12 +272,14 @@ void necro_alias_set_add_usage_go(NecroAliasSet* set, NecroAstSymbol* symbol, Ne
                 curr_usage = curr_usage->next;
             curr_usage->next      = set->data[hash].usage;
             set->data[hash].usage = usage;
+            symbol->usage         = set->data[hash].usage;
             return;
         }
         hash = (hash + 1) & (set->capacity - 1);
     }
     set->data[hash].symbol = symbol;
     set->data[hash].usage  = usage;
+    symbol->usage          = set->data[hash].usage;
     set->count++;
 }
 
@@ -321,7 +307,7 @@ void necro_alias_set_union_children_then_merge_into_parent(NecroAliasSet* parent
                 capacity = children[i]->capacity;
         }
         assert(capacity > 0);
-        set = necro_alias_set_create(children[0]->arena, capacity * 2);
+        set = necro_alias_set_create(children[0]->alias_arena, capacity * 2);
         // Merge
         for (size_t set_i = 0; set_i < children_count; ++set_i)
         {
@@ -371,78 +357,13 @@ void necro_alias_set_union_children_then_merge_into_parent(NecroAliasSet* parent
 ///////////////////////////////////////////////////////
 // Analysis Go
 ///////////////////////////////////////////////////////
-NecroFreeVars* necro_alias_analysis_apats_free_var_delete(NecroAliasAnalysis* alias_analysis, NecroAliasSet* alias_set, NecroAst* ast)
-{
-    if (ast == NULL)
-        return NULL;
-    assert(ast->type == NECRO_AST_APATS);
-    NecroFreeVars* next_vars = necro_alias_analysis_apats_free_var_delete(alias_analysis, alias_set, ast->apats.next_apat);
-    necro_alias_analysis_go(alias_analysis, alias_set, ast->apats.apat);
-    NecroFreeVars* free_vars = necro_alias_set_to_free_vars(alias_analysis->free_vars);
-    free_vars->next          = next_vars;
-    return free_vars;
-}
-
-// Force usage for unused
-void necro_alias_analysis_add_apats_to_free_vars(NecroAliasAnalysis* alias_analysis, NecroAliasSet* alias_set, NecroAst* ast)
+void necro_alias_analysis_declaration_group(NecroAliasAnalysis* alias_analysis, NecroAliasSet* alias_set, NecroAst* ast)
 {
     if (ast == NULL)
         return;
-    switch (ast->type)
-    {
-    case NECRO_AST_VARIABLE:
-        switch (ast->variable.var_type)
-        {
-        case NECRO_VAR_DECLARATION:
-            necro_alias_set_insert_symbol_without_usage(alias_analysis->free_vars, ast->variable.ast_symbol);
-            return;
-        case NECRO_VAR_VAR:                  return;
-        case NECRO_VAR_SIG:                  return;
-        case NECRO_VAR_TYPE_VAR_DECLARATION: return;
-        case NECRO_VAR_TYPE_FREE_VAR:        return;
-        case NECRO_VAR_CLASS_SIG:            return;
-        default:
-            assert(false);
-            return;
-        }
-    case NECRO_AST_WILDCARD:
-        // TODO: How to handle this!? This can cause issues with partial application of unique types!
-        // Need to force free_var usage somehow? But we're using NecroAstSymbols, and this has none!
-        return;
-    case NECRO_AST_APATS:
-        while (ast != NULL)
-        {
-            necro_alias_analysis_add_apats_to_free_vars(alias_analysis, alias_set, ast->apats.apat);
-            ast = ast->apats.next_apat;
-        }
-        return;
-    case NECRO_AST_LIST_NODE:
-        while (ast != NULL)
-        {
-            necro_alias_analysis_add_apats_to_free_vars(alias_analysis, alias_set, ast->list.item);
-            ast = ast->list.next_item;
-        }
-        return;
-    case NECRO_AST_TUPLE:
-        necro_alias_analysis_add_apats_to_free_vars(alias_analysis, alias_set, ast->tuple.expressions);
-        return;
-    case NECRO_AST_EXPRESSION_LIST:
-        necro_alias_analysis_add_apats_to_free_vars(alias_analysis, alias_set, ast->expression_list.expressions);
-        return;
-    case NECRO_AST_EXPRESSION_ARRAY:
-        necro_alias_analysis_add_apats_to_free_vars(alias_analysis, alias_set, ast->expression_array.expressions);
-        return;
-    case NECRO_AST_CONSTRUCTOR:
-        necro_alias_analysis_add_apats_to_free_vars(alias_analysis, alias_set, ast->constructor.arg_list);
-        return;
-    case NECRO_AST_CONID:
-    case NECRO_AST_CONSTANT:
-    case NECRO_AST_BIN_OP_SYM:
-        return;
-    default:
-        assert(false);
-        return;
-    }
+    assert(ast->type == NECRO_AST_DECL);
+    necro_alias_analysis_declaration_group(alias_analysis, alias_set, ast->declaration.next_declaration);
+    necro_alias_analysis_go(alias_analysis, alias_set, ast->declaration.declaration_impl);
 }
 
 void necro_alias_analysis_go(NecroAliasAnalysis* alias_analysis, NecroAliasSet* alias_set, NecroAst* ast)
@@ -462,21 +383,17 @@ void necro_alias_analysis_go(NecroAliasAnalysis* alias_analysis, NecroAliasSet* 
         {
             necro_alias_analysis_go(alias_analysis, alias_set, group_list->declaration_group_list.declaration_group);
             group_list = group_list->declaration_group_list.next;
-            // necro_alias_set_empty(alias_analysis->free_vars);
         }
         return;
     }
     case NECRO_AST_DECL:
     {
-        NecroAliasSet* prev_free_vars = alias_analysis->free_vars;
-        alias_analysis->free_vars     = necro_alias_set_create(&alias_analysis->ast_arena->arena, 8);
         NecroAst* declaration_group = ast;
         while (declaration_group != NULL)
         {
             necro_alias_analysis_go(alias_analysis, alias_set, declaration_group->declaration.declaration_impl);
             declaration_group = declaration_group->declaration.next_declaration;
         }
-        alias_analysis->free_vars = necro_alias_set_merge_without_usage(prev_free_vars, alias_analysis->free_vars);
         return;
     }
     case NECRO_AST_TYPE_CLASS_INSTANCE:
@@ -490,12 +407,9 @@ void necro_alias_analysis_go(NecroAliasAnalysis* alias_analysis, NecroAliasSet* 
         switch (ast->variable.var_type)
         {
         case NECRO_VAR_DECLARATION:
-            necro_alias_set_delete_symbol(alias_analysis->free_vars, ast->variable.ast_symbol);
             return;
         case NECRO_VAR_VAR:
             necro_alias_set_add_usage(alias_analysis->arena, alias_set, ast->variable.ast_symbol, ast->source_loc, ast->end_loc);
-            if (!necro_scope_contains(ast->scope, ast->variable.ast_symbol->source_name))
-                necro_alias_set_insert_symbol_without_usage(alias_analysis->free_vars, ast->variable.ast_symbol);
             return;
         case NECRO_VAR_SIG:                  return;
         case NECRO_VAR_TYPE_VAR_DECLARATION: return;
@@ -508,19 +422,12 @@ void necro_alias_analysis_go(NecroAliasAnalysis* alias_analysis, NecroAliasSet* 
 
     case NECRO_AST_LAMBDA:
         necro_alias_analysis_go(alias_analysis, alias_set, ast->lambda.expression);
-        necro_alias_analysis_add_apats_to_free_vars(alias_analysis, alias_set, ast->lambda.apats);
-        ast->lambda.free_vars = necro_alias_analysis_apats_free_var_delete(alias_analysis, alias_set, ast->lambda.apats);
         return;
     case NECRO_AST_SIMPLE_ASSIGNMENT:
-        // necro_alias_analysis_go(alias_analysis, ast->simple_assignment.initializer); // Initializers are static time, should never alias
         necro_alias_analysis_go(alias_analysis, alias_set, ast->simple_assignment.rhs);
-        necro_alias_set_delete_symbol(alias_analysis->free_vars, ast->simple_assignment.ast_symbol);
         return;
     case NECRO_AST_APATS_ASSIGNMENT:
         necro_alias_analysis_go(alias_analysis, alias_set, ast->apats_assignment.rhs);
-        necro_alias_set_delete_symbol(alias_analysis->free_vars, ast->apats_assignment.ast_symbol);
-        necro_alias_analysis_add_apats_to_free_vars(alias_analysis, alias_set, ast->apats_assignment.apats);
-        ast->apats_assignment.free_vars = necro_alias_analysis_apats_free_var_delete(alias_analysis, alias_set, ast->apats_assignment.apats);
         return;
     case NECRO_AST_FOR_LOOP:
         necro_alias_analysis_go(alias_analysis, alias_set, ast->for_loop.range_init);
@@ -528,6 +435,12 @@ void necro_alias_analysis_go(NecroAliasAnalysis* alias_analysis, NecroAliasSet* 
         necro_alias_analysis_go(alias_analysis, alias_set, ast->for_loop.expression);
         necro_alias_analysis_go(alias_analysis, alias_set, ast->for_loop.index_apat);
         necro_alias_analysis_go(alias_analysis, alias_set, ast->for_loop.value_apat);
+        return;
+    case NECRO_AST_WHILE_LOOP:
+        necro_alias_analysis_go(alias_analysis, alias_set, ast->while_loop.do_expression);
+        necro_alias_analysis_go(alias_analysis, alias_set, ast->while_loop.while_expression);
+        necro_alias_analysis_go(alias_analysis, alias_set, ast->while_loop.value_init);
+        necro_alias_analysis_go(alias_analysis, alias_set, ast->while_loop.value_apat);
         return;
     case NECRO_AST_PAT_ASSIGNMENT:
         necro_alias_analysis_go(alias_analysis, alias_set, ast->pat_assignment.rhs);
@@ -543,7 +456,6 @@ void necro_alias_analysis_go(NecroAliasAnalysis* alias_analysis, NecroAliasSet* 
         return;
     case NECRO_BIND_ASSIGNMENT:
         necro_alias_analysis_go(alias_analysis, alias_set, ast->bind_assignment.expression);
-        necro_alias_set_delete_symbol(alias_analysis->free_vars, ast->bind_assignment.ast_symbol);
         return;
 
     //--------------------
@@ -553,10 +465,9 @@ void necro_alias_analysis_go(NecroAliasAnalysis* alias_analysis, NecroAliasSet* 
     // We do this because it allows us to use an identifier on each side of a branch without counting as aliasing.
     case NECRO_AST_IF_THEN_ELSE:
     {
-
         necro_alias_analysis_go(alias_analysis, alias_set, ast->if_then_else.if_expr);
-        NecroAliasSet* then_set = necro_alias_set_create(&alias_analysis->alias_arena, NECRO_ALIAS_SET_INITIAL_CAPACITY);
-        NecroAliasSet* else_set = necro_alias_set_create(&alias_analysis->alias_arena, NECRO_ALIAS_SET_INITIAL_CAPACITY);
+        NecroAliasSet* then_set = necro_alias_set_create(alias_analysis->arena, NECRO_ALIAS_SET_INITIAL_CAPACITY);
+        NecroAliasSet* else_set = necro_alias_set_create(alias_analysis->arena, NECRO_ALIAS_SET_INITIAL_CAPACITY);
         necro_alias_analysis_go(alias_analysis, then_set, ast->if_then_else.then_expr);
         necro_alias_analysis_go(alias_analysis, else_set, ast->if_then_else.else_expr);
         necro_alias_set_union_children_then_merge_into_parent(alias_set, (NecroAliasSet*[2]) { then_set, else_set }, 2);
@@ -573,9 +484,11 @@ void necro_alias_analysis_go(NecroAliasAnalysis* alias_analysis, NecroAliasSet* 
             alt_count++;
             curr_alt = curr_alt->list.next_item;
         }
-        NecroAliasSet** alt_sets = necro_paged_arena_alloc(&alias_analysis->alias_arena, alt_count * sizeof(NecroAliasSet*));
+        // NecroAliasSet** alt_sets = necro_paged_arena_alloc(&alias_analysis->alias_arena, alt_count * sizeof(NecroAliasSet*));
+        NecroAliasSet** alt_sets = necro_paged_arena_alloc(alias_analysis->arena, alt_count * sizeof(NecroAliasSet*));
         for (size_t i = 0; i < alt_count; ++i)
-            alt_sets[i] = necro_alias_set_create(&alias_analysis->alias_arena, NECRO_ALIAS_SET_INITIAL_CAPACITY);
+            alt_sets[i] = necro_alias_set_create(alias_analysis->arena, NECRO_ALIAS_SET_INITIAL_CAPACITY);
+            // alt_sets[i] = necro_alias_set_create(&alias_analysis->alias_arena, NECRO_ALIAS_SET_INITIAL_CAPACITY);
         curr_alt     = ast->case_expression.alternatives;
         size_t alt_i = 0;
         while (curr_alt != NULL)
@@ -638,8 +551,8 @@ void necro_alias_analysis_go(NecroAliasAnalysis* alias_analysis, NecroAliasSet* 
     case NECRO_AST_EXPRESSION_ARRAY:
         necro_alias_analysis_go(alias_analysis, alias_set, ast->expression_array.expressions);
         return;
-    case NECRO_AST_PAT_EXPRESSION:
-        necro_alias_analysis_go(alias_analysis, alias_set, ast->pattern_expression.expressions);
+    case NECRO_AST_SEQ_EXPRESSION:
+        necro_alias_analysis_go(alias_analysis, alias_set, ast->sequence_expression.expressions);
         return;
     case NECRO_AST_TUPLE:
         necro_alias_analysis_go(alias_analysis, alias_set, ast->tuple.expressions);
@@ -698,7 +611,7 @@ void necro_alias_set_print_sharing(NecroAliasSet* alias_set)
     {
         NecroAstSymbol* symbol = alias_set->data[i].symbol;
         NecroUsage*     usage  = alias_set->data[i].usage;
-        if (symbol == NULL)
+        if (symbol == NULL || symbol == &NECRO_ALIAS_SET_TOMBSTONE)
             continue;
         if (necro_usage_is_unshared(usage))
             printf("| %s: Unshared\n", symbol->name->str);
@@ -722,7 +635,6 @@ void necro_alias_analysis_test_case(const char* test_name, const char* str, cons
     NecroParseAstArena  parse_ast       = necro_parse_ast_arena_empty();
     NecroAstArena       ast             = necro_ast_arena_empty();
     NecroCompileInfo    info            = necro_test_compile_info();
-    NecroAliasAnalysis  alias_analysis  = necro_alias_analysis_create(&ast);
 
     // Compile
     unwrap(void, necro_lex(info, &intern, str, strlen(str), &tokens));
@@ -730,7 +642,8 @@ void necro_alias_analysis_test_case(const char* test_name, const char* str, cons
     ast = necro_reify(info, &intern, &parse_ast);
     necro_build_scopes(info, &scoped_symtable, &ast);
     unwrap(void, necro_rename(info, &scoped_symtable, &intern, &ast));
-    necro_dependency_analyze(info, &intern, &ast);
+    necro_dependency_analyze(info, &intern, &base, &ast);
+    NecroAliasAnalysis  alias_analysis = necro_alias_analysis_create(&ast);
     necro_alias_analysis_impl(&alias_analysis);
 
     // Test
@@ -744,8 +657,11 @@ void necro_alias_analysis_test_case(const char* test_name, const char* str, cons
         printf("%s: FAILED\n", test_name);
 
 #if NECRO_ALIAS_ANALYSIS_VERBOSE
-    necro_alias_set_print_sharing(alias_analysis.top_set);
+    // necro_alias_set_print_sharing(alias_analysis.top_set);
+    // necro_ast_arena_print(&ast);
 #endif
+
+    assert(test_success);
 
     // Cleanup
     necro_alias_analysis_destroy(&alias_analysis);
@@ -775,7 +691,7 @@ void necro_ownership_test(const char* test_name, const char* str, NECRO_RESULT_T
     ast = necro_reify(info, &intern, &parse_ast);
     necro_build_scopes(info, &scoped_symtable, &ast);
     unwrap(void, necro_rename(info, &scoped_symtable, &intern, &ast));
-    necro_dependency_analyze(info, &intern, &ast);
+    necro_dependency_analyze(info, &intern, &base, &ast);
     info.verbosity = NECRO_ALIAS_ANALYSIS_VERBOSE;
     necro_alias_analysis(info, &ast); // NOTE: Consider merging alias_analysis into RENAME_VAR phase?
     info.verbosity = 0;
@@ -787,11 +703,11 @@ void necro_ownership_test(const char* test_name, const char* str, NECRO_RESULT_T
         necro_ast_arena_print(&ast);
         necro_scoped_symtable_print_top_scopes(&scoped_symtable);
     }
+
 #if NECRO_ALIAS_ANALYSIS_VERBOSE
-    necro_scoped_symtable_print_top_scopes(&scoped_symtable);
+    // necro_scoped_symtable_print_top_scopes(&scoped_symtable);
 #endif
 
-    assert(result.type == expected_result);
     bool passed = result.type == expected_result;
     if (expected_result == NECRO_RESULT_ERROR)
     {
@@ -821,6 +737,8 @@ void necro_ownership_test(const char* test_name, const char* str, NECRO_RESULT_T
     necro_result_error_destroy(result.type, result.error);
 #endif
 
+    assert(passed);
+
     necro_ast_arena_destroy(&ast);
     necro_base_destroy(&base);
     necro_parse_ast_arena_destroy(&parse_ast);
@@ -833,6 +751,162 @@ void necro_alias_analysis_test()
 {
     necro_announce_phase("Alias Analysis");
     printf("\n");
+
+    // TODO: Custom error for mismatched type variable uniqueness attribution
+    // TODO: Custom error for uniqueness coercions
+
+    {
+        const char* test_name   = "HKT 1";
+        const char* test_source = ""
+            "data App m a = App (m a)\n"
+            "appMaybe :: App m *a -> m *a\n"
+            "appMaybe (App x) = x\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "HKT 3";
+        const char* test_source = ""
+            "data App m a = App (m a)\n"
+            "appMaybe :: App (App Maybe) *Int -> Maybe *Int\n"
+            "appMaybe (App (App x)) = x\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "HKT 2";
+        const char* test_source = ""
+            "data App m a = App (m a)\n"
+            "appMaybe :: App Maybe *Int -> Maybe *Int\n"
+            "appMaybe (App x) = x\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "HKT 4";
+        const char* test_source = ""
+            "data AppMaybe m a = AppMaybe (m a)\n"
+            "appMaybe :: AppMaybe m *a -> m a\n"
+            "appMaybe (AppMaybe x) = x\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
+        necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Ok Closure";
+        const char* test_source = ""
+            "okClosure :: *(Bool, Bool) -> Bool\n"
+            "okClosure t = f True\n"
+            "  where\n"
+            "    f b =\n"
+            "      case t of\n"
+            "        (l, r) ->\n"
+            "          b && l && r\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Bad Closure 1";
+        const char* test_source = ""
+            "badClosure :: *(Bool, Bool) -> Bool\n"
+            "badClosure t = f True && f False\n"
+            "  where\n"
+            "    f b =\n"
+            "      case t of\n"
+            "        (l, r) ->\n"
+            "          b && l && r\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
+        necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Bad Closure 2";
+        const char* test_source = ""
+            "badClosure :: *(Bool, Bool) -> Bool\n"
+            "badClosure t = f' True && f' False\n"
+            "  where\n"
+            "    f'     = f t\n"
+            "    f t' b =\n"
+            "      case t' of\n"
+            "        (l, r) ->\n"
+            "          b && l && r\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
+        necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Bad Loop 1";
+        const char* test_source = ""
+            "badLoop :: *Array 4 Int -> Index 4 -> *Array 4 Int\n"
+            "badLoop a index =\n"
+            "  loop a' = unsafeEmptyArray () while True do\n"
+            "    writeArray index 0 a\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
+        necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Bad Loop 2";
+        const char* test_source = ""
+            "badLoop :: *Array 4 Int -> *Array 4 Int\n"
+            "badLoop a =\n"
+            "  loop a1 = unsafeEmptyArray () for i <- each do\n"
+            "    writeArray i 0 a\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
+        necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Unique Test 6";
+        const char* test_source = ""
+            "dontShare :: Maybe *Int -> Maybe *Int\n"
+            "dontShare x = x\n"
+            "pwned x y = dontShare (dontShare x)\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Constraint Test 1";
+        const char* test_source = ""
+            "neverShare :: *Bool\n"
+            "neverShare   = True\n"
+            "frugal x y z = ()\n"
+            "notFrugal    = frugal () neverShare\n"
+            "bang         = notFrugal ()\n"
+            "pop          = notFrugal ()\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
+        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
+        necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
+    }
+
+    {
+        const char* test_name   = "Unique Nested Fn";
+        const char* test_source = ""
+            "utest :: *Bool -> *Bool -> (*Bool, *Bool)\n"
+            "utest b c = f True where\n"
+            "  f x = (b, c)\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "primUndefined";
+        const char* test_source = ""
+            "testEQ :: () -> () -> Bool\n"
+            "testEQ x y = primUndefined\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
 
     {
         const char* test_name   = "Data Types 1";
@@ -1113,16 +1187,6 @@ void necro_alias_analysis_test()
     }
 
     {
-        const char* test_name   = "Unique Test 6";
-        const char* test_source = ""
-            "dontShare :: *Maybe Int -> *Maybe Int\n"
-            "dontShare x = x\n"
-            "pwned x y = dontShare (dontShare x)\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
-        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
-    }
-
-    {
         const char* test_name   = "Var test";
         const char* test_source = ""
             "dontShare :: *a -> *a\n"
@@ -1131,8 +1195,6 @@ void necro_alias_analysis_test()
         necro_ownership_test(test_name, test_source, expect_error_result, NULL);
     }
 
-// TODO: Currently failing test, fix!
-/*
     {
         const char* test_name   = "Mismatched Sig 1";
         const char* test_source = ""
@@ -1142,13 +1204,12 @@ void necro_alias_analysis_test()
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
         necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
     }
-*/
 
     {
         const char* test_name   = "Mismatched Sig 2";
         const char* test_source = ""
             "data Pair a b = Pair a b\n"
-            "dontShare :: *a -> a -> b -> *Pair a b\n"
+            "dontShare :: *a -> a -> b -> Pair *a b\n"
             "dontShare x y z = Pair x z\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
@@ -1173,9 +1234,8 @@ void necro_alias_analysis_test()
             "nid :: a -> a\n"
             "nid x = x\n"
             "dup x y = (uid x, nid y)\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
-        necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
     }
 
     {
@@ -1200,7 +1260,7 @@ void necro_alias_analysis_test()
     {
         const char* test_name   = "Dup 2";
         const char* test_source = ""
-            "dup :: *a -> *(a, a)\n"
+            "dup :: *a -> (*a, *a)\n"
             "dup x = (x, x)\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
@@ -1224,9 +1284,23 @@ void necro_alias_analysis_test()
     }
 
     {
+        const char* test_name   = "Owned Local Var";
+        const char* test_source = ""
+          "ownedUnit :: () -> *()\n"
+          "ownedUnit u = ()\n"
+          "localOwnedTest :: () -> ()\n"
+          "localOwnedTest x = x\n"
+          "  where\n"
+          "    ou  = ownedUnit ()\n"
+          "    ou' = ou\n";
+        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
         const char* test_name   = "Free Var 1";
         const char* test_source = ""
-            "freeVarTest :: *a -> *b -> *c -> *d -> *(a, b, c, d)\n"
+            "freeVarTest :: *a -> *b -> *c -> *d -> (*a, *b, *c, *d)\n"
             "freeVarTest w x y z = (w, x, y, z)\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
         necro_ownership_test(test_name, test_source, expect_error_result, NULL);
@@ -1235,7 +1309,7 @@ void necro_alias_analysis_test()
     {
         const char* test_name   = "Free Var Error 1";
         const char* test_source = ""
-            "freeVarTest :: *a -> *b -> *c -> *d -> *(a, b, c, d)\n"
+            "freeVarTest :: *a -> *b -> *c -> *d -> (*a, *b, *c, *d)\n"
             "freeVarTest w x y z = (w, x, y, z)\n"
             "partialApp = freeVarTest () () ()\n"
             "val1 = partialApp ()\n"
@@ -1332,46 +1406,44 @@ void necro_alias_analysis_test()
             "neverShare :: *()\n"
             "neverShare = ()\n"
             "coughItUp _ = neverShare\n"
-            "one = coughItUp True\n"
-            "two = coughItUp False\n";
+            "one' = coughItUp True\n"
+            "two  = coughItUp False\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
         necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
     }
 
-// TODO: Currently failing test, fix!
-/*
     {
-        const char* test_name   = "HKT 1";
+        const char* test_name   = "Class Test 1";
         const char* test_source = ""
-            "data AppMaybe m a = AppMaybe (m a)\n"
-            "appMaybe :: *AppMaybe m a -> m a\n"
-            "appMaybe (AppMaybe m) = m\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
-        necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
-    }
-*/
-
-    {
-        const char* test_name   = "HKT 2";
-        const char* test_source = ""
-            "data AppMaybe m a = AppMaybe (m a)\n"
-            "appMaybe :: *AppMaybe m a -> *m a\n"
-            "appMaybe (AppMaybe m) = m\n";
+            "class UClass a where\n"
+            "  fu :: *a -> Maybe *a\n"
+            "instance UClass Bool where\n"
+            "  fu b = Just b\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
         necro_ownership_test(test_name, test_source, expect_error_result, NULL);
     }
 
     {
-        const char* test_name   = "Constraint Test 1";
+        const char* test_name   = "Class Test 2";
         const char* test_source = ""
-            "neverShare :: *Bool\n"
-            "neverShare   = True\n"
-            "frugal x y z = ()\n"
-            "notFrugal    = frugal () neverShare\n"
-            "bang         = notFrugal ()\n"
-            "pop          = notFrugal ()\n";
+            "class UClass a where\n"
+            "  fu :: *a -> Maybe *a\n"
+            "instance UClass Bool where\n"
+            "  fu b = Just b\n"
+            "ezGame :: (UClass a, UClass b) => *a -> *b -> (Maybe *a, Maybe *b)\n"
+            "ezGame x y = (fu x, fu y)\n";
+        const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
+        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
+    }
+
+    {
+        const char* test_name   = "Class Test 3";
+        const char* test_source = ""
+            "class UClass a where\n"
+            "  fu :: *a -> Bool\n"
+            "instance UClass Bool where\n"
+            "  fu b = b\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
         const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
         necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
@@ -1389,42 +1461,6 @@ void necro_alias_analysis_test()
             "bang         = notFrugal ()\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
         necro_ownership_test(test_name, test_source, expect_error_result, NULL);
-    }
-
-    {
-        const char* test_name   = "Class Test 1";
-        const char* test_source = ""
-            "class UClass a where\n"
-            "  fu :: *a -> *Maybe a\n"
-            "instance UClass Bool where\n"
-            "  fu b = Just b\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
-        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
-    }
-
-    {
-        const char* test_name   = "Class Test 2";
-        const char* test_source = ""
-            "class UClass a where\n"
-            "  fu :: *a -> *Maybe a\n"
-            "instance UClass Bool where\n"
-            "  fu b = Just b\n"
-            "ezGame :: (UClass a, UClass b) => *a -> *b -> *(Maybe a, Maybe b)\n"
-            "ezGame x y = (fu x, fu y)\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
-        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
-    }
-
-    {
-        const char* test_name   = "Class Test 3";
-        const char* test_source = ""
-            "class UClass a where\n"
-            "  fu :: *a -> Bool\n"
-            "instance UClass Bool where\n"
-            "  fu b = b\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;
-        const NECRO_RESULT_ERROR_TYPE expected_error      = NECRO_TYPE_MISMATCHED_TYPE;
-        necro_ownership_test(test_name, test_source, expect_error_result, &expected_error);
     }
 
     // Seems like sharing isn't propagating correctly here!
@@ -1495,7 +1531,7 @@ void necro_alias_analysis_test()
     {
         const char* test_name   = "maybe Test Poly";
         const char* test_source = ""
-            "maybe' :: .b -> .(.a -> .b) -> .Maybe a -> .b\n"
+            "maybe' :: .b -> .(.a -> .b) -> Maybe .a -> .b\n"
             "maybe' y f mx =\n"
             "  case mx of\n"
             "    Just x  -> f x\n"
@@ -1507,28 +1543,13 @@ void necro_alias_analysis_test()
     {
         const char* test_name   = "tuple Test Poly";
         const char* test_source = ""
-            "fst' :: .(a, b) -> .a\n"
-            "fst' (x, _) = x\n"
-            "snd' :: .(a, b) -> .b\n"
-            "snd' (_, y) = y\n";
+            "fstU :: (.a, .b) -> .a\n"
+            "fstU (x, _) = x\n"
+            "sndU :: (.a, .b) -> .b\n"
+            "sndU (_, y) = y\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
         necro_ownership_test(test_name, test_source, expect_error_result, NULL);
     }
-
-    {
-        const char* test_name   = "Unique Nested Fn";
-        const char* test_source = ""
-            "utest :: *Bool -> *Bool -> *(Bool, Bool)\n"
-            "utest b c = f True where\n"
-            "  f x = (b, c)\n";
-        const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
-        necro_ownership_test(test_name, test_source, expect_error_result, NULL);
-    }
-
-    // TODO: Anon Dot needs more testing.
-    // TODO: Reduce the amount of uvars/constraints floating around from apats.
-    // TODO: where / let declaration testing with simple assignment and apats assignment!
-    // TODO: Uniqueness Typed Base functions (Or prehaps move stuff like that into a prelude library).
 
     // // TODO: fromInt is shared currently...
     // {

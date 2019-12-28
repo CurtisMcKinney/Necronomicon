@@ -234,6 +234,10 @@ NECRO_STATE_TYPE necro_state_analysis_bind(NecroStateAnalysis* sa, NecroCoreAst*
     {
         symbol->state_type = necro_state_analysis_merge_state_types(symbol->state_type, necro_state_analysis_go(sa, ast->bind.expr, symbol));
     }
+    if (ast->bind.ast_symbol->primop_type == NECRO_PRIMOP_DYN_DCOPY || ast->bind.ast_symbol->primop_type == NECRO_PRIMOP_DYN_DCOPY_INTO)
+    {
+        necro_core_ast_maybe_deep_copy(sa, ast->bind.expr->lambda.arg);
+    }
     return symbol->state_type;
 }
 
@@ -260,17 +264,26 @@ NECRO_STATE_TYPE necro_state_analysis_bind_rec(NecroStateAnalysis* sa, NecroCore
 
 }
 
-NECRO_STATE_TYPE necro_state_analysis_for(NecroStateAnalysis* sa, NecroCoreAst* ast, NecroCoreAstSymbol* outer)
+NECRO_STATE_TYPE necro_state_analysis_loop(NecroStateAnalysis* sa, NecroCoreAst* ast, NecroCoreAstSymbol* outer)
 {
     assert(sa != NULL);
     assert(ast != NULL);
-    assert(ast->ast_type == NECRO_CORE_AST_FOR);
+    assert(ast->ast_type == NECRO_CORE_AST_LOOP);
     ast->necro_type             = necro_core_ast_type_specialize(sa, ast->necro_type);
-    NECRO_STATE_TYPE state_type = necro_state_analysis_go(sa, ast->for_loop.range_init, outer);
-    state_type                  = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, ast->for_loop.value_init, outer));
-    state_type                  = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_pat_go(sa, ast->for_loop.index_arg, outer));
-    state_type                  = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_pat_go(sa, ast->for_loop.value_arg, outer));
-    state_type                  = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, ast->for_loop.expression, outer));
+    NECRO_STATE_TYPE state_type = necro_state_analysis_pat_go(sa, ast->loop.value_pat, outer);
+    state_type                  = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, ast->loop.value_init, outer));
+    if (ast->loop.loop_type == NECRO_LOOP_FOR)
+    {
+        state_type = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_pat_go(sa, ast->loop.for_loop.index_pat, outer));
+        state_type = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, ast->loop.for_loop.range_init, outer));
+        state_type = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, ast->loop.do_expression, outer));
+    }
+    else
+    {
+        state_type              = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, ast->loop.while_loop.while_expression, outer));
+        state_type              = necro_state_analysis_merge_state_types(state_type, necro_state_analysis_go(sa, ast->loop.do_expression, outer));
+        ast->loop.do_expression = necro_core_ast_maybe_deep_copy(sa, ast->loop.do_expression);
+    }
     return state_type;
 }
 
@@ -279,6 +292,11 @@ NECRO_STATE_TYPE necro_state_analysis_app(NecroStateAnalysis* sa, NecroCoreAst* 
     assert(sa != NULL);
     assert(ast != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_APP);
+    if (ast->app.expr1->ast_type == NECRO_CORE_AST_VAR && ast->app.expr1->var.ast_symbol == sa->base->index_con->core_ast_symbol)
+    {
+        *ast = *ast->app.expr2;
+        return necro_state_analysis_go(sa, ast, outer);
+    }
     NecroCoreAst*    app             = ast;
     NECRO_STATE_TYPE args_state_type = NECRO_STATE_CONSTANT;
     while (app->ast_type == NECRO_CORE_AST_APP)
@@ -299,6 +317,11 @@ NECRO_STATE_TYPE necro_state_analysis_app_pat(NecroStateAnalysis* sa, NecroCoreA
     assert(sa != NULL);
     assert(ast != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_APP);
+    if (ast->app.expr1->ast_type == NECRO_CORE_AST_VAR && ast->app.expr1->var.ast_symbol == sa->base->index_con->core_ast_symbol)
+    {
+        *ast = *ast->app.expr2;
+        return necro_state_analysis_go(sa, ast, outer);
+    }
     NecroCoreAst*    app             = ast;
     NECRO_STATE_TYPE args_state_type = NECRO_STATE_POLY;
     while (app->ast_type == NECRO_CORE_AST_APP)
@@ -348,7 +371,7 @@ NECRO_STATE_TYPE necro_state_analysis_go(NecroStateAnalysis* sa, NecroCoreAst* a
     case NECRO_CORE_AST_CASE:      return necro_state_analysis_case(sa, ast, outer);
     case NECRO_CORE_AST_BIND:      return necro_state_analysis_bind(sa, ast, outer);
     case NECRO_CORE_AST_BIND_REC:  return necro_state_analysis_bind_rec(sa, ast, outer);
-    case NECRO_CORE_AST_FOR:       return necro_state_analysis_for(sa, ast, outer);
+    case NECRO_CORE_AST_LOOP:      return necro_state_analysis_loop(sa, ast, outer);
     case NECRO_CORE_AST_LIT:       return necro_state_analysis_lit(sa, ast, outer);
     case NECRO_CORE_AST_DATA_DECL: return NECRO_STATE_CONSTANT;
     case NECRO_CORE_AST_DATA_CON:  return NECRO_STATE_CONSTANT;
@@ -569,7 +592,7 @@ NecroType* necro_core_ast_type_specialize(NecroStateAnalysis* sa, NecroType* typ
 
         //--------------------
         // Primitively polymoprhic types Early exit
-        if (type->con.con_symbol == sa->base->array_type)
+        if (type->con.con_symbol == sa->base->array_type || type->con.con_symbol == sa->base->ptr_type)
         {
             NecroType* con_args = necro_core_ast_type_specialize(sa, type->con.args);
             if (con_args == type->con.args)
@@ -583,6 +606,10 @@ NecroType* necro_core_ast_type_specialize(NecroStateAnalysis* sa, NecroType* typ
         else if (type->con.con_symbol == sa->base->index_type)
         {
             return sa->base->uint_type->type;
+        }
+        else if (type->con.con_symbol == sa->base->block_size_type || type->con.con_symbol == sa->base->nat_mul_type || type->con.con_symbol == sa->base->nat_max_type)
+        {
+            return type;
         }
 
         //--------------------
@@ -662,7 +689,7 @@ NecroType* necro_core_ast_type_specialize(NecroStateAnalysis* sa, NecroType* typ
 
             //--------------------
             // Specialize data_con type
-            NecroType* data_con_type   = unwrap_result(NecroType, necro_type_instantiate(sa->arena, NULL, sa->base, poly_con_type, NULL));
+            NecroType* data_con_type   = necro_type_instantiate(sa->arena, NULL, sa->base, poly_con_type, NULL, zero_loc, zero_loc);
             NecroType* data_con_result = data_con_type;
             while (data_con_result->type == NECRO_TYPE_FUN)
                 data_con_result = data_con_result->fun.type2;
@@ -757,24 +784,18 @@ NecroType* necro_core_ast_type_specialize(NecroStateAnalysis* sa, NecroType* typ
 // TODO: Handle Arrays
 // TODO: Handle Ping-ponging
 // TODO: Don't deep copy Unique/Owned types, only shared types
-// TODO: Test Append to top-level lets
-// TODO: Perhaps create ping-pong wrapper in mach so that we don't require branching, just the simple load/sub/store combo?
-// TODO: NecroMachMetaData ?
-// TODO: Strip out other state based system
 // NOTE: For arrays simply inline directly the array copying logic, that way we don't have to worry about how to "cache" the array copy functions"
 
+NecroCoreAst* necro_core_ast_create_deep_copy_array(NecroStateAnalysis* context, NecroCoreAst* ast_to_deep_copy);
 NecroCoreAst* necro_core_ast_create_deep_copy(NecroStateAnalysis* context, NecroCoreAst* ast);
 NecroCoreAst* necro_core_ast_maybe_deep_copy(NecroStateAnalysis* context, NecroCoreAst* ast_to_deep_copy)
 {
     assert(ast_to_deep_copy != NULL);
     NecroType* type = necro_type_find(ast_to_deep_copy->necro_type);
     assert(type->type == NECRO_TYPE_CON);
-    if (type->con.con_symbol == context->base->array_type)
+    if (type->con.con_symbol == context->base->array_type || type->con.con_symbol == context->base->ptr_type)
     {
-        // TODO: Special array handling, finish! right now we're simply not copying arrays!
-        // assert(false && "TODO");
-        // return NULL;
-        return ast_to_deep_copy;
+        return necro_core_ast_create_deep_copy_array(context, ast_to_deep_copy);
     }
     NecroCoreAstSymbol* deep_copy_fn_symbol = type->con.con_symbol->core_ast_symbol->deep_copy_fn;
     if (deep_copy_fn_symbol == NULL)
@@ -796,10 +817,52 @@ NecroCoreAst* necro_core_ast_maybe_deep_copy(NecroStateAnalysis* context, NecroC
     else
     {
         // Normal type
-        // TODO: Create ping pong wrapper here!?
         NecroCoreAst* deep_copy_fn_var = necro_core_ast_create_var(context->arena, deep_copy_fn_symbol, deep_copy_fn_symbol->type);
         return necro_core_ast_create_app(context->arena, deep_copy_fn_var, ast_to_deep_copy);
     }
+}
+
+NecroCoreAst* necro_core_ast_create_deep_copy_array(NecroStateAnalysis* context, NecroCoreAst* ast_to_deep_copy)
+{
+    UNUSED(context);
+    // TODO: Finish!
+    return ast_to_deep_copy;
+/*
+    assert(ast_to_deep_copy != NULL);
+    NecroType* type    = necro_type_find(ast_to_deep_copy->necro_type);
+    assert(type->type == NECRO_TYPE_CON);
+    assert(type->con.con_symbol == context->base->array_type);
+    assert(type->con.args != NULL);
+    NecroType* array_n = type->con.args->list.item;
+    size_t              max_loops  = necro_nat_to_size_t(context->base, array_n);
+    NecroCoreAst*       zero_ast   = necro_core_ast_create_lit(context->arena, (NecroAstConstant) { .uint_literal = 0, .type = NECRO_AST_CONSTANT_UNSIGNED_INTEGER });
+    NecroCoreAst*       range_ast  = necro_core_ast_create_app(context->arena, necro_core_ast_create_app(context->arena, necro_core_ast_create_app(context->arena, necro_core_ast_create_var(context->arena, context->base->range_con->core_ast_symbol, necro_type_con1_create(context->arena, context->base->range_type, array_n)), zero_ast), zero_ast), zero_ast);
+    NecroCoreAst*       emptyArray = necro_core_ast_create_app(context->arena, necro_core_ast_create_var(context->arena, context->base->unsafe_empty_array->core_ast_symbol, type), necro_core_ast_create_var(context->arena, context->base->unit_con->core_ast_symbol , context->base->unit_type->type));
+    NecroType*          i_type     = context->base->uint_type->type;
+    // NecroType*          i_type     = necro_type_con1_create(context->arena, context->base->index_type, array_n);
+    NecroCoreAstSymbol* i_symbol   = necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "i"), i_type);
+    NecroCoreAstSymbol* a_symbol   = necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "a"), type);
+    NecroCoreAst*       index_pat  = necro_core_ast_create_var(context->arena, i_symbol, i_type);
+    NecroCoreAst*       value_pat  = necro_core_ast_create_var(context->arena, a_symbol, type);
+    NecroCoreAst*       read_ast   =
+        necro_core_ast_create_app(context->arena,
+            necro_core_ast_create_app(context->arena,
+                necro_core_ast_create_var(context->arena, context->base->read_array->core_ast_symbol, necro_type_fresh_var(context->arena, NULL)),
+                necro_core_ast_create_var(context->arena, i_symbol, i_type)),
+            ast_to_deep_copy);
+    read_ast->necro_type    = type->con.args->list.next->list.item;
+    NecroCoreAst* deep_copy = necro_core_ast_maybe_deep_copy(context, read_ast);
+    NecroCoreAst* write_ast =
+        necro_core_ast_create_app(context->arena,
+            necro_core_ast_create_app(context->arena,
+                necro_core_ast_create_app(context->arena,
+                    necro_core_ast_create_var(context->arena, context->base->write_array->core_ast_symbol, necro_type_fresh_var(context->arena, NULL)),
+                    necro_core_ast_create_var(context->arena, i_symbol, context->base->unit_type->type)),
+                deep_copy),
+            necro_core_ast_create_var(context->arena, a_symbol, context->base->unit_type->type));
+    NecroCoreAst* copy_loop = necro_core_ast_create_for_loop(context->arena, max_loops, range_ast, emptyArray, index_pat, value_pat, write_ast);
+    return copy_loop;
+*/
 }
 
 NecroCoreAst* necro_core_ast_create_deep_copy(NecroStateAnalysis* context, NecroCoreAst* ast)
@@ -813,8 +876,8 @@ NecroCoreAst* necro_core_ast_create_deep_copy(NecroStateAnalysis* context, Necro
         return NULL;
 
     // TODO: How to handle arrays!?!?!?!?!
-    if (ast->data_decl.ast_symbol == context->base->array_type->core_ast_symbol)
-        return NULL; // TODO: Finish!
+    if (ast->data_decl.ast_symbol == context->base->array_type->core_ast_symbol || ast->data_decl.ast_symbol == context->base->ptr_type->core_ast_symbol)
+        return necro_core_ast_create_deep_copy_array(context, ast);
 
     //--------------------
     // is_enum (accurate calculation. coming into this pass is_enum seems spotty. perhaps move this earlier on?)
@@ -899,7 +962,6 @@ NecroCoreAst* necro_core_ast_create_deep_copy(NecroStateAnalysis* context, Necro
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
-#define NECRO_SA_TEST_VERBOSE 0
 void necro_state_analysis_test_string(const char* test_name, const char* str)
 {
 
@@ -914,6 +976,8 @@ void necro_state_analysis_test_string(const char* test_name, const char* str)
     NecroAstArena       ast             = necro_ast_arena_empty();
     NecroCoreAstArena   core_ast        = necro_core_ast_arena_empty();
     NecroCompileInfo    info            = necro_test_compile_info();
+    info.verbosity                      = 0;
+    info.compilation_phase              = NECRO_PHASE_STATE_ANALYSIS;
 
     //--------------------
     // Compile
@@ -922,7 +986,7 @@ void necro_state_analysis_test_string(const char* test_name, const char* str)
     ast = necro_reify(info, &intern, &parse_ast);
     necro_build_scopes(info, &scoped_symtable, &ast);
     unwrap(void, necro_rename(info, &scoped_symtable, &intern, &ast));
-    necro_dependency_analyze(info, &intern, &ast);
+    necro_dependency_analyze(info, &intern, &base, &ast);
     necro_alias_analysis(info, &ast); // NOTE: Consider merging alias_analysis into RENAME_VAR phase?
     unwrap(void, necro_infer(info, &intern, &scoped_symtable, &base, &ast));
     unwrap(void, necro_monomorphize(info, &intern, &scoped_symtable, &base, &ast));
@@ -931,16 +995,13 @@ void necro_state_analysis_test_string(const char* test_name, const char* str)
     necro_core_ast_pre_simplify(info, &intern, &base, &core_ast);
     necro_core_lambda_lift(info, &intern, &base, &core_ast);
     necro_core_defunctionalize(info, &intern, &base, &core_ast);
+    unwrap(void, necro_core_infer(&intern, &base, &core_ast));
+    necro_core_ast_pre_simplify(info, &intern, &base, &core_ast);
     necro_core_state_analysis(info, &intern, &base, &core_ast);
 
     //--------------------
     // Print
-#if NECRO_SA_TEST_VERBOSE
-    printf("\n");
-    necro_core_ast_pretty_print(core_ast.root);
-#endif
     printf("State Analysis %s test: Passed\n", test_name);
-    fflush(stdout);
 
     //--------------------
     // Clean up
@@ -1140,12 +1201,98 @@ void necro_state_analysis_test()
     {
         const char* test_name   = "Emptiness";
         const char* test_source = ""
-            "nothingInThere :: *Array 4 (Share Int)\n"
+            "nothingInThere :: *Array 4 Int\n"
             "nothingInThere = unsafeEmptyArray ()\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_state_analysis_test_string(test_name, test_source);
     }
+
+    {
+        const char* test_name   = "Mono?";
+        const char* test_source = ""
+            "ambigAudio = saw 440\n"
+            "main :: *World -> *World\n"
+            "main w = outAudio 0 ambigAudio w\n";
+        necro_state_analysis_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Seq 1";
+        const char* test_source = ""
+            "seqTest1 :: Seq Bool\n"
+            "seqTest1 = pure True\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_state_analysis_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Seq 2";
+        const char* test_source = ""
+            "seqTest1 :: Seq Bool\n"
+            "seqTest1 = pure True\n"
+            "seqGo :: SeqValue Bool\n"
+            "seqGo = runSeq seqTest1 ()\n";
+        necro_state_analysis_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Seq 3";
+        const char* test_source = ""
+            "seqTest :: Seq Int\n"
+            "seqTest = pure 0\n"
+            "coolSeq :: Seq Int\n"
+            "coolSeq = map (add 666) seqTest\n"
+            "seqGo :: SeqValue Int\n"
+            "seqGo = runSeq seqTest ()\n";
+        necro_state_analysis_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "HOF Fun 1";
+        const char* test_source = ""
+            "doubleUpInt :: (Int -> Int) -> Int -> Int\n"
+            "doubleUpInt f x = f x + f x\n"
+            "doubleDownInt :: (Int -> Int -> Int) -> Int -> Int\n"
+            "doubleDownInt f x = f x x + f x x\n"
+            "integrity :: Int -> Int\n"
+            "integrity i = doubleUpInt (doubleDownInt add) i\n";
+        necro_state_analysis_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "HOF Fun 2";
+        const char* test_source = ""
+            "doubleUpInt :: (Int -> Int) -> Int -> Int\n"
+            "doubleUpInt f x = f x + f x\n"
+            "doubleDownInt :: (Int -> Int) -> Int -> Int\n"
+            "doubleDownInt f x = f x + f x\n"
+            "integrity :: Int -> Int\n"
+            "integrity i = doubleUpInt (doubleDownInt (add mouseX)) i\n";
+        necro_state_analysis_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Seq 7";
+        const char* test_source = ""
+            "coolSeq :: Seq Int\n"
+            "coolSeq = 666 * 22 + 3 * 4 - 256 * 10\n"
+            "seqGo :: SeqValue Int\n"
+            "seqGo = runSeq coolSeq ()\n";
+        necro_state_analysis_test_string(test_name, test_source);
+    }
+
+    {
+        const char* test_name   = "Poly 0";
+        const char* test_source = ""
+            "myCoolSynth :: Audio Mono\n"
+            "myCoolSynth = poly saw [440 220 _ <110 55 _ 330>]\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_state_analysis_test_string(test_name, test_source);
+    }
+
 
 /*
 

@@ -28,7 +28,7 @@ NecroParseAstLocalPtr necro_parse_ast_create_apats(NecroArena* arena, NecroSourc
 NecroParseAstLocalPtr necro_parse_ast_create_wildcard(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroParseAstLocalPtr necro_parse_ast_create_lambda(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr apats_ast, NecroParseAstLocalPtr expr_ast);
 NecroParseAstLocalPtr necro_parse_ast_create_do(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr statement_list_ast);
-NecroParseAstLocalPtr necro_parse_ast_create_pat_expr(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr expressions_ast);
+NecroParseAstLocalPtr necro_parse_ast_create_seq_expr(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr expressions_ast, NECRO_SEQUENCE_TYPE sequence_type);
 NecroParseAstLocalPtr necro_parse_ast_create_list(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr item_ast, NecroParseAstLocalPtr next_ast);
 NecroParseAstLocalPtr necro_parse_ast_create_expression_list(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr expressions_ast);
 NecroParseAstLocalPtr necro_parse_ast_create_expression_array(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr expressions_ast);
@@ -52,6 +52,7 @@ NecroParseAstLocalPtr necro_parse_ast_create_type_signature(NecroArena* arena, N
 NecroParseAstLocalPtr necro_parse_ast_create_function_type(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr lhs_ast, NecroParseAstLocalPtr rhs_ast);
 NecroParseAstLocalPtr necro_parse_ast_create_type_attribute(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr attributed_type, NECRO_TYPE_ATTRIBUTE_TYPE type);
 NecroParseAstLocalPtr necro_parse_ast_create_for_loop(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr range_init, NecroParseAstLocalPtr value_init, NecroParseAstLocalPtr index_apat, NecroParseAstLocalPtr value_apat, NecroParseAstLocalPtr expression);
+NecroParseAstLocalPtr necro_parse_ast_create_while_loop(NecroArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr value_init, NecroParseAstLocalPtr value_apat, NecroParseAstLocalPtr while_expression, NecroParseAstLocalPtr do_expression);
 
 void                  necro_parse_ast_assert_eq(NecroParseAstArena* ast1, NecroParseAstArena* ast2);
 

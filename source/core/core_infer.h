@@ -15,5 +15,6 @@
 #include "result.h"
 
 NecroResult(void) necro_core_infer(NecroIntern* intern, NecroBase* base, NecroCoreAstArena* core_ast_arena);
+size_t            necro_core_ast_hash(NecroCoreAst* ast);
 
 #endif // CORE_INFER

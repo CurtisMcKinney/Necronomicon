@@ -37,6 +37,7 @@ static Necro##CAMEL_NAME##Dequeue necro_##SNAKE_NAME##_dequeue_empty()\
 }\
 static Necro##CAMEL_NAME##Dequeue necro_##SNAKE_NAME##_dequeue_create(size_t initial_capacity)\
 {\
+    assert(initial_capacity > 0);\
     Necro##CAMEL_NAME##Dequeue dequeue;\
     dequeue.capacity = initial_capacity;\
     dequeue.count    = 0;\
@@ -57,6 +58,7 @@ static bool necro_##SNAKE_NAME##_dequeue_pop_front(Necro##CAMEL_NAME##Dequeue* d
 {\
     if (dequeue->count == 0)\
         return false;\
+    assert(dequeue->count <= dequeue->capacity);\
     dequeue->count--;\
     *out_element  = dequeue->data[dequeue->head];\
     dequeue->head = (dequeue->head + 1) % dequeue->capacity;\
@@ -66,6 +68,7 @@ static bool necro_##SNAKE_NAME##_dequeue_pop_back(Necro##CAMEL_NAME##Dequeue* de
 {\
     if (dequeue->count == 0)\
         return false;\
+    assert(dequeue->count <= dequeue->capacity);\
     dequeue->count--;\
     *out_element  = dequeue->data[dequeue->tail];\
     dequeue->tail = (dequeue->tail == 0) ? (dequeue->capacity - 1) : (dequeue->tail - 1);\

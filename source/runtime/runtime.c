@@ -53,23 +53,38 @@ extern DLLEXPORT int necro_runtime_get_mouse_y(unsigned int _dummy)
 
 extern DLLEXPORT void necro_runtime_print(int value)
 {
-    printf("%d\n", value);
+    printf("%d", value);
 }
 
 extern DLLEXPORT void necro_runtime_debug_print(int value)
 {
-    printf("debug: %d\n", value);
+    printf("debug: %d", value);
 }
 
 extern DLLEXPORT unsigned int necro_runtime_print_int(int value, unsigned int world)
 {
-    printf("%d                                \r", value);
+    printf("%d", value);
+    return world;
+}
+
+extern DLLEXPORT unsigned int necro_runtime_print_i64(int64_t value, unsigned int world)
+{
+    printf("%I64d", value);
     return world;
 }
 
 extern DLLEXPORT unsigned int necro_runtime_print_f64(double value, unsigned int world)
 {
-    printf("%.17g                                \r", value);
+    printf("%.17g", value);
+    return world;
+}
+
+extern DLLEXPORT unsigned int necro_runtime_print_char(unsigned int value, unsigned int world)
+{
+    if (value < 256)
+        putchar(value);
+    else
+        printf("%d", value);
     return world;
 }
 
@@ -96,10 +111,16 @@ extern DLLEXPORT void necro_runtime_error_exit(uint32_t error_code)
     necro_exit(error_code);
 }
 
-// TODO: Different Allocators basedon size: Slab Allocator => Buddy => OS
+// TODO: Different Allocators based on size: Slab Allocator => Buddy => OS
 extern DLLEXPORT uint8_t* necro_runtime_alloc(unsigned int size)
 {
     return malloc(size);
+}
+
+
+extern DLLEXPORT uint8_t* necro_runtime_realloc(uint8_t* ptr, unsigned int size)
+{
+    return realloc(ptr, size);
 }
 
 extern DLLEXPORT void necro_runtime_free(uint8_t* data)
@@ -141,11 +162,12 @@ extern DLLEXPORT int64_t necro_runtime_gcd(int64_t x, int64_t y)
 // Audio
 ///////////////////////////////////////////////////////
 static NecroLangCallback* necro_runtime_audio_lang_callback       = NULL;
-static float**            necro_runtime_audio_output_buffer       = NULL;
+// static float**            necro_runtime_audio_output_buffer       = NULL;
+static float*             necro_runtime_audio_output_buffer       = NULL;
 static unsigned int       necro_runtime_audio_num_input_channels  = 0;
 #define                   necro_runtime_audio_num_output_channels 2
 static unsigned int       necro_runtime_audio_sample_rate         = 48000;
-static unsigned int       necro_runtime_audio_block_size          = 32;
+static unsigned int       necro_runtime_audio_block_size          = 64;
 #define                   necro_runtime_audio_oversample_amt      32
 static double             necro_runtime_audio_brick_wall_cutoff   = 19500.0;
 static double             necro_runtime_audio_start_time          = 0.0;
@@ -157,9 +179,10 @@ extern DLLEXPORT unsigned int necro_runtime_out_audio_block(unsigned int channel
 {
     if (channel_num >= necro_runtime_audio_num_output_channels)
         return world;
-    float*                  output_buffer = necro_runtime_audio_output_buffer[channel_num];
-    struct NecroDownsample* downsample    = necro_runtime_audio_downsample[channel_num];
-    necro_downsample(downsample, necro_runtime_audio_block_size, necro_runtime_audio_oversample_amt, audio_block, output_buffer);
+    // float*                  output_buffer = necro_runtime_audio_output_buffer[channel_num];
+    struct NecroDownsample* downsample = necro_runtime_audio_downsample[channel_num];
+    // necro_downsample(downsample, necro_runtime_audio_block_size, necro_runtime_audio_oversample_amt, audio_block, output_buffer);
+    necro_downsample(downsample, channel_num, necro_runtime_audio_num_output_channels, necro_runtime_audio_block_size, necro_runtime_audio_oversample_amt, audio_block, necro_runtime_audio_output_buffer);
     return world;
 }
 
@@ -173,7 +196,8 @@ static int necro_runtime_audio_pa_callback(const void* input_buffer, void* outpu
         return 0;
     assert(necro_runtime_audio_block_size == frames_per_buffer);
     // RT IO
-    necro_runtime_audio_output_buffer = (float**) output_buffer;
+    // necro_runtime_audio_output_buffer = (float**) output_buffer;
+    necro_runtime_audio_output_buffer = output_buffer;
     necro_runtime_audio_curr_time     = time_info->currentTime - necro_runtime_audio_start_time;
     // RT update
     necro_runtime_audio_lang_callback();
@@ -188,7 +212,8 @@ NecroResult(void) necro_runtime_audio_init()
         necro_runtime_audio_downsample[i] = necro_downsample_create(necro_runtime_audio_brick_wall_cutoff, necro_runtime_audio_sample_rate * necro_runtime_audio_oversample_amt);
     PaError pa_error = Pa_Initialize();
     if (pa_error != paNoError) return necro_runtime_audio_error(Pa_GetErrorText(pa_error));
-    const PaSampleFormat audio_format = paFloat32 | paNonInterleaved;
+    // const PaSampleFormat audio_format = paFloat32 | paNonInterleaved;
+    const PaSampleFormat audio_format = paFloat32;
     pa_error = Pa_OpenDefaultStream(&necro_runtime_audio_pa_stream, necro_runtime_audio_num_input_channels, necro_runtime_audio_num_output_channels, audio_format, necro_runtime_audio_sample_rate, necro_runtime_audio_block_size, necro_runtime_audio_pa_callback, NULL);
     if (pa_error != paNoError) return necro_runtime_audio_error(Pa_GetErrorText(pa_error));
     return ok_void();
@@ -203,8 +228,9 @@ NecroResult(void) necro_runtime_audio_start(NecroLangCallback* necro_init, Necro
     // Init, then start RT thread
     necro_runtime_init();
     necro_runtime_audio_lang_callback = necro_main;
-    necro_init();
-    PaError pa_error = Pa_StartStream(necro_runtime_audio_pa_stream);
+    PaError pa_error = paNoError;
+    if (necro_init() == 0)
+        pa_error = Pa_StartStream(necro_runtime_audio_pa_stream);
     if (pa_error != paNoError) return necro_runtime_audio_error(Pa_GetErrorText(pa_error));
     //--------------------
     // NRT Update
@@ -359,7 +385,7 @@ static Display* display = NULL;
 static int catchFalseAlarm()
 {
   return 0;
-}   
+}
 
 extern DLLEXPORT void necro_runtime_init()
 {
@@ -402,7 +428,7 @@ static void query_pointer(Display *d)
       if (root == RootWindow(d, i))
       {
         break;
-      } 
+      }
     }
   }
 

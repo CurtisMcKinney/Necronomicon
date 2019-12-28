@@ -196,15 +196,46 @@ typedef struct NecroCoreAstCase
     NecroCoreAstList*    alts;
 } NecroCoreAstCase;
 
-typedef struct NecroCoreAstForLoop
+// typedef struct NecroCoreAstForLoop
+// {
+//     struct NecroCoreAst* range_init;
+//     struct NecroCoreAst* value_init;
+//     struct NecroCoreAst* index_arg;
+//     struct NecroCoreAst* value_arg;
+//     struct NecroCoreAst* expression;
+//     size_t               max_loops;
+// } NecroCoreAstForLoop;
+
+typedef enum
 {
+    NECRO_LOOP_FOR,
+    NECRO_LOOP_WHILE
+} NECRO_LOOP_TYPE;
+
+typedef struct NecroCoreAstFor
+{
+    struct NecroCoreAst* index_pat;
     struct NecroCoreAst* range_init;
-    struct NecroCoreAst* value_init;
-    struct NecroCoreAst* index_arg;
-    struct NecroCoreAst* value_arg;
-    struct NecroCoreAst* expression;
     size_t               max_loops;
-} NecroCoreAstForLoop;
+} NecroCoreAstFor;
+
+typedef struct NecroCoreAstWhile
+{
+    struct NecroCoreAst* while_expression;
+} NecroCoreAstWhile;
+
+typedef struct NecroCoreAstLoop
+{
+    struct NecroCoreAst* value_pat;
+    struct NecroCoreAst* value_init;
+    union
+    {
+        NecroCoreAstFor   for_loop;
+        NecroCoreAstWhile while_loop;
+    };
+    struct NecroCoreAst* do_expression;
+    NECRO_LOOP_TYPE      loop_type;
+} NecroCoreAstLoop;
 
 typedef enum
 {
@@ -217,7 +248,9 @@ typedef enum
     NECRO_CORE_AST_LET,
     NECRO_CORE_AST_CASE,
     NECRO_CORE_AST_CASE_ALT,
-    NECRO_CORE_AST_FOR,
+    // NECRO_CORE_AST_FOR,
+    NECRO_CORE_AST_LOOP,
+    NECRO_CORE_AST_WHILE,
     NECRO_CORE_AST_DATA_DECL,
     NECRO_CORE_AST_DATA_CON,
 } NECRO_CORE_AST_TYPE;
@@ -235,7 +268,8 @@ typedef struct NecroCoreAst
         NecroCoreAstLet         let;
         NecroCoreAstCase        case_expr;
         NecroCoreAstCaseAlt     case_alt;
-        NecroCoreAstForLoop     for_loop;
+        // NecroCoreAstForLoop     for_loop;
+        NecroCoreAstLoop        loop;
         NecroCoreAstDataDecl    data_decl;
         NecroCoreAstDataCon     data_con;
     };
@@ -272,11 +306,13 @@ NecroCoreAst* necro_core_ast_create_data_decl(NecroPagedArena* arena, NecroCoreA
 NecroCoreAst* necro_core_ast_create_case(NecroPagedArena* arena, NecroCoreAst* expr, NecroCoreAstList* alts);
 NecroCoreAst* necro_core_ast_create_case_alt(NecroPagedArena* arena, NecroCoreAst* pat, NecroCoreAst* expr);
 NecroCoreAst* necro_core_ast_create_for_loop(NecroPagedArena* arena, size_t max_loops, NecroCoreAst* range_init, NecroCoreAst* value_init, NecroCoreAst* index_arg, NecroCoreAst* value_arg, NecroCoreAst* expression);
+NecroCoreAst* necro_core_ast_create_while_loop(NecroPagedArena* arena, NecroCoreAst* value_pat, NecroCoreAst* value_init, NecroCoreAst* while_expression, NecroCoreAst* do_expression);
 void          necro_core_ast_swap(NecroCoreAst* ast1, NecroCoreAst* ast2);
 void          necro_core_ast_pretty_print(NecroCoreAst* ast);
 // TODO: Finish deep copy
 NecroCoreAst* necro_core_ast_deep_copy(NecroPagedArena* arena, NecroCoreAst* ast);
 size_t        necro_core_ast_num_args(NecroCoreAst* bind_ast);
+size_t        necro_nat_to_size_t(NecroBase* base, NecroType* n);
 
 //--------------------
 // Transformation

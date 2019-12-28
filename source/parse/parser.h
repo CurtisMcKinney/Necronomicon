@@ -44,7 +44,7 @@ typedef enum
     NECRO_AST_WILDCARD,
     NECRO_AST_LAMBDA,
     NECRO_AST_DO,
-    NECRO_AST_PAT_EXPRESSION,
+    NECRO_AST_SEQ_EXPRESSION,
     NECRO_AST_LIST_NODE,
     NECRO_AST_EXPRESSION_LIST,
     NECRO_AST_EXPRESSION_ARRAY,
@@ -70,6 +70,7 @@ typedef enum
     NECRO_AST_DECLARATION_GROUP_LIST,
     NECRO_AST_TYPE_ATTRIBUTE,
     NECRO_AST_FOR_LOOP,
+    NECRO_AST_WHILE_LOOP,
     // NECRO_AST_MODULE,
 } NECRO_AST_TYPE;
 
@@ -231,11 +232,13 @@ typedef enum
 {
     NECRO_AST_CONSTANT_FLOAT,
     NECRO_AST_CONSTANT_INTEGER,
+    NECRO_AST_CONSTANT_UNSIGNED_INTEGER,
     NECRO_AST_CONSTANT_STRING,
     NECRO_AST_CONSTANT_CHAR,
 
     NECRO_AST_CONSTANT_FLOAT_PATTERN,
     NECRO_AST_CONSTANT_INTEGER_PATTERN,
+    NECRO_AST_CONSTANT_UNSIGNED_INTEGER_PATTERN,
     NECRO_AST_CONSTANT_CHAR_PATTERN,
 
     NECRO_AST_CONSTANT_TYPE_INT,
@@ -283,6 +286,7 @@ typedef enum
     NECRO_BIN_OP_SUB,
     NECRO_BIN_OP_MUL,
     NECRO_BIN_OP_DIV,
+    NECRO_BIN_OP_DOUBLE_DIV,
     NECRO_BIN_OP_MOD,
     NECRO_BIN_OP_GT,
     NECRO_BIN_OP_LT,
@@ -305,6 +309,20 @@ typedef enum
     NECRO_BIN_OP_BIND_LEFT,
     NECRO_BIN_OP_DOUBLE_EXCLAMATION,
     NECRO_BIN_OP_APPEND,
+    NECRO_BIN_OP_ADD_ON_LEFT,
+    NECRO_BIN_OP_ADD_ON_RIGHT,
+    NECRO_BIN_OP_SUB_ON_LEFT,
+    NECRO_BIN_OP_SUB_ON_RIGHT,
+    NECRO_BIN_OP_MUL_ON_LEFT,
+    NECRO_BIN_OP_MUL_ON_RIGHT,
+    NECRO_BIN_OP_DIV_ON_LEFT,
+    NECRO_BIN_OP_DIV_ON_RIGHT,
+    NECRO_BIN_OP_CONST_LEFT_ON_LEFT,
+    NECRO_BIN_OP_CONST_LEFT_ON_RIGHT,
+    NECRO_BIN_OP_CONST_RIGHT_ON_LEFT,
+    NECRO_BIN_OP_CONST_RIGHT_ON_RIGHT,
+    NECRO_BIN_OP_CONST_LEFT_ON_BOTH,
+    NECRO_BIN_OP_CONST_RIGHT_ON_BOTH,
     NECRO_BIN_OP_FBY,
     NECRO_BIN_OP_COUNT,
     NECRO_BIN_OP_UNDEFINED = NECRO_BIN_OP_COUNT
@@ -480,10 +498,17 @@ typedef struct
 //=====================================================
 // AST Pattern Expression
 //=====================================================
+typedef enum
+{
+    NECRO_SEQUENCE_SEQUENCE,
+    NECRO_SEQUENCE_TUPLE,
+    NECRO_SEQUENCE_INTERLEAVE,
+} NECRO_SEQUENCE_TYPE;
 typedef struct
 {
     NecroParseAstLocalPtr expressions; // NecroAST_ListNode of expressions
-} NecroParseAstPatExpression;
+    NECRO_SEQUENCE_TYPE   sequence_type;
+} NecroParseAstSeqExpression;
 
 //=====================================================
 // AST ForLoop
@@ -498,14 +523,26 @@ typedef struct
 } NecroParseAstForLoop;
 
 //=====================================================
+// AST WhileLoop
+//=====================================================
+typedef struct
+{
+    NecroParseAstLocalPtr value_init;
+    NecroParseAstLocalPtr value_apat;
+    NecroParseAstLocalPtr while_expression;
+    NecroParseAstLocalPtr do_expression;
+} NecroParseAstWhileLoop;
+
+//=====================================================
 // AST Type Attribute
 //=====================================================
 typedef enum
 {
+    NECRO_TYPE_ATTRIBUTE_VOID,
     NECRO_TYPE_ATTRIBUTE_NONE,
+    NECRO_TYPE_ATTRIBUTE_CONSTRUCTOR,
     NECRO_TYPE_ATTRIBUTE_STAR,
     NECRO_TYPE_ATTRIBUTE_DOT,
-    NECRO_TYPE_ATTRIBUTE_CONSTRUCTOR_DOT,
 } NECRO_TYPE_ATTRIBUTE_TYPE;
 
 typedef struct
@@ -657,9 +694,10 @@ typedef struct
         NecroParseAstTypeClassInstance    type_class_instance;
         NecroParseAstTypeSignature        type_signature;
         NecroParseAstFunctionType         function_type;
-        NecroParseAstPatExpression        pattern_expression;
+        NecroParseAstSeqExpression        sequence_expression;
         NecroParseAstTypeAttribute        attribute;
         NecroParseAstForLoop              for_loop;
+        NecroParseAstWhileLoop            while_loop;
     };
     NECRO_AST_TYPE type;
     NecroSourceLoc source_loc;

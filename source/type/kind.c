@@ -81,13 +81,13 @@ void necro_kind_init_kinds(NecroBase* base, NecroScopedSymTable* scoped_symtable
     necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->sym_kind);
 
     // Ownership
-    base->ownership_kind = necro_kind_create_kind_ast_symbol(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Ownership"), necro_intern_string(intern, "Ownership"), base_name, base->kind_kind->type);
+    base->ownership_kind = necro_kind_create_kind_ast_symbol(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Uniqueness"), necro_intern_string(intern, "Uniqueness"), base_name, base->kind_kind->type);
     necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->ownership_kind);
 
     base->ownership_share = necro_kind_create_type_con(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Shared"), necro_intern_string(intern, "Shared"), base_name, base->ownership_kind->type);
     necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->ownership_share);
 
-    base->ownership_steal = necro_kind_create_type_con(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Owned"), necro_intern_string(intern, "Owned"), base_name, base->ownership_kind->type);
+    base->ownership_steal = necro_kind_create_type_con(&base->ast.arena, necro_intern_string(intern, "Necro.Base.Unique"), necro_intern_string(intern, "Unique"), base_name, base->ownership_kind->type);
     necro_scope_insert_ast_symbol(&base->ast.arena, scoped_symtable->top_type_scope, base->ownership_steal);
 
 }
@@ -254,7 +254,6 @@ NecroResult(NecroType) necro_kind_unify_with_info(NecroType* kind1, NecroType* k
 ///////////////////////////////////////////////////////
 NecroResult(NecroType) necro_kind_infer(NecroPagedArena* arena, struct NecroBase* base, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-
     type = necro_type_find(type);
     assert(type != NULL && "NULL type found in necro_kind_infer!");
     switch (type->type)
@@ -498,4 +497,35 @@ NecroResult(void) necro_kind_infer_default(NecroPagedArena* arena, struct NecroB
     return ok_void();
 }
 
+bool necro_kind_is_type(const struct NecroBase* base, const NecroType* type)
+{
+    assert(type != NULL);
+    type                  = necro_type_find_const(type);
+    const NecroType* kind = necro_type_find_const(type->kind);
+    return kind->type == NECRO_TYPE_CON && kind->con.con_symbol == base->star_kind;
+}
+
+bool necro_kind_is_ownership(const struct NecroBase* base, const NecroType* type)
+{
+    assert(type != NULL);
+    type                  = necro_type_find_const(type);
+    const NecroType* kind = necro_type_find_const(type->kind);
+    return kind->type == NECRO_TYPE_CON && kind->con.con_symbol == base->ownership_kind;
+}
+
+bool necro_kind_is_nat(const struct NecroBase* base, const NecroType* type)
+{
+    assert(type != NULL);
+    type                  = necro_type_find_const(type);
+    const NecroType* kind = necro_type_find_const(type->kind);
+    return kind->type == NECRO_TYPE_CON && kind->con.con_symbol == base->nat_kind;
+}
+
+bool necro_kind_is_kind(const struct NecroBase* base, const NecroType* type)
+{
+    assert(type != NULL);
+    type                  = necro_type_find_const(type);
+    const NecroType* kind = necro_type_find_const(type->kind);
+    return kind->type == NECRO_TYPE_CON && kind->con.con_symbol == base->kind_kind;
+}
 

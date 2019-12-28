@@ -469,12 +469,12 @@ NecroMachAst* necro_mach_build_insert_value(NecroMachProgram* program, NecroMach
     if (aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_STRUCT)
     {
         assert(index < aggregate_value->necro_machine_type->struct_type.num_members);
-        assert(necro_mach_type_is_eq(aggregate_value->necro_machine_type->struct_type.members[index], inserted_value->necro_machine_type));
+        necro_mach_type_check(program, aggregate_value->necro_machine_type->struct_type.members[index], inserted_value->necro_machine_type);
     }
     else
     {
         assert(index < aggregate_value->necro_machine_type->array_type.element_count);
-        assert(necro_mach_type_is_eq(aggregate_value->necro_machine_type->array_type.element_type, inserted_value->necro_machine_type));
+        necro_mach_type_check(program, aggregate_value->necro_machine_type->array_type.element_type, inserted_value->necro_machine_type);
     }
     NecroMachAst*  ast                = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
     ast->type                         = NECRO_MACH_INSERT_VALUE;
@@ -945,6 +945,7 @@ NecroMachAst* necro_mach_build_binop(NecroMachProgram* program, NecroMachAst* fn
     case NECRO_PRIMOP_BINOP_ISUB: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_IMUL: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_IDIV:
+    case NECRO_PRIMOP_BINOP_IREM:
     {
         // Type check that it's an int type
         necro_mach_type_check_is_int_type(left->necro_machine_type);
@@ -958,6 +959,7 @@ NecroMachAst* necro_mach_build_binop(NecroMachProgram* program, NecroMachAst* fn
     case NECRO_PRIMOP_BINOP_USUB: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_UMUL: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_UDIV: /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_UREM: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_OR:   /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_AND:  /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_SHL:  /* FALL THROUGH */
@@ -975,6 +977,7 @@ NecroMachAst* necro_mach_build_binop(NecroMachProgram* program, NecroMachAst* fn
     case NECRO_PRIMOP_BINOP_FSUB: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_FMUL: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_FDIV:
+    case NECRO_PRIMOP_BINOP_FREM:
     {
         // Type check that it's a float type
         necro_mach_type_check_is_float_type(left->necro_machine_type);
@@ -1035,7 +1038,6 @@ NecroMachAst* necro_mach_build_uop(NecroMachProgram* program, NecroMachAst* fn_d
         ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "uop");
         break;
     }
-    case NECRO_PRIMOP_UOP_FABS: /* FALL THROUGH */
     case NECRO_PRIMOP_UOP_FSGN:
     {
         necro_mach_type_check_is_float_type(param->necro_machine_type);
@@ -1199,9 +1201,9 @@ NecroMachAst* necro_mach_create_initial_machine_def(NecroMachProgram* program, N
     {
         ast->machine_def.fn_type = value_type;
         // TODO: Why unbox result pointer types?
-        if (value_type->fn_type.return_type->type == NECRO_MACH_TYPE_PTR)
-            ast->machine_def.value_type = value_type->fn_type.return_type->ptr_type.element_type;
-        else
+        // if (value_type->fn_type.return_type->type == NECRO_MACH_TYPE_PTR)
+        //     ast->machine_def.value_type = value_type->fn_type.return_type->ptr_type.element_type;
+        // else
             ast->machine_def.value_type = value_type->fn_type.return_type;
     }
     else
@@ -1458,13 +1460,13 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         program->runtime.necro_update_runtime = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_update, NECRO_STATE_POINTWISE)->fn_def.symbol;
     }
 
-    // necro_runtime_sleep
-    {
-        NecroMachAstSymbol* mach_symbol = necro_mach_ast_symbol_gen(program, NULL, "necro_runtime_sleep", NECRO_DONT_MANGLE);
-        mach_symbol->is_primitive       = true;
-        NecroMachType*      fn_type     = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_void(program), (NecroMachType*[]) { necro_mach_type_create_uint32(program) }, 1);
-        program->runtime.necro_sleep    = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_sleep, NECRO_STATE_POINTWISE)->fn_def.symbol;
-    }
+    // // necro_runtime_sleep
+    // {
+    //     NecroMachAstSymbol* mach_symbol = necro_mach_ast_symbol_gen(program, NULL, "necro_runtime_sleep", NECRO_DONT_MANGLE);
+    //     mach_symbol->is_primitive       = true;
+    //     NecroMachType*      fn_type     = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_void(program), (NecroMachType*[]) { necro_mach_type_create_uint32(program) }, 1);
+    //     program->runtime.necro_sleep    = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_sleep, NECRO_STATE_POINTWISE)->fn_def.symbol;
+    // }
 
     // necro_runtime_print_int
     {
@@ -1477,6 +1479,17 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         program->runtime.necro_print_int          = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_print_int, NECRO_STATE_POINTWISE)->fn_def.symbol;
     }
 
+    // necro_runtime_print_i64
+    {
+        NecroAstSymbol*     ast_symbol            = program->base->print_i64;
+        ast_symbol->is_primitive                  = true;
+        ast_symbol->core_ast_symbol->is_primitive = true;
+        NecroMachAstSymbol* mach_symbol           = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
+        mach_symbol->is_primitive                 = true;
+        NecroMachType*      fn_type               = necro_mach_type_create_fn(&program->arena, program->type_cache.word_uint_type, (NecroMachType*[]) { program->type_cache.int64_type, program->type_cache.word_uint_type }, 2);
+        program->runtime.necro_print_i64          = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_print_i64, NECRO_STATE_POINTWISE)->fn_def.symbol;
+    }
+
     // necro_runtime_print_f64
     {
         NecroAstSymbol*     ast_symbol            = program->base->print_f64;
@@ -1486,6 +1499,17 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         mach_symbol->is_primitive                 = true;
         NecroMachType*      fn_type               = necro_mach_type_create_fn(&program->arena, program->type_cache.word_uint_type, (NecroMachType*[]) { program->type_cache.f64_type, program->type_cache.word_uint_type }, 2);
         necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_print_f64, NECRO_STATE_POINTWISE);
+    }
+
+    // necro_runtime_print_char
+    {
+        NecroAstSymbol*     ast_symbol            = program->base->print_char;
+        ast_symbol->is_primitive                  = true;
+        ast_symbol->core_ast_symbol->is_primitive = true;
+        NecroMachAstSymbol* mach_symbol           = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
+        mach_symbol->is_primitive                 = true;
+        NecroMachType*      fn_type               = necro_mach_type_create_fn(&program->arena, program->type_cache.word_uint_type, (NecroMachType*[]) { program->type_cache.word_uint_type, program->type_cache.word_uint_type }, 2);
+        program->runtime.necro_print_char         = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_print_char, NECRO_STATE_POINTWISE)->fn_def.symbol;
     }
 
     // necro_runtime_error_exit
@@ -1510,6 +1534,14 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         mach_symbol->is_primitive            = true;
         NecroMachType*      fn_type          = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_uint8(program)), (NecroMachType*[]) { necro_mach_type_create_word_sized_uint(program) }, 1);
         program->runtime.necro_runtime_alloc = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_alloc, NECRO_STATE_POINTWISE)->fn_def.symbol;
+    }
+
+    // necro_runtime_realloc
+    {
+        NecroMachAstSymbol* mach_symbol        = necro_mach_ast_symbol_gen(program, NULL, "necro_runtime_realloc", NECRO_DONT_MANGLE);
+        mach_symbol->is_primitive              = true;
+        NecroMachType*      fn_type            = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_uint8(program)), (NecroMachType*[]) { necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_uint8(program)), necro_mach_type_create_word_sized_uint(program) }, 2);
+        program->runtime.necro_runtime_realloc = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_realloc, NECRO_STATE_POINTWISE)->fn_def.symbol;
     }
 
     // necro_runtime_free

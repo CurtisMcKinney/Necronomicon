@@ -87,10 +87,11 @@ NecroDownsample* necro_downsample_create(const double freq_cutoff, const double 
     return downsample;
 }
 
-void necro_downsample(NecroDownsample* downsample, const size_t block_size, const size_t oversample_mul, double* input_buffer, float* output_buffer)
+void necro_downsample(NecroDownsample* downsample, const size_t output_channel, const size_t num_output_channels, const size_t block_size, const size_t oversample_mul, double* input_buffer, float* output_buffer)
 {
     //--------------------
     // Downsample and output
+    size_t out_i = output_channel;
     for (size_t i = 0; i < block_size; ++i)
     {
         const size_t oversample_i = i * oversample_mul;
@@ -146,7 +147,8 @@ void necro_downsample(NecroDownsample* downsample, const size_t block_size, cons
 
         //--------------------
         // 3. Decimate at new sample rate
-        output_buffer[i] = (float)fir_result;
+        output_buffer[out_i] = (float)fir_result;
+        out_i               += num_output_channels;
     }
 }
 

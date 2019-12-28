@@ -19,7 +19,7 @@ struct NecroAst;
 struct NecroDeclarationsInfo;
 struct NecroTypeClassContext;
 struct NecroInstSub;
-struct NecroFreeVars;
+struct NecroFreeVarList;
 
 /*
     TODO (Curtis 2-13-19):
@@ -200,6 +200,17 @@ typedef struct
 } NecroAstForLoop;
 
 //=====================================================
+// AST While
+//=====================================================
+typedef struct
+{
+    struct NecroAst* value_init;
+    struct NecroAst* value_apat;
+    struct NecroAst* while_expression;
+    struct NecroAst* do_expression;
+} NecroAstWhileLoop;
+
+//=====================================================
 // AST Module
 //=====================================================
 
@@ -221,6 +232,7 @@ typedef struct
     {
         double      double_literal;
         int64_t     int_literal;
+        uint64_t    uint_literal;
         NecroSymbol symbol;
         uint32_t    char_literal;
     };
@@ -333,13 +345,13 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    struct NecroAst*      apats;
-    struct NecroAst*      rhs;
-    struct NecroAst*      declaration_group;
-    bool                  is_recursive;
-    NecroAstSymbol*       ast_symbol;
-    struct NecroAst*      optional_type_signature;
-    struct NecroFreeVars* free_vars;
+    struct NecroAst*         apats;
+    struct NecroAst*         rhs;
+    struct NecroAst*         declaration_group;
+    bool                     is_recursive;
+    NecroAstSymbol*          ast_symbol;
+    struct NecroAst*         optional_type_signature;
+    // struct NecroFreeVarList* free_vars;
 } NecroAstApatsAssignment;
 
 //=====================================================
@@ -358,9 +370,9 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    struct NecroAst*      apats;
-    struct NecroAst*      expression;
-    struct NecroFreeVars* free_vars;
+    struct NecroAst*         apats;
+    struct NecroAst*         expression;
+    // struct NecroFreeVarList* free_vars;
 } NecroAstLambda;
 
 //=====================================================
@@ -407,12 +419,19 @@ typedef struct
 } NecroAstDo;
 
 //=====================================================
-// AST Pat
+// AST Seq
 //=====================================================
 typedef struct
 {
-    struct NecroAst* expressions; // NecroAST_ListNode of expressions
-} NecroAstPatExpression;
+    struct NecroAst*     expressions;
+    NECRO_SEQUENCE_TYPE  sequence_type;
+    //--------------------
+    // META DATA / HACK: Caching monomorphized symbols for use during desugaring
+    NecroAstSymbol*      tick_symbol;
+    struct NecroInstSub* tick_inst_subs;
+    NecroAstSymbol*      run_seq_symbol;
+    struct NecroInstSub* run_seq_inst_subs;
+} NecroAstSeqExpression;
 
 //=====================================================
 // AST Variable
@@ -560,10 +579,11 @@ typedef struct NecroAst
         NecroAstTypeClassInstance    type_class_instance;
         NecroAstTypeSignature        type_signature;
         NecroAstFunctionType         function_type;
-        NecroAstPatExpression        pattern_expression;
+        NecroAstSeqExpression        sequence_expression;
         NecroAstDeclarationGroupList declaration_group_list;
         NecroAstTypeAttribute        attribute;
         NecroAstForLoop              for_loop;
+        NecroAstWhileLoop            while_loop;
     };
     NECRO_AST_TYPE        type;
     // TODO: Replace NecroSourceLoc in NecroParseAst and NecroAst with const char* str
@@ -573,7 +593,7 @@ typedef struct NecroAst
     struct NecroType*     necro_type;
 } NecroAst;
 
-typedef struct
+typedef struct NecroAstArena
 {
     NecroPagedArena    arena;
     NecroAst*          root;
@@ -640,7 +660,7 @@ NecroAst* necro_ast_create_pat_assignment(NecroPagedArena* arena, NecroAst* pat,
 NecroAst* necro_ast_create_pat_bind_assignment(NecroPagedArena* arena, NecroAst* pat, NecroAst* expression);
 NecroAst* necro_ast_create_expression_list(NecroPagedArena* arena, NecroAst* expressions);
 NecroAst* necro_ast_create_expression_array(NecroPagedArena* arena, NecroAst* expressions);
-NecroAst* necro_ast_create_pat_expression(NecroPagedArena* arena, NecroAst* expressions);
+NecroAst* necro_ast_create_seq_expression(NecroPagedArena* arena, NecroAst* expressions, NECRO_SEQUENCE_TYPE sequence_type);
 NecroAst* necro_ast_create_tuple(NecroPagedArena* arena, NecroAst* expressions);
 NecroAst* necro_ast_create_unboxed_tuple(NecroPagedArena* arena, NecroAst* expressions);
 NecroAst* necro_ast_create_tuple_full(NecroPagedArena* arena, NecroAst* expressions, bool is_unboxed);
@@ -658,6 +678,7 @@ NecroAst* necro_ast_create_var_full(NecroPagedArena* arena, NecroAstSymbol* ast_
 NecroAst* necro_ast_create_conid_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_CON_TYPE con_type);
 NecroAst* necro_ast_create_type_attribute(NecroPagedArena* arena, NecroAst* attributed_type, NECRO_TYPE_ATTRIBUTE_TYPE type);
 NecroAst* necro_ast_create_for_loop(NecroPagedArena* arena, NecroAst* range_init, NecroAst* value_init, NecroAst* index_apat, NecroAst* value_apat, NecroAst* expression);
+NecroAst* necro_ast_create_while_loop(NecroPagedArena* arena, NecroAst* value_init, NecroAst* value_apat, NecroAst* until, NecroAst* expression);
 
 // Declaration Groups
 NecroAst* necro_ast_create_declaration_group_list(NecroPagedArena* arena, NecroAst* declaration_group, NecroAst* prev);
@@ -668,6 +689,7 @@ NecroAst* necro_ast_declaration_group_list_append(NecroPagedArena* arena, NecroA
 
 NecroAst* necro_ast_deep_copy(NecroPagedArena* arena, NecroAst* ast);
 NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_group, NecroAst* ast);
+NecroAst* necro_ast_deep_copy_with_new_names(NecroPagedArena* arena, NecroIntern* intern, struct NecroScope* scope, NecroAst* declaration_group, NecroAst* ast);
 
 void      necro_ast_assert_eq(NecroAst* ast1, NecroAst* ast2);
 

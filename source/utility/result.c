@@ -9,6 +9,7 @@
 #include "ast.h"
 #include "type.h"
 #include "type_class.h"
+#include "infer.h"
 
 NecroResultUnion global_result;
 
@@ -445,11 +446,6 @@ NecroResult(NecroType) necro_type_recursive_data_type_error(NecroAstSymbol* ast_
     return necro_default_type_error1(NECRO_TYPE_RECURSIVE_DATA_TYPE, ast_symbol, type, type, source_loc, end_loc);
 }
 
-NecroResult(NecroType) necro_type_lifted_type_restriction_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
-{
-    return necro_default_type_error1(NECRO_TYPE_LIFTED_TYPE_RESTRICTION, ast_symbol, type, type, source_loc, end_loc);
-}
-
 NecroResult(void) necro_type_non_recursive_initialized_value_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     return necro_error_map(NecroType, void, necro_default_type_error1(NECRO_TYPE_NON_RECURSIVE_INITIALIZED_VALUE, ast_symbol, type, NULL, source_loc, end_loc));
@@ -470,14 +466,26 @@ NecroResult(NecroType) necro_type_final_do_statement_error(NecroAstSymbol* ast_s
     return necro_default_type_error1(NECRO_TYPE_FINAL_DO_STATEMENT, ast_symbol, type, NULL, source_loc, end_loc);
 }
 
-NecroResult(NecroTypeClassContext) necro_type_not_a_class_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
-{
-    return necro_error_map(NecroType, NecroTypeClassContext, necro_default_type_error1(NECRO_TYPE_NOT_A_CLASS, ast_symbol, type, NULL, source_loc, end_loc));
-}
-
 NecroResult(bool) necro_type_ambiguous_type_var_error(NecroAstSymbol* ast_symbol, const NecroType* type, const NecroType* macro_type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     return necro_error_map(NecroType, bool, necro_default_type_error1(NECRO_TYPE_AMBIGUOUS_TYPE_VAR, ast_symbol, type, macro_type, source_loc, end_loc));
+}
+
+NecroResult(NecroConstraintList) necro_type_not_a_class_error(NecroAstSymbol* ast_symbol, NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    return necro_error_map(NecroType, NecroConstraintList, necro_default_type_error1(NECRO_TYPE_NOT_A_CLASS, ast_symbol, type, NULL, source_loc, end_loc));
+}
+
+NecroResult(NecroConstraintList) necro_type_malformed_constraint(struct NecroConstraint* constraint)
+{
+    necro_error_single_break_point();
+    NecroResultError* error     = emalloc(sizeof(NecroResultError));
+    error->type                 = NECRO_CONSTRAINT_MALFORMED_CONSTRAINT;
+    error->contraint_error_data = (NecroConstraintError)
+    {
+        .constraint = constraint
+    };
+    return (NecroResult(NecroConstraintList)) { .error = error, .type = NECRO_RESULT_ERROR };
 }
 
 ///////////////////////////////////////////////////////
@@ -531,9 +539,9 @@ NecroResult(NecroType) necro_kind_rigid_kind_variable_error(struct NecroType* ty
 ///////////////////////////////////////////////////////
 // NecroDefaultTypeClassErrorData
 ///////////////////////////////////////////////////////
-NecroResult(NecroType) necro_type_ambiguous_class_error(NecroAstSymbol* ast_symbol1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
+NecroResult(NecroType) necro_type_ambiguous_class_error(NecroAstSymbol* type_class_symbol, NecroType* type1, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
-    return necro_error_map(NecroAst, NecroType, necro_default_ast_error2(NECRO_TYPE_AMBIGUOUS_CLASS, ast_symbol1, source_loc1, end_loc1, ast_symbol2, source_loc2, end_loc2));
+    return necro_default_type_class_error(NECRO_TYPE_AMBIGUOUS_CLASS, type_class_symbol, type1, NULL, type1, NULL, source_loc, end_loc);
 }
 
 NecroResult(NecroType) necro_type_constrains_only_class_var_error(NecroAstSymbol* ast_symbol1, NecroSourceLoc source_loc1, NecroSourceLoc end_loc1, NecroAstSymbol* ast_symbol2, NecroSourceLoc source_loc2, NecroSourceLoc end_loc2)
@@ -547,6 +555,7 @@ NecroResult(NecroType) necro_type_not_an_instance_of_error_partial(NecroAstSymbo
 }
 
 NecroResult(NecroType) necro_type_not_an_instance_of_error(NecroAstSymbol* type_class_ast_symbol, struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+
 {
     return necro_default_type_class_error(NECRO_TYPE_NOT_AN_INSTANCE_OF, type_class_ast_symbol, type1, type2, macro_type1, macro_type2, source_loc, end_loc);
 }
@@ -575,23 +584,6 @@ NecroResult(NecroType) necro_type_does_not_implement_super_class_error(NecroAstS
 {
     return necro_default_type_class_error(NECRO_TYPE_DOES_NOT_IMPLEMENT_SUPER_CLASS, type_class_ast_symbol, type1, type2, macro_type1, macro_type2, source_loc, end_loc);
 }
-
-NecroResult(NecroType) necro_type_mismatched_order_error(size_t expected_order, size_t found_order, NecroType* found_type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
-{
-    necro_error_single_break_point();
-    NecroResultError* error            = emalloc(sizeof(NecroResultError));
-    error->type                        = NECRO_TYPE_MISMATCHED_ORDER;
-    error->mismatched_order_error_data = (NecroMismatchedOrderErrorData)
-    {
-        .expected_order = expected_order,
-        .found_order    = found_order,
-        .found_type     = found_type,
-        .source_loc     = source_loc,
-        .end_loc        = end_loc,
-    };
-    return (NecroResult(NecroType)) { .error = error, .type = NECRO_RESULT_ERROR };
-}
-
 
 ///////////////////////////////////////////////////////
 // Audio Error
@@ -1032,7 +1024,7 @@ void necro_print_case_alternative_expected_right_brace_error(NecroResultError* e
 
 void necro_print_malformed_for_loop_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
-    const char* explanation = "For Loop expressions take the form: for rangeInit valueInit loop index value -> expr";
+    const char* explanation = "For Loop expressions take the form: loop valueInit = value for index <- rangeInit do expr";
     necro_print_default_error_format("Malformed For Loop", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
@@ -1124,8 +1116,12 @@ void necro_print_duplicate_type_signatures_error(NecroResultError* error, const 
 
 void necro_print_not_in_scope_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
-    const char* explanation = "Could not find an identifier with this name in scope.";
-    necro_print_default_error_format("Name Not In Scope", error->default_ast_error_data.source_loc, error->default_ast_error_data.end_loc, source_str, source_name, explanation);
+    necro_print_error_header("Name Not In Scope");
+    necro_print_line_at_source_loc(source_str, error->default_ast_error_data.source_loc, error->default_ast_error_data.end_loc);
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Could not find an identifier with this name in scope:\n");
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR "     %s\n", error->default_ast_error_data.ast_symbol->source_name->str);
+    fprintf(stderr, "\n");
+    UNUSED(source_name);
 }
 
 void necro_print_uninitialized_recursive_value_error(NecroResultError* error, const char* source_str, const char* source_name)
@@ -1232,81 +1228,6 @@ void necro_print_mismatched_type_error(NecroResultError* error, const char* sour
     UNUSED(source_name);
 }
 
-void necro_print_mismatched_order_error(NecroResultError* error, const char* source_str, const char* source_name)
-{
-    assert(error->type == NECRO_TYPE_MISMATCHED_ORDER);
-    const char*            error_name     = "Mismatched Type Order";
-    const NECRO_TYPE_ORDER expected_order = error->mismatched_order_error_data.expected_order;
-    const NECRO_TYPE_ORDER found_order    = error->mismatched_order_error_data.found_order;
-    const NecroType*       found_type     = error->mismatched_order_error_data.found_type;
-    const NecroSourceLoc   source_loc     = error->mismatched_order_error_data.source_loc;
-    const NecroSourceLoc   end_loc        = error->mismatched_order_error_data.end_loc;
-    necro_print_error_header(error_name);
-    necro_print_line_at_source_loc(source_str, source_loc, end_loc);
-
-    switch (expected_order)
-    {
-    case NECRO_TYPE_ZERO_ORDER:
-        fprintf(stderr, NECRO_ERR_LEFT_CHAR " Expected Order: Zero\n");
-        break;
-    case NECRO_TYPE_HIGHER_ORDER:
-        fprintf(stderr, NECRO_ERR_LEFT_CHAR " Expected Order: Lifted\n");
-        break;
-    case NECRO_TYPE_POLY_ORDER:
-        assert(false);
-        break;
-    }
-
-    switch (found_order)
-    {
-    case NECRO_TYPE_ZERO_ORDER:
-        fprintf(stderr, NECRO_ERR_LEFT_CHAR " Found Order:    Zero\n");
-        break;
-    case NECRO_TYPE_HIGHER_ORDER:
-        fprintf(stderr, NECRO_ERR_LEFT_CHAR " Found Order:    Lifted\n");
-        break;
-    case NECRO_TYPE_POLY_ORDER:
-        assert(false);
-        break;
-    }
-
-    fprintf(stderr, NECRO_ERR_LEFT_CHAR " With Type:      ");
-    necro_type_fprint(stderr, found_type);
-    fprintf(stderr, "\n");
-
-    fprintf(stderr, NECRO_ERR_LEFT_CHAR "\n");
-    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Functions and lifted type variables have special restrictions:\n");
-    fprintf(stderr, NECRO_ERR_LEFT_CHAR "   - Cannot be returned from an 'if' or 'case' expression.\n");
-    fprintf(stderr, NECRO_ERR_LEFT_CHAR "   - Cannot be part of a recursive value.\n");
-    fprintf(stderr, NECRO_ERR_LEFT_CHAR "   - Cannot be stored in an Array.\n");
-
-    fprintf(stderr, "\n");
-    UNUSED(source_name);
-}
-
-void necro_print_higher_order_branching_error(NecroResultError* error, const char* source_str, const char* source_name)
-{
-    const char*            error_name     = "Lifted Type Restriction";
-    const NecroType*       found_type     = error->default_type_error_data1.type;
-    const NecroSourceLoc   source_loc     = error->default_type_error_data1.source_loc;
-    const NecroSourceLoc   end_loc        = error->default_type_error_data1.end_loc;
-    necro_print_error_header(error_name);
-    necro_print_line_at_source_loc(source_str, source_loc, end_loc);
-
-    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Lifted Type: ");
-    necro_type_fprint(stderr, found_type);
-    fprintf(stderr, "\n");
-
-    fprintf(stderr, NECRO_ERR_LEFT_CHAR "\n");
-    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Functions and lifted type variables have special restrictions:\n");
-    fprintf(stderr, NECRO_ERR_LEFT_CHAR "   - Cannot be returned from an 'if' or 'case' expression.\n");
-    fprintf(stderr, NECRO_ERR_LEFT_CHAR "   - Cannot be part of a recursive value.\n");
-    fprintf(stderr, NECRO_ERR_LEFT_CHAR "   - Cannot be stored in an Array.\n");
-
-    fprintf(stderr, "\n");
-    UNUSED(source_name);
-}
-
 void necro_print_rigid_type_variable_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char*          error_name  = "Rigid Type Variable";
@@ -1324,7 +1245,7 @@ void necro_print_rigid_type_variable_error(NecroResultError* error, const char* 
     if (type1->type == NECRO_TYPE_VAR && type1->var.is_rigid)
         necro_type_fprint(stderr, type1);
     else
-        necro_type_fprint(stderr, type1);
+        necro_type_fprint(stderr, type2);
     fprintf(stderr, "' is a rigid type variable provided by a type signature, and cannot be unified with another type!\n");
     fprintf(stderr, "\n");
     UNUSED(source_name);
@@ -1389,6 +1310,20 @@ void necro_print_type_not_a_class_error(NecroResultError* error, const char* sou
     UNUSED(source_name);
 }
 
+void necro_print_constraint_malformed_constraint_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char*          error_name = "Malformed Constraint";
+    const NecroSourceLoc source_loc = error->contraint_error_data.constraint->source_loc;
+    const NecroSourceLoc end_loc    = error->contraint_error_data.constraint->end_loc;
+    necro_print_error_header(error_name);
+    necro_print_line_at_source_loc(source_str, source_loc, end_loc);
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Constraints should be of the form:\n");
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR "     - Num a\n");
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR "  or - Num (f a)\n");
+    fprintf(stderr, "\n");
+    UNUSED(source_name);
+}
+
 void necro_print_type_not_a_visible_member_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char*          error_name = "Not A Visible Method";
@@ -1417,14 +1352,17 @@ void necro_print_type_no_explicit_implementation_error(NecroResultError* error, 
 void necro_print_type_ambiguous_class_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char*          error_name = "Ambiguous Type Class";
-    const NecroSourceLoc source_loc = error->default_ast_error_data_2.source_loc1;
-    const NecroSourceLoc end_loc    = error->default_ast_error_data_2.end_loc1;
+    const NecroSourceLoc source_loc = error->default_type_class_error_data.source_loc;
+    const NecroSourceLoc end_loc    = error->default_type_class_error_data.end_loc;
     necro_print_error_header(error_name);
     necro_print_line_at_source_loc(source_str, source_loc, end_loc);
-    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Could not deduce '(%s %s)' from the context of this type signature\n", error->default_ast_error_data_2.ast_symbol1->source_name->str, error->default_ast_error_data_2.ast_symbol2->source_name->str);
+    fprintf(stderr, NECRO_ERR_LEFT_CHAR " Could not deduce '(%s ", error->default_type_class_error_data.type_class_symbol->source_name->str);
+    necro_print_type_sig_go_maybe_with_parens(stderr, error->default_type_class_error_data.type1);
+    fprintf(stderr, ") from the context of this type signature\n");
     fprintf(stderr, NECRO_ERR_LEFT_CHAR " Perhaps you forgot to use the class constrained type variable in the type signature?\n");
     fprintf(stderr, "\n");
     UNUSED(source_name);
+
 }
 
 void necro_print_type_constrains_only_class_var_error(NecroResultError* error, const char* source_str, const char* source_name)
@@ -1645,10 +1583,8 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_TYPE_RECURSIVE_DATA_TYPE:                        necro_print_recursive_data_type_error(error, source_str, source_name); break;
     case NECRO_TYPE_NON_CONCRETE_INITIALIZED_VALUE:             necro_print_non_concrete_initialized_value_error(error, source_str, source_name); break;
     case NECRO_TYPE_NON_RECURSIVE_INITIALIZED_VALUE:            necro_print_non_recursive_initialized_value_error(error, source_str, source_name); break;
-    case NECRO_TYPE_LIFTED_TYPE_RESTRICTION:                     necro_print_higher_order_branching_error(error, source_str, source_name); break;
 
     case NECRO_TYPE_MISMATCHED_TYPE:                            necro_print_mismatched_type_error(error, source_str, source_name); break;
-    case NECRO_TYPE_MISMATCHED_ORDER:                           necro_print_mismatched_order_error(error, source_str, source_name); break;
     case NECRO_TYPE_POLYMORPHIC_PAT_BIND:                       necro_print_polymorphic_pat_bind_error(error, source_str, source_name); break;
     case NECRO_TYPE_OCCURS:                                     necro_print_occurs_error(error, source_str, source_name); break;
     case NECRO_TYPE_FINAL_DO_STATEMENT:                         necro_print_final_do_statement_error(error, source_str, source_name); break;
@@ -1664,6 +1600,8 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_TYPE_MULTIPLE_INSTANCE_DECLARATIONS:             necro_print_type_multiple_instance_declarations_error(error, source_str, source_name); break;
     case NECRO_TYPE_DOES_NOT_IMPLEMENT_SUPER_CLASS:             necro_print_type_does_not_implment_super_class_error(error, source_str, source_name); break;
     case NECRO_TYPE_AMBIGUOUS_TYPE_VAR:                         necro_print_ambiguous_type_var(error, source_str, source_name); break;
+
+    case NECRO_CONSTRAINT_MALFORMED_CONSTRAINT:                 necro_print_constraint_malformed_constraint_error(error, source_str, source_name); break;
 
     case NECRO_KIND_MISMATCHED_KIND:                            necro_print_mismatched_kind_error(error, source_str, source_name); break;
 
@@ -1692,4 +1630,14 @@ void necro_assert_on_error(NECRO_RESULT_TYPE result_type, NecroResultError* erro
 {
     assert(result_type == NECRO_RESULT_OK);
     necro_result_error_destroy(result_type, error);
+}
+
+void necro_print_and_assert_on_error(NECRO_RESULT_TYPE result_type, NecroResultError* error, const char* source_str, const char* source_name)
+{
+    if (result_type != NECRO_RESULT_OK)
+    {
+        necro_result_error_print(error, source_str, source_name);
+        fflush(stdout);
+    }
+    assert(result_type == NECRO_RESULT_OK);
 }

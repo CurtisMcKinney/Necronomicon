@@ -125,60 +125,48 @@ const char* necro_bin_op_name(NECRO_BIN_OP_TYPE type)
 {
     switch (type)
     {
-    case NECRO_BIN_OP_ADD:
-        return "(+)";
-    case NECRO_BIN_OP_SUB:
-        return "(-)";
-    case NECRO_BIN_OP_MUL:
-        return "(*)";
-    case NECRO_BIN_OP_DIV:
-        return "(/)";
-    case NECRO_BIN_OP_MOD:
-        return "(%)";
-    case NECRO_BIN_OP_GT:
-        return "(>)";
-    case NECRO_BIN_OP_LT:
-        return "(<)";
-    case NECRO_BIN_OP_GTE:
-        return "(>=)";
-    case NECRO_BIN_OP_LTE:
-        return "(<=)";
-    case NECRO_BIN_OP_COLON:
-        return "(:)";
-    case NECRO_BIN_OP_DOUBLE_COLON:
-        return "(::)";
-    case NECRO_BIN_OP_LEFT_SHIFT:
-        return "(<<)";
-    case NECRO_BIN_OP_RIGHT_SHIFT:
-        return "(>>)";
-    case NECRO_BIN_OP_PIPE:
-        return "(|)";
-    case NECRO_BIN_OP_FORWARD_PIPE:
-        return "(|>)";
-    case NECRO_BIN_OP_BACK_PIPE:
-        return "(<|)";
-    case NECRO_BIN_OP_EQUALS:
-        return "(=)";
-    case NECRO_BIN_OP_NOT_EQUALS:
-        return "(/=)";
-    case NECRO_BIN_OP_AND:
-        return "(&&)";
-    case NECRO_BIN_OP_OR:
-        return "(||)";
-    case NECRO_BIN_OP_DOT:
-        return "(.)";
-    case NECRO_BIN_OP_DOLLAR:
-        return "($)";
-    case NECRO_BIN_OP_BIND_RIGHT:
-        return "(>>=)";
-    case NECRO_BIN_OP_BIND_LEFT:
-        return "(=<<)";
-    case NECRO_BIN_OP_DOUBLE_EXCLAMATION:
-        return "(!!)";
-    case NECRO_BIN_OP_APPEND:
-        return "(++)";
-    case NECRO_BIN_OP_FBY:
-        return "(-->)";
+    case NECRO_BIN_OP_ADD:                return "(+)";
+    case NECRO_BIN_OP_SUB:                return "(-)";
+    case NECRO_BIN_OP_MUL:                return "(*)";
+    case NECRO_BIN_OP_DIV:                return "(/)";
+    case NECRO_BIN_OP_DOUBLE_DIV:         return "(//)";
+    case NECRO_BIN_OP_MOD:                return "(%)";
+    case NECRO_BIN_OP_GT:                 return "(>)";
+    case NECRO_BIN_OP_LT:                 return "(<)";
+    case NECRO_BIN_OP_GTE:                return "(>=)";
+    case NECRO_BIN_OP_LTE:                return "(<=)";
+    case NECRO_BIN_OP_COLON:              return "(:)";
+    case NECRO_BIN_OP_DOUBLE_COLON:       return "(::)";
+    case NECRO_BIN_OP_LEFT_SHIFT:         return "(<.)";
+    case NECRO_BIN_OP_RIGHT_SHIFT:        return "(.>)";
+    case NECRO_BIN_OP_PIPE:               return "(|)";
+    case NECRO_BIN_OP_FORWARD_PIPE:       return "(|>)";
+    case NECRO_BIN_OP_BACK_PIPE:          return "(<|)";
+    case NECRO_BIN_OP_EQUALS:             return "(=)";
+    case NECRO_BIN_OP_NOT_EQUALS:         return "(/=)";
+    case NECRO_BIN_OP_AND:                return "(&&)";
+    case NECRO_BIN_OP_OR:                 return "(||)";
+    case NECRO_BIN_OP_DOT:                return "(.)";
+    case NECRO_BIN_OP_DOLLAR:             return "($)";
+    case NECRO_BIN_OP_BIND_RIGHT:         return "(>>=)";
+    case NECRO_BIN_OP_BIND_LEFT:          return "(=<<)";
+    case NECRO_BIN_OP_DOUBLE_EXCLAMATION: return "(!!)";
+    case NECRO_BIN_OP_APPEND:             return "(++)";
+    case NECRO_LEX_ADD_ON_LEFT:           return "(@+)";
+    case NECRO_LEX_ADD_ON_RIGHT:          return "(+@)";
+    case NECRO_LEX_SUB_ON_LEFT:           return "(@-)";
+    case NECRO_LEX_SUB_ON_RIGHT:          return "(-@)";
+    case NECRO_LEX_MUL_ON_LEFT:           return "(@*)";
+    case NECRO_LEX_MUL_ON_RIGHT:          return "(*@)";
+    case NECRO_LEX_DIV_ON_LEFT:           return "(@/)";
+    case NECRO_LEX_DIV_ON_RIGHT:          return "(/@)";
+    case NECRO_LEX_CONST_LEFT_ON_LEFT:    return "(@<)";
+    case NECRO_LEX_CONST_LEFT_ON_RIGHT:   return "(<@)";
+    case NECRO_LEX_CONST_RIGHT_ON_LEFT:   return "(@>)";
+    case NECRO_LEX_CONST_RIGHT_ON_RIGHT:  return "(>@)";
+    case NECRO_LEX_CONST_LEFT_ON_BOTH:    return "(@<@)";
+    case NECRO_LEX_CONST_RIGHT_ON_BOTH:   return "(@>@)";
+    case NECRO_BIN_OP_FBY:                return "(-->)";
     default:
         assert(false);
         return "(Undefined Binary Operator)";
@@ -411,16 +399,24 @@ void necro_parse_ast_print_go(NecroParseAstArena* ast, NecroParseAst* ast_node, 
 
     case NECRO_AST_FOR_LOOP:
         puts("(for)");
-            necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->for_loop.range_init), depth + 1);
-            necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->for_loop.value_init), depth + 1);
-            necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->for_loop.index_apat), depth + 1);
-            necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->for_loop.value_apat), depth + 1);
-            necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->for_loop.expression), depth + 1);
+        necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->for_loop.range_init), depth + 1);
+        necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->for_loop.value_init), depth + 1);
+        necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->for_loop.index_apat), depth + 1);
+        necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->for_loop.value_apat), depth + 1);
+        necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->for_loop.expression), depth + 1);
         break;
 
-    case NECRO_AST_PAT_EXPRESSION:
-        puts("(pat)");
-        necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->pattern_expression.expressions), depth + 1);
+    case NECRO_AST_WHILE_LOOP:
+        puts("(while)");
+        necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->while_loop.value_apat), depth + 1);
+        necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->while_loop.value_init), depth + 1);
+        necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->while_loop.while_expression), depth + 1);
+        necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->while_loop.do_expression), depth + 1);
+        break;
+
+    case NECRO_AST_SEQ_EXPRESSION:
+        puts("(seq)");
+        necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->sequence_expression.expressions), depth + 1);
         break;
 
     case NECRO_AST_EXPRESSION_LIST:
@@ -665,7 +661,8 @@ static const NecroParseBinOpBehavior bin_op_behaviors[NECRO_BIN_OP_COUNT + 1] = 
     { 6, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_SUB
     { 7, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_MUL
     { 7, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_DIV
-    { 7, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_MOD
+    { 9, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_DOUBLE_DIV
+    { 9, NECRO_BIN_OP_ASSOC_LEFT },  // NECRO_BIN_OP_MOD
     { 4, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_GT
     { 4, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_LT
     { 4, NECRO_BIN_OP_ASSOC_NONE },  // NECRO_BIN_OP_GTE
@@ -687,6 +684,20 @@ static const NecroParseBinOpBehavior bin_op_behaviors[NECRO_BIN_OP_COUNT + 1] = 
     { 1, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_BIND_LEFT
     { 9, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_DOUBLE_EXCLAMATION
     { 5, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_APPEND
+    { 6, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_ADD_ON_LEFT,
+    { 6, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_ADD_ON_RIGHT,
+    { 6, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_SUB_ON_LEFT,
+    { 6, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_SUB_ON_RIGHT,
+    { 7, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_MUL_ON_LEFT,
+    { 7, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_MUL_ON_RIGHT,
+    { 7, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_DIV_ON_LEFT,
+    { 7, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_DIV_ON_RIGHT,
+    { 8, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_CONST_LEFT_ON_LEFT,
+    { 8, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_CONST_LEFT_ON_RIGHT,
+    { 8, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_CONST_RIGHT_ON_LEFT,
+    { 8, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_CONST_RIGHT_ON_RIGHT,
+    { 8, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_CONST_LEFT_ON_BOTH,
+    { 8, NECRO_BIN_OP_ASSOC_LEFT }, // NECRO_BIN_OP_CONST_RIGHT_ON_BOTH,
 	// { 1, NECRO_BIN_OP_ASSOC_RIGHT }, // NECRO_BIN_OP_FBY
     { 0, NECRO_BIN_OP_ASSOC_NONE }   // NECRO_BIN_OP_UNDEFINED
 };
@@ -712,6 +723,7 @@ static inline NecroResult(NecroParseAstLocalPtr) necro_parse_expression(NecroPar
 // Forward declarations
 //=====================================================
 typedef NecroResult(NecroParseAstLocalPtr) (*NecroParseFunc)(NecroParser* parser);
+NecroResult(NecroParseAstLocalPtr) necro_parse_pat(NecroParser* parser);
 NecroResult(NecroParseAstLocalPtr) necro_parse_top_declarations(NecroParser* parser);
 NecroResult(NecroParseAstLocalPtr) necro_parse_declaration(NecroParser* parser);
 NecroResult(NecroParseAstLocalPtr) necro_parse_declarations(NecroParser* parser);
@@ -730,13 +742,15 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_pat_assignment(NecroParser* parse
 NecroResult(NecroParseAstLocalPtr) necro_parse_right_hand_side(NecroParser* parser);
 NecroResult(NecroParseAstLocalPtr) necro_parse_apats(NecroParser* parser);
 NecroResult(NecroParseAstLocalPtr) necro_parse_lambda(NecroParser* parser);
-NecroResult(NecroParseAstLocalPtr) necro_parse_do(NecroParser* parser);
+// NecroResult(NecroParseAstLocalPtr) necro_parse_do(NecroParser* parser);
 NecroResult(NecroParseAstLocalPtr) necro_parse_expression_list(NecroParser* parser);
-NecroResult(NecroParseAstLocalPtr) necro_parse_pattern_expression(NecroParser* parser);
+NecroResult(NecroParseAstLocalPtr) necro_parse_sequence_expression(NecroParser* parser);
+NecroResult(NecroParseAstLocalPtr) necro_parse_sequence_expression_tuple(NecroParser* parser);
+NecroResult(NecroParseAstLocalPtr) necro_parse_sequence_interleave_expression(NecroParser* parser);
 NecroResult(NecroParseAstLocalPtr) necro_parse_arithmetic_sequence(NecroParser* parser);
 NecroResult(NecroParseAstLocalPtr) necro_parse_expression_array(NecroParser* parser);
 NecroResult(NecroParseAstLocalPtr) necro_parse_case(NecroParser* parser);
-NecroResult(NecroParseAstLocalPtr) necro_parse_for_loop(NecroParser* parser);
+NecroResult(NecroParseAstLocalPtr) necro_parse_loop(NecroParser* parser);
 NecroResult(NecroParseAstLocalPtr) necro_parse_pat(NecroParser* parser);
 NecroResult(NecroParseAstLocalPtr) necro_parse_gcon(NecroParser* parser, NECRO_CON_TYPE var_type);
 NecroResult(NecroParseAstLocalPtr) necro_parse_list_pat(NecroParser* parser);
@@ -1297,6 +1311,7 @@ NecroParseAstLocalPtr necro_parse_variable(NecroParser* parser, NECRO_VAR_TYPE v
         case NECRO_LEX_SUB:
         case NECRO_LEX_MUL:
         case NECRO_LEX_DIV:
+        case NECRO_LEX_DOUBLE_DIV:
         case NECRO_LEX_MOD:
         case NECRO_LEX_GT:
         case NECRO_LEX_LT:
@@ -1398,6 +1413,21 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_application_expression(NecroParse
     if (local_ptr == null_local_ptr)
     {
         local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_unboxed_tuple(parser));
+    }
+
+    if (local_ptr == null_local_ptr)
+    {
+        local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_sequence_expression(parser));
+    }
+
+    if (local_ptr == null_local_ptr)
+    {
+        local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_sequence_expression_tuple(parser));
+    }
+
+    if (local_ptr == null_local_ptr)
+    {
+        local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_sequence_interleave_expression(parser));
     }
 
     if (local_ptr == null_local_ptr)
@@ -1754,6 +1784,7 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_initializer(NecroParser* parser)
     necro_parse_consume_token(parser);
 
     NecroParseAstLocalPtr local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_function_expression(parser));
+    // NecroParseAstLocalPtr local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_pat(parser));
     if (local_ptr != null_local_ptr)
         return ok(NecroParseAstLocalPtr, local_ptr);
 
@@ -1800,48 +1831,48 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_apat(NecroParser* parser)
     NecroParserSnapshot  snapshot   = necro_parse_snapshot(parser);
     NecroParseAstLocalPtr local_ptr  = null_local_ptr;
 
-    // var
+    // var / Initialized var
     if (local_ptr == null_local_ptr)
     {
         local_ptr = necro_parse_variable(parser, NECRO_VAR_DECLARATION);
-    }
 
-    // Initialized var
-    if (local_ptr == null_local_ptr && necro_parse_peek_token_type(parser) == NECRO_LEX_LEFT_PAREN)
-    {
-        necro_parse_consume_token(parser); // '('
-        local_ptr = necro_parse_variable(parser, NECRO_VAR_DECLARATION);
-        // Initializer
-        NecroParseAstLocalPtr initializer = null_local_ptr;
+        // if (local_ptr == null_local_ptr && necro_parse_peek_token_type(parser) == NECRO_LEX_LEFT_PAREN)
         if (local_ptr != null_local_ptr && parser->parsing_pat_assignment && necro_parse_peek_token_type(parser) == NECRO_INITIALIZER_TOKEN)
         {
-            // NecroParser_Snapshot initializer_snapshot = snapshot_parser(parser);
-            initializer = necro_try_result(NecroParseAstLocalPtr, necro_parse_initializer(parser));
-            if (initializer == null_local_ptr)
-                necro_parse_restore(parser, snapshot);
-            else
-            {
-                if (necro_parse_peek_token_type(parser) == NECRO_LEX_RIGHT_PAREN)
+            // necro_parse_consume_token(parser); // '('
+            // local_ptr = necro_parse_variable(parser, NECRO_VAR_DECLARATION);
+            // Initializer
+            // if (local_ptr != null_local_ptr && parser->parsing_pat_assignment && necro_parse_peek_token_type(parser) == NECRO_INITIALIZER_TOKEN)
+                NecroParserSnapshot   initializer_snapshot = necro_parse_snapshot(parser);
+                NecroParseAstLocalPtr initializer          = necro_try_result(NecroParseAstLocalPtr, necro_parse_initializer(parser));
+                if (initializer == null_local_ptr)
                 {
-                    necro_parse_consume_token(parser);
+                    necro_parse_restore(parser, initializer_snapshot);
+                }
+                else
+                {
+                    // if (necro_parse_peek_token_type(parser) == NECRO_LEX_RIGHT_PAREN)
+                // {
+                    // necro_parse_consume_token(parser);
                     // Set initializer
                     NecroParseAst* variable_node = necro_parse_ast_get_node(&parser->ast, local_ptr);
                     assert(variable_node != NULL);
                     assert(variable_node->type == NECRO_AST_VARIABLE);
                     variable_node->variable.initializer = initializer;
-                }
-                else
-                {
-                    //     return write_error_and_restore(parser, snapshot, "Expected ')' at end of pattern, but found: %s", necro_lex_token_type_string(peek_token_type(parser)));
-                    local_ptr = null_local_ptr;
-                    necro_parse_restore(parser, snapshot);
-                }
-            }
-        }
-        else
-        {
-            local_ptr = null_local_ptr;
-            necro_parse_restore(parser, snapshot);
+                 }
+                // else
+                // {
+                //     //     return write_error_and_restore(parser, snapshot, "Expected ')' at end of pattern, but found: %s", necro_lex_token_type_string(peek_token_type(parser)));
+                //     local_ptr = null_local_ptr;
+                //     necro_parse_restore(parser, snapshot);
+                // }
+                // }
+            // }
+            // else
+            // {
+            //     local_ptr = null_local_ptr;
+            //     necro_parse_restore(parser, snapshot);
+            // }
         }
     }
 
@@ -2051,60 +2082,48 @@ NECRO_BIN_OP_TYPE necro_token_to_bin_op_type(NECRO_LEX_TOKEN_TYPE token_type)
 {
     switch(token_type)
     {
-    case NECRO_LEX_ADD:
-        return NECRO_BIN_OP_ADD;
-    case NECRO_LEX_SUB:
-        return NECRO_BIN_OP_SUB;
-    case NECRO_LEX_MUL:
-        return NECRO_BIN_OP_MUL;
-    case NECRO_LEX_DIV:
-        return NECRO_BIN_OP_DIV;
-    case NECRO_LEX_MOD:
-        return NECRO_BIN_OP_MOD;
-    case NECRO_LEX_GT:
-        return NECRO_BIN_OP_GT;
-    case NECRO_LEX_LT:
-        return NECRO_BIN_OP_LT;
-    case NECRO_LEX_GTE:
-        return NECRO_BIN_OP_GTE;
-    case NECRO_LEX_LTE:
-        return NECRO_BIN_OP_LTE;
-    case NECRO_LEX_COLON:
-        return NECRO_BIN_OP_COLON;
-    case NECRO_LEX_DOUBLE_COLON:
-        return NECRO_BIN_OP_DOUBLE_COLON;
-    case NECRO_LEX_LEFT_SHIFT:
-        return NECRO_BIN_OP_LEFT_SHIFT;
-    case NECRO_LEX_RIGHT_SHIFT:
-        return NECRO_BIN_OP_RIGHT_SHIFT;
-    case NECRO_LEX_PIPE:
-        return NECRO_BIN_OP_PIPE;
-    case NECRO_LEX_FORWARD_PIPE:
-        return NECRO_BIN_OP_FORWARD_PIPE;
-    case NECRO_LEX_BACK_PIPE:
-        return NECRO_BIN_OP_BACK_PIPE;
-    case NECRO_LEX_EQUALS:
-        return NECRO_BIN_OP_EQUALS;
-    case NECRO_LEX_NOT_EQUALS:
-        return NECRO_BIN_OP_NOT_EQUALS;
-    case NECRO_LEX_AND:
-        return NECRO_BIN_OP_AND;
-    case NECRO_LEX_OR:
-        return NECRO_BIN_OP_OR;
-    case NECRO_LEX_DOT:
-        return NECRO_BIN_OP_DOT;
-    case NECRO_LEX_DOLLAR:
-        return NECRO_BIN_OP_DOLLAR;
-    case NECRO_LEX_BIND_RIGHT:
-        return NECRO_BIN_OP_BIND_RIGHT;
-    case NECRO_LEX_BIND_LEFT:
-        return NECRO_BIN_OP_BIND_LEFT;
-    case NECRO_LEX_DOUBLE_EXCLAMATION:
-        return NECRO_BIN_OP_DOUBLE_EXCLAMATION;
-    case NECRO_LEX_APPEND:
-        return NECRO_BIN_OP_APPEND;
-    default:
-        return NECRO_BIN_OP_UNDEFINED;
+    case NECRO_LEX_ADD:                  return NECRO_BIN_OP_ADD;
+    case NECRO_LEX_SUB:                  return NECRO_BIN_OP_SUB;
+    case NECRO_LEX_MUL:                  return NECRO_BIN_OP_MUL;
+    case NECRO_LEX_DIV:                  return NECRO_BIN_OP_DIV;
+    case NECRO_LEX_DOUBLE_DIV:           return NECRO_BIN_OP_DOUBLE_DIV;
+    case NECRO_LEX_MOD:                  return NECRO_BIN_OP_MOD;
+    case NECRO_LEX_GT:                   return NECRO_BIN_OP_GT;
+    case NECRO_LEX_LT:                   return NECRO_BIN_OP_LT;
+    case NECRO_LEX_GTE:                  return NECRO_BIN_OP_GTE;
+    case NECRO_LEX_LTE:                  return NECRO_BIN_OP_LTE;
+    case NECRO_LEX_COLON:                return NECRO_BIN_OP_COLON;
+    case NECRO_LEX_DOUBLE_COLON:         return NECRO_BIN_OP_DOUBLE_COLON;
+    case NECRO_LEX_LEFT_SHIFT:           return NECRO_BIN_OP_LEFT_SHIFT;
+    case NECRO_LEX_RIGHT_SHIFT:          return NECRO_BIN_OP_RIGHT_SHIFT;
+    case NECRO_LEX_PIPE:                 return NECRO_BIN_OP_PIPE;
+    case NECRO_LEX_FORWARD_PIPE:         return NECRO_BIN_OP_FORWARD_PIPE;
+    case NECRO_LEX_BACK_PIPE:            return NECRO_BIN_OP_BACK_PIPE;
+    case NECRO_LEX_EQUALS:               return NECRO_BIN_OP_EQUALS;
+    case NECRO_LEX_NOT_EQUALS:           return NECRO_BIN_OP_NOT_EQUALS;
+    case NECRO_LEX_AND:                  return NECRO_BIN_OP_AND;
+    case NECRO_LEX_OR:                   return NECRO_BIN_OP_OR;
+    case NECRO_LEX_DOT:                  return NECRO_BIN_OP_DOT;
+    case NECRO_LEX_DOLLAR:               return NECRO_BIN_OP_DOLLAR;
+    case NECRO_LEX_BIND_RIGHT:           return NECRO_BIN_OP_BIND_RIGHT;
+    case NECRO_LEX_BIND_LEFT:            return NECRO_BIN_OP_BIND_LEFT;
+    case NECRO_LEX_DOUBLE_EXCLAMATION:   return NECRO_BIN_OP_DOUBLE_EXCLAMATION;
+    case NECRO_LEX_APPEND:               return NECRO_BIN_OP_APPEND;
+    case NECRO_LEX_ADD_ON_LEFT:          return NECRO_BIN_OP_ADD_ON_LEFT;
+    case NECRO_LEX_ADD_ON_RIGHT:         return NECRO_BIN_OP_ADD_ON_RIGHT;
+    case NECRO_LEX_SUB_ON_LEFT:          return NECRO_BIN_OP_SUB_ON_LEFT;
+    case NECRO_LEX_SUB_ON_RIGHT:         return NECRO_BIN_OP_SUB_ON_RIGHT;
+    case NECRO_LEX_MUL_ON_LEFT:          return NECRO_BIN_OP_MUL_ON_LEFT;
+    case NECRO_LEX_MUL_ON_RIGHT:         return NECRO_BIN_OP_MUL_ON_RIGHT;
+    case NECRO_LEX_DIV_ON_LEFT:          return NECRO_BIN_OP_DIV_ON_LEFT;
+    case NECRO_LEX_DIV_ON_RIGHT:         return NECRO_BIN_OP_DIV_ON_RIGHT;
+    case NECRO_LEX_CONST_LEFT_ON_LEFT:   return NECRO_BIN_OP_CONST_LEFT_ON_LEFT;
+    case NECRO_LEX_CONST_LEFT_ON_RIGHT:  return NECRO_BIN_OP_CONST_LEFT_ON_RIGHT;
+    case NECRO_LEX_CONST_RIGHT_ON_LEFT:  return NECRO_BIN_OP_CONST_RIGHT_ON_LEFT;
+    case NECRO_LEX_CONST_RIGHT_ON_RIGHT: return NECRO_BIN_OP_CONST_RIGHT_ON_RIGHT;
+    case NECRO_LEX_CONST_LEFT_ON_BOTH:   return NECRO_BIN_OP_CONST_LEFT_ON_BOTH;
+    case NECRO_LEX_CONST_RIGHT_ON_BOTH:  return NECRO_BIN_OP_CONST_RIGHT_ON_BOTH;
+    default:                             return NECRO_BIN_OP_UNDEFINED;
     }
 }
 
@@ -2307,15 +2326,10 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_l_expression(NecroParser* parser)
     NecroParserSnapshot   snapshot  = necro_parse_snapshot(parser);
     NecroParseAstLocalPtr local_ptr = null_local_ptr;
 
-    if (local_ptr == null_local_ptr)
-    {
-        local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_pattern_expression(parser));
-    }
-
-    if (local_ptr == null_local_ptr)
-    {
-        local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_do(parser));
-    }
+    // if (local_ptr == null_local_ptr)
+    // {
+    //     local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_do(parser));
+    // }
 
     if (local_ptr == null_local_ptr)
     {
@@ -2344,7 +2358,7 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_l_expression(NecroParser* parser)
 
     if (local_ptr == null_local_ptr)
     {
-        local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_for_loop(parser));
+        local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_loop(parser));
     }
 
     if (local_ptr != null_local_ptr)
@@ -2559,52 +2573,52 @@ NecroResult(NecroParseAstLocalPtr) parse_do_item(NecroParser* parser)
     return necro_parse_expression(parser);
 }
 
-NecroResult(NecroParseAstLocalPtr) necro_parse_do(NecroParser* parser)
-{
-    // do
-    NecroParserSnapshot        snapshot      = necro_parse_snapshot(parser);
-    const NECRO_LEX_TOKEN_TYPE do_token_type = necro_parse_peek_token_type(parser);
-    if (do_token_type != NECRO_LEX_DO)
-        return ok_NecroParseAstLocalPtr(null_local_ptr);
-    NecroSourceLoc source_loc = necro_parse_peek_token(parser)->source_loc;
-    necro_parse_consume_token(parser);
-
-    // {
-    const NECRO_LEX_TOKEN_TYPE l_curly_token_type = necro_parse_peek_token_type(parser);
-    if (l_curly_token_type != NECRO_LEX_LEFT_BRACE)
-    {
-        necro_parse_restore(parser, snapshot);
-        return ok_NecroParseAstLocalPtr(null_local_ptr);
-    }
-    necro_parse_consume_token(parser);
-
-    // Statements
-    NecroParseAstLocalPtr statement_list_local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_list(parser, NECRO_LEX_SEMI_COLON, parse_do_item));
-    if (statement_list_local_ptr == null_local_ptr)
-    {
-        necro_parse_restore(parser, snapshot);
-        return ok_NecroParseAstLocalPtr(null_local_ptr);
-    }
-
-    //;
-    NecroLexToken* look_ahead_token = necro_parse_peek_token(parser);
-    if (look_ahead_token->token == NECRO_LEX_SEMI_COLON)
-    {
-        necro_parse_consume_token(parser);
-    }
-
-    // }
-    look_ahead_token = necro_parse_peek_token(parser);
-    if (look_ahead_token->token != NECRO_LEX_RIGHT_BRACE)
-    {
-        return necro_do_missing_right_brace_error(look_ahead_token->source_loc, look_ahead_token->end_loc);
-    }
-    necro_parse_consume_token(parser);
-
-    // Finish
-    NecroParseAstLocalPtr do_local_ptr = necro_parse_ast_create_do(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->end_loc, statement_list_local_ptr);
-    return ok_NecroParseAstLocalPtr(do_local_ptr);
-}
+// NecroResult(NecroParseAstLocalPtr) necro_parse_do(NecroParser* parser)
+// {
+//     // do
+//     NecroParserSnapshot        snapshot      = necro_parse_snapshot(parser);
+//     const NECRO_LEX_TOKEN_TYPE do_token_type = necro_parse_peek_token_type(parser);
+//     if (do_token_type != NECRO_LEX_DO)
+//         return ok_NecroParseAstLocalPtr(null_local_ptr);
+//     NecroSourceLoc source_loc = necro_parse_peek_token(parser)->source_loc;
+//     necro_parse_consume_token(parser);
+//
+//     // {
+//     const NECRO_LEX_TOKEN_TYPE l_curly_token_type = necro_parse_peek_token_type(parser);
+//     if (l_curly_token_type != NECRO_LEX_LEFT_BRACE)
+//     {
+//         necro_parse_restore(parser, snapshot);
+//         return ok_NecroParseAstLocalPtr(null_local_ptr);
+//     }
+//     necro_parse_consume_token(parser);
+//
+//     // Statements
+//     NecroParseAstLocalPtr statement_list_local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_list(parser, NECRO_LEX_SEMI_COLON, parse_do_item));
+//     if (statement_list_local_ptr == null_local_ptr)
+//     {
+//         necro_parse_restore(parser, snapshot);
+//         return ok_NecroParseAstLocalPtr(null_local_ptr);
+//     }
+//
+//     //;
+//     NecroLexToken* look_ahead_token = necro_parse_peek_token(parser);
+//     if (look_ahead_token->token == NECRO_LEX_SEMI_COLON)
+//     {
+//         necro_parse_consume_token(parser);
+//     }
+//
+//     // }
+//     look_ahead_token = necro_parse_peek_token(parser);
+//     if (look_ahead_token->token != NECRO_LEX_RIGHT_BRACE)
+//     {
+//         return necro_do_missing_right_brace_error(look_ahead_token->source_loc, look_ahead_token->end_loc);
+//     }
+//     necro_parse_consume_token(parser);
+//
+//     // Finish
+//     NecroParseAstLocalPtr do_local_ptr = necro_parse_ast_create_do(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->end_loc, statement_list_local_ptr);
+//     return ok_NecroParseAstLocalPtr(do_local_ptr);
+// }
 
 // TODO: Retrofit to array patterns
 NecroResult(NecroParseAstLocalPtr) necro_parse_expression_list(NecroParser* parser)
@@ -2678,7 +2692,10 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_expression_array(NecroParser* par
     return ok_NecroParseAstLocalPtr(list_local_ptr);
 }
 
-NecroResult(NecroParseAstLocalPtr) necro_parse_pat_expression(NecroParser* parser)
+///////////////////////////////////////////////////////
+// Sequence
+///////////////////////////////////////////////////////
+NecroResult(NecroParseAstLocalPtr) necro_parse_seq_expression(NecroParser* parser)
 {
     if (necro_parse_peek_token_type(parser) == NECRO_LEX_END_OF_STREAM)
         return ok_NecroParseAstLocalPtr(null_local_ptr);
@@ -2691,16 +2708,23 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_pat_expression(NecroParser* parse
         return ok_NecroParseAstLocalPtr(local_ptr);
     necro_parse_restore(parser, snapshot);
 
-    // Wildcard
+    // Wildcard, translate to 'rest'
+    NecroSourceLoc source_loc = necro_parse_peek_token(parser)->source_loc;
     local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_wildcard(parser));
     if (local_ptr != null_local_ptr)
-        return ok_NecroParseAstLocalPtr(local_ptr);
+    {
+        NecroSourceLoc end_loc = necro_parse_peek_token(parser)->source_loc;
+        return ok(NecroParseAstLocalPtr, necro_parse_ast_create_var(&parser->ast.arena, source_loc, end_loc, necro_intern_string(parser->intern, "rest"), NECRO_VAR_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER));
+    }
     necro_parse_restore(parser, snapshot);
 
     return ok_NecroParseAstLocalPtr(null_local_ptr);
 }
 
-NecroResult(NecroParseAstLocalPtr) necro_parse_expressions_for_pattern_expression(NecroParser* parser)
+//--------------------
+// Normal Sequence
+//--------------------
+NecroResult(NecroParseAstLocalPtr) necro_parse_expressions_for_sequence_expression(NecroParser* parser)
 {
     if (necro_parse_peek_token_type(parser) == NECRO_LEX_END_OF_STREAM)
         return ok_NecroParseAstLocalPtr(null_local_ptr);
@@ -2708,7 +2732,7 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_expressions_for_pattern_expressio
     // Pat expression
     NecroSourceLoc        source_loc           = necro_parse_peek_token(parser)->source_loc;
     NecroParserSnapshot   snapshot             = necro_parse_snapshot(parser);
-    NecroParseAstLocalPtr expression_local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_pat_expression(parser));
+    NecroParseAstLocalPtr expression_local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_seq_expression(parser));
     if (expression_local_ptr == null_local_ptr)
     {
         necro_parse_restore(parser, snapshot);
@@ -2716,14 +2740,14 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_expressions_for_pattern_expressio
     }
 
     // Next Pat expression
-    NecroParseAstLocalPtr next_expression_local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_expressions_for_pattern_expression(parser));
+    NecroParseAstLocalPtr next_expression_local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_expressions_for_sequence_expression(parser));
 
     // Finish
     NecroParseAstLocalPtr expressions_local_ptr = necro_parse_ast_create_list(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->end_loc, expression_local_ptr, next_expression_local_ptr);
     return ok_NecroParseAstLocalPtr(expressions_local_ptr);
 }
 
-NecroResult(NecroParseAstLocalPtr) necro_parse_pattern_expression(NecroParser* parser)
+NecroResult(NecroParseAstLocalPtr) necro_parse_sequence_expression(NecroParser* parser)
 {
     // [
     if (necro_parse_peek_token(parser)->token != NECRO_LEX_LEFT_BRACKET)
@@ -2734,7 +2758,7 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_pattern_expression(NecroParser* p
     necro_parse_consume_token(parser);
 
     // Expressions
-    NecroParseAstLocalPtr expression_list = necro_try_result(NecroParseAstLocalPtr, necro_parse_expressions_for_pattern_expression(parser));
+    NecroParseAstLocalPtr expression_list = necro_try_result(NecroParseAstLocalPtr, necro_parse_expressions_for_sequence_expression(parser));
     if (expression_list == null_local_ptr)
     {
         return necro_pattern_empty_expression_list_error(source_loc, necro_parse_peek_token(parser)->end_loc);
@@ -2749,10 +2773,82 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_pattern_expression(NecroParser* p
     necro_parse_consume_token(parser);
 
     // Finish
-    NecroParseAstLocalPtr pat_expression_local_ptr = necro_parse_ast_create_pat_expr(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->end_loc, expression_list);
+    NecroParseAstLocalPtr pat_expression_local_ptr = necro_parse_ast_create_seq_expr(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->end_loc, expression_list, NECRO_SEQUENCE_SEQUENCE);
     return ok_NecroParseAstLocalPtr(pat_expression_local_ptr);
 }
 
+//--------------------
+// Tuple Sequence
+//--------------------
+NecroResult(NecroParseAstLocalPtr) necro_parse_sequence_expression_tuple(NecroParser* parser)
+{
+    // <
+    if (necro_parse_peek_token(parser)->token != NECRO_LEX_LT)
+        return ok(NecroParseAstLocalPtr, null_local_ptr);
+
+    NecroParserSnapshot snapshot   = necro_parse_snapshot(parser);
+    NecroSourceLoc      source_loc = necro_parse_peek_token(parser)->source_loc;
+    necro_parse_consume_token(parser);
+
+    // Expressions
+    NecroParseAstLocalPtr expression_list = necro_try_result(NecroParseAstLocalPtr, necro_parse_expressions_for_sequence_expression(parser));
+    if (expression_list == null_local_ptr)
+    {
+        return necro_pattern_empty_expression_list_error(source_loc, necro_parse_peek_token(parser)->end_loc);
+    }
+
+    // >
+    if (necro_parse_peek_token(parser)->token != NECRO_LEX_GT)
+    {
+        necro_parse_restore(parser, snapshot);
+        return ok(NecroParseAstLocalPtr, null_local_ptr);
+    }
+    necro_parse_consume_token(parser);
+
+    // Finish
+    NecroParseAstLocalPtr pat_expression_local_ptr = necro_parse_ast_create_seq_expr(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->end_loc, expression_list, NECRO_SEQUENCE_TUPLE);
+    return ok_NecroParseAstLocalPtr(pat_expression_local_ptr);
+}
+
+//--------------------
+// Interleaved Sequence
+//--------------------
+NecroResult(NecroParseAstLocalPtr) necro_parse_sequence_interleave_expression(NecroParser* parser)
+{
+    // [
+    NecroParserSnapshot        snapshot   = necro_parse_snapshot(parser);
+    const NECRO_LEX_TOKEN_TYPE token_type = necro_parse_peek_token_type(parser);
+    if (token_type != NECRO_LEX_LEFT_BRACKET)
+        return ok_NecroParseAstLocalPtr(null_local_ptr);
+    NecroSourceLoc source_loc = necro_parse_peek_token(parser)->source_loc;
+    necro_parse_consume_token(parser);
+
+    // Expressions
+    NecroParseAstLocalPtr expressions = necro_try_result(NecroParseAstLocalPtr, necro_parse_list(parser, NECRO_LEX_COLON, necro_parse_seq_expression));
+    if (expressions == null_local_ptr)
+    {
+        necro_parse_restore(parser, snapshot);
+        return ok_NecroParseAstLocalPtr(null_local_ptr);
+    }
+
+    // ]
+    NecroLexToken* look_ahead_token = necro_parse_peek_token(parser);
+    if (look_ahead_token->token != NECRO_LEX_RIGHT_BRACKET)
+    {
+        necro_parse_restore(parser, snapshot);
+        return ok_NecroParseAstLocalPtr(null_local_ptr);
+    }
+    necro_parse_consume_token(parser);
+
+    // Finish
+    NecroParseAstLocalPtr list_local_ptr = necro_parse_ast_create_seq_expr(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->end_loc, expressions, NECRO_SEQUENCE_INTERLEAVE);
+    return ok_NecroParseAstLocalPtr(list_local_ptr);
+}
+
+
+///////////////////////////////////////////////////////
+// Arithmetic Sequence
+///////////////////////////////////////////////////////
 NecroResult(NecroParseAstLocalPtr) necro_parse_arithmetic_sequence(NecroParser* parser)
 {
     // [
@@ -2972,59 +3068,118 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_case(NecroParser* parser)
     return ok_NecroParseAstLocalPtr(case_local_ptr);
 }
 
-NecroResult(NecroParseAstLocalPtr) necro_parse_for_loop(NecroParser* parser)
+NecroResult(NecroParseAstLocalPtr) necro_parse_loop(NecroParser* parser)
 {
-    // for
+    // loop
     // NecroParserSnapshot        snapshot   = necro_parse_snapshot(parser);
     const NECRO_LEX_TOKEN_TYPE token_type = necro_parse_peek_token_type(parser);
-    if (token_type != NECRO_LEX_FOR)
+    if (token_type != NECRO_LEX_LOOP)
         return ok_NecroParseAstLocalPtr(null_local_ptr);
     NecroSourceLoc source_loc = necro_parse_peek_token(parser)->source_loc;
     necro_parse_consume_token(parser);
 
-    // TODO: This doesn't seem like a normal expression parse...
-    // range_init
-    NecroParseAstLocalPtr range_init = necro_try_result(NecroParseAstLocalPtr, necro_parse_application_expression(parser));
-    if (range_init == null_local_ptr)
-        return necro_malformed_for_loop_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
-
-    // value_init
-    NecroParseAstLocalPtr value_init = necro_try_result(NecroParseAstLocalPtr, necro_parse_application_expression(parser));
-    if (value_init == null_local_ptr)
-        return necro_malformed_for_loop_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
-
-    // loop
-    if (necro_parse_peek_token(parser)->token != NECRO_LEX_LOOP)
-        return necro_malformed_for_loop_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
-    necro_parse_consume_token(parser);
-
-    NECRO_PARSE_STATE  prev_state = necro_parse_enter_state(parser);
-
-    // index_apat
-    NecroParseAstLocalPtr index_apat = necro_try_result(NecroParseAstLocalPtr, necro_parse_apat(parser));
-    if (index_apat == null_local_ptr)
-        return necro_malformed_for_loop_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
-
     // value_apat
+    NECRO_PARSE_STATE     prev_state = necro_parse_enter_state(parser);
     NecroParseAstLocalPtr value_apat = necro_try_result(NecroParseAstLocalPtr, necro_parse_apat(parser));
     if (value_apat == null_local_ptr)
         return necro_malformed_for_loop_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
-
     necro_parse_restore_state(parser, prev_state);
 
-    // ->
-    if (necro_parse_peek_token(parser)->token != NECRO_LEX_RIGHT_ARROW)
+    // =
+    if (necro_parse_peek_token(parser)->token != NECRO_LEX_ASSIGN)
         return necro_malformed_for_loop_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
     necro_parse_consume_token(parser);
 
-    // expression
-    NecroParseAstLocalPtr expression = necro_try_result(NecroParseAstLocalPtr, necro_parse_expression(parser));
-    if (expression == null_local_ptr)
+    // value_init
+    NecroParseAstLocalPtr value_init = necro_try_result(NecroParseAstLocalPtr, necro_parse_expression(parser));
+    if (value_init == null_local_ptr)
         return necro_malformed_for_loop_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
 
-    // Finish
-    NecroParseAstLocalPtr for_local_ptr = necro_parse_ast_create_for_loop(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->end_loc, range_init, value_init, index_apat, value_apat, expression);
-    return ok(NecroParseAstLocalPtr, for_local_ptr);
+    // for / while
+    const NECRO_LEX_TOKEN_TYPE loop_token_type = necro_parse_peek_token_type(parser);
+    if (necro_parse_peek_token(parser)->token != NECRO_LEX_FOR && necro_parse_peek_token(parser)->token != NECRO_LEX_WHILE)
+        return necro_malformed_for_loop_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
+    necro_parse_consume_token(parser);
+
+    if (loop_token_type == NECRO_LEX_FOR)
+    {
+        // index_apat
+        prev_state                       = necro_parse_enter_state(parser);
+        NecroParseAstLocalPtr index_apat = necro_try_result(NecroParseAstLocalPtr, necro_parse_apat(parser));
+        if (index_apat == null_local_ptr)
+            return necro_malformed_for_loop_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
+        necro_parse_restore_state(parser, prev_state);
+
+        // <-
+        if (necro_parse_peek_token(parser)->token != NECRO_LEX_LEFT_ARROW)
+            return necro_malformed_for_loop_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
+        necro_parse_consume_token(parser);
+
+        // range_init
+        NecroParseAstLocalPtr range_init = necro_try_result(NecroParseAstLocalPtr, necro_parse_expression(parser));
+        if (range_init == null_local_ptr)
+            return necro_malformed_for_loop_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
+
+        // do
+        if (necro_parse_peek_token(parser)->token != NECRO_LEX_DO)
+            return necro_malformed_for_loop_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
+        necro_parse_consume_token(parser);
+
+        // // {
+        // if (necro_parse_peek_token(parser)->token != NECRO_LEX_LEFT_BRACE)
+        //     return necro_malformed_for_loop_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
+        // necro_parse_consume_token(parser);
+
+        // expression
+        NecroParseAstLocalPtr expression = necro_try_result(NecroParseAstLocalPtr, necro_parse_expression(parser));
+        if (expression == null_local_ptr)
+            return necro_malformed_for_loop_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
+
+        // // }
+        // if (necro_parse_peek_token(parser)->token != NECRO_LEX_RIGHT_BRACE)
+        //     return necro_malformed_for_loop_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
+        // necro_parse_consume_token(parser);
+
+        // Finish
+        NecroParseAstLocalPtr for_local_ptr = necro_parse_ast_create_for_loop(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->end_loc, range_init, value_init, index_apat, value_apat, expression);
+        return ok(NecroParseAstLocalPtr, for_local_ptr);
+    }
+    // While
+    else if (loop_token_type == NECRO_LEX_WHILE)
+    {
+        // while_expression
+        NecroParseAstLocalPtr until_expression = necro_try_result(NecroParseAstLocalPtr, necro_parse_expression(parser));
+        if (until_expression == null_local_ptr)
+            return necro_malformed_for_loop_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
+
+        // do
+        if (necro_parse_peek_token(parser)->token != NECRO_LEX_DO)
+            return necro_malformed_for_loop_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
+        necro_parse_consume_token(parser);
+
+        // // {
+        // if (necro_parse_peek_token(parser)->token != NECRO_LEX_LEFT_BRACE)
+        //     return necro_malformed_for_loop_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
+        // necro_parse_consume_token(parser);
+
+        // expression
+        NecroParseAstLocalPtr expression = necro_try_result(NecroParseAstLocalPtr, necro_parse_expression(parser));
+        if (expression == null_local_ptr)
+            return necro_malformed_for_loop_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
+
+        // // }
+        // if (necro_parse_peek_token(parser)->token != NECRO_LEX_RIGHT_BRACE)
+        //     return necro_malformed_for_loop_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
+        // necro_parse_consume_token(parser);
+
+        // Finish
+        NecroParseAstLocalPtr while_local_ptr = necro_parse_ast_create_while_loop(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->end_loc, value_init, value_apat, until_expression, expression);
+        return ok(NecroParseAstLocalPtr, while_local_ptr);
+    }
+    else
+    {
+        return necro_malformed_for_loop_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
+    }
 }
 
 NecroResult(NecroParseAstLocalPtr) necro_parse_qconop(NecroParser* parser, NECRO_CON_TYPE con_type);
@@ -3594,14 +3749,56 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_btype(NecroParser* parser)
 {
     if (necro_parse_peek_token_type(parser) == NECRO_LEX_END_OF_STREAM)
         return ok_NecroParseAstLocalPtr(null_local_ptr);
-    NecroParserSnapshot  snapshot = necro_parse_snapshot(parser);
+    NecroSourceLoc      source_loc = necro_parse_peek_token(parser)->source_loc;
+    NecroParserSnapshot snapshot   = necro_parse_snapshot(parser);
 
-    // *type
+    // *btype
+    if (necro_parse_peek_token_type(parser) == NECRO_LEX_MUL)
+    {
+        necro_parse_consume_token(parser);
+        NecroParseAstLocalPtr atype = necro_try_result(NecroParseAstLocalPtr, necro_parse_atype(parser, NECRO_VAR_TYPE_FREE_VAR));
+        NecroParseAstLocalPtr btype = necro_try_result(NecroParseAstLocalPtr, necro_parse_btype_go(parser, atype));
+        if (btype != null_local_ptr)
+        {
+            btype = necro_parse_ast_create_type_attribute(&parser->ast.arena, source_loc, source_loc, btype, NECRO_TYPE_ATTRIBUTE_STAR);
+            return ok(NecroParseAstLocalPtr, btype);
+        }
+    }
+    // .btype
+    else if (necro_parse_peek_token_type(parser) == NECRO_LEX_DOT)
+    {
+        necro_parse_consume_token(parser);
+        NecroParseAstLocalPtr atype = necro_try_result(NecroParseAstLocalPtr, necro_parse_atype(parser, NECRO_VAR_TYPE_FREE_VAR));
+        NecroParseAstLocalPtr btype = necro_try_result(NecroParseAstLocalPtr, necro_parse_btype_go(parser, atype));
+        if (btype != null_local_ptr)
+        {
+            btype = necro_parse_ast_create_type_attribute(&parser->ast.arena, source_loc, source_loc, btype, NECRO_TYPE_ATTRIBUTE_DOT);
+            return ok(NecroParseAstLocalPtr, btype);
+        }
+    }
+    // btype
+    else
+    {
+        NecroParseAstLocalPtr atype = necro_try_result(NecroParseAstLocalPtr, necro_parse_atype(parser, NECRO_VAR_TYPE_FREE_VAR));
+        NecroParseAstLocalPtr btype = necro_try_result(NecroParseAstLocalPtr, necro_parse_btype_go(parser, atype));
+        if (btype != null_local_ptr)
+            return ok(NecroParseAstLocalPtr, btype);
+    }
+    necro_parse_restore(parser, snapshot);
+    return ok(NecroParseAstLocalPtr, null_local_ptr);
+}
+
+NecroResult(NecroParseAstLocalPtr) necro_parse_atype(NecroParser* parser, NECRO_VAR_TYPE tyvar_var_type)
+{
+    NecroParserSnapshot   snapshot = necro_parse_snapshot(parser);
+    NecroParseAstLocalPtr ptr      = null_local_ptr;
+
+    // *tycon
     if (necro_parse_peek_token_type(parser) == NECRO_LEX_MUL)
     {
         NecroSourceLoc source_loc = necro_parse_peek_token(parser)->source_loc;
         necro_parse_consume_token(parser);
-        NecroParseAstLocalPtr ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_btype(parser)); // TODO/NOTE: Or perhaps necro_parse_type
+        ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_atype(parser, tyvar_var_type));
         if (ptr != null_local_ptr)
         {
             ptr = necro_parse_ast_create_type_attribute(&parser->ast.arena, source_loc, source_loc, ptr, NECRO_TYPE_ATTRIBUTE_STAR);
@@ -3610,12 +3807,12 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_btype(NecroParser* parser)
         necro_parse_restore(parser, snapshot);
     }
 
-    // .type
+    // .tycon
     if (necro_parse_peek_token_type(parser) == NECRO_LEX_DOT)
     {
         NecroSourceLoc source_loc = necro_parse_peek_token(parser)->source_loc;
         necro_parse_consume_token(parser);
-        NecroParseAstLocalPtr ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_btype(parser)); // TODO/NOTE: Or perhaps necro_parse_type
+        ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_atype(parser, tyvar_var_type));
         if (ptr != null_local_ptr)
         {
             ptr = necro_parse_ast_create_type_attribute(&parser->ast.arena, source_loc, source_loc, ptr, NECRO_TYPE_ATTRIBUTE_DOT);
@@ -3624,94 +3821,160 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_btype(NecroParser* parser)
         necro_parse_restore(parser, snapshot);
     }
 
-    NecroParseAstLocalPtr atype    = necro_try_result(NecroParseAstLocalPtr, necro_parse_atype(parser, NECRO_VAR_TYPE_FREE_VAR));
-    NecroParseAstLocalPtr btype    = necro_try_result(NecroParseAstLocalPtr, necro_parse_btype_go(parser, atype));
-    if (btype == null_local_ptr)
-    {
-        necro_parse_restore(parser, snapshot);
-        return ok_NecroParseAstLocalPtr(null_local_ptr);
-    }
-    return ok_NecroParseAstLocalPtr(btype);
-}
+    // // *tycon
+    // if (necro_parse_peek_token_type(parser) == NECRO_LEX_MUL)
+    // {
+    //     NecroSourceLoc source_loc = necro_parse_peek_token(parser)->source_loc;
+    //     necro_parse_consume_token(parser);
+    //     ptr = necro_parse_tycon(parser, NECRO_CON_TYPE_VAR);
+    //     if (ptr != null_local_ptr)
+    //     {
+    //         ptr = necro_parse_ast_create_type_attribute(&parser->ast.arena, source_loc, source_loc, ptr, NECRO_TYPE_ATTRIBUTE_STAR);
+    //         return ok(NecroParseAstLocalPtr, ptr);
+    //     }
+    //     necro_parse_restore(parser, snapshot);
+    // }
 
-NecroResult(NecroParseAstLocalPtr) necro_parse_atype(NecroParser* parser, NECRO_VAR_TYPE tyvar_var_type)
-{
-    NecroParserSnapshot   snapshot = necro_parse_snapshot(parser);
-    NecroParseAstLocalPtr ptr      = null_local_ptr;
+    // // .tycon
+    // if (necro_parse_peek_token_type(parser) == NECRO_LEX_DOT)
+    // {
+    //     NecroSourceLoc source_loc = necro_parse_peek_token(parser)->source_loc;
+    //     necro_parse_consume_token(parser);
+    //     ptr = necro_parse_tycon(parser, NECRO_CON_TYPE_VAR);
+    //     if (ptr != null_local_ptr)
+    //     {
+    //         ptr = necro_parse_ast_create_type_attribute(&parser->ast.arena, source_loc, source_loc, ptr, NECRO_TYPE_ATTRIBUTE_DOT);
+    //         return ok(NecroParseAstLocalPtr, ptr);
+    //     }
+    //     necro_parse_restore(parser, snapshot);
+    // }
 
     // tycon
     ptr = necro_parse_tycon(parser, NECRO_CON_TYPE_VAR);
+    if (ptr != null_local_ptr)
+        return ok(NecroParseAstLocalPtr, ptr);
+    necro_parse_restore(parser, snapshot);
+
+    // // *tyvar
+    // if (necro_parse_peek_token_type(parser) == NECRO_LEX_MUL)
+    // {
+    //     NecroSourceLoc source_loc = necro_parse_peek_token(parser)->source_loc;
+    //     necro_parse_consume_token(parser);
+    //     ptr = necro_parse_tyvar(parser, tyvar_var_type);
+    //     if (ptr != null_local_ptr)
+    //     {
+    //         ptr = necro_parse_ast_create_type_attribute(&parser->ast.arena, source_loc, source_loc, ptr, NECRO_TYPE_ATTRIBUTE_STAR);
+    //         return ok(NecroParseAstLocalPtr, ptr);
+    //     }
+    //     necro_parse_restore(parser, snapshot);
+    // }
+
+    // // .tyvar
+    // if (necro_parse_peek_token_type(parser) == NECRO_LEX_DOT)
+    // {
+    //     NecroSourceLoc source_loc = necro_parse_peek_token(parser)->source_loc;
+    //     necro_parse_consume_token(parser);
+    //     ptr = necro_parse_tyvar(parser, tyvar_var_type);
+    //     if (ptr != null_local_ptr)
+    //     {
+    //         ptr = necro_parse_ast_create_type_attribute(&parser->ast.arena, source_loc, source_loc, ptr, NECRO_TYPE_ATTRIBUTE_DOT);
+    //         return ok(NecroParseAstLocalPtr, ptr);
+    //     }
+    //     necro_parse_restore(parser, snapshot);
+    // }
 
     // tyvar
-    if (ptr == null_local_ptr)
-    {
-        // ^tyvar
-        if (necro_parse_peek_token_type(parser) == NECRO_LEX_CARET)
-        {
-            necro_parse_consume_token(parser); // consume ^
-            ptr = necro_parse_tyvar(parser, tyvar_var_type);
-            if (ptr != null_local_ptr)
-            {
-                NecroParseAst* ast_node  = necro_parse_ast_get_node(&parser->ast, ptr);
-                ast_node->variable.order = NECRO_TYPE_HIGHER_ORDER;
-            }
-            else
-            {
-                necro_parse_restore(parser, snapshot);
-            }
-        }
-        else
-        {
-            ptr = necro_parse_tyvar(parser, tyvar_var_type);
-        }
-    }
+    ptr = necro_parse_tyvar(parser, tyvar_var_type);
+    if (ptr != null_local_ptr)
+        return ok(NecroParseAstLocalPtr, ptr);
+    necro_parse_restore(parser, snapshot);
 
     // Int literal
-    if (ptr == null_local_ptr && necro_parse_peek_token_type(parser) == NECRO_LEX_INTEGER_LITERAL)
+    if (necro_parse_peek_token_type(parser) == NECRO_LEX_INTEGER_LITERAL)
     {
         ptr = necro_parse_constant(parser);
         if (ptr != null_local_ptr)
         {
             NecroParseAst* ptr_ast = necro_parse_ast_get_node(&parser->ast, ptr);
             ptr_ast->constant.type = NECRO_AST_CONSTANT_TYPE_INT;
+            return ok(NecroParseAstLocalPtr, ptr);
         }
+        necro_parse_restore(parser, snapshot);
     }
 
     // tuple type
-    if (ptr == null_local_ptr)
-    {
-        ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_tuple_type(parser));
-    }
+    ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_tuple_type(parser));
+    if (ptr != null_local_ptr)
+        return ok(NecroParseAstLocalPtr, ptr);
+    necro_parse_restore(parser, snapshot);
+
 
     // (# type #)
-    if (ptr == null_local_ptr)
-    {
-        ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_unboxed_tuple_type(parser));
-    }
+    ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_unboxed_tuple_type(parser));
+    if (ptr != null_local_ptr)
+        return ok(NecroParseAstLocalPtr, ptr);
+    necro_parse_restore(parser, snapshot);
+
 
     // [type]
-    if (ptr == null_local_ptr)
-    {
-        ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_list_type(parser));
-    }
+    ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_list_type(parser));
+    if (ptr != null_local_ptr)
+        return ok(NecroParseAstLocalPtr, ptr);
+    necro_parse_restore(parser, snapshot);
+
+    // // *(type)
+    // if (necro_parse_peek_token_type(parser) == NECRO_LEX_MUL)
+    // {
+    //     NecroSourceLoc source_loc = necro_parse_peek_token(parser)->source_loc;
+    //     necro_parse_consume_token(parser);
+    //     if (necro_parse_peek_token_type(parser) == NECRO_LEX_LEFT_PAREN)
+    //     {
+    //         necro_parse_consume_token(parser);
+    //         ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_type(parser));
+    //         if (ptr != null_local_ptr && necro_parse_peek_token_type(parser) == NECRO_LEX_RIGHT_PAREN)
+    //         {
+    //             necro_parse_consume_token(parser);
+    //             ptr = necro_parse_ast_create_type_attribute(&parser->ast.arena, source_loc, source_loc, ptr, NECRO_TYPE_ATTRIBUTE_STAR);
+    //             return ok(NecroParseAstLocalPtr, ptr);
+    //         }
+    //     }
+    //     necro_parse_restore(parser, snapshot);
+    // }
+
+    // // .(type)
+    // if (necro_parse_peek_token_type(parser) == NECRO_LEX_DOT)
+    // {
+    //     NecroSourceLoc source_loc = necro_parse_peek_token(parser)->source_loc;
+    //     necro_parse_consume_token(parser);
+    //     if (necro_parse_peek_token_type(parser) == NECRO_LEX_LEFT_PAREN)
+    //     {
+    //         necro_parse_consume_token(parser);
+    //         ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_type(parser));
+    //         if (ptr != null_local_ptr && necro_parse_peek_token_type(parser) == NECRO_LEX_RIGHT_PAREN)
+    //         {
+    //             necro_parse_consume_token(parser);
+    //             ptr = necro_parse_ast_create_type_attribute(&parser->ast.arena, source_loc, source_loc, ptr, NECRO_TYPE_ATTRIBUTE_DOT);
+    //             return ok(NecroParseAstLocalPtr, ptr);
+    //         }
+    //     }
+    //     necro_parse_restore(parser, snapshot);
+    // }
 
     // (type)
-    if (ptr == null_local_ptr)
+    if (necro_parse_peek_token_type(parser) == NECRO_LEX_LEFT_PAREN)
     {
-        if (necro_parse_peek_token_type(parser) == NECRO_LEX_LEFT_PAREN)
+        necro_parse_consume_token(parser);
+        ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_type(parser));
+        if (ptr != null_local_ptr && necro_parse_peek_token_type(parser) == NECRO_LEX_RIGHT_PAREN)
         {
             necro_parse_consume_token(parser);
-            ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_type(parser));
-            if (necro_parse_peek_token_type(parser) != NECRO_LEX_RIGHT_PAREN)
-            {
-                necro_parse_restore(parser, snapshot);
-                ptr = null_local_ptr;
-            }
-            necro_parse_consume_token(parser);
+            return ok(NecroParseAstLocalPtr, ptr);
         }
+        necro_parse_restore(parser, snapshot);
     }
 
-    return ok_NecroParseAstLocalPtr(ptr);
+    necro_parse_restore(parser, snapshot);
+    return ok(NecroParseAstLocalPtr, null_local_ptr);
 }
 
 NecroParseAstLocalPtr necro_parse_gtycon(NecroParser* parser, NECRO_CON_TYPE con_type)

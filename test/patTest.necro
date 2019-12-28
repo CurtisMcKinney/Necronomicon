@@ -90,20 +90,21 @@ interlace = ...
 
 interlaceBeat :: Pattern Audio
 interlaceBeat =
-  interlace {x, y} <| beat
-  0 _ [1 0] _
+  interlace {x, y} <| [0 _ [1 0] _]
   where
     x = beat 1 2 3 4
     y = beat 3 2 1
 
 coolBeat :: Pattern Audio
 coolBeat =
-  map (d2f minor) <| seq
-  x y (y+y) z
-  _ x [5 z] x
-  _ 0 [1 2] y
+  map (d2f minor) <|
+  [
+    x y (y+y) z
+    _ x [5 z] x
+    _ 0 [1 2] y
+  ]
   where
-    x = beat 0 _ [1 2] 1
+    x = [0 _ [1 2] 1]
     y = 3
-    z = pure mouseX / 100
+    z = pure mouseX * 100
 

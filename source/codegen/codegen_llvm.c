@@ -687,8 +687,28 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
         break;
     }
 
-    case NECRO_PRIMOP_UOP_ISGN: value = param; break; // TODO
-    case NECRO_PRIMOP_UOP_USGN: value = param; break; // TODO
+    case NECRO_PRIMOP_UOP_USGN:
+    {
+        LLVMTypeRef arg_type = necro_llvm_type_from_mach_type(context, ast->uop.param->necro_machine_type);
+        if (arg_type == LLVMInt32TypeInContext(context->context))
+            value = LLVMConstInt(LLVMInt32TypeInContext(context->context), 0, false);
+        else if (arg_type == LLVMInt64TypeInContext(context->context))
+            value = LLVMConstInt(LLVMInt64TypeInContext(context->context), 0, false);
+        else
+            assert(false && "Only 32-bit and 64-bit Ints supported");
+        break;
+    }
+    case NECRO_PRIMOP_UOP_ISGN:
+    {
+        LLVMTypeRef  arg_type = necro_llvm_type_from_mach_type(context, ast->uop.param->necro_machine_type);
+        if (arg_type == LLVMInt32TypeInContext(context->context))
+            value = LLVMBuildLShr(context->builder, param, LLVMConstInt(LLVMInt32TypeInContext(context->context), 31, false), "sgn");
+        else if (arg_type == LLVMInt64TypeInContext(context->context))
+            value = LLVMBuildLShr(context->builder, param, LLVMConstInt(LLVMInt32TypeInContext(context->context), 63, false), "sgn");
+        else
+            assert(false && "Only 32-bit and 64-bit Ints supported");
+        break;
+    }
     case NECRO_PRIMOP_UOP_FSGN: value = param; break; // TODO
 
     case NECRO_PRIMOP_UOP_ITOU: value = param; break; // TODO: Different bit sizes?

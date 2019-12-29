@@ -1687,7 +1687,7 @@ void necro_type_normalize_type_var_names(NecroIntern* intern, NecroBase* base, N
         const bool is_uvar = necro_kind_is_ownership(base, type->var.var_symbol->type);
         const bool is_kvar = necro_kind_is_kind(base, type->var.var_symbol->type);
         const bool is_hvar = !necro_kind_is_type(base, type->var.var_symbol->type);
-        char* curr_name = "u\0";
+        char curr_name[2];
         if (is_uvar)
             curr_name[0] = 'u';
         else if (is_kvar)

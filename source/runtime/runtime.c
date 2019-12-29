@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <inttypes.h>
 
 #ifdef _WIN32
 #define UNICODE 1
@@ -69,7 +70,7 @@ extern DLLEXPORT unsigned int necro_runtime_print_int(int value, unsigned int wo
 
 extern DLLEXPORT unsigned int necro_runtime_print_i64(int64_t value, unsigned int world)
 {
-    printf("%I64d", value);
+    printf("%" PRId64, value);
     return world;
 }
 

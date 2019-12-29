@@ -217,7 +217,7 @@ NecroType* necro_type_curry_con(NecroPagedArena* arena, NecroBase* base, NecroTy
     return ap;
 }
 
-const bool necro_type_is_type_app_type_con(const NecroType* app)
+bool necro_type_is_type_app_type_con(const NecroType* app)
 {
     app = necro_type_find_const(app);
     while (app->type == NECRO_TYPE_APP)
@@ -1973,7 +1973,7 @@ void necro_constraint_fprint(FILE* stream, const NecroConstraint* constraint)
         // necro_type_fprint_type_var(stream, constraint->uconstraint.u2->var.var_symbol);
         return;
     case NECRO_CONSTRAINT_CLASS:
-        fprintf(stream, constraint->cls.type_class->type_class_name->source_name->str);
+        fprintf(stream, "%s", constraint->cls.type_class->type_class_name->source_name->str);
         fprintf(stream, " ");
         necro_print_type_sig_go_maybe_with_parens(stream, constraint->cls.type1);
         return;
@@ -2046,68 +2046,70 @@ void necro_type_fprint(FILE* stream, const NecroType* type)
         break;
 
     case NECRO_TYPE_FOR:
-        // fprintf(stream, "forall ");
-
-        // // Print quantified type vars
-        // static const char* ukind = "Uniqueness";
-        const NecroType* for_all_head = type;
-        // while (type->for_all.type->type == NECRO_TYPE_FOR)
-        // {
-        //     if (!(necro_type_find_const(necro_type_find_const(type->for_all.var_symbol->type)->kind)->type == NECRO_TYPE_CON && strcmp(type->for_all.var_symbol->type->kind->con.con_symbol->source_name->str, ukind) == 0))
-        //     {
-        //         necro_type_fprint_type_var(stream, type->for_all.var_symbol);
-        //         fprintf(stream, " ");
-        //     }
-        //     type = type->for_all.type;
-        // }
-        // if (!(necro_type_find_const(necro_type_find_const(type->for_all.var_symbol->type)->kind)->type == NECRO_TYPE_CON && strcmp(type->for_all.var_symbol->type->kind->con.con_symbol->source_name->str, ukind) == 0))
-        //     necro_type_fprint_type_var(stream, type->for_all.var_symbol);
-        // fprintf(stream, ". ");
-        // type = type->for_all.type;
-
-        // Print context
-        // type             = for_all_head;
-        bool has_context = false;
-        while (type->type == NECRO_TYPE_FOR)
         {
-            NecroConstraintList* constraints = type->for_all.var_symbol->type->var.var_symbol->constraints;
-            while(constraints != NULL)
-            {
-                if (constraints->data->type == NECRO_CONSTRAINT_CLASS)
-                {
-                    has_context = true;
-                    break;
-                }
-                constraints = constraints->next;
-            }
-            type = type->for_all.type;
-        }
-        if (has_context)
-        {
-            fprintf(stream, "(");
-            size_t count = 0;
-            type = for_all_head;
+            // fprintf(stream, "forall ");
+
+            // // Print quantified type vars
+            // static const char* ukind = "Uniqueness";
+            const NecroType* for_all_head = type;
+            // while (type->for_all.type->type == NECRO_TYPE_FOR)
+            // {
+            //     if (!(necro_type_find_const(necro_type_find_const(type->for_all.var_symbol->type)->kind)->type == NECRO_TYPE_CON && strcmp(type->for_all.var_symbol->type->kind->con.con_symbol->source_name->str, ukind) == 0))
+            //     {
+            //         necro_type_fprint_type_var(stream, type->for_all.var_symbol);
+            //         fprintf(stream, " ");
+            //     }
+            //     type = type->for_all.type;
+            // }
+            // if (!(necro_type_find_const(necro_type_find_const(type->for_all.var_symbol->type)->kind)->type == NECRO_TYPE_CON && strcmp(type->for_all.var_symbol->type->kind->con.con_symbol->source_name->str, ukind) == 0))
+            //     necro_type_fprint_type_var(stream, type->for_all.var_symbol);
+            // fprintf(stream, ". ");
+            // type = type->for_all.type;
+
+            // Print context
+            // type             = for_all_head;
+            bool has_context = false;
             while (type->type == NECRO_TYPE_FOR)
             {
                 NecroConstraintList* constraints = type->for_all.var_symbol->type->var.var_symbol->constraints;
-                while (constraints != NULL)
+                while(constraints != NULL)
                 {
                     if (constraints->data->type == NECRO_CONSTRAINT_CLASS)
                     {
-                        if (count > 0)
-                            fprintf(stream, ", ");
-                        necro_constraint_fprint(stream, constraints->data);
-                        count++;
+                        has_context = true;
+                        break;
                     }
                     constraints = constraints->next;
                 }
                 type = type->for_all.type;
             }
-            fprintf(stream, ") => ");
-        }
+            if (has_context)
+            {
+                fprintf(stream, "(");
+                size_t count = 0;
+                type = for_all_head;
+                while (type->type == NECRO_TYPE_FOR)
+                {
+                    NecroConstraintList* constraints = type->for_all.var_symbol->type->var.var_symbol->constraints;
+                    while (constraints != NULL)
+                    {
+                        if (constraints->data->type == NECRO_CONSTRAINT_CLASS)
+                        {
+                            if (count > 0)
+                                fprintf(stream, ", ");
+                            necro_constraint_fprint(stream, constraints->data);
+                            count++;
+                        }
+                        constraints = constraints->next;
+                    }
+                    type = type->for_all.type;
+                }
+                fprintf(stream, ") => ");
+            }
 
-        // Print rest of type
-        necro_type_fprint(stream, type);
+            // Print rest of type
+            necro_type_fprint(stream, type);
+        }
         break;
 
     case NECRO_TYPE_NAT:

@@ -109,6 +109,7 @@ typedef struct NecroBase
     NecroAstSymbol* index_con;
     NecroAstSymbol* unsafe_empty_array;
     NecroAstSymbol* read_array;
+    NecroAstSymbol* read_arrayu;
     NecroAstSymbol* write_array;
     NecroAstSymbol* prim_undefined;
     NecroAstSymbol* proj_fn;

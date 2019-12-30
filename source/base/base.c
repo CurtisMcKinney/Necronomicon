@@ -1485,6 +1485,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     // Array
     necro_base_setup_primitive(scoped_symtable, intern, "unsafeEmptyArray", &base.unsafe_empty_array, NECRO_PRIMOP_ARRAY_EMPTY);
     necro_base_setup_primitive(scoped_symtable, intern, "readArray",        &base.read_array,         NECRO_PRIMOP_ARRAY_READ);
+    necro_base_setup_primitive(scoped_symtable, intern, "readArrayU",       &base.read_arrayu,        NECRO_PRIMOP_ARRAY_READU);
     necro_base_setup_primitive(scoped_symtable, intern, "writeArray",       &base.write_array,        NECRO_PRIMOP_ARRAY_WRITE);
     necro_base_setup_primitive(scoped_symtable, intern, "freezeArray",      NULL,                     NECRO_PRIMOP_ARRAY_FREEZE);
 

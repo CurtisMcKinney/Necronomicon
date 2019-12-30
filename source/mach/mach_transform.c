@@ -1427,6 +1427,24 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         return elem_value;
     }
 
+    case NECRO_PRIMOP_ARRAY_READU:
+    {
+        assert(arg_count == 2);
+        assert(app_ast->app.expr1->ast_type == NECRO_CORE_AST_APP);
+        NecroMachAst*  index_value   = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr2, outer);
+        NecroMachAst*  array_value   = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
+        NecroMachType* elem_ptr_type = necro_mach_type_create_ptr(&program->arena, array_value->necro_machine_type->ptr_type.element_type->array_type.element_type);
+        NecroMachAst*  elem_ptr      = necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, array_value, (NecroMachAst*[]) { necro_mach_value_create_word_uint(program, 0), index_value }, 2, "elem_ptr", elem_ptr_type);
+        NecroMachAst*  elem_value    = necro_mach_build_load(program, outer->machine_def.update_fn, elem_ptr, "elem_value");
+        NecroMachType* return_type   = necro_mach_type_from_necro_type(program, app_ast->necro_type);
+        assert(return_type->type == NECRO_MACH_TYPE_STRUCT);
+        assert(return_type->struct_type.symbol->is_unboxed);
+        NecroMachAst*  con           = necro_mach_value_create_undefined(program, return_type);
+        con                          = necro_mach_build_insert_value(program, outer->machine_def.update_fn, con, elem_value, 0, "unboxed_con");
+        con                          = necro_mach_build_insert_value(program, outer->machine_def.update_fn, con, array_value, 1, "unboxed_con");
+        return con;
+    }
+
     case NECRO_PRIMOP_ARRAY_WRITE:
     {
         assert(arg_count == 3);

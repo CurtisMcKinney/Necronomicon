@@ -173,7 +173,6 @@ class (Num a, EuclideanRing a) => Integral a where
 class (Num a, Field a) => Floating a where
   fromFloat :: Float -> a
 
--- TODO: Finish!
 class Floating a => Trig a where
   sine   :: a -> a
   cosine :: a -> a
@@ -568,21 +567,15 @@ instance Num Rational where
 
 instance EuclideanRing Rational where
   rem x y = primUndefined
-  div x y =
-    case x of
-      Rational (#xn, xd#) ->
-        case y of
-          Rational (#yn, yd#) ->
-            (xn * yd) // (xd * yn)
+  div (Rational (#xn, xd#)) (Rational (#yn, yd#)) =
+    (xn * yd) // (xd * yn)
 
--- TODO: look at this + abs + signum
 instance DivisionRing Rational where
-  recip x =
-    case x of
-      Rational (#n, d#) -> if n == 0 then Rational (#0, 1#) else
-        if n < 0
-          then d // n
-          else d // n
+  recip (Rational (#n, d#)) =
+    if n == 0 then
+      Rational (#0, 1#)
+    else
+      d // n
 
 instance Field Rational where
 
@@ -818,9 +811,8 @@ instance Foldable (Array n) where
 --------------------
 -- Index
 --------------------
--- -- TODO: Hide Index constructor outside of base.necro for safety
--- -- TODO: Way to reify Nats into UInts!
--- -- TODO: Use Max to restrict UInt to range?
+-- TODO: Hide Index constructor outside of base.necro for safety
+-- TODO: Use Max to restrict UInt to range?
 unsafeUIntToIndex :: UInt -> Index n
 unsafeUIntToIndex i = Index i
 
@@ -912,6 +904,12 @@ audioBlockSize = 32 * 64
 
 audioBlockSizeF :: Float
 audioBlockSizeF = 32 * 64
+
+-- NOTE: Assumes audioBlockSize is a power of 2!
+audioBlockSizeLog2 :: UInt
+audioBlockSizeLog2 =
+  fst' <| loop (#bits, n#) = (#0, audioBlockSize#) while n > 0 do
+    (#bits + 1, bitShiftRight n 1#)
 
 audioSampleOffset :: UInt
 audioSampleOffset = 0
@@ -1083,39 +1081,35 @@ bitRevFFTArray audioBuffer (FFTWindow windowBuffer) =
     in
       writeArray (toIndexMultiple i) c a'
 
--- -- NOTE: bitReverse Cooley-Tukey FFT algorithm
--- -- TODO: Finish!
--- -- TODO: Compute log2n somehow
--- -- TODO: Windowing function!
--- -- TODO: readArrayU
--- fftChannel :: Array BlockSize F64 -> Array (NatMul BlockSize (NatMax k 1)) Complex
--- fftChannel a =
---   freezeArray <| snd' <|
---     loop (#i, a0#) = (#0, bitRevFFTArray a#) while i < log2n do
---       let
---         m1              = bitShiftLeft  1  i
---         m2              = bitShiftRight m1 1
---         wm              = 0 -- Compute somehow
---         (#_, _, aout1#) =
---           loop (#j, w, a1#) = (#0, 1, a0#) while j < m2 do
---             let
---               (#_, aout0#) =
---                 loop (#k, a2#) = (#j, a1#) while k < audioBlockSize do
---                   let
---                     ki        = indexToUInt k
---                     km2i      = indexToUInt (k + m2)
---                     (#t, a1#) = readArrayU km2i a0
---                     (#u, a2#) = readArrayU ki a1
---                     t'        = t * w
---                   in
---                     (#k + 1, writeArray km2i (u - t') (writeArray ki (u + t') a2)#)
---             in
---               (#j + 1, w * wm, aout0#)
---       in
---         (#i + 1, aout1#)
---   where
---     log2n = 1 -- Compute somehow
-
+-- NOTE: bitReverse Cooley-Tukey FFT algorithm
+-- TODO: Finish!
+-- TODO: Compute log2n somehow
+-- TODO: Windowing function!
+fftChannel :: Array BlockSize F64 -> FFTWindow -> Array (NatMul BlockSize (NatMax 1 1)) Complex
+fftChannel a w =
+  freezeArray <| snd' <|
+    loop (#i, a0#) = (#0, bitRevFFTArray a w#) while i < audioBlockSizeLog2 do
+      let
+        m1              = bitShiftLeft  1  i
+        m2              = bitShiftRight m1 1
+        wm              = 0 -- Compute somehow
+        (#_, _, aout1#) =
+          loop (#j, w, a1#) = (#0, 1, a0#) while j < m2 do
+            let
+              (#_, aout0#) =
+                loop (#k, a2#) = (#j, a1#) while k < audioBlockSize do
+                  let
+                    ki        = Index k
+                    km2i      = Index (k + m2)
+                    (#t, a3#) = readArrayU km2i a2
+                    (#u, a4#) = readArrayU ki a3
+                    t'        = t * w
+                  in
+                    (#k + 1, writeArray km2i (u - t') (writeArray ki (u + t') a4)#)
+            in
+              (#j + 1, w * wm, aout0#)
+      in
+        (#i + 1, aout1#)
 
 --------------------
 -- AudioFormat
@@ -2113,7 +2107,6 @@ poly f s =
 sawTest :: Audio Mono
 sawTest = saw 440
 
--- TODO: saw is breaking lambda lifting right now? fix!
 coolSynth :: Audio Mono
 coolSynth =
   saw 440 |> perc 0.1 10 (-3)
@@ -2223,10 +2216,14 @@ panTest = saw 440 |> pan 0.25
 -- class Freeze a where
 --   freeze :: (Freeze b, a ~ b) => *a -> b
 
+---------------------------
+-- TODO: Chad Bot
+---------------------------
+-- TODO: Complex numbers
+-- TODO: 64-bit issue Chad was having
+
 -- TODO: Out of order monomorphic instances (i.e. 'instance Ring Complex' textually appearing before 'instance Ring F64') can cause erroneous 'Not An Instance' errors. Maybe need a better dep analysis story to make this work since we don't figure this out until inference which is at that point too late to fix.
 -- TODO: Write to log file, perhaps class Log a similar to class Print a
--- TODO: Some complex number support
--- TODO: 64-bit issue Chad was having
 
 -- TODO: Put Uniqueness unify AFTER type unify for better error messages?
 -- TODO: type sig coerce constraint!

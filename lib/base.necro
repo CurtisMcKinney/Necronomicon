@@ -163,7 +163,6 @@ class Ring a => EuclideanRing a where
 
 class (EuclideanRing a, DivisionRing a) => Field a where
 
--- TODO: Look at abs and signum!
 class (Eq a, Ring a) => Num a where
   abs    :: a -> a
   signum :: a -> a
@@ -534,10 +533,8 @@ reduce x y =
   where
     d = gcd x y
 
--- TODO: abs and signum are currently broken
 rational :: Int -> Int -> Rational
-rational x y = reduce x y
--- rational x y = reduce (x * signum y) (abs y)
+rational x y = reduce (x * signum y) (abs y)
 
 numerator :: Rational -> Int
 numerator (Rational (#n, _#)) = n
@@ -576,7 +573,7 @@ instance EuclideanRing Rational where
       Rational (#xn, xd#) ->
         case y of
           Rational (#yn, yd#) ->
-            rational (xn * yd) (xd * yn)
+            (xn * yd) // (xd * yn)
 
 -- TODO: look at this + abs + signum
 instance DivisionRing Rational where
@@ -584,8 +581,8 @@ instance DivisionRing Rational where
     case x of
       Rational (#n, d#) -> if n == 0 then Rational (#0, 1#) else
         if n < 0
-          then rational d n
-          else rational d n
+          then d // n
+          else d // n
 
 instance Field Rational where
 

@@ -142,15 +142,21 @@ typedef struct NecroLLVMSymbol
     LLVMBasicBlockRef   block;
 } NecroLLVMSymbol;
 
+NecroLLVMSymbol* necro_llvm_symbol_create(NecroPagedArena* arena, LLVMTypeRef type, LLVMValueRef value, LLVMBasicBlockRef block, NecroMachAstSymbol* mach_symbol)
+{
+    NecroLLVMSymbol* llvm_symbol = necro_paged_arena_alloc(arena, sizeof(NecroLLVMSymbol));
+    llvm_symbol->mach_symbol     = mach_symbol;
+    llvm_symbol->type            = type;
+    llvm_symbol->value           = value;
+    llvm_symbol->block           = block;
+    return llvm_symbol;
+}
+
 NecroLLVMSymbol* necro_llvm_symbol_get(NecroPagedArena* arena, NecroMachAstSymbol* mach_symbol)
 {
     if (mach_symbol->codegen_symbol == NULL)
     {
-        NecroLLVMSymbol* llvm_symbol = necro_paged_arena_alloc(arena, sizeof(NecroLLVMSymbol));
-        llvm_symbol->mach_symbol     = mach_symbol;
-        llvm_symbol->type            = NULL;
-        llvm_symbol->value           = NULL;
-        llvm_symbol->block           = NULL;
+        NecroLLVMSymbol* llvm_symbol = necro_llvm_symbol_create(arena, NULL, NULL, NULL, mach_symbol);
         mach_symbol->codegen_symbol  = (void*) llvm_symbol;
     }
     return (NecroLLVMSymbol*) mach_symbol->codegen_symbol;
@@ -187,6 +193,8 @@ NecroLLVM necro_llvm_empty()
         .engine                  = NULL,
         .should_optimize         = false,
         .delayed_phi_node_values = necro_empty_delayed_phi_node_value_vector(),
+        .copysign_float          = NULL,
+        .copysign_f64            = NULL,
     };
 }
 
@@ -326,6 +334,8 @@ NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgr
         .program                 = program,
         .delayed_phi_node_values = necro_create_delayed_phi_node_value_vector(),
         .opt_level               = opt_level,
+        .copysign_float          = NULL,
+        .copysign_f64            = NULL,
     };
 }
 
@@ -691,9 +701,9 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
     {
         LLVMTypeRef arg_type = necro_llvm_type_from_mach_type(context, ast->uop.param->necro_machine_type);
         if (arg_type == LLVMInt32TypeInContext(context->context))
-            value = LLVMConstInt(LLVMInt32TypeInContext(context->context), 0, false);
+            value = LLVMConstInt(LLVMInt32TypeInContext(context->context), 1, false);
         else if (arg_type == LLVMInt64TypeInContext(context->context))
-            value = LLVMConstInt(LLVMInt64TypeInContext(context->context), 0, false);
+            value = LLVMConstInt(LLVMInt64TypeInContext(context->context), 1, false);
         else
             assert(false && "Only 32-bit and 64-bit Ints supported");
         break;
@@ -702,14 +712,50 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
     {
         LLVMTypeRef  arg_type = necro_llvm_type_from_mach_type(context, ast->uop.param->necro_machine_type);
         if (arg_type == LLVMInt32TypeInContext(context->context))
-            value = LLVMBuildLShr(context->builder, param, LLVMConstInt(LLVMInt32TypeInContext(context->context), 31, false), "sgn");
+        {
+            value = LLVMBuildAnd(context->builder, param, LLVMConstInt(LLVMInt32TypeInContext(context->context), (uint32_t) 0x80000000, false), "sign");
+            value = LLVMBuildOr(context->builder, value, LLVMConstInt(LLVMInt32TypeInContext(context->context), 1, false), "sign_value");
+        }
         else if (arg_type == LLVMInt64TypeInContext(context->context))
-            value = LLVMBuildLShr(context->builder, param, LLVMConstInt(LLVMInt32TypeInContext(context->context), 63, false), "sgn");
+        {
+            value = LLVMBuildAnd(context->builder, param, LLVMConstInt(LLVMInt64TypeInContext(context->context), (uint64_t) 0x8000000000000000, false), "sign");
+            value = LLVMBuildOr(context->builder, value, LLVMConstInt(LLVMInt64TypeInContext(context->context), 1, false), "sign_value");
+        }
         else
+        {
             assert(false && "Only 32-bit and 64-bit Ints supported");
+        }
         break;
     }
-    case NECRO_PRIMOP_UOP_FSGN: value = param; break; // TODO
+    case NECRO_PRIMOP_UOP_FSGN:
+    {
+        LLVMTypeRef arg_type = necro_llvm_type_from_mach_type(context, ast->uop.param->necro_machine_type);
+        if (arg_type == LLVMFloatTypeInContext(context->context))
+        {
+            if (context->copysign_float == NULL)
+            {
+                LLVMTypeRef copysign_float_type = LLVMFunctionType(LLVMFloatTypeInContext(context->context), (LLVMTypeRef[]) { LLVMFloatTypeInContext(context->context), LLVMFloatTypeInContext(context->context) }, 2, false);
+                context->copysign_float         = necro_llvm_symbol_create(&context->arena, copysign_float_type, LLVMAddFunction(context->mod, "llvm.copysign.f32", copysign_float_type), NULL, NULL);
+            }
+            value = LLVMBuildCall(context->builder, context->copysign_float->value, (LLVMValueRef[]) { LLVMConstReal(LLVMFloatTypeInContext(context->context), 1), param }, 2, "sign_value");
+            LLVMSetInstructionCallConv(value, LLVMFastCallConv);
+        }
+        else if (arg_type == LLVMDoubleTypeInContext(context->context))
+        {
+            if (context->copysign_f64 == NULL)
+            {
+                LLVMTypeRef copysign_f64_type = LLVMFunctionType(LLVMDoubleTypeInContext(context->context), (LLVMTypeRef[]) { LLVMDoubleTypeInContext(context->context), LLVMDoubleTypeInContext(context->context) }, 2, false);
+                context->copysign_f64         = necro_llvm_symbol_create(&context->arena, copysign_f64_type, LLVMAddFunction(context->mod, "llvm.copysign.f64", copysign_f64_type), NULL, NULL);
+            }
+            value = LLVMBuildCall(context->builder, context->copysign_f64->value, (LLVMValueRef[]) { LLVMConstReal(LLVMDoubleTypeInContext(context->context), 1), param }, 2, "sign_value");
+            LLVMSetInstructionCallConv(value, LLVMFastCallConv);
+        }
+        else
+        {
+            assert(false && "Only 32-bit and 64-bit Floats supported");
+        }
+        value = param; break;
+    }
 
     case NECRO_PRIMOP_UOP_ITOU: value = param; break; // TODO: Different bit sizes?
     case NECRO_PRIMOP_UOP_ITOF: value = LLVMBuildSIToFP(context->builder, param, result_type, name); break;
@@ -1110,6 +1156,7 @@ void necro_llvm_set_intrinsic_binop_type_and_value(NecroLLVM* context, NecroMach
     else
         *fn_value = necro_llvm_intrinsic_get(context, symbol_64->core_ast_symbol->mach_symbol, name_64, *fn_type);
 }
+
 
 LLVMValueRef necro_llvm_codegen_call_intrinsic(NecroLLVM* context, NecroMachAst* ast)
 {

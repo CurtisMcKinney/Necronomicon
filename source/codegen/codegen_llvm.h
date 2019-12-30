@@ -18,6 +18,8 @@
 #include "intern.h"
 #include "mach_ast.h"
 
+struct NecroLLVMSymbol;
+
 ///////////////////////////////////////////////////////
 // NecroLLVM
 ///////////////////////////////////////////////////////
@@ -49,6 +51,8 @@ typedef struct NecroLLVM
 
     bool                           should_optimize;
     NecroDelayedPhiNodeValueVector delayed_phi_node_values;
+    struct NecroLLVMSymbol*        copysign_float;
+    struct NecroLLVMSymbol*        copysign_f64;
 } NecroLLVM;
 
 NecroLLVM necro_llvm_empty();

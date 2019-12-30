@@ -47,7 +47,12 @@ void necro_parse_ast_test(const char* test_name, const char* str, NecroIntern* i
     unwrap_or_print_error(void, necro_lex(info, &intern, str, strlen(str), &tokens), str, "Test");
     unwrap_or_print_error(void, necro_parse(info, &intern, &tokens, necro_intern_string(&intern, "Test"), &ast), str, "Test");
 
-    // necro_parse_ast_print(&ast);
+    /* puts("//////////////////////////////////////////////////////////////////"); */
+    /* printf("Parsed string: %s\n", str); */
+    /* puts("AST 1:"); */
+    /* necro_parse_ast_print(&ast); */
+    /* puts("AST 2:"); */
+    /* necro_parse_ast_print(ast2); */
 
     // Compare
     necro_parse_ast_assert_eq(&ast, ast2);
@@ -317,6 +322,149 @@ void necro_parse_test()
                     null_local_ptr),
                 null_local_ptr);
         necro_parse_ast_test("Let", "letX = let x = Nothing in x\n", &intern, &ast);
+    }
+
+    {
+        NecroIntern        intern = necro_intern_create();
+        NecroParseAstArena ast    = necro_parse_ast_arena_create(100 * sizeof(NecroParseAst));
+        ast.root                  =
+            necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
+                necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "letX"),
+                    necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
+
+                        necro_parse_ast_create_let(&ast.arena, zero_loc, zero_loc,
+                            necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "x"), NECRO_VAR_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
+                            necro_parse_ast_create_decl(&ast.arena, zero_loc, zero_loc,
+                                necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "x"),
+                                    necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc, necro_parse_ast_create_conid(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "Nothing"), NECRO_CON_VAR), null_local_ptr),
+                                    null_local_ptr),
+                                null_local_ptr)),
+
+                        null_local_ptr),
+                    null_local_ptr),
+                null_local_ptr);
+
+
+        const char* test_code = ""
+            "letX =\n"
+            "   let x = Nothing in x\n";
+        necro_parse_ast_test("Multi-line Let", test_code, &intern, &ast);
+    }
+
+
+    {
+        NecroIntern        intern = necro_intern_create();
+        NecroParseAstArena ast    = necro_parse_ast_arena_create(100 * sizeof(NecroParseAst));
+        ast.root                  =
+            necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
+                necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "letX"),
+                    necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
+
+                        necro_parse_ast_create_let(&ast.arena, zero_loc, zero_loc,
+                            necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "x"), NECRO_VAR_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
+                            necro_parse_ast_create_decl(&ast.arena, zero_loc, zero_loc,
+                                necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "x"),
+                                    necro_parse_ast_create_rhs(
+                                        &ast.arena, 
+                                        zero_loc, 
+                                        zero_loc, 
+                                        necro_parse_ast_create_let(&ast.arena, zero_loc, zero_loc,
+                                            necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "y"), NECRO_VAR_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
+                                            necro_parse_ast_create_decl(&ast.arena, zero_loc, zero_loc,
+                                                necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "y"),
+                                                    necro_parse_ast_create_rhs(
+                                                        &ast.arena, 
+                                                        zero_loc, 
+                                                        zero_loc, 
+                                                        necro_parse_ast_create_conid(
+                                                            &ast.arena, 
+                                                            zero_loc, 
+                                                            zero_loc, 
+                                                            necro_intern_string(&intern, "Nothing"), 
+                                                            NECRO_CON_VAR
+                                                        ), 
+                                                        null_local_ptr
+                                                    ),
+                                                    null_local_ptr
+                                                ),
+                                                null_local_ptr
+                                            )
+                                        ),
+                                        null_local_ptr
+                                    ),
+                                    null_local_ptr
+                                ),
+                                null_local_ptr
+                            )
+                        ),
+
+                        null_local_ptr
+                    ),
+                    null_local_ptr
+                ),
+                null_local_ptr
+            );
+        necro_parse_ast_test("Nested Let", "letX = let x = let y = Nothing in y in x\n", &intern, &ast);
+    }
+
+    {
+        NecroIntern        intern = necro_intern_create();
+        NecroParseAstArena ast    = necro_parse_ast_arena_create(100 * sizeof(NecroParseAst));
+        ast.root                  =
+            necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
+                necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "letX"),
+                    necro_parse_ast_create_rhs(&ast.arena, zero_loc, zero_loc,
+
+                        necro_parse_ast_create_let(&ast.arena, zero_loc, zero_loc,
+                            necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "x"), NECRO_VAR_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
+                            necro_parse_ast_create_decl(&ast.arena, zero_loc, zero_loc,
+                                necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "x"),
+                                    necro_parse_ast_create_rhs(
+                                        &ast.arena, 
+                                        zero_loc, 
+                                        zero_loc, 
+                                        necro_parse_ast_create_let(&ast.arena, zero_loc, zero_loc,
+                                            necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "y"), NECRO_VAR_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
+                                            necro_parse_ast_create_decl(&ast.arena, zero_loc, zero_loc,
+                                                necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "y"),
+                                                    necro_parse_ast_create_rhs(
+                                                        &ast.arena, 
+                                                        zero_loc, 
+                                                        zero_loc, 
+                                                        necro_parse_ast_create_conid(
+                                                            &ast.arena, 
+                                                            zero_loc, 
+                                                            zero_loc, 
+                                                            necro_intern_string(&intern, "Nothing"), 
+                                                            NECRO_CON_VAR
+                                                        ), 
+                                                        null_local_ptr
+                                                    ),
+                                                    null_local_ptr
+                                                ),
+                                                null_local_ptr
+                                            )
+                                        ),
+                                        null_local_ptr
+                                    ),
+                                    null_local_ptr
+                                ),
+                                null_local_ptr
+                            )
+                        ),
+
+                        null_local_ptr
+                    ),
+                    null_local_ptr
+                ),
+                null_local_ptr
+            );
+
+        const char * test_code = ""
+            "letX = \n"
+            "   let x = let y = Nothing in y\n"
+            "   in x\n";
+        necro_parse_ast_test("Nested Multi-line Let", test_code, &intern, &ast);
     }
 
     {
@@ -1106,23 +1254,29 @@ void necro_parse_test()
         necro_parse_ast_test("Unboxed Tuple test", "unboxedTuple = (#3, 2, 1#)\n", &intern, &ast);
     }
 
-    // TODO: These are all broken right now....
-    // {
-    //     puts("Parse {{{ child process parse_test:  starting...");
-    //     assert(NECRO_COMPILE_IN_CHILD_PROCESS("parse_test.necro", "parse") == 0);
-    //     puts("Parse }}} child process parse_test:  passed\n");
-    // }
+    /* { */
+    /*     puts("Parse {{{ child process parse_test:  starting..."); */
+    /*     assert(NECRO_COMPILE_IN_CHILD_PROCESS("parse_test.necro", "parse") == 0); */
+    /*     puts("Parse }}} child process parse_test:  passed\n"); */
+    /* } */
+    /*  */
+    /* { */
+    /*     puts("Parse {{{ child process parseTest:  starting..."); */
+    /*     assert(NECRO_COMPILE_IN_CHILD_PROCESS("parseTest.necro", "parse") == 0); */
+    /*     puts("Parse }}} child process parseTest:  passed\n"); */
+    /* } */
+    /*  */
+    /* { */
+    /*     puts("Parse {{{ child process parseErrorTest:  starting..."); */
+    /*     assert(NECRO_COMPILE_IN_CHILD_PROCESS("parseErrorTest.necro", "parse") == 0); */
+    /*     puts("Parse }}} child process parseErrorTest:  passed\n"); */
+    /* } */
+    /*  */
 
-    // {
-    //     puts("Parse {{{ child process parseTest:  starting...");
-    //     assert(NECRO_COMPILE_IN_CHILD_PROCESS("parseTest.necro", "parse") == 0);
-    //     puts("Parse }}} child process parseTest:  passed\n");
-    // }
-
-    // {
-    //     puts("Parse {{{ child process parseErrorTest:  starting...");
-    //     assert(NECRO_COMPILE_IN_CHILD_PROCESS("parseErrorTest.necro", "parse") == 0);
-    //     puts("Parse }}} child process parseErrorTest:  passed\n");
-    // }
+    {
+        puts("Parse {{{ child process parse_test:  starting...");
+        assert(NECRO_COMPILE_IN_CHILD_PROCESS("parse_test_lets.necro", "parse") == 0);
+        puts("Parse }}} child process parse_test:  passed\n");
+    }
 
 }

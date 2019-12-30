@@ -405,6 +405,16 @@ bool necro_lex_comments(NecroLexer* lexer)
         code_point = necro_lex_next_char(lexer);
     }
     while (code_point != '\n' && code_point != '\0' && lexer->loc.pos < lexer->str_length);
+    necro_lex_commit(lexer);
+    NecroSourceLoc white_loc = necro_lex_gobble_up_whitespace_and_comments(lexer);
+    NecroLexToken  token     = (NecroLexToken)
+    {
+        .source_loc     = lexer->loc,
+        .end_loc        = lexer->loc,
+        .token          = NECRO_LEX_CONTROL_WHITE_MARKER,
+        .white_marker_n = white_loc.character,
+    };
+    necro_push_lex_token_vector(&lexer->tokens, &token);
     return necro_lex_commit(lexer);
 }
 
@@ -793,8 +803,11 @@ NecroResult(void) necro_lex_fixup_layout(NecroLexer* lexer)
             }
             else if (n == m && stack_pos != 0)
             {
-                NecroLexToken token = { .token = NECRO_LEX_SEMI_COLON, .source_loc = loc, .end_loc = end_loc };
-                necro_push_lex_token_vector(&lexer->layout_fixed_tokens, &token);
+                if (lexer->layout_fixed_tokens.length > 0 && lexer->layout_fixed_tokens.data[lexer->layout_fixed_tokens.length - 1].token != NECRO_LEX_SEMI_COLON)
+                {
+                    NecroLexToken token = { .token = NECRO_LEX_SEMI_COLON, .source_loc = loc, .end_loc = end_loc };
+                    necro_push_lex_token_vector(&lexer->layout_fixed_tokens, &token);
+                }
                 pos++;
             }
             else if (n < m)

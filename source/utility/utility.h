@@ -25,6 +25,7 @@
 
 static inline void necro_exit(int code)
 {
+    printf("NECRO_EXIT: %i\n", code);
     MEM_CHECK();
     exit(code);
 }

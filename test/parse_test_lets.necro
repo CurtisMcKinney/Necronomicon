@@ -1,0 +1,83 @@
+letX = let x = Nothing in x
+
+letY = let y = Nothing
+    in y
+
+letZ = let w = let z = Nothing in z
+    in w
+
+letA = let a = 1
+           b = 2
+    in a + b
+
+letA2 = 
+    let 
+        a = 1
+        b = 2
+    in a + b
+
+letComment =
+    let
+        a = 1 -- a comment
+        b = 2
+    in
+        a + b
+
+
+letsPlay =
+    let
+        a =
+            let
+                b = 1 -- test
+                c = 2
+            in
+                b + c
+    in
+        a * 2
+
+fftSimple :: Array BlockSize F64 -> Array (NatMul BlockSize (NatMax k 1)) Complex
+fftSimple a = freezeArray <| snd' <|
+    loop (#i, a0#) = (#0, bitRevFFTArray a#) while i < log2n do
+      let
+        wm              = 0 -- Compute somehow
+        aout1 = a0
+      in
+        (#i + 1, aout1#)
+  where
+    log2n = 1 -- Compute somehow
+
+letABC = 
+    let
+        a = 1
+        b = 2
+        c = 3
+    in a + b + c
+
+
+fftChannelParseTest :: Array BlockSize F64 -> Array (NatMul BlockSize (NatMax k 1)) Complex
+fftChannelParseTest a =
+  freezeArray <| snd' <|
+    loop (#i, a0#) = (#0, bitRevFFTArray a#) while i < log2n do
+      let
+        m1              = bitShiftLeft  1  i
+        m2              = bitShiftRight m1 1
+        wm              = 0 -- Compute somehow
+        (#_, _, aout1#) =
+          loop (#j, w, a1#) = (#0, 1, a0#) while j < m2 do
+            let
+              (#_, aout0#) =
+                loop (#k, a2#) = (#j, a1#) while k < audioBlockSize do
+                  let
+                    ki        = indexToUInt k
+                    km2i      = indexToUInt (k + m2)
+                    (#t, a1#) = readArrayU km2i a0
+                    (#u, a2#) = readArrayU ki a1
+                    t'        = t * w
+                  in
+                    (#k + 1, writeArray km2i (u - t') (writeArray ki (u + t') a2)#)
+            in
+              (#j + 1, w * wm, aout0#)
+      in
+        (#i + 1, aout1#)
+  where
+    log2n = 1 -- Compute somehow

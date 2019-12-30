@@ -36,9 +36,9 @@ typedef enum
 } NECRO_RUNTIME_STATE;
 
 NECRO_RUNTIME_STATE necro_runtime_state = NECRO_RUNTIME_UNINITIALIZED;
-
-int mouse_x = 0;
-int mouse_y = 0;
+int                 mouse_x             = 0;
+int                 mouse_y             = 0;
+bool                is_test_true        = true;
 
 extern DLLEXPORT int necro_runtime_get_mouse_x(unsigned int _dummy)
 {
@@ -112,12 +112,20 @@ extern DLLEXPORT void necro_runtime_error_exit(uint32_t error_code)
     necro_exit(error_code);
 }
 
+extern DLLEXPORT unsigned int necro_runtime_test_assertion(unsigned int is_true, unsigned int world)
+{
+    if (necro_runtime_state != NECRO_RUNTIME_RUNNING)
+        return world;
+    is_test_true        = is_true;
+    necro_runtime_state = NECRO_RUNTIME_IS_DONE;
+    return world;
+}
+
 // TODO: Different Allocators based on size: Slab Allocator => Buddy => OS
 extern DLLEXPORT uint8_t* necro_runtime_alloc(unsigned int size)
 {
     return malloc(size);
 }
-
 
 extern DLLEXPORT uint8_t* necro_runtime_realloc(uint8_t* ptr, unsigned int size)
 {
@@ -128,36 +136,6 @@ extern DLLEXPORT void necro_runtime_free(uint8_t* data)
 {
     free(data);
 }
-
-// Quick and easy binary gcd algorithm
-extern DLLEXPORT int64_t necro_runtime_gcd(int64_t x, int64_t y)
-{
-    uint64_t a = x;
-    uint64_t b = x;
-    if (x == 0)
-        return y;
-    uint64_t d = 0;
-    while (((a | b) & 1) == 0) // a and b are even
-    {
-        a >>= 1;
-        b >>= 1;
-        d++;
-    }
-    while (a != b)
-    {
-        if ((a & 1) == 0) // a is even
-            a >>= 1;
-        else if ((b & 1) == 0) // b is even
-            b >>= 1;
-        else if (a > b)
-            a = (a - b) >> 1;
-        else
-            b = (b - a) >> 1;
-    }
-    int64_t gcd = a << d;
-    return (x < 0) ? -gcd : gcd;
-}
-
 
 ///////////////////////////////////////////////////////
 // Audio

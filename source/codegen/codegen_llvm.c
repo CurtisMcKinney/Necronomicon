@@ -1414,7 +1414,6 @@ void necro_llvm_jit(NecroCompileInfo info, NecroLLVM* context)
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_init_runtime);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_update_runtime);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_error_exit);
-    // necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_sleep);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_print);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_debug_print);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_print_int);
@@ -1429,6 +1428,7 @@ void necro_llvm_jit(NecroCompileInfo info, NecroLLVM* context)
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_free);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_out_audio_block);
     necro_llvm_map_runtime_symbol(context, context->engine, context->base->floor->core_ast_symbol->mach_symbol);
+    necro_llvm_map_runtime_symbol(context, context->engine, context->base->test_assertion->core_ast_symbol->mach_symbol);
 
 #ifdef _WIN32
     system("cls");
@@ -3312,8 +3312,6 @@ void necro_llvm_test_jit()
         necro_llvm_jit_string(test_name, test_source);
     }
 
-*/
-
     {
         const char* test_name   = "Print Seq 5";
         const char* test_source = ""
@@ -3321,6 +3319,17 @@ void necro_llvm_test_jit()
             "twoAgainstThree = fromInt mouseX <@ [<0 1> <4 _ 6>]\n"
             "main :: *World -> *World\n"
             "main w = print twoAgainstThree w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
+
+*/
+
+    // TODO: Set up testAssertion jit tests!
+    {
+        const char* test_name   = "JIT Assertion 1";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            "main w = testAssertion (2 + 2 == 4) w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 

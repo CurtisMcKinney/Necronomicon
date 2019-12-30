@@ -1465,6 +1465,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.ptr_type->is_primitive       = true;
 
     // Runtime Functions/Values
+    necro_base_setup_primitive(scoped_symtable, intern, "testAssertion",    &base.test_assertion,    NECRO_PRIMOP_PRIM_FN);
     necro_base_setup_primitive(scoped_symtable, intern, "getMouseX",        &base.mouse_x_fn,        NECRO_PRIMOP_PRIM_FN);
     necro_base_setup_primitive(scoped_symtable, intern, "getMouseY",        &base.mouse_y_fn,        NECRO_PRIMOP_PRIM_FN);
     necro_base_setup_primitive(scoped_symtable, intern, "sampleRate",       &base.sample_rate,       NECRO_PRIMOP_PRIM_VAL);

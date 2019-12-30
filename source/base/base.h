@@ -130,6 +130,7 @@ typedef struct NecroBase
     NecroAstSymbol* interleave_tick;
 
     // Runtime functions
+    NecroAstSymbol* test_assertion;
     NecroAstSymbol* mouse_x_fn;
     NecroAstSymbol* mouse_y_fn;
     NecroAstSymbol* ptr_malloc;

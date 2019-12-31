@@ -814,7 +814,8 @@ void necro_core_transform_to_mach_2_app(NecroMachProgram* program, NecroCoreAst*
             // Double buffer deep copy state for recursive values
             if (fn_value->machine_def.symbol->is_deep_copy_fn && !outer->machine_def.symbol->is_deep_copy_fn)
             {
-                NecroMachAst* const_init_value    = necro_mach_value_create_word_uint(program, 0);
+                // NecroMachAst* const_init_value    = necro_mach_value_create_word_uint(program, 0);
+                NecroMachAst* const_init_value    = necro_mach_value_create_uint32(program, 0);
                 // core_ast->persistent_slot         = necro_mach_add_member_full(program, &outer->machine_def, program->type_cache.word_uint_type, NULL, const_init_value).slot_num; // TODO: Initialize double_buffer_flag! How?
                 core_ast->persistent_slot         = necro_mach_add_member_full(program, &outer->machine_def, program->type_cache.uint32_type, NULL, const_init_value).slot_num; // TODO: Initialize double_buffer_flag! How?
                 NecroMachType* double_buffer_type = necro_mach_type_create_array(&program->arena, fn_value->necro_machine_type, 2);

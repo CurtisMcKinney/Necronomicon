@@ -413,7 +413,7 @@ LLVMTypeRef necro_llvm_type_from_mach_type(NecroLLVM* context, NecroMachType* ma
     case NECRO_MACH_TYPE_F64:    return LLVMDoubleTypeInContext(context->context);
     case NECRO_MACH_TYPE_VOID:   return LLVMVoidTypeInContext(context->context);
     case NECRO_MACH_TYPE_PTR:    return LLVMPointerType(necro_llvm_type_from_mach_type(context, mach_type->ptr_type.element_type), 0);
-    case NECRO_MACH_TYPE_ARRAY:  return LLVMArrayType(necro_llvm_type_from_mach_type(context, mach_type->array_type.element_type), mach_type->array_type.element_count);
+    case NECRO_MACH_TYPE_ARRAY:  return LLVMArrayType(necro_llvm_type_from_mach_type(context, mach_type->array_type.element_type), (unsigned int) mach_type->array_type.element_count);
     case NECRO_MACH_TYPE_STRUCT:
     {
         NecroLLVMSymbol* llvm_symbol = necro_llvm_symbol_get(&context->arena, mach_type->struct_type.symbol);
@@ -426,7 +426,7 @@ LLVMTypeRef necro_llvm_type_from_mach_type(NecroLLVM* context, NecroMachType* ma
             {
                 elements[i] = necro_llvm_type_from_mach_type(context, mach_type->struct_type.members[i]);
             }
-            LLVMStructSetBody(struct_type, elements, mach_type->struct_type.num_members, false);
+            LLVMStructSetBody(struct_type, elements, (unsigned int) mach_type->struct_type.num_members, false);
         }
         return llvm_symbol->type;
     }
@@ -438,7 +438,7 @@ LLVMTypeRef necro_llvm_type_from_mach_type(NecroLLVM* context, NecroMachType* ma
         {
             parameters[i] = necro_llvm_type_from_mach_type(context, mach_type->fn_type.parameters[i]);
         }
-        return LLVMFunctionType(return_type, parameters, mach_type->fn_type.num_parameters, false);
+        return LLVMFunctionType(return_type, parameters, (unsigned int) mach_type->fn_type.num_parameters, false);
     }
     default:
         assert(false);
@@ -507,7 +507,7 @@ LLVMValueRef necro_llvm_codegen_value(NecroLLVM* context, NecroMachAst* ast)
     case NECRO_MACH_VALUE_UNDEFINED:        return LLVMGetUndef(necro_llvm_type_from_mach_type(context, ast->necro_machine_type));
     case NECRO_MACH_VALUE_GLOBAL:           return necro_llvm_symbol_get(&context->arena, ast->value.global_symbol)->value;
     case NECRO_MACH_VALUE_REG:              return necro_llvm_symbol_get(&context->arena, ast->value.reg_symbol)->value;
-    case NECRO_MACH_VALUE_PARAM:            return LLVMGetParam(necro_llvm_symbol_get(&context->arena, ast->value.param_reg.fn_symbol)->value, ast->value.param_reg.param_num);
+    case NECRO_MACH_VALUE_PARAM:            return LLVMGetParam(necro_llvm_symbol_get(&context->arena, ast->value.param_reg.fn_symbol)->value, (unsigned int) ast->value.param_reg.param_num);
     case NECRO_MACH_VALUE_UINT1_LITERAL:    return LLVMConstInt(LLVMInt1TypeInContext(context->context),  ast->value.uint1_literal,  false);
     case NECRO_MACH_VALUE_UINT8_LITERAL:    return LLVMConstInt(LLVMInt8TypeInContext(context->context),  ast->value.uint8_literal,  false);
     case NECRO_MACH_VALUE_UINT16_LITERAL:   return LLVMConstInt(LLVMInt16TypeInContext(context->context), ast->value.uint16_literal, false);
@@ -575,7 +575,7 @@ LLVMValueRef necro_llvm_codegen_gep(NecroLLVM* context, NecroMachAst* ast)
         indices[i]          = necro_llvm_codegen_value(context, index);
         assert(indices[i] != NULL);
     }
-    LLVMValueRef     value  = LLVMBuildGEP(context->builder, ptr, indices, ast->gep.num_indices, name);
+    LLVMValueRef     value  = LLVMBuildGEP(context->builder, ptr, indices, (unsigned int) ast->gep.num_indices, name);
     NecroLLVMSymbol* symbol = necro_llvm_symbol_get(&context->arena, ast->gep.dest_value->value.reg_symbol);
     symbol->type            = necro_llvm_type_from_mach_type(context, ast->gep.dest_value->necro_machine_type);
     symbol->value           = value;
@@ -592,7 +592,7 @@ LLVMValueRef necro_llvm_codegen_insert_value(NecroLLVM* context, NecroMachAst* a
     const char*      name            = ast->insert_value.dest_value->value.reg_symbol->name->str;
     LLVMValueRef     aggregate_value = necro_llvm_codegen_value(context, ast->insert_value.aggregate_value);
     LLVMValueRef     inserted_value  = necro_llvm_codegen_value(context, ast->insert_value.inserted_value);
-    LLVMValueRef     value           = LLVMBuildInsertValue(context->builder, aggregate_value, inserted_value, ast->insert_value.index, name);
+    LLVMValueRef     value           = LLVMBuildInsertValue(context->builder, aggregate_value, inserted_value, (unsigned int) ast->insert_value.index, name);
     NecroLLVMSymbol* symbol          = necro_llvm_symbol_get(&context->arena, ast->insert_value.dest_value->value.reg_symbol);
     symbol->type                     = necro_llvm_type_from_mach_type(context, ast->insert_value.dest_value->necro_machine_type);
     symbol->value                    = value;
@@ -607,7 +607,7 @@ LLVMValueRef necro_llvm_codegen_extract_value(NecroLLVM* context, NecroMachAst* 
     assert(ast->type == NECRO_MACH_EXTRACT_VALUE);
     const char*      name            = ast->extract_value.dest_value->value.reg_symbol->name->str;
     LLVMValueRef     aggregate_value = necro_llvm_codegen_value(context, ast->extract_value.aggregate_value);
-    LLVMValueRef     value           = LLVMBuildExtractValue(context->builder, aggregate_value, ast->extract_value.index, name);
+    LLVMValueRef     value           = LLVMBuildExtractValue(context->builder, aggregate_value, (unsigned int) ast->extract_value.index, name);
     NecroLLVMSymbol* symbol          = necro_llvm_symbol_get(&context->arena, ast->extract_value.dest_value->value.reg_symbol);
     symbol->type                     = necro_llvm_type_from_mach_type(context, ast->extract_value.dest_value->necro_machine_type);
     symbol->value                    = value;
@@ -1000,7 +1000,10 @@ LLVMValueRef necro_llvm_codegen_terminator(NecroLLVM* context, NecroMachTerminat
         choices = term->switch_terminator.values;
         while (choices != NULL)
         {
-            LLVMValueRef      choice_val = LLVMConstInt(LLVMInt32TypeInContext(context->context), choices->data.value, false);
+            LLVMValueRef      choice_val =
+                (LLVMTypeOf(cond_value) == LLVMInt32TypeInContext(context->context)) ?
+                LLVMConstInt(LLVMInt32TypeInContext(context->context), choices->data.value, false) :
+                LLVMConstInt(LLVMInt64TypeInContext(context->context), choices->data.value, false);
             LLVMBasicBlockRef block      = necro_llvm_symbol_get(&context->arena, choices->data.block->block.symbol)->block;
             LLVMAddCase(switch_value, choice_val, block);
             choices = choices->next;
@@ -1225,7 +1228,7 @@ LLVMValueRef necro_llvm_codegen_call_intrinsic(NecroLLVM* context, NecroMachAst*
     {
         params[i] = necro_llvm_codegen_value(context, ast->call_intrinsic.parameters[i]);
     }
-    LLVMValueRef result = LLVMBuildCall(context->builder, fn_value, params, num_params, result_name);
+    LLVMValueRef result = LLVMBuildCall(context->builder, fn_value, params, (unsigned int) num_params, result_name);
     LLVMSetInstructionCallConv(result, LLVMGetFunctionCallConv(fn_value));
     // LLVMSetInstructionCallConv(result, LLVMFastCallConv);
     if (!is_void)

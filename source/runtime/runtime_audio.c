@@ -71,7 +71,7 @@ NecroDownsample* necro_downsample_create(const double freq_cutoff, const double 
     // const double beta = 3.0;
     for (size_t i = 0; i < NECRO_DOWNSAMPLE_FILTER_NUM_TAPS; ++i)
     {
-        double ri = i + 1;
+        double ri = (double) i + 1;
         // Hanning
         // downsample->coefficients[i] *= 0.5 - 0.5 * cos(2.0 * M_PI * ri / dm);
         // Hamming

@@ -1004,7 +1004,7 @@ NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroConstraintEn
     case NECRO_TYPE_APP:
     {
         int32_t    app_count    = 0;
-        int32_t    arg_count    = necro_type_list_count(type1->con.args);
+        int32_t    arg_count    = (int32_t) necro_type_list_count(type1->con.args);
         NecroType* curr_app_arg = type2;
         while (curr_app_arg->type == NECRO_TYPE_APP)
         {

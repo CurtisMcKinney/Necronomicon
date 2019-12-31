@@ -511,7 +511,7 @@ void necro_core_lambda_lift_bind(NecroLambdaLift* ll, NecroCoreAst* ast)
     ast->bind.ast_symbol->free_vars = free_vars;
     NecroType*      f_ownership     = ast->bind.ast_symbol->type->ownership;
     // Add Lambdas, starting from end
-    for (int32_t i = free_vars->size - 1; i >= 0; i--)
+    for (size_t i = free_vars->size - 1; i >= 0; i--)
     {
         NecroCoreAstSymbol* ast_symbol = free_vars->data[i].renamed_ast_symbol;
         if (ast_symbol == NULL)

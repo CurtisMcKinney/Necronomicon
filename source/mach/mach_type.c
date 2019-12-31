@@ -851,10 +851,10 @@ void necro_mach_ast_type_check_gep(NecroMachProgram* program, NecroMachAst* ast)
             NecroMachAst* index_ast = ast->gep.indices[i];
             necro_mach_ast_type_check(program, index_ast);
             assert(index_ast->type == NECRO_MACH_VALUE);
-            if (program->word_size == NECRO_WORD_4_BYTES)
+            // if (program->word_size == NECRO_WORD_4_BYTES)
                 assert(index_ast->value.value_type == NECRO_MACH_VALUE_UINT32_LITERAL);
-            else
-                assert(index_ast->value.value_type == NECRO_MACH_VALUE_UINT64_LITERAL);
+            // else
+            //     assert(index_ast->value.value_type == NECRO_MACH_VALUE_UINT64_LITERAL);
             const size_t index = index_ast->value.uint32_literal;
             assert(index < (uint32_t) necro_machine_type->struct_type.num_members);
             necro_machine_type = necro_machine_type->struct_type.members[index];

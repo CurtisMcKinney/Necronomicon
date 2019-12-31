@@ -398,7 +398,7 @@ NecroMachAst* necro_mach_build_nalloc(NecroMachProgram* program, NecroMachAst* f
     return data_ptr;
 }
 
-NecroMachAst* necro_mach_build_gep(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* source_value, uint32_t* a_indices, size_t num_indices, const char* dest_name)
+NecroMachAst* necro_mach_build_gep(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* source_value, size_t* a_indices, size_t num_indices, const char* dest_name)
 {
     assert(program != NULL);
     assert(fn_def != NULL);
@@ -406,7 +406,8 @@ NecroMachAst* necro_mach_build_gep(NecroMachProgram* program, NecroMachAst* fn_d
     assert(source_value->type == NECRO_MACH_VALUE);
     NecroMachAst** indices = necro_paged_arena_alloc(&program->arena, num_indices * sizeof(NecroMachAst*));
     for (size_t i = 0; i < num_indices; ++i)
-        indices[i] = necro_mach_value_create_word_uint(program, a_indices[i]);
+        indices[i] = necro_mach_value_create_uint32(program, (uint32_t) a_indices[i]);
+        // indices[i] = necro_mach_value_create_word_uint(program, a_indices[i]);
     // type check gep
     NecroMachType* necro_machine_type = source_value->necro_machine_type;
     for (size_t i = 0; i < num_indices; ++i)
@@ -414,7 +415,7 @@ NecroMachAst* necro_mach_build_gep(NecroMachProgram* program, NecroMachAst* fn_d
         if (necro_machine_type->type == NECRO_MACH_TYPE_STRUCT)
         {
             const size_t index = a_indices[i];
-            assert(index < (uint32_t) necro_machine_type->struct_type.num_members);
+            assert(index < necro_machine_type->struct_type.num_members);
             necro_machine_type = necro_machine_type->struct_type.members[index];
         }
         else if (necro_machine_type->type == NECRO_MACH_TYPE_ARRAY)

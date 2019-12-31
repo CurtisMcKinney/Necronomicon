@@ -584,7 +584,7 @@ NecroMachAst* necro_mach_block_get_current(NecroMachAst* fn_def);
 //--------------------
 NecroMachAst* necro_mach_build_nalloc(NecroMachProgram* program, NecroMachAst* fn_def, struct NecroMachType* type);
 // NecroMachAst* necro_mach_build_alloca(NecroMachProgram* program, NecroMachAst* fn_def, size_t num_slots);
-NecroMachAst* necro_mach_build_gep(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* source_value, uint32_t* a_indices, size_t num_indices, const char* dest_name);
+NecroMachAst* necro_mach_build_gep(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* source_value, size_t* a_indices, size_t num_indices, const char* dest_name);
 NecroMachAst* necro_mach_build_insert_value(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* aggregate_value, NecroMachAst* inserted_value, size_t index, const char* dest_name);
 NecroMachAst* necro_mach_build_extract_value(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* aggregate_value, size_t index, const char* dest_name);
 NecroMachAst* necro_mach_build_non_const_gep(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* source_value, NecroMachAst** a_indices, size_t num_indices, const char* dest_name, struct NecroMachType* result_type);

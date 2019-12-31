@@ -144,7 +144,7 @@ void necro_core_transform_to_mach_1_data_con_constructor(NecroMachProgram* progr
     const size_t   slots_used = arg_count + 1;
     assert(slots_used <= UINT32_MAX);
     NecroMachAst*  data_ptr   = necro_mach_value_get_state_ptr(mk_fn_def);
-    NecroMachAst*  tag_ptr    = necro_mach_build_gep(program, mk_fn_def, data_ptr, (uint32_t[]) { 0, 0 }, 2, "tag");
+    NecroMachAst*  tag_ptr    = necro_mach_build_gep(program, mk_fn_def, data_ptr, (size_t[]) { 0, 0 }, 2, "tag");
     necro_mach_build_store(program, mk_fn_def, necro_mach_value_create_word_uint(program, con_number), tag_ptr);
 
     //--------------
@@ -152,7 +152,7 @@ void necro_core_transform_to_mach_1_data_con_constructor(NecroMachProgram* progr
     for (size_t i = 0; i < arg_count; ++i)
     {
         NecroMachAst* param_reg = necro_mach_value_create_param_reg(program, mk_fn_def, i + 1);
-        NecroMachAst* slot_ptr  = necro_mach_build_gep(program, mk_fn_def, data_ptr, (uint32_t[]) { 0, i + 1 }, 2, "slot");
+        NecroMachAst* slot_ptr  = necro_mach_build_gep(program, mk_fn_def, data_ptr, (size_t[]) { 0, i + 1 }, 2, "slot");
         necro_mach_build_store(program, mk_fn_def, param_reg, slot_ptr);
     }
 
@@ -674,13 +674,14 @@ void necro_core_transform_to_mach_2_bind(NecroMachProgram* program, NecroCoreAst
                 if (slot.slot_ast != NULL && slot.slot_ast->type == NECRO_MACH_DEF && slot.slot_ast->machine_def.init_fn != NULL)
                 {
                     // FnDef init
-                    NecroMachAst* member = necro_mach_build_gep(program, machine_def->machine_def.init_fn, data_ptr, (uint32_t[]) { 0, (uint32_t) i }, 2, "member");
+                    NecroMachAst* member = necro_mach_build_gep(program, machine_def->machine_def.init_fn, data_ptr, (size_t[]) { 0, i }, 2, "member");
                     necro_mach_build_call(program, machine_def->machine_def.init_fn, slot.slot_ast->machine_def.init_fn->fn_def.fn_value, (NecroMachAst*[]) { member }, 1, NECRO_MACH_CALL_LANG, "");
                 }
                 else if (slot.const_init_value != NULL)
                 {
+                    // TODO: Look at this in 64-bit!
                     // Const value init
-                    NecroMachAst* member = necro_mach_build_gep(program, machine_def->machine_def.init_fn, data_ptr, (uint32_t[]) { 0, (uint32_t) i }, 2, "const_member");
+                    NecroMachAst* member = necro_mach_build_gep(program, machine_def->machine_def.init_fn, data_ptr, (size_t[]) { 0, i }, 2, "const_member");
                     necro_mach_build_store(program, machine_def->machine_def.init_fn, slot.const_init_value, member);
                 }
             }
@@ -814,7 +815,8 @@ void necro_core_transform_to_mach_2_app(NecroMachProgram* program, NecroCoreAst*
             if (fn_value->machine_def.symbol->is_deep_copy_fn && !outer->machine_def.symbol->is_deep_copy_fn)
             {
                 NecroMachAst* const_init_value    = necro_mach_value_create_word_uint(program, 0);
-                core_ast->persistent_slot         = necro_mach_add_member_full(program, &outer->machine_def, program->type_cache.word_uint_type, NULL, const_init_value).slot_num; // TODO: Initialize double_buffer_flag! How?
+                // core_ast->persistent_slot         = necro_mach_add_member_full(program, &outer->machine_def, program->type_cache.word_uint_type, NULL, const_init_value).slot_num; // TODO: Initialize double_buffer_flag! How?
+                core_ast->persistent_slot         = necro_mach_add_member_full(program, &outer->machine_def, program->type_cache.uint32_type, NULL, const_init_value).slot_num; // TODO: Initialize double_buffer_flag! How?
                 NecroMachType* double_buffer_type = necro_mach_type_create_array(&program->arena, fn_value->necro_machine_type, 2);
                 necro_mach_add_member(program, &outer->machine_def, double_buffer_type, NULL);
             }
@@ -977,13 +979,13 @@ NecroMachAst* necro_core_transform_to_mach_3_lit(NecroMachProgram* program, Necr
     default:                         assert(false); return NULL;
     }
     // NECRO_AST_CONSTANT_ARRAY
-    NecroMachAst*     value_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, necro_mach_value_get_state_ptr(outer->machine_def.update_fn), (uint32_t[]) { 0, core_ast->persistent_slot }, 2, "state");
+    NecroMachAst*     value_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, necro_mach_value_get_state_ptr(outer->machine_def.update_fn), (size_t[]) { 0, core_ast->persistent_slot }, 2, "state");
     NecroCoreAstList* elements  = core_ast->lit.array_literal_elements;
     size_t            i         = 0;
     while (elements != NULL)
     {
         NecroMachAst* element_value = necro_core_transform_to_mach_3_go(program, elements->data, outer);
-        NecroMachAst* element_ptr   = necro_mach_build_gep(program, outer->machine_def.update_fn, value_ptr, (uint32_t[]) { 0, i }, 2, "elem");
+        NecroMachAst* element_ptr   = necro_mach_build_gep(program, outer->machine_def.update_fn, value_ptr, (size_t[]) { 0, i }, 2, "elem");
         necro_mach_build_store(program, outer->machine_def.update_fn, element_value, element_ptr);
         elements                    = elements->next;
         i++;
@@ -1081,7 +1083,7 @@ NecroMachAst* necro_core_transform_to_mach_3_var(NecroMachProgram* program, Necr
     else if (symbol->is_constructor)// && symbol->arity == 0) // NOTE: Not checking arity as theoretically that should already be caught be lambda lifting, etc
     {
         NecroMachAst* state_ptr = necro_mach_value_get_state_ptr(outer->machine_def.update_fn);
-        NecroMachAst* value_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, state_ptr, (uint32_t[]) { 0, core_ast->persistent_slot }, 2, "value_ptr");
+        NecroMachAst* value_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, state_ptr, (size_t[]) { 0, core_ast->persistent_slot }, 2, "value_ptr");
         return necro_mach_build_call(program, outer->machine_def.update_fn, symbol->ast, (NecroMachAst*[]) { value_ptr }, 1, NECRO_MACH_CALL_LANG, "con");
     }
     //--------------------
@@ -1098,7 +1100,7 @@ NecroMachAst* necro_core_transform_to_mach_3_var(NecroMachProgram* program, Necr
         assert(core_ast->var.ast_symbol->ast != NULL);
         const size_t persistent_slot = core_ast->var.ast_symbol->ast->persistent_slot;
         assert(persistent_slot != 0xFFFFFFFF);
-        NecroMachAst* value_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, necro_mach_value_get_state_ptr(outer->machine_def.update_fn), (uint32_t[]) { 0, persistent_slot }, 2, "persistent_ptr");
+        NecroMachAst* value_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, necro_mach_value_get_state_ptr(outer->machine_def.update_fn), (size_t[]) { 0, persistent_slot }, 2, "persistent_ptr");
         return necro_mach_build_load(program, outer->machine_def.update_fn, value_ptr, "persistent_value");
     }
     //--------------------
@@ -1236,7 +1238,7 @@ NecroMachAst* necro_core_transform_to_mach_3_poly_eval(NecroMachProgram* program
     // {
     //     for (size_t i = 0; i < poly_fn_arity - 1; ++i)
     //     {
-    //         NecroMachAst* free_var_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, env, (uint32_t[]) { 0, i + 1 }, 2, "free_var_ptr");
+    //         NecroMachAst* free_var_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, env, (size_t[]) { 0, i + 1 }, 2, "free_var_ptr");
     //         args[i + is_stateful]      = necro_mach_build_load(program, outer->machine_def.update_fn, free_var_ptr, "free_var");
     //     }
     // }
@@ -1395,7 +1397,7 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         }
         else
         {
-            NecroMachAst* slot_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, con_value, (uint32_t[]) { 0, (uint32_t) (index_value->lit.int_literal + 1) }, 2, "slot_ptr");
+            NecroMachAst* slot_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, con_value, (size_t[]) { 0, (size_t) (index_value->lit.int_literal + 1) }, 2, "slot_ptr");
             return necro_mach_build_load(program, outer->machine_def.update_fn, slot_ptr, "proj");
         }
     }
@@ -1404,7 +1406,7 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     {
         assert(arg_count == 1);
         NecroMachAst* state_ptr = necro_mach_value_get_state_ptr(outer->machine_def.update_fn);
-        NecroMachAst* array_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, state_ptr, (uint32_t[]) { 0, primop_var_ast->persistent_slot }, 2, "empty_array_ptr");
+        NecroMachAst* array_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, state_ptr, (size_t[]) { 0, primop_var_ast->persistent_slot }, 2, "empty_array_ptr");
         return array_ptr;
     }
 
@@ -1422,7 +1424,7 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         NecroMachAst*  index_value   = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr2, outer);
         NecroMachAst*  array_value   = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
         NecroMachType* elem_ptr_type = necro_mach_type_create_ptr(&program->arena, array_value->necro_machine_type->ptr_type.element_type->array_type.element_type);
-        NecroMachAst*  elem_ptr      = necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, array_value, (NecroMachAst*[]) { necro_mach_value_create_word_uint(program, 0), index_value }, 2, "elem_ptr", elem_ptr_type);
+        NecroMachAst*  elem_ptr      = necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, array_value, (NecroMachAst*[]) { necro_mach_value_create_uint32(program, 0), index_value }, 2, "elem_ptr", elem_ptr_type);
         NecroMachAst*  elem_value    = necro_mach_build_load(program, outer->machine_def.update_fn, elem_ptr, "elem_value");
         return elem_value;
     }
@@ -1434,7 +1436,7 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         NecroMachAst*  index_value   = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr2, outer);
         NecroMachAst*  array_value   = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
         NecroMachType* elem_ptr_type = necro_mach_type_create_ptr(&program->arena, array_value->necro_machine_type->ptr_type.element_type->array_type.element_type);
-        NecroMachAst*  elem_ptr      = necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, array_value, (NecroMachAst*[]) { necro_mach_value_create_word_uint(program, 0), index_value }, 2, "elem_ptr", elem_ptr_type);
+        NecroMachAst*  elem_ptr      = necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, array_value, (NecroMachAst*[]) { necro_mach_value_create_uint32(program, 0), index_value }, 2, "elem_ptr", elem_ptr_type);
         NecroMachAst*  elem_value    = necro_mach_build_load(program, outer->machine_def.update_fn, elem_ptr, "elem_value");
         NecroMachType* return_type   = necro_mach_type_from_necro_type(program, app_ast->necro_type);
         assert(return_type->type == NECRO_MACH_TYPE_STRUCT);
@@ -1454,7 +1456,7 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         NecroMachAst*  source_value  = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr2, outer);
         NecroMachAst*  array_value   = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
         NecroMachType* elem_ptr_type = necro_mach_type_create_ptr(&program->arena, array_value->necro_machine_type->ptr_type.element_type->array_type.element_type);
-        NecroMachAst*  elem_ptr      = necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, array_value, (NecroMachAst*[]) { necro_mach_value_create_word_uint(program, 0), index_value }, 2, "elem_ptr", elem_ptr_type);
+        NecroMachAst*  elem_ptr      = necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, array_value, (NecroMachAst*[]) { necro_mach_value_create_uint32(program, 0), index_value }, 2, "elem_ptr", elem_ptr_type);
         necro_mach_build_store(program, outer->machine_def.update_fn, source_value, elem_ptr);
         return array_value;
     }
@@ -1550,7 +1552,7 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         NecroMachAst*  ptr_value     = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
         NecroMachType* elem_ptr_type = ptr_value->necro_machine_type;
         // NecroMachType* elem_ptr_type = necro_mach_type_create_ptr(&program->arena, source_value->necro_machine_type);
-        // NecroMachAst*  elem_ptr      = necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, ptr_value, (NecroMachAst*[]) { necro_mach_value_create_word_uint(program, 0), index_value }, 2, "elem_ptr", elem_ptr_type);
+        // NecroMachAst*  elem_ptr      = necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, ptr_value, (NecroMachAst*[]) { necro_mach_value_create_uint32(program, 0), index_value }, 2, "elem_ptr", elem_ptr_type);
         NecroMachAst*  elem_ptr      = necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, ptr_value, (NecroMachAst*[]) { index_value }, 1, "elem_ptr", elem_ptr_type);
         necro_mach_build_store(program, outer->machine_def.update_fn, source_value, elem_ptr);
         return ptr_value;
@@ -1589,7 +1591,7 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
             NecroMachAst* state_ptr      = necro_mach_value_create_param_reg(program, outer->machine_def.init_fn, 0);
             necro_mach_value_put_state_ptr(outer->machine_def.update_fn, state_ptr);
             NecroMachAst* arg            = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
-            NecroMachAst* data_ptr       = necro_mach_build_gep(program, outer->machine_def.init_fn, state_ptr, (uint32_t[]) { 0, (uint32_t)app_ast->persistent_slot }, 2, "mut_ref");
+            NecroMachAst* data_ptr       = necro_mach_build_gep(program, outer->machine_def.init_fn, state_ptr, (size_t[]) { 0, app_ast->persistent_slot }, 2, "mut_ref");
             // NecroMachAst* initialized_value = necro_mach_build_call(program, outer->machine_def.update_fn, symbol->ast, (NecroMachAst * []) { initialized_ptr }, 1, NECRO_MACH_CALL_LANG, "con");
             necro_mach_build_store(program, outer->machine_def.init_fn, arg, data_ptr);
             outer->machine_def.update_fn = update_fn;
@@ -1598,7 +1600,7 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         // Update
         {
             NecroMachAst* state_ptr = necro_mach_value_get_state_ptr(outer->machine_def.update_fn);
-            NecroMachAst* data_ptr  = necro_mach_build_gep(program, outer->machine_def.update_fn, state_ptr, (uint32_t[]) { 0, (uint32_t)app_ast->persistent_slot }, 2, "mutRef");
+            NecroMachAst* data_ptr  = necro_mach_build_gep(program, outer->machine_def.update_fn, state_ptr, (size_t[]) { 0, app_ast->persistent_slot }, 2, "mutRef");
             return data_ptr;
         }
     }
@@ -1690,16 +1692,16 @@ NecroMachAst* necro_core_transform_to_mach_3_app(NecroMachProgram* program, Necr
         {
             // Double Buffered deep_copy_fn state
             const size_t  double_buffer_slot      = persistent_slot + 1;
-            NecroMachAst* double_buffer_flag_ptr  = necro_mach_build_gep(program, outer->machine_def.update_fn, state_ptr, (uint32_t[]) { 0, (uint32_t)persistent_slot }, 2, "double_buffer_flag_ptr");
+            NecroMachAst* double_buffer_flag_ptr  = necro_mach_build_gep(program, outer->machine_def.update_fn, state_ptr, (size_t[]) { 0, persistent_slot }, 2, "double_buffer_flag_ptr");
             NecroMachAst* double_buffer_flag_val  = necro_mach_build_load(program, outer->machine_def.update_fn, double_buffer_flag_ptr, "double_buffer_flag_val");
-            NecroMachAst* double_buffer_flag_not  = necro_mach_build_binop(program, outer->machine_def.update_fn, necro_mach_value_create_word_uint(program, 1), double_buffer_flag_val, NECRO_PRIMOP_BINOP_USUB);
+            NecroMachAst* double_buffer_flag_not  = necro_mach_build_binop(program, outer->machine_def.update_fn, necro_mach_value_create_uint32(program, 1), double_buffer_flag_val, NECRO_PRIMOP_BINOP_USUB);
             necro_mach_build_store(program, outer->machine_def.update_fn, double_buffer_flag_not, double_buffer_flag_ptr);
-            args[0]                               = necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, state_ptr, (NecroMachAst*[]) { necro_mach_value_create_word_uint(program, 0), necro_mach_value_create_word_uint(program, double_buffer_slot), double_buffer_flag_val }, 3, "state", fn_value->necro_machine_type->fn_type.parameters[0]);
+            args[0]                               = necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, state_ptr, (NecroMachAst*[]) { necro_mach_value_create_uint32(program, 0), necro_mach_value_create_uint32(program, (uint32_t) double_buffer_slot), double_buffer_flag_val }, 3, "state", fn_value->necro_machine_type->fn_type.parameters[0]);
         }
         else
         {
             // Normal State
-            args[0] = necro_mach_build_gep(program, outer->machine_def.update_fn, state_ptr, (uint32_t[]) { 0, (uint32_t)persistent_slot }, 2, "state");
+            args[0] = necro_mach_build_gep(program, outer->machine_def.update_fn, state_ptr, (size_t[]) { 0, persistent_slot }, 2, "state");
         }
     }
     //--------------------
@@ -1727,7 +1729,7 @@ void necro_core_transform_to_mach_3_initializer(NecroMachProgram* program, Necro
     {
         // Local Binding, Store result in State Object
         NecroMachAst* data_ptr          = necro_mach_value_create_param_reg(program, outer->machine_def.init_fn, 0);
-        NecroMachAst* initialized_ptr   = necro_mach_build_gep(program, outer->machine_def.init_fn, data_ptr, (uint32_t[]) { 0, (uint32_t)bind_ast->persistent_slot }, 2, "init");
+        NecroMachAst* initialized_ptr   = necro_mach_build_gep(program, outer->machine_def.init_fn, data_ptr, (size_t[]) { 0, bind_ast->persistent_slot }, 2, "init");
         necro_mach_build_store(program, outer->machine_def.init_fn, initialized_value, initialized_ptr);
     }
     else
@@ -1756,7 +1758,7 @@ NecroMachAst* necro_core_transform_to_mach_3_bind_expr(NecroMachProgram* program
     {
         // Store Result
         const size_t  result_slot = core_ast->persistent_slot;
-        NecroMachAst* result_ptr  = necro_mach_build_gep(program, outer->machine_def.update_fn, current_state_ptr, (uint32_t[]) { 0, result_slot }, 2, "result_ptr");
+        NecroMachAst* result_ptr  = necro_mach_build_gep(program, outer->machine_def.update_fn, current_state_ptr, (size_t[]) { 0, result_slot }, 2, "result_ptr");
         necro_mach_build_store(program, outer->machine_def.update_fn, result_value, result_ptr);
     }
     return result_value;
@@ -1868,16 +1870,16 @@ NecroMachAst* necro_core_transform_to_mach_3_for(NecroMachProgram* program, Necr
     // if (core_ast->for_loop.range_init->ast_type == NECRO_CORE_AST_VAR)
 
     NecroMachAst*  init_value        = necro_core_transform_to_mach_3_go(program, core_ast->loop.value_init, outer);
-    NecroMachAst*  init_index_ptr    = necro_mach_build_gep(program, outer->machine_def.update_fn, range_value, (uint32_t[]) { 0, 1 }, 2, "init_index_ptr");
+    NecroMachAst*  init_index_ptr    = necro_mach_build_gep(program, outer->machine_def.update_fn, range_value, (size_t[]) { 0, 1 }, 2, "init_index_ptr");
     NecroMachAst*  init_index_value  = necro_mach_build_load(program, outer->machine_def.update_fn, init_index_ptr, "init_index");
-    NecroMachAst*  increment_ptr     = necro_mach_build_gep(program, outer->machine_def.update_fn, range_value, (uint32_t[]) { 0, 2 }, 2, "increment_ptr");
+    NecroMachAst*  increment_ptr     = necro_mach_build_gep(program, outer->machine_def.update_fn, range_value, (size_t[]) { 0, 2 }, 2, "increment_ptr");
     NecroMachAst*  increment_value   = necro_mach_build_load(program, outer->machine_def.update_fn, increment_ptr, "increment");
-    NecroMachAst*  trim_ptr          = necro_mach_build_gep(program, outer->machine_def.update_fn, range_value, (uint32_t[]) { 0, 3 }, 2, "trim_ptr");
+    NecroMachAst*  trim_ptr          = necro_mach_build_gep(program, outer->machine_def.update_fn, range_value, (size_t[]) { 0, 3 }, 2, "trim_ptr");
     NecroMachAst*  trim_value        = necro_mach_build_load(program, outer->machine_def.update_fn, trim_ptr, "trim");
     NecroMachAst*  max_index         = necro_mach_value_create_word_uint(program, core_ast->loop.for_loop.max_loops);
     NecroMachAst*  end_index         = necro_mach_build_binop(program, outer->machine_def.update_fn, max_index, trim_value, NECRO_PRIMOP_BINOP_USUB);
     NecroMachAst*  current_state_ptr = necro_mach_value_get_state_ptr(outer->machine_def.update_fn);
-    NecroMachAst*  for_state_array   = (core_ast->persistent_slot == 0xFFFFFFFF) ? NULL : necro_mach_build_gep(program, outer->machine_def.update_fn, current_state_ptr, (uint32_t[]) { 0, core_ast->persistent_slot }, 2, "for_state_array");
+    NecroMachAst*  for_state_array   = (core_ast->persistent_slot == 0xFFFFFFFF) ? NULL : necro_mach_build_gep(program, outer->machine_def.update_fn, current_state_ptr, (size_t[]) { 0, core_ast->persistent_slot }, 2, "for_state_array");
     NecroMachType* for_state_type    = (core_ast->persistent_slot == 0xFFFFFFFF) ? NULL : necro_mach_type_create_ptr(&program->arena, for_state_array->necro_machine_type->ptr_type.element_type->array_type.element_type);
     necro_mach_build_break(program, outer->machine_def.update_fn, loop_block);
 
@@ -1889,7 +1891,7 @@ NecroMachAst* necro_core_transform_to_mach_3_for(NecroMachProgram* program, Necr
     NecroMachAst*  value_value                                     = necro_mach_build_phi(program, outer->machine_def.update_fn, init_value->necro_machine_type, NULL);
     NecroMachAst*  value_phi                                       = necro_mach_block_get_current(outer->machine_def.update_fn)->block.statements[necro_mach_block_get_current(outer->machine_def.update_fn)->block.num_statements - 1]; // HACK HACK HACK HACK
     if (core_ast->persistent_slot != 0xFFFFFFFF)
-        necro_mach_value_put_state_ptr(outer->machine_def.update_fn, necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, for_state_array, (NecroMachAst* []) { necro_mach_value_create_word_uint(program, 0), index_value }, 2, "loop_state", for_state_type));
+        necro_mach_value_put_state_ptr(outer->machine_def.update_fn, necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, for_state_array, (NecroMachAst* []) { necro_mach_value_create_uint32(program, 0), index_value }, 2, "loop_state", for_state_type));
     // Index
     core_ast->loop.for_loop.index_pat->var.ast_symbol->mach_symbol->ast = index_value;
     necro_mach_add_incoming_to_phi(program, index_phi, current_block, init_index_value);

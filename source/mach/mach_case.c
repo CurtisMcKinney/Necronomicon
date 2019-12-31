@@ -790,7 +790,7 @@ void necro_pattern_var_to_mach(NecroMachProgram* program, NecroPattern* pattern,
     }
     else
     {
-        NecroMachAst* slot_ptr                    = necro_mach_build_gep(program, outer->machine_def.update_fn, parent_value, (uint32_t[]) { 0, pattern->parent_slot + 1 }, 2, "value_ptr");
+        NecroMachAst* slot_ptr                    = necro_mach_build_gep(program, outer->machine_def.update_fn, parent_value, (size_t[]) { 0, pattern->parent_slot + 1 }, 2, "value_ptr");
         var_ast->var.ast_symbol->mach_symbol->ast = necro_mach_build_load(program, outer->machine_def.update_fn, slot_ptr, "value");
     }
     var_ast->var.ast_symbol->mach_symbol->mach_type = var_ast->var.ast_symbol->mach_symbol->ast->necro_machine_type;
@@ -882,7 +882,7 @@ void necro_decision_tree_pattern_to_mach(NecroMachProgram* program, NecroPattern
                 }
                 else
                 {
-                    NecroMachAst* slot_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, parent->value_ast, (uint32_t[]) { 0, pattern->parent_slot + 1 }, 2, "slot_ptr");
+                    NecroMachAst* slot_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, parent->value_ast, (size_t[]) { 0, pattern->parent_slot + 1 }, 2, "slot_ptr");
                     cached_value           = necro_mach_build_load(program, outer->machine_def.update_fn, slot_ptr, "value");
                     pattern->value_ast     = necro_mach_build_down_cast(program, outer->machine_def.update_fn, cached_value, pattern->value_type);
                 }
@@ -912,7 +912,7 @@ void necro_decision_tree_pattern_to_mach(NecroMachProgram* program, NecroPattern
             else
             {
                 assert(pattern->value_ast == NULL);
-                NecroMachAst* slot_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, parent->value_ast, (uint32_t[]) { 0, pattern->parent_slot + 1 }, 2, "slot_ptr");
+                NecroMachAst* slot_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, parent->value_ast, (size_t[]) { 0, pattern->parent_slot + 1 }, 2, "slot_ptr");
                 pattern->value_ast     = necro_mach_build_load(program, outer->machine_def.update_fn, slot_ptr, "value");
                 necro_block_env_cache_value(&program->arena, env, pattern->parent->value_ast, pattern->parent_slot, pattern->value_type, pattern->value_ast);
             }
@@ -971,7 +971,7 @@ NecroMachAst* necro_decision_tree_to_mach(NecroMachProgram* program, NecroDecisi
         assert(tree->tree_switch.pattern->value_ast != NULL);
         if (tree->tree_switch.num_cases > 1)
         {
-            NecroMachAst*              tag_ptr      = necro_mach_build_gep(program, outer->machine_def.update_fn, tree->tree_switch.pattern->value_ast, (uint32_t[]) { 0, 0 }, 2, "tag_ptr");
+            NecroMachAst*              tag_ptr      = necro_mach_build_gep(program, outer->machine_def.update_fn, tree->tree_switch.pattern->value_ast, (size_t[]) { 0, 0 }, 2, "tag_ptr");
             NecroMachAst*              tag          = necro_mach_build_load(program, outer->machine_def.update_fn, tag_ptr, "tag");
             NecroMachSwitchTerminator* switch_value = necro_mach_build_switch(program, outer->machine_def.update_fn, tag, NULL, error_block);
             for (size_t i = 0; i < tree->tree_switch.num_cases; ++i)
@@ -1032,7 +1032,7 @@ NecroMachAst* necro_decision_tree_to_mach(NecroMachProgram* program, NecroDecisi
                 else
                 {
                     // NOTE / HACK: should proabably find a better method than 20 chars on the stack
-                    char    int_buf[20] = { 0 };
+                    char    int_buf[32] = { 0 };
                     // int64_t int_literal = tree->tree_lit_switch.constants[i].int_literal;
                     size_t uint_literal = (size_t) tree->tree_lit_switch.constants[i].uint_literal;
                     sprintf(int_buf, "%zu", uint_literal);

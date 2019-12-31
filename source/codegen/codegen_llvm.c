@@ -688,7 +688,7 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
         else if (arg_type == LLVMInt64TypeInContext(context->context))
         {
             xor_mask  = LLVMBuildAShr(context->builder, value, LLVMConstInt(LLVMInt64TypeInContext(context->context), 63, false), "xor_mask");
-            sub_value = LLVMBuildLShr(context->builder, value, LLVMConstInt(LLVMInt32TypeInContext(context->context), 63, false), "sub_value");
+            sub_value = LLVMBuildLShr(context->builder, value, LLVMConstInt(LLVMInt64TypeInContext(context->context), 63, false), "sub_value");
         }
         else
             assert(false && "Only 32-bit and 64-bit Ints supported");

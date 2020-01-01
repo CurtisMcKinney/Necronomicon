@@ -10,6 +10,11 @@ in
     name = "necro";
     src = ./.;
 
+
+    llvm_7 = pkgs.llvm_7.overrideAttrs (attrs: {
+        separateDebugInfo = true;
+        });
+
     buildInputs = [ llvm_7 valgrind bear portaudio ];
     propagatedBuildInputs = with pkgs; [ xorg.xlibsWrapper ];
     nativeBuildInputs = [ bear cmake ];

@@ -375,6 +375,7 @@ extern DLLEXPORT void necro_runtime_shutdown()
 // Runtime Unix
 ///////////////////////////////////////////////////////
 #include <unistd.h>
+#include <assert.h>
 
 #include <X11/Xos.h>
 #include <X11/Xlib.h>
@@ -416,7 +417,6 @@ static void query_pointer(Display *d)
 {
   static bool once;
   int i = 0;
-  int x = 0, y = 0;
   unsigned m;
   Window w;
 
@@ -426,7 +426,7 @@ static void query_pointer(Display *d)
     root = DefaultRootWindow(d);
   }
 
-  if (!XQueryPointer(d, root, &root, &w, &x, &y, &i, &i, &m)) {
+  if (!XQueryPointer(d, root, &root, &w, &mouse_x, &mouse_y, &i, &i, &m)) {
     for (i = 0; i < ScreenCount(d); ++i)
     {
       if (root == RootWindow(d, i))
@@ -436,7 +436,7 @@ static void query_pointer(Display *d)
     }
   }
 
-  fprintf(stdout, "X: %d Y: %d\n", x, y);
+  /* fprintf(stdout, "X: %d Y: %d\n", x, y); */
 }
 
 extern DLLEXPORT void necro_runtime_update()

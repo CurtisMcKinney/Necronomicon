@@ -3419,13 +3419,13 @@ void necro_llvm_test_jit()
     //     necro_llvm_jit_string(test_name, test_source);
     // }
 
-    {
-        const char* test_name   = "FAbs 2";
-        const char* test_source = ""
-            "main :: *World -> *World\n"
-            "main w = testAssertion (abs 10.12345 == 10.12345) w\n";
-        necro_llvm_jit_string(test_name, test_source);
-    }
+    // {
+    //     const char* test_name   = "FAbs 2";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (abs 10.12345 == 10.12345) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
 
     // {
     //     const char* test_name   = "FAbs 3";
@@ -3435,13 +3435,14 @@ void necro_llvm_test_jit()
     //     necro_llvm_jit_string(test_name, test_source);
     // }
 
-    // {
-    //     const char* test_name   = "Negative Rational";
-    //     const char* test_source = ""
-    //         "main :: *World -> *World\n"
-    //         "main w = printLn (1 // -2) w\n";
-    //     necro_llvm_jit_string(test_name, test_source);
-    // }
+    // TODO: Test divide by zero
+    {
+        const char* test_name   = "Negative Rational";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            "main w = testAssertion (1 // -2 == -2 // 4) w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
 
 /*
 

@@ -12,6 +12,9 @@
 testAssertion :: Bool -> *World -> *World
 testAssertion b w = primUndefined
 
+-- testAndPrintAssertion :: (Print a, Eq a) => a -> a -> *World -> *World
+-- testAndPrintAssertion x y w = testAssertion (x == y) <| printLn x w
+
 flip :: .(.a -> .b -> .c) -> .b -> .a -> .c
 flip f y x = f x y
 
@@ -424,7 +427,6 @@ instance DivisionRing Float where
 
 instance Field Float where
 
---TODO: negate!
 instance Floating Float where
   fromFloat x = x
 
@@ -446,6 +448,10 @@ instance Monoid Float where
 
 instance Default Float where
   default = 0
+
+negate :: Ring a => a -> a
+negate x = 0 - x
+
 
 --------------------
 -- F64

@@ -1418,10 +1418,10 @@ void necro_llvm_jit_go(NecroCompileInfo info, NecroLLVM* context, const char* ji
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_update_runtime);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_error_exit);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_print);
-    necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_debug_print);
-    necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_print_int);
-    necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_print_i64);
+    // necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_debug_print);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_print_char);
+    necro_llvm_map_runtime_symbol(context, context->engine, context->base->print_int->core_ast_symbol->mach_symbol);
+    necro_llvm_map_runtime_symbol(context, context->engine, context->base->print_i64->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context, context->engine, context->base->print_uint->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context, context->engine, context->base->print_float->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context, context->engine, context->base->print_f64->core_ast_symbol->mach_symbol);
@@ -3508,13 +3508,37 @@ void necro_llvm_test_jit()
     //     necro_llvm_jit_string(test_name, test_source);
     // }
 
+    // {
+    //     const char* test_name   = "bitShiftLeft 3";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (bitShiftLeft 3 2 == 12) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
+    // {
+    //     const char* test_name   = "bitShiftRight 1";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (bitShiftRight 8 2 == 2) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
     {
-        const char* test_name   = "bitShiftLeft 3";
+        const char* test_name   = "bitShiftRight 2";
         const char* test_source = ""
             "main :: *World -> *World\n"
-            "main w = testAssertion (bitShiftLeft 3 2 == 12) w\n";
+            "main w = testAssertion (bitShiftRight 9 2 == 2) w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
+
+    // {
+    //     const char* test_name   = "bitReverse 1";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = printLn (bitReverse 24) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
 
     // TODO: Test divide by zero
 

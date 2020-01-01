@@ -40,64 +40,70 @@ int                 mouse_x             = 0;
 int                 mouse_y             = 0;
 bool                is_test_true        = true;
 
-extern DLLEXPORT int necro_runtime_get_mouse_x(unsigned int _dummy)
+extern DLLEXPORT int necro_runtime_get_mouse_x(size_t _dummy)
 {
     UNUSED(_dummy);
     return mouse_x;
 }
 
-extern DLLEXPORT int necro_runtime_get_mouse_y(unsigned int _dummy)
+extern DLLEXPORT int necro_runtime_get_mouse_y(size_t _dummy)
 {
     UNUSED(_dummy);
     return mouse_y;
 }
 
-extern DLLEXPORT void necro_runtime_print(int value)
-{
-    printf("%d", value);
-}
+// extern DLLEXPORT void necro_runtime_print(int value)
+// {
+//     printf("%d", value);
+// }
 
-extern DLLEXPORT void necro_runtime_debug_print(int value)
-{
-    printf("debug: %d", value);
-}
+// extern DLLEXPORT void necro_runtime_debug_print(int value)
+// {
+//     printf("debug: %d", value);
+// }
 
-extern DLLEXPORT unsigned int necro_runtime_print_int(int value, unsigned int world)
+extern DLLEXPORT size_t necro_runtime_print_i32(int32_t value, size_t world)
 {
     printf("%d", value);
     return world;
 }
 
-extern DLLEXPORT unsigned int necro_runtime_print_i64(int64_t value, unsigned int world)
+extern DLLEXPORT size_t necro_runtime_print_i64(int64_t value, size_t world)
 {
     printf("%" PRId64, value);
     return world;
 }
 
-extern DLLEXPORT unsigned int necro_runtime_print_uint(unsigned int value, unsigned int world)
+extern DLLEXPORT size_t necro_runtime_print_u32(uint32_t value, size_t world)
 {
     printf("%u", value);
     return world;
 }
 
-extern DLLEXPORT unsigned int necro_runtime_print_f32(float value, unsigned int world)
+extern DLLEXPORT size_t necro_runtime_print_u64(uint64_t value, size_t world)
+{
+    printf("%zu", value);
+    return world;
+}
+
+extern DLLEXPORT size_t necro_runtime_print_f32(float value, size_t world)
 {
     printf("%.17f", value);
     return world;
 }
 
-extern DLLEXPORT unsigned int necro_runtime_print_f64(double value, unsigned int world)
+extern DLLEXPORT size_t necro_runtime_print_f64(double value, size_t world)
 {
     printf("%.17g", value);
     return world;
 }
 
-extern DLLEXPORT unsigned int necro_runtime_print_char(unsigned int value, unsigned int world)
+extern DLLEXPORT size_t necro_runtime_print_char(size_t value, size_t world)
 {
     if (value < 256)
-        putchar(value);
+        putchar((int) value);
     else
-        printf("%d", value);
+        printf("%zu", value);
     return world;
 }
 
@@ -124,7 +130,7 @@ extern DLLEXPORT void necro_runtime_error_exit(uint32_t error_code)
     necro_exit(error_code);
 }
 
-extern DLLEXPORT unsigned int necro_runtime_test_assertion(unsigned int is_true, unsigned int world)
+extern DLLEXPORT size_t necro_runtime_test_assertion(size_t is_true, size_t world)
 {
     if (necro_runtime_state != NECRO_RUNTIME_RUNNING)
         return world;
@@ -139,12 +145,12 @@ bool necro_runtime_was_test_successful()
 }
 
 // TODO: Different Allocators based on size: Slab Allocator => Buddy => OS
-extern DLLEXPORT uint8_t* necro_runtime_alloc(unsigned int size)
+extern DLLEXPORT uint8_t* necro_runtime_alloc(size_t size)
 {
     return malloc(size);
 }
 
-extern DLLEXPORT uint8_t* necro_runtime_realloc(uint8_t* ptr, unsigned int size)
+extern DLLEXPORT uint8_t* necro_runtime_realloc(uint8_t* ptr, size_t size)
 {
     return realloc(ptr, size);
 }
@@ -160,10 +166,10 @@ extern DLLEXPORT void necro_runtime_free(uint8_t* data)
 static NecroLangCallback* necro_runtime_audio_lang_callback       = NULL;
 // static float**            necro_runtime_audio_output_buffer       = NULL;
 static float*             necro_runtime_audio_output_buffer       = NULL;
-static unsigned int       necro_runtime_audio_num_input_channels  = 0;
+static size_t             necro_runtime_audio_num_input_channels  = 0;
 #define                   necro_runtime_audio_num_output_channels 2
-static unsigned int       necro_runtime_audio_sample_rate         = 48000;
-static unsigned int       necro_runtime_audio_block_size          = 64;
+static size_t             necro_runtime_audio_sample_rate         = 48000;
+static size_t             necro_runtime_audio_block_size          = 64;
 #define                   necro_runtime_audio_oversample_amt      32
 static double             necro_runtime_audio_brick_wall_cutoff   = 19500.0;
 static double             necro_runtime_audio_start_time          = 0.0;
@@ -171,7 +177,7 @@ static double             necro_runtime_audio_curr_time           = 0.0;
 static PaStream*          necro_runtime_audio_pa_stream           = NULL;
 struct NecroDownsample*   necro_runtime_audio_downsample[necro_runtime_audio_num_output_channels];
 
-extern DLLEXPORT unsigned int necro_runtime_out_audio_block(unsigned int channel_num, double* audio_block, unsigned int world)
+extern DLLEXPORT size_t necro_runtime_out_audio_block(size_t channel_num, double* audio_block, size_t world)
 {
     if (channel_num >= necro_runtime_audio_num_output_channels)
         return world;
@@ -205,12 +211,12 @@ NecroResult(void) necro_runtime_audio_init()
     // if (necro_runtime_audio_downsample != NULL)
     //     free(necro_runtime_audio_downsample);
     for (size_t i = 0; i < necro_runtime_audio_num_output_channels; ++i)
-        necro_runtime_audio_downsample[i] = necro_downsample_create(necro_runtime_audio_brick_wall_cutoff, necro_runtime_audio_sample_rate * necro_runtime_audio_oversample_amt);
+        necro_runtime_audio_downsample[i] = necro_downsample_create(necro_runtime_audio_brick_wall_cutoff, (double) (necro_runtime_audio_sample_rate * necro_runtime_audio_oversample_amt));
     PaError pa_error = Pa_Initialize();
     if (pa_error != paNoError) return necro_runtime_audio_error(Pa_GetErrorText(pa_error));
     // const PaSampleFormat audio_format = paFloat32 | paNonInterleaved;
     const PaSampleFormat audio_format = paFloat32;
-    pa_error = Pa_OpenDefaultStream(&necro_runtime_audio_pa_stream, necro_runtime_audio_num_input_channels, necro_runtime_audio_num_output_channels, audio_format, necro_runtime_audio_sample_rate, necro_runtime_audio_block_size, necro_runtime_audio_pa_callback, NULL);
+    pa_error = Pa_OpenDefaultStream(&necro_runtime_audio_pa_stream, (int) necro_runtime_audio_num_input_channels, necro_runtime_audio_num_output_channels, audio_format, (double) necro_runtime_audio_sample_rate, (unsigned long) necro_runtime_audio_block_size, necro_runtime_audio_pa_callback, NULL);
     if (pa_error != paNoError) return necro_runtime_audio_error(Pa_GetErrorText(pa_error));
     return ok_void();
 }
@@ -267,12 +273,12 @@ NecroResult(void) necro_runtime_audio_shutdown()
     return ok_void();
 }
 
-extern DLLEXPORT unsigned int necro_runtime_get_sample_rate()
+extern DLLEXPORT size_t necro_runtime_get_sample_rate()
 {
     return necro_runtime_audio_sample_rate * necro_runtime_audio_oversample_amt;
 }
 
-extern DLLEXPORT unsigned int necro_runtime_get_block_size()
+extern DLLEXPORT size_t necro_runtime_get_block_size()
 {
     return necro_runtime_audio_block_size * necro_runtime_audio_oversample_amt;
 }
@@ -350,7 +356,7 @@ extern DLLEXPORT void necro_runtime_update()
     };
 }
 
-extern DLLEXPORT unsigned int necro_runtime_is_done()
+extern DLLEXPORT size_t necro_runtime_is_done()
 {
     return necro_runtime_state >= NECRO_RUNTIME_IS_DONE;
 }
@@ -442,7 +448,7 @@ extern DLLEXPORT void necro_runtime_update()
     query_pointer(display);
 }
 
-extern DLLEXPORT unsigned int necro_runtime_is_done()
+extern DLLEXPORT size_t necro_runtime_is_done()
 {
     return necro_runtime_state >= NECRO_RUNTIME_IS_DONE;
 }

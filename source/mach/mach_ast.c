@@ -5,7 +5,6 @@
 
 #include "mach_ast.h"
 #include "mach_type.h"
-#include "runtime/mouse.h"
 #include "runtime/runtime.h"
 #include <ctype.h>
 #include <math.h>
@@ -1238,8 +1237,8 @@ NecroMachRuntime necro_mach_runtime_empty()
         .necro_error_exit          = NULL,
         .necro_sleep               = NULL,
         .necro_print               = NULL,
-        .necro_debug_print         = NULL,
-        .necro_print_int           = NULL,
+        // .necro_debug_print         = NULL,
+        // .necro_print_int           = NULL,
         .necro_runtime_get_mouse_x = NULL,
         .necro_runtime_get_mouse_y = NULL,
         .necro_runtime_is_done     = NULL,
@@ -1480,7 +1479,10 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         NecroMachAstSymbol* mach_symbol           = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
         mach_symbol->is_primitive                 = true;
         NecroMachType*      fn_type               = necro_mach_type_create_fn(&program->arena, program->type_cache.word_uint_type, (NecroMachType*[]) { program->type_cache.word_int_type, program->type_cache.word_uint_type }, 2);
-        program->runtime.necro_print_int          = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_print_int, NECRO_STATE_POINTWISE)->fn_def.symbol;
+        if (program->word_size == NECRO_WORD_4_BYTES)
+            necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr)necro_runtime_print_i32, NECRO_STATE_POINTWISE)->fn_def.symbol;
+        else
+            necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr)necro_runtime_print_i64, NECRO_STATE_POINTWISE)->fn_def.symbol;
     }
 
     // necro_runtime_print_i64
@@ -1502,7 +1504,10 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         NecroMachAstSymbol* mach_symbol           = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
         mach_symbol->is_primitive                 = true;
         NecroMachType*      fn_type               = necro_mach_type_create_fn(&program->arena, program->type_cache.word_uint_type, (NecroMachType*[]) { program->type_cache.word_uint_type, program->type_cache.word_uint_type }, 2);
-        necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_print_uint, NECRO_STATE_POINTWISE)->fn_def.symbol;
+        if (program->word_size == NECRO_WORD_4_BYTES)
+            necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr)necro_runtime_print_u32, NECRO_STATE_POINTWISE)->fn_def.symbol;
+        else
+            necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr)necro_runtime_print_u64, NECRO_STATE_POINTWISE)->fn_def.symbol;
     }
 
     // necro_runtime_print_float

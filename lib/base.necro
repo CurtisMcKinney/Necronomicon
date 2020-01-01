@@ -2251,6 +2251,7 @@ poly f s =
 
 -- TODO: Out of order monomorphic instances (i.e. 'instance Ring Complex' textually appearing before 'instance Ring F64') can cause erroneous 'Not An Instance' errors. Maybe need a better dep analysis story to make this work since we don't figure this out until inference which is at that point too late to fix.
 -- TODO: Write to log file, perhaps class Log a similar to class Print a
+-- TODO: Look at all the .i.i.i weirdness in llvm names???
 
 -- TODO: JIT test function, testAssertion :: Bool -> *World -> *World
 -- TODO: Put Uniqueness unify AFTER type unify for better error messages?

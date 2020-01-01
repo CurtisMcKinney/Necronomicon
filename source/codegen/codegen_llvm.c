@@ -713,13 +713,11 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
         LLVMTypeRef  arg_type = necro_llvm_type_from_mach_type(context, ast->uop.param->necro_machine_type);
         if (arg_type == LLVMInt32TypeInContext(context->context))
         {
-            // value = LLVMBuildAnd(context->builder, param, LLVMConstInt(LLVMInt32TypeInContext(context->context), (uint32_t) 0x80000000, false), "sign");
             value = LLVMBuildAShr(context->builder, param, LLVMConstInt(LLVMInt32TypeInContext(context->context), 32, false), "ashr_value");
             value = LLVMBuildOr(context->builder, value, LLVMConstInt(LLVMInt32TypeInContext(context->context), 1, false), "sign_value");
         }
         else if (arg_type == LLVMInt64TypeInContext(context->context))
         {
-            // value = LLVMBuildAnd(context->builder, param, LLVMConstInt(LLVMInt64TypeInContext(context->context), (uint64_t) 0x8000000000000000, true), "sign");
             value = LLVMBuildAShr(context->builder, param, LLVMConstInt(LLVMInt64TypeInContext(context->context), 63, false), "ashr_value");
             value = LLVMBuildOr(context->builder, value, LLVMConstInt(LLVMInt64TypeInContext(context->context), 1, true), "sign_value");
         }

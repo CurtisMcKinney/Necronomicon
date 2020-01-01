@@ -74,6 +74,12 @@ extern DLLEXPORT unsigned int necro_runtime_print_i64(int64_t value, unsigned in
     return world;
 }
 
+extern DLLEXPORT unsigned int necro_runtime_print_f32(float value, unsigned int world)
+{
+    printf("%.17f", value);
+    return world;
+}
+
 extern DLLEXPORT unsigned int necro_runtime_print_f64(double value, unsigned int world)
 {
     printf("%.17g", value);
@@ -119,6 +125,11 @@ extern DLLEXPORT unsigned int necro_runtime_test_assertion(unsigned int is_true,
     is_test_true        = is_true;
     necro_runtime_state = NECRO_RUNTIME_IS_DONE;
     return world;
+}
+
+bool necro_runtime_was_test_successful()
+{
+    return is_test_true;
 }
 
 // TODO: Different Allocators based on size: Slab Allocator => Buddy => OS
@@ -282,6 +293,7 @@ extern DLLEXPORT void necro_runtime_init()
 {
     if (necro_runtime_state != NECRO_RUNTIME_UNINITIALIZED)
         return;
+    is_test_true        = true;
     necro_runtime_state = NECRO_RUNTIME_RUNNING;
     h_in                = GetStdHandle(STD_INPUT_HANDLE);
     h_out               = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -370,6 +382,7 @@ extern DLLEXPORT void necro_runtime_init()
 {
     if (necro_runtime_state != NECRO_RUNTIME_UNINITIALIZED)
         return;
+    is_test_true        = true;
 
     XSetWindowAttributes attribs;
     assert(display == NULL);

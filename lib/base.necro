@@ -424,6 +424,7 @@ instance DivisionRing Float where
 
 instance Field Float where
 
+--TODO: negate!
 instance Floating Float where
   fromFloat x = x
 
@@ -445,7 +446,6 @@ instance Monoid Float where
 
 instance Default Float where
   default = 0
-
 
 --------------------
 -- F64
@@ -1618,6 +1618,9 @@ printInt i w = w
 printI64 :: I64 -> *World -> *World
 printI64 i w = w
 
+printFloat :: Float -> *World -> *World
+printFloat i w = w
+
 printF64 :: F64 -> *World -> *World
 printF64 f w = w
 
@@ -1629,6 +1632,9 @@ instance Print Int where
 
 instance Print I64 where
   print x w = printI64 x w
+
+instance Print Float where
+  print x w = printFloat x w
 
 instance Print F64 where
   print x w = printF64 x w

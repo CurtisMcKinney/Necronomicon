@@ -139,6 +139,7 @@ typedef struct NecroBase
     // NecroAstSymbol* unsafe_free;
     NecroAstSymbol* print_int;
     NecroAstSymbol* print_i64;
+    NecroAstSymbol* print_float;
     NecroAstSymbol* print_f64;
     NecroAstSymbol* print_char;
     NecroAstSymbol* out_audio_block;

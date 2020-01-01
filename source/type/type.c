@@ -531,7 +531,8 @@ bool necro_type_default(NecroPagedArena* arena, NecroBase* base, NecroType* type
     }
     else if (contains_integral || contains_euclidean_ring)
     {
-        if (necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->int_type, type->var.var_symbol->constraints))
+        if (necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->int_type, type->var.var_symbol->constraints) ||
+            necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->float_type, type->var.var_symbol->constraints))
             return true;
     }
     else if (contains_num || contains_ring)

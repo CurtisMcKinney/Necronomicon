@@ -675,25 +675,25 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
     {
         // Note: This assume's Two's complement representation for negative integers!
         // In 32-bit, this looks like:
-        // abs x = if x >= 0 then (x XOR 0x0) - 0 else (x XOR 0xFFFFFFFF) - 1
+        // abs x = if x >= 0 then (x XOR 0x0) + 0 else (x XOR 0xFFFFFFFF) + 1
         LLVMTypeRef  arg_type  = necro_llvm_type_from_mach_type(context, ast->uop.param->necro_machine_type);
         LLVMValueRef xor_mask  = NULL;
-        LLVMValueRef sub_value = NULL;
+        LLVMValueRef add_value = NULL;
         value                  = param;
         if (arg_type == LLVMInt32TypeInContext(context->context))
         {
             xor_mask  = LLVMBuildAShr(context->builder, value, LLVMConstInt(LLVMInt32TypeInContext(context->context), 31, false), "xor_mask");
-            sub_value = LLVMBuildLShr(context->builder, value, LLVMConstInt(LLVMInt32TypeInContext(context->context), 31, false), "sub_value");
+            add_value = LLVMBuildLShr(context->builder, value, LLVMConstInt(LLVMInt32TypeInContext(context->context), 31, false), "sub_value");
         }
         else if (arg_type == LLVMInt64TypeInContext(context->context))
         {
             xor_mask  = LLVMBuildAShr(context->builder, value, LLVMConstInt(LLVMInt64TypeInContext(context->context), 63, false), "xor_mask");
-            sub_value = LLVMBuildLShr(context->builder, value, LLVMConstInt(LLVMInt64TypeInContext(context->context), 63, false), "sub_value");
+            add_value = LLVMBuildLShr(context->builder, value, LLVMConstInt(LLVMInt64TypeInContext(context->context), 63, false), "sub_value");
         }
         else
             assert(false && "Only 32-bit and 64-bit Ints supported");
         value = LLVMBuildXor(context->builder, value, xor_mask, "xor_result");
-        value = LLVMBuildSub(context->builder, value, sub_value, "abs_result");
+        value = LLVMBuildAdd(context->builder, value, add_value, "abs_result");
         break;
     }
 
@@ -713,13 +713,15 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
         LLVMTypeRef  arg_type = necro_llvm_type_from_mach_type(context, ast->uop.param->necro_machine_type);
         if (arg_type == LLVMInt32TypeInContext(context->context))
         {
-            value = LLVMBuildAnd(context->builder, param, LLVMConstInt(LLVMInt32TypeInContext(context->context), (uint32_t) 0x80000000, false), "sign");
+            // value = LLVMBuildAnd(context->builder, param, LLVMConstInt(LLVMInt32TypeInContext(context->context), (uint32_t) 0x80000000, false), "sign");
+            value = LLVMBuildAShr(context->builder, param, LLVMConstInt(LLVMInt32TypeInContext(context->context), 32, false), "ashr_value");
             value = LLVMBuildOr(context->builder, value, LLVMConstInt(LLVMInt32TypeInContext(context->context), 1, false), "sign_value");
         }
         else if (arg_type == LLVMInt64TypeInContext(context->context))
         {
-            value = LLVMBuildAnd(context->builder, param, LLVMConstInt(LLVMInt64TypeInContext(context->context), (uint64_t) 0x8000000000000000, false), "sign");
-            value = LLVMBuildOr(context->builder, value, LLVMConstInt(LLVMInt64TypeInContext(context->context), 1, false), "sign_value");
+            // value = LLVMBuildAnd(context->builder, param, LLVMConstInt(LLVMInt64TypeInContext(context->context), (uint64_t) 0x8000000000000000, true), "sign");
+            value = LLVMBuildAShr(context->builder, param, LLVMConstInt(LLVMInt64TypeInContext(context->context), 63, false), "ashr_value");
+            value = LLVMBuildOr(context->builder, value, LLVMConstInt(LLVMInt64TypeInContext(context->context), 1, true), "sign_value");
         }
         else
         {
@@ -738,7 +740,7 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
                 context->copysign_float         = necro_llvm_symbol_create(&context->arena, copysign_float_type, LLVMAddFunction(context->mod, "llvm.copysign.f32", copysign_float_type), NULL, NULL);
             }
             value = LLVMBuildCall(context->builder, context->copysign_float->value, (LLVMValueRef[]) { LLVMConstReal(LLVMFloatTypeInContext(context->context), 1), param }, 2, "sign_value");
-            LLVMSetInstructionCallConv(value, LLVMFastCallConv);
+            LLVMSetInstructionCallConv(value, LLVMGetFunctionCallConv(context->copysign_float->value));
         }
         else if (arg_type == LLVMDoubleTypeInContext(context->context))
         {
@@ -748,13 +750,13 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
                 context->copysign_f64         = necro_llvm_symbol_create(&context->arena, copysign_f64_type, LLVMAddFunction(context->mod, "llvm.copysign.f64", copysign_f64_type), NULL, NULL);
             }
             value = LLVMBuildCall(context->builder, context->copysign_f64->value, (LLVMValueRef[]) { LLVMConstReal(LLVMDoubleTypeInContext(context->context), 1), param }, 2, "sign_value");
-            LLVMSetInstructionCallConv(value, LLVMFastCallConv);
+            LLVMSetInstructionCallConv(value, LLVMGetFunctionCallConv(context->copysign_f64->value));
         }
         else
         {
             assert(false && "Only 32-bit and 64-bit Floats supported");
         }
-        value = param; break;
+        break;
     }
 
     case NECRO_PRIMOP_UOP_ITOU: value = param; break; // TODO: Different bit sizes?
@@ -1385,7 +1387,7 @@ NecroLangCallback* necro_llvm_get_lang_call(NecroLLVM* context, NecroMachAstSymb
     return necro_fn;
 }
 
-void necro_llvm_jit(NecroCompileInfo info, NecroLLVM* context)
+void necro_llvm_jit_go(NecroCompileInfo info, NecroLLVM* context, const char* jit_string)
 {
     UNUSED(info);
 
@@ -1422,6 +1424,7 @@ void necro_llvm_jit(NecroCompileInfo info, NecroLLVM* context)
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_print_int);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_print_i64);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_print_char);
+    necro_llvm_map_runtime_symbol(context, context->engine, context->base->print_float->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context, context->engine, context->base->print_f64->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_get_mouse_x);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_get_mouse_y);
@@ -1459,6 +1462,16 @@ void necro_llvm_jit(NecroCompileInfo info, NecroLLVM* context)
     unwrap(void, necro_runtime_audio_init());
     unwrap(void, necro_runtime_audio_start(necro_init, necro_main, necro_shutdown));
     unwrap(void, necro_runtime_audio_shutdown());
+    if (!necro_runtime_was_test_successful())
+    {
+        printf("\n!!!!!!!!!!!!!!Test Failed!!!!!!!!!!!!!!\n\n%s\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\n", jit_string);
+        assert(necro_runtime_was_test_successful());
+    }
+}
+
+void necro_llvm_jit(NecroCompileInfo info, NecroLLVM* context)
+{
+    necro_llvm_jit_go(info, context, "");
 }
 
 
@@ -1529,7 +1542,7 @@ void necro_llvm_test_string_go(const char* test_name, const char* str, NECRO_PHA
     necro_core_transform_to_mach(info, &intern, &base, &core_ast, &mach_program);
     necro_llvm_codegen(info, &mach_program, &llvm);
     if (phase == NECRO_PHASE_JIT)
-        necro_llvm_jit(info, &llvm);
+        necro_llvm_jit_go(info, &llvm, str);
     else if (phase == NECRO_PHASE_COMPILE)
         necro_llvm_compile(info, &llvm);
 
@@ -3325,18 +3338,122 @@ void necro_llvm_test_jit()
         necro_llvm_jit_string(test_name, test_source);
     }
 
+
 */
 
-    // TODO: Set up testAssertion jit tests!
+    // {
+    //     const char* test_name   = "Add";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (2 + 2 == 4) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
+    // {
+    //     const char* test_name   = "Mod";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (4 % 3 == 0) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
+    // {
+    //     const char* test_name   = "GCD";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (1 // 2 == 4 // 8) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
+    // {
+    //     const char* test_name   = "Abs 1";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (abs -33 == 33) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
+    // {
+    //     const char* test_name   = "Abs 2";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (abs 667 == 667) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
+    // {
+    //     const char* test_name   = "Signum 1";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (signum -666 == -1) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
+    // {
+    //     const char* test_name   = "Signum 2";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (signum 334 == 1) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
+    // {
+    //     const char* test_name   = "Signum Float 1";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (signum -4.60234 == -1) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
+    // {
+    //     const char* test_name   = "Signum Float 2";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (signum 9.87654321 == 1) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
+    // {
+    //     const char* test_name   = "FAbs 1";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (abs -11.54321 == 11.54321) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
     {
-        const char* test_name   = "JIT Assertion 1";
+        const char* test_name   = "FAbs 2";
         const char* test_source = ""
             "main :: *World -> *World\n"
-            "main w = testAssertion (2 + 2 == 4) w\n";
+            "main w = testAssertion (abs 10.12345 == 10.12345) w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 
+    // {
+    //     const char* test_name   = "FAbs 3";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (abs (negate pi) == pi) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
+    // {
+    //     const char* test_name   = "Negative Rational";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = printLn (1 // -2) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
 /*
+
+    {
+        const char* test_name   = "Mouse 1";
+        const char* test_source = ""
+            "main :: *World -> *World\n"
+            "main w = printLn mouseX w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
 
     {
         const char* test_name   = "Audio 3";
@@ -3369,14 +3486,6 @@ void necro_llvm_test_jit()
             "stereoSaw = stereo coolSaw coolSaw\n"
             "main :: *World -> *World\n"
             "main w = outAudio 0 stereoSaw w\n";
-        necro_llvm_jit_string(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Mouse 1";
-        const char* test_source = ""
-            "main :: *World -> *World\n"
-            "main w = print mouseX w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 

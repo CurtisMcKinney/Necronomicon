@@ -33,11 +33,13 @@ extern DLLEXPORT void         necro_runtime_print(int value);
 extern DLLEXPORT void         necro_runtime_debug_print(int value);
 extern DLLEXPORT unsigned int necro_runtime_print_int(int value, unsigned int world);
 extern DLLEXPORT unsigned int necro_runtime_print_i64(int64_t value, unsigned int world);
+extern DLLEXPORT unsigned int necro_runtime_print_f32(float value, unsigned int world);
 extern DLLEXPORT unsigned int necro_runtime_print_f64(double value, unsigned int world);
 extern DLLEXPORT unsigned int necro_runtime_print_char(unsigned int value, unsigned int world);
 extern DLLEXPORT int          necro_runtime_get_mouse_x(unsigned int _dummy);
 extern DLLEXPORT int          necro_runtime_get_mouse_y(unsigned int _dummy);
 extern DLLEXPORT unsigned int necro_runtime_test_assertion(unsigned int is_true, unsigned int world);
+bool                          necro_runtime_was_test_successful();
 
 //--------------------
 // Audio

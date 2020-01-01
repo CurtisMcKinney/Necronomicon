@@ -1412,9 +1412,6 @@ void necro_llvm_jit_go(NecroCompileInfo info, NecroLLVM* context, const char* ji
     // }
     // LLVMDisposeMessage(error);
     
-
-    LLVMDumpModule(context->mod);
-
     //--------------------
     // Map runtime functions
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_init_runtime);
@@ -3619,7 +3616,6 @@ void necro_llvm_test_jit()
 
 void necro_llvm_test_compile()
 {
-    return;
 /*
 
     {

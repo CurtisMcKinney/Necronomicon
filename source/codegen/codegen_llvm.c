@@ -1050,6 +1050,8 @@ LLVMValueRef necro_llvm_codegen_block_statement(NecroLLVM* codegen, NecroMachAst
 
 void necro_llvm_declare_function(NecroLLVM* context, NecroMachAst* ast)
 {
+    assert(ast->type == NECRO_MACH_FN_DEF);
+    assert(ast->fn_def.fn_value->value.global_symbol->codegen_symbol == NULL);
     // Fn begin
     LLVMTypeRef      fn_type       = necro_llvm_type_from_mach_type(context, ast->necro_machine_type);
     LLVMValueRef     fn_value      = LLVMAddFunction(context->mod, ast->fn_def.symbol->name->str, fn_type);
@@ -1057,6 +1059,16 @@ void necro_llvm_declare_function(NecroLLVM* context, NecroMachAst* ast)
     fn_def_symbol->type            = fn_type;
     fn_def_symbol->value           = fn_value;
     ast->fn_def.fn_value->value.global_symbol->codegen_symbol = fn_def_symbol;
+    if (ast->fn_def.fn_type == NECRO_MACH_FN_RUNTIME)
+    {
+        assert(fn_def_symbol->value != NULL);
+        assert(!LLVMIsNull(fn_def_symbol->value));
+        assert(LLVMIsAFunction(fn_def_symbol->value));
+        printf("runtime function: %s :: %s\n", ast->fn_def.symbol->name->str, LLVMPrintTypeToString(fn_type));
+        LLVMSetFunctionCallConv(fn_value, LLVMCCallConv);
+        LLVMSetLinkage(fn_value, LLVMExternalLinkage);
+        // LLVMSetLinkage(fn_value, LLVMLinkage);
+    }
 }
 
 void necro_llvm_codegen_function(NecroLLVM* context, NecroMachAst* ast)
@@ -1067,15 +1079,15 @@ void necro_llvm_codegen_function(NecroLLVM* context, NecroMachAst* ast)
 
     // Fn begin
     NecroLLVMSymbol* fn_symbol = necro_llvm_symbol_get(&context->arena, ast->fn_def.symbol);
-    LLVMValueRef     fn_value  = fn_symbol->value;
 
     if (ast->fn_def.fn_type == NECRO_MACH_FN_RUNTIME)
     {
-        LLVMSetFunctionCallConv(fn_value, LLVMCCallConv);
-        LLVMSetLinkage(fn_value, LLVMExternalLinkage);
+        // LLVMSetFunctionCallConv(fn_value, LLVMCCallConv);
+        // LLVMSetLinkage(fn_value, LLVMExternalLinkage);
         return;
     }
 
+    LLVMValueRef     fn_value  = fn_symbol->value;
     LLVMSetFunctionCallConv(fn_value, LLVMFastCallConv);
     LLVMBasicBlockRef entry = NULL;
 
@@ -1359,9 +1371,19 @@ void necro_llvm_map_runtime_symbol(NecroLLVM* context, LLVMExecutionEngineRef en
 {
     if (mach_symbol == NULL)
         return;
-    NecroLLVMSymbol* llvm_symbol = necro_llvm_symbol_get(&context->arena, mach_symbol);
-    if (llvm_symbol->value == NULL || LLVMIsNull(llvm_symbol->value) || !LLVMIsAFunction(llvm_symbol->value))
-        return;
+    // NecroLLVMSymbol* llvm_symbol = necro_llvm_symbol_get(&context->arena, mach_symbol);
+    UNUSED(context);
+    NecroLLVMSymbol* llvm_symbol = mach_symbol->ast->fn_def.fn_value->value.global_symbol->codegen_symbol;
+    assert(llvm_symbol->value != NULL);
+    assert(!LLVMIsNull(llvm_symbol->value));
+    assert(LLVMIsAFunction(llvm_symbol->value));
+    // if (!LLVMIsAFunction(llvm_symbol->value))
+    // {
+    //     necro_mach_type_print(mach_symbol->ast->necro_machine_type);
+    //     printf("%s\n", LLVMPrintValueToString(llvm_symbol->value));
+    //     printf("%s\n", LLVMPrintTypeToString(LLVMTypeOf(llvm_symbol->value)));
+    //     assert(LLVMIsAFunction(llvm_symbol->value));
+    // }
     LLVMAddGlobalMapping(engine, llvm_symbol->value, (void*) mach_symbol->ast->fn_def.runtime_fn_addr);
 }
 

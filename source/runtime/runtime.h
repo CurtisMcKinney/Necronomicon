@@ -56,8 +56,8 @@ extern DLLEXPORT size_t necro_runtime_out_audio_block(size_t channel_num, double
 
 //--------------------
 // Memory
-extern DLLEXPORT uint8_t*     necro_runtime_alloc(size_t size);
-extern DLLEXPORT uint8_t*     necro_runtime_realloc(uint8_t* ptr, size_t size);
-extern DLLEXPORT void         necro_runtime_free(uint8_t* data);
+extern DLLEXPORT uint8_t* necro_runtime_alloc(size_t size);
+extern DLLEXPORT uint8_t* necro_runtime_realloc(uint8_t* ptr, size_t size);
+extern DLLEXPORT void     necro_runtime_free(uint8_t* data);
 
 #endif // RUNTIME_H

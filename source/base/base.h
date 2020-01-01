@@ -91,6 +91,7 @@ typedef struct NecroBase
     NecroAstSymbol* field_class;
     NecroAstSymbol* num_type_class;
     NecroAstSymbol* integral_class;
+    NecroAstSymbol* bits_class;
     NecroAstSymbol* floating_class;
     NecroAstSymbol* eq_type_class;
     NecroAstSymbol* ord_type_class;
@@ -138,6 +139,7 @@ typedef struct NecroBase
     // NecroAstSymbol* unsafe_poke;
     // NecroAstSymbol* unsafe_free;
     NecroAstSymbol* print_int;
+    NecroAstSymbol* print_uint;
     NecroAstSymbol* print_i64;
     NecroAstSymbol* print_float;
     NecroAstSymbol* print_f64;

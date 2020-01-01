@@ -1422,6 +1422,7 @@ void necro_llvm_jit_go(NecroCompileInfo info, NecroLLVM* context, const char* ji
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_print_int);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_print_i64);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_print_char);
+    necro_llvm_map_runtime_symbol(context, context->engine, context->base->print_uint->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context, context->engine, context->base->print_float->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context, context->engine, context->base->print_f64->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_get_mouse_x);
@@ -3435,14 +3436,87 @@ void necro_llvm_test_jit()
     //     necro_llvm_jit_string(test_name, test_source);
     // }
 
-    // TODO: Test divide by zero
+    // {
+    //     const char* test_name   = "Negative Rational";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (1 // -2 == -2 // 4) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
+    // {
+    //     const char* test_name   = "GT Rational";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (3 // 4 > 4 // 8) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
+    // {
+    //     const char* test_name   = "LT Rational";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (6 // 12 < 7 // 9) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
+    // {
+    //     const char* test_name   = "Bit And 1";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (bitAnd 12 4 == 4) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
+    // {
+    //     const char* test_name   = "Bit And 2";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (bitAnd 12 5 == 4) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
+    // {
+    //     const char* test_name   = "bitOr 1";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (bitOr 8 4 == 12) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
+    // {
+    //     const char* test_name   = "bitOr 2";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (bitOr 9 5 == 13) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
+    // {
+    //     const char* test_name   = "bitShiftLeft 1";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (bitShiftLeft 2 3 == 16) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
+    // {
+    //     const char* test_name   = "bitShiftLeft 2";
+    //     const char* test_source = ""
+    //         "main :: *World -> *World\n"
+    //         "main w = testAssertion (bitShiftLeft 1 3 == 8) w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
     {
-        const char* test_name   = "Negative Rational";
+        const char* test_name   = "bitShiftLeft 3";
         const char* test_source = ""
             "main :: *World -> *World\n"
-            "main w = testAssertion (1 // -2 == -2 // 4) w\n";
+            "main w = testAssertion (bitShiftLeft 3 2 == 12) w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
+
+    // TODO: Test divide by zero
 
 /*
 

@@ -74,6 +74,12 @@ extern DLLEXPORT unsigned int necro_runtime_print_i64(int64_t value, unsigned in
     return world;
 }
 
+extern DLLEXPORT unsigned int necro_runtime_print_uint(unsigned int value, unsigned int world)
+{
+    printf("%u", value);
+    return world;
+}
+
 extern DLLEXPORT unsigned int necro_runtime_print_f32(float value, unsigned int world)
 {
     printf("%.17f", value);

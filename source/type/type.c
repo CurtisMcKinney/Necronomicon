@@ -515,6 +515,7 @@ bool necro_type_default(NecroPagedArena* arena, NecroBase* base, NecroType* type
     const bool contains_field          = necro_type_contains_constraint_with_symbol(type, base->field_class);
     const bool contains_num            = necro_type_contains_constraint_with_symbol(type, base->num_type_class);
     const bool contains_integral       = necro_type_contains_constraint_with_symbol(type, base->integral_class);
+    const bool contains_bits           = necro_type_contains_constraint_with_symbol(type, base->bits_class);
     const bool contains_floating       = necro_type_contains_constraint_with_symbol(type, base->floating_class);
     const bool contains_eq             = necro_type_contains_constraint_with_symbol(type, base->eq_type_class);
     const bool contains_ord            = necro_type_contains_constraint_with_symbol(type, base->ord_type_class);
@@ -529,27 +530,33 @@ bool necro_type_default(NecroPagedArena* arena, NecroBase* base, NecroType* type
         if (necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->float_type, type->var.var_symbol->constraints))
             return true;
     }
-    else if (contains_integral || contains_euclidean_ring)
+    else if (contains_integral || contains_euclidean_ring || contains_bits)
     {
-        if (necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->int_type, type->var.var_symbol->constraints) ||
-            necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->float_type, type->var.var_symbol->constraints))
+        if (necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->int_type, type->var.var_symbol->constraints)   ||
+            necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->float_type, type->var.var_symbol->constraints) ||
+            necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->uint_type, type->var.var_symbol->constraints))
             return true;
     }
     else if (contains_num || contains_ring)
     {
-        if (necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->int_type, type->var.var_symbol->constraints) ||
-            necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->float_type, type->var.var_symbol->constraints))
+        if (necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->int_type, type->var.var_symbol->constraints)   ||
+            necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->float_type, type->var.var_symbol->constraints) ||
+            necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->uint_type, type->var.var_symbol->constraints))
             return true;
     }
     else if (contains_semi_ring)
     {
         if (necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->bool_type, type->var.var_symbol->constraints) ||
-            necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->int_type, type->var.var_symbol->constraints))
+            necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->int_type, type->var.var_symbol->constraints)  ||
+            necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->uint_type, type->var.var_symbol->constraints))
             return true;
     }
     else if (contains_eq || contains_ord)
     {
-        if (necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->unit_type, type->var.var_symbol->constraints))
+        if (necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->bool_type, type->var.var_symbol->constraints) ||
+            necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->int_type, type->var.var_symbol->constraints)  ||
+            necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->uint_type, type->var.var_symbol->constraints) ||
+            necro_type_bind_var_to_type_if_instance_of_constraints(arena, type, base->unit_type, type->var.var_symbol->constraints))
             return true;
     }
     return false;

@@ -1412,6 +1412,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.field_class            = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Field"));
     base.num_type_class         = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Num"));
     base.integral_class         = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Integral"));
+    base.bits_class             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Bits"));
     base.floating_class         = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Floating"));
     // base.fractional_type_class  = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Fractional"));
     base.eq_type_class          = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Eq"));
@@ -1471,6 +1472,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "sampleRate",       &base.sample_rate,       NECRO_PRIMOP_PRIM_VAL);
     necro_base_setup_primitive(scoped_symtable, intern, "recipSampleRate",  &base.recip_sample_rate, NECRO_PRIMOP_PRIM_VAL);
     necro_base_setup_primitive(scoped_symtable, intern, "printInt",         &base.print_int,         NECRO_PRIMOP_PRIM_FN);
+    necro_base_setup_primitive(scoped_symtable, intern, "printUInt",        &base.print_uint,        NECRO_PRIMOP_PRIM_FN);
     necro_base_setup_primitive(scoped_symtable, intern, "printI64",         &base.print_i64,         NECRO_PRIMOP_PRIM_FN);
     necro_base_setup_primitive(scoped_symtable, intern, "printFloat",       &base.print_float,       NECRO_PRIMOP_PRIM_FN);
     necro_base_setup_primitive(scoped_symtable, intern, "printF64",         &base.print_f64,         NECRO_PRIMOP_PRIM_FN);

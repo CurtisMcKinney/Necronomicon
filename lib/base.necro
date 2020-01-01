@@ -196,7 +196,7 @@ class Floating a => Trig a where
 -- toFloating :: (Num' a, Floating b) => a -> b
 -- toFloating = fromRational' <. toRational
 
-class Bits a where
+class Integral a => Bits a where
   bitAnd        :: a -> a -> a
   bitOr         :: a -> a -> a
   bitXor        :: a -> a -> a
@@ -1618,6 +1618,9 @@ interleaveTick slot maxSlot sv =
 class Print a where
   print :: a -> *World -> *World
 
+printUInt :: UInt -> *World -> *World
+printUInt u w = w
+
 printInt :: Int -> *World -> *World
 printInt i w = w
 
@@ -1632,6 +1635,9 @@ printF64 f w = w
 
 printChar :: Char -> *World -> *World
 printChar c w = w
+
+instance Print UInt where
+  print x w = printUInt x w
 
 instance Print Int where
   print x w = printInt x w

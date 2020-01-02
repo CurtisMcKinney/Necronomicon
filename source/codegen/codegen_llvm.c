@@ -1273,7 +1273,7 @@ void necro_codegen_global(NecroLLVM* context, NecroMachAst* ast)
         const size_t  str_length   = global_symbol->mach_symbol->global_string_symbol->length;
         LLVMValueRef  string_value = NULL;
         LLVMTypeRef   element_type = (context->program->word_size == NECRO_WORD_4_BYTES) ? LLVMInt32TypeInContext(context->context) : LLVMInt64TypeInContext(context->context);
-        LLVMValueRef* chars        = necro_paged_arena_alloc(&context->arena, str_length * sizeof(LLVMValueRef));
+        LLVMValueRef* chars        = necro_paged_arena_alloc(&context->program->arena, str_length * sizeof(LLVMValueRef));
         const char*   str          = global_symbol->mach_symbol->global_string_symbol->str;
         for (size_t i = 0; i < str_length; ++i)
         {

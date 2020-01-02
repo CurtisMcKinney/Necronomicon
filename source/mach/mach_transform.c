@@ -873,6 +873,7 @@ void necro_core_transform_to_mach_2_lit(NecroMachProgram* program, NecroCoreAst*
             NecroMachType*      array_mach_type               = necro_mach_type_create_array(&program->arena, program->type_cache.word_uint_type, core_ast->lit.string_literal->length);
             NecroMachAstSymbol* global_symbol                 = necro_mach_ast_symbol_create(&program->arena, necro_intern_unique_string(program->intern, "string"));
             core_ast->lit.string_literal->global_string_value = necro_mach_value_create_global(program, global_symbol, necro_mach_type_create_ptr(&program->arena, array_mach_type));
+            global_symbol->global_string_symbol               = core_ast->lit.string_literal;
             necro_mach_program_add_global(program, core_ast->lit.string_literal->global_string_value);
         }
     }

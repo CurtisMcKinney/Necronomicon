@@ -2253,6 +2253,7 @@ poly f s =
 -- TODO: Write to log file, perhaps class Log a similar to class Print a
 -- TODO: Look at all the .i.i.i weirdness in llvm names???
 
+-- TODO: Memory access test audio stuff!
 -- TODO: JIT test function, testAssertion :: Bool -> *World -> *World
 -- TODO: Put Uniqueness unify AFTER type unify for better error messages?
 -- TODO: type sig coerce constraint!

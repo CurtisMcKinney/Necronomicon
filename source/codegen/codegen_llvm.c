@@ -1384,6 +1384,7 @@ void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroL
     necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_realloc);
     necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_free);
     necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_out_audio_block);
+    necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_print_audio_block);
     necro_llvm_map_check_symbol(context->base->floor->core_ast_symbol->mach_symbol);
     necro_llvm_map_check_symbol(context->base->test_assertion->core_ast_symbol->mach_symbol);
 
@@ -1444,7 +1445,7 @@ void necro_llvm_jit_go(NecroCompileInfo info, NecroLLVM* context, const char* ji
     //     assert(false);
     // }
     // LLVMDisposeMessage(error);
-
+    
     //--------------------
     // Map runtime functions
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_init_runtime);
@@ -1464,6 +1465,7 @@ void necro_llvm_jit_go(NecroCompileInfo info, NecroLLVM* context, const char* ji
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_realloc);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_free);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_out_audio_block);
+    necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_print_audio_block);
     necro_llvm_map_runtime_symbol(context->engine, context->base->floor->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context->engine, context->base->test_assertion->core_ast_symbol->mach_symbol);
 
@@ -3556,11 +3558,21 @@ void necro_llvm_test_jit()
     //     necro_llvm_jit_string(test_name, test_source);
     // }
 
+    /* { */
+    /*     const char* test_name   = "bitShiftRight 2"; */
+    /*     const char* test_source = "" */
+    /*         "main :: *World -> *World\n" */
+    /*         "main w = testAssertion (bitShiftRight 9 2 == 2) w\n"; */
+    /*     necro_llvm_jit_string(test_name, test_source); */
+    /* } */
+
     {
-        const char* test_name   = "bitShiftRight 2";
+        const char* test_name   = "Print Audio Block";
         const char* test_source = ""
+            "coolSaw :: Audio Mono\n"
+            "coolSaw = saw 1\n"
             "main :: *World -> *World\n"
-            "main w = testAssertion (bitShiftRight 9 2 == 2) w\n";
+            "main w = printAudio 0 coolSaw w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 

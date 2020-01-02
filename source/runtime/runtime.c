@@ -3,6 +3,7 @@
  * Proprietary and confidential
  */
 
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -185,6 +186,22 @@ extern DLLEXPORT size_t necro_runtime_out_audio_block(size_t channel_num, double
     struct NecroDownsample* downsample = necro_runtime_audio_downsample[channel_num];
     // necro_downsample(downsample, necro_runtime_audio_block_size, necro_runtime_audio_oversample_amt, audio_block, output_buffer);
     necro_downsample(downsample, channel_num, necro_runtime_audio_num_output_channels, necro_runtime_audio_block_size, necro_runtime_audio_oversample_amt, audio_block, necro_runtime_audio_output_buffer);
+    return world;
+}
+
+extern DLLEXPORT size_t necro_runtime_print_audio_block(size_t channel_num, double* audio_block, size_t world)
+{
+    if (channel_num >= necro_runtime_audio_num_output_channels)
+        return world;
+
+    printf("AudioBlock { ");
+    assert(necro_runtime_audio_block_size >= 2);
+    size_t penultimate_sample = necro_runtime_audio_block_size - 2;
+    for (size_t i = 0; i < penultimate_sample; ++i)
+    {
+        printf("%.3f, ", audio_block[i]);
+    }
+    printf("%.3f }\n", audio_block[penultimate_sample + 1]);
     return world;
 }
 
@@ -375,6 +392,7 @@ extern DLLEXPORT void necro_runtime_shutdown()
 // Runtime Unix
 ///////////////////////////////////////////////////////
 #include <unistd.h>
+#include <assert.h>
 
 #include <X11/Xos.h>
 #include <X11/Xlib.h>
@@ -416,7 +434,6 @@ static void query_pointer(Display *d)
 {
   static bool once;
   int i = 0;
-  int x = 0, y = 0;
   unsigned m;
   Window w;
 
@@ -426,7 +443,7 @@ static void query_pointer(Display *d)
     root = DefaultRootWindow(d);
   }
 
-  if (!XQueryPointer(d, root, &root, &w, &x, &y, &i, &i, &m)) {
+  if (!XQueryPointer(d, root, &root, &w, &mouse_x, &mouse_y, &i, &i, &m)) {
     for (i = 0; i < ScreenCount(d); ++i)
     {
       if (root == RootWindow(d, i))
@@ -436,7 +453,7 @@ static void query_pointer(Display *d)
     }
   }
 
-  fprintf(stdout, "X: %d Y: %d\n", x, y);
+  /* fprintf(stdout, "X: %d Y: %d\n", x, y); */
 }
 
 extern DLLEXPORT void necro_runtime_update()

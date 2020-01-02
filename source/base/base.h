@@ -145,6 +145,7 @@ typedef struct NecroBase
     NecroAstSymbol* print_f64;
     NecroAstSymbol* print_char;
     NecroAstSymbol* out_audio_block;
+    NecroAstSymbol* print_audio_block;
     NecroAstSymbol* fast_floor;
     NecroAstSymbol* fma;
     NecroAstSymbol* bit_reverse_uint;

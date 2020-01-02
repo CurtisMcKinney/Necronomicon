@@ -1480,9 +1480,9 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         mach_symbol->is_primitive                 = true;
         NecroMachType*      fn_type               = necro_mach_type_create_fn(&program->arena, program->type_cache.word_uint_type, (NecroMachType*[]) { program->type_cache.word_int_type, program->type_cache.word_uint_type }, 2);
         if (program->word_size == NECRO_WORD_4_BYTES)
-            necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr)necro_runtime_print_i32, NECRO_STATE_POINTWISE)->fn_def.symbol;
+            necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr)necro_runtime_print_i32, NECRO_STATE_POINTWISE);
         else
-            necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr)necro_runtime_print_i64, NECRO_STATE_POINTWISE)->fn_def.symbol;
+            necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr)necro_runtime_print_i64, NECRO_STATE_POINTWISE);
     }
 
     // necro_runtime_print_i64
@@ -1505,9 +1505,9 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         mach_symbol->is_primitive                 = true;
         NecroMachType*      fn_type               = necro_mach_type_create_fn(&program->arena, program->type_cache.word_uint_type, (NecroMachType*[]) { program->type_cache.word_uint_type, program->type_cache.word_uint_type }, 2);
         if (program->word_size == NECRO_WORD_4_BYTES)
-            necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr)necro_runtime_print_u32, NECRO_STATE_POINTWISE)->fn_def.symbol;
+            necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr)necro_runtime_print_u32, NECRO_STATE_POINTWISE);
         else
-            necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr)necro_runtime_print_u64, NECRO_STATE_POINTWISE)->fn_def.symbol;
+            necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr)necro_runtime_print_u64, NECRO_STATE_POINTWISE);
     }
 
     // necro_runtime_print_float
@@ -1596,6 +1596,18 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         NecroMachType*      audio_block_type           = necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_array(&program->arena, program->type_cache.f64_type, necro_runtime_get_block_size()));
         NecroMachType*      fn_type                    = necro_mach_type_create_fn(&program->arena, program->type_cache.word_uint_type, (NecroMachType*[]) { program->type_cache.word_uint_type, audio_block_type, program->type_cache.word_uint_type }, 3);
         program->runtime.necro_runtime_out_audio_block = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_out_audio_block, NECRO_STATE_STATEFUL)->fn_def.symbol;
+    }
+
+    // printAudioBlock
+    {
+        NecroAstSymbol*     ast_symbol                   = program->base->print_audio_block;
+        ast_symbol->is_primitive                         = true;
+        ast_symbol->core_ast_symbol->is_primitive        = true;
+        NecroMachAstSymbol* mach_symbol                  = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
+        mach_symbol->is_primitive                        = true;
+        NecroMachType*      audio_block_type             = necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_array(&program->arena, program->type_cache.f64_type, necro_runtime_get_block_size()));
+        NecroMachType*      fn_type                      = necro_mach_type_create_fn(&program->arena, program->type_cache.word_uint_type, (NecroMachType*[]) { program->type_cache.word_uint_type, audio_block_type, program->type_cache.word_uint_type }, 3);
+        program->runtime.necro_runtime_print_audio_block = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_print_audio_block, NECRO_STATE_STATEFUL)->fn_def.symbol;
     }
 
     // fast_floor

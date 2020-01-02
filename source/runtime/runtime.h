@@ -53,7 +53,6 @@ NecroResult(void)       necro_runtime_audio_shutdown();
 extern DLLEXPORT size_t necro_runtime_get_sample_rate();
 extern DLLEXPORT size_t necro_runtime_get_block_size();
 extern DLLEXPORT size_t necro_runtime_out_audio_block(size_t channel_num, double* audio_block, size_t world);
-extern DLLEXPORT size_t necro_runtime_print_audio_block(size_t channel_num, double* audio_block, size_t world);
 
 //--------------------
 // Memory

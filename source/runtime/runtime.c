@@ -189,21 +189,20 @@ extern DLLEXPORT size_t necro_runtime_out_audio_block(size_t channel_num, double
     return world;
 }
 
-extern DLLEXPORT size_t necro_runtime_print_audio_block(size_t channel_num, double* audio_block, size_t world)
-{
-    if (channel_num >= necro_runtime_audio_num_output_channels)
-        return world;
-
-    printf("AudioBlock { ");
-    assert(necro_runtime_audio_block_size >= 2);
-    size_t penultimate_sample = necro_runtime_audio_block_size - 2;
-    for (size_t i = 0; i < penultimate_sample; ++i)
-    {
-        printf("%.3f, ", audio_block[i]);
-    }
-    printf("%.3f }\n", audio_block[penultimate_sample + 1]);
-    return world;
-}
+// extern DLLEXPORT size_t necro_runtime_print_audio_block(size_t channel_num, double* audio_block, size_t world)
+// {
+//     if (channel_num >= necro_runtime_audio_num_output_channels)
+//         return world;
+//     printf("AudioBlock { ");
+//     assert(necro_runtime_audio_block_size >= 2);
+//     size_t penultimate_sample = necro_runtime_audio_block_size - 2;
+//     for (size_t i = 0; i < penultimate_sample; ++i)
+//     {
+//         printf("%.3f, ", audio_block[i]);
+//     }
+//     printf("%.3f }\n", audio_block[penultimate_sample + 1]);
+//     return world;
+// }
 
 // Or break up and run the whole signal multiple times!?
 static int necro_runtime_audio_pa_callback(const void* input_buffer, void* output_buffer, unsigned long frames_per_buffer, const PaStreamCallbackTimeInfo* time_info, PaStreamCallbackFlags status_flags, void* user_data)

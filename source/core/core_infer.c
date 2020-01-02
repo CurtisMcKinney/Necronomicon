@@ -55,7 +55,7 @@ NecroResult(NecroType) necro_core_infer_lit(NecroCoreInfer* infer, NecroCoreAst*
         return ok(NecroType, ast->necro_type);
     case NECRO_AST_CONSTANT_STRING:
     {
-        NecroType* arity_type = necro_type_nat_create(infer->arena, strlen(ast->lit.string_literal->str) + 1);
+        NecroType* arity_type = necro_type_nat_create(infer->arena, strlen(ast->lit.string_literal->str));
         arity_type->kind      = infer->base->nat_kind->type;
         NecroType* array_type = necro_type_con2_create(infer->arena, infer->base->array_type, arity_type, infer->base->char_type->type);
         ast->necro_type       = array_type;

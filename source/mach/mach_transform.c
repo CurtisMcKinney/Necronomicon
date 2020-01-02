@@ -855,15 +855,22 @@ void necro_core_transform_to_mach_2_lit(NecroMachProgram* program, NecroCoreAst*
     assert(core_ast->ast_type == NECRO_CORE_AST_LIT);
     assert(outer != NULL);
     assert(outer->type == NECRO_MACH_DEF);
-    if (core_ast->lit.type != NECRO_AST_CONSTANT_ARRAY)
-        return;
-    NecroMachType* array_mach_type = necro_mach_type_from_necro_type(program, core_ast->necro_type);
-    core_ast->persistent_slot  = necro_mach_add_member(program, &outer->machine_def, array_mach_type, NULL).slot_num;
-    NecroCoreAstList* elements = core_ast->lit.array_literal_elements;
-    while (elements != NULL)
+    if (core_ast->lit.type == NECRO_AST_CONSTANT_ARRAY)
     {
-        necro_core_transform_to_mach_2_go(program, elements->data, outer);
-        elements = elements->next;
+        NecroMachType* array_mach_type = necro_mach_type_from_necro_type(program, core_ast->necro_type);
+        core_ast->persistent_slot      = necro_mach_add_member(program, &outer->machine_def, array_mach_type, NULL).slot_num;
+        NecroCoreAstList* elements     = core_ast->lit.array_literal_elements;
+        while (elements != NULL)
+        {
+            necro_core_transform_to_mach_2_go(program, elements->data, outer);
+            elements = elements->next;
+        }
+    }
+    else if (core_ast->lit.type == NECRO_AST_CONSTANT_STRING)
+    {
+        const size_t   string_length   = core_ast->lit.string_literal->length;
+        NecroMachType* array_mach_type = necro_mach_type_create_array(&program->arena, program->type_cache.word_uint_type, string_length);
+        core_ast->persistent_slot      = necro_mach_add_member(program, &outer->machine_def, array_mach_type, NULL).slot_num;
     }
 }
 
@@ -969,29 +976,53 @@ NecroMachAst* necro_core_transform_to_mach_3_lit(NecroMachProgram* program, Necr
     switch (core_ast->lit.type)
     {
     case NECRO_AST_CONSTANT_INTEGER_PATTERN:
-    case NECRO_AST_CONSTANT_INTEGER: return necro_mach_value_create_word_int(program, core_ast->lit.int_literal);
+    case NECRO_AST_CONSTANT_INTEGER:
+        return necro_mach_value_create_word_int(program, core_ast->lit.int_literal);
     case NECRO_AST_CONSTANT_FLOAT_PATTERN:
-    case NECRO_AST_CONSTANT_FLOAT:   return necro_mach_value_create_word_float(program, core_ast->lit.float_literal);
+    case NECRO_AST_CONSTANT_FLOAT:
+        return necro_mach_value_create_word_float(program, core_ast->lit.float_literal);
     case NECRO_AST_CONSTANT_UNSIGNED_INTEGER_PATTERN:
-    case NECRO_AST_CONSTANT_UNSIGNED_INTEGER: return necro_mach_value_create_word_uint(program, core_ast->lit.uint_literal);
+    case NECRO_AST_CONSTANT_UNSIGNED_INTEGER:
+        return necro_mach_value_create_word_uint(program, core_ast->lit.uint_literal);
     case NECRO_AST_CONSTANT_CHAR_PATTERN:
-    case NECRO_AST_CONSTANT_CHAR:    return necro_mach_value_create_word_uint(program, core_ast->lit.char_literal);
-    case NECRO_AST_CONSTANT_ARRAY:   /* CONTINUE BELOW */ break;
-    default:                         assert(false); return NULL;
-    }
-    // NECRO_AST_CONSTANT_ARRAY
-    NecroMachAst*     value_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, necro_mach_value_get_state_ptr(outer->machine_def.update_fn), (size_t[]) { 0, core_ast->persistent_slot }, 2, "state");
-    NecroCoreAstList* elements  = core_ast->lit.array_literal_elements;
-    size_t            i         = 0;
-    while (elements != NULL)
+    case NECRO_AST_CONSTANT_CHAR:
+        return necro_mach_value_create_word_uint(program, core_ast->lit.char_literal);
+    case NECRO_AST_CONSTANT_ARRAY:
     {
-        NecroMachAst* element_value = necro_core_transform_to_mach_3_go(program, elements->data, outer);
-        NecroMachAst* element_ptr   = necro_mach_build_gep(program, outer->machine_def.update_fn, value_ptr, (size_t[]) { 0, i }, 2, "elem");
-        necro_mach_build_store(program, outer->machine_def.update_fn, element_value, element_ptr);
-        elements                    = elements->next;
-        i++;
+        assert(outer != NULL);
+        NecroMachAst*     value_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, necro_mach_value_get_state_ptr(outer->machine_def.update_fn), (size_t[]) { 0, core_ast->persistent_slot }, 2, "state");
+        NecroCoreAstList* elements  = core_ast->lit.array_literal_elements;
+        size_t            i         = 0;
+        while (elements != NULL)
+        {
+            NecroMachAst* element_value = necro_core_transform_to_mach_3_go(program, elements->data, outer);
+            NecroMachAst* element_ptr   = necro_mach_build_gep(program, outer->machine_def.update_fn, value_ptr, (size_t[]) { 0, i }, 2, "elem");
+            necro_mach_build_store(program, outer->machine_def.update_fn, element_value, element_ptr);
+            elements                    = elements->next;
+            i++;
+        }
+        return value_ptr;
     }
-    return value_ptr;
+    case NECRO_AST_CONSTANT_STRING:
+    {
+        assert(outer != NULL);
+        NecroMachAst* value_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, necro_mach_value_get_state_ptr(outer->machine_def.update_fn), (size_t[]) { 0, core_ast->persistent_slot }, 2, "state");
+        const char*   str       = core_ast->lit.string_literal->str;
+        size_t        i         = 0;
+        while (str != NULL && *str != '\0')
+        {
+            NecroMachAst* element_value = necro_mach_value_create_word_uint(program, *str);
+            NecroMachAst* element_ptr   = necro_mach_build_gep(program, outer->machine_def.update_fn, value_ptr, (size_t[]) { 0, i }, 2, "elem");
+            necro_mach_build_store(program, outer->machine_def.update_fn, element_value, element_ptr);
+            i++;
+            str++;
+        }
+        return value_ptr;
+    }
+    default:
+        assert(false);
+        return NULL;
+    }
 }
 
 NecroMachAst* necro_core_transform_to_mach_3_let(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)

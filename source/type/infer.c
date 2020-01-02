@@ -1405,7 +1405,7 @@ NecroType* necro_infer_constant(NecroInfer* infer, NecroAst* ast)
         return ast->necro_type;
     case NECRO_AST_CONSTANT_STRING:
     {
-        NecroType* arity_type = necro_type_nat_create(infer->arena, strlen(ast->constant.symbol->str) + 1);
+        NecroType* arity_type = necro_type_nat_create(infer->arena, strlen(ast->constant.symbol->str));
         arity_type->kind      = infer->base->nat_kind->type;
         NecroType* char_type  = necro_type_con_create(infer->arena, infer->base->char_type, NULL);
         char_type->ownership  = infer->base->ownership_share->type;

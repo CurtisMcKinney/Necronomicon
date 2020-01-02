@@ -1478,7 +1478,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "printF64",         &base.print_f64,         NECRO_PRIMOP_PRIM_FN);
     necro_base_setup_primitive(scoped_symtable, intern, "printChar",        &base.print_char,        NECRO_PRIMOP_PRIM_FN);
     necro_base_setup_primitive(scoped_symtable, intern, "outAudioBlock",    &base.out_audio_block,   NECRO_PRIMOP_PRIM_FN);
-    necro_base_setup_primitive(scoped_symtable, intern, "printAudioBlock",  &base.print_audio_block, NECRO_PRIMOP_PRIM_FN);
+    // necro_base_setup_primitive(scoped_symtable, intern, "printAudioBlock",  &base.print_audio_block, NECRO_PRIMOP_PRIM_FN);
     necro_base_setup_primitive(scoped_symtable, intern, "floor",            &base.floor,             NECRO_PRIMOP_PRIM_FN);
 
     // Misc

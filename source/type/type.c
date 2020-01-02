@@ -881,8 +881,8 @@ NecroResult(NecroType) necro_unify_app(NecroPagedArena* arena, NecroConstraintEn
         int32_t app_diff = arg_count - app_count;
         if (app_diff != 0)
         {
-            if (app_diff < 0)
-                assert(false && "TODO: kind error?");
+            // if (app_diff < 0)
+            //     assert(false && "TODO: kind error?");
             NecroType* con_kind = necro_type_find(type2->con.con_symbol->type->kind);
             for (int32_t i = 0; i < app_diff; ++i)
                 con_kind = necro_type_find(con_kind->fun.type2);
@@ -1023,8 +1023,8 @@ NecroResult(NecroType) necro_unify_con(NecroPagedArena* arena, NecroConstraintEn
         int32_t app_diff = arg_count - app_count;
         if (app_diff != 0)
         {
-            if (app_diff < 0)
-                assert(false && "TODO: kind error?");
+            // if (app_diff < 0)
+            //     assert(false && "TODO: kind error?");
             NecroType* con_kind = necro_type_find(type1->con.con_symbol->type->kind);
             for (int32_t i = 0; i < app_diff; ++i)
                 con_kind = necro_type_find(con_kind->fun.type1);

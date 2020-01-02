@@ -129,8 +129,8 @@ class Enum a where
   fromEnum :: a -> Int
 
 class Foldable f where
-  fold  :: Monoid m => f m -> m
-  foldl :: (b -> a -> b) -> b -> f a -> b
+  fold   :: Monoid m => f m -> m
+  foldl  :: (.b -> .a -> .b) -> .b -> f .a -> .b
 
 class Eq a where
   eq  :: a -> a -> Bool
@@ -788,7 +788,7 @@ freezeArray a = primUndefined
 readArray :: Index n -> Array n a -> a
 readArray i a = primUndefined
 
-readArrayU :: Index n -> *Array n a -> (#a, *Array n a#)
+readArrayU :: Index n -> Array n .a -> (#.a, Array n .a#)
 readArrayU i a = primUndefined
 
 writeArray :: Index n -> a -> *Array n a -> *Array n a
@@ -812,9 +812,11 @@ instance Foldable (Array n) where
   fold a =
     loop x = mempty for i <- each do
       x <> readArray i a
-  foldl f init a =
-    loop x = init for i <- each do
-      f x (readArray i a)
+  foldl f init a0 =
+    fst' <| loop (#x, a1#) = (#init, a0#) for i <- each do
+      case readArrayU i a1 of
+        (#y, a2#) ->
+          (#f x y, a2#)
 
 
 --------------------
@@ -843,22 +845,12 @@ data Channel = ChannelEnd | BlockRate F64 | AudioRate (Array BlockSize F64)
 outAudioBlock :: UInt -> Array BlockSize F64 -> *World -> *World
 outAudioBlock c a w = primUndefined
 
-printAudioBlock :: UInt -> Array BlockSize F64 -> *World -> *World
-printAudioBlock c a w = primUndefined
-
 outChannel :: UInt -> Channel -> *World -> *World
 outChannel n c w =
   case c of
     ChannelEnd  -> w
     BlockRate _ -> w
     AudioRate b -> outAudioBlock n b w
-
-printChannel :: UInt -> Channel -> *World -> *World
-printChannel n c w =
-  case c of
-    ChannelEnd  -> w
-    BlockRate _ -> w
-    AudioRate b -> printAudioBlock n b w
 
 audioInitArray :: () -> *Array BlockSize F64
 audioInitArray u =
@@ -1145,7 +1137,6 @@ class (Functor f, FunctorN f, Applicative f, Foldable f) => AudioFormat f where
   accumulateFinite1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio f -> Audio f
   pan               :: Audio Mono -> Audio f -> Audio Stereo
   outAudio          :: UInt -> Audio f -> *World -> *World
-  printAudio        :: UInt -> Audio f -> *World -> *World
 
 instance Functor Mono where
   map f (Mono x) = Mono (f x)
@@ -1163,7 +1154,6 @@ instance Foldable Mono where
 
 instance AudioFormat Mono where
   outAudio  n (Audio (Mono c))  w                = outChannel n c w
-  printAudio n (Audio (Mono c))  w               = printChannel n c w
   accumulate1 f (Audio (Mono c))                 = Audio (Mono (accumulateChannel1 f c))
   accumulateFinite1 f sf (Audio (Mono c))        = Audio (Mono (accumulateChannelAndMaybeEnd1 f sf c))
   pan (Audio (Mono amount)) (Audio (Mono input)) = Audio (Stereo (#mul input (sub 1 amount), mul input amount#))
@@ -1184,7 +1174,6 @@ instance Foldable Stereo where
 
 instance AudioFormat Stereo where
   outAudio  n (Audio (Stereo (#l, r#))) w             = outChannel (add n 1) r (outChannel n l w)
-  printAudio n (Audio (Stereo (#l, r#))) w            = printChannel (add n 1) r (printChannel n l w)
   accumulate1 f (Audio (Stereo (#l, r#)))             = Audio (Stereo (#accumulateChannel1 f l, accumulateChannel1 f r#))
   accumulateFinite1 f sf (Audio (Stereo (#l, r#)))    = Audio (Stereo (#accumulateChannelAndMaybeEnd1 f sf l, accumulateChannelAndMaybeEnd1 f sf r#))
   pan (Audio (Mono amount)) (Audio (Stereo (#l, r#))) = Audio (Stereo (#mul l (sub 1 amount), mul r amount#))
@@ -1649,6 +1638,9 @@ printF64 f w = w
 printChar :: Char -> *World -> *World
 printChar c w = w
 
+printNewline :: *World -> *World
+printNewline w = printChar '\n' w
+
 instance Print UInt where
   print x w = printUInt x w
 
@@ -1667,26 +1659,26 @@ instance Print F64 where
 instance Print Char where
   print x w = printChar x w
 
+instance Print a => Print (Array n a) where
+  print a w =
+    loop w' = w for i <- each do
+      print (readArray i a) w'
+
 instance Print Bool where
   print x w =
     case x of
-      True -> print 'T' w |> print 'r' |> print 'u' |> print 'e'
-      _    -> print 'F' w |> print 'a' |> print 'l' |> print 's' |> print 'e'
+      True -> print "True" w
+      _    -> print "False" w
 
 instance Print Rational where
   print (Rational (#n, d#)) w =
-    print '(' w |> print n |> print ' ' |> print '/' |> print '/' |> print ' ' |> print d |> print ')'
+    print '(' w |> print n |> print " // " |> print d |> print ')'
 
 instance Print a => Print (Maybe a) where
   print mx w =
     case mx of
       Nothing -> print '_' w
       Just x  -> print x w
-
-instance Print a => Print (Array n a) where
-  print a w =
-    loop w' = w for i <- each do
-      print (readArray i a) w'
 
 instance Print a => Print (SeqValue a) where
   print (SeqValue (#t, _, v#)) w =
@@ -1718,17 +1710,44 @@ instance Print a => Print (Seq a) where
                 SeqValue (#t, c, _#) ->
                   (#True, t, printBarOnLoop c w'#)
 
--- @Curtis - This doesn't work because of some kind assert in type.c
--- instance AudioFormat f => Print (Audio f) where
---     print (Audio f) w = printAudio f w
+instance Print Channel where
+  print c w =
+    case c of
+      ChannelEnd  -> print "ChannelEnd" w
+      BlockRate x -> print "BlockRate " w |> print x
+      AudioRate b ->
+        print '}' <| loop w' = (print '{' w) for i <- each do
+          print (readArray i b) w' |> print ',' |> print ' '
+
+instance Foldable f => Print (Audio f) where
+  print (Audio f) w =
+    print "Audio [" w
+    |> printNewline
+    |> printNewline
+    |> (\w' -> foldl (\w'' c -> print c w'' |> printNewline |> printNewline) w' f)
+    |> print ']'
+    |> printNewline
+
+instance Print Complex where
+  print (Complex (#r, i#)) w =
+    print '(' w
+    |> print r
+    |> print " + i"
+    |> print i
+    |> print ')'
+
+instance Foldable f => Print (FFT f k) where
+  print (FFT f) w =
+    print "FFT [" w
+    |> printNewline
+    |> printNewline
+    |> (\w' -> foldl (\w'' c -> print c w'' |> printNewline |> printNewline) w' f)
+    |> print "]"
+    |> printNewline
 
 printLn :: Print a => a -> *World -> *World
 printLn x w =
-  print '\n' (print x w)
-
--- printArray :: *World -> *World
--- printArray w = print "Hello World" w
--- -- printArray w = print {'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd'} w
+  printNewline (print x w)
 
 trace :: Print a => a -> b -> b
 trace x y =

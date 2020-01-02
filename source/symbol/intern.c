@@ -276,7 +276,7 @@ NecroSymbol necro_intern_string(NecroIntern* intern, const char* str)
     intern->entries[probe].data  = necro_paged_arena_alloc(&intern->arena, sizeof(struct NecroSymbolData));
     char*  new_str               = necro_paged_arena_alloc(&intern->arena, length + 1);
     strcpy(new_str, str);
-    *intern->entries[probe].data = (struct NecroSymbolData) { .hash = hash, .symbol_num = intern->count + 1, .str = new_str, .length = length };
+    *intern->entries[probe].data = (struct NecroSymbolData) { .hash = hash, .symbol_num = intern->count + 1, .str = new_str, .length = length, .global_string_value = NULL };
     intern->entries[probe].hash  = hash;
 
     // Increase count, return symbol
@@ -358,7 +358,7 @@ NecroSymbol necro_intern_string_slice(NecroIntern* intern, NecroStringSlice slic
     char*  new_str               = necro_paged_arena_alloc(&intern->arena, length + 1);
     strncpy(new_str, slice.data, slice.length);
     new_str[slice.length]        = '\0';
-    *intern->entries[probe].data = (struct NecroSymbolData) { .hash = hash, .symbol_num = intern->count + 1, .str = new_str, .length = length };
+    *intern->entries[probe].data = (struct NecroSymbolData) { .hash = hash, .symbol_num = intern->count + 1, .str = new_str, .length = length, .global_string_value = NULL };
     intern->entries[probe].hash  = hash;
 
     // Increase count and return symbol

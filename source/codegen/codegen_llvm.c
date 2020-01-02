@@ -1268,8 +1268,8 @@ void necro_codegen_global(NecroLLVM* context, NecroMachAst* ast)
     }
     else
     {
+        // TODO: Check out memory error on shutdown, likely related to global strings
         // TODO / NOTE: Strings are represented incorrectly in literals. They should be const size_t* to match their representation in necro lang, NOT const char*!!!!
-        // LLVMValueRef string_value = LLVMConstStringInContext(context->context, global_symbol->mach_symbol->global_string_symbol->str, (unsigned int) global_symbol->mach_symbol->global_string_symbol->length, true);
         const size_t  str_length   = global_symbol->mach_symbol->global_string_symbol->length;
         LLVMValueRef  string_value = NULL;
         LLVMTypeRef   element_type = (context->program->word_size == NECRO_WORD_4_BYTES) ? LLVMInt32TypeInContext(context->context) : LLVMInt64TypeInContext(context->context);

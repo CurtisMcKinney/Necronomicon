@@ -868,12 +868,13 @@ void necro_core_transform_to_mach_2_lit(NecroMachProgram* program, NecroCoreAst*
     }
     else if (core_ast->lit.type == NECRO_AST_CONSTANT_STRING)
     {
-        NecroMachType*      array_mach_type = necro_mach_type_create_array(&program->arena, program->type_cache.word_uint_type, core_ast->lit.string_literal->length);
-        NecroMachAstSymbol* global_symbol   = necro_mach_ast_symbol_create(&program->arena, necro_intern_unique_string(program->intern, "globalString"));
-        global_symbol->global_string_symbol = core_ast->lit.string_literal;
-        NecroMachAst*       global_value    = necro_mach_value_create_global(program, global_symbol, necro_mach_type_create_ptr(&program->arena, array_mach_type));
-        core_ast->persistent_slot           = (size_t) global_value; // HACK HACK HACK
-        necro_mach_program_add_global(program, global_value);
+        if (core_ast->lit.string_literal->global_string_value == NULL)
+        {
+            NecroMachType*      array_mach_type               = necro_mach_type_create_array(&program->arena, program->type_cache.word_uint_type, core_ast->lit.string_literal->length);
+            NecroMachAstSymbol* global_symbol                 = necro_mach_ast_symbol_create(&program->arena, necro_intern_unique_string(program->intern, "string"));
+            core_ast->lit.string_literal->global_string_value = necro_mach_value_create_global(program, global_symbol, necro_mach_type_create_ptr(&program->arena, array_mach_type));
+            necro_mach_program_add_global(program, core_ast->lit.string_literal->global_string_value);
+        }
     }
 }
 
@@ -1007,7 +1008,8 @@ NecroMachAst* necro_core_transform_to_mach_3_lit(NecroMachProgram* program, Necr
         return value_ptr;
     }
     case NECRO_AST_CONSTANT_STRING:
-        return (NecroMachAst*) core_ast->persistent_slot;
+        assert(core_ast->lit.string_literal->global_string_value != NULL);
+        return core_ast->lit.string_literal->global_string_value;
     default:
         assert(false);
         return NULL;

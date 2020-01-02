@@ -1303,7 +1303,7 @@ void necro_monomorphize_test()
     {
         const char* test_name   = "String Test 1";
         const char* test_source = ""
-            "helloWorld :: Array 12 Char\n"
+            "helloWorld :: Array 11 Char\n"
             "helloWorld = \"Hello World\"\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);

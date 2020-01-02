@@ -1253,16 +1253,39 @@ void necro_codegen_global(NecroLLVM* context, NecroMachAst* ast)
     assert(ast != NULL);
     assert(ast->type == NECRO_MACH_VALUE);
     assert(ast->value.value_type == NECRO_MACH_VALUE_GLOBAL);
+    NecroLLVMSymbol* global_symbol = necro_llvm_symbol_get(&context->arena, ast->value.global_symbol);
     LLVMTypeRef      global_type   = necro_llvm_type_from_mach_type(context, ast->necro_machine_type->ptr_type.element_type);
-    LLVMValueRef     zero_value    = LLVMConstNull(global_type);
     const char*      global_name   = ast->value.global_symbol->name->str;
     LLVMValueRef     global_value  = LLVMAddGlobal(context->mod, global_type, global_name);
-    NecroLLVMSymbol* global_symbol = necro_llvm_symbol_get(&context->arena, ast->value.global_symbol);
     global_symbol->type            = global_type;
     global_symbol->value           = global_value;
     LLVMSetLinkage(global_value, LLVMInternalLinkage);
-    LLVMSetInitializer(global_value, zero_value);
-    LLVMSetGlobalConstant(global_value, false);
+    if (global_symbol->mach_symbol->global_string_symbol == NULL)
+    {
+        LLVMValueRef zero_value = LLVMConstNull(global_type);
+        LLVMSetInitializer(global_value, zero_value);
+        LLVMSetGlobalConstant(global_value, false);
+    }
+    else
+    {
+        // TODO / NOTE: Strings are represented incorrectly in literals. They should be const size_t* to match their representation in necro lang, NOT const char*!!!!
+        // LLVMValueRef string_value = LLVMConstStringInContext(context->context, global_symbol->mach_symbol->global_string_symbol->str, (unsigned int) global_symbol->mach_symbol->global_string_symbol->length, true);
+        const size_t  str_length   = global_symbol->mach_symbol->global_string_symbol->length;
+        LLVMValueRef  string_value = NULL;
+        LLVMTypeRef   element_type = (context->program->word_size == NECRO_WORD_4_BYTES) ? LLVMInt32TypeInContext(context->context) : LLVMInt64TypeInContext(context->context);
+        LLVMValueRef* chars        = necro_paged_arena_alloc(&context->arena, str_length * sizeof(LLVMValueRef));
+        const char*   str          = global_symbol->mach_symbol->global_string_symbol->str;
+        for (size_t i = 0; i < str_length; ++i)
+        {
+            assert(str != NULL);
+            assert(*str != '\0');
+            chars[i] = LLVMConstInt(element_type, *str, false);
+            str++;
+        }
+        string_value = LLVMConstArray(element_type, chars, (unsigned int) str_length);
+        LLVMSetInitializer(global_value, string_value);
+        LLVMSetGlobalConstant(global_value, true);
+    }
 }
 
 void necro_llvm_map_check_symbol(NecroMachAstSymbol* mach_symbol)

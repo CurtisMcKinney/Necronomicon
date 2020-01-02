@@ -868,9 +868,12 @@ void necro_core_transform_to_mach_2_lit(NecroMachProgram* program, NecroCoreAst*
     }
     else if (core_ast->lit.type == NECRO_AST_CONSTANT_STRING)
     {
-        const size_t   string_length   = core_ast->lit.string_literal->length;
-        NecroMachType* array_mach_type = necro_mach_type_create_array(&program->arena, program->type_cache.word_uint_type, string_length);
-        core_ast->persistent_slot      = necro_mach_add_member(program, &outer->machine_def, array_mach_type, NULL).slot_num;
+        NecroMachType*      array_mach_type = necro_mach_type_create_array(&program->arena, program->type_cache.word_uint_type, core_ast->lit.string_literal->length);
+        NecroMachAstSymbol* global_symbol   = necro_mach_ast_symbol_create(&program->arena, necro_intern_unique_string(program->intern, "globalString"));
+        global_symbol->global_string_symbol = core_ast->lit.string_literal;
+        NecroMachAst*       global_value    = necro_mach_value_create_global(program, global_symbol, necro_mach_type_create_ptr(&program->arena, array_mach_type));
+        core_ast->persistent_slot           = (size_t) global_value; // HACK HACK HACK
+        necro_mach_program_add_global(program, global_value);
     }
 }
 
@@ -1004,21 +1007,7 @@ NecroMachAst* necro_core_transform_to_mach_3_lit(NecroMachProgram* program, Necr
         return value_ptr;
     }
     case NECRO_AST_CONSTANT_STRING:
-    {
-        assert(outer != NULL);
-        NecroMachAst* value_ptr = necro_mach_build_gep(program, outer->machine_def.update_fn, necro_mach_value_get_state_ptr(outer->machine_def.update_fn), (size_t[]) { 0, core_ast->persistent_slot }, 2, "state");
-        const char*   str       = core_ast->lit.string_literal->str;
-        size_t        i         = 0;
-        while (str != NULL && *str != '\0')
-        {
-            NecroMachAst* element_value = necro_mach_value_create_word_uint(program, *str);
-            NecroMachAst* element_ptr   = necro_mach_build_gep(program, outer->machine_def.update_fn, value_ptr, (size_t[]) { 0, i }, 2, "elem");
-            necro_mach_build_store(program, outer->machine_def.update_fn, element_value, element_ptr);
-            i++;
-            str++;
-        }
-        return value_ptr;
-    }
+        return (NecroMachAst*) core_ast->persistent_slot;
     default:
         assert(false);
         return NULL;

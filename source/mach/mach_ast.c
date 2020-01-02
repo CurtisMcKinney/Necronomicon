@@ -23,20 +23,21 @@ NecroMachSlot necro_mach_slot_empty()
 
 NecroMachAstSymbol* necro_mach_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name)
 {
-    NecroMachAstSymbol* symbol = necro_paged_arena_alloc(arena, sizeof(NecroMachAstSymbol));
-    symbol->name               = name;
-    symbol->ast                = NULL;
-    symbol->mach_type          = NULL;
-    symbol->necro_type         = NULL;
-    symbol->state_type         = NECRO_STATE_CONSTANT;
-    symbol->con_num            = 0;
-    symbol->is_enum            = false;
-    symbol->is_constructor     = false;
-    symbol->is_primitive       = false;
-    symbol->is_unboxed         = false;
-    symbol->is_deep_copy_fn    = false;
-    symbol->primop_type        = NECRO_PRIMOP_NONE;
-    symbol->codegen_symbol     = NULL;
+    NecroMachAstSymbol* symbol   = necro_paged_arena_alloc(arena, sizeof(NecroMachAstSymbol));
+    symbol->name                 = name;
+    symbol->ast                  = NULL;
+    symbol->mach_type            = NULL;
+    symbol->necro_type           = NULL;
+    symbol->state_type           = NECRO_STATE_CONSTANT;
+    symbol->con_num              = 0;
+    symbol->is_enum              = false;
+    symbol->is_constructor       = false;
+    symbol->is_primitive         = false;
+    symbol->is_unboxed           = false;
+    symbol->is_deep_copy_fn      = false;
+    symbol->primop_type          = NECRO_PRIMOP_NONE;
+    symbol->codegen_symbol       = NULL;
+    symbol->global_string_symbol = NULL;
     return symbol;
 }
 
@@ -59,6 +60,7 @@ NecroMachAstSymbol* necro_mach_ast_symbol_create_from_core_ast_symbol(NecroPaged
     symbol->is_deep_copy_fn      = core_ast_symbol->is_deep_copy_fn;
     symbol->primop_type          = core_ast_symbol->primop_type;
     symbol->codegen_symbol       = NULL;
+    symbol->global_string_symbol = NULL;
     core_ast_symbol->mach_symbol = symbol;
     return symbol;
 }

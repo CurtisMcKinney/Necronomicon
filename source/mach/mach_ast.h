@@ -61,6 +61,7 @@ typedef struct NecroMachAstSymbol
     struct NecroMachType*   mach_type;
     NecroType*              necro_type;
     struct NecroLLVMSymbol* codegen_symbol;
+    NecroSymbol             global_string_symbol;
     NECRO_STATE_TYPE        state_type;
     NECRO_PRIMOP_TYPE       primop_type;
     size_t                  con_num;

@@ -498,6 +498,7 @@ typedef struct NecroMachRuntime
     NecroMachAstSymbol* necro_runtime_realloc;
     NecroMachAstSymbol* necro_runtime_free;
     NecroMachAstSymbol* necro_runtime_out_audio_block;
+    NecroMachAstSymbol* necro_runtime_print_audio_block;
     NecroMachAstSymbol* necro_runtime_test_assertion;
     // NOTE: Don't forget to add mappings to mach_ast.c and codegen_llvm.c when you add new runtime symbols
 } NecroMachRuntime;

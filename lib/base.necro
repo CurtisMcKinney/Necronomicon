@@ -843,12 +843,22 @@ data Channel = ChannelEnd | BlockRate F64 | AudioRate (Array BlockSize F64)
 outAudioBlock :: UInt -> Array BlockSize F64 -> *World -> *World
 outAudioBlock c a w = primUndefined
 
+printAudioBlock :: UInt -> Array BlockSize F64 -> *World -> *World
+printAudioBlock c a w = primUndefined
+
 outChannel :: UInt -> Channel -> *World -> *World
 outChannel n c w =
   case c of
     ChannelEnd  -> w
     BlockRate _ -> w
     AudioRate b -> outAudioBlock n b w
+
+printChannel :: UInt -> Channel -> *World -> *World
+printChannel n c w =
+  case c of
+    ChannelEnd  -> w
+    BlockRate _ -> w
+    AudioRate b -> printAudioBlock n b w
 
 audioInitArray :: () -> *Array BlockSize F64
 audioInitArray u =
@@ -1135,6 +1145,7 @@ class (Functor f, FunctorN f, Applicative f, Foldable f) => AudioFormat f where
   accumulateFinite1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio f -> Audio f
   pan               :: Audio Mono -> Audio f -> Audio Stereo
   outAudio          :: UInt -> Audio f -> *World -> *World
+  printAudio        :: UInt -> Audio f -> *World -> *World
 
 instance Functor Mono where
   map f (Mono x) = Mono (f x)
@@ -1152,6 +1163,7 @@ instance Foldable Mono where
 
 instance AudioFormat Mono where
   outAudio  n (Audio (Mono c))  w                = outChannel n c w
+  printAudio n (Audio (Mono c))  w               = printChannel n c w
   accumulate1 f (Audio (Mono c))                 = Audio (Mono (accumulateChannel1 f c))
   accumulateFinite1 f sf (Audio (Mono c))        = Audio (Mono (accumulateChannelAndMaybeEnd1 f sf c))
   pan (Audio (Mono amount)) (Audio (Mono input)) = Audio (Stereo (#mul input (sub 1 amount), mul input amount#))
@@ -1172,6 +1184,7 @@ instance Foldable Stereo where
 
 instance AudioFormat Stereo where
   outAudio  n (Audio (Stereo (#l, r#))) w             = outChannel (add n 1) r (outChannel n l w)
+  printAudio n (Audio (Stereo (#l, r#))) w            = printChannel (add n 1) r (printChannel n l w)
   accumulate1 f (Audio (Stereo (#l, r#)))             = Audio (Stereo (#accumulateChannel1 f l, accumulateChannel1 f r#))
   accumulateFinite1 f sf (Audio (Stereo (#l, r#)))    = Audio (Stereo (#accumulateChannelAndMaybeEnd1 f sf l, accumulateChannelAndMaybeEnd1 f sf r#))
   pan (Audio (Mono amount)) (Audio (Stereo (#l, r#))) = Audio (Stereo (#mul l (sub 1 amount), mul r amount#))
@@ -1704,6 +1717,10 @@ instance Print a => Print (Seq a) where
                   (#True, t, print x w' |> print ' ' |> printBarOnLoop c#)
                 SeqValue (#t, c, _#) ->
                   (#True, t, printBarOnLoop c w'#)
+
+-- @Curtis - This doesn't work because of some kind assert in type.c
+-- instance AudioFormat f => Print (Audio f) where
+--     print (Audio f) w = printAudio f w
 
 printLn :: Print a => a -> *World -> *World
 printLn x w =

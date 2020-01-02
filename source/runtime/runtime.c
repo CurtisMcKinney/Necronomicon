@@ -3,6 +3,7 @@
  * Proprietary and confidential
  */
 
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -185,6 +186,22 @@ extern DLLEXPORT size_t necro_runtime_out_audio_block(size_t channel_num, double
     struct NecroDownsample* downsample = necro_runtime_audio_downsample[channel_num];
     // necro_downsample(downsample, necro_runtime_audio_block_size, necro_runtime_audio_oversample_amt, audio_block, output_buffer);
     necro_downsample(downsample, channel_num, necro_runtime_audio_num_output_channels, necro_runtime_audio_block_size, necro_runtime_audio_oversample_amt, audio_block, necro_runtime_audio_output_buffer);
+    return world;
+}
+
+extern DLLEXPORT size_t necro_runtime_print_audio_block(size_t channel_num, double* audio_block, size_t world)
+{
+    if (channel_num >= necro_runtime_audio_num_output_channels)
+        return world;
+
+    printf("AudioBlock { ");
+    assert(necro_runtime_audio_block_size >= 2);
+    size_t penultimate_sample = necro_runtime_audio_block_size - 2;
+    for (size_t i = 0; i < penultimate_sample; ++i)
+    {
+        printf("%.3f, ", audio_block[i]);
+    }
+    printf("%.3f }\n", audio_block[penultimate_sample + 1]);
     return world;
 }
 

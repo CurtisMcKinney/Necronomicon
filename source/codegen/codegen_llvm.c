@@ -1050,6 +1050,8 @@ LLVMValueRef necro_llvm_codegen_block_statement(NecroLLVM* codegen, NecroMachAst
 
 void necro_llvm_declare_function(NecroLLVM* context, NecroMachAst* ast)
 {
+    assert(ast->type == NECRO_MACH_FN_DEF);
+    assert(ast->fn_def.fn_value->value.global_symbol->codegen_symbol == NULL);
     // Fn begin
     LLVMTypeRef      fn_type       = necro_llvm_type_from_mach_type(context, ast->necro_machine_type);
     LLVMValueRef     fn_value      = LLVMAddFunction(context->mod, ast->fn_def.symbol->name->str, fn_type);
@@ -1057,6 +1059,15 @@ void necro_llvm_declare_function(NecroLLVM* context, NecroMachAst* ast)
     fn_def_symbol->type            = fn_type;
     fn_def_symbol->value           = fn_value;
     ast->fn_def.fn_value->value.global_symbol->codegen_symbol = fn_def_symbol;
+    if (ast->fn_def.fn_type == NECRO_MACH_FN_RUNTIME)
+    {
+        assert(fn_def_symbol->value != NULL);
+        assert(!LLVMIsNull(fn_def_symbol->value));
+        assert(LLVMIsAFunction(fn_def_symbol->value));
+        // printf("runtime function: %s :: %s\n", ast->fn_def.symbol->name->str, LLVMPrintTypeToString(fn_type));
+        LLVMSetFunctionCallConv(fn_value, LLVMCCallConv);
+        LLVMSetLinkage(fn_value, LLVMExternalLinkage);
+    }
 }
 
 void necro_llvm_codegen_function(NecroLLVM* context, NecroMachAst* ast)
@@ -1067,15 +1078,10 @@ void necro_llvm_codegen_function(NecroLLVM* context, NecroMachAst* ast)
 
     // Fn begin
     NecroLLVMSymbol* fn_symbol = necro_llvm_symbol_get(&context->arena, ast->fn_def.symbol);
-    LLVMValueRef     fn_value  = fn_symbol->value;
-
     if (ast->fn_def.fn_type == NECRO_MACH_FN_RUNTIME)
-    {
-        LLVMSetFunctionCallConv(fn_value, LLVMCCallConv);
-        LLVMSetLinkage(fn_value, LLVMExternalLinkage);
         return;
-    }
 
+    LLVMValueRef     fn_value  = fn_symbol->value;
     LLVMSetFunctionCallConv(fn_value, LLVMFastCallConv);
     LLVMBasicBlockRef entry = NULL;
 
@@ -1259,6 +1265,30 @@ void necro_codegen_global(NecroLLVM* context, NecroMachAst* ast)
     LLVMSetGlobalConstant(global_value, false);
 }
 
+void necro_llvm_map_check_symbol(NecroMachAstSymbol* mach_symbol)
+{
+    if (mach_symbol == NULL)
+        return;
+    NecroLLVMSymbol* llvm_symbol = mach_symbol->ast->fn_def.fn_value->value.global_symbol->codegen_symbol;
+    assert(llvm_symbol->value != NULL);
+    if (LLVMGetFirstUse(llvm_symbol->value) == NULL)
+        llvm_symbol->value = NULL;
+}
+
+void necro_llvm_map_runtime_symbol(LLVMExecutionEngineRef engine, NecroMachAstSymbol* mach_symbol)
+{
+    if (mach_symbol == NULL)
+        return;
+    NecroLLVMSymbol* llvm_symbol = mach_symbol->ast->fn_def.fn_value->value.global_symbol->codegen_symbol;
+    if (llvm_symbol->value == NULL)
+        return;
+    assert(llvm_symbol->value != NULL);
+    assert(!LLVMIsNull(llvm_symbol->value));
+    assert(LLVMIsAFunction(llvm_symbol->value));
+    LLVMAddGlobalMapping(engine, llvm_symbol->value, (void*) mach_symbol->ast->fn_def.runtime_fn_addr);
+}
+
+
 ///////////////////////////////////////////////////////
 // Necro Codegen Go
 ///////////////////////////////////////////////////////
@@ -1334,6 +1364,29 @@ void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroL
     necro_llvm_codegen_function(context, program->necro_init);
     necro_llvm_codegen_function(context, program->necro_main);
     necro_llvm_codegen_function(context, program->necro_shutdown);
+
+    //--------------------
+    // Check runtime function usage
+    necro_llvm_map_check_symbol(context->program->runtime.necro_init_runtime);
+    necro_llvm_map_check_symbol(context->program->runtime.necro_update_runtime);
+    necro_llvm_map_check_symbol(context->program->runtime.necro_error_exit);
+    necro_llvm_map_check_symbol(context->program->runtime.necro_print);
+    necro_llvm_map_check_symbol(context->program->runtime.necro_print_char);
+    necro_llvm_map_check_symbol(context->base->print_int->core_ast_symbol->mach_symbol);
+    necro_llvm_map_check_symbol(context->base->print_i64->core_ast_symbol->mach_symbol);
+    necro_llvm_map_check_symbol(context->base->print_uint->core_ast_symbol->mach_symbol);
+    necro_llvm_map_check_symbol(context->base->print_float->core_ast_symbol->mach_symbol);
+    necro_llvm_map_check_symbol(context->base->print_f64->core_ast_symbol->mach_symbol);
+    necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_get_mouse_x);
+    necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_get_mouse_y);
+    necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_is_done);
+    necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_alloc);
+    necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_realloc);
+    necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_free);
+    necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_out_audio_block);
+    necro_llvm_map_check_symbol(context->base->floor->core_ast_symbol->mach_symbol);
+    necro_llvm_map_check_symbol(context->base->test_assertion->core_ast_symbol->mach_symbol);
+
     // assert(context->delayed_phi_node_values.length == 0);
     if (context->should_optimize)
         LLVMRunPassManager(context->mod_pass_manager, context->mod);
@@ -1353,26 +1406,6 @@ void necro_fatal_error_handler(const char* error)
 {
     printf("necro fatal error: %s", error);
     exit(1);
-}
-
-void necro_llvm_map_runtime_symbol(NecroLLVM* context, LLVMExecutionEngineRef engine, NecroMachAstSymbol* mach_symbol)
-{
-    if (mach_symbol == NULL)
-        return;
-    NecroLLVMSymbol* llvm_symbol = necro_llvm_symbol_get(&context->arena, mach_symbol);
-    if (llvm_symbol->value == NULL || LLVMIsNull(llvm_symbol->value) || !LLVMIsAFunction(llvm_symbol->value))
-        return;
-    LLVMAddGlobalMapping(engine, llvm_symbol->value, (void*) mach_symbol->ast->fn_def.runtime_fn_addr);
-}
-
-void necro_llvm_map_intrinsic(NecroLLVM* context, LLVMExecutionEngineRef engine, NecroMachAstSymbol* mach_symbol, void* fn_addr)
-{
-    if (mach_symbol == NULL)
-        return;
-    NecroLLVMSymbol* llvm_symbol = necro_llvm_symbol_get(&context->arena, mach_symbol);
-    if (llvm_symbol->value == NULL || LLVMIsNull(llvm_symbol->value) || !LLVMIsAFunction(llvm_symbol->value))
-        return;
-    LLVMAddGlobalMapping(engine, llvm_symbol->value, fn_addr);
 }
 
 NecroLangCallback* necro_llvm_get_lang_call(NecroLLVM* context, NecroMachAstSymbol* mach_symbol)
@@ -1414,26 +1447,25 @@ void necro_llvm_jit_go(NecroCompileInfo info, NecroLLVM* context, const char* ji
     
     //--------------------
     // Map runtime functions
-    necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_init_runtime);
-    necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_update_runtime);
-    necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_error_exit);
-    necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_print);
-    // necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_debug_print);
-    necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_print_char);
-    necro_llvm_map_runtime_symbol(context, context->engine, context->base->print_int->core_ast_symbol->mach_symbol);
-    necro_llvm_map_runtime_symbol(context, context->engine, context->base->print_i64->core_ast_symbol->mach_symbol);
-    necro_llvm_map_runtime_symbol(context, context->engine, context->base->print_uint->core_ast_symbol->mach_symbol);
-    necro_llvm_map_runtime_symbol(context, context->engine, context->base->print_float->core_ast_symbol->mach_symbol);
-    necro_llvm_map_runtime_symbol(context, context->engine, context->base->print_f64->core_ast_symbol->mach_symbol);
-    necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_get_mouse_x);
-    necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_get_mouse_y);
-    necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_is_done);
-    necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_alloc);
-    necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_realloc);
-    necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_free);
-    necro_llvm_map_runtime_symbol(context, context->engine, context->program->runtime.necro_runtime_out_audio_block);
-    necro_llvm_map_runtime_symbol(context, context->engine, context->base->floor->core_ast_symbol->mach_symbol);
-    necro_llvm_map_runtime_symbol(context, context->engine, context->base->test_assertion->core_ast_symbol->mach_symbol);
+    necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_init_runtime);
+    necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_update_runtime);
+    necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_error_exit);
+    necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_print);
+    necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_print_char);
+    necro_llvm_map_runtime_symbol(context->engine, context->base->print_int->core_ast_symbol->mach_symbol);
+    necro_llvm_map_runtime_symbol(context->engine, context->base->print_i64->core_ast_symbol->mach_symbol);
+    necro_llvm_map_runtime_symbol(context->engine, context->base->print_uint->core_ast_symbol->mach_symbol);
+    necro_llvm_map_runtime_symbol(context->engine, context->base->print_float->core_ast_symbol->mach_symbol);
+    necro_llvm_map_runtime_symbol(context->engine, context->base->print_f64->core_ast_symbol->mach_symbol);
+    necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_get_mouse_x);
+    necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_get_mouse_y);
+    necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_is_done);
+    necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_alloc);
+    necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_realloc);
+    necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_free);
+    necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_out_audio_block);
+    necro_llvm_map_runtime_symbol(context->engine, context->base->floor->core_ast_symbol->mach_symbol);
+    necro_llvm_map_runtime_symbol(context->engine, context->base->test_assertion->core_ast_symbol->mach_symbol);
 
 #ifdef _WIN32
     system("cls");

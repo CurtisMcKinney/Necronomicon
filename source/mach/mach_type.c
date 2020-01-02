@@ -592,7 +592,18 @@ void necro_mach_type_print_go(NecroMachType* type, bool is_recursive)
         }
         return;
     case NECRO_MACH_TYPE_FN:
+    {
+        printf("fn (");
+        for (size_t i = 0; i < type->fn_type.num_parameters; ++i)
+        {
+            necro_mach_type_print_go(type->fn_type.parameters[i], false);
+            if (i < type->fn_type.num_parameters - 1)
+                printf(", ");
+        }
+        printf(") -> ");
+        necro_mach_type_print_go(type->fn_type.return_type, false);
         return;
+    }
     }
 }
 

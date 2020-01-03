@@ -125,10 +125,10 @@ void necro_append_top_decl(NecroAst* top, NecroAst* next_top)
     top->top_declaration.next_top_decl = next_top;
 }
 
-void necro_base_create_simple_data_decl(NecroPagedArena* arena, NecroAst* top, NecroIntern* intern, const char* data_type_name)
+void necro_base_create_simple_data_decl(NecroPagedArena* arena, NecroAst* top, NecroIntern* intern, const char* data_type_name, const char* data_type_prim_con_name)
 {
     NecroAst* s_type   = necro_ast_create_simple_type(arena, intern, data_type_name, NULL);
-    NecroAst* n_con    = necro_ast_create_data_con(arena, intern, data_type_name, NULL);
+    NecroAst* n_con    = necro_ast_create_data_con(arena, intern, data_type_prim_con_name, NULL);
     NecroAst* con_list = necro_ast_create_list(arena, n_con, NULL);
     necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, s_type, con_list));
 }
@@ -577,13 +577,13 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     // necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, bool_s_type, bool_constructor_list));
 
     // Simple Data Decls
-    necro_base_create_simple_data_decl(arena, top, intern, "World");
-    necro_base_create_simple_data_decl(arena, top, intern, "Int");
-    necro_base_create_simple_data_decl(arena, top, intern, "UInt");
-    necro_base_create_simple_data_decl(arena, top, intern, "Float");
-    necro_base_create_simple_data_decl(arena, top, intern, "Char");
-    necro_base_create_simple_data_decl(arena, top, intern, "F64");
-    necro_base_create_simple_data_decl(arena, top, intern, "I64");
+    necro_base_create_simple_data_decl(arena, top, intern, "World", "_World");
+    necro_base_create_simple_data_decl(arena, top, intern, "Int", "_Int");
+    necro_base_create_simple_data_decl(arena, top, intern, "UInt", "_UInt");
+    necro_base_create_simple_data_decl(arena, top, intern, "Float", "_Float");
+    necro_base_create_simple_data_decl(arena, top, intern, "Char", "_Char");
+    necro_base_create_simple_data_decl(arena, top, intern, "F64", "_F64");
+    necro_base_create_simple_data_decl(arena, top, intern, "I64", "_I64");
 
     // _project :: a -> UInt -> b, primitive data structure projection
     {
@@ -1393,14 +1393,14 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     // base.list_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "[]"));
     // Int con for infer constant?
     base.int_type               = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Int"));
-    base.int_con                = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "Int"));
+    base.int_con                = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "_Int"));
     base.uint_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "UInt"));
     base.float_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Float"));
-    base.float_con              = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "Float"));
+    base.float_con              = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "_Float"));
     base.int64_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "I64"));
     base.float64_type           = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "F64"));
     base.char_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Char"));
-    base.char_con               = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "Char"));
+    base.char_con               = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "_Char"));
     base.bool_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Bool"));
     base.true_con               = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "True"));
     base.false_con              = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "False"));

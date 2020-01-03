@@ -160,6 +160,7 @@ typedef struct NecroBase
     NecroAstSymbol* log10_float;
     NecroAstSymbol* log2_float;
     NecroAstSymbol* pow_float;
+    NecroAstSymbol* sqrt_float;
     NecroAstSymbol* abs_f64;
     NecroAstSymbol* sine_f64;
     NecroAstSymbol* cosine_f64;
@@ -169,6 +170,7 @@ typedef struct NecroBase
     NecroAstSymbol* log10_f64;
     NecroAstSymbol* log2_f64;
     NecroAstSymbol* pow_f64;
+    NecroAstSymbol* sqrt_f64;
 
     NecroScopedSymTable* scoped_symtable;
 

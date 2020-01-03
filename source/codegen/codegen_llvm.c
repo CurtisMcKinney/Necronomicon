@@ -3611,6 +3611,16 @@ void necro_llvm_test_jit()
     }
 
     // {
+    //     const char* test_name   = "Print Saw";
+    //     const char* test_source = ""
+    //         "coolSaw :: Audio Mono\n"
+    //         "coolSaw = saw 200\n"
+    //         "main :: *World -> *World\n"
+    //         "main w = printLn coolSaw w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
+
+    // {
     //     const char* test_name   = "bitReverse 1";
     //     const char* test_source = ""
     //         "main :: *World -> *World\n"

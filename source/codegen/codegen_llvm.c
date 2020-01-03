@@ -1218,6 +1218,9 @@ LLVMValueRef necro_llvm_codegen_call_intrinsic(NecroLLVM* context, NecroMachAst*
     case NECRO_PRIMOP_INTR_POW:
         necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->pow_float, context->base->pow_f64, "llvm.pow.f32", "llvm.pow.f64", f32_type, &fn_type, &fn_value);
         break;
+    case NECRO_PRIMOP_INTR_SQRT:
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->sqrt_float, context->base->sqrt_f64, "llvm.sqrt.f32", "llvm.sqrt.f64", f32_type, &fn_type, &fn_value);
+        break;
     // case NECRO_PRIMOP_INTR_FLR:
     // {
     //     fn_type  = LLVMFunctionType(LLVMDoubleTypeInContext(context->context), (LLVMTypeRef[]) { LLVMDoubleTypeInContext(context->context) }, 1, false);
@@ -3602,10 +3605,8 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "Print Audio Block";
         const char* test_source = ""
-            "coolSaw :: Audio Stereo\n"
-            "coolSaw = saw 1\n"
             "main :: *World -> *World\n"
-            "main w = printLn coolSaw w\n";
+            "main w = testJit w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
 

@@ -178,6 +178,7 @@ class (Num a, EuclideanRing a) => Integral a where
 
 class (Num a, Field a) => Floating a where
   fromFloat :: Float -> a
+  sqrt :: a -> a
 
 class Floating a => Trig a where
   sine   :: a -> a
@@ -204,6 +205,8 @@ class Integral a => Bits a where
   bitShiftRight :: a -> UInt -> a
   bitReverse    :: a -> a
 
+sqr :: Semiring a => a -> a
+sqr n = n * n
 
 --------------------
 -- ()
@@ -429,6 +432,7 @@ instance Field Float where
 
 instance Floating Float where
   fromFloat x = x
+  sqrt      x = primUndefined
 
 instance Trig Float where
   sine   x = primUndefined
@@ -492,6 +496,7 @@ instance Field F64 where
 
 instance Floating F64 where
   fromFloat x = primUndefined
+  sqrt      x = primUndefined
 
 instance Trig F64 where
   sine   x = primUndefined
@@ -621,7 +626,8 @@ polar :: Complex -> (F64, F64)
 polar z = primUndefined
 
 magnitude :: Complex -> F64
-magnitude z = primUndefined
+magnitude _ = primUndefined
+-- magnitude (Complex (#r, i#)) = sqrt <| (r * r) + (i * i)
 
 phase :: Complex -> F64
 phase z = primUndefined
@@ -661,6 +667,7 @@ instance Num Complex where
 -- TODO: Finish
 -- instance Floating Complex where
 --   fromFloat f = BlockRate (fromFloat f)
+--   sqrt (Complex (#r, i#))                        = Complex (#sqrt r, sqrt i#)
 
 
 --------------------
@@ -1038,6 +1045,7 @@ instance Field Channel where
 
 instance Floating Channel where
   fromFloat f = BlockRate (fromFloat f)
+  sqrt x      = mapChannel sqrt x
 
 instance Semigroup Channel where
   append x y = x + y
@@ -1208,6 +1216,7 @@ instance AudioFormat f => Field (Audio f) where
 
 instance AudioFormat f => Floating (Audio f) where
   fromFloat f = Audio (pure (fromFloat f))
+  sqrt (Audio x) = Audio (map sqrt x)
 
 instance AudioFormat f => Semigroup (Audio f) where
   append (Audio x) (Audio y) = Audio (map2 append x y)
@@ -1377,6 +1386,7 @@ instance Field a => Field (SeqValue a) where
 
 instance Floating a => Floating (SeqValue a) where
   fromFloat f = SeqValue (#1, SeqPure, Just (fromFloat f)#)
+  sqrt f = map sqrt f
 
 runSeq :: Seq a -> () -> SeqValue a
 runSeq (Seq stepFunc) _ = stepFunc ()
@@ -1467,7 +1477,8 @@ instance Num a => Num (Seq a) where
 instance Field a => Field (Seq a) where
 
 instance Floating a => Floating (Seq a) where
-  fromFloat f = Seq (\_ -> pure (fromFloat Float))
+  fromFloat f = Seq (\_ -> pure (fromFloat f))
+  sqrt f = map sqrt f
 
 instance Semigroup (Seq a) where
   append sx sy = [sx sy]
@@ -2162,6 +2173,10 @@ poly f s =
       in
         case mutRefPut (dynArrayIteratorEnd thunks4) mref of
           _ -> acc'
+
+testJit :: *World -> *World
+testJit w = printLn (sqrt 2) w
+
 
 -- <> => Sequence
 -- [] => Tuple

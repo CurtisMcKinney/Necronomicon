@@ -221,6 +221,7 @@ void necro_mach_print_call_intrinsic(NecroMachAst* ast, size_t depth)
     case NECRO_PRIMOP_INTR_LOG10: printf("log10 "); break;
     case NECRO_PRIMOP_INTR_LOG2:  printf("log2 ");  break;
     case NECRO_PRIMOP_INTR_POW:   printf("pow ");   break;
+    case NECRO_PRIMOP_INTR_SQRT:  printf("sqrt ");  break;
     default:                      assert(false);    break;
     }
     printf("(");

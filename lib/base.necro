@@ -1742,7 +1742,7 @@ instance Foldable f => Print (FFT f k) where
     |> printNewline
     |> printNewline
     |> (\w' -> foldl (\w'' c -> print c w'' |> printNewline |> printNewline) w' f)
-    |> print "]"
+    |> print ']'
     |> printNewline
 
 printLn :: Print a => a -> *World -> *World
@@ -2289,6 +2289,7 @@ poly f s =
 -- TODO: Write to log file, perhaps class Log a similar to class Print a
 -- TODO: Look at all the .i.i.i weirdness in llvm names???
 
+-- TODO: Set blocksPerSecond correctly?
 -- TODO: Memory access test audio stuff!
 -- TODO: JIT test function, testAssertion :: Bool -> *World -> *World
 -- TODO: Put Uniqueness unify AFTER type unify for better error messages?

@@ -608,8 +608,6 @@ instance Default Rational where
 --------------------
 data Complex = Complex (#F64, F64#)
 
--- TODO: Finish
-
 realPart :: Complex -> F64
 realPart (Complex (#r, _#)) = r
 
@@ -617,20 +615,27 @@ imagPart :: Complex -> F64
 imagPart (Complex (#_, i#)) = i
 
 mkPolar :: F64 -> F64 -> Complex
-mkPolar r theta = primUndefined
+mkPolar r theta = Complex (#r * cosine theta, r * sine theta#)
 
-cis :: F64 -> F64 -> Complex
-cis r theta = primUndefined
+cis :: F64 -> Complex
+cis theta = Complex (#cosine theta, sine theta #)
 
 polar :: Complex -> (F64, F64)
-polar z = primUndefined
+polar c = (magnitude c, phase c) 
+
+sqrMagnitude :: Complex -> F64
+sqrMagnitude (Complex (#r, i#)) = (r * r) + (i * i)
 
 magnitude :: Complex -> F64
-magnitude _ = primUndefined
--- magnitude (Complex (#r, i#)) = sqrt <| (r * r) + (i * i)
+magnitude (Complex (#r, i#)) = sqrt ((r * r) + (i * i))
+
+conjugate :: Complex -> Complex
+conjugate (Complex (#r, i#)) = Complex (#r, negate i#)
 
 phase :: Complex -> F64
-phase z = primUndefined
+phase c = primUndefined
+-- TODO: ADD ATAN2!
+-- phase (Complex (#r, i#)) = atan2 r i
 
 instance Eq Complex where
   eq  (Complex (#rx, ix#)) (Complex (#ry, iy#)) = rx == ry && ix == iy
@@ -646,14 +651,22 @@ instance Ring Complex where
   sub (Complex (#rx, ix#)) (Complex (#ry, iy#)) = Complex (#rx - ry, ix - iy#)
   fromInt z                                     = Complex (#fromInt z, 0#)
 
--- TODO: Finish
--- instance EuclideanRing Complex where
---   div x y = mapChannel2 div x y
---   rem x y = mapChannel2 rem x y
+instance EuclideanRing Complex where
+  div x y = Complex (#zx / yIntoConjugate, zi / yIntoConjugate#)
+    where
+      conjugateY = conjugate y
+      yIntoConjugate = y * conjugateY |> realPart
+      (Complex (#zx, zi#)) = x * conjugateY
+  rem x y = x - y * w
+    where
+      z = x / y
+      w = case z of
+        Complex (#rz, iz#) -> Complex (#floor rz, floor iz#)
 
--- TODO: Finish
--- instance DivisionRing Channel where
---   recip x = map recip x
+instance DivisionRing Complex where
+  recip (Complex (#r, i#)) = Complex (#r / sqrRsqrI, negate (i / sqrRsqrI)#)
+    where
+      sqrRsqrI = (r * r) + (i * i)
 
 instance Num Complex where
   abs z    = Complex (#magnitude z, 0#)
@@ -664,12 +677,42 @@ instance Num Complex where
           let m = magnitude z in
             Complex (#r / m, i / m#)
 
--- TODO: Finish
--- instance Floating Complex where
---   fromFloat f = BlockRate (fromFloat f)
---   sqrt (Complex (#r, i#))                        = Complex (#sqrt r, sqrt i#)
+instance Field Complex where
 
+instance Floating Complex where
+  fromFloat f = Complex (#fromFloat f, 0#)
+  sqrt z = case z of
+    Complex (#r, i#) ->
+      if r == 0 then
+        let
+          u = sqrt ((abs i) / r)
+          v = if i < 0 then negate u else u
+        in
+          Complex (#u, v#)
+      else
+        let
+          u = sqrt (2 * (magnitude z + abs r)) 
+          v = u / 2
+        in
+          if r > 0 then
+            Complex (#v, i / u#)
+          else
+            let
+              vByI = if i < 0 then negate v else v
+            in
+              Complex (#(abs i) / u, vByI#)
 
+-- TODO - ADD SINEH and COSINEH
+-- instance Trig Complex where
+--   sine (Complex (#r, i#)) = Complex (#sine r * cosineh i, cosine r * sineh i)
+--   cosine (Complex (#r, i#)) = Complex (#cosine r * cosineh i, (negate <| sine r) * sineh i)
+--   exp    :: a -> a
+--   exp2   :: a -> a
+--   log    :: a -> a
+--   log10  :: a -> a
+--   log2   :: a -> a
+--   pow    :: a -> a -> a
+--
 --------------------
 -- Maybe
 --------------------
@@ -2175,7 +2218,18 @@ poly f s =
           _ -> acc'
 
 testJit :: *World -> *World
-testJit w = printLn (sqrt 2) w
+testJit w = printLn a w |> printLn b |> printLn c 
+  where
+    a = Complex (#8, 2#)
+    b = Complex (#2, 1#)
+    c = sqrt (Complex (#negate 3.4, pi#))
+
+-- testJit :: *World -> *World
+-- testJit w = printLn a w |> printLn b |> printLn c 
+--   where
+--     a = Complex (#(negate pi), 3#)
+--     b = Complex (#3, 4#)
+--     c = a / b
 
 
 -- <> => Sequence

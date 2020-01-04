@@ -1595,7 +1595,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "sub<F64>",          NULL,             NECRO_PRIMOP_BINOP_FSUB);
     necro_base_setup_primitive(scoped_symtable, intern, "mul<F64>",          NULL,             NECRO_PRIMOP_BINOP_FMUL);
     necro_base_setup_primitive(scoped_symtable, intern, "div<F64>",          NULL,             NECRO_PRIMOP_BINOP_FDIV);
-    necro_base_setup_primitive(scoped_symtable, intern, "rem<Float>",        NULL,             NECRO_PRIMOP_BINOP_FREM);
+    necro_base_setup_primitive(scoped_symtable, intern, "rem<F64>",        NULL,             NECRO_PRIMOP_BINOP_FREM);
     necro_base_setup_primitive(scoped_symtable, intern, "abs<F64>",          &base.abs_f64,    NECRO_PRIMOP_INTR_FABS);
     necro_base_setup_primitive(scoped_symtable, intern, "signum<F64>",       NULL,             NECRO_PRIMOP_UOP_FSGN);
     necro_base_setup_primitive(scoped_symtable, intern, "fromInt<F64>",      NULL,             NECRO_PRIMOP_UOP_ITOF);

@@ -181,14 +181,26 @@ class (Num a, Field a) => Floating a where
   sqrt :: a -> a
 
 class Floating a => Trig a where
-  sine   :: a -> a
-  cosine :: a -> a
-  exp    :: a -> a
-  exp2   :: a -> a
-  log    :: a -> a
-  log10  :: a -> a
-  log2   :: a -> a
-  pow    :: a -> a -> a
+  sine     :: a -> a
+  cosine   :: a -> a
+  -- tan      :: a -> a
+  -- asine    :: a -> a
+  -- acosine  :: a -> a
+  -- atan     :: a -> a
+  -- atan2    :: a -> a -> a
+  -- sineh    :: a -> a
+  -- cosineh  :: a -> a
+  -- tanh     :: a -> a
+  -- asineh   :: a -> a
+  -- acosineh :: a -> a
+  -- atanh    :: a -> a
+  -- atanh2   :: a -> a -> a
+  exp      :: a -> a
+  exp2     :: a -> a
+  log      :: a -> a
+  log10    :: a -> a
+  log2     :: a -> a
+  pow      :: a -> a -> a
 
   -- atan      :: a -> a
   -- floor'    :: Integral b => a -> b
@@ -196,6 +208,85 @@ class Floating a => Trig a where
 
 -- toFloating :: (Num' a, Floating b) => a -> b
 -- toFloating = fromRational' <. toRational
+
+
+----------------------------------------
+-- Trig Approximation Functions
+----------------------------------------
+
+-- How to deal with Float maybe 64 vs 32 bit?
+tanF32 :: F64 -> F64
+tanF32 n = tanResult
+  where
+    x = rem n twoPi
+    octant = floor <| (x * fourOverPi) 
+    -- HACK -> Need to be able to convert from Float to 
+    octantInt = if octant < 1 then 0
+      else if octant < 2 then 1
+      else if octant < 3 then 2
+      else if octant < 4 then 3
+      else if octant < 5 then 4
+      else if octant < 6 then 5
+      else if octant < 7 then 6
+      else 7
+    -- Accurate to about 8.2 decimal digits over the range (0, pi/4)
+    -- This computes tan (pi * x/4), range reduction must be used before input
+    tan82 x = (x * (c1 + c2 * x2) / (c3 + x2 * (c4 + x2)))
+      where
+        c1 = 211.849369664121
+        c2 = -12.5288887278448
+        c3 = 269.7350131214121
+        c4 = -71.4145309347748
+        x2 = (x * x)
+    tanResult = case octantInt of
+      0 -> tan82 (x * fourOverPi)
+      1 -> 1 / (tan82 ((halfPi - x) * fourOverPi))
+      2 -> -1 / (tan82 ((x - halfPi) * fourOverPi))
+      3 -> negate <| tan82 ((pi - x) * fourOverPi)
+      4 -> tan82 ((x - pi) * fourOverPi)
+      5 -> 1 / (tan82 ((threeHalfPi - x) * fourOverPi))
+      6 -> -1 / (tan82 ((x - threeHalfPi) * fourOverPi))
+      7 -> negate <| tan82 ((twoPi - x) * fourOverPi)
+      _ -> 0 -- ?!?
+
+tanF64 :: F64 -> F64
+tanF64 n = tanResult
+  where
+    x = rem n twoPi
+    octant = floor <| (x * fourOverPi) 
+    -- HACK -> Need to be able to convert from Float to 
+    octantInt = if octant < 1 then 0
+    octantInt = if octant < 1 then 0
+      else if octant < 2 then 1
+      else if octant < 3 then 2
+      else if octant < 4 then 3
+      else if octant < 5 then 4
+      else if octant < 6 then 5
+      else if octant < 7 then 6
+      else 7
+    -- Accurate to about 14 decimal digits over the range (0, pi/4)
+    -- This computes tan (pi * x/4), range reduction must be used before input
+    tan14s x = (x * (c1 + x2 * (c2 + x2 * c3)) / (c4 + x2 * (c5 + x2 * (c6 + x2))))
+      where
+        c1 = -34287.4662577359568109624
+        c2 = 2566.7175462315050423295
+        c3 = -26.5366371951731325438
+        c4 = -43656.1579281292375769579
+        c5 = 12244.4839556747426927793
+        c6 = -336.611376245464339493
+        x2 = (x * x)
+    tanResult = case octantInt of
+      0 -> tan14s (x * fourOverPi)
+      1 -> 1 / (tan14s ((halfPi - x) * fourOverPi))
+      2 -> -1 / (tan14s ((x - halfPi) * fourOverPi))
+      3 -> negate <| tan14s ((pi - x) * fourOverPi)
+      4 -> tan14s ((x - pi) * fourOverPi)
+      5 -> 1 / (tan14s ((threeHalfPi - x) * fourOverPi))
+      6 -> -1 / (tan14s ((x - threeHalfPi) * fourOverPi))
+      7 -> negate <| tan14s ((twoPi - x) * fourOverPi)
+      _ -> 0 -- ?!?
+
+----------------------------------------
 
 class Integral a => Bits a where
   bitAnd        :: a -> a -> a
@@ -712,7 +803,7 @@ instance Floating Complex where
 --   log10  :: a -> a
 --   log2   :: a -> a
 --   pow    :: a -> a -> a
---
+
 --------------------
 -- Maybe
 --------------------
@@ -1116,7 +1207,31 @@ fromUInt :: Ring a => UInt -> a
 fromUInt x = fromInt (uintToInt x)
 
 pi :: Floating a => a
-pi = 3.141592653589793238
+pi = 3.1415926535897932384626433
+
+twoPi :: Floating a => a
+twoPi = pi * 2
+
+twoOverPi :: Floating a => a
+twoOverPi = 2 / pi
+
+halfPi :: Floating a => a
+halfPi = pi * 0.5
+
+threeHalfPi :: Floating a => a
+threeHalfPi = 3 * halfPi
+
+fourOverPi :: Floating a => a
+fourOverPi = 4 / pi
+
+quarterPi :: Floating a => a
+quarterPi = pi * 0.25
+
+sixthPi :: Floating a => a
+sixthPi = pi / 6
+
+twelthPi :: Floating a => a
+twelthPi = pi / 12
 
 tau :: Floating a => a
 tau = 2 * pi
@@ -2218,12 +2333,18 @@ poly f s =
           _ -> acc'
 
 testJit :: *World -> *World
-testJit w = printLn a w |> printLn b |> printLn c 
+testJit w = printLn mouseX w |> printLn (tanF64 fMouse)
   where
-    a = Complex (#8, 2#)
-    b = Complex (#2, 1#)
-    c = sqrt (Complex (#negate 3.4, pi#))
+    fMouse :: F64
+    fMouse = fromInt mouseX
 
+-- testJit :: *World -> *World
+-- testJit w = printLn a w |> printLn b |> printLn c 
+--   where
+--     a = Complex (#8, 2#)
+--     b = Complex (#2, 1#)
+--     c = sqrt (Complex (#negate 3.4, pi#))
+--
 -- testJit :: *World -> *World
 -- testJit w = printLn a w |> printLn b |> printLn c 
 --   where

@@ -342,6 +342,8 @@ NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgr
 void necro_llvm_destroy(NecroLLVM* context)
 {
     assert(context != NULL);
+    if (context->builder != NULL)
+        LLVMDisposeBuilder(context->builder);
     if (context->mod_pass_manager != NULL)
         LLVMDisposePassManager(context->mod_pass_manager);
     if (context->fn_pass_manager != NULL)
@@ -350,12 +352,10 @@ void necro_llvm_destroy(NecroLLVM* context)
         LLVMDisposeTargetData(context->target);
     if (context->target_machine != NULL)
         LLVMDisposeTargetMachine(context->target_machine);
-    // if (context->mod != NULL)
-    //     LLVMDisposeModule(context->mod);
-    if (context->engine != NULL)
-        LLVMDisposeExecutionEngine(context->engine);
-    if (context->builder != NULL)
-        LLVMDisposeBuilder(context->builder);
+    // if (context->engine != NULL)
+    //     LLVMDisposeExecutionEngine(context->engine);
+    if (context->mod != NULL) // NOTE: This is else if because it should NOT be destroyed if the engine != NULL, since LLVMDisposeExecutionEngine will also dispose of the module. However if we don't run LLVMDisposeExecutionEngine, then we DO need to dispose of the module...
+        LLVMDisposeModule(context->mod);
     if (context->context != NULL)
         LLVMContextDispose(context->context);
     LLVMShutdown();
@@ -3609,6 +3609,16 @@ void necro_llvm_test_jit()
             "main w = testJit w\n";
         necro_llvm_jit_string(test_name, test_source);
     }
+
+    // {
+    //     const char* test_name   = "Print Saw";
+    //     const char* test_source = ""
+    //         "coolSaw :: Audio Mono\n"
+    //         "coolSaw = saw 200\n"
+    //         "main :: *World -> *World\n"
+    //         "main w = printLn coolSaw w\n";
+    //     necro_llvm_jit_string(test_name, test_source);
+    // }
 
     // {
     //     const char* test_name   = "bitReverse 1";

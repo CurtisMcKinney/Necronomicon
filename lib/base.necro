@@ -923,7 +923,7 @@ either lf rf e =
 unsafeEmptyArray :: () -> *Array n a
 unsafeEmptyArray u = primUndefined
 
-freezeArray :: *Array n a -> Array n a
+freezeArray :: *Array n a -> .Array n a
 freezeArray a = primUndefined
 
 readArray :: Index n -> Array n a -> a
@@ -938,7 +938,7 @@ writeArray i x a = primUndefined
 instance Default a => Default (Array n a) where
   default = arrayFrom default
 
-arrayFrom :: a -> Array n a
+arrayFrom :: a -> .Array n a
 arrayFrom x =
   freezeArray xa
   where
@@ -1006,8 +1006,10 @@ mapChannel f c =
     AudioRate b ->
       AudioRate
       <| freezeArray
-      <| loop a = audioInitArray () for i <- each do
+      <| loop a = audioInitArray () for i <- offsetToEndRange do
         writeArray i (f (readArray i b)) a
+  where
+    offsetToEndRange = Range audioSampleOffset 1 0
 
 -- Loop constructs capturing owned/unique free_vars should be a type error!
 mapChannel2 :: (F64 -> F64 -> F64) -> Channel -> Channel -> Channel
@@ -1022,7 +1024,7 @@ mapChannel2 f cx cy =
         AudioRate y ->
           AudioRate
           <| freezeArray
-          <| loop a = ia for i <- each do
+          <| loop a = ia for i <- offsetToEndRange do
             writeArray i (f x (readArray i y)) a
     AudioRate x ->
       case cy of
@@ -1030,15 +1032,16 @@ mapChannel2 f cx cy =
         BlockRate y ->
           AudioRate
           <| freezeArray
-          <| loop a = ia for i <- each do
+          <| loop a = ia for i <- offsetToEndRange do
             writeArray i (f (readArray i x) y) a
         AudioRate y ->
           AudioRate
           <| freezeArray
-          <| loop a = ia for i <- each do
+          <| loop a = ia for i <- offsetToEndRange do
             writeArray i (f (readArray i x) (readArray i y)) a
   where
-    ia = audioInitArray ()
+    offsetToEndRange = Range audioSampleOffset 1 0
+    ia               = audioInitArray ()
 
 -- data ProxyNat (n :: Nat) = ProxyNat
 
@@ -1162,7 +1165,7 @@ instance Semiring Channel where
 
 instance Ring Channel where
   sub x y   = mapChannel2 sub x y
-  fromInt i = BlockRate (fromInt 0)
+  fromInt i = BlockRate (fromInt i)
 
 instance EuclideanRing Channel where
   div x y = mapChannel2 div x y
@@ -1911,7 +1914,7 @@ instance Foldable f => Print (FFT f k) where
     |> printNewline
     |> printNewline
     |> (\w' -> foldl (\w'' c -> print c w'' |> printNewline |> printNewline) w' f)
-    |> print "]"
+    |> print ']'
     |> printNewline
 
 printLn :: Print a => a -> *World -> *World
@@ -2479,6 +2482,7 @@ testJit w = printLn mouseX w |> printLn (tanF64 fMouse)
 -- TODO: Write to log file, perhaps class Log a similar to class Print a
 -- TODO: Look at all the .i.i.i weirdness in llvm names???
 
+-- TODO: Set blocksPerSecond correctly?
 -- TODO: Memory access test audio stuff!
 -- TODO: JIT test function, testAssertion :: Bool -> *World -> *World
 -- TODO: Put Uniqueness unify AFTER type unify for better error messages?

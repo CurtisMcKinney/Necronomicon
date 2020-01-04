@@ -1318,7 +1318,7 @@ blocksPerSecond :: Rational
 blocksPerSecond = 48000 // 64
 
 blockDelta :: Rational
-blockDelta = recipRational blocksPerSecond
+blockDelta = recip blocksPerSecond
 
 
 --------------------
@@ -1627,11 +1627,8 @@ seqValueDurationMul :: Rational -> SeqValue a -> SeqValue a
 seqValueDurationMul speed (SeqValue (#t, c, v#)) =
   SeqValue (#t * speed, c, v#)
 
-recipRational :: Rational -> Rational
-recipRational (Rational (#n, d#)) = d // n
-
 seqSpeed :: Rational -> Seq a -> Seq a
-seqSpeed speed seq = Seq (\_ -> seqValueDurationMul (recipRational speed) (runSeq seq ()))
+seqSpeed speed seq = Seq (\_ -> seqValueDurationMul (recip speed) (runSeq seq ()))
 
 bpm :: Int -> Rational
 bpm tempoInBPM = tempoInBPM // 60

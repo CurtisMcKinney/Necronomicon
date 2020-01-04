@@ -621,7 +621,7 @@ cis :: F64 -> Complex
 cis theta = Complex (#cosine theta, sine theta #)
 
 polar :: Complex -> (F64, F64)
-polar c = (magnitude c, phase c) 
+polar c = (magnitude c, phase c)
 
 sqrMagnitude :: Complex -> F64
 sqrMagnitude (Complex (#r, i#)) = (r * r) + (i * i)
@@ -691,7 +691,7 @@ instance Floating Complex where
           Complex (#u, v#)
       else
         let
-          u = sqrt (2 * (magnitude z + abs r)) 
+          u = sqrt (2 * (magnitude z + abs r))
           v = u / 2
         in
           if r > 0 then
@@ -1293,20 +1293,22 @@ select c t f = if c then t else f
 boolToInt :: Bool -> Int
 boolToInt b = primUndefined
 
+-- TODO: Use curve!
 accumulatePerc :: (#F64, F64, F64, F64#) -> F64 -> F64 -> (#F64, F64#)
 accumulatePerc (#attackTime, recipAttackTime, recipDecayTime, curve#) input state =
   (#state', out#)
   where
-    state'      = state + recipSampleRate
-    attackDelta = state' * recipAttackTime
-    decayDelta  = 1 - ((state' - attackTime) * recipDecayTime)
-    -- out         = select (state' <= attackTime) attackDelta decayDelta * input
-    isAttack    = fromInt (boolToInt (state' <= attackTime))
-    isDecay     = 1 - isAttack
-    out         = attackDelta * isAttack + decayDelta * isDecay
+    state'    = state + recipSampleRate
+    attackEnv = state' * recipAttackTime * isAttack
+    decayEnv  = 1 - ((state' - attackTime) * recipDecayTime)
+    isAttack  = fromInt (boolToInt (state' <= attackTime))
+    isDecay   = 1 - isAttack
+    env       = attackEnv * isAttack + decayEnv * isDecay
+    out       = env * input
 
 percIsRunning :: F64 -> F64 -> Bool
-percIsRunning totalTime state = if state < totalTime then True else False
+percIsRunning totalTime state =
+  state < totalTime
 
 perc :: AudioFormat f => F64 -> F64 -> F64 -> Audio f -> Audio f
 perc attackTime decayTime curve input =
@@ -2227,14 +2229,14 @@ poly f s =
           _ -> acc'
 
 testJit :: *World -> *World
-testJit w = printLn a w |> printLn b |> printLn c 
+testJit w = printLn a w |> printLn b |> printLn c
   where
     a = Complex (#8, 2#)
     b = Complex (#2, 1#)
     c = sqrt (Complex (#negate 3.4, pi#))
 
 -- testJit :: *World -> *World
--- testJit w = printLn a w |> printLn b |> printLn c 
+-- testJit w = printLn a w |> printLn b |> printLn c
 --   where
 --     a = Complex (#(negate pi), 3#)
 --     b = Complex (#3, 4#)

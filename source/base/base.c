@@ -1634,6 +1634,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "lte<Bool>", NULL, NECRO_PRIMOP_CMP_LE);
     necro_base_setup_primitive(scoped_symtable, intern, "&&",        NULL, NECRO_PRIMOP_BINOP_AND);
     necro_base_setup_primitive(scoped_symtable, intern, "||",        NULL, NECRO_PRIMOP_BINOP_OR);
+    necro_base_setup_primitive(scoped_symtable, intern, "boolToInt", NULL, NECRO_PRIMOP_UOP_UTOI);
 
     //--------------------
     // Compile, part II

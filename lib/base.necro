@@ -1290,6 +1290,9 @@ saw freq =
 select :: Bool -> a -> a -> a
 select c t f = if c then t else f
 
+boolToInt :: Bool -> Int
+boolToInt b = primUndefined
+
 accumulatePerc :: (#F64, F64, F64, F64#) -> F64 -> F64 -> (#F64, F64#)
 accumulatePerc (#attackTime, recipAttackTime, recipDecayTime, curve#) input state =
   (#state', out#)
@@ -1297,14 +1300,17 @@ accumulatePerc (#attackTime, recipAttackTime, recipDecayTime, curve#) input stat
     state'      = state + recipSampleRate
     attackDelta = state' * recipAttackTime
     decayDelta  = 1 - ((state' - attackTime) * recipDecayTime)
-    out         = select (state' <= attackTime) attackDelta decayDelta * input
+    -- out         = select (state' <= attackTime) attackDelta decayDelta * input
+    isAttack    = fromInt (boolToInt (state' <= attackTime))
+    isDecay     = 1 - isAttack
+    out         = attackDelta * isAttack + decayDelta * isDecay
 
-percIsRunning :: F64 -> Bool
-percIsRunning state = if state < 1 then True else False
+percIsRunning :: F64 -> F64 -> Bool
+percIsRunning totalTime state = if state < totalTime then True else False
 
 perc :: AudioFormat f => F64 -> F64 -> F64 -> Audio f -> Audio f
 perc attackTime decayTime curve input =
-  accumulateFinite1 (accumulatePerc (#attackTime, recip attackTime, recip decayTime, curve#)) percIsRunning input
+  accumulateFinite1 (accumulatePerc (#attackTime, recip attackTime, recip decayTime, curve#)) (percIsRunning (attackTime + decayTime)) input
 
 blocksPerSecond :: Rational
 blocksPerSecond = 48000 // 64

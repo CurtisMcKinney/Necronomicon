@@ -3602,23 +3602,23 @@ void necro_llvm_test_jit()
     //     necro_llvm_jit_string(test_name, test_source);
     // }
 
-    {
-        const char* test_name   = "Print Audio Block";
-        const char* test_source = ""
-            "main :: *World -> *World\n"
-            "main w = testJit w\n";
-        necro_llvm_jit_string(test_name, test_source);
-    }
-
     // {
-    //     const char* test_name   = "Print Saw";
+    //     const char* test_name   = "Print Audio Block";
     //     const char* test_source = ""
-    //         "coolSaw :: Audio Mono\n"
-    //         "coolSaw = saw 200\n"
     //         "main :: *World -> *World\n"
-    //         "main w = printLn coolSaw w\n";
+    //         "main w = testJit w\n";
     //     necro_llvm_jit_string(test_name, test_source);
     // }
+
+    {
+        const char* test_name   = "Print Saw";
+        const char* test_source = ""
+            "coolSaw :: Audio Stereo\n"
+            "coolSaw = saw 440 * 0.25 |> perc 2 5 1\n"
+            "main :: *World -> *World\n"
+            "main w = outAudio 0 coolSaw w\n";
+        necro_llvm_jit_string(test_name, test_source);
+    }
 
     // {
     //     const char* test_name   = "bitReverse 1";

@@ -749,7 +749,7 @@ cis :: F64 -> Complex
 cis theta = Complex (#cosine theta, sine theta #)
 
 polar :: Complex -> (F64, F64)
-polar c = (magnitude c, phase c) 
+polar c = (magnitude c, phase c)
 
 sqrMagnitude :: Complex -> F64
 sqrMagnitude (Complex (#r, i#)) = (r * r) + (i * i)
@@ -819,7 +819,7 @@ instance Floating Complex where
           Complex (#u, v#)
       else
         let
-          u = sqrt (2 * (magnitude z + abs r)) 
+          u = sqrt (2 * (magnitude z + abs r))
           v = u / 2
         in
           if r > 0 then
@@ -1448,27 +1448,35 @@ saw freq =
 select :: Bool -> a -> a -> a
 select c t f = if c then t else f
 
+boolToInt :: Bool -> Int
+boolToInt b = primUndefined
+
+-- TODO: Use curve!
 accumulatePerc :: (#F64, F64, F64, F64#) -> F64 -> F64 -> (#F64, F64#)
 accumulatePerc (#attackTime, recipAttackTime, recipDecayTime, curve#) input state =
   (#state', out#)
   where
-    state'      = state + recipSampleRate
-    attackDelta = state' * recipAttackTime
-    decayDelta  = 1 - ((state' - attackTime) * recipDecayTime)
-    out         = select (state' <= attackTime) attackDelta decayDelta * input
+    state'    = state + recipSampleRate
+    attackEnv = state' * recipAttackTime * isAttack
+    decayEnv  = 1 - ((state' - attackTime) * recipDecayTime)
+    isAttack  = fromInt (boolToInt (state' <= attackTime))
+    isDecay   = 1 - isAttack
+    env       = attackEnv * isAttack + decayEnv * isDecay
+    out       = env * input
 
-percIsRunning :: F64 -> Bool
-percIsRunning state = if state < 1 then True else False
+percIsRunning :: F64 -> F64 -> Bool
+percIsRunning totalTime state =
+  state < totalTime
 
 perc :: AudioFormat f => F64 -> F64 -> F64 -> Audio f -> Audio f
 perc attackTime decayTime curve input =
-  accumulateFinite1 (accumulatePerc (#attackTime, recip attackTime, recip decayTime, curve#)) percIsRunning input
+  accumulateFinite1 (accumulatePerc (#attackTime, recip attackTime, recip decayTime, curve#)) (percIsRunning (attackTime + decayTime)) input
 
 blocksPerSecond :: Rational
 blocksPerSecond = 48000 // 64
 
 blockDelta :: Rational
-blockDelta = recipRational blocksPerSecond
+blockDelta = recip blocksPerSecond
 
 
 --------------------
@@ -1777,11 +1785,8 @@ seqValueDurationMul :: Rational -> SeqValue a -> SeqValue a
 seqValueDurationMul speed (SeqValue (#t, c, v#)) =
   SeqValue (#t * speed, c, v#)
 
-recipRational :: Rational -> Rational
-recipRational (Rational (#n, d#)) = d // n
-
 seqSpeed :: Rational -> Seq a -> Seq a
-seqSpeed speed seq = Seq (\_ -> seqValueDurationMul (recipRational speed) (runSeq seq ()))
+seqSpeed speed seq = Seq (\_ -> seqValueDurationMul (recip speed) (runSeq seq ()))
 
 bpm :: Int -> Rational
 bpm tempoInBPM = tempoInBPM // 60
@@ -2386,6 +2391,7 @@ testJit w = print f64 w |> print " -> " |> print rF64 |> print " -> " |> print r
     f64 = pi
     rF64 = bitReverse f64
     rrF64 = bitReverse rF64
+
 
 -- testJit :: *World -> *World
 -- testJit w = printLn f64 w |> printLn (bitReverse f64) |> printLn (bitReverse <| bitReverse f64)
